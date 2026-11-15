@@ -30,10 +30,24 @@ def snap(tmp_path, monkeypatch):
     db.upsert_rows([dict(r) for r in ROWS])
 
 
+@pytest.fixture(autouse=True)
+def _fresh_memo(monkeypatch):
+    """Each test starts with no cached exclude set, and a refresh runs INLINE (the
+    background-thread behaviour has its own tests below, with the real `_spawn`)."""
+    from api.services.screener import query as Q
+    Q._reset_deal_memo()
+    monkeypatch.setattr(Q, "_spawn", lambda fn: fn())
+    yield
+    Q._reset_deal_memo()
+
+
 @pytest.fixture
 def deal(monkeypatch):
     """deal("off") | deal("on", {...}) | deal("broken")."""
+    from api.services.screener import query as Q
+
     def set_(state, pend=frozenset()):
+        Q._reset_deal_memo()
         CONSULTED.clear()
         if state == "off":
             monkeypatch.delenv("DEAL_STATUS_ENABLED", raising=False)
@@ -48,6 +62,7 @@ def deal(monkeypatch):
             def _boom():
                 raise RuntimeError("store unreadable")
             monkeypatch.setattr(deal_status, "screener_excludes", _boom)
+            monkeypatch.setattr(deal_status, "hand_list", _boom)
         else:
             monkeypatch.setattr(deal_status, "screener_excludes", lambda: frozenset(pend))
     return set_
@@ -100,3 +115,60 @@ def test_an_empty_exclude_set_adds_no_clause(snap, deal):
     deal("on", set())
     assert Q.deal_gate() is None
     assert _tickers() == ALL
+
+
+# ── a scan never waits on the exclude set's build (2026-11-14) ─────────────────
+
+def test_a_cold_exclude_set_never_blocks_a_scan(snap, monkeypatch):
+    """The full set's build is slow when cold (a read of it did not answer in 120 s on a
+    freshly booted pod). A scan must answer from the cheap hand lists meanwhile."""
+    import threading
+    import time as _t
+    from api.services.screener import query as Q
+    monkeypatch.setattr(Q, "_spawn", lambda fn: threading.Thread(target=fn, daemon=True).start())
+    monkeypatch.setenv("DEAL_STATUS_ENABLED", "1")
+    release = threading.Event()
+
+    def _slow():
+        release.wait(10)
+        return frozenset({"TECH", "ZZZ"})
+    monkeypatch.setattr(deal_status, "screener_excludes", _slow)
+    monkeypatch.setattr(deal_status, "hand_list", lambda: frozenset({"TECH"}))
+    monkeypatch.setattr(deal_status, "mirror_list", lambda: frozenset())
+    t0 = _t.monotonic()
+    assert _tickers() == ALL - {"TECH"}          # the hand list, at once
+    assert _t.monotonic() - t0 < 5, "the scan waited for the build"
+    release.set()
+    for _ in range(100):                            # the background build lands
+        if Q._DEAL_MEMO["syms"] is not None:
+            break
+        _t.sleep(0.05)
+    assert _tickers() == ALL - {"TECH", "ZZZ"}      # ...and the next scan uses it
+
+
+def test_a_failed_refresh_keeps_the_last_good_set(snap, deal, monkeypatch):
+    from api.services.screener import query as Q
+    deal("on", {"ZZZ"})
+    # the fallback lists hold nothing, so only a KEPT set can still leave ZZZ out
+    monkeypatch.setattr(deal_status, "hand_list", lambda: frozenset())
+    monkeypatch.setattr(deal_status, "mirror_list", lambda: frozenset())
+    assert _tickers() == ALL - {"ZZZ"}
+
+    def _boom():
+        raise RuntimeError("store unreadable")
+    monkeypatch.setattr(deal_status, "screener_excludes", _boom)
+    monkeypatch.setattr(Q, "DEAL_GATE_MAX_AGE_S", -1.0)   # every read is stale
+    assert _tickers() == ALL - {"ZZZ"}
+    assert Q._DEAL_MEMO["refreshing"] is False
+
+
+def test_only_one_refresh_runs_at_a_time(snap, monkeypatch):
+    from api.services.screener import query as Q
+    monkeypatch.setenv("DEAL_STATUS_ENABLED", "1")
+    spawned = []
+    monkeypatch.setattr(Q, "_spawn", lambda fn: spawned.append(fn))   # never runs
+    monkeypatch.setattr(deal_status, "hand_list", lambda: frozenset({"TECH"}))
+    monkeypatch.setattr(deal_status, "mirror_list", lambda: frozenset())
+    for _ in range(5):
+        assert _tickers() == ALL - {"TECH"}
+    assert len(spawned) == 1

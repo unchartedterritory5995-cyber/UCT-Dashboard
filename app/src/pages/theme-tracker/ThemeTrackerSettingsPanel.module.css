@@ -190,3 +190,78 @@
   transition: transform 0.15s ease;
 }
 .toggleOn .knob { transform: translateX(16px); background: var(--ut-green-bright); }
+
+/* === New board look (owner 11-14): every widget settings menu in the /charts menu style -
+   plain dark panel, sentence-case title and section labels, quiet rows, soft segmented
+   control, round swatches, a slim gold switch. Look only - every setting is unchanged. === */
+.panel { border-radius: 10px; background: var(--menu-bg, #16171a); border-color: var(--menu-border, #383b41); box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5); color-scheme: dark; }
+.panel .head { background: none; padding: 10px 8px 9px 14px; border-bottom: 1px solid var(--menu-divider, #2a2c31); }
+.panel .title { text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 700; color: var(--menu-text, #f8f7f3); }
+.panel .headRight { gap: 2px; }
+.panel .uReset { height: 24px; padding: 0 8px; border: none; border-radius: 6px; background: none; color: var(--menu-text-dim, #a9a59b); font: 600 11.5px var(--font-sans, inherit); cursor: pointer; }
+.panel .uReset:hover { color: var(--menu-text, #f8f7f3); background: var(--menu-hover, rgba(248, 247, 243, 0.06)); }
+.panel .close { width: 24px; height: 24px; border-radius: 6px; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; }
+.panel .body { padding: 2px 14px 12px; scrollbar-width: thin; scrollbar-color: rgba(248, 247, 243, 0.22) transparent; }
+.panel .sectionLabel { text-transform: none; letter-spacing: 0; font-size: 11.5px; font-weight: 700; color: var(--menu-text-dim, #a9a59b); border-bottom: none; margin: 14px 0 2px; padding: 0; }
+.panel .sectionLabel:first-child { margin-top: 8px; }
+.panel .row { min-height: 34px; }
+.panel .rowLabel { font-size: 12.5px; font-weight: 500; color: var(--menu-text, #f8f7f3); }
+.panel .hint { font-size: 11px; margin-top: 1px; color: var(--menu-text-faint, #93939a); }
+.panel .seg { border: none; border-radius: 7px; gap: 2px; padding: 2px; background: rgba(248, 247, 243, 0.06); }
+.panel .segBtn { border: none !important; border-radius: 5px; padding: 4px 10px; font-size: 12px; font-weight: 600; color: var(--menu-text-dim, #a9a59b); background: none; text-transform: none; letter-spacing: 0; }
+.panel .segBtn:hover { color: var(--menu-text, #f8f7f3); }
+.panel .segBtnOn { background: rgba(248, 247, 243, 0.13) !important; color: var(--menu-text, #f8f7f3) !important; }
+.panel .swatch { width: 20px; height: 20px; border-radius: 50%; border: 2px solid rgba(248, 247, 243, 0.18); box-shadow: none; }
+.panel .swatch:hover { border-color: rgba(248, 247, 243, 0.4); transform: none; }
+.panel .swatchActive { border-color: var(--menu-text, #f8f7f3); box-shadow: 0 0 0 2px rgba(220, 187, 94, 0.35); }
+.panel .gradArrow { color: var(--menu-text-faint, #93939a); }
+.panel .uBtn { height: 26px; padding: 0 10px; border: none; border-radius: 7px; background: rgba(248, 247, 243, 0.06); color: var(--menu-text, #f8f7f3); font: 600 12px var(--font-sans, inherit); cursor: pointer; white-space: nowrap; }
+.panel .uBtn::after { content: '\203A'; margin-left: 6px; color: var(--menu-text-dim, #a9a59b); }
+.panel .uBtn:hover { background: rgba(248, 247, 243, 0.11); }
+.panel .sizeSelect { height: 26px; border: none; border-radius: 7px; background-color: rgba(248, 247, 243, 0.06); padding: 0 24px 0 10px; font-size: 12px; font-weight: 600; color: var(--menu-text, #f8f7f3); }
+.panel .sizeSelect:hover { background-color: rgba(248, 247, 243, 0.11); }
+.panel .sizeSelect option { background: #16171a; color: #f8f7f3; }
+
+/* === Design B, grouped cards (owner 11-14): each section's rows sit in one rounded card,
+   split by hairlines; square swatches; a monochrome switch (white when on). Pure CSS - the
+   rows are untouched, a card is simply a run of adjacent .row siblings. === */
+.panel { background: #111214; border-radius: 12px; }
+.panel .head { border-bottom: none; padding: 12px 10px 6px 14px; }
+.panel .title { font-size: 14px; }
+.panel .close { background: rgba(248, 247, 243, 0.06); font-size: 11px; }
+.panel .close:hover { background: rgba(248, 247, 243, 0.12); }
+.panel .body { padding: 0 10px 12px; }
+.panel .sectionLabel { margin: 12px 4px 6px; font-size: 11px; font-weight: 600; color: var(--menu-text-faint, #93939a); }
+.panel .sectionLabel:first-child { margin-top: 4px; }
+.panel .row { min-height: 38px; padding: 0 12px; background: #1a1b1f; border-bottom: 1px solid #26282c; }
+.panel .row:first-child, .panel :not(.row) + .row { border-top-left-radius: 9px; border-top-right-radius: 9px; }
+.panel .row:last-child, .panel .row:not(:has(+ .row)) { border-bottom: none; border-bottom-left-radius: 9px; border-bottom-right-radius: 9px; }
+.panel .row:has(.hint) { min-height: 44px; }
+.panel .seg { background: #0f1012; }
+.panel .segBtn { padding: 3px 10px; font-size: 11.5px; }
+.panel .segBtnOn { background: #2c2e33 !important; }
+.panel .swatch { width: 18px; height: 18px; border-radius: 5px; border: none; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15); }
+.panel .swatch:hover { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4); }
+.panel .swatchActive { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15), 0 0 0 2px #111214, 0 0 0 4px var(--menu-text, #f8f7f3); }
+.panel .uBtn { background: none; padding: 0 2px; color: var(--menu-text-dim, #a9a59b); }
+.panel .uBtn:hover { background: none; color: var(--menu-text, #f8f7f3); }
+.panel .sizeSelect { background-color: transparent; color: var(--menu-text-dim, #a9a59b); }
+.panel .sizeSelect:hover { background-color: rgba(248, 247, 243, 0.06); color: var(--menu-text, #f8f7f3); }
+.panel .toggle { width: 32px; height: 18px; border: none; border-radius: 9px; background: rgba(248, 247, 243, 0.16); }
+.panel .toggleOn { background: var(--menu-text, #f8f7f3); }
+.panel .knob { top: 2px; left: 2px; width: 14px; height: 14px; background: #d8d6d0; }
+.panel .toggleOn .knob { transform: translateX(14px); background: #111214; }
+
+/* Where the menu sits (owner 11-14, useWidgetMenuPlacement): flush with the widget's top, as
+   tall as the widget (inline max-height), sliding in from the widget's side. */
+.panel { max-height: none; }
+.panel[data-side='right'] { animation: menuInRight 120ms ease-out; }
+.panel[data-side='left'] { animation: menuInLeft 120ms ease-out; }
+.panel[data-side='down'] { animation: menuInDown 120ms ease-out; }
+@keyframes menuInRight { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
+@keyframes menuInLeft { from { opacity: 0; transform: translateX(6px); } to { opacity: 1; transform: none; } }
+@keyframes menuInDown { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .panel[data-side] { animation: none; } }
+
+/* section titles a touch brighter (owner 11-14) */
+.panel .sectionLabel { color: #c9c6be; }

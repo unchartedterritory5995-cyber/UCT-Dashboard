@@ -303,8 +303,6 @@ const CHART_OWNER = 'owner-blocked: app/src/components/chart/** belongs to the c
 // here whatever its caller passes. components/mobile/ResponsiveTable.jsx takes `label`; its one
 // caller, journal-2-0's NotesTableView (Notebook-owned, forbidden to this lane), does not pass it yet.
 export const MOUNTED_BASELINE = new Map([
-  // The bars-adjustment popover (reached through the Chart panel's StockChart).
-  ['components/chart/AdjustmentLabel.jsx', { unnamed: 1, unscoped: 4, unsorted: 0, why: CHART_OWNER }],
   // The builder's Evidence tab (reached through the chart's builder sheet).
   ['components/chart/builder/EvidenceTab.jsx', { unnamed: 1, unscoped: 6, unsorted: 0, why: CHART_OWNER }],
 ])

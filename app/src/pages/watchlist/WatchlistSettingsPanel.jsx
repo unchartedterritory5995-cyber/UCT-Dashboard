@@ -13,6 +13,7 @@ import Switch from '../../components/ui/Switch'
 import WidgetThemeSection from '../charts/widgets/WidgetThemeSection'
 import { WATCHLIST_FONT_SIZES } from './watchlistSettings'
 import styles from './WatchlistSettingsPanel.module.css'
+import useWidgetMenuPlacement from '../charts/widgets/useWidgetMenuPlacement'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
 
@@ -58,23 +59,7 @@ export default function WatchlistSettingsPanel({
 
   // Place the settings menu to the LEFT of the watchlist (flip to the right if there's
   // no room), portaled so the watchlist's overflow can't clip it.
-  useLayoutEffect(() => {
-    if (!hostEl) return
-    const place = () => {
-      const r = hostEl.getBoundingClientRect()
-      const gap = 8
-      let left = r.left - gap - PANEL_W
-      if (left < 8) left = Math.min(window.innerWidth - PANEL_W - 8, r.right + gap)  // no room left → right
-      left = Math.max(8, left)
-      let top = Math.max(8, r.top)
-      const panelH = Math.min(540, Math.round(window.innerHeight * 0.8))
-      if (top + panelH > window.innerHeight - 8) top = Math.max(8, window.innerHeight - 8 - panelH)
-      setPos({ left: Math.round(left), top: Math.round(top) })
-    }
-    place()
-    window.addEventListener('resize', place)
-    return () => window.removeEventListener('resize', place)
-  }, [hostEl])
+  useWidgetMenuPlacement({ hostEl, gearEl, panelW: PANEL_W, setPos, onClose })
 
   // Pop the ColorPanel out to the RIGHT of the settings menu (flip left if tight),
   // bottom-aligned to the menu — exactly like Chart Settings.
@@ -147,14 +132,15 @@ export default function WatchlistSettingsPanel({
     <>
       <div
         ref={panelRef}
+        data-side={pos?.side}
         className={styles.panel}
-        style={{ ...(themeVars || {}), ...(pos ? { left: pos.left, top: pos.top } : { visibility: 'hidden' }) }}
+        style={{ ...(themeVars || {}), ...(pos ? { left: pos.left, top: pos.top, maxHeight: pos.maxHeight } : { visibility: 'hidden' }) }}
         onClick={e => e.stopPropagation()}
       >
         <div className={styles.head}>
-          <span className={styles.title}><UIcon name="gear" size={13} /> Watchlist Settings</span>
+          <span className={styles.title}>Watchlist Settings</span>
           <div className={styles.headRight}>
-            <button className="btn btn-ghost btn-sm" onClick={onReset} title="Restore watchlist settings to defaults">↺ Reset</button>
+            <button className={styles.uReset} onClick={onReset} title="Restore watchlist settings to defaults">Reset</button>
             <button className={styles.close} onClick={onClose} title="Close">✕</button>
           </div>
         </div>
@@ -226,7 +212,7 @@ export default function WatchlistSettingsPanel({
         <div className={styles.body}>
           <div className={styles.sectionLabel}>Theme</div>
           <Row label="UCT theme" hint="whole-widget look">
-            <WidgetThemeSection widgetType={widgetType} currentSettings={s} onSettings={(next) => onChange(next)} themeVars={themeVars} buttonClass="btn btn-ghost btn-sm" />
+            <WidgetThemeSection widgetType={widgetType} currentSettings={s} onSettings={(next) => onChange(next)} themeVars={themeVars} buttonClass={styles.uBtn} buttonLabel="UCT Themes" />
           </Row>
           {/* Canvas */}
           <div className={styles.sectionLabel}>Canvas</div>

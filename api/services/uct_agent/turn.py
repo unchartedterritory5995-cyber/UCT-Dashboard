@@ -570,6 +570,60 @@ def _del_path(d: dict, path: str) -> None:
             break
 
 
+# ⛔ BUG C (owner live test 2026-11-14; AUDIT T2 on #1289): a TIMEFRAME enum arg (by schema: it holds D and W and a minute
+# bucket) reads its value BY GRAMMAR — [number][ -|space ]unit — never by a word list. The SAME rule as the browser
+# (app/src/agent/capabilities/timeframeWords.js parseTimeframe); parity: app/src/agent/contract/timeframe.parity.json.
+# Only a value the arg's own enum offers; "1m" (a minute or a month), "4 hours" (240 is not offered), "2 weeks" stay as said.
+_TF_UNIT = {"m": "m", "min": "m", "mins": "m", "minute": "m", "minutes": "m",
+            "h": "h", "hr": "h", "hrs": "h", "hour": "h", "hours": "h",
+            "d": "d", "day": "d", "days": "d",
+            "w": "w", "wk": "w", "week": "w", "weeks": "w",
+            "mo": "mo", "month": "mo", "months": "mo"}
+_TF_LY = {"hourly": "h", "daily": "d", "weekly": "w", "monthly": "mo"}
+_TF_LETTER = {"m", "h", "d", "w", "mo"}
+_TF_SHAPE = re.compile(r"^(\d{1,4})?\s*-?\s*([a-z]+)$")
+
+
+def _is_timeframe_enum(spec: dict) -> bool:
+    vals = {v for v in (spec.get("enum") or []) if isinstance(v, str)}
+    return {"D", "W"} <= vals and bool(vals & {"1", "5", "15", "30", "60"})
+
+
+def _parse_timeframe(v: Any, enum: list) -> str | None:
+    """The canonical timeframe a string spells, if this enum offers it — else None (left as said; the enum refuses it)."""
+    if not isinstance(v, str):
+        return None
+    s = re.sub(r"\s+", " ", v.strip().lower())
+    m = _TF_SHAPE.match(s)
+    if not m:
+        return None
+    n = int(m.group(1)) if m.group(1) is not None else None
+    word = m.group(2)
+    if word in _TF_LY:
+        if n is not None:
+            return None
+        unit, n = _TF_LY[word], 1
+    elif word in _TF_UNIT:
+        unit = _TF_UNIT[word]
+        if n is None:
+            if word in _TF_LETTER:
+                return None
+            n = 1
+        if word == "m" and n == 1:
+            return None
+    else:
+        return None
+    if not n:
+        return None
+    if unit == "m":
+        value = str(n)
+    elif unit == "h":
+        value = str(n * 60)
+    else:
+        value = {"d": "D", "w": "W", "mo": "M"}[unit] if n == 1 else None
+    return value if value is not None and value in (enum or []) else None
+
+
 def _coerce_schema(spec: dict, v: Any, path: str, applied: list[str]) -> Any:
     """The schema-driven rules for ONE value: strings the schema types as boolean / number / null, enum
     case-folding, numbers the schema types as an enum string; lists element by element; nested objects
@@ -602,6 +656,11 @@ def _coerce_schema(spec: dict, v: Any, path: str, applied: list[str]) -> Any:
             if hit is not None:
                 applied.append(f"{path}:enum-case")
                 return hit
+            if _is_timeframe_enum(spec):
+                tf = _parse_timeframe(v, enum)
+                if tf is not None:
+                    applied.append(f"{path}:timeframe")
+                    return tf
         return v
     if isinstance(v, bool):
         if "boolean" not in types and enum:
@@ -691,7 +750,68 @@ def normalize_args(cap: dict, args: Any) -> tuple[Any, list[str]]:
     return out, applied
 
 
-def expand_compact_ops(env: dict, capabilities: list[dict]) -> dict:
+# ⛔ BUG C (owner live test 2026-11-14): an op whose args miss its schema still kills the WHOLE envelope (fail-closed, no repair
+# round — no extra model call), but the member hears WHICH step and WHICH setting, never the generic "one of the steps". The
+# sentence names the setting by its schema KEY (code, not member data), the target by its <workspace_context> label (UCT's own
+# words), and the value only when the member typed it themselves. ARGS_SCHEMA_COUNTS counts (action, key) — never a value.
+ARGS_SCHEMA_COUNTS: dict[tuple[str, str], int] = {}
+
+
+def _schema_miss(schema: dict, args: Any) -> tuple[str, str | None]:
+    """Why these args miss a closed schema: ('missing' | 'extra' | 'value', key) or ('shape', None)."""
+    props = (schema or {}).get("properties") or {}
+    if not isinstance(args, dict):
+        return "shape", None
+    for k in props:
+        if k not in args:
+            return "missing", k
+    for k in args:
+        if k not in props:
+            return "extra", str(k)
+    for k in props:
+        if not _value_ok(props[k], args[k]):
+            return "value", k
+    return "shape", None
+
+
+def _ref_label(context: Any, ref: Any) -> str | None:
+    """The <workspace_context> label UCT wrote for a ref (never member text), or None."""
+    if not isinstance(context, dict) or not isinstance(ref, str):
+        return None
+    for section in context.values():
+        if not isinstance(section, list):
+            continue
+        for e in section:
+            if isinstance(e, dict) and e.get("ref") == ref:
+                lab = e.get("label") or e.get("chart") or e.get("name")
+                return _clean(str(lab), 60) if lab else None
+    return None
+
+
+def args_schema_sentence(action: Any, target: Any, args: Any, schema: dict, message: str | None, context: Any) -> str:
+    """The member's sentence for ONE op whose args miss its schema (see ARGS_SCHEMA_COUNTS)."""
+    why, key = _schema_miss(schema, args)
+    where = _ref_label(context, target)
+    on = f" for {where}" if where else ""
+    if why == "value" and key:
+        v = args.get(key) if isinstance(args, dict) else None
+        said = ""
+        if isinstance(v, (str, int, float)) and not isinstance(v, bool):
+            t = str(v).strip()
+            if t and len(t) <= 24 and "\n" not in t and t.lower() in str(message or "").lower():
+                said = f" “{t}”"
+        return f"I couldn't read the {key.replace('_', ' ')}{said}{on}, so nothing was changed. Try saying the {key.replace('_', ' ')} another way."
+    if why in ("missing", "extra"):
+        return f"I couldn't fill in one of the steps{on} — it was missing a setting or used one that step doesn't have — so nothing was changed. Try naming the values directly."
+    return _UNREADABLE_SAYS["args"]
+
+
+def _count_args_schema(action: Any, key: str | None) -> None:
+    k = (_clean(str(action or "?"), 60), _clean(str(key or "-"), 40))
+    ARGS_SCHEMA_COUNTS[k] = ARGS_SCHEMA_COUNTS.get(k, 0) + 1
+
+
+def expand_compact_ops(env: dict, capabilities: list[dict], *, message: str | None = None, context: Any = None) -> dict:
     """COMPACT ops → {action, target, args}. Args that are not JSON, or that do not
     match the action's own schema (after normalize_args), make the whole envelope unreadable (never guessed)."""
     by_name = {c["name"]: c for c in capabilities}
@@ -711,9 +831,15 @@ def expand_compact_ops(env: dict, capabilities: list[dict]) -> dict:
             if applied:
                 log.info("uct_agent args normalized: %s %s", o.get("action"), applied)
         if cap is None or not args_match(cap["args"], args):
-            _unreadable("args_schema", action=o.get("action"),
-                        keys=sorted(args) if isinstance(args, dict) else type(args).__name__,
-                        want=sorted((cap or {}).get("args", {}).get("properties") or {}))
+            miss = _schema_miss(cap["args"], args) if cap is not None else ("action", None)
+            _count_args_schema(o.get("action"), miss[1])
+            log.warning("uct_agent unreadable: args_schema %s", {"action": o.get("action"), "why": miss[0], "key": miss[1],
+                        "keys": sorted(args) if isinstance(args, dict) else type(args).__name__,
+                        "want": sorted((cap or {}).get("args", {}).get("properties") or {})})
+            if cap is not None:
+                raise TurnError(args_schema_sentence(o.get("action"), o.get("target"), args, cap["args"], message, context),
+                                reason="unreadable:args_schema")
+            _unreadable("args_schema", action=o.get("action"), keys=sorted(args) if isinstance(args, dict) else type(args).__name__, want=[])
         out.append({"action": o.get("action"), "target": o.get("target"), "args": args})
     return {**env, "ops": out}
 
@@ -2861,7 +2987,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             # THIS call, from the member's words alone, before any web text existed — it is
             # kept as planned. Nothing the post-research call returns can add or alter ops.
             if env.get("disposition") in MUTATING and env.get("ops"):
-                planned = expand_compact_ops(env, caps) if compact else normalize_embedded_ops(env, caps)
+                planned = expand_compact_ops(env, caps, message=msg, context=context) if compact else normalize_embedded_ops(env, caps)
                 pre_research = {"disposition": env["disposition"], "ops": list(planned.get("ops") or [])}
             usage["research_calls"] += 1
             if researched is not None:
@@ -2929,7 +3055,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             env = {**env, "disposition": "answer", "ops": [], "question": None,
                    "reply": env.get("reply") or "I can only answer questions about this headline here."}
         if isinstance(env, dict) and env.get("disposition") in MUTATING:
-            env = expand_compact_ops(env, caps) if compact else normalize_embedded_ops(env, caps)
+            env = expand_compact_ops(env, caps, message=msg, context=context) if compact else normalize_embedded_ops(env, caps)
         envelope = enforce_approval(finish(sanitize_envelope(env, valid_refs, cap_names, unselected_ids, local_notice=notice,
                                                              claim_repaired=bool(usage.get("false_claim")),
                                                              knowledge_no_web=kn_no_web,
