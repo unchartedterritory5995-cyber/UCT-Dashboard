@@ -60,7 +60,7 @@
   ],
   "coverageMeasuredOn": "2026-11-05",
   "coverageMasterSha": "3ca4b0d358",
-  "fixtures": 661,
+  "fixtures": 672,
   "ledgerRows": 103
  },
  "definitions": {
@@ -5535,7 +5535,8 @@
    "chartSource": "section",
    "unparsedCharts": [],
    "capturedOn": [
-    "AMEX:SPY D"
+    "AMEX:SPY D",
+    "NYSE:RDDT D"
    ],
    "licence": "probe",
    "needsLive": false,
@@ -13870,7 +13871,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -14298,7 +14301,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
