@@ -498,6 +498,12 @@ export const GROUPS = [
       /\breplay\s+(?:bar|speed|playback|controls?|scrubber|slider)\b|\btime machine\b/,
       /\b(?:in|on|during|through) (?:the |this |my )?(?:bar )?replay\b(?!\s+mode\b).*\b(?:step|forward|back|next|previous|bars?|play|pause|speed|faster|slower)\b|\b(?:step|forward|next|previous|bars?|play|pause|speed|faster|slower)\b.*\b(?:in|on|during|through) (?:the |this |my )?(?:bar )?replay\b(?!\s+mode\b)/,
       /\breplay\b(?!\s+mode\b).*\b(?:\d+ ?x|faster|slower)\b|\b(?:\d+ ?x|faster|slower)\b.*\breplay\b(?!\s+mode\b)/] },
+  // Phase 2 COT research (cot.positioning): CFTC Commitments of Traders positioning in its OWN group, WORDS-ONLY and fillLast (as
+  // indicatorCalc / chartMenu): never a filler, so no existing group and no unrecognised request changes. `words` stays EMPTY here:
+  // capabilities/cot.js arms them only while the capability is registered (the server serves the `cot.positioning` kind), so on a
+  // dark server this group never matches and routing is byte-identical to the base (as playbook / coach). Last in the catalog.
+  { id: 'cot', title: 'CFTC COT futures positioning (specs, commercials, open interest): changes, N-year extremes, comparisons', domains: ['cot'], fillLast: true, wordsOnly: true,
+    words: [] },
 ]
 // chartReplay: the replay bar's bare playback words, which route there ONLY while a chart's bar replay is on (namedGroups)
 const REPLAY_ON_WORDS = /^(?:please )?(?:play|pause|resume|unpause|stop)\b|\b(?:play|pause|resume) (?:it|playback|playing)\b|\b(?:next|previous|prev|last) bar\b|\bstep (?:it )?(?:forward|back(?:ward)?)\b|\b(?:forward|back) (?:\d+|one|a|ten) bars?\b|\b(?:speed (?:it )?up|slow (?:it )?down|faster|slower)\b|\b(?:1|5|20) ?x\b|\b(?:to )?the (?:start|end|beginning)\b/
