@@ -449,6 +449,32 @@ export const indicatorEditsKind = {
   },
   stateOf: (s) => ({ chart: s.label, chartRef: s.chartRef, cs: s.cs, canManage: s.canManage, rows: s.rows, chartTf: s.tf ?? null, symbol: s.symbol, change: null }),
   patch: (before, after) => (after.change ? { change: after.change } : null),
+  // ⛔ STEP IDENTITY (11-14, BUG B — agent/stepIdentity.js): the instance a queued step's words mean on the state the member
+  // asked about ("#20:ema", "#20", "EMA 20", an id) — pinned before the first step runs, compared with the live reading after
+  pinIdentity(host, op) {
+    const words = op?.args?.instance
+    if (typeof words !== 'string' || !words.trim()) return null
+    const snap = indicatorEditsKind.read(host, op.target)
+    if (!snap) return null
+    const st = indicatorEditsKind.stateOf(snap)
+    const t = targetOf(st, words)
+    if (!t.ok || !t.instanceId) return null
+    const row = (st.rows || []).find(r => r.instanceId === t.instanceId)
+    return { arg: 'instance', words, id: t.instanceId, name: row?.name || null }
+  },
+  resolvePinned(host, op, pin) {
+    const aimed = { ...op, args: { ...op.args, [pin.arg]: pin.id } }
+    const snap = indicatorEditsKind.read(host, op.target)
+    if (!snap) return { op }
+    const st = indicatorEditsKind.stateOf(snap)
+    const now = targetOf(st, pin.words)
+    if (now.ok && now.instanceId === pin.id) return { op: aimed }
+    if (now.ok || now.reason === REASONS.AMBIGUOUS) {
+      return { say: `I didn’t change ${pin.name || 'that indicator'} in this step: after the change before it, “${String(pin.words).replace(/^#/, '')}” could mean a different indicator on ${st.chart}, so I left it. Say which one (for example by its new length).` }
+    }
+    const still = (st.rows || []).some(r => r.instanceId === pin.id)
+    return { op: still ? aimed : op }
+  },
   // A change, or an Undo — both through the Indicators interface, then the chart's own
   // persist, then the authoritative read-back.
   async commit(host, ref, patch) {
