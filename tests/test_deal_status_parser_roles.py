@@ -110,6 +110,11 @@ def _isolated(monkeypatch, tmp_path):
     monkeypatch.setattr(ds, "_today", lambda: TODAY)
     monkeypatch.setattr(ds, "_delisted", lambda sym: False)
     monkeypatch.setattr(ds, "_stale_ref", lambda: None)
+    # The owner-edited hand lists are DATA, not fixtures: a name an owner adds there (ATKR was,
+    # 2026-11-14) must not change what these parser tests prove.
+    monkeypatch.setattr(ds, "hand_deals", lambda: frozenset())
+    monkeypatch.setattr(ds, "mirror_list", lambda: frozenset())
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
     from api.services.news import subject
     for sym, name in NAMES.items():
         monkeypatch.setitem(subject._NAME_CACHE, sym, name)

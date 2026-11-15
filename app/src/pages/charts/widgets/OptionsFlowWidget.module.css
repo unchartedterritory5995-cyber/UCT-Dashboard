@@ -312,3 +312,36 @@
 @container (max-width: 250px) {
   .sub { display: none; }
 }
+
+/* ── UCT frame (owner 11-13, /charts board only — :global(.uct-frame) set by WidgetHost):
+      the frame header already names the widget, so the inner title row folds away and its
+      gear rides at the right end of the controls row; the toggles are plain text, the
+      active one white with a short gold bar — the chart widget's style. ── */
+:global(.uct-frame) .bar { height: 0; padding: 0; border: none; z-index: 2; }
+:global(.uct-frame) .bar .titleWrap { display: none; }
+:global(.uct-frame) .bar .gearBtn { top: 7px; transform: none; width: 24px; height: 22px; padding: 0; border-radius: 6px; color: var(--widget-text, var(--flow-chrome, #cfcac0)); }
+:global(.uct-frame) .bar .gearBtn:hover,
+:global(.uct-frame) .bar .gearBtnActive { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); background: var(--widget-row-hover, rgba(255, 255, 255, 0.07)); }
+:global(.uct-frame) .controls { padding: 4px 40px 4px 6px; gap: 10px; min-height: 36px; border-bottom-color: var(--flow-divider, var(--widget-divider, var(--border))); }
+:global(.uct-frame) .seg { border: none; border-radius: 0; gap: 2px; overflow: visible; }
+:global(.uct-frame) .segBtn {
+  position: relative;
+  background: none;
+  padding: 6px 7px;
+  font-size: 12.5px;
+  color: var(--widget-text, var(--flow-chrome, var(--text-muted, #cfcac0)));
+}
+:global(.uct-frame) .segBtn + .segBtn { border-left: none; }
+:global(.uct-frame) .segBtn:hover { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+:global(.uct-frame) .segBtnOn { background: none; color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); font-weight: 700; }
+:global(.uct-frame) .segBtnOn::after {
+  content: '';
+  position: absolute;
+  left: 7px;
+  right: 7px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--widget-accent, var(--accent, #dcbb5e));
+}
+:global(.uct-frame) .seg + .seg { padding-left: 10px; border-left: 1px solid var(--flow-divider, var(--widget-divider, var(--border))); }

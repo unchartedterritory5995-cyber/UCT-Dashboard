@@ -58,7 +58,10 @@ const LISTS = [
   { id: 'w2', name: 'Earnings', symbols: ['CRM', 'ADBE'] },
 ]
 const quote = (price, volume, change_pct) => ({ price, volume, change_pct, prev_close: price })
-const PRICES = { NVDA: quote(10, 500, 1), TSLA: quote(40, 300, -2), AMD: quote(30, 100, 4), AAPL: quote(20, 200, 3), MSFT: quote(50, 400, 2), CRM: quote(60, 10, 1), ADBE: quote(70, 20, 2) }
+// A watchlist sorts by % change (high to low) until the member picks a sort (owner 11-13), so each
+// list's % changes descend in its SAVED order: the default view and the saved order agree, and every
+// test below keeps reading the rows it was written against.
+const PRICES = { NVDA: quote(10, 500, 5), TSLA: quote(40, 300, 4), AMD: quote(30, 100, 3), AAPL: quote(20, 200, 2), MSFT: quote(50, 400, 1), CRM: quote(60, 10, 2), ADBE: quote(70, 20, 1) }
 const META = { NVDA: { rvol: 150 }, TSLA: { rvol: 900 }, AMD: { rvol: 300 }, AAPL: { rvol: 700 }, MSFT: { rvol: 500 } }
 const RVOL_ORDER = ['TSLA', 'AAPL', 'MSFT', 'AMD', 'NVDA']
 const SAVED = LISTS[0].symbols
@@ -108,7 +111,8 @@ function board(widgets = ON_MOMENTUM(), { sym = 'NVDA', lists = LISTS, syncFails
 }
 
 const rowsOf = (id = 'wl') => [...document.querySelector(`[data-testid="w-${id}"]`).querySelectorAll('[data-watch-sym]')].map(e => e.getAttribute('data-watch-sym'))
-const headers = (id = 'wl') => [...document.querySelector(`[data-testid="w-${id}"]`).querySelectorAll('[aria-label^="Sort by"]')].map(e => e.textContent)
+// the sorted column's ▲/▼ (owner 11-14) is drawn, not part of its name
+const headers = (id = 'wl') => [...document.querySelector(`[data-testid="w-${id}"]`).querySelectorAll('[aria-label^="Sort by"]')].map(e => e.textContent.replace(/[▲▼]/g, ''))
 const cols = () => JSON.parse(localStorage.getItem(COLS) || 'null')
 const flags = () => JSON.parse(localStorage.getItem(FLAGGED) || '[]')
 const server = (m, name) => m.srv.lists.find(l => l.name === name)?.items.map(i => i.sym) ?? null
