@@ -70,6 +70,14 @@ def test_workflow_sparse_checkout_carries_every_file_the_tool_reads():
     assert '"measurement_window.py"' in freeze and "api/services/measurement_window.py" in listed
 
 
+def test_a_red_report_does_not_end_the_step_before_its_exit_is_read():
+    # Actions runs `bash -e`: a bare `code=$?` after the command is never reached when the report exits 1 or 2
+    doc = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+    step = next(r for r in _commands(doc) if "tools/live_check.py" in r and "--post" in r)
+    call = next(line for line in step.splitlines() if "tools/live_check.py" in line and not line.strip().startswith("#"))
+    assert call.rstrip().endswith("|| code=$?"), call
+
+
 def test_runs_queue_instead_of_cancelling_each_other():
     # a skipped promotion run cancelled the first real run while cancel-in-progress was true
     doc = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
