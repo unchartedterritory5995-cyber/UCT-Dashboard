@@ -641,7 +641,7 @@ def public_library(limit: int = 24, after: Optional[int] = None,
 
 
 @router.get("/capability-worker")
-def capability_worker(user: dict = Depends(get_current_user_with_plan)):
+def capability_worker(user: dict = Depends(require_paid)):
     """U5 (review L6): the capability detector process, for the operator before and after
     arming `PINE_CAPABILITY_DETECTOR_WORKER`: enabled, alive, ready, pid, quarantine size and
     the call counters. ADMIN ONLY. Reads state; starts nothing."""
