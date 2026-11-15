@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { cleanup, screen } from '@testing-library/react'
 import { registerBuiltins } from './builtins'
 import { setupPanel, ONE } from './testing/panelHarness'
-import { manifestFor } from './capabilities'
+import { manifestFor, normalizeArgs } from './capabilities'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 registerBuiltins()
@@ -87,14 +87,13 @@ describe('BUG C · the resumed plan after the pick: the model\'s words for "1-ho
 })
 
 
-// the manifest the model and the server read (turn.py normalize_args applies the capability's OWN coerce): chart.setTimeframe
-// must know the timeframe words widget.addCharts already knows
-describe('BUG C · chart.setTimeframe declares the timeframe words', () => {
-  it.each(['1h', 'hourly', '60m', '1hr', 'daily', 'weekly'])('coerce maps %j like widget.addCharts', (w) => {
-    const caps = manifestFor({ surface: 'charts' })
-    const tf = caps.find(c => c.name === 'chart.setTimeframe')
-    const add = caps.find(c => c.name === 'widget.addCharts')
-    expect(add?.coerce?.timeframe?.[w], 'widget.addCharts already knows it').toBeDefined()
-    expect(tf?.coerce?.timeframe?.[w], 'chart.setTimeframe has no word for it').toBe(add.coerce.timeframe[w])
+// chart.setTimeframe reads the model's spelling of a timeframe exactly as widget.addCharts does (by GRAMMAR — capabilities/
+// timeframeWords.js; the server mirrors it in turn.py _coerce_schema). Was: no word for it → the whole turn refused.
+describe('BUG C · chart.setTimeframe reads timeframe spellings like widget.addCharts', () => {
+  it.each(['1h', 'hourly', '60m', '1hr', 'daily', 'weekly', '15 minutes', '1-hour'])('%j', (w) => {
+    const tf = normalizeArgs('chart.setTimeframe', { timeframe: w }).args.timeframe
+    const add = normalizeArgs('widget.addCharts', { symbols: ['NVDA'], timeframe: w, chart_type: null, exact: null }).args.timeframe
+    expect(manifestFor({ surface: 'charts' }).find(c => c.name === 'chart.setTimeframe').args.properties.timeframe.enum).toContain(tf)
+    expect(tf).toBe(add)
   })
 })
