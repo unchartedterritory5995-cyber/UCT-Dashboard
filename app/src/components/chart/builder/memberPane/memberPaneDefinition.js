@@ -33,7 +33,7 @@ import { registerStrategyBrokerGate } from '../../engine/strategyBrokerGateRegis
 // W9-T1: the broker's build flag is read here (outside the server compute closure) and handed to the front end.
 registerStrategyBrokerGate(strategyBrokerEnabled)
 import { PINE_RECURRENCE_ORIGIN } from '../../engine/nativeRegistry'
-import { naConditionIsFalse } from '../../engine/ast/interpret'
+import { pineNaConditionIsFalse } from '../../engine/ast/interpret'
 import { probeRuntimeProgram, probeObjectRuntime, runtimeVersionStamp, colourInputsTheRunReads } from '../../engine/runtime/runtimeColumns'
 import { STRATEGY_WINDOW_HISTORY } from '../../engine/runtime/strategyRecord'
 import { runtimeRepaintOf } from '../../engine/runtime/runtimeRepaint'
@@ -941,7 +941,7 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     // v5 and v6). Applied only from the listing, beside `recurrenceOrigin`
     // (`nativeRegistry.listingOptsFor`). Outside the trees, so no tree hash moves;
     // a document without it keeps `TERNARY`'s answer.
-    ...(naConditionIsFalse(t.version) ? { naConditionFalse: true } : {}),
+    ...(pineNaConditionIsFalse(t.version) ? { naConditionFalse: true } : {}),
     // ⭐⭐ C26 — the other symbols the trees read and how the script SPELLED each
     // (`translatePine`'s `otherSymbols`). The bind decides from it which listing
     // TradingView means (`engine/otherSymbols.js`); absent for every script that

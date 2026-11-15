@@ -473,7 +473,8 @@ export function execute(program, ctx, limits, opts) {
   const winReduce = winPlan.map((w) => {
     const spec = FINITE_WINDOW[w.fn]
     if (!spec) throw new VmError(`no finite-window reducer for \`${w.fn}\``)
-    return spec.reduce
+    // ⭐ ENGINE 56 (S4-2) — over a bar price the newest tied bar wins (`interpret.js`)
+    return w.newest === true && spec.reduceNewest ? spec.reduceNewest : spec.reduce
   })
   // ⚰️⚰️ THERE WAS A `histPresent` FLAG ARRAY HERE, AND MEASURING IT KILLED IT.
   //

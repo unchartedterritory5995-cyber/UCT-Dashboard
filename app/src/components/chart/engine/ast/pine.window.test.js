@@ -278,7 +278,12 @@ describe('the fold computes what the ENGINE computes, derived', () => {
       const v = constantValueOf(cCallNode(name, args))
       if (v !== null) accepted.push(name)
     }
-    expect(accepted.sort()).toEqual(POINTWISE_KEYS)
+    // ⭐ ENGINE 56 — `boolNaWithheld(operand, flag)` is the one pointwise entry the 0.5 probe cannot
+    // fold: a flag that is not 0 withholds the bar (the engine answers no number), so the fold
+    // declines, as R1 requires. With a 0 flag it folds to its operand.
+    expect(accepted.sort()).toEqual(POINTWISE_KEYS.filter((k) => k !== 'boolNaWithheld'))
+    expect(constantValueOf(cCallNode('boolNaWithheld', [cNumNode(0.5), cNumNode(0)]))).toBe(0.5)
+    expect(constantValueOf(cCallNode('boolNaWithheld', [cNumNode(0.5), cNumNode(0.5)]))).toBe(null)
   })
 
   it('⛔ R3 — the fold NEVER changes the guard, token or position of a refusal it declines', () => {

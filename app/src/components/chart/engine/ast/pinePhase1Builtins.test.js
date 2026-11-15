@@ -530,11 +530,12 @@ describe('robustness — what used to translate and then fail, or refuse before 
     ].join('\n'))
     const ours = throughTheDoor(src, SPY)
     // TradingView's own formula, by hand: 100 * (14 - bars since the 15-bar high) / 14,
-    // a tie read at the OLDEST bar holding the high (`_functions_arg_extreme`)
+    // a tie read at the NEWEST bar holding the high: over a bar price the newest tied bar wins
+    // (engine 56, `_functions_arg_extreme`; the builtin Aroon's RDDT capture, bar 116)
     const h = SPY.bars.rows.map((r) => r[2])
     for (let i = 14; i < 600; i++) {
       let best = i - 14
-      for (let k = i - 14; k <= i; k++) if (h[k] > h[best]) best = k
+      for (let k = i - 14; k <= i; k++) if (h[k] >= h[best]) best = k
       const want = (100 * (14 - (i - best))) / 14
       expect(ours['Aroon Up'][i], `bar ${i}`).toBeCloseTo(want, 9)
     }

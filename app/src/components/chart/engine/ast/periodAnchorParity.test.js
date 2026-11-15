@@ -303,7 +303,10 @@ describe('C36 · parity with the Python lane — one fixture, both lanes', () =>
     // and have their own fixture, both lanes (`bar_index_shift_parity.json`).
     expect([...codes].sort()).toEqual(Object.keys(CHART_CLOCK_WITHHELD)
       .filter((k) => k !== 'time-anchor:other-bars' && !k.startsWith('bar-index:') && !k.startsWith('running-total:')
-        && !k.startsWith('var-origin:')).sort())
+        && !k.startsWith('var-origin:')
+        // ⭐ ENGINE 56 — the two per-bar witness codes (`pine:bool-na-unwitnessed`, `pine:tie-unwitnessed`)
+        // read no clock; both lanes rail them in `engine56Values.test.js` / `tests/test_engine56_values.py`
+        && !k.startsWith('pine:')).sort())
     for (const code of codes) expect(typeof CHART_CLOCK_WITHHELD[code]('5')).toBe('string')
     for (const code of CHART_CLOCK_WHOLE) expect(Object.keys(CHART_CLOCK_WITHHELD)).toContain(code)
   })

@@ -248,6 +248,14 @@ plot(${n}(volume))
       // dialect: no platform spells it, exactly as none spells `accum`. Named here
       // rather than excused silently, so a door that ever learns one is a closure.
       'accum2', 'accum3', 'accum4',
+      // ⭐⭐ `boolNaWithheld` (2026-11-14, engine 56 A3) — the same shape as `barsAgo`: written ONLY by
+      // the Pine door itself (`pine.js::boolNaOperator`) around the operand of a v1-v5 operator that meets
+      // a `bool` `na` no capture has witnessed. No Pine script writes `boolNaWithheld(...)`; the literal
+      // probe correctly finds no door, and `engine56Values.test.js` proves the operator lands on it.
+      'boolNaWithheld',
+      // ⭐ `tieNewest` (2026-11-14, engine 56 S1) — written ONLY by the Pine door around a v4 / v5
+      // `ta.highestbars` / `ta.lowestbars` source (TradingView names the newest of a tie there).
+      'tieNewest',
     ]
     // A SUPERSET check, so closing any one is green while a NEW name falling out
     // of every door is a named regression.
