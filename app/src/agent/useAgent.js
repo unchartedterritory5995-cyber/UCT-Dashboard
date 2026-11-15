@@ -571,6 +571,10 @@ function aliasNames(ops) {
 // ⛔ THE HONEST PARTIAL RECEIPT (11-14, BUG B): a follow-up step runs only after the step before it LANDED (its receipt is
 // above), so its refusal never opens with "I didn't change anything" — it says the change above stands and this part didn't run
 export const PARTIAL_LEAD = 'The change above went through, but I didn’t do the next part:'
+// …and a follow-up the rails HOLD (a card to approve, a question to answer — #1247's state rail) is said as waiting, after
+// the change above that went through: never as nothing changed, never as done
+export const FOLLOWUP_WAITS_CARD = 'The change above went through; the next part is waiting for your approval on the card below.'
+export const FOLLOWUP_WAITS_ANSWER = 'The change above went through; the next part needs your answer first.'
 export function partialStepText(text) {
   const t = String(text || '').trim()
   if (!t || t.startsWith(PARTIAL_LEAD)) return t
@@ -1331,6 +1335,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       }
       const pid = nid()
       pendingRef.current = { kind: 'proposal', id: pid, ops: fan, epoch: boardEpoch(host, fan), card: plines, expiresAt: Date.now() + PROPOSAL_TTL_MS, binding: binds, words: turnWords(member) }
+      if (path === 'followup') push({ role: 'outcome', text: FOLLOWUP_WAITS_CARD })
       push({ id: pid, role: 'proposal', lines: plines, status: 'pending' })
       record({ member, outcome: `Proposed: ${plines.join(' · ')}`, outcomeData: { kind: 'proposed', actions }, telemetry: { path, disposition: 'propose', actions, voice } })
       return
@@ -1409,7 +1414,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const ch = railMarkRef.current === STATE_RAIL_MARK && railAskRef.current ? railChoicesOf(railAskRef.current, ops) : null
       if (ch?.length) {
         pendingRef.current = { kind: 'target', ops: [], path, mode: suggested, member, voice, epoch: epochOf(host), railChoice: ch }
-        push({ role: 'question', text: `${railed.replace(/ — say what to replace, remove or change, by name \(for example “remove the RSI”\), if that is what you want\./, '')} Which one do you mean?`, choices: ch.map(x => ({ ref: x.ref, label: x.label })), local: true })
+        push({ role: 'question', text: `${path === 'followup' ? `${FOLLOWUP_WAITS_ANSWER} ` : ''}${railed.replace(/ — say what to replace, remove or change, by name \(for example “remove the RSI”\), if that is what you want\./, '')} Which one do you mean?`, choices: ch.map(x => ({ ref: x.ref, label: x.label })), local: true })
         record({ member, outcome: railed, outcomeData: { kind: 'clarify-target', actions, reason: STATE_RAIL_MARK }, telemetry: { path, clarified: true, actions, voice } })
         return
       }
@@ -1444,6 +1449,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         binding: approvalBinding(plan, host), expiresAt: Date.now() + PROPOSAL_TTL_MS, words: turnWords(member) }
       // a proposal says what WILL happen (proposalWording.js), never a success not yet written
       const lines = pendingWording([...pendingLines(allOps, host), ...plan.lines, ...deferredLines])
+      if (path === 'followup') push({ role: 'outcome', text: FOLLOWUP_WAITS_CARD })
       push({ id: pid, role: 'proposal', lines, status: 'pending' })
       record({ member, outcome: `Proposed: ${lines.join(' · ')}`, outcomeData: { kind: 'proposed', actions }, telemetry: { path, disposition: 'propose', actions, voice } })
       return
@@ -1473,6 +1479,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       pendingRef.current = { kind: 'proposal', id: pid, ops: keep, epoch: boardEpoch(host, keep),
         binding: approvalBinding(plan, host), expiresAt: Date.now() + PROPOSAL_TTL_MS, words: turnWords(member),
         ...(seals.length ? { seals, card: plines, expiresAt: Math.min(Date.now() + PROPOSAL_TTL_MS, ...seals.map(x => x.expiresAt)) } : {}) }
+      if (path === 'followup') push({ role: 'outcome', text: FOLLOWUP_WAITS_CARD })
       push({ id: pid, role: 'proposal', lines: plines, status: 'pending' })
       record({ member, outcome: `Proposed: ${plines.join(' · ')}`, outcomeData: { kind: 'proposed', actions }, telemetry: { path, disposition: 'propose', actions, voice } })
       return
