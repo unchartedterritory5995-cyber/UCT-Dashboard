@@ -1,5 +1,5 @@
 {
-  "fingerprint": "",
-  "posted_at": "2026-11-15T20:32:06.130275+00:00",
-  "reason": "recovered"
+  "fingerprint": "service:terminal-next-monitor=694 changed files on master not deployed; the branch moved 28 min ago and Railway started no deploy",
+  "posted_at": "2026-11-15T20:50:48.853276+00:00",
+  "reason": "new stuck item"
 }
