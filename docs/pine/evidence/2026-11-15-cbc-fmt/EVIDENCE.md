@@ -49,6 +49,42 @@ One core, `pineTextFormat.js::tostringNumberText`, for no format (`defaultNumber
 - `str.format` keeps its own formatter (R6: 952.4295 → "952.429", T24 "1"); T25 (2.0625 → "2.062", half-even) is a new witness for THAT formatter, not adopted here.
 - Open: `math.round_to_mintick(127.705)` reads 127.7 (binary `x / tick` gives 12770.499…), so the SAR label `tostring(round_to_mintick(sar))` still differs there; a numeric change, out of this scope.
 
+### Follow-up (S17, 2026-11-15): a numeric LITERAL is printed IN FULL — in one witnessed shape
+
+S17 captured our probe `tools/visual_conformance/probes/vw-cs2-label-format.pine` (//@version=5, NYSE:RDDT 1D
+from the listing; committed as `tests/fixtures/vendor/harness/vw-cs2-label-format-rddt-1d-2026-11-15.json`,
+byte-equal to the run-store copy, probe sha256 matching the capture's). Each label is
+`label.new(…, str.tostring(<x>))`, the call DIRECTLY the label's text:
+`close` "98.45", `close / 3` "32.8166666667", `0.8175176096085278` **"0.8175176096085278"**, `math.round(close)` "98",
+`0.000012345678901234` **"0.000012345678901234"**, `close, format.mintick` "98.45". We printed the two literals to
+ten decimals ("0.8175176096", "0.0000123457").
+
+⛔ **The rule is narrower than "a literal prints in full".** S10's committed `vw-cs2-label-number-format`
+(//@version=6, the call an argument of a helper `f(id, s)` that concatenates it) printed the SAME literal to ten
+decimals (F03 "0.8175176096"), as did `vw-fmt-tie-readings` T14 (a negated literal), T19, T29 and F05
+(`1.0 / 3.0`). The two captures differ in TWO things, the version and whether the call is direct, so neither
+alone is known to be the cause. `pineTextFormat.js::literalTostringText` (one function, both lanes) therefore
+decides only where the two readings (FULL = the shortest round-trip decimal, TEN = the one core at {0, 10})
+print different characters, and only for an argument that is a numeric constant (a literal, a negated
+literal, or literal arithmetic):
+- v5, the call directly a drawing's argument, a plain literal whose source text is its shortest decimal and not
+  in exponent form: FULL (S17);
+- v6, not direct: TEN (S10), the one core as before;
+- every other cell: withheld by name, `format:literal-uncaptured` (the host lane holds the property like an
+  unwitnessed `input.timeframe` text, `UNWITNESSED_TF_TEXT`, and counts it in `textFormatRefusals`; the runtime
+  lane refuses the build, `RuntimeRefusal`, registered in `RUNTIME_REFUSALS`).
+DIRECT is the host's `textNodeOf` at depth 0 and the runtime's `lowerObjectCall` argument
+(`DIRECT_DRAWING_ARGS`). Computed values are unchanged everywhere (ten decimals); `round()` and `format.mintick`
+are untouched.
+
+Rails: `__tests__/vendorHarness/vendorHarness.cbcLiteralText.test.js` (the capture is what it says; the host lane
+prints all six S17 texts; S10 still prints all its texts, F03 at ten decimals; the runtime lane prints the
+first five S17 texts, the sixth being CBC-FMT's standing `format.mintick` refusal in that lane; v6 direct
+withheld by name in both lanes; the rule cell by cell). `vendorHarness.c42DefaultDecimals.test.js`: its
+constructed `str.tostring(4.0 / 3)` (v5, concatenated: an unwitnessed cell, now withheld) is asked through a
+series instead. Mutants (copy aside, mutate, the two rails, restore byte-equal): 7 of 7 killed (FULL cell,
+host DIRECT, runtime DIRECT, the v6 cell, the readings-agree short cut, host wiring, runtime wiring).
+
 ## Rails and mutants
 
 New rails: `engine/__tests__/calcBarsWindow.cbcfmt.test.js` (W2-W6, S10 C1/C2/C4, both lanes), `engine/__tests__/strTostringCore.cbcfmt.test.js` (S10 T-rows, R1-R3, R6, lanes, F11), `tests/test_cbcfmt_calc_bars_server.py`; updated: `wseReviewFixes(.test, 2)`, `runtimeObjectsDoor`, `runtimeRealtimeWse`, `strTostringFormat.vendor`, `pine.guardCensus`, `test_alert_user_admission` (the new gate driven).

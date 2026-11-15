@@ -155,7 +155,7 @@ import { pineColourHex, isPineColourSpelling, isBareColourSpelling } from '../pi
 // ⭐⭐ `str.format`'s PATTERN GRAMMAR — compiled here, formatted by the object
 // runtime, both from ONE module so what this door admits and what the runtime
 // draws cannot drift (C15, objects-triage step 13).
-import { compileMessagePattern, tostringPatternOf } from '../pineTextFormat.js'
+import { compileMessagePattern, tostringPatternOf, literalTostringText } from '../pineTextFormat.js'
 // ⛔ THE TEXT ARITHMETIC IS THE FOLD'S, IMPORTED RATHER THAN COPIED. This door
 // folds a predicate over two LITERALS at translate time and `bind.js` settles the
 // same predicate over a symbol at bind time — one question, two moments — and two
@@ -20772,6 +20772,23 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       const arg0 = node.args && node.args[0] && node.args[0].value
       if (arg0 && arg0.type === 'name' && own(BUILTIN_SYMBOL_SCOPED, arg0.name)
         && !(node.args[1])) return { t: 'sym', name: arg0.name }
+      // ⭐⭐ CBC-FMT (S17) — A NUMERIC CONSTANT WITH NO FORMAT, where TradingView's two witnessed
+      // readings part (`pineTextFormat.js::literalTostringText`): FULL (v5, this call directly the
+      // drawing's argument, `depth === 0`) is printed as that text; TEN (v6 through a helper) falls
+      // through to the one core below; any other shape is held like an unwitnessed
+      // `input.timeframe` text (`UNWITNESSED_TF_TEXT`: the op runs, the property is unknown).
+      if (arg0 && node.args && node.args.length === 1) {
+        let version = null
+        try { version = makeResolver(scopeEnv).pineVersion } catch { version = null }
+        const lit = literalTostringText(arg0, { version, direct: depth === 0 })
+        if (lit && lit.text !== undefined) return { t: 'lit', s: lit.text }
+        if (lit) {
+          const why = `${lit.why} v${version}`
+          diagnostics.textFormatRefusals = diagnostics.textFormatRefusals || {}
+          diagnostics.textFormatRefusals[why] = (diagnostics.textFormatRefusals[why] || 0) + 1
+          return UNWITNESSED_TF_TEXT
+        }
+      }
       // ⭐⭐ C33 — `str.tostring(<a getter | its history | a getter-fed scalar>)`:
       // a number the OBJECT RUNTIME holds, formatted by the one number format
       // (`{t:'val'}`). ⛔ Only in a create/update's own text outside loops
