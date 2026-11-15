@@ -1,5 +1,5 @@
 {
-  "fingerprint": "pipeline:master -> production=1 master commit not promoted yet (oldest landed 25 min ago): the deploy checks FAILED on 4f245edcfa, so nothing new goes live until a fix lands on master",
-  "posted_at": "2026-11-15T14:33:33.559599+00:00",
-  "reason": "new stuck item"
+  "fingerprint": "",
+  "posted_at": "2026-11-15T15:24:38.010497+00:00",
+  "reason": "recovered"
 }
