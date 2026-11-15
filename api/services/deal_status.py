@@ -1010,6 +1010,7 @@ def _compute(sym: str, snap: dict, bars) -> dict:
     deal = snap["news"].get(sym)
     if deal is not None and deal["active"] and _delisted(sym):
         deal = None
+        out["completed"] = True
     pin = None
     try:
         b = bars if bars is not None else _bars_for(sym)
@@ -1017,7 +1018,11 @@ def _compute(sym: str, snap: dict, bars) -> dict:
             # The deal closed: the stock stopped printing (2026-10-23: ATKR, TBPH stayed
             # "pending" after their buyouts completed, because no completion headline was
             # stored for them). A news deal never outlives the stock it is about.
+            # `completed` (only ever True when present) says why: the screener still leaves
+            # such a stock out (`completed_deal_symbols`), because its last rows stay in the
+            # snapshot for SCREENER_STALE_PRICE_SESSIONS after it stops printing.
             deal = None
+            out["completed"] = True
         if deal is not None and deal["active"]:
             out["since"] = deal["since"].isoformat()
             out["price"] = deal["price"]
@@ -1096,13 +1101,32 @@ def pending_deal_symbols() -> frozenset:
         return hand_deals() | mirror_list()
 
 
+def completed_deal_symbols() -> frozenset:
+    """Every news deal that CLOSED: the stock stopped printing (DEAL_STATUS_STALE_SESSIONS
+    sessions in a row) or is on the delisted registry. Not `pending` (no chart marker, no
+    pending label); only the screener leaves these out. Never raises: an error is empty.
+
+    ⛔ WHY (2026-11-14). A completed buyout stops printing, `_compute` correctly drops it
+    from the pending set, and the screener's stale-row gate still keeps its last row for
+    SCREENER_STALE_PRICE_SESSIONS (10) sessions: BWMN and KVUE sat in three screens each,
+    flat at the deal price, until they were hand-listed."""
+    try:
+        snap = _snapshot()
+        return frozenset(sym for sym, d in snap["news"].items()
+                         if d["active"] and deal_status(sym).get("completed"))
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("[deal-status] completed deal set failed, none added: %s", exc)
+        return frozenset()
+
+
 def screener_excludes() -> frozenset:
     """The screener's buyout exclude set. Flag OFF: the hand list file alone, exactly as
     `screener_universe.buyout_excludes` read it before this module. Flag ON: that file (all of
-    it, its non-deal owner excludes included) plus every pending symbol."""
+    it, its non-deal owner excludes included), every pending symbol, and every news deal that
+    has completed (`completed_deal_symbols`)."""
     if not enabled():
         return hand_list()
-    return hand_list() | pending_deal_symbols()
+    return hand_list() | pending_deal_symbols() | completed_deal_symbols()
 
 
 def chart_marker(sym: str):

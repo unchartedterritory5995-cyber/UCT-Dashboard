@@ -201,6 +201,50 @@ def test_a_still_trading_target_stays_pending(monkeypatch):
     assert st["pending"] is True and "news" in st["source"]
 
 
+def _one_deal(monkeypatch, last_bar):
+    monkeypatch.setattr(ds, "stored_headlines",
+                        lambda since: [(TODAY - timedelta(days=60), DEF, ["ATKR"])])
+    monkeypatch.setattr(ds, "_stale_ref", lambda: 20261020)
+    monkeypatch.setattr(ds, "_bars_for", lambda sym: _bars_ending(last_bar))
+    monkeypatch.setattr(ds, "clear_pin_symbols", lambda: frozenset())
+    monkeypatch.setenv("DEAL_STATUS_ENABLED", "1")
+    ds.reset_cache()
+
+
+def test_a_completed_buyout_leaves_the_pending_set_but_stays_out_of_the_screener(monkeypatch):
+    """2026-11-14: BWMN and KVUE closed, stopped printing, left the pending set (correct: no
+    chart marker for a deal that is done) and sat in three screens each, because the screener
+    keeps a row SCREENER_STALE_PRICE_SESSIONS after the stock's last bar."""
+    _one_deal(monkeypatch, date(2026, 10, 16))
+    assert ds.deal_status("ATKR")["completed"] is True
+    assert "ATKR" not in ds.pending_deal_symbols()
+    assert ds.completed_deal_symbols() == frozenset({"ATKR"})
+    assert "ATKR" in ds.screener_excludes()
+
+
+def test_a_still_trading_target_is_pending_not_completed(monkeypatch):
+    _one_deal(monkeypatch, date(2026, 10, 22))
+    st = ds.deal_status("ATKR")
+    assert st["pending"] is True and "completed" not in st
+    assert ds.completed_deal_symbols() == frozenset()
+    assert "ATKR" in ds.screener_excludes()
+
+
+def test_a_delisted_target_is_completed(monkeypatch):
+    _one_deal(monkeypatch, date(2026, 10, 22))
+    monkeypatch.setattr(ds, "_delisted", lambda sym: sym == "ATKR")
+    assert ds.completed_deal_symbols() == frozenset({"ATKR"})
+
+
+def test_a_completed_set_fault_adds_nothing_and_never_raises(monkeypatch):
+    _one_deal(monkeypatch, date(2026, 10, 16))
+
+    def _boom():
+        raise RuntimeError("store unreadable")
+    monkeypatch.setattr(ds, "_snapshot", _boom)
+    assert ds.completed_deal_symbols() == frozenset()
+
+
 def test_no_calendar_or_no_bars_is_not_read_as_stopped(monkeypatch):
     monkeypatch.setattr(ds, "stored_headlines",
                         lambda since: [(TODAY - timedelta(days=60), DEF, ["ATKR"])])
