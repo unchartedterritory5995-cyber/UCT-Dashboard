@@ -145,6 +145,7 @@ def test_files_list_normalizes_and_fails_closed_on_junk():
 
 def test_unreadable_timing_file_is_empty_not_an_error(tmp_path):
     assert avs.load_timings(tmp_path / "missing.json") == {}
+    assert avs.read_timings(tmp_path / "missing.json")[1].startswith("cannot read timings")
     (tmp_path / "bad.json").write_text("{not json", encoding="utf-8")
     assert avs.load_timings(tmp_path / "bad.json") == {}
 
@@ -256,3 +257,116 @@ def test_union_rail_fails_closed_on_a_mutant_plan(tmp_path, mutant):
     else:
         assert r.returncode == 1, r.stdout + r.stderr
         assert "::error::" in r.stdout
+
+
+# ---- fallback: unreadable / invalid timings (AUDIT, PR #1352) ---------------------------------------------------
+BAD_TIMINGS = {
+    "malformed_json": "{not json",
+    "empty_object": "{}",
+    "top_level_list": "[1, 2]",
+    "files_ms_is_a_list": '{"files_ms": ["src/agent/f000.test.jsx", 1]}',
+    "files_ms_empty": '{"files_ms": {}}',
+    "string_duration": '{"files_ms": {"src/agent/f000.test.jsx": "1500"}}',
+    "list_duration": '{"files_ms": {"src/agent/f000.test.jsx": [1500]}}',
+    "negative_duration": '{"files_ms": {"src/agent/f000.test.jsx": 1500, "src/agent/f001.test.jsx": -1}}',
+    "nan_duration": '{"files_ms": {"src/agent/f000.test.jsx": NaN}}',
+    "float_duration": '{"files_ms": {"src/agent/f000.test.jsx": 1.5}}',
+    "bool_duration": '{"files_ms": {"src/agent/f000.test.jsx": true}}',
+    "missing_file": None,
+}
+
+
+def _bad_timings(tmp_path, case):
+    p = tmp_path / ("timings-%s.json" % case)
+    if BAD_TIMINGS[case] is not None:
+        p.write_text(BAD_TIMINGS[case], encoding="utf-8")
+    return p
+
+
+def _annotation_path(p):
+    return p.as_posix().replace("%", "%25").replace(":", "%3A").replace(",", "%2C")
+
+
+@pytest.mark.parametrize("case", sorted(BAD_TIMINGS))
+@pytest.mark.parametrize("nfiles", [4, 5, 37, 440])
+def test_invalid_timings_fall_back_to_a_full_disjoint_partition_with_every_shard_non_empty(tmp_path, case, nfiles):
+    p = _bad_timings(tmp_path, case)
+    timings, err = avs.read_timings(p)
+    assert timings == {} and err, (case, err)
+    files = _files(nfiles)
+    plan = avs.assign(files, timings, 4)
+    assert _is_partition(plan, files) and avs.partition_report(plan, files)["is_partition"]
+    assert all(plan), [len(b) for b in plan]
+    assert max(map(len, plan)) - min(map(len, plan)) <= 1        # the count split
+
+
+@pytest.mark.parametrize("case", sorted(BAD_TIMINGS))
+def test_invalid_timings_cli_slices_cover_the_list_and_annotate(tmp_path, capsys, case):
+    p = _bad_timings(tmp_path, case)
+    _t, err = avs.read_timings(p)
+    want = "::warning file=%s::%s (splitting the Agent shards by count)" % (_annotation_path(p), err)
+    files = _files(9)
+    lst = tmp_path / "files.txt"
+    lst.write_text("\n".join(files) + "\n", encoding="utf-8")
+    seen = []
+    for i in range(1, 5):
+        assert avs.main(["--files-list", str(lst), "--of", "4", "--shard", str(i), "--timings", str(p)]) == avs.OK
+        cap = capsys.readouterr()
+        slice_ = [l for l in cap.out.splitlines() if l]
+        assert slice_ and all(l in files for l in slice_), "annotation leaked into the file list: %r" % cap.out
+        assert want in cap.err.splitlines(), cap.err
+        seen += slice_
+    assert sorted(seen) == files and len(seen) == len(set(seen))
+    assert avs.main(["--files-list", str(lst), "--of", "4", "--plan", "--timings", str(p)]) == avs.OK
+    assert want in capsys.readouterr().out.splitlines()       # the --plan line in the workflow log
+
+
+def test_exact_annotation_text(tmp_path, capsys):
+    p = tmp_path / "bad.json"
+    p.write_text("{not json", encoding="utf-8")
+    lst = tmp_path / "files.txt"
+    lst.write_text("\n".join(_files(4)) + "\n", encoding="utf-8")
+    assert avs.main(["--files-list", str(lst), "--of", "4", "--plan", "--timings", str(p)]) == avs.OK
+    out = capsys.readouterr().out.splitlines()
+    assert out[0] == ("::warning file=%s::timings are not valid JSON: Expecting property name enclosed in double "
+                      "quotes%s line 1 column 2 (char 1) (splitting the Agent shards by count)"
+                      % (_annotation_path(p), ":"))
+    # inside the repo the path is repo-relative (links the annotation to the file); % and newlines are escaped
+    assert avs.timings_warning(ROOT / avs.TIMINGS_FILE, "50% bad\nline 2") == (
+        "::warning file=tools/agent_vitest_shard_timings.json::50%25 bad%0Aline 2 (splitting the Agent shards by count)")
+
+
+def test_valid_committed_timings_emit_no_annotation(tmp_path, capsys):
+    lst = tmp_path / "files.txt"
+    lst.write_text("\n".join(_files(8)) + "\n", encoding="utf-8")
+    assert avs.read_timings()[1] is None
+    assert avs.main(["--files-list", str(lst), "--of", "4", "--plan"]) == avs.OK
+    cap = capsys.readouterr()
+    assert "::warning" not in cap.out + cap.err
+
+
+@pytest.mark.skipif(NODE is None, reason="node is not installed")
+@pytest.mark.parametrize("mutant,code", [("none", 0), ("drop_one", 1), ("duplicate_one", 1)])
+def test_union_rail_is_identical_in_fallback_mode(tmp_path, capsys, mutant, code):
+    """The plan built by the CLI with UNREADABLE timings goes through the real union script from agent-ci.yml."""
+    files = _files(40)
+    lst = tmp_path / "files.txt"
+    lst.write_text("\n".join(files) + "\n", encoding="utf-8")
+    missing = tmp_path / "no-such-timings.json"
+    plan = []
+    for i in range(1, 5):
+        assert avs.main(["--files-list", str(lst), "--of", "4", "--shard", str(i), "--timings", str(missing)]) == avs.OK
+        plan.append([l for l in capsys.readouterr().out.splitlines() if l])
+    assert sorted(len(b) for b in plan) == [10, 10, 10, 10]
+    if mutant == "drop_one":
+        plan[1] = plan[1][1:]
+    elif mutant == "duplicate_one":
+        plan[2] = plan[2] + plan[3][:1]
+    work = tmp_path / "union"
+    work.mkdir()
+    r = _fixture(work, files, plan)
+    assert r.returncode == code, r.stdout + r.stderr
+    assert "expected 40 files" in r.stdout
+    if code:
+        want = "files no shard ran" if mutant == "drop_one" else "files more than one shard ran"
+        assert "::error::" + want in r.stdout, r.stdout

@@ -14,7 +14,8 @@ COVERAGE (fail closed):
   - every listed file is assigned to exactly one shard; a file with NO recorded time weighs the p90 of
     the recorded ones and is placed by the same greedy rule (onto the lightest shard at that point);
   - a timing entry for a file that no longer exists is ignored (a deleted file never breaks the job);
-  - an empty or unreadable timing file degrades to an even split by count, never to an error;
+  - a missing, unreadable or invalid timing file (bad JSON, wrong types, NaN, negative, empty) degrades to an
+    even split by count, never to an error, and says why in a `::warning file=<timings path>::<error>` annotation;
   - vitest treats a positional file argument as a SUBSTRING filter, so `a.test.js` would also run
     `a.test.jsx`. Files where one path is a substring of another are kept in ONE shard together, so
     the files a shard actually runs are exactly the files it was assigned;
@@ -86,14 +87,58 @@ def read_files_list(text: str) -> list:
 
 
 # --------------------------------------------------------------------------- timings
-def load_timings(path=None) -> dict:
-    """{file: ms} from the committed timing file; {} if it is absent or unreadable."""
+def read_timings(path=None) -> tuple:
+    """({file: ms}, error) from the committed timing file. On ANY problem the result is ({}, "<why>"), so the
+    caller falls back to the count split and says why — the file is all-or-nothing, never half-trusted.
+
+    Valid: a JSON object whose "files_ms" is a non-empty object of test path -> non-negative integer ms
+    (bool, float, string, NaN and negative values are refused)."""
     p = pathlib.Path(path) if path else (_repo_root() / TIMINGS_FILE)
     try:
-        doc = json.loads(p.read_text(encoding="utf-8"))
-        return {norm(str(k)): int(v) for k, v in doc["files_ms"].items() if int(v) >= 0}
-    except (OSError, ValueError, KeyError, TypeError, AttributeError):
-        return {}
+        text = p.read_text(encoding="utf-8")
+    except OSError as e:
+        return {}, "cannot read timings: %s" % (e.strerror or e.__class__.__name__)
+    try:
+        doc = json.loads(text)
+    except ValueError as e:
+        return {}, "timings are not valid JSON: %s" % e
+    if not isinstance(doc, dict):
+        return {}, "timings must be a JSON object, got %s" % type(doc).__name__
+    files = doc.get("files_ms")
+    if not isinstance(files, dict):
+        return {}, "timings have no files_ms object"
+    if not files:
+        return {}, "timings files_ms is empty"
+    out = {}
+    for k, v in files.items():
+        if isinstance(v, bool) or not isinstance(v, int) or v < 0:
+            return {}, "timings files_ms[%s] is not a non-negative integer: %r" % (json.dumps(k), v)
+        out[norm(str(k))] = v
+    return out, None
+
+
+def load_timings(path=None) -> dict:
+    """{file: ms}, or {} if the timing file is absent, unreadable or invalid (see read_timings)."""
+    return read_timings(path)[0]
+
+
+def _gh_prop(v: str) -> str:
+    return v.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A").replace(":", "%3A").replace(",", "%2C")
+
+
+def _gh_msg(v: str) -> str:
+    return v.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+
+
+def timings_warning(path, error: str) -> str:
+    """The GitHub annotation for a fallback: `::warning file=<timings path>::<parse error>`.
+    The path is repo-relative when it lies inside the repo, so the annotation links to the file."""
+    p = pathlib.Path(path)
+    try:
+        shown = p.resolve().relative_to(_repo_root()).as_posix()
+    except ValueError:
+        shown = p.as_posix()
+    return "::warning file=%s::%s (splitting the Agent shards by count)" % (_gh_prop(shown), _gh_msg(error))
 
 
 def fallback_ms(timings: dict, pct: int = FALLBACK_PERCENTILE) -> int:
@@ -263,10 +308,11 @@ def main(argv=None) -> int:
         print("wrote %d file timings to %s" % (len(ms), tpath))
         return OK
 
-    timings = load_timings(tpath)
-    if not timings:
-        print("::warning title=agent shard timings unreadable::%s could not be read; splitting by count" % tpath,
-              file=sys.stderr)
+    timings, err = read_timings(tpath)
+    if err:
+        # stdout for --plan / --compare (the workflow's plan line); stderr for --shard, whose stdout is the file list.
+        # The Actions runner reads workflow commands from both streams.
+        print(timings_warning(tpath, err), file=sys.stderr if a.shard is not None else sys.stdout)
 
     if a.compare:
         r = compare(a.compare, timings, a.of)
