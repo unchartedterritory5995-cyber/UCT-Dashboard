@@ -1,0 +1,2202 @@
+{
+ "unit": "F5.02",
+ "track": "F5",
+ "title": "Estimates, surprises and guidance",
+ "teaches": "The consensus estimate, how to work the surprise in percent, what guidance is and how a raise or a cut is judged against the consensus, and why the guide often moves a stock more than the quarter it reports.",
+ "skills": [
+  {
+   "id": "fund.estimates",
+   "title": "Estimates, surprises and guidance"
+  }
+ ],
+ "as_of": "2026-11-08",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "What Is Earnings Season? (Investor Insights, July 23, 2024)",
+   "url": "https://www.finra.org/investors/insights/earnings-season",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "SEC",
+   "title": "Final Rule: Selective Disclosure and Insider Trading (Regulation FD), Release 33-7881",
+   "url": "https://www.sec.gov/files/rules/final/33-7881.htm",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "SEC rule text, eCFR (17 CFR 243.100)",
+   "title": "Regulation FD, Rule 100: General rule regarding selective disclosure (eCFR up to date as of 11/05/2026)",
+   "url": "https://www.ecfr.gov/current/title-17/chapter-II/part-243/section-243.100",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "Intel Corporation, Form 8-K on SEC EDGAR",
+   "title": "Intel Reports Fourth-Quarter and Full-Year 2025 Financial Results (Exhibit 99.1, filed 2026-01-22)",
+   "url": "https://www.sec.gov/Archives/edgar/data/50863/000005086326000009/q425earningsrelease.htm",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s5",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Stop, Stop-Limit, and Trailing Stop Orders: Investor Bulletin",
+   "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-stop-stop-limit-trailing-stop",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s6",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "What Earnings Surprises Mean for Stock Prices (updated April 2, 2026)",
+   "url": "https://www.investopedia.com/terms/e/earningssurprise.asp",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s7",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Company Guidance: What Investors Need to Know (updated May 20, 2026)",
+   "url": "https://www.investopedia.com/terms/g/guidance.asp",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s8",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Understanding Consensus Estimates: What They Mean for Stocks (updated May 16, 2026)",
+   "url": "https://www.investopedia.com/terms/c/consensusestimate.asp",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s9",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Whisper Number (updated April 27, 2022)",
+   "url": "https://www.investopedia.com/terms/w/whispernumber.asp",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s10",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Master Position Sizing: Minimize Risk and Boost Investment Returns (updated July 1, 2026)",
+   "url": "https://www.investopedia.com/terms/p/positionsizing.asp",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s11",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "What Is Guidance and How Should Investors React? (Dan Rosenberg, March 26, 2026)",
+   "url": "https://www.schwab.com/learn/story/what-is-guidance-and-how-should-investors-react",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s12",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "What Happens When Companies Report Earnings (video transcript, Schwab International)",
+   "url": "https://international.schwab.com/story/what-happens-when-companies-report-earnings",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s13",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Research Help: Key Stats, Earnings, Dividends, Ownership, and Financial Statements",
+   "url": "https://www.fidelity.com/webcontent/ap010098-etf-content/19.11.0/help/research/learn_er_fundamentals.shtml",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s14",
+   "tier": 2,
+   "publisher": "FactSet",
+   "title": "Earnings Insight, November 6, 2026 (John Butters, VP, Senior Earnings Analyst)",
+   "url": "https://advantage.factset.com/hubfs/Website/Resources%20Section/Research%20Desk/Earnings%20Insight/EarningsInsight_110626.pdf",
+   "accessed": "2026-11-08",
+   "why_reliable": "FactSet Research Systems is one of the main providers of the analyst consensus estimates that brokers and the press quote; Schwab's own guidance article (s11) cites FactSet's beat-rate data. Earnings Insight is its weekly, dated, signed S&P 500 earnings report."
+  },
+  {
+   "id": "s15",
+   "tier": 2,
+   "publisher": "FactSet",
+   "title": "Earnings Insight, October 30, 2026 (John Butters, VP, Senior Earnings Analyst)",
+   "url": "https://advantage.factset.com/hubfs/Website/Resources%20Section/Research%20Desk/Earnings%20Insight/EarningsInsight_103026.pdf",
+   "accessed": "2026-11-08",
+   "why_reliable": "Same weekly FactSet report as s14, one week earlier."
+  },
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "Zacks Investment Research",
+   "title": "Zacks Research System (Zacks Pro) report descriptions: EPS Surprises",
+   "url": "https://www.zackspro.com/da_4.asp",
+   "accessed": "2026-11-08",
+   "why_reliable": "Zacks Investment Research (Chicago, since 1978) is one of the long-standing consensus-estimate and earnings-surprise data providers. This is its own documentation of how its EPS Surprise field is computed. The page is undated, so it is used only for the method, alongside FactSet and FINRA."
+  },
+  {
+   "id": "s17",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "Intel stock plunges 13% on soft guidance, concerns about chip production (Jan 22, 2026)",
+   "url": "https://www.cnbc.com/2026/01/22/intel-intc-earnings-report-q4-2025-.html",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s18",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "Intel stock drops 17%, its worst day since 2024, as manufacturing troubles overshadow earnings beat (Jan 23, 2026)",
+   "url": "https://www.cnbc.com/2026/01/23/intel-stock-earnings-q4-2025-supply.html",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s19",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "Nvidia adds more than $400 billion in value after blowout earnings boost AI confidence (Aug 27, 2026)",
+   "url": "https://www.cnbc.com/2026/08/27/nvidia-nvda-q2-earnings.html",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s20",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "Cisco's stock drops despite earnings, revenue beat (Aug 12, 2026)",
+   "url": "https://www.cnbc.com/2026/08/12/ciscos-stock-drops-despite-earnings-revenue-beat.html",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s21",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "Qualcomm stock drops 7% on weak earnings forecast as memory shortage weighs on smartphone sales (Nov 4, 2026)",
+   "url": "https://www.cnbc.com/2026/11/04/qualcomm-qcom-earnings-report-q4-2026.html",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s22",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "Intel issued weaker-than-expected guidance. Analysts are losing confidence in the stock (Oct 30, 2026)",
+   "url": "https://www.cnbc.com/2026/10/30/intel-guidance-analyst-price-targets.html",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s23",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "Intel stock has worst day since 1970s, wiping about $12 billion off government's stake (Oct 30, 2026)",
+   "url": "https://www.cnbc.com/2026/10/30/amazon-intel-earnings-big-tech-ai-spending-concerns.html",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s24",
+   "tier": 2,
+   "publisher": "LSEG (Lipper Alpha Insight)",
+   "title": "This Week in Earnings 26Q3, November 6, 2026 (Tajinder Dhillon, Senior Research Analyst)",
+   "url": "https://lipperalpha.refinitiv.com/2026/11/this-week-in-earnings-26q3-november-6-2026/",
+   "accessed": "2026-11-09",
+   "why_reliable": "LSEG owns I/B/E/S, the consensus-estimate database CNBC quotes in this unit's Intel, Cisco and Qualcomm stories. This is its weekly, dated, signed S&P 500 earnings report, and a publisher independent of FactSet."
+  },
+  {
+   "id": "s25",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-12"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f1",
+   "source": "s1",
+   "quote": "several groups track a “consensus” estimate that’s the average for all the analysts covering the stock.",
+   "claim": "The consensus is the average estimate of all the analysts who cover the stock."
+  },
+  {
+   "id": "f2",
+   "source": "s1",
+   "quote": "A company beats (exceeds) the estimate or misses (falls short of) the estimate based on how actual earnings or revenues compare to the consensus. If the number equals the estimate, it’s said to be in line.",
+   "claim": "Actual above the consensus is a beat, below is a miss, and equal is in line."
+  },
+  {
+   "id": "f3",
+   "source": "s1",
+   "quote": "Sometimes a company might beat estimates but provide a dour outlook for the future, leading the share price to drop.",
+   "claim": "A company can beat estimates and still fall because its outlook is weak."
+  },
+  {
+   "id": "f4",
+   "source": "s1",
+   "quote": "Other times a stock that rallied ahead of its earnings release and met expectations by reporting great numbers simply doesn’t have enough new buyers to bid the shares higher, causing share prices to hold steady or perhaps fall.",
+   "claim": "A stock that ran up into its report can meet expectations and still stall or fall for lack of new buyers."
+  },
+  {
+   "id": "f5",
+   "source": "s1",
+   "quote": "However, sometimes there’s a “whisper number” that differs from the consensus.",
+   "claim": "The whisper number is an unofficial expectation that can differ from the consensus."
+  },
+  {
+   "id": "f6",
+   "source": "s1",
+   "quote": "This whisper number can become the market expectation rather than the official estimate.",
+   "claim": "The whisper number, not the consensus, can be the bar the market really uses."
+  },
+  {
+   "id": "f7",
+   "source": "s1",
+   "quote": "During these calls, management might give more color on the quarter, take questions from Wall Street analysts and provide guidance on the company’s future prospects.",
+   "claim": "On the earnings call, management explains the quarter, takes analyst questions and gives guidance."
+  },
+  {
+   "id": "f8",
+   "source": "s1",
+   "quote": "Companies usually release their earnings reports and accompanying press releases before the market opens or after it closes.",
+   "claim": "Earnings reports usually come out before the open or after the close."
+  },
+  {
+   "id": "f9",
+   "source": "s1",
+   "quote": "Throughout the year, Wall Street analysts calculate earnings and revenue estimates for how they expect a company to perform this quarter, next quarter and even in future years.",
+   "claim": "Analysts publish earnings and revenue estimates for this quarter, next quarter and later years."
+  },
+  {
+   "id": "f10",
+   "source": "s2",
+   "quote": "If the issuer official communicates selectively to the analyst nonpublic information that the company's anticipated earnings will be higher than, lower than, or even the same as what analysts have been forecasting, the issuer likely will have violated Regulation FD.",
+   "claim": "Privately telling one analyst that earnings will beat, miss or match the forecasts likely violates Regulation FD."
+  },
+  {
+   "id": "f11",
+   "source": "s2",
+   "quote": "This is true whether the information about earnings is communicated expressly or through indirect \"guidance,\" the meaning of which is apparent though implied.",
+   "claim": "A hint counts the same as a plain statement when its meaning is clear."
+  },
+  {
+   "id": "f12",
+   "source": "s3",
+   "quote": "the issuer shall make public disclosure of that information as provided in § 243.101(e): (1) Simultaneously, in the case of an intentional disclosure; and (2) Promptly, in the case of a non-intentional disclosure.",
+   "claim": "Under the current rule, material news given to the covered people must go public at the same time if intentional, promptly if not."
+  },
+  {
+   "id": "f13",
+   "source": "s4",
+   "quote": "Fourth-quarter earnings (loss) per share (EPS) attributable to Intel was $(0.12); non-GAAP EPS attributable to Intel was $0.15.",
+   "claim": "Intel's fourth quarter of 2025: a GAAP loss of 12 cents a share, non-GAAP EPS of 15 cents."
+  },
+  {
+   "id": "f14",
+   "source": "s4",
+   "quote": "Forecasting first-quarter 2026 revenue of $11.7 billion to $12.7 billion; expecting first-quarter EPS attributable to Intel of $(0.21) and non-GAAP EPS attributable to Intel of $0.00.",
+   "claim": "Intel guided first-quarter 2026 revenue to a range and non-GAAP EPS to zero."
+  },
+  {
+   "id": "f15",
+   "source": "s4",
+   "quote": "Actual results may differ materially from Intel’s business outlook as a result of, among other things, the factors described under “Forward-Looking Statements” below.",
+   "claim": "The company's own release warns that actual results may differ a lot from its outlook."
+  },
+  {
+   "id": "f16",
+   "source": "s4",
+   "quote": "The gross margin and EPS outlooks are based on the midpoint of the revenue range.",
+   "claim": "Intel's own EPS outlook is built on the midpoint of its revenue range."
+  },
+  {
+   "id": "f17",
+   "source": "s5",
+   "quote": "The execution price an investor receives for this market order can deviate significantly from the stop price due to the prices of available liquidity when the market order executes.",
+   "claim": "Once a stop triggers, the fill can be far from the stop price."
+  },
+  {
+   "id": "f18",
+   "source": "s6",
+   "quote": "An earnings surprise occurs when a company's reported quarterly or annual profits are above or below analysts' expectations.",
+   "claim": "An earnings surprise is reported profit above or below what analysts expected."
+  },
+  {
+   "id": "f19",
+   "source": "s6",
+   "quote": "A negative earnings surprise will usually result in a decline in share price.",
+   "claim": "A miss usually sends the stock lower."
+  },
+  {
+   "id": "f20",
+   "source": "s6",
+   "quote": "Many analysts use forecasting models, management guidance, and other fundamental information to derive EPS estimates.",
+   "claim": "Analysts build their EPS estimates partly from the company's own guidance."
+  },
+  {
+   "id": "f21",
+   "source": "s7",
+   "quote": "Company guidance is a public company's forecast of its future performance, including revenue, earnings, or growth.",
+   "claim": "Guidance is the company's own forecast of its revenue, earnings or growth."
+  },
+  {
+   "id": "f22",
+   "source": "s7",
+   "quote": "These statements are forward-looking estimates, not guarantees",
+   "claim": "Guidance is an estimate, not a guarantee."
+  },
+  {
+   "id": "f23",
+   "source": "s7",
+   "quote": "Companies are not legally required to provide earnings guidance, although it is common practice for many of them to do so.",
+   "claim": "Guidance is voluntary, though many companies give it."
+  },
+  {
+   "id": "f24",
+   "source": "s7",
+   "quote": "Company guidance is typically released immediately after a company publishes its latest quarterly earnings report and is often discussed in depth during a meeting between industry analysts and company executives.",
+   "claim": "Guidance usually comes right after the quarterly report and is discussed with analysts."
+  },
+  {
+   "id": "f25",
+   "source": "s7",
+   "quote": "Regulation FD made selective disclosures illegal, so companies must now share their expectations with all investors simultaneously.",
+   "claim": "Regulation FD means a company's expectations go to all investors at the same time."
+  },
+  {
+   "id": "f26",
+   "source": "s7",
+   "quote": "If management provides guidance that’s below market expectations, analysts might downgrade the stock, prompting investors to sell.",
+   "claim": "Guidance below market expectations can bring downgrades and selling."
+  },
+  {
+   "id": "f27",
+   "source": "s7",
+   "quote": "Companies can adjust their earnings guidance up or down later in the quarter if their outlook changes.",
+   "claim": "A company can raise or lower its guidance when its outlook changes."
+  },
+  {
+   "id": "f28",
+   "source": "s7",
+   "quote": "To further protect themselves from lawsuits, companies pair their guidance reports with disclosure statements maintaining that their projections are by no means guaranteed.",
+   "claim": "Guidance comes with a warning that it is not guaranteed."
+  },
+  {
+   "id": "f29",
+   "source": "s8",
+   "quote": "A consensus estimate is the combined forecast of a public company's earnings, based on projections from the financial analysts who cover the stock.",
+   "claim": "The consensus combines the forecasts of the analysts who cover the stock."
+  },
+  {
+   "id": "f30",
+   "source": "s8",
+   "quote": "When a company has \"missed estimates\" or \"beaten estimates,\" it refers to consensus estimates.",
+   "claim": "Beat and miss are measured against the consensus."
+  },
+  {
+   "id": "f31",
+   "source": "s8",
+   "quote": "The beverage maker beat consensus estimates by 2% in 2010. However, its shares still declined by 7 percent because investors attributed the earnings surprise to a one-time tax break",
+   "claim": "Molson Coors beat by 2% in 2010 and still fell 7%, because the beat came from a one-time tax break."
+  },
+  {
+   "id": "f32",
+   "source": "s9",
+   "quote": "Essentially, the whisper number is the unofficial consensus of what earnings and revenue for a company will be at the next announcement.",
+   "claim": "The whisper number is the street's unofficial consensus."
+  },
+  {
+   "id": "f33",
+   "source": "s9",
+   "quote": "If actual earnings are less than the whisper number the stock may sell off, even if the earnings beat the consensus (but below the whisper number).",
+   "claim": "A beat of the consensus that falls short of the whisper can still sell off."
+  },
+  {
+   "id": "f34",
+   "source": "s10",
+   "quote": "Even with proper position sizing, investors can lose more than their intended risk amount if a security gaps beyond a stop-loss order.",
+   "claim": "A gap past your stop can cost more than the risk you planned."
+  },
+  {
+   "id": "f35",
+   "source": "s10",
+   "quote": "If expecting volatility, like before earnings reports, investors might halve their position size to cut gap risk.",
+   "claim": "Before earnings, some cut the position in half to reduce gap risk."
+  },
+  {
+   "id": "f36",
+   "source": "s11",
+   "quote": "The company's earnings impressed, easily topping analysts' estimates. But shares cratered by double digits due to disappointing guidance, pushing the good quarterly earnings news to the back pages.",
+   "claim": "Intel beat estimates in January 2026 and still fell by double digits on its guidance."
+  },
+  {
+   "id": "f37",
+   "source": "s11",
+   "quote": "guidance looks ahead, providing a roadmap for investors. Since a stock's price is based on expectations of future profit growth",
+   "claim": "Guidance looks ahead, and a stock's price rests on expected future profit growth."
+  },
+  {
+   "id": "f38",
+   "source": "s11",
+   "quote": "Though guidance usually appears near the bottom of a company's earnings release, it can often be the top factor in determining near-term share price.",
+   "claim": "Guidance often drives the near-term share price more than anything else in the release."
+  },
+  {
+   "id": "f39",
+   "source": "s11",
+   "quote": "Though formats vary by company, guidance typically consists of target ranges for the coming quarter or sometimes for the full year ahead.",
+   "claim": "Guidance is usually a range, for the next quarter or the full year."
+  },
+  {
+   "id": "f40",
+   "source": "s11",
+   "quote": "Shares had rallied 54% the month heading into Intel's report, speaking to high expectations that were possibly dashed by this less-than-stellar guidance, leading to a profit-taking sell-off.",
+   "claim": "Intel ran 54% in the month before the report, so expectations were high when the soft guide came."
+  },
+  {
+   "id": "f41",
+   "source": "s11",
+   "quote": "Even if a company raises its official guidance, shares may still be punished for missing the \"whisper number.\"",
+   "claim": "A raised guide can still be punished if it falls short of the whisper number."
+  },
+  {
+   "id": "f42",
+   "source": "s11",
+   "quote": "Not every company provides guidance, and it's not legally required. However, there is the 2000 law that does require U.S. companies to provide guidance publicly if they deliver it privately.",
+   "claim": "Guidance is optional, but since 2000 guidance given privately must also be given publicly."
+  },
+  {
+   "id": "f43",
+   "source": "s11",
+   "quote": "companies may intentionally undershoot, hoping to see their shares gain when they exceed the numbers. And analysts, often guided by companies' guidance, tend to make conservative EPS and revenue estimates for the stocks they cover.",
+   "claim": "Companies often guide low, and analysts' estimates follow, so beats are easier."
+  },
+  {
+   "id": "f44",
+   "source": "s11",
+   "quote": "This is among the factors leading to about 75% of companies exceeding analysts' EPS consensus each quarter, according to data from FactSet.",
+   "claim": "About three in four companies beat the EPS consensus each quarter."
+  },
+  {
+   "id": "f45",
+   "source": "s12",
+   "quote": "When reported earnings are significantly higher or lower than expected, it's called an earnings surprise.",
+   "claim": "Earnings well above or below expectations are an earnings surprise."
+  },
+  {
+   "id": "f46",
+   "source": "s12",
+   "quote": "At an earnings event, the actual EPS for the last quarter or year is released and compared to the company's expectations, also known as guidance, for that same time period.",
+   "claim": "Reported EPS is also compared with what the company itself had guided for that period."
+  },
+  {
+   "id": "f47",
+   "source": "s13",
+   "quote": "IBES estimates are calculated using the mean forecast from analysts' earnings expectations for a particular company",
+   "claim": "The I/B/E/S consensus is the mean of the analysts' forecasts."
+  },
+  {
+   "id": "f48",
+   "source": "s13",
+   "quote": "This approach allows for a \"apples to apples\" comparisons by only using estimates and actual earnings figures created on the same accounting basis.",
+   "claim": "Estimates and actuals are compared on the same accounting basis."
+  },
+  {
+   "id": "f49",
+   "source": "s14",
+   "quote": "Of these companies, 84% have reported actual EPS above estimates, which is above the 5-year average of 78% and above the 10-year average of 77%.",
+   "claim": "84% of reporting S&P 500 companies beat in Q3 2026; the 5-year average is 78%."
+  },
+  {
+   "id": "f50",
+   "source": "s14",
+   "quote": "In aggregate, companies are reporting earnings that are 2.7% above estimates, which is below the 5-year average of 7.5% and below the 10-year average of 8.0%.",
+   "claim": "The surprise is stated as a percent above the estimates."
+  },
+  {
+   "id": "f51",
+   "source": "s14",
+   "quote": "have seen an average change in price of +0.8% two days before the earnings release through two days after the earnings release.",
+   "claim": "FactSet measures the price reaction from two days before to two days after the report."
+  },
+  {
+   "id": "f52",
+   "source": "s14",
+   "quote": "This percentage increase is slightly below the 5-year average price increase of + 0.9% during this same window for companies reporting positive earnings surprises.",
+   "claim": "Over five years, beats have averaged a 0.9% price gain in that window."
+  },
+  {
+   "id": "f53",
+   "source": "s14",
+   "quote": "This percentage decrease is smaller than the 5-year average price decrease of -3.1% during this same window for companies reporting negative earnings surprises.",
+   "claim": "Over five years, misses have averaged a 3.1% price drop in that window."
+  },
+  {
+   "id": "f54",
+   "source": "s14",
+   "quote": "Guidance is classified as negative if the estimate (or mid-point of a range estimates) provided by a company is lower than the mean EPS estimate the day before the guidance was issued.",
+   "claim": "A guide, or the midpoint of a guided range, below the consensus counts as negative guidance."
+  },
+  {
+   "id": "f55",
+   "source": "s14",
+   "quote": "The term “guidance” (or “preannouncement”) is defined as a projection or estimate for EPS provided by a company in advance of the company reporting actual results.",
+   "claim": "Guidance is the company's own EPS projection, given before it reports."
+  },
+  {
+   "id": "f56",
+   "source": "s14",
+   "quote": "Within this sector, Centene Corporation ($0.58 vs. $0.10), Moderna ($0.38 vs. -$1.10), Elevance Health ($6.99 vs. $4.71)",
+   "claim": "Elevance Health reported $6.99 against a $4.71 estimate for Q3 2026."
+  },
+  {
+   "id": "f57",
+   "source": "s14",
+   "quote": "The (non-GAAP) EPS actual for Elevance Health for Q3 2026 included a net non-operating benefit of $1.85.",
+   "claim": "$1.85 of Elevance's $6.99 came from a non-operating benefit."
+  },
+  {
+   "id": "f58",
+   "source": "s15",
+   "quote": "In a typical quarter, analysts usually reduce earnings estimates during the first month of a quarter.",
+   "claim": "Analysts usually trim estimates early in the quarter."
+  },
+  {
+   "id": "f59",
+   "source": "s15",
+   "quote": "While all publicly traded U.S companies report EPS on a GAAP (generally accepted accounting principles) basis, many U.S. companies also choose to report EPS on a non -GAAP basis.",
+   "claim": "Companies report GAAP EPS, and many also report an adjusted (non-GAAP) EPS."
+  },
+  {
+   "id": "f60",
+   "source": "s16",
+   "quote": "EPS Surprise is calculated as [(Actual EPS - Consensus EPS)/Absolute value of Consensus EPS] x 100 (expressed in percent).",
+   "claim": "Surprise percent is actual minus consensus, divided by the consensus, times 100."
+  },
+  {
+   "id": "f61",
+   "source": "s17",
+   "quote": "Intel reported fourth-quarter earnings that beat Wall Street expectations but offered soft guidance for the current quarter.",
+   "claim": "Intel beat on the quarter and guided soft."
+  },
+  {
+   "id": "f62",
+   "source": "s17",
+   "quote": "Here's how the chipmaker did compared with what Wall Street was expecting, based on a survey of analysts by LSEG: Earnings per share: 15 cents adjusted vs. 8 cents expected",
+   "claim": "Intel earned 15 cents adjusted against 8 cents expected."
+  },
+  {
+   "id": "f63",
+   "source": "s17",
+   "quote": "Intel said it expected first-quarter revenue between $11.7 billion and $12.7 billion, and breakeven adjusted earnings per share. That came in below LSEG expectations of 5 cents earnings per share on $12.51 billion in sales.",
+   "claim": "Intel guided to breakeven EPS against 5 cents expected."
+  },
+  {
+   "id": "f64",
+   "source": "s17",
+   "quote": "Shares of the company were down as much as 13% in after-hours trading.",
+   "claim": "Intel fell as much as 13% after hours."
+  },
+  {
+   "id": "f65",
+   "source": "s17",
+   "quote": "Investor expectations were high for Intel heading into the report, with the stock up 147% in the past year.",
+   "claim": "Intel was up 147% in a year going into the report."
+  },
+  {
+   "id": "f66",
+   "source": "s18",
+   "quote": "shares plunged 17% on Friday after the chipmaker issued lackluster guidance and warned of a supply shortage.",
+   "claim": "Intel fell 17% the next day on its guidance and a supply warning."
+  },
+  {
+   "id": "f67",
+   "source": "s18",
+   "quote": "Despite the soft outlook, Intel topped Wall Street's fourth-quarter earnings and revenue expectations.",
+   "claim": "Intel beat on both earnings and revenue."
+  },
+  {
+   "id": "f68",
+   "source": "s19",
+   "quote": "shares rose nearly 9% Thursday after the chip giant's revenue guidance reassured investors that artificial intelligence demand will remain strong.",
+   "claim": "Nvidia rose nearly 9% when its revenue guidance reassured investors."
+  },
+  {
+   "id": "f69",
+   "source": "s19",
+   "quote": "Investor bullishness suggests Nvidia could buck the trend of its stock dropping the day after reporting earnings in all of the previous four quarters, despite meeting or beating estimates.",
+   "claim": "Nvidia had dropped the day after each of its previous four reports, though it met or beat each time."
+  },
+  {
+   "id": "f70",
+   "source": "s20",
+   "quote": "Cisco's results topped estimates, but they weren't good enough to satisfy Wall Street.",
+   "claim": "Cisco beat, and it still wasn't enough for the market."
+  },
+  {
+   "id": "f71",
+   "source": "s20",
+   "quote": "Here's how the company did compared with analyst estimates, according to LSEG: Earnings per share: $1.22 adjusted vs. $1.17 expected",
+   "claim": "Cisco earned $1.22 adjusted against $1.17 expected."
+  },
+  {
+   "id": "f72",
+   "source": "s20",
+   "quote": "The company said it sees revenue this quarter of $18 billion to $18.2 billion, topping the $16.8 billion average estimate, according to LSEG.",
+   "claim": "Cisco's revenue guide was above the consensus."
+  },
+  {
+   "id": "f73",
+   "source": "s20",
+   "quote": "Entering the fiscal fourth-quarter report, Wall Street had turned bullish on Cisco, pushing the stock up more than 60% this year and about 8% this month",
+   "claim": "Cisco had run more than 60% that year going into the report."
+  },
+  {
+   "id": "f74",
+   "source": "s20",
+   "quote": "shares dropped in extended trading on Wednesday despite a better-than-expected earnings report and a revenue forecast that sailed past estimates.",
+   "claim": "Cisco fell after hours despite the beat and the strong forecast."
+  },
+  {
+   "id": "f75",
+   "source": "s21",
+   "quote": "reported quarterly results on Wednesday that topped Wall Street estimates, but the chipmaker's earnings forecast came in lighter than expected. The stock slid 7% in extended trading.",
+   "claim": "Qualcomm beat, guided light and slid 7% after hours."
+  },
+  {
+   "id": "f76",
+   "source": "s21",
+   "quote": "For the current quarter, Qualcomm said it sees earnings per share of between $2.15 and $2.35 on revenue of $10.4 billion to $11.2 billion. Analysts expected earnings per share of $2.27 on revenue of $10.48 billion.",
+   "claim": "Qualcomm guided EPS to $2.15 to $2.35 against $2.27 expected."
+  },
+  {
+   "id": "f77",
+   "source": "s21",
+   "quote": "Here's how the chipmaker did versus LSEG consensus estimates: EPS: $2.17 adjusted, versus $2.16 expected",
+   "claim": "Qualcomm earned $2.17 adjusted against $2.16 expected."
+  },
+  {
+   "id": "f78",
+   "source": "s22",
+   "quote": "it sees adjusted earnings per share of 25 cents on revenue between $15 billion and $16 billion for the fourth quarter. That's below LSEG estimates of 43 cents per share",
+   "claim": "Intel guided fourth-quarter 2026 EPS to 25 cents against 43 cents expected."
+  },
+  {
+   "id": "f79",
+   "source": "s22",
+   "quote": "That weak forecast overshadowed better-than-expected third-quarter earnings.",
+   "claim": "Intel's third quarter of 2026 beat, and the weak forecast overshadowed it."
+  },
+  {
+   "id": "f80",
+   "source": "s23",
+   "quote": "Intel shares fell 29% on Friday, posting the stock's worst day since the 1970s.",
+   "claim": "Intel had its worst day since the 1970s after the October 2026 guide."
+  },
+  {
+   "id": "f81",
+   "source": "s24",
+   "quote": "83.2 % reported above analyst expectations. This compares to a long-term average of 67%.",
+   "claim": "On LSEG's data, 67% of S&P 500 companies beat over the long term; 83.2% had beaten so far in Q3 2026."
+  },
+  {
+   "id": "f82",
+   "source": "s19",
+   "quote": "Nvidia shares climbed on Thursday after earnings sailed past estimates.",
+   "claim": "Nvidia's August 2026 earnings sailed past estimates."
+  },
+  {
+   "id": "f83",
+   "source": "s19",
+   "quote": "the company is constrained on the amount of product it can supply.",
+   "claim": "Nvidia was still limited in how much product it could supply."
+  },
+  {
+   "id": "h1",
+   "source": "s25",
+   "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.",
+   "claim": "B22: our rule is no new buys in the 3 days before a report, and hold through one only when up 5R."
+  },
+  {
+   "id": "f84",
+   "source": "s14",
+   "quote": "Moderna ($0.38 vs. -$1.10), CVS Health ($2.09 vs. $1.65), and Amgen ($6.45 vs. $5.79) were substantial contributors",
+   "claim": "Moderna reported EPS of $0.38 in Q3 2026 against an expected loss of $1.10, one of the largest positive surprises in health care."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "The number the market expects",
+   "steps": [
+    "Before a report, analysts publish estimates for EPS and revenue. The average of them is the consensus.",
+    "Actual above the consensus is a beat. Below is a miss. Equal is in line.",
+    "The surprise is the gap between actual and estimate, as a percent of the estimate."
+   ],
+   "facts": [
+    "f9",
+    "f1",
+    "f29",
+    "f2",
+    "f60"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "The guide looks ahead",
+   "steps": [
+    "The report covers the quarter that just ended. Guidance is management's forecast for what comes next.",
+    "It usually comes as a range, for next quarter or the full year.",
+    "The stock is priced on future profits. So the guide can move it more than the beat.",
+    "And the guide is judged against the consensus, not against the last quarter."
+   ],
+   "facts": [
+    "f37",
+    "f21",
+    "f39",
+    "f38",
+    "f54"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "Intel, October 2026",
+   "steps": [
+    "Intel's third-quarter earnings beat expectations.",
+    "Then the guide: 25 cents a share for the fourth quarter. Analysts expected 43 cents.",
+    "That weak forecast overshadows the beat. The stock has its worst day since the 1970s.",
+    "The beat was about the past. The guide was the news."
+   ],
+   "facts": [
+    "f79",
+    "f78",
+    "f80",
+    "f38",
+    "f37"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "fund.estimates",
+   "rung": 1,
+   "format": "mcq",
+   "term": "consensus estimate",
+   "q": "What is the consensus estimate for a company's earnings?",
+   "choices": [
+    "The average of analysts' estimates",
+    "The company's own forecast",
+    "Last year's earnings for the quarter",
+    "The highest analyst estimate"
+   ],
+   "answer": "The average of analysts' estimates",
+   "why": "The average of analysts' estimates. FINRA says several groups track a consensus that is the average for all the analysts covering the stock. Fidelity's I/B/E/S help calls it the mean forecast. Beat and miss are measured against it. It is not the company's own forecast. That is guidance. It is not one analyst's number, high or low.",
+   "lesson_line": "When you hear beat or miss, it means against the consensus.",
+   "facts": [
+    "f1",
+    "f29",
+    "f30",
+    "f47",
+    "f21"
+   ],
+   "wrong": {
+    "The company's own forecast": "That's guidance. It comes from management, not from the analysts.",
+    "Last year's earnings for the quarter": "That's a past result. The consensus is a forecast.",
+    "The highest analyst estimate": "That's one analyst's number. The consensus blends all of them."
+   },
+   "simple": "It's the average of what the analysts who follow the stock expect it to earn.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q02",
+   "skill": "fund.estimates",
+   "rung": 1,
+   "format": "tf",
+   "q": "A company beats when its actual earnings come in above the consensus estimate.",
+   "answer": "True",
+   "why": "True. Above the consensus is a beat, below is a miss, and equal is in line.",
+   "lesson_line": "Beat, miss, in line. Three words, one benchmark.",
+   "facts": [
+    "f2",
+    "f30"
+   ]
+  },
+  {
+   "key": "q03",
+   "skill": "fund.estimates",
+   "rung": 2,
+   "format": "tf",
+   "term": "guidance",
+   "q": "Company guidance is an analyst's forecast of what comes next for the company.",
+   "answer": "False",
+   "why": "False. Guidance is the company's own forecast of its revenue, earnings or growth, given by management. It usually comes as a range, for the next quarter or the full year. Example: Qualcomm guided its next-quarter EPS to $2.15 to $2.35. Analysts make their own estimates, so guidance is not an analyst's number.",
+   "lesson_line": "Results look back. Guidance looks forward.",
+   "facts": [
+    "f21",
+    "f55",
+    "f37",
+    "f46",
+    "f39",
+    "f26",
+    "f9",
+    "f76"
+   ],
+   "simple": "False, because guidance is the company's own forecast, given by its managers, not by analysts.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "review3"
+  },
+  {
+   "key": "q04",
+   "skill": "fund.estimates",
+   "rung": 2,
+   "format": "fill",
+   "term": "surprise",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "When reported earnings land well above or below what was expected, it's called an earnings ___.",
+   "bank": [
+    "surprise",
+    "guidance",
+    "revision",
+    "consensus",
+    "whisper"
+   ],
+   "answer": "surprise",
+   "why": "Surprise. An earnings surprise is reported profit above or below what analysts expected. Below is a negative surprise, and a miss usually sends the stock lower. A result equal to the estimate is called in line. Guidance, the consensus and the whisper are forecasts. The surprise is the gap between a result and the forecast.",
+   "lesson_line": "A surprise can go either way. Above expectations is positive, below is negative.",
+   "facts": [
+    "f45",
+    "f18",
+    "f19",
+    "f2",
+    "f21",
+    "f1",
+    "f32"
+   ],
+   "simple": "Surprise is the word for results that land well above or below what analysts expected.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q05",
+   "skill": "fund.estimates",
+   "rung": 2,
+   "format": "tf",
+   "q": "US companies are legally required to give earnings guidance.",
+   "answer": "False",
+   "why": "False. No law requires earnings guidance, though many companies give it. What the rules cover is how it is shared. Under the SEC's Regulation FD, adopted in 2000, news told to an analyst must also go public. An intentional disclosure goes public at the same time. An accidental one goes out promptly.",
+   "lesson_line": "No law makes a company guide. But if it tells one analyst, it has to tell everyone.",
+   "facts": [
+    "f23",
+    "f42",
+    "f10",
+    "f12"
+   ],
+   "simple": "False, no law makes a company give guidance, but news told to one analyst must also go public.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "a rule that can change over time (Regulation FD, eCFR current as of 11/05/2026)"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q06",
+   "skill": "fund.estimates",
+   "rung": 3,
+   "format": "mcq",
+   "q": "Why can a company's guidance move its stock more than the quarter it just reported?",
+   "choices": [
+    "It resets estimates, so growth reprices",
+    "Guidance always turns out to be right",
+    "Companies only guide when news is bad",
+    "Analysts ignore the reported quarter"
+   ],
+   "answer": "It resets estimates, so growth reprices",
+   "why": "Guidance changes the estimates and the outlook, so the market reprices the stock's growth. Estimates are analysts' forecasts of profit in the quarters ahead. Analysts build them partly from the company's guidance. A guide below the consensus can bring cuts to those numbers, downgrades and selling. Example: Intel (INTC) beat in its third quarter, then guided fourth-quarter EPS to 25 cents against 43 cents expected. The stock had its worst day since the 1970s, down 29%. A guide that reassures works the other way. Nvidia (NVDA) rose nearly 9% when its revenue guidance reassured investors. Compare the guide with the consensus before you react to the beat.",
+   "lesson_line": "The guide resets the estimates. Read it before you celebrate the beat.",
+   "facts": [
+    "f37",
+    "f38",
+    "f20",
+    "f26",
+    "f78",
+    "f79",
+    "f80",
+    "f68",
+    "f22",
+    "f27",
+    "f3",
+    "f62",
+    "f63",
+    "f66",
+    "f70",
+    "f72",
+    "f73",
+    "f74"
+   ],
+   "wrong": {
+    "Companies only guide when news is bad": "No. Guiding is common practice for many companies, whatever the news. Nvidia's guide lifted it nearly 9%.",
+    "Guidance always turns out to be right": "No. Guidance is an estimate, not a guarantee, and a company can change it later.",
+    "Analysts ignore the reported quarter": "They don't. Beat and miss are measured on the reported quarter. The guide speaks to the quarters still ahead."
+   },
+   "simple": "Guidance changes what analysts expect next, so the market reprices the stock's growth, while the report looks back.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "review4",
+   "deeper": {
+    "example": "In January, Intel (INTC) earned 15 cents adjusted against 8 cents expected. It guided to breakeven against 5 cents expected, and the stock fell 17% the next day.",
+    "counter": "Cisco (CSCO) beat and guided revenue of $18 billion to $18.2 billion against $16.8 billion expected, and still dropped after hours. It was up more than 60% that year, so the bar was high.",
+    "trap": "Do not read every soft guide as a sell. Judge the guide against the consensus and against how far the stock already ran."
+   }
+  },
+  {
+   "key": "q07",
+   "skill": "fund.estimates",
+   "rung": 3,
+   "format": "fill",
+   "term": "whisper",
+   "q": "Fill the blank with the right word.",
+   "sentence": "The unofficial number the street expects, which can differ from the consensus, is the ___ number.",
+   "bank": [
+    "whisper",
+    "guidance",
+    "consensus",
+    "surprise",
+    "target"
+   ],
+   "answer": "whisper",
+   "why": "Whisper. The whisper number is the street's unofficial expectation, and it can differ from the consensus. FINRA says it can become the market's real bar instead of the official estimate. So a stock can beat the consensus, fall short of the whisper, and still sell off. It is not guidance, which comes from the company.",
+   "lesson_line": "A beat of the consensus can still disappoint if the whisper was higher.",
+   "facts": [
+    "f5",
+    "f6",
+    "f32",
+    "f33",
+    "f21"
+   ],
+   "simple": "Whisper, because the street's unofficial number can become the bar the market really uses, not the consensus.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q08",
+   "skill": "fund.estimates",
+   "rung": 3,
+   "format": "mcq",
+   "q": "How do most companies put out their guidance?",
+   "choices": [
+    "With each quarterly report",
+    "In a private call with analysts",
+    "Once a year, in the annual filing",
+    "In analysts' research notes"
+   ],
+   "answer": "With each quarterly report",
+   "why": "With each quarterly report. Guidance is typically released right after the latest quarterly report and discussed with analysts, often on the earnings call. It usually sits near the bottom of the release. A company can also change its guidance later in the quarter.",
+   "lesson_line": "Results and guidance land together. Read both before you react to the headline.",
+   "facts": [
+    "f24",
+    "f7",
+    "f10",
+    "f38",
+    "f27",
+    "f21",
+    "f9"
+   ],
+   "wrong": {
+    "In a private call with analysts": "Not allowed. Under Regulation FD, telling one analyst means telling everyone.",
+    "Once a year, in the annual filing": "It usually comes out each quarter, right after the earnings report.",
+    "In analysts' research notes": "Those hold the analysts' own estimates. Guidance is the company's forecast, and the company puts it out."
+   },
+   "simple": "Most companies give guidance with each quarterly report, in the release or on the call right after it.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q09",
+   "skill": "fund.estimates",
+   "rung": 4,
+   "format": "mcq",
+   "q": "ZQRT's consensus EPS is $0.80 a share. It reports $0.84. What is the earnings surprise, in percent?",
+   "answer": "5%",
+   "suffix": "%",
+   "calc": {
+    "fn": "pct_change",
+    "args": {
+     "start": 0.8,
+     "end": 0.84
+    }
+   },
+   "why": "5%. Take actual minus consensus, which is the 4-cent beat. Divide it by the $0.80 consensus, then multiply by 100. That gives 5%. A quick check: 5% of $0.80 is 4 cents. Zacks divides by the absolute value of the consensus, which only matters when the consensus is a loss. The surprise is measured against the consensus, not against last year.",
+   "lesson_line": "The surprise is measured against the estimate, not against last year.",
+   "facts": [
+    "f60",
+    "f50",
+    "f2"
+   ],
+   "simple": "The surprise is 5%, because $0.84 is 5% above the $0.80 consensus.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "review3",
+   "choices": [
+    "105%",
+    "4%",
+    "95%",
+    "5%"
+   ],
+   "wrong": {
+    "4%": "You read the 4-cent beat as 4%.",
+    "105%": "You divided actual by the estimate and forgot to subtract one.",
+    "95%": "You divided the estimate by the actual instead of the actual by the estimate."
+   }
+  },
+  {
+   "key": "q10",
+   "skill": "fund.estimates",
+   "rung": 4,
+   "format": "tf",
+   "q": "In a typical quarter, most S&P 500 companies beat the analysts' EPS consensus.",
+   "answer": "True",
+   "why": "True. FactSet's 5-year average is 78% of S&P 500 companies beating EPS estimates, and its 10-year average is 77%. LSEG's long-term average is 67%. The providers differ, but all say most beat. In its latest count FactSet had 84% beating, with an aggregate surprise of 2.7%, below its 5-year average of 7.5%. Some companies guide low on purpose, and analysts tend to estimate conservatively. That makes beats easier. So a beat alone is normal, not a buy signal. It is a tendency for the index, not a rule for any one company.",
+   "lesson_line": "A beat is expected. I want to know how big it was and what the guide says.",
+   "facts": [
+    "f49",
+    "f81",
+    "f44",
+    "f43",
+    "f58",
+    "f20",
+    "f50"
+   ],
+   "simple": "True, most S&P 500 companies beat the consensus in a typical quarter, so a beat on its own is normal.",
+   "deeper": {
+    "trap": "A beat is the normal case. If most companies beat in a typical quarter, a beat tells you little by itself. Ask how big it was, what was inside it, and what the guide says."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "beat-rate averages change every quarter"
+    ]
+   },
+   "batch": "review3"
+  },
+  {
+   "key": "q11",
+   "skill": "fund.estimates",
+   "rung": 4,
+   "format": "tf",
+   "q": "A company's guidance is a promise of what it will report.",
+   "answer": "False",
+   "why": "False. Guidance is a forward-looking estimate, not a guarantee. Companies pair it with a warning that their projections are not guaranteed. Intel's own release says actual results may differ materially from its outlook. A company can also raise or lower its guidance later if its outlook changes.",
+   "lesson_line": "Treat the guide as management's estimate, not a contract.",
+   "facts": [
+    "f22",
+    "f28",
+    "f15",
+    "f27"
+   ],
+   "simple": "False, guidance is the company's own forecast, and it comes with a warning that real results may differ.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q12",
+   "skill": "fund.estimates",
+   "rung": 5,
+   "format": "mcq",
+   "q": "Cisco (CSCO) reported $1.22 adjusted EPS. The LSEG consensus was $1.17. What was the surprise, in percent?",
+   "answer": "4.3%",
+   "suffix": "%",
+   "calc": {
+    "fn": "pct_change",
+    "args": {
+     "start": 1.17,
+     "end": 1.22
+    },
+    "round": 1
+   },
+   "why": "4.3%. Take $1.22 minus $1.17, which is a 5-cent beat. Divide it by the $1.17 consensus and multiply by 100. Rounded to one decimal, that is 4.3%. Actual is above the consensus, so it is a beat. Always divide by the consensus, never by the actual.",
+   "lesson_line": "Work the surprise in percent: actual minus the consensus, divided by the consensus.",
+   "facts": [
+    "f71",
+    "f60",
+    "f50",
+    "f2"
+   ],
+   "simple": "It's about 4.3%, because $1.22 sits about 4.3% above the $1.17 consensus.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "review3",
+   "choices": [
+    "4.3%",
+    "5.0%",
+    "43.0%",
+    "104.3%"
+   ],
+   "wrong": {
+    "5.0%": "You read the 5-cent beat as 5%.",
+    "104.3%": "You divided actual by the consensus and forgot to subtract one.",
+    "43.0%": "A decimal slip: you moved the point one place the wrong way."
+   }
+  },
+  {
+   "key": "q13",
+   "skill": "fund.estimates",
+   "rung": 5,
+   "format": "mcq",
+   "q": "Qualcomm (QCOM) guided next-quarter EPS to $2.15 to $2.35. What is the midpoint of that range?",
+   "answer": "$2.25",
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(low + high) / 2",
+     "low": 2.15,
+     "high": 2.35
+    }
+   },
+   "why": "$2.25. Add the two ends, $2.15 and $2.35, then halve the sum to get $2.25. A guide is a range, so traders judge it by its midpoint against the consensus, as FactSet does. Analysts expected $2.27, so the midpoint sat just under. CNBC called the earnings forecast lighter than expected, and the stock slid 7% in extended trading. The revenue guide is a separate number.",
+   "lesson_line": "When the guide is a range, compare its midpoint to the consensus.",
+   "facts": [
+    "f76",
+    "f54",
+    "f75"
+   ],
+   "simple": "The midpoint is $2.25, halfway between $2.15 and $2.35, and it sat just under the $2.27 analysts expected.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "review3",
+   "choices": [
+    "$2.25",
+    "$2.15",
+    "$0.20",
+    "$1.13"
+   ],
+   "wrong": {
+    "$0.20": "You gave the width of the range, not its middle.",
+    "$2.15": "You took the bottom of the range, the worst case.",
+    "$1.13": "You added the two ends and halved twice."
+   }
+  },
+  {
+   "key": "q14",
+   "skill": "fund.estimates",
+   "rung": 6,
+   "format": "scenario",
+   "story": "ZQRT raises its full-year EPS guide from $3.00 to $3.20. The consensus going in was $3.40.",
+   "q": "How will the market likely read this guide?",
+   "choices": [
+    "Likely negative: below consensus",
+    "Likely positive: a raise from $3.00",
+    "Likely neutral: only results count",
+    "Likely positive: estimates go up"
+   ],
+   "answer": "Likely negative: below consensus",
+   "why": "Likely negative: below consensus. A guide is judged against what analysts expect, not against the old guide. FactSet counts guidance as negative when it, or its midpoint, sits below the mean estimate. $3.20 is below $3.40, so it likely reads negative, raise or not. Guidance below expectations can bring downgrades and selling. It is a likely read, not a sure one. How far the stock ran into the report, and the whisper number, also matter.",
+   "lesson_line": "A raise that falls short of the consensus is still a letdown.",
+   "facts": [
+    "f54",
+    "f26",
+    "f41",
+    "f38",
+    "f20",
+    "f6",
+    "f4"
+   ],
+   "wrong": {
+    "Likely neutral: only results count": "Guidance can be the top factor in the near-term price. It counts.",
+    "Likely positive: a raise from $3.00": "It's higher than the old guide, but the market was already at $3.40. The bar is the consensus.",
+    "Likely positive: estimates go up": "Analysts already sit at $3.40, above the guide. Guidance below expectations can bring downgrades and selling, not raises."
+   },
+   "simple": "It likely reads negative, because the market compares a guide with the consensus, and $3.20 is still below $3.40.",
+   "deeper": {
+    "trap": "A raise sounds bullish. But the street was already at $3.40. The raise to $3.20 still sits below that bar. Ask: raised compared to what?"
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "review3"
+  },
+  {
+   "key": "q15",
+   "skill": "fund.estimates",
+   "rung": 6,
+   "format": "scenario",
+   "story": "A CFO takes a private call from one analyst. She hints next quarter will come in under the estimates. Nothing goes out to the public.",
+   "q": "What does Regulation FD say about this call?",
+   "choices": [
+    "It's selective disclosure",
+    "Fine: a hint isn't guidance",
+    "Fine: analysts can know first",
+    "It's guidance given too early"
+   ],
+   "answer": "It's selective disclosure",
+   "why": "It's selective disclosure. The SEC says telling one analyst privately that earnings will be above, below or in line with forecasts likely violates Regulation FD. A hint counts when its meaning is clear. An intentional disclosure must go public at the same time. Here nothing went out, so the problem is who heard it, not when.",
+   "lesson_line": "Tell one, tell all, at the same time. That's why guidance hits everyone at once.",
+   "facts": [
+    "f10",
+    "f11",
+    "f12",
+    "f25",
+    "f27"
+   ],
+   "wrong": {
+    "Fine: a hint isn't guidance": "The SEC says indirect guidance counts when its meaning is plain.",
+    "Fine: analysts can know first": "That's what Regulation FD ended. An intentional disclosure has to go public at the same time.",
+    "It's guidance given too early": "Timing isn't the problem. A company can change its guidance mid-quarter. The problem is that only one analyst heard it."
+   },
+   "simple": "It's selective disclosure, because she told one analyst what the public did not hear, and the SEC rule says tell everyone.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "a rule that can change over time (Regulation FD)"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q16",
+   "skill": "fund.estimates",
+   "rung": 6,
+   "format": "mcq",
+   "q": "FactSet's 5-year averages around the report: beats +0.9%, misses -3.1%. How many times bigger is the average miss move?",
+   "answer": "3.4 times",
+   "suffix": "times",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "miss / beat",
+     "miss": 3.1,
+     "beat": 0.9
+    },
+    "round": 1
+   },
+   "why": "About 3.4 times. Divide the miss move by the beat move: 3.1 divided by 0.9 is about 3.4. FactSet measures from two days before to two days after the report, over five years. Beats averaged a 0.9% gain and misses a 3.1% drop. These are averages, not a forecast for one stock.",
+   "lesson_line": "On average a beat pays a little and a miss costs a lot.",
+   "facts": [
+    "f52",
+    "f53",
+    "f51",
+    "f19"
+   ],
+   "simple": "The average miss move is about 3.4 times the average beat move, since 3.1 divided by 0.9 is about 3.4.",
+   "deeper": {
+    "trap": "The 3.4 is a ratio of average moves, not of odds. It does not say a miss is 3.4 times as likely. It says the average drop after a miss is far bigger than the average gain after a beat."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key from averages that change every quarter"
+    ]
+   },
+   "batch": "tomcq",
+   "choices": [
+    "4.0 times",
+    "0.3 times",
+    "2.2 times",
+    "3.4 times"
+   ],
+   "wrong": {
+    "0.3 times": "You flipped it and divided the beat move by the miss move.",
+    "2.2 times": "You subtracted 0.9 from 3.1 instead of dividing.",
+    "4.0 times": "You added 0.9 to 3.1 instead of dividing."
+   }
+  },
+  {
+   "key": "q17",
+   "skill": "fund.estimates",
+   "rung": 7,
+   "format": "scenario",
+   "story": "Intel posts a GAAP loss of 12 cents a share. Adjusted EPS is 15 cents against 8 cents expected, and revenue beats. It guides next quarter to breakeven adjusted EPS, against 5 cents expected. The stock was up 147% in a year.",
+   "q": "The next day the stock falls 17%. What drove the drop?",
+   "choices": [
+    "The next-quarter outlook",
+    "The 12-cent GAAP loss",
+    "A one-time gain in the beat",
+    "Its stock buyback news"
+   ],
+   "answer": "The next-quarter outlook",
+   "why": "The next-quarter outlook. Adjusted EPS beat, 15 cents against 8 cents, and revenue beat too. The estimate was adjusted, so the GAAP loss is the wrong comparison. The guide was breakeven adjusted EPS against 5 cents expected. After a 147% run in a year, expectations were high. CNBC ties the 17% drop to the weak guidance and a supply warning.",
+   "lesson_line": "Beat the quarter, miss on the guide, and the guide can win. I read the guide first.",
+   "facts": [
+    "f62",
+    "f63",
+    "f14",
+    "f61",
+    "f65",
+    "f66",
+    "f67",
+    "f36",
+    "f13",
+    "f48"
+   ],
+   "wrong": {
+    "A one-time gain in the beat": "CNBC ties the 17% drop to lackluster guidance and a supply warning, not to what was inside the beat.",
+    "The 12-cent GAAP loss": "That's the GAAP number. The estimate was adjusted, and on that basis Intel beat, 15 cents against 8 cents.",
+    "Its stock buyback news": "Nothing in the coverage ties the drop to a buyback. CNBC ties it to the guidance and the supply warning."
+   },
+   "simple": "The outlook drove it: the quarter beat on an adjusted basis, but Intel guided to breakeven when analysts wanted 5 cents.",
+   "deeper": {
+    "trap": "The trap is the headline. Intel beat, and the stock still fell 17% the next day. The quarter was over. The guide was the news about what comes next, and after a 147% run the stock was priced for more."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q18",
+   "skill": "fund.estimates",
+   "rung": 7,
+   "format": "mcq",
+   "q": "Elevance Health (ELV) reported $6.99 EPS vs. $4.71 expected. That included a $1.85 non-operating benefit. What is EPS without it?",
+   "answer": "$5.14",
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "actual - benefit",
+     "actual": 6.99,
+     "benefit": 1.85
+    }
+   },
+   "why": "$5.14. Take the $6.99 reported and subtract the $1.85 non-operating benefit, a gain that did not come from running the business. That leaves $5.14. Against the $4.71 estimate it is still a beat, but a much smaller one. FactSet does not say whether analysts had counted on the benefit. A trader asks what is inside a beat before trusting it, because a one-time gain makes it look bigger than the business was.",
+   "lesson_line": "Check what's inside a beat. A tax break or a one-off gain can make it look bigger.",
+   "facts": [
+    "f56",
+    "f57",
+    "f31"
+   ],
+   "simple": "It's $5.14: take the $1.85 non-operating benefit out of the $6.99 reported.",
+   "deeper": {
+    "example": "A beat can be mostly one item. Molson Coors beat consensus estimates by 2% in 2010 and its shares still fell 7%. Investors tied the beat to a one-time tax break. Check what is inside a beat before you trust it."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "review3",
+   "choices": [
+    "$2.28",
+    "$8.84",
+    "$5.14",
+    "$2.86"
+   ],
+   "wrong": {
+    "$8.84": "You added the $1.85 benefit instead of taking it out.",
+    "$2.28": "You took the $4.71 estimate off the $6.99, which is the headline beat.",
+    "$2.86": "You took the benefit off the $4.71 estimate instead of off the $6.99."
+   }
+  },
+  {
+   "key": "q19",
+   "skill": "fund.estimates",
+   "rung": 8,
+   "format": "scenario",
+   "story": "Nvidia (NVDA) met or beat estimates four quarters running. After each of those reports, the stock fell the next day. In August 2026 it reports again, with supply still limited.",
+   "q": "This time the stock rises nearly 9%. Going by CNBC's report, what was different?",
+   "choices": [
+    "Its forecast calmed investors",
+    "It missed, the bar was low",
+    "It ran up into the report",
+    "A stock split was announced"
+   ],
+   "answer": "Its forecast calmed investors",
+   "why": "Its forecast calmed investors. Nvidia had met or beaten estimates in each of the four quarters before, and the stock fell the next day each time. This time CNBC credits the revenue guidance, which reassured investors about AI demand. Earnings sailed past estimates too, but meeting or beating had not stopped the earlier drops. Supply was still limited, so that had not changed.",
+   "lesson_line": "Four reports that met or beat, four drops. Then a reassuring guide and a nearly 9% day.",
+   "facts": [
+    "f68",
+    "f69",
+    "f82",
+    "f83",
+    "f19",
+    "f4",
+    "f38"
+   ],
+   "wrong": {
+    "It missed, the bar was low": "It didn't miss. CNBC says its earnings sailed past estimates. And a miss usually sends a stock lower.",
+    "It ran up into the report": "A run-up cuts the other way. FINRA says a stock that rallied into its report may lack new buyers.",
+    "A stock split was announced": "Nothing in the coverage ties the reaction to a split. CNBC ties it to the forecast."
+   },
+   "simple": "Its guidance made the difference: meeting or beating had not lifted the stock before, and this time the forecast calmed investors.",
+   "deeper": {
+    "counter": "Meeting or beating was not new. Four reports met or beat, and four drops followed. The new piece, CNBC says, was a guide that reassured investors about demand."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the key rests on one CNBC fact (f68)"
+    ]
+   },
+   "batch": "review3"
+  },
+  {
+   "key": "q20",
+   "skill": "fund.estimates",
+   "rung": 8,
+   "format": "scenario",
+   "story": "Intel (INTC) shows a GAAP loss of 12 cents a share and non-GAAP EPS of 15 cents. Analysts expected 8 cents, adjusted.",
+   "q": "Against the estimate, did Intel beat or miss?",
+   "choices": [
+    "Beat: 15 cents vs. 8 cents",
+    "Miss: it lost 12 cents a share",
+    "Can't tell from these numbers",
+    "In line: the two numbers net out"
+   ],
+   "answer": "Beat: 15 cents vs. 8 cents",
+   "why": "Beat: 15 cents vs. 8 cents. GAAP is the standard accounting number, and Intel lost 12 cents a share on it. Many companies also report an adjusted, or non-GAAP, EPS, and Intel earned 15 cents on that basis. The analysts' 8 cents was an adjusted estimate. So you compare adjusted with adjusted, and 15 cents against 8 cents is a beat. Setting the GAAP loss against an adjusted estimate would compare two different measures.",
+   "lesson_line": "Match the basis. Adjusted against adjusted, GAAP against GAAP.",
+   "facts": [
+    "f13",
+    "f62",
+    "f48",
+    "f59"
+   ],
+   "wrong": {
+    "Miss: it lost 12 cents a share": "That's the GAAP number. The estimate was adjusted, so it's the wrong comparison.",
+    "Can't tell from these numbers": "You can. The estimate and the non-GAAP figure are on the same basis.",
+    "In line: the two numbers net out": "They don't net out. They are two different measures, so you never mix them. Match the estimate's basis."
+   },
+   "simple": "It's a beat, because the 8 cent estimate was adjusted, so you set it against the adjusted 15 cents.",
+   "batch": "review3"
+  },
+  {
+   "key": "q21",
+   "skill": "fund.estimates",
+   "rung": 9,
+   "format": "scenario",
+   "story": "Cisco (CSCO) beats: $1.22 adjusted EPS vs. $1.17 expected. It guides revenue to $18 billion to $18.2 billion, against $16.8 billion expected. The stock is up more than 60% this year.",
+   "q": "Shares still drop in extended trading. What's the most likely read?",
+   "choices": [
+    "The bar was above the estimates",
+    "The guide missed the consensus",
+    "The quarter was really a miss",
+    "Beats usually get sold on the news"
+   ],
+   "answer": "The bar was above the estimates",
+   "why": "The bar was above the estimates. Cisco beat on EPS, $1.22 against $1.17, and its revenue guide of $18 billion to $18.2 billion topped the $16.8 billion estimate. The stock was up more than 60% this year. CNBC says the results were not good enough for Wall Street. FINRA notes a stock that ran up may lack new buyers. CNBC gives no single cause, so this is the likely read, not a certainty.",
+   "lesson_line": "When a stock has run hard into a report, beating the consensus may not be enough.",
+   "facts": [
+    "f70",
+    "f71",
+    "f72",
+    "f73",
+    "f74",
+    "f4",
+    "f6",
+    "f41",
+    "f40",
+    "f52"
+   ],
+   "wrong": {
+    "The guide missed the consensus": "It didn't. $18 billion to $18.2 billion topped the $16.8 billion estimate.",
+    "The quarter was really a miss": "It beat: $1.22 against $1.17 expected, on an adjusted basis.",
+    "Beats usually get sold on the news": "Not on average. Over five years, FactSet found beats averaged a 0.9% gain around the report."
+   },
+   "simple": "Both the beat and the guide topped estimates, yet the stock fell, so the market's bar sat above them.",
+   "deeper": {
+    "trap": "Beating the consensus is not beating what buyers already paid for. A stock up more than 60% into a report carries hopes above the published estimates. The whisper, the street's unofficial bar, can sit above the consensus. Clear one, miss the other, and the stock can still drop."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "interpretive key: CNBC gives no cause for the drop, so the read rests on FINRA's general point"
+    ]
+   },
+   "batch": "review3"
+  },
+  {
+   "key": "q22",
+   "skill": "fund.estimates",
+   "rung": 9,
+   "format": "scenario",
+   "story": "October 2026. Intel (INTC) beats third-quarter estimates. It guides fourth-quarter EPS to 25 cents. The LSEG consensus was 43 cents.",
+   "q": "How far below the consensus is the guide, as a percent of the consensus?",
+   "choices": [
+    "About 42% below",
+    "About 18% below",
+    "About 72% below",
+    "About 58% below"
+   ],
+   "answer": "About 42% below",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(consensus - guide) / consensus * 100",
+     "consensus": 0.43,
+     "guide": 0.25
+    },
+    "round": 0
+   },
+   "why": "About 42% below. The guide is 25 cents against 43 cents expected, so it is 18 cents short. Divide 18 by 43 and multiply by 100: about 42%. Measure a miss against what was expected, the consensus. Intel had beaten on the third quarter, and the stock still fell 29%, its worst day since the 1970s.",
+   "lesson_line": "A light guide can gap a stock through your stop. Our rule: no new buys in the 3 days before a report.",
+   "facts": [
+    "f78",
+    "f79",
+    "f80",
+    "f60",
+    "f17",
+    "f34",
+    "h1"
+   ],
+   "wrong": {
+    "About 18% below": "That's the 18-cent gap read as a percent. Divide it by the 43-cent consensus.",
+    "About 72% below": "That divides by the guide instead of the consensus. Measure against what was expected.",
+    "About 58% below": "That is the guide as a share of the consensus, 25 over 43. The miss is the other 42%."
+   },
+   "simple": "It's about 42% below, because the guide is 18 cents short of a 43-cent consensus.",
+   "deeper": {
+    "trap": "A stop does not cap a gap. A stock can gap past your stop and cost more than the risk you planned. Once the stop triggers, the fill can land far from the stop price. Our rule: no new buys in the 3 days before a report. We hold through one only when the trade is up 5R."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "lesson line and deeper rest on the owner's rulebook (B22)"
+    ]
+   },
+   "batch": "review3"
+  },
+  {
+   "key": "q91",
+   "skill": "fund.estimates",
+   "rung": 5,
+   "format": "scenario",
+   "story": "ZQRT's consensus EPS is $1.00 a share. Chatter on the street puts the whisper number at $1.10. It reports $1.05.",
+   "q": "ZQRT beat the consensus by 5%. Why might the stock still sell off?",
+   "choices": [
+    "The whisper was above what it earned",
+    "Beating the consensus is a bad sign",
+    "The consensus was out of date",
+    "Analysts cut estimates after a beat"
+   ],
+   "answer": "The whisper was above what it earned",
+   "wrong": {
+    "Beating the consensus is a bad sign": "A beat is good news. What can hurt is a beat that falls short of what buyers hoped for.",
+    "The consensus was out of date": "Nothing in the story says so. The gap is between the consensus and the whisper.",
+    "Analysts cut estimates after a beat": "Nothing in the story says so. The whisper is the unofficial bar, not an estimate change."
+   },
+   "why": "The whisper was above what it earned. The whisper number is the street's unofficial expectation, and it can differ from the consensus. FINRA says it can become the market's real bar. ZQRT beat the $1.00 consensus, but $1.05 is short of the $1.10 whisper. Investopedia says a stock may sell off in that case. Schwab adds that even a raised guide can be punished for missing the whisper. It is a risk, not a certainty.",
+   "lesson_line": "A beat of the consensus can still disappoint if the whisper was higher.",
+   "facts": [
+    "f5",
+    "f6",
+    "f32",
+    "f33",
+    "f41"
+   ],
+   "simple": "The whisper number was higher than what ZQRT earned, and the market can treat it as the real bar.",
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "made-up ZQRT numbers; the whisper idea is sourced to FINRA, Investopedia and Schwab"
+    ]
+   },
+   "batch": "review3"
+  },
+  {
+   "key": "q92",
+   "skill": "fund.estimates",
+   "rung": 6,
+   "format": "scenario",
+   "story": "Qualcomm (QCOM) reports adjusted EPS of $2.17 against $2.16 expected. It guides next-quarter EPS to $2.15 to $2.35. Analysts expected $2.27.",
+   "q": "What most likely moved the stock?",
+   "choices": [
+    "The guide: $2.25 midpoint, under $2.27",
+    "The beat: $2.17 is above $2.16",
+    "The top of the guide range, $2.35",
+    "Nothing: the stock is likely unchanged"
+   ],
+   "answer": "The guide: $2.25 midpoint, under $2.27",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(low + high) / 2",
+     "low": 2.15,
+     "high": 2.35
+    }
+   },
+   "wrong": {
+    "The beat: $2.17 is above $2.16": "It is a beat, but only by a cent. A guide looks ahead, and that is where the news was.",
+    "The top of the guide range, $2.35": "The market judges a range by its midpoint, not its best case.",
+    "Nothing: the stock is likely unchanged": "CNBC says the stock slid 7% in extended trading, so it did move."
+   },
+   "why": "The guide. The $2.17 report beat the $2.16 estimate by a cent, which is a beat but a tiny one. The guide looks ahead. It was $2.15 to $2.35, so its midpoint is $2.25, just under the $2.27 analysts expected. FactSet counts a guide whose midpoint is below the consensus as negative. CNBC called the forecast lighter than expected, and the stock slid 7% in extended trading. A small beat with a light guide is a likely sell, not a sure one.",
+   "lesson_line": "A tiny beat with a guide under the consensus is a likely letdown.",
+   "facts": [
+    "f77",
+    "f76",
+    "f75",
+    "f54"
+   ],
+   "simple": "The guide moved it, because its midpoint sat just under what analysts wanted and the beat was only a cent.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key",
+     "CNBC gives the reaction, the cause is the likely read"
+    ]
+   },
+   "batch": "review3"
+  },
+  {
+   "key": "q93",
+   "skill": "fund.estimates",
+   "rung": 5,
+   "format": "mcq",
+   "q": "Moderna (MRNA) was expected to lose $1.10 a share. It earned $0.38. How big is the swing in EPS against the estimate?",
+   "choices": [
+    "$0.38",
+    "$0.72",
+    "$1.10",
+    "$1.48"
+   ],
+   "answer": "$1.48",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "actual - estimate",
+     "actual": 0.38,
+     "estimate": -1.1
+    }
+   },
+   "wrong": {
+    "$0.38": "That is the profit alone, not the distance from the estimate.",
+    "$0.72": "You subtracted as if both were profits. The estimate was a loss, so the two add up.",
+    "$1.10": "That is the expected loss alone, not the swing."
+   },
+   "why": "$1.48. The estimate was a loss of $1.10 and the actual was a profit of $0.38. The distance between them is $1.10 plus $0.38, which is $1.48. Subtracting them, $0.72, is the common slip. FactSet listed Moderna among the largest positive EPS surprises in health care in a recent quarter. A percent surprise is awkward here, because the estimate is negative. That is why Zacks divides by the absolute value of the consensus. Traders weigh the flip from a loss to a profit itself, not just the size of the gap.",
+   "lesson_line": "A turn from an expected loss to a profit is a big positive surprise.",
+   "facts": [
+    "f84",
+    "f56",
+    "f60",
+    "f2"
+   ],
+   "simple": "The swing is $1.48, because it went from an expected $1.10 loss to a $0.38 profit, and the two add up.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key",
+     "the last sentence is the owner's view on a flip to profitability"
+    ]
+   },
+   "batch": "review3"
+  },
+  {
+   "key": "q94",
+   "skill": "fund.estimates",
+   "rung": 6,
+   "format": "mcq",
+   "q": "FactSet's 5-year averages around a report: beats +0.9%, misses -3.1%. What does that say about holding through one?",
+   "choices": [
+    "A miss has cost more than a beat paid",
+    "A beat has paid more than a miss cost",
+    "Beats and misses move a stock the same",
+    "Misses happen more often than beats"
+   ],
+   "answer": "A miss has cost more than a beat paid",
+   "wrong": {
+    "A beat has paid more than a miss cost": "It is the other way round. The average beat gained 0.9% and the average miss lost 3.1%.",
+    "Beats and misses move a stock the same": "They don't. The average miss move was about three times the average beat move.",
+    "Misses happen more often than beats": "No. Most companies beat each quarter. FactSet's 5-year average is 78%."
+   },
+   "why": "A miss has cost more than a beat paid. FactSet measures from two days before to two days after the report. Over five years, stocks with positive surprises averaged +0.9%, and stocks with negative surprises averaged -3.1%. The average loss on a miss is about three times the average gain on a beat. And most companies beat, so a beat is already expected. These are averages for many stocks, not a forecast for one.",
+   "lesson_line": "On average a beat pays a little and a miss costs a lot.",
+   "facts": [
+    "f52",
+    "f53",
+    "f51",
+    "f19",
+    "f49",
+    "f80"
+   ],
+   "simple": "On average a miss has cost far more than a beat has paid, so holding through a report carries a lopsided risk.",
+   "deeper": {
+    "counter": "Averages hide the extremes. Intel fell 29% in one day after a weak guide, far more than the 3.1% average miss."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "averages that change every quarter"
+    ]
+   },
+   "batch": "review3"
+  },
+  {
+   "key": "q95",
+   "skill": "fund.estimates",
+   "rung": 7,
+   "format": "scenario",
+   "story": "You buy 1,000 shares of ZQRT at $50 and set a stop at $45, so you plan to risk $5,000. It reports after the close and guides far below the consensus. It opens at $35.",
+   "q": "The stop triggers at the open. About how much do you lose on the 1,000 shares?",
+   "choices": [
+    "$5,000",
+    "$10,000",
+    "$15,000",
+    "$20,000"
+   ],
+   "answer": "$15,000",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(entry - fill) * shares",
+     "entry": 50,
+     "fill": 35,
+     "shares": 1000
+    },
+    "round": 0
+   },
+   "wrong": {
+    "$5,000": "That is the loss only if you fill at the stop. A gap skips the stop price.",
+    "$10,000": "That is the loss beyond your plan. You lose the whole drop from your entry, not just the extra.",
+    "$20,000": "That adds your planned risk on top of the whole drop. You count the same money twice."
+   },
+   "why": "$15,000. Once a stop triggers it becomes a market order, so the fill can land far from the stop price. Investor.gov warns of this. ZQRT opened at $35, far below the $45 stop. You sell near the open, so you lose the whole drop from your $50 entry on 1,000 shares. That is three times the $5,000 you planned to risk. Investopedia says a gap beyond your stop can cost more than the risk you planned. Intel fell 29% in a day after a weak guide.",
+   "lesson_line": "A stop does not cap a gap. A weak guide can open a stock far below it.",
+   "facts": [
+    "f17",
+    "f34",
+    "f80"
+   ],
+   "simple": "You lose about $15,000, because the stop sells at the open price, not at $45.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key",
+     "made-up ZQRT numbers"
+    ]
+   },
+   "batch": "review3"
+  },
+  {
+   "key": "q96",
+   "skill": "fund.estimates",
+   "rung": 8,
+   "format": "scenario",
+   "story": "ZQRT reports after the close in two days. You like the setup, and you have no position yet.",
+   "q": "What does our rule say to do before the report?",
+   "choices": [
+    "Wait: no new buys in the 3 days before",
+    "Buy half now and half after the report",
+    "Buy now with a tighter stop",
+    "Skip the stock until next quarter"
+   ],
+   "answer": "Wait: no new buys in the 3 days before",
+   "wrong": {
+    "Buy half now and half after the report": "Halving the size is one way to cut gap risk, but our rule is no new buys at all in that window.",
+    "Buy now with a tighter stop": "A stop does not protect against a gap. Once it triggers, the fill can land far from the stop price.",
+    "Skip the stock until next quarter": "Our rule only blocks new buys in the 3 days before a report. After the report you can buy again."
+   },
+   "why": "Wait: no new buys in the 3 days before. A report can gap a stock past a stop. The fill after a gap can land far from the stop price, and the loss can be bigger than the risk you planned. Intel fell 29% in a day after a weak guide. So our rule is no new buys in the 3 days before a report. A trade is held through one only when it is up 5R.",
+   "lesson_line": "No new buys in the 3 days before a report. A gap can skip your stop.",
+   "facts": [
+    "h1",
+    "f17",
+    "f34",
+    "f35",
+    "f80"
+   ],
+   "simple": "Wait. Our rule is no new buys in the 3 days before a report, because a gap can jump past your stop.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (B22)"
+    ]
+   },
+   "batch": "review3"
+  },
+  {
+   "key": "q97",
+   "skill": "fund.estimates",
+   "rung": 8,
+   "format": "scenario",
+   "story": "You own ZQRT and the trade is up 2R. It reports after the close tomorrow.",
+   "q": "Under our rule, can you hold this trade through the report?",
+   "choices": [
+    "Yes: any winning trade can be held",
+    "Yes: if you move the stop to breakeven",
+    "No: it would need to be up 3R",
+    "No: it would need to be up 5R"
+   ],
+   "answer": "No: it would need to be up 5R",
+   "wrong": {
+    "Yes: any winning trade can be held": "Our rule sets a bar. Only a trade up 5R is held through a report.",
+    "Yes: if you move the stop to breakeven": "A stop does not protect against a gap. Once it triggers, the fill can land far from the stop price.",
+    "No: it would need to be up 3R": "Our rule sets the bar at 5R. Up 3R is still short of it."
+   },
+   "why": "No: it would need to be up 5R. R is the amount you planned to risk on the trade, so up 5R means a gain of five times that risk. Our rule is to hold through a report only when the trade is up 5R. A trade up 2R does not qualify. A stop does not help here, because a gap can trigger it at a price far from your stop price, and the loss can exceed the risk you planned.",
+   "lesson_line": "Hold through a report only when the trade is up 5R. A smaller winner is not enough.",
+   "facts": [
+    "h1",
+    "f17",
+    "f34"
+   ],
+   "simple": "No. Our rule holds a trade through a report only when it is up 5R, and this one is up 2R.",
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (B22)"
+    ]
+   },
+   "batch": "review3"
+  },
+  {
+   "key": "q98",
+   "skill": "fund.estimates",
+   "rung": 7,
+   "format": "tf",
+   "q": "A beat built on a one-time gain is as good as a beat from the business itself.",
+   "answer": "False",
+   "why": "False. Molson Coors beat consensus estimates by 2% in 2010, and its shares still declined by 7%. Investors tied the beat to a one-time tax break. A one-time gain will not repeat, so it says little about what the business earns next. Check what is inside a beat. Elevance's EPS of $6.99 included a $1.85 non-operating benefit.",
+   "lesson_line": "Check what is inside a beat. A one-off gain can flatter it.",
+   "facts": [
+    "f31",
+    "f56",
+    "f57"
+   ],
+   "simple": "False, because a one-time gain will not repeat, and investors sold Molson Coors even after a beat built on a tax break.",
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "the Molson Coors case is from 2010"
+    ]
+   },
+   "batch": "review3"
+  },
+  {
+   "key": "q99",
+   "skill": "fund.estimates",
+   "rung": 2,
+   "format": "tf",
+   "q": "Guidance counts as negative when it comes in below the consensus estimate.",
+   "answer": "True",
+   "why": "True. FactSet counts guidance as negative when the company's figure, or the midpoint of its range, is lower than the mean EPS estimate. So the consensus is the bar for the guide too. Intel guided to breakeven EPS against 5 cents expected, and the stock fell as much as 13% after hours. Guidance below the market's expectations can bring downgrades and selling.",
+   "lesson_line": "The guide is judged against the consensus too. Below it reads as weak.",
+   "simple": "True, because a guide below the consensus is read as weak, and that can bring downgrades and selling.",
+   "facts": [
+    "f54",
+    "f26",
+    "f63",
+    "f64"
+   ],
+   "tier": "core",
+   "batch": "cover"
+  },
+  {
+   "key": "q100",
+   "skill": "fund.estimates",
+   "rung": 3,
+   "format": "tf",
+   "q": "A guide above the consensus guarantees the stock will rise.",
+   "answer": "False",
+   "why": "False. Cisco guided revenue to $18 billion to $18.2 billion against a $16.8 billion average estimate, and its shares still dropped in extended trading. The stock had run more than 60% that year going in. A strong guide makes a rise more likely, never certain.",
+   "lesson_line": "A strong guide helps. It never guarantees the reaction.",
+   "simple": "False, because a strong guide makes a rise more likely, not certain, and Cisco fell after a guide above the consensus.",
+   "facts": [
+    "f72",
+    "f74",
+    "f73",
+    "f41"
+   ],
+   "tier": "core",
+   "batch": "cover"
+  }
+ ],
+ "conflicts": [
+  "Surprise percent, the denominator: Zacks (s16) divides by the ABSOLUTE value of the consensus, so a negative estimate still gives the right sign; the plain form divides by the estimate. They agree whenever the estimate is positive, and every question here uses a positive estimate. FactSet's own list has a negative estimate (Moderna $0.38 vs. -$1.10, f56): no question uses it. Academic studies often scale the surprise by the share price instead (SUE); not used.",
+  "Mean or median: FINRA says the consensus is the 'average' and Fidelity's I/B/E/S help says 'mean'; FactSet counts beats against the mean EPS estimate but builds its index-level 'bottom-up' number from median estimates (Oct 30 report). Questions say 'average' and never turn on mean vs median.",
+  "Beat rate: Schwab's 'about 75% ... each quarter' (f44) is FactSet data, so it is not independent of FactSet's own 78% 5-year average (f49). Both support only 'most companies beat', which is all q10 keys.",
+  "Intel, Oct 30 2026: CNBC's analyst round-up (s22) says shares 'fell roughly 25% on Friday', while CNBC's later market story (s23) says they fell 29%, the worst day since the 1970s. The first was likely written during the session. No question uses the size of that drop; q22 cites only 'worst day since the 1970s'.",
+  "Intel, Jan 2026: CNBC's 'down as much as 13% in after-hours trading' (Jan 22) and 'plunged 17% on Friday' (Jan 23) are two different sessions, not a conflict. Schwab says 'cratered by double digits'. Schwab says Intel rallied 54% in the month before the report; CNBC says it was up 147% in the past year. Different windows, both used as written.",
+  "Whisper number: Investopedia's guidance page (s7) describes the old whisper number as company forecasts given to selected analysts, while FINRA, Schwab and Investopedia's own whisper page describe it as the street's unofficial expectation. Questions use the FINRA / whisper-page meaning only.",
+  "Elevance (q18): FactSet says the $6.99 non-GAAP actual 'included a net non-operating benefit of $1.85'. It does not say whether the $4.71 estimate had any of it in. q18 asks only for the arithmetic and says 'most of the headline beat came from the benefit', which holds on FactSet's numbers ($1.85 of a $2.28 gap).",
+  "Things that change: Regulation FD is current (eCFR up to date as of 11/05/2026). The SEC proposed optional semiannual reporting on May 5, 2026 (Release 33-11414); I found no final rule, so no question says companies must report every quarter.",
+  "Earnings call timing and BMO / AMC (f7, f8) belong to F5.04; they are recorded here only as background for q08.",
+  "Beat rate, independent check (checker, 2026-11-09): LSEG I/B/E/S (s24, Nov 6, 2026) puts the long-term average at 67% of S&P 500 companies beating, lower than FactSet's 5-year (78%) and 10-year (77%) averages; the LSEG page does not state the period its average covers. Both say most companies beat, which is all q10 keys; q10 now cites FactSet and LSEG rather than leaning on Schwab, whose figure is FactSet's.",
+  "Qualcomm, Nov 4 2026 (q13): the EPS guide midpoint ($2.25) sat under the $2.27 consensus, but the revenue guide ($10.4 billion to $11.2 billion) sat above the $10.48 billion consensus. CNBC calls the earnings forecast light; q13 asks only about the EPS midpoint and attributes 'lighter than expected' to CNBC.",
+  "Nvidia (q19): CNBC says the stock fell after each of the previous four reports 'despite meeting or beating estimates', so the unit says 'met or beat', never 'four beats'. CNBC also credits the beat itself ('earnings sailed past estimates') next to the guidance; the question asks only what was different this time, which CNBC gives as the revenue guidance."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "FINRA f1, f2, f9 (Investor Insights, July 23, 2024), Investopedia f29 and Zacks f60 read in context on the live pages. Each step matches its fact. 'As a percent of the estimate' holds for the positive estimates used in this unit (Zacks divides by the absolute value).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "Schwab f37, f38, f39 (Mar 26, 2026), Investopedia f21 and FactSet f54 (Nov 6, 2026) read in context. 'Can move it more than the beat' keeps Schwab's hedge ('can often be the top factor').",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "Track audit 2026-11-09: rewritten. It told the January 2026 Intel case that q17 then asks, with q17's answer ('The guide was the news'); the checkers of F5.01 and F5.06 removed that kind of preview, so for one course the walk-through now uses the October 2026 Intel guide: f79 ('That weak forecast overshadowed better-than-expected third-quarter earnings'), f78 (25 cents vs 43 cents, LSEG), f80 ('worst day since the 1970s'), CNBC Oct 30, 2026, re-checked live; Schwab f38/f37 for the closing line. The size of that day's drop is left out (CNBC printed 25% and 29%, see conflicts). q22 uses the same case but asks arithmetic the walk-through does not do. Earlier checker note on the January version: CNBC Jan 22, 2026 (15c vs 8c, breakeven vs 5c, up 147% in a year, as much as 13% after hours) and Jan 23 (down 17% Friday on the guidance and a supply warning) confirmed; Intel's own 8-K shows non-GAAP $0.15 and a $0.00 Q1 non-GAAP guide. For the owner: q17 tests this same case, so this walk-through previews its answer.",
+   "fixed": true,
+   "by": "track auditor"
+  },
+  "q01": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key matches f1/f47 (average/mean of analysts). Choices 26-36 chars, key not longest. f21 now grounds 'That is guidance'. The why names guidance before q03 asks it, but w2 already teaches that, so it is scaffolding, not a giveaway."
+  },
+  "q02": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in review3: see the resolver's notes"
+  },
+  "q03": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Real Qualcomm range (f76) added as an example; guidance defined in plain words; facts cited. Wording and numbers match the sources."
+  },
+  "q04": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in review3: see the resolver's notes"
+  },
+  "q05": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in review3: see the resolver's notes"
+  },
+  "q06": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Answers his note (estimates and outlook reset, growth repriced). Facts f78/f79/f80 (Intel Oct 2026), f68 (Nvidia), f20, f26 and Cisco f70/f72/f73/f74 match the quotes; numbers all appear in cited quotes. Two fixes: why said a weak guide 'brings' downgrades and selling, but f26 only says 'might downgrade', so it now says 'can bring' (learning 11, likely not guaranteed); the 'Companies only guide when news is bad' note claimed companies 'guide every quarter', which no cited fact supports (f23 says only common practice for many), so it now follows f23."
+  },
+  "q07": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in review3: see the resolver's notes"
+  },
+  "q08": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in review3: see the resolver's notes"
+  },
+  "q09": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Owner-approved question; only the ticker and shown math steps added. (0.84-0.80)/0.80 = 5%. Zacks denominator note matches f60. Choices and wrong notes unchanged."
+  },
+  "q10": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in review4: see the resolver's notes"
+  },
+  "q11": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in review3: see the resolver's notes"
+  },
+  "q12": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "CSCO is Cisco with its real numbers (f71). 1.22-1.17=0.05; 0.05/1.17=4.27% -> 4.3%. Steps shown; 'divide by consensus, not actual' is right per f60."
+  },
+  "q13": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "QCOM real numbers (f76, f75). Midpoint (2.15+2.35)/2=2.25; below the 2.27 consensus; 7% slide per f75. 'Judged by midpoint' attributed to FactSet (f54). Good."
+  },
+  "q14": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Owner note 'LIKELY, not guaranteed' is applied in the question, all four choices, the why and simple. Negative read is right per f54 (3.20 below 3.40). The why also names the stock's run-up as a factor, which is f4, not yet cited: added f4."
+  },
+  "q15": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in review3: see the resolver's notes"
+  },
+  "q16": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in review3: see the resolver's notes"
+  },
+  "q17": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in review3: see the resolver's notes"
+  },
+  "q18": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "ELV is Elevance with its real numbers (f56, f57). 6.99-1.85=5.14, still above 4.71 but a much smaller beat. 'FactSet does not say' whether analysts counted the benefit is accurate. Non-operating benefit now defined."
+  },
+  "q19": {
+   "status": "cut",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Already cut in the lesson (verify 'cut in review2'). The upgrade edits it, which would mark it pass and revive it. Keep it cut. The guide-over-beat idea is still taught by q21, q22 and q92."
+  },
+  "q20": {
+   "status": "cut",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Already cut in the lesson (duplicate of F5.01#q17). The upgrade edits it (adds a fourth choice), which would revive it. Keep it cut. GAAP vs adjusted is still taught in q18 and F5.01."
+  },
+  "q21": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cisco numbers verified (f71, f72, f73, f70). Asks for the 'most likely' read, and the why says CNBC gives no single cause, so it is a likely read not a certainty (rule 11). Right answer is not the longest choice; distractors are real misreads."
+  },
+  "q22": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "CNBC s23 f80 gives 29% and 'worst day since the 1970s'. (0.43-0.25)/0.43 = 41.9% -> about 42%. Wrong choices are real slips. Ticker INTC added."
+  },
+  "q91": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Whisper idea sourced (f5, f6, f32, f33, f41). (1.05-1.00)/1.00 = 5%. ZQRT is a made-up ticker with made-up numbers, labelled by the risk note. Replaces the whisper vocabulary question with a scenario a trader can use."
+  },
+  "q92": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Qualcomm numbers verified (f77 2.17 vs 2.16; f76 guide 2.15-2.35 vs 2.27; f75 'lighter than expected', 7% slide). Midpoint 2.25 is under 2.27 so FactSet would count it negative (f54). Says 'most likely'. Good nuance question (tiny beat, light guide)."
+  },
+  "q93": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Moderna $0.38 vs -$1.10 verified word for word in FactSet Nov 6, 2026 (s14), both in the largest-surprise list (f56) and the contributors sentence (f84 quote copied exactly). 0.38+1.10 = 1.48; wrong choices are real slips (0.72 = 1.10-0.38). f84's claim 'one of the largest' is carried by f56's sentence, not f84's own quote; true of the source. Note: the lesson's conflicts text still says no question uses Moderna, now stale."
+  },
+  "q94": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "f52 +0.9%, f53 -3.1%, f51 window all match FactSet. 3.1/0.9 = 3.4, 'about three times' is fair. Distractors are real misreads. The 'Intel fell 29%' deeper line is f80 and cited. Averages are labelled as not a forecast for one stock."
+  },
+  "q95": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Keep is right: stop fill at the open on a gap DOWN, a different topic from gap-up trims."
+  },
+  "q96": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Rule B22 (3 days, h1) right. But three of four choices start with 'Buy' while the answer is the only 'Wait', so it stands out by wording. Replaced 'Buy now, then add after the report' with 'Skip the stock until next quarter' (wrong: the rule only blocks the 3 days before). Also 'past any stop' softened to 'past a stop'."
+  },
+  "q97": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Rule B22 (hold only if up 5R) right, and R is now defined. Two problems. (1) The answer was the only choice with a number, so it stood out: added a 3R near-miss in place of 'never hold through any report'. (2) 'A big cushion is what lets us hold' is a reason the rulebook does not give (sizing_rule.md B22 is only the rule): removed the invented rationale."
+  },
+  "q98": {
+   "status": "cut",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Weak as written: the statement is an obvious false (the phrase 'as good as' gives it away), the Molson Coors case already sits in q18's deeper note, and the why spoils q18's Elevance numbers. The teaching survives in q18. Cut."
+  },
+  "q99": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Learn-level true/false (rung 2), true. f54 is quoted for FactSet's rule, f26 for downgrades and selling, f63 and f64 for Intel (breakeven vs 5 cents; down as much as 13% after hours). Numbers in the why all sit in the cited quotes. Overlaps q14 and q92 on the same rule, but those are number-reading scenarios at rung 5 to 6; this is the plain on-ramp the format need asks for."
+  },
+  "q100": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Learn-level true/false (rung 3), false; keeps 'likely, never guaranteed' (rule 11). Cisco numbers and the 60% run are in f72, f73, f74. Fixed: 'so expectations were high' stated a cause as fact; q21 notes CNBC gives no single cause. Reworded to the plain fact."
+  }
+ }
+}

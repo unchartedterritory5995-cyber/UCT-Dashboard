@@ -36,6 +36,61 @@ const BARS_ORIGIN = "https://bars-api-production-1052.up.railway.app";
 const WEB_ORIGIN  = "https://web-production-05cb6.up.railway.app";
 const BARS_TIMEOUT_MS = 8000;
 
+// ⭐⭐ A HEDGED FALLBACK, NOT AN 8-SECOND WAIT (2026-11-15, measured on production).
+// While bars-api restarts (every master merge that touches its files), a request it
+// accepted and never answered waited out BARS_TIMEOUT_MS before web was asked: six
+// parallel chart reads at 15:36:47 UTC all answered at 15:36:55, 8.2 s each, though
+// web's own stage timing was ~150 ms. Now a GET/HEAD that the tier has not answered
+// within BARS_HEDGE_MS is ALSO asked of web, and whichever answers first is served
+// (the other is aborted). The tier's own p99 under parallel cold load was ~370 ms
+// that day, so the hedge fires for well under 1% of requests and caps a stall at
+// about BARS_HEDGE_MS + web's answer. A tier FAILURE (network error, non-deliberate
+// 5xx) still goes to web at once, and a deliberate 503 shed still reaches the
+// browser as the tier's answer (see `isDeliberateTierShed`). Other methods never
+// hedge: a request with effects must not run twice.
+export const BARS_HEDGE_MS = 1200;
+export const HEDGE_METHODS = new Set(["GET", "HEAD"]);
+
+/**
+ * Ask the tier, hedge to web after `hedgeMs`, serve the first good answer.
+ * `fetchImpl` is the platform fetch (a parameter so the rails can drive it).
+ * Returns a Response stamped `X-Bars-Edge: tier | web-hedge | web-fallback`.
+ */
+export async function routeToTier(fetchImpl, tierUrl, webUrl, opts,
+                                  { timeoutMs = BARS_TIMEOUT_MS, hedgeMs = BARS_HEDGE_MS } = {}) {
+  const tierAc = new AbortController();
+  const webAc = new AbortController();
+  const tierTimer = setTimeout(() => tierAc.abort(), timeoutMs);
+  let why = "web-fallback";
+  let openWeb;
+  const webGate = new Promise((res) => { openWeb = res; });
+  const hedge = HEDGE_METHODS.has(String(opts.method || "GET").toUpperCase());
+  const hedgeTimer = hedge ? setTimeout(() => { why = "web-hedge"; openWeb(); }, hedgeMs) : null;
+
+  const tierP = (async () => {
+    const r = await fetchImpl(tierUrl, { ...opts, signal: tierAc.signal });
+    if (r.status >= 500 && !(await isDeliberateTierShed(r))) throw new Error("bars-api " + r.status);
+    return { src: "tier", r };
+  })();
+  tierP.catch(() => { why = "web-fallback"; openWeb(); });   // a tier failure asks web now
+  const webP = webGate.then(() => fetchImpl(webUrl, { ...opts, signal: webAc.signal }))
+    .then((r) => ({ src: "web", r }));
+
+  let won;
+  try {
+    won = await Promise.any([tierP, webP]);
+  } catch (e) {
+    clearTimeout(tierTimer); if (hedgeTimer) clearTimeout(hedgeTimer);
+    // Both failed: surface web's error, exactly as the sequential fallback did.
+    throw (e && e.errors && e.errors[e.errors.length - 1]) || e;
+  }
+  clearTimeout(tierTimer); if (hedgeTimer) clearTimeout(hedgeTimer);
+  if (won.src === "tier") webAc.abort(); else tierAc.abort();
+  const out = new Response(won.r.body, won.r);
+  out.headers.set("X-Bars-Edge", won.src === "tier" ? "tier" : why);
+  return out;
+}
+
 // ⛔⛔ MARKET INDICATORS THAT CARRY NO COLON — the second half of the same lesson the
 // colon rule above records. Those series are served from WEB-POD stores
 // (`cboe_indices.db`, `naaim_series.db`, a derivation over `breadth_daily_ohlc`) that
@@ -305,16 +360,6 @@ export default {
 
     if (isBreadth) return fetch(target(WEB_ORIGIN), opts);
 
-    try {
-      const ac = new AbortController();
-      const t = setTimeout(() => ac.abort(), BARS_TIMEOUT_MS);
-      const r = await fetch(target(BARS_ORIGIN), { ...opts, signal: ac.signal });
-      clearTimeout(t);
-      if (r.status >= 500 && !(await isDeliberateTierShed(r))) throw new Error("bars-api " + r.status);
-      const out = new Response(r.body, r); out.headers.set("X-Bars-Edge", "tier"); return out;
-    } catch (_e) {
-      const r = await fetch(target(WEB_ORIGIN), opts);
-      const out = new Response(r.body, r); out.headers.set("X-Bars-Edge", "web-fallback"); return out;
-    }
+    return routeToTier((u, o) => fetch(u, o), target(BARS_ORIGIN), target(WEB_ORIGIN), opts);
   },
 };

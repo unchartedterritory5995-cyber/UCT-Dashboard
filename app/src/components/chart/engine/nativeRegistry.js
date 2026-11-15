@@ -165,7 +165,7 @@ import { serverColumnsFor, notifyColumnsLanded, scalarsFor } from './serverCompu
 // ⭐ U2b — the live forming-bar tail of a server definition (`plots[].liveTail`):
 // `computeSignature` carries the benchmark tail's version into the binder's memo.
 import { definitionHasLiveTail, liveTailSignature } from './liveTail'
-import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash } from './runtimeKill'
+import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash, runtimeFormingRefusalOf, RUNTIME_FORMING_GUARD } from './runtimeKill'
 // ⭐⭐ ENGINE 54 — the run half's program binding, object rail (registered) and refusal telemetry
 import { runHalfProgramBound, runHalfProgramStamped } from './runHalfProgram.js'
 import { registeredRunHalfObjectRail } from './runHalfRailSeam.js'
@@ -3090,6 +3090,15 @@ function runtimeColumnsOrReasons(def, bars, inputs, ctx) {
       return reasonFor(RUNTIME_KILLED_GUARD, `${killed}. The saved definition is kept; it comes `
         + 'back when it is taken off the list.')
     }
+    // ⭐⭐ G6 (2026-11-15) — a script admitted for CLOSED-BAR HISTORY only is refused BY NAME on a
+    // chart whose newest bar is forming or not known to be closed (`runtimeFormingRefusalOf`).
+    const forming = runtimeFormingRefusalOf({
+      source: def.compute && def.compute.source, newestBarIsForming: ctx ? ctx.newestBarIsForming : null,
+    })
+    if (forming) {
+      return reasonFor(RUNTIME_FORMING_GUARD, `${forming}. The chart is unaffected and the saved `
+        + 'definition is kept; it is drawn again once the bar has finished.')
+    }
   }
   if (!_runtimeLane) {
     if (_runtimeLoadFailed !== null && runtimePaneEnabled()) {
@@ -3171,6 +3180,8 @@ const RUNTIME_COLOUR_WHY = Object.freeze({
   'pane:not-permitted': 'running scripts bar by bar is switched off for your account right now, so the candles keep their own colours',
   'pane:killed': 'this script is switched off for running bar by bar, so the candles keep their own colours',
   'pane:not-graded': "this script hasn't been checked against TradingView for running bar by bar yet, so the candles keep their own colours",
+  // ⭐ G6 — `runtimeKill.js::RUNTIME_FORMING_GUARD`
+  'pane:forming-ungraded': "this script reads the state of the bar as it forms, which has only been checked against TradingView on finished bars, so while this chart's newest bar is not known to be finished the candles keep their own colours",
   'runtime:runtime.error': "the script stops itself with its own error message on this chart, so it draws no colours, as on TradingView",
   'runtime:not-loaded': 'the part of the app that runs scripts bar by bar is still loading, so the colours appear once it has',
   'runtime:unknown-bar': "on some bars the colour can't be worked out exactly, so none are drawn and the candles keep their own colours",
@@ -3278,6 +3289,8 @@ function withRuntimeColours(def, out, bars, inputs, ctx) {
     refuse('pane:killed')
   } else if (notGraded || stamp === 'not-graded') {
     refuse('pane:not-graded')
+  } else if (runtimeFormingRefusalOf({ source: rc && rc.source, newestBarIsForming: ctx ? ctx.newestBarIsForming : null })) {
+    refuse(RUNTIME_FORMING_GUARD)
   } else if (stop && stop.reached) {
     // ⛔ the script's own `runtime.error` was reached: TradingView holds nothing, and no colour is drawn either
     for (const k of keys) {
@@ -3472,6 +3485,9 @@ function withRunHalf(def, out, bars, inputs, ctx) {
   if (!runtimePanePermitted()) return refused('pane:not-permitted')
   if (stamp === 'killed' || runtimeKillOf({ defId: def.id, source: ro.source })) return refused('pane:killed')
   if (stamp === 'not-graded' || runtimeNotGradedOf({ source: ro.source })) return refused('pane:not-graded')
+  if (runtimeFormingRefusalOf({ source: ro.source, newestBarIsForming: ctx.newestBarIsForming })) {
+    return refused(RUNTIME_FORMING_GUARD)
+  }
   const stop = runtimeErrorStopOf(out)
   if (stop && stop.reached) return refused('runtime:runtime.error')
   if (!runtimeColoursAtDefaults(def, inputs)) return refused('runtime:member-inputs')

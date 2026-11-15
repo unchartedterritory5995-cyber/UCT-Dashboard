@@ -27,6 +27,8 @@ export const net = {
   diff: null, methodology: { methods: [] }, themes: {}, prefsFail: false, meta: null,
   // unit U8: the saved-screens payload's `rs_market`; undefined leaves the key out (the flag is off)
   market: undefined,
+  // the first night: the saved-screens payload's `rs_pending` ({ text }); undefined leaves the key out
+  pending: undefined,
   // unit U8: `row(ticker, columns)` answers GET /api/screener/row/{ticker} with { row, stale }, null
   // for a 404, { status } for a refusal; `count(body)` answers POST /api/screener/count (null: a 500)
   row: null, count: null,
@@ -40,7 +42,7 @@ export const net = {
 }
 export function resetNet() {
   Object.assign(net, { starters: STARTERS_ON, saved: [], prefs: {}, rows: RS_ROWS, scan: null, savedDelay: 0, prefsDelay: 0,
-    diff: null, methodology: { methods: [] }, themes: {}, prefsFail: false, meta: null, market: undefined, row: null, count: null,
+    diff: null, methodology: { methods: [] }, themes: {}, prefsFail: false, meta: null, market: undefined, pending: undefined, row: null, count: null,
     alerts: undefined, alertSet: null, rowsBatch: null })
 }
 const later = (body, ms) => (ms ? new Promise(r => setTimeout(() => r(body), ms)) : body)
@@ -53,7 +55,7 @@ export function installFetch() {
       const body = JSON.parse(o.body)
       const out = net.scan ? net.scan(body) : net.rows
       const rows = Array.isArray(out) ? out : out.rows
-      return { ok: true, json: async () => ({ rows, total: Array.isArray(out) ? rows.length : out.total, page: body.page || 1 }) }
+      return { ok: true, json: async () => ({ rows, total: Array.isArray(out) ? rows.length : out.total, page: body.page || 1, ...(out.coverage ? { coverage: out.coverage } : {}) }) }
     }
     if (url === '/api/screener/count') {
       const n = net.count ? net.count(JSON.parse(o.body)) : net.rows.length
@@ -77,7 +79,7 @@ export function installFetch() {
     if (url === '/api/screener/membership-diff') return net.diff ? { ok: true, json: async () => net.diff } : { ok: false, status: 404, json: async () => ({}) }
     if (url.startsWith('/api/screener/methodology')) return { ok: true, json: async () => net.methodology }
     if (url.startsWith('/api/watchlists/themes-batch')) return { ok: true, json: async () => ({ results: net.themes }) }
-    if (url.startsWith('/api/screener/saved-screens')) return later({ ok: true, json: async () => ({ saved: net.saved, starters: net.starters, ...(net.market !== undefined ? { rs_market: net.market } : {}), ...(net.alerts !== undefined ? { rs_alerts: net.alerts } : {}) }) }, net.savedDelay)
+    if (url.startsWith('/api/screener/saved-screens')) return later({ ok: true, json: async () => ({ saved: net.saved, starters: net.starters, ...(net.market !== undefined ? { rs_market: net.market } : {}), ...(net.pending !== undefined ? { rs_pending: net.pending } : {}), ...(net.alerts !== undefined ? { rs_alerts: net.alerts } : {}) }) }, net.savedDelay)
     if (url.startsWith('/api/screener/rs-alerts/')) {
       const id = decodeURIComponent(url.split('/').pop())
       const out = net.alertSet ? await net.alertSet(id, o?.method) : null

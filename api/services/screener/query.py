@@ -1910,13 +1910,64 @@ def _blank_decided_keys(spec) -> set[str]:
     return out - flat
 
 
+#: Columns whose blank is the rating pass's own ANSWER, not a value it failed to compute:
+#: a place on a ranked board (blank: the stock is not on that board; the RS screens test
+#: presence with `place >= 1`, `rs_screens._top_rating`) and the age of an event (blank:
+#: no such RS high inside the window the pass looks back over). A screen that filters on
+#: one of them has decided such a row, the answer being "no", so the receipt does not
+#: call it "no value". A stock with no rating at all still shows through `rs_rank` on
+#: any screen that reads it.
+#: 2026-11-15, live: with these counted, Top RS Rating said 9,300 stocks "have no value
+#: for one of these filters" beside a list of the 1,845 that are ranked.
+_BLANK_IS_AN_ANSWER = frozenset({
+    "rs_rating_pos", "rs_pos_1m", "rs_pos_3m", "rs_pos_6m", "rs_pos_12m",
+    "rs_nh_bars_ago", "rs_nh_red_bars_ago", "rs_nhbp_age",
+})
+
+
+def _blank_kept_keys(spec) -> set[str]:
+    """Keys the screen reads ONLY through an exclude (`not_in`). `build_where` keeps a
+    blank there (`col NOT IN (...) OR col IS NULL`), so the scan answers such a row and
+    it is not "no value". Read any other way as well (another op, an `other` column, an
+    arithmetic field), a blank is dropped by that clause and the key is not excused.
+
+    2026-11-15, the first morning the RS screens held rows: every one of them excludes
+    `rs_flag = buyout_pending`, nearly every row's `rs_flag` is blank (no flag applies),
+    and the receipt said 10,881 of 11,174 stocks could not be checked on a screen that
+    listed 1,845 of them."""
+    from . import grammar as _grammar
+    from . import logic as _logic
+    leaves = list(spec.get("filters") or [])
+    if spec.get("logic"):
+        leaves += _logic.leaves(spec["logic"])
+    kept: set[str] = set()
+    read: set[str] = set()
+    for f in leaves:
+        k = f.get("key")
+        if k == _ARITH_KEY:
+            for side in ("lhs", "rhs"):
+                if isinstance(f.get(side), dict):
+                    read.update(_grammar.arith_fields(f[side]))
+            continue
+        (kept if f.get("op") == "not_in" else read).add(k)
+        if f.get("other"):
+            read.add(f["other"])
+    return kept - read
+
+
 def coverage_for(spec, user_id=None, user=None) -> dict:
     """TERM-047: the screen's own four-count receipt, over its UNIVERSE.
 
     evaluated      -- rows in the screen's universe (its list / universe /
                       ticker scope, the whole snapshot without one);
     not_computable -- of those, rows where a column a criterion reads is NULL
-                      (the WHERE drops them silently; this says so);
+                      (the WHERE drops them silently; this says so). A column
+                      read only through an exclude is left out: the scan keeps
+                      its blank (`_blank_kept_keys`). So is a place or an event
+                      age whose blank is the answer "no" (`_BLANK_IS_AN_ANSWER`);
+    missing_keys   -- {filter key: rows of the not-computable set with that
+                      column NULL}, only the keys with any. The page uses it to
+                      name the cause only when there is exactly one;
     answered       -- the rest: the screen could decide them, matched or not;
     dropped        -- rows the scan EXCLUDED for an integrity reason: today,
                       a row whose own bars stopped more than the stale
@@ -1964,15 +2015,21 @@ def coverage_for(spec, user_id=None, user=None) -> dict:
             where = f"{where}{joiner}{stale['sql']}"
             base = [*base, *stale["params"]]
         cols = [(k, filters.column_for(k)) for k in _criterion_keys(spec)]
-        decided = _blank_decided_keys(spec)
+        decided = _blank_decided_keys(spec) | _blank_kept_keys(spec) | _BLANK_IS_AN_ANSWER
         cols = [(k, c) for k, c in cols if c in known and k not in decided]
         not_computable = 0
+        missing_keys: dict[str, int] = {}
         if cols:
             null_any = " OR ".join(f"{overlay.col_expr(c)} IS NULL" for _k, c in cols)
             joiner = " AND " if where.strip() else " WHERE "
             nwhere = f"{where}{joiner}({null_any})"
             not_computable = conn.execute(
                 f"SELECT COUNT(*) FROM {plan['from_sql']}{nwhere}", base).fetchone()[0]
+            if not_computable:
+                sums = ", ".join(f"SUM({overlay.col_expr(c)} IS NULL)" for _k, c in cols)
+                counts = conn.execute(
+                    f"SELECT {sums} FROM {plan['from_sql']}{nwhere}", base).fetchone()
+                missing_keys = {k: int(n) for (k, _c), n in zip(cols, tuple(counts)) if n}
             room = _COVERAGE_LIST_CAP - len(listed)   # ONE cap over both lists
             if not_computable and room > 0:
                 sel = ", ".join(f"{overlay.col_expr(c)} IS NULL" for _k, c in cols)
@@ -1987,6 +2044,7 @@ def coverage_for(spec, user_id=None, user=None) -> dict:
     return close({"evaluated": int(evaluated),
                   "answered": int(evaluated) - int(dropped) - int(not_computable),
                   "dropped": int(dropped), "not_computable": int(not_computable),
+                  "missing_keys": missing_keys,
                   "dropped_symbols": listed})
 
 
