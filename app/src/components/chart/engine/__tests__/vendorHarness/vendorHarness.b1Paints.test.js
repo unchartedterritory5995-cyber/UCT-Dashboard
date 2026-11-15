@@ -22,7 +22,7 @@ import path from 'node:path'
 import { loadCapture } from './harness'
 import { runOurSide } from './ourSide'
 import { gradePaints, vendorPaints, paintWarmupOf, PAINT_WARMUP_FLOOR } from './paintColours'
-import { warmBarsSupply } from './ourSide'
+import { warmBarsSupply, compareWarmSuppliers } from './ourSide'
 
 const DIR = path.resolve(process.cwd(), '..', 'tests', 'fixtures', 'vendor', 'harness')
 
@@ -283,6 +283,23 @@ describe('RC1 — paints replayed over the same series\' proved history', () => 
     for (const r of s.refused) expect(r).toMatch(/: bar \d+ (open|high|low|close|volume) [\d.]+ vs the capture's [\d.]+$/)
     expect(s.reason).toMatch(/every overlapping window bar equal on time\/open\/high\/low\/close\/volume/)
   })
+
+  it('⛔ a tie between equally deep suppliers never goes to a later or unstamped capture', () => {
+    const rows = new Array(10).fill(0)
+    const s = (file, capturedAt) => ({ file, rows, capturedAt })
+    const pick = (...c) => c.slice().sort(compareWarmSuppliers)[0].file
+    const earliest = s('vw-object-gc-b-spy-1d-2026-09-28.json', '2026-09-29T01:00:00.000Z')
+    // a later capture whose name sorts first does not take over (#1296 / #1307)
+    expect(pick(s('3-level-zigzag-semafor-spy-1d-2026-11-14.json', '2026-11-15T03:00:00.000Z'), earliest)).toBe(earliest.file)
+    // an UNSTAMPED one (missing or empty) sorts after every stamped one, whatever its name
+    expect(pick(s('0-unstamped-spy-1d.json', undefined), earliest)).toBe(earliest.file)
+    expect(pick(earliest, s('0-unstamped-spy-1d.json', ''))).toBe(earliest.file)
+    // depth still wins first; between two unstamped, the name decides
+    expect(pick(s('z-deeper.json', ''), { ...earliest, rows: rows.slice(1) })).toBe('z-deeper.json')
+    expect(pick(s('b-un.json', ''), s('a-un.json', undefined))).toBe('a-un.json')
+    // and the committed SPY 1D supplier is the earliest stamped one
+    expect(warmBarsSupply(load(STOPLOSS)).file).toBe('vw-object-gc-b-spy-1d-2026-09-28.json')
+  }, 120000)
 
   it('a capture that starts at the listing is never warmed (bar0)', () => {
     const s = warmBarsSupply(load('atr-trailing-stoploss-rddt-1d-2026-09-27.json'))

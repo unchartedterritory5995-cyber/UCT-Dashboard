@@ -316,6 +316,24 @@ function warmCandidateRowsOf(file) {
   return warmCandidateRows.get(file)
 }
 
+/** The order among proved warm suppliers: the deepest prehistory first; on equal depth the
+ *  earliest `capturedAtUTC`; a supplier with NO stamp (missing or empty) sorts AFTER every
+ *  stamped one, so an unstamped capture can never take over a tie; then the file name.
+ *  @param {{rows: any[], capturedAt?: string, file: string}} a
+ *  @param {{rows: any[], capturedAt?: string, file: string}} b */
+export function compareWarmSuppliers(a, b) {
+  const depth = b.rows.length - a.rows.length
+  if (depth) return depth
+  const sa = typeof a.capturedAt === 'string' && a.capturedAt ? a.capturedAt : null
+  const sb = typeof b.capturedAt === 'string' && b.capturedAt ? b.capturedAt : null
+  if (sa !== sb) {
+    if (sa === null) return 1
+    if (sb === null) return -1
+    return sa < sb ? -1 : 1
+  }
+  return a.file < b.file ? -1 : a.file > b.file ? 1 : 0
+}
+
 /** The prehistory a capture's paints, plots and objects are replayed over (DIV-1:
  *  plots and objects too), or why there is none.
  *  @returns {{kind: 'warm'|'cold'|'bar0', rows: any[]|null, file: string|null,
@@ -373,9 +391,7 @@ export function warmBarsSupply(capture) {
   // in any bar or grade. Under this rule the SPY 1D supplier is
   // `vw-object-gc-b-spy-1d-2026-09-28.json`, the earliest proved one, and a new capture can
   // no longer displace it.)
-  proved.sort((a, b) => (b.rows.length - a.rows.length)
-    || (a.capturedAt < b.capturedAt ? -1 : a.capturedAt > b.capturedAt ? 1 : 0)
-    || (a.file < b.file ? -1 : 1))
+  proved.sort(compareWarmSuppliers)
   const pick = proved[0]
   return { kind: 'warm', rows: pick.rows, file: pick.file, bars: pick.rows.length, refused,
     historyFromListing: pick.listing === true,
