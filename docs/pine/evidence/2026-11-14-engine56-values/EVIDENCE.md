@@ -429,21 +429,32 @@ this section takes their numbers then.
   (`interpret.js::monotoneStep`, the runtime lane's own step; `ast_interpret._monotone_col`). Rails on both
   captures, every plot, every bar (JS) and the six columns (Python); mutants P11a / P11b.
 
-### Open, reported (awaiting a ruling)
-- s18 H02 `c[1] ? 1 : 0`, bar 0, v1 / v3: TradingView takes the else branch (0); this engine draws `na` (a
-  v1-v3 `?:` with an `na` test; `naConditionIsFalse` starts at v4). Pinned in the s18 rail. S1 (v2) and
-  s18 (v1, v3) together witness the v4 / v5 condition rules at every version, which would move
-  `NA_CONDITION_FALSE_FROM_VERSION` to 1 (and subsume `legacyBoolNaCondition`).
-- The runtime lane at v1 / v3 on the s18 captures: `enc(c)`, `enc(c[1])` draw 0 where TradingView draws
-  `na` (-1), and `raw(c == false / != false / == true)` and H02 bar 0 draw `na` where it draws 0. H00 /
-  H01 (this item) match.
+### Rulings on them (coordinator, 2026-11-15): fixed
+- **(a) `NA_CONDITION_FALSE_FROM_VERSION` 4 -> 1.** S1 (v2) and s18 (v1, v3) witness the v4 / v5 condition
+  rules at every version: a v1-v3 `?:` with an `na` test takes the else branch (s18 H02 `c[1] ? 1 : 0` is 0
+  on bar 0), `and` / `or` read `na` as false, `not na` is true. ONE authority: `interpret.js::
+  naConditionIsFalse`, asked by the host (`memberPaneDefinition` writes `naConditionFalse` from it;
+  `pine.js::naOperandReadAsFalse` casts `and` / `or` / `not` operands) and the runtime (`lowerIr.js` and
+  the frontend's pure columns). A PINE script with no `//@version` is v1 (`pineNaConditionIsFalse`;
+  `Resolver.pineScript` keeps thinkScript's `null` version out of it). **`legacyBoolNaCondition` and
+  `stripBoolNaValues` are DELETED**: the general rule covers what they did at `and` / `or` / `not` (the
+  operand cast) and at a `?:` test (the listing rule). What it does not cover, said here: off the listing
+  a v1-v3 `?:` over an `na` test keeps the shared answer (as at v4 / v5; there a `NaN` can mean "not
+  computable from this window"), and a value form under an offset at a builtin's bool argument or an
+  object guard is no longer cast (v4 / v5 never were). Rails: s18 v1 / v3 every plot on every bar through
+  the member door (H02 bar 0 now MATCH), the S1 v2 capture (B / RB rows), the synthetic v1 / v2 / v3
+  sites, and the three rails that pinned "below v4 nothing is claimed" now pin the ruling. Mutants P13a
+  (start back at 4), P13b (no-pragma not v1), P13c (Resolver reads a no-pragma Pine script as the house
+  language). Census moves are wrong-value fixes (recorded in the census section).
+- **(b) The runtime lane draws none of them wrong.** The condition rule is the same predicate (above), so
+  `raw(c == false / != false / == true)` and H02 bar 0 are SERVED equal to TradingView. `enc(c)` and
+  `enc(c[1])` (`na()` of a comparison over `na`, which the VM holds as 0) DECLINE by name
+  (`pine:bool-na-unwitnessed`, `boolNaFaithfulness`'s new `na()` check: served only where the VM holds the
+  `bool`'s `na` as `na`). Rail: every bool plot of both s18 captures on the runtime lane, one plot per run,
+  served equal or declined by name; the named forms asserted served / declined. Mutant P13d.
 
 ### Notes
-- **Engine 55 merges first.** This branch says 56 and was measured on `origin/master` (54) plus this
-  change. After 55 lands, merge master in, re-run `node tools/pine_runtime_host_parity.mjs --write`, and
-  resolve the `scriptEngineVersion.js` history line (56 "follows 55").
-- A3 / S1: v1 and v3 take the v2 / v4 / v5 rules without a direct probe (coordinator ruling; no evidence
-  contradicts it, and v1's `==` agrees on the AD capture). The runtime lane serves `==` / `!=` over an `na`
+- A3 / S1 / s18: v1 and v3 are now witnessed directly (s18) and follow the v2 / v4 / v5 rules. The runtime lane serves `==` / `!=` over an `na`
   bool only as a condition; a VALUE use it cannot show as `na` declines. `boolNaWithheld` remains as the
   fail-closed path for a `bool` this engine cannot follow; none occurs in the census.
 - S4-2: newest over every Pine source (S1, S10); divergences.json's oldest-wins row is refuted. The
