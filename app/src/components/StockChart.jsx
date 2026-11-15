@@ -4620,8 +4620,21 @@ export default function StockChart({
   // ⭐ The exchange is our STORE's friendly spelling ("NYSE Arca"), which is
   // exactly what the witness table is keyed on — `ticker_meta.py` already
   // produces it, and the rig confirmed the pairing independently on SPY.
+  // ⭐⭐ RS RATING L3 (2026-11-15) — AND THE CLASSIFICATION FIELDS, from the SAME `tickerMeta`
+  // (nothing new is fetched): `industry` / `sector` are our store's strings and `securityType` its
+  // instrument class (`ticker_meta.security_type`, the screener universe's `Stock` / `ADR` / `ETF`).
+  // The fold (`bind.js::classificationWith`) serves TradingView's string where a capture witnessed
+  // one for that class or string, else OURS, tagged substituted; a missing field settles nothing.
+  // ⛔ The live meta only: Model Book's curated watermark industry is a display fact, not the
+  // symbol's classification.
   const symbolMeta = useMemo(() => (
-    sym ? { ticker: sym, exchange: (tickerMeta && tickerMeta.exchange) || null } : null
+    sym ? {
+      ticker: sym,
+      exchange: (tickerMeta && tickerMeta.exchange) || null,
+      industry: (tickerMeta && tickerMeta.industry) || null,
+      sector: (tickerMeta && tickerMeta.sector) || null,
+      securityType: (tickerMeta && tickerMeta.security_type) || null,
+    } : null
   ), [sym, tickerMeta])
   const ipoInfo = useTickerIpo(_econId || _study ? null : sym)       // { list_date } — official first-listing day
   const [ipoPopup, setIpoPopup] = useState(null)  // { date, x, y } first-trade tag

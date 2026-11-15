@@ -10673,7 +10673,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     'time_tradingday', 'timeframe.period', 'timeframe.multiplier', 'syminfo.mintick', 'syminfo.pointvalue',
     'syminfo.pricescale', 'syminfo.minmove', 'syminfo.ticker', 'syminfo.tickerid', 'syminfo.prefix',
     'syminfo.root', 'syminfo.currency', 'syminfo.basecurrency', 'syminfo.description', 'syminfo.type',
-    'syminfo.timezone', 'syminfo.session'])
+    'syminfo.timezone', 'syminfo.session', 'syminfo.industry', 'syminfo.sector'])
   const NUMERIC_CALL = /^(ta\.(sma|ema|rma|wma|hma|vwma|swma|alma|linreg|atr|tr|rsi|cci|mfi|stdev|variance|dev|highest|lowest|highestbars|lowestbars|mom|roc|cum|percentrank|median|mode|range|barssince|correlation|vwap|wpr|cmo|tsi|obv|pvt|accdist|iii|wvad|nvi|pvi|sar|supertrend|bb|bbw|kc|kcw|dmi|macd|stoch|pivothigh|pivotlow|max|min)|math\.[a-z_]+|input\.(int|float|source|price|string|color|timeframe|symbol|session|text_area|time)|str\.(tostring|format|length|replace|replace_all|lower|upper|substring|trim|repeat|tonumber|pos)|color\.[a-z_]+|int|float|string)$/
   // ⛔ (review 3 M-1a, re-review H-2) `ta.valuewhen`, `ta.change` and `nz` return their
   // SOURCE's type: provably non-bool exactly when that source argument is.

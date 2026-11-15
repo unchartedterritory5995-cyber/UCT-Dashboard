@@ -25,6 +25,7 @@ import {
 } from './runtimeColumns.js'
 import { LIMIT_NAMES } from './limits.js'
 import { runtimeSourceHash } from '../runtimeKill.js'
+import { bindSymbolOf } from '../ast/bind.js'
 
 let _ready = false
 let _worker = null
@@ -265,7 +266,9 @@ function messageOf(id, def, rows, ctx) {
     ...(ctx && ctx.runtimeInputs && typeof ctx.runtimeInputs === 'object'
       ? { runtimeInputs: { ...ctx.runtimeInputs } } : {}),
     ...(ctx && ctx.symbol && typeof ctx.symbol === 'object'
-      ? { symbol: { ticker: ctx.symbol.ticker, exchange: ctx.symbol.exchange } } : {}),
+      // ⭐ RS RATING L3 — every field the fold reads (`bind.js::BIND_SYMBOL_FIELDS`), not only
+      // `{ticker, exchange}`: the worker's run settles `syminfo.industry` from the same symbol.
+      ? { symbol: { ticker: ctx.symbol.ticker, exchange: ctx.symbol.exchange, ...bindSymbolOf(ctx.symbol) } } : {}),
     // ⭐ P3 WS-F — a framed instance's window slides, so the run refuses a `varip` there
     ...(ctx && ctx.framed === true ? { framed: true } : {}),
     // ⭐⭐ W9-T11 — the window a broker run takes (design 3.4), as the context holds it
