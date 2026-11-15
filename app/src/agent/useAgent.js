@@ -860,6 +860,12 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         return rows.map((r, i) => ({ ref: `rail:${i}`, id: `ind:${chart}:${r.instanceId}`, label: r.name, ops: mine.map(o => ({ ...o, args: { ...o.args, instance: r.instanceId } })) }))
       }
       // ⛔ H14: which existing chart a re-symbol is for — each chart a choice; the pick re-aims the plan's own op at exactly it
+      // ⛔ H14 (AUDIT condition 4): which LIST a removal is from — each holder a choice; the pick re-aims the list op at it
+      if (ask.kind === 'lists') {
+        const mine = (ops || []).filter(o => String(o?.action || '').startsWith('watchlist.'))
+        if (!mine.length) return null
+        return ask.lists.map((l, i) => ({ ref: `rail:${i}`, id: `list:${l.ref}`, label: `“${l.name}”`, ops: ops.map(o => (String(o?.action || '').startsWith('watchlist.') ? { ...o, target: l.ref } : o)) }))
+      }
       if (ask.kind === 'chart') {
         const mine = (ops || []).filter(o => o?.target === ask.from)
         if (mine.length !== (ops || []).length || !mine.length) return null
@@ -887,16 +893,19 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     // (the charts THIS request created are its own to set up)
     let madeNow = null
     try { const cr = createdRef.current; madeNow = cr && cr.turn === (memoryRef.current?.currentTurn?.() ?? null) ? new Set(cr.refs.map(String)) : null } catch { madeNow = null }
-    const c0 = chartRailRefusal(plan, { words: railWordsRef.current, host, mode, subject: subjectChart, picked: railPickedRef.current, made: madeNow, out: chartAsk })
+    let listRows = null
+    try { listRows = (getTargetKind('watchlist')?.list?.(host) || []).map(l => ({ name: l.name, symbols: (l.symbols || []).map(x => String(x).toUpperCase()) })) } catch { listRows = null }
+    const c0 = chartRailRefusal(plan, { words: railWordsRef.current, host, mode, subject: subjectChart, picked: railPickedRef.current, made: madeNow, lists: listRows, out: chartAsk })
     const c = c0 && `${c0}${notDoneLine(notDoneAdds(plan, (p) => { try { return chartEffects({ ok: true, plans: [p] }, host).length > 0 } catch { return true } }))}`
     railCardRef.current = false
     railAskRef.current = c && chartAsk.ask ? { ...chartAsk.ask, plan } : null
     let r = c
     if (!c) {
       // (H14) the scope a list class noun is counted in: the member's watchlists
-      let lists = null
-      try { lists = getTargetKind('watchlist')?.list?.(host)?.length ?? null } catch { lists = null }
-      const d = stateRailDecision(plan, { words: railWordsRef.current, mode: stateMode, subjects: subjectIds(), picked: railPickedRef.current, ...railMemoryOf(), scope: { watchlists: lists } })
+      let listSnaps = null
+      try { listSnaps = getTargetKind('watchlist')?.list?.(host) || null } catch { listSnaps = null }
+      const scope = { watchlists: listSnaps ? listSnaps.length : null, lists: listSnaps ? listSnaps.map(l => ({ ref: l.ref, name: l.name, symbols: (l.symbols || []).map(x => String(x).toUpperCase()) })) : null }
+      const d = stateRailDecision(plan, { words: railWordsRef.current, mode: stateMode, subjects: subjectIds(), picked: railPickedRef.current, ...railMemoryOf(), scope })
       // (D19) an irreversible save-over: its approval CARD is the confirmation (the plan runs as a proposal)
       if (d?.card) railCardRef.current = true
       else if (d?.text) { r = d.text; railAskRef.current = d.ask ? { ...d.ask, plan } : null }
@@ -1431,7 +1440,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const ch = (railMarkRef.current === STATE_RAIL_MARK || railAskRef.current?.kind === 'chart') && railAskRef.current ? railChoicesOf(railAskRef.current, ops) : null
       if (ch?.length) {
         pendingRef.current = { kind: 'target', ops: [], path, mode: suggested, member, voice, epoch: epochOf(host), railChoice: ch }
-        push({ role: 'question', text: `${path === 'followup' ? `${FOLLOWUP_WAITS_ANSWER} ` : ''}${railAskRef.current?.kind === 'chart' ? railed : `${railed.replace(/ — say what to replace, remove or change, by name \(for example “remove the RSI”\), if that is what you want\./, '')} Which one do you mean?`}`, choices: ch.map(x => ({ ref: x.ref, label: x.label })), local: true })
+        push({ role: 'question', text: `${path === 'followup' ? `${FOLLOWUP_WAITS_ANSWER} ` : ''}${['chart', 'lists'].includes(railAskRef.current?.kind) ? railed : `${railed.replace(/ — say what to replace, remove or change, by name \(for example “remove the RSI”\), if that is what you want\./, '')} Which one do you mean?`}`, choices: ch.map(x => ({ ref: x.ref, label: x.label })), local: true })
         record({ member, outcome: railed, outcomeData: { kind: 'clarify-target', actions, reason: STATE_RAIL_MARK }, telemetry: { path, clarified: true, actions, voice } })
         return
       }

@@ -240,7 +240,9 @@ export function chartsInScope(host) {
       if (w?.type === 'chart') {
         // a chart TAB on its own link colour can show another ticker: another chart in scope (a timeframe tab of the same
         // ticker is the same chart)
-        const own = (() => { try { return sanitizeChartTabs(w.opts || {}).tabs.filter(t => t.color && t.color !== (w.color || 'A')).length } catch { return 0 } })()
+        // (AUDIT conditions 1/2: no colour, another colour, or a same-colour tab showing ANOTHER ticker now — another chart)
+        const shown = up(listed.find(c => String(c.ref) === String(w.id))?.symbol)
+        const own = (() => { try { return sanitizeChartTabs(w.opts || {}).tabs.filter(t => !t.color || t.color !== (w.color || 'A') || (t.symbol && shown && up(t.symbol) !== shown)).length } catch { return 0 } })()
         onBoard += 1 + own
       } else if (tabs[0]?.type === 'chart') onBoard += 1
       onBoard += extraChartTabs
@@ -257,6 +259,8 @@ export function chartPickStale(pick, host) {
 }
 /** How the words identify this existing chart (for a re-symbol), or null: 'pick' | 'name' | 'position' | 'deixis' | 'class' | 'replace'. */
 export function identifiesChart(w, e, host, { selected = null, subject = null, picked = null, sole = false, made = null } = {}) {
+  // (AUDIT condition 6: "remove AAPL" never re-symbols the AAPL chart — removal words are no licence to change one)
+  if (REMOVE_WORDS.test(w) && !REPLACE.test(w)) return null
   if (!e.symbol) return 'empty'                                    // an EMPTY chart filled replaces nothing
   if (made && made.has(e.ref)) return 'made'                       // a chart THIS request created (its own new chart)
   if (picked && picked.has(`chart:${e.ref}`)) return 'pick'
@@ -279,7 +283,9 @@ export function identifiesChart(w, e, host, { selected = null, subject = null, p
   if (sole) return 'sole'                                          // ⛔ D23: the only chart in scope is identified by being it
   return null
 }
-export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply', subject = null, picked = null, made = null, out = null } = {}) {
+const REMOVE_WORDS = /\b(?:remove|removing|delete|deleting|drop|dropping|get rid of|take (?:off|out|away))\b/i
+const CHART_WORD = /\b(?:charts?|panels?|graphs?|widgets?)\b/i
+export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply', subject = null, picked = null, made = null, lists = null, out = null } = {}) {
   if (!plan?.ok) return null
   const w = String(words || '')
   const effects = chartEffects(plan, host)
@@ -347,6 +353,17 @@ export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply'
     }
     // REMOVAL: never at once without the words for it
     const removed = effects.filter(e => e.type === 'remove')
+    if (removed.length && mode !== 'approved') {
+      let selected = null
+      try { selected = host?.charts?.selected?.() || null } catch { selected = null }
+      const bare = removed.filter(e => e.symbol && symbolSaid(w, e.symbol) && !CHART_WORD.test(w) && !named(w, e, host) && !DEIXIS.test(w) && e.ref !== selected && !(picked && picked.has(`chart:${e.ref}`)))
+      if (bare.length) {
+        const e = bare[0]
+        const inList = (lists || []).filter(l => (l.symbols || []).includes(up(e.symbol)))
+        if (inList.length) return `Do you mean ${up(e.symbol)} in your ${listOf(inList.map(l => `“${l.name}”`))} list, or the ${up(e.symbol)} chart? Nothing was changed — say “remove ${up(e.symbol)} from ${inList[0].name}”, or “close the ${up(e.symbol)} chart”.`
+        return `I didn’t change anything: “${up(e.symbol)}” alone doesn’t say to close a chart. Say “close the ${up(e.symbol)} chart” if that is what you want.`
+      }
+    }
     if (removed.length && mode === 'apply' && !REMOVAL.test(removalWords(w))) {
       return `I didn’t change anything: this would have removed ${listOf(removed.map(nameOf))}, and you didn’t ask to remove a chart. Say which chart to remove or replace.`
     }
