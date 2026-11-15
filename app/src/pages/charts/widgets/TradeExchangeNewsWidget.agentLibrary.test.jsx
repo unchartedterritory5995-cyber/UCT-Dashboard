@@ -73,9 +73,10 @@ const BASE = [
 
 registerBuiltins()
 let lib
-function mount() {
+function mount(items = BASE) {
   const utils = render(<WidgetDoorContext.Provider value="n1"><TradeExchangeNewsWidget color="A" opts={{}} onOptsChange={() => {}} /></WidgetDoorContext.Provider>)
-  act(() => feed.set({ status: 'live', items: BASE, lastSeq: 3, replayUntil: 3, lastHeadlineAt: NOW }))
+  const last = Math.max(...items.map(h => h.seq))
+  act(() => feed.set({ status: 'live', items, lastSeq: last, replayUntil: last, lastHeadlineAt: NOW }))
   return utils
 }
 const rowEl = (c, seq) => c.querySelector(`[data-seq="${seq}"]`)
@@ -109,6 +110,15 @@ describe('the News widget door and the Agent’s save', () => {
     expect(r.visible.map(v => v.id).sort()).toEqual(BASE.filter(h => rendered.includes(h.seq)).map(h => h.id).sort())
     expect(r.visible.find(v => v.id === 'id3')).toMatchObject({ tickers: ['NVDA', 'AMD'], text: 'SYNTHETIC: NVDA and AMD rally' })
     expect(r.selected).toBeNull()
+  })
+  it('AUDIT D13: a headline LONGER than 80 characters reaches the Agent cut to exactly its first 80', async () => {
+    const LONG = H(4, 'SYNTHETIC: semiconductor suppliers extend the rally as guidance from three large customers comes in above every estimate', ['AMD'])
+    expect(LONG.content.length).toBeGreaterThan(80)
+    const { container } = mount([...BASE, LONG])
+    await waitFor(() => expect(rowEl(container, 4)).toBeTruthy())
+    const v = mountedWidgetDoor('n1').read().visible.find(x => x.id === 'id4')
+    expect(v.text).toBe(LONG.content.slice(0, 80))
+    expect(v.text).toHaveLength(80)
   })
   it('"save the NVDA headline": the ONE row tagged NVDA is saved through the library module — its own ★ reads saved; Undo clears it', async () => {
     const { container } = mount()
