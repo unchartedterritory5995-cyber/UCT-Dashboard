@@ -201,6 +201,19 @@ def test_n1_a_left_edge_under_ema_withholds_only_its_reach():
         assert all(v is not None for v in off[first:]), code
 
 
+def test_r1_a_left_edge_under_a_value_kept_for_good_withholds_every_later_bar():
+    bars = _bars()
+    suffix = bars[100:]
+    rsi = C("rsi", S("close"), N(14))
+    sink = {}
+    off = _run(C("cum", C("stochPine", rsi, rsi, rsi, N(14))), suffix, sink=sink, listing=False)
+    assert list(sink) == [ast_interpret.STOCH_LEFT_EDGE]
+    assert all(v is None for v in off)                   # the edge bars' error never decays under cum
+    sink = {}
+    plain = _run(C("cum", C("stochPine", S("high"), S("low"), S("close"), N(14))), suffix, sink=sink, listing=False)
+    assert sink == {} and sum(1 for v in plain if v is not None) > 400
+
+
 # --------------------------------------------------------------------------- #
 # rci
 # --------------------------------------------------------------------------- #

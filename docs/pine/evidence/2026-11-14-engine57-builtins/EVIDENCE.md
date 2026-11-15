@@ -115,6 +115,15 @@ own argument columns:
   "every later bar is drawn". Now they are drawn from bar 30 (engine 56's house `stoch` drew from 29) and bar 16,
   every later bar drawn, and both sentences say what is withheld: the edge bars and each bar that reads them
   within the indicator's lookback.
+  ⛔ Except under a call whose value a past bar sets FOR GOOD (re-review R1): `ta.valuewhen`
+  (`valuewhenOccurrence`), `ta.cum`, any `series`-lookback call, a recurrence. `maxLookback` gives such a call 0
+  bars of its own, so the bounded reach was about a bar. `ta.valuewhen(ta.crossunder(k, 20), k, 0)` over an edge
+  stochastic then served the edge bar's wrong `k` (0 against 58.39) on every bar until the next cross, an error that
+  never decays, and `ta.cum` carried it as an offset forever. Under such a call a left-edge flag withholds every
+  later bar, by its code. The bounded reach is kept only for the decaying smoothers (`WITNESS_CARRIED_CALLS`: ema,
+  rma, rsi, atr, adx, macd, ...). Railed both ways: `ta.valuewhen` over an edge stochastic is withheld after the
+  edge (and drawn from the listing), and over `ta.stoch(close, high, low, 14)` it is served. In Python, `ta.cum` of
+  each. Mutants R1a / R1b.
 - A site inside a read of other bars (`tf`, `tf_live`, `sym`, `ltf`): the mask is not walked from the root.
   Those nodes evaluate their child through `interpret` on their own bars, so the mask runs THERE, on the bars
   the site reads, and names its code in the same channel (railed: a weekly `request.security` flat run is

@@ -563,6 +563,29 @@ describe('review #1294 N1 — a left-edge flag under a carried smoother reaches 
       else expect(drawn(rt)).toBeGreaterThan(300)
     })
   }
+  // ⭐⭐ re-review R1 — under a call whose value a past bar sets FOR GOOD the edge reaches every later bar
+  it('`ta.valuewhen` over an edge stochastic: every bar after the edge withheld by name; over a source with no edge, served', () => {
+    const edge = '//@version=6\nindicator("e57 r1")\nr = ta.rsi(close, 14)\nk = ta.stoch(r, r, r, 14)\nplot(ta.valuewhen(ta.crossunder(k, 20), k, 0))'
+    const off = doorColumns(edge, SUFFIX, OFF)
+    expect(off.clock).toEqual([STOCH_LEFT_EDGE])
+    expect(drawn(off.cols[0])).toBe(0)                      // it served an edge bar's k until the next cross
+    // from the listing it draws (nothing is withheld there)
+    const on = doorColumns(edge, RDDT, CTX)
+    expect(on.clock).toEqual([])
+    expect(drawn(on.cols[0])).toBeGreaterThan(400)
+    // the runtime lane: declined by a name, never a silent 0 and never the edge value
+    resetRuntimeSessions(); resetRuntimeLedgers()
+    let err = null
+    let rt = null
+    try { rt = Array.from(computeRuntimeColumns(runtimeDoc(edge, { a: 0 }), SUFFIX, OFF).a) } catch (e) { err = e }
+    expect(err && typeof err.guard === 'string' && err.guard.length > 0, rt ? `drew ${drawn(rt)}` : '').toBe(true)
+    // control: the same `ta.valuewhen` over a stochastic of the chart's own high / low / close has no edge
+    const plain = '//@version=6\nindicator("e57 r1 control")\nk = ta.stoch(close, high, low, 14)\nplot(ta.valuewhen(ta.crossunder(k, 20), k, 0))'
+    const ctl = doorColumns(plain, SUFFIX, OFF)
+    expect(ctl.clock).toEqual([])
+    expect(drawn(ctl.cols[0])).toBeGreaterThan(400)
+  })
+
   it('the runtime lane declines by the code a column the edge withholds on EVERY bar (never a silent 0)', () => {
     const src = '//@version=6\nindicator("e57 n1 short")\ns = ta.sma(close, 5)\nplot(ta.stoch(s, s, s, 14))'
     // 17 bars: bars 0..12 are the window's warm-up (`na` everywhere), bars 13..16 read fewer than 14

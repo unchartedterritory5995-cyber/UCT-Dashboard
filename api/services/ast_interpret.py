@@ -2423,7 +2423,7 @@ def _stoch_flat_pinned(at_extreme, on_level):
     window's level and a kept value of 0 (probe P2) or 100 (S10 ``vw-cs2-stoch-flat-window``), pinned
     by PROVENANCE (computed with the source at the window's high or low), never by the number:
     ``(100 * (hi - lo)) / (hi - lo)`` is not always the double 100 (review N2)."""
-    return on_level is True and at_extreme is True
+    return bool(on_level) and bool(at_extreme)
 
 
 def _stoch_pine_scan(h, l, c, n, off_listing=False):  # noqa: E741
@@ -4798,26 +4798,28 @@ def builtin_witness_mask(tree: Any, bars: List[dict],
     n = len(bars)
     off_listing = (opts or {}).get("historyFromListing") is not True
     found: List[tuple] = []
-    stack = [(tree, False, False)]
+    # ``unbounded``: under any call that carries state; ``forever``: under one whose value a past bar
+    # sets for good (``valuewhenOccurrence``, ``cum``, a recurrence) -- re-review R1
+    stack = [(tree, False, False, False)]
     seen = set()
     functions = TABLE[FUNCTIONS_SECTION]
     while stack:
-        node, nested, unbounded = stack.pop()
+        node, nested, unbounded, forever = stack.pop()
         if not isinstance(node, dict) or id(node) in seen:
             continue
         seen.add(id(node))
         name = node.get("name")
         if node.get("type") == "call" and name in _BUILTIN_WITNESS_CODES:
-            found.append((node, nested, unbounded))
+            found.append((node, nested, unbounded, forever))
         into = nested or node.get("type") in ("sym", "tf", "tf_live", "ltf")
         spec = functions.get(name) if node.get("type") == "call" and isinstance(name, str) else None
-        opened = unbounded or bool(spec is not None and (spec.get("lookback") == SERIES_LOOKBACK
-                                                         or _is_stateful_call(node)
-                                                         or name in _WITNESS_CARRIED_CALLS))
+        keeps = bool(spec is not None and (spec.get("lookback") == SERIES_LOOKBACK or _is_stateful_call(node))
+                     and name not in _WITNESS_CARRIED_CALLS)
+        opened = unbounded or keeps or bool(spec is not None and name in _WITNESS_CARRIED_CALLS)
         args = node.get("args")
         if isinstance(args, list):
             for a in args:
-                stack.append((a, into, opened))
+                stack.append((a, into, opened, forever or keeps))
     if not found:
         return None
     mask = [0] * n
@@ -4829,7 +4831,7 @@ def builtin_witness_mask(tree: Any, bars: List[dict],
     def col_of(node: Any) -> List[float]:
         return _interpret_column(node, bars, inputs, budget, scalars, inner)
 
-    for node, nested, unbounded in found:
+    for node, nested, unbounded, forever in found:
         args = node.get("args") or []
         name = node.get("name")
         is_rci = name == "rci"
@@ -4865,7 +4867,7 @@ def builtin_witness_mask(tree: Any, bars: List[dict],
             elif code:
                 last_edge = i
             flat_held = last_flat != -math.inf and (unbounded or i - last_flat <= reach)
-            edge_held = last_edge != -math.inf and i - last_edge <= reach
+            edge_held = last_edge != -math.inf and (forever or i - last_edge <= reach)
             if flat_held or edge_held:
                 mask[i] = 1
                 held = True

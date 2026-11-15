@@ -5525,7 +5525,8 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
     + 'source that is warming up on this chart, such as `ta.stoch(rsi, rsi, rsi, 14)` — TradingView also reads '
     + 'values from before the loaded bars, which this chart does not hold. What this indicator draws from it on '
     + 'those bars is withheld rather than drawn from a shorter window, and so is each bar that reads them within '
-    + 'the indicator\'s own lookback; later bars are drawn (a smoother that carries its value forward, such as '
+    + 'the indicator\'s own lookback, or every later bar where a value read from them is kept for good (such as '
+    + '`ta.valuewhen` or `ta.cum`); later bars are drawn (a smoother that carries its value forward, such as '
     + '`ta.ema`, starts on this chart there, as it does over any source). On a chart whose bars start at the '
     + 'symbol\'s listing it draws. What would settle it: nothing to capture — bars reaching the '
     + 'listing.',
@@ -5534,7 +5535,8 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
     + 'window reaches the first bars of a source that is warming up on this chart, such as '
     + '`ta.rci(ta.sma(close, 5), 10)`, TradingView has values there and this chart has `na`. What this indicator '
     + 'draws from it on those bars is withheld rather than ranked differently, and so is each bar that reads them '
-    + 'within the indicator\'s own lookback; later bars are drawn (a smoother that carries its value forward, '
+    + 'within the indicator\'s own lookback, or every later bar where a value read from them is kept for good '
+    + '(such as `ta.valuewhen` or `ta.cum`); later bars are drawn (a smoother that carries its value forward, '
     + 'such as `ta.ema`, starts on this chart there, as it does over any source). On a chart whose bars start '
     + 'at the symbol\'s listing it draws. What would settle it: nothing to capture — bars '
     + 'reaching the listing.',
@@ -6437,8 +6439,10 @@ const WITNESS_CARRIED_CALLS = new Set(['ema', 'rma', 'rsi', 'atr', 'atrPine', 'a
  *  Every root bar within the tree's reach of a flagged bar is withheld — `barIndexMask`'s rule:
  *  `maxLookback(tree) − maxLookback(site)` bars forward. A FLAT-WINDOW flag under a call that
  *  carries state withholds every later bar (review F4: one unpinned value under `ema` moves the
- *  rest of the series). A LEFT-EDGE flag never does (review N1): past the reach, a carried
- *  smoother is where it is over any source that starts on this chart, and is served the same.
+ *  rest of the series). A LEFT-EDGE flag does only under a call whose value a past bar sets for
+ *  good (`ta.valuewhen`, `ta.cum`, a recurrence: re-review R1); under a DECAYING smoother it never
+ *  does (review N1): past the reach that smoother is where it is over any source that starts on this
+ *  chart, and is served the same.
  *  A site inside a read of other bars (`tf`, `tf_live`, `sym`, `ltf`) is not walked here: those
  *  nodes evaluate their child through `interpret` on their own bars, so this mask runs THERE, on the
  *  bars the site reads, and names its code in the same channel (review F5). A site that reads a
@@ -6449,18 +6453,22 @@ export function builtinWitnessMask(tree, bars, inputs, budget, scalars, opts) {
   const n = Array.isArray(bars) ? bars.length : 0
   const offListing = !(opts && opts.historyFromListing === true)
   const found = []
-  const stack = [[tree, false, false]]
+  // `unbounded`: under any call that carries state (a flat-window flag reaches every later bar);
+  // `forever`: under one whose value a past bar sets for good (`valuewhenOccurrence`, `cum`, any
+  // `series`-lookback call, a recurrence), where a left-edge flag reaches every later bar too
+  const stack = [[tree, false, false, false]]
   const seen = new Set()
   while (stack.length) {
-    const [node, nested, unbounded] = stack.pop()
+    const [node, nested, unbounded, forever] = stack.pop()
     if (!node || typeof node !== 'object' || seen.has(node)) continue
     seen.add(node)
-    if (node.type === 'call' && own(BUILTIN_WITNESS_CODES, node.name)) found.push({ node, nested, unbounded })
+    if (node.type === 'call' && own(BUILTIN_WITNESS_CODES, node.name)) found.push({ node, nested, unbounded, forever })
     const into = nested || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live' || node.type === LTF
     const spec = node.type === 'call' && own(TABLE.functions, node.name) ? TABLE.functions[node.name] : null
-    const open = unbounded || !!(spec && (spec.lookback === SERIES_LOOKBACK || isStatefulCall(node)
-      || WITNESS_CARRIED_CALLS.has(node.name)))
-    if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into, open])
+    const keeps = !!(spec && (spec.lookback === SERIES_LOOKBACK || isStatefulCall(node)))
+      && !WITNESS_CARRIED_CALLS.has(node.name)
+    const open = unbounded || keeps || !!(spec && WITNESS_CARRIED_CALLS.has(node.name))
+    if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into, open, forever || keeps])
   }
   if (!found.length) return null
   const mask = new Float64Array(n)
@@ -6469,7 +6477,7 @@ export function builtinWitnessMask(tree, bars, inputs, budget, scalars, opts) {
   const rootReach = maxLookback(tree)
   const inner = { ...opts, crossMemo: undefined, probeBase: undefined, chartClockSink: undefined }
   const colOf = (node) => toColumn(interpretOnce(node, bars, inputs, budget, scalars, inner), n)
-  for (const { node, nested, unbounded } of found) {
+  for (const { node, nested, unbounded, forever } of found) {
     const args = node.args || []
     if (nested) continue
     const isRci = node.name === 'rci'
@@ -6490,9 +6498,14 @@ export function builtinWitnessMask(tree, bars, inputs, budget, scalars, opts) {
     }
     const reach = Math.max(0, rootReach - maxLookback(node))
     // ⛔ ONLY A FLAT-WINDOW FLAG IS CARRIED FOREVER BY A SMOOTHER THAT CARRIES STATE (review F4).
-    // A LEFT-EDGE flag reaches what the tree's own lookback reaches and no further (review N1):
-    // past it, a smoother such as `ta.ema` is in the same place as over any source that starts on
-    // this chart (its own seed is this chart's, and this engine serves that decay everywhere).
+    // A LEFT-EDGE flag under a DECAYING smoother (`WITNESS_CARRIED_CALLS`: `ta.ema`, `ta.rma`, …)
+    // reaches what the tree's own lookback reaches and no further (review N1): past it, the smoother
+    // is in the same place as over any source that starts on this chart (its own seed is this
+    // chart's, and this engine serves that decay everywhere). ⛔⛔ Under a call whose value a past bar
+    // sets FOR GOOD (`forever`: `ta.valuewhen`, `ta.cum`, a recurrence) it reaches every later bar
+    // (re-review R1): `maxLookback` gives such a call 0 bars of its own, so the bounded reach was a bar
+    // or so, and `ta.valuewhen(ta.crossunder(k, 20), k, 0)` served an edge bar's wrong `k` on every bar
+    // until the next cross — an error that does not decay.
     // ⚰️ It used to take the flat-window reach, so `ta.ema(ta.stoch(rsi, rsi, rsi, 14), 3)` off
     // the listing drew 0 of 566 bars, and the runtime lane drew 0 under no name.
     let lastFlat = -Infinity
@@ -6503,7 +6516,7 @@ export function builtinWitnessMask(tree, bars, inputs, budget, scalars, opts) {
       if (code === STOCH_FLAT_WINDOW) lastFlat = unbounded && lastFlat !== -Infinity ? lastFlat : i
       else if (code) lastEdge = i
       const flatHeld = lastFlat !== -Infinity && (unbounded || i - lastFlat <= reach)
-      const edgeHeld = lastEdge !== -Infinity && i - lastEdge <= reach
+      const edgeHeld = lastEdge !== -Infinity && (forever || i - lastEdge <= reach)
       if (flatHeld || edgeHeld) { mask[i] = 1; any = true }
     }
   }
