@@ -931,27 +931,10 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     ...(definition.meta || {}),
     disclosures: notes.map((n) => ({ name: n.name, note: n.note })),
     requirementTags,
-    // ⭐⭐ C12w — THIS DOCUMENT'S `accum` RECURRENCES ARE PINE TRANSLATIONS
-    // (`pine.js`: `var` state and self-reference), so a series proven to start at
-    // the symbol's first-ever bar may seed them there (ruling R-W,
-    // `nativeRegistry.historyFromListingFor`). `meta` is the sanctioned home —
-    // ignore-and-preserve through validation, the round trip and the server —
-    // and it rides OUTSIDE the trees, so no tree hash moves. A document without
-    // it (saved before this, or from another translator) keeps the bounded window.
-    recurrenceOrigin: PINE_RECURRENCE_ORIGIN,
-    // ⭐⭐ THE DOOR STAMPS (`memberDocumentMigration.DOOR_VERSION`): the script's own
-    // `//@version` (null for a script with none — TradingView compiles it as v1)
-    // and the version of the door that wrote this document, so the next
-    // correction to what the door writes can be applied to it on load instead of
-    // guessed. Outside the trees: no tree hash, `def_hash` or `compute.fn` moves.
-    pineVersion: Number.isInteger(t.version) ? t.version : null,
-    doorVersion: DOOR_VERSION,
-    // ⭐⭐ F1 — THIS SCRIPT'S VERSION READS AN `na` `?:` TEST AS FALSE (v4+,
-    // `interpret.js::naConditionIsFalse`, witnessed by CAP's `rt1-na-test` for v4,
-    // v5 and v6). Applied only from the listing, beside `recurrenceOrigin`
-    // (`nativeRegistry.listingOptsFor`). Outside the trees, so no tree hash moves;
-    // a document without it keeps `TERNARY`'s answer.
-    ...(naConditionIsFalse(t.version) ? { naConditionFalse: true } : {}),
+    // ⭐⭐ C12w / F1 — the facts this document's TREES are evaluated under
+    // (`pineTreeStamps`, the ONE place they are written; the runtime document that
+    // carries this program stamps the same ones).
+    ...pineTreeStamps(t),
     // ⭐⭐ C26 — the other symbols the trees read and how the script SPELLED each
     // (`translatePine`'s `otherSymbols`). The bind decides from it which listing
     // TradingView means (`engine/otherSymbols.js`); absent for every script that
@@ -1027,6 +1010,47 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     // declined (by code, for the census); absent for a script whose drawings are complete.
     ...(runHalfOut && runHalfOut.runtimeObjects ? { runHalf: { minted: true, columns: Object.keys(runHalfOut.runtimeObjects.outputs).length } } : {}),
     ...(runHalfOut && runHalfOut.declined ? { runHalfDeclined: runHalfOut.declined } : {}),
+  }
+}
+
+/** ⭐⭐ THE FACTS A PINE TRANSLATION'S TREES ARE EVALUATED UNDER, written onto `meta` by
+ *  EVERY document that carries trees the Pine door translated: the host (`ast`) document,
+ *  and a runtime document that carries the host's object program (`objects: t.objects`).
+ *
+ *  · `recurrenceOrigin` (C12w) — the trees' `accum` recurrences are Pine translations
+ *    (`pine.js`: `var` state and self-reference), so a series proven to start at the
+ *    symbol's first-ever bar may seed them there (ruling R-W,
+ *    `nativeRegistry.historyFromListingFor`), and off it a `var` still holding what it held
+ *    before the loaded bars is withheld by name (`varOriginAbsoluteFor`). A document
+ *    without it (saved before this, or from another translator) keeps the bounded window;
+ *  · `pineVersion` / `doorVersion` — the script's own `//@version` (null for a script with
+ *    none: TradingView compiles it as v1) and the door that wrote the document
+ *    (`memberDocumentMigration.DOOR_VERSION`), so the next correction to what the door
+ *    writes can be applied on load instead of guessed;
+ *  · `naConditionFalse` (F1) — this version reads an `na` `?:` test as false (v4+,
+ *    `interpret.js::naConditionIsFalse`, witnessed by CAP's `rt1-na-test`), applied only from
+ *    the listing, beside `recurrenceOrigin` (`nativeRegistry.listingOptsFor`).
+ *  All ride on `meta`, the sanctioned home (ignore-and-preserve through validation, the round
+ *  trip and the server), OUTSIDE the trees: no tree hash, `def_hash` or `compute.fn` moves.
+ *
+ *  ⛔⛔ WHY ONE FUNCTION. The runtime document was minted WITHOUT these while it carried the
+ *  host's object program, so `objectReaderFor` evaluated that program's trees as if no Pine
+ *  door had written them: every `var` ran as a 250-bar window re-seeded on each bar, from
+ *  the listing as off it, and nothing withheld a bar that still read its seed. Measured on
+ *  `trend-targets-algoalpha` (NYSE:RDDT 1D from the listing, 666 bars, TradingView
+ *  2026-11-15): `trend` (`var`, flipped by `ta.crossunder(tL, tL[1])`) is a latch over a
+ *  supertrend whose bands are themselves recurrences, so the windowed `shortSignal` fired on
+ *  bar 656 instead of 653 and the last trade's five lines and five labels stood three bars
+ *  late, at the wrong prices ("Entry ▸ 90.97" where TradingView draws "Entry ▸ 134.70"),
+ *  while every plot (the run's) agreed. Restating the stamps on the second document is how
+ *  they went missing there; one writer keeps both documents' trees on the same rule. */
+export function pineTreeStamps(t) {
+  const version = t && Number.isInteger(t.version) ? t.version : null
+  return {
+    recurrenceOrigin: PINE_RECURRENCE_ORIGIN,
+    pineVersion: version,
+    doorVersion: DOOR_VERSION,
+    ...(naConditionIsFalse(t && t.version) ? { naConditionFalse: true } : {}),
   }
 }
 
@@ -2097,6 +2121,11 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   definition.meta = {
     ...(definition.meta || {}),
     lane: 'runtime',
+    // ⭐⭐ THE HOST'S OBJECT PROGRAM RIDES HERE WITH THE FACTS ITS TREES ARE EVALUATED UNDER
+    // (`pineTreeStamps`): without them its `var` recurrences ran as 250-bar windows and drew
+    // trades on the wrong bars. Only when the program rides (`drawsObjects`): a runtime
+    // document with no host trees keeps its exact shape.
+    ...(drawsObjects ? pineTreeStamps(t) : {}),
     // ⭐ RT1 — the script's identity for the kill switch and the server's save
     // door: the sha256 of the Pine source, recomputed by the server, never trusted.
     runtimeSourceHash: runtimeSourceHash(source),
