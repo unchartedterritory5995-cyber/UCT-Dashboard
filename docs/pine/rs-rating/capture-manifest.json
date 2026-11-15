@@ -37,6 +37,15 @@
    "plots": 4,
    "drawsObjects": true,
    "largestWindow": 1
+  },
+  {
+   "slug": "rs-arm-label-last-bar",
+   "path": "tools/visual_conformance/probes/rs-arm-label-last-bar.pine",
+   "sha256": "1239b4762d9c1b6a732c38ce4107f80b9669194f49b24ab60796a9c76f770f2d",
+   "bytes": 2173,
+   "plots": 2,
+   "drawsObjects": true,
+   "largestWindow": 1
   }
  ]
 }
