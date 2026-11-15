@@ -2352,7 +2352,8 @@
       },
       "expect_refusal": false,
       "flags": {
-        "UCT_AGENT_ISOLATED": "1"
+        "UCT_AGENT_ISOLATED": "1",
+        "UCT_AGENT_ISOLATED_KINDS": "catalysts.board"
       }
     },
     {
@@ -2404,7 +2405,8 @@
       },
       "expect_refusal": false,
       "flags": {
-        "UCT_AGENT_ISOLATED": "1"
+        "UCT_AGENT_ISOLATED": "1",
+        "UCT_AGENT_ISOLATED_KINDS": "catalysts.board"
       }
     },
     {

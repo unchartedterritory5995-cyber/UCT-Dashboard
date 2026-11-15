@@ -69,6 +69,7 @@ def _digest(path) -> str:
 def _env(monkeypatch):
     monkeypatch.setenv(gw.DATA_ENV, "1")
     monkeypatch.setenv(gw.ISOLATED_ENV, "1")
+    monkeypatch.setenv(gw.ISOLATED_KINDS_ENV, cb.KIND)     # #1271: armed per kind, never by the global switch alone
     monkeypatch.setenv(gw.KINDS_ENV, cb.KIND)
     gw._reset_for_test(None)
     monkeypatch.setattr(cb, "now_et", lambda: NOW)
@@ -256,6 +257,9 @@ def test_dark_unless_named_and_dormant_unless_isolation_is_on(db, monkeypatch):
     monkeypatch.delenv(gw.ISOLATED_ENV)
     assert _read({}, turn="t2")["status"] == "refused"
     monkeypatch.setenv(gw.ISOLATED_ENV, "1")
+    monkeypatch.setenv(gw.ISOLATED_KINDS_ENV, "ratings")             # #1271: another kind's entry never arms this one
+    assert _read({}, turn="t2b")["status"] == "refused"
+    monkeypatch.setenv(gw.ISOLATED_KINDS_ENV, cb.KIND)
     for purpose in ("research", "scan"):
         assert _read({}, turn=f"t-{purpose}", purpose=purpose)["status"] == "refused"
     assert opened == []

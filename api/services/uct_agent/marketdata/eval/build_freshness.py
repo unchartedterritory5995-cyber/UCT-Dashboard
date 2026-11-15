@@ -328,12 +328,12 @@ add("cb-stale", "What's moving the market today?",
             "refreshed_at": "2026-11-02T13:40:00Z"}], "rows": [cbrow], "sector": None, "sectors": ["Technology"],
             "not_on_board": []},
       notes=[cb.NOTE_STALE, cb.NOTE_COOCCUR, cb.NOTE_WRITEUP, cb.NOTE_ROW_ASOF]),
-    category="periodic-stale", disclose=["over 2 hours ago", "do not establish its cause"], flags={"UCT_AGENT_ISOLATED": "1"})
+    category="periodic-stale", disclose=["over 2 hours ago", "do not establish its cause"], flags={"UCT_AGENT_ISOLATED": "1", "UCT_AGENT_ISOLATED_KINDS": "catalysts.board"})
 add("cb-absent", "Any catalysts for my watchlist today?",
     E("catalysts.board", status="ok", freshness="historical", as_of=None, source=cb.SOURCE,
       data={"state": cb.ABSENT, "requested_date": "2026-11-02", "dates": [], "rows": [], "not_on_board": ["AAA"],
             "sectors": [], "sector": None, "boards": []}, notes=[cb.NOTE_ABSENT]),
-    category="as_of-null", disclose=["not stored"], flags={"UCT_AGENT_ISOLATED": "1"})
+    category="as_of-null", disclose=["not stored"], flags={"UCT_AGENT_ISOLATED": "1", "UCT_AGENT_ISOLATED_KINDS": "catalysts.board"})
 
 # ── breadth / ratings (model-isolated: answer only) ───────────────────────────────────────────────────
 bdata = lambda **k: {"universe": "us", "metric": "pct_above_50sma", "value": 61.4, "status": "intraday",  # noqa: E731
