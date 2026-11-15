@@ -2583,6 +2583,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // and its own measurements. Refused by name, never approximated.
   let condDepth = 0
   const slotDepth = []
+  // ⭐ L4 — AN `if` ARM WHOSE TEST IS A SCRIPT CONSTANT (`invariantTest`: inputs at
+  // their values, literals, `timeframe.isweekly`…) runs on EVERY bar or on NONE, so a
+  // `ta.*` inside it keeps the history of an unconditional call, or never runs. Such
+  // an arm's statement list still counts in `condDepth` (the slot ledger and the
+  // `strategy.risk.*` location rule read it lexically); `rt5EveryBar` counts the lists
+  // opened that way, and RT5 asks `condDepth - rt5EveryBar` instead.
+  // `everyBarArmNext` hands the fact to the ONE `lowerStmts` call that opens the arm.
+  let rt5EveryBar = 0
+  let everyBarArmNext = false
   // ⭐⭐ WS-C / R4 — HOW MANY ENCLOSING REGIONS RUN ON SOME BARS ONLY. Separate
   // from `condDepth` (which RT5 and the slot ledger read unchanged): an arm
   // whose test reads no per-bar value (an input, a literal) runs on EVERY bar or
@@ -2704,7 +2713,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // window's run ring) steps only when its call runs, which is the call
     // site's history — except in a LOOP, where it would step once per pass.
     if (!objectsInRun && what === 'a stateful built-in' && loopDepth > 0) r4Guard(what, at)
-    if (!(objectsInRun && condDepth > 0)) return
+    if (!(objectsInRun && condDepth - rt5EveryBar > 0)) return
     note('runtime:conditional-history')
     throw new RuntimeRefusal('runtime:conditional-history',
       `${what} inside a block or function that does not run on every bar — Pine keeps that history per call site`, at)
@@ -11782,8 +11791,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const out = []
     const outerStmtSink = stmtHoistSink
     stmtHoistSink = null
-    // RT5: every list but the root runs only on some bars (or per call).
+    // RT5: every list but the root runs only on some bars (or per call) —
+    // except an arm whose test is a script constant (L4, `everyBarArmNext`).
+    const everyBarArm = !rootHoist && everyBarArmNext
+    everyBarArmNext = false
     if (!rootHoist) condDepth += 1
+    if (everyBarArm) rt5EveryBar += 1
     try {
     for (let i = 0; i < list.length; i += 1) {
       // ⭐ RE-ESTABLISHED PER STATEMENT so it survives a nested list lowered
@@ -12438,14 +12451,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
           const test = lowerExpr(a.test, scope)
           allInv = allInv && invariantTest(a.test, scope)
           const armScope = new Scope(scope)
-          const body = inR4Region(allInv, () => lowerStmts(a.from.sub || [], armScope))
+          // L4: a constant arm (and every arm before it constant) is an every-bar list for RT5
+          const body = inR4Region(allInv, () => { everyBarArmNext = allInv; return lowerStmts(a.from.sub || [], armScope) })
           objectBlocks.push({ scope: armScope, body })
           return { test, body }
         })
         let tail = []
         if (finalElse) {
           const elseScope = new Scope(scope)
-          tail = inR4Region(allInv, () => lowerStmts(finalElse.sub || [], elseScope))
+          tail = inR4Region(allInv, () => { everyBarArmNext = allInv; return lowerStmts(finalElse.sub || [], elseScope) })
           objectBlocks.push({ scope: elseScope, body: tail })
         }
         // ⛔ NESTED IFs, NEVER A FLATTENED CONDITION. `else if b` is not `if not a
@@ -13180,6 +13194,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     } finally {
       stmtHoistSink = outerStmtSink
       if (!rootHoist) condDepth -= 1
+      if (everyBarArm) rt5EveryBar -= 1
     }
     return out
   }
@@ -13265,6 +13280,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // RT5: a body is judged at its CALL SITE; its own list starts at depth 0.
     const prevCondDepth = condDepth
     condDepth = -1
+    // L4: and no enclosing constant arm discounts the body's own lists
+    const prevEveryBar = rt5EveryBar
+    rt5EveryBar = 0
+    everyBarArmNext = false
     // WS-C: a body is judged at its CALL SITE, so its own regions start at 0.
     const prevR4 = r4Cond
     const prevRegion = r4Region
@@ -13569,6 +13588,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       frameConsts = prevFrameConsts
       stmtHoistSink = prevHoistSink
       condDepth = prevCondDepth
+      rt5EveryBar = prevEveryBar
       r4Cond = prevR4
       r4Region = prevRegion
     }
