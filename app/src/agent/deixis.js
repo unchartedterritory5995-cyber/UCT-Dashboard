@@ -901,7 +901,9 @@ export function resolveTickerTokens(text, { charts = [], lists = null, verdict =
     if (pronoun && !caps) { put('word'); continue }                              // "make it weekly": a pronoun typed as one
     if (slot === 'ticker') {
       if (member || grounded) { put(!homograph || (caps && !t.acronym) ? 'ticker' : 'ambiguous'); continue }
-      if (v == null && askUnanswered && caps && homograph) { put('ambiguous'); continue }  // the instant path: a homograph in capitals, no answer → asked
+      // the instant path (no search): an English homograph in capitals with no answer is asked; an acronym there ("put RSI in its own
+      // pane") is the app's word the instant reader already understood — the model path still asks the search about it
+      if (v == null && askUnanswered && caps && homograph && !t.acronym) { put('ambiguous'); continue }
       if (pending) { put('unresolved'); continue }                             // asked, not answered: never a stand-in chart
       if (negative) { put('word'); continue }                                  // the search says it is no ticker
       // no answer asked for (a reader with no search): capitals are a ticker unless a pronoun or an acronym (the live path always

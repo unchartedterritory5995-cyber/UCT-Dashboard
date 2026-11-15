@@ -177,6 +177,12 @@ describe('R3 · every suppressing heuristic has a direct test (the search knows 
       expect(word(t, T)).toBe('word')
       expect(tickerGroundingCandidates(t, { charts: [], slotsOnly: true })).not.toContain(T.toLowerCase())
     })
+  // …and an ACRONYM in capitals there is the app's word the instant reader understood ("put RSI in its own pane"); with a ticker
+  // answer (the model path asks the search) it is asked
+  it.each(ACRONYM.flatMap(T => [`put ${T} in its own pane`, `change ${T} to weekly`].map(t => [t, T])))('instant path, an acronym in capitals: "%s" is not asked about %s without an answer', (t, T) => {
+    expect(word(t, T, { askUnanswered: true, verdict: () => null })).not.toBe('ambiguous')
+    expect(word(t, T, { askUnanswered: true })).toBe('ambiguous')
+  })
   // a demonstrative before "one(s)" is a determiner in ANY casing (emphasis) — and only there: before a change it is still read
   const DEMONSTRATIVES = ['this', 'that', 'these', 'those', 'each', 'every', 'which']
   it.each(DEMONSTRATIVES.flatMap(d => Object.entries(CASE).flatMap(([cn, cased]) => ['one', 'ones'].map(o => [`put ${cased(d)} ${o} on weekly`, d.toUpperCase(), cn]))))(
