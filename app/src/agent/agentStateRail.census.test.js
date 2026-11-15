@@ -15,6 +15,7 @@ import { allCapabilityNames, getCapability, getTargetKind } from './capabilities
 import { planOps, collectTargets, prepareOps } from './executor'
 import { stateEffects, stateRailRefusal, stateRailDecision, STATE_KINDS } from './stateRail'
 import { RAIL_KINDS } from './chartRail'
+import { loadIndicatorAlerts, _resetIndicatorAlertCache } from './capabilities/indicatorAlerts'
 
 vi.stubEnv('VITE_INDICATOR_TEMPLATES_ENABLED', '1')
 registerBuiltins()
@@ -98,6 +99,14 @@ async function envFor(cap, name, ref) {
   if (!cap.prepare) return ENV
   try { return { ...Object.fromEntries(Object.entries(await prepareOps([{ action: name, target: ref, args: argSets(cap).next().value }])).filter(([, v]) => v != null)), ...ENV } } catch { return ENV }
 }
+// (#1263) the member's EXISTING indicator alerts (an RSI alert on the RSI the fixture's chart carries, and a paused MACD one): the
+// alerts book the indicatorAlert kind reads, so pausing / deleting an existing alert is planned on real rows like every other state
+const ALERT_ROWS = [
+  { id: '901', sym: 'AAPL', indicator: 'rsi', condition: 'above', threshold: 70, tf: 'D', active: true, instance_id: 'inst:rsi:1' },
+  { id: '902', sym: 'AAPL', indicator: 'macd', condition: 'cross_zero', threshold: null, tf: 'D', active: false, instance_id: null },
+]
+const alertBook = () => ({ list: async () => ALERT_ROWS.map(a => ({ ...a })), catalog: async () => [], create: async () => ({ ok: true, id: '999' }),
+  toggle: async () => ({ ok: true }), remove: async () => ({ ok: true }) })
 async function census() {
   globalThis.fetch = async () => new Response('[]', { status: 200, headers: { 'content-type': 'application/json' } })
   const rows = []
@@ -106,6 +115,9 @@ async function census() {
     if (cap.query) continue
     const kind = getTargetKind(cap.target)
     const { host } = stateFixture()
+    host.indicatorAlerts = alertBook()
+    _resetIndicatorAlertCache()
+    await loadIndicatorAlerts(host, { force: true })
     let targets
     try { targets = collectTargets(host, [cap.target]) } catch { targets = new Map() }
     const refs = [...targets.keys()].slice(0, 3)
@@ -200,7 +212,7 @@ describe('STATE RAIL census — by tool, from the registry', () => {
   })
 })
 
-const NOUN = { indicator: 'indicators', drawing: 'drawings', drawingBoard: 'drawing board', watchlist: 'watchlist', widget: 'widget', layout: 'layout', layoutBar: 'layout bar', template: 'template' }
+const NOUN = { alert: 'alert', indicator: 'indicators', drawing: 'drawings', drawingBoard: 'drawing board', watchlist: 'watchlist', widget: 'widget', layout: 'layout', layoutBar: 'layout bar', template: 'template' }
 const ADDITIVE_WORDS = ['add AAPL', 'ADD an RSI', 'Add a trendline', 'adding one', 'put a new one on', 'PUT ANOTHER LINE', 'include MSFT', 'another one', 'Another RSI',
   'one more please', 'also MSFT', 'AAPL as well', 'TSLA too', 'a new layout', 'Insert a widget', 'more indicators', 'extra line', 'additional watchlist',
   'add it, don’t remove anything', 'add AAPL without deleting anything', 'put AAPL on — never replace']
@@ -219,6 +231,7 @@ const EXPECTED = {
   'drawing.setProps': ['drawing:overwrite'],
   'drawing.style': ['drawing:overwrite'],
   'indicator.remove': ['indicator:remove'],
+  'indicatorAlert.delete': ['alert:delete'],
   'indicator.update': ['indicator:overwrite'],
   'indicatorStyle.set': ['indicator:overwrite'],
   'indicatorTemplate.delete': ['template:delete'],

@@ -1,0 +1,106 @@
+// #1263 × the #1247 STATE RAIL — the member's EXISTING indicator alerts are state. Creating one only adds ("only on this chart"
+// included); DELETING one is a hard delete UCT cannot restore, licensed ONLY by its own words (kind-matched: a delete of
+// something else, or an additive request, never deletes an alert). Pausing / resuming keeps every setting and is undone exactly:
+// an arrangement, never an effect. "Delete the RSI alert" names the ALERT, never the RSI indicator (and the reverse).
+// #1289 step identity: an alert addressed while its indicator is changed in the same request is the SAME alert (its id).
+// H14 (unique identification, #1324 — not merged here): "delete the alert" with several alerts in scope must be ASKED; pinned
+// below as a todo with the design note, so the merge has a red target.
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { registerBuiltins } from './builtins'
+import { buildContext } from './capabilities'
+import { planOps, collectTargets, prepareOps } from './executor'
+import { stateEffects, stateRailRefusal } from './stateRail'
+import { stateFixture } from './__fixtures__/stateBoard'
+import { loadIndicatorAlerts, _resetIndicatorAlertCache, indicatorAlertKind } from './capabilities/indicatorAlerts'
+
+vi.stubEnv('VITE_INDICATOR_TEMPLATES_ENABLED', '1')
+registerBuiltins()
+
+const ROWS = [
+  { id: '901', sym: 'SPY', indicator: 'rsi', condition: 'above', threshold: 70, tf: 'D', active: true, instance_id: 'inst:rsi:1' },
+  { id: '902', sym: 'SPY', indicator: 'macd', condition: 'cross_zero', threshold: null, tf: 'D', active: false, instance_id: null },
+]
+const book = () => ({ list: async () => ROWS.map(a => ({ ...a })), catalog: async () => [], create: async () => ({ ok: true, id: '999' }),
+  toggle: async () => ({ ok: true }), remove: vi.fn(async () => ({ ok: true })) })
+let fx
+beforeEach(async () => {
+  fx = stateFixture()
+  fx.host.indicatorAlerts = book()
+  _resetIndicatorAlertCache()
+  await loadIndicatorAlerts(fx.host, { force: true })
+})
+const op = (action, target, args = {}) => ({ action, target, args })
+async function planOf(ops) {
+  buildContext(fx.host, { surface: 'charts' })
+  const kinds = [...new Set(ops.map(o => (String(o.target).startsWith('ixe:') ? 'indicatorEdits' : o.target === 'indicatorAlerts' ? 'indicatorAlertLibrary' : 'indicatorAlert')))]
+  return planOps(collectTargets(fx.host, kinds), ops, { boundDrawingIds: new Set(), boundAlerts: [], ...(await prepareOps(ops)) }, { surface: 'charts' })
+}
+const DELETE_RSI_ALERT = [op('indicatorAlert.delete', '901')]
+const REFUSED = /^I didn’t change anything/
+
+describe('an EXISTING indicator alert is state: a delete is a destroy, licensed only by its own words', () => {
+  it('the delete is read as one alert:delete effect on that alert (by id); pausing / resuming is no effect', async () => {
+    const del = await planOf(DELETE_RSI_ALERT)
+    expect(del.ok).toBe(true)
+    expect(stateEffects(del).map(e => [e.state, e.type, e.id])).toEqual([['alert', 'delete', 'alert:901']])
+    for (const active of [false, true]) {
+      const t = await planOf([op('indicatorAlert.toggle', active ? '902' : '901', { active })])
+      expect(t.ok).toBe(true)
+      expect(stateEffects(t)).toEqual([])
+    }
+  })
+  const ADDITIVE = ['add an RSI alert above 70', 'ADD AN ALERT', 'alert me when the RSI crosses 70 too', 'another alert on this chart only',
+    'put a new alert on the MACD', 'set an alert, don’t delete anything', 'also alert me on the 20 EMA', 'do it', 'ok']
+  it.each(ADDITIVE)('an additive (or permit-less) request never deletes an existing alert: "%s"', async (w) => {
+    expect(stateRailRefusal(await planOf(DELETE_RSI_ALERT), { words: w })).toMatch(REFUSED)
+  })
+  const EXPLICIT = ['delete the RSI alert', 'remove my rsi alert', 'Delete that alert', 'get rid of the alert', 'delete the alert on SPY', 'trash the alarm']
+  it.each(EXPLICIT)('its own words delete it: "%s"', async (w) => {
+    expect(stateRailRefusal(await planOf(DELETE_RSI_ALERT), { words: w })).toBe(null)
+  })
+  const OTHER_KIND = ['remove the RSI', 'delete my drawings', 'clear the watchlist', 'remove the indicators', 'delete my layout']
+  it.each(OTHER_KIND)('a delete of something ELSE never licenses deleting an alert: "%s"', async (w) => {
+    expect(stateRailRefusal(await planOf(DELETE_RSI_ALERT), { words: w })).toMatch(REFUSED)
+  })
+  it('negated words never permit it', async () => {
+    for (const w of ['don’t delete the RSI alert', 'never remove my alerts', 'delete nothing'])
+      expect(stateRailRefusal(await planOf(DELETE_RSI_ALERT), { words: w }), w).toMatch(REFUSED)
+  })
+})
+
+describe('"the RSI alert" names the ALERT, never the RSI indicator', () => {
+  const REMOVE_RSI = [op('indicator.remove', 'ixe:c1', { instance: 'inst:rsi:1' })]
+  it.each(['delete the RSI alert', 'remove my rsi alert', 'remove RSI alert', 'delete the 14 RSI alerts'])('a plan removing the RSI INDICATOR is refused for "%s"', async (w) => {
+    expect(stateRailRefusal(await planOf(REMOVE_RSI), { words: w })).toMatch(REFUSED)
+  })
+  it('…while naming both still licenses both ("remove the RSI and its alert")', async () => {
+    const both = await planOf([...REMOVE_RSI, ...DELETE_RSI_ALERT])
+    expect(stateEffects(both).map(e => e.state).sort()).toEqual(['alert', 'indicator'])
+    expect(stateRailRefusal(both, { words: 'remove the RSI and its alert' })).toBe(null)
+    expect(stateRailRefusal(both, { words: 'remove the RSI' })).toMatch(REFUSED)            // the alert was never asked for
+  })
+})
+
+describe('#1289 step identity: the alert addressed while its indicator changes is the same alert', () => {
+  it('"change the RSI length to 21 and delete the RSI alert": one plan, the RSI updated and alert 901 (by id) deleted', async () => {
+    const plan = await planOf([op('indicator.update', 'ixe:c1', { instance: 'inst:rsi:1', inputs: [{ key: 'period', value: 21 }] }), ...DELETE_RSI_ALERT])
+    expect(plan.ok).toBe(true)
+    const eff = stateEffects(plan)
+    expect(eff.find(e => e.state === 'alert').id).toBe('alert:901')
+    expect(eff.find(e => e.state === 'indicator').id).toBe('ind:c1:inst:rsi:1')
+    expect(stateRailRefusal(plan, { words: 'change the RSI length to 21 and delete the RSI alert' })).toBe(null)
+    expect(stateRailRefusal(plan, { words: 'change the RSI length to 21' })).toMatch(REFUSED)   // the delete needs its own words
+    // the alert the plan deletes is the row read BEFORE the change, bound by id — its indicator's new length does not move it
+    expect(plan.plans.find(p => p.kind === 'indicatorAlert').ref).toBe('901')
+    expect(indicatorAlertKind.read(fx.host, '901').instanceId).toBe('inst:rsi:1')
+  })
+})
+
+describe('H14 unique identification (#1324) — design pin, not merged here', () => {
+  // DESIGN: when H14 lands, stateRail.namesObject's class-noun rule ("the alert" names it only when it is the ONLY one in scope)
+  // applies to the alert state too: the indicatorAlert reader adds `inScope` (the book's alert count on the symbol) and `peers`,
+  // and "delete the alert" with 2+ alerts asks with the real alerts as choices — never picks one. CONFLICT POINTS with #1324:
+  // stateRail.js READERS (this branch adds indicatorAlert), CLASS (adds alert), namesObject (this branch's alert-phrase strip
+  // at its head; H14 adds the indicator / drawing / watchlist unique rules there) and stateEffects (H14's `scope` param).
+  it.todo('"delete the alert" with two alerts in scope is asked, the two alerts as the choices (H14)')
+})

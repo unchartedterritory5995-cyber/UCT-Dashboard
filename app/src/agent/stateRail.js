@@ -206,6 +206,15 @@ const READERS = {
     if (ch.drop && ch.put) return [{ state: 'template', type: 'overwrite', via: 'save', name: `your indicator template “${nm(ch.drop.name)}”` }]
     return []
   },
+  // (owner priority 4, #1263) the member's EXISTING indicator alerts: a delete is a HARD delete (UCT cannot restore it), licensed
+  // only by its own words. Pausing / resuming keeps every setting and is undone exactly — an arrangement, as showing or hiding an
+  // indicator is (indicatorOfRequest: setVisible), never an effect. Creating one (indicatorAlertLibrary) only adds.
+  indicatorAlert(p) {
+    if (!(p.after?.deleted || p.patch?.delete)) return []
+    const b = p.before || p.snap || {}
+    const label = String(b.label || [b.sym, b.instanceLabel || b.indicator].filter(Boolean).join(' ') || 'an indicator alert')
+    return [{ state: 'alert', type: 'delete', name: `your indicator alert “${nm(label)}”`, label, id: `alert:${b.id || p.ref}`, instanceId: b.instanceId || null }]
+  },
 }
 function templateDiff(prev, write, what) {
   const now = new Map((write || []).map(t => [nm(t.name).toLowerCase(), t]))
@@ -260,6 +269,8 @@ export const CLASS = {
   layout: /\b(?:layouts?(?! bar)|arrangements?|workspaces?)\b/i,
   layoutBar: /\b(?:layout bar|the bar|bar)\b/i,
   template: /\btemplates?\b/i,
+  // (#1263) an indicator alert ("the RSI alert", "my alarms")
+  alert: /\b(?:alerts?|alarms?)\b/i,
 }
 const classesOf = (e) => e.classes || [e.state]
 const phrase = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
@@ -267,8 +278,11 @@ const has = (clause, label) => { const p = phrase(label); return !!p && ` ${phra
 // the member's own name for the thing (a list "Tech", a layout "Swing", "RSI (14)") — quoted in the effect, or its label
 const labelOf = (e) => e.label || (/“([^”]+)”/.exec(e.name || '') || [])[1] || null
 /** Does this clause name the effect's object — its class, or (when it names no OTHER class) its own name? */
-export function namesObject(e, clause, why = null) {
+export function namesObject(e, clause0, why = null) {
   const mine = classesOf(e)
+  // ⛔ (#1263) "delete the RSI alert" names an ALERT, never the RSI: the words naming the alert (up to three before its noun)
+  // are not read as naming anything else ("remove the RSI and its alert" still names the RSI)
+  const clause = mine.includes('alert') ? clause0 : String(clause0 || '').replace(/\b(?:the|my|that|this|your|its|their|an?)\s+(?:(?!(?:and|or|then|but)\b)[\w.()-]+\s+){0,3}?(?:alerts?|alarms?)\b|\b[\w.()-]+\s+(?:alerts?|alarms?)\b/gi, ' ')
   if (mine.some(c => CLASS[c]?.test(clause))) return true
   if (Object.keys(CLASS).some(c => !mine.includes(c) && CLASS[c].test(clause))) {
     // its OWN name beside another class ("delete the Paper watchlist look"): which is meant is asked, with both as choices
