@@ -168,6 +168,7 @@ def test_model_isolated_kinds_answer_the_member_only(monkeypatch):
         assert out["status"] == "refused" and "not available to UCT Agent yet" in out["notes"][0]
     assert ran == []
     monkeypatch.setenv(gw.ISOLATED_ENV, "1")
+    monkeypatch.setenv(gw.ISOLATED_KINDS_ENV, "breadth.current")
     for purpose in ("research", "scan"):
         out = gw.read("breadth.current", {}, user_id=1, turn_id="t", purpose=purpose)
         assert out["status"] == "refused" and "never used for research" in out["notes"][0]

@@ -174,14 +174,20 @@ def buzz_ticker_choices(q: str, limit: int = 25) -> list[dict]:
         return []
 
 
-def run_buzz_image_job(app_id: str, token: str, content: str, window: str, *, render_fn=None, edit_fn=None) -> None:
+def run_buzz_image_job(app_id: str, token: str, content: str, window: str, *, render_fn=None, edit_fn=None,
+                       as_card: bool = False) -> None:
     """Background job for a ticker-less /buzz: render the board PNG and PATCH
     it onto the deferred reply -- mirroring `di.run_chart_job`'s cache/render/
     edit shape, simplified (no cache, no retry): a failed or empty render just
     leaves the text-only reply, never an apology. `edit_original` already
     re-declares `attachments` on the image path, so the PATCH cannot drop the
-    file the way `desk_session_announce._edit` once did."""
-    from api.services import buzz_image
+    file the way `desk_session_announce._edit` once did.
+
+    `as_card` = reply with the bot's card (discord_cards) showing the board image inside it,
+    the on-demand /buzz shape since 2026-11-14. Without it, the old text-plus-file reply:
+    the dark V2 path (discord_render/commands.py `_handle_buzz`) still calls this that way,
+    because its delivery layer sends no embeds."""
+    from api.services import buzz_image, buzz_reply
     render = render_fn or buzz_image.render_board_png
     edit = edit_fn or di.edit_original
     try:
@@ -192,6 +198,13 @@ def run_buzz_image_job(app_id: str, token: str, content: str, window: str, *, re
     except Exception as e:  # noqa: BLE001 — a background job must never raise
         log.warning("[buzz] image render failed: %s", e)
         png = None
+    if as_card:
+        if png:
+            edit(app_id, token, content="", png=png, filename="buzz.png",
+                 embeds=[buzz_reply.as_card(content, window, image="buzz.png")])
+        else:
+            edit(app_id, token, content="", embeds=[buzz_reply.as_card(content, window)])
+        return
     if png:
         edit(app_id, token, content=content, png=png, filename="buzz.png")
     else:
@@ -236,12 +249,13 @@ def run_buzz_job(app_id: str, token: str, ticker: str, window: str, now: int,
         except Exception as e2:  # noqa: BLE001
             log.warning("[buzz] failure edit failed: %s", e2)
         return
-    # A ticker narrows to one name's numbers — text only, exactly as before. No ticker is
-    # the board, which is worth an image.
+    # A ticker narrows to one name's numbers — a card with no image. No ticker is the
+    # board, which is worth an image, shown inside the card. Both in the bot's one card
+    # style (api/services/discord_cards.py), the same frame as /news and /lesson.
     if not ticker and buzz_image.image_enabled():
-        run_buzz_image_job(app_id, token, text, window, render_fn=render_fn, edit_fn=edit_fn)
+        run_buzz_image_job(app_id, token, text, window, render_fn=render_fn, edit_fn=edit_fn, as_card=True)
         return
-    edit(app_id, token, content=text)
+    edit(app_id, token, content="", embeds=[buzz_reply.as_card(text, window)])
 
 
 def run_lesson_search_job(app_id: str, token: str, query: str, *, search_fn=None, edit_fn=None) -> None:
@@ -252,12 +266,13 @@ def run_lesson_search_job(app_id: str, token: str, query: str, *, search_fn=None
     search = search_fn or tsdr_lessons.search_lessons
     edit = edit_fn or di.edit_original
     try:
-        text = tsdr_lessons.format_search_reply(query, search(query))
+        # The bot's one card style (api/services/discord_cards.py), the same frame as /news.
+        reply = {"content": "", "embeds": [tsdr_lessons.search_card(query, search(query))]}
     except Exception as e:  # noqa: BLE001
         log.warning("[discord-lesson] search failed for %r: %s", query[:60], e)
-        text = "The lesson search hit a snag. Try again in a minute."
+        reply = {"content": "The lesson search hit a snag. Try again in a minute."}
     try:
-        edit(app_id, token, content=text)
+        edit(app_id, token, **reply)
     except Exception as e:  # noqa: BLE001
         log.warning("[discord-lesson] could not deliver the reply: %s", e)
 
@@ -744,8 +759,10 @@ async def _dispatch_interaction(request: Request, background: BackgroundTasks):
     name = (interaction.get("data") or {}).get("name")
     if itype == 4:
         if name == tx_news.NEWS_COMMAND:
+            # /news has its own picker: stocks only, in the form the command accepts.
+            # /chart's helper also offers breadth series and a "chart it" fallback.
             q = di.parse_autocomplete(interaction).lstrip("$")
-            return _autocomplete(fetch_ticker_choices(q) if q else [])
+            return _autocomplete(tx_news.ticker_choices(q) if q else [])
         if name == di.BUZZ_COMMAND:
             # Backed by what the room ACTUALLY said, so an empty query is still
             # useful: it offers the most-mentioned names.

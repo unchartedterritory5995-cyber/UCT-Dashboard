@@ -150,7 +150,8 @@ describe('M2 add / remove / show / hide — through the Indicators interface onl
     for (const defId of ['volumeProfile', 'ma', 'Volume Profile']) {
       const p = await plan(h, [op('indicator.add', 'L', { defId, inputs: null })])
       expect(p.ok, defId).toBe(false)
-      expect(p.refusals[0].reason).toMatch(/Classic overlay averages and Volume Profile are added from Chart Settings/)
+      // Charts family (2026-11-12): still never an indicator.add — a Volume Profile add now points at its own switch
+      expect(p.refusals[0].reason).toMatch(defId === 'ma' ? /Classic overlay averages and Volume Profile are added from Chart Settings/ : /Volume Profile isn’t added from the Indicator Library .* Say “turn on Volume Profile”/)
     }
   })
   it('unknown and foreign definitions are refused before any proposal; the member\'s own saved one is added', async () => {

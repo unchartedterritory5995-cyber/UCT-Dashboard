@@ -72,6 +72,9 @@ const MiniChart = memo(function MiniChart({ sym, tf, settings, big = false, onPe
         // reads: bold candles on the THEME's canvas (userCanvas), not the fixed
         // Model Book navy a hand-copied prop list fell back to.
         {...chartLook}
+        // A grid card keeps no saved pan/zoom on the device. Said outright (after the
+        // spread) so the settings census can read it: persistenceManifest.test.js.
+        viewLockKey={null}
         // A card's header already names the stock: its OHLC/MA legend shows on
         // hover only, flush with the top edge. The enlarged chart keeps the
         // classic always-on legend.

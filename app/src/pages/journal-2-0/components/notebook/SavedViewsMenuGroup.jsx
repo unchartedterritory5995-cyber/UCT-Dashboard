@@ -69,7 +69,7 @@ export default function SavedViewsMenuGroup({
       {!views.length && loadFailed ? (
         <p className={styles.failed}>{SAVED_VIEWS_FAILED}</p>
       ) : !views.length ? (
-        <button type="button" role="menuitem" className={menuStyles.item} onClick={menu.run(onAddStarterViews)}>
+        <button type="button" role="menuitem" className={menuStyles.item} onClick={menu.run(onAddStarterViews, 'starter_views')} data-row="starter_views">
           <UIcon name="sliders" {...TOOLBAR_ICON} /> Add thesis starter views
         </button>
       ) : views.map((view) => {
@@ -98,7 +98,8 @@ export default function SavedViewsMenuGroup({
                 role="menuitemradio"
                 aria-checked={active}
                 className={`${menuStyles.item} ${active ? menuStyles.itemChecked : ''} ${styles.apply}`}
-                onClick={menu.run(() => onSelectView(view))}
+                onClick={menu.run(() => onSelectView(view), 'saved_view')}
+                data-row="saved_view"
                 title={view.name}
                 data-saved-view-row={view.id}
               >
@@ -109,7 +110,8 @@ export default function SavedViewsMenuGroup({
                 type="button"
                 role="menuitem"
                 className={styles.iconBtn}
-                onClick={() => startRename(view)}
+                onClick={() => { menu.track?.('rename_view'); startRename(view) }}
+                data-row="rename_view"
                 title="Rename view"
                 aria-label={`Rename ${view.name}`}
               ><UIcon name="edit" {...TOOLBAR_ICON} /></button>
@@ -117,7 +119,8 @@ export default function SavedViewsMenuGroup({
                 type="button"
                 role="menuitem"
                 className={`${styles.iconBtn} ${styles.deleteBtn}`}
-                onClick={menu.run(() => onDeleteView(view.id, view.name))}
+                onClick={menu.run(() => onDeleteView(view.id, view.name), 'delete_view')}
+                data-row="delete_view"
                 title="Delete view"
                 aria-label={`Delete ${view.name}`}
               ><UIcon name="x" {...TOOLBAR_ICON} /></button>

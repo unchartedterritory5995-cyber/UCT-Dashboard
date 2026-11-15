@@ -539,7 +539,7 @@ def test_deleting_a_kind_keeps_its_deleted_templates_and_restore_refuses_them(db
     assert _ids(js.list_styles(MEMBER, db, view="deleted")) == [s["id"]]
     assert js.get_style(MEMBER, s["id"], db, include_deleted=True)["name"] == "Swing plan"
     with pytest.raises(js.StyleValidationError,
-                       match="^This template's kind of note was deleted, so it can't be restored.$"):
+                       match="^This template's note type was deleted, so it can't be restored.$"):
         js.restore_style(MEMBER, s["id"], db)
     assert not db.in_transaction
     assert js.get_style(MEMBER, s["id"], db, include_deleted=True)["deletedAt"]

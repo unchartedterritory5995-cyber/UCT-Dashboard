@@ -7,6 +7,8 @@
 //     (`review-drafts-phone`);
 //   * both tiers: today's recap, then the week's and month's reviews in one step (the registry's six-step budget).
 // The reviews' anchors are written once in tabs/NotebookTab.jsx and drawn by whichever of the two menus is open.
+// Follow-up B fix round 1: the first review's card (`daily`, the first step inside the second view, on both tiers) has
+// no Back (`noBack`): going back would name "Draft a review", which is not on screen while its view is open.
 // Every anchor is a literal `data-tour` in tabs/NotebookTab.jsx.
 const TAB = 'tabs/NotebookTab.jsx'
 const step = (id, anchor, more = {}) => Object.freeze({ id, anchor, file: TAB, ...more })
@@ -16,7 +18,7 @@ export const STEPS = Object.freeze([
   step('open-reviews', 'review-drafts-open', { waitFor: 'review-drafts-daily', tier: 'wide' }),
   step('phone-open', 'styles-button', { waitFor: 'review-drafts-phone', tier: 'phone' }),
   step('phone-open-reviews', 'review-drafts-phone', { waitFor: 'review-drafts-daily', tier: 'phone' }),
-  step('daily', 'review-drafts-daily'),
+  step('daily', 'review-drafts-daily', { noBack: true }),
   step('later', 'review-drafts-weekly'),
 ])
 

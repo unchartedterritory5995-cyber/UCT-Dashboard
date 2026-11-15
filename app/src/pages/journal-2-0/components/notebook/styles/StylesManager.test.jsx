@@ -162,6 +162,8 @@ const edit = async (name = NAME) => {
   fireEvent.click(await screen.findByRole('button', { name: `Edit ${name}` }))
   return screen.findByRole('form', { name: `Edit template ${name}` })
 }
+// Follow-up C: the Undo line names the template (and, with wave 11 on, says where it went).
+const DELETED_LINE = () => `Deleted “${NAME}”.`
 const alertText = async () => (await screen.findByRole('alert')).textContent
 
 describe('the Styles manager', () => {
@@ -236,7 +238,7 @@ describe('the Styles manager', () => {
     installFetch()
     open()
     fireEvent.click(await screen.findByRole('button', { name: `Delete ${NAME}` }))
-    await screen.findByText('Template deleted.')
+    await screen.findByText(DELETED_LINE())
     await waitFor(() => expect(screen.queryByText(NAME)).toBeNull())
     expect(called('DELETE', MEMBER_END)).toHaveLength(1)
     // focus lands on Undo, the control the row's own button handed over to
@@ -249,15 +251,15 @@ describe('the Styles manager', () => {
     const row = (await screen.findByText(NAME)).closest('li')
     expect(within(row).getByText('Default')).toBeInTheDocument()
     await waitFor(() => expect(row.contains(document.activeElement)).toBe(true))
-    expect(screen.queryByText('Template deleted.')).toBeNull()
+    expect(screen.queryByText(DELETED_LINE())).toBeNull()
   })
 
   it('the Undo line ends at the next action', async () => {
     open()
     fireEvent.click(await screen.findByRole('button', { name: `Delete ${NAME}` }))
-    await screen.findByText('Template deleted.')
+    await screen.findByText(DELETED_LINE())
     fireEvent.click(await screen.findByRole('button', { name: 'Set Trade plan as default' }))
-    await waitFor(() => expect(screen.queryByText('Template deleted.')).toBeNull())
+    await waitFor(() => expect(screen.queryByText(DELETED_LINE())).toBeNull())
   })
 
   it("names a template's widget, routine and tracker blocks, says their day, and saves their settings verbatim", async () => {
@@ -1133,7 +1135,7 @@ describe('round 3: the status bar leaves no gap when it has nothing to say', () 
     const bar = screen.getByRole('status').parentElement
     expect(bar).toHaveAttribute('data-empty')
     fireEvent.click(screen.getByRole('button', { name: `Delete ${NAME}` }))
-    await screen.findByText('Template deleted.')
+    await screen.findByText(DELETED_LINE())
     expect(bar).not.toHaveAttribute('data-empty')
   })
 })
@@ -1172,7 +1174,7 @@ describe('round 4: deleting the open style', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
     await screen.findByText('Discard your unsaved changes to this template?')
     fireEvent.click(screen.getByRole('button', { name: `Delete ${NAME}` }))
-    await screen.findByText('Template deleted.')
+    await screen.findByText(DELETED_LINE())
     expect(screen.queryByText('Discard your unsaved changes to this template?')).toBeNull()
     expect(screen.queryByRole('form', { name: /Edit template/ })).toBeNull()
   })

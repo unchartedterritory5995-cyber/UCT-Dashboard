@@ -111,10 +111,10 @@ def read_registry() -> list[dict]:
                     if m.group(1):
                         wf = re.search(r"waitFor: '([^']+)'", rest)
                         steps.append({"id": m.group(1), "anchor": m.group(2), "waitFor": wf.group(1) if wf else None,
-                                      "tier": tier.group(1) if tier else None})
+                                      "tier": tier.group(1) if tier else None, "noBack": "noBack: true" in rest})
                     else:
                         steps.append({"id": m.group(3), "anchor": m.group(4), "waitFor": m.group(5),
-                                      "tier": tier.group(1) if tier else None})
+                                      "tier": tier.group(1) if tier else None, "noBack": "noBack: true" in rest})
             out.append({"id": tid.group(1), "title": title.group(1) if title else tid.group(1),
                         "replayable": (repl.group(1) == "true") if repl else True, "steps": steps,
                         "module": mod.group(1) if mod else None})
@@ -375,7 +375,12 @@ def walk_tour(pg, ctx, base: str, width: int, entry: dict, P: str = "on") -> dic
             ov = pg.evaluate("() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1")
             if ov:
                 row["notes"].append(f"step {st['n']} horizontal overflow")
-            record(P, width, tid, f"step {st['n']} shown", None, **facts)
+            record(P, width, tid, f"step {st['n']} shown", None, **facts, back=st.get("backDisabled"))
+            # Follow-up B fix round 1: a step declared `noBack` (tours/index.js) draws no Back on its card (going back
+            # would name a control that is not on screen). `backDisabled` is null when the card has no Back button.
+            if 0 < st["n"] <= len(steps) and steps[st["n"] - 1].get("noBack"):
+                record(P, width, tid, f"step {st['n']} ({steps[st['n'] - 1]['id']}) card draws no Back (noBack)",
+                       st.get("backDisabled") is None, back_disabled=st.get("backDisabled"))
             if st["mode"] not in trap_done:
                 tp = trap_probe(pg, st["mode"])
                 trap_done.add(st["mode"])

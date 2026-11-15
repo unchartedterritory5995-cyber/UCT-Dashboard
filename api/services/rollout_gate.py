@@ -590,6 +590,13 @@ PINE_CAPABILITY_OBJECT_PREFIX = "obj:"
 PINE_OBJECTS_LANE_RUNTIME = "runtime"
 
 
+def _pine_ledger_entry_fresh(entry) -> bool:
+    """A ledger evidence entry was graded at today's SCRIPT_ENGINE_VERSION (the server's one reader)."""
+    from api.services import user_definitions  # noqa: PLC0415 -- the engine number's one authority
+    cur, at = user_definitions.SCRIPT_ENGINE_VERSION, entry.get("scriptEngineVersion")
+    return (isinstance(cur, int) and isinstance(at, int) and not isinstance(at, bool) and at == cur)
+
+
 def _pine_capability_evidence_counts(name: str, entry) -> bool:
     """Does this evidence entry count toward admitting capability `name`?"""
     if not isinstance(entry, dict):
@@ -598,6 +605,10 @@ def _pine_capability_evidence_counts(name: str, entry) -> bool:
         if not isinstance(entry.get(key), str) or not entry.get(key):
             return False
     if entry.get("verdict") != PINE_CAPTURE_MATCH or entry.get("runtimePane") != PINE_CAPTURE_PANE_ON:
+        return False
+    # ⭐ LEDGER_ONLY evidence (a licence-held capture graded out of git, `evidence_ledger`) counts only
+    # while FRESH: graded at the engine this build ships. A bump retires it until a regrade refreshes it.
+    if "ledger" in entry and not (entry.get("ledger") is True and _pine_ledger_entry_fresh(entry)):
         return False
     if name.startswith(PINE_CAPABILITY_OBJECT_PREFIX):
         return (entry.get("objectsV2") == PINE_CAPTURE_MATCH

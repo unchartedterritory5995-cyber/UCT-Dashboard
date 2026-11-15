@@ -2,6 +2,7 @@ import { memo, useCallback, useContext, useEffect, useId, useMemo, useRef, useSt
 import { DEFS_URL, getJson, postJson } from '../../../lib/builtWidgets'
 import { widgetsWaveOn, doorLostSentence } from '../../../lib/notebookWidgetsFlags'
 import { TOOL_SAVED_NOT_ADDED, placeTool } from '../../../lib/toolEmbed'
+import { withInsertDoor } from '../../../lib/notebookUsage'
 import { WIDGET_KINDS } from '../../../lib/notebookWidgets'
 import { dedicatedSnapshotKind, loadTrades, tradeLabel } from '../../../lib/notebookWidgetsFetch'
 import { recordUse, shelfSnapshotKind } from '../../../lib/builtInWidgets'
@@ -344,7 +345,8 @@ function ExamplesGallery({
     const go = () => import('../routines/openRoutineEditor').then((m) => {
       m.openRoutineEditor({
         starter: 'premarket', editor,
-        onSaved: editor ? (routine) => { placeTool(editor, 'routine', routine, TOOL_SAVED_NOT_ADDED) } : undefined,
+        // Follow-up A fix I4: counted under the door the builder was opened from (`block_inserted`).
+        onSaved: editor ? (routine) => { withInsertDoor(door?.via, () => placeTool(editor, 'routine', routine, TOOL_SAVED_NOT_ADDED)) } : undefined,
         returnFocus: editor?.view?.dom || null,
       })
     }, () => {

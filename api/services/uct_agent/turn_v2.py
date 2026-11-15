@@ -35,7 +35,7 @@ ROUNDS_ENV = "UCT_AGENT_PLANNER_ROUNDS"
 TURN_USD_ENV = "UCT_AGENT_TURN_USD"
 DEFAULT_ROUNDS = 6
 DEFAULT_TURN_USD = 0.25
-MAX_CAPABILITIES_V2 = 200
+MAX_CAPABILITIES_V2 = 300                   # == manifest.contract.json catalog.maxRegistered (tests/test_uct_agent_contract.py parity)
 MAX_STEPS_PER_TURN = 12                     # the same ceiling as v1's MAX_OPS, per turn
 MAX_RESULT_CHARS = 2000
 PAUSE_TTL_S = 600
@@ -73,14 +73,17 @@ _DOMAIN_OF = {
     "chartMenu": "chart",                                 # the chart's right-click menu: Ask AI about its stock, watermark Reset (#1106)
     "chartFeatures": "chart",                             # a chart widget's Company Info panel + Earnings Strip (opts.dock)
     "chartShare": "chart",                                # a chart's Share popover: Download PNG, the menu opened for Copy Share URL
+    "chartReplay": "chart",                               # ONE chart's bar replay playback (the toolbar's Replay / Time Machine bar)
     "board": "board", "widget": "board", "app": "board", "settings": "board", "guide": "board", "agent": "board",
     "periodSort": "board",                                # C3-205..207: Tools → Custom-Period Sort (a workspace tool)
     "compare": "board",                                   # Tools → Compare Symbols: the panel's Rotation / Overlay view (a workspace tool)
     "watchlist": "watchlist", "layout": "layout",
     "indicator": "indicator", "indicatorCopy": "indicator", "indicatorStyle": "indicator", "indicatorTemplate": "indicator", "definition": "indicator",
+    "volumeProfile": "indicator",                       # a chart's Volume Profile overlay (Chart Settings → Indicators; the carved-out key)
     "drawing": "drawing", "alert": "alert", "indicatorAlert": "alert", "screener": "screener",
     "stock": "data", "index": "data", "commodity": "data", "crypto": "data", "news": "news", "research": "research",
     "playbook": "data",                                   # KN-1 knowledge capabilities
+    "cot": "data",                                        # Phase 2: CFTC Commitments of Traders positioning (cot.positioning)
     "uctIntelligence": "chart",                           # the UCT Intelligence chart indicator: add / remove it, its layers on / off
     "multiChart": "board",                                # the Multi Chart grid: the workspace as a whole (#1030)
 }

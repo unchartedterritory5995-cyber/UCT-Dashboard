@@ -1,6 +1,7 @@
 import { render, screen, waitFor, fireEvent, within, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { widgetPaletteLoaders, widgetPaletteModule } from './EditorToolSlots'
 import { MQ } from '../../../../styles/breakpoints'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../lib/offline/notebookFlags'
 
@@ -44,12 +45,14 @@ vi.mock('../VoiceInputButton', async () => {
 })
 
 let phone = false
+// Fix round 2: also the touch tier, so the shared ContextPopover renders its real phone branch (a Sheet).
+let touch = false
 const mqListeners = new Set()
 let realMatchMedia
 function installMatchMedia() {
   realMatchMedia = window.matchMedia
   window.matchMedia = vi.fn((query) => ({
-    get matches() { return phone && query === MQ.phone },
+    get matches() { return (phone && query === MQ.phone) || (touch && query === MQ.tabletDown) },
     media: query,
     onchange: null,
     addEventListener: (_t, fn) => { if (query === MQ.phone) mqListeners.add(fn) },
@@ -64,6 +67,7 @@ const setPhone = (v) => { phone = v }
 beforeEach(() => {
   NOTE = baseNote()
   phone = false
+  touch = false
   mqListeners.clear()
   installMatchMedia()
   __resetNotebookFlags()
@@ -136,6 +140,40 @@ describe('P0.6: the phone "+" insert menu', () => {
     fireEvent.click(insertBtn())
     fireEvent.click(screen.getByRole('menuitem', { name: 'Chart or block' }))
     expect(await screen.findByRole('dialog', { name: 'Insert widget' })).toBeTruthy()
+  }, 60000)
+
+  // Follow-up B fix round 2: the Insert palette's cold-press frame, reached the phone's way (the "+" Sheet). The
+  // Sheet's passive cleanup hands focus back to "+"; the frame must still end up holding it, and its Close (and Escape)
+  // must hand it back to "+".
+  it('a cold "Chart or block" through the real Sheet: the frame holds focus; Close and Escape return it to "+"', async () => {
+    setPhone(true)
+    touch = true
+    // A fetch an earlier test started would land after a reset and draw the real palette: let it land first.
+    await act(async () => { await widgetPaletteModule.warm() })
+    const realLoad = widgetPaletteLoaders.palette
+    widgetPaletteLoaders.palette = () => new Promise(() => {})
+    widgetPaletteModule.resetForTests()
+    try {
+      await mountEditor()
+      const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 60)) })
+      for (const how of ['close', 'escape']) {
+        fireEvent.click(insertBtn())
+        const sheet = await screen.findByRole('dialog', { name: 'Insert' })
+        fireEvent.click(within(sheet).getByRole('button', { name: 'Chart or block' }))
+        await settle()
+        const frame = document.querySelector('[data-palette-stand-in]')
+        expect(frame, 'the frame is drawn').not.toBeNull()
+        expect(frame.contains(document.activeElement), `${how}: focus inside the frame after the Sheet closed`).toBe(true)
+        if (how === 'close') fireEvent.click(within(frame).getByRole('button', { name: 'Close insert panel' }))
+        else fireEvent.keyDown(document.activeElement, { key: 'Escape' })
+        await settle()
+        expect(document.querySelector('[data-palette-stand-in]')).toBeNull()
+        expect(document.activeElement, `${how}: focus back on "+"`).toBe(insertBtn())
+      }
+    } finally {
+      widgetPaletteLoaders.palette = realLoad
+      widgetPaletteModule.resetForTests()
+    }
   }, 60000)
 
   it('the "+" is a menu button: collapsed it says so, open it says so, and a pick closes the menu', async () => {

@@ -5,6 +5,7 @@ import { anyAverageOn } from '../../../../components/chart/averageVisibility'
 import { mergeChartSettings } from '../../../../components/chart/chartDefaults'
 import { readUctIntelligence } from '../../../../components/chart/uctIntelligence'
 import * as nativeRegistry from '../../../../components/chart/engine/nativeRegistry'
+import { volumeProfileOf } from '../../../../components/chart/builder/agentMutations'
 import { expect } from 'vitest'
 import { waitFor, fireEvent, screen } from '@testing-library/react'
 import { mountCase, faithful, boardState, chartsOf, refusals, receiptsNow, proposalsNow, nlm1Of } from './harness'
@@ -226,6 +227,8 @@ export function checkExpect(ctx, e, label) {
   if (e.viewRight) expect(new Date(ctx.st.views[chartsOf(board)[0]?.id]?.rightMs || 0).toISOString().slice(0, 10), `${label}: the chart's right edge`).toBe(e.viewRight)
   // the chart's view as its read-back reports it (activeRange, atDefaultView, indicatorsHidden)
   if (e.view) for (const [k, v] of Object.entries(e.view)) expect(ctx.st.views[chartsOf(board)[0]?.id]?.[k], `${label}: the chart's view ${k}`).toEqual(v)
+  // chartReplay.playback: the first chart's Replay / Time Machine bar as getDateMeta().replay reads it (only the fields named)
+  if (e.barReplay) expect(ctx.st.views[chartsOf(board)[0]?.id]?.replay, `${label}: the chart's bar replay`).toMatchObject(e.barReplay)
   // C1-165: the member's favourite drawing tools, as the toolbar's ★ stores them (drawToolFavorites)
   if (e.favoriteTools) expect(readFavoriteTools(), `${label}: favourite drawing tools`).toEqual(e.favoriteTools)
   // C1-127: the first chart's Chart Settings dialog open (or not), as the pane reads it back
@@ -240,6 +243,8 @@ export function checkExpect(ctx, e, label) {
   if ('askAiOpened' in e) expect(ctx.st.askAi || [], `${label}: Ask AI opened`).toEqual(e.askAiOpened)
   // is any moving average on the first chart showing (the same answer Ctrl+M reads)
   if ('movingAveragesOn' in e) expect(anyAverageOn(mergeChartSettings(chartsOf(board)[0]?.opts?.settings ?? null), nativeRegistry.getDefinition), `${label}: a moving average showing`).toBe(e.movingAveragesOn)
+  // volumeProfile.set: the first chart's Volume Profile as the canvas reads it ({enabled, bins, ...} — only the keys a case names)
+  if (e.volumeProfile) expect(volumeProfileOf(chartsOf(board)[0]?.opts?.settings ?? null), `${label}: the Volume Profile`).toMatchObject(e.volumeProfile)
   if (e.indicators) {
     const id = chartsOf(board)[e.indicators.chart || 0]?.id
     const got = p.brief(board, id)

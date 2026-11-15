@@ -272,6 +272,10 @@ export const SURFACES = Object.freeze({
   // population (rail a11y/templateLibrary.a11y.test.jsx: the Templates tab; the Template library section; a
   // template's detail; the adoption sheet; one choice's picker; the share preview; the 3rd-day Helpful line).
   'components/notebook/myTools/TemplatesTab.jsx': { recipe: 'my-tools-templates' },
+  // Follow-up C: the member's archived and recently deleted templates (the tab's old list, moved here; the template
+  // manager's Archived and Recently deleted views draw it). Rail a11y/journalStyles.a11y.test.jsx, which also draws
+  // 'styles-manager-deleted'.
+  'components/notebook/myTools/TemplateList.jsx': { coveredBy: 'styles-manager-archived' },
   'components/notebook/library/TemplateLibrarySection.jsx': { recipe: 'template-library-section' },
   'components/notebook/library/LibraryCardFacts.jsx': { coveredBy: 'template-library-section' },
   'components/notebook/library/TemplateDetailSheet.jsx': { recipe: 'template-detail-sheet' },
@@ -485,6 +489,12 @@ export const OUTSIDE_POPULATION_SURFACES = Object.freeze({
   // the derived population; dark behind notebook_starter_packs_enabled); rail a11y/starterPackOffer.a11y.test.jsx
   // (the card, its answer, a failed install, offline, and the card at the top of the Styles manager).
   'components/notebook/styles/StarterPackOffer.jsx': { recipe: 'starter-pack-offer', railFile: 'a11y/starterPackOffer.a11y.test.jsx' },
+  // Follow-up C (one room for templates): Manage templates itself (under components/notebook/styles/, outside the
+  // derived population). Its rail draws it in every state a member meets: the list, the editor, the offer, a note type's
+  // delete question, the discard question, and with wave 11 on each view ('styles-manager-active-views',
+  // 'styles-manager-archived', 'styles-manager-deleted') and its Plain templates group populated and empty
+  // ('styles-manager-plain', 'styles-manager-plain-empty').
+  'components/notebook/styles/StylesManager.jsx': { recipe: 'styles-manager', railFile: 'a11y/journalStyles.a11y.test.jsx' },
   // Notebook P2 Tier 3 (dark behind journal_tier3_enabled): Insights > Psychology > By check-in,
   // Checklist from my winners, the Your trading year page and its Report page door; rail
   // a11y/tier3.a11y.test.jsx. The check-in block itself is in the population (trader-block-checkin).

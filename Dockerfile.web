@@ -245,6 +245,15 @@ RUN python -m compileall -q -j 0 /app/api > /dev/null 2>&1 || true
 # and activation of the feature are two different facts, and only one of them
 # is in this file.
 #
-# `railway.web.json`'s start command is what actually runs — this CMD is the
-# same web branch of it, so the image is still correct if run without Railway.
-CMD ["sh", "-c", "exec uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8080} --proxy-headers --forwarded-allow-ips='*' --timeout-graceful-shutdown 5"]
+# THIS CMD IS WHAT RUNS ON RAILWAY. `railway.web.json` sets no start command, and the
+# deployed service manifest reads `startCommand: ''` (checked 2026-11-13), so nothing
+# overrides it. (This comment used to say the config file's start command ran instead.)
+#
+# Two branches, and the default is the command line `web` has always run, byte for byte:
+#   WEB_PRIVATE_LISTEN_ENABLED unset or 0 -> uvicorn on 0.0.0.0, exactly as before.
+#   WEB_PRIVATE_LISTEN_ENABLED=1          -> `api/serve_dual.py`: the same server and
+#     settings on the same public IPv4 socket, PLUS an IPv6-only socket so other
+#     services can reach `web` on Railway's private network. Read that module's
+#     docstring before changing either branch. Way back: unset the variable, redeploy.
+# `tests/test_serve_dual.py` pins both branches and that their settings agree.
+CMD ["sh", "-c", "if [ \"${WEB_PRIVATE_LISTEN_ENABLED:-0}\" = \"1\" ]; then exec python -m api.serve_dual; else exec uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8080} --proxy-headers --forwarded-allow-ips='*' --timeout-graceful-shutdown 5; fi"]

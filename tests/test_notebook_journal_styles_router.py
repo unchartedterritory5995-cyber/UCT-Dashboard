@@ -80,7 +80,7 @@ def test_list_create_get_update_default_delete_restore(client):
 def test_errors_carry_sentences(client):
     _as(client)
     r = client.post("/api/j2/journal-styles", json={"name": "x", "kindId": "nope"})
-    assert r.status_code == 400 and r.json()["detail"] == "Choose a kind of note for this style."
+    assert r.status_code == 400 and r.json()["detail"] == "Choose a note type for this style."
     assert client.put("/api/j2/journal-styles/builtin:thesis", json={"name": "x"}).status_code == 400
     assert client.get("/api/j2/journal-styles/nope").status_code == 404
     assert client.put("/api/j2/journal-styles/nope", json={"name": "x"}).status_code == 404

@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from api.services.uct_agent.marketdata import (asset_classes, bars_daily, breadth, commodity_quote, crypto_quote, earnings,
                                               index_quote, instruments, news_company, quotes, ratings, statements, themes)
-from api.services.uct_agent.marketdata import history_event_study
+from api.services.uct_agent.marketdata import cot, history_event_study
 from api.services.uct_agent.research import rs1
 
 # Symbols one read may name. A request-shape bound per kind, not a toolkit cap: the cap numbers live only
@@ -58,8 +58,11 @@ def register(registry) -> None:
         max_symbols=ONE_SYMBOL,
         description="Completed daily sessions for one ticker from UCT's bars store (never today's "
                     "developing bar); as_of is the newest bar's session close. Point-in-time with `to`; a window "
-                    f"with `from`. Params: {{symbol, bars (1-{bars_daily.MAX_BARS}, default {bars_daily.DEFAULT_BARS}), "
-                    "to?, from?}.",
+                    "with `from`. Weekly / monthly with `tf` (W | M: the daily store read resampled by the product's own "
+                    "resamplers, weeks dated by their Friday; each period's change vs the previous close and a `partial` flag "
+                    "for a forming week / month; rows before 2003-09-10 are labelled yfinance history). "
+                    f"Params: {{symbol, bars (1-{bars_daily.MAX_BARS}, default {bars_daily.DEFAULT_BARS}; periods for W / M), "
+                    "to?, from?, tf? (D | W | M, default D)}.",
     ))
     # W2-B2 (builder-b): the event study, LOCAL-ONLY to the model through the capability (turn.LOCAL_ONLY_ACTIONS
     # "history.afterEvent"): the member sees the table; the model gets the request note and counts. Technical series
@@ -68,11 +71,13 @@ def register(registry) -> None:
         name=history_event_study.KIND, fn=history_event_study.read_event_study, validate=history_event_study.validate,
         freshness="historical", owner="builder-b", max_symbols=ONE_SYMBOL,
         description="Event study from UCT's stored daily closes (Market Intelligence event_study): every time one "
-                    "ticker met a technical condition — an opening gap of N%+ (gap_pct), RSI, % from an N-day SMA, "
-                    "Bollinger %B or the MACD histogram above / below / crossing a level — its forward price returns "
-                    "over 1-252 sessions, with a baseline of all sessions. Descriptive, not predictive; shown to the "
+                    "ticker met a technical condition — an opening gap of N%+ (gap_pct), a one-day close-to-close move "
+                    "(day_pct), RSI, % from an N-day SMA, Bollinger %B or the MACD histogram above / below / crossing a "
+                    "level — its forward price returns over 1-252 sessions, with a baseline of all sessions; `last` keeps "
+                    "only the most recent N events. Descriptive, not predictive; shown to the "
                     f"member only. Params: {{symbol, indicator: {'|'.join(history_event_study.INDICATORS)}, period?, "
-                    f"op: {'|'.join(history_event_study.OPS)}, threshold, horizons? (sessions), since?}}.",
+                    f"op: {'|'.join(history_event_study.OPS)}, threshold, horizons? (sessions), since?, "
+                    f"last? (1-{history_event_study.MAX_LAST})}}.",
     ))
     registry.register(Kind(
         name="fundamentals", fn=statements.read_fundamentals, validate=statements.validate, freshness="periodic",
@@ -138,6 +143,16 @@ def register(registry) -> None:
         owner="agent-md", max_symbols=ONE_SYMBOL, model_isolated=True,
         description="UCT Ratings: UCT's own composite 0-99 and component scores (not an analyst rating); "
                     "as_of is the price data's last session. Shown to the member only. Params: {symbol}.",
+    ))
+    # Phase 2 (COT research): CFTC Commitments of Traders weekly rows from the COT tab's own store (no provider call).
+    # The positioning statistics are computed in the browser by the COT tab's single authority (cotRead.js), not here.
+    registry.register(Kind(
+        name=cot.KIND, fn=cot.read_cot, validate=cot.validate, freshness="periodic", owner="agent-md",
+        max_symbols=cot.MAX_MARKETS,
+        description="CFTC Commitments of Traders: stored weekly net positions (large speculators, commercials, small "
+                    "speculators) and open interest for 1-6 futures markets, named by a member's word or COT code; "
+                    "as_of is the Tuesday report date (published the following Friday), stale when a newer report is "
+                    f"due. Unmapped words are listed as not covered. Params: {{symbols: [...], weeks (1-{cot.MAX_WEEKS})}}.",
     ))
     # W2-B1 (agent-rs, RS-1 v1): a COMPOSED kind. It reads the served kinds above (purpose "research", so a
     # model-isolated kind refuses before admission) and the turn's one web search; every fact's figures come from

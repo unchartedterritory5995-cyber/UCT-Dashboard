@@ -1000,6 +1000,13 @@ def select_box(pg, title):
     return pg.get_by_role("checkbox", name=f"Select {title}", exact=True)
 
 
+def open_manager(pg):
+    """Manage templates, the way a member opens it (follow-up C): the notes list's More menu, "Manage templates"."""
+    pg.get_by_role("button", name="More notebook actions", exact=True).click(timeout=20000)
+    pg.get_by_role("menu", name="More notebook actions").get_by_role("menuitem", name="Manage templates", exact=True).click(timeout=15000)
+    pg.get_by_role("dialog", name="Manage templates").wait_for(state="visible", timeout=20000)
+
+
 def open_list(pg, extra="?view=all"):
     pg.goto(notebook_url(None, extra))
     dismiss_intro(pg)
@@ -2320,8 +2327,9 @@ with sync_playwright() as p:
         tr = api.post(BASE + "/api/j2/note-templates", data={"noteId": src["id"], "name": f"Walk daily {RUN}"})
         tpl = (tr.json() or {}).get("template") or {}
         open_list(page)
-        page.get_by_role("button", name="Templates", exact=True).click(timeout=20000)
-        pick = page.get_by_label("Daily notes start from")
+        # Follow-up C: the control lives in Manage templates' Plain templates group (the list's More menu row).
+        open_manager(page)
+        pick = page.get_by_role("dialog", name="Manage templates").get_by_label("Daily notes start from")
         pick.wait_for(state="visible", timeout=15000)
         with page.expect_response(pref_post(pref_key), timeout=15000) as pi:
             pick.select_option(tpl.get("id"))
@@ -2332,8 +2340,8 @@ with sync_playwright() as p:
             written_body = f"unreadable: {e}"[:200]
         page.reload()
         dismiss_intro(page)
-        page.get_by_role("button", name="Templates", exact=True).click(timeout=20000)
-        pick = page.get_by_label("Daily notes start from")
+        open_manager(page)
+        pick = page.get_by_role("dialog", name="Manage templates").get_by_label("Daily notes start from")
         pick.wait_for(state="visible", timeout=15000)
         shown = pick.input_value()
         stored = pref_value(api, pref_key)

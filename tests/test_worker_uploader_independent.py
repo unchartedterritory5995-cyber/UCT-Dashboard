@@ -218,3 +218,32 @@ def test_health_reports_the_running_base(monkeypatch):
     body = TestClient(worker_main._build_app()).get("/internal/health").json()
     assert body["base_upload_started_at"] == 1794300000
     assert body["base_upload_last_outcome"] == "no_data"
+
+
+def test_uploads_stand_aside_while_the_clustered_adoption_runs(rig, monkeypatch):
+    """The adoption needs ~23 GB free beside the store; a base copying a 40 GB store at
+    the same time would starve it. Neither loop uploads while it runs; both resume after."""
+    r = rig()
+    adopting = {"on": True}
+    monkeypatch.setattr(data_sync, "adoption_active", lambda: adopting["on"])
+    r.release_base.set()
+    worker_main._start_uploader()
+    assert _wait_for(lambda: worker_main._uploader_state["last_outcome"] == "adopting")
+    time.sleep(0.05)
+    assert r.delta_calls == 0 and r.base_calls == [], "uploaded during the adoption"
+    adopting["on"] = False
+    assert r.delta_shipped.wait(3) and _wait_for(lambda: r.base_calls == [True])
+
+
+def test_adoption_active_reflects_the_running_adoption():
+    assert not data_sync.adoption_active()
+    assert data_sync._ADOPT_RUN_LOCK.acquire(blocking=False)
+    try:
+        assert data_sync.adoption_active()
+    finally:
+        data_sync._ADOPT_RUN_LOCK.release()
+    data_sync._adoption_active.set()
+    try:
+        assert data_sync.adoption_active()
+    finally:
+        data_sync._adoption_active.clear()

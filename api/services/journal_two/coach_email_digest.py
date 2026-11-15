@@ -10,7 +10,7 @@ Email contents:
   - Stat strip (trade count, win rate, avg R, # post-mortems, # interventions)
   - The weekly review prose (markdown lightly converted to HTML)
   - "This week's focus" pullout (extracted from review metadata)
-  - CTA → /journal Compass tab
+  - CTA → the Compass tab (`COMPASS_PATH`, /journal/compass)
 
 Idempotency: piggybacks on coach.generate_weekly_review which is itself
 idempotent by (user, account, week_start). The email is also gated on a
@@ -28,6 +28,10 @@ _log = logging.getLogger(__name__)
 
 
 _BASE_URL = "https://uctintelligence.com"
+#: The Compass tab's own route (the Journal's nav item, app/src/pages/journal-2-0/JournalLayout.jsx, and App.jsx's
+#: `<Route path="compass">` under /journal). Follow-up B, item 5b: the button said "Open Compass" and pointed at bare
+#: `/journal`, which lands on the Journal's Today tab. tests/test_compass_email_digest.py reads the nav item.
+COMPASS_PATH = "/journal/compass"
 
 
 # ── Markdown → HTML (very light) ─────────────────────────────────────────────
@@ -292,7 +296,7 @@ def compose_digest_html(
         f"{_focus_pullout_html(this_weeks_focus)}"
         '<div style="border-top:1px solid #2a2b28;margin:20px 0 12px;"></div>'
         f"{_md_to_html(review_body)}"
-        f"{_button_html(base_url + '/journal', 'Open Compass')}"
+        f"{_button_html(base_url + COMPASS_PATH, 'Open Compass')}"
         '<p style="font-size:11px;color:#6b6a60;text-align:center;margin:20px 0 0 0;">'
         "Navigate the market, effectively."
         '</p>'
