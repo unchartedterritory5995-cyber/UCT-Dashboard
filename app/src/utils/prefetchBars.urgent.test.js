@@ -159,7 +159,8 @@ describe('prefetchBars urgent (opt-in cold-start bypass)', () => {
 describe('urgent key matches the chart', () => {
   it('StockChart still requests /api/bars/<sym>?tf=<tf>&bars=<first-paint bars> and urgent builds the same', async () => {
     const fs = await import('node:fs')
-    const src = fs.readFileSync('src/components/StockChart.jsx', 'utf8')
+    // StockChart's request URLs are built in its bar hook since P3-S0 (ac9b56a412) moved them there.
+    const src = fs.readFileSync('src/components/chart/useLegacyChartBars.js', 'utf8')
     expect(src).toContain('/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${_primaryBars}${_sessQ}${_sinceParam')
     expect(src).toContain("/api/bars/${encodeURIComponent(sym || '')}?tf=${resolvedTf}&bars=${_primaryBars}${_sessQ}`")
     const { FIRST_PAINT_BARS, firstPaintBarsFor } = await import('./barsBackfill')

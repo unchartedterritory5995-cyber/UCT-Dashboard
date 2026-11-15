@@ -99,6 +99,9 @@ def test_meta_ships_the_pickable_right_hand_sides():
     # comparable_keys() stays whole so a stored spec still validates and runs.
     assert keys == set(F.comparable_keys()) - set(F.rs_dark_keys())
     # 2026-11-07 (unit 3-11): the Phase 3 family follows RS_V3 as well.
-    assert set(F.rs_dark_keys(v2_on=True, history_on=True, v3_on=True)) == set()
+    # Pin moved 2026-11-14 (RS screens U1): a fourth family follows RS_SCREENS_ENABLED;
+    # with all four flags on nothing is dark, with only that one off only its keys are.
+    assert set(F.rs_dark_keys(v2_on=True, history_on=True, v3_on=True, screens_on=True)) == set()
+    assert set(F.rs_dark_keys(v2_on=True, history_on=True, v3_on=True, screens_on=False)) ==         set(F.RS_SCREENS_KEYS)
     assert all(f.get("label") and f.get("category") for f in fields)
     assert set(meta["column_ops"]) == set(F.COL_OPS)

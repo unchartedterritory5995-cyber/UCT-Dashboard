@@ -167,7 +167,7 @@ const NEVER_INSTALLED = Object.freeze({
  *  tree, and a bumped `SCRIPT_ENGINE_VERSION` re-translates the member's saved copy from its script. */
 const MOVED_BY_ENGINE = Object.freeze({
   'corpus/committed/support-and-resistance-multi-time-frame__Ph230jpfC9.pine':
-    'engine 55: request.security(…, "W"|"M") with look-ahead off is tf_merge (TradingView\'s merge), no longer tf',
+    'engine 56 (built as 55; #1326 took 55): request.security(…, "W"|"M") with look-ahead off is tf_merge (TradingView\'s merge), no longer tf',
 })
 
 /** ⭐⭐ ENGINE 55 (review M2) — TODAY'S DOCUMENT WITH THE ONE CLAIMED MOVE UNDONE: every

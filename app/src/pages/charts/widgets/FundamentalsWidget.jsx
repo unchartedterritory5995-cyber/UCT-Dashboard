@@ -21,6 +21,7 @@ import FundamentalsSettingsPanel from './FundamentalsSettingsPanel'
 import { FUNDAMENTALS_SETTINGS_KEY, mergeFundamentalsSettings, fundamentalsStyleVars, fundamentalsDefaultsForTheme } from './fundamentalsSettings'
 import styles from './FundamentalsWidget.module.css'
 import { currencyPrefix, formatCompact, reportingCurrencyNote } from '../../../lib/presentation/presentationPrimitives'
+import UctCtrlPortal from '../UctCtrlPortal'  // owner 11-14: the ⚙ goes top-right on the board
 
 // TERM-066: the K/M/B/T decision lives in lib/presentation (formatCompact), on the ladder
 // this widget already had. Exported for the frozen-oracle test (widgetFormatters.term066.test.js).
@@ -334,7 +335,7 @@ export default function FundamentalsWidget({
         )}
         {/* ⚙ Fundamentals settings — writes the GLOBAL pref; never inside an embed. */}
         {!readOnly && (
-        <button
+        <UctCtrlPortal><button
           ref={settingsBtnRef}
           type="button"
           className={`${styles.gearBtn}${settingsOpen ? ' ' + styles.gearBtnActive : ''}`}
@@ -342,7 +343,7 @@ export default function FundamentalsWidget({
           onClick={() => setSettingsOpen(o => !o)}
           data-guide="widget.settings" title="Fundamentals settings"
           aria-label="Fundamentals settings"
-        ><UIcon name="gear" size={13} /></button>
+        ><UIcon name="gear" size={13} /></button></UctCtrlPortal>
         )}
       </div>
 
