@@ -1,0 +1,26 @@
+//@version=5
+indicator("UCTPROBE_VW_CS1_TIES_V5", overlay=false)
+
+// PROVENANCE: written 2026-11-14 for the Pine parity programme, capture session S1
+// (objects-lane REMAINING-SCOPE-2026-11-14 section 4; s3-bugs-1114 "CAPTURE PROBES NEEDED" S4-2).
+// S4-2 ties: which bar highestbars / lowestbars name when the window holds equal maxima / minima.
+// vt takes two values (1 on every third bar, else 2), vt2 runs in pairs; T05-T08 are the one-argument
+// and explicit forms over high / low, where RDDT has witnessed equal highs.
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults.
+
+vt = bar_index % 3 == 0 ? 1.0 : 2.0
+vt2 = bar_index % 4 < 2 ? 1.0 : 2.0
+
+plot(bar_index, title="A00_bar_index_CONTROL")
+plot(vt, title="A01_vt")
+plot(vt2, title="A02_vt2")
+plot(ta.highestbars(vt, 4), title="T01_highestbars_vt_4")
+plot(ta.lowestbars(vt, 4), title="T02_lowestbars_vt_4")
+plot(ta.highestbars(vt2, 4), title="T03_highestbars_vt2_4")
+plot(ta.lowestbars(vt2, 4), title="T04_lowestbars_vt2_4")
+plot(ta.highestbars(4), title="T05_highestbars_4")
+plot(ta.lowestbars(4), title="T06_lowestbars_4")
+plot(ta.highestbars(high, 4), title="T07_highestbars_high_4")
+plot(ta.lowestbars(low, 4), title="T08_lowestbars_low_4")
+plot(high == high[1] ? 1 : 0, title="T09_high_eq_prev_high")
+plot(ta.highest(4), title="T10_highest_4")

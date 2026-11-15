@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, cloneElement } from 'react'
+import { lazy, Suspense, useCallback, useMemo, useRef, useState, useLayoutEffect, cloneElement } from 'react'
 import { WidgetDoorContext } from './widgetDoors'
 import { PanelSlotContext } from './panelSlot'
 import ChartWidget from './widgets/ChartWidget'
@@ -25,6 +25,8 @@ import VolumeScanWidget from './widgets/VolumeScanWidget'
 import ScatterWidget from './widgets/ScatterWidget'
 import TradeExchangeNewsWidget from './widgets/TradeExchangeNewsWidget'
 import WidgetHeader from './WidgetHeader'
+import { useBodySurface } from './uctSurface'
+import { UctHeaderSlotContext, UCT_ONE_ROW_MIN_W, UCT_ICON_ONLY_TITLE } from './uctHeaderSlot'
 import { WidgetChromeContext } from './widgetChromeContext'
 import { effectiveGroup } from './colorGroups'
 import useExtraGroupsEnabled from './useExtraGroupsEnabled'
@@ -33,11 +35,11 @@ import { noteChartFault } from './chartFaults'
 import { useWorkspace } from './WorkspaceContext'
 import usePlacedTheme, { PlacedThemeContext } from '../../hooks/usePlacedTheme'
 import {
-  resolveActiveTab, widgetTabList,
+  resolveActiveTab, orderedWidgetTabList, moveWidgetTab,
   addWidgetTab, closeWidgetTab, setActiveWidgetTab, renameWidgetTab,
   patchActiveTabColor, patchActiveTabOpts,
 } from './widgetTabs'
-import { labelMap, THEME_FOLLOW_TYPES } from '../../widgets/registry'
+import { labelMap, THEME_FOLLOW_TYPES, catalogMeta } from '../../widgets/registry'
 import { menuVarsForCanvas, luminance, parseColor } from '../../utils/dividerColor'
 import styles from './ChartsWorkspace.module.css'
 
@@ -159,6 +161,10 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   // identity row becomes the title bar, hosting the link dot + window controls and acting
   // as the drag handle (WidgetChromeContext). Every other host is unaffected.
   integratedChartHeader = false,
+  // UCT frame (owner 11-13) — opt-in, passed by the /charts board (grid, floating, pop-out
+  // windows): every non-merged widget wears the chart widget's style — a titled one-surface
+  // header (icon + link badge · name · quiet window controls), rounded corners, soft shadow.
+  uctFrame = false,
   // S1 CP3 mount cap: defaults true so every caller that doesn't pass it (popped
   // boards, the single popout window, every existing test) is unaffected. Only
   // the main board's renderGrid call site passes false while this widget is
@@ -170,7 +176,7 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   // The slot can hold several widgets of different types as tabs; resolve the one
   // currently showing. A tab-less slot resolves to the base widget unchanged.
   const active = resolveActiveTab(widget)
-  const tabList = widgetTabList(widget)
+  const tabList = orderedWidgetTabList(widget)   // strip order (owner 11-14); each tab carries its storage index
   // Per-tab group id so two "not linked" tabs in one slot don't collide.
   const groupId = active.isMain ? widget.id : `${widget.id}:${active.tabId}`
 
@@ -189,6 +195,7 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   const handleSelectTab = onReplaceWidget ? (i) => replace(setActiveWidgetTab(widget, i)) : undefined
   const handleCloseTab = onReplaceWidget ? (tabId) => replace(closeWidgetTab(widget, tabId)) : undefined
   const handleRenameTab = onReplaceWidget ? (tabId, name) => replace(renameWidgetTab(widget, tabId, name)) : undefined
+  const handleMoveTab = onReplaceWidget ? (tabId, dir) => replace(moveWidgetTab(widget, tabId, dir)) : undefined
 
   // Publish THIS widget's own canvas color to its own subtree, so its chrome (panel,
   // border, header bar, and its interior top rows) matches the surface it wraps.
@@ -269,6 +276,49 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   // dark menu palette (owner request) — derived from the same canvas its chrome uses.
   const addMenuTheme = chrome?.canvas ? menuVarsForCanvas(chrome.canvas) : null
 
+  // Merged board (owner 11-14): widgets keep the UCT frame (header, controls and the
+  // board-only interior styling); only the outer card (radius, shadow, gaps) goes flush.
+  const uct = uctFrame
+  // UCT frame: the header wears the colour the body actually paints (one surface).
+  const bodyRef = useRef(null)
+  // One-row slot: the header's slot element, offered to the body only while the header is
+  // wide enough (and the slot shows a single widget — tabs take that space otherwise).
+  const [slotEl, setSlotEl] = useState(null)
+  const [ctrlSlotEl, setCtrlSlotEl] = useState(null)
+  // A tabbed slot (owner 11-14): the tab strip takes the title row, so a widget's own title-row
+  // content (Calendar's week, a note's path, the Theme Tracker's periods) gets a row of its own
+  // just under the header — and its buttons still go top-right, in the controls slot.
+  const [subSlotEl, setSubSlotEl] = useState(null)
+  const [wideHeader, setWideHeader] = useState(false)
+  // "Wide" = the widget's row actually FITS beside the icon and controls. While the row is up
+  // there and overflows, the header width it would need is remembered, so the header drops
+  // to two rows below that width and comes back above it (no flip-flop at the edge).
+  // Remembered per row (rowKey, claimed by the widget's body), so the picker's long tab row
+  // and an open list's short name row each get their own fit.
+  const needWRef = useRef(new Map())
+  const [rowKey, setRowKey] = useState(null)
+  useLayoutEffect(() => {
+    const head = slotEl?.parentElement
+    const view = head?.ownerDocument?.defaultView
+    if (!head || !view?.ResizeObserver) return undefined
+    const needs = needWRef.current
+    const check = () => {
+      const row = slotEl.firstElementChild
+      let need = needs.get(rowKey) ?? UCT_ONE_ROW_MIN_W
+      if (row) {
+        const over = row.scrollWidth - slotEl.clientWidth
+        if (over > 1) { need = Math.max(need, head.clientWidth + over + 8); needs.set(rowKey, need) }
+      }
+      setWideHeader(head.clientWidth >= need)
+    }
+    const ro = new view.ResizeObserver(check)
+    ro.observe(head)
+    ro.observe(slotEl)
+    const mo = view.MutationObserver ? new view.MutationObserver(check) : null
+    mo?.observe(slotEl, { childList: true })
+    return () => { ro.disconnect(); mo?.disconnect() }
+  }, [slotEl, rowKey])
+  const uctSurface = useBodySurface(bodyRef, uct && !(integratedChartHeader && !floating && active.type === 'chart' && !(Array.isArray(tabList) && tabList.length > 1)), `${active.type}|${mounted}`)
   const header = (
     <WidgetHeader
       label={TYPE_LABEL[active.type] || active.type}
@@ -277,13 +327,14 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
       onRemove={onRemove}
       onPopOut={onPopOut}
       atBottom={headerAtBottom}
-      style={headerStyle}
+      style={uct && uctSurface ? { ...(headerStyle || {}), '--uct-head-bg': uctSurface } : headerStyle}
       addMenuTheme={addMenuTheme}
       tabs={tabList}
       activeIndex={active.index}
       onSelectTab={handleSelectTab}
       onCloseTab={handleCloseTab}
       onRenameTab={handleRenameTab}
+      onMoveTab={handleMoveTab}
       onAddTab={handleAddTab}
       onFloat={onFloat}
       floating={floating}
@@ -291,9 +342,14 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
       floatTabTargets={floatTabTargets}
       onFloatToTab={onFloatToTab}
       onHeaderDragStart={onHeaderDragStart}
+      look={uct ? 'uct' : null}
+      slotRef={uct ? setSlotEl : null}
+      ctrlSlotRef={uct ? setCtrlSlotEl : null}
+      iconOnly={uct && UCT_ICON_ONLY_TITLE.includes(active.type)}
+      icon={uct ? catalogMeta(active.type).icon : null}
     />
   )
-  const integrated = integratedChartHeader && !merged && !floating
+  const integrated = integratedChartHeader && (uct || !merged) && !floating
     && active.type === 'chart' && !(Array.isArray(tabList) && tabList.length > 1)
   const integratedChrome = integrated
     ? {
@@ -306,13 +362,28 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   // light grey instead of the canvas-derived warm greys. (No canvas known = the dark default.)
   const canvasRgb = chrome?.canvas ? parseColor(chrome.canvas) : null
   const darkCanvas = !canvasRgb || luminance(canvasRgb) <= 0.5
-  const widgetStyle = integrated && darkCanvas
+  // UCT frame (owner 11-13): the same crisp site white / grey as the chart's header, on
+  // every widget — judged on the surface the body actually paints when it is known.
+  const surfaceRgb = uctSurface ? parseColor(uctSurface) : null
+  const uctDark = surfaceRgb ? luminance(surfaceRgb) <= 0.5 : darkCanvas
+  const widgetStyle0 = (integrated && darkCanvas) || (uct && !integrated && uctDark)
     ? {
         ...(chromeStyle || {}),
         '--widget-text': 'var(--text-muted, #cfcac0)',
         '--widget-text-strong': 'var(--text-bright, #f8f7f3)',
       }
     : chromeStyle
+  // Surface-aware accents (owner 11-14, light themes): a recessed "drawer" shade and the UCT
+  // gold, chosen by the colour the body ACTUALLY paints — a light widget on a dark app theme
+  // (or the reverse) still gets a faint drawer and a readable gold. Inner CSS reads these.
+  const widgetStyle = uct && !integrated
+    ? {
+        ...(widgetStyle0 || {}),
+        '--uct-recess': uctDark ? 'rgba(0, 0, 0, 0.28)' : 'rgba(0, 0, 0, 0.045)',
+        '--uct-recess-shadow': uctDark ? 'inset 0 6px 8px -6px rgba(0, 0, 0, 0.7)' : 'inset 0 6px 8px -6px rgba(0, 0, 0, 0.16)',
+        '--uct-gold': uctDark ? '#dcbb5e' : '#8a6a14',
+      }
+    : widgetStyle0
   // Merged mode keeps NO header chrome, but a multi-tab slot still needs its tab
   // strip or the tabs become unreachable. This renders ONLY the strip (returns null
   // for a single-tab slot, so the seamless look is untouched there).
@@ -327,20 +398,32 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
       onSelectTab={handleSelectTab}
       onCloseTab={handleCloseTab}
       onRenameTab={handleRenameTab}
+      onMoveTab={handleMoveTab}
     />
   )
+  const tabbedUct = uct && !integrated && Array.isArray(tabList) && tabList.length > 1
+  const headerSlots = useMemo(() => ({
+    row: uct && wideHeader ? slotEl : null,
+    rowAlways: uct ? (slotEl || (tabbedUct ? subSlotEl : null)) : null,
+    rowIsSub: !!(uct && !slotEl && tabbedUct && subSlotEl),
+    controls: uct ? ctrlSlotEl : null,
+    claim: uct ? setRowKey : null,
+  }), [uct, wideHeader, slotEl, ctrlSlotEl, tabbedUct, subSlotEl])
+  const subRow = tabbedUct ? <div className={styles.uctSubRow} ref={setSubSlotEl} data-uct-subrow="" /> : null
   const body = (
-    <div className={styles.widgetBody}>
+    <div className={styles.widgetBody} ref={bodyRef}>
       {mounted
         ? (
-          <WidgetBody
-            groupId={groupId}
-            type={active.type}
-            color={active.color}
-            opts={active.opts}
-            onOptsChange={handleActiveOptsChange}
-            slotReady={onPanelReady ? slotReady : null}
-          />
+          <UctHeaderSlotContext.Provider value={headerSlots}>
+            <WidgetBody
+              groupId={groupId}
+              type={active.type}
+              color={active.color}
+              opts={active.opts}
+              onOptsChange={handleActiveOptsChange}
+              slotReady={onPanelReady ? slotReady : null}
+            />
+          </UctHeaderSlotContext.Provider>
         )
         // Header/chrome above still renders — RGL's geometry and the layout the
         // member sees never jump — only the widget's own data-fetching body waits.
@@ -354,7 +437,7 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   return (
     <PlacedThemeContext.Provider value={frozenTheme}>
       <div
-        className={`${styles.widget}${merged ? ' ' + styles.widgetMerged : ''}${integrated ? ' ' + styles.widgetIntegrated : ''}${
+        className={`${styles.widget}${merged ? ' ' + styles.widgetMerged : ''}${integrated ? ' ' + styles.widgetIntegrated : ''}${uct && !integrated ? ' ' + styles.widgetUct + ' uct-frame' : ''}${
           frozenLightOn
             ? ' ' + styles.widgetFrozenLight            /* UNCUSTOMIZED light placement → force light chrome regardless of app theme */
             : (themeFollow && !ctxTheme ? ' ' + styles.widgetThemeFollow : '')  /* loading/sunrise: live fallback */
@@ -367,11 +450,11 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
             panel only. A body throw is still caught first by WidgetBody's inner
             boundary, so it keeps the real header; only a header throw lands here. */}
         <ErrorBoundary key={groupId} fallback={<WidgetErrorFallback type={active.type} onRemove={onRemove} withHeader />}>
-          {merged
+          {merged && !uct
             ? <>{mergedTabs}{body}</>
             : integrated
               ? <WidgetChromeContext.Provider value={integratedChrome}>{body}</WidgetChromeContext.Provider>
-              : (headerAtBottom ? <>{body}{header}</> : <>{header}{body}</>)}
+              : (headerAtBottom ? <>{subRow}{body}{header}</> : <>{header}{subRow}{body}</>)}
         </ErrorBoundary>
       </div>
     </PlacedThemeContext.Provider>

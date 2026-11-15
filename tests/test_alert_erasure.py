@@ -74,10 +74,12 @@ def _build_schemas(paths: dict[str, Path]) -> None:
         if callable(opener):
             k = opener(str(paths["alert_taxonomy"]))
             k.close()
-    from api.services.screener import screen_alerts, spec_alerts
+    from api.services.screener import rs_screen_alerts, screen_alerts, spec_alerts
     from api.services import calendar_alerts, transcript_keyword_alerts as tka
     from api.services.catalyst import store as cstore
-    for name, ddl in (("screener", screen_alerts._SCHEMA + spec_alerts._SCHEMA),
+    # rs_screen_alerts (RS screens unit U13): its two tables carry a member id too.
+    for name, ddl in (("screener", screen_alerts._SCHEMA + spec_alerts._SCHEMA
+                       + rs_screen_alerts._SCHEMA),
                       ("calendar_alerts", calendar_alerts._SCHEMA),
                       ("transcript_alerts", tka._SCHEMA),
                       ("catalysts", cstore._SCHEMA)):
@@ -91,7 +93,7 @@ def _build_schemas(paths: dict[str, Path]) -> None:
 def stores(tmp_path, monkeypatch):
     """The five stores at tmp paths, pointed at through each module's OWN path attribute."""
     from api.services.alert_taxonomy import db as _db
-    from api.services.screener import screen_alerts, spec_alerts
+    from api.services.screener import rs_screen_alerts, screen_alerts, spec_alerts
     from api.services import calendar_alerts, transcript_keyword_alerts as tka
     from api.services.catalyst import store as cstore
     paths = {s.name: tmp_path / s.db for s in ae.STORES}
@@ -102,6 +104,7 @@ def stores(tmp_path, monkeypatch):
     monkeypatch.setattr(cstore, "_DB_PATH", str(paths["catalysts"]))
     screen_alerts._done.clear()
     spec_alerts._done.clear()
+    rs_screen_alerts._done.clear()
     _build_schemas(paths)
     # Non-vacuity: the purge resolves exactly these files.
     assert {s.name: s.path() for s in ae.STORES} == {k: str(v) for k, v in paths.items()}

@@ -468,3 +468,73 @@ def test_flow_db_connections_cap_the_wal_file():
         with fdb._conn() as c:
             assert c.execute("PRAGMA journal_size_limit").fetchone()[0] == WAL_SIZE_LIMIT_BYTES
     assert 0 < WAL_SIZE_LIMIT_BYTES <= 1 << 30
+
+
+# --- Saturday coverage (2026-11-14 incident) ----------------------------------
+# A Friday session's flat file publishes on the SATURDAY (Massive is T+1, ~11 AM
+# ET). Every trigger in register_jobs was `mon-fri`, so Friday's last fire
+# (21:00 ET Fri) landed BEFORE the file existed and was structurally guaranteed
+# to return no_file -- after which nothing fired again until Mon 08:00. 11/13
+# sat at 21,245 rows with its whole 09:30-14:00 morning missing all weekend.
+
+def test_saturday_resolves_to_the_prior_friday():
+    """The Saturday fires lean on this: Saturday is not a trading day, so the
+    default target walks back to Friday with no special-casing anywhere."""
+    from datetime import datetime
+    for hh in (8, 12, 16, 21):
+        got = gf._latest_completed_trading_day(
+            datetime(2026, 11, 14, hh, 30, tzinfo=gf.ET))
+        assert got == date(2026, 11, 13), (hh, got)
+
+
+def test_register_jobs_fires_on_saturday_to_heal_a_friday(monkeypatch):
+    """The rail that was missing. Asserts real trigger behaviour (next fire
+    time), not a day_of_week string, so it holds however the cron is spelled."""
+    from datetime import datetime
+    monkeypatch.setattr(gf, "ENABLED", True)
+    jobs = []
+
+    class _Sched:
+        def add_job(self, func, trigger, id=None, **kw):
+            jobs.append((func, trigger, id))
+
+    assert gf.register_jobs(_Sched()) is True
+
+    sat_start = datetime(2026, 11, 14, 0, 5, tzinfo=gf.ET)    # Saturday
+    sat_end = datetime(2026, 11, 14, 23, 59, tzinfo=gf.ET)
+    fills, walkbacks = [], []
+    for func, trig, jid in jobs:
+        nxt = trig.get_next_fire_time(None, sat_start)
+        if nxt is None or nxt > sat_end:
+            continue
+        (walkbacks if func is gf.run_fill_walkback else fills).append((jid, nxt))
+
+    assert fills, ("no run_fill job fires on a Saturday -- a damaged Friday "
+                   "cannot be healed until Monday")
+    assert walkbacks, "no walkback job fires on a Saturday"
+    # Each Saturday fire must land AFTER Massive's ~11 AM ET publish: run_fill
+    # copies the whole ~11GB DB BEFORE _build_fill_rows fetches, so an earlier
+    # fire burns a full backup and only then discovers no_file.
+    for jid, nxt in fills + walkbacks:
+        assert nxt.hour >= 11, ("Saturday fire before the ~11 AM publish", jid, nxt)
+
+
+def test_weekday_schedule_is_unchanged_by_the_saturday_fix(monkeypatch):
+    """Guard the blast radius: the Mon-Fri cadence must be exactly as before."""
+    from datetime import datetime
+    monkeypatch.setattr(gf, "ENABLED", True)
+    jobs = []
+
+    class _Sched:
+        def add_job(self, func, trigger, id=None, **kw):
+            jobs.append((func, trigger, id))
+
+    gf.register_jobs(_Sched())
+    wed = datetime(2026, 11, 11, 0, 5, tzinfo=gf.ET)          # Wednesday
+    wed_end = datetime(2026, 11, 11, 23, 59, tzinfo=gf.ET)
+    fired = set()
+    for func, trig, jid in jobs:
+        nxt = trig.get_next_fire_time(None, wed)
+        if nxt is not None and nxt <= wed_end:
+            fired.add((nxt.hour, nxt.minute))
+    assert fired == {(8, 0), (8, 15), (16, 35), (16, 45), (21, 0)}, sorted(fired)

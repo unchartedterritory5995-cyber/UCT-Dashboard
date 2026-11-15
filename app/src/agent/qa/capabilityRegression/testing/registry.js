@@ -15,7 +15,7 @@ import { loadAgentConfig, _resetAgentConfig } from '../../../agentClient'
 export const PROD_KINDS = ['instrument.resolve', 'quote', 'quotes', 'bars.daily', 'fundamentals', 'earnings', 'news.company', 'themes',
   'screen.run', 'screen.count', 'screen.saved']
 export const ALL_KINDS = [...PROD_KINDS, 'history.eventStudy', 'research.company', 'knowledge.search', 'setup.playbook', 'setup.record',
-  'index.quote', 'commodity.quote', 'crypto.quote']
+  'index.quote', 'commodity.quote', 'crypto.quote', 'cot.positioning']
 
 /** PKG2: the data kinds an entry runs under. `"kinds": "ALL"` marks a DARK entry (its kind is not in production's list yet:
  *  history.eventStudy, the asset quotes), run only by corpus.dark.test.jsx with every gated kind on; every other entry
