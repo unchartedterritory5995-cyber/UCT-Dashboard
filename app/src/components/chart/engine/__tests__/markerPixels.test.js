@@ -32,6 +32,7 @@ import { presentedPlot, DOT_SIZES, DOT_GLYPH_SCALE, scaledMarker } from '../pres
 import { markersFor } from '../markerPrimitive'
 import { createBinder } from '../binder'
 import { IND_TOKENS } from '../../designTokens'
+import { visibleInputs } from '../../indicatorRegistry'
 import { createFakeChart } from './fakeChart'
 import { mergeChartSettings } from '../../chartDefaults'
 import { addInstance, applyPresetInputs, findInstance } from '../instanceControls'
@@ -479,7 +480,9 @@ describe('⭐⭐ the real binder: a plain dot is a point of the series at the RS
 
 describe('the hue budget per preset — ≤ 2 non-neutral hues + the neutral over the plots a preset DRAWS; Phase ≤ 3 (its documented exception)', () => {
   const NEUTRAL = IND_TOKENS.classic.neutral
-  const colourInputs = rs.inputs.filter((i) => i.type === 'color')
+  // ⭐ what the dialog SHOWS (`visibleInputs`): a legacy colour input (the slim line's `ma2Color`,
+  // d2a99783c2, declared legacy here for rollback) is never rendered on this definition
+  const colourInputs = visibleInputs(rs).filter((i) => i.type === 'color')
   const defaults = Object.fromEntries(rs.inputs.map((i) => [i.key, i.default]))
   const TOGGLE_OF = Object.freeze({
     dotNH: 'showNewHigh', dotNHbeforePx: 'showNewHighBeforePrice', dotNHpartial: 'shortHistoryDots',
