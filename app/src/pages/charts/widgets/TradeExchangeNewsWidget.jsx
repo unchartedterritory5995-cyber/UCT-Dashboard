@@ -78,6 +78,9 @@ const NO_REST = Object.freeze([])
 //: Fetch the next step of the day this far (px) before the reader reaches an end.
 const NEAR_END_PX = 900
 
+// UCT Agent newsLibrary.* door (AUDIT D13): a row's text reaches the Agent at most this long
+const AGENT_DOOR_TEXT_MAX = 80
+
 export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, defaultView = 'feed' }) {
   const { groupSyms, setGroupSym } = useWorkspace()
   const linkedSym = groupSyms?.[color] || null
@@ -449,7 +452,7 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
       const one = !open && expanded.size === 1 ? rows.find(r => expanded.has(r.seq))?.id ?? null : null
       return {
         search: queryRaw,
-        visible: rows.slice(0, 20).map(r => ({ id: r.id, time: r.received_at_ms ?? null, tickers: r.tickers || [], text: String(r.content || '').slice(0, 200) })),
+        visible: rows.slice(0, 20).map(r => ({ id: r.id, time: r.received_at_ms ?? null, tickers: r.tickers || [], text: String(r.content || '').slice(0, AGENT_DOOR_TEXT_MAX) })),
         selected: open ?? one,
       }
     },
