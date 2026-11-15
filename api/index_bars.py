@@ -77,7 +77,9 @@ PERIOD_MAP = {
     "1m":  "7d",
     "2m":  "60d", "5m":  "60d", "15m": "60d", "30m": "60d",
     "60m": "60d", "90m": "60d",
-    "1d":  "5y",  "5d":  "5y",  "1wk": "10y", "1mo": "max", "3mo": "max",
+    # ⭐ RS RATING L9: daily reads the FULL period and is cut at `_daily_window_start`, the
+    # same span the FMP primary reads, so primary and fallback answer alike (it was "5y").
+    "1d":  "max", "5d":  "5y",  "1wk": "10y", "1mo": "max", "3mo": "max",
 }
 INTRADAY_SPARSE_THRESHOLD = 10
 INTRADAY_INTERVALS = frozenset({"1m", "2m", "5m", "15m", "30m", "60m", "90m"})
@@ -185,11 +187,52 @@ def _proxy_ratio(target_yahoo: str, etf_sym: str) -> Optional[float]:
         return None
 
 
-#: How far back the FMP daily read reaches (calendar days); yfinance's daily period is 5y.
-FMP_DAILY_LOOKBACK_DAYS = int(os.environ.get("INDEX_FMP_LOOKBACK_DAYS", str(365 * 5 + 2)))
+#: ⭐ RS RATING L9 (docs/pine/RS-RATING-TRANSFER.md): daily index history reaches back to
+#: here. It was 5 years (`365*5+2` days, yfinance `period="5y"`), so a script reading SPX on a
+#: chart deeper than that drew `na` before the served SPX began (NVDA: TradingView's RS line
+#: runs 6997 bars, ours was `na` before 2021-11-15). The owner asked for at least 1990.
+INDEX_DAILY_HISTORY_START = "1990-01-01"
+#: `INDEX_FMP_LOOKBACK_DAYS` (calendar days back from today), when set to a positive integer,
+#: still decides the span, for the FMP primary AND the yfinance fallback alike.
+LOOKBACK_ENV = "INDEX_FMP_LOOKBACK_DAYS"
+#: The span of ONE FMP call. FMP may cap how much history one call returns, so the read is
+#: paged; `INDEX_FMP_PAGE_DAYS` overrides it.
+FMP_PAGE_DAYS = 365 * 5
+#: The widest calendar gap between two consecutive sessions a served series may hold. The
+#: longest US closure since 1990 (9/11-9/14/2001) leaves 7 days; anything wider is a hole in
+#: the vendor's answer (a page it truncated or dropped), so the FMP read is not served.
+_MAX_SESSION_GAP_DAYS = 10
 
 
-def _fetch_fmp_daily(index_symbol: str, divisor: float) -> List[Dict[str, Any]]:
+def _daily_window_start(today):
+    """The oldest session date a daily index series holds: `INDEX_FMP_LOOKBACK_DAYS` days
+    before `today` when that env is a positive integer, else `INDEX_DAILY_HISTORY_START`.
+    Read per call, so an env edit needs no restart."""
+    import datetime as _dt
+    raw = os.environ.get(LOOKBACK_ENV, "").strip()
+    try:
+        days = int(raw) if raw else 0
+    except ValueError:
+        days = 0
+    if days > 0:
+        return today - _dt.timedelta(days=days)
+    return _dt.date.fromisoformat(INDEX_DAILY_HISTORY_START)
+
+
+def _page_days() -> int:
+    try:
+        n = int(os.environ.get("INDEX_FMP_PAGE_DAYS", "") or FMP_PAGE_DAYS)
+    except ValueError:
+        n = FMP_PAGE_DAYS
+    return n if n > 0 else FMP_PAGE_DAYS
+
+
+def _utc_midnight(d) -> int:
+    import datetime as _dt
+    return int(_dt.datetime(d.year, d.month, d.day, tzinfo=_dt.timezone.utc).timestamp())
+
+
+def _fetch_fmp_daily(index_symbol: str, divisor: float, today=None) -> List[Dict[str, Any]]:
     """Daily bars from FMP → [{t,o,h,l,c,v}] oldest first, `t` the UTC midnight of the
     session date: the same key `_fetch_yf` produces for a daily index bar (yfinance's
     daily index is a tz-naive date, which `.timestamp()` reads as UTC). [] on any
@@ -197,34 +240,69 @@ def _fetch_fmp_daily(index_symbol: str, divisor: float) -> List[Dict[str, Any]]:
 
     ⭐ PRIMARY for daily bars by owner ruling 2026-11-14 (FMP top plan, Yahoo the
     fallback; docs/pine/RS-RATING-TRANSFER.md). ⛔ A row that does not parse completely is
-    dropped, never repaired."""
+    dropped, never repaired.
+
+    ⭐ RS RATING L9 — PAGED, OLDEST PAGE FIRST, from `_daily_window_start` to today, in
+    windows of `_page_days()` that tile the span; rows are deduplicated by session date (a
+    later page wins). ⛔ NEVER A SERIES WITH A HOLE: a page that errors, a page FMP reports
+    as empty after the history has begun, or two consecutive sessions more than
+    `_MAX_SESSION_GAP_DAYS` apart, and the whole read is `[]` (the caller falls back). Only
+    the pages BEFORE the index's first row may be empty."""
     import datetime as _dt
     try:
         from api.services import fmp_client
-        to_d = _dt.date.today()
-        from_d = to_d - _dt.timedelta(days=FMP_DAILY_LOOKBACK_DAYS)
-        res = fmp_client.get_index_history_eod_full(index_symbol, from_d.isoformat(),
-                                                    to_d.isoformat())
-        raw = res.value
     except Exception as e:                        # noqa: BLE001 — the caller falls back
-        logger.warning(f"[index_bars] FMP daily {index_symbol} failed: {e}")
+        logger.warning(f"[index_bars] FMP client unavailable: {e}")
         return []
-    rows = raw if isinstance(raw, list) else []
-    out: List[Dict[str, Any]] = []
-    for r in rows:
+    to_d = today or _dt.date.today()
+    page = _dt.timedelta(days=_page_days())
+    one = _dt.timedelta(days=1)
+    by_date: Dict[Any, Dict[str, Any]] = {}
+    start = _daily_window_start(to_d)
+    f = start
+    while f <= to_d:
+        t_end = min(to_d, f + page - one)
         try:
-            d = _dt.date.fromisoformat(str(r["date"])[:10])
-            o, h, l, c = (float(r[k]) / divisor for k in ("open", "high", "low", "close"))
-            v_raw = r.get("volume") or 0
-            v = int(v_raw) if v_raw == v_raw else 0
-        except (KeyError, ValueError, TypeError):
-            continue
-        if any(x != x for x in (o, h, l, c)):
-            continue
-        t = int(_dt.datetime(d.year, d.month, d.day, tzinfo=_dt.timezone.utc).timestamp())
-        out.append({"t": t, "o": o, "h": h, "l": l, "c": c, "v": v})
-    out.sort(key=lambda b: b["t"])
-    return out
+            raw = fmp_client.get_index_history_eod_full(index_symbol, f.isoformat(),
+                                                        t_end.isoformat()).value
+        except fmp_client.FMPNotFound:
+            if by_date:
+                logger.warning(f"[index_bars] FMP daily {index_symbol}: no rows for "
+                               f"{f}..{t_end} after the history began, a hole: not served")
+                return []
+            raw = []
+        except Exception as e:                    # noqa: BLE001 — the caller falls back
+            logger.warning(f"[index_bars] FMP daily {index_symbol} {f}..{t_end} failed: {e}")
+            return []
+        if not isinstance(raw, list):
+            logger.warning(f"[index_bars] FMP daily {index_symbol} {f}..{t_end}: no list")
+            return []
+        for r in raw:
+            try:
+                d = _dt.date.fromisoformat(str(r["date"])[:10])
+                o, h, l, c = (float(r[k]) / divisor for k in ("open", "high", "low", "close"))
+                v_raw = r.get("volume") or 0
+                v = int(v_raw) if v_raw == v_raw else 0
+            except (KeyError, ValueError, TypeError):
+                continue
+            if any(x != x for x in (o, h, l, c)) or not (start <= d <= to_d):
+                continue                          # unparseable, or outside the span asked
+            by_date[d] = {"t": _utc_midnight(d), "o": o, "h": h, "l": l, "c": c, "v": v}
+        f = t_end + one
+    dates = sorted(by_date)
+    for a, b in zip(dates, dates[1:]):
+        if (b - a).days > _MAX_SESSION_GAP_DAYS:
+            logger.warning(f"[index_bars] FMP daily {index_symbol}: {a} -> {b} is a hole, not served")
+            return []
+    return [by_date[d] for d in dates]
+
+
+def _fetch_yf_daily(yahoo_sym: str, divisor: float) -> List[Dict[str, Any]]:
+    """The yfinance FALLBACK for daily index bars: the full period, cut at the same
+    `_daily_window_start` the FMP primary reads, so the two answer the same span."""
+    import datetime as _dt
+    start = _utc_midnight(_daily_window_start(_dt.date.today()))
+    return [b for b in _fetch_yf(yahoo_sym, "1d", PERIOD_MAP["1d"], divisor) if b["t"] >= start]
 
 
 def _fetch_full_series(sym: str, tf: str) -> List[Dict[str, Any]]:
@@ -239,6 +317,7 @@ def _fetch_full_series(sym: str, tf: str) -> List[Dict[str, Any]]:
         out = _fetch_fmp_daily(yahoo_sym, divisor)
         if out:
             return out
+        return _fetch_yf_daily(yahoo_sym, divisor)
     period = PERIOD_MAP.get(interval, "60d")
     out = _fetch_yf(yahoo_sym, interval, period, divisor)
     if (interval in INTRADAY_INTERVALS and len(out) < INTRADAY_SPARSE_THRESHOLD

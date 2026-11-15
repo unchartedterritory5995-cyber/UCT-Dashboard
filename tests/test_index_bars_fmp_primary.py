@@ -28,7 +28,8 @@ def calls(monkeypatch):
 
     def fake_yf(sym, interval, period, divisor):
         seen["yf"].append((sym, interval))
-        return [{"t": 1, "o": 1, "h": 1, "l": 1, "c": 1, "v": 0}]
+        # a recent bar: the daily fallback is cut at the window start (L9)
+        return [{"t": _utc_midnight("2026-11-13"), "o": 1, "h": 1, "l": 1, "c": 1, "v": 0}]
 
     monkeypatch.setattr(fmp_client, "get_index_history_eod_full", fake_fmp)
     monkeypatch.setattr(index_bars, "_fetch_yf", fake_yf)
@@ -42,7 +43,8 @@ def _utc_midnight(iso):
 
 def test_daily_spx_reads_fmp_first_oldest_first_and_never_yfinance(calls):
     out = index_bars._fetch_full_series("SPX", "D")
-    assert calls["fmp"] == ["^GSPC"] and calls["yf"] == []
+    # (paged since L9: every page asks ^GSPC; tests/test_index_bars_depth.py rails the paging)
+    assert calls["fmp"] and set(calls["fmp"]) == {"^GSPC"} and calls["yf"] == []
     assert [b["c"] for b in out] == [6799.25, 6840.5]           # the bad row is dropped
     assert out[-1]["t"] == _utc_midnight("2026-11-13")
 
