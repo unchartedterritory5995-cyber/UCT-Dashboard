@@ -119,7 +119,15 @@ export function gradePaints(capture, ours) {
         rows.push({ ...base, state: 'titleMismatch', vendorTitle: v.title, ourTitle: t.title })
         return
       }
-      if (t.withheld) { rows.push({ ...base, state: 'withheld', reason: t.withheld.reason, displayed: v.displayed }); return }
+      // ⭐ ENGINE 58 (S11) — with how many bars TradingView painted, so a paint we withheld
+      // where TradingView paints NOTHING is "neither side draws", as `notDrawn` is
+      // (`compare.mjs::comparePaints`). `null` when the capture's colours are unreadable.
+      if (t.withheld) {
+        const vendorPainted = v.displayed && v.colors
+          ? v.colors.filter((c) => c !== undefined && canon(c) !== NO_COLOUR).length : null
+        rows.push({ ...base, state: 'withheld', reason: t.withheld.reason, displayed: v.displayed, vendorPainted })
+        return
+      }
       if (!v.displayed) {
         rows.push({ ...base, state: t.hidden ? 'hiddenBoth' : 'hiddenVendorOnly' })
         return

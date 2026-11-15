@@ -436,18 +436,24 @@ function stampReadout(chip, def, inputs, opts) {
 /** A plot's colour for THIS instance. Mirrors `pool.resolvePlotForInstance`
  *  without importing it, because that module carries the LWC option vocabulary
  *  and the legend needs one field. */
-function resolvePlotColor(plot, inputs, def) {
+function resolvePlotColor(plot, inputs, def, theme = null) {
   // ⛔ THE CHIP WRITES THIS INTO CSS. A stored definition, a shared one, or a shared
   // layout's instance input may carry any string here — only `safeCssColour` values
   // leave (objectColour.js); anything else wears no colour.
+  // ⭐ ENGINE 58 — a THEME reference (`chart.fg_color@85`) is resolved against the
+  // chart it is drawn on (`opts.theme`, `objectTheme.chartThemeOf`), as the line is
+  // (`pool.withThemeColour`); with no theme it wears the legend's own ink.
   const refKey = plot.$refs && plot.$refs.color
   if (refKey) {
-    if (inputs && inputs[refKey] !== undefined) return safeCssColour(inputs[refKey])
+    if (inputs && inputs[refKey] !== undefined) return safeCssColour(inputs[refKey], theme)
     const declared = (def.inputs || []).find(i => i && i.key === refKey)
-    if (declared && declared.default !== undefined) return safeCssColour(declared.default)
+    if (declared && declared.default !== undefined) return safeCssColour(declared.default, theme)
   }
-  return safeCssColour(plot.color)
+  return safeCssColour(plot.color, theme)
 }
+
+/** The chart theme a chip's colour is resolved against (`opts.theme`), or null. */
+const chipThemeOf = (opts) => (opts && opts.theme && typeof opts.theme === 'object' ? opts.theme : null)
 
 /**
  * One chip per *(series, plot-that-declares-a-`legend`)*.
@@ -572,7 +578,7 @@ export function chipsFrom(entries, seriesData, registry, inputsFor, displayFor, 
     // The colour a chip wears is the colour the LINE wears, so it is resolved the
     // same way the binder resolves it — through this lane's own inputs, never the
     // definition default alone.
-    const resolved = resolvePlotColor(plot, inputs, def)
+    const resolved = resolvePlotColor(plot, inputs, def, chipThemeOf(opts))
     const decimals = Number.isInteger(plot.legend.decimals) ? plot.legend.decimals : DEFAULT_DECIMALS
     // ⭐ THE DECLARATION TRAVELS WITH THE CHIP — see `chipValueText`.
     const compact = plot.legend.compact === true
@@ -1082,7 +1088,7 @@ export function legendChips(bindings, seriesData, registry, instances, opts) {
         plotKey: plot.key,
         instanceId: inst.instanceId,
         label,
-        color: resolvePlotColor(plot, inputs, def),
+        color: resolvePlotColor(plot, inputs, def, chipThemeOf(opts)),
         decimals: Number.isInteger(plot.legend.decimals) ? plot.legend.decimals : DEFAULT_DECIMALS,
         compact: plot.legend.compact === true,
         value: null,

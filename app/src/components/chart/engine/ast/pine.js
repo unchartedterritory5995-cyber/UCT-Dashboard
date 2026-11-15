@@ -137,7 +137,7 @@ import {
 } from './objectProgram.js'
 import { wholeTransparency, unpackColor } from '../colorInt.js'
 import { hexToPacked, byteTransparency, gradientChannelTree, objectHexToPacked, GRADIENT_ZERO_COLOUR, fromGradient, packedToObjectHex } from '../runtime/colours.js'
-import { THEME_NAMES, themeColourWithTransparency } from '../objectTheme.js'
+import { THEME_NAMES, themeColourWithTransparency, parseThemeColour } from '../objectTheme.js'
 import { POINT_SIZE_ANCHORS } from '../objectPointSizes.js'
 import { VERSIONS_WITH_OBJECT_DEFAULTS } from '../objectDefaults.js'
 
@@ -21259,10 +21259,10 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     // ⛔ ONLY a name the script never reassigns, anywhere (`mutableNames`).
     if (node.type === 'name') {
       const sb = scope && typeof scope.get === 'function' ? scope.get(node.name) : null
-      if (sb && sb.kind === 'state' && sb.seed && sb.update && sb.update.type === 'selfref'
-          && objectOpts.mutableNames && typeof objectOpts.mutableNames.has === 'function'
-          && !objectOpts.mutableNames.has(node.name)) {
-        const seeded = colorNodeOf(sb.seed, sb.seedEnv || scope, depth + 1)
+      // ⭐ ENGINE 58 — the one predicate the plot and paint lanes share (`neverReassignedVarSeed`).
+      const seed = neverReassignedVarSeed(sb, node.name, objectOpts.mutableNames)
+      if (seed) {
+        const seeded = colorNodeOf(seed.node, seed.env || scope, depth + 1)
         if (seeded && seeded.c === 'lit') return seeded
       }
     }
@@ -29440,6 +29440,31 @@ function constantColourSelector(node, env, ctx) {
  *  constant selectors folded (`constantColourSelector`) — bounded. Used to tell
  *  "the default's branch is `na`" (the absent colour) from "a colour this door
  *  cannot say". */
+/** ⭐⭐ ENGINE 58 (S11) — A `var` THE SCRIPT NEVER REASSIGNS: its seed `{node, env}`,
+ *  else null. Pine evaluates a `var`'s seed on the first bar and the name holds it from
+ *  then on, so a `var` nothing writes again (`update` is its own past, `selfref`) IS its
+ *  seed. ⛔ "Never reassigned" is the script-wide reassignment set (`mutated`: the
+ *  Resolver's, or the object lane's `mutableNames`), so a `c := …` ANYWHERE keeps it a
+ *  state. ⭐ ONE predicate for every lane: the object lane's C37 colour read, and the plot
+ *  and paint lanes' two readers of a static colour — its hue (`staticColourOf`) and its
+ *  transparency (`colourHelperTransparency`). The caller still asks whether the seed is ONE
+ *  colour whatever the bar — a seed that reads the bar is frozen at bar 0's answer in Pine,
+ *  which no per-bar colour is, so it stays withheld.
+ *  ⛔ NOT in `colourConditional` or `settledColourNode`: a seed that qualifies is ONE static
+ *  colour, which `colourConditional` answers null for and `settledColourNode`'s only reader
+ *  (the `na` test) cannot see (a static colour is never `na`) — a branch there changes no
+ *  answer, and two mutants (2026-11-15) proved it. Every carrier of a `var` colour reaches
+ *  `staticColourOf` (a flat colour, a rule's leaf, a `color.new` base). */
+function neverReassignedVarSeed(binding, name, mutated) {
+  if (!(binding && binding.kind === 'state' && binding.seed && binding.update && binding.update.type === 'selfref')) return null
+  if (!mutated || typeof mutated.has !== 'function' || mutated.has(name)) return null
+  return { node: binding.seed, env: binding.seedEnv || null }
+}
+
+/** The script-wide reassignment set a colour reader consults (`neverReassignedVarSeed`):
+ *  the walk's Resolver's. Absent (no resolver) ⇒ nothing is known never-reassigned. */
+const reassignedOf = (ctx) => (ctx && ctx.resolver && ctx.resolver.mutated) || null
+
 function settledColourNode(node, env, ctx) {
   let cur = node
   let e = env
@@ -29800,6 +29825,15 @@ function staticColourOf(node, env, depth = 0, ctx = null) {
     if (bound && bound.kind === 'expr') {
       return staticColourOf(bound.node, bound.env || env, depth + 1, ctx)
     }
+    // ⭐⭐ ENGINE 58 (S11) — A `var` NOTHING REASSIGNS, SEEDED WITH ONE COLOUR, IS THAT
+    // COLOUR (`neverReassignedVarSeed`, the C37 rule the object lane already follows).
+    // ⚰️ `var color c = color.new(color.green, 80)` read as "an expression this door
+    // cannot say": money-flow-index's `bgcolor` withheld on 666 bars, inside-bar-setup's
+    // `barcolor`s likewise, where TradingView paints the seed on every bar.
+    if (bound && bound.kind === 'state') {
+      const seed = neverReassignedVarSeed(bound, node.name, reassignedOf(ctx))
+      if (seed) return staticColourOf(seed.node, seed.env || env, depth + 1, ctx)
+    }
     // Bound to something this door cannot open (an opaque binding) — then a bare
     // colour spelling is the member's variable, not Pine's constant.
     if (bound && isBareColourSpelling(node.name)) return null
@@ -30011,6 +30045,12 @@ function colourHelperTransparency(node, env, ctx, depth = 0) {
       return colourHelperTransparency(v, ctx.inline.callerEnv || env, { ...ctx, inline: null }, depth + 1)
     }
     if (bound && bound.kind === 'expr') return colourHelperTransparency(bound.node, bound.env || env, ctx, depth + 1)
+    // ⭐ ENGINE 58 (S11) — a never-reassigned `var` is its seed, for its transparency as for
+    // its hue (`staticColourOf`): `var color c = color.new(color.green, 80)` paints at 80.
+    if (bound && bound.kind === 'state') {
+      const seed = neverReassignedVarSeed(bound, node.name, reassignedOf(ctx))
+      if (seed) return colourHelperTransparency(seed.node, seed.env || env, ctx, depth + 1)
+    }
     // ⭐ ENGINE 58 (C4) — a bare Pine colour name (`color.teal`, v3/v4 `teal`) paints OPAQUE.
     if (!bound && ctx && ctx.paintLeaves && isColourName(node)) {
       ctx.paintLeaves.leaf = true
@@ -30159,6 +30199,27 @@ function staticObjectColourOf(node, env) {
   if (own && t === Math.round((1 - parseInt(own[1], 16) / 255) * 100)) return hex
   // ⭐ C20 — the one formula, shared with the object runtime's `{c:'new'}`.
   return withObjectTransparency(base[0], t)
+}
+
+/** ⭐⭐ ENGINE 58 (review item 7) — DOES AN ALPHA EXPRESSION READ A SETTING? True when
+ *  `node` (or a name it is bound to, through the walk's own env) reaches an `input` /
+ *  `input.*` call. ⛔ Such an alpha FOLDS to the input's DEFAULT (`alphaNumberOf`), and a
+ *  folded presentation mints no parameter (R36), so the member's own value would never
+ *  reach it: the colour is withheld by name instead of drawn at a default the member
+ *  cannot change. A literal, `color.t` of a static colour and arithmetic on literals read
+ *  no setting. */
+function alphaReadsInput(node, env, depth = 0) {
+  if (!node || typeof node !== 'object' || depth > 16) return false
+  if (Array.isArray(node)) return node.some((n) => alphaReadsInput(n, env, depth + 1))
+  if (node.type === 'call' && typeof node.name === 'string' && (node.name === 'input' || node.name.startsWith('input.'))) return true
+  if (node.type === 'name') {
+    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+    return !!(bound && bound.kind === 'expr' && alphaReadsInput(bound.node, bound.env || env, depth + 1))
+  }
+  for (const [k, v] of Object.entries(node)) {
+    if (k !== 'type' && v && typeof v === 'object' && alphaReadsInput(v, env, depth + 1)) return true
+  }
+  return false
 }
 
 /** The NUMBER an alpha slot holds: a literal, or `color.t` of a static colour.
@@ -30522,6 +30583,8 @@ function colourNewOverRule(node, env, depth, ctx) {
   const base = ((args.find((a) => a && a.name === 'color')) || positional[0] || {}).value
   const tNode = ((args.find((a) => a && a.name === 'transp')) || positional[1] || {}).value
   if (base === undefined || tNode === undefined) return null
+  // ⛔ (review item 7) a `T` read from a setting would be baked at its default: not carried.
+  if (alphaReadsInput(tNode, env)) return null
   const t = alphaNumberOf(tNode, env, ctx)
   if (t === null || !Number.isFinite(t)) return null
   // ⛔ On the legacy pass, a colour whose constant selectors fold (owner ruling 1:
@@ -30884,7 +30947,13 @@ const V4_FILL_DEFAULT_TRANSP = 90
  *  predicate the legacy PLOT default reads (`legacyPlotDefault`). A missing version is
  *  v1 (TradingView compiles it so), never "modern". */
 export function isPreV4PineVersion(version) {
-  return !Number.isInteger(version) || version <= 3
+  // ⛔ STRICT (engine 58 review): `null` is a real answer (no `//@version`, v1);
+  // `undefined` is a FORGOTTEN one, and a forgotten version must not quietly read as
+  // v1 and take the legacy defaults. Same contract as `colourHexByName`.
+  if (version === undefined) throw new Error("isPreV4PineVersion needs the script's Pine version (null when it declares none)")
+  if (version === null) return true
+  if (!Number.isInteger(version)) throw new Error(`isPreV4PineVersion: ${JSON.stringify(version)} is not a Pine version`)
+  return version <= 3
 }
 
 /** ⭐⭐ ENGINE 58 — THE TRANSPARENCY A v1-v3 `plot` / `plotshape` / `plotchar`
@@ -30908,7 +30977,39 @@ export function isPreV4PineVersion(version) {
  *  ⛔ NOT WITNESSED, so withheld by name (`COLOUR_DEFAULT_UNWITNESSED`): a gradient
  *  (a v5+ form in any case). */
 export const LEGACY_PLOT_DEFAULT_TRANSP = 35
+
+/** ⭐⭐ ENGINE 58 (review item 4, coordinator ruling) — A SCRIPT WITH NO `//@version`
+ *  THAT USES v4+ SYNTAX. TradingView compiles a script with no pragma as v1, and v1 has
+ *  no namespaced built-ins (`ta.*`, `color.red`, `input.int`), no `indicator()` and no
+ *  `var`: such a script does NOT compile there. This door does not guess which version
+ *  the author meant — it refuses BY NAME and asks for the header (`NO_VERSION_GUARD`).
+ *  The forms are the ones no v1-v3 script can write: a member of a namespace that v4
+ *  introduced, `plot.style_*` / `hline.style_*`, `indicator(` / `library(`, a `var` /
+ *  `varip` declaration. ⛔ Read over the source with comments and strings blanked
+ *  (`strippedForScan`), so `// ta.ema` or `"color.red"` is not syntax. Returns the
+ *  first form found (for the sentence), or null. */
+export const NO_VERSION_GUARD = 'pine:version-missing'
+const MODERN_PINE_FORMS = Object.freeze([
+  /(?<![\w.])(?:ta|math|str|request|array|matrix|map|input|color|chart|timeframe|ticker|runtime|log|polyline|box|table|label|line|linefill)\.[A-Za-z_]\w*/,
+  /(?<![\w.])(?:plot|hline)\.style_\w+/,
+  /(?<![\w.])(?:indicator|library)\s*\(/,
+  /(?:^|\n)[ \t]*(?:var|varip)[ \t]+[A-Za-z_]/,
+])
+export function modernPineSyntaxIn(source) {
+  if (typeof source !== 'string' || !source) return null
+  const text = strippedForScan(source)
+  for (const re of MODERN_PINE_FORMS) {
+    const m = re.exec(text)
+    if (m) return m[0].trim()
+  }
+  return null
+}
+export const noVersionSentence = (form) => 'This script has no `//@version` header but uses newer Pine syntax'
+  + (form ? ` (\`${form}\`)` : '') + '; add the header TradingView expects (e.g. `//@version=5`).'
 const LEGACY_DEFAULT_KINDS = Object.freeze(new Set(['plot', 'plotshape', 'plotchar']))
+/** ⭐ ENGINE 58 — the outputs a theme reference (`chart.fg_color@85`) is carried on: a
+ *  plot and (S11) the two marker calls, whose glyph wears it as the plot's line does. */
+const THEME_COLOUR_KINDS = Object.freeze(new Set(['plot', 'plotshape', 'plotchar']))
 
 /** ⭐⭐ ENGINE 58 — THE TWO NAMES A PLOT'S COLOUR IS WITHHELD UNDER (never drawn in
  *  a stand-in colour; `memberPaneDefinition` draws such a row in no colour and
@@ -31051,8 +31152,13 @@ function resolvePaint(p, ctx) {
   // na` (O4, overridden on every bar by a later `barcolor`, so the screenshot shows
   // nothing of it) or a computed one stays withheld by name.
   if (named.has('show_last')) {
-    const sl = paintIntLiteral(named.get('show_last'))
-    if (sl === null || sl < 0) return withhold('paint:show-last', `a \`show_last\` that is not a whole-number literal on \`${p.kind}\` has no capture (${PAINT_PROBE})`)
+    // ⭐⭐ ENGINE 58 (S11) — `show_last` is an `input int` fixed before bar 0, folded as
+    // `offset` is (`paintFoldedOffset`: an input at its default, arithmetic on literals
+    // and inputs; every input it reads is recorded displacement-bound, never a knob that
+    // moves nothing). ⚰️ Only a literal was read: LRC-DGT's `show_last = len` (600) and
+    // dual-supertrend's (377) withheld the paint, where TradingView draws exactly that many.
+    const sl = paintIntLiteral(named.get('show_last')) ?? paintFoldedOffset(named.get('show_last'), ctx)
+    if (sl === null || sl < 0) return withhold('paint:show-last', `a \`show_last\` that does not fold to a whole number on \`${p.kind}\` has no capture (${PAINT_PROBE})`)
     rec.showLast = sl
   }
   if (named.has('offset')) {
@@ -31589,7 +31695,7 @@ function outputPresentation(args, ctx) {
         pres.opacity = opacityOfTransparency(t)
         stampTransparency(pres, t, 'color')
       }
-    } else if (kind === 'plot' && themePlotColourOf(c.value, ctx && ctx.env, ctx)) {
+    } else if (THEME_COLOUR_KINDS.has(kind) && themePlotColourOf(c.value, ctx && ctx.env, ctx)) {
       // ⭐⭐ ENGINE 58 — `chart.fg_color` / `chart.bg_color` (optionally through
       // `color.new(…, T)`) on a PLOT is a THEME REFERENCE, carried as the Pine name
       // (`chart.fg_color@85`) and resolved against the chart it is drawn on
@@ -31798,18 +31904,34 @@ function outputPresentation(args, ctx) {
   // literals), and when it does not fold the colour is WITHHELD by name — it was
   // dropped, and the plot drew opaque where TradingView draws the transparency.
   if (trArg && tr === null && LEGACY_DEFAULT_KINDS.has(kind) && !absentColour) {
+    // ⛔ (review item 7) a `transp` read from a setting (`tp = input(40)`) would be
+    // baked at its default, with no knob for the member: withheld by name.
+    const readsInput = alphaReadsInput(trArg.value, ctx && ctx.env)
     let folded = null
-    try { folded = alphaNumberOf(trArg.value, ctx && ctx.env, ctx) } catch { folded = null }
+    if (!readsInput) {
+      try { folded = alphaNumberOf(trArg.value, ctx && ctx.env, ctx) } catch { folded = null }
+    }
     if (folded !== null && Number.isFinite(folded)) tr = folded
     else if (!pres.colorDynamic) {
-      pres.colorWithheld = { code: COLOUR_UNREAD, reason: 'its `transp` is not a number this door can read' }
+      pres.colorWithheld = readsInput
+        ? { code: COLOUR_UNREAD, reason: 'its `transp` is read from a setting, which this door would fix at its default' }
+        : { code: COLOUR_UNREAD, reason: 'its `transp` is not a number this door can read' }
     }
   }
   // ⛔ A `transp=` never makes an absent colour visible: `color = na` stays at
   // opacity 0 whatever transparency the author also wrote.
+  // ⭐⭐ ENGINE 58 (review item 3) — ON A SERIES OUTPUT IT IS A STYLE TRANSPARENCY, and
+  // TradingView folds a style transparency into an OPAQUE colour only
+  // (`foldStyleTransparency`, the rule the v1-v3 default already follows): a colour with
+  // its own alpha keeps it. ⚰️ It was set as the plot's opacity whatever the colour, and
+  // the sheet MULTIPLIED it into an own-alpha colour (`#FF000080` at `transp = 70` drew
+  // `26` where TradingView draws `80`).
   if (tr !== null && !absentColour) {
-    pres.opacity = styleTransparencyOpacity(tr)
-    stampTransparency(pres, tr, 'transp')
+    if (LEGACY_DEFAULT_KINDS.has(kind)) foldStyleTransparency(pres, tr, 'transp')
+    else {
+      pres.opacity = styleTransparencyOpacity(tr)
+      stampTransparency(pres, tr, 'transp')
+    }
   }
   // ⭐⭐ ENGINE 58 — …AND WITH NO `transp` AT ALL, A v1-v3 SERIES OUTPUT TAKES 35.
   if (!trArg && LEGACY_DEFAULT_KINDS.has(kind) && isPreV4PineVersion(seriesVersion) && !absentColour) {
@@ -31837,6 +31959,8 @@ function themePlotColourOf(node, env, ctx, depth = 0) {
     if (!base) return null
     const tNode = ((args.find((a) => a && a.name === 'transp')) || positional[1] || {}).value
     if (tNode === undefined) return base
+    // ⛔ (review item 7) a transparency read from a setting is not baked at its default.
+    if (alphaReadsInput(tNode, env)) return null
     const t = alphaNumberOf(tNode, env, ctx)
     return Number.isInteger(t) ? themeColourWithTransparency(base, t) : null
   }
@@ -31864,14 +31988,51 @@ function legacyPlotDefault(pres) {
     pres.colorWithheld = { code: COLOUR_DEFAULT_UNWITNESSED, reason: 'its colour is a gradient: the transparency TradingView gives it with no `transp` is not captured for a v1-v3 script' }
     return
   }
+  foldStyleTransparency(pres, LEGACY_PLOT_DEFAULT_TRANSP, 'default')
+}
+
+/** ⭐⭐ ENGINE 58 — THE ONE RULE FOR A STYLE TRANSPARENCY ON A SERIES OUTPUT (the
+ *  v1-v3 default 35, and an explicit `transp = N`): TradingView folds it into an
+ *  OPAQUE colour only (`compare.mjs::withStyleTransparency`: only an `ff` alpha takes
+ *  it). So:
+ *    · a colour (or rule) whose own alpha is set below opaque (`color.new(c, 40)`, a
+ *      `#RRGGBBAA` literal) keeps it — never multiplied;
+ *    · an opaque colour takes it (`opacity`, the exact byte `styleTransparencyOpacity`
+ *      paints), and a rule whose leaves mix the two takes it on its opaque leaves only,
+ *      baked per leaf;
+ *    · a theme reference with no transparency of its own takes it as its own
+ *      (`chart.fg_color@N`); one with a transparency keeps it;
+ *    · a gradient takes it when both ends are opaque, and is otherwise withheld by name
+ *      (which bars are opaque is not provable here).
+ *  ⛔ `pres.opacity === 1` (`color.new(c, 0)`) is an opaque colour, and takes it. */
+function foldStyleTransparency(pres, t, via) {
+  if (pres.colorDynamic) return
   const opaqueHex = (h) => typeof h === 'string' && /^#[0-9a-f]{6}(ff)?$/i.test(h)
-  const a35 = styleTransparencyOpacity(LEGACY_PLOT_DEFAULT_TRANSP)
+  const a = styleTransparencyOpacity(t)
   const setAll = () => {
-    pres.opacity = a35
-    stampTransparency(pres, LEGACY_PLOT_DEFAULT_TRANSP, 'default')
+    pres.opacity = a
+    stampTransparency(pres, t, via)
   }
-  // a colour (or rule) that already carries ONE own transparency keeps it
-  if (Number.isFinite(pres.opacity)) return
+  // a colour (or rule) that already carries its own transparency keeps it
+  if (Number.isFinite(pres.opacity) && pres.opacity < 1) return
+  if (!(t > 0)) {
+    if (Number.isFinite(pres.opacity)) return
+    return setAll()
+  }
+  const theme = typeof pres.color === 'string' ? parseThemeColour(pres.color) : null
+  if (theme) {
+    if (theme.transparency === 0 && Number.isInteger(t)) pres.color = themeColourWithTransparency(pres.color, t)
+    else if (theme.transparency === 0) {
+      pres.colorWithheld = { code: COLOUR_UNREAD, reason: 'its `transp` is not a whole number, which a chart colour cannot carry' }
+    }
+    return
+  }
+  if (pres.colorGradient) {
+    const g = pres.colorGradient
+    if (opaqueHex(g.from) && opaqueHex(g.to)) return setAll()
+    pres.colorWithheld = { code: COLOUR_UNREAD, reason: 'its `transp` applies over a gradient whose ends carry their own transparency, and which bars are opaque is not known' }
+    return
+  }
   const rule = typeof pres.colorUp === 'string' || Array.isArray(pres.colorPalette)
   if (!rule) {
     if (typeof pres.color === 'string' && !opaqueHex(pres.color)) return
@@ -31880,7 +32041,7 @@ function legacyPlotDefault(pres) {
   const leaves = [pres.colorUp, pres.colorDown, ...(pres.colorPalette || [])]
     .filter((h) => typeof h === 'string' && h !== TRANSPARENT_PALETTE_ENTRY)
   if (leaves.every(opaqueHex)) return setAll()
-  const bake = (h) => (opaqueHex(h) ? (paletteEntryWithAlpha(h.slice(0, 7), a35) || h) : h)
+  const bake = (h) => (opaqueHex(h) ? (paletteEntryWithAlpha(h.slice(0, 7), a) || h) : h)
   if (typeof pres.colorUp === 'string') {
     pres.colorUp = bake(pres.colorUp)
     pres.colorDown = bake(pres.colorDown)

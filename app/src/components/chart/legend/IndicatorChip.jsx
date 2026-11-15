@@ -3,7 +3,7 @@ import UIcon from '../../ui/UIcon'
 import useLongPress from '../../mobile/useLongPress'
 import styles from './IndicatorChip.module.css'
 import { chipValueText as formatChipValue } from '../engine/readout'
-import { safeCssColour } from '../engine/objectColour'
+import { inkCssColour } from '../engine/objectColour'
 
 /**
  * ONE legend chip. **The chip IS the control.**
@@ -287,7 +287,9 @@ export default function IndicatorChip({
    * legend ink for a chip with no colour of its own; a coloured chip defeats it
    * with `inherit`, so the row has exactly one source of colour. */
   // ⛔ a colour reaches CSS only through `safeCssColour` (objectColour.js) — a stored or shared value may carry anything
-  const chipColor = safeCssColour(chip.color)
+  // ⭐ ENGINE 58 — through `inkCssColour`: a colour that draws nothing (a withheld rule
+  // row's `#00000000`) gives the chip the legend's own readable ink, never invisible text.
+  const chipColor = inkCssColour(chip.color)
   // ⭐ A5a — a HIDDEN text chip prints its name in the muted ink, not the line's
   // colour: the line is not drawn, so the colour would name nothing.
   const ink = chipColor && !(textChip && chip.hidden) ? { color: chipColor } : undefined

@@ -174,8 +174,12 @@ describe('⭐ ENGINE 58 — no annotation is v1, v1/v2 draw the v3 table; only a
     }
   })
 
+  // ⭐ ENGINE 58 review item 4 (coordinator ruling) — UPDATED DELIBERATELY. This pin was
+  // `indicator("u") … color=color.red`: no pragma but v4+ forms, which TradingView does not
+  // compile as v1, and which the member door now refuses by name
+  // (`engine58Review.test.jsx`). The unannotated pin is a v1 script in v1 forms.
   it('an unannotated script draws the web red (it compiles as v1)', () => {
-    const t = translatePine('indicator("u")\nplot(close, title="r", color=color.red)', { strict: true })
+    const t = translatePine('study("u")\nplot(close, title="r", color=red)', { strict: true })
     expect(t.version).toBe(null)
     expect(t.outputs[0].presentation.color).toBe('#FF0000')
   })

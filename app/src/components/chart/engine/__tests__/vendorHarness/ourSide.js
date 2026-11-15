@@ -1198,7 +1198,10 @@ function runOurSideOnTheParityClock(capture) {
       const wholeWithheld = !!(cw && !cw.points)
       const rawColour = defPlot && typeof defPlot.color === 'string' && defPlot.color.startsWith('$')
         ? ((defInputByKey.get(defPlot.color.slice(1)) || {}).default) : (defPlot && defPlot.color)
-      const themeRelative = isThemeColour(rawColour)
+      // ⛔ A WHOLE-WITHHELD colour draws in the chart's neutral ink (a theme reference,
+      // `memberPaneDefinition.WITHHELD_COLOUR_INK`) and is NOT theme-relative: it is not
+      // the script's colour, so it is not compared at all (INCONCLUSIVE by name).
+      const themeRelative = !wholeWithheld && isThemeColour(rawColour)
       plots.push({
         title: o ? o.title : null,
         formula: o ? o.formula : null,

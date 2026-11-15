@@ -45,7 +45,7 @@
 // letter of the label to the last digit of the value, gaps included. Hover is
 // plain CSS `:hover` on that box; there is no hover state in React.
 import styles from './LegendRow.module.css'
-import { safeCssColour } from '../engine/objectColour'
+import { inkCssColour } from '../engine/objectColour'
 
 /**
  * @param {string}   rowId        stable identity (`ma:2`, `volume`, an instanceId)
@@ -197,7 +197,8 @@ export default function LegendRow({
      own colour — one source of truth per row, and nothing to keep in sync if the
      token changes. */
   // ⛔ a colour reaches CSS only through `safeCssColour` (objectColour.js) — a stored or shared value may carry anything
-  const color = safeCssColour(rawColor)
+  // ⭐ ENGINE 58 — through `inkCssColour`: a fully transparent colour reads in the legend's own ink.
+  const color = inkCssColour(rawColor)
   const ink = color ? { color } : undefined
   const valInk = color ? { color: 'inherit' } : undefined
 
