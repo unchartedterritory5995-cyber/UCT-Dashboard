@@ -6,6 +6,9 @@
 .smEmpty:hover { opacity: 0.85; }
 .smNone { color: var(--text-faint); font-size: var(--text-base); font-style: italic; min-width: 64px; text-align: right; white-space: nowrap; }
 .pinIcon { display: block; margin: 0 auto; }
+/* Screen menu: the one-line note shown when the search text is exactly "rsi". Text, not a row:
+   no hover, no pointer, the same muted type as a screen's description, and it wraps. */
+.smHint { margin: 0; padding: 8px 12px 4px; color: var(--text-muted); font-size: var(--text-base); line-height: var(--lh-snug); }
 
 /* The screen button while the landing screen is still being chosen (B12). */
 .landing { color: var(--text-muted); font-style: italic; }

@@ -258,6 +258,8 @@ def _rs_flags_on(monkeypatch):
     import types
     from api.services.signature import registry_defs
     monkeypatch.setattr(registry_defs, "RS_V2_ENABLED", True)
+    # 2026-11-14 (RS screens U1): the fourth family follows RS_SCREENS_ENABLED (`rs_dark_keys`).
+    monkeypatch.setenv("RS_SCREENS_ENABLED", "1")
     # Unit 3-11: the Phase 3 family follows RS_V3 too (`snapshot_builder.rs_v3_enabled`
     # reads this attribute; `raising=False` until unit 3-05 declares it).
     monkeypatch.setattr(registry_defs, "RS_V3_ENABLED", True, raising=False)
@@ -1463,9 +1465,12 @@ def test_s1_picker_hidden_keys_stay_filterable_and_follow_the_ibd_flag(monkeypat
     control stays in FILTERS and in meta() flagged, and the RS view order is pinned."""
     from api.services.screener import filters as F
     monkeypatch.delenv("RS_RANK_IBD_ENABLED", raising=False)
-    assert F.picker_hidden_keys() == {"rs_rating_chg_5", "rs_benchmark_agree"}
+    # Pin moved 2026-11-14 (RS screens U1): the score and the "of N" count are read by the
+    # screens and never offered as picker columns.
+    always = {"rs_rating_chg_5", "rs_benchmark_agree", "rs_rating_score", "rs_rating_pos_n"}
+    assert F.picker_hidden_keys() == always
     monkeypatch.setenv("RS_RANK_IBD_ENABLED", "1")
-    assert F.picker_hidden_keys() == {"rs_rating_chg_5", "rs_benchmark_agree", "rs_rating_ibd"}
+    assert F.picker_hidden_keys() == always | {"rs_rating_ibd"}
     for k in ("rs_rating_ibd", "rs_rating_chg_5", "rs_benchmark_agree", "rs_rating_9m"):
         assert k in F.FILTERS
     cols = F.VIEWS["relative_strength"]["columns"]

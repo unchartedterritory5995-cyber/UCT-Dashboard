@@ -26,7 +26,7 @@ KINDS_ENV = "UCT_AGENT_DATA_KINDS"
 
 @pytest.fixture(autouse=True)
 def _clean(monkeypatch):
-    for k in (gw.DATA_ENV, gw.SCAN_ENV, gw.ISOLATED_ENV, KINDS_ENV):
+    for k in (gw.DATA_ENV, gw.SCAN_ENV, gw.ISOLATED_ENV, gw.ISOLATED_KINDS_ENV, KINDS_ENV):
         monkeypatch.delenv(k, raising=False)
     gw._reset_for_test(None)
     yield
@@ -41,6 +41,7 @@ def marked(**extra):
 def _activated(monkeypatch, name):
     monkeypatch.setenv(gw.DATA_ENV, "1")
     monkeypatch.setenv(gw.ISOLATED_ENV, "1")
+    monkeypatch.setenv(gw.ISOLATED_KINDS_ENV, name)
     monkeypatch.setenv(KINDS_ENV, name)
 
 

@@ -36,13 +36,17 @@ import { parsePriceSentence } from './marketDataPhrases'
 import { num, money, signedMoney, signedPct, sessionDate } from './marketDataFormat'
 import { resolveDateWord, dayWord } from '../dateWords'
 import { RESOLVE_KIND, toCandidates, resolveInstruments, isFundLabel, FUND_NOTE } from './marketDataResolve'
+import { answerFromPeriods, answerFromCompare, periodWindow, TIMEFRAMES, DEFAULT_PERIODS, MAX_PERIODS, MAX_COMPARE } from './marketDataPeriods'
+import { etToday } from '../dateWords'
 
 export const CAPABILITY = 'stock.dailyBars'
 export const SESSIONS_52W = 252
 export const MAX_CHANGE_SESSIONS = 250
 export const MIN_PULLBACK_PCT = 3
 export const PULLBACKS_SHOWN = 3
-const MEASURES = ['lastClose', 'change', 'range52w', 'session', 'range', 'offHigh', 'pullbacks']
+// Phase 2 history: periods (weekly / monthly closes and changes) and compare (relative performance of 2–3 symbols), both
+// over the kind's tf = W | M (marketDataPeriods.js)
+const MEASURES = ['lastClose', 'change', 'range52w', 'session', 'range', 'offHigh', 'pullbacks', 'periods', 'compare']
 const MONTH_BARS = 23                       // a calendar month has at most 23 sessions
 const INTENT_TO_MEASURE = { 'bars.lastClose': 'lastClose', 'bars.change': 'change', 'bars.range52w': 'range52w' }
 
@@ -280,7 +284,9 @@ function cleanArgs(args) {
   const sessions = Number.isInteger(args?.sessions) ? args.sessions : null
   const date = typeof args?.date === 'string' && args.date.trim() ? args.date.trim() : null
   const from = typeof args?.from === 'string' && args.from.trim() ? args.from.trim() : null
-  return { symbol, measure, sessions, date, from }
+  const timeframe = TIMEFRAMES.includes(args?.timeframe) ? args.timeframe : null
+  const symbols = Array.isArray(args?.symbols) ? args.symbols.map(x => String(x || '').trim()).filter(Boolean) : []
+  return { symbol, measure, sessions, date, from, timeframe, symbols }
 }
 
 /** The member's date words → the read's window, or a sentence when they cannot be read (never guessed). */
@@ -305,8 +311,9 @@ export function windowFor(measure, sessions, dateText, fromText = null) {
 }
 
 export async function answerDailyBars(args) {
-  const { symbol, measure, sessions: given, date: dateText, from: fromText } = cleanArgs(args)
+  const { symbol, measure, sessions: given, date: dateText, from: fromText, timeframe, symbols } = cleanArgs(args)
   if (!barsServed()) return "UCT's daily bars aren't available to the Agent here."
+  if (measure === 'periods' || measure === 'compare') return answerPeriodsOrCompare({ symbol, measure, given, dateText, fromText, timeframe, symbols })
   const candidates = toCandidates([symbol])
   if (candidates.length !== 1) return "Which ticker? I couldn't find a symbol in that."
   if (!measure) return "I can give the close on a day, one session's open / high / low / close, the change over a number of sessions, the high and low of a window, how far it sits off its 52-week high, its recent pullbacks, or the 52-week high and low."
@@ -332,6 +339,87 @@ export async function answerDailyBars(args) {
   return answerFromBars(env, { symbol: resolved, measure, sessions, name: r.names[resolved], date: date?.from && !date.to ? { ...date, to: latest } : date })
 }
 
+const isoOrNull = (t) => (typeof t === 'string' && ISO_DAY.test(t) ? t : null)
+
+/**
+ * Phase 2 history: periods (ONE W / M read) and compare (one W / M read per symbol, at most MAX_COMPARE, after ONE
+ * instrument.resolve of every word). A window is ISO days (`from`, and `date` = its end) or a count (`sessions` =
+ * N weeks / months); with neither, the last DEFAULT_PERIODS. Never a guess: an unreadable window asks.
+ */
+export async function answerPeriodsOrCompare({ symbol, measure, given, dateText, fromText, timeframe, symbols }) {
+  if (timeframe === 'D') return 'Daily closes are answered per session: ask for the change over N sessions or a range, or choose weekly or monthly.'
+  const tf = timeframe === 'M' ? 'M' : 'W'
+  const words = measure === 'compare' ? [symbol, ...symbols] : [symbol]
+  const candidates = toCandidates(words)
+  if (measure === 'compare' && (candidates.length < 2 || candidates.length > MAX_COMPARE)) return `Which tickers? I can compare 2 to ${MAX_COMPARE} symbols, for example "compare AAPL and MSFT weekly over the last year".`
+  if (measure === 'periods' && candidates.length !== 1) return "Which ticker? I couldn't find a symbol in that."
+  const from = fromText ? isoOrNull(fromText) : null
+  const to = dateText ? isoOrNull(dateText) : null
+  if ((fromText && !from) || (dateText && !to)) return 'Which window? Say it like "in 2024", "since 2020", "this year" or "over the last 12 weeks".'
+  if (from && to && from > to) return "The window's start must come before its end."
+  if ((to || from) > etToday()) return "That window is after today: UCT's bars cover completed sessions only."
+  const n = given != null ? given : (from ? null : DEFAULT_PERIODS[tf])
+  if (n != null && !(n >= 1 && n <= MAX_PERIODS[tf])) return `Over how many ${tf === 'W' ? 'weeks' : 'months'}? From 1 to ${MAX_PERIODS[tf]}.`
+  // MD-1 §4.7: every word is resolved against UCT's symbol index BEFORE any bars are read
+  const r = await resolveInstruments(candidates)
+  if (!r.ok) return r.text
+  const turnId = currentTurnId()
+  if (!turnId) return "I couldn't read the bars: this needs the Agent's turn, which wasn't available."
+  // a comparison reads one more period than asked: the base close its change is measured from
+  const params = (sym) => ({ symbol: sym, tf, ...(from ? { from } : { bars: measure === 'compare' ? Math.min(n + 1, MAX_PERIODS[tf]) : n }), ...(to ? { to } : {}) })
+  const window = from ? `${from} to ${to || 'the latest completed session'}` : null
+  if (measure === 'periods') {
+    const env = await readData('bars.daily', params(r.symbols[0]), { purpose: 'answer', turnId })
+    const out = answerFromPeriods(env, { symbol: r.symbols[0], name: r.names[r.symbols[0]], want: from ? null : n, window })
+    return isFundLabel(r.names[r.symbols[0]]) ? { ...out, text: `${out.text}\n${FUND_NOTE}` } : out
+  }
+  const envs = []
+  for (const sym of r.symbols) envs.push(await readData('bars.daily', params(sym), { purpose: 'answer', turnId }))
+  const out = answerFromCompare(envs, { symbols: r.symbols, names: r.names, window })
+  return r.symbols.some(x => isFundLabel(r.names[x])) ? { ...out, text: `${out.text}\n${FUND_NOTE}` } : out
+}
+
+// Phase 2 history fast path: "monthly returns for NVDA in 2024", "NVDA weekly closes over the last 10 weeks",
+// "compare AAPL and MSFT weekly over the last year". A comparison needs a WINDOW, so a bare "compare nvda with amd" is
+// never claimed here (the model / the Compare panel keep it).
+const HSYM = '(\\$?[A-Za-z][A-Za-z0-9.]{0,5})'     // the ticker word, as SYM below (declared before it: these run first)
+const WIN = '((?:in|for|during) \\d{4}|since \\d{4}|this year|so far this year|year to date|ytd|(?:over |for |in )?(?:the )?(?:last|past) (?:\\d{1,3} )?(?:weeks?|months?|years?))'
+const PERIOD_WORDS = '(weekly|monthly) (?:returns?|performance|closes?|closing prices|changes?|bars|candles|moves?)'
+const PERIODS_A = new RegExp(`^(?:show(?: me)? |give me |what (?:are|were) )?(?:the )?${HSYM}(?:'s)? ${PERIOD_WORDS}(?: ${WIN})?$`, 'i')
+const PERIODS_B = new RegExp(`^(?:show(?: me)? |give me |what (?:are|were) )?(?:the )?${PERIOD_WORDS} (?:for|of|on) ${HSYM}(?: ${WIN})?$`, 'i')
+const COMPARE = new RegExp(`^(?:compare |how did |how have )?${HSYM}(?:,|,? (?:and|with|vs\\.?|versus|to|against)) ${HSYM}(?:,? (?:and|vs\\.?|versus) ${HSYM})?(?: (?:do|done|perform(?:ed)?))?( weekly| monthly)?(?: (?:relative )?(?:performance|returns?|change))?(?: ${WIN})$`, 'i')
+const NOT_TICKER = new Set(['the', 'and', 'with', 'how', 'show', 'me', 'it', 'its', 'my', 'stocks', 'weekly', 'monthly', 'compare'])
+function windowParams(tf, words) {
+  const w = periodWindow(words, tf, etToday())
+  if (w === undefined || w?.why) return null
+  if (!w) return { sessions: null, date: null, from: null }
+  return w.periods != null ? { sessions: w.periods, date: null, from: null } : { sessions: null, date: w.to, from: w.from }
+}
+function matchHistory(s) {
+  let m
+  const a = PERIODS_A.exec(s)
+  const b = a ? null : PERIODS_B.exec(s)
+  if (a || b) {
+    const sym = a ? a[1] : b[2]
+    const tf = (a ? a[2] : b[1]).toLowerCase() === 'monthly' ? 'M' : 'W'
+    const win = windowParams(tf, a ? a[3] : b[3])
+    if (!sym || NOT_TICKER.has(sym.toLowerCase()) || !win) return null
+    return { symbol: sym, measure: 'periods', ...win, timeframe: tf, symbols: [] }
+  }
+  if ((m = COMPARE.exec(s))) {
+    const syms = [m[1], m[2], m[3]].filter(Boolean)
+    if (syms.some(x => NOT_TICKER.has(x.toLowerCase()))) return null
+    const tfWord = (m[4] || '').trim().toLowerCase()
+    // no timeframe word: weekly up to a year, monthly beyond it
+    const long = /\bsince \d{4}\b|\b(?:[2-9]|\d{2,3}) years\b/i.test(m[5])
+    const tf = tfWord === 'monthly' ? 'M' : tfWord === 'weekly' ? 'W' : (long ? 'M' : 'W')
+    const win = windowParams(tf, m[5])
+    if (!win) return null
+    return { symbol: syms[0], measure: 'compare', ...win, timeframe: tf, symbols: syms.slice(1) }
+  }
+  return null
+}
+
 // W2-B2 shapes the shared intent parser does not claim: "how far is X off its high", "X pullbacks", "X range over the
 // last N sessions" (the parser reads the last as an N-session CHANGE; a range word decides here first)
 const SYM = '(\\$?[A-Za-z][A-Za-z0-9.]{0,5})'
@@ -344,7 +432,7 @@ function matchW2(text) {
   if ((m = OFF_HIGH.exec(s))) return { symbol: m[1], measure: 'offHigh', sessions: null, date: null, from: null }
   if ((m = PULLBACKS.exec(s))) return { symbol: m[1] || m[2] || m[3], measure: 'pullbacks', sessions: null, date: null, from: null }
   if ((m = RANGE_N.exec(s))) { const n = Number(m[2]); return n >= 1 && n <= MAX_CHANGE_SESSIONS ? { symbol: m[1], measure: 'range', sessions: n, date: null, from: null } : null }
-  return null
+  return matchHistory(s)
 }
 
 /** Fast path: pure, fail-closed; the bars rows of MD-1-phrasings.md. */
@@ -370,13 +458,16 @@ export function registerBarsCapability() {
     name: CAPABILITY,
     surfaces: ['*'],
     target: 'market', query: true,
-    summary: 'Answer questions about ONE stock\'s COMPLETED daily sessions from UCT\'s daily bars: the close (latest, or on a date), one session\'s open/high/low/close, '
-      + 'the change over N sessions, the high and low of a window (a week, a month, N sessions, or dated), the 52-week range, the distance off its 52-week high, or its pullbacks — each as of a date when one is given. Use this (disposition apply, research null) '
-      + 'for "how did AAPL close yesterday", "NVDA close last Friday", "AAPL high on 2026-10-15", "TSLA range last week", "NVDA 5-day change". Never for today\'s price (stock.quote).',
-    hints: 'target = the ref of the stockData entry; symbol uppercase; measure = lastClose (the close, latest or on `date`) | session (open/high/low/close/volume of ONE day: "high on", "low on", "open on") '
-      + '| change (N sessions) | range (high and low over a window) | range52w | offHigh (below the 52-week high) | pullbacks; sessions = the N of an N-session change or range (weeks × 5), else null; '
-      + 'date = the member\'s date words exactly ("last friday", "yesterday", "oct 15", "2026-10-15", "last week", "last month") or null for the latest; from = a range\'s start words ("from X to Y": date = Y), else null. '
-      + '"close last Friday" → lastClose + date; "high on Oct 15" → session + date; "range last week" → range + date (sessions null: the week decides); "range over the last 10 sessions" → range + sessions 10.',
+    // turn.py MAX_SUMMARY / MAX_HINTS: the server CUTS a longer text on every request (capabilityTextLimits.test.js), so every
+    // rule lives inside the limits — the summary says what and when (and never for today's price), the hints say how
+    summary: 'ONE stock\'s COMPLETED sessions from UCT\'s bars, never today\'s price (stock.quote): a close, one session\'s OHLC, an N-session change, a window\'s high / low, the 52-week range, '
+      + 'distance off the 52-week high, pullbacks, weekly / monthly closes, or 2-3 stocks\' relative performance. '
+      + 'Use this (disposition apply, research null) for "NVDA close last Friday", "monthly returns for NVDA in 2024".',
+    hints: 'target = the stockData ref; symbol uppercase. measure = lastClose (the close, latest or on `date`) | session (ONE day\'s open/high/low/close/volume: "high on", "low on", "open on") | change (N sessions) '
+      + '| range (high and low of a window) | range52w | offHigh (below the 52-week high) | pullbacks | periods (weekly / monthly closes + changes) | compare (2-3 stocks; symbols = the others, else null). '
+      + 'sessions = the N of a change or range (weeks × 5), or N periods; else null. date = the member\'s date words exactly ("last friday", "yesterday", "oct 15", "2026-10-15", "last week", "last month"), '
+      + 'or a period window\'s ISO end; null = the latest. from = a range\'s start words ("from X to Y": date = Y) or a period window\'s ISO start, else null. timeframe = W | M for periods / compare, else null. '
+      + '"close last Friday" → lastClose + date; "high on Oct 15" → session + date; "range last week" → range + date (sessions null); "range over the last 10 sessions" → range + sessions 10.',
     args: {
       type: 'object',
       properties: {
@@ -385,12 +476,14 @@ export function registerBarsCapability() {
         sessions: { type: ['integer', 'null'] },
         date: { type: ['string', 'null'] },
         from: { type: ['string', 'null'] },
+        timeframe: { type: ['string', 'null'], enum: [...TIMEFRAMES, null] },
+        symbols: { type: ['array', 'null'], items: { type: 'string' } },
       },
-      required: ['symbol', 'measure', 'sessions', 'date', 'from'],
+      required: ['symbol', 'measure', 'sessions', 'date', 'from', 'timeframe', 'symbols'],
       additionalProperties: false,
     },
     // W2-B2 added `from`: every arg shape from before it (no `from` key) still validates, as `from: null`
-    absentAsNull: ['from'],
+    absentAsNull: ['from', 'timeframe', 'symbols'],
     fastWhole: true,
     fastCorrect: false,
     fast: ({ raw }) => { const m = match(raw); return m ? m.params : null },

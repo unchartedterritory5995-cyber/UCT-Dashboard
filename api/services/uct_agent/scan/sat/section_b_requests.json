@@ -1155,7 +1155,7 @@
     "domain": "indicator",
     "target": "indicatorEdits",
     "summary": "Add ONE indicator to ONE chart — exactly what the Indicator Library's Add to Chart does. Built-in indicators or the member's own saved ones; Undo removes it again.",
-    "hints": "target = the ref of that chart's indicatorEdits entry. defId = an id from indicatorCatalog (never invented, never a name). The SAME indicator on several charts = one indicator.add per chart named, same defId; if it isn't clear which charts, ask. Classic overlay averages (the legacy EMA/SMA rows) and Volume Profile are NOT added this way — say they live in Chart Settings. inputs = null for the indicator's defaults, else [{key, value}] with ONLY keys from that row's `settings` (\"a 20 EMA\" → movingAverage, [{key:\"period\",value:20},{key:\"maType\",value:\"ema\"}]; \"RSI 7\" → rsi, [{key:\"period\",value:7}]). Every number or type the member named goes in inputs — never drop one or add a default instead. A setting the row does not list: say it isn't available; never guess a key. A moving average named by its LENGTH only (\"the 9 and 20\", \"a 50 ma\"): EMA for 8, 9, 10, 20 and 21, SMA for 50 and above (the member's default — say which you used); any other length: ask EMA or SMA.",
+    "hints": "target = the ref of that chart's indicatorEdits entry. defId = an id from indicatorCatalog (never invented, never a name). The SAME indicator on several charts = one indicator.add per chart named, same defId; if it isn't clear which charts, ask. Classic overlay averages (the legacy EMA/SMA rows) are NOT added this way — say they live in Chart Settings. Volume Profile: volumeProfile.set. inputs = null for the indicator's defaults, else [{key, value}] with ONLY keys from that row's `settings` (\"a 20 EMA\" → movingAverage, [{key:\"period\",value:20},{key:\"maType\",value:\"ema\"}]; \"RSI 7\" → rsi, [{key:\"period\",value:7}]). Every number or type the member named goes in inputs — never drop one or add a default instead. A setting the row does not list: say it isn't available; never guess a key. A moving average named by its LENGTH only (\"the 9 and 20\", \"a 50 ma\"): EMA for 8, 9, 10, 20 and 21, SMA for 50 and above (the member's default — say which you used); any other length: ask EMA or SMA.",
     "args": {
      "type": "object",
      "properties": {
@@ -4404,7 +4404,7 @@
     "domain": "indicator",
     "target": "indicatorEdits",
     "summary": "Add ONE indicator to ONE chart — exactly what the Indicator Library's Add to Chart does. Built-in indicators or the member's own saved ones; Undo removes it again.",
-    "hints": "target = the ref of that chart's indicatorEdits entry. defId = an id from indicatorCatalog (never invented, never a name). The SAME indicator on several charts = one indicator.add per chart named, same defId; if it isn't clear which charts, ask. Classic overlay averages (the legacy EMA/SMA rows) and Volume Profile are NOT added this way — say they live in Chart Settings. inputs = null for the indicator's defaults, else [{key, value}] with ONLY keys from that row's `settings` (\"a 20 EMA\" → movingAverage, [{key:\"period\",value:20},{key:\"maType\",value:\"ema\"}]; \"RSI 7\" → rsi, [{key:\"period\",value:7}]). Every number or type the member named goes in inputs — never drop one or add a default instead. A setting the row does not list: say it isn't available; never guess a key. A moving average named by its LENGTH only (\"the 9 and 20\", \"a 50 ma\"): EMA for 8, 9, 10, 20 and 21, SMA for 50 and above (the member's default — say which you used); any other length: ask EMA or SMA.",
+    "hints": "target = the ref of that chart's indicatorEdits entry. defId = an id from indicatorCatalog (never invented, never a name). The SAME indicator on several charts = one indicator.add per chart named, same defId; if it isn't clear which charts, ask. Classic overlay averages (the legacy EMA/SMA rows) are NOT added this way — say they live in Chart Settings. Volume Profile: volumeProfile.set. inputs = null for the indicator's defaults, else [{key, value}] with ONLY keys from that row's `settings` (\"a 20 EMA\" → movingAverage, [{key:\"period\",value:20},{key:\"maType\",value:\"ema\"}]; \"RSI 7\" → rsi, [{key:\"period\",value:7}]). Every number or type the member named goes in inputs — never drop one or add a default instead. A setting the row does not list: say it isn't available; never guess a key. A moving average named by its LENGTH only (\"the 9 and 20\", \"a 50 ma\"): EMA for 8, 9, 10, 20 and 21, SMA for 50 and above (the member's default — say which you used); any other length: ask EMA or SMA.",
     "args": {
      "type": "object",
      "properties": {
@@ -8143,7 +8143,7 @@
     "domain": "indicator",
     "target": "indicatorEdits",
     "summary": "Add ONE indicator to ONE chart — exactly what the Indicator Library's Add to Chart does. Built-in indicators or the member's own saved ones; Undo removes it again.",
-    "hints": "target = the ref of that chart's indicatorEdits entry. defId = an id from indicatorCatalog (never invented, never a name). The SAME indicator on several charts = one indicator.add per chart named, same defId; if it isn't clear which charts, ask. Classic overlay averages (the legacy EMA/SMA rows) and Volume Profile are NOT added this way — say they live in Chart Settings. inputs = null for the indicator's defaults, else [{key, value}] with ONLY keys from that row's `settings` (\"a 20 EMA\" → movingAverage, [{key:\"period\",value:20},{key:\"maType\",value:\"ema\"}]; \"RSI 7\" → rsi, [{key:\"period\",value:7}]). Every number or type the member named goes in inputs — never drop one or add a default instead. A setting the row does not list: say it isn't available; never guess a key. A moving average named by its LENGTH only (\"the 9 and 20\", \"a 50 ma\"): EMA for 8, 9, 10, 20 and 21, SMA for 50 and above (the member's default — say which you used); any other length: ask EMA or SMA.",
+    "hints": "target = the ref of that chart's indicatorEdits entry. defId = an id from indicatorCatalog (never invented, never a name). The SAME indicator on several charts = one indicator.add per chart named, same defId; if it isn't clear which charts, ask. Classic overlay averages (the legacy EMA/SMA rows) are NOT added this way — say they live in Chart Settings. Volume Profile: volumeProfile.set. inputs = null for the indicator's defaults, else [{key, value}] with ONLY keys from that row's `settings` (\"a 20 EMA\" → movingAverage, [{key:\"period\",value:20},{key:\"maType\",value:\"ema\"}]; \"RSI 7\" → rsi, [{key:\"period\",value:7}]). Every number or type the member named goes in inputs — never drop one or add a default instead. A setting the row does not list: say it isn't available; never guess a key. A moving average named by its LENGTH only (\"the 9 and 20\", \"a 50 ma\"): EMA for 8, 9, 10, 20 and 21, SMA for 50 and above (the member's default — say which you used); any other length: ask EMA or SMA.",
     "args": {
      "type": "object",
      "properties": {
@@ -8877,7 +8877,7 @@
     "domain": "indicator",
     "target": "indicatorEdits",
     "summary": "Add ONE indicator to ONE chart — exactly what the Indicator Library's Add to Chart does. Built-in indicators or the member's own saved ones; Undo removes it again.",
-    "hints": "target = the ref of that chart's indicatorEdits entry. defId = an id from indicatorCatalog (never invented, never a name). The SAME indicator on several charts = one indicator.add per chart named, same defId; if it isn't clear which charts, ask. Classic overlay averages (the legacy EMA/SMA rows) and Volume Profile are NOT added this way — say they live in Chart Settings. inputs = null for the indicator's defaults, else [{key, value}] with ONLY keys from that row's `settings` (\"a 20 EMA\" → movingAverage, [{key:\"period\",value:20},{key:\"maType\",value:\"ema\"}]; \"RSI 7\" → rsi, [{key:\"period\",value:7}]). Every number or type the member named goes in inputs — never drop one or add a default instead. A setting the row does not list: say it isn't available; never guess a key. A moving average named by its LENGTH only (\"the 9 and 20\", \"a 50 ma\"): EMA for 8, 9, 10, 20 and 21, SMA for 50 and above (the member's default — say which you used); any other length: ask EMA or SMA.",
+    "hints": "target = the ref of that chart's indicatorEdits entry. defId = an id from indicatorCatalog (never invented, never a name). The SAME indicator on several charts = one indicator.add per chart named, same defId; if it isn't clear which charts, ask. Classic overlay averages (the legacy EMA/SMA rows) are NOT added this way — say they live in Chart Settings. Volume Profile: volumeProfile.set. inputs = null for the indicator's defaults, else [{key, value}] with ONLY keys from that row's `settings` (\"a 20 EMA\" → movingAverage, [{key:\"period\",value:20},{key:\"maType\",value:\"ema\"}]; \"RSI 7\" → rsi, [{key:\"period\",value:7}]). Every number or type the member named goes in inputs — never drop one or add a default instead. A setting the row does not list: say it isn't available; never guess a key. A moving average named by its LENGTH only (\"the 9 and 20\", \"a 50 ma\"): EMA for 8, 9, 10, 20 and 21, SMA for 50 and above (the member's default — say which you used); any other length: ask EMA or SMA.",
     "args": {
      "type": "object",
      "properties": {
@@ -10452,7 +10452,7 @@
     "domain": "indicator",
     "target": "indicatorEdits",
     "summary": "Add ONE indicator to ONE chart — exactly what the Indicator Library's Add to Chart does. Built-in indicators or the member's own saved ones; Undo removes it again.",
-    "hints": "target = the ref of that chart's indicatorEdits entry. defId = an id from indicatorCatalog (never invented, never a name). The SAME indicator on several charts = one indicator.add per chart named, same defId; if it isn't clear which charts, ask. Classic overlay averages (the legacy EMA/SMA rows) and Volume Profile are NOT added this way — say they live in Chart Settings. inputs = null for the indicator's defaults, else [{key, value}] with ONLY keys from that row's `settings` (\"a 20 EMA\" → movingAverage, [{key:\"period\",value:20},{key:\"maType\",value:\"ema\"}]; \"RSI 7\" → rsi, [{key:\"period\",value:7}]). Every number or type the member named goes in inputs — never drop one or add a default instead. A setting the row does not list: say it isn't available; never guess a key. A moving average named by its LENGTH only (\"the 9 and 20\", \"a 50 ma\"): EMA for 8, 9, 10, 20 and 21, SMA for 50 and above (the member's default — say which you used); any other length: ask EMA or SMA.",
+    "hints": "target = the ref of that chart's indicatorEdits entry. defId = an id from indicatorCatalog (never invented, never a name). The SAME indicator on several charts = one indicator.add per chart named, same defId; if it isn't clear which charts, ask. Classic overlay averages (the legacy EMA/SMA rows) are NOT added this way — say they live in Chart Settings. Volume Profile: volumeProfile.set. inputs = null for the indicator's defaults, else [{key, value}] with ONLY keys from that row's `settings` (\"a 20 EMA\" → movingAverage, [{key:\"period\",value:20},{key:\"maType\",value:\"ema\"}]; \"RSI 7\" → rsi, [{key:\"period\",value:7}]). Every number or type the member named goes in inputs — never drop one or add a default instead. A setting the row does not list: say it isn't available; never guess a key. A moving average named by its LENGTH only (\"the 9 and 20\", \"a 50 ma\"): EMA for 8, 9, 10, 20 and 21, SMA for 50 and above (the member's default — say which you used); any other length: ask EMA or SMA.",
     "args": {
      "type": "object",
      "properties": {
@@ -11231,6 +11231,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -11313,6 +11317,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -11599,6 +11607,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -11681,6 +11693,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -11965,6 +11981,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -12047,6 +12067,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -12337,6 +12361,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -12419,6 +12447,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -12702,6 +12734,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -12784,6 +12820,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -13068,6 +13108,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -13150,6 +13194,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -13434,6 +13482,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -13516,6 +13568,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -14067,6 +14123,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -14149,6 +14209,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -14434,6 +14498,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -14516,6 +14584,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -14799,6 +14871,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -14881,6 +14957,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -15425,6 +15505,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -15507,6 +15591,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -15791,6 +15879,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -15873,6 +15965,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -16424,6 +16520,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -16506,6 +16606,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -17051,6 +17155,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -17133,6 +17241,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -17678,6 +17790,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -17760,6 +17876,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -18044,6 +18164,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -18126,6 +18250,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -18677,6 +18805,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -18759,6 +18891,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -19043,6 +19179,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -19125,6 +19265,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -19415,6 +19559,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -19497,6 +19645,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -19787,6 +19939,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -19869,6 +20025,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -20159,6 +20319,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -20241,6 +20405,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -20525,6 +20693,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -20607,6 +20779,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -20891,6 +21067,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -20973,6 +21153,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -21256,6 +21440,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -21338,6 +21526,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -21622,6 +21814,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -21704,6 +21900,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -22248,6 +22448,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -22330,6 +22534,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -22876,6 +23084,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -22958,6 +23170,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -23503,6 +23719,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -23585,6 +23805,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -24130,6 +24354,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -24212,6 +24440,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -24495,6 +24727,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -24577,6 +24813,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [

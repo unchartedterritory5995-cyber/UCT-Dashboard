@@ -2100,6 +2100,35 @@ def _rs_tool_entries() -> dict:
 _TOOLS_UNGATED.update(_rs_tool_entries())
 
 
+# ── The five RS screens as lists (RS screens unit U11) — chat AND voice, DARK ──
+#
+# ONE implementation (api/services/rs_screens_service.py: each list is the screen's own
+# starter spec run through the scan); the voice twins are registered in
+# voice_tool_impls.py and chat reaches them THROUGH the voice registry
+# (`_voice_delegate`, which hands the member's id on as the user), so the two surfaces
+# can never diverge. THREE GATES, read PER CALL by the registry below and again by voice
+# dispatch: RS_COMPASS_TOOLS_ENABLED, the two tools' own RS_SCREEN_TOOLS_ENABLED, AND the
+# RS screens being on (voice_tool_impls._rs_screens_gate). The descriptions and schemas are built by the
+# service from the screens' own definitions.
+
+def _rs_screens_enabled() -> bool:
+    from api.services import voice_tool_impls as _vti
+    return _vti._rs_screens_gate()
+
+
+def _rs_screen_tool_entries() -> dict:
+    from api.services import rs_screens_service as _rs_sc
+    return {
+        "rs_screen": _rs_tool_entry("rs_screen", _rs_sc.screen_description(),
+                                    _rs_sc.screen_parameters(), ["screen"]),
+        "rs_screen_check": _rs_tool_entry("rs_screen_check", _rs_sc.check_description(),
+                                          _rs_sc.CHECK_PARAMETERS, ["ticker"]),
+    }
+
+
+_TOOLS_UNGATED.update(_rs_screen_tool_entries())
+
+
 class _GatedToolRegistry(dict):
     """TOOLS, with some entries visible only while their gate is ON — checked
     on EVERY access, so a flip changes what the next request sees with no
@@ -2171,4 +2200,6 @@ TOOLS = _GatedToolRegistry(_TOOLS_UNGATED, {"search_my_notes": notes_tool_enable
                                              "trader_archive_setup": _archive_tool_enabled,
                                              "trader_archive_rhymes": _archive_tool_enabled,
                                              "get_rs_reading": _rs_tools_enabled,
-                                             "explain_rs": _rs_tools_enabled})
+                                             "explain_rs": _rs_tools_enabled,
+                                             "rs_screen": _rs_screens_enabled,
+                                             "rs_screen_check": _rs_screens_enabled})

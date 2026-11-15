@@ -158,6 +158,25 @@ def pending_deals_internal(authorization: Optional[str] = Header(None)):
             "as_of": _today()}
 
 
+@router.post("/catalysts/pc-confirmed-deals-internal")
+def pc_confirmed_deals_internal(payload: dict = Body(...),
+                                authorization: Optional[str] = Header(None)):
+    """Server-to-server: the PC buyout sweep's WHOLE confirmed-target set, pushed after each
+    run (`scripts/buyout_sweep.py`, uct-intelligence). Replaces the stored set, so a name
+    `--unconfirm`ed on the PC leaves here on the next push. `deal_status.mirror_list` reads
+    it, so every consumer of the pending set (the screener's scan-time gate, the charts, the
+    grades) leaves these names out. PUSH_SECRET bearer, like the GET above."""
+    secret = os.environ.get("PUSH_SECRET", "")
+    if not secret or authorization != f"Bearer {secret}":
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    from api.services import deal_status
+    try:
+        return {"ok": True, **deal_status.store_pc_confirmed(payload.get("symbols"),
+                                                             payload.get("as_of"))}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
 @router.get("/catalysts/by-date/{ymd}")
 def catalysts_by_date(ymd: str = Path(...), user=Depends(get_current_user)):
     if not _DATE_RE.match(ymd):

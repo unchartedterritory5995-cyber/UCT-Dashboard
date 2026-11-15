@@ -36,6 +36,18 @@ PUSH time, without waiting for the master deploy gate, so any session could rest
 
 Do NOT re-enable auto deploy. If you believe it must change, that is the owner's call.
 
+⛔ **"No deployment trigger" IS THE INTENDED STATE, NOT A BUG.** Railway's API shows flow-worker
+with `repoTriggers = 0` (and the worker too, see `worker-deploys.md`) because auto deploy is off:
+the dashboard reads **Settings → Source → Branch connected to production: master → "Auto deploy is
+disabled"**, with an Enable button. A service that "silently stopped deploying" after 2026-11-12
+is doing what the owner decided.
+⚰️ 2026-11-15 02:40 UTC: a session read the missing trigger as a fault, recreated it through the
+API (`deploymentTriggerCreate`, `github@master`) and forced a catch-up build (PR #1293). The build
+itself was fine (a weekend, no tape), but the trigger turned auto deploy back ON: a master push at
+03:16 UTC was already being evaluated against flow-worker's watch paths. Disabled again in the
+dashboard at 03:22 UTC on the owner's instruction. To ship flow-worker code, deploy by hand (above);
+never add a trigger.
+
 ## Signals that flow.db is damaged
 
 - `[massive-ws] DB write failed: database disk image is malformed` (live tape not saved)

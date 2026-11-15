@@ -515,6 +515,80 @@ def _pending_reinstall_token(data_dir: str) -> str:
     return tok
 
 
+_SWAP_AT_BOOT = ".swap_at_boot"         # inside adopt_<ts>/: finish this swap at boot
+_PENDING_PAIRS = ".pending_pairs.json"   # the series to re-carry first
+
+
+def _write_json_atomic(path: str, obj) -> None:
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(obj, f)
+    os.replace(tmp, path)
+
+
+def complete_deferred_swap(data_dir: Optional[str] = None) -> str:
+    """Finish an adoption swap deferred by `adopt_clustered_store(defer_swap=...)`.
+
+    Call at boot BEFORE anything in the process opens bars.db: with no other connection,
+    the old store's TRUNCATE checkpoint cannot be blocked by a reader. Re-carries the saved
+    series (newer-wins, idempotent), checkpoints, renames, writes the markers. Returns
+    "none" | "adopted" | "failed" (the marker is then removed so a boot never loops; the
+    verified copy stays and the ordinary adoption resumes from it)."""
+    data_dir = data_dir or _DATA_DIR
+    p = os.path.join(data_dir, "bars.db")
+    try:
+        names = sorted(os.listdir(data_dir))
+    except OSError:
+        return "none"
+    for name in names:
+        tmpdir = os.path.join(data_dir, name)
+        marker = os.path.join(tmpdir, _SWAP_AT_BOOT)
+        if not name.startswith("adopt_") or not os.path.exists(marker):
+            continue
+        new = os.path.join(tmpdir, "bars.db")
+        try:
+            with open(marker) as f:
+                ts = f.readline().strip()
+            if not (os.path.exists(new) and os.path.exists(p)):
+                raise RuntimeError("a store is missing")
+            pairs = []
+            try:
+                with open(os.path.join(tmpdir, _PENDING_PAIRS)) as f:
+                    pairs = [tuple(x) for x in json.load(f)]
+            except FileNotFoundError:
+                pass
+            carried = max(0, _merge_ohlcv_from(p, new, pairs=pairs)) if pairs else 0
+            if not _truncate_checkpoint(p, 60):
+                raise RuntimeError("old store busy at boot")
+            _truncate_checkpoint(new, 30)
+            n_new = _row_count(new)
+            os.replace(new, p)
+        except Exception as e:  # noqa: BLE001 -- the old store is untouched
+            logger.warning(f"[data_sync] adopt-clustered: boot swap failed; store kept: {e}")
+            try:
+                os.remove(marker)
+            except OSError:
+                pass
+            return "failed"
+        _write_marker_at(data_dir, _ADOPTED_MARKER, ts)
+        _write_marker_at(data_dir, _LAST_SYNC_MARKER, ts)
+        try:
+            os.remove(os.path.join(data_dir, _LAST_DELTA_MARKER))
+        except FileNotFoundError:
+            pass
+        shutil.rmtree(tmpdir, ignore_errors=True)
+        try:
+            from api.services import bars_sqlite
+            bars_sqlite.bump_db_epoch()
+            bars_sqlite.bump_store_floor("adopted clustered store (boot swap)")
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"[data_sync] adopt-clustered: floor bump after boot swap: {e}")
+        logger.info(f"[data_sync] adopt-clustered: installed clustered snapshot {ts} at boot "
+                    f"({n_new} rows; {carried} rows re-carried)")
+        return "adopted"
+    return "none"
+
+
 def _adopt_dir_for(ts: str) -> str:
     return f"adopt_{ts}"
 
@@ -642,18 +716,23 @@ def _write_marker_at(data_dir: str, filename: str, ts: str) -> None:
         f.write(f"{ts}\n{int(time.time())}\n")
 
 
-def adopt_clustered_store(data_dir: Optional[str] = None) -> str:
+def adopt_clustered_store(data_dir: Optional[str] = None, defer_swap=None) -> str:
     """Public entry: see `_adopt_clustered_store_locked`. Returns "busy" while another
-    call in this process is adopting."""
+    call in this process is adopting.
+
+    `defer_swap`: called (still holding the write lock) when the old store stays busy past
+    the checkpoint budget. It must END THE PROCESS (the worker passes `os._exit`): the
+    remaining series are saved and `complete_deferred_swap` finishes the swap at the next
+    boot, before anything opens bars.db. If it returns, the deferral is withdrawn."""
     if not _ADOPT_RUN_LOCK.acquire(blocking=False):
         return "busy"
     try:
-        return _adopt_clustered_store_locked(data_dir)
+        return _adopt_clustered_store_locked(data_dir, defer_swap)
     finally:
         _ADOPT_RUN_LOCK.release()
 
 
-def _adopt_clustered_store_locked(data_dir: Optional[str] = None) -> str:
+def _adopt_clustered_store_locked(data_dir: Optional[str] = None, defer_swap=None) -> str:
     """⭐ HOW A SERVING POD ADOPTS THE CLUSTERED LAYOUT (bars_cluster module doc).
 
     Runs only with `BARS_ADOPT_CLUSTERED=1`, ONCE (marker), on a pod whose store is still
@@ -805,7 +884,21 @@ def _adopt_clustered_store_locked(data_dir: Optional[str] = None) -> str:
                 carried += max(0, _merge_ohlcv_from(
                     p, new, pairs=changed, deadline=t_lock + ADOPT_LOCKED_BUDGET_S))
             if not _truncate_checkpoint(p, ADOPT_CHECKPOINT_BUDGET_S):
-                raise RuntimeError("old store busy; could not checkpoint before the swap")
+                if defer_swap is None:
+                    raise RuntimeError("old store busy; could not checkpoint before the swap")
+                # Writers are paused (we hold the lock) and stay paused until the process
+                # ends: `changed` is everything not yet in the copy's newest state.
+                _write_json_atomic(os.path.join(tmpdir, _PENDING_PAIRS), changed)
+                _write_marker_at(tmpdir, _SWAP_AT_BOOT, ts)
+                keep_work = True
+                logger.warning(f"[data_sync] adopt-clustered: old store busy; the swap of {ts} "
+                               f"finishes at the next boot ({len(changed)} series pending)")
+                defer_swap()
+                # It returned: the process lives on and writers resume untracked, so a boot
+                # swap would lose their rows. Withdraw it; the verified copy still resumes.
+                os.remove(os.path.join(tmpdir, _SWAP_AT_BOOT))
+                raise RuntimeError("old store busy; deferred swap withdrawn")
+            _truncate_checkpoint(new, 30)          # the copy's own WAL, if any, into the file
             bars_sqlite._drop_local_conn()
             os.replace(new, p)
             bars_sqlite.bump_db_epoch()
