@@ -30900,8 +30900,13 @@ export function isPreV4PineVersion(version) {
  *  transparency at all (opaque). An explicit `transp = N` draws N exactly (a v2
  *  Bollinger band's `transp = 0`: `#008080ff`); `barcolor` draws 0; v4+ plots draw
  *  0 (unchanged).
- *  ⛔ NOT WITNESSED, so withheld by name (`COLOUR_DEFAULT_UNWITNESSED`): the
- *  default over a colour that carries its own alpha. */
+ *  ⭐ AND IT IS A STYLE TRANSPARENCY, FOLDED INTO AN OPAQUE COLOUR ONLY (the
+ *  vendor's own rule, `compare.mjs::withStyleTransparency`): a colour that carries
+ *  its own alpha keeps it. Witnessed at v3 by the S4 capture
+ *  `accumulationdistribution-volume-adv-ci8dh` (`color = adr >= 0 ? #65D25B66 :
+ *  #FE6B6966`, styleState transparency 35, drawn at `66`).
+ *  ⛔ NOT WITNESSED, so withheld by name (`COLOUR_DEFAULT_UNWITNESSED`): a gradient
+ *  (a v5+ form in any case). */
 export const LEGACY_PLOT_DEFAULT_TRANSP = 35
 const LEGACY_DEFAULT_KINDS = Object.freeze(new Set(['plot', 'plotshape', 'plotchar']))
 
@@ -31850,26 +31855,37 @@ function themePlotColourOf(node, env, ctx, depth = 0) {
  *
  *  ⛔ A colour the door cannot read (`colorDynamic`) is left to its own withhold.
  *  ⭐ Every plot style takes it (S1 probed `columns` and `stepline`: 35).
- *  ⛔ What has no capture is never guessed: the default over a colour with its own
- *  alpha (a `#RRGGBBAA` literal, a helper transparency, a rule whose leaves carry
- *  one, a gradient). */
+ *  ⭐ OPAQUE COLOURS ONLY: a colour with its own alpha (a `#RRGGBBAA` literal, a
+ *  helper transparency) keeps it; a rule whose leaves mix the two takes 35 on its
+ *  opaque leaves only, baked per leaf. ⛔ A gradient is withheld by name. */
 function legacyPlotDefault(pres) {
   if (pres.colorDynamic) return
-  const unwitnessed = (why) => {
-    pres.colorWithheld = { code: COLOUR_DEFAULT_UNWITNESSED, reason: `${why}: the transparency TradingView gives it with no \`transp\` is not captured for a v1-v3 script` }
+  if (pres.colorGradient) {
+    pres.colorWithheld = { code: COLOUR_DEFAULT_UNWITNESSED, reason: 'its colour is a gradient: the transparency TradingView gives it with no `transp` is not captured for a v1-v3 script' }
+    return
   }
-  const ownAlpha = (h) => typeof h === 'string' && /^#[0-9a-f]{6}([0-9a-f]{2})$/i.test(h)
-    && !/ff$/i.test(h)
-  if (Number.isFinite(pres.opacity)) return unwitnessed('its colour carries its own transparency')
-  if (ownAlpha(pres.color) || ownAlpha(pres.colorUp) || ownAlpha(pres.colorDown)) {
-    return unwitnessed('its colour carries its own transparency')
+  const opaqueHex = (h) => typeof h === 'string' && /^#[0-9a-f]{6}(ff)?$/i.test(h)
+  const a35 = styleTransparencyOpacity(LEGACY_PLOT_DEFAULT_TRANSP)
+  const setAll = () => {
+    pres.opacity = a35
+    stampTransparency(pres, LEGACY_PLOT_DEFAULT_TRANSP, 'default')
   }
-  if (Array.isArray(pres.colorPalette) && pres.colorPalette.some((e) => e !== TRANSPARENT_PALETTE_ENTRY && ownAlpha(e))) {
-    return unwitnessed('one of its colours carries its own transparency')
+  // a colour (or rule) that already carries ONE own transparency keeps it
+  if (Number.isFinite(pres.opacity)) return
+  const rule = typeof pres.colorUp === 'string' || Array.isArray(pres.colorPalette)
+  if (!rule) {
+    if (typeof pres.color === 'string' && !opaqueHex(pres.color)) return
+    return setAll()
   }
-  if (pres.colorGradient) return unwitnessed('its colour is a gradient')
-  pres.opacity = styleTransparencyOpacity(LEGACY_PLOT_DEFAULT_TRANSP)
-  stampTransparency(pres, LEGACY_PLOT_DEFAULT_TRANSP, 'default')
+  const leaves = [pres.colorUp, pres.colorDown, ...(pres.colorPalette || [])]
+    .filter((h) => typeof h === 'string' && h !== TRANSPARENT_PALETTE_ENTRY)
+  if (leaves.every(opaqueHex)) return setAll()
+  const bake = (h) => (opaqueHex(h) ? (paletteEntryWithAlpha(h.slice(0, 7), a35) || h) : h)
+  if (typeof pres.colorUp === 'string') {
+    pres.colorUp = bake(pres.colorUp)
+    pres.colorDown = bake(pres.colorDown)
+  }
+  if (Array.isArray(pres.colorPalette)) pres.colorPalette = pres.colorPalette.map((e) => (e === TRANSPARENT_PALETTE_ENTRY ? e : bake(e)))
 }
 
 /** `indicator(..., overlay = true)` — the author's own statement about WHICH

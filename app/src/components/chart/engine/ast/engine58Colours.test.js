@@ -8,7 +8,7 @@
 // derived from a script written in this repo's own words. The captures named are
 // licence-held (sessions S2-S6, 2026-11-13/14); only their numbers appear here.
 // See docs/pine/evidence/2026-11-14-engine58-colours/EVIDENCE.md.
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { translatePine, COLOUR_UNREAD, COLOUR_DEFAULT_UNWITNESSED, colourHexByName } from './pine.js'
@@ -121,13 +121,24 @@ describe('C2 — a v1-v3 series output with no `transp` draws at 35 (alpha a6), 
     expect(p.colorWithheld.code).toBe(COLOUR_UNREAD)
   })
 
-  it('⛔ an own-alpha colour under the default has no capture: withheld by name', () => {
-    const p = presOf('//@version=3\nstudy("t")\nplot(close, color=#FF000080)\n')
-    expect(p.colorWithheld.code).toBe(COLOUR_DEFAULT_UNWITNESSED)
+  it('the default folds into an OPAQUE colour only: an own-alpha colour keeps its alpha (S4 acc/dist volume, v3)', () => {
+    // the capture's form: `color=(adr >= 0 ? #65D25B66 : #FE6B6966), style=columns`, drawn at 66
+    const p = presOf('//@version=3\nstudy("t")\nplot(volume, color=(close >= open ? #65D25B66 : #FE6B6966), style=columns)\n')
+    expect(p.colorWithheld).toBeUndefined()
+    expect(p.colorUp.toLowerCase()).toBe('#65d25b66')
+    expect(p.colorDown.toLowerCase()).toBe('#fe6b6966')
     expect(p.opacity).toBeUndefined()
+    // …the same plot's opaque twin (`#65D25BFF`) takes 35
+    expect(presOf('//@version=3\nstudy("t")\nplot(volume, color=(close >= open ? #65D25BFF : #FE6B69FF), style=columns)\n').opacity).toBe(0.65)
+    // a flat own-alpha literal keeps its alpha
     const d = door('//@version=3\nstudy("t")\nplot(close, color=#FF000080)\n')
-    expect(d.plots[0].colour).toBe(COLOUR_NONE)
-    expect(d.plots[0].colorWithheld.code).toBe(COLOUR_DEFAULT_UNWITNESSED)
+    expect(d.plots[0].colour.toLowerCase()).toBe('#ff000080')
+    expect(d.plots[0].colorWithheld).toBeNull()
+    // a mixed rule: 35 on its opaque leaf only
+    const m = presOf('//@version=3\nstudy("t")\nplot(close, color=close > open ? red : #00FF0080)\n')
+    expect(m.colorUp.toLowerCase()).toBe('#ff0000a6')
+    expect(m.colorDown.toLowerCase()).toBe('#00ff0080')
+    expect(m.opacity).toBeUndefined()
   })
 
   // ⭐⭐ THE S1 PROBES (committed): `vw-cs1-transp-v{1,2,3}` and their defaults, read
@@ -329,6 +340,14 @@ describe('the rail: no document plot resolves to the sheet gold unless the autho
   }
   it.each(Object.entries(SOURCES))('%s', (_k, src) => {
     for (const p of door(src).plots) expect(GOLD.test(String(p.colour)), `${p.key} ${p.colour}`).toBe(false)
+  })
+  it('the anchor row of an objects-only document (never drawn) has no colour, not the gold', () => {
+    vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
+    try {
+      const d = door('//@version=5\nindicator("t", overlay=true)\nif barstate.islast\n    label.new(bar_index, high, "x")\n')
+      expect(d.plots.length).toBeGreaterThan(0)
+      for (const p of d.plots) expect(GOLD.test(String(p.colour)), `${p.key} ${p.colour}`).toBe(false)
+    } finally { vi.unstubAllEnvs() }
   })
   it('control: an author who writes the gold gets the gold', () => {
     expect(door('//@version=5\nindicator("t")\nplot(close, color = #c9a84c)\n').plots[0].colour).toBe('#c9a84c')

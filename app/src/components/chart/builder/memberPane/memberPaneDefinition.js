@@ -790,6 +790,8 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     key: 'value',
     label: '',
     source: '0',
+    // ⭐ ENGINE 58 — a row that is never drawn has no colour: none, never the gold.
+    color: COLOUR_NONE,
     ast: Object.freeze({ type: 'num', value: 0 }),
     // ⛔⛔ THE STRING FROM `REPAINT_MODES`, NOT AN OLD VOCABULARY.
     // `worstRepaint([anchor.mode])` — the pipeline that stamps `meta.repaint` —
@@ -2004,7 +2006,7 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   if (!rows.length) {
     rows.push({
       key: 'value', label: '', source: '0', ast: { type: 'num', value: 0 }, mode: repaint.mode,
-      readback: '', style: 'line', hidden: true,
+      readback: '', style: 'line', hidden: true, color: COLOUR_NONE,
     })
   }
   // ⭐⭐ UIE PHASE 2 (M4) — THE SCRIPT'S OWN SETTINGS, as ordinary `defSchema` inputs
