@@ -333,7 +333,8 @@ export function homograph(e, words) {
 const NEG = /\b(?:no|not|nothing|none|never|without|neither|nor|don['’]?t|dont|doesn['’]?t|didn['’]?t|won['’]?t|can['’]?t|cannot|shouldn['’]?t|mustn['’]?t)\b|n['’]t\b/i
 // destroy verbs the member uses for their own things (beyond DESTROY): "drop TSLA from Momentum", "take TSLA off the list",
 // "empty the watchlist", "unflag", "close the news tab" — each only with an EXISTING object of the right class after it
-const MORE_DESTROY = String.raw`retire\w*|prune\w*|trim\w*|ditch\w*|scrap\w*|purge\w*|axe|axed|drop|drops|dropped|dropping|take (?:\S+ ){0,3}?(?:off|out|away|down)|empty|emptied|unflag\w*|close|closes|closing`
+// (#1263) "cancel the RSI alert": cancel is how a member deletes an alert
+const MORE_DESTROY = String.raw`cancel\w*|retire\w*|prune\w*|trim\w*|ditch\w*|scrap\w*|purge\w*|axe|axed|drop|drops|dropped|dropping|take (?:\S+ ){0,3}?(?:off|out|away|down)|empty|emptied|unflag\w*|close|closes|closing`
 // modify verbs (beyond MODIFY): hide / show a part, drag an anchor, flatten, call it something, thicken
 const MORE_MODIFY = String.raw`stretch\w*|extend\w*|shrink\w*|lengthen\w*|shorten\w*|hide|hides|hid|hidden|unhide|drag|drags|dragged|flatten\w*|call|thick\w*|thin\w*|widen\w*|narrow\w*|darken\w*|lighten\w*|bold|italic\w*|move|nudge\w*|bump\w*|raise|lower`
 // what picks a widget's CONTENT (its list / scan): show, switch, open, load, go / take back to the picker, pick, exit, leave

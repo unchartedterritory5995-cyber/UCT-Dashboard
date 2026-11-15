@@ -54,7 +54,7 @@ describe('an EXISTING indicator alert is state: a delete is a destroy, licensed 
   it.each(ADDITIVE)('an additive (or permit-less) request never deletes an existing alert: "%s"', async (w) => {
     expect(stateRailRefusal(await planOf(DELETE_RSI_ALERT), { words: w })).toMatch(REFUSED)
   })
-  const EXPLICIT = ['delete the RSI alert', 'remove my rsi alert', 'Delete the alert', 'get rid of the alert', 'delete the alert on SPY', 'trash the alarm']
+  const EXPLICIT = ['delete the RSI alert', 'remove my rsi alert', 'Delete the alert', 'get rid of the alert', 'cancel the RSI alert', 'Cancel my alerts', 'delete the alert on SPY', 'trash the alarm']
   it.each(EXPLICIT)('its own words delete it: "%s"', async (w) => {
     expect(stateRailRefusal(await planOf(DELETE_RSI_ALERT), { words: w })).toBe(null)
   })
