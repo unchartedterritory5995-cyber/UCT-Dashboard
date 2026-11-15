@@ -73,6 +73,15 @@ let _browserHasCachedBars = false
 //
 // Intraday is untouched: its tail request already starts on the first render and races the
 // read for `_IDB_TAIL_WAIT_MS`. Per-browser switch: localStorage['uct.barsgrace.off'] = '1'.
+/**
+ * The intraday tail's first ask is the FULL window (not `since=`) when the series `since` was taken
+ * from is a STORED one (`storedLen` > 0) holding fewer than half the bars the load asks for (`want`),
+ * and no full answer has landed for this load yet (`fullDone`). See `_tailFetcher`.
+ */
+export function askFullForShortStore({ since, storedLen, want, fullDone }) {
+  return since != null && storedLen > 0 && storedLen < want / 2 && !fullDone
+}
+
 export const IDB_DWM_GRACE_MS = 50
 export const BARS_GRACE_OFF_KEY = 'uct.barsgrace.off'
 function _dwmGraceOff() {
@@ -312,6 +321,7 @@ export function useLegacyChartBars({
         // A mem base used for an in-flight `since=` is folded in too, so the delta the
         // server returns lands on a series that reaches the tail it was asked from.
         const _bars = _memBase?.length ? mergeDelta(entry.bars, _memBase) : entry.bars
+        idbBarsRef.current = _bars   // the mirror is current at once, as in the branch above (the tail fetcher reads it)
         setIdbBars(_bars)
         idbSinceRef.current = _bars[_bars.length - 1]?.t ?? entry.lastT ?? null
         idbRepairFromRef.current = (typeof entry.repairFromT === 'number') ? entry.repairFromT : null
@@ -624,7 +634,7 @@ export function useLegacyChartBars({
   const _tailReqRef = useRef(null)
   _tailReqRef.current = {
     key: `${sym}_${_barsTf}`, sym, tf: resolvedTf, ck: _barsTf, base: _primaryBase,
-    forceFull: _primaryForceFull, sinceFromIdb: _sinceFromIdbNow,
+    forceFull: _primaryForceFull, sinceFromIdb: _sinceFromIdbNow, want: _primaryBars,
   }
   const _tailFullDoneRef = useRef(null)
   const _tailFetcher = useCallback(async (k) => {
@@ -639,9 +649,11 @@ export function useLegacyChartBars({
     // A key that is no longer this chart's load never reaches the network.
     if (!req || _left()) throw _canceled()
     let since = null
+    let storedLen = 0   // bars in the STORED series `since` is taken from (0 = not from the store)
     if (!(req.forceFull && _tailFullDoneRef.current !== base)) {
       if (idbReadyForRef.current === req.key) {
         since = req.sinceFromIdb()
+        storedLen = idbBarsRef.current?.length || 0
       } else {
         // IDB for this key has not landed. Seed from the mem cache, else race the read.
         let seed = null
@@ -661,12 +673,30 @@ export function useLegacyChartBars({
         // ⛔ RE-CHECK AFTER THE AWAIT: on a fast A→B scan the A request must not fire,
         // and on A→B→A it must not overwrite the NEW A load's base with an older one.
         if (_left()) throw _canceled()
-        if (idbReadyForRef.current === req.key) since = req.sinceFromIdb()   // landed meanwhile
-        else if (seed) {
+        if (idbReadyForRef.current === req.key) {                              // landed meanwhile
+          since = req.sinceFromIdb()
+          storedLen = idbBarsRef.current?.length || 0
+        } else if (seed) {
           since = Math.max(0, (seed.rf != null ? Math.min(seed.rf, seed.t) : seed.t) - 1)
           _sinceBaseRef.current = { key: req.key, seq, bars: seed.bars }
         }
       }
+    }
+    // ⚡ A SHORT STORED SERIES GETS THE FULL WINDOW AT ONCE (2026-11-15). Measured on production
+    // (5-minute charts, S&P 100): 5 of 40 symbols had only 107-151 bars stored (the intraday
+    // pack seeds about a day and a half), the chart asked only for bars after them (`since=`), so
+    // a 200-bar average stayed blank until the deep-history step 0.9 s later filled it (drawn at
+    // +1,056 to +1,106 ms). When the series `since` comes from holds fewer than half the window
+    // this load asks for, the first ask is the FULL window (one request, the cold-open shape):
+    // the candles still paint at once from what is stored, and the full set lands ~0.1 s later.
+    // Once per load: after a full answer for this base (`_tailFullDoneRef`), polls ask `since=`.
+    // Only the series the IDB effect has taken FROM THE STORE counts (never a mem or race seed: a
+    // mem copy can be shallower than what IndexedDB holds), so a full answer only replaces
+    // something it is deeper than. (A read that lands inside the race lands through the IDB
+    // effect first: its `.then` is queued before the race's, so the branch above sees it.)
+    if (askFullForShortStore({ since, storedLen, want: req.want, fullDone: _tailFullDoneRef.current === base })) {
+      since = null
+      if (_sinceBaseRef.current?.key === req.key && _sinceBaseRef.current.seq === seq) _sinceBaseRef.current = null
     }
     const url = since != null ? `${base}&since=${encodeURIComponent(String(since))}` : base
     // A cold open whose exact URL an urgent/intent warm is already fetching joins it.
