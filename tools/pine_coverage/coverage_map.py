@@ -528,10 +528,30 @@ def ledger_evidence(path, scripts, source_of, lane, engine, skip_captures=()):
 LEDGER_STALE = "unproven (stale)"
 
 
-def fold_ledger(scripts, led, cap_rows, verified_items, diverge_items):
+def credit_capture(verdict, items, verified_items, diverge_items, substituted_items=None):
+    """Credit one graded capture's names to its bucket: a MATCH to `verified_items`, a
+    MATCH_SUBSTITUTED (L7) to `substituted_items` ("verified with substituted inputs"), anything
+    else to `diverge_items`. ⛔ A MATCH_SUBSTITUTED is never a verified name and never a DIVERGE:
+    with no `substituted_items` counter it credits nothing. The harness grades plots, paints and
+    drawing objects; it never grades orders, alerts or logs, so a capture says nothing about those."""
+    if el.is_match(verdict):
+        tgt = verified_items
+    elif el.is_match_substituted(verdict):
+        tgt = substituted_items
+    else:
+        tgt = diverge_items
+    if tgt is None:
+        return
+    for it in items:
+        if not it.startswith(UNGRADED_PREFIXES):
+            tgt[it] += 1
+
+
+def fold_ledger(scripts, led, cap_rows, verified_items, diverge_items, substituted_items=None):
     """Fold `ledger_evidence` into the sample: each FRESH ledger verdict is a capture of that script
-    (a MATCH proves the names it uses, like a committed MATCH capture; a DIVERGE is a DIVERGE); a
-    script whose only ledger rows are stale is marked so (`vendor_verdict_of` -> LEDGER_STALE)."""
+    (a MATCH proves the names it uses, like a committed MATCH capture; a DIVERGE is a DIVERGE; a
+    MATCH_SUBSTITUTED is its own bucket, `credit_capture`); a script whose only ledger rows are
+    stale is marked so (`vendor_verdict_of` -> LEDGER_STALE)."""
     for s in scripts:
         e = led["byKey"].get(s["key"])
         if not e:
@@ -539,10 +559,7 @@ def fold_ledger(scripts, led, cap_rows, verified_items, diverge_items):
         for v in e["verdicts"]:
             s.setdefault("_captures", set()).add(v)
             cap_rows.append({"id": "ledger:" + s["key"], "verdict": v})
-            tgt = verified_items if v == "MATCH" else diverge_items
-            for it in s["_items"]:
-                if not it.startswith(UNGRADED_PREFIXES):
-                    tgt[it] += 1
+            credit_capture(v, s["_items"], verified_items, diverge_items, substituted_items)
         if e["stale"] and not e["verdicts"]:
             s["_ledgerStale"] = True
 
@@ -555,10 +572,35 @@ def vendor_verdict_of(s):
 
 
 def script_verdict(verdicts):
-    """One script's vendor verdict over its captures' verdicts: MATCH if any capture MATCHes,
-    else DIVERGE if any DIVERGEs, else INCONCLUSIVE; None for a script without a capture."""
+    """One script's vendor verdict over its captures' verdicts: MATCH if any capture MATCHes, else
+    MATCH_SUBSTITUTED if any capture is verified with substituted inputs (L7: its own bucket, never
+    MATCH and never DIVERGE), else DIVERGE if any DIVERGEs, else INCONCLUSIVE; None for a script
+    without a capture."""
     v = set(verdicts)
-    return None if not v else ("MATCH" if "MATCH" in v else "DIVERGE" if "DIVERGE" in v else "INCONCLUSIVE")
+    if not v:
+        return None
+    if el.MATCH in v:
+        return el.MATCH
+    if el.MATCH_SUBSTITUTED in v:
+        return el.MATCH_SUBSTITUTED
+    return "DIVERGE" if "DIVERGE" in v else "INCONCLUSIVE"
+
+
+def parity_counts(scripts, n):
+    """The headline parity numbers. `verifiedTransfer` counts a transferring script whose vendor verdict
+    is MATCH and nothing else; a script verified only with substituted inputs (L7, MATCH_SUBSTITUTED)
+    is counted apart, as `verifiedWithSubstitutedInputs`, and only when there is one (so a map with
+    none is byte-identical to the map before L7)."""
+    verified = sum(1 for s in scripts if s["clean"] and el.is_match(s["vendorVerdict"]))
+    out = {"verifiedTransfer": verified, "verifiedTransferPct": round(100.0 * verified / n, 1)}
+    substituted = sum(1 for s in scripts if s["clean"] and el.is_match_substituted(s["vendorVerdict"]))
+    if substituted:
+        out["verifiedWithSubstitutedInputs"] = substituted
+        out["verifiedWithSubstitutedInputsPct"] = round(100.0 * substituted / n, 1)
+        out["verifiedWithSubstitutedInputsNote"] = (
+            "verified with substituted inputs: graded with the vendor's own value fed for each input the "
+            "member door answers from UCT data; never counted in verifiedTransfer")
+    return out
 
 
 # ⭐ W4 T0 — the wall's DETAIL, for the one decision a label cannot carry: which wave owns it.
@@ -903,6 +945,8 @@ def main():
     by_norm = {norm_src(open(inputs[s["key"]]["path"], encoding="utf-8").read()): s for s in scripts}
     vd = read_verdicts(a.verdicts, LANE_PRODUCTION, "--verdicts")
     verified_items, diverge_items = collections.Counter(), collections.Counter()
+    # ⭐ L7 — names graded only with substituted inputs: their own bucket (`credit_capture`)
+    substituted_items = collections.Counter()
     cap_rows = []
     for r in vd.get("results", []):
         p = os.path.join(ROOT, r["file"]) if not os.path.isabs(r["file"]) else r["file"]
@@ -916,19 +960,13 @@ def main():
         hit = by_norm.get(norm_src(src)) if src else None
         if hit is not None:
             hit.setdefault("_captures", set()).add(r.get("verdict"))
-        tgt = verified_items if r.get("verdict") == "MATCH" else diverge_items
-        for it in u["items"]:
-            # the harness grades plots, paints and drawing objects; it never grades
-            # orders, alerts or logs, so a MATCH says nothing about those names
-            if it.startswith(UNGRADED_PREFIXES):
-                continue
-            tgt[it] += 1
+        credit_capture(r.get("verdict"), u["items"], verified_items, diverge_items, substituted_items)
     # ── LEDGER_ONLY evidence: licence-held captures graded out of git (see `ledger_evidence`)
     led = ledger_evidence(a.ledger, scripts,
                           lambda k: open(inputs[k]["path"], encoding="utf-8", newline="").read(),
                           LANE_PRODUCTION, el.engine_version(),
                           skip_captures={r.get("id") for r in vd.get("results", [])})
-    fold_ledger(scripts, led, cap_rows, verified_items, diverge_items)
+    fold_ledger(scripts, led, cap_rows, verified_items, diverge_items, substituted_items)
     vcount = collections.Counter(r["verdict"] for r in cap_rows)
     for s in scripts:
         s["vendorVerdict"] = vendor_verdict_of(s)
@@ -1009,6 +1047,8 @@ def main():
             "scriptsUsing": len(use.get(nm, ())), "scriptsUsingThatTransfer": len(use_clean.get(nm, ())),
             "examplesClean": len(ex_clean.get(nm, ())), "examplesBlocked": len(ex_blocked.get(nm, ())),
             "vendorMatchCaptures": verified_items.get(nm, 0), "vendorOtherCaptures": diverge_items.get(nm, 0),
+            # ⭐ L7 — only where a name has one (a map with none is byte-identical to the one before)
+            **({"vendorSubstitutedMatchCaptures": substituted_items[nm]} if substituted_items.get(nm) else {}),
             "refusedAs": dict(sorted(blocked.get(nm, {}).items())),
         })
 
@@ -1125,8 +1165,7 @@ def main():
             "captures": len(cap_rows), "verdicts": dict(sorted(vcount.items())),
             "sampleScriptsWithACapture": sum(1 for s in scripts if s["vendorVerdict"] not in (None, LEDGER_STALE)),
             "sampleByTransferAndVerdict": dict(sorted(sample_parity.items())),
-            "verifiedTransfer": sum(1 for s in scripts if s["clean"] and s["vendorVerdict"] == "MATCH"),
-            "verifiedTransferPct": round(100.0 * sum(1 for s in scripts if s["clean"] and s["vendorVerdict"] == "MATCH") / N, 1),
+            **parity_counts(scripts, N),
             "note": "vendor-harness verdicts over tests/fixtures/vendor/harness (RDDT/SPY daily captures of corpus scripts and probes)",
             # LEDGER_ONLY evidence, only when the ledger holds rows (an absent ledger leaves the map byte-identical)
             **({"ledger": {**led["counts"], "staleScripts": sum(1 for s in scripts if s["vendorVerdict"] == LEDGER_STALE),

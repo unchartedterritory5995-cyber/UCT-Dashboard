@@ -34,7 +34,16 @@
     "absent from this registry withholds every script that uses it. api/services/rollout_gate.py::",
     "pine_capability_admission reads it; tests/test_pine_capability_admission.py holds every evidence id",
     "to a real capture graded MATCH in docs/pine/vendor-harness/runtime-on/verdicts.json (A8). The",
-    "server lanes (alerts, scans) never admit by capability: they stay per-script (`scripts` above)."
+    "server lanes (alerts, scans) never admit by capability: they stay per-script (`scripts` above).",
+    "",
+    "L7 (2026-11-14, owner ruling option (a)): THE SUBSTITUTED PATH. A script the member door serves with",
+    "UCT data in place of a vendor-only fact (syminfo.industry, a seed with no public mirror) can never",
+    "grade MATCH; its harness grade is MATCH_SUBSTITUTED. Such a record is admitted ONLY when it says",
+    "`admission: \"substituted\"` and `substituted: [<Pine name>...]`, and names a capture graded",
+    "MATCH_SUBSTITUTED with the runtime pane on whose own `substituted` names are exactly the record's",
+    "(rollout_gate.pine_runtime_admission). A MATCH_SUBSTITUTED capture never admits a record without",
+    "`admission`. The served row carries the names, and /api/user-definitions/runtime-kill serves them as",
+    "`substituted` {sha256: [names]} for the member door to disclose. No such record exists yet."
   ],
   "scripts": [
     {
