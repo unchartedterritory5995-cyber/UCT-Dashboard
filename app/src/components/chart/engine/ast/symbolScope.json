@@ -160,15 +160,67 @@
   "classification": {
     "_": "⭐⭐ `syminfo.industry` AND `syminfo.sector` (RS Rating transfer, lane L3, 2026-11-15). TradingView's strings are its own classification (FactSet), not ours: our store mixes yfinance, FMP and Finnhub taxonomies. So a symbol settles each field in ONE of three ways, decided by `bind.js::classificationWith` (mirrored by `ast_bind.py::classification_with`): (1) a WITNESSED row below (by instrument class first, then by our own string) serves TradingView's string, untagged; (2) no witnessed row but our store has a string: OUR string is served, TAGGED SUBSTITUTED (`{name, source: 'uct:ticker_meta', vendorValueFrom: 'capture.symbol.<field>'}`), the tag reaches the vendor harness's `substituted` list and the member door says so by name; (3) no string at all: the field stays unsettled and refuses by name (`pending_measurement`), never a default. ⛔ A ROW NEEDS `value` (TradingView's text, non-empty), `witnesses`, `captures`, `captured` AND `how`, like `min_contract`; a row missing any of them serves nothing.",
     "_the_probe_that_settles_it": "⭐ COMMITTED: `tools/visual_conformance/probes/rs-syminfo-industry.pine`, capture Q-RS4 (`docs/pine/capture-queue-2026-11-14-rs-rating.md`, about 20 symbols including SPY, QQQ, IWM, XLK, SMH, ARKK, GLD, TLT). Its last-bar label prints `IND=<industry>|SEC=<sector>|TYPE=<type>`. Each witnessed string becomes a row here (a class row for the ETFs if they agree, a `by_ours` row per stock string); no code changes.",
-    "_not_served": "⛔ NO ROW IS SERVED YET: Q-RS4 is queued and not taken (2026-11-15). Every symbol with a classification in our store therefore serves OUR string, tagged substituted, and every symbol without one refuses by name.",
+    "_not_served": "⭐ Q-RS4 CAPTURED 2026-11-15 (20 symbols): the ETF CLASS row is served for both fields (all 8 ETF witnesses printed the same strings). ⛔ NO `by_ours` ROW: the 12 stock witnesses map our store's strings (yfinance / FMP / Finnhub, mixed) to FactSet names one symbol at a time, and a row keyed by our string would answer for EVERY stock carrying it, which 12 witnesses cannot vouch for. So every stock serves OUR string, tagged substituted, and a symbol with no classification refuses by name. The 12 stock strings are kept in the evidence file for a later row-by-row decision.",
     "_by_class": "Keyed by OUR STORE's instrument class, the coarse bucket `api/services/screener/screener_universe.py::types()` writes (`Stock`, `ADR`, `ETF`; served to the chart as `ticker_meta.security_type`, threaded as the symbol's `securityType`). A row here answers TradingView's string for EVERY symbol of that class, so it belongs only to a class whose witnesses all printed the same string (the ETF case: RS Rating compares `syminfo.industry == 'Investment Trusts/Mutual Funds'`). A class row wins over a `by_ours` row.",
     "_by_ours": "Keyed by OUR STORE's own string for the field (`api/services/ticker_meta.py`: yfinance `info`, else FMP, else Finnhub `finnhubIndustry`), the text a symbol carries as `industry` / `sector`. A row maps that string to the one TradingView printed for the witnesses that carry it.",
     "industry": {
-      "by_class": {},
+      "by_class": {
+        "ETF": {
+          "value": "Investment Trusts/Mutual Funds",
+          "witnesses": [
+            "CBOE:ARKK",
+            "AMEX:GLD",
+            "AMEX:IWM",
+            "NASDAQ:QQQ",
+            "NASDAQ:SMH",
+            "AMEX:SPY",
+            "NASDAQ:TLT",
+            "AMEX:XLK"
+          ],
+          "captures": [
+            "rs-syminfo-industry-arkk-1d-2026-11-15.json",
+            "rs-syminfo-industry-gld-1d-2026-11-15.json",
+            "rs-syminfo-industry-iwm-1d-2026-11-15.json",
+            "rs-syminfo-industry-qqq-1d-2026-11-15.json",
+            "rs-syminfo-industry-smh-1d-2026-11-15.json",
+            "rs-syminfo-industry-spy-1d-2026-11-15.json",
+            "rs-syminfo-industry-tlt-1d-2026-11-15.json",
+            "rs-syminfo-industry-xlk-1d-2026-11-15.json"
+          ],
+          "captured": "2026-11-15",
+          "how": "Q-RS4: rs-syminfo-industry.pine's last-bar label IND=|SEC=|TYPE= on each witness (TradingView type 'fund'), rig run s10 2026-11-15; extracted with each capture's sha256 in docs/pine/evidence/2026-11-15-q-rs4/witnesses.json. All eight agree, equity-index, sector, thematic, gold and Treasury ETFs alike."
+        }
+      },
       "by_ours": {}
     },
     "sector": {
-      "by_class": {},
+      "by_class": {
+        "ETF": {
+          "value": "Miscellaneous",
+          "witnesses": [
+            "CBOE:ARKK",
+            "AMEX:GLD",
+            "AMEX:IWM",
+            "NASDAQ:QQQ",
+            "NASDAQ:SMH",
+            "AMEX:SPY",
+            "NASDAQ:TLT",
+            "AMEX:XLK"
+          ],
+          "captures": [
+            "rs-syminfo-industry-arkk-1d-2026-11-15.json",
+            "rs-syminfo-industry-gld-1d-2026-11-15.json",
+            "rs-syminfo-industry-iwm-1d-2026-11-15.json",
+            "rs-syminfo-industry-qqq-1d-2026-11-15.json",
+            "rs-syminfo-industry-smh-1d-2026-11-15.json",
+            "rs-syminfo-industry-spy-1d-2026-11-15.json",
+            "rs-syminfo-industry-tlt-1d-2026-11-15.json",
+            "rs-syminfo-industry-xlk-1d-2026-11-15.json"
+          ],
+          "captured": "2026-11-15",
+          "how": "Q-RS4: rs-syminfo-industry.pine's last-bar label IND=|SEC=|TYPE= on each witness (TradingView type 'fund'), rig run s10 2026-11-15; extracted with each capture's sha256 in docs/pine/evidence/2026-11-15-q-rs4/witnesses.json. All eight agree, equity-index, sector, thematic, gold and Treasury ETFs alike."
+        }
+      },
       "by_ours": {}
     }
   },
