@@ -92,4 +92,99 @@ runtime lane declines a column withheld by the code (`RuntimeRefusal`), and the 
   last-n-finite windows, which P2's stoch columns pin regardless. What would settle it: `ta.highest(x, n)`
   alone on a holed source, and again beside a `ta.stoch` of the same series, captured the same day.
 
-MEASUREMENTS_PLACEHOLDER
+## Rails
+- `app/src/components/chart/engine/ast/engine57Builtins.test.js` (host and runtime lanes, four doors, committed RDDT
+  bars = the captures' 666 sessions, numbers read off the captures): the supertrend draws every bar TradingView
+  draws (348 Up + 309 Down, first Down bar 9 = 73.13044, first Up bar 36) against an independent full-history
+  reference, the member door equal, off the listing still nothing before bar 400 and equal where it draws;
+  Stoch RSI K from 17 / D from 19 with 649 / 647 bars and spot values; probe P2's three stochastics (hole kept,
+  windows across the hole, flat run keeping its 0); runtime lane, member door and the runtime KERNEL equal; a
+  flat run after a value other than 0 withheld by name, runtime declining by the code; RCI (10, 14-bar SMA of it,
+  30, 50): first bars 10 / 23 / 30 / 50, counts 656 / 643 / 636 / 616, tie bars 103 / 55 / 55; probe P1 (bars
+  10..13 of `ta.rci(ta.sma(close, 5), 10)`, the flat window `na`); an `na` ranked lowest over a source with
+  negative values, by hand; a withheld stochastic bar spreads through a finite window and forever through
+  `ema`; a stochastic inside `request.security` is drawn.
+- `app/src/components/chart/engine/ast/supertrend.test.js`: from the listing every bar equals Pine's full
+  history on 18 synthetic series (3 settings), the listing replay draws wherever the off-listing one does with
+  the same number, the stored tree carries the `nz` / `na(atr[1])` shape, and the new guard withholds exactly
+  the bars the old band guard withheld off the listing (and none on it).
+- `runtime/__tests__/w4StateKernels.test.js`: the three tests that railed the old wrong behaviour rewritten,
+  each with a comment (leading-`na` start, flat window, `na` source bar), plus a window skipping a high `na`
+  and the kernel's stop by name.
+- `pinePhase1Builtins.test.js`: the `ta.rci` reference rewritten to the measured rule (it railed the shortcut).
+- `tests/test_engine57_builtins.py` (Python lane): the same capture numbers, the probe numbers, the flat-run
+  withholding, the bounded supertrend against the reference, and JS vs Python bar for bar on 10 trees
+  (`ast_conformance.run_js` / `run_py`).
+- Registry and roster pins, each with its reason: `parse` / `sentence` (87 functions, 139 bar names, 288
+  declared), `doorCoverage` (Pine-only redirect target, its probe), `executionShapeCensus`,
+  `test_ast_interpret` / `test_ast_scalars`, the corpus case `stoch_pine_last_finite_values_held_answer`, the
+  input-compat saved document, `docs/formulas/GRAMMAR.md` (regenerated), the stoch observation's
+  `pasteLowersTo` (as `atr-14` has), host-parity digests (`--write`: all 166 moved with the engine identity,
+  0 status or guard changes).
+- Focused vitest set (13 files, 401 tests) green under the heavy lock; pytest green one file at a time:
+  `test_engine57_builtins` 15, `test_call_expansions_parity` 13, `test_ast_interpret` 105, `test_ast_scalars`
+  174, `test_ast_input_compat` 15, `test_ast_lookback_agreement` 5, `test_ast_conformance` 57 (+5 skipped),
+  `test_ast_bounded_state` 38, `test_vendor_parity_stoch` 13, `test_saved_script_prebump` 60,
+  `test_script_engine_version_gate` 6. Not run: the whole vitest suite (PC load rules).
+
+## Mutants (copy aside, mutate, focused rail, restore from the copy, `git hash-object` == HEAD blob)
+31 mutants, 31 killed, every restore matched the HEAD blob; the control (no edit) is the green rails run.
+Supertrend: S1/S2 a band body without `nz` (6 / 1 red), S3 seed `up` (7), S4 no `na(atr[1])` arm (5), S5 no
+guard (11), S6 guard one window deep (7), S7 the old offset guard back (9), S8 Python twin without `nz`
+(tree parity red). Stochastic: K1 flat = 0 (4), K2 `ta.stoch` back on the house column (4), K3 RESTART
+windows (2), K4 no keep (2), K5 flat witness off (2), K6 kernel gate on the run (4), K7 kernel no keep (2),
+K8 kernel ring emptied by an `na` (1), K9 kernel no stop (1), K10 / K11 Python no keep / witness off (1 / 1).
+RCI: R1 the 6·Σd² shortcut (6), R2 ordinal ranks (6), R3 first bar n-1 (7), R4 `na` propagates (2), R5 `na`
+ranked 0 (1), R6 / R7 / R9 Python ordinal / n-1 / `na` as 0 (1 each), R8 Python mask not applied (1).
+Plumbing: X1 runtime no decline (1), X2 mask off (2), X3 mask without reach (1).
+
+## Vendor harness, both lanes (BEFORE = `origin/master`'s product files swapped into this tree)
+| set | lane | before M/D/I | after M/D/I | moves |
+|---|---|---|---|---|
+| held store (275, incl. S1 probes) | production | 140/90/45 | 144/86/45 | supertrend, stochastic-rsi, rank-correlation-index, rci-ribbon D -> M |
+| held store | runtime-on | 155/96/24 | 159/92/24 | the same four |
+| fixtures (376) | production | 158/50/168 | 158/50/168 | none |
+| fixtures | runtime-on | 185/50/141 | 185/50/141 | none |
+
+(Fixture BEFORE counts are from the first BEFORE run, with master's own `stoch-k-14` fixture; a swap that keeps
+this branch's `pasteLowersTo` reads that one capture INCONCLUSIVE on master's code, which is the swap, not a move.)
+**0 MATCH -> DIVERGE, 0 new DIVERGE, in every set and lane.** Value level (bars na/value mismatched, summed over
+plots): supertrend 657 -> 0, rci-ribbon 125 -> 0, stochastic-rsi 24 -> 0, rank-correlation-index 17 -> 0,
+`vw-cs1-stoch-p2` 1343 -> 70 (P04 `ta.highest`, below), `vw-cs1-rci-p1` 670 -> 8 (P01 bars 42..49, below). Both
+probe captures stay DIVERGE (they were DIVERGE before on more plots): their remaining items are the two open
+notes. No capture has a withheld bar where TradingView draws a value (no `stoch:flat-window` bar occurs).
+
+## Census (the four doors and one bind on the NYSE:RDDT 1D listing bars, on and off the listing)
+Scoped to every source that calls `supertrend`, `stoch` or `rci` in any spelling (46 unique: licence-held sample
+35, repo `.pine` 6, held captures 4, committed fixture 1; nothing outside these names reaches the changed code
+except the mask walk, which returns null without a site). Guard changes at the four doors: **0**. Translations
+changed (screen or pane formula text): 21 (the `stochPine` landing and the new supertrend tree). Plots drawn on
+the listing: 81,938 -> 84,551. Plots empty on the listing: 68 -> 65; the one newly empty is
+`vw-cs1-rci-p1`'s `ta.rci(math.round(close / 1000), 10)`, which TradingView draws nothing for (master drew it).
+Dark plots (the listing drawing less than the off-listing replay): **4 -> 0**: `builtin:supertrend` (both
+plots: 665 -> 1322 bars drawn, off-listing 920 unchanged) and `dual-supertrend-ichimoku-and-dmi` (2). Rechecked:
+`multicator-table` doors unchanged (`OK, OK, runtime:object-op, OK`), listing 5328 bars drawn as before, off-listing
+5119 -> 5324; `custom-screener-with-alerts` refuses `pine:objects-only` at the host doors before and after (no
+capture of either in the store). Bars withheld by name: 0 in every census source and capture.
+Bound census and the dark-plot demotion list are engine 55's (`coverageMapDoorCensus`, not on master); the
+scoped bind above runs the same dark-plot test (`listing 0 / off-listing N`, `onWhereOff < offDrawn`).
+
+## Evidence ledger (`python -m tools.vendor_harness.evidence_engine regrade`)
+314 captures graded, +314 rows at engine 57 (grader `0d24464e1be1`); 0 legacy rows retired. 103 had an earlier
+row: **0 verdict moves** among them in either lane; 211 filed for the first time. Totals at engine 57:
+production MATCH 141 / DIVERGE 89 / INCONCLUSIVE 84; runtime-on MATCH 157 / DIVERGE 97 / INCONCLUSIVE 60.
+
+## Open notes
+1. `ta.highest` / `ta.lowest` (above): P2 and the 2026-09-08 SPY probe disagree; the table is unchanged.
+2. **`ta.sma` precision.** P1's last 8 mismatches (bars 42..49 of `ta.rci(ta.sma(close, 5), 10)`) are an exact
+   TIE TradingView sees and we do not: the vendor's `sma` on bars 40 and 42 is the same double and ours differs by
+   one ulp. Rebuilt off the capture's own bars, compensated (Neumaier) summation reproduces all 656 values, plain
+   left-to-right summation (what `windowMean` / `_window_mean` do) misses exactly these 8. Every exact-equality
+   read of an `sma` (ties, `==`) is exposed; changing the summation moves every `sma` digest and is not done here.
+3. A stochastic inside a read of other bars (`request.security`) is not analysed by the witness mask (stated
+   above): a flat run after a value other than 0 there is served with the kept value.
+4. Engine 55's census rail `a DARK plot (the builtin Supertrend ...) is a blocker` uses the builtin Supertrend as
+   its dark subject; after this branch that plot is no longer dark, so the rail needs another subject at the
+   rebase.
+5. SCRIPT_ENGINE_VERSION is 57 with history lines 55 and 56 missing on this branch (they are on #1264 / #1265);
+   the coordinator rebases after they merge.
