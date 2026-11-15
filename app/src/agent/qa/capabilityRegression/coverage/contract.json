@@ -2190,6 +2190,19 @@
    ],
    "fast": false
   },
+  "stock.earningsCalendar": {
+   "domain": "stock",
+   "group": "earningsCalendar",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "stock.profile": {
    "domain": "stock",
    "group": "data",

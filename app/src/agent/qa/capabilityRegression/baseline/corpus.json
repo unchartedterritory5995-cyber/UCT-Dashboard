@@ -7827,6 +7827,50 @@
       ]
     },
     {
+      "id": "stock.earningsCalendar",
+      "source": "P3 earnings calendar (11-15): the market-wide earnings calendar, owner-style phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.earningsCalendar"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.earningsCalendar"
+      ],
+      "ownWords": [
+        "earningsCalendar"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.earningsCalendar",
+            "target": "$stockData",
+            "args": {
+              "when": "this_week",
+              "date": null,
+              "symbols": null,
+              "watchlist": null,
+              "session": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*earnings\\.calendar.*\"session\":\"any\",\"limit\":50"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "who reports earnings this week",
+        "what's on the earnings calendar this week",
+        "which stocks report this week",
+        "who is reporting earnings this week"
+      ]
+    },
+    {
       "id": "history.monthlyReturns",
       "source": "Phase 2 history (11-13): weekly / monthly bars, relative performance, one-day-move studies, owner-style phrasings",
       "kinds": "ALL",

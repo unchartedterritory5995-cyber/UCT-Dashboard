@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from api.services.uct_agent.marketdata import (asset_classes, bars_daily, breadth, commodity_quote, crypto_quote, earnings,
                                               index_quote, instruments, news_company, quotes, ratings, statements, themes)
-from api.services.uct_agent.marketdata import cot, history_event_study
+from api.services.uct_agent.marketdata import cot, earnings_calendar, history_event_study
 from api.services.uct_agent.research import rs1
 
 # Symbols one read may name. A request-shape bound per kind, not a toolkit cap: the cap numbers live only
@@ -153,6 +153,17 @@ def register(registry) -> None:
                     "speculators) and open interest for 1-6 futures markets, named by a member's word or COT code; "
                     "as_of is the Tuesday report date (published the following Friday), stale when a newer report is "
                     f"due. Unmapped words are listed as not covered. Params: {{symbols: [...], weeks (1-{cot.MAX_WEEKS})}}.",
+    ))
+    # Earnings calendar (P3, owner priority 3): the market-wide calendar the Calendar page already BUILT, read only from its
+    # caches (never a build, never a provider call: a cold week is "not loaded yet"). Earnings rows only (ForexFactory excluded
+    # by construction), per-row provider source. Not isolated (raw schedule data); the reading capability is LOCAL-ONLY.
+    registry.register(Kind(
+        name=earnings_calendar.KIND, fn=earnings_calendar.read_earnings_calendar, validate=earnings_calendar.validate,
+        freshness="periodic", owner="agent-md", max_symbols=earnings_calendar.MAX_SYMBOLS,
+        description="UCT's earnings calendar: who reports on a day or in a week (session bmo / amc / unknown, EPS and "
+                    "revenue estimates, actuals once reported, the provider that placed each row), from the weeks the "
+                    "Calendar page has already loaded; a week not loaded yet is unavailable. Params: {date? | week?, "
+                    f"symbols? (<= {earnings_calendar.MAX_SYMBOLS}), session: bmo|amc|any, limit (1-{earnings_calendar.MAX_LIMIT})}}.",
     ))
     # W2-B1 (agent-rs, RS-1 v1): a COMPOSED kind. It reads the served kinds above (purpose "research", so a
     # model-isolated kind refuses before admission) and the turn's one web search; every fact's figures come from

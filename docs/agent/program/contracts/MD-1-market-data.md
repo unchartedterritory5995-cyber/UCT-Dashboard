@@ -514,6 +514,41 @@ the same read-only loader), on ANY session — UCT's data carries no past earnin
   never a return. The member sees the table. Every answer ends with *Descriptive, not predictive: …* and dates the
   stored closes it rests on. Default OFF (`UCT_AGENT_DATA_KINDS`), like every kind.
 
+### 4.10 `earnings.calendar` (v1.7, agent-md, P3 owner priority 3)
+
+The market-wide earnings calendar the Calendar page has ALREADY built, read only from its caches:
+`api/services/uct_agent/marketdata/earnings_calendar.py` over `api/routers/calendar.py::peek_week_payload` (the current
+week's `calendar_weekly` TTL cache, else its last-good ServeStale slot within the slot's own 30-minute bound; any other
+week's `calendar_week_<monday>` cache). Params `{date? | week? (any day of that week), symbols? (<= 50), session:
+bmo|amc|any, limit (1–50, default 25)}`.
+
+- **No side effects (§6 rule 2), by construction.** The read never builds a week, never kicks a refresh and never reaches
+  `POST /api/calendar/refresh`. A cold build fans out far past a turn's provider budget (EarningsWhispers per weekday with
+  retries, Finnhub range + FMP per day for the backfill and the supplement, Finviz session passes, the TBD-session resolver
+  per symbol, ForexFactory, the name / entity passes), so a week not built yet is `unavailable` with "not loaded yet".
+  `provider_calls` is always 0. The Calendar page's own re-warm loop keeps the current week warm.
+- **Rows:** earnings only. The buckets read are an allow-list (`bmo`, `amc`, `tbd`); the payload's ForexFactory
+  `econ` / `fed` rows can never appear. `session` is `bmo` / `amc`, or `unknown` for a `tbd` row — never guessed; a
+  `session` filter excludes the other rows and `data.excluded.unknown` (with a note) says how many unconfirmed ones it
+  left out. Each row carries `source`: the provider that PLACED it, stamped at the row's constructor in calendar.py
+  (`earningswhispers`, `finviz`, `finnhub`, `fmp`, `uct-wire`, `uct-roster`, `uct-actuals`; `unrecorded` for a row built
+  before the stamp). The envelope's `source` is the `+`-joined set of the returned rows' sources (`uct-calendar` when
+  none), never a constant. Estimates are the consensus as UCT stored it (a note says so); actuals ride along when
+  present; `when` = past / today / upcoming against today's ET date, and a past date carries a note that it is a
+  reported result, never an upcoming report. `date_estimated` marks a provider-projected date.
+- **Envelope:** `as_of` = the payload's own build time (TERM-019), never `fetched_at`; a wire-built week is dated, not
+  timed (UTC midnight of its date, with a note). `stale` (with its age in a note) when served from the last-good slot.
+  `periodic`, or `historical` when every day of the week has passed. `partial` only when the week payload is good and a
+  requested symbol is absent (`not_on_calendar`, "not proof they don't report"); a failed (`error`, `range_error*`),
+  empty or missing week is `unavailable`. `coverage` `{requested, answered}` when symbols are named.
+- **Not model-isolated** (raw third-party schedule data), but the capability that reads it, `stock.earningsCalendar`
+  (`app/src/agent/capabilities/earningsCalendar.js`, query on the `market` target, `localOnly: true`, server-gated, its
+  own words-only routing group last), is in `turn.LOCAL_ONLY_ACTIONS`: the member sees the table; a stored row replays
+  to a model as `LOCAL_RESULT_NOTE` only. A watchlist is expanded in the browser; only its symbols (<= 50) reach the
+  server.
+- **Activation:** default OFF. List `earnings.calendar` in `UCT_AGENT_DATA_KINDS` (with `UCT_AGENT_DATA=1`); no
+  `UCT_AGENT_ISOLATED_KINDS` entry is needed or honoured. Reversal: remove it from the list.
+
 ## 8. Changing this contract
 
 1. Open a PR that edits this file, with a version bump (v1.1 adds; v2.0 breaks). Message agent-lead.
@@ -523,6 +558,7 @@ the same read-only loader), on ANY session — UCT's data carries no past earnin
 
 ## 9. Changelog
 
+- **v1.7 addition (2026-11-15, agent-md, P3):** §4.10 `earnings.calendar`, a read-only kind over the Calendar page's built weeks (warm caches only, per-row provider source, earnings rows only). No envelope change.
 - **v1.6 addition (2026-11-03, builder-b, W2-B2):** `bars.daily` gains `from` (a window read); §4.6 `offHigh`, `pullbacks` and `range` with `from`; §4.9 `history.eventStudy` over Market Intelligence's event study (technical series only, local-only to the model). No envelope change.
 - **v1.6 addition (2026-11-03, agent-rs, W2-B1):** §4.8 `research.company`, a composed kind over the served kinds plus the turn's one web search (contract RS-1). No envelope change.
 - **v1.5 amendment (2026-11-02, agent-md, G2):** §4.7.5 L6. While the symbol index is older than 3 days (or undated), no lowercase word or lowercase cashtag is confirmed; it gets the #691 neutral ask with `basis` `index_stale`. Classes and reads unchanged.

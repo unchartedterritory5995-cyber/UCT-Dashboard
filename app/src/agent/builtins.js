@@ -43,6 +43,7 @@ import { registerGuideCapabilities } from './capabilities/guide'
 import { registerMarketDataCapabilities } from './capabilities/marketDataQuote'
 import { registerMarketFactsCapabilities } from './capabilities/marketDataFacts'
 import { registerCotCapability } from './capabilities/cot'
+import { registerEarningsCalendarCapability } from './capabilities/earningsCalendar'
 import { registerKnowledgeCapabilities } from './capabilities/knowledge'
 import { registerResearchCapability } from './capabilities/research'
 import { registerHistoryCapability } from './capabilities/history'
@@ -121,4 +122,5 @@ export function registerServerGatedBuiltins() {
   registerChartDescribeCapability()      // W2-B3: chart.describeSetup while the server serves `bars.daily`
   registerCoachCapabilities()            // Wave 3 (W3-1..4): coach.* / journal.* while the server serves `coach` (UCT_AGENT_COACH)
   registerCotCapability()                // Phase 2: cot.positioning while the server serves `cot.positioning`
+  registerEarningsCalendarCapability()   // P3: stock.earningsCalendar while the server serves `earnings.calendar`
 }

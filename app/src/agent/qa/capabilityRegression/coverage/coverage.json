@@ -1,41 +1,41 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 210,
+  "all": 211,
   "withProductionKinds": 200,
-  "darkGated": 10
+  "darkGated": 11
  },
  "totals": {
-  "capabilities": 210,
-  "withAnyRegressionCase": 158,
+  "capabilities": 211,
+  "withAnyRegressionCase": 159,
   "perProtection": {
    "nl": {
-    "covered": 155,
-    "applicable": 210
+    "covered": 156,
+    "applicable": 211
    },
    "routing": {
-    "covered": 152,
-    "applicable": 210
+    "covered": 153,
+    "applicable": 211
    },
    "args": {
-    "covered": 158,
-    "applicable": 210
+    "covered": 159,
+    "applicable": 211
    },
    "execution": {
-    "covered": 155,
-    "applicable": 210
+    "covered": 156,
+    "applicable": 211
    },
    "receipt": {
-    "covered": 127,
-    "applicable": 210
+    "covered": 128,
+    "applicable": 211
    },
    "refusal": {
     "covered": 35,
-    "applicable": 210
+    "applicable": 211
    },
    "permission": {
-    "covered": 203,
-    "applicable": 210
+    "covered": 204,
+    "applicable": 211
    },
    "undo": {
     "covered": 80,
@@ -43,11 +43,11 @@
    },
    "multiStep": {
     "covered": 40,
-    "applicable": 210
+    "applicable": 211
    },
    "phrasings": {
-    "covered": 151,
-    "applicable": 210
+    "covered": 152,
+    "applicable": 211
    }
   }
  },
@@ -9104,6 +9104,60 @@
     "refusal": [
      "GW-17.live-earnings-next"
     ],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.earningsCalendar": {
+   "domain": "stock",
+   "group": "earningsCalendar",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.earningsCalendar: \"who reports earnings this week\"",
+     "stock.earningsCalendar: \"what's on the earnings calendar this week\"",
+     "stock.earningsCalendar: \"which stocks report this week\"",
+     "stock.earningsCalendar: \"who is reporting earnings this week\""
+    ],
+    "routing": [
+     "stock.earningsCalendar: \"who reports earnings this week\"",
+     "stock.earningsCalendar: \"what's on the earnings calendar this week\"",
+     "stock.earningsCalendar: \"which stocks report this week\"",
+     "stock.earningsCalendar: \"who is reporting earnings this week\""
+    ],
+    "args": [
+     "corpus stock.earningsCalendar"
+    ],
+    "execution": [
+     "stock.earningsCalendar (c)"
+    ],
+    "receipt": [
+     "stock.earningsCalendar (c)"
+    ],
+    "refusal": [],
     "permission": [],
     "undo": [],
     "multiStep": [],

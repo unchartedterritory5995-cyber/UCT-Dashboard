@@ -504,6 +504,13 @@ export const GROUPS = [
   // dark server this group never matches and routing is byte-identical to the base (as playbook / coach). Last in the catalog.
   { id: 'cot', title: 'CFTC COT futures positioning (specs, commercials, open interest): changes, N-year extremes, comparisons', domains: ['cot'], fillLast: true, wordsOnly: true,
     words: [] },
+  // P3 (owner priority 3): the market-wide earnings calendar (stock.earningsCalendar) in its OWN group, claimed by ACTION name
+  // (the stock domain keeps every other stock.* action), WORDS-ONLY and fillLast: never a filler. `words` stays EMPTY here:
+  // capabilities/earningsCalendar.js arms them only while the capability is registered (the server serves `earnings.calendar`),
+  // so on a dark server this group never matches and routing is byte-identical. Last in the catalog.
+  { id: 'earningsCalendar', title: 'Earnings calendar: who reports today, tomorrow, this / next / last week or on a date; a watchlist or tickers; before the open / after the close',
+    domains: [], actions: ['stock.earningsCalendar'], fillLast: true, wordsOnly: true,
+    words: [] },
 ]
 // chartReplay: the replay bar's bare playback words, which route there ONLY while a chart's bar replay is on (namedGroups)
 const REPLAY_ON_WORDS = /^(?:please )?(?:play|pause|resume|unpause|stop)\b|\b(?:play|pause|resume) (?:it|playback|playing)\b|\b(?:next|previous|prev|last) bar\b|\bstep (?:it )?(?:forward|back(?:ward)?)\b|\b(?:forward|back) (?:\d+|one|a|ten) bars?\b|\b(?:speed (?:it )?up|slow (?:it )?down|faster|slower)\b|\b(?:1|5|20) ?x\b|\b(?:to )?the (?:start|end|beginning)\b/

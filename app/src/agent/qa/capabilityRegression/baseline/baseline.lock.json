@@ -3442,6 +3442,31 @@
     }
    }
   },
+  "stock.earningsCalendar": {
+   "digest": "d3acec04a5805b07",
+   "phrasings": {
+    "who reports earnings this week": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what's on the earnings calendar this week": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "which stocks report this week": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "who is reporting earnings this week": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "history.monthlyReturns": {
    "digest": "46b9c0a2068ebf2e",
    "phrasings": {
