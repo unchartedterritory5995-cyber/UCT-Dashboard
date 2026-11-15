@@ -718,6 +718,50 @@ def test_buyout_names_are_left_out_of_the_four_lists_and_a_blank_flag_stays(tabl
     assert "DEAL" in [r["ticker"] for r in query.run_scan(table["starter_rs_exit_warning_5"]["spec"])["rows"]]
 
 
+def test_the_receipt_never_calls_a_listed_stock_unchecked(table):
+    """2026-11-15, the first morning with rows on the live site: Top RS Rating listed 1,845
+    stocks while its receipt said 67 were answered and 10,881 "could not be checked". The
+    exclude on `rs_flag` keeps a blank flag (the test above), and the receipt counted every
+    blank flag as a column with no value. A row the scan lists is a row it answered."""
+    for sid in [*LIST_SCREENS, "starter_rs_exit_warning_5"]:
+        spec = table[sid]["spec"]
+        listed = query.run_scan(spec)["total"]
+        c = query.coverage_for(spec)
+        assert c["evaluated"] == c["answered"] + c["dropped"] + c["not_computable"], sid
+        assert c["answered"] >= listed > 0, (sid, c["answered"], listed)
+        assert not {"rs_flag", "security_type"} & set(c["missing_keys"]), (sid, c["missing_keys"])
+        # a place or an event age left blank is the pass's answer "no", not a missing value
+        assert not query._BLANK_IS_AN_ANSWER & set(c["missing_keys"]), (sid, c["missing_keys"])
+        labels = {query.filters.FILTERS[k]["label"]
+                  for k in ("rs_flag", "security_type", *query._BLANK_IS_AN_ANSWER)}
+        for d in c["dropped_symbols"]:
+            if d["reason"] == "not-computable":
+                assert not labels & set(d["detail"].removeprefix("no value for ").split(", ")), (sid, d)
+
+
+def test_a_blank_place_or_event_age_is_an_answer_and_a_blank_rating_is_not(table):
+    """Top RS Rating tests presence (`rs_rating_pos >= 1`): a stock with no place is not on
+    the board, which is the screen's answer about it. A stock with no RS Rating at all is
+    still counted on a screen that reads the rating."""
+    from api.services.screener import rs_post_pass
+    assert {"rs_rating_pos", *(c for c, _v in rs_post_pass.PERIOD_PLACES)} <= query._BLANK_IS_AN_ANSWER
+    for key in query._BLANK_IS_AN_ANSWER:
+        assert key in query.filters.FILTERS and key in snapshot_db.COLUMNS, key
+    assert "rs_rank" not in query._BLANK_IS_AN_ANSWER
+    with snapshot_db.connect() as conn:
+        unplaced = conn.execute(
+            "SELECT COUNT(*) FROM screener_rows WHERE rs_rating_pos IS NULL").fetchone()[0]
+        unrated = conn.execute(
+            "SELECT COUNT(*) FROM screener_rows WHERE rs_rank IS NULL").fetchone()[0]
+    assert unplaced > 0, "the table needs a row with no place for this to prove anything"
+    c = query.coverage_for({"filters": [{"key": "rs_rating_pos", "op": "gte", "min": 1}]})
+    assert c["not_computable"] == 0 and c["missing_keys"] == {}
+    c = query.coverage_for({"filters": [{"key": "rs_rating_pos", "op": "gte", "min": 1},
+                                        {"key": "rs_rank", "op": "gte", "min": 80}]})
+    assert c["missing_keys"] == ({"rs_rank": unrated} if unrated else {})
+    assert c["not_computable"] == unrated
+
+
 def test_the_leaders_list_is_the_stored_members_ordered_by_the_score(table):
     """Pin moved 2026-11-14 (unit U12): this ran the screen's own rank and cut it at 2.
     The cut is the pass's now (`rs_leaders_list`, tests/test_rs_screens_u12_leaders.py);
