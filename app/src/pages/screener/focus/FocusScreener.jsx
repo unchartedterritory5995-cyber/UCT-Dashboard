@@ -929,8 +929,17 @@ function FocusList({ mode, onMode }) {
     // RS_RANK_IBD_ENABLED the column is the nightly rating, which covers every stock with
     // enough price history, and neither the scan answer nor /api/auth/me says which of the two
     // this page is showing. So the sentence is the one that is true of both.
+    // 2026-11-15: "no RS Rating" was said of every screen that filters on the rating, whatever
+    // the rows were missing. On UCT RS Leaders (twelve filters) it read "10,811 stocks have no RS
+    // Rating" on a morning when 231 had none. The receipt now names the columns that were blank
+    // (`missing_keys`), and the rating is blamed only when it is the one column that was. An
+    // answer without that map (an older server) keeps the sentence it had.
     const n = fmtN((listed.coverage.dropped || 0) + (listed.coverage.not_computable || 0))
-    drops.push(s.filters?.rs_rank
+    const missing = listed.coverage.missing_keys
+    const blank = missing && typeof missing === 'object' && !Array.isArray(missing)
+      ? Object.keys(missing).filter(k => missing[k] > 0) : null
+    const ratingOnly = blank ? blank.length === 1 && blank[0] === 'rs_rank' : !!s.filters?.rs_rank
+    drops.push(ratingOnly
       ? `${n} stocks have no RS Rating, so they are not in this list.`
       : `${n} stocks have no value for one of these filters, so they are not in this list.`)
   }
