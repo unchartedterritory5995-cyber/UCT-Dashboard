@@ -17,6 +17,7 @@ import { runOurSide } from './ourSide'
 import { pairObjects } from './objectColours'
 import { pairRecords, attachXSidecar } from './objectRecords'
 import { gradePaints } from './paintColours'
+import { inShard } from '../../../../../../../tools/vendor_harness/shard.mjs'
 
 export const REPO = path.resolve(process.cwd(), '..')
 export const VENDOR_DIR = path.join(REPO, 'tests/fixtures/vendor')
@@ -129,11 +130,19 @@ export function objectsV2Of(capture, ours, verdict) {
 }
 
 /**
+ * ⭐ PARALLEL (`tools/vendor_harness/parallel_run.mjs`). `opts.only` (a Set of
+ * repo-relative ids) restricts the run to a fixed subset; `opts.shard` (from
+ * `shard.mjs::parseShard`) keeps only the files that shard owns, by a stable hash
+ * of the id. `allFiles` is the run's whole ordered file list either way, so a
+ * merge can put N shards' rows back in exactly a single run's order.
  * @param {string[]} dirs
- * @returns {{results: object[], inventory: object[], table: string}}
+ * @returns {{results: object[], inventory: object[], table: string, files: number, allFiles: string[]}}
  */
 export function runHarness(dirs = [VENDOR_DIR], opts = {}) {
-  const files = [...new Set(dirs.flatMap((d) => walk(d)))]
+  const idOf = (f) => path.relative(REPO, f).replace(/\\/g, '/')
+  const listed = [...new Set(dirs.flatMap((d) => walk(d)))].filter((f) => !opts.only || opts.only.has(idOf(f)))
+  const allFiles = listed.map(idOf)
+  const files = listed.filter((f) => inShard(idOf(f), opts.shard || null))
   const results = []
   const inventory = []
   for (const f of files) {
@@ -146,5 +155,5 @@ export function runHarness(dirs = [VENDOR_DIR], opts = {}) {
     results.push({ file: loaded.file, format: loaded.format, ...verdict, ourNotes: ours ? ours.notes : [],
       ...(objectsV2 ? { objectsV2 } : {}) })
   }
-  return { results, inventory, table: renderSummary(results), files: files.length }
+  return { results, inventory, table: renderSummary(results), files: files.length, allFiles }
 }

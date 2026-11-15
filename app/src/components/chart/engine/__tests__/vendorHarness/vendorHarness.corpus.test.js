@@ -51,7 +51,7 @@ import path from 'node:path'
 import process from 'node:process'
 import { VERDICTS } from '../../../../../../../tools/vendor_harness/compare.mjs'
 import {
-  HARNESS_RUNTIME_ENV, LANE_PRODUCTION, LANE_RUNTIME_ON, requestedLane, laneShown, assertLaneMeasured,
+  HARNESS_RUNTIME_ENV, LANE_PRODUCTION, LANE_RUNTIME_ON, requestedLane, assertLaneMeasured,
   runtimeDeclineCodeIn, runtimeDeclinedTag, isGateDecline,
 } from '../../../../../../../tools/pine_coverage/runtime_lane.mjs'
 import { runHarness, loadCapture, VENDOR_DIR, REPO } from './harness'
@@ -60,6 +60,10 @@ import { __allowEveryRuntimeScriptForTests } from '../../runtimeKill'
 import { __admitEveryRunHalfForTests } from '../../runHalfRailSeam'
 import { objectsOnlyPaneEnabled } from '../../objectsOnlyPaneGate'
 import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
+import {
+  laneEvidence, laneReport, consoleBlock, writeHarnessOutputs, HARNESS_SHARD_FILE,
+} from '../../../../../../../tools/vendor_harness/harness_output.mjs'
+import { parseShard, readOnlyList, HARNESS_SHARD_ENV } from '../../../../../../../tools/vendor_harness/shard.mjs'
 
 /** The flag NAMES are read off their gate modules, never typed. */
 const flagOf = (rel) => (fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8')
@@ -107,10 +111,7 @@ export function laneEvidenceOf(run, { gateOpen, laneOf = null }) {
       hostRefused += 1      // the host refused it too: that is why the runtime lane drew it
     }
   }
-  return {
-    gateOpen, declined, gated, runtimeDrawn, hostRefused, reachedRuntime: declined + runtimeDrawn,
-    declines: Object.fromEntries(Object.entries(declines).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))),
-  }
+  return laneEvidence({ gateOpen, declined, gated, runtimeDrawn, hostRefused, declines })
 }
 
 function builderLaneOf(file) {
@@ -129,60 +130,49 @@ const dirs = process.env.VENDOR_HARNESS_DIR
   ? process.env.VENDOR_HARNESS_DIR.split(';').filter(Boolean).map((d) => path.resolve(process.cwd(), d))
   : [VENDOR_DIR]
 const OUT = process.env.VENDOR_HARNESS_OUT ? path.resolve(process.cwd(), process.env.VENDOR_HARNESS_OUT) : null
+/** ⭐ PARALLEL — `HARNESS_SHARD=i/N` grades only the captures shard i owns (a stable
+ *  hash of the file id, `tools/vendor_harness/shard.mjs`) and writes ONE shard file
+ *  into VENDOR_HARNESS_OUT instead of `verdicts.json` / `summary.md`; the lane is
+ *  asserted by the merge, over every shard's evidence (`parallel_run.mjs`).
+ *  `VENDOR_HARNESS_ONLY=<list file>` restricts a run to named files (the rail's subset).
+ *  Both unset: exactly the single run it always was. */
+const SHARD = parseShard(process.env[HARNESS_SHARD_ENV], HARNESS_SHARD_ENV)
+const ONLY = readOnlyList(process.env.VENDOR_HARNESS_ONLY, fs)
 
 describe('the vendor harness over the captures on disk', () => {
   // ⛔ read at COLLECTION, in the same module state that grades the captures
   const gateOpen = runtimePaneEnabled()
   const objectsOnly = objectsOnlyPaneEnabled()
-  const run = runHarness(dirs)
+  const run = runHarness(dirs, { shard: SHARD, only: ONLY })
   const evidence = laneEvidenceOf(run, { gateOpen, laneOf: gateOpen ? builderLaneOf : null })
-  const lane = REQUESTED || laneShown(evidence)
-  let laneLine
-  let laneError = null
-  try {
-    laneLine = REQUESTED
-      ? assertLaneMeasured({ requested: REQUESTED, ...evidence, what: 'vendor harness' })
-      : `LANE MEASURED: ${lane} (suite default, not asserted; gate ${gateOpen ? 'OPEN' : 'CLOSED'}, `
-        + `runtime lane reached ${evidence.reachedRuntime}, host refusals ${evidence.hostRefused})`
-  } catch (err) {
-    laneError = err
-    laneLine = String(err.message)
-  }
-  laneLine += ` · objects-only pane ${objectsOnly ? 'ARMED' : 'off'} · runtime drew ${evidence.runtimeDrawn}, declined ${evidence.declined}`
+  const { lane, laneLine, laneError } = laneReport({ requested: REQUESTED, evidence, objectsOnly })
+  const dirsRel = dirs.map((d) => path.relative(REPO, d).replace(/\\/g, '/'))
 
   it('⛔ the lane measured is the lane requested', () => {
+    // a shard's evidence is a fraction of the run's: the MERGE asserts the lane, over all of it
+    if (SHARD) return
     if (laneError) throw laneError
     expect(laneLine).toMatch(/^LANE MEASURED: /)
   })
 
   it('prints the table, and writes it when asked', () => {
+    if (SHARD) {
+      expect(OUT, 'a shard run needs VENDOR_HARNESS_OUT').toBeTruthy()
+      fs.mkdirSync(OUT, { recursive: true })
+      fs.writeFileSync(path.join(OUT, HARNESS_SHARD_FILE), JSON.stringify({
+        shard: SHARD, dirsRel, requested: REQUESTED, objectsOnly, allFiles: run.allFiles, files: run.files,
+        evidence, results: run.results, inventory: run.inventory,
+      }) + '\n')
+      return
+    }
     // eslint-disable-next-line no-console
-    console.log(`\n${laneLine}\n${run.table}\n\nNOT COMPARABLE (${run.inventory.length}):\n${run.inventory.map((i) => `  - ${i.file}: ${i.reason}`).join('\n')}\n`)
+    console.log(consoleBlock({ laneLine, results: run.results, inventory: run.inventory }))
     // ⛔ a run that measured the wrong lane writes nothing a later diff could trust
     if (laneError) throw laneError
     if (OUT) {
-      fs.mkdirSync(OUT, { recursive: true })
-      fs.writeFileSync(path.join(OUT, 'verdicts.json'), JSON.stringify({
-        generatedBy: 'app/src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js',
-        dirs: dirs.map((d) => path.relative(REPO, d).replace(/\\/g, '/')),
-        lane,
-        laneEvidence: { requested: REQUESTED, objectsOnlyPane: objectsOnly, ...evidence },
-        results: run.results,
-        inventory: run.inventory,
-      }, null, 1) + '\n')
-      fs.writeFileSync(path.join(OUT, 'summary.md'), [
-        '# Vendor harness — verdicts',
-        '',
-        `Directories: ${dirs.map((d) => `\`${path.relative(REPO, d).replace(/\\/g, '/')}\``).join(', ')}`,
-        '',
-        `Lane: **${lane}**${REQUESTED ? '' : ' (suite default, not requested)'}. ${laneLine}`,
-        '',
-        '```', run.table, '```', '',
-        ...(evidence.declined ? [`## Runtime declines by code (${evidence.declined})`, '',
-          ...Object.entries(evidence.declines).map(([c, n]) => `- \`${c}\` ${n}`), ''] : []),
-        `## Not comparable (${run.inventory.length})`, '',
-        ...run.inventory.map((i) => `- \`${i.file}\` — ${i.reason}`), '',
-      ].join('\n'))
+      writeHarnessOutputs(OUT, {
+        dirsRel, lane, laneLine, requested: REQUESTED, objectsOnly, evidence, results: run.results, inventory: run.inventory,
+      })
     }
   })
 
@@ -220,6 +210,7 @@ describe('the vendor harness over the captures on disk', () => {
 
   it('⛔ NON-VACUITY — the default corpus is not empty and was really graded', () => {
     if (process.env.VENDOR_HARNESS_DIR) return            // a CLI run over a new directory may legitimately be small
+    if (SHARD || ONLY) return                             // a shard or a subset is a fraction; the merge holds the whole
     expect(run.results.length).toBeGreaterThan(5)
     // both measured outcomes occur on real data — a harness that could only say
     // one of them would pass the structural checks above

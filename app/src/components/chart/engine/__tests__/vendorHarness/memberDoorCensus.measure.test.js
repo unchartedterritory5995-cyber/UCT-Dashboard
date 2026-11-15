@@ -30,12 +30,22 @@ import { objectsOnlyPaneEnabled } from '../../objectsOnlyPaneGate'
 import { enterMemberDoor, HARNESS_DEF_ID } from './ourSide'
 
 import { loadPineLibraryStoreFromEnv } from '../../ast/__tests__/pineLibraryStoreLoader.js'
+import { parseShard, inShard, readOnlyList, CENSUS_SHARD_ENV } from '../../../../../../../tools/vendor_harness/shard.mjs'
+import { censusDocument, censusLine } from '../../../../../../../tools/vendor_harness/census_output.mjs'
+import { CENSUS_SHARD_KIND } from '../../../../../../../tools/vendor_harness/harness_output.mjs'
 
 // ⭐ L1 — opt-in: `PINE_LIBRARY_STORE=<scratch dir>` measures WITH the imported libraries
 // (never committed). Unset, the registry is empty, as in every production process.
 const LIBRARIES_LOADED = loadPineLibraryStoreFromEnv()
 const RUN = process.env.VENDOR_BATCH_CENSUS === '1'
 const OUT = process.env.VENDOR_BATCH_CENSUS_OUT
+/** ⭐ PARALLEL (`tools/vendor_harness/parallel_run.mjs census`). `CENSUS_SHARD=i/N`
+ *  builds only the scripts shard i owns (a stable hash of the id) and writes a SHARD
+ *  file at VENDOR_BATCH_CENSUS_OUT, which the merge turns back into the census
+ *  document byte for byte. `VENDOR_BATCH_CENSUS_ONLY=<list file>` restricts the run
+ *  to named scripts (the rail's subset). Both unset: the census it always was. */
+const SHARD = parseShard(process.env[CENSUS_SHARD_ENV], CENSUS_SHARD_ENV)
+const ONLY = readOnlyList(process.env.VENDOR_BATCH_CENSUS_ONLY, fs)
 const REPO = path.resolve(process.cwd(), '..')
 const CORPUS = path.join(REPO, 'corpus', 'committed')
 
@@ -124,8 +134,12 @@ describe.skipIf(!RUN)('member-door census for the vendor batch (opt-in)', () => 
     // with the env the grade step will use, and refuses a manifest whose ambient
     // state disagrees with the state it selected on.
     const ambientFlagOn = objectsOnlyPaneEnabled()
-    const files = fs.readdirSync(CORPUS).filter((f) => f.endsWith('.pine')).sort()
-    expect(files.length).toBeGreaterThan(200) // non-vacuity: the corpus was found
+    const listed = fs.readdirSync(CORPUS).filter((f) => f.endsWith('.pine')).sort()
+      .filter((f) => !ONLY || ONLY.has(`corpus/committed/${f}`))
+    if (ONLY) expect(listed.length, 'every name in VENDOR_BATCH_CENSUS_ONLY is a committed corpus script').toBe(ONLY.size)
+    else expect(listed.length).toBeGreaterThan(200) // non-vacuity: the corpus was found
+    // ⭐ PARALLEL — a shard builds only the scripts it owns (stable hash of the id)
+    const files = listed.filter((f) => inShard(`corpus/committed/${f}`, SHARD))
     const off = files.map((f) => row(f, false))
     const on = files.map((f) => row(f, true))
     vi.unstubAllEnvs()
@@ -136,28 +150,19 @@ describe.skipIf(!RUN)('member-door census for the vendor batch (opt-in)', () => 
     expect(on.length).toBe(files.length)
     for (const r of [...off, ...on, ...(runtime || [])]) if (!r.attached) expect(r.refusal, r.file).toBeTruthy()
     if (runtime) expect(RUNTIME_FLAG, 'the runtime flag name could not be read off its gate').toMatch(/^VITE_/)
-    const states = runtime ? { off, on, runtime } : { off, on }
     fs.mkdirSync(path.dirname(path.resolve(OUT)), { recursive: true })
-    fs.writeFileSync(OUT, JSON.stringify({
-      generatedBy: 'app/src/components/chart/engine/__tests__/vendorHarness/memberDoorCensus.measure.test.js',
-      door: 'enterMemberDoor (ourSide.js): memberPaneDefinition -> installUserDefinitions',
-      corpus: 'corpus/committed',
-      flag: OBJECTS_ONLY_FLAG,
-      ambientFlagOn,
-      librariesLoaded: LIBRARIES_LOADED,
-      files: files.length,
-      attached: {
-        off: off.filter((r) => r.attached).length,
-        on: on.filter((r) => r.attached).length,
-        ...(runtime ? { runtime: runtime.filter((r) => r.attached).length } : {}),
-      },
-      ...(runtime ? { runtimeFlag: RUNTIME_FLAG } : {}),
-      states,
-    }, null, 1) + '\n')
+    if (SHARD) {
+      // the merge (`parallel_run.mjs`) writes the census document from every shard's rows
+      fs.writeFileSync(OUT, JSON.stringify({
+        kind: CENSUS_SHARD_KIND, shard: SHARD, flag: OBJECTS_ONLY_FLAG, runtimeFlag: RUNTIME_FLAG, ambientFlagOn,
+        librariesLoaded: LIBRARIES_LOADED, allFiles: listed.map((f) => `corpus/committed/${f}`), off, on, runtime,
+      }) + '\n')
+      return
+    }
+    const doc = { flag: OBJECTS_ONLY_FLAG, ambientFlagOn, librariesLoaded: LIBRARIES_LOADED, files: files.length,
+      off, on, runtime, runtimeFlag: RUNTIME_FLAG }
+    fs.writeFileSync(OUT, censusDocument(doc))
     // eslint-disable-next-line no-console
-    console.log(`member-door census: ${OBJECTS_ONLY_FLAG} off ${off.filter((r) => r.attached).length}/${files.length}, `
-      + `on ${on.filter((r) => r.attached).length}/${files.length} attach`
-      + (runtime ? `, +${RUNTIME_FLAG} ${runtime.filter((r) => r.attached).length}/${files.length}` : '')
-      + ` -> ${OUT}`)
+    console.log(censusLine({ ...doc, files: files.length, out: OUT }))
   }, 900000)
 })
