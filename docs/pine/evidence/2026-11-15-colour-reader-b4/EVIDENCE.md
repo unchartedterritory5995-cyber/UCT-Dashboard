@@ -40,3 +40,16 @@ refused `pine:block`. Mutants (copy aside, mutate, the rail, restore byte-equal)
 script's own `iff` hijacked, the switch chain not hung, the ternary step not re-reading an arm: 4 of 4
 killed. A redundant arm-opening inside the `iff` step survived its mutant (the ternary step covers it) and
 was removed.
+
+## Tests run on the landing tree (#1330 + B4, origin/master `d067c1c1b8`, engine 57, merged in)
+- Focused: `builder/memberPane`, `colourChainB4`, `pinePaletteVendor`, `colourBaseRecursion`,
+  `engine58Colours`, `vendorHarness.c37ObjectColours`: 47 files / 568 passed (3 files, 3 tests skipped),
+  0 failed. `evidence_engine.py queue --check`: PASS.
+- B4 mutants re-run on this tree, 4 of 4 killed, each restored byte-equal: `iff` not opened, a nested `iff`
+  in a ternary not opened, the subject-less switch chain not read, a script's own `iff` taken as the builtin.
+
+**Not run here (the landing train's, by the coordinator's process):** the squeeze / bbtrend colour captures
+through the vendor harness on this tree (measured before the master merges, table above), the
+before/after census, #1330's own mutant passes on the merged tree, `SCRIPT_ENGINE_VERSION` (master's 57
+kept; the #1330 and B4 history lines say NUMBER PENDING), host parity `--write` / `--check` (the
+`expected-digests.json` is master's), the service smoke re-record, and section 8.
