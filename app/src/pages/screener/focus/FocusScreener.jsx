@@ -939,7 +939,14 @@ function FocusList({ mode, onMode }) {
     const blank = missing && typeof missing === 'object' && !Array.isArray(missing)
       ? Object.keys(missing).filter(k => missing[k] > 0) : null
     const ratingOnly = blank ? blank.length === 1 && blank[0] === 'rs_rank' : !!s.filters?.rs_rank
-    drops.push(ratingOnly
+    // `dropped` is the scan's stale gate (query.coverage_for): a stock whose daily bars stopped
+    // more than ten sessions behind the snapshot. When that is every stock the count holds, no
+    // filter was missing a value, and the line says what did happen.
+    // (inside `coverageHasDrop`, so with nothing not-computable the count is all dropped rows)
+    const staleOnly = !(listed.coverage.not_computable > 0)
+    drops.push(staleOnly
+      ? `${n} stocks have no recent price data, so they are not in this list.`
+      : ratingOnly
       ? `${n} stocks have no RS Rating, so they are not in this list.`
       : `${n} stocks have no value for one of these filters, so they are not in this list.`)
   }
