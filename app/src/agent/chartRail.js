@@ -233,7 +233,10 @@ export function chartsInScope(host) {
   const listed = liveCharts(host)
   let onBoard = 0
   try {
-    const widgets = host?.layout?.()?.widgets || []
+    // (the board kind's own source — what the executor writes to — then the layout)
+    let raw = null
+    try { raw = host?.widgets?.snapshot?.()?.raw || null } catch { raw = null }
+    const widgets = (Array.isArray(raw) && raw.length ? raw : null) || host?.layout?.()?.widgets || []
     for (const w of widgets) {
       const tabs = (() => { try { return widgetTabList(w) } catch { return [] } })()
       const extraChartTabs = tabs.slice(1).filter(t => t?.type === 'chart').length
@@ -251,11 +254,19 @@ export function chartsInScope(host) {
   return { listed, count: Math.max(listed.length, onBoard) }
 }
 /** ⛔ D23 (AUDIT T2 6): is a chart pick from the rail's choices STALE — its chart gone, or showing another ticker than when asked? */
+// ⛔ probe 50b1: a ticker is SET ASIDE only by a negation that GOVERNS it — the negator immediately before it ("not NVDA",
+// "except NVDA", "leave NVDA …", "don't touch NVDA", "keep NVDA"), never an earlier clause about another ticker
+const NEGATOR = String.raw`(?:not|except(?:\s+for)?|other\s+than|excluding|without|leave|leaving|keep|keeping|(?:do\s+not|don['’]?t|never)\s+(?:touch|change|move|replace|remove)|never)`
+export function tickerSetAside(words, ticker) {
+  const t = String(ticker || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  if (!t) return false
+  return new RegExp(String.raw`\b${NEGATOR}\s+(?:(?:the|my|your|on|to|for|of)\s+)?\$?${t}\b`, 'i').test(String(words || ''))
+}
 export function chartPickStale(pick, host) {
   if (!pick?.chartRef) return false
   let now = null
   try { now = host?.charts?.read?.(pick.chartRef) || null } catch { now = null }
-  return !now || (pick.fp != null && up(now.symbol) !== pick.fp)
+  return !now || (pick.fp !== undefined && up(now.symbol) !== (pick.fp || ''))
 }
 /** How the words identify this existing chart (for a re-symbol), or null: 'pick' | 'name' | 'position' | 'deixis' | 'class' | 'replace'. */
 export function identifiesChart(w, e, host, { selected = null, subject = null, picked = null, sole = false, made = null } = {}) {
@@ -323,7 +334,7 @@ export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply'
       const sole = inScope === 1 || (groups.size === 1 && inScope === charts.length)
       if (!identifiesChart(w, e, host, { selected, subject, picked, sole, made })) {
         if (inScope > 1) {
-          if (out) out.ask = { kind: 'chart', from: e.ref, to: e.to, candidates: charts.map(c => ({ ref: c.ref, symbol: up(c.symbol), label: c.label || (c.symbol ? `the ${up(c.symbol)} chart` : 'a chart') })) }
+          if (out) out.ask = { kind: 'chart', from: e.ref, to: e.to, candidates: charts.map(c => ({ ref: c.ref, symbol: up(c.symbol) || '', label: c.label || (c.symbol ? `the ${up(c.symbol)} chart` : 'a chart') })) }
           return `Which chart should change to ${e.to}? You didn’t say which one, so nothing was changed — pick one, or say “add ${e.to}” for a new chart beside them.`
         }
         return `I didn’t change anything: this would turn ${nameOf(e)} into ${e.to}, and you didn’t say to change that chart. Say “switch this chart to ${e.to}” to replace it, or “add ${e.to}” for a new chart beside it.`
@@ -333,15 +344,17 @@ export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply'
     {
       const before = new Set(liveCharts(host).map(c => up(c.symbol)).filter(Boolean))
       // (a ticker the words set aside — "but not NVDA", "leave TSLA", "except AMD" — is never one they ask to see)
-      const setAside = (t) => {
-        const at = w.search(new RegExp(`\\b\\$?${t}\\b`, 'i'))
-        const lead = at < 0 ? '' : w.slice(0, at).split(/[.;!?]|,\s*(?:and|then)\b/).pop()
-        return /\b(?:not|except|but not|other than|excluding|without|leave|leaving|keep|keeping|don['’]?t|never)\b/i.test(lead)
-      }
+      const setAside = (t) => tickerSetAside(w, t)
       const asked = [...new Set(tickersIn(w))].filter(t => !before.has(t) && !setAside(t))
       // (a stated grid is checked by its own COUNT rule)
       const gridded = (plan.plans || []).some(p => p.kind === 'board' || p.kind === 'multiChart') || gridStated(w, known) || requestedPanels(w) != null
       // (on the SOLE chart: a multi-step request on several charts lands its tickers one step at a time)
+      // a single chart this plan gives two or more of the named tickers (re-symbolled twice: only the last would remain)
+      const stacked = (plan.plans || []).filter(p => p.kind === 'chart' && !p.virtual).find(p => new Set((p.items || []).filter(i => i.op?.action === 'chart.setSymbol').map(i => up(i.op?.args?.symbol)).filter(x => asked.includes(x))).size >= 2)
+      if (!gridded && stacked) {
+        const got = [...new Set((stacked.items || []).filter(i => i.op?.action === 'chart.setSymbol').map(i => up(i.op?.args?.symbol)))]
+        return `I didn’t change anything: this would put ${listOf(got)} on ONE chart one after the other, and only ${got[got.length - 1]} would stay. Say “add ${listOf(asked)}” for new charts, or which chart each one replaces.`
+      }
       if (!gridded && asked.length >= 2 && chartsInScope(host).count === 1 && effects.some(e => e.type === 'symbol' && e.to)) {
         const final = new Map(liveCharts(host).map(c => [c.ref, up(c.symbol)]))
         for (const e of effects) if (e.type === 'symbol' && e.to) final.set(e.ref, up(e.to))

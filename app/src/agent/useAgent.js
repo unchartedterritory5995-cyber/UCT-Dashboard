@@ -826,6 +826,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   const railMarkRef = useRef(RAIL_MARK)     // which rail refused last (telemetry)
   const railCardRef = useRef(false)         // (D19) the state rail sends this plan to its approval card
   const railAskRef = useRef(null)           // (D19) what the state rail asks, with choices (the refusal's question)
+  const askSnapRef = useRef(null)          // (probe 50d2) chart ref → the ticker it showed when the open question was asked
   const railPickedRef = useRef(null)        // (D19) the object the member picked from those choices (exact id)
   // the conversation's CURRENT subject (AUDIT #1247): the exact objects a pointer at the start of a message means — the
   // indicator(s) the latest changes touched, the drawing last drawn or changed. Only these may be restyled by "make it …"
@@ -936,6 +937,10 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     if (['agent', 'refusal', 'error'].includes(item?.role) && !String(item.text || '').trim()
         && !item.present && !item.table && !item.link) return
     if (item?.role && item.role !== 'member') turnOutput(item.role)
+    // ⛔ probe 50d2: what every chart showed when a question was asked — EVERY chart pick is checked against it (stale → refused)
+    if (item?.role === 'question') {
+      try { askSnapRef.current = new Map((host?.charts?.list?.() || []).map(c => [String(c.ref), String(c.symbol || '').toUpperCase()])) } catch { askSnapRef.current = null }
+    }
     const id = item?.id || nid()
     if (item?.role === 'question') lastQuestionRef.current = { ...item, id }
     setItems(xs => [...xs, { at: Date.now(), ...item, id }])
@@ -2237,6 +2242,18 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       return
     }
     // (a model PROPOSAL re-aimed by a "which chart?" pick stays a proposal; fast picks set no mode)
+    // ⛔ probe 50d2: the pick is bound to the chart AND what it showed when asked — a chart since changed (or an empty one
+    // since filled) is never written over: refused, ask again
+    {
+      const chartRef = String(ref).replace(/^[a-z]+:/i, '')
+      const fp = askSnapRef.current?.get?.(chartRef)
+      if (fp !== undefined && chartPickStale({ chartRef, fp }, host)) {
+        const text = 'Your board changed since I asked, so I didn’t change anything — ask again and pick from the charts as they are now.'
+        push({ role: 'refusal', text })
+        record({ member: label, outcome: text, outcomeData: { kind: 'refused-stale-pick' }, telemetry: { path: p.path, refused: true } })
+        return
+      }
+    }
     // ⛔ H14: the chart the member picked here is the chart the words now identify (chartRail UNIQUE IDENTIFICATION)
     railPickedRef.current = new Set([`chart:${String(ref).replace(/^[a-z]+:/i, '')}`])
     try {
@@ -2872,6 +2889,9 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
           else if (d?.ask?.choices?.length) candidates = candidates.filter(c => d.ask.choices.some(x => x.ref === c.ref))
           if (d?.implicit && candidates.length === 1) implicitTarget = `On ${candidates[0].label || 'the chart you selected'} — the chart you last clicked.`
         }
+        // ⛔ D23 / probe 50e1: a symbol change on charts that all follow ONE link colour moves them all — one object, never asked
+        if (candidates.length > 1 && !fast.target?.position && fast.ops.every(o => o?.action === 'chart.setSymbol')
+          && new Set(candidates.map(c => (typeof c.group === 'string' && c.group && !c.group.startsWith('N') ? `g:${c.group}` : `c:${c.ref}`))).size === 1) candidates = [candidates[0]]
         const unmatchedHint = fast.target?.position && charts.length > 1 && candidates === charts
         if (candidates.length > 1 || unmatchedHint || ordAsk) {
           pendingRef.current = { kind: 'target', ops: fast.ops, path: 'fast', member: text, voice, epoch: epochOf(host) }
