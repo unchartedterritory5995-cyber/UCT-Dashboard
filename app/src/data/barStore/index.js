@@ -21,6 +21,7 @@
 import { createRegistry } from './registry'
 import { createPersist } from './persist'
 import { createNetwork } from './network'
+import { createHistoryFeed, historyLakeEnabled } from './historyFeed'
 import { createLiveFeed } from './liveFeed'
 import { STATUS } from './types'
 
@@ -43,7 +44,10 @@ export function createBarStore(o = {}) {
   const setTimer = o.timers?.setTimer ?? ((fn, ms) => setTimeout(fn, ms))
   const clearTimer = o.timers?.clearTimer ?? ((h) => clearTimeout(h))
   const registry = o.registry ?? createRegistry({ ctx: () => ({ nowMs: now() }), ...(o.frame ? { frame: o.frame } : {}) })
+  // the history lake (per-browser switch until its edge route is live; historyFeed.js)
+  const history = o.history !== undefined ? o.history : (historyLakeEnabled() ? createHistoryFeed() : null)
   const network = o.network ?? createNetwork({
+    history,
     registry, request: o.request, setTimer, clearTimer, now,
     ...(o.isHidden ? { isHidden: o.isHidden } : {}), ...(o.onVisible ? { onVisible: o.onVisible } : {}),
   })

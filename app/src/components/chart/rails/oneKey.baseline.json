@@ -126,10 +126,6 @@
       }
     },
     "components/chart/useLegacyChartBars.js": {
-      "/api/bars-history/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars": {
-        "n": 1,
-        "at": "components/chart/useLegacyChartBars.js:521"
-      },
       "/api/bars/${encodeURIComponent(sym || ": {
         "n": 1,
         "at": "components/chart/useLegacyChartBars.js:539"
@@ -152,6 +148,10 @@
       }
     },
     "data/barStore/network.js": {
+      "/api/bars-history/${encodeURIComponent(sym)}?tf=${tf}&bars=${fullB": {
+        "n": 1,
+        "at": "data/barStore/network.js:144"
+      },
       "/api/bars/${encodeURIComponent(p.sym)}?tf=${p.tf}&bars=${b": {
         "n": 1,
         "at": "data/barStore/network.js:98"

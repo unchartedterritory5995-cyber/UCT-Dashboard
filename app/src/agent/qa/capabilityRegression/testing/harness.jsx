@@ -32,6 +32,8 @@ import { mergeChartSettings } from '../../../../components/chart/chartDefaults'
 import { makeGridControl } from './gridStub'
 import * as nativeRegistry from '../../../../components/chart/engine/nativeRegistry'
 import { _resetAgentConfig, loadAgentConfig } from '../../../agentClient'
+import { publishWidgetDoor } from '../../../../pages/charts/widgetDoors'
+import { _resetNewsLibraryForTests } from '../../../capabilities/newsLibrary'
 
 const chart = (id, x, y, w, h) => ({ id, type: 'chart', x, y, w, h, color: 'N', opts: { settings: bareSettings() } })
 /** Named fixture boards. Charts are bare (the default 9/20/50/200 overlays removed, as a member's removal leaves them). */
@@ -70,6 +72,8 @@ export const BOARDS = {
   // chartFeatures: a chart whose Company Info panel is added (collapsed, on Ownership, dragged to 520px) and Earnings Strip shown
   DOCKED: () => [[{ ...chart('c1', 0, 0, 24, 20), opts: { settings: bareSettings(), dock: { company: true, open: false, tab: 'ownership', rightW: 520, strip: true, stripH: 140 } } }], { 'N:c1': 'NVDA' }],
   WATERMARK: () => [[{ ...chart('c1', 0, 0, 24, 20), opts: { settings: bareSettings(), watermarkPos: { x: 0.2, y: 0.8, anchor: null } } }], { 'N:c1': 'NVDA' }],
+  // newsLibrary.*: a chart beside a UCT News widget (its door: three rendered rows), over a library stand-in seeded per case
+  NEWS_LIB: () => [[chart('c1', 0, 0, 12, 20), { id: 'n1', type: 'tradeExchangeNews', x: 12, y: 0, w: 12, h: 20, color: 'A', opts: {} }], { 'N:c1': 'NVDA' }, { newsLibrary: true }],
   // a chart drawn with a GRADIENT background (live LT-3: "turn the gradient off on this chart")
   GRADIENT: () => [[{ ...chart('c1', 0, 0, 24, 20), opts: { settings: { ...bareSettings(), bgMode: 'gradient' } } }], { 'N:c1': 'NVDA' }],
   // one chart on its DEFAULT settings (EMA 9/20, SMA 50/200) with the indicator-alert library
@@ -207,6 +211,32 @@ export const nlm1Of = (seed = {}) => (seed.nlm1 != null ? !!seed.nlm1 : (globalT
 // scripted STEP-1 server (testing/stepServer.js) instead of the v1 envelope queue, and the config says planner 'v2'.
 // Absent (every capability-regression suite), mountCase is exactly as before.
 let unpublishListView = null
+/** The UCT News library module's API (lib/tradeExchangeNewsLibrary.js) over an in-memory member library — the kind reads it
+ *  through `host.newsLibrary` in place of the page's module. Synthetic; ids are the NEWS_LIB rows'. */
+function newsLibraryStandIn(seed) {
+  let n = 0
+  const cols = (seed.collections || []).map(name => ({ id: `k${++n}`, name }))
+  const marks = new Map((seed.saved || []).map(id => [id, { event_id: id, note: seed.notes?.[id] || '', collection_ids: (seed.member?.[id] || []).map(nm => cols.find(c => c.name === nm)?.id).filter(Boolean), saved_at_ms: 1 }]))
+  const snap = () => ({ status: 'ready', ids: new Set(marks.keys()), collections: cols.map(c => ({ ...c, count: [...marks.values()].filter(m => m.collection_ids.includes(c.id)).length })),
+    notes: Object.fromEntries([...marks].map(([id, m]) => [id, m.note])), member: Object.fromEntries([...marks].map(([id, m]) => [id, [...m.collection_ids]])) })
+  let cur = snap()
+  const ok = (x = {}) => { cur = snap(); return { ok: true, ...x } }
+  const no = (error) => ({ ok: false, error })
+  return {
+    getSnapshot: () => cur, load: async () => { cur = snap(); return cur }, isSaved: (id) => marks.has(id),
+    save: async (id) => { if (!marks.has(id)) marks.set(id, { event_id: id, note: '', collection_ids: [], saved_at_ms: 2 }); return ok() },
+    remove: async (id) => { const m = marks.get(id); marks.delete(id); return ok({ removed: m ? { ...m, collection_ids: [...m.collection_ids] } : null }) },
+    undoRemove: async (r) => { if (r?.event_id) marks.set(r.event_id, { ...r, collection_ids: (r.collection_ids || []).filter(c => cols.some(x => x.id === c)) }); return ok() },
+    setNote: async (id, note) => { const m = marks.get(id); if (!m) return no('Save the headline before adding a note.'); m.note = note; return ok() },
+    createCollection: async (name) => { if (cols.some(c => c.name.toLowerCase() === name.toLowerCase())) return no(`You already have a collection named “${name}”.`); const c = { id: `k${++n}`, name }; cols.push(c); return ok({ body: c }) },
+    renameCollection: async (cid, name) => { const c = cols.find(x => x.id === cid); if (!c) return no('That collection could not be found.'); c.name = name; return ok() },
+    deleteCollection: async (cid) => { const i = cols.findIndex(x => x.id === cid); if (i < 0) return no('That collection could not be found.'); cols.splice(i, 1); for (const m of marks.values()) m.collection_ids = m.collection_ids.filter(x => x !== cid); return ok() },
+    setMembership: async (cid, id, member) => { const m = marks.get(id); if (!m) return no('Save the headline before adding it to a collection.'); m.collection_ids = member ? [...new Set([...m.collection_ids, cid])] : m.collection_ids.filter(x => x !== cid); return ok() },
+    setMembershipSaving: async (cid, id, member) => { if (member && !marks.has(id)) marks.set(id, { event_id: id, note: '', collection_ids: [], saved_at_ms: 2 }); const m = marks.get(id); m.collection_ids = member ? [...new Set([...m.collection_ids, cid])] : m.collection_ids.filter(x => x !== cid); return ok() },
+    fetchBookmark: async (id) => ({ ok: true, bookmark: marks.has(id) ? { ...marks.get(id) } : null }),
+  }
+}
+
 export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, stepScript = null } = {}) {
   // NLM-1 on (nlm1Of): BOTH switches on for this case (server config routing_v2 + the browser key); off: the browser kill
   // switch set to '0', so NLM-1 stays off whatever an earlier case left cached
@@ -534,6 +564,15 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     mounted.h.drawings = buildDrawingSource({ list: () => mounted.h.charts.list().map(c => ({ ...c, drawSym: c.symbol })) })      // (a TIMED board's charts carry their view: the loaded history)
     // a case may SEED drawings the Agent cannot draw itself (seed.drawings: { SYM: [drawing] }, e.g. a position for its alerts)
     for (const [sym, list] of Object.entries(seed.drawings || {})) for (const d of list) drawingsStore.addDrawing(sym, d)
+  }
+  // newsLibrary.*: the News widget's door (the rows it renders) and the member's library, as the library module's own API answers
+  // them (seed.newsLibrary: { saved, collections: [names], notes: { id: text }, member: { id: [names] } })
+  if (extra.newsLibrary) {
+    _resetNewsLibraryForTests()
+    const rows = [{ id: 'h1', text: 'SYNTHETIC: AMD guidance raised', tickers: ['AMD'], time: 1 }, { id: 'h2', text: 'SYNTHETIC: Fed minutes due', tickers: [], time: 2 },
+      { id: 'h3', text: 'SYNTHETIC: NVDA beats estimates', tickers: ['NVDA'], time: 3 }]
+    publishWidgetDoor('n1', () => ({ read: () => ({ search: '', visible: rows, selected: null }) }))
+    mounted.h.newsLibrary = newsLibraryStandIn(seed.newsLibrary || {})
   }
   // uctIntelligence.set: each chart's UCT Intelligence gates as StockChart publishes them (ChartPane → ChartWidget agent.uctIntelligence)
   if (extra.uctIntel) {
