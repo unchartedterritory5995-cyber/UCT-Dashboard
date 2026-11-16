@@ -4130,6 +4130,17 @@ export default function ChartSettingsIndicators({
                  empty CATEGORY — telling a member there is nothing here would be
                  a different and wrong sentence. */
               : <>Search to find {tabLabel.toLowerCase()} to add.</>}
+            {/* ⭐ NOTHING CALLED THAT: DESCRIBE IT INSTEAD (Studio plan, section 6). A search that
+                finds nothing is the member telling us what they wanted, so the dead end offers
+                the door that can build it, with their words already in its box (not sent). */}
+            {query.trim() && !symbolsLoading && showCreateIndicator && (
+              <div className={styles.indEmptyAction}>
+                <button type="button" className={styles.pill} data-testid="empty-describe"
+                  onClick={() => describeIt(query)}>
+                  <Icon name="spark" size={13} className={styles.spark} />Describe “{query.trim()}” instead
+                </button>
+              </div>
+            )}
           </div>
         )}
         {/* ─── SYMBOLS ARE STILL COMING ──────────────────────────────────
