@@ -28,6 +28,10 @@ def _state(monkeypatch):
         monkeypatch.delenv(v, raising=False)
     names = ("_active", "_active_channels", "_sub_owners", "_pending_subscribe", "_pending_unsubscribe")
     saved = {n: copy.deepcopy(getattr(bs, n)) for n in names}
+    # start_remote() flips process-wide state: restore it for every later test
+    monkeypatch.setattr(bs, "_record_only", False)
+    for name in ("_client", "_task", "_stop"):
+        monkeypatch.setattr(fc, name, getattr(fc, name))
     yield
     for n in names:
         cur = getattr(bs, n)
@@ -349,6 +353,7 @@ def test_feed_client_resets_on_a_new_epoch_and_resyncs_on_a_gap(monkeypatch):
         await _until(lambda: client.counters["connects"] == 2 and rb.get_partial("ZZA", "1") is not None)
         assert rb.get_partial("ZZA", "1")["t"] == T0 + 3 * MIN, "the gapped batch was never applied"
         assert client.counters["epoch_resets"] == 3, "a new connection starts a fresh stream"
+        assert rb._sent_keys == {("ZZA", "1")}, "a real send records what ingest was told"
         hellos = [m for m in sent if isinstance(m, fp.Hello)]
         assert len(hellos) == 2 and hellos[1].gen > hellos[0].gen
         assert all(isinstance(m, (fp.Hello, fp.Desired)) for m in sent)

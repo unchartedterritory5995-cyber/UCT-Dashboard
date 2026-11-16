@@ -165,7 +165,8 @@ class RemoteBroadcaster:
             for k in [k for k in self._bars if k not in keys]:
                 del self._bars[k]
             gone = {s for s in (set(self._prices) | {s for s, _ in self.legacy._hi})
-                    if s not in syms and not any(k[0] == s for k in keys)}
+                    if s not in syms and not any(k[0] == s for k in keys)
+                    and not self._wanted(s)}      # re-added while the send was in flight
             for s in gone:
                 self._prices.pop(s, None)
                 self._tick_mono.pop(s, None)
