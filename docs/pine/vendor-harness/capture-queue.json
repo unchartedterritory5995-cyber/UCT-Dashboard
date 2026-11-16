@@ -328,7 +328,7 @@
     "NEEDS_CHART": 1
    }
   },
-  "rowsNeedingProbe": 17,
+  "rowsNeedingProbe": 19,
   "rowsNeedingProbeLive": 0,
   "licenceHeldCensus": 157,
   "rowsNotCaptureQuestions": 50,
@@ -15651,6 +15651,28 @@
    ],
    "namedScripts": [],
    "text": "`flying-buddha-inside-bars-indicator-v1-by-justunclel-rddt-1d-2026-11-14` (held store, s7) | `plotarrow(…, colorup = lime, colordown = red, transp = 20)`: `colorup` / `colordown` are not carried. On 16 of 666 bars TradingView paints `#2962ffcc` and we paint the default series colour `#c9a84ccc`. Its five value plots agree on 666 / 666 bars. It was refused whole before COND-TA's parameter guards (`"
+  },
+  {
+   "key": "capture-queue-2026-11-16-door-robustness#Q-ROB8",
+   "doc": "docs/pine/capture-queue-2026-11-16-door-robustness.md",
+   "line": 17,
+   "docWave": "door-robustness",
+   "needsProbe": "no probe file named (an inline shape or prose)",
+   "needsLive": false,
+   "guards": [],
+   "namedScripts": [],
+   "text": "Q-ROB8 | `reference:check-head-and-shouldersmask-man` (sha256 `7f75ae5de3275c54…`) | NYSE:RDDT 1D, AMEX:SPY 1D, from the listing | whether the per-bar lane's drawing of an admitted, never-captured script MATCHes"
+  },
+  {
+   "key": "capture-queue-2026-11-16-door-robustness#Q-ROB9",
+   "doc": "docs/pine/capture-queue-2026-11-16-door-robustness.md",
+   "line": 18,
+   "docWave": "door-robustness",
+   "needsProbe": "no probe file named (an inline shape or prose)",
+   "needsLive": false,
+   "guards": [],
+   "namedScripts": [],
+   "text": "Q-ROB9 | `reference:multi-timeframe-vwap-v5` (sha256 `3a11805bfef806a1…`) | NYSE:RDDT 1D, AMEX:SPY 1D, from the listing | the same"
   }
  ],
  "rowsNotCaptureQuestions": [
@@ -16127,31 +16149,31 @@
   {
    "key": "capture-queue-2026-11-16-door-robustness#Q-ROB5",
    "doc": "docs/pine/capture-queue-2026-11-16-door-robustness.md",
-   "line": 28,
+   "line": 42,
    "docWave": "door-robustness",
    "disposition": "engine-gap",
    "reason": "the capture exists and grades the item DIVERGE; what it needs is a per-bar-lane fix, not a TradingView reading",
-   "dispositionLine": 34,
+   "dispositionLine": 48,
    "text": "Q-ROB5 | (existing capture `mtf-key-levels-support-and-resistance-rddt-1d-2026-11-14`) | `D-VWAP` (plot_0): 6 steady-state bars disagree in the 2nd decimal (first at bar 114: vendor 57.3, ours 57.29), persistent to bar 665; W-, M- and Y-VWAP agree on every bar"
   },
   {
    "key": "capture-queue-2026-11-16-door-robustness#Q-ROB6",
    "doc": "docs/pine/capture-queue-2026-11-16-door-robustness.md",
-   "line": 29,
+   "line": 43,
    "docWave": "door-robustness",
    "disposition": "engine-gap",
    "reason": "the capture exists and grades the item DIVERGE; what it needs is a per-bar-lane fix, not a TradingView reading",
-   "dispositionLine": 35,
+   "dispositionLine": 49,
    "text": "Q-ROB6 | (existing capture `mtf-key-levels-support-and-resistance-rddt-1d-2026-11-14`) | labels: TradingView 27, the per-bar lane 3"
   },
   {
    "key": "capture-queue-2026-11-16-door-robustness#Q-ROB7",
    "doc": "docs/pine/capture-queue-2026-11-16-door-robustness.md",
-   "line": 30,
+   "line": 44,
    "docWave": "door-robustness",
    "disposition": "engine-gap",
    "reason": "the capture exists and grades the item DIVERGE; what it needs is a per-bar-lane fix, not a TradingView reading",
-   "dispositionLine": 36,
+   "dispositionLine": 50,
    "text": "Q-ROB7 | (existing capture `mtf-key-levels-support-and-resistance-rddt-1d-2026-11-14`) | lines: 23 vs 22, and a line's y1 differs (first: vendor 103.2824, ours 101.27)"
   }
  ],
@@ -17759,7 +17781,7 @@
   {
    "doc": "docs/pine/capture-queue-2026-11-16-door-robustness.md",
    "wave": "door-robustness",
-   "rows": 7,
+   "rows": 9,
    "contextTables": 0
   },
   {

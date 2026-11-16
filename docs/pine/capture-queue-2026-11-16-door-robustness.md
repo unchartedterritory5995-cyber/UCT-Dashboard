@@ -3,6 +3,20 @@
 Same procedure as `docs/pine/capture-queue-2026-09-28.md`; capture from the listing (NYSE:RDDT 1D), and read
 each table cell's and label's text from the chart model.
 
+## FIRST: two scripts the per-bar lane now draws on capability evidence alone (capture the scripts themselves)
+
+The member door now offers these two host-budget-refused scripts to the per-bar lane, and capability admission
+(owner policy R1, `PINE_RUNTIME_CAPABILITY_ADMISSION=on`) ADMITS both, so a member whose pane is permitted sees
+them drawn bar by bar with no capture of their own. Capture each script itself (no probe), from the listing; if
+either grades DIVERGE on the runtime-on lane it goes on the committed kill list (coordinator ruling, 2026-11-16).
+Both are reference-only sources (local sample cache, never committed), so the queue tool lists these rows as
+naming no probe file; the session takes the source from the sample cache by its key.
+
+| row | script (no probe) | charts | what it settles |
+|---|---|---|---|
+| Q-ROB8 | `reference:check-head-and-shouldersmask-man` (sha256 `7f75ae5de3275c54…`) | NYSE:RDDT 1D, AMEX:SPY 1D, from the listing | whether the per-bar lane's drawing of an admitted, never-captured script MATCHes |
+| Q-ROB9 | `reference:multi-timeframe-vwap-v5` (sha256 `3a11805bfef806a1…`) | NYSE:RDDT 1D, AMEX:SPY 1D, from the listing | the same |
+
 The drawing lane's text reader now reads a `var string` from its writes where that needs no bar-to-bar
 memory (`pine.js::stringVarTextOf`): a seed that is text, a write on every bar, a write under a guard that is
 the same on every bar of the chart, a write in both branches of an `if / else`. Two shapes are refused by
