@@ -158,11 +158,21 @@ describe('REQ · the runtime lane serves look-ahead W / M as TradingView draws i
       symbol: { ticker: 'SPY', exchange: 'AMEX' } })
     return Array.from(cols.a)
   }
+  // ⭐ The cut does not begin at the listing, so the run is the off-listing replay (`runtimeColumns.js::
+  // computeOffListing`): it withholds (`NaN`) the bars before its two runs agree — a PREFIX, by name. A drawn
+  // bar is graded; a withheld one is not a value. The prefix is asserted short, so the rail cannot pass by
+  // withholding everything, and every withheld bar must lie in it.
   const exact = (ours, title, from, skip = 0) => {
     const v = vendor(title).slice(from)
     const wrong = []
-    for (let i = skip; i < v.length; i += 1) if (!(Math.abs(ours[i] - v[i]) <= 1e-9 * Math.max(1, Math.abs(v[i])))) wrong.push(i)
-    return { compared: v.length - skip, wrong }
+    let prefix = 0
+    while (prefix < ours.length && Number.isNaN(ours[prefix])) prefix += 1
+    let compared = 0
+    for (let i = Math.max(skip, prefix); i < v.length; i += 1) {
+      compared += 1
+      if (!(Math.abs(ours[i] - v[i]) <= 1e-9 * Math.max(1, Math.abs(v[i])))) wrong.push(i)
+    }
+    return { compared, wrong, prefix }
   }
 
   it('the cut starts on a Monday after a Friday, inside the window', () => {
@@ -174,21 +184,24 @@ describe('REQ · the runtime lane serves look-ahead W / M as TradingView draws i
     const g = exact(run('plot(request.security(syminfo.tickerid, "W", close, lookahead = barmerge.lookahead_on))', start),
       'A01_close_W_lookahead_ON', start)
     expect(g.wrong).toEqual([])
-    expect(g.compared).toBeGreaterThan(1700)
+    expect(g.prefix).toBeLessThan(400)
+    expect(g.compared).toBeGreaterThan(1300)
   })
 
   it('⭐ A04: monthly, every bar exact (the cut begins on a month\'s first session)', () => {
     const g = exact(run('plot(request.security(syminfo.tickerid, "M", close, lookahead = barmerge.lookahead_on))', firstMonthStart),
       'A04_close_M_lookahead_ON', firstMonthStart)
     expect(g.wrong).toEqual([])
-    expect(g.compared).toBeGreaterThan(1700)
+    expect(g.prefix).toBeLessThan(400)
+    expect(g.compared).toBeGreaterThan(1300)
   })
 
   it('⭐ A06: `close[1]` inside the request is LAST week\'s close, from the second week of the cut on', () => {
     const ours = run('plot(request.security(syminfo.tickerid, "W", close[1], lookahead = barmerge.lookahead_on))', start)
     const g = exact(ours, 'A06_prev_W_close_ON', start, 5)
     expect(g.wrong).toEqual([])
-    expect(g.compared).toBeGreaterThan(1700)
+    expect(g.prefix).toBeLessThan(400)
+    expect(g.compared).toBeGreaterThan(1300)
   })
 
   it('⛔ CONTROL: the same cut read with look-ahead OFF differs from A01 on most bars (the rail can fail)', () => {
@@ -196,8 +209,13 @@ describe('REQ · the runtime lane serves look-ahead W / M as TradingView draws i
     expect(exact(off, 'A01_close_W_lookahead_ON', start).wrong.length).toBeGreaterThan(1000)
   })
 
-  it('⛔ CONTROL: a cut that does not begin on a week\'s first session is refused by name, never drawn', () => {
-    expect(() => run('plot(request.security(syminfo.tickerid, "W", close, lookahead = barmerge.lookahead_on))', start + 1))
-      .toThrow(/request:htf-lookahead-first-period-partial/)
+  it('⭐ a cut that begins MID-WEEK: the warm-up curtain withholds the partial week, every drawn bar exact', () => {
+    // the off-listing replay judges the partial first week (`runtimeColumns.js::computeOffListing`): its two
+    // runs agree only once the partial week no longer reaches, and every bar before that is withheld
+    const ours = run('plot(request.security(syminfo.tickerid, "W", close, lookahead = barmerge.lookahead_on))', start + 1)
+    const g = exact(ours, 'A01_close_W_lookahead_ON', start + 1)
+    expect(g.wrong).toEqual([])
+    expect(g.prefix).toBeGreaterThanOrEqual(4)   // at least the rest of the partial week
+    expect(g.compared).toBeGreaterThan(1300)
   })
 })

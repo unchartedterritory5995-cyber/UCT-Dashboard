@@ -193,6 +193,7 @@ export function runtimeRequestSupply(requests, rows, ctx = {}) {
         tf: ctx && ctx.tf,
         newestBarIsForming: ctx ? ctx.newestBarIsForming : undefined,
         historyFromListing: !!(ctx && ctx.historyFromListing === true),
+        curtained: !!(ctx && ctx.curtained === true),
         chartClockSink: sink,
       },
     })

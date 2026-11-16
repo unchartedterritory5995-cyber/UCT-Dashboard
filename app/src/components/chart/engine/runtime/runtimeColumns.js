@@ -1333,7 +1333,12 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   // ⭐⭐ RS RATING L5 — THE REQUESTED BARS, per site (`requestSupply.js`). A refusal names its
   // reason; a symbol still loading holds the run (no columns, nothing said, as the host lane
   // says nothing about a read still waiting); the newest bar alone withheld is withheld below.
-  const reqSupply = requestSites.length ? runtimeRequestSupply(program.requests, rows, ctx) : null
+  // ⭐ REQ — inside the off-listing warm-up runs (`computeOffListing`, `warmupCurtain: false`) the partial
+  // first period of a look-ahead read is the curtain's to judge: the two runs agree only where it no longer
+  // reaches, and every bar before that is withheld by the curtain (`requestSupply.js`, `curtained`).
+  const reqSupply = requestSites.length
+    ? runtimeRequestSupply(program.requests, rows, opts && opts.warmupCurtain === false ? { ...ctx, curtained: true } : ctx)
+    : null
   if (reqSupply && reqSupply.refusal) throw refusal(reqSupply.refusal.guard, reqSupply.refusal.message)
   if (reqSupply && reqSupply.pending) {
     throw refusal('runtime:request', "this script reads another symbol whose bars are still loading; it is "

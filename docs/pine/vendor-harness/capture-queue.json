@@ -60,6 +60,7 @@
    "docs/pine/capture-queue-2026-11-14-rs-rating.md",
    "docs/pine/capture-queue-2026-11-15-calc-bars.md",
    "docs/pine/capture-queue-2026-11-16-cond-ta-followups.md",
+   "docs/pine/capture-queue-2026-11-16-request-security.md",
    "docs/pine/capture-queue-2026-11-16-rma-last-bit.md"
   ],
   "coverageMeasuredOn": "2026-11-05",
@@ -323,16 +324,16 @@
     "NEEDS_CHART": 1
    }
   },
-  "rowsNeedingProbe": 15,
-  "rowsNeedingProbeLive": 0,
+  "rowsNeedingProbe": 19,
+  "rowsNeedingProbeLive": 1,
   "licenceHeldCensus": 156,
-  "rowsNotCaptureQuestions": 47,
+  "rowsNotCaptureQuestions": 49,
   "rowsNotCaptureByDisposition": {
    "builtin": 1,
    "by-design": 2,
    "closed": 7,
    "engine-gap": 12,
-   "ruling": 4,
+   "ruling": 6,
    "superseded": 11,
    "withheld-ledger": 10
   },
@@ -15662,6 +15663,17 @@
    "text": "Q-RS8 | `docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine` (unchanged, sha256 `caa94fe31a87...5af0`) | NYSE:RDDT 1D, NASDAQ:ALAB 1D, NASDAQ:CRWV 1D, each from the listing, default inputs | The x of RS Rating's two labels. The three committed captures (`rs-rating-fred6724-{rddt,alab,crwv}-1d-2026-11-15`) predate U13 and record no x table, so objects v2 grades INCONCLUSIVE and the run half that"
   },
   {
+   "key": "capture-queue-2026-11-14-rs-rating#Q-RS9",
+   "doc": "docs/pine/capture-queue-2026-11-14-rs-rating.md",
+   "line": 54,
+   "docWave": "rs-rating",
+   "needsProbe": "no probe file named (an inline shape or prose)",
+   "needsLive": false,
+   "guards": [],
+   "namedScripts": [],
+   "text": "Q-RS9 | RS Rating's RS line on bars before 2023-12-05: we serve FMP `^GSPC`, TradingView reads `SP:SPX` | NVDA 1D: 1,292 of 6,997 bars differ (18.5%), first 1999-01-28, last 2023-12-04, largest 1.83% of the value; 5,705 exact; the three averages exact on all 6,997. Re-derived 2026-11-16 on master `d615e76494`. From the 2026-11-15 grade, not re-derived: 89 of the 1,292 exceed 0.01%. RDDT / ALAB / C"
+  },
+  {
    "key": "capture-queue-2026-11-15-calc-bars#Q-FMT2",
    "doc": "docs/pine/capture-queue-2026-11-15-calc-bars.md",
    "line": 20,
@@ -15739,6 +15751,41 @@
    ],
    "namedScripts": [],
    "text": "`flying-buddha-inside-bars-indicator-v1-by-justunclel-rddt-1d-2026-11-14` (held store, s7) | `plotarrow(…, colorup = lime, colordown = red, transp = 20)`: `colorup` / `colordown` are not carried. On 16 of 666 bars TradingView paints `#2962ffcc` and we paint the default series colour `#c9a84ccc`. Its five value plots agree on 666 / 666 bars. It was refused whole before COND-TA's parameter guards (`"
+  },
+  {
+   "key": "capture-queue-2026-11-16-request-security#Q-REQ1",
+   "doc": "docs/pine/capture-queue-2026-11-16-request-security.md",
+   "line": 10,
+   "docWave": "request-security",
+   "needsProbe": "probe file owed: vw-req-lookahead-forming.pine",
+   "needsLive": true,
+   "guards": [],
+   "namedScripts": [],
+   "text": "Q-REQ1 | `vw-req-lookahead-forming.pine`: `request.security(syminfo.tickerid, \"W\", close, lookahead = barmerge.lookahead_on)` and the same at `\"M\"`, plus `barstate.isrealtime` | AMEX:SPY 1D during regular hours, the newest bar FORMING (mid-week, mid-month) | what does a look-ahead weekly / monthly read answer on the forming daily bar: the forming period's current close, or something else? | the ru"
+  },
+  {
+   "key": "capture-queue-2026-11-16-request-security#Q-REQ2",
+   "doc": "docs/pine/capture-queue-2026-11-16-request-security.md",
+   "line": 11,
+   "docWave": "request-security",
+   "needsProbe": "probe file owed: vw-req-barmerge-slot.pine",
+   "needsLive": false,
+   "guards": [],
+   "namedScripts": [],
+   "text": "Q-REQ2 | `vw-req-barmerge-slot.pine`: `plot(request.security(syminfo.tickerid, \"W\", close, lookahead = barmerge.gaps_on))`, the same with `barmerge.gaps_off`, and `plot(barmerge.gaps_on ? 1 : 0)` / `plot(barmerge.lookahead_on ? 1 : 0)` in v4 and v5 | NYSE:RDDT 1D | which look-ahead a `barmerge.gaps_*` constant passed in the `lookahead` slot reads as (previous-n-daysweeksmonths-high-low writes `loo"
+  },
+  {
+   "key": "capture-queue-2026-11-16-request-security#Q-REQ3",
+   "doc": "docs/pine/capture-queue-2026-11-16-request-security.md",
+   "line": 14,
+   "docWave": "request-security",
+   "needsProbe": "probe file owed: vw-req-heikinashi.pine",
+   "needsLive": false,
+   "guards": [
+    "pine:request"
+   ],
+   "namedScripts": [],
+   "text": "Q-REQ3 | `vw-req-heikinashi.pine`: `request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, open / close)` and the v4 `heikinashi(tickerid)` | AMEX:SPY 1D from the listing | is the Heikin Ashi series TradingView hands a request the textbook recursion over the chart's bars (open = average of the previous HA open and close, seeded how?) | refused `pine:request` by name (a different s"
   }
  ],
  "rowsNotCaptureQuestions": [
@@ -16211,6 +16258,26 @@
    "reason": "S10 vw-fmt-tie-readings-rddt-1d-2026-11-15: all 30 texts; the decimal reading rounds the shortest decimal half up, format.mintick rounds n / tick in binary, zero is unsigned, the default prints 1e+21, grouping by three — served as printed",
    "dispositionLine": 32,
    "text": "Q-FMT1 | `vw-fmt-tie-readings.pine` (S10, captured) | NYSE:RDDT 1D (tick 0.01) | how does `str.tostring` round a decimal tie, a mintick tie, a zero, an exponent, a grouping? | ANSWERED by S10: rules F1-F9, served as printed | nothing: closed"
+  },
+  {
+   "key": "capture-queue-2026-11-16-request-security#Q-REQ-LTF",
+   "doc": "docs/pine/capture-queue-2026-11-16-request-security.md",
+   "line": 12,
+   "docWave": "request-security",
+   "disposition": "ruling",
+   "reason": "A read below the chart's timeframe (lower-tf:store-unmeasured, 10 sample scripts touched): the RULE is captured (vw-lower-tf-), the DATA is not ours to serve. Measured 2026-10-01 (docs/pine/WAVE12-INTEGRATION-STATE.md, R-LTF): our /api/bars/RDDT?tf=15 against TradingView's vw-bar-counters-rddt-15-2026-09-30, 634 sessions: 77.06% of sessions price-equal on every bar (bar 99%), last-bar close equal on 96.99% (bar 99.5%), volume equal on 0.00% (our / TradingView's median 1.383). A data-source decision for the owner, not engine work.",
+   "dispositionLine": 22,
+   "text": "Q-REQ-LTF | (none: a data question) | NYSE:RDDT / AMEX:SPY 15 | does our stored intraday series equal TradingView's? | a read below the chart's timeframe is refused `lower-tf:store-unmeasured` | see the disposition below"
+  },
+  {
+   "key": "capture-queue-2026-11-16-request-security#Q-REQ-DATA",
+   "doc": "docs/pine/capture-queue-2026-11-16-request-security.md",
+   "line": 13,
+   "docWave": "request-security",
+   "disposition": "ruling",
+   "reason": "Symbols we do not hold: USI: / INDEX: breadth (in scope, its own unit: USI:ADVN.NY, USI:DECL.NY, USI:UNCH.NY, USI:UVOL, USI:DVOL, USI:ADD, UPVOL. / DNVOL., INDEX:SLTW), SP: sector indices (SP:SPN, SP:S5MATR, …), ECONOMICS:, QUANDL:, ESD:_EARNINGS; crypto and FX (BINANCE:, BITMEX:, INDEX:BTCUSD, EURUSD) out of scope by owner ruling. Refused by name (other-symbol:).",
+   "dispositionLine": 23,
+   "text": "Q-REQ-DATA | (none: data we do not hold) | any | breadth, sector, economic, crypto and FX symbols | refused by name (`other-symbol:*`) | see the disposition below"
   }
  ],
  "licenceHeldCensus": [
@@ -17791,7 +17858,7 @@
   {
    "doc": "docs/pine/capture-queue-2026-11-14-rs-rating.md",
    "wave": "rs-rating",
-   "rows": 8,
+   "rows": 9,
    "contextTables": 0
   },
   {
@@ -17804,6 +17871,12 @@
    "doc": "docs/pine/capture-queue-2026-11-16-cond-ta-followups.md",
    "wave": "cond-ta-followups",
    "rows": 8,
+   "contextTables": 0
+  },
+  {
+   "doc": "docs/pine/capture-queue-2026-11-16-request-security.md",
+   "wave": "request-security",
+   "rows": 5,
    "contextTables": 0
   },
   {

@@ -7010,6 +7010,24 @@ function tfLiveFirstPeriodMask(bars, code, opts) {
   return out
 }
 
+/** ⭐ REQ — THE NEWEST BAR OF A LOOK-AHEAD READ, UNLESS IT IS KNOWN FINISHED: a forming daily bar reads the
+ *  forming week / month, a reading no capture shows (`vw-request-htf-alignment-spy-1d-2026-10-02`'s newest bar
+ *  is finished). Withheld by name (`TF_LIVE_FORMING_CODE`) where `newestBarIsForming` is not `false`;
+ *  Q-REQ1 is the capture that settles it. The host's `tf_live` column is unchanged. */
+export const TF_LIVE_FORMING_CODE = 'request:htf-lookahead-forming-unmeasured'
+export const TF_LIVE_FORMING_SENTENCE = 'This indicator reads a weekly or monthly value with `request.security` '
+  + '(look-ahead on). On the bar still forming, that reads the week or month still forming, and what TradingView '
+  + 'shows there has not been captured; that bar is withheld rather than guessed. Every finished bar is drawn.'
+function tfLiveFormingMask(bars, opts) {
+  const n = bars.length
+  if (!n || (opts && opts.newestBarIsForming === false)) return null
+  const out = new Float64Array(n)
+  out[n - 1] = 1
+  const sink = opts && opts.chartClockSink
+  if (sink && typeof sink.set === 'function') sink.set(TF_LIVE_FORMING_CODE, TF_LIVE_FORMING_SENTENCE)
+  return out
+}
+
 /** ⭐ REVIEW L3 — the weekday of an ISO day, Mon = 1 … Sun = 7, from the day count alone. */
 function isoWeekday(iso) {
   const [y, m, d] = iso.split('-').map(Number)
@@ -7471,17 +7489,19 @@ export function requestAlignment({ chartBars, srcBars, code = null, other = null
     }
   }
   const leaf = { type: 'num', value: 0 }
-  // ⭐ REQ — a look-ahead read is the `tf_live` tree: no merge, so no merge mask (the newest bar
-  // reads the period it is inside, finished or not, as the `tf_live` column does). What IS
-  // withheld is `tfLiveFirstPeriodMask`: the first period of a chart that does not begin at the
-  // listing, where that period is built from only part of itself.
+  // ⭐ REQ — a look-ahead read is the `tf_live` tree: no merge, so no merge mask. Withheld, by name:
+  // `tfLiveFirstPeriodMask`, the first period of a chart that does not begin at the listing (built from only
+  // part of itself; inside the off-listing warm-up runs, `curtained`, the curtain judges it instead), and
+  // `tfLiveFormingMask`, the newest bar unless it is known finished (the capture's newest bar is finished;
+  // a forming one is Q-REQ1's question).
   const liveRead = live === true && code !== null
   let tree = code !== null ? { type: liveRead ? 'tf_live' : TF_MERGE, value: code, args: [leaf] } : leaf
   if (sym !== null) tree = { type: 'sym', value: sym, args: [tree] }
   const o = { ...(opts || {}), symbols: sym !== null ? { [sym]: src } : undefined }
   const masks = [
     code !== null && !liveRead ? tfMergeMask(tree, chartBars, o) : null,
-    liveRead ? tfLiveFirstPeriodMask(chartBars, code, o) : null,
+    liveRead && o.curtained !== true ? tfLiveFirstPeriodMask(chartBars, code, o) : null,
+    liveRead ? tfLiveFormingMask(chartBars, o) : null,
     sym !== null ? symAlignmentMask(tree, chartBars, o) : null,
   ].filter(Boolean)
   const withheld = new Float64Array(n)
