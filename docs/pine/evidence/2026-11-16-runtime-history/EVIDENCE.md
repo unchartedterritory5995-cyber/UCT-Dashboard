@@ -92,6 +92,36 @@ error carrying `guard`, which `runtimeColumns.js` rethrows as is, so an alert / 
 document is withheld by that guard and sentence (`pine_runtime_client.py` `_withheld`), never computed.
 The host and screener lanes are unchanged.
 
+## Coverage on this tree (runtime-on predicate: no orders, and clean or attached on the runtime lane)
+
+Measured over the 75 sample scripts that carry one of the three codes (engine 60 census, runtime-on),
+plus 65 random controls (40 that transferred, 25 that did not): subset census on `3a1f3d8acf`'s
+engine (S1-S3), then the member door + the census's own bound check (`boundBlockers`) on the final
+tree (`2662f637f2`) over RDDT 1D (from the listing) and SPY 1D (off the listing).
+
+| script (all four were sole-wall: no other wall) | e60 wall | now: builds (predicate) | runs to completion on RDDT 1D | on SPY 1D |
+|---|---|---|---|---|
+| `reference:cm-gann-swing-highlow-v2` (v1) | `conditional-history` (v1 arm) | yes | yes | yes |
+| `reference:supertrend-cluster-zeiierman` (v6) | `history-expression` (`ta.hma` in a `switch` arm of a helper) | yes | yes | yes |
+| `committed:kernel-channel-backquant` (v6) | `conditional-history` (a helper with loops in a `?:` arm) | yes | yes | yes on one run; `runtime:time-budget` on another (the pane's wall budget under box load, not a script stop) |
+| `committed:momentum-based-zigzag` (v5) | `conditional-history` (v5 arm) | yes | NO: stops by name at bar 106 (`ta.crossunder`, line 89, in one arm of `?:`; skips bar 105) | NO: stops at bar 93 (skips 92), same call |
+
+Freed by the predicate: **4**; freed AND run to completion on RDDT and SPY: **3** (kernel-channel with the
+time-budget caveat). Controls: 0 lost, 0 gained. 26 of the 75 no longer carry any of the three codes
+(their next wall is another unit's); 49 still do, each named in the queue doc.
+
+## Rails and mutants
+
+Rail: `runtime/__tests__/histRuntimeHistory.test.js` (34 cases). Rails that pinned a BUILD refusal for a
+shape this unit now builds ask build AND run (`runtime/__tests__/condHistoryOutcome.js`): refused by name,
+or drawn only while the region ran on every bar and stopped by the same guard at the first skip.
+Mutants (copy aside, mutate, the rail, restore from the copy, `git hash-object` equal; control green, 34
+passed), all KILLED: M1 legacy arms not eager; M2 `iff` not eager (survived the first pass: only the column
+route was railed; a rail for `iff` off the column route was added and kills it); M3 S2 admits `ta.dev`;
+M4 `callSiteRuns` always 1; M5 the check admits a loop; M6 a body local named as the culprit; M7 a binding
+from another branch admitted; M8 `ta.stdev` served per call site again; M9 a checked arm's binding read in a
+region; M10 a first run after bar 0 admitted. Trees: M1-M10 on `f77d0169ad`, M2 again on `2662f637f2`.
+
 ## Capture-session readings that bear on this unit (2026-11-16)
 
 - `vw-wsc-h1-window-runs`: Pine v6 has NO `ta.sum` ("Could not find"); the window sum is `math.sum`. The
