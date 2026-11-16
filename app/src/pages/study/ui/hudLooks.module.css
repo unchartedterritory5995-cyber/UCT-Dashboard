@@ -122,7 +122,8 @@
 @media (max-width: 640px) {
   .combo { gap: 8px; } .cTrack { height: 20px; } .cPip { width: 14px; height: 14px; margin: -7px 0 0 -7px; } .cPip svg { width: 8px; height: 8px; } .cPip b { font-size: 10px; }
   .cRider { width: 32px; height: 32px; margin: -16px 0 0 -16px; } .cRider img { width: 22px; height: 22px; }
-  .cScore { min-width: 0; } .cScore b { font-size: 24px; } .cScore small { display: none; } .cScore em { font-size: 9.5px; letter-spacing: .04em; }
+  /* the step line read 9.5 px on a phone (the screen check, 2026-11-14): 12 px, with the track giving up the width */
+  .cScore { min-width: 0; } .cScore b { font-size: 24px; } .cScore small { display: none; } .cScore em { font-size: 12px; letter-spacing: .02em; }
   .combo .flame { height: 30px; padding: 0 8px; font-size: 15px; }
 }
 @media (prefers-reduced-motion: reduce) { .cRider, .cPip.done, .cPip.miss, .cRider.live::before { animation: none; } .cRider { transition: none; } }

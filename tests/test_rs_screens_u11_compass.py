@@ -6,8 +6,9 @@ registered in both Compass registries and both delegate to ONE implementation,
 `coach_chat_tools.py` through the voice registry.
 
 WHAT THIS FILE HAS TO BE ABLE TO SAY RED FOR
-either surface showing a tool while RS_COMPASS_TOOLS_ENABLED is off, or while the RS
-screens are off; the two surfaces exposing different names, texts or schemas; a tool
+either surface showing a tool while RS_COMPASS_TOOLS_ENABLED is off, while the two
+tools' own RS_SCREEN_TOOLS_ENABLED is off, or while the RS screens are off (or on for
+admins only); the two surfaces exposing different names, texts or schemas; a tool
 text that does not say the lists are watchlists and not advice, or does not ask for the
 "Ratings as of" date; a tool text that names a screen in words that are not the
 screen's own; a call that does not reach the service, loses its arguments or its user;
@@ -28,6 +29,7 @@ from tests import test_rs_screens_u6_e2e as e2e
 ROOT = Path(__file__).resolve().parent.parent
 NAMES = ("rs_screen", "rs_screen_check")
 RS_GATE = "RS_COMPASS_TOOLS_ENABLED"
+OWN_GATE = "RS_SCREEN_TOOLS_ENABLED"
 SCREENS_GATE = "RS_SCREENS_ENABLED"
 USER = {"id": "u1", "role": "member", "plan": "pro"}
 
@@ -39,8 +41,8 @@ def _registries():
     return vt, cct, voice_agents
 
 
-def _gates(monkeypatch, *, rs, screens):
-    for name, on in ((RS_GATE, rs), (SCREENS_GATE, screens)):
+def _gates(monkeypatch, *, rs, screens, own=True):
+    for name, on in ((RS_GATE, rs), (OWN_GATE, own), (SCREENS_GATE, screens)):
         if on:
             monkeypatch.setenv(name, "1")
         else:
@@ -56,16 +58,19 @@ def _voice_names(vt) -> set:
     return {t["name"] for t in vt.get_schema_for_context("compass")}
 
 
-# ───────────────────────── two gates, both surfaces ─────────────────────────
+# ───────────────────────── three gates, both surfaces ─────────────────────────
 
-@pytest.mark.parametrize("rs,screens", [(False, False), (True, False), (False, True), (True, True)])
-def test_both_surfaces_expose_both_tools_only_when_both_gates_are_on(monkeypatch, rs, screens):
-    _gates(monkeypatch, rs=rs, screens=screens)
+@pytest.mark.parametrize("rs,screens,own", [
+    (False, False, True), (True, False, True), (False, True, True), (True, True, True),
+    (True, True, False), (False, True, False), (True, False, False),
+])
+def test_both_surfaces_expose_both_tools_only_when_every_gate_is_on(monkeypatch, rs, screens, own):
+    _gates(monkeypatch, rs=rs, screens=screens, own=own)
     vt, cct, _ = _registries()
-    shown = rs and screens
+    shown = rs and screens and own
     voice = _voice_names(vt)
     for name in NAMES:
-        assert (name in voice) is shown, (name, rs, screens)
+        assert (name in voice) is shown, (name, rs, screens, own)
         assert (name in cct.TOOLS) is shown and (cct.TOOLS.get(name) is not None) is shown
         assert (name in {s["name"] for s in cct.TOOLS.values()}) is shown
         assert (name in dict(cct.TOOLS)) is shown
@@ -75,8 +80,8 @@ def test_both_surfaces_expose_both_tools_only_when_both_gates_are_on(monkeypatch
                             user=USER)
             with pytest.raises(KeyError):
                 cct.TOOLS[name]
-    # controls: the screens' gate does not move the RS reading tools, and neither gate
-    # moves an ungated tool
+    # controls: neither the screens' gate nor the two tools' own switch moves the RS
+    # reading tools, and no gate moves an ungated tool
     assert ("get_rs_reading" in voice) is rs and ("explain_rs" in cct.TOOLS) is rs
     assert "find_patterns_on_ticker" in voice and "find_patterns_on_ticker" in cct.TOOLS
 
@@ -88,6 +93,35 @@ def test_only_the_literal_one_arms_the_rs_compass_gate(monkeypatch, value):
     assert set(NAMES) <= _voice_names(vt), "control: on with 1"
     monkeypatch.setenv(RS_GATE, value)
     assert not set(NAMES) & _voice_names(vt) and not [n for n in NAMES if n in cct.TOOLS]
+
+
+@pytest.mark.parametrize("value", ["0", "", "true", "yes", "on", "2", "admin"])
+def test_only_the_literal_one_arms_the_two_tools_own_switch(monkeypatch, value):
+    """RS_COMPASS_TOOLS_ENABLED was already armed in production when the screens merged, so
+    the two screens tools have a switch of their own: releasing the screens does not
+    release these answers. The RS reading tools do not read it."""
+    _gates(monkeypatch, rs=True, screens=True)
+    vt, cct, _ = _registries()
+    assert set(NAMES) <= _voice_names(vt), "control: on with 1"
+    monkeypatch.setenv(OWN_GATE, value)
+    assert not set(NAMES) & _voice_names(vt) and not [n for n in NAMES if n in cct.TOOLS]
+    assert "get_rs_reading" in _voice_names(vt) and "explain_rs" in cct.TOOLS
+    monkeypatch.delenv(OWN_GATE)
+    assert not set(NAMES) & _voice_names(vt) and not [n for n in NAMES if n in cct.TOOLS], "unset is off"
+
+
+def test_the_owner_preview_shows_the_tools_to_no_one(monkeypatch):
+    """Under RS_SCREENS_ENABLED=admin the screens are shown to admins only. A registry
+    gate has no user and answers as a member, so the two tools are absent from both
+    surfaces for everyone, the owner included, whatever the other two switches say."""
+    _gates(monkeypatch, rs=True, screens=True)
+    vt, cct, _ = _registries()
+    assert set(NAMES) <= _voice_names(vt), "control: on for everyone"
+    monkeypatch.setenv(SCREENS_GATE, "admin")
+    assert not set(NAMES) & _voice_names(vt) and not [n for n in NAMES if n in cct.TOOLS]
+    for name, args in (("rs_screen", {"screen": "leaders"}), ("rs_screen_check", {"ticker": "NVDA"})):
+        with pytest.raises(KeyError):
+            vt.dispatch(name, args, user={"id": "a1", "role": "admin", "plan": "pro"})
 
 
 def test_the_registry_gate_is_the_service_s_own_answer(both_on, monkeypatch):
@@ -222,6 +256,7 @@ def app(tmp_path_factory):
         built = e2e._build(mp, tmp_path_factory.mktemp("rs_u11_compass"), screens_on=True)
         e2e._client(mp)
         mp.setenv(RS_GATE, "1")
+        mp.setenv(OWN_GATE, "1")
         from api.services import theme_db
         mp.setattr(theme_db, "get_themes_for_ticker", lambda sym: [])
         yield built
@@ -260,10 +295,25 @@ def test_a_chat_round_trip_is_the_service_s_answer(app):
 
 # ───────────────────────── the ledger ─────────────────────────
 
-def test_the_ledger_says_what_the_two_gates_show():
+def test_the_ledger_says_what_the_three_gates_show():
     flags = json.loads((ROOT / "docs" / "feature_flags.json").read_text(encoding="utf-8"))["flags"]
     note = flags[RS_GATE]["note"]
-    for word in (*NAMES, SCREENS_GATE, "rs_screens_service", "tests/test_rs_screens_u11_compass.py"):
+    for word in (*NAMES, SCREENS_GATE, OWN_GATE, "rs_screens_service", "tests/test_rs_screens_u11_compass.py"):
         assert word in note, word
-    assert flags[RS_GATE]["status"] == "dark"
-    assert "RS_COMPASS_TOOLS_ENABLED" in flags[SCREENS_GATE]["note"]
+    # RS_COMPASS_TOOLS_ENABLED was read live as 1 on web (2026-11-14); the two screens tools
+    # are held back by their own switch, which is the one that waits for the report card
+    assert flags[RS_GATE]["status"] == "armed" and "2026-11-14" in note
+    own = flags[OWN_GATE]
+    # Pin moved 2026-11-15: this said the own switch is dark, waiting for the report card. The
+    # owner armed it that day WITHOUT the run ("compass should be able to access everything
+    # always"), and the row has to say both: armed, and that the report card was not run.
+    assert own["status"] == "armed" and own["where"] == ["web"]
+    assert own["note"].startswith("ARMED on web on the owner's word, WITHOUT the report-card run")
+    assert "The report card has NOT been run with them on" in own["note"]
+    for word in (*NAMES, RS_GATE, SCREENS_GATE, "_rs_screen_tools_gate", "report card",
+                 "R1-12-rs-leaders-today", "tests/test_rs_screens_u11_compass.py"):
+        assert word.lower() in own["note"].lower(), word
+    screens = flags[SCREENS_GATE]["note"]
+    assert RS_GATE in screens and OWN_GATE in screens
+    assert "under admin the owner has them" not in screens
+    assert "absent for everyone under admin" in screens

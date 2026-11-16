@@ -49,6 +49,23 @@ function Board() {
   )
 }
 
+describe('Flagged is titled with the signed-in person\'s own label (owner 11-15)', () => {
+  it('a saved name from another account never reaches the title', () => {
+    function Saved() {
+      const [opts, setOpts] = useState({ watchKey: 'flagged', watchName: 'Flagged (Someone Else)', watchTab: 'mine', libraryRail: false })
+      const [ctrl] = useState(() => document.createElement('span'))
+      return (
+        <UctHeaderSlotContext.Provider value={{ row: null, rowAlways: null, controls: ctrl, claim: null }}>
+          <WatchlistWidget color="A" opts={opts} onOptsChange={setOpts} />
+        </UctHeaderSlotContext.Provider>
+      )
+    }
+    render(<Saved />)
+    expect(screen.getByTestId('list').textContent).not.toMatch(/Someone Else/)
+    expect(screen.getByTestId('list').textContent).toMatch(/Flagged/)
+  })
+})
+
 describe('a just-added narrow Watchlist keeps its library open on the first click (owner 11-15)', () => {
   it('clicking Community, then My Lists, keeps the library showing', async () => {
     render(<Board />)

@@ -14,7 +14,7 @@ from zoneinfo import ZoneInfo
 
 from api.services.uct_agent.marketdata import envelope as env                    # noqa: E402
 from api.services.uct_agent.marketdata import (bars_daily as bd, breadth as br, cot as ct, earnings as ern,    # noqa: E402
-                                              news_company as nc, quotes as q, ratings as rt,
+                                              news_company as nc, quotes as q, ratings as rt, rs_leadership as rl,
                                               statements as stm, themes as th)
 
 ET = ZoneInfo("America/New_York")
@@ -65,7 +65,8 @@ def add(id_, question, envelope, *, category, disclose=(), purpose="answer", ref
         "as_of_null_reason_required": envelope["as_of"] is None and st in ("ok", "partial"),
     }
     # `flags`: the gateway flags (beyond UCT_AGENT_DATA) under which this question is asked. Model-isolated
-    # kinds are DORMANT unless UCT_AGENT_ISOLATED=1 (ADR-005), so their questions say which state they test.
+    # kinds are DORMANT unless armed per kind (UCT_AGENT_ISOLATED=1 + their own UCT_AGENT_ISOLATED_KINDS entry,
+    # ADR-005), so their questions say which state they test.
     Q.append({"id": id_, "category": category, "kind": envelope["kind"], "purpose": purpose,
               "question": question, "envelope": envelope, "expect": expect, "expect_refusal": refused,
               "flags": dict(flags or {})})
@@ -345,11 +346,36 @@ add("rt-partial", "What's JAZZ's composite rating?",
       data={"symbol": "JAZZ", "composite": 70, "price_as_of": "2026-10-30", "complete": False},
       notes=[rt.NOTE_UCT_DERIVED, rt.NOTE_UNDATED_LEGS, rt.NOTE_INCOMPLETE], provider_calls=3),
     category="partial", disclose=["could not be read"])
+# ── rs.leadership (Phase 2, model-isolated): as_of = the RS Rating session close; stale by rs_history's own rule ──
+rsdata = lambda stale: {"scope": "sectors", "period": "1M", "sessions": 21, "benchmark": "SPY",  # noqa: E731
+                        "latest_completed_session": "2026-10-30", "leader_rating": 80,
+                        "sectors": [{"symbol": "XLK", "label": "Technology", "is_etf": True, "rated": True, "rating": 50,
+                                     "d5": 1, "d20": 2, "m1": 50, "m3": 50, "m6": None, "m12": None,
+                                     "return": {"from": "2026-10-01", "to": "2026-10-30", "pct": 1.0}, "vs_spy": 0.5,
+                                     "bars_through": "2026-10-30", "bars_stale": False, "sector": None, "industry": None}],
+                        "indices": [], "rating_session": "2026-10-27" if stale else "2026-10-30", "ratings_stale": stale}
+add("rs-sectors", "Which sectors are leading right now?",
+    E("rs.leadership", status="ok", freshness="periodic", as_of="2026-10-30T20:00:00Z", source="uct-rs",
+      data=rsdata(False), notes=[rl.NOTE_METHOD, rl.NOTE_RETURNS, rl.NOTE_HISTORICAL]),
+    category="periodic", disclose=["not a forecast"], flags={"UCT_AGENT_ISOLATED": "1", "UCT_AGENT_ISOLATED_KINDS": "rs.leadership"})
+add("rs-stale", "Is semis RS improving now?",
+    E("rs.leadership", status="ok", freshness="periodic", as_of="2026-10-27T20:00:00Z", source="uct-rs", stale=True,
+      data=rsdata(True), notes=[rl.NOTE_METHOD, rl.NOTE_RETURNS, rl.NOTE_HISTORICAL,
+                                rl.NOTE_STALE.format(session="2026-10-27")]),
+    category="periodic-stale", disclose=["older than the ratings' own freshness rule"], flags={"UCT_AGENT_ISOLATED": "1", "UCT_AGENT_ISOLATED_KINDS": "rs.leadership"})
+add("rs-industry-ambiguous", "How is the software industry's RS today?",
+    E("rs.leadership", status="partial", freshness="periodic", as_of=None, source="uct-rs",
+      data={"scope": "industry", "period": "1M", "industry": None, "asked": "software", "ambiguous": True,
+            "candidates": ["Software - Application", "Software - Infrastructure"]},
+      notes=[rl.NOTE_METHOD, rl.NOTE_RETURNS, rl.NOTE_HISTORICAL, rl.NOTE_INDUSTRY_AMBIGUOUS.format(
+          word="software", names="Software - Application; Software - Infrastructure")],
+      coverage={"requested": 1, "answered": 0}),
+    category="partial", disclose=["several industries match"], flags={"UCT_AGENT_ISOLATED": "1", "UCT_AGENT_ISOLATED_KINDS": "rs.leadership"})
 r = env.refused("breadth.current", {"metric": "pct_above_50sma"},
                 "this data is shown to the member only and is never used for research")
 r["fetched_at"] = FETCHED
 add("br-research-refused", "(research) Use current breadth to plan a scan.", r, category="isolation",
-    purpose="research", refused=True, flags={"UCT_AGENT_ISOLATED": "1"})
+    purpose="research", refused=True, flags={"UCT_AGENT_ISOLATED": "1", "UCT_AGENT_ISOLATED_KINDS": "breadth.current"})
 d = env.refused("breadth.current", {"metric": "pct_above_50sma"}, "this data is not available to UCT Agent yet")
 d["fetched_at"] = FETCHED
 add("br-dormant-refused", "What percent of stocks are above their 50-day right now?", d, category="isolation-dormant",

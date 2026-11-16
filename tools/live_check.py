@@ -720,12 +720,52 @@ def should_post(rows, prev, now, *, morning=False):
     return False, "nothing new to say"
 
 
+#: The check itself broke (as opposed to a report of 1 stuck / 2 can't check). The workflow fails on > 2.
+EXIT_BROKEN = 3
+
+
+def discord_text(rows, now, link=None) -> str:
+    """Discord's cut of the report: what needs attention in full, what is fine as one count per area.
+
+    The full report overflowed Discord's 2,000 characters on its first post (2026-11-15) and lost the desktop
+    and built-but-not-on sections; the full text stays in the run summary, linked here."""
+    stamp = now.astimezone(_et()).strftime("%a %b %d %H:%M ET")
+    lines = [f"UCT live check, {stamp}", headline(rows), ""]
+    titles = {"pipeline": "Pipeline", "service": "Railway services", "members": "What members get",
+              "app": "Desktop app", "off": "Built but not on", "work": "Built but not merged"}
+    for area, title in titles.items():
+        group = [r for r in rows if r["area"] == area]
+        if not group:
+            continue
+        attention = sorted([r for r in group if r["state"] not in (LIVE, NOTE)], key=lambda r: _ORDER[r["state"]])
+        live = [r for r in group if r["state"] == LIVE]
+        notes = [r for r in group if r["state"] == NOTE and area in ("off", "work")]
+        lines.append(f"{title}: {len(live)} live" if live else title)
+        for r in attention:
+            lines.append(f"  [{r['state']}] {r['name']}: {r['says'][:220]}")
+        for r in notes:
+            lines.append(f"  {r['says'][:160]}")
+    if link:
+        lines += ["", f"Full report: {link}"]
+    out = "\n".join(lines).encode("ascii", "replace").decode("ascii")
+    return out if len(out) <= 1900 else out[:1870] + "\n... (cut; see the full report)"
+
+
+def webhook_url():
+    hook = os.environ.get("LIVE_CHECK_DISCORD_WEBHOOK") or os.environ.get("DISCORD_OPS_WEBHOOK_URL") or ""
+    # a value pasted through a Windows clipboard pipe can carry a BOM or a trailing newline
+    hook = hook.strip().lstrip("﻿").strip()
+    return hook or None
+
+
 def post_discord(text) -> None:
-    hook = os.environ.get("LIVE_CHECK_DISCORD_WEBHOOK") or os.environ.get("DISCORD_OPS_WEBHOOK_URL")
+    hook = webhook_url()
     if not hook:
         raise SourceError("no Discord webhook (LIVE_CHECK_DISCORD_WEBHOOK)")
-    body = text if len(text) <= 1900 else text[:1880] + "\n... (cut; full report in the run)"
-    req = urllib.request.Request(hook, data=json.dumps({"content": "```\n" + body + "\n```"}).encode(),
+    if not hook.startswith("https://"):
+        # never print the value: it is a credential
+        raise SourceError(f"LIVE_CHECK_DISCORD_WEBHOOK is not an https URL ({len(hook)} characters)")
+    req = urllib.request.Request(hook, data=json.dumps({"content": "```\n" + text + "\n```"}).encode(),
                                  headers={"Content-Type": "application/json", "User-Agent": "uct-live-check"})
     urllib.request.urlopen(req, timeout=20).read()
 
@@ -910,11 +950,19 @@ def main(argv=None) -> int:
         prev = load_state(a.state)
         go, why = should_post(rows, prev, now, morning=a.morning)
         print(f"post: {'yes' if go else 'no'} ({why})", file=sys.stderr)
-        if go and not (os.environ.get("LIVE_CHECK_DISCORD_WEBHOOK") or os.environ.get("DISCORD_OPS_WEBHOOK_URL")):
+        if go and not webhook_url():
             print("::warning title=live check not posted::no LIVE_CHECK_DISCORD_WEBHOOK secret; the report is in "
                   "this run's summary only", file=sys.stderr)
         elif go:
-            post_discord(text)
+            run = os.environ.get("GITHUB_RUN_ID")
+            link = f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/{REPO}/actions/runs/{run}" if run else None
+            try:
+                post_discord(discord_text(rows, now, link))
+            except (SourceError, OSError, ValueError) as e:
+                # a post that failed is the CHECK breaking, never a report: exit 1 here once read as "stuck" and the
+                # job stayed green while nothing reached Discord (2026-11-15)
+                print(f"::error title=live check could not post::{type(e).__name__}: {e}"[:400], file=sys.stderr)
+                return EXIT_BROKEN
             # remembered only after Discord accepted it: a failed post is retried by the next run
             save_state(a.state, {"fingerprint": fingerprint(rows), "posted_at": now.isoformat(), "reason": why})
     return exit_code(rows)

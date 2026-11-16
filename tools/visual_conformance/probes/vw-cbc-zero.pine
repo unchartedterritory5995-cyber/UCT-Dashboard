@@ -1,0 +1,6 @@
+//@version=6
+indicator("UCTPROBE_VW_CBC_ZERO", overlay = false, calc_bars_count = 0)
+// PROVENANCE: written 2026-11-15 (inv-fmt-1115). NEVER COMPILED ON TRADINGVIEW.
+// calc_bars_count = 0: every bar (the default), or something else?
+// CAPTURE: NYSE:RDDT 1D from the listing (666 bars).
+plot(bar_index, "A00_bar_index")

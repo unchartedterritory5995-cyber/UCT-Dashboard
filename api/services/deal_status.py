@@ -154,13 +154,90 @@ def hand_deals() -> frozenset:
 
 
 def mirror_list() -> frozenset:
-    """The PC's manual buyout names as the breadth server mirrors them (its non-deal
-    entries removed by name). Empty on any fault."""
+    """The PC's buyout names: its manual list as the breadth server mirrors them (non-deal
+    entries removed by name) plus every target its buyout sweep has CONFIRMED
+    (`pc_confirmed`). Empty on any fault."""
     try:
         from api.services import breadth_server_universe as bsu
-        return frozenset(bsu.EXCLUDE - bsu.NOT_DEALS)
+        manual = frozenset(bsu.EXCLUDE - bsu.NOT_DEALS)
     except Exception as exc:  # noqa: BLE001
         _log.warning("[deal-status] mirror list unavailable: %s", exc)
+        manual = frozenset()
+    return manual | pc_confirmed()
+
+
+# -- the PC buyout sweep's confirmed targets, pushed daily ---------------------------------
+# WHY. `scripts/buyout_sweep.py` (uct-intelligence) confirms deal targets against filings and
+# news and writes them to the PC's `universe_exclude_auto.json`, which nothing on the server
+# read: on 2026-11-14 nineteen confirmed targets (BRZE, DV, PCRX, RXO among them, all in
+# "Tight bases near highs") were excluded on the PC and served by every server screen. The
+# sweep now pushes its WHOLE confirmed set after each run (`POST
+# /api/catalysts/pc-confirmed-deals-internal`), so an `--unconfirm` on the PC clears the name
+# here on the next push.
+
+PC_CONFIRMED_FILENAME = "pc_buyout_confirmed.json"
+PC_CONFIRMED_MAX = 1000
+_TICKER_RE = re.compile(r"^[A-Z0-9][A-Z0-9.\-/]{0,9}$")
+
+
+def _pc_confirmed_path() -> str:
+    return os.path.join(_data_dir(), PC_CONFIRMED_FILENAME)
+
+
+def clean_pc_symbols(symbols) -> list:
+    """The pushed symbols a store will keep: upper-cased tickers, sorted, de-duplicated.
+    Raises ValueError on anything that is not a list of ticker strings, or on too many."""
+    if not isinstance(symbols, list):
+        raise ValueError("symbols must be a list")
+    out = set()
+    for s in symbols:
+        if not isinstance(s, str) or not _TICKER_RE.match(s.strip().upper()):
+            raise ValueError(f"not a ticker: {s!r}")
+        out.add(s.strip().upper())
+    if len(out) > PC_CONFIRMED_MAX:
+        raise ValueError(f"at most {PC_CONFIRMED_MAX} symbols")
+    return sorted(out)
+
+
+def store_pc_confirmed(symbols, as_of=None) -> dict:
+    """Replace the stored PC-confirmed set with `symbols` (validated) and drop the day's
+    cache so the next read sees it. Atomic: a failed write leaves the previous file."""
+    syms = clean_pc_symbols(symbols)
+    path = _pc_confirmed_path()
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    payload = {"symbols": syms, "as_of": str(as_of or ""),
+               "received_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh)
+    os.replace(tmp, path)
+    reset_cache()
+    _warm_async()
+    return {"stored": len(syms), "as_of": payload["as_of"]}
+
+
+def _warm_async() -> None:
+    """Rebuild the pending set off the request thread after a reset, so the next reader
+    finds it built instead of paying for it (a cold build did not answer in 120 s on a
+    freshly booted pod, 2026-11-14). Never raises."""
+    try:
+        threading.Thread(target=pending_deal_symbols, daemon=True,
+                         name="deal-status-warm").start()
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("[deal-status] warm not started: %s", exc)
+
+
+def pc_confirmed() -> frozenset:
+    """The PC sweep's confirmed targets as last pushed. Empty when nothing was pushed yet or
+    on any fault (fail safe: not pending), logged."""
+    try:
+        with open(_pc_confirmed_path(), "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        return frozenset(clean_pc_symbols(data.get("symbols")))
+    except FileNotFoundError:
+        return frozenset()
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("[deal-status] PC confirmed list unreadable, not used: %s", exc)
         return frozenset()
 
 
@@ -791,6 +868,8 @@ def reset_cache() -> None:
     with _LOCK:
         _STATE.clear()
         _SYM_CACHE.clear()
+        _SETS["v"] = None
+        _SETS["gen"] += 1
 
 
 def _snapshot() -> dict:
@@ -933,6 +1012,7 @@ def _compute(sym: str, snap: dict, bars) -> dict:
     deal = snap["news"].get(sym)
     if deal is not None and deal["active"] and _delisted(sym):
         deal = None
+        out["completed"] = True
     pin = None
     try:
         b = bars if bars is not None else _bars_for(sym)
@@ -940,7 +1020,11 @@ def _compute(sym: str, snap: dict, bars) -> dict:
             # The deal closed: the stock stopped printing (2026-10-23: ATKR, TBPH stayed
             # "pending" after their buyouts completed, because no completion headline was
             # stored for them). A news deal never outlives the stock it is about.
+            # `completed` (only ever True when present) says why: the screener still leaves
+            # such a stock out (`completed_deal_symbols`), because its last rows stay in the
+            # snapshot for SCREENER_STALE_PRICE_SESSIONS after it stops printing.
             deal = None
+            out["completed"] = True
         if deal is not None and deal["active"]:
             out["since"] = deal["since"].isoformat()
             out["price"] = deal["price"]
@@ -1001,31 +1085,134 @@ def deal_status(sym: str, bars=None) -> dict:
         return _not_pending(s)
 
 
+# -- the day's deal sets: built once, then never rebuilt on a reader's thread ------------------
+# ⛔ WHY (2026-11-15). Every consumer that picks names (RS rankings, the scans, groups, the
+# screener) asked `pending_deal_symbols()`, and it rebuilt on the caller's thread whenever the
+# snapshot expired: every DEAL_STATUS_REFRESH_S (4 h), every DEAL_STATUS_COLD_REFRESH_S (5 min)
+# while company names are cold after a boot, and after a PC push reset. That rebuild reads
+# every stored deal headline and scans the daily bars for clear pins, and two readers at once
+# each did the whole thing. A route census found 27 member routes that reach it. Now the sets
+# are built ONCE per day on a reader's thread (one build at a time; other first readers wait
+# for that one), and from then on an expired set is served at once while ONE background
+# refresh replaces it. A new ET day is not served from yesterday: its first reader builds.
+
+_SETS: dict = {"v": None, "busy": False, "gen": 0}
+_SETS_BUILD_LOCK = threading.Lock()
+
+
+def _spawn_sets_refresh() -> None:
+    """Run `_refresh_sets` off the reader's thread (tests replace this)."""
+    threading.Thread(target=_refresh_sets, daemon=True, name="deal-status-sets").start()
+
+
+def _build_sets() -> dict:
+    """The pending and completed sets for today, in one pass over the snapshot's news deals."""
+    snap = _snapshot()
+    pending = set(snap["hand"]) | set(snap["mirror"])
+    completed = set()
+    for sym, d in snap["news"].items():
+        if not d["active"]:
+            continue
+        st = deal_status(sym)
+        if st.get("completed"):
+            completed.add(sym)
+        if sym not in pending and st["pending"]:
+            pending.add(sym)
+    pending |= clear_pin_symbols()
+    with _LOCK:
+        cold = bool(_STATE.get("cold"))
+    return {"pending": frozenset(pending), "completed": frozenset(completed),
+            "day": snap["day"], "at": time.time(),
+            "ttl": _cold_refresh_s() if cold else _refresh_s()}
+
+
+def _store_sets(got: dict, gen: int) -> None:
+    with _LOCK:
+        if _SETS["gen"] == gen:           # a reset since this build began: it is discarded
+            _SETS["v"] = got
+
+
+def _refresh_sets() -> None:
+    with _LOCK:
+        gen = _SETS["gen"]
+    try:
+        with _SETS_BUILD_LOCK:
+            got = _build_sets()
+        _store_sets(got, gen)
+    except Exception as exc:  # noqa: BLE001 -- a failed refresh keeps the last good sets
+        _log.warning("[deal-status] deal set refresh failed, keeping the last sets: %s", exc)
+    finally:
+        with _LOCK:
+            _SETS["busy"] = False
+
+
+def _sets() -> dict:
+    today = _today()
+    now = time.time()
+    spawn = False
+    with _LOCK:
+        cur = _SETS["v"]
+        if cur is not None and cur["day"] != today:
+            cur = None
+        if cur is not None and now - cur["at"] >= cur["ttl"] and not _SETS["busy"]:
+            _SETS["busy"] = spawn = True
+        gen = _SETS["gen"]
+    if cur is not None:
+        if spawn:
+            try:
+                _spawn_sets_refresh()
+            except Exception as exc:  # noqa: BLE001 -- no thread: the next reader tries again
+                _log.warning("[deal-status] deal set refresh not started: %s", exc)
+                with _LOCK:
+                    _SETS["busy"] = False
+        return cur
+    with _SETS_BUILD_LOCK:                  # the day's first build: one at a time
+        with _LOCK:
+            cur = _SETS["v"]
+        if cur is not None and cur["day"] == today:
+            return cur
+        got = _build_sets()
+        _store_sets(got, gen)
+        return got
+
+
 def pending_deal_symbols() -> frozenset:
     """Every symbol that is `pending` today: hand lists, fresh news deals, and old news
     deals still confirmed by a price pin, and every CLEAR price pin (`clear_pin_symbols`: a
-    +30% gap then a collapsed band; the weak 8% pin alone still never adds a name). Never
-    raises: an error yields the hand lists alone (logged)."""
+    +30% gap then a collapsed band; the weak 8% pin alone still never adds a name). Built
+    once a day; an expired set is served while one background refresh runs (see `_SETS`).
+    Never raises: an error yields the hand lists alone (logged)."""
     try:
-        snap = _snapshot()
-        out = set(snap["hand"]) | set(snap["mirror"])
-        for sym, d in snap["news"].items():
-            if d["active"] and sym not in out and deal_status(sym)["pending"]:
-                out.add(sym)
-        out |= clear_pin_symbols()
-        return frozenset(out)
+        return _sets()["pending"]
     except Exception as exc:  # noqa: BLE001
         _log.warning("[deal-status] pending set failed, hand lists only: %s", exc)
         return hand_deals() | mirror_list()
 
 
+def completed_deal_symbols() -> frozenset:
+    """Every news deal that CLOSED: the stock stopped printing (DEAL_STATUS_STALE_SESSIONS
+    sessions in a row) or is on the delisted registry. Not `pending` (no chart marker, no
+    pending label); only the screener leaves these out. Never raises: an error is empty.
+
+    ⛔ WHY (2026-11-14). A completed buyout stops printing, `_compute` correctly drops it
+    from the pending set, and the screener's stale-row gate still keeps its last row for
+    SCREENER_STALE_PRICE_SESSIONS (10) sessions: BWMN and KVUE sat in three screens each,
+    flat at the deal price, until they were hand-listed."""
+    try:
+        return _sets()["completed"]
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("[deal-status] completed deal set failed, none added: %s", exc)
+        return frozenset()
+
+
 def screener_excludes() -> frozenset:
     """The screener's buyout exclude set. Flag OFF: the hand list file alone, exactly as
     `screener_universe.buyout_excludes` read it before this module. Flag ON: that file (all of
-    it, its non-deal owner excludes included) plus every pending symbol."""
+    it, its non-deal owner excludes included), every pending symbol, and every news deal that
+    has completed (`completed_deal_symbols`)."""
     if not enabled():
         return hand_list()
-    return hand_list() | pending_deal_symbols()
+    return hand_list() | pending_deal_symbols() | completed_deal_symbols()
 
 
 def chart_marker(sym: str):

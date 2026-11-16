@@ -71,8 +71,18 @@ export const SERVER_ONLY_OPTS = Object.freeze({
 
 /** Every HP-7 difference between this adapter and the browser's, by argument (test/adapter.test.mjs). */
 export const DECLARED_DIFFERENCES = Object.freeze({
-  // the wire has no framed instance (protocol.mjs closes ctx); a server run never slides that way
-  ctxBrowserOnly: Object.freeze(['framed']),
+  // the wire has no framed instance (protocol.mjs closes ctx); a server run never slides that way.
+  // RS RATING L5: nor does it carry the chart's other-symbol cache (`secondaryEntries`): a job
+  // holds ONE symbol's bars, so a server run is handed no other symbol's bars (see ctxServerOnly).
+  ctxBrowserOnly: Object.freeze(['framed', 'secondaryEntries']),
+  // RS RATING L3: the wire's symbol is closed to {ticker, exchange} (protocol.mjs), so a server run
+  // carries no classification: `syminfo.industry` / `sector` / `type` stay unsettled there and the
+  // run refuses them by name (bind.js::classificationWith), never a guessed string.
+  ctxSymbolBrowserOnly: Object.freeze(['industry', 'sector', 'securityType']),
+  // RS RATING L5: the ctx facts only this host states. `otherSymbolSupply: false` tells the run it
+  // will never be handed another symbol's bars, so a `request.security` of one is refused by name
+  // (requestSupply.js) instead of held as "still loading", which on this lane never ends.
+  ctxServerOnly: Object.freeze({ otherSymbolSupply: false }),
   // the whole document meta, so the run's own runtimeVersionRefusal (runtimeColumns.js) reads the
   // version facts on every document (design 3.2); the browser worker passes runtimeHistory only
   defMeta: 'doc.meta',
@@ -100,6 +110,8 @@ export function runArgs(doc, job) {
     historyFromListing: job.ctx.historyFromListing === true,
     runtimeInputs: { ...job.ctx.runtimeInputs },
     symbol: { ticker: job.symbol.ticker, exchange: job.symbol.exchange },
+    // RS RATING L5: declared above (DECLARED_DIFFERENCES.ctxServerOnly); HP-7 reads the literal
+    otherSymbolSupply: false,
     // W9-T11: the window, from the job's ctx exactly as the browser forwards its own (runtimeAsync.js
     // ::messageOf); never a literal here. HP-7 compares the two shapes.
     ...(job.ctx.historyWindowBars !== undefined ? { historyWindowBars: job.ctx.historyWindowBars } : {}),

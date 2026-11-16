@@ -47,6 +47,7 @@ export function placeWidgetMenu({ frame, gear, panelW, dropdown = false, vw, vh 
 
 export default function useWidgetMenuPlacement({ hostEl, gearEl, panelW, setPos, onClose, dropdown = false }) {
   const closeRef = useRef(onClose)
+  const placeRef = useRef(null)
   useEffect(() => { closeRef.current = onClose })
 
   // 1, 2, 4, 5 — place now, and again when the window or the widget's size changes.
@@ -54,9 +55,19 @@ export default function useWidgetMenuPlacement({ hostEl, gearEl, panelW, setPos,
     const frame = frameOf(hostEl)
     if (!frame) return undefined
     const place = () => setPos(placeWidgetMenu({ frame, gear: gearEl, panelW, dropdown, vw: window.innerWidth, vh: window.innerHeight }))
+    placeRef.current = place
+    // A window resize re-lays the board AFTER this event (owner 11-15: the menu stayed ~20px off),
+    // so measure now, on the next frame, and once the grid has settled.
+    let raf = 0
+    let t = 0
+    const onResize = () => {
+      place()
+      cancelAnimationFrame(raf); raf = requestAnimationFrame(place)
+      clearTimeout(t); t = setTimeout(place, 300)
+    }
     place()
-    window.addEventListener('resize', place)
-    return () => window.removeEventListener('resize', place)
+    window.addEventListener('resize', onResize)
+    return () => { window.removeEventListener('resize', onResize); cancelAnimationFrame(raf); clearTimeout(t); placeRef.current = null }
   }, [hostEl, gearEl, panelW, dropdown, setPos])
 
   // 3 — the lit gear and the outlined widget, for as long as the menu is open.
@@ -82,7 +93,8 @@ export default function useWidgetMenuPlacement({ hostEl, gearEl, panelW, setPos,
       const now = box(frame.getBoundingClientRect())
       if (now === last) return
       last = now
-      if (Date.now() - winResizeAt < 500) return
+      // the board re-laying itself after a window resize: follow the widget, don't close
+      if (Date.now() - winResizeAt < 1000) { placeRef.current?.(); return }
       closeRef.current?.()
     }
     const mo = new MutationObserver(check)

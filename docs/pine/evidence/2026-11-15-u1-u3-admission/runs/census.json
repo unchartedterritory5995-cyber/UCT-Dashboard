@@ -1,0 +1,662 @@
+{
+ "_readme": [
+  "Census before/after (the 679-script sample + the 584 captures) through the member door with capability admission ON",
+  "(capabilityAdmission.measure.test.js CAPADMIT_MODE=admission), before = the committed registry at 5819d9363e, after = this PR.",
+  "fullRuntime: door ok, lane runtime, no 'not drawn' note, not a strategy. 'strict' counts the RT5 provenance sentence",
+  "('Its lines, labels, boxes and tables are made by the same bar-by-bar run ... is not drawn.') as a not-drawn note, as",
+  "analyse.py's ADMIT view does; 'disclosure' reads it as the disclosure it is (no named drawing is missing).",
+  "FINAL = the registry as merged (obj:box withheld by coordinator ruling 2026-11-15); 'withObjBox' is the first",
+  "measurement, with the obj:box row, kept for the record of what the ruling changed."
+ ],
+ "final": {
+  "strict": {
+   "populations": {
+    "committed": {
+     "scripts": 266,
+     "admittedBefore": 26,
+     "admittedAfter": 46,
+     "runtimeFullBefore": 7,
+     "runtimeFullAfter": 8,
+     "runtimeLaneBefore": 7,
+     "runtimeLaneAfter": 11
+    },
+    "reference": {
+     "scripts": 271,
+     "admittedBefore": 64,
+     "admittedAfter": 91,
+     "runtimeFullBefore": 4,
+     "runtimeFullAfter": 4,
+     "runtimeLaneBefore": 5,
+     "runtimeLaneAfter": 8
+    },
+    "builtin": {
+     "scripts": 142,
+     "admittedBefore": 51,
+     "admittedAfter": 63,
+     "runtimeFullBefore": 4,
+     "runtimeFullAfter": 4,
+     "runtimeLaneBefore": 4,
+     "runtimeLaneAfter": 5
+    },
+    "capture": {
+     "scripts": 579,
+     "admittedBefore": 167,
+     "admittedAfter": 238,
+     "runtimeFullBefore": 15,
+     "runtimeFullAfter": 18,
+     "runtimeLaneBefore": 15,
+     "runtimeLaneAfter": 21
+    }
+   },
+   "newlyFullRuntime": [
+    {
+     "key": "committed:inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat__832e485b9c",
+     "before": "refused",
+     "missingBefore": [
+      "obj:delete",
+      "obj:line"
+     ]
+    }
+   ],
+   "newlyPartialRuntime": [
+    {
+     "key": "builtin:linear-regression-channel__Linear_Regre",
+     "notDrawn": [
+      "Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way TradingView makes them. A kind of drawing whose result is not known exactly is not drawn. These replace the drawing program this pane would otherwise use, which could not make 10 of its 13 drawing calls; a kind of drawing the run holds back is named on the chart, not drawn from that program instead."
+     ]
+    },
+    {
+     "key": "committed:order-block-finder__fVSb3j0I87",
+     "notDrawn": [
+      "`Bullish OB` is not drawn: its colour changes from bar to bar, and a shape whose colour changes per bar is not carried by this lane yet. Nothing is drawn for it rather than a guess.",
+      "`Bullish OB Average` is not drawn: its colour changes from bar to bar, and a shape whose colour changes per bar is not carried by this lane yet. Nothing is drawn for it rather than a guess.",
+      "`Bearish OB` is not drawn: its colour changes from bar to bar, and a shape whose colour changes per bar is not carried by this lane yet. Nothing is drawn for it rather than a guess.",
+      "`Bearish OB Average` is not drawn: its colour changes from bar to bar, and a shape whose colour changes per bar is not carried by this lane yet. Nothing is drawn for it rather than a guess.",
+      "This script also writes a fill between two plots, which a script drawn bar by bar does not draw here yet. Its lines are drawn; those are not.",
+      "Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way TradingView makes them. A kind of drawing whose result is not known exactly is not drawn. These replace the drawing program this pane would otherwise use, which could not make 13 of its 16 drawing calls; a kind of drawing the run holds back is named on the chart, not drawn from that program instead."
+     ]
+    },
+    {
+     "key": "committed:parabolic-sar__xoeoPMOWGJ",
+     "notDrawn": [
+      "Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way TradingView makes them. A kind of drawing whose result is not known exactly is not drawn."
+     ]
+    },
+    {
+     "key": "committed:zigzag-multi-time-frame-with-fibonacci-retracement__ppvz14qunp",
+     "notDrawn": [
+      "Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way TradingView makes them. A kind of drawing whose result is not known exactly is not drawn."
+     ]
+    },
+    {
+     "key": "reference:auto-fibonacci-and-gann-fanretracements-combo__e764b93365",
+     "notDrawn": [
+      "Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way TradingView makes them. A kind of drawing whose result is not known exactly is not drawn."
+     ]
+    },
+    {
+     "key": "reference:best-sr-indicator-with-candlestick-patterns__4af8b3cc84",
+     "notDrawn": [
+      "Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way TradingView makes them. A kind of drawing whose result is not known exactly is not drawn. These replace the drawing program this pane would otherwise use, which could not make 18 of its 36 drawing calls; a kind of drawing the run holds back is named on the chart, not drawn from that program instead."
+     ]
+    },
+    {
+     "key": "reference:uptrick-volatility-adjusted-trail__ff9f0f608f",
+     "notDrawn": [
+      "This script also writes a fill between two plots, which a script drawn bar by bar does not draw here yet. Its lines are drawn; those are not.",
+      "Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way TradingView makes them. A kind of drawing whose result is not known exactly is not drawn."
+     ]
+    }
+   ],
+   "lost": [],
+   "captures": [
+    {
+     "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28",
+     "verdict": "MATCH",
+     "objectsV2": "MATCH",
+     "full": true
+    },
+    {
+     "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03",
+     "verdict": "MATCH",
+     "objectsV2": "MATCH",
+     "full": true
+    },
+    {
+     "capture": "parabolic-sar-rddt-1d-2026-10-03",
+     "verdict": "MATCH",
+     "objectsV2": "MATCH",
+     "full": false
+    },
+    {
+     "capture": "vw-clock-close-tfchange-spy-1d-2026-09-28",
+     "verdict": "INCONCLUSIVE",
+     "objectsV2": "MATCH",
+     "full": true
+    },
+    {
+     "capture": "vw-loop-in-block-spy-1d-2026-10-02",
+     "verdict": "MATCH",
+     "objectsV2": "MATCH",
+     "full": false
+    },
+    {
+     "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-14",
+     "verdict": "MATCH",
+     "objectsV2": "MATCH",
+     "full": false
+    }
+   ]
+  },
+  "disclosure": {
+   "populations": {
+    "committed": {
+     "scripts": 266,
+     "admittedBefore": 26,
+     "admittedAfter": 46,
+     "runtimeFullBefore": 7,
+     "runtimeFullAfter": 10,
+     "runtimeLaneBefore": 7,
+     "runtimeLaneAfter": 11
+    },
+    "reference": {
+     "scripts": 271,
+     "admittedBefore": 64,
+     "admittedAfter": 91,
+     "runtimeFullBefore": 4,
+     "runtimeFullAfter": 6,
+     "runtimeLaneBefore": 5,
+     "runtimeLaneAfter": 8
+    },
+    "builtin": {
+     "scripts": 142,
+     "admittedBefore": 51,
+     "admittedAfter": 63,
+     "runtimeFullBefore": 4,
+     "runtimeFullAfter": 5,
+     "runtimeLaneBefore": 4,
+     "runtimeLaneAfter": 5
+    },
+    "capture": {
+     "scripts": 579,
+     "admittedBefore": 167,
+     "admittedAfter": 238,
+     "runtimeFullBefore": 15,
+     "runtimeFullAfter": 21,
+     "runtimeLaneBefore": 15,
+     "runtimeLaneAfter": 21
+    }
+   },
+   "newlyFullRuntime": [
+    {
+     "key": "builtin:linear-regression-channel__Linear_Regre",
+     "before": "refused",
+     "missingBefore": [
+      "max_bars_back",
+      "obj:collection",
+      "obj:delete",
+      "obj:getter",
+      "obj:label",
+      "obj:line",
+      "obj:linefill",
+      "realtime-state",
+      "switch"
+     ]
+    },
+    {
+     "key": "committed:inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat__832e485b9c",
+     "before": "refused",
+     "missingBefore": [
+      "obj:delete",
+      "obj:line"
+     ]
+    },
+    {
+     "key": "committed:parabolic-sar__xoeoPMOWGJ",
+     "before": "refused",
+     "missingBefore": [
+      "obj:label"
+     ]
+    },
+    {
+     "key": "committed:zigzag-multi-time-frame-with-fibonacci-retracement__ppvz14qunp",
+     "before": "refused",
+     "missingBefore": [
+      "max_bars_back",
+      "obj:collection",
+      "obj:delete",
+      "obj:label",
+      "obj:line",
+      "realtime-state"
+     ]
+    },
+    {
+     "key": "reference:auto-fibonacci-and-gann-fanretracements-combo__e764b93365",
+     "before": "refused",
+     "missingBefore": [
+      "obj:collection",
+      "obj:delete",
+      "obj:label",
+      "obj:line"
+     ]
+    },
+    {
+     "key": "reference:best-sr-indicator-with-candlestick-patterns__4af8b3cc84",
+     "before": "refused",
+     "missingBefore": [
+      "obj:collection",
+      "obj:label",
+      "obj:line",
+      "obj:linefill"
+     ]
+    }
+   ],
+   "newlyPartialRuntime": [
+    {
+     "key": "committed:order-block-finder__fVSb3j0I87",
+     "notDrawn": [
+      "`Bullish OB` is not drawn: its colour changes from bar to bar, and a shape whose colour changes per bar is not carried by this lane yet. Nothing is drawn for it rather than a guess.",
+      "`Bullish OB Average` is not drawn: its colour changes from bar to bar, and a shape whose colour changes per bar is not carried by this lane yet. Nothing is drawn for it rather than a guess.",
+      "`Bearish OB` is not drawn: its colour changes from bar to bar, and a shape whose colour changes per bar is not carried by this lane yet. Nothing is drawn for it rather than a guess.",
+      "`Bearish OB Average` is not drawn: its colour changes from bar to bar, and a shape whose colour changes per bar is not carried by this lane yet. Nothing is drawn for it rather than a guess.",
+      "This script also writes a fill between two plots, which a script drawn bar by bar does not draw here yet. Its lines are drawn; those are not.",
+      "Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way TradingView makes them. A kind of drawing whose result is not known exactly is not drawn. These replace the drawing program this pane would otherwise use, which could not make 13 of its 16 drawing calls; a kind of drawing the run holds back is named on the chart, not drawn from that program instead."
+     ]
+    },
+    {
+     "key": "reference:uptrick-volatility-adjusted-trail__ff9f0f608f",
+     "notDrawn": [
+      "This script also writes a fill between two plots, which a script drawn bar by bar does not draw here yet. Its lines are drawn; those are not.",
+      "Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way TradingView makes them. A kind of drawing whose result is not known exactly is not drawn."
+     ]
+    }
+   ],
+   "lost": [],
+   "captures": [
+    {
+     "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28",
+     "verdict": "MATCH",
+     "objectsV2": "MATCH",
+     "full": true
+    },
+    {
+     "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03",
+     "verdict": "MATCH",
+     "objectsV2": "MATCH",
+     "full": true
+    },
+    {
+     "capture": "parabolic-sar-rddt-1d-2026-10-03",
+     "verdict": "MATCH",
+     "objectsV2": "MATCH",
+     "full": true
+    },
+    {
+     "capture": "vw-clock-close-tfchange-spy-1d-2026-09-28",
+     "verdict": "INCONCLUSIVE",
+     "objectsV2": "MATCH",
+     "full": true
+    },
+    {
+     "capture": "vw-loop-in-block-spy-1d-2026-10-02",
+     "verdict": "MATCH",
+     "objectsV2": "MATCH",
+     "full": true
+    },
+    {
+     "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-14",
+     "verdict": "MATCH",
+     "objectsV2": "MATCH",
+     "full": true
+    }
+   ]
+  }
+ },
+ "withObjBox": {
+  "strict": {
+   "populations": {
+    "committed": {
+     "scripts": 266,
+     "admittedBefore": 26,
+     "admittedAfter": 58,
+     "runtimeFullBefore": 7,
+     "runtimeFullAfter": 8,
+     "runtimeLaneBefore": 7,
+     "runtimeLaneAfter": 12
+    },
+    "reference": {
+     "scripts": 271,
+     "admittedBefore": 64,
+     "admittedAfter": 99,
+     "runtimeFullBefore": 4,
+     "runtimeFullAfter": 4,
+     "runtimeLaneBefore": 5,
+     "runtimeLaneAfter": 8
+    },
+    "builtin": {
+     "scripts": 142,
+     "admittedBefore": 51,
+     "admittedAfter": 63,
+     "runtimeFullBefore": 4,
+     "runtimeFullAfter": 4,
+     "runtimeLaneBefore": 4,
+     "runtimeLaneAfter": 5
+    },
+    "capture": {
+     "scripts": 579,
+     "admittedBefore": 167,
+     "admittedAfter": 263,
+     "runtimeFullBefore": 15,
+     "runtimeFullAfter": 18,
+     "runtimeLaneBefore": 15,
+     "runtimeLaneAfter": 23
+    }
+   },
+   "newlyFullRuntime": [
+    {
+     "key": "committed:inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat__832e485b9c",
+     "before": "refused",
+     "missingBefore": [
+      "obj:delete",
+      "obj:line"
+     ]
+    }
+   ],
+   "newlyPartialRuntime": [
+    {
+     "key": "builtin:linear-regression-channel__Linear_Regre",
+     "notDrawn": [
+      "Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way TradingView makes them. A kind of drawing whose result is not known exactly is not drawn. These replace the drawing program this pane would otherwise use, which could not make 10 of its 13 drawing calls; a kind of drawing the run holds back is named on the chart, not drawn from that program instead."
+     ]
+    },
+    {
+     "key": "committed:order-block-finder__fVSb3j0I87",
+     "notDrawn": [
+      "`Bullish OB` is not drawn: its colour changes from bar to bar, and a shape whose colour changes per bar is not carried by this lane yet. Nothing is drawn for it rather than a guess.",
+      "`Bullish OB Average` is not drawn: its colour changes from bar to bar, and a shape whose colour changes per bar is not carried by this lane yet. Nothing is drawn for it rather than a guess.",
+      "`Bearish OB` is not drawn: its colour changes from bar to bar, and a shape whose colour changes per bar is not carried by this lane yet. Nothing is drawn for it rather than a guess.",
+      "`Bearish OB Average` is not drawn: its colour changes from bar to bar, and a shape whose colour changes per bar is not carried by this lane yet. Nothing is drawn for it rather than a guess.",
+      "This script also writes a fill between two plots, which a script drawn bar by bar does not draw here yet. Its lines are drawn; those are not.",
+      "Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way TradingView makes them. A kind of drawing whose result is not known exactly is not drawn. These replace the drawing program this pane would otherwise use, which could not make 13 of its 16 drawing calls; a kind of drawing the run holds back is named on the chart, not drawn from that program instead."
+     ]
+    },
+    {
+     "key": "committed:order-blocks__b324078711",
+     "notDrawn": [
+      "Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way TradingView makes them. A kind of drawing whose result is not known exactly is not drawn."
+     ]
+    },
+    {
+     "key": "committed:parabolic-sar__xoeoPMOWGJ",
+     "notDrawn": [
+      "Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way TradingView makes them. A kind of drawing whose result is not known exactly is not drawn."
+     ]
+    },
+    {
+     "key": "committed:zigzag-multi-time-frame-with-fibonacci-retracement__ppvz14qunp",
+     "notDrawn": [
+      "Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way TradingView makes them. A kind of drawing whose result is not known exactly is not drawn."
+     ]
+    },
+    {
+     "key": "reference:auto-fibonacci-and-gann-fanretracements-combo__e764b93365",
+     "notDrawn": [
+      "Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way TradingView makes them. A kind of drawing whose result is not known exactly is not drawn."
+     ]
+    },
+    {
+     "key": "reference:best-sr-indicator-with-candlestick-patterns__4af8b3cc84",
+     "notDrawn": [
+      "Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way TradingView makes them. A kind of drawing whose result is not known exactly is not drawn. These replace the drawing program this pane would otherwise use, which could not make 18 of its 36 drawing calls; a kind of drawing the run holds back is named on the chart, not drawn from that program instead."
+     ]
+    },
+    {
+     "key": "reference:uptrick-volatility-adjusted-trail__ff9f0f608f",
+     "notDrawn": [
+      "This script also writes a fill between two plots, which a script drawn bar by bar does not draw here yet. Its lines are drawn; those are not.",
+      "Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way TradingView makes them. A kind of drawing whose result is not known exactly is not drawn."
+     ]
+    }
+   ],
+   "lost": [],
+   "captures": [
+    {
+     "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28",
+     "verdict": "MATCH",
+     "objectsV2": "MATCH",
+     "full": true
+    },
+    {
+     "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03",
+     "verdict": "MATCH",
+     "objectsV2": "MATCH",
+     "full": true
+    },
+    {
+     "capture": "order-blocks-rddt-1d-2026-11-14",
+     "verdict": "INCONCLUSIVE",
+     "objectsV2": "INCONCLUSIVE",
+     "full": false
+    },
+    {
+     "capture": "parabolic-sar-rddt-1d-2026-10-03",
+     "verdict": "MATCH",
+     "objectsV2": "MATCH",
+     "full": false
+    },
+    {
+     "capture": "vw-clock-close-tfchange-spy-1d-2026-09-28",
+     "verdict": "INCONCLUSIVE",
+     "objectsV2": "MATCH",
+     "full": true
+    },
+    {
+     "capture": "vw-forin-collections-rddt-1d-2026-10-01",
+     "verdict": "MATCH",
+     "objectsV2": "MATCH",
+     "full": false
+    },
+    {
+     "capture": "vw-loop-in-block-spy-1d-2026-10-02",
+     "verdict": "MATCH",
+     "objectsV2": "MATCH",
+     "full": false
+    },
+    {
+     "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-14",
+     "verdict": "MATCH",
+     "objectsV2": "MATCH",
+     "full": false
+    }
+   ]
+  },
+  "disclosure": {
+   "populations": {
+    "committed": {
+     "scripts": 266,
+     "admittedBefore": 26,
+     "admittedAfter": 58,
+     "runtimeFullBefore": 7,
+     "runtimeFullAfter": 11,
+     "runtimeLaneBefore": 7,
+     "runtimeLaneAfter": 12
+    },
+    "reference": {
+     "scripts": 271,
+     "admittedBefore": 64,
+     "admittedAfter": 99,
+     "runtimeFullBefore": 4,
+     "runtimeFullAfter": 6,
+     "runtimeLaneBefore": 5,
+     "runtimeLaneAfter": 8
+    },
+    "builtin": {
+     "scripts": 142,
+     "admittedBefore": 51,
+     "admittedAfter": 63,
+     "runtimeFullBefore": 4,
+     "runtimeFullAfter": 5,
+     "runtimeLaneBefore": 4,
+     "runtimeLaneAfter": 5
+    },
+    "capture": {
+     "scripts": 579,
+     "admittedBefore": 167,
+     "admittedAfter": 263,
+     "runtimeFullBefore": 15,
+     "runtimeFullAfter": 23,
+     "runtimeLaneBefore": 15,
+     "runtimeLaneAfter": 23
+    }
+   },
+   "newlyFullRuntime": [
+    {
+     "key": "builtin:linear-regression-channel__Linear_Regre",
+     "before": "refused",
+     "missingBefore": [
+      "max_bars_back",
+      "obj:collection",
+      "obj:delete",
+      "obj:getter",
+      "obj:label",
+      "obj:line",
+      "obj:linefill",
+      "realtime-state",
+      "switch"
+     ]
+    },
+    {
+     "key": "committed:inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat__832e485b9c",
+     "before": "refused",
+     "missingBefore": [
+      "obj:delete",
+      "obj:line"
+     ]
+    },
+    {
+     "key": "committed:order-blocks__b324078711",
+     "before": "refused",
+     "missingBefore": [
+      "obj:box",
+      "obj:collection",
+      "obj:delete",
+      "obj:getter",
+      "obj:label",
+      "obj:line",
+      "realtime-state"
+     ]
+    },
+    {
+     "key": "committed:parabolic-sar__xoeoPMOWGJ",
+     "before": "refused",
+     "missingBefore": [
+      "obj:label"
+     ]
+    },
+    {
+     "key": "committed:zigzag-multi-time-frame-with-fibonacci-retracement__ppvz14qunp",
+     "before": "refused",
+     "missingBefore": [
+      "max_bars_back",
+      "obj:collection",
+      "obj:delete",
+      "obj:label",
+      "obj:line",
+      "realtime-state"
+     ]
+    },
+    {
+     "key": "reference:auto-fibonacci-and-gann-fanretracements-combo__e764b93365",
+     "before": "refused",
+     "missingBefore": [
+      "obj:collection",
+      "obj:delete",
+      "obj:label",
+      "obj:line"
+     ]
+    },
+    {
+     "key": "reference:best-sr-indicator-with-candlestick-patterns__4af8b3cc84",
+     "before": "refused",
+     "missingBefore": [
+      "obj:collection",
+      "obj:label",
+      "obj:line",
+      "obj:linefill"
+     ]
+    }
+   ],
+   "newlyPartialRuntime": [
+    {
+     "key": "committed:order-block-finder__fVSb3j0I87",
+     "notDrawn": [
+      "`Bullish OB` is not drawn: its colour changes from bar to bar, and a shape whose colour changes per bar is not carried by this lane yet. Nothing is drawn for it rather than a guess.",
+      "`Bullish OB Average` is not drawn: its colour changes from bar to bar, and a shape whose colour changes per bar is not carried by this lane yet. Nothing is drawn for it rather than a guess.",
+      "`Bearish OB` is not drawn: its colour changes from bar to bar, and a shape whose colour changes per bar is not carried by this lane yet. Nothing is drawn for it rather than a guess.",
+      "`Bearish OB Average` is not drawn: its colour changes from bar to bar, and a shape whose colour changes per bar is not carried by this lane yet. Nothing is drawn for it rather than a guess.",
+      "This script also writes a fill between two plots, which a script drawn bar by bar does not draw here yet. Its lines are drawn; those are not.",
+      "Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way TradingView makes them. A kind of drawing whose result is not known exactly is not drawn. These replace the drawing program this pane would otherwise use, which could not make 13 of its 16 drawing calls; a kind of drawing the run holds back is named on the chart, not drawn from that program instead."
+     ]
+    },
+    {
+     "key": "reference:uptrick-volatility-adjusted-trail__ff9f0f608f",
+     "notDrawn": [
+      "This script also writes a fill between two plots, which a script drawn bar by bar does not draw here yet. Its lines are drawn; those are not.",
+      "Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way TradingView makes them. A kind of drawing whose result is not known exactly is not drawn."
+     ]
+    }
+   ],
+   "lost": [],
+   "captures": [
+    {
+     "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28",
+     "verdict": "MATCH",
+     "objectsV2": "MATCH",
+     "full": true
+    },
+    {
+     "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03",
+     "verdict": "MATCH",
+     "objectsV2": "MATCH",
+     "full": true
+    },
+    {
+     "capture": "order-blocks-rddt-1d-2026-11-14",
+     "verdict": "INCONCLUSIVE",
+     "objectsV2": "INCONCLUSIVE",
+     "full": true
+    },
+    {
+     "capture": "parabolic-sar-rddt-1d-2026-10-03",
+     "verdict": "MATCH",
+     "objectsV2": "MATCH",
+     "full": true
+    },
+    {
+     "capture": "vw-clock-close-tfchange-spy-1d-2026-09-28",
+     "verdict": "INCONCLUSIVE",
+     "objectsV2": "MATCH",
+     "full": true
+    },
+    {
+     "capture": "vw-forin-collections-rddt-1d-2026-10-01",
+     "verdict": "MATCH",
+     "objectsV2": "MATCH",
+     "full": true
+    },
+    {
+     "capture": "vw-loop-in-block-spy-1d-2026-10-02",
+     "verdict": "MATCH",
+     "objectsV2": "MATCH",
+     "full": true
+    },
+    {
+     "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-14",
+     "verdict": "MATCH",
+     "objectsV2": "MATCH",
+     "full": true
+    }
+   ]
+  }
+ }
+}

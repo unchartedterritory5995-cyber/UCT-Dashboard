@@ -769,6 +769,13 @@ ALLOWED_API_IMPORTS = {
     "api.services.bars_sanitize.unadjusted_splits",
     "api.services.declared_splits.DeclaredSplits",
     "api.services.declared_splits.DEFAULT_FETCH_BUDGET",
+    # 2026-11-14: the listing-break rule. Not maths: the repo's ONE rule for where a
+    # recycled symbol's current listing starts (the rating window and the screener build
+    # read with it); the ticker loop measures the current listing only.
+    "api.services.listing_break",
+    # The CLI's log filter (1b90258512, credentials never reach a log line). Not maths;
+    # this rail had been red on master since that commit added the import.
+    "api.services.log_redaction.install",
 }
 
 

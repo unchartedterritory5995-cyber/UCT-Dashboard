@@ -94,8 +94,10 @@ jobs:
           WAIT: ${{ github.event_name == 'workflow_run' && '900' || '0' }}
         run: |
           set -uo pipefail
-          python tools/live_check.py --no-fetch --post $MORNING --wait "$WAIT" --state "$RUNNER_TEMP/live-check-state.json"
-          code=$?
+          # `|| code=$?`, not a bare `code=$?`: Actions runs bash with -e, so a report exit of 1 or 2 would end the
+          # step before the line that reads it (first dispatched run, 2026-11-15)
+          code=0
+          python tools/live_check.py --no-fetch --post $MORNING --wait "$WAIT" --state "$RUNNER_TEMP/live-check-state.json" || code=$?
           echo "live check exit: $code (0 all live, 1 something stuck, 2 something could not be checked)"
           # 1 and 2 are REPORTS (posted to Discord); anything else is the check itself breaking
           if [ "$code" -gt 2 ]; then exit "$code"; fi
