@@ -48,6 +48,18 @@ on:
       - 'api/routers/uct_agent*.py'
       - 'tests/test_uct_agent*.py'
       - 'tools/agent_*'
+      # DOCS THE SUITES READ (11-16, AUDIT): editing one of these changes an Agent test's verdict, so it must run Agent CI
+      # (tests/test_ci_agent_docs_paths.py discovers the reads and holds this list complete)
+      - 'docs/agent/COMPATIBILITY-DECISIONS.md'
+      - 'docs/agent/ROADMAP.md'
+      - 'docs/agent/CHARTS_COVERAGE_MATRIX.md'
+      - 'docs/agent/CHARTS_TEACH_STATUS.md'
+      - 'docs/agent/coach/**'
+      - 'docs/agent/knowledge/EVIDENCE-ROUTING-DESIGN.md'
+      - 'docs/agent/knowledge/e1-eval-seeds.json'
+      - 'docs/agent/knowledge/policy.json'
+      - 'docs/agent/knowledge/setup-criteria.json'
+      - 'docs/agent/program/**'
       - '.github/workflows/agent-ci.yml'
   pull_request:
     branches: [agent/int, master]
@@ -71,6 +83,18 @@ on:
       - 'api/routers/uct_agent*.py'
       - 'tests/test_uct_agent*.py'
       - 'tools/agent_*'
+      # DOCS THE SUITES READ (11-16, AUDIT): editing one of these changes an Agent test's verdict, so it must run Agent CI
+      # (tests/test_ci_agent_docs_paths.py discovers the reads and holds this list complete)
+      - 'docs/agent/COMPATIBILITY-DECISIONS.md'
+      - 'docs/agent/ROADMAP.md'
+      - 'docs/agent/CHARTS_COVERAGE_MATRIX.md'
+      - 'docs/agent/CHARTS_TEACH_STATUS.md'
+      - 'docs/agent/coach/**'
+      - 'docs/agent/knowledge/EVIDENCE-ROUTING-DESIGN.md'
+      - 'docs/agent/knowledge/e1-eval-seeds.json'
+      - 'docs/agent/knowledge/policy.json'
+      - 'docs/agent/knowledge/setup-criteria.json'
+      - 'docs/agent/program/**'
       - '.github/workflows/agent-ci.yml'
 
 concurrency:
