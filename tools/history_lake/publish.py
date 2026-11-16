@@ -26,7 +26,7 @@ import argparse
 import json
 import os
 import sys
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Optional
 
@@ -63,30 +63,48 @@ def collect_packs(roots: Iterable[Path]) -> Dict[tuple, Path]:
     return dict(sorted(found.items()))
 
 
-def build_indexes(packs: Dict[tuple, Path], *, check: bool = True, log=print) -> Dict[str, dict]:
+def _read_pack(job) -> tuple:
+    """One pack's index entries, oldest-first as its trailer lists them: (series, period, [(sym, entry)]).
+    With `check`, every piece's header is read and must agree with the trailer. Runs in a pool worker
+    too, so it raises only BuildError."""
+    (series, period), path, check = job
+    entries = []
+    with pack.PackReader(path) as r:
+        tr = r.trailer
+        if tr.get("series") != series or tr.get("period") != period:
+            raise BuildError(f"{path} holds {tr.get('series')}/{tr.get('period')}, not {series}/{period}")
+        for sym, (off, length, bars, first, last, crc) in tr["pieces"].items():
+            if check:
+                blob = r.get(sym)
+                try:
+                    h = piece.read_header(blob)
+                except piece.PieceError as exc:
+                    raise BuildError(f"{path}: {sym}: {exc}") from exc
+                if (h["symbol"], h["series"], h["period"], h["bars"], h["first"], h["last"], h["crc"]) !=                         (sym, series, period, bars, first, last, crc):
+                    raise BuildError(f"{path}: {sym}: the trailer and the piece header disagree")
+            entries.append((sym, {"bars": bars, "bytes": length, "crc": crc, "first": first, "last": last, "off": off}))
+    return series, period, entries
+
+
+def build_indexes(packs: Dict[tuple, Path], *, check: bool = True, log=print, jobs: int = 1) -> Dict[str, dict]:
     """symbol -> index document. With `check`, every piece's header is read and must agree with the
-    pack's trailer (symbol, series, period, bars, first, last, crc, length)."""
+    pack's trailer (symbol, series, period, bars, first, last, crc, length). `jobs` > 1 reads the
+    packs in a process pool (the check is CPU-bound: ~80 s a year of packs in one process); results
+    are merged in the same order as one process, so the documents are identical."""
     out: Dict[str, dict] = {}
-    for n, ((series, period), path) in enumerate(packs.items(), 1):
-        with pack.PackReader(path) as r:
-            tr = r.trailer
-            if tr.get("series") != series or tr.get("period") != period:
-                raise BuildError(f"{path} holds {tr.get('series')}/{tr.get('period')}, not {series}/{period}")
-            for sym, (off, length, bars, first, last, crc) in tr["pieces"].items():
-                if check:
-                    blob = r.get(sym)
-                    try:
-                        h = piece.read_header(blob)
-                    except piece.PieceError as exc:
-                        raise BuildError(f"{path}: {sym}: {exc}") from exc
-                    if (h["symbol"], h["series"], h["period"], h["bars"], h["first"], h["last"], h["crc"]) != \
-                            (sym, series, period, bars, first, last, crc):
-                        raise BuildError(f"{path}: {sym}: the trailer and the piece header disagree")
+    work = [(key, path, check) for key, path in packs.items()]
+    pool = ProcessPoolExecutor(max_workers=jobs) if jobs > 1 and len(work) > 1 else None
+    try:
+        results = pool.map(_read_pack, work, chunksize=1) if pool else map(_read_pack, work)
+        for n, (series, period, entries) in enumerate(results, 1):
+            for sym, entry in entries:
                 doc = out.setdefault(sym, {"v": piece.FORMAT_VERSION, "symbol": sym, "series": {}})
-                doc["series"].setdefault(series, {})[period] = {
-                    "bars": bars, "bytes": length, "crc": crc, "first": first, "last": last, "off": off}
-        if n % 50 == 0:
-            log(f"  {n}/{len(packs)} packs read")
+                doc["series"].setdefault(series, {})[period] = entry
+            if n % 50 == 0:
+                log(f"  {n}/{len(packs)} packs read")
+    finally:
+        if pool:
+            pool.shutdown(wait=True, cancel_futures=True)
     return dict(sorted(out.items()))
 
 
@@ -186,11 +204,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--bucket")
     ap.add_argument("--prefix", default="")
     ap.add_argument("--jobs", type=int, default=16)
+    ap.add_argument("--check-jobs", type=int, default=min(8, os.cpu_count() or 1),
+                    help="processes reading and checking the packs (default: up to 8)")
     args = ap.parse_args(argv)
     try:
         packs = collect_packs(args.roots)
         print(f"{len(packs)} packs")
-        indexes = build_indexes(packs, check=not args.no_check)
+        indexes = build_indexes(packs, check=not args.no_check, jobs=args.check_jobs)
         print(f"{len(indexes):,} symbols")
         if args.splits:
             if not args.as_of:

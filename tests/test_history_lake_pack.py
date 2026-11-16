@@ -267,3 +267,21 @@ def test_scratch_rows_on_another_disk_change_nothing_and_stop_before_it_fills(ra
     # without --spill-dir there is no check at all (the default scratch lives with the output)
     monkeypatch.setattr(BLD.shutil, "disk_usage", lambda p: real(p)._replace(free=0))
     BLD.Builder(raw, tmp_path / "plain", quality=5, packs=True, **QUIET).run("2026-11-27")
+
+
+def test_publish_check_in_a_process_pool_is_identical_and_still_refuses(raw, tmp_path):
+    out = tmp_path / "lake"
+    BLD.Builder(raw, out, quality=5, packs=True, **QUIET).run(ALL)
+    packs = PUB.collect_packs([out])
+    one = PUB.build_indexes(packs, check=True, log=lambda *_: None, jobs=1)
+    many = PUB.build_indexes(packs, check=True, log=lambda *_: None, jobs=3)
+    assert one and json.dumps(many) == json.dumps(one)          # same documents, same key order
+    # a pack whose piece disagrees with its trailer is refused by the pool too
+    (key, path), = [(k, p) for k, p in packs.items() if k[0] == "1"][:1]
+    data = bytearray(path.read_bytes())
+    tr = PK.read_trailer(path)
+    sym, (off, length, *_rest) = next(iter(tr["pieces"].items()))
+    data[off + 12] ^= 0xFF                                      # a byte in that piece's header
+    path.write_bytes(bytes(data))
+    with pytest.raises(BLD.BuildError):
+        PUB.build_indexes(packs, check=True, log=lambda *_: None, jobs=3)
