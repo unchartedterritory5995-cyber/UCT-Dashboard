@@ -1,6 +1,6 @@
 // W9-T2: the strategy grade (design 5.2 E), pure. Every rule has a fixture and a control.
 import { describe, it, expect } from 'vitest'
-import { gradeStrategy, STRATEGY_FLOOR } from '../../../../../../../tools/vendor_harness/compare.mjs'
+import { gradeStrategy, STRATEGY_FLOOR, strategyFirstDifference } from '../../../../../../../tools/vendor_harness/compare.mjs'
 
 const T0 = 1_700_000_000
 const DAY = 86400
@@ -354,5 +354,76 @@ describe('step 8: the drawn texts (value read-backs)', () => {
   })
   it('⛔ texts that cannot be read on the reference side are INCONCLUSIVE', () => {
     expect(gradeStrategy(withTexts({ status: 'unread', reason: 'the capture carries no object x index' }))).toMatchObject({ verdict: 'INCONCLUSIVE', step: 8 })
+  })
+})
+
+// ─── ruling D11: the first difference of a diverging run, and the proof that the bars before it are exact ───
+describe('ruling D11: strategyFirstDifference (pure)', () => {
+  const fillsOf = (trades) => trades.flatMap((t) => [
+    { time: t.entryTime, side: 'buy', role: 'entry', price: t.entryPrice, qty: t.qty, id: 'L', labelled: true, rule: t.rule },
+    { time: t.exitTime, side: 'sell', role: 'exit', price: t.exitPrice, qty: t.qty, id: 'XL', labelled: true, rule: t.rule },
+  ])
+  const bars = (f) => Array.from({ length: 60 }, (_, i) => ({ time: T0 + i * DAY, value: f(i) }))
+  const world = () => {
+    const trades = mkTrades(5)
+    return {
+      reference: { trades: mkTrades(5), fills: fillsOf(mkTrades(5)), fillsTimed: true },
+      ours: { trades, fills: fillsOf(trades) },
+      tick: 0.01,
+      values: { status: 'ok', series: [{ title: 'S03', reference: bars((i) => i), ours: bars((i) => i) }] },
+      texts: { status: 'ok', reference: [{ time: T0 + 5 * DAY, text: 'a' }, { time: T0 + 25 * DAY, text: 'b' }], ours: [{ time: T0 + 5 * DAY, text: 'a' }, { time: T0 + 25 * DAY, text: 'b' }] },
+    }
+  }
+  const day = (n) => T0 + n * DAY
+
+  it('two equal runs have no first difference', () => {
+    expect(strategyFirstDifference(world())).toBeNull()
+  })
+  it('a missing fill of ours: the difference is on the bar of that fill, at step 5, and the bars before it are exact', () => {
+    const w = world()
+    w.ours.fills = w.ours.fills.filter((f) => !(f.time === day(25) && f.role === 'exit')) // trade 3 exits on day 25
+    expect(strategyFirstDifference(w)).toEqual({ bar: day(25), step: 5, prefixExact: true })
+  })
+  it('the EARLIEST differing bar wins, whichever step it is on: a value on day 12 before a fill on day 25', () => {
+    const w = world()
+    w.ours.fills = w.ours.fills.filter((f) => !(f.time === day(25) && f.role === 'exit'))
+    w.values.series[0].ours = bars((i) => (i === 12 ? 99 : i))
+    expect(strategyFirstDifference(w)).toEqual({ bar: day(12), step: 7, prefixExact: true })
+    const t = world()
+    t.texts.ours = [{ time: day(5), text: 'DIFFERENT' }, { time: day(25), text: 'b' }]
+    t.values.series[0].ours = bars((i) => (i === 12 ? 99 : i))
+    expect(strategyFirstDifference(t)).toEqual({ bar: day(5), step: 8, prefixExact: true })
+  })
+  it('⛔ a closed trade BEFORE the difference that is not equal (a profit) makes the prefix inexact', () => {
+    const w = world()
+    w.ours.fills = w.ours.fills.filter((f) => !(f.time === day(25) && f.role === 'exit'))
+    w.ours.trades[0] = { ...w.ours.trades[0], profit: w.ours.trades[0].profit + 1 } // trade 1 closed on day 5
+    expect(strategyFirstDifference(w)).toEqual({ bar: day(25), step: 5, prefixExact: false })
+    // control: the same wrong profit on a trade that closes AFTER the difference does not touch the prefix
+    const c = world()
+    c.ours.fills = c.ours.fills.filter((f) => !(f.time === day(25) && f.role === 'exit'))
+    c.ours.trades[4] = { ...c.ours.trades[4], profit: c.ours.trades[4].profit + 1 } // closes on day 45
+    expect(strategyFirstDifference(c).prefixExact).toBe(true)
+  })
+  it('⛔ fails closed: unpaired plots, unreadable texts or untimed reference fills never give a proven prefix', () => {
+    const cut = (w) => { w.ours.fills = w.ours.fills.filter((f) => !(f.time === day(25) && f.role === 'exit')); return w }
+    const unpaired = cut(world())
+    unpaired.values = { status: 'unpaired', reason: 'x' }
+    expect(strategyFirstDifference(unpaired)).toEqual({ bar: day(25), step: 5, prefixExact: false })
+    const unread = cut(world())
+    unread.texts = { status: 'unread', reason: 'x' }
+    expect(strategyFirstDifference(unread).prefixExact).toBe(false)
+    const untimed = cut(world())
+    untimed.reference.fillsTimed = false
+    expect(strategyFirstDifference(untimed)).toBeNull()
+    // control: texts our run could not draw are not a graded step, so they do not break the proof
+    const ungraded = cut(world())
+    ungraded.texts = { status: 'ungraded', reason: 'x' }
+    expect(strategyFirstDifference(ungraded)).toEqual({ bar: day(25), step: 5, prefixExact: true })
+  })
+  it('a difference with no bar (a profit alone) is no first difference: the strict rule applies', () => {
+    const w = world()
+    w.ours.trades[2] = { ...w.ours.trades[2], profit: w.ours.trades[2].profit + 1 }
+    expect(strategyFirstDifference(w)).toBeNull()
   })
 })

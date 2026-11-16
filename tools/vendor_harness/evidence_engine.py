@@ -1540,6 +1540,31 @@ def pin_rows(ledger: pathlib.Path = LEDGER, verdicts_dir: pathlib.Path = STRATEG
     return read_ledger_rows(ledger) + read_strategy_verdicts(verdicts_dir)
 
 
+def culprit_scope(row: dict):
+    """Ruling D11 (docs/pine/W9-DECISIONS-2026-11-07.md): the rules a DIVERGE strategy verdict un-pins, or None
+    for the STRICT rule (everything it exercised). The exception needs EVERY recorded field, and fails closed:
+      * `prefixExact` is exactly True (every graded step equal on the bars strictly before the first difference);
+      * `firstDifference` is `{bar, step}`, both integers;
+      * `culprit` is a NON-EMPTY list of rules, `afterDifference` a list, both inside `rulesExercised` and disjoint.
+    Then only `culprit` (the rules first exercised AT the differing event) and `afterDifference` (first exercised
+    after it) are un-pinned; a rule exercised only before the event is neither un-pinned nor pinned by the row."""
+    if row.get("schema") != STRATEGY_VERDICT_SCHEMA or row.get("verdict") != "DIVERGE":
+        return None
+    if row.get("prefixExact") is not True:
+        return None
+    fd = row.get("firstDifference")
+    is_int = lambda x: isinstance(x, int) and not isinstance(x, bool)  # noqa: E731
+    if not (isinstance(fd, dict) and is_int(fd.get("bar")) and is_int(fd.get("step"))):
+        return None
+    ex, culprit, after = row.get("rulesExercised"), row.get("culprit"), row.get("afterDifference")
+    names = lambda xs: isinstance(xs, list) and all(isinstance(x, str) and x for x in xs)  # noqa: E731
+    if not (names(ex) and names(culprit) and names(after)) or not culprit:
+        return None
+    if not set(culprit) <= set(ex) or not set(after) <= set(ex) or set(culprit) & set(after):
+        return None
+    return set(culprit) | set(after)
+
+
 def resolve_pins(pins: dict, ledger_rows: list, sources: dict | None = None) -> dict:
     """A rule is kept with its fixtures ONLY when every committed verdict for every one of those
     fixtures is MATCH. A DIVERGE or INCONCLUSIVE verdict (or any non-MATCH) un-pins the rule; a
@@ -1555,7 +1580,10 @@ def resolve_pins(pins: dict, ledger_rows: list, sources: dict | None = None) -> 
       * and only when it graded at least one value series (`graded.values`: the capture's plots against
         ours, bar by bar), not the fills alone (value read-backs, 2026-11-15);
       * ANY committed row that exercised the rule and is not MATCH un-pins it, whether or not
-        `brokerPins.json` lists that capture."""
+        `brokerPins.json` lists that capture;
+      * ruling D11, the one exception: a DIVERGE row that records a proven first difference un-pins only its
+        culprit set (`culprit_scope`); the rules it exercised only before that event are not un-pinned by it
+        (and it is never MATCH evidence for them: a listed capture must still MATCH)."""
     if not isinstance(pins, dict) or pins.get("schema") != PINS_SCHEMA or not isinstance(pins.get("rules"), dict):
         raise PinResolveError(f"brokerPins.json must be {{schema: {PINS_SCHEMA!r}, rules: {{...}}}}")
     pinned_ids = {i for ids in pins["rules"].values() if isinstance(ids, list) for i in ids}
@@ -1583,7 +1611,10 @@ def resolve_pins(pins: dict, ledger_rows: list, sources: dict | None = None) -> 
                     v = SETTINGS_REFUSED   # design 5.1: the precondition failed, so not MATCH
             ex = r.get("rulesExercised")
             verdicts.setdefault(cid, []).append((v, set(ex) if isinstance(ex, list) else None))
+            scope = culprit_scope(r)   # D11: None = strict
             for rule in (ex if isinstance(ex, list) else []):
+                if scope is not None and rule not in scope:
+                    continue           # exercised only before the first difference: this row says nothing of it
                 exercised_by.setdefault(rule, []).append(v)
     kept = {}
     for rule in sorted(pins["rules"]):

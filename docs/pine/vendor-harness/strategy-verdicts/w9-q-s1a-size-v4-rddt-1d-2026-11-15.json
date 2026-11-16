@@ -8,9 +8,9 @@
  "symbol": "NYSE:RDDT",
  "timeframe": "1D",
  "gradeMethod": "a",
- "verdict": "INCONCLUSIVE",
- "step": 2,
- "reason": "the run's settings differ from the read-back: margin_long, margin_short",
+ "verdict": "EXPECTED-REFUSAL",
+ "step": 1,
+ "reason": "refused by runtime:strategy-unsettled",
  "first": null,
  "graded": {
   "trades": false,
@@ -20,21 +20,13 @@
   "texts": 0
  },
  "referenceTrades": 20,
- "rulesExercised": [
-  "B-CLOSE",
-  "B-DEFAULTS",
-  "B-DIR",
-  "B-FIFO",
-  "B-FILL",
-  "B-MARGIN",
-  "B-MARKET",
-  "B-QTY",
-  "B-ROUND",
-  "B-SIG",
-  "B-VAL"
- ],
+ "rulesExercised": [],
  "ungradedSlots": [],
  "ungradedTexts": [],
+ "firstDifference": null,
+ "prefixExact": null,
+ "culprit": null,
+ "afterDifference": null,
  "provenance": {
   "strategySettings": {
    "properties": [

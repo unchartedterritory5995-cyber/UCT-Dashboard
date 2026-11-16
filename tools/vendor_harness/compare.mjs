@@ -1905,6 +1905,60 @@ function compareValueSeries(series, span) {
   return { verdict: 'MATCH', reason: 'every value series equal', first: null }
 }
 
+// ── ruling D11: THE FIRST DIFFERENCE of a run that diverges, found mechanically ─────────────────
+/**
+ * The earliest bar on which our run and TradingView's differ, over everything the grade places on a bar: the
+ * fills (step 5), the value series (step 7) and the drawn texts (step 8). Trades are checked through their
+ * fills; a report slot has no bar and never sets it.
+ *
+ * `prefixExact` is the proof ruling D11 asks for: restricted to the bars STRICTLY BEFORE that bar, the closed
+ * trades, the fills, every value series and every text are equal. It is computed here, never asserted, and it
+ * FAILS CLOSED: plots that could not be paired, texts that could not be read, or reference fills that could
+ * not be placed in time make it false.
+ *
+ * @returns {{bar:number, step:5|7|8, prefixExact:boolean} | null}  null when no fill, value or text differs
+ *   (a difference in a profit or a report slot alone): there is then no event to scope a culprit to.
+ */
+export function strategyFirstDifference({ reference, ours, tick = 0.01, span, graded, values, texts }) {
+  const within = graded || span
+  const inS = (t) => inSpan(t, within)
+  const refFills = reference && Array.isArray(reference.fills) ? reference.fills : null
+  if (!refFills || reference.fillsTimed !== true) return null
+  const ourFills = Array.isArray(ours && ours.fills) ? ours.fills : []
+  const valuesOk = !!values && values.status === 'ok'
+  const textsOk = !!texts && texts.status === 'ok'
+  const textsGraded = !texts || texts.status === 'ungraded' || textsOk // absent / ungraded texts are not a graded step
+  const f = compareFills(refFills.filter((x) => inS(x.time)), ourFills.filter((x) => inS(x.time)), tick)
+  const fillAt = f.verdict === 'MATCH' ? null : f.first.time
+  let valueAt = null
+  if (valuesOk) {
+    for (const s of values.series) {
+      const our = new Map((s.ours || []).map((p) => [p.time, p.value]))
+      for (const p of s.reference || []) {
+        if (!inS(p.time) || (valueAt !== null && p.time >= valueAt)) continue
+        if (!our.has(p.time) || !valuesAgree(our.get(p.time), p.value, VALUE_TOL)) valueAt = p.time
+      }
+    }
+  }
+  let textAt = null
+  if (textsOk) {
+    const t = compareTexts(texts.reference, texts.ours, within)
+    if (t.verdict !== 'MATCH') textAt = t.first.time
+  }
+  const at = [fillAt, valueAt, textAt].filter((x) => x !== null)
+  if (!at.length) return null
+  const bar = Math.min(...at)
+  const step = fillAt === bar ? 5 : valueAt === bar ? 7 : 8
+  const before = { from: within && within.from, to: within && within.to !== undefined ? Math.min(within.to, bar) : bar }
+  const inB = (t) => inSpan(t, before)
+  const closedBefore = (list) => (list || []).filter((t) => t.open !== true && t.exitTime !== null && t.exitTime !== undefined && inB(t.exitTime))
+  const tradesExact = compareTrades(closedBefore(reference.trades), closedBefore(ours && ours.trades), tick).verdict === 'MATCH'
+  const fillsExact = compareFills(refFills.filter((x) => inB(x.time)), ourFills.filter((x) => inB(x.time)), tick).verdict === 'MATCH'
+  const valuesExact = valuesOk && compareValueSeries(values.series, before).verdict === 'MATCH'
+  const textsExact = textsGraded && (!textsOk || compareTexts(texts.reference, texts.ours, before).verdict === 'MATCH')
+  return { bar, step, prefixExact: tradesExact && fillsExact && valuesExact && textsExact }
+}
+
 // ── step 8: the drawn texts ───────────────────────────────────────────────────
 /** `reference` / `ours`: `[{ time, text }]`. The same texts on the same bars, as multisets per bar. */
 function compareTexts(reference, ours, span) {

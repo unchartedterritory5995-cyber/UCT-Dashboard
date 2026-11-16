@@ -37,15 +37,20 @@ export { UNPINNED_GUARD }
 /** A stop of the run at a rule the spec does not settle. `probe` names the queue
  *  item that would settle it. */
 export class BrokerRefusal extends Error {
-  constructor(message, probe) {
+  /** `setting` (ruling D12): the refusal is about a SETTING the run would have to assume (its name), not about
+   *  a fill or a value. A capture our run refuses this way is an expected refusal: it exercised nothing. */
+  constructor(message, probe, setting) {
     // ⭐ W9-T7: a W9 capture row is queued in the W9 design (5.2), not in S1's queue
     const where = /^W9-[A-Z]{1,2}\d/.test(String(probe || '')) ? 'docs/pine/W9-STRATEGY-DESIGN.md 5.2' : 'docs/pine/capture-queue-2026-10-05-s1.md'
     super(`${message}${probe ? ` (unsettled: ${probe}, ${where})` : ''}`)
     this.name = 'BrokerRefusal'
     this.guard = BROKER_UNSETTLED_GUARD
     this.probe = probe || null
+    this.setting = typeof setting === 'string' && setting ? setting : null
   }
 }
+/** Ruling D12 (2026-11-16): the setting a Pine v4 strategy leaves to its default and no source settles. */
+export const V4_MARGIN_DEFAULT_SETTING = 'v4-margin-default'
 
 /** ⭐⭐ W9-T1 — a run REACHED an emulator rule that no MATCHing capture pins. Names the rule and
  *  the capture row that would pin it (`brokerRules.js`). Never a silent value. */
@@ -175,13 +180,28 @@ export function makeBroker(cfg, data) {
   // undefined when no witnessed source states it (W9-T4-F1: `runtimeColumns.js` derives it from
   // `symbolScope.json::min_contract`, which serves no row until a capture lands one)
   const minContract = data.minContract
-  const okRules = new Set()
+  /** the bar the broker is working on (a command's bar, or the bar whose fills are being walked); -1 before the first */
+  let nowBar = -1
+  /** rule -> the bar the run FIRST asked it on (-1: before the first bar). Ruling D11 reads it: a capture that
+   *  DIVERGEs at an event names as its culprit set the rules first exercised on that event's bar. */
+  const okRules = new Map()
   const rule = (id) => {
     if (okRules.has(id)) return
     if (!isPinned(id)) throw new BrokerUnpinned(id)
-    okRules.add(id)
+    okRules.set(id, nowBar)
   }
   const defaulted = cfg.defaulted || {}
+  // ⭐⭐ RULING D12 (coordinator, owner-delegated, 2026-11-16) — THE PINE v4 MARGIN DEFAULT IS NOT SETTLED. The v4
+  // reference reads `margin_long` / `margin_short` 100 (`ast/strategyBroker.js` DECLARATION_DEFAULTS), and
+  // TradingView read 0 back on both v4 captures of 2026-11-15 (w9-q-s1a-size-v4, w9-q-s1b-defaults-v4: one
+  // declaration shape, `strategy(title, overlay)`, so witnessed for that shape only). A run that would have to
+  // assume it is not the run TradingView made: it stops here, at bind, by name, before any rule is asked. The
+  // default is NOT changed to 0 on that evidence. A v4 script that states both margins is unaffected.
+  if (cfg.version === 4 && defaulted.margin === true) {
+    throw new BrokerRefusal('this Pine v4 strategy states no `margin_long` / `margin_short`, and the v4 default is not '
+      + 'settled: the v4 reference reads 100, and TradingView read 0 back on the two v4 captures taken (one declaration '
+      + 'shape); state both in strategy() to run it', 'Q-S1b', V4_MARGIN_DEFAULT_SETTING)
+  }
   const maxEntries = Math.max(1, Math.floor(Number(cfg.pyramiding) || 0)) // [B-PYR]
   // ⭐⭐ W9-T6 — FILL TIMING, read from the declaration (`ast/strategyBroker.js`). Each setting off its
   // default asks its own rule when a run REACHES it, so a run that never does is unchanged.
@@ -263,8 +283,6 @@ export function makeBroker(cfg, data) {
    * the rows' `opened` / `closed` lists from them.
    */
   const log = []
-  /** the bar the broker is working on (a command's bar, or the bar whose fills are being walked) */
-  let nowBar = -1
   /** the row whose fill is closing trades right now (`closeTrade` / `closePart` stamp it as `xid`) */
   let closingRow = null
   /** A label as the log keeps it: `undefined` (not passed) and '' are no comment; a text is kept; anything
@@ -534,8 +552,9 @@ export function makeBroker(cfg, data) {
     // with a `from_entry` lives while it still has a trade or an unfilled entry to exit.
     // (W9-T7-F1: an exit dropped here has no live bracket left: every trade it was bound to was closed, and
     // `closeTrade` ended that bracket's row, or it filled)
-    if (open.length === 0) exits = exits.filter((x) => !x.all && (x.trades.size > 0 || x.orders.size > 0))
-    else exits = exits.filter((x) => x.all || x.trades.size > 0 || x.orders.size > 0)
+    // (`x.awaits`: an exit still waiting for the id of a cancelled `strategy.order`, [B-CANCEL] W9-X5 (b))
+    if (open.length === 0) exits = exits.filter((x) => !x.all && (x.trades.size > 0 || x.orders.size > 0 || x.awaits === true))
+    else exits = exits.filter((x) => x.all || x.trades.size > 0 || x.orders.size > 0 || x.awaits === true)
   }
   const marginCheck = (price) => {
     if (open.length === 0) return
@@ -1280,6 +1299,16 @@ export function makeBroker(cfg, data) {
     }
     o.row = logRow({ kind, id, ...entryRowOf(o, limV, stpV, cmt) })
     entries.push(o)
+    // ⭐⭐ [B-CANCEL] W9-X5 (b), WITNESSED (w9-x5-cancel-rddt-1d-2026-11-15): an exit command that was waiting on a
+    // `strategy.order` the script cancelled keeps waiting for that id, and binds the `strategy.order` placed again
+    // under it, though the exit is not called again. The capture's first trade: `O` cancelled on bar 21, placed
+    // again on bar 25 (market), filled on bar 26's open at 46.05, and closed on that same bar at 46.55 by `XO`'s
+    // take-profit (label `O>XO:xo`). ⚰️ This broker released the exit at the cancel (a hypothesis the queue row
+    // named as its question (b)); the capture shows it is kept. ⛔ Only the witnessed kind: a cancelled
+    // `strategy.entry` keeps the old behaviour (its exit is released), which no capture contradicts.
+    for (const x of exits) {
+      if (kind === 'order' && x.awaits === true && x.fromEntry === id) { x.orders.add(o); x.awaits = false }
+    }
   }
   /** W9-T7-F1 — what an entry / order row states of order `o` */
   const entryRowOf = (o, limV, stpV, cmt) => {
@@ -1478,7 +1507,11 @@ export function makeBroker(cfg, data) {
     if (when !== undefined) rule('B-WHEN')
     if (!truthy(when)) return
     const id = idText(id0, '`strategy.cancel`')
-    for (const e of entries.filter((o) => o.id === id)) dropEntry(e, 'strategy.cancel')
+    for (const e of entries.filter((o) => o.id === id)) {
+      // [B-CANCEL] W9-X5 (b): an exit waiting on this `strategy.order` keeps waiting for its id (`placeOrder`)
+      if (e.kind === 'order') for (const x of exits) if (x.orders.has(e) && x.fromEntry === id) x.awaits = true
+      dropEntry(e, 'strategy.cancel')
+    }
     for (const x of exits) if (x.id === id) for (const r of x.rows.values()) endRow(r, 'cancelled', 'strategy.cancel')
     exits = exits.filter((x) => x.id !== id)
   }
@@ -1988,6 +2021,8 @@ export function makeBroker(cfg, data) {
     ...(t.exitBar === undefined ? {} : { exit: { time: timeOf(t.exitBar), price: t.exitPrice, rule: t.exitRule } }),
   })
   const summary = () => ({
+    // ruling D11: the bar each rule was first asked on (-1: before the first bar). NOT part of the record.
+    ruleFirstBars: Object.fromEntries(okRules),
     open: open.map((t) => ({ ...t })),
     closed: closed.map((t) => ({ ...t })),
     // ⭐⭐ W9-T1 — the record skeleton, KEYED BY BAR TIME (never bar index: a method-(b) run's
@@ -1999,7 +2034,7 @@ export function makeBroker(cfg, data) {
       // W9-T13a: the symbol's tick and point value as THIS run settled them (`#symbol`), null
       // when the run never learned one. The report's currency values are price x size x pointvalue.
       symbol: { mintick: finite(mintick) ? mintick : null, pointvalue: finite(pointvalue) ? pointvalue : null },
-      rulesUsed: Array.from(okRules).sort(),
+      rulesUsed: Array.from(okRules.keys()).sort(),
       // ⭐⭐ W9-T7-F1 — the order log (`log`), each row's `opened` / `closed` DERIVED from the trades' own `oid` /
       // `xid` as indexes into `trades` above (closed first, then open: that list's order)
       orders: orderRows(),

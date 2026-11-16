@@ -147,7 +147,8 @@ describe('W9-T4 sizing, behind the test-only pin set (hand-computed)', () => {
     expect(err.message).toMatch(/Q-S1i/)
   })
   it('v4 with no value declared: one unit (the hypothesis Q-S1a size-v4 grades)', () => {
-    const { cols, err, res } = attempt('//@version=4\nstrategy("t")\nstrategy.entry("L", true, when = bar_index == 3)\nplot(strategy.position_size)\n')
+    // (ruling D12: a v4 strategy states both margins, or stops at bind; the SIZE default is what this rail holds)
+    const { cols, err, res } = attempt('//@version=4\nstrategy("t", margin_long = 100, margin_short = 100)\nstrategy.entry("L", true, when = bar_index == 3)\nplot(strategy.position_size)\n')
     expect(err).toBeUndefined()
     expect(cols[0][4]).toBe(1)
     expect(res.broker.record.rulesUsed).toEqual(expect.arrayContaining(['B-QTY', 'B-DEFAULTS']))
@@ -302,7 +303,7 @@ describe('W9-T4 pin before serve (D1): nothing T4 adds serves without its pin', 
     cash: `//@version=5\nstrategy("t", default_qty_type = strategy.cash, default_qty_value = 10000)\n${CYCLE}`,
     percent: `//@version=5\nstrategy("t", default_qty_type = strategy.percent_of_equity, default_qty_value = 10)\n${CYCLE}`,
     v6: '//@version=6\nstrategy("t")\nif bar_index == 3\n    strategy.entry("L", strategy.long)\nplot(strategy.position_size)\n',
-    v4: '//@version=4\nstrategy("t")\nstrategy.entry("L", true, when = bar_index == 3)\nplot(strategy.position_size)\n',
+    v4: '//@version=4\nstrategy("t", margin_long = 100, margin_short = 100)\nstrategy.entry("L", true, when = bar_index == 3)\nplot(strategy.position_size)\n',
   }
   const BARS = { v6: DOWN }
   it('the committed ledger pins none of the T4 rules', () => {

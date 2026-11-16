@@ -182,3 +182,43 @@ Each MATCH compared 36 value series (37 on w9-x4-order) over 666 bars and 20 lab
 8. A limit fill under slippage (W9-K4): 1.
 9. Stop-limit with its limit at or beyond its stop (Q-S1j): 1.
 10. `syminfo.mintick` for AMEX: 1 (the only capture that can grade B-ROUND-MARK and the intraday entry time on our side).
+
+## Appendix: rulings D11 and D12 (coordinator, owner-delegated, 2026-11-16)
+
+Recorded in `docs/pine/W9-DECISIONS-2026-11-07.md`. The verdict files now carry the fields D11 asks for
+(`firstDifference`, `prefixExact`, `culprit`, `afterDifference`), null unless the capture diverges on a bar.
+
+### What changed in the 33
+
+- **w9-x5-cancel-rddt-1d-2026-11-15** was DIVERGE at step 4; is now MATCH at step 8. The capture settled
+  question (b) of the row (`capture-queue-2026-10-05-s1.md` W9-X5): an exit waiting on a cancelled
+  `strategy.order` keeps waiting for that id, and binds the order placed again under it, though the exit is
+  not called again. Served behind B-CANCEL; the W9-K4-style refusal for a cancelled `strategy.entry` stays.
+- **w9-q-s1a-size-v4** and **w9-q-s1b-defaults-v4** were DIVERGE / INCONCLUSIVE; are now EXPECTED-REFUSAL
+  under D12 (a v4 strategy that states no margin stops at bind, naming the setting and Q-S1b).
+
+Final table: 14 MATCH through step 8 (was 13; was 0 before this unit), 2 EXPECTED-REFUSAL (the two v4),
+17 DIVERGE at step 1 (18 refusals less the one that became MATCH; the two v4 refusals now count as
+EXPECTED-REFUSAL instead of INCONCLUSIVE / DIVERGE).
+
+### What the 15 additional rules pin after D11 and D12
+
+The pinned set (31 rules, re-derived from the verdict files by the resolver, with and without the pins
+commit `pins --check` passes):
+
+- unchanged from the pre-D11 set (15): B-COMM-PCT, B-COMM-CONTRACT, B-COMM-ORDER, B-SLIPPAGE, B-TICK-HIST,
+  B-WHEN, B-GAP, B-PATH, B-OCA, B-REVERSE, B-RISK-ALLOW, B-RISK-DDOWN, B-TXT-CLOSE-ID,
+  B-TXT-ENTRY-CLOSE-ID, B-TXT-NO-COMMENT;
+- added by D11 and the x5 fix (11, pinned by MATCHing captures and un-pinned by nothing): B-VAL (14),
+  B-FILL (14), B-MARKET (14), B-CLOSE (10), B-DEFAULTS (14), B-DIR (14), B-FIFO (13), B-QTY (13),
+  B-MARGIN (14), B-SIG (14), B-ROUND (12);
+- added by W9-X5 moving to MATCH (5): B-CANCEL (1), B-EXIT-BIND (4), B-EXIT-LIFE (4), B-ORDER (2),
+  B-TXT-CLOSE-ALL-ID (2).
+
+That is every rule any committed capture exercises today: `not pinnable: []`.
+
+### Out of scope, confirmed
+
+Not touched in this unit, in measured order by how many of the 33 each blocks: Q-S1d two orders on one tick
+(5), `runtime:strategy-option` v2 / v3 (2), varip (2), `syminfo.mincontract` (4), the limit fill under slippage
+(1, w9-p1-on-close), stop-limit (1, Q-S1j), the AMEX:SPY mintick bind (1, w9-r1-risk-intraday-range).

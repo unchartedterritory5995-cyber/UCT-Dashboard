@@ -187,6 +187,54 @@
    "from": "if (r.kind === 'entry' && (r.comment !== null || !r.commentRecorded)) {",
    "to": "if (false) {",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "C1",
+   "mutant": "B-CANCEL: an exit waiting on a cancelled strategy.order is released (the old hypothesis)",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "if (kind === 'order' && x.awaits === true && x.fromEntry === id) {",
+   "to": "if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "C2",
+   "mutant": "B-CANCEL: a cancelled strategy.ENTRY keeps its exit waiting too (not witnessed)",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "if (e.kind === 'order') for (const x of exits) if (x.orders.has(e) && x.fromEntry === id) x.awaits = true",
+   "to": "for (const x of exits) if (x.orders.has(e) && x.fromEntry === id) x.awaits = true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "C3",
+   "mutant": "B-CANCEL: the waiting exit binds a strategy.ENTRY placed under the id (not witnessed)",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "if (kind === 'order' && x.awaits === true && x.fromEntry === id) {",
+   "to": "if (x.awaits === true && x.fromEntry === id) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "C4",
+   "mutant": "B-CANCEL: the waiting exit binds an order placed under ANOTHER id",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "if (kind === 'order' && x.awaits === true && x.fromEntry === id) {",
+   "to": "if (kind === 'order' && x.awaits === true) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "D1",
+   "mutant": "D12: a v4 strategy with no margin stated runs on the assumed default",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "if (cfg.version === 4 && defaulted.margin === true) {",
+   "to": "if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "D2",
+   "mutant": "D11: rules are dated with a constant bar (every rule looks exercised before the first bar)",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "    okRules.set(id, nowBar)",
+   "to": "    okRules.set(id, -1)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
   }
  ]
 }

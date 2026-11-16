@@ -8,9 +8,9 @@
  "symbol": "NYSE:RDDT",
  "timeframe": "1D",
  "gradeMethod": "a",
- "verdict": "DIVERGE",
+ "verdict": "EXPECTED-REFUSAL",
  "step": 1,
- "reason": "our run refused (runtime:strategy-unsettled) against a TradingView value",
+ "reason": "refused by runtime:strategy-unsettled",
  "first": null,
  "graded": {
   "trades": false,
@@ -23,6 +23,10 @@
  "rulesExercised": [],
  "ungradedSlots": [],
  "ungradedTexts": [],
+ "firstDifference": null,
+ "prefixExact": null,
+ "culprit": null,
+ "afterDifference": null,
  "provenance": {
   "strategySettings": {
    "properties": [

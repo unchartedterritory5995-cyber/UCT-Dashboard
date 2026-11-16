@@ -26,7 +26,7 @@ import { lowerIrProgram } from '../../runtime/lowerIr.js'
 import { execute } from '../../runtime/vm.js'
 import { strategyRecordOf } from '../../runtime/strategyRecord.js'
 import { strategyReportOf } from '../../runtime/brokerReport.js'
-import { gradeStrategy } from '../../../../../../../tools/vendor_harness/compare.mjs'
+import { gradeStrategy, strategyFirstDifference } from '../../../../../../../tools/vendor_harness/compare.mjs'
 import { settingsAgreement, propertiesByKey, pineVersionOf, extractReportFields, isStrategyCapture } from '../../../../../../../tools/vendor_harness/strategy_capture.mjs'
 import {
   referenceOfCapture, tickOfCapture, effectiveSettingsDisagreements, unreadDependedOn,
@@ -113,7 +113,11 @@ export function runOurBroker(capture, { pins = ALL } = {}) {
       undefined, { brokerPinned: pins })
   } catch (e) {
     const guard = (e && e.guard) || 'runtime:error'
-    return { ok: false, refusal: { rule: (e && e.rule) || guard, guard, expected: EXPECTED_REFUSAL_GUARDS.includes(guard), message: String(e && e.message) } }
+    // ruling D12: a refusal about a SETTING the run would have to assume (`BrokerRefusal.setting`, raised at bind,
+    // before any rule) is EXPECTED: our run was never the run TradingView made, so it is evidence about the
+    // setting, not about a fill. Every other broker refusal against a TradingView value stays a DIVERGE.
+    const expected = EXPECTED_REFUSAL_GUARDS.includes(guard) || (!!e && typeof e.setting === 'string' && e.setting !== '')
+    return { ok: false, refusal: { rule: (e && e.rule) || guard, guard, expected, message: String(e && e.message) } }
   }
   const record = strategyRecordOf({ summary: res.broker, decl: built.ir.broker, barTimes, historyWindowBars: windowBars, confirmed })
   // ⭐ the script's own plots, IN THE ORDER THE PROGRAM EMITS THEM. A plot output carries no title (⚰️ U14 keyed
@@ -125,7 +129,36 @@ export function runOurBroker(capture, { pins = ALL } = {}) {
     if (!o || o.call !== 'plot' || !res.outputs[k]) continue
     plots.push(Array.from(res.outputs[k], (value, i) => ({ time: barTimes[i], value: Number.isFinite(value) ? value : null })))
   }
-  return { ok: true, record, report: strategyReportOf(record, { isPinned: pins }), plots, drawn: drawnOf(made, res, barTimes) }
+  // ruling D11: the bar TIME each rule was first asked on (null: before the first bar)
+  const ruleFirstTime = {}
+  for (const [id, bar] of Object.entries((res.broker && res.broker.ruleFirstBars) || {})) {
+    ruleFirstTime[id] = Number.isInteger(bar) && bar >= 0 && bar < barTimes.length ? barTimes[bar] : null
+  }
+  return { ok: true, record, report: strategyReportOf(record, { isPinned: pins }), plots, drawn: drawnOf(made, res, barTimes), ruleFirstTime }
+}
+
+/**
+ * ⭐⭐ RULING D11 (coordinator, owner-delegated, 2026-11-16) — WHAT A DIVERGING CAPTURE UN-PINS, as recorded
+ * fields a resolver can check. For a DIVERGE whose first differing event sits on a bar
+ * (`compare.mjs::strategyFirstDifference`): `culprit` is the rules our broker FIRST exercised on that bar
+ * (`ruleFirstTime`, the broker's own account), `afterDifference` the rules it first exercised on a later bar
+ * (after the two runs parted, nothing is evidence for them either), and `prefixExact` the proof that every graded
+ * step is equal on the bars strictly before. `evidence_engine.resolve_pins` applies the exception only when all
+ * of them are present, `prefixExact` is true and `culprit` is not empty; anything else is the strict rule.
+ * @returns {{firstDifference:{bar:number, step:number}, prefixExact:boolean, culprit:string[], afterDifference:string[]} | null}
+ */
+export function culpritOf(fd, run) {
+  if (!fd || !run || !run.ok || !run.ruleFirstTime) return null
+  const first = run.ruleFirstTime
+  const used = [...run.record.rulesUsed].sort()
+  // a rule the broker did not date is treated as exercised AT the event: it can never be excused
+  const at = (id) => (Object.prototype.hasOwnProperty.call(first, id) ? first[id] : fd.bar)
+  return {
+    firstDifference: { bar: fd.bar, step: fd.step },
+    prefixExact: fd.prefixExact === true,
+    culprit: used.filter((id) => at(id) === fd.bar),
+    afterDifference: used.filter((id) => at(id) !== null && at(id) > fd.bar),
+  }
 }
 
 /** The label texts our run drew, by bar time; or why they cannot be graded. */
@@ -391,8 +424,15 @@ export function gradeStrategyCapture(capture, { slotMap = null, run = runOurBrok
   }
   const verdict = gradeStrategy(g)
   const r = ran
+  // ruling D11: a DIVERGE of a run that RAN is scoped to its first differing event, mechanically
+  let scope = null
+  if (verdict.verdict === 'DIVERGE' && r && r.ok) {
+    const fd = strategyFirstDifference({ reference, ours: mappedOnce(), tick, span, graded, values: g.values(), texts: g.texts() })
+    scope = culpritOf(fd, r)
+  }
   return {
     ...verdict,
+    ...(scope || {}),
     referenceTrades: reference.trades.length,
     rulesExercised: r && r.ok ? [...r.record.rulesUsed].sort() : [],
   }
@@ -422,6 +462,11 @@ export function strategyVerdictOf(capture, { captureSha256, queueTargetId, slotM
     rulesExercised: v.rulesExercised,
     ungradedSlots: v.ungradedSlots ?? [],
     ungradedTexts: v.ungradedTexts ?? [],
+    // ruling D11 (null unless the capture DIVERGEs at an event on a bar): see `culpritOf`
+    firstDifference: v.firstDifference ?? null,
+    prefixExact: v.prefixExact ?? null,
+    culprit: v.culprit ?? null,
+    afterDifference: v.afterDifference ?? null,
     provenance: { strategySettings: { properties: props.map((p) => ({ name: p.name, value: p.value })) } },
   }
 }

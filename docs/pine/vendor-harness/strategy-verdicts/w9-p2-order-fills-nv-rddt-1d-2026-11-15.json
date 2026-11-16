@@ -23,6 +23,10 @@
  "rulesExercised": [],
  "ungradedSlots": [],
  "ungradedTexts": [],
+ "firstDifference": null,
+ "prefixExact": null,
+ "culprit": null,
+ "afterDifference": null,
  "provenance": {
   "strategySettings": {
    "properties": [

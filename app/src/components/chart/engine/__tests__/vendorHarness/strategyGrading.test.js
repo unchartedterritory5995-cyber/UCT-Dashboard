@@ -274,7 +274,7 @@ const S25 = gradeStrategyCapture(CAPTURE, { slotMap: SLOT_MAP })
 /** A run of OURS that answers exactly what TradingView reported, built from the capture's own report (the
  *  record shape `oursOf` reads). It makes the harness's later steps testable on REAL data while our broker
  *  refuses this probe at build: graded against it, s25 must MATCH, and every perturbation below must not. */
-function mirrorRun(capture, { mutateFills = null, mutatePlots = null, mutateLabels = null, drawn = null, settings = null } = {}) {
+function mirrorRun(capture, { mutateFills = null, mutatePlots = null, mutateLabels = null, drawn = null, settings = null, ruleFirstTime = null, rulesUsed = null } = {}) {
   const ref = referenceOfCapture(capture)
   const fills = ref.fills.map((f) => ({ ...f }))
   if (mutateFills) mutateFills(fills)
@@ -288,11 +288,12 @@ function mirrorRun(capture, { mutateFills = null, mutatePlots = null, mutateLabe
     ok: true,
     plots,
     drawn: drawn || { status: 'ok', labels },
+    ...(ruleFirstTime ? { ruleFirstTime } : {}),
     record: {
       symbol: { mintick: 0.01, pointvalue: 1 },
       settings: settings || { initial_capital: 100000, pyramiding: 2, margin_long: 0, margin_short: 0, process_orders_on_close: false,
         calc_on_order_fills: false, calc_on_every_tick: false, slippage: 0, commission: { type: 'percent', value: 0 }, default_qty: null },
-      rulesUsed: ['B-MARKET'],
+      rulesUsed: rulesUsed || ['B-MARKET'],
       trades: ref.trades.filter((t) => !t.open).map((t) => ({ n: t.n, dir: t.direction, entryTime: t.entryTime, exitTime: t.exitTime,
         entryPrice: t.entryPrice, exitPrice: t.exitPrice, qty: t.qty, entryRule: 'B-MARKET', open: false })),
       orders: fills.map((f) => ({ status: 'filled', fillTime: f.time, side: f.side, kind: f.role, opened: [], closed: [],
@@ -536,5 +537,74 @@ describe('value read-backs, method (b) (AMEX:SPY 15, w9-r1-risk-intraday-range):
     const before = SPY.plotValues.rows.findIndex((r) => r[0] >= gr.fromTime) - 5
     expect(before).toBeGreaterThan(0)
     expect(grade({ mutatePlots: (p) => { p[equity][before] = { ...p[equity][before], value: 1 } } }).verdict).toBe('MATCH')
+  })
+})
+
+// ─── rulings D11 and D12 (docs/pine/W9-DECISIONS-2026-11-07.md) ──────────────────────────────────────
+describe('ruling D11: a DIVERGE records its first difference and its culprit set, mechanically', () => {
+  const ref = referenceOfCapture(CAPTURE)
+  const T = ref.fills[7].time
+  const LATER = CAPTURE.bars.rows[CAPTURE.bars.rows.length - 1][0]
+  const dropFill = (f) => { f.splice(7, 1) }
+  const rulesUsed = ['B-BEFORE', 'B-AT', 'B-LATE', 'B-UNDATED', 'B-RUN']
+  const ruleFirstTime = { 'B-BEFORE': CAPTURE.bars.rows[0][0], 'B-AT': T, 'B-LATE': LATER, 'B-RUN': null }
+  const grade = (opts) => gradeStrategyCapture(CAPTURE, { slotMap: SLOT_MAP, run: mirrorRun(CAPTURE, { rulesUsed, ruleFirstTime, ...opts }) })
+
+  it('the culprit set is the rules first exercised ON the differing bar; before it, nothing; after it, listed apart', () => {
+    expect(T).toBeGreaterThan(CAPTURE.bars.rows[0][0])
+    expect(T).toBeLessThan(LATER)
+    const g = grade({ mutateFills: dropFill })
+    expect(g).toMatchObject({ verdict: 'DIVERGE', step: 5 })
+    expect(g.firstDifference).toEqual({ bar: T, step: 5 })
+    expect(g.prefixExact).toBe(true)
+    // B-UNDATED: a rule the broker did not date is treated as exercised AT the event, never excused
+    expect(g.culprit).toEqual(['B-AT', 'B-UNDATED'])
+    expect(g.afterDifference).toEqual(['B-LATE'])
+    // B-BEFORE (an earlier bar) and B-RUN (asked before the first bar) are in neither list
+  })
+
+  it('⛔ an earlier VALUE difference moves the event (and the culprit set) to its own bar', () => {
+    const early = CAPTURE.plotValues.rows[5][0]
+    expect(early).toBeLessThan(T)
+    const g = grade({ mutateFills: dropFill, mutatePlots: (p) => { p[0][5] = { ...p[0][5], value: -1 } }, ruleFirstTime: { ...ruleFirstTime, 'B-AT': early } })
+    expect(g.firstDifference).toEqual({ bar: early, step: 7 })
+    expect(g.culprit).toEqual(['B-AT', 'B-UNDATED'])
+  })
+
+  it('a MATCH, a refusal and a difference with no bar record no culprit set (the strict rule reads them)', () => {
+    const ok = grade({})
+    expect(ok.verdict).toBe('MATCH')
+    expect(ok.culprit).toBeUndefined()
+    expect(S25.culprit).toBeUndefined() // our own run of s25 refuses: there is no run to date
+  })
+
+  it('the verdict FILE carries the four fields, null unless the capture diverges on a bar', () => {
+    for (const f of fs.readdirSync(VERDICT_DIR).filter((x) => x.endsWith('.json'))) {
+      const v = JSON.parse(fs.readFileSync(path.join(VERDICT_DIR, f), 'utf8'))
+      for (const k of ['firstDifference', 'prefixExact', 'culprit', 'afterDifference']) expect(Object.prototype.hasOwnProperty.call(v, k), `${f} ${k}`).toBe(true)
+      if (v.verdict !== 'DIVERGE' || v.step === 1) expect([v.firstDifference, v.prefixExact, v.culprit, v.afterDifference], f).toEqual([null, null, null, null])
+    }
+  })
+})
+
+describe('ruling D12: the two Pine v4 captures are EXPECTED refusals about a setting (the v4 margin default)', () => {
+  it.each(['w9-q-s1a-size-v4-rddt-1d-2026-11-15', 'w9-q-s1b-defaults-v4-rddt-1d-2026-11-15'])('%s', (id) => {
+    const capture = JSON.parse(fs.readFileSync(path.join(HARNESS_DIR, `${id}.json`), 'utf8'))
+    // TradingView read both margins back as 0, and the source states neither
+    const props = Object.fromEntries(capture.provenance.strategySettings.properties.map((p) => [p.name, p.value]))
+    expect([props['Margin Long'], props['Margin Short']]).toEqual([0, 0])
+    expect(capture.source.text).not.toMatch(/margin_(long|short)/)
+    const run = runOurBroker(capture)
+    expect(run.ok).toBe(false)
+    expect(run.refusal).toMatchObject({ guard: 'runtime:strategy-unsettled', expected: true })
+    expect(run.refusal.message).toMatch(/Pine v4 strategy states no `margin_long` \/ `margin_short`/)
+    const g = gradeStrategyCapture(capture, { slotMap: SLOT_MAP })
+    expect(g).toMatchObject({ verdict: 'EXPECTED-REFUSAL', step: 1, rulesExercised: [] })
+  })
+  it('⛔ any other broker refusal against a TradingView value is still a DIVERGE (only a SETTING is expected)', () => {
+    expect(S25.verdict === 'DIVERGE' ? S25.rule : 'runtime:strategy-unsettled').toBe('runtime:strategy-unsettled')
+    const x = JSON.parse(fs.readFileSync(path.join(HARNESS_DIR, 'w9-q-s1j-stop-limit-rddt-1d-2026-11-15.json'), 'utf8'))
+    const run = runOurBroker(x)
+    expect(run.refusal).toMatchObject({ guard: 'runtime:strategy-unsettled', expected: false })
   })
 })

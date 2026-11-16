@@ -145,3 +145,57 @@ They are now evaluated in place, the `alert()` rule, railed by
    site is NOT changed: an alert message is served output, so a read there reaches it and the
    refusal is honest, not an over-refusal. Rails: `runtime/__tests__/w9OrderOnlyIf.test.js`
    (`W9-OQ-N1`), four hand-mutations killed.
+
+## D11 and D12 (2026-11-16, coordinator, owner-delegated)
+
+Ruled on the value read-backs unit (`docs/pine/evidence/2026-11-15-strategy-readbacks/EVIDENCE.md`), where 13 of
+the 33 strategy captures first graded MATCH through every step.
+
+### D11: what a capture that is not MATCH un-pins
+
+1. **The strict rule is the default.** A committed capture that exercised a rule and is not MATCH un-pins that
+   rule, whether or not `brokerPins.json` lists the capture (D1, as U14 built it).
+2. **One exception, for a DIVERGE only.** A capture that DIVERGEs un-pins only its CULPRIT SET when all three
+   hold, each computed by the grader and recorded on the verdict, never asserted by hand:
+   - (a) there is a first differing event on a bar (a fill, a value bar or a label; a trade field is located
+     through its fills), and every graded step restricted to the bars strictly before it is exact
+     (`prefixExact: true`);
+   - (b) the culprit set is the rules our broker exercises AT that event that it had not exercised on any
+     earlier bar of the same run, and it is not empty (`culprit`);
+   - (c) every rule in the culprit set stays un-pinned by that capture, so a script whose run reaches one of
+     them still refuses by name before it can meet the interaction.
+3. **What the exception gives.** The rules the capture exercised only before the event are NOT un-pinned by it.
+   It is not MATCH evidence for them either: it contributes nothing, and a capture `brokerPins.json` lists for a
+   rule must still MATCH.
+4. **A rule first exercised after the event is un-pinned too** (`afterDifference`): after the two runs parted,
+   nothing the capture shows is evidence for it. (The builder's conservative reading; the ruling names the rules
+   before and at the event.)
+5. **The fallback.** If the culprit set is empty (the first difference happens at an event that exercises only
+   rules already exercised earlier in the run), or the prefix is not exact, or any recorded field is missing or
+   malformed, or the difference has no bar (a profit or a report slot alone), the strict rule applies and
+   everything the capture exercised is un-pinned.
+6. **Where it lives.** The verdict file records `firstDifference: {bar, step}`, `prefixExact`, `culprit`,
+   `afterDifference` (`strategyHarness.js::culpritOf`, `compare.mjs::strategyFirstDifference`; the bar each rule
+   was first asked on is the broker's own account, `broker.js` `ruleFirstBars`).
+   `evidence_engine.py::culprit_scope` applies the exception inside `resolve_pins` and fails closed.
+   Rails: `tests/test_broker_pins_resolve.py` (`test_d11_*`), `strategyGrade.test.js` ("ruling D11"),
+   `strategyGrading.test.js`. Mutants: `ci/mutants/strategy-readbacks-b.json` P2 to P7.
+
+### D12: a setting the run would have to assume is a refusal about the SETTING
+
+1. A settings read-back that disagrees with what our run used means our run was not the run TradingView made.
+   That is evidence about the setting, not about a fill, a size or a value.
+2. **The Pine v4 margin default is not settled.** The v4 reference reads `margin_long` / `margin_short` 100; both
+   v4 captures of 2026-11-15 (w9-q-s1a-size-v4, w9-q-s1b-defaults-v4) read 0 back. They share one declaration
+   shape (`strategy(title, overlay)`), so 0 is witnessed for that shape only.
+3. A v4 strategy that does not state BOTH margins refuses at bind, before any rule is asked:
+   `runtime:strategy-unsettled`, naming the v4 margin default and capture row Q-S1b (`broker.js`,
+   `V4_MARGIN_DEFAULT_SETTING`). A v4 script that states both is unaffected.
+4. Our default is NOT changed to 0 on that evidence.
+5. A capture our run refuses this way grades EXPECTED-REFUSAL: it exercises nothing and un-pins nothing.
+6. **v5 and v6.** No such mismatch exists in the 33 captures: every v5 capture that states no margin reads 0 back
+   (our v5 default) and 1,000,000 of initial capital (our v5 default); every v6 one reads 100 and 100,000 (ours).
+   v4 initial capital reads 100,000 (ours). v2 and v3 have no margin input at all and refuse at build
+   (`runtime:strategy-option`). The one other default that differs in spelling is pyramiding (TradingView reads
+   the v2 to v4 default back as 1, our table holds 0): 0 and 1 both allow one entry per direction, so it is the
+   same setting (`strategy_reference.mjs::effectiveSettingsDisagreements`).

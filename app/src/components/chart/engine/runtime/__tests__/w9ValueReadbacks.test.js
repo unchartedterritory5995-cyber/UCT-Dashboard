@@ -15,7 +15,7 @@ import { describe, it, expect } from 'vitest'
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import { lowerIrProgram } from '../lowerIr.js'
 import { execute } from '../vm.js'
-import { makeBroker, BROKER_OPS, BROKER_TRADE_FNS } from '../broker.js'
+import { makeBroker, BROKER_OPS, BROKER_TRADE_FNS, V4_MARGIN_DEFAULT_SETTING } from '../broker.js'
 import { BROKER_RULES } from '../brokerRules.js'
 import { pinned } from '../brokerPins.js'
 import { strategyRecordOf, witnessedExitIdOf, WITNESSED_EXIT_ID_RULES, exitIdOf } from '../strategyRecord.js'
@@ -415,5 +415,102 @@ describe('(W9-K1..K3) an open trade\'s paid entry fee: off strategy.netprofit at
     // control: with no commission an open trade refuses nothing here
     const free = strategyReportOf(served(`${DECL()}${ENTER}plot(strategy.netprofit)\n`).rec, { isPinned: ALL })
     expect(free.metrics.netProfit).toMatchObject({ status: 'served', value: 0 })
+  })
+})
+
+describe('ruling D12: a Pine v4 strategy that states no margin stops at bind, by name (the v4 default is not settled)', () => {
+  const V4 = (decl) => `//@version=4\nstrategy("t"${decl})\nstrategy.entry("L", true, when = bar_index == 1)\nplot(strategy.position_size)\n`
+
+  it('no margin stated: runtime:strategy-unsettled naming the v4 default and Q-S1b, before any rule is asked', () => {
+    const r = attempt(V4(''))
+    expect(r.err && r.err.guard).toBe('runtime:strategy-unsettled')
+    expect(r.err.setting).toBe(V4_MARGIN_DEFAULT_SETTING)
+    expect(r.err.message).toMatch(/Pine v4 strategy states no `margin_long` \/ `margin_short`/)
+    expect(r.err.message).toContain('Q-S1b')
+    // it is a refusal about a SETTING, raised before the first rule: nothing pinned or unpinned changes it
+    const none = attempt(V4(''), { pins: () => false })
+    expect(none.err.guard).toBe('runtime:strategy-unsettled')
+    expect(none.err.setting).toBe(V4_MARGIN_DEFAULT_SETTING)
+  })
+
+  it('ONE margin stated is still not both: it stops the same way', () => {
+    expect(attempt(V4(', margin_long = 100')).err.setting).toBe(V4_MARGIN_DEFAULT_SETTING)
+    expect(attempt(V4(', margin_short = 0')).err.setting).toBe(V4_MARGIN_DEFAULT_SETTING)
+  })
+
+  it('CONTROL: both stated (100 / 100, or 0 / 0) runs; v5 and v6 with none stated are untouched', () => {
+    expect(served(V4(', margin_long = 100, margin_short = 100')).cols[0][2]).toBe(1)
+    expect(served(V4(', margin_long = 0, margin_short = 0')).cols[0][2]).toBe(1)
+    const v5 = '//@version=5\nstrategy("t")\nif bar_index == 1\n    strategy.entry("L", strategy.long)\nplot(strategy.position_size)\n'
+    expect(served(v5).cols[0][2]).toBe(1)
+    expect(served(`${DECL()}${ENTER}plot(strategy.position_size)\n`.replace(', margin_long = 0, margin_short = 0', '')).cols[0][2]).toBe(2)
+  })
+
+  it('every other refusal carries no `setting` (so only this one grades as an expected refusal)', () => {
+    const e = attempt(`${DECL()}${ENTER}plot(strategy.closedtrades.entry_time(0))\n`).err
+    expect(e.guard).toBe('runtime:strategy-unsettled')
+    expect(e.setting).toBe(null)
+  })
+})
+
+describe('ruling D11: the broker states the bar each rule was first asked on', () => {
+  it('a rule asked at a fill carries that fill\'s bar; one asked at the first read carries bar 0; none is lost from rulesUsed', () => {
+    const { res, used } = served(`${DECL()}${ENTER}${CLOSE3}plot(strategy.position_size)\n`)
+    const first = res.broker.ruleFirstBars
+    expect(Object.keys(first).sort()).toEqual(used)
+    expect(first['B-VAL']).toBe(0) // the plot reads on the first bar
+    expect(first['B-MARKET']).toBe(2) // the entry placed on bar 1 fills on bar 2
+    expect(first['B-CLOSE']).toBe(3) // asked when the close is placed, on bar 3 (it fills on bar 4)
+    expect(first['B-QTY']).toBe(1) // the default size is taken when the order is placed
+  })
+  it('a rule asked before the first bar (the run\'s execution model) carries -1', () => {
+    const { res } = served(`${DECL('calc_on_every_tick = true')}${ENTER}plot(strategy.position_size)\n`)
+    expect(res.broker.ruleFirstBars['B-TICK-HIST']).toBe(-1)
+  })
+})
+
+describe('[B-CANCEL] W9-X5 (b): an exit waiting on a cancelled strategy.order binds the order placed again under its id', () => {
+  // bar 1: a limit order far below the market, and its exit; bar 2: cancelled; bar 3: placed again at the market, the
+  // exit NOT called again. Bar 4 opens 103.5 (the fill); its high 105 reaches the take-profit 150 ticks above.
+  const HEAD = `${DECL()}if bar_index == 1\n    strategy.order("O", strategy.long, qty = 2, limit = 50)\n    strategy.exit("XO", "O", profit = 150, loss = 500, comment = "xo")\n`
+    + 'if bar_index == 2\n    strategy.cancel("O")\n'
+  const AGAIN = (call) => `${HEAD}if bar_index == 3\n    ${call}\nplot(strategy.position_size)\nplot(strategy.closedtrades)\n`
+
+  it('the re-placed order fills at bar 4\'s open and the waiting exit takes its profit on that bar (the capture\'s first trade)', () => {
+    const { trades, cols, used } = served(AGAIN('strategy.order("O", strategy.long, qty = 2)'))
+    expect(trades).toHaveLength(1)
+    expect(trades[0].entry).toEqual({ time: at(4), price: 103.5, rule: 'B-MARKET' })
+    expect(trades[0].exit.time).toBe(at(4))
+    expect(trades[0].exit.price).toBe(105)
+    expect(cols[0].slice(3, 6)).toEqual([0, 0, 0]) // flat again by the close of the fill bar
+    expect(cols[1][4]).toBe(1)
+    expect(used).toContain('B-CANCEL')
+  })
+
+  it('⛔ unpinned, the cancel stops the run naming B-CANCEL (row W9-X5)', () => {
+    const err = unpinnedAt(AGAIN('strategy.order("O", strategy.long, qty = 2)'), 'B-CANCEL')
+    expect(err.message).toMatch(/capture row W9-X5/)
+  })
+
+  it('CONTROL: without the cancel-and-replace nothing waits: an order under ANOTHER id is not bound', () => {
+    const { trades } = served(AGAIN('strategy.order("P", strategy.long, qty = 2)'))
+    expect(trades).toHaveLength(1)
+    expect(trades[0].exit).toBeUndefined() // still open: no exit was ever bound to P
+  })
+
+  it('⛔ only the witnessed kind: a cancelled strategy.ENTRY releases its exit, whatever is placed again under its id', () => {
+    const head = `${DECL()}if bar_index == 1\n    strategy.entry("O", strategy.long, limit = 50)\n    strategy.exit("XO", "O", profit = 150, loss = 500)\n`
+      + 'if bar_index == 2\n    strategy.cancel("O")\nif bar_index == 3\n    '
+    for (const again of ['strategy.entry("O", strategy.long)', 'strategy.order("O", strategy.long, qty = 2)']) {
+      const { trades } = served(`${head}${again}\nplot(strategy.position_size)\n`)
+      expect(trades, again).toHaveLength(1)
+      expect(trades[0].exit, again).toBeUndefined() // no capture shows an exit kept across a cancelled ENTRY
+    }
+  })
+
+  it('⛔ and a cancelled strategy.order placed again as a strategy.ENTRY is not bound either (the witness is order to order)', () => {
+    const { trades } = served(AGAIN('strategy.entry("O", strategy.long)'))
+    expect(trades).toHaveLength(1)
+    expect(trades[0].exit).toBeUndefined()
   })
 })

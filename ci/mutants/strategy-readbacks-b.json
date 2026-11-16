@@ -5,6 +5,70 @@
  ],
  "mutants": [
   {
+   "id": "D3",
+   "mutant": "D12: the setting refusal is graded as a DIVERGE like any other refusal",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/strategyHarness.js",
+   "from": " || (!!e && typeof e.setting === 'string' && e.setting !== '')",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js"
+  },
+  {
+   "id": "D4",
+   "mutant": "D11: the culprit set is always empty",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/strategyHarness.js",
+   "from": "culprit: used.filter((id) => at(id) === fd.bar),",
+   "to": "culprit: used.filter(() => false),",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js"
+  },
+  {
+   "id": "D5",
+   "mutant": "D11: a rule the broker did not date is excused (treated as before the event)",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/strategyHarness.js",
+   "from": "const at = (id) => (Object.prototype.hasOwnProperty.call(first, id) ? first[id] : fd.bar)",
+   "to": "const at = (id) => (Object.prototype.hasOwnProperty.call(first, id) ? first[id] : null)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js"
+  },
+  {
+   "id": "D6",
+   "mutant": "D11: the prefix is declared exact without being checked",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "return { bar, step, prefixExact: tradesExact && fillsExact && valuesExact && textsExact }",
+   "to": "return { bar, step, prefixExact: true }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrade.test.js"
+  },
+  {
+   "id": "D7",
+   "mutant": "D11: the LATEST differing bar is taken as the first difference",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "const bar = Math.min(...at)",
+   "to": "const bar = Math.max(...at)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrade.test.js"
+  },
+  {
+   "id": "D8",
+   "mutant": "D11: unpaired plots no longer break the proof of the prefix",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "const valuesExact = valuesOk && compareValueSeries(values.series, before).verdict",
+   "to": "const valuesExact = !valuesOk || compareValueSeries(values.series, before).verdict",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrade.test.js"
+  },
+  {
+   "id": "D9",
+   "mutant": "D11: unreadable texts no longer break the proof of the prefix",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "const textsGraded = !texts || texts.status === 'ungraded' || textsOk",
+   "to": "const textsGraded = true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrade.test.js"
+  },
+  {
+   "id": "D10",
+   "mutant": "D11: rules first exercised AFTER the difference are not listed",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/strategyHarness.js",
+   "from": "afterDifference: used.filter((id) => at(id) !== null && at(id) > fd.bar),",
+   "to": "afterDifference: [],",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js"
+  },
+  {
    "id": "G1",
    "mutant": "step 7 compares nothing (a differing value is equal)",
    "file": "tools/vendor_harness/compare.mjs",
@@ -130,6 +194,54 @@
    "file": "tools/vendor_harness/evidence_engine.py",
    "from": "elif not (isinstance(n_values, int) and not isinstance(n_values, bool) and n_values > 0):",
    "to": "elif False:",
+   "rail": "python -m pytest tests/test_broker_pins_resolve.py -q -p no:cacheprovider -x"
+  },
+  {
+   "id": "P2",
+   "mutant": "D11: an EMPTY culprit set is accepted (nothing un-pinned) instead of falling back to strict",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "if not (names(ex) and names(culprit) and names(after)) or not culprit:",
+   "to": "if not (names(ex) and names(culprit) and names(after)):",
+   "rail": "python -m pytest tests/test_broker_pins_resolve.py -q -p no:cacheprovider -x"
+  },
+  {
+   "id": "P3",
+   "mutant": "D11: an inexact prefix is accepted",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "if row.get(\"prefixExact\") is not True:",
+   "to": "if False:",
+   "rail": "python -m pytest tests/test_broker_pins_resolve.py -q -p no:cacheprovider -x"
+  },
+  {
+   "id": "P4",
+   "mutant": "D11: the culprit rule itself is excused (not un-pinned)",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "if scope is not None and rule not in scope:",
+   "to": "if scope is not None:",
+   "rail": "python -m pytest tests/test_broker_pins_resolve.py -q -p no:cacheprovider -x"
+  },
+  {
+   "id": "P5",
+   "mutant": "D11: the exception is applied to a verdict that is not DIVERGE",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "if row.get(\"schema\") != STRATEGY_VERDICT_SCHEMA or row.get(\"verdict\") != \"DIVERGE\":",
+   "to": "if row.get(\"schema\") != STRATEGY_VERDICT_SCHEMA:",
+   "rail": "python -m pytest tests/test_broker_pins_resolve.py -q -p no:cacheprovider -x"
+  },
+  {
+   "id": "P6",
+   "mutant": "D11: a culprit outside what the run exercised is accepted",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "if not set(culprit) <= set(ex) or not set(after) <= set(ex) or set(culprit) & set(after):",
+   "to": "if False:",
+   "rail": "python -m pytest tests/test_broker_pins_resolve.py -q -p no:cacheprovider -x"
+  },
+  {
+   "id": "P7",
+   "mutant": "D11: a first difference with no integer bar is accepted",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "if not (isinstance(fd, dict) and is_int(fd.get(\"bar\")) and is_int(fd.get(\"step\"))):",
+   "to": "if not isinstance(fd, dict):",
    "rail": "python -m pytest tests/test_broker_pins_resolve.py -q -p no:cacheprovider -x"
   },
   {

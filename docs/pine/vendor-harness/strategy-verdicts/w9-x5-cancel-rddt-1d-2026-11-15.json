@@ -8,19 +8,16 @@
  "symbol": "NYSE:RDDT",
  "timeframe": "1D",
  "gradeMethod": "a",
- "verdict": "DIVERGE",
- "step": 4,
- "reason": "exitTime differs at 1714397400",
- "first": {
-  "time": 1714397400,
-  "rule": "unattributed"
- },
+ "verdict": "MATCH",
+ "step": 8,
+ "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+ "first": null,
  "graded": {
   "trades": true,
-  "fills": false,
-  "slots": 0,
-  "values": 0,
-  "texts": 0
+  "fills": true,
+  "slots": 9,
+  "values": 39,
+  "texts": 22
  },
  "referenceTrades": 22,
  "rulesExercised": [
@@ -35,14 +32,68 @@
   "B-MARGIN",
   "B-MARKET",
   "B-ORDER",
+  "B-PATH",
   "B-QTY",
   "B-ROUND",
   "B-SIG",
   "B-TXT-CLOSE-ALL-ID",
   "B-VAL"
  ],
- "ungradedSlots": [],
+ "ungradedSlots": [
+  {
+   "slot": "maxDrawdown",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "maxRunup",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "buyAndHoldReturn",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "percentProfitable",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgWinningTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgLosingTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "largestWinningTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "largestLosingTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgBarsInTrades",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "sharpeRatio",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "sortinoRatio",
+   "why": "ours runtime:strategy-report-unstated"
+  }
+ ],
  "ungradedTexts": [],
+ "firstDifference": null,
+ "prefixExact": null,
+ "culprit": null,
+ "afterDifference": null,
  "provenance": {
   "strategySettings": {
    "properties": [

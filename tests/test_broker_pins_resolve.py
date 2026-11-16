@@ -280,6 +280,68 @@ def test_u14_an_UNLISTED_capture_that_exercised_the_rule_and_diverged_unpins_it(
     assert ee.resolve_pins(U_PINS, rows, sources=SRC)["rules"] == {"B-MARKET": ["core"], "B-PATH": ["core"]}
 
 
+# ── ruling D11: a DIVERGE with a proven first difference un-pins only its culprit set ──
+D11_PINS = {"schema": ee.PINS_SCHEMA, "rules": {"B-MARKET": ["core"], "B-PATH": ["core"], "B-CANCEL": ["core"]}}
+
+
+def d11(**over):
+    """An unlisted capture that exercised three rules and DIVERGEd at an event where it first exercised B-CANCEL."""
+    row = sv(cid="x5", verdict="DIVERGE", exercised=["B-MARKET", "B-PATH", "B-CANCEL"])
+    row.update({"firstDifference": {"bar": 1714397400, "step": 5}, "prefixExact": True,
+                "culprit": ["B-CANCEL"], "afterDifference": []})
+    row.update(over)
+    return row
+
+
+def d11_core():
+    return sv(exercised=["B-MARKET", "B-PATH", "B-CANCEL"])
+
+
+def test_d11_a_proven_first_difference_unpins_only_the_culprit_set():
+    got = ee.resolve_pins(D11_PINS, [d11_core(), d11()], sources=SRC)["rules"]
+    assert got == {"B-MARKET": ["core"], "B-PATH": ["core"]}       # B-CANCEL, the culprit, stays unpinned
+    # control: without the recorded fields the same row is strict and un-pins all three
+    strict = sv(cid="x5", verdict="DIVERGE", exercised=["B-MARKET", "B-PATH", "B-CANCEL"])
+    assert ee.resolve_pins(D11_PINS, [d11_core(), strict], sources=SRC)["rules"] == {}
+
+
+def test_d11_a_rule_first_exercised_after_the_difference_is_unpinned_too():
+    row = d11(afterDifference=["B-PATH"])
+    assert ee.resolve_pins(D11_PINS, [d11_core(), row], sources=SRC)["rules"] == {"B-MARKET": ["core"]}
+
+
+@pytest.mark.parametrize("over", [
+    {"culprit": []},                                   # an EMPTY culprit set: the event exercised nothing new
+    {"prefixExact": False},                            # the bars before the difference are not exact
+    {"prefixExact": "true"},
+    {"prefixExact": None},
+    {"firstDifference": None},
+    {"firstDifference": {"bar": 1714397400}},
+    {"firstDifference": {"bar": "1714397400", "step": 5}},
+    {"firstDifference": {"bar": True, "step": 5}},
+    {"culprit": None},
+    {"culprit": "B-CANCEL"},
+    {"afterDifference": None},
+    {"culprit": ["B-NOT-EXERCISED"]},                  # a culprit the run never exercised
+    {"culprit": ["B-CANCEL"], "afterDifference": ["B-CANCEL"]},
+])
+def test_d11_anything_missing_or_unproven_falls_back_to_the_strict_rule(over):
+    assert ee.culprit_scope(d11(**over)) is None
+    assert ee.resolve_pins(D11_PINS, [d11_core(), d11(**over)], sources=SRC)["rules"] == {}
+
+
+def test_d11_the_exception_is_for_DIVERGE_alone_and_never_makes_a_capture_match_evidence():
+    for verdict in ("INCONCLUSIVE", "UNGRADABLE", "EXPECTED-REFUSAL"):
+        assert ee.culprit_scope(d11(verdict=verdict)) is None
+        assert ee.resolve_pins(D11_PINS, [d11_core(), d11(verdict=verdict)], sources=SRC)["rules"] == {}
+    # a LISTED capture that DIVERGEs pins nothing, culprit set or not: its "before" rules are not evidence
+    listed = d11()
+    listed["captureId"] = "core"
+    assert ee.resolve_pins(D11_PINS, [listed], sources=SRC)["rules"] == {}
+    # and the culprit rule stays unpinned even when another capture MATCHes on it
+    assert "B-CANCEL" not in ee.resolve_pins(D11_PINS, [d11_core(), d11()], sources=SRC)["rules"]
+
+
 def test_u14_the_settings_precondition_still_applies_to_a_strategy_verdict():
     row = sv()
     row["provenance"] = readback(process_orders_on_close=True)
