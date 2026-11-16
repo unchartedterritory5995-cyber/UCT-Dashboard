@@ -1,549 +1,533 @@
-# Studio track: the plan, beside the Pine full-parity programme
+# The indicator ecosystem: final blueprint (Studio track)
 
-FINAL v8, 2026-11-15. v8 adds the two commitments the owner asked for and v7 did not
-have: section 13, how the whole ecosystem looks and is reached by a member, and section 14,
-how it gets measurably better every week. It also corrects decision D16, which had been
-written without reading the authoring owner's own staged-rollout proposal.
+FINAL v9, 2026-11-15. This version is a rewrite, not a ninth layer. v1 to v8 were each
+corrected by finding something that already existed; v9 was written after six independent
+specialist reviews of v8 against master (a code census, a review of the competitor research
+against the public record, product and interface design, model and learning systems, fit
+with the engine programme, and an adversarial review of opening the features to everyone).
+Their findings are folded into the text, and section 16 lists what each changed.
 
-v7 is a review of v6 against the repository one day later: it
-changes no direction, it corrects what v6 stated wrongly or left unowned, and it names the
-one thing that was silently blocking four lanes (the requests in section 6 had never
-reached master). Every v7 change is listed in section 11. History: v1 was reviewed the same day by four independent reviewers (engine
-fit, security and cost, product and member experience, adversarial delivery); v2 carried
-their findings. v3 corrects a miss that neither v1, v2 nor any reviewer caught: plain-English
-indicator authoring ALREADY EXISTS in this repo (section 1a). Section 11 lists every change
-and why. v4 adds the census in section 9: a second look found the formula reference page,
-the published-formula library, share links and indicator templates already live, so the rule
-from here on is CENSUS BEFORE DESIGN (decision D13). The owner delegated every open decision;
-the rulings are in section 8. v5 adds section 9a, a ledger of what was MEASURED on
-production (how well the existing pieces work, what is wrong, who fixes it) and lane S-L.
-v6 adds section 12, the resume point.
+This repository is public. Only this plan and generated references are committed. The
+competitor review that informed it stays local, and no competitor is named here.
 
-This repo is public. Only this plan and generated engine references are committed. The
-competitor review that informed it, and the competitor's own documents, stay local.
+Every claim about code in this plan is a reading of master on 2026-11-15 (engine version
+57). It is a dated reading, not a fact: re-read the file before acting on it (rule P1).
 
-Read with:
-- `_resume-2026-11-01/PINE-FULL-PARITY-PLAN.md` and `AGENT-RULES.md` (the programme and its
-  rules, which every lane here inherits unchanged)
-- `docs/pine/SESSION-STATE.md` (engine state; re-read `scriptEngineVersion.js` on master for
-  the current number: 54 when v1 was written, 57 one day later. Three versions a day is the
-  cadence every number in this plan has to survive)
-- `docs/pine/EDITOR-STATUS-PANEL-SPEC.md` (the built, dark status panel)
+## 1. What this is
 
-## 1. What is being built, and who owns it
+A member wants to do seven things with an indicator:
 
-| product | what it is | owner |
+| # | job | in member words |
 |---|---|---|
-| A. Pine parity engine | Any open-source TradingView script runs and draws the same | The Pine programme (waves W0-W9 + E) and its engine sessions |
-| B. Pine Screener | One script evaluated across a list of symbols | Server lanes: the programme (W5). Member surface: this track |
-| C. Indicator ecosystem | Authoring help, a reference, an inspector, sharing | This track. The programme's mockup 3.1 draws a `[Studio]` tab and CONSOLE / REFERENCE / PORT tabs with no spec behind them |
+| J1 | describe one in plain words and see it on the chart | "Describe an indicator" |
+| J2 | bring one from TradingView | "Paste a TradingView script" |
+| J3 | use one somebody else made | "Browse indicators" |
+| J4 | find out what a function does or whether it runs here | "Look up a function" |
+| J5 | run one across a list of stocks | "Run over a list" |
+| J6 | see why it shows what it shows on one bar | "Inspect a bar" |
+| J7 | change, undo, go back a version, share | on every indicator |
 
-This track never edits the engine. Its lead over the reviewed competitor is the engine's
-verdict: every surface shows what the engine says about a script, never what a model says.
+Almost every one of these is already built. The finding of all six reviews is the same:
+the capability is here and stronger than the competitor's at its core (the engine computes
+the answer and writes the description; a model is never trusted to describe its own work),
+but it is scattered behind seven doors, six names for one thing, a dark switch and no phone
+layout, and nothing yet makes it better with use.
 
-## 1a. Plain-English authoring already exists: build on it, do not build beside it
+So this track does four things, in this order:
 
-`docs/indicators/PLAIN-ENGLISH-AUTHORING-2026-11-01.md` and `AGENT-M3-CONTRACT.md` describe it;
-the code is `app/src/components/chart/builder/studio/` and `builder/authoring/`.
+1. **Open it.** Every finished, dark indicator feature goes to every account (section 8).
+2. **Make it one place.** One home, one name, one first-run moment, a phone layout
+   (section 6).
+3. **Make it learn.** Version every answer, measure it, and feed fixes back through a
+   weekly loop with a regression gate (section 7).
+4. **Fill the real gaps.** A per-bar inspector, running an indicator over a list straight
+   from the chart, Pine names in the reference, the verdict on shared indicators
+   (section 9, phase 4).
 
-- **Create Indicator (UCT Intelligence):** a chart-docked conversation panel. Conversation ->
-  interpretation -> live preview on the real chart -> refinement -> save, with Undo, a
-  per-tab preview channel and a session that outlives the dock.
-- **How it works:** the model emits a structured, validated PATCH (`uct.authoring.patch/1`)
-  over the canonical engine. The browser applies it atomically (canonical check, node
-  allow-list, evaluate, hash round-trip, repaint refusal) and reads the result back in words
-  computed from the definition, never from the model's prose. Saving uses the ordinary door.
-- **Two server doors:** `POST /api/user-definitions/converse` (the full builder, behind the
-  `create-indicator` cohort gate or admin) and `/propose` (one formula column).
-- **UCT Agent** reaches the same layer; one layer, two callers.
-- **State:** dark. A per-browser switch (`window.__uctCreateIndicator(true)`) plus
-  `CREATE_INDICATOR_COHORT_ENABLED`, recorded in the ledger as pending since 2026-10-07.
+## 2. Owner rulings in force
 
-This is a stronger design than the reviewed competitor's, which has a model write code and
-trusts the model's summary. Here the model cannot make the chart differ from what the
-read-back says, because the engine does the maths and writes the words.
-
-**Consequence for this track.** v1 and v2 planned a new dock (S2) and a model that writes
-Pine with a repair loop (S4 + S5). Both would duplicate this layer with a weaker design.
-They are withdrawn. What the competitor review contributes is applied TO this layer, as
-requests to its owner (section 6), and the largest single lever is not a build at all: it
-is rolling out what is already built.
-
-## 2. The boundary
-
-**Engine-owned, READ-ONLY for this track:**
-`app/src/components/chart/engine/**`, `app/src/components/chart/builder/**` (the Builder, the
-Pine tab, the status panel, `memberPane/`, `SharePanel.jsx`, `editorStatusGate.js`),
-`api/services/ast_*.py`, `api/services/pine_*.py`, `scriptEngineVersion.js`, capture queues,
-the vendor harness, the census.
-
-**Studio-owned (new, so no merge collisions):**
-`app/src/components/studio/**`, `api/routers/studio_*.py`, `api/services/studio/**`,
-`docs/pine/studio/**`, and its own flags.
-
-**Shared files, one-line additive edits only, batched into at most one `[studio]` change a
-week:** the mount point of the inspector panel (S3, decision D14), the route entry for the
-screener surface (S6), `Dockerfile.web` + `docs/feature_flags.json` (flags),
-`persistenceManifest.json` (storage keys), the palette entry.
-
-**Pages this track may change by pull request, for their owner's review:**
-`app/src/pages/formulas/**` (the reference and library pages). They are not engine-owned.
-The placeholder fix (ledger U4) already works this way, and S2' does too.
-
-**Asking the engine for something:** a row in `requests.md` at the repo root, picked up by
-the Pine coordinator. Never a direct edit to an engine-owned file, never an engine version
-bump. Open requests are listed in section 6. A request exists only once it is ON MASTER: a
-row on an unmerged branch has been asked of nobody (decision D15).
-
-**Reading the engine:** only through existing exports. Studio derives, never restates.
-
-**Studio's reference never fails an engine change.** The check that the committed reference
-is current is opt-in (`STUDIO_MEASURE=1`) and run by the Studio session. The reference
-carries the engine version it was built at and the app shows that number.
-
-**Machine rules:** AGENT-RULES unchanged. One heavy job at a time through the lock, targeted
-vitest files with a low worker count, a sparse worktree (`app`, `tools`, `docs/pine`, `api`;
-about 400 MB as measured) with a junction to the shared install, branch pushes only. Fake-verdict unit tests
-stay engine-free and fast so they never queue behind an engine run for long.
-
-## 3. One vocabulary
-
-The status panel's headline, verbatim from `editorStatus`, is the ONLY verdict a member sees
-on any Studio surface (the inspector, the screener surface, the Pine section of the
-reference), an AI answer card, a share preview and any card that shows a script.
-
-Three other member-facing terms, and no more:
-
-| term | meaning | where |
-|---|---|---|
-| Withheld | The engine did not draw a value because it cannot compute it the way TradingView does | status items, screener columns |
-| Adapted copy | A rewrite by the assistant of a script the engine does not run. Not the original | the copy's name, a badge that cannot be removed, share cards |
-| UCT data | A value from our own data, not TradingView's | on the chart beside the value |
-
-Never "Valid", "Converted", "Verified" or "Supported". A model's own description of what it
-wrote appears under the label "What the assistant says it wrote", below the headline.
-
-## 4. Lanes
-
-Every lane is dark behind its own flag, and names its flag, its Dockerfile ARG/ENV pair and
-its ledger row in its first commit. Every lane lazy-loads: nothing Studio adds may reach the
-entry chunk (`python tools/notebook_perf_budgets.py --dist app/dist` after a build).
-
-### Building now and next
-
-Order is by what is unblocked, not by date. "Waits on" names the one thing outside this
-track that a lane needs, and "if it does not come" is what the track does instead, so no
-lane stalls silently on another owner (decision D15).
-
-| # | lane | state 2026-11-15 | scope | proof | waits on / if it does not come |
-|---|---|---|---|---|---|
-| 1 | **S1 Pine reference** | code written, one WIP commit, never run | `scriptVerdict` (the status panel's answer as plain data) and a reference MEASURED through it: language-feature probes plus every built-in call name, each answered under named profiles (every member; runtime pane permitted), built with the build flags the ledger records as armed | the two profiles differ on at least one answer (proves the permission reached the door); the reference states the engine version it was built at, and the page shows that number beside the current one. Rebuilt in every Studio PR that touches it and once a week otherwise. v6's "age <= 1 engine version" is withdrawn: an opt-in check (D10) cannot hold a bar the engine passes three times a day | nothing. R1 and R6 would simplify it; neither blocks |
-| 2 | **U4 reference placeholders** | fix committed locally, tests never run | `/formulas/reference` prints "{0}" to members; each placeholder takes the argument name from its signature | 0 placeholders left on the rendered page | the page owner's review of the PR |
-| 3 | **S-L Starter library** | not started; 20 descriptions written | section 9a. Also the best available test of the door's quality: built indicators are judged by the owner's eye on a chart, not by this session reading a patch | count built in one turn / needed refinement / could not be built; each published one approved by the owner | the owner's approvals. Unapproved ones are still a ranked gap list |
-| 4 | **S6 Screener surface, first cut** | not started; needs no request | One CONDITION plot of one script over one list at one timeframe, on the screen lane as it exists. On one screen: script, list, timeframe, bar-close time and data freshness, a threshold builder for a numeric plot, editable inputs, progress and cancel, symbols skipped with a reason, withheld shown as Withheld, row click to chart, save as scan or alert, a per-run verdict line. Per-run symbol cap and a per-member daily run counter. FIRST STEP, before any design: read the existing screener page and scan doors in code (D13), and measure the screen lane as it is for 500 symbols | p95 run time for 500 symbols, target set from the measured baseline. v6's "<= 5 s" was a guess with no measurement behind it and is provisional until then | nothing |
-| 5 | **S1b Status panel for admins** (D3) | waits | Request R2: an admin gate beside `VITE_PINE_EDITOR_STATUS`; then the flag is set | owner looks at three scripts, one pasted on a phone | R2. If unanswered a week after the request reaches master: the owner's look happens on a local build with the flag set, which needs no engine edit, and the member decision is taken from that |
-| 6 | **S9' Verdict in sharing** | waits | The Builder already ships share link, preview, install, revoke and history. Request R4: the headline, where it runs and the engine version on the share preview and install | install round-trip shows the same headline the author saw | R4. No substitute: `SharePanel` is engine-owned. It waits, and nothing else waits on it |
-| 7 | **S2' Pine names on the reference page** | after S1 | `/formulas/reference` already shows every native name, generated from the engine. A Pine author's names (`ta.sma`, `request.security`, what is withheld and why) are not on it. A Pine section on that page fed by the S1 reference, stamped "built at engine N", as a pull request to the page (section 2). v6's request R10 is withdrawn: it was never filed, and the page is not engine-owned | a Pine author finds `ta.rsi` on the page; nothing added to the entry chunk | S1; then the page owner's review |
-| 8 | **S3 Inspector** | waits | Values at a pinned bar (tap to pin; hover is not required), "why is this empty" rows linking to the line. Its home is decision D14 | 0 mismatches against the legend on 20 scripts on production for plotted values; and, because the legend cannot check a value that is not plotted, each intermediate value equal to the same expression plotted by a one-line probe script on 5 of the 20 | R3. No substitute: without named intermediate values there is nothing to inspect. S6 goes ahead of it |
-
-### Closed
-
-| lane | outcome |
+| date | ruling |
 |---|---|
-| **S-P Prompt probe** | Done 2026-11-14. The deterministic half refuses nothing: 0 of 60 prompts stopped before the model, including all 30 that should end in "cannot". So the list v6 meant to hand over is empty, and its proof line ("0 of the 30 cannot-prompts planned as buildable") measured the wrong half: honesty lives in the model turn. The full turn was then measured: 29 refusals, 1 correct clarifying question, 0 look-alikes. The regression set is the FULL-turn 30, not the pre-model probe. Results are in `requests.md` (R9) |
-| **S-R Rollout packet** | Delivered 2026-11-14 (local). It overlaps a staged-rollout proposal the authoring owner had already written (decision D16); its measurements are the part worth keeping |
+| 2026-11-15 | The product has not launched. Finished indicator features are opened to every account now. The staged pilot in `docs/indicators/CONVERSE-ROLLOUT-PROPOSAL-2026-11-02.md` is not followed before launch; the parts of it that are cheap now and costly later are kept as the launch-readiness list (section 8) |
+| 2026-11-15 | The interface must be attractive, simple and easy to reach; the system behind it must be capable and get better with use. Sections 6 and 7 are the commitments |
+| 2026-11-15 | House style for menus, settings and widgets is `docs/uct-signature-style.md` |
+| 2026-11-14 | Every open design decision in this track is delegated to the Studio session; the rulings are section 11 |
+| 2026-11-14 | A value from our own data where TradingView's is unavailable is served, labelled "UCT data", and never graded as matching |
+| standing | Nothing a member typed is stored unless that member presses a button that says it will be sent |
 
-### Deferred, with the condition that brings each back
+## 3. Census: what exists on master
 
-| lane | why deferred | returns when |
+Read in code on 2026-11-15. "Owner" is whose code it is (section 4).
+
+| job | what exists | where | state | owner |
+|---|---|---|---|---|
+| J1 | Create Indicator dock: conversation, live preview on the real chart, refine, Undo, save. The model emits a validated patch; the engine writes the read-back | `chart/builder/studio/`, `builder/authoring/`, `api/services/definition_conversation.py`, `POST /api/user-definitions/converse` | built; reachable by admins with a per-browser switch; members see a disabled "Describe one - Soon" pill | Indicators |
+| J1 | One-formula proposals in plain words | `ConciergeBox`, `/propose` | LIVE to paid accounts | Indicators |
+| J1 | The same layer through UCT Agent; where the Agent is registered the request opens the Agent, not the dock | `agent/`, `ChartToolbar.jsx` | admin | Agent |
+| J1 | An indicator from a picture | `builder/ImageBox.jsx`, `indicator_from_image.py` | built | Indicators |
+| J2 | Paste Pine, with per-line refusals | `builder/PineBox.jsx` (the Builder's "Import" tab) | LIVE | Pine engine |
+| J2 | Bring a whole library at once | `builder/libraryIntake.js` | built | Indicators |
+| J2 | The status panel: one headline verdict for the text in the editor | `builder/PineEditorStatus.jsx`, `editorStatus.js` | built; a BUILD flag, `VITE_PINE_EDITOR_STATUS`, unset | Pine engine |
+| J3 | The home: the chart's Indicators window, with search, tabs and the "Describe one" and "New formula" pills | `chart/ChartSettingsIndicators.jsx` | LIVE | Indicators |
+| J3 | Members' published indicators; install | `/formulas/library` | LIVE, EMPTY, and not in the desktop navigation | formulas pages |
+| J3 | Share by link: preview, install, revoke, history | `SharePanel.jsx`, `/formulas/shared/:token` | LIVE; shows no verdict and no engine version | Pine engine / formulas pages |
+| J3 | Indicator templates | flag armed | LIVE | Indicators |
+| J4 | A reference of native function names, generated from the engine | `/formulas/reference` | LIVE; prints "{0}" placeholders; no Pine names | formulas pages |
+| J4 | Every Pine built-in name, probed through the import door and regenerated whenever the door changes | `chart/supportLoop/doorNameCoverage.json`, `pineBuiltins.json` (755 names) | generated, stale-checked by its own test | support loop |
+| J5 | Run a saved indicator over a list: a job with progress, up to 500 symbols, one run per member, a receipt that says what was covered, withheld and dropped; daily, weekly, monthly | `api/routers/scan_run.py`, `api/services/screener/scan_run.py`, `components/screener/RunNowButton.jsx`, `ScanResults.jsx`, `pages/screener/ScreensManager.jsx` | LIVE, five or more actions deep, only from the Screener | Screener |
+| J5 | A threshold builder that turns a numeric line into a condition | `builder/toCondition.js` | built | Indicators |
+| J5 | Plain-English screens | `api/routers/screener_nl.py` | armed | Screener |
+| J6 | Values of every plotted line under the crosshair | `engine/readout.js`, `legend/` | LIVE | Pine engine |
+| J6 | Values the script computes but does not plot | none | MISSING | - |
+| J7 | Undo in the dock; "Modify with UCT Intelligence", "Edit formula", "Create custom copy" on the legend chip | `legend/chipMenu.js` | LIVE | Indicators |
+| J7 | Every save is a version | `GET /api/user-definitions/{def_id}/history` | LIVE on the server; shown only inside the Builder's Share tab | Indicators |
+| all | Command palette | `components/CommandPalette.jsx` | LIVE; lists no indicator command at all | app shell |
+| all | A record of every authoring turn: outcome, failure class, repair, cost, tokens, latency; and dock actions opened, preview, saved, save failed, discarded, turn failed. No member text, enforced by an allow-list | `api/services/indicator_telemetry.py`, `rollout_report(days)` | LIVE | Indicators |
+| all | An evaluation runner for the authoring door: a free scripted mode, a spend-capped live mode, grading by tree hash and then by values, gates | `tools/converse_eval.py`, `tests/fixtures/authoring/converse_eval_cases.json`, `docs/indicators/E2E-EVAL-DESIGN-2026-11-02.md` | BUILT; no paid run made | Indicators |
+| all | A support loop for Pine imports: consented "Doesn't match TradingView?" reports with retention and withdrawal, a daily ranked digest, triage, mark-fixed, nightly re-measure | `docs/pine/support-loop/`, `api/services/indicator_support*.py`, `tools/support_loop/`, `ReportMismatchDialog.jsx` | built; reports behind `PINE_SUPPORT_REPORTS_ENABLED` | support loop |
+| all | Firm concepts with cited definitions, versioned | `chart/engine/ast/conceptVocabulary.json` | LIVE | Pine engine |
+| all | The single list of open Indicators work | `docs/indicators/INDICATORS-BACKLOG.md` | maintained | Indicators |
+
+Names already taken, which this plan must not reuse for something else: "Starter library"
+(`builder/StarterLibrary.jsx`, firm setups as editable scans), "inspector" (the settings
+column of the Indicators window), "studio" (`builder/studio/`, the dock).
+
+## 4. Who owns what, and how to ask
+
+v8 split the code two ways (engine, Studio). There are six owners.
+
+| owner | paths | how to ask |
 |---|---|---|
-| S6 full (every plot a column) | New server work; needs the server interpreter (W5) for runtime-lane scripts | W5 serves screens |
-| S7 Settings upgrades | Polish with a shared-file cost | After launch |
-| S8 UCT data in scripts | Engine-sized; the RS-rating transfer programme owns the benchmark work | CONDITION MET 2026-11-15: that programme merged as engine 57 (`docs/pine/RS-RATING-TRANSFER.md`), with a served benchmark read and a value from our own data served tagged as substituted and disclosed by name. S8 is therefore not a Studio build: what is left is showing "UCT data" beside such a value on Studio surfaces (section 3), and ledger row I6 |
-| S10 Community feed | A published-formula library already exists (section 9). A separate feed would be a second one | Not planned. Threads or author names on the library are its owner's call |
-| A model that writes Pine (was S4 + S5) | The existing patch-based layer already turns a description into an indicator, with a stronger guarantee. A Pine-writing model is only needed for adapted copies and for Pine-fluent authors who want editable Pine | Section 7's conditions hold, or Pine authors ask for it |
-| S11 Adapted copies | See section 7 | Every condition in section 7 holds |
+| Pine engine | `chart/engine/**`, `builder/memberPane/**`, `editorStatus*`, `PineBox`, `PineEditorStatus`, `RunsOnLine`, `SharePanel`, `api/services/pine_*`, `runtime_*`, `docs/pine/**` | a row in `requests.md`, with a repro command and its output |
+| Indicators (authoring) | `builder/authoring/**`, `builder/studio/**`, `ChartSettingsIndicators.jsx`, `ChartToolbar.jsx`, `ChartPane.jsx`, `legend/chipMenu.js`, `/converse`, `/propose` | a row in `docs/indicators/INDICATORS-BACKLOG.md` |
+| Screener | `api/services/screener/**`, `api/routers/scan_run.py`, `components/screener/**`, `pages/screener/**` | `requests.md`, territory Screener |
+| Agent | `agent/**` | `requests.md` |
+| Support loop | `chart/supportLoop/**`, `indicator_support*.py`, `tools/support_loop/` | `requests.md` |
+| Formulas pages | `pages/formulas/**` | a pull request |
 
-## 4a. What TradingView's Pine Screener does (their help article, read 2026-11-14)
+**This track's own code** is new and collides with nothing: `app/src/components/indicatorKit/**`
+(renamed from v8's `components/studio/`, which sat beside the unrelated `builder/studio/`),
+`api/services/indicator_kit/**`, `docs/pine/studio/**`.
 
-Source: TradingView's help article "Pine Screener: key features and requirements", read
-through a page summariser; treat each line as a pointer to check, not a quotation. Where
-their documents were silent, it says so.
+**How this track changes another owner's surface.** The Pine engine's paths are read-only:
+ask, never edit, never bump the engine version. Everywhere else this track may write the
+change itself as a small pull request, after adding the row to that owner's list, and the
+owner reviews it. That is how the interface work in section 6 gets built without waiting on
+six queues.
 
-- **A scan:** one source (a watchlist or a major index), one indicator, one timeframe, then
-  filters, then Scan. On demand: values load only after a scan, and any change needs a rescan.
-- **Outputs that become columns:** `plot`, `plotbar`, `plotcandle`, `plotchar`, `plotshape`,
-  `plotarrow`, `hline`, and `alertcondition`. The first ten plots become columns and filters,
-  and two alert conditions are added. An indicator with none of these cannot be chosen.
-- **Filters:** a condition plus a target value on a plot. The operator list is not documented.
-- **Inputs:** editable in a settings dialog, except `input.timeframe`, `input.symbol` and
-  `input.time`, which use the script's defaults.
-- **Limits:** the last 500 bars only; fixed timeframes (1, 5, 15, 30 minutes; 1, 2, 4 hours;
-  day, week, month); an index source capped at 4,000 symbols; indicators only (no
-  strategies); `request.*` allowed up to 40 calls a script.
-- **Not documented:** what is shown when a script errors or returns `na`; saving a screen;
-  export; alerts from results; the plan tier.
+**A request exists only once its row is on master.** v8's twelve requests were written on
+an unmerged branch and half were in the wrong list; section 10 re-files them.
 
-**What this means for S6.** Their screener shows every plot as a column; ours accepts one
-condition plot. That gap is the deferred "S6 full" lane and waits for the server
-interpreter. The first cut can already beat them on two things their documents do not
-offer: a per-symbol reason when a value is withheld, and saving the run as a scan or alert.
+**Shared files every lane touches, one small additive edit each:** `Dockerfile.web` and
+`docs/feature_flags.json` (a flag needs both, and three CI tests check the pair),
+`persistenceManifest.json`, `requests.md`. New API routes declare their own `require_paid`.
+Nothing this track adds may reach the entry chunk.
 
-## 5. If a Pine-writing model is ever built: the rules it must follow
+**Machine rules.** One heavy job at a time through the heavy lock, named test files, one
+worker, a sparse worktree. Tests of this track's own code stay engine-free.
 
-Deferred (section 4). Kept because the security and cost review applies to any model door,
-and the existing `/converse` door should be checked against the same list (request R7).
+## 5. One name, one verdict
 
-- **Target language:** Pine, restricted to what the S1 reference shows running. One runtime.
-- **Instructions:** the generated reference first, byte-stable, as a cached prefix; then
-  hand-written pitfalls and worked examples. No secrets, no competitor phrasing; assume the
-  document is public. Repair turns are append-only so the cache holds.
-- **The model has no tools and no member data in its context.** Pasted source goes in a
-  delimited block and is treated as data. Its output is Pine text only; its explanation is
-  rendered as plain text. A model refusal is one of the named failure states.
-- **The check is the engine**, through `scriptVerdict`, and the card states which profile was
-  scored.
-- **The server owns the loop:** a round counter per job (max 3), every round charged, cancel
-  or reopen never resets it. What the browser reports back is a closed refusal family id plus
-  a line number validated against the engine's refusal table, never free text. Prompt and
-  pasted-source sizes are capped server-side (the support door's 128 KB is the precedent).
-- **Metering, reusing what exists:** `daily_counters` with a dollar-equivalent charge.
-  Reserve the worst case before the call and give back the difference. Take a global charge
-  with the member charge. One in-flight job per member, held durably. No SDK retries.
-  Register the door in the AI doors census; the usage ledger hooks itself. In-process rate
-  limits are not relied on.
-- **Honest ends:** runs fully / runs with N withheld / cannot yet (with the reason) / budget
-  used ("You have used today's AI allowance. Resets <time>. The Code view still works.").
-- **Never auto-saved, never auto-applied.**
-- **Cost:** estimate it from the usage ledger before arming. Budgets, caps and cost figures
-  are environment values or local notes, not committed.
+**One name.** The member-facing word is **indicator**, everywhere: the Builder's title, the
+saved list, the library, share pages, the navigation. Today one object is called an
+indicator, a formula, a script, a scan, a screen, a study and a definition, and a member
+who builds an "indicator" finds it saved under "Your formulas" and browsed in a "Formula
+library". "Formula" survives only as the name of the typed-expression mode ("Write a
+formula"). "Scan" and "screen" remain the Screener's words for running one over a list.
 
-## 6. Requests to the engine team (rows in `requests.md`)
+**One verdict, from two places, never a third.** v8 said the status panel's headline is the
+only verdict a member sees. That is not true today: at least seven surfaces state whether a
+script runs (the status panel, the "Runs on" line, the saved row's stamps, the engine-status
+answer on a saved-script upgrade, the capability detector, the door's notes, and the
+harness grades, which are internal). The rule that can actually hold:
 
-State 2026-11-15: R1 to R9 were written on 2026-11-14 on the branch of this plan's pull
-request, which had not merged. Master's `requests.md` held none of them, so no owner had
-been asked anything and no answer was owed. Merging that pull request is the first action
-in section 12. There is no R5 (the number was skipped; the entry's title says "six" and
-holds five). R10 is withdrawn (lane S2').
+- For text being edited, the verdict is `editorStatus()`.
+- For anything saved or shared, the verdict is the served row (its stamps and server lanes),
+  which `editorStatus` already folds in when it is given the saved row.
+- Every surface this track builds reads one of those two and computes nothing of its own.
+  It shows the door's notes word for word.
 
-| id | request | for |
-|---|---|---|
-| R1 | Move `paneFor` into `editorStatus.js` and `inspectPine` into a plain `.js` (re-exported), so the verdict can be read without React or CSS modules. Note `memberPaneDefinition.js` imports `BuilderSheet.jsx`, which still blocks plain Node | S1 |
-| R2 | An admin gate beside `VITE_PINE_EDITOR_STATUS` in `editorStatusGate.js` | S1b |
-| R3 | Read-only named intermediate values for a bar | S3 |
-| R4 | The headline, consumers and engine version on SharePanel's preview and install | S9' |
-| R6 | Export the authoritative Pine name map | S1 (removes the argument-ladder search) |
-| R7 | (to the authoring owner) Check `/converse` against section 5: the budget cannot fail open, one in-flight turn per member, a global charge, sizes capped server-side, no member data in the model's context | Rollout safety |
-| R8 | (to the authoring owner) From the competitor review, in order of value: a "Paste a script" mode in the same dock that hands the text to the Pine door and shows the status panel; a short version list beside Undo; a "Report a mismatch" button on each turn wired to the existing support report; the read-back shown before the model's words on every card | Create Indicator dock |
-| R9 | (to the authoring owner) The S-P refused-phrase list | Create Indicator coverage |
-| R10 | WITHDRAWN in v7: a pull request to the page instead (section 2) | S2' |
-| R11 | (to the owner of the chart's menus) One "Indicators" entry on the chart toolbar and in the command palette that lists every indicator door that exists, in member words (section 13, E1 and E2) | Experience |
-| R12 | (to the authoring owner) Four more shape-only signals on the existing telemetry: preview undone, preview discarded, number of refinements before save, and still on a chart seven days after save; and a member-pressed "Send this to UCT" on a turn, which is the only path by which a request's words are kept (section 14) | Learning loop |
+**Three more member-facing terms, and no others:**
 
-## 7. Adapted copies (S11): the conditions
-
-An adapted copy turns an honest refusal into a running script that differs from the
-original. That is the failure this track exists to avoid, so it ships only if ALL hold:
-
-1. A Pine-writing model exists and meets a measured bar on a hidden holdout: at least 65%
-   "Runs fully" within 3 rounds with every required feature kept, at least 95% honest
-   refusals on requests that cannot be met, at least 90% numeric agreement on a subset
-   with independently computed values. These three numbers are provisional: nothing has
-   been measured that they could be derived from, and they are re-set from the first
-   measured run before they gate anything.
-2. No output is dropped: every output of the original is re-expressed, or the copy is refused.
-3. Before install the member sees, line by line, what changed, beside each original refusal.
-4. The name is forced to start "Adapted: ", the badge cannot be removed, shared copies carry
-   it, and the card says "Rewritten by AI. Not the same as the TradingView original."
-5. The original refusal is still counted in the census and in demand ranking.
-6. Never for strategies.
-7. Offered only for "Not yet" and chart-refused states. A script that runs with values
-   withheld leads with "Add to chart with N values withheld".
-8. When the engine later runs the original, the upgrade notice offers "Your original now
-   runs. Switch?"
-
-## 8. Decisions (ruled 2026-11-14 under the owner's delegation; v2 changes marked)
-
-| id | ruling |
+| term | meaning |
 |---|---|
-| D1 | Adapted copies: yes in principle, built last, shipped only under section 7. **(v2: was an unconditional yes)** |
-| D2 | No new model door is built by this track (v3). The existing authoring door keeps its own model and metering; request R7 checks it against section 5 |
-| D3 | Status panel for admins first, by request R2; members after the owner's look |
-| D4 | Sharing is members-only. No public links in v1 |
-| D5 | Hide-source stays as the Builder ships it; its warning must say the script still reaches the browser, so it is hidden in the app, not secret. A licence line is required on publish and a TradingView port keeps its licence |
-| D6 | The Studio session speaks for this track |
-| D7 | No competitor material in this repo |
-| D8 | Pine is the only authoring language; one runtime |
-| D9 | Nothing is saved or applied without a press. Synced shares default to snapshot, and a synced update is never applied silently: the installer sees that the author changed it and gets a fresh verdict **(v2)** |
-| D10 | The reference check is opt-in and never fails an engine change **(v2)** |
-| D11 | Member text and script-drawn text render as plain text everywhere; shares and feed rows join the account-deletion manifest; an admin takedown and a per-author publish cap exist before S10 **(v2)** |
-| D12 | Plain-English authoring is the EXISTING patch-based layer. This track improves and helps roll out that layer; it does not build a second one **(v3)** |
-| D13 | Census before design: no lane is designed until the section 9 row for it has been read in code, and a new lane adds its row first **(v4)**. A census row is a dated reading: one older than the last change to its files is read again before the lane is designed **(v7)** |
-| D14 | There is no "Studio panel" for authoring; v3 withdrew it and v6 still named one. The two surfaces this track builds have these homes: the inspector (S3) is a Studio-owned, lazy-loaded panel docked to the chart, mounted by one additive line; the screener surface (S6) is a route. Both are confirmed against the code before design (D13) **(v7)** |
-| D15 | A request is made when its row is on master, not when it is written. Every lane that waits on another owner names what it does if the answer does not come (section 4). A lane with no substitute waits, and nothing else is ordered behind it **(v7)** |
-| D16 | The rollout of Create Indicator ALREADY has a plan, and it is not this track's: `docs/indicators/CONVERSE-ROLLOUT-PROPOSAL-2026-11-02.md` (stages 0 to 2, QA gates G1 to G4, monitoring M1 to M5) and `CONVERSE-STAGE1-COHORT-PROPOSAL-2026-11-02.md` (the owner's 2026-11-02 decision: an opt-in pilot of 5 to 10 members, each stage approved separately). v7 wrote a gate of its own without reading them; that was a second authority over one decision and is withdrawn. What this track contributes is evidence offered to that proposal's owner: (a) the remaining 23 ordinary requests and the cost of a turn that BUILDS; (b) the hidden 40, run by a separate session; (c) the answer to request R7; (d) the owner's own look at three built indicators, one from the starter library. The dock has no phone layout (ledger U3), which the pilot should be told **(v7, corrected v8)** |
-| D17 | Every Studio surface is built in the house style, `docs/uct-signature-style.md`, and to the eight commitments in section 13. A surface ships after the owner has looked at it rendered, at three widths. A reviewer model's pass is not that look **(v8)** |
-| D18 | The ecosystem improves through the loop in section 14: measured, weekly, with every change shipped as a reviewed pull request. Nothing rewrites its own prompt, vocabulary or engine in production. What a member typed is never stored unless that member presses a button that says it will be sent **(v8)** |
+| Withheld | The engine did not draw a value because it cannot compute it the way TradingView does |
+| UCT data | A value from our own data, not TradingView's. Shown by name beside the value |
+| Adapted copy | A rewrite by the assistant of a script the engine does not run (section 13) |
 
-## 9. Census: what already exists (read in code on 2026-11-14)
+Never "Valid", "Converted", "Verified" or "Supported". A model's description of its own
+output is labelled "What the assistant says it wrote" and sits below the engine's words.
 
-Two versions of this plan designed lanes for things the app already has. Every lane now
-starts from this table, and a lane is not designed until its row has been read in code.
+## 6. The experience blueprint
 
-| what the competitor review looked at | what exists here | state | this track's part |
-|---|---|---|---|
-| Describe an indicator, get it on the chart | Create Indicator dock, `/converse`, `/propose`; UCT Agent uses the same layer (section 1a) | built, DARK (admin + per-browser switch; cohort flag pending since 2026-10-07) | rollout packet (S-R), prompt probe (S-P), requests R7 to R9 |
-| A reference of what can be written | `/formulas/reference`, a nav entry, generated from the engine by `vocabulary.js` | LIVE for native formula names; no Pine names | S1 measures the Pine half; request R10 puts it on that page |
-| Paste a TradingView script | The Builder's Pine tab (`PineBox`), with per-line refusals | LIVE | none |
-| A trustworthy verdict on a script | The status panel (`PineEditorStatus`) | built, DARK (`VITE_PINE_EDITOR_STATUS`) | S1b: admins first (R2) |
-| Share by link, preview, install, revoke | `SharePanel`, `/formulas/shared/:token`; `J2_SHARE_LINKS_ENABLED` armed | LIVE | R4: show the verdict there |
-| A community library of indicators | `/formulas/library`: formulas members chose to publish, installed through the same doors; no author shown, by decision | LIVE | none now. Discussion threads and author names are decisions for the library's owner, not a new feed |
-| Save a set of indicators as a template | Indicator templates (`VITE_INDICATOR_TEMPLATES_ENABLED` armed), also driven by UCT Agent | LIVE | none |
-| Version history | Share history in `SharePanel`; authoring Undo in the dock | partial | R8 asks for a short version list in the dock |
-| A value inspector | Not found (a chart legend exists; no per-bar named intermediate values) | MISSING | S3, after R3 |
-| Run one script across a list | Screens take one condition plot; no single "this script over that list" surface | partial | S6 first cut |
-| A plan to roll the authoring door out | `docs/indicators/CONVERSE-ROLLOUT-PROPOSAL-2026-11-02.md`, `CONVERSE-STAGE1-COHORT-PROPOSAL-2026-11-02.md`, `CONVERSE-ADMIN-VALIDATION-STAGE-2026-11-02.md` | written; nothing enabled; each stage needs the owner's approval | evidence only (D16). MISSED by v1 to v7 |
-| A way to grade the authoring door end to end | `docs/indicators/E2E-EVAL-DESIGN-2026-11-02.md` (7 steps from request to reload, graded by tree hash, then by values); `tests/fixtures/authoring/converse_eval_cases.json` | designed; no paid run made, none without owner approval | section 14 builds on it, not beside it |
-| A record of what happens on each authoring turn | `converse_turn` rows in `api/services/indicator_telemetry.py` (outcome, failure class, repair, calls, cost, tokens, latency; NO member text, enforced by an allow-list); `rollout_report(days)` | LIVE for admins' turns | section 14 reads it |
-| A house style | `docs/uct-signature-style.md` (named by the owner 2026-11-15; menus, settings, widgets) | LIVE on `/charts` Release 1 | section 13 binds to it |
-| Scripts on a server | `pine-runtime` service designed; `PINE_RUNTIME_SERVER_STAGE` dark | the programme's (W5) | none |
+**The home is the Indicators window that already exists** (the chart's gear, Indicators).
+No new door and no new toolbar button: a labelled "Indicators" toolbar button was removed on
+purpose, to end two entry points onto one job, and it stays removed. The command palette
+and the keyboard shortcut are the fast ways in.
 
-Also reused, not rebuilt: the support report ("Doesn't match TradingView?") as "Report a
-mismatch"; the Builder's `ConciergeBox` and `ConverseBox`.
+**The window, as a member reads it:**
 
-**What this census says about the track.** Most of what the reviewed competitor ships
-already exists here, and the two strongest pieces (conversational authoring, the status
-panel) are built and dark. The track's value is therefore mostly: get the dark things
-safely in front of members, add the Pine half of the reference, show the verdict wherever a
-script travels, and build the two things that are genuinely missing (an inspector, a
-script-over-a-list surface).
-
-## 9a. Ecosystem ledger: what was measured, what is wrong, who fixes it
-
-The census says what exists. This ledger says how well it works, from measurements on
-production as the synthetic smoke account on 2026-11-14. A row is only here if it was
-measured or read in code; each says which. Rows for other owners are requests, not edits.
-The row ids (I, U, N) are local to this document. The Pine programme also numbers its work
-units U1, U3, U5 and so on: outside this file write "Studio ledger U4", never a bare "U4".
-
-What the measurements do NOT yet support, stated once so no row is read for more than it
-shows: the door's quality on ordinary requests rests on 7 builds, each judged by the same
-session that wrote the prompt, by reading the patch. Two of those 7 were wrong in a way a
-trader would see at once (I3, I4). Nothing here is evidence the owner would accept a built
-indicator on a chart; lane S-L and decision D16(d) are where that is found out.
-
-### Intelligence (does it understand and answer well)
-
-| # | finding | evidence | fix | owner |
-|---|---|---|---|---|
-| I1 | Create Indicator refuses plainly impossible requests honestly | 30 prompts through the full turn: 29 `unsupported`, 1 `clarify`, 0 built (measured) | none; keep as a regression set | authoring |
-| I2 | It builds ordinary trader requests in one call | first 7 of 30 member-style prompts: 7 built, each patch matching the request on reading (three EMAs with a rising/falling colour, ADR %, volume-spike marker, background above a rising 50, 52-week high from weekly bars, distance from the 50 in ATRs, inside-bar paint). The other 23 are queued behind the hourly limit. Patches were read, not applied | finish the 30; then run the hidden 40 | this track measures; authoring fixes |
-| I3 | Colour words are not honoured literally: "green" came back teal (`#26A69A`) twice, and the read-back says "teal" | measured, dock and API | map the member's colour word to that colour, or say "green" when the house green is used | authoring (R8) |
-| I4 | "Average daily range percent" was built as range over close; the common definition averages high over low | measured (M02) | a named house definition for ADR %, so the term means one thing here | authoring |
-| I5 | The planner attaches unrelated terms on some sentences ("email ... at the close" -> `close`) | measured, 60 prompts | exclude a term when its word is not used as a series in the clause | authoring (R9) |
-| I6 | Columns the app already has (institutional ownership, analyst targets) are refused at the chart door as "not available from price and volume" while the planner matches them | measured (X02, X13) | decide whether declared columns are reachable from an indicator as a current value, labelled "UCT data". A precedent now exists: engine 57 serves a value from our own data, tagged and disclosed, where TradingView's is not available. The open part is whether that extends from classification text to fundamentals columns | owner decision, then authoring + engine |
-| I7 | No measure yet of subtle impossible requests, or of whether a built indicator's VALUES are right | not measured | the hidden 40; a numeric subset checked against independently computed values | this track |
-
-### Surface (can a member find it and read it)
-
-| # | finding | evidence | fix | owner |
-|---|---|---|---|---|
-| U1 | Create Indicator works and is dark | dock opened, preview drawn in about 14 s, Undo / Discard / Add to Chart (measured) | the rollout decision (lane S-R) | owner |
-| U2 | Its door is three levels down: the chart's gear -> Indicators -> Create Indicator | measured | a direct entry beside the chart toolbar and in the command palette | authoring (R8) |
-| U3 | The dock has no phone layout | read in code: `CreateIndicatorPanel` is a fixed 360 px panel with no breakpoint rule and no sheet; a scripted attempt at 390 px did not reach it | a full-screen sheet on the touch tier (<= 1024 px), as the status panel's spec already does | authoring (R8) |
-| U4 | `/formulas/reference` shows template placeholders to members: "the absolute value of {0}" (85 of 86 functions, every operator) | read in code and seen on the page | FIX WRITTEN: branch `fix/formula-reference-placeholders`, each placeholder takes the argument name from the signature above it; its tests are queued, not yet run | this track, for the page owner's review |
-| U5 | `/formulas/reference` has no Pine names | read in code | the S1 reference, as a Pine section | this track + R10 |
-| U6 | `/formulas/library` is empty | seen: "Nothing has been published yet" | lane S-L below | this track + owner |
-| U7 | A first-run coach card overlays the reference and library pages for a new account | seen | dismiss on route change, or anchor it | its owner |
-| U8 | The status panel is dark | ledger | lane S1b | engine (R2) |
-| U9 | No per-bar value inspector; one condition plot per screen | census | S3, S6 | this track after R3 |
-
-### Infrastructure (can the work be done and trusted)
-
-| # | finding | evidence | fix | owner |
-|---|---|---|---|---|
-| N1 | One heavy job at a time: this track's first test run waited over 70 minutes behind one engine job and had not started. As of 2026-11-15 no test of this track's code has ever run | measured | engine-free unit tests by design (done for S1); ask the coordinator whether Studio's engine-free files may run outside the lock; run the opt-in reference build in off-hours | coordinator |
-| N2 | The authoring door's shared hourly window is 40 turns; a member exploring can hit it in one sitting, and a measuring run does | measured (HTTP 429 on turn 41) | a member-facing message with the reset time; a higher window for the cohort if cost allows (about $0.02 to $0.03 a turn measured) | authoring / owner |
-| N3 | The member daily cap falls back to a default that was sized for a far higher per-turn cost than measured | read in code + measured cost | set `CONVERSE_USER_CAP_DAILY` from measured cost | owner |
-| N4 | The reference would have been measured under flags no member has | found in review | profiles from the flag ledger (done in S1) | this track |
-| N5 | A sparse worktree keeps a lane near 200 to 400 MB | measured | use it for every Studio lane | this track |
-
-### New lane from the ledger
-
-**S-L Starter library, authored through the existing door.** The library is empty, and the
-competitor review shows what traders build first (follow-through and distribution-day
-counters, base recognition with zones, RS new highs, ATR extension and stops, anchored
-VWAPs, earnings tables, position sizing). Describe each of about 20 in plain words to Create
-Indicator, as an admin, and record for each: built in one turn / needed refinement / could
-not be built, and why. Indicators the owner approves are published to the library as house
-formulas. This does three things at once: it is a demand-shaped test of the authoring door,
-it fills the library before launch, and every "could not be built" is a ranked gap for the
-authoring and engine teams. Proof: the count in each bucket. Nothing is published without
-the owner's approval of each one.
-
-## 10. What this track will not do
-
-- Edit engine-owned files, bump the engine version, or draw anything the engine refused.
-- Add a second scripting language or runtime.
-- Save or apply anything without a press.
-- Show a model's description of its own output as a verdict.
-- Copy a competitor's documents, formulas or members' scripts.
-
-## 11. What each review changed (newest first; unmarked rows are v1 -> v2)
-
-Some v2 rows describe changes that v3 later withdrew (the chart-docked Studio panel,
-generation with repair). They are kept as history; sections 1a and 4 are what holds.
-
-| finding | change |
+| part | content |
 |---|---|
-| **v8:** the plan committed to no standard for how any of this looks or is reached; the only design statements were three defects handed to another owner | Section 13, D17, request R11, lane S-X |
-| **v8:** the plan measured the ecosystem once and had no way for it to improve; "the hidden 40" was a one-time test | Section 14, D18, request R12, lane S-M |
-| **v8:** a third census miss. The authoring owner's staged-rollout proposal, its end-to-end evaluation design and its per-turn telemetry all existed; v7's D16 duplicated the first | D16 corrected; four census rows added |
-| **v7:** the requests to the engine and authoring owners were only on an unmerged branch; four lanes waited on answers nobody had been asked for | Section 6 note, D15, first action in section 12 |
-| **v7:** four of six "building now" lanes depended on another owner, with no date and no substitute | "Waits on / if it does not come" column; S6 moved ahead of S3; S2' became a pull request and R10 was withdrawn |
-| **v7:** S-P and S-R were finished but still listed as work, and S-P's proof measured the half of the door that refuses nothing | A state column and a Closed table; the regression set is the full-turn 30 |
-| **v7:** "reference age <= 1 engine version" cannot be held by an opt-in check while the engine moves three versions a day | S1's proof is the built-at number shown beside the current one, and a rebuild rule |
-| **v7:** three acceptance numbers had no measurement behind them (S6's 5 s, section 7's 65 / 95 / 90) | Marked provisional; S6 measures the existing lane first |
-| **v7:** the inspector's proof compared against the legend, which cannot see the intermediate values the inspector exists to show | A probe-script check for intermediates |
-| **v7:** v6 still named a "Studio panel" that v3 had withdrawn, and gave the inspector and the screener surface no home | D14; sections 2 and 3 |
-| **v7:** the rollout of Create Indicator was an open question with no condition that would close it | D16 |
-| **v7:** S8's return condition was met the day after it was written; the plan's facts had aged (engine 54, the S1 branch described as uncommitted, the worktree's size and folders) | S8 row, ledger I6, sections 2 and 12; D13 now says a census row is a dated reading |
-| **v7:** the ledger's row ids collide with the Pine programme's unit names; the evidence for build quality was thinner than the ledger read | Notes at the head of section 9a |
-| The reference would have been measured with every Pine build flag unset and no runtime permission: a configuration no member has | Named profiles, flags read from the ledger, a control that the two profiles differ |
-| A probe could "run" while the probed plot itself was withheld | "Ran" now needs a plot drawn and nothing withheld |
-| `builder/**` was unowned in v1, and the reference check would have failed engine changes | Named engine-owned; the check is opt-in |
-| The Builder is a 640 px modal; "chart beside it" there was not a one-line edit | Studio is its own chart-docked panel |
-| Sharing was planned as new work; it already ships | S9 became a request to show the verdict there |
-| "Plots become columns" was described as existing; screens take one condition plot | S6 first cut is one condition plot; the rest waits for W5 |
-| Lane order delivered nothing a member feels for weeks | Status panel and code view first; generation only with repair |
-| No measure of whether generated scripts are right, only whether the engine accepts them | Golden set with a hashed holdout, required-feature checklists and a numeric subset |
-| The budget could fail open; the repair loop could be amplified; synced shares are an update channel | Section 5 and D9 |
-| Adapted copies risked the failure this track criticises | Section 7 |
-| A second vocabulary was forming | Section 3 |
-| **v5:** the plan said what exists but not how well it works | Section 9a: 30 impossible and 7 ordinary requests run through the existing authoring door on production, a tour of the reference and library pages, and the defects and fixes that came out of it; lane S-L (a starter library authored through the existing door) |
-| **v4:** a second look found a live formula reference page, a live published-formula library, live share links and live indicator templates. v3 still planned a new reference tab and listed a community feed as deferred work | Section 9 census; decision D13; the reference lane became a request to add Pine names to the existing page; the feed is no longer planned |
-| **v3:** v1 and v2 planned a new authoring dock and a Pine-writing model. A conversational Create Indicator dock already exists, dark, built on validated patches over the engine. The Studio session found it while preparing the dock lane; the plan and all four reviews had missed it because they were pointed at the Pine documents, not `docs/indicators/` | The dock lane and the generation lane are withdrawn; section 1a; lanes S-P and S-R; requests R7 to R9 |
+| Left | "On this chart": what is drawn now, with hide, settings, remove |
+| Search | one box over everything: indicators, functions, members' indicators |
+| Tabs | **On this chart** - **Mine** (built, pasted, installed) - **UCT** (the house set, section 9 lane H) - **Members** (the published library, shown here; the page remains for links) - **Standard** (technical, fundamentals, breadth, symbols, positioning) |
+| Primary action | one button, **+ New indicator**, opening four rows: *Describe it* - *Paste a TradingView script* - *Start from a picture* - *Write a formula*. Each opens the surface that already exists |
+| On each of Mine | Edit - Run over a list - Share - History |
+| Footer | "Look up a function", opening the reference filtered to what is in the search box |
 
-## 12. Resume here (state at 2026-11-15)
+**First run.** The first time the window opens, one card sits above the list: "Describe an
+indicator in plain words", with three trader-shaped examples (the RS line against the index,
+distance from the 50-day in ATRs, volume above its 50-day average). One tap previews it on
+the chart the member is looking at.
 
-This plan is FINAL as a plan. What follows is where the work stands, so a later session can
-pick it up without the conversation.
+**While it works.** The preview takes about 14 seconds today and shows only "thinking". It
+gets staged text (understanding, building, drawing), a cancel, and the allowance left.
 
-**Decided, nothing pending from the owner to start:** sections 2, 3, 8 and 9.
+**Empty and refused states, each with one next step:** nothing in Mine offers the three
+examples; an empty Members tab shows the UCT set, never "publish yours"; a search with no
+result says "Nothing called X. Describe it instead" and carries X into the dock; a refusal
+names what is missing and offers the nearest thing that can be built; the allowance message
+gives the reset time; after an install the member is told where it went and offered "Put it
+on this chart".
 
-**Owner decisions still open (none blocks the lanes in section 4):**
-1. Create Indicator: the owner's own look at three built indicators; then the stages of
-   the existing rollout proposal, each approved separately (decision D16; ledger U1, N3).
-2. May an indicator read fundamentals columns the app already has, as a current value
-   labelled "UCT data" (ledger I6)?
-3. Approve, one by one, any starter-library indicator before it is published (lane S-L).
+**Command palette.** Add an indicator - Describe an indicator - Paste a TradingView script -
+My indicators - Browse members' indicators - Look up a function - Run an indicator over a
+list; and every indicator by name.
 
-**Branches (all in the sparse worktree `uct-worktrees/studio-s1`):**
+**Phone and tablet (1024 px and below).** The phone's indicator sheet gets the same search,
+the same tabs as a strip, and "+ New indicator". The dock becomes a half-height bottom
+sheet, so the chart being previewed stays visible, expandable to full height. v8 said
+"full-screen sheet"; that would hide the chart.
 
-| branch | holds | state 2026-11-15 |
-|---|---|---|
-| `docs/studio-track-plan` | this plan, the `requests.md` entries | pushed; a docs-only pull request, checks green, merges clean. NOT MERGED |
-| `fix/formula-reference-placeholders` | the reference page fix (ledger U4) | one local commit, NOT pushed, several hundred commits behind master; tests never run |
-| `feat/studio-s1-reference` | lane S1: `app/src/components/studio/` (`verdict/`, `reference/`) | one local WIP commit, untested, NOT pushed. It was cut before v4 and carries an old copy of this plan and of `requests.md`: rebase it onto master after the plan merges and drop both files from it. The worktree also holds an untracked copy of the same six files (byte-identical to the commit when checked); remove it before checking the branch out |
-
-The heavy lock was free when this was written, so action 2 can start at once.
-
-**Next actions, in order:**
-1. Merge the plan's pull request. Until then the requests in section 6 are on no one's list.
-2. Rebase the two code branches onto master. Run their engine-free test files through the
-   lock (`referenceSentence.test.js`, `formulaReference.route.test.jsx`,
-   `buildPineReference.test.js`). Push the reference fix and open its pull request.
-3. S1: fix what its run shows; build the reference at the current engine
-   (`STUDIO_MEASURE=1 STUDIO_WRITE_REFERENCE=1`); READ THE DIFF; replace the WIP commit; open
-   its pull request.
-4. Finish the 30 member-style prompts through the authoring door (23 remain; the door allows
-   40 turns an hour per account), record what a BUILDING turn costs, and append the result
-   to `requests.md` (D16a).
-5. Lane S-L: the 20 starter-library descriptions through Create Indicator, with the owner
-   looking at the results on a chart (D16d).
-6. The hidden 40, run by a session that does not edit this plan's reference or any
-   assistant prompt (D16b).
-7. Lane S-X (section 13): the walk-through and the three mock-ups for the owner to pick
-   from. It comes BEFORE any new surface is designed, so S6 and S3 are built to it.
-8. Lane S-M (section 14): the first weekly scoreboard, from what is already recorded.
-9. S6 first cut: census and baseline measurement first. Then S2' on the back of S1. S1b,
-   S9' and S3 start as R2, R4 and R3 are answered, with the substitutes in section 4.
-
-**Kept outside this repo (local only):** the competitor review, the rollout packet for
-Create Indicator, the prompt sets and their results, and screenshots.
-
-## 13. The experience: what a member sees and how they reach it
-
-Sections 1 to 12 say what exists and what gets built. This section is the commitment about
-how it feels to use, because a capable system that a member cannot find or read is the same
-to them as one that does not exist. Today's state, measured: the strongest feature is three
-menus deep, has no phone layout, the library is empty and the reference printed "{0}".
-
-**The style** is `docs/uct-signature-style.md`, unchanged and with no new tokens: quiet
-graphite panels, sentence-case plain words, gold only on what is current or chosen,
-controls shown when needed, one way to do each thing.
-
-**Eight commitments. Each has a check that can fail.**
+**Commitments, each with a check that can fail:**
 
 | # | commitment | check |
 |---|---|---|
-| E1 | **Two actions from the chart.** Every indicator capability (describe one, paste a script, browse the library, look something up, run a script over a list, inspect a bar) is reachable in at most two actions from the chart, and by typing its name in the command palette | count the actions, per capability, on production |
-| E2 | **One map.** A single "Indicators" entry lists every door that exists, in member words ("Describe an indicator", "Paste a TradingView script", "Browse indicators", "Look up a function", "Run a script over a list"). It is a menu of the existing doors, not a new door (D12 holds) | every capability in E1 appears in it; nothing in it is a dead link |
-| E3 | **A first indicator in a minute.** A member who has never used it goes from a chart to a previewed indicator in under 60 seconds without reading anything. The 60 is provisional until the first timed run | timed with the owner first, then with the pilot members; the median is reported |
-| E4 | **Works on a phone.** At 1024 px and below every Studio surface is a full-screen sheet, never a fixed-width panel | rendered and used at 390, 820 and 1200 px; elements named, not counted |
-| E5 | **No dead ends.** Every state is designed: loading, empty, withheld, cannot, allowance used, offline. Each one says what happened in one plain sentence and offers one next action. An empty library offers the starter set; a refusal offers the nearest thing that can be built | a table of states per surface, each with its sentence and its action, reviewed before build |
-| E6 | **One vocabulary** (section 3), and the engine's words above the assistant's on every card | a sweep of rendered text for the banned words |
-| E7 | **It never surprises.** Nothing is saved, applied, shared or charged without a press (D9); every preview has Undo; how much of the daily allowance is left is visible before it runs out, with the reset time | each destructive or paid action traced to a press |
-| E8 | **The owner's eye is the bar** (D17). Each surface is shown rendered, at three widths, on real charts, before it ships | the owner's yes, recorded with the date |
+| X1 | Actions from a chart to each job, on desktop and on a phone: J1 two, J2 three, J3 two, J4 two, J5 three, J6 two | counted on production per job, before and after |
+| X2 | Every job is in the command palette by its member name | each palette row opens its surface |
+| X3 | Time from a chart to a first previewed indicator, for someone who has never used it | timed with the owner; the target is set from that run, not chosen now |
+| X4 | Every surface works at 390, 820 and 1200 px | used, not just rendered; failures named by element |
+| X5 | No dead ends | the states table above exists per surface, each state with its sentence and its action, and each is reachable in a test |
+| X6 | One name | a sweep of rendered text for "formula" outside the typed-expression mode |
+| X7 | One verdict | a sweep for the banned words; every verdict traced to one of the two authorities |
+| X8 | Nothing saved, shared or charged without a press; Undo on every preview | each such action traced to a press |
+| X9 | Keyboard: palette, Enter, Esc, focus returns where it was | walked |
 
-**Lane S-X, the experience pass (before S6 or S3 is designed).**
-1. Census, as D13 requires: walk every indicator door on production as the smoke account at
-   three widths, after the 2026-11-15 chart-menu release. Record the actions to reach each,
-   and every state in E5 that is missing.
-2. Three mock-ups of the "Indicators" map and of one Studio surface (the screener surface),
-   as rendered pages, for the owner to pick one and vary it.
-3. The picked direction becomes a one-page addendum beside the style guide, and requests
-   R11 and R8 are updated to match it.
+The owner looks at each surface rendered, at three widths, before it ships. Mock-ups come
+first: three directions for the window and the first-run card, the owner picks one, and it
+is varied from there. A reviewer model's pass is not that look.
 
-Proof: the E1 action counts before and after, and the owner's pick. Stop at the addendum.
+## 7. The intelligence and learning architecture
 
-## 14. The learning loop: how it gets better every week
+**What "learning" means here.** We do not retrain the assistant's model, and nothing in
+production rewrites itself. The system gets better because every answer is stamped with the
+exact version of everything that produced it, every use leaves a signal, signals are ranked
+automatically, each top item is fixed in the layer where it belongs, and no fix ships
+without passing a growing set of graded cases. It works because the engine, not the model,
+computes the answer, so there is always something to grade against.
 
-What "learning" means here, stated plainly so it is not over-read. The assistant's model is
-not retrained by us and nothing in production rewrites itself. The ecosystem gets better
-because every use leaves a signal, the signals are ranked each week, each top item is fixed
-in the layer where it belongs, and each fix is proved against a growing set of cases before
-it ships. That loop can run every week without limit. It rests on the one thing this
-design has that a model-trusting design does not: an engine that computes the answer, so
-there is something to measure against.
+**How the assistant works today (read in code).** A constant instruction block plus the
+vocabulary generated from the engine's own table, cached; five delimited data blocks per
+turn (the request, language notes, the indicator as it stands, state, recent turns). A
+model-free planner first grounds the member's terms against the firm's cited concept
+vocabulary. One model, at most two calls a turn (one answer, one repair), one forced tool
+that can only emit a patch, checked by five validators. The browser applies the patch and
+the engine writes the words. There are no worked examples in the prompt and no record of
+which prompt produced which answer.
 
-**What already exists to build on (census, section 9):** a per-turn record with outcome,
-failure class, cost and latency and no member text; an aggregate report including
-unsupported demand; an end-to-end evaluation design that grades by values, not by the
-model's word; the engine census and its demand ranking; the support report.
+**The mechanisms, in build order.** L1 comes first because every other one depends on it,
+and because rows written before it exists can never be attributed.
 
-**The loop, five steps:**
+| # | mechanism | what exists | what is built | owner, size |
+|---|---|---|---|---|
+| L1 | **Version stamps on every turn**: a hash of the instructions and tool, the vocabulary version, the model, the engine version | nothing | four allow-listed fields on the turn row | Indicators, small. DO FIRST |
+| L2 | **Regression gate**: any change to the instructions, the vocabulary or the model carries a before and after from the evaluation runner; the free scripted mode on every change, a paid live run on a model or instruction change | the runner and its gates | the rule; more cases; colour and definition assertions; stamps in its records | Indicators + this track, small |
+| L3 | **Colour registry**: one shared map of colour words to colours, given to the model and used by the read-back; and a check that if the member said a colour, the result reads back as that colour, else the one repair is spent | the read-back's own name list | the shared file and the check | Indicators, small |
+| L4 | **House definitions**: a term means one thing. The chart door gets a per-bar twin for every scalar the Screener already defines, derived from the same definition and proved equal by a value test | the cited concept vocabulary; one twin | the twin registry and its parity test | Indicators, about a hundred lines a term |
+| L5 | **Worked examples, retrieved**: a committed set of request, reference patch and hash, admitted only when owner-approved and passing as an evaluation case; the two or three nearest are placed in a data block, leaving the cached block untouched | nothing; a full-text retrieval precedent exists elsewhere in the repo | the store, retrieval on the planner's terms, the admission rule | Indicators, medium |
+| L6 | **Demand mining**: what members ask for that cannot be built, counted by distinct member, ranked in the daily digest that already exists, and routed to the engine's demand ranking or the vocabulary | an "unsupported" category with a large remainder; the digest | the planner's closed keys and gate codes written to an aggregate table | Indicators + support loop, medium |
+| L7 | **Was it wanted**: undone, tries before save, and still stored or on a chart seven days later | discarded, saved, turn count | an "undone" action, a hashed id on "saved", a nightly join | Indicators, small |
+| L8 | **"Send this to UCT"**: one press sends the request, the indicator, the patch and the read-back, with consent, retention and deletion | the consented report door for Pine imports | a "converse" kind on the same table and dialog, not a new one | support loop + Indicators, small |
+| L9 | **Later, when volume exists**: two instruction versions side by side by member bucket; a cheaper model for simple edits to an existing indicator, only after parity on the evaluation set | cohorts | - | deferred; underpowered and risky before L1, L2 and real use |
 
-| step | what happens | exists / to add |
+**Risks named once.** Examples are never admitted from member traffic automatically
+(poisoning). The hidden evaluation set is written and run by a session that never edits the
+instructions, and replaced each quarter (contamination). Keys written to telemetry come
+from closed sets only, never free text (privacy). A registry twin is derived from the
+column it mirrors, never restated (two authorities).
+
+**What to capture now, because it cannot be captured after launch.** While the only users
+are the builders, who can consent for themselves: full transcripts of our own sessions as
+evaluation cases; an owner-graded reference for each house indicator; the hidden set sealed
+before any tuning; and one baseline live run on the first stamped version.
+
+**The scoreboard.** One line a day, read from what is recorded, added to the existing
+rollout report and its M1 to M5 limits rather than kept as a second set:
+
+| metric | from |
+|---|---|
+| built in one turn; needed the repair; which check caught it | turn rows (today) |
+| saved, discarded, turns to save | action rows (today) |
+| what could not be built, by class, and how much is still unclassified | turn rows (today); falling "unclassified" means the taxonomy is learning |
+| median cost, p95 time | turn rows (today) |
+| undone; kept after seven days; time to preview | after L7 |
+| values agree with independent numbers; refusals were honest | evaluation runs only. A count of refusals in production is not a measure of honesty |
+
+Every line carries the L1 stamps, so a drop is traceable to the change that caused it.
+
+## 8. Opening it to everyone
+
+**What "open" needs, read in code.** Setting the flag and tagging today's accounts does not
+do it: admins (the builders) see the door only through a per-browser switch and their
+cohort tag is ignored; accounts created later are never enrolled; and the status panel is a
+build-time flag with no per-user stage.
+
+| # | step | where | reversal |
+|---|---|---|---|
+| O1 | Enrol at sign-up and seed existing accounts once at boot, copying the pattern already on master for another feature | `rollout_gate.py`, sign-up, boot | remove the tag; no redeploy |
+| O2 | The door's client check accepts the cohort for admins as well as the browser switch | `createIndicatorFlag.js` | revert |
+| O3 | `CREATE_INDICATOR_COHORT_ENABLED=1` on web; the ledger row moves from pending to armed in the same change | env, `feature_flags.json` | unset: read first on every call, so new turns stop at once |
+| O4 | `VITE_PINE_EDITOR_STATUS=1` at build; request R2 (an admin-only stage) is no longer needed | `Dockerfile.web`, ledger | rebuild without it |
+| O5 | Rehearse the reversal of O3 once and record how long it takes to act | - | - |
+| O6 | Set the per-member daily allowance and the shared interactive reserve on purpose. The reserve is one pool shared by every model feature, admins and this track's own measuring runs, and it is smaller than one admin's cap: a measuring run can pause the assistant for everyone for the day | env | - |
+| O7 | Split credit and authentication failures from transport failures, so an outage is not read as a billing problem (Indicators backlog item 4) | Indicators | - |
+
+**Not opened yet, and why.** The runtime lane for every account
+(`PINE_RUNTIME_STAGE=all`) waits for the capability detector's worker to be on: the ledger
+records the detector as able to hold the process on an adversarial script. Reports
+(`PINE_SUPPORT_REPORTS_ENABLED`) open with L8. Unpaid accounts stay closed.
+
+**What the adversarial review found safe.** Spend is bounded by a hard daily reserve and a
+per-member cap that cannot parse to unlimited; an unknown model is priced at the dearest
+rate; scripted sign-ups reach no model; the model has one tool and no other member's data;
+member text renders as plain text; another symbol is refused before the model.
+
+**Launch-readiness: before real members arrive.** Cheap now, costly later.
+
+| item | why |
+|---|---|
+| The phone layout of the dock (section 6) | today a fixed 360 px panel |
+| An admin takedown, a per-author publish limit, and a licence line on publish | none exists; a TradingView port keeps its licence |
+| The allowance message says when it resets; the hourly message names the right feature | today neither does |
+| Spend recording that fails closed: if a spend cannot be recorded, further calls are refused | today an unrecorded spend advances no cap |
+| A separate budget lane for measuring runs and admins | section O6 |
+| The paid evaluation run and the value-correctness check | no build has had its values checked |
+| The hidden set, run by a separate session | not yet run |
+| The capability worker on, then the runtime lane for all | above |
+
+## 9. The work, in phases
+
+Every lane names an owner and a proof that can fail. "By" is who writes the change: "this
+track" means a pull request written here and reviewed by the owner (section 4).
+
+### Phase 0. Unblock (hours)
+
+| lane | work | proof |
 |---|---|---|
-| 1. Capture | Every turn records its shape. Four signals of whether the result was actually wanted: preview undone, preview discarded, refinements before save, still on a chart seven days later. A member may press "Send this to UCT" on any turn, which is the only way a request's words are kept | the record exists; the four signals and the button are request R12 |
-| 2. Rank | Weekly, one page: what members asked for that could not be built (by class), what was built and then thrown away, what needed several tries, what was refused, cost and time per turn | `rollout_report` exists; the page is lane S-M |
-| 3. Route | Each top row goes to exactly one layer: a house definition (one meaning for "ADR %"), the assistant's instructions or examples, an engine capability (a row in `requests.md`, counted in the engine's demand ranking), or the surface (section 13) | owners per section 2 |
-| 4. Prove | Every fixed case joins the evaluation set, so the set grows with use. Before any change to the assistant's instructions, its model or its vocabulary, the set is run and compared with the last run. Values are checked against independently computed numbers, not read by eye. A hidden set, written and run by a session that does not edit the assistant, is replaced every quarter so it cannot be learned | the evaluation design exists; the runs are paid and need the owner's approval of the spend |
-| 5. Publish | A scoreboard, one line a week: built in one turn, honest refusals, value agreement, kept after seven days, median cost, time to preview. Stamped with the engine version and the assistant's instruction version, so a drop is traceable to the change that caused it | lane S-M |
+| 0a | Merge this plan. Someone authorised must do it: this session's merge was refused by policy | the plan and its requests are on master |
+| 0b | Re-file the requests in the right lists, with repro commands (section 10) | each row is on master in its owner's list |
+| 0c | Rebase the two local code branches onto master; run their engine-free tests through the lock for the first time | the three test files pass, with a totals line |
+| 0d | Ship the reference placeholder fix | 0 placeholders on the rendered page |
 
-**What the system accumulates, beyond scores.** Owner-approved starter-library indicators
-become worked examples the assistant can be shown (how is the authoring owner's call). House
-definitions accumulate so a term means one thing. The Pine reference is rebuilt from each
-engine version, so what the assistant and the member are told is possible is never far
-behind the engine.
+### Phase 1. Open it and make it measurable
 
-**Rules of the loop (D18).** No member text without the member's press. No change without a
-before and after on the set. A regression on the hidden set blocks the change. Numbers that
-gate anything are derived from a measured run, never chosen in advance.
+| lane | work | by | proof |
+|---|---|---|---|
+| O | Section 8, steps O1 to O7 | this track, Indicators reviews | a brand-new account and an admin with no browser switch both reach the dock; the reversal acts within the rehearsed time |
+| L1 | Version stamps | this track, Indicators reviews | every new turn row carries all four stamps |
+| F1 | The first-run card and its three examples; staged wait text, cancel, allowance line | this track, Indicators reviews | X3 timed with the owner |
+| P1 | Indicator commands in the command palette | this track | X2 |
+| C1 | Capture (section 7): our own transcripts as cases, the baseline live run, the hidden set sealed | this track; the hidden set by a separate session | the baseline numbers exist, stamped |
 
-**Lane S-M, the measuring half (this track owns it; the fixes belong to their owners).**
-The weekly page and the scoreboard, generated from what is recorded, kept local while the
-numbers include cost. First issue from the admin turns already recorded. Proof: the page
-exists for two consecutive weeks and at least one row from it was routed and closed. Stop
-rule: none; this is the lane that does not end.
+### Phase 2. One place
+
+| lane | work | by | proof |
+|---|---|---|---|
+| M0 | Three mock-ups of the window, the "+ New indicator" menu and the first-run card; the owner picks | this track | the owner's pick, dated. Nothing below is built before it |
+| N1 | One name: "indicator" across the Builder, saved list, library, share pages, navigation | this track; Indicators and formulas pages review | X6 |
+| H1 | The window: Mine, UCT and Members tabs, the "+ New indicator" menu, the states in section 6, the install receipt | this track, Indicators reviews | X1, X5 |
+| H2 | Phone: search, tabs and "+ New indicator" in the phone sheet; the dock as a half sheet | this track, Indicators reviews | X4 |
+| V1 | History beside Undo in the dock, reading the existing history door | this track, Indicators reviews | a member returns to an earlier version without leaving the dock |
+
+### Phase 3. Make it smarter
+
+| lane | work | by | proof |
+|---|---|---|---|
+| H | **The house set.** About twenty indicators traders build first, each described to Create Indicator and recorded as built in one turn, needed refinement, or could not be built. The owner looks at each on a chart. Approved ones fill the UCT tab and become worked examples (L5); each failure is a ranked gap | this track; the owner approves each | at least 12 of 20 approved by the owner; every failure filed in its owner's list |
+| L3, L4 | Colour registry and house definitions, starting with the two errors already measured (a requested green came back teal; "ADR %" used a nonstandard definition) | this track, Indicators reviews | both cases are evaluation cases and pass; the parity test fails if a twin drifts |
+| L2 | The regression gate becomes the rule | Indicators | a change to the instructions without a before and after is refused in review |
+| L5 | Worked examples | this track, Indicators reviews | the baseline one-turn build rate rises on the evaluation set with examples on, with no fall on the hidden set |
+| L6, L7, L8 | Demand mining, the wanted signals, "Send this to UCT" | this track; Indicators and support loop review | the daily digest ranks authoring gaps; a sent report is retrievable and deletable |
+
+### Phase 4. Fill the real gaps
+
+| lane | work | by | proof |
+|---|---|---|---|
+| R1 | **Run over a list, from the chart.** A row action on each of Mine and on the legend chip, opening the existing run flow with the indicator already chosen; the "No scannable formulas yet" state offers it. A numeric line goes through the existing threshold builder | this track, Screener reviews | X1 for J5; a run started from a chart finishes with the existing receipt |
+| R2 | **Pine names in the reference.** First cut straight from the generated name coverage that already exists, so it is current by construction: every Pine built-in, whether it runs, and the reason when it does not. Then this track's measured layer on top: the answer at the chart door under each access profile, stamped "measured at N, current M" and hidden per name when stale | this track; formulas pages review | a Pine author finds `ta.rsi` and `request.security` and reads whether each runs |
+| R3 | **A downloadable reference** generated from the same data, for members who write Pine with their own assistant, and "Paste what your assistant wrote" as the path back in | this track | the file regenerates from the data with no hand edits |
+| R4 | **The verdict on a shared indicator.** The saved row's verdict and the engine version on the share preview and on install | Pine engine (request) | the installer sees the headline the author saw |
+| R5 | **Inspect a bar.** For a pinned bar, the value of every named top-level variable in the script, with "why is this empty" linking to the line. Built by deriving a probe copy of the script that plots each named variable, running it through the same door, and reading the columns: no new engine internals. The engine provides two small exports: a headless "definition to columns for these bars", and the script's top-level names with line numbers. Stated limits: no variables local to a block; the probe's own verdict is shown if it differs | this track; Pine engine for the two exports | on 20 scripts, plotted values equal the legend, and each inspected variable equals the same expression plotted by hand, on production |
+| R6 | **Load time.** A budget for an indicator's time to draw, shown on library and share cards, and a refusal to publish over it | this track; Pine engine advises | the number on the card equals a fresh measurement |
+
+### Continuous. The loop
+
+Daily: the digest and the scoreboard. Weekly: the top three rows are routed to an owner's
+list and the previous week's are checked closed. Proof: a row that was routed is closed with
+a stamped before and after. This is the lane with no end.
+
+## 10. Requests, re-filed
+
+| id | was | now |
+|---|---|---|
+| R1 (verdict readable without React) | to the engine | WITHDRAWN as a blocker: the reference builds under the test runner as the existing coverage file does. Kept as a note on bundle size for when an in-app surface imports the verdict |
+| R2 (admin gate for the status panel) | to the engine | WITHDRAWN: the panel opens to everyone (O4) |
+| R3 (named intermediate values) | to the engine | REPLACED by two small exports (lane R5); `requests.md` |
+| R4 (verdict on share) | to the engine | STANDS; `requests.md`, with the served-row fields named |
+| R6 (the Pine name map) | to the engine | WITHDRAWN: `pineBuiltins.json` is that list |
+| R7 (check the door against the cost and safety list) | to authoring | ANSWERED by the adversarial review; two gaps remain and are in the launch-readiness list (spend recording that fails closed; a separate measuring budget). Indicators backlog |
+| R8 (paste mode, version list, report button, read-back first) | to authoring | folded into lanes H1, V1, L8; Indicators backlog |
+| R9 (phrases refused before the model) | to authoring | CLOSED: none are |
+| R10 | - | withdrawn in v7 |
+| R11 (an "Indicators" toolbar entry) | to the menus | WITHDRAWN: the button was retired on purpose. The window is the map; the palette is the fast way in |
+| R12 (four signals and a send button) | to authoring | REDUCED to what does not exist: "undone", a hashed id on "saved", the seven-day join, and a "converse" kind on the existing report door. Indicators backlog |
+| R13 (new) | - | Screener: confirm lane R1 composes the existing run door and adds no second one; `requests.md` |
+
+## 11. Decisions
+
+| id | ruling |
+|---|---|
+| D1 | Adapted copies: built last, shipped only under section 13 |
+| D2 | This track builds no new model door. The existing one keeps its own model and metering |
+| D3 | The status panel opens to every account (was: admins first) |
+| D4 | Sharing is for members. No public links |
+| D5 | PROPOSAL, not a description: no hide-source control exists, and the last change to sharing went the other way (the source is disclosed). If hiding is ever built, its warning says the script still reaches the browser. A licence line on publish is in the launch-readiness list |
+| D6 | The Studio session speaks for this track |
+| D7 | No competitor material in this repository |
+| D8 | Pine is the only scripting language; one runtime |
+| D9 | Nothing is saved or applied without a press. (Synced shares do not exist; if built, an update is never applied silently) |
+| D10 | This track's measured layer of the reference is opt-in and never fails an engine change. The base layer rides the generated coverage file, which the engine's own change already regenerates |
+| D11 | Member text and script-drawn text render as plain text. Shares and listings are in the account-deletion manifest (verified). Takedown and a publish limit come before launch |
+| D12 | Plain-English authoring is the existing patch-based layer. No second one |
+| D13 | = rule P1 below |
+| D14 | The home is the existing Indicators window. No new door, no toolbar button |
+| D15 | A request exists once it is on master, in its owner's list, in that list's format |
+| D16 | Create Indicator opens to every paid account now (section 8). The staged pilot is not followed before launch |
+| D17 | House style, the commitments in section 6, and the owner's look at each rendered surface |
+| D18 | The learning loop of section 7. No member text without a press; nothing rewrites itself in production |
+| D19 | One member-facing name: indicator |
+| D20 | One verdict from two authorities: the editor's status for text, the served row for anything saved |
+| D21 | This track may write changes to non-engine surfaces as reviewed pull requests; engine paths stay read-only |
+| D22 | Gating numbers are derived from a measured run, never chosen in advance |
+
+**Rule P1, census before design.** No lane is designed until what already does that job has
+been read in code, across `docs/indicators/`, `docs/pine/`, `app/src` and `api`, under more
+than one name for the thing. Four times this plan designed something that existed: an
+authoring dock, a reference page and library, a rollout plan, and a run-over-a-list
+surface. Each time the search had been pointed at one folder.
+
+## 12. What the competitor research adds, and where it is still thin
+
+Applied in this plan: a palette-first entry and example chips (F1, P1); mine, shared and
+house indicators in one list (H1); one input for describing and converting (the "+ New
+indicator" menu); versions in the authoring header (V1); a populated library on day one
+(lane H); a downloadable reference for members who use their own assistant (R3); a load
+budget (R6); and, as the headline the competitor cannot match on the public record, **one
+indicator runs on the chart, in a screen and in an alert**.
+
+Where this product is already stronger: the engine, not a model, states what was built;
+refusals are honest (29 of 30 impossible requests refused plainly, none answered with a
+look-alike); and indicators already reach the Screener and alerts.
+
+Owner decisions the research raises:
+
+1. **Authors on the library.** Published indicators show no author, by an earlier decision.
+   The competitor's library filled in weeks with named authors, saves and comments. Names
+   and a save count are the smallest step; comments and rewards are larger.
+2. **A setup wizard and voice input** in the dock. Not planned; say if wanted.
+
+Not verified in the research, to be checked before any claim is made in public: whether
+the competitor's custom indicators work on its phone apps, in its alerts and under replay;
+the size of its daily allowance; its current price. Two other products' assistants (one
+that writes and repairs Pine in the editor, one that checks its own output against a
+screenshot and logs) were read from their public pages and not used hands-on.
+
+## 13. Deferred, and what this track will not do
+
+| item | returns when |
+|---|---|
+| Every plot as a screener column; intraday screens; per-run input overrides | Screener and engine work; the server interpreter serves screens |
+| A model that writes Pine | Pine authors ask for it, or adapted copies are approved |
+| Adapted copies | all eight conditions hold: a Pine-writing model that meets a measured bar on a hidden set (the bar derived from its first run); no output dropped; a line-by-line view of what changed before install; a forced "Adapted: " name and badge that travels with shares; the original refusal still counted in demand; never for strategies; offered only where the engine refuses; "your original now runs, switch?" when it later does |
+| A separate community feed | not planned; the Members tab is the library |
+| Side-by-side instruction versions; model routing | section 7, L9 |
+
+This track will not: edit engine-owned files or bump the engine version; add a second
+scripting language, runtime or authoring door; save or apply anything without a press; show
+a model's description of its own output as a verdict; copy a competitor's documents,
+formulas or members' scripts.
+
+## 14. What has been measured
+
+On production as the synthetic account, 2026-11-14, unless marked.
+
+| finding | evidence |
+|---|---|
+| Impossible requests are refused honestly | 30 through the full turn: 29 refused naming what is missing, 1 correct clarifying question, 0 look-alikes |
+| Nothing is refused before the model | 60 prompts through the model-free half: 0 stopped |
+| Ordinary requests build in one call | 7 of 30 run; 7 built. Judged by reading the patch, by the session that wrote the prompts, not applied and not value-checked. This is thin |
+| Two of those seven were wrong in a way a trader sees at once | a requested green came back teal; "ADR %" was built as range over close |
+| The planner attaches unrelated terms on some sentences | "email ... at the close" read as the close series; it did not mislead the model on this set |
+| Columns the app already has are refused at the chart door | institutional ownership, analyst targets |
+| The hourly limit is 40 turns per member, shared between the two authoring doors, and resets on every deploy | read in code; a measuring run hits it |
+| The reference page prints placeholders | 85 of 86 functions |
+| The library is empty | seen |
+| No test of this track's own code has ever run | the heavy lock was held throughout 2026-11-14 |
+
+Not measured at all: whether a built indicator's values are right; subtle impossible
+requests; the cost of a turn that builds; anything on a phone.
+
+## 15. Resume here
+
+**State at 2026-11-15.**
+
+| branch | holds | state |
+|---|---|---|
+| `docs/studio-track-plan` | this plan | pushed; the pull request is open, checks green; NOT merged (this session's merge was refused by policy) |
+| `fix/formula-reference-placeholders` | lane 0d | one local commit, not pushed, far behind master, tests never run |
+| `feat/studio-s1-reference` | the measured reference layer (lane R2, second half) | one local work-in-progress commit, untested, not pushed; it carries an old copy of this plan and of `requests.md`, to be dropped on rebase; its folder is to be renamed `indicatorKit` |
+
+Worktree: `uct-worktrees/studio-s1` (sparse). It holds an untracked copy of the six files on
+the feature branch, identical when checked; remove it before checking that branch out.
+
+**Next, in order:** phase 0 (0a needs the owner or the coordinator), then lane O and L1
+together, then M0, because nothing in phase 2 is built before the owner picks a direction.
+
+**Open for the owner:**
+1. Merge the plan's pull request.
+2. Pick from the three mock-ups when M0 brings them.
+3. The daily allowance per member and the shared reserve (O6).
+4. Authors on the library (section 12).
+5. May an indicator read fundamentals columns the app already has, as "UCT data"?
+6. Approve each house indicator (lane H).
+
+**Kept outside this repository:** the competitor review, prompt sets and results, the
+hidden set, screenshots, and anything with cost figures.
+
+## 16. What the six reviews changed (v8 to v9)
+
+| review | what it found | change |
+|---|---|---|
+| Code census | Running a saved indicator over a list already exists end to end in the Screener; the Indicators window already has the authoring entry; a retired toolbar button was about to be re-requested; a support loop, a daily digest, a name-coverage file and version history exist; two decisions described features that do not exist; three names were already taken | Section 3 rewritten; S6 became lane R1; R11 withdrawn; D5 and D9 corrected; `indicatorKit` |
+| Competitor research | Thorough on the product's internals, thin on its public side; eight captured findings had been dropped without a ruling | Section 12; lanes F1, R3, R6; two owner questions |
+| Product and interface | Seven doors onto authoring, six names for one object, the library unreachable from the desktop navigation, no create door on a phone | Sections 5 and 6: one home, one name, a first-run card, a half-sheet dock |
+| Model and learning systems | The evaluation runner is built, not just designed; no turn records which instructions produced it; the colour and definition errors have a systematic cause | Section 7: stamps first, the registries, retrieved examples, capture now |
+| Engine fit | Seven verdict surfaces, so "one headline" was false; six owners, not two; half the requests were in the wrong list and none in the list's format; the inspector needs two small exports, not new engine internals | Sections 4, 5 and 10; lane R5; D10, D20 |
+| Adversarial | Tagging accounts does not open the door for admins or for accounts created later; one shared daily reserve that this track's own runs can exhaust; the runtime lane must not widen before the capability worker; no takedown, publish limit or licence line; v8 still encoded the pilot | Section 8 and its launch-readiness list |
+
+Earlier history, in one line each: v1 and v2 planned a new authoring dock and a Pine-writing
+model; v3 found the dock already existed; v4 found the reference, library, share links and
+templates; v5 added production measurements; v6 a resume point; v7 found the requests had
+never reached master; v8 added the experience and learning sections and found the rollout
+proposal.
