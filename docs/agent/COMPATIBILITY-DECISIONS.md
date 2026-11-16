@@ -54,3 +54,11 @@ PR "agent/qa/capability-regression"._
 - Binds: ecaa36372f92d625->f120df6120320124
 - Why: as BASELINE:grid.add-count.reuses-one.
 - Replacement protection: as BASELINE:grid.add-count.reuses-one.
+
+### BASELINE:GW-19.daily-charts-each-with-50sma — a requested symbol already shown is reused, not duplicated (4 charts → 3; sameSize → tiled + exact sizes)
+- Date: 2026-11-14
+- Decided by: owner, D18 item 3 (typed to the Lead, 2026-11-14T23:10:56Z), verbatim: "3. EXISTING CHART REUSE: When a user requests a set of charts and one of those symbols is already displayed, reuse that chart by default rather than creating an unnecessary duplicate. Preserve the existing chart unless the user explicitly authorizes replacing it. Explicit requests for another or duplicate chart should create a new one." Signed by the Lead under owner directive D19 (the Lead may sign only the two #1275 reuse baseline entries, after AUDIT's T2), following AUDIT's T2 GO on #1275 at e70f02bedf.
+- Binds: 232ab142de25f667->3ebe06e6aba2a583
+- Why: on board ONE (c1 = NVDA daily), "open daily charts for AAPL, MSFT and NVDA, each with a 50 SMA" now reuses c1 as the NVDA chart instead of adding a duplicate NVDA: 3 charts (c1 + AAPL + MSFT) instead of 4. c1 keeps its identity, symbol and settings. It is re-tiled (arrangement, not replacement) and gains the 50 SMA the member asked for (additive, named in the receipt, undone exactly). With 3 charts the tiles are 12x10, 12x10, 24x10, so `charts.sameSize` cannot hold; the receipt says "re-tiled" (not "evenly") unless every cell is equal (38438a3076).
+- Replacement protection: GW-19 now pins `charts.count` 3, `symbolSet`, `keepsIds ["c1"]`, `indicatorsEach.except []`, `charts.tiled: true` (no overlap, no gap) and `charts.sizes ["12x10","12x10","24x10"]` (exact, order-free), plus `restored` on undo. A copy is still made on explicit copy intent (agentChartReuseD18.test.jsx); the truthful receipt is pinned by agentGridEvenlyReceipt.test.js.
+- Note, v2 L05 (app/src/agent/__fixtures__/program/v2-acceptance.json, not in the capreg lock, so no rail requires a decision): under the same owner decision, "prune amd out of Momentum and bring up what remains" reuses the chart already showing NVDA (expect.charts 2 → 1), now also pinning `symbol {c: NVDA}` and the reuse receipt "NVDA is already on your board — I used that chart".
