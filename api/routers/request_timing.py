@@ -13,7 +13,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query
 
 from api.middleware.auth_middleware import require_admin
-from api.services import request_timing
+from api.services import request_timing, snapshot_hl
 
 router = APIRouter(tags=["request-timing"])
 
@@ -23,4 +23,7 @@ def admin_request_timing(
     hours: int = Query(default=24, ge=1, le=request_timing.RETENTION_DAYS * 24),
     _admin: dict = Depends(require_admin),
 ) -> dict[str, Any]:
-    return request_timing.summary(hours)
+    out = request_timing.summary(hours)
+    # The whole-market snapshot helper process (api/services/snapshot_hl.py): counters only.
+    out["snapshot_child"] = snapshot_hl.stats()
+    return out
