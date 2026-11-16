@@ -183,3 +183,63 @@ describe('a `var string` in a drawing text is read from its writes', () => {
     expect(diagText(u)).toMatch(/pine:type/)
   })
 })
+
+// ─── a cell that never runs on a chart of this period ────────────────────────────────────
+// The shape of volume-pace-pressure-table (its own text is reference-only and not copied here):
+// an intraday table whose cells read `var string`s written only on intraday bars, and a daily
+// table beside it. On a daily chart TradingView draws only the daily table (licence-held
+// captures s4-prove-drawn 2026-11-14, RDDT and SPY 1D: one 2 x 3 table, six cells, no pace cell).
+const TWO_TABLES = [
+  '//@version=5',
+  'indicator("two tables", overlay = true)',
+  'var string pace = na',
+  'if timeframe.isminutes and timeframe.multiplier < 60',
+  '    pace := "+" + str.tostring(volume - volume[1], "#,###")',
+  'if barstate.islast',
+  '    if timeframe.isminutes and timeframe.multiplier < 60',
+  '        var table intra = table.new(position.bottom_right, 2, 1)',
+  '        table.cell(intra, 0, 0, text = "Pace:")',
+  '        table.cell(intra, 1, 0, text = pace)',
+  '    if timeframe.isdaily or timeframe.multiplier >= 60',
+  '        var table daily = table.new(position.bottom_right, 1, 1)',
+  '        table.cell(daily, 0, 0, text = "Vol: " + str.tostring(volume))',
+  'plot(close)',
+].join(LF)
+
+describe('a cell whose block never runs on a chart of this period loses nothing', () => {
+  it('the never-running cell is named (`neverRunOps`), not dropped; the program is not a loss', () => {
+    const t = translatePine(TWO_TABLES, { strict: true, objects: true })
+    const d = t.objectDiagnostics || {}
+    expect(d.neverRunOps || []).toEqual(['cell@10'])
+    expect((d.dropReasons || {})['cell:text'] || 0).toBe(0)
+    expect(d.droppedOps || 0).toBe(0)
+  })
+
+  it('the member door attaches it with nothing lost (production lane)', () => {
+    production()
+    const d = door(TWO_TABLES)
+    expect(d.ok).toBe(true)
+    const r = registry.installUserDefinitions([d.definition])
+    expect(r.installed.length).toBe(1)
+    expect(((d.translation || {}).objectDiagnostics || {}).droppedOps || 0).toBe(0)
+
+    // the period the guard was folded at rides on the document, so a chart of a period where the
+    // intraday cell WOULD run refuses the drawings by name (`periodReads.js::periodReadsObjectRefusal`)
+    const pr = d.definition.meta && d.definition.meta.periodReads
+    expect(pr).toBeTruthy()
+    expect(pr.objects).not.toBe(false)
+  })
+
+  it('⛔ control: the same unreadable cell under a guard that runs on SOME bars is still dropped, by name', () => {
+    const src = TWO_TABLES.replace('    if timeframe.isminutes and timeframe.multiplier < 60
+        var table intra',
+      '    if close > open
+        var table intra')
+    expect(src).not.toBe(TWO_TABLES)
+    const t = translatePine(src, { strict: true, objects: true })
+    const d = t.objectDiagnostics || {}
+    expect(d.neverRunOps || []).toEqual([])
+    expect((d.dropReasons || {})['cell:text']).toBe(1)
+    expect(JSON.stringify(d.cellTextWhy || [])).toContain(STRING_VAR_NA_SEED_WHY.slice(0, 40))
+  })
+})

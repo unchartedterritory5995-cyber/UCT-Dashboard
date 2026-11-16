@@ -25177,6 +25177,11 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     /** ⭐ C45 / C48 (review round 2) — a guard term NOT decided before bar 0: the op
      *  runs only on some bars (read by `colorNodeOf` through `varies`, below). */
     let canonicalVaries = false
+    /** ⭐ DOOR-ROBUSTNESS — a conjunct whose value is the SAME on every bar and false
+     *  (`decidedTest`: literals and chart-period reads folded at this translation's period,
+     *  never an input), so the op never runs on a chart of this period. Read only where a
+     *  conversion would otherwise count a loss (`neverRunOps`). */
+    let decidedFalse = false
     // ⭐ C20 — a drawing inside a runtime `while` runs where the run ARRIVES at
     // its statement, pass by pass — whatever the guards say, and even with none
     // (a `continue` above it skips it on some passes, which no guard shows).
@@ -25283,6 +25288,10 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       if (inRtLoop) continue
       let ast = canonicalOf(node)
       if (ast && !bindTimeConstantTree(ast) && decidedTest(ast) === null) canonicalVaries = true
+      if (ast && !rawTrees) {
+        const decided = decidedTest(ast)
+        if (decided !== null && (g.negate ? decided !== 0 : decided === 0)) decidedFalse = true
+      }
       if (!ast) {
         if (rtOp && rtAdmits(lastCanonRefusal)) { needReached = true; continue }
         // ⭐⭐ C33 — AN `and` WITH A TERM THIS READER CANNOT READ, GATED BY AN INPUT.
@@ -25382,6 +25391,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     // unchanged.
     const varies = !!(lastBarOnly || requiresLive || requiresEmpty || unknownGuard || needReached
       || liveParts.length || canonicalVaries)
+    const never = decidedFalse && !needReached && !unknownGuard
     if (needReached) {
       if (unknownGuard) return undefined
       // ⛔ Only a guard made of VALUES: object state (a liveness test, a getter,
@@ -25393,10 +25403,10 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     }
     const ref = acc === null ? null : internTree(acc)
     if (acc !== null && ref === null) return undefined
-    if (!liveParts.length) return { when: ref, extra, varies }
+    if (!liveParts.length) return { when: ref, extra, varies, ...(never ? { never } : {}) }
     // ⭐ The pure conjunction stays ONE tree; the live parts AND onto it.
     const parts = ref ? [ref, ...liveParts] : liveParts
-    return { when: parts.length === 1 ? parts[0] : { v: 'bool', op: 'and', args: parts }, extra, varies }
+    return { when: parts.length === 1 ? parts[0] : { v: 'bool', op: 'and', args: parts }, extra, varies, ...(never ? { never } : {}) }
   }
 
   const namedOrPositional = (args, order) => {
@@ -26103,6 +26113,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       const raw = namedOrPositional(op.args, CELL_POSITIONAL)
       const props = {}
       let badCell = false
+      let neverRunText = false
       for (const [k, node] of Object.entries(raw)) {
         if (!OBJECT_CELL_PROPS.includes(k)) { unsupportedProp('cell', k, node); continue }
         const cellRefusalBefore = lastCanonRefusal
@@ -26121,6 +26132,12 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
           // ⭐ P2 — the sentence behind a `cell:text` count, as `createDropWhy`
           // gives a create's (diagnostics only; nothing reads it to decide).
           // ⭐ W3-S1 — the text reader's own named refusal when no canonical one was written.
+          // ⭐ DOOR-ROBUSTNESS — a cell whose block NEVER runs on a chart of this period (`g.never`:
+          // its guard is false on every bar, e.g. `if timeframe.isminutes` folded on a daily
+          // translation) loses nothing when its text cannot be read: TradingView never draws it
+          // here either, and a chart of a period where it would run refuses the drawings by name
+          // (`periodReads.js::periodReadsObjectRefusal`). Named (`neverRunOps`), never counted.
+          if (k === 'text' && g && g.never) { neverRunText = true; break }
           if (k === 'text') {
             const r = lastCanonRefusal !== cellRefusalBefore ? lastCanonRefusal
               : lastTextRefusal !== textRefusalBefore ? lastTextRefusal : null
@@ -26141,6 +26158,12 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
           break
         }
         props[k] = v
+      }
+      if (neverRunText) {
+        diagnostics.neverRunOps = diagnostics.neverRunOps || []
+        const e = `cell@${op.line === undefined ? '?' : op.line}`
+        if (!diagnostics.neverRunOps.includes(e)) diagnostics.neverRunOps.push(e)
+        continue
       }
       if (typeof badCell === 'string') { dropped(badCell); continue }
       if (badCell) { dropped('cell:text'); continue }
