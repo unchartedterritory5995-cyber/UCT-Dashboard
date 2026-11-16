@@ -1244,6 +1244,11 @@ function otherChartMeant(text, charts, dest, ops) {
  *  or after a preposition (the LOCATION: "add RSI to the other one"), or when nothing named before it is a thing the "one" can
  *  stand for. As the verb's object after such a thing ("I drew two lines, delete the other one") it is that thing, not a chart. */
 const ONE_IS_A_THING = /\b(?:drawings?|lines?|trend ?lines?|rays?|rectangles?|boxe?s?|circles?|arrows?|fibs?|fibonacci|channels?|notes?|labels?|indicators?|studies|study|alerts?|levels?|tabs?|layouts?|lists?|watchlists?|widgets?|templates?|panes?|colou?rs?)\b/i
+/** ⛔ AUDIT probe 62 (chartRail's removal-pronoun ANTECEDENT): is this one word a thing ON a chart — a chart-surface noun (PLACED), a
+ *  thing "one" stands for (ONE_IS_A_THING, less the containers a chart itself lives in: a tab, a widget, a layout), or an indicator
+ *  of the live catalog by its id (knownIndicator)? And is it a CHART word (CHARTISH)? The same readers as above, one word at a time. */
+export const thingWord = (w) => { const x = String(w || '').toLowerCase(); return !!x && (PLACED.test(x) || (ONE_IS_A_THING.test(x) && !/^(?:tabs?|widgets?|layouts?)$/.test(x)) || knownIndicator(x)) }
+export const chartishWord = (w) => CHARTISH.test(String(w || '').toLowerCase())
 function otherOneIsChart(text) {
   const s = String(text || '')
   const m = OTHER_CHART.exec(s)

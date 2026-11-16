@@ -38,6 +38,7 @@ import { instancesOf } from '../components/chart/builder/agentSeams'
 import * as nativeRegistry from '../components/chart/engine/nativeRegistry'
 import { tickersIn } from './multiChart'
 import { matchPosition } from './fastPath'
+import { pronounReferent } from './chartRail'
 
 export const STATE_RAIL_MARK = 'state-rail'
 
@@ -478,6 +479,9 @@ export function permits(e0, words, subjects = null, previous = null, previousSet
   // before / prev: the classes and the clause the latest earlier clause NAMED; spoke: an earlier clause said anything of
   // substance (named a thing, or asked for something) — then a pointer speaks of THAT, never of the conversation before
   let before = [], prev = '', spoke = false
+  let ref0 = null
+  // (a ticker here is no chart: "add AAPL to Tech, then remove it" is the list row — only a chart WORD types the pronoun a chart)
+  const referent = () => (ref0 ||= (() => { try { return pronounReferent(words) } catch { return { kind: 'none' } } })())
   const isSubject = () => !!e.id && !!subjects && subjects.has(e.id)
   for (const c of clausesOf(words)) {
     const named = Object.keys(CLASS).filter(k => CLASS[k].test(c))
@@ -539,6 +543,15 @@ export function permits(e0, words, subjects = null, previous = null, previousSet
         // (D19) "that indicator" / "this line" / "those emas": a demonstrative + class noun POINTS at the conversation's subject
         const demo = /^(?:that|this|these|those)\s+/i.test(obj) && Object.keys(CLASS).some(k => CLASS[k].test(obj.split(/\s+/).slice(0, 3).join(' ')))
         if (demo || POINTS.test(obj)) {
+          // ⛔ REFERENT TYPE (owner 11-16, AUDIT probe 62 — chartRail pronounReferent, the ONE reader both rails share): a destroying
+          // pronoun the words go on past ("take this down a timeframe", "clear it of drawings") destroys nothing; one whose
+          // antecedent is a CHART ("the SPY chart — close it") or a thing of another class ("draw a trendline and delete it")
+          // never licenses destroying THIS object
+          if (e.type !== 'overwrite' && !saving) {
+            const ref = referent()
+            if (ref.kind === 'cont' || ref.kind === 'chart') continue
+            if (ref.kind === 'thing' && ref.word) { const ks = Object.keys(CLASS).filter(k => CLASS[k].test(ref.word)); if (ks.length && !classesOf(e).some(k => ks.includes(k))) continue }
+          }
           const rest = demo ? obj.replace(/^(?:that|this|these|those)\s+/i, '') : obj.replace(POINTS, '')
           // "make it orange on the QQQ chart": a pointer narrowed by a class named after it must be that class
           if (named.length && !classesOf(e).some(k => named.includes(k)) && Object.keys(CLASS).some(k => CLASS[k].test(rest))) continue
