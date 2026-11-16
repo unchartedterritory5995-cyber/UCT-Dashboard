@@ -1383,6 +1383,24 @@ export function derivedSeriesTree(name, table) {
   if (!own(DERIVED_SERIES, name)) return null
   const parts = DERIVED_SERIES[name]
   if (parts.some((p) => !own((table && table.series) || {}, p))) return null
+  // ⭐⭐ `hlcc4` IS `(high + low + 2 * close) / 4`, AS TRADINGVIEW COMPUTES IT (NUMBER PENDING,
+  // 2026-11-16). The reference writes `(high + low + close + close) / 4`, and a left-to-right sum
+  // of four terms rounds twice where TradingView's rounds once, so the two differ in the last
+  // binary digit on some bars. WITNESSED: `h3-vwap-source-spy-1d-2026-10-02` S08
+  // (`ta.vwap(hlcc4)` on a daily chart, each bar its own session): this spelling, through the
+  // session's `(src * volume) / volume`, is TradingView's value bit for bit on 1800 of 1800 bars;
+  // the four-term sum is not (`hlcc4BitExact.test.js`). `2 * close` is exact, so the order of
+  // that product does not matter. A hand-written four-term sum keeps its own arithmetic.
+  if (name === 'hlcc4') {
+    return cOp('/', [cOp('+', [cOp('+', [cSeries('high'), cSeries('low')]), cOp('*', [cNum(2), cSeries('close')])]),
+      cNum(4)])
+  }
+  return meanTree(parts)
+}
+
+/** The left-nested mean `(a + b + …) / n` of bar fields: the reference's arithmetic for `hl2`,
+ *  `hlc3` and `ohlc4`, and a hand-written `(high + low + close + close) / 4`. */
+function meanTree(parts) {
   const sum = parts.map(cSeries).reduce((a, b) => cOp('+', [a, b]))
   return cOp('/', [sum, cNum(parts.length)])
 }
@@ -1405,6 +1423,10 @@ function isBarPriceSource(tree, table) {
   return ['open', 'high', 'low', 'close'].filter((n) => own((table && table.series) || {}, n))
     .map((n) => cSeries(n))
     .concat(['hl2', 'hlc3', 'ohlc4', 'hlcc4'].map((n) => derivedSeriesTree(n, table)).filter(Boolean))
+    // a hand-written `(high + low + close + close) / 4` is still a price the bar holds (the
+    // spelling `hlcc4` expanded to before it took TradingView's arithmetic)
+    .concat(['high', 'low', 'close'].every((n) => own((table && table.series) || {}, n))
+      ? [meanTree(['high', 'low', 'close', 'close'])] : [])
     .some((t) => JSON.stringify(t) === got)
 }
 

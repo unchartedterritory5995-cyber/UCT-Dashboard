@@ -153,7 +153,7 @@ describe.each([[RDDT], [SPY]])('C48 — the capture %s: what TradingView reads',
     expect(texts).toContain(`A13 block bar_index[5]|${lastIndex - 5}|bar_index-5|${lastIndex - 5}`)
     expect(texts).toContain(`B01 bar_index[k]|NaN|bar_index-k|${lastIndex - 5}`)
     expect(texts).toContain(`A14 block volume[5]|${txt(k5.v)}`)
-    expect(texts).toContain(`B03 hlcc4[k]|${txt((k5.h + k5.l + k5.c + k5.c) / 4)}`)
+    expect(texts).toContain(`B03 hlcc4[k]|${txt((k5.h + k5.l + 2 * k5.c) / 4)}`)
     expect(texts).toContain(`B06 local x[0]|${txt(last.c * 2)}`)
     expect(texts).toContain(`B07 param src[0]|${txt(last.c)}`)
     // `time_close[5]`: a daily bar's close is the next session's 00:00 UTC — after bar −5's open, before bar −4's

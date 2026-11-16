@@ -2817,14 +2817,28 @@ export const FN_BAR_PRICE_NEWEST = Object.freeze({
 
 /** ⭐⭐ ENGINE 56 (S4-2) — IS THIS CANONICAL SOURCE A PRICE THE BAR ITSELF HOLDS? `open`,
  *  `high`, `low`, `close`, or one of Pine's means of them exactly as `pine.js`'s
- *  `derivedSeriesTree` builds them (`hl2`, `hlc3`, `ohlc4`, `hlcc4`: a left-nested `+`
- *  of the fields over their count). Structural, so an `input.source(close)` reads as
+ *  `derivedSeriesTree` builds them (`hl2`, `hlc3`, `ohlc4`: a left-nested `+` of the
+ *  fields over their count; `hlcc4`: `(high + low + 2 * close) / 4`, and a hand-written
+ *  four-term sum is one too). Structural, so an `input.source(close)` reads as
  *  `close`. `volume` is not on it (a bar may carry none). The arg-extreme tie rule reads
  *  it: newest wins over such a source (witnessed), a tie over anything else is withheld.
  *  Python twin: `ast_interpret.py::is_bar_price_tree`. */
 const BAR_PRICE_FIELDS = ['open', 'high', 'low', 'close']
 const BAR_PRICE_MEANS = [['high', 'low'], ['high', 'low', 'close'], ['open', 'high', 'low', 'close'],
   ['high', 'low', 'close', 'close']]
+/** `hlcc4` as `derivedSeriesTree` builds it since it took TradingView's arithmetic:
+ *  `(high + low + 2 * close) / 4`. (The four-term sum above stays: a hand-written one is still a
+ *  price the bar holds.) Python twin: `ast_interpret.py::_is_hlcc4_tree`. */
+const isSeries = (t, name) => !!t && t.type === 'series' && t.name === name
+function isHlcc4Tree(sum, k) {
+  if (!k || k.type !== 'num' || k.value !== 4) return false
+  if (!sum || sum.type !== 'op' || sum.name !== '+' || !Array.isArray(sum.args) || sum.args.length !== 2) return false
+  const [hl, twoC] = sum.args
+  return !!hl && hl.type === 'op' && hl.name === '+' && Array.isArray(hl.args) && hl.args.length === 2
+    && isSeries(hl.args[0], 'high') && isSeries(hl.args[1], 'low')
+    && !!twoC && twoC.type === 'op' && twoC.name === '*' && Array.isArray(twoC.args) && twoC.args.length === 2
+    && !!twoC.args[0] && twoC.args[0].type === 'num' && twoC.args[0].value === 2 && isSeries(twoC.args[1], 'close')
+}
 export function isBarPriceTree(t) {
   if (!t || typeof t !== 'object') return false
   // ⭐ ENGINE 56 (S1) — a source the translator marked `tieNewest` (Pine v4 / v5: TradingView
@@ -2835,6 +2849,7 @@ export function isBarPriceTree(t) {
   if (t.type !== 'op' || t.name !== '/' || !Array.isArray(t.args) || t.args.length !== 2) return false
   const [sum, k] = t.args
   if (!k || k.type !== 'num') return false
+  if (isHlcc4Tree(sum, k)) return true
   const names = []
   let at = sum
   while (at && at.type === 'op' && at.name === '+' && Array.isArray(at.args) && at.args.length === 2) {

@@ -2638,6 +2638,30 @@ _BAR_PRICE_MEANS = (("high", "low"), ("high", "low", "close"), ("open", "high", 
                     ("high", "low", "close", "close"))
 
 
+def _is_series(t: Any, name: str) -> bool:
+    return isinstance(t, dict) and t.get("type") == "series" and t.get("name") == name
+
+
+def _is_hlcc4_tree(total: Any, k: Any) -> bool:
+    """``hlcc4`` as ``pine.js::derivedSeriesTree`` builds it since it took TradingView's
+    arithmetic: ``(high + low + 2 * close) / 4`` (witnessed bit for bit, h3-vwap-source S08).
+    The twin of ``interpret.js::isHlcc4Tree``; a hand-written four-term sum stays in
+    ``_BAR_PRICE_MEANS``."""
+    if not isinstance(k, dict) or k.get("type") != "num" or k.get("value") != 4:
+        return False
+    if not (isinstance(total, dict) and total.get("type") == "op" and total.get("name") == "+"
+            and isinstance(total.get("args"), list) and len(total["args"]) == 2):
+        return False
+    hl, two_c = total["args"]
+    return (isinstance(hl, dict) and hl.get("type") == "op" and hl.get("name") == "+"
+            and isinstance(hl.get("args"), list) and len(hl["args"]) == 2
+            and _is_series(hl["args"][0], "high") and _is_series(hl["args"][1], "low")
+            and isinstance(two_c, dict) and two_c.get("type") == "op" and two_c.get("name") == "*"
+            and isinstance(two_c.get("args"), list) and len(two_c["args"]) == 2
+            and isinstance(two_c["args"][0], dict) and two_c["args"][0].get("type") == "num"
+            and two_c["args"][0].get("value") == 2 and _is_series(two_c["args"][1], "close"))
+
+
 def is_bar_price_tree(t: Any) -> bool:
     """ENGINE 56 (S4-2) -- is this canonical source a price the bar itself holds?
     ``open``/``high``/``low``/``close`` or Pine's ``hl2``/``hlc3``/``ohlc4``/``hlcc4`` as
@@ -2655,6 +2679,8 @@ def is_bar_price_tree(t: Any) -> bool:
     total, k = args
     if not isinstance(k, dict) or k.get("type") != "num":
         return False
+    if _is_hlcc4_tree(total, k):
+        return True
     names: List[str] = []
     at = total
     while (isinstance(at, dict) and at.get("type") == "op" and at.get("name") == "+"
