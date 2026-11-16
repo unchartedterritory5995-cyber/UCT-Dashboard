@@ -214,6 +214,10 @@ of the symbol:
 header. The builder writes a period's pieces first and the index after them, so
 an index entry always describes a file that is already complete on disk.
 
+In pack mode (section 9) the index is written by `publish.py`, not the builder,
+and each entry also carries `off`: where the piece starts in its pack. The
+published index also carries `splits` and `splits_as_of` (factors.py).
+
 `ledger.json`: `{"v":1,"symbols":null | [...],"days":{"2026-11-13":{"size":27052524,"rows":1807599}}}`
 -- the day files already folded in, with each file's size in bytes. A rerun
 skips a listed day whose file size is unchanged.
@@ -268,3 +272,24 @@ that led to it.)
 Total 135.4 MB in 76,938 pieces. "bytes/bar" includes the ~196-byte header of
 every piece, which weighs on a five-day build of yearly pieces; "body" does not.
 Coarser bars cost more bytes each because their deltas are larger.
+
+## 9. Packs (build.py --packs)
+
+A file per piece costs 3-4 random disk operations per piece, and a month of 1m
+history is ~11,000 pieces: on a spinning disk ~1,000 s a month, over a day for
+the lake, and as long again to merge or upload. In pack mode every symbol's piece
+of one series and one period is ONE file, written front to back:
+
+    packs/<series>/<period>.pack
+    = piece blob 0 | piece blob 1 | ... | trailer JSON | u64 LE trailer length | "UBHPACK1"
+
+The trailer is `{"v":1,"series":..,"period":..,"pieces":{"<SYMBOL>":[off,len,bars,
+first,last,crc],...}}` (compact, keys sorted). Each blob is byte for byte the piece
+file section 3 describes. The trailer is inside the file, so a pack is written as
+`.tmp` and renamed once: a pack on disk is always whole.
+
+A period built over two runs is folded into its existing pack: a symbol in both
+is merged (section 5); a symbol only in the old pack is carried over unchanged.
+`publish.py` reads the packs, checks every piece header against its trailer
+entry, writes the indexes (section 6, with `off`), and uploads packs and then
+indexes. At the edge a piece is one ranged read of its pack.

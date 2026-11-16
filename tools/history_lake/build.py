@@ -56,9 +56,10 @@ if __package__ in (None, ""):  # script mode: python tools/history_lake/build.py
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import bucketing  # type: ignore[no-redef]
     import encode_job  # type: ignore[no-redef]
+    import pack  # type: ignore[no-redef]
     import piece  # type: ignore[no-redef]
 else:
-    from . import bucketing, encode_job, piece
+    from . import bucketing, encode_job, pack, piece
 
 SERIES = piece.SERIES_IDS
 RECORD = np.dtype([(k, "<i8") for k in piece.COLUMNS])
@@ -328,7 +329,8 @@ class _Block:
 class Builder:
     def __init__(self, raw: Path, out: Path, *, symbols: Optional[Iterable[str]] = None,
                  rebuild: bool = False, quality: int = piece.DEFAULT_QUALITY,
-                 foreign_rows: str = "error", chunk_rows: int = 1_000_000, jobs: int = 1, log=_log):
+                 foreign_rows: str = "error", chunk_rows: int = 1_000_000, jobs: int = 1,
+                 packs: bool = False, log=_log):
         self.raw, self.out = Path(raw), Path(out)
         self.symbols = frozenset(symbols) if symbols else None
         self.rebuild, self.quality = rebuild, int(quality)
@@ -339,6 +341,11 @@ class Builder:
         self.jobs = max(1, int(jobs))
         self._pool = None
         self._inflight = []                          # [(symbol, series, period, future)] oldest first
+        # --packs: each (series, period) is ONE file, packs/<series>/<period>.pack (pack.py), and no
+        # per-symbol index is written (publish.py derives the indexes from the packs).
+        self.packs = bool(packs)
+        self._pack_in = None                         # PackReader of the period being flushed, or None
+        self._pack_out = None                        # its PackWriter
         self.spill = self.out / "_spill"
         self.lock_path = self.out / "build.lock"
         self.ledger_path = self.out / "ledger.json"
@@ -488,7 +495,8 @@ class Builder:
         for key in sorted(keys):
             self._flush_one(key, index_updates)
         self._drain(index_updates, keep=0)
-        self._write_indexes(index_updates)
+        if not self.packs:
+            self._write_indexes(index_updates)
         for key in keys:
             for blk in self.open_periods.pop(key):
                 try:
@@ -503,11 +511,46 @@ class Builder:
         self.log(f"flushed {', '.join(f'{s}/{p}' for s, p in sorted(keys))} in {dt:.1f}s")
 
     def _flush_one(self, key: Tuple[str, str], index_updates: dict) -> None:
+        if not self.packs:
+            self._flush_rows(key, index_updates)
+            return
+        series, period = key
+        try:
+            self._pack_in = pack.PackReader.open(self.out, series, period)
+        except pack.PackError as exc:
+            raise BuildError(f"{exc} (move it aside to rebuild that period)") from exc
+        self._pack_out = pack.PackWriter(self.out, series, period)
+        try:
+            written = self._flush_rows(key, index_updates)
+            self._drain(index_updates, keep=0)
+            if self._pack_in is not None:
+                # symbols the pack already held that did not trade in these days: carried as they are
+                for sym in sorted(set(self._pack_in.symbols()) - set(written)):
+                    e = self._pack_in.entry(sym)
+                    self._pack_out.add(sym, self._pack_in.get(sym),
+                                       {"bars": e[2], "first": e[3], "last": e[4], "crc": e[5]})
+                # ⛔ Windows will not replace a file that is still open: close the old pack first
+                self._pack_in.close()
+            self._pack_out.close()
+        except BaseException:
+            for _, _, _, f in self._inflight:
+                f.cancel()
+            self._inflight.clear()
+            self._pack_out.abort()
+            raise
+        finally:
+            if self._pack_in is not None:
+                self._pack_in.close()
+            self._pack_in = self._pack_out = None
+
+    def _flush_rows(self, key: Tuple[str, str], index_updates: dict) -> List[str]:
+        """Gather each symbol's bars of this period from the spill blocks and write its piece.
+        Returns the symbols written, in order."""
         series, period = key
         blocks = self.open_periods[key]                       # in ascending day order
         union = sorted(set().union(*(b.names for b in blocks)))
         if not union:
-            return
+            return []
         union_arr = np.array(union)
         gidx = []                                             # per block: union index of each of its tickers
         totals = np.zeros(len(union), dtype=np.int64)
@@ -517,6 +560,7 @@ class Builder:
             np.add.at(totals, g, np.diff(b.offs))
         cum = np.cumsum(totals)
         g0 = 0
+        written: List[str] = []
         while g0 < len(union):
             base = int(cum[g0 - 1]) if g0 else 0
             g1 = int(np.searchsorted(cum, base + self.chunk_rows, side="right"))
@@ -542,18 +586,24 @@ class Builder:
             for s, e in zip(starts.tolist(), ends.tolist()):
                 symbol = union[int(gid[s])]
                 self._write_piece(symbol, series, period, {k: v[s:e] for k, v in cols.items()}, index_updates)
+                written.append(symbol)
             g0 = g1
+        return written
 
     def _write_piece(self, symbol: str, series: str, period: str, bars: dict, index_updates: dict) -> None:
-        path = str(self.out / piece.piece_relpath(series, symbol, period))
+        if self.packs:
+            existing = self._pack_in.get(symbol) if self._pack_in is not None else None
+            job = (encode_job.encode_blob, existing, symbol, series, period, bars, self.quality)
+        else:
+            job = (encode_job.write_piece, str(self.out / piece.piece_relpath(series, symbol, period)),
+                   symbol, series, period, bars, self.quality)
         if self.jobs == 1:
-            self._record(symbol, series, period, encode_job.write_piece(path, symbol, series, period, bars, self.quality),
-                         index_updates)
+            self._record(symbol, series, period, job[0](*job[1:]), index_updates)
             return
         if self._pool is None:
             from concurrent.futures import ProcessPoolExecutor
             self._pool = ProcessPoolExecutor(max_workers=self.jobs)
-        fut = self._pool.submit(encode_job.write_piece, path, symbol, series, period, bars, self.quality)
+        fut = self._pool.submit(*job)
         self._inflight.append((symbol, series, period, fut))
         self._drain(index_updates, keep=self.jobs * 4)     # bounded: the chunk's arrays are not all queued
 
@@ -570,6 +620,8 @@ class Builder:
             raise BuildError(f"{symbol} {series}/{period}: {res['error']}")
         if res["unchanged"]:
             self.summary["pieces_unchanged"] += 1
+        if self.packs:
+            self._pack_out.add(symbol, res["blob"], res)
         index_updates.setdefault(symbol, {}).setdefault(series, {})[period] = {
             "bars": res["bars"], "first": res["first"], "last": res["last"],
             "bytes": res["bytes"], "crc": res["crc"]}
@@ -652,12 +704,14 @@ def main(argv: Optional[List[str]] = None) -> int:
                     help="rows whose bar is not on the file's ET date: stop (default) or leave out")
     ap.add_argument("--chunk-rows", type=int, default=1_000_000, help="rows gathered per flush chunk")
     ap.add_argument("--jobs", type=int, default=1, help="processes that encode pieces (default 1)")
+    ap.add_argument("--packs", action="store_true",
+                    help="write one pack file per series and period (pack.py) instead of a file per piece")
     args = ap.parse_args(argv)
     symbols = [s.strip() for s in args.symbols.split(",") if s.strip()] if args.symbols else None
     try:
         summary = Builder(Path(args.raw), Path(args.out), symbols=symbols, rebuild=args.rebuild,
                           quality=args.quality, foreign_rows=args.foreign_rows,
-                          chunk_rows=args.chunk_rows, jobs=args.jobs).run(args.days)
+                          chunk_rows=args.chunk_rows, jobs=args.jobs, packs=args.packs).run(args.days)
     except BuildError as exc:
         print(f"BUILD FAILED: {exc}", file=sys.stderr)
         return 2

@@ -48,3 +48,18 @@ def write_piece(path: str, symbol: str, series: str, period: str, bars: dict, qu
     hdr = piece.read_header(blob)
     return {"bars": hdr["bars"], "first": hdr["first"], "last": hdr["last"], "crc": hdr["crc"],
             "bytes": len(blob), "unchanged": unchanged}
+
+
+def encode_blob(existing, symbol: str, series: str, period: str, bars: dict, quality: int) -> dict:
+    """Pack mode: the same piece, returned instead of written (the builder appends it to the
+    period's pack). ``existing`` is the piece already in the pack, or None."""
+    try:
+        if existing is None:
+            blob = piece.encode_piece(symbol, series, period, bars, quality=quality)
+        else:
+            blob = piece.merge_piece(existing, bars, symbol=symbol, series=series, period=period, quality=quality)
+    except piece.PieceError as exc:
+        return {"error": str(exc)}
+    hdr = piece.read_header(blob)
+    return {"blob": blob, "bars": hdr["bars"], "first": hdr["first"], "last": hdr["last"], "crc": hdr["crc"],
+            "bytes": len(blob), "unchanged": blob == existing}
