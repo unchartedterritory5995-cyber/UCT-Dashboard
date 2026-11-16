@@ -26,9 +26,10 @@ the window is all finite. A miss = not BIT-identical.
 | `ta.stdev` | all | 1 | 663 | n/a | 661 | 662 | 662 |
 
 - The 2,544 `ta.sma` misses left for the two exact sums are ALL in three captures from 2026-09-30 /
-  2026-10-01 (`vw-call-site-history-{rddt,spy}-1d-2026-10-01`, `vw-fn-series-history-rddt-1d-2026-09-30`),
-  where every reading misses at a relative error of at most 1.3e-15: the bar data or its serialisation of
-  that era, not the sum. Every capture taken from 2026-11-14 on: 0 for both.
+  2026-10-01 (`vw-call-site-history-{rddt,spy}-1d-2026-10-01`, `vw-fn-series-history-rddt-1d-2026-09-30`).
+  They are THAT ERA'S DATA, NOT THE SUMMATION: in those captures every reading misses, all four sums alike,
+  at a relative error of at most 1.3e-15 (the bars or their serialisation then differ from TradingView's
+  own operands in the last bits). Every capture taken from 2026-11-14 on: 0 for both exact sums.
 - `vw-pt-na-guard-and-spy` A02 (`ta.sma(close, 30)`, 8,479 SPY bars, an assigned plot the table's pattern
   does not pick up): exactly rounded 0, Neumaier 0, left-to-right 4,667, running 7,905. With the exact sum
   E02 reads 0 on bars 488 and 3009 (`x[bar] - x[bar - 1] === 0`).
@@ -115,6 +116,135 @@ it equals, `sma == sma[1]` on a flat window, alert conditions on those. Those no
 The certificate falls back to the partials on 0.7% of real SPY windows. The runtime pane's budget is 1,000 ms
 per pane (`RUNTIME_PANE_TIME_BUDGET_MS`); a script with ten sma(200) series pays about 35 ms more.
 
+### Server side (screener / alerts / backtests), this PC, outside the lock
+
+3,742 tickers x (`sma(50)` + `sma(200)`) x 1,500 daily bars, synthetic random-walk closes rounded to cents,
+through the exact code that runs:
+
+| lane | before | after |
+|---|---:|---:|
+| Python, `ast_interpret._rolling` (what `FN["sma"]` / `compute_sma` run), two runs each | 55.8 s, 50.9 s | **22.5 s, 22.8 s** |
+| JS columnar `interpret()` (the Pine runtime service's lane), two runs each | 46.4 s, 47.1 s | **4.1 s, 4.1 s** |
+
+⭐ The JS figure is the SLIDING form (`rollingExactSum`). `exactSum` per window alone measured 58.5 s here,
++28% over before, which is what made the sliding form necessary: for a series with no `na`, every add and
+subtract is a TwoSum, so `s` plus the sum of the errors is the window sum exactly after any number of steps.
+The same certificate (lost + the error bound strictly inside half a gap) gives the exactly rounded value in
+O(1) per bar; anywhere else the bar answers `exactSum` and the state restarts from that window. The old
+`skip` path allocated a fresh window buffer per bar, which is why the after figure is 11x faster than before
+rather than merely level. The runtime VM keeps the per-window reducer (it fills one ring per site; a script
+pays about 3.5 ms more per 5,000-bar sma(200), see above).
+
+The Python twin got FASTER: the left-to-right mean was a Python-level loop, `math.fsum` is one C call on the
+window slice. ⭐ The first draft scanned each window for NaN and infinity in Python before the call and was 3x
+SLOWER than before (200 tickers: 2.2 s -> 8.1 s); `math.fsum` already answers NaN for a NaN and the infinity
+for one-signed infinities, so the shipped twin hands it the slice and only catches its two raises (overflow,
+`inf + -inf`) to fall back to the left-to-right sum.
+
+## Armed alerts (server lane): a re-freeze of the fire log, approved
+
+`price_vs_ma` (`close - sma(close, n)`) is the one alert address on `sma`. Ruling (coordinator, 2026-11-16,
+under the owner's "you decide" mandate): RE-FREEZE, no second SMA authority; alerts agree with the chart and
+with TradingView. `docs/runbooks/alert-replay-gate.md` lists it as sanctioned re-freeze 3.
+
+1. **Value-blind proof.** Replaying all 11 frozen fixtures with the RETIRED left-to-right mean swapped back
+   into `ast_interpret` reproduces the previously committed `fire_log_forming.json` BYTE FOR BYTE: 11 / 11
+   fixtures, every block, every digest. The replay is therefore the recorded code, and the only thing the
+   re-freeze moves is the sum.
+2. **What moved under the exact sum.** 22 of 22 (fixture, k) blocks changed digest; 132 per-alert entries
+   moved and EVERY ONE is `price_vs_ma`. 25,454 fires present under both sums moved their VALUE only
+   (the last bits). 54 fire rows are present under ONE sum only, at 21 distinct (fixture, bar, alert)
+   points: each is an above/below pair swapping at one bar, or (spy_daily bar 282) a fire that neither side
+   gives once the value sits exactly on the threshold (`above` is `>`, `below` is `<`). Every one is an
+   EQUALITY EDGE: |value - threshold| is at most **3.79 ulps of the bar's close** (`close - sma` cancels, so
+   the same margin reads up to 877 ulps of the small threshold). None is a genuine move. Totals: spy_daily
+   k=1 29378 -> 29377 and k=4 114846 -> 114845 (it gives back the fire the 2026-08-09 SMA de-duplication
+   added); every other block total is unchanged; grand total 1,153,247 -> 1,153,245.
+3. **Re-frozen** with `tools/alert_replay.py --record --force` on this tree. `--record` does not carry the
+   log's `appended` / `rerecorded` provenance, so both were put back and this re-record appended as
+   `rerecorded[1]` with its reason and proof. `--check` after: FIRE LOG MATCHES, exit 0.
+   `tests/test_alert_replay.py`'s `_FROZEN_EIGHT` table is regenerated from the re-frozen log.
+   `tests/test_indicator_alert_evaluator.py` keeps its recording half untouched; its current-lane half now
+   names an independent `math.fsum` SMA, and 0 of 5,040 recorded `triggered` booleans flip.
+
+### Every fire that changed
+
+| fixture | k | bar | sample | alert (address / side / threshold) | fires under | value that fired | bar close | margin, ulps of the close | margin, ulps of the threshold |
+|---|---:|---:|---:|---|---|---:|---:|---:|---:|
+| spy_daily | 1 | 282 | 0 | price_vs_ma / above / -4.4846 | retired only | -4.484599999999887 | 682.85 | 1.00 | 128 |
+| spy_daily | 1 | 366 | 0 | price_vs_ma / above / 12.7158 | exact only | 12.715800000000058 | 740.96 | 0.52 | 33 |
+| spy_daily | 1 | 366 | 0 | price_vs_ma / below / 12.7158 | retired only | 12.715799999999945 | 740.96 | 0.48 | 31 |
+| spy_daily | 4 | 282 | 3 | price_vs_ma / above / -4.4846 | retired only | -4.484599999999887 | 682.85 | 1.00 | 128 |
+| spy_daily | 4 | 366 | 3 | price_vs_ma / above / 12.7158 | exact only | 12.715800000000058 | 740.96 | 0.52 | 33 |
+| spy_daily | 4 | 366 | 3 | price_vs_ma / below / 12.7158 | retired only | 12.715799999999945 | 740.96 | 0.48 | 31 |
+| wick_that_unwinds | 1 | 60 | 0 | price_vs_ma / above / 2.001 | exact only | 2.0010000000000048 | 102.85 | 0.34 | 11 |
+| wick_that_unwinds | 1 | 60 | 0 | price_vs_ma / below / 2.001 | retired only | 2.000999999999962 | 102.85 | 2.66 | 85 |
+| wick_that_unwinds | 4 | 60 | 0 | price_vs_ma / above / 2.001 | exact only | 2.0010000000000048 | 102.85 | 0.34 | 11 |
+| wick_that_unwinds | 4 | 60 | 1 | price_vs_ma / above / 2.001 | exact only | 2.0010000000000048 | 102.85 | 0.34 | 11 |
+| wick_that_unwinds | 4 | 60 | 2 | price_vs_ma / above / 2.001 | exact only | 2.0010000000000048 | 102.85 | 0.34 | 11 |
+| wick_that_unwinds | 4 | 60 | 3 | price_vs_ma / above / 2.001 | exact only | 2.0010000000000048 | 102.85 | 0.34 | 11 |
+| wick_that_unwinds | 4 | 60 | 0 | price_vs_ma / below / 2.001 | retired only | 2.000999999999962 | 102.85 | 2.66 | 85 |
+| wick_that_unwinds | 4 | 60 | 1 | price_vs_ma / below / 2.001 | retired only | 2.000999999999962 | 102.85 | 2.66 | 85 |
+| wick_that_unwinds | 4 | 60 | 2 | price_vs_ma / below / 2.001 | retired only | 2.000999999999962 | 102.85 | 2.66 | 85 |
+| wick_that_unwinds | 4 | 60 | 3 | price_vs_ma / below / 2.001 | retired only | 2.000999999999962 | 102.85 | 2.66 | 85 |
+| gap_open_5m | 1 | 156 | 0 | price_vs_ma / above / -0.5506 | retired only | -0.5505999999999744 | 240.01 | 0.90 | 230 |
+| gap_open_5m | 1 | 228 | 0 | price_vs_ma / above / 2.5058 | retired only | 2.5058000000001073 | 243.8 | 3.78 | 242 |
+| gap_open_5m | 1 | 156 | 0 | price_vs_ma / below / -0.5506 | exact only | -0.5506000000000313 | 240.01 | 1.10 | 282 |
+| gap_open_5m | 1 | 228 | 0 | price_vs_ma / below / 2.5058 | exact only | 2.5057999999999936 | 243.8 | 0.22 | 14 |
+| gap_open_5m | 4 | 156 | 3 | price_vs_ma / above / -0.5506 | retired only | -0.5505999999999744 | 240.01 | 0.90 | 230 |
+| gap_open_5m | 4 | 228 | 3 | price_vs_ma / above / 2.5058 | retired only | 2.5058000000001073 | 243.8 | 3.78 | 242 |
+| gap_open_5m | 4 | 156 | 3 | price_vs_ma / below / -0.5506 | exact only | -0.5506000000000313 | 240.01 | 1.10 | 282 |
+| gap_open_5m | 4 | 228 | 3 | price_vs_ma / below / 2.5058 | exact only | 2.5057999999999936 | 243.8 | 0.22 | 14 |
+| high_vol_5m | 1 | 87 | 0 | price_vs_ma / above / 0.1324 | exact only | 0.13240000000000407 | 124.2 | 0.29 | 147 |
+| high_vol_5m | 1 | 169 | 0 | price_vs_ma / above / 1.9702 | exact only | 1.9702000000000055 | 126.0 | 0.39 | 25 |
+| high_vol_5m | 1 | 87 | 0 | price_vs_ma / below / 0.1324 | retired only | 0.13239999999997565 | 124.2 | 1.71 | 877 |
+| high_vol_5m | 1 | 169 | 0 | price_vs_ma / below / 1.9702 | retired only | 1.9701999999999913 | 126.0 | 0.61 | 39 |
+| high_vol_5m | 4 | 87 | 0 | price_vs_ma / above / 0.1324 | exact only | 0.13240000000000407 | 124.2 | 0.29 | 147 |
+| high_vol_5m | 4 | 87 | 1 | price_vs_ma / above / 0.1324 | exact only | 0.13240000000000407 | 124.2 | 0.29 | 147 |
+| high_vol_5m | 4 | 87 | 2 | price_vs_ma / above / 0.1324 | exact only | 0.13240000000000407 | 124.2 | 0.29 | 147 |
+| high_vol_5m | 4 | 87 | 3 | price_vs_ma / above / 0.1324 | exact only | 0.13240000000000407 | 124.2 | 0.29 | 147 |
+| high_vol_5m | 4 | 169 | 3 | price_vs_ma / above / 1.9702 | exact only | 1.9702000000000055 | 126.0 | 0.39 | 25 |
+| high_vol_5m | 4 | 87 | 0 | price_vs_ma / below / 0.1324 | retired only | 0.13239999999997565 | 124.2 | 1.71 | 877 |
+| high_vol_5m | 4 | 87 | 1 | price_vs_ma / below / 0.1324 | retired only | 0.13239999999997565 | 124.2 | 1.71 | 877 |
+| high_vol_5m | 4 | 87 | 2 | price_vs_ma / below / 0.1324 | retired only | 0.13239999999997565 | 124.2 | 1.71 | 877 |
+| high_vol_5m | 4 | 87 | 3 | price_vs_ma / below / 0.1324 | retired only | 0.13239999999997565 | 124.2 | 1.71 | 877 |
+| high_vol_5m | 4 | 169 | 3 | price_vs_ma / below / 1.9702 | retired only | 1.9701999999999913 | 126.0 | 0.61 | 39 |
+| halfday_30m | 1 | 147 | 0 | price_vs_ma / above / 3.2288 | exact only | 3.228800000000092 | 683.6 | 0.81 | 207 |
+| halfday_30m | 1 | 147 | 0 | price_vs_ma / below / 3.2288 | retired only | 3.2287999999999784 | 683.6 | 0.19 | 49 |
+| halfday_30m | 4 | 147 | 3 | price_vs_ma / above / 3.2288 | exact only | 3.228800000000092 | 683.6 | 0.81 | 207 |
+| halfday_30m | 4 | 147 | 3 | price_vs_ma / below / 3.2288 | retired only | 3.2287999999999784 | 683.6 | 0.19 | 49 |
+| hourly_open_60m | 1 | 179 | 0 | price_vs_ma / above / -0.7018 | exact only | -0.7017999999999347 | 738.98 | 0.57 | 588 |
+| hourly_open_60m | 1 | 179 | 0 | price_vs_ma / below / -0.7018 | retired only | -0.7018000000000484 | 738.98 | 0.43 | 436 |
+| hourly_open_60m | 4 | 179 | 3 | price_vs_ma / above / -0.7018 | exact only | -0.7017999999999347 | 738.98 | 0.57 | 588 |
+| hourly_open_60m | 4 | 179 | 3 | price_vs_ma / below / -0.7018 | retired only | -0.7018000000000484 | 738.98 | 0.43 | 436 |
+| gap_daily | 1 | 132 | 0 | price_vs_ma / above / -1.3626 | retired only | -1.3625999999999934 | 27.29 | 1.88 | 30 |
+| gap_daily | 1 | 124 | 0 | price_vs_ma / above / -6.418 | retired only | -6.417999999999992 | 23.22 | 2.25 | 9 |
+| gap_daily | 1 | 132 | 0 | price_vs_ma / below / -1.3626 | exact only | -1.362600000000004 | 27.29 | 1.12 | 18 |
+| gap_daily | 1 | 124 | 0 | price_vs_ma / below / -6.418 | exact only | -6.418000000000003 | 23.22 | 0.75 | 3 |
+| gap_daily | 4 | 132 | 3 | price_vs_ma / above / -1.3626 | retired only | -1.3625999999999934 | 27.29 | 1.88 | 30 |
+| gap_daily | 4 | 124 | 3 | price_vs_ma / above / -6.418 | retired only | -6.417999999999992 | 23.22 | 2.25 | 9 |
+| gap_daily | 4 | 132 | 3 | price_vs_ma / below / -1.3626 | exact only | -1.362600000000004 | 27.29 | 1.12 | 18 |
+| gap_daily | 4 | 124 | 3 | price_vs_ma / below / -6.418 | exact only | -6.418000000000003 | 23.22 | 0.75 | 3 |
+
+### The deploy boundary: a live alert that already fired cannot fire again on that bar
+
+What protects it is the fire-once key, and the key holds no value (`api/services/alert_fired_log.py::fire_key`):
+
+- a LEVEL condition (`above` / `below`, which is what `price_vs_ma` offers) is keyed `ep:<arm_epoch>`, one
+  fire per armed episode. The episode moves only through `indicator_alert_service._rearm`, called from
+  `record_evaluation` when the condition is OBSERVED FALSE while the alert is `fired`. On a closed bar (the
+  closed lane, `indicator_alert_evaluator.ALERT_EVAL_MODE`'s default `"closed"`) the post-deploy value is one deterministic number, so the same bar cannot be
+  observed false and then true again: an alert that fired on bar t under the old sum and reads 1 ulp on the
+  other side under the new one RE-ARMS on bar t and can fire again only on a later bar where the condition is
+  true, which is the TradingView-consistent behaviour.
+- a CROSS condition is keyed `bar:<bar_time>` and `UNIQUE(alert_id, fire_key)` holds one fire per bar
+  whatever the value does. In the rollback `forming` lane, `prev` is the stored `last_value` written by the
+  old code, so an equality-edge alert could see one crossing at the deploy instant; it is still one fire per
+  bar at most.
+
+No guard is added: the existing key already makes "fires twice on one bar" unreachable, and nothing in this
+change touches it.
+
 ## Rails and mutants
 
 - `app/src/components/chart/engine/ast/__tests__/smaExactSum.test.js`: the exact sum against fixed cases
@@ -124,9 +254,17 @@ per pane (`RUNTIME_PANE_TIME_BUDGET_MS`); a script with ten sma(200) series pays
   window where the two weighted sums differ, and the na-guard A02 / E02 block (runs when that capture is
   committed by the capture session's data PR; until then it is skipped by name).
 - `tests/test_ast_sma_exact_sum.py`: the Python twin on the same captures and cases.
-- Mutants (each restored from a copy, never `git checkout`): 9 / 9 killed: JS sma left-to-right, JS sum
-  left-to-right, certificate dropped (plain Neumaier), no half-even final rounding, `ta.wma` made exact,
-  infinity fallback dropped, Python exact sum made left-to-right, Python sma and sum bypassing it.
+- The sliding form is railed bar for bar against `exactSum` over price walks, scale jumps of 1e6,
+  cancellation around 1e16, exact halves at powers of two and the window where a compensated sum rounds the
+  wrong way (`[1e16, 1e-16, 1]`), for n = 1, 2, 5, 30, 200, sma and sum.
+- Mutants (each restored from a copy, never `git checkout`): 13 / 14 killed. Killed: JS sma left-to-right,
+  JS sum left-to-right, certificate dropped (plain Neumaier), no half-even final rounding, `ta.wma` made
+  exact, infinity fallback dropped, sliding certificate dropped, sliding leaving value not subtracted, half
+  gap doubled; Python exact sum made left-to-right, Python sma and sum bypassing it, Python overflow gate
+  dropped. SURVIVED, equivalent by construction: M12, the sliding form's restart after a fallback. The
+  TwoSum invariant holds across a fallback without it, so every answer is still exactly rounded; the
+  restart only keeps errors carried from an earlier price scale from forcing later bars to fall back (a
+  cost, not a value), which no value rail can see.
 
 ## Open
 
