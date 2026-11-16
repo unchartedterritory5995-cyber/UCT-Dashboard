@@ -542,7 +542,10 @@ export function removalPronouns(words) {
       // (from the CHART itself is `cont`, above, and stays; "out of <container>" read as `cont` "out" + "of" is this container instead)
       const same = out.findIndex(o => o.index === index)
       if (same >= 0) { if (!out[same].cont || c.onChart) continue; out.splice(same, 1) }
-      out.push({ phrase: m[1], plural: /^(?:them|those)$/i.test(m[1]), index, length: m[1].length, verbAt: m.index, cont: false, from: c.type, container: c.word })
+      // ⛔ AUDIT probe 66a: an appositive after the container ("take it off the board (the trendline)", "remove it from the board,
+      // the RSI I mean") says what the pronoun is — it OUTRANKS the container (removalTargets types `appos` first)
+      const appos = APPOS.exec(w.slice(m.index + m[0].length))?.[1] || null
+      out.push({ phrase: m[1], plural: /^(?:them|those)$/i.test(m[1]), index, length: m[1].length, verbAt: m.index, cont: false, from: c.type, container: c.word, appos })
     }
   }
   return out.sort((a, b) => a.index - b.index)
@@ -588,6 +591,8 @@ export function pronounReferent(words, { isSymbol = () => false, previous = null
   const prons = removalPronouns(words).filter(p => !p.cont)
   if (!prons.length) return { kind: removalPronouns(words).length ? 'cont' : 'none' }
   const p = prons[0]
+  const ap = p.appos ? pronounAntecedent(p.appos, isSymbol) : null
+  if (ap) return ap.type === 'chart' ? { kind: 'chart' } : { kind: 'thing', word: ap.word }
   if (p.from) return p.from === 'chart' ? { kind: 'chart' } : p.container ? { kind: 'thing', word: p.container } : { kind: 'thing' }
   const a = (p.appos && pronounAntecedent(p.appos, isSymbol)) || pronounAntecedent(String(words || '').slice(0, p.verbAt), isSymbol)
   if (a) return a.type === 'chart' ? { kind: 'chart' } : { kind: 'thing', word: a.word }
@@ -839,7 +844,7 @@ export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply'
       const wrong = removalTargetRefusal(w, host, removed, { selected, subject, picked, known, previous, previousLabel })
       if (wrong) return wrong
     }
-    if (removed.length && mode === 'apply' && !REMOVAL.test(removalWords(w)) && !REMOVAL_TAKE.test(w) && !removalPronouns(w).some(p => p.from === 'chart')) {
+    if (removed.length && mode === 'apply' && !REMOVAL.test(removalWords(w)) && !REMOVAL_TAKE.test(w) && !removalPronouns(w).some(p => p.from === 'chart' && pronounAntecedent(p.appos || '')?.type !== 'thing')) {
       return `I didn’t change anything: this would have removed ${listOf(removed.map(nameOf))}, and you didn’t ask to remove a chart. Say which chart to remove or replace.`
     }
   }

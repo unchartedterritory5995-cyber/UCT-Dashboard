@@ -280,3 +280,48 @@ describe('REFERENT TYPE · end to end: probes 64a-1 and 64a-7', () => {
     expect(said.test(t) || !p.rsiOn('c2'), t).toBe(true)
   }, 60000)
 })
+
+// ── ⛔ AUDIT probe 66a · a THING appositive OUTRANKS the board / layout / screen container: "take it off the board (the trendline)" ──
+const BOARD_FORMS = {
+  'take … off the C': (p, c) => `take ${p} off the ${c}`,
+  'remove … from the C': (p, c) => `remove ${p} from the ${c}`,
+  'get rid of … from my C': (p, c) => `get rid of ${p} from my ${c}`,
+  'delete … from the C': (p, c) => `delete ${p} from the ${c}`,
+  'drop … from my C': (p, c) => `drop ${p} from my ${c}`,
+  'take … out of my C': (p, c) => `take ${p} out of my ${c}`,
+}
+const THING_NPS = ['the trendline', 'the RSI', 'the alert', 'the MACD', 'the note']
+const BA_CASES = []
+for (const form of Object.keys(APPOS_FORMS)) for (const np of THING_NPS) for (const c of ['board', 'layout', 'screen']) for (const bf of Object.keys(BOARD_FORMS)) for (const p of ['it', 'that', 'this', 'that one']) for (const ctx of ['none', 'selected', 'conversation chart']) BA_CASES.push([form, np, c, bf, p, ctx])
+describe(`BOARD + THING APPOSITIVE · the appositive outranks the chart container (${BA_CASES.length} cases × each plan target)`, () => {
+  it.each(BA_CASES)('%s · "%s" · %s · %s · "%s" · %s', (form, np, c, bf, p, ctx) => {
+    const words = APPOS_FORMS[form](BOARD_FORMS[bf](p, c), np)
+    for (let j = 0; j < 3; j++) {
+      const b = boardOf(SYMS, { selected: ctx === 'selected' ? 'c2' : null })
+      const got = chartRail(b, `c${j + 1}`, words, { subject: ctx === 'conversation chart' ? 'c2' : null })
+      expect(got, `${words} · #${j + 1}`).not.toBeNull()
+      expect(got, words).toMatch(/^I didn’t close a chart: “[^”]+” here means the |^Which do you mean by/)
+    }
+  })
+  it.each(Object.keys(APPOS_FORMS))('a CHART appositive with the board (%s) → that chart closes, the clicked QQQ refused', (form) => {
+    for (const bf of Object.keys(BOARD_FORMS)) {
+      const words = APPOS_FORMS[form](BOARD_FORMS[bf]('it', 'board'), 'the SPY chart')
+      expect(chartRail(boardOf(SYMS, { selected: 'c2' }), 'c1', words, {}), words).toBeNull()
+      expect(chartRail(boardOf(SYMS, { selected: 'c2' }), 'c2', words, {}), words).toMatch(REFUSED)
+    }
+  })
+  it('the state rail reads the same precedence', () => {
+    expect(pronounReferent('take it off the board (the trendline)')).toEqual({ kind: 'thing', word: 'trendline' })
+    expect(pronounReferent('remove it from the board, the RSI I mean')).toEqual({ kind: 'thing', word: 'rsi' })
+    expect(pronounReferent('take it off the board').kind).toBe('chart')
+  })
+})
+describe('BOARD + THING APPOSITIVE · end to end, NO prior turn (probe 66a-1 / 66a-2)', () => {
+  it.each(['take it off the board (the trendline)', 'remove it from the board, the RSI I mean', 'take it off the layout — the alert'])('"%s" with QQQ clicked and a plan closing QQQ → refused, QQQ stays', async (words) => {
+    const p = mountPanel()
+    p.script([{ action: 'widget.remove', target: 'board', args: { widget: 'c2' } }])
+    await p.say(words)
+    expect(p.left()).toEqual(['SPY', 'QQQ', 'IWM'])
+    expect(p.transcript().slice(p.transcript().lastIndexOf(words))).toMatch(/I didn’t close a chart: “it” here means the (?:trendline|rsi|alert)/)
+  }, 30000)
+})
