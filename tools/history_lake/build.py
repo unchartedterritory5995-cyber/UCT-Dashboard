@@ -55,9 +55,10 @@ import numpy as np
 if __package__ in (None, ""):  # script mode: python tools/history_lake/build.py
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import bucketing  # type: ignore[no-redef]
+    import encode_job  # type: ignore[no-redef]
     import piece  # type: ignore[no-redef]
 else:
-    from . import bucketing, piece
+    from . import bucketing, encode_job, piece
 
 SERIES = piece.SERIES_IDS
 RECORD = np.dtype([(k, "<i8") for k in piece.COLUMNS])
@@ -74,11 +75,7 @@ class BuildError(RuntimeError):
 # small file helpers
 # --------------------------------------------------------------------------
 
-def _write_atomic(path: Path, data: bytes) -> None:
-    tmp = path.with_name(path.name + ".tmp")
-    with open(tmp, "wb") as f:
-        f.write(data)
-    os.replace(tmp, path)
+_write_atomic = encode_job.write_atomic
 
 
 def _json_bytes(obj) -> bytes:
@@ -331,18 +328,23 @@ class _Block:
 class Builder:
     def __init__(self, raw: Path, out: Path, *, symbols: Optional[Iterable[str]] = None,
                  rebuild: bool = False, quality: int = piece.DEFAULT_QUALITY,
-                 foreign_rows: str = "error", chunk_rows: int = 1_000_000, log=_log):
+                 foreign_rows: str = "error", chunk_rows: int = 1_000_000, jobs: int = 1, log=_log):
         self.raw, self.out = Path(raw), Path(out)
         self.symbols = frozenset(symbols) if symbols else None
         self.rebuild, self.quality = rebuild, int(quality)
         self.foreign_rows, self.chunk_rows, self.log = foreign_rows, int(chunk_rows), log
+        # --jobs: pieces are encoded by this many processes (1: in this one, as before). Results are
+        # recorded in the order the pieces were handed out, so the indexes, the summary and every
+        # piece's bytes are the same whatever the number.
+        self.jobs = max(1, int(jobs))
+        self._pool = None
+        self._inflight = []                          # [(symbol, series, period, future)] oldest first
         self.spill = self.out / "_spill"
         self.lock_path = self.out / "build.lock"
         self.ledger_path = self.out / "ledger.json"
         self.open_periods: Dict[Tuple[str, str], List[_Block]] = {}
         self.pending: Dict[str, set] = {}             # day -> (series, period) not yet on disk
         self.day_info: Dict[str, dict] = {}
-        self.made_dirs: set = set()
         self.summary = {
             "days": [], "skipped_days": [], "rows": 0, "symbols": set(), "pieces_written": 0,
             "pieces_unchanged": 0,
@@ -409,6 +411,9 @@ class Builder:
                 self._process_day(day, path, size)
             self._flush(list(self.open_periods))
         finally:
+            if self._pool is not None:
+                self._pool.shutdown(wait=True, cancel_futures=True)
+                self._pool = None
             shutil.rmtree(self.spill, ignore_errors=True)   # useless after a failure too
             try:
                 os.remove(self.lock_path)
@@ -482,6 +487,7 @@ class Builder:
         index_updates: Dict[str, Dict[str, Dict[str, dict]]] = {}
         for key in sorted(keys):
             self._flush_one(key, index_updates)
+        self._drain(index_updates, keep=0)
         self._write_indexes(index_updates)
         for key in keys:
             for blk in self.open_periods.pop(key):
@@ -539,39 +545,41 @@ class Builder:
             g0 = g1
 
     def _write_piece(self, symbol: str, series: str, period: str, bars: dict, index_updates: dict) -> None:
-        path = self.out / piece.piece_relpath(series, symbol, period)
-        try:
-            with open(path, "rb") as f:
-                existing = f.read()
-        except FileNotFoundError:
-            existing = None
-        try:
-            if existing is None:
-                blob = piece.encode_piece(symbol, series, period, bars, quality=self.quality)
-            else:
-                blob = piece.merge_piece(existing, bars, symbol=symbol, series=series, period=period,
-                                         quality=self.quality)
-        except piece.PieceError as exc:
-            raise BuildError(f"{symbol} {series}/{period}: {exc}") from exc
-        if blob != existing:
-            parent = path.parent
-            if parent not in self.made_dirs:
-                parent.mkdir(parents=True, exist_ok=True)
-                self.made_dirs.add(parent)
-            _write_atomic(path, blob)
-        else:
+        path = str(self.out / piece.piece_relpath(series, symbol, period))
+        if self.jobs == 1:
+            self._record(symbol, series, period, encode_job.write_piece(path, symbol, series, period, bars, self.quality),
+                         index_updates)
+            return
+        if self._pool is None:
+            from concurrent.futures import ProcessPoolExecutor
+            self._pool = ProcessPoolExecutor(max_workers=self.jobs)
+        fut = self._pool.submit(encode_job.write_piece, path, symbol, series, period, bars, self.quality)
+        self._inflight.append((symbol, series, period, fut))
+        self._drain(index_updates, keep=self.jobs * 4)     # bounded: the chunk's arrays are not all queued
+
+    def _drain(self, index_updates: dict, keep: int) -> None:
+        while len(self._inflight) > keep:
+            symbol, series, period, fut = self._inflight.pop(0)
+            self._record(symbol, series, period, fut.result(), index_updates)
+
+    def _record(self, symbol: str, series: str, period: str, res: dict, index_updates: dict) -> None:
+        if "error" in res:
+            for _, _, _, f in self._inflight:
+                f.cancel()
+            self._inflight.clear()
+            raise BuildError(f"{symbol} {series}/{period}: {res['error']}")
+        if res["unchanged"]:
             self.summary["pieces_unchanged"] += 1
-        hdr = piece.read_header(blob)
         index_updates.setdefault(symbol, {}).setdefault(series, {})[period] = {
-            "bars": hdr["bars"], "first": hdr["first"], "last": hdr["last"],
-            "bytes": len(blob), "crc": hdr["crc"]}
+            "bars": res["bars"], "first": res["first"], "last": res["last"],
+            "bytes": res["bytes"], "crc": res["crc"]}
         s = self.summary
         s["pieces_written"] += 1
-        s["bytes_written"] += len(blob)
+        s["bytes_written"] += res["bytes"]
         st = s["series"][series]
         st["pieces"] += 1
-        st["bars"] += hdr["bars"]
-        st["bytes"] += len(blob)
+        st["bars"] += res["bars"]
+        st["bytes"] += res["bytes"]
 
     def _write_indexes(self, index_updates: dict) -> None:
         idx_dir = self.out / f"v{piece.FORMAT_VERSION}" / "index"
@@ -643,12 +651,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--foreign-rows", choices=("error", "drop"), default="error",
                     help="rows whose bar is not on the file's ET date: stop (default) or leave out")
     ap.add_argument("--chunk-rows", type=int, default=1_000_000, help="rows gathered per flush chunk")
+    ap.add_argument("--jobs", type=int, default=1, help="processes that encode pieces (default 1)")
     args = ap.parse_args(argv)
     symbols = [s.strip() for s in args.symbols.split(",") if s.strip()] if args.symbols else None
     try:
         summary = Builder(Path(args.raw), Path(args.out), symbols=symbols, rebuild=args.rebuild,
                           quality=args.quality, foreign_rows=args.foreign_rows,
-                          chunk_rows=args.chunk_rows).run(args.days)
+                          chunk_rows=args.chunk_rows, jobs=args.jobs).run(args.days)
     except BuildError as exc:
         print(f"BUILD FAILED: {exc}", file=sys.stderr)
         return 2
