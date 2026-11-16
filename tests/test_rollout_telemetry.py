@@ -241,3 +241,46 @@ def test_a_stamp_can_never_carry_free_text(key, value):
 def test_a_well_formed_stamp_is_accepted(key, value):
     assert tel._prop_violation("converse_turn", key, value) is None
 
+
+# --- was it wanted: the undone signal, and what produced the window (L7) -----------
+
+def test_an_undone_conversation_is_counted_once_and_apart_from_a_discarded_one(store, conv):
+    # `conv` is here for its isolation: the report reads the shared spend pool, and without the
+    # fixture that read opens the real data root (the suite's own guard caught exactly that).
+    for cid, actions in (("auth_dddddddddddd", ("opened", "preview", "undone", "saved")),
+                         ("auth_eeeeeeeeeeee", ("opened", "preview", "undone", "discarded")),
+                         ("auth_ffffffffffff", ("opened", "preview", "saved"))):
+        for action in actions:
+            tel.log_event("m1", "studio_action", import_id=f"{cid}:{action}",
+                          conversation_id=cid, action=action, surface="studio")
+    f = tel.rollout_report(7)["funnel"]
+    assert f["undone"] == 2 and f["saved_after_undo"] == 1
+    assert f["saved"] == 2 and f["discarded"] == 1        # control: the older counts are untouched
+
+
+def test_undone_is_an_action_the_door_accepts_and_a_made_up_one_is_not():
+    assert tel._prop_violation("studio_action", "action", "undone") is None
+    assert tel._prop_violation("studio_action", "action", "regretted") is not None
+
+
+def test_the_report_says_what_produced_the_turns(store, conv, model):
+    from api.services import definition_concierge as dc
+    good = env(1, [{"op": "set_slot", "slot": "value#1", "value": 80}])
+    model([emits(good), emits(good)])
+    conv.converse("make it 80", user_id="m1", view=view(1, [out("value", RSI_GT_70)]))
+    conv.converse("make it 80", user_id="m2", view=view(1, [out("value", RSI_GT_70)]))
+    by = tel.rollout_report(7)["produced_by"]
+    assert by["prompt_sha"] == {conv.prompt_sha(): 2}
+    assert by["model"] == {dc.MODEL: 2}
+    assert set(by) == {"prompt_sha", "vocab_version", "model", "engine"}
+
+
+def test_a_window_spanning_two_instruction_versions_shows_both(store, conv, model, monkeypatch):
+    good = env(1, [{"op": "set_slot", "slot": "value#1", "value": 80}])
+    model([emits(good), emits(good)])
+    conv.converse("make it 80", user_id="m1", view=view(1, [out("value", RSI_GT_70)]))
+    first = conv.prompt_sha()
+    monkeypatch.setattr(conv, "prompt_sha", lambda: "0123456789abcdef")
+    conv.converse("make it 80", user_id="m2", view=view(1, [out("value", RSI_GT_70)]))
+    assert tel.rollout_report(7)["produced_by"]["prompt_sha"] == {first: 1, "0123456789abcdef": 1}
+
