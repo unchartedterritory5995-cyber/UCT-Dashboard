@@ -77,6 +77,56 @@ def test_the_list_is_real_and_is_what_the_server_loaded():
     assert all(":" in c and " " not in c for c in codes)
 
 
+def test_a_retired_code_is_still_a_code_the_server_stores():
+    """A code the source no longer writes stays on the list (an older open tab still sends it)."""
+    retired = gen.committed_retired()
+    assert "runtime:calc-bars-bar-index" in retired
+    assert "runtime:calc-bars-bar-index" not in gen.scan()      # CONTROL: it really is retired
+    for code, note in retired.items():
+        assert svc.is_refusal_code(code), code
+        assert isinstance(note, dict) and note.get("since"), code
+    assert set(retired) <= set(gen.committed())
+    assert not set(retired) & set(gen.scan()), "a retired code is live again; run --write"
+    r = _client().post("/api/indicator-support/gaps", json={"guards": ["runtime:calc-bars-bar-index"]})
+    assert r.status_code == 200
+    assert {(n, k) for _d, n, k, _m, _h in _rows()} == {("runtime:calc-bars-bar-index", "refusal-guard")}
+
+
+def test_regenerating_never_deletes_a_code_it_retires_it(monkeypatch, tmp_path):
+    """On a COPY: a code that vanished from the source is kept and recorded; a new one is added;
+    a second pass changes nothing; a retired code that comes back is live again."""
+    out = tmp_path / "refusalCodes.json"
+    out.write_bytes(gen.OUT.read_bytes())
+    before = json.loads(out.read_text(encoding="utf-8"))
+    live = gen.scan()
+    gone = "pine:builtin"
+    assert gone in live and gone in before["codes"]
+    next_live = [c for c in live if c != gone] + ["pine:brand-new-code"]
+    doc = gen.write(out=out, live=next_live, today="2026-01-02")
+    assert doc == json.loads(out.read_text(encoding="utf-8"))
+    assert set(before["codes"]) <= set(doc["codes"]), sorted(set(before["codes"]) - set(doc["codes"]))
+    assert gone in doc["codes"] and doc["retired"][gone] == {"since": "2026-01-02"}
+    assert "pine:brand-new-code" in doc["codes"] and "pine:brand-new-code" not in doc["retired"]
+    assert doc["codes"] == sorted(doc["codes"])
+    for code, note in before["retired"].items():          # an existing entry is kept as written
+        assert doc["retired"][code] == note
+    # the server's loader accepts the retired code from that file, unchanged
+    monkeypatch.setattr(svc, "REFUSAL_CODES_PATH", out)
+    assert gone in svc._load_refusal_codes()
+    # idempotent, and the date of a retirement is not rewritten
+    assert gen.write(out=out, live=next_live, today="2026-09-09") == doc
+    # live again: off the retired record, still a code
+    back = gen.write(out=out, live=next_live + [gone], today="2026-09-09")
+    assert gone in back["codes"] and gone not in back["retired"]
+
+
+def test_the_check_passes_on_the_committed_list_and_fails_on_a_missing_literal(monkeypatch, capsys):
+    assert gen.main([]) == 0
+    monkeypatch.setattr(gen, "scan", lambda *a, **k: ["pine:builtin", "pine:not-on-the-list-yet"])
+    assert gen.main([]) == 1
+    assert "pine:not-on-the-list-yet" in capsys.readouterr().out
+
+
 def test_an_unreadable_list_admits_no_code(monkeypatch, tmp_path):
     monkeypatch.setattr(svc, "REFUSAL_CODES_PATH", tmp_path / "missing.json")
     assert svc._load_refusal_codes() == frozenset()
