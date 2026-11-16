@@ -47,9 +47,10 @@ const PLANS = {
 }
 const RAIL_CASES = CASES.flatMap(([b, r]) => Object.keys(PLANS).map(k => [b, r, k]))
 // ⚠ KNOWN GAP (reported to AUDIT, not changed here — a rail change is its own decision): "open" is not an ADDITIVE word for the
-// chart rail, so on the one-chart board a re-symbol plan for "open AAPL and MSFT" APPLIES (SPY becomes MSFT) and a reusing grid
-// goes to a card. These two rows are recorded as failing (it.fails) so the gap stays visible until the rail decision is made.
-const OPEN_GAP = new Set(['1 chart (SPY)|open AAPL and MSFT|re-symbol existing charts', '1 chart (SPY)|open AAPL and MSFT|a replacing grid'])
+// chart rail, so on the one-chart board a reusing grid for "open AAPL and MSFT" goes to a card. That row is recorded as failing
+// (it.fails) so the gap stays visible until the rail decision is made. (The re-symbol row of the same gap is CLOSED on master
+// since the #1275 / H14 rails: it is refused like every other row and asserted with them.)
+const OPEN_GAP = new Set(['1 chart (SPY)|open AAPL and MSFT|a replacing grid'])
 describe('D22 rows · a replacing plan for an additive request is still refused by the rails', () => {
   const run = async (b, said, k) => {
     const m = p.mount(...BOARDS[b]())
@@ -66,27 +67,32 @@ describe('D22 rows · a replacing plan for an additive request is still refused 
   it.fails.each(RAIL_CASES.filter(c => OPEN_GAP.has(c.join('|'))))('KNOWN GAP · %s · "%s" · %s', run, 40000)
 })
 
-// ── condition 2b (AUDIT): a DUPLICATING plan for a symbol already shown. ⏳ PENDING #1275 (D18 reuse): once it merges, a shown
-// symbol REUSES its chart (no second copy). Recorded here as what master does TODAY; re-asserted after the #1275 re-merge.
+// ── condition 2b (AUDIT): a DUPLICATING plan for a symbol already shown. #1275 (D18 reuse, 6ea2d1830a) is on master: a shown
+// symbol REUSES its chart — never a second copy, never an existing chart changed, never a card. A symbol not shown gets ONE new
+// chart where there is room; on the full board nothing is written and the reply says why (room).
 const DUP_ROWS = ['add SPY and MSFT', 'add SPY', 'put SPY up too', 'open SPY and MSFT']
 const ws = (b) => (Object.values(b.context || {}).flat().find(e => /workspace/i.test(String(e?.label || e?.ref)))?.ref) || 'workspace'
-const dupTable = []
-describe('D22 rows · a duplicating plan for a shown symbol (master today; reuse pending #1275)', () => {
-  it.each(Object.keys(BOARDS).flatMap(b => DUP_ROWS.map(r => [b, r])))('%s · "%s"', async (b, said) => {
+const FULL = 'full 3x3 (9 charts)'
+describe('D22 rows · a duplicating plan for a shown symbol reuses its chart (#1275)', () => {
+  it.each(Object.keys(BOARDS).flatMap(b => DUP_ROWS.map(r => [b, r])))('%s · "%s" · the shown SPY reuses its chart (no second SPY chart)', async (b, said) => {
     const m = p.mount(...BOARDS[b]())
     const sym = () => m.board.state.widgets.filter(w => w.type === 'chart').map(w => m.h.charts.read(w.id).symbol)
     const before = sym()
     p.st.envelopes.push(bb => p.env('apply', [{ action: 'widget.addCharts', target: ws(bb), args: { symbols: tickersOf(said), timeframe: null, chart_type: null, exact: null } }]))
     const out = await m.say(said)
     const after = sym()
-    dupTable.push({ board: b, said, spyCharts: `${before.filter(s => s === 'SPY').length}→${after.filter(s => s === 'SPY').length}`, charts: `${before.length}→${after.length}`, card: p.proposals().length, text: out.replace(/\s+/g, ' ').slice(0, 160) })
     expect(before.every((s, i) => after[i] === s), out).toBe(true)                      // never an existing chart changed
+    expect(after.filter(s => s === 'SPY').length, out).toBe(before.filter(s => s === 'SPY').length)   // no second SPY chart
+    expect(p.proposals(), out).toHaveLength(0)
+    const adds = tickersOf(said).filter(t => !before.includes(t))
+    if (!adds.length) {
+      expect(after, out).toEqual(before)
+      expect(out).toMatch(/SPY is already on your board/)
+    } else if (b === FULL) {
+      expect(after, out).toEqual(before)
+      expect(out).toMatch(/I didn.t change anything/)
+    } else {
+      expect(after.slice(before.length), out).toEqual(adds)                             // one new chart per symbol not shown
+    }
   }, 40000)
-  it('prints the duplicate table', () => { console.log('D22-DUP>>', JSON.stringify(dupTable)) })
-})
-// ⏳ PENDING #1275 (D18 reuse) — re-asserted after the re-merge. Today on master (recorded by the table above): a 2-symbol
-// duplicating plan on the 1- and 2-chart boards is APPLIED (a second SPY chart is made; no rail refuses a duplicate), the
-// 1-symbol plans and the full board are refused for room. After #1275: a shown symbol reuses its chart, never a second copy.
-describe('D22 rows · duplicate of a shown symbol — expected after #1275', () => {
-  for (const b of Object.keys(BOARDS)) for (const r of DUP_ROWS) it.todo(`${b} · "${r}" · the shown SPY reuses its chart (no second SPY chart) — pending #1275`)
 })
