@@ -662,20 +662,48 @@ def _load_deal_last() -> frozenset:
         return frozenset()
 
 
+#: ⛔ WHY (2026-11-15, LXFR). A news deal whose headline writes the target by NAME ("Luxfer
+#: Enters Into Agreement ...") is only recognised once the company names are in memory, and
+#: after a restart they are not for the first minutes (`deal_status.names_cold`). The first
+#: build on the new pod therefore MISSED such targets, replaced the saved set in memory AND on
+#: disk, and LXFR (a cash buyout pinned at $17.37) was served in a scan at uptime ~400 s; it
+#: was excluded again by 439 s. A names-cold build can only miss deals, never invent one, so
+#: inside this window it is unioned with the saved set and is not saved. The window is bounded:
+#: a symbol with no name anywhere would otherwise keep the pod "cold" for good and pin an old
+#: saved set forever. An owner ruling (`deal_status.news_overrides`) is honoured at once.
+DEAL_GATE_COLD_WINDOW_S = 900.0
+_PROC_T0 = time.monotonic()
+
+
+def _in_cold_window() -> bool:
+    return time.monotonic() - _PROC_T0 < DEAL_GATE_COLD_WINDOW_S
+
+
 def _refresh_deal_memo() -> None:
     """Build the full exclude set (news + price, the slow part), keep it, and save it."""
     got = None
+    cold = False
     t0 = time.monotonic()
     try:
         from api.services import deal_status
         got = frozenset(deal_status._norm(s) for s in deal_status.screener_excludes() if s)
+        cold = bool(deal_status.names_cold()) and _in_cold_window()
+        if cold:
+            ruled = frozenset(deal_status._norm(s) for s in deal_status.news_overrides())
+            got = got | (_load_deal_last() - ruled)
     except Exception as exc:  # noqa: BLE001 -- a failed refresh keeps the last good set
         _deal_log().warning("[screener] deal gate refresh failed, keeping the last set: %s", exc)
+        got = None
     with _DEAL_MEMO_LOCK:
         if got is not None:
-            _DEAL_MEMO.update(syms=got, at=time.monotonic())
+            # a names-cold set is replaced as soon as the names are in (deal_status rebuilds its
+            # own sets every DEAL_STATUS_COLD_REFRESH_S while cold), not in DEAL_GATE_MAX_AGE_S
+            _DEAL_MEMO.update(syms=got, at=time.monotonic() - (DEAL_GATE_MAX_AGE_S - 60.0 if cold else 0.0))
         _DEAL_MEMO["refreshing"] = False
-    if got:
+    if got and cold:
+        _deal_log().info("[screener] deal gate set built with company names cold: %d symbols, "
+                         "saved set kept", len(got))
+    elif got:
         _save_deal_last(got)
         _deal_log().info("[screener] deal gate set refreshed: %d symbols in %.1f s",
                          len(got), time.monotonic() - t0)

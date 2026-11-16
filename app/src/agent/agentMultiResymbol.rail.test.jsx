@@ -65,10 +65,20 @@ describe('lowercase tickers count (AUDIT probe 33 e1): an ADD of one lowercase t
 })
 
 describe('MULTI · controls — a single-chart change and an explicit multi-chart replace are allowed by the rail', () => {
+  // ⛔ CHANGED by D23 (owner 2026-11-15) + H14 UNIQUE IDENTIFICATION: on ONE chart these switch it (the sole chart is identified
+  // by being the only one — unchanged expectation); on 2–4 charts with none selected and no chart named, the rail ASKS which
+  // chart (each chart a choice), nothing changes before the pick — was: allowed (a guessed chart re-symbolled)
   for (const n of [1, 2, 3, 4]) for (const words of ['pull up AAPL', 'pull up aapl', 'show AAPL', 'load aapl', 'switch to AAPL']) {
-    it(`single chart re-symbolled · ${n} chart board · "${words}"`, () => {
+    it(`single chart re-symbolled · ${n} chart board · "${words}" → ${n === 1 ? 'allowed (the sole chart)' : 'asked which chart (D23)'}`, () => {
       const b = makeBoard(...board(n))
-      expect(chartRailRefusal(plan(b, resymbol(n, 1)), { words, host: b.host, mode: 'apply' })).toBe(null)
+      const out = {}
+      const r = chartRailRefusal(plan(b, resymbol(n, 1)), { words, host: b.host, mode: 'apply', out })
+      if (n === 1) expect(r).toBe(null)
+      else {
+        expect(r).toMatch(/^Which chart should change to AAPL\?/)
+        expect(out.ask?.kind).toBe('chart')
+        expect(out.ask.candidates).toHaveLength(n)
+      }
     })
   }
   for (const words of ['replace both charts with AAPL and MSFT', 'swap out SPY and NVDA for AAPL and MSFT', 'change the left to AAPL and the right to MSFT',
