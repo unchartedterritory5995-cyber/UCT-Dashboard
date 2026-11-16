@@ -41,7 +41,7 @@ import { requestTargetsUnservable } from '../../engine/runtime/requestSupply'
 import { STRATEGY_WINDOW_HISTORY } from '../../engine/runtime/strategyRecord'
 import { runtimeRepaintOf } from '../../engine/runtime/runtimeRepaint'
 import { OHLC_DEF_STYLES } from '../../engine/defSchema'
-import { ensureRuntimeLane } from '../../engine/runtime/runtimeAsync'
+import { warmRuntimeLane } from '../../engine/runtime/runtimeAsync'
 // ⭐⭐ RT5 — a runtime document may draw its OWN objects (`runtimeObjectsDoor.js`).
 import { runtimeOwnObjectsOf, valueBuildDefersToDrawing } from './runtimeObjectsDoor'
 // ⭐⭐ ENGINE 53 — ONE row pairing for both lanes (the runtime document and the run half).
@@ -958,7 +958,10 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     // the document's own script, by hash: what the bind and the store check the run half against
     definition.meta = { ...(definition.meta || {}), [RUN_HALF_SOURCE_STAMP]: runtimeSourceHash(source) }
     // Registered once a document that may need it exists (as a runtime document does).
-    ensureRuntimeLane()
+    // ⚡ And its worker spawned NOW (`warmRuntimeLane`), so its chunk loads while the preview
+    // fetches its bars rather than after the run is asked for. Behind the runtime pane's gate
+    // (`hostPartialRunHalf` declines without it), so a member it is off for fetches nothing.
+    warmRuntimeLane()
   }
   // ⛔⛔ THE DOOR NEVER GUESSES A PLACEMENT. Every locator above is one the
   // translator TAGGED (`paramLocatorsIn`): a literal that came from the parameter.
@@ -2432,7 +2435,10 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // routes a script never loads the lane (`nativeRegistry.registerRuntimeLane`).
   // ⭐ RT1 — and, in a browser, the run goes off the main thread
   // (`runtime/runtimeAsync.js`).
-  ensureRuntimeLane()
+  // ⚡ And its worker spawned NOW (`warmRuntimeLane`): its ~1.3 MB chunk loads while the preview
+  // fetches its bars, not after the first run is posted. This path is reached only with the
+  // runtime pane switched on for this member, so a member it is off for fetches nothing.
+  warmRuntimeLane()
   return {
     ok: true,
     definition,
