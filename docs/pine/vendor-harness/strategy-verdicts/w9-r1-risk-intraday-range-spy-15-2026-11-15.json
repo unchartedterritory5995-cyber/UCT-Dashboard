@@ -10,7 +10,7 @@
  "gradeMethod": "b",
  "verdict": "DIVERGE",
  "step": 1,
- "reason": "our run refused (interpret:bind-time-text) against a TradingView value",
+ "reason": "our run refused (runtime:strategy-unsettled) against a TradingView value",
  "first": null,
  "graded": {
   "trades": false,
