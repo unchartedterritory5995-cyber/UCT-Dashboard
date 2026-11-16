@@ -322,6 +322,9 @@ The standing rail is `app/src/components/screener/reachable.test.js`, which now
 sweeps **all of `app/src`** and fails by name on the next one — so this table
 should never again be assembled by hand.
 
+## ⭐ UCT Signature style — the house look for menus, settings, pickers and widgets (owner, 2026-11-15)
+When the owner says **"UCT Signature style"** (or "make it look like the new menus"), read **`docs/uct-signature-style.md`** first and build to it: graphite `#111214` panels, `#1a1b1f` cards with hairline rows, `#ededed`/`#a9a59b` text, **a touch of UCT gold (`var(--ut-gold)`) ONLY on what is current or chosen — "the mix", spec section 2b**, sentence case, dropdowns instead of segmented controls, soft-square on/offs left of the label, hover-revealed row actions. It supersedes `docs/brand-design-system.md` for those surfaces.
+
 ## UI Icons — `UIcon` (NO emoji)
 
 **`app/src/components/ui/UIcon.jsx` is the single source of truth for all UI

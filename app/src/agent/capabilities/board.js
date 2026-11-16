@@ -1456,7 +1456,7 @@ export function registerBoardCapabilities() {
     check(st, { list }, env) {
       if (!listName(list, env)) return 'That isn\'t one of your watchlists.'
       if (!switchable(st, env) && !env?.target?.fitsWatchlist) {
-        return 'There\'s no Watchlist widget on this board and no empty space for one — add a Watchlist widget (Widgets ▾) or make room, then ask me to open the list.'
+        return 'There\'s no Watchlist widget on this board and no empty space for one — add a Watchlist widget (+ Add widget) or make room, then ask me to open the list.'
       }
       return null
     },
@@ -1496,7 +1496,7 @@ export function registerBoardCapabilities() {
       return { w: t }
     }
     if (all.length === 1) return { w: all[0] }
-    if (!all.length) return { why: 'There is no Watchlist widget on this board I can switch — add one (Widgets ▾), then ask again.' }
+    if (!all.length) return { why: 'There is no Watchlist widget on this board I can switch — add one (+ Add widget), then ask again.' }
     const lists = st.board.filter(w => w.type === 'watchlist')
     return { why: `Which Watchlist widget — ${all.map(w => `the ${positionOf(w, lists) || nameOf(w, st.board)}`).join(' or ')}? Nothing changed yet.` }
   }

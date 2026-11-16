@@ -2,7 +2,7 @@
 // the stop and an empty entry note, and named "the Bull Flag rules" for levels that come from the real example.
 import { describe, expect, it } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { TradeBlock } from './TradeReview'
+import { TradeBlock, Takeaway } from './TradeReview'
 import { reviewTrade } from '../challenges/hardMode'
 
 const signal = { t: '2024-01-02', o: 100, h: 102, l: 99, c: 101.5 }
@@ -49,6 +49,24 @@ describe('TradeBlock on a course trade', () => {
     const { container } = render(<TradeBlock trade={reviewTrade(plan, signal, [{ t: '2024-01-03', o: 101, h: 101.5, l: 99.5, c: 100 }])} name="Bull Flag" />)
     expect(container.textContent).toMatch(/to the best high, on the buy day/)
     expect(container.textContent).not.toMatch(/session 0/)
+  })
+
+  // the 2026-11-15 screen check of an intraday course chart: the card said "the stop was hit on session 1" for the first
+  // five-minute bar, and the advance quoted the fill bar's own high, printed before the fill at its close
+  it('an intraday course trade counts bars, from the bar after the fill', () => {
+    const bar = { t: 1789480800, o: 326.09, h: 326.63, l: 325.33, c: 325.74 }
+    const after = [{ t: 1789481100, o: 325.7, h: 326.13, l: 324.87, c: 325 }]
+    const plan = { entry: 325.74, stop: 325.28, t1: 327.12, t2: 328.04, direction: 'bullish', enters_intraday: false, unit: 'bar', source: 'course' }
+    const { container } = render(<TradeBlock trade={reviewTrade(plan, bar, after)} name="Opening Range Breakout" />)
+    expect(container.textContent).toMatch(/The stop was hit on bar 1/)
+    expect(container.textContent).not.toMatch(/session/)
+    // never the fill bar's own earlier high (326.63, +0.3%); the next bar takes the stop, so no new high counts
+    expect(container.textContent).toMatch(/no new high after entry/)
+    expect(container.textContent).not.toMatch(/\+0\.3%/)
+    // and the card's headline sentence (the fifth screen pass: it still said "the stop was hit on session 1")
+    const head = render(<Takeaway trade={reviewTrade(plan, bar, after)} />)
+    expect(head.container.textContent).toMatch(/then the stop was hit on bar 1/)
+    expect(head.container.textContent).not.toMatch(/session/)
   })
 
   it('a detector plan still names the setup rules', () => {

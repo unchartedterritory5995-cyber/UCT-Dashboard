@@ -1493,7 +1493,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "4,471",
     "5,151",
@@ -1504,6 +1504,22 @@
     "4,471": "Undid a 20% loss instead of adding a 20% gain.",
     "5,151": "Added 20% twice, compounding the rise.",
     "4,650": "Used a bigger rise than the 20% rule."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "low",
+      "label": "2022 low close",
+      "price": 3577.03
+     }
+    ],
+    "find": {
+     "label": "A new bull market closes at",
+     "as": "price",
+     "tag": "Bull market"
+    }
    }
   },
   {
@@ -1731,7 +1747,13 @@
      "stem no longer names 'divergence' so it does not answer q04"
     ]
    },
-   "batch": "wave6"
+   "batch": "history-charts-2026-11-15",
+   "chart": {
+    "sym": "SPY",
+    "asof": "2022-10-12",
+    "window": 200,
+    "forward": 30
+   }
   },
   {
    "key": "q23",
@@ -2086,7 +2108,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
+   "notes": "one level (2022 low close) with the asked close as the answer row; key '4,292' fills slot"
   },
   "q18": {
    "status": "pass",
@@ -2122,7 +2144,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "I got the key on my own from f82 (CMT: 'once the index moved back above the June lows, the divergence was confirmed'). The stem credits the CMT analyst, so one Tier 2 publisher is enough, and the risk note says so. Stem 133 chars. Choices 32-38, key 33, not the longest. The Fed note is grounded in f29 (still hiking in December 2022), the VIX note in f51. The stem no longer names 'divergence', so it does not give away q04's fill. The why and lesson_line use the word, but only after the member answers, and q04 (rung 2) comes before q22 (rung 8)."
+   "notes": "cold re-read 2026-11-15 (session lead): the chart and the words agree; check_course_charts 0 problems; the outcome the words name confirmed in the closes"
   },
   "q23": {
    "status": "pass",

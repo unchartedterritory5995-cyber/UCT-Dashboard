@@ -1045,7 +1045,20 @@
      "fixed before (expiry-day close made exact)"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "payoff",
+    "title": "The 110 call at expiry",
+    "option": "call",
+    "side": "long",
+    "strike": 110.0,
+    "premium": 1.0,
+    "underlying": 115.0,
+    "find": {
+     "label": "Percent made",
+     "as": "pct"
+    }
+   }
   },
   {
    "key": "q15",
@@ -1256,7 +1269,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$5.55",
     "$6.10",
@@ -1267,6 +1280,34 @@
     "$6.10": "Added the 0.55 premium twice.",
     "$50.55": "Added the premium to the 50 cost and forgot the strike.",
     "$55.50": "Slipped a decimal place."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Shares plus a put",
+    "rows": [
+     {
+      "key": "shares_bought_at",
+      "label": "Shares bought at",
+      "value": 50.0,
+      "fmt": "$"
+     },
+     {
+      "key": "put_strike",
+      "label": "Put strike",
+      "value": 45.0,
+      "fmt": "$"
+     },
+     {
+      "key": "put_cost",
+      "label": "Put cost",
+      "value": 0.55,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Worst-case loss",
+     "as": "per_share"
+    }
    }
   },
   {
@@ -1503,7 +1544,7 @@
      "fixed before (held-to-expiry condition added)"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$1.00",
     "$10.00",
@@ -1514,6 +1555,34 @@
     "$100.00": "Mixes up the dollars on a whole contract with the price per share.",
     "$10.00": "Slips a decimal place on the 1.00 premium.",
     "$111.00": "Adds the premium to the strike and never subtracts the target."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Past the target",
+    "rows": [
+     {
+      "key": "our_target",
+      "label": "Our target",
+      "value": 110.0,
+      "fmt": "$"
+     },
+     {
+      "key": "call_strike",
+      "label": "Call strike",
+      "value": 110.0,
+      "fmt": "$"
+     },
+     {
+      "key": "call_premium",
+      "label": "Call premium",
+      "value": 1.0,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Past target to break even",
+     "as": "per_share"
+    }
    }
   },
   {
@@ -1717,8 +1786,8 @@
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key and calc right: (115-110-1)/1 = 400%. Foils are real mistakes (15% stock move, 500% value over cost, 1,400% measured from 100), notes right. Break: deeper.trap says 'Had the stock closed at or below 110 on expiry day, the same call would have lost all 1.00 you paid.' q13 uses the same chain (110 call at 1.00) and asks which call lost everything with a close at 108. That reveal gives q13's answer. Rewrote the trap without the 110 threshold, grounded in f23, f24, f35, and added those facts."
+   "fixed": false,
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q15": {
    "status": "pass",
@@ -1766,7 +1835,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q21": {
    "status": "pass",
@@ -1802,7 +1871,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q27": {
    "status": "pass",

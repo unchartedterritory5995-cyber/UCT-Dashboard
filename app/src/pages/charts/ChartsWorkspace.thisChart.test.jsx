@@ -313,7 +313,7 @@ const NO_ROOM = (() => {
 })()
 const banner = () => screen.queryByTestId('board-bound-status')
 const addOneChart = async () => {
-  await act(async () => { fireEvent.click(screen.getByText('Widgets ▾')) })
+  await act(async () => { fireEvent.click(document.querySelector('[data-guide="workspace.widgets"]')) })
   const item = document.querySelector('[data-guide="workspace.widgets.chart"]')
   await act(async () => { fireEvent.click(item) })
 }

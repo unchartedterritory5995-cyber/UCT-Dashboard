@@ -25,12 +25,14 @@ export function TradeBlock({ trade: t, name }) {
   if (t.kind === 'plan') {
     // a course question's trade is that real example's, from the research, not a detector's plan for the setup
     const own = t.source === 'course' ? 'this example' : t.skill === 'setup.family3.kicker' ? 'your Kicker rules' : `the ${name} rules`
-    const hit = (at) => (at == null ? 'not reached' : at === 0 ? 'hit on the signal day' : `hit on session ${at}`)
+    // an intraday course chart counts bars (its trade carries `unit: 'bar'`, courses_lib); a daily one sessions
+    const u = t.unit === 'bar' ? 'bar' : 'session'
+    const hit = (at) => (at == null ? 'not reached' : at === 0 ? (u === 'bar' ? 'hit in the fill bar' : 'hit on the signal day') : `hit on ${u} ${at}`)
     const [l1, l2] = trimLabels(t)
     const r = Number.isFinite(t.r) ? ` · ${t.r.toFixed(1)}R` : ''
     const notes = [t.trail ? `Trail ${t.trail}.` : null, t.trim_note ? `${t.trim_note.charAt(0).toUpperCase()}${t.trim_note.slice(1)}.` : null].filter(Boolean)
     // the best price came on the buy day itself (session 0): said as such, not "session 0"
-    const bestWhen = t.bestSessions === 0 ? 'on the buy day' : `session ${t.bestSessions}`
+    const bestWhen = t.bestSessions === 0 ? (u === 'bar' ? 'in the fill bar' : 'on the buy day') : `${u} ${t.bestSessions}`
     // 3R and 5R are marks on the ruler, never fixed sells (the owner's D-013, 2026-11-12): at 3R the stop can move up to
     // breakeven (his 2R to 5R), and 5R sits in the 5 to 10R zone where a first sell into strength is often best, by
     // judgment, usually day 3 or later. THE BOXES HOLD THE NUMBERS AND THE LINE UNDER THEM THE WHY (the screen check,
@@ -45,7 +47,7 @@ export function TradeBlock({ trade: t, name }) {
           <Leg k={t.long ? 'Advance' : 'Fall, in your favour'} v={t.long ? pct(t.advancePct) : `${Math.abs(t.advancePct).toFixed(1)}%`} note={t.bestSessions != null ? `to the best ${t.long ? 'high' : 'low'}, ${bestWhen}${r}` : `no new ${t.long ? 'high' : 'low'} after entry`} tone="up" />
         </div>
         <p className={s.tradeLine}>
-          {t.stoppedSession ? <>The stop was hit on session <b>{t.stoppedSession}</b>; the trade ends there. </> : <>The stop was never hit in the sessions shown. </>}
+          {t.stoppedSession ? <>The stop was hit on {u} <b>{t.stoppedSession}</b>; the trade ends there. </> : <>The stop was never hit in the {u}s shown. </>}
           {trimR(t).map((m) => `${m}R ${markLine(m)}.`).join(' ')}
           {notes.length ? ` ${notes.join(' ')}` : null}
         </p>
@@ -75,7 +77,7 @@ function takeaway(t) {
     const r = Number.isFinite(t.r) ? ` (${t.r.toFixed(1)}R)` : ''
     const [l1, l2] = trimLabels(t)
     const targets = t.t2At != null ? ` and reached ${l1} and ${l2}` : t.t1At != null ? ` and reached ${l1}` : ''
-    const stop = t.stoppedSession ? `, then the stop was hit on session ${t.stoppedSession}` : ''
+    const stop = t.stoppedSession ? `, then the stop was hit on ${t.unit === 'bar' ? 'bar' : 'session'} ${t.stoppedSession}` : ''
     const move = t.bestSessions != null ? `${t.long ? `it ran ${c(t.advancePct)}` : `it fell ${Math.abs(t.advancePct).toFixed(1)}% in your favour`}${r}${targets}${stop}` : `it never got going${stop}`
     return `${verb} at ${p(t.entry)}, risking ${t.riskPct.toFixed(1)}% to the stop at ${p(t.stop)}; ${move}.`
   }

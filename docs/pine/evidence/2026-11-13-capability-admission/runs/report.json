@@ -1,17 +1,17 @@
 {
  "populations": {
   "capture": {
-   "scripts": 690,
-   "admitted": 272,
-   "runtimeLane": 29,
+   "scripts": 706,
+   "admitted": 277,
+   "runtimeLane": 32,
    "hostLane": 160,
-   "refused": 83,
+   "refused": 85,
    "coreOnly": 35
   },
   "committed": {
    "scripts": 266,
-   "admitted": 50,
-   "runtimeLane": 12,
+   "admitted": 49,
+   "runtimeLane": 11,
    "hostLane": 30,
    "refused": 8,
    "coreOnly": 4
@@ -823,19 +823,6 @@
    ]
   },
   {
-   "capture": "parabolic-sar-rddt-1d-2026-10-03",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "ternary"
-   ]
-  },
-  {
    "capture": "pivot-high-low-points-rddt-1d-2026-11-14",
    "lane": "host",
    "runtimeOn": "DIVERGE",
@@ -1132,32 +1119,6 @@
   },
   {
    "capture": "rs-syminfo-industry-rddt-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:label",
-    "realtime-state",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "rs-syminfo-industry-alab-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:label",
-    "realtime-state",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "rs-syminfo-industry-crwv-1d-2026-11-15",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
@@ -3456,6 +3417,138 @@
     "core",
     "fn-single",
     "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-rddt-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-nvda-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-alab-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": null,
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-crwv-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": null,
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-11-15",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "obj:delete",
+    "obj:line",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-11-15",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "obj:delete",
+    "obj:line",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-15",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "max_bars_back",
+    "obj:collection",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-spy-1d-2026-11-15",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "max_bars_back",
+    "obj:collection",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "var"
    ]
   }
  ],
@@ -5786,5 +5879,6 @@
    ]
   }
  ],
- "matchToDiverge": []
+ "matchToDiverge": [],
+ "substitutedToDiverge": []
 }

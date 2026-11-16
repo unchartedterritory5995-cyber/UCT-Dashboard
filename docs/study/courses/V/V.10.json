@@ -2962,7 +2962,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "1,018 basis points",
     "0.3 basis points",
@@ -2973,6 +2973,23 @@
     "0.3 basis points": "Left the 0.30 as is and skipped converting to hundredths.",
     "1,018 basis points": "Added the two yields instead of subtracting.",
     "300 basis points": "Slipped a decimal place."
+   },
+   "visual": {
+    "kind": "move",
+    "title": "The 10-year yield, in %",
+    "from": {
+     "label": "Oct. 1",
+     "value": 5.24
+    },
+    "to": {
+     "label": "Oct. 30",
+     "value": 4.94
+    },
+    "find": {
+     "label": "The fall",
+     "as": "num",
+     "unit": "basis points"
+    }
    }
   },
   {
@@ -3861,7 +3878,7 @@
      "fixed before (nickname dropped)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "-38 basis points",
     "38 basis points",
@@ -3872,6 +3889,23 @@
     "-38 basis points": "Subtracted the 10-year from the 2-year, the wrong order.",
     "0.38 basis points": "Left the 0.38 as is and skipped converting to hundredths.",
     "950 basis points": "Added the two yields instead of subtracting."
+   },
+   "visual": {
+    "kind": "move",
+    "title": "Yields on Oct. 30, in %",
+    "from": {
+     "label": "2-year",
+     "value": 4.56
+    },
+    "to": {
+     "label": "10-year",
+     "value": 4.94
+    },
+    "find": {
+     "label": "10-year minus 2-year",
+     "as": "num",
+     "unit": "basis points"
+    }
    }
   },
   {
@@ -4167,8 +4201,8 @@
   "q38": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc recomputed; answer shows it; wrong choices checked. Answer shows the calc, no tell, why walks the steps."
+   "fixed": true,
+   "notes": "Bars print 5.24 and 4.94 with no percent sign, so they read like prices; put the unit in the title."
   },
   "q39": {
    "status": "pass",
@@ -4315,8 +4349,8 @@
   "q62": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc recomputed; answer shows it; wrong choices checked. Answer shows the calc, no tell, why walks the steps."
+   "fixed": true,
+   "notes": "Bars print 4.56 and 4.94 with no percent sign, so they read like prices; put the unit and the date in the title. Move suits two like yields (the difference fills in after the answer)."
   },
   "q63": {
    "status": "pass",

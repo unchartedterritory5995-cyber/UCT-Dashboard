@@ -19,7 +19,7 @@ import { spawnSync } from 'node:child_process'
 
 import { SCHEMA_ID, BAR_FIELDS, sealCapture, sha256Hex, validateCapture } from '../../../../../../../tools/vendor_harness/schema.mjs'
 import {
-  PROPERTY_TABLE, REQUIRED_PROPERTY_KEYS, REPORT_SLOTS, isStrategyCapture, settingsAgreement, declaredStrategyArgs,
+  PROPERTY_TABLE, REQUIRED_PROPERTY_KEYS, REPORT_SLOTS, isStrategyCapture, settingsAgreement, declaredStrategyArgs, sameEnum,
   guardsIn, extractReportFields, readReport, propertiesByKey, chartDataOf, pineVersionOf, requiredPropertyKeys,
 } from '../../../../../../../tools/vendor_harness/strategy_capture.mjs'
 import { REPO, VENDOR_DIR } from './harness'
@@ -80,11 +80,14 @@ describe('W9-T3a · 1 · a v3 strategy capture is held to its settings (SYNTHETI
   it('⛔ a read-back that lacks a required Properties input fails, and names it', () => {
     const missing = errs(strategyCapture({ drop: ['Use Bar Magnifier'] }))
     expect(missing).toMatch(/lacks 1 required input\(s\): use_bar_magnifier/)
-    // control: every key the table requires is individually required
-    for (const p of PROPERTY_TABLE) {
+    // control: every key the table requires is individually required (at the synthetic source's //@version=6)
+    for (const p of PROPERTY_TABLE.filter((x) => !x.optional)) {
       expect(errs(strategyCapture({ drop: [p.name] }))).toMatch(new RegExp(`lacks 1 required input\\(s\\): ${p.key}`))
     }
-    expect(REQUIRED_PROPERTY_KEYS.length).toBe(PROPERTY_TABLE.length)
+    // U14 G3: the optional inputs are never required
+    expect(REQUIRED_PROPERTY_KEYS).toEqual(PROPERTY_TABLE.filter((x) => !x.optional).map((x) => x.key))
+    expect(PROPERTY_TABLE.filter((x) => x.optional).map((x) => x.key))
+      .toEqual(['run_mode', 'alert_message_template', 'alert_type', 'exclude_from_report', 'trim_orders', 'calc_range'])
   })
 
   it('⛔ no chartData block (the dividend / back-adjustment reads) fails; an empty list is the honest unread', () => {
@@ -246,6 +249,72 @@ describe('W9-T3a · 2b · the required Properties inputs depend on the source\'s
   })
 })
 
+// ── U14 G1 / G2 / G3 (coordinator, measured on run s26-2026-11-15) ─────────────────
+describe('U14 · G1-G3 · version-aware inputs, the cash alias, the optional inputs', () => {
+  const V = (v) => SRC.replace('//@version=6', `//@version=${v}`)
+  const at = (source, properties) => strategyCapture({
+    source, provenance: { strategySettings: { properties, chartData: { adjustments: [] } }, gradeMethod: 'a' },
+  })
+  const G1 = ['Risk free rate', 'Use Bar Magnifier', 'Fill orders using standard OHLC']
+  const HT = 'Calculate Strategy on every History Tick'
+
+  it('G1: a //@version=4 read-back without risk_free_rate, use_bar_magnifier and fill_orders_on_standard_ohlc validates', () => {
+    const v4 = props().filter((p) => !G1.includes(p.name) && p.name !== HT)
+    expect(validateCapture(at(V(4), v4))).toEqual({ ok: true, errors: [] })
+    // control: the SAME read-back at //@version=5 is refused and names all three
+    expect(errs(at(V(5), v4))).toMatch(/lacks 3 required input\(s\): risk_free_rate, use_bar_magnifier, fill_orders_on_standard_ohlc/)
+    for (const k of ['risk_free_rate', 'use_bar_magnifier', 'fill_orders_on_standard_ohlc']) {
+      expect(requiredPropertyKeys(4)).not.toContain(k)
+      expect(requiredPropertyKeys(5)).toContain(k)
+      expect(requiredPropertyKeys(null)).toContain(k)
+    }
+  })
+
+  it('G1: a //@version=3 (or 2) read-back also lacks process_orders_on_close, close_entries_rule and the two margins', () => {
+    const G1b = ['Process orders on bar Close', 'Close entries rule', 'Margin Long', 'Margin Short']
+    const v3 = props().filter((p) => !G1.includes(p.name) && !G1b.includes(p.name) && p.name !== HT)
+    expect(validateCapture(at(V(3), v3))).toEqual({ ok: true, errors: [] })
+    expect(validateCapture(at(V(2), v3))).toEqual({ ok: true, errors: [] })
+    expect(errs(at(V(4), v3))).toMatch(/lacks 4 required input\(s\): process_orders_on_close, close_entries_rule, margin_long, margin_short/)
+  })
+
+  it('G2: default_qty_type = strategy.cash AGREES with a read-back of cash_per_order; a real difference does not', () => {
+    const src = SRC.replace('default_qty_type = strategy.fixed', 'default_qty_type = strategy.cash')
+    expect(settingsAgreement(at(src, props({ 'Default entry/order Qty Type': 'cash_per_order' }))).disagreements).toEqual([])
+    expect(settingsAgreement(at(src, props({ 'Default entry/order Qty Type': 'fixed' }))).disagreements.map((d) => d.key)).toEqual(['default_qty_type'])
+    // the alias is per key and one-way from the declared value: fixed never reads as cash_per_order
+    expect(settingsAgreement(at(SRC, props({ 'Default entry/order Qty Type': 'cash_per_order' }))).disagreements.map((d) => d.key)).toEqual(['default_qty_type'])
+    expect(sameEnum('default_qty_type', 'cash', 'cash_per_order')).toBe(true)
+    expect(sameEnum('commission_type', 'cash', 'cash_per_order')).toBe(false)
+    expect(sameEnum('default_qty_type', 'percent_of_equity', 'percent_of_equity')).toBe(true)
+  })
+
+  const OPTIONAL = {
+    "Run mode: 'backtest', 'alert' or something else": 'BACKTEST', "Alert message template for run mode 'alert'": '',
+    "Alert type for run mode 'alert'": 'order_fills', exclude_from_report: '', trim_orders: false, calc_range: '',
+  }
+  const withOptional = (over = {}) => [...props(), ...Object.entries({ ...OPTIONAL, ...over }).map(([name, value], i) => ({ id: `opt_${i}`, name, type: 'text', value, defval: value }))]
+
+  it('G3: the six optional inputs at their defaults AGREE, are known (not unknownVisible) and absent is fine', () => {
+    expect(settingsAgreement(at(V(5), withOptional())).disagreements).toEqual([])
+    expect(propertiesByKey({ properties: withOptional() }, 5).unknownVisible).toEqual([])
+    expect(validateCapture(at(V(6), props()))).toEqual({ ok: true, errors: [] })
+  })
+
+  it.each([
+    ["Run mode: 'backtest', 'alert' or something else", 'ALERT', 'run_mode'],
+    ["Alert message template for run mode 'alert'", '{{ticker}}', 'alert_message_template'],
+    ["Alert type for run mode 'alert'", 'alert_only', 'alert_type'],
+    ['exclude_from_report', 'x', 'exclude_from_report'],
+    ['trim_orders', true, 'trim_orders'],
+    ['calc_range', '2024-01-01', 'calc_range'],
+  ])('⛔ G3: %s read back as %j is a disagreement (ruling R3: INCONCLUSIVE)', (name, value, key) => {
+    const a = settingsAgreement(at(V(5), withOptional({ [name]: value })))
+    expect(a.verdict).toBe('INCONCLUSIVE')
+    expect(a.disagreements).toEqual([{ key, declared: OPTIONAL[name], readBack: value, optional: true }])
+  })
+})
+
 describe('W9-T3a · 3 · the settings read-back agreement', () => {
   it('declared literals that match the read-back AGREE', () => {
     const a = settingsAgreement(strategyCapture())
@@ -358,13 +427,18 @@ describe('W9-T3a · 4 · the tester-report reader (SYNTHETIC tree: the key names
     expect(extractReportFields({ perf: { all: { net: 'n/a' } } }, SLOTS()).netProfit.status).toBe('not-numeric')
   })
 
-  it('⛔ the committed slot map is UNPINNED (W9-C0 is not taken): every slot refuses by name', () => {
+  // ⚰️ This asserted the committed slot map was UNPINNED (W9-C0 not taken). U14 (run s25-2026-11-15)
+  // took W9-C0 and pinned every slot from the captured tree; `strategyGrading.test.js` proves each path
+  // resolves to a number in that committed capture. Here: the map still names exactly the slots, and it
+  // does not resolve against an INVENTED tree (a path read off a real tree is not a guessed key).
+  it('the committed slot map is PINNED from a captured tree (W9-C0, U14) and names exactly the slots', () => {
     const slots = JSON.parse(fs.readFileSync(path.join(HERE_TOOLS, 'strategy_report_slots.json'), 'utf8'))
-    expect(slots.status).toBe('UNPINNED')
-    expect(slots.reportPath).toBeNull()
+    expect(slots.status).toBe('PINNED')
+    expect(slots.reportPath).toEqual(['_reportData'])
     expect(Object.keys(slots.slots)).toEqual([...REPORT_SLOTS])
+    expect(Object.values(slots.slots).every((p) => Array.isArray(p) && p.length > 0)).toBe(true)
     const f = extractReportFields(TREE, slots.slots)
-    expect(Object.values(f).every((v) => v.status === 'unpinned')).toBe(true)
+    expect(Object.values(f).every((v) => v.status === 'missing')).toBe(true)
   })
 
   it('N2a: an unpinned slot is never filled by guessing a key of its own name (a tree with a root netProfit stays unpinned)', () => {

@@ -1066,7 +1066,7 @@
      "computed key (calc); inputs from one IBKR page, which refused a plain client (403) on 2026-11-12"
     ]
    },
-   "batch": "review4",
+   "batch": "cards-2026-11-15",
    "choices": [
     "0.5%",
     "22.1%",
@@ -1077,6 +1077,28 @@
     "22.1%": "You flipped it and divided the stock price by the priced move.",
     "9.5%": "You read the $9.48 dollar move as a percent.",
     "0.5%": "A decimal slip: you moved the point the wrong way."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The implied move",
+    "rows": [
+     {
+      "key": "stock_before_the_rep",
+      "label": "Stock before the report",
+      "value": 209.58,
+      "fmt": "$"
+     },
+     {
+      "key": "move_the_options_pri",
+      "label": "Move the options price",
+      "value": 9.48,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "The move, as a percent",
+     "as": "pct"
+    }
    }
   },
   {
@@ -1208,7 +1230,7 @@
      "fixed before (checker, 2026-11-09)"
     ]
    },
-   "batch": "review3",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$720",
     "$1,800",
@@ -1219,6 +1241,34 @@
     "$1,800": "You treated the 9% as $9 a share.",
     "$7,200": "A decimal slip: you added a zero.",
     "$8,000": "You gave the value of the whole position. The loss is only 9% of it."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "A gap down into earnings",
+    "rows": [
+     {
+      "key": "shares_held",
+      "label": "Shares held",
+      "value": 200,
+      "fmt": "shares"
+     },
+     {
+      "key": "price",
+      "label": "Price",
+      "value": 40,
+      "fmt": "$"
+     },
+     {
+      "key": "implied_move",
+      "label": "Implied move",
+      "value": 9,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Loss on the gap",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1456,7 +1506,35 @@
      "computed key (calc)"
     ]
    },
-   "batch": "wave6"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The loss to plan for",
+    "rows": [
+     {
+      "key": "position",
+      "label": "Position",
+      "value": 20000,
+      "fmt": "$"
+     },
+     {
+      "key": "stop_below_the_price",
+      "label": "Stop below the price",
+      "value": 4,
+      "fmt": "%"
+     },
+     {
+      "key": "implied_move",
+      "label": "Implied move",
+      "value": 10,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Loss to plan for",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q22",
@@ -1661,7 +1739,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Owner note answered: names the Calendar page Impl. Move column (sortable; verified in CalendarWidget.jsx, shows the pre-report implied move as a percent) and the by-hand route (nearest at-the-money straddle; 4.75+5.15-(210-209.58)=9.48; 9.48/209.58=4.5%). Facts f74/f75 quotes found verbatim in app/src/agent/discovery.js line 173 and CalendarWidget.jsx line 219. Answer 4.5% right; wrong choices keyed to real slips. Sentences <=22 words."
+   "notes": "price before report and the options' $ move; percent; key '4.5%'"
   },
   "q11": {
    "status": "cut",
@@ -1685,7 +1763,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "$8,000 position, 9% = $720 checked; every number is in the question or the choices. Teaches the steps and keeps 'no cap'."
+   "notes": "shares, price, implied move; loss on the gap; key '$720'"
   },
   "q15": {
    "status": "cut",
@@ -1727,7 +1805,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Keep is right: the 10% is an options-implied move, not an EP floor or scan guide."
+   "notes": "position, stop and implied move all as stated; calc (position x move) ignores the stop, which is the lesson, and the label 'Loss to plan for' fits; slot '$2,000'"
   },
   "q22": {
    "status": "cut",

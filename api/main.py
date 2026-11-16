@@ -159,6 +159,7 @@ from api.routers import notebook_insights as notebook_insights_router
 from api.routers import client_errors as client_errors_router
 from api.routers import desktop_events as desktop_events_router
 from api.routers import perf_beacon as perf_beacon_router
+from api.routers import request_timing as request_timing_router
 from api.routers import notebook_soak as notebook_soak_router
 from api.routers import notebook_link_preview as notebook_link_preview_router
 from api.routers import hub_planned_trades as hub_planned_trades_router
@@ -8546,18 +8547,10 @@ async def lifespan(app: FastAPI):
             print("[startup] Similar-matches nightly job registered")
 
         def _cot_daily_catchup():
+            # holiday-aware: the decision lives in cot_service.daily_catchup (tests/test_cot_release_calendar.py pins its
+            # firing days against the old "8+ days old" rule); this is also what fetches a holiday week's Monday release
             try:
-                from datetime import date as _dt
-                from zoneinfo import ZoneInfo as _ZI
-                latest = _cot_service.get_latest_date()
-                if latest:
-                    import datetime as _dtm
-                    days_old = (_dtm.datetime.now(_ZI("America/New_York")).date() - _dt.fromisoformat(latest)).days
-                    if days_old >= 8:
-                        print(f"[scheduler] COT daily catchup: data is {days_old}d stale -- refreshing...")
-                        _cot_service.refresh_from_current()
-                    else:
-                        print(f"[scheduler] COT daily catchup: data is {days_old}d old -- fresh, skipping")
+                _cot_service.daily_catchup()
             except Exception as e:
                 print(f"[scheduler] COT daily catchup error: {e}")
 
@@ -11219,6 +11212,11 @@ app.add_middleware(_GZipSkipSSE, minimum_size=1000, compresslevel=5)
 # the single path `/api/breadth-monitor` — see the module docstring.
 from api.services.breadth_timing import BreadthTimingMiddleware as _BreadthTiming  # noqa: E402
 app.add_middleware(_BreadthTiming)
+# OUTERMOST OF ALL (added last): time to first byte for every request, by route class, plus a
+# once-a-second reading of the thread limiter. Pure ASGI and it passes every message through
+# untouched, so a stream is never buffered. Kill switch REQUEST_TIMING_ENABLED=0. See the module.
+from api.services.request_timing import RequestTimingMiddleware as _RequestTiming  # noqa: E402
+app.add_middleware(_RequestTiming)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -11695,6 +11693,8 @@ app.include_router(client_errors_router.router)
 # Desktop plan 5.1: the desktop shell's enum-only telemetry door (session optional) + admin read.
 app.include_router(desktop_events_router.router)
 app.include_router(perf_beacon_router.router)
+# Speed and reliability plan item 1: admin read of the per-request and thread-pool timing record.
+app.include_router(request_timing_router.router)
 # Wave 9 lane 9C (controller wiring): GET /api/admin/notebook-soak -- the soak's
 # one admin read (ruling D-9C2). Must precede the SPA catch-all like every /api route.
 app.include_router(notebook_soak_router.router)

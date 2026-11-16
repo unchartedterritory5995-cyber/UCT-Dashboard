@@ -853,7 +853,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$2.72",
     "$0.12",
@@ -864,6 +864,34 @@
     "$2.72": "Added the decay instead of taking it off.",
     "$2.56": "Took off one day of decay instead of three.",
     "$0.12": "Gave the decay alone and forgot to take it off the price."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Theta's toll",
+    "rows": [
+     {
+      "key": "worth_now",
+      "label": "Worth now",
+      "value": 2.6,
+      "fmt": "$"
+     },
+     {
+      "key": "theta,_a_daily_loss",
+      "label": "Theta, a daily loss",
+      "value": 0.04,
+      "fmt": "count"
+     },
+     {
+      "key": "days_that_pass",
+      "label": "Days that pass",
+      "value": 3.0,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Worth after",
+     "as": "per_share"
+    }
    }
   },
   {
@@ -911,7 +939,29 @@
      "it was fixed before (implied volatility wording)"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "Theta's toll",
+    "rows": [
+     {
+      "key": "calls",
+      "label": "Calls",
+      "value": 4.0,
+      "fmt": "count"
+     },
+     {
+      "key": "theta_each,_a_loss",
+      "label": "Theta each, a loss a day",
+      "value": 0.15,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "The quiet day costs",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q11",
@@ -983,7 +1033,7 @@
      "the key rests on one quoted table (f64, Cboe 2012 slides), which WebFetch could not reach on 2026-11-12 (403)"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$0.95",
     "$2.47",
@@ -994,6 +1044,22 @@
     "$2.47": "Added the two prices instead of subtracting.",
     "$1.71": "Gave the starting price, not the cost.",
     "$2.25": "Divided the start price by the end price."
+   },
+   "visual": {
+    "kind": "move",
+    "title": "Four weeks of decay",
+    "from": {
+     "label": "Call, 35 days left",
+     "value": 1.71
+    },
+    "to": {
+     "label": "Call, 7 days left",
+     "value": 0.76
+    },
+    "find": {
+     "label": "What those weeks cost",
+     "as": "per_share"
+    }
    }
   },
   {
@@ -1080,7 +1146,35 @@
      "it was fixed before (now says 'using delta and theta')"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "Delta and theta",
+    "rows": [
+     {
+      "key": "delta",
+      "label": "Delta",
+      "value": 0.4,
+      "fmt": "count"
+     },
+     {
+      "key": "theta,_a_loss",
+      "label": "Theta, a loss a day",
+      "value": 0.05,
+      "fmt": "count"
+     },
+     {
+      "key": "stock_rises",
+      "label": "Stock rises",
+      "value": 1.0,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Call's gain",
+     "as": "per_share"
+    }
+   }
   },
   {
    "key": "q15",
@@ -1369,7 +1463,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "2%",
     "20%",
@@ -1380,6 +1474,24 @@
     "2%": "Read two cents as 2% and never set it against the price.",
     "5%": "Flipped the ratio and divided the price by the theta.",
     "80%": "Gave the share of the price left after the day."
+   },
+   "visual": {
+    "kind": "share",
+    "title": "One day of decay",
+    "whole": {
+     "label": "Call's price",
+     "value": 0.1,
+     "fmt": "$"
+    },
+    "part": {
+     "label": "Theta, a loss a day",
+     "value": 0.02,
+     "fmt": "$"
+    },
+    "find": {
+     "label": "Share of its price",
+     "as": "pct"
+    }
    }
   },
   {
@@ -1533,14 +1645,14 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 2. Why rewritten to show the steps."
+   "fixed": false,
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc 4*0.15*100 = 60 checked. Every number in why/simple is from the story, f27 or the calc. Key not the longest choice; $0 is a real misconception refuted by f47."
+   "fixed": true,
+   "notes": "Theta must say it is a loss a day"
   },
   "q11": {
    "status": "pass",
@@ -1551,8 +1663,8 @@
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
+   "fixed": true,
+   "notes": "Bars are call prices; say so"
   },
   "q13": {
    "status": "pass",
@@ -1563,8 +1675,8 @@
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Own answer before key: delta 0.40 x $1 = 0.40, less one day of theta 0.05 = 0.35 (calc matches; f20 delta reading, f1 per-day theta, f57 Schwab pattern of move gain minus a day's theta). 'Using delta and theta' rules out a gamma-adjusted second answer. Choices not a tell (key not longest; 0.40 and 0.45 are the two named slips). One night = one day, so no weekend issue. Simple line matches the why. Does not answer or get answered by q09/q10. f57 page (Schwab) returned an error page again 2026-11-12; quote was found by the 2026-11-09 quote checker, so kept."
+   "fixed": true,
+   "notes": "Theta must say it is a loss a day"
   },
   "q15": {
    "status": "pass",
@@ -1620,7 +1732,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 1."
+   "notes": "Theta must say it is a loss a day"
   },
   "q23": {
    "status": "pass",

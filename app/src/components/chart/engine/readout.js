@@ -345,6 +345,29 @@ function identityTextOf(inp, raw, def, inputs) {
   return identityTextFor(def, inp.key, raw, inputs)
 }
 
+/** Does a chip readout row of this key REPLACE the identity part (`stampReadout`)? */
+function serverResolvesChipKey(def, key) {
+  return !!(def && Array.isArray(def.readout) && def.readout.some((r) => r && r.key === key && r.chip === true))
+}
+
+/** An option the SERVER resolves into a symbol is labelled `… (auto)` in the menu (`Sector (auto)`,
+ *  `Industry group (auto)`, `Theme (auto)`); its code names nothing a member can read. */
+const AUTO_OPTION_LABEL = /\(auto\)\s*$/i
+
+/** What an unresolved, server-resolved enum choice prints: an AUTO option's label, else the code
+ *  exactly as before (`SPY` whatever its label says); any other value is unchanged. */
+function unresolvedChoiceText(def, key, text) {
+  const inp = (def.inputs || []).find((i) => i && i.key === key)
+  if (!inp || inp.type !== 'enum' || typeof text !== 'string') return text
+  for (const o of (Array.isArray(inp.options) ? inp.options : [])) {
+    const value = Array.isArray(o) ? o[0] : (o && o.value)
+    const label = Array.isArray(o) ? o[1] : (o && o.label)
+    if (value !== text) continue
+    return typeof label === 'string' && AUTO_OPTION_LABEL.test(label) ? label : text
+  }
+  return text
+}
+
 /** `legendParams` whose input is a named choice, resolved for THIS instance:
  *  `Map(key → value)`, declaration order. Empty for every numeric parameter. */
 function legendIdentityParts(def, inputs) {
@@ -413,12 +436,24 @@ function stampReadout(chip, def, inputs, opts) {
     }
   }
   const extra = []
+  const resolved = new Set()
   if (rows && rows.length) {
     for (const r of readoutChipRows(def, rows)) {
-      if (identity.has(r.key)) identity.set(r.key, r.text)
+      if (identity.has(r.key)) { identity.set(r.key, r.text); resolved.add(r.key) }
       // ⭐ VA2 — a row's `chipPrefix` word rides the pane label only (`fast 91`).
       else extra.push(typeof r.chipText === 'string' && r.chipText ? r.chipText : r.text)
     }
+  }
+  // ⭐ 2026-11-15 — A CHOICE THE SERVER RESOLVES, NOT RESOLVED YET, NEVER PRINTS ITS CODE. An identity part
+  // that a chip row of the same key replaces (the RS benchmark: `scalar:benchmark.name`) stands as the
+  // member's request until that row lands, which is honest; but an AUTO option's code names nothing
+  // (`UCT RS · SECTOR`, measured by the stale-rail repair, PR #1367: no envelope yet, or a v3 payload
+  // without `benchmark.name`). Such a part prints its option's LABEL (`Sector (auto)`), unless the label
+  // is an AUTO option (its menu label ends `(auto)`); a symbol code (`SPY`) prints as before. Only these parts: every other identity part,
+  // and every definition without such a row, reads exactly as before.
+  for (const [k, v] of identity) {
+    if (resolved.has(k) || !serverResolvesChipKey(def, k)) continue
+    identity.set(k, unresolvedChoiceText(def, k, v))
   }
   const lead = [...identity.values()].map((v) => ` · ${v}`).join('')
   const sibling = typeof chip.suffix === 'string' ? chip.suffix : ''

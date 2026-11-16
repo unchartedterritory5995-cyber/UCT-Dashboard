@@ -57,11 +57,11 @@ const INDICATORS_TAB = { target: 'chartSettings.tab.indicators', name: 'the Indi
 const PLACE = { target: 'workspace.place', name: 'the Place button', text: 'Your board is full, so choose where it goes: the arrows move it, and the gold outline shows what makes room. Then click Place.', optional: true, late: true }
 // a widget that isn't on the board comes off Widgets ▾ first; one that is, skips straight past (its own control is the result)
 const widgetFirst = (result) => [
-  { target: 'workspace.widgets', name: 'the Widgets menu', text: 'That’s in the {widget.label} widget. Open Widgets ▾.', waitFor: ['workspace.widgetsMenu', result] },
+  { target: 'workspace.widgets', name: 'the Add widget menu', text: 'That’s in the {widget.label} widget. Click + Add widget.', waitFor: ['workspace.widgetsMenu', result] },
   { target: 'workspace.widgets.{widget.id}', name: '{widget.label}', text: 'Click {widget.label} to add it to your board.', waitFor: ['workspace.place', result], off: 'Your board is full, so nothing can be added. Close a widget first.' },
   { ...PLACE, waitFor: result },
 ]
-const LAYOUTS_MENU = { target: 'workspace.layoutsMenuBtn', name: 'the Layouts menu', text: 'Open Layouts ▾.', waitFor: 'workspace.layoutsMenu' }
+const LAYOUTS_MENU = { target: 'workspace.layoutsMenuBtn', name: 'the Layouts menu', text: 'Click the layout name (top left).', waitFor: 'workspace.layoutsMenu' }
 // a row shows the indicator's short name, or its full one: "EMA 20", "Relative Strength Index"
 const named = (more = {}) => [{ within: 'chartSettings', attr: 'data-row-primary', named: '{ind.label}', ...more }, { within: 'chartSettings', attr: 'data-row-primary', named: '{ind.labelName}', ...more }]
 // the row of a NEW one: it starts at its defaults, so it carries neither the type nor the length asked for
@@ -154,9 +154,9 @@ export const GUIDE_FEATURES = [
     id: 'alertPrice', except: /\bwidget\b.*\b(settings?|gear|appearance|look)\b/, terms: ['price alert', 'price alerts', 'alerts widget'], control: 'the Alerts widget', title: 'Setting a price alert', topic: 'alerts',
     words: [/\balerts?\b/, /\bnotify me\b/, /\b(get|be) alerted\b/],
     caps: ['alert.create'],
-    explain: 'The Alerts widget sets a price alert on any ticker: type the ticker, choose Above or Below, type the price, click Set. Add the widget from Widgets ▾ → Alerts. On a chart, Alt+N sets one at the cursor.',
+    explain: 'The Alerts widget sets a price alert on any ticker: type the ticker, choose Above or Below, type the price, click Set. Add the widget from + Add widget → Alerts. On a chart, Alt+N sets one at the cursor.',
     steps: [
-      { target: 'workspace.widgets', name: 'the Widgets menu', text: 'Price alerts live in the Alerts widget. Open Widgets ▾.', waitFor: ['workspace.widgetsMenu', 'alerts.quickAdd'] },
+      { target: 'workspace.widgets', name: 'the Add widget menu', text: 'Price alerts live in the Alerts widget. Click + Add widget.', waitFor: ['workspace.widgetsMenu', 'alerts.quickAdd'] },
       { target: 'workspace.widgets.alerts', name: 'Alerts', text: 'Click Alerts to add it to your board.', waitFor: ['workspace.place', 'alerts.quickAdd'], off: 'Your board is full, so nothing can be added. Close a widget first.' },
       { ...PLACE, waitFor: 'alerts.quickAdd' },
       { target: { within: 'alerts.quickAdd', aria: 'Ticker' }, name: 'the Ticker box', text: 'Type the ticker.' },
@@ -171,7 +171,7 @@ export const GUIDE_FEATURES = [
     id: 'multiChart', slots: ['grid'], terms: ['multi chart', 'chart grid'], control: 'the Layouts menu', title: 'Setting up a {grid.label} chart grid', topic: 'layouts',
     words: [/\bmulti[- ]?charts?\b/, /\b(four|4|six|6|nine|9|sixteen|16)[- ]charts?\b/, /\b\d ?[x×] ?\d\b/, /\bchart grid\b/, /\bgrid of charts\b/, /\bcharts? (in|on) a grid\b/, /\bquad\b/, /\bside by side\b/],
     caps: ['chartGrid.set'],
-    explain: 'Layouts ▾ → Multi Chart turns the board into a grid of linked charts: pick a preset such as 2×2, or type your own rows and columns. Workspace takes you back to your board.',
+    explain: 'The layout name (top left) → Multi Chart turns the board into a grid of linked charts: pick a preset such as 2×2, or type your own rows and columns. Workspace takes you back to your board.',
     steps: [
       LAYOUTS_MENU,
       { target: 'workspace.multiChart', name: 'Multi Chart', text: 'Click Multi Chart.', waitFor: 'multiChart.preset.{grid.id}' },
@@ -234,9 +234,9 @@ export const GUIDE_FEATURES = [
     // a Chart and a Watchlist have their own walkthroughs, and "on the chart" names where, not what
     match: (q) => /\b(add|adding|put|place|bring up|get)\b/.test(q) && !!readWidget(q) && !['chart', 'watchlist'].includes(readWidget(q).id) && !readIndicator(q),
     caps: ['widget.add'],
-    explain: 'Widgets ▾ lists everything you can put on your board. Click one to add it; a full board asks you where it goes.',
+    explain: '+ Add widget lists everything you can put on your board. Click one to add it; a full board asks you where it goes.',
     steps: [
-      { target: 'workspace.widgets', name: 'the Widgets menu', text: 'Open Widgets ▾.', waitFor: 'workspace.widgetsMenu' },
+      { target: 'workspace.widgets', name: 'the Add widget menu', text: 'Click + Add widget.', waitFor: 'workspace.widgetsMenu' },
       { only: 'widget', target: 'workspace.widgets.{widget.id}', name: '{widget.label}', text: 'Click {widget.label}.', off: 'Your board is full, so nothing can be added. Close a widget first.' },
       { unless: 'widget', target: 'workspace.widgetsMenu', name: 'the menu', text: 'Click any of these to add it to your board.' },
       PLACE,
@@ -247,9 +247,9 @@ export const GUIDE_FEATURES = [
     id: 'widgetMerge', terms: ['merge widgets'], control: 'the Widgets menu', title: 'Merging your widgets', topic: 'arrange',
     words: [/\b(merge|unmerge|merging|lock)\b.*\b(widgets?|board|borders?)\b/, /\b(remove|hide|no)\b.*\bborders\b/],
     caps: [],
-    explain: 'Widgets ▾ → Merge Widgets locks the board and removes the borders, so the widgets blend together. The same button unmerges them.',
+    explain: 'The Merge widgets button (top right) locks the board and removes the borders, so the widgets blend together. The same button unmerges them.',
     steps: [
-      { target: 'workspace.widgets', name: 'the Widgets menu', text: 'Open Widgets ▾.', waitFor: 'workspace.widgetsMenu' },
+      { target: 'workspace.widgets', name: 'the Add widget menu', text: 'Click + Add widget.', waitFor: 'workspace.widgetsMenu' },
       { target: 'workspace.merge', name: 'Merge Widgets', text: 'Click Merge Widgets. It locks the board and removes the borders; the same button undoes it.' },
     ],
   },
@@ -257,7 +257,7 @@ export const GUIDE_FEATURES = [
     id: 'compare', terms: ['compare symbols'], control: 'the Tools menu', title: 'Comparing symbols on a chart', topic: 'charts',
     words: [/\b(compare|comparing|comparison|overlay)\b.*\b(symbols?|tickers?|stocks?|charts?|against|with|to)\b/, /\bcompare\b/],
     caps: ['chart.compare'],
-    explain: 'Tools ▾ → Compare Symbols overlays other symbols on a chart. Type a ticker in the panel, and each one gets its own colour and scale option.',
+    explain: 'Tools → Compare Symbols overlays other symbols on a chart. Type a ticker in the panel, and each one gets its own colour and scale option.',
     steps: [
       TOOLS_MENU,
       { target: 'workspace.tools.compare', name: 'Compare Symbols', text: 'Click Compare Symbols.', waitFor: 'compare.panel' },
@@ -269,7 +269,7 @@ export const GUIDE_FEATURES = [
     id: 'replay', terms: ['replay mode', 'bar replay'], control: 'the Tools menu', title: 'Replaying the market', topic: 'charts',
     words: [/\breplay\w*\b/],
     caps: ['chart.replay'],
-    explain: 'Tools ▾ → Replay Mode rolls your charts back to a date: choose the date and a timeframe, and click Start replay. Exit it from the same panel.',
+    explain: 'Tools → Replay Mode rolls your charts back to a date: choose the date and a timeframe, and click Start replay. Exit it from the same panel.',
     steps: [
       TOOLS_MENU,
       { target: 'workspace.tools.replay', name: 'Replay Mode', text: 'Click Replay Mode.', waitFor: 'replay.panel' },
@@ -283,7 +283,7 @@ export const GUIDE_FEATURES = [
     id: 'periodSort', terms: ['custom period sort'], control: 'the Tools menu', title: 'Custom-period sort', topic: 'charts',
     words: [/\b(custom[- ]period|period) sort\b/, /\bsort\b.*\bmarket\b.*\bperiod\b/, /\brank\b.*\b(market|stocks)\b.*\bperiod\b/],
     caps: [],
-    explain: 'Tools ▾ → Custom-Period Sort ranks the whole US market by its % change over a period you highlight on a chart.',
+    explain: 'Tools → Custom-Period Sort ranks the whole US market by its % change over a period you highlight on a chart.',
     steps: [
       TOOLS_MENU,
       { target: 'workspace.tools.periodSort', name: 'Custom-Period Sort', text: 'Click Custom-Period Sort, then highlight the period on a chart.' },
@@ -310,13 +310,13 @@ export const GUIDE_FEATURES = [
     doIt: { say: 'Say “add a chart tab” and I’ll do it.' },
   },
   {
-    id: 'chartThemes', except: /\bwatermark\b/, terms: ['chart themes', 'uct chart themes'], control: 'the chart’s settings gear', title: 'Applying a chart theme', topic: 'chartSettings',
+    id: 'chartThemes', except: /\bwatermark\b/, terms: ['chart themes', 'uct chart themes', 'color themes', 'colour themes'], control: 'the chart’s settings gear', title: 'Applying a chart theme', topic: 'chartSettings',
     words: [/\b(chart )?themes?\b/],
     caps: ['chart.applyTheme'],
-    explain: 'Chart Settings → UCT Chart Themes gives a chart a ready-made look in one click, on this chart or on all of them.',
+    explain: 'Chart Settings → Color themes gives a chart a ready-made look in one click, on this chart or on all of them.',
     steps: [
       GEAR,
-      { target: 'chartSettings.themes', name: 'UCT Chart Themes', text: 'Click UCT Chart Themes, then pick a look.' },
+      { target: 'chartSettings.themes', name: 'Color themes', text: 'Click Color themes, then pick a look.' },
     ],
     doIt: { say: 'Tell me which — for example “apply the nord theme”.' },
   },
@@ -324,23 +324,23 @@ export const GUIDE_FEATURES = [
     id: 'chartTemplate', terms: ['chart template', 'chart templates'], control: 'the chart’s settings gear', title: 'Chart templates', topic: 'chartSettings',
     words: [/\btemplates?\b/],
     caps: ['chartSetup.saveTemplate'],
-    explain: 'A chart template saves a chart’s whole look. In Chart Settings, ＋ Save as Template keeps the current look under a name, and Templates ▾ applies or deletes a saved one.',
+    explain: 'A chart template saves a chart’s whole look. In Chart Settings, Save as chart template keeps the current look under a name, and Chart templates applies or deletes a saved one.',
     steps: [
       GEAR,
-      { target: 'chartSettings.templates', name: 'Templates', text: 'Templates ▾ lists your saved looks: click one to apply it, or its × to delete it.' },
-      { target: 'chartSettings.saveTemplate', name: 'Save as Template', text: 'Save as Template keeps this chart’s look under a name.' },
+      { target: 'chartSettings.templates', name: 'Chart templates', text: 'Chart templates lists your saved looks: click one to apply it, or its × to delete it.' },
+      { target: 'chartSettings.saveTemplate', name: 'Save as chart template', text: 'Save as chart template keeps this chart’s look under a name.' },
     ],
     doIt: { say: 'Tell me the name — for example “save this as Swing” or “apply my Swing template”.' },
   },
   {
-    // components/chart/ChartSettingsModal.jsx Price Style: the Chart Type row
+    // components/chart/ChartSettingsModal.jsx Price style: the Chart type row
     id: 'chartType', terms: ['chart type'], control: 'the chart’s settings gear', title: 'Changing the chart type', topic: 'charts',
     words: [/\bchart type\b/, /\b(candlesticks?|candles?|bars?|line|area|hollow|baseline)\b.*\bchart\b/, /\b(line|bar|area|candle) chart\b/],
     caps: ['chart.setType'],
-    explain: 'Chart Settings → Price Style chooses how price is drawn: candles, hollow candles, bars, a line and the others.',
+    explain: 'Chart Settings → Price style chooses how price is drawn: candles, hollow candles, bars, a line and the others.',
     steps: [
       GEAR,
-      { target: 'chartSettings.tab.price', name: 'the Price Style tab', text: 'Open Price Style.', waitFor: { id: 'chartSettings.tab.price', on: true } },
+      { target: 'chartSettings.tab.price', name: 'the Price style tab', text: 'Open Price style.', waitFor: { id: 'chartSettings.tab.price', on: true } },
       { target: [{ within: 'chartSettings', label: 'Type' }, 'chartSettings.tab.price'], name: 'the chart type', text: 'Choose how price is drawn here.', altText: 'The chart type is at the top of this tab.' },
     ],
     doIt: { say: 'Tell me which — for example “make it a line chart”.' },
@@ -389,10 +389,10 @@ export const GUIDE_FEATURES = [
     id: 'layoutSave', terms: ['save a layout', 'save layout'], control: 'the Layouts menu', title: 'Saving a layout', topic: 'layouts',
     words: [/\bsav(e|es|ing)\b.*\b(layouts?|board|workspace|setup|arrangement)\b/, /\b(layouts?|board)\b.*\bsav(e|ed|ing)\b/, /\bkeep\b.*\b(layout|board)\b/],
     caps: ['layout.saveCurrent'],
-    explain: 'Layouts ▾ → Save Layout: Save current arrangement updates the layout you have open; to keep a new one, type a name and click Save template. Saved layouts sit on the bar at the bottom.',
+    explain: 'The layout name (top left) → Save layout: Save current arrangement updates the layout you have open; to keep a new one, type a name and click Save template. Saved layouts sit on the bar at the bottom.',
     steps: [
       LAYOUTS_MENU,
-      { target: 'workspace.saveLayout', name: 'Save Layout', text: 'Click Save Layout.', waitFor: 'workspace.saveCurrent' },
+      { target: 'workspace.saveLayout', name: 'Save layout', text: 'Click Save layout.', waitFor: 'workspace.saveCurrent' },
       // this menu closes when the pointer leaves it, so everything it needs is said here rather than behind a Next on the card
       { target: 'workspace.saveCurrent', name: 'Save current arrangement', text: 'Click this to update the layout you have open. To keep this board as a NEW layout instead, type a name in the box below and click Save template.', endsOnClick: true, also: 'workspace.saveTemplate' },
     ],
@@ -406,10 +406,10 @@ export const GUIDE_FEATURES = [
     id: 'watchlistCreate', everyPage: true, terms: ['new watchlist', 'create a watchlist', 'creating a watchlist'], control: 'the Widgets menu', title: 'Creating a watchlist', topic: 'watchlists',
     words: [/\b(?:create|creating|make|making|build|building|start|starting|set up|setting up|new)\b(?:\s+(?:a|an|the|my|me|another|new|own|custom|first|second|stock|ticker|personal|blank))*\s+(?:watch ?)?lists?\b/],
     caps: ['watchlist.create'],
-    explain: 'You create a watchlist in a Watchlist widget: in its list picker, click ＋ New, name the list and click Create. The picker opens when you add the widget (Widgets ▾ → Watchlist), or from ‹ Lists on a Watchlist widget already on your board.',
+    explain: 'You create a watchlist in a Watchlist widget: in its list picker, click ＋ New, name the list and click Create. The picker opens when you add the widget (+ Add widget ▾ → Watchlist), or from ‹ Lists on a Watchlist widget already on your board.',
     steps: [
       { target: { widgetType: 'watchlist', guide: 'watchlist.lists' }, text: 'New lists start in the list picker. Click ‹ Lists on this widget to open it (the widget will show your new list afterwards), or press Next to add a new Watchlist widget instead.', optional: true, waitFor: 'watchlist.picker', nextLabel: 'Next' },
-      { target: 'workspace.widgets', text: 'Open Widgets ▾.', waitFor: ['workspace.widgetsMenu', 'watchlist.picker'] },
+      { target: 'workspace.widgets', text: 'Click + Add widget.', waitFor: ['workspace.widgetsMenu', 'watchlist.picker'] },
       { target: 'workspace.widgets.watchlist', text: 'Click Watchlist to add one to your board. If the board is full, the menu says so — close a widget first.', waitFor: 'watchlist.picker', retreat: true },
       { target: { within: 'watchlist.picker', aria: 'New watchlist' }, text: 'This is the list picker. Click ＋ New to start a list.', waitFor: { within: 'watchlist.picker', aria: 'New watchlist name' }, pin: true },
       { target: { within: 'watchlist.picker', aria: 'New watchlist name' }, text: 'Type a name for the list.', waitFor: { inWidget: 'watchlist.addSymbol' }, nextLabel: 'Next', pin: true, retreat: true },
@@ -477,14 +477,14 @@ export const GUIDE_FEATURES = [
     steps: [
       GEAR,
       INDICATORS_TAB,
-      // with a row selected the right side shows that indicator; ＋ Add to Chart brings the search back (with none selected it is already there)
-      { target: { within: 'chartSettings', guide: 'indicators.add' }, name: 'Add to Chart', text: 'Click ＋ Add to Chart.', waitFor: { within: 'chartSettings', aria: 'Search indicators' } },
+      // + Add indicator opens the Indicators window (its search box) from the list or an editor
+      { target: { within: 'chartSettings', guide: 'indicators.add' }, name: 'Add indicator', text: 'Click + Add indicator.', waitFor: { within: 'chartSettings', aria: 'Search indicators' } },
       { only: 'ind', target: { within: 'chartSettings', aria: 'Search indicators' }, name: 'the search box', text: 'Type {ind.say} here.', waitFor: { within: 'indicators.addSurface', attr: 'data-def-id', value: '{ind.id}' } },
-      // one already on the chart shows Active: its row only selects it, and the ＋ beside it is what adds another
+      // one already on the chart shows On chart: its row only selects it, and the ＋ beside it is what adds another
       { only: 'ind', target: [{ within: 'indicators.addSurface', aria: 'Add another {ind.name}' }, { within: 'indicators.addSurface', attr: 'data-def-id', value: '{ind.id}' }], name: 'the result', text: '{ind.name} is already on this chart. Click this ＋ to add another.', altText: 'Click {ind.name} to add it to this chart.', waitFor: { not: { within: 'indicators.addSurface', attr: 'data-def-id', value: '{ind.id}' } } },
       // the row just added is the selected one: "SMA 5", not the SMA 50 above it
       { only: 'ind', target: [ROW_ON, ...added()], name: 'the indicator list', text: '{ind.addedSay} is on the chart.{ind.addNext}', noBack: true },
-      { unless: 'ind', target: { within: 'chartSettings', aria: 'Search indicators' }, name: 'the search box', text: 'Search for an indicator and add it. The ones already on the chart are listed on the left — click one to change its settings, colours and pane.' },
+      { unless: 'ind', target: { within: 'chartSettings', aria: 'Search indicators' }, name: 'the search box', text: 'Search for an indicator and add it. The ones already on the chart are listed in the Indicators section — click one to change its settings, colours and pane.' },
     ],
     doIt: {
       // the choices are the chart's OWN quick set (catalog rows its right-click menu offers) — never a hand list here
@@ -496,9 +496,9 @@ export const GUIDE_FEATURES = [
     id: 'charts', terms: ['chart grid', 'multi chart', 'several charts'], control: 'the Widgets menu', title: 'Creating and arranging several charts', topic: 'widgets',
     words: [/\b(more|multiple|several|another|new|second|extra|add(ing)? (a )?)\s?charts?\b/, /\b(arrange|grid|side by side|split)\b/, /\b(two|three|four|2|3|4) charts\b/],
     caps: ['widget.add', 'chartGrid.set'],
-    explain: 'Add charts from Widgets ▾ → Chart; drag a widget’s header to move it and its edges to resize. Or ask me — “four charts for SPY, QQQ, NVDA and TSLA” sets them up in an even grid in one step (one Undo).',
+    explain: 'Add charts from + Add widget → Chart; drag a widget’s header to move it and its edges to resize. Or ask me — “four charts for SPY, QQQ, NVDA and TSLA” sets them up in an even grid in one step (one Undo).',
     steps: [
-      { target: 'workspace.widgets', name: 'the Widgets menu', text: 'Open Widgets ▾.', waitFor: 'workspace.widgetsMenu' },
+      { target: 'workspace.widgets', name: 'the Add widget menu', text: 'Click + Add widget.', waitFor: 'workspace.widgetsMenu' },
       { target: 'workspace.widgets.chart', name: 'Chart', text: 'Click Chart to add one into the free space. Drag a widget’s header to move it, its edges to resize it.', off: 'Your board is full, so nothing can be added. Close a widget first.' },
       PLACE,
     ],
@@ -508,10 +508,10 @@ export const GUIDE_FEATURES = [
     id: 'watchlists', terms: ['watchlist', 'watchlists', 'watch list', 'watchlist widget'], control: 'the Widgets menu', title: 'Using watchlists', topic: 'watchlists',
     words: [/\bwatch ?lists?\b/, /\bmy lists?\b/],
     caps: ['watchlist.show'],
-    explain: 'A Watchlist widget shows one of your lists (or one of UCT’s). Click a ticker in it to load it on the charts linked to it. Add one from Widgets ▾ → Watchlist, then pick the list.',
+    explain: 'A Watchlist widget shows one of your lists (or one of UCT’s). Click a ticker in it to load it on the charts linked to it. Add one from + Add widget → Watchlist, then pick the list.',
     steps: [
       { target: { widgetType: 'watchlist' }, text: 'This is your watchlist — click a ticker to load it on the linked charts.', optional: true },
-      { target: 'workspace.widgets', name: 'the Widgets menu', text: 'To add a watchlist, open Widgets ▾.', waitFor: 'workspace.widgetsMenu' },
+      { target: 'workspace.widgets', name: 'the Add widget menu', text: 'To add a watchlist, click + Add widget.', waitFor: 'workspace.widgetsMenu' },
       { target: 'workspace.widgets.watchlist', name: 'Watchlist', text: 'Click Watchlist, then pick one of your lists.', off: 'Your board is full, so nothing can be added. Close a widget first.' },
       PLACE,
     ],
@@ -567,10 +567,10 @@ export const GUIDE_FEATURES = [
     words: [/\b(chart )?settings?\b/, /\b(theme|colou?rs?|background|candles?|grid ?lines?|crosshair|legend)\b/],
     caps: ['chart.setSetting'],
     // C1-127: the gear, right-click → Chart settings and Alt+, are ONE door (ChartPane.openSettings) — the one chartSetup.openSettings opens
-    explain: 'Each chart’s settings open from the gear on its header (or right-click the chart → Chart settings, or Alt+,): price style, canvas (background, grid), indicators, header and markers — and UCT Chart Themes for a one-click look.',
+    explain: 'Each chart’s settings open from the gear on its header (or right-click the chart → Chart settings, or Alt+,): price style, canvas (background, grid), indicators, header & legend and markers — and Color themes for a one-click look.',
     steps: [
       { target: 'chart.settings', text: 'Click the gear to open this chart’s settings.', waitFor: 'chartSettings' },
-      { target: 'chartSettings.tab.price', text: 'Price Style, Canvas, Indicators, Header and Markers are the tabs along the top.' },
+      { target: 'chartSettings.tab.price', text: 'Price style, Canvas, Indicators, Header & legend and Markers are the sections down the left.' },
     ],
     doIt: { say: 'Say “open chart settings” and I’ll open them on this chart for you — or tell me the change, for example “dark theme on this chart”, “hide the grid” or “candles to hollow”.' },
   },
