@@ -27,7 +27,8 @@
 import { tickersIn } from './multiChart'
 import { matchPosition } from './fastPath'
 import { readCopyIntent } from './copyIntent'
-import { ordinalChart } from './deixis'
+import { ordinalChart, thingWord, chartishWord } from './deixis'
+import { CLASS as STATE_CLASS } from './stateRail'
 import { excludedCharts, UNPLACED, LOWER_STOP } from './spatialCheck'
 import { widgetTabList } from '../pages/charts/widgetTabs'
 import { sanitizeChartTabs } from '../pages/charts/chartTabs'
@@ -458,6 +459,11 @@ const REMOVE_WORDS_ALL = new RegExp(REMOVE_WORDS.source, 'gi')
 const asRemoval = (w) => String(w || '').replace(REMOVE_WORDS_ALL, 'close')
 // (the REMOVAL gate also reads "take off / take down <chart>" and "take <the SPY chart> off": the target is checked above)
 const REMOVAL_TAKE = /\btake (?:off|down|away|out)\b|\btake (?:[^\s.;!?]+ ){0,4}?(?:chart|one|panel|graph)s? (?:off|down|away|out)\b/i
+/** The REMOVAL gate: do the words ask to remove a chart at all? A removal word, a "take … off / down" of a chart, or a pronoun taken
+ *  off the BOARD / layout / screen (probe 64a-7 control) — unless an appositive says the pronoun is a THING (probe 66a-2: "take it
+ *  off the board (the trendline)" never asks to remove a chart). */
+export const removalAskedFor = (w) => REMOVAL.test(removalWords(w)) || REMOVAL_TAKE.test(w)
+  || removalPronouns(w).some(p => p.from === 'chart' && pronounAntecedent(p.appos || '')?.type !== 'thing')
 // (a removal may name SEVERAL positions — "close the middle and right charts": each position word of the ONE vocabulary, POS,
 //  read against the chart's own position word, as `named` does)
 const positionSaid = (w, e) => named(w, e)
@@ -471,19 +477,204 @@ const SET_REMOVAL = /\b(?:all|every|everything|each|both|whole|entire|rest|other
 const BACK_REF = /\b(?:the|that)\s+(?:chart|one|graph|panel)\s+(?:(?:that|which)\s+)?(?:I|you|we)\b/i
 const SEVERAL = /\b(?:charts|ones|panels|graphs|widgets|and)\b|[&,]/i
 const pluralOf = (sym) => new RegExp(String.raw`\b(?:both|all|every|each)\b[^.;!?]*?\$?${escRe(sym)}(?![A-Za-z0-9])|(?:^|[^A-Za-z0-9])\$?${escRe(sym)}\s+(?:charts|ones|panels|graphs)\b`, 'i')
-export function removalTargets(w, host, { selected = null, subject = null, picked = null } = {}) {
+// ⛔ PRONOUN OBJECT (AUDIT held-out probe 61a, 2026-11-16 — LIVE): board SPY · QQQ · IWM, nothing selected, no conversation chart,
+// "close it" with a model plan closing QQQ was APPLIED — "it" is no chart noun, so SPECIFIC_CHART never failed closed. A bare object
+// PRONOUN of a removal verb ("close it", "remove that", "delete this", "get rid of them", "close that one", "take it off") resolves
+// as a deixis does, in this order: (1) the SELECTED chart; (2) else the conversation's chart (`subject`, as the back-reference);
+// (3) else 2+ chart OBJECTS on the board (a link group is one) → ASKED, never applied; (4) else the sole chart object. "them" /
+// "those" name the set the selection and the conversation chart make; with neither → asked. A plan closing any other chart is
+// refused (removalTargetRefusal's `bad`). Only the OBJECT of a removal verb counts: "make it weekly and close the SPY chart" never
+// reads "it" as a removal target (every other bare "it" is left out of the target read).
+export const REMOVAL_PRONOUNS = ['it', 'that', 'this', 'them', 'those', 'that one', 'this one']
+const PRONOUN_OBJ = String.raw`(?:(?:that|this)\s+one|it|that|this|them|those)`
+const PRONOUN_VERB = String.raw`(?:remove|removing|delete|deleting|close|closing|drop|dropping|clear|get(?:ting)?\s+rid\s+of|tak(?:e|ing)\s+(?:off|down|away|out))`
+// ⛔ AUDIT probe 62 (held-out, 2026-11-16): the pronoun is a removal OBJECT only when its clause ENDS there (PRONOUN_TAIL) — on the
+// verb form AND the split "take <it> off" form: a pronoun (or its particle) followed by to / of / a / an / by / into ("take it down
+// to weekly", "take this down a timeframe", "clear it of drawings") or "from the chart" CONTINUES into something else — no chart
+// removal (`cont`: a plan closing a chart is refused unless the words name one).
+const PRONOUN_TAIL = String.raw`(?:\s*(?:$|[.,;:!?(—–])|\s+-\s|\s+(?:and|then|but|please|pls|now|too|also|as\s+well|for\s+me|right\s+now)\b)`
+const PRONOUN_PART = String.raw`\s+(?:off|down|away|out)`
+const PRONOUN_END = String.raw`(?=${PRONOUN_TAIL}|${PRONOUN_PART}${PRONOUN_TAIL})`
+const FROM_CHART = String.raw`\s+from\s+(?:the|my|this|that)\s+(?:chart|graph)\b`
+const PRONOUN_NEXT = String.raw`(?=\s+(?:to|of|a|an|by|into)\b|${FROM_CHART})`
+const PRONOUN_SRC = String.raw`\b${PRONOUN_VERB}\s+(${PRONOUN_OBJ})${PRONOUN_END}|\btak(?:e|ing)\s+(${PRONOUN_OBJ})${PRONOUN_PART}(?=${PRONOUN_TAIL})`
+const PRONOUN_CONT_SRC = String.raw`\b${PRONOUN_VERB}\s+(${PRONOUN_OBJ})(?:${PRONOUN_PART})?${PRONOUN_NEXT}|\btak(?:e|ing)\s+(${PRONOUN_OBJ})${PRONOUN_PART}${PRONOUN_NEXT}`
+const PRONOUN_AT = new RegExp(String.raw`^\S+(?:\s+\S+)*?\s+(?=${PRONOUN_OBJ}\b)`, 'i')
+// ⛔ AUDIT probe 64a-7 (CONTAINER): "remove / take / drop / delete <pronoun> from / out of / off <container>" — the pronoun is an ITEM
+// of that container. A THING container (a watchlist, a list, a note, an alert, a drawing board… — the same thing vocabularies)
+// makes it no chart (`from: 'thing'`); the chart CONTAINER — the board / layout / screen (SET_REMOVAL's own words) — makes it a
+// chart, removed from the board (`from: 'chart'`). (from the CHART itself: `cont`, above — a thing taken off a chart.)
+const CONTAINER_NP = String.raw`(?!(?:to|of|a|an|by|into)\b)((?:(?:the|my|your|our|this|that)\s+)?[a-z][\w'-]*(?:\s+[a-z][\w'-]*){0,2})`
+const PRONOUN_FROM_SRCS = [
+  String.raw`\b${PRONOUN_VERB}\s+(${PRONOUN_OBJ})(?:${PRONOUN_PART})?\s+(?:from|out\s+of|off(?:\s+of)?)\s+${CONTAINER_NP}`,
+  String.raw`\btak(?:e|ing)\s+(${PRONOUN_OBJ})\s+(?:off(?:\s+of)?|out\s+of|out|away\s+from|down\s+from)\s+${CONTAINER_NP}`,
+]
+const CHART_CONTAINER = /^(?:boards?|layouts?|screens?)$/
+/** The type of a container noun phrase ("my tech watchlist", "the board", "my drawing board"): 'chart' | 'thing' | null. */
+function containerType(np) {
+  const ws = String(np || '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)
+  for (let i = ws.length - 1; i >= 0; i--) {
+    if (CHART_CONTAINER.test(ws[i])) return ws[i - 1] === 'drawing' ? { type: 'thing', word: `drawing ${ws[i]}` } : { type: 'chart', word: ws[i] }
+    // (out of a CHART — "remove it from the right one", "take it off the SPY chart" — the pronoun is a thing ON that chart, as `cont`)
+    if (chartishWord(ws[i])) return { type: 'thing', word: null, onChart: true }
+    if (thingWord(ws[i]) || antecedentClass().some(re => re.test(ws[i]))) return { type: 'thing', word: ws[i] }
+  }
+  return null
+}
+// ⛔ AUDIT probe 64a-1 (APPOSITIVE): a noun phrase right AFTER the pronoun clause says what the pronoun is, exactly as one before it
+// does — ", the RSI I mean" / " — the RSI" / ", I mean the RSI" / " (the RSI)"; typed by the same reader (pronounAntecedent)
+const APPOS = /^(?:\s+(?:off|down|away|out))?\s*(?:,|—|–|\(|\s-\s)\s*(?:(?:i\s+mean|i\.e\.?|namely|meaning)\s*,?\s*)?((?:the|my|that|this|your)\s+[^,.;:!?()—–]{1,40}?)\s*(?:,?\s*i\s+mean)?\s*(?:\)|$|[.,;:!?—–])/i
+/** The bare pronoun objects of removal verbs in the words: [{ phrase, plural, index, length, verbAt, cont, from?, container?, appos? }]
+ *  (the pronoun's own span; `verbAt` where its verb starts; `cont`: the words go on past it — no removal object; `from`: the type of
+ *  the container it is taken out of; `appos`: the noun phrase said right after it). */
+export function removalPronouns(words) {
+  const w = String(words || '')
+  const out = []
+  const at = (m) => m.index + (PRONOUN_AT.exec(m[0])?.[0].length ?? 0)
+  for (const [src, cont] of [[PRONOUN_SRC, false], [PRONOUN_CONT_SRC, true]]) {
+    for (const m of w.matchAll(new RegExp(src, 'gi'))) {
+      const phrase = m[1] || m[2]
+      const index = at(m)
+      const appos = cont ? null : (APPOS.exec(w.slice(index + phrase.length))?.[1] || null)
+      out.push({ phrase, plural: /^(?:them|those)$/i.test(phrase), index, length: phrase.length, verbAt: m.index, cont, appos })
+    }
+  }
+  for (const src of PRONOUN_FROM_SRCS) {
+    for (const m of w.matchAll(new RegExp(src, 'gi'))) {
+      const index = at(m)
+      const c = containerType(m[2])
+      if (!c) continue
+      // (from the CHART itself is `cont`, above, and stays; "out of <container>" read as `cont` "out" + "of" is this container instead)
+      const same = out.findIndex(o => o.index === index)
+      if (same >= 0) { if (!out[same].cont || c.onChart) continue; out.splice(same, 1) }
+      // ⛔ AUDIT probe 66a: an appositive after the container ("take it off the board (the trendline)", "remove it from the board,
+      // the RSI I mean") says what the pronoun is — it OUTRANKS the container (removalTargets types `appos` first)
+      const appos = APPOS.exec(w.slice(m.index + m[0].length))?.[1] || null
+      out.push({ phrase: m[1], plural: /^(?:them|those)$/i.test(m[1]), index, length: m[1].length, verbAt: m.index, cont: false, from: c.type, container: c.word, appos })
+    }
+  }
+  return out.sort((a, b) => a.index - b.index)
+}
+// ⛔ REFERENT TYPE (AUDIT probe 62 + owner directive 2026-11-16: "destructive references such as 'close it', 'take it off', 'delete it'
+// resolve to the correct OBJECT TYPE using conversational context; if the target is ambiguous, ask instead of acting"). A destroying
+// pronoun refers to an OBJECT OF A TYPE — a chart, or a thing on one (an indicator, a drawing, an alert, a note, a pane, a list…):
+//   (1) the WORDS: the nearest noun before its verb ("add an RSI, then delete it" → the RSI; "the SPY chart — close it" → a chart). A
+//       chart word that only says WHERE a thing went ("put an RSI on the SPY chart, then delete it") is a place, not the antecedent.
+//   (2) else the CONVERSATION: the one object the previous applied turn made or changed (stateRail turnStartOf `previous` — typed
+//       ids: chart:… / ind:… / draw:… / list:…), the same referent the state rail licenses a destroy right after by.
+// A plan destroying an object of ANOTHER type than the referent's is refused; a referent the words and the conversation leave
+// ambiguous (a thing just made AND a clicked chart) is asked. Never a verb list: the noun sets are the Agent's own — deixis thingWord
+// (PLACED chart-surface nouns, ONE_IS_A_THING, the live indicator catalog's ids), chartishWord (CHARTISH), and stateRail CLASS.
+let ANTECEDENT_CLASS = null
+const antecedentClass = () => (ANTECEDENT_CLASS ||= [STATE_CLASS.indicator, STATE_CLASS.drawing, STATE_CLASS.watchlist].map(re => new RegExp(String.raw`^(?:${re.source})$`, 'i')))
+const PLACE_PREP = /^(?:on|onto|to|into|in|from|for)$/
+const NP_FILLER = /^(?:the|my|your|our|this|that|these|those|a|an|left|right|top|bottom|upper|lower|middle|first|second|third|last|other|daily|weekly|monthly|hourly|\$?[a-z]{1,5})$/
+/** The type of the thing the words name nearest before `at` (a pronoun's verb): { type: 'chart' } | { type: 'thing', word } | null.
+ *  `isSymbol(word)`: a ticker word (a chart on the board, or a ticker said). */
+export function pronounAntecedent(before, isSymbol = () => false) {
+  const words = String(before || '').toLowerCase().split(/[^a-z0-9%$]+/).map(x => x.replace(/^\$/, '')).filter(Boolean)
+  for (let i = words.length - 1; i >= 0; i--) {
+    const x = words[i]
+    if (chartishWord(x) || isSymbol(x)) {
+      // (a chart word under a place preposition — "on the SPY chart", "to my left chart" — is where something went: read on)
+      let k = i - 1
+      while (k >= 0 && k >= i - 4 && NP_FILLER.test(words[k]) && !PLACE_PREP.test(words[k])) k--
+      if (k >= 0 && PLACE_PREP.test(words[k])) { i = k; continue }
+      return { type: 'chart' }
+    }
+    if (thingWord(x) || antecedentClass().some(re => re.test(x))) return { type: 'thing', word: x }
+  }
+  return null
+}
+const REMOVAL_VERB_ANY = new RegExp(String.raw`\b${PRONOUN_VERB}\b|\btak(?:e|ing)\s+(?:\S+\s+){1,4}?(?:off|down|away|out)\b`, 'gi')
+const removalVerbCount = (w) => (String(w || '').match(REMOVAL_VERB_ANY) || []).length
+const typeOfId = (id) => (String(id || '').startsWith('chart:') ? 'chart' : id ? 'thing' : null)
+/** The referent of the destroying pronouns in `words`, typed: { kind: 'none' } (no destroying pronoun) | { kind: 'cont' } (every
+ *  one goes on past itself: no destroy) | { kind: 'chart' } | { kind: 'thing', word?, id? } | { kind: 'conflict', id } |
+ *  { kind: 'open' } (nothing in the words or the conversation types it). Shared by both rails. */
+export function pronounReferent(words, { isSymbol = () => false, previous = null, chartPointed = false } = {}) {
+  const prons = removalPronouns(words).filter(p => !p.cont)
+  if (!prons.length) return { kind: removalPronouns(words).length ? 'cont' : 'none' }
+  const p = prons[0]
+  const ap = p.appos ? pronounAntecedent(p.appos, isSymbol) : null
+  if (ap) return ap.type === 'chart' ? { kind: 'chart' } : { kind: 'thing', word: ap.word }
+  if (p.from) return p.from === 'chart' ? { kind: 'chart' } : p.container ? { kind: 'thing', word: p.container } : { kind: 'thing' }
+  const a = (p.appos && pronounAntecedent(p.appos, isSymbol)) || pronounAntecedent(String(words || '').slice(0, p.verbAt), isSymbol)
+  if (a) return a.type === 'chart' ? { kind: 'chart' } : { kind: 'thing', word: a.word }
+  const t = typeOfId(previous)
+  if (t === 'thing') return chartPointed ? { kind: 'conflict', id: previous } : { kind: 'thing', id: previous }
+  if (t === 'chart') return { kind: 'chart', id: previous }
+  return { kind: 'open' }
+}
+/** What a removal's pronoun object names: { refs: Set } — or { ask: true } when nothing resolves it. */
+function resolvePronoun(pr, all, { selected = null, subject = null } = {}) {
+  const key = (c) => (linked(c.group) ? `g:${c.group}` : `c:${c.ref}`)
+  // (a chart in a link group names its whole group: one object)
+  const groupOf = (ref) => { const c = ref != null && all.find(x => x.ref === ref); return c ? all.filter(x => key(x) === key(c)).map(x => x.ref) : [] }
+  const sel = groupOf(selected), sub = groupOf(subject)
+  if (pr.plural) {
+    const set = [...sel, ...sub]
+    return set.length ? { refs: new Set(set) } : { ask: true }
+  }
+  if (sel.length) return { refs: new Set(sel) }
+  if (sub.length) return { refs: new Set(sub) }
+  if (new Set(all.map(key)).size === 1) return { refs: new Set(all.map(c => c.ref)) }
+  return { ask: true }
+}
+export function removalTargets(w, host, { selected = null, subject = null, picked = null, previous = null, previousLabel = null } = {}) {
   const all = liveCharts(host)
   const ids = new Set()
   // (the SOLE chart in scope — a link group is one object — is named by the class noun: "close the chart", as for a re-symbol)
   //  (counted over the chart WIDGETS a removal can close: closing one closes its chart tabs with it, so a tab is no other target)
   const groups = new Set(all.map(c => (linked(c.group) ? `g:${c.group}` : `c:${c.ref}`)))
   const sole = groups.size === 1
+  // (probe 61a: each pronoun object is resolved in its own order, below; it — and every other bare "it" — is out of the deixis read)
+  const prons = removalPronouns(w)
+  let wr = String(w || '')
+  for (const p of [...prons].sort((a, b) => b.index - a.index)) wr = `${wr.slice(0, p.index)} ${wr.slice(p.index + p.length)}`
+  wr = wr.replace(/\bit\b/gi, ' ')
+  // (probe 62: "remove it from the chart" — the chart there is where the thing comes off, never the chart named for closing)
+  if (prons.some(p => p.cont)) wr = wr.replace(new RegExp(FROM_CHART, 'gi'), ' ')
+  let pronoun = null
+  let deferred = null
+  for (const p of prons) {
+    // (probe 62: a pronoun the words go on past, or one that stands for a thing named before it, is no chart reference)
+    if (p.cont) { pronoun = { phrase: p.phrase, notChart: true }; break }
+    // (probe 64a-7: an item taken out of a THING container — "remove it from my watchlist" — is no chart)
+    if (p.from === 'thing') { pronoun = { phrase: p.phrase, notChart: true, thing: p.container ? `something in your ${p.container}` : 'something on the chart' }; break }
+    // (the referent's TYPE: the words — said right after it (64a-1), else before it — then the conversation's previous object)
+    const syms = new Set(all.map(c => String(c.symbol || '').toLowerCase()).filter(Boolean))
+    const isSym = (x) => syms.has(x)
+    const a = (p.appos && pronounAntecedent(p.appos, isSym)) || pronounAntecedent(String(w || '').slice(0, p.verbAt), isSym)
+    if (a?.type === 'thing') { pronoun = { phrase: p.phrase, notChart: true, thing: `the ${a.word}` }; break }
+    // (a chart the words name — before or after the pronoun — is THAT chart: the named read below decides; only when it names none
+    //  is the pronoun resolved as a deixis)
+    if (a?.type === 'chart') { deferred = deferred || p; continue }
+    const prevType = a ? null : typeOfId(previous)
+    if (prevType === 'thing') {
+      const pointed = [selected, subject].find(r0 => r0 != null && all.some(c => c.ref === r0))
+      pronoun = pointed != null ? { phrase: p.phrase, conflict: true, thing: previousLabel || 'what you just changed', chart: all.find(c => c.ref === pointed) } : { phrase: p.phrase, notChart: true, thing: previousLabel || 'what you just changed' }
+      break
+    }
+    const prevChart = prevType === 'chart' ? String(previous).slice('chart:'.length) : null
+    const r = resolvePronoun(p, all, { selected, subject: subject ?? prevChart })
+    // (an antecedent the words name — "the SPY chart is done, close it" — is that chart: read below, never asked)
+    if (r.ask) { pronoun = { phrase: p.phrase, ask: true, named: a?.type === 'chart' }; break }
+    for (const ref of r.refs) ids.add(ref)
+    pronoun = { phrase: p.phrase, refs: r.refs }
+  }
   for (const c of all) {
     const e = { ref: c.ref, symbol: up(c.symbol), position: c.position || null }
-    const how = identifiesChart(asRemoval(w), e, host, { selected, subject, picked, sole })
+    const how = identifiesChart(asRemoval(wr), e, host, { selected, subject, picked, sole })
     if (NAMES_CHART.has(how) || (sole && how === 'class') || positionSaid(w, e)) ids.add(c.ref)
     // (a back-reference to the conversation's chart — "the one I just changed", "the chart you made" — is that chart, as a deixis is)
     if (subject && c.ref === subject && BACK_REF.test(w)) ids.add(c.ref)
+  }
+  if (deferred && !pronoun && !ids.size) {
+    const prevChart = typeOfId(previous) === 'chart' ? String(previous).slice('chart:'.length) : null
+    const r = resolvePronoun(deferred, all, { selected, subject: subject ?? prevChart })
+    if (r.ask) pronoun = { phrase: deferred.phrase, ask: true }
+    else { for (const ref of r.refs) ids.add(ref); pronoun = { phrase: deferred.phrase, refs: r.refs } }
   }
   const ambiguous = []
   for (const sym of new Set(all.map(c => up(c.symbol)).filter(Boolean))) {
@@ -496,12 +687,30 @@ export function removalTargets(w, host, { selected = null, subject = null, picke
   let excluded = new Set()
   try { excluded = new Set(excludedCharts(w, all, selected)) } catch { excluded = new Set() }
   for (const r of excluded) ids.delete(r)
-  return { ids, ambiguous, excluded, all }
+  return { ids, ambiguous, excluded, all, pronoun }
 }
-function removalTargetRefusal(w, host, removed, { selected, subject, picked, known }) {
+function removalTargetRefusal(w, host, removed, { selected, subject, picked, known, previous, previousLabel }) {
   if (requestedPanels(w) != null || gridStated(w, known)) return null
-  const { ids, ambiguous, excluded, all } = removalTargets(w, host, { selected, subject, picked })
+  const { ids, ambiguous, excluded, all, pronoun } = removalTargets(w, host, { selected, subject, picked, previous, previousLabel })
   const where = (c) => (c.position ? `the ${c.position.replace('-', ' ')} one` : c.label || 'a chart')
+  // ⛔ probe 62: the pronoun is no chart (a thing named before it, or words that go on past it) and no chart is named AS WHAT TO
+  // REMOVE — none at all, or every removal verb the words hold takes such a pronoun ("put an RSI on the SPY chart, now delete it":
+  // the SPY chart is where the RSI went) — refused
+  const onlyPronouns = removalVerbCount(w) <= removalPronouns(w).length
+  if (pronoun?.notChart && (!ids.size || onlyPronouns)) {
+    const eg = removed.map(e => all.find(c => c.ref === e.ref)).find(c => c?.symbol) || all.find(c => c.symbol)
+    return `I didn’t close a chart: “${pronoun.phrase}” here ${pronoun.thing ? `means ${pronoun.thing}` : 'is about something on the chart'}, not a chart, so nothing was changed. To close a chart, name it — for example “close ${eg?.symbol ? `the ${up(eg.symbol)} chart` : 'the left chart'}”.`
+  }
+  // ⛔ (owner 11-16) the words / conversation say a thing was just made or changed AND a chart is pointed at: which one is asked
+  if (pronoun?.conflict && (!ids.size || onlyPronouns)) {
+    const sym = up(pronoun.chart?.symbol)
+    return `Which do you mean by “${pronoun.phrase}” — ${pronoun.thing}, or the ${sym ? `${sym} ` : ''}chart? Nothing was changed. Say “close the ${sym ? `${sym} ` : ''}chart” to close the chart, or name what to remove.`
+  }
+  // ⛔ probe 61a: a pronoun object nothing resolves (no selection, no conversation chart, 2+ chart objects) — asked, never applied
+  if (pronoun?.ask && !(pronoun.named && ids.size)) {
+    const eg = all.find(c => c.symbol) || all[0]
+    return `Which chart should I close? Nothing is selected, so I can’t tell which chart “${pronoun.phrase}” means, and nothing was changed. Click the chart, or name it by its ticker or its place — for example “close ${eg?.symbol ? `the ${up(eg.symbol)} chart` : 'the left chart'}”.`
+  }
   if (ambiguous.length) {
     const a = ambiguous[0]
     return `Which ${a.symbol} chart should I close? ${a.charts.length} charts show ${a.symbol} (${listOf(a.charts.map(where))}), so nothing was changed — say which one, for example “close the ${a.charts[0].position ? `${a.charts[0].position.replace('-', ' ')} ` : ''}${a.symbol} chart”, or “close both ${a.symbol} charts”.`
@@ -530,7 +739,7 @@ function removalTargetRefusal(w, host, removed, { selected, subject, picked, kno
   const meant = all.filter(c => ids.has(c.ref)).map(label)
   return `Which chart should I close? ${meant.length ? `You named ${listOf([...new Set(meant)])}, but` : 'Your words leave that chart out, but'} this would have closed ${listOf([...new Set(bad.map(label))])}, so nothing was changed. Say which chart to close — for example “close ${meant[0] || label(bad[0])}”.`
 }
-export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply', subject = null, picked = null, made = null, lists = null, out = null } = {}) {
+export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply', subject = null, picked = null, made = null, lists = null, out = null, previous = null, previousLabel = null } = {}) {
   if (!plan?.ok) return null
   const w = String(words || '')
   const effects = chartEffects(plan, host)
@@ -637,10 +846,10 @@ export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply'
         if (inList.length) return `Do you mean ${up(e.symbol)} in your ${listOf(inList.map(l => `“${l.name}”`))} list, or the ${up(e.symbol)} chart? Nothing was changed — say “remove ${up(e.symbol)} from ${inList[0].name}”, or “close the ${up(e.symbol)} chart”.`
         return `I didn’t change anything: “${up(e.symbol)}” alone doesn’t say to close a chart. Say “close the ${up(e.symbol)} chart” if that is what you want.`
       }
-      const wrong = removalTargetRefusal(w, host, removed, { selected, subject, picked, known })
+      const wrong = removalTargetRefusal(w, host, removed, { selected, subject, picked, known, previous, previousLabel })
       if (wrong) return wrong
     }
-    if (removed.length && mode === 'apply' && !REMOVAL.test(removalWords(w)) && !REMOVAL_TAKE.test(w)) {
+    if (removed.length && mode === 'apply' && !removalAskedFor(w)) {
       return `I didn’t change anything: this would have removed ${listOf(removed.map(nameOf))}, and you didn’t ask to remove a chart. Say which chart to remove or replace.`
     }
   }
