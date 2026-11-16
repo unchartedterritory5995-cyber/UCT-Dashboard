@@ -1,5 +1,5 @@
 {
-  "fingerprint": "service:terminal-next-monitor=1160 changed files on master not deployed; the branch moved 90 min ago and Railway started no deploy",
-  "posted_at": "2026-11-16T07:08:32.702986+00:00",
+  "fingerprint": "service:terminal-next-monitor=1220 changed files on master not deployed; the branch moved 36 min ago and Railway started no deploy",
+  "posted_at": "2026-11-16T08:07:44.281013+00:00",
   "reason": "new stuck item"
 }
