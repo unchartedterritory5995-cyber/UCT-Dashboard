@@ -27,7 +27,7 @@
 import { tickersIn } from './multiChart'
 import { matchPosition } from './fastPath'
 import { ordinalChart } from './deixis'
-import { excludedCharts, UNPLACED } from './spatialCheck'
+import { excludedCharts, UNPLACED, LOWER_STOP } from './spatialCheck'
 import { widgetTabList } from '../pages/charts/widgetTabs'
 import { sanitizeChartTabs } from '../pages/charts/chartTabs'
 
@@ -362,29 +362,35 @@ export function namedTickers(words, symbols = []) {
   const said = (symbols || []).map(up).filter(Boolean).filter(x => new RegExp(String.raw`(?:^|[^a-z0-9])\$?${reEsc(x.toLowerCase())}(?![a-z0-9])`).test(lower))
   return [...new Set([...caps, ...said])]
 }
-// ⛔ AUDIT RULING (H14 follow-up 1): a see verb that GOVERNS X wins over a change relation on X elsewhere in the request ("AAPL
-// where SPY and show me SPY and AAPL": SPY is asked to see — the plan dropping it is refused). Only the governed occurrence ITSELF
-// being the change's operand ("show SPY to AAPL": a CHANGE_TO / CHANGE_OFF word right after it, and X changed) is no see.
-const OPERAND_NEXT = new RegExp(String.raw`^\s*(?:(?:chart|one|panel|graph)\s+)?(?:${altOf([...CHANGE_TO, ...CHANGE_OFF])})\b`, 'i')
+// ⛔ AUDIT RULING (H14 follow-up 1, made STRICT 11-16): a see verb that GOVERNS X wins over any change relation on X in the
+// request ("AAPL where SPY and show me SPY and AAPL", "show SPY for AAPL": SPY is asked to see — a plan dropping it is refused)
+// (a token typed in lowercase that is a common word is never a ticker: a see filler is coordination ("show me a chart" never
+//  reads a board "A" chart); any other common word — LOWER_STOP — ENDS the governed list ("show AMD on the SPY chart": "on")
 export function tickerAskedToSee(words, ticker, others = []) {
   const w = String(words || '')
   const want = up(ticker)
   if (!want) return false
-  const changed = tickerChanged(w, want, others)
   for (const m of w.matchAll(SEE_VERB)) {
     const rest = w.slice(m.index + m[0].length).split(/[.;!?](?=\s|$)/)[0]     // (a dotted ticker is no sentence end)
-    for (const k of rest.matchAll(/[^\s,]+/g)) {
-      const tok = k[0]
+    for (const tok of rest.match(/[^\s,]+/g) || []) {
       const t = up(tok.replace(/^\$/, ''))
-      if (t === want) {
-        if (!(changed && OPERAND_NEXT.test(rest.slice(k.index + tok.length)))) return true
-        break
-      }
+      const typedLower = tok !== tok.toUpperCase()
+      if (typedLower && SEE_FILLER.has(tok.toLowerCase())) continue
+      if (typedLower && LOWER_STOP.test(tok)) break
+      if (t === want) return true
       if (SEE_FILLER.has(tok.toLowerCase()) || others.some(o => up(o) === t)) continue
       break
     }
   }
   return false
+}
+/** The tickers a request names for the final-board rules: its all-caps / "$" tickers, plus a symbol of `vocab` (the board's own
+ *  symbols, this plan's) typed in any casing — never a common word (LOWER_STOP), never a one-letter word. */
+export function spokenTickers(words, vocab = []) {
+  const w = String(words || '')
+  const lower = [...new Set((vocab || []).map(up).filter(s => s.length >= 2 && !LOWER_STOP.test(s)))]
+    .filter(s => new RegExp(String.raw`(?:^|[^A-Za-z0-9])\$?${reEsc(s)}(?![A-Za-z0-9])`, 'i').test(w))
+  return [...new Set([...tickersIn(w), ...lower])]
 }
 export function chartPickStale(pick, host) {
   if (!pick?.chartRef) return false
@@ -483,10 +489,12 @@ export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply'
       const before = new Set(liveCharts(host).map(c => up(c.symbol)).filter(Boolean))
       // (a ticker the words set aside — "but not NVDA", "leave TSLA", "except AMD" — is never one they ask to see)
       const setAside = (t) => tickerSetAside(w, t)
-      const asked = [...new Set(tickersIn(w))].filter(t => !before.has(t) && !setAside(t))
+      const asked = spokenTickers(w, [...before, ...known]).filter(t => !before.has(t) && !setAside(t))
       // (every ticker the words ask to SEE — a shown one counts as on the board only while it STAYS there: #1275 reuse.
       //  ⛔ AUDIT probe 52a: a SHOWN ticker counts only when a see verb governs it and it is never the object of a change)
-      const spoken = [...new Set(tickersIn(w))]
+      // (⛔ AUDIT probe 57 (a): a ticker typed in LOWERCASE counts when it is a symbol a chart on this board shows or this plan's own
+      //  symbol — never a common word: "show spy and aapl" keeps SPY; spokenTickers)
+      const spoken = spokenTickers(w, [...before, ...known])
       const named = spoken.filter(t => !setAside(t) && (!before.has(t) || tickerAskedToSee(w, t, spoken)))
       // (a stated grid is checked by its own COUNT rule)
       const gridded = (plan.plans || []).some(p => p.kind === 'board' || p.kind === 'multiChart') || gridStated(w, known) || requestedPanels(w) != null
@@ -504,6 +512,25 @@ export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply'
           ...(plan.plans || []).flatMap(p => (p.after?.grid?.add || []).map(a => up(a.symbol)))].filter(Boolean))
         const missing = named.filter(t => !shown.has(t))
         if (missing.length) return `I didn’t change anything: you asked for ${listOf(named)}, but this would leave ${listOf(missing)} off your board. Say “add ${listOf(asked)}” for new charts, or which chart each one replaces.`
+      }
+      // ⛔ SEEN STAYS (AUDIT probe 57 — ANY board, any plan kind): a SHOWN ticker the words ask to SEE (a SEE_VERBS verb governs
+      // it: tickerAskedToSee) is never taken off the board — a plan that re-symbols or removes the last chart showing it is refused.
+      // (Before, only the sole chart was checked here; on several charts only the LOCAL side-by-side reader (multiChart) caught
+      // "show X and Y" before any model plan — "pull up X and Y" / "I want to see X and Y" reached the model's plan and wrote.)
+      const seen = spoken.filter(t => before.has(t) && !setAside(t) && tickerAskedToSee(w, t, spoken))
+      if (seen.length && effects.some(e => (e.type === 'symbol' && e.to) || e.type === 'remove')) {
+        const final = new Map(liveCharts(host).map(c => [c.ref, up(c.symbol)]))
+        for (const e of effects) {
+          if (e.type === 'symbol' && e.to) final.set(e.ref, up(e.to))
+          else if (e.type === 'remove') final.delete(e.ref)
+        }
+        const shown = new Set([...final.values(), ...(plan.plans || []).filter(p => p.virtual && p.after?.symbol).map(p => up(p.after.symbol)),
+          ...(plan.plans || []).flatMap(p => (p.after?.grid?.add || []).map(a => up(a.symbol)))].filter(Boolean))
+        const dropped = seen.filter(t => !shown.has(t))
+        if (dropped.length) {
+          const adds = asked.length ? asked : [...new Set(effects.map(e => e.to).filter(Boolean).map(up))]
+          return `I didn’t change anything: you asked for ${listOf(named)}, but this would leave ${listOf(dropped)} off your board. Say “add ${listOf(adds)}” for new charts, or which chart each one replaces.`
+        }
       }
     }
     // REMOVAL: never at once without the words for it

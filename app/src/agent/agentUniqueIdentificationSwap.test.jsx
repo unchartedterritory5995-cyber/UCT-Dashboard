@@ -13,7 +13,7 @@ import { registerBuiltins } from './builtins'
 import { makeBoard } from './__fixtures__/board'
 import { mergeChartSettings } from '../components/chart/chartDefaults'
 import { planOps, collectTargets } from './executor'
-import { chartRailRefusal, tickerAskedToSee, tickerChanged, tickerSetAside, isAdditive, CHANGE_TAKE, CHANGE_TO, CHANGE_BACK, CHANGE_OFF, SEE_VERBS, TAKE_OFF, PUT_ON } from './chartRail'
+import { chartRailRefusal, tickerAskedToSee, tickerChanged, tickerSetAside, isAdditive, spokenTickers, CHANGE_TAKE, CHANGE_TO, CHANGE_BACK, CHANGE_OFF, SEE_VERBS, TAKE_OFF, PUT_ON } from './chartRail'
 import { excludedCharts } from './spatialCheck'
 import { setupPanel, bareSettings } from './testing/panelHarness'
 
@@ -318,10 +318,13 @@ describe(`FU1 · AUDIT RULING · a see verb governing X wins over a change on X 
   it.each(PAIRS)('the reading is per OCCURRENCE: "%s to %s" governed by nothing → still a change (the plan applies)', (X, Y) => {
     expect(rail([X], 'c1', Y, `${X} to ${Y}, and show me ${Y}`)).toBeNull()
   })
-  // (the governed occurrence ITSELF the operand of a CHANGE_TO word — "show SPY for AAPL" — is the change, as on master)
-  it.each(CHANGE_TO.flatMap(r => PAIRS.map(([X, Y]) => [`show ${X} ${r} ${Y}`, X, Y])))('operand control · "%s" → the change applies', (words, X, Y) => {
-    expect(tickerAskedToSee(words, X, [X, Y]), words).toBe(false)
-    expect(rail([X], 'c1', Y, words), words).toBeNull()
+  // ⛔ STRICT (AUDIT 11-16, an intended stricter change): the governed occurrence ITSELF the operand of a CHANGE_TO / CHANGE_OFF
+  // word ("show SPY for AAPL", "pull up SPY off and AAPL on") is STILL asked to see — refused, never written (master applied it)
+  const OPERAND = SEE_VERBS.flatMap((v, i) => [...CHANGE_TO.map(r => `${v} {X} ${r} {Y}`), ...CHANGE_OFF.map(r => `${v} {X} ${r} and {Y} on`)]
+    .map((tpl, j) => { const [X, Y] = PAIRS[(i + j) % PAIRS.length]; return [fill(tpl, X, Y), X, Y] }))
+  it.each(OPERAND)('strict operand · "%s" → refused, the shown ticker stays', (words, X, Y) => {
+    expect(tickerAskedToSee(words, X, [X, Y]), words).toBe(true)
+    expect(rail([X], 'c1', Y, words), words).toMatch(leaves(X))
   })
 })
 
@@ -443,5 +446,113 @@ describe('FU · PANEL · the real Agent panel', () => {
   ])('"%s" on %j, the plan on chart %i → %j', async (words, syms, target, want) => {
     const [got, out] = await sayWith(syms, target, words)
     expect(got, out).toEqual(want)
+  }, 40000)
+})
+
+// ══ SEEN STAYS (AUDIT probe 57, 2026-11-16 — a LIVE wrong write): on ANY board a SHOWN ticker a see verb GOVERNS is never
+// re-symbolled away. Before, only the sole chart was checked by the rail; on several charts only the LOCAL side-by-side reader
+// caught "show X and Y" — "pull up SPY and AAPL" / "I want to see SPY and AAPL" reached the model's plan and wrote.
+// GENERATED: board (2 / 3 / 4 charts, SPY in each position, a linked SPY pair) × every SEE verb × joiner × order × casing ──
+const linkedOf = (syms, pair) => makeBoard(syms.map((_, i) => ({ id: `c${i + 1}`, type: 'chart', x: i * Math.floor(24 / syms.length), y: 0, w: Math.floor(24 / syms.length), h: 20, color: pair.includes(i) ? 'A' : 'N', opts: settings() })),
+  Object.fromEntries(syms.map((s, i) => (pair.includes(i) ? ['A', s] : [`N:c${i + 1}`, s]))))
+const SEEN_BOARDS = [...BOARDS.map(([bname, syms, at]) => [bname, syms, at, null]),
+  ['linked SPY pair · QQQ', ['SPY', 'SPY', 'QQQ'], 0, [0, 1]], ['QQQ · linked SPY pair', ['QQQ', 'SPY', 'SPY'], 2, [1, 2]]]
+const railOn = (syms, pair, ref, to, words) => {
+  const b = pair ? linkedOf(syms, pair) : boardOf(syms)
+  const p = resym(b, ref, to)
+  expect(p.ok).toBe(true)
+  return chartRailRefusal(p, { words, host: b.host, mode: 'apply' })
+}
+const SEEN_CASE = { upper: (s) => s, dollar: (s) => `$${s.toLowerCase()}`, lower: (s) => s.toLowerCase() }
+const SEEN = []
+for (const verb of SEE_VERBS) for (const co of SEE_CO) for (const order of ['shown first', 'new first']) for (const [cname, cs] of Object.entries(SEEN_CASE)) {
+  const [bname, syms, at, pair] = SEEN_BOARDS[SEEN.length % SEEN_BOARDS.length]
+  const [A, B] = order === 'shown first' ? ['SPY', 'AAPL'] : ['AAPL', 'SPY']
+  SEEN.push([verb, order, cname, bname, `${verb} ${co.replace('{A}', cs(A)).replace('{B}', cs(B))}`, syms, at, pair])
+}
+// …and every board × every verb on AUDIT's own shape
+for (const verb of [...SEE_VERBS, 'I want to see']) for (const [bname, syms, at, pair] of SEEN_BOARDS) SEEN.push([verb, 'audit', 'upper', bname, `${verb} SPY and AAPL`, syms, at, pair])
+describe(`SEEN · on ANY board a plan re-symbolling the seen ticker's chart is refused (${SEEN.length} cases): board × SEE verb × joiner × order × casing`, () => {
+  it.each(SEEN)('%s · %s · %s · %s · "%s"', (_v, _o, cname, _b, words, syms, at, pair) => {
+    const got = railOn(syms, pair, `c${at + 1}`, 'AAPL', words)
+    // (a ticker said as a NAME — caps or "$" — identifies the SPY chart, and the SEEN rule refuses; in lowercase the chart is not
+    //  identified on several charts and the plan is ASKED first — either way nothing is written)
+    if (cname === 'lower' && syms.length > 1) expect(got, words).toBeTruthy()
+    else expect(got, words).toMatch(leaves('SPY'))
+  })
+})
+// controls: the genuine change relations still switch the NAMED chart; the protection is per ticker (another seen ticker stays)
+const SEEN_CTL = []
+for (const [bname, syms, at, pair] of SEEN_BOARDS) {
+  for (const words of ['AAPL instead of SPY', 'swap SPY for AAPL', 'replace SPY with AAPL', 'put AAPL where SPY is', 'take off SPY, put on AAPL', 'no more SPY, AAPL']) SEEN_CTL.push([bname, words, syms, at, pair])
+  if (syms.includes('QQQ')) for (const verb of SEE_VERBS) SEEN_CTL.push([bname, `${verb} QQQ and AAPL, AAPL instead of SPY`, syms, at, pair])
+}
+describe(`SEEN · controls: a change relation still switches the named chart (${SEEN_CTL.length} cases)`, () => {
+  it.each(SEEN_CTL)('%s · "%s" → the SPY chart switches', (_b, words, syms, at, pair) => {
+    expect(railOn(syms, pair, `c${at + 1}`, 'AAPL', words), words).toBeNull()
+  })
+})
+// LOWERCASE (AUDIT probe 57 (a)): the board's own symbols are the vocabulary — never a common word
+describe('SEEN · lowercase: a board symbol in lowercase is read; a common word never is', () => {
+  it.each([['SPY'], ['SPY', 'QQQ']])('"show spy and aapl" on %j (plan on SPY) → refused / asked, never written', (...syms) => {
+    expect(rail(syms, 'c1', 'AAPL', 'show spy and aapl')).toBeTruthy()
+  })
+  it('"show spy and aapl" on the sole SPY chart → the final-board refusal names SPY', () => {
+    expect(rail(['SPY'], 'c1', 'AAPL', 'show spy and aapl')).toMatch(leaves('SPY'))
+  })
+  // GENERATED: every SEE verb × joiner × order × lowercase / mixed casing on the sole chart, and the linked SPY pair (one object)
+  const LOW = []
+  for (const verb of SEE_VERBS) for (const co of SEE_CO) for (const order of ['shown first', 'new first']) for (const cs of [(s) => s.toLowerCase(), (s) => s[0] + s.slice(1).toLowerCase()]) {
+    const [X, Y] = PAIRS[LOW.length % PAIRS.length]
+    const [A, B] = order === 'shown first' ? [X, Y] : [Y, X]
+    LOW.push([`${verb} ${co.replace('{A}', cs(A)).replace('{B}', cs(B))}`, X, Y])
+  }
+  it.each(LOW)('lowercase · sole chart · "%s" → refused, the shown ticker stays', (words, X, Y) => {
+    expect(rail([X], 'c1', Y, words), words).toMatch(leaves(X))
+  })
+  // (on several charts a lowercase name does not IDENTIFY the SPY chart: the plan is asked first — never written)
+  it.each(SEE_VERBS.map(v => [`${v} spy and aapl`]))('lowercase · linked SPY pair + QQQ · "%s" → asked / refused, never written', (words) => {
+    expect(railOn(['SPY', 'SPY', 'QQQ'], [0, 1], 'c1', 'AAPL', words), words).toMatch(/would leave SPY off your board|^Which chart should change to AAPL\?/)
+  })
+  const COMMON = ['A', 'ALL', 'NOW', 'ON', 'IT', 'SEE', 'ONE', 'KEY', 'BIG', 'RUN']
+  it.each(COMMON)('a board "%s" chart is never read from a common lowercase word', (sym) => {
+    const words = `show me all of it now, see the one big key run on a chart — AAPL instead of ${sym}`
+    expect(spokenTickers('show me all of it now, see the one big key run on a chart', [sym, 'SPY'])).toEqual([])
+    expect(tickerAskedToSee('show me a chart of it now', sym, [sym])).toBe(false)
+    expect(rail([sym, 'SPY'], 'c1', 'AAPL', words) || '', words).not.toMatch(/would leave/)
+  })
+})
+
+// ── SEEN · the REAL panel, end to end (AUDIT probe 57 exactly, and every SEE verb on a rotating board) ──
+describe('SEEN · PANEL · the real Agent panel', () => {
+  let p
+  beforeEach(() => { p = setupPanel() })
+  afterEach(() => { vi.restoreAllMocks(); cleanup() })
+  const decorate = (s) => (s ? { ...s, label: `Chart (${s.symbol || 'empty'})` } : s)
+  const mountOf = (syms, pair = null) => {
+    const w = Math.floor(24 / syms.length)
+    const widgets = syms.map((_, i) => ({ id: `c${i}`, type: 'chart', x: i * w, y: 0, w, h: 20, color: pair && pair.includes(i) ? 'A' : 'N', opts: { settings: bareSettings() } }))
+    const gs = {}
+    widgets.forEach((wd, i) => { gs[wd.color === 'N' ? `N:${wd.id}` : wd.color] = syms[i] })
+    return p.mount(widgets, gs, { decorate })
+  }
+  const sayWith = async (syms, target, words, pair = null) => {
+    const m = mountOf(syms, pair)
+    p.st.envelopes.push(b => p.env('apply', [{ action: 'chart.setSymbol', target: b.context.charts[target].ref, args: { symbol: 'AAPL' } }]))
+    const out = await m.say(words)
+    return [Array.from({ length: syms.length }, (_, i) => m.h.charts.read(`c${i}`)?.symbol || ''), out]
+  }
+  it.each([['show SPY and AAPL'], ['pull up SPY and AAPL'], ['I want to see SPY and AAPL'], ['show spy and aapl']])('probe 57 · SPY · QQQ · "%s" with a plan on SPY → nothing changes', async (words) => {
+    const [got, out] = await sayWith(['SPY', 'QQQ'], 0, words)
+    expect(got, out).toEqual(['SPY', 'QQQ'])
+  }, 40000)
+  const PANEL_SEEN = SEE_VERBS.map((v, i) => [v, ...SEEN_BOARDS[i % SEEN_BOARDS.length]])
+  it.each(PANEL_SEEN)('"%s SPY and AAPL" · %s → the SPY chart is never re-symbolled', async (verb, _b, syms, at, pair) => {
+    const [got, out] = await sayWith(syms, at, `${verb} SPY and AAPL`, pair)
+    expect(got, out).toEqual(syms)
+  }, 40000)
+  it.each([['AAPL instead of SPY'], ['swap SPY for AAPL']])('control · SPY · QQQ · "%s" → the SPY chart becomes AAPL', async (words) => {
+    const [got, out] = await sayWith(['SPY', 'QQQ'], 0, words)
+    expect(got, out).toEqual(['AAPL', 'QQQ'])
   }, 40000)
 })
