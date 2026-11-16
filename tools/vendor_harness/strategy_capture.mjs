@@ -42,7 +42,11 @@ export function isStrategyCapture(c) {
  *  strategy() reads `risk_free_rate` back under its raw parameter name `risk_free_rate`, and has
  *  no "Calculate Strategy on every History Tick" input at all; a `//@version=6` strategy() reads
  *  both back as named below (Heikin Ashi Supertrend and Lorentzian 5c7960, v5; Trailing Take
- *  Profit Trailing Stop Loss and Technical ratings strategy, v6). */
+ *  Profit Trailing Stop Loss and Technical ratings strategy, v6)
+ *  ⭐ U14 G1 (runs s26 / s27-2026-11-15, the Properties table read at v2 through v6): a v2 or v3 strategy
+ *  has no process_orders_on_close, close_entries_rule, margin_long or margin_short input (sinceVersion 4);
+ *  a v4 one also has no risk_free_rate, use_bar_magnifier or fill_orders_on_standard_ohlc (sinceVersion 5);
+ *  calc_on_every_history_tick is v6 only. */
 export const PROPERTY_TABLE = Object.freeze([
   { key: 'initial_capital', name: 'Initial Capital', param: 'initial_capital', kind: 'num' },
   { key: 'pyramiding', name: 'pyramiding', param: 'pyramiding', kind: 'num' },
@@ -55,17 +59,39 @@ export const PROPERTY_TABLE = Object.freeze([
   { key: 'slippage', name: 'Backtesting slippage for market orders', param: 'slippage', kind: 'num' },
   { key: 'commission_type', name: 'Commission Type', param: 'commission_type', kind: 'enum' },
   { key: 'commission_value', name: 'Commission Value', param: 'commission_value', kind: 'num' },
-  { key: 'process_orders_on_close', name: 'Process orders on bar Close', param: 'process_orders_on_close', kind: 'bool' },
-  { key: 'close_entries_rule', name: 'Close entries rule', param: 'close_entries_rule', kind: 'enum' },
-  { key: 'margin_long', name: 'Margin Long', param: 'margin_long', kind: 'num' },
-  { key: 'margin_short', name: 'Margin Short', param: 'margin_short', kind: 'num' },
-  { key: 'risk_free_rate', name: 'Risk free rate', param: 'risk_free_rate', kind: 'num', aliases: ['risk_free_rate'] },
-  { key: 'use_bar_magnifier', name: 'Use Bar Magnifier', param: 'use_bar_magnifier', kind: 'bool' },
-  { key: 'fill_orders_on_standard_ohlc', name: 'Fill orders using standard OHLC', param: 'fill_orders_on_standard_ohlc', kind: 'bool' },
+  { key: 'process_orders_on_close', name: 'Process orders on bar Close', param: 'process_orders_on_close', kind: 'bool', sinceVersion: 4 },
+  { key: 'close_entries_rule', name: 'Close entries rule', param: 'close_entries_rule', kind: 'enum', sinceVersion: 4 },
+  { key: 'margin_long', name: 'Margin Long', param: 'margin_long', kind: 'num', sinceVersion: 4 },
+  { key: 'margin_short', name: 'Margin Short', param: 'margin_short', kind: 'num', sinceVersion: 4 },
+  { key: 'risk_free_rate', name: 'Risk free rate', param: 'risk_free_rate', kind: 'num', aliases: ['risk_free_rate'], sinceVersion: 5 },
+  { key: 'use_bar_magnifier', name: 'Use Bar Magnifier', param: 'use_bar_magnifier', kind: 'bool', sinceVersion: 5 },
+  { key: 'fill_orders_on_standard_ohlc', name: 'Fill orders using standard OHLC', param: 'fill_orders_on_standard_ohlc', kind: 'bool', sinceVersion: 5 },
   { key: 'calc_on_every_history_tick', name: 'Calculate Strategy on every History Tick', param: null, kind: 'bool', sinceVersion: 6 },
+  // ⭐ U14 G3 (coordinator ruling R3, measured on run s26-2026-11-15): six more inputs a //@version=4 or 5
+  // strategy reads back (a v2 one lacks three of them) and a v6 one does not. OPTIONAL: never required, but a
+  // read-back holding anything other than `optionalDefault` makes the capture INCONCLUSIVE (settingsAgreement).
+  { key: 'run_mode', name: "Run mode: 'backtest', 'alert' or something else", param: null, kind: 'enum', optional: true, optionalDefault: 'BACKTEST' },
+  { key: 'alert_message_template', name: "Alert message template for run mode 'alert'", param: null, kind: 'enum', optional: true, optionalDefault: '' },
+  { key: 'alert_type', name: "Alert type for run mode 'alert'", param: null, kind: 'enum', optional: true, optionalDefault: 'order_fills' },
+  { key: 'exclude_from_report', name: 'exclude_from_report', param: null, kind: 'enum', optional: true, optionalDefault: '' },
+  { key: 'trim_orders', name: 'trim_orders', param: null, kind: 'bool', optional: true, optionalDefault: false },
+  { key: 'calc_range', name: 'calc_range', param: null, kind: 'enum', optional: true, optionalDefault: '' },
 ])
-/** Every key the table knows: what a source of unknown version is held to (fail closed). */
-export const REQUIRED_PROPERTY_KEYS = Object.freeze(PROPERTY_TABLE.map((p) => p.key))
+/** Every REQUIRED key the table knows: what a source of unknown version is held to (fail closed). */
+export const REQUIRED_PROPERTY_KEYS = Object.freeze(PROPERTY_TABLE.filter((p) => !p.optional).map((p) => p.key))
+/** ⭐ U14 G2: an enum read back under another name for the SAME setting, per key: `{ declared literal: [read-back names] }`.
+ *  MEASURED on s26: `default_qty_type = strategy.cash` reads back `cash_per_order`; `fixed` and `percent_of_equity`
+ *  read back as themselves (w9-q-s1a-size-v5cash / -v5pct / -v6, w9-q-s1b-defaults-v5 / -v6). */
+export const ENUM_ALIASES = Object.freeze({
+  default_qty_type: Object.freeze({ cash: Object.freeze(['cash_per_order']) }),
+})
+/** Is the read-back `read` the enum value `declared` for `key`, its own name or an alias. */
+export function sameEnum(key, declared, read) {
+  const d = String(declared == null ? '' : declared).replace(/\s+/g, ' ').trim().toLowerCase()
+  const r = String(read == null ? '' : read).replace(/\s+/g, ' ').trim().toLowerCase()
+  if (d === r) return true
+  return ((ENUM_ALIASES[key] || {})[d] || []).some((a) => a.toLowerCase() === r)
+}
 
 /** The `//@version=N` of a Pine source (the annotation is a comment, so the raw text is read), or
  *  null when the source carries none. */
@@ -78,7 +104,7 @@ export function pineVersionOf(source) {
  *  to every key, so a missing annotation can only make the gate stricter. */
 export function requiredPropertyKeys(pineVersion) {
   const v = Number.isInteger(pineVersion) ? pineVersion : null
-  return PROPERTY_TABLE.filter((p) => !p.sinceVersion || v === null || v >= p.sinceVersion).map((p) => p.key)
+  return PROPERTY_TABLE.filter((p) => !p.optional && (!p.sinceVersion || v === null || v >= p.sinceVersion)).map((p) => p.key)
 }
 
 const norm = (s) => String(s == null ? '' : s).replace(/\s+/g, ' ').trim().toLowerCase()
@@ -208,10 +234,10 @@ function literal(raw, kind) {
   return m ? m[1] : undefined
 }
 
-function sameValue(kind, declared, read) {
+function sameValue(kind, declared, read, key = null) {
   if (kind === 'num') return Number(read) === declared
   if (kind === 'bool') return read === declared
-  return norm(read) === norm(declared)
+  return sameEnum(key, declared, read)
 }
 
 /** Source declaration vs Properties read-back. Only a parameter the source declares as a LITERAL is
@@ -229,9 +255,16 @@ export function settingsAgreement(c) {
     const lit = literal(declared[p.param], p.kind)
     if (lit === undefined) continue
     compared += 1
-    if (!sameValue(p.kind, lit, found[p.key].value)) {
+    if (!sameValue(p.kind, lit, found[p.key].value, p.key)) {
       disagreements.push({ key: p.key, declared: lit, readBack: found[p.key].value })
     }
+  }
+  // ⭐ U14 G3 (ruling R3): an OPTIONAL input read back at anything but its default is a disagreement
+  for (const p of PROPERTY_TABLE) {
+    if (!p.optional || !(p.key in found)) continue
+    const v = found[p.key].value
+    const same = p.kind === 'bool' ? v === p.optionalDefault : sameEnum(p.key, p.optionalDefault, v)
+    if (!same) disagreements.push({ key: p.key, declared: p.optionalDefault, readBack: v, optional: true })
   }
   const cd = chartDataOf(c)
   const unread = [...missing.map((k) => `property:${k}`),
