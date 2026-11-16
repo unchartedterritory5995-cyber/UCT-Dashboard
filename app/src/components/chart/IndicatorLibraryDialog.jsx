@@ -274,7 +274,7 @@ export function toggledRow(row, settings, registry) {
 // definition that declares `meta.tour` and whose tour this member has not seen (`useIndicatorTours`). Never on
 // showing a hidden instance, never on a second instance. The HOST shows the tour and calls `markSeen` when the
 // member finishes or skips it; this dialog only reports the add. Absent prop ⇒ no preferences read for it.
-export default function IndicatorLibraryDialog({ open, onClose, settings, onChange, registry, onCreateFormula, sheetClassName = '', extraRows = null, onFirstAdd = null }) {
+export default function IndicatorLibraryDialog({ open, onClose, settings, onChange, registry, onCreateFormula, onCreateIndicator = null, sheetClassName = '', extraRows = null, onFirstAdd = null }) {
   const [query, setQuery] = useState('')
   const { seen: tourSeen } = useIndicatorTours(typeof onFirstAdd === 'function')
   const searchRef = useRef(null)
@@ -756,6 +756,30 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
             it is. It is NOT filtered by `query`: a member who searched and found
             nothing is exactly the member who needs it, so it must not vanish
             with the rows. */}
+        {/* ⭐ DESCRIBE AN INDICATOR, from the library (2026-11-15). This dialog is the ONLY way into
+            indicators on a phone, and it offered no door to Create Indicator: measured on production
+            at 390px the day the feature opened to every account. Offered only when the host passes
+            the door, which it does only for an account the chart's own button would open it for.
+            Like the row below, it is not filtered by `query`. */}
+        {onCreateIndicator && (
+          <button
+            type="button"
+            className={styles.createRow}
+            data-testid="library-describe"
+            data-guide="indicators.create"
+            onClick={() => onCreateIndicator()}
+          >
+            <span className={`${styles.createPlus} ${styles.createSpark}`} aria-hidden="true">✦</span>
+            <span className={styles.createMain}>
+              <span className={styles.createName}>Describe an indicator</span>
+              <span className={styles.createBlurb}>
+                Say what you want in plain words. It previews on this chart, and nothing is saved
+                until you say so.
+              </span>
+            </span>
+            <span className={styles.createArrow} aria-hidden="true">→</span>
+          </button>
+        )}
         {onCreateFormula && (
           <button
             type="button"

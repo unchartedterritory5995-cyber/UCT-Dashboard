@@ -53,6 +53,9 @@
   border-color: var(--border-accent);
   outline: none;
 }
+/* The gold spark is UCT Intelligence's mark (house style, the gold mix). */
+.createSpark { color: var(--ut-gold, #dcbb5e); }
+.createRow + .createRow { margin-top: 8px; }
 .createPlus {
   flex-shrink: 0;
   font-size: 15px;
