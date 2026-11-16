@@ -901,7 +901,7 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
       // author asked for the price pane. `visualParitySet.test.js::documentOf`
       // still reads it the wrong way; the overlay case below is the rail.
       placement: (t.presentation && t.presentation.overlay === true)
-        ? { target: 'price' }
+        ? { target: 'price', ...(joinsPriceScale(t) ? { joinPriceScale: true } : {}) }
         : { target: 'pane', pane: { height: MEMBER_PANE_HEIGHT } },
       paramManifest: Object.keys(manifest).length ? manifest : null,
       // ⭐⭐ R2 STEP 6 — THE OBJECT PROGRAM RIDES ON THE PANE DOCUMENT TOO, OR
@@ -1642,6 +1642,28 @@ function rowCallAt(stmts, line, kind) {
   return node && node.type === 'call' && node.name === kind ? node : null
 }
 
+/**
+ * PRICE-SCALE JOIN (coordinator ruling 2026-11-16). On TradingView an `overlay = true` script's
+ * plots sit on the price scale and take part in its autoscale by default ("Scale price chart
+ * only" is off by default), so a line the author parks under the bars (RS Rating's RS line, at
+ * its `Offset`) is in view. This engine's price overlays are GUESTS that never stretch the
+ * candles' range (`placement.js`, `'exclude'`), which left such a line below the pane.
+ *
+ * So a Pine translation that declares `overlay = true` stamps `placement.joinPriceScale: true`,
+ * and the chart lets its plots drive the price scale (`eligibility.js::priceScaleJoinLook`).
+ * NOT stamped when the declaration takes the script off the price scale (`scale = scale.none`
+ * or `scale.left`) or passes a `scale` this door cannot name. A plot the author hid
+ * (`display.none`) gets no series, so it cannot move the range either way.
+ * Pine translations only: no native indicator carries the stamp, so the guest rule is unchanged
+ * for every one of them. A saved script gets the stamp when it is re-translated on the engine
+ * bump (`savedScriptUpgrade.js`).
+ */
+export function joinsPriceScale(t) {
+  const p = t && t.presentation
+  if (!p || p.overlay !== true) return false
+  return p.scale === undefined || p.scale === null || p.scale === 'right'
+}
+
 /** A displacement expression's whole-number value, over integer literals, the
  *  script's own literal `input.int` settings (`ctx.ints`: key → default) and a
  *  top-level name bound ONCE to such an expression (`ctx.binds`, e.g. wyckoff's
@@ -2161,7 +2183,7 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       inputs: runtimeDocInputs(withObjectInputs(memberInputSpecs([]), drawsObjects ? t : null), runtimeInputs.specs),
       plots: [...rows, ...colourRows],
       placement: (t.presentation && t.presentation.overlay === true)
-        ? { target: 'price' }
+        ? { target: 'price', ...(joinsPriceScale(t) ? { joinPriceScale: true } : {}) }
         : { target: 'pane', pane: { height: MEMBER_PANE_HEIGHT } },
       paramManifest: null,
       objects: drawsObjects ? t.objects : null,

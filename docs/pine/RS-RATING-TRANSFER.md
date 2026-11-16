@@ -438,6 +438,24 @@ runtime pane on and **`objectsV2: "INCONCLUSIVE"`**.
   as well: the run half is declined `run-half:pane-off` ("the per-bar runtime pane is not on
   here") until the runtime stage is raised from `admins`. Measured on master, the committed
   allowlist latched.
+- **What an admin actually sees (real browser, 2026-11-16, engine 59, build `8cdb0af178`).** The
+  smoke account in its own headless browser, production `/charts`, RDDT 1D, the committed source
+  pasted through "paste a TradingView script" (textarea sha256 = the allowlisted hash), added to
+  the chart:
+  - the RS line is drawn (legend "RS Rating 43.57") and the three averages are listed with no
+    value (off at default inputs, as in the captures); one plot is hidden by the author;
+  - no label is drawn, and the note under the chart says so in two sentences (the drawings
+    sentence ending "...that run hasn't been checked against TradingView for this script", and
+    the `syminfo.industry` sentence).
+  - ⚠️ **The RS line was mostly off screen**: 43.57 under a price scale of about 80 to 220. The
+    values were right and not visible. Fixed by the price-scale join (engine 61, NUMBER PENDING):
+    an imported `overlay = true` script's plots take part in the price pane's autoscale, as
+    TradingView's do by default. With that build swapped into the same browser session the scale
+    reads about 20 to 220 and the whole line is in view under the bars. Rests on TradingView's
+    documented default; no capture records a visible price range (Q-RS10).
+  - ⚠️ **For the seconds the SPX and seed bars took to load, the note named a wrong cause** ("the
+    script reads another symbol or timeframe, which this chart cannot hand that run"). A run
+    waiting for bars is now held with no cause worded (same PR).
 - **What finishes it.** Q-RS8 (`docs/pine/capture-queue-2026-11-14-rs-rating.md`): re-take the
   three captures with the current `tv_capture.js`, which records the x table. If objects v2 then
   grades MATCH_SUBSTITUTED with x witnessed, the record's `objectsV2` is set from THAT grade and

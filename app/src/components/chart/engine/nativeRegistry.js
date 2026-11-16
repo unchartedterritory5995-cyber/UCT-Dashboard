@@ -3566,6 +3566,9 @@ function copyColumns(out) {
  *  run's drawings beside it (`RUNTIME_OBJECTS_KEY`, the RT5 shape the binder already draws),
  *  `pending` while the run is in flight, `refused` with its code. `ctx` absent (a probe that
  *  is not a chart, `validateEventColumns`) asks nothing of the run. */
+/** The run half's state code while its run waits for another symbol's bars (not a refusal). */
+export const RUN_HALF_REQUEST_PENDING = 'runtime:request-pending'
+
 function withRunHalf(def, out, bars, inputs, ctx) {
   if (!ctx) return out
   const ro = def.compute.runtimeObjects
@@ -3612,12 +3615,19 @@ function withRunHalf(def, out, bars, inputs, ctx) {
   try {
     cols = _runtimeLane(runHalfDefOf(def, ro), bars, {}, ctx)
   } catch (err) {
+    // ONE WITHHOLDING, ONE REASON (2026-11-16). A run waiting for another symbol's bars is a
+    // run in flight, not a refusal: seen on production, the note under a chart read "the script
+    // reads another symbol or timeframe, which this chart cannot hand that run" for the seconds
+    // the bars took to load, and a different reason once they had. Held, with nothing said about
+    // a cause, until the run can answer.
+    if (err && err.pending === true) return answered('pending', RUN_HALF_REQUEST_PENDING)
     return refused(err && err.name === 'runtime.error' ? 'runtime:runtime.error' : ((err && err.guard) || 'runtime:error'))
   }
   const payload = cols && typeof cols === 'object' ? cols[RUNTIME_OBJECTS_KEY] : null
   // ⛔ A run that owns its drawings always attaches them when it finishes
   // (`runtimeColumns.js`): nothing attached is a run still in flight.
   if (!payload || typeof payload !== 'object') return answered('pending', 'runtime:in-flight')
+  if (payload.status === 'WITHHELD' && payload.pending === true) return answered('pending', RUN_HALF_REQUEST_PENDING)
   if (payload.status === 'WITHHELD') return refused(payload.guard || 'runtime:objects')
   if (payload.status !== 'ok' || !Array.isArray(payload.live)) return refused('runtime:objects-stopped')
   const hostFams = hostObjectFamilies(def.objects)
