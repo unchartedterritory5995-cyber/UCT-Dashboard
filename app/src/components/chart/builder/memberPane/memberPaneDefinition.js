@@ -23,9 +23,10 @@
 // path rather than a first attempt: the rows, the manifest placements and the
 // `buildDefinition` call are the shapes it already proved land a valid document.
 import { staticPlotRefusalsOf } from '../../engine/otherSymbols.js'
-import { translatePine, lexPine, blockStatements, parseWholeExpression, findTop, isPunct, boundName, PAINT_RUNTIME_COLOUR, strippedForScan, OBJECT_SITE_SOURCES, COLOUR_UNREAD, COLOUR_DEFAULT_UNWITNESSED, isPreV4PineVersion, LEGACY_PLOT_DEFAULT_TRANSP } from '../../engine/ast/pine'
+import { translatePine, lexPine, blockStatements, parseWholeExpression, findTop, isPunct, boundName, PAINT_RUNTIME_COLOUR, strippedForScan, OBJECT_SITE_SOURCES, COLOUR_UNREAD, COLOUR_DEFAULT_UNWITNESSED, isPreV4PineVersion, LEGACY_PLOT_DEFAULT_TRANSP, NO_VERSION_GUARD, modernPineSyntaxIn, noVersionSentence } from '../../engine/ast/pine'
 import { withAlphaByte } from '../../designTokens'
 import { DEFAULT_SERIES_COLOUR } from '../../engine/pinePalette'
+import { THEME_FG } from '../../engine/objectTheme'
 import { paneGate, paneObjectsGate, runtimeRouteOf, runtimeFallbackOf } from '../../engine/ast/paneGate'
 import { runtimePaneEnabled } from '../../engine/runtimePaneGate'
 import { strategyBrokerEnabled } from '../../engine/strategyBrokerGate'
@@ -136,14 +137,23 @@ const keyAt = (i) => (i === 0 ? 'value' : `out${i + 1}`)
  *  candle role that names no colour) reached the sheet colourless, and the sheet
  *  drew it in `builderInputs`' gold `#c9a84c` — a colour TradingView never draws
  *  (87 scripts / 273 plots). Now it carries `colorWithheld: {code, reason}` and is
- *  drawn in NO colour (`COLOUR_NONE`): its column, legend value and data window
- *  stay, the member is told why (`colourWithheldNotes`), and a colour they pick in
- *  its settings is drawn. ⛔ R-G kept such a line in gold so a correct line was not
- *  taken off a chart; the gold was the wrong half of that ruling — the line's
- *  VALUE stays, only the colour nobody chose is not drawn. */
+ *  drawn in the CHART'S NEUTRAL INK (`WITHHELD_COLOUR_INK`, the chart's own text
+ *  colour, resolved where it is drawn), with the disclosure "colour not reproduced:
+ *  <reason>" (`colourWithheldNotes`); its values, legend value and data window stay,
+ *  and a colour the member picks in its settings is drawn. The harness grades such a
+ *  colour INCONCLUSIVE by name and still grades the values.
+ *  ⭐ COORDINATOR RULING (engine 58 review, 2026-11-15, under the owner's delegation):
+ *  a whole-withheld colour is drawn neither INVISIBLE (that hides exact values) nor in
+ *  the GOLD (that passes a stand-in off as the author's colour), but in the neutral
+ *  ink, named. (R-G, the owner's "keep the line", is not reinterpreted here.) */
 const DEFAULT_COLOURED_KINDS = new Set(['plot', 'plotshape', 'plotchar'])
-/** ⭐ ENGINE 58 — the colour a withheld colour draws in: none (fully transparent). */
+/** ⭐ ENGINE 58 — "no colour": a hidden column's, an anchor row's, and a colour rule's
+ *  series colour (what a bar the rule gives no colour draws: nothing, as Pine's `na`). */
 export const COLOUR_NONE = '#00000000'
+/** ⭐ ENGINE 58 — the colour a WHOLE-withheld colour draws in: the chart's neutral ink,
+ *  a theme reference (`objectTheme.THEME_FG`) resolved against the chart it is drawn on
+ *  (`pool.withThemeColour`, the legend's `safeCssColour(…, theme)`). See the ruling above. */
+export const WITHHELD_COLOUR_INK = THEME_FG
 /** The presentation fields a withheld colour replaces. */
 const COLOUR_FIELDS = Object.freeze(['color', 'opacity', 'colorDynamic', 'colorDynamicArity', 'colorUp', 'colorDown',
   'colorCondition', 'colorPalette', 'colorIndex', 'colorGradient', 'colorNaGated', 'colorWithheld'])
@@ -151,7 +161,7 @@ const COLOUR_FIELDS = Object.freeze(['color', 'opacity', 'colorDynamic', 'colorD
 function withheldColour(p, w) {
   const out = { ...p }
   for (const k of COLOUR_FIELDS) delete out[k]
-  return { ...out, color: COLOUR_NONE, colorWithheld: { code: w.code, reason: w.reason } }
+  return { ...out, color: WITHHELD_COLOUR_INK, colorWithheld: { code: w.code, reason: w.reason } }
 }
 
 /** ⭐⭐ ENGINE 58 — a translated row's presentation as the chart draws it: the
@@ -218,8 +228,8 @@ function colourWithheldNotes(rows) {
     const name = `\`${r.label || r.key}\``
     out.push({
       name: r.label || r.key,
-      note: `${name} is drawn in no colour: ${w.reason}. Its values are kept; pick a colour in its `
-        + 'settings to see it. No colour is drawn for it rather than one the script does not choose.',
+      note: `${name}: colour not reproduced: ${w.reason}. Its values are drawn in the chart's text `
+        + 'colour rather than one the script does not choose; pick a colour in its settings to change it.',
     })
   }
   return out
@@ -277,6 +287,15 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
       // from every negative test; this keeps the two distinguishable.
       return no(`the translator threw: ${String((err && err.message) || err)}`)
     }
+  }
+
+  // ⭐⭐ ENGINE 58 (review item 4, coordinator ruling) — NO `//@version` AND v4+ SYNTAX:
+  // TradingView would not compile it (no pragma is v1), so it is refused BY NAME on
+  // both lanes, before either is tried, and the member is asked for the header. No
+  // version is guessed. (A no-pragma script written in v1 forms is v1, unchanged.)
+  if (t && t.version === null) {
+    const form = modernPineSyntaxIn(source)
+    if (form) return no(noVersionSentence(form), NO_VERSION_GUARD, t)
   }
 
   // ⭐ THE FLAG IS READ HERE, ONCE. `paneGate` is a pure decision and stays one;

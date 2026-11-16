@@ -13,7 +13,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { translatePine, COLOUR_UNREAD, COLOUR_DEFAULT_UNWITNESSED, colourHexByName } from './pine.js'
 import { buildRuntimeIr } from './pineRuntimeFrontend.js'
-import { memberPaneDefinition, COLOUR_NONE } from '../../builder/memberPane/memberPaneDefinition.js'
+import { memberPaneDefinition, COLOUR_NONE, WITHHELD_COLOUR_INK } from '../../builder/memberPane/memberPaneDefinition.js'
 import { paletteFor, PALETTE_BY_VERSION, pineColourHex } from '../pinePalette.js'
 import { withThemeColour } from '../pool.js'
 import { markersFor } from '../markerPrimitive.js'
@@ -115,8 +115,10 @@ describe('C2 — a v1-v3 series output with no `transp` draws at 35 (alpha a6), 
     expect(presOf('//@version=5\nindicator("t")\nplot(close, "T", color.red, 1, plot.style_line, true)\n').opacity).toBeUndefined()
   })
 
-  it('a transp that folds (an input\'s default) is read; one that does not withholds the colour by name', () => {
-    expect(presOf('//@version=4\nstudy("t")\ntp = input(40)\nplot(close, color=color.red, transp=tp)\n').opacity).toBeCloseTo(0.6, 12)
+  it('a transp that folds (arithmetic on literals) is read; one that does not withholds the colour by name', () => {
+    // ⭐ engine 58 review item 7: a `transp` that reads an INPUT is withheld by name
+    // (it would be baked at the default) — `engine58Review.test.jsx`.
+    expect(presOf('//@version=4\nstudy("t")\nplot(close, color=color.red, transp=100 - 60)\n').opacity).toBeCloseTo(0.6, 12)
     const p = presOf('//@version=4\nstudy("t")\nplot(close, color=color.red, transp=close > open ? 0 : 50)\n')
     expect(p.colorWithheld.code).toBe(COLOUR_UNREAD)
   })
@@ -185,7 +187,7 @@ describe('C2 — a v1-v3 series output with no `transp` draws at 35 (alpha a6), 
       expect(want.styles.plot_3.transparency).toBe(35)
       const row = door(src).plots.find((x) => x.colorWithheld && x.colorWithheld.code === COLOUR_UNREAD)
       expect(row).toBeTruthy()
-      expect(row.colour).toBe(COLOUR_NONE)
+      expect(row.colour).toBe(WITHHELD_COLOUR_INK)
     })
     if (v === '3') {
       it('columns and stepline: 35, exact (the probe\'s plot_4 / plot_5)', () => {
@@ -226,19 +228,19 @@ describe('C2 — a v1-v3 series output with no `transp` draws at 35 (alpha a6), 
 })
 
 describe('C3 — an unread author colour is never drawn in the sheet gold', () => {
-  it('a colour the door cannot read is withheld by name and drawn in no colour, and the member is told', () => {
+  it('a colour the door cannot read is withheld by name and drawn in the chart\'s neutral ink, and the member is told', () => {
     const src = '//@version=5\nindicator("t")\nf(x) => x > 0 ? color.red : x < 0 ? color.lime : color.blue\nplot(close, "Line", color = color.from_gradient(close, low, high, color.red, color.rgb(0, 0, close)))\n'
     const d = door(src)
-    expect(d.plots[0].colour).toBe(COLOUR_NONE)
+    expect(d.plots[0].colour).toBe(WITHHELD_COLOUR_INK)
     expect(d.plots[0].colorWithheld.code).toBe(COLOUR_UNREAD)
-    expect(d.notes.some((n) => /`Line` is drawn in no colour/.test(n.note))).toBe(true)
+    expect(d.notes.some((n) => /`Line`: colour not reproduced: /.test(n.note))).toBe(true)
     // ⛔ the code never reaches the member's words
     expect(d.notes.some((n) => /pine:colour/.test(n.note))).toBe(false)
   })
 
   it('a plotarrow: its up/down colours are not carried, withheld by name', () => {
     const d = door('//@version=5\nindicator("t")\nplotarrow(close - open)\n')
-    expect(d.plots[0].colour).toBe(COLOUR_NONE)
+    expect(d.plots[0].colour).toBe(WITHHELD_COLOUR_INK)
     expect(d.plots[0].colorWithheld.code).toBe(COLOUR_UNREAD)
   })
 

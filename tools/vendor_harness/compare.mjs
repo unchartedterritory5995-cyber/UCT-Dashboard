@@ -220,6 +220,19 @@ export const NO_COLOUR = '#00000000'
  *  never MATCH having compared nothing there, never DIVERGE against a colour our
  *  side never claimed. `ourSide.js` writes it. */
 export const COLOUR_WITHHELD_POINT = 'withheld'
+/** ⭐⭐ ENGINE 58 — A THEME REFERENCE IS GRADED ON ITS ALPHA BYTE ALONE. Its hue is
+ *  the chart's (`chart.fg_color` is our chart's text colour, TradingView's is its own
+ *  theme's — the C37 rule, theme-relative), but its TRANSPARENCY is the script's
+ *  (`color.new(chart.fg_color, 85)` is alpha `26` on every chart). So both sides are
+ *  reduced to `#000000<alpha>` and compared as colours: the alpha has to agree, the
+ *  hue is not asked. A non-colour (`null`, `undefined`, `COLOUR_WITHHELD_POINT`) is
+ *  passed through unchanged. */
+export function alphaOnlyColour(c) {
+  if (typeof c !== 'string' || c === COLOUR_WITHHELD_POINT) return c
+  const n = normalizeColor(c)
+  return n ? `#000000${n.slice(7)}` : c
+}
+
 export function canonicalColour(c) {
   return typeof c === 'string' && /^#[0-9a-f]{6}00$/.test(c) ? NO_COLOUR : c
 }
@@ -910,15 +923,19 @@ export function compareCapture(capture, ours, opts = {}) {
     // ⭐ ENGINE 58 — a plot coloured `chart.fg_color` / `chart.bg_color` is drawn in
     // OUR chart's colour, not TradingView's theme: THEME-RELATIVE, the C37 rule the
     // object colours already follow (`objectTheme.js`; `themeRelative` agrees).
+    // ⭐ …graded on its ALPHA byte alone (`alphaOnlyColour`): the transparency is the
+    // script's, only the hue is the chart's.
     const themeRelative = o.colorsThemeRelative === true
-    const colourUngraded = hiddenOnVendor || emptyGlyph || themeRelative
+    const colourUngraded = hiddenOnVendor || emptyGlyph
+    const gradedVendorColors = themeRelative && vc.colors ? vc.colors.map(alphaOnlyColour) : vc.colors
+    const gradedOurColors = themeRelative && ourColors ? ourColors.map(alphaOnlyColour) : ourColors
     // ⭐⭐ ENGINE 55 — the NEWEST bar our side withheld BY NAME (`withheldNewest`: the
     // `request:htf-newest-unconfirmed` code, a finished newest bar whose period end is
     // the next session's date) is not compared, exactly as a whole-series withholding
     // is not: our side drew nothing there, and drew it on purpose. Every other bar is.
     const unreadAfter = [treeShift ? times.length - treeShift : null, o.withheldNewest === true ? times.length - 1 : null]
       .filter((x) => x !== null)
-    const r = comparePlot({ times, vendor: vendorVals, ours: oursCol, vendorColors: colourUngraded ? null : vc.colors, ourColors: colourUngraded ? null : ourColors, warmupBars, colorWarmupBars, tol, oursUnreadAfter: unreadAfter.length ? Math.min(...unreadAfter) : null,
+    const r = comparePlot({ times, vendor: vendorVals, ours: oursCol, vendorColors: colourUngraded ? null : gradedVendorColors, ourColors: colourUngraded ? null : gradedOurColors, warmupBars, colorWarmupBars, tol, oursUnreadAfter: unreadAfter.length ? Math.min(...unreadAfter) : null,
       withheldBars: leadBy(o.withheldBars, treeShift) || null, floatOrderFloor: leadBy(o.floatOrderFloor, treeShift) || null })
     const pv = plotVerdict(r, {
       colorMeasured: vc.measured && !colourUngraded,
@@ -934,11 +951,10 @@ export function compareCapture(capture, ours, opts = {}) {
       ...(treeShift ? { treeShift, treeShiftNote: `offset = ${treeShift}: our column read ${treeShift} bars ahead to meet the vendor's unshifted series; the last ${treeShift} bars are unread` } : {}),
       ...(o.withheldNewest === true ? { withheldNewest: 'request:htf-newest-unconfirmed', withheldNewestNote: 'the newest bar is withheld by name on our side (a finished bar whose week or month end is the date of the next session) and is not compared' } : {}),
       color: !vc.measured ? 'not captured'
-        : colourUngraded ? (themeRelative ? 'theme-relative — drawn in our chart colour (chart.fg_color / chart.bg_color), agrees by the C37 rule'
-          : emptyGlyph ? 'not graded — an empty plotchar glyph draws nothing' : 'not graded — hidden on TradingView (display none)')
+        : colourUngraded ? (emptyGlyph ? 'not graded — an empty plotchar glyph draws nothing' : 'not graded — hidden on TradingView (display none)')
           : !vc.colors ? 'undecodable in the capture'
             : r.colorComparable === 0 ? 'nothing drawn on any bar — no colour to compare'
-              : ourColors ? 'compared' : 'unresolvable on our side',
+              : ourColors ? (themeRelative ? 'compared on alpha only — a theme reference (chart.fg_color / chart.bg_color) takes its hue from the chart (C37)' : 'compared') : 'unresolvable on our side',
       stats: r,
     })
   }
@@ -1623,7 +1639,9 @@ export function comparePaints(grade) {
     if (PAINT_AGREES.has(s)) agreeing += 1
     else if (PAINT_DIFFERS.has(s)) differing.push(r)
     else if (s === 'withheld') {
-      if (r.displayed === false) { undrawn += 1; undrawnIds.push(r.id) }
+      // ⭐ ENGINE 58 (S11) — …and one TradingView paints on NO bar is undrawn on both
+      // sides too, by the same rule as `notDrawn` below (dot-dynamics).
+      if (r.displayed === false || r.vendorPainted === 0) { undrawn += 1; undrawnIds.push(r.id) }
       else if (typeof r.reason === 'string' && r.reason.trim()) withheldByName.push(r)
       else differing.push(r)
     } else if (s === 'notDrawn') {

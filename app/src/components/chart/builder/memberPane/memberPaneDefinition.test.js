@@ -150,7 +150,8 @@ describe('⭐⭐ Volume v2 becomes a definition a pane can bind', () => {
     // the delete beside it, so it is one more attempted step and one more counted
     // drop. It used to vanish without a count.
     // ⭐ ENGINE 58 — `Volume`: its colour (`vcolornew`, reassigned in an `if`) is one this
-    // door cannot read, so it is withheld by name and drawn in no colour, never the gold.
+    // door cannot read, so it is withheld by name and drawn in the chart's neutral ink
+    // ("colour not reproduced"), never the gold.
     expect(Object.keys(byName).sort()).toEqual(['Drawings', 'Volume', 'alertcondition', 'baseTimeframeFolds'])
     // ⛔ 10 of 18 since engine 51: the Volume table's create is withheld by name
     // (`enum:unreadable`). Its position is `f_getTablePos(hasRecentHV ? 'Top Center' :
