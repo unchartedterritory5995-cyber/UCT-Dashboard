@@ -356,9 +356,77 @@ def _known_name(sym: str) -> str:
     try:
         from api.services import sec_filings
         m = sec_filings._CACHE.get("sec::name_map") or {}
-        return m.get(sym, "") if isinstance(m, dict) else ""
+        n = m.get(sym, "") if isinstance(m, dict) else ""
+        if n:
+            return n
     except Exception:  # noqa: BLE001
-        return ""
+        pass
+    return _saved_names().get(sym, "")
+
+
+# -- the names a restart forgets ---------------------------------------------------------------
+# ⛔ WHY (2026-11-15, LXFR). Both name sources above live in memory only, and after a restart
+# they are empty for the first minutes. A target a headline writes by NAME ("Luxfer Enters Into
+# Agreement ...") was therefore not pending on a fresh pod: the pending set held 74 names at
+# uptime ~370 s and 75 at 439 s, and in between LXFR (a cash buyout at $17.37) was served in a
+# scan, ranked, and drawn. The few names the deal headlines actually need are kept in one small
+# file beside the company-news store and read as the LAST resort, so the first build after a
+# restart reads the headlines exactly as the build before it did. Merged, never replaced: a
+# build made while memory is cold must not forget what an earlier one knew.
+NAMES_FILENAME = "deal_status_names.json"
+_SAVED_NAMES: dict = {"v": None}
+
+
+def _names_path() -> str:
+    return os.path.join(os.path.dirname(_company_db()) or ".", NAMES_FILENAME)
+
+
+def _saved_names() -> dict:
+    """{SYM: company name} saved by an earlier build. Empty when absent; empty and logged on any
+    fault. Read once per process (`reset_cache` drops it)."""
+    got = _SAVED_NAMES["v"]
+    if got is None:
+        got = {}
+        try:
+            with open(_names_path(), "r", encoding="utf-8") as fh:
+                data = json.load(fh)
+            if isinstance(data, dict):
+                got = {str(k).upper(): str(v) for k, v in data.items() if k and v}
+        except FileNotFoundError:
+            pass
+        except Exception as exc:  # noqa: BLE001
+            _log.warning("[deal-status] saved names unreadable, not used: %s", exc)
+        _SAVED_NAMES["v"] = got
+    return got
+
+
+def _save_names(headlines) -> None:
+    """Keep the names of every symbol a deal-shaped headline tags, as known right now, merged
+    into the saved file. Only while DEAL_STATUS_ENABLED is on; atomic; never raises."""
+    try:
+        if not enabled():
+            return
+        saved = _saved_names()
+        merged = dict(saved)
+        for _day, title, tickers in headlines:
+            if not (_TARGET_SIDE.search(title or "") or _ACQUIRER_SIDE.search(title or "")):
+                continue
+            for t in tickers or []:
+                sym = str(t or "").upper()
+                name = _known_name(sym) if sym else ""
+                if name:
+                    merged[sym] = name
+        if merged == saved:
+            return
+        path = _names_path()
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(merged, fh, sort_keys=True)
+        os.replace(tmp, path)
+        _SAVED_NAMES["v"] = merged
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("[deal-status] names not saved: %s", exc)
 
 
 def _named_in(sym: str, text: str) -> bool:
@@ -905,6 +973,7 @@ def reset_cache() -> None:
     with _LOCK:
         _STATE.clear()
         _SYM_CACHE.clear()
+        _SAVED_NAMES["v"] = None
         _SETS["v"] = None
         _SETS["gen"] += 1
 
@@ -921,6 +990,7 @@ def _snapshot() -> dict:
     cold = _names_cold(headlines)
     if cold:
         _warm_names_async()
+    _save_names(headlines)
     snap = {"day": today, "hand": hand_deals(), "mirror": mirror_list(),
             "news": fold_news(headlines), "stale_ref": _stale_ref(),
             "not_news": news_overrides()}
