@@ -249,7 +249,8 @@ describe('the inspector holds exactly one selection', () => {
     // selected" means to everything that reads this panel.
     expect(inspectorFor()).toBeFalsy()
     expect(document.body.querySelectorAll('[data-inspector-for]').length).toBe(0)
-    expect(screen.getByTestId('add-surface')).toBeTruthy()
+    // ⭐ UCT Signature (one column): with no editor open the section IS the list.
+    expect(screen.getByTestId('chart-structure').hidden).toBe(false)
   })
 
   it('⛔ THE LIST POINTS `aria-controls` AT THE REGION ITS SELECTION DRIVES', () => {
@@ -304,15 +305,21 @@ describe('the inspector holds exactly one selection', () => {
     const names = () => [...document.body.querySelectorAll('[data-structure-row]')]
       .map((r) => r.querySelector('[class*="insRowName"]').textContent.trim())
 
+    // ⭐ UCT Signature (one column): the arrows move FOCUS along the names (opening an editor
+    // replaces the list, so walking it must not); Enter / a click opens the focused one.
+    const focusedName = () => (document.activeElement?.closest('[data-structure-row]')
+      ?.querySelector('[class*="insRowName"]')?.textContent || '').trim()
     fireEvent.keyDown(list, { key: 'ArrowDown' })
-    expect(inspectorFor(), 'the first arrow selected nothing').toBeTruthy()
+    expect(document.activeElement?.hasAttribute('data-row-primary'), 'the first arrow focused nothing').toBe(true)
     fireEvent.keyDown(list, { key: 'End' })
     // ⛔ END REACHES THE LAST ROW OF THE LAST PANE — the walk is over the FLAT
     // order, so a member never has to know where one pane stops and the next
     // starts in order to get to the bottom of their own chart.
     const last = names()[names().length - 1]
-    expect((inspector().querySelector('[class*="insHeadName"]').textContent || '').trim()).toBe(last)
+    expect(focusedName()).toBe(last)
     fireEvent.keyDown(list, { key: 'Home' })
+    expect(focusedName()).toBe(names()[0])
+    fireEvent.click(document.activeElement)
     expect((inspector().querySelector('[class*="insHeadName"]').textContent || '').trim()).toBe(names()[0])
   })
 })
@@ -382,7 +389,10 @@ describe('⚰️⚰️ THE EDITOR IS A SECOND COLUMN, NOT A REGION INSIDE A ROW'
     cs = withDef(cs, 'rsi').cs
     show(cs); openTab()
     expect(document.body.querySelectorAll('[data-inspector-for]').length).toBe(0)
-    expect(screen.getByTestId('add-surface')).toBeTruthy()
+    // ⭐ UCT Signature: the empty state is the list of what is on the chart (discovery is its
+    // own window, opened by + Add indicator).
+    expect(screen.getByTestId('chart-structure').hidden).toBe(false)
+    expect(screen.queryByTestId('add-surface')).toBeNull()
   })
 
   it('⭐⭐ every control the inline editor carried is still in the Inspector', () => {
@@ -409,8 +419,9 @@ describe('⚰️⚰️ THE EDITOR IS A SECOND COLUMN, NOT A REGION INSIDE A ROW'
     show(cs); openTab(); select(/^QQQ$/)
     const labels = [...inspector().querySelectorAll('[class*="insSectionLabel"]')]
       .map((n) => n.textContent.trim())
-    expect(labels).toContain('Core')
-    expect(labels).toContain('Appearance')
+    // ⭐ UCT Signature names: Inputs (core) · Style (appearance) · On the chart · …
+    expect(labels).toContain('Inputs')
+    expect(labels).toContain('Style')
 
     // ⚠️ ADDRESSED BY `data-field`, NOT BY HASHED CLASS NAME. `[class*="insField"]`
     // also matches `insFieldLabel` and `insFieldCtl` — CSS-module substrings are a
@@ -421,7 +432,8 @@ describe('⚰️⚰️ THE EDITOR IS A SECOND COLUMN, NOT A REGION INSIDE A ROW'
     // What it READS is core; what it LOOKS LIKE is appearance. `dataSeries`
     // declares exactly one of each, and NEITHER is named in the view.
     expect(sectionOf('source'), 'the instrument is not a Core control').toBe('core')
-    expect(sectionOf('__display__'), 'the destination is not a Core control').toBe('core')
+    // ⭐ UCT Signature: WHERE it draws lives in "On the chart" (it was Core).
+    expect(sectionOf('__display__'), 'the destination is not an On the chart control').toBe('chart')
     expect(sectionOf('color'), 'a colour is not an Appearance control').toBe('appearance')
   })
 })
@@ -699,7 +711,7 @@ describe('⚰️⚰️⚰️ CHART SETTINGS IS ONE WINDOW, AT ONE WIDTH', () => 
     const atPrice = cls()
     expect(/panelWide/.test(atPrice), 'a width modifier is back on the panel').toBe(false)
 
-    for (const name of ['Canvas', 'Indicators', 'Header', 'Markers', 'Indicators', 'Price Style']) {
+    for (const name of ['Canvas', 'Indicators', 'Header & legend', 'Markers', 'Indicators', 'Price style']) {
       fireEvent.click(screen.getByRole('tab', { name }))
       expect(cls(), `the ${name} tab changed the panel's class — the shell moved`).toBe(atPrice)
     }
@@ -740,7 +752,7 @@ describe('⚰️⚰️⚰️ CHART SETTINGS IS ONE WINDOW, AT ONE WIDTH', () => 
     // — which is a stronger claim than "they are all the same string", because it
     // would also catch the class being left on when the member tabs away.
     const flush = (atPrice.match(/\S*bodyFlush\S*/) || [])[0]
-    for (const name of ['Canvas', 'Indicators', 'Header', 'Markers', 'Price Style']) {
+    for (const name of ['Canvas', 'Indicators', 'Header & legend', 'Markers', 'Price style']) {
       fireEvent.click(screen.getByRole('tab', { name }))
       const cls = body().className
       expect(/bodyNarrow|bodyWide/.test(cls), `${name} caps or widens its own content`).toBe(false)

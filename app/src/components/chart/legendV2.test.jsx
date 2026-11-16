@@ -105,19 +105,26 @@ describe('⚰ THE PERMANENT CHEVRON IS RETIRED — and stays retired', () => {
     }
   })
 
-  it('⭐⭐ COLOUR = WHICH SERIES, WHITE = THE VALUE', () => {
-    // §3. ⚰ BOTH the label and the value used to wear the plot's hue, which read as
-    // a rainbow at five series AND made the NUMBER as legible as whatever colour
-    // the member happened to pick. The label keeps the hue — it is the identity —
-    // and the number is always the same bright neutral.
+  it('⭐⭐ COLOUR = WHICH SERIES (THE BAR), GREY = THE NAME, WHITE = THE VALUE', () => {
+    // UCT Signature (owner-approved lab, 2026-11-15, L1 · Rows): the 3×13 bar is the
+    // only thing that wears the plot's hue; the name is grey and the value bright
+    // neutral, both from the stylesheet. ⚰ The coloured label (§3) is retired.
     const h = { onOpen: vi.fn() }
     render(<LegendRow rowId="ma:0" label="EMA 9" value="325.97" color="#4ade80" vertical {...h} />)
     const row = document.querySelector('[data-legend-row="ma:0"]')
-    expect(row.style.color, 'the row lost its series colour').toBe('rgb(74, 222, 128)')
-    // ⚠ children[0] IS THE MICRO-RAIL NOW — the label and value shifted by one.
-    const [, label, value] = row.children
-    expect(label.style.color, 'the label stopped inheriting the series colour').toBe('inherit')
+    expect(row.style.color, 'the row is inked in the series colour again').toBe('')
+    const [rail, label, value] = row.children
+    expect(rail.style.background, 'the bar lost the series colour').toBe('rgb(74, 222, 128)')
+    expect(label.style.color, 'the name is wearing the series colour again').toBe('')
     expect(value.style.color, 'the value is wearing the series colour again').toBe('')
+  })
+
+  it('⭐ …and the grid chip row follows the same rule', () => {
+    render(<IndicatorChip chip={chipOf()} grid onMenu={vi.fn()} />)
+    const row = document.querySelector('span[role="button"]')
+    expect(row.style.color, 'the chip row is inked in the series colour again').toBe('')
+    expect(row.querySelector('[data-instance-id]').style.color).toBe('')
+    expect(row.querySelector('i').style.background).toBe('rgb(139, 127, 214)')
   })
 
   it('⛔ …and a row with NO series colour leaves both to the stylesheet', () => {
@@ -176,12 +183,10 @@ describe('⭐ THE MICRO-RAIL — series identity, subordinate by construction', 
     expect(rail.getAttribute('tabindex')).toBeNull()
   })
 
-  it('⛔ SUBORDINATE BY CONSTRUCTION — a rule, not a chip', () => {
-    // ⚰⚰ TWO COLOURED MARKS DIED BEFORE THIS ONE. Track B's 2×9 rail REPLACED the
-    // coloured label and read as nine little tabs; the composition pass's 5×5
-    // SQUARE read as a bullet and as DeepView's signature. This one accompanies a
-    // coloured label and is a hairline: at 3px wide it becomes a bar chart down the
-    // left edge, which is the "rainbow barcode" a dense stack invites.
+  it('⛔ THE SIGNATURE BAR — 3×13, never a square or a block', () => {
+    // UCT Signature (owner-approved 2026-11-15): the name is grey now, so the bar is
+    // the key and is drawn at 3×13 (radius 2) — still a bar, not a 5×5 SQUARE (the
+    // DeepView bullet retired earlier) and not a block wider than 3px.
     for (const [name, css] of [['LegendRow', ROW_CSS], ['IndicatorChip', CHIP_CSS]]) {
       // ⚠️ THE SELECTOR IS A GROUP IN `LegendRow` SINCE 2026-09-16 — `.rail,
       // .railFlat` share one geometry block, because the horizontal strip's rule
@@ -192,8 +197,9 @@ describe('⭐ THE MICRO-RAIL — series identity, subordinate by construction', 
       expect(rule, `${name} has no rail rule`).toBeTruthy()
       const w = Number(/width:\s*(\d+)px/.exec(rule[1])[1])
       const h = Number(/height:\s*(\d+)px/.exec(rule[1])[1])
-      expect(w, `${name}'s rail is a bar, not a rule`).toBeLessThanOrEqual(2)
-      expect(h, `${name}'s rail is taller than the line it marks`).toBeLessThanOrEqual(11)
+      expect(w, `${name}'s rail is wider than the signature 3px bar`).toBe(3)
+      expect(h, `${name}'s rail is not the signature 13px bar`).toBe(13)
+      expect(h, `${name}'s rail became a square`).toBeGreaterThan(w * 3)
       expect(rule[1], `${name}'s rail can be squeezed`).toMatch(/flex:\s*none/)
       // ⛔ NO BACKGROUND IN THE RULE — the colour is inline, from the caller's
       // already-resolved series colour. A default here would paint a fabricated
@@ -526,19 +532,34 @@ describe('§5 — hover restyles nothing but text', () => {
     }
   })
 
-  it('⭐⭐ HOVER IS A BRIGHTNESS FILTER, SO IT WORKS ON EVERY HUE', () => {
-    // ⛔ NOT A COLOUR SWAP. Re-inking a label to white on hover would throw away
-    // the series identity for exactly as long as the pointer is on it — the one
-    // thing the label is FOR. `brightness` lifts a blue label, a gold one and a
-    // neutral `Vol` by the same perceptual step and keeps every hue.
-    // ⛔ AND A FILTER REPAINTS; IT DOES NOT REFLOW.
-    for (const [name, css, sel] of [['LegendRow', ROW_CSS, '.vRow'],
-      ['IndicatorChip', CHIP_CSS, '.chipGridRow']]) {
-      const re = new RegExp(sel.replace('.', '\\.') + '\\.rowLive:hover[^{]*\\{([^}]*)\\}', 'g')
-      const bodies = [...css.matchAll(re)].map((m) => m[1]).join(' ')
-      expect(bodies, `${name}'s hover no longer brightens`).toMatch(/filter:\s*brightness/)
-      expect(bodies, `${name}'s hover re-inks the label and loses the series colour`)
-        .not.toMatch(/color:\s*var\(--text-bright\)/)
+  it('⭐⭐ UCT SIGNATURE: HOVER IS A SOFT CARD THAT MOVES NOTHING', () => {
+    // The owner-approved lab (2026-11-15): a hovered row sits on a soft card
+    // (rgba(17,18,20,.85) + inset 1px #26282c, radius 6) with its controls. ⛔ The
+    // card is a `::before` with NO pointer events (it must not widen the hit box into
+    // empty chart) and the strip is absolutely positioned and `display: none` at rest,
+    // so the row box, the pitch and every value's x are identical hovered and at rest.
+    const card = /\.rowActs::before\s*\{([^}]*)\}/.exec(ROW_CSS)
+    expect(card, 'the hover card rule is gone').toBeTruthy()
+    expect(card[1]).toMatch(/position:\s*absolute/)
+    expect(card[1]).toMatch(/pointer-events:\s*none/)
+    expect(card[1]).toMatch(/background:\s*rgba\(17, 18, 20, 0\.85\)/)
+    expect(card[1]).toMatch(/box-shadow:\s*inset 0 0 0 1px #26282c/)
+    expect(card[1]).toMatch(/border-radius:\s*6px/)
+    expect(card[1], 'the card shows at rest').toMatch(/opacity:\s*0/)
+    expect(ROW_CSS).toMatch(/\.rowActs:hover::before[^{]*\{[^}]*opacity:\s*1/)
+    const acts = /(?:^|\n)\.acts\s*\{([^}]*)\}/.exec(ROW_CSS)
+    expect(acts, 'the strip rule is gone').toBeTruthy()
+    expect(acts[1], 'the strip is in flow and would move the row').toMatch(/position:\s*absolute/)
+    expect(acts[1], 'the strip shows at rest').toMatch(/display:\s*none/)
+    // ⛔ FLUSH WITH THE ROW: a margin would be a gap that belongs to neither box.
+    expect(acts[1]).toMatch(/left:\s*100%/)
+    expect(acts[1]).not.toMatch(/margin/)
+    // the icons are grey, gold only under the pointer (§2b rule 6)
+    expect(/(?:^|\n)\.act\s*\{([^}]*)\}/.exec(ROW_CSS)[1]).toMatch(/color:\s*#a9a59b/)
+    expect(/\.act:hover\s*\{([^}]*)\}/.exec(ROW_CSS)[1]).toMatch(/color:\s*var\(--ut-gold/)
+    // and no brightness filter is left on either stack row
+    for (const [name, css] of [['LegendRow', ROW_CSS], ['IndicatorChip', CHIP_CSS]]) {
+      expect(stripComments(css), `${name} still brightens on hover`).not.toMatch(/filter:\s*brightness/)
     }
   })
 

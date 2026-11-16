@@ -242,7 +242,8 @@ test('every workspace action a member needs is still reachable from the toolbar'
 function openWidgetChips() {
   const header = document.querySelector('header')
   const before = new Set(header.querySelectorAll('button'))
-  const trigger = [...header.querySelectorAll('button')].find(b => /widgets/i.test(b.textContent))
+  // UCT Signature top row (owner 11-15): the trigger reads "Add widget" (was "Widgets")
+  const trigger = [...header.querySelectorAll('button')].find(b => /\bwidgets?\b/i.test(b.textContent) && !/merge/i.test(b.getAttribute('aria-label') || ''))
   expect(trigger, 'the toolbar has no WIDGETS menu').toBeTruthy()
   act(() => { trigger.click() })
   return [...header.querySelectorAll('button')].filter(b => !before.has(b) && !/merge/i.test(b.textContent))
@@ -1292,7 +1293,7 @@ test('TERM-001: a saved layout over the bound does not replace a smaller board, 
 describe('UCT News in the WIDGETS menu, for every signed-in role', () => {
   const chip = (type) => document.querySelector(`[data-guide="workspace.widgets.${type}"]`)
   const openWidgets = () => {
-    const trigger = [...document.querySelector('header').querySelectorAll('button')].find(b => /widgets/i.test(b.textContent))
+    const trigger = [...document.querySelector('header').querySelectorAll('button')].find(b => b.dataset.guide === "workspace.widgets")  // "Add widget" (UCT Signature top row, owner 11-15)
     act(() => { trigger.click() })
   }
 

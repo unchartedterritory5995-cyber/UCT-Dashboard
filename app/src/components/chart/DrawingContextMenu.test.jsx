@@ -54,6 +54,17 @@ beforeEach(() => {
 })
 afterEach(cleanup)
 
+
+// The colour panel's line style is a ChoiceMenu dropdown (UCT Signature, owner 11-15): open it from the panel and
+// read / pick its options (portalled to <body> as role="option"). Returns the option buttons, or [] if the panel has none.
+function lineStyleOptions(panel) {
+  const trigger = panel && [...panel.querySelectorAll('button')].find((b) => /^Line style:/.test(b.getAttribute('aria-label') || ''))
+  if (!trigger) return []
+  fireEvent.click(trigger)
+  return [...document.querySelectorAll('[data-choice-menu] [role="option"]')]
+}
+const optionNamed = (opts, s) => opts.find((o) => o.textContent.trim().toLowerCase().startsWith(s))
+
 describe('the rows come from the schema', () => {
   it('a Trend Line gets colour, the three level/alert rows, then the actions', () => {
     open('trendline')
@@ -202,15 +213,16 @@ describe('the rows do what they say', () => {
     fireEvent.click(screen.getByText('Color'))
     expect(document.querySelector('[data-color-panel]')).toBeTruthy()
     // ⛔ ALL THREE STYLES REACH THE PICKER — the Phase 1 fix, through the new menu.
+    const opts = lineStyleOptions(document.querySelector('[data-color-panel]'))
     for (const s of ['solid', 'dashed', 'dotted']) {
-      expect(document.querySelector(`[data-color-panel] button[aria-label="${s}"]`), s).toBeTruthy()
+      expect(optionNamed(opts, s), s).toBeTruthy()
     }
   })
 
   it('choosing dotted stores "dotted", not "dashed"', () => {
     const { h } = open('trendline')
     fireEvent.click(screen.getByText('Color'))
-    fireEvent.click(document.querySelector('[data-color-panel] button[aria-label="dotted"]'))
+    fireEvent.click(optionNamed(lineStyleOptions(document.querySelector('[data-color-panel]')), 'dotted'))
     expect(h.onSetStyle).toHaveBeenCalledWith('dotted')
   })
 
@@ -264,7 +276,8 @@ describe('the chrome the migration was told not to redesign', () => {
     open('rect')
     const danger = [...document.querySelectorAll('button')]
       .filter((b) => (b.style.color || '').includes('danger'))
-      .map((b) => b.textContent.trim())
+      // the row's LABEL (its first span) — the faint `Del` shortcut beside it is not part of it
+      .map((b) => (b.querySelector('span')?.textContent || b.textContent).trim())
     expect(danger).toEqual(['Delete Drawing'])
   })
 
@@ -369,9 +382,8 @@ describe('⭐ PHASE 4 WIDGETS — two generic ones, no tool-specific branching',
     const { h } = open('rect')
     fireEvent.click(screen.getByText('Fill'))
     const panel = document.querySelector('[data-color-panel]')
-    for (const s of ['solid', 'dashed', 'dotted']) {
-      expect(panel.querySelector(`button[aria-label="${s}"]`), s).toBeNull()
-    }
+    // no line-style dropdown at all
+    expect(lineStyleOptions(panel)).toEqual([])
     // …and it writes fillColor, never the drawing's own colour.
     expect(h.onSetColor).not.toHaveBeenCalled()
   })
@@ -380,8 +392,9 @@ describe('⭐ PHASE 4 WIDGETS — two generic ones, no tool-specific branching',
     open('rect')
     fireEvent.click(screen.getByText('Border'))
     const panel = document.querySelector('[data-color-panel]')
+    const opts = lineStyleOptions(panel)
     for (const s of ['solid', 'dashed', 'dotted']) {
-      expect(panel.querySelector(`button[aria-label="${s}"]`), s).toBeTruthy()
+      expect(optionNamed(opts, s), s).toBeTruthy()
     }
   })
 
@@ -389,7 +402,8 @@ describe('⭐ PHASE 4 WIDGETS — two generic ones, no tool-specific branching',
     // Which is honest: with no fill of its own, that IS what the inside is tinted.
     open('rect', { drawing: { color: '#1ae51a' } })
     const row = screen.getByText('Fill').closest('button')
-    const swatch = [...row.querySelectorAll('span')].find((el) => el.style.borderRadius === '50%')
+    // UCT Signature: the swatch is a soft square (radius 4), no longer a circle
+    const swatch = [...row.querySelectorAll('span')].find((el) => el.style.borderRadius === '4px')
     expect(swatch.style.background).toContain('26, 229, 26')
   })
 
