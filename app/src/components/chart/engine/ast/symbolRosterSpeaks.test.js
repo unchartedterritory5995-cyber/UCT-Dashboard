@@ -149,6 +149,11 @@ describe('(h) — three syminfo fields retire by name, from the roster', () => {
     // B3: `pine:fn-history-in-block` (a script function reading a chart series at an offset, called
     // inside a block, at v1 on both lanes and v2 / v3 on the host lane; rail
     // `vendorHarness.b3FnHistoryInBlock.test.js`).
-    expect(Object.keys(REFUSALS).length).toBe(47)
+    // ⭐ AND 47 → 51 ON 2026-11-16 (landing train 2), AGAIN NOT BECAUSE OF (h). U15 Phase A declared four names for a
+    // library the store holds and will not compile: `pine:library-no-sha` (no verified sha256),
+    // `pine:library-changed` (other code than the document was saved against),
+    // `pine:library-licence` (a non-commercial licence) and `pine:library-denied` (the deny list).
+    // Rail: `pineLibraryPinning.test.js`.
+    expect(Object.keys(REFUSALS).length).toBe(51)
   })
 })

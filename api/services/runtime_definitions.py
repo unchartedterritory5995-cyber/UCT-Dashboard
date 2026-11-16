@@ -741,7 +741,9 @@ def admitted_capabilities() -> dict:
     denied: list[str] = []
     history_only: list[str] = []
     for name in sorted(k for k in registry if isinstance(k, str)) if isinstance(registry, dict) else []:
-        if name not in pine_capabilities.CAPABILITY_IDS:
+        # U15: a per-version library row (`library:Author/Library/N`) is an open family the
+        # detector names beside its closed vocabulary
+        if name not in pine_capabilities.CAPABILITY_IDS and not pine_capabilities.is_library_capability(name):
             withheld[name] = [f"`{name}` is not a capability the detector names"]
             continue
         reasons = rollout_gate.pine_capability_admission(name, registry[name])
@@ -1123,6 +1125,13 @@ def capability_admitted(source: Any, *, budget: Optional[DetectorBudget] = None,
         log.warning("[runtime_definitions] capability admission unreadable; not admitted")
         return False, [pine_capabilities.UNREADABLE]
     missing = sorted(c for c in caps if c not in admitted)
+    # U15 -- THE GENERIC `import` IS MET BY ITS LIBRARIES. It is never a registry row of its own:
+    # a script that imports is admitted only when it names at least one library version and EVERY
+    # version it imports is admitted on that version's own evidence (one row per version).
+    if "import" in missing:
+        libs = [c for c in caps if pine_capabilities.is_library_capability(c)]
+        if libs and all(c in admitted for c in libs):
+            missing = [c for c in missing if c != "import"]
     return (not missing), missing
 
 

@@ -356,6 +356,11 @@ export const RUNTIME_REFUSALS = Object.freeze({
   // stop on an `import`. Telling those 29 they are not an indicator is a confident
   // wrong answer about the one line of their script they did not get wrong.
   'runtime:library': 'a Pine library import — this lane compiles the script it is given, not a library graph',
+  // ⭐⭐ U15 — the two named library refusals, one name in both lanes (`pineLibraries.js`)
+  'pine:library-changed': 'the imported library is not the code this script was saved against',
+  'pine:library-no-sha': 'the imported library is not served without the sha256 of its own source',
+  'pine:library-licence': 'the imported library is published under a non-commercial licence, so it is not served on this product',
+  'pine:library-denied': 'this library version is withheld until its drawing is verified against TradingView',
   'runtime:no-output': 'a script with nothing to plot',
   // ⭐⭐ S1 — the strategy broker's build refusals (`strategyBroker.js`, docs/pine/strategy-broker-spec.md)
   'runtime:strategy-option': 'a strategy property or order argument this broker does not serve',
@@ -1443,7 +1448,7 @@ export function buildRuntimeIr(source, opts = {}) {
   // import line and names the library; spliced names read `alias.name`.
   if (!link || !link.libraries.length || !built || typeof built !== 'object') return built
   const out = { ...built, libraries: link.libraries.map((l) => ({
-    path: l.path, alias: l.alias, licence: l.licence, attribution: l.attribution, url: l.url,
+    path: l.path, alias: l.alias, sha256: l.sha256, licence: l.licence, attribution: l.attribution, url: l.url,
   })) }
   if (out.refusal) out.refusal = remapLibraryLocation(out.refusal, link)
   return out
@@ -12641,7 +12646,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // script and reads like the engine mis-parsed it.
         const raw = String(source).split('\n')[(first.line || 1) - 1] || ''
         const shown = raw.trim().slice(0, 72)
-        throw new RuntimeRefusal('runtime:library',
+        // ⭐ U15 — a named library refusal keeps its own name
+        const code = first.libraryRefusalCode && RUNTIME_REFUSALS[first.libraryRefusalCode]
+          ? first.libraryRefusalCode : 'runtime:library'
+        throw new RuntimeRefusal(code,
           `${shown ? `\`${shown}\`` : '`import`'}${why}`, locate(first))
       }
       if (word === 'export') {
