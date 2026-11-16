@@ -385,10 +385,12 @@ class _Deltas:
         return " ".join(parts)
 
 
-def summary_line(lag: float, deltas: _Deltas) -> str:
+def summary_line(lag: float, deltas: _Deltas, tokens: Optional[str] = None) -> str:
+    """`tokens` is the anyio reading taken ON the loop by the caller; the rest is read here,
+    which `run_sampler` runs on a worker thread (see there)."""
     names = {t.ident: t.name for t in threading.enumerate()}
     imp = importing_threads(names=names)
-    return (f"[boot-probe] boot+{boot_age():.0f}s anyio {_anyio_tokens()} "
+    return (f"[boot-probe] boot+{boot_age():.0f}s anyio {tokens if tokens is not None else _anyio_tokens()} "
             f"threads={len(names)} yf {_yf_pool()} loop-lag={lag * 1000:.0f}ms "
             f"{deltas.step()} tracked={tracked_count()} "
             f"importing={len(imp)}{(' ' + ', '.join(imp)) if imp else ''}")
@@ -396,8 +398,15 @@ def summary_line(lag: float, deltas: _Deltas) -> str:
 
 async def run_sampler(tick: float = TICK_S, boot_window: float = BOOT_WINDOW_S) -> None:
     """Forever: every `tick` s dump stacks of stuck tracked blocks; inside the boot window
-    also log one `[boot-probe]` summary. Runs ON the event loop (the anyio limiter can only
-    be read from it); every reading is a few ms."""
+    also log one `[boot-probe]` summary.
+
+    ⛔ 2026-11-16: the summary and the `[cpu-probe]` line are BUILT ON A WORKER THREAD. They
+    open /proc/self/task/<tid>/stat for every thread (~150-200 on web) and walk every stack.
+    Each file read hands the interpreter lock back and has to win it again, so under boot load
+    one reading held the event loop for 1.5 s and more: three of the first four stored stall
+    captures on 2026-11-16 (18:22-18:24Z) show the loop thread in `_thread_cpu_ticks` <- `step`
+    <- `summary_line` <- `run_sampler`, every 5 s for the 7-minute boot window. Only the anyio
+    limiter has to be read on the loop, and that reading is a few microseconds."""
     deltas = _Deltas()
     steady: Optional[_Deltas] = None
     lag_max = 0.0
@@ -410,22 +419,24 @@ async def run_sampler(tick: float = TICK_S, boot_window: float = BOOT_WINDOW_S) 
             for line in slow_stacks():
                 _log.warning(line)
             if boot_age() < boot_window:
-                _log.info(summary_line(lag, deltas))
+                tokens = _anyio_tokens()           # on the loop: the limiter is only readable here
+                _log.info(await asyncio.to_thread(summary_line, lag, deltas, tokens))
             elif STEADY_S > 0:
                 if steady is None:
                     steady, lag_max = _Deltas(), 0.0
                     steady.top = 8
                 elif time.monotonic() - steady.wall >= STEADY_S:
-                    _log.info(steady_line(lag_max, steady))
+                    tokens = _anyio_tokens()       # on the loop, as above
+                    _log.info(await asyncio.to_thread(steady_line, lag_max, steady, tokens))
                     lag_max = 0.0
         except Exception as exc:               # noqa: BLE001 -- the probe never dies on a reading
             _log.debug("[boot-probe] tick failed: %s", exc)
 
 
-def steady_line(lag_max: float, deltas: "_Deltas") -> str:
-    """One `[cpu-probe]` line covering everything since the previous one."""
+def steady_line(lag_max: float, deltas: "_Deltas", tokens: Optional[str] = None) -> str:
+    """One `[cpu-probe]` line covering everything since the previous one (built off the loop)."""
     return (f"[cpu-probe] up={boot_age():.0f}s over={time.monotonic() - deltas.wall:.0f}s "
-            f"anyio {_anyio_tokens()} threads={threading.active_count()} "
+            f"anyio {tokens if tokens is not None else _anyio_tokens()} threads={threading.active_count()} "
             f"loop-lag-max={lag_max * 1000:.0f}ms {deltas.step()}")
 
 
