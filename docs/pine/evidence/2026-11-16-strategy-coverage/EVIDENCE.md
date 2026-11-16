@@ -76,7 +76,7 @@ contract; 6 percent-sized STOP entries, a separate question, now queued with its
 (`request.security`, `barstate.*`) and Pine v2 / v3 order signatures or unserved risk commands
 (`runtime:strategy-option`).
 
-**With the three `min_contract` rows** (section 5; re-measured in strat-hold3 on 79760faa5f, the census's own
+**With the three `min_contract` rows** (section 5; re-measured in strat-hold3 on d2e50b9c44, the census's own
 column on both lanes and the measurement test agree): still **1** would transfer. The 12 market-entry Q-S1a scripts
 size now, and each stops at the next question its own run reaches, by name:
 
@@ -174,5 +174,35 @@ plotted). Those wait for the report.
 
 The three `syminfo.mincontract` captures (NYSE:RDDT, AMEX:SPY, NASDAQ:AAPL: `M01_mincontract` 1 on every bar,
 control `M03_len_ticker_CONTROL` the ticker's length, the committed probe's sha256) become the three
-`symbolScope.json::min_contract` rows; `symbolScopeMinContract.test.js` re-reads them once the capture session's
-data PR has put them on master.
+`symbolScope.json::min_contract` rows; `symbolScopeMinContract.test.js` re-reads them (on master since #1465).
+
+## 6. Rails and mutants
+
+Rails: `builder/memberPane/w9ArmedRoute.test.js` (the front end and the door, flag off and on, through the real
+door; the census predicate saying both), `runtime/__tests__/s1StrategyBroker.test.js` (the flag-off build is
+master's; Q-S1g's shape), `ast/strategiesAreRuled.test.js` and `tests/test_broker_pins_resolve.py` (51 rules),
+`tests/test_runtime_definitions.py` (the Python twin), `tests/test_pine_coverage_w9_t0_strategies.py` (the armed
+column, an old row is unmeasured, the headline ignores it), `ast/symbolScopeMinContract.test.js`,
+`runtime/__tests__/w9T4Sizing.test.js`, `runtime/__tests__/w9MinContractSource.test.js` (the rows).
+
+Mutants (each: the file copied aside, mutated, the focused rail run, restored from the copy, `git hash-object`
+equal to HEAD's blob; each target's rail first run GREEN unmutated as the control), all KILLED: M1 no
+orders-skipped route; M2 a broker refusal replaces the plain build; M3 the no-output exemption dropped; M4 the
+door takes any runtime document; M5 a broker-only document keeps its own pane; M6 a broker document with nothing
+else is "nothing drawn"; M7 Q-S1g kept waiting; M8 Q-S1g asks no rule; M10 the armed predicate skips the broker
+check; M11 an old census row reads as "no"; M12 the headline counts the armed column; M13 defSchema refuses a broker
+document with no row; M14 the Python twin refuses it (strat-hold2, 2987557454). M9 as first written (the predicate's
+`!rec` branch) SURVIVED: no document that holds the broker returns columns without a record, so the branch is
+defensive and no rail can reach it; it was replaced by M9 "a run that stopped by name counts as served", KILLED
+(strat-hold3, d2e50b9c44).
+
+## 7. Next, in measured order (the armed column's walls with the rows)
+
+1. Q-S1i, the v6 default (100% of equity) filled at a higher open: 7. The committed
+   `w9-q-s1a-size-v6-rddt-1d-2026-11-15` capture (with the report) holds such fills; the strategy harness passes
+   no `minContract` to the run (the product does, `runtimeColumns.js`), so it still grades that capture at Q-S1a.
+   Passing it as the product does would let the committed report answer Q-S1i for this shape.
+2. Q-S1b, the v4 margin default (D12): 7.
+3. Rule 11 repaint inputs and v2 / v3 order signatures (`strategy:no-broker-run`): 12.
+4. Q-S1a, a percent STOP entry: 6 (probe `w9-q-s1a-size-stop-v6`, queued); a percent entry while trades are open: 4.
+5. The re-takes with the report: B-PYR, B-PYR-PRICE, B-STOP-LIMIT, B-EXIT-LEVELS (section 5); MK-LOOK (W9-MK1).
