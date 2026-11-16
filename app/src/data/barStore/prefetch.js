@@ -59,10 +59,10 @@
 // the list from the app's import graph), plus `peekBars` (the memPeek readers' replacement).
 
 import { getBarStore } from './index'
-import { keyOf, normTf, isIntradayTf, isDateTf, PERIOD_SEC, STATUS, unixToDateLabel } from './types'
+import { keyOf, parseKey, normTf, isIntradayTf, isDateTf, PERIOD_SEC, STATUS, unixToDateLabel } from './types'
 import { DAILY_POLL_MS } from './network'
 import { legacyBars } from './adapter'
-import { fullBarsFor } from '../../utils/barsBackfill'
+import { fullBarsFor, firstPaintBarsFor } from '../../utils/barsBackfill'
 import { viewShowExtended } from '../../utils/viewSession'
 import { isNativeTf, fetchTf } from '../../components/chart/timeframes'
 import { isCacheCurrentForView } from '../../utils/marketSession'
@@ -140,6 +140,17 @@ export function viewKeyFor(sym, tf, { showExtended = false, window = null } = {}
  * @param {() => number} [o.now]
  * @param {(fn:Function, ms:number) => any} [o.setTimer]
  */
+// ⚡ A SHORT STORED INTRADAY SERIES IS NOT WARM (#1314, ported from utils/prefetchBars.js
+// `_shortIntraday`). Measured on production: 34 of 40 hourly charts first drew with fewer than 200
+// bars, because the intraday pack seeds a short series for every name and every warmer counted any
+// displayable series as warm, however short. A stored intraday series shorter than half the chart's
+// first-paint window is warmed to the full window (the store merges under what it holds: nothing
+// gets shallower). ⛔ ONCE PER KEY: after this module got an answer for the key, a series still that
+// short is all the server holds (a recent listing, a shallow timeframe); the rule stands down for
+// SHORT_FULL_TTL_MS, so the load is exactly an empty store's: one full window per key.
+export const SHORT_FULL_TTL_MS = 6 * 3600 * 1000
+const SHORT_FULL_MAX = 4000
+
 export function createPrefetch(o = {}) {
   const S = () => o.store ?? getBarStore()
   const tickerMeta = o.tickerMeta ?? _defaultTickerMeta
@@ -157,6 +168,22 @@ export function createPrefetch(o = {}) {
   /** key → AbortController of the latest urgent prefetchBars call. */
   const urgentCtl = new Map()
   const intentTimers = new Map()
+  /** key -> when this module last got an answer for an intraday key (the short-series stand-down) */
+  const shortFullAt = new Map()
+  function _noteFull(key) {
+    shortFullAt.delete(key)
+    shortFullAt.set(key, now())
+    if (shortFullAt.size > SHORT_FULL_MAX) shortFullAt.delete(shortFullAt.keys().next().value)
+  }
+  /** The full window to warm `key` to when its stored series is short, else 0. */
+  function _shortWant(key, s) {
+    const p = parseKey(key)
+    if (!p || p.window || !isIntradayTf(p.tf) || !s?.depth) return 0
+    const full = firstPaintBarsFor(p.tf, p.session ? p.session === 'eth' : !!extended())
+    if (s.depth >= full / 2) return 0
+    const at = shortFullAt.get(key)
+    return at != null && now() - at < SHORT_FULL_TTL_MS ? 0 : full
+  }
   let typed = null   // { key, ctl, kept }
 
   // The session of a call: the PANE's own extended setting when the caller passes it
@@ -231,7 +258,10 @@ export function createPrefetch(o = {}) {
     // Only an ANSWER starts the cooldown: an aborted request or a shed / failed one gives
     // the slot back (the lane's 503 backoff is what paces a shedding server).
     if ((signal?.aborted || (s?.error && s.error !== 'no_data')) && asked.get(key) === a) asked.delete(key)
-    else if (s) a.gen = s.gen   // the gen the answer landed under
+    else if (s) {
+      a.gen = s.gen   // the gen the answer landed under
+      if (isIntradayTf(s.tf ?? parseKey(key)?.tf)) _noteFull(key)   // every request asks a full window
+    }
     return s
   }
 
@@ -242,9 +272,10 @@ export function createPrefetch(o = {}) {
   function prefetch(keys, { priority = 'background', depth = 0, signal = null, warm = false, front = false } = {}) {
     return Promise.all((keys || []).filter(Boolean).map(async (key) => {
       const s0 = await _hydrate(key)
-      if (_satisfied(s0, DISPLAYABLE, depth)) return s0
+      const full = _shortWant(key, s0)            // a short series is not warm (see SHORT_FULL_TTL_MS)
+      if (!full && _satisfied(s0, DISPLAYABLE, depth)) return s0
       if (preparing.get(key) || _cooling(key, s0)) return S().peek(key) ?? s0   // s0: the LRU may have evicted it since
-      return ensure(key, { until: DISPLAYABLE, depth, priority, signal, warm, front })
+      return ensure(key, { until: DISPLAYABLE, depth: Math.max(depth, full), priority, signal, warm, front, _s0: s0 })
     }))
   }
 

@@ -249,10 +249,8 @@ function _barsFor(tf) {
 // a full answer lands, the rule stands down for that key for SHORT_FULL_TTL_MS (the chart's
 // `askFullForShortStore` has the same guard, `fullDone`). The cost is then exactly an empty
 // store's: one full window per key, the load these warmers were built for.
-// ⚠️ NOT YET IN THE BARSTORE FACADE (`data/barStore/prefetch.js`, behind the BARSTORE switch,
-// default off): it counts a short CURRENT key as warm, as this file did before. Port the rule
-// before that switch flips; its parity suite pins only a DEEP current store
-// (`data/barStore/prefetch.test.js`, "a durable warm skips ...").
+// ✅ PORTED to the BarStore facade (`data/barStore/prefetch.js`, SHORT_FULL_TTL_MS) on 2026-11-16,
+// pinned against this file by `data/barStore/prefetch.shortIntraday.test.js`.
 const SHORT_FULL_TTL_MS = 6 * 3600 * 1000
 const SHORT_FULL_MAX = 4000
 const _shortFullAt = new Map()   // `${sym}_${k}` -> when a full intraday answer landed
