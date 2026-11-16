@@ -61,7 +61,8 @@
    "docs/pine/capture-queue-2026-11-15-calc-bars.md",
    "docs/pine/capture-queue-2026-11-16-cond-ta-followups.md",
    "docs/pine/capture-queue-2026-11-16-rma-last-bit.md",
-   "docs/pine/capture-queue-2026-11-16-tick-tie-and-htf-windows.md"
+   "docs/pine/capture-queue-2026-11-16-tick-tie-and-htf-windows.md",
+   "docs/pine/capture-queue-2026-11-16-udt.md"
   ],
   "coverageMeasuredOn": "2026-11-16",
   "coverageMasterSha": "890b6d165c",
@@ -86,12 +87,12 @@
   }
  },
  "counts": {
-  "targets": 332,
+  "targets": 334,
   "byStatus": {
    "CAPTURED": 130,
    "NEEDS_CHART": 39,
    "NEEDS_LIVE": 2,
-   "QUEUED": 161
+   "QUEUED": 163
   },
   "byPlanWave": {
    "E": {
@@ -109,7 +110,7 @@
    "W4": {
     "CAPTURED": 11,
     "NEEDS_CHART": 2,
-    "QUEUED": 35
+    "QUEUED": 37
    },
    "W7": {
     "CAPTURED": 2,
@@ -121,7 +122,7 @@
     "CAPTURED": 110,
     "NEEDS_CHART": 38,
     "NEEDS_LIVE": 2,
-    "QUEUED": 153
+    "QUEUED": 155
    },
    "1-2": {
     "CAPTURED": 20,
@@ -253,6 +254,9 @@
    },
    "time-anchors": {
     "CAPTURED": 10
+   },
+   "udt": {
+    "QUEUED": 2
    },
    "uie3-na-index-text": {
     "QUEUED": 2
@@ -2221,6 +2225,64 @@
    ]
   },
   {
+   "id": "vw-udt-fn-global-history@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-udt-fn-global-history.pine",
+   "sourceKind": "probe",
+   "sha256": "c2ac43f3728fddd4ee9b414777dc9507805ea95efaddedf68474063d98037dd6",
+   "bytes": 1949,
+   "stem": "vw-udt-fn-global-history",
+   "captureStem": "vw-udt-fn-global-history",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 32,
+    "upperSample": [
+     "builtin:auto-fib-extension__Auto1Fib1Ext",
+     "committed:72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt",
+     "committed:bolingger-bands-inside-bar-boxes__3294017d4f",
+     "committed:breaks-and-retests-hg__ddba061af8",
+     "committed:camarilla__jw9faob08r",
+     "committed:heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor__f91c76bdec",
+     "committed:liquidity-levels-sonarlab__bba13c46c4",
+     "committed:market-profile-with-tpo__b2b119d8ab",
+     "committed:market-structure-break-order-block__3a1fb6197f",
+     "committed:nubia-auto-midas-anchored-vwap-xdecow__MOpN5jQbSn",
+     "committed:optimized-trend-tracker__ZhWiFvtpwE",
+     "committed:relative-volume-at-time__gei8CBKbc5"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "runtime:function-global-state",
+    "runtime:history-dynamic-offset"
+   ],
+   "planWave": "W4",
+   "docWaves": [
+    "udt"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-udt#UDT-G1"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
    "id": "vw-w4-session-param@AMEX:SPY@5",
    "status": "QUEUED",
    "evidence": [],
@@ -2790,6 +2852,63 @@
    "oldestDoc": "2026-11-07",
    "rows": [
     "capture-queue-2026-11-07-honesty-sweep#Q-HS6"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-udt-legacy-array-param@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-udt-legacy-array-param.pine",
+   "sourceKind": "probe",
+   "sha256": "1dc4f7e52241468a70183dcbde79cfaa454c6c721e3e7786e43787bb4d23e728",
+   "bytes": 1000,
+   "stem": "vw-udt-legacy-array-param",
+   "captureStem": "vw-udt-legacy-array-param",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 13,
+    "upperSample": [
+     "builtin:auto-fib-retracement__Auto1Fib1Ret",
+     "committed:fx-market-sessions__3KZoMPYziy",
+     "committed:ipda-standard-deviations-dexterlab-x-tfo-x-toodegrees__7366c2d2c0",
+     "committed:kalman-psar-backquant__0a389f529b",
+     "committed:mgi-levels-suite__285168ddfb",
+     "committed:one-indicator-multiple-max-40-checked-symbols-and-quotinfinitequot-num__015bb66e64",
+     "committed:smart-money-concepts-by-welotrades__0bff41a2e5",
+     "committed:smc-structures-and-multi-timeframe-fvg-ma-py__fd50b245b6",
+     "committed:supply-demand-mtf-flux-charts__7fb4bff229",
+     "committed:trend-line-harrybot__vMv5yOQxcA",
+     "committed:volume-profile-bar-magnified-order-blocks-jacobmagleby__3b3ebba156",
+     "reference:divergence-stack-scanner-agpro-series__5bfe6b3a16"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "runtime:function"
+   ],
+   "planWave": "W4",
+   "docWaves": [
+    "udt"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-udt#UDT-T1"
    ],
    "origins": [
     "queue-doc"
@@ -18388,6 +18507,12 @@
    "doc": "docs/pine/capture-queue-2026-11-16-tick-tie-and-htf-windows.md",
    "wave": "tick-tie-and-htf-windows",
    "rows": 8,
+   "contextTables": 0
+  },
+  {
+   "doc": "docs/pine/capture-queue-2026-11-16-udt.md",
+   "wave": "udt",
+   "rows": 2,
    "contextTables": 0
   }
  ]
