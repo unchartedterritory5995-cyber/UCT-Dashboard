@@ -46,7 +46,8 @@ import {
 import { classifyIntradayTail } from '../../utils/marketSession'
 import { firstPaintBarsFor, fullBarsFor, FIRST_PAINT_BARS } from '../../utils/barsBackfill'
 import { barsSessionQuery } from '../../components/chart/barTime'
-import { ACTION, parseKey, isIntradayTf, PERIOD_SEC } from './types'
+import { ACTION, parseKey, isIntradayTf, isDateTf, PERIOD_SEC, unixToDateLabel, dateLabelToUnix } from './types'
+import { barsHistorySplitEnabled, lastSealedDate } from '../../utils/barsHistorySplit'
 
 /** The D/W/M refresh cadence (StockChart's daily `refreshInterval`). */
 export const DAILY_POLL_MS = 300_000
@@ -133,6 +134,16 @@ export function barsUrl(key, { bars, since = null, to = null, session = 'rth' } 
   return u
 }
 
+/**
+ * THE /api/bars-history URL: deep SEALED D/W/M history, cached at the edge (utils/barsHistorySplit.js
+ * has the why). It must be byte-identical for every client and the pre-warm sweep: the full sealed
+ * depth (`fullBarsFor`, fixed per tf) and `d`, the newest held bar before the current period. The
+ * legacy chart (useLegacyChartBars) builds its history URL here too: one builder.
+ */
+export function barsHistoryUrl(sym, tf, sealedDate = '') {
+  return `/api/bars-history/${encodeURIComponent(sym)}?tf=${tf}&bars=${fullBarsFor(tf)}${sealedDate ? `&d=${sealedDate}` : ''}`
+}
+
 /** The left (older) window ending at the ET date of `oldestT` (#1116's builder). */
 export function historyUrl(key, oldestT, { bars = HISTORY_WINDOW_BARS, session = 'rth' } = {}) {
   const p = parseKey(key)
@@ -209,12 +220,21 @@ export function createNetwork({
   const _session = (r) => ([...r.sessions.keys()].includes('eth') ? 'eth' : 'rth')
 
   // ── one request ───────────────────────────────────────────────────────────
+  // ⭐ D/W/M SPLIT (the legacy chart's Phase 5, utils/barsHistorySplit.js): the origin answers only
+  // the recent tail (first-paint depth); everything older comes from the edge-cached sealed history,
+  // asked once per key life right after the tail answer. A history answer that fails, is not sealed,
+  // or disagrees at the join turns the split off for the key and the full depth is asked from
+  // /api/bars, as before the split.
+  const _splitFor = (r, p) => !!p && isDateTf(p.tf) && !p.window && !r.splitOff && barsHistorySplitEnabled()
+
   function _tailJob(r, priority, { warm = false, front = false } = {}) {
     const s = registry.getSnapshot(r.key)
     const p = parseKey(r.key)
     const gen = s.gen
     const session = _session(r)
-    const bars = barsCountFor(r.key, { depth: Math.max(r.depth, s.depthFloor || 0), session })
+    const wanted = barsCountFor(r.key, { depth: Math.max(r.depth, s.depthFloor || 0), session })
+    const split = _splitFor(r, p)
+    const bars = split ? Math.min(wanted, FIRST_PAINT_BARS) : wanted
     const from = deltaStartFor(s, p)
     const delta = from != null && deltaWithinBudget(p.tf, from, now(), bars)
     // `&warm=1` (a best-effort warm the server may skip / shed under load) exactly where the
@@ -230,9 +250,45 @@ export function createNetwork({
         return { error: true, retryAfterSec: json?.retry_after ?? null }
       }
       const type = delta ? ACTION.REST_DELTA : ACTION.REST_FULL
-      registry.dispatch(r.key, { type, key: r.key, gen, payload: delta ? { ...json, since: from } : json })
+      const after = registry.dispatch(r.key, { type, key: r.key, gen, payload: delta ? { ...json, since: from } : json })
+      // only when more was wanted than the capped tail asked for (today's bar is the developing one,
+      // never a row, so `depth` alone would read a full first-paint answer as one bar short)
+      if (split && !r.histAsked && wanted > bars && wanted > (after?.depth ?? 0)) {
+        r.histAsked = true
+        r.queue.push({ run: () => _historyJob(r), resolve: () => {} })
+      }
       return { ok: true, delta, retryAfterSec: json.retry_after ?? null }
     }, { front })
+  }
+
+  /** The deep sealed history of a D/W/M key from the edge (see `_splitFor`). */
+  function _historyJob(r) {
+    const s = registry.getSnapshot(r.key)
+    const p = parseKey(r.key)
+    const gen = s.gen
+    const sealed = lastSealedDate(s.bars.map((b) => unixToDateLabel(b.t)), p.tf, now())
+    const url = barsHistoryUrl(p.sym, p.tf, sealed)
+    return _send(r, 'scroll', url, r.refs > 0 ? 'urgent' : 'background', async (json) => {
+      if (!json?.sealed || !Array.isArray(json.bars)) return { error: true }
+      if (json.ticker && String(json.ticker).toUpperCase() !== p.sym) return { error: true }
+      const rows = json.bars.map((b) => (typeof b?.t === 'string' ? { ...b, t: dateLabelToUnix(b.t) } : b))
+      const before = registry.getSnapshot(r.key)
+      if (rows.length && prependOlder(before.bars, rows) === before.bars) {
+        // nothing older, or another price basis at the join: refused whole (#1116's seam rule)
+        return rows.some((b) => before.bars.length && b.t < before.bars[0].t) ? { error: true } : { ok: true, added: 0 }
+      }
+      if (!rows.length) return { ok: true, added: 0 }
+      const after = registry.dispatch(r.key, { type: ACTION.SCROLL_BACK, key: r.key, gen, payload: { bars: rows, ticker: p.sym } })
+      return { ok: true, added: (after?.depth ?? 0) - before.depth, source: 'history' }
+    }).then((res) => {
+      if (res?.error && keys.get(r.key) === r) {
+        // the edge could not give it: the full depth from /api/bars, as before the split
+        r.splitOff = true
+        _queueTail(r, r.priority)
+        _drain(r)
+      }
+      return res
+    })
   }
 
   const _lakeCarries = (r) => {
