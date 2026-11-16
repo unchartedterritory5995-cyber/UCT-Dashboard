@@ -81,13 +81,20 @@ const armTruth = () => {
 const pine = (v, ...body) => [`//@version=${v}`, 'indicator("cond-ta")', ...body].join('\n')
 const lenient = (src) => translatePine(src, { paramManifest: true })
 const strict = (src) => translatePine(src, { strict: true, paramManifest: true })
+// ⭐ HIST-S3 — `stop`: the run's own named stop (`callSiteRuns`): a region this lane does not step per
+// call site is drawn only while it has run on every bar, and stops at the first skip
 const runtime = (src) => {
   const b = buildRuntimeIr(src, { bars: BARS, inputs: {} })
   if (!b.ok) return { refusal: b.refusal }
   const program = lowerIrProgram(b.ir)
-  const r = execute(program, { bars: BARS.length, series: SERIES, columns: program.columns, confirmed: true })
+  let r
+  try {
+    r = execute(program, { bars: BARS.length, series: SERIES, columns: program.columns, confirmed: true })
+  } catch (e) { return { stop: e } }
   return { column: Array.from(r.outputs[0]) }
 }
+/** The build's refusal, else the run's stop (HIST-S3). */
+const notDrawn = (r) => r.refusal || r.stop || null
 /** The member door + the bind over the capture's own bars (`vendorHarness.c48CallSite`'s). */
 function bind(source) {
   vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
@@ -235,7 +242,7 @@ describe('COND-TA — 2c. `?:` arms: eager in v1-v3, lazy from v4 (both witnesse
     }
   })
 
-  it('a v4 `?:` arm is lazy (probe 10): stamped and withheld by name on RDDT, refused on the screener and runtime lanes; v4 `iff` is eager and drawn', () => {
+  it('a v4 `?:` arm is lazy (probe 10): stamped and withheld by name on RDDT, refused on the screener lane and stopped by name on the runtime lane (HIST-S3); v4 `iff` is eager and drawn', () => {
     const src = ['//@version=4', 'study("p10 v4")', 'up = close > open', 'plot(up ? sma(close, 5) : close, title="T00")'].join('\n')
     // the witness ties to these bars: at bar 7 the EAGER sma is 53.72, where TradingView reads na
     expect(BARS.slice(3, 8).reduce((a, b) => a + b.c, 0) / 5).toBeCloseTo(53.72, 2)
@@ -244,7 +251,8 @@ describe('COND-TA — 2c. `?:` arms: eager in v1-v3, lazy from v4 (both witnesse
     expect(cols.value).toBeUndefined()
     expect(errors.value.guard).toBe(BLOCK_RUNS_GUARD)
     expect(lenient(src).outputs[0].refusal.guard).toBe('pine:block')
-    expect(runtime(src).refusal.guard).toBe('runtime:conditional-history')
+    // ⭐ HIST-S3 — the runtime lane draws it only while the arm has run on every bar: on RDDT it stops by name
+    expect(runtime(src).stop.guard).toBe('runtime:conditional-history')
     const iff = ['//@version=4', 'study("p10 iff")', 'up = close > open', 'plot(iff(up, sma(close, 5), close), title="C00")'].join('\n')
     expect(strict(iff).blockRuns).toBeUndefined()
     expect(bind(iff).errors.value).toBeUndefined()
@@ -327,14 +335,17 @@ describe('COND-TA — 3. Pine v1-v4 bare calls are history calls on the host lan
   })
 })
 
-describe('COND-TA — 4. the runtime lane: v4 served per call site, v1-v3 refused by name', () => {
-  it('a v4 bare block equals the per-run reading on every bar; v3 is refused', () => {
+describe('COND-TA — 4. the runtime lane: v4 served per call site, v1-v3 never drawn per run', () => {
+  it('a v4 bare block equals the per-run reading on every bar; v3 is drawn only while the block runs every bar (HIST-S3)', () => {
     const c03 = vendorColumn('C03_sma3_cond')
     const v4 = runtime(BLOCK(4, 'sma(close, 3)'))
     expect(v4.refusal).toBeFalsy()
     expect(wrongBars(v4.column, c03)).toBe(0)
     const v3 = runtime(BLOCK(3, 'sma(close, 3)'))
-    expect(v3.refusal && v3.refusal.guard).toBe('runtime:conditional-history')
+    // ⭐ HIST-S3 — no manual and no capture says v1-v3 keep a block's history per call site, so the block is
+    // checked: on RDDT it skips, and the run stops by name (it was refused at build)
+    expect(notDrawn(v3) && notDrawn(v3).guard).toBe('runtime:conditional-history')
+    expect(v3.column).toBeUndefined()
   })
 
   it('a v6 arm is served per call site and equals the arm\'s reading on every bar (vw-arm-history T03\'s rule)', () => {

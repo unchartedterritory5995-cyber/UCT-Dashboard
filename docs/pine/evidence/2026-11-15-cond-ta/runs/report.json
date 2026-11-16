@@ -821,8 +821,8 @@
   },
   {
    "capture": "kernel-channel-backquant-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
     "compound-assign",
@@ -1045,24 +1045,6 @@
     "reassign",
     "ternary",
     "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "capture": "momentum-based-zigzag-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "ternary",
     "var"
    ]
   },

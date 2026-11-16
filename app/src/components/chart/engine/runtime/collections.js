@@ -51,6 +51,42 @@ export class PineRuntimeError extends Error {
   }
 }
 
+/** ⭐⭐ HIST-S3 — THE EVERY-BAR CHECK OF A BLOCK THAT HOLDS CALL-SITE HISTORY.
+ *
+ *  Pine keeps the history of a call written in a block (or a `?:` arm) per CALL SITE: it
+ *  advances only on the bars the block runs (C48, `vw-call-site-history`). Where the block has
+ *  run on every bar so far, that history IS the every-bar history, which is what this lane
+ *  computes for it; the first run that follows a skipped bar is where the two part, so the run
+ *  stops there BY NAME and nothing is drawn (the host lane's engine-58 gate, `blockRuns.js`,
+ *  asked while the bars run instead of at the bind).
+ *
+ *  `lastRunBar` is the chart bar the block last ran on (`na` before its first run), `bar` this
+ *  one, both 0-based from the first loaded bar. `why` is the front end's sentence naming the
+ *  call; `where` is `the block` or `that arm`. */
+export const CALL_SITE_RUNS = 'call site runs'
+export const CALL_SITE_RUNS_GUARD = 'runtime:conditional-history'
+export class CallSiteRunsStop extends Error {
+  constructor(message, skipped, bar) {
+    super(message)
+    this.name = 'CallSiteRunsStop'
+    this.guard = CALL_SITE_RUNS_GUARD
+    this.skippedBar = skipped
+    this.bar = bar
+  }
+}
+export function callSiteRuns(lastRunBar, bar, why, where) {
+  const first = Number.isNaN(lastRunBar)
+  if (Number.isInteger(bar) && (first ? bar === 0 : lastRunBar === bar - 1)) return 1
+  // ⛔ a bar index this run cannot read fails closed: an unread run is not a run on every bar
+  if (!Number.isInteger(bar)) {
+    throw new CallSiteRunsStop(`${why}. Whether ${where} has run on every bar could not be read on this chart, `
+      + 'so nothing is drawn.', NaN, NaN)
+  }
+  const skipped = first ? 0 : lastRunBar + 1
+  throw new CallSiteRunsStop(`${why}. On this chart ${where} skips bar ${skipped} and runs again on bar ${bar}, `
+    + 'so its calls have not run on every bar and nothing is drawn.', skipped, bar)
+}
+
 /** What kind is this runtime value? The VM checks declared operand kinds
  *  against this, so 'array' is a real kind rather than `typeof v === 'object'`
  *  spread across nine call sites.
@@ -976,6 +1012,14 @@ const ARRAY_FNS_RAW = Object.freeze({
     args: ['string'], returns: 'void',
     fn: (a) => { throw new PineRuntimeError(a[0]) },
   },
+  // ⭐⭐ HIST-S3 — not a collection member and not a Pine name (no script can spell it: it holds
+  // spaces): the front end's own check that a block holding call-site history has run on EVERY
+  // bar so far (`pineRuntimeFrontend.js`, `everyBarRunsCall`). Dispatched through this table for
+  // the reason `runtime.error` is: one opcode, no VM change. Answers 1, or stops the run by name.
+  [CALL_SITE_RUNS]: {
+    args: ['number', 'number', 'string', 'string'], returns: 'number',
+    fn: (a) => callSiteRuns(a[0], a[1], a[2], a[3]),
+  },
 })
 
 export const ARRAY_NAMES = Object.freeze(Object.keys(ARRAY_FNS_RAW))
@@ -1036,6 +1080,8 @@ const ARRAY_WRITES = Object.freeze({
   'array.first': 'none', 'array.last': 'none', 'array.indexof': 'none', 'array.includes': 'none',
   'array.max': 'none', 'array.min': 'none', 'array.sum': 'none', 'array.avg': 'none',
   'array.slice': 'none', 'array.median': 'none', 'array.stdev': 'none', 'runtime.error': 'none',
+  // ⭐ HIST-S3 — the every-bar check reads two numbers and writes nothing
+  [CALL_SITE_RUNS]: 'none',
   // ⭐ W19-R2 / W6-T5
   'array.fill': 'elements', 'array.insert': 'size', 'array.reverse': 'elements', 'array.sort': 'elements',
   'array.lastindexof': 'none', 'array.range': 'none', 'array.abs': 'none', 'array.join': 'none',

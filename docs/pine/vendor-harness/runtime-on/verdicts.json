@@ -56997,12 +56997,358 @@
    "script": "Kernel Channel [BackQuant]",
    "symbol": "NYSE:RDDT",
    "timeframe": "1D",
-   "plots": [],
-   "notCompared": [],
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "Kernel Midline",
+     "ours": "value",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": null,
+     "color": "compared",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 666,
+      "colorWithheld": 0,
+      "colorComparable": 666,
+      "valued": 666,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_2",
+     "title": "Upper Band",
+     "ours": "out2",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": null,
+     "color": "compared",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 666,
+      "colorWithheld": 0,
+      "colorComparable": 666,
+      "valued": 666,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_4",
+     "title": "Lower Band",
+     "ours": "out3",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": null,
+     "color": "compared",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 666,
+      "colorWithheld": 0,
+      "colorComparable": 666,
+      "valued": 666,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [
+    {
+     "id": "plot_17",
+     "title": "Kernel Channel Long",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_18",
+     "title": "Kernel Channel Short",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_19",
+     "title": "Price Crossed Kernel Channel Midline",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_20",
+     "title": "Price Crossed Kernel Channel Midline",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_21",
+     "title": "Price Above Kernel Channel Upper",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_22",
+     "title": "Price Below Kernel Channel Lower",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_6",
+     "title": null,
+     "type": "colorer",
+     "why": "plot type colorer is not compared by v1"
+    },
+    {
+     "id": "plot_7",
+     "title": "Background Color",
+     "type": "bg_colorer",
+     "why": "plot type bg_colorer is not compared by v1"
+    },
+    {
+     "id": "plot_8",
+     "title": "Background Color",
+     "type": "bg_colorer",
+     "why": "plot type bg_colorer is not compared by v1"
+    },
+    {
+     "id": "plot_9",
+     "title": "Background Color",
+     "type": "bg_colorer",
+     "why": "plot type bg_colorer is not compared by v1"
+    },
+    {
+     "id": "plot_10",
+     "title": null,
+     "type": "ohlc_open",
+     "why": "plot type ohlc_open is not compared by v1"
+    },
+    {
+     "id": "plot_11",
+     "title": null,
+     "type": "ohlc_high",
+     "why": "plot type ohlc_high is not compared by v1"
+    },
+    {
+     "id": "plot_12",
+     "title": null,
+     "type": "ohlc_low",
+     "why": "plot type ohlc_low is not compared by v1"
+    },
+    {
+     "id": "plot_13",
+     "title": null,
+     "type": "ohlc_close",
+     "why": "plot type ohlc_close is not compared by v1"
+    },
+    {
+     "id": "plot_14",
+     "title": null,
+     "type": "ohlc_colorer",
+     "why": "plot type ohlc_colorer is not compared by v1"
+    },
+    {
+     "id": "plot_15",
+     "title": null,
+     "type": "wick_colorer",
+     "why": "plot type wick_colorer is not compared by v1"
+    },
+    {
+     "id": "plot_16",
+     "title": null,
+     "type": "border_colorer",
+     "why": "plot type border_colorer is not compared by v1"
+    },
+    {
+     "ours": null,
+     "title": "open",
+     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+    },
+    {
+     "ours": null,
+     "title": "high",
+     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+    },
+    {
+     "ours": null,
+     "title": "low",
+     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+    },
+    {
+     "ours": null,
+     "title": "close",
+     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+    }
+   ],
    "notMeasured": [],
-   "verdict": "INCONCLUSIVE",
-   "reason": "refused on our side: member door refused (pine:block) [runtime declined: runtime:conditional-history]: a Pine block spans several statements and this engine stores a single expression — `for` (reached through `kernelMu`)",
-   "ourNotes": []
+   "tolerance": {
+    "rel": 1e-09,
+    "abs": 1e-08,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "MATCH",
+    "reason": "neither side draws an object"
+   },
+   "paints": {
+    "verdict": "MATCH",
+    "reason": "3 paints agree bar for bar",
+    "agreeing": 3,
+    "differing": 0,
+    "withheld": 0,
+    "undrawn": 0,
+    "undecodable": 0,
+    "unpaired": [],
+    "rows": [
+     {
+      "id": "plot_7",
+      "kind": "bgcolor",
+      "state": "agree"
+     },
+     {
+      "id": "plot_8",
+      "kind": "bgcolor",
+      "state": "naBoth"
+     },
+     {
+      "id": "plot_9",
+      "kind": "bgcolor",
+      "state": "naBoth"
+     }
+    ]
+   },
+   "verdict": "MATCH",
+   "reason": "all 5 items agree",
+   "verdictWithoutPaints": "MATCH",
+   "ourNotes": [
+    "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0",
+    "paints: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
+   ],
+   "objectsV2": {
+    "verdict": "MATCH",
+    "verdictWithoutX": "MATCH",
+    "v1": "MATCH",
+    "pairedNothing": true,
+    "x": null,
+    "reason": "no record was paired; v1: neither side draws an object",
+    "families": [],
+    "ungraded": {
+     "lines": [
+      "xloc",
+      "force_overlay"
+     ],
+     "labels": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "boxes": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "tables": [
+      "force_overlay"
+     ],
+     "tableCells": [
+      "width",
+      "height",
+      "text_formatting",
+      "colspan",
+      "rowspan"
+     ],
+     "linefills": []
+    }
+   }
   },
   {
    "file": "tests/fixtures/vendor/harness/linear-regression-channel-200-rddt-1d-2026-11-14.json",
@@ -70159,12 +70505,70 @@
    "script": "Momentum-based ZigZag",
    "symbol": "NYSE:RDDT",
    "timeframe": "1D",
-   "plots": [],
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "ZIGZAG",
+     "ours": "value",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — computeFor returned no column for value (runtime:conditional-history)"
+    }
+   ],
    "notCompared": [],
    "notMeasured": [],
-   "verdict": "INCONCLUSIVE",
-   "reason": "refused on our side: member door refused (pine:timeout) [runtime declined: runtime:conditional-history]: this Pine script did not finish translating inside the time budget — resolving `QQExlong` nested past 400 levels. That is a translator defect, not a limit on the script: this door expands a variable by re-reading its definition, and a definition that reaches its own previous bar can be re-entered without end. The deepest legitimate script measured needs 20 levels.",
-   "ourNotes": []
+   "tolerance": {
+    "rel": 1e-09,
+    "abs": 1e-08,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "DIVERGE",
+    "reason": "TradingView holds 25 drawing object(s) at the last bar and our script has no drawing program"
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 2 compared items diverge",
+   "ourNotes": [
+    "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
+   ],
+   "objectsV2": {
+    "verdict": "DIVERGE",
+    "verdictWithoutX": "DIVERGE",
+    "v1": "DIVERGE",
+    "pairedNothing": true,
+    "x": null,
+    "reason": "no record was paired; v1: TradingView holds 25 drawing object(s) at the last bar and our script has no drawing program",
+    "families": [],
+    "ungraded": {
+     "lines": [
+      "xloc",
+      "force_overlay"
+     ],
+     "labels": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "boxes": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "tables": [
+      "force_overlay"
+     ],
+     "tableCells": [
+      "width",
+      "height",
+      "text_formatting",
+      "colspan",
+      "rowspan"
+     ],
+     "linefills": []
+    }
+   }
   },
   {
    "file": "tests/fixtures/vendor/harness/momentum-volatility-scanner-rddt-1d-2026-09-28.json",
