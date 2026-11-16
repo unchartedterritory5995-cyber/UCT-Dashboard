@@ -195,6 +195,8 @@ class FeedClient:
             self.gen = max(self.gen + 1, int(self._clock_ms()))
             self.seq.reset()
             await ws.send(fp.encode(fp.Hello(client_id=self.client_id, gen=self.gen)))
+            if self.side is not None:
+                self.side.on_connect()      # ingest may have lost its NH/NL marks: re-seed
             await self._send_desired(ws, force=True)
             self.connected = True
             self.counters["connects"] += 1

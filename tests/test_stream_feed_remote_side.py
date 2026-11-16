@@ -170,7 +170,10 @@ def test_the_feed_client_asks_for_and_hands_over_the_side_feeds(monkeypatch):
 
     class Side:
         def __init__(self):
-            self.applied, self.epochs = [], 0
+            self.applied, self.epochs, self.connects = [], 0, 0
+
+        def on_connect(self):
+            self.connects += 1
 
         def desired_extras(self):
             return {"ZZA": {"hod": 1.0, "lod": 1.0, "sk": 7}}, frozenset({"ZZT"})
@@ -199,8 +202,106 @@ def test_the_feed_client_asks_for_and_hands_over_the_side_feeds(monkeypatch):
         task = asyncio.create_task(client.run(stop))
         await _until(lambda: len(side.applied) == 3)
         assert side.applied == [(1, 1), (1, 2), (2, 1)] and side.epochs == 2
+        assert side.connects == 1, "every connection re-seeds"
         d = next(m for m in sent if isinstance(m, fp.Desired))
         assert d.nhnl_seeds == {"ZZA": {"hod": 1.0, "lod": 1.0, "sk": 7}} and d.tas_syms == {"ZZT"}
         stop.set()
         await asyncio.wait_for(task, 2)
     asyncio.run(go())
+
+
+
+def _one_ingest(side, prints_by_sym):
+    """A fresh ingest SideFeeds seeded from the web's desired; play prints; fold back."""
+    seeds, _ = side.desired_extras()
+    union = fp.DesiredUnion()
+    union.hello("web", 1, 0.0)
+    union.set_desired("web", fp.Desired(gen=1, nhnl_seeds=seeds), 0.0)
+    feeds = sf.SideFeeds(monotonic=lambda: 0.0)
+    feeds.sync(union)
+
+    class C:
+        client_id = "web"
+        buffer = fp.CoalescingBuffer(1)
+    feeds.client_updated(C, union, fresh=True)
+    side.apply(fp.decode(fp.encode(C.buffer.drain())))
+    with H._pinned_condition_rules():
+        for sym, ps in prints_by_sym.items():
+            for t, p in ps:
+                feeds.on_event(sym, {"t": t, "p": p, "s": 100, "c": []}, "T")
+                feeds.flush()
+                b = C.buffer.drain()
+                if b is not None:
+                    side.apply(fp.decode(fp.encode(b)))
+
+
+def test_an_ingest_restart_mid_session_never_rolls_the_counts_back():
+    """Review repro: ingest loses its marks; the reconnect must re-seed from the LIVE
+    counts (on_connect), and a stale mark must never move a count backwards."""
+    side = RemoteSideFeeds()
+    seed_pc("ZZA", hod=10.0, lod=9.0, nh=0, n_l=0, last=9.5)
+    side.on_connect()
+    _one_ingest(side, {"ZZA": [(T0 + 1, 10.5), (T0 + 2, 11.0), (T0 + 3, 11.5)]})
+    assert (nl._print_counts["ZZA"]["hod"], nl._print_counts["ZZA"]["nh"]) == (11.5, 3)
+    side.new_epoch()
+    side.on_connect()                                    # ingest restarted: a new connection
+    _one_ingest(side, {"ZZA": [(T0 + 4, 10.6)]})          # below the true high
+    pc = nl._print_counts["ZZA"]
+    assert (pc["hod"], pc["nh"]) == (11.5, 3), "no rollback, and no high counted twice"
+    assert nl._rt_hi == 3
+
+
+def test_a_stale_mark_never_moves_a_count_back():
+    side = RemoteSideFeeds()
+    seed_pc("ZZA", hod=12.0, lod=8.0, nh=5, n_l=4)
+    sk = side.desired_extras()[0]["ZZA"]["sk"]
+    side.apply(fp.Batch(epoch=1, seq=1, nhnl={"ZZA": {"hod": 10.0, "lod": 9.0, "nh": 1, "nl": 1,
+                                                     "last": 9.5, "hi_ms": T0, "lo_ms": T0, "sk": sk}}))
+    pc = nl._print_counts["ZZA"]
+    assert (pc["hod"], pc["lod"], pc["nh"], pc["nl"]) == (12.0, 8.0, 5, 4)
+    assert pc["hi_ms"] is None and pc["lo_ms"] is None and pc["last"] == 9.5
+
+
+def test_a_non_finite_mark_is_never_seeded():
+    side = RemoteSideFeeds()
+    seed_pc("ZZA")
+    seed_pc("ZZB", hod=float("inf"))
+    seeds, _ = side.desired_extras()
+    assert set(seeds) == {"ZZA"} and side.counters["bad_seeds"] == 1
+    fp.encode(fp.Desired(gen=1, nhnl_seeds=seeds))        # the message stays sendable
+
+
+def test_seeds_do_not_wait_for_the_scanners_main_lock():
+    import threading
+    side = RemoteSideFeeds()
+    seed_pc("ZZA")
+    out = []
+    with nl._lock:                                        # the scanner mid-tick
+        t = threading.Thread(target=lambda: out.append(side.desired_extras()))
+        t.start()
+        t.join(2)
+    assert out and "ZZA" in out[0][0], "the event loop must not block on nhnl_live._lock"
+
+
+def test_a_tas_gap_or_new_epoch_restarts_the_tick_direction(monkeypatch):
+    monkeypatch.setattr(ts, "_tapes", {})
+    ts._tapes["ZZT"] = ts._Tape()
+    ts._tapes["ZZT"].last_price, ts._tapes["ZZT"].last_dir = 10.0, "up"
+    monkeypatch.setattr(ts, "on_trade", lambda s, t: None)
+    side = RemoteSideFeeds()
+    side.apply(fp.Batch(epoch=1, seq=1, tas={"ZZT": (fp.TasGap(2, T0, T0 + 1),)}))
+    assert ts._tapes["ZZT"].last_price is None and ts._tapes["ZZT"].last_dir == ""
+    ts._tapes["ZZT"].last_price = 11.0
+    side.new_epoch()
+    assert ts._tapes["ZZT"].last_price is None
+
+
+def test_one_failing_part_does_not_lose_the_others(monkeypatch):
+    monkeypatch.setattr(vl, "on_aggregate", lambda *a: (_ for _ in ()).throw(RuntimeError("x")))
+    side = RemoteSideFeeds()
+    seed_pc("ZZA")
+    sk = side.desired_extras()[0]["ZZA"]["sk"]
+    side.apply(fp.Batch(epoch=1, seq=1, agg={"ZZV": (1.0, 1.0, T0)},
+                        nhnl={"ZZA": {"hod": 10.5, "lod": 9.0, "nh": 3, "nl": 1, "last": 10.5,
+                                      "hi_ms": T0, "lo_ms": None, "sk": sk}}))
+    assert nl._print_counts["ZZA"]["nh"] == 3 and side.counters["errors"] == 1
