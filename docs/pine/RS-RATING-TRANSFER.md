@@ -438,6 +438,24 @@ runtime pane on and **`objectsV2: "INCONCLUSIVE"`**.
   as well: the run half is declined `run-half:pane-off` ("the per-bar runtime pane is not on
   here") until the runtime stage is raised from `admins`. Measured on master, the committed
   allowlist latched.
+- **What an admin actually sees (real browser, 2026-11-16, engine 59, build `8cdb0af178`).** The
+  smoke account in its own headless browser, production `/charts`, RDDT 1D, the committed source
+  pasted through "paste a TradingView script" (textarea sha256 = the allowlisted hash), added to
+  the chart:
+  - the RS line is drawn (legend "RS Rating 43.57") and the three averages are listed with no
+    value (off at default inputs, as in the captures); one plot is hidden by the author;
+  - no label is drawn, and the note under the chart says so in two sentences (the drawings
+    sentence ending "...that run hasn't been checked against TradingView for this script", and
+    the `syminfo.industry` sentence).
+  - ⚠️ **The RS line was mostly off screen**: 43.57 under a price scale of about 80 to 220. The
+    values were right and not visible. Fixed by the price-scale join (engine 61, NUMBER PENDING):
+    an imported `overlay = true` script's plots take part in the price pane's autoscale, as
+    TradingView's do by default. With that build swapped into the same browser session the scale
+    reads about 20 to 220 and the whole line is in view under the bars. Rests on TradingView's
+    documented default; no capture records a visible price range (Q-RS10).
+  - ⚠️ **For the seconds the SPX and seed bars took to load, the note named a wrong cause** ("the
+    script reads another symbol or timeframe, which this chart cannot hand that run"). A run
+    waiting for bars is now held with no cause worded (same PR).
 - **What finishes it.** Q-RS8 (`docs/pine/capture-queue-2026-11-14-rs-rating.md`): re-take the
   three captures with the current `tv_capture.js`, which records the x table. If objects v2 then
   grades MATCH_SUBSTITUTED with x witnessed, the record's `objectsV2` is set from THAT grade and
@@ -452,7 +470,54 @@ runtime pane on and **`objectsV2: "INCONCLUSIVE"`**.
   `objectsV2`, `objectsV2Substituted`) are copied ONLY from a grade taken on the tree being merged,
   never from a document or a spliced snapshot row.
 
+**THE LABELS ARE ADMITTED (Q-RS8, 2026-11-16, graded on master `b7cd7a0e63`, engine 60).**
+
+- **Re-captured.** The owner signed in to the capture rig once. RS Rating (the committed source,
+  default inputs) and the `rs-syminfo-industry` probe were re-taken on NYSE:RDDT, NASDAQ:ALAB and
+  NASDAQ:CRWV 1D, each from the listing, with the capture tool that records the object x table
+  (`objects.xIndex`, `uct.object-x-index/v1`). Six captures, committed beside the 2026-11-15 ones
+  (which stay as history): `rs-rating-fred6724-{rddt,alab,crwv}-1d-2026-11-16` and
+  `rs-syminfo-industry-{rddt,alab,crwv}-1d-2026-11-16`. Their chart bars end on the same session
+  as the earlier captures' (2026-11-13) and TradingView draws the same ratings (16 / 76 / 13).
+- **Supply.** `tests/fixtures/vendor-supply/rs-rating-fred6724-{rddt,alab,crwv}-1d-2026-11-16.json`:
+  the 2026-11-15 records copied unchanged (the same FMP `^GSPC` rows under the same ruling, the
+  same seed replay), with the industry read off the probe re-taken in the same session.
+- **Graded with master's own corpus harness, a run of exactly these captures, both lanes.**
+
+  | capture | runtime-on | objects v1 | objects v2 | production lane |
+  |---|---|---|---|---|
+  | `rs-rating-fred6724-rddt-1d-2026-11-16` | MATCH_SUBSTITUTED, 666 bars on each of the 4 plots | MATCH | MATCH_SUBSTITUTED: 18 graded fields agree; x: 2 graded, 2 agreeing, 0 differing (exact bar) | DIVERGE: the plots agree, the drawing is withheld by name (`pine:object-removal-lost`) |
+  | `rs-rating-fred6724-alab-1d-2026-11-16` | MATCH_SUBSTITUTED, 667 bars | MATCH | MATCH_SUBSTITUTED, x 2 of 2 exact | DIVERGE, the same reason |
+  | `rs-rating-fred6724-crwv-1d-2026-11-16` | MATCH_SUBSTITUTED, 411 bars | MATCH | MATCH_SUBSTITUTED, x 2 of 2 exact | DIVERGE, the same reason |
+
+  The three probes grade INCONCLUSIVE in both lanes, as the 2026-11-15 probes do (they are read
+  for TradingView's industry string, not graded as indicators).
+- **The record** (`api/data/pine_runtime_allowlist.json`) now names the three 2026-11-16 captures,
+  each `objectsV2: "MATCH_SUBSTITUTED"`, `objectsV2Substituted: ["syminfo.industry"]`, copied from
+  that grade. The run-half rule is met (three distinct captures, names equal, pane on), so
+  `run_half_evidence` serves exactly this script's three captures and nothing else.
+- **What changes on a chart.** For an account the runtime pane is on for (`PINE_RUNTIME_STAGE`,
+  `admins` on production today), RS Rating's run half is admitted: the "RS Rating" label and the
+  rating number are drawn by the per-bar run, at the script's own settings, on a chart that starts
+  at the listing. Everything else the run half checks still applies (a changed setting, a chart
+  that does not start at the listing, a column that disagrees: each withholds by its own
+  sentence). For an account the pane is not on for, nothing changes: `run-half:pane-off`.
+- **Controls kept.** `test_E1c`: a record built on the 2026-11-15 captures (no x table, objects v2
+  INCONCLUSIVE) serves nothing and admits nothing, and claiming the grade for them is caught by
+  name.
+
 ## Owner rulings
+
+- **2026-11-16, the S&P 500 history difference (Q-RS9):** told that the RS line on bars before
+  2023-12-05 differs from TradingView's (NVDA: 1,292 of 6,997 bars, at most 1.83%) and asked to
+  accept it or treat it as the measured need for a better index source: "I am fine with all of
+  that". Recorded as: accepted as it is. FMP stays the primary index source; no Massive Indices
+  upgrade. The difference stays disclosed in this document.
+- **2026-11-16, the runtime stage:** the same sentence covered raising `PINE_RUNTIME_STAGE` for
+  members once the labels are proven and live. Not yet acted on. The stage is not an RS Rating
+  switch (it turns the per-bar pane on for every admitted script for the accounts in that
+  stage), so it is put back to the owner in those words, with the ladder (`admins` -> `cohort`
+  -> `all`), before anyone changes it.
 
 - **2026-11-14, SPX source for members:** "We have the highest plan for FMP, I am fine using
   Yahoo, and only want to upgrade to massive if it is needed."

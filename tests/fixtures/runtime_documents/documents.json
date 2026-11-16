@@ -217,7 +217,8 @@
      "requirementTags": []
     },
     "placement": {
-     "target": "price"
+     "target": "price",
+     "joinPriceScale": true
     },
     "inputs": [
      {
@@ -497,7 +498,8 @@
      "requirementTags": []
     },
     "placement": {
-     "target": "price"
+     "target": "price",
+     "joinPriceScale": true
     },
     "inputs": [
      {
@@ -1018,7 +1020,8 @@
      "requirementTags": []
     },
     "placement": {
-     "target": "price"
+     "target": "price",
+     "joinPriceScale": true
     },
     "inputs": [
      {
@@ -11538,7 +11541,8 @@
      "requirementTags": []
     },
     "placement": {
-     "target": "price"
+     "target": "price",
+     "joinPriceScale": true
     },
     "inputs": [
      {
@@ -11948,7 +11952,8 @@
      "requirementTags": []
     },
     "placement": {
-     "target": "price"
+     "target": "price",
+     "joinPriceScale": true
     },
     "inputs": [
      {

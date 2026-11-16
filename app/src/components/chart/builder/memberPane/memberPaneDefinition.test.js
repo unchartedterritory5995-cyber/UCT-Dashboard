@@ -208,7 +208,9 @@ describe('⭐⭐ Volume v2 becomes a definition a pane can bind', () => {
       source: '//@version=6\nindicator("ov", overlay = true)\nplot(sma(close, 20))\n',
     })
     expect(r.ok).toBe(true)
-    expect(r.definition.placement).toEqual({ target: 'price' })
+    // PRICE-SCALE JOIN (2026-11-16): and its plots take part in the price pane's autoscale, as
+    // TradingView's do by default (`joinsPriceScale`, `__tests__/priceScaleJoin.test.js`).
+    expect(r.definition.placement).toEqual({ target: 'price', joinPriceScale: true })
   })
 })
 

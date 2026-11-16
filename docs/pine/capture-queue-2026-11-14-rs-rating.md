@@ -47,6 +47,20 @@ minutes earlier WITHOUT `--channel chrome` failed to launch (the bundled Chromiu
 last used by the installed Chrome); whether that launch is what signed the profile out was not
 established. Always pass `--channel chrome` with this profile.
 
+## Display: an overlay script's plots and the price scale (added 2026-11-16)
+
+Seen on production in a real browser (smoke account, RDDT 1D, RS Rating pasted from the committed
+source): the RS line's last value was 43.57 while the price scale showed about 80 to 220, so most
+of the line was below the pane. The values were right and not visible. Ruled (coordinator,
+2026-11-16): a Pine translation's own `overlay = true` plots join the price pane's autoscale, as
+TradingView's do by default; natives keep the guest rule. Built as `placement.joinPriceScale`
+(`memberPaneDefinition.joinsPriceScale`, `eligibility.js::priceScaleJoinLook`,
+`__tests__/priceScaleJoin.test.js`).
+
+| row | script | symbols / timeframe | settles |
+|---|---|---|---|
+| Q-RS10 | `docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine`, in the Q-RS8 session | NYSE:RDDT 1D | TradingView's VISIBLE PRICE RANGE with the script on the price scale, at default settings and a stated visible bar range, plus the same with "Scale price chart only" switched on. No committed capture records a visible price range (`tv_capture.js` reads values and objects, not the scale), so the join rests on TradingView's documented default, not a witnessed number. Needs a capture-tool field for the price scale's visible range first. Also worth one probe with `scale = scale.none` and one with `scale = scale.left`, which this door does NOT join. |
+
 ## Tracked: the S&P 500 history difference (added 2026-11-16, for the owner's ruling)
 
 | row | what | size | settles |
@@ -59,6 +73,32 @@ committed probe (`rs-spx-daily-{rddt,spy}-1d-2026-11-15`, INCONCLUSIVE today for
 `rs-rating-fred6724-*` records) and grade it: that compares the two SPX series bar by bar. RDDT's
 window starts after 2023-12-05, so the old bars need the same probe on a long-history symbol
 (one capture, in the Q-RS8 session).
+
+**Q-RS9 RULED AND CLOSED (owner, 2026-11-16).** Told the size above and asked to accept it or treat
+it as the measured need for a better index source: "I am fine with all of that". Accepted as it
+is: FMP stays primary, no Massive Indices upgrade. The difference stays disclosed in the program
+doc. The SPX-probe measurement above is optional from here, not owed.
+
+**Q-RS8 CAPTURED AND GRADED (2026-11-16).** The owner signed in; RS Rating and the industry probe
+were re-taken on RDDT, ALAB and CRWV 1D from the listing (rig run dirs `qrs8-2026-11-16-{rddt,alab,crwv}`,
+six captures, each written verified, x table recorded). Graded on master `b7cd7a0e63` with master's
+corpus harness: all three RS Rating captures MATCH_SUBSTITUTED runtime-on, objects v2
+MATCH_SUBSTITUTED with x witnessed (2 graded, 2 agreeing, exact bar). The record's `objectsV2` is
+set from that grade and the labels are admitted (program doc, "THE LABELS ARE ADMITTED").
+
+⚠️ **Three rig-tool defects were found taking these, worked around from a scratch wrapper, and are
+owed a tool PR before the repo tool drives the rig again** (`tools/vendor_harness/batch_capture.py`,
+`tools/pine_vendor_capture.py`):
+1. At the tool's 1440-wide window TradingView's Pine editor dialog collapses `Add to chart` to an
+   icon, so the binding gate (which reads the button's text) counts 0. 1760 wide works.
+2. ⛔ `TITLE_JS` does not look at `H2`, where the script title now lives, and its fallback
+   (`/script/i`) selected the **"Publish script"** button, which the tool then clicked on the
+   owner's account (it opens TradingView's publish dialog; nothing was published; the buffer was
+   an unsaved Untitled script and cleanup ran). `--title-selector 'h2[class*="label-"]'` avoids it.
+   The fallback must be an allow-list of what a title element may be.
+3. The binding gate is read the instant `Create new > Indicator` yields a model, before the editor
+   header re-renders (0 / 0, GATE_FAILED). A 15 s poll before the same gate fixes it.
+Rule added by the coordinator: a capture run never clicks anything it cannot name.
 
 **Q-RS2 graded (2026-11-16).** `rs-seed-rsrating-rddt-1d-2026-11-15` graded DIVERGE (5 of 7) in
 both committed snapshots only because no supply was recorded for it: ours read na on every bar. Its
