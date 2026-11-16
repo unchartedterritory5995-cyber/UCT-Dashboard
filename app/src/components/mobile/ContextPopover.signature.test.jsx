@@ -106,7 +106,7 @@ test('CSS: gold is flat var(--ut-gold), hover-only on the desktop menu, never on
   expect(CSS).toMatch(/\.menu\.signature \.item:not\(\.danger\):hover:not\(:disabled\) \.icon/)
   expect(CSS).toMatch(/\.icon\.iconGold \{ color: var\(--ut-gold\); \}/)
   // owner 11-16: a checked row's ✓ is WHITE with a bold label (spec "Floating menu" — a ticked toggle, not gold)
-  expect(CSS).toMatch(/\.check \{[^}]*color: #f8f7f3/)
+  // the white ✓ is StockChart's `.sigCheck` now (the caller draws it; Notebook first-open bytes)
   expect(CSS).toMatch(/\.signature \.item\[aria-checked="true"\] \.label[^{]*\{ font-weight: 600; \}/)
   // the desktop panel is the chart right-click menu's (`.chartCtxMenu`): #111214, 1px #383b41, radius 10, padding 5
   expect(CSS).toMatch(/\.menu\.signature:not\(:has\(\[data-legend-head="readout"\]\)\) \{[^}]*background: #111214; border: 1px solid #383b41; border-radius: 10px; padding: 5px/)

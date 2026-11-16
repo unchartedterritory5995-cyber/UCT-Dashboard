@@ -112,24 +112,13 @@
 .groupLabel:first-child { padding-top: 4px; }
 .menuDense .groupLabel { padding: 7px 7px 2px; }
 .menuDense .groupLabel:first-child { padding-top: 3px; }
-/* the current choice, dimmed at the right ("Own pane") */
-.detail {
-  flex: 0 1 auto;
-  min-width: 0;
-  margin-left: 8px;
-  color: var(--text-muted);
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-/* the ✓ on a checked row: white, like a ticked toggle (docs/uct-signature-style.md "Floating menu") */
-.check { flex: none; margin-left: 8px; color: #f8f7f3; font-size: 12px; font-weight: 700; line-height: 1; }
-/* icons stay grey; the highlighted row's icon is flat gold (§2b.6), UCT Intelligence's always (§2b.5) */
+/* A row's dimmed value, its ✓ and the gold ✦ are drawn by the caller (StockChart `.sigTrail`,
+   `.sigCheck`, `.sigGold`) — every class here is a key in this module's JS object, which is in the
+   Notebook's first-open bytes. */
+/* icons stay grey; the highlighted row's icon is flat gold (§2b.6) */
 .signature .icon { color: var(--text-muted); }
 .menu.signature .item:not(.danger):hover:not(:disabled) .icon,
-.menu.signature .item:not(.danger):focus-visible .icon,
-.icon.iconGold { color: var(--ut-gold); }
+.menu.signature .item:not(.danger):focus-visible .icon { color: var(--ut-gold); }
 .signature .item.danger .icon { color: inherit; }
 
 /* ⭐ UCT SIGNATURE floating menu (owner 11-16) — the chart right-click menu exactly (`.chartCtxMenu`
