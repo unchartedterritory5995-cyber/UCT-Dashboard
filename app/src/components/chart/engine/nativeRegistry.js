@@ -90,7 +90,8 @@ import {
 // which is a fact `__tests__/enumerationSites.test.js` asserts by walking
 // IMPORTS rather than by grepping for a name (a plain substring search for these
 // on this branch returned ten matches and every one was prose in a comment).
-import { migrateMemberDocument } from './memberDocumentMigration.js'
+// ⭐ SETTINGS PARITY (2a / 2c): the migration, then the load-time settings (`memberDocumentProjection.js`)
+import { projectMemberDocument } from './memberDocumentProjection.js'
 import { inputsAsRead } from './legacyInputs.js'
 import { interpret, listingSeedIsUnpinned } from './ast/interpret'
 import { ENGINE_ERROR, isRefusal } from './ast/parse'
@@ -4363,7 +4364,7 @@ export function validateUserDefinitions(rawDefs) {
   // idempotent (`memberDocumentMigration.js`): a condition column its parameter
   // manifest never placed, and a handle an old parameter edit left stale. Never a
   // server-side write: the stored row is untouched; only what this tab installs moves.
-  const base = registerDefinitions(Array.isArray(rawDefs) ? rawDefs.map(migrateMemberDocument) : rawDefs)
+  const base = registerDefinitions(Array.isArray(rawDefs) ? rawDefs.map(projectMemberDocument) : rawDefs)
   const errors = [...base.errors]
   const defs = []
   // ⭐ RF — the ids refused because the server lists them (`runtimeKilled` or

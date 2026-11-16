@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest'
 import { memberPaneDefinition } from '../builder/memberPane/memberPaneDefinition'
 import { applyParamEdit } from '../builder/paramEdit'
-import { migrateMemberDocument } from './memberDocumentMigration'
+import { projectMemberDocument as migrateMemberDocument } from './memberDocumentProjection'
 import { validateDefinition } from './defSchema'
 import * as registry from './nativeRegistry'
 import { checkInstanceInput } from './instanceControls'
