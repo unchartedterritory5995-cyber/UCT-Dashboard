@@ -552,6 +552,12 @@
   "title": "Moving a drawing"
  },
  {
+  "id": "C1-123",
+  "say": "how do I add indicator from menu",
+  "feature": "chartMenu",
+  "title": "Adding an indicator by right-click"
+ },
+ {
   "id": "C1-124",
   "say": "how do I open indicator settings",
   "feature": "indicatorEdit",
