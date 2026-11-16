@@ -141,6 +141,18 @@ COMMITTED = {
     # CBC-FMT (fix/pine-engine-calcbars-format): the questions capture session S10 answered, closed with the capture
     # that answered each (the doc's own `not a capture` table)
     "capture-queue-2026-11-15-calc-bars": {r: "closed" for r in ("Q-CBC1", "Q-CBC3", "Q-CBC4", "Q-CBC5", "Q-FMT1")},
+    # #1448 (door robustness, engine 63): captured and graded DIVERGE; each needs a per-bar-lane fix, not a reading
+    "capture-queue-2026-11-16-door-robustness": {r: "engine-gap" for r in ("Q-ROB5", "Q-ROB6", "Q-ROB7")},
+    # #1447 (REQ request.security, engine 64): a lower-timeframe read's data and symbols we do not hold are rulings
+    "capture-queue-2026-11-16-request-security": {"Q-REQ-LTF": "ruling", "Q-REQ-DATA": "ruling"},
+    # #1450 (runtime history, engine 64): three rows another queue row's capture already asks, three builds
+    "capture-queue-2026-11-16-runtime-history": {
+        "a ta. on the right of a v6 and / or (7 sample scripts)": "superseded",
+        "a window length that divides inexactly (len / 3, 6 sample sc": "superseded",
+        "history in a for / while body (ta.sma(x[i], 50) per pass)": "superseded",
+        "a branch of a function body decided by a parameter the call ": "engine-gap",
+        "a block local's or a drawing handle's [1] in the DRAWING bui": "engine-gap",
+        "a helper parameter that bounds an offset (for i = 1 to lengt": "engine-gap"},
 }
 
 
