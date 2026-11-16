@@ -2000,7 +2000,7 @@
      "rests on the owner's rulebook (Kicker stop ruling, F62)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$24.48",
     "$27.14",
@@ -2011,6 +2011,27 @@
     "$27.14": "Used a tighter percent than the Kicker's 3.5%.",
     "$26.87": "Put the stop a few cents under the 26.90 low, which is farther away.",
     "$24.48": "Took 3.5 dollars off the fill, not 3.5%."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "fill",
+      "label": "Fill",
+      "price": 27.98
+     },
+     {
+      "key": "low",
+      "label": "Kicker day's low so far",
+      "price": 26.9
+     }
+    ],
+    "find": {
+     "label": "Where is the stop",
+     "as": "price"
+    },
+    "title": "The Kicker"
    }
   },
   {
@@ -4878,8 +4899,8 @@
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 27.98 x 0.965 = 27.00 matches; wrong choices check out (27.14 = 3% under fill, 26.87 = three cents under low, 24.48 = 3.50 off). Only the why leads with a bare 27.00 while the choices carry the dollar sign."
+   "fixed": false,
+   "notes": "Fill and day's low drawn; the stop answer lands between them. Keep."
   },
   "q27": {
    "status": "pass",

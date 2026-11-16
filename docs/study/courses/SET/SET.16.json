@@ -1683,7 +1683,7 @@
      "the 0.85 cut-off is a proposed criterion on the card"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "1.43x",
     "0.70x",
@@ -1695,7 +1695,23 @@
     "0.50x": "Divided the session counts, 5 by 10, not the ranges.",
     "0.30x": "That is the shrink, one minus 0.70, not the ratio."
    },
-   "prefix": ""
+   "prefix": "",
+   "visual": {
+    "kind": "move",
+    "title": "The range",
+    "from": {
+     "label": "The 10 before",
+     "value": 3.0
+    },
+    "to": {
+     "label": "Last 5 sessions",
+     "value": 2.1
+    },
+    "find": {
+     "label": "Last 5 / the 10 before",
+     "as": "times"
+    }
+   }
   },
   {
    "key": "q17",
@@ -2898,7 +2914,7 @@
      "rests on the owner's rulebook B23"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$224 million",
     "$0.11 million",
@@ -2909,6 +2925,28 @@
     "$224 million": "A decimal slip. That is ten times too big.",
     "$0.11 million": "Divided the shares by the price instead of multiplying.",
     "$1,120 million": "Multiplied by the 50 days of the average. The 50 days only set the average."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Dollar volume",
+    "rows": [
+     {
+      "key": "shares",
+      "label": "Shares a day",
+      "value": 1600000,
+      "fmt": "shares"
+     },
+     {
+      "key": "price",
+      "label": "Price",
+      "value": 14,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Dollars traded a day",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -4139,7 +4177,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
+   "notes": "Roles, find label, slot format and ladder checked; ok."
   },
   "q17": {
    "status": "pass",
@@ -4198,8 +4236,8 @@
   "q44": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 22.4 ok. $224 million and $2.24 million were both digit-shifts of the answer (a tell). Replaced $2.24 million with the real slip of multiplying by the 50 days ($1,120 million); answer moved to another slot."
+   "fixed": false,
+   "notes": "Roles, find label, slot format and ladder checked; ok."
   },
   "q46": {
    "status": "pass",

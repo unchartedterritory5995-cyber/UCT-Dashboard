@@ -1010,7 +1010,7 @@
      "+1 fixed before (question wording changed by the checker)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "3 times",
     "0.25 times",
@@ -1021,6 +1021,31 @@
     "3 times": "Compared the two prices, 33 less 30, not the two risks.",
     "1.1 times": "Divided one price by the other.",
     "0.25 times": "Flipped the ratio."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 29.0
+     },
+     {
+      "key": "plan",
+      "label": "Plan: buy",
+      "price": 30.0
+     },
+     {
+      "key": "chase",
+      "label": "Chase fill",
+      "price": 33.0
+     }
+    ],
+    "find": {
+     "label": "Risk vs the plan",
+     "as": "times"
+    }
    }
   },
   {
@@ -1131,7 +1156,33 @@
      "+2 rests on the owner's rulebook (C28 and A5: size from the stop)"
     ]
    },
-   "batch": "wave9"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 38.0
+     },
+     {
+      "key": "plan",
+      "label": "Planned entry",
+      "price": 40.0
+     },
+     {
+      "key": "fill",
+      "label": "Actual buy",
+      "price": 43.0
+     }
+    ],
+    "find": {
+     "label": "Real dollars at risk",
+     "as": "dollars"
+    },
+    "shares": 200
+   }
   },
   {
    "key": "q12",
@@ -1893,7 +1944,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
+   "notes": "stop, planned buy, chase fill on one price ruler; 'Risk vs the plan' times; key '4 times'"
   },
   "q09": {
    "status": "pass",
@@ -1911,7 +1962,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 200*(43-38)=1000 correct; 'more than double the $400' true (2.5x); '$43 is more than 4% above $40' true (7.5%). Distractors are real errors."
+   "notes": "stop, planned entry, actual buy, 200 shares; real dollars at risk; key '$1,000'"
   },
   "q12": {
    "status": "pass",

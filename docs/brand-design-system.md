@@ -1,5 +1,7 @@
 # UCT Intelligence — Brand & Design System Specification
 
+> **Menus, settings windows, pickers and widget chrome now use UCT Signature style — see `docs/uct-signature-style.md` (2026-11-15). This file still covers the rest of the site.**
+
 > **Purpose:** Complete handoff document for any designer or developer building or revising a page so that it matches the rest of the UCT Intelligence dashboard.
 >
 > **Source of truth:** `app/src/styles/tokens.css` (imported globally by `app/src/index.css`). Every page, component, and tile consumes these tokens as CSS variables. Never hardcode hex values — always reference the variable so theme switching (default / OLED / Dim) works automatically.

@@ -165772,5 +165772,19 @@
    "format": "unsupported",
    "reason": "no vendor OHLCV series together with per-bar study values and a script source"
   }
- ]
+ ],
+ "spliced": {
+  "rows": [
+   "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-15",
+   "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-11-15",
+   "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-11-15",
+   "parabolic-sar-rddt-1d-2026-11-15",
+   "parabolic-sar-spy-1d-2026-11-15",
+   "trend-targets-algoalpha-rddt-1d-2026-11-15",
+   "trend-targets-algoalpha-spy-1d-2026-11-15",
+   "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-15",
+   "zigzag-multi-time-frame-with-fibonacci-retracement-spy-1d-2026-11-15"
+  ],
+  "from": "S28 x re-captures (s28-2026-11-15, 9 captures of corpus/committed sources): graded alone, on this lane, at the merge of feat/pine-x-recaptures-s28 with master ecd8c3cccd (SCRIPT_ENGINE_VERSION 57), VENDOR_HARNESS_DIR = a directory holding exactly those 9 captures; every other row is the snapshot as master committed it, unchanged"
+ }
 }

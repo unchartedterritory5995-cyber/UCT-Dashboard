@@ -869,7 +869,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "42 days",
     "66 days",
@@ -880,6 +880,29 @@
     "66 days": "Adds the plan to the days left instead of subtracting.",
     "42 days": "Takes 3 weeks off as if it were 3 days.",
     "21 days": "Gives the length of the plan, not the days left after it."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The plan's clock",
+    "rows": [
+     {
+      "key": "days_left_now",
+      "label": "Days left now",
+      "value": 45.0,
+      "fmt": "count"
+     },
+     {
+      "key": "plan_length,_weeks",
+      "label": "Plan length, weeks",
+      "value": 3.0,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Days left at the end",
+     "as": "num",
+     "unit": "days"
+    }
    }
   },
   {
@@ -1025,7 +1048,35 @@
      "computed key from model numbers"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "At-the-money call prices",
+    "rows": [
+     {
+      "key": "50_days_left",
+      "label": "50 days left",
+      "value": 2.95,
+      "fmt": "$"
+     },
+     {
+      "key": "30_days_left",
+      "label": "30 days left",
+      "value": 2.28,
+      "fmt": "$"
+     },
+     {
+      "key": "10_days_left",
+      "label": "10 days left",
+      "value": 1.32,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "The 30-day call's loss",
+     "as": "per_share"
+    }
+   }
   },
   {
    "key": "q14",
@@ -1105,7 +1156,7 @@
      "fixed before (question clarified)"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "3.2x",
     "3.9x",
@@ -1116,6 +1167,22 @@
     "10.0x": "Assumes the price grows in step with the time. Ten times the time, ten times the price.",
     "3.9x": "Added the two prices instead of dividing them.",
     "31.7x": "Slips a decimal place."
+   },
+   "visual": {
+    "kind": "move",
+    "title": "Time and price",
+    "from": {
+     "label": "5-day call",
+     "value": 0.93
+    },
+    "to": {
+     "label": "50-day call",
+     "value": 2.95
+    },
+    "find": {
+     "label": "Times the 5-day price",
+     "as": "times"
+    }
    }
   },
   {
@@ -1417,7 +1484,29 @@
      "fixed before (story and a wrong note)"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The weeklies",
+    "rows": [
+     {
+      "key": "weekly_call_price",
+      "label": "Weekly call price",
+      "value": 1.0,
+      "fmt": "$"
+     },
+     {
+      "key": "weeklies_bought",
+      "label": "Weeklies bought",
+      "value": 3.0,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Premium at risk",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q23",
@@ -1542,7 +1631,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Keep is right: the 21-day is a 3-week options plan length, not the 21-day average."
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q10": {
    "status": "pass",
@@ -1568,7 +1657,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 2.28 - 1.32 = 0.96 and 2.95 - 2.28 = 0.67, all from the story (f20). Distractors are content claims; key not longest."
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q14": {
    "status": "pass",
@@ -1580,7 +1669,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q16": {
    "status": "pass",
@@ -1623,7 +1712,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 3 x 1.00 x 100 = 300; multiplier implied by '$300 a contract' in the story. B25 (h02) stated as ours. Key not longest (32 vs 33/36/36)."
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q23": {
    "status": "pass",

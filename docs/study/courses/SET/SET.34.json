@@ -1199,7 +1199,7 @@
    "key": "q15",
    "skill": "setup.go_signal",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "go.stop",
    "q": "Where does the Go Signal stop go?",
    "choices": [
@@ -1209,7 +1209,7 @@
     "At the reclaimed level"
    ],
    "answer": "Just under the session low",
-   "why": "A few cents under the session low at the time of entry, not exactly on it. It does not go under the flag, the 20-day EMA or the reclaimed level.",
+   "why": "A few cents under the session low at the time of entry, not exactly on it. It does not go under the flag, the 20-day EMA or the reclaimed level. Here the stop is 331.63, three cents under 331.66.",
    "lesson_line": "The low of the day is the line you defend.",
    "facts": [
     "g08",
@@ -1234,7 +1234,8 @@
      "fixed before: variety rewrite (+1)"
     ]
    },
-   "batch": "wave4"
+   "batch": "intraday-charts-2026-11-15",
+   "story": "You buy a first-candle reclaim of the prior close at 336.42. The session low so far is 331.66."
   },
   {
    "key": "q16",
@@ -1420,7 +1421,7 @@
      "rests on our rulebook (+2)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "2.77%",
     "2.85%",
@@ -1431,6 +1432,27 @@
     "2.77%": "Used the session low as the stop. The stop sits 3 cents under it.",
     "1.06%": "Read the dollar gap as a percent. Divide it by the entry first.",
     "28.51%": "Slipped the decimal point one place right."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "fill",
+      "label": "Entry",
+      "price": 37.18
+     },
+     {
+      "key": "low",
+      "label": "Session low",
+      "price": 36.15
+     }
+    ],
+    "find": {
+     "label": "Stop distance below entry",
+     "as": "pct"
+    },
+    "title": "The session"
    }
   },
   {
@@ -1467,7 +1489,7 @@
      "rests on our rulebook (+2)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "intraday-charts-2026-11-15",
    "choices": [
     "1.0%",
     "5.6%",
@@ -1478,6 +1500,13 @@
     "1.0%": "Read the dollar gap as a percent. Divide it by the prior close first.",
     "5.6%": "Slipped the decimal point one place right.",
     "100.6%": "Divided the close by the prior close and forgot to subtract 1."
+   },
+   "chart": {
+    "sym": "CEG",
+    "tf": "60",
+    "asof": "2024-03-19 09:30",
+    "window": 36,
+    "forward": 20
    }
   },
   {
@@ -2002,7 +2031,14 @@
      "fixed before: variety rewrite (+1)"
     ]
    },
-   "batch": "rulings"
+   "batch": "intraday-charts-2026-11-15",
+   "chart": {
+    "sym": "CRS",
+    "tf": "60",
+    "asof": "2025-11-14 09:30",
+    "window": 36,
+    "forward": 20
+   }
   },
   {
    "key": "q37",
@@ -2262,7 +2298,7 @@
      "rests on our rulebook (+2)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "intraday-charts-2026-11-15",
    "choices": [
     "4.0R",
     "3.0R",
@@ -2273,6 +2309,17 @@
     "4.0R": "Measured the gain from the stop instead of from the fill.",
     "8.7R": "Used the percent gain and called it R. R is gain over the stop distance.",
     "0.3R": "Inverted it: R divided by the gain instead of gain divided by R."
+   },
+   "chart": {
+    "sym": "VIAV",
+    "tf": "60",
+    "asof": "2026-02-19 10:30",
+    "window": 37,
+    "forward": 40,
+    "trade": {
+     "entry": 26.43,
+     "stop": 25.66
+    }
    }
   },
   {
@@ -2420,7 +2467,7 @@
     "Yes; wait for a third to confirm"
    ],
    "answer": "Yes; candle two is in time",
-   "why": "Yes. The reclaim comes by the end of the second hourly candle, and here candle two closed green back above the prior close. So it counts. The first candle does not have to reclaim. VIAV was this second-candle version and reached 44.2R, but one trade proves nothing about the next.",
+   "why": "Yes. The reclaim comes by the end of the second hourly candle, and here candle two closed green back above the prior close. So it counts. The first candle does not have to reclaim. VIAV was this second-candle version and ran far in the weeks after, but one trade proves nothing about the next.",
    "lesson_line": "First or second candle both count.",
    "facts": [
     "d05",
@@ -2434,7 +2481,7 @@
     "Yes; wait for a third to confirm": "Waiting past candle two turns it into a pivot. The close back above already came on the second."
    },
    "house": true,
-   "story": "Candle one is red and stays under the prior close. Candle two closes green back above it. Everything else passes.",
+   "story": "Candle one closes under the prior close. Candle two closes green back above it. Everything else passes.",
    "simple": "Yes, because the close back above the prior close came on candle two, which is still inside the window.",
    "deeper": {
     "counter": "A first-candle reclaim is not required. The card counts a turn in the first or the second candle. The second-candle version asks that candle one stays under the prior close and candle two closes green back above it. If the close back above comes on the third candle, it is a pivot, as AXON showed."
@@ -2447,7 +2494,14 @@
      "fixed before: variety rewrite (+1)"
     ]
    },
-   "batch": "wave4"
+   "batch": "intraday-charts-2026-11-15",
+   "chart": {
+    "sym": "VIAV",
+    "tf": "60",
+    "asof": "2026-02-19 10:30",
+    "window": 37,
+    "forward": 20
+   }
   },
   {
    "key": "q48",
@@ -2664,7 +2718,7 @@
     "A sign the setup has stopped working"
    ],
    "answer": "A planned loss; the risk was set",
-   "why": "A planned loss. After the entry, a trade below the session low, the stop, is the exit. TSLA's turn was real, but the third candle broke back under the prior close and the fourth fell through the stop. A reclaim that does not follow through gives it back within hours. The size was set from that stop in advance.",
+   "why": "A planned loss. After the entry, a trade below the session low, the stop, is the exit. TSLA's turn was real, but the third candle broke back under the prior close and fell through the stop. A reclaim that does not follow through gives it back within hours. The size was set from that stop in advance.",
    "lesson_line": "The turn was real. The stock gave it back. The stop paid.",
    "facts": [
     "d08",
@@ -2681,10 +2735,10 @@
     "A sign the setup has stopped working": "One stop-out does not change the setup. After a stop-out, we buy again only if the setup triggers again, as a new trade."
    },
    "house": true,
-   "story": "You bought at 361.86 after a green first candle. The third candle broke back under the prior close, and the fourth fell through your stop at 353.79.",
+   "story": "You bought at 361.86 after a green first candle. The third candle broke back under the prior close and fell through your stop at 353.79.",
    "simple": "It is a planned loss, because the stop is the exit and the stock gave the turn back within hours.",
    "deeper": {
-    "example": "TSLA: bought at 361.86 on the first candle with the stop at 353.79, which is 2.23% away. It was stopped the same session at the 12:30 candle, best 0.23R."
+    "example": "TSLA: bought at 361.86 on the first candle with the stop at 353.79, which is 2.23% away. It was stopped the same session, in the third candle, best 0.23R."
    },
    "tier": "expert",
    "risk": {
@@ -2694,7 +2748,18 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "wave4"
+   "batch": "intraday-charts-2026-11-15",
+   "chart": {
+    "sym": "TSLA",
+    "tf": "60",
+    "asof": "2025-05-30 09:30",
+    "window": 36,
+    "forward": 20,
+    "trade": {
+     "entry": 361.86,
+     "stop": 353.79
+    }
+   }
   },
   {
    "key": "q54",
@@ -3238,7 +3303,7 @@
      "computed key (+2)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$1.4 million",
     "$144 million",
@@ -3249,6 +3314,28 @@
     "$144 million": "Slipped the decimal point one place right.",
     "$0.6 million": "Forgot to multiply by the price. That is just the share count.",
     "$1.4 million": "Slipped the decimal point one place left."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Dollar volume",
+    "rows": [
+     {
+      "key": "shares",
+      "label": "Shares a day",
+      "value": 600000,
+      "fmt": "shares"
+     },
+     {
+      "key": "price",
+      "label": "Price",
+      "value": 24,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Dollars traded a day",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -3375,7 +3462,7 @@
      "rests on our rulebook (+2)"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$25.42",
     "$24.95",
@@ -3386,6 +3473,31 @@
     "$24.95": "Added two R to the stop instead of to the fill.",
     "$25.89": "Added one R too many. The window opens at the second R.",
     "$23.54": "Subtracted two R from the fill instead of adding."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 24.01
+     },
+     {
+      "key": "entry",
+      "label": "Bought at",
+      "price": 24.48
+     }
+    ],
+    "find": {
+     "label": "Where the window opens",
+     "as": "price"
+    },
+    "r": {
+     "entry": 24.48,
+     "stop": 24.01
+    },
+    "title": "The breakeven window"
    }
   },
   {
@@ -3751,7 +3863,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. Key from g08/h24. Note q05 states the same stop line; kept as a ladder step with real distractors."
+   "notes": "Chart already dropped by the server check; the remaining rewrite (scenario, story 336.42 / session low 331.66, stop 331.63 three cents under) is the dossier's META ex 1 record (1.42%) and matches the lesson's own deeper example. No chart, so no real-bar conflict. Do not re-add a META chart: the provider's 09:30 low is 331.22."
   },
   "q16": {
    "status": "pass",
@@ -3793,13 +3905,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
+   "notes": "Roles right. Stop price not drawn (not stated); label says distance to the stop. Keep."
   },
   "q23": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
+   "notes": "CEG ex 2: prior close 168.84, first candle closes 169.79 (real 09:30 bar closes 169.79), +0.56% rounds 0.6%. No trade, no ticker. OK."
   },
   "q24": {
    "status": "pass",
@@ -3876,8 +3988,8 @@
   "q36": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "edited by writer, agrees with ruling"
+   "fixed": false,
+   "notes": "CRS near-miss 4: first candle 315.73 to 329.02 (open to close) after a 2.8% gap down, stop 4.96% under the entry (entry = close 329.02, stop 3c under low 312.74). Real bar agrees. Answer 'size down' matches D-005 (up to 5% ok)."
   },
   "q37": {
    "status": "pass",
@@ -3920,7 +4032,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
+   "notes": "VIAV ex 8: buy 26.43 (inside 10:30 bar), stop 25.66 (2.91%), 28.74 = exactly 3R, 3R in 3 days (dossier), replay best 6.5R stop not hit. Last bar is candle two. OK."
   },
   "q44": {
    "status": "cut",
@@ -3943,8 +4055,8 @@
   "q47": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Pass. Key from cited quotes; no tell or second answer found."
+   "fixed": true,
+   "notes": "VIAV ex 8 matches, but the story says 'Candle one is red'. On the real hourly bar candle one opens 25.97 and closes 25.99, a hair GREEN, so the chart contradicts the word (the dossier's Yahoo bar called it red). The rule only needs candle one to stay under the prior close, so say that instead."
   },
   "q48": {
    "status": "pass",
@@ -3981,8 +4093,8 @@
   "q53": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Planned loss follows A4/g22/h01; every number matches d08/d09. Story mirrors walk-through w3 but still a fair judgment."
+   "fixed": true,
+   "notes": "TSLA failure 1: the replay shows the stop (353.79) is hit in the 11:30 bar (low 353.6), the THIRD candle, not the fourth; that 11:30 candle also closes 354.08 under the prior close 358.43. The writer kept the dossier's 'fourth candle / 12:30', which the real bars contradict. Reworded story, why and deeper to the third candle. Entry 361.86 and stop 353.79 are correct and inside/below the first bar; best 0.23R reproduces (10:30 high 363.68)."
   },
   "q54": {
    "status": "cut",
@@ -4073,7 +4185,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
+   "notes": "Roles, find label, slot format and ladder checked; ok."
   },
   "q69": {
    "status": "pass",
@@ -4097,7 +4209,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "notes": "Roles right. find.label is not a bare '2R', so the app draws no R ticks (r is inert); the 2R rule is not leaked. If ever drawn it would point up, which is right for a long."
   },
   "q73": {
    "status": "pass",

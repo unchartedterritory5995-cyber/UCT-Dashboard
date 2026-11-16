@@ -1991,7 +1991,7 @@
      "the touch rule is a card proposal, not settled"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "9.90 ATR",
     "1.10 ATR",
@@ -2002,6 +2002,28 @@
     "9.90 ATR": "Never divided the dip by the ATR.",
     "0.91 ATR": "Flipped the division: ATR over the dip.",
     "0.02 ATR": "Divided the dip by the line price instead of the ATR."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "line",
+      "label": "50-day",
+      "price": 410.0
+     },
+     {
+      "key": "low",
+      "label": "Pullback low",
+      "price": 400.1
+     }
+    ],
+    "find": {
+     "label": "Dip under the line",
+     "as": "num",
+     "unit": "ATR"
+    },
+    "title": "The dip (ATR 9.00)"
    }
   },
   {
@@ -4597,7 +4619,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
+   "notes": "Roles, find label, slot format and ladder checked; ok."
   },
   "q27": {
    "status": "cut",

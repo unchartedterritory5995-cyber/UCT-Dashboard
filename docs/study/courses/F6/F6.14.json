@@ -1086,7 +1086,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$210",
     "$4.00",
@@ -1097,6 +1097,34 @@
     "$210": "Counts only the call's premium.",
     "$4.00": "Forgets that one contract covers 100 shares.",
     "$4,000": "Slips a decimal place on the 100 shares."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The straddle",
+    "rows": [
+     {
+      "key": "strike,_both_options",
+      "label": "Strike, both options",
+      "value": 50.0,
+      "fmt": "$"
+     },
+     {
+      "key": "call_bought_at",
+      "label": "Call bought at",
+      "value": 2.1,
+      "fmt": "$"
+     },
+     {
+      "key": "put_bought_at",
+      "label": "Put bought at",
+      "value": 1.9,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Most one straddle can lose",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1164,7 +1192,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$187.90",
     "$214.50",
@@ -1175,6 +1203,40 @@
     "$187.90": "Counts only the put's 2.10 premium. Both legs count.",
     "$214.50": "That is the upper break-even, off the call strike.",
     "$190.00": "Stops at the put strike and forgets the premiums."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The strangle",
+    "rows": [
+     {
+      "key": "call_strike",
+      "label": "Call strike",
+      "value": 210.0,
+      "fmt": "$"
+     },
+     {
+      "key": "call_premium",
+      "label": "Call premium",
+      "value": 2.4,
+      "fmt": "$"
+     },
+     {
+      "key": "put_strike",
+      "label": "Put strike",
+      "value": 190.0,
+      "fmt": "$"
+     },
+     {
+      "key": "put_premium",
+      "label": "Put premium",
+      "value": 2.1,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Lower break-even",
+     "as": "price"
+    }
    }
   },
   {
@@ -1249,7 +1311,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$505",
     "$115",
@@ -1260,6 +1322,28 @@
     "$505": "Adds the two premiums. You sell one call and buy the other.",
     "$310": "Counts only the 3.10 call you bought. The 1.95 you took in comes off.",
     "$1.15": "Forgets that one contract covers 100 shares."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The calendar spread",
+    "rows": [
+     {
+      "key": "march_60_call_sold_a",
+      "label": "March 60 call sold at",
+      "value": 1.95,
+      "fmt": "$"
+     },
+     {
+      "key": "may_60_call_bought_a",
+      "label": "May 60 call bought at",
+      "value": 3.1,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Most one spread can lose",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1362,7 +1446,7 @@
      "fixed before"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "6%",
     "3%",
@@ -1373,6 +1457,28 @@
     "3%": "Splits the cost between the call and the put.",
     "0.6%": "Slips a decimal place.",
     "0.06%": "Forgets to multiply by 100."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The straddle's cost",
+    "rows": [
+     {
+      "key": "stock_price",
+      "label": "Stock price",
+      "value": 200.0,
+      "fmt": "$"
+     },
+     {
+      "key": "straddle_cost",
+      "label": "Straddle cost",
+      "value": 12.0,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Move needed to break even",
+     "as": "pct"
+    }
    }
   },
   {
@@ -1497,7 +1603,35 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The straddle at expiry",
+    "rows": [
+     {
+      "key": "strike,_both_options",
+      "label": "Strike, both options",
+      "value": 120.0,
+      "fmt": "$"
+     },
+     {
+      "key": "straddle_cost",
+      "label": "Straddle cost",
+      "value": 9.0,
+      "fmt": "$"
+     },
+     {
+      "key": "stock_at_expiry",
+      "label": "Stock at expiry",
+      "value": 126.0,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Made or lost",
+     "as": "per_share"
+    }
+   }
   },
   {
    "key": "q20",
@@ -1593,7 +1727,41 @@
      "fixed before"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "Assigned on the near call",
+    "rows": [
+     {
+      "key": "later_call_bought,_s",
+      "label": "Later call bought, strike",
+      "value": 45.0,
+      "fmt": "$"
+     },
+     {
+      "key": "near_call_sold,_stri",
+      "label": "Near call sold, strike",
+      "value": 50.0,
+      "fmt": "$"
+     },
+     {
+      "key": "net_debit",
+      "label": "Net debit",
+      "value": 3.8,
+      "fmt": "$"
+     },
+     {
+      "key": "stock_at_near_expiry",
+      "label": "Stock at near expiry",
+      "value": 70.0,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Result",
+     "as": "per_share"
+    }
+   }
   },
   {
    "key": "q22",
@@ -1750,7 +1918,41 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The short strangle",
+    "rows": [
+     {
+      "key": "call_sold,_strike",
+      "label": "Call sold, strike",
+      "value": 110.0,
+      "fmt": "$"
+     },
+     {
+      "key": "put_sold,_strike",
+      "label": "Put sold, strike",
+      "value": 90.0,
+      "fmt": "$"
+     },
+     {
+      "key": "credit_taken_in",
+      "label": "Credit taken in",
+      "value": 3.0,
+      "fmt": "$"
+     },
+     {
+      "key": "stock_at_expiry",
+      "label": "Stock at expiry",
+      "value": 140.0,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Our loss",
+     "as": "per_share"
+    }
+   }
   },
   {
    "key": "q26",
@@ -1824,7 +2026,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "3 contracts",
     "222 contracts",
@@ -1835,6 +2037,35 @@
     "3 contracts": "Rounds up. A third contract goes past your risk.",
     "222 contracts": "Divides the whole account by $450, not 1% of it.",
     "22 contracts": "Slips a decimal place on the 1% risk."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Sizing by premium",
+    "rows": [
+     {
+      "key": "account",
+      "label": "Account",
+      "value": 100000.0,
+      "fmt": "$"
+     },
+     {
+      "key": "risk_a_trade",
+      "label": "Risk a trade",
+      "value": 1.0,
+      "fmt": "%"
+     },
+     {
+      "key": "straddle_cost,_a_con",
+      "label": "Straddle cost, a contract",
+      "value": 450.0,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Contracts we can buy",
+     "as": "num",
+     "unit": "contracts"
+    }
    }
   },
   {
@@ -1923,8 +2154,8 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 4."
+   "fixed": false,
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q10": {
    "status": "pass",
@@ -1935,8 +2166,8 @@
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 3."
+   "fixed": false,
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q12": {
    "status": "pass",
@@ -1948,8 +2179,8 @@
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 2."
+   "fixed": false,
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q14": {
    "status": "pass",
@@ -1967,7 +2198,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q17": {
    "status": "pass",
@@ -1986,7 +2217,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc 9-(126-120) = 3, lost $3. New deeper trap stays inside f4/f49 and the story; no direction implied."
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q20": {
    "status": "pass",
@@ -1997,8 +2228,8 @@
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "calc (50-45)-3.80 = 1.20 gain, matches f40 (debit less strike gap). Choices 12-14. Exercise caveat on f41/f82. Lower-strike case only, so q22 still stands."
+   "fixed": true,
+   "notes": "Title calls it a calendar, but the strikes differ (45 and 50) and the words never say calendar"
   },
   "q22": {
    "status": "pass",
@@ -2021,8 +2252,8 @@
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key $27 right (calc (140-110)-3). Distractor '$0 a share' is close to silly with the stock 30 points through the short call, and its note names no real mistake. Replaced with '$33 a share', the real sign error of adding the premium collected to the loss (numbers from the question). Other fields unchanged."
+   "fixed": false,
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q26": {
    "status": "pass",
@@ -2051,8 +2282,8 @@
   "q27": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 4."
+   "fixed": false,
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q28": {
    "status": "pass",

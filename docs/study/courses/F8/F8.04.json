@@ -1220,7 +1220,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "6%",
     "7%",
@@ -1231,6 +1231,28 @@
     "6%": "Doubled the whole three-loss total, not one trade.",
     "7%": "Doubled the three-loss total, then added a normal 1% trade.",
     "8%": "Doubled the risk on all four trades."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Then double the risk",
+    "rows": [
+     {
+      "key": "risk_each_trade",
+      "label": "Risk each trade",
+      "value": 1,
+      "fmt": "%"
+     },
+     {
+      "key": "losses_in_a_row",
+      "label": "Losses in a row",
+      "value": 3,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "The day's total loss",
+     "as": "pct"
+    }
    }
   },
   {
@@ -1558,7 +1580,7 @@
      "replaces q10, which keyed a daily limit our rulebook (B15) does not use"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$3,200",
     "$392",
@@ -1569,6 +1591,34 @@
     "$3,200": "Forgot to subtract the loss already taken.",
     "$392": "Took 8% of the current balance, not the starting value.",
     "$5,800": "Added the loss to the limit instead of subtracting."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The monthly limit",
+    "rows": [
+     {
+      "key": "month_began_at",
+      "label": "Month began at",
+      "value": 40000,
+      "fmt": "$"
+     },
+     {
+      "key": "loss_limit",
+      "label": "Loss limit",
+      "value": 8,
+      "fmt": "%"
+     },
+     {
+      "key": "down_so_far",
+      "label": "Down so far",
+      "value": 2600,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Room left before the limit",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1625,7 +1675,53 @@
      "replaces q21, which keyed a daily limit our rulebook (B15) does not use"
     ]
    },
-   "batch": "wave9"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The month so far",
+    "rows": [
+     {
+      "key": "month_began_at",
+      "label": "Month began at",
+      "value": 50000,
+      "fmt": "$"
+     },
+     {
+      "key": "loss_limit",
+      "label": "Loss limit",
+      "value": 8,
+      "fmt": "%"
+     },
+     {
+      "key": "week_one:_lost",
+      "label": "Week one: lost",
+      "value": 1500,
+      "fmt": "$"
+     },
+     {
+      "key": "week_two:_lost",
+      "label": "Week two: lost",
+      "value": 1250,
+      "fmt": "$"
+     },
+     {
+      "key": "week_three:_made",
+      "label": "Week three: made",
+      "value": 500,
+      "fmt": "$"
+     },
+     {
+      "key": "week_four:_lost",
+      "label": "Week four: lost",
+      "value": 1750,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Down this month",
+     "as": "pct"
+    }
+   }
   },
   {
    "key": "q25",
@@ -1793,7 +1889,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
+   "notes": "1% risk, three losses; day's total loss; key '5%'"
   },
   "q16": {
    "status": "pass",
@@ -1843,13 +1939,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
+   "notes": "month start, 8% limit, down so far; room left; key '$600'"
   },
   "q24": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc -(-1500-1250+500-1750)/50000 x 100 = 8 checks; at 8% B16 stops new trades (h03). Two Stop, two Take; colon used by key and a distractor. Wrong notes grounded (f25, h03, f12)."
+   "notes": "month start, limit and four weeks with signs in the labels; 'Down this month'; key too long so slot '8%'"
   },
   "q25": {
    "status": "pass",

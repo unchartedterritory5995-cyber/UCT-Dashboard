@@ -816,6 +816,15 @@ def _forward_bars(item: dict) -> list:
     return stored + extra[:want]
 
 
+def _regular_session(ts: int) -> bool:
+    """A bar that STARTS inside 09:30-16:00 New York on a weekday (unix seconds)."""
+    from zoneinfo import ZoneInfo
+    from datetime import datetime as _dt
+    t = _dt.fromtimestamp(ts, ZoneInfo("America/New_York"))
+    m = t.hour * 60 + t.minute
+    return t.weekday() < 5 and 570 <= m < 960
+
+
 def resolve_bars(spec: dict) -> dict:
     """Resolve an item's `bars` spec against the server's OWN bars.db through
     `bars_sqlite.get_bars_before` ONLY — never a provider fetch (B3). Returns
@@ -834,7 +843,14 @@ def resolve_bars(spec: dict) -> dict:
     if not sym or asof_key is None:
         return {"ok": False, "reason": "bad_spec"}
     asof_key = int(asof_key)
-    visible_rows = bars_sqlite.get_bars_before(sym, tf, window, asof_key)
+    # an intraday course chart asks for the REGULAR session only (`rth`, 2026-11-15): bars.db keeps the extended session
+    # too (04:00-20:00), and the pod's fill (scripts/study/fill_course_intraday.py) stores regular-session bars, so the
+    # two paths must cut the same window
+    rth = bool(spec.get("rth")) and tf not in _FORWARD_HORIZON_DAYS
+    pull = window * 4 + 400 if rth else window
+    visible_rows = bars_sqlite.get_bars_before(sym, tf, pull, asof_key)
+    if rth:
+        visible_rows = [r for r in visible_rows if _regular_session(int(r[0]))][-window:]
     if not visible_rows:
         return {"ok": False, "reason": "no_bars", "sym": sym, "tf": tf}
     fwd_to = spec.get("forward_to_key")
@@ -843,8 +859,8 @@ def resolve_bars(spec: dict) -> dict:
         fwd_to = _key_from_date(d + timedelta(days=forward_n * _FORWARD_HORIZON_DAYS[tf] + 7))
     forward_rows: list = []
     if fwd_to is not None and forward_n > 0:
-        later = bars_sqlite.get_bars_before(sym, tf, window + forward_n + 50, int(fwd_to))
-        forward_rows = [r for r in later if int(r[0]) > asof_key][:forward_n]
+        later = bars_sqlite.get_bars_before(sym, tf, (window + forward_n) * 4 + 800 if rth else window + forward_n + 50, int(fwd_to))
+        forward_rows = [r for r in later if int(r[0]) > asof_key and (not rth or _regular_session(int(r[0])))][:forward_n]
     to_bar = lambda r: {"t": r[0], "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5]}  # noqa: E731
     visible = [to_bar(r) for r in visible_rows]
     forward = [to_bar(r) for r in forward_rows]

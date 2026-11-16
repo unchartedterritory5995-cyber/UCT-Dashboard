@@ -1153,7 +1153,7 @@
    "key": "q01",
    "skill": "setup.opening_drive",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "od.trigger",
    "q": "On our drive card, what is the buy point?",
    "choices": [
@@ -1187,7 +1187,15 @@
      "the 5-minute trigger bar rests on a proposed card line tied to held decision D-031"
     ]
    },
-   "batch": "rulings"
+   "batch": "intraday-charts-2026-11-15",
+   "story": "A leader gaps up and its first 5-minute bar closes green.",
+   "chart": {
+    "sym": "SITM",
+    "tf": "5",
+    "asof": "2026-09-17 09:30",
+    "window": 79,
+    "forward": 30
+   }
   },
   {
    "key": "q02",
@@ -1220,9 +1228,9 @@
    "key": "q03",
    "skill": "setup.opening_drive",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "od.stop",
-   "q": "You are filled on the drive. Where does the stop go?",
+   "q": "Where does the stop go?",
    "choices": [
     "Under the 50-day moving average",
     "A few cents under the day's low",
@@ -1251,7 +1259,15 @@
      "rests on the owner's rulebook (F62)"
     ]
    },
-   "batch": "wave5"
+   "batch": "intraday-charts-2026-11-15",
+   "story": "You are filled on the drive at 9:35.",
+   "chart": {
+    "sym": "CROX",
+    "tf": "5",
+    "asof": "2026-09-17 09:35",
+    "window": 80,
+    "forward": 40
+   }
   },
   {
    "key": "q04",
@@ -1605,20 +1621,20 @@
    "key": "q15",
    "skill": "setup.opening_drive",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "od.stop_width",
-   "q": "The first 5-minute bar runs 272.80 to 277.23. You fill at 277.24 with the stop at 272.75. How far below the fill is the stop?",
-   "answer": "1.62%",
+   "q": "How far below the fill is the stop?",
+   "answer": "1.06%",
    "calc": {
     "fn": "arith",
     "args": {
      "expr": "(a - b) / a * 100",
-     "a": 277.24,
-     "b": 272.75
+     "a": 61.41,
+     "b": 60.76
     },
     "round": 2
    },
-   "why": "The stop distance is the fill minus the stop. Divide by the fill: (277.24 - 272.75) / 277.24 = 1.62%. That is LRCX on 2026-09-18. It sits inside the 1 to 3% we prefer. We accept up to 5%, so the range is a guide, not a hard cap.",
+   "why": "The stop distance is the fill minus the stop. Divide by the fill: (61.41 - 60.76) / 61.41 = 1.06%. Those are RPRX's real fill and stop. It sits inside the 1 to 3% we prefer. We accept up to 5%, so the range is a guide, not a hard cap.",
    "lesson_line": "Stop first, distance second, size last. A tight first bar makes a close stop.",
    "facts": [
     "h04",
@@ -1629,7 +1645,7 @@
    ],
    "house": true,
    "suffix": "%",
-   "simple": "1.62 percent, found by taking the fill minus the stop and dividing by the fill.",
+   "simple": "1.06 percent, found by taking the fill minus the stop and dividing by the fill.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -1638,17 +1654,29 @@
      "stop width is tied to held decision D-005 and the rulebook's A13"
     ]
    },
-   "batch": "tomcq",
+   "batch": "intraday-charts-2026-11-15",
    "choices": [
-    "4.49%",
-    "98.38%",
-    "16.19%",
-    "1.62%"
+    "0.65%",
+    "98.94%",
+    "10.58%",
+    "1.06%"
    ],
    "wrong": {
-    "4.49%": "Stopped at the dollar distance and never divided by the fill.",
-    "16.19%": "Decimal slip: moved the point one place too far.",
-    "98.38%": "The stop is 98.38% of the fill. That is what is left, not the gap."
+    "0.65%": "Stopped at the dollar distance and never divided by the fill.",
+    "10.58%": "Decimal slip: moved the point one place too far.",
+    "98.94%": "The stop is 98.94% of the fill. That is what is left, not the gap."
+   },
+   "story": "The first 5-minute bar's high is 61.40. You fill at 61.41 with the stop at 60.76.",
+   "chart": {
+    "sym": "RPRX",
+    "tf": "5",
+    "asof": "2026-10-20 09:35",
+    "window": 80,
+    "forward": 30,
+    "trade": {
+     "entry": 61.41,
+     "stop": 60.76
+    }
    }
   },
   {
@@ -1807,7 +1835,7 @@
    "key": "q21",
    "skill": "setup.opening_drive",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "od.trim_1",
    "q": "Fill 581.57, stop 572.82. Where is 3R?",
    "answer": "$607.82",
@@ -1831,7 +1859,7 @@
    "prefix": "$",
    "simple": "607.82, because one R is the fill minus the stop, and 3R adds three of those to the fill.",
    "deeper": {
-    "example": "SITM filled at 581.57 with the stop at 572.82. 3R, 607.82, came at 9:50 the same day, which is day 1, when we very rarely sell. 5R came at the open two sessions later, which is day 3. The first sell stays a judgment."
+    "example": "SITM filled at 581.57 with the stop at 572.82. 3R, 607.82, came at 9:50 the same day, which is day 1, when we very rarely sell. The first sell stays a judgment."
    },
    "tier": "core",
    "risk": {
@@ -1841,7 +1869,7 @@
      "rests on the owner's rulebook (B19)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "intraday-charts-2026-11-15",
    "choices": [
     "$599.07",
     "$607.82",
@@ -1852,6 +1880,14 @@
     "$599.07": "Counted 3R up from the stop, not from the fill.",
     "$590.32": "Added only one R, one stop distance, to the fill.",
     "$616.57": "Added four R, counting the fill itself as the first step."
+   },
+   "story": "You bought a drive at 9:35.",
+   "chart": {
+    "sym": "SITM",
+    "tf": "5",
+    "asof": "2026-09-17 09:35",
+    "window": 80,
+    "forward": 12
    }
   },
   {
@@ -1979,24 +2015,24 @@
    "format": "scenario",
    "criterion": "od.inv_back_to_open",
    "q": "Is the drive still on?",
-   "story": "You have not bought yet. The first bar closed green on heavy volume. At 9:42 price trades 10 cents under the open.",
+   "story": "You have not bought yet. The first bar closed green on heavy volume. In the 9:35 bar price trades back under the open, 169.59.",
    "choices": [
-    "Yes; ten cents is just noise",
+    "Yes; a small dip is just noise",
     "No; short it under the open",
     "Yes; take it with a wider stop",
     "No; it failed the open-test"
    ],
    "answer": "No; it failed the open-test",
-   "why": "No. Before the entry, a trade back below the open, or below the first 5-minute low, ends it. The card calls that an open-test or a rejection, not a drive: no trade. SMB says it plainly: with an Opening Drive Play we do not let the stock trade back down against us. Ten cents under is still under. It is not a short either; the card says no trade.",
+   "why": "No. Before the entry, a trade back below the open, or below the first 5-minute low, ends it. The card calls that an open-test or a rejection, not a drive: no trade. SMB says it plainly: with an Opening Drive Play we do not let the stock trade back down against us. Any trade under the open is under it. It is not a short either; the card says no trade.",
    "lesson_line": "A drive does not look back. Under the open before you buy, you pass.",
    "facts": [
     "c07",
     "m06"
    ],
    "wrong": {
-    "Yes; ten cents is just noise": "SMB: we do not let the stock trade back down against us. Under the open is the line crossed.",
     "Yes; take it with a wider stop": "A wider stop only buys more risk on a drive that failed its test.",
-    "No; short it under the open": "The card says no trade. It does not turn a failed open-test into a short."
+    "No; short it under the open": "The card says no trade. It does not turn a failed open-test into a short.",
+    "Yes; a small dip is just noise": "SMB: we do not let the stock trade back down against us. Under the open is the line crossed."
    },
    "house": true,
    "simple": "No, because price went back under the open before you bought, and a real drive never does that.",
@@ -2007,7 +2043,14 @@
      "rests on the owner's rulebook or a card proposal under owner review (house)"
     ]
    },
-   "batch": "wave5"
+   "batch": "intraday-charts-2026-11-15",
+   "chart": {
+    "sym": "NVT",
+    "tf": "5",
+    "asof": "2026-10-02 09:35",
+    "window": 80,
+    "forward": 30
+   }
   },
   {
    "key": "q26",
@@ -2145,7 +2188,7 @@
    "format": "scenario",
    "criterion": "od.leader",
    "q": "Take it as one of our drives?",
-   "story": "CROX, 2026-09-17: a clean one-bar drive. A 2.2% gap, the first bar closes at 90% of its range, and RS is 77.",
+   "story": "A clean one-bar drive. The open is 2.2% over the prior day's high, the first bar closes at 90% of its range, and RS is 77.",
    "choices": [
     "Pass; RS 77 is not a leader",
     "Take it; the drive is perfect",
@@ -2153,7 +2196,7 @@
     "Pass; a 90% close is stretched"
    ],
    "answer": "Pass; RS 77 is not a leader",
-   "why": "Pass. We buy leaders: an RS rating of 80 or more, in one of the strongest groups. CROX's 77 is under the line, so a perfect shape does not make it ours. It still ran 5.8R at its best. A trade that works does not change the rule.",
+   "why": "Pass. We buy leaders: an RS rating of 80 or more, in one of the strongest groups. A rating of 77 is under the line, so a perfect shape does not make it ours. It still reached 3R by 10:40 that day. A trade that works does not change the rule.",
    "lesson_line": "A drive that works is not always our drive. Under RS 80, I pass.",
    "facts": [
     "d12",
@@ -2170,7 +2213,7 @@
    "house": true,
    "simple": "Pass, because our rule buys only leaders with an RS of 80 or more, and 77 falls short even on a clean drive.",
    "deeper": {
-    "trap": "The trap is outcome bias. CROX ran 5.8R at its best and hit 3R at 10:40 the same day, so the pass looks wrong in hindsight. The rule judges the bet, not one result: an RS of 80 or more is the leader line, and 77 is under it. Judge the decision by the rule you had at 9:35."
+    "trap": "The trap is outcome bias. This one hit 3R at 10:40 the same day, so the pass looks wrong in hindsight. The rule judges the bet, not one result: an RS of 80 or more is the leader line, and 77 is under it. Judge the decision by the rule you had at 9:35."
    },
    "tier": "extended",
    "risk": {
@@ -2180,7 +2223,14 @@
      "fixed before"
     ]
    },
-   "batch": "wave5"
+   "batch": "intraday-charts-2026-11-15",
+   "chart": {
+    "sym": "CROX",
+    "tf": "5",
+    "asof": "2026-09-17 09:30",
+    "window": 79,
+    "forward": 30
+   }
   },
   {
    "key": "q31",
@@ -2387,7 +2437,7 @@
    "key": "q37",
    "skill": "setup.opening_drive",
    "rung": 6,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "od.stop",
    "q": "Account 100,000. Risk 0.4%. Fill 208.00, stop 205.66. How many shares?",
    "answer": "170 shares",
@@ -2422,7 +2472,7 @@
      "fixed before"
     ]
    },
-   "batch": "tomcq",
+   "batch": "intraday-charts-2026-11-15",
    "choices": [
     "400 shares",
     "1,709 shares",
@@ -2433,6 +2483,18 @@
     "1,709 shares": "Risked four percent instead of 0.4%, ten times the dollars.",
     "400 shares": "Never divided the 400 dollars by the stop distance.",
     "133 shares": "Rounded the stop down to a whole dollar first, which widened the stop distance."
+   },
+   "story": "You bought a drive at 9:35.",
+   "chart": {
+    "sym": "SANM",
+    "tf": "5",
+    "asof": "2026-09-11 09:35",
+    "window": 80,
+    "forward": 20,
+    "trade": {
+     "entry": 208.0,
+     "stop": 205.66
+    }
    }
   },
   {
@@ -2442,7 +2504,7 @@
    "format": "scenario",
    "criterion": "od.stop_width",
    "q": "What do you do?",
-   "story": "WDC, 2026-10-05: a real drive, but the first bar is 3.6% tall. The honest stop is 3.53% under the 445.63 fill.",
+   "story": "A real drive, but the first bar is 3.6% tall. The honest stop is 3.53% under the 445.63 fill.",
    "choices": [
     "Buy full size; it is a real drive",
     "Set a mental stop, not an order",
@@ -2479,7 +2541,14 @@
      "stop width is a held decision (D-005)"
     ]
    },
-   "batch": "rulings"
+   "batch": "intraday-charts-2026-11-15",
+   "chart": {
+    "sym": "WDC",
+    "tf": "5",
+    "asof": "2026-10-05 09:30",
+    "window": 79,
+    "forward": 30
+   }
   },
   {
    "key": "q39",
@@ -2567,9 +2636,9 @@
    "key": "q41",
    "skill": "setup.opening_drive",
    "rung": 6,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "od.first_bar_green",
-   "q": "LRCX's first 5-minute bar dipped, then closed green at 63% of its range on 5.7x volume. Does that bar fit a drive?",
+   "q": "Does that bar fit a drive?",
    "choices": [
     "No; any first-bar dip kills a drive",
     "Yes; an early dip is allowed",
@@ -2577,7 +2646,7 @@
     "Yes; the 5.7x volume overrides it"
    ],
    "answer": "Yes; an early dip is allowed",
-   "why": "Yes. The first 5-minute bar must close above its open, and price must not trade back to the open before the entry. It need not close in its top 30%: a drive may dip in the first minute. LRCX's bar dipped, closed green at 63% of its range and held the day's low. It ran to 16.8R at its best. Nothing here needed a volume override.",
+   "why": "Yes. The first 5-minute bar must close above its open, and price must not trade back to the open before the entry. It need not close in its top 30%: a drive may dip in the first minute. This bar dipped, closed green at 63% of its range and held the day's low. Nothing here needed a volume override.",
    "lesson_line": "Green bar, no trade back to the open. A first-minute dip does not break a drive.",
    "facts": [
     "c06",
@@ -2586,7 +2655,7 @@
     "d01"
    ],
    "wrong": {
-    "No; it must close in the top 30%": "The card says the first bar need not close in its top 30%. LRCX ran 16.8R at its best.",
+    "No; it must close in the top 30%": "The card says the first bar need not close in its top 30%.",
     "No; any first-bar dip kills a drive": "A drive may dip in the first minute. What kills it is trading back to the open before the entry.",
     "Yes; the 5.7x volume overrides it": "No override is needed. The card itself allows a first-minute dip and a close under the top 30%."
    },
@@ -2599,7 +2668,15 @@
      "rests on the owner's rulebook or a card proposal under owner review (house)"
     ]
    },
-   "batch": "wave5"
+   "batch": "intraday-charts-2026-11-15",
+   "story": "A leader gaps up. The first 5-minute bar dipped, then closed green at 63% of its range on 5.7x volume.",
+   "chart": {
+    "sym": "LRCX",
+    "tf": "5",
+    "asof": "2026-09-18 09:30",
+    "window": 79,
+    "forward": 30
+   }
   },
   {
    "key": "q42",
@@ -2937,7 +3014,7 @@
    "format": "scenario",
    "criterion": "od.stop",
    "q": "What was this loss?",
-   "story": "TSEM, 2026-09-17: you buy a drive at 216.48 with the stop at 214.23, under the day's low. It reaches 2.1R by 9:50, then falls through its open and takes the stop.",
+   "story": "You buy a drive at 216.48 with the stop at 214.23, under the day's low. It reaches 2.1R by 9:50, then falls through its open and takes the stop.",
    "choices": [
     "A reason to widen the next stop",
     "The plan working; a 1R loss",
@@ -2972,7 +3049,18 @@
      "rests on the owner's rulebook or a card proposal under owner review (house)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "intraday-charts-2026-11-15",
+   "chart": {
+    "sym": "TSEM",
+    "tf": "5",
+    "asof": "2026-09-17 09:35",
+    "window": 80,
+    "forward": 20,
+    "trade": {
+     "entry": 216.48,
+     "stop": 214.23
+    }
+   }
   },
   {
    "key": "q52",
@@ -3028,7 +3116,7 @@
    "format": "scenario",
    "criterion": "od.reentry",
    "q": "Buy again?",
-   "story": "PAYC, 2026-10-01: you buy at 9:35 and the fill is the high of the day. It slides for an hour and takes the stop at 10:35. You still like the chart.",
+   "story": "You buy at 9:35 and the fill is the high of the day. It slides for an hour and takes the stop at 10:35. You still like the chart.",
    "choices": [
     "Only on a new trigger and stop",
     "Only once a full day has passed",
@@ -3063,7 +3151,14 @@
      "fixed before"
     ]
    },
-   "batch": "wave5"
+   "batch": "intraday-charts-2026-11-15",
+   "chart": {
+    "sym": "PAYC",
+    "tf": "5",
+    "asof": "2026-10-01 10:35",
+    "window": 92,
+    "forward": 60
+   }
   },
   {
    "key": "q54",
@@ -3275,7 +3370,7 @@
      "computed key (entry and stop derived from the bar)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "intraday-charts-2026-11-15"
   },
   {
    "key": "q59",
@@ -3345,7 +3440,7 @@
      "rests on the owner's rulebook (B20)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$200.98",
     "$203.32",
@@ -3356,6 +3451,27 @@
     "$200.98": "Counted 2R down from the stop, not from the fill.",
     "$212.68": "Added two R to the fill instead of subtracting it.",
     "$205.66": "That is the stop itself, a loss of only one R."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 205.66
+     },
+     {
+      "key": "entry",
+      "label": "Fill",
+      "price": 208.0
+     }
+    ],
+    "find": {
+     "label": "Where the loss is 2R",
+     "as": "price"
+    },
+    "title": "The gap-down day"
    }
   },
   {
@@ -3716,8 +3832,8 @@
   "q01": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "keep agrees (depends_on restored to the resolved ruling ids, empty list fails the validator)"
+   "fixed": false,
+   "notes": "SITM s12 row 2: gap up (+5.7%), first bar closes green (real bar 580.16 to 580.51), last bar is the first bar. No ticker, no trade. OK."
   },
   "q08": {
    "status": "cut",
@@ -3741,13 +3857,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Three digit-shifts of 1.62 put the answer mid-cluster. Replaced 0.16% with the what-is-left mistake."
+   "notes": "RPRX s12 row 10: fill 61.41, stop 60.76, 1.06% correct, choices and wrong notes consistent (0.65 / 98.94 / 10.58). But the story says the first bar 'runs 60.81 to 61.40'; the real 09:30 bar is 60.78 to 61.40, so the low on the chart is 3 cents different from the words. The low is not needed for the question, so the story now gives only the high. Trade lines are still valid: stop 60.76 is under the real low 60.78."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Answer was the highest choice. Replaced the add-three-dollars slip with a four-R overshoot."
+   "notes": "SITM s12 row 2: fill 581.57, stop 572.82, 3R 607.82, 3R at 9:50 the same day (replay: best 3.0R, stop not hit). But the real first bar (09:30) trades to 569.75, so the drawn stop line (572.82, from the dossier's 572.87 low) would sit ABOVE the day's low wick, which contradicts the course rule that the stop sits under the day's low. The words never say it, so the numbers stay, but the trade lines are removed from the chart (replay still plays 12 bars)."
   },
   "q23": {
    "status": "pass",
@@ -3757,15 +3873,15 @@
   },
   "q25": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "NVT near-miss 2: open 169.59, price trades under it in the 9:35 bar (real low 169.42), first bar's high 171.425 only taken at 9:40 (09:35 high 171.19, 09:40 high 171.84). Story and choices agree; the 'ten cents'/9:42 invention is gone. OK."
   },
   "q30": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key from h14 (C31: RS 80 or more); 77 is under. Two Pass, two Take, key not longest; c06 grounds the 90%-close note; 5.8R and 10:40 from d13. The RS proxy issue is already flagged to the owner."
+   "fixed": true,
+   "notes": "CROX s12 row 8: bar closes at 90% of range (real 89.6%), RS 77, 3R by 10:40 (dossier). But the rewritten story opens 'A leader makes a clean one-bar drive' while the answer is 'Pass; RS 77 is not a leader', which contradicts itself. Also the dossier's 2.2% is the gap over the prior HIGH (real open 118.69 vs prior close 115.39 is +2.9%). Reworded."
   },
   "q31": {
    "status": "cut",
@@ -3800,14 +3916,14 @@
   "q37": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "170/1,709/17,094 was a digit ladder with the answer the smallest. Replaced 17,094 with a rounded-stop mistake that lands below the answer."
+   "fixed": false,
+   "notes": "SANM s12 row 4: buy 208.00 at 9:35 (inside that bar), stop 205.66 (under the real first-bar low 205.705), 170 shares correct (400/2.34). No outcome named. OK."
   },
   "q38": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "edit ok (depends_on restored to the resolved ruling ids, empty list fails the validator)"
+   "fixed": false,
+   "notes": "WDC near-miss 4: fill 445.63 = first-bar high 445.62 plus a cent, stop 3.53% under it (dossier). Real first-bar low is 429.44 so the real bar is about 3.8% tall vs the dossier's 3.6%; a feed difference, kept as the dossier record. No trade drawn, no ticker in story."
   },
   "q39": {
    "status": "pass",
@@ -3819,7 +3935,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Keep right: 'the volume overrides it' is keyed wrong; volume is not a requirement. Agrees with D-006."
+   "notes": "LRCX s12 row 1: first bar dips then closes green (real 274.41 to 275.59, about 64% of range vs dossier 63%), 5.7x volume, low of day in bar 1. Ticker out of the q. OK."
   },
   "q44": {
    "status": "cut",
@@ -3862,7 +3978,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1R-loss key kept; 3R trim wording removed."
+   "notes": "TSEM failure 1: buy 216.48 at 9:35, stop 214.23 (under real first-bar low 214.28), 2.13R by 9:50, stopped 10:05 (replay: best 2.1R, stopped at 10:05). Matches the words. OK."
   },
   "q52": {
    "status": "pass",
@@ -3874,7 +3990,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key right (h28/B21, h29/E56, h02/A4). PAYC facts d22/d23 match the story. Distractors are real urges."
+   "notes": "PAYC failure 3: fill 229.02 at 9:35 = high of day, stop 224.09 taken at 10:35 (the 10:35 bar prints 223.765, through the stop). Last bar is the stop-out bar; no trade drawn. OK."
   },
   "q54": {
    "status": "pass",
@@ -3891,8 +4007,8 @@
   "q58": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Market trade-through entry kept (D-003); first sell re-keyed to day 3+."
+   "fixed": true,
+   "notes": "LRCX s12 row 1: the why says the stop sits under 'the first bar's low of 272.80, so 272.75', but the real first 5-minute bar's low is 272.64, so on the chart the drawn stop (272.75) would sit ABOVE the day's low wick and the words would be visibly false. Dropped the chart and restored the original fields (no chart, original story with the dossier's own numbers and outcomes)."
   },
   "q59": {
    "status": "cut",
@@ -3903,8 +4019,8 @@
   "q60": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "208.00 - 2 x 2.34 = 203.32 verified; wrongs are real; answer sits mid-range."
+   "fixed": true,
+   "notes": "Removed r: the 2R price is BELOW the fill (a loss). The app draws r steps upward from the entry for a long, which would land on the 212.68 distractor if the label ever read '2R'. Today the label does not match, so nothing was drawn; removing r makes it safe."
   },
   "q61": {
    "status": "pass",
@@ -3940,7 +4056,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key right (c04, h24/F62). 'Exactly on the first bar's low' is the real F62 trap. k02 'stop is at the lows of the day' verified on qullamaggie.com earlier; supports, does not key."
+   "notes": "CROX s12 row 8: buy 119.34 at 9:35, stop 117.90 (5c under the 117.95 first-bar low). Last bar is the 9:35 fill bar; no trade drawn so the answer is not given away. OK."
   },
   "q04": {
    "status": "pass",

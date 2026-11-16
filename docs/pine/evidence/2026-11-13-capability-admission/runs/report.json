@@ -1,11 +1,11 @@
 {
  "populations": {
   "capture": {
-   "scripts": 697,
-   "admitted": 272,
+   "scripts": 706,
+   "admitted": 277,
    "runtimeLane": 32,
-   "hostLane": 159,
-   "refused": 81,
+   "hostLane": 160,
+   "refused": 85,
    "coreOnly": 35
   },
   "committed": {
@@ -1412,6 +1412,17 @@
    "production": "DIVERGE",
    "caps": [
     "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "supertrend-kivancozbilgic-rddt-1d-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "reassign",
     "ternary"
    ]
   },
@@ -3409,6 +3420,58 @@
    ]
   },
   {
+   "capture": "rs-syminfo-industry-rddt-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-nvda-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-alab-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": null,
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-crwv-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": null,
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-11-15",
    "lane": "runtime",
    "runtimeOn": "MATCH",
@@ -4449,17 +4512,6 @@
    "declined": "pine:colour-value",
    "caps": [
     "core",
-    "ternary"
-   ]
-  },
-  {
-   "key": "reference:supertrend__VfOPXWDHDP",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "reassign",
     "ternary"
    ]
   },
@@ -5827,5 +5879,6 @@
    ]
   }
  ],
- "matchToDiverge": []
+ "matchToDiverge": [],
+ "substitutedToDiverge": []
 }

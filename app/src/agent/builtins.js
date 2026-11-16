@@ -46,6 +46,7 @@ import { registerCotCapability } from './capabilities/cot'
 import { registerKnowledgeCapabilities } from './capabilities/knowledge'
 import { registerResearchCapability } from './capabilities/research'
 import { registerHistoryCapability } from './capabilities/history'
+import { registerRsCapability } from './capabilities/rsLeadership'
 import { registerChartDescribeCapability } from './capabilities/chartDescribe'
 import { registerMultiChartCapabilities } from './capabilities/multiChart'
 // ⭐ W2-C1 (multi-page host): the pages' own capabilities — offered only on their surface (AgentProvider)
@@ -121,4 +122,5 @@ export function registerServerGatedBuiltins() {
   registerChartDescribeCapability()      // W2-B3: chart.describeSetup while the server serves `bars.daily`
   registerCoachCapabilities()            // Wave 3 (W3-1..4): coach.* / journal.* while the server serves `coach` (UCT_AGENT_COACH)
   registerCotCapability()                // Phase 2: cot.positioning while the server serves `cot.positioning`
+  registerRsCapability()                 // Phase 2: rs.compare while the server serves `rs.leadership`
 }
