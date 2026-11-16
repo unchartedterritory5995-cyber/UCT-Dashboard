@@ -87,19 +87,19 @@
   }
  },
  "counts": {
-  "targets": 322,
+  "targets": 324,
   "byStatus": {
    "CAPTURED": 130,
    "NEEDS_CHART": 39,
    "NEEDS_LIVE": 2,
-   "QUEUED": 151
+   "QUEUED": 153
   },
   "byPlanWave": {
    "E": {
     "CAPTURED": 115,
     "NEEDS_CHART": 37,
     "NEEDS_LIVE": 2,
-    "QUEUED": 117
+    "QUEUED": 119
    },
    "W1": {
     "QUEUED": 6
@@ -127,7 +127,7 @@
    "1-2": {
     "CAPTURED": 20,
     "NEEDS_CHART": 1,
-    "QUEUED": 9
+    "QUEUED": 11
    }
   },
   "byDocWave": {
@@ -146,7 +146,7 @@
     "CAPTURED": 2
    },
    "bt-builtins-time": {
-    "QUEUED": 3
+    "QUEUED": 5
    },
    "c22-array-gc": {
     "QUEUED": 1
@@ -1654,6 +1654,94 @@
     "capture-queue-2026-11-02-w2#Q-W2R1",
     "capture-queue-2026-11-02-w2#Q-W2R2",
     "capture-queue-2026-11-02-w2#Q-W2R3"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "session-highs-and-lows-indicator-smc-sessions-dst-safe__c0ca8cf749@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "corpus/committed/session-highs-and-lows-indicator-smc-sessions-dst-safe__c0ca8cf749.pine",
+   "sourceKind": "corpus",
+   "sha256": "9d9ef18357506d24991d4adaedce7cb705ceff791f1b254fb582a58a656f7a13",
+   "bytes": 6807,
+   "stem": "session-highs-and-lows-indicator-smc-sessions-dst-safe__c0ca8cf749",
+   "captureStem": "session-highs-and-lows-indicator-smc-sessions-dst-safe",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "corpus",
+   "needsLive": false,
+   "priority": 1,
+   "unblocks": {
+    "priority": 1,
+    "firm": [],
+    "named": [
+     "committed:session-highs-and-lows-indicator-smc-sessions-dst-safe__c0ca8cf749"
+    ],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "bt-builtins-time"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-bt-builtins-time#Q-BT6"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "session-highs-and-lows-indicator-smc-sessions-dst-safe__c0ca8cf749@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "corpus/committed/session-highs-and-lows-indicator-smc-sessions-dst-safe__c0ca8cf749.pine",
+   "sourceKind": "corpus",
+   "sha256": "9d9ef18357506d24991d4adaedce7cb705ceff791f1b254fb582a58a656f7a13",
+   "bytes": 6807,
+   "stem": "session-highs-and-lows-indicator-smc-sessions-dst-safe__c0ca8cf749",
+   "captureStem": "session-highs-and-lows-indicator-smc-sessions-dst-safe",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "corpus",
+   "needsLive": false,
+   "priority": 1,
+   "unblocks": {
+    "priority": 1,
+    "firm": [],
+    "named": [
+     "committed:session-highs-and-lows-indicator-smc-sessions-dst-safe__c0ca8cf749"
+    ],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "bt-builtins-time"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-bt-builtins-time#Q-BT6"
    ],
    "origins": [
     "queue-doc"
@@ -16328,7 +16416,7 @@
    "docWave": "bt-builtins-time",
    "disposition": "closed",
    "reason": "Captured 2026-11-16 and served; graded in ast/btSessionClock.test.js once the capture session's data PR puts it in tests/fixtures/vendor/harness/.",
-   "dispositionLine": 33,
+   "dispositionLine": 34,
    "text": "Q-BT1 | `tools/visual_conformance/probes/vw-bt-session-overnight-value.pine` | BITSTAMP:BTCUSD 60 and BITSTAMP:BTCUSD 1D | The VALUE of `time(tf, session)` inside a session that wraps midnight. CAPTURED 2026-11-16 (`vw-bt-session-overnight-value-btcusd-60-2026-11-16`, `vw-bt-session-overnight-value-btcusd-1d-2026-11-16`): V1 = -1800 on every in-session hourly bar, 00:00-02:00 included (the session"
   },
   {
@@ -16338,87 +16426,87 @@
    "docWave": "bt-builtins-time",
    "disposition": "closed",
    "reason": "Captured 2026-11-16 (re-spelled timeframe.period) and served; graded in ast/btSessionClock.test.js once the data PR lands.",
-   "dispositionLine": 34,
+   "dispositionLine": 35,
    "text": "Q-BT4 | `tools/visual_conformance/probes/vw-w4-session-default-days-v4.pine` | BITSTAMP:BTCUSD 60 | The v4 default days. CAPTURED 2026-11-16 as `vw-w4-session-default-days-v4-btcusd-60-2026-11-16`, its three rows re-spelled `timeframe.period` (TradingView's v4 compiler refuses the bare `period`: \"Undeclared identifier 'period'\"): N1 is Monday to Friday, as the v4 reference and the migration guide "
   },
   {
    "key": "capture-queue-2026-11-16-bt-builtins-time#Q-BT5",
    "doc": "docs/pine/capture-queue-2026-11-16-bt-builtins-time.md",
-   "line": 15,
+   "line": 16,
    "docWave": "bt-builtins-time",
    "disposition": "closed",
    "reason": "Captured 2026-11-16 and served; graded in ast/btSessionClock.test.js once the data PR lands.",
-   "dispositionLine": 35,
+   "dispositionLine": 36,
    "text": "Q-BT5 | `tools/visual_conformance/probes/vw-bt-session-to-midnight-daymask.pine` | BITSTAMP:BTCUSD 60 | Which day's session the hours before midnight of `\"2000-0000:23456\"` belong to. CAPTURED 2026-11-16 (`vw-bt-session-to-midnight-daymask-btcusd-60-2026-11-16`): M1 is 20:00-23:00 of Monday to Friday themselves. Served."
   },
   {
    "key": "capture-queue-2026-11-16-bt-builtins-time#visible bar times",
    "doc": "docs/pine/capture-queue-2026-11-16-bt-builtins-time.md",
-   "line": 21,
+   "line": 22,
    "docWave": "bt-builtins-time",
    "disposition": "by-design",
    "reason": "One value per bar cannot be right for every scroll position; refused by name (above).",
-   "dispositionLine": 36,
+   "dispositionLine": 37,
    "text": "visible bar times | `pine.js::BUILTIN_RULED` (`pine:builtin`) | `chart.left_visible_bar_time` / `chart.right_visible_bar_time`: TradingView re-runs the whole script every time the visible window changes (\"Each time the visible window changes, the script re-executes\", user manual), and this engine computes an indicator once for its bars. No capture can make one value right for every view."
   },
   {
    "key": "capture-queue-2026-11-16-bt-builtins-time#theme colours read as a value",
    "doc": "docs/pine/capture-queue-2026-11-16-bt-builtins-time.md",
-   "line": 22,
+   "line": 23,
    "docWave": "bt-builtins-time",
    "disposition": "engine-gap",
    "reason": "The chart theme has to reach the computation; a build, not a TradingView reading.",
-   "dispositionLine": 37,
+   "dispositionLine": 38,
    "text": "theme colours read as a value | `pine.js::BUILTIN_RULED` (`pine:builtin`) | `chart.bg_color` / `chart.fg_color`: painted with, both are already carried as the chart's theme (engine 58). Read as a value (compared, stored, computed with) they need the member's chart theme inside the computation, which the bind context does not carry."
   },
   {
    "key": "capture-queue-2026-11-16-bt-builtins-time#bare period from v4 on",
    "doc": "docs/pine/capture-queue-2026-11-16-bt-builtins-time.md",
-   "line": 23,
+   "line": 24,
    "docWave": "bt-builtins-time",
    "disposition": "closed",
    "reason": "TradingView's own compiler answered it (Q-BT4's reading); refused by name.",
-   "dispositionLine": 38,
+   "dispositionLine": 39,
    "text": "bare period from v4 on | `pine.js::legacyPeriodRefusal` (`pine:builtin`), every lane | An unbound `period` in a v4+ script: TradingView's v4 compiler, \"Undeclared identifier 'period'\" (the capture session's reading of Q-BT4); neither the v4 nor the v5 reference holds it. It was read as the chart's timeframe, an over-acceptance."
   },
   {
    "key": "capture-queue-2026-11-16-bt-builtins-time#v1-v3 sessions with no day list",
    "doc": "docs/pine/capture-queue-2026-11-16-bt-builtins-time.md",
-   "line": 24,
+   "line": 25,
    "docWave": "bt-builtins-time",
    "disposition": "engine-gap",
    "reason": "A v1-v3 reference text, or a v1-v3 probe, is owed before anything is served; refused by name meanwhile.",
-   "dispositionLine": 39,
+   "dispositionLine": 40,
    "text": "v1-v3 sessions with no day list | `pine.js::sessionClockOf` (`pine:function`) | No reference text for v1-v3 is held (TradingView's reference bundle serves v4-v6 only) and no v1-v3 probe is captured; `trading-session-indicator` and `cm-forex-sessions-highlight-v1` (no version line) wait on it."
   },
   {
    "key": "capture-queue-2026-11-16-bt-builtins-time#symbol fields not held",
    "doc": "docs/pine/capture-queue-2026-11-16-bt-builtins-time.md",
-   "line": 25,
+   "line": 26,
    "docWave": "bt-builtins-time",
    "disposition": "engine-gap",
    "reason": "The symbol store has to hold the field first.",
-   "dispositionLine": 40,
+   "dispositionLine": 41,
    "text": "symbol fields not held | `symbolScope.json::unserved` or the namespace sentence (`pine:builtin`) | `syminfo.type`, `syminfo.description`, `syminfo.volumetype`, `syminfo.prefix()`, `syminfo.target_price_*`: data this engine does not hold per symbol (instrument class, long name, volume kind, exchange prefix, analyst targets). Serving one needs the field in the symbol store first, not a TradingView r"
   },
   {
    "key": "capture-queue-2026-11-16-bt-builtins-time#sar, dmi, kc with a computed flag",
    "doc": "docs/pine/capture-queue-2026-11-16-bt-builtins-time.md",
-   "line": 26,
+   "line": 27,
    "docWave": "bt-builtins-time",
    "disposition": "engine-gap",
    "reason": "Built-in work for its own unit, each witness-gated.",
-   "dispositionLine": 41,
+   "dispositionLine": 42,
    "text": "sar, dmi, kc with a computed flag | `_functions_excluded` / `PINE_TUPLE_BUILTINS` (`pine:function`) | Not built in this unit. `ta.sar` keeps its ruling; `ta.dmi`'s tuple is not in `PINE_TUPLE_BUILTINS`; `ta.kc`'s flag must be a literal, and `squeeze-momentum-indicator-lazybear-vx-by-dgt` passes `useTrueRangeS == 'On'`, an input comparison the tuple pre-pass does not fold."
   },
   {
    "key": "capture-queue-2026-11-16-bt-builtins-time#legacy correlation over runtime state",
    "doc": "docs/pine/capture-queue-2026-11-16-bt-builtins-time.md",
-   "line": 27,
+   "line": 28,
    "docWave": "bt-builtins-time",
    "disposition": "engine-gap",
    "reason": "A runtime windowed respelling of ta.correlation, then the script's request walls.",
-   "dispositionLine": 42,
+   "dispositionLine": 43,
    "text": "legacy correlation over runtime state | `runtime:call-undeclared-builtin-state` | The v4->v5 migration guide renames `correlation(a, b, n)` to `ta.correlation`; the host lane expands it (`BUILTIN_CALL_TREE.correlation`), the runtime lane has no windowed respelling for it (`runtimeRespelling` takes `vwma` / `linreg`). `correlation-matrix`'s next walls are its `security` requests."
   }
  ],
@@ -18020,7 +18108,7 @@
   {
    "doc": "docs/pine/capture-queue-2026-11-16-bt-builtins-time.md",
    "wave": "bt-builtins-time",
-   "rows": 12,
+   "rows": 13,
    "contextTables": 0
   },
   {
