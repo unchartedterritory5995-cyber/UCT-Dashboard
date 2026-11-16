@@ -1047,6 +1047,30 @@ export function barInvariantParams(stmts, h, names) {
   const eligible = [...defs].filter(([, def]) => !def.isMethod && !def.overloaded && def.params.length)
   if (!eligible.length) return out
   const NONE = new Set()
+  // ⭐ A FUNCTION NOTHING CALLS NEVER RUNS, so a call written in its body is not a call site
+  // (`filterShort`, defined and never used in 19-strategy-supertrend-atr, hands `filter` its own
+  // parameter). Reached: called from the top level, or from a function that is.
+  const callsIn = (list, from, into) => {
+    for (const st of list || []) {
+      const t = st.header || []
+      for (let i = st === list[0] ? from : 0; i < t.length; i += 1) {
+        const tk = t[i]
+        if (tk && tk.kind === 'ident' && !tk.member && defs.has(String(tk.value))) into.add(String(tk.value))
+      }
+      if (st.sub && st.sub.length) callsIn(st.sub, 0, into)
+    }
+    return into
+  }
+  const callees = new Map()
+  const reached = new Set()
+  for (const st of stmts || []) {
+    const head = definitionHeader(st.header, h)
+    if (head) callees.set(head.name, callsIn([st], head.arrow + 1, callees.get(head.name) || new Set()))
+    else callsIn([st], 0, reached)
+  }
+  for (const queue = [...reached]; queue.length;) {
+    for (const c of callees.get(queue.pop()) || []) if (!reached.has(c)) { reached.add(c); queue.push(c) }
+  }
   /** One pass: every call site judged against `known` (the parameters proven so far). */
   const pass = (known) => {
     const recs = new Map(eligible.map(([name, def]) => [name, { flags: def.params.map(() => true), sites: 0 }]))
@@ -1084,6 +1108,7 @@ export function barInvariantParams(stmts, h, names) {
     for (const st of stmts || []) {
       const head = definitionHeader(st.header, h)
       if (!head) { scan(st.header || [], 0, NONE, NONE); walk(st.sub, NONE, NONE); continue }
+      if (!reached.has(head.name)) continue
       const def = defs.get(head.name)
       const hidden = new Set(def ? def.params.map((p) => p.name) : [])
       const fixed = known.get(head.name) || NONE

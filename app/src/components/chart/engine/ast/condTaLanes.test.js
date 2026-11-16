@@ -454,5 +454,11 @@ describe('COND-TA — 6. a guard on a parameter every call site fixes is bar-con
     const through = (site) => SEL(site, ['outer(q) => pick(q)'])
     expect(lenient(through('outer(m)')).outputs[0].refusal).toBeFalsy()
     expect(lenient(through('outer(close > open ? 1 : 0)')).outputs[0].refusal.guard).toBe('pine:block')
+    // a function nothing calls never runs: the call in its body is not a call site …
+    const dead = (site) => SEL(site, ['unused(q) => pick(q)'])
+    expect(lenient(dead('pick(m)')).outputs[0].refusal).toBeFalsy()
+    // … but one reached through a function that IS called counts
+    const chain = SEL('a(close > open ? 1 : 0)', ['b(q) => pick(q)', 'a(q) => b(q)']) + '\nplot(pick(m), "w")'
+    expect(lenient(chain).outputs[1].refusal.guard).toBe('pine:block')
   })
 })
