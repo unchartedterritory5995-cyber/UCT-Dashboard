@@ -23,7 +23,7 @@ const SRC = path.resolve(here, '../../../../..') // app/src
 // ⭐ The committed digest of every lock entry except the last. The coordinator moves
 // it in the same merge that appends an entry (that visible act is the rule).
 // sha256('[]'): the lock holds one entry, so there is no older history yet.
-const COMMITTED_OLDER_DIGEST = '4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945'
+const COMMITTED_OLDER_DIGEST = '210da0be8706e845493c1e44df6019e22c76c0169e4802fa0a2294546f59cbcc'
 
 const ledgerA = canonicalJson({ schema: 'uct.broker-pins.resolved/v1', rules: {} })
 const ledgerB = canonicalJson({ schema: 'uct.broker-pins.resolved/v1', rules: { 'B-PATH': ['fx-1'] } })

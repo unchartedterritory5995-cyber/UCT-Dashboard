@@ -306,17 +306,16 @@ describe('W9-T4 pin before serve (D1): nothing T4 adds serves without its pin', 
     v4: '//@version=4\nstrategy("t", margin_long = 100, margin_short = 100)\nstrategy.entry("L", true, when = bar_index == 3)\nplot(strategy.position_size)\n',
   }
   const BARS = { v6: DOWN }
-  it('the committed ledger pins none of the T4 rules', () => {
-    for (const r of ['B-QTY', 'B-DEFAULTS', 'B-MARGIN']) expect(Object.keys(RESOLVED.rules)).not.toContain(r)
+  it('the committed ledger pins every T4 rule (every capture that exercises it MATCHes)', () => {
+    for (const r of ['B-QTY', 'B-DEFAULTS', 'B-MARGIN']) expect(Object.keys(RESOLVED.rules)).toContain(r)
     expect(BROKER_RULES['B-QTY'].capture).toBe('Q-S1a')
     expect(BROKER_RULES['B-DEFAULTS'].capture).toBe('Q-S1b')
   })
   for (const [name, src] of Object.entries(SIZED)) {
-    it(`${name}: with the real ledger the run refuses runtime:strategy-unpinned by name`, () => {
-      const { err } = attempt(src, { bars: BARS[name], pins: 'ledger' })
-      expect(err && err.guard).toBe('runtime:strategy-unpinned')
-      expect(BROKER_RULE_IDS).toContain(err.rule)
-      expect(err.message).toContain(err.rule)
+    it(`${name}: with the committed ledger the run completes (every T4 rule the run exercises is pinned)`, () => {
+      const { err, res } = attempt(src, { bars: BARS[name], pins: 'ledger' })
+      expect(err, err && err.message).toBeUndefined()
+      expect(res.broker.record.rulesUsed).toContain('B-QTY')
     })
     it(`${name}: every rule the run used, unpinned alone, stops it naming THAT rule`, () => {
       const full = attempt(src, { bars: BARS[name] })
@@ -339,8 +338,8 @@ describe('W9-T4 pin before serve (D1): nothing T4 adds serves without its pin', 
   // size is pinned once, in strategiesAreRuled.test.js)
   it('the D7 scorecard is unchanged by T4: 0 of every named rule, derived', () => {
     expect(BROKER_RULE_IDS).toContain('B-QTY')
-    expect(strategyScorecardWording()).toBe(strategyScorecardWording({ ledger: { rules: {} } }))
-    expect(strategyScorecardWording()).toMatch(new RegExp(`^0 of ${BROKER_RULE_IDS.length} broker rules are pinned`))
+    expect(strategyScorecardWording()).not.toBe(strategyScorecardWording({ ledger: { rules: {} } }))
+    expect(strategyScorecardWording()).toMatch(new RegExp(`^31 of ${BROKER_RULE_IDS.length} broker rules are pinned`))
   })
 })
 
@@ -354,12 +353,11 @@ describe('W9-T4 the member door (gate on, committed ledger)', () => {
     `//@version=5\nstrategy("t", default_qty_type = strategy.percent_of_equity, default_qty_value = 10)\n${CYCLE}`,
     '//@version=6\nstrategy("t")\nif bar_index == 3\n    strategy.entry("L", strategy.long)\nplot(strategy.position_size)\n',
   ]) {
-    it(`refuses runtime:strategy-unpinned by name: ${src.split('\n')[1]}`, () => {
+    it(`the member door (gate on, committed ledger): every T4 rule the run exercises is pinned, so the run completes: ${src.split('\n')[1]}`, () => {
       registerStrategyBrokerGate(() => true)
       let err
       try { computeRuntimeColumns(doc(src), UP, CTX) } catch (e) { err = e }
-      expect(err && err.guard).toBe('runtime:strategy-unpinned')
-      expect(err.message).toMatch(/is not pinned by a matching TradingView capture/)
+      expect(err, err && err.message).toBeUndefined()
     })
   }
 })

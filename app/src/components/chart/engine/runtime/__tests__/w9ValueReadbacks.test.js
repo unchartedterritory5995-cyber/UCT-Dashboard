@@ -77,13 +77,14 @@ const ENTER_SHORT = 'if bar_index == 1\n    strategy.entry("S", strategy.short)\
 const CLOSE3 = 'if bar_index == 3\n    strategy.close("L")\n'
 const close9 = (a, b) => expect(a).toBeCloseTo(b, 9)
 
-describe('the rules are named, each with the capture row of its witness, and the committed ledger pins none', () => {
+describe('the rules are named, each with its capture row; the ledger pins every one whose captures MATCH, except B-ROUND-MARK', () => {
+  const UNPINNED = new Set(['B-ROUND-MARK']) // no committed capture of ours reaches it (the AMEX:SPY bind refuses)
   it.each([
     ['B-ROUND', 'Q-S1l'], ['B-ROUND-MARK', 'W9-R1i'], ['B-TXT-CLOSE-ID', 'Q-S1p'], ['B-TXT-CLOSE-ALL-ID', 'Q-S1-core'],
     ['B-TXT-ENTRY-CLOSE-ID', 'Q-S1b'], ['B-TXT-NO-COMMENT', 'Q-S1k'],
   ])('%s -> %s', (rule, row) => {
     expect(BROKER_RULES[rule].capture).toBe(row)
-    expect(pinned(rule)).toBe(false)
+    expect(pinned(rule)).toBe(!UNPINNED.has(rule))
   })
   it('the exit ids the captures witness are the three kinds `witnessedExitIdOf` names, each behind its own rule', () => {
     expect(Object.values(WITNESSED_EXIT_ID_RULES).sort()).toEqual(['B-TXT-CLOSE-ALL-ID', 'B-TXT-CLOSE-ID', 'B-TXT-ENTRY-CLOSE-ID'])
@@ -130,10 +131,12 @@ describe('strategy.closedtrades.entry_time / exit_time, strategy.opentrades.entr
     unsettled(`${DECL()}${ENTER}plot(strategy.closedtrades.entry_time(0))\n`, 'Q-S1m')
   })
 
-  it('unpinned, the read stops naming B-VAL; on the committed ledger (nothing pinned) it stops too', () => {
+  it('unpinned, the read stops naming B-VAL; the committed ledger pins B-VAL and the read runs', () => {
     unpinnedAt(SRC, 'B-VAL')
+    // with the committed ledger (B-VAL pinned, with 14 fixtures) this read runs to completion
     const r = attempt(SRC, { pins: 'ledger' })
-    expect(r.err && r.err.guard).toBe('runtime:strategy-unpinned')
+    expect(r.err, r.err && r.err.message).toBeUndefined()
+    expect(r.res.broker.record.rulesUsed).toContain('B-VAL')
   })
 
   it('⛔ a run handed NO bar times refuses by name: a trade\'s time is never a bar index in disguise', () => {

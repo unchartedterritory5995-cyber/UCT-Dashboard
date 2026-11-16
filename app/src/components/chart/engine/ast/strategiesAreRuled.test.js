@@ -174,9 +174,9 @@ plot(ta.crossover(close, ta.sma(close, 50)) ? 1 : 0)
 // Counts come from the committed ledger, so the row cannot claim a pin that is not there.
 describe('D7: the strategy-backtest scorecard wording', () => {
   it('states the pinned count from the ledger, the refusal by name, and that it is not served', () => {
-    expect(pinnedBrokerRules()).toEqual([])
+    expect(pinnedBrokerRules()).toHaveLength(31)
     expect(strategyScorecardWording()).toBe(
-      `0 of ${BROKER_RULE_IDS.length} broker rules are pinned, each verified against a TradingView capture. `
+      `31 of ${BROKER_RULE_IDS.length} broker rules are pinned, each verified against a TradingView capture. `
       + 'A backtest that reaches an unpinned rule stops and refuses by name (runtime:strategy-unpinned). '
       + 'Strategy backtests are not served to members yet.')
     // ⭐ THE ONE PLACE THE VOCABULARY'S SIZE IS PINNED (dated 2026-11-08): 22 S1/T1 rules + 6 W9-T6
