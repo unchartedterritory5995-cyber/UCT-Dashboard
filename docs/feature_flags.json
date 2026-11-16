@@ -3932,6 +3932,17 @@
       "owner": "pine parity programme",
       "owner_decision": "2026-11-02 owner decision: the Pine runtime runs server-side as a SEPARATE sandboxed service (docs/pine/SERVER-RUNTIME-DESIGN.md sections 0 and 3.6). The owner creates this key in the Railway dashboard (T20); no agent sets it, and it is set on no service.",
       "note": "A SECRET: its value is never recorded in this ledger, in the repo, in a log, in a sentence or in a chat. W5 T12 (2026-11-02): the HMAC key that signs every request from web to the pine-runtime service (design 3.6); the SAME value is set on BOTH services (the service accepts a comma-separated list so a key can rotate). Here it is only asked about being set: server_lane_refusal step 5 answers runtime:server-unavailable while it is not, so a lane never builds a request it cannot sign. (Design 3.5 step 5 names only the URL; the secret is added to that step so a pod holding one without the other fails closed by name instead of at the first request.) Rotation without a joint restart: add the new key to the service, switch web to it, then remove the old one from the service. Rollback: blank it on web (Railway ignores null) and verify a NEW boot. Rails: tests/test_runtime_server_stage.py."
+    },
+    "FRONT_HOLD_SECONDS": {
+      "repo": "uct-dashboard",
+      "read_at": "api/front_app.py::hold_seconds, read per request by the front door (web-front), together with FRONT_HOLD_MAX (api/front_app.py::hold_max, default 200).",
+      "kind": "config",
+      "status": "dark",
+      "where": [],
+      "default": "unset = 0 (the front door never holds a request: a failed connection to web is an immediate 502, as before)",
+      "owner": "speed and reliability plan",
+      "owner_decision": "2026-11-16: built dark as plan item 7. The 2026-11-13 design chose fail-fast; holding a read was put to the owner on 2026-11-15 as a reversal of that call. Arm on web-front only after a measured web restart on production.",
+      "note": "Seconds a GET or HEAD with no body may wait for web after its CONNECTION to web failed (nothing was sent), retried every 0.4 to 0.9 s, capped at 90. Never held: any write, /api/stream/*, /api/live-prices, /api/live/*, /api/bars*, /api/health. At most FRONT_HOLD_MAX requests are held at once; the rest fail fast. A held answer carries X-UCT-Front-Held (ms) and is web's fresh answer, late, not a stored copy. Way back: unset it on web-front (a web-front release has no gap). Rails: tests/test_front_app.py (holding section), 7 of 7 mutations caught."
     }
   }
 }
