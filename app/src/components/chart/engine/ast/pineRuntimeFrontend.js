@@ -2226,12 +2226,22 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (t.type === 'num') return Number.isFinite(t.value)
     if (t.type === 'series') return RUNTIME_BAR_PRICES.has(t.name)
     const a = Array.isArray(t.args) ? t.args : []
+    // ⭐ LANDING TRAIN 1 — THE BUILT-IN `na(x)` IS NEVER `na`. TradingView's Pine Script User Manual
+    // (Type system, "`na` value", tradingview.com/pine-script-docs/language/type-system, read 2026-11-15):
+    // "Scripts can test whether the result from a variable or expression is na by using the na() function.
+    // The function returns true if the value or reference is undefined. Otherwise, it returns false."
+    // So its answer is a plain `bool` on every bar, whatever `x` is. Only the table's own `na` reaches a canonical tree
+    // by that name (a script function is inlined); `nz` and a comparison that holds an `na(…)` are
+    // not cleared by this line. (Whether the VM computed `na(b)` RIGHT is `boolNaReads`' question.)
+    if (t.type === 'call' && t.name === 'na') return true
     if (t.type !== 'op') return false
     if (['+', '-', '*', '<', '>', '<=', '>=', '==', '!='].includes(t.name)) return a.length === 2 && a.every((x) => canonNeverTree(x, d + 1))
     if (t.name === '?:') return a.length === 3 && canonNeverTree(a[1], d + 1) && canonNeverTree(a[2], d + 1)
     if (t.name === '&&' || t.name === '||' || t.name === '!') return true
     return false
   }
+  /** The lowered built-in `na(x)`: `irBuiltin('na', [x])`, the pointwise table function by that name. */
+  const isNaBuiltin = (e) => !!e && e.kind === EXPR.BUILTIN && e.fn === 'na'
   const boolNaOnThisLane = (op, l, r, at, pineL = null, pineR = null) => {
     const v = pineVersion === null ? 1 : pineVersion
     if (!(v <= 5)) return
@@ -2261,6 +2271,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const neverNaBool = (e) => !!e && ((e.kind === EXPR.NUM && (e.value === 0 || e.value === 1))
       || (e.kind === EXPR.BINARY && CMP.includes(e.op) && known(e.left) && known(e.right))
       || (e.kind === EXPR.BINARY && (e.op === '&&' || e.op === '||')) || (e.kind === EXPR.UNARY && e.op === '!')
+      // ⭐ LANDING TRAIN 1 — the lowered built-in `na(x)` (`irBuiltin('na', …)`, never a script's own
+      // function, which lowers to `EXPR.CALL`): true or false on every bar, never `na` (`canonNeverTree`)
+      || isNaBuiltin(e)
       || slotNeverNa(e))
     const pineLit = (n) => !!n && n.type === 'number' && !!n.tok && (n.tok.value === 'true' || n.tok.value === 'false')
     // a side is asked when it is a `bool` that can be `na`, or it meets a WRITTEN `true` / `false`
@@ -2371,6 +2384,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
         case EXPR.READ: return slotOk(e.slot)
         case EXPR.CALL: return !!functions[e.fn] && never(functions[e.fn].result, slotOk, d + 1)
         case EXPR.COLUMN: return canonNever(columnTrees[e.index])
+        // ⭐ LANDING TRAIN 1 — the built-in `na(x)` answers true / false on every bar
+        case EXPR.BUILTIN: return isNaBuiltin(e)
         default: return false
       }
     }

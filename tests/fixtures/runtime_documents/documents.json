@@ -11922,6 +11922,7 @@
       "colour",
       "colour"
      ],
+     "calcBarsCount": 1000,
      "disclosures": [
       {
        "name": "Drawn bar by bar",

@@ -879,3 +879,76 @@ describe('finding 5 - the withholding ENDS once the answer no longer depends on 
     }
   })
 })
+
+// ─── ⭐⭐ LANDING TRAIN 1 (train-owned, coordinator ruling 2026-11-15) — THE BUILT-IN `na(x)` IS NEVER `na` ───
+//
+// Engine 56-v2's runtime rule asked every side that meets a WRITTEN `true` / `false`, and its list of
+// never-`na` bools did not hold the built-in `na(…)`. It was built on master before RS Rating (#1342):
+// on the combined tree the ORIGINAL RS Rating script (`ta.barssince(na(curveRsPerf) != true)`, line 262)
+// lost its run half, declined `pine:bool-na-unwitnessed`, and master's acceptance rail
+// (`engine/requestSeed.test.js`) went red. TradingView's Pine Script User Manual, Type system,
+// "`na` value" (tradingview.com/pine-script-docs/language/type-system, read 2026-11-15): "Scripts can
+// test whether the result from a variable or expression is na by using the na() function. The function
+// returns true if the value or reference is undefined. Otherwise, it returns false." A plain `bool`,
+// so `na(x) != true` holds no `na` to lose. Scope: the built-in only (`canonNeverTree`, `isNaBuiltin`).
+describe('landing train 1 — the built-in `na(x)` is never `na` on the runtime lane', () => {
+  const v5 = (lines) => ['//@version=5', 'indicator("train1 na")', ...lines].join('\n')
+  const same = (a, b) => a.length === b.length && a.every((v, i) => Object.is(v, b[i]) || (Number.isNaN(v) && Number.isNaN(b[i])))
+
+  it('`na(x) != true` and the RS Rating shape `ta.barssince(na(x) != true)` are served, equal to the host lane', () => {
+    for (const body of ['plot(na(x) != true ? 1 : 0)', 'plot(na(x) == false ? 1 : 0)', 'plot(ta.barssince(na(x) != true))']) {
+      const src = v5(['x = ta.sma(close, 20)', body])
+      const host = hostColumn(src).col
+      const rt = runtimeRun(src)
+      expect(rt.err ? rt.err.guard : 'OK', body).toBe('OK')
+      expect(same(rt.col, host), body).toBe(true)
+    }
+    // the values themselves: `x` is `na` on bars 0..18, so the test is false there and true from bar 19
+    const col = runtimeRun(v5(['x = ta.sma(close, 20)', 'plot(na(x) != true ? 1 : 0)'])).col
+    expect(col.slice(0, 19).every((v) => v === 0)).toBe(true)
+    expect(col.slice(19).every((v) => v === 1)).toBe(true)
+  })
+
+  it('a `bool` every write of which is the built-in `na(…)` (a slot the VM steps) is never `na` either', () => {
+    const src = v5(['x = ta.sma(close, 20)', 'bool b = false', 'if close > 0', '    b := na(x)', 'plot(b != true ? 1 : 0)'])
+    const rt = runtimeRun(src)
+    expect(rt.err ? rt.err.guard : 'OK').toBe('OK')
+    expect(rt.col.slice(0, 19).every((v) => v === 0)).toBe(true)
+    expect(rt.col.slice(19).every((v) => v === 1)).toBe(true)
+  })
+
+  it('⛔ CONTROL: a `bool` that CAN be `na` meeting a written `true` is still declined by name', () => {
+    // the slot rail above with ONE change: the write is a comparison over a value that can be `na`,
+    // which the VM holds as false where Pine holds `na`
+    const rt = runtimeRun(v5(['x = ta.sma(close, 20)', 'bool b = false', 'if close > 0', '    b := close > x', 'plot(b != true ? 1 : 0)']))
+    expect(rt.err && rt.err.guard).toBe(BOOL_NA_UNWITNESSED)
+    // …and so is a write that merely HOLDS an `na(…)` beside such a comparison
+    const mixed = runtimeRun(v5(['x = ta.sma(close, 20)', 'bool b = false', 'if close > 0', '    b := (close > x) == na(x)', 'plot(b != true ? 1 : 0)']))
+    expect(mixed.err && mixed.err.guard).toBe(BOOL_NA_UNWITNESSED)
+  })
+
+  it('⛔ CONTROL: a script\'s own function is not the built-in (it lowers to a call, never to `na`)', () => {
+    // the same slot shape, the write a script function whose answer is a comparison that can be `na`
+    const own = runtimeRun(v5(['isUp(v) => v > ta.sma(v, 20)', 'bool b = false', 'if close > 0', '    b := isUp(close)', 'plot(b != true ? 1 : 0)']))
+    expect(own.err ? own.err.guard : 'OK').not.toBe('OK')
+    // …and a script that names its own function `na` is never read as the built-in's never-`na` answer
+    const shadow = runtimeRun(v5(['na(v) => v > ta.sma(v, 20)', 'bool b = false', 'if close > 0', '    b := na(close)', 'plot(b != true ? 1 : 0)']))
+    expect(shadow.err ? shadow.err.guard : 'OK').not.toBe('OK')
+  })
+
+  it('the ORIGINAL RS Rating script keeps its run half (the acceptance rail of #1342, asked here of this rule)', async () => {
+    const { vi } = await import('vitest')
+    vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
+    vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
+    try {
+      const src = fs.readFileSync(path.join(REPO, 'docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine'), 'utf8')
+      expect(src).toContain('ta.barssince(na(curveRsPerf) != true)')
+      const d = memberPaneDefinition({ source: src, id: 'u_train1_rs', name: 'RS Rating' })
+      expect(d.ok, d.reason).toBe(true)
+      expect(d.runHalfDeclined).toBeUndefined()
+      expect(d.definition.compute.runtimeObjects).toBeTruthy()
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+})

@@ -167,7 +167,9 @@ export const FAMILIES = Object.freeze([
   {
     id: 'function',
     exact: ['pine:function-def', 'runtime:function', 'runtime:recursion', 'runtime:unbound',
-      'runtime:discarded-value'],
+      'runtime:discarded-value',
+      // legacy semantics B3 (landing train 1): a script function's history read inside a block, v1-v3
+      'pine:fn-history-in-block'],
     label: 'Your own functions',
     why: 'This function is written in a way we cannot run exactly yet.',
   },
@@ -198,7 +200,9 @@ export const FAMILIES = Object.freeze([
   {
     id: 'presentation',
     exact: ['pine:colour-value', 'pine:text-value', 'pine:plot-offset', 'pine:alert-message',
-      'pine:paint-pane', 'runtime:colour', 'runtime:presentation', 'runtime:plot-id'],
+      'pine:paint-pane', 'runtime:colour', 'runtime:presentation', 'runtime:plot-id',
+      // engine 58 colours (landing train 1): a colour withheld by name, never drawn in a made-up one
+      'pine:colour-unread', 'pine:colour-default-unwitnessed'],
     prefix: ['pine:offset-negative', 'paint:', 'runtime:fill-', 'format:'],
     label: 'How it is drawn',
     why: 'The value is computed, but this way of drawing it is not supported yet, so it is not drawn '
@@ -219,7 +223,9 @@ export const FAMILIES = Object.freeze([
       'pine:role-order', 'pine:empty', 'pine:declaration', 'pine:offset-literal', 'pine:chart-only',
       'runtime:statement', 'runtime:expression-statement', 'runtime:switch', 'runtime:block-value',
       'runtime:operator', 'runtime:directive', 'runtime:declaration', 'runtime:version',
-      'runtime:lower', 'runtime:empty', 'runtime:udt-method', 'runtime:call-text-state', 'runtime:enum'],
+      'runtime:lower', 'runtime:empty', 'runtime:udt-method', 'runtime:call-text-state', 'runtime:enum',
+      // engine 58 review (landing train 1): no `//@version` header with v4+ syntax (TradingView reads it as v1)
+      'pine:version-missing'],
     prefix: ['runtime:loop'],
     label: 'A Pine construct we do not run yet',
     why: 'This line uses a part of the Pine language we cannot run exactly yet.',
