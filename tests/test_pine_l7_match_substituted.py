@@ -273,10 +273,22 @@ def test_S5_a_withheld_substituted_script_is_not_disclosed_as_served(tmp_path, m
     assert rt.allow_report(with_capabilities=False)["served"] == []
 
 
-def test_S5_by_default_nothing_is_substituted_and_the_kill_read_is_unchanged():
+def test_S5_by_default_nothing_is_substituted_and_the_kill_read_is_unchanged(tmp_path, monkeypatch):
+    """A list with no record on the substituted path discloses nothing, and the key is ABSENT."""
+    _allowlist(tmp_path, monkeypatch, [{"slug": "plain", "sha256": "d" * 64, "capabilities": ["a"], "captures": [
+        {"id": "p-rddt", "verdict": "MATCH", "runtimePane": "on"}]}])
     assert rt.substituted_inputs() == {}
     assert all("substituted" not in r and "admission" not in r for r in rt.allow_report(with_capabilities=False)["served"])
-    doc = json.loads(pathlib.Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))
-    assert all("admission" not in s for s in doc["scripts"])                 # no real script added in this lane
     from api.routers import user_definitions as router
     assert "substituted" not in router.runtime_kill(user={"id": "u1"})
+
+
+def test_S5b_the_committed_list_discloses_RS_Ratings_one_substituted_input_and_no_others():
+    """RS Rating (fred6724), admitted 2026-11-16: the ONE committed record on the substituted path.
+    Any other committed record on that path, or any other disclosed name, fails here by name."""
+    doc = json.loads(pathlib.Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))
+    assert [s["slug"] for s in doc["scripts"] if "admission" in s] == ["rs-rating-fred6724"]
+    rs = "caa94fe31a8788c0f52ca571dbb1b3f8a7499dae913ed5e710720fc8662c5af0"
+    assert rt.substituted_inputs() == {rs: ["syminfo.industry"]}
+    from api.routers import user_definitions as router
+    assert router.runtime_kill(user={"id": "u1"})["substituted"] == {rs: ["syminfo.industry"]}
