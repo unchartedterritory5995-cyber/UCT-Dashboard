@@ -142,7 +142,10 @@ def test_the_committed_admitted_set_is_the_evidence_supported_one():
         "while", "typed-array", "method-call", "collections:array",
         # COND-TA (U2, engine 58, 2026-11-15): conditional ta.* is exact-or-refused-by-name on the
         # runtime lane; 7 captures / 4 community scripts (`ast/condTaLanes.test.js` for the machinery)
-        "conditional-ta"])
+        "conditional-ta",
+        # DRAW-1 (2026-11-16, coordinator approval): table.* on Signal Ledger + RCT Mann-Kendall, both
+        # drawn by the runtime lane, objects v2 MATCH with tables and cells paired
+        "obj:table"])
 
 
 # ═══ flag OFF: the answers before Part 2 ═══════════════════════════════════════
@@ -426,13 +429,17 @@ def test_A7_an_x_grade_that_DIVERGES_vetoes_the_family():
 U1_OBJECT_FAMILIES = ["obj:collection", "obj:delete", "obj:label", "obj:line"]
 #: U3 (2026-11-15): two more object operations met the rule on S1's community scripts.
 U3_OBJECT_FAMILIES = ["obj:getter"]   # obj:linefill withdrawn in U3b (test_U3b_...)
+#: DRAW-1 (2026-11-16): table.* met the rule on two community scripts drawn by the run.
+DRAW1_OBJECT_FAMILIES = ["obj:table"]
 
 
 def test_A7_the_committed_object_families_are_U1s_four_and_U3s_two():
     rep = rt.admitted_capabilities()
-    assert sorted(c for c in rep["admitted"] if c.startswith("obj:")) == sorted(U1_OBJECT_FAMILIES + U3_OBJECT_FAMILIES)
-    # table and polyline have no runtime-drawn evidence at all (U3 shortfall); box waits for a fix
-    for c in ("obj:table", "obj:polyline", "obj:box"):
+    assert sorted(c for c in rep["admitted"] if c.startswith("obj:")) == sorted(
+        U1_OBJECT_FAMILIES + U3_OBJECT_FAMILIES + DRAW1_OBJECT_FAMILIES)
+    # polyline has no runtime-drawn evidence at all; box waits on its count at the cap (DRAW-1);
+    # linefill has one runtime-drawn script (FVG Finder)
+    for c in ("obj:polyline", "obj:box", "obj:linefill"):
         assert c not in rep["admitted"], c
 
 
@@ -509,12 +516,15 @@ def test_A7_a_box_drawing_member_script_is_withheld(on):
 
 def test_A7_an_object_drawing_member_script_is_withheld_while_its_family_is(on, monkeypatch):
     monkeypatch.setattr(rt, "DETECTOR_DUTY_CYCLE", 1.0)   # two fresh runs; a policy rail, not the cool-down
-    src = MEMBER_COPY + "var table t = table.new(position.top_right, 1, 1)\n"
+    src = (MEMBER_COPY + "var linefill f = na\n"
+           + "f := linefill.new(line.new(0, low, 1, low), line.new(0, high, 1, high), color.blue)\n")
     ok, missing = rt.capability_admitted(src)
-    assert not ok and "obj:table" in missing
-    # CONTROL: a line drawing alone now admits (U1)
+    assert not ok and "obj:linefill" in missing
+    # CONTROL: a line drawing alone now admits (U1), and a table (DRAW-1)
     line = MEMBER_COPY + "var line l = na\nl := line.new(bar_index, low, bar_index, high)\n"
     assert rt.capability_admitted(line) == (True, [])
+    table = MEMBER_COPY + "var table t = table.new(position.top_right, 1, 1)\n"
+    assert rt.capability_admitted(table) == (True, [])
 
 
 # ═══ G6 — realtime-state admits for CLOSED-BAR HISTORY only (ruling 2026-11-15) ══
@@ -926,7 +936,7 @@ def test_the_door_stores_nothing_and_logs_no_source(store, on, caplog):
 # (`runs/report.json`, whose lanes `capabilityEvidenceLane.test.js` re-asks of the door) and the
 # committed harness snapshots of both lanes.
 
-REPORT = ROOT / "docs" / "pine" / "evidence" / "2026-11-15-cond-ta" / "runs" / "report.json"
+REPORT = ROOT / "docs" / "pine" / "evidence" / "2026-11-16-draw1-drawing-objects" / "runs" / "report.json"
 VERDICTS_PROD = ROOT / "docs" / "pine" / "vendor-harness" / "production" / "verdicts.json"
 
 
@@ -1451,7 +1461,8 @@ def test_F1_a_save_of_an_unadmitted_script_is_refused_not_stored(store, monkeypa
     monkeypatch.setenv(rt.SAVE_ENV, "1")
     monkeypatch.setenv(rt.STAGE_ENV, "admins")
     monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
-    doc = member_doc(MEMBER_COPY + "var table t = table.new(position.top_right, 1, 1)\n")
+    # (a table was the unadmitted example until DRAW-1 admitted obj:table; a box is not admitted)
+    doc = member_doc(MEMBER_COPY + "var box b = na\nb := box.new(bar_index - 1, high, bar_index, low)\n")
     with pytest.raises(ValueError, match="not yet been graded"):
         svc.save(USER, ADX["id"], doc, role="admin")
     assert svc.get(USER, ADX["id"]) is None
