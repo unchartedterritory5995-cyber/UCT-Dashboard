@@ -86,12 +86,12 @@
   }
  },
  "counts": {
-  "targets": 316,
+  "targets": 317,
   "byStatus": {
    "CAPTURED": 130,
    "NEEDS_CHART": 39,
    "NEEDS_LIVE": 2,
-   "QUEUED": 145
+   "QUEUED": 146
   },
   "byPlanWave": {
    "E": {
@@ -104,7 +104,8 @@
     "QUEUED": 6
    },
    "W3": {
-    "CAPTURED": 2
+    "CAPTURED": 2,
+    "QUEUED": 1
    },
    "W4": {
     "CAPTURED": 11,
@@ -121,7 +122,7 @@
     "CAPTURED": 110,
     "NEEDS_CHART": 38,
     "NEEDS_LIVE": 2,
-    "QUEUED": 137
+    "QUEUED": 138
    },
    "1-2": {
     "CAPTURED": 20,
@@ -176,7 +177,7 @@
     "QUEUED": 2
    },
    "door-robustness": {
-    "QUEUED": 1
+    "QUEUED": 2
    },
    "fn-series-history": {
     "CAPTURED": 1
@@ -15372,6 +15373,50 @@
    "origins": [
     "queue-doc"
    ]
+  },
+  {
+   "id": "vw-rob3-v4-bgcolor-own-alpha@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-rob3-v4-bgcolor-own-alpha.pine",
+   "sourceKind": "probe",
+   "sha256": "031991bdc4c4dab4fd5e68c939f5db2fbbfdaeeaf9ae7f53730bf8dd5c50dc76",
+   "bytes": 1469,
+   "stem": "vw-rob3-v4-bgcolor-own-alpha",
+   "captureStem": "vw-rob3-v4-bgcolor-own-alpha",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "paint:v4-default-transp"
+   ],
+   "planWave": "W3",
+   "docWaves": [
+    "door-robustness"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-door-robustness#Q-ROB3"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
   }
  ],
  "rowsNeedingProbe": [
@@ -17630,7 +17675,7 @@
   {
    "doc": "docs/pine/capture-queue-2026-11-16-door-robustness.md",
    "wave": "door-robustness",
-   "rows": 2,
+   "rows": 3,
    "contextTables": 0
   },
   {
