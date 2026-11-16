@@ -325,7 +325,7 @@ const FLAGS = {
   A1b: { masterGap: true, why: 'I4: "this" points at the clicked QQQ, the words say IWM — a bare conflict asks; master closes IWM (identifiesChart names IWM; the deixis "this" is not weighed against it).' },
   A10: { masterGap: true, why: 'I1: "the last chart I opened" is the previous chart c2; master applies a plan closing c3 (the back-reference reads no "opened"; SPECIFIC_CHART is not reached because "last" names the 3rd chart by ordinal).' },
   A12: { masterGap: true, why: 'I1/I2: "both index charts" — SPY and QQQ are the index charts; master applies closing SPY + NVDA (no description read: "both … charts" is a set removal and passes untargeted).' },
-  A2b: { overAsk: true, policy: 'resolved:chart:c2', why: 'AUDIT expects QQQ closed; master refuses: "the QQQ one" is not read as a chart name in the removal path ("QQQ alone doesn’t say to close a chart" — the bare-ticker guard), so the expectation stays AUDIT’s and the row is listed as a known over-block.' },
+  A2b: { overAsk: true, expect: 'refuse', reason: 'plan-outside-words', policy: 'resolved:chart:c2', why: 'AUDIT ruling 11-16: one overAsk rule, no exceptions — expected = master’s block (refuse); the policy resolution (close QQQ) is kept in `policy`. Master refuses: "the QQQ one" is not read as a chart name in the removal path ("QQQ alone doesn’t say to close a chart" — the bare-ticker guard).' },
   'rm-xtype-004': { masterGap: true, why: 'I3: "delete my Swing watchlist" — a plan closing chart c2 is applied (same: no chart named, no type check without a pronoun).' },
 }
 for (const r of rows) if (FLAGS[r.id]) Object.assign(r, FLAGS[r.id])
