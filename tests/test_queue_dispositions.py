@@ -141,6 +141,14 @@ COMMITTED = {
     # CBC-FMT (fix/pine-engine-calcbars-format): the questions capture session S10 answered, closed with the capture
     # that answered each (the doc's own `not a capture` table)
     "capture-queue-2026-11-15-calc-bars": {r: "closed" for r in ("Q-CBC1", "Q-CBC3", "Q-CBC4", "Q-CBC5", "Q-FMT1")},
+    # bt (feat/pine-coverage-builtins-time): Q-BT1/4/5 closed by the captures that answered them, the v4+ bare
+    # `period` closed by TradingView's compiler reading; the rest are the unit's still-refused shapes, each with
+    # its reason and what would settle it in the doc
+    "capture-queue-2026-11-16-bt-builtins-time": {
+        "Q-BT1": "closed", "Q-BT4": "closed", "Q-BT5": "closed", "bare period from v4 on": "closed",
+        "visible bar times": "by-design", "theme colours read as a value": "engine-gap",
+        "v1-v3 sessions with no day list": "engine-gap", "symbol fields not held": "engine-gap",
+        "sar, dmi, kc with a computed flag": "engine-gap", "legacy correlation over runtime state": "engine-gap"},
 }
 
 
