@@ -17,7 +17,7 @@ import { HIDDEN_WIDGETS } from '../../widgets/registry'
 
 // ── shared openings (registry.js uses the same ones) ──
 export const GEAR = { target: 'chart.settings', name: 'the chart’s settings gear', text: 'Open this chart’s settings with the gear.', waitFor: 'chartSettings' }
-export const TOOLS_MENU = { target: 'workspace.tools', name: 'the Tools menu', text: 'Open Tools ▾.', waitFor: 'workspace.toolsMenu' }
+export const TOOLS_MENU = { target: 'workspace.tools', name: 'the Tools menu', text: 'Open Tools.', waitFor: 'workspace.toolsMenu' }
 
 // the way a member asks is not what they ask about: "show me how…" names no Show, "walk me through…" no walk
 const ASKING = /\b(show me|walk me through|guide me (through|to)|teach me|help me)\b/g
@@ -128,10 +128,10 @@ export const COMPARE_ACTIONS = [
 // ── small paths on panels the registry's walkthroughs already reach ──
 const TF_ARROW = { target: 'chart.timeframeMore', name: 'the arrow', text: 'Click this arrow to open every timeframe.', waitFor: 'chart.timeframeMenu' }
 const REPLAY = [TOOLS_MENU, { target: 'workspace.tools.replay', name: 'Replay Mode', text: 'Click Replay Mode.', waitFor: 'replay.panel' }]
-const THEMES = [GEAR, { target: 'chartSettings.themes', name: 'UCT Chart Themes', text: 'Click UCT Chart Themes.', waitFor: 'chartThemes.scope' }]
+const THEMES = [GEAR, { target: 'chartSettings.themes', name: 'Color themes', text: 'Click Color themes.', waitFor: 'chartThemes.scope' }]
 export const PANEL_ACTIONS = [
-  { id: 'infoRow', label: 'The header’s info row', re: /\binfo row\b/, steps: [GEAR, { target: 'chartSettings.tab.header', name: 'the Header tab', text: 'Open Header.', waitFor: { id: 'chartSettings.tab.header', on: true } }, { target: [{ within: 'chartSettings', label: 'Info Row' }, 'chartSettings.tab.header'], name: 'Info Row', text: 'Info Row chooses the fields under the title, such as Market Cap, and their colours.', altText: 'It’s on this tab: scroll down for Info Row.' }] },
-  { id: 'settingsReset', label: 'Restoring a chart’s defaults', re: /\brestore\b.*\bdefaults?\b|\breset\b.*\b(chart )?(settings|defaults?)\b/, steps: [GEAR, { target: 'chartSettings.reset', name: 'Restore Defaults', text: 'Click Restore Defaults, then click again to confirm. It resets the chart’s look; your indicators stay.' }] },
+  { id: 'infoRow', label: 'The header’s info row', re: /\binfo row\b/, steps: [GEAR, { target: 'chartSettings.tab.header', name: 'the Header & legend tab', text: 'Open Header & legend.', waitFor: { id: 'chartSettings.tab.header', on: true } }, { target: [{ within: 'chartSettings', label: 'Stats beside the ticker' }, 'chartSettings.tab.header'], name: 'Stats beside the ticker', text: 'Stats beside the ticker chooses the stats shown beside the title, such as Market Cap, and their colours. + Add a stat adds one.', altText: 'It’s on this tab: scroll down for Stats beside the ticker.' }] },
+  { id: 'settingsReset', label: 'Restoring a chart’s defaults', re: /\brestore\b.*\bdefaults?\b|\breset\b.*\b(chart )?(settings|defaults?)\b/, steps: [GEAR, { target: 'chartSettings.reset', name: 'Restore defaults', text: 'Click Restore defaults, then click again to confirm. It resets the chart’s look; your indicators stay.' }] },
   { id: 'tfRemove', label: 'Deleting a custom timeframe', re: /\b(delete|remove)\b.*\b(custom )?(time ?frames?|intervals?)\b/, steps: [TF_ARROW, { target: ['timeframe.remove', { within: 'chart.timeframeMenu', aria: 'Interval count' }], name: 'the ✕', text: 'Click this ✕ to delete that custom timeframe.', altText: 'You have no custom timeframes yet. Add one here first; each one gets a ✕ in this list.' }] },
   { id: 'tfStar', label: 'Starring a timeframe', re: /\b(star|favou?rite)\w*\b.*\b(time ?frames?|intervals?)\b|\b(time ?frames?|intervals?)\b.*\b(star|favou?rite)\w*\b/, steps: [TF_ARROW, { target: 'timeframe.star', name: 'the star', text: 'Click a star to put that timeframe on the chart’s buttons. Click it again to take it off.' }] },
   { id: 'replayExit', label: 'Leaving replay', re: /\b(exit|leave|stop|end|quit|get out of)\b.*\breplay\w*\b/, steps: [...REPLAY, { target: ['replay.exit', 'replay.panel'], name: 'Exit replay', text: 'Click Exit replay to go back to the live chart.', altText: 'Replay isn’t running, so there’s nothing to exit. Exit replay shows here while it runs.' }] },
@@ -142,7 +142,7 @@ export const PANEL_ACTIONS = [
 // ── a widget that may not be on the board: it comes off Widgets ▾ first; one that is, skips straight past ──
 const PLACE_IT = { target: 'workspace.place', name: 'the Place button', text: 'Your board is full, so choose where it goes: the arrows move it, and the gold outline shows what makes room. Then click Place.', optional: true, late: true }
 export const onBoard = (id, label, result) => [
-  { target: 'workspace.widgets', name: 'the Widgets menu', text: `That’s in the ${label} widget. Open Widgets ▾.`, waitFor: ['workspace.widgetsMenu', result] },
+  { target: 'workspace.widgets', name: 'the Add widget menu', text: `That’s in the ${label} widget. Click + Add widget.`, waitFor: ['workspace.widgetsMenu', result] },
   { target: `workspace.widgets.${id}`, name: label, text: `Click ${label} to add it to your board.`, waitFor: ['workspace.place', result], off: 'Your board is full, so nothing can be added. Close a widget first.' },
   { ...PLACE_IT, waitFor: result },
 ]
@@ -306,10 +306,10 @@ const indRow = (result) => [
   { unless: 'ind', target: IND_ROW, name: 'the indicator list', text: 'Click the indicator in this list.', waitFor: result },
 ]
 const inSettings = (guide) => ({ within: 'chartSettings', guide })
-const ADD = { target: { within: 'chartSettings', guide: 'indicators.add' }, name: 'Add to Chart', text: 'Click ＋ Add to Chart.', waitFor: { within: 'chartSettings', aria: 'Search indicators' } }
+const ADD = { target: { within: 'chartSettings', guide: 'indicators.add' }, name: 'Add indicator', text: 'Click + Add indicator.', waitFor: { within: 'chartSettings', aria: 'Search indicators' } }
 const addTab = (text) => ({ within: 'indicators.addSurface', attr: 'role', value: 'tab', text })
 export const INDICATOR_ACTIONS = [
-  { id: 'addAnother', label: 'Adding a second copy', re: /\b(another|second|extra)\b.*\b(copy|one|indicator)\b|\b(add|put|get|want|need)\b.*\b(another|second|extra)\b(?!\s+(?:charts?|cells?|panes?|tabs?|widgets?|layouts?|lists?|watch ?lists?|symbols?|tickers?)\b)/, steps: [GEAR, IND_TAB, ADD, { target: { within: 'indicators.addSurface', guide: 'indicators.addAnother' }, name: 'the ＋', text: 'An indicator already on the chart shows Active. This ＋ adds another copy with the default settings.' }] },
+  { id: 'addAnother', label: 'Adding a second copy', re: /\b(another|second|extra)\b.*\b(copy|one|indicator)\b|\b(add|put|get|want|need)\b.*\b(another|second|extra)\b(?!\s+(?:charts?|cells?|panes?|tabs?|widgets?|layouts?|lists?|watch ?lists?|symbols?|tickers?)\b)/, steps: [GEAR, IND_TAB, ADD, { target: { within: 'indicators.addSurface', guide: 'indicators.addAnother' }, name: 'the ＋', text: 'An indicator already on the chart shows On chart. This + adds another copy with the default settings.' }] },
   { id: 'yours', label: 'Adding your own indicator', re: /\b(add|put)\b.*\b(my|own|saved)\b.*\bindicators?\b/, steps: [GEAR, IND_TAB, ADD, { target: [addTab('Your indicators'), { within: 'chartSettings', aria: 'Search indicators' }], name: 'Your indicators', text: 'Open Your indicators and click one to add it to this chart.', altText: 'You have no saved indicators yet. Search here, or use Create Indicator above.' }] },
   { id: 'symbolSeries', label: 'Adding a symbol as a series', re: /\b(symbol|ticker)\b.*\b(series|data)\b/, steps: [GEAR, IND_TAB, ADD, { target: addTab('Symbols'), name: 'Symbols', text: 'Open Symbols and search: a symbol you pick is added as its own series.' }] },
   { id: 'company', label: 'Adding Company Info', re: /\b(add|get|put)\b.*\bcompany (info|panel)\b/, steps: [GEAR, IND_TAB, ADD, { target: addTab('Research'), name: 'Research', text: 'Open Research, then click Company Info.' }] },
@@ -318,7 +318,7 @@ export const INDICATOR_ACTIONS = [
   { id: 'history', label: 'Undoing an indicator change', re: /\b(undo|redo)\b/, steps: [GEAR, IND_TAB, { target: inSettings('indicators.history'), name: 'Undo and Redo', text: 'These arrows undo and redo your indicator changes.' }] },
   { id: 'removeHere', label: 'Removing an indicator in settings', re: /\b(remove|delete)\b.*\b(settings?|indicators tab)\b/, steps: [GEAR, IND_TAB, ...indRow(inSettings('indicators.remove')), { target: inSettings('indicators.remove'), name: 'Remove', text: 'Click Remove to take it off the chart.' }] },
   { id: 'plotStyle', label: 'An indicator’s plot style', re: /\bplot style\b/, steps: [GEAR, IND_TAB, ...indRow({ within: 'chartSettings', attr: 'data-field' }), { target: { within: 'chartSettings', attr: 'data-field', text: 'style' }, name: 'the plot style', text: 'Choose how each line is drawn here.' }] },
-  { id: 'create', label: 'Creating an indicator', re: /\b(create|build|make|describe|write)\b.*\b(an |my |own |custom |new )*indicators?\b|\bindicator builder\b/, steps: [GEAR, IND_TAB, { target: inSettings('indicators.create'), name: 'Create Indicator', text: 'Click Create Indicator, and describe what you want. UCT Intelligence previews it on this chart, and you save it when it’s right.' }] },
+  { id: 'create', label: 'Creating an indicator', re: /\b(create|build|make|describe|write)\b.*\b(an |my |own |custom |new )*indicators?\b|\bindicator builder\b/, steps: [GEAR, IND_TAB, ADD, { target: inSettings('indicators.create'), name: 'Describe one', text: 'Click Describe one, and describe what you want. UCT Intelligence previews it on this chart, and you save it when it’s right.' }] },
 ]
 
 // ── the Indicator alerts popover, past what the alertIndicator walkthrough teaches (components/chart/IndicatorAlertPopover.jsx) ──
@@ -340,7 +340,7 @@ export const ALERT_ACTIONS = [
 ]
 
 // ── the company panel on a chart (pages/charts/widgets/ChartDetailDock.jsx), there once Company Info is added ──
-const DOCK_OFF = 'This chart has no company panel. Add Company Info from Chart settings → Indicators → Add to Chart.'
+const DOCK_OFF = 'This chart has no company panel. Add Company Info from Chart settings → Indicators → Add indicator.'
 export const DOCK_ACTIONS = [
   { id: 'earnings', label: 'When a stock reports', re: /\bwhen\b.*\b(report|reports|earnings)\b/, steps: [{ target: ['chart.dockTab', 'chart.dockRail', 'chart.plot'], name: 'the company panel', text: 'Earnings in this panel shows when it next reports.', altText: DOCK_OFF }] },
   { id: 'tabs', label: 'The company panel’s tabs', re: /\b(company|dock)\b.*\btabs?\b|\btabs?\b.*\b(company|dock)\b/, steps: [{ target: ['chart.dockTab', 'chart.dockRail', 'chart.plot'], name: 'the tabs', text: 'These tabs switch what the panel shows: overview, financials, earnings, ownership and news.', altText: DOCK_OFF }] },
@@ -349,7 +349,7 @@ export const DOCK_ACTIONS = [
 ]
 
 // ── Multi Chart (pages/charts/grid/MultiChartMenu.jsx, GridChartCell.jsx) ──
-const LAYOUTS = { target: 'workspace.layoutsMenuBtn', name: 'the Layouts menu', text: 'Open Layouts ▾.', waitFor: 'workspace.layoutsMenu' }
+const LAYOUTS = { target: 'workspace.layoutsMenuBtn', name: 'the Layouts menu', text: 'Click the layout name (top left).', waitFor: 'workspace.layoutsMenu' }
 const GRID_OPEN = [LAYOUTS, { target: 'workspace.multiChart', name: 'Multi Chart', text: 'Click Multi Chart.', waitFor: 'multiChart.flyout' }]
 const inFlyout = (t) => ({ within: 'multiChart.flyout', ...t })
 const flyout = (t, name, say, alt, fallback) => [...GRID_OPEN, { target: alt ? [inFlyout(t), inFlyout(fallback)] : inFlyout(t), name, text: say, altText: alt }]
@@ -409,17 +409,17 @@ const INDICATOR_WORDS = /\b(indicators?|legend|chips?|study|studies|rsi|macd|mov
  *  needs the live catalog: `also` (words that count too) and `guard` (words that rule it out). */
 export const ACTION_FAMILIES = [
   { id: 'builderAction', slot: 'builderAct', rows: BUILDER_ACTIONS, when: needsAny(/\b(formulas?|builder|pine|thinkscript|script|drafts?)\b|\bwhen\b.*\b(is |are |it's |its )?true\b/), control: 'the chart', title: '{builderAct.label}', topic: 'indicators', caps: [], explain: 'The Formula Builder opens from the indicator library: Alt+Shift+A on the chart, then New formula.' },
-  { id: 'gridAction', slot: 'gridAct', rows: GRID_ACTIONS, when: needsAny(/\b(grids?|multi[- ]?charts?|cells?)\b|\bsync\w*\b.*\b(crosshairs?|time ?ranges?|charts)\b|\b(crosshairs?|time ?ranges?)\b.*\b(across|all|every)\b.*\bcharts\b|\b(all|every)\b.*\bcharts\b.*\bsame time ?range\b|\b(next|previous|prev|exit|leave|refresh)\b.*\bgroups?\b|\bgroups? mode\b|\bout of groups\b/), except: /\bgrid ?lines?\b/, control: 'the Layouts menu', title: '{gridAct.label}', topic: 'layouts', caps: [], explain: 'Multi Chart’s options are under Layouts ▾ → Multi Chart, and each chart in the grid has its own style, timeframe and maximize button.' },
+  { id: 'gridAction', slot: 'gridAct', rows: GRID_ACTIONS, when: needsAny(/\b(grids?|multi[- ]?charts?|cells?)\b|\bsync\w*\b.*\b(crosshairs?|time ?ranges?|charts)\b|\b(crosshairs?|time ?ranges?)\b.*\b(across|all|every)\b.*\bcharts\b|\b(all|every)\b.*\bcharts\b.*\bsame time ?range\b|\b(next|previous|prev|exit|leave|refresh)\b.*\bgroups?\b|\bgroups? mode\b|\bout of groups\b/), except: /\bgrid ?lines?\b/, control: 'the Layouts menu', title: '{gridAct.label}', topic: 'layouts', caps: [], explain: 'Multi Chart’s options are under The layout name (top left) → Multi Chart, and each chart in the grid has its own style, timeframe and maximize button.' },
   { id: 'drawingEdit', slot: 'drawAct', rows: DRAWING_ACTIONS, when: needsAny(/\bdrawings?\b|\blines?\b|\bfib\w*\b|\beraser\b|\btrend ?lines?\b|\b(rectangles?|boxes|pitch ?forks?|channels?|arrows?|circles?|anchors?)\b/), except: /\b(crosshair|grid|watermark|prev|indicators?|moving average)\b/, control: 'the drawing toolbar', title: '{drawAct.label}', topic: 'drawings', caps: [], explain: 'Click a drawing to select it. A small bar appears on it, with style, duplicate, lock and delete.' },
   { id: 'indicatorManage', slot: 'indAct', slots: ['ind', 'indAct'], rows: INDICATOR_ACTIONS, when: needsAny(INDICATOR_WORDS), control: 'the chart’s settings gear', title: '{indAct.label}', topic: 'indicators', caps: [], explain: 'Chart settings → Indicators lists what is on the chart, with its settings, templates, pane order and Create Indicator.' },
   { id: 'layoutAction', slot: 'layoutAct', rows: LAYOUT_ACTIONS, when: needsAny(LAYOUT_WORDS), control: 'your layouts bar', title: '{layoutAct.label}', topic: 'layouts', caps: [], explain: 'Right-click a layout on the bar for its menu: rename, duplicate, version history and close.' },
   { id: 'tabAction', slot: 'tabAct', rows: TAB_ACTIONS, when: needsAny(TAB_WORDS), control: 'the tabs', title: '{tabAct.label}', topic: 'widgets', caps: [], explain: 'A tab sits in the strip above its chart or widget: click to switch, double-click to rename, and its × closes it.' },
   { id: 'watchlistAction', slot: 'listAct', rows: WATCHLIST_ACTIONS, when: needsAny(LIST_WORDS), except: /\bearnings\b/, control: 'the Widgets menu', title: '{listAct.label}', topic: 'watchlists', caps: [], explain: 'A Watchlist widget holds the list. Click a ticker to load it, click a column title to sort, and right-click a ticker for its menu.' },
   { id: 'alertAction', slot: 'alertAct', rows: ALERT_ACTIONS, control: 'the bell on the chart’s toolbar', title: '{alertAct.label}', topic: 'alerts', caps: [], explain: 'The bell on the chart’s toolbar opens Indicator alerts: the form, and the alerts already set for this symbol.' },
-  { id: 'widgetAction', slot: 'widgetAct', rows: WIDGET_ACTIONS, control: 'the Widgets menu', title: '{widgetAct.label}', topic: 'widgets', caps: [], explain: 'That control is inside its widget. Add the widget from Widgets ▾ if it isn’t on your board.' },
-  { id: 'dockAction', slot: 'dockAct', rows: DOCK_ACTIONS, control: 'the chart', title: '{dockAct.label}', topic: 'charts', caps: [], explain: 'A chart’s company panel comes from Chart settings → Indicators → Add to Chart → Company Info.' },
+  { id: 'widgetAction', slot: 'widgetAct', rows: WIDGET_ACTIONS, control: 'the Widgets menu', title: '{widgetAct.label}', topic: 'widgets', caps: [], explain: 'That control is inside its widget. Add the widget from + Add widget if it isn’t on your board.' },
+  { id: 'dockAction', slot: 'dockAct', rows: DOCK_ACTIONS, control: 'the chart', title: '{dockAct.label}', topic: 'charts', caps: [], explain: 'A chart’s company panel comes from Chart settings → Indicators → Add indicator → Company Info.' },
   { id: 'panelAction', slot: 'panelAct', rows: PANEL_ACTIONS, control: 'that control', title: '{panelAct.label}', topic: 'charts', caps: [], explain: 'That control is on a panel of the chart or the workspace.' },
-  { id: 'compareAction', slot: 'compareAct', rows: COMPARE_ACTIONS, when: needsAny(COMPARE_WORDS), control: 'the Tools menu', title: '{compareAct.label}', topic: 'charts', caps: ['chart.compare'], explain: 'Tools ▾ → Compare Symbols overlays other symbols on a chart. Each symbol and group in its list has a scale choice and a remove button.' },
+  { id: 'compareAction', slot: 'compareAct', rows: COMPARE_ACTIONS, when: needsAny(COMPARE_WORDS), control: 'the Tools menu', title: '{compareAct.label}', topic: 'charts', caps: ['chart.compare'], explain: 'Tools → Compare Symbols overlays other symbols on a chart. Each symbol and group in its list has a scale choice and a remove button.' },
   { id: 'chartMenu', slot: 'menuAct', rows: CHART_MENU, control: 'the chart', title: '{menuAct.label}', topic: 'charts', caps: [], explain: 'Right-click the chart for its menu. What it offers depends on where you click: the price area, the price scale, the volume bars or an indicator’s pane.' },
   { id: 'chartView', slot: 'viewAct', slots: ['ind', 'viewAct'], rows: CHART_VIEW, control: 'the chart', title: '{viewAct.label}', topic: 'charts', caps: [], explain: 'That is on the chart itself, or a key that works once the chart is selected.' },
   { id: 'legendChip', slot: 'chipAct', slots: ['ind', 'chipAct'], rows: LEGEND_MENU, when: needsAny(INDICATOR_WORDS), control: 'the chart’s legend', title: '{chipAct.label}', topic: 'indicators', caps: [], explain: 'Every indicator in the chart’s legend, at the top left, has a menu: click its name to hide it, move it, edit it, set an alert or delete it.' },

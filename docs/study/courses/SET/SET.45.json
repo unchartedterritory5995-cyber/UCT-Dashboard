@@ -2065,7 +2065,7 @@
      "one cited fact only"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "13.9%",
     "16.2%",
@@ -2076,6 +2076,32 @@
     "13.9%": "Divided the drop by the base high instead of the prior move.",
     "16.2%": "Divided the drop by the base low instead of the prior move.",
     "57.9%": "Found how much of the move it kept, not how much it gave back."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "high",
+      "label": "Base high",
+      "price": 52.28
+     },
+     {
+      "key": "low",
+      "label": "Base low",
+      "price": 45.0
+     },
+     {
+      "key": "start",
+      "label": "Prior move start",
+      "price": 35.0
+     }
+    ],
+    "find": {
+     "label": "Share of move given back",
+     "as": "pct"
+    },
+    "title": "The base"
    }
   },
   {
@@ -4100,7 +4126,7 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$198.00 million",
     "$1.98 million",
@@ -4111,6 +4137,28 @@
     "$198.00 million": "Slipped a decimal.",
     "$1.98 million": "Slipped a decimal the other way.",
     "$0.06 million": "Divided the shares by the price instead of multiplying."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Dollar volume",
+    "rows": [
+     {
+      "key": "shares",
+      "label": "Shares a day",
+      "value": 1100000,
+      "fmt": "shares"
+     },
+     {
+      "key": "price",
+      "label": "Close",
+      "value": 18,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Dollars traded a day",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -4443,7 +4491,7 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "sweep-2026-11-14",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$55.00",
     "$45.00",
@@ -4768,7 +4816,7 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$40.00",
     "$38.00",
@@ -4779,6 +4827,31 @@
     "$38.00": "Added the two R to the stop, not to the buy.",
     "$42.00": "Counted three R instead of two.",
     "$44.00": "Counted four R instead of two."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 34.0
+     },
+     {
+      "key": "entry",
+      "label": "Bought at",
+      "price": 36.0
+     }
+    ],
+    "find": {
+     "label": "Where the window opens",
+     "as": "price"
+    },
+    "r": {
+     "entry": 36.0,
+     "stop": 34.0
+    },
+    "title": "The breakeven window"
    }
   },
   {
@@ -5349,7 +5422,7 @@
      "one cited fact only"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "17.0%",
     "3.0%",
@@ -5360,6 +5433,28 @@
     "3.0%": "Slipped a decimal.",
     "17.0%": "Added the two numbers instead of multiplying.",
     "7.5%": "Divided the position size by the stop width."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Kell's sizing",
+    "rows": [
+     {
+      "key": "pos",
+      "label": "Position, % of account",
+      "value": 15,
+      "fmt": "%"
+     },
+     {
+      "key": "stop",
+      "label": "Stop distance",
+      "value": 2,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Risk, % of the account",
+     "as": "pct"
+    }
    }
   },
   {
@@ -5833,7 +5928,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
+   "notes": "Roles, find label, slot format and ladder checked; ok."
   },
   "q23": {
    "status": "cut",
@@ -6147,7 +6242,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
+   "notes": "Roles, find label, slot format and ladder checked; ok."
   },
   "q87": {
    "status": "pass",
@@ -6202,8 +6297,8 @@
   "q95": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "pass: 50 x 1.1 = 55.00; 4% chase limit distractor = 52.00; made-up numbers."
+   "fixed": true,
+   "notes": "Single 9 EMA line with a '?' and no percent shown; adds nothing. Dropped."
   },
   "q96": {
    "status": "pass",
@@ -6252,7 +6347,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "notes": "Same as SET.34 q72: r inert (label is not a bare 'nR'), direction right for a long, no leak."
   },
   "q104": {
    "status": "pass",
@@ -6342,8 +6437,8 @@
   "q118": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
+   "fixed": true,
+   "notes": "'Stop 2%' read like a price; it is a distance. 'Position size 15%' now says of what."
   },
   "q119": {
    "status": "pass",

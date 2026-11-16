@@ -1905,7 +1905,7 @@
      "card numbers are proposed"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "0.65 ATR",
     "2.30 ATR",
@@ -1916,6 +1916,28 @@
     "0.65 ATR": "Flipped it: divided the ATR by the range.",
     "2.30 ATR": "Gave the range in dollars, no divide.",
     "15.33 ATR": "Decimal slip on the ATR."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "high",
+      "label": "Pullback high",
+      "price": 68.4
+     },
+     {
+      "key": "low",
+      "label": "Pullback low",
+      "price": 66.1
+     }
+    ],
+    "find": {
+     "label": "Range in ATR",
+     "as": "num",
+     "unit": "ATR"
+    },
+    "title": "The range (ATR 1.50)"
    }
   },
   {
@@ -4025,7 +4047,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1.53 ok; 0.65 flipped, 2.30 dollars, 15.33 slip. ok."
+   "notes": "Roles, find label, slot format and ladder checked; ok."
   },
   "q26": {
    "status": "pass",

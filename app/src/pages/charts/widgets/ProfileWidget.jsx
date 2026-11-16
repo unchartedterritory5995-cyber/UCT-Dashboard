@@ -136,7 +136,7 @@ export default function ProfileWidget({ color, opts, onOptsChange }) {
     <div ref={rootRef} className={styles.root} style={rootStyle}>
       {settingsOpen && (
         <NewsSettingsPanel
-          title="Stock Profile Settings"
+          title="Stock profile settings"
           widgetType="profile"
           perfLabel="Performance"
           extraSections={[{

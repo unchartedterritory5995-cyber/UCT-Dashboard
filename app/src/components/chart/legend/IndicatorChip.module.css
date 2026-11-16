@@ -120,10 +120,9 @@
    background, no underline, no border, no movement — the row's rect and every
    value's right edge are identical hovered and at rest, and the CANVAS is
    byte-identical, which is the permanent invariant. */
-.chipGridRow.rowLive:hover .chipGridLabel,
-.chipGridRow.rowLive:hover .chipGridVal,
-.chipGridRow.rowLive:focus-visible .chipGridLabel,
-.chipGridRow.rowLive:focus-visible .chipGridVal { filter: brightness(1.16); }
+/* ⚰ THE BRIGHTNESS FILTER IS RETIRED WITH THE COLOURED NAME (UCT Signature, 2026-11-15).
+   The grid row's hover is the soft card + control strip from `LegendRow.module.css`
+   (`.rowActs`), shared so both kinds of row look and behave alike. */
 .rowLive:focus { outline: none; }
 .rowLive:focus-visible {
   outline: 1px solid rgba(220, 187, 94, 0.9);
@@ -487,7 +486,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   font: inherit;
-  font-weight: 500;
+  /* UCT Signature: the name is grey 600 (the 3×13 bar carries the series colour). */
+  font-weight: 600;
   vertical-align: baseline;
   white-space: nowrap;
   /* ⭐ THE SAME STEP `LegendRow`'s `.vLabel` TAKES, and it has to be declared
@@ -517,6 +517,18 @@
    the value column too and a grouped indicator's numbers would stop lining up
    with everyone else's. */
 .chipGridSub .chipGridLabel { padding-left: 7px; }
+/* ⭐ UCT SIGNATURE — A HIDDEN INDICATOR STAYS LISTED, struck through in #6f6c66, its eye
+   showing (`.rowActsHidden`), its bar dimmed. The row itself is no longer faded, so the
+   eye stays at full strength. */
+.chipGridRow.chipHidden { opacity: 1; }
+.chipGridRow.chipHidden .chipGridLabel { opacity: 1; }
+.chipGridRow.chipHidden .chipGridLabel,
+.chipGridRow.chipHidden .chipGridVal {
+  color: #6f6c66;
+  text-decoration: line-through;
+  text-decoration-color: rgba(147, 147, 154, 0.5);
+}
+.chipGridRow.chipHidden .rail { opacity: 0.45; }
 /* ⚰️ A PARAGRAPH HERE ARGUED THAT THE GRID'S STRIP COULD NOT BE
    COLLAPSED-BUT-PRESENT the way the inline chip's was, because three zero-width
    buttons on every row would still give the shared third track a permanent width.
@@ -562,9 +574,10 @@
  * width, which is what keeps `Vol`'s label on the same x as `EMA 9`'s. */
 .rail {
   flex: none;
-  width: 2px;
-  height: 10px;
-  border-radius: 1px;
+  /* ⭐ UCT SIGNATURE: 3×13, radius 2 — the twin of `LegendRow`'s rail. */
+  width: 3px;
+  height: 13px;
+  border-radius: 2px;
   /* ⚰️⚰️ IT WAS BASELINE-ALIGNED, AND A 0.5px NUDGE CANNOT FIX THAT. The row
      is `align-items: baseline`, and an EMPTY element's baseline is its own bottom
      margin edge — so the rail's foot was planted on the text's baseline and all

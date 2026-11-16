@@ -4,6 +4,8 @@ import useLongPress from '../../mobile/useLongPress'
 import styles from './IndicatorChip.module.css'
 import { chipValueText as formatChipValue } from '../engine/readout'
 import { safeCssColour } from '../engine/objectColour'
+import { RowActs } from './LegendRow'
+import rowStyles from './LegendRow.module.css'
 
 /**
  * ONE legend chip. **The chip IS the control.**
@@ -168,6 +170,11 @@ export default function IndicatorChip({
   //   `fallbackValue` `{text, muted}` — A8: the last known value with its date,
   //                   muted, when the live value is missing. Never on a hidden chip.
   name = null, textChip = false, fallbackValue = null,
+  // ⭐ UCT SIGNATURE — the grid row's hover strip (hide · settings · more), the same
+  // `RowActs` `LegendRow` renders. `(instanceId) => void` each, optional, GRID ONLY:
+  // without either the row is exactly the one-door row it was. Each is the verb the
+  // popover's own row already calls (`handleChipHidden` / `handleChipSettings`).
+  onToggleHidden, onSettings,
 }) {
   const interactive = typeof onMenu === 'function'
   const label = typeof name === 'string' && name ? name : chip.label
@@ -334,6 +341,11 @@ export default function IndicatorChip({
     // `data-instance-id`, `data-plot-key`, `data-hidden`, `data-computed`, the
     // long-press binding and the body click. Six files and three rails address a
     // chip by those, and splitting the layout must not split the identity.
+    const hasActs = interactive && typeof onBodyTap !== 'function'
+      && (typeof onToggleHidden === 'function' || typeof onSettings === 'function')
+    const actsCount = !hasActs ? 0 : chip.hidden
+      ? (typeof onToggleHidden === 'function' ? 1 : 0)
+      : (typeof onToggleHidden === 'function' ? 1 : 0) + (typeof onSettings === 'function' ? 1 : 0) + 1
     return (
       /* 🔴 ONE ROW BOX, NOT THREE SIBLING CELLS. `.legend` is
          `pointer-events: none`, so the COLUMN GAPS between sibling cells were not
@@ -343,8 +355,11 @@ export default function IndicatorChip({
          the alignment this variant exists for — while the row is one continuous
          hover box. */
       <span
-        className={`${styles.chipGridRow} ${secondary ? styles.chipGridSub : ''} ${interactive ? styles.rowLive : ''} ${chip.hidden ? styles.chipHidden : ''} ${className || ''}`}
-        style={{ '--chip-color': chipColor, ...ink }}
+        className={`${styles.chipGridRow} ${secondary ? styles.chipGridSub : ''} ${interactive ? styles.rowLive : ''} ${chip.hidden ? styles.chipHidden : ''} ${hasActs ? rowStyles.rowActs : ''} ${hasActs && chip.hidden ? rowStyles.rowActsHidden : ''} ${className || ''}`}
+        /* ⭐ UCT SIGNATURE — the grid row no longer inks its NAME in the plot colour
+           (the 3×13 bar does that job); `--chip-color` still rides along for the
+           phone's dot tier. */
+        style={{ '--chip-color': chipColor, ...(actsCount ? { '--row-acts-w': `${actsCount * 22 + 6}px` } : null) }}
         {...triggerProps}
         {...(interactive ? longPress : null)}
         onClick={onBody}
@@ -356,9 +371,6 @@ export default function IndicatorChip({
         <i className={styles.rail} style={chipColor ? { background: chipColor } : undefined} aria-hidden="true" />
         <span
           className={`${cls} ${styles.chipGridLabel}`}
-          /* ⛔ `inherit`, because `.chip` declares a colour on THIS element and a
-             declaration on the child beats the row's inherited one. */
-          style={valInk}
           data-instance-id={chip.instanceId}
           data-plot-key={chip.plotKey}
           data-hidden={chip.hidden ? 'true' : 'false'}
@@ -385,6 +397,13 @@ export default function IndicatorChip({
         {/* ⚰⚰ THE PERMANENT CHEVRON IS RETIRED — see `LegendRow.jsx`. The cell
             is still emitted and still measures zero; this grid fills by ORDER. */}
         <span className={styles.chipGridCtl} />
+        {hasActs ? (
+          <RowActs name={label} hidden={!!chip.hidden}
+            onToggleHidden={typeof onToggleHidden === 'function' ? () => onToggleHidden(chip.instanceId) : undefined}
+            onSettings={typeof onSettings === 'function' ? () => onSettings(chip.instanceId) : undefined}
+            onMore={openMenu}
+            actsClass={rowStyles.acts} actClass={rowStyles.act} eyeClass={rowStyles.actEye} />
+        ) : null}
       </span>
     )
   }

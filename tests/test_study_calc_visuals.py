@@ -186,6 +186,44 @@ def test_a_midpoint_and_an_r_loss_the_names_fix():
     assert loss["find"]["as"] == "r_loss" and loss["r"] == {"entry": 50.0, "stop": 48.0}
 
 
+ATR_Q = "The highest high of the last 11 sessions is 120.00, ATR is 3.00 and the hold session's low is 117.60. How deep, in ATRs?"
+ATR_CALC = {"fn": "arith", "args": {"expr": "(a - b) / c", "a": 120, "b": 117.6, "c": 3}}
+
+
+def _written(levels, **extra):
+    v = {"kind": "ladder", "side": "long", "title": "The pullback", "find": {"label": "Depth", "as": "num", "unit": "ATRs"},
+         "levels": levels}
+    v.update(extra)
+    return v
+
+
+def test_a_written_card_holds_to_the_built_cards_contract():
+    good = _q(ATR_Q, ATR_CALC)
+    good["visual"] = _written([{"key": "high", "label": "11-session high", "price": 120}, {"key": "low", "label": "Hold low", "price": 117.6}])
+    assert cv.written_problems(good) == [] and cv.visual_for(good)["title"] == "The pullback"
+    # a number the words do not state, a label's own number, the answer on the card: each refused, and nothing drawn
+    bad = dict(good, visual=_written([{"key": "high", "label": "High", "price": 121}]))
+    assert any("do not state" in p for p in cv.written_problems(bad)) and cv.visual_for(bad) is None
+    label = dict(good, visual=_written([{"key": "high", "label": "12-session high", "price": 120}]))
+    assert any("do not state" in p for p in cv.written_problems(label))
+    leak = dict(good, visual=_written([{"key": "high", "label": "High", "price": 120}, {"key": "x", "label": "Depth", "price": 0.8}]))
+    assert any("do not state" in p or "answer" in p for p in cv.written_problems(leak))
+    assert cv.written_problems(dict(good, chart={"sym": "X", "asof": "2024-01-02"}))
+    assert cv.written_problems(dict(good, visual={"kind": "hologram"}))
+    assert cv.written_problems(dict(good, visual=_written([{"key": "high", "label": "High", "price": 120}], find={"label": "x", "as": "magic"})))
+
+
+def test_the_validator_refuses_a_bad_written_card_and_a_checker_can_drop_one():
+    doc = json.loads((REPO / "docs/study/courses/SET/SET.14.json").read_bytes().decode("utf-8"))
+    q = next(x for x in doc["questions"] if x["key"] == "q25")
+    assert q["calc"]["args"]["expr"].replace(" ", "") == "(a-b)/c"
+    q["visual"] = _written([{"key": "high", "label": "High", "price": 999}])
+    assert any(p.startswith("q25: visual shows numbers") for p in courses_lib.unit_problems(doc))
+    from scripts.study import apply_upgrade
+    apply_upgrade.apply(doc, {}, "t", checks={"q25": {"status": "fix", "notes": "misread", "fix": {"visual": None}}})
+    assert "visual" not in q
+
+
 @pytest.mark.parametrize("calc,text", [
     ({"fn": "shares_from_risk", "args": {"account": 40000, "risk_pct": 0.5, "entry": 30, "stop": 31.5}},
      "Account $40,000, risking 0.5%. You short at $30.00 with a buy stop at $31.50. How many shares?"),

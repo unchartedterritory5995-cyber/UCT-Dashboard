@@ -1,0 +1,429 @@
+{
+ "lane": "L4d (RS Rating transfer)",
+ "date": "2026-11-15",
+ "run": "s10-2026-11-15 (peer rig), captures LOCAL ONLY at $LOCALAPPDATA/uct-vendor-batch/runs/s10-2026-11-15/{captures,xmap}; not committed",
+ "method": [
+  "Each capture's source is built in the runtime DRAWING build (buildRuntimeIr objectsInRun) with product options (no test switch) and run over the capture's own bars.",
+  "Vendor label/box x is a RANK into graphics()._indexes, not bar_index: it is mapped through the run's xmap/<id>.json sidecar (barIndex[rank]) before any comparison.",
+  "Records are paired by creation order (vendor id, our id), aligned at the newest end (TradingView's max_labels_count / max_boxes_count collect the oldest). SPY is read for steady state only (capped); warm-up is pinned on RDDT (all labels kept).",
+  "A label compares [bar, y, text], a box [left, right, top, bottom]; y within 1e-9 relative, na only with na; text exact.",
+  "Digests: sha256 of JSON.stringify(list), each non-integer number rounded to 12 significant digits (Number(v.toPrecision(12))), na as null.",
+  "prefix: the RDDT records made before bar 636. Q-RT5a's committed bars (tests/fixtures/vendor/harness/vw-rt5-arm-draw-block-history-rddt-1d-2026-10-03.json, 636 bars) equal the first 636 bars of these captures row for row, so the always-on rails (l4dDrawingHistory.test.js, l4dArmShapes.test.js) run the probes over those bars and compare with the prefix digest."
+ ],
+ "w3n": [
+  {
+   "row": "W3N-D1a",
+   "capture": "vw-w3n-draw-block-history-a-rddt-1d-2026-11-15",
+   "sha256": "4aee29ffc9d70be413fcb6c5aba4b0024e814bd524cea61d6dad3fc3f5f9a9f0",
+   "xmapSha256": "d2d6130536f8414d27a28a1eda6afa65230450e624ed95697a90a0c3fa65fb70",
+   "bars": 666,
+   "vendorLabels": 316,
+   "vendorDigest": "e1790b40728c1cfe5c5953ffd2d1f428d19e67c4b135714a9bb988798b36518f",
+   "prefix": {
+    "bars": 636,
+    "labels": 308,
+    "digest": "4593d4df83335292ba1cf38dc2cea07698b01e61be05ee7673743932a16aca08",
+    "yDigest": "bc83765d3f40cfc7be62666bfece15ae7e41983e0f00bca72755f2a1d9c66989"
+   },
+   "ours": {
+    "labels": 316,
+    "digest": "e1790b40728c1cfe5c5953ffd2d1f428d19e67c4b135714a9bb988798b36518f"
+   },
+   "compared": {
+    "vendor": 316,
+    "ours": 316,
+    "paired": 316,
+    "differ": 0,
+    "first": null
+   },
+   "exactDigestEqual": true,
+   "verdict": "MATCH"
+  },
+  {
+   "row": "W3N-D1a",
+   "capture": "vw-w3n-draw-block-history-a-spy-1d-2026-11-15",
+   "sha256": "80c47f6e5cbe176cb6617c29d81d871e514f494dd33972086e8019ad55b451e2",
+   "xmapSha256": "d46fcf2ad5ce5baada647ded41bbed5709bbc3cb76563091241f05a93c483243",
+   "bars": 8507,
+   "vendorLabels": 501,
+   "vendorDigest": "8f1705ccb372e19b7aa7cfcc2a624c884c6b9eda4f4218412133daa036b4df55",
+   "ours": {
+    "labels": 501,
+    "digest": "8f1705ccb372e19b7aa7cfcc2a624c884c6b9eda4f4218412133daa036b4df55"
+   },
+   "compared": {
+    "vendor": 501,
+    "ours": 501,
+    "paired": 501,
+    "differ": 0,
+    "first": null
+   },
+   "exactDigestEqual": true,
+   "verdict": "MATCH"
+  },
+  {
+   "row": "W3N-D1b",
+   "capture": "vw-w3n-draw-block-history-b-rddt-1d-2026-11-15",
+   "sha256": "c1e9653a8c02e2b402f717b9612628a7c8c0ff2f9b014de127f277c9f3c4303d",
+   "xmapSha256": "7618b634f6f41c168eca4859a9676a822c2bd6882095b3384aa6c62346d238b2",
+   "bars": 666,
+   "vendorLabels": 316,
+   "vendorDigest": "6d9786f11dbae03b4151e3763071e5672878584fadb7e749e38c9d5b780a1bef",
+   "prefix": {
+    "bars": 636,
+    "labels": 308,
+    "digest": "bfebb37a581074d78aa044df9e4e56a57cf0a864fef66d4fae3683164222827a",
+    "yDigest": "3ee664b2466cc254616ac888234afa0a1bc97eb5b4d960736d2add5229887b13"
+   },
+   "ours": {
+    "labels": 316,
+    "digest": "6d9786f11dbae03b4151e3763071e5672878584fadb7e749e38c9d5b780a1bef"
+   },
+   "compared": {
+    "vendor": 316,
+    "ours": 316,
+    "paired": 316,
+    "differ": 0,
+    "first": null
+   },
+   "exactDigestEqual": true,
+   "verdict": "MATCH"
+  },
+  {
+   "row": "W3N-D1b",
+   "capture": "vw-w3n-draw-block-history-b-spy-1d-2026-11-15",
+   "sha256": "91b8c3100bc648068fd9d44ed82d04ed4969714d8dfaa48a69547abcfe658daf",
+   "xmapSha256": "bbc1ceb89e505bfa925250c29237df0c6cecdce988dba06eeeddd6c07a3b41bb",
+   "bars": 8507,
+   "vendorLabels": 501,
+   "vendorDigest": "0a2f920830820fa4da446d91ed782228b454f6b829c9592ab65d956c3ea57a8c",
+   "ours": {
+    "labels": 501,
+    "digest": "0a2f920830820fa4da446d91ed782228b454f6b829c9592ab65d956c3ea57a8c"
+   },
+   "compared": {
+    "vendor": 501,
+    "ours": 501,
+    "paired": 501,
+    "differ": 0,
+    "first": null
+   },
+   "exactDigestEqual": true,
+   "verdict": "MATCH"
+  },
+  {
+   "row": "W3N-D1c",
+   "capture": "vw-w3n-draw-block-history-c-rddt-1d-2026-11-15",
+   "sha256": "b3b805700cfbb2fe8be648f42b5060a3b324efdff77914d8cc28c3937c7bd35a",
+   "xmapSha256": "ff14fb0dac97c443511543e3f0ed2dc68ddace57ede6d2fdd911eda099c1df85",
+   "bars": 666,
+   "vendorLabels": 316,
+   "vendorDigest": "8c07681d85eb763b7c99a63b51e018c1d4a6fa65aa0b8dd056a7f2b0aaf306a6",
+   "prefix": {
+    "bars": 636,
+    "labels": 308,
+    "digest": "590f0b2c5d85e58a7ae558b6ca3072af61b740ff0f3a6a0a4dbb8a2be7daec21",
+    "yDigest": "b50a64927024630d905cf295e174429fd8a81f58c9eedd74d07643ca4df88928"
+   },
+   "ours": {
+    "labels": 316,
+    "digest": "8c07681d85eb763b7c99a63b51e018c1d4a6fa65aa0b8dd056a7f2b0aaf306a6"
+   },
+   "compared": {
+    "vendor": 316,
+    "ours": 316,
+    "paired": 316,
+    "differ": 0,
+    "first": null
+   },
+   "exactDigestEqual": true,
+   "verdict": "MATCH"
+  },
+  {
+   "row": "W3N-D1c",
+   "capture": "vw-w3n-draw-block-history-c-spy-1d-2026-11-15",
+   "sha256": "b3fbf4ed05b5c6db547f1f97aac1c726bb9a502ff2329ad541cb3fb9e5fd2b7d",
+   "xmapSha256": "2a33fb1f510d269bcf6e32dd058f1c517b3befd234ce7629c2a5cc2804d1f679",
+   "bars": 8507,
+   "vendorLabels": 501,
+   "vendorDigest": "65d26b7dab3441257052031456785ff2735527a62e1e00debdebf4300f58832f",
+   "ours": {
+    "labels": 501,
+    "digest": "65d26b7dab3441257052031456785ff2735527a62e1e00debdebf4300f58832f"
+   },
+   "compared": {
+    "vendor": 501,
+    "ours": 501,
+    "paired": 501,
+    "differ": 0,
+    "first": null
+   },
+   "exactDigestEqual": true,
+   "verdict": "MATCH"
+  },
+  {
+   "row": "W3N-D1d",
+   "capture": "vw-w3n-draw-block-history-d-rddt-1d-2026-11-15",
+   "sha256": "4ba91eb0ad9582bf55db2794ded6cf5f7f693cb5bdd97b77a19ab413bbd1a7ad",
+   "xmapSha256": "38631c09d4d3313a62b5baf9b63fc789411da3f03914aadb48bc0b9be6ae45ce",
+   "bars": 666,
+   "vendorLabels": 316,
+   "vendorDigest": "623d0452fda263339c84dfd92d2010fd065719f440965410444e0b1be0186a21",
+   "prefix": {
+    "bars": 636,
+    "labels": 308,
+    "digest": "b878b2708c44fac21d469195419a5ae5f3714f2f3434fc2c23f4ca506c5f9da2",
+    "yDigest": "599337722f57a481fe82db3a96d2416bcfaca26d17eb7d0606b62f178ba60483"
+   },
+   "readings": {
+    "previousRun": {
+     "vendor": 316,
+     "ours": 316,
+     "paired": 316,
+     "differ": 0,
+     "first": null
+    },
+    "previousBar": {
+     "vendor": 316,
+     "ours": 316,
+     "paired": 316,
+     "differ": 169,
+     "first": {
+      "vendor": [
+       2,
+       100.88
+      ],
+      "ours": [
+       2,
+       92
+      ]
+     }
+    }
+   },
+   "ours": {
+    "refused": "runtime:conditional-history"
+   },
+   "verdict": "DIVERGE (refused by name)"
+  },
+  {
+   "row": "W3N-D1d",
+   "capture": "vw-w3n-draw-block-history-d-spy-1d-2026-11-15",
+   "sha256": "3f66a03801a073dac11a8a53dc1765657eb0a119052d8b1641ba5c6370a4e0a2",
+   "xmapSha256": "f4d2005ce6582d6685543ca840d148e5d168cd492600a0b89992843284e35e15",
+   "bars": 8507,
+   "vendorLabels": 501,
+   "vendorDigest": "3a6049575be7279f97a5144e70cca98a948579326fa6211d7466e9b486d75c89",
+   "readings": {
+    "previousRun": {
+     "vendor": 501,
+     "ours": 4461,
+     "paired": 501,
+     "differ": 0,
+     "first": null
+    },
+    "previousBar": {
+     "vendor": 501,
+     "ours": 4461,
+     "paired": 501,
+     "differ": 233,
+     "first": {
+      "vendor": [
+       7580,
+       808.38
+      ],
+      "ours": [
+       7580,
+       796.54
+      ]
+     }
+    }
+   },
+   "ours": {
+    "refused": "runtime:conditional-history"
+   },
+   "verdict": "DIVERGE (refused by name)"
+  }
+ ],
+ "qrs5": [
+  {
+   "capture": "rs-arm-label-last-bar-rddt-1d-2026-11-15",
+   "sha256": "5dd3db07fa3e03ed8671088663ad61e8bd4b152e40b7c2c18bd70dfce205fe93",
+   "xmapSha256": "772eda69c171e76c93fd1315e9611dc58421e1efbd9b572428bf35b4cfb549a1",
+   "bars": 666,
+   "vendorCounts": {
+    "lines": 0,
+    "labels": 98,
+    "boxes": 67,
+    "tables": 0,
+    "tableCells": 0,
+    "linefills": 0
+   },
+   "shapes": {
+    "A01": {
+     "compared": {
+      "vendor": 1,
+      "ours": 1,
+      "paired": 1,
+      "differ": 0,
+      "first": null
+     },
+     "vendorDigest": "9c6a351e84feade81224db13c6c72f4c19d4a6112b9a09544e8ff199fcb5a613",
+     "oursDigest": "9c6a351e84feade81224db13c6c72f4c19d4a6112b9a09544e8ff199fcb5a613",
+     "verdict": "MATCH"
+    },
+    "R01": {
+     "compared": {
+      "vendor": 1,
+      "ours": 1,
+      "paired": 1,
+      "differ": 0,
+      "first": null
+     },
+     "vendorDigest": "bb999ccb21dfa491010ff086731c22e51323effecbaf1b09bd2fba6bd1826f2e",
+     "oursDigest": "bb999ccb21dfa491010ff086731c22e51323effecbaf1b09bd2fba6bd1826f2e",
+     "verdict": "MATCH"
+    },
+    "E01": {
+     "compared": {
+      "vendor": 96,
+      "ours": 96,
+      "paired": 96,
+      "differ": 0,
+      "first": null
+     },
+     "vendorDigest": "0ae1d0cc0846dca4ac24b7a14d68a5d16c9cb088270d7e326cd8ef499c50999a",
+     "oursDigest": "0ae1d0cc0846dca4ac24b7a14d68a5d16c9cb088270d7e326cd8ef499c50999a",
+     "prefix": {
+      "bars": 636,
+      "labels": 91,
+      "digest": "a6d44129716ea5cd71e7a4f4788af1fa6bad96a1d2dab426929928b6eaff7ff1"
+     },
+     "verdict": "MATCH"
+    },
+    "X01": {
+     "compared": {
+      "vendor": 67,
+      "ours": 67,
+      "paired": 67,
+      "differ": 0,
+      "first": null
+     },
+     "vendorDigest": "d1efaf1a2eadaa019680a994d578247f1529541d69235b9b82fbc433013140d3",
+     "oursDigest": "d1efaf1a2eadaa019680a994d578247f1529541d69235b9b82fbc433013140d3",
+     "prefix": {
+      "bars": 636,
+      "boxes": 64,
+      "digest": "c4044bbb50471429a567aa04c1c105d3cddab982fb55b634974714c2fb173daf"
+     },
+     "verdict": "MATCH"
+    }
+   }
+  },
+  {
+   "capture": "rs-arm-label-last-bar-spy-1d-2026-11-15",
+   "sha256": "821468afe71bc5979b1481b061e1dd0e706d307d432f9fa25d2fe5f1834e4cfc",
+   "xmapSha256": "4a556b50cf7f11264aa8409e83c0e69f63af7cd80c705b018196b4be39233525",
+   "bars": 8507,
+   "vendorCounts": {
+    "lines": 0,
+    "labels": 503,
+    "boxes": 503,
+    "tables": 0,
+    "tableCells": 0,
+    "linefills": 0
+   },
+   "shapes": {
+    "A01": {
+     "compared": {
+      "vendor": 1,
+      "ours": 1,
+      "paired": 1,
+      "differ": 0,
+      "first": null
+     },
+     "vendorDigest": "eb558f7500fb18bd40d6d3de36c1b3bd18fc89962655b3846189565017629e0e",
+     "oursDigest": "eb558f7500fb18bd40d6d3de36c1b3bd18fc89962655b3846189565017629e0e",
+     "verdict": "MATCH"
+    },
+    "R01": {
+     "compared": {
+      "vendor": 0,
+      "ours": 0,
+      "paired": 0,
+      "differ": 0,
+      "first": null
+     },
+     "vendorDigest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+     "oursDigest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+     "verdict": "MATCH"
+    },
+    "E01": {
+     "compared": {
+      "vendor": 502,
+      "ours": 502,
+      "paired": 502,
+      "differ": 0,
+      "first": null
+     },
+     "vendorDigest": "9640011d3b6e2b78e840e565d6874d4df264077d5896b106babd7882e168ae84",
+     "oursDigest": "9640011d3b6e2b78e840e565d6874d4df264077d5896b106babd7882e168ae84",
+     "verdict": "MATCH"
+    },
+    "X01": {
+     "compared": {
+      "vendor": 503,
+      "ours": 503,
+      "paired": 503,
+      "differ": 0,
+      "first": null
+     },
+     "vendorDigest": "18d31391daa8a328475e2f07068472024388b9dbaba01eb7b72e77dbb5f1f43f",
+     "oursDigest": "18d31391daa8a328475e2f07068472024388b9dbaba01eb7b72e77dbb5f1f43f",
+     "verdict": "MATCH"
+    }
+   }
+  }
+ ],
+ "corpusGrades": {
+  "s7-ahead-2026-11-14 (38)": {
+   "lane": "runtime-on (VENDOR_HARNESS_RUNTIME_ON=1)",
+   "before": "L4c baseline",
+   "before_counts": {
+    "INCONCLUSIVE": 35,
+    "DIVERGE": 2,
+    "MATCH": 1
+   },
+   "after_counts": {
+    "INCONCLUSIVE": 35,
+    "DIVERGE": 2,
+    "MATCH": 1
+   },
+   "changed_records": 0,
+   "ids_differ": 0
+  },
+  "s9-ahead-2026-11-14 (160)": {
+   "lane": "runtime-on (VENDOR_HARNESS_RUNTIME_ON=1)",
+   "before": "L4c baseline",
+   "before_counts": {
+    "INCONCLUSIVE": 160
+   },
+   "after_counts": {
+    "INCONCLUSIVE": 160
+   },
+   "changed_records": 0,
+   "ids_differ": 0
+  }
+ },
+ "nineConditionalHistoryDecliners_s7": {
+  "note": "unchanged by L4d (byte-identical build results at HEAD and after, plot build and drawing build); the wall each stops on:",
+  "auto-harmonic-patterns-open-source": "runtime:conditional-history: a parameter (`dir`) decides a branch of `add_to_zigzag` with history in a `?:` operand, passed a per-bar value",
+  "cm-gann-swing-highlow-v2": "runtime:conditional-history: history in one arm of `?:`",
+  "ema-92150-vwap-macd-rsi-pro-v6": "runtime:realtime-untold (`barstate.islastconfirmedhistory`) in the direct build; the door reports conditional-history",
+  "kernel-channel-backquant": "runtime:conditional-history: history in one arm of `?:`",
+  "momentum-based-zigzag": "runtime:conditional-history: history in one arm of `?:`",
+  "price-divergence-detector-v32-revised-by-justunclel": "plot build: conditional-history (`_src` decides a branch of `f_fractalize`); drawing build: pine:function (`cum` with no anchor)",
+  "relative-strength-index": "runtime:conditional-history: history on the right of v6 `and`",
+  "trendlinesample": "drawing build: runtime:conditional-history, `sup[...]` in a block or function (conditionalHistoryGuard, not the W3N path)",
+  "williams-vix-fix-bottoms-and-tops": "plot build: `ta.sma` in a loop/function branch; drawing build: history in one arm of `?:`"
+ }
+}

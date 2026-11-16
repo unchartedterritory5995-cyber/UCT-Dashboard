@@ -494,6 +494,46 @@ PINE_CAPABILITY_CONFORMANT = "conformant"
 PINE_CAPTURE_MATCH = "MATCH"
 PINE_CAPTURE_PANE_ON = "on"
 
+# ⭐⭐ L7 (2026-11-14, owner ruling option (a)) — THE SUBSTITUTED ADMISSION PATH, SEPARATELY NAMED.
+# A script that reads a vendor-only fact (`syminfo.industry`, a seed with no public mirror) is served
+# with UCT data in its place, so it can never grade MATCH: its harness grade is MATCH_SUBSTITUTED (the
+# translation proven with the vendor's own value fed, the UCT value disclosed, not proven). Such a
+# record is admitted ONLY when it says so: `admission: "substituted"`, `substituted: [<Pine name>...]`
+# (what the member door discloses as "uses UCT data for: ..."), and at least one capture graded
+# MATCH_SUBSTITUTED with the runtime pane on whose own `substituted` names are EXACTLY the record's.
+#   * a record WITHOUT `admission` is the R1 path, unchanged: only a MATCH capture admits it, and a
+#     MATCH_SUBSTITUTED capture NEVER does (it is named in the reason, so the path to take is said);
+#   * a record ON the substituted path is admitted by MATCH_SUBSTITUTED captures only: a plain MATCH
+#     capture of a script that declares substituted inputs contradicts the declaration, so it is not
+#     evidence for it.
+# Capability conformance (rule 1) is asked the same way on both paths.
+PINE_CAPTURE_MATCH_SUBSTITUTED = "MATCH_SUBSTITUTED"
+PINE_ADMISSION_SUBSTITUTED = "substituted"
+
+
+def _pine_substituted_names(value):
+    """The record's substituted Pine names as a sorted tuple, or None when malformed or empty."""
+    if not isinstance(value, list) or not value or not all(isinstance(n, str) and n for n in value):
+        return None
+    if len(set(value)) != len(value):
+        return None
+    return tuple(sorted(value))
+
+
+def _pine_capture_ok(c, verdict) -> bool:
+    return bool(isinstance(c, dict) and isinstance(c.get("id"), str) and c.get("id")
+                and c.get("verdict") == verdict and c.get("runtimePane") == PINE_CAPTURE_PANE_ON)
+
+
+def pine_runtime_substituted_inputs(script) -> list[str]:
+    """The Pine names an allowlist record discloses as answered from UCT data: its `substituted`
+    list when it is on the substituted path, ``[]`` otherwise. What the member door reads (through
+    `runtime_definitions.substituted_inputs`) to say "uses UCT data for: ..."."""
+    if not isinstance(script, dict) or script.get("admission") != PINE_ADMISSION_SUBSTITUTED:
+        return []
+    names = _pine_substituted_names(script.get("substituted"))
+    return list(names) if names else []
+
 
 def pine_runtime_admission(script, registry) -> list[str]:
     """Why this allowlist record is NOT served (R1), or ``[]`` when it is.
@@ -522,12 +562,30 @@ def pine_runtime_admission(script, registry) -> list[str]:
             if not isinstance(evidence, list) or not evidence:
                 reasons.append(f"capability `{cap}` is marked conformant but names no evidence (R1)")
     captures = script.get("captures")
-    matched = [c for c in (captures if isinstance(captures, list) else [])
-               if isinstance(c, dict) and isinstance(c.get("id"), str) and c.get("id")
-               and c.get("verdict") == PINE_CAPTURE_MATCH
-               and c.get("runtimePane") == PINE_CAPTURE_PANE_ON]
-    if not matched:
-        reasons.append("has no TradingView capture graded MATCH with the runtime pane on (R1)")
+    captures = captures if isinstance(captures, list) else []
+    admission = script.get("admission")
+    if admission is None:
+        matched = [c for c in captures if _pine_capture_ok(c, PINE_CAPTURE_MATCH)]
+        if not matched:
+            reasons.append("has no TradingView capture graded MATCH with the runtime pane on (R1)")
+            if any(_pine_capture_ok(c, PINE_CAPTURE_MATCH_SUBSTITUTED) for c in captures):
+                reasons.append("its capture is graded MATCH_SUBSTITUTED, which never admits on the MATCH "
+                               "path; it is admitted only as `admission: substituted`, naming its "
+                               "substituted inputs (L7)")
+    elif admission == PINE_ADMISSION_SUBSTITUTED:
+        names = _pine_substituted_names(script.get("substituted"))
+        if names is None:
+            reasons.append("is on the substituted path but names no substituted inputs (a non-empty "
+                           "list of distinct Pine names), so the member door could not disclose them (L7)")
+        else:
+            matched = [c for c in captures if _pine_capture_ok(c, PINE_CAPTURE_MATCH_SUBSTITUTED)
+                       and _pine_substituted_names(c.get("substituted")) == names]
+            if not matched:
+                reasons.append("has no TradingView capture graded MATCH_SUBSTITUTED with the runtime pane "
+                               f"on for exactly its substituted inputs ({', '.join(names)}) (L7)")
+    else:
+        reasons.append(f"names an unknown admission path {admission!r} (only the R1 MATCH path, or "
+                       f"`{PINE_ADMISSION_SUBSTITUTED}`)")
     return reasons
 
 

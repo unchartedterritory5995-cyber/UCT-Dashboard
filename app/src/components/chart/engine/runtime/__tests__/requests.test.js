@@ -67,14 +67,18 @@ const refusalOf = (src) => {
 }
 
 describe('request.security', () => {
-  it('reads another symbol on the same grid, one bar behind', () => {
-    // ⛔ ONE BAR BEHIND IS THE MEASURED RULE. Chart bar i sees the requested
-    // series' last COMPLETED bar, which on a matching grid is bar i-1.
+  it('reads another symbol on the same grid on the SAME bar (its own session date)', () => {
+    // ⭐⭐ RS RATING L5 — the alignment is the host lane's (`interpret.js::requestAlignment`,
+    // read by `vm.js::runRequest`): a series at the chart's own timeframe is read on the bar
+    // of the same `t`, as Pine's look-ahead-off `request.security` reads a same-timeframe
+    // symbol (C29: bare "SPY" == "AMEX:SPY" bar for bar on RDDT 1D). ⚰️ This rail said "one
+    // bar behind": the strictly-before rule, right for M1's `"D"` read on a 5-minute bar
+    // (the merge's mid-session answer), applied to a same-timeframe series it reads
+    // yesterday. That merge is served for weekly / monthly reads by the supplied path.
     const { out } = run(
       'x = request.security("OTHER", "D", close)\nplot(x)\n',
       { 'OTHER|D': OTHER })
-    expect(out[0]).toBeNaN()
-    for (let i = 1; i < N; i += 1) expect(out[i]).toBe(OTHER[i - 1].c)
+    for (let i = 0; i < N; i += 1) expect(out[i]).toBe(OTHER[i].c)
   })
 
   it('⛔ a symbol with no bars is `na`, and the run REPORTS it', () => {
@@ -106,7 +110,7 @@ describe('request.security', () => {
     const first = run(src, {})
     expect(first.out.every(Number.isNaN)).toBe(true)
     const second = run(src, { 'OTHER|D': OTHER })
-    expect(second.out[1]).toBe(OTHER[0].c)
+    expect(second.out[1]).toBe(OTHER[1].c)
   })
 
   it('an EXPRESSION is evaluated in the requested symbol\'s context', () => {
@@ -114,22 +118,22 @@ describe('request.security', () => {
     const { out } = run(
       'x = request.security("OTHER", "D", high - low)\nplot(x)\n',
       { 'OTHER|D': OTHER })
-    expect(out[2]).toBe(OTHER[1].h - OTHER[1].l)
+    expect(out[2]).toBe(OTHER[2].h - OTHER[2].l)
   })
 
   it('history inside the request is the requested symbol\'s history', () => {
     const { out } = run(
       'x = request.security("OTHER", "D", close[1])\nplot(x)\n',
       { 'OTHER|D': OTHER })
-    // bar 2 sees the requested series' bar 1, whose `close[1]` is its bar 0
-    expect(out[2]).toBe(OTHER[0].c)
+    // bar 2 sees the requested series' bar 2, whose `close[1]` is its bar 1
+    expect(out[2]).toBe(OTHER[1].c)
   })
 
   it('a TUPLE request unpacks in order', () => {
     const { out } = run(
       '[a, b] = request.security("OTHER", "D", [close, volume])\nplot(a * 100000 + b)\n',
       { 'OTHER|D': OTHER })
-    expect(out[1]).toBe(OTHER[0].c * 100000 + OTHER[0].v)
+    expect(out[1]).toBe(OTHER[1].c * 100000 + OTHER[1].v)
   })
 
   it('⛔ lookahead_on is refused BY NAME — its half of M1 is unmeasured', () => {
@@ -137,9 +141,17 @@ describe('request.security', () => {
     // half needs an open market. Serving lookahead on a guess would put a
     // number on screen that nobody could have traded on, which is the most
     // valuable-LOOKING wrong answer available.
+    // ⭐ RS RATING L5 — asked of a WEEKLY read: look-ahead decides something only above the
+    // chart's own timeframe. The host reads `lookahead_on` at the chart's own period as the
+    // same read as `lookahead_off` (`pine.js::requestTargetOf`: "nothing to model"), so the
+    // daily spelling this rail used is now that ordinary read, and builds.
     const r = refusalOf(
-      'x = request.security("OTHER", "D", close, lookahead = barmerge.lookahead_on)\nplot(x)\n')
+      'x = request.security(syminfo.tickerid, "W", close, lookahead = barmerge.lookahead_on)\nplot(x)\n')
     expect(r.message).toMatch(/lookahead/i)
+    const sameTf = buildRuntimeIr(`${head}x = request.security("OTHER", "D", close, lookahead = barmerge.lookahead_on)\nplot(x)\n`,
+      { bars: BARS, inputs: {} })
+    expect(sameTf.ok, sameTf.ok ? '' : sameTf.refusal.message).toBe(true)
+    expect(sameTf.ir.requests[0].target).toMatchObject({ ticker: 'OTHER', live: false })
   })
 
   it('⛔ REQUEST_COUNT is bounded by name', () => {

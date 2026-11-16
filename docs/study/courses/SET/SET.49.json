@@ -1684,7 +1684,7 @@
      "the 2 ATR flush line is a proposed card criterion"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "5.40 ATR",
     "0.46 ATR",
@@ -1695,6 +1695,28 @@
     "5.40 ATR": "Gave the dollar drop and skipped the ATR division.",
     "0.46 ATR": "Flipped the division, ATR over the drop.",
     "6.75 ATR": "Used the percent drop as ATR."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "close",
+      "label": "Prior close",
+      "price": 80.0
+     },
+     {
+      "key": "low",
+      "label": "Today's low",
+      "price": 74.6
+     }
+    ],
+    "find": {
+     "label": "Depth in ATR",
+     "as": "num",
+     "unit": "ATR"
+    },
+    "title": "Under the close (ATR 2.50)"
    }
   },
   {
@@ -1779,7 +1801,7 @@
      "the 3 ATR index stretch is a proposed card criterion"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "28.0 ATR",
     "0.3 ATR",
@@ -1790,6 +1812,28 @@
     "28.0 ATR": "Gave the gap in points and skipped the ATR division.",
     "0.3 ATR": "Flipped the division, ATR over the gap.",
     "5.6 ATR": "Used the percent gap as ATR."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "line",
+      "label": "50-day",
+      "price": 500.0
+     },
+     {
+      "key": "close",
+      "label": "QQQ close",
+      "price": 472.0
+     }
+    ],
+    "find": {
+     "label": "Depth in ATR",
+     "as": "num",
+     "unit": "ATR"
+    },
+    "title": "Under the 50-day (ATR 8)"
    }
   },
   {
@@ -2730,7 +2774,42 @@
      "rests on the owner's rulebook (B20 and its 2R ceiling)"
     ]
    },
-   "batch": "wave5"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "entry",
+      "label": "Bought at",
+      "price": 20.0
+     },
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 19.8
+     },
+     {
+      "key": "open",
+      "label": "Opens at",
+      "price": 19.7
+     },
+     {
+      "key": "price",
+      "label": "First 30-min low",
+      "price": 19.3
+     }
+    ],
+    "find": {
+     "label": "R lost at the low",
+     "as": "r_loss"
+    },
+    "r": {
+     "entry": 20.0,
+     "stop": 19.8
+    },
+    "title": "The gap down"
+   }
   },
   {
    "key": "q41",
@@ -3533,7 +3612,28 @@
     },
     "round": 0
    },
-   "batch": "wave5"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The bounce",
+    "rows": [
+     {
+      "key": "stop",
+      "label": "Typical stop",
+      "value": 1.7,
+      "fmt": "%"
+     },
+     {
+      "key": "r",
+      "label": "Reward in R",
+      "value": 3
+     }
+    ],
+    "find": {
+     "label": "Bounce size",
+     "as": "pct"
+    }
+   }
   },
   {
    "key": "q60",
@@ -4452,7 +4552,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "5.4/2.5 = 2.16. 5.40 skipped ATR, 0.46 = 2.5/5.4 flipped, 6.75 = 5.4/80 percent drop. Verified."
+   "notes": "Roles, find label, slot format and ladder checked; ok."
   },
   "q16": {
    "status": "pass",
@@ -4464,7 +4564,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "28/8 = 3.5. 28.0 skipped ATR, 0.3 = 8/28 flipped, 5.6 = 28/500 as percent. Verified."
+   "notes": "Roles, find label, slot format and ladder checked; ok."
   },
   "q18": {
    "status": "pass",
@@ -4560,7 +4660,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc (20-19.3)/0.2 = 3.5R; B20 plus its 2R ceiling (h06, h07) gives Out. 'Set the stop at 19.30' is the rule without its ceiling. Matches the rulebook."
+   "notes": "r_loss ticks run down from 20.00: -1R..-4R. Result 3.5R is fractional so the app draws to the next whole R (-4R at 19.20, just under the 19.30 low). Direction right; the low sits between -3R and -4R. Acceptable."
   },
   "q41": {
    "status": "pass",
@@ -4644,8 +4744,8 @@
   "q59": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Percent arithmetic fine; drop h05 and the 'second trim' wording."
+   "fixed": false,
+   "notes": "Roles, find label, slot format and ladder checked; ok."
   },
   "q63": {
    "status": "pass",

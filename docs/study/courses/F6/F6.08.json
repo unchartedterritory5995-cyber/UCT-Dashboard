@@ -844,7 +844,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$65.00",
     "$35.00",
@@ -855,6 +855,28 @@
     "$65.00": "Gave the top of the range instead of its size.",
     "$35.00": "Gave the bottom of the range instead of its size.",
     "$1.50": "Slipped a decimal place."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "One standard deviation",
+    "rows": [
+     {
+      "key": "stock_price",
+      "label": "Stock price",
+      "value": 50.0,
+      "fmt": "$"
+     },
+     {
+      "key": "implied_volatility",
+      "label": "Implied volatility",
+      "value": 30.0,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "One-year move",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -947,7 +969,35 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The 95% range",
+    "rows": [
+     {
+      "key": "stock_price",
+      "label": "Stock price",
+      "value": 100.0,
+      "fmt": "$"
+     },
+     {
+      "key": "implied_volatility",
+      "label": "Implied volatility",
+      "value": 20.0,
+      "fmt": "%"
+     },
+     {
+      "key": "outcomes_in_the_rang",
+      "label": "Outcomes in the range",
+      "value": 95.0,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Low end of the range",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q09",
@@ -987,7 +1037,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$28.00",
     "$2.30",
@@ -998,6 +1048,34 @@
     "$28.00": "Used the full one-year move with no scaling for 30 days.",
     "$2.30": "Scaled by the days over 365 and skipped the square root.",
     "$9.66": "Divided by 252 trading days when the window is in calendar days."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The 30-day move",
+    "rows": [
+     {
+      "key": "stock_price",
+      "label": "Stock price",
+      "value": 80.0,
+      "fmt": "$"
+     },
+     {
+      "key": "implied_volatility",
+      "label": "Implied volatility",
+      "value": 35.0,
+      "fmt": "%"
+     },
+     {
+      "key": "calendar_days",
+      "label": "Calendar days",
+      "value": 30.0,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "One standard deviation",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1033,7 +1111,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$1.20",
     "$19.20",
@@ -1044,6 +1122,28 @@
     "$19.20": "Skipped the division by 16.",
     "$4.80": "Divided by the square root of 16 instead of 16.",
     "$120.00": "Used 40 instead of 40% and never turned it into a decimal."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "One day's move",
+    "rows": [
+     {
+      "key": "stock_price",
+      "label": "Stock price",
+      "value": 48.0,
+      "fmt": "$"
+     },
+     {
+      "key": "implied_volatility",
+      "label": "Implied volatility",
+      "value": 40.0,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "One day's expected move",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1089,7 +1189,29 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The earnings range",
+    "rows": [
+     {
+      "key": "stock_price",
+      "label": "Stock price",
+      "value": 216.88,
+      "fmt": "$"
+     },
+     {
+      "key": "priced_move,_either_",
+      "label": "Priced move, either way",
+      "value": 16.74,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Low end of the range",
+     "as": "price"
+    }
+   }
   },
   {
    "key": "q12",
@@ -1121,7 +1243,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "0.19%",
     "12%",
@@ -1177,7 +1299,29 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "Time scaling",
+    "rows": [
+     {
+      "key": "one-week_expected_mo",
+      "label": "One-week expected move",
+      "value": 3.0,
+      "fmt": "$"
+     },
+     {
+      "key": "weeks",
+      "label": "Weeks to scale to",
+      "value": 4.0,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Four-week move",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q14",
@@ -1260,7 +1404,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$170.80",
     "$154.20",
@@ -1271,6 +1415,28 @@
     "$154.20": "Took the straddle off the price and gave the bottom of the range.",
     "$8.30": "Gave the straddle alone, not the top of the range.",
     "$162.50": "Gave today's price and forgot to add the straddle."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Stock and straddle",
+    "rows": [
+     {
+      "key": "stock_price",
+      "label": "Stock price",
+      "value": 162.5,
+      "fmt": "$"
+     },
+     {
+      "key": "straddle_cost",
+      "label": "Straddle cost",
+      "value": 8.3,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Top of the priced range",
+     "as": "price"
+    }
    }
   },
   {
@@ -1322,7 +1488,36 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "Today's move",
+    "rows": [
+     {
+      "key": "stock_price",
+      "label": "Stock price",
+      "value": 100.0,
+      "fmt": "$"
+     },
+     {
+      "key": "implied_volatility",
+      "label": "Implied volatility",
+      "value": 20.0,
+      "fmt": "%"
+     },
+     {
+      "key": "today's_move",
+      "label": "Today's move",
+      "value": 7.0,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Size in daily SDs",
+     "as": "num",
+     "unit": "daily SDs"
+    }
+   }
   },
   {
    "key": "q17",
@@ -1461,7 +1656,35 @@
      "it was fixed before (flagged-question fix 2026-11-11)"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "A normal day",
+    "rows": [
+     {
+      "key": "stock_price",
+      "label": "Stock price",
+      "value": 60.0,
+      "fmt": "$"
+     },
+     {
+      "key": "implied_volatility",
+      "label": "Implied volatility",
+      "value": 32.0,
+      "fmt": "%"
+     },
+     {
+      "key": "today's_move",
+      "label": "Today's move",
+      "value": 1.1,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "A normal day's move",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q20",
@@ -1603,7 +1826,35 @@
      "rests on the owner's rulebook (section 9, A3)"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The stop against IV",
+    "rows": [
+     {
+      "key": "stock_price",
+      "label": "Stock price",
+      "value": 40.0,
+      "fmt": "$"
+     },
+     {
+      "key": "implied_volatility",
+      "label": "Implied volatility",
+      "value": 56.0,
+      "fmt": "%"
+     },
+     {
+      "key": "stop_below_entry",
+      "label": "Stop below entry",
+      "value": 0.9,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "One day's expected move",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q24",
@@ -1754,8 +2005,8 @@
   "q05": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 4. Stem no longer names the unit the choices carry."
+   "fixed": false,
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q06": {
    "status": "pass",
@@ -1771,39 +2022,39 @@
   },
   "q08": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 2. Why rewritten to show the steps."
+   "fixed": false,
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q10": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q11": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 216.88-16.74 = 200.14; upper bound in f37. Minor: the story's 'either way' weakens the up-only distractor, but the split and double distractors still test the arithmetic. f34 cited."
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 3."
+   "notes": "DROP: the 'Rule of 16 multiplier 16' tile hands over the very factor the question tests (daily x 16); only one honest tile would remain"
   },
   "q13": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "'Weeks' alone is ambiguous; say it is the span to scale to"
   },
   "q14": {
    "status": "pass",
@@ -1814,14 +2065,14 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
+   "fixed": true,
+   "notes": "Title 'The straddle's range' hands over range = straddle (the method tested)"
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 7/(100*20/100/16) = 5.6, matches f7. f8 restated as a conditional. Distractors are real slips (no daily scaling, dollars as SDs, the SD size itself)."
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q17": {
    "status": "pass",
@@ -1839,8 +2090,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: 60*32/100/16 = 1.20, $1.10 inside, so No. Stem now names the Rule of 16, so the 365 count cannot give a second number. Two Yes / two No, lengths 32-35. Every wrong note grounded (f49, f44, calc). No leak into q10/q12.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q20": {
    "status": "pass",
@@ -1864,8 +2114,8 @@
   "q23": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right: 40*56/100/16 = 1.40, $0.90 inside. Three defects. (1) The prior check said the question needs \"house\": true (README section 5 for a house rule); it was never added. (2) The stem names no day count, yet the key prints $1.40; on q24's 365 count one day is about $1.17. q19 was fixed by naming the Rule of 16; same fix here. (3) The why, wrong note, deeper and lesson line say our stop goes under the day's or prior day's low as a flat rule; A3 (f76) says 'by default'. Added 'by default'. Also cited f17 for the 'Nothing' wrong note."
+   "fixed": false,
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q24": {
    "status": "pass",

@@ -153,7 +153,8 @@ describe('the crosshair option lists match the colour panel the dialog shows (no
     // vitest runs from app/ (this file's environment is jsdom, so import.meta.url is not a file: URL)
     const src = fs.readFileSync(path.resolve(globalThis.process.cwd(), 'src/components/chart/ColorPanel.jsx'), 'utf8')
     const { CROSSHAIR_WIDTHS, CROSSHAIR_STYLES } = await import('./chartSettingsDescriptors')
-    expect(src).toContain(`{[${CROSSHAIR_WIDTHS.join(', ')}].map((w) =>`)
+    // the widths are now a ChoiceMenu option list (UCT Signature, owner 11-15) — same literal list, no JSX brace
+    expect(src).toContain(`[${CROSSHAIR_WIDTHS.join(', ')}].map((w) =>`)
     expect(src).toContain(`[${CROSSHAIR_STYLES.map(([v, n]) => `[${v}, '${n}']`).join(', ')}]`)
   })
 })

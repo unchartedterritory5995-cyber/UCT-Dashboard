@@ -2796,7 +2796,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$114.00",
     "$28.50",
@@ -2807,6 +2807,46 @@
     "$114.00": "Added the five closes and never divided.",
     "$28.50": "Divided the $114 sum by 4 instead of 5.",
     "$21.50": "Averaged only the oldest and newest closes, $20 and $23."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The five closes",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "First close",
+      "value": 20,
+      "fmt": "$"
+     },
+     {
+      "key": "r2",
+      "label": "Second close",
+      "value": 22,
+      "fmt": "$"
+     },
+     {
+      "key": "r3",
+      "label": "Third close",
+      "value": 24,
+      "fmt": "$"
+     },
+     {
+      "key": "r4",
+      "label": "Fourth close",
+      "value": 25,
+      "fmt": "$"
+     },
+     {
+      "key": "r5",
+      "label": "Fifth close",
+      "value": 23,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "5-day moving average",
+     "as": "price"
+    }
    }
   },
   {
@@ -4132,7 +4172,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$2.30",
     "$23.00",
@@ -4143,6 +4183,27 @@
     "$102.50": "Added the high and the low instead of subtracting.",
     "$51.25": "Took the midpoint of the day, not the range.",
     "$23.00": "Decimal slip: moved the point one place up."
+   },
+   "visual": {
+    "kind": "ladder",
+    "title": "The day",
+    "side": "long",
+    "levels": [
+     {
+      "key": "high",
+      "label": "High",
+      "price": 52.4
+     },
+     {
+      "key": "low",
+      "label": "Low",
+      "price": 50.1
+     }
+    ],
+    "find": {
+     "label": "The day's range",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -4179,7 +4240,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "50.0%",
     "83.3%",
@@ -4190,6 +4251,32 @@
     "200.0%": "Flipped it: divided the rally by the pullback.",
     "83.3%": "Gave the $50 price as a share of the $60 top.",
     "125.0%": "Gave the $50 price over the $40 start."
+   },
+   "visual": {
+    "kind": "ladder",
+    "title": "The rally",
+    "side": "long",
+    "levels": [
+     {
+      "key": "start",
+      "label": "Rally start",
+      "price": 40
+     },
+     {
+      "key": "top",
+      "label": "Rally top",
+      "price": 60
+     },
+     {
+      "key": "now",
+      "label": "Price now",
+      "price": 50
+     }
+    ],
+    "find": {
+     "label": "Share of the rally given back",
+     "as": "pct"
+    }
    }
   },
   {
@@ -4650,8 +4737,8 @@
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Answer was the smallest and the only non-round value. Swapped the last-three slip for first-and-last, which sits below the answer."
+   "fixed": false,
+   "notes": "Five closes in order, each stated; slot $22.80 matches key."
   },
   "q20": {
    "status": "pass",
@@ -4868,13 +4955,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
+   "notes": "High and low on one ruler; slot $2.30 matches key."
   },
   "q56": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
+   "fixed": true,
+   "notes": "'Start'/'Now' are bare: Start is the rally's start, Now is the pulled-back price; name the roles."
   },
   "q57": {
    "status": "pass",

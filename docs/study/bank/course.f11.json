@@ -817,7 +817,35 @@
    ],
    "kind": "mcq",
    "q": "You make 12 round trips a day (buy, then sell), 300 shares each, and give up a $0.03 spread each time. What does the spread cost you a day?",
-   "subject": "F11.01#q15"
+   "subject": "F11.01#q15",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Spread cost a day"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "round_trips_a_day",
+      "label": "Round trips a day",
+      "value": 12
+     },
+     {
+      "fmt": "shares",
+      "key": "shares_each",
+      "label": "Shares each",
+      "value": 300
+     },
+     {
+      "fmt": "$",
+      "key": "spread_each_time",
+      "label": "Spread each time",
+      "value": 0.03
+     }
+    ],
+    "title": "The spread's daily cost"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -2401,7 +2429,32 @@
    ],
    "kind": "mcq",
    "q": "Yesterday's high was $56, the low $48 and the close $55. What's today's base pivot point for your 5-minute chart?",
-   "subject": "F11.02#q09"
+   "subject": "F11.02#q09",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "Base pivot"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "high",
+      "label": "Yesterday's high",
+      "price": 56.0
+     },
+     {
+      "key": "close",
+      "label": "Yesterday's close",
+      "price": 55.0
+     },
+     {
+      "key": "low",
+      "label": "Yesterday's low",
+      "price": 48.0
+     }
+    ],
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -2583,7 +2636,30 @@
    ],
    "kind": "mcq",
    "q": "Weinstein's average is 30 weeks long. A normal week has 5 trading days. About how many days does it cover on a daily chart?",
-   "subject": "F11.02#q11"
+   "subject": "F11.02#q11",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Days on a daily chart",
+     "unit": "days"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "weeks_long",
+      "label": "Weeks long",
+      "value": 30
+     },
+     {
+      "fmt": "count",
+      "key": "trading_days_a_week",
+      "label": "Trading days a week",
+      "value": 5
+     }
+    ],
+    "title": "The 30-week average"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -4557,7 +4633,41 @@
    ],
    "kind": "mcq",
    "q": "A day trade in a $50,000 account: entry $18.60, stop $18.35, just under the first 10-minute low. You'll risk $200. How many shares?",
-   "subject": "F11.03#q09"
+   "subject": "F11.03#q09",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "Shares"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "account",
+      "label": "Account",
+      "value": 50000
+     },
+     {
+      "fmt": "$",
+      "key": "dollars_to_risk",
+      "label": "Dollars to risk",
+      "value": 200
+     },
+     {
+      "fmt": "$",
+      "key": "entry",
+      "label": "Entry",
+      "value": 18.6
+     },
+     {
+      "fmt": "$",
+      "key": "stop",
+      "label": "Stop",
+      "value": 18.35
+     }
+    ],
+    "title": "The day trade's size"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -5216,7 +5326,29 @@
    ],
    "kind": "mcq",
    "q": "Jeffrey Hirsch allows stops up to 20%, but no position may lose over 2% of the portfolio. With a 20% stop, how big can the position be?",
-   "subject": "F11.03#q15"
+   "subject": "F11.03#q15",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Position, % of portfolio"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "%",
+      "key": "stop_distance",
+      "label": "Stop distance",
+      "value": 20
+     },
+     {
+      "fmt": "%",
+      "key": "most_to_lose,_of_por",
+      "label": "Most to lose, of portfolio",
+      "value": 2
+     }
+    ],
+    "title": "The biggest position"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -5450,7 +5582,29 @@
    "kind": "mcq",
    "q": "What's the problem?",
    "story": "Your day trades put 25% of the account in, with stops 2% under entry. You switch to position trades, keep 25% positions, and set stops 10% under.",
-   "subject": "F11.03#q19"
+   "subject": "F11.03#q19",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Risk on the account"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "%",
+      "key": "position,_of_the_acc",
+      "label": "Position, of the account",
+      "value": 25
+     },
+     {
+      "fmt": "%",
+      "key": "new_stop_under_entry",
+      "label": "New stop under entry",
+      "value": 10
+     }
+    ],
+    "title": "Bigger stops, same size"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -5545,7 +5699,29 @@
    "kind": "mcq",
    "q": "What do you do?",
    "story": "A day trade. Your stop is 0.25% under entry, at the low of the first few minutes. You risk 1% of the account, as on your swing trades.",
-   "subject": "F11.03#q20"
+   "subject": "F11.03#q20",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Full size that risks 1%"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "%",
+      "key": "stop_under_entry",
+      "label": "Stop under entry",
+      "value": 0.25
+     },
+     {
+      "fmt": "%",
+      "key": "risk,_of_the_account",
+      "label": "Risk, of the account",
+      "value": 1
+     }
+    ],
+    "title": "A tight day-trade stop"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -8452,7 +8628,38 @@
    ],
    "kind": "mcq",
    "q": "Thin stock. 9:31: $24.80 bid, $25.10 ask. 10:30: $24.98 bid, $25.02 ask. Buy 1,000 at the ask, sell at the bid. Extra cost at 9:31 vs 10:30?",
-   "subject": "F11.05#q11"
+   "subject": "F11.05#q11",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Extra cost at 9:31"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "ask1",
+      "label": "9:31 ask",
+      "price": 25.1
+     },
+     {
+      "key": "ask2",
+      "label": "10:30 ask",
+      "price": 25.02
+     },
+     {
+      "key": "bid2",
+      "label": "10:30 bid",
+      "price": 24.98
+     },
+     {
+      "key": "bid1",
+      "label": "9:31 bid",
+      "price": 24.8
+     }
+    ],
+    "shares": 1000,
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {

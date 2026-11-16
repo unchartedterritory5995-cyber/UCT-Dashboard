@@ -14,6 +14,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 import { loadCapture, REPO } from './harness'
+import { fixturePath, itNeedsHeld } from '../../ast/__tests__/licenceHeld'
 import { __permitRuntimePaneForTests, runtimePaneEnabled } from '../../runtimePaneGate'
 import {
   __allowEveryRuntimeScriptForTests, __resetRuntimeAllowList, __resetRuntimeAdmission,
@@ -33,8 +34,10 @@ const evidence = [...new Set(Object.values(registry)
   .filter((r) => r && r.admitted === true)
   .flatMap((r) => r.evidence.map((e) => e.capture)))].sort()
 
+// ⛔ A licence-held capture (docs/pine/vendor-harness/licence-held.json) is read from the local
+// capture store when it is on this machine, and its case is SKIPPED BY NAME when it is not.
 function sourceOfCapture(id) {
-  return loadCapture(path.join(REPO, fileOf[id])).capture.source.text
+  return loadCapture(fixturePath(fileOf[id]) || path.join(REPO, fileOf[id])).capture.source.text
 }
 
 function laneOf(id) {
@@ -54,10 +57,12 @@ describe('WS-I Part 2 — every admitted capability\'s evidence was drawn by the
     expect(runtimePaneEnabled()).toBe(true)
   })
 
-  it.each(evidence)('%s takes the runtime lane', (id) => {
-    expect(fileOf[id], id).toBeTruthy()
-    expect(laneOf(id)).toBe('runtime')
-  })
+  for (const id of evidence) {
+    itNeedsHeld(fileOf[id] ? [fileOf[id]] : [], `${id} takes the runtime lane`, () => {
+      expect(fileOf[id], id).toBeTruthy()
+      expect(laneOf(id)).toBe('runtime')
+    })
+  }
 
   it('CONTROL: a capture the host draws reads host (the probe can say no)', () => {
     expect(laneOf('atr-bands-spy-1d-2026-10-03')).toBe('host')
@@ -86,10 +91,12 @@ describe('WS-I Part 2 — the reach run records the lanes the door itself answer
     expect(report.captures.filter((c) => c.lane === 'runtime').length).toBeGreaterThanOrEqual(10)
   })
 
-  it.each(report.captures.map((c) => [c.capture, c.lane]))('%s: %s', (id, lane) => {
-    const source = sourceOfCapture(id)
-    latchRuntimeAdmission(runtimeSourceHash(source), { admitted: true })
-    const d = memberPaneDefinition({ source, id: 'u_capreach', name: 'reach lane' })
-    expect(d.ok ? (d.lane || 'host') : null).toBe(lane)
-  })
+  for (const { capture: id, lane } of report.captures) {
+    itNeedsHeld(fileOf[id] ? [fileOf[id]] : [], `${id}: ${lane}`, () => {
+      const source = sourceOfCapture(id)
+      latchRuntimeAdmission(runtimeSourceHash(source), { admitted: true })
+      const d = memberPaneDefinition({ source, id: 'u_capreach', name: 'reach lane' })
+      expect(d.ok ? (d.lane || 'host') : null).toBe(lane)
+    })
+  }
 })

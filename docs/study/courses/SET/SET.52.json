@@ -1549,7 +1549,28 @@
     },
     "round": 2
    },
-   "batch": "wave5"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "open",
+      "label": "Day 3 open",
+      "price": 26.1
+     },
+     {
+      "key": "high",
+      "label": "Day 2 high",
+      "price": 24.96
+     }
+    ],
+    "find": {
+     "label": "Open over the trigger",
+     "as": "pct"
+    },
+    "title": "The trigger"
+   }
   },
   {
    "key": "q23",
@@ -3640,7 +3661,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: trigger 24.97; 26.10 / 24.97 - 1 = 4.53%, over 4%, so skip (cNoChase, h11). calc present and matches the key. Key 37 chars, not the longest (38). Dip note rests on cNoChase's skip of the trigger day, not on C28 alone; consistent with the rulebook. Pairs with q61 (the buy branch, different open): recall vs application, not a give-away."
+   "notes": "Slot is the percent over the trigger, labelled as such, not the decision. Trigger price (24.97) not stated so Day 2 high is drawn. Keep."
   },
   "q23": {
    "status": "pass",

@@ -23,8 +23,12 @@ import { legendChips } from '../readout'
 import * as engineRegistry from '../nativeRegistry'
 
 const RS = engineRegistry.getDefinition('rsLine')
+// ⭐ `name` (2026-11-12, 6026aa82a9): the plain name the pane label prints. The server's v4 payload
+// carries it (`rs_provider.py` bench_block["name"] = `rs_benchmarks.benchmark_name(bench)`, which
+// answers 'XLK' for {requested: 'SECTOR', resolved: 'XLK'}), and the chip row reads it
+// (`RS_BENCHMARK_ROW_SOURCE`, held below). This fixture predated the field and carried `resolved` only.
 const PAYLOAD = Object.freeze({
-  benchmark: { requested: 'SECTOR', resolved: 'XLK', label: 'Technology (XLK)', fallback: null, bars: 852 },
+  benchmark: { requested: 'SECTOR', resolved: 'XLK', label: 'Technology (XLK)', fallback: null, bars: 852, name: 'XLK' },
   rating: { ibd: 94, fast: 55, asof: '2026-11-05', d5: 2, d20: 7, source: 'row', summary: '94 · fast 55',
     m1: 91, m3: 97, m6: 95, m12: 96, components: '1M 91 · 3M 97 · 6M 95 · 12M 96' },
 })
@@ -35,6 +39,13 @@ const chip = (inputs = {}, payload = PAYLOAD) => {
   const inst = { instanceId: 'inst:rsLine:1', defId: 'rsLine', inputs: { benchmark: 'SECTOR', ...inputs }, hidden: false }
   return legendChips([b], null, engineRegistry, [inst], { scalarsOf: () => payload })[0]
 }
+
+describe('the fixture is the payload the chip reads', () => {
+  it('the pane-label benchmark row reads `benchmark.name`, the field this fixture carries', () => {
+    expect(RS.readout.find((r) => r.key === 'benchmark').source).toBe('scalar:benchmark.name')
+    expect(PAYLOAD.benchmark.name).toBe('XLK')
+  })
+})
 
 describe('the RS definition declares the rating inputs the plan names (§6.3)', () => {
   it('showRating (Simple), headlineRating, showComponents and ratingBands (Rating), with their defaults', () => {

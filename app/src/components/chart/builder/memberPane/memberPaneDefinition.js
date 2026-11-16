@@ -35,6 +35,7 @@ registerStrategyBrokerGate(strategyBrokerEnabled)
 import { PINE_RECURRENCE_ORIGIN } from '../../engine/nativeRegistry'
 import { naConditionIsFalse } from '../../engine/ast/interpret'
 import { probeRuntimeProgram, probeObjectRuntime, runtimeVersionStamp, colourInputsTheRunReads } from '../../engine/runtime/runtimeColumns'
+import { requestTargetsUnservable } from '../../engine/runtime/requestSupply'
 import { STRATEGY_WINDOW_HISTORY } from '../../engine/runtime/strategyRecord'
 import { runtimeRepaintOf } from '../../engine/runtime/runtimeRepaint'
 import { OHLC_DEF_STYLES } from '../../engine/defSchema'
@@ -62,6 +63,8 @@ import { buildDefinition } from '../BuilderSheet'
 import { DOOR_VERSION } from '../../engine/memberDocumentMigration'
 import { evaluateFormula } from '../FormulaField'
 import { BUILDER_INPUT_SCOPE, seriesNamesOf, memberInputKey } from '../builderInputs'
+// ⭐ RS RATING L3 — the substituted-value disclosure (`syminfo.industry` / `sector` from UCT data).
+import { substitutionNotesFor } from '../../engine/ast/symbolSubstitution'
 
 /** ⭐ ≈ A QUARTER OF THE CHART, and the unit is the schema's own.
  *  `defSchema` validates `placement.pane.height` as a FRACTION in (0, 1) — a
@@ -851,6 +854,13 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     seen.add(`${drawingNote.name} :: ${drawingNote.note}`)
     notes.push(drawingNote)
   }
+  // ⭐⭐ RS RATING L3 — A VALUE FROM UCT DATA IN PLACE OF TRADINGVIEW'S IS SAID SO, BY NAME
+  // (`syminfo.industry` / `syminfo.sector`, `bind.js::classificationWith`). The program's
+  // substitution rule: disclosed at the member door, never passed off as TradingView's.
+  for (const n of substitutionNotesFor(source)) {
+    seen.add(`${n.name} :: ${n.note}`)
+    notes.push(n)
+  }
   for (const o of (t.outputs || [])) {
     for (const n of [...alertNoteForOutput(o), ...foldNotesForOutput(o)]) {
       const key = `${n.name} :: ${n.note}`
@@ -1075,9 +1085,14 @@ function hostPartialRunHalf({ source, id, t, objectsGate, drawable, definition, 
     return declined(r.guard || 'runtime', `${r.guard || 'runtime'}${r.message ? ` — ${r.message}` : ''}`)
   }
   if (!(probe.objectOps > 0)) return declined('run-half:no-object-ops', 'the run lowered no drawing operation')
+  // ⭐⭐ RS RATING L5 (d) — the run is handed its requested bars by the host's rules
+  // (`runtime/requestSupply.js`), so a run half is minted when every request is one those rules
+  // can serve on some chart (the host's reading of it settled, look-ahead off, the chart's own
+  // timeframe or a weekly / monthly merge). Which chart serves it is the bind's, per chart, by
+  // name. The host document's own `meta.otherSymbols` makes the chart fetch what it reads.
   if (probe.requests > 0) {
-    return declined('runtime:request', `${probe.requests} \`request.security\` ${probe.requests === 1 ? 'reads' : 'read'} `
-      + "another symbol or timeframe, and the run is handed only the chart's own bars")
+    const why = requestTargetsUnservable(probe.requestTargets, probe.requests)
+    if (why) return declined('runtime:request', why)
   }
   if (probe.naTests > 0) {
     return declined('runtime:na-test', `${probe.naTests} ${probe.naTests === 1 ? 'condition' : 'conditions'} can read `
@@ -1642,9 +1657,17 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // passes no `requestBars`), so every value would be `na` where TradingView
   // draws one. The regex gate this replaces declined every `request.` by
   // accident; now that the class is stated, the decline has to be said.
+  // ⭐ RS RATING L5 — this chart's OWN symbol at a weekly / monthly merge is supplied to the
+  // run (`runtime/requestSupply.js`). Another symbol is not: a document drawn bar by bar carries
+  // no spelling table for the chart to fetch it by, so it keeps this decline, named.
   if (probe.requests > 0) {
-    return decline('runtime:request', `${probe.requests} \`request.security\` ${probe.requests === 1 ? 'reads' : 'read'} `
-      + "another symbol or timeframe, and this pane holds only the chart's own bars, so it is not drawn bar by bar")
+    const why = requestTargetsUnservable(probe.requestTargets, probe.requests)
+      || ((probe.requestTargets || []).some((t) => t && t.ticker)
+        ? 'it reads another symbol, which a script drawn bar by bar on its own pane is not handed yet' : null)
+    if (why) {
+      return decline('runtime:request', `${probe.requests} \`request.security\` ${probe.requests === 1 ? 'reads' : 'read'} `
+        + `another symbol or timeframe: ${why}, so it is not drawn bar by bar`)
+    }
   }
   // ⛔ RT1 — A `?:` WHOSE TEST CAN BE `na`, refused by name on the FALLBACK
   // (`lowerIr.js::naTestsOf` has the two vendor captures): this lane answers `na`
@@ -2044,6 +2067,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
         + 'which a script drawn bar by bar does not draw here yet. Its lines are drawn; those are not.',
     })
   }
+  // ⭐⭐ RS RATING L3 — the substituted-value disclosure, the same sentence the host document says.
+  notes.push(...substitutionNotesFor(source))
   const drawingNote = ownObjects || own.hostWithheld ? null : objectLossNote(objectsGate.loss, { withheld: !objectsGate.draw })
   if (drawingNote) notes.unshift(drawingNote)
   if (!ownObjects && own.hostWithheld && hostWouldDraw) {

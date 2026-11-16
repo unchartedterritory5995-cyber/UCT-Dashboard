@@ -1400,7 +1400,7 @@
      "fixed before (LDOS's prior close was read as its low)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$1.00",
     "$2.00",
@@ -1411,6 +1411,27 @@
     "$1.00": "Stopped at the middle, half the gap.",
     "$4.00": "Counted the gap twice.",
     "$0.20": "Slipped the decimal point a place."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "low",
+      "label": "Yesterday's low",
+      "price": 46.0
+     },
+     {
+      "key": "high",
+      "label": "Gap day's high",
+      "price": 44.0
+     }
+    ],
+    "find": {
+     "label": "Window width",
+     "as": "dollars"
+    },
+    "title": "The window"
    }
   },
   {
@@ -3893,7 +3914,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "46-44 = 2.00. $1.00 half, $4.00 doubled, $0.20 decimal slip. Fine."
+   "notes": "Roles, find label, slot format and ladder checked; ok."
   },
   "q20": {
    "status": "pass",

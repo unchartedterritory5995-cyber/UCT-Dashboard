@@ -1962,7 +1962,7 @@
      "the 1.4 times line is a proposed card gate that D-006 may turn into a grade cue"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "1,680,000 shares",
     "16,800,000 shares",
@@ -1973,6 +1973,27 @@
     "16,800,000 shares": "That is ten times too many. A decimal slip.",
     "2,880,000 shares": "That adds the base again on top of 1.4 times.",
     "2,600,000 shares": "Added 1.4 million to the average instead of multiplying by 1.4."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The breakout volume",
+    "rows": [
+     {
+      "key": "adv",
+      "label": "Base average a day",
+      "value": 1200000,
+      "fmt": "shares"
+     },
+     {
+      "key": "mult",
+      "label": "Our top grade, times average",
+      "value": 1.4
+     }
+    ],
+    "find": {
+     "label": "Shares on breakout day",
+     "as": "shares"
+    }
    }
   },
   {
@@ -4400,8 +4421,8 @@
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Rank ok. Doubling is not a natural slip on 1.4 times; replaced with adding 1.4 million instead of multiplying."
+   "fixed": false,
+   "notes": "Roles, find label, slot format and ladder checked; ok."
   },
   "q25": {
    "status": "pass",

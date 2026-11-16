@@ -2120,7 +2120,7 @@
    "depends_on": [
     "D-046"
    ],
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "60.0%",
     "13.3%",
@@ -2131,6 +2131,32 @@
     "13.3%": "Divided the drop by the pole top price, not the pole's height.",
     "15.4%": "Divided the drop by the flag low price.",
     "60.0%": "Gave the share of the pole kept, not given back."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "high",
+      "label": "Pole top",
+      "price": 45.0
+     },
+     {
+      "key": "flag",
+      "label": "Flag low",
+      "price": 39.0
+     },
+     {
+      "key": "low",
+      "label": "Pole low",
+      "price": 30.0
+     }
+    ],
+    "find": {
+     "label": "Share of pole given back",
+     "as": "pct"
+    },
+    "title": "The pole and flag"
    }
   },
   {
@@ -4026,7 +4052,7 @@
      "rests on the card's grade row"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$70.00",
     "$57.14",
@@ -4037,6 +4063,22 @@
     "$70.00": "Added 30 dollars, not 30 percent.",
     "$57.14": "Divided by the remainder instead of adding the gain.",
     "$120.00": "Multiplied by 3 instead of 1.3."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "low",
+      "label": "Lowest low",
+      "price": 40.0
+     }
+    ],
+    "find": {
+     "label": "30% above it",
+     "as": "price"
+    },
+    "title": "Before the pole"
    }
   },
   {
@@ -4662,8 +4704,8 @@
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Math right (6/15=40; 6/45=13.3; 60; 6/39=15.4). The answer was the only whole number among decimals, a tell; one decimal on all. Why lacked 15 and 6."
+   "fixed": false,
+   "notes": "Roles, find label, slot format and ladder checked; ok."
   },
   "q26": {
    "status": "pass",
@@ -4928,7 +4970,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
+   "notes": "Borderline (one given line), but the 30% is stated and in the label. Keep."
   },
   "q70": {
    "status": "pass",

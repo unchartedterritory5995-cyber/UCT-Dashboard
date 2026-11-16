@@ -404,7 +404,9 @@ class Census:
         return bool((self.scripts.get(k) or {}).get("clean"))
 
     def matched(self, k) -> bool:
-        return (self.scripts.get(k) or {}).get("vendorVerdict") == "MATCH"
+        # ⛔ L7: PROVEN-exact only. A MATCH_SUBSTITUTED script is not "matched" here: its substituted
+        # inputs are unproven, so a census that ranks what MATCH would unblock never counts it.
+        return el.is_match((self.scripts.get(k) or {}).get("vendorVerdict"))
 
     def unblocks(self, guards: set, named: set, direct: set) -> dict:
         guards = set(guards)
@@ -1132,6 +1134,8 @@ def build_packet(run_dir: pathlib.Path, world: World | None = None, verifier=Non
             "symbol": (cap.get("symbol") or {}).get("pro_name"), "timeframe": cap.get("timeframe"),
             "bars": (cap.get("bars") or {}).get("count"), "startsAtBar0": (cap.get("history") or {}).get("startsAtBar0"),
             "verdict": (v or {}).get("verdict"), "reason": (v or {}).get("reason"),
+            # ⭐ L7 — the substituted inputs the grade ran with (filed on the ledger lane)
+            "substituted": (v or {}).get("substituted"),
             "firstDivergence": first_divergence(v),
             "licence": g["licence"], "queueTargetId": man.get("queueTargetId"), "rows": man.get("rows") or [],
             # was this chart ASKED (by a row, a section, a preamble, the census pool) or a guess? None: the
@@ -1268,7 +1272,9 @@ def promote(run_dir: pathlib.Path, packet_sha: str, world: World | None = None, 
         # ⛔ the row is the VERDICT and what re-checks it: never the source, never the provenance/account
         ledger_rows.append(el.make_row(
             capture=json.loads(cap_bytes.decode("utf-8")), capture_bytes=cap_bytes,
-            verdicts={lane: {"verdict": i["verdict"], "reason": i["reason"]}}, filed_by="promote",
+            verdicts={lane: {"verdict": i["verdict"], "reason": i["reason"],
+                             **({"substituted": i["substituted"]} if i.get("substituted") else {})}},
+            filed_by="promote",
             licence=i["licence"], engine=gs["scriptEngineVersion"], grader=gs["graderVersion"],
             stamp=gs.get("gradedAtUTC") or stamp, packetSha256=sha, firstDivergence=i["firstDivergence"],
             promoted=i["action"] == "PROMOTE",
@@ -1555,10 +1561,12 @@ def resolve_pins(pins: dict, ledger_rows: list, sources: dict | None = None) -> 
         cid = r.get("captureId")
         if cid:
             v = r.get("verdict")
-            if v == "MATCH" and r.get("schema") == STRATEGY_VERDICT_SCHEMA \
+            if el.is_match(v) and r.get("schema") == STRATEGY_VERDICT_SCHEMA \
                     and not (isinstance(r.get("graded"), dict) and r["graded"].get("fills") is True):
                 v = FILLS_REFUSED   # a trade-list match is not a fill-by-fill match
-            if v == "MATCH" and cid in pinned_ids:
+            # ⛔ L7: only a PROVEN-exact MATCH pins a broker rule; MATCH_SUBSTITUTED un-pins it, like any
+            # non-MATCH (`el.is_match`)
+            if el.is_match(v) and cid in pinned_ids:
                 table = table or settings_property_table()
                 if sources is None:
                     sources = committed_sources_by_sha()
@@ -1576,8 +1584,8 @@ def resolve_pins(pins: dict, ledger_rows: list, sources: dict | None = None) -> 
         missing = [i for i in ids if i not in verdicts]
         if missing:
             raise PinResolveError(f"rule {rule!r}: no committed verdict for fixture(s) {sorted(missing)}")
-        listed_ok = all(v == "MATCH" and ex is not None and rule in ex for i in ids for v, ex in verdicts[i])
-        every_exerciser_ok = all(v == "MATCH" for v in exercised_by.get(rule, []))
+        listed_ok = all(el.is_match(v) and ex is not None and rule in ex for i in ids for v, ex in verdicts[i])
+        every_exerciser_ok = all(el.is_match(v) for v in exercised_by.get(rule, []))
         if listed_ok and every_exerciser_ok:
             kept[rule] = sorted(set(ids))
     return {"schema": PINS_RESOLVED_SCHEMA, "rules": kept}

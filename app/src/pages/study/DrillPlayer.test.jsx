@@ -276,6 +276,24 @@ describe('DrillPlayer', () => {
     expect(screen.queryByTestId('drill-key')).not.toBeInTheDocument()
   })
 
+  it('calls an intraday course chart\'s decision point the decision BAR', async () => {
+    const set = tenSet()
+    const intraday = item('recall', 'si_c5', { question: 'What is a pivot?', kind: 'mcq', choices: ['The buy point', 'The stop', 'The target', 'The low'] }, true)
+    const t0 = 1789479000   // 2026-09-15 09:30 New York
+    intraday.bars = { symbol: 'si_c5', tf: '5', bars: Array.from({ length: 20 }, (_, i) => ({ t: t0 + i * 300, o: 100, h: 101, l: 99, c: 100.5, v: 1000 })) }
+    set.items[0] = intraday
+    render(<DrillPlayer open onClose={() => {}} fetcher={makeFetcher(set)} />)
+    await screen.findByTestId('stock-chart')
+    await answerChoice('The buy point')
+    fireEvent.click(screen.getByTestId('drill-takeover-go'))
+    await screen.findByTestId('drill-replay-skip')
+    expect(screen.getByTestId('stock-chart').getAttribute('data-markers')).toBe('DECISION BAR')
+    // on the decision bar itself, in the chart's own intraday time (New York wall clock as UTC), never the bar's raw
+    // unix time, which StockChart would draw four hours late (on the newest bar while the replay plays)
+    const decisionT = 1789479000 + 19 * 300
+    expect(screen.getByTestId('stock-chart').getAttribute('data-marker-days')).toBe(`DECISION BAR@${decisionT - 14400}`)
+  })
+
   // the visuals plan, step 3 (2026-11-15): a computed question shows its picture card (prompt_json.visual) under the
   // question; the answer slot asks until the verdict screen closes, then fills from the reveal's calc with the working
   it('fills a computed question\'s card only once the verdict screen closes', async () => {

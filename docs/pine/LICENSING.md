@@ -100,6 +100,44 @@ sha256 is the sample's. Otherwise:
   retires each one once a v2 row files the same capture; the file is otherwise append-only.
 - Commit the ledger diff. Never commit a held capture.
 
+## 2d. The second door: source embedded in a fixture (2026-11-15)
+
+The corpus rail walks `corpus/`. A third-party script also reaches git **inside a fixture**: the
+`source.text` of a vendor capture, or a `.pine` copied next to a tool. Two did:
+
+- `tests/fixtures/vendor/harness/supertrend-kivancozbilgic-rddt-1d-2026-10-02.json` (`cce0701fe`)
+  carried the full source of a script with **no licence line**. It was admitted because its sha256
+  matched a `tests/fixtures/pine_oos` record, and that record says `storage: "local-only"`.
+- 22 `.pine` files in `tools/c0_oos_fixtures`, `tools/c0_parity_fixtures` and
+  `tools/c3a_parity_fixtures` (`e855f62cd`) were byte copies of 13 local-only OOS members (no licence
+  line, or CC BY-NC-SA), committed in the same change that gitignored them under `pine_oos`.
+
+All 23 were removed on 2026-11-15. **Git history still contains those commits**: nothing was
+rewritten, and a force-push is not an option. What left, by path and hash only, is
+`docs/pine/vendor-harness/licence-held.json`. The bytes are in the local capture store
+(`$UCT_VENDOR_CAPTURE_STORE`, default `%LOCALAPPDATA%/uct-vendor-batch/runs`, under
+`licence-moved-2026-11-15/`), where `regrade` grades the capture and files its ledger row. A rail that
+read one of them now runs when the file is on the machine (checked against its recorded hash) and
+skips **by name, with the ledger verdict** when it is not: `licenceHeld.js` (JS) and
+`tools/vendor_harness/licence_held.py` (Python).
+
+**The guard** is `tests/test_corpus_licence_rail.py::TestEmbeddedSources`, over
+`tools/pine_survey/fixture_licence.py`. It reads every committed vendor capture (anywhere), every file
+under `tests/fixtures/vendor/`, and every `.pine` under `tools/`, and fails by file and JSON path on any
+embedded source that is not a committed probe, a `UCTPROBE_` probe, a `corpus/committed/` file, an
+explicit permitted header, or a source written here and listed **by hash** in `IN_HOUSE`.
+
+**A translation is a derivative too.** `tests/fixtures/graph_wire/u_c2d900000005.json` held no Pine
+text: it was the save door's translated document of the CC BY-NC-SA `coppock-curve-multi-filter`
+member. It left the tree on 2026-11-15 the same way (registry kind `derived`, gitignored so the
+emitter's local re-write can never be committed). `TestDerivedDocuments` flags any committed
+definition document (`compute` + `meta.name`) named after a held script: a local-only or unpublished
+`pine_oos` member, or a `corpus/reference/` script whose verdict is not `commit`.
+
+**Quoting is copying.** A comment or test does not reproduce a recognisable line of a held script; it
+describes the shape in our own words. Shared Pine idioms and lines of MPL-licensed derivatives are
+not quotes of the held script.
+
 ## 3. Legacy fixtures are exempt
 
 `tests/fixtures/pine`, `pine_community`, `pine_blind` and `pine_screener` predate this
@@ -138,5 +176,5 @@ component name, or marketing line implies endorsement by or affiliation with Tra
 ## 6. What this policy is not
 
 It is not a general licence-compliance programme, and there is no further licence work
-beyond keeping non-permitted scripts out of the committed corpus. The rail is scoped to
-`corpus/committed/`; that is the whole of it.
+beyond keeping non-permitted scripts out of what we commit. The rails are scoped to `corpus/`
+(§1) and to the fixtures §2d names; that is the whole of it.

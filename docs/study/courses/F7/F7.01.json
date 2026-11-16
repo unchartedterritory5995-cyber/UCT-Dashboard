@@ -1445,7 +1445,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "10%",
     "1%",
@@ -1456,6 +1456,28 @@
     "5%": "Subtracts 20 from 25. The rise is figured on a smaller base.",
     "20%": "Takes the 20% rise as the new gap to the record.",
     "1%": "Slips a decimal place."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Fall, then a bounce",
+    "rows": [
+     {
+      "key": "fall_from_the_record",
+      "label": "Fall from the record",
+      "value": 25,
+      "fmt": "%"
+     },
+     {
+      "key": "rise_off_the_low",
+      "label": "Rise off the low",
+      "value": 20,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Below the old record",
+     "as": "pct"
+    }
    }
   },
   {
@@ -1590,7 +1612,13 @@
     "score": 0,
     "reasons": []
    },
-   "batch": "wave6"
+   "batch": "history-charts-2026-11-15",
+   "chart": {
+    "sym": "SPY",
+    "asof": "2022-06-13",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q22",
@@ -1682,7 +1710,13 @@
      "fixed before (checker 2026-11-09)"
     ]
    },
-   "batch": "wave6"
+   "batch": "history-charts-2026-11-15",
+   "chart": {
+    "sym": "SPY",
+    "asof": "2025-04-03",
+    "window": 250,
+    "forward": 60
+   }
   },
   {
    "key": "q24",
@@ -2030,7 +2064,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
+   "notes": "fall from record and rise off the low; 'Below the old record'; key '10%'"
   },
   "q19": {
    "status": "pass",
@@ -2048,7 +2082,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Changed note only: 'the low marks the end' is f22 (S&P DJI dates the end at the low). q16 plays earlier (rung 5), so it does not give away q16."
+   "notes": "cold re-read 2026-11-15 (session lead): the chart and the words agree; check_course_charts 0 problems; the outcome the words name confirmed in the closes"
   },
   "q22": {
    "status": "pass",
@@ -2060,7 +2094,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: only the S&P 500's own 20% close counts (f19). New Dow choice is a wrong condition in the key's form; note grounded in f19. No second defensible answer: no 20% definition makes the S&P 500 wait on the Dow."
+   "notes": "cold re-read 2026-11-15 (session lead): the chart and the words agree; check_course_charts 0 problems; the outcome the words name confirmed in the closes"
   },
   "q24": {
    "status": "pass",
