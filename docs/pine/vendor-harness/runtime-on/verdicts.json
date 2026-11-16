@@ -82184,9 +82184,9 @@
     "absReason": "1e-6 of the tick (pricescale 100)"
    },
    "objects": {
-    "verdict": "DIVERGE",
-    "verdictWithoutColour": "DIVERGE",
-    "reason": "1 object families differ (count or text); colours agree on 98 paired slots; coordinates are NOT compared by v1",
+    "verdict": "MATCH",
+    "verdictWithoutColour": "MATCH",
+    "reason": "object counts and texts agree; colours agree on 100 paired slots; coordinates are NOT compared by v1",
     "counts": [
      {
       "family": "lines",
@@ -82222,13 +82222,9 @@
     "texts": [
      {
       "family": "labels text",
-      "agree": false,
-      "onlyVendor": [
-       "654.41"
-      ],
-      "onlyOurs": [
-       "654.4"
-      ]
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
      },
      {
       "family": "tableCells text",
@@ -82241,8 +82237,8 @@
      {
       "family": "labels colour",
       "agree": true,
-      "slots": 98,
-      "agreeing": 98,
+      "slots": 100,
+      "agreeing": 100,
       "themeRelative": 0,
       "differing": 0,
       "undecodable": 0,
@@ -82253,41 +82249,25 @@
      }
     ],
     "colourUnpaired": {
-     "ours": 1,
-     "vendor": 1
+     "ours": 0,
+     "vendor": 0
     }
    },
-   "verdict": "DIVERGE",
-   "reason": "1 of 2 compared items diverge",
-   "verdictWithoutColour": "DIVERGE",
+   "verdict": "MATCH",
+   "reason": "all 2 items agree",
+   "verdictWithoutColour": "MATCH",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
    "objectsV2": {
-    "verdict": "DIVERGE",
-    "verdictWithoutX": "DIVERGE",
-    "v1": "DIVERGE",
+    "verdict": "MATCH",
+    "verdictWithoutX": "MATCH",
+    "v1": "MATCH",
     "pairedNothing": false,
     "differsOnlyByCreationOrder": false,
-    "reason": "1 object family differs field by field (first: labels text of label #795 — vendor \"654.41\", ours \"654.4\"); x: 50 graded, 0 differ (exact bar); v1: 1 object families differ (count or text); colours agree on 98 paired slots; coordinates are NOT compared by v1; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
-    "first": {
-     "family": "labels",
-     "field": "text",
-     "vendor": "654.41",
-     "ours": "654.4",
-     "vendorId": 795,
-     "ourId": 795,
-     "where": "label #795"
-    },
-    "firstWithoutX": {
-     "family": "labels",
-     "field": "text",
-     "vendor": "654.41",
-     "ours": "654.4",
-     "vendorId": 795,
-     "ourId": 795,
-     "where": "label #795"
-    },
+    "reason": "every paired record agrees on 450 graded fields; x: 50 graded, 0 differ (exact bar); v1: object counts and texts agree; colours agree on 100 paired slots; coordinates are NOT compared by v1; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
+    "first": null,
+    "firstWithoutX": null,
     "x": {
      "graded": 50,
      "agreeing": 50,
@@ -82329,8 +82309,8 @@
       "unpairedVendor": 0,
       "unpairedOurs": 0,
       "graded": 450,
-      "agreeing": 449,
-      "differing": 1,
+      "agreeing": 450,
+      "differing": 0,
       "notGraded": 0,
       "undecoded": {},
       "byField": {
@@ -82350,8 +82330,8 @@
         "notGraded": 0
        },
        "text": {
-        "agree": 49,
-        "differ": 1,
+        "agree": 50,
+        "differ": 0,
         "notGraded": 0
        },
        "style": {
@@ -82385,24 +82365,10 @@
         "notGraded": 0
        }
       },
-      "first": {
-       "field": "text",
-       "vendor": "654.41",
-       "ours": "654.4",
-       "vendorId": 795,
-       "ourId": 795,
-       "where": "label #795"
-      },
-      "firstWithoutX": {
-       "field": "text",
-       "vendor": "654.41",
-       "ours": "654.4",
-       "vendorId": 795,
-       "ourId": 795,
-       "where": "label #795"
-      },
-      "agree": false,
-      "agreeWithoutX": false,
+      "first": null,
+      "firstWithoutX": null,
+      "agree": true,
+      "agreeWithoutX": true,
       "x": {
        "graded": 50,
        "agreeing": 50,

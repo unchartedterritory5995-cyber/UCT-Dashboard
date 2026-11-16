@@ -11,6 +11,7 @@ Server-side web search: $10 per 1,000 searches.
 """
 import logging
 import os
+import threading
 import time
 
 from api.services.catalyst import store
@@ -19,6 +20,14 @@ logger = logging.getLogger(__name__)
 
 _SOFT_CAP_LOGGED_FOR_DATE: str | None = None
 _HARD_CAP_TRIPPED = False
+
+# ⭐ SPEND THAT WAS MADE BUT COULD NOT BE WRITTEN (Studio plan, section 8: "spend recording
+# that fails closed"). A call that was paid for and then failed to reach the ledger used to
+# advance no cap at all, so the next call was admitted as if it had never happened. It is now
+# kept here, per ET day and ticker, and every reader below counts it. ⚠️ PER PROCESS, like
+# `definition_concierge._USER_SPEND`: a second process keeps its own.
+_UNRECORDED: dict = {}
+_UNRECORDED_LOCK = threading.Lock()
 
 # Per-million-token rates. MUST carry an entry for whatever CATALYST_OPUS_MODEL /
 # CONCIERGE_MODEL resolve to — estimate_cost() prices an unknown model at the
@@ -166,7 +175,9 @@ def spend_by_kind(market_date: str) -> dict:
     out = {"total": 0.0, INTERACTIVE: 0.0, BACKGROUND: 0.0, "lanes": {
         "concierge": 0.0, "vision": 0.0, "synthesis": 0.0,
         "scheduled_support": 0.0, "other_background": 0.0}}
-    for ticker, usd in store.spend_by_ticker(market_date):
+    with _UNRECORDED_LOCK:
+        unrecorded = [(t, u) for (d, t), u in _UNRECORDED.items() if d == market_date]
+    for ticker, usd in list(store.spend_by_ticker(market_date)) + unrecorded:
         usd = float(usd or 0.0)
         out["total"] += usd
         out[lane_kind(ticker)] += usd
@@ -204,7 +215,12 @@ def may_synthesize(market_date: str) -> bool:
     soft = float(os.environ.get("CATALYST_COST_CAP_DAILY", "8.00"))
     hard = hard_cap_usd()
 
-    s = spend_by_kind(market_date)
+    try:
+        s = spend_by_kind(market_date)
+    except Exception:                               # noqa: BLE001
+        # ⛔ FAILS CLOSED: "skip this AI call" when the ledger cannot be read.
+        logger.exception("[cost_guard] ledger unreadable for %s; AI call skipped", market_date)
+        return False
     spent = s["total"]
 
     if spent >= hard:
@@ -246,7 +262,12 @@ def may_member_spend(market_date: str) -> bool:
     in-flight guard (`definition_concierge.interactive_slot`) bound that to one call
     per member. indicator-vision does not rely on this: it also takes
     `reserve_member_call`, which admits against the worst case."""
-    s = spend_by_kind(market_date)
+    try:
+        s = spend_by_kind(market_date)
+    except Exception:                               # noqa: BLE001
+        # ⛔ FAILS CLOSED: a ledger that cannot be read cannot say there is room.
+        logger.exception("[cost_guard] ledger unreadable for %s; member AI refused", market_date)
+        return False
     hard, limit = hard_cap_usd(), interactive_limit_usd()
     if s["total"] >= hard or s[INTERACTIVE] >= limit:
         logger.warning(
@@ -369,7 +390,17 @@ def record(market_date: str, ticker: str, model: str,
         cache_read_tokens=cache_read_tokens,
         cache_creation_tokens=cache_creation_tokens)
     cost += max(0, int(search_requests or 0)) * _WEB_SEARCH_USD_EACH
-    store.log_cost(market_date=market_date, ticker=ticker, model=model,
-                   input_tokens=input_tokens, output_tokens=output_tokens,
-                   cost_usd=cost, was_cached=was_cached)
+    try:
+        store.log_cost(market_date=market_date, ticker=ticker, model=model,
+                       input_tokens=input_tokens, output_tokens=output_tokens,
+                       cost_usd=cost, was_cached=was_cached)
+    except Exception:                               # noqa: BLE001
+        # ⛔ THE CALL WAS MADE AND PAID FOR. Not writing it down must not make it free:
+        # it is counted here, and every cap reader adds it (`spend_by_kind`).
+        logger.exception("[cost_guard] could not record $%.4f for %s; counted in this process",
+                         cost, ticker)
+        with _UNRECORDED_LOCK:
+            for k in [k for k in _UNRECORDED if k[0] != market_date]:
+                del _UNRECORDED[k]                  # only the day in hand is kept
+            _UNRECORDED[(market_date, ticker)] = _UNRECORDED.get((market_date, ticker), 0.0) + cost
     return cost
