@@ -169,7 +169,7 @@ def test_volume_aggregates_at_most_once_a_second_and_only_to_volume_holders():
     async def go():
         c = FakeConn([hello("w1"), desired_full(owners=vol)])
         other = FakeConn([hello("w2"), desired_full(owners={"bars": {"ZZV": frozenset({"A"})}})])
-        t = await run_until(c, rig.srv, lambda: "w1" in rig.srv.clients)
+        t = await run_until(c, rig.srv, lambda: "ZZV" in rig.rt.side._vol_syms)
         t2 = await run_until(other, rig.srv, lambda: "w2" in rig.srv.clients)
         A(rig, "ZZV", T0 + 1000, 10.0, 1_000)
         await until(lambda: agg_in(c, "ZZV"))
@@ -199,8 +199,9 @@ def test_tas_prints_reach_only_tas_holders_with_their_conditions():
     async def go():
         c = FakeConn([hello("w1"), desired_full(owners=own, tas=frozenset({"ZZT"}))])
         other = FakeConn([hello("w2"), desired_full(owners=own)])
-        t = await run_until(c, rig.srv, lambda: "w1" in rig.srv.clients)
-        t2 = await run_until(other, rig.srv, lambda: "w2" in rig.srv.clients)
+        t = await run_until(c, rig.srv, lambda: "ZZT" in rig.rt.side._tas_routes)
+        t2 = await run_until(other, rig.srv, lambda: "ZZT" in rig.rt._sym_routes
+                             and len(rig.rt._sym_routes["ZZT"]) == 2)
         T(rig, "ZZT", T0 + 1000, 10.0, 100, c=[12, 37])
         T(rig, "ZZT", T0 + 1001, 10.1, 50)
         await until(lambda: len(tas_in(c, "ZZT")) == 2)
@@ -222,8 +223,7 @@ def test_tas_is_capped_at_twenty_symbols_per_client():
 
     async def go():
         c = FakeConn([hello(), desired_full(owners=own, tas=frozenset(syms))])
-        t = await run_until(c, rig.srv, lambda: "web-1" in rig.srv.clients)
-        await asyncio.sleep(0.02)
+        t = await run_until(c, rig.srv, lambda: len(rig.rt.side._tas_routes) == 21)
         for i, s in enumerate(syms):
             T(rig, s, T0 + 1000 + i, 10.0)
         await until(lambda: rig.rt.side.counters["tas_rejected"] == 1)
@@ -237,3 +237,123 @@ def test_status_reports_the_side_feeds():
     rig = Rig()
     st = rig.rt.status()["side_feeds"]
     assert st["rt"] == {"hi": 0, "lo": 0} and st["nhnl_symbols"] == 0
+
+
+# ── review fixes: sessions, stale state, snapshots ────────────────────────────
+
+def test_a_newer_session_seed_replaces_and_a_stale_one_is_ignored():
+    rig = Rig()
+    pre = {**SEED, "sk": 202611160}                        # pre-market marks
+    rth = {"hod": 9.6, "lod": 9.4, "nh": 0, "nl": 0, "last": 9.5, "sk": 202611161}
+
+    async def go():
+        old = FakeConn([hello("old"), desired_full(owners=NH_OWN, seeds={"ZZA": pre})])
+        t_old = await run_until(old, rig.srv, lambda: nhnl_in(old, "ZZA"))
+        await old.close()                                  # leased, still holding the PRE seed
+        await asyncio.wait_for(t_old, 2)
+        c = FakeConn([hello("new"), desired_full(owners=NH_OWN, seeds={"ZZA": rth})])
+        t = await run_until(c, rig.srv, lambda: nhnl_in(c, "ZZA"))
+        st = nhnl_in(c, "ZZA")[-1]
+        assert (st["hod"], st["nh"], st["sk"]) == (9.6, 0, 202611161), "RTH starts from its own seed"
+        T(rig, "ZZA", T0 + 1000, 9.8)                      # below the pre-market high: still a new RTH high
+        await until(lambda: nhnl_in(c, "ZZA")[-1]["nh"] == 1)
+        await c.close()
+        await asyncio.wait_for(t, 2)
+    asyncio.run(go())
+
+
+def test_a_corrected_seed_is_sent_and_a_bad_one_is_counted_once():
+    rig = Rig()
+
+    async def go():
+        c = FakeConn([hello(), desired_full(owners=NH_OWN, seeds={"ZZA": {"hod": "x"}})])
+        t = await run_until(c, rig.srv, lambda: rig.rt.side.counters["nhnl_bad_seeds"] == 1)
+        c.inbox.put_nowait(enc(fp.Patch(gen=1, seq=1, keys_add=frozenset({("ZZA", "1")}))))
+        await asyncio.sleep(0.03)
+        assert rig.rt.side.counters["nhnl_bad_seeds"] == 1, "a re-sync does not re-count it"
+        c.inbox.put_nowait(enc(fp.Patch(gen=1, seq=2, nhnl_seeds={"ZZA": SEED})))
+        await until(lambda: nhnl_in(c, "ZZA"))
+        assert nhnl_in(c, "ZZA")[-1]["nh"] == 2
+        await c.close()
+        await asyncio.wait_for(t, 2)
+    asyncio.run(go())
+
+
+def test_volume_never_sends_yesterdays_aggregate_or_a_backwards_av():
+    rig = Rig()
+    vol = {"volume": {"ZZV": frozenset({"A", "AM"})}}
+
+    async def go():
+        c = FakeConn([hello("w1"), desired_full(owners=vol)])
+        t = await run_until(c, rig.srv, lambda: "ZZV" in rig.rt.side._vol_syms)
+        A(rig, "ZZV", T0 + 1000, 10.0, 5_000)
+        await until(lambda: agg_in(c, "ZZV"))
+        rig.rt.on_bar("ZZV", {"t": T0 + 1100, "o": 9.0, "h": 9.0, "l": 9.0, "c": 9.0, "v": 1,
+                              "av": 4_000}, "AM")          # an older AM: av went backwards
+        rig.now[0] += 1_100
+        await asyncio.sleep(0.05)
+        assert agg_in(c, "ZZV") == [(5_000, 10.0, T0 + 1000)]
+        rig.now[0] = T0 + 24 * 3600 * 1000                 # the next day
+        late = FakeConn([hello("w2"), desired_full(owners=vol)])
+        t2 = await run_until(late, rig.srv, lambda: "w2" in rig.srv.clients)
+        await until(lambda: any(b.status for b in late.sent))
+        assert agg_in(late, "ZZV") == [], "a new connection is never handed yesterday's volume"
+        for cc, tt in ((c, t), (late, t2)):
+            await cc.close()
+            await asyncio.wait_for(tt, 2)
+    asyncio.run(go())
+
+
+def test_a_reconnecting_client_gets_marks_rt_and_volume_again():
+    rig = Rig()
+    own = {**NH_OWN, "volume": {"ZZV": frozenset({"A"})}}
+
+    async def go():
+        c = FakeConn([hello("w1"), desired_full(owners=own, seeds={"ZZA": SEED})])
+        t = await run_until(c, rig.srv, lambda: nhnl_in(c, "ZZA"))
+        T(rig, "ZZA", T0 + 1000, 10.5)
+        A(rig, "ZZV", T0 + 1000, 10.0, 5_000)
+        await until(lambda: rt_in(c) and rt_in(c)[-1]["hi"] == 1 and agg_in(c, "ZZV"))
+        again = FakeConn([hello("w1", 2), desired_full(2, owners=own, seeds={"ZZA": SEED})])
+        t2 = await run_until(again, rig.srv, lambda: nhnl_in(again, "ZZA") and rt_in(again)
+                             and agg_in(again, "ZZV"))
+        assert nhnl_in(again, "ZZA")[-1]["nh"] == 3 and rt_in(again)[-1] == {"hi": 1, "lo": 0}
+        assert agg_in(again, "ZZV")[-1][0] == 5_000
+        await asyncio.wait_for(t, 2)                       # the superseded connection ended
+        await again.close()
+        await asyncio.wait_for(t2, 2)
+    asyncio.run(go())
+
+
+def test_lease_expiry_releases_seeds_and_volume_symbols():
+    rig = Rig()
+
+    async def go():
+        c = FakeConn([hello(), desired_full(owners={**NH_OWN, "volume": {"ZZV": frozenset({"A"})}},
+                                            seeds={"ZZA": SEED})])
+        t = await run_until(c, rig.srv, lambda: nhnl_in(c, "ZZA"))
+        await c.close()
+        await asyncio.wait_for(t, 2)
+        assert rig.rt.side.status()["nhnl_symbols"] == 1, "held through the lease"
+        rig.now[0] += 31_000
+        rig.srv.expire()
+        st = rig.rt.side.status()
+        assert st["nhnl_symbols"] == 0 and st["volume_symbols"] == 0
+    asyncio.run(go())
+
+
+def test_when_only_a_stale_session_seed_is_left_the_newer_marks_stay():
+    """The RTH client is gone (lease expired); a pod still sends its PRE seed. The
+    counter must not go back to the pre-market marks."""
+    feeds = sf.SideFeeds(monotonic=lambda: 0.0)
+    u = fp.DesiredUnion(lease_s=1.0)
+    for cid, sk, hod in (("pre", 202611160, 12.0), ("rth", 202611161, 9.6)):
+        u.hello(cid, 1, 0.0)
+        u.set_desired(cid, fp.Desired(gen=1, nhnl_seeds={"ZZA": {"hod": hod, "lod": 9.0, "nh": 0,
+                                                                  "nl": 0, "last": 9.5, "sk": sk}}), 0.0)
+    feeds.sync(u)
+    assert feeds._nh["ZZA"]["sk"] == 202611161
+    u.disconnect("rth", 0.0)
+    u.expire(5.0)
+    feeds.sync(u)
+    assert (feeds._nh["ZZA"]["sk"], feeds._nh["ZZA"]["hod"]) == (202611161, 9.6)

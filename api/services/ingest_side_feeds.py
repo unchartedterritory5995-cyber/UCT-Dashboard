@@ -10,27 +10,45 @@ NEW HIGHS / NEW LOWS (print-exact, nhnl_live's `_on_trade_print`)
     each from its own poll marks (desired.nhnl_seeds, {sym: seed}). Here every T print
     of a seeded symbol that may set a high/low (the SIP condition filter,
     trade_conditions.classify, exactly as on web) is compared with the running marks.
-      seed (web -> ingest):  {"hod": num, "lod": num, "nh": int, "nl": int, "last": num|null}
-      nhnl (ingest -> web):  {sym: {"hod", "lod", "nh", "nl", "last", "hi_ms", "lo_ms"}}
+      seed (web -> ingest):  {"hod": num, "lod": num, "nh": int, "nl": int, "last": num|null,
+                              "sk": int}
+      nhnl (ingest -> web):  {sym: {"hod", "lod", "nh", "nl", "last", "hi_ms", "lo_ms", "sk"}}
                              for every symbol whose marks changed since the last batch
       nhnl_rt (ingest -> web): {"hi": n, "lo": n}: new-high / new-low events counted since
                              this ingest epoch began (cumulative, so a replayed or
                              duplicated batch is harmless; web differences consecutive
                              values within an epoch to drive the H/L Pulse rate)
-    A re-sent seed for a symbol already being counted is MERGED (highest high, lowest
-    low, larger counts): the web poll may have seen what the tape missed, and neither
-    side ever moves a mark backwards. A symbol dropped from the seeds stops counting.
+    `sk` is the SESSION KEY: an integer that grows with every new counting session
+    (e.g. YYYYMMDD * 10 + window, pre 0 / rth 1 / post 2; absent = 0). Between seeds
+    for one symbol (from any client, a leased one included) the largest `sk` wins:
+    a larger `sk` REPLACES the marks (a new session starts from its own seed), a
+    smaller one is stale and ignored, and an equal one is MERGED (highest high, lowest
+    low, larger counts: the web poll may have seen what the tape missed, and within a
+    session no mark ever moves backwards). A symbol no client seeds stops counting.
 
 VOLUME (volume_live's `on_aggregate`)
     For every symbol a client holds under owner "volume", the latest A/AM aggregate's
     (av = day volume so far, c = close, s = aggregate start ms), sent at most once per
     AGG_INTERVAL_S (1 s) per symbol, only when it changed.
 
+    Volume aggregates are only ever forwarded for the current ET day: a new
+    connection is never handed yesterday's last aggregate, and within a day an
+    aggregate whose `av` went backwards (an AM arriving after the next minute's first
+    A) is ignored.
+
 TIME & SALES (time_and_sales's `on_trade`)
-    Every T print of a symbol in a client's tas set (<= 20 per client, the web cap and
-    BufferLimits.max_tas_syms) as [t, p, s, conditions]. The tick test, size tiers and
-    the rings stay on web; the buffer bounds each symbol and marks any overflow with an
-    explicit gap.
+    Every T print of a symbol in a client's tas set as [t, p, s, conditions]. The tick
+    test, size tiers and the rings stay on web; the buffer bounds each symbol and marks
+    any overflow with an explicit gap. The web side caps a client at 20 T&S symbols
+    (time_and_sales.MAX_SYMBOLS = BufferLimits.max_tas_syms); a 21st symbol's prints are
+    refused by the buffer and counted (tas_rejected). There is NO T&S snapshot: a stall
+    drops pending prints, so the web side must treat every new connection and every new
+    epoch as a gap in each tape.
+
+CONTRACT WITH THE WEB SIDE (PR5): `nhnl_seeds` and `tas_syms` subscribe nothing. A
+symbol is only on the tape while some owner holds it with the "T" channel (the web's
+"nhnl" owner for the counter, its "bars" owner for T&S); without that, nothing is
+counted or forwarded for it.
 
 Routing mirrors ingest_runtime: only CONNECTED clients have buffers; a newly connected
 client (or one that newly holds a symbol) is first given the current state (NH/NL
@@ -41,7 +59,9 @@ from __future__ import annotations
 import logging
 import math
 import time
+from datetime import datetime
 from typing import Callable, Optional
+from zoneinfo import ZoneInfo
 
 from api.services import feed_protocol as fp
 from api.services import trade_conditions
@@ -51,6 +71,20 @@ log = logging.getLogger("api.services.ingest_side_feeds")
 VOLUME_OWNER = "volume"
 AGG_INTERVAL_S = 1.0
 _EPS = 1e-6          # nhnl_live's float-noise guard for the high-water-mark compare
+_ET = ZoneInfo("America/New_York")
+
+
+def _et_day(ms) -> Optional[int]:
+    try:
+        d = datetime.fromtimestamp(float(ms) / 1000.0, _ET)
+    except (TypeError, ValueError, OverflowError, OSError):
+        return None
+    return d.year * 10000 + d.month * 100 + d.day
+
+
+def _sk(seed) -> int:
+    v = seed.get("sk") if isinstance(seed, dict) else None
+    return v if isinstance(v, int) and not isinstance(v, bool) and v >= 0 else 0
 
 
 def _num(x) -> Optional[float]:
@@ -66,8 +100,10 @@ def _cnt(x) -> int:
 
 class SideFeeds:
     def __init__(self, monotonic: Callable[[], float] = time.monotonic,
-                 agg_interval_s: float = AGG_INTERVAL_S):
+                 agg_interval_s: float = AGG_INTERVAL_S,
+                 wall_ms: Callable[[], float] = lambda: time.time() * 1000.0):
         self._mono = monotonic
+        self._wall_ms = wall_ms
         self.agg_interval_s = float(agg_interval_s)
         # per connected client: (client, vol_syms, tas_syms, nhnl_syms)
         self._views: dict = {}
@@ -83,6 +119,7 @@ class SideFeeds:
         # NH/NL
         self._nh: dict = {}                  # sym -> marks
         self._nh_dirty: set = set()
+        self._bad_seeds: set = set()         # symbols whose seed is currently unusable (counted once)
         self.rt = {"hi": 0, "lo": 0}
         self._rt_dirty = False
         self.counters = {"tas_forwarded": 0, "tas_rejected": 0, "nhnl_events": 0,
@@ -97,27 +134,43 @@ class SideFeeds:
         for sym in [s for s in self._agg if s not in self._vol_syms]:
             del self._agg[sym]
             self._agg_dirty.discard(sym)
-        seeds = union.nhnl_seeds()
-        for sym in [s for s in self._nh if s not in seeds]:
+        cands = union.nhnl_seed_candidates()
+        for sym in [s for s in self._nh if s not in cands]:
             del self._nh[sym]
             self._nh_dirty.discard(sym)
-        for sym, seed in seeds.items():
-            self._seed(sym, seed)
+        self._bad_seeds &= set(cands)
+        for sym, seeds in cands.items():
+            good = [s for s in seeds if self._valid_seed(s)]
+            if len(good) < len(seeds):
+                if sym not in self._bad_seeds:
+                    self._bad_seeds.add(sym)
+                    self.counters["nhnl_bad_seeds"] += 1
+            else:
+                self._bad_seeds.discard(sym)
+            if not good:
+                continue
+            top = max(_sk(s) for s in good)          # the newest session wins
+            for s in good:
+                if _sk(s) == top:
+                    self._seed(sym, s, top)
 
-    def _seed(self, sym: str, seed) -> None:
-        if not isinstance(seed, dict):
-            self.counters["nhnl_bad_seeds"] += 1
-            return
+    @staticmethod
+    def _valid_seed(seed) -> bool:
+        return (isinstance(seed, dict) and _num(seed.get("hod")) is not None
+                and _num(seed.get("lod")) is not None)
+
+    def _seed(self, sym: str, seed: dict, sk: int) -> None:
         hod, lod, last = _num(seed.get("hod")), _num(seed.get("lod")), _num(seed.get("last"))
-        if hod is None or lod is None:
-            self.counters["nhnl_bad_seeds"] += 1
-            return
         nh, nl = _cnt(seed.get("nh")), _cnt(seed.get("nl"))
         st = self._nh.get(sym)
-        if st is None:
+        if st is None or sk > st["sk"]:
+            # a new symbol, or a NEW SESSION: start over from this seed
             self._nh[sym] = {"hod": hod, "lod": lod, "nh": nh, "nl": nl, "last": last,
-                             "hi_ms": None, "lo_ms": None}
+                             "hi_ms": None, "lo_ms": None, "sk": sk}
+            self._nh_dirty.add(sym)
             return
+        if sk < st["sk"]:
+            return                                   # a stale session's seed
         changed = False
         if hod > st["hod"]:
             st["hod"], changed = hod, True
@@ -144,9 +197,10 @@ class SideFeeds:
         self._views[cid] = (client, vol, tas, nhnl)
         self._reindex()
         buf = client.buffer
+        today = _et_day(self._wall_ms())
         for sym in sorted(vol - o_vol):
             a = self._agg.get(sym)
-            if a is not None:
+            if a is not None and _et_day(a[2]) == today:     # never yesterday's last aggregate
                 self._offer(lambda: buf.offer_agg(sym, *a))
         for sym in sorted(nhnl - o_nhnl):
             st = self._nh.get(sym)
@@ -193,9 +247,13 @@ class SideFeeds:
             if av is None or av <= 0 or c is None or c <= 0:
                 return
             a = (av, c, payload.get("t"))
-            if self._agg.get(sym) != a:
-                self._agg[sym] = a
-                self._agg_dirty.add(sym)
+            prev = self._agg.get(sym)
+            if prev == a:
+                return
+            if prev is not None and av < prev[0] and _et_day(prev[2]) == _et_day(a[2]):
+                return                                   # av went backwards within the day
+            self._agg[sym] = a
+            self._agg_dirty.add(sym)
 
     def _count(self, sym: str, trade: dict) -> None:
         p = _num(trade.get("p"))

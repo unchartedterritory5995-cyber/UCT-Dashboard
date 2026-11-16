@@ -142,7 +142,8 @@ class IngestRuntime:
                                 else snapshot_lookback_ms / 60_000) * 60_000)
         self.server = None
         self.side = ingest_side_feeds.SideFeeds(
-            monotonic=lambda: self.server._mono() if self.server is not None else time.monotonic())
+            monotonic=lambda: self.server._mono() if self.server is not None else time.monotonic(),
+            wall_ms=lambda: self.bc._clock_ms())          # the broadcaster's clock (a test seam)
         # what this process holds, mirroring the union
         self._interest: set = set()              # symbols holding broadcaster interest
         self._keys: set = set()                  # (sym, key) holding a sink

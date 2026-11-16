@@ -961,6 +961,15 @@ class DesiredUnion:
         c = self._clients.get(client_id)
         return frozenset(c.seeds) if c is not None else frozenset()
 
+    def nhnl_seed_candidates(self) -> dict:
+        """{sym: [seed, ...]}: every client's seed for each symbol (not merged), in
+        client_id order, for a consumer that resolves conflicts itself."""
+        out: dict = {}
+        for cid in sorted(self._clients):
+            for sym, seed in self._clients[cid].seeds.items():
+                out.setdefault(sym, []).append(seed)
+        return out
+
     def owner_syms(self, owner: str) -> frozenset:
         """The symbols any client holds under `owner`."""
         return frozenset(s for c in self._clients.values()
