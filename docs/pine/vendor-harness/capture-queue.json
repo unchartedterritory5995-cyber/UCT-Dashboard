@@ -61,6 +61,7 @@
    "docs/pine/capture-queue-2026-11-15-calc-bars.md",
    "docs/pine/capture-queue-2026-11-16-cond-ta-followups.md",
    "docs/pine/capture-queue-2026-11-16-rma-last-bit.md",
+   "docs/pine/capture-queue-2026-11-16-text-colour.md",
    "docs/pine/capture-queue-2026-11-16-tick-tie-and-htf-windows.md"
   ],
   "coverageMeasuredOn": "2026-11-16",
@@ -86,19 +87,19 @@
   }
  },
  "counts": {
-  "targets": 319,
+  "targets": 320,
   "byStatus": {
    "CAPTURED": 130,
    "NEEDS_CHART": 39,
    "NEEDS_LIVE": 2,
-   "QUEUED": 148
+   "QUEUED": 149
   },
   "byPlanWave": {
    "E": {
     "CAPTURED": 115,
     "NEEDS_CHART": 37,
     "NEEDS_LIVE": 2,
-    "QUEUED": 115
+    "QUEUED": 116
    },
    "W1": {
     "QUEUED": 6
@@ -121,7 +122,7 @@
     "CAPTURED": 110,
     "NEEDS_CHART": 38,
     "NEEDS_LIVE": 2,
-    "QUEUED": 140
+    "QUEUED": 141
    },
    "1-2": {
     "CAPTURED": 20,
@@ -247,6 +248,9 @@
    "s1": {
     "CAPTURED": 1,
     "QUEUED": 11
+   },
+   "text-colour": {
+    "QUEUED": 1
    },
    "tick-tie-and-htf-windows": {
     "QUEUED": 4
@@ -15510,6 +15514,52 @@
    "origins": [
     "queue-doc"
    ]
+  },
+  {
+   "id": "vw-tc1-colour-na-compare@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-tc1-colour-na-compare.pine",
+   "sourceKind": "probe",
+   "sha256": "cd8b3ae3504002ba688418f67abd5dfe1590f47b15fe67af838f0924c3d585a3",
+   "bytes": 2291,
+   "stem": "vw-tc1-colour-na-compare",
+   "captureStem": "vw-tc1-colour-na-compare",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "preamble",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "text-colour"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-text-colour#C1-C3",
+    "capture-queue-2026-11-16-text-colour#N1-N3",
+    "capture-queue-2026-11-16-text-colour#E1",
+    "capture-queue-2026-11-16-text-colour#E2",
+    "capture-queue-2026-11-16-text-colour#B0"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
   }
  ],
  "rowsNeedingProbe": [
@@ -17780,6 +17830,12 @@
    "doc": "docs/pine/capture-queue-2026-11-16-rma-last-bit.md",
    "wave": "rma-last-bit",
    "rows": 3,
+   "contextTables": 0
+  },
+  {
+   "doc": "docs/pine/capture-queue-2026-11-16-text-colour.md",
+   "wave": "text-colour",
+   "rows": 5,
    "contextTables": 0
   },
   {

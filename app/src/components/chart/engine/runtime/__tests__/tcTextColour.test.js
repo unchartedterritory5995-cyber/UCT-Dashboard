@@ -130,6 +130,14 @@ describe('⭐ colours compared, and a colour\'s past', () => {
     expect(r.message).toMatch(/compared with `na`/)
     expect(r.message).toMatch(/vw-tc1-colour-na-compare/)
   })
+  it('a colour written with a WHOLE transparency compares; a fractional one is refused by name (rows E1-E2)', () => {
+    const head = '//@version=5\nindicator("t")\n'
+    const whole = run(`${head}a = color.new(color.red, 50)\nb = close > open ? color.new(color.red, 50) : color.blue\nplot(a == b ? 1 : 0)\n`)
+    expect(whole[0].values).toEqual([1, 0, 1, 0])
+    const r = refusalOf(`${head}a = color.new(color.red, 50.1)\nb = color.new(color.red, 50.2)\nplot(a == b ? 1 : 0)\n`)
+    expect(r.guard).toBe('runtime:colour')
+    expect(r.message).toMatch(/not a whole number/)
+  })
   it('⛔ any other operator over a colour, and a colour against a number, are refused by name', () => {
     const head = '//@version=5\nindicator("t")\nc = close > open ? color.red : color.blue\n'
     expect(refusalOf(`${head}plot(c > color.red ? 1 : 0)\n`).message).toMatch(/compares colours with `==` and `!=` only/)

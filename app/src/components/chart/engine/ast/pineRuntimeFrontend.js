@@ -6755,6 +6755,38 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     return false
   }
+  /** ⭐ TC — does this colour operand, AS THE SCRIPT WRITES IT, carry a transparency that is not a
+   *  whole-number literal (`color.new(c, t)`, a `color.rgb` argument) or a gradient? Followed
+   *  through immutable bindings, `?:` arms, v4 `iff`, history reads and a helper's one-expression
+   *  body (whose parameters count as not literal). A variable (a slot) is not followed: its
+   *  comparison is read as master read it. Read by the colour `==` / `!=` rule only. */
+  const fractionalColourIn = (node, scope, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 16) return false
+    const whole = (n) => !!n && ((n.type === 'number' && Number.isInteger(n.value))
+      || (n.type === 'unary' && n.op === '-' && !!n.arg && n.arg.type === 'number' && Number.isInteger(n.arg.value)))
+    const av = (a) => (a && a.value !== undefined ? a.value : a)
+    if (node.type === 'name') {
+      if (lookupReadable(node.name, scope) !== null) return false
+      const bound = env.get(node.name)
+      return !!(bound && bound.kind === 'expr' && !bound.frame && fractionalColourIn(bound.node, scope, depth + 1))
+    }
+    if (node.type === 'offset') return fractionalColourIn(node.arg, scope, depth + 1)
+    if (node.type === 'ternary') return fractionalColourIn(node.yes, scope, depth + 1) || fractionalColourIn(node.no, scope, depth + 1)
+    if (node.type !== 'call' || typeof node.name !== 'string') return false
+    const g = (node.args || []).map(av)
+    if (node.name === 'color.from_gradient' && !definedNames.has(node.name)) return true
+    if (node.name === 'color.new' && !definedNames.has(node.name)) return !whole(g[1]) || fractionalColourIn(g[0], scope, depth + 1)
+    if (node.name === 'color.rgb' && !definedNames.has(node.name)) return !g.every(whole)
+    if (node.name === 'iff' && pineVersion !== null && pineVersion < 5 && !isUserFn('iff')) {
+      return fractionalColourIn(g[1], scope, depth + 1) || fractionalColourIn(g[2], scope, depth + 1)
+    }
+    if (isUserFn(node.name)) {
+      // a helper whose value is not one expression is not read: it may write any transparency
+      const inl = inlineBodyByName.get(node.name)
+      return !(inl && inl.result) || fractionalColourIn(inl.result, scope, depth + 1)
+    }
+    return false
+  }
   const touchesText = (node, scope, depth = 0, textOnly = false) => {
     if (!node || typeof node !== 'object' || depth > 24) return false
     if (holdsText(node, scope)) return true
@@ -8522,7 +8554,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // `boolNaOnThisLane`: read as a condition it is false; the VM answers 0).
         // ⛔ REFUSED BY NAME: a colour against the literal `na` (what TradingView answers for
         // `c != na` / `c == na` is not captured: probe `vw-tc1-colour-na-compare`), a colour
-        // against something that is not one (Pine does not compile it), and every other operator.
+        // against something that is not one (Pine does not compile it), every other operator, and
+        // an operand the script WRITES with a transparency that is not a whole number or with a
+        // gradient (`fractionalColourIn`): two such colours can share one opacity byte while their
+        // transparencies differ, and whether TradingView compares the byte or the number is not
+        // captured (same probe, rows E1-E2). A variable's colour is read as master read it.
         if (!atObjectDoor && (holdsColour(node.left, scope) || holdsColour(node.right, scope))) {
           const at = locate(node.tok)
           if (node.op !== '==' && node.op !== '!=') {
@@ -8540,6 +8576,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
             note('runtime:colour')
             throw new RuntimeRefusal('runtime:colour',
               `\`${node.op}\` between a colour and a value this lane cannot show is a colour`, at)
+          }
+          if (fractionalColourIn(node.left, scope) || fractionalColourIn(node.right, scope)) {
+            note('runtime:colour')
+            throw new RuntimeRefusal('runtime:colour',
+              `\`${node.op}\` over a colour written with a transparency that is not a whole number (or a gradient) — `
+              + 'whether TradingView compares such colours by their opacity byte or their transparency is not captured '
+              + 'yet (probe `vw-tc1-colour-na-compare`, rows E1-E2)', at)
           }
           return binary(op, lowerExpr(node.left, scope), lowerExpr(node.right, scope))
         }
