@@ -331,7 +331,7 @@
     "NEEDS_CHART": 1
    }
   },
-  "rowsNeedingProbe": 17,
+  "rowsNeedingProbe": 19,
   "rowsNeedingProbeLive": 0,
   "licenceHeldCensus": 157,
   "rowsNotCaptureQuestions": 47,
@@ -15751,6 +15751,28 @@
    ],
    "namedScripts": [],
    "text": "`flying-buddha-inside-bars-indicator-v1-by-justunclel-rddt-1d-2026-11-14` (held store, s7) | `plotarrow(…, colorup = lime, colordown = red, transp = 20)`: `colorup` / `colordown` are not carried. On 16 of 666 bars TradingView paints `#2962ffcc` and we paint the default series colour `#c9a84ccc`. Its five value plots agree on 666 / 666 bars. It was refused whole before COND-TA's parameter guards (`"
+  },
+  {
+   "key": "capture-queue-2026-11-16-text-colour#TC-A1",
+   "doc": "docs/pine/capture-queue-2026-11-16-text-colour.md",
+   "line": 32,
+   "docWave": "text-colour",
+   "needsProbe": "no probe file named (an inline shape or prose)",
+   "needsLive": false,
+   "guards": [],
+   "namedScripts": [],
+   "text": "TC-A1 | `reference:color-gradient-framework-pinecoders__9ICIDOiMbF` on NYSE:RDDT 1D | `e993b713307bcf78` | the untyped colour parameters (per-call-site copies), `color.new` over a fractional transparency on the bar, `color.from_gradient` over parameters; its plots (its `fill`s are named \"Not drawn by this pane\" on the runtime lane)"
+  },
+  {
+   "key": "capture-queue-2026-11-16-text-colour#TC-A2",
+   "doc": "docs/pine/capture-queue-2026-11-16-text-colour.md",
+   "line": 33,
+   "docWave": "text-colour",
+   "needsProbe": "no probe file named (an inline shape or prose)",
+   "needsLive": false,
+   "guards": [],
+   "namedScripts": [],
+   "text": "TC-A2 | `reference:study-for-squeeze-momentum-indicator-lazybear__2BZblBj6eA` on NYSE:RDDT 1D | `13a3f2f4a179e81a` | colour `==` / `!=`, a colour's past and v4 `iff` with colour arms, read through its six alert conditions"
   }
  ],
  "rowsNotCaptureQuestions": [
@@ -17835,7 +17857,7 @@
   {
    "doc": "docs/pine/capture-queue-2026-11-16-text-colour.md",
    "wave": "text-colour",
-   "rows": 5,
+   "rows": 7,
    "contextTables": 0
   },
   {
