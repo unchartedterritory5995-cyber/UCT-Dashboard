@@ -149,6 +149,11 @@ export function viewKeyFor(sym, tf, { showExtended = false, window = null } = {}
 // short is all the server holds (a recent listing, a shallow timeframe); the rule stands down for
 // SHORT_FULL_TTL_MS, so the load is exactly an empty store's: one full window per key.
 export const SHORT_FULL_TTL_MS = 6 * 3600 * 1000
+
+/** How long the symbol handoff waits for the cache read before it asks the server anyway (the
+ *  legacy chart's `_IDB_TAIL_WAIT_MS`). */
+export const HYDRATE_WAIT_MS = 120
+const LOCAL_PAINTS = Symbol('local copy paints')
 const SHORT_FULL_MAX = 4000
 
 export function createPrefetch(o = {}) {
@@ -363,7 +368,23 @@ export function createPrefetch(o = {}) {
     _own(key)
     try {
       const date = isDateTf(normTf(tf) ?? fetchTf(String(tf)))
-      const s0 = await _hydrate(key)
+      // ⭐ THE CACHE READ IS RACED, NOT AWAITED (2026-11-16). The IDB read can take 400-900 ms
+      // while the list warm is writing to the same database; awaiting it held the request for
+      // the chart the member just asked for that long (flip proof on the master build: the
+      // first three flips' visible request left +412 / +862 ms after the key, first candles
+      // ~1 s, while the legacy path, which waits at most `_IDB_TAIL_WAIT_MS` = 120 ms, painted
+      // in 42 ms median). A read that answers within HYDRATE_WAIT_MS takes the old path below;
+      // otherwise the request leaves now and a local copy that paints still commits if it lands
+      // before the answer.
+      const hyd = _hydrate(key)
+      const s0 = await Promise.race([hyd, new Promise((resolve) => setTimer(() => resolve(undefined), HYDRATE_WAIT_MS))])
+      if (s0 === undefined) {
+        const req = ensure(key, { until: date ? DAILY_PREPARED : PREPARED, priority: 'visible', signal, warm: false, local: false, _s0: S().peek(key) || {}, session: session(showExtended) })
+        const localFirst = hyd.then((h) => (_localPaints(h, fetchTf(String(tf)), showExtended) ? LOCAL_PAINTS : new Promise(() => {})))
+        const won = await Promise.race([req, localFirst])
+        if (won === LOCAL_PAINTS) return 'current'
+        return _outcome(won, { aborted: !!signal?.aborted, date })
+      }
       // A SERVER answer is already held and the chart paints it (see HANDOFF_PAINTS): commit,
       // the chart's own request catches the tail up. A LOCAL-only copy is judged by the legacy
       // paint rule on the next line, never by this one (#2c).
