@@ -385,6 +385,30 @@ the program branch merged with master `fd670de1ee`. Graded on three captures; NO
   An admitted RS Rating would therefore draw on a member's chart and be refused by name on alerts
   and scans.
 
+**ADMITTED (2026-11-16, engine 58).** The registry blockers named above are gone: `switch` and
+`max_bars_back` are conformant since #1347 (U1 + U3) and `conditional-ta` since #1409 (COND-TA).
+The record is in `api/data/pine_runtime_allowlist.json`: slug `rs-rating-fred6724`, sha256
+`caa94fe31a87...5af0` (the original source, `docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine`),
+`admission: "substituted"`, `substituted: ["syminfo.industry"]`, the 11 census capabilities, and
+the three captures RDDT / ALAB / CRWV, each `MATCH_SUBSTITUTED`, runtime pane on,
+`objectsV2: "MATCH_SUBSTITUTED"`, `objectsV2Substituted: ["syminfo.industry"]`.
+
+- **What a member gets.** Pasting the published script unchanged draws it on a chart: the RS line
+  and its averages from the host lane, the rating labels from the per-bar run (the run half). The
+  door says by name that `syminfo.industry` is answered from UCT data.
+- **Re-graded on this tree, through the production gate.** `runtimeAllowlistParity.test.js` now
+  grades all three captures with the committed allowlist AND the served run-half evidence latched,
+  as the browser latches them from the kill read: each is MATCH_SUBSTITUTED, every plot agrees on
+  every bar (666 / 667 / 411 bars), and the labels are drawn and agree. Without the evidence
+  latched the labels are withheld by name (`pine:object-removal-lost`), which is how the rail
+  found that it had not been latching it.
+- **What is still not served.**
+  - A member's own EDITED copy does not hash to this record. It is admitted only by capability,
+    and `request-other` has no registry row yet (last measured before #1342 served runtime requests).
+  - Alerts and scans: the server lane refuses the script by name (HP-7 above).
+  - SPY is ungraded (owner ruling); NVDA's RS line differs before 2023-12-05 (FMP history against
+    TradingView's), its labels agree.
+
 ## Owner rulings
 
 - **2026-11-14, SPX source for members:** "We have the highest plan for FMP, I am fine using

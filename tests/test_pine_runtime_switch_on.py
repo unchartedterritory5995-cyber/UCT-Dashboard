@@ -210,10 +210,21 @@ def test_D1_the_save_SWITCH_is_still_asked_first(store, monkeypatch):
 
 # ═══ D6 — the starter allowlist ══════════════════════════════════════════════
 
+#: RS Rating (fred6724), admitted 2026-11-16 on the SUBSTITUTED path (three MATCH_SUBSTITUTED captures,
+#: `syminfo.industry` answered from UCT data and disclosed): docs/pine/RS-RATING-TRANSFER.md.
+RS_RATING_HASH = "caa94fe31a8788c0f52ca571dbb1b3f8a7499dae913ed5e710720fc8662c5af0"
+
+
 def test_D6_the_committed_allowlist_holds_ONLY_adx_and_di_for_v4():
+    """The name is the history: it held one script until RS Rating was graded and admitted."""
     doc = json.loads(Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))
-    assert [s["slug"] for s in doc["scripts"]] == ["adx-and-di-for-v4"]
-    assert rt.allow_list() == [ADX["meta"]["runtimeSourceHash"]]
+    assert [s["slug"] for s in doc["scripts"]] == ["adx-and-di-for-v4", "rs-rating-fred6724"]
+    assert rt.allow_list() == [ADX["meta"]["runtimeSourceHash"], RS_RATING_HASH]
+    # the second record is on the substituted path and says what it substitutes
+    rs = doc["scripts"][1]
+    assert rs["admission"] == "substituted" and rs["substituted"] == ["syminfo.industry"]
+    assert all(c["verdict"] == "MATCH_SUBSTITUTED" and c["substituted"] == ["syminfo.industry"] for c in rs["captures"])
+    assert len(rs["captures"]) == 3
     assert ADX["meta"]["runtimeSourceHash"] == rt.source_hash(ADX["compute"]["source"])
 
 
@@ -277,10 +288,10 @@ def test_D6_a_stored_ungraded_row_is_SERVED_stamped_and_never_rewritten(store, m
 
 def test_D6_the_preview_read_carries_the_allowlist(store, monkeypatch):
     got = _client("member").get("/api/user-definitions/runtime-kill").json()
-    assert got["allow"] == [ADX["meta"]["runtimeSourceHash"]]
+    assert got["allow"] == [ADX["meta"]["runtimeSourceHash"], RS_RATING_HASH]
     monkeypatch.setenv(rt.ALLOW_ENV, "B" * 12)
     got = _client("member").get("/api/user-definitions/runtime-kill").json()
-    assert got["allow"] == [ADX["meta"]["runtimeSourceHash"], "b" * 12]
+    assert got["allow"] == [ADX["meta"]["runtimeSourceHash"], RS_RATING_HASH, "b" * 12]
 
 
 # ═══ D2 — the cap, split by kind ═════════════════════════════════════════════
@@ -563,7 +574,7 @@ def test_WSI_R1_every_COMMITTED_script_passes_R1_and_its_evidence_is_real():
     script is a script somebody believed was served."""
     rep = rt.allow_report()
     assert rep["withheld"] == [], rep["withheld"]
-    assert [r["slug"] for r in rep["served"]] == ["adx-and-di-for-v4"]
+    assert [r["slug"] for r in rep["served"]] == ["adx-and-di-for-v4", "rs-rating-fred6724"]
     doc = json.loads(Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))
     for s in doc["scripts"]:
         for c in s["captures"]:
