@@ -97,7 +97,14 @@
     "no obj:* row changes: the run draws its plots, but its lines, labels and linefills are drawn from the HOST's object",
     "program carried in the runtime document (str.tostring(..., format.mintick) on a mutable value keeps them out of the",
     "run), so objectsLane is not runtime for it. obj:linefill therefore stays withdrawn (FVG Finder alone). The script",
-    "itself stays un-admitted by capability (conditional-ta and obj:linefill are not admitted)."
+    "itself stays un-admitted by capability (conditional-ta and obj:linefill are not admitted).",
+    "",
+    "2026-11-16: the parabolic-sar kill is LIFTED. `math.round_to_mintick` now counts ticks as x * (1 / mintick)",
+    "(ast/tickRound.js): parabolic-sar-spy-1d-2026-11-15 prints \"654.41\" for 654.405 and grades MATCH runtime-on",
+    "(objects v2 MATCH, x 50 of 50), as -rddt-1d-2026-11-15 already did (x 52 of 52). It is on no kill list and no",
+    "capture of it has an x that DIVERGES, so the S28 veto no longer names it. No obj:* row changes here: naming it as",
+    "evidence for an object family is its own admission step. Every capability it uses is admitted, so the script",
+    "itself is admitted by capability from this change on (the REACH run says so)."
   ],
   "scripts": [
     {

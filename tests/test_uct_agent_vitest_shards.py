@@ -206,8 +206,9 @@ def _wf():
 def test_browser_job_runs_the_balanced_plan_and_keeps_its_contract():
     doc = _wf()
     job = doc["jobs"]["browser"]
-    assert job["name"] == "UCT Agent browser tests (shard ${{ matrix.shard }}/4)"
-    assert job["strategy"]["matrix"]["shard"] == [1, 2, 3, 4] and doc["env"]["AGENT_SHARDS"] == "4"
+    # 4 -> 8 (2026-11-16, GitHub Pro: 40 concurrent jobs). The name, the matrix and AGENT_SHARDS must agree.
+    assert job["name"] == "UCT Agent browser tests (shard ${{ matrix.shard }}/8)"
+    assert job["strategy"]["matrix"]["shard"] == [1, 2, 3, 4, 5, 6, 7, 8] and doc["env"]["AGENT_SHARDS"] == "8"
     assert job["timeout-minutes"] == 40
     step = [s for s in job["steps"] if s.get("name") == "vitest shard"][0]["run"]
     assert "npx vitest list $AGENT_VITEST_PATHS --filesOnly" in step
