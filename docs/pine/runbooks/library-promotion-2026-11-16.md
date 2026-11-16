@@ -23,8 +23,9 @@ non-commercial licence is never promoted. The re-grade behind today's list is
 - **Railway service `web`, its volume.** The path is `$PINE_LIBRARY_DIR` when set, else
   `$DATA_DIR/pine_libraries`, so `/data/pine_libraries` by default.
   - Each version is one file, `<root>/<Author>/<Library>/<N>.json`.
-  - `api/services/pine_library_store.py::store_root()` is the one authority over the path. Every
-    command below asks it, so nobody types the path.
+  - `api/services/pine_library_store.py::store_root()` is the one authority over the path.
+    `promotion_check.py` asks it, and step 1 prints it. Steps 2 and 7 name `/data/pine_libraries`,
+    so step 1 tells you to stop if the store is anywhere else.
 - **No other service holds a store.**
   - The Pine runtime service gets each run's pinned libraries from `web` with the request.
   - Alerts, scans and backtests read the saved trees, which already hold the library code (the U15
@@ -47,81 +48,93 @@ These are the `promote` rows of the allowlist as merged, with their grades cited
 
 The tool reads the list from the allowlist file. These names are here so you can recognise the output.
 
+## How to type the commands
+
+**Where.** In Claude Code, opened in `C:\Users\Patrick\uct-dashboard` (the Railway-linked folder).
+Paste each command exactly as written, one at a time, including its leading `!`. The `!` runs it in
+this PC's shell (Git Bash).
+
+**What each command is.** `MSYS_NO_PATHCONV=1 railway ssh --service web -- <program> <arguments>`.
+It runs ONE program on the `web` pod and prints its output.
+- `MSYS_NO_PATHCONV=1` stops Git Bash from rewriting `/app/...` and `/data/...` into Windows paths.
+- No command needs a shell on the pod. None uses quotes, `;`, `|`, `>`, `$` or `&&`, so nothing
+  depends on how `railway ssh` joins its arguments.
+- `/tmp` on the pod persists between commands until `web` restarts.
+
+**What the commands print.** Library paths, sha256s, statuses, and the names and sizes of the files
+this runbook writes. Nothing reads a database, a member's file or an environment variable.
+
 ## 0. Preconditions
 
-1. The PR that added `tools/pine_library/promotion_check.py` is merged to master and deployed on
-   `web`. From PowerShell, in the Railway-linked folder:
+1. #1463 is merged to master and `web` has deployed it. This command must list both files:
 
-   ```powershell
-   Set-Location C:\Users\Patrick\uct-dashboard
-   railway ssh --service web "ls -l /app/tools/pine_library/promotion_check.py /app/tools/pine_library/promotion_allowlist.json"
+   ```
+   ! MSYS_NO_PATHCONV=1 railway ssh --service web -- ls -l /app/tools/pine_library/promotion_check.py /app/tools/pine_library/promotion_allowlist.json
    ```
 
-   Both files must be listed. If `promotion_check.py` is missing, `web` has not deployed the merge
-   yet: stop here.
-
-2. Open a shell on `web`. Every command in steps 1 to 6 is typed **in that shell, on the pod**:
-
-   ```powershell
-   railway ssh --service web
-   ```
-
-   then on the pod:
-
-   ```sh
-   cd /app
-   ```
+   If `promotion_check.py` is missing (`No such file`), `web` has not deployed the merge yet: stop
+   here.
 
 ## 1. Read what the production store holds today (read-only)
 
-```sh
-/opt/venv/bin/python tools/pine_library/promotion_check.py check
+```
+! MSYS_NO_PATHCONV=1 railway ssh --service web -- /opt/venv/bin/python /app/tools/pine_library/promotion_check.py check
 ```
 
-- **The first line is `store: <path>`.** Note the path. `(does not exist)` after it means
-  production has never held a library.
-- **Expected: `MISSING` for each promoted version, then `PROMOTION CHECK: FAIL`.** Nothing has been
+- **The first line is `store: <path>`.**
+  - `store: /data/pine_libraries`: the store exists; back it up at step 2.
+  - `store: /data/pine_libraries (does not exist)`: production has never held a library. Skip the
+    backup at step 2.
+  - Any other path: `PINE_LIBRARY_DIR` is set on `web`. **Stop and report it.** Steps 2 and 7 below
+    name `/data/pine_libraries`.
+- **Expected: `MISSING` for each of the six versions, then `PROMOTION CHECK: FAIL`.** Nothing has been
   promoted yet, so this is the normal answer.
 - **A `PROMOTED` line** means that version is already there under the graded sha256. The install
   keeps it.
-- **A `WRONG-SHA` line** means production holds that version under different code. Stop and report
-  it to the coordinator.
+- **A `WRONG-SHA` line** means production holds that version under different code. **Stop and report
+  it.**
 - **`OTHER` lines are versions the store holds that are not promoted.** Each is labelled `held out`,
   `never promoted` or `not on the allowlist`, with the status the store gives it (`ok` means it is
   served today). **Report every `OTHER` line to the coordinator.**
   - Do not remove anything. Removing a version is a separate owner decision and never part of this
     runbook.
-  - Phase B never widens the reach of such a version: a v5 library is linked into a v6 script only
-    for a version on the engine's admission table, and that table is held to the allowlist.
+  - Phase B never widens their reach: a v5 library is linked into a v6 script only for a version on
+    the engine's admission table, and that table is held to the allowlist.
 
-## 2. Back up the store
+## 2. Back up the store (skip if step 1 said `does not exist`)
 
-```sh
-STORE=$(/opt/venv/bin/python -c 'from api.services import pine_library_store as s; print(s.store_root())')
-echo "$STORE"
-mkdir -p /data/backups
-if [ -d "$STORE" ]; then tar -czf /data/backups/pine_libraries-2026-11-16-pre-promotion.tgz -C "$(dirname "$STORE")" "$(basename "$STORE")"; ls -l /data/backups/pine_libraries-2026-11-16-pre-promotion.tgz; sha256sum /data/backups/pine_libraries-2026-11-16-pre-promotion.tgz; else echo "NO STORE YET: nothing to back up"; fi
+```
+! MSYS_NO_PATHCONV=1 railway ssh --service web -- mkdir -p /data/backups
 ```
 
-Write down the sha256 it prints, or the `NO STORE YET` line. ⚠️ `/data/backups/` is on the same
-volume as the store. It covers a mistake made by this runbook. It does not cover losing the volume.
-
-## 3. Fetch the promoted versions into a staging folder
-
-```sh
-PINE_LIBRARY_DIR=/tmp/pine_libraries_staging /opt/venv/bin/python tools/pine_library/fetch_library.py $(/opt/venv/bin/python tools/pine_library/promotion_check.py paths)
+```
+! MSYS_NO_PATHCONV=1 railway ssh --service web -- tar -czf /data/backups/pine_libraries-2026-11-16-pre-promotion.tgz -C /data pine_libraries
 ```
 
-- It prints `store: /tmp/pine_libraries_staging`, then one `ok <path>` per version.
-- It uses TradingView's public, unauthenticated endpoints only. It writes only into
+```
+! MSYS_NO_PATHCONV=1 railway ssh --service web -- sha256sum /data/backups/pine_libraries-2026-11-16-pre-promotion.tgz
+```
+
+`tar` prints nothing when it succeeds. Write down the sha256. ⚠️ `/data/backups/` is on the same
+volume as the store. It covers a mistake made by this runbook, not the loss of the volume.
+
+## 3. Fetch the six versions into a staging folder
+
+```
+! MSYS_NO_PATHCONV=1 railway ssh --service web -- env PINE_LIBRARY_DIR=/tmp/pine_libraries_staging /opt/venv/bin/python /app/tools/pine_library/fetch_library.py theEccentricTrader/PubLibSwing/3 theEccentricTrader/PubLibPattern/4 theEccentricTrader/PubLibCandleTrend/2 theEccentricTrader/PubLibTrend/3 TradingView/ta/11 TradingView/RelativeValue/3
+```
+
+- It prints `store: /tmp/pine_libraries_staging`, then one `ok <path> MPL-2.0 (header) -> <file>` per
+  version.
+- It reads TradingView's public, unauthenticated endpoints only. It writes only into
   `/tmp/pine_libraries_staging`, never into the store.
-- **A `FAIL ... urlopen` or a timeout** means the pod cannot reach TradingView. Use **Appendix A**
-  instead of this step, then continue at step 4.
+- **A `FAIL ...` line** (a network error, a timeout): the pod could not reach TradingView. Nothing
+  has been written to the store. **Stop and report it**; see Appendix A.
 
 ## 4. Check the staging folder against the allowlist (the sha check)
 
-```sh
-/opt/venv/bin/python tools/pine_library/promotion_check.py check --store /tmp/pine_libraries_staging --exact
+```
+! MSYS_NO_PATHCONV=1 railway ssh --service web -- /opt/venv/bin/python /app/tools/pine_library/promotion_check.py check --store /tmp/pine_libraries_staging --exact
 ```
 
 The last line must be **`PROMOTION CHECK: PASS`**, with one `PROMOTED <path> <sha256>` line per
@@ -131,20 +144,21 @@ too.
 
 - **`WRONG-SHA`** means TradingView now serves different code under that version than the code that
   was graded. **Stop.** Report it. Do not install.
-- **Any other `PROBLEM`:** stop and report it.
+- **Any other `PROBLEM` line:** stop and report it.
 
 ## 5. Install
 
-First the plan (writes nothing):
+First the plan. It writes nothing, and must end `PROMOTION INSTALL: PASS` with a `COPY` (or `KEEP`)
+line per version:
 
-```sh
-/opt/venv/bin/python tools/pine_library/promotion_check.py install --from /tmp/pine_libraries_staging
+```
+! MSYS_NO_PATHCONV=1 railway ssh --service web -- /opt/venv/bin/python /app/tools/pine_library/promotion_check.py install --from /tmp/pine_libraries_staging
 ```
 
-It prints `COPY` or `KEEP` per version and `PROMOTION INSTALL: PASS`. Then:
+Then the write:
 
-```sh
-/opt/venv/bin/python tools/pine_library/promotion_check.py install --from /tmp/pine_libraries_staging --apply
+```
+! MSYS_NO_PATHCONV=1 railway ssh --service web -- /opt/venv/bin/python /app/tools/pine_library/promotion_check.py install --from /tmp/pine_libraries_staging --apply
 ```
 
 - It prints `WROTE <path> -> <file>` per copied version, then `PROMOTION INSTALL: PASS`.
@@ -152,13 +166,14 @@ It prints `COPY` or `KEEP` per version and `PROMOTION INSTALL: PASS`. Then:
   atomically (temp file, then rename).
 - It refuses, writing nothing, if the staging folder fails step 4, or if the store already holds a
   version under another sha256.
+- It writes to the store `web` serves. No restart is needed.
 
 ## 6. Verify
 
 On the pod:
 
-```sh
-/opt/venv/bin/python tools/pine_library/promotion_check.py check
+```
+! MSYS_NO_PATHCONV=1 railway ssh --service web -- /opt/venv/bin/python /app/tools/pine_library/promotion_check.py check
 ```
 
 The last line must be **`PROMOTION CHECK: PASS`**, with a `PROMOTED` line per version. Any `OTHER`
@@ -169,68 +184,48 @@ Then **through the read door**, in your own browser, signed in as yourself:
 - ⛔ Check first that the browser is signed in as you. `https://uctintelligence.com/api/auth/me`
   must not show an `@uctintelligence.internal` address (see CLAUDE.md, "THE OWNER'S OWN CHROME IS
   NEVER A SMOKE-ACCOUNT BROWSER").
-- Open `https://uctintelligence.com/api/pine/libraries`. Each promoted path must be listed, with a
+- Open `https://uctintelligence.com/api/pine/libraries`. All six paths must be listed, each with a
   `sha256` equal to the allowlist's.
-- Open one version, for example
-  `https://uctintelligence.com/api/pine/libraries/theEccentricTrader/PubLibSwing/3`. It must answer
-  200 with `"sha256": "3cbd09d934016a46d43c8097857bc3fae7af23111e22a414f671db740fc8551f"`. The page
-  also shows the library's published source: public MPL-2.0 code, no member data.
-- Control, the deny list still holds:
-  `https://uctintelligence.com/api/pine/libraries/TradingView/ValueAtTime/2` must answer **409**
-  with `"code": "library:denied"`, whatever the store holds.
+- Open `https://uctintelligence.com/api/pine/libraries/TradingView/ta/11`. It must answer 200 with
+  `"sha256": "da37dca4bc18ce3b825d1d9c8b682f97859508cc5bb8bd3e51e1a28713edee80"`. The page also shows
+  the library's published source: public MPL-2.0 code, no member data.
+- Control, the deny list still holds: `https://uctintelligence.com/api/pine/libraries/TradingView/ValueAtTime/2`
+  must answer **409** with `"code": "library:denied"`, whatever the store holds.
 
-Close the pod shell (`exit`). Report the step 1 and step 6 outputs to the coordinator.
+Report the outputs of steps 1 and 6 to the coordinator.
 
 ## 7. Rollback (only if needed)
 
-On the pod (`railway ssh --service web`, then `cd /app`):
+```
+! MSYS_NO_PATHCONV=1 railway ssh --service web -- mv /data/pine_libraries /data/pine_libraries.rolled-back-2026-11-16
+```
 
-```sh
-STORE=$(/opt/venv/bin/python -c 'from api.services import pine_library_store as s; print(s.store_root())')
-mv "$STORE" "$STORE.rolled-back-$(date -u +%Y%m%dT%H%M%SZ)"
-if [ -f /data/backups/pine_libraries-2026-11-16-pre-promotion.tgz ]; then tar -xzf /data/backups/pine_libraries-2026-11-16-pre-promotion.tgz -C "$(dirname "$STORE")"; fi
-/opt/venv/bin/python tools/pine_library/promotion_check.py check
+Only if step 2 made a backup:
+
+```
+! MSYS_NO_PATHCONV=1 railway ssh --service web -- tar -xzf /data/backups/pine_libraries-2026-11-16-pre-promotion.tgz -C /data
+```
+
+Then read back what the store holds now:
+
+```
+! MSYS_NO_PATHCONV=1 railway ssh --service web -- /opt/venv/bin/python /app/tools/pine_library/promotion_check.py check
 ```
 
 - The store moves aside. It is never deleted.
-- The backup comes back, or no store at all if step 2 said `NO STORE YET`.
-- The check prints what the store holds now.
+- The backup comes back, or no store at all if step 1 said `does not exist`.
 
 The effect is immediate, with no restart:
 - A member's script saved against a promoted version is refused by name again (the import line,
   `pine:module` / `runtime:library`). It is never drawn wrong.
 - An open browser tab keeps the code it already loaded until the page is reloaded.
 
-## Appendix A: fetch on the PC when the pod cannot reach TradingView
+## Appendix A: when the pod cannot reach TradingView
 
-In PowerShell, in a checkout at the merged master:
+If step 3 prints `FAIL` lines for network reasons, stop. Nothing has been written to the store.
+- Moving a staging folder from this PC to the pod needs a file-transfer command this runbook does
+  not carry.
+- The previous draft's chunked base64 upload needed a shell on the pod, so it is not copy-pasteable
+  in the `!` form above.
 
-```powershell
-$stage = "$env:TEMP\pine_libraries_staging"
-$env:PINE_LIBRARY_DIR = $stage
-python tools/pine_library/fetch_library.py (python tools/pine_library/promotion_check.py paths).Split(' ')
-python tools/pine_library/promotion_check.py check --store $stage --exact
-Remove-Item Env:PINE_LIBRARY_DIR
-tar -czf "$env:TEMP\pine_stage.tgz" -C "$env:TEMP" pine_libraries_staging
-(Get-FileHash -Algorithm SHA256 "$env:TEMP\pine_stage.tgz").Hash.ToLower()
-```
-
-The check must end `PROMOTION CHECK: PASS`. Note the sha256 of `pine_stage.tgz`. Then send the
-tarball to the pod in chunks (one `railway ssh` argument cannot hold it all), from the
-Railway-linked folder:
-
-```powershell
-$b64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes("$env:TEMP\pine_stage.tgz"))
-Set-Location C:\Users\Patrick\uct-dashboard
-railway ssh --service web "rm -f /tmp/pine_stage.b64 /tmp/pine_stage.tgz" | Out-Null
-for ($i = 0; $i -lt $b64.Length; $i += 6000) {
-  $c = $b64.Substring($i, [Math]::Min(6000, $b64.Length - $i))
-  railway ssh --service web "printf %s $c >> /tmp/pine_stage.b64" | Out-Null
-}
-railway ssh --service web "base64 -d /tmp/pine_stage.b64 > /tmp/pine_stage.tgz; sha256sum /tmp/pine_stage.tgz; rm -rf /tmp/pine_libraries_staging; tar -xzf /tmp/pine_stage.tgz -C /tmp; ls /tmp/pine_libraries_staging"
-```
-
-- The sha256 the pod prints must equal the PC's. A truncated upload would still unpack, which is why
-  the hashes are compared.
-- Then continue at step 4, on the pod. `/tmp` does not survive a redeploy: if `web` restarted in
-  between, upload again.
+Report it, and a one-program upload step will be added to `promotion_check.py`.
