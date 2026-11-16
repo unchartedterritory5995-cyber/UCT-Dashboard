@@ -107,7 +107,9 @@ test('an indicator pane leads the menu with its rows, then a rule, then the char
   const menu = open({ paneIndicator: pane })
   expect(menu, 'no context menu rendered').toBeTruthy()
   const order = ids(menu)
-  expect(order.slice(0, 5)).toEqual(['pane-settings', 'pane-preset', 'pane-hidden', 'pane-alerts', 'pane-about'])
+  // Reset view leads every menu (owner 11-15); the pane's own rows come straight after it
+  expect(order[0]).toBe('reset')
+  expect(order.slice(1, 6)).toEqual(['pane-settings', 'pane-preset', 'pane-hidden', 'pane-alerts', 'pane-about'])
   // the existing menu is all still there, below the pane block
   for (const id of ['journal', 'reset', 'settings', 'template', 'add-widget']) expect(order).toContain(id)
   expect(order.indexOf('journal')).toBeGreaterThan(order.indexOf('pane-about'))
@@ -185,7 +187,8 @@ test('no pane rows (price area, read-only, legacy) leaves the menu exactly as be
   render(<Wrap />)
   const menu = open({ region: { type: 'price' }, paneIndicator: null })
   expect(menu.querySelector('[data-menu-id^="pane-"]')).toBeNull()
-  expect(ids(menu)[0]).toBe('journal')
+  expect(ids(menu)[0]).toBe('reset')      // Reset view leads the menu (owner 11-15)
+  expect(ids(menu)[1]).toBe('journal')
   // an empty row list is treated the same as none
   act(() => { fireEvent.click(document.body.querySelector('[class*="chartCtxBackdrop"]')) })
   const again = open({ paneIndicator: { instanceId: 'x', defId: 'rsi', items: [] } })

@@ -515,7 +515,7 @@ export default function NotebookWidget({ opts, onOptsChange }) {   // `color` un
         {createPortal(gearBtn, uctCtrls)}
         {settingsOpen && (
           <NewsSettingsPanel
-            title="Notebook Settings"
+            title="Notebook settings"
             widgetType="notebook"
             textHint="notes & headers"
             showPerf={false}
@@ -638,7 +638,7 @@ export default function NotebookWidget({ opts, onOptsChange }) {   // `color` un
     <div ref={rootRef} className={styles.root} style={rootStyle}>
       {settingsOpen && (
         <NewsSettingsPanel
-          title="Notebook Settings"
+          title="Notebook settings"
           widgetType="notebook"
           textHint="notes & headers"
           showPerf={false}

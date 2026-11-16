@@ -273,6 +273,44 @@ def create_indicator_enabled_for(user_id: Optional[str]) -> bool:
                               kill_switch=create_indicator_cohort_enabled)
 
 
+def enroll_in_create_indicator(user_id: str) -> None:
+    """Owner decision 2026-11-15: Create Indicator is open to every account, so every
+    new signup joins its cohort. Membership is a WRITE, so it is not behind the switch:
+    what a member SEES is still `create_indicator_enabled_for`, which reads the kill
+    switch first. Same shape as `enroll_in_terminal_next`, and here for the same reason:
+    this module is the one place that names the cohort."""
+    from api.services import rollout
+    rollout.assign_cohort(CREATE_INDICATOR_COHORT, [user_id])
+
+
+#: The one-shot marker for the seed below, in DATA_DIR beside
+#: `TERMINAL_NEXT_SEED_MARKER`. Bump the suffix only to re-run it on every volume.
+CREATE_INDICATOR_SEED_MARKER = ".create_indicator_seed_v1"
+
+
+def seed_existing_members_into_create_indicator(data_dir: Optional[str] = None) -> Optional[int]:
+    """Owner decision 2026-11-15: every EXISTING account joins the Create Indicator
+    cohort, ONCE per volume. New signups are enrolled by `enroll_in_create_indicator`.
+
+    NOT A SECOND WRITER: it calls `rollout.seed_cohort_all_members`, the writer
+    `tools/rollout_cohort.py seed-all --apply` uses, which is idempotent and never
+    removes a tag. Returns the number of tag rows added, or None when the marker says
+    it already ran. The marker is written only AFTER the write succeeded, so a failure
+    raises, leaves no marker, and the next boot tries again. Turning the feature off is
+    still the flag, never this table.
+    """
+    d = data_dir or os.environ.get("DATA_DIR", "/data")
+    marker = os.path.join(d, CREATE_INDICATOR_SEED_MARKER)
+    if os.path.exists(marker):
+        return None
+    from api.services import rollout
+
+    added = rollout.seed_cohort_all_members(CREATE_INDICATOR_COHORT)
+    with open(marker, "w", encoding="utf-8") as fh:
+        fh.write("seeded %d\n" % int(added))
+    return int(added)
+
+
 #: ⛔ THE COHORTS A CLIENT MAY BE TOLD ABOUT, each beside the kill switch that
 #: can stop it. A cohort absent from this map is NEVER surfaced to a browser,
 #: and that is fail-closed on purpose: a cohort the client can see but nobody

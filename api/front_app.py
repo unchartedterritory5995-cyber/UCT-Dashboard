@@ -29,10 +29,26 @@ compressed stays compressed). Request headers go through untouched, including `H
 `X-Forwarded-For`, `X-Real-IP` and `CF-Connecting-IP`: Railway's edge wrote them, and
 `api/services/request_ip.py` on `web` reads them exactly as it does today.
 
-⛔ IT NEVER RETRIES AND NEVER HOLDS A REQUEST. If `web` cannot be reached within
-`CONNECT_TIMEOUT_S` the answer is 502, which is what members get today and what the
-in-app "Updating" banner (`app/src/lib/serverGap.js`) keys on. A held request would show
-stale numbers as if they were live.
+⛔ BY DEFAULT IT NEVER RETRIES AND NEVER HOLDS A REQUEST. If `web` cannot be reached within
+`CONNECT_TIMEOUT_S` the answer is 502, which is what the in-app "Updating" banner
+(`app/src/lib/serverGap.js`) keys on.
+
+HOLDING A READ WHILE `web` RESTARTS (2026-11-16, off unless `FRONT_HOLD_SECONDS` is set).
+A `web` release is 40 to 75 seconds with nothing listening. With a budget set, a GET or HEAD
+with no body whose CONNECTION to `web` failed (so nothing was sent) is tried again every
+half second or so until `web` answers or the budget runs out, and the member gets one late
+answer in place of an error. What makes that safe, each pinned in `tests/test_front_app.py`:
+  * only GET and HEAD without a body, and only after a connect failure: a write, or a request
+    `web` may have started on, is never sent twice;
+  * never the paths in `HOLD_EXEMPT_PREFIXES`: streams, live prices and bars fail fast as
+    before (a late price is worse than a missing one), and so does `/api/health`, which the
+    banner and the monitors poll;
+  * the answer a held request gets is `web`'s fresh answer, computed after it came back. It
+    is late, not stale;
+  * at most `FRONT_HOLD_MAX` requests are held at once (default 200); the rest fail fast;
+  * a member who has gone away is dropped at the next try.
+The 2026-11-13 design refused holding because a held request "would show stale numbers as
+if they were live". That is true of serving a stored copy and not of waiting for the real one.
 
 Start it with:  uvicorn api.front_app:app --host 0.0.0.0 --port $PORT
 (no `--proxy-headers`: this app forwards the edge's headers, it does not interpret them).
@@ -40,9 +56,11 @@ Environment: `FRONT_UPSTREAM` = `host:port` of `web` (required), `RAILWAY_GIT_CO
 """
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import logging
 import os
+import random
 import time
 
 import httpx
@@ -67,6 +85,43 @@ CONNECT_TIMEOUT_S = 5.0
 #: connection `web` has just closed. Nothing here retries, so that would be a 502 for the
 #: member. `tests/test_front_app_parity.py` reads `web`'s limit and requires the margin.
 UPSTREAM_KEEPALIVE_EXPIRY_S = 2.0
+
+#: Seconds a held read may wait for `web` in all. Unset, empty, 0 or unreadable = never hold.
+HOLD_ENV = "FRONT_HOLD_SECONDS"
+#: How many requests may be held at once before the rest fail fast.
+HOLD_MAX_ENV = "FRONT_HOLD_MAX"
+HOLD_MAX_DEFAULT = 200
+#: No budget above this is honoured: Cloudflare gives up on a silent origin at about 100 s.
+HOLD_CEILING_S = 90.0
+#: Pause between tries, picked at random in this range so held requests do not return in a block.
+HOLD_RETRY_S = (0.4, 0.9)
+#: Never held. Streams, live prices and bars: a late price is worse than a missing one, and the
+#: page already recovers these itself. `/api/health`: the banner and the monitors poll it to
+#: learn that `web` is away.
+HOLD_EXEMPT_PREFIXES = ("/api/stream/", "/api/live-prices", "/api/live/", "/api/bars", "/api/health")
+
+
+def hold_seconds() -> float:
+    try:
+        value = float((os.environ.get(HOLD_ENV) or "0").strip())
+    except ValueError:
+        return 0.0
+    return min(max(value, 0.0), HOLD_CEILING_S) if value == value else 0.0
+
+
+def hold_max() -> int:
+    try:
+        return max(int((os.environ.get(HOLD_MAX_ENV) or str(HOLD_MAX_DEFAULT)).strip()), 0)
+    except ValueError:
+        return HOLD_MAX_DEFAULT
+
+
+def may_hold(method: str, path: str, has_body: bool) -> bool:
+    """A read with no body, outside the exempt paths. Whether anything was SENT is the caller's
+    half of the rule: it holds only after a connect failure."""
+    return (method in ("GET", "HEAD") and not has_body
+            and not any(path == p or path.startswith(p) for p in HOLD_EXEMPT_PREFIXES))
+
 
 #: path, file inside the build, media type, Cache-Control (None = none sent).
 #: Mirrors the `FileResponse` routes in `api/main.py`. `tests/test_front_app.py` serves the
@@ -233,6 +288,7 @@ def create_app(dist: str | None = None, upstream: str | None = None,
         # `web` compress an answer for a client that cannot read it.
         for _default in ("accept", "accept-encoding", "user-agent"):
             app.state.client.headers.pop(_default, None)
+        app.state.held = 0
         logger.info("[front] serving %s, passing the rest to %s", dist, app.state.upstream)
         try:
             yield
@@ -297,23 +353,47 @@ def create_app(dist: str | None = None, upstream: str | None = None,
         has_body = (request.headers.get("transfer-encoding") is not None
                     or (request.headers.get("content-length") or "0").strip() not in ("", "0"))
         started = time.perf_counter()
+        app_state = request.app.state
+        hold_until: float | None = None   # set once this request has been admitted to the held set
         try:
-            upstream = await client.send(
-                client.build_request(request.method, target, headers=headers,
-                                     content=request.stream() if has_body else None),
-                stream=True,
-            )
-        except (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout) as exc:
-            logger.warning("[front] %s %s -> unreachable (%s) after %.0f ms", request.method,
-                           path_class(scope["path"]), type(exc).__name__, (time.perf_counter() - started) * 1000)
-            return Response("upstream unreachable", status_code=502, media_type="text/plain",
-                            headers={"X-UCT-Front": "upstream-unreachable", "Cache-Control": "no-store"})
-        except httpx.HTTPError as exc:
-            logger.warning("[front] %s %s -> upstream error (%s)", request.method,
-                           path_class(scope["path"]), type(exc).__name__)
-            return Response("upstream error", status_code=502, media_type="text/plain",
-                            headers={"X-UCT-Front": "upstream-error", "Cache-Control": "no-store"})
+            while True:
+                try:
+                    upstream = await client.send(
+                        client.build_request(request.method, target, headers=headers,
+                                             content=request.stream() if has_body else None),
+                        stream=True,
+                    )
+                    break
+                except (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout) as exc:
+                    # Nothing reached `web`. A read may wait for it; everything else fails now.
+                    now = time.perf_counter()
+                    if hold_until is None and may_hold(request.method, scope["path"], has_body):
+                        budget = hold_seconds()
+                        if budget > 0 and app_state.held < hold_max():
+                            app_state.held += 1
+                            hold_until = started + budget
+                    if hold_until is not None and now < hold_until and not await request.is_disconnected():
+                        await asyncio.sleep(min(random.uniform(*HOLD_RETRY_S), max(hold_until - now, 0.05)))
+                        continue
+                    logger.warning("[front] %s %s -> unreachable (%s) after %.0f ms%s", request.method,
+                                   path_class(scope["path"]), type(exc).__name__, (now - started) * 1000,
+                                   " (held)" if hold_until is not None else "")
+                    gave_up = {"X-UCT-Front": "upstream-unreachable", "Cache-Control": "no-store"}
+                    if hold_until is not None:
+                        gave_up["X-UCT-Front-Held"] = "%.0f" % ((now - started) * 1000)
+                    return Response("upstream unreachable", status_code=502, media_type="text/plain", headers=gave_up)
+                except httpx.HTTPError as exc:
+                    logger.warning("[front] %s %s -> upstream error (%s)", request.method,
+                                   path_class(scope["path"]), type(exc).__name__)
+                    return Response("upstream error", status_code=502, media_type="text/plain",
+                                    headers={"X-UCT-Front": "upstream-error", "Cache-Control": "no-store"})
+        finally:
+            if hold_until is not None:
+                app_state.held -= 1
         waited_ms = (time.perf_counter() - started) * 1000
+        if hold_until is not None:
+            logger.info("[front] %s %s held %.0f ms until web answered", request.method,
+                        path_class(scope["path"]), waited_ms)
 
         async def body():
             try:
@@ -332,6 +412,8 @@ def create_app(dist: str | None = None, upstream: str | None = None,
         response.raw_headers = [(k, v) for k, v in upstream.headers.raw
                                 if k.decode("latin-1").lower() not in HOP_BY_HOP
                                 and k.decode("latin-1").lower() not in ("date", "server")]
+        if hold_until is not None:
+            response.raw_headers.append((b"x-uct-front-held", b"%d" % waited_ms))
         return response
 
     app.add_api_route("/api/{rest:path}", proxy, methods=ALL_METHODS, include_in_schema=False)

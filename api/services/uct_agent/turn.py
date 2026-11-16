@@ -1518,6 +1518,10 @@ ACTIONLESS_OUTCOME_KINDS = frozenset({
     # of its changes are still on the board (each of them already has its own receipt row, with its actions); this row
     # names no action, so the model never reads it as an applied change
     "compound-takeback-failed",
+    # H14 / D23 (#1324): a chart pick refused because that chart changed since the question was asked — UCT's own
+    # fixed sentence ("Your board changed since I asked, so I didn't change anything …"), no data, nothing applied;
+    # the same class as "refused-stale", so it is replayable and names no action
+    "refused-stale-pick",
 })
 
 
