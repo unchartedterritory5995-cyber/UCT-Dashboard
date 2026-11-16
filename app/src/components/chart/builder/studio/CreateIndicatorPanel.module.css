@@ -361,6 +361,13 @@
   .historyClose { min-height: 44px; padding: 0 8px; }
 }
 
+/* F1 — the allowance line, quiet, just above the box it limits. */
+.allowance {
+  flex: none;
+  margin: 0; padding: 0 14px 6px;
+  font-size: 11px; color: var(--menu-text-faint, #93939a);
+}
+
 .foot {
   flex: none;
   display: flex; align-items: center; gap: 8px;

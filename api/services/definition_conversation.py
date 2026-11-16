@@ -1603,6 +1603,21 @@ def _env_usd(name: str) -> Optional[float]:
     return value
 
 
+def allowance_left(user_id: Any, cap_usd: float, market_date: Optional[str] = None) -> Optional[float]:
+    """The share of today's allowance this member has left, 0 to 1, to the nearest 5 percent
+    (a coarse figure: the dock says "about"). None when there is no positive cap. It reads the
+    same ledger the cap reads (`definition_concierge.spend_for`), so the two cannot disagree."""
+    try:
+        cap = float(cap_usd)
+    except (TypeError, ValueError):
+        return None
+    if not (cap > 0) or cap != cap:
+        return None
+    spent = dc.spend_for(user_id, market_date or dc._market_date())
+    share = max(0.0, min(1.0, 1.0 - float(spent) / cap))
+    return round(round(share * 20) / 20, 2)
+
+
 def conversation_cap_usd(*, admin: bool = False) -> float:
     """The daily $ cap ``converse`` compares the member's ledger against."""
     member = _env_usd(CONVERSE_USER_CAP_ENV)
@@ -1742,6 +1757,14 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
         logger.exception("[converse] usage accounting failed")
     _record_turn(user_id, conversation_id, result, admin=admin, message=message,
                  latency_ms=latency_ms)
+    # ⭐ F1 (2026-11-16): how much of today's allowance is left, so the dock can say so before
+    # it runs out rather than only when it has. A SHARE, never dollars. Never breaks a turn.
+    try:
+        left = allowance_left(user_id, cap_usd)
+        if left is not None:
+            result["allowance_left"] = left
+    except Exception:                              # noqa: BLE001
+        logger.exception("[converse] allowance read failed")
     if admin and not result.get("ok") and trace.get("refusals"):
         # WHY EACH ATTEMPT WAS REFUSED, FOR THE BUILDERS ONLY (2026-11-16). The house set
         # found requests that fail twice at a name or reference check, and nothing outside
