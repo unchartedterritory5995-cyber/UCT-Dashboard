@@ -902,6 +902,57 @@ def _refuse_unsupported_nodes(trees: List[Tuple[str, Any]]) -> None:
                                member=member.format(value=_member_value(node.get("value"))))
 
 
+#: Functions that answer a count of bars BACK: 0 on this bar, never negative here.
+#: (TradingView's ``ta.highestbars`` / ``ta.lowestbars`` answer a NON-POSITIVE offset; the
+#: translator negates it for a pasted script. A model that knows Pine writes the negative form.)
+_BARS_BACK_CALLS = frozenset({"highestbars", "lowestbars", "barssince"})
+_COMPARISONS = frozenset({"<", "<=", ">", ">=", "==", "!="})
+
+
+def _negative_literal(node: Any) -> bool:
+    if not isinstance(node, Mapping):
+        return False
+    if node.get("type") == "num":
+        v = node.get("value")
+        return isinstance(v, (int, float)) and not isinstance(v, bool) and v < 0
+    if node.get("type") == "op" and node.get("name") == "u-":
+        args = node.get("args")
+        if (isinstance(args, list) and len(args) == 1 and isinstance(args[0], Mapping)
+                and args[0].get("type") == "num"):
+            v = args[0].get("value")
+            return isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0
+    return False
+
+
+def _refuse_negative_bars_back(trees: List[Tuple[str, Any]]) -> None:
+    """2026-11-16 -- A BARS-BACK COUNT COMPARED WITH A NEGATIVE NUMBER.
+
+    Found by the house set's value check: asked for a follow-through day "from day 4
+    through day 12 after the lowest low of the last 50 sessions", the model wrote
+    ``lowestbars(low, 50) >= -11 && lowestbars(low, 50) <= -3``, TradingView's convention.
+    Here the count is 0 or more, so the condition was never true: the indicator built, read
+    back plausibly, and could not fire on any bar (0 of 700 on two symbols). The door now
+    names the convention and the model gets its repair.
+    """
+    for where, tree in trees:
+        for node in _walk(tree):
+            if node.get("type") != "op" or node.get("name") not in _COMPARISONS:
+                continue
+            args = node.get("args")
+            if not isinstance(args, list) or len(args) != 2:
+                continue
+            for call, other in ((args[0], args[1]), (args[1], args[0])):
+                if (isinstance(call, Mapping) and call.get("type") == "call"
+                        and call.get("name") in _BARS_BACK_CALLS and _negative_literal(other)):
+                    name = call.get("name")
+                    raise _Refused(
+                        "envelope:reference",
+                        f"{where}: `{name}` is compared with a negative number. Here `{name}` "
+                        "answers a count of bars BACK: 0 on this bar, 1 one bar ago, never negative "
+                        "(unlike TradingView's `ta.highestbars` / `ta.lowestbars`). Compare it with "
+                        "numbers of 0 or more: \"3 to 11 bars ago\" is `>= 3` and `<= 11`.")
+
+
 def _refuse_scalars(trees: List[Tuple[str, Any]]) -> None:
     """BY NAME, before the schema (whose ``series`` enum no longer offers them):
     defence in depth for a model that emits a nightly scalar anyway."""
@@ -1405,6 +1456,7 @@ def check_envelope(envelope: Any, revision: int, view: Any = None) -> Dict[str, 
     if not isinstance(envelope, Mapping):
         raise _Refused("model:no-tool", "no patch in the answer")
     _refuse_unsupported_nodes(_trees_of(envelope))
+    _refuse_negative_bars_back(_trees_of(envelope))
     _refuse_scalars(_trees_of(envelope))
     errors = _schema_errors(envelope)
     if errors:
