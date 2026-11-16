@@ -231,10 +231,8 @@ describe('a cell whose block never runs on a chart of this period loses nothing'
   })
 
   it('⛔ control: the same unreadable cell under a guard that runs on SOME bars is still dropped, by name', () => {
-    const src = TWO_TABLES.replace('    if timeframe.isminutes and timeframe.multiplier < 60
-        var table intra',
-      '    if close > open
-        var table intra')
+    const src = TWO_TABLES.replace(['    if timeframe.isminutes and timeframe.multiplier < 60', '        var table intra'].join(LF),
+      ['    if close > open', '        var table intra'].join(LF))
     expect(src).not.toBe(TWO_TABLES)
     const t = translatePine(src, { strict: true, objects: true })
     const d = t.objectDiagnostics || {}
