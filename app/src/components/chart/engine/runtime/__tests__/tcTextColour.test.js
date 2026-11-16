@@ -25,8 +25,9 @@
 import { describe, it, expect } from 'vitest'
 
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
-import { colourHexByName } from '../../ast/pine.js'
-import { hexToPacked } from '../colours.js'
+import { colourHexByName, translatePine } from '../../ast/pine.js'
+import { interpret } from '../../ast/interpret.js'
+import { hexToPacked, objectHexToPacked } from '../colours.js'
 import { lowerIrProgram } from '../lowerIr.js'
 import { execute } from '../vm.js'
 import { tickNumberText, tickNumberWhy } from '../../pineTextFormat.js'
@@ -143,6 +144,41 @@ describe('⭐ colours compared, and a colour\'s past', () => {
     expect(refusalOf(`${head}plot(c > color.red ? 1 : 0)\n`).message).toMatch(/compares colours with `==` and `!=` only/)
     expect(refusalOf(`${head}plot(c == 5 ? 1 : 0)\n`).message).toMatch(/between a colour and a value/)
   })
+})
+
+describe('⭐⭐ graph-vs-runtime differential: a paint colour BOTH lanes serve is the same colour on every bar', () => {
+  // The host lane carries a paint as a palette + an index tree, or `colorUp` / `colorDown` + a condition tree;
+  // the index / condition is evaluated here by the columnar interpreter on the same bars, and each bar's host
+  // colour is packed the way the runtime packs one (`#RRGGBBAA` through `objectHexToPacked`, a 6-digit hex at
+  // its transparency through `hexToPacked`), then compared WORD FOR WORD with the run's own column.
+  const hostWords = (src) => {
+    const [p] = (translatePine(src, { strict: true }).presentation || {}).paints || []
+    expect(p && !p.withheld, JSON.stringify(p)).toBe(true)
+    const word = (hex, opacity) => {
+      if (/^rgba\(0, 0, 0, 0\)$/.test(hex)) return NaN
+      if (/^#[0-9a-f]{8}$/i.test(hex)) return objectHexToPacked(hex)
+      return hexToPacked(hex, Math.round((1 - (opacity === undefined ? 1 : opacity)) * 100))
+    }
+    if (p.colorPalette) {
+      const idx = Array.from(interpret(p.colorIndex.ast, BARS, {}))
+      return idx.map((k) => word(p.colorPalette[k], p.opacity))
+    }
+    const cond = Array.from(interpret(p.colorCondition.ast, BARS, {}))
+    return cond.map((c) => word(c ? p.colorUp : p.colorDown, p.opacity))
+  }
+  const SHAPES = [
+    // R35c's helper fold on the host, the colour specialisation (untyped parameter) on the run
+    ['a colour helper over an untyped parameter', '//@version=5\nindicator("t", overlay=true)\nf(c, t) =>\n    color.new(c, t)\nplot(close)\nbgcolor(close > open ? f(color.red, 90) : na)\n'],
+    ['two `color.new` arms', '//@version=5\nindicator("t", overlay=true)\nplot(close)\nbgcolor(close > open ? color.new(color.green, 80) : color.new(color.red, 70))\n'],
+    ['a v6 palette constant at a literal transparency', '//@version=6\nindicator("t", overlay=true)\nplot(close)\nbgcolor(close > open ? color.new(color.yellow, 40) : color.new(color.teal, 60))\n'],
+  ]
+  for (const [label, src] of SHAPES) {
+    it(`⭐ ${label}`, () => {
+      const host = hostWords(src)
+      const bg = run(src).find((o) => o.call === 'bgcolor')
+      expect(words(bg.values)).toEqual(host.map((w) => (Number.isNaN(w) ? NaN : w >>> 0)))
+    })
+  }
 })
 
 describe('⭐ the colour constants follow the script\'s version (Pine v6 migration guide, Color changes)', () => {
