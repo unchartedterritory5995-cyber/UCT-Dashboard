@@ -359,6 +359,7 @@
 }
 .resRow:hover .resAdd { background: rgba(248, 247, 243, 0.08); color: var(--ci-bright); }
 .indEmpty { color: var(--ci-faint); padding: 24px 4px; text-align: center; }
+.indEmptyAction { margin-top: 12px; display: flex; justify-content: center; }
 .insSearching { color: var(--ci-faint); padding: 10px 12px; background: var(--ci-card); border-radius: 9px; }
 .insUnavailable { padding: 18px 6px; color: var(--ci-dim); }
 .insUnavailableLede { font-weight: 600; color: var(--ci-text); }
