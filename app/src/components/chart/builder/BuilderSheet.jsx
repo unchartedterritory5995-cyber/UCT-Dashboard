@@ -1999,7 +1999,7 @@ export default function BuilderSheet({
   const saveHint = converseActive
     ? 'Saves the indicator from the conversation above.'
     : supersededByConversation
-    ? `The conversation above saved this formula as version ${conversationSaved.version}. Reopen it from "Your formulas" to edit it here.`
+    ? `The conversation above saved this indicator as version ${conversationSaved.version}. Reopen it from "Your indicators" to edit it here.`
     : (saveGates.idle && !saveGates.settled)
     ? 'Checking your formula…'
     : (saveGates.idle && saveGates.settled && saveGates.formula && !saveGates.named)
@@ -3843,7 +3843,7 @@ export default function BuilderSheet({
             <p className={styles.storeError} role="alert" data-testid="list-error">
               {listError.status === 402
                 ? 'Custom indicators require a paid plan.'
-                : 'Your saved formulas could not be loaded.'}
+                : 'Your saved indicators could not be loaded.'}
             </p>
           )}
           {savedRow && (
@@ -3972,7 +3972,7 @@ export default function BuilderSheet({
 
           {rows.length > 0 && (
             <section className={styles.listWrap} aria-labelledby="uct-saved-head">
-              <h3 className={styles.sectionHead} id="uct-saved-head">Your formulas</h3>
+              <h3 className={styles.sectionHead} id="uct-saved-head">Your indicators</h3>
               <ul className={styles.list}>
                 {rows.map((row) => (
                   <li key={row.def_id} className={styles.listRow}>
