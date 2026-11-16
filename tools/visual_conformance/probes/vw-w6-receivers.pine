@@ -11,6 +11,9 @@
 //   U01-U02  two `method clr` overloads (array<string>, array<bool>): each on its own receiver (1, 2)
 //   U05      a chain a.get(0).f over array<Foo>
 //   U06      Foo.copy aliasing: copy.f := 5 leaves the original's f (1) and shares its array (size 1)
+// ac6 READING (run ac6, 2026-11-16): this file did not compile: "The {argName} argument is not used. The first
+// method argument should be used." Its methods never read their receiver. Each now reads it at no cost to the
+// value (`array.size(<receiver>) * 0`), so the question asked is the one in the QUESTION line again.
 //@version=6
 indicator("vw-w6-receivers", overlay = false)
 plot(bar_index, "A00 bar_index control")
@@ -18,9 +21,9 @@ type Foo
     float f = 1
     array<float> xs
 method clr(array<string> id) =>
-    1
+    array.size(id) * 0 + 1
 method clr(array<bool> id) =>
-    2
+    array.size(id) * 0 + 2
 s = array.new<string>()
 b = array.new<bool>()
 plot(s.clr(), "U01 clr on array<string>")

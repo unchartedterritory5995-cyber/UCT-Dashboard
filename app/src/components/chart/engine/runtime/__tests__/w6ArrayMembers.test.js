@@ -147,7 +147,8 @@ describe('⭐⭐ array.variance / array.stdev / array.covariance — `biased` "O
     expect(() => runPine('a = array.from(close, na)\nplot(array.stdev(a))')).toThrow(/array\.stdev over an `na` element.*W6-A1/)
     expect(() => runPine('a = array.from(close, na)\nplot(array.covariance(a, a))')).toThrow(/array\.covariance over an `na` element.*W6-A1/)
     expect(() => runPine('a = array.from(close)\nplot(array.variance(a, false))')).toThrow(/biased = false.*over 1 element.*W6-A1/)
-    expect(() => runPine('plot(array.covariance(array.from(close), array.from(close, open)))')).toThrow(/arrays of 1 and 2 elements.*W6-A1/)
+    // ⭐ UDT unit (ac6) — TradingView's own stop: "The sizes of the `id1` and `id2` arrays must be equal."
+    expect(() => runPine('plot(array.covariance(array.from(close), array.from(close, open)))')).toThrow(/arrays of 1 and 2 elements.*TradingView stops the script here too/)
   })
 })
 

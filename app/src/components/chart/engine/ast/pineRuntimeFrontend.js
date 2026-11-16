@@ -12463,6 +12463,32 @@ function buildRuntimeIrLinked(source, opts, holder) {
   }
   /** Does a statement write `name` (`name := …`, `name += …`, `[…, name] := …`) or a field
    *  through it (`name.f := …`)? */
+  /** ⭐ UDT unit (ac6) — the name of a `method`'s first parameter when its body never reads it, else null.
+   *  `toks` is the declaration from the method's name on (`name ( <type> <param> [= …], … ) => …`); the body
+   *  is what follows `=>` on that line plus every statement under it. A dotted name (`id.size`) is a read of
+   *  `id`. ⛔ Anything this cannot read (no `(`, no `=>`, no parameter name) answers null: no refusal. */
+  const methodReceiverUnused = (toks, st) => {
+    if (!toks || !isPunct(toks[1], '(')) return null
+    let depth = 0
+    let end = -1
+    for (let i = 1; i < toks.length; i += 1) {
+      const t = toks[i]
+      // `<` / `>` before the first parameter's end are a type's arguments (`map<string, float> m`)
+      if (isPunct(t, '(') || isPunct(t, '[') || isPunct(t, '<')) depth += 1
+      else if (isPunct(t, ')') || isPunct(t, ']') || isPunct(t, '>')) { depth -= 1; if (depth === 0) { end = i; break } }
+      else if (depth === 1 && (isPunct(t, ',') || isPunct(t, '='))) { end = i; break }
+    }
+    if (end < 0) return null
+    const pTok = toks[end - 1]
+    if (!pTok || pTok.kind !== 'ident') return null
+    const name = String(pTok.value)
+    const arrow = toks.findIndex((t) => isPunct(t, '=>'))
+    if (arrow < 0) return null
+    const reads = (ts) => (ts || []).some((t) => t && t.kind === 'ident'
+      && (String(t.value) === name || String(t.value).startsWith(`${name}.`)))
+    const inSub = (list) => (list || []).some((s2) => reads(s2.header) || reads(s2.body) || inSub(s2.sub))
+    return reads(toks.slice(arrow + 1)) || reads(st && st.body) || inSub(st && st.sub) ? null : name
+  }
   /** ⭐ `plain`: only an assignment to the name itself (`x := …`, `x += …`, a tuple `[x, …] := …`),
    *  never one through it (`x.f := …`). */
   const forInWrites = (list, name, plain = false) => (list || []).some((s2) => {
@@ -12782,6 +12808,19 @@ function buildRuntimeIrLinked(source, opts, holder) {
         && pineVersion !== null && pineVersion < 5
       if (word === 'method' && !methodIsName) {
         const mName = toks[1] && toks[1].kind === 'ident' ? String(toks[1].value) : null
+        // ⭐⭐ UDT UNIT (ac6 readings, 2026-11-16) — A METHOD MUST USE ITS FIRST ARGUMENT. TradingView does
+        // not compile one that does not: "The "{argName}" argument is not used. The first method argument
+        // should be used." (Compilation error, reading of probes `vw-w6-receivers`, `-get-float`, `-get-int` and
+        // `-pick-int`, capture queue run ac6, whose methods never read their receiver.) Refused at the
+        // declaration, as TradingView refuses the whole script whether or not anything calls it.
+        {
+          const unused = mName ? methodReceiverUnused(toks.slice(1), st) : null
+          if (unused) {
+            note('runtime:udt-method')
+            throw new RuntimeRefusal('runtime:udt-method', `\`${mName}\` never uses its first argument \`${unused}\`, `
+              + 'and TradingView does not compile that ("The first method argument should be used")', locate(first))
+          }
+        }
         // ⭐⭐ W6-T9 — AN OVERLOAD IS SERVED, under its own name (`methodDefName`: the method
         // name and its receiver type), when every declaration's receiver type is read and no
         // two are one type here. A call reaches it through `resolveMethod`, by receiver type.

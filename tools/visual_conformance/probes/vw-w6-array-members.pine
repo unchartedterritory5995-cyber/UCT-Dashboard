@@ -26,6 +26,10 @@
 // v6 reference types were N07 / E01 / E02: `array.every` / `array.some` over `array<float>` (both take
 // `array<bool>`). Those rows are gone (UDT unit, 2026-11-16): N07 asked an `na` in a bool array, which v6 cannot
 // hold, and E01 / E02 moved to `vw-w6-array-every-empty.pine` over an empty `array<bool>`. A00 is the control.
+// ⛔ READING, run ac6 (2026-11-16): this file then raised "Runtime error: … The sizes of the `id1` and `id2` arrays
+// must be equal." So V02 (covariance of sizes 1 and 2) is ANSWERED (TradingView stops the script) and is gone. V03
+// and Q01 (percentile_nearest_rank at 0 and at 101) were never reached and may raise too, so each has its own file:
+// `vw-w6-array-pnr-at-0.pine`, `vw-w6-array-pnr-at-101.pine`.
 //@version=6
 indicator("vw-w6-array-members", overlay = false)
 plot(bar_index, "A00 bar_index control")
@@ -77,9 +81,6 @@ us = array.new_string(3)
 plot(na(array.get(us, 0)) ? 1 : 0, "U02 new_string(3) element 0 is na")
 plot(array.lastindexof(array.from(1.0, 2.0), na), "E03 lastindexof na, absent")
 plot(array.variance(array.from(5.0), false), "V01 unbiased variance of one element")
-plot(array.covariance(array.from(1.0), array.from(1.0, 2.0)), "V02 covariance sizes 1 and 2")
-plot(array.percentile_nearest_rank(pe, 0), "V03 pnr at 0")
-plot(array.percentile_nearest_rank(pe, 101), "Q01 pnr at 101")
 plot(array.percentile_nearest_rank(pe, 0.5), "Q02 pnr at 0.5")
 plot(array.lastindexof(array.from(1.0, na, 2.0), na), "L01 lastindexof na, present")
 plot(array.median(array.from(1.5, 2.5, 4.5, 8.5)), "H01 median even count, floats")

@@ -456,6 +456,14 @@ const W19R2_MEMBERS = {
       const from = a.length > 2 ? a[2] : 0
       // `index_to` defaults to `na` — the end of the array.
       const to = a.length > 3 && !(typeof a[3] === 'number' && Number.isNaN(a[3])) ? a[3] : n
+      // ⭐ UDT unit (ac6 readings) — an end past the array and a negative start are TradingView's own stop:
+      // "In 'array.{funcName}()' function. Index {index} is out of bounds, array size is {size}." (Runtime error,
+      // probes `vw-w19r2a-fill-past-end` and `vw-w19r2a-fill-negative-from`, run ac6). A reversed range and a
+      // non-whole index are still unasked.
+      if (Number.isInteger(from) && Number.isInteger(to) && from <= to && (from < 0 || to > n)) {
+        throw new CollectionError(`array.fill: the range [${from}, ${to}) over an array of ${n} — TradingView stops the `
+          + 'script here too ("Index … is out of bounds, array size is …", Q-W19R2a, run ac6)')
+      }
       if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to > n || from > to) {
         throw new CollectionError(`array.fill: the range [${from}, ${to}) over an array of ${n} — ${W19_UNSETTLED}`)
       }
@@ -779,7 +787,10 @@ const W6T5_MEMBERS = {
       const ys = realsNoNa(a[1], 'array.covariance')
       if (!xs.length && !ys.length) return NaN // the entry: `na` if both arrays are empty
       if (xs.length !== ys.length) {
-        throw unpinned(`array.covariance of arrays of ${xs.length} and ${ys.length} elements`)
+        // ⭐ UDT unit (ac6 readings) — TradingView's own stop: "The sizes of the `id1` and `id2` arrays must be
+        // equal." (Runtime error, probe `vw-w6-array-members` row V02, run ac6.)
+        throw new CollectionError(`array.covariance of arrays of ${xs.length} and ${ys.length} elements — TradingView `
+          + 'stops the script here too ("The sizes of the `id1` and `id2` arrays must be equal.", run ac6)')
       }
       const biased = biasedArg(a, 2, 'array.covariance')
       const mx = meanOf(xs)
