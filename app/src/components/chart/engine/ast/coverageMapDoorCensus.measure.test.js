@@ -62,6 +62,10 @@ import { OTHER_SYMBOL_REFUSAL, staticallyUnservable } from '../otherSymbols'
 import { foldNotesForOutput } from './parse'
 import { CALL_EXPANSIONS } from './callExpansions'
 import { supertrendTreesEngine56 } from './__fixtures__/supertrendTreesEngine56.js'
+import {
+  armedStrategyVerdict, brokerFlagOf, historyWindowBarsOf, STRATEGY_DECLARATION,
+} from '../runtime/__tests__/strategyArmed.js'
+import { barsOfCapture } from '../__tests__/vendorHarness/strategyHarness.js'
 
 const INPUT = process.env.COVERAGE_INPUT
 const OUT = process.env.COVERAGE_OUT
@@ -79,6 +83,8 @@ const GATE = (rel) => fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8')
 const flagOf = (src) => (src.match(/source\.(VITE_[A-Z0-9_]+)\s*===\s*'1'/) || [])[1]
 const OBJECTS_ONLY_FLAG = RUN ? flagOf(GATE('src/components/chart/engine/objectsOnlyPaneGate.js')) : null
 const RUNTIME_FLAG = RUN ? flagOf(GATE('src/components/chart/engine/runtimePaneGate.js')) : null
+// ⭐⭐ W9 ARMED — the broker gate's flag, read off its module (`import.meta.env.<NAME> === '1'`)
+const BROKER_FLAG = RUN ? brokerFlagOf(GATE('src/components/chart/engine/strategyBrokerGate.js')) : null
 
 function bindingNameOf(line) {
   const hash = line.indexOf('//')
@@ -240,6 +246,22 @@ let boundBars = null
 function referenceBars() {
   if (!boundBars) boundBars = toProductBars(loadCapture(BOUND_REFERENCE).capture)
   return boundBars
+}
+
+// ⭐⭐ W9 ARMED — the same reference capture, as the broker reads bars (epoch seconds, the strategy
+// harness's own reader), and the context a strategy run is handed: the window is the ONE authority,
+// `bars_window.HISTORY_WINDOW_BARS`, read off the Python module.
+let armedBars = null
+function strategyBars() {
+  if (!armedBars) armedBars = barsOfCapture(loadCapture(BOUND_REFERENCE).capture)
+  return armedBars
+}
+const ARMED_CTX = () => ({ ...BOUND_CTX, historyWindowBars: historyWindowBarsOf(path.resolve(process.cwd(), '..')) })
+/** The census's own door answer (`oneDoor` judged by `isClean`), in the shape `strategyArmed.js` reads. */
+function armedDoor(source) {
+  const r = oneDoor(source, { runtimeDetail: false })
+  return { attached: !!r.attached && r.installed !== false, clean: isClean(r), guard: r.guard || null,
+    refusals: (r.refusals || []).map((x) => x.guard).filter(Boolean), runtimeDeclined: r.runtimeDeclined || null }
 }
 
 /** ⭐⭐ ENGINE 55 (coordinator, s6-bugs-1114) — THE DARK-PLOT TEST. The reference bars start at
@@ -462,6 +484,23 @@ describe.skipIf(!RUN)('coverage-map door census (driven by run_census.py)', () =
         row.runtime = { attached: false, clean: false, threw: short((err && err.message) || err) }
       }
       vi.unstubAllEnvs()
+      // ⭐⭐ W9 ARMED (coordinator ruling 2026-11-16) — THE BROKER COUNTERFACTUAL, step 0, a strategy only:
+      // the same door with the objects-only pane, the runtime pane AND the dark strategy broker switched on
+      // (`runtime/__tests__/strategyArmed.js`). A SEPARATE column (`strategyArmed`): it measures what arming
+      // the broker would serve and is never counted in the headline (`transfers_fully` is unchanged).
+      if (STRATEGY_DECLARATION.test(source)) {
+        vi.stubEnv(OBJECTS_ONLY_FLAG, '1')
+        vi.stubEnv(RUNTIME_FLAG, '1')
+        vi.stubEnv(BROKER_FLAG, '1')
+        __permitRuntimePaneForTests()
+        __allowEveryRuntimeScriptForTests()
+        try {
+          row.strategyArmed = armedStrategyVerdict({ source, door: armedDoor, bars: strategyBars(), ctx: ARMED_CTX() })
+        } catch (err) {
+          row.strategyArmed = { threw: short((err && err.message) || err) }
+        }
+        vi.unstubAllEnvs()
+      }
       fs.appendFileSync(OUT, `${JSON.stringify({ key: it.key, lane: LANE, ms: Date.now() - t0, ...row })}\n`)
       n += 1
     }

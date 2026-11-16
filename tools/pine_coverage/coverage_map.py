@@ -230,6 +230,33 @@ def places_orders(u):
     return declaration_of(u) == "strategy" and bool(u["orders"])
 
 
+ARMED_SCHEMA = "uct.strategy-armed/v1"
+
+
+def would_transfer_if_armed(census_row, u):
+    """⭐⭐ W9 ARMED (coordinator ruling 2026-11-16) - A SEPARATE COLUMN, NEVER THE HEADLINE.
+
+    The census's broker counterfactual (`coverageMapDoorCensus.measure.test.js`, step 0, a strategy only;
+    `runtime/__tests__/strategyArmed.js`): the member door with the objects-only pane, the runtime pane and the
+    DARK strategy broker switched on attaches the script clean, its document runs the broker, that run finishes
+    on the reference bars with every broker rule it exercised pinned by the committed ledger, and its trades are
+    drawn or disclosed by name. Arming is the owner's act (W9 ruling D6); nothing here arms anything.
+    `True` / `False` for an order-placing strategy whose row carries the verdict; `None` for any other script,
+    or a census row written before the counterfactual existed (an old cache is never read as "no")."""
+    if not places_orders(u):
+        return None
+    v = (census_row or {}).get("strategyArmed")
+    if not isinstance(v, dict) or v.get("schema") != ARMED_SCHEMA:
+        return None
+    return v.get("transfers") is True
+
+
+def armed_wall(census_row):
+    """The first thing that stops an armed strategy (`strategyArmed.wall`), or None."""
+    v = (census_row or {}).get("strategyArmed")
+    return v.get("wall") if isinstance(v, dict) and v.get("schema") == ARMED_SCHEMA else None
+
+
 def strategy_on_block(scripts):
     """⭐ W9 T0 - what the census knows about strategies, read from each script's text.
     `orderSet` is the engine's own set; `byCall` counts the scripts calling each name; `doorCleanPlacingOrders`
@@ -243,6 +270,12 @@ def strategy_on_block(scripts):
         "byCall": dict(sorted(by_call.items())),
         "doorCleanPlacingOrders": sum(1 for s in placing if s["doorClean"]),
         "transferringPlacingOrders": sum(1 for s in placing if s["clean"]),
+        # ⭐⭐ W9 ARMED - what arming the broker would serve (a separate column; `transfers_fully` unchanged).
+        # `armedMeasured` counts the rows that carry the counterfactual: 0 means an older census, not "none".
+        "armedMeasured": sum(1 for s in placing if s.get("wouldTransferIfArmed") is not None),
+        "wouldTransferIfArmed": sum(1 for s in placing if s.get("wouldTransferIfArmed") is True),
+        "armedWalls": dict(collections.Counter(s["armedWall"] for s in placing
+                                               if s.get("wouldTransferIfArmed") is False and s.get("armedWall")).most_common()),
         "wave": "W9",
     }
 
@@ -929,6 +962,9 @@ def main():
             # translation's refusals stay on that result by design, so `isClean` cannot
             # judge it; nothing here proves the runtime lane drew every output.
             "placesOrders": places_orders(u),
+            # ⭐⭐ W9 ARMED - the broker counterfactual, a SEPARATE column (see `would_transfer_if_armed`)
+            "wouldTransferIfArmed": would_transfer_if_armed(c, u),
+            "armedWall": armed_wall(c) if places_orders(u) else None,
             "runtimeClean": not places_orders(u) and (
                 bool((c.get("runtime") or {}).get("clean")) or (
                     bool((c.get("runtime") or {}).get("attached")) and (c.get("runtime") or {}).get("lane") == "runtime")),

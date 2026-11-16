@@ -32,6 +32,17 @@ weights it by what real scripts use, and ranks the work.
    The door draws a strategy's plots (ruling C50), but its trades, markers and tester
    report are its output and nothing simulates the broker, so it does not count.
 
+   ⭐ **A separate column, `wouldTransferIfArmed`** (per script, and `strategyOn.wouldTransferIfArmed`
+   / `armedWalls`; coordinator ruling 2026-11-16). The strategy broker exists and is dark
+   (`VITE_PINE_STRATEGY_BROKER_ENABLED`); arming it is the owner's act. The census measures, for
+   each order-placing strategy, what arming would serve: the same door with the objects-only
+   pane, the runtime pane and the broker stubbed on attaches it clean, its document runs the
+   broker, the run on the reference bars (NYSE:RDDT 1D from the listing, the window
+   `bars_window.HISTORY_WINDOW_BARS`) finishes with every broker rule it exercised pinned by
+   the committed ledger, and its trades are drawn or refused by name
+   (`runtime/__tests__/strategyArmed.js`). It never moves the headline above; a census row
+   written before the counterfactual reads `null` (unmeasured), never `false`.
+
 ⚠️ This is a **door verdict, not a parity verdict**. It says the whole script is accepted
 and drawn; it does not say every number equals TradingView's. Parity is graded only where a
 vendor capture exists (second line of the headline, and section 1.2).
