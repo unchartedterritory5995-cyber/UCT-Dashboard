@@ -57,6 +57,14 @@ export const VALUE_BUILD_DRAWING_GUARD = 'runtime:object-op'
 export const VALUE_BUILD_NOTHING_GUARD = 'runtime:no-output'
 export const valueBuildDefersToDrawing = (guard) => guard === VALUE_BUILD_DRAWING_GUARD || guard === VALUE_BUILD_NOTHING_GUARD
 
+/** ⭐ DRAW-1 — did the host object program lose a CREATE (`create:<family>`, `guard:create`,
+ *  `strategy:create`), by the object pass's own counters? */
+export function hostLostCreates(t) {
+  const reasons = (t && t.objectDiagnostics && t.objectDiagnostics.dropReasons) || {}
+  return Object.keys(reasons).some((k) => reasons[k] > 0
+    && (k.startsWith('create:') || k === 'guard:create' || k === 'strategy:create'))
+}
+
 /**
  * @returns {{probe: object}|{probe: null, why: string|null, guard?: string, valueProbe?: object}}
  *   the objects-in-run probe to use for this document, or why the door keeps
@@ -88,11 +96,28 @@ export function runtimeOwnObjectsOf({ source, t }) {
   // `hostWithheld`: the caller must not carry the host program (a windowed document)
   const keepHost = { probe: null, why: null, ...(valueProbe ? { valueProbe } : {}), ...(windowed ? { hostWithheld: true } : {}) }
   if (!probe.ok) {
+    const r = probe.refusal || {}
     // ⛔ A partial host picture whose value build stands keeps that picture: the
     // run that would replace it cannot be built, and a decline would take away a
     // drawing the member has today.
+    // ⛔⛔ DRAW-1 (2026-11-16) — UNLESS THAT PICTURE LOST A CREATE. This door is the
+    // fallback for a script the HOST lane refused, so the member had no picture from it
+    // today; a host program that lost a `*.new` (and still carries the deletes and moves
+    // written around it) draws a different SET of objects, not a smaller one. Measured:
+    // trend-levels-chartprime (12 creates lost to `pine:window`) graded runtime-on
+    // DIVERGE on both committed captures once its `label(na)` casts let it reach here.
+    // Declined with the drawing build's own refusal, by name.
+    if (!refusedForDrawing && hostLostCreates(t)) {
+      return {
+        probe: null,
+        guard: r.guard || 'runtime',
+        why: `${r.guard || 'runtime'}${r.message ? ` — ${r.message}` : ''}; the host lane's drawing of this `
+          + 'script lost some of the drawings it makes, so it is not drawn in their place',
+        declineHostPartial: true,
+        ...(valueProbe ? { valueProbe } : {}),
+      }
+    }
     if (!refusedForDrawing) return keepHost
-    const r = probe.refusal || {}
     return {
       probe: null,
       guard: r.guard || 'runtime',

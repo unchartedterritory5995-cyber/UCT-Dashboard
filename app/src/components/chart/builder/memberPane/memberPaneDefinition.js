@@ -1858,6 +1858,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // ⭐⭐ RT5 — when the host object program would draw nothing here and the run
   // builds WITH its drawings, the document's objects come from its own run.
   const own = runtimeOwnObjectsOf({ source, t })
+  // ⛔ DRAW-1 — a host picture that lost a create is not drawn in the run's place (`runtimeObjectsDoor.js`)
+  if (own.declineHostPartial) return decline(own.guard, own.why)
   const ownObjects = !!own.probe
   const probe = own.probe || own.valueProbe || probeRuntimeProgram(source)
   if (!probe.ok) {
