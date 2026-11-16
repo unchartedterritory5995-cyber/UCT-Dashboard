@@ -357,3 +357,14 @@ def test_when_only_a_stale_session_seed_is_left_the_newer_marks_stay():
     u.expire(5.0)
     feeds.sync(u)
     assert (feeds._nh["ZZA"]["sk"], feeds._nh["ZZA"]["hod"]) == (202611161, 9.6)
+
+
+def test_a_malformed_newest_seed_never_falls_back_to_an_older_session():
+    feeds = sf.SideFeeds(monotonic=lambda: 0.0)
+    u = fp.DesiredUnion()
+    u.hello("pre", 1, 0.0)
+    u.set_desired("pre", fp.Desired(gen=1, nhnl_seeds={"ZZA": {**SEED, "sk": 202611160}}), 0.0)
+    u.hello("rth", 1, 0.0)
+    u.set_desired("rth", fp.Desired(gen=1, nhnl_seeds={"ZZA": {"hod": "x", "sk": 202611161}}), 0.0)
+    feeds.sync(u)
+    assert "ZZA" not in feeds._nh and feeds.counters["nhnl_bad_seeds"] == 1

@@ -147,9 +147,9 @@ class SideFeeds:
                     self.counters["nhnl_bad_seeds"] += 1
             else:
                 self._bad_seeds.discard(sym)
-            if not good:
-                continue
-            top = max(_sk(s) for s in good)          # the newest session wins
+            # The newest session wins, judged over EVERY seed: a malformed newest seed
+            # holds the current marks rather than falling back to an older session's.
+            top = max(_sk(s) for s in seeds)
             for s in good:
                 if _sk(s) == top:
                     self._seed(sym, s, top)
@@ -315,9 +315,10 @@ class SideFeeds:
         if self._agg_dirty and now >= self._agg_next:
             self._agg_next = now + self.agg_interval_s
             dirty, self._agg_dirty = self._agg_dirty, set()
+            today = _et_day(self._wall_ms())
             for sym in dirty:
                 a = self._agg.get(sym)
-                if a is None:
+                if a is None or _et_day(a[2]) != today:
                     continue
                 for client in self._vol_routes.get(sym, ()):
                     if self._offer(lambda: client.buffer.offer_agg(sym, *a)) is fp.Offer.ACCEPTED:
