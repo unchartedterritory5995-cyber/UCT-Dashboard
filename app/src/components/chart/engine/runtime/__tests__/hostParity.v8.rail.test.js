@@ -110,6 +110,9 @@ describe('HP-1 on a V8 other than the recording V8', () => {
     expect(p.status, p.stdout + p.stderr).toBe(0)
     const sameV8 = process.versions.v8 === expected.recordedOn.v8
     expect(/^REPORTED /m.test(p.stdout)).toBe(!sameV8)
-    expect(p.stdout).toMatch(sameV8 ? /HP-1 GREEN: (\d+)\/\1 cases equal/ : /HP-1 GREEN: \d+\/\d+ cases equal the committed digests; 2 REPORTED, not gated/)
+    // the count is the list's own length (three since engine 59), never a typed number
+    const reported = new RegExp(`HP-1 GREEN: \\d+/\\d+ cases equal the committed digests; ${LISTED.length} REPORTED, not gated`)
+    expect(p.stdout).toMatch(sameV8 ? /HP-1 GREEN: (\d+)\/\1 cases equal/ : reported)
+    if (!sameV8) for (const name of LISTED) expect(p.stdout, name).toContain(`REPORTED ${name}: `)
   }, 240000)
 })
