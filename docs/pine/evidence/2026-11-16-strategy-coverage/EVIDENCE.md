@@ -82,6 +82,38 @@ MATCH that graded fills and values (`evidence_engine.resolve_pins`). Until the r
 report grades MATCH, a run that reaches the case stops there by name, now under the rule that will pin it.
 Rails: `s1StrategyBroker.test.js` (the witness's shape on synthetic bars; the unpinned stop names the rule).
 
-## 5. Today's captures
+## 5. Today's captures (run cb1-2026-11-16, outside git; read, never committed here)
 
-TBD
+**No pin today.** The 12 strategy captures (the ten `vw-s1-q-*` rows, `w9-d11-late-first-use`,
+`w9-d1-margin50`) carry `provenance.report.status: "not-requested"` and were taken during RTH
+(`newestBarIsForming: true`). Through the ledger's own tooling none can pin: the grade stops at step 0
+(`strategy_reference.mjs::referenceOfCapture`, "the report is not-requested"), and `evidence_engine.resolve_pins`
+pins only a MATCH that graded fills and values. The capture session files them as value witnesses and re-takes
+all 12 after the close with the Strategy Tester report (coordinator, 2026-11-16).
+
+Our broker against their VALUES (a scratch comparison, every rule allowed, the forming bar dropped; never
+committed), every plotted series bar by bar:
+
+| capture | our run | value series compared | rules our run exercised (unpinned in bold) |
+|---|---|---|---|
+| vw-s1-q-s1g-blocked-stop-entry | ran | 3 series x 666 bars, all equal | B-CLOSE, B-DEFAULTS, B-DIR, B-FIFO, B-FILL, B-MARGIN, B-MARKET, B-PATH, **B-PYR**, **B-PYR-PRICE**, B-QTY, B-SIG, B-VAL |
+| vw-s1-q-s1j-stop-limit | ran | 2 x 666, all equal | B-DEFAULTS, B-DIR, B-FILL, B-MARGIN, B-PATH, B-QTY, B-SIG, **B-STOP-LIMIT**, B-VAL |
+| vw-s1-q-s1k-profit-and-limit | ran | 2 x 666, all equal | B-DEFAULTS, B-DIR, B-EXIT-BIND, **B-EXIT-LEVELS**, B-EXIT-LIFE, B-FIFO, B-FILL, B-MARGIN, B-MARKET, B-PATH, B-QTY, B-SIG, B-VAL |
+| w9-d11-late-first-use | ran, 32 trades | 38 x 666, all equal | B-CLOSE, B-DEFAULTS, B-DIR, B-FIFO, B-FILL, B-MARGIN, B-MARKET, **B-PYR**, B-QTY, B-ROUND, B-SIG, B-TXT-CLOSE-ID, B-TXT-NO-COMMENT, B-VAL |
+| vw-s1-q-s1d-close-reverse, -two-entries, -two-stops | refused `runtime:strategy-unsettled` Q-S1d | - | - |
+| vw-s1-q-s1e-stop-past | refused Q-S1e (an exit active past its level) | - | - |
+| vw-s1-q-s1h-fifo-exit | refused Q-S1h (an exit that targets a trade that is not the oldest) | - | - |
+| vw-s1-q-s1k-fractional-profit | refused Q-S1k (150.5 ticks) | - | - |
+| vw-s1-q-s1k-na-modify | refused at build, `runtime:call-undeclared-builtin-state` (`math.round_to_mintick` fed a mutable value) | - | - |
+| w9-d1-margin50 | refused at build, `runtime:strategy-value` (`strategy.margin_liquidation_price`) | - | - |
+
+So the re-takes, if TradingView's fills agree with the values, pin B-PYR (w9-d11, and the D11 shape it was
+written for), B-PYR-PRICE (Q-S1g), B-STOP-LIMIT (Q-S1j) and B-EXIT-LEVELS (Q-S1k). What the values do NOT
+settle, and why: Q-S1d (both fill orders give the same position and open-trade count), Q-S1h (the open trade
+left after the FIFO split is not visible in the position), Q-S1e and the fractional profit (the fill price is not
+plotted). Those wait for the report.
+
+The three `syminfo.mincontract` captures (NYSE:RDDT, AMEX:SPY, NASDAQ:AAPL: `M01_mincontract` 1 on every bar,
+control `M03_len_ticker_CONTROL` the ticker's length, the committed probe's sha256) become the three
+`symbolScope.json::min_contract` rows; `symbolScopeMinContract.test.js` re-reads them once the capture session's
+data PR has put them on master.

@@ -86,19 +86,19 @@
   }
  },
  "counts": {
-  "targets": 319,
+  "targets": 320,
   "byStatus": {
    "CAPTURED": 130,
    "NEEDS_CHART": 39,
    "NEEDS_LIVE": 2,
-   "QUEUED": 148
+   "QUEUED": 149
   },
   "byPlanWave": {
    "E": {
     "CAPTURED": 115,
     "NEEDS_CHART": 37,
     "NEEDS_LIVE": 2,
-    "QUEUED": 115
+    "QUEUED": 116
    },
    "W1": {
     "QUEUED": 6
@@ -121,7 +121,7 @@
     "CAPTURED": 110,
     "NEEDS_CHART": 38,
     "NEEDS_LIVE": 2,
-    "QUEUED": 140
+    "QUEUED": 141
    },
    "1-2": {
     "CAPTURED": 20,
@@ -305,7 +305,7 @@
    "w9": {
     "CAPTURED": 32,
     "NEEDS_LIVE": 2,
-    "QUEUED": 27
+    "QUEUED": 28
    },
    "wsa-for-bound": {
     "NEEDS_CHART": 2,
@@ -12070,6 +12070,48 @@
    "oldestDoc": "2026-11-05",
    "rows": [
     "capture-queue-2026-11-05-w9#W9-P3"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "w9-q-s1a-size-stop-v6@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/w9-q-s1a-size-stop-v6.pine",
+   "sourceKind": "probe",
+   "sha256": "4180e6c4c63aa7ad8617da4d6f2bf6a5314dd17db34944f73b142af286687ab0",
+   "bytes": 3878,
+   "stem": "w9-q-s1a-size-stop-v6",
+   "captureStem": "w9-q-s1a-size-stop-v6",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "w9"
+   ],
+   "oldestDoc": "2026-11-05",
+   "rows": [
+    "capture-queue-2026-11-05-w9#Q-S1a"
    ],
    "origins": [
     "queue-doc"
