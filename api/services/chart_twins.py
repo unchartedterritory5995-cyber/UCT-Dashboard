@@ -38,9 +38,19 @@ def _op(name: str, a: Dict[str, Any], b: Dict[str, Any]) -> Dict[str, Any]:
     return {"type": "op", "name": name, "args": [a, b]}
 
 
+def _ago(expr: Dict[str, Any], bars: int) -> Dict[str, Any]:
+    """`expr` as it was `bars` bars ago (the bounded backward offset, `expr[bars]`)."""
+    return {"type": "offset", "value": bars, "args": [expr]}
+
+
+def _pct_vs(a: Dict[str, Any], b: Dict[str, Any]) -> Dict[str, Any]:
+    """How far `a` is from `b`, in percent: (a - b) / b * 100 (the Screener's `_pct`)."""
+    return _op("*", _op("/", _op("-", a, b), b), _n(100))
+
+
 def _pct_from(avg: Dict[str, Any]) -> Dict[str, Any]:
     """How far the close is from `avg`, in percent: (close - avg) / avg * 100."""
-    return _op("*", _op("/", _op("-", _s("close"), avg), avg), _n(100))
+    return _pct_vs(_s("close"), avg)
 
 
 def _adr(period: int) -> Dict[str, Any]:
@@ -63,6 +73,19 @@ TWINS: Dict[str, Dict[str, Any]] = {
     "pct_vs_sma20": _pct_from(_call("sma", _s("close"), _n(20))),
     "pct_vs_sma50": _pct_from(_call("sma", _s("close"), _n(50))),
     "pct_vs_sma200": _pct_from(_call("sma", _s("close"), _n(200))),
+    # ...and from its 20-day exponential average.
+    "pct_vs_ema20": _pct_from(_call("ema", _s("close"), _n(20))),
+    # Change in percent over 1, 5 and 21 sessions (a day, a week, a month).
+    "chg_pct_1d": _pct_vs(_s("close"), _ago(_s("close"), 1)),
+    "chg_pct_1w": _pct_vs(_s("close"), _ago(_s("close"), 5)),
+    "chg_pct_1m": _pct_vs(_s("close"), _ago(_s("close"), 21)),
+    # The gap: today's open against yesterday's close, in percent.
+    "gap_pct": _pct_vs(_s("open"), _ago(_s("close"), 1)),
+    # How far the close is from the highest high and the lowest low of the last 20 sessions.
+    "dist_20d_high_pct": _pct_vs(_s("close"), _call("highest", _s("high"), _n(20))),
+    "dist_20d_low_pct": _pct_vs(_s("close"), _call("lowest", _s("low"), _n(20))),
+    # Relative volume: today's volume over the mean of the 30 sessions BEFORE today.
+    "vol_ratio": _op("/", _s("volume"), _ago(_call("sma", _s("volume"), _n(30)), 1)),
 }
 
 

@@ -238,6 +238,13 @@ export function checkExpect(ctx, e, label) {
   // C1-127: the first chart's Chart Settings dialog open (or not), as the pane reads it back
   if ('settingsOpen' in e) expect(!!ctx.st.settingsOpen?.[chartsOf(board)[0]?.id], `${label}: Chart Settings open`).toBe(e.settingsOpen)
   // family C: the first chart's hand-placed watermark as the chart reads it back (null = Reset to center); the Ask AI routes opened
+  // newsLibrary.*: the member's library as its stand-in holds it (saved ids, collection names, notes, collection places) — only the keys named
+  if (e.newsLibrary) {
+    const s = h.newsLibrary?.getSnapshot?.() || {}
+    const got = { saved: [...(s.ids || [])].sort(), collections: (s.collections || []).map(c => c.name).sort(), notes: s.notes || {},
+      member: Object.fromEntries(Object.entries(s.member || {}).map(([id, ks]) => [id, ks.map(k => (s.collections || []).find(c => c.id === k)?.name).filter(Boolean)])) }
+    for (const [k, v] of Object.entries(e.newsLibrary)) expect(got[k], `${label}: the News library's ${k}`).toEqual(v)
+  }
   if ('watermarkPos' in e) expect(h.charts.read(chartsOf(board)[0]?.id)?.watermarkPos ?? null, `${label}: the watermark position`).toEqual(e.watermarkPos)
   // compare.openView: the Compare panel open or closed and the tab it shows; `comparePick` the last detail's stock / group
   if ('comparePanel' in e) expect({ open: !!ctx.st.compare?.open, tab: ctx.st.compare?.open ? ctx.st.compare.tab : null }, `${label}: the Compare panel`).toEqual(e.comparePanel)

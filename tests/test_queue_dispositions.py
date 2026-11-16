@@ -149,6 +149,10 @@ COMMITTED = {
         "visible bar times": "by-design", "theme colours read as a value": "engine-gap",
         "v1-v3 sessions with no day list": "engine-gap", "symbol fields not held": "engine-gap",
         "sar, dmi, kc with a computed flag": "engine-gap", "legacy correlation over runtime state": "engine-gap"},
+    # 2026-11-16 (coordinator ruling on #1472): the `sar()` expansion's 200-bar window does not converge on
+    # vw-lower-tf-bars-rddt-15-2026-11-16; the capture is in the harness, the fix is a build that flips the KNOWN
+    # `it.fails` in sar.test.js (its control pins 43 bars / 5167-5246 / 17 by name)
+    "capture-queue-2026-11-16-sar-window": {"sar() window": "engine-gap"},
 }
 
 
