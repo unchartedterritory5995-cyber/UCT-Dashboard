@@ -106,7 +106,19 @@ export const CONVERSATION_ID_RE = /^[A-Za-z0-9_-]{8,64}$/
  * @returns {Promise<{ok: true, disposition: string, reply: string, turn: string, envelope: object, notUnderstood: object[], unavailable: object[]}
  *                 | {ok: false, gate: string, reason: string, disposition?: string, preflight?: boolean, notUnderstood: object[], unavailable: object[]}>}
  */
-export async function converseTurn({ message, state, gateCtx = {}, snippets = [], fetchImpl = null }) {
+/** The gate of a turn the MEMBER stopped waiting for (`signal` aborted). Not a failure. */
+export const STOPPED_GATE = 'client:stopped'
+
+/** `Retry-After` as whole seconds, or null when the header is absent or not a count. */
+function retryAfterOf(r) {
+  try {
+    const raw = r && r.headers && typeof r.headers.get === 'function' ? r.headers.get('Retry-After') : null
+    const n = raw == null || raw === '' ? NaN : Number(raw)
+    return Number.isFinite(n) && n > 0 ? Math.ceil(n) : null
+  } catch { return null }
+}
+
+export async function converseTurn({ message, state, gateCtx = {}, snippets = [], fetchImpl = null, signal = null }) {
   const doFetch = fetchImpl || globalThis.fetch
   let r
   try {
@@ -115,8 +127,12 @@ export async function converseTurn({ message, state, gateCtx = {}, snippets = []
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(converseBody({ message, state, gateCtx, snippets })),
+      ...(signal ? { signal } : {}),
     })
   } catch {
+    // The member pressed Stop: the browser gave up the request. The server may still
+    // finish the turn; nothing it returns is read.
+    if (signal && signal.aborted) return { ok: false, gate: STOPPED_GATE, reason: '', notUnderstood: [], unavailable: [] }
     return { ok: false, gate: 'network', reason: NETWORK, notUnderstood: [], unavailable: [] }
   }
   if (!r || !r.ok) {
@@ -128,7 +144,9 @@ export async function converseTurn({ message, state, gateCtx = {}, snippets = []
     } catch { /* not JSON */ }
     const reason = status === 402 ? 'Custom indicators require a paid plan.'
       : (detail || `The assistant could not answer (${status}).`)
-    return { ok: false, gate: `http:${status}`, reason, notUnderstood: [], unavailable: [] }
+    const retryAfterS = status === 429 ? retryAfterOf(r) : null
+    return { ok: false, gate: `http:${status}`, reason, notUnderstood: [], unavailable: [],
+      ...(retryAfterS ? { retryAfterS } : {}) }
   }
   let body
   try { body = await r.json() } catch { body = null }

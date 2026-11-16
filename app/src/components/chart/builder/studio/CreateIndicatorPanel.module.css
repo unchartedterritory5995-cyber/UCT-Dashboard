@@ -183,6 +183,15 @@
   font-size: 11px; color: var(--menu-text-faint, #93939a);
   padding: 0 0 6px 12px;
 }
+/* While it works: the line, the seconds under it, Stop at the right. */
+.workingRow { display: flex; align-items: center; gap: 10px; }
+.workingText { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.workingNote {
+  padding-left: 12px;
+  font-size: 10.5px; color: var(--menu-text-faint, #93939a);
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 1024px) { .workingRow .ghost { height: 44px; } }
 .working {
   font-size: 11.5px; color: var(--menu-text-faint, #93939a);
   padding-left: 12px;

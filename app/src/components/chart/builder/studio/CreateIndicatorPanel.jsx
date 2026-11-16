@@ -148,6 +148,38 @@ const keepKeysInPanel = (e) => e.stopPropagation()
  * @param {Function|null} [props.onEditFormula] ⭐ PHASE 4 — open the manual editor on
  *   the same definition (offered when the conversation cannot edit it)
  */
+/** How long a preview usually takes, said to the member while they wait. Measured on
+ *  production 2026-11-15 (about 14 s to a first preview); a range, never a promise. */
+export const USUAL_WAIT = 'Usually 10 to 20 seconds'
+/** After this many seconds the line says so instead. */
+export const LONG_WAIT_S = 30
+
+/**
+ * ⭐ WHILE IT WORKS (2026-11-16). The wait showed one unchanging line and no way out. It now
+ * counts the seconds, says what is usual, and offers Stop. Mounted only while a turn is in
+ * flight, so its one-second tick ends with the turn.
+ */
+function Working({ onStop }) {
+  const [secs, setSecs] = useState(0)
+  useEffect(() => {
+    const t0 = Date.now()
+    const id = setInterval(() => setSecs(Math.floor((Date.now() - t0) / 1000)), 1000)
+    return () => clearInterval(id)
+  }, [])
+  return (
+    <div className={styles.workingRow}>
+      <div className={styles.workingText}>
+        <div className={styles.working} data-testid="create-indicator-working">UCT Intelligence is thinking</div>
+        <div className={styles.workingNote} data-testid="create-indicator-working-note" aria-live="off">
+          {secs >= LONG_WAIT_S ? `${secs}s. This one is taking longer than usual` : `${secs}s. ${USUAL_WAIT}`}
+        </div>
+      </div>
+      <button type="button" className={styles.ghost} data-testid="create-indicator-stop"
+        onClick={() => onStop && onStop()}>Stop</button>
+    </div>
+  )
+}
+
 export default function CreateIndicatorPanel({
   onClose, settings = null, onChange = null, sym = null, tf = null, anchorRef = null,
   onPreview, onOpenBuilder = null, onOpenLibrary = null, converse = converseTurn,
@@ -424,7 +456,7 @@ export default function CreateIndicatorPanel({
               ? <li key={t.id} className={styles.msgMember} data-role="member">{t.text}</li>
               : (
                 <li key={t.id} data-role="uct" data-kind={t.kind} data-updated={t.updated ? 'true' : undefined}
-                  className={`${styles.msgUct} ${t.kind === 'refusal' ? styles.msgRefusal : ''} ${t.kind === 'unsupported' ? styles.msgLimit : ''} ${t.kind === 'answer' ? styles.msgAnswer : ''} ${t.kind === 'undo' ? styles.msgQuiet : ''}`}>
+                  className={`${styles.msgUct} ${t.kind === 'refusal' ? styles.msgRefusal : ''} ${t.kind === 'unsupported' ? styles.msgLimit : ''} ${t.kind === 'answer' ? styles.msgAnswer : ''} ${t.kind === 'undo' || t.kind === 'stopped' ? styles.msgQuiet : ''}`}>
                   {/* ⭐ SLICE 2 — a change says so; an answer never does. */}
                   {t.updated && <span className={styles.updated} data-testid="create-indicator-updated">Updated preview</span>}
                   {(t.lines || []).map((l, i) => (
@@ -450,7 +482,7 @@ export default function CreateIndicatorPanel({
           </div>
         )}
 
-        {busy && <div className={styles.working} data-testid="create-indicator-working">UCT Intelligence is thinking</div>}
+        {busy && <Working onStop={conv.stop} />}
         <div ref={logEndRef} />
       </div>
 
