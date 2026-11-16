@@ -46,7 +46,7 @@ test('a checked row is a menuitemcheckbox with aria-checked and a check; its key
   const row = screen.getByRole('menuitemcheckbox', { name: /Value in header/ })
   expect(row.getAttribute('aria-checked')).toBe('true')
   expect(row.getAttribute('data-menu-id')).toBe('info-value')
-  expect(row.querySelector('[class*="check"]').textContent).toBe('✓')
+  // the ✓ glyph is the CALLER's (StockChart chipMenuSigRow draws it in `label`): Notebook first-open bytes
   fireEvent.click(row)
   expect(onValue).toHaveBeenCalledTimes(1)
   expect(onClose).toHaveBeenCalledTimes(1)
@@ -60,17 +60,14 @@ test('an unchecked boolean row says aria-checked="false" and shows no check', ()
   expect(row.querySelector('[class*="check"]')).toBeNull()
 })
 
-test('detail renders dimmed at the right, inside the row', () => {
+test('detail is the caller's to draw (in `label`): the popover renders icon + label only', () => {
   render(<ContextPopover open signature onClose={() => {}} anchor={{ x: 0, y: 0 }} items={ITEMS()} />)
   const row = screen.getByRole('menuitem', { name: /Display in/ })
-  expect(row.textContent).toBe('mDisplay inOwn pane')
-  expect(row.lastElementChild.className).toMatch(/detail/)
+  expect(row.textContent).toBe('mDisplay in')
 })
 
-test('goldIcon marks the icon box; the signature class is on the menu', () => {
+test('the signature class is on the menu (a gold ✦ is the caller's own icon node)', () => {
   render(<ContextPopover open signature onClose={() => {}} anchor={{ x: 0, y: 0 }} items={ITEMS()} />)
-  const box = screen.getByTestId('spark').parentElement
-  expect(box.className).toMatch(/iconGold/)
   expect(screen.getByRole('menu').className).toMatch(/signature/)
 })
 

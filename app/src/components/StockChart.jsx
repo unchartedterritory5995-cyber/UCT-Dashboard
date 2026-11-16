@@ -614,6 +614,13 @@ function chipMenuSigRow(it) {
       {opens ? <span className={styles.sigCaret} aria-hidden="true">▸</span> : null}
       {!opens && it.soon ? <span className={styles.sigSoon}>Soon</span> : null}
     </span>
+  ) : it.checked === true ? (
+    // A checked toggle row ("Value in header"): a white ✓ at the right. Drawn here, not by
+    // ContextPopover (Notebook first-open bytes); the popover still sets menuitemcheckbox + aria-checked.
+    <span className={styles.sigRow}>
+      <span className={styles.sigName}>{it.label}</span>
+      <span className={styles.sigCheck} aria-hidden="true">✓</span>
+    </span>
   ) : it.label
   return { ...it, icon, detail: undefined, label,
     hint: it.hint || (typeof it.disabled === 'string' ? it.disabled : undefined) }

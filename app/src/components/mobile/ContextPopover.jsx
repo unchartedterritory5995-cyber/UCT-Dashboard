@@ -202,6 +202,7 @@ export default function ContextPopover({
       // kinds of row. `href` makes it a real link (middle-click and cmd-click open a tab; same look, same
       // close-on-pick; a link cannot be `disabled`, so a caller that needs that passes no `href`).
       // `check`: a menuitemcheckbox + aria-checked (desktop); a touch sheet's plain button + aria-pressed.
+      // (The ✓ itself is the caller's, in `label` — StockChart `chipMenuSigRow`.)
       const check = signature && typeof it.checked == 'boolean'
       const Row = it.href ? 'a' : 'button'
       return (
@@ -218,7 +219,6 @@ export default function ContextPopover({
         >
           {it.icon != null && <span className={styles.icon}>{it.icon}</span>}
           <span className={styles.label}>{it.label}</span>
-          {check && it.checked && <span className={styles.check} aria-hidden>✓</span>}
         </Row>
       )
     })

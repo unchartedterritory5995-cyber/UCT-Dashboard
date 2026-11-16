@@ -2047,3 +2047,4 @@
 /* The chip menu's one icon: the UCT Agent's ✦, flat gold (was ContextPopover `.iconGold`). */
 .sigGold { display: inline-flex; color: var(--ut-gold); }
 .sigGold svg, .sigGold svg * { stroke: currentColor; }
+.sigCheck { margin-left: auto; padding-left: 12px; color: #f8f7f3; font-weight: 600; }
