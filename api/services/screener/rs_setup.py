@@ -49,6 +49,14 @@ PULLBACK_HIGH_MAX_AGE = 15
 #: ... and the low within this many ATRs above a rising 8-day or 21-day EMA,
 #: with the close no more than this many ATRs under it (decision D5).
 PULLBACK_ATR_BAND = 0.5
+#: ... and the close at least this many ATRs UNDER that 20-session closing high.
+#: ADDED 2026-11-15 (owner-delegated ruling, from the live list). Without it a stock
+#: that closed AT its 20-session high was called a pullback whenever the day's low
+#: had dipped to a fast average: on the first live UCT RS Leaders list 30 of 50 names
+#: read "Pullback to the 8-day", three of them closing at that high the same day and
+#: nine less than half an ATR under it. A pullback has come off its high. Half an
+#: ATR is the unit the band above already uses; a house threshold, no published test.
+PULLBACK_MIN_DEPTH_ATR = 0.5
 
 #: "Buyout pending": a 15%+ one-session jump, then a pinned price.
 #: TIGHTENED 2026-11-14 (unit U4, owner concern). The plan's first rule (section 3:
@@ -133,6 +141,13 @@ def _pullback_to(ema: float, rising: bool, low: float, close: float, atr: float)
     return bool(rising) and low <= ema + band and close >= ema - band
 
 
+def _off_the_high(high: float, close: float, atr: float) -> bool:
+    """The close is at least :data:`PULLBACK_MIN_DEPTH_ATR` ATRs under the
+    20-session closing high: the stock has come off it. A close AT the high (the
+    high is today's) is zero ATRs under it and never a pullback."""
+    return high - close >= PULLBACK_MIN_DEPTH_ATR * atr
+
+
 def _setup(inp: dict) -> Optional[str]:
     close, sma50, atr = _price(inp.get("close")), _price(inp.get("sma50")), _price(inp.get("atr14"))
     if close is None or sma50 is None or atr is None:
@@ -157,13 +172,14 @@ def _setup(inp: dict) -> Optional[str]:
     if pivot is not None and pivot * (1.0 - PIVOT_BELOW) <= close <= pivot * (1.0 + IBD_BUY_ZONE):
         return "at_pivot"
 
-    # 4. Pullback to a rising 8-day or 21-day EMA; the 8-day is named when both hold.
+    # 4. Pullback to a rising 8-day or 21-day EMA, off a recent closing high; the
+    #    8-day is named when both hold.
     ema8, ema21, low = _price(inp.get("ema8")), _price(inp.get("ema21")), _price(inp.get("low"))
     up8, up21 = _truth(inp.get("ema8_rising")), _truth(inp.get("ema21_rising"))
-    age = _num(inp.get("high20_age"))
-    if None in (ema8, ema21, low, up8, up21, age):
+    age, high = _num(inp.get("high20_age")), _price(inp.get("high20"))
+    if None in (ema8, ema21, low, up8, up21, age, high):
         return None
-    if age <= PULLBACK_HIGH_MAX_AGE:
+    if age <= PULLBACK_HIGH_MAX_AGE and _off_the_high(high, close, atr):
         if _pullback_to(ema8, up8, low, close, atr):
             return "pullback_8"
         if _pullback_to(ema21, up21, low, close, atr):

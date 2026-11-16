@@ -402,7 +402,7 @@ def test_a_raising_weekly_step_costs_its_two_columns_only(on, monkeypatch):
     row, failures = _row()
     assert [row[c] for c in WEEKLY] == [None, None]
     assert failures["bars_rs_weekly"] == {"RuntimeError": 1}
-    assert row["rs_nh_count_20"] == 11 and row["rs_setup"] == "pullback_8" and row["price"] == AAA[-1]["c"]
+    assert row["rs_nh_count_20"] == 11 and row["rs_setup"] == "uptrend" and row["price"] == AAA[-1]["c"]
 
 
 def test_the_identity_holds_on_a_built_row(on):
