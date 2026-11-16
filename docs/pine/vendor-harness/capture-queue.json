@@ -61,7 +61,7 @@
   ],
   "coverageMeasuredOn": "2026-11-05",
   "coverageMasterSha": "3ca4b0d358",
-  "fixtures": 708,
+  "fixtures": 717,
   "ledgerRows": 884
  },
  "definitions": {
@@ -7434,7 +7434,8 @@
    "id": "parabolic-sar__xoeoPMOWGJ@NYSE:RDDT@D",
    "status": "CAPTURED",
    "evidence": [
-    "tests/fixtures/vendor/harness/parabolic-sar-rddt-1d-2026-10-03.json"
+    "tests/fixtures/vendor/harness/parabolic-sar-rddt-1d-2026-10-03.json",
+    "tests/fixtures/vendor/harness/parabolic-sar-rddt-1d-2026-11-15.json"
    ],
    "source": "corpus/committed/parabolic-sar__xoeoPMOWGJ.pine",
    "sourceKind": "corpus",
@@ -7449,6 +7450,7 @@
    "chartSource": "row",
    "unparsedCharts": [],
    "capturedOn": [
+    "AMEX:SPY D",
     "NYSE:RDDT D"
    ],
    "licence": "corpus",
