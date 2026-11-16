@@ -22,7 +22,11 @@ weights it by what real scripts use, and ranks the work.
    state production runs (objects-only pane **armed**, runtime pane **dark**); and
 2. it **attaches and installs**, with **zero refusals** in its translation; and
 3. its drawing-object program is carried with **nothing dropped and nothing withheld**
-   (`assessObjectLoss` verdict `clean`), and no per-bar paint is withheld; and
+   (`assessObjectLoss` verdict `clean`), and no per-bar paint is withheld (from 2026-11-16 a
+   paint counts as withheld only when the document the member gets does not draw it,
+   `tools/pine_coverage/paint_predicate.mjs`; every count on this page was measured under the
+   earlier rule, which counted every paint the translation withheld, and a census row carries
+   both as `withheldPaints` / `withheldPaintsTranslated`); and
 4. it is **not a strategy that places orders** (`strategy.entry/order/exit/close/close_all`).
    The door draws a strategy's plots (ruling C50), but its trades, markers and tester
    report are its output and nothing simulates the broker, so it does not count.

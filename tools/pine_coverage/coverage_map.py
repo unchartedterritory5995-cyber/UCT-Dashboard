@@ -33,6 +33,12 @@ state) attaches it with zero refusals, nothing dropped or withheld from its obje
 program, and no paint withheld. It is a door verdict, NOT a numeric-parity verdict:
 parity is graded only where a vendor capture exists, reported separately.
 
+THE PAINT RULE (instrument correction, 2026-11-16; `tools/pine_coverage/paint_predicate.mjs`): a paint
+(`bgcolor` / `barcolor`) counts as withheld only when the DOCUMENT the member gets does not draw it. A
+row's `withheldPaints` is that count; `withheldPaintsTranslated` is the count before the correction (every
+paint the translation marked withheld, including one the door then draws from the per-bar run), and
+`cleanTranslatedPaints` is `clean` under that earlier rule, so one census states the headline both ways.
+A row written before the correction has only `withheldPaints`, under the earlier rule.
 """
 import argparse
 import collections
