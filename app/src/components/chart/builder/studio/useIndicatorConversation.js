@@ -147,6 +147,8 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
     if (!cur.history.length || busy || saving) return false
     const out = undoTurn(cur, gateCtx)
     commit(out.state)
+    // Shape only, once per conversation: a preview drew and was taken back.
+    logStudioAction(cur.lineage, 'undone', { surface: 'studio' })
     setAcked(false)
     setChangeSeq((n) => n + 1)
     say(out.entry)
