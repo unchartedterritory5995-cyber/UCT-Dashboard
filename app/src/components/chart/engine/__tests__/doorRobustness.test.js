@@ -121,9 +121,14 @@ describe('a `var string` in a drawing text is read from its writes', () => {
   })
 
   it('⭐ Q-ROB6: an UNTYPED `var` seeded with a string literal is a string (Pine infers the type from the value)', () => {
-    const t = T('var s = "hello"')
+    // Written on every bar, so the text goes through the string-var reader: an
+    // unwritten seed folds to its literal without it and would not tell the
+    // reader's type check apart (mutant M11 survived that form).
+    const t = T('var s = "seed"', 's := close > open ? "up" : "down"')
     expect(cellsOf(t).length).toBe(1)
-    expect(JSON.stringify(textOf(t))).toContain('"hello"')
+    const text = JSON.stringify(textOf(t))
+    expect(text).toContain('"up"')
+    expect(text).toContain('"down"')
     expect(diagText(t)).not.toMatch(/pine:type/)
   })
 
