@@ -297,12 +297,13 @@ function ChartPane({
   // on its own blob), a popup passes neither (reads AND writes the user's global
   // chart_settings — "your chart, everywhere").
   const {
-    cs: chartCs, menuVars, write: writeActiveSettings, patchHeader, ownChartSource, theme: resolvedTheme } = useChartSurfaceSettings({
+    cs: chartCs, canvasCs, menuVars, write: writeActiveSettings, patchHeader, ownChartSource, theme: resolvedTheme } = useChartSurfaceSettings({
     stored,
     onStore,
     chartsTheme,
   })
-  const extHoursOn = resolveShowExtended(chartCs)
+  // the canvas's own rule on the canvas's own settings (useChartSurfaceSettings `canvasCs`)
+  const extHoursOn = resolveShowExtended(canvasCs)
 
   // ⭐⭐ T5b — THE BAR COUNT THE `window_dependent` BADGE NAMES.
   //
@@ -361,9 +362,11 @@ function ChartPane({
   // Backed by the shared `extendedHoursShading` chart setting (StockChart reads
   // the same pref, so they stay in lockstep). ON = pre/post bars show; OFF =
   // regular session only (9:30–4:00 ET) with overnight gaps.
+  // Written over what the canvas SHOWS (canvasCs), so flipping EXT changes nothing else the member sees
+  // (a partial blob would otherwise take the defaults for every key it lacked).
   const setExtHours = useCallback((on) => {
-    writeActiveSettings({ ...chartCs, extendedHoursShading: on, preset: 'custom' })
-  }, [chartCs, writeActiveSettings])
+    writeActiveSettings({ ...canvasCs, extendedHoursShading: on, preset: 'custom' })
+  }, [canvasCs, writeActiveSettings])
 
   // ── UCT breadth line-chart quick-toggle ──
   // Breadth pseudo-tickers (UCTA50 = % above 50-day MA, etc.) often read better as a

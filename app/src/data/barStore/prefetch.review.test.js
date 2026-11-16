@@ -100,15 +100,19 @@ describe('#2a/#2b the legacy wire shape', () => {
       api.prefetchBar('PB', '15')                         // warm
       api.prefetchBarsToIDB(['ID'], '30')                 // warm
       api.prefetchBarOnIntent('IN', '5')                  // the chart's URL
-      const p = api.prepareForDisplay('PR', '5')          // warm (legacy _url / _sinceUrl)
+      const p = api.prepareForDisplay('PR', '5')          // legacy: warm (_url / _sinceUrl)
       await tick(200); await settle(w); await p
       return w.server.calls.map((c) => `${c.q.sym}:${c.q.warm}`).sort()
     }
     const legacy = await (async () => { const w = await boot(); return run(w.legacy, w) })()
     fakeDb._clear(); vi.setSystemTime(NOW)
     const facade = await (async () => { const w = await boot(); return run(w.pf, w) })()
-    expect(facade).toEqual(legacy)
-    expect(facade).toEqual(['ID:true', 'IN:false', 'NB:true', 'PB:true', 'PR:true', 'UR:false'])
+    // ⛔ ONE DELIBERATE DIFFERENCE (2026-11-15): the handoff's prepare is the request for the
+    // chart the member just asked for, so the store sends it NON-warm at `visible` rank. As a
+    // warm it was shed (an empty chart committed) and lane-held (first candles 353 ms median
+    // on production against the legacy path's 30 ms). Every other request keeps legacy's flag.
+    expect(legacy).toEqual(['ID:true', 'IN:false', 'NB:true', 'PB:true', 'PR:true', 'UR:false'])
+    expect(facade).toEqual(['ID:true', 'IN:false', 'NB:true', 'PB:true', 'PR:false', 'UR:false'])
   })
 
   it('priority: true jumps to the front of its rank (same order as legacy)', async () => {
@@ -261,14 +265,14 @@ describe('re-review: a non-warm caller never rides a &warm=1 request (#1118 find
     off()
   })
 
-  it('legacy parity: prepareForDisplay asks with &warm=1 (legacy _url / _sinceUrl), the handoff\'s cold key hydrated once', async () => {
+  it('prepareForDisplay asks NON-warm (the member\'s own chart is never a sheddable warm), the handoff\'s cold key hydrated once', async () => {
     const real = await import('../../utils/barsIDB')
     let reads = 0
     const w = await boot({ io: { idbGet: async (...a) => { reads++; return real.idbGet(...a) } } })
     const p = w.pf.prepareForDisplay('PFW', '5')
     await settle(w)
     await expect(p).resolves.toBe('current')
-    expect(w.server.calls.map((c) => c.q.warm)).toEqual([true])
+    expect(w.server.calls.map((c) => c.q.warm)).toEqual([false])
     expect(reads).toBe(1)
   })
 })

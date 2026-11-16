@@ -87,7 +87,7 @@
   },
   "pctConstants": [
     "components/StockChart.jsx:BARS_HISTORY_FIRST_PAINT_PCT",
-    "components/StockChart.jsx:BARS_HISTORY_SPLIT_ROLLOUT_PCT",
+    "utils/barsHistorySplit.js:BARS_HISTORY_SPLIT_ROLLOUT_PCT",
     "components/StockChart.jsx:BARS_PUSH_ROLLOUT_PCT",
     "components/StockChart.jsx:INTRADAY_FIRST_PAINT_PCT",
     "components/StockChart.jsx:INTRADAY_LOAD_ANCHOR_PCT",

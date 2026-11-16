@@ -60,6 +60,9 @@ _INJECTION = re.compile(
     # Charts family (2026-11-12): the UCT Intelligence chart indicator (uctIntelligence.set as a bare name), on its own line; stricter only
     # (never the site's own domain: "uctintelligence.com" is prose)
     r"|\buctIntelligence\.(?!(?:com|net|org|io|co|ai|app|dev|us)\b)[a-z][A-Za-z]*\b"
+    # Charts family (2026-11-15): the newsLibrary domain (newsLibrary.save / setNote / collection / deleteCollection / place as
+    # bare names), on its own line; stricter only. Prose ("save the headline", "my news library") has no dotted name and passes.
+    r"|\bnewsLibrary\.[a-z][A-Za-z]*\b"
     # Charts family (2026-11-12): the volumeProfile domain (volumeProfile.set as a bare name — any volumeProfile.<verb>); its
     # own branch, so the domain list above is untouched; stricter only. Prose "volume profile" has no dot and passes.
     r"|\bvolumeProfile\.[a-z][A-Za-z]*\b"
