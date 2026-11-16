@@ -233,6 +233,14 @@ export function strategyReportOf(rec, opts = {}) {
     }
     const g = money(m.label)
     if (g.refused) return g.refused
+    // ⭐ value read-backs: the script's `strategy.netprofit` takes an OPEN trade's paid entry fee off at once
+    // (`broker.js` `openFees`, witnessed by W9-K1..K3's plots); whether the Strategy Tester's own figures do is
+    // not witnessed (every K capture ends flat), so while one is open and has paid, each refuses by name
+    if (costOn && open.some((t) => t.commission > 0)) {
+      return refusal({ guard: REPORT_UNSTATED_GUARD, row: 'W9-S1',
+        sentence: `${m.label} is not shown: an open trade has paid its entry fee, and whether TradingView's Strategy Tester `
+          + 'counts it before the trade closes has not yet been checked against TradingView.' })
+    }
     const net = costOn ? sum(closed, netMoney) : sum(closed, pts) * pointvalue
     const gross = costOn ? sum(closed, (t) => { const n = netMoney(t); return n > 0 ? n : 0 })
       : sum(closed, (t) => { const p = pts(t); return p > 0 ? p : 0 }) * pointvalue

@@ -76,26 +76,30 @@ const DECL = (cost) => `//@version=5\nstrategy("t", initial_capital = 100000, de
 const ENTER = 'if bar_index == 1\n    strategy.entry("L", strategy.long)\n'
 const CLOSE3 = 'if bar_index == 3\n    strategy.close("L")\n'
 // p0 netprofit · p1 openprofit · p2 equity · p3 wintrades · p4 losstrades · p5 grossprofit · p6 grossloss
+// (the two gross figures are read only while FLAT: while an open trade has paid its entry fee they refuse by
+// name, value read-backs 2026-11-15, railed in w9ValueReadbacks.test.js)
 // p7 closedtrades.commission(0) · p8 closedtrades.profit(0) · p9 opentrades.commission(0)
 const READS = 'var float cc = na\nvar float cp = na\nfloat oc = na\n'
   + 'if strategy.closedtrades > 0\n    cc := strategy.closedtrades.commission(0)\n    cp := strategy.closedtrades.profit(0)\n'
   + 'if strategy.opentrades > 0\n    oc := strategy.opentrades.commission(0)\n'
   + 'plot(strategy.netprofit)\nplot(strategy.openprofit)\nplot(strategy.equity)\nplot(strategy.wintrades)\n'
-  + 'plot(strategy.losstrades)\nplot(strategy.grossprofit)\nplot(strategy.grossloss)\nplot(cc)\nplot(cp)\nplot(oc)\n'
+  + 'plot(strategy.losstrades)\nplot(strategy.opentrades == 0 ? strategy.grossprofit : na)\n'
+  + 'plot(strategy.opentrades == 0 ? strategy.grossloss : na)\nplot(cc)\nplot(cp)\nplot(oc)\n'
 const LONG_ROUND_TRIP = (cost) => `${DECL(cost)}${ENTER}${CLOSE3}${READS}`
 
 describe('W9-T5 the commission types (W9-K1..K3): a fee at each fill; a trade\'s profit net of both', () => {
   it('[B-COMM-PCT] percent 0.1: entry 2 @ 100 pays 0.2, exit 2 @ 103.5 pays 0.207; profit 7 - 0.407 = 6.593', () => {
     // R6 `commission_type`: "a percentage of the cash volume of the order": 2 x 100 x 1 x 0.1 / 100 = 0.2;
-    // 2 x 103.5 x 0.001 = 0.207. HYPOTHESIS (W9-K1): no rounding; the open trade's PAID entry fee comes off
-    // its open profit and equity: bar 2 (close 101) openprofit 2 x 1 - 0.2 = 1.8, equity 100001.8;
-    // bar 3 (close 103.5) openprofit 7 - 0.2 = 6.8.
+    // 2 x 103.5 x 0.001 = 0.207. No rounding. ⭐ WITNESSED (the W9-K1 capture's S07 / S09 plots, value
+    // read-backs 2026-11-15): the open trade's PAID entry fee comes off `strategy.netprofit` at once and is NOT
+    // in `strategy.openprofit`: bar 2 (close 101) netprofit -0.2, openprofit 2 x 1 = 2, equity 100001.8;
+    // bar 3 (close 103.5) openprofit 7. ⚰️ W9-T5 took it off the open profit (1.8, 6.8): the capture refuted it.
     const { cols, trades, used } = served(LONG_ROUND_TRIP('commission_type = strategy.commission.percent, commission_value = 0.1'))
     expect(trades[0].entry).toEqual({ time: at(2), price: 100, rule: 'B-MARKET' })
     expect(trades[0].exit).toEqual({ time: at(4), price: 103.5, rule: 'B-CLOSE' })
     close12(trades[0].commission, 0.407)
-    close12(cols[1][2], 1.8); close12(cols[2][2], 100001.8); close12(cols[9][2], 0.2)
-    close12(cols[1][3], 6.8)
+    close12(cols[0][2], -0.2); close12(cols[1][2], 2); close12(cols[2][2], 100001.8); close12(cols[9][2], 0.2)
+    close12(cols[0][3], -0.2); close12(cols[1][3], 7); close12(cols[2][3], 100006.8)
     close12(cols[0][4], 6.593); close12(cols[2][4], 100006.593); close12(cols[7][4], 0.407); close12(cols[8][4], 6.593)
     expect(cols[3][4]).toBe(1); expect(cols[4][4]).toBe(0)
     close12(cols[5][4], 6.593); expect(cols[6][4]).toBe(0)
@@ -103,10 +107,10 @@ describe('W9-T5 the commission types (W9-K1..K3): a fee at each fill; a trade\'s
     expect(used).not.toContain('B-DEFAULTS') // the type is declared
   })
   it('[B-COMM-CONTRACT] 1.5 per contract: 3 at entry, 3 at exit; profit 7 - 6 = 1', () => {
-    // 2 contracts x 1.5 = 3 per fill. bar 2: openprofit 2 - 3 = -1, equity 99999
+    // 2 contracts x 1.5 = 3 per fill. bar 2: netprofit -3 (the paid entry fee), openprofit 2, equity 99999
     const { cols, trades, used } = served(LONG_ROUND_TRIP('commission_type = strategy.commission.cash_per_contract, commission_value = 1.5'))
     expect(trades[0].commission).toBe(6)
-    expect(cols[1][2]).toBe(-1); expect(cols[2][2]).toBe(99999); expect(cols[9][2]).toBe(3)
+    expect(cols[0][2]).toBe(-3); expect(cols[1][2]).toBe(2); expect(cols[2][2]).toBe(99999); expect(cols[9][2]).toBe(3)
     expect(cols[0][4]).toBe(1); expect(cols[8][4]).toBe(1); expect(cols[7][4]).toBe(6)
     expect(cols[3][4]).toBe(1)
     expect(used).toContain('B-COMM-CONTRACT')
@@ -120,7 +124,8 @@ describe('W9-T5 the commission types (W9-K1..K3): a fee at each fill; a trade\'s
     expect(cols[0][4]).toBe(-3); expect(cols[8][4]).toBe(-3)
     expect(cols[3][4]).toBe(0); expect(cols[4][4]).toBe(1)
     expect(cols[5][4]).toBe(0); expect(cols[6][4]).toBe(3)
-    expect(cols[1][2]).toBe(-3) // 2 x (101 - 100) - 5
+    expect(cols[0][2]).toBe(-5) // the entry order's fee, paid: off net profit while the trade is open
+    expect(cols[1][2]).toBe(2) // 2 x (101 - 100), no fee in it
   })
   it('a percent commission on a reversal: one fill, each trade pays its share at the one price', () => {
     // long 2 @ 100 (fee 0.2); a short entry placed on bar 3 fills at bar 4's open 103.5: it closes the long
@@ -133,8 +138,10 @@ describe('W9-T5 the commission types (W9-K1..K3): a fee at each fill; a trade\'s
     close12(trades[1].commission, 0.207)
     expect(trades[1].exit).toBeUndefined()
     close12(cols[9][4], 0.207)
-    // bar 4 close 104: the short is 2 x (103.5 - 104) = -1 open, less its 0.207 entry fee
-    close12(cols[1][4], -1.207)
+    // bar 4 close 104: the short is 2 x (103.5 - 104) = -1 open, with no fee in it; its paid 0.207 entry fee
+    // is off net profit at once (W9-K1's plots): 7 - 0.407 (the closed long) - 0.207
+    close12(cols[1][4], -1)
+    close12(cols[0][4], 7 - 0.407 - 0.207)
   })
   it('a per-order commission on ONE order that fills two trades refuses by name (W9-K3): a reversal, a close of two', () => {
     const rev = `${DECL('commission_type = strategy.commission.cash_per_order, commission_value = 5')}${ENTER}`
@@ -223,11 +230,23 @@ describe('W9-T5 slippage (W9-K4): market fills only', () => {
     expect(plain.err, plain.err && plain.err.message).toBeUndefined()
     expect(plain.trades[0].entry.price).toBe(99.8)
   })
-  it('a market fill at a price OFF the tick grid under a slippage refuses by name (W9-K4), not slipped', () => {
-    // bar 2 opens at 100.005 (off the 0.01 grid): whether TradingView slips before or after rounding is not stated
+  it('a market fill on an OPEN off the tick grid is rounded to the tick ([B-ROUND]) and then slipped; unpinned, it stops naming B-ROUND', () => {
+    // bar 2 opens at 100.005 (off the 0.01 grid). ⭐ WITNESSED by W9-K4's own capture: its four market fills on an
+    // off-grid open (114.725, 244.804, 141.875, 155.775, slippage 3, sells) are reported at 114.70, 244.77,
+    // 141.85, 155.75: the open rounded to the nearest tick (a tie up), 3 ticks lower. (Rounding and a whole
+    // number of ticks commute, so "before or after" is one answer.) Here: 100.005 -> 100.01, a buy, + 0.03.
+    // ⚰️ This refused by name (W9-K4) until the value read-backs unit read the fills.
     const bars = barsOf([...HEAD.slice(0, 2), [100.005, 101.5, 99.5, 101], HEAD[3], [103.5, 105, 102.5, 104], ...FILL(5, [104, 105, 103.5, 104.5])])
-    const e = unsettled(`${SLIP()}${ENTER}${CLOSE3}plot(strategy.position_size)\n`, 'W9-K4', { bars })
-    expect(e.message).toMatch(/off the tick grid/)
+    const src = `${SLIP()}${ENTER}${CLOSE3}plot(strategy.position_size)\n`
+    const { trades, used } = served(src, { bars })
+    expect(trades[0].entry.price).toBe(100.04)
+    expect(used).toContain('B-ROUND')
+    expect(used).toContain('B-SLIPPAGE')
+    const r = attempt(src, { bars, pins: except('B-ROUND') })
+    expect(r.err && r.err.guard).toBe('runtime:strategy-unpinned')
+    expect(r.err.rule).toBe('B-ROUND')
+    // control: on the grid the run never asks B-ROUND
+    expect(served(src).used).not.toContain('B-ROUND')
   })
   it('a stop entry and a stop-loss under slippage refuse by name (W9-K4 fills market orders only)', () => {
     unsettled(`${SLIP()}if bar_index == 1\n    strategy.entry("L", strategy.long, stop = 101)\nplot(strategy.position_size)\n`, 'W9-K4')
@@ -248,11 +267,11 @@ describe('W9-T5 r2: the tick grid under slippage, for ticks that do not divide 1
   // A market entry placed on bar 0 fills at bar 1's open `px`, slipped 2 ticks against the strategy (a buy up,
   // a sell down). r1 assumed 1 / mintick was a whole number and refused tick 5 at 4200 and tick 0.3 at 99.9 as
   // "off the grid". The grid is now k = round(px / tick) within a relative tolerance.
-  const fillAt = (tick, px, dir) => {
+  const fillAt = (tick, px, dir, pins = ALL) => {
     const O = [px, px]; const H = [px + 10 * tick, px + 10 * tick]; const L = [px - 10 * tick, px - 10 * tick]; const C = [px, px]
     const cfg = { version: 5, pyramiding: 1, defaultQty: 1, qtyType: 'fixed', qtyValue: 1, initialCapital: 1e9,
       marginLong: 0, marginShort: 0, defaulted: {}, slippage: 2 }
-    const b = makeBroker(cfg, { series: [O, H, L, C], barTimes: [at(0), at(1)], isPinned: ALL })
+    const b = makeBroker(cfg, { series: [O, H, L, C], barTimes: [at(0), at(1)], isPinned: pins })
     b.call('#symbol', [tick, 1], 0)
     b.call('strategy.entry', ['L', dir, 1], 0)
     while (b.beginBar(1)) { /* no extra executions */ }
@@ -266,14 +285,18 @@ describe('W9-T5 r2: the tick grid under slippage, for ticks that do not divide 1
     // a satoshi tick: String(1e-8) is "1e-8", so the decimals come from the exponent
     [1e-8, 0.00012345, 0.00012347, 0.00012343],
   ]) {
-    it(`tick ${tick}: ${px} is on the grid; a long fills at ${up}, a short at ${down}; ${px} + tick / 3 refuses (W9-K4)`, () => {
+    it(`tick ${tick}: ${px} is on the grid; a long fills at ${up}, a short at ${down}; ${px} + tick / 3 is OFF it and rounds back to it ([B-ROUND])`, () => {
       expect(fillAt(tick, px, 1)).toBe(up)
       expect(fillAt(tick, px, -1)).toBe(down)
+      // ⭐ value read-backs: an open a third of a tick above the grid fills at the nearest tick (the same `px`),
+      // then slips as an on-grid open does. ⚰️ It refused W9-K4 ("before or after rounding") until W9-K4's own
+      // capture showed the fills. Unpinned, the run stops naming B-ROUND, never the raw open.
+      expect(fillAt(tick, px + tick / 3, 1)).toBe(up)
+      expect(fillAt(tick, px + tick / 3, -1)).toBe(down)
       let err
-      try { fillAt(tick, px + tick / 3, 1) } catch (e) { err = e }
-      expect(err && err.guard).toBe('runtime:strategy-unsettled')
-      expect(err.message).toMatch(/off the tick grid/)
-      expect(err.message).toContain('W9-K4')
+      try { fillAt(tick, px + tick / 3, 1, except('B-ROUND')) } catch (e) { err = e }
+      expect(err && err.guard).toBe('runtime:strategy-unpinned')
+      expect(err.rule).toBe('B-ROUND')
     })
   }
 })

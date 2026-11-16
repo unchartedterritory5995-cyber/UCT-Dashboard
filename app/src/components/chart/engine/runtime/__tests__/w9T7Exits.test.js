@@ -370,7 +370,7 @@ describe('W9-T7 [B-EXIT-LEVELS] profit and limit together, by version (Q-S1k)', 
     expect([trades[0].exit.price, trades[0].exit.time]).toEqual([99.6, at(2)])
   })
   it('refuses by name (Q-S1k): the pair in Pine v4 (no v4 text read)', () => {
-    unsettled(`//@version=4\nstrategy("t")\nstrategy.entry("L", true, qty = 1, when = bar_index == 1)\nstrategy.exit("x", "L", profit = 150, limit = 104)\nplot(strategy.position_size)\n`, 'Q-S1k')
+    unsettled(`//@version=4\nstrategy("t", margin_long = 100, margin_short = 100)\nstrategy.entry("L", true, qty = 1, when = bar_index == 1)\nstrategy.exit("x", "L", profit = 150, limit = 104)\nplot(strategy.position_size)\n`, 'Q-S1k')
   })
 })
 

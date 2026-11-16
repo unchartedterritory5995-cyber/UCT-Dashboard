@@ -170,7 +170,7 @@ describe('⭐⭐ price orders on the intrabar path [B-PATH] [B-GAP] [B-EXIT-BIND
 
 describe('⭐⭐ version, declaration and `when` [B-DEFAULTS] [B-SIG] [B-WHEN] [B-DIR]', () => {
   it('v4 `when = false` places nothing; `true` / the v4 positional `long` places', () => {
-    const { cols } = run('//@version=4\nstrategy("t", default_qty_value = 2)\n'
+    const { cols } = run('//@version=4\nstrategy("t", default_qty_value = 2, margin_long = 100, margin_short = 100)\n'
       + 'strategy.entry("L", true, when = bar_index == 3)\nstrategy.entry("X", true, when = false)\n'
       + 'plot(strategy.position_size)\n')
     expect(cols[0][3]).toBe(0)
