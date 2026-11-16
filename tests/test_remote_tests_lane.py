@@ -126,6 +126,26 @@ def test_every_test_job_waits_for_the_validator():
         assert "needs.plan.outputs" in jobs[name]["if"], name
 
 
+def test_test_jobs_fetch_the_ref_under_test_by_name():
+    """Live run 43936188940 (2026-11-16): `actions/checkout` with `ref: refs/remote-tests/...` failed in every job
+    ("pathspec ... did not match"), because checkout fetches only branches and tags. Each test job must fetch the
+    validated ref by name and detach onto it; no checkout step may be handed the ref."""
+    for name in ("pytest", "vitest"):
+        steps = _wf()["jobs"][name]["steps"]
+        for s in steps:
+            if "actions/checkout" in (s.get("uses") or ""):
+                assert "ref" not in (s.get("with") or {}), (name, s)
+        fetch = [s for s in steps if s.get("name") == "Check out the commit under test"]
+        assert len(fetch) == 1, name
+        run = fetch[0]["run"]
+        assert fetch[0]["env"]["RT_REF"] == "${{ inputs.ref }}"
+        assert 'git fetch --no-tags --quiet origin "+$RT_REF:refs/rt/under-test"' in run
+        assert "git checkout --quiet --detach refs/rt/under-test" in run
+        names = [s.get("name") or s.get("uses") for s in steps]
+        assert names.index("Check out the commit under test") < next(
+            i for i, s in enumerate(steps) if s.get("name") in ("pytest", "vitest", "npm ci", "Install")), name
+
+
 def test_a_vitest_filter_matching_nothing_fails():
     run = [s for s in _wf()["jobs"]["vitest"]["steps"] if s.get("name") == "vitest"][0]["run"]
     assert re.search(r'if \[ "\$total" -eq 0 \]; then [^\n]*exit 1; fi', run), "an empty match must exit 1"
