@@ -8,10 +8,14 @@
 //   · SERVED — `for x in` / `for [i, x] in` over a user array (numbers, text, records, drawings),
 //     `<family>.all`; an empty list runs no pass; `break` / `continue`; the element read off a
 //     record list types `x.f`; push / shift / set in the body walk the LIVE list.
-//   · REFUSED BY NAME (`runtime:loop`) — any other change of the walked list (G-rows, ungraded),
-//     a change that MAY reach it through another name, a write to or through the loop variable,
-//     a function body, a loop whose value is read, `polyline.all`, a matrix, a map, a value
-//     that is not an array.
+//   · ⭐⭐ IMP-1 (2026-11-16) SERVED ON THIS LANE — remove / pop / unshift / insert / clear of the
+//     walked list, a reassignment of its name, a helper handed it (G01-G07, graded against the
+//     capture in `vendorHarness.impForInGRows.test.js`); a walk inside a function body; handing the
+//     element to a function that writes its fields.
+//   · REFUSED BY NAME (`runtime:loop`) — reverse / sort / fill / concat of the walked list (no
+//     capture row), a change that MAY reach it through another name by those, a write to the loop
+//     variable or directly through it, a list the element holds changed, a loop whose value is
+//     read, `polyline.all`, a matrix, a map, a value that is not an array.
 //   · THE ONE TABLE — the host lane and this lane read `forInRule.js`; its sentence is the
 //     host's sentence.
 //   · THE DOORS — the C18 object door refuses BY NAME (`runtime:object-door`); the host
@@ -21,7 +25,8 @@ import { describe, it, expect } from 'vitest'
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import { lowerIrProgram } from '../lowerIr.js'
 import { execute } from '../vm.js'
-import { FOR_IN_LIVE_WITNESSED, FOR_IN_SNAPSHOT_SOURCES, forInMutationRefusal, forInHeldListRefusal } from '../../ast/forInRule.js'
+import { FOR_IN_LIVE_WITNESSED, FOR_IN_LIVE_WITNESSED_RUNTIME, FOR_IN_SNAPSHOT_SOURCES, forInMutationRefusal,
+  forInHeldListRefusal } from '../../ast/forInRule.js'
 import { translatePine } from '../../ast/pine.js'
 
 const N = 40
@@ -83,48 +88,89 @@ describe('⭐ SERVED — the walk', () => {
   })
 })
 
-describe('⛔ REFUSED BY NAME — no capture settles these', () => {
-  const WALK = (change) => `a = array.from(1.0, 2.0, 3.0)\ns = 0.0\nfor [i, x] in a\n    ${change}\n    s += x\nplot(s)\n`
-  it('the G-rows (ungraded): remove / pop / unshift / insert / clear / reverse / sort / a reassignment / a helper', () => {
-    const helper = 'drop(arr) =>\n    array.pop(arr)\n'
-    for (const change of ['array.remove(a, 0)', 'array.pop(a)', 'array.unshift(a, 1.0)', 'array.insert(a, 0, 1.0)',
-      'array.clear(a)', 'array.reverse(a)', 'array.sort(a)', 'a := array.from(9.0)', 'a.remove(0)', 'drop(a)']) {
-      const r = refusal((change === 'drop(a)' ? helper : '') + WALK(change))
-      expect(r.guard, change).toBe('runtime:loop')
-      expect(r.message, change).toContain(forInMutationRefusal('a'))
+const WALK = (change) => `a = array.from(1.0, 2.0, 3.0)\ns = 0.0\nfor [i, x] in a\n    ${change}\n    s += x\nplot(s)\n`
+
+describe('⭐⭐ IMP-1 — SERVED ON THIS LANE: the G-rows, a function body, a field write through a handed element', () => {
+  // The values are the index walk over the LIVE list (the manual's Loops page; G01-G07 of
+  // `vw-forin-collections-2` grade the same walk against TradingView in the vendor harness rail).
+  it('remove / pop / unshift / insert / clear, a reassignment of the name, a helper handed the list', () => {
+    const helper = 'drop(array<float> arr) =>\n    array.pop(arr)\n'
+    const cases = [
+      // [1, 2, 3]: pass 0 reads 1 and removes slot 0 → [2, 3]; pass 1 reads slot 1 = 3; 2 passes
+      ['array.remove(a, 0)', 4], ['a.remove(0)', 4],
+      // pass 0 reads 1, pop → [1, 2]; pass 1 reads 2, pop → [1]; 2 passes
+      ['array.pop(a)', 3], ['drop(a)', 3],
+      // the front grows to 6: passes read 1, 1, 1, 1, 2, 3 (6 passes)
+      ['if array.size(a) < 6\n        array.unshift(a, 1.0)', 9],
+      ['if array.size(a) < 6\n        array.insert(a, 0, 1.0)', 9],
+      // one pass, then the list is empty
+      ['array.clear(a)', 1],
+      // G06: the walk keeps the list it started with (1 + 2 + 3)
+      ['a := array.from(9.0)', 6],
+    ]
+    for (const [change, want] of cases) {
+      expect(lastValues((change === 'drop(a)' ? helper : '') + WALK(change)), change).toEqual([want])
     }
   })
+  it('⛔ CONTROLS — reverse / sort / fill / concat (no capture row), directly or by a helper, stay refused by name', () => {
+    const rev = 'rev(array<float> arr) =>\n    array.reverse(arr)\n'
+    for (const change of ['array.reverse(a)', 'array.sort(a)', 'array.fill(a, 0.0)', 'array.concat(a, array.from(1.0))',
+      'a.reverse()', 'rev(a)']) {
+      const r = refusal((change === 'rev(a)' ? rev : '') + WALK(change))
+      expect(r.guard, change).toBe('runtime:loop')
+      expect(r.message, change).toBe(`a loop in a form this lane does not iterate — \`for … in\`: ${forInMutationRefusal('a', FOR_IN_LIVE_WITNESSED_RUNTIME)}`)
+    }
+    // the sentence names the RUNTIME set
+    expect(forInMutationRefusal('a', FOR_IN_LIVE_WITNESSED_RUNTIME))
+      .toBe('the body changes `a`, the list it walks, by more than push / shift / set / remove / pop / unshift / insert / clear')
+    // ⛔ a helper handed anything but the list itself is not followed
+    const drop = 'drop(array<float> arr) =>\n    array.pop(arr)\n'
+    expect(refusal(`${drop}${WALK('drop(array.slice(a, 0, 1))')}`).guard).toBe('runtime:loop')
+  })
+  it('a walk inside a function body, over the list each call hands it', () => {
+    const f = 'f(array<float> a) =>\n    s = 0.0\n    for x in a\n        s += x\n    s\n'
+    expect(lastValues(`${f}plot(f(array.from(1.0, 2.0)))\nplot(f(array.from(5.0)))\n`)).toEqual([3, 5])
+    // …and over a global list, read inside the function (the witness script's `predict`)
+    const g = 'var gs = array.from(2.0, 4.0)\ng(float k) =>\n    float t = 0.0\n    for x in gs\n        t += x * k\n    t\n'
+    expect(lastValues(`${g}plot(g(1.0))\nplot(g(10.0))\n`)).toEqual([6, 60])
+  })
+  it('handing the element to a function that writes its fields (at any depth): the write is through a reference', () => {
+    const T = 'type P\n    float v\nvar ps = array.new<P>()\nif barstate.isfirst\n    array.push(ps, P.new(1))\n    array.push(ps, P.new(2))\n'
+    const bump = 'bump(P q) =>\n    q.v := q.v + 10\n    q.v\n'
+    expect(lastValues(`${T}${bump}for p in ps\n    bump(p)\nplot(array.get(ps, 0).v)\nplot(array.get(ps, 1).v)\n`))
+      .toEqual([1 + 10 * N, 2 + 10 * N])
+    const outer = 'outer(P q) =>\n    bump(q)\n'
+    expect(lastValues(`${T}${bump}${outer}for p in ps\n    outer(p)\nplot(array.get(ps, 1).v)\n`)).toEqual([2 + 10 * N])
+  })
+})
+
+describe('⛔ REFUSED BY NAME — no capture settles these', () => {
   it('CONTROL — push / shift / set, the three a capture shows, are served', () => {
     for (const change of ['array.push(a, 1.0)', 'array.shift(a)', 'array.set(a, 0, 1.0)', 'a.push(1.0)']) {
       expect(build(WALK(`if array.size(a) < 6\n        ${change}`)).ok, change).toBe(true)
     }
   })
   it('a change that MAY reach the walked list through another name (an alias of the same type)', () => {
-    const r = refusal(`b = array.from(1.0)\n${WALK('array.remove(b, 0)')}`)
+    const r = refusal(`b = array.from(1.0)\n${WALK('array.reverse(b)')}`)
     expect(r.message).toMatch(/changes `b`, which may be `a`/)
     // CONTROL — a list of ANOTHER type cannot be the walked one
-    expect(build(`b = array.from("q", "r")\n${WALK('if array.size(b) > 0\n        array.remove(b, 0)')}`).ok).toBe(true)
+    expect(build(`b = array.from("q", "r")\n${WALK('if array.size(b) > 0\n        array.reverse(b)')}`).ok).toBe(true)
   })
   it('a list the body binds to a NEW array (and never reassigns) cannot be the walked one; one bound to a name can', () => {
-    const fresh = WALK('var float[] t = array.new_float(2)\n    if array.size(t) > 0\n        array.pop(t)')
+    const fresh = WALK('var float[] t = array.new_float(2)\n    if array.size(t) > 0\n        array.reverse(t)')
     const b = build(fresh)
     expect(b.ok, b.refusal && b.refusal.message).toBe(true)
     // ⛔ CONTROLS — bound to the walked list, or reassigned in the body: refused by name
-    expect(refusal(WALK('t = a\n    array.pop(t)')).message).toMatch(/changes `t`, which may be `a`/)
+    expect(refusal(WALK('t = a\n    array.reverse(t)')).message).toMatch(/changes `t`, which may be `a`/)
     // `array.slice` is a VIEW of the list (Pine reference), not a new array
-    expect(refusal(WALK('t = array.slice(a, 0, 1)\n    array.pop(t)')).message).toMatch(/changes `t`, which may be `a`/)
-    expect(refusal(WALK('var float[] t = array.new_float(2)\n    t := a\n    array.pop(t)')).message).toMatch(/changes `t`, which may be `a`/)
+    expect(refusal(WALK('t = array.slice(a, 0, 1)\n    array.sort(t)')).message).toMatch(/changes `t`, which may be `a`/)
+    expect(refusal(WALK('var float[] t = array.new_float(2)\n    t := a\n    array.reverse(t)')).message).toMatch(/changes `t`, which may be `a`/)
   })
-  it('a write to the loop variable, or through it (W6-F1)', () => {
+  it('a write to the loop variable, or directly through it (W6-F1)', () => {
     expect(refusal(WALK('x := 4.0')).message).toMatch(/writes the loop variable `x`/)
     expect(refusal(WALK('i += 1')).message).toMatch(/writes the loop variable `i`/)
     const rec = 'type P\n    float v\nps = array.from(P.new(1))\nfor p in ps\n    p.v := 2\nplot(close)\n'
     expect(refusal(rec).message).toMatch(/writes the loop variable `p`/)
-    const handed = 'type P\n    float v\nbump(q) =>\n    q.v := 3\nps = array.from(P.new(1))\nfor p in ps\n    bump(p)\nplot(close)\n'
-    expect(refusal(handed).message).toMatch(/hands the element `p`/)
-    // …through a function that calls one that writes, too
-    const deep = 'type P\n    float v\nbump(q) =>\n    q.v := 3\nouter(q) =>\n    bump(q)\nps = array.from(P.new(1))\nfor p in ps\n    outer(p)\nplot(close)\n'
-    expect(refusal(deep).message).toMatch(/hands the element `p`/)
     // ⛔ (review N1) a list the element HOLDS, changed in the body or by a helper (W6-F1)
     const H2 = 'type Q\n    array<float> arr\nvar qs = array.new<Q>()\nif barstate.isfirst\n    array.push(qs, Q.new(array.new_float()))\n'
     for (const change of ['array.push(q.arr, 1.0)', 'q.arr.push(1.0)', 'array.clear(q.arr)']) {
@@ -276,9 +322,8 @@ describe('⛔ REFUSED BY NAME — no capture settles these', () => {
     expect(lastValues('var b = array.new_float()\nbumpf(array<float> a) =>\n    array.push(a, 1.0)\na = array.from(1.0, 2.0)\n'
       + 'for x in a\n    bumpf(b)\nplot(array.size(b))\n')).toEqual([2 * N])
   })
-  it('inside a function body; a loop whose value is read; `polyline.all`; a matrix; a map; a non-array', () => {
-    expect(refusal('f(a) =>\n    s = 0.0\n    for x in a\n        s += x\n    s\nplot(f(array.from(1.0)))\n').message)
-      .toMatch(/inside a function body/)
+  it('a loop whose value is read; `polyline.all`; a matrix; a map; a non-array', () => {
+    // ⚰️ IMP-1: "inside a function body" was the first case here; it is served now (above)
     expect(refusal('if barstate.islast\n    for p in polyline.all\n        polyline.delete(p)\nplot(close)\n').message).toMatch(/`polyline.all` is not yet captured \(W6-F1\)/)
     expect(refusal('a = array.from(1.0, 2.0)\nr = if close > 0\n    for x in a\n        x\nplot(r)\n').message).toMatch(/value of a `for … in` loop/)
     // a matrix / map is refused by name (here at its creation, `runtime:array`, before the walk)
@@ -291,6 +336,8 @@ describe('⛔ REFUSED BY NAME — no capture settles these', () => {
 describe('⭐ ONE TABLE — `forInRule.js` is what both lanes read', () => {
   it('the witnessed mutations and snapshot sources are the capture\'s', () => {
     expect([...FOR_IN_LIVE_WITNESSED]).toEqual(['push', 'shift', 'set'])
+    // ⭐ IMP-1 — the runtime lane's set: C48's three and G01-G05's five, nothing else
+    expect([...FOR_IN_LIVE_WITNESSED_RUNTIME]).toEqual(['push', 'shift', 'set', 'remove', 'pop', 'unshift', 'insert', 'clear'])
     expect(FOR_IN_SNAPSHOT_SOURCES).toEqual({ 'line.all': 'line', 'box.all': 'box', 'label.all': 'label' })
   })
   it('the host lane refuses the same body with the same sentence', () => {

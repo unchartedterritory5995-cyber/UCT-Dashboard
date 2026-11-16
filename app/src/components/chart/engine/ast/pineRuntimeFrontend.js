@@ -97,8 +97,9 @@ import { makeTy, tyOfTypeWord, bindingTy, isCollectionTy, elemTy, udtNameOf, ele
   isTextTy, isColourTy, methodNsOf, collectionNumWordsConflict, numWordOf } from './typeDescriptor.js'
 // ⭐⭐ W6-T6 — the `for … in` walk rule (live list vs snapshot, the witnessed mutations): ONE
 // table, read by this lane and the host object lane (`pineObjects.js`) alike.
+// ⭐⭐ IMP-1 — this lane reads the RUNTIME set (G01-G07 graded on this lane); the host lane keeps C48's.
 import {
-  FOR_IN_SNAPSHOT_SOURCES, FOR_IN_LIVE_WITNESSED, COLLECTION_MUTATORS, REASSIGN_OPS,
+  FOR_IN_SNAPSHOT_SOURCES, FOR_IN_LIVE_WITNESSED_RUNTIME, COLLECTION_MUTATORS, REASSIGN_OPS,
   bodyMayWriteList, forInMutationRefusal, heldListMutation, forInHeldListRefusal, heldListReach,
 } from './forInRule.js'
 import { readFunctionDefs } from './objectFnInline.js'
@@ -12240,13 +12241,22 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // ⭐ THE WALK RULE IS `forInRule.js`, the table the host object lane reads too: a body may
   // change the list it walks by push / shift / set (C48, F03-F05, witnessed live); `<family>.all`
   // is a snapshot (A02-A06). `<list>` and `<pass>` live in slots no Pine name can reach.
+  // ⭐⭐ IMP-1 (2026-11-16) — ON THIS LANE ALSO by remove / pop / unshift / insert / clear, a
+  // reassignment of the list's name and a helper handed the list (`FOR_IN_LIVE_WITNESSED_RUNTIME`:
+  // the manual's Loops page and the capture `vw-forin-collections-2`, G01-G07, graded here);
+  // INSIDE A FUNCTION BODY (lowered exactly as at the top level, onto the counted `for` this lane
+  // already runs in a function body); and handing the element to a function that writes one of
+  // its FIELDS (a record is a reference, `runtime/records.js`). The two W6-F1 halves are served on
+  // the script-level witness `support-and-resistance-logistic-regression-flux-charts-rddt-1d-
+  // 2026-11-14` (both shapes), graded MATCH through this lane by the vendor harness.
   // `x` is typed by T3b's `exprType` (`array.get` over the list's descriptor), so `x.top` reads a
   // record field and `line.set_x2(x, …)` a drawing; a list whose element type is not written
   // types `x` exactly as the member's own `x = array.get(list, i)` binding is typed.
   // ⛔ REFUSED BY NAME (`runtime:loop`), each with its capture row (W6-F1 / the G-row grading):
-  // any other change of the walked list (and one that MAY reach it through another name); a
-  // write to the loop variable or through it; a `for … in` inside a function body or whose
-  // value is read; `polyline.all`, a matrix, a map; a list this lane cannot type.
+  // `reverse` / `sort` / `fill` / `concat` of the walked list (and a change that MAY reach it
+  // through another name); a write to the loop variable or directly through it; a change of a
+  // list the element holds; a `for … in` whose value is read; `polyline.all`, a matrix, a map; a
+  // list this lane cannot type.
   // ⛔ AT THE OBJECT DOOR the host object lane serves `for … in`; the door keeps refusing it
   // (`objectDoorRefuses`) until measure-pair proves its output identical.
   let forInFnDefs = null
@@ -12260,7 +12270,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // only; it keeps master's answer.
     if (Array.isArray(opts.objectIterTrees)) refuse(null)
     if (takeLoopSink()) refuse('the value of a `for … in` loop is not yet captured (W6-F1)')
-    if (owner !== null) refuse('inside a function body, where each call site walks its own list, is not yet captured (W6-F1)')
+    // ⚰️ IMP-1: "inside a function body, where each call site walks its own list, is not yet
+    // captured (W6-F1)" stood here. A walk in a function body lowers to the same counted `for` as
+    // one at the top level, over whatever list THIS call reads; served on the script witness above.
     // `for x in SRC` | `for [i, x] in SRC`
     let idxTok = null
     let elemTok = null
@@ -12288,12 +12300,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (srcTy.kind !== 'array') refuse(`\`${src}\` is not an array this lane can walk`)
     if (!forInFnDefs) forInFnDefs = readFunctionDefs(stmts, { isPunct })
     const rule = { isPunct, isDefined: (m) => definedNames.has(m), fnDefs: forInFnDefs }
-    // ⭐ C48 — a body that changes its own list walks it LIVE, by push / shift / set only.
-    if (!family && bodyMayWriteList(st.sub, src, { ...rule, allowed: FOR_IN_LIVE_WITNESSED })) refuse(forInMutationRefusal(src))
-    // …and handing the element to a function that writes a field or changes a list held in one
-    // (at any depth of its calls):
-    // the element is a reference, so that is a write through `x` too.
-    if (forInHandsOn(st.sub, elem, rule)) {
+    // ⭐ C48 — a body that changes its own list walks it LIVE; ⭐ IMP-1: by the runtime set, a
+    // reassignment of the list's name (G06) or a helper that changes it by that set (G07).
+    if (!family && bodyMayWriteList(st.sub, src, { ...rule, allowed: FOR_IN_LIVE_WITNESSED_RUNTIME,
+      reassignKeepsWalk: true, followHelpers: true })) refuse(forInMutationRefusal(src, FOR_IN_LIVE_WITNESSED_RUNTIME))
+    // …and handing the element to a function that changes a list held in one of its fields (at
+    // any depth of its calls): the element is a reference, so that is a write through `x` too.
+    // ⭐ IMP-1: a function that only writes the element's FIELDS is served (`fieldWritesServed`).
+    if (forInHandsOn(st.sub, elem, { ...rule, fieldWritesServed: true })) {
       refuse(`the body hands the element \`${elem}\` to a function that may write through it, not yet captured (W6-F1)`)
     }
     // ⛔ (review N1 / N1b r2) …while walking records that hold a list, a change is served ONLY on
@@ -12314,7 +12328,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         const ty = t === null ? null : exprType({ type: 'name', name: t, tok: first }, scope)
         if (!ty || tyKey(ty) === tyKey(srcTy)) {
           refuse(`the body changes \`${t === null ? 'a list a called function is handed' : t}\`, which may be \`${src}\`, `
-            + `by more than ${[...FOR_IN_LIVE_WITNESSED].join(' / ')}`)
+            + `by more than ${[...FOR_IN_LIVE_WITNESSED_RUNTIME].join(' / ')}`)
         }
       }
     }
@@ -12370,9 +12384,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
           if (!isPunct(ts[i + 1], '(')) continue
           const m = splitMethodName(v)
           let target
-          if (v.startsWith('array.') && COLLECTION_MUTATORS.has(v.slice(6)) && !FOR_IN_LIVE_WITNESSED.has(v.slice(6))) {
+          if (v.startsWith('array.') && COLLECTION_MUTATORS.has(v.slice(6)) && !FOR_IN_LIVE_WITNESSED_RUNTIME.has(v.slice(6))) {
             target = ts[i + 2] && ts[i + 2].kind === 'ident' ? String(ts[i + 2].value) : null
-          } else if (m && COLLECTION_MUTATORS.has(m.method) && !FOR_IN_LIVE_WITNESSED.has(m.method) && !rule.isDefined(m.method)) {
+          } else if (m && COLLECTION_MUTATORS.has(m.method) && !FOR_IN_LIVE_WITNESSED_RUNTIME.has(m.method) && !rule.isDefined(m.method)) {
             target = m.recv
           }
           if (target !== undefined) out.add(inFn ? null : target)
@@ -12439,7 +12453,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     })
   }
   /** Does the user function `fn` (or any user function it calls) write a FIELD (`p.f := …`) or
-   *  change a list held in one (`array.push(p.arr, v)`)? */
+   *  change a list held in one (`array.push(p.arr, v)`)? ⭐ IMP-1: with `rule.fieldWritesServed`
+   *  only the second counts (a field write through a reference is the served shape). */
   const forInFnWritesField = (fn, rule, seen = new Set()) => {
     if (seen.has(fn) || !rule.fnDefs.has(fn)) return false
     seen.add(fn)
@@ -12448,7 +12463,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
       return ts.some((tk, i) => {
         if (!tk || tk.kind !== 'ident') return false
         const v = String(tk.value)
-        if (v.includes('.') && ts[i + 1] && ts[i + 1].kind === 'punct' && REASSIGN_OPS.has(ts[i + 1].value)) return true
+        if (!rule.fieldWritesServed && v.includes('.') && ts[i + 1] && ts[i + 1].kind === 'punct'
+          && REASSIGN_OPS.has(ts[i + 1].value)) return true
         if (heldListMutation(ts, i, rule) !== null) return true
         if (!isPunct(ts[i + 1], '(')) return false
         const m = splitMethodName(v)

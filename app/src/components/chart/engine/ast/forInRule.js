@@ -18,8 +18,9 @@
 //     after a delete), A04 / A05 (`for b in box.all → box.delete(b)`: one pass per box, none
 //     left), A06 (positions 0, 1, 2, oldest first).
 // ⛔ Every other change of the walked list (`remove`, `pop`, `unshift`, `insert`, `clear`, a
-// reassignment, a helper handed the list) is captured (`vw-forin-collections-2-…`, G01-G07)
-// but UNGRADED, so both lanes refuse it by name (`forInMutationRefusal`).
+// reassignment, a helper handed the list) is captured (`vw-forin-collections-2-…`, G01-G07).
+// The HOST lane refuses it by name (`forInMutationRefusal`): its walk is not graded on G01-G07.
+// ⭐⭐ IMP-1 (2026-11-16) — THE RUNTIME LANE SERVES G01-G07 (`FOR_IN_LIVE_WITNESSED_RUNTIME`, below).
 import { splitMethodName } from './ufcs.js'
 
 /** `<family>.all` sources a walk takes as a SNAPSHOT (A02-A06 witness `box.all`; the host
@@ -38,9 +39,27 @@ export const REASSIGN_OPS = Object.freeze(new Set([':=', '+=', '-=', '*=', '/=',
 export const COLLECTION_MUTATORS = Object.freeze(new Set(['push', 'set', 'remove', 'clear', 'pop', 'shift',
   'unshift', 'insert', 'reverse', 'sort', 'fill', 'concat']))
 
-/** The refusal both lanes give a body that changes its list by anything not witnessed. */
-export const forInMutationRefusal = (src) => (
-  `the body changes \`${src}\`, the list it walks, by more than ${[...FOR_IN_LIVE_WITNESSED].join(' / ')}`)
+/** ⭐⭐ IMP-1 (2026-11-16) — THE RUNTIME LANE'S WITNESSED CHANGES OF THE WALKED LIST.
+ *  The Pine User Manual, Loops, `for…in`: "Scripts can modify the sizes of arrays and matrices
+ *  directly within a for…in loop's local scope." and, when the loop changes the size of the
+ *  collection during an iteration, "the loop's header uses the updated size to control subsequent
+ *  iterations": the index walk over the LIVE list the runtime lane lowers (`lowerForIn`: the list
+ *  read once, its size re-read before every pass, the slot read when the pass reaches it). The
+ *  capture `vw-forin-collections-2-rddt-1d-2026-10-02` (NYSE:RDDT 1D, from the listing) shows it for
+ *  every change it asks: G01 remove → 3 passes over five, G02 pop → 3, G03 unshift → 7 over three,
+ *  G04 insert at 0 → 7, G05 clear → 1. The two other rows are options of `bodyMayWriteList`:
+ *  G06 (a reassignment of the list VARIABLE: 5 passes, the walk keeps the list it started with)
+ *  and G07 (a helper handed the list shifts it: 3 passes, live). Graded through the runtime lane by
+ *  `__tests__/vendorHarness/vendorHarness.impForInGRows.test.js`.
+ *  ⛔ `reverse`, `sort`, `fill`, `concat`: no row of the capture changes a list that way. Refused.
+ *  ⛔ RUNTIME LANE ONLY. The host object lane keeps `FOR_IN_LIVE_WITNESSED` (C48). */
+export const FOR_IN_LIVE_WITNESSED_RUNTIME = Object.freeze(new Set(['push', 'shift', 'set', 'remove', 'pop',
+  'unshift', 'insert', 'clear']))
+
+/** The refusal both lanes give a body that changes its list by anything not witnessed
+ *  (`allowed`: that lane's witnessed set; the host lane's by default). */
+export const forInMutationRefusal = (src, allowed = FOR_IN_LIVE_WITNESSED) => (
+  `the body changes \`${src}\`, the list it walks, by more than ${[...allowed].join(' / ')}`)
 
 /** Does this statement list (at any depth, and through any user function it calls) change
  *  the list `name` — a mutating member, a reassignment, or a user function that is handed
@@ -49,7 +68,13 @@ export const forInMutationRefusal = (src) => (
  *    · `isPunct(tok, v)`;
  *    · `isDefined(name)` — the script defines a function of that name (a defined method
  *      shadows the collection member, `ufcs.js`);
- *    · `fnDefs` — `readFunctionDefs` (`objectFnInline.js`): name → `{ body }`. */
+ *    · `fnDefs` — `readFunctionDefs` (`objectFnInline.js`): name → `{ body }`.
+ *  ⭐ IMP-1 — two options the runtime lane passes (the host lane passes neither):
+ *    · `reassignKeepsWalk` — `name := …` does not count (G06: the walk keeps the list it read);
+ *    · `followHelpers` — a user function handed the list itself (a plain-name argument, or the
+ *      receiver of a script's method) counts only by what its body does to the PARAMETER it fills,
+ *      read under the same rule, at any depth (G07). Any other argument naming the list, a name
+ *      this cannot place on a parameter, or an overloaded function still counts. */
 /** The list a collection-mutating call at `toks[i]` changes (`array.push(L, …)`, `L.push(…)`;
  *  every member of `COLLECTION_MUTATORS`), else null. A script's own method of that name
  *  shadows the member (`ufcs.js`), so that is a user call, not a change. */
@@ -412,8 +437,35 @@ const closeOf = (toks, open) => {
   return -1
 }
 
-export function bodyMayWriteList(list, name, { allowed = null, isPunct, isDefined, fnDefs }) {
+export function bodyMayWriteList(list, name, opts) {
+  const { allowed = null, isPunct, isDefined, fnDefs, reassignKeepsWalk = false, followHelpers = false } = opts
   const seenFns = new Set()
+  // ⭐ IMP-1 (G07) — the (function, parameter) pairs already being read, shared down the helper chain
+  const helperSeen = opts.helperSeen || new Set()
+  /** Does the helper `fn` change what it was handed for `name`? `call` holds the call's arguments. */
+  const helperChanges = (fn, toks, i, m) => {
+    const def = fnDefs.get(fn)
+    if (!def || def.overloaded) return true
+    const args = splitCallArgs(toks, i + 1, isPunct)
+    // the receiver of a script's method is its first parameter
+    if (m && m.recv === name && fn === m.method && !fnDefs.has(String(toks[i].value))) {
+      args.unshift({ name: null, toks: [{ kind: 'ident', value: name }] })
+    }
+    for (let k = 0; k < args.length; k += 1) {
+      const a = args[k]
+      const names = a.toks.some((x) => x && x.kind === 'ident' && String(x.value).split('.')[0] === name)
+      if (!names) continue
+      // only the list ITSELF is followed; `f(name.copy())`, `f(array.get(name, 0))` still count
+      if (a.toks.length !== 1 || String(a.toks[0].value) !== name) return true
+      const p = a.name !== null ? def.params.find((q) => q.name === a.name) : def.params[k]
+      if (!p) return true
+      const key = `${fn}\u0000${p.name}`
+      if (helperSeen.has(key)) continue
+      helperSeen.add(key)
+      if (bodyMayWriteList(def.body, p.name, { ...opts, helperSeen })) return true
+    }
+    return false
+  }
   let scan = null
   const scanToks = (toks) => {
     for (let i = 0; i < toks.length; i += 1) {
@@ -421,7 +473,11 @@ export function bodyMayWriteList(list, name, { allowed = null, isPunct, isDefine
       if (!tk || tk.kind !== 'ident') continue
       const v = String(tk.value)
       const nx = toks[i + 1]
-      if (v === name && nx && nx.kind === 'punct' && (nx.value === '=' || REASSIGN_OPS.has(nx.value))) return true
+      if (v === name && nx && nx.kind === 'punct' && (nx.value === '=' || REASSIGN_OPS.has(nx.value))) {
+        // ⭐ IMP-1 (G06) — the walk holds the list it read; rebinding the NAME does not change it
+        if (reassignKeepsWalk && nx.value === ':=') continue
+        return true
+      }
       if (v.startsWith('array.') && COLLECTION_MUTATORS.has(v.slice(6)) && isPunct(nx, '(')
           && toks[i + 2] && toks[i + 2].kind === 'ident' && String(toks[i + 2].value) === name) {
         if (allowed && allowed.has(v.slice(6))) continue
@@ -436,7 +492,9 @@ export function bodyMayWriteList(list, name, { allowed = null, isPunct, isDefine
       if (!fn || !isPunct(nx, '(')) continue
       const close = closeOf(toks, i + 1)
       const args = close > 0 ? toks.slice(i + 2, close) : toks.slice(i + 2)
-      if ((m && m.recv === name) || args.some((x) => x.kind === 'ident' && String(x.value).split('.')[0] === name)) return true
+      if ((m && m.recv === name) || args.some((x) => x.kind === 'ident' && String(x.value).split('.')[0] === name)) {
+        if (!followHelpers || helperChanges(fn, toks, i, m)) return true
+      }
       if (!seenFns.has(fn)) {
         seenFns.add(fn)
         if (scan(fnDefs.get(fn).body)) return true
