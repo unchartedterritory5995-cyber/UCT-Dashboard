@@ -18,29 +18,42 @@ the production (host) lane is unchanged by this unit.
 | assigning a `for x in a` element variable | runtime | still refused (`runtime:loop`), now as what it is | reading of `vw-w6-forin-loopvar-write` (run cq1-2026-11-16): "Variable {variableName} cannot be mutable" |
 | `array.get` at an `na` index | runtime (pane only; the C18 object door keeps master's stop) | `na`, the run goes on, in v4 and v6; v5, a fractional index and an index out of range keep the stop | v4 MEASURED: `vw-uie3-na-index-v4-spy-1d-2026-11-16` (our probe, run cq1, carried byte-identical from PR #1472) reads `na` on all 8,508 bars. v6: BBWP's capture runs on through `array.get(colorMap, math.round(na))` on its first bars; that read colours an `na` point, so the v6 VALUE is asked directly by UDT-N1 |
 
-## 2. Coverage: the census over the unit's targets
+## 2. Coverage: the census over the unit's targets (MEASURED)
 
-**CENSUS PENDING** (owner's order 2026-11-16: ship what is verified now; the census needs the busy PC lock). The hold
-script is ready: the unit's 72 wall-touched targets, the 4 other sample scripts that write a binary search or an enum,
-and 8 controls, on both lanes, then `coverage_ratchet.py --lane runtime-on --write`. Numbers land in a follow-up.
+One lock hold on head `caa9e75b17` (this branch with master `e31f159d8c` merged), `run_census.drive` (the census loop
+the map and the ratchet use): the unit's 72 wall-touched targets, the 4 other sample scripts that write a binary
+search or an enum, and 8 controls. Runtime-on lane cap 8 (the map's walls), production lane cap 1. BEFORE = the
+engine-60 census rows (`runs/cov-e60/{rt,prod}`).
 
-What the dev probe (the runtime lane's own `probeRuntimeProgram`, the census's runtime counterfactual) shows on this
-tree, engine-60 census BEFORE -> this tree:
-- `committed:bollinger-band-width-percentile` (E1, sole walls `runtime:array` x3): **builds whole on the runtime lane**.
-  Expected runtime-on lane: newly transfers. Production lane: unchanged (the host still refuses `pine:collection`).
-  The real capability admission ADMITS it (`runtime_definitions.capability_admitted` -> `(True, [])`) and it is not on
-  the kill list, so its capture must grade MATCH (section 3).
-- `reference:rsi-kernel-optimized-flux-charts`: the binary searches build; next wall `pine:function` `math.e` (another
-  unit's).
-- Every other target's first wall on this tree is another unit's code (libraries, lower-tf requests, `for … in`, time,
-  text) or a shape left refused in section 4.
+| measure | before | after |
+|---|---:|---:|
+| runtime-on lane, targets that transfer (`clean`, or attached on the runtime lane, not placing orders) | 0 of 76 | **1 of 76** |
+| production lane, targets that transfer fully | 0 of 76 | 0 of 76 |
+| controls (4 transfer on both lanes, 4 on the runtime lane only) | 8 runtime-on, 4 production | unchanged |
+| scripts that stopped transferring | | **0** |
+
+- **Newly transfers (runtime-on lane): `committed:bollinger-band-width-percentile`** (before: `runtime:array`
+  `array.binary_search_rightmost`, its only walls). Real capability admission: ADMITTED (`(True, [])`), not on the
+  kill list; its capture grades MATCH, paints included (section 3).
+- Every other target keeps its engine-60 first wall (75 scripts): `runtime:library` 19, the host object program
+  (`pine:objects-only` 8, `pine:constant-only` 2, attached-dirty with no runtime wall 3), built-ins missing
+  (`pine:builtin` 6, `pine:function` 4, `runtime:call-undeclared-builtin-state` 5), `runtime:loop` 4,
+  `runtime:function-global-state` 4 and `runtime:function` 4 (section 4), requests (`runtime:request-with-state` 2,
+  `pine:request` 2, `lower-tf:lookahead` 1), `runtime:expression-statement` 2, `runtime:conditional-history` 2, and
+  one each of `runtime:udt-method`, `runtime:statement`, `runtime:history-dynamic-offset`, `runtime:block-value`,
+  `pine:statement`, `pine:colour-value`, `budget:lookback`.
+  `reference:rsi-kernel-optimized-flux-charts` stops on `math.e` (another unit's code) before and after; its binary
+  searches no longer stand behind it.
+- **Coverage ratchet**, `coverage_ratchet.py --lane runtime-on --write` on the same head: measured 266 of 266
+  committed scripts, 87 transfer, `ADDED committed:bollinger-band-width-percentile`, lost 0
+  (`docs/pine/coverage-ratchet.json`: runtime-on 86 -> 87). Production lane unchanged (58).
 
 ## 3. Witnesses
 
 | served shape | witness | status |
 |---|---|---|
 | the three binary searches over a sorted array | the v6 reference sentences (quoted in section 1 and in each rail of `udtBinarySearch.test.js`), including the reference's own examples (3 in (-2, 0, 1, 5, 9): leftmost 2, rightmost 3; 5 in (4, 5, 5, 5): leftmost 1, rightmost 3) | rails green remotely (run 1) |
-| rightmost of an empty array = 0; `array.insert` at `size` = append; `array.get(a, na)` = `na` in v6 | `bollinger-band-width-percentile-rddt-1d-2026-11-14` graded through the member door, runtime-on lane (`vendorHarness.udtBinarySearch.test.js`) | **PENDING**. Remote run 1 graded it DIVERGE ("1 of 6 compared items diverge"): the run stopped on its first bars at `array.get(colorMap, math.round(na))`. With the `na`-index rule a dev run of the lane matches TradingView on all 666 bars of BBWP, MA and both alert lines; the background paint still has to be graded by the harness. **If that rail does not grade MATCH, the three shapes revert to named stops before this lands.** |
+| rightmost of an empty array = 0; `array.insert` at `size` = append; `array.get(a, na)` = `na` in v6 | `bollinger-band-width-percentile-rddt-1d-2026-11-14` graded through the member door, runtime-on lane (`vendorHarness.udtBinarySearch.test.js`) | **MATCH, paints included** (remote run 2, head `4255e5db44`: `gradeCapture` grades paints by default and a withheld paint would grade INCONCLUSIVE). History of the check: Remote run 1 graded it DIVERGE ("1 of 6 compared items diverge"): the run stopped on its first bars at `array.get(colorMap, math.round(na))`. With the `na`-index rule a dev run of the lane matches TradingView on all 666 bars of BBWP, MA and both alert lines; the background paint then graded MATCH too. |
 | `array.get(a, na)` = `na` in v4 | `vw-uie3-na-index-v4-spy-1d-2026-11-16` N03 | measured |
 
 ## 4. Still refused by name, with queue rows
@@ -78,12 +91,16 @@ reads as one unattributable error). Each has an `A00` `bar_index` control and on
 
 ## 6. Tests and mutants
 
-- Remote run 1 (`tools/remote_tests.py`, HEAD `7e38ba2918`): pytest `tests/test_pine_*.py tests/test_runtime_definitions.py`
-  green; vitest 4 failures: three in `w6ArrayMembers.test.js` (a W6-T5 block still pinned the binary searches as
-  refused, now moved to `udtBinarySearch.test.js`) and the BBWP grade (section 3). Both addressed; run 2 is on the PR head.
-- Local light checks on this tree: `refusal_codes.py --check`, `evidence_engine.py queue --check` and `pins --check`,
-  `check_repo_hygiene.py`: all exit 0. No guard code added (the refusals reuse `runtime:array`, `runtime:enum`,
-  `runtime:loop`), no regex added.
-- Mutants: **PENDING** (they edit files, so they run under the PC lock; eight are scripted: insert-at-size stopping,
-  leftmost's not-found answer, the duplicate stop, the sort check, rightmost-of-empty, the every/some refusal, the enum
-  title clash, the for-in sentence).
+- Remote run 1 (`tools/remote_tests.py`, head `7e38ba2918`): pytest `tests/test_pine_*.py tests/test_runtime_definitions.py`
+  success; vitest 4 failures: three in `w6ArrayMembers.test.js` (a W6-T5 block still pinned the binary searches as
+  refused, now moved to `udtBinarySearch.test.js`) and the BBWP grade (the `na`-index stop, section 3).
+- Remote run 2 (head `4255e5db44`, GitHub run 43966947045): **GREEN**, 4 of 4 jobs, tool exit 0: `udtBinarySearch`
+  (19 tests), `w19r2Collections`, `w6ArrayMembers`, `w6Enum`, `objectDoorGate`, `w6ForIn`, `p3WsaReviewFixes`,
+  `honestySweep`, `vendorHarness.udtBinarySearch` (BBWP MATCH), `vendorHarness.w6ForInRuntime`.
+- Local light checks on the pushed tree: `refusal_codes.py --check`, `evidence_engine.py queue --check` and
+  `pins --check`, `check_repo_hygiene.py`: all exit 0. No guard code added (the refusals reuse `runtime:array`,
+  `runtime:enum`, `runtime:loop`), no regex added.
+- Mutants: `ci/mutants/udt-collections.json` (11: insert-at-size stopping, leftmost's not-found answer, the duplicate
+  stop, the sort check, rightmost-of-empty, the every/some refusal, the enum title clash, the for-in sentence, the
+  `na`-index rule, the object door's master answer, v5 kept out), validated by `ci_mutant_runner.validate`, run by
+  pine-heavy's dispatch mutants job (run 43970583944).
