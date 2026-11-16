@@ -469,12 +469,12 @@ export function crossVersionDifference(kept, indents) {
       if (eqAt > 0 && lt[eqAt].value !== '=>') {
         const target = nameOf(lt[eqAt - 1])
         const rhs = lt.slice(eqAt + 1)
-        if (target && boolNames.has(target) && rhs.some((x) => isWord(x, 'na'))) {
+        if (target && boolNames.has(target) && rhs.some((x, j) => isWord(x, 'na') && !isPunct(rhs[j + 1], '('))) {
           return { what: `\`na\` given to the bool \`${target}\``, why: 'a bool can be na in v5 and not in v6 (Boolean values cannot be na)', tok: lt[eqAt] }
         }
       }
       for (let i = 0; i < lt.length; i += 1) {
-        if (!isWord(lt[i], 'na')) continue
+        if (!isWord(lt[i], 'na') || isPunct(lt[i + 1], '(')) continue
         const before = lt[i - 1]
         const after = lt[i + 1]
         if (isPunct(before, '?') || isPunct(before, ':') || isPunct(after, ':')) {
