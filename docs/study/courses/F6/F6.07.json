@@ -1549,7 +1549,13 @@
      "lesson line touches the owner's rulebook (C32: no news-day rule)"
     ]
    },
-   "batch": "wave7"
+   "batch": "index-charts-2026-11-16",
+   "chart": {
+    "sym": "SPX",
+    "asof": "2024-12-17",
+    "window": 120,
+    "forward": 5
+   }
   },
   {
    "key": "q22",
@@ -1772,7 +1778,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "My own answer is short gamma, from f11, f7 and f13 plus f70 and f73. The dated facts are all quoted (f39, f58, f59, f75, f60). The lesson line states the f61 risk with no house judgment, so it does not conflict with C32. The seller's seat is already covered by the owner flag."
+   "notes": "Words agree with the data: SPX 2024-12-17 close 6050.61 -> 2024-12-18 close 5872.16 = -2.949% ('closed down 2.9%'); the day's low 5867.79 = -3.02% and the open 6047.65, high 6070.67 (+0.33%), so the candle opens flat, pops, and closes a few points off the low: 'quickly lost almost 3%' fits within the source's rounding. Dec 18 is the second-worst 2024 close after 2024-08-05 (-3.00%), matching f75 'just shy of its biggest loss for the year'. The 2 p.m. timing is intraday and not drawn. No give-away: the window (2024-06-28 to 12-17, top close 6090.27 on 12-06) shows a calm market near its record "
   },
   "q22": {
    "status": "pass",

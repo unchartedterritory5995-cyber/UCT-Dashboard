@@ -22,6 +22,11 @@ export function revealRightPad(phone) {
  *  screen check). The widest slot (eight characters down to five, the length of "Mar 4") that lands in the finest band; a
  *  frame that fits none keeps the library's own. */
 export const TICK_BANDS = [[12, 19], [24, 38], [46, 60]]
+/** An intraday chart's label slot (the 2026-11-16 screen check: after a five-minute chart's replay, a phone's axis read
+ *  only "Sep 14" and "Sep 15", because an eight-character slot is 75 px and a phone's whole plot is 258). Its labels are
+ *  at most "Sep 15", "10 AM" or "10:30" (studyTickMarkFormatter drops the AM/PM on a half hour), so five characters, 47
+ *  px, fit them and leave room for the times between the days. */
+export const INTRADAY_TICK_CHARS = 5
 export const PX_PER_TICK_CHAR = 9.375          // the library's (11 px + 4) x 5 / 8
 export function tickLabelCharsFor(phone, slots) {
   if (!(slots > 0)) return null

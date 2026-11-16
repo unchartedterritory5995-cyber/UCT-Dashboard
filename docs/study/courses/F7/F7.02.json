@@ -857,7 +857,13 @@
      "historical count, does not change"
     ]
    },
-   "batch": "wave6"
+   "batch": "index-charts-2026-11-16",
+   "chart": {
+    "sym": "SPX",
+    "asof": "2020-03-06",
+    "window": 60,
+    "forward": 12
+   }
   },
   {
    "skill": "history.fast_crash",
@@ -1166,7 +1172,7 @@
      "+1 fixed before"
     ]
    },
-   "batch": "rank",
+   "batch": "index-charts-2026-11-16",
    "choices": [
     "6.2%",
     "93.8%",
@@ -1177,6 +1183,12 @@
     "93.8%": "Gives the later close as a share of the earlier one, not the drop.",
     "6.6%": "Divides the gap by the later, lower close instead of the earlier one.",
     "62%": "Slips a decimal place."
+   },
+   "chart": {
+    "sym": "SPX",
+    "asof": "2020-03-16",
+    "window": 60,
+    "forward": 10
    }
   },
   {
@@ -1232,7 +1244,13 @@
      "+1 the story was fixed before"
     ]
    },
-   "batch": "wave6"
+   "batch": "index-charts-2026-11-16",
+   "chart": {
+    "sym": "SPX",
+    "asof": "2020-03-20",
+    "window": 60,
+    "forward": 10
+   }
   },
   {
    "skill": "history.fast_crash",
@@ -1494,9 +1512,9 @@
   },
   "q07": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Cold check on IX/SPX.json. Window 2019-12-10..2020-03-06 (60 bars, the Feb 19 record close 3,386.15 in view), replay 2020-03-09..2020-03-24 (12). Lows vs the prior close: Mar 9 -8.01% (2,734.43 vs 2,972.37), Mar 12 -9.58%, Mar 16 -12.18% (under 13%, so Level 1 only), Mar 18 -9.83%; every other day Mar 2-24 stayed above -7% (deepest Mar 11 -6.07%, Mar 23 -4.91%), and the rest of March too (Mar 31 -2.11%). Four Level 1 halts agree with the data. No give-away: the chart ends the Friday before the first halt; the replay plays all four halt days. Worth it: the replay shows what the lesson line name"
   },
   "q08": {
    "status": "cut",
@@ -1550,13 +1568,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
+   "notes": "Cold check on IX/SPX.json. Window 2019-12-18..2020-03-16 (60), replay 2020-03-17..2020-03-30 (10). Mar 16 close 2,386.13; Mar 23 close 2,237.40; drop 6.233% -> 6.2% (6.6% = gap / later close, 93.8% = ratio: the wrong-notes agree). Mar 23 is the lowest close of the replay, then 2,447.33 (Mar 24) and 2,626.65 (Mar 30). No give-away: the chart ends on the Mar 16 close the question states; Mar 23 plays only after the answer. Card vs chart: the auto card would be a move bar labelling the Mar 16 close 'Peak' (it is not a peak; the record was 3,386.15); the chart's replay shows the lesson itself (rec"
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer Down 2.9% (f54; calc 2304.92 to 2237.40 = 2.9%). Choices rebalanced to 20-23 chars, no tell. Halt note grounded by f32. Earlier items (q02 why, q11 stem, w2) show Mar 23 as the closing low, which narrows it to a down day; the 2.9% vs 7%-halt choice still needs q07/f32, so the item still tests something."
+   "notes": "Cold check on IX/SPX.json. Window 2019-12-24..2020-03-20 (60), replay 2020-03-23..2020-04-03 (10). Mar 20 close 2,304.92; Mar 23 close 2,237.40, -2.93% ('Down 2.9%'); Mar 23 low 2,191.86 = -4.91% vs the prior close, so no 7% halt (the wrong-note agrees); Mar 24 close 2,447.33 (+9.38%). Mar 23 is the lowest close of 2020 and of the replay ('That close was the low'). No give-away: the chart ends the session before the story's morning; the close asked about plays only after the answer. This question also has a calc, but it gets no auto card (calc_visuals.visual_for returns null: 2,304.92 is not s"
   },
   "q18": {
    "status": "pass",
