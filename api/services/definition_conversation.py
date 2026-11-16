@@ -64,6 +64,7 @@ from jsonschema import Draft202012Validator
 
 from api.services import ast_interpret, ast_lint, call_expansions, conversation_preflight, user_definitions
 from api.services import definition_concierge as dc
+from api.services import chart_twins
 from api.services.ast_budget import BudgetExceeded, check_budget
 from api.services.ast_interpret import TableRefusal
 from api.services.catalyst import cost_guard
@@ -702,13 +703,10 @@ def user_turn(message: str, notes: Mapping[str, Any], view: Mapping[str, Any],
 # the language stage -- the concierge's plan(), re-framed as DATA
 # --------------------------------------------------------------------------- #
 
-#: Per-bar twins of nightly scalars, for the CHART form of a firm concept only
-#: (this door's notes; the shared vocabulary is untouched). ``rsi14`` is the
-#: nightly 14-period RSI of the daily close; per bar it is ``rsi(close, 14)``.
-CHART_TWINS: Mapping[str, Mapping[str, Any]] = {
-    "rsi14": {"type": "call", "name": "rsi",
-              "args": [{"type": "series", "name": "close"}, {"type": "num", "value": 14}]},
-}
+#: Per-bar twins of nightly scalars (⭐ L4, 2026-11-16: `chart_twins`, the ONE registry, each
+#: twin held equal to its Screener column by `tests/test_chart_twins_parity.py`). Used for the
+#: CHART form of a firm concept and for a Screener term the member wrote ("ADR %").
+CHART_TWINS: Mapping[str, Mapping[str, Any]] = chart_twins.TWINS
 
 
 def _chart_form(tree: Any) -> Optional[Dict[str, Any]]:
@@ -726,6 +724,19 @@ def _chart_form(tree: Any) -> Optional[Dict[str, Any]]:
         out["args"] = args
     if ast_interpret.unresolved_scalars(out, None):
         return None
+    return out
+
+
+def _matched_term(t: Mapping[str, Any]) -> Dict[str, Any]:
+    """One term the member wrote that names a table entry. ⭐ L4: a Screener column with a
+    chart twin carries the house formula, so "ADR %" on a chart is the Screener's ADR %
+    (21 sessions of (high - low) / close), not whatever the model would improvise."""
+    out: Dict[str, Any] = {"wrote": t.get("matched_as"), "entry": t.get("name")}
+    twin = CHART_TWINS.get(t.get("name")) if isinstance(t.get("name"), str) else None
+    if twin is not None:
+        out["chart_formula"] = dc.formula_for(twin)
+        out["rule"] = ("the firm's meaning of this term on a chart: use this formula and "
+                       "disclose its numbers in `assumptions`")
     return out
 
 
@@ -765,8 +776,7 @@ def _language_notes(understanding: Mapping[str, Any]) -> Dict[str, Any]:
                              "rule": "use this formula exactly; do not reinterpret the word"})
     return {
         "firm_concepts": concepts,
-        "matched_terms": [{"wrote": t.get("matched_as"), "entry": t.get("name")}
-                          for t in understanding.get("terms") or []],
+        "matched_terms": [_matched_term(t) for t in understanding.get("terms") or []],
         "member_numbers": [{"wrote": n.get("wrote"), "value": n.get("value")}
                            for n in understanding.get("numbers") or []],
         "not_understood": [{"phrase": n.get("phrase"), "gate": n.get("gate")}
