@@ -76,6 +76,7 @@
 // screenshot.
 
 import { CALL_EXPANSIONS } from './callExpansions.js'
+import { roundToMintickTree } from './tickRound.js'
 import { TABLE, NODE_TYPES, parseFormula, astHash, isPointwise, TICKER_SHAPE, BAR_READERS, barReadersOf, RECURRENCES , hostAdmissible } from './parse.js'
 // ⭐ THE ONE `yields` RESOLVER IN THIS LANE. See `treeYieldsBool` — this module
 // used to carry a second copy, and closed table v2 made the two disagree in a
@@ -14801,8 +14802,8 @@ export class Resolver {
    *  many arguments it takes and what kind each one is. The only thing this
    *  module supplies is a ROLE ORDER, and only where one has been measured. */
   resolveTableCall(pineName, base, args, tok) {
-    // ⭐⭐ H5 (step 84) — `math.round_to_mintick(x)` IS `math.round(x /
-    // syminfo.mintick) * syminfo.mintick`: Pine's reference, "the value rounded to
+    // ⭐⭐ H5 (step 84) — `math.round_to_mintick(x)` IS `math.round(x * (1 /
+    // syminfo.mintick)) * syminfo.mintick`: Pine's reference, "the value rounded to
     // the symbol's mintick … with ties rounding up", which is `math.round` on the
     // tick count. Written HERE AS THAT PINE and resolved, so the tick is the
     // binding's like every `syminfo.mintick` (settled per symbol from the
@@ -14814,13 +14815,10 @@ export class Resolver {
     // lane's text on the same bars (`vendorHarness.h5MulticatorValues`).
     if (pineName === 'math.round_to_mintick' && Array.isArray(args) && args.length === 1
       && args[0] && !args[0].name) {
+      // ⭐ SAR TICK TIE (2026-11-16) — the tick COUNT is `x * (1 / tick)`, not `x / tick`
+      // (`tickRound.js`: parabolic-sar SPY prints 654.405 as "654.41"; the quotient lands under the half).
       const x = args[0].value !== undefined ? args[0].value : args[0]
-      const mintick = { type: 'name', name: 'syminfo.mintick', tok }
-      return this.resolve({
-        type: 'binary', op: '*', tok, right: mintick,
-        left: { type: 'call', name: 'math.round', tok,
-          args: [{ name: null, value: { type: 'binary', op: '/', tok, left: x, right: mintick } }] },
-      })
+      return this.resolve(roundToMintickTree(x, tok, true))
     }
     const bare = normaliseName(base)
     this.refuseBareModernSpelling(pineName, base, tok)
