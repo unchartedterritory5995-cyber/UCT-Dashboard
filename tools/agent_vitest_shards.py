@@ -28,6 +28,11 @@ Usage (from the repo root or anywhere; paths are app-relative, as `vitest list -
     python tools/agent_vitest_shards.py --record-timings runs/*/agent-shard-*/shard-*.json --source "run 437..."
     python tools/agent_vitest_shards.py --compare runs/<id>/agent-shard-*/shard-*.json --of 4    # before vs after
 
+AUTOMATIC WEEKLY REFRESH (2026-11-16): .github/workflows/shard-timings-refresh.yml records fresh medians from the
+last green master deploy gate runs every Sunday and caches them for the NEXT week; the shard jobs of agent-ci.yml and
+master-deploy-gate.yml restore their commit's week by exact key and pass it as --timings (the committed file below is
+the fallback on a miss). Refreshing the committed file by hand is still how a change becomes the permanent default.
+
 REFRESH THE TIMINGS (read-only, no reruns):
     for id in $(gh run list --workflow agent-ci.yml --status success --limit 5 --json databaseId -q '.[].databaseId'); do
       gh run download $id -p 'agent-shard-*' -D runs/$id; done
