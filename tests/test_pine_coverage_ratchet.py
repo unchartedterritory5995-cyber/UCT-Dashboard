@@ -327,8 +327,12 @@ def test_drive_returns_only_when_every_item_has_a_row(monkeypatch, tmp_path):
 def test_drive_raises_when_the_census_answers_fewer_scripts_than_it_was_given(monkeypatch, tmp_path):
     items = [{"key": f"committed:x{i}", "path": "unused", "cap": 1} for i in range(5)]
     _fake_vitest(monkeypatch, lambda its: its[:3])            # exits 0, writes 3 of 5
-    with pytest.raises(RC.CensusRunError, match="no progress"):
-        RC.drive(items, str(tmp_path / "short"), PROD)
+    with pytest.raises(RC.CensusRunError):
+        RC.drive(items, str(tmp_path / "short"), PROD, max_restarts=3)
+    # ⛔ and with no restarts left to notice "no progress", the row count still refuses it
+    _fake_vitest(monkeypatch, lambda its: its[:3])
+    with pytest.raises(RC.CensusRunError, match="did not answer every input"):
+        RC.drive(items, str(tmp_path / "short1"), PROD, max_restarts=1)
 
 
 def test_drive_raises_when_the_lane_was_not_measured(monkeypatch, tmp_path):
