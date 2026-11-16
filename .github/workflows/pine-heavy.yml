@@ -1,0 +1,389 @@
+# promotion-gate: no — ADVISORY, PR-only verification. It never runs on a master push and never decides promotion.
+# ─── THE HEAVY PINE VERIFICATION, IN PARALLEL ON GITHUB RUNNERS ──────────────────
+#
+# ⚰️ WHY (2026-11-15). The licence-free Pine verification (the engine and builder vitest roots, the
+# vendor harness over the committed captures in both lanes, the Python twins) ran on the one dev PC,
+# under the one heavy lock (uct-clips/tools/heavy_lock.py), one job at a time: every session's heavy
+# run queued behind every other's, for hours. None of it needs that machine. Here it runs as parallel
+# legs on standard runners (free since the repo went public, 2026-11-08), --maxWorkers=2 each on a
+# 4-vCPU runner, every leg under 30 minutes.
+#
+# ⛔⛔ COMMITTED FIXTURES ONLY. Licence-held material (docs/pine/LICENSING.md; the out-of-git capture
+# store tools/vendor_harness/licence_held.py reads) is NOT in CI and is never fetched. Two independent
+# guards: every store variable is pinned below to a directory the setup action creates EMPTY and
+# refuses if non-empty; and every test command runs under tools/ci_offline.sh, a network namespace
+# with loopback only, which proves on each job that egress is refused before any test runs. A rail
+# that needs a licence-held file therefore skips by name, exactly as on a machine without the store.
+#
+# ⛔ COVERAGE IS A RAIL, NOT A PROMISE. The legs split the roots by folder; the `union` job fails
+# unless the files the legs ran equal `vitest list` over the roots, each exactly once
+# (tools/ci_vitest_union.py). A folder added under engine/ and named by no leg is red there.
+#
+# No secrets, no pull_request_target, read-only token. tests/test_ci_pine_heavy.py rails this file.
+name: pine heavy (PR, parallel)
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/pine-heavy.yml'
+      - '.github/actions/pine-heavy-setup/**'
+      - 'app/src/components/chart/engine/**'
+      - 'api/services/ast_*.py'
+      - 'services/pine_runtime/**'
+      - 'tests/fixtures/vendor/**'
+      - 'tools/vendor_harness/**'
+      - 'tests/test_ast_*.py'
+      - 'tests/test_pine_*.py'
+      - 'tests/test_ci_pine_heavy.py'
+      - 'tools/ci_offline.sh'
+      - 'tools/ci_vitest_union.py'
+      - 'tools/ci_mutant_runner.py'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch, tag or SHA to verify (empty = the ref this was dispatched on)'
+        required: false
+        default: ''
+      mutants_manifest:
+        description: 'Repo path (in that ref) of a uct.ci-mutants/v1 manifest; empty = no mutant job (tools/ci_mutant_runner.py)'
+        required: false
+        default: ''
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || format('{0}-{1}', github.sha, inputs.ref) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  # ⛔ the out-of-git stores, pinned to directories the setup action creates EMPTY (and refuses if not)
+  UCT_VENDOR_CAPTURE_STORE: /tmp/pine-heavy-empty-store/captures
+  UCT_HARNESS_SUPPLY_STORE: /tmp/pine-heavy-empty-store/supply
+  # the CI tooling (this file's own commit), checked out beside the ref under test
+  CI_TOOLS: .pine-heavy-ci
+  # the vitest roots the legs partition; the union rail lists exactly these
+  VITEST_ROOTS: src/components/chart/engine/ src/components/chart/builder/
+  NODE_OPTIONS: --max-old-space-size=6144
+
+jobs:
+  # ── 1 + 2a. vitest, sharded by folder (and the vendor harness, production lane) ─────────────
+  vitest:
+    name: vitest ${{ matrix.leg }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { leg: engine-ast-1,          filter: 'src/components/chart/engine/ast/',        shard: '1/2' }
+          - { leg: engine-ast-2,          filter: 'src/components/chart/engine/ast/',        shard: '2/2' }
+          - { leg: engine-runtime,        filter: 'src/components/chart/engine/runtime/',    shard: '1/1' }
+          - { leg: engine-tests-1,        filter: 'src/components/chart/engine/__tests__/',  shard: '1/2', exclude: 'src/components/chart/engine/__tests__/vendorHarness/**' }
+          - { leg: engine-tests-2,        filter: 'src/components/chart/engine/__tests__/',  shard: '2/2', exclude: 'src/components/chart/engine/__tests__/vendorHarness/**' }
+          - { leg: engine-top-and-truth,  filter: '@top',                                    shard: '1/1' }
+          - { leg: builder-1,             filter: 'src/components/chart/builder/',           shard: '1/2' }
+          - { leg: builder-2,             filter: 'src/components/chart/builder/',           shard: '2/2' }
+          # the vendor harness folder, PRODUCTION lane, over tests/fixtures/vendor (VENDOR_HARNESS_DIR unset)
+          - { leg: harness-production-1,  filter: 'src/components/chart/engine/__tests__/vendorHarness/', shard: '1/2', lane: '0', out: production }
+          - { leg: harness-production-2,  filter: 'src/components/chart/engine/__tests__/vendorHarness/', shard: '2/2', lane: '0', out: production }
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          # full history: readout / legendFromDefinitions / enumerationSites read StockChart.jsx
+          # at an older commit with `git show <sha>:...`, which a depth-1 checkout cannot answer
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          path: ${{ env.CI_TOOLS }}
+          sparse-checkout: |
+            .github/actions
+            tools
+      - uses: ./.pine-heavy-ci/.github/actions/pine-heavy-setup
+      - name: vitest ${{ matrix.leg }} (offline)
+        working-directory: app
+        env:
+          LEG: ${{ matrix.leg }}
+          LEG_FILTER: ${{ matrix.filter }}
+          LEG_SHARD: ${{ matrix.shard }}
+          LEG_EXCLUDE: ${{ matrix.exclude }}
+          VENDOR_HARNESS_RUNTIME_ON: ${{ matrix.lane }}
+          VENDOR_HARNESS_OUT: ${{ matrix.out && format('../harness-out/{0}', matrix.out) || '' }}
+        run: |
+          set -euo pipefail
+          if [ "$LEG_FILTER" = "@top" ]; then
+            # the engine's own top-level files (no subfolder) and __truth__/
+            args="$(find src/components/chart/engine -maxdepth 1 -type f -name '*.test.*' | sort | tr '\n' ' ') src/components/chart/engine/__truth__/"
+          else
+            args="$LEG_FILTER"
+          fi
+          excl=()
+          if [ -n "$LEG_EXCLUDE" ]; then excl=(--exclude "$LEG_EXCLUDE"); fi
+          mkdir -p ../reports
+          start=$(date +%s); rc=0
+          # shellcheck disable=SC2086
+          bash "../$CI_TOOLS/tools/ci_offline.sh" npx vitest run $args "${excl[@]}" --shard="$LEG_SHARD" --maxWorkers=2 \
+            --reporter=default --reporter=json --outputFile="../reports/$LEG.json" || rc=$?
+          echo "LEG $LEG wall: $(( $(date +%s) - start )) s (exit $rc)" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $rc
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pine-heavy-vitest-${{ matrix.leg }}
+          path: reports/${{ matrix.leg }}.json
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always() && matrix.out
+        with:
+          name: pine-heavy-harness-${{ matrix.leg }}
+          path: harness-out/
+          if-no-files-found: ignore    # only the shard holding the corpus test writes; `union` requires one
+
+  # ── 2b. the vendor harness, RUNTIME-ON lane ──────────────────────────────────────────────────
+  # The lane switch changes only the files that read it (HARNESS_RUNTIME_ENV from
+  # tools/pine_coverage/runtime_lane.mjs); every other harness file is lane-blind and already ran in
+  # the production legs. So this lane runs exactly the files that read the switch, derived here by
+  # name, never listed; the corpus test must be among them.
+  harness-runtime-on:
+    name: vendor harness, runtime-on lane
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          # full history: readout / legendFromDefinitions / enumerationSites read StockChart.jsx
+          # at an older commit with `git show <sha>:...`, which a depth-1 checkout cannot answer
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          path: ${{ env.CI_TOOLS }}
+          sparse-checkout: |
+            .github/actions
+            tools
+      - uses: ./.pine-heavy-ci/.github/actions/pine-heavy-setup
+      - name: vitest, the lane-reading files, VENDOR_HARNESS_RUNTIME_ON=1 (offline)
+        working-directory: app
+        env:
+          VENDOR_HARNESS_RUNTIME_ON: '1'
+          VENDOR_HARNESS_OUT: ../harness-out/runtime-on
+        run: |
+          set -euo pipefail
+          files="$(grep -rl --include='*.test.*' 'HARNESS_RUNTIME_ENV' src/components/chart/engine | sort)"
+          echo "$files"
+          echo "$files" | grep -q 'vendorHarness/vendorHarness.corpus.test.js' || { echo "::error::the corpus test no longer reads the lane switch by name"; exit 1; }
+          mkdir -p ../reports
+          start=$(date +%s); rc=0
+          # shellcheck disable=SC2086
+          bash "../$CI_TOOLS/tools/ci_offline.sh" npx vitest run $files --maxWorkers=2 \
+            --reporter=default --reporter=json --outputFile=../reports/harness-runtime-on.json || rc=$?
+          echo "LEG harness-runtime-on wall: $(( $(date +%s) - start )) s (exit $rc)" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $rc
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pine-heavy-harness-runtime-on
+          path: harness-out/
+          if-no-files-found: error
+
+  # ── 3. the Pine Python twins (the section-8 list is a subset; tests/test_ci_pine_heavy.py proves it)
+  pytest:
+    name: pytest ${{ matrix.leg }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { leg: ast-twins,  tests: 'tests/test_ast_*.py' }
+          - { leg: pine-twins, tests: 'tests/test_pine_*.py' }
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          # full history: readout / legendFromDefinitions / enumerationSites read StockChart.jsx
+          # at an older commit with `git show <sha>:...`, which a depth-1 checkout cannot answer
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          path: ${{ env.CI_TOOLS }}
+          sparse-checkout: |
+            .github/actions
+            tools
+      - uses: ./.pine-heavy-ci/.github/actions/pine-heavy-setup
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: The production dependency set + pytest
+        run: |
+          sudo mkdir -p /data && sudo chown "$(id -u):$(id -g)" /data
+          python -m pip install --quiet --upgrade pip
+          python -m pip install --quiet -r requirements.txt pytest httpx pyyaml
+      - name: The Pine runtime server bundle (the section-8 rails import it)
+        working-directory: app
+        run: node scripts/build-pine-runtime.mjs
+      - name: pytest ${{ matrix.tests }} (offline)
+        env:
+          TESTS: ${{ matrix.tests }}
+        run: |
+          set -euo pipefail
+          start=$(date +%s); rc=0
+          # shellcheck disable=SC2086
+          bash "$CI_TOOLS/tools/ci_offline.sh" python -m pytest $TESTS -q -p no:cacheprovider -rfE || rc=$?
+          echo "LEG pytest-${{ matrix.leg }} wall: $(( $(date +%s) - start )) s (exit $rc)" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $rc
+
+  # ── the legs together ran every file, once; both harness lanes wrote their verdicts ─────────
+  union:
+    name: legs cover every engine + builder test file once (equivalence rail)
+    needs: [vitest, harness-runtime-on]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          # full history: readout / legendFromDefinitions / enumerationSites read StockChart.jsx
+          # at an older commit with `git show <sha>:...`, which a depth-1 checkout cannot answer
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          path: ${{ env.CI_TOOLS }}
+          sparse-checkout: |
+            .github/actions
+            tools
+      - uses: ./.pine-heavy-ci/.github/actions/pine-heavy-setup
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: pine-heavy-vitest-*
+          path: shards
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: pine-heavy-harness-*
+          path: harness
+          merge-multiple: true
+      - name: Expected file list
+        working-directory: app
+        run: npx vitest list $VITEST_ROOTS --filesOnly > ../expected-files.txt && wc -l ../expected-files.txt
+      - name: Union of executed files equals the expected list, each exactly once
+        run: |
+          python3 "$CI_TOOLS/tools/ci_vitest_union.py" --expected expected-files.txt --reports shards --root app \
+            --floor 1000 \
+            --must-include src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js \
+                           src/components/chart/engine/defSchema.test.js
+      - name: Both harness lanes wrote verdicts, each the lane it was asked for
+        run: |
+          python3 - <<'EOF'
+          import json, pathlib, sys
+          bad = []
+          for lane in ("production", "runtime-on"):
+              p = pathlib.Path("harness") / lane / "verdicts.json"
+              if not p.is_file():
+                  bad.append(f"{lane}: no verdicts.json"); continue
+              doc = json.loads(p.read_text(encoding="utf-8"))
+              if doc.get("lane") != lane:
+                  bad.append(f"{lane}: verdicts.json says lane {doc.get('lane')!r}")
+              n = len(doc.get("results") or [])
+              counts = {}
+              for r in doc.get("results") or []:
+                  counts[r.get("verdict")] = counts.get(r.get("verdict"), 0) + 1
+              print(f"{lane}: {n} graded, {len(doc.get('inventory') or [])} not comparable, verdicts {counts}")
+              if n == 0:
+                  bad.append(f"{lane}: graded nothing")
+          for b in bad:
+              print(f"::error::{b}")
+          sys.exit(1 if bad else 0)
+          EOF
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pine-heavy-verdicts
+          path: harness/
+          if-no-files-found: warn
+
+  # ── the rails that hold this file (cheap; they run whenever it changes) ─────────────────────
+  rails:
+    name: CI rails (cost, this workflow, the gate's Pine list)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          # full history: readout / legendFromDefinitions / enumerationSites read StockChart.jsx
+          # at an older commit with `git show <sha>:...`, which a depth-1 checkout cannot answer
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: The production dependency set + pytest
+        run: |
+          sudo mkdir -p /data && sudo chown "$(id -u):$(id -g)" /data
+          python -m pip install --quiet --upgrade pip
+          python -m pip install --quiet -r requirements.txt pytest httpx pyyaml
+      - name: pytest the CI rails
+        run: python -m pytest tests/test_ci_cost_rails.py tests/test_ci_pine_heavy.py tests/test_run_gate_pine_rails.py -q -p no:cacheprovider
+
+  # ── 4. mutants, only when asked (workflow_dispatch with a manifest) ─────────────────────────
+  mutants:
+    name: mutants (${{ inputs.mutants_manifest }})
+    if: github.event_name == 'workflow_dispatch' && inputs.mutants_manifest != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          # full history: readout / legendFromDefinitions / enumerationSites read StockChart.jsx
+          # at an older commit with `git show <sha>:...`, which a depth-1 checkout cannot answer
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          path: ${{ env.CI_TOOLS }}
+          sparse-checkout: |
+            .github/actions
+            tools
+      - uses: ./.pine-heavy-ci/.github/actions/pine-heavy-setup
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: The production dependency set + pytest
+        run: |
+          sudo mkdir -p /data && sudo chown "$(id -u):$(id -g)" /data
+          python -m pip install --quiet --upgrade pip
+          python -m pip install --quiet -r requirements.txt pytest httpx pyyaml
+      - name: Every mutant turns its rail red, and every file comes back byte-equal (offline)
+        env:
+          MANIFEST: ${{ inputs.mutants_manifest }}
+        run: bash "$CI_TOOLS/tools/ci_offline.sh" python "$CI_TOOLS/tools/ci_mutant_runner.py" --manifest "$MANIFEST" --out mutants-result.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pine-heavy-mutants
+          path: mutants-result.json
+          if-no-files-found: warn
+
+  # one named result to watch
+  verdict:
+    name: pine heavy
+    needs: [vitest, harness-runtime-on, pytest, union, rails, mutants]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every leg passed (mutants may be skipped)
+        run: |
+          echo "vitest=${{ needs.vitest.result }} harness-runtime-on=${{ needs.harness-runtime-on.result }} pytest=${{ needs.pytest.result }} union=${{ needs.union.result }} rails=${{ needs.rails.result }} mutants=${{ needs.mutants.result }}"
+          for r in "${{ needs.vitest.result }}" "${{ needs.harness-runtime-on.result }}" "${{ needs.pytest.result }}" "${{ needs.union.result }}" "${{ needs.rails.result }}"; do
+            test "$r" = success || exit 1
+          done
+          case "${{ needs.mutants.result }}" in success|skipped) ;; *) exit 1 ;; esac
