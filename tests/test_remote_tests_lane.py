@@ -28,7 +28,7 @@ GOOD_REF = "refs/remote-tests/20261116-180000-abcdef0123-my-change"
 
 def test_good_requests_are_accepted():
     assert rt.validate(GOOD_REF, ["tests/test_a.py", "tests/test_b.py::test_x[p-1]"], [], 1) == []
-    assert rt.validate(GOOD_REF, [], ["src/agent", "src/pages/charts/a.test.jsx"], "10") == []
+    assert rt.validate(GOOD_REF, [], ["src/agent", "src/pages/charts/a.test.jsx"], "6") == []
     assert rt.validate("refs/heads/fix/x-y", ["tests/"], ["src/lib"], 4) == []
 
 
@@ -49,7 +49,7 @@ def test_bad_vitest_paths_are_refused(path):
     assert rt.validate(GOOD_REF, [], [path], 1)
 
 
-@pytest.mark.parametrize("shards", [0, 11, "x", "", -1])
+@pytest.mark.parametrize("shards", [0, 7, 11, "x", "", -1])
 def test_bad_shard_counts_are_refused(shards):
     assert rt.validate(GOOD_REF, [], ["src/lib"], shards)
 
@@ -144,6 +144,48 @@ def test_test_jobs_fetch_the_ref_under_test_by_name():
         names = [s.get("name") or s.get("uses") for s in steps]
         assert names.index("Check out the commit under test") < next(
             i for i, s in enumerate(steps) if s.get("name") in ("pytest", "vitest", "npm ci", "Install")), name
+
+
+def test_a_red_test_result_does_not_fail_the_run():
+    """2026-11-16: red runs emailed the owner once per session test run. The test step may fail (continue-on-error),
+    its outcome is written to a verdict file that is uploaded, and the helper decides from the verdicts."""
+    for job, verdict_file in (("pytest", "remote-pytest-verdict.txt"), ("vitest", "remote-vitest-verdict-")):
+        steps = _wf()["jobs"][job]["steps"]
+        test = [s for s in steps if s.get("name") == job][0]
+        assert test.get("id") == "t" and test.get("continue-on-error") is True, job
+        rec = [s for s in steps if s.get("name") == "Record the verdict"]
+        assert len(rec) == 1 and rec[0]["if"] == "always()", job
+        assert rec[0]["env"]["OUTCOME"] == "${{ steps.t.outcome }}" and verdict_file in rec[0]["run"], job
+        up = [s for s in steps if "upload-artifact" in (s.get("uses") or "")][0]
+        assert verdict_file in up["with"]["path"], job
+        for s in steps:   # nothing else may swallow a failure: only the test step is allowed to
+            if s is not test:
+                assert not s.get("continue-on-error"), (job, s.get("name"))
+
+
+def test_decide_reads_the_verdicts_not_the_run_colour():
+    assert rt.decide("success", 2, {"pytest": "success", "vitest-1": "success"})[0] == rt.OK
+    assert rt.decide("success", 2, {"pytest": "success", "vitest-1": "failure"})[0] == rt.FAIL
+    assert rt.decide("success", 1, {"pytest": "cancelled"})[0] == rt.FAIL
+    assert rt.decide("success", 3, {"pytest": "success", "vitest-1": "success"})[0] == rt.LANE   # a verdict missing
+    assert rt.decide("failure", 1, {"pytest": "success"})[0] == rt.LANE                            # the lane broke
+    assert rt.decide("cancelled", 1, {})[0] == rt.LANE
+
+
+def test_read_verdicts(tmp_path):
+    (tmp_path / "remote-pytest").mkdir()
+    (tmp_path / "remote-pytest" / "remote-pytest-verdict.txt").write_text("failure\n", encoding="utf-8")
+    (tmp_path / "remote-vitest-2").mkdir()
+    (tmp_path / "remote-vitest-2" / "remote-vitest-verdict-2.txt").write_text("success", encoding="utf-8")
+    assert rt.read_verdicts(tmp_path) == {"pytest": "failure", "vitest-2": "success"}
+
+
+def test_one_remote_run_cannot_crowd_out_the_deploy_gate():
+    """2026-11-16: an hour after launch, session runs + PR CI queued two master deploy gates. Bound each run."""
+    strategy = _wf()["jobs"]["vitest"]["strategy"]
+    assert strategy.get("max-parallel") == 4, strategy
+    assert rt.MAX_SHARDS == 6
+    assert rt.validate(GOOD_REF, [], ["src/lib"], 6) == [] and rt.validate(GOOD_REF, [], ["src/lib"], 7)
 
 
 def test_a_vitest_filter_matching_nothing_fails():
