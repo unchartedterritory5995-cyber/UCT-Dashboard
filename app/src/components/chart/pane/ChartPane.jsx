@@ -785,12 +785,6 @@ function ChartPane({
       else paneToolbarApi.current?.openCreateIndicator?.()
     } catch { /* noop */ }
   }, [])
-  /** The Indicators window's other three ways to start one: the builder on a named door
-   *  ('pine' | 'image' | 'formula'). The modal closes first, as for every door above. */
-  const openBuilderDoor = useCallback((door) => {
-    setSettingsOpen(false)
-    try { paneToolbarApi.current?.openIndicatorDoor?.(door) } catch { /* noop */ }
-  }, [])
   /** ⭐ PHASE 4 — THE DEFINITION'S OWN DOORS for Chart Settings → Indicators: the
    *  same toolbar calls the legend menu makes. The modal closes first (one surface
    *  holding Escape at a time — the hazard `openFormulaBuilder` describes). */

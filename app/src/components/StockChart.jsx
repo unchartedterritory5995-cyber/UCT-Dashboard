@@ -603,7 +603,8 @@ function chipMenuRowToPopoverRow(it) {
  */
 function chipMenuSigRow(it) {
   if (it.separator || it.groupLabel != null) return it
-  const icon = it.goldIcon && it.icon ? <UIcon name={it.icon} size={13} gold={false} /> : undefined
+  // The UCT Agent's ✦ is the one icon, flat gold (drawn here, not by ContextPopover: Notebook bytes).
+  const icon = it.goldIcon && it.icon ? <span className={styles.sigGold}><UIcon name={it.icon} size={13} gold={false} /></span> : undefined
   const opens = !!it.submenu && !it.disabled
   const trail = opens ? (it.trailing ?? it.detail) : null
   const label = (opens || it.disabled) ? (

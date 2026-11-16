@@ -2044,3 +2044,6 @@
   .legTourBody { font-size: 14px; line-height: 21px; }
   .legTourSkip, .legTourBack, .legTourNext { font-size: 14px; padding: 6px 14px; }
 }
+/* The chip menu's one icon: the UCT Agent's ✦, flat gold (was ContextPopover `.iconGold`). */
+.sigGold { display: inline-flex; color: var(--ut-gold); }
+.sigGold svg, .sigGold svg * { stroke: currentColor; }

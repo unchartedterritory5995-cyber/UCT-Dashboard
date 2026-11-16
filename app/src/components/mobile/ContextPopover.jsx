@@ -22,12 +22,12 @@ import styles from './ContextPopover.module.css'
  * too short to say it. It becomes the row's `title` (the pointer tooltip) and its
  * `aria-description` (read after the name). An item without one renders exactly as before.
  *
- * ⭐ UCT SIGNATURE (opt-in, docs/uct-signature-style.md §2b). Three item fields and one prop,
- * none of which any other caller passes, so every other surface renders exactly as before:
+ * ⭐ UCT SIGNATURE (opt-in, docs/uct-signature-style.md §2b). One item field and one prop,
+ * neither of which any other caller passes, so every other surface renders exactly as before:
  *   `{ groupLabel: 'This line' }` — a small grey sentence-case label over a group of rows. NOT a
  *       row: `role="presentation"`, never focusable, so a `role="menu"` still holds only items.
- *   `detail` — a dimmed value at the row's right ("Own pane").
- *   `goldIcon` — the row's icon is always flat gold (UCT Intelligence's ✦).
+ *   (A row's dimmed value, ▸ and gold ✦ are drawn by the CALLER into `label` / `icon` —
+ *   StockChart `chipMenuSigRow` — so the Notebook's first-open bytes don't carry them.)
  *   `signature` (prop) — the highlighted row's icon turns gold, and an item's boolean `checked`
  *       renders as a gold ✓ with `role="menuitemcheckbox"` + `aria-checked` (desktop) or
  *       `aria-pressed` (touch). Without the prop `checked` is ignored, as it always was.
@@ -188,7 +188,6 @@ export default function ContextPopover({
   // separators `role="separator"`. The touch branch is a Sheet (a dialog), where the rows stay
   // plain buttons.
   const sig = signature ? ' ' + styles.signature : ''
-  const span = (className, children) => <span className={className}>{children}</span>
   const renderItems = (asMenu = false) =>
     items?.map((it, i) => {
       // A separator, or a ⭐ group label — ⛔ NOT A ROW: presentation, no tabindex, so a menu holds only menu items
@@ -205,9 +204,8 @@ export default function ContextPopover({
       const cls = `${styles.item} ${it.danger ? styles.danger : ''}`
       const body = (
         <>
-          {it.icon != null && span(styles.icon + (it.goldIcon ? ' ' + styles.iconGold : ''), it.icon)}
-          {span(styles.label, it.label)}
-          {it.detail && span(styles.detail, it.detail)}
+          {it.icon != null && <span className={styles.icon}>{it.icon}</span>}
+          <span className={styles.label}>{it.label}</span>
           {check && it.checked && <span className={styles.check} aria-hidden>✓</span>}
         </>
       )
