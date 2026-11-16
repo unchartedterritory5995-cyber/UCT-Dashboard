@@ -316,11 +316,14 @@ describe('TradeExchangeNewsWidget', () => {
   it('density and sound settings persist per widget through the shared settings panel', () => {
     const { onOptsChange, container } = mount()
     fireEvent.click(screen.getByLabelText('News widget settings'))
-    fireEvent.click(screen.getByRole('button', { name: 'Compact' }))
+    // UCT Signature: Density is a dropdown (ChoiceMenu), the On/Off picks are soft-square switches
+    fireEvent.click(screen.getByRole('button', { name: 'Density: Comfortable' }))
+    fireEvent.click(screen.getByRole('option', { name: 'Compact' }))
     expect(onOptsChange).toHaveBeenLastCalledWith(expect.objectContaining({
       settings: expect.objectContaining({ density: 'compact', sound: 'off' }) }))
-    const on = screen.getAllByRole('button', { name: 'On' })
-    fireEvent.click(on[on.length - 1])                            // Sound: On
+    const soundSwitch = screen.getByRole('switch', { name: 'New headline' })
+    expect(soundSwitch).toHaveAttribute('aria-checked', 'false')
+    fireEvent.click(soundSwitch)                                  // Sound: On
     expect(onOptsChange).toHaveBeenLastCalledWith(expect.objectContaining({
       settings: expect.objectContaining({ sound: 'on' }) }))
     expect(sound.preview).toHaveBeenCalled()

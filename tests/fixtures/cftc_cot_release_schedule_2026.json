@@ -1,0 +1,21 @@
+{
+  "_doc": "CFTC's published Commitments of Traders RELEASE SCHEDULE for 2026, copied verbatim (release dates only; '*' = 'Delayed release date due to a federal holiday'). The test-only ORACLE for cot_service.expected_latest_report_date: the code derives every date by rule and hard-codes none of these. CFTC's page shows only the current year; no earlier full-year schedule is published there.",
+  "source": "https://www.cftc.gov/MarketReports/CommitmentsofTraders/ReleaseSchedule/index.htm",
+  "fetched": "2026-11-14",
+  "page_rule_text": ["The release usually includes data from the previous Tuesday.", "Federal holidays may delay release by one or two days.", "*Delayed release date due to a federal holiday."],
+  "year": 2026,
+  "releases": {
+    "01": ["05*", "09", "16", "23", "30"],
+    "02": ["06", "13", "20", "27"],
+    "03": ["06", "13", "20", "27"],
+    "04": ["03", "10", "17", "24"],
+    "05": ["01", "08", "15", "22", "29"],
+    "06": ["05", "12", "22*", "26"],
+    "07": ["06*", "10", "17", "24", "31"],
+    "08": ["07", "14", "21", "28"],
+    "09": ["04", "11", "18", "25"],
+    "10": ["02", "09", "16", "23", "30"],
+    "11": ["06", "16*", "20", "30*"],
+    "12": ["04", "11", "18", "28*"]
+  }
+}

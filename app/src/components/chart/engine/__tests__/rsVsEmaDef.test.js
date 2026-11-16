@@ -64,10 +64,13 @@ beforeEach(() => { clearServerDefinitions(); clearServerColumns() })
 afterEach(() => { clearServerDefinitions(); clearServerColumns() })
 
 describe('1 · the identity', () => {
-  it('is version 1 on the server lane, registered last, and validates', () => {
+  it('is version 1 on the server lane, registered after rsPhases and before rsExit, and validates', () => {
     expect(DEF).toMatchObject({ id: 'rsVsEma', version: 1, compute: { kind: 'server', fn: 'rsVsEma', rev: 1 } })
     expect(validateDefinition(DEF).ok).toBe(true)
-    expect(SERVER_DEFS.at(-1).id).toBe('rsVsEma')
+    // it was last until UCT RS Exit Warnings registered after it (46705db957); rsExitDef.test.js pins rsExit last
+    const ids = SERVER_DEFS.map((d) => d.id)
+    expect(ids.indexOf('rsVsEma')).toBe(ids.indexOf('rsPhases') + 1)
+    expect(ids.indexOf('rsExit')).toBe(ids.indexOf('rsVsEma') + 1)
     expect(DEF.meta).toMatchObject({ name: 'UCT RS vs 21 EMA', shortName: 'UCT RS vs 21 EMA', category: RS.meta.category,
       tier: 'premium', repaint: 'non-repainting', requiresServer: true, quickMenu: false, legendParams: ['benchmark'] })
     expect(DEF.meta.timeframes, 'every timeframe').toBeUndefined()

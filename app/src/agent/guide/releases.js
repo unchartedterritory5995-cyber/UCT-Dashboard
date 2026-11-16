@@ -37,6 +37,6 @@ export function releasedOnly(steps, words = '') {
   let on = false
   try { on = !!r.on() } catch { on = false }
   if (on) return steps
-  if (widget) return `The ${WIDGET_NAME[widget] || widget} widget isn’t available yet. It will be on Widgets ▾ once it’s switched on.`
+  if (widget) return `The ${WIDGET_NAME[widget] || widget} widget isn’t available yet. It will be in + Add widget once it’s switched on.`
   return step.releaseOff || r.off
 }

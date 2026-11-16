@@ -361,8 +361,8 @@ describe('⛔ the unserved fields refuse BY NAME, with their own sentences', () 
 
   it('⭐ …while the three symbol-scoped names DO resolve at the door', () => {
     expect(Object.keys(BUILTIN_SYMBOL_SCOPED).sort())
-      .toEqual(['syminfo.basecurrency', 'syminfo.currency', 'syminfo.prefix', 'syminfo.root',
-        'syminfo.session', 'syminfo.ticker', 'syminfo.tickerid', 'syminfo.timezone'])
+      .toEqual(['syminfo.basecurrency', 'syminfo.currency', 'syminfo.industry', 'syminfo.prefix', 'syminfo.root',
+        'syminfo.sector', 'syminfo.session', 'syminfo.ticker', 'syminfo.tickerid', 'syminfo.timezone'])
     const r = translatePine(
       `${HEAD}isRatio = str.contains(syminfo.ticker, "/")\nplot(isRatio ? 0 : close)\n`)
     expect(r.refusal, r.refusal && r.refusal.what).toBe(null)

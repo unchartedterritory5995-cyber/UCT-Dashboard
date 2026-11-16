@@ -1,0 +1,4405 @@
+{
+ "calc-bars": {
+  "captures": 4,
+  "scripts": 2,
+  "community": 2,
+  "admits": true,
+  "reasons": [],
+  "families": [
+   "Sweep Reversal Map [Herman]",
+   "Wyckoff Accumulation Distribution"
+  ],
+  "evidence": [
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   }
+  ],
+  "lostToObjectsRule": [],
+  "xDivergeRuntimeDrawn": [],
+  "vetoedScriptEvidence": []
+ },
+ "collections:array": {
+  "captures": 28,
+  "scripts": 14,
+  "community": 11,
+  "admits": true,
+  "reasons": [],
+  "families": [
+   "AlgoAlpha - Trend Targets",
+   "D-RSI",
+   "Fair Value Gap SpaceManBTC",
+   "Fibonacci Retracement",
+   "Kalman Price Filter [BackQuant]",
+   "MQLSoftware - Signal Follow-Through Ledger",
+   "Renko Candles Overlay",
+   "Sweep Reversal Map [Herman]",
+   "Trendline Pivots [QuantVue]",
+   "UCTPROBE_VW_FORIN_COLLECTIONS",
+   "UCTPROBE_VW_INT_ARRAY_AVG",
+   "Wyckoff Accumulation Distribution",
+   "ZZMTF",
+   "vw-h4-loops"
+  ],
+  "evidence": [
+   {
+    "capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02",
+    "script": "D-RSI",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fair-value-gap-rddt-1d-2026-11-14",
+    "script": "Fair Value Gap SpaceManBTC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fair-value-gap-rddt-1d-2026-11-15",
+    "script": "Fair Value Gap SpaceManBTC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-11-15",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "kalman-price-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Kalman Price Filter [BackQuant]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15",
+    "script": "MQLSoftware - Signal Follow-Through Ledger",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "renko-candles-overlay-rddt-1d-2026-10-03",
+    "script": "Renko Candles Overlay",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "renko-candles-overlay-spy-1d-2026-10-03",
+    "script": "Renko Candles Overlay",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-rddt-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-11-15",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trendline-pivots-quantvue-rddt-1d-2026-11-14",
+    "script": "Trendline Pivots [QuantVue]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-forin-collections-rddt-1d-2026-10-01",
+    "script": "UCTPROBE_VW_FORIN_COLLECTIONS",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-h4-loops-rddt-1d-2026-10-03",
+    "script": "vw-h4-loops",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-h4-loops-spy-1d-2026-10-03",
+    "script": "vw-h4-loops",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-int-array-avg-neg-rddt-1d-2026-11-15",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-int-array-avg-neg-spy-1d-2026-10-01",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-int-array-avg-rddt-1d-2026-11-15",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-int-array-avg-spy-1d-2026-09-30",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-14",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-15",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-spy-1d-2026-11-15",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   }
+  ],
+  "lostToObjectsRule": [],
+  "xDivergeRuntimeDrawn": [],
+  "vetoedScriptEvidence": []
+ },
+ "compound-assign": {
+  "captures": 8,
+  "scripts": 5,
+  "community": 3,
+  "admits": true,
+  "reasons": [],
+  "families": [
+   "AlgoAlpha - Trend Targets",
+   "Deadband Hysteresis Filter [BackQuant]",
+   "Renko Candles Overlay",
+   "UCTPROBE_R1_STRATEGY",
+   "UCTPROBE_VW_FORIN_COLLECTIONS"
+  ],
+  "evidence": [
+   {
+    "capture": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Deadband Hysteresis Filter [BackQuant]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "r1-strategy-draws-indicator-rddt-1d-2026-10-02",
+    "script": "UCTPROBE_R1_STRATEGY",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "renko-candles-overlay-rddt-1d-2026-10-03",
+    "script": "Renko Candles Overlay",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "renko-candles-overlay-spy-1d-2026-10-03",
+    "script": "Renko Candles Overlay",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-rddt-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-11-15",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-forin-collections-rddt-1d-2026-10-01",
+    "script": "UCTPROBE_VW_FORIN_COLLECTIONS",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   }
+  ],
+  "lostToObjectsRule": [],
+  "xDivergeRuntimeDrawn": [],
+  "vetoedScriptEvidence": []
+ },
+ "conditional-ta": {
+  "captures": 11,
+  "scripts": 5,
+  "community": 5,
+  "admits": true,
+  "reasons": [],
+  "families": [
+   "AlgoAlpha - Trend Targets",
+   "Deadband Hysteresis Filter [BackQuant]",
+   "FVG Finder",
+   "Fibonacci Retracement",
+   "Renko Candles Overlay"
+  ],
+  "evidence": [
+   {
+    "capture": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Deadband Hysteresis Filter [BackQuant]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-11-15",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-14",
+    "script": "FVG Finder",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-15",
+    "script": "FVG Finder",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "renko-candles-overlay-rddt-1d-2026-10-03",
+    "script": "Renko Candles Overlay",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "renko-candles-overlay-spy-1d-2026-10-03",
+    "script": "Renko Candles Overlay",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-rddt-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-11-15",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   }
+  ],
+  "lostToObjectsRule": [],
+  "xDivergeRuntimeDrawn": [],
+  "vetoedScriptEvidence": []
+ },
+ "core": {
+  "captures": 44,
+  "scripts": 23,
+  "community": 16,
+  "admits": true,
+  "reasons": [],
+  "families": [
+   "ADX and DI for v4",
+   "AlgoAlpha - Trend Targets",
+   "D-RSI",
+   "Deadband Hysteresis Filter [BackQuant]",
+   "FVG Finder",
+   "Fair Value Gap SpaceManBTC",
+   "Fibonacci Retracement",
+   "IBRBVC",
+   "Kalman Price Filter [BackQuant]",
+   "MQLSoftware - Signal Follow-Through Ledger",
+   "Renko Candles Overlay",
+   "SAR",
+   "Sweep Reversal Map [Herman]",
+   "Trendline Pivots [QuantVue]",
+   "UCTPROBE_H3_ALMA",
+   "UCTPROBE_R1_STRATEGY",
+   "UCTPROBE_VW_FORIN_COLLECTIONS",
+   "UCTPROBE_VW_INT_ARRAY_AVG",
+   "UCTPROBE_VW_LOOP_IN_BLOCK",
+   "UCTPROBE_VW_VAR_SEED",
+   "Wyckoff Accumulation Distribution",
+   "ZZMTF",
+   "vw-h4-loops"
+  ],
+  "evidence": [
+   {
+    "capture": "adx-and-di-for-v4-rddt-1d-2026-09-27",
+    "script": "ADX and DI for v4",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "adx-and-di-for-v4-spy-1d-2026-10-03",
+    "script": "ADX and DI for v4",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Deadband Hysteresis Filter [BackQuant]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02",
+    "script": "D-RSI",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fair-value-gap-rddt-1d-2026-11-14",
+    "script": "Fair Value Gap SpaceManBTC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fair-value-gap-rddt-1d-2026-11-15",
+    "script": "Fair Value Gap SpaceManBTC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-11-15",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-14",
+    "script": "FVG Finder",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-15",
+    "script": "FVG Finder",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "h3-alma-v4-rddt-1d-2026-10-02",
+    "script": "UCTPROBE_H3_ALMA",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "h3-alma-v4-spy-1d-2026-10-02",
+    "script": "UCTPROBE_H3_ALMA",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28",
+    "script": "IBRBVC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-11-15",
+    "script": "IBRBVC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03",
+    "script": "IBRBVC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-11-15",
+    "script": "IBRBVC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "kalman-price-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Kalman Price Filter [BackQuant]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15",
+    "script": "MQLSoftware - Signal Follow-Through Ledger",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "parabolic-sar-rddt-1d-2026-10-03",
+    "script": "SAR",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "parabolic-sar-rddt-1d-2026-11-15",
+    "script": "SAR",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "r1-strategy-draws-indicator-rddt-1d-2026-10-02",
+    "script": "UCTPROBE_R1_STRATEGY",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "renko-candles-overlay-rddt-1d-2026-10-03",
+    "script": "Renko Candles Overlay",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "renko-candles-overlay-spy-1d-2026-10-03",
+    "script": "Renko Candles Overlay",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-rddt-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-11-15",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trendline-pivots-quantvue-rddt-1d-2026-11-14",
+    "script": "Trendline Pivots [QuantVue]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-forin-collections-rddt-1d-2026-10-01",
+    "script": "UCTPROBE_VW_FORIN_COLLECTIONS",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-h4-loops-rddt-1d-2026-10-03",
+    "script": "vw-h4-loops",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-h4-loops-spy-1d-2026-10-03",
+    "script": "vw-h4-loops",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-int-array-avg-neg-rddt-1d-2026-11-15",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-int-array-avg-neg-spy-1d-2026-10-01",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-int-array-avg-rddt-1d-2026-11-15",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-int-array-avg-spy-1d-2026-09-30",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-loop-in-block-spy-1d-2026-10-02",
+    "script": "UCTPROBE_VW_LOOP_IN_BLOCK",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-var-seed-spy-1d-2026-09-28",
+    "script": "UCTPROBE_VW_VAR_SEED",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-14",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-15",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-spy-1d-2026-11-15",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   }
+  ],
+  "lostToObjectsRule": [],
+  "xDivergeRuntimeDrawn": [],
+  "vetoedScriptEvidence": []
+ },
+ "fn-multi": {
+  "captures": 36,
+  "scripts": 17,
+  "community": 14,
+  "admits": true,
+  "reasons": [],
+  "families": [
+   "AlgoAlpha - Trend Targets",
+   "D-RSI",
+   "Deadband Hysteresis Filter [BackQuant]",
+   "FVG Finder",
+   "Fair Value Gap SpaceManBTC",
+   "Fibonacci Retracement",
+   "IBRBVC",
+   "Kalman Price Filter [BackQuant]",
+   "MQLSoftware - Signal Follow-Through Ledger",
+   "Renko Candles Overlay",
+   "Sweep Reversal Map [Herman]",
+   "Trendline Pivots [QuantVue]",
+   "UCTPROBE_H3_ALMA",
+   "UCTPROBE_VW_INT_ARRAY_AVG",
+   "Wyckoff Accumulation Distribution",
+   "ZZMTF",
+   "vw-h4-loops"
+  ],
+  "evidence": [
+   {
+    "capture": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Deadband Hysteresis Filter [BackQuant]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02",
+    "script": "D-RSI",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fair-value-gap-rddt-1d-2026-11-14",
+    "script": "Fair Value Gap SpaceManBTC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fair-value-gap-rddt-1d-2026-11-15",
+    "script": "Fair Value Gap SpaceManBTC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-11-15",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-14",
+    "script": "FVG Finder",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-15",
+    "script": "FVG Finder",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "h3-alma-v4-rddt-1d-2026-10-02",
+    "script": "UCTPROBE_H3_ALMA",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "h3-alma-v4-spy-1d-2026-10-02",
+    "script": "UCTPROBE_H3_ALMA",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28",
+    "script": "IBRBVC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-11-15",
+    "script": "IBRBVC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03",
+    "script": "IBRBVC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-11-15",
+    "script": "IBRBVC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "kalman-price-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Kalman Price Filter [BackQuant]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15",
+    "script": "MQLSoftware - Signal Follow-Through Ledger",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "renko-candles-overlay-rddt-1d-2026-10-03",
+    "script": "Renko Candles Overlay",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "renko-candles-overlay-spy-1d-2026-10-03",
+    "script": "Renko Candles Overlay",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-rddt-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-11-15",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trendline-pivots-quantvue-rddt-1d-2026-11-14",
+    "script": "Trendline Pivots [QuantVue]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-h4-loops-rddt-1d-2026-10-03",
+    "script": "vw-h4-loops",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-h4-loops-spy-1d-2026-10-03",
+    "script": "vw-h4-loops",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-int-array-avg-neg-rddt-1d-2026-11-15",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-int-array-avg-neg-spy-1d-2026-10-01",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-int-array-avg-rddt-1d-2026-11-15",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-int-array-avg-spy-1d-2026-09-30",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-14",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-15",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-spy-1d-2026-11-15",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   }
+  ],
+  "lostToObjectsRule": [],
+  "xDivergeRuntimeDrawn": [],
+  "vetoedScriptEvidence": []
+ },
+ "fn-single": {
+  "captures": 36,
+  "scripts": 17,
+  "community": 14,
+  "admits": true,
+  "reasons": [],
+  "families": [
+   "AlgoAlpha - Trend Targets",
+   "D-RSI",
+   "Deadband Hysteresis Filter [BackQuant]",
+   "FVG Finder",
+   "Fair Value Gap SpaceManBTC",
+   "Fibonacci Retracement",
+   "IBRBVC",
+   "Kalman Price Filter [BackQuant]",
+   "MQLSoftware - Signal Follow-Through Ledger",
+   "Renko Candles Overlay",
+   "Sweep Reversal Map [Herman]",
+   "Trendline Pivots [QuantVue]",
+   "UCTPROBE_H3_ALMA",
+   "UCTPROBE_VW_INT_ARRAY_AVG",
+   "Wyckoff Accumulation Distribution",
+   "ZZMTF",
+   "vw-h4-loops"
+  ],
+  "evidence": [
+   {
+    "capture": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Deadband Hysteresis Filter [BackQuant]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02",
+    "script": "D-RSI",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fair-value-gap-rddt-1d-2026-11-14",
+    "script": "Fair Value Gap SpaceManBTC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fair-value-gap-rddt-1d-2026-11-15",
+    "script": "Fair Value Gap SpaceManBTC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-11-15",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-14",
+    "script": "FVG Finder",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-15",
+    "script": "FVG Finder",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "h3-alma-v4-rddt-1d-2026-10-02",
+    "script": "UCTPROBE_H3_ALMA",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "h3-alma-v4-spy-1d-2026-10-02",
+    "script": "UCTPROBE_H3_ALMA",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28",
+    "script": "IBRBVC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-11-15",
+    "script": "IBRBVC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03",
+    "script": "IBRBVC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-11-15",
+    "script": "IBRBVC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "kalman-price-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Kalman Price Filter [BackQuant]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15",
+    "script": "MQLSoftware - Signal Follow-Through Ledger",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "renko-candles-overlay-rddt-1d-2026-10-03",
+    "script": "Renko Candles Overlay",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "renko-candles-overlay-spy-1d-2026-10-03",
+    "script": "Renko Candles Overlay",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-rddt-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-11-15",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trendline-pivots-quantvue-rddt-1d-2026-11-14",
+    "script": "Trendline Pivots [QuantVue]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-h4-loops-rddt-1d-2026-10-03",
+    "script": "vw-h4-loops",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-h4-loops-spy-1d-2026-10-03",
+    "script": "vw-h4-loops",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-int-array-avg-neg-rddt-1d-2026-11-15",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-int-array-avg-neg-spy-1d-2026-10-01",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-int-array-avg-rddt-1d-2026-11-15",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-int-array-avg-spy-1d-2026-09-30",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-14",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-15",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-spy-1d-2026-11-15",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   }
+  ],
+  "lostToObjectsRule": [],
+  "xDivergeRuntimeDrawn": [],
+  "vetoedScriptEvidence": []
+ },
+ "for": {
+  "captures": 18,
+  "scripts": 11,
+  "community": 7,
+  "admits": true,
+  "reasons": [],
+  "families": [
+   "D-RSI",
+   "Fair Value Gap SpaceManBTC",
+   "Kalman Price Filter [BackQuant]",
+   "MQLSoftware - Signal Follow-Through Ledger",
+   "Renko Candles Overlay",
+   "UCTPROBE_H3_ALMA",
+   "UCTPROBE_VW_FORIN_COLLECTIONS",
+   "UCTPROBE_VW_LOOP_IN_BLOCK",
+   "Wyckoff Accumulation Distribution",
+   "ZZMTF",
+   "vw-h4-loops"
+  ],
+  "evidence": [
+   {
+    "capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02",
+    "script": "D-RSI",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fair-value-gap-rddt-1d-2026-11-14",
+    "script": "Fair Value Gap SpaceManBTC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fair-value-gap-rddt-1d-2026-11-15",
+    "script": "Fair Value Gap SpaceManBTC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "h3-alma-v4-rddt-1d-2026-10-02",
+    "script": "UCTPROBE_H3_ALMA",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "h3-alma-v4-spy-1d-2026-10-02",
+    "script": "UCTPROBE_H3_ALMA",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "kalman-price-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Kalman Price Filter [BackQuant]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15",
+    "script": "MQLSoftware - Signal Follow-Through Ledger",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "renko-candles-overlay-rddt-1d-2026-10-03",
+    "script": "Renko Candles Overlay",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "renko-candles-overlay-spy-1d-2026-10-03",
+    "script": "Renko Candles Overlay",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-forin-collections-rddt-1d-2026-10-01",
+    "script": "UCTPROBE_VW_FORIN_COLLECTIONS",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-h4-loops-rddt-1d-2026-10-03",
+    "script": "vw-h4-loops",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-h4-loops-spy-1d-2026-10-03",
+    "script": "vw-h4-loops",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-loop-in-block-spy-1d-2026-10-02",
+    "script": "UCTPROBE_VW_LOOP_IN_BLOCK",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-14",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-15",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-spy-1d-2026-11-15",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   }
+  ],
+  "lostToObjectsRule": [],
+  "xDivergeRuntimeDrawn": [],
+  "vetoedScriptEvidence": []
+ },
+ "for-in": {
+  "captures": 2,
+  "scripts": 2,
+  "community": 1,
+  "admits": true,
+  "reasons": [],
+  "families": [
+   "Trendline Pivots [QuantVue]",
+   "UCTPROBE_VW_FORIN_COLLECTIONS"
+  ],
+  "evidence": [
+   {
+    "capture": "trendline-pivots-quantvue-rddt-1d-2026-11-14",
+    "script": "Trendline Pivots [QuantVue]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-forin-collections-rddt-1d-2026-10-01",
+    "script": "UCTPROBE_VW_FORIN_COLLECTIONS",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   }
+  ],
+  "lostToObjectsRule": [],
+  "xDivergeRuntimeDrawn": [],
+  "vetoedScriptEvidence": []
+ },
+ "generics": {
+  "captures": 7,
+  "scripts": 3,
+  "community": 2,
+  "admits": true,
+  "reasons": [],
+  "families": [
+   "MQLSoftware - Signal Follow-Through Ledger",
+   "Sweep Reversal Map [Herman]",
+   "UCTPROBE_VW_INT_ARRAY_AVG"
+  ],
+  "evidence": [
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15",
+    "script": "MQLSoftware - Signal Follow-Through Ledger",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-int-array-avg-neg-rddt-1d-2026-11-15",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-int-array-avg-neg-spy-1d-2026-10-01",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-int-array-avg-rddt-1d-2026-11-15",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-int-array-avg-spy-1d-2026-09-30",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   }
+  ],
+  "lostToObjectsRule": [],
+  "xDivergeRuntimeDrawn": [],
+  "vetoedScriptEvidence": []
+ },
+ "history-expr": {
+  "captures": 6,
+  "scripts": 4,
+  "community": 4,
+  "admits": true,
+  "reasons": [],
+  "families": [
+   "D-RSI",
+   "MQLSoftware - Signal Follow-Through Ledger",
+   "Sweep Reversal Map [Herman]",
+   "Wyckoff Accumulation Distribution"
+  ],
+  "evidence": [
+   {
+    "capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02",
+    "script": "D-RSI",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15",
+    "script": "MQLSoftware - Signal Follow-Through Ledger",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   }
+  ],
+  "lostToObjectsRule": [],
+  "xDivergeRuntimeDrawn": [],
+  "vetoedScriptEvidence": []
+ },
+ "if-block": {
+  "captures": 39,
+  "scripts": 20,
+  "community": 15,
+  "admits": true,
+  "reasons": [],
+  "families": [
+   "AlgoAlpha - Trend Targets",
+   "D-RSI",
+   "Deadband Hysteresis Filter [BackQuant]",
+   "FVG Finder",
+   "Fair Value Gap SpaceManBTC",
+   "Fibonacci Retracement",
+   "IBRBVC",
+   "Kalman Price Filter [BackQuant]",
+   "MQLSoftware - Signal Follow-Through Ledger",
+   "Renko Candles Overlay",
+   "SAR",
+   "Sweep Reversal Map [Herman]",
+   "Trendline Pivots [QuantVue]",
+   "UCTPROBE_R1_STRATEGY",
+   "UCTPROBE_VW_FORIN_COLLECTIONS",
+   "UCTPROBE_VW_INT_ARRAY_AVG",
+   "UCTPROBE_VW_LOOP_IN_BLOCK",
+   "Wyckoff Accumulation Distribution",
+   "ZZMTF",
+   "vw-h4-loops"
+  ],
+  "evidence": [
+   {
+    "capture": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Deadband Hysteresis Filter [BackQuant]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02",
+    "script": "D-RSI",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fair-value-gap-rddt-1d-2026-11-14",
+    "script": "Fair Value Gap SpaceManBTC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fair-value-gap-rddt-1d-2026-11-15",
+    "script": "Fair Value Gap SpaceManBTC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-11-15",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-14",
+    "script": "FVG Finder",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-15",
+    "script": "FVG Finder",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28",
+    "script": "IBRBVC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-11-15",
+    "script": "IBRBVC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03",
+    "script": "IBRBVC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-11-15",
+    "script": "IBRBVC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "kalman-price-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Kalman Price Filter [BackQuant]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15",
+    "script": "MQLSoftware - Signal Follow-Through Ledger",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "parabolic-sar-rddt-1d-2026-10-03",
+    "script": "SAR",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "parabolic-sar-rddt-1d-2026-11-15",
+    "script": "SAR",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "r1-strategy-draws-indicator-rddt-1d-2026-10-02",
+    "script": "UCTPROBE_R1_STRATEGY",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "renko-candles-overlay-rddt-1d-2026-10-03",
+    "script": "Renko Candles Overlay",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "renko-candles-overlay-spy-1d-2026-10-03",
+    "script": "Renko Candles Overlay",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-rddt-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-11-15",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trendline-pivots-quantvue-rddt-1d-2026-11-14",
+    "script": "Trendline Pivots [QuantVue]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-forin-collections-rddt-1d-2026-10-01",
+    "script": "UCTPROBE_VW_FORIN_COLLECTIONS",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-h4-loops-rddt-1d-2026-10-03",
+    "script": "vw-h4-loops",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-h4-loops-spy-1d-2026-10-03",
+    "script": "vw-h4-loops",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-int-array-avg-neg-rddt-1d-2026-11-15",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-int-array-avg-neg-spy-1d-2026-10-01",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-int-array-avg-rddt-1d-2026-11-15",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-int-array-avg-spy-1d-2026-09-30",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-loop-in-block-spy-1d-2026-10-02",
+    "script": "UCTPROBE_VW_LOOP_IN_BLOCK",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-14",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-15",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-spy-1d-2026-11-15",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   }
+  ],
+  "lostToObjectsRule": [],
+  "xDivergeRuntimeDrawn": [],
+  "vetoedScriptEvidence": []
+ },
+ "max_bars_back": {
+  "captures": 9,
+  "scripts": 4,
+  "community": 4,
+  "admits": true,
+  "reasons": [],
+  "families": [
+   "Fibonacci Retracement",
+   "MQLSoftware - Signal Follow-Through Ledger",
+   "Renko Candles Overlay",
+   "ZZMTF"
+  ],
+  "evidence": [
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-11-15",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15",
+    "script": "MQLSoftware - Signal Follow-Through Ledger",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "renko-candles-overlay-rddt-1d-2026-10-03",
+    "script": "Renko Candles Overlay",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "renko-candles-overlay-spy-1d-2026-10-03",
+    "script": "Renko Candles Overlay",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-14",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-15",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-spy-1d-2026-11-15",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   }
+  ],
+  "lostToObjectsRule": [],
+  "xDivergeRuntimeDrawn": [],
+  "vetoedScriptEvidence": []
+ },
+ "method-call": {
+  "captures": 11,
+  "scripts": 5,
+  "community": 4,
+  "admits": true,
+  "reasons": [],
+  "families": [
+   "AlgoAlpha - Trend Targets",
+   "FVG Finder",
+   "MQLSoftware - Signal Follow-Through Ledger",
+   "Trendline Pivots [QuantVue]",
+   "UCTPROBE_VW_INT_ARRAY_AVG"
+  ],
+  "evidence": [
+   {
+    "capture": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-14",
+    "script": "FVG Finder",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-15",
+    "script": "FVG Finder",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15",
+    "script": "MQLSoftware - Signal Follow-Through Ledger",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-rddt-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-11-15",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trendline-pivots-quantvue-rddt-1d-2026-11-14",
+    "script": "Trendline Pivots [QuantVue]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-int-array-avg-neg-rddt-1d-2026-11-15",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-int-array-avg-neg-spy-1d-2026-10-01",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-int-array-avg-rddt-1d-2026-11-15",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-int-array-avg-spy-1d-2026-09-30",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   }
+  ],
+  "lostToObjectsRule": [],
+  "xDivergeRuntimeDrawn": [],
+  "vetoedScriptEvidence": []
+ },
+ "obj:box": {
+  "captures": 4,
+  "scripts": 3,
+  "community": 3,
+  "admits": true,
+  "reasons": [],
+  "families": [
+   "Fair Value Gap SpaceManBTC",
+   "MQLSoftware - Signal Follow-Through Ledger",
+   "Sweep Reversal Map [Herman]"
+  ],
+  "evidence": [
+   {
+    "capture": "fair-value-gap-rddt-1d-2026-11-15",
+    "script": "Fair Value Gap SpaceManBTC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 21,
+    "objectsX": "MATCH"
+   },
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 11,
+    "objectsX": "MATCH"
+   },
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 80,
+    "objectsX": "MATCH"
+   },
+   {
+    "capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15",
+    "script": "MQLSoftware - Signal Follow-Through Ledger",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 8,
+    "objectsX": "MATCH"
+   }
+  ],
+  "lostToObjectsRule": [
+   [
+    "fair-value-gap-rddt-1d-2026-11-14",
+    "INCONCLUSIVE",
+    21
+   ],
+   [
+    "renko-candles-overlay-rddt-1d-2026-10-03",
+    "INCONCLUSIVE",
+    142
+   ],
+   [
+    "renko-candles-overlay-spy-1d-2026-10-03",
+    "INCONCLUSIVE",
+    141
+   ],
+   [
+    "vw-forin-collections-rddt-1d-2026-10-01",
+    "INCONCLUSIVE",
+    3
+   ],
+   [
+    "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+    "INCONCLUSIVE",
+    12
+   ],
+   [
+    "wyckoff-accumulation-distribution-spy-1d-2026-10-02",
+    "INCONCLUSIVE",
+    22
+   ]
+  ],
+  "xDivergeRuntimeDrawn": [],
+  "vetoedScriptEvidence": []
+ },
+ "obj:collection": {
+  "captures": 6,
+  "scripts": 4,
+  "community": 4,
+  "admits": true,
+  "reasons": [],
+  "families": [
+   "Fair Value Gap SpaceManBTC",
+   "MQLSoftware - Signal Follow-Through Ledger",
+   "Sweep Reversal Map [Herman]",
+   "ZZMTF"
+  ],
+  "evidence": [
+   {
+    "capture": "fair-value-gap-rddt-1d-2026-11-15",
+    "script": "Fair Value Gap SpaceManBTC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 42,
+    "objectsX": "MATCH"
+   },
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 33,
+    "objectsX": "MATCH"
+   },
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 240,
+    "objectsX": "MATCH"
+   },
+   {
+    "capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15",
+    "script": "MQLSoftware - Signal Follow-Through Ledger",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 25,
+    "objectsX": "MATCH"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-15",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 15,
+    "objectsX": "MATCH"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-spy-1d-2026-11-15",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 15,
+    "objectsX": "MATCH"
+   }
+  ],
+  "lostToObjectsRule": [
+   [
+    "fair-value-gap-rddt-1d-2026-11-14",
+    "INCONCLUSIVE",
+    42
+   ],
+   [
+    "renko-candles-overlay-rddt-1d-2026-10-03",
+    "INCONCLUSIVE",
+    146
+   ],
+   [
+    "renko-candles-overlay-spy-1d-2026-10-03",
+    "INCONCLUSIVE",
+    145
+   ],
+   [
+    "trendline-pivots-quantvue-rddt-1d-2026-11-14",
+    "INCONCLUSIVE",
+    9
+   ],
+   [
+    "vw-forin-collections-rddt-1d-2026-10-01",
+    "INCONCLUSIVE",
+    32
+   ],
+   [
+    "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-14",
+    "INCONCLUSIVE",
+    15
+   ]
+  ],
+  "xDivergeRuntimeDrawn": [
+   [
+    "trend-targets-algoalpha-rddt-1d-2026-11-15",
+    "DIVERGE",
+    "DIVERGE",
+    5
+   ]
+  ],
+  "vetoedScriptEvidence": [
+   [
+    "trend-targets-algoalpha-rddt-1d-2026-10-02",
+    "x DIVERGE elsewhere"
+   ],
+   [
+    "trend-targets-algoalpha-spy-1d-2026-10-02",
+    "x DIVERGE elsewhere"
+   ],
+   [
+    "trend-targets-algoalpha-spy-1d-2026-11-15",
+    "x DIVERGE elsewhere"
+   ]
+  ]
+ },
+ "obj:delete": {
+  "captures": 9,
+  "scripts": 6,
+  "community": 6,
+  "admits": true,
+  "reasons": [],
+  "families": [
+   "Fair Value Gap SpaceManBTC",
+   "Fibonacci Retracement",
+   "IBRBVC",
+   "MQLSoftware - Signal Follow-Through Ledger",
+   "Sweep Reversal Map [Herman]",
+   "ZZMTF"
+  ],
+  "evidence": [
+   {
+    "capture": "fair-value-gap-rddt-1d-2026-11-15",
+    "script": "Fair Value Gap SpaceManBTC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 42,
+    "objectsX": "MATCH"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-11-15",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 14,
+    "objectsX": "MATCH"
+   },
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 33,
+    "objectsX": "MATCH"
+   },
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 240,
+    "objectsX": "MATCH"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-11-15",
+    "script": "IBRBVC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 2,
+    "objectsX": "MATCH"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-11-15",
+    "script": "IBRBVC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 2,
+    "objectsX": "MATCH"
+   },
+   {
+    "capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15",
+    "script": "MQLSoftware - Signal Follow-Through Ledger",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 25,
+    "objectsX": "MATCH"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-15",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 15,
+    "objectsX": "MATCH"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-spy-1d-2026-11-15",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 15,
+    "objectsX": "MATCH"
+   }
+  ],
+  "lostToObjectsRule": [
+   [
+    "fair-value-gap-rddt-1d-2026-11-14",
+    "INCONCLUSIVE",
+    42
+   ],
+   [
+    "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "INCONCLUSIVE",
+    14
+   ],
+   [
+    "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "INCONCLUSIVE",
+    14
+   ],
+   [
+    "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28",
+    "INCONCLUSIVE",
+    2
+   ],
+   [
+    "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03",
+    "INCONCLUSIVE",
+    2
+   ],
+   [
+    "renko-candles-overlay-rddt-1d-2026-10-03",
+    "INCONCLUSIVE",
+    146
+   ],
+   [
+    "renko-candles-overlay-spy-1d-2026-10-03",
+    "INCONCLUSIVE",
+    145
+   ],
+   [
+    "trendline-pivots-quantvue-rddt-1d-2026-11-14",
+    "INCONCLUSIVE",
+    9
+   ],
+   [
+    "vw-forin-collections-rddt-1d-2026-10-01",
+    "INCONCLUSIVE",
+    32
+   ],
+   [
+    "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-14",
+    "INCONCLUSIVE",
+    15
+   ]
+  ],
+  "xDivergeRuntimeDrawn": [
+   [
+    "trend-targets-algoalpha-rddt-1d-2026-11-15",
+    "DIVERGE",
+    "DIVERGE",
+    5
+   ]
+  ],
+  "vetoedScriptEvidence": [
+   [
+    "trend-targets-algoalpha-rddt-1d-2026-10-02",
+    "x DIVERGE elsewhere"
+   ],
+   [
+    "trend-targets-algoalpha-spy-1d-2026-10-02",
+    "x DIVERGE elsewhere"
+   ],
+   [
+    "trend-targets-algoalpha-spy-1d-2026-11-15",
+    "x DIVERGE elsewhere"
+   ]
+  ]
+ },
+ "obj:getter": {
+  "captures": 2,
+  "scripts": 2,
+  "community": 1,
+  "admits": true,
+  "reasons": [],
+  "families": [
+   "Fair Value Gap SpaceManBTC",
+   "UCTPROBE_VW_INT_ARRAY_AVG"
+  ],
+  "evidence": [
+   {
+    "capture": "fair-value-gap-rddt-1d-2026-11-15",
+    "script": "Fair Value Gap SpaceManBTC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 42,
+    "objectsX": "MATCH"
+   },
+   {
+    "capture": "vw-int-array-avg-rddt-1d-2026-11-15",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 31,
+    "objectsX": "MATCH"
+   }
+  ],
+  "lostToObjectsRule": [
+   [
+    "fair-value-gap-rddt-1d-2026-11-14",
+    "INCONCLUSIVE",
+    42
+   ],
+   [
+    "trendline-pivots-quantvue-rddt-1d-2026-11-14",
+    "INCONCLUSIVE",
+    9
+   ],
+   [
+    "vw-forin-collections-rddt-1d-2026-10-01",
+    "INCONCLUSIVE",
+    32
+   ],
+   [
+    "vw-int-array-avg-neg-rddt-1d-2026-11-15",
+    "INCONCLUSIVE",
+    29
+   ],
+   [
+    "vw-int-array-avg-neg-spy-1d-2026-10-01",
+    "INCONCLUSIVE",
+    29
+   ],
+   [
+    "vw-int-array-avg-spy-1d-2026-09-30",
+    "INCONCLUSIVE",
+    31
+   ]
+  ],
+  "xDivergeRuntimeDrawn": [],
+  "vetoedScriptEvidence": []
+ },
+ "obj:label": {
+  "captures": 8,
+  "scripts": 6,
+  "community": 5,
+  "admits": true,
+  "reasons": [],
+  "families": [
+   "FVG Finder",
+   "Fair Value Gap SpaceManBTC",
+   "Fibonacci Retracement",
+   "Sweep Reversal Map [Herman]",
+   "UCTPROBE_VW_INT_ARRAY_AVG",
+   "ZZMTF"
+  ],
+  "evidence": [
+   {
+    "capture": "fair-value-gap-rddt-1d-2026-11-15",
+    "script": "Fair Value Gap SpaceManBTC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 21,
+    "objectsX": "MATCH"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-11-15",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 7,
+    "objectsX": "MATCH"
+   },
+   {
+    "capture": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-15",
+    "script": "FVG Finder",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 22,
+    "objectsX": "MATCH"
+   },
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 11,
+    "objectsX": "MATCH"
+   },
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 80,
+    "objectsX": "MATCH"
+   },
+   {
+    "capture": "vw-int-array-avg-rddt-1d-2026-11-15",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 25,
+    "objectsX": "MATCH"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-15",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 7,
+    "objectsX": "MATCH"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-spy-1d-2026-11-15",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 7,
+    "objectsX": "MATCH"
+   }
+  ],
+  "lostToObjectsRule": [
+   [
+    "fair-value-gap-rddt-1d-2026-11-14",
+    "INCONCLUSIVE",
+    21
+   ],
+   [
+    "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "INCONCLUSIVE",
+    7
+   ],
+   [
+    "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "INCONCLUSIVE",
+    7
+   ],
+   [
+    "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-14",
+    "INCONCLUSIVE",
+    22
+   ],
+   [
+    "renko-candles-overlay-rddt-1d-2026-10-03",
+    "INCONCLUSIVE",
+    2
+   ],
+   [
+    "renko-candles-overlay-spy-1d-2026-10-03",
+    "INCONCLUSIVE",
+    2
+   ],
+   [
+    "trendline-pivots-quantvue-rddt-1d-2026-11-14",
+    "INCONCLUSIVE",
+    4
+   ],
+   [
+    "vw-forin-collections-rddt-1d-2026-10-01",
+    "INCONCLUSIVE",
+    5
+   ],
+   [
+    "vw-int-array-avg-neg-rddt-1d-2026-11-15",
+    "INCONCLUSIVE",
+    18
+   ],
+   [
+    "vw-int-array-avg-neg-spy-1d-2026-10-01",
+    "INCONCLUSIVE",
+    18
+   ],
+   [
+    "vw-int-array-avg-spy-1d-2026-09-30",
+    "INCONCLUSIVE",
+    25
+   ],
+   [
+    "vw-loop-in-block-spy-1d-2026-10-02",
+    "INCONCLUSIVE",
+    62
+   ],
+   [
+    "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-14",
+    "INCONCLUSIVE",
+    7
+   ]
+  ],
+  "xDivergeRuntimeDrawn": [
+   [
+    "trend-targets-algoalpha-rddt-1d-2026-11-15",
+    "DIVERGE",
+    "DIVERGE",
+    5
+   ]
+  ],
+  "vetoedScriptEvidence": [
+   [
+    "parabolic-sar-rddt-1d-2026-10-03",
+    "killed"
+   ],
+   [
+    "trend-targets-algoalpha-rddt-1d-2026-10-02",
+    "x DIVERGE elsewhere"
+   ],
+   [
+    "trend-targets-algoalpha-spy-1d-2026-10-02",
+    "x DIVERGE elsewhere"
+   ],
+   [
+    "parabolic-sar-rddt-1d-2026-11-15",
+    "killed"
+   ],
+   [
+    "trend-targets-algoalpha-spy-1d-2026-11-15",
+    "x DIVERGE elsewhere"
+   ]
+  ]
+ },
+ "obj:line": {
+  "captures": 9,
+  "scripts": 6,
+  "community": 5,
+  "admits": true,
+  "reasons": [],
+  "families": [
+   "FVG Finder",
+   "Fibonacci Retracement",
+   "IBRBVC",
+   "Sweep Reversal Map [Herman]",
+   "UCTPROBE_VW_INT_ARRAY_AVG",
+   "ZZMTF"
+  ],
+  "evidence": [
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-11-15",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 7,
+    "objectsX": "MATCH"
+   },
+   {
+    "capture": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-15",
+    "script": "FVG Finder",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 44,
+    "objectsX": "MATCH"
+   },
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 11,
+    "objectsX": "MATCH"
+   },
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 80,
+    "objectsX": "MATCH"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-11-15",
+    "script": "IBRBVC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 2,
+    "objectsX": "MATCH"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-11-15",
+    "script": "IBRBVC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 2,
+    "objectsX": "MATCH"
+   },
+   {
+    "capture": "vw-int-array-avg-rddt-1d-2026-11-15",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 6,
+    "objectsX": "MATCH"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-15",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 8,
+    "objectsX": "MATCH"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-spy-1d-2026-11-15",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 8,
+    "objectsX": "MATCH"
+   }
+  ],
+  "lostToObjectsRule": [
+   [
+    "fair-value-gap-rddt-1d-2026-11-14",
+    "INCONCLUSIVE",
+    0
+   ],
+   [
+    "fair-value-gap-rddt-1d-2026-11-15",
+    "MATCH",
+    0
+   ],
+   [
+    "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "INCONCLUSIVE",
+    7
+   ],
+   [
+    "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "INCONCLUSIVE",
+    7
+   ],
+   [
+    "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-14",
+    "INCONCLUSIVE",
+    44
+   ],
+   [
+    "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28",
+    "INCONCLUSIVE",
+    2
+   ],
+   [
+    "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03",
+    "INCONCLUSIVE",
+    2
+   ],
+   [
+    "renko-candles-overlay-rddt-1d-2026-10-03",
+    "INCONCLUSIVE",
+    2
+   ],
+   [
+    "renko-candles-overlay-spy-1d-2026-10-03",
+    "INCONCLUSIVE",
+    2
+   ],
+   [
+    "trendline-pivots-quantvue-rddt-1d-2026-11-14",
+    "INCONCLUSIVE",
+    5
+   ],
+   [
+    "vw-forin-collections-rddt-1d-2026-10-01",
+    "INCONCLUSIVE",
+    24
+   ],
+   [
+    "vw-int-array-avg-neg-rddt-1d-2026-11-15",
+    "INCONCLUSIVE",
+    11
+   ],
+   [
+    "vw-int-array-avg-neg-spy-1d-2026-10-01",
+    "INCONCLUSIVE",
+    11
+   ],
+   [
+    "vw-int-array-avg-spy-1d-2026-09-30",
+    "INCONCLUSIVE",
+    6
+   ],
+   [
+    "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+    "INCONCLUSIVE",
+    0
+   ],
+   [
+    "wyckoff-accumulation-distribution-spy-1d-2026-10-02",
+    "INCONCLUSIVE",
+    0
+   ],
+   [
+    "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-14",
+    "INCONCLUSIVE",
+    8
+   ]
+  ],
+  "xDivergeRuntimeDrawn": [
+   [
+    "trend-targets-algoalpha-rddt-1d-2026-11-15",
+    "DIVERGE",
+    "DIVERGE",
+    5
+   ]
+  ],
+  "vetoedScriptEvidence": [
+   [
+    "trend-targets-algoalpha-rddt-1d-2026-10-02",
+    "x DIVERGE elsewhere"
+   ],
+   [
+    "trend-targets-algoalpha-spy-1d-2026-10-02",
+    "x DIVERGE elsewhere"
+   ],
+   [
+    "trend-targets-algoalpha-spy-1d-2026-11-15",
+    "x DIVERGE elsewhere"
+   ]
+  ]
+ },
+ "obj:linefill": {
+  "captures": 1,
+  "scripts": 1,
+  "community": 1,
+  "admits": false,
+  "reasons": [
+   "capability `obj:linefill` has 1 objects v2 MATCH captures with the run drawing them and records paired from 1 script(s); admission needs 2 from 2"
+  ],
+  "families": [
+   "FVG Finder"
+  ],
+  "evidence": [
+   {
+    "capture": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-15",
+    "script": "FVG Finder",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 22,
+    "objectsX": "MATCH"
+   }
+  ],
+  "lostToObjectsRule": [
+   [
+    "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-14",
+    "INCONCLUSIVE",
+    22
+   ]
+  ],
+  "xDivergeRuntimeDrawn": [
+   [
+    "trend-targets-algoalpha-rddt-1d-2026-11-15",
+    "DIVERGE",
+    "DIVERGE",
+    5
+   ]
+  ],
+  "vetoedScriptEvidence": [
+   [
+    "trend-targets-algoalpha-rddt-1d-2026-10-02",
+    "x DIVERGE elsewhere"
+   ],
+   [
+    "trend-targets-algoalpha-spy-1d-2026-10-02",
+    "x DIVERGE elsewhere"
+   ],
+   [
+    "trend-targets-algoalpha-spy-1d-2026-11-15",
+    "x DIVERGE elsewhere"
+   ]
+  ]
+ },
+ "obj:table": {
+  "captures": 1,
+  "scripts": 1,
+  "community": 1,
+  "admits": false,
+  "reasons": [
+   "capability `obj:table` has 1 objects v2 MATCH captures with the run drawing them and records paired from 1 script(s); admission needs 2 from 2"
+  ],
+  "families": [
+   "MQLSoftware - Signal Follow-Through Ledger"
+  ],
+  "evidence": [
+   {
+    "capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15",
+    "script": "MQLSoftware - Signal Follow-Through Ledger",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on",
+    "objectsV2": "MATCH",
+    "objectsLane": "runtime",
+    "objectsPaired": 1,
+    "objectsX": "MATCH"
+   }
+  ],
+  "lostToObjectsRule": [],
+  "xDivergeRuntimeDrawn": [],
+  "vetoedScriptEvidence": []
+ },
+ "realtime-state": {
+  "captures": 15,
+  "scripts": 7,
+  "community": 5,
+  "admits": true,
+  "reasons": [],
+  "families": [
+   "Fair Value Gap SpaceManBTC",
+   "MQLSoftware - Signal Follow-Through Ledger",
+   "Renko Candles Overlay",
+   "Sweep Reversal Map [Herman]",
+   "UCTPROBE_VW_FORIN_COLLECTIONS",
+   "UCTPROBE_VW_INT_ARRAY_AVG",
+   "ZZMTF"
+  ],
+  "evidence": [
+   {
+    "capture": "fair-value-gap-rddt-1d-2026-11-14",
+    "script": "Fair Value Gap SpaceManBTC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fair-value-gap-rddt-1d-2026-11-15",
+    "script": "Fair Value Gap SpaceManBTC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15",
+    "script": "MQLSoftware - Signal Follow-Through Ledger",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "renko-candles-overlay-rddt-1d-2026-10-03",
+    "script": "Renko Candles Overlay",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "renko-candles-overlay-spy-1d-2026-10-03",
+    "script": "Renko Candles Overlay",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-forin-collections-rddt-1d-2026-10-01",
+    "script": "UCTPROBE_VW_FORIN_COLLECTIONS",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-int-array-avg-neg-rddt-1d-2026-11-15",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-int-array-avg-neg-spy-1d-2026-10-01",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-int-array-avg-rddt-1d-2026-11-15",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-int-array-avg-spy-1d-2026-09-30",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-14",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-15",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-spy-1d-2026-11-15",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   }
+  ],
+  "lostToObjectsRule": [],
+  "xDivergeRuntimeDrawn": [],
+  "vetoedScriptEvidence": []
+ },
+ "reassign": {
+  "captures": 40,
+  "scripts": 22,
+  "community": 16,
+  "admits": true,
+  "reasons": [],
+  "families": [
+   "ADX and DI for v4",
+   "AlgoAlpha - Trend Targets",
+   "D-RSI",
+   "Deadband Hysteresis Filter [BackQuant]",
+   "FVG Finder",
+   "Fair Value Gap SpaceManBTC",
+   "Fibonacci Retracement",
+   "IBRBVC",
+   "Kalman Price Filter [BackQuant]",
+   "MQLSoftware - Signal Follow-Through Ledger",
+   "Renko Candles Overlay",
+   "SAR",
+   "Sweep Reversal Map [Herman]",
+   "Trendline Pivots [QuantVue]",
+   "UCTPROBE_H3_ALMA",
+   "UCTPROBE_R1_STRATEGY",
+   "UCTPROBE_VW_FORIN_COLLECTIONS",
+   "UCTPROBE_VW_LOOP_IN_BLOCK",
+   "UCTPROBE_VW_VAR_SEED",
+   "Wyckoff Accumulation Distribution",
+   "ZZMTF",
+   "vw-h4-loops"
+  ],
+  "evidence": [
+   {
+    "capture": "adx-and-di-for-v4-rddt-1d-2026-09-27",
+    "script": "ADX and DI for v4",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "adx-and-di-for-v4-spy-1d-2026-10-03",
+    "script": "ADX and DI for v4",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Deadband Hysteresis Filter [BackQuant]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02",
+    "script": "D-RSI",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fair-value-gap-rddt-1d-2026-11-14",
+    "script": "Fair Value Gap SpaceManBTC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fair-value-gap-rddt-1d-2026-11-15",
+    "script": "Fair Value Gap SpaceManBTC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-11-15",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-14",
+    "script": "FVG Finder",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-15",
+    "script": "FVG Finder",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "h3-alma-v4-rddt-1d-2026-10-02",
+    "script": "UCTPROBE_H3_ALMA",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "h3-alma-v4-spy-1d-2026-10-02",
+    "script": "UCTPROBE_H3_ALMA",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28",
+    "script": "IBRBVC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-11-15",
+    "script": "IBRBVC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03",
+    "script": "IBRBVC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-11-15",
+    "script": "IBRBVC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "kalman-price-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Kalman Price Filter [BackQuant]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15",
+    "script": "MQLSoftware - Signal Follow-Through Ledger",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "parabolic-sar-rddt-1d-2026-10-03",
+    "script": "SAR",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "parabolic-sar-rddt-1d-2026-11-15",
+    "script": "SAR",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "r1-strategy-draws-indicator-rddt-1d-2026-10-02",
+    "script": "UCTPROBE_R1_STRATEGY",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "renko-candles-overlay-rddt-1d-2026-10-03",
+    "script": "Renko Candles Overlay",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "renko-candles-overlay-spy-1d-2026-10-03",
+    "script": "Renko Candles Overlay",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-rddt-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-11-15",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trendline-pivots-quantvue-rddt-1d-2026-11-14",
+    "script": "Trendline Pivots [QuantVue]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-forin-collections-rddt-1d-2026-10-01",
+    "script": "UCTPROBE_VW_FORIN_COLLECTIONS",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-h4-loops-rddt-1d-2026-10-03",
+    "script": "vw-h4-loops",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-h4-loops-spy-1d-2026-10-03",
+    "script": "vw-h4-loops",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-loop-in-block-spy-1d-2026-10-02",
+    "script": "UCTPROBE_VW_LOOP_IN_BLOCK",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-var-seed-spy-1d-2026-09-28",
+    "script": "UCTPROBE_VW_VAR_SEED",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-14",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-15",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-spy-1d-2026-11-15",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   }
+  ],
+  "lostToObjectsRule": [],
+  "xDivergeRuntimeDrawn": [],
+  "vetoedScriptEvidence": []
+ },
+ "request-other": {
+  "captures": 2,
+  "scripts": 1,
+  "community": 1,
+  "admits": false,
+  "reasons": [
+   "capability `request-other` has 2 MATCH captures with the runtime pane on from 1 script(s); admission needs 2 from 2"
+  ],
+  "families": [
+   "Fair Value Gap SpaceManBTC"
+  ],
+  "evidence": [
+   {
+    "capture": "fair-value-gap-rddt-1d-2026-11-14",
+    "script": "Fair Value Gap SpaceManBTC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fair-value-gap-rddt-1d-2026-11-15",
+    "script": "Fair Value Gap SpaceManBTC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   }
+  ],
+  "lostToObjectsRule": [],
+  "xDivergeRuntimeDrawn": [],
+  "vetoedScriptEvidence": []
+ },
+ "switch": {
+  "captures": 6,
+  "scripts": 3,
+  "community": 3,
+  "admits": true,
+  "reasons": [],
+  "families": [
+   "FVG Finder",
+   "Fibonacci Retracement",
+   "MQLSoftware - Signal Follow-Through Ledger"
+  ],
+  "evidence": [
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-11-15",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-14",
+    "script": "FVG Finder",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-15",
+    "script": "FVG Finder",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15",
+    "script": "MQLSoftware - Signal Follow-Through Ledger",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   }
+  ],
+  "lostToObjectsRule": [],
+  "xDivergeRuntimeDrawn": [],
+  "vetoedScriptEvidence": []
+ },
+ "ternary": {
+  "captures": 33,
+  "scripts": 17,
+  "community": 14,
+  "admits": true,
+  "reasons": [],
+  "families": [
+   "ADX and DI for v4",
+   "AlgoAlpha - Trend Targets",
+   "D-RSI",
+   "Deadband Hysteresis Filter [BackQuant]",
+   "Fibonacci Retracement",
+   "IBRBVC",
+   "Kalman Price Filter [BackQuant]",
+   "MQLSoftware - Signal Follow-Through Ledger",
+   "Renko Candles Overlay",
+   "SAR",
+   "Sweep Reversal Map [Herman]",
+   "Trendline Pivots [QuantVue]",
+   "UCTPROBE_H3_ALMA",
+   "UCTPROBE_VW_VAR_SEED",
+   "Wyckoff Accumulation Distribution",
+   "ZZMTF",
+   "vw-h4-loops"
+  ],
+  "evidence": [
+   {
+    "capture": "adx-and-di-for-v4-rddt-1d-2026-09-27",
+    "script": "ADX and DI for v4",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "adx-and-di-for-v4-spy-1d-2026-10-03",
+    "script": "ADX and DI for v4",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Deadband Hysteresis Filter [BackQuant]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02",
+    "script": "D-RSI",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-11-15",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "h3-alma-v4-rddt-1d-2026-10-02",
+    "script": "UCTPROBE_H3_ALMA",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "h3-alma-v4-spy-1d-2026-10-02",
+    "script": "UCTPROBE_H3_ALMA",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28",
+    "script": "IBRBVC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-11-15",
+    "script": "IBRBVC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03",
+    "script": "IBRBVC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-11-15",
+    "script": "IBRBVC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "kalman-price-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Kalman Price Filter [BackQuant]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15",
+    "script": "MQLSoftware - Signal Follow-Through Ledger",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "parabolic-sar-rddt-1d-2026-10-03",
+    "script": "SAR",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "parabolic-sar-rddt-1d-2026-11-15",
+    "script": "SAR",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "renko-candles-overlay-rddt-1d-2026-10-03",
+    "script": "Renko Candles Overlay",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "renko-candles-overlay-spy-1d-2026-10-03",
+    "script": "Renko Candles Overlay",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-rddt-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-11-15",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trendline-pivots-quantvue-rddt-1d-2026-11-14",
+    "script": "Trendline Pivots [QuantVue]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-h4-loops-rddt-1d-2026-10-03",
+    "script": "vw-h4-loops",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-h4-loops-spy-1d-2026-10-03",
+    "script": "vw-h4-loops",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-var-seed-spy-1d-2026-09-28",
+    "script": "UCTPROBE_VW_VAR_SEED",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-14",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-15",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-spy-1d-2026-11-15",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   }
+  ],
+  "lostToObjectsRule": [],
+  "xDivergeRuntimeDrawn": [],
+  "vetoedScriptEvidence": []
+ },
+ "tuple-destructure": {
+  "captures": 4,
+  "scripts": 2,
+  "community": 2,
+  "admits": true,
+  "reasons": [],
+  "families": [
+   "AlgoAlpha - Trend Targets",
+   "D-RSI"
+  ],
+  "evidence": [
+   {
+    "capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02",
+    "script": "D-RSI",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-rddt-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-11-15",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   }
+  ],
+  "lostToObjectsRule": [],
+  "xDivergeRuntimeDrawn": [],
+  "vetoedScriptEvidence": []
+ },
+ "typed-array": {
+  "captures": 5,
+  "scripts": 4,
+  "community": 2,
+  "admits": true,
+  "reasons": [],
+  "families": [
+   "Kalman Price Filter [BackQuant]",
+   "Trendline Pivots [QuantVue]",
+   "UCTPROBE_VW_FORIN_COLLECTIONS",
+   "vw-h4-loops"
+  ],
+  "evidence": [
+   {
+    "capture": "kalman-price-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Kalman Price Filter [BackQuant]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trendline-pivots-quantvue-rddt-1d-2026-11-14",
+    "script": "Trendline Pivots [QuantVue]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-forin-collections-rddt-1d-2026-10-01",
+    "script": "UCTPROBE_VW_FORIN_COLLECTIONS",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-h4-loops-rddt-1d-2026-10-03",
+    "script": "vw-h4-loops",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-h4-loops-spy-1d-2026-10-03",
+    "script": "vw-h4-loops",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   }
+  ],
+  "lostToObjectsRule": [],
+  "xDivergeRuntimeDrawn": [],
+  "vetoedScriptEvidence": []
+ },
+ "udt": {
+  "captures": 2,
+  "scripts": 2,
+  "community": 2,
+  "admits": true,
+  "reasons": [],
+  "families": [
+   "MQLSoftware - Signal Follow-Through Ledger",
+   "Trendline Pivots [QuantVue]"
+  ],
+  "evidence": [
+   {
+    "capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15",
+    "script": "MQLSoftware - Signal Follow-Through Ledger",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trendline-pivots-quantvue-rddt-1d-2026-11-14",
+    "script": "Trendline Pivots [QuantVue]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   }
+  ],
+  "lostToObjectsRule": [],
+  "xDivergeRuntimeDrawn": [],
+  "vetoedScriptEvidence": []
+ },
+ "var": {
+  "captures": 35,
+  "scripts": 19,
+  "community": 14,
+  "admits": true,
+  "reasons": [],
+  "families": [
+   "AlgoAlpha - Trend Targets",
+   "D-RSI",
+   "Deadband Hysteresis Filter [BackQuant]",
+   "FVG Finder",
+   "Fair Value Gap SpaceManBTC",
+   "Fibonacci Retracement",
+   "IBRBVC",
+   "Kalman Price Filter [BackQuant]",
+   "MQLSoftware - Signal Follow-Through Ledger",
+   "Renko Candles Overlay",
+   "Sweep Reversal Map [Herman]",
+   "Trendline Pivots [QuantVue]",
+   "UCTPROBE_R1_STRATEGY",
+   "UCTPROBE_VW_FORIN_COLLECTIONS",
+   "UCTPROBE_VW_INT_ARRAY_AVG",
+   "UCTPROBE_VW_VAR_SEED",
+   "Wyckoff Accumulation Distribution",
+   "ZZMTF",
+   "vw-h4-loops"
+  ],
+  "evidence": [
+   {
+    "capture": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Deadband Hysteresis Filter [BackQuant]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02",
+    "script": "D-RSI",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fair-value-gap-rddt-1d-2026-11-14",
+    "script": "Fair Value Gap SpaceManBTC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fair-value-gap-rddt-1d-2026-11-15",
+    "script": "Fair Value Gap SpaceManBTC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-rddt-1d-2026-11-15",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02",
+    "script": "Fibonacci Retracement",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-14",
+    "script": "FVG Finder",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-15",
+    "script": "FVG Finder",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28",
+    "script": "IBRBVC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-11-15",
+    "script": "IBRBVC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03",
+    "script": "IBRBVC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-11-15",
+    "script": "IBRBVC",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "kalman-price-filter-backquant-rddt-1d-2026-10-03",
+    "script": "Kalman Price Filter [BackQuant]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15",
+    "script": "MQLSoftware - Signal Follow-Through Ledger",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "r1-strategy-draws-indicator-rddt-1d-2026-10-02",
+    "script": "UCTPROBE_R1_STRATEGY",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "renko-candles-overlay-rddt-1d-2026-10-03",
+    "script": "Renko Candles Overlay",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "renko-candles-overlay-spy-1d-2026-10-03",
+    "script": "Renko Candles Overlay",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-rddt-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-10-02",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trend-targets-algoalpha-spy-1d-2026-11-15",
+    "script": "AlgoAlpha - Trend Targets",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "trendline-pivots-quantvue-rddt-1d-2026-11-14",
+    "script": "Trendline Pivots [QuantVue]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-forin-collections-rddt-1d-2026-10-01",
+    "script": "UCTPROBE_VW_FORIN_COLLECTIONS",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-h4-loops-rddt-1d-2026-10-03",
+    "script": "vw-h4-loops",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-h4-loops-spy-1d-2026-10-03",
+    "script": "vw-h4-loops",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-int-array-avg-rddt-1d-2026-11-15",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-int-array-avg-spy-1d-2026-09-30",
+    "script": "UCTPROBE_VW_INT_ARRAY_AVG",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-var-seed-spy-1d-2026-09-28",
+    "script": "UCTPROBE_VW_VAR_SEED",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02",
+    "script": "Wyckoff Accumulation Distribution",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-14",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-15",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-spy-1d-2026-11-15",
+    "script": "ZZMTF",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   }
+  ],
+  "lostToObjectsRule": [],
+  "xDivergeRuntimeDrawn": [],
+  "vetoedScriptEvidence": []
+ },
+ "while": {
+  "captures": 7,
+  "scripts": 5,
+  "community": 3,
+  "admits": true,
+  "reasons": [],
+  "families": [
+   "MQLSoftware - Signal Follow-Through Ledger",
+   "Renko Candles Overlay",
+   "Sweep Reversal Map [Herman]",
+   "UCTPROBE_VW_FORIN_COLLECTIONS",
+   "UCTPROBE_VW_LOOP_IN_BLOCK"
+  ],
+  "evidence": [
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15",
+    "script": "Sweep Reversal Map [Herman]",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15",
+    "script": "MQLSoftware - Signal Follow-Through Ledger",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "renko-candles-overlay-rddt-1d-2026-10-03",
+    "script": "Renko Candles Overlay",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "renko-candles-overlay-spy-1d-2026-10-03",
+    "script": "Renko Candles Overlay",
+    "community": true,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-forin-collections-rddt-1d-2026-10-01",
+    "script": "UCTPROBE_VW_FORIN_COLLECTIONS",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   },
+   {
+    "capture": "vw-loop-in-block-spy-1d-2026-10-02",
+    "script": "UCTPROBE_VW_LOOP_IN_BLOCK",
+    "community": false,
+    "verdict": "MATCH",
+    "runtimePane": "on"
+   }
+  ],
+  "lostToObjectsRule": [],
+  "xDivergeRuntimeDrawn": [],
+  "vetoedScriptEvidence": []
+ }
+}

@@ -28,7 +28,7 @@ const CORPUS = [
   { name: 'array growth', source: H('var a = array.new_float()\nfor i = 0 to 999\n    array.push(a, i)\nplot(array.size(a))'), stop: 'runtime:limit', limit: 'ARRAY_ELEMENTS', says: /the number of elements a script's arrays may hold/ },
   // the design expects "refused at build"; this engine stops it as runtime:statement (see EVIDENCE)
   { name: 'deep UDF recursion', source: H('f(n) => n <= 0 ? 0 : f(n - 1) + 1\nplot(f(100))'), stop: 'runtime:statement', says: /./ },
-  { name: 'request.security', source: H('x = request.security("NASDAQ:MSFT", "D", close)\nplot(x)'), stop: 'runtime:request', says: /another symbol or timeframe/ },
+  { name: 'request.security', source: H('x = request.security("NASDAQ:MSFT", "D", close)\nplot(x)'), stop: 'runtime:request', says: /not handed another symbol's bars/ },  // RS Rating L5: the server is never handed another symbol's bars, and says so before the store is asked
   { name: 'varip on a sliding window', source: H('varip int k = 0\nk += 1\nplot(k)', 'indicator("t7", calc_bars_count=50)'), stop: 'runtime:varip', says: /varip/ },
 ]
 /** Too large for the door (doc > 128 KiB): refused there with zero jobs, and named by the pool itself. */

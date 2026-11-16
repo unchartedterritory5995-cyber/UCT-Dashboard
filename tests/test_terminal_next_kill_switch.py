@@ -648,6 +648,11 @@ ACKNOWLEDGED_FRONTEND_GATES = {
     # 2026-10-10 X-11 / V22: the five terminal-grade properties walked on /terminal.
     "app/src/pages/terminal/TerminalShell.fiveProperties.test.jsx":
         "TEST: fakes `cohorts` to drive the gate",
+    # Found unacknowledged on 2026-11-15 (this rail had been red on master since 2026-10-28):
+    # three tests that build a fake auth payload carrying `cohorts`. None reads a gate.
+    "app/src/agent/agentApprovalF6.test.jsx": "TEST: fakes `cohorts` on an admin auth payload",
+    "app/src/agent/agentStabilization.test.jsx": "TEST: fakes `cohorts` on an admin auth payload",
+    "app/src/components/NavBar.test.jsx": "TEST: fakes `cohorts` to drive the terminal gate in the nav",
     "app/src/pages/breadth/drill/BreadthDrillModal.withdrawal.test.jsx":
         "TEST: fakes `cohorts_withdrawn` to drive the drill withdrawal block",
 }

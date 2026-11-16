@@ -449,7 +449,7 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
     <div ref={rootRef} className={`${styles.root} ${settings.density === 'compact' ? styles.compact : styles.comfortable}`} style={rootStyle}>
       {settingsOpen && (
         <NewsSettingsPanel
-          title="News Settings"
+          title="News settings"
           widgetType="tradeExchangeNews"
           textHint="headlines"
           showPerf={false}

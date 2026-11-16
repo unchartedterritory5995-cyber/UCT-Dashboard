@@ -175,3 +175,86 @@ describe('step 4: trades and values', () => {
     expect(gradeStrategy(base(5, ours).args).verdict).toBe('MATCH')
   })
 })
+
+// ─── U14 step 5: fills, fill by fill ──────────────────────────────────────────
+describe('step 5: fills (U14)', () => {
+  // one entry and one exit fill per trade, at the trade's own bar times
+  const fillsOf = (trades) => trades.flatMap((t) => [
+    { time: t.entryTime, side: 'buy', role: 'entry', price: t.entryPrice, qty: t.qty, id: 'L', labelled: true, rule: t.rule },
+    { time: t.exitTime, side: 'sell', role: 'exit', price: t.exitPrice, qty: t.qty, id: 'XL', labelled: true, rule: t.rule },
+  ])
+  const withFills = (refFills, ourFills, over = {}) => {
+    const { args } = base(5, mkTrades(5))
+    args.reference = { trades: mkTrades(5), fills: refFills, fillsTimed: true, fillsReason: null, ...over }
+    const ours = args.ours
+    Object.defineProperty(ours, 'fills', { value: ourFills, enumerable: true })
+    return args
+  }
+  const F = () => fillsOf(mkTrades(5))
+
+  it('equal fills: MATCH, and the grade says it covered the fills', () => {
+    expect(gradeStrategy(withFills(F(), F()))).toMatchObject({ verdict: 'MATCH', step: 5, graded: { trades: true, fills: true } })
+  })
+  it('without a reference fill list the MATCH says it did NOT cover fills (resolve_pins never pins from it)', () => {
+    const { args } = base(5, mkTrades(5))
+    expect(gradeStrategy(args)).toMatchObject({ verdict: 'MATCH', step: 4, graded: { fills: false } })
+  })
+  it.each([
+    ['a quantity', (f) => { f[3].qty += 1 }],
+    ['a price beyond the tick', (f) => { f[2].price += 0.05 }],
+    ['a side', (f) => { f[4].side = 'sell' }],
+    ['a role', (f) => { f[5].role = 'order' }],
+    ['an extra fill', (f) => { f.push({ ...f[0], time: f[0].time + 3 * 86400 }) }],
+    ['a missing fill', (f) => { f.splice(6, 1) }],
+    ['an id', (f) => { f[1].id = 'XS' }],
+  ])('⛔ the same trades with %s differing in OUR fills is DIVERGE at step 5', (_n, mutate) => {
+    const ours = F()
+    mutate(ours)
+    expect(gradeStrategy(withFills(F(), ours))).toMatchObject({ verdict: 'DIVERGE', step: 5 })
+  })
+  it('one exit of 10 on one side and two of 4 + 6 on the other at that bar and price are the same fill fact', () => {
+    const split = (q1, q2) => { const r = F(); r.splice(1, 1, { ...r[1], qty: q1 }, { ...r[1], qty: q2 }); return r }
+    expect(gradeStrategy(withFills(split(4, 6), F()))).toMatchObject({ verdict: 'MATCH', step: 5 })
+    // control: 4 + 5 is not 10
+    expect(gradeStrategy(withFills(split(4, 5), F()))).toMatchObject({ verdict: 'DIVERGE', step: 5 })
+  })
+  it('an unlabelled fill of ours (a close TradingView names itself) is not held to an id', () => {
+    const ours = F().map((f, i) => (i === 1 ? { ...f, id: null, labelled: false } : f))
+    expect(gradeStrategy(withFills(F(), ours)).verdict).toBe('MATCH')
+  })
+  it('⛔ fills that cannot be placed in time are INCONCLUSIVE, never skipped', () => {
+    expect(gradeStrategy(withFills(F(), F(), { fillsTimed: false, fillsReason: 'x' }))).toMatchObject({ verdict: 'INCONCLUSIVE', step: 5 })
+  })
+})
+
+describe('step 6: report slots (U14)', () => {
+  const slots = (over = {}) => ({
+    netProfit: { kind: 'value', reference: { status: 'ok', value: 100.5 }, ours: { status: 'served', value: 100.5 } },
+    totalClosedTrades: { kind: 'count', reference: { status: 'ok', value: 5 }, ours: { status: 'served', value: 5 } },
+    sharpeRatio: { kind: 'value', reference: { status: 'ok', value: 1.2 }, ours: { status: 'refused', guard: 'runtime:strategy-report-unstated' } },
+    ...over,
+  })
+  it('the slots both sides state are compared; a slot ours refuses is listed ungraded, never compared', () => {
+    const { args } = base(5, mkTrades(5))
+    args.slots = () => slots()
+    const g = gradeStrategy(args)
+    expect(g).toMatchObject({ verdict: 'MATCH', step: 6, graded: { slots: 2 } })
+    expect(g.ungradedSlots).toEqual([{ slot: 'sharpeRatio', why: 'ours runtime:strategy-report-unstated' }])
+  })
+  it('⛔ a stated slot that differs is DIVERGE at step 6', () => {
+    const { args } = base(5, mkTrades(5))
+    args.slots = slots({ totalClosedTrades: { kind: 'count', reference: { status: 'ok', value: 5 }, ours: { status: 'served', value: 6 } } })
+    expect(gradeStrategy(args)).toMatchObject({ verdict: 'DIVERGE', step: 6 })
+  })
+})
+
+describe('step 2: the run\'s own settings and unread inputs (U14)', () => {
+  it('⛔ an effective-settings disagreement or an unread depended-on input is INCONCLUSIVE', () => {
+    const a = base(5, mkTrades(5), { settings: { verdict: 'AGREE', reason: null, disagreements: [], effectiveDisagreements: [{ key: 'commission_value' }] } }).args
+    expect(gradeStrategy(a)).toMatchObject({ verdict: 'INCONCLUSIVE', step: 2 })
+    const b = base(5, mkTrades(5), { settings: { verdict: 'AGREE', reason: null, disagreements: [], unreadDependedOn: ['property:slippage'] } }).args
+    expect(gradeStrategy(b)).toMatchObject({ verdict: 'INCONCLUSIVE', step: 2 })
+    const c = base(5, mkTrades(5), { settings: { verdict: 'AGREE', reason: null, disagreements: [], effectiveDisagreements: [], unreadDependedOn: [] } }).args
+    expect(gradeStrategy(c).verdict).toBe('MATCH')
+  })
+})

@@ -137,16 +137,29 @@ describe('VALUE-SHAPED + a second change: the symbol is a VALUE of the plan, nev
   }, 60000)
 })
 
-// ── KNOWN, UNCHANGED (master): "instead of SPY" is read as an EXCLUSION of SPY (spatialCheck NEG_EXCEPT), so "show AMD instead of
-// SPY" on several charts asks which of the others is meant. Safe (nothing written) and not this ruling's to change — recorded here.
-describe('KNOWN: "show T instead of SPY" on several charts asks (master behaviour, unchanged)', () => {
-  it.each(TICKERS)('"show %s instead of SPY": asked, nothing written', async (T) => {
+// ── CHANGED by AUDIT 53b (2026-11-15) — was KNOWN (master): "instead of SPY" was read as an EXCLUSION of SPY, so "show AMD instead
+// of SPY" on several charts asked (an over-refusal). A ticker the words CHANGE is the TARGET (chartRail tickerChanged, read by
+// spatialCheck excludedCharts): the SPY chart switches, the others never change.
+describe('53b: "show T instead of SPY" on several charts switches the SPY chart, nothing else', () => {
+  it.each(TICKERS)('"show %s instead of SPY": applied on SPY, NVDA and QQQ unchanged', async (T) => {
     const m = mount(['SPY', 'NVDA', 'QQQ'])
+    const ids = ['w1', 'w2'], before = snapshot(m.board, ids)
+    p.st.envelopes.push((body) => p.env('apply', [{ action: 'chart.setSymbol', target: spyRef(body), args: { symbol: T } }]))
+    await m.say(`show ${T} instead of SPY`)
+    expect(asked(), transcript()).toBe(false)
+    expect(symOf(m.board, 'w0'), transcript()).toBe(T)
+    expect(snapshot(m.board, ids)).toEqual(before)
+  }, 60000)
+})
+// …ON CONDITION (AUDIT 53): only when EXACTLY ONE object in scope shows SPY. Two independent SPY charts → still ASKED, nothing written
+describe('53b condition: "show T instead of SPY" with TWO independent SPY charts still asks', () => {
+  it.each(TICKERS)('"show %s instead of SPY" on SPY · NVDA · SPY: asked, nothing written', async (T) => {
+    const m = mount(['SPY', 'NVDA', 'SPY'])
     const ids = ['w0', 'w1', 'w2'], before = snapshot(m.board, ids)
     p.st.envelopes.push((body) => p.env('apply', [{ action: 'chart.setSymbol', target: spyRef(body), args: { symbol: T } }]))
     await m.say(`show ${T} instead of SPY`)
     expect(asked(), transcript()).toBe(true)
-    expect(snapshot(m.board, ids)).toEqual(before)
+    expect(snapshot(m.board, ids), transcript()).toEqual(before)
   }, 60000)
 })
 

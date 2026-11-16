@@ -457,24 +457,26 @@ def refresh_from_current() -> int:
 
 
 def refresh_if_stale() -> int:
-    """Retry refresh only if the latest record date is older than last Friday.
+    """Retry refresh only if the store lacks the report CFTC has released by today.
 
-    Called by APScheduler at 4:15 PM and 4:45 PM ET as retry windows.
-    Skips the download entirely if fresh data already arrived from the
-    3:50 PM primary run.
+    Called by APScheduler at 4:15 PM and 4:45 PM ET as retry windows (after CFTC's 3:30 PM
+    publish, so TODAY's release counts — `include_day=True`, no 4:30 threshold here).
+    Skips the download if fresh data already arrived from the 3:50 PM primary run, and — the
+    holiday fix — on a holiday week whose release moved to Monday, where the old "latest is
+    at most 6 days old" rule re-downloaded on every retry. Same shared rule as
+    expected_latest_report_date; on a normal week it decides exactly as the old rule did.
     """
     from zoneinfo import ZoneInfo
     now_et = datetime.now(ZoneInfo("America/New_York"))
-    # Expected latest report: most recent Monday (CFTC reports are dated the Tuesday,
-    # but our data uses the prior Tuesday — just check if record_count grew today)
     latest = _latest_record_date()
-    # If latest record is within the last 7 days, data is fresh — skip
     if latest:
-        from datetime import date as _date
-        latest_date = _date.fromisoformat(latest)
-        days_old = (now_et.date() - latest_date).days
-        if days_old <= 6:
-            logger.info("COT: retry skipped — latest record %s is only %dd old", latest, days_old)
+        try:
+            due = _report_due_by(now_et.date(), include_day=True)
+        except Exception as exc:  # noqa: BLE001 — fail toward re-downloading (today's behaviour)
+            logger.warning("COT: holiday-aware due date failed (%s) — re-downloading", exc)
+            due = None
+        if due is not None and _date_cls.fromisoformat(latest) >= due:
+            logger.info("COT: retry skipped — latest record %s covers the report due by today (%s)", latest, due)
             return 0
     logger.info("COT: retry — latest record %s is stale, re-downloading...", latest)
     return refresh_from_current()
@@ -519,13 +521,10 @@ _AUTO_REFRESH_COOLDOWN = timedelta(minutes=30)
 _LAST_AUTO_REFRESH_AT: datetime | None = None
 
 
-def expected_latest_report_date(now_et: datetime) -> _date_cls:
-    """Return the most recent Tuesday whose Friday-after-publish-time has passed.
-
-    CFTC reports cover positions as of close-of-business each Tuesday and are
-    released the following Friday (typically by 3:30 PM ET; we use 4:30 PM ET
-    as a conservative threshold).
-    """
+def _friday_rule_report_date(now_et: datetime) -> _date_cls:
+    """The pre-holiday-calendar rule: every release on Friday, positions as of the Tuesday
+    before. Kept as the FALLBACK — when the holiday-aware rule cannot decide, staleness is
+    judged as before (flag it), never silently relaxed."""
     today = now_et.date()
     weekday = now_et.weekday()  # Mon=0 ... Sun=6
     if weekday == 4:  # Friday
@@ -537,6 +536,79 @@ def expected_latest_report_date(now_et: datetime) -> _date_cls:
         days_back = (weekday - 4) % 7
         most_recent_publish_friday = today - timedelta(days=days_back)
     return most_recent_publish_friday - timedelta(days=3)  # Tuesday before Friday
+
+
+def _report_due_by(day: _date_cls, include_day: bool) -> _date_cls:
+    """The as-of date of the newest report whose CFTC release DATE is on or before `day`
+    (strictly before it when `include_day` is False).
+
+    THE RULE (CFTC's published 2026 release schedule, every holiday exception, and its 2025
+    entries; the same rule `market_indicators.cot_release.rule_release_date` implements and
+    this reuses, so the COT tab and the Market Indicators knowledge time cannot disagree):
+      * positions as of Tuesday, released that week's Friday;
+      * a federal holiday or federal closure on the WEDNESDAY, THURSDAY or FRIDAY of that week
+        moves the release to the next federal publication day (2026: Jan 5, Jun 22, Jul 6,
+        Nov 16, Nov 30, Dec 28 — all Mondays). A Monday or Tuesday holiday does not move it
+        (2026: MLK, Presidents, Memorial, Labor, Columbus weeks all release Friday);
+      * a TUESDAY federal holiday moves the AS-OF date to the previous business day (as-of Monday
+        2025-11-10, Veterans Day Tuesday 2025-11-11); a one-off closure does not.
+    Holidays come from the econ package's federal calendar, derived by RULE (fixed dates with
+    the Sat→Fri / Sun→Mon observed shift, plus the nth-weekday holidays); closures are its
+    executive-order list. No release date is hard-coded here."""
+    from api.services.econ import timeutil as fedcal
+    from api.services.market_indicators import cot_release
+    tue = day - timedelta(days=(day.weekday() - 1) % 7)          # the Tuesday on or before `day`
+    for _ in range(6):
+        rel = cot_release.rule_release_date(tue)
+        if rel < day or (include_day and rel == day):
+            asof = tue
+            # a Tuesday federal HOLIDAY: as-of the business day before. Only a holiday (rule-derived), never a one-off
+            # closure: an OPM closure (2026-01-27) does not stop CFTC's as-of date, and shifting it would expect an
+            # OLDER report — the direction that could hide a real miss.
+            while not fedcal.is_business_day(asof):
+                asof -= timedelta(days=1)
+            return asof
+        tue -= timedelta(days=7)
+    raise ValueError(f"no COT release found in the six weeks before {day}")
+
+
+def expected_latest_report_date(now_et: datetime) -> _date_cls:
+    """The as-of date of the newest COT report CFTC should have published by `now_et`.
+
+    Holiday-aware (see `_report_due_by`): the release is due at the 4:30 PM ET threshold on its
+    release day (CFTC publishes by 3:30 PM; 4:30 is a conservative buffer). If the calendar
+    cannot decide (a lookup fails), the old every-Friday rule answers — it can only flag MORE
+    stale, never hide a real miss.
+    """
+    try:
+        after = (now_et.hour, now_et.minute) >= (_PUBLISH_HOUR_ET, _PUBLISH_MIN_ET)
+        return _report_due_by(now_et.date(), include_day=after)
+    except Exception as exc:  # noqa: BLE001 — fail toward flagging stale
+        logger.warning("COT: holiday-aware report date failed (%s) — using the every-Friday rule", exc)
+        return _friday_rule_report_date(now_et)
+
+
+def daily_catchup(now_et: datetime | None = None) -> bool:
+    """The 18:00 ET daily catch-up (api/main.py `cot_daily_catchup`): download the current-year file when the store
+    lacks the report CFTC should have published by now. Returns True when it downloaded.
+
+    Holiday-aware through expected_latest_report_date. It replaced an inline "latest is 8+ days old" rule, which
+    re-downloaded every evening of a holiday week (the report not out until Monday) and every Wednesday / Thursday of a
+    normal week (last week's report is 8-9 days old by then, and current). It is also the scheduled path that fetches a
+    holiday week's DELAYED MONDAY release: the Friday cron jobs never run on a Monday."""
+    if now_et is None:
+        from zoneinfo import ZoneInfo
+        now_et = datetime.now(ZoneInfo("America/New_York"))
+    latest = _latest_record_date()
+    if not latest:
+        return False                        # empty store: seed_from_historical's job, as before
+    expected = expected_latest_report_date(now_et)
+    if _date_cls.fromisoformat(latest) < expected:
+        logger.info("COT: daily catch-up — latest %s < expected %s, refreshing", latest, expected)
+        refresh_from_current()
+        return True
+    logger.info("COT: daily catch-up — latest %s covers expected %s, skipping", latest, expected)
+    return False
 
 
 def _maybe_auto_refresh_if_stale() -> None:

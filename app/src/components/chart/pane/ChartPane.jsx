@@ -21,6 +21,7 @@ import AttachedPineDisclosures from './AttachedPineDisclosures'
 // W9-T13b: the strategy report panel, DARK behind VITE_PINE_STRATEGY_BROKER_ENABLED (read inside)
 import AttachedStrategyReports from './AttachedStrategyReports'
 import UIcon from '../../ui/UIcon'
+import ChartTypeMenu from './ChartTypeMenu'
 import { VOLUME_PANE_SURFACE_FIXED } from '../indicatorRegistry'
 import { tfLabel, tfSortKey, tfSpokenLabel } from '../timeframes'
 import { TF_ORDER, shortcutClaimsKey } from '../keyboardShortcuts'
@@ -531,11 +532,12 @@ function ChartPane({
   const rowAbbrev = oneRowMode && rowLevel >= 3
   const rowCap = oneRowMode && rowLevel >= L_TF ? Math.max(1, visibleTfs.length - (rowLevel - L_TF + 1)) : 99
   const rowHideMeta = oneRowMode && rowLevel >= L_META
-  const rowHideDateNav = oneRowMode && rowLevel >= L_META + 1
-  const rowHideChange = oneRowMode && rowLevel >= L_META + 2
-  const rowHideSession = oneRowMode && rowLevel >= L_META + 3
-  const rowHideSymMenu = oneRowMode && rowLevel >= L_META + 4
-  const ROW_LEVEL_MAX = L_META + 4
+  const rowHideChartType = oneRowMode && rowLevel >= L_META + 1   // the chart-type button (owner 11-15)
+  const rowHideDateNav = oneRowMode && rowLevel >= L_META + 2
+  const rowHideChange = oneRowMode && rowLevel >= L_META + 3
+  const rowHideSession = oneRowMode && rowLevel >= L_META + 4
+  const rowHideSymMenu = oneRowMode && rowLevel >= L_META + 5
+  const ROW_LEVEL_MAX = L_META + 5
   const responsiveTfs = Array.isArray(effTfCodes)
     ? visibleTfs
     : trimTimeframes(visibleTfs, (isBreadthLike || isEcon) ? breadthTf : tf, oneRowMode ? rowCap : tfCap)
@@ -1042,6 +1044,12 @@ function ChartPane({
     >
       {/* Host slot injected AFTER the timeframe buttons and BEFORE the meta
           fields (MARKET CAP / NEXT EARNINGS / …) — the Time Navigator seat. */}
+      {/* Chart type (owner 11-15): the current type's icon after the timeframes; its menu is
+          Chart Settings → Price style's list, written through the same settings writer. */}
+      {!compact && !mini && !isBreadthLike && !isEcon && !rowHideChartType && (
+        <ChartTypeMenu value={chartCs.chartType || 'candles'}
+          onPick={(t) => updateFromSettingsModal({ ...chartCs, chartType: t, preset: 'custom' })} />
+      )}
       {!rowHideDateNav && slots?.tfBarAfterTf}
       {!compact && !mini && !rowHideMeta && (
         /* tight: when the Time Navigator sits before the fields, drop the wide

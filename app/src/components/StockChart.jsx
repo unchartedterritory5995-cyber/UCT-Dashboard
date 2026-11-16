@@ -4643,8 +4643,21 @@ export default function StockChart({
   // ⭐ The exchange is our STORE's friendly spelling ("NYSE Arca"), which is
   // exactly what the witness table is keyed on — `ticker_meta.py` already
   // produces it, and the rig confirmed the pairing independently on SPY.
+  // ⭐⭐ RS RATING L3 (2026-11-15) — AND THE CLASSIFICATION FIELDS, from the SAME `tickerMeta`
+  // (nothing new is fetched): `industry` / `sector` are our store's strings and `securityType` its
+  // instrument class (`ticker_meta.security_type`, the screener universe's `Stock` / `ADR` / `ETF`).
+  // The fold (`bind.js::classificationWith`) serves TradingView's string where a capture witnessed
+  // one for that class or string, else OURS, tagged substituted; a missing field settles nothing.
+  // ⛔ The live meta only: Model Book's curated watermark industry is a display fact, not the
+  // symbol's classification.
   const symbolMeta = useMemo(() => (
-    sym ? { ticker: sym, exchange: (tickerMeta && tickerMeta.exchange) || null } : null
+    sym ? {
+      ticker: sym,
+      exchange: (tickerMeta && tickerMeta.exchange) || null,
+      industry: (tickerMeta && tickerMeta.industry) || null,
+      sector: (tickerMeta && tickerMeta.sector) || null,
+      securityType: (tickerMeta && tickerMeta.security_type) || null,
+    } : null
   ), [sym, tickerMeta])
   const ipoInfo = useTickerIpo(_econId || _study ? null : sym)       // { list_date } — official first-listing day
   const [ipoPopup, setIpoPopup] = useState(null)  // { date, x, y } first-trade tag
@@ -6897,9 +6910,14 @@ export default function StockChart({
   // export route) passes no `showDrawingTools` and gets inert rows, so the export
   // keeps a legend with no controls in it and the pixel-parity baselines do not
   // move.
+  // ⭐ UCT SIGNATURE (2026-11-15) — the vertical row's hover strip (hide · settings · more)
+  // calls the SAME two writers the popover's Hide / Edit rows call. The one door is still
+  // `onOpen`; a flat row ignores the other two.
   const legendRowHandlers = useMemo(() => (showDrawingTools ? {
     onOpen: handleRowMenu,
-  } : null), [showDrawingTools, handleRowMenu])
+    onToggleHidden: legendRowHidden,
+    onSettings: legendRowSettings,
+  } : null), [showDrawingTools, handleRowMenu, legendRowHidden, legendRowSettings])
 
   /** The volume PANE STRIP's door.
    *
@@ -6992,13 +7010,17 @@ export default function StockChart({
     // rows of the popover `onMenu` opens, closed over in the render block below —
     // but the chip no longer needs three props to render three targets.
     onMenu: handleChipMenu,
+    // ⭐ UCT SIGNATURE — the grid row's hover strip; the same writers the popover's
+    // Hide / Settings rows call (`IndicatorChip` renders it in the grid variant only).
+    onToggleHidden: handleChipHidden,
+    onSettings: handleChipSettings,
     // Additive, phone-shell-only (prop null everywhere else): a tap on the chip
     // BODY opens the study's mobile editor. Spread at all three legend branches
     // through this one object, so the parity-pinned JSX stays untouched.
     onBodyTap: onLegendStudyTap
       ? (chip) => onLegendStudyTap({ kind: 'study', defId: chip.defId, instanceId: chip.instanceId })
       : undefined,
-  } : null), [showDrawingTools, handleChipMenu, onLegendStudyTap])
+  } : null), [showDrawingTools, handleChipMenu, handleChipHidden, handleChipSettings, onLegendStudyTap])
   // ⭐ Decision C5 (2026-11-07) — on the phone shell a tap on a chip whose
   // definition DECLARES A READOUT (UCT RS) opens the chip menu sheet, the same
   // sheet a long-press opens: the readout is the at-a-glance read, and Edit is one
@@ -20166,7 +20188,7 @@ export default function StockChart({
                   <>
                     <div className={styles.barInfo} data-testid="econ-bar-info">
                       {barShows('date') && (
-                        <span className={styles.barDate} style={legBase}>{formatBarInfoDate(crosshairData.time)}</span>
+                        <span className={styles.barDate}>{formatBarInfoDate(crosshairData.time)}</span>
                       )}
                       {_ro ? (
                         <>
@@ -20205,7 +20227,7 @@ export default function StockChart({
               })() : (
               <div className={styles.barInfo}>
                 {barShows('date') && (
-                  <span className={styles.barDate} style={legBase}>{formatBarInfoDate(crosshairData.time)}</span>
+                  <span className={styles.barDate}>{formatBarInfoDate(crosshairData.time)}</span>
                 )}
                 {barShows('open') && (
                   <span className={styles.barField} style={legBase}>
@@ -21021,6 +21043,9 @@ export default function StockChart({
                    INSTANCE-oriented even though the values are plot-oriented,
                    which is exactly what the approved V1 asks for. */
                 onOpen: (_id, anchor) => chipHandlers.onMenu(paneRowPrimary(row.chips, c), anchor),
+                // ⭐ UCT SIGNATURE — the hover strip acts on the same PRIMARY instance.
+                onToggleHidden: () => chipHandlers.onToggleHidden(paneRowPrimary(row.chips, c).instanceId),
+                onSettings: () => chipHandlers.onSettings(paneRowPrimary(row.chips, c).instanceId),
               } : null)}
             />
           ))}

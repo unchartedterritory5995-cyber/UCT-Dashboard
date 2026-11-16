@@ -65,11 +65,24 @@ def test_the_server_import_never_reads_the_front_end_order_set():
     """`strategy_orders` is lazy: importing the detector opens no front-end file."""
     import importlib
     import sys
-    sys.modules.pop("api.services.pine_capabilities", None)
-    fresh = importlib.import_module("api.services.pine_capabilities")
-    assert fresh.strategy_orders.cache_info().currsize == 0
-    assert fresh.capabilities_of(V5 + "plot(close)\n") == frozenset({"core"})
-    assert fresh.strategy_orders.cache_info().currsize == 0
+    import api.services as services_pkg
+    name = "api.services.pine_capabilities"
+    original = sys.modules.pop(name, None)
+    try:
+        fresh = importlib.import_module(name)
+        assert fresh is not original
+        assert fresh.strategy_orders.cache_info().currsize == 0
+        assert fresh.capabilities_of(V5 + "plot(close)\n") == frozenset({"core"})
+        assert fresh.strategy_orders.cache_info().currsize == 0
+    finally:
+        # ⛔ put the first module object back, in `sys.modules` AND on the package. Left as the fresh
+        # copy, every later file's `from api.services import pine_capabilities as pc` (bound at
+        # collection) is a DIFFERENT object from the one `runtime_definitions` imports at call time, so a
+        # spy patched onto `pc.capabilities_of` is never called: 11 admission / detector-worker tests
+        # went red whenever they ran after this file (the full suite, and pine-heavy's pytest leg).
+        if original is not None:
+            sys.modules[name] = original
+            services_pkg.pine_capabilities = original
 
 
 # ─── what it declares ────────────────────────────────────────────────────────

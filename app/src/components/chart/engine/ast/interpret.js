@@ -6418,6 +6418,13 @@ export function treeReadsSym(tree) {
   return false
 }
 
+/** ⭐⭐ RS RATING L6b — the mark on a supplied other-symbol series (non-enumerable, set by
+ *  `otherSymbols.js` from a witness row) saying a chart bar with no bar of the same `t` reads
+ *  Pine's `na`, as witnessed, not an unknown carried value: `symAlignmentMask` withholds none
+ *  of its gaps. Q-RS2: `request.seed` lands each row on the chart bar of the same date, and a
+ *  chart bar with no row reads `na` (no carry-forward). */
+export const SERIES_GAPS_READ_NA = '__gapsReadNa'
+
 /** ⭐⭐ C26 — THE BARS OF A TREE WHOSE ANSWER DEPENDS ON AN OTHER-SYMBOL BAR WE
  *  DO NOT HOLD, as a 0/1 column (1 = withheld), or null when nothing is withheld.
  *
@@ -6467,6 +6474,9 @@ export function symAlignmentMask(tree, bars, opts) {
   for (const a of nodes) {
     const series = supplied[String(a.value).trim().toUpperCase()]
     if (!Array.isArray(series) || series.length === 0) { mask.fill(1); return mask }
+    // ⭐ RS RATING L6b — a series whose WITNESS says a chart bar with no bar of its date reads
+    // `na` (`SERIES_GAPS_READ_NA`: Q-RS2, a Pine seed) has no unknown bar: its gaps are known.
+    if (series[SERIES_GAPS_READ_NA] === true) continue
     let reach = Math.max(0, rootReach - maxLookback(a))
     if (!Number.isFinite(reach)) reach = n
     const held = new Set()
@@ -6489,6 +6499,90 @@ export function symAlignmentMask(tree, bars, opts) {
     }
   }
   return any ? mask : null
+}
+
+/** ⭐⭐ RS RATING L5 — THE MERGE PICK, ONE AUTHORITY: for each bar of an ISO-dated series,
+ *  the index of the higher-timeframe bar (`resampleTo`'s `at`) a `tf_merge` read hands it,
+ *  or -1 where it hands none. Bar `i` closes its period exactly when bar `i + 1` sits in
+ *  another bucket, and then reads its own bucket `b`; every other bar reads `b - 1`, the
+ *  last closed period. A bar with no readable day, or followed by one, reads nothing (the
+ *  whole series is then withheld by `tfMergeMask`). The evaluator's `tf_merge` arm and the
+ *  runtime lane's request (`requestAlignment`) both read this. */
+export function tfMergeReads(isos, code, at) {
+  const length = isos.length
+  const out = new Array(length).fill(-1)
+  for (let i = 0; i < length; i++) {
+    const iso = isos[i]
+    if (!iso) continue
+    const b = at.get(tfBucket(iso, code))
+    const next = i + 1 < length ? isos[i + 1] : null
+    if (i + 1 < length && !next) continue
+    if (next === null || tfBucket(next, code) !== tfBucket(iso, code)) out[i] = b
+    else if (b > 0) out[i] = b - 1
+  }
+  return out
+}
+
+/** ⭐⭐ RS RATING L5 — WHICH REQUESTED BAR EACH CHART BAR READS, AND WHICH CHART BARS ARE
+ *  WITHHELD, for the runtime lane's `request.security`: the host lane's own answer.
+ *
+ *  The request is the tree the host translator builds for it (`pine.js::securityAsNode`):
+ *  `tf_merge(code, ·)` for this chart's symbol at a weekly / monthly code, `sym(X, ·)` for
+ *  another symbol at the chart's own timeframe, `sym(X, tf_merge(code, ·))` for both. So:
+ *    * the requested bars are the source series itself (same timeframe), or its
+ *      higher-timeframe bars as the `tf_merge` arm builds them (`resampleTo`);
+ *    * a source bar reads its own bar (same timeframe) or the merge pick (`tfMergeReads`,
+ *      decided on the SOURCE series' own next bar, as the arm decides it inside `sym`);
+ *    * another symbol's bar is placed on the chart bar with the same `t`, exact match,
+ *      never forward-filled (the `sym` arm's rule): a same-timeframe other symbol reads its
+ *      own session date, never the session before;
+ *    * withheld = `tfMergeMask` ∪ `symAlignmentMask` over that same tree with a leaf child
+ *      that reads no bar: the newest bar of a merge (unless forming, or certainly closing
+ *      its period), the first partial period off the listing, every chart bar from the other
+ *      series' newest bar on under a merge, and every chart bar whose counterpart is missing
+ *      after the other series' history began.
+ *  ⛔ NOTHING HERE IS A SECOND RULE: every decision is a call into a function the host lane
+ *  draws with. `opts`: `tf`, `newestBarIsForming`, `historyFromListing`, `chartClockSink`
+ *  (receives each withheld code and its sentence).
+ *  @returns {{runBars: object[], index: number[], withheld: Float64Array}} */
+export function requestAlignment({ chartBars, srcBars, code = null, other = null, opts = {} }) {
+  const n = Array.isArray(chartBars) ? chartBars.length : 0
+  const src = Array.isArray(srcBars) ? srcBars : []
+  let runBars = src
+  let srcRead = null
+  if (code !== null) {
+    const isos = src.map((b) => isoDay(b && b.t))
+    const { htf, at } = resampleTo(src, isos, code)
+    runBars = htf
+    srcRead = tfMergeReads(isos, code, at)
+  }
+  const index = new Array(n).fill(-1)
+  const sym = other === null ? null : String(other).trim().toUpperCase()
+  if (sym === null) {
+    for (let i = 0; i < n && i < src.length; i++) index[i] = srcRead ? srcRead[i] : i
+  } else {
+    const at = new Map()
+    for (let j = 0; j < src.length; j++) {
+      const key = src[j] && typeof src[j] === 'object' ? src[j].t : undefined
+      if (key !== undefined && key !== null && !at.has(key)) at.set(key, j)
+    }
+    for (let i = 0; i < n; i++) {
+      const key = chartBars[i] && typeof chartBars[i] === 'object' ? chartBars[i].t : undefined
+      const j = key === undefined || key === null ? undefined : at.get(key)
+      if (j !== undefined) index[i] = srcRead ? srcRead[j] : j
+    }
+  }
+  const leaf = { type: 'num', value: 0 }
+  let tree = code !== null ? { type: TF_MERGE, value: code, args: [leaf] } : leaf
+  if (sym !== null) tree = { type: 'sym', value: sym, args: [tree] }
+  const o = { ...(opts || {}), symbols: sym !== null ? { [sym]: src } : undefined }
+  const masks = [
+    code !== null ? tfMergeMask(tree, chartBars, o) : null,
+    sym !== null ? symAlignmentMask(tree, chartBars, o) : null,
+  ].filter(Boolean)
+  const withheld = new Float64Array(n)
+  for (const m of masks) for (let i = 0; i < n; i++) if (m[i]) withheld[i] = 1
+  return { runBars, index, withheld }
 }
 
 /** Withhold (`NaN`) the bars `symAlignmentMask` names — see there. A COPY: the
@@ -6983,6 +7077,9 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         // ⛔ FORMULA `tf` IS UNTOUCHED: it keeps `b - 1` on every bar, which is its
         // documented meaning (members' formulas, scans and alerts rely on it).
         const merge = n.type === TF_MERGE
+        // ⭐⭐ RS RATING L5 — the merge pick is `tfMergeReads`, the ONE authority the runtime
+        // lane's `request.security` reads too (`requestAlignment`).
+        const reads = merge ? tfMergeReads(isos, code, at) : null
         const out = nan(length)
         for (let i = 0; i < length; i++) {
           const iso = isos[i]
@@ -6990,10 +7087,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
           const b = at.get(tfBucket(iso, code))
           if (live) out[i] = child[b]
           else if (merge) {
-            const next = i + 1 < length ? isos[i + 1] : null
-            if (i + 1 < length && !next) continue          // withheld whole (`tfMergeMask`)
-            if (next === null || tfBucket(next, code) !== tfBucket(iso, code)) out[i] = child[b]
-            else if (b > 0) out[i] = child[b - 1]
+            if (reads[i] >= 0) out[i] = child[reads[i]]
           } else if (b > 0) out[i] = child[b - 1]
         }
         return out

@@ -1099,6 +1099,15 @@ def signup(request: Request, req: SignupRequest, response: Response):
     except Exception as e:
         print(f"[signup] Failed to add terminal cohort: {e}")
 
+    # Create Indicator is open to every account (owner decision 2026-11-15): a new
+    # signup joins its cohort. The kill switch still decides what is shown. Never
+    # fails signup.
+    try:
+        from api.services import rollout_gate
+        rollout_gate.enroll_in_create_indicator(user["id"])
+    except Exception as e:
+        print(f"[signup] Failed to add create-indicator cohort: {e}")
+
     # Send verification email (non-blocking — don't fail signup if email fails)
     try:
         ver_token = create_email_verification(user["id"])
