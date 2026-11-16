@@ -56,7 +56,7 @@ import { activeStructures, structureLabels, structureDescs } from './setupLine'
 import { plainColumnLabel } from './plainWords'
 import { sortableColumns } from './sortKeys'
 import { capToTopN, poolOf } from './counts'
-import { defaultLanding, sameScreen, readLandingSeed, writeLandingSeed, readLastScreen, writeLastScreen } from './landing'
+import { defaultLanding, sameScreen, readLandingSeed, writeLandingSeed, readLastScreen, writeLastScreen, rsExtras } from './landing'
 import { livePriceOf } from './livePrice'
 import ChartPane from './ChartPane'
 import PhoneChartSheet from './PhoneChartSheet'
@@ -67,6 +67,15 @@ import useWatchlistTarget from './useWatchlistTarget'
 import { whyItsHere, whyColumns } from './whyItsHere'
 import { describeEmptying } from './emptyUndo'
 import { migratePinned } from './screenGroups'
+import QuickControls from './QuickControls'
+import { RS_CONTROLS_PREF, RS_NOTE_PREF, RS_LEADERS_ID, RS_SCREENS_COLUMNS, controlsOf, applyOption, specWithChoices, choicesFor, withChoice, withoutChoices, controlStarterFor, placeOverride, offeredChoices, sortLabelOf, steadyOf } from './rsScreens'
+import { rowConfigOf, rowColumns, ratingsAsOf, sectorShare, rowFacts } from './rsRows'
+import { RsHeaderLine, RsFirstVisit, RsEmptyState, RsMarketLine } from './RsScreenParts'
+import { marketLineOf, readMarketHidden, writeMarketHidden } from './rsMarket'
+import RsAlertToggle from './RsAlertToggle'
+import { rsAlertsOf } from './rsAlerts'
+import WhyNotHere from './WhyNotHere'
+import { droppedReasons } from './droppedReasons'
 import { useNameDialog } from './useNameDialog'
 import { useShortcutsSheet } from './useShortcutsSheet'
 import lazy from '../../../utils/lazyWithRetry'
@@ -185,7 +194,38 @@ function FocusList({ mode, onMode }) {
   // ── the scan ─────────────────────────────────────────────────────────────
   // Retry must change the spec's JSON or useScreenerScan refires nothing (ScannerShell's recipe).
   const [retryNonce, setRetryNonce] = useState(0)
-  const columns = useMemo(() => [...new Set([...REQUIRED_COLS, ...LIST_COLUMNS, ...whyColumns(s.filters)])], [s.filters])
+  // ── screen identity (which starter or saved screen is applied). Read BEFORE the scan is built:
+  // the columns the list asks for depend on the open starter (RS screens, below).
+  const { saved, starters, rsMarket, rsPending, rsAlerts, setRsAlert, error: savedError, loaded: savedLoaded, refresh } = useSavedScreens()
+  const [current, setCurrent] = useState(() => (arrivedBare.current ? null : readNamed()[normalSpec(s.baseSpec)] || null))
+  // ── RS screens (unit U5): what the open screen's STARTER adds to it ──────
+  // The starter on view, from the live starters payload by id; it may carry `controls`, `row`
+  // and `empty` (CONTRACT-SCREENS.md). A saved screen, a custom screen and a starter without them
+  // get nothing: nothing below draws and nothing more is asked of the server.
+  // Until the payload has answered, a screen that landed from this browser's memory reads what
+  // that memory kept of it (landing.js rsExtras), so its first scan already asks for its row's
+  // columns: one scan on a bare open, never a plain list first and the RS list a moment later.
+  const rsStarter = useMemo(() => {
+    if (!current || current.kind === 'saved') return null
+    const live = starters.find(x => String(x.id) === String(current.id))
+    if (live) return live
+    if (savedLoaded && !savedError) return null
+    return current.controls || current.row || current.empty ? current : null
+  }, [current, starters, savedLoaded, savedError])
+  const rsControls = useMemo(() => controlsOf(rsStarter), [rsStarter])
+  // The place column follows the chosen option when it names one (unit U6: the period boards of
+  // Top RS Rating are numbered by their own place, never by the overall one). A column name or
+  // null, read from the working spec, so the memo below moves only when the column does.
+  const rsPlace = placeOverride(rsControls, { filters: s.filters, sort: s.sort, rank: s.rank })
+  const rsRow = useMemo(() => rowConfigOf(rsStarter, rsPlace), [rsStarter, rsPlace])
+  // How the open starter keeps its own list, when it does (unit U12: UCT RS Leaders), for
+  // "Why isn't a stock here?".
+  const rsSteady = useMemo(() => steadyOf(rsStarter), [rsStarter])
+  // ⛔ Asked ONLY for a starter that carries `row`: the scan refuses a column the server does not
+  // have with a 400, and these exist only where the RS screens do. Keyed on the names, so the
+  // live payload replacing a remembered copy of the same starter asks nothing again.
+  const rsCols = rowColumns(rsRow).join(',')
+  const columns = useMemo(() => [...new Set([...REQUIRED_COLS, ...LIST_COLUMNS, ...whyColumns(s.filters), ...(rsCols ? rsCols.split(',') : [])])], [s.filters, rsCols])
   // The screen's identity for the selection: a new screen starts at row 0; paging,
   // a live re-sort or a retry of the same screen keep the selected stock.
   const screenSig = screenSigOf(s.baseSpec)
@@ -270,6 +310,11 @@ function FocusList({ mode, onMode }) {
   const pending = !!result && rowsKey !== screenSig
   const listed = error ? null : answered.listed
   const shown = answered.shown || { filters: s.filters, logic: s.logic, rank: s.rank }
+  // RS screens: the rows on view answer `shown`, which is the screen before this one while a new
+  // answer is on its way. Their place numeral is read by the option THAT screen had chosen, so a
+  // board being left is never renumbered by the column of the board being opened.
+  const rsPlaceShown = placeOverride(rsControls, { filters: shown.filters, sort: shown.baseSpec?.sort || s.sort, rank: shown.rank })
+  const rsRowShown = useMemo(() => rowConfigOf(rsStarter, rsPlaceShown), [rsStarter, rsPlaceShown])
   // S2: a ranked screen lists at most its top_n; every count shown for the list says so.
   const shownTotal = capToTopN(total, shown)
   const hasMore = shownTotal != null && rows.length < shownTotal && !exhausted && !pending
@@ -293,7 +338,6 @@ function FocusList({ mode, onMode }) {
   // ── New today (spec 2026-10-16 s1) ───────────────────────────────────────
   // Asked with the screen's criteria only (the filter LIST, logic, rank), so a re-sort asks
   // nothing. Off (the payload flag) asks nothing and draws nothing.
-  const [current, setCurrent] = useState(() => (arrivedBare.current ? null : readNamed()[normalSpec(s.baseSpec)] || null))
   const specKey = normalSpec(s.baseSpec)
   const isEdited = !!current && normalSpec(current.spec) !== specKey
   const ntOn = useContext(AuthContext)?.screenerNewTodayEnabled === true
@@ -490,12 +534,15 @@ function FocusList({ mode, onMode }) {
   // B7: ↑/↓ pressed anywhere in the chart pane step the list, and the list takes focus back.
   const paneNavKey = useCallback(e => { selKeyDown(e); focusList() }, [selKeyDown, focusList])
   const openFiltersFromStrip = useCallback(() => openFilters(), [openFilters])
-  const [sheet, setSheet] = useState(null) // 'howto' | 'methodology' | 'library' | null
+  const [sheet, setSheet] = useState(null) // 'howto' | 'methodology' | 'rs-methodology' | 'library' | null
+  // RS screens: "How it works" (the first-visit line) and Help's "How the RS screens work" open
+  // the Methodology sheet at the RS screens' own page (the server's `rs_screens` document, U6), or
+  // at their first column card when the payload carries no such page.
+  const openRsHelp = useCallback(() => setSheet('rs-methodology'), [])
   const howToOn = useContext(AuthContext)?.howToChecklistsEnabled === true
   const howTo = howToOn ? approvedChecklist('screener.stocks') : null
 
-  // ── screen identity (which starter or saved screen is applied) ───────────
-  const { saved, starters, error: savedError, loaded: savedLoaded, refresh } = useSavedScreens()
+  // ── screen identity, continued (`current` and the saved screens are read above the scan) ──
   const [askName, nameDialog] = useNameDialog()
   const shortcuts = useShortcutsSheet()
   // {id, name, kind, spec}. Rehydrated from this tab's named screens when the spec this
@@ -524,10 +571,14 @@ function FocusList({ mode, onMode }) {
     if (current && normalSpec(current.spec) === specKey) { needsName.current = false; return }
     const hit = readNamed()[specKey] || [...starters.map(x => ({ ...x, kind: 'starter' })), ...saved.map(x => ({ ...x, kind: 'saved' }))]
       .find(it => it.spec && normalSpec(it.spec) === specKey)
+      // RS screens: a starter changed ONLY by its own quick controls is still that starter, shown as
+      // edited, so its name and controls survive a refresh or Back from a full chart (the URL carries
+      // the working spec, never the name). Tried last: an exact match above always wins.
+      || (st => (st ? { ...st, kind: 'starter' } : null))(controlStarterFor(starters, s.baseSpec))
     if (hit) { needsName.current = false; setCurrent({ id: hit.id, name: hit.name, kind: hit.kind, spec: hit.spec }) }
     else if (current) setCurrent(null)
   }, [s.baseSpec, specKey, starters, saved, current])
-  const { prefs, loading: prefsLoading } = usePreferences()
+  const { prefs, setPref, setPrefMerged, loading: prefsLoading, readFailed: prefsReadFailed } = usePreferences()
   // Pinned is migrated from the member's prefs, so the landing decision waits for them to answer
   // (a failed read settles too and lands on the defaults). Neither read is waited on forever.
   const [landingWaitOver, setLandingWaitOver] = useState(false)
@@ -545,7 +596,45 @@ function FocusList({ mode, onMode }) {
     const next = effectivePinned.includes(k) ? effectivePinned.filter(x => x !== k) : [...effectivePinned, k]
     setPinned(next); writeLS(PIN_KEY, JSON.stringify(next))
   }
-  const applyScreen = (spec, item) => { ed.applySpec(spec); setCurrent({ id: item.id, name: item.name, kind: item.kind, spec }) }
+  // RS screens: a starter opened before its controls or the member's remembered choices were known (a
+  // last-used screen lands from localStorage, ahead of both reads): its id, until they answer.
+  const freshOpen = useRef(null)
+  const applyScreen = (spec, item) => {
+    // A starter with quick controls opens with the member's remembered choices already laid over
+    // its spec (preference `screener_rs_controls`): one applySpec, so one scan. `current` keeps the
+    // starter's OWN spec, so a remembered choice reads as the edit it is.
+    let working = spec
+    freshOpen.current = null
+    if (item && item.kind !== 'saved') {
+      const st = starters.find(x => String(x.id) === String(item.id))
+      // A choice named WITH the open (unit U11: UCT Agent's "open RS New Highs for today" hands
+      // `item.choices`, { controlId: optionId }) goes over the remembered ones for this open. Only
+      // options the starter itself offers count. It is not written to the member's preference: a
+      // tap on the quick control is what remembers a choice, and Reset still returns the screen.
+      const asked = st?.controls ? offeredChoices(st, item.choices) : null
+      if (savedLoaded && !prefsLoading) {
+        if (st?.controls) working = specWithChoices(spec, st, { ...choicesFor(parsePref(prefs[RS_CONTROLS_PREF], null), item.id), ...asked })
+      } else if (asked) working = specWithChoices(spec, st, asked)
+      else freshOpen.current = String(item.id)
+    }
+    ed.applySpec(working)
+    setCurrent({ id: item.id, name: item.name, kind: item.kind, spec, ...rsExtras(item) })
+  }
+  // A quick control edits the working spec through the same editor as the Filters drawer, and
+  // the choice is remembered for this member and this screen.
+  const chooseOption = (control, option) => {
+    freshOpen.current = null
+    applyOption(ed, control, option)
+    if (rsStarter) setPrefMerged(RS_CONTROLS_PREF, stored => withChoice(stored, rsStarter.id, control.id, option.id))
+  }
+  // Reset: the starter's own spec again, and nothing remembered for it.
+  const resetControls = () => {
+    if (!rsStarter) return
+    freshOpen.current = null
+    ed.applySpec(rsStarter.spec)
+    setCurrent({ id: rsStarter.id, name: rsStarter.name, kind: 'starter', spec: rsStarter.spec, ...rsExtras(rsStarter) })
+    setPrefMerged(RS_CONTROLS_PREF, stored => withoutChoices(stored, rsStarter.id))
+  }
   // A screen the member chose is the one the next open lands on. Landing itself goes through
   // applyScreen, so a member who only ever landed is still a first-timer.
   const chooseScreen = (spec, item) => { writeLastScreen(uid, { ...item, spec }); applyScreen(spec, item) }
@@ -649,6 +738,24 @@ function FocusList({ mode, onMode }) {
       setCurrent(c => (c && String(c.id) === String(srv.id) ? { ...c, name: srv.name, spec: srv.spec || { filters: [] } } : c))
     }
   }, [landPhase, serverAnswered, starters, saved, savedError])
+  // RS screens: a starter that landed before its controls and the member's remembered choices
+  // were known gets those choices once both reads have answered and the landing is settled. Only
+  // while the screen is still exactly as it landed: a member who has touched the page, edited the
+  // screen or moved on keeps what they see (the landing's own rule).
+  useEffect(() => {
+    const id = freshOpen.current
+    if (!id || landPhase !== 'final' || !savedLoaded || prefsLoading) return
+    freshOpen.current = null
+    if (touched.current || !current || String(current.id) !== id || normalSpec(current.spec) !== specKey) return
+    const st = starters.find(x => String(x.id) === id)
+    const choices = st?.controls ? choicesFor(parsePref(prefs[RS_CONTROLS_PREF], null), id) : null
+    if (!choices) return
+    for (const control of controlsOf(st)) {
+      const option = control.options.find(o => o && o.id === choices[control.id])
+      if (option && !option.default) applyOption(ed, control, option)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs when the landing settles and the two reads answer; `prefs` and `ed` are read as of that render
+  }, [landPhase, savedLoaded, prefsLoading, current, specKey, starters])
   const markTouched = () => { touched.current = true }
   const myScans = useMemo(() => ((meta?.filters || []).find(f => f.key === 'scan')?.scans || [])
     .filter(x => x?.def_hash).map(x => ({ hash: x.def_hash, name: x.name || 'Untitled scan' })), [meta])
@@ -759,9 +866,12 @@ function FocusList({ mode, onMode }) {
   const selPx = selLive?.price
   const selChg = selLive?.change_pct
   const snapshotDate = listed?.snapshot_date
+  // RS screens: facts about the selected row the screen did not test (its Setup words, the age of
+  // its RS high, how far it is below its own high, its place), as notes after the filter checks.
+  const rsFacts = useMemo(() => (rsRow && selected ? rowFacts(selected, rsRow) : null), [rsRow, selected])
   const why = useMemo(() => whyItsHere({ filters: shown.filters, logic: shown.logic, rank: shown.rank, metaFilters: meta?.filters,
-    row: selected || {}, live: selected ? livePriceOf(selected, Number.isFinite(selPx) ? { price: selPx, change_pct: selChg } : null) : null, snapshotDate }),
-  [shown.filters, shown.logic, shown.rank, meta, selected, selPx, selChg, snapshotDate])
+    row: selected || {}, live: selected ? livePriceOf(selected, Number.isFinite(selPx) ? { price: selPx, change_pct: selChg } : null) : null, snapshotDate, facts: rsFacts }),
+  [shown.filters, shown.logic, shown.rank, meta, selected, selPx, selChg, snapshotDate, rsFacts])
   // S3: the screen menu counts each screen in the member's universe/list.
   const poolKey = JSON.stringify(poolOf(s.baseSpec))
   const pool = useMemo(() => JSON.parse(poolKey), [poolKey])
@@ -773,7 +883,10 @@ function FocusList({ mode, onMode }) {
     [shown.filters, meta])
   const colLabel = k => plainColumnLabel(k) || (meta?.filters || []).find(f => f.key === k || f.column === k)?.label || COLUMN_DEFS[k]?.label || k
   const sortArrow = s.sort?.dir === 'asc' ? '↑' : '↓'
-  const sortLabel = s.rank ? 'Your ranking' : `${colLabel(sortKey) || 'Default'} ${sortArrow}`
+  // A ranked screen is "Your ranking" and a sorted one names its column, unless the open starter
+  // names its own order and the working spec still carries it (unit U7: UCT RS Leaders reads
+  // "RS Rating"; unit U12: from its plain sort, now that the server keeps the list).
+  const sortLabel = sortLabelOf(rsStarter, { sort: s.sort, rank: s.rank }) || (s.rank ? 'Your ranking' : `${colLabel(sortKey) || 'Default'} ${sortArrow}`)
   // The sortable set is the view's columns from meta (the server sorts by any snapshot column),
   // restricted to NUMERIC ones: a text column sorts alphabetically, so "Structure ↓" ran Z→A.
   // A column is numeric when meta carries a range filter over it — the type is the server's,
@@ -797,8 +910,17 @@ function FocusList({ mode, onMode }) {
   const [density, setDensity] = useState(() => (readLS(DENSITY_KEY, 'compact') === 'comfortable' ? 'comfortable' : 'compact'))
   const [showCompany, setShowCompany] = useState(() => readLS(COMPANY_KEY, '0') === '1')
 
+  // The first night (the saved-screens payload's `rs_pending`): an RS screen that came back empty
+  // because the lists have not been built yet. It says so in the server's words, and neither the
+  // coverage sentence ("11,176 stocks have no RS Rating") nor the filter pills are shown: both
+  // describe a screen that ran, and this one has nothing to run on yet. Only while it IS empty,
+  // so a page left open over the run shows the list the moment the scan brings one back.
+  // `rsStarter` is ANY open starter; one of the RS screens is a starter that carries the contract's
+  // `controls`, `row` or `empty`, and only those wait on the pass.
+  const rsWaiting = total === 0 && !error && rsStarter && (rsStarter.controls || rsStarter.row || rsStarter.empty)
+    && rsPending && typeof rsPending.text === 'string' && rsPending.text ? rsPending : null
   const drops = []
-  if (coverageHasDrop(listed?.coverage)) {
+  if (!rsWaiting && coverageHasDrop(listed?.coverage)) {
     // Said as the ordinary fact it usually is: on any RS screen thousands of names have no
     // rating to compare, and "could not be checked" read as broken data on the first screen a
     // member opens (member walk, 2026-10-17: 7,765 on the default Leaders screen).
@@ -807,8 +929,24 @@ function FocusList({ mode, onMode }) {
     // RS_RANK_IBD_ENABLED the column is the nightly rating, which covers every stock with
     // enough price history, and neither the scan answer nor /api/auth/me says which of the two
     // this page is showing. So the sentence is the one that is true of both.
+    // 2026-11-15: "no RS Rating" was said of every screen that filters on the rating, whatever
+    // the rows were missing. On UCT RS Leaders (twelve filters) it read "10,811 stocks have no RS
+    // Rating" on a morning when 231 had none. The receipt now names the columns that were blank
+    // (`missing_keys`), and the rating is blamed only when it is the one column that was. An
+    // answer without that map (an older server) keeps the sentence it had.
     const n = fmtN((listed.coverage.dropped || 0) + (listed.coverage.not_computable || 0))
-    drops.push(s.filters?.rs_rank
+    const missing = listed.coverage.missing_keys
+    const blank = missing && typeof missing === 'object' && !Array.isArray(missing)
+      ? Object.keys(missing).filter(k => missing[k] > 0) : null
+    const ratingOnly = blank ? blank.length === 1 && blank[0] === 'rs_rank' : !!s.filters?.rs_rank
+    // `dropped` is the scan's stale gate (query.coverage_for): a stock whose daily bars stopped
+    // more than ten sessions behind the snapshot. When that is every stock the count holds, no
+    // filter was missing a value, and the line says what did happen.
+    // (inside `coverageHasDrop`, so with nothing not-computable the count is all dropped rows)
+    const staleOnly = !(listed.coverage.not_computable > 0)
+    drops.push(staleOnly
+      ? `${n} stocks have no recent price data, so they are not in this list.`
+      : ratingOnly
       ? `${n} stocks have no RS Rating, so they are not in this list.`
       : `${n} stocks have no value for one of these filters, so they are not in this list.`)
   }
@@ -827,6 +965,60 @@ function FocusList({ mode, onMode }) {
   }, [phoneSheet, focusList])
   // With no list on screen (a scan error, an empty screen) there is nothing to step: close.
   const listShowing = !error && !!result && total !== 0
+  // ── RS screens: the header line, the first-visit line, the starter's own empty state ──
+  // The line stays while a new answer is on its way (dimmed with the list, so nothing jumps); the
+  // sector sentence is said only of rows that answer the screen on view.
+  const rsHeadOn = !!rsRow && listShowing
+  const rsAsOf = useMemo(() => (rsHeadOn ? ratingsAsOf(rows) : ''), [rsHeadOn, rows])
+  const rsShare = useMemo(() => (rsHeadOn && !pending && String(rsStarter?.id) === RS_LEADERS_ID ? sectorShare(rows) : ''), [rsHeadOn, pending, rsStarter, rows])
+  // On an RS screen the list's new/dropped line moves up into that header line (one copy, never two).
+  // Unit U12: on an RS screen each dropped name says the first rule it now fails. One batched row
+  // read, asked only when the popover opens (NewTodayLine), judged against the screen the rows on
+  // view answer. A screen without `row` passes no asker and its popover is the one it was.
+  const reasonFilters = shown.filters
+  const metaFiltersAll = meta?.filters
+  const reasonsFor = useMemo(() => (rsRow
+    ? names => droppedReasons(names, { filters: reasonFilters, metaFilters: metaFiltersAll, steady: rsSteady })
+    : null), [rsRow, reasonFilters, metaFiltersAll, rsSteady])
+  const newLine = <NewTodayLine nt={nt} newOnly={newOnlyOn} onToggleNewOnly={() => setNewOnly(v => !v)} reasonsFor={reasonsFor} />
+  const newLineShows = nt?.state === 'ok' || nt?.state === 'live_screen'
+  // Shown until dismissed, and only once the preferences have answered, so it never flashes at a
+  // member who dismissed it (a refused read says nothing either way, so it stays hidden).
+  // Unit U12: only on a LIST screen (`row.list`). Its sentence is "The strongest liquid stocks,
+  // ranked...", which is not what RS exit warnings shows.
+  const rsNoteOn = !!rsRow?.list && !prefsLoading && !prefsReadFailed && !parsePref(prefs[RS_NOTE_PREF], null)
+  // The market caution line (unit U8): the state the saved-screens payload carries, on a screen
+  // whose starter has `row`, until the member hides it for today (rsMarket.js says how that is
+  // kept). `normal`, no state and a payload without the key draw nothing.
+  const marketLine = useMemo(() => marketLineOf(rsMarket), [rsMarket])
+  const [marketHidden, setMarketHidden] = useState(readMarketHidden)
+  const rsMarketOn = !!rsRow && !!marketLine && marketHidden !== marketLine.key
+  const hideMarketLine = () => { writeMarketHidden(marketLine.key); setMarketHidden(marketLine.key) }
+  // "Tell me what joins and leaves" (unit U13): one switch at the end of the header line, on a
+  // screen whose starter has `row`, only while the saved-screens payload says the daily message
+  // is available (rsAlerts.js). Keyed by the screen, so a refusal is never shown under another.
+  const rsAlertSet = useMemo(() => rsAlertsOf(rsAlerts), [rsAlerts])
+  const rsAlertId = rsRow && rsAlertSet && rsStarter?.id != null ? String(rsStarter.id) : null
+  const alertToggle = rsAlertId
+    ? <RsAlertToggle key={rsAlertId} screenName={rsStarter.name} on={rsAlertSet.subscribed.has(rsAlertId)} onSet={on => setRsAlert(rsAlertId, on)} />
+    : null
+  // The starter's own words for "nothing today", while the screen is still the starter's: once the
+  // member has changed it, the sentence is no longer about what they asked, and today's state
+  // (which filter to drop) is the honest one.
+  const rsEmpty = total === 0 && rsStarter?.empty && typeof rsStarter.empty.text === 'string' && current
+    && normalSpec(answered.shown?.baseSpec || s.baseSpec) === normalSpec(current.spec) ? rsStarter.empty : null
+  // An action names a control and one of its options, or another starter to open. One that
+  // points at something this payload does not have is not offered.
+  const rsEmptyActions = (rsEmpty && Array.isArray(rsEmpty.actions) ? rsEmpty.actions : []).map(a => {
+    if (!a || typeof a.label !== 'string' || !a.label) return null
+    if (a.open) {
+      const st = starters.find(x => String(x.id) === String(a.open))
+      return st ? { label: a.label, run: () => chooseScreen(st.spec || { filters: [] }, { ...st, kind: 'starter' }) } : null
+    }
+    const control = rsControls.find(c => c.id === a.control)
+    const option = control?.options.find(o => o && o.id === a.option)
+    return option ? { label: a.label, run: () => chooseOption(control, option) } : null
+  }).filter(Boolean)
   useEffect(() => { if (phoneSheet && !listShowing) closePhoneSheet() }, [phoneSheet, listShowing, closePhoneSheet])
   // B5-style primitive: the pane gets the selected row's theme NAME, so a step re-renders only it.
   const selTheme = selected ? themeData[selected.ticker] || null : null
@@ -845,8 +1037,12 @@ function FocusList({ mode, onMode }) {
   } else if (total === 0) {
     // The pills are built from the screen that CAME BACK empty, never the live spec: a filter
     // being edited in the drawer must not grow a pill for a screen nobody has run yet.
-    body = <>{flagsOutsideList}<EmptyState filterCount={filterCount} lastChange={lastChange} onUndo={undoLast} onOpenFilters={() => openFilters()}
-      pending={pending} spec={answered.shown?.baseSpec || null} meta={meta} coverage={listed?.coverage || null} onRemoveFilter={k => ed.setFilter(k, null)} onRemoveLogic={() => ed.setLogic(null)} /></>
+    body = rsWaiting
+      ? <>{flagsOutsideList}<RsEmptyState text={rsWaiting.text} pending={pending} /></>
+      : rsEmpty
+      ? <>{flagsOutsideList}<RsEmptyState text={rsEmpty.text} actions={rsEmptyActions} pending={pending} /></>
+      : <>{flagsOutsideList}<EmptyState filterCount={filterCount} lastChange={lastChange} onUndo={undoLast} onOpenFilters={() => openFilters()}
+        pending={pending} spec={answered.shown?.baseSpec || null} meta={meta} coverage={listed?.coverage || null} onRemoveFilter={k => ed.setFilter(k, null)} onRemoveLogic={() => ed.setLogic(null)} /></>
   } else if (mode === 'map') {
     body = (
       <Suspense fallback={<div className={styles.gridView}><ListSkeleton /></div>}>
@@ -866,8 +1062,17 @@ function FocusList({ mode, onMode }) {
         <ResultList ref={hubResultsRef} itemProps={hubOn ? hubCursor.itemProps : undefined} rows={listRows} index={sel.index} onSelect={onRowSelect} onKeyDown={onListKeyDown}
           livePrices={prices} radar={radar} sortLabel={sortLabel} sortMenu={sortMenu} total={newOnlyOn ? listRows.length : shownTotal} hasMore={listHasMore}
           onLoadMore={s.loadMore} isLoading={isLoading} showCompany={showCompany} pending={pending} structures={structures}
-          newSet={newSet}
-          headExtra={<><NewTodayLine nt={nt} newOnly={newOnlyOn} onToggleNewOnly={() => setNewOnly(v => !v)} /><FlaggedActions /></>} />
+          newSet={newSet} rsRow={rsRowShown} themes={rsRow ? themeData : null}
+          // "Why isn't a stock here?" (unit U8), only on a LIST screen (unit U12, `row.list`: RS exit
+          // warnings is not a list a stock qualifies for). It reads the screen the rows on view ANSWER
+          // (`shown`), so its rules are the list's own while a new answer is on its way; `hasMore` is
+          // the list's, whatever "New only" is hiding.
+          headBelow={rsRow?.list ? (
+            <WhyNotHere screenKey={rowsKey} filters={shown.filters} logic={shown.logic} rank={shown.rank}
+              filterList={shown.baseSpec?.filters || s.baseSpec.filters} metaFilters={meta?.filters}
+              rows={rows} listRows={listRows} hasMore={hasMore} onFound={selectRow} steady={rsSteady} />
+          ) : null}
+          headExtra={<>{!rsRow && newLine}<FlaggedActions /></>} />
         {/* S5: primitives and stable callbacks only, so a tick for another ticker skips the pane.
             ONE chart on a phone: while the sheet shows the chart, the side pane (hidden there by
             CSS) is not mounted, so no second StockChart fetches bars behind it. */}
@@ -877,9 +1082,15 @@ function FocusList({ mode, onMode }) {
   }
 
   // ⭐ W2-C1: what UCT Agent may read here and the door it opens a saved screen through (applyScreen — the Screen menu's own)
-  useScreenerAgentHost({ rows, total, current, edited: isEdited, filters: Object.keys(s.filters || {}), loading: isLoading, saved, starters, applyScreen: chooseScreen, refresh })
+  // (`quickChoices`, unit U11: this layout lays a choice named with the open over the screen, applyScreen above)
+  useScreenerAgentHost({ rows, total, current, edited: isEdited, filters: Object.keys(s.filters || {}), loading: isLoading, saved, starters, applyScreen: chooseScreen, quickChoices: true, refresh })
   return (
+    // `data-phone-scroll` (RS screens): on a phone the whole page scrolls, not the list alone
+    // (FocusScreener.module.css). Seen on the live site on 2026-11-15 at 390 x 778: the RS
+    // controls, the ratings line, the market line and the "not in this list" line left the list
+    // a 152px window, about one stock, with the floating buttons over it.
     <div ref={pageRef} className={styles.page} data-testid="focus-screener" data-mode="list" data-density={density} onKeyDown={shortcuts.onKeyDown}
+      data-phone-scroll={rsRow && mode !== 'map' && mode !== 'grid' ? '' : undefined}
       onKeyDownCapture={markTouched} onPointerDownCapture={markTouched} onWheelCapture={markTouched} onScrollCapture={markTouched}>
       {/* The page's one h1, for assistive tech; the top bar carries the visible title. */}
       <h1 className="sr-only">Screener</h1>
@@ -910,8 +1121,14 @@ function FocusList({ mode, onMode }) {
           density={density} onDensity={d => { setDensity(d); writeLS(DENSITY_KEY, d) }}
           showCompany={showCompany} onToggleCompany={() => setShowCompany(v => { writeLS(COMPANY_KEY, v ? '0' : '1'); return !v })} />}
         helpMenu={<HelpMenu onHowTo={howTo ? () => setSheet('howto') : null} onMethodology={() => setSheet('methodology')}
-          onLibrary={() => setSheet('library')} onGlossary={() => openFilters()} shortcuts={shortcuts} />}
+          onLibrary={() => setSheet('library')} onGlossary={() => openFilters()} shortcuts={shortcuts}
+          onRsHelp={starters.some(x => x && x.row) ? openRsHelp : null} />}
       />
+      {/* RS screens: the quick controls row, only for a starter that declares controls. */}
+      {rsControls.length > 0 && <QuickControls controls={rsControls} filters={s.filters} sort={s.sort} rank={s.rank} onChoose={chooseOption} onReset={resetControls} />}
+      {rsHeadOn && <RsHeaderLine newLine={newLine} showNewLine={newLineShows} asOf={rsAsOf} share={rsShare} pending={pending} alerts={alertToggle} />}
+      {rsMarketOn && <RsMarketLine text={marketLine.text} state={marketLine.state} onHide={hideMarketLine} />}
+      {rsNoteOn && <RsFirstVisit onHow={openRsHelp} onDismiss={() => setPref(RS_NOTE_PREF, '1')} />}
       {metaError && !meta && (
         // The list still renders with the current screen; only the filter registry is missing.
         <div className={styles.metaNote} role="alert">
@@ -932,8 +1149,9 @@ function FocusList({ mode, onMode }) {
         ariaLabel="How to use this screen" maxWidth={560}>
         {sheet === 'howto' && howTo && <ol className={styles.howToSteps}>{howTo.steps.map((t, i) => <li key={i}>{t}</li>)}</ol>}
       </Sheet>
-      <Sheet open={sheet === 'methodology'} onClose={() => setSheet(null)} variant="auto" title="Methodology" ariaLabel="Methodology" maxWidth={880}>
+      <Sheet open={sheet === 'methodology' || sheet === 'rs-methodology'} onClose={() => setSheet(null)} variant="auto" title="Methodology" ariaLabel="Methodology" maxWidth={880}>
         {sheet === 'methodology' && <MethodologyPanel />}
+        {sheet === 'rs-methodology' && <MethodologyPanel focusSection="rs_screens" focusColumns={RS_SCREENS_COLUMNS} />}
       </Sheet>
       <Sheet open={sheet === 'library'} onClose={() => setSheet(null)} variant="auto" title="Structure library" ariaLabel="Structure library" maxWidth={880}>
         {sheet === 'library' && <StructureProvenance />}

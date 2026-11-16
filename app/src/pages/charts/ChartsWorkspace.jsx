@@ -11,6 +11,7 @@ import useMediaQuery from '../../hooks/useMediaQuery'
 import useChartLayouts from '../../hooks/useChartLayouts'
 import { useAuth } from '../../context/AuthContext'
 import UIcon from '../../components/ui/UIcon'
+import useIndicatorDoors from '../../components/indicatorKit/useIndicatorDoors'
 import { WorkspaceContext } from './WorkspaceContext'
 import { GROUP_SAVE_MS, GROUP_SCAN_GAP_MS, GROUP_SCAN_SAVE_MS } from './groupSymSavePace'
 // UCT Agent (admin-dark): lazy, so nothing of the Agent reaches the board's chunk
@@ -174,6 +175,11 @@ const DEFAULT_LAYOUT = {
 
 // The classic watchlist + chart + themes arrangement, offered as a one-click
 // "Starter layout" on the get-started panel.
+// Owner 11-14: the widget Float button (⧉, float a widget on top of another) is switched
+// off for now. The feature itself stays (handleFloatWidget, FloatingWidget, the header's
+// button): flip this back to true to offer it again.
+const FLOAT_BUTTON_ON = false
+
 const STARTER_LAYOUT = {
   widgets: [
     { id: 'w-watchlist', type: 'watchlist', color: 'A', x: 0, y: 0, w: 4,  h: 7,  opts: {} },
@@ -804,6 +810,19 @@ const prefsGeneration = () => beginPrefsOp().gen
 // `hidden`: ChartsDeskHost is keeping this workspace alive behind another page because a board or
 // widget is popped out. A hidden board keeps its pop-outs and its state and does nothing in the main
 // window: no grid, no toolbar, no main-window widgets, no shortcuts (see `boardHidden` below).
+// A top-bar menu row's content (owner 11-14): gold glyph · label · ✓ (active) or › (submenu).
+// The glyphs are decorative (aria-hidden), so each button's accessible name is its label.
+function TbItem({ icon, label, hint = null, on = false, sub = false }) {
+  return (
+    <>
+      <span className={styles.tbGlyph} aria-hidden="true">{icon && <UIcon name={icon} size={15} gold={false} />}</span>
+      <span className={styles.tbLbl}>{label}{hint && <span className={styles.tbHint}>{hint}</span>}</span>
+      {on && <span className={styles.tbCheck} aria-hidden="true"><UIcon name="check" size={13} gold={false} /></span>}
+      {sub && <span className={styles.tbChev} aria-hidden="true"><UIcon name="chevronRight" size={12} gold={false} /></span>}
+    </>
+  )
+}
+
 export default function ChartsWorkspace({ hidden = false }) {
   const generation = useSyncExternalStore(onPrefsUserChange, prefsGeneration, prefsGeneration)
   return <ChartsWorkspaceBoard key={generation} boardHidden={hidden === true} />
@@ -1124,6 +1143,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // setPercentScale}). Each ChartWidget registers here on mount; the Compare
   // Symbols tool reads/writes the active chart's comparison overlays through it.
   const chartApiByIdRef = useRef(new Map())
+  // A door asked for from outside the chart (the command palette) opens on the active chart.
+  useIndicatorDoors(chartApiByIdRef, activeChartRef)
   // Same idea for watchlists: the last hovered/focused Watchlist widget owns the
   // arrow keys + its own scroll-into-view, so 4 watchlists don't all fight over one
   // keypress (first-mounted-wins race) or all force a reflow on every selection.
@@ -1496,7 +1517,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     const el = e.currentTarget.parentElement
     const op = el?.offsetParent
     if (!el || !op || !widget.w || !widget.h) return
-    const gap = MARGIN_Y
+    // The board's real gap (0 when merged) — the pitch and the pixel boxes use the same one.
+    const gap = gridGap
     const unitW = (el.offsetWidth + gap) / widget.w   // column pitch (colWidth + gap)
     const unitH = (el.offsetHeight + gap) / widget.h  // row pitch
     const aL = el.offsetLeft, aT = el.offsetTop
@@ -1528,12 +1550,33 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       aL, aT, aW: el.offsetWidth, aH: el.offsetHeight,
       minWpx: (def.minW || 2) * unitW - gap,
       minHpx: (def.minH || 3) * unitH - gap,
-      pixel: null, snapKey: '', resolved: null, raf: 0,
+      pixel: null, snapKey: '', resolved: null, raf: 0, gap, ptr: null,
     }
-    const onMove = (ev) => {
-      if (resizeRef.current !== st) return
-      const dx = ev.clientX - st.startX, dy = ev.clientY - st.startY
-      // 1) Pixel box — exact mouse follow, written straight to the DOM every event.
+    // ── Ultra-smooth (owner 11-14) ──────────────────────────────────────────────
+    // 1) Pointer events only RECORD the latest position; ONE requestAnimationFrame per
+    //    screen frame applies it. A fast mouse fires several pointermoves per frame —
+    //    writing the box on each made the widget (and the chart inside, via its resize
+    //    observers) lay out several times a frame: the "skippy" feel.
+    // 2) Neighbours yield by writing THEIR pixel boxes straight to the DOM too — no React
+    //    re-render of the whole board on every grid-cell crossing. The board commits ONCE,
+    //    on release (the same resolveResize result, so where things land is unchanged).
+    const boxOf = (g) => ({
+      left: st.minL + g.x * st.unitW, top: st.minT + g.y * st.unitH,
+      width: g.w * st.unitW - st.gap, height: g.h * st.unitH - st.gap,
+    })
+    const elOf = (id) => (id === st.id ? el : op.querySelector(`[data-widget-id="${CSS.escape(String(id))}"]`))
+    const writeBox = (node, bx) => {
+      node.style.transition = 'none'
+      node.style.left = `${bx.left}px`; node.style.top = `${bx.top}px`
+      node.style.width = `${bx.width}px`; node.style.height = `${bx.height}px`
+    }
+    st.touched = new Set()
+    const frame = () => {
+      st.raf = 0
+      if (resizeRef.current !== st || !st.ptr) return
+      const { x: cx, y: cy } = st.ptr
+      const dx = cx - st.startX, dy = cy - st.startY
+      // a) The active widget's pixel box — exact cursor follow, bounded by the canvas only.
       let left = st.aL, top = st.aT, width = st.aW, height = st.aH
       if (handle.includes('e')) width = st.aW + dx
       if (handle.includes('s')) height = st.aH + dy
@@ -1541,56 +1584,56 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       if (handle.includes('n')) { top = st.aT + dy; height = st.aH - dy }
       if (width < st.minWpx) { if (handle.includes('w')) left -= (st.minWpx - width); width = st.minWpx }
       if (height < st.minHpx) { if (handle.includes('n')) top -= (st.minHpx - height); height = st.minHpx }
-      // Bound to the CANVAS only (never a neighbour) so the drag can't get stuck.
       if (left < st.minL) { width += left - st.minL; left = st.minL }
       if (top < st.minT) { height += top - st.minT; top = st.minT }
       if (left + width > st.maxR) width = st.maxR - left
       if (top + height > st.maxB) height = st.maxB - top
       st.pixel = { left, top, width, height }
       applyActivePx(st)
-      // 2) Snapped grid target — only re-render (neighbour shrink) on cell crossing,
-      //    resolved against the STABLE base so shrink never compounds.
-      const g = resizeGeomAt(st, ev.clientX, ev.clientY)
+      // b) Neighbours: only when the snapped target crosses a grid cell, resolved against
+      //    the STABLE start layout (shrink never compounds), written straight to the DOM.
+      const g = resizeGeomAt(st, cx, cy)
       const key = `${g.x},${g.y},${g.w},${g.h}`
-      if (key !== st.snapKey) {
-        st.snapKey = key
-        // Keep the ACTIVE widget's React geom FROZEN at its start value during the
-        // drag — only the neighbours update live. Its box is owned entirely by the
-        // pixel-follow (applyActivePx + the useLayoutEffect), so letting RGL repaint
-        // it at interim snapped sizes just churns its contents (the chart's bottom
-        // jumping mid-corner-drag). It commits to its final geom on release.
-        const full = resolveResize(st.baseWidgets, g, handle)
-        st.resolved = full.map(w => (w.id === st.id
-          ? { ...w, x: st.geom.x, y: st.geom.y, w: st.geom.w, h: st.geom.h } : w))
-        if (!st.raf) st.raf = requestAnimationFrame(() => {
-          st.raf = 0
-          if (resizeRef.current === st && st.resolved) {
-            setLayout(prev => {
-              const ids = new Set(st.resolved.map(w => w.id))
-              const preserved = prev.widgets.filter(w => !ids.has(w.id))  // floated/popped
-              return { ...prev, widgets: [...st.resolved, ...preserved] }
-            })
-          }
-        })
+      if (key === st.snapKey) return
+      st.snapKey = key
+      const full = resolveResize(st.baseWidgets, g, handle)
+      const base = Object.fromEntries(st.baseWidgets.map(w => [w.id, w]))
+      for (const w of full) {
+        if (w.id === st.id) continue
+        const b0 = base[w.id]
+        const moved = !b0 || b0.x !== w.x || b0.y !== w.y || b0.w !== w.w || b0.h !== w.h
+        if (!moved && !st.touched.has(w.id)) continue
+        const node = elOf(w.id)
+        if (!node) continue
+        writeBox(node, boxOf(w))
+        st.touched.add(w.id)
       }
+    }
+    const onMove = (ev) => {
+      if (resizeRef.current !== st) return
+      st.ptr = { x: ev.clientX, y: ev.clientY }
+      if (!st.raf) st.raf = requestAnimationFrame(frame)
     }
     const onUp = (ev) => {
       if (resizeRef.current !== st) return
       if (st.raf) { cancelAnimationFrame(st.raf); st.raf = 0 }
       const g = resizeGeomAt(st, ev.clientX, ev.clientY)
       const resolved = resolveResize(st.baseWidgets, g, handle)
-      const rg = resolved.find(w => w.id === st.id) || g
-      // Pin the element to the RESOLVED (flush-against-neighbour) pixel box so it
-      // matches the committed grid geom exactly — do NOT clear width/left (that
-      // collapses the item to CSS `auto` width, and React skips the no-op re-render
-      // so it stays stuck narrow until an unrelated repaint).
-      el.style.left = `${st.minL + rg.x * st.unitW}px`
-      el.style.top = `${st.minT + rg.y * st.unitH}px`
-      el.style.width = `${rg.w * st.unitW - MARGIN_Y}px`
-      el.style.height = `${rg.h * st.unitH - MARGIN_Y}px`
-      el.style.zIndex = ''; el.style.transition = ''
+      // Pin every element we moved (the active one + each neighbour) to its RESOLVED
+      // pixel box, so the DOM already matches the committed grid geometry — React may
+      // skip a no-op style write (a neighbour that ended where it began), and must never
+      // be left showing an interim drag box. Then restore transitions.
+      for (const w of resolved) {
+        if (w.id !== st.id && !st.touched.has(w.id)) continue
+        const node = elOf(w.id)
+        if (!node) continue
+        writeBox(node, boxOf(w))
+        node.style.zIndex = ''
+        node.style.transition = ''
+      }
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
       resizeRef.current = null
       setResizingId(null)
       setLayout(prev => {
@@ -1605,7 +1648,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     setResizingId(widget.id)
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
-  }, [resizeGeomAt, applyActivePx, scheduleSave, floatingWidgetIds, poppedWidgetIds])
+    window.addEventListener('pointercancel', onUp)
+  }, [resizeGeomAt, applyActivePx, scheduleSave, floatingWidgetIds, poppedWidgetIds, gridGap])
 
   const handleRemoveWidget = useCallback((id) => {
     // Tell the auto-save this shrink is YOURS, so it is allowed to persist a
@@ -2806,6 +2850,9 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // action list; `*Sub` picks a nested panel (e.g. the widget-type list or the save form).
   const [widgetsMenuOpen, setWidgetsMenuOpen] = useState(false)
   const [widgetsSub, setWidgetsSub] = useState(null)   // null | 'add'
+  // UCT Signature top row (owner 11-15): the Add-widget picker's hovered widget (its blurb shows at the foot).
+  // No search box: eleven widgets read at a glance (owner 11-15).
+  const [wHover, setWHover] = useState(null)
   const [layoutsMenuOpen, setLayoutsMenuOpen] = useState(false)
   const [layoutsSub, setLayoutsSub] = useState(null)   // null | 'open' | 'save' | 'mc'
   const [toolsMenuOpen, setToolsMenuOpen] = useState(false)
@@ -2974,10 +3021,21 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   }, [dockActiveId, globalLayouts, myLayouts, layout])
   const dockDirty = !!dockCompare?.dirty
 
+  // ── UCT Signature top row (owner 11-15): the open layout's name + its save state ──
+  const dockActiveEntry = dockEntries.find(e => e.id === dockActiveId) || null
+  const layoutTitle = gridMode ? 'Multi Chart' : (dockActiveEntry?.name || dockActiveTpl?.name || 'My board')
+  const canSaveActive = !!dockActiveEntry && dockActiveId !== UCT_DEFAULT_ID && (dockActiveEntry.scope === 'user' || isAdmin)
+
   // ⭐ AUTO-SAVE — only ever into YOUR OWN layouts. The rule is
   // `layoutAutoSaves` (layoutDockPins.js), not restated here: Settings publishes
   // which layouts save themselves by calling the same function (TERM-052).
   const dockAutoSaves = layoutAutoSaves(dockActiveTpl)
+  // null = say nothing (UCT Default is frozen; a board with no named layout has nothing to save into)
+  const saveState = gridMode ? null
+    : savedFlash ? 'saved'
+    : dockDirty ? 'dirty'
+    : (dockActiveEntry && dockActiveId !== UCT_DEFAULT_ID) ? (dockAutoSaves ? 'auto' : 'saved')
+    : null
 
   // Refs assigned during render (the idiom this file already uses for layoutRef):
   // they let the switch paths above — defined earlier — reach the save without a
@@ -3717,6 +3775,9 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // slot frees up and the grid recompacts while it's away, and its stored
   // position is still there to dock back into.
   const visibleWidgets = layout.widgets.filter(w => !poppedWidgetIds.includes(w.id) && !floatingWidgetIds.includes(w.id))
+  // How many of each widget type are on this board — the Add-widget menu marks them with the gold dot
+  // ("current", UCT Signature gold mix, owner 11-15).
+  const onBoardCount = visibleWidgets.reduce((m, w) => { m[w.type] = (m[w.type] || 0) + 1; return m }, {})
 
   agentWidgetsRef.current = visibleWidgets
   const poppedWidgets = layout.widgets.filter(w => poppedWidgetIds.includes(w.id))
@@ -3838,7 +3899,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
               widget={w}
               headerAtBottom={false}
               merged={merged}
-              integratedChartHeader={!merged}
+              integratedChartHeader
+              uctFrame
               // Only the main board passes `h.onPopOut`/`h.onFloat` from
               // `mainGridHandlers` — a popped-out board's `renderGrid` call omits
               // both, so `isMainBoard` never mis-caps a secondary monitor's board.
@@ -3849,7 +3911,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
               onOptsChange={(opts) => h.onOptsChange(w.id, opts)}
               onReplaceWidget={h.onReplaceWidget}
               onPopOut={h.onPopOut ? () => h.onPopOut(w.id) : undefined}
-              onFloat={h.onFloat ? () => h.onFloat(w.id) : undefined}
+              onFloat={FLOAT_BUTTON_ON && h.onFloat ? () => h.onFloat(w.id) : undefined}
             />
             {/* Merged mode: a FULLY-FREE widget (no shared edge) gets a small drag grip
                 so it can be moved even though the header chrome is hidden. Carries the
@@ -3945,89 +4007,35 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
             )}
           </div>
         )}
+        {/* Top-bar menu rows (owner 11-14): the widgets' menu look — a gold glyph, the label,
+            and on the right a ✓ for an active mode or a › for a submenu. */}
         <header className={styles.workspaceHeader}>
-          <span className={styles.workspaceTitle}><UIcon name="equity" size={18} style={{ verticalAlign: "-3px", marginRight: 8 }} />Charts</span>
-          {/* WIDGETS — add a widget (opens the widget-type menu) or merge the board. */}
-          {!gridMode && (
-          <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
-            <button
-              type="button"
-              className={styles.toolbarBtn}
-              data-guide="workspace.widgets"
-              onClick={() => { const n = !widgetsMenuOpen; closeToolbarMenus(); setWidgetsMenuOpen(n) }}
-            >Widgets ▾</button>
-            {widgetsMenuOpen && (
-              <div className={`${styles.addMenu} ${styles.wAddMenu}`} data-guide="workspace.widgetsMenu" onMouseLeave={() => { setWidgetsMenuOpen(false); setWidgetsSub(null) }}>
-                {/* Grouped, iconified quick-add — a compact anchored menu (no modal), one
-                    click to drop a widget onto the board via smart placement. */}
-                {/* TERM-001: a full board says why in words and offers nothing to add. */}
-                {!boardHasRoom && (
-                  <div className={styles.boardBoundNote} role="note" data-testid="board-bound-note">
-                    {boardOverBound || boardRefusalSentence(boardCount + 1)}
-                  </div>
-                )}
-                {WIDGET_MENU_GROUPS.map(group => (
-                  <div key={group.key} className={styles.wAddGroup}>
-                    <div className={styles.addMenuGroupLabel}>{group.label}</div>
-                    <div className={styles.wAddGrid}>
-                      {group.items.map(t => {
-                        const meta = catalogMeta(t)
-                        return (
-                          <button
-                            key={t}
-                            type="button"
-                            className={styles.wAddChip}
-                            data-guide={`workspace.widgets.${t}`}
-                            disabled={!boardHasRoom}
-                            title={meta.blurb || WIDGET_LABELS[t]}
-                            onClick={() => { handleAddWidget(t); setWidgetsMenuOpen(false) }}
-                          >
-                            <UIcon name={meta.icon} size={14} />
-                            <span className={styles.wAddChipLbl}>{WIDGET_LABELS[t]}</span>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                ))}
-                <div className={styles.menuDivider} />
-                <button
-                  type="button"
-                  className={styles.addMenuItem}
-                  style={merged ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
-                  data-guide="workspace.merge"
-                  onClick={() => { toggleMerged(); setWidgetsMenuOpen(false) }}
-                  title={merged
-                    ? 'Unlock the board and restore widget borders'
-                    : 'Lock the board in place, remove all borders, and blend every widget together'}
-                >{merged ? '⧉ Unmerge Widgets' : '⧉ Merge Widgets'}</button>
-              </div>
-            )}
-          </div>
-          )}
-
-          {/* LAYOUTS — new / open / save / multi-chart / pop-out. Shown in BOTH modes;
+          {/* LAYOUTS — the open layout's NAME is the button (owner 11-15, UCT Signature): it says
+              where you are and opens new / open / save / Multi Chart / pop out. Shown in BOTH modes;
               grid mode surfaces only the layout-relevant actions (Open + Multi Chart). */}
           <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
             <button
               type="button"
-              className={styles.toolbarBtn}
-              style={gridMode ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+              className={styles.tbName}
               data-guide="workspace.layoutsMenuBtn"
+              aria-haspopup="menu"
+              aria-expanded={layoutsMenuOpen}
+              aria-label={`Layouts — ${layoutTitle}`}
+              title="Layouts: switch, save, Multi Chart, pop out"
               onClick={() => { const n = !layoutsMenuOpen; closeToolbarMenus(); setLayoutsMenuOpen(n) }}
-            >Layouts ▾</button>
+            ><span className={styles.tbNameText}>{layoutTitle}</span><UIcon name="chevronDown" size={13} gold={false} /></button>
             {layoutsMenuOpen && (
-              <div className={styles.addMenu} style={{ minWidth: 230 }} data-guide="workspace.layoutsMenu" onMouseLeave={() => { setLayoutsMenuOpen(false); setLayoutsSub(null); setConfirmDeleteId(null) }}>
+              <div className={`${styles.addMenu} ${styles.tbMenu}`} style={{ minWidth: 240 }} data-guide="workspace.layoutsMenu" onMouseLeave={() => { setLayoutsMenuOpen(false); setLayoutsSub(null); setConfirmDeleteId(null) }}>
                 {layoutsSub === 'open' ? (<>
-                  <button type="button" className={styles.addMenuItem} onClick={() => setLayoutsSub(null)}>‹ Back</button>
+                  <button type="button" className={`${styles.addMenuItem} ${styles.tbBack}`} onClick={() => setLayoutsSub(null)}><UIcon name="chevronLeft" size={12} gold={false} aria-hidden="true" /><span>Back</span></button>
                   <div className={styles.menuDivider} />
                   <div className={styles.menuSection}>Prebuilt</div>
                   <div className={styles.menuRow}>
-                    <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { rememberLayoutOpen({ id: UCT_DEFAULT_ID, name: 'UCT Default' }); applyUctDefault(); closeToolbarMenus() }}>UCT Default</button>
+                    <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { rememberLayoutOpen({ id: UCT_DEFAULT_ID, name: 'UCT Default' }); applyUctDefault(); closeToolbarMenus() }}><span className={styles.tbLbl}>UCT Default</span>{dockActiveId === UCT_DEFAULT_ID && <span className={styles.tbCheck} aria-label="open now"><UIcon name="check" size={13} gold={false} /></span>}</button>
                   </div>
                   {wsGlobalLayouts.map(t => (
                     <div key={`g${t.id}`} className={styles.menuRow}>
-                      <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { rememberLayoutOpen(t); applyTemplate(t); if (gridMode) mc.exitGrid(); closeToolbarMenus() }}>{t.name}</button>
+                      <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { rememberLayoutOpen(t); applyTemplate(t); if (gridMode) mc.exitGrid(); closeToolbarMenus() }}><span className={styles.tbLbl}>{t.name}</span>{t.id === dockActiveId && <span className={styles.tbCheck} aria-label="open now"><UIcon name="check" size={13} gold={false} /></span>}</button>
                       {isAdmin && (confirmDeleteId === t.id ? (
                         <DeleteConfirm onYes={() => { handleDeleteTemplate(t.id); setConfirmDeleteId(null) }} onCancel={() => setConfirmDeleteId(null)} />
                       ) : (
@@ -4038,7 +4046,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
                   {wsMyLayouts.length > 0 && <div className={styles.menuSection}>My layouts</div>}
                   {wsMyLayouts.map(t => (
                     <div key={`m${t.id}`} className={styles.menuRow}>
-                      <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { rememberLayoutOpen(t); applyTemplate(t); if (gridMode) mc.exitGrid(); closeToolbarMenus() }}>{t.name}</button>
+                      <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { rememberLayoutOpen(t); applyTemplate(t); if (gridMode) mc.exitGrid(); closeToolbarMenus() }}><span className={styles.tbLbl}>{t.name}</span>{t.id === dockActiveId && <span className={styles.tbCheck} aria-label="open now"><UIcon name="check" size={13} gold={false} /></span>}</button>
                       {confirmDeleteId === t.id ? (
                         <DeleteConfirm onYes={() => { handleDeleteTemplate(t.id); setConfirmDeleteId(null) }} onCancel={() => setConfirmDeleteId(null)} />
                       ) : (
@@ -4047,9 +4055,9 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
                     </div>
                   ))}
                 </>) : layoutsSub === 'save' ? (<>
-                  <button type="button" className={styles.addMenuItem} onClick={() => setLayoutsSub(null)}>‹ Back</button>
+                  <button type="button" className={`${styles.addMenuItem} ${styles.tbBack}`} onClick={() => setLayoutsSub(null)}><UIcon name="chevronLeft" size={12} gold={false} aria-hidden="true" /><span>Back</span></button>
                   <div className={styles.menuDivider} />
-                  <button type="button" className={styles.addMenuItem} data-guide="workspace.saveCurrent" onClick={() => { handleSaveLayout(); closeToolbarMenus() }}>Save current arrangement</button>
+                  <button type="button" className={styles.addMenuItem} data-guide="workspace.saveCurrent" onClick={() => { handleSaveLayout(); closeToolbarMenus() }}><TbItem icon="save" label="Save current arrangement" /></button>
                   <div className={styles.menuDivider} />
                   <div className={styles.menuForm}>
                     <div className={styles.menuSection} style={{ padding: 0 }}>Save as template</div>
@@ -4073,24 +4081,97 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
                 </>) : layoutsSub === 'mc' ? (
                   <MultiChartMenu mc={mc} onClose={() => { setLayoutsMenuOpen(false); setLayoutsSub(null) }} />
                 ) : (<>
-                  {!gridMode && <button type="button" className={styles.addMenuItem} data-guide="workspace.newLayout" onClick={() => { handleNewLayout(); closeToolbarMenus() }}>New Layout</button>}
-                  <button type="button" className={styles.addMenuItem} data-guide="workspace.openLayout" onClick={() => setLayoutsSub('open')}>Open Layout ▸</button>
-                  {!gridMode && <button type="button" className={styles.addMenuItem} data-guide="workspace.saveLayout" onClick={() => setLayoutsSub('save')}>{savedFlash ? 'Saved ✓' : 'Save Layout ▸'}</button>}
-                  {!gridMode && <VersionHistoryMenuItem className={styles.addMenuItem} onOpen={openVersionHistory} />}
+                  {!gridMode && <button type="button" className={styles.addMenuItem} data-guide="workspace.newLayout" onClick={() => { handleNewLayout(); closeToolbarMenus() }}><TbItem icon="plus" label="New layout" /></button>}
+                  <button type="button" className={styles.addMenuItem} data-guide="workspace.openLayout" onClick={() => setLayoutsSub('open')}><TbItem icon="board" label="Open layout" sub /></button>
+                  {!gridMode && <button type="button" className={styles.addMenuItem} data-guide="workspace.saveLayout" onClick={() => setLayoutsSub('save')}><TbItem icon="save" label={savedFlash ? 'Saved' : 'Save layout'} on={savedFlash} sub={!savedFlash} /></button>}
+                  {!gridMode && <VersionHistoryMenuItem className={styles.addMenuItem} glyphClass={styles.tbGlyph} labelClass={styles.tbLbl} onOpen={openVersionHistory} />}
                   <button
                     type="button"
                     className={styles.addMenuItem}
-                    style={gridMode ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+                    aria-pressed={gridMode}
+                    aria-label="Multi Chart"
                     data-guide="workspace.multiChart"
                     onClick={() => setLayoutsSub('mc')}
-                  >{gridMode ? '✓ ' : ''}▦ Multi Chart ▸</button>
+                  ><TbItem icon="rows" label="Multi Chart" on={gridMode} sub /></button>
                   {!gridMode && (
-                    <button type="button" className={styles.addMenuItem} data-guide="workspace.popOutLayout" disabled={!visibleWidgets.length} onClick={() => { handlePopOutLayout(); closeToolbarMenus() }}>⧉ Pop Out Layout</button>
+                    <button type="button" className={styles.addMenuItem} data-guide="workspace.popOutLayout" disabled={!visibleWidgets.length} onClick={() => { handlePopOutLayout(); closeToolbarMenus() }}><TbItem icon="popOut" label="Pop out layout" /></button>
                   )}
                 </>)}
               </div>
             )}
           </div>
+
+          {/* The save state lives on the layout bar at the bottom (owner 11-15): beside the name its text
+              changed length and pushed the buttons around. */}
+          <span className={styles.tbSep} aria-hidden="true" />
+          {/* WIDGETS — add a widget (opens the widget-type menu) or merge the board. */}
+          {!gridMode && (
+          <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
+            <button
+              type="button"
+              className={styles.tbPrim}
+              data-guide="workspace.widgets"
+              aria-haspopup="menu"
+              aria-expanded={widgetsMenuOpen}
+              onClick={() => { const n = !widgetsMenuOpen; closeToolbarMenus(); setWHover(null); setWidgetsMenuOpen(n) }}
+            ><UIcon name="plus" size={13} gold={false} />Add widget</button>
+            {widgetsMenuOpen && (
+              <div className={`${styles.addMenu} ${styles.wAddMenu} ${styles.tbMenu}`} data-guide="workspace.widgetsMenu" onMouseLeave={() => { setWidgetsMenuOpen(false); setWidgetsSub(null) }}>
+                {/* Grouped, iconified quick-add — a compact anchored menu (no modal), one
+                    click to drop a widget onto the board via smart placement. */}
+                {/* TERM-001: a full board says why in words and offers nothing to add. */}
+                {!boardHasRoom && (
+                  <div className={styles.boardBoundNote} role="note" data-testid="board-bound-note">
+                    {boardOverBound || boardRefusalSentence(boardCount + 1)}
+                  </div>
+                )}
+                <div className={styles.wPickScroll}>
+                {WIDGET_MENU_GROUPS.map(group => {
+                  const items = group.items
+                  if (!items.length) return null
+                  return (
+                  <div key={group.key} className={styles.wAddGroup}>
+                    <div className={styles.addMenuGroupLabel}>{group.label}</div>
+                    <div className={styles.wAddGrid}>
+                      {items.map(t => {
+                        const meta = catalogMeta(t)
+                        return (
+                          <button
+                            key={t}
+                            type="button"
+                            className={styles.wAddChip}
+                            data-guide={`workspace.widgets.${t}`}
+                            disabled={!boardHasRoom}
+                            title={meta.blurb || WIDGET_LABELS[t]}
+                            onMouseEnter={() => setWHover(t)}
+                            onFocus={() => setWHover(t)}
+                            onClick={() => { handleAddWidget(t); setWidgetsMenuOpen(false) }}
+                          >
+                            <UIcon name={meta.icon} size={15} gold={false} />
+                            <span className={styles.wAddChipLbl}>{WIDGET_LABELS[t]}</span>
+                            {onBoardCount[t] > 0 && (
+                              <span className={styles.wOnBoard} title={onBoardCount[t] > 1 ? `${onBoardCount[t]} on this board` : 'On this board'}>
+                                {onBoardCount[t] > 1 && <span className={styles.wOnBoardN}>{onBoardCount[t]}</span>}
+                                <span className={styles.wOnBoardDot} aria-hidden="true" />
+                                <span className="sr-only">{onBoardCount[t] > 1 ? `${onBoardCount[t]} on this board` : 'on this board'}</span>
+                              </span>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                  )
+                })}
+                </div>
+                <div className={styles.wPickDesc} aria-live="polite">
+                  {wHover ? <><b>{WIDGET_LABELS[wHover] || wHover}</b><br />{catalogMeta(wHover).blurb || ''}</>
+                    : boardHasRoom ? 'Hover a widget to see what it shows.' : 'Close a widget, or open another tab, to add one.'}
+                </div>
+              </div>
+            )}
+          </div>
+          )}
 
           {/* TOOLS — chart-analysis utilities. Custom-Period Sort ranks the whole US
               market by % change over a time period you highlight on the chart. */}
@@ -4098,53 +4179,72 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
           <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
             <button
               type="button"
-              className={styles.toolbarBtn}
-              style={periodSortMode ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+              className={`${styles.tbSoft}${(periodSortMode || compareOpen || replayCutoff) ? ' ' + styles.tbModeOn : ''}`}
               data-guide="workspace.tools"
+              aria-haspopup="menu"
+              aria-expanded={toolsMenuOpen}
               onClick={() => { const n = !toolsMenuOpen; closeToolbarMenus(); setToolsMenuOpen(n) }}
-            >Tools ▾</button>
+            >Tools<UIcon name="chevronDown" size={12} gold={false} /></button>
             {toolsMenuOpen && (
-              <div className={styles.addMenu} style={{ minWidth: 200 }} data-guide="workspace.toolsMenu" onMouseLeave={() => setToolsMenuOpen(false)}>
+              <div className={`${styles.addMenu} ${styles.tbMenu}`} style={{ minWidth: 220 }} data-guide="workspace.toolsMenu" onMouseLeave={() => setToolsMenuOpen(false)}>
                 <button
                   type="button"
                   className={styles.addMenuItem}
-                  style={periodSortMode ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+                  aria-pressed={periodSortMode}
+                  aria-label="Custom-Period Sort"
                   data-guide="workspace.tools.periodSort"
                   onClick={() => { setPeriodSortSel(null); setPeriodSortMode(true); closeToolbarMenus() }}
-                >{periodSortMode ? '✓ ' : ''}Custom-Period Sort</button>
+                ><TbItem icon="sliders" label="Custom-Period Sort" on={periodSortMode} /></button>
                 <button
                   type="button"
                   className={styles.addMenuItem}
-                  style={compareOpen ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+                  aria-pressed={compareOpen}
+                  aria-label="Compare Symbols"
                   data-guide="workspace.tools.compare"
                   onClick={() => { openCompare(); closeToolbarMenus() }}
-                >{compareOpen ? '✓ ' : ''}Compare Symbols</button>
+                ><TbItem icon="graph" label="Compare Symbols" on={compareOpen} /></button>
                 <button
                   type="button"
                   className={styles.addMenuItem}
-                  style={replayCutoff ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+                  aria-pressed={!!replayCutoff}
+                  aria-label="Replay Mode"
                   data-guide="workspace.tools.replay"
                   onClick={() => { openReplay(); closeToolbarMenus() }}
-                >{replayCutoff ? '✓ ' : ''}Replay Mode</button>
+                ><TbItem icon="play" label="Replay Mode" on={!!replayCutoff} /></button>
               </div>
             )}
           </div>
           )}
 
           {gridMode && (
-            <button type="button" className={styles.toolbarBtn} data-guide="workspace.exitGrid" onClick={mc.exitGrid}>
+            <button type="button" className={styles.tbSoft} data-guide="workspace.exitGrid" onClick={mc.exitGrid}>
               Workspace
             </button>
+          )}
+          <span className={styles.tbSpacer} aria-hidden="true" />
+          {/* Merge Widgets is a mode you switch, so it is a toggle here, not a buried menu row
+              (owner 11-15). On = the gold 1D underline. */}
+          {!gridMode && (
+            <button
+              type="button"
+              className={styles.tbIcon}
+              aria-pressed={merged}
+              aria-label={merged ? 'Unmerge Widgets' : 'Merge Widgets'}
+              data-guide="workspace.merge"
+              title={merged
+                ? 'Unmerge widgets: unlock the board and restore widget borders'
+                : 'Merge widgets: lock the board in place, remove all borders, and blend every widget together'}
+              onClick={toggleMerged}
+            ><UIcon name="columns" size={16} gold={false} /></button>
           )}
           {agentAllowed && (
             <button
               type="button"
-              className={styles.toolbarBtn}
-              style={{ marginLeft: 'auto', ...(agentOpen ? { color: 'var(--ut-gold, #c9a84c)' } : null) }}
+              className={`${styles.tbSoft}${agentOpen ? ' ' + styles.tbModeOn : ''}`}
               aria-pressed={agentOpen}
               data-testid="agent-launch"
               onClick={() => setAgentOpen(!agentOpen)}
-            >UCT Agent</button>
+            ><UIcon name="sparkle" size={13} gold={false} className={styles.tbSpark} />UCT Agent</button>
           )}
         </header>
         {/* UCT Agent: <main> + the Layout Dock become one column so the Agent can
@@ -4207,6 +4307,9 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
           loading={templatesLoading}
           merged={merged}
           isAdmin={isAdmin}
+          dirty={saveState === 'dirty'}
+          saveState={saveState}
+          canSave={canSaveActive}
           onOpen={memberDockOpen}
           onCreate={handleDockCreate}
           onSave={handleSaveLayout}
@@ -4246,6 +4349,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
               <WidgetHost
                 widget={w}
                 merged={false}
+                uctFrame
                 onRemove={() => handleRemovePoppedWidget(w.id)}
                 onColorChange={(c) => handleColorChange(w.id, c)}
                 onOptsChange={(opts) => handleOptsChange(w.id, opts)}
@@ -4323,6 +4427,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
                 widget={w}
                 merged={false}
                 floating
+                uctFrame
                 onHeaderDragStart={onDragPointerDown}
                 onDock={() => handleDockFloatWidget(w.id)}
                 onRemove={() => handleRemoveFloatWidget(w.id)}

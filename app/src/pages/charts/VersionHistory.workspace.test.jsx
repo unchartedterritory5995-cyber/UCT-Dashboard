@@ -63,7 +63,7 @@ async function flush() {
 }
 function openLayoutsMenu() {
   const header = document.querySelector('header')
-  const trigger = within(header).getAllByRole('button').find(b => /^Layouts/.test(b.textContent))
+  const trigger = within(header).getAllByRole('button').find(b => b.dataset.guide === 'workspace.layoutsMenuBtn')  // the layout NAME is the Layouts button (owner 11-15)
   act(() => { fireEvent.click(trigger) })
 }
 const layoutWrites = () => setPref.mock.calls.filter(([k]) => k === 'charts_workspace_layout')
@@ -124,7 +124,7 @@ describe('STATE-2: a stored board that cannot be read is never autosaved over', 
     mockPrefs = { charts_workspace_layout: CORRUPT }
     renderWS()
     openLayoutsMenu()
-    act(() => { fireEvent.click(screen.getByRole('button', { name: 'New Layout' })) })
+    act(() => { fireEvent.click(within(document.querySelector('header')).getByRole('button', { name: 'New layout' })) })
     expect(layoutWrites().map(([, v]) => JSON.parse(v).widgets)).toEqual([[]])
   })
 
@@ -151,7 +151,7 @@ describe('the Layouts menu entry', () => {
     await flush()
     // Non-vacuity: the entry asked the store and got its 404.
     expect(probe.mock.calls.some(([u]) => String(u).startsWith(`${WORKSPACE_DOC_URL}/versions?`))).toBe(true)
-    expect(screen.getByRole('button', { name: 'New Layout' })).toBeInTheDocument()   // the menu IS open
+    expect(within(document.querySelector('header')).getByRole('button', { name: 'New layout' })).toBeInTheDocument()   // the menu IS open
     expect(screen.queryByRole('button', { name: /version history/i })).toBeNull()
   })
 })

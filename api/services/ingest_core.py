@@ -115,6 +115,9 @@ class FrameContext:
     count_event: Optional[Callable[[str, dict], None]] = None
     #: AM delivery-lag telemetry, given the event's `e` (minute end ms); None = skip.
     note_am_lag: Optional[Callable[[object], None]] = None
+    #: Every NON-routine status event's `status` (e.g. "max_connections" when another
+    #: connection kicks this one); None = skip. stream-ingest's reconnect policy.
+    on_status: Optional[Callable[[object], None]] = None
     logger: logging.Logger = field(default_factory=lambda: logging.getLogger("api.services.bar_stream"))
 
 
@@ -160,6 +163,11 @@ def apply_frame(raw_msg, ctx: FrameContext) -> int:
                     logger.debug("[bar_stream] status: %s", _st)
                 else:
                     logger.info("[bar_stream] status: %s (%s)", _st, ev.get("message"))
+                    if ctx.on_status is not None:
+                        try:
+                            ctx.on_status(_st)
+                        except Exception:  # noqa: BLE001 - a hook never breaks the frame loop
+                            pass
             continue
         kind = parsed["kind"]
         sym = parsed["sym"]

@@ -86,6 +86,37 @@ export const ORDER_END_REASONS = Object.freeze({
 export function exitIdOf(row) {
   return row && (row.kind === 'exit' || row.kind === 'order') && typeof row.id === 'string' ? row.id : null
 }
+/** ⭐⭐ value read-backs — ONE AUTHORITY over the exit ids NO TEXT STATES and the committed captures WITNESS
+ *  (`strategy.closedtrades.exit_id`, read back through the std set's label `entry_id > exit_id : exit_comment`,
+ *  `tools/vendor_harness/w9_probes.py`; every text below was read off `objects.records.labels` of the named
+ *  captures, `tests/fixtures/vendor/harness/<id>-rddt-1d-2026-11-15.json`):
+ *   - a trade `strategy.close(id)` closed: `Close entry(s) order <id>` (11 captures, among them w9-q-s1p-when,
+ *     w9-k1-commission-pct, w9-p3-every-tick-history, w9-q-s1a-size-v5cash);
+ *   - a trade `strategy.close_all()` closed: `Close position order` (8 captures, among them s1-broker-core,
+ *     w9-x3-oca, w9-x5-cancel, w9-q-s1j-stop-limit);
+ *   - a trade a `strategy.entry` fill closed (a reversal, or an allow_entry_in close): that entry's id
+ *     (5 captures: s1-broker-core, w9-q-s1b-defaults-v5 and -v6, w9-r1-risk-allow, w9-r1-risk-ddown). ⛔ Every
+ *     witnessing entry was placed WITHOUT a comment; one that carries a comment is not witnessed and stays
+ *     refused (capture row W9-V1, `EXIT_LABEL_ROW`: one row for the report, the markers and the read).
+ *  Each is served by `broker.js` behind the rule named here, which is pinned only by its own MATCHing captures.
+ *  ⛔ NOT here, because no capture this broker can run shows them: the exit of a margin call (`Margin call`,
+ *  seen on w9-q-s1b-defaults-v6; a margin call is never modelled, Q-S1i) and of a risk halt (`Close Position
+ *  (Max number of filled orders in one day)`, seen on w9-r1-risk-intraday-range; a halt is never modelled,
+ *  W9-R1i). ⛔ The record's own `exitId` (`exitIdOf`) is unchanged: it stays `null` where R6 states no id. */
+export const WITNESSED_EXIT_ID_RULES = Object.freeze({
+  close: 'B-TXT-CLOSE-ID',
+  close_all: 'B-TXT-CLOSE-ALL-ID',
+  entry: 'B-TXT-ENTRY-CLOSE-ID',
+})
+export function witnessedExitIdOf(row) {
+  if (!row) return null
+  if (row.kind === 'close' && typeof row.from === 'string') return { text: `Close entry(s) order ${row.from}`, rule: WITNESSED_EXIT_ID_RULES.close }
+  if (row.kind === 'close_all') return { text: 'Close position order', rule: WITNESSED_EXIT_ID_RULES.close_all }
+  if (row.kind === 'entry' && typeof row.id === 'string' && row.comment === null && row.commentRecorded === true) {
+    return { text: row.id, rule: WITNESSED_EXIT_ID_RULES.entry }
+  }
+  return null
+}
 /** ⭐⭐ W9-T7-F1 r1 (review N1, one fact two answers) — ONE AUTHORITY: the exit of a REVERSED trade is the
  *  reversing ENTRY's fill, and whether that entry's comment (or id) is what the closed trade's exit shows is not
  *  stated (R6 `strategy.entry` speaks of "the filled order" and of an ENTRY id only). Refused by name (W9-V1) on

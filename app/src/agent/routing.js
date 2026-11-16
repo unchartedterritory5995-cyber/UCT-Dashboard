@@ -93,6 +93,16 @@ export const GROUPS = [
       // The verb (compare… / overlay / remove / drop / take off / clear) must govern the group noun within six words: a bare
       // "vs … themes" or a plural "overlays … group" (indicator talk) never reaches this group.
       /\b(?:compar\w*|overlay|remove|drop|take off|clear)\s+(?:[\w’'-]+\s+){0,6}?(?:groups?|sectors?|industr(?:y|ies)|themes?)\b|\b(?:groups?|sectors?|industr(?:y|ies)|themes?|semis)\b.*\b(?:overlays?|scale|comparisons?)\b/] },
+  // Charts family (2026-11-15): newsLibrary.* — the member's UCT News library (save / unsave a headline, its note, collections),
+  // in its OWN words-only group: never a filler. The words name a HEADLINE / story / article with a save / bookmark / note verb,
+  // the library itself, or a collection with its own verbs — never "save my layout", "save the screen", a watchlist note,
+  // "note to self", or a news question (news.latest).
+  { id: 'newsLibrary', title: 'Your UCT News library: save or unsave a headline, its note, collections', domains: ['newsLibrary'], fillLast: true, wordsOnly: true,
+    words: [
+      /\b(?:save|unsave|bookmark|unbookmark)\b[^.;!?]*\b(?:headlines?|stor(?:y|ies)|articles?|news items?)\b|\b(?:headlines?|stor(?:y|ies)|articles?)\b[^.;!?]*\b(?:to|in|from|out of) (?:my |the )?(?:news )?library\b/,
+      /\b(?:saved headlines|research library|news library)\b|\bmy (?:news )?collections\b/,
+      /\b(?:create|make|start|rename|delete|remove)\b[^.;!?]*\b(?:news )?collections?\b|\b(?:into|in|to|out of|from) (?:my |the )?[\w “”"'-]{1,40} collection\b/,
+      /\bnote\b[^.;!?]*\b(?:headline|story|article)\b|\b(?:headline|story|article)\b[^.;!?]*\bnote\b/] },
   // Family C (right-click and header parity, 2026-11-11): a chart's right-click Ask AI and the watermark's Reset position, in
   // their OWN words-only group (as compareGroups): never a filler, so no existing group and no unrecognised request changes.
   // "ask" / "watermark" are used elsewhere, so each needs its context: Ask AI with about / on / for or a chart word; the
@@ -503,6 +513,19 @@ export const GROUPS = [
   // capabilities/cot.js arms them only while the capability is registered (the server serves the `cot.positioning` kind), so on a
   // dark server this group never matches and routing is byte-identical to the base (as playbook / coach). Last in the catalog.
   { id: 'cot', title: 'CFTC COT futures positioning (specs, commercials, open interest): changes, N-year extremes, comparisons', domains: ['cot'], fillLast: true, wordsOnly: true,
+    words: [] },
+  // Phase 2 market intelligence (rs.compare): relative strength + sector / industry leadership + the market backdrop in its OWN
+  // group, WORDS-ONLY and fillLast (as indicatorCalc / chartMenu): never a filler, so no existing group and no unrecognised
+  // request changes. `words` stays EMPTY here: capabilities/rsLeadership.js arms them only while the capability is registered
+  // (the server serves the `rs.leadership` kind), so on a dark server this group never matches and routing is byte-identical.
+  { id: 'rs', title: 'Relative strength + leadership: a ticker\'s UCT RS Rating vs its industry / SPY, sector and industry rankings, the market backdrop', domains: ['rs'], fillLast: true, wordsOnly: true,
+    words: [] },
+  // Phase 2 catalysts (news.movers): UCT's catalyst board ("what's moving the market", "why is NVDA up", "catalysts for my
+  // watchlist this week") in its OWN group, WORDS-ONLY and fillLast (as periodSort / chartView): never a filler, so no existing
+  // group and no unrecognised request changes. `words` stays EMPTY here: capabilities/catalysts.js arms them only while the
+  // capability is registered (the server serves `catalysts.board`), so on a dark server routing is byte-identical to the base.
+  { id: 'catalysts', title: 'UCT catalyst board: what moved / is moving the market, why a stock is up or down (stored catalysts + headlines), catalysts for your tickers or watchlist',
+    domains: [], actions: ['news.movers'], fillLast: true, wordsOnly: true,
     words: [] },
 ]
 // chartReplay: the replay bar's bare playback words, which route there ONLY while a chart's bar replay is on (namedGroups)

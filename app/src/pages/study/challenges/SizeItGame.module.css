@@ -1,0 +1,89 @@
+/* SIZE IT: the pieces the kit has no part for (docs/study/GAMES.md §1 rule 1): the trade card, which is the hero in place
+   of a chart, and the small touches on the kit's coach card that holds the working after a miss. On the kit's tokens
+   (study.module.css .kit: --k-gold, --k-ink, --k-line, --k-plate, --k-glass, --k-up, --k-down) and the colours the
+   takeover and the end screen already wear. */
+
+/* each card deals in fresh: the trade card, then the question and the tiles */
+.deal { display: flex; flex-direction: column; gap: 16px; }
+
+/* ── the trade card ─────────────────────────────────────────────────────────────────────────────────────────── */
+.card { position: relative; display: flex; flex-direction: column; gap: 14px; padding: 18px 20px; border-radius: 18px;
+  border: 1px solid var(--k-line); background: var(--k-glass), var(--k-plate);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, .4), inset 0 1px 0 rgba(255, 255, 255, .05); animation: cardIn .34s var(--k-ease) both; }
+.card::before { content: ''; position: absolute; left: 22px; right: 22px; top: 0; height: 1px; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(220, 187, 94, .6), transparent); }
+
+.head { display: flex; align-items: center; gap: 10px; font-size: 11px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; color: var(--k-ink-dim); }
+.side { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; color: var(--k-up);
+  border: 1px solid rgba(47, 175, 104, .45); background: rgba(47, 175, 104, .1); }
+.tier { color: var(--k-gold-bright); }
+.no { margin-left: auto; font-variant-numeric: tabular-nums; }
+.no b { color: var(--k-ink); }
+
+.body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 18px; align-items: center; }
+.facts { margin: 0; display: grid; gap: 12px; }
+.fact { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--k-line);
+  background: rgba(255, 255, 255, .02); }
+.fact dt { font-size: 11px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--k-ink-dim); }
+.fact dd { margin: 0; font-size: 30px; line-height: 1.1; font-weight: 900; letter-spacing: -.01em; font-variant-numeric: tabular-nums; color: var(--k-ink);
+  overflow-wrap: anywhere; }
+.fact.risk dd { color: var(--k-gold-bright); }
+
+/* the entry and the stop as two levels, the gap between them drawn to the stop's width (1% thin, 8% wide) */
+.ladder { display: flex; flex-direction: column; min-width: 0; }
+.row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.row span { flex: none; width: 50px; font-size: 11px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; }
+.row i { flex: 1; height: 2px; border-radius: 2px; min-width: 16px; }
+.row b { flex: none; font-size: 24px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.entry span, .entry b { color: var(--k-gold-bright); }
+.entry i { background: linear-gradient(90deg, var(--k-gold), rgba(220, 187, 94, .25)); box-shadow: 0 0 10px rgba(220, 187, 94, .35); }
+.stop span, .stop b { color: #ff9d9d; }
+.stop i { background: linear-gradient(90deg, var(--k-down), rgba(223, 70, 70, .25)); box-shadow: 0 0 10px rgba(223, 70, 70, .3); }
+.band { display: flex; align-items: center; gap: 10px; margin-left: 59px; padding-left: 14px; height: calc(30px + var(--gap, .4) * 64px);
+  border-left: 2px dashed rgba(220, 187, 94, .55); background: linear-gradient(90deg, rgba(223, 70, 70, .1), transparent 75%); }
+.band em { font-style: normal; display: grid; place-items: center; width: 28px; height: 28px; flex: none; border-radius: 50%; font-weight: 900;
+  color: var(--k-gold-ink); background: linear-gradient(180deg, #fbefc4, var(--k-gold) 60%, #b8922f); box-shadow: 0 2px 0 var(--k-gold-edge); }
+.band small { font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--k-ink-dim); }
+
+/* the method, every card: stop first, distance second, size last */
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.steps li { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 8px 10px; border-radius: 12px; border: 1px dashed var(--k-line-lit);
+  font-size: 12.5px; font-weight: 800; color: var(--k-ink-soft); }
+.steps b { flex: none; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; font-size: 11px; color: var(--k-gold-bright);
+  border: 1px solid rgba(220, 187, 94, .5); }
+
+/* ── the review after a miss: the verdict line, the coach's card with the working, and Next (the kit's coach card and
+   foot; only the mistake line, the bold values and the rule's type are ours) ───────────────────────────────────── */
+.review { display: flex; flex-direction: column; gap: 16px; scroll-margin-top: 12px; }
+.mistake { margin: 0; padding: 12px 14px; border-radius: 12px; font-size: 15.5px; line-height: 1.45; color: var(--k-ink);
+  background: rgba(223, 70, 70, .1); border: 1px solid rgba(223, 70, 70, .35); }
+.work li { font-variant-numeric: tabular-nums; }
+.work b { color: var(--k-gold-bright); }
+.rule { margin: 0; font-size: 16px; line-height: 1.5; color: var(--k-ink); }
+.source { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--k-ink-dim); }
+
+/* the end screen: the kit's spinning rays (endLooks .rays, a 360px square turning) are wider than a phone's column, and the
+   sheet's scroll region would scroll sideways for them; clip that axis only (the rays fade out well inside the column) */
+.end { overflow-x: clip; }
+
+/* the end screen's note: two lines, the best and the slip */
+.note { display: block; }
+.note + .note { margin-top: 6px; }
+.saved { display: block; margin-top: 8px; font-size: 13px; color: var(--k-ink-dim); }
+.signIn { margin-top: 14px; }
+
+@keyframes cardIn { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: none; } }
+
+@media (max-width: 640px) {
+  .card { padding: 14px; gap: 10px; border-radius: 16px; }
+  .body { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .facts { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+  .fact { padding: 9px 11px; }
+  .fact dd { font-size: 22px; }
+  .row b { font-size: 19px; }
+  .band { height: calc(22px + var(--gap, .4) * 34px); }
+  .band em { width: 24px; height: 24px; }
+  .steps { display: none; }
+  .mistake { font-size: 15px; padding: 10px 12px; }
+}
+@media (prefers-reduced-motion: reduce) { .card { animation: none; } }

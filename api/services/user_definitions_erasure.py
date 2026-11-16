@@ -55,6 +55,8 @@ MEMBER_TABLES = (
     "definition_shares",
     # The member's public-library listings (the feed is read from this table).
     "definition_listings",
+    # UCT's takedowns of the member's listings, keyed by the owner (no admin id is stored).
+    "definition_listing_takedowns",
     # The re-lint pass's audit trail (`user_definition_relint.py`, self-ensured there): which of
     # the member's definitions it healed. Keyed by their user_id, so it leaves with them.
     "user_definition_relint_log",

@@ -285,7 +285,7 @@ export function registerWorkspaceCapabilities() {
       if (!snap.fitsSequence(seq)) {
         const total = Math.max(env?.resourcesInPlan || 1, n)
         return total === 1
-          ? `There's no empty space for a ${label(type)} without resizing other widgets. Use Widgets ▾ → ${label(type)} — it shows where it will go before placing it.`
+          ? `There's no empty space for a ${label(type)} without resizing other widgets. Use + Add widget → ${label(type)} — it shows where it will go before placing it.`
           : `There isn't enough open space to add ${total} widgets without rearranging your current workspace (room for ${snap.capacity(type, total)} more ${label(type)}${snap.capacity(type, total) === 1 ? '' : 's'}).`
       }
       return null

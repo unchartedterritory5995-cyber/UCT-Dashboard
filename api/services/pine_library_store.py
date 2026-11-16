@@ -41,7 +41,68 @@ _IMPORT_PATH = re.compile(r"^([A-Za-z0-9_]{1,80})/([A-Za-z0-9_]{1,80})/([1-9][0-
 
 #: The fields an entry must carry to be served. `licence` and `attribution` are not
 #: optional: a library the member cannot be told the licence of is not served.
+#: ⭐⭐ U15 -- nor is an entry without the sha256 of its own source (ONE check, in
+#: `validate_entry`: a version is pinned by that sha, so an entry without it could not be told
+#: from a later fetch of different code under the same path).
 REQUIRED_FIELDS = ("path", "author", "name", "version", "source", "licence", "attribution")
+_SHA256 = re.compile(r"^[0-9a-f]{64}$")
+#: The reason a held entry is not served for want of a verified sha256 (the client's 409).
+NO_SHA = "library:no-sha"
+#: ⭐⭐ U15 (coordinator ruling 2026-11-15) -- a NON-COMMERCIAL licence is never served on this
+#: paid product: the client's 409 code, and the guard the import line is refused under.
+NON_COMMERCIAL = "library:licence"
+LICENCE_GUARD = "pine:library-licence"
+#: `NC` as its own token in a licence id (CC-BY-NC, CC-BY-NC-SA, CC-BY-NC-ND ...), or the words.
+_NON_COMMERCIAL_RX = re.compile(r"(?:^|[^A-Za-z])NC(?:[^A-Za-z]|$)|non[\s-]?commercial", re.I)
+
+
+#: ⭐⭐ U15 (coordinator ruling 2026-11-15) -- THE DENY LIST, one file for every door: the browser
+#: and server bundles import it (`pineLibraryStore.js`) and this module reads it. A version named
+#: there is never served, whatever this store holds. The web image ships `app/src` (`COPY . /app`).
+DENY_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                         "app", "src", "components", "chart", "engine", "ast", "pineLibraryDeny.json")
+DENIED = "library:denied"
+DENIED_GUARD = "pine:library-denied"
+
+
+def _deny_doc() -> dict:
+    """The deny list, read per call (small). ⛔ FAIL CLOSED: an unreadable list denies EVERY
+    version (`*`), because serving a version the list may name is the one wrong answer."""
+    try:
+        with open(DENY_FILE, encoding="utf-8") as f:
+            doc = json.load(f)
+        if not isinstance(doc, dict) or not isinstance(doc.get("deny"), list):
+            raise ValueError("no deny list")
+        # one row that names no path makes the whole list unreadable: dropping the row would
+        # serve exactly the version it was written to withhold (`denyTableOf` is the JS twin)
+        if any(not isinstance(d, dict) or not isinstance(d.get("path"), str) or not d["path"] for d in doc["deny"]):
+            raise ValueError("a deny row names no path")
+        return doc
+    except (OSError, ValueError):
+        return {"deny": [{"path": "*"}], "memberSentence": None}
+
+
+def denied(path: str) -> Optional[str]:
+    """The member's sentence when `path` is on the deny list (or the list cannot be read), else None."""
+    doc = _deny_doc()
+    names = {d.get("path") for d in doc["deny"] if isinstance(d, dict)}
+    if path in names or "*" in names:
+        return doc.get("memberSentence") or "this library version is withheld until its drawing is verified against TradingView"
+    return None
+
+
+def licence_problem(entry: Any) -> Optional[str]:
+    """Why `entry`'s licence keeps it off this product, or None. ONE rule, read by every door
+    (`validate_entry`, so the read door, the list, the server run and `fetch_library`): a
+    non-commercial licence -- `NC` in its licence id, or the `nonCommercial` flag the fetch
+    records -- is never served, whatever else the entry carries."""
+    if not isinstance(entry, dict):
+        return None
+    licence = entry.get("licence")
+    if entry.get("nonCommercial") is True or (isinstance(licence, str) and _NON_COMMERCIAL_RX.search(licence)):
+        return ("its licence, %s, is non-commercial, and this is a paid product, so its code is not "
+                "served here" % (licence if isinstance(licence, str) and licence else "unnamed"))
+    return None
 
 
 def store_root() -> str:
@@ -81,10 +142,76 @@ def validate_entry(entry: Any) -> list[str]:
         return ["path %r disagrees with author/name/version" % entry["path"]]
     if not isinstance(entry["source"], str) or not re.search(r"^\s*library\s*\(", entry["source"], re.M):
         return ["source does not declare library()"]
-    sha = entry.get("sha256")
-    if sha and hashlib.sha256(entry["source"].encode("utf-8")).hexdigest() != sha:
-        return ["source does not match its sha256"]
+    # ⭐⭐ U15 -- THE ONE sha CHECK: served only with the sha256 of its own source. (A value equal
+    # to the source's hexdigest is 64 lowercase hex by construction, so no second format check.)
+    if entry.get("sha256") != hashlib.sha256(entry["source"].encode("utf-8")).hexdigest():
+        return ["sha256 is missing or is not the sha256 of its source"]
+    licence = licence_problem(entry)
+    if licence:
+        return [licence]
     return []
+
+
+def entry_status(path: str, root: Optional[str] = None) -> tuple:
+    """``("ok", entry)``, ``("missing", None)`` or ``("unservable", reasons)`` for an import path.
+
+    ⭐ U15 -- a version the store HOLDS but will not serve (no verified sha256, or any other
+    reason `validate_entry` gives) is told apart from one it does not hold, so the member's
+    import line can say which: the router answers the first 409 and the second 404."""
+    parsed = parse_import_path(path)
+    if not parsed:
+        return "missing", None
+    # ⭐⭐ U15 -- a denied version is never served, whatever the store holds (or does not)
+    deny = denied(path)
+    if deny:
+        return "denied", [deny]
+    fp = entry_file(*parsed, root=root)
+    if not os.path.isfile(fp):
+        return "missing", None
+    try:
+        with open(fp, encoding="utf-8") as f:
+            entry = json.load(f)
+    except (OSError, ValueError):
+        return "unservable", ["the stored entry is not readable JSON"]
+    problems = validate_entry(entry)
+    if problems:
+        # a non-commercial licence is its own answer (409 `library:licence`, `pine:library-licence`)
+        return ("licence" if licence_problem(entry) and problems == [licence_problem(entry)] else "unservable"), problems
+    return "ok", entry
+
+
+def pinned_entries(pins, root: Optional[str] = None) -> tuple:
+    """⭐⭐ U15 -- the store entries a document's pins name, for a server run (the runtime
+    service has no store of its own). ``pins`` is ``meta.libraries``: ``[{path, sha256}]``.
+
+    Returns ``(entries, None)`` or ``(None, (guard, sentence))``: a pin the store does not hold,
+    holds unservable, or holds under ANOTHER sha256 refuses the run by name, and nothing is
+    sent. Never raises."""
+    out = []
+    try:
+        items = list(pins or [])
+    except TypeError:
+        return None, ("pine:library-changed", "the document's library pins are not a list")
+    for pin in items:
+        path = pin.get("path") if isinstance(pin, dict) else None
+        sha = pin.get("sha256") if isinstance(pin, dict) else None
+        if not (isinstance(path, str) and parse_import_path(path) and isinstance(sha, str) and _SHA256.match(sha)):
+            return None, ("pine:library-changed", "a library pin on the document is not {path, sha256}")
+        status, got = entry_status(path, root=root)
+        if status == "missing":
+            return None, ("runtime:library", "the library %s is not in the library store" % path)
+        if status == "denied":
+            return None, (DENIED_GUARD, "the library %s is not served: %s" % (path, "; ".join(got)))
+        if status == "licence":
+            return None, (LICENCE_GUARD, "the library %s is not served: %s" % (path, "; ".join(got)))
+        if status == "unservable":
+            return None, ("pine:library-no-sha", "the library %s is not served: %s" % (path, "; ".join(got)))
+        if got["sha256"] != sha:
+            return None, ("pine:library-changed",
+                          "the library %s has changed since this script was saved (saved against sha256 %s..., "
+                          "the store holds %s...)" % (path, sha[:12], got["sha256"][:12]))
+        out.append({k: got[k] for k in ("path", "source", "sha256", "licence", "attribution")})
+    return out, None
 
 
 def read_entry(path: str, root: Optional[str] = None) -> Optional[dict]:
@@ -94,25 +221,16 @@ def read_entry(path: str, root: Optional[str] = None) -> Optional[dict]:
     served): a library whose licence or source cannot be read is not one the
     chart may compile.
     """
-    parsed = parse_import_path(path)
-    if not parsed:
-        return None
-    fp = entry_file(*parsed, root=root)
-    if not os.path.isfile(fp):
-        return None
-    try:
-        with open(fp, encoding="utf-8") as f:
-            entry = json.load(f)
-    except (OSError, ValueError):
-        return None
-    if validate_entry(entry):
-        return None
-    return entry
+    # ⭐ U15 -- ONE authority over what is served: `entry_status` (denied, licence, sha, shape)
+    status, entry = entry_status(path, root=root)
+    return entry if status == "ok" else None
 
 
 def write_entry(entry: dict, root: Optional[str] = None) -> str:
     """Write one entry atomically (temp file + os.replace). Returns the file path."""
-    problems = validate_entry(entry)
+    # a non-commercial entry may be STORED (so the read door can name why it is not served);
+    # every other problem refuses the write
+    problems = [p for p in validate_entry(entry) if p != licence_problem(entry)]
     if problems:
         raise ValueError("refusing to store %s: %s" % (entry.get("path"), "; ".join(problems)))
     fp = entry_file(entry["author"], entry["name"], entry["version"], root=root)

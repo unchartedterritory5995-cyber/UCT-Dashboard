@@ -17,7 +17,6 @@ import { useChartSingleStockEtfs as useSingleStockEtfs } from '../../../componen
 import { singleStockEtfsKey, singleStockEtfsFetcher } from '../../../hooks/singleStockEtfsKey'
 import { useSymbolResource } from '../../../lib/symbolResourceWarm'
 import useEtfSymbols from '../../../hooks/useEtfSymbols'
-import AdjustmentLabel from '../../../components/chart/AdjustmentLabel'
 import ChartDetailDock from './ChartDetailDock'
 import { normalizeDock } from './chartDock'
 import { chartFeaturesOf, addFeature, removeFeature, setFeatureOpen } from './chartFeatures'
@@ -832,9 +831,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
           tfBarAfterTf: <ChartDateNav paneRef={paneRef} themeVars={menuVars} />,
           tfBarRight: (
             <>
-              {/* TERM-055: says when prices are split-adjusted (splits only; renders nothing
-                  unless the adjustment-basis endpoint knows a split was applied). */}
-              {!isThemeIndex && <AdjustmentLabel sym={sym} tf={tf} className={styles.adjustmentLabel} />}
+              {/* TERM-055 split-adjustment label + "As traded" toggle: removed from the chart
+                  header (owner 2026-11-13). components/chart/AdjustmentLabel.jsx is kept
+                  intact so it can be re-seated here later. */}
               {/* /charts integrated header (owner 11-11): no leveraged-ETF switcher; the
                   ETF holdings button keeps its seat. Elsewhere: both, unchanged. */}
               {/* /charts chart widget: leverage + holdings live in the symbol menu (▾). */}
@@ -918,6 +917,15 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
               </>
             ) : (
               <>
+                {/* Reset view leads the menu (owner 11-15): the one action reached for most. */}
+                <button type="button" className={styles.chartCtxItem} data-menu-id="reset" onClick={() => {
+                  ctxMenu.resetView?.(); closeCtx()
+                  // Return focus to the chart so type-to-search works immediately (else
+                  // the first keypress hits a global drawing-tool hotkey, not the search).
+                  requestAnimationFrame(() => { try { paneRef.current?.focus?.() } catch { /* noop */ } })
+                }}>
+                  <UIcon name="refresh" size={14} className={styles.chartCtxIcon} />Reset view
+                </button>
                 {/* ── B9 · The indicator pane under the pointer ──
                     A right-click inside an indicator's own pane leads with that
                     indicator's rows: the legend chip's rows and handlers, built
@@ -991,40 +999,32 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                 {/* ── Price action (at the clicked bar) ── */}
                 {Number.isFinite(ctxMenu.price) && (
                   <>
+                    <div className={styles.chartCtxLabel} aria-hidden="true">At this price</div>
                     <button type="button" className={styles.chartCtxItem} data-menu-id="set-alert" onClick={handleSetAlert}>
                       <UIcon name="bell" size={14} className={styles.chartCtxIcon} />
                       Set alert @ ${ctxMenu.price.toFixed(2)}
                     </button>
-                    <div className={styles.menuDivider} />
                   </>
                 )}
                 {/* ── Chart actions ── */}
+                <div className={styles.chartCtxLabel} aria-hidden="true">This chart</div>
                 <button type="button" className={styles.chartCtxItem} data-menu-id="journal" onClick={handleSendToJournal}>
                   <UIcon name="journal" size={14} className={styles.chartCtxIcon} />Send to Journal
                 </button>
                 <button type="button" className={styles.chartCtxItem} data-menu-id="journal-choose" onClick={handleSendToJournalChoose}>
                   <UIcon name="journal" size={14} className={styles.chartCtxIcon} />Send to Journal (choose where)…
                 </button>
-                <button type="button" className={styles.chartCtxItem} data-menu-id="reset" onClick={() => {
-                  ctxMenu.resetView?.(); closeCtx()
-                  // Return focus to the chart so type-to-search works immediately (else
-                  // the first keypress hits a global drawing-tool hotkey, not the search).
-                  requestAnimationFrame(() => { try { paneRef.current?.focus?.() } catch { /* noop */ } })
-                }}>
-                  <UIcon name="refresh" size={14} className={styles.chartCtxIcon} />Reset view
-                </button>
                 {/* ── Location-aware section — ONE item keyed to WHERE the user
                     right-clicked (watermark / price axis / moving average / candle /
                     blank canvas), opening Chart settings at the matching section. ── */}
+                <div className={styles.chartCtxLabel} aria-hidden="true">Settings</div>
                 {ctxLocItem && (
                   <>
-                    <div className={styles.menuDivider} />
                     <button type="button" className={styles.chartCtxItem} data-menu-id={`settings-${ctxLocItem.target}`} onClick={() => { paneRef.current?.openSettings(ctxLocItem.target); closeCtx() }}>
                       <UIcon name={ctxLocItem.icon} size={14} className={styles.chartCtxIcon} />{ctxLocItem.label}
                     </button>
                   </>
                 )}
-                <div className={styles.menuDivider} />
                 {/* ── Chart configuration ── */}
                 <button type="button" className={styles.chartCtxItem} data-menu-id="settings" onClick={() => { paneRef.current?.openSettings(); closeCtx() }}>
                   <UIcon name="gear" size={14} className={styles.chartCtxIcon} />Chart settings
@@ -1064,8 +1064,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                     </div>
                   )}
                 </div>
+                <div className={styles.chartCtxLabel} aria-hidden="true">Add</div>
                 <button type="button" className={styles.chartCtxItem} data-menu-id="add-widget" onClick={() => setCtxSub('add')}>
-                  <UIcon name="plus" size={14} className={styles.chartCtxIcon} />Add widget ▸
+                  <UIcon name="plus" size={14} className={styles.chartCtxIcon} />Add widget<span className={styles.chartCtxCaret} aria-hidden="true">▸</span>
                 </button>
                 {/* /charts integrated header has no New-chart-tab button (owner 11-11) — the
                     door lives here instead, so chart tabs stay creatable. Once a tab exists
@@ -1078,7 +1079,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                 {/* ── Drawings ── */}
                 {ctxMenu.hasDrawings && (
                   <>
-                    <div className={styles.menuDivider} />
+                    <div className={styles.chartCtxLabel} aria-hidden="true">Drawings</div>
                     <button type="button" className={styles.chartCtxItem} data-menu-id="clear-draw" onClick={() => { ctxMenu.clearDrawings?.(); setCtxToast('Drawings cleared'); closeCtx() }}>
                       <UIcon name="trash" size={14} className={styles.chartCtxIcon} />Clear all drawings
                     </button>

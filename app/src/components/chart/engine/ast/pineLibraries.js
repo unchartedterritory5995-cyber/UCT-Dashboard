@@ -48,7 +48,7 @@
 // order the statements run in. `remapLibraryLocation` turns a library line back
 // into the member's import line plus "in library X, line L".
 
-import { pineLibraryEntry } from './pineLibraryStore.js'
+import { pineLibraryEntry, pineLibraryHeld, libraryEntryProblem, libraryLicenceProblem, libraryDenied } from './pineLibraryStore.js'
 
 export { importPathsOf } from './pineLibraryStore.js'
 
@@ -103,8 +103,30 @@ const headOf = (v) => String(v).split('.')[0]
 const isWord = (t, v) => !!t && t.kind === 'ident' && t.value === v
 const STATE_WORDS = new Set(['var', 'varip'])
 
-/** Thrown inside the linker; becomes the reason the import line is refused for. */
-class LinkRefusal extends Error {}
+/** Thrown inside the linker; becomes the reason the import line is refused for, and
+ *  (U15) the refusal's own name when it is not the generic import refusal. */
+class LinkRefusal extends Error {
+  constructor(message, code = null) { super(message); this.code = code }
+}
+
+/** ⭐⭐ U15 — THE TWO NAMED LIBRARY REFUSALS. Both lanes refuse the import line under these
+ *  codes (`pine.js` REFUSALS, the runtime front end's table) instead of the generic one. */
+export const LIBRARY_CHANGED = 'pine:library-changed'
+export const LIBRARY_NO_SHA = 'pine:library-no-sha'
+// ⭐⭐ U15 (coordinator ruling 2026-11-15) — a non-commercial licence, never served on this paid product
+export const LIBRARY_LICENCE = 'pine:library-licence'
+// ⭐⭐ U15 (coordinator ruling 2026-11-15) — a version on the deny list (`pineLibraryDeny.json`)
+export const LIBRARY_DENIED = 'pine:library-denied'
+
+/** `opts.libraryPins` (a document's `meta.libraries`: `[{path, sha256}]`) -> path -> sha. */
+function pinsOf(opts) {
+  const out = new Map()
+  const pins = opts && opts.libraryPins
+  for (const p of Array.isArray(pins) ? pins : []) {
+    if (p && typeof p.path === 'string' && typeof p.sha256 === 'string') out.set(p.path, p.sha256.toLowerCase())
+  }
+  return out
+}
 
 function topFindEq(toks) {
   let depth = 0
@@ -267,6 +289,8 @@ export function linkLibraries(lexed, opts, { lexPine, blockStatements }) {
   const lines = importLinesOf(tokens, indents)
   if (!lines.length) return lexed
   const resolve = resolverOf(opts)
+  const pins = pinsOf(opts)
+  const heldOf = opts && opts.libraries ? () => null : pineLibraryHeld
   const mainVersion = lexed.version
   const mainLineCount = (lexed.lines || []).length
 
@@ -279,9 +303,29 @@ export function linkLibraries(lexed, opts, { lexPine, blockStatements }) {
   /** Link one library (and, first, what it imports). Returns its unit. */
   const link = (imp, needed, stack) => {
     if (stack.includes(imp.path)) throw new LinkRefusal(`the libraries import each other in a cycle (${[...stack, imp.path].join(' → ')})`)
+    // ⭐⭐ U15 — DENIED BEFORE ANYTHING IS READ: whatever any store or caller holds
+    const denied = libraryDenied(imp.path)
+    if (denied) throw new LinkRefusal(`the library \`${imp.path}\` is not served: ${denied}`, LIBRARY_DENIED)
     const entry = resolve(imp.path)
     if (!entry || typeof entry.source !== 'string') {
+      // ⭐ U15 — the store holds it and will not serve it: say so, under its own name
+      const held = heldOf(imp.path)
+      if (held) {
+        throw new LinkRefusal(`the library \`${imp.path}\` is not served: ${held.reason}`,
+          held.code === 'licence' ? LIBRARY_LICENCE : held.code === 'denied' ? LIBRARY_DENIED : LIBRARY_NO_SHA)
+      }
       throw new LinkRefusal(`the library \`${imp.path}\` is not in this engine's library registry, so its code cannot be compiled`)
+    }
+    // ⭐⭐ U15 — SERVED ONLY WITH THE sha256 OF ITS OWN SOURCE, and, for a document that
+    // pinned it, only that sha. A library whose code changed under the same version is a
+    // different program from the one the member saved; it is refused, never drawn.
+    const licence = libraryLicenceProblem(entry)
+    if (licence) throw new LinkRefusal(`the library \`${imp.path}\` is not served: ${licence}`, LIBRARY_LICENCE)
+    const problem = libraryEntryProblem(entry)
+    if (problem) throw new LinkRefusal(`the library \`${imp.path}\` is not served: ${problem}`, LIBRARY_NO_SHA)
+    const pinned = pins.get(imp.path)
+    if (pinned && pinned !== entry.sha256.toLowerCase()) {
+      throw new LinkRefusal(`the library \`${imp.path}\` has changed since this script was saved (saved against sha256 ${pinned.slice(0, 12)}…, the store now holds ${entry.sha256.toLowerCase().slice(0, 12)}…): it is not the code the script was saved with, so it is not drawn until the script is saved again`, LIBRARY_CHANGED)
     }
     let unit = linked.get(imp.path)
     if (!unit) {
@@ -508,7 +552,7 @@ export function linkLibraries(lexed, opts, { lexPine, blockStatements }) {
       splices.push({ line: l, unit })
     } catch (err) {
       if (!(err instanceof LinkRefusal)) throw err
-      refusedAt.set(l.tok, err.message)
+      refusedAt.set(l.tok, err)
     }
   }
   if (!splices.length && !refusedAt.size) return lexed
@@ -528,7 +572,7 @@ export function linkLibraries(lexed, opts, { lexPine, blockStatements }) {
       emitWithDeps(s.unit, acc)
     } catch (err) {
       if (!(err instanceof LinkRefusal)) throw err
-      refusedAt.set(s.line.tok, err.message)
+      refusedAt.set(s.line.tok, err)
       unitOfAlias.delete(s.line.imp.alias)
       continue
     }
@@ -543,6 +587,8 @@ export function linkLibraries(lexed, opts, { lexPine, blockStatements }) {
       author: u.imp.author,
       name: u.imp.name,
       version: u.imp.version,
+      // ⭐ U15 — the pin: what was compiled, by its own sha256 (the member's document keeps it)
+      sha256: u.entry.sha256.toLowerCase(),
       licence: u.entry.licence || null,
       attribution: u.entry.attribution || null,
       url: u.entry.url || null,
@@ -576,9 +622,9 @@ export function linkLibraries(lexed, opts, { lexPine, blockStatements }) {
       if (!names.has(spelled)) names.set(spelled, `${u.imp.alias}.${d.name}`)
     }
   }
-  for (const [tok, reason] of refusedAt) {
+  for (const [tok, err] of refusedAt) {
     const i = newTokens.indexOf(tok)
-    if (i >= 0) newTokens[i] = { ...tok, libraryRefusal: reason }
+    if (i >= 0) newTokens[i] = { ...tok, libraryRefusal: err.message, ...(err.code ? { libraryRefusalCode: err.code } : {}) }
   }
 
   const out = {

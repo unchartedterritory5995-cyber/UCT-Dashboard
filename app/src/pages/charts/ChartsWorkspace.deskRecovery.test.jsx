@@ -129,8 +129,8 @@ async function renderWS() {
   return view
 }
 function popOut() {
-  act(() => { fireEvent.click(screen.getByText('Layouts ▾')) })
-  act(() => { fireEvent.click(screen.getByText('⧉ Pop Out Layout')) })
+  act(() => { fireEvent.click(document.querySelector('[data-guide="workspace.layoutsMenuBtn"]')) })
+  act(() => { fireEvent.click(screen.getByRole('button', { name: 'Pop out layout' })) })
 }
 const restoreButton = () => screen.queryByTestId('workspace-notice-action')
 const noticeText = () => screen.queryByTestId('workspace-notice')?.textContent ?? ''
@@ -346,8 +346,8 @@ describe('closing the window yourself', () => {
 
     test('dock, refused save, board replaced, later confirmed save: the record stays', async () => {
       await dockWithRefusedSave()
-      act(() => { fireEvent.click(screen.getByText('Layouts ▾')) })
-      act(() => { fireEvent.click(screen.getByText('Open Layout ▸')) })
+      act(() => { fireEvent.click(document.querySelector('[data-guide="workspace.layoutsMenuBtn"]')) })
+      act(() => { fireEvent.click(screen.getByRole('button', { name: 'Open layout' })) })
       act(() => { fireEvent.click(screen.getAllByText('UCT Default')[0]) })
       await flush()
       act(() => { vi.advanceTimersByTime(3000) })

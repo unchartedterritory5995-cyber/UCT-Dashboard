@@ -94,6 +94,7 @@ GATES: tuple[str, ...] = (
     "line",           # 2026-11-02: the line this alert watched was deleted; a new line reuses its key
     "server-lane",    # W5-T13: a runtime document the server lanes do not run (server_lane_refusal)
     "server-run",     # W5-T13: the runtime service gave no value for the plot on these bars
+    "calc-bars-window",  # CBC-FMT: the script declares a `calc_bars_count` window (meta.calcBarsCount)
 )
 
 
@@ -173,7 +174,42 @@ REFUSAL_FRAGMENTS: Mapping[str, str] = {
     # `_gate_cross_lane` for a runtime document) did not answer `ok` for the plot; the
     # guard and its sentence follow (a run-wide runtime guard, or a `runtime:server-*`).
     "server-run": "the runtime service gave no value for it on these bars",
+    # ⭐⭐ CBC-FMT -- the member door stamps a `calc_bars_count` window on the document
+    # (`meta.calcBarsCount`); the chart computes the script on its last N bars only, as
+    # TradingView does, and this lane computes every bar it reads. Refused by name
+    # (`CALC_BARS_WINDOW_GUARD`), never armed on a different number under the same name.
+    "calc-bars-window": "is computed on its last bars only (`calc_bars_count`), which this lane does not compute",
 }
+
+#: ⭐⭐ CBC-FMT -- the guard a `calc_bars_count` document is refused under on a server lane
+#: (alerts here, the screener backtest in `api/routers/screener_backtest.py`).
+CALC_BARS_WINDOW_GUARD = "alert:calc-bars-window"
+
+
+def calc_bars_window_refusal(definition: Any) -> Optional[str]:
+    """⭐⭐ CBC-FMT -- why a stored document is not run on a server lane because it declares a
+    `calc_bars_count` window, or None. The member door stamps `meta.calcBarsCount` (a positive
+    whole number, `pine.js::declarationCalcBars`); TradingView computes such a script on the
+    chart's last N bars only, with its state starting on the first of them, while a server lane
+    computes a series over whatever history it reads -- a different number under the same name.
+    ⛔ FAIL CLOSED: a stamp this cannot read (not a positive whole number) refuses too."""
+    meta = definition.get("meta") if isinstance(definition, Mapping) else None
+    if not isinstance(meta, Mapping) or "calcBarsCount" not in meta:
+        return None
+    n = meta.get("calcBarsCount")
+    if isinstance(n, bool) or not isinstance(n, int) or n <= 0:
+        return (f"{CALC_BARS_WINDOW_GUARD}: the document carries a `calc_bars_count` window this lane "
+                "cannot read, so it is not run here")
+    return (f"{CALC_BARS_WINDOW_GUARD}: this script is computed on the chart's last {n} bars only "
+            f"(`calc_bars_count = {n}`), as TradingView computes it, and this lane computes every bar it "
+            "reads, so its values would be different numbers under the same name; it is not run here")
+
+
+def _gate_calc_bars(definition: Mapping[str, Any], def_id: str) -> None:
+    """⭐⭐ CBC-FMT -- a `calc_bars_count` document never arms (`calc_bars_window_refusal`)."""
+    why = calc_bars_window_refusal(definition)
+    if why:
+        raise AdmissionRefused("calc-bars-window", f"{def_id} {REFUSAL_FRAGMENTS['calc-bars-window']}: {why}")
 
 #: The SECOND repaint refusal — the acknowledgement half — kept deliberately
 #: disjoint from `REFUSAL_FRAGMENTS["repaint"]` even though both are the repaint
@@ -464,7 +500,8 @@ _SYMBOL_LOCK = threading.Lock()
 
 def _symbol_bars(ticker: str, tf: str, want: int) -> list:
     """Another symbol's latest ``want`` bars at ``tf`` -- THE SCAN'S OWN LOCAL LOADER
-    (``scan_evaluator._read_bars``: ``bars_sqlite``, no network), so ``t`` is the
+    (``local_bars.read_bars``, which ``scan_evaluator._read_bars`` also reads:
+    ``bars_sqlite``, no network), so ``t`` is the
     same store key the alert's own bars carry and ``sym``'s exact-``t`` alignment
     holds. A bar the benchmark lacks is NaN there (UNKNOWN), never forward-filled."""
     import time as _time
@@ -474,9 +511,9 @@ def _symbol_bars(ticker: str, tf: str, want: int) -> list:
         hit = _SYMBOL_CACHE.get(key)
         if hit is not None and now - hit[0] < _SYMBOL_TTL_S:
             return hit[1]
-    from api.services.screener.scan_evaluator import _read_bars
+    from api.services import local_bars
     try:
-        series = _read_bars(store_ticker(ticker), str(tf), int(want))
+        series = local_bars.read_bars(store_ticker(ticker), str(tf), int(want))
     except Exception:                                    # noqa: BLE001 -- unknown, not wrong
         series = []
     with _SYMBOL_LOCK:
@@ -555,6 +592,10 @@ def _unsupplied_reason(tree: Any, codes: Sequence[str]) -> str:
     if UNSUPPLIED_LOWER_TF in codes:
         parts.append("it reads a timeframe below the chart (`ltf`), and the alert "
                      "lane holds no intraday bars for it")
+    if "request:htf-newest-unconfirmed" in codes:
+        parts.append("it reads a weekly or monthly value the way TradingView's "
+                     "`request.security` shows it (`tf_merge`), whose value on the newest "
+                     "finished bar depends on the date of the next session")
     return "; ".join(parts) + "."
 
 
@@ -697,6 +738,13 @@ def _make_value_fn(def_id: str, plot_key: str,
     unsupplied = unsupplied_reads(tree, check_opts)
     if cross_code:
         unsupplied = [cross_code] + [c for c in unsupplied if c != UNSUPPLIED_OTHER_SYMBOL]
+    # ⭐⭐ ENGINE 55 — PINE'S MERGED HIGHER-TIMEFRAME READ (`tf_merge`): the week's
+    # or month's value appears on the bar that closes it, and whether the newest
+    # finished bar closes its period is the next session's date — so on the bar an
+    # alert reads the value is withheld (`ast_interpret.tf_merge_mask`). Refused
+    # here, under the `withheld` gate and its sibling rule.
+    if _lane.reads_tf_merge(tree):
+        unsupplied = list(unsupplied) + [_lane.TF_MERGE_NEWEST_CODE]
     if unsupplied:
         raise AdmissionRefused(
             "withheld",
@@ -1709,6 +1757,7 @@ def admit_user_definition(user_id: Any, def_id: str,
     row = _gate_definition(user_id, def_id, version)
     _gate_engine(row, def_id)
     definition = _gate_lane(row)
+    _gate_calc_bars(definition, def_id)
     _gate_requirements(row, def_id)
     _gate_repaint(row, definition)
     if is_runtime_document(definition):
@@ -1817,6 +1866,7 @@ def user_value_function(user_id: Any, address: str
     def_id, plot_key = split_user_address(address)
     row = _gate_definition(user_id, def_id, None)
     definition = _gate_lane(row)
+    _gate_calc_bars(definition, def_id)
     _gate_requirements(row, def_id)
     _gate_repaint(row, definition)
     _gate_budget(definition, def_id)
@@ -2105,6 +2155,7 @@ def user_catalog(user_id: Any) -> list[dict]:
         def_id = str(row.get("def_id"))
         try:
             definition = _gate_lane(row)
+            _gate_calc_bars(definition, def_id)
             _gate_repaint(row, definition)
             _gate_budget(definition, def_id)
         except AdmissionRefused:

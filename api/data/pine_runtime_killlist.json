@@ -1,0 +1,14 @@
+{
+  "_readme": [
+    "RT1 (2026-11-15): the COMMITTED half of the runtime lane's per-script kill list. runtime_definitions.kill_list()",
+    "serves the UNION of these entries and PINE_RUNTIME_KILL_LIST (the variable stays the operator's instant switch).",
+    "A listed script falls back OFF the runtime lane at every door (preview, save, served rows, the server lanes),",
+    "refused by name with its `reason`. Nothing is deleted: removing an entry brings the script back on the next read.",
+    "An entry comes off ONLY when its `liftWhen` is met (an engine fix, then a re-grade to MATCH on the named captures).",
+    "tests/test_pine_capability_admission.py holds every entry to its evidence capture (a committed runtime-on verdict",
+    "that is not MATCH, on a capture whose source hashes to the entry's sha256). Edit as text.",
+    "Lifted: trend-targets-algoalpha (PR #1374), parabolic-sar (2026-11-16, round_to_mintick on a half tick, both captures MATCH).",
+    "Empty is a valid state: the by-name rails use a synthetic entry (tests/test_pine_capability_admission.py)."
+  ],
+  "scripts": []
+}

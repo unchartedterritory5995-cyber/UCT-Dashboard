@@ -232,6 +232,154 @@ def test_fresh_news_plus_a_pin_is_the_highest_news_confidence(monkeypatch):
     assert st["confidence"] == ds.CONF_NEWS_PRICE and st["source"] == ["news", "price_pinned"]
 
 
+STRIDE = "Chime Inks $590 Million Deal to Buy Longtime Bank Partner Stride"
+
+
+def _overrides(monkeypatch, tmp_path, payload):
+    p = tmp_path / "deal_not_pending.json"
+    p.write_text(payload if isinstance(payload, str) else json.dumps(payload), encoding="utf-8")
+    monkeypatch.setattr(ds, "_not_pending_path", lambda: str(p))
+    ds.reset_cache()
+
+
+def test_a_same_named_private_target_reads_as_the_listed_company_from_the_headline_alone(monkeypatch, tmp_path):
+    """The control: with no ruling the headline DOES make LRN pending (it names only "Stride"),
+    which is why an owner ruling is the fix and not a parser change."""
+    _names(monkeypatch, LRN="Stride, Inc.")
+    monkeypatch.setenv("DEAL_STATUS_ENABLED", "1")
+    _overrides(monkeypatch, tmp_path, {})
+    _news(monkeypatch, [(TODAY - timedelta(days=10), STRIDE, ["LRN"])])
+    assert ds.deal_status("LRN", bars=[])["pending"] is True
+    assert "LRN" in ds.screener_excludes()
+
+
+def test_an_owner_ruling_keeps_a_wrongly_tagged_name_out_of_the_pending_set(monkeypatch, tmp_path):
+    _names(monkeypatch, LRN="Stride, Inc.")
+    monkeypatch.setenv("DEAL_STATUS_ENABLED", "1")
+    _overrides(monkeypatch, tmp_path, {"lrn": "Stride Bank, not Stride, Inc."})
+    _news(monkeypatch, [(TODAY - timedelta(days=10), STRIDE, ["LRN"]),
+                        (TODAY - timedelta(days=10), DEF, ["AAA"])])
+    st = ds.deal_status("LRN", bars=[])
+    assert st["pending"] is False and st["source"] == [] and "completed" not in st
+    assert st["since"] is None and st["price"] is None
+    assert "LRN" not in ds.screener_excludes() and "LRN" not in ds.consumer_pending()
+    # the ruling names one symbol: every other news deal is untouched
+    assert ds.deal_status("AAA", bars=[])["pending"] is True
+    assert "AAA" in ds.screener_excludes() and "AAA" in ds.consumer_pending()
+
+
+def test_an_owner_ruling_never_makes_a_ruled_name_a_completed_deal(monkeypatch, tmp_path):
+    _names(monkeypatch, LRN="Stride, Inc.")
+    _overrides(monkeypatch, tmp_path, {"LRN": "x"})
+    _news(monkeypatch, [(TODAY - timedelta(days=10), STRIDE, ["LRN"])])
+    monkeypatch.setattr(ds, "_delisted", lambda sym: True)
+    assert "completed" not in ds.deal_status("LRN", bars=[])
+
+
+def test_a_hand_listed_name_stays_pending_whatever_the_ruling_file_says(monkeypatch, tmp_path):
+    _overrides(monkeypatch, tmp_path, {"OGN": "x"})
+    assert ds.deal_status("OGN", bars=[])["pending"] is True
+
+
+def test_a_price_pin_on_a_ruled_name_is_still_only_possible(monkeypatch, tmp_path):
+    _overrides(monkeypatch, tmp_path, {"AAA": "x"})
+    _news(monkeypatch, [(TODAY - timedelta(days=10), DEF, ["AAA"])])
+    st = ds.deal_status("AAA", bars=pinned_bars(gap_px=41.0))
+    assert st["pending"] is False and st.get("possible") is True
+
+
+@pytest.mark.parametrize("payload", ["{not json", '["LRN"]'])
+def test_a_broken_ruling_file_rules_nothing_and_is_logged(monkeypatch, tmp_path, caplog, payload):
+    _overrides(monkeypatch, tmp_path, payload)
+    with caplog.at_level("WARNING"):
+        assert ds.news_overrides() == frozenset()
+    assert "not-pending overrides" in caplog.text
+
+
+def test_a_real_all_stock_deal_the_owner_ruled_in_stays_in_scans(monkeypatch, tmp_path):
+    """LITE: the deal is real and the headline is right; the owner keeps it because it is not pinned."""
+    monkeypatch.setenv("DEAL_STATUS_ENABLED", "1")
+    _names(monkeypatch, LITE="Lumentum Holdings Inc.", MRVL="Marvell Technology, Inc.")
+    t = "Marvell and Lumentum enter into a definitive agreement for Marvell to acquire Lumentum in an all-stock transaction"
+    t2 = "Lumentum (NASDAQ: LITE) agreed to be acquired by Marvell in all-stock deal"
+    _overrides(monkeypatch, tmp_path, {})
+    _news(monkeypatch, [(TODAY - timedelta(days=10), t, ["MRVL", "LITE"]),
+                        (TODAY - timedelta(days=10), t2, ["LITE", "MRVL"])])
+    assert "LITE" in ds.screener_excludes(), "control: without the ruling the deal hides it"
+    _overrides(monkeypatch, tmp_path, {"LITE": "all stock, not pinned"})
+    assert "LITE" not in ds.screener_excludes()
+    assert ds.deal_status("LITE", bars=[])["pending"] is False
+
+
+BY_NAME = "Alpha Widgets to be acquired by Bravo Holdings for $41.25 a share"
+
+
+def _restart(monkeypatch):
+    """What a restart does to the name sources: memory is empty, the disk is not."""
+    from api.services.news import subject
+    monkeypatch.delitem(subject._NAME_CACHE, "AAA", raising=False)
+    ds.reset_cache()
+
+
+def test_a_target_written_by_name_stays_pending_across_a_restart(monkeypatch):
+    """LXFR 2026-11-15: a fresh pod had no company names in memory and dropped the deal."""
+    monkeypatch.setenv("DEAL_STATUS_ENABLED", "1")
+    _names(monkeypatch, AAA="Alpha Widgets Inc")
+    _news(monkeypatch, [(TODAY - timedelta(days=10), BY_NAME, ["AAA"])])
+    assert "AAA" in ds.pending_deal_symbols()          # the build before the restart
+    assert os.path.exists(ds._names_path())
+    _restart(monkeypatch)
+    assert ds._known_name("AAA") == "Alpha Widgets Inc"
+    assert "AAA" in ds.pending_deal_symbols() and "AAA" in ds.screener_excludes()
+    assert ds.names_cold() is False
+
+
+def test_without_the_saved_names_a_restart_does_drop_it(monkeypatch):
+    """The control: the saved file is what holds the deal, nothing else."""
+    monkeypatch.setenv("DEAL_STATUS_ENABLED", "1")
+    _names(monkeypatch, AAA="Alpha Widgets Inc")
+    _news(monkeypatch, [(TODAY - timedelta(days=10), BY_NAME, ["AAA"])])
+    assert "AAA" in ds.pending_deal_symbols()
+    os.remove(ds._names_path())
+    _restart(monkeypatch)
+    assert "AAA" not in ds.pending_deal_symbols()
+    assert ds.names_cold() is True
+
+
+def test_a_cold_build_never_forgets_a_saved_name(monkeypatch):
+    monkeypatch.setenv("DEAL_STATUS_ENABLED", "1")
+    _names(monkeypatch, AAA="Alpha Widgets Inc", BBB="Bravo Holdings Corp")
+    other = "Bravo Holdings to be acquired by Charlie for $9.00 a share"
+    _news(monkeypatch, [(TODAY - timedelta(days=10), BY_NAME, ["AAA"]),
+                        (TODAY - timedelta(days=9), other, ["BBB"])])
+    ds.pending_deal_symbols()
+    _restart(monkeypatch)                                  # AAA cold, BBB still in memory
+    ds.pending_deal_symbols()
+    with open(ds._names_path(), encoding="utf-8") as fh:
+        assert json.load(fh) == {"AAA": "Alpha Widgets Inc", "BBB": "Bravo Holdings Corp"}
+
+
+def test_names_are_not_saved_with_the_flag_off_and_a_damaged_file_is_not_used(monkeypatch, caplog):
+    _names(monkeypatch, AAA="Alpha Widgets Inc")
+    _news(monkeypatch, [(TODAY - timedelta(days=10), BY_NAME, ["AAA"])])
+    assert ds.deal_status("AAA", bars=[])["pending"] is True
+    assert not os.path.exists(ds._names_path())
+    with open(ds._names_path(), "w", encoding="utf-8") as fh:
+        fh.write("{not json")
+    _restart(monkeypatch)
+    with caplog.at_level("WARNING"):
+        assert ds.deal_status("AAA", bars=[])["pending"] is False
+    assert "saved names unreadable" in caplog.text
+
+
+def test_the_shipped_ruling_file_names_lrn_with_a_reason():
+    path = os.path.join(os.path.dirname(ds.__file__), "..", "data", ds.NOT_PENDING_FILENAME)
+    with open(path, encoding="utf-8") as fh:
+        data = json.load(fh)
+    assert {"LRN", "LITE"} <= set(data) and all(isinstance(v, str) and len(v) > 20 for v in data.values())
+    assert not (set(data) & ds.hand_list()), "a name cannot be both hand-listed and ruled out"
+
+
 def test_a_delisted_symbol_is_no_longer_pending_on_news(monkeypatch):
     _news(monkeypatch, [(TODAY - timedelta(days=10), DEF, ["AAA"])])
     monkeypatch.setattr(ds, "_delisted", lambda sym: sym == "AAA")

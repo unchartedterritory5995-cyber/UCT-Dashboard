@@ -104,7 +104,10 @@ import { ENGINE_ERROR, isRefusal } from './ast/parse'
 // symbol folds it differently, so the second symbol of a sweep would inherit the
 // first's lengths. That shows as a WRONG NUMBER, not an error.
 import { foldBound, bindConstsFor } from './ast/bind'
-import { isPineOriginDoc, otherSymbolPending } from './otherSymbols'
+import {
+  isPineOriginDoc, otherSymbolPending, otherSymbolRefusalOfTree, staticOtherSymbolMessage,
+  isOtherSymbolRefusal, colourReaderRefusal, colourReaderMessage, plotValueIsNaLiteral,
+} from './otherSymbols'
 import { resolveLowerTf } from './lowerTf'
 import { blockRunsRefusal, BLOCK_RUNS_GUARD } from './blockRuns'
 // ⭐⭐ P1 — the chart lane's pre-compute refusals and its other-symbol decision
@@ -165,7 +168,7 @@ import { serverColumnsFor, notifyColumnsLanded, scalarsFor } from './serverCompu
 // ⭐ U2b — the live forming-bar tail of a server definition (`plots[].liveTail`):
 // `computeSignature` carries the benchmark tail's version into the binder's memo.
 import { definitionHasLiveTail, liveTailSignature } from './liveTail'
-import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash } from './runtimeKill'
+import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash, runtimeFormingRefusalOf, RUNTIME_FORMING_GUARD } from './runtimeKill'
 // ⭐⭐ ENGINE 54 — the run half's program binding, object rail (registered) and refusal telemetry
 import { runHalfProgramBound, runHalfProgramStamped } from './runHalfProgram.js'
 import { registeredRunHalfObjectRail } from './runHalfRailSeam.js'
@@ -178,6 +181,10 @@ import { runtimeWarmupOf, RUNTIME_OBJECTS_KEY, withRunHalfState, carriesRunHalf 
 import { LIMIT_NAMES } from './runtime/limits'
 import { registeredObjectRuntimeValues, inputsAtDefaults } from './objectRuntimeSeam.js'
 import { manifestAtDefaults } from './paramLiteral.js'
+import { noteRuntimeLoadFailed } from './runtimeRunTelemetry.js'
+// ⭐⭐ CBC-FMT — `calc_bars_count`: the window both lanes take (pure, imports nothing).
+import { calcBarsWindowOf, windowContext, widenToChart, withCalcBarsRecord, calcBarsWindowReport,
+  CALC_BARS_REQUEST_GUARD, calcBarsRequestSentence } from './calcBarsWindow.js'
 // ⭐ UCT RS's tour cards (unit 4-04). ⛔ FROM `teachingData.js`, NEVER `teaching.js`:
 // `teaching.js` reads the readout cards off this registry, so importing it here
 // is an import cycle. `teachingData.js` imports nothing.
@@ -2425,6 +2432,52 @@ function astColumnsFor(def, bars, inputs, ctx) {
   return stop ? withRuntimeErrorStop(out, stop) : out
 }
 
+/** ⭐⭐ ENGINE 55 (review F1) — `column:<key>` → `<key>`, or null. */
+const colourHelperKeyOf = (mode) => (typeof mode === 'string' && mode.startsWith('column:') ? mode.slice('column:'.length) : null)
+
+/** The name a member reads for a plot: its label, never its key. */
+const visiblePlotName = (p) => `\`${(p && (p.label || p.title)) || (p && p.key) || 'a plot'}\``
+
+/** ⭐⭐ ENGINE 55 (review F1) — SERVE, NEVER DEFAULT. A plot whose per-bar COLOUR (`colorMode`) or
+ *  band colour (`fill.colorMode`) is read from a helper column the bind REFUSED for another
+ *  symbol is refused too, by name, with the helper's guard and code and a sentence naming the
+ *  visible plot and the symbol (`otherSymbols.colourReaderRefusal`). ⚰️ The helper was refused
+ *  and the plot was not: the binder found no colour column, `pointColour` answered null, and the
+ *  series' DEFAULT colour was drawn on every bar — a colour the script never chose.
+ *  ⛔ A band's PARTNER (`fill.with`) refused is not this: that partner is a visible plot refused
+ *  by name, the band has no edge to draw, and the owner's own line is still exact.
+ *  ⛔ A plot whose VALUE is the `na` literal draws nothing on any bar, so its colour is never
+ *  seen: it is not refused (`plotValueIsNaLiteral`). */
+function refuseColourReaders(def, out, errors) {
+  const trees = def && def.compute && def.compute.trees
+  for (const p of (def && def.plots) || []) {
+    if (!p || typeof p.key !== 'string' || errors[p.key]) continue
+    if (trees && plotValueIsNaLiteral(trees[p.key])) continue
+    const helpers = [colourHelperKeyOf(p.colorMode), p.fill ? colourHelperKeyOf(p.fill.colorMode) : null]
+      .filter((k) => typeof k === 'string' && k && k !== p.key)
+    const hit = helpers.map((k) => errors[k]).find(isOtherSymbolRefusal)
+    if (!hit) continue
+    delete out[p.key]
+    errors[p.key] = colourReaderRefusal(visiblePlotName(p), hit)
+  }
+}
+
+/** ⭐⭐ ENGINE 55 (review F1) — the paints (`bgcolor` / `barcolor`) whose colour is read from a
+ *  helper column refused for another symbol, each named for the strip by its kind and line —
+ *  never by the hidden helper row that carried the colour. */
+function colourReaderPaintNotices(def, columns) {
+  const errs = columnErrors(columns)
+  const out = []
+  for (const paint of (def && Array.isArray(def.paints) ? def.paints : [])) {
+    const key = paint && colourHelperKeyOf(paint.colorMode)
+    const e = key ? errs[key] : null
+    if (!isOtherSymbolRefusal(e)) continue
+    const name = `\`${paint.kind || 'bgcolor'}\`${Number.isInteger(paint.line) ? ` (line ${paint.line})` : ''}`
+    out.push({ code: e.code || e.guard, reason: colourReaderMessage(name, e.message) })
+  }
+  return out
+}
+
 function astColumnsUnstopped(def, bars, inputs, ctx) {
   const keys = astPlotKey(def)
   const trees = astTrees(def)
@@ -2501,6 +2554,9 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
     const crossMemo = new Map()
     // ⭐ C36 — why a plot's `time(<timeframe>)` is withheld on this chart, per plot.
     const clock = {}
+    // ⭐ ENGINE 56 — plot key → Map(code → 0/1 column): the bars a per-bar witness mask
+    // withheld by name (`interpret.js::spreadWitnessMask`), read by `withheldBarsReport`
+    const withheldBars = {}
     for (const key of keys) {
       if (!Object.prototype.hasOwnProperty.call(trees, key)) {
         throw new Error(
@@ -2544,6 +2600,14 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
         errors[key] = staticWhy.get(key)
         continue
       }
+      // ⭐⭐ ENGINE 55 — a plot that reads a ticker this binding REFUSED (settled, not
+      // pending) is refused BY NAME with the bind's code and sentence, never computed
+      // into an all-`na` column (`otherSymbols.js::otherSymbolRefusalOfTree`).
+      const symWhy = otherSymbolRefusalOfTree(trees[key], other)
+      if (symWhy) {
+        errors[key] = symWhy
+        continue
+      }
       try {
         out[key] = interpret(bound(trees[key]), bars, inputs, def.compute.budget,
           // ⛔ `newestBarIsForming` IS READ THE SAME WAY `tf` IS, and fails closed
@@ -2556,7 +2620,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
             ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}), ...(varOriginAbsoluteFor(def) ? { varOriginAbsolute: true } : {}),
             ...(other ? { symbols: other.symbols } : {}),
             ...(lower ? { lowerTf: lower.supply } : {}), crossMemo,
-            chartClockSink: (clock[key] = new Map()) })
+            chartClockSink: (clock[key] = new Map()), withheldBarsSink: (withheldBars[key] = new Map()) })
       } catch (err) {
         // ⛔ A CRASH IS NOT A REFUSAL. `|| 'compute:error'` gave EVERY
         // exception a guard name, so a TypeError inside a walker was
@@ -2587,10 +2651,12 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
       if (runsWhy) {
         delete out[key]
         delete clock[key]
+        delete withheldBars[key]
         errors[key] = { guard: BLOCK_RUNS_GUARD, message: runsWhy }
       }
     }
-    return withLowerTf(withChartClock(withOtherSymbols(withColumnErrors(out, errors), other), clock), lower)
+    refuseColourReaders(def, out, errors)
+    return withWithheldBars(withLowerTf(withChartClock(withOtherSymbols(withColumnErrors(out, errors), other), clock), lower), withheldBars)
   }
   if (keys.length !== 1) {
     throw new Error(
@@ -2615,7 +2681,11 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
   // different route and reads identically at the call site.
   // ⭐ P0 0F — see the per-plot branch above (`chartScalars.js`).
   if (staticWhy.has(keys[0])) return withColumnErrors({}, { [keys[0]]: staticWhy.get(keys[0]) })
+  // ⭐⭐ ENGINE 55 — the single tree's settled other-symbol refusal, by name.
+  const soleSymWhy = otherSymbolRefusalOfTree(def.compute.ast, other)
+  if (soleSymWhy) return withOtherSymbols(withColumnErrors({}, { [keys[0]]: soleSymWhy }), other)
   const clock = { [keys[0]]: new Map() }
+  const soleWithheld = { [keys[0]]: new Map() }
   const sole = interpret(bound(def.compute.ast), bars, inputs, def.compute.budget,
     undefined, { tf: ctx && ctx.tf,
       newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
@@ -2624,7 +2694,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
       ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}), ...(varOriginAbsoluteFor(def) ? { varOriginAbsolute: true } : {}),
       ...(other ? { symbols: other.symbols } : {}),
       ...(lower ? { lowerTf: lower.supply } : {}),
-      chartClockSink: clock[keys[0]] })
+      chartClockSink: clock[keys[0]], withheldBarsSink: soleWithheld[keys[0]] })
   // ⭐ C48 — the single-tree document's own block-run check (`blockRuns.js`),
   // AFTER its tree computed (a tree that cannot keeps its own reason, above).
   const soleRunsWhy = blockRunsRefusal(def, keys[0], (tree) => interpret(bound(tree), bars, inputs, def.compute.budget,
@@ -2637,7 +2707,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
       ...(lower ? { lowerTf: lower.supply } : {}),
       chartClockSink: new Map() }))
   if (soleRunsWhy) return withColumnErrors({}, { [keys[0]]: { guard: BLOCK_RUNS_GUARD, message: soleRunsWhy } })
-  return withLowerTf(withChartClock(withOtherSymbols({ [keys[0]]: sole }, other), clock), lower)
+  return withWithheldBars(withLowerTf(withChartClock(withOtherSymbols({ [keys[0]]: sole }, other), clock), lower), soleWithheld)
 }
 
 /** ⭐⭐ C41 — the lower-timeframe codes THIS binding may read
@@ -2669,8 +2739,24 @@ export { FORMULA_LTF_GUARD, FORMULA_LTF_MESSAGE }
  *  `ltf` is never a silent blank line. ⛔ A Pine translation's own refusals are
  *  left exactly as they were (its disclosures ride on `meta.disclosures`). */
 export function externalReadNotices(def, columns) {
-  if (!def || isPineOriginDoc(def) || !columns) return []
+  if (!def || !columns) return []
   const out = []
+  // ⭐⭐ ENGINE 55 — A PINE TRANSLATION'S OTHER-SYMBOL REFUSALS ARE PUBLISHED TOO. Its
+  // translate-time disclosures ride `meta.disclosures`, but a ticker the BIND refuses
+  // (`ADVQ` held nowhere, an unwitnessed venue) is decided per chart and was said
+  // nowhere: the plot drew an all-`na` line. It is now refused by name in
+  // `columnErrors` and named here, on the same strip.
+  if (isPineOriginDoc(def)) {
+    const other = otherSymbolReport(columns)
+    for (const r of (other && other.refused) || []) {
+      if (otherSymbolPending(r)) continue
+      out.push({ code: r.code, reason: r.static === true ? staticOtherSymbolMessage(r.ticker, r)
+        : `This indicator reads \`${r.ticker}\`: ${r.reason}` })
+    }
+    // ⭐ review F1 — and every paint whose colour that refusal leaves undrawn, by its own name
+    out.push(...colourReaderPaintNotices(def, columns))
+    return out
+  }
   const other = otherSymbolReport(columns)
   for (const r of (other && other.refused) || []) {
     if (otherSymbolPending(r)) continue
@@ -2735,6 +2821,27 @@ export function otherSymbolReport(columns) {
   return (columns && columns[OTHER_SYMBOLS]) || null
 }
 
+/** ⭐ ENGINE 56 — the key a column map carries its per-bar witness withholdings under,
+ *  non-enumerable like `__chartClock`: plot key → `{code: Float64Array(0/1)}`. */
+const WITHHELD_BARS = '__withheldBars'
+function withWithheldBars(out, byKey) {
+  const rows = {}
+  for (const [key, codes] of Object.entries(byKey || {})) {
+    if (codes && codes.size) rows[key] = Object.freeze(Object.fromEntries(codes))
+  }
+  if (Object.keys(rows).length) {
+    Object.defineProperty(out, WITHHELD_BARS, { value: Object.freeze(rows), enumerable: false })
+  }
+  return out
+}
+/** ⭐ ENGINE 56 — the bars each plot was withheld on by a per-bar witness code (A3's
+ *  `pine:bool-na-unwitnessed`, S4-2's `pine:tie-unwitnessed`): `{[plotKey]: {[code]: 0/1
+ *  column}}`, or null. The vendor harness reads it so a withheld bar is graded "not
+ *  compared", never as the `na` the column holds there. */
+export function withheldBarsReport(columns) {
+  return (columns && columns[WITHHELD_BARS]) || null
+}
+
 /** The key a column map carries its `time(<timeframe>)` withholdings under —
  *  non-enumerable for the reason `__columnErrors` is. */
 const CHART_CLOCK = '__chartClock'
@@ -2766,7 +2873,13 @@ function withChartClock(out, byKey) {
  *  (`chartClockNotice.js`); the vendor harness prints it as a note. Modelled on
  *  `otherSymbolReport`: the decision rides on the columns it was made for. */
 export function chartClockReport(columns) {
-  return (columns && columns[CHART_CLOCK]) || null
+  const own = (columns && columns[CHART_CLOCK]) || null
+  // ⭐⭐ CBC-FMT — a `calc_bars_count` window says so on the same strip ("computed on its
+  // last N bars", and the newest bar while it is withheld), in either lane.
+  const win = calcBarsWindowReport(columns)
+  if (!win) return own
+  const rows = win.rows.map((r) => ({ code: r.code, reason: r.reason, plots: [] }))
+  return Object.freeze({ withheld: Object.freeze([...((own && own.withheld) || []), ...rows]) })
 }
 
 /** ⭐⭐ C12w — THE DECLARATION A DOCUMENT MAKES ABOUT ITS RECURRENCES. The Pine
@@ -3049,6 +3162,7 @@ function loadRuntimeLane() {
     .catch((err) => {
       _runtimeLoading = null
       _runtimeLoadFailed = String((err && err.message) || err || 'the load failed')
+      noteRuntimeLoadFailed()   // ⭐ U4 — one stop in this tab's run count
       notifyColumnsLanded('runtime:lane')
     })
   return true
@@ -3087,6 +3201,15 @@ function runtimeColumnsOrReasons(def, bars, inputs, ctx) {
     if (killed) {
       return reasonFor(RUNTIME_KILLED_GUARD, `${killed}. The saved definition is kept; it comes `
         + 'back when it is taken off the list.')
+    }
+    // ⭐⭐ G6 (2026-11-15) — a script admitted for CLOSED-BAR HISTORY only is refused BY NAME on a
+    // chart whose newest bar is forming or not known to be closed (`runtimeFormingRefusalOf`).
+    const forming = runtimeFormingRefusalOf({
+      source: def.compute && def.compute.source, newestBarIsForming: ctx ? ctx.newestBarIsForming : null,
+    })
+    if (forming) {
+      return reasonFor(RUNTIME_FORMING_GUARD, `${forming}. The chart is unaffected and the saved `
+        + 'definition is kept; it is drawn again once the bar has finished.')
     }
   }
   if (!_runtimeLane) {
@@ -3169,6 +3292,8 @@ const RUNTIME_COLOUR_WHY = Object.freeze({
   'pane:not-permitted': 'running scripts bar by bar is switched off for your account right now, so the candles keep their own colours',
   'pane:killed': 'this script is switched off for running bar by bar, so the candles keep their own colours',
   'pane:not-graded': "this script hasn't been checked against TradingView for running bar by bar yet, so the candles keep their own colours",
+  // ⭐ G6 — `runtimeKill.js::RUNTIME_FORMING_GUARD`
+  'pane:forming-ungraded': "this script reads the state of the bar as it forms, which has only been checked against TradingView on finished bars, so while this chart's newest bar is not known to be finished the candles keep their own colours",
   'runtime:runtime.error': "the script stops itself with its own error message on this chart, so it draws no colours, as on TradingView",
   'runtime:not-loaded': 'the part of the app that runs scripts bar by bar is still loading, so the colours appear once it has',
   'runtime:unknown-bar': "on some bars the colour can't be worked out exactly, so none are drawn and the candles keep their own colours",
@@ -3196,9 +3321,14 @@ const RUNTIME_LIMIT_CODES = new Set([RUNTIME_LIMIT_GUARD_CODE, ...LIMIT_NAMES.ma
  *  own memo (`runtimeObjectValues`, keyed by the spec's identity per bars array) hits
  *  on the next paint instead of growing by one entry a call. */
 const _runSpecs = new WeakMap()
-function runSpecOf(rc) {
+function runSpecOf(rc, def) {
   let rt = _runSpecs.get(rc)
-  if (!rt) { rt = Object.freeze({ source: rc.source, at: rc.at, lane: 'pane' }); _runSpecs.set(rc, rt) }
+  if (!rt) {
+    // ⭐⭐ U15 — the document's library pins ride with the run (`pine:library-changed`)
+    const pins = def && def.meta && Array.isArray(def.meta.libraries) && def.meta.libraries.length ? def.meta.libraries : null
+    rt = Object.freeze({ source: rc.source, at: rc.at, lane: 'pane', ...(pins ? { libraryPins: pins } : {}) })
+    _runSpecs.set(rc, rt)
+  }
   return rt
 }
 
@@ -3276,6 +3406,8 @@ function withRuntimeColours(def, out, bars, inputs, ctx) {
     refuse('pane:killed')
   } else if (notGraded || stamp === 'not-graded') {
     refuse('pane:not-graded')
+  } else if (runtimeFormingRefusalOf({ source: rc && rc.source, newestBarIsForming: ctx ? ctx.newestBarIsForming : null })) {
+    refuse(RUNTIME_FORMING_GUARD)
   } else if (stop && stop.reached) {
     // ⛔ the script's own `runtime.error` was reached: TradingView holds nothing, and no colour is drawn either
     for (const k of keys) {
@@ -3284,7 +3416,7 @@ function withRuntimeColours(def, out, bars, inputs, ctx) {
   } else if (!fn) {
     refuse('runtime:not-loaded')
   } else {
-    const v = fn(runSpecOf(rc), bars, {
+    const v = fn(runSpecOf(rc, def), bars, {
       tf: ctx && ctx.tf,
       symbol: ctx && ctx.symbol,
       newestBarIsForming: ctx && ctx.newestBarIsForming,
@@ -3385,6 +3517,8 @@ function runHalfDefOf(def, ro) {
     for (const k of ['runtimeLanguage', 'runtimeFrontend', 'runtimeIr', 'runtimeOutputSignature']) {
       if (ro[k] !== undefined) meta[k] = ro[k]
     }
+    // ⭐⭐ U15 — the run half re-links its source's libraries: the document's pins go with it
+    if (def.meta && Array.isArray(def.meta.libraries) && def.meta.libraries.length) meta.libraries = def.meta.libraries
     rt = Object.freeze({
       id: `${def.id}~run`,
       ...(Number.isInteger(def.version) ? { version: def.version } : {}),
@@ -3439,6 +3573,9 @@ function copyColumns(out) {
  *  run's drawings beside it (`RUNTIME_OBJECTS_KEY`, the RT5 shape the binder already draws),
  *  `pending` while the run is in flight, `refused` with its code. `ctx` absent (a probe that
  *  is not a chart, `validateEventColumns`) asks nothing of the run. */
+/** The run half's state code while its run waits for another symbol's bars (not a refusal). */
+export const RUN_HALF_REQUEST_PENDING = 'runtime:request-pending'
+
 function withRunHalf(def, out, bars, inputs, ctx) {
   if (!ctx) return out
   const ro = def.compute.runtimeObjects
@@ -3470,6 +3607,9 @@ function withRunHalf(def, out, bars, inputs, ctx) {
   if (!runtimePanePermitted()) return refused('pane:not-permitted')
   if (stamp === 'killed' || runtimeKillOf({ defId: def.id, source: ro.source })) return refused('pane:killed')
   if (stamp === 'not-graded' || runtimeNotGradedOf({ source: ro.source })) return refused('pane:not-graded')
+  if (runtimeFormingRefusalOf({ source: ro.source, newestBarIsForming: ctx.newestBarIsForming })) {
+    return refused(RUNTIME_FORMING_GUARD)
+  }
   const stop = runtimeErrorStopOf(out)
   if (stop && stop.reached) return refused('runtime:runtime.error')
   if (!runtimeColoursAtDefaults(def, inputs)) return refused('runtime:member-inputs')
@@ -3482,12 +3622,19 @@ function withRunHalf(def, out, bars, inputs, ctx) {
   try {
     cols = _runtimeLane(runHalfDefOf(def, ro), bars, {}, ctx)
   } catch (err) {
+    // ONE WITHHOLDING, ONE REASON (2026-11-16). A run waiting for another symbol's bars is a
+    // run in flight, not a refusal: seen on production, the note under a chart read "the script
+    // reads another symbol or timeframe, which this chart cannot hand that run" for the seconds
+    // the bars took to load, and a different reason once they had. Held, with nothing said about
+    // a cause, until the run can answer.
+    if (err && err.pending === true) return answered('pending', RUN_HALF_REQUEST_PENDING)
     return refused(err && err.name === 'runtime.error' ? 'runtime:runtime.error' : ((err && err.guard) || 'runtime:error'))
   }
   const payload = cols && typeof cols === 'object' ? cols[RUNTIME_OBJECTS_KEY] : null
   // ⛔ A run that owns its drawings always attaches them when it finishes
   // (`runtimeColumns.js`): nothing attached is a run still in flight.
   if (!payload || typeof payload !== 'object') return answered('pending', 'runtime:in-flight')
+  if (payload.status === 'WITHHELD' && payload.pending === true) return answered('pending', RUN_HALF_REQUEST_PENDING)
   if (payload.status === 'WITHHELD') return refused(payload.guard || 'runtime:objects')
   if (payload.status !== 'ok' || !Array.isArray(payload.live)) return refused('runtime:objects-stopped')
   const hostFams = hostObjectFamilies(def.objects)
@@ -3552,6 +3699,12 @@ export function computeFor(def, bars, inputs, ctx) {
   // had one.
   if (def?.compute?.kind === 'ast') {
     const rows = Array.isArray(bars) ? bars : []
+    // ⭐⭐ CBC-FMT — `calc_bars_count`: THE ONE SEAM where the host lane takes its window
+    // (`engine/calcBarsWindow.js`). Every caller of `computeFor` (the binder, the object
+    // lane, the vendor harness) inherits it; a chart of N bars or fewer, and every document
+    // without the stamp, takes the path below unchanged.
+    const win = calcBarsWindowOf(def, rows)
+    if (win) return windowedAstColumns(def, win, inputs, ctx)
     const out = astColumnsFor(def, rows, treeScalars(def, resolveInputs(def, inputs)), ctx)
     const coloured = def.compute.runtimeColours ? withRuntimeColours(def, out, rows, inputs, ctx) : out
     // ⭐⭐ ENGINE 53 — and its drawings, when it carries a run half (`withRunHalf`).
@@ -3581,6 +3734,54 @@ export function computeFor(def, bars, inputs, ctx) {
 
   const hold = COLUMN_HOLDS[def.compute.fn]
   return hold ? hold(columns) : columns
+}
+
+/**
+ * ⭐⭐ CBC-FMT — AN `ast` DOCUMENT'S COLUMNS OVER ITS `calc_bars_count` WINDOW.
+ *
+ * The run is the ordinary one (`astColumnsFor`, then the run-read colours and the run
+ * half, exactly as `computeFor` composes them) over the window's rows, told its first bar
+ * is the history's first bar and TradingView's `bar_index` 0 (`windowContext`, both
+ * witnessed). Its columns are widened back to the chart (`NaN` before the window) and
+ * carry the window's record. Three things the window does not witness are withheld or
+ * refused BY NAME, never computed as if they were (`barstate.isfirst`, `last_bar_index` and
+ * a history read are witnessed: the slice computes them as TradingView does, S10):
+ *   · a request of other bars (`meta.calcBarsRequest`, or a `sym` / `ltf` / higher-
+ *     timeframe read): every plot is refused (`CALC_BARS_REQUEST_GUARD`);
+ *   · the newest bar while it may be forming (`withCalcBarsRecord`).
+ */
+function windowedAstColumns(def, win, inputs, ctx) {
+  const keys = astPlotKey(def)
+  if (calcBarsRequests(def)) {
+    const errors = {}
+    for (const key of keys) errors[key] = { guard: CALC_BARS_REQUEST_GUARD, message: calcBarsRequestSentence(win.count) }
+    return withCalcBarsRecord(withColumnErrors({}, errors), win, ctx, RUNTIME_OBJECTS_KEY)
+  }
+  const wctx = windowContext(ctx)
+  const out = astColumnsFor(def, win.rows, treeScalars(def, resolveInputs(def, inputs)), wctx)
+  const coloured = def.compute.runtimeColours ? withRuntimeColours(def, out, win.rows, inputs, wctx) : out
+  const ran = def.compute.runtimeObjects ? withRunHalf(def, coloured, win.rows, inputs, wctx) : coloured
+  return withCalcBarsRecord(widenToChart(ran, win.cut, RUNTIME_OBJECTS_KEY), win, ctx, RUNTIME_OBJECTS_KEY)
+}
+
+/** Does a windowed document request other bars? The door's stamp (the source's own
+ *  `request.*`, the identity included) or a tree that reads them. */
+function calcBarsRequests(def) {
+  if (def.meta && (def.meta.calcBarsRequest === true
+    || (Array.isArray(def.meta.otherSymbols) && def.meta.otherSymbols.length)
+    || (Array.isArray(def.meta.lowerTf) && def.meta.lowerTf.length))) return true
+  const trees = astTrees(def)
+  const all = trees ? Object.values(trees) : [def.compute.ast]
+  const stack = [...all]
+  const seen = new Set()
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object' || seen.has(n)) continue
+    seen.add(n)
+    if (n.type === 'sym' || n.type === 'ltf' || n.type === 'tf' || n.type === 'tf_live') return true
+    if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
+  }
+  return false
 }
 
 /**
@@ -4772,10 +4973,10 @@ const RS_LINE_V5_RAW = {
     // And for the slim line's second average (2026-11-13): its switch, length, type
     // and colour, legacy here with the slim types, ranges and options exactly.
     { key: 'showAverage2', type: 'bool', label: 'Second average', default: false, group: 'Line', legacy: true },
-    { key: 'maLength2', type: 'int', label: 'Second average (bars)', default: 50, min: 2, max: 200, step: 1, group: 'Line', legacy: true },
-    { key: 'maType2', type: 'enum', label: 'Second average type', default: 'SMA', group: 'Line', legacy: true,
+    { key: 'maLength2', type: 'int', label: 'Average 2 (bars)', default: 50, min: 2, max: 200, step: 1, group: 'Line', legacy: true },
+    { key: 'maType2', type: 'enum', label: 'Average 2 type', default: 'SMA', group: 'Line', legacy: true,
       options: RS_MA_TYPE_OPTIONS },
-    { ...colorInput('ma2Color', 'Second average colour', RS_MA2), group: 'Line', legacy: true },
+    { ...colorInput('ma2Color', 'Average 2 colour', RS_MA2), group: 'Line', legacy: true },
     { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1, group: 'Line' },
     { key: 'lookback', type: 'int', label: 'Lookback (bars)', default: 252, min: 20, max: 500, step: 1, group: 'New highs',
       tooltip: 'New-high lookback: bars for a new high. 252 bars is one trading year on a daily chart; on a weekly chart use 52. Shorter reacts faster and fires more often.' },
@@ -5489,13 +5690,14 @@ const RS_LINE_SLIM_RAW = {
     // Declared OFF, so every saved chart draws exactly as before.
     { key: 'showAverage2', type: 'bool', label: 'Second average', default: false, group: 'Average',
       tooltip: 'Draw a second moving average on the RS line, dotted, with no shading (a 50-day simple average by default, the slower read beside the 21). Off by default.' },
-    { key: 'maLength2', type: 'int', label: 'Second average (bars)', default: 50, min: 2, max: 200, step: 1, group: 'Average',
+    { key: 'maLength2', type: 'int', label: 'Average 2 (bars)', default: 50, min: 2, max: 200, step: 1, group: 'Average',
       activeWhen: RS_AVERAGE2_ON,
       tooltip: 'Second average length in bars. 50 is the slower read many traders pair with the 21.' },
-    { key: 'maType2', type: 'enum', label: 'Second average type', default: 'SMA', group: 'Average',
+    { key: 'maType2', type: 'enum', label: 'Average 2 type', default: 'SMA', group: 'Average',
       options: RS_MA_TYPE_OPTIONS, activeWhen: RS_AVERAGE2_ON,
       tooltip: 'Simple by default (Deepvue draws its second RS average as a 50 SMA); exponential reacts faster.' },
-    { ...colorInput('ma2Color', 'Second average colour', RS_MA2), group: 'Average', activeWhen: RS_AVERAGE2_ON },
+    { ...colorInput('ma2Color', 'Average 2 colour', RS_MA2), group: 'Average', activeWhen: RS_AVERAGE2_ON,
+      tooltip: 'Colour of the second average on the RS line.' },
     // ── rendered: Line (folded) ──
     { ...colorInput('color', 'Line colour', RS_INFO), group: 'Line', tooltip: 'Colour of the RS line' },
     { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1, group: 'Line' },
@@ -6375,6 +6577,21 @@ export function uninstallUserDefinition(defId) {
 /** @returns {object[]} the user definitions installed in THIS session. */
 export function listUserDefinitions() {
   return [..._userById.values()]
+}
+
+/** ⚡ PRELOAD (perf/pine-runtime-chunk-preload) — does a definition run (in whole or in part) on the
+ *  per-bar lane: a runtime document, a host document's run half (`compute.runtimeObjects`), or its
+ *  run-read paint colours (`compute.runtimeColours`)? The chart warms the lane's worker after its
+ *  first paint only when one of the member's installed definitions does (`runtimeLaneWarm.js`). */
+export function definitionUsesRuntimeLane(def) {
+  const c = def && def.compute
+  return !!(c && (c.kind === 'runtime' || c.runtimeObjects || c.runtimeColours))
+}
+
+/** ⚡ Is any user definition installed in this session on the per-bar lane? */
+export function anyInstalledRuntimeDefinition() {
+  for (const d of _userById.values()) if (definitionUsesRuntimeLane(d)) return true
+  return false
 }
 
 /**

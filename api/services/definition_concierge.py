@@ -419,6 +419,12 @@ CONCIERGE_OMITS: Mapping[str, str] = MappingProxyType({
         "is evaluated on a symbol's intraday bars, which only a chart supplies — a "
         "saved screen holds none and refuses it — so it is translated-only."
     ),
+    "tf_merge": (
+        "Pine's look-ahead-off higher-timeframe read as TradingView merges it (ENGINE 55). "
+        "It exists to translate `request.security(…, \"W\"|\"M\")` exactly; a screen and an "
+        "alert read the newest finished bar, which it withholds, and refuse it — a member "
+        "asking in English gets `tf` (the last closed week or month), so it is translated-only."
+    ),
 })
 
 
@@ -2757,6 +2763,26 @@ def user_turn(understanding: Mapping[str, Any]) -> str:
     ])
 
 
+def _name_key(text: Any) -> str:
+    """A screen name's comparison key: lower case, every run of non-alphanumerics one space."""
+    return " ".join("".join(ch if ch.isalnum() else " " for ch in str(text or "").lower()).split())
+
+
+def _starter_named(text: Any) -> Optional[Mapping[str, Any]]:
+    """The shipped starter screen whose WHOLE name ``text`` is, or None. Never raises."""
+    key = _name_key(text)
+    if not key:
+        return None
+    try:
+        from api.services.screener import saved_screens  # noqa: PLC0415
+        for screen in saved_screens.starters():
+            if _name_key(screen.get("name")) == key:
+                return screen
+    except Exception:  # noqa: BLE001 -- no screen list: nothing named, the old outcome
+        return None
+    return None
+
+
 def plan(prompt: str, kind: str = INDICATOR_KIND, *,
          vocab: Optional[Mapping[str, Any]] = None,
          table: Optional[Mapping[str, Any]] = None,
@@ -2909,6 +2935,27 @@ def plan(prompt: str, kind: str = INDICATOR_KIND, *,
         if not survivor_spans or any(a <= num["start"] and num["end"] <= b
                                      for a, b in survivor_spans)
     ]
+
+    # ⭐ A SHIPPED SCREEN'S OWN NAME, SAID ON ITS OWN, IS NAMED RATHER THAN PASSED THROUGH BLIND
+    # (2026-11-15). The 2026-09-20 screener rebuild renamed the firm's starters, and five of the
+    # new names ("Pocket pivots", "Three weeks tight", "Stage-2 breakouts", "Anticipation",
+    # "UCT 50") anchored NOTHING here: a member who typed the firm's own screen name reached the
+    # model as bare English, free to invent a definition of a screen the firm already ships.
+    # ⛔ ONLY WHEN NOTHING ELSE ANCHORED, AND ONLY ON THE WHOLE NAME: an anchored request keeps
+    # exactly the outcome it had, and a name inside a longer sentence is ordinary English. The
+    # entry is `unavailable` (named, not excised): the screen's rule lives in the screener --
+    # structure matches, ranks -- which no tree in this grammar spells.
+    if not (concepts or terms or not_understood or unavailable):
+        starter = _starter_named(text)
+        if starter is not None:
+            unavailable.append({
+                "phrase": text.strip(),
+                "name": f"starter_screen:{starter.get('id')}",
+                "reason": (
+                    f'"{starter.get("name")}" is the firm\'s own screen of that name'
+                    + (f' ({starter.get("description")})' if starter.get("description") else "")
+                    + ". Its rule lives in the screener, not in this formula language: open "
+                    "that screen to run it, or describe the parts you want.")})
 
     briefing = _KIND_BRIEF.get(kind, "")
     if concepts:

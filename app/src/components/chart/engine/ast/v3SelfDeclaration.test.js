@@ -106,6 +106,12 @@ const CONTROLS = {
 }
 
 const V3 = [3, 4, 5, 6]
+/** ⭐ LANDING TRAIN 1 (the review of #1330, item 4, coordinator ruling): a script with NO `//@version` that
+ *  uses v4+ syntax is refused at the MEMBER DOOR by name (`pine:version-missing`: TradingView compiles a
+ *  no-pragma script as v1, which has no `var` and no typed declaration). The three translator doors keep
+ *  their path. These five controls are the ones written with `var` / a typed declaration. */
+const NO_PRAGMA_MODERN = new Set(['var', 'shadowSlot', 'shadowSlotTop', 'blockVar', 'blockString'])
+const doorWant = (shape, v, want) => (v === null && NO_PRAGMA_MODERN.has(shape) ? [want[0], want[1], want[2], 'pine:version-missing'] : want)
 const V12 = [null, 2]
 
 describe('⭐⭐ engine 49 — v3+: a declaration that reads its own history refuses `pine:cycle`, ONE sentence, every door', () => {
@@ -167,7 +173,7 @@ describe('⭐⭐ engine 49 — controls keep their path in every pragma (the che
     for (const v of [...V12, ...V3]) cases.push([shape, v === null ? 'none' : `v${v}`, v, lines, want])
   }
   it.each(cases)('%s, pragma %s', (shape, _label, v, lines, want) => {
-    expect(guards(pineAt(v, lines))).toEqual(want)
+    expect(guards(pineAt(v, lines))).toEqual(doorWant(shape, v, want))
   })
 })
 
@@ -316,11 +322,14 @@ describe('⭐⭐ engine 50 — controls: nothing here reads an undeclared variab
     blockDeclaredBefore: [() => ['x = close', 'x = if close > open', '    nz(x[1]) + 1', 'else', '    0.0', 'plot(x)'], ['OK', 'OK', 'OK', 'OK']],
     blockGlobalShadowFn: [() => ['x = close', 'f(s) =>', '    x = if s > 100', '        nz(x[1]) + 1', '    else', '        0.0', '    x', 'plot(f(close))'], ['OK', 'OK', 'OK', 'OK']],
     blockOther: [() => ['y = close', 'x = if close > open', '    nz(y[1]) + 1', 'else', '    0.0', 'plot(x)'], ['OK', 'OK', 'OK', 'OK']],
-    blockInnerDecl: [() => ['x = if close > open', '    x = close', '    x[1]', 'else', '    0.0', 'plot(x)'], ['pine:state', 'pine:state', 'OK', 'pine:state']],
+    // engine 55: the screen door names the block local's history read (`x[1]` of the INNER `x`, a
+    // previous-RUN read) before `pine:state` is reached; it refused before and refuses now
+    // (`lenientBlockLocalHistory.test.js`)
+    blockInnerDecl: [() => ['x = if close > open', '    x = close', '    x[1]', 'else', '    0.0', 'plot(x)'], ['pine:block', 'pine:state', 'OK', 'pine:state']],
     blockVar: [() => ['var x = if close > open', '    nz(x[1]) + 1', 'else', '    0.0', 'plot(x)'], ['pine:block', 'pine:block', 'OK', 'pine:block']],
     blockMutable: [() => ['x = 0.0', 'x := if close > open', '    nz(x[1]) + 1', 'else', '    0.0', 'plot(x)'], ['OK', 'OK', 'OK', 'OK']],
     blockString: [() => ['x = if close > open', '    str.length("x[1]") * 1.0', 'else', '    0.0', 'plot(x)'], ['OK', 'OK', 'OK', 'OK']],
-    blockCallHistory: [(v) => ['x = if close > open', `    ${ta(v, 'sma')}(close, 5)[1]`, 'else', '    0.0', 'plot(x)'], ['OK', 'OK', 'runtime:conditional-history', 'OK']],
+    blockCallHistory: [(v) => ['x = if close > open', `    ${ta(v, 'sma')}(close, 5)[1]`, 'else', '    0.0', 'plot(x)'], ['pine:block', 'OK', 'runtime:conditional-history', 'OK']],   // COND-TA (engine 58): the screener lane refuses it by name
     // function namespace: a name that is a function only, a mutable variable of a function's name, a
     // parameter named after a function, and a history read of a CALL
     fnNameMutable: [() => ['x(a) => a * 2', 'float x = 0.0', 'x := nz(x[1]) + 1', 'plot(x)'], ['pine:state', 'pine:state', 'OK', 'pine:state']],
@@ -336,7 +345,7 @@ describe('⭐⭐ engine 50 — controls: nothing here reads an undeclared variab
     for (const v of [...V12, ...V3]) cases.push([shape, v === null ? 'none' : `v${v}`, v, lines, want])
   }
   it.each(cases)('%s, pragma %s', (shape, _label, v, lines, want) => {
-    expect(guards(pineAt(v, lines(v)))).toEqual(want)
+    expect(guards(pineAt(v, lines(v)))).toEqual(doorWant(shape, v, want))
   })
 })
 

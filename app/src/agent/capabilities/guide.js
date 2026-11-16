@@ -12,6 +12,7 @@
 // whose capabilities this member cannot use is not shown (guide/registry.guideFeatures).
 
 import { registerCapability, registerTargetKind, registerContextProvider, getTargetKind } from '../capabilities'
+import { offeredStarters } from '../../pages/screener/focus/screenGroups'
 import { GUIDE_IDS, GUIDE_FEATURES, guideFeature, guideFeatures, matchFeature, surfaceOf, featuresOn } from '../guide/registry'
 import { explainTopic, explainWords } from '../guide/explain'
 import { startGuide, lastShownGuide, forgetLastShown, endGuide, guideState } from '../guide/guideStore'
@@ -65,7 +66,7 @@ export function mineOnly(steps, host) {
   try { entries = host?.layouts?.snapshot?.()?.entries || null } catch { entries = null }
   if (!entries) return steps   // no list to read: the step stays as it was
   const own = entries.filter(e => e.scope === 'user' && e.name)
-  if (!own.length) return 'Rename and Version history are on your own layouts only, and you have none yet: UCT Default and the prebuilt layouts have neither. Save this board as a layout first (Layouts ▾ → Save Layout), then ask me again.'
+  if (!own.length) return 'Rename and Version history are on your own layouts only, and you have none yet: UCT Default and the prebuilt layouts have neither. Save this board as a layout first (the layout name (top left) → Save layout), then ask me again.'
   return steps.map(s => (s.mine === 'layout' ? { ...s, target: own.map(e => ({ within: 'workspace.layouts', attr: 'title', value: e.name })), text: `Right-click one of your own layouts on the bar, such as “${own[0].name}”.` } : s))
 }
 
@@ -108,7 +109,7 @@ export function showFeature(f, host, words = '') {
   const asked = needsChart ? namedChart(words, chartsOf(host), sel) : null
   if (asked?.say) return asked.say
   const chart = needsChart ? asked?.chart || guideChart(host) : null
-  if (needsChart && !chart) return `There’s no chart on this board to show that on. Add one from Widgets ▾ → Chart first.`
+  if (needsChart && !chart) return `There’s no chart on this board to show that on. Add one from + Add widget → Chart first.`
   const chartRef = chart?.ref || null
   // ⭐ Multi Chart: a cell has no "more timeframes" menu or drawing strip, so a chart step past the first goes unless it is there
   const absentOnCell = (s, i) => host?.multiChart && i > 0 && String(s.target).startsWith('chart.')
@@ -171,7 +172,7 @@ function pageChoices(from, host) {
   if (from === 'savedScreens') {
     let lib = null
     try { lib = host?.screenerPage?.saved?.() || null } catch { lib = null }
-    return [...(lib?.saved || []), ...(lib?.starters || [])].filter(x => x.id && x.name).slice(0, 8).map(x => [x.id, x.name])
+    return [...(lib?.saved || []), ...offeredStarters(lib?.starters)].filter(x => x.id && x.name).slice(0, 8).map(x => [x.id, x.name])
   }
   return []
 }

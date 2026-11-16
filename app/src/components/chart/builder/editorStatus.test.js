@@ -59,7 +59,9 @@ plot(foo.bar(close))`,
   // C29: a plot that folded the chart's own period
   period: '//@version=6\nindicator("x")\nplot(close * timeframe.multiplier, "M")\n',
   // a weekly read: the fold note reaches the report's outcome AND the pane's disclosures
-  fold: '//@version=5\nindicator("f")\nw = request.security(syminfo.tickerid, "W", ta.sma(close, 10))\nplot(w, "W")',
+  // ⭐ ENGINE 55 — the weekly look-ahead-off request carries no fold note any more (it is
+  // `tf_merge`, TradingView's merge); the fold note left is a daily request read as the chart's own bars.
+  fold: '//@version=5\nindicator("f")\nw = request.security(syminfo.tickerid, "D", ta.sma(close, 10))\nplot(w, "W")',
   // a paint withheld by the chart door (an `offset` that is `na`)
   paintWithheld: '//@version=5\nindicator("paints", overlay = true)\nplot(close, "c")\nbarcolor(color.red, offset = na)\n',
   // ⭐ the screener lane refuses these at the door (`pine:window-dependent`, a period

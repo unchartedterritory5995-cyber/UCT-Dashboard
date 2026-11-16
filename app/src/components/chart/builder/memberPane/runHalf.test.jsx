@@ -28,6 +28,7 @@ import { runtimeColumnsFor } from '../../engine/runtime/runtimeColumns'
 import { __permitRuntimePaneForTests, __resetRuntimePanePermission } from '../../engine/runtimePaneGate'
 import {
   __allowEveryRuntimeScriptForTests, setRuntimeAllowList, setRuntimeKillList, runtimeSourceHash,
+  setRuntimeCapabilityAdmission, latchRuntimeAdmission, __resetRuntimeAdmission, RUNTIME_FORMING_GUARD,
 } from '../../engine/runtimeKill'
 import { resetObjectRenderDrops } from '../../engine/objectRenderNotice'
 import AttachedPineDisclosures from '../../pane/AttachedPineDisclosures'
@@ -358,6 +359,25 @@ describe('⭐⭐ the bind draws the run\'s drawings only where every gate passes
     expect(runHalfOf(bind(stamped))).toEqual({ state: 'refused', code: 'pane:not-graded' })
   })
 
+  it('⛔⛔ G6 — admitted by capability for CLOSED-BAR HISTORY only (this fixture reads barstate): refused by name on a forming or untold bar; CONTROL: served on a closed bar', () => {
+    const def = install(door().definition)
+    setRuntimeAllowList([])
+    setRuntimeCapabilityAdmission(true)
+    try {
+      latchRuntimeAdmission(runtimeSourceHash(SRC), { admitted: true, historyOnly: true })
+      expect(runHalfOf(bind(def))).toEqual({ state: 'served', code: null })                 // newestBarIsForming: false
+      expect(runHalfOf(bind(def, undefined, { ...CTX, newestBarIsForming: true }))).toEqual({ state: 'refused', code: RUNTIME_FORMING_GUARD })
+      expect(runHalfOf(bind(def, undefined, { ...CTX, newestBarIsForming: null }))).toEqual({ state: 'refused', code: RUNTIME_FORMING_GUARD })
+      expect(runHalfRefusedSentence(RUNTIME_FORMING_GUARD)).toMatch(/only been checked against TradingView on finished bars/)
+      // CONTROL: admitted without the history-only restriction, a forming bar is served
+      latchRuntimeAdmission(runtimeSourceHash(SRC), { admitted: true })
+      expect(runHalfOf(bind(def, undefined, { ...CTX, newestBarIsForming: true }))).toEqual({ state: 'served', code: null })
+    } finally {
+      __resetRuntimeAdmission()
+      __allowEveryRuntimeScriptForTests()
+    }
+  })
+
   it('⛔ a revoked latch: refused on the next run, and the memo key moves with it', () => {
     const def = install(door().definition)
     const before = registry.computeSignature(def, undefined, CTX)
@@ -415,6 +435,47 @@ describe('⭐⭐ the bind draws the run\'s drawings only where every gate passes
       registry.registerRuntimeLane(() => ({}))
       expect(runHalfOf(bind(def))).toEqual({ state: 'pending', code: 'runtime:in-flight' })
       expect(runtimeObjectsOf(bind(def))).toBe(null)
+    })
+    // ONE WITHHOLDING, ONE REASON (2026-11-16): seen on production, the note read "the script
+    // reads another symbol or timeframe, which this chart cannot hand that run" for the seconds
+    // the other symbol's bars took to load, then a different reason once they had.
+    const waiting = () => Object.assign(new Error('this script reads another symbol whose bars are still loading'),
+      { guard: 'runtime:request', pending: true })
+    it('pending: a run waiting for another symbol\'s bars is held, and no cause is worded', () => {
+      const def = install(door().definition)
+      registry.registerRuntimeLane(() => { throw waiting() })
+      expect(runHalfOf(bind(def))).toEqual({ state: 'pending', code: registry.RUN_HALF_REQUEST_PENDING })
+      expect(runtimeObjectsOf(bind(def))).toBe(null)
+    })
+    it('the wait RESOLVES: once the run can answer, the answer is the one a chart that never waited gets', () => {
+      const def = install(door().definition)
+      const never = runHalfOf(bind(def))
+      expect(never.state, 'CONTROL: this document is served when nothing waits').toBe('served')
+      registry.registerRuntimeLane(() => { throw waiting() })
+      expect(runHalfOf(bind(def)).state).toBe('pending')
+      // the bars arrive: the same lane as before the wait, asked again
+      registry.registerRuntimeLane(runtimeColumnsFor)
+      expect(runHalfOf(bind(def))).toEqual(never)
+      // and a wait that ends in a refusal ends on that refusal's own sentence, the same one a
+      // chart that never waited reads (one withholding, one reason, on every surface)
+      registry.registerRuntimeLane(() => { throw Object.assign(new Error('refused'), { guard: 'runtime:request' }) })
+      const refused = runHalfOf(bind(def))
+      expect(refused).toEqual({ state: 'refused', code: 'runtime:request' })
+      expect(runHalfRefusedSentence(refused.code)).toMatch(/cannot hand that run/)
+      expect(runHalfRefusedSentence(registry.RUN_HALF_REQUEST_PENDING), 'the pending code is never worded as a cause')
+        .not.toMatch(/cannot hand that run/)
+    })
+    it('pending: the same wait, reached as a withheld payload beside the plain run\'s columns', () => {
+      const def = install(door().definition)
+      registry.registerRuntimeLane(fake({ status: 'WITHHELD', live: [], guard: 'runtime:request', reason: 'x', pending: true }))
+      expect(runHalfOf(bind(def))).toEqual({ state: 'pending', code: registry.RUN_HALF_REQUEST_PENDING })
+    })
+    it('CONTROL: a request the run REFUSES (not a wait) is still refused, with its own code', () => {
+      const def = install(door().definition)
+      registry.registerRuntimeLane(() => { throw Object.assign(new Error('refused'), { guard: 'runtime:request' }) })
+      expect(runHalfOf(bind(def))).toEqual({ state: 'refused', code: 'runtime:request' })
+      registry.registerRuntimeLane(fake({ status: 'WITHHELD', live: [], guard: 'runtime:request', reason: 'x' }))
+      expect(runHalfOf(bind(def))).toEqual({ state: 'refused', code: 'runtime:request' })
     })
     it('⛔ a family the run withholds that the host program draws: refused', () => {
       const def = install(door().definition)
@@ -514,7 +575,7 @@ describe('⭐⭐ the chart: one picture, never both, never host-then-swap', () =
 
 describe('the member\'s sentences', () => {
   it('⛔ no refusal code reaches a sentence as a token', () => {
-    for (const code of ['pane:not-built', 'pane:not-permitted', 'pane:killed', 'pane:not-graded', 'runtime:member-inputs',
+    for (const code of ['pane:not-built', 'pane:not-permitted', 'pane:killed', 'pane:not-graded', 'pane:forming-ungraded', 'runtime:member-inputs',
       'runtime:runtime.error', 'runtime:history-start', 'runtime:warmup-never-converges', 'run-half:column-rail',
       'run-half:family-withheld', 'runtime:not-loaded', 'runtime:load-failed', 'runtime:request', 'runtime:limit',
       'runtime:time-budget', 'runtime:CALL_COUNT', 'interpret:bind-time-text', 'runtime:objects-stopped', 'x:y', '', null]) {

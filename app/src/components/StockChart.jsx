@@ -169,6 +169,7 @@ import { serverDeclares, subscribeServerDefinitions } from './chart/engine/serve
 // Compare panel (unit 3-12) by this window event; one spelling, the panel's own.
 import { COMPARE_OPEN_EVENT } from '../pages/charts/compareGroups'
 import { cardEvidenceText } from './chart/engine/readoutSchema'
+import { chartThemeOf } from './chart/engine/objectTheme'
 import { RS_LEARN_VIDEOS, learnHref } from '../lib/deskVideoHref'
 // ⭐ VA2 — the plan's §13 counts (on since the server lists the six events; `VITE_RS_TELEMETRY_ENABLED=0` turns them off; see the module).
 import { createRsInstanceTracker, noteRsCard, noteRsLearn } from '../lib/rsTelemetry'
@@ -1605,6 +1606,7 @@ import { withPrimaryEconomic, stripPrimaryEconomic, keepOnEconomicPrimary } from
 import { sourceCapabilityOf } from './chart/engine/sourceCapability'
 import { observationReadout, economicStatusLine } from './chart/economic/econUi'
 import { runtimePaneEnabled } from './chart/engine/runtimePaneGate'
+import { armRuntimeLaneWarm, whenIdle } from './chart/engine/runtimeLaneWarm'
 import { readSuccessBody } from '../lib/responseBody'
 import { archiveHref } from '../utils/traderArchive'
 import { createAdaptiveFrameLoop } from './chart/adaptiveFrameLoop'
@@ -1639,6 +1641,13 @@ const useChartBars = BARSTORE ? useBarSnapshotBars : useLegacyChartBars
 engineRegistry.registerRuntimeLaneLoader(() => (runtimePaneEnabled()
   ? import('./chart/engine/runtime/runtimeAsync.js').then((m) => m.ensureRuntimeLane())
   : Promise.reject(new Error('the runtime pane is switched off'))))
+
+// ⚡ PRELOAD (perf/pine-runtime-chunk-preload) — the same lane, WARMED: its loader chunk imported
+// and its worker spawned (`runtimeAsync.warmRuntimeLane`), so a saved per-bar script is drawn without
+// paying the ~1.3 MB worker chunk on its first run. ⛔ The import stays here, in the chart's module,
+// for the reason above, and it is reached only through `armRuntimeLaneWarm` (after the first chart
+// paint, in idle time, for a permitted member with a definition on that lane: `runtimeLaneWarm.js`).
+const warmRuntimeLaneNow = () => import('./chart/engine/runtime/runtimeAsync.js').then((m) => m.warmRuntimeLane())
 
 // ⚡ THE SERVER LANE'S COLUMNS ARE ASKED FOR AHEAD OF THE MEMBER (2026-11-12). The bars
 // prefetch already knows which symbols are next; this registers the lane's warmer with it
@@ -1950,6 +1959,28 @@ function chartTickMarkFormatter(time, tickMarkType) {
   if (tickMarkType === 0) return String(d.getUTCFullYear())       // Year
   if (tickMarkType === 1) return _MO[d.getUTCMonth()]            // Month
   return String(d.getUTCDate())                                  // DayOfMonth
+}
+
+// THE STUDY CHART'S DATE AXIS (studyMode only; the Study screen check, 2026-11-14: a finished replay read
+// "Feb 4 Apr May"). The library places tick marks greedily, heaviest first, each at least one label width from the
+// last: a short month (Feb 2025 has 19 sessions) can fall inside that width and lose its month mark, and then a DAY
+// mark a session or two later fits, so a bare "4" stood where "Mar" belongs. On a daily study chart such a day mark is
+// always within a few sessions of the month it stands in for, so a day mark in a month's first week names its month
+// ("Mar 4"); later days stay bare numbers, the usual axis. Intraday and the year and month marks read as everywhere.
+// An intraday study chart (2026-11-16) gives its labels a five-character slot (the drill's INTRADAY_TICK_CHARS), so a
+// half-hour mark reads "10:30", not "10:30 AM": in the regular session (09:30 to 16:00) the hour says morning or
+// afternoon, and the eight-character form crowded every time mark off a phone's axis after a replay. The hour marks keep
+// "10 AM" and "12 PM", as on every chart.
+export function studyTickMarkFormatter(time, tickMarkType) {
+  if (typeof time !== 'number' && tickMarkType === 2) {
+    const d = _dayDate(time)
+    if (d && d.getUTCDate() <= 7) return `${_MO[d.getUTCMonth()]} ${d.getUTCDate()}`
+  }
+  if (typeof time === 'number' && tickMarkType >= 3) {
+    const d = new Date(time * 1000)
+    if (d.getUTCMinutes() !== 0) return `${d.getUTCHours() % 12 || 12}:${String(d.getUTCMinutes()).padStart(2, '0')}`
+  }
+  return chartTickMarkFormatter(time, tickMarkType)
 }
 
 // CROSSHAIR time label (the hover box on the axis): weekday + date [+ 12-hour].
@@ -3204,6 +3235,7 @@ export default function StockChart({
   className = '',
   showDrawingTools: showDrawingToolsProp = true,
   studyMode = false,        // Study drills (spec §13.2 T1): the chart shows an ITEM, not a ticker. Nulls useTickerMeta/useTickerIpo/useChartDrawings (no provider lookups or localStorage under the item id), turns every marker/news/desk feed off, prints no symbol in the loading/error copy, and defaults the drawing tools OFF. Additive: a caller that never passes it is byte-identical.
+  tickLabelChars = null,    // opt-in: the date axis sizes its label slot for this many characters (the library's default is 8). The Study drill passes 5 on a wide screen, where its daily labels are "Sep" / "2025" / "Mar 4" and the 8-character slot skipped a short month's mark. Unset = byte-identical.
   onSymbolChange = null,
   onBarContextMenu = null,  // Journal 2.0: right-click a bar → callback({bar, clientX, clientY})
   entryDate = null,         // ISO date string — zoom centers on trade holding period
@@ -4396,6 +4428,17 @@ export default function StockChart({
   // behaviour is to draw nothing for it), and a toast on a render path would fire
   // on every chart.
   const { generation: userDefsGeneration } = useInstalledUserDefinitions()
+  // ⚡ PRELOAD — re-asked whenever the installed definitions change (a later install can make the
+  // answer yes); `armRuntimeLaneWarm` warms at most once per page, after the first paint, in idle time.
+  useEffect(() => {
+    armRuntimeLaneWarm({
+      afterPaint: afterFirstChartPaint,
+      idle: whenIdle,
+      permitted: runtimePaneEnabled,
+      usesLane: engineRegistry.anyInstalledRuntimeDefinition,
+      load: warmRuntimeLaneNow,
+    })
+  }, [userDefsGeneration])
 
   const mergedMarkers = useMemo(
     () => {
@@ -4620,8 +4663,21 @@ export default function StockChart({
   // ⭐ The exchange is our STORE's friendly spelling ("NYSE Arca"), which is
   // exactly what the witness table is keyed on — `ticker_meta.py` already
   // produces it, and the rig confirmed the pairing independently on SPY.
+  // ⭐⭐ RS RATING L3 (2026-11-15) — AND THE CLASSIFICATION FIELDS, from the SAME `tickerMeta`
+  // (nothing new is fetched): `industry` / `sector` are our store's strings and `securityType` its
+  // instrument class (`ticker_meta.security_type`, the screener universe's `Stock` / `ADR` / `ETF`).
+  // The fold (`bind.js::classificationWith`) serves TradingView's string where a capture witnessed
+  // one for that class or string, else OURS, tagged substituted; a missing field settles nothing.
+  // ⛔ The live meta only: Model Book's curated watermark industry is a display fact, not the
+  // symbol's classification.
   const symbolMeta = useMemo(() => (
-    sym ? { ticker: sym, exchange: (tickerMeta && tickerMeta.exchange) || null } : null
+    sym ? {
+      ticker: sym,
+      exchange: (tickerMeta && tickerMeta.exchange) || null,
+      industry: (tickerMeta && tickerMeta.industry) || null,
+      sector: (tickerMeta && tickerMeta.sector) || null,
+      securityType: (tickerMeta && tickerMeta.security_type) || null,
+    } : null
   ), [sym, tickerMeta])
   const ipoInfo = useTickerIpo(_econId || _study ? null : sym)       // { list_date } — official first-listing day
   const [ipoPopup, setIpoPopup] = useState(null)  // { date, x, y } first-trade tag
@@ -5778,6 +5834,9 @@ export default function StockChart({
    */
   const readoutChipOpts = {
     scalarsOf: (def, inputs) => scalarsFor(def, inputs, { sym: symRef.current, tf: resolvedTfRef.current }),
+    // ⭐ ENGINE 58 — the chart's own two colours, so a chip whose plot is coloured by a
+    // theme reference (`chart.fg_color@85`) wears what the line wears (`readout.js`).
+    theme: chartThemeOf(cs),
   }
   /**
    * ⭐ Phase 2a visual round (VA3) — what a READOUT definition's chip prints, for
@@ -6874,9 +6933,14 @@ export default function StockChart({
   // export route) passes no `showDrawingTools` and gets inert rows, so the export
   // keeps a legend with no controls in it and the pixel-parity baselines do not
   // move.
+  // ⭐ UCT SIGNATURE (2026-11-15) — the vertical row's hover strip (hide · settings · more)
+  // calls the SAME two writers the popover's Hide / Edit rows call. The one door is still
+  // `onOpen`; a flat row ignores the other two.
   const legendRowHandlers = useMemo(() => (showDrawingTools ? {
     onOpen: handleRowMenu,
-  } : null), [showDrawingTools, handleRowMenu])
+    onToggleHidden: legendRowHidden,
+    onSettings: legendRowSettings,
+  } : null), [showDrawingTools, handleRowMenu, legendRowHidden, legendRowSettings])
 
   /** The volume PANE STRIP's door.
    *
@@ -6969,13 +7033,17 @@ export default function StockChart({
     // rows of the popover `onMenu` opens, closed over in the render block below —
     // but the chip no longer needs three props to render three targets.
     onMenu: handleChipMenu,
+    // ⭐ UCT SIGNATURE — the grid row's hover strip; the same writers the popover's
+    // Hide / Settings rows call (`IndicatorChip` renders it in the grid variant only).
+    onToggleHidden: handleChipHidden,
+    onSettings: handleChipSettings,
     // Additive, phone-shell-only (prop null everywhere else): a tap on the chip
     // BODY opens the study's mobile editor. Spread at all three legend branches
     // through this one object, so the parity-pinned JSX stays untouched.
     onBodyTap: onLegendStudyTap
       ? (chip) => onLegendStudyTap({ kind: 'study', defId: chip.defId, instanceId: chip.instanceId })
       : undefined,
-  } : null), [showDrawingTools, handleChipMenu, onLegendStudyTap])
+  } : null), [showDrawingTools, handleChipMenu, handleChipHidden, handleChipSettings, onLegendStudyTap])
   // ⭐ Decision C5 (2026-11-07) — on the phone shell a tap on a chip whose
   // definition DECLARES A READOUT (UCT RS) opens the chip menu sheet, the same
   // sheet a long-press opens: the readout is the at-a-glance read, and Edit is one
@@ -10896,7 +10964,7 @@ export default function StockChart({
     let _plotFrom = null
     {
       const _pw = plotWindowRef.current
-      const _pwKey = `${sym}_${resolvedTf}`
+      const _pwKey = _exKey   // this render's symbol+timeframe key (the one-key census counts sites)
       if (_pw.key !== _pwKey) {
         let _span = 0
         try {
@@ -11178,6 +11246,10 @@ export default function StockChart({
         // default headroom. vertMarginsRef is captured in fractions of the pane, so the
         // candles land in the same relative spot regardless of the stock's price.
         scaleMargins: vertMarginsRef.current || _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volumePaneExists ? priceScaleBottomMargin : null),
+        // A Study chart prints a top or bottom price label only when the whole label fits (the screen check,
+        // 2026-11-14: "140.00" cut in half at the top and "52.00" sliced by the volume pane). Every other chart keeps
+        // the library default.
+        ...(_study ? { entireTextOnly: true } : {}),
       },
       localization: {
         // Crosshair time label (the hover box on the axis): weekday + date +
@@ -11192,8 +11264,12 @@ export default function StockChart({
         borderVisible: false,
         timeVisible: true,
         secondsVisible: false,
-        // Bottom-axis tick labels: 12-hour on intraday (default is 24-hour).
-        tickMarkFormatter: chartTickMarkFormatter,
+        // Bottom-axis tick labels: 12-hour on intraday (default is 24-hour). A Study chart names the month on a
+        // first-week day mark (studyTickMarkFormatter).
+        tickMarkFormatter: _study ? studyTickMarkFormatter : chartTickMarkFormatter,
+        // A host that knows its labels are short sizes the library's label slot to them (`tickLabelChars`, opt-in; the
+        // Study drill on a wide screen). Unset, the library's own eight-character slot, as on every other chart.
+        ...(tickLabelChars > 0 ? { tickMarkMaxCharacterLength: tickLabelChars } : {}),
         // Exact-range (Model Book) locks to a historical window, so don't pin the
         // latest bar to the right edge — that re-expands the view to "now".
         rightOffset: exactDateRange ? 0 : rightPadBars,
@@ -13407,6 +13483,10 @@ export default function StockChart({
             axisLabelVisible: pl.axisLabelVisible ?? true,
             lineVisible: pl.lineVisible ?? true,   // session ext tag = chip only (no line)
             title: pl.title || '',
+            // An axis tag drawn in its own chip colours, only when the line asks (the Study trade levels' dark chips,
+            // tradeMarks.tradeLevelLines); every other line keeps the library's colour-filled tag.
+            ...(pl.axisLabelColor ? { axisLabelColor: pl.axisLabelColor } : {}),
+            ...(pl.axisLabelTextColor ? { axisLabelTextColor: pl.axisLabelTextColor } : {}),
           })
           priceLineRefs.current.push(ref)
         }
@@ -14117,7 +14197,7 @@ export default function StockChart({
     // (mutation M3 SURVIVED): something else in this list is already unstable per
     // render. Kept as the one declaration that names this dependency; the full
     // reasoning is at the `useInstalledUserDefinitions` call site above.
-  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, strategyHistoryWindow, strategyWindowPending, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, compactAxes, _plotWindowFullKey, _pinnedFull, _overlayActive, _hasOverride])
+  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, strategyHistoryWindow, strategyWindowPending, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, compactAxes, _plotWindowFullKey, _pinnedFull, _overlayActive, _hasOverride, _study, tickLabelChars])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
@@ -18139,7 +18219,7 @@ export default function StockChart({
   useEffect(() => {
     const chart = chartRef.current
     if (!chart) return undefined
-    const key = `${sym}_${resolvedTf}`
+    const key = _exKey   // the same key `_pwKey` compares against (built once per render)
     if (_plotWindowFullKey === key) return undefined
     let raf = null
     const check = () => {
@@ -20131,7 +20211,7 @@ export default function StockChart({
                   <>
                     <div className={styles.barInfo} data-testid="econ-bar-info">
                       {barShows('date') && (
-                        <span className={styles.barDate} style={legBase}>{formatBarInfoDate(crosshairData.time)}</span>
+                        <span className={styles.barDate}>{formatBarInfoDate(crosshairData.time)}</span>
                       )}
                       {_ro ? (
                         <>
@@ -20170,7 +20250,7 @@ export default function StockChart({
               })() : (
               <div className={styles.barInfo}>
                 {barShows('date') && (
-                  <span className={styles.barDate} style={legBase}>{formatBarInfoDate(crosshairData.time)}</span>
+                  <span className={styles.barDate}>{formatBarInfoDate(crosshairData.time)}</span>
                 )}
                 {barShows('open') && (
                   <span className={styles.barField} style={legBase}>
@@ -20986,6 +21066,9 @@ export default function StockChart({
                    INSTANCE-oriented even though the values are plot-oriented,
                    which is exactly what the approved V1 asks for. */
                 onOpen: (_id, anchor) => chipHandlers.onMenu(paneRowPrimary(row.chips, c), anchor),
+                // ⭐ UCT SIGNATURE — the hover strip acts on the same PRIMARY instance.
+                onToggleHidden: () => chipHandlers.onToggleHidden(paneRowPrimary(row.chips, c).instanceId),
+                onSettings: () => chipHandlers.onSettings(paneRowPrimary(row.chips, c).instanceId),
               } : null)}
             />
           ))}

@@ -792,11 +792,11 @@ export function collectObjectOps(stmts, h) {
    * ⭐⭐ THE BLOCK-LOCAL SCOPE IS WHAT MAKES THE TABLE POPULATION REACHABLE.
    * The corpus idiom is:
    *
-   *     if barstate.islast and showDashboard
-   *         stateText = dir == 1 ? "CALL" : "WAIT"
-   *         table.cell(dash, 1, 0, stateText)
+   *     if barstate.islast and showPanel
+   *         word = trend > 0 ? "UP" : "DOWN"
+   *         table.cell(panel, 1, 0, word)
    *
-   * `stateText` exists only inside that block. The main value walk never binds
+   * `word` exists only inside that block. The main value walk never binds
    * it — `foldIfChain` refuses a block containing object statements — so a
    * resolver handed the top-level env sees an unknown name and the cell is lost.
    * Carrying the block's own bindings with each op is the difference between a

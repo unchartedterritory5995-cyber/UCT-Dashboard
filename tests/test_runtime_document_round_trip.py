@@ -65,6 +65,10 @@ def store(tmp_path, monkeypatch):
     # rails those doors themselves (who, and which scripts).
     monkeypatch.setenv(rt.STAGE_ENV, rt.STAGE_ALL)
     monkeypatch.setenv(rt.ALLOW_ENV, ",".join(d["definition"]["meta"]["runtimeSourceHash"] for d in DOCS))
+    # ...and the COMMITTED kill list (RT1 2026-11-15) is set aside too: it held trend-targets, one of
+    # the six, until PR #1374 lifted it, and this file is about the store, not the kill (railed in
+    # test_pine_capability_admission.py)
+    monkeypatch.setattr(rt, "KILLLIST_PATH", str(tmp_path / "no-committed-kills.json"))
     return tmp_path
 
 

@@ -323,16 +323,20 @@ TIE_ROWS = [(1.0, 5.0, 2.0, 1.0, 10),
             (1.0, 1.0, 7.0, 1.0, 10)]
 TIE_BARS = mk_bars(TIE_ROWS)
 
-#: ⭐ THE DECLARED ANSWER — THE OLDEST BAR WINS, so the offset is the LARGEST
-#: one that reaches the extreme. ⚰⚰ THIS READ 1 AND 2 UNTIL 2026-09-08, on a
-#: well-argued convention TradingView does not share: measured on a source built
-#: to force ties, oldest-wins is 380ok/0bad and newest-wins is 193ok/187bad.
+#: ⭐ THE DECLARED ANSWER OVER A BAR PRICE — THE NEWEST BAR WINS (engine 56, 2026-11-14), so the
+#: offset is the SMALLEST one that reaches the extreme: the builtin Aroon (v6) and a v4 pivot script
+#: read it on RDDT 1D (`_functions_arg_extreme`). ⚰⚰ THIS READ 3 AND 4 (oldest wins) from 2026-09-08,
+#: off a TWO-VALUED COMPUTED source (380ok/0bad); that measurement now governs a computed source,
+#: whose tied window is withheld by name (`TIE_COMPUTED`, below), and the columns below use `high`
+#: and `low`, which are bar prices.
 TIE_CASES = [
     {"id": "tie_highestbars",
-     "ast": CALL("highestbars", SER("high"), NUM(5)), "want": 3, "other": 1},
+     "ast": CALL("highestbars", SER("high"), NUM(5)), "want": 1, "other": 3},
     {"id": "tie_lowestbars",
-     "ast": CALL("lowestbars", SER("low"), NUM(5)), "want": 4, "other": 2},
+     "ast": CALL("lowestbars", SER("low"), NUM(5)), "want": 2, "other": 4},
 ]
+#: the same tie over a COMPUTED source (`high * 1`): withheld by name on the tied window
+TIE_COMPUTED = CALL("highestbars", {"type": "op", "name": "*", "args": [SER("high"), NUM(1)]}, NUM(5))
 
 
 def test_the_manifest_DECLARES_the_tie_break_rather_than_leaving_it_to_two_walkers():
@@ -342,21 +346,28 @@ def test_the_manifest_DECLARES_the_tie_break_rather_than_leaving_it_to_two_walke
     lane can answer this question privately."""
     note = ast_table.TABLE["_functions_arg_extreme"]
     assert isinstance(note, str) and len(note) > 200
-    assert "oldest" in note.lower(), note
+    assert "oldest" in note.lower() and "newest" in note.lower(), note
     for name in ("highestbars", "lowestbars"):
         spec = ast_table.TABLE["functions"][name]
         assert spec["yields"] == "num"
-        assert "oldest" in spec["sentence"].lower(), spec["sentence"]
+        assert "newest of a tie over a bar price" in spec["sentence"].lower(), spec["sentence"]
+        assert "withheld on a tie" in spec["sentence"].lower(), spec["sentence"]
 
 
-def test_the_tie_break_is_OLDEST_WINS_in_the_python_lane():
+def test_the_tie_break_is_NEWEST_WINS_over_a_bar_price_in_the_python_lane():
     for case in TIE_CASES:
         col = ast_interpret.interpret(case["ast"], TIE_BARS, {})
         assert at(col, 9) == case["want"], (case["id"], at(col, 9))
 
 
+def test_a_tie_over_a_COMPUTED_source_is_withheld_in_the_python_lane():
+    col = ast_interpret.interpret(TIE_COMPUTED, TIE_BARS, {})
+    assert at(col, 9) is None
+    assert ast_interpret.arg_extreme_tie_mask(TIE_COMPUTED, TIE_BARS)[9] == 1
+
+
 @pytest.mark.skipif(not ac.js_lane_available(), reason="no node / no JS interpreter")
-def test_the_tie_break_is_OLDEST_WINS_in_the_js_lane_too():
+def test_the_tie_break_is_NEWEST_WINS_over_a_bar_price_in_the_js_lane_too():
     """⭐ THE SAME CONSTRUCTED INPUT, THROUGH `interpret.js`. ⛔ NOT a cross-lane
     EQUALITY — two lanes that both picked the oldest bar would agree perfectly and
     both be wrong. This asserts the DECLARED number on each side separately, which
@@ -371,7 +382,8 @@ def test_a_TOTAL_tie_reads_n_minus_1_in_both_lanes_and_that_is_the_flat_series_c
     """⭐ THE CHEAPEST TIE THERE IS, and the one a member meets first: a series
     that does not move. Every bar of a flat series ties every other, so the whole
     column IS the tie-break in one number — 4 under oldest-wins, 0 under
-    newest-wins. A WHOLE COLUMN that differs by the ruling.
+    newest-wins. A WHOLE COLUMN that differs by the ruling. ⭐ ENGINE 56: over a bar
+    price (`high`) the newest wins, so a flat `high` reads 0 on every bar.
 
     ⚰⚰ THIS ASSERTED 0 UNTIL 2026-09-08 and its name said so. A halted or
     thinly-traded ticker IS a flat series, so this is not a synthetic edge — it
@@ -379,8 +391,8 @@ def test_a_TOTAL_tie_reads_n_minus_1_in_both_lanes_and_that_is_the_flat_series_c
     ast = CALL("highestbars", SER("high"), NUM(5))
     py = ast_interpret.interpret(ast, FLAT, {})
     js = ac.run_js([{"id": "flat", "ast": ast}], FLAT)["flat"]
-    assert [at(py, i) for i in range(4, 20)] == [4] * 16
-    assert js[4:20] == [4] * 16
+    assert [at(py, i) for i in range(4, 20)] == [0] * 16
+    assert js[4:20] == [0] * 16
 
 
 # ─────────────────────────────────────────────────────────────────────────── #
@@ -554,11 +566,11 @@ def test_the_tie_fixture_really_CONTAINS_a_tie_so_the_cases_above_are_not_vacuou
     for case, series in ((TIE_CASES[0], highs), (TIE_CASES[1], lows)):
         pick = max if series is highs else min
         hits = [j for j, v in enumerate(series) if v == pick(series)]
-        # ⛔ `min`, NOT `max`: the OLDEST hit has the SMALLEST index into the
-        # window, which is the LARGEST distance back. These two lines swapped on
-        # 2026-09-08 and that swap IS the ruling, stated arithmetically.
-        assert 4 - min(hits) == case["want"]
-        assert 4 - max(hits) == case["other"]
+        # ⛔ `max`, NOT `min`, over a bar price: the NEWEST hit has the LARGEST index into the
+        # window, which is the SMALLEST distance back. These two lines swapped on 2026-09-08 and
+        # back on 2026-11-14 (engine 56, the builtin Aroon's capture): each swap IS a ruling.
+        assert 4 - max(hits) == case["want"]
+        assert 4 - min(hits) == case["other"]
 
 
 def test_the_corpus_DOES_see_the_tie_break_and_here_is_how_much_of_it():
@@ -700,48 +712,39 @@ def test_highestbars_agrees_with_highest_about_WHICH_bar_it_names():
     assert checked > 200, checked
 
 
-def test_highestbars_and_highest_NO_LONGER_blank_together_and_the_vendor_is_why():
-    """⚰⚰ THIS TEST ASSERTED THEY BLANK ON EXACTLY THE SAME BARS, and TradingView
-    says they do not.
+def test_highestbars_and_highest_blank_together_again_and_the_vendor_is_why():
+    """⚰⚰ THIS TEST ASSERTED THEY BLANK ON EXACTLY THE SAME BARS, then (2026-09-08) that
+    ``highestbars`` blanks on strictly fewer, both under RESTART with ``naCurrent = 0``, then
+    (engine HL) that ``highest`` was ``NA_FINITE`` while ``highestbars`` kept RESTART, withheld.
 
-    Measured 2026-09-08 over a gappy source: on the 36 ``na`` bars of a 400-bar
-    capture ``ta.highest`` answered on **0** of them while ``ta.highestbars``
-    answered on **all 36**. The vendor's own pair disagrees about one window --
-    so the invariant this test defended was OURS, not Pine's.
-
-    ⭐ AND SINCE 2026-09-08 THE SHAPE IS EXPLAINED, not merely recorded. Both
-    members use RESTART; the two arg-extremes additionally declare
-    ``naCurrent = 0``, because a restarted window's only candidate IS this bar, so
-    the OFFSET is defined exactly where the VALUE is not. The earlier pass could
-    measure the asymmetry (36 of 36 against 0 of 36) but not account for it, and
-    left them on ``propagate`` rather than guessing.
-
-    ⚠️ ONE EXTENSION BEYOND THE MEASUREMENT IS MADE HERE AND IS FLAGGED: every
-    observed ``na`` bar was an INTERIOR hole. This source has a 29-bar ``na`` HEAD
-    (``ta.sma(high, 30)``) and the same rule is applied there. No capture has seen
-    the start of a series, so that is a uniform reading of the measured rule
-    rather than a second measurement.
-
-    ⛔ The ORIGINAL coherence assertion is kept below as an EXCLUSION: it must
-    now FAIL, or the correction never landed.
+    ⭐⭐ S17 (2026-11-15, ``vw-cs2-holed-highestbars-rddt-1d-2026-11-15``): ``highestbars`` reads the
+    same last n FINITE values as ``highest`` (the offset counted in BARS) and answers -1, not 0, on
+    the hole bar. So they blank on the same bars once more -- the raw columns, the served columns off
+    the listing (``window-extreme:left-edge`` for both) and from it.
     """
     src = CALL("sma", SER("high"), NUM(30))     # a 29-bar hole at the front
-    off = run(CALL("highestbars", src, NUM(5)))
-    top = run(CALL("highest", src, NUM(5)))
-    blank_off = [i for i in range(len(BARS)) if at(off, i) is None]
-    blank_top = [i for i in range(len(BARS)) if at(top, i) is None]
-    # ⭐⭐ THE OFFSET FORM BLANKS ON STRICTLY FEWER BARS, and that is now the
-    # vendor's own shape rather than an unexplained asymmetry: `ta.highestbars`
-    # answered on ALL 36 na bars of the capture while `ta.highest` answered on 0.
-    # The window restarts for both; only the OFFSET is still defined there,
-    # because a restarted window has this bar as its only candidate.
-    assert len(blank_off) < len(blank_top), (len(blank_off), len(blank_top))
-    # ... and it blanks ONLY for its own start-of-series warm-up.
-    assert blank_off == [0, 1, 2, 3], blank_off
-    # ⛔ THE EXCLUSION: they used to be equal. If they are equal again, either
-    # `highest` lost its RESTART policy or `highestbars` lost its `naCurrent` --
-    # both are regressions this line exists to catch.
-    assert blank_off != blank_top, "the pair must NOT blank together any more"
+    col = ast_interpret._interpret_column(src, BARS, {})
+    raw_off = ast_interpret.FN["highestbars"](col, 5)
+    raw_top = ast_interpret.FN["highest"](col, 5)
+    nan = lambda v: isinstance(v, float) and math.isnan(v)  # noqa: E731
+    assert [i for i, v in enumerate(raw_off) if nan(v)] == list(range(29))
+    assert [i for i, v in enumerate(raw_top) if nan(v)] == list(range(29))
+    # served, off the listing: both withheld on the head, by the same name, and drawn after it
+    sink_off, sink_top = {}, {}
+    off = ast_interpret.interpret(CALL("highestbars", src, NUM(5)), BARS, {}, opts={"chartClockSink": sink_off})
+    top = ast_interpret.interpret(CALL("highest", src, NUM(5)), BARS, {}, opts={"chartClockSink": sink_top})
+    assert sink_off == {ast_interpret.WINDOW_EXTREME_LEFT_EDGE: True}
+    assert sink_top == {ast_interpret.WINDOW_EXTREME_LEFT_EDGE: True}
+    assert [i for i in range(len(BARS)) if at(off, i) is None] == list(range(33))
+    assert [i for i in range(len(BARS)) if at(top, i) is None] == list(range(33))
+    # from the listing the head is the series' own start: both answer their short window
+    on_off = ast_interpret.interpret(CALL("highestbars", src, NUM(5)), BARS, {}, opts={"historyFromListing": True})
+    on_top = ast_interpret.interpret(CALL("highest", src, NUM(5)), BARS, {}, opts={"historyFromListing": True})
+    assert [i for i in range(len(BARS)) if at(on_off, i) is None] == list(range(29))
+    assert [i for i in range(len(BARS)) if at(on_top, i) is None] == list(range(29))
+    # and the offset names the bar the value sits on
+    for i in range(29, len(BARS)):
+        assert col[i - int(on_off[i])] == on_top[i], i
 
 
 # ─────────────────────────────────────────────────────────────────────────── #

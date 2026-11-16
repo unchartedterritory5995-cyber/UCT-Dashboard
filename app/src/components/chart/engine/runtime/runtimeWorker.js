@@ -15,6 +15,7 @@ import { computeRuntimeColumns, RUNTIME_PANE_TIME_BUDGET_MS } from './runtimeCol
 import { RUNTIME_OBJECTS_KEY, runtimeWarmupOf } from './runtimeObjects.js'
 // ⭐⭐ W9-T11 — the run's `strategy` record crosses beside the columns, like the drawings.
 import { runtimeStrategyOf } from './strategyRecord.js'
+import { calcBarsWindowReport } from '../calcBarsWindow.js'
 // ⭐⭐ W9-T11 (T1 review N1a) — THE WORKER IS ITS OWN MODULE GRAPH: the member door's
 // registration (`memberPaneDefinition.js`) never runs here, so without this the worker's
 // front end would read the registry's default (off) while the main thread's probe read the
@@ -29,16 +30,26 @@ registerStrategyBrokerGate(strategyBrokerEnabled)
 const clock = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now())
 
 self.onmessage = (event) => {
-  const { id, def, rows, ctx } = event.data || {}
+  const { id, def, rows, ctx: plainCtx } = event.data || {}
   const startedAt = clock()
   try {
+    // ⭐ RS RATING L5 — the other-symbol cache crosses as plain entries (`runtimeAsync.js::messageOf`)
+    const ctx = plainCtx && Array.isArray(plainCtx.secondaryEntries)
+      ? (() => {
+        const { secondaryEntries, ...rest } = plainCtx
+        const secondary = new Map(secondaryEntries)
+        return { ...rest, secondary, exchangeOf: (k) => { const e = secondary.get(k); return (e && e.exchange) || null } }
+      })()
+      : plainCtx
     const columns = computeRuntimeColumns(def, rows || [], ctx || {}, { budgetMs: RUNTIME_PANE_TIME_BUDGET_MS })
     // ⭐ RT5 — the run's drawings are non-enumerable on the record, so a
     // structured clone would drop them; they cross beside it. ⭐ UIE PHASE 2 — the raw
     // payload, a WITHHELD one included (its sentence is the member's), and the warm-up
     // the run withheld off the listing, which the host object gate reads.
     self.postMessage({ id, ok: true, columns, objects: columns[RUNTIME_OBJECTS_KEY] || null,
-      warmup: runtimeWarmupOf(columns), strategy: runtimeStrategyOf(columns) })
+      warmup: runtimeWarmupOf(columns), strategy: runtimeStrategyOf(columns),
+      // ⭐⭐ CBC-FMT — the `calc_bars_count` window record crosses beside the columns too
+      calcBars: calcBarsWindowReport(columns) })
   } catch (err) {
     self.postMessage({
       id,

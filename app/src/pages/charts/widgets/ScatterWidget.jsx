@@ -33,6 +33,7 @@ import { KIND, channelFor, useChannel } from '../../../lib/context/contextChanne
 import Input from '../../../components/ui/Input'
 import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
 import { useThemeInk, CHROME_INK, withAlpha } from '../../../lib/theme'
+import UctCtrlPortal from '../UctCtrlPortal'  // owner 11-14: the ⚙ goes top-right on the board
 
 // TERM-033: a failed read THROWS (sectionFetcher). It used to resolve to `null`, and the map
 // said "No data for this universe yet.", a claim about the universe made out of a failed
@@ -489,7 +490,7 @@ export default function ScatterWidget({ color, opts, onOptsChange }) {
       {settingsOpen && (
         <NhnlSettingsPanel settings={settings} onChange={patchSettings} onReset={resetSettings}
           onClose={() => setSettingsOpen(false)} gearEl={gearRef.current} hostEl={rootRef.current}
-          themeVars={panelThemeVars} title="Market Map Settings" widgetType="scatter" />
+          themeVars={panelThemeVars} title="Market map settings" widgetType="scatter" />
       )}
 
       {/* Toolbar: a row of saved-universe TABS (switch / delete) + a ＋ to add one;
@@ -540,10 +541,10 @@ export default function ScatterWidget({ color, opts, onOptsChange }) {
           <UIcon name="link" size={12} gold={false} />
         </button>
         <span className={chrome.spacer} />
-        <button ref={gearRef} type="button" className={`${chrome.gear} ${settingsOpen ? chrome.gearOn : ''}`}
+        <UctCtrlPortal><button ref={gearRef} type="button" className={`${chrome.gear} ${settingsOpen ? chrome.gearOn : ''}`}
           data-guide="widget.settings" onClick={() => setSettingsOpen(o => !o)} title="Market Map settings" aria-label="Market Map settings">
           <UIcon name="gear" size={13} gold={false} />
-        </button>
+        </button></UctCtrlPortal>
       </div>
 
       <div className={styles.stage}>

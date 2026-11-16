@@ -1,0 +1,37 @@
+//@version=5
+indicator("UCTPROBE_RS_ARM_LABEL_LAST_BAR", overlay = true, max_labels_count = 500, max_boxes_count = 500)
+
+// --- 2026-11-15 L4c (RS Rating transfer) - A DRAWING IN ONE ARM OF `?:`, AS RS RATING WRITES IT ---
+//
+// L4c serves `t = c ? label.new(...) : na` (or `line.new`) in the runtime lane's drawing
+// build, on Q-RT5a T01/T02 (v6, a per-bar test) and Q-O1a (v5, a helper in the arm). RS Rating
+// (Fred6724, MPL-2.0) draws its rating so, under `barstate.islast`, and deletes the previous
+// bar's handle every bar. Those facts are each witnessed somewhere (Q-RT5a, Q-O1a T02's delete
+// of an `na` handle, vw-object-gc-c O1's `label.delete(cl[1])`, barstate-full N22's islast);
+// A* witnesses them TOGETHER, in v5, as one shape. E* and X* are the shapes L4c still refuses
+// by name (`runtime:object-op`): a drawing in the ELSE arm, and a box in the THEN arm.
+//
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults; AMEX:SPY 1D second.
+// NEVER COMPILED ON TRADINGVIEW: a row that does not compile names its line.
+//
+//   A01  RS Rating's shape verbatim: ONE label "A01|<last bar_index>", on the last bar.
+//   A02  the handle is present on the last bar only (0 on every other bar).
+//   R01  a label on every 5th bar, the previous bar's handle deleted EVERY bar: each R01 label
+//        is gone one bar after it is made, so at most one survives (only if the last bar is a
+//        multiple of 5); the four bars between delete `na`, which deletes nothing.
+//   E01  a label in the ELSE arm, on every 7th bar: one "E01|<bar_index>" per such bar.
+//   X01  a box in the THEN arm, on every 10th bar: one box per such bar.
+//   B00  the chart's bar_index, the control.
+
+a1 = barstate.islast ? label.new(bar_index, high, "A01|" + str.tostring(bar_index)) : na
+label.delete(a1[1])
+plot(na(a1) ? 0 : 1, "A02_handle_present")
+
+r1 = bar_index % 5 == 0 ? label.new(bar_index, low, "R01|" + str.tostring(bar_index)) : na
+label.delete(r1[1])
+
+e1 = bar_index % 7 != 0 ? na : label.new(bar_index, low, "E01|" + str.tostring(bar_index))
+
+x1 = bar_index % 10 == 0 ? box.new(bar_index, high, bar_index + 1, low) : na
+
+plot(bar_index, "B00_bar_index_CONTROL")

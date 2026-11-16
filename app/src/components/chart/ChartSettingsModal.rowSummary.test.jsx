@@ -438,12 +438,16 @@ describe('accessibility — the way this feature broke before', () => {
       // ⚠️ The row's name button IS the row (it was the option); it is not a
       // control the row grew, so it is set aside and required exactly once.
       expect(row.querySelectorAll('[data-row-primary]').length).toBe(1)
+      // ⭐ UCT SIGNATURE (owner-approved lab, 2026-11-15) raised the budget ON PURPOSE: the order
+      // handle, the colour bar's one picker, and three hover verbs (settings, show / hide,
+      // remove) — each the same writer the editor uses. Nothing else may appear on a row.
       const controls = [...row.querySelectorAll('button:not([data-row-primary])')]
-      expect(controls.length, 'a row grew more controls than the order handle')
-        .toBeLessThanOrEqual(1)
+      expect(controls.length, 'a row grew more controls than its budget')
+        .toBeLessThanOrEqual(5)
       for (const b of controls) {
-        expect(b.hasAttribute('data-row-grip'),
-          'a row grew a control of its own again').toBe(true)
+        const ok = b.hasAttribute('data-row-grip') || b.hasAttribute('data-color-swatch')
+          || /^(Edit|Hide|Show|Remove) /.test(b.getAttribute('aria-label') || '')
+        expect(ok, `a row grew an unexpected control: ${b.getAttribute('aria-label') || b.outerHTML}`).toBe(true)
       }
     }
   })

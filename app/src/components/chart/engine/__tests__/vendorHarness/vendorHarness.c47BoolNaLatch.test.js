@@ -158,13 +158,13 @@ describe('⭐ C47 — trend-duration-forecast: the v6 `bool(na)` latch draws Tra
     // ⛔ and the UPDATE's tree is the one it always was: no node added to it
     const json = JSON.stringify(trend.args[1])
     expect(json).not.toContain('"nz"')
-    // ⛔ non-vacuity: the tests really are `na` — on bars 0–2, where `ta.rising(x, 3)`
-    // has no three bars to look back over. One `na` test carried into the state
-    // is what kept it `na` until bar 58.
+    // ⛔ non-vacuity: the tests are the warm-up bars 0–2, where `ta.rising(x, 3)` has no three
+    // bars to look back over. ⭐ ENGINE 56 (probe 11, s17): TradingView answers FALSE there, never
+    // `na`, so the latch reads `false` from its first bar on its own (it was `na` carried into the state).
     const rising = trend.args[1].args[1].args[2].args[0]
     expect(rising.name).toBe('rising')
     const r = Array.from(interpret(rising, bars, {}, undefined, undefined, opts))
-    expect(r.slice(0, 3).every((v) => Number.isNaN(v))).toBe(true)
+    expect(r.slice(0, 3)).toEqual([0, 0, 0])
     expect(r[3]).toBe(0)
   }, 60000)
 
@@ -191,8 +191,13 @@ describe('⭐ C47 — trend-duration-forecast: the v6 `bool(na)` latch draws Tra
     const v5 = cap.source.text.replace('//@version=6', '//@version=5')
     expect(v5).not.toBe(cap.source.text)
     const { labels, d } = run(v5, true)
-    const flip = d.definition.objects.trees.find((t) => t.type === 'op' && t.name === '!='
-      && t.args[1] && t.args[1].type === 'offset')
+    const isFlip = (t) => !!t && t.type === 'op' && t.name === '!=' && t.args[1] && t.args[1].type === 'offset'
+    const top = d.definition.objects.trees.find((t) => isFlip(t)
+      || (t.type === 'op' && t.name === '?:' && isFlip(t.args[2])))
+    const flip = isFlip(top) ? top : top.args[2]
+    // ⭐ ENGINE 56 (A3, S1 witnessed) — a v5 `bool` that can be `na` meeting `!=` is `na` there
+    // (the comparison sits inside `(flag) ? na : …`), and the latch keeps the legacy fold
+    expect(flip.args[0].type === 'call' && flip.args[0].name).toBe('accum')
     expect(flip.args[0].args[0]).toEqual(LEGACY_CAST)
     expect(labels.find((l) => l.createdBar === 58)).toBeUndefined()
     // ⚰️ F1 — this pinned `toHaveLength(27)`. No capture shows this script as v5; the

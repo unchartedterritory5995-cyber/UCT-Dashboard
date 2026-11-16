@@ -11,6 +11,7 @@
 import { describe, it, expect, afterEach } from 'vitest'
 
 import { translatePine } from './pine.js'
+import { fixtureLibraries } from './__tests__/libraryFixture.js'
 import { interpret } from './interpret.js'
 import { buildRuntimeIr } from './pineRuntimeFrontend.js'
 import { runtimeClockOpts } from './pineRuntimeClock.js'
@@ -91,7 +92,7 @@ const LIB_REFUSES = `${MPL}
 library("refuses")
 export g(float x) => request.security(syminfo.tickerid, timeframe.period + "x", x)
 `
-const LIBS = {
+const LIBS = fixtureLibraries({
   'tester/fixturelib/1': { path: 'tester/fixturelib/1', source: LIB_V1, licence: 'MPL-2.0', attribution: 'fixturelib v1 (test fixture)' },
   'tester/fixturelib/2': { path: 'tester/fixturelib/2', source: LIB_V2, licence: 'MPL-2.0', attribution: 'fixturelib v2 (test fixture)' },
   'tester/outer/1': { path: 'tester/outer/1', source: LIB_OUTER, licence: 'MPL-2.0', attribution: 'outer (test fixture)' },
@@ -99,7 +100,7 @@ const LIBS = {
   'tester/shadow/1': { path: 'tester/shadow/1', source: LIB_SHADOW, licence: 'MPL-2.0', attribution: 'shadow (test fixture)' },
   'tester/blockshadow/1': { path: 'tester/blockshadow/1', source: LIB_BLOCK_SHADOW, licence: 'MPL-2.0', attribution: 'blockshadow (test fixture)' },
   'tester/refuses/1': { path: 'tester/refuses/1', source: LIB_REFUSES, licence: 'MPL-2.0', attribution: 'refuses (test fixture)' },
-}
+})
 
 // ── the two lanes, run to numbers ────────────────────────────────────────────
 const same = (a, b) => a.length === b.length && a.every((x, i) => Object.is(x, b[i]))
@@ -329,6 +330,8 @@ describe('what the member is shown, and what does not move', () => {
     expect(t.libraries).toEqual([{
       path: 'tester/fixturelib/1', alias: 'fx', licence: 'MPL-2.0',
       attribution: 'fixturelib v1 (test fixture)', url: null,
+      // U15: the pin, the sha256 of the code that was compiled
+      sha256: LIBS['tester/fixturelib/1'].sha256,
     }])
     const plain = translatePine(PASTED, { mode: 'host' })
     expect('libraries' in plain).toBe(false)

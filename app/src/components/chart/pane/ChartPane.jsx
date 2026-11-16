@@ -21,6 +21,7 @@ import AttachedPineDisclosures from './AttachedPineDisclosures'
 // W9-T13b: the strategy report panel, DARK behind VITE_PINE_STRATEGY_BROKER_ENABLED (read inside)
 import AttachedStrategyReports from './AttachedStrategyReports'
 import UIcon from '../../ui/UIcon'
+import ChartTypeMenu from './ChartTypeMenu'
 import { VOLUME_PANE_SURFACE_FIXED } from '../indicatorRegistry'
 import { tfLabel, tfSortKey, tfSpokenLabel } from '../timeframes'
 import { TF_ORDER, shortcutClaimsKey } from '../keyboardShortcuts'
@@ -460,6 +461,14 @@ function ChartPane({
   const identityRef = useRef(null)
   const [sessionForceAbbrev, setSessionForceAbbrev] = useState(false)
   const [titleForceCollapse, setTitleForceCollapse] = useState(false)
+  // ── One-row header ladder (owner 11-14) ── the /charts chart header stays ONE row at every
+  // width and sheds in steps as the pane narrows: 1 the clock, 2 the company name → the ticker,
+  // 3 the info labels → their abbreviations (Market Cap → MC), 4+ the timeframes fold one at a
+  // time into the ▾ menu (the active one always stays), then the info fields, the date
+  // navigator, the day change, RTH/PM and the symbol ▾. The window controls (⚙ · + · pop out ·
+  // ✕) are NEVER shed — the right cluster does not shrink; the ticker ellipsizes last.
+  const [rowLevel, setRowLevel] = useState(0)
+  const rowWidthRef = useRef(null)
 
   // Header customization (Chart Settings → Header). Title mode, visible timeframe
   // buttons, day-change, info stats, and the on-chart legend are all user-toggled.
@@ -494,6 +503,8 @@ function ChartPane({
   // escape to intraday) exactly like a host-supplied tfCodes lock. An explicit host
   // tfCodes still wins.
   const effTfCodes = Array.isArray(tfCodes) ? tfCodes : ((isBreadthLike || isEcon) ? DWM : null)
+  // The /charts integrated header is ONE row at every width (owner 11-14).
+  const oneRowMode = !!slots?.identityDragClass && !mini && showTfBar
   const visibleTfs = (() => {
     if (Array.isArray(effTfCodes)) return effTfCodes.map(c => [c, tfLabel(c)])
     const fav = Array.isArray(hdr.timeframes) ? hdr.timeframes : []
@@ -512,12 +523,27 @@ function ChartPane({
   // tfCap thins the timeframe bar, infoForceAbbrev shortens the info labels, and the
   // identity-row states collapse the title / abbreviate the session buttons. A
   // host-locked tfCodes set is never trimmed.
+  // One-row ladder steps (see rowLevel).
+  const tfFoldable = Array.isArray(effTfCodes) ? 0 : Math.max(0, visibleTfs.length - 1)
+  const L_TF = 4                                   // first timeframe fold
+  const L_META = L_TF + tfFoldable                 // after the last fold
+  const rowHideClock = oneRowMode && rowLevel >= 1
+  const rowTicker = oneRowMode && rowLevel >= 2
+  const rowAbbrev = oneRowMode && rowLevel >= 3
+  const rowCap = oneRowMode && rowLevel >= L_TF ? Math.max(1, visibleTfs.length - (rowLevel - L_TF + 1)) : 99
+  const rowHideMeta = oneRowMode && rowLevel >= L_META
+  const rowHideChartType = oneRowMode && rowLevel >= L_META + 1   // the chart-type button (owner 11-15)
+  const rowHideDateNav = oneRowMode && rowLevel >= L_META + 2
+  const rowHideChange = oneRowMode && rowLevel >= L_META + 3
+  const rowHideSession = oneRowMode && rowLevel >= L_META + 4
+  const rowHideSymMenu = oneRowMode && rowLevel >= L_META + 5
+  const ROW_LEVEL_MAX = L_META + 5
   const responsiveTfs = Array.isArray(effTfCodes)
     ? visibleTfs
-    : trimTimeframes(visibleTfs, (isBreadthLike || isEcon) ? breadthTf : tf, tfCap)
+    : trimTimeframes(visibleTfs, (isBreadthLike || isEcon) ? breadthTf : tf, oneRowMode ? rowCap : tfCap)
   shownTfCountRef.current = responsiveTfs.length
-  const infoAbbrev = infoForceAbbrev
-  const effHeaderLabel = exhibit ? identityLabel : ((titleForceCollapse && !_themeViewLabel && !isBreadthLike && !isEcon && !themeIdx.isIndex)
+  const infoAbbrev = infoForceAbbrev || rowAbbrev
+  const effHeaderLabel = exhibit ? identityLabel : (((titleForceCollapse || rowTicker) && !_themeViewLabel && !isBreadthLike && !isEcon && !themeIdx.isIndex)
     ? sym
     : headerLabel)
   const customTfs = Array.isArray(hdr.customTimeframes) ? hdr.customTimeframes : []
@@ -593,7 +619,7 @@ function ChartPane({
   )
   useLayoutEffect(() => { setTfCap(99); setInfoForceAbbrev(false) }, [paneWidth, infoSig])
   useLayoutEffect(() => {
-    if (compact || mini || !showTfBar || Array.isArray(effTfCodes)) return
+    if (oneRowMode || compact || mini || !showTfBar || Array.isArray(effTfCodes)) return
     const el = tfBarRef.current
     if (!el) return
     // The row is nowrap + overflow:hidden, so it stays ONE line and overflows instead
@@ -613,7 +639,7 @@ function ChartPane({
   // resizes. Sheds monotonically: session buttons first, then the title. The reset
   // below restores both when the pane widens or the symbol changes.
   useLayoutEffect(() => {
-    if (mini) return
+    if (mini || oneRowMode) return
     const el = identityRef.current
     if (!el || el.scrollWidth <= el.clientWidth + 1) return
     if (!sessionForceAbbrev) setSessionForceAbbrev(true)
@@ -623,6 +649,25 @@ function ChartPane({
     setSessionForceAbbrev(false)
     setTitleForceCollapse(false)
   }, [paneWidth, headerLabel, sym])
+  // One-row ladder: when anything in the row is clipped (the row itself, or the timeframe
+  // strip squeezed inside it), take one more step — synchronously, before paint, until it
+  // fits. Narrowing keeps the steps already taken (it can only need more); widening, a new
+  // symbol or different info resets to the full row and re-fits. jsdom lays nothing out
+  // (every width 0), so this is inert in tests.
+  useLayoutEffect(() => {
+    if (!oneRowMode) return
+    const prev = rowWidthRef.current
+    rowWidthRef.current = paneWidth
+    if (prev == null || !Number.isFinite(paneWidth) || paneWidth > prev) setRowLevel(0)
+  }, [oneRowMode, paneWidth])
+  useLayoutEffect(() => { if (oneRowMode) setRowLevel(0) }, [oneRowMode, headerLabel, sym, infoSig, visibleTfs.length])
+  useLayoutEffect(() => {
+    if (!oneRowMode || rowLevel >= ROW_LEVEL_MAX) return
+    const clipped = (el) => !!el && el.scrollWidth > el.clientWidth + 1
+    const row = identityRef.current
+    const partClipped = !!row && [...row.children].some(clipped)
+    if (clipped(row) || partClipped || clipped(tfBarRef.current)) setRowLevel((l) => Math.min(ROW_LEVEL_MAX, l + 1))
+  })
 
   // Chart-settings modal (opened by the gear, by StockChart's own settings entry
   // point, or imperatively by the host through the ref).
@@ -713,9 +758,21 @@ function ChartPane({
   /** Chart Settings → Indicators → "+ Create Indicator" (P2 Track B). The modal
    *  closes first — the studio docks beside the chart, and two surfaces holding
    *  Escape would be the same hazard `openFormulaBuilder` describes. */
-  const openCreateIndicator = useCallback(() => {
+  const openCreateIndicator = useCallback((opts = null) => {
     setSettingsOpen(false)
-    try { paneToolbarApi.current?.openCreateIndicator?.() } catch { /* noop */ }
+    // The Indicators window's plain-words box hands over what was typed: it opens the studio
+    // with the request PREFILLED (the Agent's seeded door), never sent.
+    const seed = opts && typeof opts.seed === 'string' ? opts.seed : ''
+    try {
+      if (seed) paneToolbarApi.current?.openCreateIndicatorFor?.({ seed })
+      else paneToolbarApi.current?.openCreateIndicator?.()
+    } catch { /* noop */ }
+  }, [])
+  /** The Indicators window's other three ways to start one: the builder on a named door
+   *  ('pine' | 'image' | 'formula'). The modal closes first, as for every door above. */
+  const openBuilderDoor = useCallback((door) => {
+    setSettingsOpen(false)
+    try { paneToolbarApi.current?.openIndicatorDoor?.(door) } catch { /* noop */ }
   }, [])
   /** ⭐ PHASE 4 — THE DEFINITION'S OWN DOORS for Chart Settings → Indicators: the
    *  same toolbar calls the legend menu makes. The modal closes first (one surface
@@ -968,13 +1025,13 @@ function ChartPane({
   // enough the whole timeframe row moves INTO the title row (one header row). Narrow
   // panes keep two rows. Every other surface: unchanged (session in the identity row).
   const integratedHeader = !!slots?.identityDragClass
-  const oneRowHeader = integratedHeader && !mini && showTfBar
-    && Number.isFinite(paneWidth) && paneWidth >= ONE_ROW_HEADER_MIN_W
+  // Owner 11-14: ONE row at every width (the ladder above fits it), never a second row.
+  const oneRowHeader = oneRowMode
   const sessionCfg = (compact || isEcon) ? null : (isDWMtf
     ? { mode: 'dwm', view: sessionView, onView: setSessionView, extEnabled, extLabel, abbrev: integratedHeader || sessionForceAbbrev }
     : { mode: 'intraday', extHoursOn, onExtHours: setExtHours, abbrev: integratedHeader || sessionForceAbbrev })
   // The chart widget's symbol menu (▾ after the company name): leverage + holdings.
-  const symbolMenuEl = (integratedHeader && slots?.symbolActions) ? (
+  const symbolMenuEl = (integratedHeader && slots?.symbolActions && !rowHideSymMenu) ? (
     <SymbolActionsMenu styles={styles} themeVars={menuVars}>{slots.symbolActions}</SymbolActionsMenu>
   ) : null
   const tfBarEl = showTfBar ? (
@@ -999,8 +1056,14 @@ function ChartPane({
     >
       {/* Host slot injected AFTER the timeframe buttons and BEFORE the meta
           fields (MARKET CAP / NEXT EARNINGS / …) — the Time Navigator seat. */}
-      {slots?.tfBarAfterTf}
-      {!compact && !mini && (
+      {/* Chart type (owner 11-15): the current type's icon after the timeframes; its menu is
+          Chart Settings → Price style's list, written through the same settings writer. */}
+      {!compact && !mini && !isBreadthLike && !isEcon && !rowHideChartType && (
+        <ChartTypeMenu value={chartCs.chartType || 'candles'}
+          onPick={(t) => updateFromSettingsModal({ ...chartCs, chartType: t, preset: 'custom' })} />
+      )}
+      {!rowHideDateNav && slots?.tfBarAfterTf}
+      {!compact && !mini && !rowHideMeta && (
         /* tight: when the Time Navigator sits before the fields, drop the wide
            left margin so MARKET CAP hugs the box's divider (matches its left gap). */
         <ChartMetaRow items={metaItems} abbrev={infoAbbrev} tight={!!slots?.tfBarAfterTf} styles={styles} />
@@ -1078,17 +1141,17 @@ function ChartPane({
           onSymbolChange={onSymbolChange ? handleSymbolChange : null}
           onTypedIntent={onSymbolChange ? handleTypedIntent : null}
           economic={allowEconomic}
-          showChange={!exhibit && !_themeViewLabel && hdr.showChange && !isDelisted && !isBreadthLike && !isEcon && !(themeIdx.isIndex && !idxGain)}
+          showChange={!rowHideChange && !exhibit && !_themeViewLabel && hdr.showChange && !isDelisted && !isBreadthLike && !isEcon && !(themeIdx.isIndex && !idxGain)}
           dayGain={themeIdx.isIndex ? idxGain : null}
           delistedDate={isDelisted ? delistedInfo.delisted_date : null}
           dayGainColors={{
             up: hdrColors.dayChangeUp || (resolvedTheme === 'sunrise' ? '#0a5c22' : '#1ae51a'),
             down: hdrColors.dayChangeDown || (resolvedTheme === 'sunrise' ? '#7d1620' : '#ff3b47'),
           }}
-          session={sessionCfg}
+          session={rowHideSession ? null : sessionCfg}
           middleSlot={oneRowHeader ? tfBarEl : null}
           afterNameSlot={symbolMenuEl}
-          showClock={!compact}
+          showClock={!compact && !rowHideClock}
           rightSlot={integratedHeader
             ? (
               <>
@@ -1323,6 +1386,7 @@ function ChartPane({
            single mounted `BuilderSheet`. */
         onCreateFormula={openFormulaBuilder}
         onCreateIndicator={openCreateIndicator}
+        onOpenBuilderDoor={openBuilderDoor}
         definitionDoors={definitionDoors}
         chartFeatures={chartFeatures}
         onIndicatorFirstAdd={onSettingsFirstAdd}

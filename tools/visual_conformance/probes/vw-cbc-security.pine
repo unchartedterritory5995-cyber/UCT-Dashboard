@@ -1,0 +1,20 @@
+//@version=6
+indicator("UCTPROBE_VW_CBC_SECURITY", overlay = false, calc_bars_count = 100)
+
+// PROVENANCE: written 2026-11-15 (inv-fmt-1115). S11 2026-11-15: S05 reads AMEX:SPY (NYSE:SPY is an
+// invalid symbol on TradingView, S10 runtime error); nothing else changed.
+// Is a request.security context inside a calc_bars_count script windowed too (its own var state,
+// its own warm-up), or computed on the requested symbol's full history?
+// CAPTURE: NYSE:RDDT 1D from the listing (666 bars), inputs at defaults.
+
+cnt() =>
+    var int n = 0
+    n += 1
+    n
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(request.security(syminfo.tickerid, "D", cnt()), "S01_same_tf_var_count")       // 1..100, or 567..666?
+plot(request.security(syminfo.tickerid, "D", bar_index), "S02_same_tf_bar_index")    // 0..99, or 566..665?
+plot(request.security(syminfo.tickerid, "W", cnt()), "S03_weekly_var_count")
+plot(request.security(syminfo.tickerid, "W", ta.sma(close, 5)), "S04_weekly_sma5")    // na on early window bars?
+plot(request.security("AMEX:SPY", "D", cnt()), "S05_other_symbol_var_count")

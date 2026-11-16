@@ -28,6 +28,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
+import conftest  # noqa: E402,F401 -- the census and the tripwire, before any api.* import
 
 USAGE_EVENTS = (
     "view_used", "list_layout_used", "menu_row_used", "today_door_used", "template_started", "block_inserted",

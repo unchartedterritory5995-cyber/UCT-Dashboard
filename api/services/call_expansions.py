@@ -179,20 +179,29 @@ def supertrend_trees(factor_node: Any, period_node: Any,
 
     up, dn = band("+"), band("-")
     w = _num(warmup)
-    upper = _call("accum", [up, _op("?:", [
-        _op("||", [_op("<", [up, self_]), _op(">", [prev_close, self_])]), up, self_]), w])
-    lower = _call("accum", [dn, _op("?:", [
-        _op("||", [_op(">", [dn, self_]), _op("<", [prev_close, self_])]), dn, self_]), w])
+    zero = _num(0)
+    # Pine's ``nz(upperBand[1])`` / ``nz(lowerBand[1])`` (engine 57): the previous band,
+    # 0 where it is ``na`` -- without it a band seeded ``na`` latched ``na`` from the listing.
+    prev = _call("nz", [self_, zero])
+    upper = _call("accum", [_call("nz", [up, zero]), _op("?:", [
+        _op("||", [_op("<", [up, prev]), _op(">", [prev_close, prev])]), up, prev]), w])
+    lower = _call("accum", [_call("nz", [dn, zero]), _op("?:", [
+        _op("||", [_op(">", [dn, prev]), _op("<", [prev_close, prev])]), dn, prev]), w])
     one, minus_one = _num(1), _num(-1)
+    # Pine's ``if na(atr[1]) direction := 1``, then the flip
     direction = _call("accum", [one, _op("?:", [
-        _op("==", [self_, one]),
-        _op("?:", [_op(">", [close, upper]), minus_one, one]),
-        _op("?:", [_op("<", [close, lower]), one, minus_one]),
+        _call("na", [{"type": "offset", "value": 1, "args": [atr]}]),
+        one,
+        _op("?:", [
+            _op("==", [self_, one]),
+            _op("?:", [_op(">", [close, upper]), minus_one, one]),
+            _op("?:", [_op("<", [close, lower]), one, minus_one]),
+        ]),
     ]), w])
-    unknown = _op("||", [
-        _call("na", [{"type": "offset", "value": warmup, "args": [upper]}]),
-        _call("na", [{"type": "offset", "value": warmup, "args": [lower]}]),
-    ])
+    # ENGINE 57 -- the guard is a bounded window's own curtain ``2W + n - 1`` deep (the base's
+    # bars: its raw seeds were ``na`` through the ATR warm-up): ``na`` on
+    # bars ``t < 2W`` off the listing, known on every bar from it (``callExpansions.js``).
+    unknown = _call("na", [_call("accum", [_num(0), _num(0), _num(2 * warmup + n - 1)])])
     na = _op("/", [_num(0), _num(0)])
     return {
         "value": _op("?:", [unknown, na, _op("?:", [_op("==", [direction, minus_one]), lower, upper])]),

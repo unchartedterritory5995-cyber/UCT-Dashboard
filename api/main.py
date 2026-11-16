@@ -69,6 +69,7 @@ _BOOT_QUIET_S = {
     "bars_continuous_audit": 300,
     "breadth_self_heal": 240,
     "theme_index_prewarm": 150,
+    "screener_deal_gate_warm": 120,
 }
 
 
@@ -158,6 +159,7 @@ from api.routers import notebook_insights as notebook_insights_router
 from api.routers import client_errors as client_errors_router
 from api.routers import desktop_events as desktop_events_router
 from api.routers import perf_beacon as perf_beacon_router
+from api.routers import request_timing as request_timing_router
 from api.routers import notebook_soak as notebook_soak_router
 from api.routers import notebook_link_preview as notebook_link_preview_router
 from api.routers import hub_planned_trades as hub_planned_trades_router
@@ -2492,6 +2494,11 @@ def _run_rs_history() -> None:
             return
         _print_rs_history_receipt("rs history", receipt)
         _alert_if_rs_history_short(receipt)
+        if receipt.get("ok"):
+            # The session the 03:00 build could not read is stored now. Chained HERE as
+            # well as at 04:40 because a run that finishes after 04:40 would otherwise
+            # leave the screener on the previous session until the next build.
+            _run_rs_post_pass("rating")
     except Exception as e:  # noqa: BLE001
         print(f"[scheduler] rs history error: {e}")
         _alert_if_rs_history_short({"crashed": f"{type(e).__name__}: {e}"})
@@ -2523,7 +2530,9 @@ def _print_rs_history_receipt(label: str, receipt: dict) -> None:
 #   - the screener's seven rs_rating_* columns are read ONCE per build
 #     (`snapshot_builder._read_rs_history_fields`, the newest stored session); the
 #     03:00 build runs before 04:15 by design, so the caught-up session reaches the
-#     screener at the next build exactly as an on-time run's would.
+#     screener at the next build exactly as an on-time run's would. (With
+#     RS_SCREENS_ENABLED on it reaches the screener at once: `_run_rs_lists` below
+#     starts with the RS post-pass, `_run_rs_post_pass`.)
 #   - `rs_discord_post` reads `screener_rows` only; `rs_evidence_pull` reads R2 only.
 #   - `rs_ranking`'s badge overlay memoises the newest session for 5 minutes.
 # What DOES: `rs_lists_nightly` (04:40) refuses while the history is behind the
@@ -2654,16 +2663,87 @@ def _run_rs_evidence_pull() -> None:
         print(f"[scheduler] rs evidence pull error: {e}")
 
 
+def _run_rs_post_pass(source: str) -> None:
+    """The RS screens post-pass after a rating run (RS screens unit U1). Never raises.
+
+    Off (`RS_SCREENS_ENABLED` unset, `0` or a value that spells nothing): returns before
+    touching anything, so every caller behaves exactly as it did. On, and at `admin` (the
+    owner's private look: the data runs for everyone): one `rs_post_pass.run()` (every screener
+    row's rating columns onto the settled session, the session stamp, the exact places;
+    its receipt is read back on `snapshot_db.status()` as `rs_post_pass`), and, when the
+    pass MOVED the ratings, screen membership is recorded again: the 03:00 record behind
+    "New today" was taken on the previous session's ratings. `membership.rerecord_all`
+    replaces that record and never creates one the nightly refused to take. A pass that
+    found the session not stored yet changed no rating, so nothing is recorded again.
+
+    The screener panel's measured bands are dropped and measured again first: they are
+    cached per snapshot fingerprint (row count, newest `built_at`, date), the pass moves
+    none of those, and the bands taken after the 03:00 build saw the nine pass-written
+    columns blank. `distribution.invalidate` exists for a rewrite that keeps the fingerprint.
+    """
+    try:
+        from api.services.screener import rs_post_pass
+        if not rs_post_pass.enabled():
+            return
+        r = rs_post_pass.run(source=source)
+        print(f"[scheduler] rs post-pass ({source}): ok={r.get('ok')} session={r.get('session')} "
+              f"rating_session={r.get('rating_session')} rewritten={r.get('rewritten')} "
+              f"reason={r.get('reason')} rows={r.get('rows')} ranked={r.get('ranked')} "
+              f"ms={r.get('duration_ms')}")
+        if r.get("rewritten"):
+            try:
+                from api.services.screener import distribution
+                distribution.invalidate()
+                distribution.distributions()
+            except Exception as e:  # noqa: BLE001 - bands are an aid; never cost the record below
+                print(f"[scheduler] rs post-pass ({source}): bands not refreshed: {e}")
+            from api.services.screener import membership
+            mr = membership.rerecord_all()
+            print(f"[scheduler] rs post-pass ({source}): screener membership re-recorded: {mr}")
+            _run_rs_screen_alerts(source, r)
+    except Exception as e:  # noqa: BLE001
+        print(f"[scheduler] rs post-pass ({source}) error: {type(e).__name__}: {e}")
+
+
+def _run_rs_screen_alerts(source: str, pass_receipt: dict) -> None:
+    """The RS screens' daily joined-and-left message (RS screens unit U13). Never raises.
+
+    Called by `_run_rs_post_pass` only, straight after membership was recorded again
+    for a pass that MOVED the ratings: the message describes the record that pass just
+    took, for the session it rated. So it has no cron of its own, and it comes through
+    every door that pass does (04:15 rating, 04:40 lists, the rating catch-up); the
+    module's (member, screen, session) row is what makes those say it once.
+
+    Off (`RS_SCREEN_ALERTS_ENABLED` unset or not "1"): returns before touching
+    anything. `recorded_after` is the pass's own finish time: a membership record older
+    than it was taken on the previous ratings (the nightly refused to record, or the
+    re-record failed) and is not described."""
+    try:
+        from api.services.screener import rs_screen_alerts
+        if not rs_screen_alerts.enabled():
+            return
+        ar = rs_screen_alerts.run_nightly(session=pass_receipt.get("rating_session"),
+                                          recorded_after=pass_receipt.get("finished_at"))
+        print(f"[scheduler] rs screen alerts ({source}): {ar}")
+    except Exception as e:  # noqa: BLE001
+        print(f"[scheduler] rs screen alerts ({source}) error: {type(e).__name__}: {e}")
+
+
 def _run_rs_lists() -> None:
     """The `rs_lists_nightly` job (Phase 4 unit 4-01, 04:40 ET). Never raises.
 
-    One `rs_lists.nightly_job()`: the module reads `RS_LISTS_ENABLED` per call (off, it
+    FIRST the RS screens post-pass (`_run_rs_post_pass`, its own flag, off by default):
+    this is the door both the 04:40 cron and a catch-up that stored come through, so the
+    screener rows are on the session the lists are about to read.
+
+    Then one `rs_lists.nightly_job()`: the module reads `RS_LISTS_ENABLED` per call (off, it
     returns before reading or writing anything), applies its guards (the rating history
     must have caught up to the screener session; an empty list never replaces a full one
     unless the session is fresh), rebuilds RS Leaders and RS Emerging in place through
     `watchlist_prebuilt.write_rs_list`, and records its receipt (read back on
     `snapshot_db.status()` as `rs_lists`). One log line here.
     """
+    _run_rs_post_pass("lists")
     try:
         from api.services import rs_lists
         r = rs_lists.nightly_job()
@@ -4710,6 +4790,19 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] thread switch interval tuning failed (non-fatal): {e}")
 
+    # ⭐ U5 (2026-11-14): the capability detector's own process, off the request GIL
+    # (PINE_CAPABILITY_DETECTOR_WORKER=on). Started 30 s after boot, off the boot path; until it
+    # is READY every detector call answers "still being checked" (fail closed). Off: nothing.
+    try:
+        from api.services import pine_capability_worker
+        if pine_capability_worker.worker_enabled():
+            _cw = threading.Timer(30.0, pine_capability_worker.prestart)
+            _cw.daemon = True
+            _cw.start()
+            print("[startup] capability detector process: starting in 30 s")
+    except Exception as e:
+        print(f"[startup] capability detector process failed to schedule (non-fatal): {e}")
+
     # Self-logging burst capture (2026-06-09/10 thread-exhaustion incident).
     try:
         _start_thread_burst_watch()
@@ -5138,6 +5231,34 @@ async def lifespan(app: FastAPI):
     except Exception:
         logging.getLogger(__name__).exception("[startup] could not schedule the terminal seed")
 
+    # CREATE INDICATOR, open to every account (owner decision 2026-11-15): every
+    # EXISTING account joins its cohort ONCE per volume; new signups are enrolled at
+    # signup. The same one-shot shape as the terminal seed above: a daemon thread, a
+    # marker written only after the write succeeds, the writer reached through
+    # `rollout_gate`. `CREATE_INDICATOR_COHORT_ENABLED` still decides what is shown.
+    try:
+        import threading as _ci_th
+
+        def _create_indicator_seed():
+            _log = logging.getLogger(__name__)
+            try:
+                from api.services import rollout_gate as _rg
+                _added = _rg.seed_existing_members_into_create_indicator()
+                if _added is None:
+                    _log.info("[startup] create-indicator seed: already ran (marker present)")
+                else:
+                    _log.info("[startup] create-indicator seed: enrolled existing accounts "
+                              "(%d new tag rows)", _added)
+            except Exception:
+                _log.exception("[startup] create-indicator seed failed; no marker written, "
+                               "the next boot retries")
+
+        _ci_th.Thread(target=_create_indicator_seed, name="create-indicator-seed",
+                      daemon=True).start()
+    except Exception:
+        logging.getLogger(__name__).exception(
+            "[startup] could not schedule the create-indicator seed")
+
     # Plan A Task 2 (L-2): internal link MARKS already stored become note links.
     # A flag-file one-shot on a daemon thread with its OWN connection, started HERE --
     # after `_init_auth_db()` has committed -- never from inside `ensure_schema`, where
@@ -5490,6 +5611,18 @@ async def lifespan(app: FastAPI):
             _t.start()
         except Exception:
             logging.getLogger(__name__).exception("[startup] failed to schedule theme_index prewarm")
+
+    # 🔴 The screener's buyout exclude set (query.deal_gate) is built off the request thread, but
+    # only once something asks. Before this the first SCAN after a deploy started it, and until it
+    # landed (~2 min) every scan used the hand lists plus the saved set alone. Start it on boot,
+    # after the reconnect burst (it reads every deal headline and scans daily bars for pins).
+    try:
+        from api.services.screener import query as _scr_query
+        _dg = threading.Timer(_BOOT_QUIET_S["screener_deal_gate_warm"], _scr_query.warm_deal_gate)
+        _dg.daemon = True
+        _dg.start()
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] failed to schedule the deal gate warm")
 
     try:
         readiness.register("rs_rankings")
@@ -6754,6 +6887,19 @@ async def lifespan(app: FastAPI):
 
         threading.Thread(target=_market_indicator_jobs, daemon=True,
                          name="market_indicator_jobs").start()
+
+    # ⭐ PINE SEEDS (`request.seed`), ingested from each seed's PUBLIC mirror
+    # (`api/services/pine_seed_store.py`, docs/pine/RS-RATING-TRANSFER.md L6). Same lesson
+    # as Cboe above: a store nothing running fills serves an empty chart. On the web pod,
+    # because `/api/bars` answers seed symbols from this pod's `/data/pine_seeds.db`. A
+    # few small CSVs from GitHub every 2 h; the first boot replays the file's history
+    # (at most PINE_SEEDS_MAX_PAGES x 100 uploads).
+    if os.environ.get("PINE_SEEDS_REFRESH", "1") != "0":
+        def _pine_seed_jobs():
+            from api.services import pine_seed_store as _seeds
+            _seeds.refresh_loop()
+
+        threading.Thread(target=_pine_seed_jobs, daemon=True, name="pine_seed_jobs").start()
 
     # Self-healing breadth: refuse a degraded collector push (guard is in the push
     # route) AND recompute any degraded recent day from OUR bars so the Monitor's
@@ -8429,18 +8575,10 @@ async def lifespan(app: FastAPI):
             print("[startup] Similar-matches nightly job registered")
 
         def _cot_daily_catchup():
+            # holiday-aware: the decision lives in cot_service.daily_catchup (tests/test_cot_release_calendar.py pins its
+            # firing days against the old "8+ days old" rule); this is also what fetches a holiday week's Monday release
             try:
-                from datetime import date as _dt
-                from zoneinfo import ZoneInfo as _ZI
-                latest = _cot_service.get_latest_date()
-                if latest:
-                    import datetime as _dtm
-                    days_old = (_dtm.datetime.now(_ZI("America/New_York")).date() - _dt.fromisoformat(latest)).days
-                    if days_old >= 8:
-                        print(f"[scheduler] COT daily catchup: data is {days_old}d stale -- refreshing...")
-                        _cot_service.refresh_from_current()
-                    else:
-                        print(f"[scheduler] COT daily catchup: data is {days_old}d old -- fresh, skipping")
+                _cot_service.daily_catchup()
             except Exception as e:
                 print(f"[scheduler] COT daily catchup error: {e}")
 
@@ -10895,6 +11033,12 @@ async def lifespan(app: FastAPI):
     _boot_mark("ready"); _boot_log()
     yield
     _shutdown_t0 = time.monotonic()  # the deploy gap includes this pod's shutdown (2026-11-12)
+    # U5 (review L4): stop the capability detector process (a no-op when it never started)
+    try:
+        from api.services import pine_capability_worker as _pcw_stop
+        _pcw_stop.shutdown()
+    except Exception as e:
+        print(f"[shutdown] capability detector stop failed (non-fatal): {type(e).__name__}")
     try:
         trade_exchange_news_router.stop_background()
     except Exception as e:
@@ -11096,6 +11240,11 @@ app.add_middleware(_GZipSkipSSE, minimum_size=1000, compresslevel=5)
 # the single path `/api/breadth-monitor` — see the module docstring.
 from api.services.breadth_timing import BreadthTimingMiddleware as _BreadthTiming  # noqa: E402
 app.add_middleware(_BreadthTiming)
+# OUTERMOST OF ALL (added last): time to first byte for every request, by route class, plus a
+# once-a-second reading of the thread limiter. Pure ASGI and it passes every message through
+# untouched, so a stream is never buffered. Kill switch REQUEST_TIMING_ENABLED=0. See the module.
+from api.services.request_timing import RequestTimingMiddleware as _RequestTiming  # noqa: E402
+app.add_middleware(_RequestTiming)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -11572,6 +11721,8 @@ app.include_router(client_errors_router.router)
 # Desktop plan 5.1: the desktop shell's enum-only telemetry door (session optional) + admin read.
 app.include_router(desktop_events_router.router)
 app.include_router(perf_beacon_router.router)
+# Speed and reliability plan item 1: admin read of the per-request and thread-pool timing record.
+app.include_router(request_timing_router.router)
 # Wave 9 lane 9C (controller wiring): GET /api/admin/notebook-soak -- the soak's
 # one admin read (ruling D-9C2). Must precede the SPA catch-all like every /api route.
 app.include_router(notebook_soak_router.router)

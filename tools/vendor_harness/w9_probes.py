@@ -467,6 +467,24 @@ if dn
     s.append(P("mk1-markers", "W9-MK1", "trade-marker presentation (read from graphics() and properties().state())", LONGS, decl=FIXED1))
     s.append(P("s2-sharpe", "W9-S2", "Sharpe and Sortino at the default risk_free_rate", LONGS, decl=FIXED1))
     s.append(P("s2-sharpe-rf0", "W9-S2", "Sharpe and Sortino at risk_free_rate = 0 (the second capture of the row)", LONGS, decl=FIXED1 + ", risk_free_rate = 0"))
+    # 2026-11-16, ruling D11 (docs/pine/W9-DECISIONS-2026-11-07.md): the exception is mutant-railed and no capture
+    # exercises it. This probe has the one shape that can: 300 bars of orders under rules the committed captures
+    # already witness, then the FIRST use of one rule no capture has graded (B-PYR: an add under pyramiding = 2).
+    s.append(P("d11-late-first-use", "W9-V-D11", "ruling D11: a long prefix under witnessed rules, then the first use of the "
+               "pyramiding rule (B-PYR) from bar 300 on; a difference there has an exact prefix and a one-rule culprit set",
+               '''{SC}
+if up
+    strategy.entry("L", strategy.long)
+if dn
+    strategy.close("L")
+// from bar 300 on: one add, two bars after the first entry filled (the run's first same-direction entry on an open trade)
+if bar_index >= 300 and strategy.opentrades == 1 and bar_index - strategy.opentrades.entry_bar_index(0) == 2
+    strategy.entry("L", strategy.long)''',
+               decl=FIXED1 + ", " + PYR2,
+               extras=[("X01_first_open_entry_bar", "strategy.opentrades > 0 ? strategy.opentrades.entry_bar_index(0) : na"),
+                       ("X02_second_open_entry_price", "strategy.opentrades > 1 ? strategy.opentrades.entry_price(1) : na")],
+               notes=["MATCH pins B-PYR and leaves D11 unwitnessed. A DIVERGE whose first difference is on or after bar 300",
+                      "is the first real capture of the exception: the rules of the prefix stay pinned, B-PYR does not."]))
     return s
 
 
@@ -529,12 +547,37 @@ def core_source() -> str:
     return S1_CORE.rstrip("\n") + "\n\n" + std_block(5) + "\n"
 
 
+# U14 (run s27-2026-11-15): the W9-R1i method (b) window on AMEX:SPY 15, [2026-08-24, 2026-09-22) ET as epoch
+# ms. It is inside the most recent 5,000 15-minute bars our side serves, so it ages out of that window in weeks;
+# the capture is committed and graded on its own bars.
+RISK_INTRADAY_X_MS = 1787544000000
+RISK_INTRADAY_Y_MS = 1790049600000
+
+# U14 G1 evidence (run s27-2026-11-15): the //@version=3 Properties read-back. Not a rule probe: no standard set.
+V3_PROPERTIES = '''//@version=3
+strategy("UCTPROBE_V3_PROPERTIES", overlay=false)
+// U14 G1 evidence (2026-11-15): which Strategy Properties inputs exist at //@version=3. Capture NYSE:RDDT 1D
+// from the listing with tools/vendor_harness/tv_capture.js; read provenance.strategySettings.properties.
+fast = sma(close, 5)
+slow = sma(close, 20)
+if (crossover(fast, slow))
+    strategy.entry("L", strategy.long)
+if (crossunder(fast, slow))
+    strategy.close("L")
+plot(strategy.position_size, title="N01_position_size")
+plot(strategy.closedtrades, title="N02_closedtrades")
+'''
+
+
 def all_files() -> dict:
     files = {f"w9-{sp['name']}.pine": build(sp) for sp in specs()}
     core = core_source()
     files["s1-broker-core.pine"] = core
     guarded, _ = range_guard.rewrite(core.replace("UCTPROBE_S1_BROKER", "UCTPROBE_S1_BROKER_RANGE", 1), RANGE_X_MS, RANGE_Y_MS)
     files["s1-broker-core-range.pine"] = guarded
+    intraday, _ = range_guard.rewrite(files["w9-r1-risk-intraday.pine"], RISK_INTRADAY_X_MS, RISK_INTRADAY_Y_MS)
+    files["w9-r1-risk-intraday-range.pine"] = intraday
+    files["w9-g1-v3-properties.pine"] = V3_PROPERTIES
     return files
 
 

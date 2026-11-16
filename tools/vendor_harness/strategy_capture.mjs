@@ -35,7 +35,18 @@ export function isStrategyCapture(c) {
 
 /** The strategy tester's Properties inputs, by TradingView's own input name.
  *  `param` is the `strategy()` argument that declares it (null: only the dialog sets it);
- *  `kind` says how the source's literal is compared with the read-back value. */
+ *  `kind` says how the source's literal is compared with the read-back value.
+ *  `aliases`: other names the SAME input is read back under. `sinceVersion`: the input exists only
+ *  for a source at that `//@version` or later, so it is required only there.
+ *  ⭐ MEASURED 2026-11-15 (session S11, live read-backs on NYSE:RDDT 1D): a `//@version=5`
+ *  strategy() reads `risk_free_rate` back under its raw parameter name `risk_free_rate`, and has
+ *  no "Calculate Strategy on every History Tick" input at all; a `//@version=6` strategy() reads
+ *  both back as named below (Heikin Ashi Supertrend and Lorentzian 5c7960, v5; Trailing Take
+ *  Profit Trailing Stop Loss and Technical ratings strategy, v6)
+ *  ⭐ U14 G1 (runs s26 / s27-2026-11-15, the Properties table read at v2 through v6): a v2 or v3 strategy
+ *  has no process_orders_on_close, close_entries_rule, margin_long or margin_short input (sinceVersion 4);
+ *  a v4 one also has no risk_free_rate, use_bar_magnifier or fill_orders_on_standard_ohlc (sinceVersion 5);
+ *  calc_on_every_history_tick is v6 only. */
 export const PROPERTY_TABLE = Object.freeze([
   { key: 'initial_capital', name: 'Initial Capital', param: 'initial_capital', kind: 'num' },
   { key: 'pyramiding', name: 'pyramiding', param: 'pyramiding', kind: 'num' },
@@ -48,25 +59,64 @@ export const PROPERTY_TABLE = Object.freeze([
   { key: 'slippage', name: 'Backtesting slippage for market orders', param: 'slippage', kind: 'num' },
   { key: 'commission_type', name: 'Commission Type', param: 'commission_type', kind: 'enum' },
   { key: 'commission_value', name: 'Commission Value', param: 'commission_value', kind: 'num' },
-  { key: 'process_orders_on_close', name: 'Process orders on bar Close', param: 'process_orders_on_close', kind: 'bool' },
-  { key: 'close_entries_rule', name: 'Close entries rule', param: 'close_entries_rule', kind: 'enum' },
-  { key: 'margin_long', name: 'Margin Long', param: 'margin_long', kind: 'num' },
-  { key: 'margin_short', name: 'Margin Short', param: 'margin_short', kind: 'num' },
-  { key: 'risk_free_rate', name: 'Risk free rate', param: 'risk_free_rate', kind: 'num' },
-  { key: 'use_bar_magnifier', name: 'Use Bar Magnifier', param: 'use_bar_magnifier', kind: 'bool' },
-  { key: 'fill_orders_on_standard_ohlc', name: 'Fill orders using standard OHLC', param: 'fill_orders_on_standard_ohlc', kind: 'bool' },
-  { key: 'calc_on_every_history_tick', name: 'Calculate Strategy on every History Tick', param: null, kind: 'bool' },
+  { key: 'process_orders_on_close', name: 'Process orders on bar Close', param: 'process_orders_on_close', kind: 'bool', sinceVersion: 4 },
+  { key: 'close_entries_rule', name: 'Close entries rule', param: 'close_entries_rule', kind: 'enum', sinceVersion: 4 },
+  { key: 'margin_long', name: 'Margin Long', param: 'margin_long', kind: 'num', sinceVersion: 4 },
+  { key: 'margin_short', name: 'Margin Short', param: 'margin_short', kind: 'num', sinceVersion: 4 },
+  { key: 'risk_free_rate', name: 'Risk free rate', param: 'risk_free_rate', kind: 'num', aliases: ['risk_free_rate'], sinceVersion: 5 },
+  { key: 'use_bar_magnifier', name: 'Use Bar Magnifier', param: 'use_bar_magnifier', kind: 'bool', sinceVersion: 5 },
+  { key: 'fill_orders_on_standard_ohlc', name: 'Fill orders using standard OHLC', param: 'fill_orders_on_standard_ohlc', kind: 'bool', sinceVersion: 5 },
+  { key: 'calc_on_every_history_tick', name: 'Calculate Strategy on every History Tick', param: null, kind: 'bool', sinceVersion: 6 },
+  // ⭐ U14 G3 (coordinator ruling R3, measured on run s26-2026-11-15): six more inputs a //@version=4 or 5
+  // strategy reads back (a v2 one lacks three of them) and a v6 one does not. OPTIONAL: never required, but a
+  // read-back holding anything other than `optionalDefault` makes the capture INCONCLUSIVE (settingsAgreement).
+  { key: 'run_mode', name: "Run mode: 'backtest', 'alert' or something else", param: null, kind: 'enum', optional: true, optionalDefault: 'BACKTEST' },
+  { key: 'alert_message_template', name: "Alert message template for run mode 'alert'", param: null, kind: 'enum', optional: true, optionalDefault: '' },
+  { key: 'alert_type', name: "Alert type for run mode 'alert'", param: null, kind: 'enum', optional: true, optionalDefault: 'order_fills' },
+  { key: 'exclude_from_report', name: 'exclude_from_report', param: null, kind: 'enum', optional: true, optionalDefault: '' },
+  { key: 'trim_orders', name: 'trim_orders', param: null, kind: 'bool', optional: true, optionalDefault: false },
+  { key: 'calc_range', name: 'calc_range', param: null, kind: 'enum', optional: true, optionalDefault: '' },
 ])
-export const REQUIRED_PROPERTY_KEYS = Object.freeze(PROPERTY_TABLE.map((p) => p.key))
+/** Every REQUIRED key the table knows: what a source of unknown version is held to (fail closed). */
+export const REQUIRED_PROPERTY_KEYS = Object.freeze(PROPERTY_TABLE.filter((p) => !p.optional).map((p) => p.key))
+/** ⭐ U14 G2: an enum read back under another name for the SAME setting, per key: `{ declared literal: [read-back names] }`.
+ *  MEASURED on s26: `default_qty_type = strategy.cash` reads back `cash_per_order`; `fixed` and `percent_of_equity`
+ *  read back as themselves (w9-q-s1a-size-v5cash / -v5pct / -v6, w9-q-s1b-defaults-v5 / -v6). */
+export const ENUM_ALIASES = Object.freeze({
+  default_qty_type: Object.freeze({ cash: Object.freeze(['cash_per_order']) }),
+})
+/** Is the read-back `read` the enum value `declared` for `key`, its own name or an alias. */
+export function sameEnum(key, declared, read) {
+  const d = String(declared == null ? '' : declared).replace(/\s+/g, ' ').trim().toLowerCase()
+  const r = String(read == null ? '' : read).replace(/\s+/g, ' ').trim().toLowerCase()
+  if (d === r) return true
+  return ((ENUM_ALIASES[key] || {})[d] || []).some((a) => a.toLowerCase() === r)
+}
+
+/** The `//@version=N` of a Pine source (the annotation is a comment, so the raw text is read), or
+ *  null when the source carries none. */
+export function pineVersionOf(source) {
+  const m = /^[ \t]*\/\/[ \t]*@version[ \t]*=[ \t]*(\d+)/m.exec(String(source || ''))
+  return m ? Number(m[1]) : null
+}
+
+/** The keys a read-back must hold for a source at `pineVersion`. An unknown version (null) is held
+ *  to every key, so a missing annotation can only make the gate stricter. */
+export function requiredPropertyKeys(pineVersion) {
+  const v = Number.isInteger(pineVersion) ? pineVersion : null
+  return PROPERTY_TABLE.filter((p) => !p.optional && (!p.sinceVersion || v === null || v >= p.sinceVersion)).map((p) => p.key)
+}
 
 const norm = (s) => String(s == null ? '' : s).replace(/\s+/g, ' ').trim().toLowerCase()
 
 /** The read-back Properties inputs, by canonical key: `{ key → {name, id, value, defval, type} }`.
- *  `missing` names every required key the capture does not hold; `unknownVisible` names a visible
- *  input this table does not know (kept raw, never dropped). */
-export function propertiesByKey(strategySettings) {
+ *  `missing` names every key required at `pineVersion` (see `requiredPropertyKeys`) that the capture
+ *  does not hold; `unknownVisible` names a visible input this table does not know (kept raw, never
+ *  dropped). A read-back name matches a row's `name` or one of its `aliases`. */
+export function propertiesByKey(strategySettings, pineVersion = null) {
   const props = isObj(strategySettings) && Array.isArray(strategySettings.properties) ? strategySettings.properties : []
-  const byName = new Map(PROPERTY_TABLE.map((p) => [norm(p.name), p]))
+  const byName = new Map()
+  for (const p of PROPERTY_TABLE) for (const n of [p.name, ...(p.aliases || [])]) byName.set(norm(n), p)
   const found = {}
   const unknownVisible = []
   for (const p of props) {
@@ -75,7 +125,7 @@ export function propertiesByKey(strategySettings) {
     if (row) found[row.key] = { id: p.id, name: p.name, type: p.type, value: p.value, defval: p.defval }
     else unknownVisible.push(String(p.name))
   }
-  const missing = REQUIRED_PROPERTY_KEYS.filter((k) => !(k in found))
+  const missing = requiredPropertyKeys(pineVersion).filter((k) => !(k in found))
   return { found, missing, unknownVisible }
 }
 
@@ -184,10 +234,10 @@ function literal(raw, kind) {
   return m ? m[1] : undefined
 }
 
-function sameValue(kind, declared, read) {
+function sameValue(kind, declared, read, key = null) {
   if (kind === 'num') return Number(read) === declared
   if (kind === 'bool') return read === declared
-  return norm(read) === norm(declared)
+  return sameEnum(key, declared, read)
 }
 
 /** Source declaration vs Properties read-back. Only a parameter the source declares as a LITERAL is
@@ -195,7 +245,7 @@ function sameValue(kind, declared, read) {
  *  `unread` lists what could not be read back; it is not a disagreement. */
 export function settingsAgreement(c) {
   const ss = ((c || {}).provenance || {}).strategySettings
-  const { found, missing } = propertiesByKey(ss)
+  const { found, missing } = propertiesByKey(ss, pineVersionOf(c && c.source && c.source.text))
   const decl = declaredStrategyArgs(c && c.source && c.source.text)
   const declared = decl || {}
   const disagreements = []
@@ -205,9 +255,16 @@ export function settingsAgreement(c) {
     const lit = literal(declared[p.param], p.kind)
     if (lit === undefined) continue
     compared += 1
-    if (!sameValue(p.kind, lit, found[p.key].value)) {
+    if (!sameValue(p.kind, lit, found[p.key].value, p.key)) {
       disagreements.push({ key: p.key, declared: lit, readBack: found[p.key].value })
     }
+  }
+  // ⭐ U14 G3 (ruling R3): an OPTIONAL input read back at anything but its default is a disagreement
+  for (const p of PROPERTY_TABLE) {
+    if (!p.optional || !(p.key in found)) continue
+    const v = found[p.key].value
+    const same = p.kind === 'bool' ? v === p.optionalDefault : sameEnum(p.key, p.optionalDefault, v)
+    if (!same) disagreements.push({ key: p.key, declared: p.optionalDefault, readBack: v, optional: true })
   }
   const cd = chartDataOf(c)
   const unread = [...missing.map((k) => `property:${k}`),
@@ -247,7 +304,7 @@ export function validateStrategyProvenance(c) {
   const ss = prov.strategySettings
   need(isObj(ss), 'strategy-capture: provenance.strategySettings is required: a strategy capture with no settings read-back is refused')
   if (isObj(ss)) {
-    const { missing } = propertiesByKey(ss)
+    const { missing } = propertiesByKey(ss, pineVersionOf(c.source && c.source.text))
     if (missing.length) errors.push(`strategy-capture: the Properties read-back lacks ${missing.length} required input(s): ${missing.join(', ')}`)
     need(isObj(ss.chartData) && Array.isArray(ss.chartData.adjustments),
       'strategy-capture: provenance.strategySettings.chartData.adjustments must list the dividend / back-adjustment reads (an empty list is the honest "unread")')

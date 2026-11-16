@@ -33,6 +33,7 @@ import {
 } from './optionsFlowWidgetSettings'
 import styles from './OptionsFlowWidget.module.css'
 import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
+import UctCtrlPortal from '../UctCtrlPortal'  // owner 11-14: the ⚙ goes top-right on the board
 
 // ── tiny formatters (same recipe as OptionsFlowPreview) ──
 // TERM-066: the K/M suffix comes from lib/presentation (formatCompact) on this tape's own
@@ -381,7 +382,7 @@ export default function OptionsFlowWidget({ color, opts, onOptsChange }) {
     <div ref={rootRef} className={styles.root} style={rootStyle}>
       {settingsOpen && (
         <NewsSettingsPanel
-          title="Options Flow Settings"
+          title="Options flow settings"
           widgetType="optionsflow"
           showPerf={false}
           extraSections={[
@@ -409,13 +410,13 @@ export default function OptionsFlowWidget({ color, opts, onOptsChange }) {
           <UIcon name="flow" size={14} />
           <span className={styles.title}>Options Flow</span>
         </span>
-        <button
+        <UctCtrlPortal><button
           ref={settingsBtnRef}
           type="button"
           className={`${styles.gearBtn}${settingsOpen ? ' ' + styles.gearBtnActive : ''}`}
           data-guide="widget.settings" onClick={() => setSettingsOpen(o => !o)}
           title="Options Flow widget settings"
-        ><UIcon name="gear" size={13} /></button>
+        ><UIcon name="gear" size={13} /></button></UctCtrlPortal>
       </div>
 
       {/* Controls: scope · lead · filter funnel */}

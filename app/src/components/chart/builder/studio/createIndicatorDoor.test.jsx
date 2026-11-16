@@ -30,19 +30,68 @@ describe('Create Indicator door', () => {
     render(<Host onCreateFormula={() => {}} onCreateIndicator={() => {}} />)
     openAdd()
     expect(screen.queryByTestId('settings-create-indicator')).toBeNull()
-    expect(screen.getByTestId('settings-new-formula').textContent.replace(/\s+/g, ' ').trim()).toBe('＋New Formula')
+    expect(screen.getByTestId('settings-new-formula').textContent.replace(/\s+/g, ' ').trim()).toBe('New formula')   // UCT Signature soft pill
   })
 
-  it('flag ON: "+ Create Indicator" replaces New Formula in the same slot and calls its door', () => {
+  it('flag ON: "Describe one" (Create Indicator) sits beside New formula and calls its door', () => {
     const open = vi.fn()
     act(() => { setCreateIndicatorFlag(true) })
     render(<Host onCreateFormula={() => {}} onCreateIndicator={open} />)
     openAdd()
+    // ⭐ DESCRIBE FIRST (owner pick 2026-11-15): the plain-words box stands where the "Describe one"
+    // pill stood. Its send button is the same door; with nothing typed it opens the studio blank.
     const btn = screen.getByTestId('settings-create-indicator')
-    expect(btn.className).toMatch(/insNewFormula/)          // the same visual object
-    expect(screen.queryByTestId('settings-new-formula')).toBeNull()
+    expect(screen.getByTestId('describe-input')).toBeTruthy()
+    expect(screen.getByTestId('settings-new-formula')).toBeTruthy()
     fireEvent.click(btn)
     expect(open).toHaveBeenCalledTimes(1)
+    expect(open).toHaveBeenLastCalledWith()
+  })
+
+  it('what is typed is handed to the door as a prefilled request, trimmed; the box clears', () => {
+    const open = vi.fn()
+    act(() => { setCreateIndicatorFlag(true) })
+    render(<Host onCreateFormula={() => {}} onCreateIndicator={open} />)
+    openAdd()
+    const box = screen.getByTestId('describe-input')
+    fireEvent.change(box, { target: { value: '  colour the 21 EMA green while it rises  ' } })
+    fireEvent.submit(box.closest('form'))
+    expect(open).toHaveBeenCalledTimes(1)
+    expect(open).toHaveBeenLastCalledWith({ seed: 'colour the 21 EMA green while it rises' })
+    expect(screen.getByTestId('describe-input').value).toBe('')
+  })
+
+  it('an example is one press: it hands its own words to the door', () => {
+    const open = vi.fn()
+    act(() => { setCreateIndicatorFlag(true) })
+    render(<Host onCreateFormula={() => {}} onCreateIndicator={open} />)
+    openAdd()
+    const examples = screen.getAllByTestId('describe-example')
+    expect(examples).toHaveLength(3)
+    fireEvent.click(examples[1])
+    expect(open).toHaveBeenLastCalledWith({ seed: examples[1].textContent })
+  })
+
+  it('the other ways to start one are named in member words and open their own doors', () => {
+    const door = vi.fn(); const formula = vi.fn()
+    act(() => { setCreateIndicatorFlag(true) })
+    render(<Host onCreateFormula={formula} onCreateIndicator={() => {}} onOpenBuilderDoor={door} />)
+    openAdd()
+    expect(screen.getByTestId('describe-alt').textContent.replace(/\s+/g, ' ').trim())
+      .toBe('Or paste a TradingView script, start from a picture, or write a formula.')
+    fireEvent.click(screen.getByTestId('door-pine')); expect(door).toHaveBeenLastCalledWith('pine')
+    fireEvent.click(screen.getByTestId('door-image')); expect(door).toHaveBeenLastCalledWith('image')
+    fireEvent.click(screen.getByTestId('settings-new-formula')); expect(formula).toHaveBeenCalledTimes(1)
+    expect(door).toHaveBeenCalledTimes(2)       // the formula entry is its OWN door, not a third builder door
+  })
+
+  it('without access the box is absent, and the other ways to start one are still offered', () => {
+    const door = vi.fn()
+    render(<Host onCreateFormula={() => {}} onCreateIndicator={() => {}} onOpenBuilderDoor={door} />)
+    openAdd()
+    expect(screen.queryByTestId('describe-block')).toBeNull()
+    expect(screen.getByTestId('describe-alt').textContent.replace(/\s+/g, ' ').trim())
+      .toBe('Start one: paste a TradingView script, start from a picture, or write a formula.')
   })
 
   it('flag ON but a MEMBER account (server role): still exactly the old "+ New Formula"', () => {

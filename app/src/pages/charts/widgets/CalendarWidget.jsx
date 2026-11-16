@@ -35,6 +35,9 @@ import { mondayOf, lastSessionDay } from '../../calendar/weekAnchor'
 import { calendarWidgetStyleVars } from './calendarWidgetSettings'
 import styles from './CalendarWidget.module.css'
 import { nextSort } from '../../../lib/presentation/dataGrid'
+import { useUctHeaderSlotAlways, useUctControlsSlot } from '../uctHeaderSlot'
+import CalendarTimeline from './CalendarTimeline'
+// LOCAL PREVIEW fakes (dev only, only while the local week has no earnings) — remove before shipping.
 import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
 
 // TERM-065: a section header click asks the DataGrid seed which way the sort
@@ -393,11 +396,57 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
   const tbd = useMemo(() => [...(day?.tbd || [])].sort((a, b) => mcapOf(mcapMap, b) - mcapOf(mcapMap, a)), [day, mcapMap])
   const nothing = !isLoading && day && !hasAnyEcon && bmo.length === 0 && amc.length === 0 && tbd.length === 0
 
+  // ── UCT board (owner 11-14: Calendar look B1 "Simple") — the title row carries ‹ date ›,
+  // the window-control group the filter · Journal · ⚙, and the body is one quiet timeline.
+  // Same data, same handlers, same settings; off the board the widget below is unchanged. ──
+  const uctRow = useUctHeaderSlotAlways('calendar')
+  const uctCtrls = useUctControlsSlot()
+  if (uctRow && uctCtrls) {
+    return (
+      <CalendarTimeline
+        rootRef={rootRef} rootStyle={rootStyle} uctRow={uctRow} uctCtrls={uctCtrls}
+        selected={selected} setSelected={setSelected} todayView={todayView} todayET={todayET()}
+        addTradingDay={addTradingDay} week={data?.days || null} day={day} isLoading={isLoading}
+        econItems={econItems} econStars={econStars} setEconStars={setEconStars}
+        bmo={bmo} amc={amc} tbd={tbd} imMap={imMap} mcapMap={mcapMap}
+        onRowSelect={onRowSelect} selectedSym={selectedSym} listRef={listRef} onListKeyDown={onListKeyDown}
+        opts={opts} onOptsChange={onOptsChange}
+        journalDoor={journalDoor} sendDayToJournal={sendDayToJournal}
+        openCaptureMenu={(e) => setCaptureMenu({ anchor: { x: e.clientX, y: e.clientY }, capture: buildDayCapture() })}
+        journalToast={<JournalToast msg={journalMsg} style={{ top: 44, right: 10, left: 'auto' }} />}
+        captureMenu={captureMenu && (
+          <CaptureMenu open onClose={() => setCaptureMenu(null)} anchor={captureMenu.anchor} widgetId="calendar"
+            capture={captureMenu.capture} label={`UCT Terminal ${selected}`} onSent={setJournalMsg} />
+        )}
+        settingsPanel={settingsOpen && (
+          <NewsSettingsPanel
+            title="Calendar settings" widgetType="calendar" showPerf={false} textHint="names & EPS"
+            extraSections={[
+              { label: 'Symbol', rows: [{ key: 'symbolColor', label: 'Symbol color', hint: 'earnings tickers' }] },
+              { label: 'Surprise colors', rows: [
+                { key: 'posColor', label: 'Upside surprise', hint: 'beat' },
+                { key: 'negColor', label: 'Downside surprise', hint: 'miss' },
+              ] },
+              { label: 'High impact', rows: [{ key: 'highBoxColor', label: 'Dot color', hint: 'high-impact events' }] },
+              { label: 'Text size', rows: [{ key: 'textSize', label: 'Size', type: 'segmented', options: [
+                { key: 's', label: 'S' }, { key: 'm', label: 'M' }, { key: 'l', label: 'L' },
+              ] }] },
+            ]}
+            settings={settings} onChange={patchSettings} onReset={resetSettings} onClose={() => setSettingsOpen(false)}
+            gearEl={settingsBtnRef.current} hostEl={rootRef.current} themeVars={menuVars} uct
+          />
+        )}
+        settingsOpen={settingsOpen} toggleSettings={() => setSettingsOpen(o => !o)} settingsBtnRef={settingsBtnRef}
+        menuVars={menuVars} Earnings={EarningsSection}
+      />
+    )
+  }
+
   return (
     <div ref={rootRef} className={styles.root} style={rootStyle}>
       {settingsOpen && (
         <NewsSettingsPanel
-          title="UCT Terminal Settings"
+          title="UCT Terminal settings"
           widgetType="calendar"
           showPerf={false}
           textHint="names & EPS"

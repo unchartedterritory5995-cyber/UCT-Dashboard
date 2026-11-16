@@ -35,6 +35,56 @@
 
 import { pineColourHex } from './pinePalette.js'
 
+/** ⭐⭐ LEGACY SEMANTICS (B5, 2026-11-15) — EVERY DEFAULT COLOUR IS A PINE COLOUR NAME, resolved at
+ *  the script's version through the one palette (`pinePalette.js`), never a hex typed here or in
+ *  `objectRenderState.js::OBJECT_DEFAULTS`. Pine's reference states each default by NAME
+ *  (`box.new`'s `border_color = color.blue`, `bgcolor = color.blue` at 80 transparency; `line.new` /
+ *  `label.new`'s `color = color.blue`; `label.new`'s `textcolor = color.white`; `linefill.new`'s
+ *  `color = color.blue` at 80), and the hex a name draws is the version's. ⚰️ `OBJECT_DEFAULTS` carried
+ *  `#2962FF` (v5/v6 blue) for every version, so a v4 box with no `border_color` drew `#2962FF` where
+ *  TradingView draws v4's `color.blue`, `#2196F3`: `inside-bar-boxes-rddt-1d-2026-11-14` (committed,
+ *  //@version=4, 52 boxes, every border `#2196F3`, the script setting only `bgcolor`).
+ *  `[name, opacity]`; `opacity` null is opaque. */
+export const NAMED_OBJECT_DEFAULTS = Object.freeze({
+  line: Object.freeze({ color: Object.freeze(['color.blue', null]) }),
+  label: Object.freeze({ color: Object.freeze(['color.blue', null]), textcolor: Object.freeze(['color.white', null]) }),
+  box: Object.freeze({ border_color: Object.freeze(['color.blue', null]), bgcolor: Object.freeze(['color.blue', 0.2]) }),
+  linefill: Object.freeze({ color: Object.freeze(['color.blue', 0.2]) }),
+})
+/** The version an object program that states none is drawn at: the base (`pine.js` stamps
+ *  `pineVersion` only for `VERSIONS_WITH_OBJECT_DEFAULTS`). */
+export const BASE_OBJECT_VERSION = 6
+/** The first version with drawing objects (`line` / `label` / `box` came with v4). */
+export const FIRST_OBJECT_VERSION = 4
+
+const rgbaOf = (hex, opacity) => {
+  const n = parseInt(hex.slice(1, 7), 16)
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${opacity.toFixed(2)})`
+}
+const namedMemo = new Map()
+/** `{family: {slot: colour}}` — `NAMED_OBJECT_DEFAULTS` at `pineVersion` (`#RRGGBB`, or `rgba(…)` where
+ *  the default is translucent), the spelling `OBJECT_DEFAULTS` has always carried. */
+export function namedObjectDefaults(pineVersion) {
+  // Drawing objects exist from v4 on; any other version (v1-v3 cannot draw one, an unknown or a
+  // future one has no witness) is drawn at the base, never at its own palette.
+  const key = Number.isInteger(pineVersion) && pineVersion >= FIRST_OBJECT_VERSION
+    && pineVersion <= BASE_OBJECT_VERSION ? pineVersion : BASE_OBJECT_VERSION
+  const hit = namedMemo.get(key)
+  if (hit) return hit
+  const out = {}
+  for (const [family, slots] of Object.entries(NAMED_OBJECT_DEFAULTS)) {
+    const named = {}
+    for (const [slot, [name, opacity]] of Object.entries(slots)) {
+      const hex = pineColourHex(name, key)
+      if (hex) named[slot] = opacity === null ? hex : rgbaOf(hex, opacity)
+    }
+    out[family] = Object.freeze(named)
+  }
+  const frozen = Object.freeze(out)
+  namedMemo.set(key, frozen)
+  return frozen
+}
+
 const VERSION_DEFAULTS = Object.freeze({
   4: Object.freeze({
     line: Object.freeze({ color: 'color.blue' }),

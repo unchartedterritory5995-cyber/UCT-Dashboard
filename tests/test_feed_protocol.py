@@ -951,12 +951,13 @@ def test_same_inputs_same_outputs():
 FEED_PROTOCOL_IMPORTERS = frozenset({
     "api/stream_ingest_main.py",
     "api/services/ingest_feed_server.py",
+    "api/services/ingest_runtime.py",        # PR4b: the ingest data plane
 })
 
 
 def test_no_runtime_module_imports_feed_protocol():
     """PR3 shipped the protocol only. Wiring it into a runtime path must be a
-    deliberate change to FEED_PROTOCOL_IMPORTERS (PR4a: the ingest service; PR5: web)."""
+    deliberate change to FEED_PROTOCOL_IMPORTERS (PR4a/4b: the ingest service; PR5: web)."""
     offenders = []
     for base in ("api", "scripts", "tools", "services"):
         root = ROOT / base
