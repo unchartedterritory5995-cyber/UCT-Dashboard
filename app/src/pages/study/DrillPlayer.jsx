@@ -59,7 +59,7 @@ import { alignTicks, developing, fetchIntraday } from './challenges/replayTicks'
 import { useRunOnTicks } from '../../lab/fx'   // pure motion (bars running on, tick by tick); no styling rides in
 import ReplayClock from './ui/ReplayClock'
 import { markerGapBars, tradeAnnotations, tradeLevelLines, tradeMarkers } from './challenges/tradeMarks'
-import { plotWidthPx, revealRightPad, tickLabelCharsFor } from './studyChartFrame'
+import { INTRADAY_TICK_CHARS, plotWidthPx, revealRightPad, tickLabelCharsFor } from './studyChartFrame'
 import { HudCombo } from './ui/HudLooks'
 import StudyButton from './ui/StudyButton'
 import sa from './ui/answerLooks.module.css'
@@ -348,7 +348,11 @@ export default function DrillPlayer({
   // the frame the chart shows now: the question's window, the days landed after it, and the blank room once answered
   const framePad = phase === 'reveal' && forwardCount > 0 ? revealRightPad(phone) : 0
   const frameSlots = ((visibleN || baseLen) + Math.max(0, landed - baseLen)) * (1 + framePad)
-  const tickChars = String(chartTf).toUpperCase() === 'D' ? tickLabelCharsFor(phone, frameSlots) : null
+  const tickChars = String(chartTf).toUpperCase() === 'D' ? tickLabelCharsFor(phone, frameSlots) : INTRADAY_TICK_CHARS
+  // a chart whose bars carry no volume at all (an index history chart whose source volume was another index's, stored as
+  // zeros: the 2026-11-16 screen check drew an empty "Volume 0" pane of flat stubs) hides the pane; any other chart keeps
+  // the member's own volume setting (undefined)
+  const noVolume = useMemo(() => Array.isArray(chartBars) && chartBars.length > 0 && chartBars.every((b) => !Number(b?.v)), [chartBars])
   const chartMarkers = useMemo(() => {
     const rs = chartVisible ? rsMarkMarkers(item, chartBars) : null
     const upTo = chartBars ? chartBars.slice(0, landed) : null
@@ -583,6 +587,7 @@ export default function DrillPlayer({
               hideJournalOverlay
               hideCompare
               hideLegend={phone}
+              showVolume={noVolume ? false : undefined}
               showDrawingTools={false}
               entryDate={entryDate}
               exitDate={exitDate}

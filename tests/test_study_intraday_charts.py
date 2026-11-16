@@ -114,7 +114,7 @@ def test_the_fill_finds_the_bank_s_intraday_charts(tmp_path):
              {"id": "si_b", "bars": {"sym": "XYZ", "tf": "D", "asof": "2026-09-15", "window": 320, "forward": 20}}]
     (bank / "course.set.json").write_text(json.dumps(items), encoding="utf-8")
     got = fci.intraday_charts(bank)
-    assert got == [{"id": "si_a", "sym": "ABC", "tf": "5", "asof_key": k, "window": 78, "forward": 40,
+    assert got == [{"id": "si_a", "kind": "intraday", "sym": "ABC", "tf": "5", "asof_key": k, "window": 78, "forward": 40,
                     "trade": {"entry": 50.2, "stop": 49.8, "direction": "bullish"}}]
 
 

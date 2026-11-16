@@ -1924,7 +1924,13 @@
      "fixed before (the key said 'most stocks')"
     ]
    },
-   "batch": "wave6"
+   "batch": "index-charts-2026-11-16",
+   "chart": {
+    "sym": "SPX",
+    "asof": "2026-04-16",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q23",
@@ -1972,7 +1978,13 @@
      "fixed before (lesson line was too absolute)"
     ]
    },
-   "batch": "wave6"
+   "batch": "index-charts-2026-11-16",
+   "chart": {
+    "sym": "IXIC",
+    "asof": "2024-06-05",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q24",
@@ -2051,7 +2063,13 @@
      "reworded in wave6 so the key no longer rests on an absolute; the key flipped to True"
     ]
    },
-   "batch": "wave6"
+   "batch": "index-charts-2026-11-16",
+   "chart": {
+    "sym": "SPX",
+    "asof": "2011-07-07",
+    "window": 120,
+    "forward": 30
+   }
   },
   {
    "key": "q26",
@@ -2305,13 +2323,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Dated case on f80, f81, f82 (Fidelity) with f07 (ChartSchool) for the key: two publishers agree. 'Sharp' gone from the story. Choices 32 to 36 chars, key not longest."
+   "notes": "Cold check 2026-11-15. Context chart for the index half of the story; the A/D line is in the words only. Agreement on SPX: asof Apr 16, 2026 close 7,041.28 (mid-April, the date Fidelity's FactSet data runs to, f81); the first close ever above 7,000 was Apr 15 (7,022.95), and the only earlier trade above 7,000 was the Jan 28, 2026 intraday high of 7,002.28, inside the window, so 'back above 7,000' (Fidelity's 'once again recaptured') reads true on the candles; the selloff ran from the Jan 27 close of 6,978.60 to the Mar 30 close of 6,343.72 (-9.1%), the lowest close of 2026 (intraday low 6,316."
   },
   "q23": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided 'Nasdaq A/D line quirk, not a bearish call' before the key: matches. mcoscillator.com answered on this check (HTTP 200): f99, f100, f101 verbatim; the same article calls the Nasdaq's A-D line 'a horrible indicator because of its persistent bearish bias' and says each failing stock is 'contributing to the Declines column', which backs both the key and the 'adds to the declines' line (f18 also carries it). Its divergence warning in that article is about Nasdaq 100 A-D data, not the Composite line in the story, so 'not a crash call' stands. f14, f15 verbatim on ChartSchool, f62 on Investo"
+   "notes": "Cold check 2026-11-15. Context chart for the index half. Asof Jun 5, 2024: IXIC close 17,187.90, a record close above the May 28 record of 17,019.88, two days before McClellan's June 7, 2024 article (f99); Jun 6 and 7 closed just below it (17,173.12, 17,133.13), then records resumed Jun 10. The window (Dec 13, 2023 to Jun 5, 2024) ends on the window's highest close, so 'making new all-time highs' holds. It helps here: an index at a record while its A/D line sits near its low is the divergence picture the question asks about, and the chart shows the half that is real, which is the wrong-note's "
   },
   "q24": {
    "status": "pass",
@@ -2323,7 +2341,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True from f94, f95 (19% in 2011 against the usual ~10%, f93) and f103 for 2020; no absolute or hedge in the statement. mcoscillator.com returned HTTP 403 on this check (unreachable); the quotes rest on the earlier checker's fetch."
+   "notes": "Cold check 2026-11-15. Asof Jul 7, 2011 is the S&P 500's July top: close 1,353.22, high 1,356.48 (no July day higher; the 2011 high, Apr 29 close 1,363.61 and May 2 high 1,370.58, is inside the window, so the member sees a market near its highs, as the story's 'soon after a new high' implies). The '19%': high to low, Jul 7 1,356.48 to the Aug 9 low 1,101.54 is -18.8% (replay day 23); close to close Jul 7 to the Aug 8 close 1,119.46 is -17.3% (day 22). The words say 'fell 19%', not 'closed', and on a candle chart the eye reads the fall wick to wick, about 19%, so the chart does not make the wor"
   },
   "q26": {
    "status": "cut",
