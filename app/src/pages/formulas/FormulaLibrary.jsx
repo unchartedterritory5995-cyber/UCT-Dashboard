@@ -82,9 +82,9 @@ export default function FormulaLibrary() {
 
   return (
     <div className={styles.page} data-testid="formula-library">
-      <TileCard title="Formula library" icon="book">
+      <TileCard title="Indicator library" icon="book">
         <p className={styles.lead}>
-          Formulas other members chose to publish. Installing one makes your own copy —
+          Indicators other members chose to publish. Installing one makes your own copy —
           {' '}you can edit it freely, and your edits never reach theirs.
         </p>
 
@@ -95,7 +95,7 @@ export default function FormulaLibrary() {
             {/* ⛔ "NOTHING PUBLISHED YET" IS NOT "SOMETHING WENT WRONG", and the two
                 must not share a sentence — an empty library on a working page is
                 the honest state on the day this ships. */}
-            Nothing has been published yet. Any formula you have built can be the first:
+            Nothing has been published yet. Any indicator you have built can be the first:
             {' '}open it in the builder and choose “Publish to the library”.
           </p>
         ) : null}
