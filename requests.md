@@ -816,3 +816,16 @@ nothing; the only side effect was model spend on that account's ledger.
   impossible requests; it does not measure subtler ones, where a weaker answer would be a
   quiet substitution. A 40-prompt hidden set written by a separate session exists for that
   (kept outside the repo); it has not been run.
+
+---
+
+## OPEN · 2026-11-15 · Studio track: two more asks (the experience, and the learning loop)
+
+**Raised by:** the Studio session. Plan: `docs/pine/studio/STUDIO-TRACK-PLAN.md` sections 13 and 14.
+**Blocking us:** no. Note also that the 2026-11-14 entry above is titled "six" and holds five
+rows: there is no R5, and R10 was withdrawn before it was filed.
+
+| id | to | ask | why |
+|---|---|---|---|
+| R11 | the owner of the chart's menus | One "Indicators" entry on the chart toolbar and in the command palette listing every indicator door that exists, in member words | Create Indicator is three menus deep and the doors are not listed together anywhere. A menu of existing doors, not a new door. The Studio session will bring mock-ups for the owner to pick from first (lane S-X); nothing to do until then |
+| R12 | the authoring owner | Four shape-only signals on `converse_turn` telemetry (preview undone, preview discarded, refinements before save, still on a chart seven days after save), and a member-pressed "Send this to UCT" on a turn | So the weekly report can tell a built-and-kept indicator from a built-and-thrown-away one. The allow-list rule stands: no member text unless the member presses to send it |

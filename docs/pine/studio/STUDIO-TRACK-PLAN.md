@@ -1,6 +1,11 @@
 # Studio track: the plan, beside the Pine full-parity programme
 
-FINAL v7, 2026-11-15. v7 is a review of v6 against the repository one day later: it
+FINAL v8, 2026-11-15. v8 adds the two commitments the owner asked for and v7 did not
+have: section 13, how the whole ecosystem looks and is reached by a member, and section 14,
+how it gets measurably better every week. It also corrects decision D16, which had been
+written without reading the authoring owner's own staged-rollout proposal.
+
+v7 is a review of v6 against the repository one day later: it
 changes no direction, it corrects what v6 stated wrongly or left unowned, and it names the
 one thing that was silently blocking four lanes (the requests in section 6 had never
 reached master). Every v7 change is listed in section 11. History: v1 was reviewed the same day by four independent reviewers (engine
@@ -146,7 +151,7 @@ lane stalls silently on another owner (decision D15).
 | lane | outcome |
 |---|---|
 | **S-P Prompt probe** | Done 2026-11-14. The deterministic half refuses nothing: 0 of 60 prompts stopped before the model, including all 30 that should end in "cannot". So the list v6 meant to hand over is empty, and its proof line ("0 of the 30 cannot-prompts planned as buildable") measured the wrong half: honesty lives in the model turn. The full turn was then measured: 29 refusals, 1 correct clarifying question, 0 look-alikes. The regression set is the FULL-turn 30, not the pre-model probe. Results are in `requests.md` (R9) |
-| **S-R Rollout packet** | Delivered 2026-11-14 (local). What it leaves open is now decision D16 |
+| **S-R Rollout packet** | Delivered 2026-11-14 (local). It overlaps a staged-rollout proposal the authoring owner had already written (decision D16); its measurements are the part worth keeping |
 
 ### Deferred, with the condition that brings each back
 
@@ -232,6 +237,8 @@ holds five). R10 is withdrawn (lane S2').
 | R8 | (to the authoring owner) From the competitor review, in order of value: a "Paste a script" mode in the same dock that hands the text to the Pine door and shows the status panel; a short version list beside Undo; a "Report a mismatch" button on each turn wired to the existing support report; the read-back shown before the model's words on every card | Create Indicator dock |
 | R9 | (to the authoring owner) The S-P refused-phrase list | Create Indicator coverage |
 | R10 | WITHDRAWN in v7: a pull request to the page instead (section 2) | S2' |
+| R11 | (to the owner of the chart's menus) One "Indicators" entry on the chart toolbar and in the command palette that lists every indicator door that exists, in member words (section 13, E1 and E2) | Experience |
+| R12 | (to the authoring owner) Four more shape-only signals on the existing telemetry: preview undone, preview discarded, number of refinements before save, and still on a chart seven days after save; and a member-pressed "Send this to UCT" on a turn, which is the only path by which a request's words are kept (section 14) | Learning loop |
 
 ## 7. Adapted copies (S11): the conditions
 
@@ -274,7 +281,9 @@ original. That is the failure this track exists to avoid, so it ships only if AL
 | D13 | Census before design: no lane is designed until the section 9 row for it has been read in code, and a new lane adds its row first **(v4)**. A census row is a dated reading: one older than the last change to its files is read again before the lane is designed **(v7)** |
 | D14 | There is no "Studio panel" for authoring; v3 withdrew it and v6 still named one. The two surfaces this track builds have these homes: the inspector (S3) is a Studio-owned, lazy-loaded panel docked to the chart, mounted by one additive line; the screener surface (S6) is a route. Both are confirmed against the code before design (D13) **(v7)** |
 | D15 | A request is made when its row is on master, not when it is written. Every lane that waits on another owner names what it does if the answer does not come (section 4). A lane with no substitute waits, and nothing else is ordered behind it **(v7)** |
-| D16 | The rollout of Create Indicator has a gate instead of an open question. It is ready to arm for a first cohort when all four are measured: (a) the remaining 23 ordinary requests are run and the cost of a turn that BUILDS is known (only refusals are priced today); (b) the hidden 40 are run by a separate session with no look-alike built; (c) request R7 is answered, each item confirmed or its gap named; (d) the owner has built three indicators in their own browser, one of them from the starter library. The owner then sets `CONVERSE_USER_CAP_DAILY` from the measured cost, and the flag and cohort are the owner's and the authoring owner's to set. The dock has no phone layout (ledger U3), so the first cohort is told it is a desktop feature **(v7)** |
+| D16 | The rollout of Create Indicator ALREADY has a plan, and it is not this track's: `docs/indicators/CONVERSE-ROLLOUT-PROPOSAL-2026-11-02.md` (stages 0 to 2, QA gates G1 to G4, monitoring M1 to M5) and `CONVERSE-STAGE1-COHORT-PROPOSAL-2026-11-02.md` (the owner's 2026-11-02 decision: an opt-in pilot of 5 to 10 members, each stage approved separately). v7 wrote a gate of its own without reading them; that was a second authority over one decision and is withdrawn. What this track contributes is evidence offered to that proposal's owner: (a) the remaining 23 ordinary requests and the cost of a turn that BUILDS; (b) the hidden 40, run by a separate session; (c) the answer to request R7; (d) the owner's own look at three built indicators, one from the starter library. The dock has no phone layout (ledger U3), which the pilot should be told **(v7, corrected v8)** |
+| D17 | Every Studio surface is built in the house style, `docs/uct-signature-style.md`, and to the eight commitments in section 13. A surface ships after the owner has looked at it rendered, at three widths. A reviewer model's pass is not that look **(v8)** |
+| D18 | The ecosystem improves through the loop in section 14: measured, weekly, with every change shipped as a reviewed pull request. Nothing rewrites its own prompt, vocabulary or engine in production. What a member typed is never stored unless that member presses a button that says it will be sent **(v8)** |
 
 ## 9. Census: what already exists (read in code on 2026-11-14)
 
@@ -293,6 +302,10 @@ starts from this table, and a lane is not designed until its row has been read i
 | Version history | Share history in `SharePanel`; authoring Undo in the dock | partial | R8 asks for a short version list in the dock |
 | A value inspector | Not found (a chart legend exists; no per-bar named intermediate values) | MISSING | S3, after R3 |
 | Run one script across a list | Screens take one condition plot; no single "this script over that list" surface | partial | S6 first cut |
+| A plan to roll the authoring door out | `docs/indicators/CONVERSE-ROLLOUT-PROPOSAL-2026-11-02.md`, `CONVERSE-STAGE1-COHORT-PROPOSAL-2026-11-02.md`, `CONVERSE-ADMIN-VALIDATION-STAGE-2026-11-02.md` | written; nothing enabled; each stage needs the owner's approval | evidence only (D16). MISSED by v1 to v7 |
+| A way to grade the authoring door end to end | `docs/indicators/E2E-EVAL-DESIGN-2026-11-02.md` (7 steps from request to reload, graded by tree hash, then by values); `tests/fixtures/authoring/converse_eval_cases.json` | designed; no paid run made, none without owner approval | section 14 builds on it, not beside it |
+| A record of what happens on each authoring turn | `converse_turn` rows in `api/services/indicator_telemetry.py` (outcome, failure class, repair, calls, cost, tokens, latency; NO member text, enforced by an allow-list); `rollout_report(days)` | LIVE for admins' turns | section 14 reads it |
+| A house style | `docs/uct-signature-style.md` (named by the owner 2026-11-15; menus, settings, widgets) | LIVE on `/charts` Release 1 | section 13 binds to it |
 | Scripts on a server | `pine-runtime` service designed; `PINE_RUNTIME_SERVER_STAGE` dark | the programme's (W5) | none |
 
 Also reused, not rebuilt: the support report ("Doesn't match TradingView?") as "Report a
@@ -383,6 +396,9 @@ generation with repair). They are kept as history; sections 1a and 4 are what ho
 
 | finding | change |
 |---|---|
+| **v8:** the plan committed to no standard for how any of this looks or is reached; the only design statements were three defects handed to another owner | Section 13, D17, request R11, lane S-X |
+| **v8:** the plan measured the ecosystem once and had no way for it to improve; "the hidden 40" was a one-time test | Section 14, D18, request R12, lane S-M |
+| **v8:** a third census miss. The authoring owner's staged-rollout proposal, its end-to-end evaluation design and its per-turn telemetry all existed; v7's D16 duplicated the first | D16 corrected; four census rows added |
 | **v7:** the requests to the engine and authoring owners were only on an unmerged branch; four lanes waited on answers nobody had been asked for | Section 6 note, D15, first action in section 12 |
 | **v7:** four of six "building now" lanes depended on another owner, with no date and no substitute | "Waits on / if it does not come" column; S6 moved ahead of S3; S2' became a pull request and R10 was withdrawn |
 | **v7:** S-P and S-R were finished but still listed as work, and S-P's proof measured the half of the door that refuses nothing | A state column and a Closed table; the regression set is the full-turn 30 |
@@ -416,8 +432,8 @@ pick it up without the conversation.
 **Decided, nothing pending from the owner to start:** sections 2, 3, 8 and 9.
 
 **Owner decisions still open (none blocks the lanes in section 4):**
-1. Create Indicator: the owner's own look at three built indicators, then the daily cap
-   number, then the flag and cohort (decision D16; ledger U1, N3).
+1. Create Indicator: the owner's own look at three built indicators; then the stages of
+   the existing rollout proposal, each approved separately (decision D16; ledger U1, N3).
 2. May an indicator read fundamentals columns the app already has, as a current value
    labelled "UCT data" (ledger I6)?
 3. Approve, one by one, any starter-library indicator before it is published (lane S-L).
@@ -447,8 +463,87 @@ The heavy lock was free when this was written, so action 2 can start at once.
    looking at the results on a chart (D16d).
 6. The hidden 40, run by a session that does not edit this plan's reference or any
    assistant prompt (D16b).
-7. S6 first cut: census and baseline measurement first. Then S2' on the back of S1. S1b,
+7. Lane S-X (section 13): the walk-through and the three mock-ups for the owner to pick
+   from. It comes BEFORE any new surface is designed, so S6 and S3 are built to it.
+8. Lane S-M (section 14): the first weekly scoreboard, from what is already recorded.
+9. S6 first cut: census and baseline measurement first. Then S2' on the back of S1. S1b,
    S9' and S3 start as R2, R4 and R3 are answered, with the substitutes in section 4.
 
 **Kept outside this repo (local only):** the competitor review, the rollout packet for
 Create Indicator, the prompt sets and their results, and screenshots.
+
+## 13. The experience: what a member sees and how they reach it
+
+Sections 1 to 12 say what exists and what gets built. This section is the commitment about
+how it feels to use, because a capable system that a member cannot find or read is the same
+to them as one that does not exist. Today's state, measured: the strongest feature is three
+menus deep, has no phone layout, the library is empty and the reference printed "{0}".
+
+**The style** is `docs/uct-signature-style.md`, unchanged and with no new tokens: quiet
+graphite panels, sentence-case plain words, gold only on what is current or chosen,
+controls shown when needed, one way to do each thing.
+
+**Eight commitments. Each has a check that can fail.**
+
+| # | commitment | check |
+|---|---|---|
+| E1 | **Two actions from the chart.** Every indicator capability (describe one, paste a script, browse the library, look something up, run a script over a list, inspect a bar) is reachable in at most two actions from the chart, and by typing its name in the command palette | count the actions, per capability, on production |
+| E2 | **One map.** A single "Indicators" entry lists every door that exists, in member words ("Describe an indicator", "Paste a TradingView script", "Browse indicators", "Look up a function", "Run a script over a list"). It is a menu of the existing doors, not a new door (D12 holds) | every capability in E1 appears in it; nothing in it is a dead link |
+| E3 | **A first indicator in a minute.** A member who has never used it goes from a chart to a previewed indicator in under 60 seconds without reading anything. The 60 is provisional until the first timed run | timed with the owner first, then with the pilot members; the median is reported |
+| E4 | **Works on a phone.** At 1024 px and below every Studio surface is a full-screen sheet, never a fixed-width panel | rendered and used at 390, 820 and 1200 px; elements named, not counted |
+| E5 | **No dead ends.** Every state is designed: loading, empty, withheld, cannot, allowance used, offline. Each one says what happened in one plain sentence and offers one next action. An empty library offers the starter set; a refusal offers the nearest thing that can be built | a table of states per surface, each with its sentence and its action, reviewed before build |
+| E6 | **One vocabulary** (section 3), and the engine's words above the assistant's on every card | a sweep of rendered text for the banned words |
+| E7 | **It never surprises.** Nothing is saved, applied, shared or charged without a press (D9); every preview has Undo; how much of the daily allowance is left is visible before it runs out, with the reset time | each destructive or paid action traced to a press |
+| E8 | **The owner's eye is the bar** (D17). Each surface is shown rendered, at three widths, on real charts, before it ships | the owner's yes, recorded with the date |
+
+**Lane S-X, the experience pass (before S6 or S3 is designed).**
+1. Census, as D13 requires: walk every indicator door on production as the smoke account at
+   three widths, after the 2026-11-15 chart-menu release. Record the actions to reach each,
+   and every state in E5 that is missing.
+2. Three mock-ups of the "Indicators" map and of one Studio surface (the screener surface),
+   as rendered pages, for the owner to pick one and vary it.
+3. The picked direction becomes a one-page addendum beside the style guide, and requests
+   R11 and R8 are updated to match it.
+
+Proof: the E1 action counts before and after, and the owner's pick. Stop at the addendum.
+
+## 14. The learning loop: how it gets better every week
+
+What "learning" means here, stated plainly so it is not over-read. The assistant's model is
+not retrained by us and nothing in production rewrites itself. The ecosystem gets better
+because every use leaves a signal, the signals are ranked each week, each top item is fixed
+in the layer where it belongs, and each fix is proved against a growing set of cases before
+it ships. That loop can run every week without limit. It rests on the one thing this
+design has that a model-trusting design does not: an engine that computes the answer, so
+there is something to measure against.
+
+**What already exists to build on (census, section 9):** a per-turn record with outcome,
+failure class, cost and latency and no member text; an aggregate report including
+unsupported demand; an end-to-end evaluation design that grades by values, not by the
+model's word; the engine census and its demand ranking; the support report.
+
+**The loop, five steps:**
+
+| step | what happens | exists / to add |
+|---|---|---|
+| 1. Capture | Every turn records its shape. Four signals of whether the result was actually wanted: preview undone, preview discarded, refinements before save, still on a chart seven days later. A member may press "Send this to UCT" on any turn, which is the only way a request's words are kept | the record exists; the four signals and the button are request R12 |
+| 2. Rank | Weekly, one page: what members asked for that could not be built (by class), what was built and then thrown away, what needed several tries, what was refused, cost and time per turn | `rollout_report` exists; the page is lane S-M |
+| 3. Route | Each top row goes to exactly one layer: a house definition (one meaning for "ADR %"), the assistant's instructions or examples, an engine capability (a row in `requests.md`, counted in the engine's demand ranking), or the surface (section 13) | owners per section 2 |
+| 4. Prove | Every fixed case joins the evaluation set, so the set grows with use. Before any change to the assistant's instructions, its model or its vocabulary, the set is run and compared with the last run. Values are checked against independently computed numbers, not read by eye. A hidden set, written and run by a session that does not edit the assistant, is replaced every quarter so it cannot be learned | the evaluation design exists; the runs are paid and need the owner's approval of the spend |
+| 5. Publish | A scoreboard, one line a week: built in one turn, honest refusals, value agreement, kept after seven days, median cost, time to preview. Stamped with the engine version and the assistant's instruction version, so a drop is traceable to the change that caused it | lane S-M |
+
+**What the system accumulates, beyond scores.** Owner-approved starter-library indicators
+become worked examples the assistant can be shown (how is the authoring owner's call). House
+definitions accumulate so a term means one thing. The Pine reference is rebuilt from each
+engine version, so what the assistant and the member are told is possible is never far
+behind the engine.
+
+**Rules of the loop (D18).** No member text without the member's press. No change without a
+before and after on the set. A regression on the hidden set blocks the change. Numbers that
+gate anything are derived from a measured run, never chosen in advance.
+
+**Lane S-M, the measuring half (this track owns it; the fixes belong to their owners).**
+The weekly page and the scoreboard, generated from what is recorded, kept local while the
+numbers include cost. First issue from the admin turns already recorded. Proof: the page
+exists for two consecutive weeks and at least one row from it was routed and closed. Stop
+rule: none; this is the lane that does not end.
