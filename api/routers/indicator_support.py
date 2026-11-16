@@ -84,6 +84,8 @@ class ReportBody(BaseModel):
     symbol: Optional[str] = Field(None, max_length=32)
     timeframe: Optional[str] = Field(None, max_length=16)
     gaps: list[GapItem] = Field(default_factory=list, max_length=svc.MAX_GAPS)
+    # ⭐ L8: 'pine' (the default, a pasted script) or 'converse' (a Create Indicator conversation)
+    kind: Optional[str] = Field(None, max_length=16)
 
 
 class StatusBody(BaseModel):
@@ -120,6 +122,7 @@ def post_report(body: ReportBody, user: dict = Depends(get_current_user)) -> dic
             user["id"], consent=body.consent, source=body.source, note=body.note,
             tradingview_link=body.tradingview_link, symbol=body.symbol,
             timeframe=body.timeframe, gaps=[g.model_dump() for g in body.gaps],
+            kind=body.kind,
         )
     except svc.ReportRefused as e:
         raise HTTPException(status_code=e.status, detail={"code": e.code, "message": e.message})

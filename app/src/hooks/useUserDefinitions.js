@@ -758,10 +758,41 @@ async function listingCall(method, defId) {
       requested: body && body.requested !== undefined ? !!body.requested : undefined,
       shared: body && body.shared !== undefined ? !!body.shared : undefined,
       token: (body && body.token) || null,
+      // ⭐ MODERATION (2026-11-16): UCT took it down; and the licence its script declares
+      takenDown: !!(body && body.taken_down),
+      licence: (body && typeof body.licence === 'string' && body.licence) || null,
       // ⭐ publishing mints a link, so its answer says whether that link carries the script
       includesSource: body && body.includesSource !== undefined ? !!body.includesSource : undefined,
     }
   }
+  // ⛔ A PUBLISH REFUSAL NAMES ITS REASON (`{reason, message}`, the share refusals' shape);
+  // read as a string it reached the member as "The server refused that (409)".
+  const d = body && body.detail
+  if (d && typeof d === 'object' && typeof d.message === 'string') {
+    return { ok: false, reason: d.reason || null, error: d.message }
+  }
+  const detail = typeof d === 'string' ? d.trim() : ''
+  return { ok: false, error: detail || `The server refused that (${r.status}).` }
+}
+
+/**
+ * ADMIN ONLY. Take a library entry down (`down` true) or lift that, by the token the
+ * library shows. Never throws. The server refuses a member with 403.
+ */
+export async function moderateListing(token, { down = true, reason = 'other' } = {}) {
+  let r
+  try {
+    r = await fetch(`${USER_DEFINITIONS_KEY}/library/${encodeURIComponent(token)}/takedown`, {
+      method: down ? 'POST' : 'DELETE',
+      credentials: 'include',
+      ...(down ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason }) } : {}),
+    })
+  } catch {
+    return { ok: false, error: 'Could not reach the server — check your connection and try again.' }
+  }
+  let body = null
+  try { body = await r.json() } catch { /* not JSON */ }
+  if (r.ok) return { ok: true, takenDown: !!(body && body.taken_down) }
   const detail = typeof body?.detail === 'string' ? body.detail.trim() : ''
   return { ok: false, error: detail || `The server refused that (${r.status}).` }
 }
