@@ -235,6 +235,7 @@ import { resolveInfoValues, infoValueOutputExists } from './chart/engine/infoVal
 // than stored and how it relates to the definition's own `meta.repaint`.
 import { plotRepaintNotice, repaintNotices } from './chart/engine/repaintVerdict'
 import ContextPopover from './mobile/ContextPopover'
+import popStyles from './mobile/ContextPopover.module.css'
 // ⭐ SUPPORT LOOP A3 (`docs/pine/support-loop/PHASE-A.md`) — the chip menu's
 // "Doesn't match TradingView?" row. The dialog itself is lazy (`reportDoor.jsx`).
 import useReportsConfig from './chart/supportLoop/useReportsConfig'
@@ -19445,7 +19446,7 @@ export default function StockChart({
                 <LegendMenuHeader label="Volume" hidden={volHiddenNow} value={volValue} sig />
               )}
               items={volPage.map(onMovePage ? chipMenuRowToPopoverRow : chipMenuSigRow)}
-              sheetClassName={sheetCls}
+              sheetClassName={sheetCls + (!onMovePage ? ' ' + popStyles.signature : '')} /* the touch sheet's UCT Signature look rides the Sheet's class (ContextPopover: Notebook bytes) */
             />
           )
         }
@@ -19487,7 +19488,7 @@ export default function StockChart({
               signature
               header={<LegendMenuHeader label={rowLabel} hidden={rowHidden} sig />}
               items={rows.map(chipMenuSigRow)}
-              sheetClassName={sheetCls}
+              sheetClassName={sheetCls + (true ? ' ' + popStyles.signature : '')} /* the touch sheet's UCT Signature look rides the Sheet's class (ContextPopover: Notebook bytes) */
             />
           )
         }
@@ -19791,7 +19792,7 @@ export default function StockChart({
               {askCompass}
             </>)}
             items={page.map(chipPage === 'move' ? chipMenuRowToPopoverRow : chipMenuSigRow)}
-            sheetClassName={sheetCls}
+            sheetClassName={sheetCls + (chipPage !== 'move' ? ' ' + popStyles.signature : '')} /* the touch sheet's UCT Signature look rides the Sheet's class (ContextPopover: Notebook bytes) */
           />
         )
       })()}

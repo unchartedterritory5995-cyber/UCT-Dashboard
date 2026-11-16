@@ -91,7 +91,7 @@ export default function ContextPopover({
    *  logic (which element, resolved how) lives with the caller, not here. */
   returnFocusTo,
   /** ⭐ UCT SIGNATURE, OPT-IN — see the header: gold hover icons and a gold ✓ for `checked`. */
-  signature = false,
+  signature,
 }) {
   const isTouch = useIsTouch()
   const menuRef = useRef(null)
@@ -231,7 +231,7 @@ export default function ContextPopover({
       <Sheet open={open} onClose={onClose} variant="bottom-sheet" title={title} className={sheetClassName} returnFocusTo={returnFocusTo}
         labelledByTitle={typeof title === 'string' && Boolean(title)}
         ariaLabel={typeof title === 'string' && title ? undefined : (children != null ? 'Options' : 'Actions')}>
-        <div className={styles.sheetList + sig}>
+        <div className={styles.sheetList}>
           {children ?? <>{header}{renderItems()}</>}
         </div>
       </Sheet>
