@@ -47,6 +47,7 @@ import { CLOCK_REALTIME } from '../../indicators.js'
 import { importLinesOf, linkLibraries, remapLibraryLocation } from './pineLibraries.js'
 import { TABLE, isPointwise, BIND_TIME_CLOCK } from './parse.js'
 import { barConstantTree } from './barConstant.js'
+import { roundToMintickTree } from './tickRound.js'
 // ⭐ W4-T8 — GENERATED from TradingView's v6 reference (tools/pine_survey/emit_length_qualifiers.js).
 import LENGTH_QUALIFIERS from './windowLengthQualifiers.json'
 // ⭐ W34-I6b: the type Pine's v6 reference declares each named constant of the drawing families with
@@ -8715,7 +8716,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           note('runtime:strategy-value')
           throw new RuntimeRefusal('runtime:strategy-value', `\`${node.name}()\``, locate(node.tok))
         }
-        // RT5: `math.round_to_mintick(x)` IS `math.round(x / syminfo.mintick) * syminfo.mintick`
+        // RT5: `math.round_to_mintick(x)` IS `math.round(x * (1 / syminfo.mintick)) * syminfo.mintick`
         // (Pine: the nearest multiple of the tick, ties up, as `math.round`); the
         // tick is the symbol's, settled at bind like every `syminfo.mintick`.
         // ⭐ F6 — and v4's bare `round_to_mintick(x)` is the same builtin (Pine v4
@@ -8725,11 +8726,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
           || (node.name === 'round_to_mintick' && !definedNames.has('round_to_mintick')))
           && (node.args || []).length === 1
           && !(node.args[0] && node.args[0].name)) {
+          // ⭐ SAR TICK TIE (2026-11-16) — the host lane's own tree (`tickRound.js`): the count is
+          // `x * (1 / tick)`, so 654.405 lands ON the half and rounds up as TradingView prints it.
           const x = node.args[0] && node.args[0].value !== undefined ? node.args[0].value : node.args[0]
-          const tick = { type: 'name', name: 'syminfo.mintick', tok: node.tok }
-          return lowerExpr({ type: 'binary', op: '*', tok: node.tok, right: tick, left: {
-            type: 'call', name: 'math.round', tok: node.tok,
-            args: [{ type: 'binary', op: '/', tok: node.tok, left: x, right: tick }] } }, scope, opts)
+          return lowerExpr(roundToMintickTree(x, node.tok, false), scope, opts)
         }
         // ⭐⭐ `Foo.new(…)` — ONE INSTANCE OF A USER-DEFINED TYPE.
         //
