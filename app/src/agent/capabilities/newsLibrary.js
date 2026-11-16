@@ -135,12 +135,54 @@ function namedByWords(st, scope, env) {
   for (const m of text.matchAll(/[“"]([^”"]{3,200})[”"]/g)) if (words(m[1]).length >= 3) for (const r of matchRows(pool, m[1])) out.add(r.id)
   return [...out].map(id => pool.find(r => r.id === id))
 }
+// ⛔ AUDIT T2 (probe 65e, fail closed): a headline DESCRIPTION in the member's words ("the story about the Fed", "the headline
+// about rates being held", "the NVIDIA story") must MATCH the pointed headline, or nothing is written and the member is asked.
+// A description = a headline noun (headline / story / article / one / item / piece) qualified by anything but this / that /
+// selected / it, or followed by about / on / regarding / from / covering <…>. Match = at least half its content words (a
+// stop-listed bag, light stemming) occur in the pointed row's text or tickers. Ambiguous → asked; the pointer is never followed.
+const DESC_NOUN = /^(?:headlines?|stor(?:y|ies)|articles?|ones?|items?|pieces?)$/
+const DESC_PREP = new Set(['about', 'on', 'regarding', 'from', 'covering', 're'])
+const DESC_STOP_BACK = new Set(['the', 'a', 'an', 'this', 'that', 'these', 'those', 'my', 'your', 'its', 'it', 'selected', 'open', 'opened', 'same',
+  'save', 'unsave', 'bookmark', 'unbookmark', 'remove', 'delete', 'take', 'put', 'add', 'move', 'clear', 'erase', 'replace', 'change', 'rewrite',
+  'write', 'drop', 'pull', 'get', 'rid', 'of', 'please', 'also', 'and', 'to', 'on', 'in', 'into', 'from', 'out', 'note', 'notes', 'for', 'with', 'keep'])
+const DESC_END = new Set(['from', 'out', 'in', 'into', 'to', 'with', 'please', 'off'])
+const DESC_FILLER = new Set(['the', 'a', 'an', 'my', 'your', 'our', 'its', 'news', 'saved', 'library', 'collection', 'collections', 'being', 'is', 'are', 'was',
+  'were', 'be', 'been', 'of', 'at', 'by', 'as', 'and', 'or', 'that', 'this', 'it', 'they', 'them', 'some', 'any', 'one', 'there', 'about', 'on', 're',
+  'regarding', 'covering', 'headline', 'headlines', 'story', 'stories', 'article', 'articles', 'item', 'items', 'piece', 'pieces'])
+const stem = (w) => w.replace(/(?:ies)$/, 'y').replace(/(?:'s|s)$/, '')
+/** the content words of each headline description in the member's words (before a note's ":" text) */
+export function headlineDescriptions(text) {
+  const toks = (String(text || '').split(':')[0].toLowerCase().replace(/[“”"’]/g, '').replace(/'s\b/g, '').match(/[a-z0-9$]+/g)) || []
+  const out = []
+  toks.forEach((t, i) => {
+    if (!DESC_NOUN.test(t)) return
+    const qual = []
+    for (let j = i - 1; j >= Math.max(0, i - 3); j--) { if (DESC_STOP_BACK.has(toks[j])) break; qual.unshift(toks[j]) }
+    const tail = []
+    if (DESC_PREP.has(toks[i + 1])) for (let j = i + 2; j < Math.min(toks.length, i + 10); j++) { if (DESC_END.has(toks[j])) break; tail.push(toks[j]) }
+    const content = [...qual, ...tail].map(w => w.replace(/^\$/, '')).filter(w => w.length >= 2 && !DESC_FILLER.has(w))
+    if (content.length) out.push(content)
+  })
+  return out
+}
+export function descriptionMatches(content, row) {
+  if (!row) return false
+  const bag = new Set([...(words(row.text).join(' ').replace(/[^a-z0-9$ ]+/g, ' ').split(/\s+/)), ...row.tickers.map(t => t.toLowerCase())].filter(Boolean).map(stem))
+  const hit = content.filter(w => bag.has(stem(w))).length
+  return hit >= 1 && hit * 2 >= content.length
+}
 function resolveHeadline(st, ref, scope, env) {
   const res = resolvePointerOrMatch(st, ref, scope, env)
   if (!res.id || res.via === 'match') return res
   const named = namedByWords(st, scope, env)
-  if (!named.length || named.some(r => r.id === res.id)) return res
-  return { ask: askAmong(named.slice(0, MAX_CHOICES), st) }
+  if (named.length && !named.some(r => r.id === res.id)) return { ask: askAmong(named.slice(0, MAX_CHOICES), st) }
+  const descs = headlineDescriptions(turns.typed)
+  if (!descs.length) return res
+  const pool = dedupe([...st.visible, ...(env?.newsSaved?.byId?.values ? [...env.newsSaved.byId.values()] : [])])
+  const pointed = pool.find(r => r.id === res.id)
+  if (pointed && descs.every(d => descriptionMatches(d, pointed))) return res
+  const fits = pool.filter(r => descs.every(d => descriptionMatches(d, r)))
+  return { ask: askAmong((fits.length ? fits : st.visible).slice(0, MAX_CHOICES), st) }
 }
 function resolvePointerOrMatch(st, ref, scope, env) {
   const r = String(ref ?? '').trim()
@@ -178,6 +220,7 @@ const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 export function wordsNameHeadline(text, ref) {
   const r = String(ref ?? '').trim().replace(/^[“"]|[”"]$/g, '')
   if (!r || POINTER.test(r) || /^previous$/i.test(r)) return true           // a pointer: the click / the previous turn decides
+  if (previousOffered().includes(r) || r === previousSubject()) return true  // an id this library offered / named last turn (a pointer too)
   const tk = TICKER.exec(r)
   if (tk && words(r).length === 1) {
     const T = esc(tk[1].toUpperCase()), t = T.toLowerCase(), s = String(text || '')

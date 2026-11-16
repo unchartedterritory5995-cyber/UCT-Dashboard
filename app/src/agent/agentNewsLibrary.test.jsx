@@ -610,3 +610,69 @@ describe('AUDIT T2 probe 63 family — a pointer never overrides the headline th
     expect(savedIds()).toEqual(['evB'])
   }, 40000)
 })
+
+// ⛔ AUDIT T2 (probe 65e, fail closed): a headline DESCRIPTION in the member's words must match the POINTED headline (selected /
+// previous / offered) — else asked, nothing written. Generated: description × pointer × action, mismatch (pointed NVDA) and
+// match (pointed = the Fed headline the words describe).
+describe('AUDIT T2 probe 65e — a description that does not fit the pointed headline is asked, never followed (generated)', () => {
+  const FED = 'evD'
+  const finish = async () => {
+    if (!pending().length) return
+    fireEvent.click(screen.getAllByRole('button', { name: 'Apply' }).at(-1)); await p.idle(); await new Promise(r => setTimeout(r, 0)); await p.idle()
+  }
+  const setup = () => { srv.collections.push({ id: 'k1', name: 'Earnings' }); saved('evA', { note: 'old' }); saved(FED, { note: 'old' }) }
+  const snapshot = () => JSON.stringify([...srv.bookmarks.entries()].sort())
+  const ACTIONS = [
+    ['unsave', ['please unsave the story about the Fed', 'please remove the headline about rates being held from my library', 'please remove the Fed rates article from my library'],
+      (ref) => [SAVE, { headline: ref, saved: false }], (id) => expect(srv.bookmarks.has(id)).toBe(false)],
+    ['setNote', ['please add a note to the story about the Fed: watch it', 'please add a note to the Fed rates headline: watch it'],
+      (ref) => [NOTE, { headline: ref, note: 'watch it', mode: 'append' }], (id) => expect(srv.bookmarks.get(id).note).toBe('old\nwatch it')],
+    ['place', ['please put the story about the Fed in my Earnings collection', 'please put the Fed rates headline in my Earnings collection'],
+      (ref) => [PLACE, { headline: ref, collection: 'Earnings', member: true }], (id) => expect(srv.bookmarks.get(id).collection_ids).toEqual(['k1'])],
+  ]
+  // how each pointer is set up for the pointed headline, and the plan's ref
+  const POINTERS = {
+    selected: async (say, id) => { door.selected = id; return 'selected' },
+    previous: async (say, id) => { await say(id === FED ? 'what does "Fed holds rates steady" mean for the stock' : 'what does the NVDA headline mean for the stock'); return 'previous' },
+    offered: async (say, id) => { expect(await say('save it to my library')).toMatch(/Which headline do you mean\?/); return id },
+  }
+  const CASES = ACTIONS.flatMap(([name, wordings, op, applied]) => wordings.flatMap(w => Object.keys(POINTERS).flatMap(ptr =>
+    [['evA', 'mismatch'], [FED, 'match']].map(([pointed, kind]) => [name, w, ptr, pointed, kind, op, applied]))))
+  it.each(CASES)('%s · "%s" · pointer %s → %s (%s)', async (name, w, ptr, pointed, kind, op, applied) => {
+    setup()
+    const { say } = await mountOn()
+    const ref = await POINTERS[ptr](say, pointed)
+    const before = snapshot(), w0 = srv.writes
+    p.st.envelopes.push(plan('apply', op(ref)))
+    const out = await say(w)
+    if (kind === 'mismatch') {
+      expect(out).toMatch(/Which headline do you mean\? 1\) “Fed holds rates steady as expected”/)
+      expect(srv.writes - w0).toBe(0); expect(pending()).toHaveLength(0); expect(snapshot()).toBe(before)
+    } else {
+      await finish()
+      applied(pointed)
+      expect(srv.bookmarks.get('evA')).toMatchObject({ note: 'old', collection_ids: [] })
+    }
+  }, 40000)
+
+  // the probe's shape, in other words: descriptions of another headline under a selected NVDA
+  it.each(['please unsave the article covering the Fed decision', 'please remove the story regarding interest rates from my library',
+    'please take the headline on the rate hold out of my library', 'please unsave the Fed item from my news library'])('65e-type: "%s" with NVDA SELECTED, plan "selected" → asked, NVDA kept', async (w) => {
+    setup(); door.selected = 'evA'
+    const { say } = await mountOn()
+    const before = snapshot()
+    p.st.envelopes.push(plan('apply', [SAVE, { headline: 'selected', saved: false }]))
+    expect(await say(w)).toMatch(/Which headline do you mean\?/)
+    expect(snapshot()).toBe(before); expect(pending()).toHaveLength(0)
+  }, 40000)
+  // keep: a description that DOES fit the pointed headline, and bare pointers
+  it.each(['please unsave the NVIDIA story', 'please unsave the story about NVIDIA beating estimates', 'please unsave this headline', 'please take that headline out of my library'])(
+    'keep: "%s" with NVDA SELECTED → NVDA comes out', async (w) => {
+      setup(); door.selected = 'evA'
+      const { say } = await mountOn()
+      p.st.envelopes.push(plan('apply', [SAVE, { headline: 'selected', saved: false }]))
+      await say(w)
+      await finish()
+      expect(savedIds()).toEqual([FED])
+    }, 40000)
+})
