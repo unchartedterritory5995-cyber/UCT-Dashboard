@@ -1462,7 +1462,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // server-side rows above, every one `keep`.
     // ⭐ `{keep: 20}` -> `{keep: 21}` AT FIX LANE F1 (2026-11-10): the public RS
     // glossary's `RS_INDICATORS` table joins as a `keep`. See its LEDGER row.
-    expect(counts).toEqual({ keep: 22 })  // 21 -> 22: lane S2's alert rev table
+    expect(counts).toEqual({ keep: 23 })  // 22 -> 23: Agent H14's spoken-word map (stateRail.js)
     // …and by NAME, because a histogram cannot tell an absent bucket from a
     // bucket somebody renamed.
     expect(LEDGER.filter(s2 => s2.fate === 'phase'),
@@ -2388,7 +2388,9 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // `keep`, lives under `app/src` with a `.js` extension, and holds the
     // `Popular` tab's curated ids — a file the discovery scan must keep finding.
     expect(keepWalkable, 'no `keep` walkable file on the ledger — the check below is vacuous')
-      .toEqual(['app/src/components/chart/builder/builtinForks.js',
+      // ⭐ AGENT H14 — IND_TYPE; a `.js` under app/src, walkable.
+      .toEqual(['app/src/agent/stateRail.js',
+        'app/src/components/chart/builder/builtinForks.js',
         'app/src/components/chart/discoveryCatalog.js',
         'app/src/components/chart/engine/ast/interpret.js',
         'app/src/components/chart/engine/ast/pcf.js',
