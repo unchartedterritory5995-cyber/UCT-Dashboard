@@ -167,7 +167,7 @@ export const knownIn = (text, known) => {
 }
 const ADD_REST = /\badd(?:ing)?\b[^.;!?]*\b(?:other|others|remaining|rest)\b|\b(?:as|for|in|into) the (?:other|remaining|empty|new)\b/i
 const REPLACE = /\b(?:replace|replacing|replaced|instead|swap(?:ping)? out|swap (?:the |my )?(?:tickers?|symbols?|charts?)\b|swap \$?[A-Za-z]{1,5} (?:and|with) |get rid of|switch (?:out|over)|change (?:the |my |that |this |both |all )?(?:\w+ )?(?:chart|charts|one|ones|symbol|ticker)s?\b(?!\s+layout)|(?:change|switch|turn|flip) (?:the |my |that |this )?(?:\w+ )?(?:chart |one )?(?:to|into) \$?[A-Za-z]{1,5}\b)/i
-const REMOVAL = /\b(?:remove|removing|delete|deleting|close|closing|get rid|replace|replacing|clear|clean(?:ing)? up|tidy|drop|dropping|only|just|fewer|less|reduce|down to|instead|swap(?:ping)? out|single|one chart|take (?:off|down|away|out)|take (?:[^\s.;!?]+ ){0,4}?(?:chart|one|panel|graph)s? (?:off|down|away|out))\b/i
+const REMOVAL = /\b(?:remove|removing|delete|deleting|close|closing|get rid|replace|replacing|clear|clean(?:ing)? up|tidy|drop|dropping|only|just|fewer|less|reduce|down to|instead|swap(?:ping)? out|single|one chart)\b/i
 // ⛔ CHANGE RELATION + SEE words — the ONE place (AUDIT probe 52a / 53, STRUCTURAL: each word set is read by its POSITION
 // against the tickers, never as a phrase list; tests generate their forms from these exports):
 //   CHANGE_TAKE  "<word> X"      → X is the chart being changed ("replace SPY", "instead of SPY", "in place of SPY")
@@ -404,6 +404,8 @@ const CHART_WORD = /\b(?:charts?|panels?|graphs?|widgets?)\b/i
 // naming a linked pair names every chart in it) names them all only in the plural ("both SPY charts"); in the singular, unless a
 // position / deixis narrows it, it is asked. Words that name no chart: as before. (a grid the words state: its own COUNT rule)
 const NAMES_CHART = new Set(['pick', 'name', 'position', 'ordinal', 'deixis'])
+// (the REMOVAL gate also reads "take off / take down <chart>" and "take <the SPY chart> off": the target is checked above)
+const REMOVAL_TAKE = /\btake (?:off|down|away|out)\b|\btake (?:[^\s.;!?]+ ){0,4}?(?:chart|one|panel|graph)s? (?:off|down|away|out)\b/i
 // (a removal may name SEVERAL positions — "close the middle and right charts": each position word, the centre one included, read
 //  against the chart's own position word, as `named` does)
 const POS_MIDDLE = /\b(?:middle|cent(?:er|re))\b/i
@@ -536,7 +538,7 @@ export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply'
       const wrong = removalTargetRefusal(w, host, removed, { selected, subject, picked, known })
       if (wrong) return wrong
     }
-    if (removed.length && mode === 'apply' && !REMOVAL.test(removalWords(w))) {
+    if (removed.length && mode === 'apply' && !REMOVAL.test(removalWords(w)) && !REMOVAL_TAKE.test(w)) {
       return `I didn’t change anything: this would have removed ${listOf(removed.map(nameOf))}, and you didn’t ask to remove a chart. Say which chart to remove or replace.`
     }
   }
