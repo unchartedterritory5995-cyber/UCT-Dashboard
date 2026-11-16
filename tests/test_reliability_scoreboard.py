@@ -245,8 +245,8 @@ def test_a_slow_day_also_reports_the_endpoints_of_its_slowest_hour(monkeypatch, 
     monkeypatch.setattr(rs, "fetch", fake)
     history = tmp_path / "h.jsonl"
     assert rs.main(["--hours", "2", "--history", str(history)]) == 0
-    assert len(asked) == 3 and 'datetime_geq:"2026-11-13T15:00:00Z", datetime_lt:"2026-11-13T16:00:00Z"' in asked[1]
-    assert "userAgent_notlike" in asked[2], "the members-only request comes last"
+    assert len(asked) == 4 and 'datetime_geq:"2026-11-13T15:00:00Z", datetime_lt:"2026-11-13T16:00:00Z"' in asked[1]
+    assert "renderers:" in asked[2] and "userAgent_notlike" in asked[3], "renderers are found, then the members-only request"
     assert "/api/auth/preferences" in capsys.readouterr().out
     assert json.loads(history.read_text(encoding="utf-8"))["slowest_endpoints"] == ["/api/auth/preferences"]
 
@@ -259,7 +259,7 @@ def test_a_day_with_no_slow_minutes_asks_once(monkeypatch, capsys):
     asked = []
     monkeypatch.setattr(rs, "fetch", lambda q, t: asked.append(q) or quiet)
     assert rs.main(["--hours", "2"]) == 0
-    assert len(asked) == 2 and not any("endpoints:" in q for q in asked), "the day and the members, no endpoint request"
+    assert len(asked) == 3 and not any("endpoints:" in q for q in asked), "the day, the renderers and the members; no endpoint request"
 
 # ── members only ──────────────────────────────────────────────────────────────
 
@@ -323,3 +323,35 @@ def test_a_failed_member_request_leaves_the_report_standing(monkeypatch, capsys)
     out = capsys.readouterr().out
     assert "requests            500" in out and "MEMBERS ONLY: could not measure" in out
 
+
+def test_an_address_that_loads_the_render_page_often_is_a_renderer_and_a_passer_by_is_not():
+    rows = {"renderers": [{"count": 900, "dimensions": {"clientIP": "192.0.2.9"}},
+                          {"count": 10, "dimensions": {"clientIP": "2001:db8::7"}},
+                          {"count": 9, "dimensions": {"clientIP": "192.0.2.50"}},
+                          {"count": 500, "dimensions": {"clientIP": 'x"], y:['}}]}
+    assert rs.renderer_addresses(rows) == ["192.0.2.9", "2001:db8::7"]
+    assert rs.renderer_addresses({}) == []
+    q = rs.build_renderer_query("zone-id", SINCE, UNTIL)
+    assert 'clientRequestPath:"/r/chart"' in q and "renderers:" in q and 'zoneTag:"zone-id"' in q
+
+
+def test_found_renderers_are_excluded_together_with_the_listed_ones(monkeypatch, tmp_path, capsys):
+    listed = tmp_path / "service_clients.txt"
+    listed.write_text("192.0.2.1", encoding="utf-8")
+    monkeypatch.setenv("SCOREBOARD_SERVICE_CLIENTS", str(listed))
+    monkeypatch.setenv("CLOUDFLARE_ANALYTICS_TOKEN", "t")
+    monkeypatch.setenv("CLOUDFLARE_ZONE_ID", "z")
+    asked = []
+
+    def fake(query, token):
+        asked.append(query)
+        if "renderers:" in query:
+            return {"renderers": [{"count": 40, "dimensions": {"clientIP": "192.0.2.9"}}]}
+        if "userAgent_notlike" in query:
+            return MEMBER_ROWS
+        return {"all": [{"count": 1000, "dimensions": {"datetimeMinute": "2026-11-13T15:00:00Z"}}]}
+
+    monkeypatch.setattr(rs, "fetch", fake)
+    assert rs.main([]) == 0
+    assert 'clientIP_notin:["192.0.2.1", "192.0.2.9"]' in asked[-1]
+    assert "MEMBERS ONLY" in capsys.readouterr().out

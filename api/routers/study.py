@@ -66,6 +66,8 @@ STEP_MAX = 60
 FORWARD_WANT = 60
 #: The largest jump allowed where the server's own bars join the stored strip (a bigger one is another price basis).
 FORWARD_JOIN_MAX = 0.40
+#: An index history chart's adjustment_basis (one value, study_store's): nothing from bars.db is ever added to its bars.
+INDEX_BASIS = study_store.INDEX_BASIS
 
 
 def study_enabled() -> bool:
@@ -785,7 +787,8 @@ def _forward_bars(item: dict) -> list:
     symbol in bars.db just leaves the strip as stored."""
     stored = list(study_store.get_forward_bars(item["id"]) or [])
     sym = str(item.get("sym") or "").upper()
-    if len(stored) >= FORWARD_WANT or not sym:
+    # an index history chart's strip is what the fill stored, all of it (bars.db holds stock prices, not index levels)
+    if len(stored) >= FORWARD_WANT or not sym or item.get("adjustment_basis") == INDEX_BASIS:
         return stored
     vis = study_store.get_visible_bars(item["id"], approved_only=False) or {}
     tf = str(vis.get("tf") or "D")
@@ -842,9 +845,14 @@ def resolve_bars(spec: dict) -> dict:
             asof_key = _ymd_key(spec["asof"])
     if not sym or asof_key is None:
         return {"ok": False, "reason": "bad_spec"}
+    # an index history chart (courses_lib.INDEX_SERIES, 2026-11-16) is never read from bars.db: a row there under the
+    # same name is not this series. It stays a miss, and the pod's scripts/study/fill_course_charts.py fetches, checks
+    # and stores it.
+    if str(spec.get("source") or "") == "index":
+        return {"ok": False, "reason": "index_fill", "sym": sym, "tf": tf}
     asof_key = int(asof_key)
     # an intraday course chart asks for the REGULAR session only (`rth`, 2026-11-15): bars.db keeps the extended session
-    # too (04:00-20:00), and the pod's fill (scripts/study/fill_course_intraday.py) stores regular-session bars, so the
+    # too (04:00-20:00), and the pod's fill (scripts/study/fill_course_charts.py) stores regular-session bars, so the
     # two paths must cut the same window
     rth = bool(spec.get("rth")) and tf not in _FORWARD_HORIZON_DAYS
     pull = window * 4 + 400 if rth else window

@@ -200,6 +200,11 @@ describe('B1 — paints graded against the captures that record them', () => {
     'mid_engagement__20-mann-kendall-trend-significance-rddt-1d-2026-11-15.json': ['refused pine:reassign'],
     'mid_engagement__20-mann-kendall-trend-significance-spy-1d-2026-11-15.json': ['refused pine:reassign'],
     'vw-deadband-ticks-brk-a-1d-2026-11-15.json': ['refused pine:state'],
+    // S28 x re-captures (#1373): the same four scripts as their 2026-09-28 / 10-02 / 10-03 pins above
+    'inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-11-15.json': ['refused pine:state'],
+    'inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-11-15.json': ['refused pine:state'],
+    'trend-targets-algoalpha-rddt-1d-2026-11-15.json': ['refused pine:state'],
+    'trend-targets-algoalpha-spy-1d-2026-11-15.json': ['refused pine:state'],
   }
   const supplyLine = (s) => (s.kind === 'warm'
     ? (s.replayed ? `supply warm ${s.file} ${s.bars} listing=${s.historyFromListing ? 'on' : 'off'}`

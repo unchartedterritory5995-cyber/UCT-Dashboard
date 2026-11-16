@@ -104,9 +104,15 @@ Rules every chart question follows (the validator enforces the starred ones):
    do (the provider's intraday floor).
 4. ~~Reject the 5 approved size items retired on 2026-11-12~~ DONE 2026-11-15, on the owner's word instead: "Put them
    back in the review list for us to go over" (the 5 approved ones moved to draft, logged; the other 7 were drafts).
-5. **Fill the intraday course charts** after every import that adds or changes one (they arrive as misses):
-   `railway ssh --service web -- /opt/venv/bin/python scripts/study/fill_course_intraday.py --dry-run`, then without
-   `--dry-run`; it prints each failing chart's reasons and stores only the ones that pass.
+5. **Fill the intraday and index course charts** after every import that adds or changes one (they arrive as misses):
+   `railway ssh --service web -- /opt/venv/bin/python scripts/study/fill_course_charts.py --dry-run`, then without
+   `--dry-run`; it prints each failing chart's reasons and stores only the ones that pass (`--kind intraday|index` does
+   one kind; `fill_course_intraday.py` is the old name for the intraday half). After the 2026-11-16 change of the
+   intraday warm-up (60 to 200 bars), run it once with `--kind intraday --refresh` so every stored intraday chart is
+   re-fetched with the longer history.
+6. **A question that just got a chart goes back to review** if it was already approved (the import keeps an approval
+   when only the content changes): `scripts/study/back_to_review.py --bank-chart-source index --reason "..."`
+   (study_store.fix with the lesson text unchanged; only approved items move; `--dry-run` first).
 
 ## How the owner approves charts with less work
 
@@ -172,6 +178,23 @@ A spread's payoff is drawn by each leg's own side (a credit spread written sold-
   quote no index LEVEL (a fund prints about a tenth of the S&P 500; the explanation after the answer may keep the
   levels, as History Detective does, since the answer names the fund). 15 questions in F7.01-F7.09 carry one (SPY, XLE,
   KRE), each checked against the bars and its outcome confirmed in the closes. More wait for an index series.
+- **Index history charts (built 2026-11-16):** a chart may name an index itself (courses_lib.INDEX_SERIES: SPX, IXIC,
+  NDX, DJI, RUT; IXIC, never COMP, which is a listed stock), from Yahoo's daily history, the source the app's index
+  charts already use. The import never reads bars.db for them (`source: "index"`); fill_course_charts.py fetches each
+  on the pod, checks it and stores only a pass. The server never tops their replay up from bars.db, and the replay's
+  intraday fill skips them (adjustment_basis "index level"). What the history allows, measured: real candles only from
+  1983-07 (SPX), 1990-04 (IXIC), 1986-10 (NDX), 1987-09 (RUT), 1992-01 (DJI), and the OPEN is only the prior close on
+  most S&P 500 days before 2008 (and a quarter of 2012-13), Nasdaq 100 days before 2000 and Russell days before 2007, so
+  the checker refuses a chart showing closes-only days, more than one stale open in ten, or a copied row (the Russell's
+  2024-07-19 repeats the prior day's open and high). The Russell's and the Nasdaq 100's volume there is another index's
+  (92.5% and 80% of days), so those charts carry no volume. 84 candidates (live questions naming an index and a year)
+  went to four writers and three cold checkers: 18 charted (SPX 9, IXIC 8, RUT 1) in F1.02, F6.07, F7.01-F7.05, F7.07 and
+  F7.08; 5 specs corrected by the checkers (a replay that ended on a bounce the words say failed, a window that cut off
+  the peak the question names so a wrong choice looked right, a replay that answered the next question, a copied row);
+  the rest skipped with reasons (conceptual, before real candles, total-return figures a price chart would contradict,
+  outcomes past the 60-day replay). The writers also found that FRED's NASDAQCOM rows from 2003-01-22 to 2004-08-06
+  often hold the day's high or low, not the close: F7.03 q21 had called two of them closes, and now cites AP and
+  CNN/Money closing reports (its key, May 2, 2003, is unchanged).
 - **Intraday lessons (built 2026-11-15):** a course chart may be `tf` 5/15/30/60 with `asof` "YYYY-MM-DD HH:MM" New
   York, the START of its last visible bar on the regular session's grid (courses_lib.intraday_asof_problem). The bank
   passes the server that bar's unix time and `rth: true`, so the import keeps the regular session only (bars.db holds
@@ -181,6 +204,11 @@ A spread's payoff is drawn by each leg's own side (a credit spread written sold-
   provider's bars on the pod BEFORE it shipped (a read-only run; two META charts whose stop sat inside the provider's
   candle were dropped), and a cold checker reconciled the words with the real bars (TSLA's stop a candle earlier, VIAV's
   first candle green, AAPL's fill bar trading 1R over the buy). The drill marks a DECISION BAR on an intraday chart.
+  2026-11-16: the warm-up ahead of an intraday window is 200 bars (was 60), so the member's 200-period average has a
+  value from the first candle (the screen check found its legend empty; D-021: the 9 and 20 EMA with the 50 and 200
+  SMA); the provider holds that history for all 48 charts (a read-only check on the pod). The intraday axis gets a
+  five-character label slot and half hours read "10:30", so the times stay between the day marks on a phone after the
+  replay.
 
 ## Open needs
 

@@ -271,8 +271,12 @@ def test_C3_an_id_outside_the_vocabulary_counts_missing(tmp_path, monkeypatch, o
         rt._reset_capability_cache(persisted=True)
 
 
-def test_C1_a_matrix_or_map_script_is_withheld(on):
+def test_C1_a_matrix_or_map_script_is_withheld(on, monkeypatch):
     """The collection namespaces are admitted on their own evidence: matrix and map have none."""
+    # fresh detector runs back to back: this rail is admission POLICY, not the duty cycle (the GATE
+    # rails test the cool-down). Without this the 2nd run can land inside the 1st one's cool-down
+    # (2 x its run time, no floor) and answer pending: red on every Linux runner, green on Windows.
+    monkeypatch.setattr(rt, "DETECTOR_DUTY_CYCLE", 1.0)
     for body, cap in (("m = matrix.new<float>(2, 2)\n", "collections:matrix"),
                       ("var mp = map.new<string, float>()\n", "collections:map")):
         ok, missing = rt.capability_admitted(MEMBER_COPY + body)
@@ -481,7 +485,8 @@ def test_A7_a_box_drawing_member_script_is_withheld(on):
     assert not ok and missing == ["obj:box"], missing
 
 
-def test_A7_an_object_drawing_member_script_is_withheld_while_its_family_is(on):
+def test_A7_an_object_drawing_member_script_is_withheld_while_its_family_is(on, monkeypatch):
+    monkeypatch.setattr(rt, "DETECTOR_DUTY_CYCLE", 1.0)   # two fresh runs; a policy rail, not the cool-down
     src = MEMBER_COPY + "var table t = table.new(position.top_right, 1, 1)\n"
     ok, missing = rt.capability_admitted(src)
     assert not ok and "obj:table" in missing

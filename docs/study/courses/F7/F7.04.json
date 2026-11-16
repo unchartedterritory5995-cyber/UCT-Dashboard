@@ -1289,7 +1289,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "index-charts-2026-11-16",
    "choices": [
     "13.9%",
     "16.2%",
@@ -1300,6 +1300,12 @@
     "13.9%": "Divided the gain by the end level, not the start.",
     "116.2%": "Stopped at the ratio and forgot to subtract one.",
     "1.62%": "Decimal slip."
+   },
+   "chart": {
+    "sym": "IXIC",
+    "asof": "2022-03-29",
+    "window": 120,
+    "forward": 22
    }
   },
   {
@@ -1617,7 +1623,13 @@
      "fixed before (2026-11-09 checker)"
     ]
    },
-   "batch": "wave6"
+   "batch": "index-charts-2026-11-16",
+   "chart": {
+    "sym": "SPX",
+    "asof": "2022-10-04",
+    "window": 120,
+    "forward": 10
+   }
   },
   {
    "key": "q20",
@@ -1782,7 +1794,13 @@
      "fixed before (2026-11-09 checker)"
     ]
    },
-   "batch": "wave6"
+   "batch": "index-charts-2026-11-16",
+   "chart": {
+    "sym": "IXIC",
+    "asof": "2022-10-12",
+    "window": 200,
+    "forward": 55
+   }
   },
   {
    "key": "q24",
@@ -2076,8 +2094,8 @@
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
+   "fixed": true,
+   "notes": "Cold check on IX/IXIC.json. Words agree: Mar 14, 2022 close 12,581.22 (lowest close in the window; low 12,555.35), Mar 29 close 14,619.64, gain 16.20% (13.9% = gain / end, the wrong-note agrees); record close 16,057.44 (Nov 19, 2021), so Mar 14 sat 21.65% under it ('down 22%'; 22.4% under the 16,212.23 intraday high). First close under the Mar 14 close: Apr 26, 12,490.74 (replay day 19), four weeks after Mar 29; Apr 29 closed lower still, 12,334.64 (day 22). No give-away: the chart ends on the Mar 29 close the question states; intraday low-to-high (12,555.35 -> 14,646.90, 16.7%) matches no cho"
   },
   "q13": {
    "status": "pass",
@@ -2120,7 +2138,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f71 (and f67 on timing); numbers f11, f12, f08. Key not longest (30-36). It is the only skeptical choice, but that comes from the question: any confident 'No' is right in hindsight here (f08), so a skeptical distractor would be a second answer. Wrong notes grounded in f44, f45, f71, f08."
+   "notes": "Cold check on IX/SPX.json. Window 2022-04-13..2022-10-04 (120), replay 2022-10-05..2022-10-18 (10). Sept 30 close 3,585.62, the lowest close of 2022 to that day (June 16 was 3,666.77); Oct 3 3,678.43, Oct 4 3,790.93 ('two sessions later'). Replay: Oct 12 close 3,577.03 (day 6), the lowest close of 2022; then the Oct 13 reversal and Oct 17-18 bounce, which contradict no words (Oct 14 also closed under Sept 30, at 3,583.07; the words do not say otherwise). No give-away: the chart ends on Oct 4, the state the story describes; the outcome plays only after the answer. Worth it: the replay is the le"
   },
   "q20": {
    "status": "cut",
@@ -2150,7 +2168,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True follows from f08 (S&P 500 lowest 2022 close Oct. 12) and f20 (Nasdaq Dec. 28 close below its Oct. 12 close), so the Nasdaq's lowest close cannot be Oct. 12. The text never claims Dec. 28 was the Nasdaq's lowest. A neutral statement with no absolute."
+   "notes": "Cold check on IX/IXIC.json and IX/SPX.json. Window 2021-12-28..2022-10-12 (200; Jan 3, 2022 close 15,832.80 in view), replay 2022-10-13..2022-12-30 (55; Dec 28 is day 53). S&P 500 lowest 2022 close 3,577.03 on Oct 12; S&P Dec 28 close 3,783.22; Nasdaq Oct 12 close 10,417.10; Nasdaq lowest 2022 close 10,213.29 on Dec 28 (also under 10,417.10 on Oct 14, Nov 3, Nov 9, Dec 27; the words do not say otherwise). No give-away: before the answer the chart ends on Oct 12 at the Nasdaq's lowest close to date, which says nothing about the other index. Note for the owner's review: the replay's first bar, O"
   },
   "q24": {
    "status": "pass",

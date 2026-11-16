@@ -20,6 +20,7 @@ import json
 import sqlite3
 import threading
 import time
+from multiprocessing.connection import wait as _mp_wait
 from pathlib import Path
 
 import pytest
@@ -72,6 +73,15 @@ def worker(monkeypatch):
     w.ensure_started()
     assert w.ready.wait(30), "the detector process never said READY"
     return w
+
+
+def _gone(proc, within: float = 5.0) -> bool:
+    """Has the OS ended this child? Read from its SENTINEL (POSIX: its pipe hits EOF; Windows: its
+    handle is signalled), never `join()` + `is_alive()`: on POSIX those call waitpid, and the
+    product's own reaper thread (`pcw._reap`) waits on the same pid. Whichever loses gets ECHILD,
+    which multiprocessing reports as "still alive" for a child that is already reaped (three
+    pine-heavy runs: HUNG, JUNK, HUNG)."""
+    return bool(_mp_wait([proc.sentinel], within))
 
 
 def _no_inline(monkeypatch) -> list:
@@ -213,8 +223,7 @@ def test_a_HUNG_child_is_killed_at_the_timeout_and_answers_pending(worker, monke
     caps, _e, status = pcw.detect(MEMBER_COPY + "// @@HANG@@\n", timeout=0.5)
     assert caps is None and status == pcw.TIMEOUT
     assert time.perf_counter() - t0 < 1.5              # bounded: the caller never waits on a hang
-    proc.join(5)
-    assert not proc.is_alive(), "the hung child was not killed"
+    assert _gone(proc), "the hung child was not killed"
     worker.ensure_started()
     assert worker.ready.wait(30)
     monkeypatch.setattr(rt, "_DETECTOR_IDLE_UNTIL", [0.0])
@@ -249,8 +258,7 @@ def test_a_child_that_answers_JUNK_is_out_of_step_killed_and_pending(worker, mon
     proc = worker.proc
     caps, _ran, status = pcw.detect(MEMBER_COPY + "// @@JUNK@@\n")
     assert caps is None and status == pcw.ERROR and worker.proc is None
-    proc.join(5)
-    assert not proc.is_alive()
+    assert _gone(proc)
 
 
 def test_M1_a_source_that_TIMED_OUT_is_quarantined_not_retried_on_every_list(worker, monkeypatch):
