@@ -1,8 +1,31 @@
 # RESUME: landing train 1 (`land/pine-engine-train-1`, draft PR #1391), IN PROGRESS
 
-> ⛔ Remove this file (and `docs/pine/landing-train-1/`) in the commit that takes the PR out of draft.
-> Checkpoint 2026-11-16 (second session). All inputs merged; step D first pass done and attributed;
-> NO census / harness regression measured yet; engine number NOT set.
+> ⛔ Remove this file (and `docs/pine/landing-train-1/`, and `docs/pine/evidence/2026-11-15-trend-targets-trade-bar/RESUME.md`)
+> in the commit that takes the PR out of draft.
+> Checkpoint 2026-11-16, later. NINE things are in the tree now: the five first inputs, two train-owned
+> changes (na() on the runtime lane; ta.rma summation), input 7 (#1374, `2f85c072c0`, merge `1c07b2389e`)
+> and COND-TA (#1409, `29c0384b89`, merge `e8b83719bb`, engine 58). **The train's number is 59.**
+> **Step C is running** (`chainC.sh` in the scratchpad): AFTER on the train head, then BEFORE at
+> `29c0384b89` (the worktree is DETACHED there while it runs; `chainC.done` appears when it is back on the
+> branch). Compare with `python cmp2.py before after moves.json`. If #1409 gains a commit before it merges,
+> merge master once more and re-check only what that commit touches; before relying on the measurement,
+> `git diff <master-after-#1409> 29c0384b89 -- app/src/components/chart api/services tools/vendor_harness tools/pine_coverage tests/fixtures`
+> must be empty.
+
+## State of the rails on the merged tree (`e8b83719bb` + one test commit)
+- Local cross-input set, 29 files: 27 green. Red: `capabilityEvidenceLane` (7): the reach-run report is now
+  `docs/pine/evidence/2026-11-15-cond-ta/runs/report.json`; give its seven rows (`vw-ternary-arm-legacy-v1/-v2/-v3`,
+  `-v1-cum`, `vw-cs1-bool-na-v2`, `vw-cs2-bool-na-v1/-v3`) lane `host` and the AFTER run's verdicts, and move
+  `populations.capture` hostLane / refused by 7 (the same edit was made to the 2026-11-13 report in `2fdef1c908`).
+  `engine56Values` zig-zag subject fixed (COND-TA withholds a `ta.*` in a `?:` arm, `pine:block`).
+- Cloud: ONE pine-heavy run at a time, push whole batches only (coordinator). Run `43819960586` is on the
+  merged tree; read its red legs with
+  `gh api --allow-escape-sequences repos/<owner>/<repo>/actions/jobs/<id>/logs | grep " FAIL  "`.
+- Mutants on the train tree, all with a green control and every restore equal to the HEAD blob: eng57
+  K11, R1-R9, X1-X3, F5b 14 / 14 killed; na() NA-a / NA-c / NA-d 3 / 3 (a fourth, redundant entry removed);
+  rma 5 / 5 (JS kernel, table, ema control, Python, Python ema control); legend row LR1 1 / 1.
+- na() count: runtime pane door `pine:bool-na-unwitnessed` 6 -> 6 of 2,505 sources; run-half door 3 -> 0
+  (all three are RS Rating), run halves minted 34 -> 37, nothing else moved.
 
 ## Coordinator rulings in force (they override the first park's text)
 - Train number = master + 1 at push (expected **58**; re-read origin/master's `scriptEngineVersion.js` first).
