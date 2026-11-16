@@ -143,6 +143,11 @@ const BASELINE_KEYS = {
   // ⚰️ notebook_sample left with its only client write site (Research home's strip "dismiss", ResearchHome.jsx):
   // go-live wave 1 (2026-11-12) deleted Research home. The server still writes the key when the sample is added.
   notebook_tour: 'structured',
+  // ⭐ 2026-11-16 (fix/master-red-rails): the RS screens' first-visit note, dismissed once per account
+  // (FocusScreener.jsx). It was an opaque setPref(RS_NOTE_PREF, …) site added with the RS screens (#1272)
+  // and is now literal at the call site, as notebook_tour was: a constant key, not a computed one.
+  // Stores the string '1'.
+  screener_rs_note_seen: 'scalar',
   tag_labels: 'structured',
   // ⭐ TERMINAL-NEXT T2 (2026-10-03): the shell's versioned board layout and the named-board
   // library. Both were opaque (TERMINAL_LAYOUT_PREF / TERMINAL_BOARDS_PREF) and are now
