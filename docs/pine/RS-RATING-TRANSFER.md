@@ -452,7 +452,54 @@ runtime pane on and **`objectsV2: "INCONCLUSIVE"`**.
   `objectsV2`, `objectsV2Substituted`) are copied ONLY from a grade taken on the tree being merged,
   never from a document or a spliced snapshot row.
 
+**THE LABELS ARE ADMITTED (Q-RS8, 2026-11-16, graded on master `b7cd7a0e63`, engine 60).**
+
+- **Re-captured.** The owner signed in to the capture rig once. RS Rating (the committed source,
+  default inputs) and the `rs-syminfo-industry` probe were re-taken on NYSE:RDDT, NASDAQ:ALAB and
+  NASDAQ:CRWV 1D, each from the listing, with the capture tool that records the object x table
+  (`objects.xIndex`, `uct.object-x-index/v1`). Six captures, committed beside the 2026-11-15 ones
+  (which stay as history): `rs-rating-fred6724-{rddt,alab,crwv}-1d-2026-11-16` and
+  `rs-syminfo-industry-{rddt,alab,crwv}-1d-2026-11-16`. Their chart bars end on the same session
+  as the earlier captures' (2026-11-13) and TradingView draws the same ratings (16 / 76 / 13).
+- **Supply.** `tests/fixtures/vendor-supply/rs-rating-fred6724-{rddt,alab,crwv}-1d-2026-11-16.json`:
+  the 2026-11-15 records copied unchanged (the same FMP `^GSPC` rows under the same ruling, the
+  same seed replay), with the industry read off the probe re-taken in the same session.
+- **Graded with master's own corpus harness, a run of exactly these captures, both lanes.**
+
+  | capture | runtime-on | objects v1 | objects v2 | production lane |
+  |---|---|---|---|---|
+  | `rs-rating-fred6724-rddt-1d-2026-11-16` | MATCH_SUBSTITUTED, 666 bars on each of the 4 plots | MATCH | MATCH_SUBSTITUTED: 18 graded fields agree; x: 2 graded, 2 agreeing, 0 differing (exact bar) | DIVERGE: the plots agree, the drawing is withheld by name (`pine:object-removal-lost`) |
+  | `rs-rating-fred6724-alab-1d-2026-11-16` | MATCH_SUBSTITUTED, 667 bars | MATCH | MATCH_SUBSTITUTED, x 2 of 2 exact | DIVERGE, the same reason |
+  | `rs-rating-fred6724-crwv-1d-2026-11-16` | MATCH_SUBSTITUTED, 411 bars | MATCH | MATCH_SUBSTITUTED, x 2 of 2 exact | DIVERGE, the same reason |
+
+  The three probes grade INCONCLUSIVE in both lanes, as the 2026-11-15 probes do (they are read
+  for TradingView's industry string, not graded as indicators).
+- **The record** (`api/data/pine_runtime_allowlist.json`) now names the three 2026-11-16 captures,
+  each `objectsV2: "MATCH_SUBSTITUTED"`, `objectsV2Substituted: ["syminfo.industry"]`, copied from
+  that grade. The run-half rule is met (three distinct captures, names equal, pane on), so
+  `run_half_evidence` serves exactly this script's three captures and nothing else.
+- **What changes on a chart.** For an account the runtime pane is on for (`PINE_RUNTIME_STAGE`,
+  `admins` on production today), RS Rating's run half is admitted: the "RS Rating" label and the
+  rating number are drawn by the per-bar run, at the script's own settings, on a chart that starts
+  at the listing. Everything else the run half checks still applies (a changed setting, a chart
+  that does not start at the listing, a column that disagrees: each withholds by its own
+  sentence). For an account the pane is not on for, nothing changes: `run-half:pane-off`.
+- **Controls kept.** `test_E1c`: a record built on the 2026-11-15 captures (no x table, objects v2
+  INCONCLUSIVE) serves nothing and admits nothing, and claiming the grade for them is caught by
+  name.
+
 ## Owner rulings
+
+- **2026-11-16, the S&P 500 history difference (Q-RS9):** told that the RS line on bars before
+  2023-12-05 differs from TradingView's (NVDA: 1,292 of 6,997 bars, at most 1.83%) and asked to
+  accept it or treat it as the measured need for a better index source: "I am fine with all of
+  that". Recorded as: accepted as it is. FMP stays the primary index source; no Massive Indices
+  upgrade. The difference stays disclosed in this document.
+- **2026-11-16, the runtime stage:** the same sentence covered raising `PINE_RUNTIME_STAGE` for
+  members once the labels are proven and live. Not yet acted on. The stage is not an RS Rating
+  switch (it turns the per-bar pane on for every admitted script for the accounts in that
+  stage), so it is put back to the owner in those words, with the ladder (`admins` -> `cohort`
+  -> `all`), before anyone changes it.
 
 - **2026-11-14, SPX source for members:** "We have the highest plan for FMP, I am fine using
   Yahoo, and only want to upgrade to massive if it is needed."
