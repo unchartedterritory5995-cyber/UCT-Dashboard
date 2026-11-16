@@ -636,15 +636,65 @@ describe('review #1294 — a site on other bars is withheld there, by the same c
     expect(col.filter(Number.isNaN).length).toBeGreaterThan(40)
     const [screen, pane, , door] = doors(src)
     expect([screen, pane, door]).toEqual(['OK', 'OK', 'OK'])
-    // the runtime lane never reaches the site: it refuses a weekly self-request by name before any
-    // column is computed (`interpret:bind-time-text` on `syminfo.tickerid`, even told the chart's
-    // symbol), exactly as it refuses the same request over plain `close`, so nothing is served there
+    // ⭐ LANDING TRAIN 1 — the runtime lane, as it stands on master since RS Rating L5 (#1342), which
+    // SERVES a weekly self-request (⚰️ before it, every one refused `interpret:bind-time-text` on
+    // `syminfo.tickerid`, and this rail pinned that): the site is reached there too, and an unpinned
+    // flat run declines the run by the SAME code (the kernel's stop), never draws it.
+    const SYMBOL = { ...CTX, symbol: { ticker: 'RDDT', exchange: 'NYSE' } }
     const runtimeGuard = (s) => {
-      try { computeRuntimeColumns(runtimeDoc(s, { a: 0 }), RDDT, { ...CTX, symbol: { ticker: 'RDDT', exchange: 'NYSE' } }) } catch (e) { return e.guard || 'threw' }
+      try { computeRuntimeColumns(runtimeDoc(s, { a: 0 }), RDDT, SYMBOL) } catch (e) { return e.guard || 'threw' }
       return 'OK'
     }
-    expect(runtimeGuard(src)).toBe('interpret:bind-time-text')
-    expect(runtimeGuard(src.replace('ta.stoch(close, y, y, 5)', 'close'))).toBe('interpret:bind-time-text')
+    // (this script's `bar_index` is not bound inside a request on that lane: a refusal by name)
+    expect(runtimeGuard(src)).not.toBe('OK')
+    // the same flat run counted with `ta.cum(1)` (weeks 13..20 of the weekly series, bars 77..96 here)
+    const weekly = '//@version=6\nindicator("e57 htf flat cum")\nfloat k = ta.cum(1)\nfloat y = k > 12 and k <= 20 ? 1000.0 : close\nplot(request.security(syminfo.tickerid, "W", ta.stoch(close, y, y, 5)))'
+    const hostWeekly = hostColumn(weekly)
+    expect(hostWeekly.clock).toEqual([STOCH_FLAT_WINDOW])
+    for (let i = 77; i <= 96; i++) expect(Number.isNaN(hostWeekly.col[i]), `bar ${i}`).toBe(true)
+    expect(runtimeGuard(weekly)).toBe(STOCH_FLAT_WINDOW)
+    // …and a weekly stochastic with no such run is served there, equal to the host lane on every bar
+    const plain = '//@version=6\nindicator("e57 htf plain")\nplot(request.security(syminfo.tickerid, "W", ta.stoch(close, high, low, 5)))'
+    const hostPlain = hostColumn(plain)
+    expect(hostPlain.clock).toEqual([])
+    const rt = Array.from(computeRuntimeColumns(runtimeDoc(plain, { a: 0 }), RDDT, SYMBOL).a)
+    expect(drawn(rt)).toBe(drawn(hostPlain.col))
+    expect(drawn(rt)).toBeGreaterThan(600)
+    for (let i = 0; i < N; i++) {
+      if (Number.isNaN(hostPlain.col[i])) expect(Number.isNaN(rt[i]), `bar ${i}`).toBe(true)
+      else expect(rt[i], `bar ${i}`).toBeCloseTo(hostPlain.col[i], 9)
+    }
+  })
+
+  // ⭐ LANDING TRAIN 1 (mutant F5b) — THE `tf` CHILD NAMES ITS OWN WITHHOLDING. The rail above reads
+  // `request.security(…, "W", …)`, which is `tf_merge` since engine 56 (#1264), and `builtinWitnessMask`
+  // does not list `tf_merge` among the nested reads: the ROOT analyses that site too and names the code
+  // itself, so dropping the child's `chartClockSink` (F5b) left that rail green. A site under `tf` (the
+  // formula language's last-closed-period read; `tf_live` shares the line) IS nested at the root, so its
+  // code can only arrive through the child's own sink: the same tree, re-typed `tf`.
+  it('the same site under `tf` is named by the child evaluated on the weekly bars, and only by it', () => {
+    const src = '//@version=6\nindicator("e57 htf flat")\nfloat y = bar_index >= 60 and bar_index < 75 ? 1000.0 : close\nplot(request.security(syminfo.tickerid, "W", ta.stoch(close, y, y, 5)))'
+    const t = translatePine(src, { strict: true, basePeriod: 'D' })
+    expect(t.ok).toBe(true)
+    const retype = (n) => {
+      if (Array.isArray(n)) return n.map(retype)
+      if (!n || typeof n !== 'object') return n
+      const o = {}
+      for (const k of Object.keys(n)) o[k] = k === 'type' && n[k] === 'tf_merge' ? 'tf' : retype(n[k])
+      return o
+    }
+    const merged = t.outputs.filter((o) => o.kind !== 'alertcondition')[0].ast
+    expect(JSON.stringify(merged)).toContain('"type":"tf_merge"')
+    const tree = retype(merged)
+    expect(JSON.stringify(tree)).not.toContain('tf_merge')
+    const clock = new Map()
+    const col = Array.from(interpret(tree, RDDT, undefined, undefined, undefined, { ...LISTING, tf: 'D', chartClockSink: clock }))
+    expect([...clock.keys()]).toEqual([STOCH_FLAT_WINDOW])
+    // the weekly flat run (weekly bars 60..74), read one closed week later: withheld on the daily bars
+    // of those weeks, drawn on both sides of them
+    for (let i = 309; i <= 361; i++) expect(Number.isNaN(col[i]), `bar ${i}`).toBe(true)
+    expect(Number.isFinite(col[308]) && Number.isFinite(col[362])).toBe(true)
+    expect(drawn(col)).toBeGreaterThan(550)
   })
 })
 
