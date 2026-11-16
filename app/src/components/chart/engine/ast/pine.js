@@ -16967,6 +16967,22 @@ const stateBinding = (seed, seedEnv, update, updateEnv, at) => ({
   kind: 'state', seed, seedEnv, update, updateEnv, at,
 })
 
+/** ⭐ DOOR-ROBUSTNESS — the SEED nodes of the `var`s declared `var string <name> = …`.
+ *  Keyed by the seed OBJECT because that is what every later binding of the same
+ *  variable keeps (`reassignState`, `foldIfChain`'s "same seed OBJECT" rule), so a
+ *  `var string` is known as text by its DECLARATION wherever it is read, however many
+ *  writes stand between. Read by the drawing lane's text reader (`stringVarTextOf`). */
+const STRING_VAR_SEEDS = new WeakSet()
+/** Why a `var string` shown while it still holds its `na` seed is withheld (after "`x` is a `var string` "). */
+export const STRING_VAR_NA_SEED_WHY = 'still holding the `na` it was declared with on this chart, and what TradingView '
+  + 'shows for that is not captured yet (probe `vw-rob1-var-string-text`), so the text is not drawn'
+/** `var string <name> = <seed>`: mark the seed. `toks` is the declaration's tokens. */
+const markStringVarSeed = (toks, seed) => {
+  const typed = toks && toks[1]
+  if (seed && typeof seed === 'object' && typed && typed.kind === 'ident' && typed.value === 'string') STRING_VAR_SEEDS.add(seed)
+  return seed
+}
+
 /** How many bars of history a translated `var` accumulates over.
  *
  *  ⚠️⚠️ THIS IS AN ASSUMPTION, AND IT IS STATED RATHER THAN HIDDEN BECAUSE IT
@@ -19459,7 +19475,7 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
         throw new PineRefusal('pine:state',
           `${REFUSALS['pine:state']} — \`${first.value}\``, locate(first))
       }
-      const seedNode = parseWholeExpression(toks.slice(eqAt + 1))
+      const seedNode = markStringVarSeed(toks, parseWholeExpression(toks.slice(eqAt + 1)))
       env.set(varName.value, stateBinding(
         seedNode, new Map(env), selfNode(varName), new Map(env), locate(varName)))
       // ⭐ C48 — a `var` declared in a block that does not run on every bar keeps
@@ -21621,6 +21637,74 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     textRefuse('pine:text-value', `this text's node nests deeper than the runtime reads (${entry})`)
     return null
   }
+  /**
+   * ⭐⭐ DOOR-ROBUSTNESS — THE TEXT A `var string` HOLDS, READ FROM ITS WRITES.
+   *
+   * `var string s = na` / `if g` / `    s := <text>` then `table.cell(…, text = s)` compiles on
+   * TradingView: `s` is a string by declaration. ⚰️ The reader had no branch for a `state`
+   * binding, so the name fell to the numeric last resort, which CBC-FMT (F11) made a
+   * `pine:type` refusal ("a number stands where Pine takes text") — a false sentence here,
+   * and two cells of volume-pace-pressure-table lost. Before F11 that last resort carried the
+   * state as a NUMBER, which is the guess F11 closed; this does not re-open it: a `var` not
+   * declared `string` never reaches here, and a write that is not text refuses by its own name.
+   *
+   * What is served is what the `var` rule states (Pine reference, `var`: initialised once,
+   * then holds its value until a `:=` runs), in the shapes where that needs no memory:
+   *   · never written                      → the seed's text;
+   *   · written on every bar               → that write's text;
+   *   · written under a guard that is the SAME on every bar of the chart (`timeframe.*`,
+   *     an input, a constant: `decidedTest`) → the write's text where the guard holds,
+   *     the text below it (in the end, the seed) where it does not;
+   *   · written in every branch of an `if … else` → the branch's text, per bar.
+   * ⛔ A write under a guard that changes bar to bar, with no write in the other branch, is
+   * a LATCH (the text of the last bar whose guard held). A text template holds no bar-to-bar
+   * memory, so it is refused by name; so is a write that reads the variable's own text.
+   * Returns a text node, or null with `textRefuse` naming why.
+   */
+  const stringVarTextOf = (bound, name, depth) => {
+    const KEEP = { keep: true }
+    const stop = (why) => { textRefuse('pine:text-value', `\`${name}\` is a \`var string\` ${why}`); return null }
+    const walk = (u, env, d) => {
+      if (!u || d > 32) return stop('written through more nested blocks than this reader follows')
+      if (u.type === 'selfref') return KEEP
+      // a fold's arm: the update one branch of an `if` left behind (`foldIfChain::asUpdate`)
+      if (u.type === 'bound' && u.binding && u.binding.kind === 'expr' && u.binding.node) {
+        return walk(u.binding.node, u.binding.env || env, d + 1)
+      }
+      const isArm = (n) => !!n && n.type === 'bound' && !!n.binding && n.binding.kind === 'expr'
+      if (u.type === 'ternary' && isArm(u.yes) && isArm(u.no)) {
+        const condTree = canonicalOf(u.test, null, env)
+        if (!condTree) return stop('written in a block whose condition this reader cannot read')
+        const decided = decidedTest(condTree)
+        if (decided !== null) return walk(decided !== 0 ? u.yes : u.no, env, d + 1)
+        const then = walk(u.yes, env, d + 1)
+        if (!then) return null
+        const other = walk(u.no, env, d + 1)
+        if (!other) return null
+        if (then === KEEP || other === KEEP) {
+          return stop('written in a block that runs on some bars only, so it holds the text of the last bar '
+            + 'that block ran on; a drawing text here is computed from the current bar alone')
+        }
+        const cond = internTree(condTree)
+        return cond ? { t: 'if', cond, then, else: other } : stop('written in a block whose condition this reader cannot carry')
+      }
+      // a write: `name := <text>`
+      if (parseReadsName(u, name)) return stop('built from its own earlier text (it reads itself where it is written)')
+      const text = textNodeOf(u, env, depth + 1, null, env)
+      if (!text && !lastTextRefusal) return stop('written with a text this reader cannot read')
+      return text
+    }
+    lastTextRefusal = null
+    const held = walk(bound.update, bound.updateEnv, 0)
+    if (held !== KEEP) return held
+    // ⛔ THE SEED IS WHAT IS SHOWN, AND AN `na` SEED IS NOT WITNESSED (coordinator ruling B,
+    // 2026-11-16). F4's capture pins a LABEL created with `text = na` as ""; what TradingView
+    // shows for a `var string` still holding `na` (in a table cell above all) is not captured,
+    // so it is withheld by name until probe Q-ROB1 (`vw-rob1-var-string-text.pine`) answers.
+    if (bound.seed && bound.seed.type === 'name' && bound.seed.name === 'na') return stop(STRING_VAR_NA_SEED_WHY)
+    return textNodeOf(bound.seed, bound.seedEnv, depth + 1, null, bound.seedEnv)
+  }
+
   const textNodeOf = (node, scope, depth = 0, inline = null, envAt = null) => {
     if (!node) return null
     // ⛔ C42 — a call the object reader marked in a block that runs once (see
@@ -21856,6 +21940,13 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // uses; a field the binding cannot settle is withheld, never printed.
       if (!enumLeaves && own(BUILTIN_SYMBOL_SCOPED, node.name)) return { t: 'sym', name: node.name }
       const bound = (scope && typeof scope.get === 'function' && scope.get(node.name)) || null
+      // ⭐⭐ DOOR-ROBUSTNESS — A `var string` IS TEXT BY ITS DECLARATION (`stringVarTextOf`):
+      // read from its writes, or refused by the name of what stopped the read. It never
+      // reaches the numeric last resort below, whose `pine:type` ("a number stands where
+      // Pine takes text") is false about a variable the author declared a string.
+      if (!enumLeaves && !inline && bound && bound.kind === 'state' && STRING_VAR_SEEDS.has(bound.seed)) {
+        return stringVarTextOf(bound, node.name, depth)
+      }
       // ⭐⭐ C29 — `timeframe.period` IN A TEXT SLOT IS THE PERIOD'S TEXT, in the
       // script's Pine version: the resolver's own `stringValueOf` (`periodTextOf`),
       // which also records the read so a chart of another period refuses the
@@ -27868,7 +27959,7 @@ function translatePineResult(source, opts = {}) {
         }
         try {
           env.set(nameTok.value, stateBinding(
-            parseWholeExpression(toks.slice(eq + 1)),
+            markStringVarSeed(toks, parseWholeExpression(toks.slice(eq + 1))),
             new Map(env), selfNode(nameTok), new Map(env), locate(nameTok)))
           hangSwitch()
           continue

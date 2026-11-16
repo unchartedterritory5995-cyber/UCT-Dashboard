@@ -32,6 +32,7 @@ the member door (memberPaneDefinition -> installUserDefinitions, production flag
 state) attaches it with zero refusals, nothing dropped or withheld from its object
 program, and no paint withheld. It is a door verdict, NOT a numeric-parity verdict:
 parity is graded only where a vendor capture exists, reported separately.
+
 """
 import argparse
 import collections
@@ -74,7 +75,13 @@ GUARD_BUCKET = {
     "pine:timeout": "translator-robustness", "pine:roundtrip": "translator-robustness",
     "pine:budget": "translator-robustness", "pine:character": "translator-robustness",
     "pine:empty": "translator-robustness", "threw": "translator-robustness", "killed": "translator-robustness",
+    # DOOR-ROBUSTNESS (2026-11-16): a refusal the DOOR makes over a clean translation, named on the step
+    # (`guard`) with no refusal row: a plot past a host-lane compute budget, or a document its own check refuses
+    "budget:lookback": "compute-budget", "budget:series": "compute-budget", "budget:nodes": "compute-budget",
+    "pine:install": "translator-robustness",
 }
+# the guards the member door itself refuses by, over a clean translation (no refusal row carries them)
+DOOR_GUARDS = frozenset({"budget:lookback", "budget:series", "budget:nodes", "pine:install"})
 BUCKET_LABEL = {
     "imperative": "Imperative execution: if/for/while blocks, := reassignment, var state carried across bars",
     "user-functions": "User-defined functions with multi-line bodies",
@@ -96,6 +103,7 @@ BUCKET_LABEL = {
     "paint-withheld": "A per-bar paint the door withheld (colour typing), with the object program clean",
     "output-contract": "Script offers nothing the pane carries (no plot, hidden-only, constant-only)",
     "translator-robustness": "Translator timeout / crash / round-trip failure",
+    "compute-budget": "A plot past a host-lane compute budget (bars of history, distinct series, formula size)",
 }
 ITEM_GUARDS = {"pine:function", "pine:builtin", "pine:arity", "pine:named-argument", "pine:role-order",
                "pine:input-kind", "pine:request", "pine:strategy-call", "pine:drawing", "pine:text-value",
@@ -431,6 +439,10 @@ def walls_of(row, inv, version, items=frozenset(), decl="indicator"):
             else:
                 keys.add(("bucket", GUARD_BUCKET.get(g, "translator-robustness")))
             detail.append((g, tok))
+        if si == 0 and not st.get("attached") and not (st.get("refusals") or []) and st.get("guard") in DOOR_GUARDS:
+            # DOOR-ROBUSTNESS - the door refused a script whose translation is clean: the step names the guard
+            keys.add(("bucket", GUARD_BUCKET[st["guard"]]))
+            detail.append((st["guard"], None))
         if st.get("attached"):
             if st.get("installed") is False:
                 keys.add(("bucket", "translator-robustness"))
