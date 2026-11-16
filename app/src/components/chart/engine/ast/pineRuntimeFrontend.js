@@ -1695,6 +1695,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
   }
   /** ⭐ W4 T1 — the v1–v4 spellings of a data request (`request.*` from v5). */
   const LEGACY_REQUEST_CALLS = new Set(['security', 'security_lower_tf', 'financial'])
+  /** ⭐ NUMBER PENDING (bt) — bare v1–v4 names of a `math.*` call-tree expansion (`callTreeExpansion`):
+   *  the migration guide's `math` table renames `avg()` to `math.avg()`. */
+  const LEGACY_MATH_CALL_TREE = new Set(['avg'])
 
   let stmts
   // ⭐⭐ I6a-N4 — a block whose lines are not at a block indent refuses BY NAME, at the pane AND
@@ -5988,8 +5991,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  the Resolver, and none is taken here). */
   const callTreeExpansion = (node) => {
     const name = String(node && node.name || '')
-    if (!name.startsWith('math.') || definedNames.has(name) || isUserFn(name)) return null
-    const bare = name.slice('math.'.length)
+    if (definedNames.has(name) || isUserFn(name)) return null
+    // ⭐ NUMBER PENDING (bt) — THE v1–v4 SPELLING OF `math.avg` IS THE BARE `avg`. The v4→v5
+    // migration guide's `math` table: "`avg()` | `math.avg()`". Before v5 the bare name is Pine's
+    // own (no version line = v1, as `LEGACY_REQUEST_CALLS` reads it), so it takes the same
+    // expansion; a script's own `avg` never reaches here (the guard above).
+    const legacyBare = LEGACY_MATH_CALL_TREE.has(name) && !(pineVersion >= 5)
+    if (!name.startsWith('math.') && !legacyBare) return null
+    const bare = legacyBare ? name : name.slice('math.'.length)
     if (!Object.prototype.hasOwnProperty.call(BUILTIN_CALL_TREE, bare)) return null
     const shape = PINE_CALL_SHAPES[bare]
     if (TABLE.functions[shape && shape.table ? shape.table : bare]) return null
@@ -7722,6 +7731,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         || (given.length === 1 && (!isBarTimeNode(given[0], null) || !CLOCK_FIELDS.includes(name)))
     }
     if (name === 'time') return given.length >= 1 && given[0] && given[0].type === 'string' && given[0].value === ''
+    if (name === 'timeframe.in_seconds') return given.length <= 1
     return false
   }
   /** Does this subtree — or a binding it reads — hold one? */
@@ -7790,31 +7800,78 @@ function buildRuntimeIrLinked(source, opts, holder) {
       return textCall(`${name}/instant`, [lowerExpr(given[0], scope), str(zone)])
     }
     if (name === 'time' && given.length >= 1 && given.length <= 3 && !inRequestValue) {
-      const rebuilt = []
-      for (let k = 0; k < given.length; k += 1) {
-        const g = given[k]
-        if (k === 0 && g && g.type === 'name' && OWN_TF_NAMES.has(g.name) && scope.lookup(g.name) === null
-          && !env.has(g.name)) { rebuilt.push(g); continue }
-        if (k === 2 && isExchangeZoneNode(g, scope)) { rebuilt.push(g); continue }
-        const c = constantArgOf(g, scope)
-        // ⭐⭐ W4 T3 — the timeframe is the chart's own through a name or a parameter the call
-        // site fixed (`timeinrange(res, sess) => time(res, sess)` called with `timeframe.period`)
-        if (k === 0 && typeof c.ownTf === 'string') {
-          rebuilt.push({ type: 'name', name: c.ownTf, tok: node.tok })
-          continue
-        }
-        if (c.frameName) {
-          throw frameBoundRefusal(c.frameName, at,
-            `is the ${['timeframe', 'session', 'zone'][k]} \`time\` reads the clock on`)
-        }
-        if (typeof c.text !== 'string') return null
-        rebuilt.push(k === 0 && c.text === ''
-          ? { type: 'name', name: 'timeframe.period', tok: node.tok }
-          : { type: 'string', value: c.text, tok: node.tok })
+      const rebuilt = rebuiltSessionClockCall(node, scope)
+      return rebuilt ? column(columnOf(rebuilt, at)) : null
+    }
+    // ⭐ NUMBER PENDING (bt) — `timeframe.in_seconds([tf])` with a timeframe fixed before bar 0 (a
+    // parameter a call site fixes, an input at its value, `""`, the chart's own name) is the
+    // COLUMNAR lane's own answer (`pine.js::timeframeCallOf`, lengths measured on vw-time-tf
+    // T10–T15), rebuilt with a literal argument exactly as `time(tf, …)` is above — one reader
+    // of a timeframe's length, so the two lanes cannot disagree about one.
+    if (name === 'timeframe.in_seconds' && given.length <= 1 && !inRequestValue) {
+      if (given.length === 0) return column(columnOf(node, at))
+      const g = given[0]
+      if (g && g.type === 'name' && OWN_TF_NAMES.has(g.name) && scope.lookup(g.name) === null && !env.has(g.name)) {
+        return column(columnOf(node, at))
       }
-      return column(columnOf({ ...node, args: rebuilt.map((value) => ({ name: null, value, tok: node.tok })) }, at))
+      const c = constantArgOf(g, scope)
+      if (typeof c.ownTf === 'string') {
+        return column(columnOf({ ...node, args: [{ name: null, value: { type: 'name', name: c.ownTf, tok: node.tok }, tok: node.tok }] }, at))
+      }
+      if (c.frameName) throw frameBoundRefusal(c.frameName, at, 'is the timeframe `timeframe.in_seconds` measures')
+      if (typeof c.text !== 'string') return null
+      // `""` is the chart's own timeframe in Pine; the columnar lane withholds that spelling
+      // (`timeframeCallOf`, PHASE 1), so it is handed over as written and refuses there by name.
+      return column(columnOf({ ...node, args: [{ name: null, value: { type: 'string', value: c.text, tok: node.tok }, tok: node.tok }] }, at))
     }
     return null
+  }
+  /** ⭐ W4 T3 — a `time(tf[, session[, zone]])` call rebuilt with LITERAL arguments the columnar
+   *  lane's session clock reads, or `null` when an argument is not text fixed before bar 0. Shared
+   *  by the call itself and by `na(time(…))` (`naOfSessionClock`). */
+  const rebuiltSessionClockCall = (node, scope) => {
+    const given = (node.args || []).map((a) => (a && a.value !== undefined ? a.value : a))
+    const at = locate(node.tok)
+    const rebuilt = []
+    for (let k = 0; k < given.length; k += 1) {
+      const g = given[k]
+      if (k === 0 && g && g.type === 'name' && OWN_TF_NAMES.has(g.name) && scope.lookup(g.name) === null
+        && !env.has(g.name)) { rebuilt.push(g); continue }
+      if (k === 2 && isExchangeZoneNode(g, scope)) { rebuilt.push(g); continue }
+      const c = constantArgOf(g, scope)
+      // ⭐⭐ W4 T3 — the timeframe is the chart's own through a name or a parameter the call
+      // site fixed (`timeinrange(res, sess) => time(res, sess)` called with `timeframe.period`)
+      if (k === 0 && typeof c.ownTf === 'string') {
+        rebuilt.push({ type: 'name', name: c.ownTf, tok: node.tok })
+        continue
+      }
+      if (c.frameName) {
+        throw frameBoundRefusal(c.frameName, at,
+          `is the ${['timeframe', 'session', 'zone'][k]} \`time\` reads the clock on`)
+      }
+      if (typeof c.text !== 'string') return null
+      rebuilt.push(k === 0 && c.text === ''
+        ? { type: 'name', name: 'timeframe.period', tok: node.tok }
+        : { type: 'string', value: c.text, tok: node.tok })
+    }
+    return { ...node, args: rebuilt.map((value) => ({ name: null, value, tok: node.tok })) }
+  }
+  /** ⭐ NUMBER PENDING (bt) — `na(time(tf, session[, zone]))`: membership, asked as ONE columnar
+   *  expression so the session clock knows only membership is read (`pine.js::resolveCall`, the
+   *  `na` arm) — which is what lets a wrapping session (measured for membership only) be served.
+   *  `null` when the call is not that shape or its arguments are not fixed before bar 0. */
+  const naOfSessionClock = (node, scope) => {
+    if (atObjectDoor || inRequestValue) return null
+    if (String(node.name || '') !== 'na' || definedNames.has('na') || isUserFn('na')) return null
+    const args = node.args || []
+    if (args.length !== 1 || (args[0] && args[0].name)) return null
+    const inner = args[0] && args[0].value !== undefined ? args[0].value : args[0]
+    if (!inner || inner.type !== 'call' || inner.name !== 'time' || definedNames.has('time') || isUserFn('time')) return null
+    const innerArgs = inner.args || []
+    if (innerArgs.length < 2 || innerArgs.length > 3 || innerArgs.some((a) => a && a.name)) return null
+    const rebuilt = rebuiltSessionClockCall(inner, scope)
+    if (!rebuilt) return null
+    return column(columnOf({ ...node, args: [{ name: null, value: rebuilt, tok: node.tok }] }, locate(node.tok)))
   }
 
   /** The family a call belongs to, so a refusal names the right matrix row. */
@@ -9330,6 +9387,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // `na` included (any `na` operand makes the sum `na` in both).
         const expanded = callTreeExpansion(node)
         if (expanded) return lowerExpr(expanded, scope, opts)
+        // ⭐ NUMBER PENDING (bt) — `na(time(tf, session))` is ONE columnar membership read.
+        const sessionNa = naOfSessionClock(node, scope)
+        if (sessionNa) return sessionNa
         // ⭐⭐ RT3 — `iff` and `vwma` over runtime state, as the HOST lane spells
         // them (`pine.js::BUILTIN_CALL_TREE`), rebuilt over this call's own nodes.
         const respelled = runtimeRespelling(node, scope)
