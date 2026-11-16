@@ -83,7 +83,8 @@ def start_remote() -> "FeedClient":
     rb = RemoteBroadcaster(on_first_subscribe=bar_stream.subscribe_symbols_one,
                            on_last_unsubscribe=bar_stream.unsubscribe_symbols_one)
     bar_broadcaster.install_broadcaster(rb)
-    _client = FeedClient(rb)
+    from api.services.remote_side_feeds import RemoteSideFeeds
+    _client = FeedClient(rb, side=RemoteSideFeeds())
     _stop = asyncio.Event()
     _task = asyncio.get_running_loop().create_task(_client.run(_stop))
     return _client
@@ -108,8 +109,11 @@ class FeedClient:
     def __init__(self, rb, *, url: Optional[str] = None, secret: Optional[str] = None,
                  client_id: Optional[str] = None,
                  owners_fn: Callable[[], dict] = bar_stream_owners,
-                 connect=None, clock_ms: Optional[Callable[[], int]] = None):
+                 connect=None, clock_ms: Optional[Callable[[], int]] = None,
+                 side=None):
         self.rb = rb
+        # PR5b: NH/NL, volume push, T&S (remote_side_feeds.RemoteSideFeeds), or None.
+        self.side = side
         self.url = url or os.environ.get("STREAM_INGEST_URL", DEFAULT_URL)
         self.secret = secret if secret is not None else os.environ.get("PUSH_SECRET", "")
         self.client_id = client_id or default_client_id()
@@ -145,7 +149,9 @@ class FeedClient:
             pass
 
     def desired(self) -> fp.Desired:
-        return fp.Desired(gen=self.gen, owners=self._owners_fn(), keys=self.rb.desired_keys())
+        seeds, tas = self.side.desired_extras() if self.side is not None else ({}, frozenset())
+        return fp.Desired(gen=self.gen, owners=self._owners_fn(), keys=self.rb.desired_keys(),
+                          nhnl_seeds=seeds, tas_syms=tas)
 
     # ── the connection loop ────────────────────────────────────────────────
 
@@ -215,7 +221,7 @@ class FeedClient:
 
     async def _send_desired(self, ws, force: bool = False) -> None:
         d = self.desired()
-        sig = (d.owners, d.keys)
+        sig = (d.owners, d.keys, d.nhnl_seeds, d.tas_syms)
         if not force and sig == self._last_sent:
             return
         await ws.send(fp.encode(d))
@@ -251,6 +257,8 @@ class FeedClient:
             if action is fp.TrackAction.RESET_AND_APPLY:
                 self.counters["epoch_resets"] += 1
                 self.rb.reset_mirror()
+                if self.side is not None:
+                    self.side.new_epoch()
             elif action is fp.TrackAction.RESYNC:
                 self.counters["resyncs"] += 1
                 raise RuntimeError(f"sequence gap at epoch {msg.epoch} seq {msg.seq}: resync")
@@ -258,9 +266,16 @@ class FeedClient:
                 continue
             self.counters["batches"] += 1
             self.rb.apply_batch(msg)
+            if self.side is not None:
+                try:
+                    self.side.apply(msg)
+                except Exception as e:  # noqa: BLE001 - a side feed never drops the bars feed
+                    self.counters["side_errors"] = self.counters.get("side_errors", 0) + 1
+                    log.warning("[feed_client] side feeds failed: %s: %s", type(e).__name__, e)
 
     def status(self) -> dict:
         return {"source": "remote", "url": self.url, "client_id": self.client_id,
                 "connected": self.connected, "gen": self.gen,
                 "secret_configured": bool(self.secret), "last_error": self.last_error,
-                "counters": dict(self.counters)}
+                "counters": dict(self.counters),
+                "side_feeds": self.side.status() if self.side is not None else None}
