@@ -36,7 +36,7 @@ on:
         default: ""
         type: string
       vitest_shards:
-        description: "split the vitest files over N runners (1-10)"
+        description: "split the vitest files over N runners (1-6; at most 4 run at once)"
         required: false
         default: "1"
         type: string
@@ -152,6 +152,10 @@ jobs:
     timeout-minutes: 45
     strategy:
       fail-fast: false
+      # SHARE THE POOL (2026-11-16): the account runs 40 jobs at once and the master deploy gate needs 14 of them.
+      # Within an hour of launch, several sessions' remote runs plus PR CI queued two gates behind them. One remote
+      # run uses at most 4 vitest runners at a time (plus pytest), so a burst of session runs cannot starve deploys.
+      max-parallel: 4
       matrix:
         shard: ${{ fromJSON(needs.plan.outputs.shards) }}
     steps:

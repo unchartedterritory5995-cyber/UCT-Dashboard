@@ -119,8 +119,13 @@ export default function SharePanel({ defId, defName, onInstalled }) {
     setBusy(true); setError('')
     const r = await publishToLibrary(defId)
     setBusy(false)
-    if (!r.ok) { setError(r.error); return }
-    setListing({ listed: true, requested: true, shared: true })
+    if (!r.ok) {
+      // the server's sentence, plus the one thing the member can do about it
+      setError(`${r.error}${WHAT_TO_DO[r.reason] ? ` ${WHAT_TO_DO[r.reason]}` : ''}`)
+      if (r.reason === 'taken-down') setListing((l) => ({ ...(l || {}), listed: false, takenDown: true }))
+      return
+    }
+    setListing((l) => ({ listed: true, requested: true, shared: true, licence: (l && l.licence) || null }))
     // ⭐ PUBLISHING MINTS THE LINK WHEN THERE ISN'T ONE — a listing nobody can
     // open is a broken row — so the share half of this panel has to learn about it
     // here, or it would keep saying "This formula is private" about something now
@@ -264,17 +269,27 @@ export default function SharePanel({ defId, defName, onInstalled }) {
                   their head, which is the same conflation the schema refuses to
                   make. And it says what publishing will do to the link, because
                   publishing mints one. */}
-              {listing && listing.requested && !listing.shared
-                ? 'This was in the library, but your share link is off — so nothing can open it. Publishing again will turn the link back on.'
-                : 'Nothing is listed until you say so. A share link is private to whoever you send it to; the library is public to every member.'}
+              {listing && listing.takenDown
+                ? 'UCT took this out of the library, so it cannot be listed again. Your copy and any link you sent still work.'
+                : listing && listing.requested && !listing.shared
+                  ? 'This was in the library, but your share link is off — so nothing can open it. Publishing again will turn the link back on.'
+                  : 'Nothing is listed until you say so. A share link is private to whoever you send it to; the library is public to every member.'}
             </p>
             {librarySourceLine}
+            {/* ⭐ THE LICENCE LINE ON PUBLISH (Studio plan, section 8). A script copied from
+                someone else keeps the licence its author gave it, and publishing makes it
+                public, so the member reads it before pressing. */}
+            <p className={styles.note} data-testid="library-licence">
+              {listing && listing.licence
+                ? `Its script says it is under the ${listing.licence}. Publish it only if that licence lets you share it.`
+                : 'Publish only what you have the right to share. A script copied from someone else keeps the licence its author gave it.'}
+            </p>
             <button
               type="button"
               className={styles.btn}
               data-testid="library-publish"
               onClick={publish}
-              disabled={busy || !defId || !shareRead}
+              disabled={busy || !defId || !shareRead || !!(listing && listing.takenDown)}
             >
               <UIcon name="upload" size={14} /> Publish to the library
             </button>
