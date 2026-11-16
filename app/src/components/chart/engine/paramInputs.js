@@ -101,10 +101,12 @@ export function withParamInputs(def) {
   return { ...def, inputs: [...(Array.isArray(def.inputs) ? def.inputs : []), ...specs] }
 }
 
-/** A definition with the projected inputs taken off, for anything written back. */
+/** A definition with EVERY load-time projected input taken off (a `param<N>`, and since 2c a
+ *  run half's own setting, `fromRunHalf`: `runHalfInputs.js`), for anything written back. */
 export function stripParamInputs(def) {
-  if (!isObj(def) || !Array.isArray(def.inputs) || !def.inputs.some((i) => i && i.fromParam)) return def
-  return { ...def, inputs: def.inputs.filter((i) => !(i && i.fromParam)) }
+  const projected = (i) => !!(i && (i.fromParam || i.fromRunHalf))
+  if (!isObj(def) || !Array.isArray(def.inputs) || !def.inputs.some(projected)) return def
+  return { ...def, inputs: def.inputs.filter((i) => !projected(i)) }
 }
 
 /** Why a value cannot be computed for a parameter setting, or null. The instance

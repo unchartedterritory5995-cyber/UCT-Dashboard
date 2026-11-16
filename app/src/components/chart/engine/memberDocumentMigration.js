@@ -77,6 +77,8 @@ import { treesHash } from './ast/trees.js'
 import { widthControlMax } from '../builder/builderInputs.js'
 // ⭐ SETTINGS PARITY (2a): a folded parameter is declared as a chart setting on load (`paramInputs.js`).
 import { withParamInputs } from './paramInputs.js'
+// ⭐ SETTINGS PARITY (2c): the settings only a run half reads, declared on load the same way.
+import { withRunHalfInputs } from './runHalfInputs.js'
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 
@@ -232,7 +234,7 @@ export function migrateMemberDocument(def) {
   // ⭐ SETTINGS PARITY (2a): every attached folded parameter is also declared as an `int` /
   // `float` input (`param<N>`, the author's title and bounds), so a member can change it per
   // chart. Applied LAST, on the repaired trees; never written back (`stripParamInputs`).
-  const out = withParamInputs(upgradeFromDoorStamps(migrateWidthControlMax(handle)))
+  const out = withRunHalfInputs(withParamInputs(upgradeFromDoorStamps(migrateWidthControlMax(handle))))
   memo.set(def, out)
   if (out !== def) memo.set(out, out)
   return out

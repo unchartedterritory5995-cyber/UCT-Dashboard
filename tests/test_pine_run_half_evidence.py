@@ -290,3 +290,12 @@ def test_E7_substituted_objects_v2_never_counts_on_a_plain_record(tmp_path, monk
     _allowlist(tmp_path, monkeypatch, [rec])
     assert rt.allow_report(with_capabilities=False)["served"], "the record itself is served"
     assert rt.run_half_evidence() == []
+
+
+# ── E8 (settings parity 2c) ── a run half at a member's settings, admitted per moved setting ─────
+def test_E8_the_server_settings_rule_answers_every_parity_case():
+    cases = PARITY["settings_cases"]
+    wrong = [c["name"] for c in cases
+             if list(rt.run_half_settings_admits(c["entry"], c["moved"])) != [c["ok"], c["missing"]]]
+    assert wrong == []
+    assert any(c["ok"] for c in cases) and any(not c["ok"] for c in cases)

@@ -23,6 +23,7 @@
 // zero. An object at coordinate zero is a drawing; an object that did not draw
 // is a fact.
 import { nodeTree } from './ast/graph'
+import { runHalfOnlySettingMoved } from './runHalfInputs.js'
 import { calcBarsWindowOf } from './calcBarsWindow.js'
 import { graphNodesReferenced, bindObjectProgram, runtimeAtIndex, withBarIndexHeld } from './ast/objectProgram'
 import {
@@ -611,6 +612,9 @@ function chartClockRows(map) {
 export function objectReaderFor(definition, bars, opts = {}) {
   const stored = definition && definition.objects
   if (!stored || !Array.isArray(stored.ops) || !stored.ops.length) return null
+  // ⭐ SETTINGS PARITY (2c) — a setting only the run half reads has been moved: this program
+  // folded it at the author's default, so it draws nothing (`runHalfInputs.runHalfOnlySettingMoved`)
+  if (runHalfOnlySettingMoved(definition, opts.inputs)) return null
   // ⭐⭐ C29 — the plot lane's own rule (`periodReads.js`): a document folded at
   // another chart period draws NOTHING here rather than the other period's text.
   if (periodReadsObjectRefusal(definition, opts.tf)) return null

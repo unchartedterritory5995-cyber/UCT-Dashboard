@@ -171,7 +171,10 @@ import { definitionHasLiveTail, liveTailSignature } from './liveTail'
 import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash, runtimeFormingRefusalOf, RUNTIME_FORMING_GUARD } from './runtimeKill'
 // ⭐⭐ ENGINE 54 — the run half's program binding, object rail (registered) and refusal telemetry
 import { runHalfProgramBound, runHalfProgramStamped } from './runHalfProgram.js'
-import { registeredRunHalfObjectRail } from './runHalfRailSeam.js'
+import { registeredRunHalfObjectRail, runHalfSettingsAdmitted } from './runHalfRailSeam.js'
+// ⭐ SETTINGS PARITY (2c): the run half is handed the chart's own values (`runHalfInputs.js`)
+import { runHalfRunInputs } from './runHalfInputs.js'
+import { runtimeInputSpecsOf } from './runtime/runtimeInputs.js'
 import { noteRunHalfAnswer } from './runHalfTelemetry.js'
 import { runtimePaneEnabled, runtimePaneBuilt, runtimePanePermitted } from './runtimePaneGate'
 // ⭐ W5-T2 — the lower-timeframe gate is registered at this door (`lowerTfServing.js`),
@@ -3528,6 +3531,10 @@ function runHalfDefOf(def, ro) {
         kind: 'runtime', fn: `runtime:${def.id}~run`, rev: 1,
         source: ro.source, outputs: Object.freeze({ ...(ro.outputs || {}) }), objects: true,
       }),
+      // ⭐ SETTINGS PARITY (2c) — the script's own literal settings, keyed by Pine name (the runtime
+      // pane's reader), so `runtimeColumnsFor` hands the run the values it is given: at every default
+      // it is handed nothing and builds the author's program, exactly as before
+      inputs: Object.freeze(runtimeInputSpecsOf(ro.source).specs.map((x) => Object.freeze({ ...x }))),
       meta: Object.freeze(meta),
     })
     _runHalfDefs.set(ro, rt)
@@ -3614,7 +3621,21 @@ function withRunHalf(def, out, bars, inputs, ctx) {
   }
   const stop = runtimeErrorStopOf(out)
   if (stop && stop.reached) return refused('runtime:runtime.error')
-  if (!runtimeColoursAtDefaults(def, inputs)) return refused('runtime:member-inputs')
+  // ⭐⭐ SETTINGS PARITY (2c) — THE RUN HALF AT THE CHART'S OWN SETTINGS. It was refused the moment
+  // any setting moved (the run built the author's program, `inputs: {}`). Now the run is handed
+  // the instance's values in its own names (`runHalfRunInputs`: a host input by its Pine name, a
+  // folded length by its `sourceName`, a drawing-only setting by its key), and the column rail
+  // below still holds every mapped run column to the host's at those same settings. A moved
+  // setting is served only on recorded evidence (`runHalfSettingsAdmitted`: two captures that
+  // count, taken with that setting moved, graded against TradingView); a moved setting the run
+  // cannot be handed (a plot colour) or one without evidence is refused by name, as before.
+  const runIn = runHalfRunInputs(def, inputs)
+  if (!runIn.ok) return refused('runtime:member-inputs')
+  // only a moved setting a DRAWING can read needs evidence of its own (`drawingReadNames`): one no
+  // drawing reads (an average's length) leaves the drawings the defaults' evidence already graded
+  if (runIn.needsEvidence.length && !runHalfSettingsAdmitted(runHalfSourceHashOf(ro), runIn.needsEvidence).ok) {
+    return refused('runtime:member-inputs')
+  }
   if (!_runtimeLane) {
     if (_runtimeLoadFailed !== null) return refused(RUNTIME_LOAD_FAILED_GUARD)
     if (loadRuntimeLane()) return answered('pending', 'runtime:not-loaded')
@@ -3622,7 +3643,7 @@ function withRunHalf(def, out, bars, inputs, ctx) {
   }
   let cols
   try {
-    cols = _runtimeLane(runHalfDefOf(def, ro), bars, {}, ctx)
+    cols = _runtimeLane(runHalfDefOf(def, ro), bars, runIn.values, ctx)
   } catch (err) {
     // ONE WITHHOLDING, ONE REASON (2026-11-16). A run waiting for another symbol's bars is a
     // run in flight, not a refusal: seen on production, the note under a chart read "the script
