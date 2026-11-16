@@ -448,4 +448,11 @@ describe('COND-TA — 6. a guard on a parameter every call site fixes is bar-con
     expect(lenient(typed).outputs[0].refusal).toBeFalsy()
     expect(strict(typed).blockRuns).toBeUndefined()
   })
+  // ⭐ 19-strategy-supertrend-atr: `filterLong(enable)` calls `filter(enable)`. A parameter passed
+  // on is fixed where the caller's own parameter is, at every call of the caller.
+  it('a parameter passed through another function is fixed only when that function’s is', () => {
+    const through = (site) => SEL(site, ['outer(q) => pick(q)'])
+    expect(lenient(through('outer(m)')).outputs[0].refusal).toBeFalsy()
+    expect(lenient(through('outer(close > open ? 1 : 0)')).outputs[0].refusal.guard).toBe('pine:block')
+  })
 })

@@ -1035,61 +1035,84 @@ export function guardIsBarInvariant(toks, names) {
  *  ⛔ FAIL CLOSED, each by name: a method or an overload (the body Pine picks is by type); a call
  *  with a named argument, or with a count other than the definition's (a default would stand in);
  *  a function with no call site at all; an argument written inside ANOTHER function's body that
- *  reads one of that function's parameters (its value is that call's, not the run's); and any
- *  argument `allInvariant` does not admit (a series, a history read, a call of a script function). */
+ *  reads one of that function's parameters, unless that parameter is itself proven fixed
+ *  (`filterLong(enable)` calling `filter(enable)`, 19-strategy-supertrend-atr: proven only once
+ *  every call of `filterLong` is); and any argument `allInvariant` does not admit (a series, a
+ *  history read, a call of a script function). */
 export function barInvariantParams(stmts, h, names) {
   const out = new Map()
   if (!names) return out
   let defs
   try { defs = readFunctionDefs(stmts, h) } catch { return out }
-  const recs = new Map()
-  for (const [name, def] of defs) {
-    if (def.isMethod || def.overloaded || !def.params.length) continue
-    recs.set(name, { flags: def.params.map(() => true), sites: 0 })
-  }
-  if (!recs.size) return out
-  const scan = (toks, from, hidden) => {
-    for (let i = from; i < toks.length; i += 1) {
-      const tk = toks[i]
-      if (!tk || tk.kind !== 'ident' || tk.member) continue
-      const rec = recs.get(String(tk.value))
-      if (!rec) continue
-      const args = h.isPunct(toks[i + 1], '(') ? splitArgs(toks, i + 1, h.isPunct) : null
-      if (!args || args.length !== rec.flags.length || args.some((a) => a.name !== null)) {
-        rec.flags = rec.flags.map(() => false)
-        continue
-      }
-      rec.sites += 1
-      args.forEach((a, k) => {
-        if (!a.toks.length
-            || a.toks.some((x) => x.kind === 'ident' && hidden.has(String(x.value)))
-            || !allInvariant(a.toks, 0, a.toks.length, names)) rec.flags[k] = false
-      })
-    }
-  }
+  const eligible = [...defs].filter(([, def]) => !def.isMethod && !def.overloaded && def.params.length)
+  if (!eligible.length) return out
   const NONE = new Set()
-  const walk = (list, hidden) => {
-    for (const st of list || []) {
-      scan(st.header || [], 0, hidden)
-      if (st.sub && st.sub.length) walk(st.sub, hidden)
+  /** One pass: every call site judged against `known` (the parameters proven so far). */
+  const pass = (known) => {
+    const recs = new Map(eligible.map(([name, def]) => [name, { flags: def.params.map(() => true), sites: 0 }]))
+    // `hidden`: the enclosing function's parameters; `fixed`: those of them already proven
+    const scan = (toks, from, hidden, fixed) => {
+      // a parameter hides a top-level name of its spelling; a proven one is an invariant name here
+      let scoped = names
+      if (hidden.size) {
+        scoped = new Set(names)
+        for (const p of hidden) scoped.delete(p)
+        for (const p of fixed) scoped.add(p)
+      }
+      for (let i = from; i < toks.length; i += 1) {
+        const tk = toks[i]
+        if (!tk || tk.kind !== 'ident' || tk.member) continue
+        const rec = recs.get(String(tk.value))
+        if (!rec) continue
+        const args = h.isPunct(toks[i + 1], '(') ? splitArgs(toks, i + 1, h.isPunct) : null
+        if (!args || args.length !== rec.flags.length || args.some((a) => a.name !== null)) {
+          rec.flags = rec.flags.map(() => false)
+          continue
+        }
+        rec.sites += 1
+        args.forEach((a, k) => {
+          if (!a.toks.length || !allInvariant(a.toks, 0, a.toks.length, scoped)) rec.flags[k] = false
+        })
+      }
     }
+    const walk = (list, hidden, fixed) => {
+      for (const st of list || []) {
+        scan(st.header || [], 0, hidden, fixed)
+        if (st.sub && st.sub.length) walk(st.sub, hidden, fixed)
+      }
+    }
+    for (const st of stmts || []) {
+      const head = definitionHeader(st.header, h)
+      if (!head) { scan(st.header || [], 0, NONE, NONE); walk(st.sub, NONE, NONE); continue }
+      const def = defs.get(head.name)
+      const hidden = new Set(def ? def.params.map((p) => p.name) : [])
+      const fixed = known.get(head.name) || NONE
+      // ⛔ the definition's own header up to `=>` is not a call site
+      scan(st.header, head.arrow + 1, hidden, fixed)
+      walk(st.sub, hidden, fixed)
+    }
+    const found = new Map()
+    for (const [name, rec] of recs) {
+      if (!rec.sites) continue
+      const def = defs.get(name)
+      const set = new Set(def.params.filter((_, k) => rec.flags[k]).map((p) => p.name))
+      if (set.size) found.set(name, set)
+    }
+    return found
   }
-  for (const st of stmts || []) {
-    const head = definitionHeader(st.header, h)
-    if (!head) { scan(st.header || [], 0, NONE); walk(st.sub, NONE); continue }
-    const def = defs.get(head.name)
-    const hidden = new Set(def ? def.params.map((p) => p.name) : [])
-    // ⛔ the definition's own header up to `=>` is not a call site
-    scan(st.header, head.arrow + 1, hidden)
-    walk(st.sub, hidden)
+  // ⭐ FROM NOTHING UPWARD: a pass can only prove more than the one before it (a proven parameter
+  // only ever makes an argument MORE readable), so the loop grows to its least fixed point and a
+  // function that passes its parameter to itself, or two that pass theirs to each other, prove
+  // nothing. Bounded by the parameter count.
+  let known = new Map()
+  const sizeOf = (m) => [...m.values()].reduce((n, set) => n + set.size, 0)
+  const cap = eligible.reduce((n, [, def]) => n + def.params.length, 0) + 1
+  for (let round = 0; round < cap; round += 1) {
+    const next = pass(known)
+    if (sizeOf(next) === sizeOf(known)) return next
+    known = next
   }
-  for (const [name, rec] of recs) {
-    if (!rec.sites) continue
-    const def = defs.get(name)
-    const set = new Set(def.params.filter((_, k) => rec.flags[k]).map((p) => p.name))
-    if (set.size) out.set(name, set)
-  }
-  return out
+  return new Map()
 }
 
 /** ⭐ C14 — `toks[from..]` is exactly one getter on a NAMED handle:
