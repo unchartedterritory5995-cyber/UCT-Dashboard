@@ -141,6 +141,10 @@ COMMITTED = {
     # CBC-FMT (fix/pine-engine-calcbars-format): the questions capture session S10 answered, closed with the capture
     # that answered each (the doc's own `not a capture` table)
     "capture-queue-2026-11-15-calc-bars": {r: "closed" for r in ("Q-CBC1", "Q-CBC3", "Q-CBC4", "Q-CBC5", "Q-FMT1")},
+    # 2026-11-16 (coordinator ruling on #1472): the `sar()` expansion's 200-bar window does not converge on
+    # vw-lower-tf-bars-rddt-15-2026-11-16; the capture is in the harness, the fix is a build that flips the KNOWN
+    # `it.fails` in sar.test.js (its control pins 43 bars / 5167-5246 / 17 by name)
+    "capture-queue-2026-11-16-sar-window": {"sar() window": "engine-gap"},
 }
 
 

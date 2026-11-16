@@ -271,9 +271,14 @@ export function createPersist({
      * dispatched with the gen it was read under, so a hit that lands after an invalidate is
      * dropped by the reducer.
      */
-    async hydrate(key) {
+    /**
+     * The SYNCHRONOUS half of `hydrate`: the mem record only. For a reader that already has an
+     * entry holding no rows (a peek made it before a warmer promoted the key to the mem cache)
+     * and must not start another pair of IDB reads to look again. Returns the mem entry or null.
+     */
+    hydrateMem(key) {
       const p = parseKey(key)
-      if (!p || p.window) return registry.getSnapshot(key)
+      if (!p || p.window) return null
       const gen = registry.getSnapshot(key).gen
       const m = IO.memPeekEntry(p.sym, p.cacheTf)
       if (m?.bars?.length) {
@@ -281,6 +286,13 @@ export function createPersist({
         registry.dispatch(key, { type: ACTION.MEM_HIT, key, gen, payload: { ...decodeEntry(key, m), saved_at: m.savedAt ?? null, repair_from: repair } })
         _noteSaved(key, m.savedAt)
       }
+      return m?.bars?.length ? m : null
+    },
+    async hydrate(key) {
+      const p = parseKey(key)
+      if (!p || p.window) return registry.getSnapshot(key)
+      const gen = registry.getSnapshot(key).gen
+      const m = this.hydrateMem(key)
       let e = null
       try { e = await IO.idbGet(p.sym, p.cacheTf) } catch { e = null }
       if (e?.bars?.length) {
