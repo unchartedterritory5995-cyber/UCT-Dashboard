@@ -4042,7 +4042,15 @@ function dailySessionVwap(name, bars, args, length, opts) {
     const b = bars[i]
     if (!(b.v > 0)) continue
     const v = src ? src[i] : (b.h + b.l + b.c) / 3
-    out[i] = typeof v === 'number' && !Number.isNaN(v) ? v : NaN
+    // ⭐⭐ Q-ROB5 (2026-11-16) — THE SESSION'S OWN ARITHMETIC, `(price * volume) / volume`, NOT THE
+    // PRICE. A one-bar session's sums are `price * volume` and `volume`, and their quotient is not
+    // always the price bit for bit (one unit in the last place, either way). MEASURED: on
+    // `h3-vwap-source-spy-1d-2026-10-02` the quotient is TradingView's value on 1800 of 1800 bars for
+    // S01..S07 against 1626-1674 for the bare price; on `mtf-key-levels-support-and-resistance-rddt-1d-
+    // 2026-11-14` the script's `ceil(vwap * 100) / 100` (round up to the tick) reads TradingView's
+    // D-VWAP on every bar with the quotient and misses 5 with the price. ⚰️ Returning the price drew
+    // that D-VWAP 0.01 low on those bars (57.29 for 57.3): a tolerance hid the unit, `ceil` did not.
+    out[i] = typeof v === 'number' && !Number.isNaN(v) ? (v * b.v) / b.v : NaN
   }
   return out
 }
