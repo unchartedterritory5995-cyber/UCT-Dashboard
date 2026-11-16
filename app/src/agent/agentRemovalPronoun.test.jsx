@@ -43,6 +43,8 @@ const rail = (b, refs, words, opts = {}) => {
 }
 const ASKED = /^Which chart should I close\? Nothing is selected, so I can’t tell which chart “[^”]+” means/
 const REFUSED = /^Which chart should I close\?/
+const GATE = /you didn’t ask to remove a chart/
+const NOT_CHART = /^I didn’t close a chart: “[^”]+” here (?:means the |is about something on the chart)/
 
 // ── the removal verbs, each in the place it takes its object ──
 const VERBS = {
@@ -89,6 +91,10 @@ describe(`PRONOUN · generated: pronoun × verb × context × board × plan targ
     if (ctx === 'none' || (ctx === 'sole' && PLURAL.has(p))) {
       // nothing resolves it → asked, never applied (them / those on the sole chart: no set named → asked)
       expect(got, words).toMatch(ASKED)
+    } else if ((ctx === 'sole' || j === k) && verb === 'take off' && !/ one$/.test(p)) {
+      // ⛔ probe 62 A1: "take <it> off" alone is no chart removal (it may be the indicator just added) — the removal gate refuses
+      // it as on master, whatever the pronoun resolves to; never applied ("take that one off": #1416's REMOVAL_TAKE, as before)
+      expect(got, words).toMatch(GATE)
     } else if (ctx === 'sole') {
       expect(got, words).toBeNull()
     } else if (j === k) {
@@ -126,8 +132,8 @@ describe('PRONOUN · precedence and sets', () => {
     expect(rail(B(), 'c2', 'remove that')).toBeNull()
     expect(rail(B(), 'c3', 'remove that')).toMatch(REFUSED)
   })
-  it('"take it off" passes the removal gate (the target is checked)', () => {
-    expect(rail(boardOf(SYMS.slice(0, 3), { selected: 'c2' }), 'c2', 'take it off')).toBeNull()
+  it('probe 62 A1: "take it off" (an indicator was just added) never closes the selected chart — refused as on master', () => {
+    expect(rail(boardOf(SYMS.slice(0, 3), { selected: 'c2' }), 'c2', 'take it off')).toMatch(GATE)
     expect(rail(boardOf(SYMS.slice(0, 3), { selected: 'c2' }), 'c1', 'take it off')).toMatch(REFUSED)
   })
 })
@@ -157,6 +163,79 @@ describe('PRONOUN · controls', () => {
   })
   it('a pronoun with no removal plan changes nothing: "make it weekly" is no removal', () => {
     expect(rail(boardOf(SYMS.slice(0, 3)), 'c1', 'make it weekly')).toMatch(/you didn’t ask to remove a chart/)
+  })
+})
+
+// ── ⛔ AUDIT probe 62 · ANTECEDENT: words that name a thing ON a chart before the pronoun → the pronoun is THAT thing; a plan closing a
+// chart is refused. GENERATED: each vocabulary source × a sample of its nouns × pronoun × removal verb × context × plan target.
+// (the sources are the Agent's own readers: deixis PLACED / ONE_IS_A_THING / the live indicator catalog's ids, stateRail CLASS)
+const ANTECEDENTS = {
+  'deixis PLACED (chart-surface nouns)': ['an alert', 'a note', 'a level', 'volume', 'a label', 'a marker', 'a drawing', 'an overlay'],
+  'deixis ONE_IS_A_THING': ['a pane', 'a study', 'an indicator', 'a list'],
+  'indicator catalog ids (knownIndicator)': ['an RSI', 'a MACD', 'the vwap', 'an ATR', 'the obv', 'an adx', 'a supertrend', 'a stochrsi'],
+  'stateRail CLASS.indicator': ['a 50 day moving average', 'an ema', 'a 20 sma', 'bollinger bands', 'a signal line'],
+  'stateRail CLASS.drawing': ['a trendline', 'a fib', 'a rectangle', 'an annotation', 'a ray', 'a horizontal', 'a pitchfork'],
+}
+// (never a verb list: the clause that names the thing takes any verb, or none)
+const LEADS = [(t) => `add ${t}, then `, (t) => `I just put ${t} on there and now `, (t) => `${t}? `]
+const ANT_CASES = []
+for (const [src, nouns] of Object.entries(ANTECEDENTS)) for (const noun of nouns) for (const p of ['it', 'that', 'this', 'them']) for (const verb of Object.keys(VERBS)) {
+  for (const ctx of ['none', 'selected', 'conversation', 'sole']) ANT_CASES.push([src, noun, p, verb, ctx])
+}
+describe(`ANTECEDENT · a pronoun after a non-chart thing never closes a chart (${ANT_CASES.length} cases × 3 leads × each plan target)`, () => {
+  it.each(ANT_CASES)('%s · "%s" · "%s" · %s · %s', (_src, noun, p, verb, ctx) => {
+    const n = ctx === 'sole' ? 1 : 3
+    for (const lead of LEADS) for (let j = 0; j < n; j++) {
+      const words = `${lead(noun)}${VERBS[verb](p)}`
+      const b = boardOf(SYMS.slice(0, n), { selected: ctx === 'selected' ? 'c2' : null })
+      const got = rail(b, `c${j + 1}`, words, { subject: ctx === 'conversation' ? 'c2' : null })
+      expect(got, `${words} · plan closes #${j + 1}`).not.toBeNull()
+      expect(got, words).toMatch(NOT_CHART)
+    }
+  })
+  it.each(['I put an RSI on the SPY chart, now delete it', 'add a trendline to my SPY chart and get rid of it', 'set an alert on the left chart, then close it'])('a chart word that only says WHERE a thing went is a place: "%s" → the thing; no chart closes', (words) => {
+    for (const j of [0, 1, 2]) expect(rail(boardOf(SYMS.slice(0, 3), { selected: 'c1' }), `c${j + 1}`, words), words).toMatch(NOT_CHART)
+  })
+  it('a chart word nearer the pronoun wins: "I added an rsi earlier; the SPY chart is done, close it" closes SPY, never another', () => {
+    const words = 'I added an rsi earlier; the SPY chart is done, close it'
+    expect(rail(boardOf(SYMS.slice(0, 3), { selected: 'c1' }), 'c1', words)).toBeNull()
+    expect(rail(boardOf(SYMS.slice(0, 3), { selected: 'c1' }), 'c2', words)).toMatch(REFUSED)
+  })
+  it('a chart named elsewhere in the words is still closed: "add an RSI, delete it, and close the SPY chart"', () => {
+    expect(rail(boardOf(SYMS.slice(0, 3)), 'c1', 'add an RSI, delete it, and close the SPY chart')).toBeNull()
+    expect(rail(boardOf(SYMS.slice(0, 3)), 'c2', 'add an RSI, delete it, and close the SPY chart')).toMatch(REFUSED)
+  })
+})
+
+// ── ⛔ probe 62 · CONTINUATIONS: a pronoun (or its particle) the words go on past — to / of / a / an / by / into, "from the chart" —
+// is no removal object. GENERATED: continuation × pronoun × verb × context × plan target → never applied.
+const CONTS = ['to weekly', 'to the 5 minute', 'a timeframe', 'a notch', 'of drawings', 'of all the lines', 'by one timeframe', 'into the daily', 'from the chart']
+const CONT_VERBS = {
+  close: (p, c) => `close ${p} ${c}`,
+  remove: (p, c) => `remove ${p} ${c}`,
+  delete: (p, c) => `delete ${p} ${c}`,
+  'get rid of': (p, c) => `get rid of ${p} ${c}`,
+  drop: (p, c) => `drop ${p} ${c}`,
+  'take off': (p, c) => `take ${p} off ${c}`,
+  'take down': (p, c) => `take ${p} down ${c}`,
+  'take down (verb first)': (p, c) => `take down ${p} ${c}`,
+  clear: (p, c) => `clear ${p} ${c}`,
+}
+const CONT_CASES = []
+for (const c of CONTS) for (const p of REMOVAL_PRONOUNS) for (const verb of Object.keys(CONT_VERBS)) for (const ctx of ['none', 'selected', 'conversation', 'sole']) CONT_CASES.push([c, p, verb, ctx])
+describe(`CONTINUATION · a pronoun the words go on past is no removal (${CONT_CASES.length} cases × each plan target)`, () => {
+  it.each(CONT_CASES)('"… %s" · "%s" · %s · %s', (c, p, verb, ctx) => {
+    const words = CONT_VERBS[verb](p, c)
+    const n = ctx === 'sole' ? 1 : 3
+    expect(removalPronouns(words).some(x => x.cont), words).toBe(true)
+    for (let j = 0; j < n; j++) {
+      const b = boardOf(SYMS.slice(0, n), { selected: ctx === 'selected' ? 'c2' : null })
+      const got = rail(b, `c${j + 1}`, words, { subject: ctx === 'conversation' ? 'c2' : null })
+      expect(got, `${words} · plan closes #${j + 1}`).not.toBeNull()
+    }
+  })
+  it.each(['take this down a timeframe', 'take it down to weekly', 'clear it of drawings', 'take that off of the chart'])('probe 62: "%s" with QQQ selected and a plan closing QQQ → refused', (words) => {
+    expect(rail(boardOf(SYMS.slice(0, 3), { selected: 'c2' }), 'c2', words)).not.toBeNull()
   })
 })
 
@@ -199,5 +278,20 @@ describe('PRONOUN · end to end on SPY · QQQ · IWM (AUDIT probe 61a)', () => {
     await r.say('close it')
     expect(r.left()).toEqual(['SPY', 'QQQ', 'IWM'])
     expect(r.transcript()).toMatch(/Which chart should I close\?/)
-  }, 60000)
+  }, 60000)  // ⛔ AUDIT probe 62a-type: QQQ selected, a plan closing QQQ, words whose pronoun is NOT the chart → the board unchanged
+  it.each([
+    ['take it off', /you didn’t ask to remove a chart/],
+    ['take this down a timeframe', /I didn’t close a chart/],
+    ['take it down to weekly', /I didn’t close a chart/],
+    ['draw a trendline and delete it', /I didn’t close a chart: “it” here means the trendline/],
+    ['set an alert, then get rid of it', /I didn’t close a chart: “it” here means the alert/],
+    ['I just added an RSI, close it', /I didn’t close a chart: “it” here means the rsi/],
+    ['clear it of drawings', /I didn’t close a chart/],
+  ])('probe 62a: "%s" with QQQ selected and a plan closing QQQ → refused, the board unchanged', async (words, said) => {
+    const p = mountPanel({ selected: 'c2' })
+    p.plan('c2')
+    await p.say(words)
+    expect(p.left()).toEqual(['SPY', 'QQQ', 'IWM'])
+    expect(p.transcript()).toMatch(said)
+  }, 30000)
 })
