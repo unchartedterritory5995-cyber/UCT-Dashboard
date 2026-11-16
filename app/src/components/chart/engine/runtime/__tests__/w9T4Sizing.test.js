@@ -357,20 +357,22 @@ describe('W9-T4 the member door (gate on, committed ledger)', () => {
     try { return { cols: computeRuntimeColumns(doc(src), UP, CTX) } } catch (err) { return { err } }
   }
   // A default percent-of-equity size (declared at v5, the v6 default): B-QTY and B-DEFAULTS are pinned, so
-  // the run no longer stops as unpinned. It stops at the size itself: this door derives the symbol's
-  // minimum contract from the witnessed table, which holds no row (`symbolScope.json::min_contract`).
-  for (const src of [
-    `//@version=5\nstrategy("t", default_qty_type = strategy.percent_of_equity, default_qty_value = 10)\n${CYCLE}`,
-    '//@version=6\nstrategy("t")\nif bar_index == 3\n    strategy.entry("L", strategy.long)\nplot(strategy.position_size)\n',
-  ]) {
-    it(`a default percent size stops at the minimum contract, not at a pin (Q-S1a): ${src.split('\n')[1]}`, () => {
-      const { err } = door(src)
-      expect(err && err.guard).toBe('runtime:strategy-unsettled')
-      expect(err.probe).toBe('Q-S1a')
-      expect(err.message).toMatch(/this symbol's minimum contract is not known to this run/)
-      expect(err.message).not.toMatch(/is not pinned by a matching TradingView capture/)
-    })
-  }
+  // the run no longer stops as unpinned. This door derives the symbol's minimum contract from the witnessed
+  // table (`symbolScope.json::min_contract`), which holds NYSE = 1 since 2026-11-16 (the capture of the committed
+  // probe on NYSE:RDDT). ⚰️ Both shapes below stopped at Q-S1a (the minimum contract unknown) until then; an
+  // exchange with no row still does (`w9MinContractSource.test.js`, NASDAQ:AAPL in its own table).
+  it('a declared 10% size on NYSE:RDDT sizes and the run completes (the minimum contract is witnessed)', () => {
+    const { err, cols } = door(`//@version=5\nstrategy("t", default_qty_type = strategy.percent_of_equity, default_qty_value = 10)\n${CYCLE}`)
+    expect(err, err && err.message).toBeUndefined()
+    expect(cols).toBeTruthy()
+  })
+  it('the v6 default (100% of equity) sized on the signal close and filled at a higher open stops at the funds, by name (Q-S1i), never a pin', () => {
+    const { err } = door('//@version=6\nstrategy("t")\nif bar_index == 3\n    strategy.entry("L", strategy.long)\nplot(strategy.position_size)\n')
+    expect(err && err.guard).toBe('runtime:strategy-unsettled')
+    expect(err.probe).toBe('Q-S1i')
+    expect(err.message).not.toMatch(/minimum contract is not known/)
+    expect(err.message).not.toMatch(/is not pinned by a matching TradingView capture/)
+  })
   it('a fixed size, every rule it exercises pinned: the run completes', () => {
     const { err, cols } = door(`//@version=6\nstrategy("t", default_qty_type = strategy.fixed, default_qty_value = 1)\n${CYCLE}`)
     expect(err, err && err.message).toBeUndefined()
