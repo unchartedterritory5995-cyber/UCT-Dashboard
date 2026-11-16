@@ -2,8 +2,9 @@
 //
 // W9-T13b rails: the strategy report panel renders `strategyReportOf(record)` EXACTLY.
 //   - fixtures: every served metric served; mixed served/refused (an unpinned rule); a whole-report
-//     refusal (a run-wide refusal and a record the report cannot read); zero trades; the product
-//     default (the committed, empty pin ledger).
+//     refusal (a run-wide refusal and a record the report cannot read); zero trades; nothing pinned
+//     (an empty ledger); the product default (the COMMITTED ledger, which since engine 60 pins the
+//     rules this record used) and, under it, a record that used a rule the ledger does not pin.
 //   - sentence-exact: each refused metric's cell IS the report's sentence; the D2 start sentence
 //     is the record's, verbatim, and it is visible on every tab.
 //   - no guard id string (`runtime:...`, `pine:...`) reaches the DOM, on any tab, in any fixture.
@@ -30,6 +31,7 @@ import {
 import { strategyRecordOf } from '../engine/runtime/strategyRecord.js'
 import { orderLogFor } from '../engine/runtime/__tests__/orderLogFixture.js'
 import { UNPINNED_GUARD } from '../engine/runtime/brokerRules.js'
+import RESOLVED from '../engine/runtime/brokerPins.resolved.json'
 import { BROKER_UNSETTLED_GUARD, BROKER_START_GUARD } from '../engine/runtime/broker.js'
 import { setStrategyRecord, resetStrategyRecords } from '../engine/strategyReportNotice'
 
@@ -46,8 +48,9 @@ const tr = (id, dir, qty, e, x, exact = true) => ({
   entry: { time: at(e[0]), price: e[1], rule: 'B-MARKET' },
   ...(x ? { exit: { time: at(x[0]), price: x[1], rule: 'B-CLOSE' } } : {}),
 })
-const recordOf = (trades, { fromListing = false } = {}) => strategyRecordOf({
-  summary: { record: { trades, orders: orderLogFor(trades), rulesUsed: ['B-MARKET', 'B-CLOSE'], symbol: { mintick: 0.01, pointvalue: 1 } } },
+const USED = ['B-MARKET', 'B-CLOSE']
+const recordOf = (trades, { fromListing = false, rulesUsed = USED } = {}) => strategyRecordOf({
+  summary: { record: { trades, orders: orderLogFor(trades), rulesUsed, symbol: { mintick: 0.01, pointvalue: 1 } } },
   decl: { version: 5, initialCapital: 100000, defaultQty: 1, pyramiding: 1, fromListing, defaulted: {} },
   barTimes: BAR_TIMES, historyWindowBars: 5000, confirmed: true,
 })
@@ -60,6 +63,14 @@ const A = recordOf([
   tr('L4', 'long', 1, [13, 30], null),
 ])
 const ZERO = recordOf([])
+// the same trades from a run that also reached B-PYR, a rule the committed ledger does not pin
+const A_UNPINNED_RULE = recordOf([
+  tr('L1', 'long', 2, [1, 10], [3, 13]),
+  tr('S1', 'short', 1, [4, 20], [6, 25]),
+  tr('L2', 'long', 3, [7, 5], [9, 5]),
+  tr('L3', 'long', 1, [10, 50], [12, 54]),
+  tr('L4', 'long', 1, [13, 30], null),
+], { rulesUsed: [...USED, 'B-PYR'] })
 const RUN_REFUSED = {
   ...A,
   refusals: [{ rule: 'B-PATH', guard: UNPINNED_GUARD, time: at(5),
@@ -72,7 +83,9 @@ const FIXTURES = {
   zeroTrades: strategyReportOf(ZERO, { isPinned: ALL }),
   runRefused: strategyReportOf(RUN_REFUSED, { isPinned: ALL }),
   badRecord: strategyReportOf({ schema: 'nope' }, { isPinned: ALL }),
+  nothingPinned: strategyReportOf(A, { isPinned: () => false }),
   productDefault: strategyReportOf(A),
+  productDefaultUnpinnedRule: strategyReportOf(A_UNPINNED_RULE),
   fromListing: strategyReportOf(recordOf([], { fromListing: true }), { isPinned: ALL }),
 }
 
@@ -97,7 +110,12 @@ describe('W9-T13b the fixtures are what they say', () => {
     expect(FIXTURES.runRefused.status).toBe('refused')
     expect(FIXTURES.badRecord.status).toBe('refused')
     expect(FIXTURES.badRecord.window).toBe(null)
-    expect(servedKeys.every((k) => FIXTURES.productDefault.metrics[k].status === 'refused')).toBe(true)
+    expect(servedKeys.every((k) => FIXTURES.nothingPinned.metrics[k].status === 'refused')).toBe(true)
+    // the committed ledger (engine 60) pins the rules this record used and B-VAL, and not B-PYR
+    for (const id of [...USED, 'B-VAL']) expect(Object.keys(RESOLVED.rules)).toContain(id)
+    expect(Object.keys(RESOLVED.rules)).not.toContain('B-PYR')
+    for (const k of servedKeys) expect(FIXTURES.productDefault.metrics[k]).toEqual(FIXTURES.allServed.metrics[k])
+    expect(servedKeys.map((k) => FIXTURES.productDefaultUnpinnedRule.metrics[k].status)).toContain('refused')
     expect(FIXTURES.allServed.window.sentence).toBe(START_SENTENCE)
     expect(FIXTURES.fromListing.window.fromListing).toBe(true)
     expect(FIXTURES.fromListing.window.sentence).toBe(START_SENTENCE)
@@ -207,11 +225,35 @@ describe('W9-T13b the panel renders the report exactly', () => {
     expect(screen.queryByTestId('strategy-report-stamp')).toBe(null)
   })
 
-  it('the product default (empty ledger): every served metric refuses by its unpinned sentence', () => {
-    render(<StrategyReportPanel report={FIXTURES.productDefault} />)
+  it('nothing pinned (an empty ledger): every served metric refuses by its unpinned sentence', () => {
+    render(<StrategyReportPanel report={FIXTURES.nothingPinned} />)
     clickTab('Performance summary')
     for (const k of Object.keys(SERVED_METRICS)) {
-      expect(valueCell(k).textContent).toBe(FIXTURES.productDefault.metrics[k].sentence)
+      expect(valueCell(k).textContent).toBe(FIXTURES.nothingPinned.metrics[k].sentence)
+      expect(valueCell(k).textContent).toMatch(/ is not shown: it depends on a rule of how TradingView runs a backtest /)
+    }
+  })
+
+  it('the product default (the committed ledger pins the rules this record used): every served metric prints its number', () => {
+    render(<StrategyReportPanel report={FIXTURES.productDefault} />)
+    clickTab('Performance summary')
+    const product = Object.fromEntries(Object.keys(SERVED_METRICS).map((k) => [k, valueCell(k).textContent]))
+    cleanup()
+    render(<StrategyReportPanel report={FIXTURES.allServed} />)
+    clickTab('Performance summary')
+    for (const k of Object.keys(SERVED_METRICS)) {
+      expect(product[k], k).toBe(valueCell(k).textContent)
+      expect(product[k], k).not.toMatch(/ is not shown/)
+    }
+  })
+
+  it('the product default, a record that used a rule the ledger does not pin (B-PYR): what depends on it refuses by its sentence', () => {
+    render(<StrategyReportPanel report={FIXTURES.productDefaultUnpinnedRule} />)
+    clickTab('Performance summary')
+    const refused = Object.keys(SERVED_METRICS).filter((k) => FIXTURES.productDefaultUnpinnedRule.metrics[k].status === 'refused')
+    expect(refused.length).toBeGreaterThan(0)
+    for (const k of refused) {
+      expect(valueCell(k).textContent).toBe(FIXTURES.productDefaultUnpinnedRule.metrics[k].sentence)
       expect(valueCell(k).textContent).toMatch(/ is not shown: it depends on a rule of how TradingView runs a backtest /)
     }
   })

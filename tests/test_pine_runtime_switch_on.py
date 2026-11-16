@@ -210,10 +210,21 @@ def test_D1_the_save_SWITCH_is_still_asked_first(store, monkeypatch):
 
 # ═══ D6 — the starter allowlist ══════════════════════════════════════════════
 
+#: RS Rating (fred6724), admitted 2026-11-16 on the SUBSTITUTED path (three MATCH_SUBSTITUTED captures,
+#: `syminfo.industry` answered from UCT data and disclosed): docs/pine/RS-RATING-TRANSFER.md.
+RS_RATING_HASH = "caa94fe31a8788c0f52ca571dbb1b3f8a7499dae913ed5e710720fc8662c5af0"
+
+
 def test_D6_the_committed_allowlist_holds_ONLY_adx_and_di_for_v4():
+    """The name is the history: it held one script until RS Rating was graded and admitted."""
     doc = json.loads(Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))
-    assert [s["slug"] for s in doc["scripts"]] == ["adx-and-di-for-v4"]
-    assert rt.allow_list() == [ADX["meta"]["runtimeSourceHash"]]
+    assert [s["slug"] for s in doc["scripts"]] == ["adx-and-di-for-v4", "rs-rating-fred6724"]
+    assert rt.allow_list() == [ADX["meta"]["runtimeSourceHash"], RS_RATING_HASH]
+    # the second record is on the substituted path and says what it substitutes
+    rs = doc["scripts"][1]
+    assert rs["admission"] == "substituted" and rs["substituted"] == ["syminfo.industry"]
+    assert all(c["verdict"] == "MATCH_SUBSTITUTED" and c["substituted"] == ["syminfo.industry"] for c in rs["captures"])
+    assert len(rs["captures"]) == 3
     assert ADX["meta"]["runtimeSourceHash"] == rt.source_hash(ADX["compute"]["source"])
 
 
@@ -277,10 +288,10 @@ def test_D6_a_stored_ungraded_row_is_SERVED_stamped_and_never_rewritten(store, m
 
 def test_D6_the_preview_read_carries_the_allowlist(store, monkeypatch):
     got = _client("member").get("/api/user-definitions/runtime-kill").json()
-    assert got["allow"] == [ADX["meta"]["runtimeSourceHash"]]
+    assert got["allow"] == [ADX["meta"]["runtimeSourceHash"], RS_RATING_HASH]
     monkeypatch.setenv(rt.ALLOW_ENV, "B" * 12)
     got = _client("member").get("/api/user-definitions/runtime-kill").json()
-    assert got["allow"] == [ADX["meta"]["runtimeSourceHash"], "b" * 12]
+    assert got["allow"] == [ADX["meta"]["runtimeSourceHash"], RS_RATING_HASH, "b" * 12]
 
 
 # ═══ D2 — the cap, split by kind ═════════════════════════════════════════════
@@ -291,7 +302,8 @@ def test_D2_the_two_caps_are_what_the_owner_ruled():
 
 
 def test_D2_trend_targets_saves_under_the_runtime_cap(store, monkeypatch):
-    # RT1 2026-11-15: trend-targets is on the COMMITTED kill list; this rail is about the size cap
+    # RT1 2026-11-15: the COMMITTED kill list is set aside (trend-targets was on it until PR #1374 lifted
+    # it); this rail is about the size cap
     monkeypatch.setattr(rt, "KILLLIST_PATH", "no-committed-kills.json")
     monkeypatch.setenv(rt.SAVE_ENV, "1")
     monkeypatch.setenv(rt.STAGE_ENV, "all")
@@ -544,11 +556,18 @@ def test_WSI_R1_capabilities_are_asked_BEFORE_captures_and_both_must_hold():
     assert len(reasons) == 2 and "divergent" in reasons[0] and "MATCH" in reasons[1]
 
 
-def test_WSI_R4_conditional_ta_is_a_DIVERGENT_row_that_withholds_its_users():
+def test_WSI_R4_conditional_ta_is_CONFORMANT_since_COND_TA_and_a_divergent_row_still_withholds():
+    """COND-TA (engine 58): R4's `divergent` row described the lane before WS-C (#557). The
+    runtime lane is now exact on every conditional `ta.*` it serves and refuses the rest by
+    name (`ast/condTaLanes.test.js`, `runtime/__tests__/conditionalCallSite.test.js`), so the
+    row is conformant. The rule it exercised stands: the SAME row marked divergent withholds."""
     doc = json.loads(Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))
-    assert doc["capabilities"]["conditional-ta"]["status"] == "divergent"
+    row = doc["capabilities"]["conditional-ta"]
+    assert row["status"] == "conformant" and row["admitted"] is True
     s = dict(doc["scripts"][0], capabilities=doc["scripts"][0]["capabilities"] + ["conditional-ta"])
-    assert any("conditional-ta" in r for r in rg.pine_runtime_admission(s, doc["capabilities"]))
+    assert rg.pine_runtime_admission(s, doc["capabilities"]) == []
+    held = dict(doc["capabilities"], **{"conditional-ta": dict(row, status="divergent")})
+    assert any("conditional-ta" in r for r in rg.pine_runtime_admission(s, held))
 
 
 def test_WSI_R1_every_COMMITTED_script_passes_R1_and_its_evidence_is_real():
@@ -556,7 +575,7 @@ def test_WSI_R1_every_COMMITTED_script_passes_R1_and_its_evidence_is_real():
     script is a script somebody believed was served."""
     rep = rt.allow_report()
     assert rep["withheld"] == [], rep["withheld"]
-    assert [r["slug"] for r in rep["served"]] == ["adx-and-di-for-v4"]
+    assert [r["slug"] for r in rep["served"]] == ["adx-and-di-for-v4", "rs-rating-fred6724"]
     doc = json.loads(Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))
     for s in doc["scripts"]:
         for c in s["captures"]:

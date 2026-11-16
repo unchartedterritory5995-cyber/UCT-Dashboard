@@ -1,0 +1,629 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "V1",
+   "mutant": "entry_time / exit_time returned in seconds, not milliseconds",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "return t * 1000",
+   "to": "return t",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "V2",
+   "mutant": "closedtrades.entry_time reads the EXIT bar",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "case 'strategy.closedtrades.entry_time': return barTimeMs(tradeAt(closed, a[0], fn).bar, fn)",
+   "to": "case 'strategy.closedtrades.entry_time': return barTimeMs(tradeAt(closed, a[0], fn).exitBar, fn)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "V3",
+   "mutant": "a run with no bar times answers anyway (NaN) instead of refusing",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "if (!finite(t)) throw new BrokerRefusal(`\\`${fn}\\` reads the time of a bar this run was given no time for`)",
+   "to": "void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "R1",
+   "mutant": "B-ROUND rounds a tie DOWN",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "const roundToTick = (p) => Number((Math.floor(p / mintick + 0.5 + 1e-6) * mintick)",
+   "to": "const roundToTick = (p) => Number((Math.ceil(p / mintick - 0.5 - 1e-6) * mintick)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "R2",
+   "mutant": "B-ROUND is never asked (an off-grid open fill is served unpinned)",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "    rule('B-ROUND')",
+   "to": "    void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "R3",
+   "mutant": "the off-grid open is filled RAW (no rounding)",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "    return roundToTick(px)",
+   "to": "    return px",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "R4",
+   "mutant": "a LIMIT leg at an off-grid open is rounded like a stop (the unwitnessed kind served)",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "      if (g.kind === 'exit' && g.leg === 'sl') continue",
+   "to": "      if (g.kind === 'exit') continue",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "R5",
+   "mutant": "a fill on the closing tick / a path vertex at an off-grid price is rounded too",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "    if (mode !== 'open') {",
+   "to": "    if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "R6",
+   "mutant": "a limit entry beyond the market at an off-grid open is rounded too",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "if (m.immediate && m.type !== 'stop') unwitnessed(",
+   "to": "if (false) unwitnessed(",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "R7",
+   "mutant": "a STOP entry at an off-grid gap open is refused (the witnessed kind not served)",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "if (g.kind === 'entry' && g.o.type === 'stop') continue",
+   "to": "if (false) continue",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "K1",
+   "mutant": "the mark is the RAW close",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "    return roundToTick(c)",
+   "to": "    return c",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "K2",
+   "mutant": "B-ROUND-MARK is never asked",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "    rule('B-ROUND-MARK')",
+   "to": "    void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "K3",
+   "mutant": "a FLAT run asks B-ROUND-MARK on an off-grid close",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "if (!open.length || !finite(c) || onTick(c)) return c",
+   "to": "if (!finite(c) || onTick(c)) return c",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "F1",
+   "mutant": "an open trade's entry fee is taken off openprofit again",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "        return sum(open, (t) => (mark - t.price) * t.dir * t.qty) * pointvalue",
+   "to": "        return sum(open, (t) => (mark - t.price) * t.dir * t.qty) * pointvalue - openFees()",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9T5Costs.test.js"
+  },
+  {
+   "id": "F2",
+   "mutant": "netprofit forgets the open trade's paid entry fee",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "exactClosed('`strategy.netprofit`'); needSymbol(); return costOn ? moneyOfClosed() - openFees() : netPts() * pointvalue",
+   "to": "exactClosed('`strategy.netprofit`'); needSymbol(); return costOn ? moneyOfClosed() : netPts() * pointvalue",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "F3",
+   "mutant": "grossprofit / grossloss are served while an open trade has paid a fee",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "    if (costOn && openFees() > 0) {",
+   "to": "    if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "F4",
+   "mutant": "the report serves its money figures while an open trade has paid a fee",
+   "file": "app/src/components/chart/engine/runtime/brokerReport.js",
+   "from": "    if (costOn && open.some((t) => t.commission > 0)) {",
+   "to": "    if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "T1",
+   "mutant": "strategy.close's generated exit id has another text",
+   "file": "app/src/components/chart/engine/runtime/strategyRecord.js",
+   "from": "text: `Close entry(s) order ${row.from}`",
+   "to": "text: `Close entry order ${row.from}`",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "T2",
+   "mutant": "close_all's generated exit id has another text",
+   "file": "app/src/components/chart/engine/runtime/strategyRecord.js",
+   "from": "text: 'Close position order'",
+   "to": "text: 'Close position'",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "T3",
+   "mutant": "a reversing entry WITH a comment is served its id as the exit id (not witnessed)",
+   "file": "app/src/components/chart/engine/runtime/strategyRecord.js",
+   "from": "typeof row.id === 'string' && row.comment === null && row.commentRecorded === true) {",
+   "to": "typeof row.id === 'string') {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "T4",
+   "mutant": "a witnessed exit id is served without asking its rule",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "    rule(w.rule)",
+   "to": "    void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "T5",
+   "mutant": "B-TXT-NO-COMMENT is never asked",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "        rule('B-TXT-NO-COMMENT')",
+   "to": "        void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "T6",
+   "mutant": "a reversing entry's COMMENT is served as the exit comment (not witnessed)",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "if (r.kind === 'entry' && (r.comment !== null || !r.commentRecorded)) {",
+   "to": "if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "C1",
+   "mutant": "B-CANCEL: an exit waiting on a cancelled strategy.order is released (the old hypothesis)",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "if (kind === 'order' && x.awaits === true && x.fromEntry === id) {",
+   "to": "if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "C2",
+   "mutant": "B-CANCEL: a cancelled strategy.ENTRY keeps its exit waiting too (not witnessed)",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "if (e.kind === 'order') for (const x of exits) if (x.orders.has(e) && x.fromEntry === id) x.awaits = true",
+   "to": "for (const x of exits) if (x.orders.has(e) && x.fromEntry === id) x.awaits = true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "C3",
+   "mutant": "B-CANCEL: the waiting exit binds a strategy.ENTRY placed under the id (not witnessed)",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "if (kind === 'order' && x.awaits === true && x.fromEntry === id) {",
+   "to": "if (x.awaits === true && x.fromEntry === id) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "C4",
+   "mutant": "B-CANCEL: the waiting exit binds an order placed under ANOTHER id",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "if (kind === 'order' && x.awaits === true && x.fromEntry === id) {",
+   "to": "if (kind === 'order' && x.awaits === true) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "D1",
+   "mutant": "D12: a v4 strategy with no margin stated runs on the assumed default",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "if (cfg.version === 4 && defaulted.margin === true) {",
+   "to": "if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "D2",
+   "mutant": "D11: rules are dated with a constant bar (every rule looks exercised before the first bar)",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "    okRules.set(id, nowBar)",
+   "to": "    okRules.set(id, -1)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "D3",
+   "mutant": "D12: the setting refusal is graded as a DIVERGE like any other refusal",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/strategyHarness.js",
+   "from": " || (!!e && typeof e.setting === 'string' && e.setting !== '')",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js"
+  },
+  {
+   "id": "D4",
+   "mutant": "D11: the culprit set is always empty",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/strategyHarness.js",
+   "from": "culprit: used.filter((id) => at(id) === fd.bar),",
+   "to": "culprit: used.filter(() => false),",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js"
+  },
+  {
+   "id": "D5",
+   "mutant": "D11: a rule the broker did not date is excused (treated as before the event)",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/strategyHarness.js",
+   "from": "const at = (id) => (Object.prototype.hasOwnProperty.call(first, id) ? first[id] : fd.bar)",
+   "to": "const at = (id) => (Object.prototype.hasOwnProperty.call(first, id) ? first[id] : null)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js"
+  },
+  {
+   "id": "D6",
+   "mutant": "D11: the prefix is declared exact without being checked",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "return { bar, step, prefixExact: tradesExact && fillsExact && valuesExact && textsExact }",
+   "to": "return { bar, step, prefixExact: true }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrade.test.js"
+  },
+  {
+   "id": "D7",
+   "mutant": "D11: the LATEST differing bar is taken as the first difference",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "const bar = Math.min(...at)",
+   "to": "const bar = Math.max(...at)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrade.test.js"
+  },
+  {
+   "id": "D8",
+   "mutant": "D11: unpaired plots no longer break the proof of the prefix",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "const valuesExact = valuesOk && compareValueSeries(values.series, before).verdict",
+   "to": "const valuesExact = !valuesOk || compareValueSeries(values.series, before).verdict",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrade.test.js"
+  },
+  {
+   "id": "D9",
+   "mutant": "D11: unreadable texts no longer break the proof of the prefix",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "const textsGraded = !texts || texts.status === 'ungraded' || textsOk",
+   "to": "const textsGraded = true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrade.test.js"
+  },
+  {
+   "id": "D10",
+   "mutant": "D11: rules first exercised AFTER the difference are not listed",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/strategyHarness.js",
+   "from": "afterDifference: used.filter((id) => at(id) !== null && at(id) > fd.bar),",
+   "to": "afterDifference: [],",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js"
+  },
+  {
+   "id": "G1",
+   "mutant": "step 7 compares nothing (a differing value is equal)",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "if (!our.has(p.time) || !valuesAgree(our.get(p.time), p.value, VALUE_TOL)) {",
+   "to": "if (!our.has(p.time)) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrade.test.js"
+  },
+  {
+   "id": "G2",
+   "mutant": "step 7 ignores a bar of ours the reference lacks",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "    if (our.size !== ref.length) {",
+   "to": "    if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrade.test.js"
+  },
+  {
+   "id": "G3",
+   "mutant": "an unpaired set of plots is graded anyway",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "    if (valuesNow.status !== 'ok') {",
+   "to": "    if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrade.test.js"
+  },
+  {
+   "id": "G4",
+   "mutant": "step 7 ignores the graded range (method b compares every bar)",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "const v = compareValueSeries(valuesNow.series, graded || span)",
+   "to": "const v = compareValueSeries(valuesNow.series, undefined)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrade.test.js"
+  },
+  {
+   "id": "G5",
+   "mutant": "step 8 compares only how many texts a bar holds",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "if (x.length !== y.length || x.some((v, i) => v !== y[i])) {",
+   "to": "if (x.length !== y.length) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrade.test.js"
+  },
+  {
+   "id": "G6",
+   "mutant": "ungraded texts are dropped from the verdict",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "if (textsNow.status === 'ungraded') extra.ungradedTexts = [{ what: textsNow.what || 'labels', why: textsNow.reason || 'ungraded' }]",
+   "to": "if (textsNow.status === 'ungraded') void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrade.test.js"
+  },
+  {
+   "id": "G7",
+   "mutant": "unreadable reference texts pass as a MATCH",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "    else if (textsNow.status !== 'ok') {",
+   "to": "    else if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrade.test.js"
+  },
+  {
+   "id": "H1",
+   "mutant": "the pairing no longer checks a style title against the source",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/strategyHarness.js",
+   "from": "if (title === null || want === null || title !== want) {",
+   "to": "if (title === null || want === null) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js"
+  },
+  {
+   "id": "H2",
+   "mutant": "the pairing no longer checks OUR plot count",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/strategyHarness.js",
+   "from": "if (!Array.isArray(ourPlots) || ourPlots.length !== n) {",
+   "to": "if (!Array.isArray(ourPlots)) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js"
+  },
+  {
+   "id": "H3",
+   "mutant": "THE SWAP: two of our plots are paired with each other's capture plot",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/strategyHarness.js",
+   "from": "      ours: ourPlots[k - 1],",
+   "to": "      ours: ourPlots[k === 4 ? 4 : k === 5 ? 3 : k - 1],",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js"
+  },
+  {
+   "id": "H4",
+   "mutant": "the run's tick is no longer held to the capture's",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/strategyHarness.js",
+   "from": "if (ours !== null && ours !== undefined && Math.abs(ours - tick) > 1e-12 * Math.max(1, tick)) out.push(",
+   "to": "if (false) out.push(",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js"
+  },
+  {
+   "id": "H5",
+   "mutant": "a reversal is listed as a fill of the new size only",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/strategyHarness.js",
+   "from": "    qty: o.fillQty + closedQty(o),",
+   "to": "    qty: o.fillQty,",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js"
+  },
+  {
+   "id": "H6",
+   "mutant": "the harness builds the value build only (no drawings: every label text ungraded)",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/strategyHarness.js",
+   "from": "const drawing = buildRuntimeIr(capture.source.text, { ...opts, objectsInRun: true })",
+   "to": "const drawing = buildRuntimeIr(capture.source.text, { ...opts, objectTrees: [] })",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js"
+  },
+  {
+   "id": "H7",
+   "mutant": "the source declares a plot count the harness no longer checks against the capture",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/strategyHarness.js",
+   "from": "if (declared.length !== n) return",
+   "to": "if (false) return",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js"
+  },
+  {
+   "id": "H8",
+   "mutant": "method (b) treats a broker value as a signal (a value difference reads as a warm-up)",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/strategyHarness.js",
+   "from": "for (const s of paired.series) if (!s.readsBroker) out[s.title] = s[side]",
+   "to": "for (const s of paired.series) out[s.title] = s[side]",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js"
+  },
+  {
+   "id": "P1",
+   "mutant": "a MATCH that compared no value series pins",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "elif not (isinstance(n_values, int) and not isinstance(n_values, bool) and n_values > 0):",
+   "to": "elif False:",
+   "rail": "python -m pytest tests/test_broker_pins_resolve.py -q -p no:cacheprovider -x"
+  },
+  {
+   "id": "P2",
+   "mutant": "D11: an EMPTY culprit set is accepted (nothing un-pinned) instead of falling back to strict",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "if not (names(ex) and names(culprit) and names(after)) or not culprit:",
+   "to": "if not (names(ex) and names(culprit) and names(after)):",
+   "rail": "python -m pytest tests/test_broker_pins_resolve.py -q -p no:cacheprovider -x"
+  },
+  {
+   "id": "P3",
+   "mutant": "D11: an inexact prefix is accepted",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "if row.get(\"prefixExact\") is not True:",
+   "to": "if False:",
+   "rail": "python -m pytest tests/test_broker_pins_resolve.py -q -p no:cacheprovider -x"
+  },
+  {
+   "id": "P4",
+   "mutant": "D11: the culprit rule itself is excused (not un-pinned)",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "if scope is not None and rule not in scope:",
+   "to": "if scope is not None:",
+   "rail": "python -m pytest tests/test_broker_pins_resolve.py -q -p no:cacheprovider -x"
+  },
+  {
+   "id": "P5",
+   "mutant": "D11: the exception is applied to a verdict that is not DIVERGE",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "if row.get(\"schema\") != STRATEGY_VERDICT_SCHEMA or row.get(\"verdict\") != \"DIVERGE\":",
+   "to": "if row.get(\"schema\") != STRATEGY_VERDICT_SCHEMA:",
+   "rail": "python -m pytest tests/test_broker_pins_resolve.py -q -p no:cacheprovider -x"
+  },
+  {
+   "id": "P6",
+   "mutant": "D11: a culprit outside what the run exercised is accepted",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "if not set(culprit) <= set(ex) or not set(after) <= set(ex) or set(culprit) & set(after):",
+   "to": "if False:",
+   "rail": "python -m pytest tests/test_broker_pins_resolve.py -q -p no:cacheprovider -x"
+  },
+  {
+   "id": "P7",
+   "mutant": "D11: a first difference with no integer bar is accepted",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "if not (isinstance(fd, dict) and is_int(fd.get(\"bar\")) and is_int(fd.get(\"step\"))):",
+   "to": "if not isinstance(fd, dict):",
+   "rail": "python -m pytest tests/test_broker_pins_resolve.py -q -p no:cacheprovider -x"
+  },
+  {
+   "id": "W1",
+   "mutant": "the witness rail holds the data to ties-DOWN (it must then find other counts)",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/strategyReadbackWitness.test.js",
+   "from": "const nearestTieUp = (px, tick) => Math.floor(px / tick + 0.5 + 1e-6) * tick",
+   "to": "const nearestTieUp = (px, tick) => Math.ceil(px / tick - 0.5 - 1e-6) * tick",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyReadbackWitness.test.js"
+  },
+  {
+   "id": "W2",
+   "mutant": "the witness rail reads exit_time where it claims entry_time",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/strategyReadbackWitness.test.js",
+   "from": "expect(r[k10], `${c.id} entry_time at ${r[0]}`).toBe(t.entryTime * 1000)",
+   "to": "expect(r[k10], `${c.id} entry_time at ${r[0]}`).toBe(t.exitTime * 1000)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyReadbackWitness.test.js"
+  },
+  {
+   "id": "W3",
+   "mutant": "the witness rail's W9-K1 fee is another rate",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/strategyReadbackWitness.test.js",
+   "from": "(price, size) => price * size * 0.1 / 100,",
+   "to": "(price, size) => price * size * 0.2 / 100,",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyReadbackWitness.test.js"
+  },
+  {
+   "id": "UJ-D1",
+   "mutant": "U15 JS: a deny document with no `deny` array is read as an empty list (denies nothing)",
+   "file": "app/src/components/chart/engine/ast/pineLibraryStore.js",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryPinning.test.js",
+   "from": "  if (!Array.isArray(rows)) return null",
+   "to": "  if (!Array.isArray(rows)) return new Map()"
+  },
+  {
+   "id": "UJ-D2",
+   "mutant": "U15 JS: a deny row that names no path is dropped instead of making the list unreadable",
+   "file": "app/src/components/chart/engine/ast/pineLibraryStore.js",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryPinning.test.js",
+   "from": "  if (rows.some((d) => !d || typeof d !== 'object' || typeof d.path !== 'string' || !d.path)) return null",
+   "to": "  if (rows.some((d) => !d || typeof d !== 'object' || typeof d.path !== 'string' || !d.path)) return new Map(rows.filter((d) => d && typeof d === 'object' && typeof d.path === 'string' && d.path).map((d) => [d.path, d]))"
+  },
+  {
+   "id": "UJ-D3",
+   "mutant": "U15 JS: an unreadable deny list (a null table) denies nothing",
+   "file": "app/src/components/chart/engine/ast/pineLibraryStore.js",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryPinning.test.js",
+   "from": "  return (!table || table.has(String(path))) ? LIBRARY_DENIED_SENTENCE : null",
+   "to": "  return (table && table.has(String(path))) ? LIBRARY_DENIED_SENTENCE : null"
+  },
+  {
+   "id": "UJ-D4",
+   "mutant": "U15 JS: the deny list is not consulted",
+   "file": "app/src/components/chart/engine/ast/pineLibraryStore.js",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryPinning.test.js",
+   "from": "  return (!table || table.has(String(path))) ? LIBRARY_DENIED_SENTENCE : null",
+   "to": "  return (table && false) ? LIBRARY_DENIED_SENTENCE : null"
+  },
+  {
+   "id": "UJ-L1",
+   "mutant": "U15 JS: the licence rule answers nothing (a non-commercial library is served)",
+   "file": "app/src/components/chart/engine/ast/pineLibraryStore.js",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryPinning.test.js",
+   "from": "  if (entry.nonCommercial === true || NON_COMMERCIAL.test(licence)) {",
+   "to": "  if (entry.nonCommercial === true && false) {"
+  },
+  {
+   "id": "UP-D1",
+   "mutant": "U15 Python: an unreadable deny list fails open (denies nothing)",
+   "file": "api/services/pine_library_store.py",
+   "rail": "python -m pytest tests/test_pine_library_pinning.py -q -p no:cacheprovider",
+   "from": "        return {\"deny\": [{\"path\": \"*\"}], \"memberSentence\": None}",
+   "to": "        return {\"deny\": [], \"memberSentence\": None}"
+  },
+  {
+   "id": "UP-D2",
+   "mutant": "U15 Python: a deny row that names no path is dropped instead of making the list unreadable",
+   "file": "api/services/pine_library_store.py",
+   "rail": "python -m pytest tests/test_pine_library_pinning.py -q -p no:cacheprovider",
+   "from": "            raise ValueError(\"a deny row names no path\")",
+   "to": "            doc = dict(doc, deny=[d for d in doc[\"deny\"] if isinstance(d, dict) and isinstance(d.get(\"path\"), str) and d[\"path\"]])"
+  },
+  {
+   "id": "UP-D3",
+   "mutant": "U15 Python: the deny list is not consulted by entry_status",
+   "file": "api/services/pine_library_store.py",
+   "rail": "python -m pytest tests/test_pine_library_pinning.py -q -p no:cacheprovider",
+   "from": "    deny = denied(path)",
+   "to": "    deny = None"
+  },
+  {
+   "id": "UP-L1",
+   "mutant": "U15 Python: the licence rule answers nothing",
+   "file": "api/services/pine_library_store.py",
+   "rail": "python -m pytest tests/test_pine_library_pinning.py -q -p no:cacheprovider",
+   "from": "    if entry.get(\"nonCommercial\") is True or (isinstance(licence, str) and _NON_COMMERCIAL_RX.search(licence)):",
+   "to": "    if False:"
+  },
+  {
+   "id": "UP-L2",
+   "mutant": "U15 Python: the `nonCommercial` flag is ignored",
+   "file": "api/services/pine_library_store.py",
+   "rail": "python -m pytest tests/test_pine_library_pinning.py -q -p no:cacheprovider",
+   "from": "    if entry.get(\"nonCommercial\") is True or (isinstance(licence, str) and _NON_COMMERCIAL_RX.search(licence)):",
+   "to": "    if isinstance(licence, str) and _NON_COMMERCIAL_RX.search(licence):"
+  },
+  {
+   "id": "UA-2",
+   "mutant": "U15: a denied version (TradingView/ValueAtTime/2) is listed for promotion",
+   "file": "tools/pine_library/promotion_allowlist.json",
+   "rail": "python -m pytest tests/test_pine_library_pinning.py -q -p no:cacheprovider",
+   "from": "   \"path\": \"theEccentricTrader/PubLibSwing/3\",",
+   "to": "   \"path\": \"TradingView/ValueAtTime/2\","
+  },
+  {
+   "id": "TR-1",
+   "mutant": "train 2: the member door sizes a default percent order without a known minimum contract",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9T4Sizing.test.js",
+   "from": "    if (minContract !== 1) {",
+   "to": "    if (minContract !== 1 && false) {"
+  },
+  {
+   "id": "TR-2",
+   "mutant": "train 2: B-QTY drops out of the committed ledger (the fixed-size member-door run no longer completes)",
+   "file": "app/src/components/chart/engine/runtime/brokerPins.resolved.json",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9T4Sizing.test.js",
+   "from": "\"B-QTY\":",
+   "to": "\"B-QTY-GONE\":"
+  },
+  {
+   "id": "TR-3",
+   "mutant": "train 2: B-PYR is pinned without a capture (the member door serves a rule no capture grades)",
+   "file": "app/src/components/chart/engine/runtime/brokerPins.resolved.json",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9T4Sizing.test.js",
+   "from": "\"B-QTY\":",
+   "to": "\"B-PYR\":[\"nothing\"],\"B-QTY\":"
+  },
+  {
+   "id": "TR-4",
+   "mutant": "train 2: B-CLOSE drops out of the committed ledger (the product-default report no longer equals the all-served one)",
+   "file": "app/src/components/chart/engine/runtime/brokerPins.resolved.json",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/pane/strategyReportPanel.test.jsx",
+   "from": "\"B-CLOSE\":",
+   "to": "\"B-CLOSE-GONE\":"
+  },
+  {
+   "id": "TR-5",
+   "mutant": "train 2: B-PYR is pinned without a capture (a record that used it is served by the report)",
+   "file": "app/src/components/chart/engine/runtime/brokerPins.resolved.json",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/pane/strategyReportPanel.test.jsx",
+   "from": "\"B-QTY\":",
+   "to": "\"B-PYR\":[\"nothing\"],\"B-QTY\":"
+  }
+ ]
+}

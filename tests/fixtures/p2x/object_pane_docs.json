@@ -241,7 +241,8 @@
    "naConditionFalse": true
   },
   "placement": {
-   "target": "price"
+   "target": "price",
+   "joinPriceScale": true
   },
   "inputs": [
    {
@@ -657,7 +658,8 @@
    "naConditionFalse": true
   },
   "placement": {
-   "target": "price"
+   "target": "price",
+   "joinPriceScale": true
   },
   "inputs": [
    {

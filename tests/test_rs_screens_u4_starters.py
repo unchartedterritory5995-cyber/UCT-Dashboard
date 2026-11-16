@@ -955,8 +955,8 @@ def test_the_method_page_states_each_rule_from_the_constants_that_apply_it(on):
 
 def test_a_pullback_label_is_said_in_plain_words_and_as_a_place_not_an_instruction(on, monkeypatch):
     """Unit U7. "Pullback to the 8-day" and "Pullback to the 21-day" open with the plain
-    sentence (a 20-session high within the last 15 sessions, now trading at its rising
-    average) and end with "It marks where the stock is, not what to do." The numbers still
+    sentence (a 20-session high within the last 15 sessions, come off it, now trading at
+    its rising average) and end with "It marks where the stock is, not what to do." The numbers still
     come from the code that applies them, and the Setup column's own method (the other
     place the words are explained) says the same."""
     from api.services.screener import methodology as M
@@ -965,10 +965,11 @@ def test_a_pullback_label_is_said_in_plain_words_and_as_a_place_not_an_instructi
     labels = {x["key"]: x["rule"] for x in M.rs_screens_section()["setup"]["labels"]}
     for n in (8, 21):
         rule = labels[f"pullback_{n}"]
-        assert rule.startswith(f"The stock made a 20-session high within the last 15 sessions and is "
-                               f"now trading at its rising {n}-day average. "), rule
+        assert rule.startswith(f"The stock made a 20-session high within the last 15 sessions, has come "
+                               f"off it, and is now trading at its rising {n}-day average. "), rule
         assert rule.endswith(note) and rule.count(note) == 1, rule
-        assert f"the high is a closing high, and today its low came within 0.5 ATR of a rising {n}-day EMA" in rule
+        assert (f"the high is a closing high, the close is at least 0.5 ATR under that high, and today "
+                f"its low came within 0.5 ATR of a rising {n}-day EMA") in rule
     assert labels["pullback_8"].endswith("Named ahead of the 21-day when both hold. " + note)
     assert [k for k, rule in labels.items() if note in rule] == ["pullback_8", "pullback_21"]
     how = next(m for m in M._rs_screens_methods() if m["column"] == "rs_setup")["how"]
@@ -977,9 +978,11 @@ def test_a_pullback_label_is_said_in_plain_words_and_as_a_place_not_an_instructi
     # read, not typed: move the two windows and the plain sentence moves with them
     monkeypatch.setattr(rs_setup, "PULLBACK_HIGH_MAX_AGE", 10)
     monkeypatch.setattr(technicals, "HIGH20_WINDOW", 30)
+    monkeypatch.setattr(rs_setup, "PULLBACK_MIN_DEPTH_ATR", 0.75)
     moved = {x["key"]: x["rule"] for x in M.rs_screens_section()["setup"]["labels"]}
-    assert moved["pullback_21"].startswith("The stock made a 30-session high within the last 10 sessions and is "
-                                           "now trading at its rising 21-day average. ")
+    assert moved["pullback_21"].startswith("The stock made a 30-session high within the last 10 sessions, has "
+                                           "come off it, and is now trading at its rising 21-day average. ")
+    assert "the close is at least 0.75 ATR under that high" in moved["pullback_21"]
 
 
 def test_the_method_page_follows_a_changed_threshold(on, monkeypatch):

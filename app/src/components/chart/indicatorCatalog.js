@@ -188,7 +188,7 @@ function defs(registry) {
  *  machinery (`[...new Set(rows.map(r => r.category))]`) and needs no second
  *  grouping path — but it is assigned by `rowFor` rather than read from the
  *  stored document, for the reason stated there. */
-export const USER_CATEGORY = 'My formulas'
+export const USER_CATEGORY = 'My indicators'
 
 function rowFor(def, userDefined = false) {
   const meta = def.meta || {}
@@ -314,7 +314,7 @@ export function userCatalogRows(registry) {
  *  and the control would be a live-looking toggle that writes nowhere: the exact
  *  defect `volumeProfile`'s "+ Add another" exemption exists to avoid, one
  *  surface over. Its own section keeps it out of `role="option"` entirely. */
-export const REFUSED_CATEGORY = 'My formulas — not available'
+export const REFUSED_CATEGORY = 'My indicators — not available'
 
 /** The id `nativeRegistry.registerDefinitions` writes when a document carries
  *  none of its own (`raw && raw.id ? raw.id : '<unknown>'`). Named here so the

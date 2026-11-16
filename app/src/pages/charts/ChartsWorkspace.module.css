@@ -530,6 +530,31 @@
   display: flex;
 }
 .studioDock:empty { display: none; }
+/* PHONE (the touch tier, and only the OVERLAY case: a pane too narrow to give the dock a
+   column). Measured on production at 390px, 2026-11-16: the dock overlaid the chart's right
+   edge at 360px, leaving a 30px sliver of chart, and the joystick's edge tab sat over its Send
+   button. Here it is a sheet across the bottom of the SCREEN instead, so the chart being
+   previewed stays in view above it (354px at 390x844). Fixed, and above the joystick tab, so
+   nothing covers its controls. A pane wide enough to dock (a tablet) is untouched. */
+@media (max-width: 1024px) {
+  .studioDock[data-studio-dock="overlay"] {
+    position: fixed;
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: min(58dvh, 560px);
+    z-index: 8500;
+  }
+  /* TABLET, the docked column. Measured on production at 820x1180, 2026-11-16: the joystick's
+     edge tab (fixed, z-index 360) sat over the dock's Send button and took its taps. The dock
+     owns the right edge while it is open, as the phone sheet above does, so it sits just above
+     the tab. Tried on the live page first: the element under Send became Send. */
+  .studioDock[data-studio-dock="dock"] {
+    z-index: 370;
+  }
+}
 
 .chartFill {
   flex: 1; min-height: 0; min-width: 0; position: relative;

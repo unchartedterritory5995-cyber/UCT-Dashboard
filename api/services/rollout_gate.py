@@ -273,6 +273,44 @@ def create_indicator_enabled_for(user_id: Optional[str]) -> bool:
                               kill_switch=create_indicator_cohort_enabled)
 
 
+def enroll_in_create_indicator(user_id: str) -> None:
+    """Owner decision 2026-11-15: Create Indicator is open to every account, so every
+    new signup joins its cohort. Membership is a WRITE, so it is not behind the switch:
+    what a member SEES is still `create_indicator_enabled_for`, which reads the kill
+    switch first. Same shape as `enroll_in_terminal_next`, and here for the same reason:
+    this module is the one place that names the cohort."""
+    from api.services import rollout
+    rollout.assign_cohort(CREATE_INDICATOR_COHORT, [user_id])
+
+
+#: The one-shot marker for the seed below, in DATA_DIR beside
+#: `TERMINAL_NEXT_SEED_MARKER`. Bump the suffix only to re-run it on every volume.
+CREATE_INDICATOR_SEED_MARKER = ".create_indicator_seed_v1"
+
+
+def seed_existing_members_into_create_indicator(data_dir: Optional[str] = None) -> Optional[int]:
+    """Owner decision 2026-11-15: every EXISTING account joins the Create Indicator
+    cohort, ONCE per volume. New signups are enrolled by `enroll_in_create_indicator`.
+
+    NOT A SECOND WRITER: it calls `rollout.seed_cohort_all_members`, the writer
+    `tools/rollout_cohort.py seed-all --apply` uses, which is idempotent and never
+    removes a tag. Returns the number of tag rows added, or None when the marker says
+    it already ran. The marker is written only AFTER the write succeeded, so a failure
+    raises, leaves no marker, and the next boot tries again. Turning the feature off is
+    still the flag, never this table.
+    """
+    d = data_dir or os.environ.get("DATA_DIR", "/data")
+    marker = os.path.join(d, CREATE_INDICATOR_SEED_MARKER)
+    if os.path.exists(marker):
+        return None
+    from api.services import rollout
+
+    added = rollout.seed_cohort_all_members(CREATE_INDICATOR_COHORT)
+    with open(marker, "w", encoding="utf-8") as fh:
+        fh.write("seeded %d\n" % int(added))
+    return int(added)
+
+
 #: ⛔ THE COHORTS A CLIENT MAY BE TOLD ABOUT, each beside the kill switch that
 #: can stop it. A cohort absent from this map is NEVER surfaced to a browser,
 #: and that is fail-closed on purpose: a cohort the client can see but nobody
@@ -666,6 +704,14 @@ PINE_OBJECTS_X_DIVERGE = "DIVERGE"
 #: G6 (2026-11-15): capabilities no capture grades on a FORMING bar. Each admits only with
 #: `scope: closed-bar-history`; the member door then refuses it by name on a forming bar.
 PINE_CAPABILITY_FORMING_UNGRADED = frozenset({"realtime-state"})
+#: U15 (coordinator ruling 2026-11-15): one row PER LIBRARY VERSION, `library:Author/Library/N`.
+#: The row pins the version by `sha256` (the sha of the library source the evidence graded), and an
+#: evidence entry counts only when its `library` names that path AND that sha: an entry graded
+#: against a fixture library, or against other code under the same version, never counts. The rule
+#: is the family rule (>= 2 distinct IMPORTING scripts, MATCH with the runtime pane on, >= 1 of them
+#: community); a TradingView-authored library is fine, the importing scripts are what must be.
+PINE_CAPABILITY_LIBRARY_PREFIX = "library:"
+_PINE_SHA256_RX = re.compile(r"^[0-9a-f]{64}$")
 PINE_CAPABILITY_SCOPE_CLOSED_BARS = "closed-bar-history"
 
 
@@ -728,6 +774,21 @@ def pine_capability_admission(name, row) -> list[str]:
                            "a drawing on another bar vetoes the family")
     counted = [e for e in (evidence if isinstance(evidence, list) else [])
                if _pine_capability_evidence_counts(name, e)]
+    if name.startswith(PINE_CAPABILITY_LIBRARY_PREFIX):
+        # U15: the version is pinned by the row's sha256, and an entry counts only when it graded
+        # THAT code (its `library`: {path, sha256}); a fixture or probe library never counts
+        path = name[len(PINE_CAPABILITY_LIBRARY_PREFIX):]
+        pin = row.get("sha256")
+        if not (isinstance(pin, str) and _PINE_SHA256_RX.match(pin)):
+            reasons.append(f"capability `{name}` pins no library sha256: a version is admitted only as the "
+                           "code its evidence graded")
+            pin = None
+
+        def graded_this_library(e):
+            lib = e.get("library")
+            return (pin is not None and isinstance(lib, dict) and lib.get("path") == path
+                    and lib.get("sha256") == pin and e.get("libraryFixture") is not True)
+        counted = [e for e in counted if graded_this_library(e)]
     captures = {e["capture"] for e in counted}
     scripts = {e["script"] for e in counted}
     community = {e["script"] for e in counted if e.get("community") is True}

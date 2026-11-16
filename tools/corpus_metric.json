@@ -1,5 +1,5 @@
 {
-  "measured_at": "2026-11-14",
+  "measured_at": "2026-11-16",
   "scripts": 266,
   "host_ok": 83,
   "screener_ok": 69,
@@ -72,7 +72,6 @@
       "host": false,
       "screener": true,
       "hostGuards": [
-        "pine:block",
         "pine:request"
       ],
       "screenerGuards": [

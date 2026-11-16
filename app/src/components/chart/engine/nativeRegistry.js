@@ -182,6 +182,9 @@ import { LIMIT_NAMES } from './runtime/limits'
 import { registeredObjectRuntimeValues, inputsAtDefaults } from './objectRuntimeSeam.js'
 import { manifestAtDefaults } from './paramLiteral.js'
 import { noteRuntimeLoadFailed } from './runtimeRunTelemetry.js'
+// ⭐⭐ CBC-FMT — `calc_bars_count`: the window both lanes take (pure, imports nothing).
+import { calcBarsWindowOf, windowContext, widenToChart, withCalcBarsRecord, calcBarsWindowReport,
+  CALC_BARS_REQUEST_GUARD, calcBarsRequestSentence } from './calcBarsWindow.js'
 // ⭐ UCT RS's tour cards (unit 4-04). ⛔ FROM `teachingData.js`, NEVER `teaching.js`:
 // `teaching.js` reads the readout cards off this registry, so importing it here
 // is an import cycle. `teachingData.js` imports nothing.
@@ -2551,6 +2554,9 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
     const crossMemo = new Map()
     // ⭐ C36 — why a plot's `time(<timeframe>)` is withheld on this chart, per plot.
     const clock = {}
+    // ⭐ ENGINE 56 — plot key → Map(code → 0/1 column): the bars a per-bar witness mask
+    // withheld by name (`interpret.js::spreadWitnessMask`), read by `withheldBarsReport`
+    const withheldBars = {}
     for (const key of keys) {
       if (!Object.prototype.hasOwnProperty.call(trees, key)) {
         throw new Error(
@@ -2614,7 +2620,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
             ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}), ...(varOriginAbsoluteFor(def) ? { varOriginAbsolute: true } : {}),
             ...(other ? { symbols: other.symbols } : {}),
             ...(lower ? { lowerTf: lower.supply } : {}), crossMemo,
-            chartClockSink: (clock[key] = new Map()) })
+            chartClockSink: (clock[key] = new Map()), withheldBarsSink: (withheldBars[key] = new Map()) })
       } catch (err) {
         // ⛔ A CRASH IS NOT A REFUSAL. `|| 'compute:error'` gave EVERY
         // exception a guard name, so a TypeError inside a walker was
@@ -2645,11 +2651,12 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
       if (runsWhy) {
         delete out[key]
         delete clock[key]
+        delete withheldBars[key]
         errors[key] = { guard: BLOCK_RUNS_GUARD, message: runsWhy }
       }
     }
     refuseColourReaders(def, out, errors)
-    return withLowerTf(withChartClock(withOtherSymbols(withColumnErrors(out, errors), other), clock), lower)
+    return withWithheldBars(withLowerTf(withChartClock(withOtherSymbols(withColumnErrors(out, errors), other), clock), lower), withheldBars)
   }
   if (keys.length !== 1) {
     throw new Error(
@@ -2678,6 +2685,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
   const soleSymWhy = otherSymbolRefusalOfTree(def.compute.ast, other)
   if (soleSymWhy) return withOtherSymbols(withColumnErrors({}, { [keys[0]]: soleSymWhy }), other)
   const clock = { [keys[0]]: new Map() }
+  const soleWithheld = { [keys[0]]: new Map() }
   const sole = interpret(bound(def.compute.ast), bars, inputs, def.compute.budget,
     undefined, { tf: ctx && ctx.tf,
       newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
@@ -2686,7 +2694,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
       ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}), ...(varOriginAbsoluteFor(def) ? { varOriginAbsolute: true } : {}),
       ...(other ? { symbols: other.symbols } : {}),
       ...(lower ? { lowerTf: lower.supply } : {}),
-      chartClockSink: clock[keys[0]] })
+      chartClockSink: clock[keys[0]], withheldBarsSink: soleWithheld[keys[0]] })
   // ⭐ C48 — the single-tree document's own block-run check (`blockRuns.js`),
   // AFTER its tree computed (a tree that cannot keeps its own reason, above).
   const soleRunsWhy = blockRunsRefusal(def, keys[0], (tree) => interpret(bound(tree), bars, inputs, def.compute.budget,
@@ -2699,7 +2707,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
       ...(lower ? { lowerTf: lower.supply } : {}),
       chartClockSink: new Map() }))
   if (soleRunsWhy) return withColumnErrors({}, { [keys[0]]: { guard: BLOCK_RUNS_GUARD, message: soleRunsWhy } })
-  return withLowerTf(withChartClock(withOtherSymbols({ [keys[0]]: sole }, other), clock), lower)
+  return withWithheldBars(withLowerTf(withChartClock(withOtherSymbols({ [keys[0]]: sole }, other), clock), lower), soleWithheld)
 }
 
 /** ⭐⭐ C41 — the lower-timeframe codes THIS binding may read
@@ -2813,6 +2821,27 @@ export function otherSymbolReport(columns) {
   return (columns && columns[OTHER_SYMBOLS]) || null
 }
 
+/** ⭐ ENGINE 56 — the key a column map carries its per-bar witness withholdings under,
+ *  non-enumerable like `__chartClock`: plot key → `{code: Float64Array(0/1)}`. */
+const WITHHELD_BARS = '__withheldBars'
+function withWithheldBars(out, byKey) {
+  const rows = {}
+  for (const [key, codes] of Object.entries(byKey || {})) {
+    if (codes && codes.size) rows[key] = Object.freeze(Object.fromEntries(codes))
+  }
+  if (Object.keys(rows).length) {
+    Object.defineProperty(out, WITHHELD_BARS, { value: Object.freeze(rows), enumerable: false })
+  }
+  return out
+}
+/** ⭐ ENGINE 56 — the bars each plot was withheld on by a per-bar witness code (A3's
+ *  `pine:bool-na-unwitnessed`, S4-2's `pine:tie-unwitnessed`): `{[plotKey]: {[code]: 0/1
+ *  column}}`, or null. The vendor harness reads it so a withheld bar is graded "not
+ *  compared", never as the `na` the column holds there. */
+export function withheldBarsReport(columns) {
+  return (columns && columns[WITHHELD_BARS]) || null
+}
+
 /** The key a column map carries its `time(<timeframe>)` withholdings under —
  *  non-enumerable for the reason `__columnErrors` is. */
 const CHART_CLOCK = '__chartClock'
@@ -2844,7 +2873,13 @@ function withChartClock(out, byKey) {
  *  (`chartClockNotice.js`); the vendor harness prints it as a note. Modelled on
  *  `otherSymbolReport`: the decision rides on the columns it was made for. */
 export function chartClockReport(columns) {
-  return (columns && columns[CHART_CLOCK]) || null
+  const own = (columns && columns[CHART_CLOCK]) || null
+  // ⭐⭐ CBC-FMT — a `calc_bars_count` window says so on the same strip ("computed on its
+  // last N bars", and the newest bar while it is withheld), in either lane.
+  const win = calcBarsWindowReport(columns)
+  if (!win) return own
+  const rows = win.rows.map((r) => ({ code: r.code, reason: r.reason, plots: [] }))
+  return Object.freeze({ withheld: Object.freeze([...((own && own.withheld) || []), ...rows]) })
 }
 
 /** ⭐⭐ C12w — THE DECLARATION A DOCUMENT MAKES ABOUT ITS RECURRENCES. The Pine
@@ -3286,9 +3321,14 @@ const RUNTIME_LIMIT_CODES = new Set([RUNTIME_LIMIT_GUARD_CODE, ...LIMIT_NAMES.ma
  *  own memo (`runtimeObjectValues`, keyed by the spec's identity per bars array) hits
  *  on the next paint instead of growing by one entry a call. */
 const _runSpecs = new WeakMap()
-function runSpecOf(rc) {
+function runSpecOf(rc, def) {
   let rt = _runSpecs.get(rc)
-  if (!rt) { rt = Object.freeze({ source: rc.source, at: rc.at, lane: 'pane' }); _runSpecs.set(rc, rt) }
+  if (!rt) {
+    // ⭐⭐ U15 — the document's library pins ride with the run (`pine:library-changed`)
+    const pins = def && def.meta && Array.isArray(def.meta.libraries) && def.meta.libraries.length ? def.meta.libraries : null
+    rt = Object.freeze({ source: rc.source, at: rc.at, lane: 'pane', ...(pins ? { libraryPins: pins } : {}) })
+    _runSpecs.set(rc, rt)
+  }
   return rt
 }
 
@@ -3376,7 +3416,7 @@ function withRuntimeColours(def, out, bars, inputs, ctx) {
   } else if (!fn) {
     refuse('runtime:not-loaded')
   } else {
-    const v = fn(runSpecOf(rc), bars, {
+    const v = fn(runSpecOf(rc, def), bars, {
       tf: ctx && ctx.tf,
       symbol: ctx && ctx.symbol,
       newestBarIsForming: ctx && ctx.newestBarIsForming,
@@ -3477,6 +3517,8 @@ function runHalfDefOf(def, ro) {
     for (const k of ['runtimeLanguage', 'runtimeFrontend', 'runtimeIr', 'runtimeOutputSignature']) {
       if (ro[k] !== undefined) meta[k] = ro[k]
     }
+    // ⭐⭐ U15 — the run half re-links its source's libraries: the document's pins go with it
+    if (def.meta && Array.isArray(def.meta.libraries) && def.meta.libraries.length) meta.libraries = def.meta.libraries
     rt = Object.freeze({
       id: `${def.id}~run`,
       ...(Number.isInteger(def.version) ? { version: def.version } : {}),
@@ -3531,6 +3573,9 @@ function copyColumns(out) {
  *  run's drawings beside it (`RUNTIME_OBJECTS_KEY`, the RT5 shape the binder already draws),
  *  `pending` while the run is in flight, `refused` with its code. `ctx` absent (a probe that
  *  is not a chart, `validateEventColumns`) asks nothing of the run. */
+/** The run half's state code while its run waits for another symbol's bars (not a refusal). */
+export const RUN_HALF_REQUEST_PENDING = 'runtime:request-pending'
+
 function withRunHalf(def, out, bars, inputs, ctx) {
   if (!ctx) return out
   const ro = def.compute.runtimeObjects
@@ -3577,12 +3622,19 @@ function withRunHalf(def, out, bars, inputs, ctx) {
   try {
     cols = _runtimeLane(runHalfDefOf(def, ro), bars, {}, ctx)
   } catch (err) {
+    // ONE WITHHOLDING, ONE REASON (2026-11-16). A run waiting for another symbol's bars is a
+    // run in flight, not a refusal: seen on production, the note under a chart read "the script
+    // reads another symbol or timeframe, which this chart cannot hand that run" for the seconds
+    // the bars took to load, and a different reason once they had. Held, with nothing said about
+    // a cause, until the run can answer.
+    if (err && err.pending === true) return answered('pending', RUN_HALF_REQUEST_PENDING)
     return refused(err && err.name === 'runtime.error' ? 'runtime:runtime.error' : ((err && err.guard) || 'runtime:error'))
   }
   const payload = cols && typeof cols === 'object' ? cols[RUNTIME_OBJECTS_KEY] : null
   // ⛔ A run that owns its drawings always attaches them when it finishes
   // (`runtimeColumns.js`): nothing attached is a run still in flight.
   if (!payload || typeof payload !== 'object') return answered('pending', 'runtime:in-flight')
+  if (payload.status === 'WITHHELD' && payload.pending === true) return answered('pending', RUN_HALF_REQUEST_PENDING)
   if (payload.status === 'WITHHELD') return refused(payload.guard || 'runtime:objects')
   if (payload.status !== 'ok' || !Array.isArray(payload.live)) return refused('runtime:objects-stopped')
   const hostFams = hostObjectFamilies(def.objects)
@@ -3647,6 +3699,12 @@ export function computeFor(def, bars, inputs, ctx) {
   // had one.
   if (def?.compute?.kind === 'ast') {
     const rows = Array.isArray(bars) ? bars : []
+    // ⭐⭐ CBC-FMT — `calc_bars_count`: THE ONE SEAM where the host lane takes its window
+    // (`engine/calcBarsWindow.js`). Every caller of `computeFor` (the binder, the object
+    // lane, the vendor harness) inherits it; a chart of N bars or fewer, and every document
+    // without the stamp, takes the path below unchanged.
+    const win = calcBarsWindowOf(def, rows)
+    if (win) return windowedAstColumns(def, win, inputs, ctx)
     const out = astColumnsFor(def, rows, treeScalars(def, resolveInputs(def, inputs)), ctx)
     const coloured = def.compute.runtimeColours ? withRuntimeColours(def, out, rows, inputs, ctx) : out
     // ⭐⭐ ENGINE 53 — and its drawings, when it carries a run half (`withRunHalf`).
@@ -3676,6 +3734,54 @@ export function computeFor(def, bars, inputs, ctx) {
 
   const hold = COLUMN_HOLDS[def.compute.fn]
   return hold ? hold(columns) : columns
+}
+
+/**
+ * ⭐⭐ CBC-FMT — AN `ast` DOCUMENT'S COLUMNS OVER ITS `calc_bars_count` WINDOW.
+ *
+ * The run is the ordinary one (`astColumnsFor`, then the run-read colours and the run
+ * half, exactly as `computeFor` composes them) over the window's rows, told its first bar
+ * is the history's first bar and TradingView's `bar_index` 0 (`windowContext`, both
+ * witnessed). Its columns are widened back to the chart (`NaN` before the window) and
+ * carry the window's record. Three things the window does not witness are withheld or
+ * refused BY NAME, never computed as if they were (`barstate.isfirst`, `last_bar_index` and
+ * a history read are witnessed: the slice computes them as TradingView does, S10):
+ *   · a request of other bars (`meta.calcBarsRequest`, or a `sym` / `ltf` / higher-
+ *     timeframe read): every plot is refused (`CALC_BARS_REQUEST_GUARD`);
+ *   · the newest bar while it may be forming (`withCalcBarsRecord`).
+ */
+function windowedAstColumns(def, win, inputs, ctx) {
+  const keys = astPlotKey(def)
+  if (calcBarsRequests(def)) {
+    const errors = {}
+    for (const key of keys) errors[key] = { guard: CALC_BARS_REQUEST_GUARD, message: calcBarsRequestSentence(win.count) }
+    return withCalcBarsRecord(withColumnErrors({}, errors), win, ctx, RUNTIME_OBJECTS_KEY)
+  }
+  const wctx = windowContext(ctx)
+  const out = astColumnsFor(def, win.rows, treeScalars(def, resolveInputs(def, inputs)), wctx)
+  const coloured = def.compute.runtimeColours ? withRuntimeColours(def, out, win.rows, inputs, wctx) : out
+  const ran = def.compute.runtimeObjects ? withRunHalf(def, coloured, win.rows, inputs, wctx) : coloured
+  return withCalcBarsRecord(widenToChart(ran, win.cut, RUNTIME_OBJECTS_KEY), win, ctx, RUNTIME_OBJECTS_KEY)
+}
+
+/** Does a windowed document request other bars? The door's stamp (the source's own
+ *  `request.*`, the identity included) or a tree that reads them. */
+function calcBarsRequests(def) {
+  if (def.meta && (def.meta.calcBarsRequest === true
+    || (Array.isArray(def.meta.otherSymbols) && def.meta.otherSymbols.length)
+    || (Array.isArray(def.meta.lowerTf) && def.meta.lowerTf.length))) return true
+  const trees = astTrees(def)
+  const all = trees ? Object.values(trees) : [def.compute.ast]
+  const stack = [...all]
+  const seen = new Set()
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object' || seen.has(n)) continue
+    seen.add(n)
+    if (n.type === 'sym' || n.type === 'ltf' || n.type === 'tf' || n.type === 'tf_live') return true
+    if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
+  }
+  return false
 }
 
 /**
@@ -6471,6 +6577,21 @@ export function uninstallUserDefinition(defId) {
 /** @returns {object[]} the user definitions installed in THIS session. */
 export function listUserDefinitions() {
   return [..._userById.values()]
+}
+
+/** ⚡ PRELOAD (perf/pine-runtime-chunk-preload) — does a definition run (in whole or in part) on the
+ *  per-bar lane: a runtime document, a host document's run half (`compute.runtimeObjects`), or its
+ *  run-read paint colours (`compute.runtimeColours`)? The chart warms the lane's worker after its
+ *  first paint only when one of the member's installed definitions does (`runtimeLaneWarm.js`). */
+export function definitionUsesRuntimeLane(def) {
+  const c = def && def.compute
+  return !!(c && (c.kind === 'runtime' || c.runtimeObjects || c.runtimeColours))
+}
+
+/** ⚡ Is any user definition installed in this session on the per-bar lane? */
+export function anyInstalledRuntimeDefinition() {
+  for (const d of _userById.values()) if (definitionUsesRuntimeLane(d)) return true
+  return false
 }
 
 /**

@@ -210,6 +210,9 @@ UNSUPPORTED_CATEGORIES = frozenset({
 })
 STUDIO_ACTIONS = frozenset({
     "opened", "preview", "saved", "save_failed", "discarded", "turn_failed",
+    # The member pressed Undo on a preview at least once in this conversation: the answer
+    # drew, and was not what they wanted (plan section 7, L7).
+    "undone",
 })
 #: Output/presentation kinds a saved conversation's definition carries (shape).
 _KINDS = frozenset({
@@ -237,6 +240,11 @@ _VALUE_RULES: dict = {
         "repair_gate": re.compile(r"[a-z_-]{2,32}:[a-z0-9_-]{2,48}"),
         "input_wrapper": frozenset({"args"}),
         "op_kinds": _csv_of(_CONVERSE_OPS),
+        # What produced the turn (`definition_conversation.turn_stamps`). Each is a
+        # strict pattern, never free text: a hash, a version, a model id.
+        "prompt_sha": re.compile(r"[0-9a-f]{16}"),
+        "vocab_version": re.compile(r"[0-9A-Za-z][0-9A-Za-z._-]{0,31}"),
+        "model": re.compile(r"[a-z0-9][a-z0-9._:@-]{1,63}"),
     },
     "studio_action": {
         "conversation_id": re.compile(_CONV_ID),
@@ -257,6 +265,7 @@ EVENT_SCHEMAS.update({
         "usd": _N, "input_tokens": _N, "output_tokens": _N,
         "cache_read_tokens": _N, "cache_write_tokens": _N, "latency_ms": _N,
         "op_kinds": (str,), "preflight": (bool,),
+        "prompt_sha": (str,), "vocab_version": (str,), "model": (str,), "engine": (int,),
     },
     "studio_action": {
         "import_id": (str,), "conversation_id": (str,), "action": (str,),
@@ -538,6 +547,62 @@ def _pool_state() -> dict:
         return {}
 
 
+def authoring_demand(days: int = 7, *, top: int = 12) -> dict:
+    """⭐ L6 (Studio plan, section 7): what members asked Create Indicator for that it could
+    not build, RANKED BY DISTINCT MEMBERS. One member asking ten times is one ask; ten members
+    asking once each is ten. The rows are the closed demand categories each turn already
+    carries (`definition_conversation.unsupported_category`), so nothing here can hold a
+    member's words. READ-ONLY.
+
+    ``other`` is the share the taxonomy cannot place yet: a falling ``unclassified_share``
+    means it is learning. ``could_not_produce`` is a different signal, kept apart: requests
+    the assistant tried and failed to express (a defect to fix, not demand to weigh).
+    """
+    days = max(1, min(int(days or 7), 90))
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT visitor_id, props, date(created_at) FROM landing_events"
+            " WHERE event = 'converse_turn' AND created_at >= datetime('now', ?)",
+            (f"-{days} days",),
+        ).fetchall()
+    finally:
+        conn.close()
+    cells: dict = {}
+    invalid_members, invalid_turns = set(), 0
+    for uid, props, day in rows:
+        try:
+            p = json.loads(props) if props else {}
+        except ValueError:
+            continue
+        if p.get("failure_class") == "model_invalid":
+            invalid_members.add(str(uid)); invalid_turns += 1
+        cat = p.get("unsupported_category")
+        if cat not in UNSUPPORTED_CATEGORIES:
+            continue
+        c = cells.setdefault(cat, {"members": set(), "cohort": set(), "turns": 0, "last_day": None})
+        c["members"].add(str(uid))
+        if p.get("access") == "cohort":
+            c["cohort"].add(str(uid))
+        c["turns"] += 1
+        c["last_day"] = max(c["last_day"] or day, day)
+    ranked = sorted(({"category": k, "members": len(v["members"]),
+                     "members_excluding_admins": len(v["cohort"]),
+                     "turns": v["turns"], "last_day": v["last_day"]} for k, v in cells.items()),
+                    key=lambda r: (-r["members"], -r["turns"], r["category"]))
+    for i, r in enumerate(ranked, 1):
+        r["rank"] = i
+    total = sum(r["turns"] for r in ranked)
+    other = next((r for r in ranked if r["category"] == "other"), None)
+    return {
+        "window_days": days,
+        "ranked": ranked[:max(1, int(top))],
+        "categories": len(ranked),
+        "unclassified_share": round(other["turns"] / total, 3) if (other and total) else (0.0 if total else None),
+        "could_not_produce": {"members": len(invalid_members), "turns": invalid_turns},
+    }
+
+
 def rollout_report(days: int = 7) -> dict:
     """What the rollout cohort is doing with Create Indicator: the two structured
     events above plus the shared spend ledger. READ-ONLY; aggregates only — the
@@ -582,6 +647,9 @@ def rollout_report(days: int = 7) -> dict:
             "reached_preview": len([c for c, a in convs.items() if "preview" in a]),
             "saved": len(saved),
             "discarded": len([c for c, a in convs.items() if "discarded" in a]),
+            "undone": len([c for c, a in convs.items() if "undone" in a]),
+            # Undone and still saved: it took a correction to get there.
+            "saved_after_undo": len([c for c, a in convs.items() if "undone" in a and "saved" in a]),
             "save_failed": len([c for c, a in convs.items() if "save_failed" in a]),
             "save_rate": round(len(saved) / len(started), 3) if started else None,
             "client_turn_failures": _tally(p.get("failure") for _, _, p in actions
@@ -590,5 +658,12 @@ def rollout_report(days: int = 7) -> dict:
                                   for k in (p.get("kinds") or "").split(",") if k),
             "saved_origin": _tally(p.get("origin") for _, _, p in actions if p.get("action") == "saved"),
         },
+        # Which instructions, vocabulary, model and engine produced the window's turns
+        # (`definition_conversation.turn_stamps`). More than one value in a row means a
+        # change landed inside the window, so its rates mix two versions.
+        "produced_by": {k: _tally(p.get(k) for _, _, p in turns if p.get(k) is not None)
+                        for k in ("prompt_sha", "vocab_version", "model", "engine")},
         "shared_pool_today": _pool_state(),
+        # ⭐ L6: what could not be built, ranked by distinct members
+        "demand": authoring_demand(days),
     }

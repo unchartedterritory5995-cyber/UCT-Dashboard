@@ -18,6 +18,7 @@ from api.services.cache import cache
 from api.services.cache_policy import set_by_completeness
 from api.services import provider_errors as _pe
 from api.services import provider_licensing_class as _plc
+from api.services import snapshot_hl as _snapshot_hl
 
 _REST_BASE = "https://api.massive.com"
 
@@ -930,38 +931,20 @@ class _MassiveRestClient:
             f"{_REST_BASE}/v2/snapshot/locale/us/markets/stocks/tickers"
             f"?apiKey={self._api_key}"
         )
+        # The row rule lives in snapshot_hl.row (one rule for both paths). With
+        # SNAPSHOT_CHILD_ENABLED=1 the 5.8 MB download + parse runs in a helper
+        # process so it cannot hold this process's interpreter lock; if the helper
+        # itself is unavailable, the in-process path below serves.
+        if _snapshot_hl.enabled():
+            try:
+                return _snapshot_hl.fetch_rows(url)
+            except _snapshot_hl.ChildUnavailable:
+                pass
         try:
             data = self._get(url)
         except Exception:
             return {}
-        out: dict[str, dict] = {}
-        for t in data.get("tickers", []):
-            ticker = t.get("ticker", "")
-            if not ticker:
-                continue
-            day      = t.get("day", {})
-            prev_day = t.get("prevDay", {})
-            last     = t.get("lastTrade", {})
-            minute   = t.get("min", {})
-            last_price = float(last.get("p") or day.get("c") or prev_day.get("c") or 0.0)
-            out[ticker] = {
-                "last_price": round(last_price, 4),
-                "prev_close": round(float(prev_day.get("c") or 0.0), 4),
-                "prev_vol":   int(prev_day.get("v") or 0),
-                "today_vol":  int(day.get("v") or 0),
-                "day_high":   round(float(day.get("h") or 0.0), 4),
-                "day_low":    round(float(day.get("l") or 0.0), 4),
-                "day_open":   round(float(day.get("o") or 0.0), 4),
-                "day_c":      round(float(day.get("c") or 0.0), 4),      # RTH close (for ext-price staleness check)
-                "min_c":      round(float(minute.get("c") or 0.0), 4),   # current minute close (ext-hours aware)
-                "last_trade_p": round(float(last.get("p") or 0.0), 4),   # raw lastTrade.p (ext-hours print)
-                # min.av = accumulated volume for the CURRENT day — grows continuously
-                # across pre/RTH/post (unlike day.v, which is RTH-only), so a rate off
-                # it works in every session. min.v = the last minute's volume.
-                "min_av":     int(minute.get("av") or 0),
-                "min_v":      int(minute.get("v") or 0),
-            }
-        return out
+        return _snapshot_hl.rows_from_payload(data)
 
 
 def _get_client() -> _MassiveRestClient:

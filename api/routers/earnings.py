@@ -559,7 +559,7 @@ def earnings_analysis(request: Request, sym: str = Depends(sym_shape), cached_on
 
 @router.get("/api/chart/markers/{ticker}")
 @router.get("/api/chart-markers/{ticker}")
-def chart_markers_endpoint(ticker: str, days: int = 730):
+def chart_markers_endpoint(ticker: str, days: int = 730, response: Response = None):
     """Earnings beat/miss history + stock splits + dividends for chart annotation.
 
     `days` filters output to events within the last N calendar days
@@ -576,6 +576,10 @@ def chart_markers_endpoint(ticker: str, days: int = 730):
     cutoff = (date.today() - timedelta(days=days)).isoformat()
 
     raw = get_chart_markers(ticker.upper()) or {}
+    if raw.get("earnings") or raw.get("splits") or raw.get("dividends"):
+        # A built history only. An empty answer may be a build that has not finished: never kept.
+        from api.services import reference_cache
+        reference_cache.allow(response, reference_cache.CHART_MARKERS_S)
     return {
         "earnings":  [e for e in (raw.get("earnings")  or []) if (e.get("date") or "") >= cutoff],
         "splits":    [s for s in (raw.get("splits")    or []) if (s.get("date") or "") >= cutoff],

@@ -1332,7 +1332,13 @@
      "fixed before"
     ]
    },
-   "batch": "wave6"
+   "batch": "index-charts-2026-11-16",
+   "chart": {
+    "sym": "RUT",
+    "asof": "2024-07-11",
+    "window": 120,
+    "forward": 5
+   }
   },
   {
    "key": "q14",
@@ -1668,8 +1674,8 @@
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Derived Into small caps first: Russell 2000 +3.6% vs S&P -0.9% and Nasdaq Composite -2%. Re-fetched AP (f79, f80, f81 verbatim) and CNBC (f82, f83, f84, f89 phrases present). f82 says the CPI reading sent rates lower and investors into small caps, which grounds the key and the higher-rates note; f83 grounds the big tech note. 'Altogether' wording matches what the facts support (f81 + f83). Key 15 chars, not longest; story names the Russell 2000, not small caps, so the key is not echoed. Simple and deeper stay within the why. q14 restates its own inputs, so q13 does not answer it; q15's breadth"
+   "fixed": true,
+   "notes": "Words agree with the data: 2024-07-10 -> 07-11 closes S&P 500 5633.91 -> 5584.54 = -0.88% ('falls 0.9%'), Nasdaq Composite 18647.45 -> 18283.41 = -1.95% ('falls 2%'), Russell 2000 2051.75 -> 2125.04 = +3.57% ('jumps 3.6%'). No give-away: the hidden-symbol RUT window (2024-01-19 to 07-11) ends on the +3.6% candle the story already states, the highest close of the window (the March 28 intraday high 2135.46 stays above it); it supports no wrong choice. Worth it: it shows the jump breaking a six-month sideways small-cap range, and the replay that the move kept running. FIX: forward 10 -> 5. Yahoo'"
   },
   "q14": {
    "status": "cut",

@@ -5147,7 +5147,7 @@
     "rs_flag": null,
     "security_type": "Stock",
     "rs_rating_session": "2026-02-27",
-    "rs_setup": "pullback_8",
+    "rs_setup": "uptrend",
     "rs_tight": 1,
     "rs_nh_bars_ago": 0,
     "px_below_high_pct": 0.0,
@@ -5175,9 +5175,9 @@
    "is_new": false,
    "want": {
     "place": 1,
-    "caption": "Pullback to the 8-day, tight range",
+    "caption": "Tight range",
     "tag": "",
-    "setup": "Pullback to the 8-day, tight range",
+    "setup": "Tight range",
     "group": "Retail"
    }
   },
@@ -5204,7 +5204,7 @@
     "rs_flag": null,
     "security_type": "Stock",
     "rs_rating_session": "2026-02-27",
-    "rs_setup": "pullback_8",
+    "rs_setup": "uptrend",
     "rs_tight": 1,
     "rs_nh_bars_ago": 0,
     "px_below_high_pct": 0.0,
@@ -5232,9 +5232,9 @@
    "is_new": false,
    "want": {
     "place": 2,
-    "caption": "Pullback to the 8-day, tight range · was #6 a month ago",
+    "caption": "Tight range · was #6 a month ago",
     "tag": "",
-    "setup": "Pullback to the 8-day, tight range",
+    "setup": "Tight range",
     "group": "Banks"
    }
   },
@@ -5318,7 +5318,7 @@
     "rs_flag": null,
     "security_type": "Stock",
     "rs_rating_session": "2026-02-27",
-    "rs_setup": "pullback_8",
+    "rs_setup": "uptrend",
     "rs_tight": 1,
     "rs_nh_bars_ago": 0,
     "px_below_high_pct": 0.0,
@@ -5346,9 +5346,9 @@
    "is_new": false,
    "want": {
     "place": 4,
-    "caption": "Pullback to the 8-day, tight range · was #8 a month ago",
+    "caption": "Tight range · was #8 a month ago",
     "tag": "",
-    "setup": "Pullback to the 8-day, tight range",
+    "setup": "Tight range",
     "group": "Retail"
    }
   },
@@ -5432,7 +5432,7 @@
     "rs_flag": null,
     "security_type": "Stock",
     "rs_rating_session": "2026-02-27",
-    "rs_setup": "pullback_8",
+    "rs_setup": "uptrend",
     "rs_tight": 1,
     "rs_nh_bars_ago": 0,
     "px_below_high_pct": 0.0,
@@ -5460,9 +5460,9 @@
    "is_new": false,
    "want": {
     "place": 6,
-    "caption": "Pullback to the 8-day, tight range · was #13 a month ago",
+    "caption": "Tight range · was #13 a month ago",
     "tag": "",
-    "setup": "Pullback to the 8-day, tight range",
+    "setup": "Tight range",
     "group": "Retail"
    }
   },
@@ -5546,7 +5546,7 @@
     "rs_flag": null,
     "security_type": "Stock",
     "rs_rating_session": "2026-02-27",
-    "rs_setup": "pullback_8",
+    "rs_setup": "uptrend",
     "rs_tight": 1,
     "rs_nh_bars_ago": 1,
     "px_below_high_pct": 0.0,
@@ -5574,9 +5574,9 @@
    "is_new": false,
    "want": {
     "place": 8,
-    "caption": "Pullback to the 8-day, tight range · was #10 a month ago",
+    "caption": "Tight range · was #10 a month ago",
     "tag": "",
-    "setup": "Pullback to the 8-day, tight range",
+    "setup": "Tight range",
     "group": "Oil and gas"
    }
   },
@@ -5604,7 +5604,7 @@
     "rs_flag": null,
     "security_type": "Stock",
     "rs_rating_session": "2026-02-27",
-    "rs_setup": "pullback_8",
+    "rs_setup": "uptrend",
     "rs_tight": 1,
     "px_below_high_pct": 0.0,
     "rs_rating_pos": 1,
@@ -5639,7 +5639,7 @@
     "place": null,
     "caption": "RS high today · Retail",
     "tag": "Weekly RS high",
-    "setup": "Pullback to the 8-day, tight range",
+    "setup": "Tight range",
     "group": "Retail"
    }
   },
@@ -5667,7 +5667,7 @@
     "rs_flag": null,
     "security_type": "Stock",
     "rs_rating_session": "2026-02-27",
-    "rs_setup": "pullback_8",
+    "rs_setup": "uptrend",
     "rs_tight": 1,
     "px_below_high_pct": 0.0,
     "rs_rating_pos": 2,
@@ -5702,7 +5702,7 @@
     "place": null,
     "caption": "RS high today · Banks",
     "tag": "Weekly RS high",
-    "setup": "Pullback to the 8-day, tight range",
+    "setup": "Tight range",
     "group": "Banks"
    }
   },
@@ -5793,7 +5793,7 @@
     "rs_flag": null,
     "security_type": "Stock",
     "rs_rating_session": "2026-02-27",
-    "rs_setup": "pullback_8",
+    "rs_setup": "uptrend",
     "rs_tight": 1,
     "px_below_high_pct": 0.0,
     "rs_rating_pos": 4,
@@ -5828,7 +5828,7 @@
     "place": null,
     "caption": "RS high today · Retail",
     "tag": "Weekly RS high",
-    "setup": "Pullback to the 8-day, tight range",
+    "setup": "Tight range",
     "group": "Retail"
    }
   },
@@ -5856,7 +5856,7 @@
     "rs_flag": null,
     "security_type": "Stock",
     "rs_rating_session": "2026-02-27",
-    "rs_setup": "pullback_8",
+    "rs_setup": "uptrend",
     "rs_tight": 1,
     "px_below_high_pct": 0.0,
     "rs_rating_pos": 6,
@@ -5891,7 +5891,7 @@
     "place": null,
     "caption": "RS high today · Retail",
     "tag": "Weekly RS high",
-    "setup": "Pullback to the 8-day, tight range",
+    "setup": "Tight range",
     "group": "Retail"
    }
   },
@@ -6607,7 +6607,7 @@
     "rs_leaders_member": 1,
     "security_type": "Stock",
     "rs_rating_session": "2026-02-27",
-    "rs_setup": "pullback_8",
+    "rs_setup": "uptrend",
     "rs_tight": 1,
     "rs_nh_bars_ago": 0,
     "px_below_high_pct": 0.0,
@@ -6638,9 +6638,9 @@
    "is_new": false,
    "want": {
     "place": 1,
-    "caption": "Pullback to the 8-day, tight range · Retail",
+    "caption": "Tight range · Retail",
     "tag": "",
-    "setup": "Pullback to the 8-day, tight range",
+    "setup": "Tight range",
     "group": "Retail"
    }
   },
@@ -6671,7 +6671,7 @@
     "rs_leaders_member": 1,
     "security_type": "Stock",
     "rs_rating_session": "2026-02-27",
-    "rs_setup": "pullback_8",
+    "rs_setup": "uptrend",
     "rs_tight": 1,
     "rs_nh_bars_ago": 0,
     "px_below_high_pct": 0.0,
@@ -6702,9 +6702,9 @@
    "is_new": false,
    "want": {
     "place": 2,
-    "caption": "Pullback to the 8-day, tight range · Banks",
+    "caption": "Tight range · Banks",
     "tag": "",
-    "setup": "Pullback to the 8-day, tight range",
+    "setup": "Tight range",
     "group": "Banks"
    }
   },
@@ -6799,7 +6799,7 @@
     "rs_leaders_member": 1,
     "security_type": "Stock",
     "rs_rating_session": "2026-02-27",
-    "rs_setup": "pullback_8",
+    "rs_setup": "uptrend",
     "rs_tight": 1,
     "rs_nh_bars_ago": 0,
     "px_below_high_pct": 0.0,
@@ -6830,9 +6830,9 @@
    "is_new": false,
    "want": {
     "place": 4,
-    "caption": "Pullback to the 8-day, tight range · Retail",
+    "caption": "Tight range · Retail",
     "tag": "",
-    "setup": "Pullback to the 8-day, tight range",
+    "setup": "Tight range",
     "group": "Retail"
    }
   },
@@ -6927,7 +6927,7 @@
     "rs_leaders_member": 1,
     "security_type": "Stock",
     "rs_rating_session": "2026-02-27",
-    "rs_setup": "pullback_8",
+    "rs_setup": "uptrend",
     "rs_tight": 1,
     "rs_nh_bars_ago": 0,
     "px_below_high_pct": 0.0,
@@ -6958,9 +6958,9 @@
    "is_new": false,
    "want": {
     "place": 6,
-    "caption": "Pullback to the 8-day, tight range · Retail",
+    "caption": "Tight range · Retail",
     "tag": "",
-    "setup": "Pullback to the 8-day, tight range",
+    "setup": "Tight range",
     "group": "Retail"
    }
   },
@@ -7055,7 +7055,7 @@
     "rs_leaders_member": 1,
     "security_type": "Stock",
     "rs_rating_session": "2026-02-27",
-    "rs_setup": "pullback_8",
+    "rs_setup": "uptrend",
     "rs_tight": 1,
     "rs_nh_bars_ago": 1,
     "px_below_high_pct": 0.0,
@@ -7086,9 +7086,9 @@
    "is_new": false,
    "want": {
     "place": 8,
-    "caption": "Pullback to the 8-day, tight range · Oil and gas",
+    "caption": "Tight range · Oil and gas",
     "tag": "",
-    "setup": "Pullback to the 8-day, tight range",
+    "setup": "Tight range",
     "group": "Oil and gas"
    }
   },
@@ -7501,7 +7501,7 @@
     "security_type": "Stock",
     "rs_pos_1m": 5,
     "rs_rating_session": "2026-02-27",
-    "rs_setup": "pullback_8",
+    "rs_setup": "uptrend",
     "rs_tight": 1,
     "rs_nh_bars_ago": 0,
     "px_below_high_pct": 0.0,
@@ -7530,9 +7530,9 @@
    "is_new": false,
    "want": {
     "place": 5,
-    "caption": "Pullback to the 8-day, tight range · RS Rating up 6 this week",
+    "caption": "Tight range · RS Rating up 6 this week",
     "tag": "",
-    "setup": "Pullback to the 8-day, tight range",
+    "setup": "Tight range",
     "group": "Oil and gas"
    }
   },
@@ -7559,7 +7559,7 @@
     "security_type": "Stock",
     "rs_pos_1m": 6,
     "rs_rating_session": "2026-02-27",
-    "rs_setup": "pullback_8",
+    "rs_setup": "uptrend",
     "rs_tight": 1,
     "rs_nh_bars_ago": 0,
     "px_below_high_pct": 0.0,
@@ -7588,9 +7588,9 @@
    "is_new": false,
    "want": {
     "place": 6,
-    "caption": "Pullback to the 8-day, tight range",
+    "caption": "Tight range",
     "tag": "",
-    "setup": "Pullback to the 8-day, tight range",
+    "setup": "Tight range",
     "group": "Retail"
    }
   },
@@ -7617,7 +7617,7 @@
     "security_type": "Stock",
     "rs_pos_1m": 7,
     "rs_rating_session": "2026-02-27",
-    "rs_setup": "pullback_8",
+    "rs_setup": "uptrend",
     "rs_tight": 1,
     "rs_nh_bars_ago": 0,
     "px_below_high_pct": -0.72,
@@ -7646,9 +7646,9 @@
    "is_new": false,
    "want": {
     "place": 7,
-    "caption": "Pullback to the 8-day, tight range · RS Rating up 5 this week",
+    "caption": "Tight range · RS Rating up 5 this week",
     "tag": "",
-    "setup": "Pullback to the 8-day, tight range",
+    "setup": "Tight range",
     "group": "Machinery"
    }
   },
@@ -7675,7 +7675,7 @@
     "security_type": "Stock",
     "rs_pos_1m": 8,
     "rs_rating_session": "2026-02-27",
-    "rs_setup": "pullback_8",
+    "rs_setup": "uptrend",
     "rs_tight": 1,
     "rs_nh_bars_ago": 0,
     "px_below_high_pct": 0.0,
@@ -7704,9 +7704,9 @@
    "is_new": false,
    "want": {
     "place": 8,
-    "caption": "Pullback to the 8-day, tight range · RS Rating up 9 this week",
+    "caption": "Tight range · RS Rating up 9 this week",
     "tag": "",
-    "setup": "Pullback to the 8-day, tight range",
+    "setup": "Tight range",
     "group": "Banks"
    }
   },
@@ -7733,7 +7733,7 @@
     "security_type": "Stock",
     "rs_pos_1m": 9,
     "rs_rating_session": "2026-02-27",
-    "rs_setup": "pullback_8",
+    "rs_setup": "uptrend",
     "rs_tight": 1,
     "rs_nh_bars_ago": 0,
     "px_below_high_pct": 0.0,
@@ -7762,9 +7762,9 @@
    "is_new": false,
    "want": {
     "place": 9,
-    "caption": "Pullback to the 8-day, tight range · RS Rating up 12 this week",
+    "caption": "Tight range · RS Rating up 12 this week",
     "tag": "",
-    "setup": "Pullback to the 8-day, tight range",
+    "setup": "Tight range",
     "group": "Drug makers"
    }
   },

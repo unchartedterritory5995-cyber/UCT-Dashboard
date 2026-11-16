@@ -60,6 +60,8 @@ import { toProductBars } from '../__tests__/vendorHarness/ourSide.js'
 import { hostObjectRun, hostObjectReaderOpts } from '../runHalfObjectRail.js'
 import { OTHER_SYMBOL_REFUSAL, staticallyUnservable } from '../otherSymbols'
 import { foldNotesForOutput } from './parse'
+import { CALL_EXPANSIONS } from './callExpansions'
+import { supertrendTreesEngine56 } from './__fixtures__/supertrendTreesEngine56.js'
 
 const INPUT = process.env.COVERAGE_INPUT
 const OUT = process.env.COVERAGE_OUT
@@ -760,11 +762,32 @@ describe('⛔ engine 55 — the census bound check (`boundBlockers`) can fail', 
   const head = ['//@version=5', "indicator('e55 bound', overlay=true)"]
   const doorOf = (lines) => underLane(false, () => memberPaneDefinition({ source: [...head, ...lines].join(LF), id: DEF_ID, name: 'b' }))
 
-  it('⛔ a DARK plot (the builtin Supertrend from the listing: 0 bars against the off-listing replay) is a blocker', () => {
+  // ⭐ ENGINE 57 moved this rail's subject: it was the builtin Supertrend, dark until engine 57
+  // fixed its tree. The subject is now THAT dark plot, rebuilt: the door translates the same
+  // script with engine 56's supertrend expansion swapped in (the verbatim fixture
+  // `__fixtures__/supertrendTreesEngine56.js`, restored in `finally`). The control below is
+  // today's tree on the same script: no dark-plot blocker.
+  const withEngine56Supertrend = (fn) => {
+    const st = CALL_EXPANSIONS.supertrend
+    const sd = CALL_EXPANSIONS.supertrendDirection
+    const was = [st.build, sd.build]
+    st.build = (a) => { const t = supertrendTreesEngine56(a[0], a[1]); return t ? t.value : null }
+    sd.build = (a) => { const t = supertrendTreesEngine56(a[0], a[1]); return t ? t.direction : null }
+    try { return fn() } finally { [st.build, sd.build] = was }
+  }
+
+  it('⛔ a DARK plot (engine 56\'s builtin Supertrend tree from the listing: fewer bars than the off-listing replay) is a blocker', () => {
+    const d = withEngine56Supertrend(() => doorOf(['[st, dir] = ta.supertrend(3, 10)', 'plot(st)']))
+    expect(d.ok).toBe(true)
+    const why = boundBlockers(d)
+    expect(why.some((w) => /^dark-plot:[^:]+:listing \d+ (\/ off-listing|of the off-listing) [1-9]\d*$/.test(w)), why.join(' | ')).toBe(true)
+  })
+
+  it('CONTROL (engine 57): today\'s builtin Supertrend on the same script is NOT dark', () => {
     const d = doorOf(['[st, dir] = ta.supertrend(3, 10)', 'plot(st)'])
     expect(d.ok).toBe(true)
     const why = boundBlockers(d)
-    expect(why.some((w) => /^dark-plot:[^:]+:listing 0 \/ off-listing [1-9]\d*$/.test(w)), why.join(' | ')).toBe(true)
+    expect(why.filter((w) => w.startsWith('dark-plot:')), why.join(' | ')).toEqual([])
   })
 
   it('a plot empty in BOTH replays (an input left off) is NOT a dark plot (the control for the rule)', () => {

@@ -11,6 +11,7 @@ import useMediaQuery from '../../hooks/useMediaQuery'
 import useChartLayouts from '../../hooks/useChartLayouts'
 import { useAuth } from '../../context/AuthContext'
 import UIcon from '../../components/ui/UIcon'
+import useIndicatorDoors from '../../components/indicatorKit/useIndicatorDoors'
 import { WorkspaceContext } from './WorkspaceContext'
 import { GROUP_SAVE_MS, GROUP_SCAN_GAP_MS, GROUP_SCAN_SAVE_MS } from './groupSymSavePace'
 // UCT Agent (admin-dark): lazy, so nothing of the Agent reaches the board's chunk
@@ -1157,6 +1158,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // setPercentScale}). Each ChartWidget registers here on mount; the Compare
   // Symbols tool reads/writes the active chart's comparison overlays through it.
   const chartApiByIdRef = useRef(new Map())
+  // A door asked for from outside the chart (the command palette) opens on the active chart.
+  useIndicatorDoors(chartApiByIdRef, activeChartRef)
   // Same idea for watchlists: the last hovered/focused Watchlist widget owns the
   // arrow keys + its own scroll-into-view, so 4 watchlists don't all fight over one
   // keypress (first-mounted-wins race) or all force a reflow on every selection.

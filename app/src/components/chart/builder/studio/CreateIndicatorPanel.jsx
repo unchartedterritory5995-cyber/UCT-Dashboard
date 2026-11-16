@@ -148,6 +148,38 @@ const keepKeysInPanel = (e) => e.stopPropagation()
  * @param {Function|null} [props.onEditFormula] ⭐ PHASE 4 — open the manual editor on
  *   the same definition (offered when the conversation cannot edit it)
  */
+/** How long a preview usually takes, said to the member while they wait. Measured on
+ *  production 2026-11-15 (about 14 s to a first preview); a range, never a promise. */
+export const USUAL_WAIT = 'Usually 10 to 20 seconds'
+/** After this many seconds the line says so instead. */
+export const LONG_WAIT_S = 30
+
+/**
+ * ⭐ WHILE IT WORKS (2026-11-16). The wait showed one unchanging line and no way out. It now
+ * counts the seconds, says what is usual, and offers Stop. Mounted only while a turn is in
+ * flight, so its one-second tick ends with the turn.
+ */
+function Working({ onStop }) {
+  const [secs, setSecs] = useState(0)
+  useEffect(() => {
+    const t0 = Date.now()
+    const id = setInterval(() => setSecs(Math.floor((Date.now() - t0) / 1000)), 1000)
+    return () => clearInterval(id)
+  }, [])
+  return (
+    <div className={styles.workingRow}>
+      <div className={styles.workingText}>
+        <div className={styles.working} data-testid="create-indicator-working">The UCT Agent is thinking</div>
+        <div className={styles.workingNote} data-testid="create-indicator-working-note" aria-live="off">
+          {secs >= LONG_WAIT_S ? `${secs}s. This one is taking longer than usual` : `${secs}s. ${USUAL_WAIT}`}
+        </div>
+      </div>
+      <button type="button" className={styles.ghost} data-testid="create-indicator-stop"
+        onClick={() => onStop && onStop()}>Stop</button>
+    </div>
+  )
+}
+
 export default function CreateIndicatorPanel({
   onClose, settings = null, onChange = null, sym = null, tf = null, anchorRef = null,
   onPreview, onOpenBuilder = null, onOpenLibrary = null, converse = converseTurn,
@@ -290,6 +322,11 @@ export default function CreateIndicatorPanel({
   // discard it, or keep editing). An opened-but-untouched or just-saved definition
   // closes without a question; a create keeps the accepted no-prompt contract.
   const [confirmLeave, setConfirmLeave] = useState(null)   // 'close' | 'discard' | null
+  // ⭐ V1 — the History list (the earlier steps of this draft). Closed by a pick, by Esc,
+  // by its own button, and whenever there is no longer more than one step to offer.
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const stepCount = conv.steps.length
+  useEffect(() => { if (stepCount < 2) setHistoryOpen(false) }, [stepCount])
   const askOrClose = useCallback(() => { if (editMode && conv.dirty) setConfirmLeave('close'); else close() }, [editMode, conv.dirty, close])
   const askOrCancel = useCallback(() => { if (editMode && conv.dirty) setConfirmLeave('discard'); else cancel() }, [editMode, conv.dirty, cancel])
 
@@ -424,7 +461,7 @@ export default function CreateIndicatorPanel({
               ? <li key={t.id} className={styles.msgMember} data-role="member">{t.text}</li>
               : (
                 <li key={t.id} data-role="uct" data-kind={t.kind} data-updated={t.updated ? 'true' : undefined}
-                  className={`${styles.msgUct} ${t.kind === 'refusal' ? styles.msgRefusal : ''} ${t.kind === 'unsupported' ? styles.msgLimit : ''} ${t.kind === 'answer' ? styles.msgAnswer : ''} ${t.kind === 'undo' ? styles.msgQuiet : ''}`}>
+                  className={`${styles.msgUct} ${t.kind === 'refusal' ? styles.msgRefusal : ''} ${t.kind === 'unsupported' ? styles.msgLimit : ''} ${t.kind === 'answer' ? styles.msgAnswer : ''} ${t.kind === 'undo' || t.kind === 'stopped' ? styles.msgQuiet : ''}`}>
                   {/* ⭐ SLICE 2 — a change says so; an answer never does. */}
                   {t.updated && <span className={styles.updated} data-testid="create-indicator-updated">Updated preview</span>}
                   {(t.lines || []).map((l, i) => (
@@ -450,7 +487,7 @@ export default function CreateIndicatorPanel({
           </div>
         )}
 
-        {busy && <div className={styles.working} data-testid="create-indicator-working">The UCT Agent is thinking</div>}
+        {busy && <Working onStop={conv.stop} />}
         <div ref={logEndRef} />
       </div>
 
@@ -535,9 +572,47 @@ export default function CreateIndicatorPanel({
           disabled={busy || saving || blocked || !message.trim()} onClick={() => submit()}>Send</button>
       </div>
 
+      {/* ⭐ V1 — HISTORY: every earlier step of this draft, newest first, each one press away.
+          What a step WAS is the read-back's own sentence for that step. Nothing here saves:
+          going back is a preview change like any other, and Undo-able in the sense that the
+          steps before it are still listed. */}
+      {historyOpen && stepCount >= 2 && (
+        <div className={styles.history} role="region" aria-label="Earlier steps of this draft"
+          data-testid="create-indicator-history"
+          onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setHistoryOpen(false) } }}>
+          <div className={styles.historyHead}>
+            <span>Earlier steps</span>
+            <button type="button" className={styles.historyClose} aria-label="Close history"
+              data-testid="create-indicator-history-close" onClick={() => setHistoryOpen(false)}>Close</button>
+          </div>
+          <ol className={styles.historyList} reversed>
+            {[...conv.steps].reverse().map((st) => (
+              <li key={st.index} className={styles.historyRow} data-testid="create-indicator-history-step"
+                data-step={st.step}>
+                <div className={styles.historyWhat}>
+                  <span className={styles.historyStep}>Step {st.step}</span>
+                  {st.empty
+                    ? <span className={styles.historyLine}>Before anything was built</span>
+                    : (st.lines.length ? st.lines : [st.name || 'Indicator']).map((l, i) => (
+                      <span key={i} className={styles.historyLine}>{l}</span>))}
+                </div>
+                <button type="button" className={styles.ghost} disabled={!conv.canUndo}
+                  data-testid="create-indicator-history-go"
+                  onClick={() => { if (conv.goBackTo(st.index)) setHistoryOpen(false) }}>Go back to this</button>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+
       <div className={styles.foot}>
         <button type="button" className={styles.ghost} data-testid="create-indicator-undo"
           disabled={!conv.canUndo} onClick={conv.undo}>Undo</button>
+        {stepCount >= 2 && (
+          <button type="button" className={styles.ghost} data-testid="create-indicator-history-toggle"
+            aria-expanded={historyOpen} disabled={!conv.canUndo}
+            onClick={() => setHistoryOpen((v) => !v)}>History</button>
+        )}
         <span className={styles.footSpacer} />
         {editMode ? (
           <button type="button" className={styles.ghost} data-testid="create-indicator-cancel" onClick={askOrCancel}

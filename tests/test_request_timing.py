@@ -20,6 +20,10 @@ from api.services import request_timing as rt
 def clean(tmp_path, monkeypatch):
     monkeypatch.setenv("REQUEST_TIMING_DIR", str(tmp_path / "rt"))
     monkeypatch.delenv(rt.KILL_SWITCH, raising=False)
+    # No background writer in these tests: tests that need a minute on disk drain the queue
+    # themselves. A writer thread left running by an earlier test raced that drain and took a
+    # minute first (1 run in 4 failed test_minutes_just_after_a_restart_are_reported_apart).
+    monkeypatch.setattr(rt, "_writer_started", True)
     rt._reset_for_tests()
     yield
     rt._reset_for_tests()
@@ -241,3 +245,39 @@ def test_the_admin_route_answers_the_summary_and_refuses_without_admin():
     assert body["hours"] == 1 and body["all"]["requests"] >= 1 and "verdict" in body
     app.dependency_overrides.clear()
     assert client.get("/api/admin/request-timing").status_code in (401, 403)
+
+
+# ── writes apart from reads, and the minutes after a restart apart from the rest ──────────────
+
+def test_a_write_is_its_own_class_and_a_read_keeps_the_bare_path():
+    t = 6_000_000.0
+    rt.record("/api/auth/preferences", 200, 10.0, now=t)
+    rt.record("/api/auth/preferences", 200, 10.0, now=t, method="HEAD")
+    rt.record("/api/auth/preferences", 200, 4000.0, now=t, method="post")
+    rt.record("/api/auth/preferences", 200, 5.0, now=t, method="BREW")
+    got = {x["route"]: x["requests"] for x in rt.summary(1, now=t)["routes"]}
+    assert got == {"/api/auth/preferences": 2, "POST /api/auth/preferences": 1, "OTHER /api/auth/preferences": 1}
+
+
+def test_the_layer_records_the_requests_own_method():
+    app = _app()
+
+    @app.post("/api/save")
+    def save():
+        return {"ok": True}
+
+    TestClient(app).post("/api/save")
+    assert [x["route"] for x in rt.summary(1)["routes"]] == ["POST /api/save"]
+
+
+def test_minutes_just_after_a_restart_are_reported_apart(monkeypatch):
+    boot = 1_800_000_000.0
+    monkeypatch.setattr(rt, "_BOOT", boot)
+    rt.record("/api/auth/me", 200, 3000.0, now=boot + 30)       # the first minute
+    rt.record("/api/auth/me", 200, 2000.0, now=boot + 240)      # still inside the window
+    rt.record("/api/auth/me", 200, 20.0, now=boot + 900)        # settled; rolls the earlier minutes
+    while not rt._q.empty():
+        rt.write_minute(rt._q.get_nowait())
+    s = rt.summary(1, now=boot + 960)["since_restart"]
+    assert (s["after_boot"]["requests"], s["after_boot"]["minutes"], s["after_boot"]["max_ms"]) == (2, 2, 3000.0)
+    assert (s["settled"]["requests"], s["settled"]["max_ms"]) == (1, 20.0)

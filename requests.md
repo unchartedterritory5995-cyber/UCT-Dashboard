@@ -829,3 +829,39 @@ rows: there is no R5, and R10 was withdrawn before it was filed.
 |---|---|---|---|
 | R11 | the owner of the chart's menus | One "Indicators" entry on the chart toolbar and in the command palette listing every indicator door that exists, in member words | Create Indicator is three menus deep and the doors are not listed together anywhere. A menu of existing doors, not a new door. The Studio session will bring mock-ups for the owner to pick from first (lane S-X); nothing to do until then |
 | R12 | the authoring owner | Four shape-only signals on `converse_turn` telemetry (preview undone, preview discarded, refinements before save, still on a chart seven days after save), and a member-pressed "Send this to UCT" on a turn | So the weekly report can tell a built-and-kept indicator from a built-and-thrown-away one. The allow-list rule stands: no member text unless the member presses to send it |
+
+---
+
+## OPEN · 2026-11-15 · Studio track, requests re-filed after a six-way review of the plan
+
+**Raised by:** the Studio session. Plan: `docs/pine/studio/STUDIO-TRACK-PLAN.md` (FINAL v9), section 10.
+**This entry replaces the three Studio entries above** (2026-11-14 x2, 2026-11-15). They were written
+before the plan was reviewed against master; several asked for things that exist, and the authoring
+asks were in the wrong list. What stands is below; the rest is closed here so nobody works it.
+
+### Still asked
+
+| id | to | ask | repro (run from the repo root) |
+|---|---|---|---|
+| R4 | Pine engine | The saved row's verdict (its stamps and server lanes) and the engine version on the share preview and on install, so an installer sees the headline the author saw. The plan's rule (section 5): anything saved or shared reads the SERVED ROW, never a recomputed lane | `git grep -n -i -c -E "editorStatus\|scriptEngineVersion\|headline" origin/master -- app/src/components/chart/builder/SharePanel.jsx app/src/pages/formulas/SharedFormula.jsx` prints nothing and exits 1 today (neither file mentions a verdict or a version). Passes when it prints a count for both files |
+| R3 | Pine engine | Two small read-only exports for a per-bar inspector (plan lane R5), INSTEAD of the "named intermediate values" asked on 2026-11-14, which was engine-sized: (a) a script's top-level variable names with their line numbers, from the lexer; (b) a headless "definition to columns for these bars" call. The inspector then derives a probe copy that plots each named variable and runs it through the member door; no new interpreter internals | `git grep -n -E "export (function\|const) (topLevelNames\|declaredNames\|scriptNames)" origin/master -- app/src/components/chart/engine` prints nothing today. Passes when (a) is exported under whatever name you choose; tell us the name |
+| R13 | Screener | Confirm, or refuse: the Studio track will add a "Run over a list" row action on a member's own indicator (in the chart's Indicators window and on the legend chip) that opens the EXISTING run flow (`RunNowButton`, `POST /api/scans/run`) with the definition already chosen. No second run door, no new server route. We would write it as a pull request for your review | n/a (a design confirmation). The surface it composes: `git grep -n "MAX_RUN_SYMBOLS = " origin/master -- api/services/screener/scan_run.py` prints `MAX_RUN_SYMBOLS = 500` |
+
+### Closed here
+
+| id | was | outcome |
+|---|---|---|
+| R1 | verdict readable without React | WITHDRAWN as a blocker. The reference builds under the test runner the way `supportLoop/doorNameCoverage.test.js` does. Left as a note on bundle size for when an in-app surface imports the verdict |
+| R2 | an admin gate beside `VITE_PINE_EDITOR_STATUS` | WITHDRAWN. Owner ruling 2026-11-15: finished indicator features open to every account, so there is no admin-only stage to build. The remaining step is setting the build flag, which is yours to time |
+| R6 | export the Pine name map | WITHDRAWN. `supportLoop/pineBuiltins.json` is that list |
+| R7, R8, R9, R12 | asks of the authoring owner | MOVED to `docs/indicators/INDICATORS-BACKLOG.md`, the list that owner keeps. R9 closed: no phrase is refused before the model (0 of 60) |
+| R10 | Pine section on `/formulas/reference` | WITHDRAWN on 2026-11-15: a pull request to the page instead |
+| R11 | an "Indicators" toolbar entry | WITHDRAWN. That button was retired on purpose (`ChartToolbar.jsx`, the comment where it stood). The command palette now lists every indicator job instead (#1387) |
+
+### Landed from this track since, for your information
+
+- #1386: Create Indicator opens to every account (`rollout_gate.enroll_in_create_indicator`, a one-time seed, the admin branch of `createIndicatorAccess`); `CREATE_INDICATOR_COHORT_ENABLED=1` on web. It also acknowledges three test files the frontend gate census had been red on since 2026-10-28.
+- #1378: `/formulas/reference` no longer prints `{0}`.
+- #1387: eight indicator commands in the command palette, through `components/indicatorKit/indicatorDoors.js`.
+- #1393: `converse_turn` rows carry `prompt_sha`, `vocab_version`, `model`, `engine`.
+

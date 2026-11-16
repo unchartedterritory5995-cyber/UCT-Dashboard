@@ -32,6 +32,7 @@ import { parseFormula, astHash } from '../engine/ast/parse'
 import { translatePine } from '../engine/ast/pine'
 import { USER_DEFINITIONS_KEY } from '../../../hooks/useUserDefinitions'
 import { DOOR_VERSION } from '../engine/memberDocumentMigration'
+import { SCRIPT_ENGINE_VERSION } from '../engine/scriptEngineVersion'
 
 const H = vi.hoisted(() => ({ requests: [] }))
 
@@ -203,6 +204,44 @@ describe('paste a real screener script and get a working scan', () => {
     await settleFormula()
     const save = screen.getByRole('button', { name: /^save$/i })
     expect(save.disabled).toBe(false)
+  })
+
+  // ⭐⭐ COND-TA (F3, coordinator ruling 2026-11-15) — AN UNTOUCHED APPLY SAVES ITS SCRIPT, in its
+  // own column (`pine_source`, beside the document, never in it), so a later translator fix can
+  // re-translate it; and stamps the engine that translated it (`importedFrom.engine`).
+  it('⭐ COND-TA F3: an untouched Apply saves the applied script as `pine_source`, and the engine', async () => {
+    mount()
+    await flush()
+    await paste(SCREEN_SCRIPT)
+    fireEvent.click(screen.getByTestId('pine-use'))
+    await settleFormula()
+    fireEvent.change(screen.getByLabelText(/name/i), { target: { value: 'Oversold uptrend' } })
+    await settleFormula()
+    fireEvent.click(screen.getByRole('button', { name: /^save$/i }))
+    await flush()
+    const post = H.requests.find((r) => r.method === 'POST' && r.url === USER_DEFINITIONS_KEY)
+    expect(post, 'nothing was written').toBeTruthy()
+    const body = JSON.parse(post.body)
+    expect(body.pine_source).toBe(SCREEN_SCRIPT)
+    expect(JSON.stringify(body.definition)).not.toContain('indicator(')   // never inside the document
+    expect(body.definition.meta.importedFrom.engine).toBe(SCRIPT_ENGINE_VERSION)
+  })
+
+  it('⛔ COND-TA F3: a formula HAND-EDITED after Apply saves no script (a re-translation must never undo the edit)', async () => {
+    mount()
+    await flush()
+    await paste(SCREEN_SCRIPT)
+    fireEvent.click(screen.getByTestId('pine-use'))
+    await settleFormula()
+    fireEvent.change(formulaField(), { target: { value: `${EXPECTED.formula} and close > 1` } })
+    await settleFormula()
+    fireEvent.change(screen.getByLabelText(/name/i), { target: { value: 'Oversold uptrend' } })
+    await settleFormula()
+    fireEvent.click(screen.getByRole('button', { name: /^save$/i }))
+    await flush()
+    const post = H.requests.find((r) => r.method === 'POST' && r.url === USER_DEFINITIONS_KEY)
+    expect(post, 'nothing was written').toBeTruthy()
+    expect(JSON.parse(post.body).pine_source).toBeUndefined()
   })
 
   it('⭐ the SAVED DOCUMENT is byte-identical to the same formula typed by hand', async () => {

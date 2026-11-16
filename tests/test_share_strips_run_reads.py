@@ -292,6 +292,9 @@ ROUTES = {
     ("POST", "/api/user-definitions/propose"): "none",
     ("POST", "/api/user-definitions/converse"): "none",
     ("GET", "/api/user-definitions/library"): "cross",
+    # U5 (e3dd9976c9): the capability detector PROCESS's state for the operator (enabled, alive, pid,
+    # quarantine sizes, counters); admin only, and it reads the worker, never the definition store.
+    ("GET", "/api/user-definitions/capability-worker"): "none",
     ("GET", "/api/user-definitions/runtime-kill"): "none",
     # WS-I Part 2: a verdict about the script the CALLER sends; it reads and stores nothing.
     ("POST", "/api/user-definitions/runtime-admission"): "none",

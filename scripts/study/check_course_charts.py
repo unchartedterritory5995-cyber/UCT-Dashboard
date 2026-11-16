@@ -18,7 +18,11 @@ for every charted question:
   - what the replay shows of the trade in the bars the member will see: the best R and whether the stop is hit, so a
     story's outcome can be compared with the chart (printed, not judged: the words are the writer's).
 
-    python -m scripts.study.check_course_charts --bars C:/path/to/bars.db [--unit SET.08 ...] [--json out.json]
+    python -m scripts.study.check_course_charts --bars C:/path/to/bars.db [--index-dir DIR] [--unit SET.08 ...] [--json out.json]
+
+An INDEX chart (courses_lib.INDEX_SERIES: SPX, IXIC, NDX, DJI, RUT) is read from `--index-dir` (one <SYM>.json per index,
+the daily history the pod's fill fetches; never committed: it is Yahoo's data), and must show candles on every day the
+member sees (an index's early history is closes only).
 
 Exit 1 when any chart fails a check. Prints counts only, never prices beyond each question's own levels.
 """
@@ -43,7 +47,7 @@ REVEAL_FORWARD_BARS = 20
 FORWARD_WANT = 60
 MAX_STOP_PCT = 6.0
 #: the history courses_lib loads ahead of a course chart's window so the averages are formed (the bank's bars.window)
-from scripts.study.courses_lib import INTRADAY_TFS, INTRADAY_WARMUP, WARMUP_BARS, intraday_key  # noqa: E402
+from scripts.study.courses_lib import INDEX_SERIES, INTRADAY_TFS, INTRADAY_WARMUP, WARMUP_BARS, intraday_key  # noqa: E402
 NAMES_200 = re.compile(r"\b200[- ]?(?:day|SMA|DMA)\b", re.I)
 NEGATED = re.compile(r"\b(no|not|without|never)\b|n't\b", re.I)
 
@@ -66,10 +70,33 @@ def asof_key_of(chart: dict) -> int:
     return _key(str(chart["asof"]))
 
 
-def resolve(c, chart: dict) -> dict:
-    """As api/routers/study.resolve_bars does for a daily spec."""
+def index_rows(index_dir, sym: str) -> list | None:
+    """An index's daily rows [(YYYYMMDD, o, h, l, c, v), ...] oldest first, from `<index_dir>/<SYM>.json` (a list of
+    [YYYYMMDD, o, h, l, c, v], the shape fill_course_charts.fetch_index_daily returns), or None when there is none."""
+    if not index_dir:
+        return None
+    p = pathlib.Path(index_dir) / f"{sym.upper()}.json"
+    if not p.is_file():
+        return None
+    return sorted((tuple(r) for r in json.loads(p.read_text(encoding="utf-8"))), key=lambda r: int(r[0]))
+
+
+def cut_daily(rows: list, asof: int, want: int, fwd_n: int) -> tuple[list, list]:
+    """A daily chart's visible rows (the last `want` up to and including asof) and the replay's (the first `fwd_n` after)."""
+    upto = [r for r in rows if int(r[0]) <= asof]
+    return upto[-want:], [r for r in rows if int(r[0]) > asof][:fwd_n]
+
+
+def resolve(c, chart: dict, index_dir=None) -> dict | None:
+    """As api/routers/study.resolve_bars does for a daily spec; an index chart from `index_dir` (None: not checkable here)."""
     sym, window, fwd_n = str(chart["sym"]).upper(), int(chart.get("window", 120)), int(chart.get("forward", 20))
     tf = str(chart.get("tf") or "D")
+    if sym in INDEX_SERIES:
+        rows = index_rows(index_dir, sym)
+        if rows is None:
+            return None
+        vis, fwd = cut_daily(rows, _key(chart["asof"]), window + WARMUP_BARS, fwd_n)
+        return {"visible": vis, "forward": fwd}
     if tf in INTRADAY_TFS:
         # the bank's spec: the bar's unix start, and an end a week on, of which the first `forward` bars after asof
         # the regular session only, as the server resolves an `rth` spec and the pod's fill stores it (bars.db keeps
@@ -93,7 +120,7 @@ def resolve(c, chart: dict) -> dict:
 def check_bars(chart: dict, vis: list, fwd: list, words: str = "") -> tuple[list[str], list[str]]:
     """(problems, notes) for one chart's bars, as the member will see them: `vis` the visible rows (oldest first, the
     last one the decision bar), `fwd` the replay's rows; each row (ts, o, h, l, c, v). Shared with the pod's
-    fill_course_intraday.py, which fetches an intraday chart's bars and stores only the charts this passes."""
+    fill_course_charts.py, which fetches an intraday or index chart's bars and stores only the charts this passes."""
     problems: list[str] = []
     notes: list[str] = []
     intraday = str(chart.get("tf") or "D") in INTRADAY_TFS
@@ -104,6 +131,28 @@ def check_bars(chart: dict, vis: list, fwd: list, words: str = "") -> tuple[list
         problems.append(f"asof {chart['asof']} is not a bar: the last visible bar is {vis[-1][0]}")
     if len(vis) < int(chart.get("window", 120)) // 2:
         problems.append(f"only {len(vis)} bars of history for a window of {chart.get('window', 120)}")
+    if str(chart.get("sym") or "").upper() in INDEX_SERIES:
+        # an index's early history is closes only (the S&P 500 until mid-1983, the Nasdaq Composite until 1990): such a
+        # day draws as a flat dash, not a candle. Every day the member sees, the window and the replay, must be a candle.
+        shown_rows = list(vis[-int(chart.get("window", 120)):]) + list(fwd[:int(chart.get("forward", 20))])
+        flat = sum(1 for r in shown_rows if float(r[1]) == float(r[4]) and float(r[2]) == float(r[3]))
+        if flat:
+            problems.append(f"{flat} of the days shown are closes only in the index's history (no candle): chart a later date")
+        # and in some eras the history's OPEN is only the prior close (the S&P 500 on most days before 2008 and about a
+        # quarter of 2012-13, the Nasdaq 100 before 2000, the Russell 2000 before 2007; measured 2026-11-16): such
+        # candles hide every gap (1987's open drew no gap at all). More than one day in ten like that is refused.
+        n_win = int(chart.get("window", 120))
+        joined = list(vis[-(n_win + 1):]) + list(fwd[:int(chart.get("forward", 20))])
+        stale = sum(1 for a, b in zip(joined, joined[1:]) if abs(float(b[1]) - float(a[4])) < 0.006)
+        # a day whose open AND high are the prior day's to the cent is a copied row in that history (the Russell 2000 on
+        # 2024-07-19 drew a fake gap and wick from it; six such rows since 1990 across the five indexes): never shown
+        copied = [b[0] for a, b in zip(joined, joined[1:]) if float(b[1]) == float(a[1]) and float(b[2]) == float(a[2])]
+        if copied:
+            problems.append(f"the index history copies the prior day's open and high on {copied[0]} (a bad row): "
+                            "move the chart or shorten the replay so it is not shown")
+        if shown_rows and stale * 10 > len(shown_rows):
+            problems.append(f"{stale} of the {len(shown_rows)} days shown open exactly at the prior close (the index's opens in "
+                            "that era are not real, so the candles would hide every gap): chart a later date or another index")
     if not intraday:
         # a chart whose words name the 200-day must be able to draw it on the decision day (200 bars of history by asof);
         # a sentence saying the line is ABSENT ("a young stock has no 200-day yet") agrees with a chart that cannot draw it
@@ -156,19 +205,26 @@ def check_bars(chart: dict, vis: list, fwd: list, words: str = "") -> tuple[list
     return problems, notes
 
 
-def check_question(c, unit: str, q: dict) -> dict:
+def check_question(c, unit: str, q: dict, index_dir=None) -> dict:
     ch = q["chart"]
-    r = resolve(c, ch)
+    r = resolve(c, ch, index_dir)
     out = {"unit": unit, "key": q["key"], "sym": ch["sym"], "asof": ch["asof"], "problems": [], "notes": []}
+    if r is None:
+        # an index chart with no local copy of that index's history: fill_course_charts.py runs check_bars on the pod and
+        # stores only a chart that passes
+        out["notes"].append("index: no local history given (--index-dir); checked on the pod by fill_course_charts")
+        out["pod_unchecked"] = True
+        return out
     want = int(ch.get("forward", 20))
     partial = (len(r["visible"]) < int(ch.get("window", 120)) // 2) or (want and len(r["forward"]) < min(want, REVEAL_FORWARD_BARS))
     if str(ch.get("tf") or "D") in INTRADAY_TFS and (not r["visible"] or partial):
         # (a copy holding only part of the day, such as the tail of a 2023 30-minute series, is not the provider's
         # record either: the pod checks the whole window against the provider)
-        # the provider holds these; this copy usually does not. fill_course_intraday.py runs check_bars on the pod and
+        # the provider holds these; this copy usually does not. fill_course_charts.py runs check_bars on the pod and
         # stores only a chart that passes, so an unchecked one here can never reach a member unchecked
-        out["notes"].append("intraday: not in this copy of the bars; checked on the pod by fill_course_intraday")
+        out["notes"].append("intraday: not in this copy of the bars; checked on the pod by fill_course_charts")
         out["intraday_unchecked"] = True
+        out["pod_unchecked"] = True
         return out
     words = " ".join(str(q.get(k) or "") for k in ("story", "q", "why", "simple", "lesson_line"))
     p, n = check_bars(ch, r["visible"], r["forward"], words)
@@ -183,6 +239,8 @@ def main(argv=None) -> int:
     ap.add_argument("--unit", nargs="*", default=None)
     ap.add_argument("--json", default="")
     ap.add_argument("--all", action="store_true", help="also check questions that are not live (verify status pass)")
+    ap.add_argument("--index-dir", default="", help="a folder of <SYM>.json index histories (fill_course_charts --dump); "
+                    "without it the index charts are left to the pod's check")
     args = ap.parse_args(argv)
     c = sqlite3.connect(f"file:{pathlib.Path(args.bars).as_posix()}?mode=ro", uri=True)
     results = []
@@ -193,13 +251,14 @@ def main(argv=None) -> int:
         live = {k for k, v in (d.get("verify") or {}).items() if (v or {}).get("status") == "pass"}
         for q in d.get("questions") or []:
             if q.get("chart") and (args.all or q["key"] in live):
-                results.append(check_question(c, d["unit"], q))
+                results.append(check_question(c, d["unit"], q, args.index_dir or None))
     bad = [r for r in results if r["problems"]]
     for r in results:
         if r["problems"] or r["notes"]:
             print(f"{r['unit']} {r['key']} {r['sym']} {r['asof']}: " + "; ".join(r["problems"] + r["notes"]))
     print(json.dumps({"charts": len(results), "failing": len(bad),
-                      "intraday_left_for_the_pod": sum(1 for r in results if r.get("intraday_unchecked"))}))
+                      "intraday_left_for_the_pod": sum(1 for r in results if r.get("intraday_unchecked")),
+                      "index_left_for_the_pod": sum(1 for r in results if r.get("pod_unchecked") and not r.get("intraday_unchecked"))}))
     if args.json:
         pathlib.Path(args.json).write_text(json.dumps(results, indent=1), encoding="utf-8")
     return 1 if bad else 0

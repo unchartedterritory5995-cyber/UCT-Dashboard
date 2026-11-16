@@ -4,8 +4,8 @@
    "scripts": 706,
    "admitted": 277,
    "runtimeLane": 32,
-   "hostLane": 160,
-   "refused": 85,
+   "hostLane": 167,
+   "refused": 78,
    "coreOnly": 35
   },
   "committed": {
@@ -1992,7 +1992,7 @@
   },
   {
    "capture": "vw-cs1-bool-na-v2-rddt-1d-2026-11-14",
-   "lane": null,
+   "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -2123,7 +2123,7 @@
   },
   {
    "capture": "vw-cs2-bool-na-v1-rddt-1d-2026-11-15",
-   "lane": null,
+   "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -2145,7 +2145,7 @@
   },
   {
    "capture": "vw-cs2-bool-na-v3-rddt-1d-2026-11-15",
-   "lane": null,
+   "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -2721,7 +2721,7 @@
   },
   {
    "capture": "vw-ternary-arm-legacy-v1-cum-rddt-1d-2026-11-15",
-   "lane": null,
+   "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -2731,9 +2731,9 @@
   },
   {
    "capture": "vw-ternary-arm-legacy-v1-rddt-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "ternary"
@@ -2751,9 +2751,9 @@
   },
   {
    "capture": "vw-ternary-arm-legacy-v2-rddt-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "ternary"
@@ -2771,9 +2771,9 @@
   },
   {
    "capture": "vw-ternary-arm-legacy-v3-rddt-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "ternary"

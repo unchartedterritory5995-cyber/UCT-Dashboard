@@ -138,6 +138,9 @@ COMMITTED = {
         "Q-S1a", "Q-S1b", "Q-S1c", "Q-S1f", "Q-S1i", "Q-S1l", "Q-S1m", "Q-S1o", "Q-S1p")},
     # the `varip` twins of W9-P1b / W9-P2 (rule 11 refuses `varip` in broker mode); the -nv probes replace them
     "capture-queue-2026-11-05-w9": {"W9-P1b varip": "superseded", "W9-P2 varip": "superseded"},
+    # CBC-FMT (fix/pine-engine-calcbars-format): the questions capture session S10 answered, closed with the capture
+    # that answered each (the doc's own `not a capture` table)
+    "capture-queue-2026-11-15-calc-bars": {r: "closed" for r in ("Q-CBC1", "Q-CBC3", "Q-CBC4", "Q-CBC5", "Q-FMT1")},
 }
 
 
@@ -161,7 +164,8 @@ def test_the_committed_dispositions_are_exactly_the_reviewed_rows():
                  "vw-s1-q-s1e-stop-past", "vw-s1-q-s1g-blocked-stop-entry", "vw-s1-q-s1h-fifo-exit", "vw-s1-q-s1j-stop-limit"):
         assert by.get(f"{stem}@NYSE:RDDT@D") == "QUEUED", stem
     assert not any(t.startswith(("vw-s1-q-s1a-", "vw-s1-q-s1b-", "vw-s1-core-")) for t in by)
-    assert by["w9-p1b-on-close-fills-nv@NYSE:RDDT@D"] == by["w9-p2-order-fills-nv@NYSE:RDDT@D"] == "QUEUED"
+    # both -nv probes were captured on 2026-11-15 (#1370, the U14 strategy captures): no longer QUEUED
+    assert by["w9-p1b-on-close-fills-nv@NYSE:RDDT@D"] == by["w9-p2-order-fills-nv@NYSE:RDDT@D"] == "CAPTURED"
     assert not any(t.startswith(("w9-p1b-on-close-fills@", "w9-p2-order-fills@")) for t in by)
     for rid in ("G-f", "G-i"):
         assert f"capture-queue-2026-10-31-prod-ternary#{rid}" in needing

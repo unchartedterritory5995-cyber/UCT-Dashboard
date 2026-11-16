@@ -85,7 +85,7 @@ import { SCHEMA_VERSION, MARKER_SHAPES, MARKER_POSITIONS, PLOT_LINE_STYLES } fro
 import { astHash } from '../engine/ast/parse'
 import { lexPine } from '../engine/ast/pine'
 import { DOOR_VERSION } from '../engine/memberDocumentMigration'
-import { withEngineStamp } from '../engine/scriptEngineVersion'
+import { withEngineStamp, SCRIPT_ENGINE_VERSION } from '../engine/scriptEngineVersion'
 import { SCRIPT_UPGRADE_PASTE_NOTE, SCRIPT_UPGRADE_RESAVE_NOTE } from './memberPane/savedScriptUpgrade'
 // ⛔ THE SECOND MACHINE-ASSIGNED BADGE, AND IT IS MEASURED HERE FOR THE SAME
 // REASON `repaint` IS: `validateUserDefinitions` REQUIRES `meta.freshness` on
@@ -482,7 +482,11 @@ export function applyProvenanceFor(dialect, sourceText) {
   const d = String(dialect || '').toLowerCase()
   if (d !== 'pine') return null
   const text = String(sourceText || '')
-  return { dialect: d, via: 'apply', ...(text ? { sourceLength: text.length, sourceFingerprint: scriptFingerprint(text) } : {}) }
+  // ⭐ COND-TA — `engine`: the script engine that translated this Apply. A Pine import applied
+  // before `PINE_IMPORT_FIX_ENGINE` (or with no `engine`) is held by name on the chart and the
+  // server lanes (`scriptEngineVersion.pineImportHeld`); re-applying stamps today's and lifts it.
+  return { dialect: d, via: 'apply', engine: SCRIPT_ENGINE_VERSION,
+    ...(text ? { sourceLength: text.length, sourceFingerprint: scriptFingerprint(text) } : {}) }
 }
 
 /** Stamp an Apply import's provenance onto a document (a copy; identity when none). */
@@ -1382,6 +1386,18 @@ export default function BuilderSheet({
   const applyProvenanceRef = useRef(null)
   /** The Pine door stamps (`pineDoorStampFor`) for the script the Apply wrote. */
   const pineDoorStampRef = useRef(null)
+  // ⭐⭐ COND-TA (F3, coordinator ruling 2026-11-15) — THE SCRIPT AN APPLY WROTE, KEPT WITH THE
+  // SAVE, so a later translator fix re-translates the saved formula instead of needing a hold
+  // (`scriptEngineVersion.pineImportHeld`). Stored the way `attachPineAs` stores a pane
+  // document's script: its own `pine_source` column, sent as `options.pineSource`, never inside
+  // the document, never travelling with a share (`user_definitions.install_share`).
+  // ⛔ ONLY WHILE THE MATHS IS STILL THE APPLY'S. `applyMaths` is the formula text the Apply
+  // wrote (the scan formula and every row's), recorded once the Apply's state has rendered
+  // (`applyTick`); a save whose maths differs — a hand edit after Apply — sends no script, so a
+  // later re-translation can never undo the member's own edit (the L2 rule).
+  const applyScriptRef = useRef(null)
+  const applyMathsRef = useRef(null)
+  const [applyTick, setApplyTick] = useState(0)
   const [savedRow, setSavedRow] = useState(null)
   /** Escape / Cancel asked to close while there was unsaved work. See `dirty`. */
   const [confirmDiscard, setConfirmDiscard] = useState(false)
@@ -1466,7 +1482,7 @@ export default function BuilderSheet({
     // fresh `newPlotRow` (acknowledged: false) into `plot0`, which is the row
     // that flag now lives on. A second reset of a value `resetPlots` already
     // resets is the shape that drifts the day one of the two is edited alone.
-    setStoreError(null); setSavedRow(null); setCopied(false); setPineText(''); applyProvenanceRef.current = null; pineDoorStampRef.current = null
+    setStoreError(null); setSavedRow(null); setCopied(false); setPineText(''); applyProvenanceRef.current = null; pineDoorStampRef.current = null; applyScriptRef.current = null; applyMathsRef.current = null
     // ⛔ W4a — THE OPENING MODE COMES FROM `openingMode` AND NOWHERE ELSE. It
     // used to be the literal `'library'`, and the screener's door was written as
     // a SECOND effect setting it again afterwards. That is a second writer over
@@ -1512,7 +1528,7 @@ export default function BuilderSheet({
     const src = compute.source
     // ⛔ NO `setAcknowledged` HERE — the restored rows below each carry their
     // own fresh `acknowledged: false`, which is where that flag lives now.
-    setStoreError(null); setSavedRow(null); setCopied(false); setPineText(''); applyProvenanceRef.current = null; pineDoorStampRef.current = null
+    setStoreError(null); setSavedRow(null); setCopied(false); setPineText(''); applyProvenanceRef.current = null; pineDoorStampRef.current = null; applyScriptRef.current = null; applyMathsRef.current = null
     setScriptUpgradeNote(null)
     // ⭐⭐ SAVED-SCRIPT AUTO-UPGRADE — the legend menu's "Updated accuracy available"
     // door (`savedScriptUpgrade.UPGRADE_NOTICE_LABEL`) for a script document saved
@@ -2239,8 +2255,12 @@ export default function BuilderSheet({
       && allRows.every((r, i) => rows[i].mode !== 'preview-repaints' || r.acknowledged === true)
     // ⭐ PHASE 4 — an EDIT is revision-aware: the store refuses (409, nothing saved)
     // when the definition moved on after this sheet opened it.
-    const saveOptions = (previewAcked || editing)
-      ? { ...(previewAcked ? { previewAcked: true } : {}), ...(editing ? { baseVersion: editing.version } : {}) }
+    // ⭐ COND-TA (F3) — the applied script rides the save only while the maths is the Apply's
+    const keepScript = !!(applyProvenanceRef.current && applyScriptRef.current
+      && applyMathsRef.current !== null && applyMathsRef.current === mathsPrint)
+    const saveOptions = (previewAcked || editing || keepScript)
+      ? { ...(previewAcked ? { previewAcked: true } : {}), ...(editing ? { baseVersion: editing.version } : {}),
+        ...(keepScript ? { pineSource: applyScriptRef.current } : {}) }
       : null
     const res = await saveUserDefinition(doc, editing ? editing.defId : null, importTelemetryRef.current, saveOptions)
     savingRef.current = false
@@ -2252,6 +2272,7 @@ export default function BuilderSheet({
     // forward and misattribute itself to an import that already landed.
     importTelemetryRef.current = null
     applyProvenanceRef.current = null; pineDoorStampRef.current = null
+    applyScriptRef.current = null; applyMathsRef.current = null
     const row = res.row || { def_id: doc.id, version: doc.version, rev: 1 }
     setSavedRow(row)
     // ⭐ LINE IDENTITY — every row is now SAVED under its key: no row is a new line
@@ -2511,6 +2532,12 @@ export default function BuilderSheet({
   // form's fingerprint is taken at that save; only a form changed SINCE asks.
   const formPrint = JSON.stringify([pineText, source, name, plotRows.map((r) => r.source || ''),
     plot0, target, levelsText])
+  // ⭐ COND-TA (F3) — the maths an Apply wrote, read once its state has rendered.
+  const mathsPrint = JSON.stringify([source, plotRows.map((r) => r.source || '')])
+  useEffect(() => {
+    if (applyTick > 0 && applyScriptRef.current) applyMathsRef.current = mathsPrint
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- recorded once per Apply, not per edit
+  }, [applyTick])
   const formPrintRef = useRef(formPrint)
   formPrintRef.current = formPrint
   const savedByConversation = !!(supersededByConversation && conversationSaved.formPrint === formPrint)
@@ -3470,6 +3497,10 @@ export default function BuilderSheet({
                 // ⭐ PHASE 4 — the Apply door's provenance for the saved document.
                 applyProvenanceRef.current = applyProvenanceFor(dialect, pineText)
                 pineDoorStampRef.current = pineDoorStampFor(dialect, pineText)
+                // ⭐ COND-TA (F3) — the applied script, and (next render) the maths it wrote
+                applyScriptRef.current = applyProvenanceRef.current && typeof pineText === 'string' && pineText.trim() ? pineText : null
+                applyMathsRef.current = null
+                setApplyTick((n) => n + 1)
                 logIndicatorTelemetry('import_submitted', { importId, dialect })
                 logIndicatorTelemetry('compile_finished', { importId, dialect, props: { success: true } })
               }}
@@ -4026,7 +4057,7 @@ export default function BuilderSheet({
             <p className={styles.storeError} role="alert" data-testid="list-error">
               {listError.status === 402
                 ? 'Custom indicators require a paid plan.'
-                : 'Your saved formulas could not be loaded.'}
+                : 'Your saved indicators could not be loaded.'}
             </p>
           )}
           {savedRow && (

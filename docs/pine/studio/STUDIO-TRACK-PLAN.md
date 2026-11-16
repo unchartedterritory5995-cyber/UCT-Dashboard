@@ -1,6 +1,7 @@
 # The indicator ecosystem: final blueprint (Studio track)
 
-FINAL v9, 2026-11-15. This version is a rewrite, not a ninth layer. v1 to v8 were each
+FINAL v9, 2026-11-15; progress and the house-set runs added 2026-11-16 (sections 14a
+and 15, which a later session reads first; section 15 was brought up to date that evening). This version is a rewrite, not a ninth layer. v1 to v8 were each
 corrected by finding something that already existed; v9 was written after six independent
 specialist reviews of v8 against master (a code census, a review of the competitor research
 against the public record, product and interface design, model and learning systems, fit
@@ -488,32 +489,123 @@ On production as the synthetic account, 2026-11-14, unless marked.
 Not measured at all: whether a built indicator's values are right; subtle impossible
 requests; the cost of a turn that builds; anything on a phone.
 
+## 14a. The house set, first run (2026-11-15, production, synthetic accounts)
+
+Twenty descriptions of indicators traders build first, each put to Create Indicator. First
+through the door's API, then through the REAL dock in a browser as a member, on a SPY and an
+NVDA daily chart, looked at by eye. Nothing was saved. No value has been checked against an
+independent calculation, and the owner has not yet looked.
+
+**"Built" from the API is not "works".** The API returned a patch for 14. In the dock:
+
+| outcome | count | which |
+|---|---|---|
+| drew and looks right | 5 | extension above the 50-day in ATRs; percent from the 10-week; inside and outside bars; an average-daily-range table; the previous week's high and low |
+| drew, plausible, unconfirmed | 3 | distribution-day count; follow-through day; tight weekly closes |
+| drew with the wrong colour | 1 | a trend-coloured average: asked green, drew teal (fixed by the colour words change) |
+| drew something suspect | 2 | a flat base (a band filled across the whole chart, through a 35 percent decline); gap ups (stray full-height dashed lines) |
+| did not draw | 5 | both relative-strength-against-another-symbol requests; a trailing stop; volume bars coloured by day; an up/down volume ratio (built once through the API, failed twice in the dock) |
+| refused honestly, with an alternative | 4 | two anchored VWAPs from a moving anchor; a value label with a line from a past bar; an earnings table |
+
+**What it found, in order of weight:**
+
+1. A marker or paint on an output that reads another symbol was refused outright. Cause:
+   the gate marks that refusal "pending" (the other symbol's bars have not arrived yet), one
+   function dropped the flag, and two gates read not-yet as never. A plain line against
+   another symbol previewed in four seconds. Fixed in its own pull request.
+2. **The assistant's names are thrown away.** It named every one of these well
+   ("Distribution Day Count", "ATR Extension", "Tight Weekly Closes"). The dock showed
+   "SUM 25 (1 when Close at or below 0.998 times previous Close and Volume above pr...",
+   because a `create` always takes the name DERIVED from the formula
+   (`authoring/derivedName.js`). That rule exists for a measured reason: a model-given
+   "EMA 20" stayed "EMA 20" after "make it 50". It was written for one-line indicators; on
+   anything longer the derived name is unreadable. Not fixed. A proposal is in the
+   Indicators backlog; it needs the authoring owner, because it changes a safety rule.
+3. Read-backs are nested formula English ("1 when (the 10-bar exponential average ...) and 0
+   otherwise"), not a sentence a member can check their request against.
+4. The same request does not always get the same answer.
+5. A refusal shown to a member uses engine wording (`sym('SPY', ...)`).
+6. Real capability gaps: an anchored VWAP from a moving anchor; a text label with a value;
+   a line that starts at a past bar; fundamentals in an indicator.
+
+**Consequence for lane H.** Nothing is ready to publish as a house indicator. The order is:
+the marker fix (1), then names and read-backs (2, 3), then run the set again. A house
+indicator is published only after the owner has looked at it on a chart.
+
+**Also measured:** a turn that builds costs about seven times a refusal, so the daily
+allowance was raised (the numbers are environment values, not recorded here). On a phone
+the indicator library offered "New formula" and no way to Create Indicator at all.
+
 ## 15. Resume here
 
-**State at 2026-11-15.**
+**State at 2026-11-16, end of day.** "LIVE" means used on production as a member (the
+synthetic member account, in its own browser), not only merged.
 
-| branch | holds | state |
+| lane | what | state |
 |---|---|---|
-| `docs/studio-track-plan` | this plan | pushed; the pull request is open, checks green; NOT merged (this session's merge was refused by policy) |
-| `fix/formula-reference-placeholders` | lane 0d | one local commit, not pushed, far behind master, tests never run |
-| `feat/studio-s1-reference` | the measured reference layer (lane R2, second half) | one local work-in-progress commit, untested, not pushed; it carries an old copy of this plan and of `requests.md`, to be dropped on rebase; its folder is to be renamed `indicatorKit` |
+| 0a, 0b, 0d | the plan, its requests, the reference page without `{0}` | DONE |
+| O | Create Indicator open to every account | LIVE |
+| P1 | eight indicator commands in the command palette; from any page they land on Charts | LIVE |
+| L1 | version stamps on every authoring turn | LIVE: the owner report lists the instruction version, vocabulary version, model and engine of its turns |
+| L3 | colour words: one shared value per word | LIVE: the green request draws green |
+| L7 (first part) | the owner report counts undone previews and says what produced its turns | LIVE |
+| F1 | the Indicators window leads with a plain-words box; while a turn runs the dock counts the seconds, says what is usual, and offers Stop | LIVE |
+| V1 (first part) | History beside Undo: every earlier step of the draft, one press to return | LIVE. In a short dock the open list pushed the footer out of reach; the fix is its own pull request |
+| H1 (first part) | a Members tab in the Indicators window: the published library, Install, Put it on this chart | LIVE. The library is empty, so only its empty state has been seen on production |
+| H2 | Create Indicator from the phone's library; the dock as a bottom sheet on a phone; above the joystick tab on a tablet | LIVE at 390 and 820 px |
+| N1 (first slice) | a saved indicator is called an indicator where a member finds one | LIVE |
+| R2 (first cut) | TradingView names on the reference page | LIVE |
+| R3 | the reference as one file for a member's own assistant | LIVE: 305 names, 166 deliberate absences, 755 TradingView names |
+| fix | a marker or paint on an output that reads another symbol | LIVE: both relative-strength requests draw |
+| tool | a refused turn tells an ADMIN why each attempt was refused | LIVE |
+| H | the house set | second look below; nothing published yet |
 
-Worktree: `uct-worktrees/studio-s1` (sparse). It holds an untracked copy of the six files on
-the feature branch, identical when checked; remove it before checking that branch out.
+**The house set, second look (2026-11-16, production).** Of the five that did not draw on
+the first run: both relative-strength requests draw (the marker fix); volume bars coloured
+by up or down day and the up/down volume ratio now build on every try and draw correctly in
+the dock (four of four through the door, then one each in the dock; nothing in this track
+changed them, an engine release landed the same day); the trailing stop that only moves up
+is now refused honestly, with the nearest thing that can be built, which is the right
+answer: a line here has no memory of its own previous value. So of twenty: fifteen draw,
+five are refused honestly, none fails. "Draws" is not "is right": the flat base and the gap
+ups from the first run are still suspect, and no value has been checked against an
+independent calculation. What blocks publishing is unchanged: names and
+read-backs (section 14a, findings 2 and 3), and the owner's look.
 
-**Next, in order:** phase 0 (0a needs the owner or the coordinator), then lane O and L1
-together, then M0, because nothing in phase 2 is built before the owner picks a direction.
+Lanes not started: the UCT tab (waits on the house set), the rest of N1 (the builder's own
+"Your formulas" list and the Agent guide's button names, with their owners), L4 (house
+definitions), L5 (worked examples), L6 (demand mining), L8 (a consented report), R1 (run
+over a list from the chart; waits on the Screener's answer to R13), R4, R5, R6, and the
+launch-readiness list in section 8.
+
+**How the work is done here, learned the slow way:**
+
+- Judge an authoring change in the real dock, as a member. The API's "built" was wrong for
+  3 of 14.
+- Look at a layout change on production at the size a member has. The History list passed
+  every test and still pushed the footer off a short dock; a browser test cannot lay out.
+  Try the rule on the live page with an injected style before writing it.
+- The machine's heavy lock is not first-come. Queue a test in the background and keep
+  writing on another branch.
+- A deploy gate in progress is not cancelled by a merge; one still waiting is replaced by
+  the newer one. Merge when green, merge everything that is ready in the same minute, and
+  push once per pull request. (An earlier version of this section said every merge cancels
+  the running gate. That was wrong.)
+- Parse-check every file before queueing its test.
+
+**Next, in order:** the History fix; names and read-backs with the authoring owner; the
+house set run a third time once names are readable; then the owner's look and the UCT tab.
 
 **Open for the owner:**
-1. Merge the plan's pull request.
-2. Pick from the three mock-ups when M0 brings them.
-3. The daily allowance per member and the shared reserve (O6).
+1. Look at the house-set pictures and say which, if any, are right.
+2. Names: may the assistant's own name be used when the formula-derived one is too long to
+   read (section 14a, finding 2)?
+3. On a tablet the open dock covers the joystick's edge tab. Acceptable?
 4. Authors on the library (section 12).
 5. May an indicator read fundamentals columns the app already has, as "UCT data"?
-6. Approve each house indicator (lane H).
 
 **Kept outside this repository:** the competitor review, prompt sets and results, the
-hidden set, screenshots, and anything with cost figures.
+hidden set, screenshots, the house-set pictures, and anything with cost figures.
 
 ## 16. What the six reviews changed (v8 to v9)
 

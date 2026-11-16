@@ -58,6 +58,25 @@ master push is a full deploy gate and a deploy, and wasted runs still cost wall-
 - If runs fail with "The job was not started because ... spending limit": that is the budget, not the code.
   Tell the owner; do not re-push to retry.
 
+## ⭐ Heavy tests run on GitHub, not on this PC (2026-11-16, GitHub Pro: 40 concurrent jobs)
+
+The dev PC runs ONE heavy test job at a time (`heavy_lock`, RAM limits) and every session queues behind it.
+Commit, then send the run to GitHub runners instead:
+
+```sh
+python tools/remote_tests.py --pytest tests/test_a.py tests/test_b.py::test_x
+python tools/remote_tests.py --vitest src/pages/charts src/agent/nl --shards 4
+```
+
+It tests the COMMITTED HEAD (uncommitted edits are not included), pushes it to `refs/remote-tests/<id>` (no
+workflow triggers on that ref, nothing deploys; the repo is public, so it is readable like any push), runs the
+`remote tests` workflow from MASTER, prints the failing test ids, and deletes the ref. Exit 0 green / 1 red /
+2 the lane could not run. Paths: pytest under `tests/`, vitest app-relative under `src/`. Keep tiny local checks
+local; send anything heavier than a few files here. Rails: `tests/test_remote_tests_lane.py`.
+⛔ **Never delete a `refs/remote-tests/*` ref you did not create.** Other sessions' runs are using them (one was
+deleted mid-run on 2026-11-16 by a "leftover ref" cleanup that counted every session's refs); the tool deletes
+its own ref when it finishes.
+
 ## ⛔⛔ flow-worker DEPLOYS ARE MANUAL (owner decision 2026-11-12) — read before touching options-flow code
 
 Railway **auto deploy is DISABLED for `flow-worker`** (the live options tape, Live Flow, Options Flow,

@@ -187,6 +187,7 @@ import { serverDeclares, subscribeServerDefinitions } from './chart/engine/serve
 // Compare panel (unit 3-12) by this window event; one spelling, the panel's own.
 import { COMPARE_OPEN_EVENT } from '../pages/charts/compareGroups'
 import { cardEvidenceText } from './chart/engine/readoutSchema'
+import { chartThemeOf } from './chart/engine/objectTheme'
 import { RS_LEARN_VIDEOS, learnHref } from '../lib/deskVideoHref'
 // ⭐ VA2 — the plan's §13 counts (on since the server lists the six events; `VITE_RS_TELEMETRY_ENABLED=0` turns them off; see the module).
 import { createRsInstanceTracker, noteRsCard, noteRsLearn } from '../lib/rsTelemetry'
@@ -1659,6 +1660,7 @@ import { withPrimaryEconomic, stripPrimaryEconomic, keepOnEconomicPrimary } from
 import { sourceCapabilityOf } from './chart/engine/sourceCapability'
 import { observationReadout, economicStatusLine } from './chart/economic/econUi'
 import { runtimePaneEnabled } from './chart/engine/runtimePaneGate'
+import { armRuntimeLaneWarm, whenIdle } from './chart/engine/runtimeLaneWarm'
 import { readSuccessBody } from '../lib/responseBody'
 import { archiveHref } from '../utils/traderArchive'
 import { createAdaptiveFrameLoop } from './chart/adaptiveFrameLoop'
@@ -1693,6 +1695,13 @@ const useChartBars = BARSTORE ? useBarSnapshotBars : useLegacyChartBars
 engineRegistry.registerRuntimeLaneLoader(() => (runtimePaneEnabled()
   ? import('./chart/engine/runtime/runtimeAsync.js').then((m) => m.ensureRuntimeLane())
   : Promise.reject(new Error('the runtime pane is switched off'))))
+
+// ⚡ PRELOAD (perf/pine-runtime-chunk-preload) — the same lane, WARMED: its loader chunk imported
+// and its worker spawned (`runtimeAsync.warmRuntimeLane`), so a saved per-bar script is drawn without
+// paying the ~1.3 MB worker chunk on its first run. ⛔ The import stays here, in the chart's module,
+// for the reason above, and it is reached only through `armRuntimeLaneWarm` (after the first chart
+// paint, in idle time, for a permitted member with a definition on that lane: `runtimeLaneWarm.js`).
+const warmRuntimeLaneNow = () => import('./chart/engine/runtime/runtimeAsync.js').then((m) => m.warmRuntimeLane())
 
 // ⚡ THE SERVER LANE'S COLUMNS ARE ASKED FOR AHEAD OF THE MEMBER (2026-11-12). The bars
 // prefetch already knows which symbols are next; this registers the lane's warmer with it
@@ -2016,10 +2025,18 @@ function chartTickMarkFormatter(time, tickMarkType, _locale, h24 = false) {
 // mark a session or two later fits, so a bare "4" stood where "Mar" belongs. On a daily study chart such a day mark is
 // always within a few sessions of the month it stands in for, so a day mark in a month's first week names its month
 // ("Mar 4"); later days stay bare numbers, the usual axis. Intraday and the year and month marks read as everywhere.
+// An intraday study chart (2026-11-16) gives its labels a five-character slot (the drill's INTRADAY_TICK_CHARS), so a
+// half-hour mark reads "10:30", not "10:30 AM": in the regular session (09:30 to 16:00) the hour says morning or
+// afternoon, and the eight-character form crowded every time mark off a phone's axis after a replay. The hour marks keep
+// "10 AM" and "12 PM", as on every chart. A 24-hour chart (h24) keeps its own clock.
 export function studyTickMarkFormatter(time, tickMarkType, _locale, h24 = false) {
   if (typeof time !== 'number' && tickMarkType === 2) {
     const d = _dayDate(time)
     if (d && d.getUTCDate() <= 7) return `${_MO[d.getUTCMonth()]} ${d.getUTCDate()}`
+  }
+  if (!h24 && typeof time === 'number' && tickMarkType >= 3) {
+    const d = new Date(time * 1000)
+    if (d.getUTCMinutes() !== 0) return `${d.getUTCHours() % 12 || 12}:${String(d.getUTCMinutes()).padStart(2, '0')}`
   }
   return chartTickMarkFormatter(time, tickMarkType, _locale, h24)
 }
@@ -4593,6 +4610,17 @@ export default function StockChart({
   // behaviour is to draw nothing for it), and a toast on a render path would fire
   // on every chart.
   const { generation: userDefsGeneration } = useInstalledUserDefinitions()
+  // ⚡ PRELOAD — re-asked whenever the installed definitions change (a later install can make the
+  // answer yes); `armRuntimeLaneWarm` warms at most once per page, after the first paint, in idle time.
+  useEffect(() => {
+    armRuntimeLaneWarm({
+      afterPaint: afterFirstChartPaint,
+      idle: whenIdle,
+      permitted: runtimePaneEnabled,
+      usesLane: engineRegistry.anyInstalledRuntimeDefinition,
+      load: warmRuntimeLaneNow,
+    })
+  }, [userDefsGeneration])
 
   const mergedMarkers = useMemo(
     () => {
@@ -6001,6 +6029,9 @@ export default function StockChart({
    */
   const readoutChipOpts = {
     scalarsOf: (def, inputs) => scalarsFor(def, inputs, { sym: symRef.current, tf: resolvedTfRef.current }),
+    // ⭐ ENGINE 58 — the chart's own two colours, so a chip whose plot is coloured by a
+    // theme reference (`chart.fg_color@85`) wears what the line wears (`readout.js`).
+    theme: chartThemeOf(cs),
   }
   /**
    * ⭐ Phase 2a visual round (VA3) — what a READOUT definition's chip prints, for

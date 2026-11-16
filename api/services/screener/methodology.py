@@ -1029,14 +1029,16 @@ def _rs_setup_rules() -> dict:
     from api.services.screener import technicals as _tech          # noqa: PLC0415
     words = _st.SETUP_LABELS
     band = f"{_st.PULLBACK_ATR_BAND:g}"
+    depth = f"{_st.PULLBACK_MIN_DEPTH_ATR:g}"
     zone = _pct_words(_st.IBD_BUY_ZONE)
     # Unit U7 (2026-11-14, polish from the real screens): the plain sentence leads and
     # the numbers follow it. "Pullback to the 8-day" can be read as an instruction, so
     # each of the two rules ends by saying what the label is (`PULLBACK_IS_A_PLACE`).
     pullback = (
         f"The stock made a {_tech.HIGH20_WINDOW}-session high within the last "
-        f"{_st.PULLBACK_HIGH_MAX_AGE} sessions and is now trading at its rising {{n}}-day "
-        f"average. In numbers: the high is a closing high, and today its low came within "
+        f"{_st.PULLBACK_HIGH_MAX_AGE} sessions, has come off it, and is now trading at its "
+        f"rising {{n}}-day average. In numbers: the high is a closing high, the close is at "
+        f"least {depth} ATR under that high, and today its low came within "
         f"{band} ATR of a rising {{n}}-day EMA while its close is no more than {band} ATR "
         f"under it. An EMA is rising when it stands above its value "
         f"{_tech.EMA_RISING_SPAN} sessions earlier.")

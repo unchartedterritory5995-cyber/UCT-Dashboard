@@ -115,8 +115,9 @@ describe('what is NOT cast', () => {
     expect(f).toBe('(close > open)[1] != 0 && high > low ? 1 : 2')
     // ⛔ a comparison can never be `na`, so it is untouched (its bytes kept)
     expect(formulaOf(tr(5, 'plot(close > open and high > low ? 1 : 2)'))).toBe('close > open && high > low ? 1 : 2')
-    // ⛔ below v4 nothing is claimed
-    expect(formulaOf(tr(3, 'plot((close > open)[1] and high > low ? 1 : 2)'))).not.toMatch(/!= 0/)
+    // ⭐ ENGINE 56 (S1 v2, s18 v1 / v3): every version below 6 reads it the same way (was: below v4
+    // nothing claimed)
+    expect(formulaOf(tr(3, 'plot((close > open)[1] and high > low ? 1 : 2)'))).toBe('(close > open)[1] != 0 && high > low ? 1 : 2')
     // ⛔ and v6 is left as it was (a v6 bool is never `na`; measured: casting there moved
     // trend-duration-forecast-chartprime MATCH -> DIVERGE)
     expect(formulaOf(tr(6, 'plot((close > open)[1] and high > low ? 1 : 2)'))).toBe('(close > open)[1] && high > low ? 1 : 2')

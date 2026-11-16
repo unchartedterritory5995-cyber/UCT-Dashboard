@@ -415,6 +415,10 @@ def _member_tree_phrase(gate: str) -> str:
     return REFUSALS.get(gate) or dc.REFUSALS.get(gate) or REFUSALS["converse:unchecked"]
 
 
+#: The longest validator diagnostic an ADMIN's refused response carries per attempt.
+DIAGNOSTIC_MAX_CHARS = 600
+
+
 class _Refused(Exception):
     """One gate saying no.
 
@@ -451,6 +455,35 @@ def _refusal(gate: str, detail: str = "", *, member: Optional[str] = None,
 
 #: UCT conventions the model may ASSUME (and must disclose). Each is pinned to the
 #: file that declares it by ``tests/test_p2_truth_server.py``.
+#: The colour words the assistant is given, read from the SAME file the browser's read-back
+#: names colours from (`readback.js` imports it), so the value written for "green" is one the
+#: member is then told is "green". `tools/web_frontend_reads.py` declares this read.
+COLOUR_WORDS_PATH = (Path(__file__).resolve().parents[2] / "app" / "src" / "components" / "chart"
+                     / "builder" / "authoring" / "colourWords.json")
+
+
+@functools.lru_cache(maxsize=1)
+def colour_words() -> Dict[str, str]:
+    """word -> value, e.g. ``{"green": "#089981"}``. Every value is a 6-digit upper-case hex
+    whose own name in the file is that word (``tests/test_colour_words.py``)."""
+    raw = json.loads(COLOUR_WORDS_PATH.read_text(encoding="utf-8"))
+    words = raw["words"]
+    names = raw["names"]
+    out: Dict[str, str] = {}
+    for word, value in words.items():
+        if not (isinstance(word, str) and re.fullmatch(r"[a-z]{3,12}", word)
+                and isinstance(value, str) and re.fullmatch(r"#[0-9A-F]{6}", value)
+                and names.get(value) == word):
+            raise ValueError(f"colourWords.json: {word!r} -> {value!r} is not a value the read-back names {word!r}")
+        out[word] = value
+    return out
+
+
+def colour_words_text() -> str:
+    """The words as one prompt clause, in the file's own order: ``green #089981, red #F23645``."""
+    return ", ".join(f"{word} {value}" for word, value in colour_words().items())
+
+
 UCT_DEFAULTS: Tuple[Tuple[str, str], ...] = (
     ("RSI length", "14 (nativeRegistry rsi period)"),
     ("RSI overbought / oversold", "70 / 30 (the firm's Overbought (>70) / Oversold (<30) presets and the RSI 70/30 bands)"),
@@ -617,6 +650,10 @@ CONVERSE_SYSTEM_PROMPT = (
     "assumption `text` alone. UCT conventions:\n"
     + "".join(f"      {name}: {value}\n" for name, value in UCT_DEFAULTS)
     + "    A number the member wrote is never an assumption: use it exactly.\n"
+    + "    A colour the member NAMED is written with UCT's own value for that word, exactly: "
+    + colour_words_text()
+    + ". Never a neighbouring shade: green is not teal. A colour the member did not name "
+    "is your choice and needs no assumption.\n"
     "  * IRRELEVANT: anything the definition does not depend on. Never ask about it.\n\n"
     "`note` is optional and is never shown to anyone; what the member should read "
     "goes in `reply`.\n\n"
@@ -1705,6 +1742,14 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
         logger.exception("[converse] usage accounting failed")
     _record_turn(user_id, conversation_id, result, admin=admin, message=message,
                  latency_ms=latency_ms)
+    if admin and not result.get("ok") and trace.get("refusals"):
+        # WHY EACH ATTEMPT WAS REFUSED, FOR THE BUILDERS ONLY (2026-11-16). The house set
+        # found requests that fail twice at a name or reference check, and nothing outside
+        # a DEBUG log said WHICH name: the failure could be counted and never fixed. An
+        # admin's response carries what the repair turn was told. A member's never does:
+        # the text can echo model output and is written for a model, not a person. Added
+        # AFTER the turn is recorded, so it reaches no telemetry row.
+        result["diagnostic"] = trace["refusals"]
     return result
 
 
@@ -1782,6 +1827,41 @@ def failure_class(result: Mapping[str, Any]) -> str:
     return "concept_refused"
 
 
+@functools.lru_cache(maxsize=1)
+def prompt_sha() -> str:
+    """Which instructions produced this turn: 16 hex characters of the SHA-256 of the
+    system prompt and the tool as the request sends them. Both are constants of the
+    process (``system_prompt``, ``anthropic_tool``), so this is computed once. It
+    changes when the instructions, the tool schema, or the vocabulary text generated
+    into the prompt change, and for no other reason."""
+    import hashlib
+    payload = system_prompt() + "\n" + json.dumps(anthropic_tool(), sort_keys=True,
+                                                   separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+
+
+def turn_stamps() -> Dict[str, Any]:
+    """What produced a turn, so a later change in results can be traced to the change
+    that caused it: the instructions, the firm's concept vocabulary, the model and the
+    engine. Shape only, each from the one place that owns it. A stamp that cannot be
+    read is LEFT OUT (the turn row is still written); it is never guessed."""
+    out: Dict[str, Any] = {}
+    try:
+        out["prompt_sha"] = prompt_sha()
+    except Exception:                              # noqa: BLE001
+        logger.exception("[converse] prompt stamp unavailable")
+    try:
+        from api.services import concept_vocabulary
+        out["vocab_version"] = str(concept_vocabulary.version())
+    except Exception:                              # noqa: BLE001
+        logger.exception("[converse] vocabulary stamp unavailable")
+    if isinstance(dc.MODEL, str) and dc.MODEL:
+        out["model"] = dc.MODEL
+    if isinstance(user_definitions.SCRIPT_ENGINE_VERSION, int):
+        out["engine"] = user_definitions.SCRIPT_ENGINE_VERSION
+    return out
+
+
 def _record_turn(user_id: Any, conversation_id: Any, result: Mapping[str, Any], *,
                  admin: bool, message: Any, latency_ms: int) -> None:
     """⛔ NEVER RAISES and stores SHAPE ONLY (indicator_telemetry's allowlists)."""
@@ -1811,6 +1891,7 @@ def _record_turn(user_id: Any, conversation_id: Any, result: Mapping[str, Any], 
             latency_ms=latency_ms,
             op_kinds=",".join(o for o in ops if isinstance(o, str)) or None,
             preflight=bool(result.get("preflight")),
+            **turn_stamps(),
         )
     except Exception:                              # noqa: BLE001
         logger.exception("[converse] turn telemetry failed")
@@ -1923,6 +2004,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
     cost_usd = 0.0
     attempts = 0
     last: Optional[_Refused] = None
+    refusals: List[Dict[str, Any]] = []
     extra = {"not_understood": not_understood, "unavailable": unavailable}
 
     while attempts < MAX_MODEL_CALLS:
@@ -1971,6 +2053,8 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             check_output_renames(envelope, message, view, turns)
         except _Refused as refused:
             last = refused
+            refusals.append({"attempt": attempts, "gate": refused.gate,
+                             "detail": refused.detail[:DIAGNOSTIC_MAX_CHARS]})
             # the diagnostic (op path, validator text) is for the model and a DEBUG
             # log, never the member; it can echo model output, so not at INFO
             logger.debug("[converse] attempt %d refused at %s: %s", attempts, refused.gate,
@@ -2045,5 +2129,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         }
 
     refused = last or _Refused("model:no-tool", "no patch in the answer")
+    # what each attempt was refused for: the outer door decides who may read it
+    trace["refusals"] = refusals
     return {"ok": False, "gate": refused.gate, "reason": refused.reason,
             "attempts": attempts, **extra}

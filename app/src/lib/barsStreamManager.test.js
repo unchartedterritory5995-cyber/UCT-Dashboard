@@ -303,3 +303,39 @@ describe('recovery: reconnectNow and isConnected', () => {
     expect(bars.isConnected()).toBe(true)
   })
 })
+
+describe('developing-bar hold: 500 ms by default, the per-browser override when set', () => {
+  const KEY = 'uct.liveCadenceMs'
+  const run = (stored) => {
+    if (stored == null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, stored)
+    vi.useFakeTimers()
+    try {
+      const got = []
+      bars.subscribe('AAPL', '5', { onBar: (d) => got.push(d.bar.c) })
+      flush()
+      const es = MockES.instances[0]
+      es._emit('open')
+      es._emit('bar', { sym: 'AAPL', tf: '5', bar: { t: 1, o: 1, h: 1, l: 1, c: 1.1, v: 1 } })
+      es._emit('bar', { sym: 'AAPL', tf: '5', bar: { t: 1, o: 1, h: 1, l: 1, c: 1.2, v: 2 } })
+      const at = (ms) => { vi.advanceTimersByTime(ms); return got.slice() }
+      return { at }
+    } finally { /* timers restored by the caller */ }
+  }
+  afterEach(() => { vi.useRealTimers(); localStorage.removeItem(KEY) })
+
+  it('default: nothing before 500 ms, the newest value at 500 ms', () => {
+    const r = run(null)
+    expect(r.at(499)).toEqual([])
+    expect(r.at(1)).toEqual([1.2])
+  })
+  it('override 50: nothing at 49 ms, the newest value at 50 ms', () => {
+    const r = run('50')
+    expect(r.at(49)).toEqual([])
+    expect(r.at(1)).toEqual([1.2])
+  })
+  it('an unusable override changes nothing', () => {
+    const r = run('soon')
+    expect(r.at(499)).toEqual([])
+    expect(r.at(1)).toEqual([1.2])
+  })
+})

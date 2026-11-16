@@ -472,13 +472,21 @@ export function execute(program, ctx, limits, opts) {
   // (each bar's own value, or the last finite one before it), right-aligned; its
   // newest cell IS the carry, so no state beyond the ring (resume / rollback copy it
   // already). `winObsN` counts its FINITE observations (capped at `w.span`): the warm-up.
+  // ⭐⭐ ENGINE HL — `finite` (`highest` / `lowest` / `highestbars` / `lowestbars`) keeps the same
+  // right-aligned ring of the last `w.span` finite values as a dynamic `skip`; `winObsN` counts them
+  // (capped at `w.span`). An `arg` member (`highestbars` / `lowestbars`, S17) counts its offset in
+  // BARS, so its ring is twice as long: cells `[w.span, 2 * w.span)` hold each kept value's bar,
+  // right-aligned beside it. One array, so resume / rollback / the state encoder carry both halves.
   const winObs = winPlan.map((w) => (FINITE_WINDOW[w.fn].na === 'skip' ? new Float64Array(w.span)
-    : FINITE_WINDOW[w.fn].na === 'ffill' ? new Float64Array(w.span).fill(NaN) : null))
+    : FINITE_WINDOW[w.fn].na === 'finite' ? new Float64Array(FINITE_WINDOW[w.fn].arg === true ? 2 * w.span : w.span)
+      : FINITE_WINDOW[w.fn].na === 'ffill' ? new Float64Array(w.span).fill(NaN) : null))
+  const winArg = winPlan.map((w) => FINITE_WINDOW[w.fn].arg === true)
   const winObsN = new Int32Array(winPlan.length)
   const winReduce = winPlan.map((w) => {
     const spec = FINITE_WINDOW[w.fn]
     if (!spec) throw new VmError(`no finite-window reducer for \`${w.fn}\``)
-    return spec.reduce
+    // ⭐ ENGINE 56 (S4-2) — over a bar price the newest tied bar wins (`interpret.js`)
+    return w.newest === true && spec.reduceNewest ? spec.reduceNewest : spec.reduce
   })
   // ⚰️⚰️ THERE WAS A `histPresent` FLAG ARRAY HERE, AND MEASURING IT KILLED IT.
   //
@@ -1231,6 +1239,28 @@ export function execute(program, ctx, limits, opts) {
             break
           }
 
+          if (policy === 'finite') {
+            // ⭐⭐ ENGINE HL — `interpret.js::rollingFinite`, a bar at a time: the last `span` FINITE
+            // values (fewer while fewer exist), `na` before bar `span - 1` and before the first finite
+            // value, an answer on the `na` bar itself. WITNESSED by S10 (`vw-cs2-holed-highest-*`).
+            const obs = winObs[wi]
+            const arg = winArg[wi]
+            if (Number.isFinite(live)) {
+              obs.copyWithin(0, 1, w.span)
+              obs[w.span - 1] = live
+              if (arg) { obs.copyWithin(w.span, w.span + 1); obs[2 * w.span - 1] = committed }
+              if (winObsN[wi] < w.span) winObsN[wi] += 1
+            }
+            if ((cWin += span) > capWin) { bc.WINDOW_CELLS = cWin - span; budget.charge('WINDOW_CELLS', span) }
+            const have = Math.min(winObsN[wi], span)
+            if (committed < span - 1 || have === 0) { stack[sp++] = NaN; break }
+            const r = winReduce[wi](obs, w.span - have, w.span - 1)
+            // ⭐⭐ S17 — an `arg` member's answer is a distance back in the DENSE ring (`hi - j`);
+            // TradingView counts it in BARS: this bar minus the bar the named value arrived on.
+            stack[sp++] = !arg ? r : Number.isFinite(r) ? committed - obs[2 * w.span - 1 - r] : NaN
+            break
+          }
+
           if (policy === 'ffill') {
             // ⭐⭐ LANE B0 (2026-11-09) — `ta.wma`, THE COLUMNAR LANE'S RULE
             // (`interpret.js::rolling`): an `na` in the lookback is the last finite
@@ -1251,9 +1281,9 @@ export function execute(program, ctx, limits, opts) {
             break
           }
 
-          // ⛔ `propagate` AND `restart` BOTH READ THE COMMITTED RING, so they
-          // keep 2F-2B's warm-up rule: `rolling` starts at bar n-1 and so does
-          // this. What differs is only WHERE the window begins.
+          // ⛔ `propagate` READS THE COMMITTED RING, so it keeps 2F-2B's warm-up
+          // rule: `rolling` starts at bar n-1 and so does this. ⚰️ `restart` read it
+          // too until S17 (no member keeps that policy now).
           if (committed < span - 1) { stack[sp++] = NaN; break }
           const buf = winBuf[wi]
           buf[span - 1] = live
@@ -1267,16 +1297,6 @@ export function execute(program, ctx, limits, opts) {
             }
           }
           if ((cWin += span) > capWin) { bc.WINDOW_CELLS = cWin - span; budget.charge('WINDOW_CELLS', span) }
-          if (policy === 'restart') {
-            // ⭐ THE WINDOW BEGINS AGAIN AFTER A HOLE. The current bar must be
-            // finite (the vendor blanks ON the hole); the run then reaches back
-            // only as far as the last non-finite value.
-            if (!Number.isFinite(live)) { stack[sp++] = NaN; break }
-            let lo = span - 1
-            while (lo > 0 && Number.isFinite(buf[lo - 1])) lo -= 1
-            stack[sp++] = winReduce[wi](buf, lo, span - 1)
-            break
-          }
           stack[sp++] = winReduce[wi](buf, 0, span - 1)
           break
         }

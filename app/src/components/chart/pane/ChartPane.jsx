@@ -775,9 +775,21 @@ function ChartPane({
   /** Chart Settings → Indicators → "+ Create Indicator" (P2 Track B). The modal
    *  closes first — the studio docks beside the chart, and two surfaces holding
    *  Escape would be the same hazard `openFormulaBuilder` describes. */
-  const openCreateIndicator = useCallback(() => {
+  const openCreateIndicator = useCallback((opts = null) => {
     setSettingsOpen(false)
-    try { paneToolbarApi.current?.openCreateIndicator?.() } catch { /* noop */ }
+    // The Indicators window's plain-words box hands over what was typed: it opens the studio
+    // with the request PREFILLED (the Agent's seeded door), never sent.
+    const seed = opts && typeof opts.seed === 'string' ? opts.seed : ''
+    try {
+      if (seed) paneToolbarApi.current?.openCreateIndicatorFor?.({ seed })
+      else paneToolbarApi.current?.openCreateIndicator?.()
+    } catch { /* noop */ }
+  }, [])
+  /** The Indicators window's other three ways to start one: the builder on a named door
+   *  ('pine' | 'image' | 'formula'). The modal closes first, as for every door above. */
+  const openBuilderDoor = useCallback((door) => {
+    setSettingsOpen(false)
+    try { paneToolbarApi.current?.openIndicatorDoor?.(door) } catch { /* noop */ }
   }, [])
   /** ⭐ PHASE 4 — THE DEFINITION'S OWN DOORS for Chart Settings → Indicators: the
    *  same toolbar calls the legend menu makes. The modal closes first (one surface

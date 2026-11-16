@@ -135460,7 +135460,7 @@
    "rth": true,
    "sym": "ANF",
    "tf": "5",
-   "window": 145
+   "window": 285
   },
   "difficulty": 1,
   "id": "si_75e18b3a57e8",
@@ -135473,7 +135473,7 @@
     "hide_ticker": true,
     "tf": "5",
     "visible_bars": 85,
-    "window_bars": 145
+    "window_bars": 285
    },
    "choices": [
     "Halfway between the fill and the low",
@@ -135855,7 +135855,7 @@
    "rth": true,
    "sym": "EXEL",
    "tf": "5",
-   "window": 145
+   "window": 285
   },
   "difficulty": 1,
   "id": "si_f2bc4bcd0205",
@@ -135868,7 +135868,7 @@
     "hide_ticker": true,
     "tf": "5",
     "visible_bars": 85,
-    "window_bars": 145
+    "window_bars": 285
    },
    "choices": [
     "Yes; the trade through is the trigger",
@@ -136196,7 +136196,7 @@
    "rth": true,
    "sym": "FFIV",
    "tf": "5",
-   "window": 145
+   "window": 285
   },
   "difficulty": 1,
   "id": "si_3bea8b63f6bb",
@@ -136209,7 +136209,7 @@
     "hide_ticker": true,
     "tf": "5",
     "visible_bars": 85,
-    "window_bars": 145
+    "window_bars": 285
    },
    "choices": [
     "0.15%",
@@ -136752,7 +136752,7 @@
    "rth": true,
    "sym": "ANF",
    "tf": "5",
-   "window": 145
+   "window": 285
   },
   "difficulty": 2,
   "id": "si_46392073bd02",
@@ -136765,7 +136765,7 @@
     "hide_ticker": true,
     "tf": "5",
     "visible_bars": 85,
-    "window_bars": 145
+    "window_bars": 285
    },
    "choices": [
     "$137.76",
@@ -137782,7 +137782,7 @@
    "rth": true,
    "sym": "SNX",
    "tf": "5",
-   "window": 146
+   "window": 286
   },
   "difficulty": 2,
   "id": "si_21a1ac051677",
@@ -137795,7 +137795,7 @@
     "hide_ticker": true,
     "tf": "5",
     "visible_bars": 86,
-    "window_bars": 146
+    "window_bars": 286
    },
    "choices": [
     "74 shares",
@@ -138003,7 +138003,7 @@
    "rth": true,
    "sym": "APA",
    "tf": "5",
-   "window": 150
+   "window": 290
   },
   "difficulty": 2,
   "id": "si_62280e40e26a",
@@ -138016,7 +138016,7 @@
     "hide_ticker": true,
     "tf": "5",
     "visible_bars": 90,
-    "window_bars": 150
+    "window_bars": 290
    },
    "choices": [
     "Hold; the stop is the exit",
@@ -138260,7 +138260,7 @@
    "rth": true,
    "sym": "DHR",
    "tf": "5",
-   "window": 145
+   "window": 285
   },
   "difficulty": 2,
   "id": "si_a87ed40883df",
@@ -138273,7 +138273,7 @@
     "hide_ticker": true,
     "tf": "5",
     "visible_bars": 85,
-    "window_bars": 145
+    "window_bars": 285
    },
    "choices": [
     "Take it; volume beats RS",
@@ -139111,7 +139111,7 @@
    "rth": true,
    "sym": "JBI",
    "tf": "30",
-   "window": 101
+   "window": 241
   },
   "difficulty": 3,
   "id": "si_ac186c1f3c80",
@@ -139124,7 +139124,7 @@
     "hide_ticker": true,
     "tf": "30",
     "visible_bars": 41,
-    "window_bars": 101
+    "window_bars": 241
    },
    "choices": [
     "Both the same, same stop",
@@ -139289,7 +139289,7 @@
    "rth": true,
    "sym": "FFIV",
    "tf": "5",
-   "window": 145
+   "window": 285
   },
   "difficulty": 3,
   "id": "si_6794527ae2f1",
@@ -139302,7 +139302,7 @@
     "hide_ticker": true,
     "tf": "5",
     "visible_bars": 85,
-    "window_bars": 145
+    "window_bars": 285
    },
    "choices": [
     "Market 418.46; stop 412.06; judged sell",
@@ -139785,7 +139785,7 @@
    "rth": true,
    "sym": "DE",
    "tf": "5",
-   "window": 145
+   "window": 285
   },
   "difficulty": 3,
   "id": "si_f246f2810a77",
@@ -139798,7 +139798,7 @@
     "hide_ticker": true,
     "tf": "5",
     "visible_bars": 85,
-    "window_bars": 145
+    "window_bars": 285
    },
    "choices": [
     "A wider stop, to give it room",
@@ -140311,7 +140311,7 @@
    "rth": true,
    "sym": "FTNT",
    "tf": "30",
-   "window": 103
+   "window": 243
   },
   "difficulty": 1,
   "id": "si_0386e6b6d123",
@@ -140324,7 +140324,7 @@
     "hide_ticker": true,
     "tf": "30",
     "visible_bars": 43,
-    "window_bars": 103
+    "window_bars": 243
    },
    "choices": [
     "The first candle of the trading day",
@@ -140474,7 +140474,7 @@
    "rth": true,
    "sym": "HALO",
    "tf": "30",
-   "window": 101
+   "window": 241
   },
   "difficulty": 1,
   "id": "si_379491f35b32",
@@ -140487,7 +140487,7 @@
     "hide_ticker": true,
     "tf": "30",
     "visible_bars": 41,
-    "window_bars": 101
+    "window_bars": 241
    },
    "choices": [
     "At the close of the pivot candle itself",
@@ -140866,7 +140866,7 @@
    "rth": true,
    "sym": "HOOD",
    "tf": "30",
-   "window": 102
+   "window": 242
   },
   "difficulty": 1,
   "id": "si_b02f08ab0658",
@@ -140879,7 +140879,7 @@
     "hide_ticker": true,
     "tf": "30",
     "visible_bars": 42,
-    "window_bars": 102
+    "window_bars": 242
    },
    "choices": [
     "Just under the 30-minute low",
@@ -141773,7 +141773,7 @@
    "rth": true,
    "sym": "PSX",
    "tf": "30",
-   "window": 104
+   "window": 244
   },
   "difficulty": 2,
   "id": "si_6efd9cd04c58",
@@ -141786,7 +141786,7 @@
     "hide_ticker": true,
     "tf": "30",
     "visible_bars": 44,
-    "window_bars": 104
+    "window_bars": 244
    },
    "choices": [
     "$233.45",
@@ -142478,7 +142478,7 @@
    "rth": true,
    "sym": "HALO",
    "tf": "30",
-   "window": 102
+   "window": 242
   },
   "difficulty": 2,
   "id": "si_73b20ede5a76",
@@ -142491,7 +142491,7 @@
     "hide_ticker": true,
     "tf": "30",
     "visible_bars": 42,
-    "window_bars": 102
+    "window_bars": 242
    },
    "choices": [
     "0.2R",
@@ -142860,7 +142860,7 @@
    "rth": true,
    "sym": "AXON",
    "tf": "30",
-   "window": 108
+   "window": 248
   },
   "difficulty": 2,
   "id": "si_3e6c92080e46",
@@ -142873,7 +142873,7 @@
     "hide_ticker": true,
     "tf": "30",
     "visible_bars": 48,
-    "window_bars": 108
+    "window_bars": 248
    },
    "choices": [
     "You should have sold into the pop",
@@ -143072,7 +143072,7 @@
    "rth": true,
    "sym": "AAPL",
    "tf": "30",
-   "window": 112
+   "window": 252
   },
   "difficulty": 2,
   "id": "si_8cff283bf379",
@@ -143085,7 +143085,7 @@
     "hide_ticker": true,
     "tf": "30",
     "visible_bars": 52,
-    "window_bars": 112
+    "window_bars": 252
    },
    "choices": [
     "A top-grade trade with bad luck",
@@ -143201,7 +143201,7 @@
    "rth": true,
    "sym": "MSFT",
    "tf": "30",
-   "window": 107
+   "window": 247
   },
   "difficulty": 2,
   "id": "si_916a2cb9a252",
@@ -143214,7 +143214,7 @@
     "hide_ticker": true,
     "tf": "30",
     "visible_bars": 47,
-    "window_bars": 107
+    "window_bars": 247
    },
    "choices": [
     "Too tight; skip any stop under 1%",
@@ -143649,7 +143649,7 @@
    "rth": true,
    "sym": "CRWD",
    "tf": "30",
-   "window": 103
+   "window": 243
   },
   "difficulty": 3,
   "id": "si_57c47d0f7352",
@@ -143662,7 +143662,7 @@
     "hide_ticker": true,
     "tf": "30",
     "visible_bars": 43,
-    "window_bars": 103
+    "window_bars": 243
    },
    "choices": [
     "A string of red candles",
@@ -143755,7 +143755,7 @@
    "rth": true,
    "sym": "MRNA",
    "tf": "30",
-   "window": 105
+   "window": 245
   },
   "difficulty": 3,
   "id": "si_406e1e3ef984",
@@ -143768,7 +143768,7 @@
     "hide_ticker": true,
     "tf": "30",
     "visible_bars": 45,
-    "window_bars": 105
+    "window_bars": 245
    },
    "choices": [
     "Yes; the high still triggered",
@@ -144406,7 +144406,7 @@
    "rth": true,
    "sym": "PSX",
    "tf": "30",
-   "window": 103
+   "window": 243
   },
   "difficulty": 3,
   "id": "si_9b3c5020f463",
@@ -144419,7 +144419,7 @@
     "hide_ticker": true,
     "tf": "30",
     "visible_bars": 43,
-    "window_bars": 103
+    "window_bars": 243
    },
    "choices": [
     "Over the high; stop under the low",
@@ -146264,7 +146264,7 @@
    "rth": true,
    "sym": "CEG",
    "tf": "60",
-   "window": 96
+   "window": 236
   },
   "difficulty": 2,
   "id": "si_f88ad6461abe",
@@ -146277,7 +146277,7 @@
     "hide_ticker": true,
     "tf": "60",
     "visible_bars": 36,
-    "window_bars": 96
+    "window_bars": 236
    },
    "choices": [
     "0.6%",
@@ -147190,7 +147190,7 @@
    "rth": true,
    "sym": "CRS",
    "tf": "60",
-   "window": 96
+   "window": 236
   },
   "difficulty": 2,
   "id": "si_b4212d6605df",
@@ -147203,7 +147203,7 @@
     "hide_ticker": true,
     "tf": "60",
     "visible_bars": 36,
-    "window_bars": 96
+    "window_bars": 236
    },
    "choices": [
     "Buy the open, skip the wait",
@@ -147734,7 +147734,7 @@
    "rth": true,
    "sym": "VIAV",
    "tf": "60",
-   "window": 97
+   "window": 237
   },
   "difficulty": 2,
   "id": "si_7bb4d850e8a5",
@@ -147747,7 +147747,7 @@
     "hide_ticker": true,
     "tf": "60",
     "visible_bars": 37,
-    "window_bars": 97
+    "window_bars": 237
    },
    "choices": [
     "0.3R",
@@ -147970,7 +147970,7 @@
    "rth": true,
    "sym": "VIAV",
    "tf": "60",
-   "window": 97
+   "window": 237
   },
   "difficulty": 3,
   "id": "si_bcf92c10931e",
@@ -147983,7 +147983,7 @@
     "hide_ticker": true,
     "tf": "60",
     "visible_bars": 37,
-    "window_bars": 97
+    "window_bars": 237
    },
    "choices": [
     "No; it is a pivot, not a signal",
@@ -148306,7 +148306,7 @@
    "rth": true,
    "sym": "TSLA",
    "tf": "60",
-   "window": 96
+   "window": 236
   },
   "difficulty": 3,
   "id": "si_577bd398bfcf",
@@ -148319,7 +148319,7 @@
     "hide_ticker": true,
     "tf": "60",
     "visible_bars": 36,
-    "window_bars": 96
+    "window_bars": 236
    },
    "choices": [
     "A mistake; you should have sold sooner",
@@ -219640,7 +219640,7 @@
    "rth": true,
    "sym": "CEG",
    "tf": "60",
-   "window": 110
+   "window": 250
   },
   "difficulty": 1,
   "id": "si_179923415b0d",
@@ -219653,7 +219653,7 @@
     "hide_ticker": true,
     "tf": "60",
     "visible_bars": 50,
-    "window_bars": 110
+    "window_bars": 250
    },
    "choices": [
     "0.94%",
@@ -219822,7 +219822,7 @@
    "rth": true,
    "sym": "TPR",
    "tf": "60",
-   "window": 110
+   "window": 250
   },
   "difficulty": 1,
   "id": "si_07a0d77ae772",
@@ -219835,7 +219835,7 @@
     "hide_ticker": true,
     "tf": "60",
     "visible_bars": 50,
-    "window_bars": 110
+    "window_bars": 250
    },
    "choices": [
     "$113.11",
@@ -219983,7 +219983,7 @@
    "rth": true,
    "sym": "ANF",
    "tf": "5",
-   "window": 143
+   "window": 283
   },
   "difficulty": 1,
   "id": "si_0810e2476b7a",
@@ -219996,7 +219996,7 @@
     "hide_ticker": true,
     "tf": "5",
     "visible_bars": 83,
-    "window_bars": 143
+    "window_bars": 283
    },
    "choices": [
     "Yes, it crossed after trading under",
@@ -220255,7 +220255,7 @@
    "rth": true,
    "sym": "ANF",
    "tf": "5",
-   "window": 142
+   "window": 282
   },
   "difficulty": 2,
   "id": "si_f23564a809ab",
@@ -220268,7 +220268,7 @@
     "hide_ticker": true,
     "tf": "5",
     "visible_bars": 82,
-    "window_bars": 142
+    "window_bars": 282
    },
    "choices": [
     "Wait for the trade through the line",
@@ -221343,7 +221343,7 @@
    "rth": true,
    "sym": "NVDA",
    "tf": "60",
-   "window": 110
+   "window": 250
   },
   "difficulty": 2,
   "id": "si_ed6afe67e423",
@@ -221356,7 +221356,7 @@
     "hide_ticker": true,
     "tf": "60",
     "visible_bars": 50,
-    "window_bars": 110
+    "window_bars": 250
    },
    "choices": [
     "Yes, you should have sold at the close",
@@ -221830,7 +221830,7 @@
    "rth": true,
    "sym": "PLTR",
    "tf": "60",
-   "window": 110
+   "window": 250
   },
   "difficulty": 3,
   "id": "si_753c25c94e73",
@@ -221843,7 +221843,7 @@
     "hide_ticker": true,
     "tf": "60",
     "visible_bars": 50,
-    "window_bars": 110
+    "window_bars": 250
    },
    "choices": [
     "Pass; nothing is under the dip",
@@ -222200,7 +222200,7 @@
    "rth": true,
    "sym": "AMD",
    "tf": "60",
-   "window": 110
+   "window": 250
   },
   "difficulty": 3,
   "id": "si_69870b3e0600",
@@ -222213,7 +222213,7 @@
     "hide_ticker": true,
     "tf": "60",
     "visible_bars": 50,
-    "window_bars": 110
+    "window_bars": 250
    },
    "choices": [
     "No, a planned loss at the stop",
@@ -222343,7 +222343,7 @@
    "rth": true,
    "sym": "TSLA",
    "tf": "60",
-   "window": 110
+   "window": 250
   },
   "difficulty": 3,
   "id": "si_78ee9af77ca3",
@@ -222356,7 +222356,7 @@
     "hide_ticker": true,
     "tf": "60",
     "visible_bars": 50,
-    "window_bars": 110
+    "window_bars": 250
    },
    "choices": [
     "Yes; sell on an hourly close under it",
@@ -222458,7 +222458,7 @@
    "rth": true,
    "sym": "TWLO",
    "tf": "5",
-   "window": 140
+   "window": 280
   },
   "difficulty": 3,
   "id": "si_d6f5ce5524bc",
@@ -222471,7 +222471,7 @@
     "hide_ticker": true,
     "tf": "5",
     "visible_bars": 80,
-    "window_bars": 140
+    "window_bars": 280
    },
    "choices": [
     "No, wait a month after a stop-out",
@@ -223555,7 +223555,7 @@
    "rth": true,
    "sym": "TWLO",
    "tf": "60",
-   "window": 110
+   "window": 250
   },
   "difficulty": 2,
   "id": "si_dc8111f4cc88",
@@ -223568,7 +223568,7 @@
     "hide_ticker": true,
     "tf": "60",
     "visible_bars": 50,
-    "window_bars": 110
+    "window_bars": 250
    },
    "choices": [
     "Up to the price you sold at",
@@ -223707,7 +223707,7 @@
    "rth": true,
    "sym": "TPR",
    "tf": "60",
-   "window": 110
+   "window": 250
   },
   "difficulty": 2,
   "id": "si_711e8caf5b85",
@@ -223720,7 +223720,7 @@
     "hide_ticker": true,
     "tf": "60",
     "visible_bars": 50,
-    "window_bars": 110
+    "window_bars": 250
    },
    "choices": [
     "$106.03",
@@ -224418,7 +224418,7 @@
    "rth": true,
    "sym": "SITM",
    "tf": "5",
-   "window": 139
+   "window": 279
   },
   "difficulty": 1,
   "id": "si_57a460bf8fde",
@@ -224431,7 +224431,7 @@
     "hide_ticker": true,
     "tf": "5",
     "visible_bars": 79,
-    "window_bars": 139
+    "window_bars": 279
    },
    "choices": [
     "The prior session's high",
@@ -224596,7 +224596,7 @@
    "rth": true,
    "sym": "CROX",
    "tf": "5",
-   "window": 140
+   "window": 280
   },
   "difficulty": 1,
   "id": "si_81667de8af5e",
@@ -224609,7 +224609,7 @@
     "hide_ticker": true,
     "tf": "5",
     "visible_bars": 80,
-    "window_bars": 140
+    "window_bars": 280
    },
    "choices": [
     "Just under yesterday's close",
@@ -225248,7 +225248,7 @@
    "rth": true,
    "sym": "RPRX",
    "tf": "5",
-   "window": 140
+   "window": 280
   },
   "difficulty": 1,
   "id": "si_2a30fe25c9df",
@@ -225261,7 +225261,7 @@
     "hide_ticker": true,
     "tf": "5",
     "visible_bars": 80,
-    "window_bars": 140
+    "window_bars": 280
    },
    "choices": [
     "0.65%",
@@ -225677,7 +225677,7 @@
    "rth": true,
    "sym": "SITM",
    "tf": "5",
-   "window": 140
+   "window": 280
   },
   "difficulty": 1,
   "id": "si_e3e60197d47e",
@@ -225690,7 +225690,7 @@
     "hide_ticker": true,
     "tf": "5",
     "visible_bars": 80,
-    "window_bars": 140
+    "window_bars": 280
    },
    "choices": [
     "$590.32",
@@ -226030,7 +226030,7 @@
    "rth": true,
    "sym": "NVT",
    "tf": "5",
-   "window": 140
+   "window": 280
   },
   "difficulty": 2,
   "id": "si_4a0544ea7e02",
@@ -226043,7 +226043,7 @@
     "hide_ticker": true,
     "tf": "5",
     "visible_bars": 80,
-    "window_bars": 140
+    "window_bars": 280
    },
    "choices": [
     "Yes; take it with a wider stop",
@@ -226367,7 +226367,7 @@
    "rth": true,
    "sym": "CROX",
    "tf": "5",
-   "window": 139
+   "window": 279
   },
   "difficulty": 2,
   "id": "si_d3fcb1d6d834",
@@ -226380,7 +226380,7 @@
     "hide_ticker": true,
     "tf": "5",
     "visible_bars": 79,
-    "window_bars": 139
+    "window_bars": 279
    },
    "choices": [
     "Pass; a 90% close is stretched",
@@ -226845,7 +226845,7 @@
    "rth": true,
    "sym": "SANM",
    "tf": "5",
-   "window": 140
+   "window": 280
   },
   "difficulty": 2,
   "id": "si_24d2ca3eaaca",
@@ -226858,7 +226858,7 @@
     "hide_ticker": true,
     "tf": "5",
     "visible_bars": 80,
-    "window_bars": 140
+    "window_bars": 280
    },
    "choices": [
     "133 shares",
@@ -226956,7 +226956,7 @@
    "rth": true,
    "sym": "WDC",
    "tf": "5",
-   "window": 139
+   "window": 279
   },
   "difficulty": 2,
   "id": "si_ea65e4176bb9",
@@ -226969,7 +226969,7 @@
     "hide_ticker": true,
     "tf": "5",
     "visible_bars": 79,
-    "window_bars": 139
+    "window_bars": 279
    },
    "choices": [
     "Buy full size; it is a real drive",
@@ -227221,7 +227221,7 @@
    "rth": true,
    "sym": "LRCX",
    "tf": "5",
-   "window": 139
+   "window": 279
   },
   "difficulty": 2,
   "id": "si_bd6d9ab0a123",
@@ -227234,7 +227234,7 @@
     "hide_ticker": true,
     "tf": "5",
     "visible_bars": 79,
-    "window_bars": 139
+    "window_bars": 279
    },
    "choices": [
     "No; it must close in the top 30%",
@@ -227805,7 +227805,7 @@
    "rth": true,
    "sym": "TSEM",
    "tf": "5",
-   "window": 140
+   "window": 280
   },
   "difficulty": 3,
   "id": "si_6afead25a6c6",
@@ -227818,7 +227818,7 @@
     "hide_ticker": true,
     "tf": "5",
     "visible_bars": 80,
-    "window_bars": 140
+    "window_bars": 280
    },
    "choices": [
     "A sign the setup does not work",
@@ -228020,7 +228020,7 @@
    "rth": true,
    "sym": "PAYC",
    "tf": "5",
-   "window": 152
+   "window": 292
   },
   "difficulty": 3,
   "id": "si_524eb1edb771",
@@ -228033,7 +228033,7 @@
     "hide_ticker": true,
     "tf": "5",
     "visible_bars": 92,
-    "window_bars": 152
+    "window_bars": 292
    },
    "choices": [
     "No; never trade it this month",
