@@ -75,6 +75,21 @@ The rule does NOT reach the one other script refused at install for this cap on 
 `compute.trees.out2` on this branch (graded on this PC, both lanes): its over-cap column reads no knob
 the door could give back. Unchanged, INCONCLUSIVE.
 
+## Two more rails this unit's gains reached (pine-heavy `engine-ast-2` on `76de8c4068`)
+
+1. `lookbackAgreement.test.js`: chart-champions translates now, and seven of its trees ("Sun-2DVWAP" …
+   "Sat-2DVWAP") read 251 bars back to `interpret.js::maxLookback` and "unanalysable" to
+   `lint.js::maxLookback`. Measured on GitHub runners (a scratch diagnostic, never committed): the linter's
+   only reasons were `lastbaryear` / `lastbarmonth` / `lastbardayofmonth` "declare an UNBOUNDED forward reach".
+   Those leaves declare `lookback: 0`; `lint.js::ownWindow` answered `back: UNKNOWN` whenever the FORWARD half
+   was unbounded. It now reads the back half from the lookback (`ast_lint._own_window` the same); the repaint
+   verdict is unchanged (forward stays unbounded, the tree still `repaints`). No tree on master held such a
+   leaf, which is why the rail never saw it. Rails: `ast/lintUnboundedForwardBack.test.js` and its twin in
+   `tests/test_ast_lookback_agreement.py`; mutants M13 (JS) and M14 (Python).
+2. `pine.tickerCall.test.js`: a rail wrote the v3 forms `tickerid` / `security(t, period, hl2)` under a
+   `//@version=5` header; bare `period` refuses by name from v4 on now. Re-spelled `timeframe.period`, the
+   rail's subject (the ticker) unchanged.
+
 ## Coverage: the census's own predicate, targets plus controls
 
 `coverageMapDoorCensus.measure.test.js` over a subset input (the 114 scripts whose engine-60 walls touch this
@@ -151,6 +166,7 @@ session-highs-dst-safe is admitted with no capture behind it until Q-BT6 is take
 | `builder/` (all), session/runtime clock, budget, param ids, `vendorHarness/` (all), `memberPaneTables` + pytest budget / session-window / admission / dispositions | GitHub runners, run 43965028640 | `353aa19c44` | pytest green; vitest 4 red, all four rails of this unit's own making: the knob fixture and the session-hilo rail named knobs that are folded away unread (only the first toggle is listed), and two `b1Paints` pins that moved with the served sessions. Corrected and re-pinned after it |
 | `btSessionClock.test.js` with the five licence-store captures present (untracked, placed only for this run, removed after, absence checked) | this PC, lock hold | `353aa19c44` + the `dc4f4333b7` rail | 19 passed (19) |
 | census, both lanes | this PC, lock hold | `353aa19c44` | 139 / 139 rows each lane |
+| the touched rails again (knob, session clock, `b1Paints`, runtime clock, dispositions) | GitHub runners, run 43971319991 | `76de8c4068` | GREEN: vitest 161 passed, 4 skipped (the four ac2/ac3 capture blocks); pytest 10 passed |
 | harness over the moved captures, both lanes | this PC, lock hold | `353aa19c44` | the table above |
 | `evidence_engine.py queue --check`, `pins --check`, `refusal_codes.py --check`, `check_repo_hygiene.py`, `test_queue_dispositions.py` | this PC | after each master merge (last `5465c83b64`) | pass |
 
@@ -169,7 +185,7 @@ session-highs-dst-safe is admitted with no capture behind it until Q-BT6 is take
 | M9-empty-tf | `time("", …)` no longer the chart's own timeframe on the host lane | btSessionClock | `353aa19c44` | 1 failed (the `""` rail), red |
 | M10-membership-tree | a membership read builds the value tree again | btSessionClock | `353aa19c44` | 1 failed (the membership-tree rail), red |
 | M11-knob-budget | the member door stops giving knobs back | btSessionClock, knobInstallBudget | `353aa19c44` | red: the session-hilo install rail (green unmutated in the same hold) |
-| M12-budget-reason | a knob given back loses the budget's reason | knobInstallBudget | see the PR | the hold's run is not a proof (that fixture's set assertion was itself wrong on that tree); re-run on GitHub runners against the corrected fixture |
+| M12-budget-reason | a knob given back loses the budget's reason | knobInstallBudget | `76de8c4068`, GitHub runners run 43971377446, a scratch commit (the worktree never edited; its ref deleted after) | 1 failed of 3: the reason assertion (the row read "the formula never reads useO", not the budget's sentence), red; the same file unmutated is green in run 43971319991. The lock hold's run on `353aa19c44` was no proof: that fixture's set assertion was itself wrong on that tree |
 
 ## What stays refused, by name
 

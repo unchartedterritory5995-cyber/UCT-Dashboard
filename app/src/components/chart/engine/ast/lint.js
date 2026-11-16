@@ -390,8 +390,17 @@ function ownWindow(spec, argNodes) {
   if (lookback === UNKNOWN || declaredForward === UNKNOWN) {
     return { back: UNKNOWN, forward: UNKNOWN }
   }
-  if (declaredForward === UNBOUNDED || lookback === UNBOUNDED) {
+  if (lookback === UNBOUNDED) {
     return { back: UNKNOWN, forward: UNBOUNDED }
+  }
+  // ⭐ NUMBER PENDING (bt) — AN UNBOUNDED FORWARD REACH SAYS NOTHING ABOUT HOW FAR BACK. The two halves
+  // are one declaration, but they are two numbers: `lastbaryear` (`lookback: 0`, `forward: "unbounded"`)
+  // reads no earlier bar at all. Answering `back: UNKNOWN` here made this reader disagree with
+  // `interpret.js::maxLookback`, which reads the lookback alone, on the first corpus tree that holds such
+  // a leaf: chart-champions' "Sun-2DVWAP" (251 against "unanalysable", `lookbackAgreement.test.js`),
+  // reachable once its sessions translated. The repaint verdict is untouched: forward stays UNBOUNDED.
+  if (declaredForward === UNBOUNDED) {
+    return { back: lookback >= 0 ? lookback : 0, forward: UNBOUNDED }
   }
 
   // A NEGATIVE lookback is a window that runs the other way: `[i, i+|n|]`.
