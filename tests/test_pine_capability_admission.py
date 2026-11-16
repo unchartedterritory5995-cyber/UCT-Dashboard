@@ -128,7 +128,7 @@ def test_the_committed_admitted_set_is_the_evidence_supported_one():
         "core", "reassign", "ternary", "if-block", "var", "fn-single", "fn-multi", "for",
         "compound-assign", "history-expr", "tuple-destructure",
         # U1 (2026-11-15): object families on objects v2 runtime-on MATCH with records paired;
-        # obj:box withheld by ruling (the v4 default border colour, test_A7_obj_box_waits_...)
+        # obj:box withheld by ruling (its box count and ungraded x, test_A7_obj_box_stays_withdrawn_...)
         "obj:line", "obj:label", "obj:delete", "obj:collection",
         # U3 (2026-11-15): each on the one evidence rule over the S1-era corpus; realtime-state for
         # closed-bar history only (G6); max_bars_back by coordinator ruling (a)
@@ -434,23 +434,34 @@ def test_A7_the_committed_object_families_are_U1s_four_and_U3s_two():
         assert c not in rep["admitted"], c
 
 
-#: ⛔ Coordinator ruling 2026-11-15: obj:box's y evidence passes the rule, but the runtime lane draws a
+#: ⛔ Coordinator ruling 2026-11-15: obj:box's y evidence passes the rule, but the runtime lane drew a
 #: v4 `box.new` with no `border_color` in #2962ff (v5+ color.blue) where TradingView draws #2196f3
-#: (v4 color.blue). The family waits for runtime object defaults made version-aware.
+#: (v4 color.blue). The family waited for runtime object defaults made version-aware.
+#: ⭐ Re-pointed 2026-11-16 (landing train 1, engine 59; coordinator ruling): the defaults ARE
+#: version-aware now (legacy semantics B5, `objectDefaults.js::NAMED_OBJECT_DEFAULTS`), and the capture
+#: the ruling named no longer differs on any colour. obj:box STAYS WITHDRAWN on what that capture
+#: still shows: objects v2 DIVERGE on the COUNT of boxes held (vendor 52, ours 50; the count differed
+#: before too, behind the colour) and an x that is not graded (taken before U13). It comes back only
+#: on x-graded box captures that grade MATCH.
 OBJ_BOX_BUG_CAPTURE = "inside-bar-boxes-rddt-1d-2026-11-14"
 
 
-def test_A7_obj_box_waits_for_version_aware_object_defaults():
+def test_A7_obj_box_stays_withdrawn_on_its_box_count_and_ungraded_x():
     doc = json.loads(Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))
     assert "obj:box" not in doc["capabilities"]
     readme = " ".join(doc["_readme"])
     assert "obj:box IS DELIBERATELY ABSENT" in readme and OBJ_BOX_BUG_CAPTURE in readme
-    assert "#2962ff" in readme and "#2196f3" in readme
-    # the evidence the ruling names is what it says: runtime-drawn, objects v2 DIVERGE on a box colour
+    assert "vendor 52, ours 50" in readme and "x is not graded" in readme
+    # the evidence the ruling names is what it says: runtime-drawn, objects v2 DIVERGE on the box count
     r = _verdicts()[OBJ_BOX_BUG_CAPTURE]
     o = r["objectsV2"]
-    assert o["verdict"] == "DIVERGE" and "boxes border_color" in o["reason"], o["reason"]
-    assert "#2196f3" in o["reason"] and "#2962ff" in o["reason"]
+    assert o["verdict"] == "DIVERGE" and "boxes count of boxes held" in o["reason"], o["reason"]
+    assert "vendor 52, ours 50" in o["reason"]
+    assert _x_verdict(o) is None and (o["x"]["graded"], o["x"]["differing"]) == (0, 0), o["x"]
+    # ...and the bug it was first withheld for stays fixed: no colour differs, on any paired box
+    assert "border_color" not in o["reason"] and "#2962ff" not in o["reason"], o["reason"]
+    boxes = next(f for f in o["families"] if f["family"] == "boxes")
+    assert boxes["paired"] == 50 and boxes["differing"] == 0, boxes
     src = (json.loads((ROOT / r["file"]).read_text(encoding="utf-8")).get("source") or {}).get("text")
     assert "obj:box" in pc.capabilities_of(src)
 

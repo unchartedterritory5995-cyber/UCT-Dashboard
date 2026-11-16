@@ -3,7 +3,9 @@
 // W5 T19 -- HP-1 on a V8 other than the one the digests were recorded on. The deploy gate runs
 // Node 20 (V8 11.3); the digests were recorded on Node 24 (V8 13.6); V8's sin/cos differ by one
 // ulp between them (docs/pine/evidence/2026-11-04-w5-t4/EVIDENCE.md). The tool therefore REPORTS
-// the two NAMED trig cases (corpus.json `reportOnly`) -- and ONLY them -- when the V8 moved, and
+// the NAMED trig cases (corpus.json `reportOnly`: the one trig script on its three bar sets; the
+// `calcbars` set joined at engine 59, when CBC-FMT made the runtime lane compute it) -- and ONLY
+// them -- when the V8 moved, and
 // only when their sole difference is the digest. Everything else stays gated.
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
@@ -11,7 +13,7 @@ import * as hp from '../../../../../../../tools/pine_runtime_host_parity.mjs'
 
 const corpus = hp.loadCorpus()
 const expected = JSON.parse(readFileSync(hp.EXPECTED_FILE, 'utf8'))
-const LISTED = ['transcendental@forming', 'transcendental@listing']
+const LISTED = ['transcendental@calcbars', 'transcendental@forming', 'transcendental@listing']
 const OTHER_V8 = `not-${expected.recordedOn.v8}`
 
 const got = (v8) => ({
@@ -24,7 +26,7 @@ const F = 'f'.repeat(64)
 const unlisted = () => Object.keys(expected.cases).find((k) => expected.cases[k].status === 'ok' && !LISTED.includes(k))
 
 describe('HP-1 on a V8 other than the recording V8', () => {
-  it('the premise: the committed file records a V8, and the list is exactly the two trig cases', () => {
+  it('the premise: the committed file records a V8, and the list is exactly the three trig cases', () => {
     expect(typeof expected.recordedOn.v8).toBe('string')
     expect([...hp.reportOnlyOf(corpus).keys()].sort()).toEqual(LISTED)
   })

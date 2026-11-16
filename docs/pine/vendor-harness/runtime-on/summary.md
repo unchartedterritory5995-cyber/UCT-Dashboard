@@ -1667,6 +1667,15 @@ strong-start-rvol-dashboard-rddt-1d-2026-11- NYSE:RDDT 1D     0      INCONCLUSIV
 strong-start-rvol-dashboard-spy-1d-2026-11-1 AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:object-removal-lost) [runtime declined: runtime:history-dynamic-offset]: This script's drawing can't be shown yet. It removes drawings as it runs, and this chart can't follow part of that (a table clear), so drawing the rest would leave lines, labels, boxes or table cells on screen that TradingView would have removed.
 sub-rddt-1d-2026-11-15                       NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: pine:request]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `security`
 sub-spy-1d-2026-11-15                        AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: pine:request]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `security`
+supertrend-kivancozbilgic-rddt-1d-2026-10-02 NYSE:RDDT 1D     7      INCONCLUSIVE      1 of 8 items could not be compared
+    Up Trend                                 MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 4.92e-16
+    UpTrend Begins                           MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Buy                                      MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Down Trend                               MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    DownTrend Begins                         MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Sell                                     MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    plot_6                                   INCONCLUSIVE      cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (fill-anchor))
+    objects                                  MATCH         neither side draws an object
 supertrend-relative-volume-kernel-optimized- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `TradingView/ta/9` is not in this engine's library registry, so its code cannot be compiled
 supertrend-strategy-rddt-1d-2026-10-02       NYSE:RDDT 1D     7      INCONCLUSIVE      1 of 9 items could not be compared
     Up Trend                                 MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 4.92e-16
@@ -3903,10 +3912,10 @@ w2-warmup-spy-12m-2026-09-22                 SPY 12M          14     MATCH      
     W13_cum_close_FROM_BAR0                  MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
     W14_sma1_DEGENERATE_WINDOW               MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
 
-TOTAL 742 captures — MATCH 257 · DIVERGE 55 · INCONCLUSIVE 427 · MATCH_SUBSTITUTED 3 (verified with substituted inputs; never counted as MATCH)
-WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 161 captures) — MATCH 257 · DIVERGE 55 · INCONCLUSIVE 427
+TOTAL 743 captures — MATCH 257 · DIVERGE 55 · INCONCLUSIVE 428 · MATCH_SUBSTITUTED 3 (verified with substituted inputs; never counted as MATCH)
+WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 161 captures) — MATCH 257 · DIVERGE 55 · INCONCLUSIVE 428
 CHANGED BY OBJECT COLOUR (0): none
-WITHOUT PAINTS (the verdict before B1; paints graded on 58 captures) — MATCH 258 · DIVERGE 54 · INCONCLUSIVE 427
+WITHOUT PAINTS (the verdict before B1; paints graded on 58 captures) — MATCH 258 · DIVERGE 54 · INCONCLUSIVE 428
 CHANGED BY PAINTS (2): vw-bgcolor-barcolor-spy-1d-2026-10-02 MATCH → INCONCLUSIVE; vw-deadband-ticks-brk-a-1d-2026-09-28 INCONCLUSIVE → DIVERGE
 ```
 
