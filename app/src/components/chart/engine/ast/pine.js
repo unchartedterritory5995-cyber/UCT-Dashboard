@@ -22729,10 +22729,35 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         const c = body ? colorNodeOf(body, scope, depth + 1) : null
         if (c) return c
       }
+      // ⭐ TC (text-colour unit) — AND A SCRIPT'S OWN ONE-EXPRESSION READ METHOD IN THE DOTTED
+      // FORM (`chart.fg_color.transp(50)` over `method transp(color x, int t) => color.new(x, t)`):
+      // the same substitution, the receiver as its first argument — the rewrite `recv.m(a)` →
+      // `m(recv, a)` the Resolver's read methods (`inlineReadMethod`, C11c) and the runtime front
+      // end (`methodCallOf`) already make. ⛔ Only `readMethodDefs`' methods (declared once, not
+      // also a plain function, one expression that writes nothing), and only where nothing in
+      // scope binds the dotted name; the body is read by THIS reader, so a colour it cannot say
+      // is still dropped by name. ⚰️ The call fell to the drop above (`prop:unreadable`), so
+      // volatility-trend-score's two reference lines were not drawn by either lane.
+      if (!bound && plain && splitMethodName(node.name)) {
+        const mf = splitMethodName(node.name)
+        const def = objectColourMethods().get(mf.method)
+        if (def && def.params.length === args.length + 1) {
+          const recvArg = { name: null, value: { type: 'name', name: mf.recv, tok: node.tok } }
+          const body = substituteFrame(def.body, { bound: { params: def.params }, args: [recvArg, ...args], callerEnv: scope })
+          const c = body ? colorNodeOf(body, scope, depth + 1) : null
+          if (c) return c
+        }
+      }
     }
     return null
   }
-  const lateColourOf = (node, scope, depth) => rtColourOf(node, scope, depth) || hostColourOf(node, scope, depth)
+  /** ⭐ TC — the script's own read methods, for the colour reader above (built once, on first ask). */
+  let objectColourMethodsMemo = null
+  const objectColourMethods = () => {
+    if (!objectColourMethodsMemo) objectColourMethodsMemo = readMethodDefs(stmts)
+    return objectColourMethodsMemo
+  }
+  const lateColourOf =(node, scope, depth) => rtColourOf(node, scope, depth) || hostColourOf(node, scope, depth)
 
   /** ⭐⭐ C20 — A DRAWING COLOUR ONLY THE RUNTIME LANE CAN COMPUTE.
    *

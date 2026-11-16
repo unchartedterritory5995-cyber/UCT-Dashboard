@@ -66,6 +66,7 @@
    "docs/pine/capture-queue-2026-11-16-rma-last-bit.md",
    "docs/pine/capture-queue-2026-11-16-runtime-history.md",
    "docs/pine/capture-queue-2026-11-16-sar-window.md",
+   "docs/pine/capture-queue-2026-11-16-text-colour.md",
    "docs/pine/capture-queue-2026-11-16-tick-tie-and-htf-windows.md"
   ],
   "coverageMeasuredOn": "2026-11-16",
@@ -91,19 +92,19 @@
   }
  },
  "counts": {
-  "targets": 335,
+  "targets": 336,
   "byStatus": {
    "CAPTURED": 180,
    "NEEDS_CHART": 39,
    "NEEDS_LIVE": 2,
-   "QUEUED": 114
+   "QUEUED": 115
   },
   "byPlanWave": {
    "E": {
     "CAPTURED": 140,
     "NEEDS_CHART": 37,
     "NEEDS_LIVE": 2,
-    "QUEUED": 103
+    "QUEUED": 104
    },
    "W1": {
     "CAPTURED": 6
@@ -126,7 +127,7 @@
     "CAPTURED": 152,
     "NEEDS_CHART": 38,
     "NEEDS_LIVE": 2,
-    "QUEUED": 114
+    "QUEUED": 115
    },
    "1-2": {
     "CAPTURED": 28,
@@ -260,6 +261,9 @@
     "CAPTURED": 11,
     "QUEUED": 1
    },
+   "text-colour": {
+    "QUEUED": 1
+   },
    "tick-tie-and-htf-windows": {
     "QUEUED": 4
    },
@@ -341,7 +345,7 @@
     "NEEDS_CHART": 1
    }
   },
-  "rowsNeedingProbe": 23,
+  "rowsNeedingProbe": 25,
   "rowsNeedingProbeLive": 1,
   "licenceHeldCensus": 157,
   "rowsNotCaptureQuestions": 59,
@@ -16459,6 +16463,52 @@
    "origins": [
     "queue-doc"
    ]
+  },
+  {
+   "id": "vw-tc1-colour-na-compare@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-tc1-colour-na-compare.pine",
+   "sourceKind": "probe",
+   "sha256": "cd8b3ae3504002ba688418f67abd5dfe1590f47b15fe67af838f0924c3d585a3",
+   "bytes": 2291,
+   "stem": "vw-tc1-colour-na-compare",
+   "captureStem": "vw-tc1-colour-na-compare",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "preamble",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "text-colour"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-text-colour#C1-C3",
+    "capture-queue-2026-11-16-text-colour#N1-N3",
+    "capture-queue-2026-11-16-text-colour#E1",
+    "capture-queue-2026-11-16-text-colour#E2",
+    "capture-queue-2026-11-16-text-colour#B0"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
   }
  ],
  "rowsNeedingProbe": [
@@ -16720,6 +16770,28 @@
    ],
    "namedScripts": [],
    "text": "Q-REQ3 | `vw-req-heikinashi.pine`: `request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, open / close)` and the v4 `heikinashi(tickerid)` | AMEX:SPY 1D from the listing | is the Heikin Ashi series TradingView hands a request the textbook recursion over the chart's bars (open = average of the previous HA open and close, seeded how?) | refused `pine:request` by name (a different s"
+  },
+  {
+   "key": "capture-queue-2026-11-16-text-colour#TC-A1",
+   "doc": "docs/pine/capture-queue-2026-11-16-text-colour.md",
+   "line": 32,
+   "docWave": "text-colour",
+   "needsProbe": "no probe file named (an inline shape or prose)",
+   "needsLive": false,
+   "guards": [],
+   "namedScripts": [],
+   "text": "TC-A1 | `reference:color-gradient-framework-pinecoders__9ICIDOiMbF` on NYSE:RDDT 1D | `e993b713307bcf78` | the untyped colour parameters (per-call-site copies), `color.new` over a fractional transparency on the bar, `color.from_gradient` over parameters; its plots (its `fill`s are named \"Not drawn by this pane\" on the runtime lane)"
+  },
+  {
+   "key": "capture-queue-2026-11-16-text-colour#TC-A2",
+   "doc": "docs/pine/capture-queue-2026-11-16-text-colour.md",
+   "line": 33,
+   "docWave": "text-colour",
+   "needsProbe": "no probe file named (an inline shape or prose)",
+   "needsLive": false,
+   "guards": [],
+   "namedScripts": [],
+   "text": "TC-A2 | `reference:study-for-squeeze-momentum-indicator-lazybear__2BZblBj6eA` on NYSE:RDDT 1D | `13a3f2f4a179e81a` | colour `==` / `!=`, a colour's past and v4 `iff` with colour arms, read through its six alert conditions"
   }
  ],
  "rowsNotCaptureQuestions": [
@@ -18949,6 +19021,12 @@
    "doc": "docs/pine/capture-queue-2026-11-16-sar-window.md",
    "wave": "sar-window",
    "rows": 1,
+   "contextTables": 0
+  },
+  {
+   "doc": "docs/pine/capture-queue-2026-11-16-text-colour.md",
+   "wave": "text-colour",
+   "rows": 7,
    "contextTables": 0
   },
   {

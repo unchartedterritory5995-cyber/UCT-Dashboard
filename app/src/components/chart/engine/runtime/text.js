@@ -26,6 +26,7 @@
 // nobody reads again.
 
 import { formatNumber, formatNumberWhy } from '../objectRuntime.js'
+import { tickNumberText, tickNumberWhy } from '../pineTextFormat.js'
 import { timestampMs, instantField, INSTANT_FIELDS } from './clockFns.js'
 // ⭐ ONE AUTHORITY for "a Pine runtime error, the script stops here": `collections.js`'s
 // `PineRuntimeError` (name 'runtime.error', guard 'runtime:runtime.error'). The pane
@@ -248,6 +249,16 @@ export const RUN_TEXT_FNS = Object.freeze({
     returns: 'string',
     fn: (v, f) => (typeof v === 'string' ? v : typeof v === 'number' ? runNumberText(v, f) : ''),
   },
+  // ⭐⭐ TC — `str.tostring(x, format.mintick)`: the binding's own tick TEXT (the front end hands
+  // `syminfo.mintick`'s witnessed decimal text, `bind.js::SYMBOL_TICK_SIZE`, or '' where the
+  // symbol settles none) through the host lane's ONE tick formatter (`tickNumberText`, CBC-FMT
+  // S10 T08-T12: `n / tick` rounded in binary, the tick's decimals kept). Withheld BY NAME
+  // (`tickNumberWhy`) exactly where that formatter withholds.
+  'str.tostring/mintick': {
+    args: ['any', 'string'],
+    returns: 'string',
+    fn: (v, tick) => (typeof v === 'string' ? v : typeof v === 'number' ? runTickText(v, tick) : ''),
+  },
 })
 
 /** ⭐⭐ CBC-FMT — a number this lane prints, or a NAMED stop. ⛔ The one formatter answers
@@ -262,6 +273,16 @@ function runNumberText(v, f) {
   if (s !== null) return s
   const why = formatNumberWhy(v, f) || 'format:withheld'
   const err = new Error(`\`str.tostring\` of ${v}${f ? ` through "${f}"` : ''} has no text a capture settles (${why}), so it is not printed rather than printed differently`)
+  err.guard = why
+  throw err
+}
+
+/** ⭐ TC — a number at the symbol's tick, or a NAMED stop (`runNumberText`'s rule). */
+function runTickText(v, tick) {
+  const s = tickNumberText(v, tick)
+  if (s !== null) return s
+  const why = tickNumberWhy(v, tick) || 'format:withheld'
+  const err = new Error(`\`str.tostring\` of ${v} through \`format.mintick\` has no text a capture settles (${why}), so it is not printed rather than printed differently`)
   err.guard = why
   throw err
 }
