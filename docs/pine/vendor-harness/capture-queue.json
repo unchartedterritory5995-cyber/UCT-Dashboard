@@ -16297,11 +16297,11 @@
   {
    "key": "capture-queue-2026-11-06-w6-t6#object door",
    "doc": "docs/pine/capture-queue-2026-11-06-w6-t6.md",
-   "line": 15,
+   "line": 21,
    "docWave": "w6-t6",
    "disposition": "engine-gap",
    "reason": "the row's own probe cell says \"none: measure-pair\": what lifts runtime:object-door is our own C18 diff (0 diffs with the door gate lifted), a build and a measure-pair of our two doors, not a TradingView reading",
-   "dispositionLine": 27,
+   "dispositionLine": 33,
    "text": "object door | none: measure-pair | — | `runtime:object-door` \"a `for … in` loop is served on the runtime pane only …\" | the C18 door serving `for … in` | a follow-up that shows 0 C18 diffs with the door gate lifted"
   },
   {
