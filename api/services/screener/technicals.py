@@ -918,7 +918,7 @@ def compute_technicals(bars: list[dict], ipo_date=None) -> dict:
 #: The keys `setup_inputs` returns, in order.
 SETUP_INPUT_KEYS = (
     "ema8", "ema21", "ema8_rising", "ema21_rising", "atr14", "atr_ext_ema21",
-    "atr_ext_sma50", "high20_age", "sma50", "low", "close", "bars",
+    "atr_ext_sma50", "high20_age", "high20", "sma50", "low", "close", "bars",
 )
 #: An 8-day or 21-day EMA "rises" when it stands above its own value this many
 #: sessions ago (plan section 3). A week, where `RISING_SPAN` gives the 20, 50
@@ -947,6 +947,8 @@ def setup_inputs(bars) -> dict:
     * ``atr_ext_sma50``: `_atr_ext_sma50`, the stored column's calculation.
     * ``high20_age``: sessions since the highest close of the last
       :data:`HIGH20_WINDOW` sessions (0 = today; a tie reads as the newest).
+    * ``high20``: that highest close itself, unrounded (the label measures how far
+      under it today's close is).
 
     Hand it the SAME 400-bar window `compute_technicals` gets: the EMAs and
     the ATR are seeded-and-smoothed over the bars they are given, and
@@ -983,5 +985,6 @@ def setup_inputs(bars) -> dict:
 
     if len(closes) >= HIGH20_WINDOW:
         recent = closes[-HIGH20_WINDOW:]
-        out["high20_age"] = _age_of(recent, max(recent))
+        out["high20"] = max(recent)
+        out["high20_age"] = _age_of(recent, out["high20"])
     return out

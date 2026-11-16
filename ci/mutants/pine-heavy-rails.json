@@ -1,0 +1,96 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "_readme": [
+  "The rails of .github/workflows/pine-heavy.yml, mutation-proved (2026-11-15). Run: python tools/ci_mutant_runner.py --manifest ci/mutants/pine-heavy-rails.json --out <result.json>"
+ ],
+ "mutants": [
+  {
+   "id": "H1",
+   "mutant": "union stops refusing a file two shards ran",
+   "file": "tools/ci_vitest_union.py",
+   "from": "for f in sorted(ran) if len(ran[f]) > 1]",
+   "to": "for f in sorted(ran) if len(ran[f]) > 99]",
+   "rail": "python -m pytest tests/test_ci_pine_heavy.py tests/test_ci_cost_rails.py -q -p no:cacheprovider -x"
+  },
+  {
+   "id": "H2",
+   "mutant": "union stops refusing a vacuous expected list",
+   "file": "tools/ci_vitest_union.py",
+   "from": "if len(exp) < floor:",
+   "to": "if False:",
+   "rail": "python -m pytest tests/test_ci_pine_heavy.py tests/test_ci_cost_rails.py -q -p no:cacheprovider -x"
+  },
+  {
+   "id": "H3",
+   "mutant": "a vitest leg runs with the network on",
+   "file": ".github/workflows/pine-heavy.yml",
+   "from": "bash \"../$CI_TOOLS/tools/ci_offline.sh\" npx vitest run $args",
+   "to": "npx vitest run $args",
+   "rail": "python -m pytest tests/test_ci_pine_heavy.py tests/test_ci_cost_rails.py -q -p no:cacheprovider -x"
+  },
+  {
+   "id": "H4",
+   "mutant": "the pine-twins pytest leg is dropped (section-8 rails no longer run)",
+   "file": ".github/workflows/pine-heavy.yml",
+   "from": "          - { leg: pine-twins, tests: 'tests/test_pine_*.py' }\n",
+   "to": "",
+   "rail": "python -m pytest tests/test_ci_pine_heavy.py tests/test_ci_cost_rails.py -q -p no:cacheprovider -x"
+  },
+  {
+   "id": "H5",
+   "mutant": "a job reads a secret",
+   "file": ".github/workflows/pine-heavy.yml",
+   "from": "          TESTS: ${{ matrix.tests }}",
+   "to": "          TESTS: ${{ matrix.tests }}\n          TOKEN: ${{ secrets.GITHUB_TOKEN }}",
+   "rail": "python -m pytest tests/test_ci_pine_heavy.py tests/test_ci_cost_rails.py -q -p no:cacheprovider -x"
+  },
+  {
+   "id": "H6",
+   "mutant": "a job outgrows the 30-minute budget",
+   "file": ".github/workflows/pine-heavy.yml",
+   "from": "    name: vendor harness, runtime-on lane\n    runs-on: ubuntu-latest\n    timeout-minutes: 30",
+   "to": "    name: vendor harness, runtime-on lane\n    runs-on: ubuntu-latest\n    timeout-minutes: 45",
+   "rail": "python -m pytest tests/test_ci_pine_heavy.py tests/test_ci_cost_rails.py -q -p no:cacheprovider -x"
+  },
+  {
+   "id": "H7",
+   "mutant": "the workflow stops cancelling superseded PR runs (test_ci_cost_rails)",
+   "file": ".github/workflows/pine-heavy.yml",
+   "from": "  cancel-in-progress: ${{ github.event_name == 'pull_request' }}",
+   "to": "  cancel-in-progress: false",
+   "rail": "python -m pytest tests/test_ci_pine_heavy.py tests/test_ci_cost_rails.py -q -p no:cacheprovider -x"
+  },
+  {
+   "id": "H8",
+   "mutant": "the PR trigger loses its paths filter (test_ci_cost_rails)",
+   "file": ".github/workflows/pine-heavy.yml",
+   "from": "    branches: [master]\n    paths:\n",
+   "to": "    branches: [master]\n    xpaths:\n",
+   "rail": "python -m pytest tests/test_ci_pine_heavy.py tests/test_ci_cost_rails.py -q -p no:cacheprovider -x"
+  },
+  {
+   "id": "H9",
+   "mutant": "the mutant runner calls every mutant killed",
+   "file": "tools/ci_mutant_runner.py",
+   "from": "\"killed\": any(l.startswith(\"[3] rail failed as required\") for l in lines) and not any(l.startswith(\"[3] [X]\") for l in lines),",
+   "to": "\"killed\": True,",
+   "rail": "python -m pytest tests/test_ci_pine_heavy.py tests/test_ci_cost_rails.py -q -p no:cacheprovider -x"
+  },
+  {
+   "id": "H10",
+   "mutant": "the capture-store pin is removed",
+   "file": ".github/workflows/pine-heavy.yml",
+   "from": "  UCT_VENDOR_CAPTURE_STORE: /tmp/pine-heavy-empty-store/captures\n",
+   "to": "",
+   "rail": "python -m pytest tests/test_ci_pine_heavy.py tests/test_ci_cost_rails.py -q -p no:cacheprovider -x"
+  },
+  {
+   "id": "H11",
+   "mutant": "the mutant runner accepts a `from` that is not in the file",
+   "file": "tools/ci_mutant_runner.py",
+   "from": "if n != 1:",
+   "to": "if n > 1:",
+   "rail": "python -m pytest tests/test_ci_pine_heavy.py tests/test_ci_cost_rails.py -q -p no:cacheprovider -x"
+  }
+ ]
+}

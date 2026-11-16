@@ -774,8 +774,18 @@
   "version": 1
  },
  {
+  "adjustment_basis": "index level",
   "answer_json": {
    "answer": "Into small caps"
+  },
+  "asof": "2024-07-11",
+  "bars": {
+   "asof": "2024-07-11",
+   "forward": 5,
+   "source": "index",
+   "sym": "RUT",
+   "tf": "D",
+   "window": 320
   },
   "difficulty": 3,
   "id": "si_ae37acbb1081",
@@ -783,6 +793,13 @@
   "lesson_text": "Into small caps. The Russell 2000 rose 3.6% while the S&P 500 fell 0.9% and the Nasdaq Composite fell 2%. CNBC tied it to the cooler inflation report, which sent rates lower and investors into small caps. Investors rotated out of the year's big tech winners, like Nvidia. Money moved between groups. It did not leave stocks altogether. When small caps and big tech split hard, look for money moving between groups. Read all three.",
   "module": "F1",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 5,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 120,
+    "window_bars": 320
+   },
    "choices": [
     "Into bets on higher rates",
     "Out of stocks altogether",
@@ -884,6 +901,7 @@
   "skill_id": "basics.shares",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F1/F1.02.json#q13",
+  "sym": "RUT",
   "type": "scenario",
   "version": 1
  },

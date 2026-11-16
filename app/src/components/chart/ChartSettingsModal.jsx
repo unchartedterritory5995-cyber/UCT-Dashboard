@@ -305,6 +305,7 @@ export default function ChartSettingsModal({
   onCreateFormula = null,
   // ⭐ P2 Track B — Create Indicator's door; passed through to the Indicators tab.
   onCreateIndicator = null,
+  onOpenBuilderDoor = null,
   // ⭐ PHASE 4 — the definition's own doors (modify / edit formula / custom copy).
   definitionDoors = null,
   // ⭐ UCT RS Phase 4 (4-11) — the Indicators tab's FIRST add of a definition with a
@@ -1411,6 +1412,7 @@ export default function ChartSettingsModal({
             volumeRef={volumeRef}
             onCreateFormula={onCreateFormula}
             onCreateIndicator={onCreateIndicator}
+            onOpenBuilderDoor={onOpenBuilderDoor}
             /* Subscribed up here, for the reason written beside the hooks: this
                component builds `indRows`, so it is the one that has to re-render
                when a member's formulas install. Handing the two results down is

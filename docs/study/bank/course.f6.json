@@ -14493,8 +14493,18 @@
   "version": 1
  },
  {
+  "adjustment_basis": "index level",
   "answer_json": {
    "answer": "Short gamma kept adding exposure"
+  },
+  "asof": "2024-12-17",
+  "bars": {
+   "asof": "2024-12-17",
+   "forward": 5,
+   "source": "index",
+   "sym": "SPX",
+   "tf": "D",
+   "window": 320
   },
   "difficulty": 3,
   "id": "si_485bd55d7a16",
@@ -14502,6 +14512,13 @@
   "lesson_text": "Short gamma kept adding exposure. Near the money on expiry day, gamma is at its peak. Each drop pushed the puts' deltas toward -1.00, so each point down cost more until they got there. Time decay still worked for you as a seller, but it could not keep up. The Fed statement came out at 2:00 p.m. Eastern on December 18, 2024. The index quickly lost almost 3% and closed down 2.9%. Same-day put sellers likely faced significant losses. Short same-day options into a scheduled event can unravel within hours. Know that risk before you sell.",
   "module": "F6",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 5,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 120,
+    "window_bars": 320
+   },
    "choices": [
     "The puts' deltas shrank as it fell",
     "Short gamma kept adding exposure",
@@ -14617,6 +14634,7 @@
   "skill_id": "options.gamma",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F6/F6.07.json#q21",
+  "sym": "SPX",
   "type": "scenario",
   "version": 1
  },
