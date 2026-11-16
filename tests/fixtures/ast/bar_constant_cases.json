@@ -1,0 +1,223 @@
+{
+ "about": "COND-TA - one bar-constant rule, two readers: app/src/components/chart/engine/ast/barConstant.js::barConstantTree (barConstant.test.js) and api/services/bar_constant.py::bar_constant_tree (tests/test_bar_constant.py). Hand-written canonical trees; each side must give the stated answer.",
+ "cases": [
+  {
+   "name": "a literal",
+   "tree": {
+    "type": "num",
+    "value": 3
+   },
+   "constant": true
+  },
+  {
+   "name": "the chart's timeframe flag",
+   "tree": {
+    "type": "series",
+    "name": "isweekly"
+   },
+   "constant": true
+  },
+  {
+   "name": "RS Rating's guard: not isweekly, and an option compared",
+   "tree": {
+    "type": "op",
+    "name": "&&",
+    "args": [
+     {
+      "type": "op",
+      "name": "==",
+      "args": [
+       {
+        "type": "num",
+        "value": 1
+       },
+       {
+        "type": "num",
+        "value": 1
+       }
+      ]
+     },
+     {
+      "type": "op",
+      "name": "!",
+      "args": [
+       {
+        "type": "series",
+        "name": "isweekly"
+       }
+      ]
+     }
+    ]
+   },
+   "constant": true
+  },
+  {
+   "name": "a pointwise call over constants (math.max over a literal)",
+   "tree": {
+    "type": "op",
+    "name": ">",
+    "args": [
+     {
+      "type": "call",
+      "name": "max",
+      "args": [
+       {
+        "type": "num",
+        "value": 21
+       },
+       {
+        "type": "num",
+        "value": 5
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 10
+     }
+    ]
+   },
+   "constant": true
+  },
+  {
+   "name": "a pointwise call wrapped as {value} arguments",
+   "tree": {
+    "type": "call",
+    "name": "abs",
+    "args": [
+     {
+      "value": {
+       "type": "op",
+       "name": "-",
+       "args": [
+        {
+         "type": "num",
+         "value": 21
+        },
+        {
+         "type": "num",
+         "value": 21
+        }
+       ]
+      }
+     }
+    ]
+   },
+   "constant": true
+  },
+  {
+   "name": "a declared input leaf carrying its default",
+   "tree": {
+    "type": "series",
+    "name": "lenMa",
+    "inputDefault": 21
+   },
+   "constant": true
+  },
+  {
+   "name": "a text literal",
+   "tree": {
+    "type": "str",
+    "value": "SMA"
+   },
+   "constant": true
+  },
+  {
+   "name": "a bar series",
+   "tree": {
+    "type": "series",
+    "name": "close"
+   },
+   "constant": false
+  },
+  {
+   "name": "a bar series under an operator",
+   "tree": {
+    "type": "op",
+    "name": ">",
+    "args": [
+     {
+      "type": "series",
+      "name": "close"
+     },
+     {
+      "type": "series",
+      "name": "open"
+     }
+    ]
+   },
+   "constant": false
+  },
+  {
+   "name": "a window call (not pointwise)",
+   "tree": {
+    "type": "call",
+    "name": "sma",
+    "args": [
+     {
+      "type": "series",
+      "name": "close"
+     },
+     {
+      "type": "num",
+      "value": 3
+     }
+    ]
+   },
+   "constant": false
+  },
+  {
+   "name": "a pointwise call over a bar series",
+   "tree": {
+    "type": "call",
+    "name": "abs",
+    "args": [
+     {
+      "type": "series",
+      "name": "close"
+     }
+    ]
+   },
+   "constant": false
+  },
+  {
+   "name": "an offset (history) node",
+   "tree": {
+    "type": "offset",
+    "value": 1,
+    "args": [
+     {
+      "type": "num",
+      "value": 1
+     }
+    ]
+   },
+   "constant": false
+  },
+  {
+   "name": "a clock that moves (dayofweek is about the bar)",
+   "tree": {
+    "type": "series",
+    "name": "dayofweek"
+   },
+   "constant": false
+  },
+  {
+   "name": "an unknown node kind fails closed",
+   "tree": {
+    "type": "mystery",
+    "args": []
+   },
+   "constant": false
+  },
+  {
+   "name": "a non-finite input default",
+   "tree": {
+    "type": "series",
+    "name": "x",
+    "inputDefault": null
+   },
+   "constant": false
+  }
+ ]
+}

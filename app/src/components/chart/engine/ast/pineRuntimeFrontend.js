@@ -43,6 +43,7 @@ import { CLOCK_REALTIME } from '../../indicators.js'
 // ⭐⭐ L1 — an imported library's exports are linked in as the script's own.
 import { importLinesOf, linkLibraries, remapLibraryLocation } from './pineLibraries.js'
 import { TABLE, isPointwise, BIND_TIME_CLOCK } from './parse.js'
+import { barConstantTree } from './barConstant.js'
 // ⭐ W4-T8 — GENERATED from TradingView's v6 reference (tools/pine_survey/emit_length_qualifiers.js).
 import LENGTH_QUALIFIERS from './windowLengthQualifiers.json'
 // ⭐ W34-I6b: the type Pine's v6 reference declares each named constant of the drawing families with
@@ -2663,21 +2664,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (readsSlot(test, scope)) return false
     let c
     try { c = makeResolver().resolve(test) } catch { return false }
-    // ⛔ FAILS CLOSED: only the node kinds named here can be invariant. A clock
-    // name the manifest declares constant for ONE binding (`timeframe.isdaily`,
-    // `BIND_TIME_CLOCK`) is the chart's, fixed before bar 0, and so is the chart
-    // symbol's own text (`symtext`: `str.contains(syminfo.ticker, "/")`).
-    const walk = (n, d = 0) => {
-      if (!n || typeof n !== 'object' || d > 64) return false
-      if (n.type === 'num' || n.type === 'str' || n.type === 'symtext') return true
-      if (n.type === 'series') return typeof n.inputName === 'string' || BIND_TIME_CLOCK.includes(n.name)
-      if (n.type === 'call') {
-        const spec = TABLE.functions[n.name]
-        if (!spec || !isPointwise(spec)) return false
-      } else if (n.type !== 'textop' && n.type !== 'op') return false   // pure operators over invariants
-      return (n.args || []).every((a) => walk(a, d + 1))
-    }
-    return walk(c)
+    // ⛔ FAILS CLOSED: only the node kinds the ONE rule names can be invariant
+    // (`barConstant.js::barConstantTree`, which the host's `bindTimeConstantTree` asks too):
+    // a clock name the manifest declares constant for ONE binding (`timeframe.isdaily`,
+    // `BIND_TIME_CLOCK`), the chart symbol's own text (`symtext`), an input, a pointwise call.
+    return barConstantTree(c, { table: TABLE })
   }
   // The chart's own series keep the chart's history everywhere (S01-S07, B02,
   // B03); `bar_index[k]` is the chart's in a global block (A13, C06) but the
@@ -3217,7 +3208,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (owner !== null || loopDepth > 0 || r4Level() <= 0) return null
     if (!node || node.type !== 'call' || fnByName.has(node.name)) return null
     const name = String(node.name || '')
-    const bare = name.startsWith('ta.') ? name.slice(3) : (pineVersion < 5 ? name : null)
+    // ⭐ COND-TA (engine 58) — the bare spelling is served per call site in Pine v4 only, where
+    // the v4 User Manual documents a call's history as its own ("created through each
+    // successive call to the function … not … executed every bar, as would be the case for
+    // a `label.new` function call inside an if branch"). ⚰️ `pineVersion < 5` served v1-v3
+    // and a script with no `//@version` too, which no manual and no capture speaks for:
+    // those keep the R4 refusal (`runtime:conditional-history`), by name.
+    const bare = name.startsWith('ta.') ? name.slice(3) : (pineVersion === 4 ? name : null)
     const inLazyArm = lazyArmRegion !== null && r4Region === lazyArmRegion
     const kind = bare ? (SERVED_COND[bare] || (inLazyArm && name.startsWith('ta.') ? ARM_ONLY_SERVED_COND[bare] : undefined)) : undefined
     if (!kind) return null

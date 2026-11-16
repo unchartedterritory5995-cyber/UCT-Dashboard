@@ -125,8 +125,8 @@ describe('B1 — paints graded against the captures that record them', () => {
     'wyckoff-accumulation-distribution-spy-1d-2026-10-02.json': ['refused pine:state'],
     // 2026-11-15 (S12, coordinator-authorised): the paints of every capture added by the S9-S12 capture
     // sessions, pinned as the grader reads them from each fixture (generated, not hand-written).
-    'advanced-custom-multi-ma-signals-emasmavwmavwap-rddt-1d-2026-11-15.json': ['refused pine:block'],
-    'advanced-custom-multi-ma-signals-emasmavwmavwap-spy-1d-2026-11-15.json': ['refused pine:block'],
+    'advanced-custom-multi-ma-signals-emasmavwmavwap-rddt-1d-2026-11-15.json': ['refused pine:request'],   // COND-TA (engine 58): its guards over named-argument inputs read as constant now, so the door reaches its request refusal
+    'advanced-custom-multi-ma-signals-emasmavwmavwap-spy-1d-2026-11-15.json': ['refused pine:request'],
     'atr-god-strategy-by-tradesmart-rddt-1d-2026-11-15.json': ['refused pine:block'],
     'atr-god-strategy-by-tradesmart-spy-1d-2026-11-15.json': ['refused pine:block'],
     'atr-trend-bands-misu-rddt-1d-2026-11-15.json': ['refused pine:module'],

@@ -22,7 +22,7 @@
     "A committed script that fails either is WITHHELD (served as not graded, never deleted) and",
     "tests/test_pine_runtime_switch_on.py goes red BY NAME, so an ungraded line cannot be",
     "committed by accident. A capability marked `divergent` withholds every script that uses it:",
-    "`conditional-ta` (R4) is that row until WS-C lands per-call-site history.",
+    "`conditional-ta` (R4) was that row until WS-C landed per-call-site history; COND-TA (engine 58) made it conformant.",
     "",
     "WS-I PART 2 (2026-11-13): ADMISSION BY CAPABILITY. With PINE_RUNTIME_CAPABILITY_ADMISSION=on the",
     "browser pane ALSO serves a script whose EVERY capability (api/services/pine_capabilities.py::",
@@ -540,9 +540,18 @@
       "note": "x.get_*() reads on a drawing (U3; re-derived S28 2026-11-15): objectsPaired is every paired record of the capture. Each entry: objects v2 MATCH (x graded) with the run drawing, objectsPaired records paired and objectsX the capture's own x verdict. A script with ANY capture whose x DIVERGES, or on the kill list, is evidence for no object family (trend-targets-algoalpha since S28). Evidence: the runtime-on harness over tests/fixtures/vendor at master bbc9b92351 plus the S28 x re-captures (2026-11-15, VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-s28-x-recaptures."
     },
     "conditional-ta": {
-      "status": "divergent",
-      "evidence": [],
-      "note": "R4 (2026-10-31): a pure ta.* called inside if, a loop or a UDF is computed from EVERY bar on the plot lane (pineRuntimeFrontend.js:1518-1563), not per call site. Withholds every script that names it until WS-C lands per-call-site history; the by-name refusal in the front end is WS-C's first task."
+      "status": "conformant",
+      "admitted": true,
+      "evidence": [
+        {"capture": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03", "script": "Deadband Hysteresis Filter [BackQuant]", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "renko-candles-overlay-rddt-1d-2026-10-03", "script": "Renko Candles Overlay", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "renko-candles-overlay-spy-1d-2026-10-03", "script": "Renko Candles Overlay", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "trend-targets-algoalpha-rddt-1d-2026-10-02", "script": "AlgoAlpha - Trend Targets", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "trend-targets-algoalpha-spy-1d-2026-10-02", "script": "AlgoAlpha - Trend Targets", "community": true, "verdict": "MATCH", "runtimePane": "on"}
+      ],
+      "note": "COND-TA (U2, engine 58, 2026-11-15): conformant. The runtime lane is TradingView-exact on every conditional ta.* it serves and refuses the rest by name (runtime:conditional-history): ta.sma / ta.ema / ta.rma in a root if / switch block (v4 bare spellings included; v1-v3 refused), and in a v6 root ?: arm with one-argument ta.change, as per-call-site state stepped only on the runs (pineRuntimeFrontend.js servedCondCall / W4 T4); witnessed by vw-call-site-history C03 / C04 / D02 and vw-arm-history T03 / T04 / T05 / K02 / K03 (rails runtime/__tests__/conditionalCallSite.test.js, ast/condTaLanes.test.js: 0 wrong bars). The R4 note this replaces ('computed from EVERY bar on the plot lane') described the lane before WS-C (#557). Evidence: the runtime-on harness verdicts of 2026-11-13 (docs/pine/vendor-harness/runtime-on/verdicts.json), each capture drawn by the runtime lane (plan-1114 capadmit2-evidence.json, CAPADMIT_MODE=lanes); their conditional calls are input-decided or every-bar, so the per-run machinery itself is witnessed by the probe rails above. vw-deadband-ticks-brk-a's DIVERGE is not this capability: docs/pine/evidence/2026-11-15-cond-ta/EVIDENCE.md."
     }
   }
 }

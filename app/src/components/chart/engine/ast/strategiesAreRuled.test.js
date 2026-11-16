@@ -113,8 +113,10 @@ describe('a strategy is ruled out because of what it ANSWERS', () => {
     // bar is stated. If the ruling rested on expressibility it would be wrong.
     const flag = `//@version=6
 indicator("s")
+up = ta.crossover(close, ta.sma(close, 50))
+dn = ta.crossunder(close, ta.sma(close, 50))
 inPos = 0.0
-inPos := na(inPos[1]) ? 0.0 : (ta.crossover(close, ta.sma(close, 50)) ? 1.0 : (ta.crossunder(close, ta.sma(close, 50)) ? 0.0 : inPos[1]))
+inPos := na(inPos[1]) ? 0.0 : (up ? 1.0 : (dn ? 0.0 : inPos[1]))
 plot(inPos > 0 ? 1 : 0)
 `
     const out = translatePine(flag)
