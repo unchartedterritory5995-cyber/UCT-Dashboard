@@ -240,3 +240,21 @@ All on tree `687e8eb8cb` (hold 3), each file copied aside, mutated, the focused 
 | DRAW1-M13 | count-at-cap said under the generic sentence | draw1CountAtCap | killed (1) |
 | DRAW1-P1 | relabel ignores an attached output contract | test_pine_coverage_draw1_relabel | killed (1) |
 | DRAW1-P2 | attached object-program refusals counted as walls | test_pine_coverage_draw1_relabel | killed (2) |
+
+## 9. Re-derived on the engine-65 train tree (merge of origin/train/e65 `c1dd3711b6`, which contains e64)
+
+On the merged tree `527f38c3ef`, hold 4:
+
+- **REACH, by the tool's own three steps** (`capability_admission.py input`, `capabilityAdmission.measure.test.js CAPADMIT_MODE=admission`, `report`) into `runs/report.json`.
+  - Admitted captures: 383 of 749. 52 on the runtime lane: 45 MATCH, 6 INCONCLUSIVE, 1 DIVERGE (the stop vw-deadband-ticks-brk-a, unchanged).
+  - Committed scripts: 100 of 266. Reference scripts: 154 of 271. Builtins: 87 of 142.
+  - `matchToDiverge` and `substitutedToDiverge` are empty.
+  - It reproduces HIST's rows (#1450): kernel-channel-backquant-rddt-1d-2026-11-14 is runtime / MATCH, and momentum-based-zigzag has left the report (it is on the kill list).
+  - #1486 (UDT) is not on this tree, so its BBWP -> runtime / MATCH row, spliced into the cond-ta report, is not reproduced here. It is not fought: when #1486 lands after this, its splice applies to this report, or a re-derive on a tree with both reproduces it.
+- **Kill check on the merged tree:** every newly admitted obj:box / obj:table source with a DIVERGE capture on either lane is killed. That is the same seven sources, with none unkilled.
+- **Coverage ratchet, both lanes, measured on the merged tree.**
+  - Production: 58 -> 59 (+ high-low-open-mid-ranges), 0 lost.
+  - Runtime-on: 89 -> 90, + high-low-open-mid-ranges, + volatility-trend-score-backquant, and **1 lost: mtf-key-levels-support-and-resistance**.
+  - That loss is section 3(d) working as intended. The script transferred on runtime-on only by carrying the host object program's partial picture: it lost creates (`create:line` 1, `create:label` 2) while its drawing build is refused `pine:request`. Both of its committed captures grade that picture **runtime-on DIVERGE** (lines 22 paired / 51 fields differing, labels 3 paired / 24 TradingView-only).
+  - It is now declined by name, and its runtime-on verdict moves DIVERGE -> INCONCLUSIVE.
+  - The snapshot is written from the measured rows (`--rows ... --write`), and this loss is named here and in the PR.

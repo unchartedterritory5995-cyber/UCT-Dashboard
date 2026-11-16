@@ -2,26 +2,26 @@
  "populations": {
   "capture": {
    "scripts": 749,
-   "admitted": 384,
-   "runtimeLane": 51,
+   "admitted": 383,
+   "runtimeLane": 52,
    "hostLane": 220,
-   "refused": 113,
+   "refused": 111,
    "coreOnly": 35
   },
   "committed": {
    "scripts": 266,
-   "admitted": 101,
-   "runtimeLane": 22,
+   "admitted": 100,
+   "runtimeLane": 23,
    "hostLane": 45,
-   "refused": 34,
+   "refused": 32,
    "coreOnly": 4
   },
   "reference": {
    "scripts": 271,
    "admitted": 154,
-   "runtimeLane": 13,
-   "hostLane": 95,
-   "refused": 46,
+   "runtimeLane": 22,
+   "hostLane": 90,
+   "refused": 42,
    "coreOnly": 7
   },
   "builtin": {
@@ -1086,8 +1086,8 @@
   },
   {
    "capture": "kernel-channel-backquant-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
     "compound-assign",
@@ -1493,24 +1493,6 @@
     "switch",
     "ternary",
     "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "momentum-based-zigzag-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "ternary",
     "var"
    ]
   },
@@ -3567,8 +3549,8 @@
   {
    "capture": "vw-cs1-rci-p1-rddt-1d-2026-11-14",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core"
    ]
@@ -3843,8 +3825,8 @@
   {
    "capture": "vw-cs2-sma-exact-tie-spy-1d-2026-11-15",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "ternary"
@@ -5805,9 +5787,9 @@
   },
   {
    "key": "reference:aetheredge-smart-money-flow__c22c6f1f81",
-   "lane": null,
-   "guard": "pine:block",
-   "declined": "runtime:call-text-state",
+   "lane": "runtime",
+   "guard": null,
+   "declined": null,
    "caps": [
     "collections:array",
     "compound-assign",
@@ -5833,7 +5815,7 @@
    "key": "reference:ai-moving-average-expo__cddaa37ee5",
    "lane": null,
    "guard": "pine:block",
-   "declined": "runtime:statement",
+   "declined": "runtime:colour",
    "caps": [
     "collections:array",
     "compound-assign",
@@ -6099,7 +6081,7 @@
   },
   {
    "key": "reference:check-head-and-shouldersmask-man__INWKFwOBpV",
-   "lane": "host",
+   "lane": "runtime",
    "guard": null,
    "declined": null,
    "caps": [
@@ -6145,9 +6127,9 @@
   },
   {
    "key": "reference:cm-gann-swing-highlow-v2__592",
-   "lane": null,
-   "guard": "pine:role-order",
-   "declined": "runtime:conditional-history",
+   "lane": "runtime",
+   "guard": null,
+   "declined": null,
    "caps": [
     "core",
     "fn-single",
@@ -6182,9 +6164,9 @@
   },
   {
    "key": "reference:color-gradient-framework-pinecoders__9ICIDOiMbF",
-   "lane": null,
-   "guard": "pine:text-value",
-   "declined": "runtime:colour",
+   "lane": "runtime",
+   "guard": null,
+   "declined": null,
    "caps": [
     "conditional-ta",
     "core",
@@ -6275,9 +6257,9 @@
   },
   {
    "key": "reference:edufx-amd__0ca9b3c747",
-   "lane": null,
-   "guard": "pine:no-output",
-   "declined": "runtime:colour",
+   "lane": "runtime",
+   "guard": null,
+   "declined": null,
    "caps": [
     "core",
     "fn-multi",
@@ -6347,7 +6329,7 @@
    "key": "reference:engulfing-sinyal__pAgeLQw9kl",
    "lane": null,
    "guard": "pine:colour-value",
-   "declined": "pine:colour-value",
+   "declined": "runtime:colour",
    "caps": [
     "core",
     "ternary"
@@ -6982,7 +6964,7 @@
   },
   {
    "key": "reference:multi-timeframe-vwap-v5__Au03ORcOFj",
-   "lane": "host",
+   "lane": "runtime",
    "guard": null,
    "declined": null,
    "caps": [
@@ -7216,7 +7198,7 @@
    "key": "reference:price-divergence-detector-v32-revised-by-justunclel__iWPERpdLcd",
    "lane": null,
    "guard": "pine:fn-history-in-block",
-   "declined": "runtime:conditional-history",
+   "declined": "runtime:lower",
    "caps": [
     "conditional-ta",
     "core",
@@ -7239,7 +7221,7 @@
   },
   {
    "key": "reference:range-filter-buy-and-sell-5min__65cb674338",
-   "lane": "host",
+   "lane": "runtime",
    "guard": null,
    "declined": null,
    "caps": [
@@ -7561,9 +7543,9 @@
   },
   {
    "key": "reference:study-for-squeeze-momentum-indicator-lazybear__2BZblBj6eA",
-   "lane": null,
-   "guard": "pine:colour-value",
-   "declined": "pine:colour-value",
+   "lane": "runtime",
+   "guard": null,
+   "declined": null,
    "caps": [
     "core",
     "ternary"
@@ -7697,9 +7679,9 @@
   },
   {
    "key": "reference:tradingviews-technical-analysis__oZFVfrvzZI",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
+   "lane": null,
+   "guard": "budget:nodes",
+   "declined": "runtime:call-undeclared-builtin-state",
    "caps": [
     "conditional-ta",
     "core",
@@ -7756,7 +7738,7 @@
    "key": "reference:trend-speed-analyzer-zeiierman__bd2f816c88",
    "lane": null,
    "guard": "pine:state",
-   "declined": "runtime:conditional-history",
+   "declined": "runtime:statement",
    "caps": [
     "collections:array",
     "conditional-ta",
@@ -7990,9 +7972,9 @@
   },
   {
    "key": "reference:vwap-supply-demand-zones-pro__537326bd2f",
-   "lane": null,
-   "guard": "pine:reassign",
-   "declined": "runtime:colour",
+   "lane": "runtime",
+   "guard": null,
+   "declined": null,
    "caps": [
     "collections:array",
     "compound-assign",
@@ -8026,9 +8008,9 @@
   },
   {
    "key": "reference:vwapmvwapema-crossover__N16MOYK6AE",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
+   "lane": null,
+   "guard": "budget:lookback",
+   "declined": "budget:lookback",
    "caps": [
     "conditional-ta",
     "core",
@@ -9207,25 +9189,6 @@
     "udt",
     "var",
     "while"
-   ]
-  },
-  {
-   "capture": "vw-cs1-rci-p1-rddt-1d-2026-11-14",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core"
-   ]
-  },
-  {
-   "capture": "vw-cs2-sma-exact-tie-spy-1d-2026-11-15",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "ternary"
    ]
   },
   {
