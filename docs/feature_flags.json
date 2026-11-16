@@ -3309,6 +3309,14 @@
       "values": ["0", "1"],
       "note": "Speed and reliability plan item 9a (2026-11-16): the KILL SWITCH for browser-kept reference answers, api/services/reference_cache.py::allow. SHIPS ON BY DEFAULT as a rollback switch: unset or any value but 0/false/no/off means a COMPLETE answer from GET /api/delisted/{sym} (1 h), /api/ticker-ipo/{ticker} when its first-trade day is final (1 day), /api/single-stock-etfs/{symbol} (5 min), /api/ticker-meta/{ticker} when it names the company (5 min) and /api/chart/markers/{ticker} when a history was built (10 min) carries Cache-Control: private, max-age=N, so the member's own browser answers a repeat ask itself. private = never a shared or edge cache. An empty, non-final or failed answer is never marked. 0/false/no/off sets no header: every answer is byte-for-byte what it was. Read per request in reference_cache.enabled(). Rails: tests/test_reference_cache.py."
     },
+    "SNAPSHOT_CHILD_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-16",
+      "where": [],
+      "default": "0",
+      "values": ["0", "1"],
+      "note": "Speed and reliability follow-up (2026-11-16): api/services/snapshot_hl.py. From 04:00 to 20:00 ET the live scanners (nhnl_live, volume_live, scatter, todaypack, theme_index) share one whole-market pull every ~2 s (massive.get_full_market_snapshot_hl_cached). Measured in the web pod: 5.8 MB, 13,236 tickers, ~180 ms CPU per pull including a ~100 ms JSON parse that holds the interpreter lock, and the request-timing layer shows event-loop lag averaging ~5 ms with the scanners idle and ~25 ms once they run. 1/true/yes/on: the download, parse and per-ticker reduction run in a helper process (python -I snapshot_hl.py --child) that returns twelve packed columns; the answer is the same dict from the same snapshot_hl.row rule. Unset or 0: the helper is never started and the in-process path serves, as before. Vendor failure = {} on both paths (no second pull); a failed HELPER (cannot start, dies, no answer in 40 s, bad frame) falls back to the in-process path and is not retried for 60 s. The request URL carries the vendor key: it reaches the child on stdin only and the child logs an error's type, never its text. Read per pull in snapshot_hl.enabled(). Counters: snapshot_child in GET /api/admin/request-timing. Rails: tests/test_snapshot_hl.py."
+    },
     "REQUEST_TIMING_ENABLED": {
       "status": "dark",
       "since": "2026-11-16",
