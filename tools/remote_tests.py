@@ -37,7 +37,9 @@ from pathlib import Path
 
 WORKFLOW = "remote-tests.yml"
 REF_PREFIX = "refs/remote-tests/"
-MAX_SHARDS = 10
+#: at most 6 shards per request, and the workflow runs at most 4 of them at once (`max-parallel`): the 40-job pool is
+#: shared with the master deploy gate (14 jobs), and session runs must not starve deploys.
+MAX_SHARDS = 6
 #: a path or a pytest node id: no spaces, no shell metacharacters. (What keeps a path from being an OPTION is the
 #: required `tests/` / `src/` prefix in validate(), the one rule for that; a second leading-character rule here
 #: could never fire on its own, so it is not kept.)
