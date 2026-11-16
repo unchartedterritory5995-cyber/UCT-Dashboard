@@ -56,4 +56,15 @@ count goes up for every function built on it; none goes down.
   and JS against Python bit for bit on three trees (`ast_conformance.run_js` / `run_py`).
 
 ## Results on the train tree
-(filled in by the train: rails, mutants, the label, the regression and the digests that moved.)
+- **The label.** `vw-w3n-draw-block-history-c-spy-1d-2026-11-15`: 0 of 501 labels differ from TradingView
+  (label 437 prints "C|736.5254571057"); the RDDT twin 0 of 316; the SPY `-a` (sma) capture 0 of 501. No
+  waiver of the regression gate was needed, and `l4dDrawingHistory.test.js` keeps its original pin.
+- **Rails.** `rmaSummation.test.js` 7 passed; `tests/test_ast_rma_summation.py` 4 passed (JS against Python
+  bit for bit included). `runtime/__tests__/carriedState.test.js`: its two longhand references step `rma`
+  in the new order (the `na` hold it records is unchanged).
+- **Mutants** (copy aside, mutate, the rail, restore from the copy, `git hash-object` == HEAD blob; controls
+  green): the old spelling back in `rmaStep` (killed, 4 tests), `CARRIED.rma` back on the shared exponential
+  step (killed, 4), `ema` moved onto the rma arithmetic (killed, 1: the control), the old spelling back in
+  the Python twin (killed, 2), `ema` moved in Python (killed, 1). 5 of 5.
+- **What moves downstream** is in the train PR: the before/after census and harness, the host-parity
+  digests and any fixture that pins an `rma` / `atr` double in its last bits.

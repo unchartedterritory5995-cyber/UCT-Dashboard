@@ -479,3 +479,43 @@ this section takes their numbers then.
   v3 default transparency (engine 57's lane).
 - Colours (section B) are engine 57's. The ATR trailing stop, accumulation/distribution markers, uptrick,
   accdist-macd and bill-williams AO now differ from TradingView in colour only.
+
+## Train-owned (landing train 1, 2026-11-16): the built-in `na(x)` is never `na` on the runtime lane
+Coordinator ruling 2026-11-15 (option a). The engine 56-v2 builder had left; the train owns this fix, and it
+is a behaviour change attributed to engine 56-v2.
+
+- **What was wrong.** `pineRuntimeFrontend.js::boolNaOnThisLane` asks every side that meets a WRITTEN `true`
+  / `false`, and nothing in the whole-program check (`boolNaFaithfulness`) read the built-in `na(…)` as a
+  `bool` that is never `na`. This branch was built on master before RS Rating (#1342). On the combined tree
+  the ORIGINAL RS Rating script (`docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine`, line 262:
+  `ta.barssince(na(curveRsPerf) != true)`) lost its run half (the rating labels), declined
+  `pine:bool-na-unwitnessed`, and master's acceptance rail `engine/requestSeed.test.js` went red. Bisected
+  over the train's merge chain: green on master `f5ea27f37a` and through the engine-57 merge, red from this
+  branch's merge on.
+- **Basis.** TradingView's Pine Script User Manual, Type system, "`na` value"
+  (tradingview.com/pine-script-docs/language/type-system, read 2026-11-15): "Scripts can test whether the
+  result from a variable or expression is na by using the na() function. The function returns true if the
+  value or reference is undefined. Otherwise, it returns false." A plain `bool`: `na(x) != true` holds no
+  `na` for this lane to lose.
+- **Change, the built-in only.** `canonNeverTree` reads a canonical `na(…)` call as never `na` (only the
+  table's own `na` reaches a canonical tree by that name), and the whole-program `never()` reads the lowered
+  built-in (`irBuiltin('na', …)`; a script's own function lowers to `EXPR.CALL`). `nz` and a comparison
+  that merely holds an `na(…)` are not cleared. Whether the VM computed `na(b)` right is still
+  `boolNaReads`' question, unchanged. Twins: the Python lane has no such list (`bool_na_mask` reads the
+  translator's own `boolNaWithheld` markers) and the host lane already draws `na(x) != true` (`naInfo`), so
+  neither moved.
+- **How many scripts.** Over the train's 2,505 census sources (corpus 266, repo `.pine` 550, licence-held
+  sample 679, committed captures 366, held captures 644): on the runtime PANE door `pine:bool-na-unwitnessed`
+  is 6 before and 6 after (the two `vw-cs2-rising-falling-na` probes, three copies; no `na(…)` in them). On
+  the member door's RUN HALF (both panes on) it is 3 before and 0 after, and the three are RS Rating (the
+  repo script, the committed ALAB capture, a held NVDA capture); run halves minted 34 -> 37; no other
+  source's run half or door status changed.
+- **Rail.** `engine56Values.test.js`, "landing train 1 — the built-in `na(x)` is never `na` on the runtime
+  lane": `na(x) != true`, `na(x) == false` and `ta.barssince(na(x) != true)` served and equal to the host
+  lane on every bar; a `bool` slot written by `na(…)`; the lowered built-in over a value the VM steps; RS
+  Rating attaches with its run half. Controls: a slot written by a comparison that can be `na`, one that
+  holds an `na(…)` beside such a comparison, `nz(c)` in the same place, a script function, and a script
+  function named `na` are all still declined.
+- **Mutants.** See the train PR for the run on the final tree (canonical entry off, whole-program entry
+  off, every lowered built-in cleared). A fourth entry at the site itself survived its mutant (the
+  whole-program entry answers the same site) and was removed rather than kept unproven.
