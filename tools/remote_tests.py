@@ -126,6 +126,29 @@ def failing_tests(junit_dir: Path) -> list[str]:
     return out
 
 
+def read_verdicts(artifact_dir: Path) -> dict[str, str]:
+    """{'pytest' | 'vitest-<n>': 'success' | 'failure' | ...} from the `*-verdict*.txt` files the test jobs upload."""
+    out = {}
+    for f in sorted(artifact_dir.rglob("remote-*-verdict*.txt")):
+        name = f.stem.replace("remote-", "").replace("-verdict", "")
+        out[name] = f.read_text(encoding="utf-8", errors="replace").strip()
+    return out
+
+
+def decide(run_conclusion: str | None, test_jobs: int, verdicts: dict[str, str]) -> tuple[int, str]:
+    """The verdict. A red TEST result no longer fails the run (so it sends no failure email); the run fails only
+    when the lane itself broke. So: run not green -> LANE; any test verdict not success -> FAIL; every test job
+    must have left a verdict, or the answer is unknown -> LANE."""
+    if run_conclusion != "success":
+        return LANE, f"the lane itself failed (run {run_conclusion}): checkout, install or validation"
+    if len(verdicts) < test_jobs:
+        return LANE, f"only {len(verdicts)} of {test_jobs} test jobs left a verdict"
+    bad = sorted(k for k, v in verdicts.items() if v != "success")
+    if bad:
+        return FAIL, "tests failed in: " + ", ".join(f"{k} ({verdicts[k]})" for k in bad)
+    return OK, f"{len(verdicts)} test job(s) green"
+
+
 def _find_run(ref: str, timeout_s: int = 120) -> str | None:
     deadline = time.time() + timeout_s
     while time.time() < deadline:
@@ -186,19 +209,28 @@ def main(argv: list[str] | None = None) -> int:
             if time.time() > deadline:
                 print(f"remote tests: still running after {a.timeout_min} min"); return LANE
             time.sleep(15)
-        for j in sorted(v["jobs"], key=lambda j: j.get("name", "")):
-            print(f"  {j.get('conclusion') or j.get('status'):<9} {j.get('name')}")
-        if v.get("conclusion") == "success":
-            print("remote tests: GREEN"); return OK
+        test_jobs = [j for j in v["jobs"] if j.get("name", "").startswith(("pytest", "vitest"))
+                     and j.get("conclusion") != "skipped"]
         tmp = Path(tempfile.mkdtemp(prefix="remote-tests-"))
         _run(["gh", "run", "download", run_id, "-D", str(tmp)], check=False)
+        verdicts = read_verdicts(tmp)
+        for j in sorted(v["jobs"], key=lambda j: j.get("name", "")):
+            print(f"  {j.get('conclusion') or j.get('status'):<9} {j.get('name')}")
+        for k in sorted(verdicts):
+            print(f"  verdict   {k}: {verdicts[k]}")
+        code, why = decide(v.get("conclusion"), len(test_jobs), verdicts)
+        if code == OK:
+            print(f"remote tests: GREEN ({why})"); return OK
         bad = failing_tests(tmp)
-        print(f"remote tests: RED ({v.get('conclusion')}); {len(bad)} failing test(s)")
+        label = "RED" if code == FAIL else "LANE ERROR"
+        print(f"remote tests: {label}: {why}; {len(bad)} failing test(s)")
         for b in bad[:60]:
             print("  " + b)
         if len(bad) > 60:
             print(f"  ... {len(bad) - 60} more; artifacts in {tmp}")
-        return FAIL if bad or v.get("conclusion") == "failure" else LANE
+        if code == FAIL and not bad:
+            print(f"  no junit failures parsed; read the logs in {tmp}")
+        return code
     except RuntimeError as e:
         print(f"remote tests: {e}"); return LANE
     finally:
