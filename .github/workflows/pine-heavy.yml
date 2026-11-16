@@ -92,6 +92,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref }}
+          # full history: readout / legendFromDefinitions / enumerationSites read StockChart.jsx
+          # at an older commit with `git show <sha>:...`, which a depth-1 checkout cannot answer
+          fetch-depth: 0
       - uses: actions/checkout@v4
         with:
           path: ${{ env.CI_TOOLS }}
@@ -151,6 +154,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref }}
+          # full history: readout / legendFromDefinitions / enumerationSites read StockChart.jsx
+          # at an older commit with `git show <sha>:...`, which a depth-1 checkout cannot answer
+          fetch-depth: 0
       - uses: actions/checkout@v4
         with:
           path: ${{ env.CI_TOOLS }}
@@ -197,6 +203,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref }}
+          # full history: readout / legendFromDefinitions / enumerationSites read StockChart.jsx
+          # at an older commit with `git show <sha>:...`, which a depth-1 checkout cannot answer
+          fetch-depth: 0
       - uses: actions/checkout@v4
         with:
           path: ${{ env.CI_TOOLS }}
@@ -239,6 +248,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref }}
+          # full history: readout / legendFromDefinitions / enumerationSites read StockChart.jsx
+          # at an older commit with `git show <sha>:...`, which a depth-1 checkout cannot answer
+          fetch-depth: 0
       - uses: actions/checkout@v4
         with:
           path: ${{ env.CI_TOOLS }}
@@ -303,6 +315,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref }}
+          # full history: readout / legendFromDefinitions / enumerationSites read StockChart.jsx
+          # at an older commit with `git show <sha>:...`, which a depth-1 checkout cannot answer
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -326,6 +341,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref }}
+          # full history: readout / legendFromDefinitions / enumerationSites read StockChart.jsx
+          # at an older commit with `git show <sha>:...`, which a depth-1 checkout cannot answer
+          fetch-depth: 0
       - uses: actions/checkout@v4
         with:
           path: ${{ env.CI_TOOLS }}

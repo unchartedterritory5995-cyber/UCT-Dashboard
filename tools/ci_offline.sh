@@ -14,7 +14,7 @@
 # How: `sudo unshare --net` creates the namespace (GitHub's runner user has password-less sudo),
 # brings `lo` up (tests bind 127.0.0.1), then drops back to the caller's uid/gid with `setpriv`
 # before running the command, so nothing under test runs as root and files it writes stay owned by
-# the runner. PATH and the rest of the environment are carried through.
+# the runner. PATH and the rest of the environment are carried through (see the last lines).
 set -euo pipefail
 
 if [ "$(uname -s)" != "Linux" ]; then
@@ -50,12 +50,28 @@ if [ "$1" = "--self-check" ]; then
     echo "ci_offline self-check: FAILED -- the wrapped command ran as uid $who, not $(id -u)" >&2
     exit 1
   fi
-  echo "ci_offline self-check: OK (egress refused, loopback up, uid $who)"
+  # 5. And the caller's environment reaches it: a variable set here, and HOME (a wrapped command
+  #    that sees root's HOME looks for the capture store under /root and cannot read it).
+  if ! CI_OFFLINE_SENTINEL=carried "$here/ci_offline.sh" bash -c \
+       'test "${CI_OFFLINE_SENTINEL:-}" = carried && test "$HOME" = "$1"' ci_offline "$HOME"; then
+    echo "ci_offline self-check: FAILED -- the caller's environment did not reach the wrapped command" >&2
+    exit 1
+  fi
+  echo "ci_offline self-check: OK (egress refused, loopback up, uid $who, environment carried)"
   exit 0
 fi
 
 uid="$(id -u)"
 gid="$(id -g)"
-exec sudo --preserve-env env "PATH=$PATH" unshare --net -- \
-  bash -c 'ip link set lo up && exec setpriv --reuid="$0" --regid="$1" --init-groups -- "${@:2}"' \
-  "$uid" "$gid" "$@"
+# The caller's environment is carried through a FILE, not through sudo. GitHub's runners answer
+# `sudo --preserve-env` with "preserving the entire environment is not supported" and drop it all:
+# on the first run (43769127101) the store pins, the lane switch, the verdict directory, HOME and
+# NODE_OPTIONS never reached the tests, so the "runtime-on" leg measured the production lane and
+# no leg wrote its verdicts. The file is the caller's own (mode 600), is read after the drop back
+# to the caller's uid, and is removed before the command starts.
+envf="$(mktemp)"
+export -p > "$envf"
+inner='. "$1"; rm -f "$1"; shift; exec "$@"'
+exec sudo env "PATH=$PATH" unshare --net -- \
+  bash -c 'ip link set lo up && exec setpriv --reuid="$0" --regid="$1" --init-groups -- bash -c "$2" ci_offline "${@:3}"' \
+  "$uid" "$gid" "$inner" "$envf" "$@"
