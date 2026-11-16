@@ -24,6 +24,8 @@ import path from 'node:path'
 import { translatePine } from './pine.js'
 import { interpret } from './interpret.js'
 import { parseFormula } from './parse.js'
+import { memberPaneDefinition } from '../../builder/memberPane/memberPaneDefinition.js'
+import * as registry from '../nativeRegistry.js'
 
 const REPO = path.resolve(process.cwd(), '..')
 const HARNESS = path.join(REPO, 'tests', 'fixtures', 'vendor', 'harness')
@@ -176,6 +178,30 @@ describe.skipIf(!HELD(DAYS_V4))(`a v4 session with no day list: ${DAYS_V4}${skip
     expect(n1(1)).toEqual(new Set([1]))
     expect(n1(7)).toEqual(new Set([1]))
     expect(n1(2)).toEqual(new Set([0]))
+  })
+})
+
+describe('a membership read is the membership tree (the install budget)', () => {
+  it('`na(time(tf, <wrapping session>))` carries no `time` and no `periodseconds`; the value read does', () => {
+    const [m] = outputsOf(`${V6}plot(na(time(timeframe.period, "1800-0200:23456")) ? 0 : 1)`, '60')
+    expect(m.formula).not.toMatch(/periodseconds|\btime\b/)
+    const [v] = outputsOf(`${V6}plot(time(timeframe.period, "1800-0200:23456") / 1000)`, '60')
+    expect(v.formula).toMatch(/periodseconds/)
+  })
+  it('session-hilo (committed, transferring on master) still installs: two wrapping sessions and their [1] history', () => {
+    // ⚰️ MEASURED on e64bc57ee0: with the value tree in the membership read, its background paint
+    // measured 10 series references against the install cap of 8 (`budget:series`) and the whole
+    // definition failed to install; the coverage ratchet named it LOST on both lanes.
+    const src = fs.readFileSync(path.join(REPO, 'corpus', 'committed', 'session-hilo__WM2g5GtC4h.pine'), 'utf8')
+    const d = memberPaneDefinition({ source: src, id: 'u_bt_hilo', name: 'session-hilo' })
+    expect(d.ok, d.reason).toBe(true)
+    try {
+      const r = registry.installUserDefinitions([d.definition])
+      expect(r.errors, JSON.stringify(r.errors)).toEqual([])
+      expect(r.installed.length).toBe(1)
+    } finally {
+      try { registry.uninstallUserDefinition('u_bt_hilo') } catch { /* nothing installed */ }
+    }
   })
 })
 

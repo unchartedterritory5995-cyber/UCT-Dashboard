@@ -2762,6 +2762,12 @@ const BUILTIN_RULED = Object.freeze({
   // copy here would have been a SECOND AUTHORITY over one member-facing sentence:
   // two places to edit, one of which somebody would miss. This map keeps the
   // names that are not symbol-scoped.
+})
+
+/** ⭐ NUMBER PENDING (bt) — `chart.*` names ruled BY NAME, beside `BUILTIN_RULED`. The refusal ENDS with the
+ *  name (`… — \`chart.bg_color\``), the shape the object lane's subject reader takes (`noteGuardRefusal`,
+ *  `REFUSED_SUBJECT`), so a dropped drawing op still names what stopped it. */
+const CHART_RULED = Object.freeze({
   // ⭐ NUMBER PENDING (bt) — THE FOUR `chart.*` NAMES THE CORPUS READS, RULED. The two visible-bar
   // times are the VIEWPORT: TradingView's user manual (Time, "Visible bar times"): "Each time the
   // visible window changes, the script re-executes automatically to update the variables' values
@@ -12374,6 +12380,11 @@ export class Resolver {
           `${REFUSALS['pine:builtin']} — \`${name}\`. ${BUILTIN_RULED[name]}`,
           locate(node.tok))
       }
+      if (own(CHART_RULED, name)) {
+        throw new PineRefusal('pine:builtin',
+          `${REFUSALS['pine:builtin']}: ${CHART_RULED[name]} — \`${name}\``,
+          locate(node.tok))
+      }
       // ⭐⭐ WAVE 2 (a) — AND THE SAME READ ON THIS PATH. A call arrives here as
       // well as at the site further down, and a hook on only one of them is a
       // capability that works in some expressions and not others. Measured:
@@ -12611,7 +12622,19 @@ export class Resolver {
           `${REFUSALS['pine:named-argument']} — on \`${name}\``, locate(node.tok))
       }
       if (name === 'na' && arity === 1) {
-        const x = this.resolve(node.args[0].value)
+        // ⭐ NUMBER PENDING (bt) — `na(time(tf, <wrapping session>))` READS MEMBERSHIP ONLY, so the
+        // session clock hands back its membership tree (`?:(inside, 1, na)`) instead of the value tree:
+        // the same `na` on every bar, with fewer series references (no `time`, no `periodseconds`).
+        // Measured: `session-hilo`'s background paint reads two wrapping sessions and their `[1]`
+        // history; with the value tree it measured 10 series references against the install cap of
+        // 8 (`budget:series`) and the whole script stopped installing. Only a call WRITTEN directly
+        // inside `na(…)` is told, never one reached through a binding.
+        const arg0 = node.args[0].value
+        const prevMembership = this.sessionMembershipTok
+        this.sessionMembershipTok = arg0 && arg0.type === 'call' && arg0.name === 'time' && arg0.tok
+          ? arg0.tok : null
+        let x
+        try { x = this.resolve(arg0) } finally { this.sessionMembershipTok = prevMembership }
         // ⭐ ENGINE 56 (A3) — `na(b)` of a v1-v5 `bool` that is `na` is true (S1: `na(c > na_s)`);
         // a WRITTEN `and` / `or` / `not` never is (`rt3-na-logic`: `na(w or false)` is false), and
         // the identity fold may have reduced it to its operand, so it is read off the source
@@ -13648,6 +13671,11 @@ export class Resolver {
       if (days) inside = cOp('&&', [inside, onDays(dow)])
     }
     if (onItsOwnChart) inside = cOp('&&', [inside, onItsOwnChart])
+    // ⭐ membership only (`na(time(…))`, see `resolveCall`): any finite value inside, `na` outside —
+    // the same `na` as the value tree on every bar, without its series references.
+    if (wraps && this.sessionMembershipTok === tok) {
+      return cOp('?:', [inside, cNum(1), cOp('/', [cNum(0), cNum(0)])])
+    }
     // the minutes since the session's start: same day, or — for a wrapping session read after
     // midnight — since yesterday's start (`(m − start + 1440) mod 1440`, never negative)
     const sinceStart = wraps
