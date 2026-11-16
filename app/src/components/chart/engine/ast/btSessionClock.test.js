@@ -2,9 +2,12 @@
 // default days and the UTC spelling of a fixed zone, held to what witnesses each.
 //
 //   · a session whose end is not after its start, for MEMBERSHIP: capture
-//     `tests/fixtures/vendor/vw-w4-session-overnight-btcusd-60-2026-11-16.json` (probe
+//     `vw-w4-session-overnight-btcusd-60-2026-11-16` (probe
 //     `tools/visual_conformance/probes/vw-w4-session-overnight.pine`, BITSTAMP:BTCUSD 60, 25,215
-//     bars), rows O1-O4, every bar; and the user manual's session table;
+//     bars), rows O1-O4, every bar; and the user manual's session table. ⛔ The capture reaches
+//     `tests/fixtures/vendor/harness/` through the capture session's cq1 data PR (never a copy
+//     committed here); until that PR is on the tree the capture block below is SKIPPED, by a title
+//     that says so, and this unit's PR lands after it;
 //   · a v4 session with no day list is Monday to Friday: the v4 reference (`time`) and the
 //     v4->v5 migration guide, quoted at `pine.js::sessionClockOf`; checked here against a calendar
 //     written out by hand;
@@ -19,7 +22,8 @@ import { interpret } from './interpret.js'
 import { parseFormula } from './parse.js'
 
 const REPO = path.resolve(process.cwd(), '..')
-const OVERNIGHT = path.join(REPO, 'tests', 'fixtures', 'vendor', 'vw-w4-session-overnight-btcusd-60-2026-11-16.json')
+const OVERNIGHT = path.join(REPO, 'tests', 'fixtures', 'vendor', 'harness', 'vw-w4-session-overnight-btcusd-60-2026-11-16.json')
+const OVERNIGHT_HELD = fs.existsSync(OVERNIGHT)
 const V6 = '//@version=6\nindicator("p")\n'
 const V4 = '//@version=4\nstudy("p")\n'
 const V3 = '//@version=3\nstudy("p")\n'
@@ -38,8 +42,10 @@ const refusalOf = (src, basePeriod) => {
 }
 const evalOn = (formula, bars, tf) => interpret(parseFormula(formula).ast, bars, {}, undefined, undefined, { tf })
 
-describe('a wrapping session, membership: vw-w4-session-overnight O1-O4 on every bar', () => {
-  const d = JSON.parse(fs.readFileSync(OVERNIGHT, 'utf8'))
+describe.skipIf(!OVERNIGHT_HELD)(`a wrapping session, membership: vw-w4-session-overnight O1-O4 on every bar${
+  OVERNIGHT_HELD ? '' : ' — SKIPPED: WAITS ON THE cq1 DATA PR (capture not on this tree)'}`, () => {
+  const d = OVERNIGHT_HELD ? JSON.parse(fs.readFileSync(OVERNIGHT, 'utf8')) : null
+  if (!d) return
   const titles = d.study.plots.map((p) => p.title)
   const col = (name) => 1 + titles.indexOf(name)
   const rows = d.plotValues.rows
