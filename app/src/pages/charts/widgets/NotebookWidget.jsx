@@ -359,7 +359,15 @@ export default function NotebookWidget({ opts, onOptsChange }) {   // `color` un
   const [q, setQ] = useState('')
   // Fetch the WHOLE note set (no folder filter) so the tree can nest every note
   // under its folder. Server-side search still narrows when a query is typed.
-  const { notes, refresh } = useJ2Notes({ q: q.trim() || undefined, sort: 'updated' })
+  // Owner 11-15: the WHOLE note set, not the server's default first 100 — the tree nests every
+  // note, so pages of 500 (the server's cap) are pulled until there are no more; the footer
+  // counts the server's true total.
+  const { notes, refresh, total: notesTotal, hasMore: notesHasMore, loadMore: loadMoreNotes, isLoadingMore: notesLoadingMore, loadMoreError: notesLoadError } =
+    useJ2Notes({ q: q.trim() || undefined, sort: 'updated', limit: 500 })
+  useEffect(() => {
+    if (notesHasMore && !notesLoadingMore && !notesLoadError) loadMoreNotes?.()
+  }, [notesHasMore, notesLoadingMore, notesLoadError, loadMoreNotes])
+  const noteCount = Number.isFinite(notesTotal) ? notesTotal : notes.length
   // UCT frame (/charts board): the title row and the window-control group to draw into.
   const uctRow = useUctHeaderSlotAlways('notebook')
   const uctCtrls = useUctControlsSlot()
@@ -507,7 +515,7 @@ export default function NotebookWidget({ opts, onOptsChange }) {   // `color` un
         {createPortal(gearBtn, uctCtrls)}
         {settingsOpen && (
           <NewsSettingsPanel
-            title="Notebook Settings"
+            title="Notebook settings"
             widgetType="notebook"
             textHint="notes & headers"
             showPerf={false}
@@ -614,7 +622,7 @@ export default function NotebookWidget({ opts, onOptsChange }) {   // `color` un
             </div>
 
             <div className={styles.uFoot}>
-              <span className={styles.uFootCount}><b>{notes.length}</b> {notes.length === 1 ? 'note' : 'notes'}{!q.trim() && ` · ${folders.length} ${folders.length === 1 ? 'folder' : 'folders'}`}</span>
+              <span className={styles.uFootCount}><b>{noteCount}</b> {noteCount === 1 ? 'note' : 'notes'}{!q.trim() && ` · ${folders.length} ${folders.length === 1 ? 'folder' : 'folders'}`}</span>
               <span className={styles.spacer} />
               <a className={styles.uFootBtn} href={journalUrl} target="_blank" rel="noreferrer">
                 <UIcon name="popOut" size={11} gold={false} /> Open in Journal
@@ -630,7 +638,7 @@ export default function NotebookWidget({ opts, onOptsChange }) {   // `color` un
     <div ref={rootRef} className={styles.root} style={rootStyle}>
       {settingsOpen && (
         <NewsSettingsPanel
-          title="Notebook Settings"
+          title="Notebook settings"
           widgetType="notebook"
           textHint="notes & headers"
           showPerf={false}

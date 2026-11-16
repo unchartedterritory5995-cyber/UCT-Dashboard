@@ -30,17 +30,18 @@ describe('Create Indicator door', () => {
     render(<Host onCreateFormula={() => {}} onCreateIndicator={() => {}} />)
     openAdd()
     expect(screen.queryByTestId('settings-create-indicator')).toBeNull()
-    expect(screen.getByTestId('settings-new-formula').textContent.replace(/\s+/g, ' ').trim()).toBe('＋New Formula')
+    expect(screen.getByTestId('settings-new-formula').textContent.replace(/\s+/g, ' ').trim()).toBe('New formula')   // UCT Signature soft pill
   })
 
-  it('flag ON: "+ Create Indicator" replaces New Formula in the same slot and calls its door', () => {
+  it('flag ON: "Describe one" (Create Indicator) sits beside New formula and calls its door', () => {
     const open = vi.fn()
     act(() => { setCreateIndicatorFlag(true) })
     render(<Host onCreateFormula={() => {}} onCreateIndicator={open} />)
     openAdd()
     const btn = screen.getByTestId('settings-create-indicator')
-    expect(btn.className).toMatch(/insNewFormula/)          // the same visual object
-    expect(screen.queryByTestId('settings-new-formula')).toBeNull()
+    expect(btn.className).toMatch(/pill/)          // the same visual object (UCT Signature soft pill)
+    // ⭐ UCT Signature (owner 11-15): Describe one and New formula sit side by side in the Indicators window
+    expect(screen.getByTestId('settings-new-formula')).toBeTruthy()
     fireEvent.click(btn)
     expect(open).toHaveBeenCalledTimes(1)
   })

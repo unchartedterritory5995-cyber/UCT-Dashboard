@@ -304,7 +304,12 @@ def test_the_ledger_says_what_the_three_gates_show():
     # are held back by their own switch, which is the one that waits for the report card
     assert flags[RS_GATE]["status"] == "armed" and "2026-11-14" in note
     own = flags[OWN_GATE]
-    assert own["status"] == "dark" and own["where"] == ["web"]
+    # Pin moved 2026-11-15: this said the own switch is dark, waiting for the report card. The
+    # owner armed it that day WITHOUT the run ("compass should be able to access everything
+    # always"), and the row has to say both: armed, and that the report card was not run.
+    assert own["status"] == "armed" and own["where"] == ["web"]
+    assert own["note"].startswith("ARMED on web on the owner's word, WITHOUT the report-card run")
+    assert "The report card has NOT been run with them on" in own["note"]
     for word in (*NAMES, RS_GATE, SCREENS_GATE, "_rs_screen_tools_gate", "report card",
                  "R1-12-rs-leaders-today", "tests/test_rs_screens_u11_compass.py"):
         assert word.lower() in own["note"].lower(), word

@@ -3463,7 +3463,7 @@
      "+2 computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "1.50 ATR",
     "0.80 ATR",
@@ -3474,6 +3474,28 @@
     "1.50 ATR": "Gave the gap in dollars, no divide.",
     "0.80 ATR": "Flipped it: divided the ATR by the gap.",
     "12.50 ATR": "Decimal slip on the ATR."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "line",
+      "label": "The line",
+      "price": 62.0
+     },
+     {
+      "key": "low",
+      "label": "Deepest close",
+      "price": 60.5
+     }
+    ],
+    "find": {
+     "label": "Depth under the line",
+     "as": "num",
+     "unit": "ATR"
+    },
+    "title": "Under the line (ATR 1.20)"
    }
   },
   {
@@ -4618,7 +4640,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1.25 ok; wrongs verified."
+   "notes": "Roles, find label, slot format and ladder checked; ok."
   },
   "q66": {
    "status": "pass",

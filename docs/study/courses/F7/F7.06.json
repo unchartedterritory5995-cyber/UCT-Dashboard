@@ -1210,7 +1210,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "2.41 points",
     "0.85 points",
@@ -1221,6 +1221,29 @@
     "-0.85 points": "Subtracted the 10-year from the 2-year.",
     "2.41 points": "Added the two yields.",
     "1.63 points": "Used only the 10-year yield."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The yields",
+    "rows": [
+     {
+      "key": "two",
+      "label": "2-year yield",
+      "value": 0.78,
+      "fmt": "%"
+     },
+     {
+      "key": "ten",
+      "label": "10-year yield",
+      "value": 1.63,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "The 2s10s",
+     "as": "num",
+     "unit": "points"
+    }
    }
   },
   {
@@ -1327,7 +1350,7 @@
      "fixed before (q13 wording, 2026-11-09)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "4.50 points",
     "4.75 points",
@@ -1339,7 +1362,30 @@
     "4.75 points": "Added the January top end instead of subtracting it.",
     "0.425 points": "Decimal slip."
    },
-   "suffix": ""
+   "suffix": "",
+   "visual": {
+    "kind": "size",
+    "title": "The Fed's top rate",
+    "rows": [
+     {
+      "key": "start",
+      "label": "Top end, January 2022",
+      "value": 0.25,
+      "fmt": "%"
+     },
+     {
+      "key": "end",
+      "label": "Top end, December",
+      "value": 4.5,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Rise in the top end",
+     "as": "num",
+     "unit": "points"
+    }
+   }
   },
   {
    "key": "q14",
@@ -1412,7 +1458,13 @@
      "fixed before (q15 facts, 2026-11-09)"
     ]
    },
-   "batch": "wave6"
+   "batch": "history-charts-2026-11-15",
+   "chart": {
+    "sym": "SPY",
+    "asof": "2022-03-15",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q16",
@@ -1672,7 +1724,29 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The yields at year end",
+    "rows": [
+     {
+      "key": "two",
+      "label": "2-year yield, year end",
+      "value": 4.41,
+      "fmt": "%"
+     },
+     {
+      "key": "ten",
+      "label": "10-year yield, year end",
+      "value": 3.88,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "The 2s10s at year end",
+     "as": "num"
+    }
+   }
   },
   {
    "key": "q22",
@@ -1772,7 +1846,13 @@
      "fixed before (q24 why, 2026-11-09)"
     ]
    },
-   "batch": "wave6"
+   "batch": "history-charts-2026-11-15",
+   "chart": {
+    "sym": "SPY",
+    "asof": "2023-02-28",
+    "window": 200,
+    "forward": 10
+   }
   }
  ],
  "conflicts": [
@@ -1863,8 +1943,8 @@
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
+   "fixed": true,
+   "notes": "Yields are rates, not prices: a ladder prints '0.78' and '1.63' with no % sign and calls them levels on a price ruler. Size tiles show the % unit; label and key unchanged (key '0.85 points')."
   },
   "q11": {
    "status": "pass",
@@ -1881,8 +1961,8 @@
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
+   "fixed": true,
+   "notes": "Fed rates are not prices; a ladder drops the % unit. Size tiles with % for the two top ends; label 'Rise in the top end' and key '4.25 points' unchanged."
   },
   "q14": {
    "status": "pass",
@@ -1895,7 +1975,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True is right. f90 says yields rose, f27 says stocks fell on net, and f26 says 'even before the initial increase... in March'. The statement is specific, with no hedge or absolute. It repeats w3 step 2, which is fine for a review question."
+   "notes": "cold re-read 2026-11-15 (session lead): the chart and the words agree; check_course_charts 0 problems; the outcome the words name confirmed in the closes"
   },
   "q16": {
    "status": "pass",
@@ -1930,9 +2010,9 @@
   },
   "q21": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Year-end yields are rates, not prices; a ladder shows '4.41' and '3.88' unit-less on a price ruler. Size tiles with %; label 'The 2s10s at year end'; key '-0.53, inverted' fills the slot."
   },
   "q22": {
    "status": "pass",
@@ -1950,7 +2030,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True is right. f29 says stocks rose moderately, on net, since June, and the March 2023 report covers early 2023. Hikes continued to December 2022 (f22, f18). The statement has no absolute or hedge, and True/False is now 3 True to 4 False. It does not give away q14 or q23."
+   "notes": "cold re-read 2026-11-15 (session lead): the chart and the words agree; check_course_charts 0 problems; the outcome the words name confirmed in the closes"
   }
  }
 }

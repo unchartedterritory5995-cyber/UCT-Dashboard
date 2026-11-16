@@ -746,6 +746,105 @@ def test_an_unreachable_upstream_is_a_fast_502(dist, http):
         assert http.get(url + "/build.json").json()["build_id"] == ENTRY
 
 
+# ── holding a read while `web` restarts ───────────────────────────────────────
+
+def test_holding_is_off_unless_a_budget_is_set(monkeypatch):
+    monkeypatch.delenv(front_app.HOLD_ENV, raising=False)
+    assert front_app.hold_seconds() == 0.0
+    for raw, want in (("", 0.0), ("0", 0.0), ("junk", 0.0), ("nan", 0.0), ("-5", 0.0), ("30", 30.0),
+                      ("9999", front_app.HOLD_CEILING_S)):
+        monkeypatch.setenv(front_app.HOLD_ENV, raw)
+        assert front_app.hold_seconds() == want, raw
+
+
+@pytest.mark.parametrize("method,path,has_body,want", [
+    ("GET", "/api/auth/me", False, True),
+    ("HEAD", "/api/watchlists", False, True),
+    ("GET", "/sitemap.xml", False, True),
+    ("POST", "/api/auth/preferences", False, False),
+    ("PUT", "/api/j2/notes/1", True, False),
+    ("DELETE", "/api/alerts/1", False, False),
+    ("GET", "/api/auth/me", True, False),
+    ("GET", "/api/stream/prices", False, False),
+    ("GET", "/api/stream/bars", False, False),
+    ("GET", "/api/live-prices", False, False),
+    ("GET", "/api/live/massive/recent", False, False),
+    ("GET", "/api/bars/NVDA", False, False),
+    ("GET", "/api/bars-history/NVDA", False, False),
+    ("GET", "/api/health", False, False),
+])
+def test_only_a_read_with_no_body_outside_the_exempt_paths_may_be_held(method, path, has_body, want):
+    assert front_app.may_hold(method, path, has_body) is want
+
+
+def test_a_held_read_gets_webs_own_answer_when_web_comes_back(dist, http, monkeypatch):
+    """`web` is away, then returns 4 s later (longer than one connection attempt takes to fail
+    on any platform, so at least one attempt has failed before it is back). The read waits and gets the real answer, marked
+    as held; nothing was sent to `web` before it was listening."""
+    monkeypatch.setenv(front_app.HOLD_ENV, "20")
+    late = _Server(_upstream_app)                     # the port is chosen now, nothing listens yet
+    with _Server(front_app.create_app(dist=str(dist), upstream=f"127.0.0.1:{late.port}")) as url:
+        timer = threading.Timer(4.0, late.__enter__)
+        timer.start()
+        try:
+            started = time.perf_counter()
+            r = http.get(url + "/api/echo?x=1", headers={"X-Probe": "held"})
+            elapsed = time.perf_counter() - started
+        finally:
+            timer.join()
+            late.__exit__()
+        assert r.status_code == 200, r.text
+        assert r.json()["raw_path"] == "/api/echo" and r.json()["query"] == "x=1"
+        assert _headers(r.json())["x-probe"] == ["held"], "the request that arrives is the member's own, once"
+        assert elapsed >= 3.9, f"answered after {elapsed:.2f}s: web was not listening yet"
+        assert int(r.headers["x-uct-front-held"]) >= 3900
+
+
+def test_a_held_read_gives_up_at_the_budget(dist, http, monkeypatch):
+    monkeypatch.setenv(front_app.HOLD_ENV, "1.5")
+    with _Server(front_app.create_app(dist=str(dist), upstream=f"127.0.0.1:{_free_port()}")) as url:
+        started = time.perf_counter()
+        r = http.get(url + "/api/auth/me")
+        elapsed = time.perf_counter() - started
+        assert r.status_code == 502 and r.headers["x-uct-front"] == "upstream-unreachable"
+        assert "x-uct-front-held" in r.headers
+        assert 1.4 <= elapsed < 1.5 + front_app.CONNECT_TIMEOUT_S + 2, f"took {elapsed:.1f}s"
+
+
+@pytest.mark.parametrize("method,path", [("POST", "/api/auth/preferences"), ("GET", "/api/stream/prices"),
+                                         ("GET", "/api/live-prices"), ("GET", "/api/bars/NVDA"), ("GET", "/api/health")])
+def test_writes_streams_prices_bars_and_health_are_never_held(dist, http, monkeypatch, method, path):
+    monkeypatch.setenv(front_app.HOLD_ENV, "30")
+    with _Server(front_app.create_app(dist=str(dist), upstream=f"127.0.0.1:{_free_port()}")) as url:
+        started = time.perf_counter()
+        r = http.request(method, url + path)
+        elapsed = time.perf_counter() - started
+        assert r.status_code == 502 and "x-uct-front-held" not in r.headers
+        assert elapsed < front_app.CONNECT_TIMEOUT_S + 2, f"{method} {path} waited {elapsed:.1f}s"
+
+
+def test_no_more_than_the_cap_are_held_at_once(dist, monkeypatch):
+    monkeypatch.setenv(front_app.HOLD_ENV, "6")
+    monkeypatch.setenv(front_app.HOLD_MAX_ENV, "1")
+    app = front_app.create_app(dist=str(dist), upstream=f"127.0.0.1:{_free_port()}")
+    with _Server(app) as url:
+        results: list[tuple[float, bool]] = []
+
+        def one():
+            with httpx.Client(timeout=30, trust_env=False) as c:
+                started = time.perf_counter()
+                r = c.get(url + "/api/auth/me")
+                results.append((time.perf_counter() - started, "x-uct-front-held" in r.headers))
+
+        threads = [threading.Thread(target=one) for _ in range(3)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        assert sorted(held for _, held in results) == [False, False, True], results
+        assert app.state.held == 0, "the held count returns to zero"
+
+
 # ── the service's own configuration ───────────────────────────────────────────
 
 def test_the_service_config_starts_this_app_with_no_disk_and_two_copies():

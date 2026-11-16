@@ -681,7 +681,13 @@
      "historical, does not change"
     ]
    },
-   "batch": "wave6"
+   "batch": "history-charts-2026-11-15",
+   "chart": {
+    "sym": "SPY",
+    "asof": "2020-03-23",
+    "window": 60,
+    "forward": 20
+   }
   },
   {
    "skill": "history.fast_crash",
@@ -741,7 +747,13 @@
      "historical, does not change"
     ]
    },
-   "batch": "wave6"
+   "batch": "history-charts-2026-11-15",
+   "chart": {
+    "sym": "SPY",
+    "asof": "2020-03-23",
+    "window": 60,
+    "forward": 20
+   }
   },
   {
    "skill": "history.fast_crash",
@@ -1266,7 +1278,13 @@
      "+1 fixed before"
     ]
    },
-   "batch": "wave6"
+   "batch": "history-charts-2026-11-15",
+   "chart": {
+    "sym": "SPY",
+    "asof": "2020-03-23",
+    "window": 120,
+    "forward": 35
+   }
   },
   {
    "skill": "history.fast_crash",
@@ -1400,7 +1418,13 @@
      "+2 unemployment figures are FRED's current vintage and can be revised"
     ]
    },
-   "batch": "wave6"
+   "batch": "history-charts-2026-11-15",
+   "chart": {
+    "sym": "SPY",
+    "asof": "2020-06-30",
+    "window": 120,
+    "forward": 60
+   }
   }
  ],
  "conflicts": [
@@ -1442,7 +1466,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer True: record 3,386.15 on Feb 19 (f41, f53), closing low 2,237.40 on Mar 23 (f44, f54, f57), 33 days = about a month. tf keys now 2 True, 3 False. No number leaks into q04 or q11."
+   "notes": "cold re-read 2026-11-15 (session lead): the chart and the words agree; check_course_charts 0 problems; the outcome the words name confirmed in the closes"
   },
   "q03": {
    "status": "pass",
@@ -1454,7 +1478,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer About 34% (f34 Tier 1, f58 agrees). All choices 9 chars. 'About 20%' no longer echoes q01's 22.6%; its note rests on f34. 'Weeks, not one day' rests on f34 (March) vs f59 (one day)."
+   "notes": "cold re-read 2026-11-15 (session lead): the chart and the words agree; check_course_charts 0 problems; the outcome the words name confirmed in the closes"
   },
   "q05": {
    "status": "cut",
@@ -1538,7 +1562,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer Well above its March low (f61 2,929.80 vs f44 2,237.40). 'Weeks before that jobs report' = Mar 23 to May 8 (f44, f48). 'Don't wait for the news to turn' agrees with the rulebook (D40 'the chart comes first'; C32 no news-day rule)."
+   "notes": "cold re-read 2026-11-15 (session lead): the chart and the words agree; check_course_charts 0 problems; the outcome the words name confirmed in the closes"
   },
   "q19": {
    "status": "pass",
@@ -1556,7 +1580,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "The new counter states only f01 and f13. 'A crash does not mean the economy breaks' means 'does not imply', not 'never', so it is still true next to 1929. The counter repeats q12's f13 fact after q12 has been answered; it is not a test, so it is not a cross-answer. Key 38 chars is not the longest (40); 2 Yes, 2 No."
+   "notes": "cold re-read 2026-11-15 (session lead): the chart and the words agree; check_course_charts 0 problems; the outcome the words name confirmed in the closes"
   }
  }
 }

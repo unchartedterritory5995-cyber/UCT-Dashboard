@@ -1434,7 +1434,7 @@
      "computed key"
     ]
    },
-   "batch": "review3",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$2.28",
     "$8.84",
@@ -1445,6 +1445,34 @@
     "$8.84": "You added the $1.85 benefit instead of taking it out.",
     "$2.28": "You took the $4.71 estimate off the $6.99, which is the headline beat.",
     "$2.86": "You took the benefit off the $4.71 estimate instead of off the $6.99."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "EPS without the benefit",
+    "rows": [
+     {
+      "key": "reported_eps",
+      "label": "Reported EPS",
+      "value": 6.99,
+      "fmt": "$"
+     },
+     {
+      "key": "expected_eps",
+      "label": "Expected EPS",
+      "value": 4.71,
+      "fmt": "$"
+     },
+     {
+      "key": "non-operating_benefi",
+      "label": "Non-operating benefit",
+      "value": 1.85,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "EPS without it",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1617,7 +1645,22 @@
      "lesson line and deeper rest on the owner's rulebook (B22)"
     ]
    },
-   "batch": "review3"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "move",
+    "from": {
+     "label": "Consensus (cents)",
+     "value": 43
+    },
+    "to": {
+     "label": "Guide (cents)",
+     "value": 25
+    },
+    "find": {
+     "label": "Guide vs consensus",
+     "as": "pct"
+    }
+   }
   },
   {
    "key": "q91",
@@ -1746,7 +1789,29 @@
      "the last sentence is the owner's view on a flip to profitability"
     ]
    },
-   "batch": "review3"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The EPS swing",
+    "rows": [
+     {
+      "key": "expected_loss_a_shar",
+      "label": "Expected loss a share",
+      "value": 1.1,
+      "fmt": "$"
+     },
+     {
+      "key": "actual_earnings_a_sh",
+      "label": "Actual earnings a share",
+      "value": 0.38,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Swing against the estimate",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q94",
@@ -2112,7 +2177,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ELV is Elevance with its real numbers (f56, f57). 6.99-1.85=5.14, still above 4.71 but a much smaller beat. 'FactSet does not say' whether analysts counted the benefit is accurate. Non-operating benefit now defined."
+   "notes": "reported/expected/benefit right; EPS without it; key '$5.14'"
   },
   "q19": {
    "status": "cut",
@@ -2136,7 +2201,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "CNBC s23 f80 gives 29% and 'worst day since the 1970s'. (0.43-0.25)/0.43 = 41.9% -> about 42%. Wrong choices are real slips. Ticker INTC added."
+   "notes": "consensus and guide both in cents (stated in words); key 'About 42% below' (15 chars) fills the slot; like quantities for a move card"
   },
   "q91": {
    "status": "pass",
@@ -2154,7 +2219,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Moderna $0.38 vs -$1.10 verified word for word in FactSet Nov 6, 2026 (s14), both in the largest-surprise list (f56) and the contributors sentence (f84 quote copied exactly). 0.38+1.10 = 1.48; wrong choices are real slips (0.72 = 1.10-0.38). f84's claim 'one of the largest' is carried by f56's sentence, not f84's own quote; true of the source. Note: the lesson's conflicts text still says no question uses Moderna, now stale."
+   "notes": "expected loss given as a positive loss, actual as earnings, labelled so; key '$1.48'"
   },
   "q94": {
    "status": "pass",

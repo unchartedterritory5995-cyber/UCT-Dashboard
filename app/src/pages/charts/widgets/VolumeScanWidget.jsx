@@ -268,7 +268,7 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
           gearEl={gearRef.current}
           hostEl={rootRef.current}
           themeVars={panelThemeVars}
-          title="Volume Surge Settings"
+          title="Volume surge settings"
           showLogos={showLogos}
           onToggleLogos={toggleLogos}
           widgetType="volumescan"

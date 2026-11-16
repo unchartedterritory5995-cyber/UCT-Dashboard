@@ -90,6 +90,17 @@ describe('CalcCard', () => {
     expect(screen.getByTestId('calc-card')).toHaveTextContent('Premium 1.50')
   })
 
+  it('draws a spread by each leg\'s own side, whatever order the legs come in', () => {
+    // a 105/100 put credit spread written sold-leg-first: max loss below 100, the credit kept above 105
+    const v = { kind: 'payoff', option: 'put', side: 'short', legs: [{ strike: 105, side: 'short' }, { strike: 100, side: 'long' }],
+      net_debit: -1.5, underlying: 103, find: { label: 'Profit or loss at expiry', as: 'dollars' } }
+    const r = { facts: { calc: { fn: 'arith', args: {}, result: -50 } } }
+    render(<CalcCard item={item(v)} reveal={r} />)
+    const ys = screen.getByTestId('calc-payoff-line').getAttribute('d').match(/-?\d+(?:\.\d+)?/g).map(Number).filter((_, i) => i % 2 === 1)
+    // svg y grows downward: the left end (stock far below 100) is the loss, lower on screen than the right end (the credit)
+    expect(ys[0]).toBeGreaterThan(ys[ys.length - 1])
+  })
+
   it('a computed question with no card shows the working alone, after the answer', () => {
     const plain = { id: 'q2', prompt_json: { q: 'Pivot?' } }
     const r = { facts: { calc: { fn: 'arith', args: { expr: '(high + low + close) / 3', high: 56, low: 48, close: 55 }, result: 53 } } }
@@ -123,6 +134,16 @@ describe('CalcCard', () => {
       levels: [{ key: 'stop', label: 'Stop', price: 38 }, { key: 'fill', label: 'Fill', price: 37.7 }] }
     render(<CalcCard item={item(cost)} />)
     expect(screen.getByTestId('calc-shares')).toHaveTextContent('500 shares')
+  })
+
+  it('a hand-written card names itself and its unit', () => {
+    const v = { kind: 'ladder', side: 'long', title: 'The pullback', find: { label: 'Depth', as: 'num', unit: 'ATRs' },
+      levels: [{ key: 'high', label: 'High', price: 120 }, { key: 'low', label: 'Low', price: 117.6 }] }
+    const r = { facts: { calc: { fn: 'arith', args: { expr: '(a - b) / c', a: 120, b: 117.6, c: 3 }, result: 0.8 } } }
+    render(<CalcCard item={item(v)} reveal={r} />)
+    expect(screen.getByTestId('calc-card')).toHaveAttribute('aria-label', 'The pullback')
+    expect(screen.getByTestId('calc-answer')).toHaveTextContent('0.8 ATRs')
+    expect(screen.getByTestId('calc-working')).toHaveTextContent('(120 − 117.6) ÷ 3 = 0.8 ATRs')
   })
 
   it('a chart question gets none (the chart is its picture)', () => {

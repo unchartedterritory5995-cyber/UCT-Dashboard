@@ -10,14 +10,15 @@ import { markWhy, trimLabels, trimR } from '../challenges/hardMode'
 import k from './chartKey.module.css'
 
 const px = (v) => (Number.isFinite(v) ? v.toFixed(2) : '—')
-const sess = (n) => `${n} session${n === 1 ? '' : 's'}`
+// a daily chart counts sessions; an intraday course chart counts bars (its trade carries `unit: 'bar'`, courses_lib)
+const sess = (n, unit = 'session') => `${n} ${unit}${n === 1 ? '' : 's'}`
 // the risk a position takes from the entry to the stop, measured (the owner, batch 1: "give some entry and sizing
 // indications"): the one number a member sizes from
 const riskPct = (t) => (Number.isFinite(t.entry) && Number.isFinite(t.stop) && t.entry > 0 ? (Math.abs(t.entry - t.stop) / t.entry) * 100 : null)
 
-function reached(at, stopped) {
-  if (at === 0) return { ok: true, text: 'reached the same day' }
-  if (at != null) return { ok: true, text: `reached in ${sess(at)}` }
+function reached(at, stopped, unit = 'session') {
+  if (at === 0) return { ok: true, text: unit === 'bar' ? 'reached in the fill bar' : 'reached the same day' }
+  if (at != null) return { ok: true, text: `reached in ${sess(at, unit)}` }
   return { ok: false, text: stopped ? 'not reached before the stop' : 'not reached on this chart' }
 }
 
@@ -29,7 +30,8 @@ export default function ChartKey({ trade, testId = null, detached = false }) {
   let rows
   if (trade.kind === 'plan') {
     const stopped = trade.stoppedSession
-    const t1 = reached(trade.t1At, stopped), t2 = reached(trade.t2At, stopped)
+    const unit = trade.unit === 'bar' ? 'bar' : 'session'
+    const t1 = reached(trade.t1At, stopped, unit), t2 = reached(trade.t2At, stopped, unit)
     // 3R and 5R, from the plan's own trim_r, are MARKS ON THE RULER, never fixed sells (the owner's D-013, 2026-11-12,
     // superseding B19's "a third at 3R" and E51's "a third at 5R"): 3R is where the stop may move up to breakeven ("between
     // 2R and 5R, or at the first sell"); 5R sits in the 5 to 10R zone where a first sell into strength is often best, by
@@ -39,7 +41,7 @@ export default function ChartKey({ trade, testId = null, detached = false }) {
     rows = [
       { tone: 'gold', name: trade.long === false ? 'Short entry' : 'Entry', price: px(trade.entry), why: trade.entry_note, status: { ok: true, text: trade.long === false ? 'shorted here' : 'bought here' } },
       { tone: 'red', name: 'Stop', price: px(trade.stop), why: trade.stop_note, risk: riskPct(trade),
-        status: stopped ? { ok: false, text: `hit after ${sess(stopped)}` } : { ok: true, text: 'never hit on this chart' } },
+        status: stopped ? { ok: false, text: `hit after ${sess(stopped, unit)}` } : { ok: true, text: 'never hit on this chart' } },
       { tone: 'green', name: l1, price: px(trade.t1), why: markWhy(m1), status: t1 },
       { tone: 'green', name: l2, price: px(trade.t2), why: markWhy(m2), status: t2 },
     ]

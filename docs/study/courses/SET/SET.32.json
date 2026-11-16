@@ -998,7 +998,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer from c03, h24, k03, u02. Distractors (exactly on, flat 3%, halfway pulled in) are all ruled out by h24/h01/h04. No tell."
+   "notes": "ANF ORB ex 2: range 146.90/143.91, fill 146.91, stop 143.86 (5c under 143.91), RS 90 all in dossier. Replay: fill bar 10:00 trades 146.96; best 0.8R, stop not hit. Ticker not in story. OK."
   },
   "q04": {
    "status": "pass",
@@ -1034,7 +1034,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c02, t01, h22 verbatim; 2 Yes / 2 No, one defensible; key not longest. Overlap with q02 is rung-1 recall then rung-2 application, accepted."
+   "notes": "EXEL ORB ex 3: range high 60.91, 10:00 bar trades to 61.06 so a cent-over trade happens in the last bar. No ticker, no trade drawn. OK."
   },
   "q10": {
    "status": "pass",
@@ -1071,7 +1071,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
+   "notes": "FFIV ex 1: 418.45/412.06, fill 418.46, stop 412.01; (418.46-412.01)/418.46 = 1.54%. Trade inside 10:00 bar, stop below bar. Choices and wrong notes unchanged and still true."
   },
   "q16": {
    "status": "pass",
@@ -1083,7 +1083,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
+   "notes": "Borderline (one given line), but the 3.5% is stated and in the label, and the stop is drawn under the fill after the answer. Keep."
   },
   "q18": {
    "status": "pass",
@@ -1119,7 +1119,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
+   "notes": "ANF fill 146.91 stop 143.86, 3R 156.06 correct. 'About three sessions' is the dossier's 3.2 sessions; it is past the 40-bar replay (best 0.8R in the replay) but is worded as 'in the sessions after' and does not contradict the replay."
   },
   "q24": {
    "status": "pass",
@@ -1209,7 +1209,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
+   "notes": "SNX ex 6: fill 274.04, stop 270.67 match dossier; 74 shares correct (250/3.37). Trade inside 10:05 bar (high 274.05). No outcome in the words."
   },
   "q39": {
    "status": "pass",
@@ -1220,8 +1220,8 @@
   "q40": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (A4 h02, card c11). Breaks: (1) the story puts APA's own fill and stop (d11) on a reversal 'on heavy volume', and the why then says APA took its stop that day, but d10 never says the reversal came on heavy volume: an invented detail on a real record. Dropped it from the story; the why keeps c11's big-volume line as 'even a big-volume reversal'. (2) The 'Sell now' feedback leans on the broker stop order (D41) with no cited fact: added h18. (3) 'Widen the stop under the range' is near silly, since the stop already sits under the range low; replaced with a real temptation (move it lower"
+   "fixed": false,
+   "notes": "APA failure 4: fill 46.37, stop 45.51, back inside the range by 10:30, stopped 12:45 all dossier. Chart ends 10:25 bar (closes 46.075 under the 46.36 trigger, above the stop). Stop-out at 12:45 is inside the 40-bar replay window. No trade drawn (last bar is after the fill bar). OK."
   },
   "q41": {
    "status": "pass",
@@ -1239,7 +1239,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h14 (80 or more), d14 and d14b (DHR, RS 64, 0.58R) support the key. RS-proxy wording is an owner flag already filed."
+   "notes": "DHR near-miss 4: 2.1x opening volume, OR high over prior-day high, RS 64, 0.58R then stopped 09-29, all dossier. 10:00 bar breaks the 9:30-9:55 high (225.25 vs 224.87). No trade drawn. OK."
   },
   "q44": {
    "status": "pass",
@@ -1300,7 +1300,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013/D-003; quotes verbatim"
+   "notes": "JBI dossier 4.9: PDH entry 11.05, ORB entry 11.21, stop 10.80, 2.3% vs 3.7%, close 11.62 gives about 2.3R and 1.0R. The 10:00 30-min bar trades 11.22, containing 11.21. Ticker out of story. OK."
   },
   "q54": {
    "status": "cut",
@@ -1324,7 +1324,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Judged sell keyed; stop a few cents under LOD (D-008); 10.05R grounded in d01."
+   "notes": "FFIV ex 1: RS 81, 2.67x, 412.06/418.45, +24% over 200-day and 2% over 50-day, 10.05R best (dossier; past the replay but worded 'in the sessions after'; the replay itself shows best 1.1R, stop not hit, no contradiction). Ticker and date out of story."
   },
   "q58": {
    "status": "pass",
@@ -1366,7 +1366,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "d15, d15b, d11, d16 verbatim (APA 1.85%, DE 2.05%, none past 0.26R). Key is easy for rung 9 but supported and defensible."
+   "notes": "DE failure 2: fill 677.21, stop 663.33 (2.05%), best 0.15R, stopped 12:00. Replay: best 0.1R, stopped at the 12:00 bar. 'Never gets past +0.15R' holds. Ticker not in story; format scenario."
   },
   "w1": {
    "status": "pass",
@@ -1468,9 +1468,9 @@
    "key": "q03",
    "skill": "setup.orb",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "orb.stop",
-   "q": "You are filled on the 10:00 break. Where does the stop go?",
+   "q": "Where does the stop go?",
    "choices": [
     "A few cents under the day's low",
     "Exactly on the 30-minute range low",
@@ -1478,7 +1478,7 @@
     "Halfway between the fill and the low"
    ],
    "answer": "A few cents under the day's low",
-   "why": "A few cents under the day's low at the fill. On a first break after 10:00 that is normally the 30-minute low. UCT writes it as Stop LOD, and Kullamagi also says the stop is always the low of the day. Stop first, then size from it.",
+   "why": "A few cents under the day's low at the fill. On a first break after 10:00 that is normally the 30-minute low. UCT writes it as Stop LOD, and Kullamagi also says the stop is always the low of the day. Stop first, then size from it. Here the day's low was 143.91, so the stop is 143.86, five cents under it.",
    "lesson_line": "Stop first: a few cents under the day's low, then size from it.",
    "facts": [
     "c03",
@@ -1486,7 +1486,8 @@
     "k03",
     "u02",
     "h01",
-    "h04"
+    "h04",
+    "d03"
    ],
    "wrong": {
     "Exactly on the 30-minute range low": "The rule is a few cents under the low, not exactly on it.",
@@ -1502,7 +1503,19 @@
      "rests on the owner's rulebook (A3, F62)"
     ]
    },
-   "batch": "wave4"
+   "batch": "intraday-charts-2026-11-15",
+   "story": "A leader on your list trades through its 30-minute high at 10:00 and you are filled at 146.91. The day's low so far is 143.91.",
+   "chart": {
+    "sym": "ANF",
+    "tf": "5",
+    "asof": "2026-10-12 10:00",
+    "window": 85,
+    "forward": 40,
+    "trade": {
+     "entry": 146.91,
+     "stop": 143.86
+    }
+   }
   },
   {
    "key": "q04",
@@ -1660,7 +1673,7 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "orb.trigger",
-   "q": "At 10:03 a stock on your list prints a cent over its 30-minute high, with the 5-minute bar still open. Do you buy?",
+   "q": "In the 10:00 bar a stock on your list trades a cent over its 30-minute high, the bar still open. Do you buy?",
    "choices": [
     "Yes; the trade through is the trigger",
     "No; wait for the 5-minute bar to close",
@@ -1693,7 +1706,14 @@
    "depends_on": [
     "D-038"
    ],
-   "batch": "wave4"
+   "batch": "intraday-charts-2026-11-15",
+   "chart": {
+    "sym": "EXEL",
+    "tf": "5",
+    "asof": "2026-10-14 10:00",
+    "window": 85,
+    "forward": 20
+   }
   },
   {
    "key": "q10",
@@ -1901,7 +1921,7 @@
      "3% stop width is a held decision (D-005); only A13's 'usually about 3%' is used"
     ]
    },
-   "batch": "tomcq",
+   "batch": "intraday-charts-2026-11-15",
    "choices": [
     "6.45%",
     "0.15%",
@@ -1912,6 +1932,17 @@
     "6.45%": "Read the dollar gap as a percent. Divide it by the fill first.",
     "0.15%": "Slipped the decimal point one place left.",
     "15.41%": "Slipped the decimal point one place right."
+   },
+   "chart": {
+    "sym": "FFIV",
+    "tf": "5",
+    "asof": "2026-09-15 10:00",
+    "window": 85,
+    "forward": 40,
+    "trade": {
+     "entry": 418.46,
+     "stop": 412.01
+    }
    }
   },
   {
@@ -1978,7 +2009,7 @@
      "rests on the owner's Kicker ruling (2026-11-02)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$7.29",
     "$11.60",
@@ -1989,6 +2020,22 @@
     "$11.60": "Added 3.5% instead of subtracting it. A long's stop sits below the fill.",
     "$7.71": "Subtracted 3.5 dollars instead of 3.5 percent.",
     "$7.29": "Slipped a decimal in the cap and took off far too much."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "fill",
+      "label": "Fill",
+      "price": 11.21
+     }
+    ],
+    "find": {
+     "label": "Stop at the 3.5% cap",
+     "as": "price"
+    },
+    "title": "The Kicker ORB"
    }
   },
   {
@@ -2188,7 +2235,7 @@
     },
     "round": 2
    },
-   "why": "156.06. One R is the fill minus the stop: 146.91 minus 143.86. Three R is three of those. Add them to the fill of 146.91 and you reach 156.06. 3R is a marker, not a fixed sell. ANF got there in about three sessions.",
+   "why": "156.06. One R is the fill minus the stop: 146.91 minus 143.86. Three R is three of those. Add them to the fill of 146.91 and you reach 156.06. 3R is a marker, not a fixed sell. In the sessions after the fill ANF got there in about three.",
    "lesson_line": "Know your 3R the moment you are filled. It is a marker, not an automatic sell.",
    "facts": [
     "r21",
@@ -2205,7 +2252,7 @@
      "rests on the owner's rulebook (B19)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "intraday-charts-2026-11-15",
    "choices": [
     "$153.01",
     "$156.06",
@@ -2216,6 +2263,17 @@
     "$153.01": "Added three R to the stop instead of to the fill.",
     "$137.76": "Subtracted three R. A long's target sits above the fill.",
     "$149.91": "Added 3 dollars, not three R. R is the fill minus the stop."
+   },
+   "chart": {
+    "sym": "ANF",
+    "tf": "5",
+    "asof": "2026-10-12 10:00",
+    "window": 85,
+    "forward": 40,
+    "trade": {
+     "entry": 146.91,
+     "stop": 143.86
+    }
    }
   },
   {
@@ -2804,7 +2862,7 @@
      "changed 2026-11-10 (risk 1% to 0.25%)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "intraday-charts-2026-11-15",
    "choices": [
     "145 shares",
     "296 shares",
@@ -2815,6 +2873,17 @@
     "296 shares": "Risked four times too much. Use the 0.25% the question gives.",
     "145 shares": "That is the 40% position cap size. Risk sets the size here, and it is smaller.",
     "7,418 shares": "Forgot to turn the 0.25% into a decimal."
+   },
+   "chart": {
+    "sym": "SNX",
+    "tf": "5",
+    "asof": "2026-09-21 10:05",
+    "window": 86,
+    "forward": 40,
+    "trade": {
+     "entry": 274.04,
+     "stop": 270.67
+    }
    }
   },
   {
@@ -2903,7 +2972,14 @@
      "rests on rulebook A4 and the card's settled line (c11)"
     ]
    },
-   "batch": "wave4"
+   "batch": "intraday-charts-2026-11-15",
+   "chart": {
+    "sym": "APA",
+    "tf": "5",
+    "asof": "2026-09-14 10:25",
+    "window": 90,
+    "forward": 40
+   }
   },
   {
    "key": "q41",
@@ -3010,7 +3086,14 @@
      "rests on rulebook C31; the RS in the example is a proxy rank"
     ]
    },
-   "batch": "wave4"
+   "batch": "intraday-charts-2026-11-15",
+   "chart": {
+    "sym": "DHR",
+    "tf": "5",
+    "asof": "2026-09-24 10:00",
+    "window": 85,
+    "forward": 30
+   }
   },
   {
    "key": "q44",
@@ -3417,7 +3500,7 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "orb.kicker_order",
-   "story": "JBI, a Kicker. The prior-day-high entry fills at 11.05; the ORB entry fills at 11.21. Both use the stop under the Kicker low, 10.80.",
+   "story": "A Kicker. The prior-day-high entry fills at 11.05; the ORB entry fills at 11.21. Both use the stop under the Kicker low, 10.80.",
    "q": "Which entry sits closer to the stop?",
    "choices": [
     "The 11.05 entry, the earlier fill",
@@ -3453,7 +3536,14 @@
      "rests on the owner's Kicker ruling"
     ]
    },
-   "batch": "wave4"
+   "batch": "intraday-charts-2026-11-15",
+   "chart": {
+    "sym": "JBI",
+    "tf": "30",
+    "asof": "2023-12-14 10:00",
+    "window": 41,
+    "forward": 14
+   }
   },
   {
    "key": "q54",
@@ -3548,7 +3638,7 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "orb.plan_rule",
-   "story": "FFIV, 2026-09-15: a leader, RS 81, above its 50 and 200-day, flat open on 2.67x volume. The first 30-minute candle runs 412.06 to 418.45.",
+   "story": "A leader, RS 81, above its 50 and 200-day, flat open on 2.67x volume. The first 30-minute candle runs 412.06 to 418.45.",
    "q": "Write the plan: entry, stop, first sell.",
    "choices": [
     "Market 418.46; stop 412.01; judged sell",
@@ -3557,7 +3647,7 @@
     "Limit 418.46; stop 412.01; judged sell"
    ],
    "answer": "Market 418.46; stop 412.01; judged sell",
-   "why": "Market at 418.46, stop 412.01, and a judged first sell. Buy at market as it trades a cent through the 418.45 range high. Put the stop a few cents under the day's low. The first sell is a judgment, not a fixed third at 3R. FFIV ran to 10.05R in the window we read.",
+   "why": "Market at 418.46, stop 412.01, and a judged first sell. Buy at market as it trades a cent through the 418.45 range high. Put the stop a few cents under the day's low. The first sell is a judgment, not a fixed third at 3R. FFIV ran to 10.05R in the sessions after.",
    "lesson_line": "Entry, stop, first sell, trail. Write the rule before the open; the range fills in the numbers at 10:00.",
    "facts": [
     "h22",
@@ -3575,7 +3665,7 @@
    "house": true,
    "simple": "Buy at market through the high, put the stop a few cents under the low, and judge the first sell.",
    "deeper": {
-    "example": "FFIV, 2026-09-15: the rule written before the open gave, at 10:00, a buy at 418.46 and a stop of 412.01. That is a few cents under the 412.06 low and 1.54% under the fill. It broke the range on the first bar after 10:00 and ran to 10.05R."
+    "example": "FFIV, 2026-09-15: the rule written before the open gave, at 10:00, a buy at 418.46 and a stop of 412.01. That is a few cents under the 412.06 low and 1.54% under the fill. It broke the range on the first bar after 10:00 and ran to 10.05R in the sessions after."
    },
    "tier": "expert",
    "risk": {
@@ -3589,7 +3679,18 @@
    "depends_on": [
     "D-038"
    ],
-   "batch": "rulings2"
+   "batch": "intraday-charts-2026-11-15",
+   "chart": {
+    "sym": "FFIV",
+    "tf": "5",
+    "asof": "2026-09-15 10:00",
+    "window": 85,
+    "forward": 40,
+    "trade": {
+     "entry": 418.46,
+     "stop": 412.01
+    }
+   }
   },
   {
    "key": "q58",
@@ -3824,8 +3925,8 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "orb.stop",
-   "story": "Two ORB longs in our window were stopped out the same day. Neither ever got past +0.26R, and each stop sat about 2% under the fill.",
-   "q": "What kept each loss at 1R?",
+   "story": "An ORB long fills at 677.21 with its stop at 663.33, about 2% under the fill. It never gets past +0.15R and is stopped out at noon the same day.",
+   "q": "What kept the loss at 1R?",
    "choices": [
     "The stop under the day's low",
     "Selling at the first reversal",
@@ -3833,7 +3934,7 @@
     "The 4% limit on chasing the fill"
    ],
    "answer": "The stop under the day's low",
-   "why": "The stop under the day's low. Whatever the break was missing, the stop is what kept each loss at 1R. It sits a few cents under the day's low, it only moves up, and it is a real order with the broker. A loss at that stop is the plan working.",
+   "why": "The stop under the day's low. Whatever the break was missing, the stop is what kept the loss at 1R. It sits a few cents under the day's low, it only moves up, and it is a real order with the broker. A loss at that stop is the plan working.",
    "lesson_line": "You will take this loss again. The stop is why it stays small.",
    "facts": [
     "d15",
@@ -3850,7 +3951,7 @@
     "The 4% limit on chasing the fill": "The 4% line limits how far above the buy point you may buy. It does not size the loss."
    },
    "house": true,
-   "simple": "The stop kept each loss at 1R. A loss at the planned stop is the plan working.",
+   "simple": "The stop kept the loss at 1R. A loss at the planned stop is the plan working.",
    "deeper": {
     "trap": "A 1R loss is the plan working, but the cause still matters. Across the four losses we read, the missing piece was the parent setup, the direction of the open or the calendar. Check those before the buy, not after the stop."
    },
@@ -3863,7 +3964,18 @@
      "fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "intraday-charts-2026-11-15",
+   "chart": {
+    "sym": "DE",
+    "tf": "5",
+    "asof": "2026-11-02 10:00",
+    "window": 85,
+    "forward": 36,
+    "trade": {
+     "entry": 677.21,
+     "stop": 663.33
+    }
+   }
   },
   {
    "key": "q65",

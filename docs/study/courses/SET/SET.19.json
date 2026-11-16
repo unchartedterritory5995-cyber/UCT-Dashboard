@@ -1892,7 +1892,28 @@
     },
     "round": 2
    },
-   "batch": "wave2"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "line",
+      "label": "Pause high",
+      "price": 60.0
+     },
+     {
+      "key": "price",
+      "label": "Trades at 10:15",
+      "price": 62.8
+     }
+    ],
+    "find": {
+     "label": "The most we pay",
+     "as": "price"
+    },
+    "title": "The pause"
+   }
   },
   {
    "key": "q27",
@@ -3855,7 +3876,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "50*... 60*1.04=62.40 verified; c18/h11/h12 support; notes ok."
+   "notes": "Not a pivot-only card: Pause high 60.00 and 'Trades at 10:15' 62.80 are both drawn, so the member sees the price is above the cap. Percent not shown. Keep."
   },
   "q28": {
    "status": "pass",

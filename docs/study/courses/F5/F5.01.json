@@ -981,7 +981,7 @@
      "fixed before: 'to the cent' added (+1)"
     ]
    },
-   "batch": "review2",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$579.50",
     "$0.44",
@@ -992,6 +992,28 @@
     "$0.44": "You flipped the division and divided the shares by the earnings.",
     "$22.70": "A decimal slip: you moved the point one place.",
     "$579.50": "You subtracted the share count from the earnings instead of dividing."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Earnings per share",
+    "rows": [
+     {
+      "key": "net_earnings,_$_bill",
+      "label": "Net earnings, $ billions",
+      "value": 1.036,
+      "fmt": "count"
+     },
+     {
+      "key": "diluted_shares,_mill",
+      "label": "Diluted shares, millions",
+      "value": 456.5,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Diluted EPS",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1125,7 +1147,7 @@
      "computed key (+2)"
     ]
    },
-   "batch": "review2",
+   "batch": "cards-2026-11-15",
    "choices": [
     "28.2%",
     "39.2%",
@@ -1136,6 +1158,28 @@
     "39.2%": "You divided the profit by the cost of sales instead of by sales.",
     "71.8%": "You gave the cost share and forgot to subtract it from sales.",
     "282.0%": "A decimal slip: you moved the point one place the wrong way."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Gross margin",
+    "rows": [
+     {
+      "key": "sales,_$_billions",
+      "label": "Sales, $ billions",
+      "value": 23.846,
+      "fmt": "count"
+     },
+     {
+      "key": "cost_of_sales,_$_bil",
+      "label": "Cost of sales, $ billions",
+      "value": 17.128,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Gross margin",
+     "as": "pct"
+    }
    }
   },
   {
@@ -1256,7 +1300,7 @@
      "computed key (+2)"
     ]
    },
-   "batch": "review2",
+   "batch": "cards-2026-11-15",
    "choices": [
     "5.8%",
     "0.1%",
@@ -1267,6 +1311,28 @@
     "0.6%": "A decimal slip: you moved the point one place.",
     "0.1%": "You forgot to multiply by 100 and rounded the decimal.",
     "1.6%": "You read the first digits of $1.624 billion as a percent."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Operating margin",
+    "rows": [
+     {
+      "key": "operating_income,_$_",
+      "label": "Operating income, $ billions",
+      "value": 1.624,
+      "fmt": "count"
+     },
+     {
+      "key": "revenue,_$_billions",
+      "label": "Revenue, $ billions",
+      "value": 28.095,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Operating margin",
+     "as": "pct"
+    }
    }
   },
   {
@@ -1719,7 +1785,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1,036 / 456.5 = 2.269 -> $2.27. $1.036 billion = 1,036 million explained in why; calc args still 1036 and 456.5. Wrong values 0.44, 22.70, 579.50 recomputed and match their notes."
+   "notes": "$ billions and millions units match the words; key '$2.27'"
   },
   "q10": {
    "status": "pass",
@@ -1737,7 +1803,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(23.846 - 17.128)/23.846 = 28.17% -> 28.2%. Billions now, same as f33's 28.2 percent. Wrong values recompute: 39.2, 71.8, 282.0."
+   "notes": "sales and cost in $ billions as stated; key '28.2%'"
   },
   "q13": {
    "status": "pass",
@@ -1754,8 +1820,8 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "1,624/28,095 = 5.78% -> 5.8%, f52 matches. Defect: the 1.6% wrong note still said '$1,624 million' while the question now reads $1.624 billion (stale unit, number not in the stem). Reworded to $1.624 billion."
+   "fixed": false,
+   "notes": "operating income and revenue in $ billions; key '5.8%'"
   },
   "q16": {
    "status": "pass",

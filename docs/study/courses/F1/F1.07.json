@@ -1113,7 +1113,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "6%",
     "3%",
@@ -1124,6 +1124,28 @@
     "3%": "You gave the index's move and never applied the 3x.",
     "1%": "You divided the 3% by 3 instead of multiplying.",
     "6%": "You added 3 and 3 instead of multiplying them."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The 3x fund's day",
+    "rows": [
+     {
+      "key": "fund_leverage_(x)",
+      "label": "Fund leverage (x)",
+      "value": 3,
+      "fmt": "count"
+     },
+     {
+      "key": "index_falls",
+      "label": "Index falls",
+      "value": 3,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "The fund's loss",
+     "as": "pct"
+    }
    }
   },
   {
@@ -1290,7 +1312,7 @@
      "computed key"
     ]
    },
-   "batch": "review2",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$99",
     "$100",
@@ -1301,6 +1323,40 @@
     "$100": "You assumed an up 10% and a down 10% cancel out.",
     "$99": "You gave the index's result, up 10% then down 10% to 99, not the 3x fund's.",
     "$70": "You took the tripled drop off the original $100 instead of off the bigger balance."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Up 10%, then down 10%",
+    "rows": [
+     {
+      "key": "fund_starts_at",
+      "label": "Fund starts at",
+      "value": 100,
+      "fmt": "$"
+     },
+     {
+      "key": "fund_leverage_(x)",
+      "label": "Fund leverage (x)",
+      "value": 3,
+      "fmt": "count"
+     },
+     {
+      "key": "index_rises,_day_one",
+      "label": "Index rises, day one",
+      "value": 10,
+      "fmt": "%"
+     },
+     {
+      "key": "index_falls,_day_two",
+      "label": "Index falls, day two",
+      "value": 10,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "What the fund is worth",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1336,7 +1392,7 @@
      "stem reframed as one-day dollar math, not a sizing step: the owner's rulebook sizes from the stop (A3, A5) and declined item 71"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$27,000",
     "$3,000",
@@ -1347,6 +1403,28 @@
     "$27,000": "You multiplied by 3 instead of dividing by 3.",
     "$9,000": "You put in the same dollars, forgetting the 3x makes each dollar swing three times as much.",
     "$6,000": "You took off a third instead of dividing by 3."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Matching the swing",
+    "rows": [
+     {
+      "key": "held_in_a_plain_fund",
+      "label": "Held in a plain fund",
+      "value": 9000,
+      "fmt": "$"
+     },
+     {
+      "key": "fund_leverage_(x)",
+      "label": "Fund leverage (x)",
+      "value": 3,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Same swing in a 3x fund",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1565,7 +1643,35 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "Five days of 1%",
+    "rows": [
+     {
+      "key": "fund_leverage_(x)",
+      "label": "Fund leverage (x)",
+      "value": 3,
+      "fmt": "count"
+     },
+     {
+      "key": "index_gain_a_day",
+      "label": "Index gain a day",
+      "value": 1,
+      "fmt": "%"
+     },
+     {
+      "key": "days_in_a_row",
+      "label": "Days in a row",
+      "value": 5,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Fund's gain over five days",
+     "as": "pct"
+    }
+   }
   },
   {
    "key": "q22",
@@ -1608,7 +1714,7 @@
      "fixed before (2026-11-09 checker: why named only one cause)"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "1.82%",
     "9.09%",
@@ -1619,6 +1725,34 @@
     "10%": "You gave only day 1's loss and ignored the gain back.",
     "9.09%": "You used day 2's 9.09% index drop as the whole loss.",
     "19.09%": "You added day 1's 10% loss and day 2's 9.09% move."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The inverse fund",
+    "rows": [
+     {
+      "key": "index_at_the_start",
+      "label": "Index at the start",
+      "value": 100,
+      "fmt": "count"
+     },
+     {
+      "key": "index_after_day_one",
+      "label": "Index after day one",
+      "value": 110,
+      "fmt": "count"
+     },
+     {
+      "key": "index_after_day_two",
+      "label": "Index after day two",
+      "value": 100,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "What the fund loses",
+     "as": "pct"
+    }
    }
   },
   {
@@ -1791,7 +1925,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
+   "notes": "3x and 3% fall; loss 9% reads right"
   },
   "q11": {
    "status": "pass",
@@ -1815,13 +1949,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Math rechecked: 100 x 1.3 x 0.7 = 91; 30% of 130 = 39; index 100 -> 110 -> 99. arith calc evaluates to 91 and matches the answer. Deeper now a real FINRA case (f40, 53% vs 8%) instead of repeating q16. Why shows every step."
+   "notes": "two-day path inputs right; slot '$91'"
   },
   "q15": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
+   "notes": "held in plain fund and leverage; slot '$3,000'"
   },
   "q16": {
    "status": "pass",
@@ -1856,15 +1990,14 @@
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc right: 1.03^5 = 1.1593, so 15.9%; 1.01^5 = 1.0510 (story's 5.1%), 3 x 5.1 = 15.3. f69 (re-fetched on ProShares 2026-11-12: 'Smaller index gains/losses and higher index volatility contribute to returns worse than the Daily Target') and f77 (Fidelity, re-fetched) back the key; the why's last sentence now matches f69. Defect 1 (tell): the stem asks 'About how much' while two choices start with 'Exactly'; a test-wise reader drops both and is left with a 50/50 between the two 'About' choices. Fix: drop 'About'/'Exactly' from all four choices (lengths 19/19/19/20, key not longest). Defect 2 (th",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": false,
+   "notes": "key has two numbers so slot uses pct format = 15.9%, reads right"
   },
   "q22": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "notes": "index path 100,110,100 labelled by day; key '1.82%'"
   },
   "q23": {
    "status": "pass",

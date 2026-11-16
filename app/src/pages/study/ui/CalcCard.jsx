@@ -193,7 +193,12 @@ function Expectancy({ card }) {
 /** The value at expiry, per share, of the card's position at stock price `s`. */
 function payoffAt(card, s) {
   const intr = (k, kind = card.option) => Math.max(0, kind === 'call' ? s - k : k - s)
-  if (Array.isArray(card.legs)) return intr(card.legs[0].strike) - intr(card.legs[1].strike) - (card.net_debit || 0)
+  // a spread: each leg by its own side (a bought leg adds its value at expiry, a sold one subtracts it), less the net
+  // debit (a credit is a negative debit), whatever order the legs are written in (2026-11-15: the curve assumed the
+  // first leg was the bought one, so a credit spread written sold-leg-first drew upside down)
+  if (Array.isArray(card.legs)) {
+    return card.legs.reduce((v, l) => v + (l.side === 'short' ? -1 : 1) * intr(l.strike), 0) - (card.net_debit || 0)
+  }
   const prem = Number.isFinite(card.premium) ? card.premium : 0
   return card.side === 'short' ? prem - intr(card.strike) : intr(card.strike) - prem
 }
@@ -275,7 +280,9 @@ export default function CalcCard({ item, reveal = null, settled = true, testId =
     )
   }
   const Draw = DRAW[card.kind]
-  const title = card.kind === 'share' && card.part ? 'The share' : card.find?.as === 'times' ? 'The volume' : TITLE[card.kind]
+  // a hand-written card may name itself ("The base", "The market cap"); a built one is titled by its kind
+  const own = typeof card.title === 'string' && card.title.trim() ? card.title.trim() : ''
+  const title = own || (card.kind === 'share' && card.part ? 'The share' : card.find?.as === 'times' ? 'The volume' : TITLE[card.kind])
   return (
     <section className={`${c.card} ${result != null ? c.done : ''}`} data-testid={testId} data-kind={card.kind} aria-label={title}>
       <span className={c.eyebrow}>{title}</span>
