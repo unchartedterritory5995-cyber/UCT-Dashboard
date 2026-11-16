@@ -64,8 +64,15 @@ describe('DRAW-1 — a drawing read by its method form is named a drawing operat
     expect(p.refusal.guard).toBe('runtime:object-op')
   })
 
-  it('…and on `var box b = na`, the written type (no `:=` read before it)', () => {
-    const p = probeRuntimeProgram(READ('var box b = na'))
+  it('…and on `var box b = na`, the written type, read BEFORE any `b := box.new(…)`', () => {
+    // the read stands above the only assignment, so only the declaration's written type says `b` is a box
+    const p = probeRuntimeProgram(v5([
+      'var box b = na',
+      't = b.get_top()',
+      'plot(t)',
+      'if barstate.islast',
+      '    b := box.new(bar_index - 5, high, bar_index, low)',
+    ].join('\n')))
     expect(p.ok).toBe(false)
     expect(p.refusal.guard).toBe('runtime:object-op')
   })
