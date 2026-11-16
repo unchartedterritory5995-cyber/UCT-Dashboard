@@ -17,7 +17,7 @@
 // the preview acknowledgement. The hook keeps its React state; the Agent keeps nothing
 // but the session the store already holds.
 
-import { newAuthoringState, applyTurn, undo as undoState, readback, isDirty } from './index'
+import { newAuthoringState, applyTurn, undo as undoState, undoTo as undoToState, readback, isDirty } from './index'
 import { openAuthoringState } from './authoringState'
 import { converseTurn, STOPPED_GATE, distinctNotUnderstood } from './converseClient'
 import { classifyTurn, OUTCOMES } from './turnOutcome'
@@ -289,6 +289,38 @@ export function undoTurn(cur, gateCtx = {}) {
   return { state: next, entry: { role: 'uct', kind: 'undo', lines: next.working
     ? ['Undid the last change.', ...(after.outputs || []).map((o) => (o.phrase ? `${o.name || o.label} — ${o.phrase}` : o.sentence)).filter(Boolean)]
     : ['Undid the last change. The chart preview is cleared.'] } }
+}
+
+/** One line per output, as the read-back says it. */
+const outputLinesOf = (rb) => (rb.outputs || [])
+  .map((o) => (o.phrase ? `${o.name || o.label} — ${o.phrase}` : o.sentence)).filter(Boolean)
+
+/**
+ * ⭐ V1 (2026-11-16) — THE EARLIER STEPS OF THIS DRAFT, oldest first: what the indicator
+ * WAS before each applied change, said by the same read-back the card uses (never model
+ * prose, never the member's words). `index` is the place in `state.history` that
+ * `goBackToTurn` takes. A step with no indicator yet (before the first build) is `empty`.
+ * @returns {{index: number, step: number, empty: boolean, name: string|null, lines: string[]}[]}
+ */
+export function historySteps(cur, gateCtx = {}) {
+  return ((cur && cur.history) || []).map((snap, index) => {
+    if (!snap.working) return { index, step: index + 1, empty: true, name: null, lines: [] }
+    const rb = readback(snap.working, snap, gateCtx)
+    return { index, step: index + 1, empty: false, name: rb.name || null, lines: outputLinesOf(rb) }
+  })
+}
+
+/** Go back to an earlier step. @returns null (no such step) | `{state, entry, steps}` where
+ *  `steps` is how many applied changes were taken back. */
+export function goBackToTurn(cur, index, gateCtx = {}) {
+  if (!cur || !Number.isInteger(index) || index < 0 || index >= cur.history.length) return null
+  const steps = cur.history.length - index
+  const next = undoToState(cur, index)
+  const after = readback(next.working, next, gateCtx)
+  const head = steps === 1 ? 'Undid the last change.' : `Went back ${steps} changes.`
+  return { state: next, steps, entry: { role: 'uct', kind: 'undo', lines: next.working
+    ? [head, ...outputLinesOf(after)]
+    : [`${head} The chart preview is cleared.`] } }
 }
 
 /**

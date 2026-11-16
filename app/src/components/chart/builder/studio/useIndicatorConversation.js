@@ -39,6 +39,7 @@ import { logStudioAction } from '../authoring/studioTelemetry'
 import {
   restoreConversation, initialConversationState, initialTranscript, hasSomethingToKeep,
   localTurn, modelTurn, undoTurn, saveConversation, noteDiscarded, previewDefinitionOf,
+  historySteps, goBackToTurn,
 } from '../authoring/authoringSession'
 
 // Re-exported for existing importers (the functions moved with the pipeline).
@@ -172,6 +173,24 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
     return true
   }, [busy, saving, commit, gateCtx, say])
 
+  /** ⭐ V1 — back to an EARLIER step in one press (the History list). The same effects
+   *  as Undo, which is its last-step case. */
+  const goBackTo = useCallback((index) => {
+    const cur = stateRef.current
+    if (busy || saving) return false
+    const out = goBackToTurn(cur, index, gateCtx)
+    if (!out) return false
+    commit(out.state)
+    logStudioAction(cur.lineage, 'undone', { surface: 'studio' })
+    setAcked(false)
+    setChangeSeq((n) => n + 1)
+    say(out.entry)
+    return true
+  }, [busy, saving, commit, gateCtx, say])
+
+  /** The earlier steps, oldest first (`historySteps`). */
+  const steps = useMemo(() => historySteps(state, gateCtx), [state, gateCtx])
+
   /**
    * Commit through the EXISTING doors. `settings` must be the STORED blob (never
    * the preview read view) and `onChange` the chart's own settings writer.
@@ -232,7 +251,7 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
 
   return {
     state, transcript, rb, busy, saving, acked, setAcked, needsAck, questions, changeSeq,
-    previewDefinition, send, stop, undo, save, discard, dirty, restored, recovered, dropped, editing,
+    previewDefinition, send, stop, undo, goBackTo, steps, save, discard, dirty, restored, recovered, dropped, editing,
     canUndo: state.history.length > 0 && !busy && !saving,
     canSave: dirty && !busy && !saving && (!needsAck.length || acked),
   }
