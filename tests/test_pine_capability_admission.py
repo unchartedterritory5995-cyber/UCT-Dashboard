@@ -163,7 +163,11 @@ def test_OFF_the_default_is_pinned_in_SOURCE():
 
 def test_OFF_the_kill_read_is_the_one_before_Part_2(store):
     body = _client().get("/api/user-definitions/runtime-kill").json()
-    assert set(body) == {"kill", "allow", "save_enabled"}
+    # RS Rating (2026-11-16): the committed allowlist now holds a record on the SUBSTITUTED path, so
+    # the read also carries what that record discloses (`substituted`) and its run-half evidence.
+    # Neither is a Part 2 key: `capability_admission` is still absent while it is off.
+    assert set(body) == {"kill", "allow", "save_enabled", "substituted", "run_half_evidence"}
+    assert "capability_admission" not in body
 
 
 def test_ON_the_kill_read_says_so(store, on):
@@ -193,7 +197,8 @@ def test_the_allow_report_carries_the_admission_only_while_ON(on):
     assert "for" in rep["admitted"] and UNADMITTED_CAP not in rep["admitted"]
     # COND-TA: `conditional-ta` is admitted (conformant); it is no longer withheld
     assert "conditional-ta" in rep["admitted"] and "conditional-ta" not in rep["withheld"]
-    assert rt.graded_allow_list() == ["d0853c4724651a1d3c63542a2ae767861030137cb1c75ea57a376c53a1630499"]
+    assert rt.graded_allow_list() == ["d0853c4724651a1d3c63542a2ae767861030137cb1c75ea57a376c53a1630499",
+                                      "caa94fe31a8788c0f52ca571dbb1b3f8a7499dae913ed5e710720fc8662c5af0"]
 
 
 # ═══ A1 — a non-conformant row never admits ════════════════════════════════════

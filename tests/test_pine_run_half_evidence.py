@@ -49,12 +49,29 @@ def _kill_read():
 
 # ── E1 ───────────────────────────────────────────────────────────────────────────────
 
-def test_E1_by_default_nothing_is_served_and_the_kill_read_keeps_its_keys(monkeypatch):
+def test_E1_by_default_nothing_is_served_and_the_kill_read_keeps_its_keys(tmp_path, monkeypatch):
+    """A list whose records carry no objects-v2 capture serves no evidence, and the key is ABSENT."""
     monkeypatch.delenv("PINE_RUNTIME_CAPABILITY_ADMISSION", raising=False)
+    _allowlist(tmp_path, monkeypatch, [{"slug": "plain", "sha256": "d" * 64, "capabilities": ["a"], "captures": [
+        _cap("p-rddt", v2=None), _cap("p-spy", v2=None)]}])
     assert rt.run_half_evidence() == []
     got = _kill_read()
     assert "run_half_evidence" not in got
     assert set(got) <= {"kill", "allow", "save_enabled", "capability_admission", "substituted"}
+
+
+def test_E1b_the_committed_list_serves_RS_Ratings_evidence_and_nothing_elses():
+    """RS Rating (fred6724), admitted 2026-11-16 on the substituted path: its three captures, each
+    objects v2 MATCH_SUBSTITUTED for exactly the record's substituted names. The MATCH-only record
+    beside it (adx-and-di-for-v4) carries no objects-v2 capture and serves none."""
+    ev = rt.run_half_evidence()
+    assert [e["sha256"] for e in ev] == ["caa94fe31a8788c0f52ca571dbb1b3f8a7499dae913ed5e710720fc8662c5af0"]
+    assert ev[0]["admission"] == "substituted" and ev[0]["substituted"] == ["syminfo.industry"]
+    assert [c["capture"] for c in ev[0]["captures"]] == [
+        f"rs-rating-fred6724-{s}-1d-2026-11-15" for s in ("rddt", "alab", "crwv")]
+    assert all(c["verdict"] == "MATCH_SUBSTITUTED" and c["objectsV2"] is False and c["runtimeOn"] is True
+               and c["objectsV2Substituted"] == ["syminfo.industry"] for c in ev[0]["captures"])
+    assert _kill_read()["run_half_evidence"] == ev
 
 
 # ── E2 ───────────────────────────────────────────────────────────────────────────────

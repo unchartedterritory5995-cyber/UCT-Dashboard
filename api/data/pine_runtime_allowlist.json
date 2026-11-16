@@ -101,6 +101,26 @@
         {"id": "adx-and-di-for-v4-spy-1d-2026-10-03", "verdict": "MATCH", "runtimePane": "on",
          "graded": "docs/pine/PHASE3-RUNTIME-PLAN.md section 2.4 (runtime-on harness run @ b09a6bcee6)"}
       ]
+    },
+    {
+      "slug": "rs-rating-fred6724",
+      "sha256": "caa94fe31a8788c0f52ca571dbb1b3f8a7499dae913ed5e710720fc8662c5af0",
+      "source": "docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine",
+      "evidence": "MATCH_SUBSTITUTED on three captures (RDDT, ALAB, CRWV 1D from the listing): every plot and label equals TradingView's with the vendor's own syminfo.industry fed; the member's chart answers syminfo.industry from UCT data, disclosed by name (docs/pine/RS-RATING-TRANSFER.md, L7)",
+      "admission": "substituted",
+      "substituted": ["syminfo.industry"],
+      "capabilities": ["conditional-ta", "fn-multi", "fn-single", "for", "if-block", "max_bars_back", "reassign", "switch", "ternary", "typed-array", "var"],
+      "captures": [
+        {"id": "rs-rating-fred6724-rddt-1d-2026-11-15", "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
+         "substituted": ["syminfo.industry"], "objectsV2": "MATCH_SUBSTITUTED", "objectsV2Substituted": ["syminfo.industry"],
+         "graded": "docs/pine/RS-RATING-TRANSFER.md, integration status (runtime-on harness, objects v2; spliced into docs/pine/vendor-harness/runtime-on/verdicts.json)"},
+        {"id": "rs-rating-fred6724-alab-1d-2026-11-15", "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
+         "substituted": ["syminfo.industry"], "objectsV2": "MATCH_SUBSTITUTED", "objectsV2Substituted": ["syminfo.industry"],
+         "graded": "docs/pine/RS-RATING-TRANSFER.md, integration status (runtime-on harness, objects v2; spliced into docs/pine/vendor-harness/runtime-on/verdicts.json)"},
+        {"id": "rs-rating-fred6724-crwv-1d-2026-11-15", "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
+         "substituted": ["syminfo.industry"], "objectsV2": "MATCH_SUBSTITUTED", "objectsV2Substituted": ["syminfo.industry"],
+         "graded": "docs/pine/RS-RATING-TRANSFER.md, integration status (runtime-on harness, objects v2; spliced into docs/pine/vendor-harness/runtime-on/verdicts.json)"}
+      ]
     }
   ],
   "capabilities": {

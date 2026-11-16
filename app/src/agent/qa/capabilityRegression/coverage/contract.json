@@ -1848,6 +1848,19 @@
    ],
    "fast": false
   },
+  "news.movers": {
+   "domain": "news",
+   "group": "catalysts",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "pane.move": {
    "domain": "pane",
    "group": "indicatorSetup",

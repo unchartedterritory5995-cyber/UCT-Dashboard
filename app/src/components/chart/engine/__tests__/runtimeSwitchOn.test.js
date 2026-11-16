@@ -123,7 +123,9 @@ describe('GT D6 — the starter allowlist', () => {
 
   it('the committed list is adx-and-di-for-v4 only, and its hash is the door\'s', () => {
     const committed = JSON.parse(fs.readFileSync(ALLOWLIST, 'utf8')).scripts
-    expect(committed.map((s) => s.slug)).toEqual(['adx-and-di-for-v4'])
+    // RS Rating (fred6724) joined on 2026-11-16, on the SUBSTITUTED path (docs/pine/RS-RATING-TRANSFER.md)
+    expect(committed.map((s) => s.slug)).toEqual(['adx-and-di-for-v4', 'rs-rating-fred6724'])
+    expect(committed[1].admission).toBe('substituted')
     expect(committed[0].sha256).toBe(docs()['adx-and-di-for-v4'].meta.runtimeSourceHash)
   })
 
