@@ -220,6 +220,7 @@ describe('S3 — a region holding history is drawn while it has run on every bar
       const stop = run(mk('a = close > open ? ta.highest(high, 5) : na', 'plot(a)'))
       expect(stop.stop && stop.stop.guard).toBe(R4)
       expect(stop.stop.message).toMatch(/one arm of `\?:`/)
+      expect(stop.stop.message).toContain('`ta.highest` (line 3)')   // the stop names the call
     }
     // ⛔ a v5 arm keeps no per-call-site serving (Q-PT1 is not captured): the witnessed v6 `ta.sma`
     // arm is per call site, the v5 one is checked

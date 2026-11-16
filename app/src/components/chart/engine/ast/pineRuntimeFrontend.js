@@ -3421,6 +3421,24 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return false
   }
   const SHORT_CIRCUIT = new Set(['and', 'or', '&&', '||'])
+  /** ⭐ HIST-S3 — the CALL a checked arm's stop names (the member reads which call it was): the first
+   *  call `lexArmHistory` counts as history, in source order, as `` `name` ``; an offset over an
+   *  expression is named as such. Falls back to the family sentence when none is found. */
+  const armHistoryWhat = (n) => {
+    let found = null
+    const walk = (x, d = 0) => {
+      if (found !== null || !x || typeof x !== 'object' || d > 64) return
+      if (Array.isArray(x)) { x.forEach((y) => walk(y, d + 1)); return }
+      if (x.type === 'call' && lexArmHistory(x)) {
+        const inner = (x.args || []).some((a) => lexArmHistory(a && a.value !== undefined ? a.value : a))
+        if (!inner) { found = `\`${String(x.name || '')}\``; return }
+      }
+      if (x.type === 'offset' && x.arg && x.arg.type !== 'name') { found = 'the history of an expression (`(…)[k]`)'; return }
+      for (const k of Object.keys(x)) if (k !== 'tok' && x[k] && typeof x[k] === 'object') walk(x[k], d + 1)
+    }
+    walk(n)
+    return found || 'history (a `ta.*` call, or a function that keeps it)'
+  }
   // ⭐⭐ HIST-S1 — a `?:` written before Pine v4 (v1 is no `//@version`) evaluates BOTH arms on
   // every bar (`armHistoryGuard` names the captures); v4 and later run only the arm taken.
   const LEGACY_EAGER_ARMS = pineVersion === null || pineVersion < 4
@@ -8690,7 +8708,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             lazyArmRegion = checked ? null : r4Region
             try { return lowerArm(arm, scope) } finally { lazyArmRegion = prev }
           }, checked && lexArmHistory(arm)
-            ? { what: 'history (a `ta.*` call, or a function that keeps it)', at: locate(node.tok), tok: node.tok }
+            ? { what: armHistoryWhat(arm), at: locate(node.tok), tok: node.tok }
             : null)
           const test = lowerExpr(node.test, scope)
           const yes = lowerLazyArm(node.yes)
