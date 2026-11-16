@@ -389,3 +389,24 @@ export function ensureRuntimeLane({ factory } = {}) {
   const canWork = typeof Worker === 'function' && typeof window !== 'undefined'
   if (factory || canWork) setRuntimeRunner(workerRunner(factory || defaultFactory))
 }
+
+/** ⚡ PRELOAD (perf/pine-runtime-chunk-preload) — the lane, AND ITS WORKER, now.
+ *
+ *  ⚰️ Measured on production (RS Rating, RDDT 1D, 2026-11-16): "Add this script to my chart" to
+ *  labels drawn took 7.98 s in a cold tab against 1.85 s warm, and the cold cost is the worker
+ *  chunk (~1.3 MB, ~380 KB gzip) fetched, parsed and evaluated on the FIRST job: `workerOf` spawns
+ *  the worker only when a run is posted, so the download started after the bars and the run had
+ *  already been asked for.
+ *
+ *  This spawns it ahead of the first job, so the chunk loads while the member is still reading the
+ *  preview or the chart is still painting. Idempotent (`workerOf` keeps one worker), posts nothing,
+ *  arms no watchdog (that is per job). Callers decide WHEN (never before the first chart paint) and
+ *  WHETHER (only for a member whose runtime pane is permitted: this module is reached only behind
+ *  that gate). Returns whether a worker now exists.
+ *  ⛔ Without `Worker` (tests, a non-browser host) it registers the lane and spawns nothing. */
+export function warmRuntimeLane({ factory } = {}) {
+  ensureRuntimeLane({ factory })
+  const canWork = typeof Worker === 'function' && typeof window !== 'undefined'
+  if (!factory && !canWork) return false
+  return !!workerOf(factory || defaultFactory)
+}
