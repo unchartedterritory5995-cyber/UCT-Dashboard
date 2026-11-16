@@ -109,8 +109,11 @@ export function panelsAfter(plan, host) {
 }
 
 // ── what the member's words say ────────────────────────────────────────────────────────────────────────────────────────
-const POS = /\b(top[- ]left|top[- ]right|bottom[- ]left|bottom[- ]right|upper[- ]left|upper[- ]right|lower[- ]left|lower[- ]right|left|right|top|bottom|upper|lower)\b/gi
-const normPos = (w) => w.toLowerCase().replace(/\s/, '-').replace('upper', 'top').replace('lower', 'bottom')
+// (the ONE position vocabulary — a corner, a side, an edge, the middle; "far" / "-most" / "-hand" say the same place: probe 60b
+//  "the leftmost chart" is the left one — normPos reduces every form to the host's own position word)
+const POS = /\b((?:top|bottom|upper|lower)[- ](?:left|right)(?:most|[- ]hand)?|(?:far[- ])?(?:left|right)(?:most|[- ]hand)?|(?:far[- ])?(?:top|bottom|upper|lower)(?:most)?|middle|cent(?:er|re))\b(?![-‐][A-Za-z])/gi
+const normPos = (w) => w.toLowerCase().replace(/^far[- ]/, '').replace(/most$/, '').replace(/[- ]hand$/, '').replace(/^cent(?:er|re)$/, 'middle')
+  .replace(/\s/, '-').replace('upper', 'top').replace('lower', 'bottom')
 const KEEP_LEAD = /\b(?:keep|keeping|kept|leave|leaving|retain|retaining|preserve|preserving|hold on to|holding on to|(?:do not|don['’]?t|never) (?:change|touch|replace|remove|move|lose|drop)|without (?:changing|touching|replacing|removing|losing|dropping)|(?:plus|with|alongside|besides|and|along with) (?:my|the|our) (?:existing|current|old|original))\s+/gi
 const KEEP_END = /(?=$|[.;!?]|,\s*(?:but|then|and then)\b|\s(?:but|then|while|so)\b|\sand (?:then |also )?(?:add|put|make|change|switch|replace|set|open|show|create)\b)/i
 const STAY = /\b((?:[A-Z]{1,5}|\$[A-Za-z]{1,5})(?:\s*(?:,|and|&)\s*(?:[A-Z]{1,5}|\$[A-Za-z]{1,5}))*)\s+(?:stays?|remains?|should stay|stay(?:s)? put|in place)\b/g
@@ -441,6 +444,92 @@ export function identifiesChart(w, e, host, { selected = null, subject = null, p
 // (every TAKE_OFF phrase is a removal word too: "take down SPY" / "taking off SPY" alone never re-symbols — H14 follow-up 3)
 const REMOVE_WORDS = new RegExp(String.raw`\b(?:remove|removing|delete|deleting|drop|dropping|get rid of|take (?:off|out|away)|${altOf(TAKE_OFF)})\b`, 'i')
 const CHART_WORD = /\b(?:charts?|panels?|graphs?|widgets?)\b/i
+// ⛔ REMOVAL TARGET (AUDIT held-out probe 59, 2026-11-16 — pre-existing): "close the SPY chart" on SPY · QQQ · IWM with a plan
+// closing the QQQ chart was APPLIED — unique identification read re-symbols only; a removal's TARGET was never checked against the
+// words. A removal whose words NAME a chart — its ticker, its position / ordinal, a deixis on the selected / conversation chart, the
+// member's pick — closes ONLY the chart(s) those words identify: the SAME reader as a re-symbol (identifiesChart on asRemoval words),
+// less every chart spatialCheck excludedCharts sets aside. A ticker on two or more independent charts (a link group is one object:
+// naming a linked pair names every chart in it) names them all only in the plural ("both SPY charts"); in the singular, unless a
+// position / deixis narrows it, it is asked. Words that name no chart: as before. (a grid the words state: its own COUNT rule)
+const NAMES_CHART = new Set(['pick', 'name', 'position', 'ordinal', 'deixis'])
+// (identifiesChart refuses every REMOVE_WORDS sentence — AUDIT condition 6, no re-symbol licence; for a removal's TARGET the
+//  same reader runs with those verbs read as the one removal verb it does not gate, "close")
+const REMOVE_WORDS_ALL = new RegExp(REMOVE_WORDS.source, 'gi')
+const asRemoval = (w) => String(w || '').replace(REMOVE_WORDS_ALL, 'close')
+// (the REMOVAL gate also reads "take off / take down <chart>" and "take <the SPY chart> off": the target is checked above)
+const REMOVAL_TAKE = /\btake (?:off|down|away|out)\b|\btake (?:[^\s.;!?]+ ){0,4}?(?:chart|one|panel|graph)s? (?:off|down|away|out)\b/i
+// (a removal may name SEVERAL positions — "close the middle and right charts": each position word of the ONE vocabulary, POS,
+//  read against the chart's own position word, as `named` does)
+const positionSaid = (w, e) => named(w, e)
+// ⛔ FAIL CLOSED (AUDIT probe 60b: "remove the leftmost chart" with a plan closing the RIGHT chart was applied — the position word was
+// unknown, so no target was read and the removal fell through as untargeted): words that ask to remove ONE SPECIFIC chart — a
+// singular chart noun under a determiner, with or without a qualifier ("the … chart", "that one", "this chart", "my … chart") — and
+// resolve to NO chart never close one: asked. Only a whole-board or set removal ("close all my charts", "clear the board", "close
+// everything except X", "close the charts") proceeds without a named target. Never depends on the position vocabulary.
+const SPECIFIC_CHART = /\b(?:the|that|this|my|your|our)\s+(?:[^\s.,;:!?]+\s+){0,3}?(?:chart|one|panel|graph|widget)\b(?!s)/i
+const SET_REMOVAL = /\b(?:all|every|everything|each|both|whole|entire|rest|others|remaining|except|excluding|other\s+than|apart\s+from|but\s+not)\b|\b(?:clear|close|wipe|empty|reset|clean(?:\s+up)?)\s+(?:out\s+)?(?:the|my)\s+(?:whole\s+|entire\s+)?(?:board|layout|screen)\b/i
+const BACK_REF = /\b(?:the|that)\s+(?:chart|one|graph|panel)\s+(?:(?:that|which)\s+)?(?:I|you|we)\b/i
+const SEVERAL = /\b(?:charts|ones|panels|graphs|widgets|and)\b|[&,]/i
+const pluralOf = (sym) => new RegExp(String.raw`\b(?:both|all|every|each)\b[^.;!?]*?\$?${escRe(sym)}(?![A-Za-z0-9])|(?:^|[^A-Za-z0-9])\$?${escRe(sym)}\s+(?:charts|ones|panels|graphs)\b`, 'i')
+export function removalTargets(w, host, { selected = null, subject = null, picked = null } = {}) {
+  const all = liveCharts(host)
+  const ids = new Set()
+  // (the SOLE chart in scope — a link group is one object — is named by the class noun: "close the chart", as for a re-symbol)
+  //  (counted over the chart WIDGETS a removal can close: closing one closes its chart tabs with it, so a tab is no other target)
+  const groups = new Set(all.map(c => (linked(c.group) ? `g:${c.group}` : `c:${c.ref}`)))
+  const sole = groups.size === 1
+  for (const c of all) {
+    const e = { ref: c.ref, symbol: up(c.symbol), position: c.position || null }
+    const how = identifiesChart(asRemoval(w), e, host, { selected, subject, picked, sole })
+    if (NAMES_CHART.has(how) || (sole && how === 'class') || positionSaid(w, e)) ids.add(c.ref)
+    // (a back-reference to the conversation's chart — "the one I just changed", "the chart you made" — is that chart, as a deixis is)
+    if (subject && c.ref === subject && BACK_REF.test(w)) ids.add(c.ref)
+  }
+  const ambiguous = []
+  for (const sym of new Set(all.map(c => up(c.symbol)).filter(Boolean))) {
+    if (sameSymbolObjects(host, sym) <= 1 || !(symbolSaid(w, sym) || pluralOf(sym).test(w))) continue
+    const mine = all.filter(c => up(c.symbol) === sym)
+    if (mine.some(c => ids.has(c.ref))) continue                    // a position / deixis narrowed it
+    if (pluralOf(sym).test(w)) for (const c of mine) ids.add(c.ref)
+    else ambiguous.push({ symbol: sym, charts: mine })
+  }
+  let excluded = new Set()
+  try { excluded = new Set(excludedCharts(w, all, selected)) } catch { excluded = new Set() }
+  for (const r of excluded) ids.delete(r)
+  return { ids, ambiguous, excluded, all }
+}
+function removalTargetRefusal(w, host, removed, { selected, subject, picked, known }) {
+  if (requestedPanels(w) != null || gridStated(w, known)) return null
+  const { ids, ambiguous, excluded, all } = removalTargets(w, host, { selected, subject, picked })
+  const where = (c) => (c.position ? `the ${c.position.replace('-', ' ')} one` : c.label || 'a chart')
+  if (ambiguous.length) {
+    const a = ambiguous[0]
+    return `Which ${a.symbol} chart should I close? ${a.charts.length} charts show ${a.symbol} (${listOf(a.charts.map(where))}), so nothing was changed — say which one, for example “close the ${a.charts[0].position ? `${a.charts[0].position.replace('-', ' ')} ` : ''}${a.symbol} chart”, or “close both ${a.symbol} charts”.`
+  }
+  const specific = !ids.size && !SET_REMOVAL.test(w) ? SPECIFIC_CHART.exec(w) : null
+  if (specific) {
+    const eg = all.find(c => c.symbol) || all[0]
+    return `Which chart should I close? I can’t tell which chart “${specific[0]}” is, so nothing was changed. Name it by its ticker or its place — for example “close ${eg?.symbol ? `the ${up(eg.symbol)} chart` : 'the left chart'}”.`
+  }
+  // (…and ONE specific chart the words fit SEVERAL objects of — "the bottom chart" on a 2×2 — is asked, never a guess: a link group is
+  //  one object; a plural noun or a list names several on purpose)
+  const one = !SET_REMOVAL.test(w) && !SEVERAL.test(w) ? SPECIFIC_CHART.exec(w) : null
+  if (one && new Set(all.filter(c => ids.has(c.ref)).map(c => (linked(c.group) ? `g:${c.group}` : `c:${c.ref}`))).size > 1) {
+    const fits = all.filter(c => ids.has(c.ref)).map(where)
+    return `Which chart should I close? “${one[0]}” fits ${fits.length} charts (${listOf(fits)}), so nothing was changed — say which one.`
+  }
+  const bad = removed.filter(e => excluded.has(e.ref) || (ids.size && !ids.has(e.ref)))
+  if (!bad.length) return null
+  // (a ticker on several charts is told apart by its position: "the middle NVDA chart")
+  const label = (c) => {
+    const sym = up(c.symbol)
+    if (!sym) return where(c)
+    const pos = all.find(x => x.ref === c.ref)?.position || c.position
+    return all.filter(x => up(x.symbol) === sym).length > 1 && pos ? `the ${pos.replace('-', ' ')} ${sym} chart` : `the ${sym} chart`
+  }
+  const meant = all.filter(c => ids.has(c.ref)).map(label)
+  return `Which chart should I close? ${meant.length ? `You named ${listOf([...new Set(meant)])}, but` : 'Your words leave that chart out, but'} this would have closed ${listOf([...new Set(bad.map(label))])}, so nothing was changed. Say which chart to close — for example “close ${meant[0] || label(bad[0])}”.`
+}
 export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply', subject = null, picked = null, made = null, lists = null, out = null } = {}) {
   if (!plan?.ok) return null
   const w = String(words || '')
@@ -548,8 +637,10 @@ export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply'
         if (inList.length) return `Do you mean ${up(e.symbol)} in your ${listOf(inList.map(l => `“${l.name}”`))} list, or the ${up(e.symbol)} chart? Nothing was changed — say “remove ${up(e.symbol)} from ${inList[0].name}”, or “close the ${up(e.symbol)} chart”.`
         return `I didn’t change anything: “${up(e.symbol)}” alone doesn’t say to close a chart. Say “close the ${up(e.symbol)} chart” if that is what you want.`
       }
+      const wrong = removalTargetRefusal(w, host, removed, { selected, subject, picked, known })
+      if (wrong) return wrong
     }
-    if (removed.length && mode === 'apply' && !REMOVAL.test(removalWords(w))) {
+    if (removed.length && mode === 'apply' && !REMOVAL.test(removalWords(w)) && !REMOVAL_TAKE.test(w)) {
       return `I didn’t change anything: this would have removed ${listOf(removed.map(nameOf))}, and you didn’t ask to remove a chart. Say which chart to remove or replace.`
     }
   }
