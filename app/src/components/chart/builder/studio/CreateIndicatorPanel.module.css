@@ -368,6 +368,16 @@
   font-size: 11px; color: var(--menu-text-faint, #93939a);
 }
 
+/* L8 — the quiet way to send a conversation to UCT, at the end of the log. */
+.sendRow { padding: 2px 12px 6px; }
+.sendLink {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font-family: inherit; font-size: 11px; color: var(--menu-text-faint, #93939a);
+  text-decoration: underline; text-underline-offset: 2px;
+}
+.sendLink:hover { color: var(--menu-text, #ededed); }
+@media (max-width: 1024px) { .sendLink { min-height: 44px; } }
+
 .foot {
   flex: none;
   display: flex; align-items: center; gap: 8px;

@@ -17,7 +17,7 @@
 // `onChange` — the chart's own settings writer, exactly as BuilderSheet does.
 
 import { withoutGuardIds } from '../../engine/ast/guardIdText'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import UIcon from '../../../ui/UIcon'
 import * as engineRegistry from '../../engine/nativeRegistry'
@@ -31,6 +31,10 @@ import { withPendingInputs } from './editPreview'
 import { conversationEditability, CARRIED_NOTE } from '../authoring/memberWords'
 import { ackCheckboxText } from '../authoring/repaintWarning'
 import styles from './CreateIndicatorPanel.module.css'
+import useReportsConfig from '../../supportLoop/useReportsConfig'
+import { hasSomethingToSend } from './sendConversation'
+// ⭐ L8 — loaded on the press: most conversations are never sent
+const SendConversationDialog = lazy(() => import('./SendConversationDialog'))
 import { safeCssColour } from '../../engine/objectColour'
 
 const EXAMPLES = Object.freeze(['Add a 20 EMA', 'RSI overbought signal', 'Volume above its 50-day average'])
@@ -333,6 +337,9 @@ export default function CreateIndicatorPanel({
   // discard it, or keep editing). An opened-but-untouched or just-saved definition
   // closes without a question; a create keeps the accepted no-prompt contract.
   const [confirmLeave, setConfirmLeave] = useState(null)   // 'close' | 'discard' | null
+  // ⭐ L8 — the support loop's report door: asked once a member has written something
+  const reportsCfg = useReportsConfig(hasSomethingToSend(transcript))
+  const [sendOpen, setSendOpen] = useState(false)
   // ⭐ V1 — the History list (the earlier steps of this draft). Closed by a pick, by Esc,
   // by its own button, and whenever there is no longer more than one step to offer.
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -499,6 +506,15 @@ export default function CreateIndicatorPanel({
         )}
 
         {busy && <Working onStop={conv.stop} />}
+        {/* ⭐ L8 — "SEND THIS TO UCT": offered only while the support loop's report door is on
+            (`PINE_SUPPORT_REPORTS_ENABLED`) and once the member has said something. Nothing is
+            sent from here: the press opens the dialog that shows what would be sent and asks. */}
+        {!busy && reportsCfg && reportsCfg.reportsEnabled && hasSomethingToSend(transcript) && (
+          <div className={styles.sendRow}>
+            <button type="button" className={styles.sendLink} data-testid="create-indicator-send-to-uct"
+              onClick={() => setSendOpen(true)}>Something not right? Send this conversation to UCT</button>
+          </div>
+        )}
         <div ref={logEndRef} />
       </div>
 
@@ -645,6 +661,17 @@ export default function CreateIndicatorPanel({
     </aside>
   )
 
-  if (typeof document === 'undefined') return panel
-  return createPortal(panel, dockHost || document.body)
+  const withSend = sendOpen ? (
+    <>
+      {panel}
+      <Suspense fallback={null}>
+        <SendConversationDialog open onClose={() => setSendOpen(false)} transcript={transcript}
+          working={state.working} readbackLines={rb.lines} sym={sym} tf={tf}
+          maxSourceBytes={reportsCfg ? reportsCfg.maxSourceBytes : undefined}
+          maxNoteChars={reportsCfg ? reportsCfg.maxNoteChars : undefined} />
+      </Suspense>
+    </>
+  ) : panel
+  if (typeof document === 'undefined') return withSend
+  return createPortal(withSend, dockHost || document.body)
 }
