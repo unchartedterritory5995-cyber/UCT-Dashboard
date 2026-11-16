@@ -104,3 +104,18 @@ reads as one unattributable error). Each has an `A00` `bar_index` control and on
   stop, the sort check, rightmost-of-empty, the every/some refusal, the enum title clash, the for-in sentence, the
   `na`-index rule, the object door's master answer, v5 kept out), validated by `ci_mutant_runner.validate`, run by
   pine-heavy's dispatch mutants job (run 43970583944).
+
+### Harness verdict moves and the REACH record (pine-heavy dispatch 43970583944, head `caa9e75b17`)
+
+- Mutants job: SUCCESS, all 11 killed and every file restored byte-equal.
+- Verdicts against #1472's own pine-heavy run (43963117595), the same 799 captures: production lane **0 moves**;
+  runtime-on lane **2 moves, both INCONCLUSIVE -> MATCH**: `bollinger-band-width-percentile-rddt-1d-2026-11-14` and
+  `vw-uie3-na-index-v4-spy-1d-2026-11-16`. No new DIVERGE, no MATCH -> DIVERGE. (Against master's committed snapshots the
+  diff is larger only because #1472's 55 captures are not in them yet.)
+- The one red leg was `capabilityEvidenceLane.test.js`, which re-asks the door for every capture of the committed REACH run
+  (`docs/pine/evidence/2026-11-15-cond-ta/runs/report.json`): BBWP was recorded refused (`lane: null`) and the door now
+  draws it on the runtime lane, admitted. The record follows the door: BBWP's entry is `lane: runtime`, `runtimeOn:
+  MATCH`, and the population counts it changes move with it (capture 43 -> 44 runtime-lane, 92 -> 91 refused;
+  committed 20 -> 21, 17 -> 16; re-checked against the list). The runtime-on snapshot's BBWP row is replaced in place by
+  the cloud run's own re-grade (MATCH, all 6 items, 666 of 666 bars), with the lane counts it changes (declined 294 ->
+  293, drawn 68 -> 69, the one `runtime:array` decline gone). REACH holds: the runtime lane draws it and it grades MATCH.
