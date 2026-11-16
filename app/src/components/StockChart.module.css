@@ -649,11 +649,17 @@
    the O/H/L/C VALUES, which made the strip open on its loudest token and gave the
    numbers a rival at the left edge. Same family as the keys now; the letter
    spacing stays, because that is what keeps `SEP 15` from reading as a ticker. */
+/* ⭐ UCT SIGNATURE (owner-approved lab "2 · Chart legend", 2026-11-15): the date and the
+   O/H/L/C letters are small grey (text faint #93939a, 600), the numbers bright #f8f7f3 600
+   with even-width digits, the change green/red. ⛔ THE GREY IS THE THEME-AWARE MUTED INK AT
+   ITS 0.72 STEP (`LEGEND_ROLES.muted`, chart/legendInk.js), never a hard-coded hex: on the
+   dark canvas that lands near the signature grey, and on every other theme/canvas the ink
+   still clears 4.5:1 (chartThemes.legendInk.test.js). No tracking. */
 .barDate {
   color: var(--legend-ink-muted, var(--text-muted));
-  font-weight: 500;
-  opacity: 0.82;
-  letter-spacing: 0.02em;
+  font-weight: 600;
+  font-size: 11px;
+  opacity: 0.72;
 }
 /* One `O 708.80` pair. The gap between key and value is deliberately TIGHTER
    than the gap between fields (4px against 13px) — that ratio is what makes the
@@ -683,12 +689,17 @@
    the key steps back and the value is left exactly as it was. */
 .barKey {
   color: var(--legend-ink-muted, var(--text-muted));
-  font-weight: 400;
+  font-weight: 600;
+  font-size: 10.5px;
   opacity: 0.72;
 }
+/* ⭐ The member's legend colour (header.colors.legend) tints the VALUES: it arrives as
+   `--legend-ink-bright` (legendInk.js), so a member who chose one still sees it, on the
+   numbers, while the keys stay signature grey. */
 .barVal {
   color: var(--legend-ink-bright, var(--text-bright));
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 /* ⛔ THE CHANGE FIGURES CARRY NO KEY AND THEIR OWN INK — the colour IS the
    label. Weight matches `.barVal` so the strip has one value weight throughout. */

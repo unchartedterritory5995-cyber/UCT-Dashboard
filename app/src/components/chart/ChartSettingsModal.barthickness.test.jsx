@@ -3,44 +3,47 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import ChartSettingsModal from './ChartSettingsModal'
 import { mergeChartSettings } from './chartDefaults'
 
-// Bar thickness (Price Style tab). Lightweight Charts exposes a single boolean
+// Thin bars (Price style → Colors). Lightweight Charts exposes a single boolean
 // (BarStyleOptions.thinBars) and nothing at all on CandlestickSeries, so the control
-// is intentionally two-state AND intentionally absent for candles/hollow. These tests
+// is intentionally an on/off AND intentionally absent for candles/hollow. These tests
 // pin both halves — a future "add more thickness steps" change should fail here first.
+// (owner 11-15: it was a Bar thickness Thin/Thick menu; it is the "Thin bars" soft square now.)
 
 const withType = (chartType, extra = {}) =>
   mergeChartSettings(JSON.stringify({ chartType, ...extra }))
 const lastCall = (spy) => spy.mock.calls[spy.mock.calls.length - 1][0]
+const thinBars = () => screen.getByRole('switch', { name: 'Thin bars' })
 
-describe('ChartSettingsModal — bar thickness', () => {
+describe('ChartSettingsModal — thin bars', () => {
   it('defaults to Thin, matching the long-standing look', () => {
     expect(withType('bars').candles.thinBars).toBe(true)
   })
 
   it.each(['bars', 'hlc'])('shows the control for %s and writes candles.thinBars', (type) => {
     const onChange = vi.fn()
-    render(<ChartSettingsModal open settings={withType(type)} onChange={onChange} />)
+    const { rerender } = render(<ChartSettingsModal open settings={withType(type)} onChange={onChange} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Thick' }))
+    fireEvent.click(thinBars())
     expect(lastCall(onChange).candles.thinBars).toBe(false)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Thin' }))
+    // the switch shows the CURRENT value, so hand the window its new (thick) settings first
+    rerender(<ChartSettingsModal open settings={withType(type, { candles: { thinBars: false } })} onChange={onChange} />)
+    fireEvent.click(thinBars())
     expect(lastCall(onChange).candles.thinBars).toBe(true)
   })
 
-  it('marks the active option pressed', () => {
+  it('shows the active state', () => {
     const thick = withType('bars', { candles: { thinBars: false } })
     render(<ChartSettingsModal open settings={thick} onChange={vi.fn()} />)
 
-    expect(screen.getByRole('button', { name: 'Thick' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Thin' })).toHaveAttribute('aria-pressed', 'false')
+    expect(thinBars().getAttribute('aria-checked')).toBe('false')
   })
 
   it.each(['candles', 'hollow', 'line', 'area'])(
     'hides the control for %s — the library offers no width option there', (type) => {
       render(<ChartSettingsModal open settings={withType(type)} onChange={vi.fn()} />)
-      expect(screen.queryByText('Bar thickness')).toBeNull()
-      expect(screen.queryByRole('button', { name: 'Thick' })).toBeNull()
+      expect(screen.queryByText('Thin bars')).toBeNull()
+      expect(screen.queryByRole('switch', { name: 'Thin bars' })).toBeNull()
     })
 
   it('preserves the other candle settings when toggling thickness', () => {
@@ -48,7 +51,7 @@ describe('ChartSettingsModal — bar thickness', () => {
     const s = withType('bars', { candles: { upColor: '#abcdef' } })
     render(<ChartSettingsModal open settings={s} onChange={onChange} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Thick' }))
+    fireEvent.click(thinBars())
     expect(lastCall(onChange).candles.upColor).toBe('#abcdef')
   })
 })

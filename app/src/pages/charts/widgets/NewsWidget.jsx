@@ -229,7 +229,7 @@ export default function NewsWidget({
     <div ref={rootRef} className={styles.root} style={rootStyle}>
       {settingsOpen && (
         <NewsSettingsPanel
-          title="News & Catalysts Settings"
+          title="News & Catalysts settings"
           extraSections={[{
             label: 'Header',
             rows: [

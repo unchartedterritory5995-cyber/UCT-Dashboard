@@ -55,6 +55,24 @@ describe('A9 · readoutChipName — `UCT RS · SPY`, never `RS(SPY)`', () => {
     expect(RS.readout.find((r) => r.key === 'benchmark').source).toBe('scalar:benchmark.name')
   })
 
+  // ⭐ 2026-11-15 (found by the stale-rail repair, PR #1367): before the server names the benchmark it
+  // resolved (no envelope yet, or a v3 payload without `benchmark.name`), an AUTO choice printed its
+  // enum CODE: `UCT RS · SECTOR`. A code that is not a symbol prints its option's label instead; a
+  // code the label names as the symbol (`S&P 500 (SPY)`) still prints as the symbol.
+  it('an auto benchmark the server has not named yet reads its label, never the raw code', () => {
+    expect(readoutChipName(rsChip({ benchmark: 'SECTOR' }), RS)).toBe('UCT RS · Sector (auto)')
+    expect(readoutChipName(rsChip({ benchmark: 'INDUSTRY' }), RS)).toBe('UCT RS · Industry group (auto)')
+    const v3 = rsChip({ benchmark: 'SECTOR' }, { scalarsOf: () => ({ benchmark: { resolved: 'XLK' }, rating: { ibd: 94 } }) })
+    expect(readoutChipName(v3, RS)).toBe('UCT RS · Sector (auto) · 94')
+    for (const name of ['SECTOR', 'INDUSTRY', 'THEME']) {
+      expect(readoutChipName(rsChip({ benchmark: name }), RS)).not.toMatch(new RegExp(`· ${name}\\b`))
+    }
+    // controls: a symbol code prints as itself, and the server's name still wins once it lands
+    expect(readoutChipName(rsChip({ benchmark: 'IWM' }), RS)).toBe('UCT RS · IWM')
+    const named = rsChip({ benchmark: 'SECTOR' }, { scalarsOf: () => ({ benchmark: { resolved: 'XLK', name: 'XLK' }, rating: { ibd: 94 } }) })
+    expect(readoutChipName(named, RS)).toBe('UCT RS · XLK · 94')
+  })
+
   it('works whether legendParams names the benchmark or is empty (the engineering map\'s design)', () => {
     const noParams = { ...RS, meta: { ...RS.meta, legendParams: [] } }
     // the chip suffix carries the benchmark row; the stem is the short name

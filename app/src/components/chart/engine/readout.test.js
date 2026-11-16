@@ -835,7 +835,8 @@ describe('⭐⭐ `opts.scalarsOf` — the readout rows ride the chip; the label 
   it('until the payload lands the REQUESTED benchmark stands; a fallback row is muted and never in the suffix', () => {
     const nothingYet = legendChips([rsBinding()], null, registry, [rsInst({ benchmark: 'SECTOR' })],
       { scalarsOf: () => null })[0]
-    expect(nothingYet.suffix).toBe(' · SECTOR')
+    // the request stands, in words: an AUTO option prints its menu label, never its code (2026-11-15, #1369)
+    expect(nothingYet.suffix).toBe(' · Sector (auto)')
     expect(nothingYet.readout).toEqual([])
     const noRating = legendChips([rsBinding()], null, registry, [rsInst({ benchmark: 'SECTOR' })],
       { scalarsOf: () => ({ benchmark: { resolved: 'XLK' } }) })[0]

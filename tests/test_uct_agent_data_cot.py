@@ -19,9 +19,9 @@ from api.services.uct_agent.marketdata import cot
 from api.services.uct_agent.marketdata import envelope as env
 from api.services.uct_agent.marketdata import gateway as gw
 
-# Friday 2026-11-13, 18:00 ET — after the 16:30 publish threshold, so the expected report is Tuesday 2026-11-10
-NOW = datetime(2026, 11, 13, 18, 0, tzinfo=cot._ET)
-EXPECTED = date(2026, 11, 10)
+# Friday 2026-10-30, 18:00 ET (an ordinary week; the holiday week is pinned below) — after the 16:30 publish threshold, so the expected report is Tuesday 2026-10-27
+NOW = datetime(2026, 10, 30, 18, 0, tzinfo=cot._ET)
+EXPECTED = date(2026, 10, 27)
 
 
 def _rows(last: date, n: int, *, skip: tuple = (), base: int = 1000):
@@ -90,13 +90,13 @@ def test_as_of_is_the_tuesday_report_date_with_the_friday_delay_and_not_stale(st
     out = _read({"symbols": ["gold"], "weeks": 160})
     assert env.validate_envelope(out) == []
     assert out["status"] == "ok" and out["freshness"] == "periodic" and out["stale"] is False
-    assert out["as_of"] == "2026-11-10T00:00:00Z"
+    assert out["as_of"] == "2026-10-27T00:00:00Z"
     assert out["delay_s"] == 3 * 86400 and out["provider_calls"] == 0
     d = out["data"]
-    assert d["report_date"] == "2026-11-10" and d["expected_report_date"] == "2026-11-10" and d["delay_days"] == 3
+    assert d["report_date"] == "2026-10-27" and d["expected_report_date"] == "2026-10-27" and d["delay_days"] == 3
     s = d["series"][0]
     assert s["symbol"] == "GC" and s["name"] == "Gold" and s["weeks"] == 160 and s["missing_weeks"] == 0
-    assert s["rows"][-1]["date"] == "2026-11-10" and set(s["rows"][0]) == {
+    assert s["rows"][-1]["date"] == "2026-10-27" and set(s["rows"][0]) == {
         "date", "large_spec_net", "commercial_net", "small_spec_net", "open_interest"}
     assert cot.NOTE_DELAY in out["notes"] and cot.NOTE_WEEKLY in out["notes"]
     assert calls == [("GC", 160)]
@@ -107,7 +107,7 @@ def test_stale_when_older_than_the_services_expected_report(store):
     data["GC"] = _rows(EXPECTED - timedelta(days=14), 60)       # 17 days old on the read: two releases missed
     out = _read({"symbols": ["GC"], "weeks": 52})
     assert out["stale"] is True and out["data"]["series"][0]["stale"] is True
-    assert any(n.startswith("the newest stored report is 2026-10-27") for n in out["notes"])
+    assert any(n.startswith("the newest stored report is 2026-10-13") for n in out["notes"])
 
 
 def test_stale_uses_the_services_own_calendar_rule_not_a_copy(store, monkeypatch):
@@ -125,7 +125,7 @@ def test_friday_before_the_publish_time_expects_the_previous_tuesday(store, monk
     data["GC"] = _rows(EXPECTED - timedelta(days=7), 10)
     monkeypatch.setattr(cot, "now_et", lambda: NOW.replace(hour=12))
     out = _read({"symbols": ["GC"], "weeks": 10})
-    assert out["stale"] is False and out["data"]["expected_report_date"] == "2026-11-03"
+    assert out["stale"] is False and out["data"]["expected_report_date"] == "2026-10-20"
 
 
 def test_comparison_as_of_is_the_oldest_report_and_only_the_lagging_market_is_stale(store):
@@ -133,7 +133,7 @@ def test_comparison_as_of_is_the_oldest_report_and_only_the_lagging_market_is_st
     data["GC"] = _rows(EXPECTED, 30)
     data["SI"] = _rows(EXPECTED - timedelta(days=7), 30)
     out = _read({"symbols": ["gold", "silver"], "weeks": 30})
-    assert out["as_of"] == "2026-11-03T00:00:00Z" and out["stale"] is True
+    assert out["as_of"] == "2026-10-20T00:00:00Z" and out["stale"] is True
     assert [(s["symbol"], s["stale"]) for s in out["data"]["series"]] == [("GC", False), ("SI", True)]
 
 
@@ -232,3 +232,18 @@ def test_an_admin_reads_it_through_the_gateway(store):
     r = _app({"id": "u-admin", "plan": "pro", "role": "admin"}).post(
         "/api/agent/data", json={"kind": cot.KIND, "params": {"symbols": ["gold"], "weeks": 10}, "turn_id": "t-a"})
     assert r.status_code == 200 and r.json()["data"]["series"][0]["symbol"] == "GC" and calls == [("GC", 10)]
+
+
+# ── CFTC's holiday calendar (owner live test 2026-11-13): the Veterans Day week's report comes MONDAY 11-16 ──────────
+def test_a_holiday_week_is_not_flagged_stale_until_cftcs_delayed_monday_release(store, monkeypatch):
+    data, _ = store
+    data["GC"] = _rows(date(2026, 11, 3), 30)                        # the newest report CFTC has published by Fri 11-13
+    for when, turn in ((datetime(2026, 11, 13, 18, 0, tzinfo=cot._ET), "h1"), (datetime(2026, 11, 16, 12, 0, tzinfo=cot._ET), "h2")):
+        monkeypatch.setattr(cot, "now_et", lambda when=when: when)
+        out = _read({"symbols": ["gold"], "weeks": 30}, turn=turn)
+        assert out["stale"] is False and out["data"]["expected_report_date"] == "2026-11-03", when
+        assert not any(n.startswith("the newest stored report is") for n in out["notes"])
+    # after the delayed Monday release, the same store IS stale (a real miss is still flagged)
+    monkeypatch.setattr(cot, "now_et", lambda: datetime(2026, 11, 16, 17, 0, tzinfo=cot._ET))
+    out = _read({"symbols": ["gold"], "weeks": 30}, turn="h3")
+    assert out["stale"] is True and out["data"]["expected_report_date"] == "2026-11-10"
