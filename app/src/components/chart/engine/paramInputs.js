@@ -180,6 +180,9 @@ export function specializeParams(def, inputs) {
   const out = { ...def, compute: { ...compute, ast, ...(trees ? { trees } : {}) } }
   // non-enumerable: which instance values this copy was specialised for (diagnostics)
   Object.defineProperty(out, 'paramValues', { value: Object.fromEntries(moved.map(([s, v]) => [s.key, v])), enumerable: false })
+  // non-enumerable: the stored document this copy specialises. A digest the door wrote over the stored
+  // trees (the run half's program stamp, `runHalfProgram.js`) is checked against THIS, never the copy.
+  Object.defineProperty(out, 'specializedFrom', { value: def, enumerable: false })
   if (byDef.size > 32) byDef.clear()
   byDef.set(sig, out)
   return out

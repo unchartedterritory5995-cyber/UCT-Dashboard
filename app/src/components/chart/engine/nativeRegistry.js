@@ -174,7 +174,7 @@ import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash, runtimeFormingRef
 import { runHalfProgramBound, runHalfProgramStamped } from './runHalfProgram.js'
 import { registeredRunHalfObjectRail, runHalfSettingsAdmitted } from './runHalfRailSeam.js'
 // ⭐ SETTINGS PARITY (2c): the run half is handed the chart's own values (`runHalfInputs.js`)
-import { runHalfRunInputs } from './runHalfInputs.js'
+import { runHalfRunInputs, runHalfOnlySettingMoved } from './runHalfInputs.js'
 import { runtimeInputSpecsOf } from './runtime/runtimeInputs.js'
 import { noteRunHalfAnswer } from './runHalfTelemetry.js'
 import { runtimePaneEnabled, runtimePaneBuilt, runtimePanePermitted } from './runtimePaneGate'
@@ -3610,8 +3610,11 @@ function withRunHalf(def, out, bars, inputs, ctx) {
   // ⛔⛔ ENGINE 54 — AND BESIDE THE PROGRAM IT WAS MINTED FOR: the door's digest of the trees, the
   // object program, the output map and the site map, re-derived from this document
   // (`runHalfProgram.js`). An edited tree or object program, kept under the old stamp, is refused.
-  if (!runHalfProgramStamped(def)) return refused(RUN_HALF_PROGRAM_UNSTAMPED)
-  if (!runHalfProgramBound(def)) return refused(RUN_HALF_PROGRAM_UNBOUND)
+  // ⭐ SETTINGS PARITY (2a) — the stamp digests the STORED trees: a copy specialised to a member's
+  // length (`paramInputs.specializeParams`) is checked as the document it was specialised from
+  const stamped = def.specializedFrom || def
+  if (!runHalfProgramStamped(stamped)) return refused(RUN_HALF_PROGRAM_UNSTAMPED)
+  if (!runHalfProgramBound(stamped)) return refused(RUN_HALF_PROGRAM_UNBOUND)
   const stamp = servedRunStamp(def)
   if (!runtimePaneBuilt()) return refused('pane:not-built')
   if (!runtimePanePermitted()) return refused('pane:not-permitted')
@@ -3681,6 +3684,15 @@ function withRunHalf(def, out, bars, inputs, ctx) {
   // create site the host draws must BE the host's, object for object, on these bars. With no
   // plot mapped the column rail above compared nothing; this one never compares nothing (no
   // comparable object is its own refusal, `run-half:no-comparable-objects`).
+  // ⭐ SETTINGS PARITY (2c) — A SETTING ONLY THE DRAWINGS READ HAS BEEN MOVED: the host object program
+  // folded it at the author's default, so it is no picture of this chart (`objectReaderFor` reads
+  // nothing) and nothing here can be compared with it. The drawings are served on the evidence the
+  // gate above required for every such setting a drawing reads (captures of THIS run at it moved,
+  // graded against TradingView), beside the column rail, which still held.
+  if (runHalfOnlySettingMoved(def, inputs)) {
+    Object.defineProperty(res, RUNTIME_OBJECTS_KEY, { value: payload, enumerable: false, configurable: true })
+    return answered('served', null)
+  }
   const rail = registeredRunHalfObjectRail()
   if (!rail) return refused(RUN_HALF_RAIL_NOT_LOADED)
   let verdict
