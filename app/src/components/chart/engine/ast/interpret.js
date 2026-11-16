@@ -4016,8 +4016,9 @@ export const BAR_FN = Object.freeze({
 }
 
 /** ⭐⭐ F1 — `ta.vwap` / `ta.vwap(source)` ON A DAILY CHART: every daily bar is its
- *  own session, so the value is the bar's own price — the source, or the typical
- *  price `(h + l + c) / 3` for the bare form — wherever the bar has volume.
+ *  own session, so the value is that one-bar session's `(price * volume) / volume`
+ *  — the source, or the typical price `(h + l + c) / 3` for the bare form, to within
+ *  one rounding (Q-ROB5 below) — wherever the bar has volume.
  *  WITNESSED: `h3-vwap-source-spy-1d-2026-10-02` (CAP2 Q-H3a, AMEX:SPY 1D): S01 bare
  *  = hlc3 and S02..S08 (close, open, high, low, hl2, ohlc4, hlcc4) = that price, on
  *  every bar. `computeVWAP` refuses a daily store key (no instant to bucket by), so
