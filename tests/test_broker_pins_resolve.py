@@ -226,8 +226,10 @@ def sv(cid="core", verdict="MATCH", exercised=("B-MARKET", "B-PATH"), fills=True
 
 def test_u14_rule_vocabulary_is_read_off_brokerRules():
     # 51 since 2026-11-16: B-PYR-PRICE (Q-S1g, a value witness; strategiesAreRuled.test.js pins the same count)
-    assert len(BROKER_RULE_IDS) == 51 and "B-MARKET" in RULE_IDS and "MK-LOOK" in RULE_IDS
+    # 52 since 2026-11-16: B-FUNDS (Q-S1i, the report capture w9-q-s1a-size-v6)
+    assert len(BROKER_RULE_IDS) == 52 and "B-MARKET" in RULE_IDS and "MK-LOOK" in RULE_IDS
     assert "B-ROUND" in RULE_IDS and "B-TXT-CLOSE-ID" in RULE_IDS and "B-PYR-PRICE" in RULE_IDS
+    assert "B-FUNDS" in RULE_IDS
 
 
 def test_u14_a_match_that_exercised_the_rule_pins_it():

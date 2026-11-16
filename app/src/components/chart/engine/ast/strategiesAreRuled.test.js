@@ -197,7 +197,10 @@ describe('D7: the strategy-backtest scorecard wording', () => {
     // + 1 (dated 2026-11-16, the strategy coverage unit): B-PYR-PRICE (Q-S1g), a price entry reached at the
     // pyramiding limit is not kept waiting, witnessed by the VALUES of vw-s1-q-s1g-blocked-stop-entry and
     // pinned only by a re-take with the Strategy Tester report.
-    expect(BROKER_RULE_IDS.length).toBe(51)
+    // + 1 (dated 2026-11-16, Q-S1i answered): B-FUNDS, a flat long market entry at the v6 default size (100% of
+    // equity) and margin 100% that needs more than the equity at its fill is rejected, witnessed by the committed
+    // report capture w9-q-s1a-size-v6 (7 trades taken, 13 entries absent).
+    expect(BROKER_RULE_IDS.length).toBe(52)
   })
 
   it('counts a pin only when the ledger holds it, and only for a rule the broker names', () => {

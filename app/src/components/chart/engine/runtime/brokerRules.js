@@ -102,6 +102,8 @@ export const BROKER_RULES = Object.freeze({
   // report not requested), so pinned only by a re-take with the Strategy Tester report. APPENDED, never inserted:
   // rails read S1's 22 rules as the first 22 of this table.
   'B-PYR-PRICE': Object.freeze({ capture: 'Q-S1g', what: 'a price (stop / limit) entry whose level is reached while the position is at the pyramiding limit does not execute, then or later: it is not kept waiting' }),
+  // ── 2026-11-16, Q-S1i answered by a committed report capture (w9-q-s1a-size-v6). APPENDED, never inserted.
+  'B-FUNDS': Object.freeze({ capture: 'Q-S1i', what: 'with no position open, a long market strategy.entry sized by the percent-of-equity default at 100, at a long margin of 100%, that would need more than the equity at its fill price is rejected: no trade, no smaller size, not kept waiting' }),
 })
 
 export const BROKER_RULE_IDS = Object.freeze(Object.keys(BROKER_RULES))
