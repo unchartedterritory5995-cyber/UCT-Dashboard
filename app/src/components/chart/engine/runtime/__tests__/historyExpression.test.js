@@ -167,14 +167,11 @@ describe('⭐⭐⭐ a FINITE WINDOW over an EXPRESSION', () => {
     expect(ir.windows[0].span, 'the ring is sized from the input').toBe(7)
     sameSeries(out, pureLane('ta.sma(close + 1, 7)'), 'computed window length')
 
-    // ⚠️⚠️ AND WHAT IS FROZEN IS THE INPUT'S **DEFAULT**, NOT A LATER OVERRIDE.
-    // That is `pine.js`'s deliberate rule (owner decision 2026-08-11, pinned by
-    // `history.test.js`), and this case agrees with that authority rather than
-    // becoming a second one: a hoisted expression's ring must obey exactly the
-    // rule a named variable's ring already obeys, or a member's knob would mean
-    // one thing over `x` and another over `x + 1`.
+    // ⭐ AND A LATER OVERRIDE SIZES THE RING (settings parity 2c: the member's value, as
+    // `history.test.js` now pins for a named variable's ring; the column lane computes it too),
+    // so a member's knob means the same thing over `x` and over `x + 1`.
     const { ir: ir3 } = runPine(src, { len: 3 })
-    expect(ir3.windows[0].span, 'an override does not resize a frozen ring').toBe(7)
+    expect(ir3.windows[0].span, 'an override sizes the ring at the member\'s value').toBe(3)
   })
 
   it('⭐⭐ COMPUTED OFFSET — a history offset from an INPUT NAME, not a literal', () => {
@@ -183,7 +180,7 @@ describe('⭐⭐⭐ a FINITE WINDOW over an EXPRESSION', () => {
     expect(ir.history[0].depth, 'the ring depth is folded from the input').toBe(3)
     sameSeries(out, pureLane('(close + 1)[3]'), 'computed history offset')
     const { ir: ir5 } = runPine(src, { back: 5 })
-    expect(ir5.history[0].depth, 'an override does not deepen a frozen ring').toBe(3)
+    expect(ir5.history[0].depth, 'an override deepens the ring to the member\'s value').toBe(5)
   })
 
   it('⭐ `ta.highest` over an expression — the window family, not just `sma`', () => {
