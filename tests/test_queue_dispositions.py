@@ -141,6 +141,9 @@ COMMITTED = {
     # CBC-FMT (fix/pine-engine-calcbars-format): the questions capture session S10 answered, closed with the capture
     # that answered each (the doc's own `not a capture` table)
     "capture-queue-2026-11-15-calc-bars": {r: "closed" for r in ("Q-CBC1", "Q-CBC3", "Q-CBC4", "Q-CBC5", "Q-FMT1")},
+    # door robustness (#1448) and the per-bar lane's mtf-key-levels defects (fix/pine-runtime-mtf-key-levels): the
+    # captures exist; Q-ROB5 was fixed and its capture witnesses it, Q-ROB6 / Q-ROB7 need builds (a 12M request)
+    "capture-queue-2026-11-16-door-robustness": {"Q-ROB5": "closed", "Q-ROB6": "engine-gap", "Q-ROB7": "engine-gap"},
 }
 
 

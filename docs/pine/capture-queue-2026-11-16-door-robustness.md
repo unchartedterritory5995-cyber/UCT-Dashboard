@@ -39,12 +39,12 @@ an engine defect of the per-bar lane, tracked here; the captures already exist, 
 
 | row | probe | what it settles |
 |---|---|---|
-| Q-ROB5 | (existing capture `mtf-key-levels-support-and-resistance-rddt-1d-2026-11-14`) | `D-VWAP` (plot_0): 6 steady-state bars disagree in the 2nd decimal (first at bar 114: vendor 57.3, ours 57.29), persistent to bar 665; W-, M- and Y-VWAP agree on every bar |
-| Q-ROB6 | (existing capture `mtf-key-levels-support-and-resistance-rddt-1d-2026-11-14`) | labels: TradingView 27, the per-bar lane 3 |
-| Q-ROB7 | (existing capture `mtf-key-levels-support-and-resistance-rddt-1d-2026-11-14`) | lines: 23 vs 22, and a line's y1 differs (first: vendor 103.2824, ours 101.27) |
+| Q-ROB5 | (existing capture `mtf-key-levels-support-and-resistance-rddt-1d-2026-11-14`) | `D-VWAP` (plot_0): 6 steady-state bars disagree in the 2nd decimal (first at bar 114: vendor 57.3, ours 57.29), persistent to bar 665; W-, M- and Y-VWAP agree on every bar. CAUSE (fixed 2026-11-16, `fix/pine-runtime-mtf-key-levels`): a daily bar is its own session and TradingView computes `(price * volume) / volume`, which can differ from the price in the last binary digit; the script's `ceil(x * 100) / 100` turned that into a cent |
+| Q-ROB6 | (existing capture `mtf-key-levels-support-and-resistance-rddt-1d-2026-11-14`) | labels: TradingView 27, the per-bar lane 3. CAUSE (fixed 2026-11-16): the string-var text reader knew only `var string X`; an untyped `var X = "..."` is a string by its literal. Now 25 of 27. The 2 left are refused by name: the yearly-open label (`security(..., "12M", open)`, `pine:request`) and the W-VWAP label (its `if wvw` reads a v4 self-referencing weekly sum the host object pass cannot compute, `objects:not-computable`) |
+| Q-ROB7 | (existing capture `mtf-key-levels-support-and-resistance-rddt-1d-2026-11-14`) | lines: 23 vs 22, and a line's y1 differs (first: vendor 103.2824, ours 101.27). CAUSE: the missing line is the yearly open's (the same `"12M"` request refusal); the y1 mismatch is a pairing shift after that gap, not a wrong price |
 
 | not a capture | disposition | reason |
 |---|---|---|
-| Q-ROB5 | engine-gap | the capture exists and grades the item DIVERGE; what it needs is a per-bar-lane fix, not a TradingView reading |
-| Q-ROB6 | engine-gap | the capture exists and grades the item DIVERGE; what it needs is a per-bar-lane fix, not a TradingView reading |
-| Q-ROB7 | engine-gap | the capture exists and grades the item DIVERGE; what it needs is a per-bar-lane fix, not a TradingView reading |
+| Q-ROB5 | closed | fixed on 2026-11-16 (`dailySessionVwap` returns the one-bar session's quotient); its own capture and `h3-vwap-source-spy-1d-2026-10-02` witness the fix bit for bit |
+| Q-ROB6 | engine-gap | 25 of 27 labels drawn since 2026-11-16; the 2 left need a 12M `request.security` and a computable self-referencing weekly sum, builds rather than TradingView readings |
+| Q-ROB7 | engine-gap | the capture exists and grades the item DIVERGE; the missing line needs the same 12M `request.security` build, and the y1 mismatch follows from that gap |
