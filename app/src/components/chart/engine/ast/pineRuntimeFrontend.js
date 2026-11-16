@@ -4027,6 +4027,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const isBuiltinNa = (node, scope) => !!node && node.type === 'name'
     && node.name === 'na' && scope.lookup('na') === null && !env.has('na')
 
+  /** ⭐ TC — the immutable bindings `holdsColour` is reading through right now (its cycle guard; see
+   *  the name arm below). `touchesColour` and `fractionalColourIn` keep their own sets. */
+  const colourNamesInFlight = new Set()
   const holdsColour = (node, scope) => {
     if (!node || typeof node !== 'object') return false
     if (node.type === 'name') {
@@ -4035,7 +4038,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // ⭐ WS-E — a name TYPED `color` is one, even when it was declared `na`.
       if (slot !== null) return isColourTy(slotTy(slot)) || colourTypedNames.has(node.name)
       const bound = env.get(node.name)
-      return !!(bound && bound.kind === 'expr' && holdsColour(bound.node, scope))
+      // ⛔ TC — A NAME ALREADY BEING READ IS NOT READ AGAIN. Since a history read is followed
+      // (`c[1]` is a colour when `c` is), a v1-v3 self-declaration (`y = na(y[1]) ? 7.0 : …`)
+      // led back into its own binding without end (measured: "Maximum call stack size
+      // exceeded", b0NaSeed's control). A cycle answers "not shown to be a colour".
+      if (!bound || bound.kind !== 'expr' || colourNamesInFlight.has(node.name)) return false
+      colourNamesInFlight.add(node.name)
+      try { return holdsColour(bound.node, scope) } finally { colourNamesInFlight.delete(node.name) }
     }
     // ⭐ A HEX LITERAL IS A COLOUR — `#141414`, which the parser gives its own
     // node type. Missing this made `color ROW_DARK = #141414` read as "not a
@@ -6736,12 +6745,16 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  itself, an operand of an operator, a part of a `?:` or of v4's `iff`, a history read, or a
    *  script's immutable binding read by name. Like `touchesText` it does not descend into any
    *  other call: a colour handed to a call is that call's business. */
+  const touchNamesInFlight = new Set()
+  const fractionNamesInFlight = new Set()
   const touchesColour = (node, scope, depth = 0) => {
     if (!node || typeof node !== 'object' || depth > 24) return false
     if (holdsColour(node, scope)) return true
     if (node.type === 'name' && scope && scope.lookup(node.name) === null) {
       const bound = env.get(node.name)
-      return !!(bound && bound.kind === 'expr' && !bound.frame && touchesColour(bound.node, scope, depth + 1))
+      if (!bound || bound.kind !== 'expr' || bound.frame || touchNamesInFlight.has(node.name)) return false
+      touchNamesInFlight.add(node.name)
+      try { return touchesColour(bound.node, scope, depth + 1) } finally { touchNamesInFlight.delete(node.name) }
     }
     if (node.type === 'binary') return touchesColour(node.left, scope, depth + 1) || touchesColour(node.right, scope, depth + 1)
     if (node.type === 'unary') return touchesColour(node.arg, scope, depth + 1)
@@ -6768,7 +6781,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (node.type === 'name') {
       if (lookupReadable(node.name, scope) !== null) return false
       const bound = env.get(node.name)
-      return !!(bound && bound.kind === 'expr' && !bound.frame && fractionalColourIn(bound.node, scope, depth + 1))
+      if (!bound || bound.kind !== 'expr' || bound.frame || fractionNamesInFlight.has(node.name)) return false
+      fractionNamesInFlight.add(node.name)
+      try { return fractionalColourIn(bound.node, scope, depth + 1) } finally { fractionNamesInFlight.delete(node.name) }
     }
     if (node.type === 'offset') return fractionalColourIn(node.arg, scope, depth + 1)
     if (node.type === 'ternary') return fractionalColourIn(node.yes, scope, depth + 1) || fractionalColourIn(node.no, scope, depth + 1)
