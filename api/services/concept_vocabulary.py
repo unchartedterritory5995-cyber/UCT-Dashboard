@@ -337,8 +337,12 @@ def firm_setups(path: Optional[pathlib.Path] = None) -> frozenset:
 #: no count of the entries is written anywhere in this module.
 _CATALOG_BLOCK = re.compile(
     r"export const SETUP_CATALOG\s*=\s*\[(.*?)\n\]", re.DOTALL)
+# ⛔ ANY NUMBER of comment lines may sit between an entry's `{` and its `name:`. This allowed
+# exactly one until 2026-11-15; the Flat Base Breakout card gained a three-line correction note
+# on 2026-11-09 and silently left the definitions this reads, so its citation refused with "the
+# Setup Library publishes no definition of 'Flat Base Breakout'" while the card was published.
 _CATALOG_ENTRY = re.compile(
-    r"\{\s*(?://[^\n]*\n\s*)?name:\s*'([^']+)'(.*?)\n\s*\},", re.DOTALL)
+    r"\{\s*(?://[^\n]*\n\s*)*name:\s*'([^']+)'(.*?)\n\s*\},", re.DOTALL)
 _CATALOG_PIVOT = re.compile(r"pivot:\s*\{[^}]*side:\s*'([^']+)'")
 
 #: The fields an entry must carry for a citation to resolve against it. The

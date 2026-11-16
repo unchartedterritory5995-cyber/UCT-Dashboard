@@ -269,7 +269,10 @@ export function runtimeErrorStopFor(def, bars, instanceInputs, ctx = {}) {
           const col = interpret(foldBound(p.n, bindConsts), bars, inputs, budget, undefined, { ...iopts, crossMemo })
           const v = col[hit.bar]
           if (typeof v !== 'number' || v !== v) throw new Error('na')
-          return defaultNumberText(v)
+          // ⭐⭐ CBC-FMT — a number the one core withholds (`format:*`) leaves the message unsaid
+          const s = defaultNumberText(v)
+          if (s === null) throw new Error('withheld')
+          return s
         }).join('')
       } catch { message = null }
     }

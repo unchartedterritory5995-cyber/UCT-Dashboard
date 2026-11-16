@@ -2347,7 +2347,28 @@
      "rests on the owner's rulebook C28: the 4% chase line, stated in the story"
     ]
    },
-   "batch": "rank"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "line",
+      "label": "Handle high",
+      "price": 60.0
+     },
+     {
+      "key": "price",
+      "label": "Trades at 10:30",
+      "price": 62.7
+     }
+    ],
+    "find": {
+     "label": "The most we pay (4% over)",
+     "as": "price"
+    },
+    "title": "The handle"
+   }
   },
   {
    "key": "q30",
@@ -4202,7 +4223,7 @@
      "rests on the owner's rulebook (B23)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$1.7 million",
     "$0.6 million",
@@ -4213,6 +4234,28 @@
     "$0.6 million": "Gave the shares in millions and skipped the price.",
     "$168 million": "Decimal slip: moved the decimal one place.",
     "$1.7 million": "Decimal slip the other way: moved the decimal one place down."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Dollar volume",
+    "rows": [
+     {
+      "key": "shares",
+      "label": "Shares a day",
+      "value": 600000,
+      "fmt": "shares"
+     },
+     {
+      "key": "price",
+      "label": "Price",
+      "value": 28,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Dollars traded a day",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -5260,8 +5303,8 @@
   "q29": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Rank ok. The 63.00 note named no mistake; replaced with rounding the limit up."
+   "fixed": false,
+   "notes": "Handle high and 10:30 trade drawn; 4% is stated in the words. Keep."
   },
   "q30": {
    "status": "cut",
@@ -5523,8 +5566,8 @@
   "q72": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "16.8 right. The $21.4 million wrong choice is not what dividing gives (600,000/28 = 21,429, not 21.4 million), so its note named a mistake that does not produce that number. Replaced with $1.7 million, a decimal slip. Why lacked the product."
+   "fixed": false,
+   "notes": "Slot uses the key '$16.8 million' (result is in millions). Keep."
   },
   "q73": {
    "status": "pass",

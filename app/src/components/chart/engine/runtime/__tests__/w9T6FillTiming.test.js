@@ -78,8 +78,9 @@ describe('W9-T6 the rules are named, captured by their rows, and unpinned in the
     expect(BROKER_RULES['B-J1']).toBeUndefined()
     expect(BROKER_RULES['B-FILL-LIMITS']).toBeUndefined()
   })
-  it('the committed ledger pins none of them', () => {
-    for (const r of T6_RULES) expect(Object.prototype.hasOwnProperty.call(RESOLVED.rules, r), r).toBe(false)
+  it('the committed ledger pins B-TICK-HIST and leaves the other five T6 rules unpinned', () => {
+    expect(Object.keys(RESOLVED.rules)).toContain('B-TICK-HIST')
+    for (const r of T6_RULES) if (r !== 'B-TICK-HIST') expect(Object.keys(RESOLVED.rules), r).not.toContain(r)
   })
   it('the declaration reads the timing settings instead of refusing them; history-tick stays refused', () => {
     for (const decl of ['process_orders_on_close = true', 'calc_on_order_fills = true', 'backtest_fill_limits_assumption = 0',

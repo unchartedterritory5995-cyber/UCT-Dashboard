@@ -1126,7 +1126,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$500",
     "$175",
@@ -1137,6 +1137,27 @@
     "$500": "Uses the gap between the strikes and forgets the 1.75 debit.",
     "$175": "Gives the debit you paid, not the most the spread can make.",
     "$675": "Adds the debit to the gap instead of taking it off."
+   },
+   "visual": {
+    "kind": "payoff",
+    "title": "The 60/65 call spread",
+    "option": "call",
+    "side": "long",
+    "legs": [
+     {
+      "strike": 60.0,
+      "side": "long"
+     },
+     {
+      "strike": 65.0,
+      "side": "short"
+     }
+    ],
+    "net_debit": 1.75,
+    "find": {
+     "label": "Most it can make",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1173,7 +1194,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$360",
     "$1,000",
@@ -1184,6 +1205,28 @@
     "$360": "Counts one spread instead of the 2 you sold.",
     "$1,000": "Uses the full gap between the strikes and forgets the 1.40 credit.",
     "$280": "That is the most you can make, the credit on 2 spreads. It is not the loss."
+   },
+   "visual": {
+    "kind": "payoff",
+    "title": "The 30/35 call spread, sold",
+    "option": "call",
+    "side": "short",
+    "legs": [
+     {
+      "strike": 35.0,
+      "side": "long"
+     },
+     {
+      "strike": 30.0,
+      "side": "short"
+     }
+    ],
+    "net_debit": -1.4,
+    "contracts": 2.0,
+    "find": {
+     "label": "Most we can lose",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1398,7 +1441,29 @@
      "fixed before (checker 2026-11-09: a wrong-note)"
     ]
    },
-   "batch": "rank"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "payoff",
+    "title": "The 50/45 put spread, sold",
+    "option": "put",
+    "side": "short",
+    "legs": [
+     {
+      "strike": 45.0,
+      "side": "long"
+     },
+     {
+      "strike": 50.0,
+      "side": "short"
+     }
+    ],
+    "net_debit": -1.5,
+    "underlying": 38.0,
+    "find": {
+     "label": "What one spread lost",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q17",
@@ -1479,7 +1544,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "1 spread",
     "6 spreads",
@@ -1490,6 +1555,28 @@
     "6 spreads": "Sizes from the 1.25 credit as if it were the risk.",
     "1 spread": "Sizes from the full width of the strikes and ignores the credit.",
     "7 spreads": "Divides the $750 by 100 only and forgets the spread's real max loss."
+   },
+   "visual": {
+    "kind": "payoff",
+    "title": "The 25/20 put spread, sold",
+    "option": "put",
+    "side": "short",
+    "legs": [
+     {
+      "strike": 20.0,
+      "side": "long"
+     },
+     {
+      "strike": 25.0,
+      "side": "short"
+     }
+    ],
+    "net_debit": -1.25,
+    "find": {
+     "label": "Spreads we can hold",
+     "as": "num",
+     "unit": "spreads"
+    }
    }
   },
   {
@@ -1778,7 +1865,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "10 wins",
     "5 wins",
@@ -1789,6 +1876,28 @@
     "10 wins": "Uses the full width of the strikes and forgets to take off the credit.",
     "5 wins": "Reads the 5-point width as the loss and never divides by the credit.",
     "4.5 wins": "Uses the 4.50 loss in points as the count, with no division by the 0.50 credit."
+   },
+   "visual": {
+    "kind": "payoff",
+    "title": "The 55/50 put spread, sold",
+    "option": "put",
+    "side": "short",
+    "legs": [
+     {
+      "strike": 50.0,
+      "side": "long"
+     },
+     {
+      "strike": 55.0,
+      "side": "short"
+     }
+    ],
+    "net_debit": -0.5,
+    "find": {
+     "label": "Max wins one max loss erases",
+     "as": "num",
+     "unit": "wins"
+    }
    }
   },
   {
@@ -1921,14 +2030,14 @@
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 4."
+   "fixed": false,
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 3."
+   "fixed": false,
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q12": {
    "status": "pass",
@@ -1959,7 +2068,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q17": {
    "status": "pass",
@@ -1970,8 +2079,8 @@
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 1."
+   "fixed": false,
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q19": {
    "status": "pass",
@@ -2025,8 +2134,8 @@
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 4. Wrong-choice notes for the 5 and 4.5 wins were muddled; rewritten. Why rewritten to show the intermediate numbers."
+   "fixed": false,
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q27": {
    "status": "pass",

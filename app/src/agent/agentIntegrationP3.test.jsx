@@ -105,7 +105,7 @@ describe('Phase 3 integration — the workstreams together, asserted on the work
     const { say, board } = p.mount(...ONE('BRCB'))
     const before = shape(board)
     const out = await say('What does the bar-close countdown do?')
-    expect(out).toMatch(/Bar-close countdown — Chart Settings → Markers → Countdown \(intraday\)\. It is on or off\. I can change it for you/)
+    expect(out).toMatch(/Bar-close countdown — Chart Settings → Price style → Price line \(intraday\)\. It is on or off\. I can change it for you/)
     expect(shape(board)).toBe(before)
     expect(p.turns()).toBe(0)
   }, 30000)

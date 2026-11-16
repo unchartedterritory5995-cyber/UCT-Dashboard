@@ -6807,7 +6807,33 @@
    ],
    "kind": "mcq",
    "q": "Pole low 30.00, pole top 45.00, flag low 39.00. What share of the pole did the flag give back, in percent?",
-   "subject": "SET.08#q25"
+   "subject": "SET.08#q25",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Share of pole given back"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "high",
+      "label": "Pole top",
+      "price": 45.0
+     },
+     {
+      "key": "flag",
+      "label": "Flag low",
+      "price": 39.0
+     },
+     {
+      "key": "low",
+      "label": "Pole low",
+      "price": 30.0
+     }
+    ],
+    "side": "long",
+    "title": "The pole and flag"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -10140,7 +10166,23 @@
    ],
    "kind": "mcq",
    "q": "Before the pole, the lowest low was 40.00. What price is 30% above it?",
-   "subject": "SET.08#q69"
+   "subject": "SET.08#q69",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "30% above it"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "low",
+      "label": "Lowest low",
+      "price": 40.0
+     }
+    ],
+    "side": "long",
+    "title": "Before the pole"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -13203,7 +13245,28 @@
    "kind": "mcq",
    "q": "What is the most you may pay for it?",
    "story": "We never pay more than 4% over the handle high. The handle high is 60.00. You were away for the open. At 10:30 the stock trades 62.70.",
-   "subject": "SET.09#q29"
+   "subject": "SET.09#q29",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "The most we pay (4% over)"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "line",
+      "label": "Handle high",
+      "price": 60.0
+     },
+     {
+      "key": "price",
+      "label": "Trades at 10:30",
+      "price": 62.7
+     }
+    ],
+    "side": "long",
+    "title": "The handle"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -16303,7 +16366,29 @@
    ],
    "kind": "mcq",
    "q": "A cup stock averages 600,000 shares a day at $28. How many millions of dollars does it trade a day?",
-   "subject": "SET.09#q72"
+   "subject": "SET.09#q72",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Dollars traded a day"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "shares",
+      "key": "shares",
+      "label": "Shares a day",
+      "value": 600000
+     },
+     {
+      "fmt": "$",
+      "key": "price",
+      "label": "Price",
+      "value": 28
+     }
+    ],
+    "title": "Dollar volume"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -19550,7 +19635,28 @@
    ],
    "kind": "mcq",
    "q": "The base averaged 1,200,000 shares a day. Our card gives its top grade at 1.4 times that on breakout day. How many shares?",
-   "subject": "SET.10#q24"
+   "subject": "SET.10#q24",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "Shares on breakout day"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "shares",
+      "key": "adv",
+      "label": "Base average a day",
+      "value": 1200000
+     },
+     {
+      "key": "mult",
+      "label": "Our top grade, times average",
+      "value": 1.4
+     }
+    ],
+    "title": "The breakout volume"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -25092,7 +25198,38 @@
    ],
    "kind": "mcq",
    "q": "The three averages sit at 41.20, 40.60 and 40.10, and price is 40.50. The bundle's width in percent of price?",
-   "subject": "SET.11#q27"
+   "subject": "SET.11#q27",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Bundle width, % of price"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "a1",
+      "label": "Highest average",
+      "price": 41.2
+     },
+     {
+      "key": "a2",
+      "label": "Middle average",
+      "price": 40.6
+     },
+     {
+      "key": "price",
+      "label": "Price",
+      "price": 40.5
+     },
+     {
+      "key": "a3",
+      "label": "Lowest average",
+      "price": 40.1
+     }
+    ],
+    "side": "long",
+    "title": "The averages"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -33083,7 +33220,35 @@
    ],
    "kind": "mcq",
    "q": "You bought 900 shares. You sold 300 on the first sell and 300 on a later sell. How many are left to trail?",
-   "subject": "SET.12#q78"
+   "subject": "SET.12#q78",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "Left to trail"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "shares",
+      "key": "bought",
+      "label": "Bought",
+      "value": 900
+     },
+     {
+      "fmt": "shares",
+      "key": "s1",
+      "label": "First sell",
+      "value": 300
+     },
+     {
+      "fmt": "shares",
+      "key": "s2",
+      "label": "Later sell",
+      "value": 300
+     }
+    ],
+    "title": "The position"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -36834,7 +36999,33 @@
    ],
    "kind": "mcq",
    "q": "Pole low 10.00, pole high 20.00, flag low 17.00. Where is Bulkowski's reference level?",
-   "subject": "SET.13#q44"
+   "subject": "SET.13#q44",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "Bulkowski's reference level"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "high",
+      "label": "Pole high",
+      "price": 20.0
+     },
+     {
+      "key": "flag",
+      "label": "Flag low",
+      "price": 17.0
+     },
+     {
+      "key": "low",
+      "label": "Pole low",
+      "price": 10.0
+     }
+    ],
+    "side": "long",
+    "title": "The pole and flag"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -41415,7 +41606,29 @@
    ],
    "kind": "mcq",
    "q": "The highest high of the last 11 sessions is 120.00, ATR is 3.00 and the hold session's low is 117.60. How deep is the pullback, in ATR?",
-   "subject": "SET.14#q25"
+   "subject": "SET.14#q25",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Pullback depth",
+     "unit": "ATR"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "high",
+      "label": "11-session high",
+      "price": 120.0
+     },
+     {
+      "key": "low",
+      "label": "Hold session's low",
+      "price": 117.6
+     }
+    ],
+    "side": "long",
+    "title": "The pullback (ATR 3.00)"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -41479,7 +41692,28 @@
    ],
    "kind": "mcq",
    "q": "Fill 48.60. The hold candle's low is 47.45 and the stop sits three cents under it. Stop distance below the fill, in percent, to 2 decimals?",
-   "subject": "SET.14#q26"
+   "subject": "SET.14#q26",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Stop distance below fill"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "fill",
+      "label": "Fill",
+      "price": 48.6
+     },
+     {
+      "key": "low",
+      "label": "Hold candle's low",
+      "price": 47.45
+     }
+    ],
+    "side": "long",
+    "title": "The hold candle"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -50164,7 +50398,35 @@
    ],
    "kind": "mcq",
    "q": "You hold 120 shares, sell 30 at a first sell and 50 more at a later sell. How many shares are left to trail?",
-   "subject": "SET.15#q80"
+   "subject": "SET.15#q80",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "Left to trail"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "shares",
+      "key": "held",
+      "label": "Held",
+      "value": 120
+     },
+     {
+      "fmt": "shares",
+      "key": "s1",
+      "label": "First sell",
+      "value": 30
+     },
+     {
+      "fmt": "shares",
+      "key": "s2",
+      "label": "Later sell",
+      "value": 50
+     }
+    ],
+    "title": "The position"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -51639,7 +51901,23 @@
    ],
    "kind": "mcq",
    "q": "The last 5 sessions averaged a 2.10 range; the 10 before averaged 3.00. What is the last 5 divided by the 10 before?",
-   "subject": "SET.16#q16"
+   "subject": "SET.16#q16",
+   "visual": {
+    "find": {
+     "as": "times",
+     "label": "Last 5 / the 10 before"
+    },
+    "from": {
+     "label": "The 10 before",
+     "value": 3.0
+    },
+    "kind": "move",
+    "title": "The range",
+    "to": {
+     "label": "Last 5 sessions",
+     "value": 2.1
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -53840,7 +54118,29 @@
    ],
    "kind": "mcq",
    "q": "A $14 stock averages 1,600,000 shares a day over 50 days. How many dollars a day is that, in millions?",
-   "subject": "SET.16#q44"
+   "subject": "SET.16#q44",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Dollars traded a day"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "shares",
+      "key": "shares",
+      "label": "Shares a day",
+      "value": 1600000
+     },
+     {
+      "fmt": "$",
+      "key": "price",
+      "label": "Price",
+      "value": 14
+     }
+    ],
+    "title": "Dollar volume"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -66553,7 +66853,23 @@
    ],
    "kind": "mcq",
    "q": "Average daily volume is 2,000,000 shares. By 10:00 the stock has traded 1,500,000. What multiple of average is that?",
-   "subject": "SET.18#q67"
+   "subject": "SET.18#q67",
+   "visual": {
+    "find": {
+     "as": "times",
+     "label": "Multiple of average"
+    },
+    "from": {
+     "label": "Average day",
+     "value": 2000000.0
+    },
+    "kind": "move",
+    "title": "The volume",
+    "to": {
+     "label": "Traded by 10:00",
+     "value": 1500000.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -68467,7 +68783,28 @@
    "kind": "mcq",
    "q": "What is the most you will pay for it?",
    "story": "The pause high is 60.00. At 10:15 the stock trades 62.80.",
-   "subject": "SET.19#q26"
+   "subject": "SET.19#q26",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "The most we pay"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "line",
+      "label": "Pause high",
+      "price": 60.0
+     },
+     {
+      "key": "price",
+      "label": "Trades at 10:15",
+      "price": 62.8
+     }
+    ],
+    "side": "long",
+    "title": "The pause"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -78404,7 +78741,29 @@
    ],
    "kind": "mcq",
    "q": "Before the record day the stock traded 2,500,000 shares a day at 12.00. How many dollars a day is that?",
-   "subject": "SET.21#q28"
+   "subject": "SET.21#q28",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Dollars traded a day"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "shares",
+      "key": "shares",
+      "label": "Shares a day",
+      "value": 2500000
+     },
+     {
+      "fmt": "$",
+      "key": "price",
+      "label": "Price",
+      "value": 12
+     }
+    ],
+    "title": "Dollar volume"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -84014,7 +84373,29 @@
    ],
    "kind": "mcq",
    "q": "The post-gap high is 24.00. The close before the test is 22.20. The 14-day ATR is 0.90. How many ATRs is the pullback?",
-   "subject": "SET.22#q44"
+   "subject": "SET.22#q44",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Pullback depth",
+     "unit": "ATR"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "high",
+      "label": "Post-gap high",
+      "price": 24.0
+     },
+     {
+      "key": "low",
+      "label": "Close before the test",
+      "price": 22.2
+     }
+    ],
+    "side": "long",
+    "title": "The pullback (ATR 0.90)"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -88410,7 +88791,28 @@
    ],
    "kind": "mcq",
    "q": "Filled at 27.98. The Kicker day's low so far is 26.90. Where is the stop?",
-   "subject": "SET.23#q26"
+   "subject": "SET.23#q26",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "Where is the stop"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "fill",
+      "label": "Fill",
+      "price": 27.98
+     },
+     {
+      "key": "low",
+      "label": "Kicker day's low so far",
+      "price": 26.9
+     }
+    ],
+    "side": "long",
+    "title": "The Kicker"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -97791,7 +98193,23 @@
    ],
    "kind": "mcq",
    "q": "Entry 41.50, 9 EMA 38.20. How far above the 9 EMA is the entry, in percent?",
-   "subject": "SET.24#q68"
+   "subject": "SET.24#q68",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Entry above the 9 EMA"
+    },
+    "from": {
+     "label": "9 EMA",
+     "value": 38.2
+    },
+    "kind": "move",
+    "title": "The stretch",
+    "to": {
+     "label": "Entry",
+     "value": 41.5
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -108942,7 +109360,29 @@
    ],
    "kind": "mcq",
    "q": "The pullback's high is 68.40, its low 66.10, and the 14-day ATR is 1.50. How many ATR is the range?",
-   "subject": "SET.27#q25"
+   "subject": "SET.27#q25",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Range in ATR",
+     "unit": "ATR"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "high",
+      "label": "Pullback high",
+      "price": 68.4
+     },
+     {
+      "key": "low",
+      "label": "Pullback low",
+      "price": 66.1
+     }
+    ],
+    "side": "long",
+    "title": "The range (ATR 1.50)"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -116838,7 +117278,29 @@
    ],
    "kind": "mcq",
    "q": "The line is 62.00. The deepest close under it was 60.50. ATR, the typical daily move, is 1.20. How many ATR under the line?",
-   "subject": "SET.28#q65"
+   "subject": "SET.28#q65",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Depth under the line",
+     "unit": "ATR"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "line",
+      "label": "The line",
+      "price": 62.0
+     },
+     {
+      "key": "low",
+      "label": "Deepest close",
+      "price": 60.5
+     }
+    ],
+    "side": "long",
+    "title": "Under the line (ATR 1.20)"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -125097,7 +125559,29 @@
    ],
    "kind": "mcq",
    "q": "The 50-day is 180.00, ATR 4.00, the close before the climax day 150.00. How many ATR under the 50-day is it?",
-   "subject": "SET.30#q19"
+   "subject": "SET.30#q19",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Distance under the 50-day",
+     "unit": "ATR"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "line",
+      "label": "50-day",
+      "price": 180.0
+     },
+     {
+      "key": "low",
+      "label": "Close before climax day",
+      "price": 150.0
+     }
+    ],
+    "side": "long",
+    "title": "The gap (ATR 4.00)"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -127175,7 +127659,42 @@
    "kind": "mcq",
    "q": "What do you do?",
    "story": "You bought at 52.00 with the stop at 50.90. Next morning it opens 49.50. The first 30-minute bar's low is 48.70.",
-   "subject": "SET.30#q47"
+   "subject": "SET.30#q47",
+   "visual": {
+    "find": {
+     "as": "r_loss",
+     "label": "R lost at the low"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "entry",
+      "label": "Bought at",
+      "price": 52.0
+     },
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 50.9
+     },
+     {
+      "key": "open",
+      "label": "Opens at",
+      "price": 49.5
+     },
+     {
+      "key": "price",
+      "label": "First 30-min low",
+      "price": 48.7
+     }
+    ],
+    "r": {
+     "entry": 52.0,
+     "stop": 50.9
+    },
+    "side": "long",
+    "title": "The gap down"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -134928,15 +135447,34 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "A few cents under the day's low"
+  },
+  "asof": "2026-10-12",
+  "bars": {
+   "asof": "2026-10-12",
+   "asof_key": 1791813600,
+   "forward": 40,
+   "forward_to_key": 1792418400,
+   "rth": true,
+   "sym": "ANF",
+   "tf": "5",
+   "window": 285
   },
   "difficulty": 1,
   "id": "si_75e18b3a57e8",
   "lesson_origin": "session",
-  "lesson_text": "A few cents under the day's low at the fill. On a first break after 10:00 that is normally the 30-minute low. UCT writes it as Stop LOD, and Kullamagi also says the stop is always the low of the day. Stop first, then size from it. Stop first: a few cents under the day's low, then size from it.",
+  "lesson_text": "A few cents under the day's low at the fill. On a first break after 10:00 that is normally the 30-minute low. UCT writes it as Stop LOD, and Kullamagi also says the stop is always the low of the day. Stop first, then size from it. Here the day's low was 143.91, so the stop is 143.86, five cents under it. Stop first: a few cents under the day's low, then size from it.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 40,
+    "hide_ticker": true,
+    "tf": "5",
+    "visible_bars": 85,
+    "window_bars": 285
+   },
    "choices": [
     "Halfway between the fill and the low",
     "A flat 3% under the price you paid",
@@ -134944,7 +135482,8 @@
     "Exactly on the 30-minute range low"
    ],
    "kind": "mcq",
-   "q": "You are filled on the 10:00 break. Where does the stop go?",
+   "q": "Where does the stop go?",
+   "story": "A leader on your list trades through its 30-minute high at 10:00 and you are filled at 146.91. The day's low so far is 143.91.",
    "subject": "SET.32#q03"
   },
   "reveal_json": {
@@ -134991,18 +135530,41 @@
       "quote": "\"I almost never take a loss greater than 3%\": the stop usually sits within about 3% of the buy (a loss on the position, not the account).",
       "tier": 3,
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own 5-minute and 30-minute bars): Opening Range Breakout dossier, sections 13 and 14: examples, failures and near-misses from our data",
+      "quote": "ANF | 2026-10-12 | long | 10:00 | 146.90 / 143.91, 2.03% | 1.68x | +1.0% | high 143.39 (ORH above) | 90 | 146.91 | 143.86 (2.07%) | 8.24R, 5R yes | 3.2",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/40-opening-range-breakout.md#13-examples-from-our-data"
      }
     ],
-    "summary": "The stop: a few cents under the day's low at the fill, normally the 30-minute low. F62: the stop sits a few cents under the day's low. Kullamagi: the stop is the low of the day, no wider than the stock's ATR or ADR. Our ORB stop is the low of the day. A3: stop first; the size comes from the stop; if the honest stop does not fit, skip. A13: the stop usually sits within about 3% of the buy."
+    "summary": "The stop: a few cents under the day's low at the fill, normally the 30-minute low. F62: the stop sits a few cents under the day's low. Kullamagi: the stop is the low of the day, no wider than the stock's ATR or ADR. Our ORB stop is the low of the day. A3: stop first; the size comes from the stop; if the honest stop does not fit, skip. A13: the stop usually sits within about 3% of the buy. ANF 2026-10-12: range 146.90 to 143.91; fill 146.91, stop 143.86 (2.07%); 8.24R."
    },
    "facts": {
-    "given": "You are filled on the 10:00 break. Where does the stop go? A few cents under the day's low Exactly on the 30-minute range low A flat 3% under the price you paid Halfway between the fill and the low"
+    "given": "Where does the stop go? A leader on your list trades through its 30-minute high at 10:00 and you are filled at 146.91. The day's low so far is 143.91. A few cents under the day's low Exactly on the 30-minute range low A flat 3% under the price you paid Halfway between the fill and the low"
    },
    "lesson_line": "Stop first: a few cents under the day's low, then size from it.",
    "simple": "The stop goes a few cents under the day's low, not exactly on it, and that low is normally the 30-minute low.",
    "tier": "core",
+   "trade": {
+    "direction": "bullish",
+    "enters_intraday": false,
+    "entry": 146.91,
+    "entry_note": "the fill on the chart's last bar",
+    "source": "course",
+    "stop": 143.86,
+    "stop_note": "under that bar's low",
+    "t1": 156.06,
+    "t2": 162.16,
+    "trim_r": [
+     3,
+     5
+    ],
+    "unit": "bar"
+   },
    "unit": "SET.32",
-   "why": "A few cents under the day's low at the fill. On a first break after 10:00 that is normally the 30-minute low. UCT writes it as Stop LOD, and Kullamagi also says the stop is always the low of the day. Stop first, then size from it.",
+   "why": "A few cents under the day's low at the fill. On a first break after 10:00 that is normally the 30-minute low. UCT writes it as Stop LOD, and Kullamagi also says the stop is always the low of the day. Stop first, then size from it. Here the day's low was 143.91, so the stop is 143.86, five cents under it.",
    "wrong": {
     "A flat 3% under the price you paid": "A percent is not a level. The stop is the day's low; about 3% is only where it usually lands.",
     "Exactly on the 30-minute range low": "The rule is a few cents under the low, not exactly on it.",
@@ -135013,7 +135575,8 @@
   "skill_id": "setup.orb",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.32.json#q03",
-  "type": "recall",
+  "sym": "ANF",
+  "type": "scenario",
   "version": 1
  },
  {
@@ -135279,8 +135842,20 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "Yes; the trade through is the trigger"
+  },
+  "asof": "2026-10-14",
+  "bars": {
+   "asof": "2026-10-14",
+   "asof_key": 1791986400,
+   "forward": 20,
+   "forward_to_key": 1792591200,
+   "rth": true,
+   "sym": "EXEL",
+   "tf": "5",
+   "window": 285
   },
   "difficulty": 1,
   "id": "si_f2bc4bcd0205",
@@ -135288,6 +135863,13 @@
   "lesson_text": "Yes. The trigger is a trade a cent or more above the 30-minute high after 10:00. It is a trade through, not a close. Entries are market orders. Waiting for a close can only mean a later fill. The fill still has to stay within 4% of the high. Set the alert at the range high. When it trades, you trade.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 20,
+    "hide_ticker": true,
+    "tf": "5",
+    "visible_bars": 85,
+    "window_bars": 285
+   },
    "choices": [
     "Yes; the trade through is the trigger",
     "No; wait for the 5-minute bar to close",
@@ -135295,7 +135877,7 @@
     "Yes, but only with a buy limit under it"
    ],
    "kind": "mcq",
-   "q": "At 10:03 a stock on your list prints a cent over its 30-minute high, with the 5-minute bar still open. Do you buy?",
+   "q": "In the 10:00 bar a stock on your list trades a cent over its 30-minute high, the bar still open. Do you buy?",
    "subject": "SET.32#q09"
   },
   "reveal_json": {
@@ -135333,7 +135915,7 @@
     "summary": "The trigger: a trade a cent above the 30-minute high after 10:00, not a close. E57: entries are market orders. Trade-Ideas: the 30-minute range is the first 30-minute candle's high and low; the breakout is the first trade above that high. C28: never buy more than 4% above the buy point."
    },
    "facts": {
-    "given": "At 10:03 a stock on your list prints a cent over its 30-minute high, with the 5-minute bar still open. Do you buy? Yes; the trade through is the trigger No; wait for the 5-minute bar to close No; wait for the 10:30 candle close Yes, but only with a buy limit under it"
+    "given": "In the 10:00 bar a stock on your list trades a cent over its 30-minute high, the bar still open. Do you buy? Yes; the trade through is the trigger No; wait for the 5-minute bar to close No; wait for the 10:30 candle close Yes, but only with a buy limit under it"
    },
    "lesson_line": "Set the alert at the range high. When it trades, you trade.",
    "simple": "Yes, buy. The trigger is a trade through the high, not a close, and our entries are market orders.",
@@ -135350,6 +135932,7 @@
   "skill_id": "setup.orb",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.32.json#q09",
+  "sym": "EXEL",
   "type": "recall",
   "version": 1
  },
@@ -135600,8 +136183,20 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "1.54%"
+  },
+  "asof": "2026-09-15",
+  "bars": {
+   "asof": "2026-09-15",
+   "asof_key": 1789480800,
+   "forward": 40,
+   "forward_to_key": 1790085600,
+   "rth": true,
+   "sym": "FFIV",
+   "tf": "5",
+   "window": 285
   },
   "difficulty": 1,
   "id": "si_3bea8b63f6bb",
@@ -135609,6 +136204,13 @@
   "lesson_text": "1.54%. The gap is the fill minus the stop: 418.46 minus 412.01. Divide by the fill, 418.46, and show it as a percent. That was FFIV's stop, a few cents under the range low. It sits inside the 1 to 3% we prefer, and it sets the size. Stop first, distance second, size last.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 40,
+    "hide_ticker": true,
+    "tf": "5",
+    "visible_bars": 85,
+    "window_bars": 285
+   },
    "choices": [
     "0.15%",
     "1.54%",
@@ -135617,22 +136219,7 @@
    ],
    "kind": "mcq",
    "q": "The 30-minute high is 418.45 and the low 412.06. You fill at 418.46 with the stop at 412.01. How far below the fill is the stop?",
-   "subject": "SET.32#q15",
-   "visual": {
-    "find": {
-     "as": "pct",
-     "label": "The distance"
-    },
-    "from": {
-     "label": "",
-     "value": 418.46
-    },
-    "kind": "move",
-    "to": {
-     "label": "",
-     "value": 412.01
-    }
-   }
+   "subject": "SET.32#q15"
   },
   "reveal_json": {
    "depth": {
@@ -135683,6 +136270,22 @@
    "lesson_line": "Stop first, distance second, size last.",
    "simple": "The stop is about 1.54% below the fill: the fill minus the stop, divided by the fill.",
    "tier": "core",
+   "trade": {
+    "direction": "bullish",
+    "enters_intraday": false,
+    "entry": 418.46,
+    "entry_note": "the fill on the chart's last bar",
+    "source": "course",
+    "stop": 412.01,
+    "stop_note": "under that bar's low",
+    "t1": 437.81,
+    "t2": 450.71,
+    "trim_r": [
+     3,
+     5
+    ],
+    "unit": "bar"
+   },
    "unit": "SET.32",
    "why": "1.54%. The gap is the fill minus the stop: 418.46 minus 412.01. Divide by the fill, 418.46, and show it as a percent. That was FFIV's stop, a few cents under the range low. It sits inside the 1 to 3% we prefer, and it sets the size.",
    "wrong": {
@@ -135695,6 +136298,7 @@
   "skill_id": "setup.orb",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.32.json#q15",
+  "sym": "FFIV",
   "type": "recall",
   "version": 1
  },
@@ -135780,7 +136384,23 @@
    ],
    "kind": "mcq",
    "q": "A Kicker ORB fills at 11.21. Where is the stop under the 3.5% cap?",
-   "subject": "SET.32#q17"
+   "subject": "SET.32#q17",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "Stop at the 3.5% cap"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "fill",
+      "label": "Fill",
+      "price": 11.21
+     }
+    ],
+    "side": "long",
+    "title": "The Kicker ORB"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -136119,15 +136739,34 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "$156.06"
+  },
+  "asof": "2026-10-12",
+  "bars": {
+   "asof": "2026-10-12",
+   "asof_key": 1791813600,
+   "forward": 40,
+   "forward_to_key": 1792418400,
+   "rth": true,
+   "sym": "ANF",
+   "tf": "5",
+   "window": 285
   },
   "difficulty": 2,
   "id": "si_46392073bd02",
   "lesson_origin": "session",
-  "lesson_text": "156.06. One R is the fill minus the stop: 146.91 minus 143.86. Three R is three of those. Add them to the fill of 146.91 and you reach 156.06. 3R is a marker, not a fixed sell. ANF got there in about three sessions. Know your 3R the moment you are filled. It is a marker, not an automatic sell.",
+  "lesson_text": "156.06. One R is the fill minus the stop: 146.91 minus 143.86. Three R is three of those. Add them to the fill of 146.91 and you reach 156.06. 3R is a marker, not a fixed sell. In the sessions after the fill ANF got there in about three. Know your 3R the moment you are filled. It is a marker, not an automatic sell.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 40,
+    "hide_ticker": true,
+    "tf": "5",
+    "visible_bars": 85,
+    "window_bars": 285
+   },
    "choices": [
     "$137.76",
     "$149.91",
@@ -136136,31 +136775,7 @@
    ],
    "kind": "mcq",
    "q": "Fill 146.91, stop 143.86. Where is 3R?",
-   "subject": "SET.32#q23",
-   "visual": {
-    "find": {
-     "as": "price",
-     "label": "3R"
-    },
-    "kind": "ladder",
-    "levels": [
-     {
-      "key": "stop",
-      "label": "Stop",
-      "price": 143.86
-     },
-     {
-      "key": "entry",
-      "label": "Entry",
-      "price": 146.91
-     }
-    ],
-    "r": {
-     "entry": 146.91,
-     "stop": 143.86
-    },
-    "side": "long"
-   }
+   "subject": "SET.32#q23"
   },
   "reveal_json": {
    "depth": {
@@ -136197,8 +136812,24 @@
    "lesson_line": "Know your 3R the moment you are filled. It is a marker, not an automatic sell.",
    "simple": "One R is the fill minus the stop, so 3R is the fill plus three of those, which is 156.06.",
    "tier": "core",
+   "trade": {
+    "direction": "bullish",
+    "enters_intraday": false,
+    "entry": 146.91,
+    "entry_note": "the fill on the chart's last bar",
+    "source": "course",
+    "stop": 143.86,
+    "stop_note": "under that bar's low",
+    "t1": 156.06,
+    "t2": 162.16,
+    "trim_r": [
+     3,
+     5
+    ],
+    "unit": "bar"
+   },
    "unit": "SET.32",
-   "why": "156.06. One R is the fill minus the stop: 146.91 minus 143.86. Three R is three of those. Add them to the fill of 146.91 and you reach 156.06. 3R is a marker, not a fixed sell. ANF got there in about three sessions.",
+   "why": "156.06. One R is the fill minus the stop: 146.91 minus 143.86. Three R is three of those. Add them to the fill of 146.91 and you reach 156.06. 3R is a marker, not a fixed sell. In the sessions after the fill ANF got there in about three.",
    "wrong": {
     "$137.76": "Subtracted three R. A long's target sits above the fill.",
     "$149.91": "Added 3 dollars, not three R. R is the fill minus the stop.",
@@ -136209,6 +136840,7 @@
   "skill_id": "setup.orb",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.32.json#q23",
+  "sym": "ANF",
   "type": "recall",
   "version": 1
  },
@@ -137137,8 +137769,20 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "74 shares"
+  },
+  "asof": "2026-09-21",
+  "bars": {
+   "asof": "2026-09-21",
+   "asof_key": 1789999500,
+   "forward": 40,
+   "forward_to_key": 1790604300,
+   "rth": true,
+   "sym": "SNX",
+   "tf": "5",
+   "window": 286
   },
   "difficulty": 2,
   "id": "si_21a1ac051677",
@@ -137146,6 +137790,13 @@
   "lesson_text": "74 shares. The risk dollars are 100,000 x 0.25%. The stop distance is 274.04 minus 270.67. Divide the risk dollars by the stop distance and round down to 74. The 40% position cap does not bind here. The stop sets the size. The stop sets the size, never the other way round.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 40,
+    "hide_ticker": true,
+    "tf": "5",
+    "visible_bars": 86,
+    "window_bars": 286
+   },
    "choices": [
     "74 shares",
     "145 shares",
@@ -137154,40 +137805,7 @@
    ],
    "kind": "mcq",
    "q": "Account 100,000. On this trade you risk 0.25%. Fill 274.04, stop 270.67. How many shares?",
-   "subject": "SET.32#q38",
-   "visual": {
-    "find": {
-     "as": "shares",
-     "label": "Shares"
-    },
-    "kind": "size",
-    "rows": [
-     {
-      "fmt": "$",
-      "key": "account",
-      "label": "Account",
-      "value": 100000.0
-     },
-     {
-      "fmt": "%",
-      "key": "risk_pct",
-      "label": "Risk",
-      "value": 0.25
-     },
-     {
-      "fmt": "$",
-      "key": "entry",
-      "label": "Entry",
-      "value": 274.04
-     },
-     {
-      "fmt": "$",
-      "key": "stop",
-      "label": "Stop",
-      "value": 270.67
-     }
-    ]
-   }
+   "subject": "SET.32#q38"
   },
   "reveal_json": {
    "deeper": {
@@ -137242,6 +137860,22 @@
    "lesson_line": "The stop sets the size, never the other way round.",
    "simple": "Risk dollars divided by the gap between the fill and the stop, rounded down, gives 74 shares.",
    "tier": "extended",
+   "trade": {
+    "direction": "bullish",
+    "enters_intraday": false,
+    "entry": 274.04,
+    "entry_note": "the fill on the chart's last bar",
+    "source": "course",
+    "stop": 270.67,
+    "stop_note": "under that bar's low",
+    "t1": 284.15,
+    "t2": 290.89,
+    "trim_r": [
+     3,
+     5
+    ],
+    "unit": "bar"
+   },
    "unit": "SET.32",
    "why": "74 shares. The risk dollars are 100,000 x 0.25%. The stop distance is 274.04 minus 270.67. Divide the risk dollars by the stop distance and round down to 74. The 40% position cap does not bind here. The stop sets the size.",
    "wrong": {
@@ -137254,6 +137888,7 @@
   "skill_id": "setup.orb",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.32.json#q38",
+  "sym": "SNX",
   "type": "recall",
   "version": 1
  },
@@ -137355,8 +137990,20 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "Hold; the stop is the exit"
+  },
+  "asof": "2026-09-14",
+  "bars": {
+   "asof": "2026-09-14",
+   "asof_key": 1789395900,
+   "forward": 40,
+   "forward_to_key": 1790000700,
+   "rth": true,
+   "sym": "APA",
+   "tf": "5",
+   "window": 290
   },
   "difficulty": 2,
   "id": "si_62280e40e26a",
@@ -137364,6 +138011,13 @@
   "lesson_text": "Hold. After the fill the stop decides. Even a big-volume reversal back into the range is the classic failure shape, a warning to watch, not a second exit rule. The stop only moves up. APA, with these numbers, took its stop at 12:45 the same day, a planned loss. The warning tells you to watch. The stop tells you when to leave.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 40,
+    "hide_ticker": true,
+    "tf": "5",
+    "visible_bars": 90,
+    "window_bars": 290
+   },
    "choices": [
     "Hold; the stop is the exit",
     "Move the stop lower to give it room",
@@ -137451,6 +138105,7 @@
   "skill_id": "setup.orb",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.32.json#q40",
+  "sym": "APA",
   "type": "scenario",
   "version": 1
  },
@@ -137592,8 +138247,20 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "Pass; RS 64 is not a leader"
+  },
+  "asof": "2026-09-24",
+  "bars": {
+   "asof": "2026-09-24",
+   "asof_key": 1790258400,
+   "forward": 30,
+   "forward_to_key": 1790863200,
+   "rth": true,
+   "sym": "DHR",
+   "tf": "5",
+   "window": 285
   },
   "difficulty": 2,
   "id": "si_a87ed40883df",
@@ -137601,6 +138268,13 @@
   "lesson_text": "Pass. We buy leaders: an RS rating of 80 or more, in one of the strongest groups. This stock's RS is 64. DHR's break was clean, yet it reached only 0.58R before the stop. A clean break does not make a laggard a leader. A clean break in a laggard is a laggard having a good morning.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 30,
+    "hide_ticker": true,
+    "tf": "5",
+    "visible_bars": 85,
+    "window_bars": 285
+   },
    "choices": [
     "Take it; volume beats RS",
     "Take it; the break is clean",
@@ -137657,6 +138331,7 @@
   "skill_id": "setup.orb",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.32.json#q43",
+  "sym": "DHR",
   "type": "scenario",
   "version": 1
  },
@@ -138423,8 +139098,20 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "The 11.05 entry, the earlier fill"
+  },
+  "asof": "2023-12-14",
+  "bars": {
+   "asof": "2023-12-14",
+   "asof_key": 1702566000,
+   "forward": 14,
+   "forward_to_key": 1703170800,
+   "rth": true,
+   "sym": "JBI",
+   "tf": "30",
+   "window": 241
   },
   "difficulty": 3,
   "id": "si_ac186c1f3c80",
@@ -138432,6 +139119,13 @@
   "lesson_text": "The 11.05 entry. Its stop sits 2.3% away; the ORB entry at 11.21 has 3.7% to the same stop. A tighter stop buys more shares for the same dollar risk. At the close the first was up about 2.3R, the ORB about 1.0R. Same stop, two entries. The earlier one sits closer, so the stop is tighter and the size can be bigger.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 14,
+    "hide_ticker": true,
+    "tf": "30",
+    "visible_bars": 41,
+    "window_bars": 241
+   },
    "choices": [
     "Both the same, same stop",
     "The 11.21 entry, confirmed",
@@ -138440,7 +139134,7 @@
    ],
    "kind": "mcq",
    "q": "Which entry sits closer to the stop?",
-   "story": "JBI, a Kicker. The prior-day-high entry fills at 11.05; the ORB entry fills at 11.21. Both use the stop under the Kicker low, 10.80.",
+   "story": "A Kicker. The prior-day-high entry fills at 11.05; the ORB entry fills at 11.21. Both use the stop under the Kicker low, 10.80.",
    "subject": "SET.32#q53"
   },
   "reveal_json": {
@@ -138481,7 +139175,7 @@
     "summary": "JBI 2023-12-14: the 11.05 entry risked 2.3% and was up 2.3R at the close; the 11.21 ORB entry risked 3.7% and was up 1.0R. On a Kicker that opens below the red day's high, the prior-day-high entry comes first and the ORB confirms. A5: shares are account times risk percent, divided by entry minus stop, rounded down, then capped. C28: chasing costs size, because the stop stays put and the distance grows."
    },
    "facts": {
-    "given": "Which entry sits closer to the stop? JBI, a Kicker. The prior-day-high entry fills at 11.05; the ORB entry fills at 11.21. Both use the stop under the Kicker low, 10.80. The 11.05 entry, the earlier fill The 11.21 entry, confirmed Both the same, same stop The 11.21 entry; more room"
+    "given": "Which entry sits closer to the stop? A Kicker. The prior-day-high entry fills at 11.05; the ORB entry fills at 11.21. Both use the stop under the Kicker low, 10.80. The 11.05 entry, the earlier fill The 11.21 entry, confirmed Both the same, same stop The 11.21 entry; more room"
    },
    "lesson_line": "Same stop, two entries. The earlier one sits closer, so the stop is tighter and the size can be bigger.",
    "simple": "The 11.05 entry sits closer to the same stop, so its stop is tighter.",
@@ -138498,6 +139192,7 @@
   "skill_id": "setup.orb",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.32.json#q53",
+  "sym": "JBI",
   "type": "scenario",
   "version": 1
  },
@@ -138581,15 +139276,34 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "Market 418.46; stop 412.01; judged sell"
+  },
+  "asof": "2026-09-15",
+  "bars": {
+   "asof": "2026-09-15",
+   "asof_key": 1789480800,
+   "forward": 40,
+   "forward_to_key": 1790085600,
+   "rth": true,
+   "sym": "FFIV",
+   "tf": "5",
+   "window": 285
   },
   "difficulty": 3,
   "id": "si_6794527ae2f1",
   "lesson_origin": "session",
-  "lesson_text": "Market at 418.46, stop 412.01, and a judged first sell. Buy at market as it trades a cent through the 418.45 range high. Put the stop a few cents under the day's low. The first sell is a judgment, not a fixed third at 3R. FFIV ran to 10.05R in the window we read. Entry, stop, first sell, trail. Write the rule before the open; the range fills in the numbers at 10:00.",
+  "lesson_text": "Market at 418.46, stop 412.01, and a judged first sell. Buy at market as it trades a cent through the 418.45 range high. Put the stop a few cents under the day's low. The first sell is a judgment, not a fixed third at 3R. FFIV ran to 10.05R in the sessions after. Entry, stop, first sell, trail. Write the rule before the open; the range fills in the numbers at 10:00.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 40,
+    "hide_ticker": true,
+    "tf": "5",
+    "visible_bars": 85,
+    "window_bars": 285
+   },
    "choices": [
     "Market 418.46; stop 412.06; judged sell",
     "Market 418.46; stop 412.01; judged sell",
@@ -138598,12 +139312,12 @@
    ],
    "kind": "mcq",
    "q": "Write the plan: entry, stop, first sell.",
-   "story": "FFIV, 2026-09-15: a leader, RS 81, above its 50 and 200-day, flat open on 2.67x volume. The first 30-minute candle runs 412.06 to 418.45.",
+   "story": "A leader, RS 81, above its 50 and 200-day, flat open on 2.67x volume. The first 30-minute candle runs 412.06 to 418.45.",
    "subject": "SET.32#q57"
   },
   "reveal_json": {
    "deeper": {
-    "example": "FFIV, 2026-09-15: the rule written before the open gave, at 10:00, a buy at 418.46 and a stop of 412.01. That is a few cents under the 412.06 low and 1.54% under the fill. It broke the range on the first bar after 10:00 and ran to 10.05R."
+    "example": "FFIV, 2026-09-15: the rule written before the open gave, at 10:00, a buy at 418.46 and a stop of 412.01. That is a few cents under the 412.06 low and 1.54% under the fill. It broke the range on the first bar after 10:00 and ran to 10.05R in the sessions after."
    },
    "depth": {
     "sources": [
@@ -138653,13 +139367,29 @@
     "summary": "E57: entries are market orders. F62: the stop sits a few cents under the day's low. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. FFIV 2026-09-15: range 418.45 to 412.06 on 2.67x opening volume, RS 81; fill 418.46, stop 412.01 (1.54%); 10.05R, 3R in 2 sessions. FFIV: a flat open, heavy first half hour, broke the range on the first bar after 10:00 and never looked back."
    },
    "facts": {
-    "given": "Write the plan: entry, stop, first sell. FFIV, 2026-09-15: a leader, RS 81, above its 50 and 200-day, flat open on 2.67x volume. The first 30-minute candle runs 412.06 to 418.45. Market 418.46; stop 412.01; judged sell Market 418.46; stop 412.01; third at 3R Market 418.46; stop 412.06; judged sell Limit 418.46; stop 412.01; judged sell"
+    "given": "Write the plan: entry, stop, first sell. A leader, RS 81, above its 50 and 200-day, flat open on 2.67x volume. The first 30-minute candle runs 412.06 to 418.45. Market 418.46; stop 412.01; judged sell Market 418.46; stop 412.01; third at 3R Market 418.46; stop 412.06; judged sell Limit 418.46; stop 412.01; judged sell"
    },
    "lesson_line": "Entry, stop, first sell, trail. Write the rule before the open; the range fills in the numbers at 10:00.",
    "simple": "Buy at market through the high, put the stop a few cents under the low, and judge the first sell.",
    "tier": "expert",
+   "trade": {
+    "direction": "bullish",
+    "enters_intraday": false,
+    "entry": 418.46,
+    "entry_note": "the fill on the chart's last bar",
+    "source": "course",
+    "stop": 412.01,
+    "stop_note": "under that bar's low",
+    "t1": 437.81,
+    "t2": 450.71,
+    "trim_r": [
+     3,
+     5
+    ],
+    "unit": "bar"
+   },
    "unit": "SET.32",
-   "why": "Market at 418.46, stop 412.01, and a judged first sell. Buy at market as it trades a cent through the 418.45 range high. Put the stop a few cents under the day's low. The first sell is a judgment, not a fixed third at 3R. FFIV ran to 10.05R in the window we read.",
+   "why": "Market at 418.46, stop 412.01, and a judged first sell. Buy at market as it trades a cent through the 418.45 range high. Put the stop a few cents under the day's low. The first sell is a judgment, not a fixed third at 3R. FFIV ran to 10.05R in the sessions after.",
    "wrong": {
     "Limit 418.46; stop 412.01; judged sell": "Entries are market orders.",
     "Market 418.46; stop 412.01; third at 3R": "The first sell is a judgment, not a fixed third at 3R.",
@@ -138670,6 +139400,7 @@
   "skill_id": "setup.orb",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.32.json#q57",
+  "sym": "FFIV",
   "type": "scenario",
   "version": 1
  },
@@ -139041,15 +139772,34 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "The stop under the day's low"
+  },
+  "asof": "2026-11-02",
+  "bars": {
+   "asof": "2026-11-02",
+   "asof_key": 1793631600,
+   "forward": 36,
+   "forward_to_key": 1794236400,
+   "rth": true,
+   "sym": "DE",
+   "tf": "5",
+   "window": 285
   },
   "difficulty": 3,
   "id": "si_f246f2810a77",
   "lesson_origin": "session",
-  "lesson_text": "The stop under the day's low. Whatever the break was missing, the stop is what kept each loss at 1R. It sits a few cents under the day's low, it only moves up, and it is a real order with the broker. A loss at that stop is the plan working. You will take this loss again. The stop is why it stays small.",
+  "lesson_text": "The stop under the day's low. Whatever the break was missing, the stop is what kept the loss at 1R. It sits a few cents under the day's low, it only moves up, and it is a real order with the broker. A loss at that stop is the plan working. You will take this loss again. The stop is why it stays small.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 36,
+    "hide_ticker": true,
+    "tf": "5",
+    "visible_bars": 85,
+    "window_bars": 285
+   },
    "choices": [
     "A wider stop, to give it room",
     "The 4% limit on chasing the fill",
@@ -139057,8 +139807,8 @@
     "The stop under the day's low"
    ],
    "kind": "mcq",
-   "q": "What kept each loss at 1R?",
-   "story": "Two ORB longs in our window were stopped out the same day. Neither ever got past +0.26R, and each stop sat about 2% under the fill.",
+   "q": "What kept the loss at 1R?",
+   "story": "An ORB long fills at 677.21 with its stop at 663.33, about 2% under the fill. It never gets past +0.15R and is stopped out at noon the same day.",
    "subject": "SET.32#q64"
   },
   "reveal_json": {
@@ -139120,13 +139870,29 @@
     "summary": "The four losses were missing the parent setup, the direction of the open or the calendar; the stop kept each loss at 1R. None of the four losses ran past 0.26R. APA 2026-09-14: fill 46.37, stop 45.51 (1.85%), stopped at 12:45 the same day. DE 2026-11-02: fill 677.21, stop 663.33 (2.05%), stopped at 12:00 the same day. A4: the stop is the exit; it only moves up; the gap rule is the one exception. F62: the stop sits a few cents under the day's low. D41: a real stop order with the broker."
    },
    "facts": {
-    "given": "What kept each loss at 1R? Two ORB longs in our window were stopped out the same day. Neither ever got past +0.26R, and each stop sat about 2% under the fill. The stop under the day's low Selling at the first reversal A wider stop, to give it room The 4% limit on chasing the fill"
+    "given": "What kept the loss at 1R? An ORB long fills at 677.21 with its stop at 663.33, about 2% under the fill. It never gets past +0.15R and is stopped out at noon the same day. The stop under the day's low Selling at the first reversal A wider stop, to give it room The 4% limit on chasing the fill"
    },
    "lesson_line": "You will take this loss again. The stop is why it stays small.",
-   "simple": "The stop kept each loss at 1R. A loss at the planned stop is the plan working.",
+   "simple": "The stop kept the loss at 1R. A loss at the planned stop is the plan working.",
    "tier": "expert",
+   "trade": {
+    "direction": "bullish",
+    "enters_intraday": false,
+    "entry": 677.21,
+    "entry_note": "the fill on the chart's last bar",
+    "source": "course",
+    "stop": 663.33,
+    "stop_note": "under that bar's low",
+    "t1": 718.85,
+    "t2": 746.61,
+    "trim_r": [
+     3,
+     5
+    ],
+    "unit": "bar"
+   },
    "unit": "SET.32",
-   "why": "The stop under the day's low. Whatever the break was missing, the stop is what kept each loss at 1R. It sits a few cents under the day's low, it only moves up, and it is a real order with the broker. A loss at that stop is the plan working.",
+   "why": "The stop under the day's low. Whatever the break was missing, the stop is what kept the loss at 1R. It sits a few cents under the day's low, it only moves up, and it is a real order with the broker. A loss at that stop is the plan working.",
    "wrong": {
     "A wider stop, to give it room": "The stop only moves up, never down or wider.",
     "Selling at the first reversal": "The reversal is a warning. The stop was the exit, and it did the work.",
@@ -139137,6 +139903,7 @@
   "skill_id": "setup.orb",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.32.json#q64",
+  "sym": "DE",
   "type": "scenario",
   "version": 1
  },
@@ -139531,8 +140298,20 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "First green candle after the reds"
+  },
+  "asof": "2026-09-18",
+  "bars": {
+   "asof": "2026-09-18",
+   "asof_key": 1789743600,
+   "forward": 30,
+   "forward_to_key": 1790348400,
+   "rth": true,
+   "sym": "FTNT",
+   "tf": "30",
+   "window": 243
   },
   "difficulty": 1,
   "id": "si_0386e6b6d123",
@@ -139540,6 +140319,13 @@
   "lesson_text": "The first green 30-minute candle after the red string, at the level. Green means it closes above its open. A red candle is still selling, and a later green candle is not the turn. The originator waits for the point where momentum shifts back up instead of buying the fall. Reds into the level, then the first green candle. That candle is the pivot.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 30,
+    "hide_ticker": true,
+    "tf": "30",
+    "visible_bars": 43,
+    "window_bars": 243
+   },
    "choices": [
     "The first candle of the trading day",
     "Any green candle at an average",
@@ -139609,6 +140395,7 @@
   "skill_id": "setup.thirty_minute_pivot",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.33.json#q01",
+  "sym": "FTNT",
   "type": "recall",
   "version": 1
  },
@@ -139674,8 +140461,20 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "A cent over the pivot candle's high"
+  },
+  "asof": "2026-09-16",
+  "bars": {
+   "asof": "2026-09-16",
+   "asof_key": 1789567200,
+   "forward": 30,
+   "forward_to_key": 1790172000,
+   "rth": true,
+   "sym": "HALO",
+   "tf": "30",
+   "window": 241
   },
   "difficulty": 1,
   "id": "si_379491f35b32",
@@ -139683,6 +140482,13 @@
   "lesson_text": "A cent over the pivot candle's high, once a later 30-minute candle trades there. The pivot candle must close first. The line is the candle's high, not the prior close. We buy at market, in regular hours. Raschke's older Holy Grail entry uses a similar mechanic: a buy stop above the previous bar's high. The pivot candle's high is the line. A trade through it is the buy.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 30,
+    "hide_ticker": true,
+    "tf": "30",
+    "visible_bars": 41,
+    "window_bars": 241
+   },
    "choices": [
     "At the close of the pivot candle itself",
     "A cent over the pivot candle's high",
@@ -139759,6 +140565,7 @@
   "skill_id": "setup.thirty_minute_pivot",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.33.json#q03",
+  "sym": "HALO",
   "type": "recall",
   "version": 1
  },
@@ -140046,8 +140853,20 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "Just under the 30-minute low"
+  },
+  "asof": "2026-08-31",
+  "bars": {
+   "asof": "2026-08-31",
+   "asof_key": 1788186600,
+   "forward": 30,
+   "forward_to_key": 1788791400,
+   "rth": true,
+   "sym": "HOOD",
+   "tf": "30",
+   "window": 242
   },
   "difficulty": 1,
   "id": "si_b02f08ab0658",
@@ -140055,6 +140874,13 @@
   "lesson_text": "Just under the recent 30-minute low. On his HOOD trade the stop, 101.16, sat 4 cents under the first green candle's low, 101.20. That is his stop. Ours also sits a few cents under a low, never on it. The turn candle's low is the originator's line in the sand.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 30,
+    "hide_ticker": true,
+    "tf": "30",
+    "visible_bars": 42,
+    "window_bars": 242
+   },
    "choices": [
     "Just under the 30-minute low",
     "Under last week's low",
@@ -140117,6 +140943,7 @@
   "skill_id": "setup.thirty_minute_pivot",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.33.json#q09",
+  "sym": "HOOD",
   "type": "recall",
   "version": 1
  },
@@ -140465,7 +141292,28 @@
    ],
    "kind": "mcq",
    "q": "Candle low 66.08. You fill at 66.83 with the stop 3 cents under the low. How far below the fill is the stop?",
-   "subject": "SET.33#q16"
+   "subject": "SET.33#q16",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Stop distance below fill"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "fill",
+      "label": "Fill",
+      "price": 66.83
+     },
+     {
+      "key": "low",
+      "label": "Candle low",
+      "price": 66.08
+     }
+    ],
+    "side": "long",
+    "title": "The candle"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -140912,8 +141760,20 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "$244.37"
+  },
+  "asof": "2026-08-27",
+  "bars": {
+   "asof": "2026-08-27",
+   "asof_key": 1787844600,
+   "forward": 60,
+   "forward_to_key": 1788449400,
+   "rth": true,
+   "sym": "PSX",
+   "tf": "30",
+   "window": 244
   },
   "difficulty": 2,
   "id": "si_6efd9cd04c58",
@@ -140921,6 +141781,13 @@
   "lesson_text": "244.37. One R is the fill minus the stop: 238.91 minus 237.09. Add three of those gaps to the fill and you reach 244.37. It is a marker, not a fixed sell level. PSX got there the next session. Know the 3R price before the fill. It is a marker, not an automatic sell.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 60,
+    "hide_ticker": true,
+    "tf": "30",
+    "visible_bars": 44,
+    "window_bars": 244
+   },
    "choices": [
     "$233.45",
     "$241.91",
@@ -140929,31 +141796,7 @@
    ],
    "kind": "mcq",
    "q": "Bought 238.91 with the stop at 237.09. Where is 3R?",
-   "subject": "SET.33#q24",
-   "visual": {
-    "find": {
-     "as": "price",
-     "label": "3R"
-    },
-    "kind": "ladder",
-    "levels": [
-     {
-      "key": "stop",
-      "label": "Stop",
-      "price": 237.09
-     },
-     {
-      "key": "entry",
-      "label": "Entry",
-      "price": 238.91
-     }
-    ],
-    "r": {
-     "entry": 238.91,
-     "stop": 237.09
-    },
-    "side": "long"
-   }
+   "subject": "SET.33#q24"
   },
   "reveal_json": {
    "depth": {
@@ -140997,6 +141840,22 @@
    "lesson_line": "Know the 3R price before the fill. It is a marker, not an automatic sell.",
    "simple": "One R is the fill minus the stop, so 3R is three of those added to 238.91, which is 244.37.",
    "tier": "core",
+   "trade": {
+    "direction": "bullish",
+    "enters_intraday": false,
+    "entry": 238.91,
+    "entry_note": "the fill on the chart's last bar",
+    "source": "course",
+    "stop": 237.09,
+    "stop_note": "under that bar's low",
+    "t1": 244.37,
+    "t2": 248.01,
+    "trim_r": [
+     3,
+     5
+    ],
+    "unit": "bar"
+   },
    "unit": "SET.33",
    "why": "244.37. One R is the fill minus the stop: 238.91 minus 237.09. Add three of those gaps to the fill and you reach 244.37. It is a marker, not a fixed sell level. PSX got there the next session.",
    "wrong": {
@@ -141009,6 +141868,7 @@
   "skill_id": "setup.thirty_minute_pivot",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.33.json#q24",
+  "sym": "PSX",
   "type": "recall",
   "version": 1
  },
@@ -141030,7 +141890,53 @@
    ],
    "kind": "mcq",
    "q": "Account 100,000, risk 1%. Fill 238.91, stop 237.09: the formula says 549 shares. How many do you buy under the 40% cap?",
-   "subject": "SET.33#q25"
+   "subject": "SET.33#q25",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "Shares we buy"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "account",
+      "label": "Account",
+      "value": 100000
+     },
+     {
+      "fmt": "%",
+      "key": "risk",
+      "label": "Risk, % of account",
+      "value": 1
+     },
+     {
+      "fmt": "$",
+      "key": "entry",
+      "label": "Fill",
+      "value": 238.91
+     },
+     {
+      "fmt": "$",
+      "key": "stop",
+      "label": "Stop",
+      "value": 237.09
+     },
+     {
+      "fmt": "shares",
+      "key": "formula",
+      "label": "Formula says",
+      "value": 549
+     },
+     {
+      "fmt": "%",
+      "key": "cap",
+      "label": "Position cap, % of account",
+      "value": 40
+     }
+    ],
+    "title": "The size"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -141559,8 +142465,20 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "4.4R"
+  },
+  "asof": "2026-09-16",
+  "bars": {
+   "asof": "2026-09-16",
+   "asof_key": 1789569000,
+   "forward": 60,
+   "forward_to_key": 1790173800,
+   "rth": true,
+   "sym": "HALO",
+   "tf": "30",
+   "window": 242
   },
   "difficulty": 2,
   "id": "si_73b20ede5a76",
@@ -141568,6 +142486,13 @@
   "lesson_text": "4.4R. One R is the fill minus the stop: 106.65 minus 105.74. The gain is 110.65 minus 106.65. Divide the gain by one R and you get about 4.4. That is short of 5R, a mark on the ruler where a later sell may come. Count in R. At 4.4R the 5R mark has not come yet.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 60,
+    "hide_ticker": true,
+    "tf": "30",
+    "visible_bars": 42,
+    "window_bars": 242
+   },
    "choices": [
     "0.2R",
     "3.8R",
@@ -141576,36 +142501,7 @@
    ],
    "kind": "mcq",
    "q": "Bought 106.65, stop 105.74. The stock trades 110.65. How many R is that?",
-   "subject": "SET.33#q33",
-   "visual": {
-    "find": {
-     "as": "r",
-     "label": "R on the trade"
-    },
-    "kind": "ladder",
-    "levels": [
-     {
-      "key": "stop",
-      "label": "Stop",
-      "price": 105.74
-     },
-     {
-      "key": "entry",
-      "label": "Entry",
-      "price": 106.65
-     },
-     {
-      "key": "exit",
-      "label": "Exit",
-      "price": 110.65
-     }
-    ],
-    "r": {
-     "entry": 106.65,
-     "stop": 105.74
-    },
-    "side": "long"
-   }
+   "subject": "SET.33#q33"
   },
   "reveal_json": {
    "depth": {
@@ -141642,6 +142538,22 @@
    "lesson_line": "Count in R. At 4.4R the 5R mark has not come yet.",
    "simple": "The gain from the fill, divided by one R, comes to 4.4R, which is short of the 5R mark.",
    "tier": "extended",
+   "trade": {
+    "direction": "bullish",
+    "enters_intraday": false,
+    "entry": 106.65,
+    "entry_note": "the fill on the chart's last bar",
+    "source": "course",
+    "stop": 105.74,
+    "stop_note": "under that bar's low",
+    "t1": 109.38,
+    "t2": 111.2,
+    "trim_r": [
+     3,
+     5
+    ],
+    "unit": "bar"
+   },
    "unit": "SET.33",
    "why": "4.4R. One R is the fill minus the stop: 106.65 minus 105.74. The gain is 110.65 minus 106.65. Divide the gain by one R and you get about 4.4. That is short of 5R, a mark on the ruler where a later sell may come.",
    "wrong": {
@@ -141654,6 +142566,7 @@
   "skill_id": "setup.thirty_minute_pivot",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.33.json#q33",
+  "sym": "HALO",
   "type": "recall",
   "version": 1
  },
@@ -141934,8 +142847,20 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "Nothing; the stop was the exit"
+  },
+  "asof": "2026-08-24",
+  "bars": {
+   "asof": "2026-08-24",
+   "asof_key": 1787592600,
+   "forward": 20,
+   "forward_to_key": 1788197400,
+   "rth": true,
+   "sym": "AXON",
+   "tf": "30",
+   "window": 248
   },
   "difficulty": 2,
   "id": "si_3e6c92080e46",
@@ -141943,6 +142868,13 @@
   "lesson_text": "Nothing went wrong. AXON had the A+ shape and every rule was met. Six reds ran into the rising average, and the pivot closed in its upper half. The pivot low still broke, and the stop was the exit. The fixed stop that only moves up kept the loss at 1R. You will take this loss again. The stop is why it stays small.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 20,
+    "hide_ticker": true,
+    "tf": "30",
+    "visible_bars": 48,
+    "window_bars": 248
+   },
    "choices": [
     "You should have sold into the pop",
     "It needed a bigger red string",
@@ -142018,6 +142950,22 @@
    "lesson_line": "You will take this loss again. The stop is why it stays small.",
    "simple": "Nothing went wrong, because every rule was met and the stop did its job of keeping the loss small.",
    "tier": "extended",
+   "trade": {
+    "direction": "bullish",
+    "enters_intraday": false,
+    "entry": 601.49,
+    "entry_note": "the fill on the chart's last bar",
+    "source": "course",
+    "stop": 595.08,
+    "stop_note": "under that bar's low",
+    "t1": 620.72,
+    "t2": 633.54,
+    "trim_r": [
+     3,
+     5
+    ],
+    "unit": "bar"
+   },
    "unit": "SET.33",
    "why": "Nothing went wrong. AXON had the A+ shape and every rule was met. Six reds ran into the rising average, and the pivot closed in its upper half. The pivot low still broke, and the stop was the exit. The fixed stop that only moves up kept the loss at 1R.",
    "wrong": {
@@ -142030,6 +142978,7 @@
   "skill_id": "setup.thirty_minute_pivot",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.33.json#q38",
+  "sym": "AXON",
   "type": "scenario",
   "version": 1
  },
@@ -142110,15 +143059,34 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "Allowed, but it is a named mistake"
+  },
+  "asof": "2026-10-16",
+  "bars": {
+   "asof": "2026-10-16",
+   "asof_key": 1792179000,
+   "forward": 8,
+   "forward_to_key": 1792783800,
+   "rth": true,
+   "sym": "AAPL",
+   "tf": "30",
+   "window": 252
   },
   "difficulty": 2,
   "id": "si_8cff283bf379",
   "lesson_origin": "session",
-  "lesson_text": "Allowed, but a named mistake. We have no time-of-day rule, so a 15:30 trigger is not banned. The card names buying a pivot in the last hour as a mistake, because no session is left to work. The stop did its job: the loss was 1R. Late pivots are legal, but the card names them a mistake. The stop still holds the loss.",
+  "lesson_text": "Allowed, but a named mistake. We have no time-of-day rule, so a 15:30 trigger is not banned. The card names buying a pivot in the last hour as a mistake, because no session is left to work. The stop did its job: the next morning's first candle took it, a loss of about 1R. Late pivots are legal, but the card names them a mistake. The stop still holds the loss.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 8,
+    "hide_ticker": true,
+    "tf": "30",
+    "visible_bars": 52,
+    "window_bars": 252
+   },
    "choices": [
     "A top-grade trade with bad luck",
     "Allowed, but it is a named mistake",
@@ -142132,7 +143100,7 @@
   },
   "reveal_json": {
    "deeper": {
-    "trap": "Turning a mistake into a ban. The rulebook has no time-of-day rule, so a late trigger is not barred. The card names it a mistake, because a last-hour pivot has no session left to work. Here the 15:00 pivot was bought at 343.15 on the day's last candle. It never ticked above the buy, and the next morning's first candle took the stop."
+    "trap": "Turning a mistake into a ban. The rulebook has no time-of-day rule, so a late trigger is not barred. The card names it a mistake, because a last-hour pivot has no session left to work. Here the 15:00 pivot was bought at 343.15 on the day's last candle, and the next morning's first candle took the stop."
    },
    "depth": {
     "sources": [
@@ -142187,8 +143155,24 @@
    "lesson_line": "Late pivots are legal, but the card names them a mistake. The stop still holds the loss.",
    "simple": "The trade was allowed but a named mistake, because a trigger in the last hour leaves no session to work.",
    "tier": "extended",
+   "trade": {
+    "direction": "bullish",
+    "enters_intraday": false,
+    "entry": 343.15,
+    "entry_note": "the fill on the chart's last bar",
+    "source": "course",
+    "stop": 341.1,
+    "stop_note": "under that bar's low",
+    "t1": 349.3,
+    "t2": 353.4,
+    "trim_r": [
+     3,
+     5
+    ],
+    "unit": "bar"
+   },
    "unit": "SET.33",
-   "why": "Allowed, but a named mistake. We have no time-of-day rule, so a 15:30 trigger is not banned. The card names buying a pivot in the last hour as a mistake, because no session is left to work. The stop did its job: the loss was 1R.",
+   "why": "Allowed, but a named mistake. We have no time-of-day rule, so a 15:30 trigger is not banned. The card names buying a pivot in the last hour as a mistake, because no session is left to work. The stop did its job: the next morning's first candle took it, a loss of about 1R.",
    "wrong": {
     "A top-grade trade with bad luck": "A last-candle trigger has no session left to work. The card names that a mistake, not a top grade.",
     "Allowed, and graded like any other": "The card names a last-hour pivot as a mistake: no session is left to work.",
@@ -142199,12 +143183,25 @@
   "skill_id": "setup.thirty_minute_pivot",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.33.json#q40",
+  "sym": "AAPL",
   "type": "scenario",
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "Too tight; it sits in the noise"
+  },
+  "asof": "2026-09-01",
+  "bars": {
+   "asof": "2026-09-01",
+   "asof_key": 1788282000,
+   "forward": 14,
+   "forward_to_key": 1788886800,
+   "rth": true,
+   "sym": "MSFT",
+   "tf": "30",
+   "window": 247
   },
   "difficulty": 2,
   "id": "si_916a2cb9a252",
@@ -142212,6 +143209,13 @@
   "lesson_text": "Too tight for that stock. A stop of a few tenths of a percent on a slow mega-cap sits inside the noise, a coin flip. The card names it a mistake. We prefer a stop 1 to 3% away and accept up to 5%. 0.42% is far under that range. The loss was still 1R, as planned. A tight stop is only good if the stock's normal wiggle fits above it.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 14,
+    "hide_ticker": true,
+    "tf": "30",
+    "visible_bars": 47,
+    "window_bars": 247
+   },
    "choices": [
     "Too tight; skip any stop under 1%",
     "Fine; far inside the 5% limit",
@@ -142284,6 +143288,22 @@
    "lesson_line": "A tight stop is only good if the stock's normal wiggle fits above it.",
    "simple": "The stop is too tight for a slow mega-cap, so it sits inside the noise, though the loss stays 1R.",
    "tier": "core",
+   "trade": {
+    "direction": "bullish",
+    "enters_intraday": false,
+    "entry": 501.07,
+    "entry_note": "the fill on the chart's last bar",
+    "source": "course",
+    "stop": 498.97,
+    "stop_note": "under that bar's low",
+    "t1": 507.37,
+    "t2": 511.57,
+    "trim_r": [
+     3,
+     5
+    ],
+    "unit": "bar"
+   },
    "unit": "SET.33",
    "why": "Too tight for that stock. A stop of a few tenths of a percent on a slow mega-cap sits inside the noise, a coin flip. The card names it a mistake. We prefer a stop 1 to 3% away and accept up to 5%. 0.42% is far under that range. The loss was still 1R, as planned.",
    "wrong": {
@@ -142296,6 +143316,7 @@
   "skill_id": "setup.thirty_minute_pivot",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.33.json#q41",
+  "sym": "MSFT",
   "type": "scenario",
   "version": 1
  },
@@ -142615,8 +143636,20 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "A string of red candles"
+  },
+  "asof": "2026-09-10",
+  "bars": {
+   "asof": "2026-09-10",
+   "asof_key": 1789052400,
+   "forward": 14,
+   "forward_to_key": 1789657200,
+   "rth": true,
+   "sym": "CRWD",
+   "tf": "30",
+   "window": 243
   },
   "difficulty": 3,
   "id": "si_57c47d0f7352",
@@ -142624,6 +143657,13 @@
   "lesson_text": "A string of red candles. The originator's signal is a string of red 30-minute candles, and one red candle is a dip, not a pullback string. The buy at 211.78 came after one red. CRWD reached 1.42R and was stopped the same day. Count the reds. One candle has not used up any sellers.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 14,
+    "hide_ticker": true,
+    "tf": "30",
+    "visible_bars": 43,
+    "window_bars": 243
+   },
    "choices": [
     "A string of red candles",
     "A second green candle first",
@@ -142697,12 +143737,25 @@
   "skill_id": "setup.thirty_minute_pivot",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.33.json#q48",
+  "sym": "CRWD",
   "type": "scenario",
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "No; the pivot was void at 11:30"
+  },
+  "asof": "2026-09-15",
+  "bars": {
+   "asof": "2026-09-15",
+   "asof_key": 1789488000,
+   "forward": 10,
+   "forward_to_key": 1790092800,
+   "rth": true,
+   "sym": "MRNA",
+   "tf": "30",
+   "window": 245
   },
   "difficulty": 3,
   "id": "si_406e1e3ef984",
@@ -142710,6 +143763,13 @@
   "lesson_text": "No. Before the trigger, any 30-minute candle that trades under the pivot candle's low voids the pivot. Wait for a new red string and a new pivot. Here 11:30 traded under 142.41, so the 12:00 trade over the high is not a trigger. MRNA was bought at 143.81 and stopped on the trigger candle. Once the pivot low trades, the pivot is gone. Start the count again.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 10,
+    "hide_ticker": true,
+    "tf": "30",
+    "visible_bars": 45,
+    "window_bars": 245
+   },
    "choices": [
     "Yes; the high still triggered",
     "No; the pivot was void at 11:30",
@@ -142769,6 +143829,7 @@
   "skill_id": "setup.thirty_minute_pivot",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.33.json#q49",
+  "sym": "MRNA",
   "type": "scenario",
   "version": 1
  },
@@ -143332,8 +144393,20 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "Over the high; stop under the low"
+  },
+  "asof": "2026-08-27",
+  "bars": {
+   "asof": "2026-08-27",
+   "asof_key": 1787842800,
+   "forward": 60,
+   "forward_to_key": 1788447600,
+   "rth": true,
+   "sym": "PSX",
+   "tf": "30",
+   "window": 243
   },
   "difficulty": 3,
   "id": "si_9b3c5020f463",
@@ -143341,6 +144414,13 @@
   "lesson_text": "Buy over the pivot high at market, with the stop a few cents under 237.12. Here the pivot candle is also the day's low, so both stop choices agree. PSX bought 238.91 with the stop at 237.09, 0.76% away. Every position has a real stop order with the broker. Entry, stop, size, trims. Written before the bell, run without a debate.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 60,
+    "hide_ticker": true,
+    "tf": "30",
+    "visible_bars": 43,
+    "window_bars": 243
+   },
    "choices": [
     "Over the high; stop under the low",
     "Over the high; stop 3% under buy",
@@ -143349,7 +144429,7 @@
    ],
    "kind": "mcq",
    "q": "Which plan fits our rules?",
-   "story": "PSX, 2026-08-27: 5 reds down to its rising daily average. The 11:00 candle is the pivot and the day's low, 237.12. The 11:30 candle takes its high.",
+   "story": "5 reds down to its rising daily average. The 11:00 candle is the pivot and the day's low, 237.12. The 11:30 candle takes its high.",
    "subject": "SET.33#q58"
   },
   "reveal_json": {
@@ -143418,7 +144498,7 @@
     "summary": "PSX 2026-08-27: 5 reds into the 10-day EMA 236.78; pivot 11:00, the day's low 237.12; buy 238.91, stop 237.09 (0.76%). PSX: a quiet pullback; the pivot is the day's low; 3R the next session, 5R two sessions on. E57: entries are market orders. F62: the stop sits a few cents under the low, not on it. D41: a real stop order with the broker. No buying while the reds are still falling; the green candle must close first. HOOD: the 10:30 candle was the first green one, low 101.20; his stop sat 4 cents under it. On HOOD the pivot candle's low was 101.20 and the day's low 100.69."
    },
    "facts": {
-    "given": "Which plan fits our rules? PSX, 2026-08-27: 5 reds down to its rising daily average. The 11:00 candle is the pivot and the day's low, 237.12. The 11:30 candle takes its high. Over the high; stop under the low Over the high; stop 3% under buy Over the high; stop in your head At the average; stop 230.00"
+    "given": "Which plan fits our rules? 5 reds down to its rising daily average. The 11:00 candle is the pivot and the day's low, 237.12. The 11:30 candle takes its high. Over the high; stop under the low Over the high; stop 3% under buy Over the high; stop in your head At the average; stop 230.00"
    },
    "lesson_line": "Entry, stop, size, trims. Written before the bell, run without a debate.",
    "simple": "Buy over the pivot high at market and put the stop a few cents under 237.12, the low.",
@@ -143435,6 +144515,7 @@
   "skill_id": "setup.thirty_minute_pivot",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.33.json#q58",
+  "sym": "PSX",
   "type": "scenario",
   "version": 1
  },
@@ -144921,7 +146002,7 @@
   "difficulty": 1,
   "id": "si_d2aabd687a7e",
   "lesson_origin": "session",
-  "lesson_text": "A few cents under the session low at the time of entry, not exactly on it. It does not go under the flag, the 20-day EMA or the reclaimed level. The low of the day is the line you defend.",
+  "lesson_text": "A few cents under the session low at the time of entry, not exactly on it. It does not go under the flag, the 20-day EMA or the reclaimed level. Here the stop is 331.63, three cents under 331.66. The low of the day is the line you defend.",
   "module": "SET",
   "prompt_json": {
    "choices": [
@@ -144932,6 +146013,7 @@
    ],
    "kind": "mcq",
    "q": "Where does the Go Signal stop go?",
+   "story": "You buy a first-candle reclaim of the prior close at 336.42. The session low so far is 331.66.",
    "subject": "SET.34#q15"
   },
   "reveal_json": {
@@ -144965,13 +146047,13 @@
     "summary": "Card: the stop is a few cents under the session's low at the time of entry. F62: the stop sits a few cents under the day's low. META: gap down open 331.80, session low 331.66, prior close 333.17; buy 336.42 on the first candle, stop 331.63 (1.42%); 39.1R, 3R in 2 days."
    },
    "facts": {
-    "given": "Where does the Go Signal stop go? Just under the session low Under the 20-day EMA Under the low of the hourly flag At the reclaimed level"
+    "given": "Where does the Go Signal stop go? You buy a first-candle reclaim of the prior close at 336.42. The session low so far is 331.66. Just under the session low Under the 20-day EMA Under the low of the hourly flag At the reclaimed level"
    },
    "lesson_line": "The low of the day is the line you defend.",
    "simple": "Put the stop a few cents under the low of the session, because that low is the line you defend.",
    "tier": "core",
    "unit": "SET.34",
-   "why": "A few cents under the session low at the time of entry, not exactly on it. It does not go under the flag, the 20-day EMA or the reclaimed level.",
+   "why": "A few cents under the session low at the time of entry, not exactly on it. It does not go under the flag, the 20-day EMA or the reclaimed level. Here the stop is 331.63, three cents under 331.66.",
    "wrong": {
     "At the reclaimed level": "Never raise the stop to the reclaimed level: the level is where the shake-out happens.",
     "Under the 20-day EMA": "The average is context. The stop goes under the low of the session.",
@@ -144982,7 +146064,7 @@
   "skill_id": "setup.go_signal",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.34.json#q15",
-  "type": "recall",
+  "type": "scenario",
   "version": 1
  },
  {
@@ -145064,7 +146146,28 @@
    ],
    "kind": "mcq",
    "q": "Entry 37.18. The session low is 36.15 and the stop sits 3 cents under it. How far below the entry is the stop?",
-   "subject": "SET.34#q22"
+   "subject": "SET.34#q22",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Stop distance below entry"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "fill",
+      "label": "Entry",
+      "price": 37.18
+     },
+     {
+      "key": "low",
+      "label": "Session low",
+      "price": 36.15
+     }
+    ],
+    "side": "long",
+    "title": "The session"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -145148,8 +146251,20 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "0.6%"
+  },
+  "asof": "2024-03-19",
+  "bars": {
+   "asof": "2024-03-19",
+   "asof_key": 1710855000,
+   "forward": 20,
+   "forward_to_key": 1711459800,
+   "rth": true,
+   "sym": "CEG",
+   "tf": "60",
+   "window": 236
   },
   "difficulty": 2,
   "id": "si_f88ad6461abe",
@@ -145157,6 +146272,13 @@
   "lesson_text": "0.6%. Measure from the prior close, 168.84, because it is the buy point. The gap is 169.79 minus 168.84. Divide by 168.84 and show it as a percent: about 0.6%. Never buy more than 4% above the buy point. At 0.6% the chase rule does not block the buy. Chasing costs size, not risk. Check the distance from the prior close before you buy.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 20,
+    "hide_ticker": true,
+    "tf": "60",
+    "visible_bars": 36,
+    "window_bars": 236
+   },
    "choices": [
     "0.6%",
     "1.0%",
@@ -145165,22 +146287,7 @@
    ],
    "kind": "mcq",
    "q": "Prior close 168.84. The reclaim candle closes at 169.79. How far over the prior close is that?",
-   "subject": "SET.34#q23",
-   "visual": {
-    "find": {
-     "as": "pct",
-     "label": "The change"
-    },
-    "from": {
-     "label": "",
-     "value": 168.84
-    },
-    "kind": "move",
-    "to": {
-     "label": "",
-     "value": 169.79
-    }
-   }
+   "subject": "SET.34#q23"
   },
   "reveal_json": {
    "depth": {
@@ -145235,6 +146342,7 @@
   "skill_id": "setup.go_signal",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.34.json#q23",
+  "sym": "CEG",
   "type": "recall",
   "version": 1
  },
@@ -146069,8 +147177,20 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "Size down from the stop"
+  },
+  "asof": "2025-11-14",
+  "bars": {
+   "asof": "2025-11-14",
+   "asof_key": 1763130600,
+   "forward": 20,
+   "forward_to_key": 1763735400,
+   "rth": true,
+   "sym": "CRS",
+   "tf": "60",
+   "window": 236
   },
   "difficulty": 2,
   "id": "si_b4212d6605df",
@@ -146078,6 +147198,13 @@
   "lesson_text": "Size down from the stop. The turn is valid, and the stop under the first candle's low is 4.96% from the entry. We prefer 1 to 3%, and up to 5% is acceptable. So we take it with fewer shares. Past 5%, we mostly wait for a tighter trigger. A giant first candle widens the stop. Size follows the stop.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 20,
+    "hide_ticker": true,
+    "tf": "60",
+    "visible_bars": 36,
+    "window_bars": 236
+   },
    "choices": [
     "Buy the open, skip the wait",
     "Buy full size; ignore the stop width",
@@ -146162,6 +147289,7 @@
   "skill_id": "setup.go_signal",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.34.json#q36",
+  "sym": "CRS",
   "type": "scenario",
   "version": 1
  },
@@ -146593,8 +147721,20 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "3.0R"
+  },
+  "asof": "2026-02-19",
+  "bars": {
+   "asof": "2026-02-19",
+   "asof_key": 1771515000,
+   "forward": 40,
+   "forward_to_key": 1772119800,
+   "rth": true,
+   "sym": "VIAV",
+   "tf": "60",
+   "window": 237
   },
   "difficulty": 2,
   "id": "si_7bb4d850e8a5",
@@ -146602,6 +147742,13 @@
   "lesson_text": "3R. One R is the fill minus the stop: 26.43 minus 25.66. The gain is 28.74 minus 26.43. That gain is exactly three of those. 3R is a marker, not a fixed sell. VIAV got there in 3 days. Count in R. Three R is a marker, not an automatic sell.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 40,
+    "hide_ticker": true,
+    "tf": "60",
+    "visible_bars": 37,
+    "window_bars": 237
+   },
    "choices": [
     "0.3R",
     "3.0R",
@@ -146610,36 +147757,7 @@
    ],
    "kind": "mcq",
    "q": "Bought at 26.43, stop 25.66. One R is the gap between them. The stock trades to 28.74. How many R is that?",
-   "subject": "SET.34#q43",
-   "visual": {
-    "find": {
-     "as": "r",
-     "label": "R on the trade"
-    },
-    "kind": "ladder",
-    "levels": [
-     {
-      "key": "stop",
-      "label": "Stop",
-      "price": 25.66
-     },
-     {
-      "key": "entry",
-      "label": "Entry",
-      "price": 26.43
-     },
-     {
-      "key": "exit",
-      "label": "Exit",
-      "price": 28.74
-     }
-    ],
-    "r": {
-     "entry": 26.43,
-     "stop": 25.66
-    },
-    "side": "long"
-   }
+   "subject": "SET.34#q43"
   },
   "reveal_json": {
    "depth": {
@@ -146676,6 +147794,22 @@
    "lesson_line": "Count in R. Three R is a marker, not an automatic sell.",
    "simple": "The stock is up three times the gap between fill and stop, so the trade is at 3R.",
    "tier": "extended",
+   "trade": {
+    "direction": "bullish",
+    "enters_intraday": false,
+    "entry": 26.43,
+    "entry_note": "the fill on the chart's last bar",
+    "source": "course",
+    "stop": 25.66,
+    "stop_note": "under that bar's low",
+    "t1": 28.74,
+    "t2": 30.28,
+    "trim_r": [
+     3,
+     5
+    ],
+    "unit": "bar"
+   },
    "unit": "SET.34",
    "why": "3R. One R is the fill minus the stop: 26.43 minus 25.66. The gain is 28.74 minus 26.43. That gain is exactly three of those. 3R is a marker, not a fixed sell. VIAV got there in 3 days.",
    "wrong": {
@@ -146688,6 +147822,7 @@
   "skill_id": "setup.go_signal",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.34.json#q43",
+  "sym": "VIAV",
   "type": "recall",
   "version": 1
  },
@@ -146822,15 +147957,34 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "Yes; candle two is in time"
+  },
+  "asof": "2026-02-19",
+  "bars": {
+   "asof": "2026-02-19",
+   "asof_key": 1771515000,
+   "forward": 20,
+   "forward_to_key": 1772119800,
+   "rth": true,
+   "sym": "VIAV",
+   "tf": "60",
+   "window": 237
   },
   "difficulty": 3,
   "id": "si_bcf92c10931e",
   "lesson_origin": "session",
-  "lesson_text": "Yes. The reclaim comes by the end of the second hourly candle, and here candle two closed green back above the prior close. So it counts. The first candle does not have to reclaim. VIAV was this second-candle version and reached 44.2R, but one trade proves nothing about the next. First or second candle both count.",
+  "lesson_text": "Yes. The reclaim comes by the end of the second hourly candle, and here candle two closed green back above the prior close. So it counts. The first candle does not have to reclaim. VIAV was this second-candle version and ran far in the weeks after, but one trade proves nothing about the next. First or second candle both count.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 20,
+    "hide_ticker": true,
+    "tf": "60",
+    "visible_bars": 37,
+    "window_bars": 237
+   },
    "choices": [
     "No; it is a pivot, not a signal",
     "Yes; wait for a third to confirm",
@@ -146839,7 +147993,7 @@
    ],
    "kind": "mcq",
    "q": "Is this a Go Signal?",
-   "story": "Candle one is red and stays under the prior close. Candle two closes green back above it. Everything else passes.",
+   "story": "Candle one closes under the prior close. Candle two closes green back above it. Everything else passes.",
    "subject": "SET.34#q47"
   },
   "reveal_json": {
@@ -146880,13 +148034,13 @@
     "summary": "VIAV: the second-candle version; candle one is red and stays under the prior close, candle two closes green back above it. VIAV: gap down open 25.97, session low 25.69, prior close 26.33; buy 26.43 on the second candle, stop 25.66 (2.91%); 44.2R, 3R in 3 days. Card: the reclaim comes by the end of the second hourly candle; a turn after that is a pivot, not a Go Signal. AXON, 2024-09-11: the close back above the prior close, 359.35, came on the third hourly candle, 361.39, after the two-candle window."
    },
    "facts": {
-    "given": "Is this a Go Signal? Candle one is red and stays under the prior close. Candle two closes green back above it. Everything else passes. Yes; candle two is in time No; it needed the first candle No; it is a pivot, not a signal Yes; wait for a third to confirm"
+    "given": "Is this a Go Signal? Candle one closes under the prior close. Candle two closes green back above it. Everything else passes. Yes; candle two is in time No; it needed the first candle No; it is a pivot, not a signal Yes; wait for a third to confirm"
    },
    "lesson_line": "First or second candle both count.",
    "simple": "Yes, because the close back above the prior close came on candle two, which is still inside the window.",
    "tier": "extended",
    "unit": "SET.34",
-   "why": "Yes. The reclaim comes by the end of the second hourly candle, and here candle two closed green back above the prior close. So it counts. The first candle does not have to reclaim. VIAV was this second-candle version and reached 44.2R, but one trade proves nothing about the next.",
+   "why": "Yes. The reclaim comes by the end of the second hourly candle, and here candle two closed green back above the prior close. So it counts. The first candle does not have to reclaim. VIAV was this second-candle version and ran far in the weeks after, but one trade proves nothing about the next.",
    "wrong": {
     "No; it is a pivot, not a signal": "A pivot is a turn after the second candle. This one was on it.",
     "No; it needed the first candle": "The first or the second candle counts. VIAV reclaimed on the second.",
@@ -146897,6 +148051,7 @@
   "skill_id": "setup.go_signal",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.34.json#q47",
+  "sym": "VIAV",
   "type": "scenario",
   "version": 1
  },
@@ -147138,15 +148293,34 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "A planned loss; the risk was set"
+  },
+  "asof": "2025-05-30",
+  "bars": {
+   "asof": "2025-05-30",
+   "asof_key": 1748611800,
+   "forward": 20,
+   "forward_to_key": 1749216600,
+   "rth": true,
+   "sym": "TSLA",
+   "tf": "60",
+   "window": 236
   },
   "difficulty": 3,
   "id": "si_577bd398bfcf",
   "lesson_origin": "session",
-  "lesson_text": "A planned loss. After the entry, a trade below the session low, the stop, is the exit. TSLA's turn was real, but the third candle broke back under the prior close and the fourth fell through the stop. A reclaim that does not follow through gives it back within hours. The size was set from that stop in advance. The turn was real. The stock gave it back. The stop paid.",
+  "lesson_text": "A planned loss. After the entry, a trade below the session low, the stop, is the exit. TSLA's turn was real, but the third candle broke back under the prior close and fell through the stop. A reclaim that does not follow through gives it back within hours. The size was set from that stop in advance. The turn was real. The stock gave it back. The stop paid.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 20,
+    "hide_ticker": true,
+    "tf": "60",
+    "visible_bars": 36,
+    "window_bars": 236
+   },
    "choices": [
     "A mistake; you should have sold sooner",
     "A reason to widen the next stop",
@@ -147155,12 +148329,12 @@
    ],
    "kind": "mcq",
    "q": "How do you file this?",
-   "story": "You bought at 361.86 after a green first candle. The third candle broke back under the prior close, and the fourth fell through your stop at 353.79.",
+   "story": "You bought at 361.86 after a green first candle. The third candle broke back under the prior close and fell through your stop at 353.79.",
    "subject": "SET.34#q53"
   },
   "reveal_json": {
    "deeper": {
-    "example": "TSLA: bought at 361.86 on the first candle with the stop at 353.79, which is 2.23% away. It was stopped the same session at the 12:30 candle, best 0.23R."
+    "example": "TSLA: bought at 361.86 on the first candle with the stop at 353.79, which is 2.23% away. It was stopped the same session, in the third candle, best 0.23R."
    },
    "depth": {
     "sources": [
@@ -147217,13 +148391,29 @@
     "summary": "TSLA, 2025-05-30: buy 361.86 on the first candle, stop 353.79 (2.23%); stopped the same session at the 12:30 candle, best 0.23R. TSLA: a dip under the prior day's low (353.82 against a prior close of 358.43) and a green first candle; the third candle broke back under the prior close and the fourth fell through the stop. Card: after the entry, a trade below the session low, the stop, is the exit. Card: a reclaim that does not follow through gives it back within hours; a day that closes back under the prior close is the warning. A3: stop first, a few cents under the day's low; the size comes from the stop; if the honest stop does not fit, skip. A4: the stop is the exit; it only moves up, never wider; the gap rule is the one exception. B21: after a stop-out, buy again only on a new trigger, as a new trade."
    },
    "facts": {
-    "given": "How do you file this? You bought at 361.86 after a green first candle. The third candle broke back under the prior close, and the fourth fell through your stop at 353.79. A planned loss; the risk was set A mistake; you should have sold sooner A reason to widen the next stop A sign the setup has stopped working"
+    "given": "How do you file this? You bought at 361.86 after a green first candle. The third candle broke back under the prior close and fell through your stop at 353.79. A planned loss; the risk was set A mistake; you should have sold sooner A reason to widen the next stop A sign the setup has stopped working"
    },
    "lesson_line": "The turn was real. The stock gave it back. The stop paid.",
    "simple": "It is a planned loss, because the stop is the exit and the stock gave the turn back within hours.",
    "tier": "expert",
+   "trade": {
+    "direction": "bullish",
+    "enters_intraday": false,
+    "entry": 361.86,
+    "entry_note": "the fill on the chart's last bar",
+    "source": "course",
+    "stop": 353.79,
+    "stop_note": "under that bar's low",
+    "t1": 386.07,
+    "t2": 402.21,
+    "trim_r": [
+     3,
+     5
+    ],
+    "unit": "bar"
+   },
    "unit": "SET.34",
-   "why": "A planned loss. After the entry, a trade below the session low, the stop, is the exit. TSLA's turn was real, but the third candle broke back under the prior close and the fourth fell through the stop. A reclaim that does not follow through gives it back within hours. The size was set from that stop in advance.",
+   "why": "A planned loss. After the entry, a trade below the session low, the stop, is the exit. TSLA's turn was real, but the third candle broke back under the prior close and fell through the stop. A reclaim that does not follow through gives it back within hours. The size was set from that stop in advance.",
    "wrong": {
     "A mistake; you should have sold sooner": "The card's exit is the stop under the session low. Selling earlier is not part of the plan.",
     "A reason to widen the next stop": "We set the next stop the same way: a few cents under the session low, with the size coming from it.",
@@ -147234,6 +148424,7 @@
   "skill_id": "setup.go_signal",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.34.json#q53",
+  "sym": "TSLA",
   "type": "scenario",
   "version": 1
  },
@@ -147889,7 +149080,29 @@
    ],
    "kind": "mcq",
    "q": "A stock trades 600,000 shares a day on average, at about 24 dollars. How many dollars trade a day?",
-   "subject": "SET.34#q68"
+   "subject": "SET.34#q68",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Dollars traded a day"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "shares",
+      "key": "shares",
+      "label": "Shares a day",
+      "value": 600000
+     },
+     {
+      "fmt": "$",
+      "key": "price",
+      "label": "Price",
+      "value": 24
+     }
+    ],
+    "title": "Dollar volume"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -148136,7 +149349,32 @@
    ],
    "kind": "mcq",
    "q": "Bought at 24.48, stop 24.01. One R is the gap between them. At what price does our breakeven window open?",
-   "subject": "SET.34#q72"
+   "subject": "SET.34#q72",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "Where the window opens"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 24.01
+     },
+     {
+      "key": "entry",
+      "label": "Bought at",
+      "price": 24.48
+     }
+    ],
+    "r": {
+     "entry": 24.48,
+     "stop": 24.01
+    },
+    "side": "long",
+    "title": "The breakeven window"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -164608,7 +165846,29 @@
    ],
    "kind": "mcq",
    "q": "The 50-day is 410.00 and ATR is 9.00. The pullback low was 400.10. How many ATR under the line did it dip?",
-   "subject": "SET.43#q26"
+   "subject": "SET.43#q26",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Dip under the line",
+     "unit": "ATR"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "line",
+      "label": "50-day",
+      "price": 410.0
+     },
+     {
+      "key": "low",
+      "label": "Pullback low",
+      "price": 400.1
+     }
+    ],
+    "side": "long",
+    "title": "The dip (ATR 9.00)"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -174411,7 +175671,32 @@
    ],
    "kind": "mcq",
    "q": "Bought at 36.00 with the stop at 34.00. At what price does the ideal breakeven window open?",
-   "subject": "SET.45#q103"
+   "subject": "SET.45#q103",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "Where the window opens"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 34.0
+     },
+     {
+      "key": "entry",
+      "label": "Bought at",
+      "price": 36.0
+     }
+    ],
+    "r": {
+     "entry": 36.0,
+     "stop": 34.0
+    },
+    "side": "long",
+    "title": "The breakeven window"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -175489,7 +176774,29 @@
    ],
    "kind": "mcq",
    "q": "Kell might size a 15% position with a 2% stop. What share of the account does that risk, in percent?",
-   "subject": "SET.45#q118"
+   "subject": "SET.45#q118",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Risk, % of the account"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "%",
+      "key": "pos",
+      "label": "Position, % of account",
+      "value": 15
+     },
+     {
+      "fmt": "%",
+      "key": "stop",
+      "label": "Stop distance",
+      "value": 2
+     }
+    ],
+    "title": "Kell's sizing"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -176630,7 +177937,33 @@
    ],
    "kind": "mcq",
    "q": "Prior move 35.00 to 52.28. Base high 52.28, base low 45.00. What share of the move did it give back, in percent?",
-   "subject": "SET.45#q22"
+   "subject": "SET.45#q22",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Share of move given back"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "high",
+      "label": "Base high",
+      "price": 52.28
+     },
+     {
+      "key": "low",
+      "label": "Base low",
+      "price": 45.0
+     },
+     {
+      "key": "start",
+      "label": "Prior move start",
+      "price": 35.0
+     }
+    ],
+    "side": "long",
+    "title": "The base"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -180670,7 +182003,29 @@
    ],
    "kind": "mcq",
    "q": "A stock closes at $18 and averages 1,100,000 shares a day. About what is its dollar volume a day, in millions?",
-   "subject": "SET.45#q86"
+   "subject": "SET.45#q86",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Dollars traded a day"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "shares",
+      "key": "shares",
+      "label": "Shares a day",
+      "value": 1100000
+     },
+     {
+      "fmt": "$",
+      "key": "price",
+      "label": "Close",
+      "value": 18
+     }
+    ],
+    "title": "Dollar volume"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -183370,7 +184725,29 @@
    ],
    "kind": "mcq",
    "q": "Anchor high 60.00, lowest low after it 51.00, ATR 1.80. How many ATR did it fall?",
-   "subject": "SET.46#q25"
+   "subject": "SET.46#q25",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Fall in ATR",
+     "unit": "ATR"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "high",
+      "label": "Anchor high",
+      "price": 60.0
+     },
+     {
+      "key": "low",
+      "label": "Lowest low after it",
+      "price": 51.0
+     }
+    ],
+    "side": "long",
+    "title": "The fall (ATR 1.80)"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -183441,7 +184818,29 @@
    ],
    "kind": "mcq",
    "q": "AVWAP 45.20, ATR 1.10, the reclaim day closes 46.55. How far over the line, in ATR?",
-   "subject": "SET.46#q26"
+   "subject": "SET.46#q26",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Distance over the line",
+     "unit": "ATR"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "close",
+      "label": "Reclaim day close",
+      "price": 46.55
+     },
+     {
+      "key": "line",
+      "label": "AVWAP",
+      "price": 45.2
+     }
+    ],
+    "side": "long",
+    "title": "Over the line (ATR 1.10)"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -192658,7 +194057,28 @@
    ],
    "kind": "mcq",
    "q": "A full window: the gap day's high is 44.00 and yesterday's low is 46.00. How wide is the window?",
-   "subject": "SET.48#q16"
+   "subject": "SET.48#q16",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Window width"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "low",
+      "label": "Yesterday's low",
+      "price": 46.0
+     },
+     {
+      "key": "high",
+      "label": "Gap day's high",
+      "price": 44.0
+     }
+    ],
+    "side": "long",
+    "title": "The window"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -197020,7 +198440,29 @@
    ],
    "kind": "mcq",
    "q": "Prior close 80.00, ATR 2.50, today's low 74.60. How many ATR under the prior close is the low?",
-   "subject": "SET.49#q15"
+   "subject": "SET.49#q15",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Depth in ATR",
+     "unit": "ATR"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "close",
+      "label": "Prior close",
+      "price": 80.0
+     },
+     {
+      "key": "low",
+      "label": "Today's low",
+      "price": 74.6
+     }
+    ],
+    "side": "long",
+    "title": "Under the close (ATR 2.50)"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -197162,7 +198604,29 @@
    ],
    "kind": "mcq",
    "q": "QQQ's 50-day is 500 and its ATR is 8. It closes at 472. How many ATR under the 50-day is it?",
-   "subject": "SET.49#q17"
+   "subject": "SET.49#q17",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Depth in ATR",
+     "unit": "ATR"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "line",
+      "label": "50-day",
+      "price": 500.0
+     },
+     {
+      "key": "close",
+      "label": "QQQ close",
+      "price": 472.0
+     }
+    ],
+    "side": "long",
+    "title": "Under the 50-day (ATR 8)"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -198641,7 +200105,42 @@
    "kind": "mcq",
    "q": "What now?",
    "story": "You bought at 20.00 with a stop at 19.80. It gaps down and opens at 19.70, under the stop. The first 30-minute low is 19.30.",
-   "subject": "SET.49#q40"
+   "subject": "SET.49#q40",
+   "visual": {
+    "find": {
+     "as": "r_loss",
+     "label": "R lost at the low"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "entry",
+      "label": "Bought at",
+      "price": 20.0
+     },
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 19.8
+     },
+     {
+      "key": "open",
+      "label": "Opens at",
+      "price": 19.7
+     },
+     {
+      "key": "price",
+      "label": "First 30-min low",
+      "price": 19.3
+     }
+    ],
+    "r": {
+     "entry": 20.0,
+     "stop": 19.8
+    },
+    "side": "long",
+    "title": "The gap down"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -200106,7 +201605,28 @@
    ],
    "kind": "mcq",
    "q": "With a typical stop of 1.7%, about how big a bounce is 3R?",
-   "subject": "SET.49#q59"
+   "subject": "SET.49#q59",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Bounce size"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "%",
+      "key": "stop",
+      "label": "Typical stop",
+      "value": 1.7
+     },
+     {
+      "key": "r",
+      "label": "Reward in R",
+      "value": 3
+     }
+    ],
+    "title": "The bounce"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -202456,7 +203976,29 @@
    ],
    "kind": "mcq",
    "q": "The floor is 150.00, ATR is 3.00 and the spring low is 149.10. How deep is the dip, in ATR?",
-   "subject": "SET.50#q16"
+   "subject": "SET.50#q16",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Dip depth",
+     "unit": "ATR"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "line",
+      "label": "The floor",
+      "price": 150.0
+     },
+     {
+      "key": "low",
+      "label": "Spring low",
+      "price": 149.1
+     }
+    ],
+    "side": "long",
+    "title": "The spring (ATR 3.00)"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -203950,7 +205492,37 @@
    "kind": "mcq",
    "q": "What now?",
    "story": "You bought at 100.00 with a stop at 98.00. The stock gaps down and the first 30-minute low is 95.00.",
-   "subject": "SET.50#q38"
+   "subject": "SET.50#q38",
+   "visual": {
+    "find": {
+     "as": "r_loss",
+     "label": "R lost at the low"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "entry",
+      "label": "Bought at",
+      "price": 100.0
+     },
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 98.0
+     },
+     {
+      "key": "price",
+      "label": "First 30-min low",
+      "price": 95.0
+     }
+    ],
+    "r": {
+     "entry": 100.0,
+     "stop": 98.0
+    },
+    "side": "long",
+    "title": "The gap down"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -205660,7 +207232,29 @@
    ],
    "kind": "mcq",
    "q": "A stock trades 750,000 shares a day at 24.00. How many dollars a day is that?",
-   "subject": "SET.50#q69"
+   "subject": "SET.50#q69",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Dollars traded a day"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "shares",
+      "key": "shares",
+      "label": "Shares a day",
+      "value": 750000
+     },
+     {
+      "fmt": "$",
+      "key": "price",
+      "label": "Price",
+      "value": 24
+     }
+    ],
+    "title": "Dollar volume"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -206061,7 +207655,35 @@
    ],
    "kind": "mcq",
    "q": "A spring position is 900 shares. You sell 300 at your first sell and 300 more at a later sell. How many are left to trail?",
-   "subject": "SET.50#q74"
+   "subject": "SET.50#q74",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "Left to trail"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "shares",
+      "key": "bought",
+      "label": "Position",
+      "value": 900
+     },
+     {
+      "fmt": "shares",
+      "key": "s1",
+      "label": "First sell",
+      "value": 300
+     },
+     {
+      "fmt": "shares",
+      "key": "s2",
+      "label": "Later sell",
+      "value": 300
+     }
+    ],
+    "title": "The position"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -207415,7 +209037,29 @@
    ],
    "kind": "mcq",
    "q": "Prior close 60.00, ATR(14) 1.80, day's low 55.90. How many ATR is the drop?",
-   "subject": "SET.51#q13"
+   "subject": "SET.51#q13",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Drop in ATR",
+     "unit": "ATR"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "close",
+      "label": "Prior close",
+      "price": 60.0
+     },
+     {
+      "key": "low",
+      "label": "Day's low",
+      "price": 55.9
+     }
+    ],
+    "side": "long",
+    "title": "The drop (ATR 1.80)"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -213335,7 +214979,28 @@
    "kind": "mcq",
    "q": "What do you do on day 3?",
    "story": "Day 2's high is 24.96, so the trigger is a cent over it. On day 3 the stock opens at 26.10.",
-   "subject": "SET.52#q22"
+   "subject": "SET.52#q22",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Open over the trigger"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "open",
+      "label": "Day 3 open",
+      "price": 26.1
+     },
+     {
+      "key": "high",
+      "label": "Day 2 high",
+      "price": 24.96
+     }
+    ],
+    "side": "long",
+    "title": "The trigger"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -217962,8 +219627,20 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "0.94%"
+  },
+  "asof": "2025-10-01",
+  "bars": {
+   "asof": "2025-10-01",
+   "asof_key": 1759325400,
+   "forward": 14,
+   "forward_to_key": 1759930200,
+   "rth": true,
+   "sym": "CEG",
+   "tf": "60",
+   "window": 250
   },
   "difficulty": 1,
   "id": "si_179923415b0d",
@@ -217971,6 +219648,13 @@
   "lesson_text": "The gap is the prior close minus the open: 329.07 - 325.97 = 3.10. Divide by the prior close: 3.10 / 329.07 = 0.94%. The open is under the prior close, so the day starts red. This only measures the gap. It is not a rule for how big a gap must be. Measure the gap from the prior close.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 14,
+    "hide_ticker": true,
+    "tf": "60",
+    "visible_bars": 50,
+    "window_bars": 250
+   },
    "choices": [
     "0.94%",
     "3.10%",
@@ -217978,23 +219662,9 @@
     "99.06%"
    ],
    "kind": "mcq",
-   "q": "Prior close 329.07, open 325.97. How far below the prior close is the open?",
-   "subject": "SET.53#q14",
-   "visual": {
-    "find": {
-     "as": "pct",
-     "label": "The distance"
-    },
-    "from": {
-     "label": "",
-     "value": 329.07
-    },
-    "kind": "move",
-    "to": {
-     "label": "",
-     "value": 325.97
-    }
-   }
+   "q": "How far below the prior close is the open?",
+   "story": "The prior close was 329.07 and the stock opened at 325.97.",
+   "subject": "SET.53#q14"
   },
   "reveal_json": {
    "depth": {
@@ -218026,7 +219696,7 @@
      "fn": "arith",
      "result": 0.94
     },
-    "given": "Prior close 329.07, open 325.97. How far below the prior close is the open? 3.10% 0.94% 9.42% 99.06%"
+    "given": "How far below the prior close is the open? The prior close was 329.07 and the stock opened at 325.97. 3.10% 0.94% 9.42% 99.06%"
    },
    "lesson_line": "Measure the gap from the prior close.",
    "simple": "0.94%, because you divide the drop from 329.07 to 325.97 by the 329.07 prior close.",
@@ -218043,7 +219713,8 @@
   "skill_id": "setup.red_to_green",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.53.json#q14",
-  "type": "recall",
+  "sym": "CEG",
+  "type": "scenario",
   "version": 1
  },
  {
@@ -218064,7 +219735,28 @@
    ],
    "kind": "mcq",
    "q": "Bought at 62.40, dip low 61.35, stop 3 cents under the dip low. How wide is the stop?",
-   "subject": "SET.53#q15"
+   "subject": "SET.53#q15",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Stop width, % of the fill"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "fill",
+      "label": "Bought at",
+      "price": 62.4
+     },
+     {
+      "key": "low",
+      "label": "Dip low",
+      "price": 61.35
+     }
+    ],
+    "side": "long",
+    "title": "The dip"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -218117,8 +219809,20 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "$115.47"
+  },
+  "asof": "2025-12-04",
+  "bars": {
+   "asof": "2025-12-04",
+   "asof_key": 1764858600,
+   "forward": 16,
+   "forward_to_key": 1765463400,
+   "rth": true,
+   "sym": "TPR",
+   "tf": "60",
+   "window": 250
   },
   "difficulty": 1,
   "id": "si_07a0d77ae772",
@@ -218126,6 +219830,13 @@
   "lesson_text": "One R is the fill minus the stop. Add three of them to the fill: 111.93 + 3 x (111.93 - 110.75) = 115.47. 3R is a measuring stick, not an automatic sale. The first sell is a judgment, not a fixed third at 3R. Know your 3R before the open. The first sell is a judgment.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 16,
+    "hide_ticker": true,
+    "tf": "60",
+    "visible_bars": 50,
+    "window_bars": 250
+   },
    "choices": [
     "$113.11",
     "$114.29",
@@ -218134,31 +219845,8 @@
    ],
    "kind": "mcq",
    "q": "Fill 111.93, stop 110.75. What price is 3R?",
-   "subject": "SET.53#q16",
-   "visual": {
-    "find": {
-     "as": "price",
-     "label": "3R"
-    },
-    "kind": "ladder",
-    "levels": [
-     {
-      "key": "stop",
-      "label": "Stop",
-      "price": 110.75
-     },
-     {
-      "key": "entry",
-      "label": "Entry",
-      "price": 111.93
-     }
-    ],
-    "r": {
-     "entry": 111.93,
-     "stop": 110.75
-    },
-    "side": "long"
-   }
+   "story": "You bought a red to green at the first-hour cross.",
+   "subject": "SET.53#q16"
   },
   "reveal_json": {
    "depth": {
@@ -218190,11 +219878,27 @@
      "fn": "arith",
      "result": 115.47
     },
-    "given": "Fill 111.93, stop 110.75. What price is 3R? $114.29 $116.65 $113.11 $115.47"
+    "given": "Fill 111.93, stop 110.75. What price is 3R? You bought a red to green at the first-hour cross. $114.29 $116.65 $113.11 $115.47"
    },
    "lesson_line": "Know your 3R before the open. The first sell is a judgment.",
    "simple": "115.47, because one R is 111.93 minus 110.75, and adding three of those to the fill lands there.",
    "tier": "core",
+   "trade": {
+    "direction": "bullish",
+    "enters_intraday": false,
+    "entry": 111.93,
+    "entry_note": "the fill on the chart's last bar",
+    "source": "course",
+    "stop": 110.75,
+    "stop_note": "under that bar's low",
+    "t1": 115.47,
+    "t2": 117.83,
+    "trim_r": [
+     3,
+     5
+    ],
+    "unit": "bar"
+   },
    "unit": "SET.53",
    "why": "One R is the fill minus the stop. Add three of them to the fill: 111.93 + 3 x (111.93 - 110.75) = 115.47. 3R is a measuring stick, not an automatic sale. The first sell is a judgment, not a fixed third at 3R.",
    "wrong": {
@@ -218207,7 +219911,8 @@
   "skill_id": "setup.red_to_green",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.53.json#q16",
-  "type": "recall",
+  "sym": "TPR",
+  "type": "scenario",
   "version": 1
  },
  {
@@ -218265,15 +219970,34 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "Yes, it crossed after trading under"
+  },
+  "asof": "2026-10-08",
+  "bars": {
+   "asof": "2026-10-08",
+   "asof_key": 1791467400,
+   "forward": 30,
+   "forward_to_key": 1792072200,
+   "rth": true,
+   "sym": "ANF",
+   "tf": "5",
+   "window": 283
   },
   "difficulty": 1,
   "id": "si_0810e2476b7a",
   "lesson_origin": "session",
-  "lesson_text": "Yes. It traded under the prior close of 50.00, dipping to 49.30. Then it traded at 50.02, at least a cent over the line during regular hours. That is the cross. The cross is the first trade over the line, not a close over it, and today's open plays no part. Under the prior close, then a cent over it.",
+  "lesson_text": "Yes. It traded under the prior close of 139.44, opening at 137.72. Then it traded at 139.45, a cent over the line during regular hours. That is the cross. The cross is the first trade over the line, not a close over it, and today's open plays no part. Under the prior close, then a cent over it.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 30,
+    "hide_ticker": true,
+    "tf": "5",
+    "visible_bars": 83,
+    "window_bars": 283
+   },
    "choices": [
     "Yes, it crossed after trading under",
     "No, it is still under today's open",
@@ -218282,7 +220006,7 @@
    ],
    "kind": "mcq",
    "q": "Has it gone red to green?",
-   "story": "The prior close was 50.00. The stock opened at 49.40, dipped to 49.30, then traded at 50.02 at 9:45.",
+   "story": "The prior close was 139.44. The stock opened at 137.72, the low of the day so far, then traded at 139.45 in the 9:50 bar.",
    "subject": "SET.53#q19"
   },
   "reveal_json": {
@@ -218306,13 +220030,13 @@
     "summary": "The line is the prior day's official close, never the open or VWAP. Investors Underground: red to green is a move from below the previous close to above it."
    },
    "facts": {
-    "given": "Has it gone red to green? The prior close was 50.00. The stock opened at 49.40, dipped to 49.30, then traded at 50.02 at 9:45. Yes, it crossed after trading under No, it has not closed green as yet No, it is still under today's open Yes, it held over the line for an hour"
+    "given": "Has it gone red to green? The prior close was 139.44. The stock opened at 137.72, the low of the day so far, then traded at 139.45 in the 9:50 bar. Yes, it crossed after trading under No, it has not closed green as yet No, it is still under today's open Yes, it held over the line for an hour"
    },
    "lesson_line": "Under the prior close, then a cent over it.",
-   "simple": "Yes. It dipped under yesterday's close of 50.00 and then traded above it, at 50.02.",
+   "simple": "Yes. It opened under yesterday's close of 139.44 and then traded above it, at 139.45.",
    "tier": "core",
    "unit": "SET.53",
-   "why": "Yes. It traded under the prior close of 50.00, dipping to 49.30. Then it traded at 50.02, at least a cent over the line during regular hours. That is the cross. The cross is the first trade over the line, not a close over it, and today's open plays no part.",
+   "why": "Yes. It traded under the prior close of 139.44, opening at 137.72. Then it traded at 139.45, a cent over the line during regular hours. That is the cross. The cross is the first trade over the line, not a close over it, and today's open plays no part.",
    "wrong": {
     "No, it has not closed green as yet": "The cross is the first trade over the prior close, not the close of the day.",
     "No, it is still under today's open": "The open is not the line. The prior close is.",
@@ -218323,6 +220047,7 @@
   "skill_id": "setup.red_to_green",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.53.json#q19",
+  "sym": "ANF",
   "type": "scenario",
   "version": 1
  },
@@ -218517,8 +220242,20 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "Wait for the trade through the line"
+  },
+  "asof": "2026-10-08",
+  "bars": {
+   "asof": "2026-10-08",
+   "asof_key": 1791467100,
+   "forward": 30,
+   "forward_to_key": 1792071900,
+   "rth": true,
+   "sym": "ANF",
+   "tf": "5",
+   "window": 282
   },
   "difficulty": 2,
   "id": "si_f23564a809ab",
@@ -218526,6 +220263,13 @@
   "lesson_text": "Wait for the trade through the line. Buying under the line in anticipation is a mistake our card names. The entry is a market order once price trades a cent over the prior close. A stop-market order a cent over it is the same. Bohen makes the same point: wait for confirmation before entering a trade. Full size goes in at one price. No buying under the line.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 30,
+    "hide_ticker": true,
+    "tf": "5",
+    "visible_bars": 82,
+    "window_bars": 282
+   },
    "choices": [
     "Wait for the trade through the line",
     "Buy now; it is about to cross",
@@ -218534,7 +220278,7 @@
    ],
    "kind": "mcq",
    "q": "Buy now, or wait?",
-   "story": "The stock is 20 cents under the prior close at 9:52 and looks like it will cross.",
+   "story": "The prior close was 139.44. At 9:45 the stock is still under it and looks like it will cross.",
    "subject": "SET.53#q23"
   },
   "reveal_json": {
@@ -218586,7 +220330,7 @@
     "summary": "A named mistake: buying under the line in anticipation. The line is the prior day's official close, never the open or VWAP. Bohen: wait for confirmation before entering a trade. A market order as price trades through; a stop-market order a cent over the prior close is the same. E57: entries are market orders. Full size at one price; no starter, no add."
    },
    "facts": {
-    "given": "Buy now, or wait? The stock is 20 cents under the prior close at 9:52 and looks like it will cross. Wait for the trade through the line Buy now; it is about to cross Buy half now and half on the cross Set a buy limit order at the prior close"
+    "given": "Buy now, or wait? The prior close was 139.44. At 9:45 the stock is still under it and looks like it will cross. Wait for the trade through the line Buy now; it is about to cross Buy half now and half on the cross Set a buy limit order at the prior close"
    },
    "lesson_line": "No buying under the line.",
    "simple": "Wait, because buying before the stock trades over yesterday's close is a guess, not a signal.",
@@ -218603,6 +220347,7 @@
   "skill_id": "setup.red_to_green",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.53.json#q23",
+  "sym": "ANF",
   "type": "scenario",
   "version": 1
  },
@@ -219085,7 +220830,47 @@
    ],
    "kind": "mcq",
    "q": "Account 100,000. You risk 0.75% and the position cap is 40%. Buy at 111.93, stop at 110.75. How many shares?",
-   "subject": "SET.53#q32"
+   "subject": "SET.53#q32",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "Shares we buy"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "account",
+      "label": "Account",
+      "value": 100000
+     },
+     {
+      "fmt": "%",
+      "key": "risk",
+      "label": "Risk, % of account",
+      "value": 0.75
+     },
+     {
+      "fmt": "%",
+      "key": "cap",
+      "label": "Position cap, % of account",
+      "value": 40
+     },
+     {
+      "fmt": "$",
+      "key": "entry",
+      "label": "Buy at",
+      "value": 111.93
+     },
+     {
+      "fmt": "$",
+      "key": "stop",
+      "label": "Stop",
+      "value": 110.75
+     }
+    ],
+    "title": "The size"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -219545,8 +221330,20 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "No, a green close is not a free pass"
+  },
+  "asof": "2025-08-14",
+  "bars": {
+   "asof": "2025-08-14",
+   "asof_key": 1755178200,
+   "forward": 9,
+   "forward_to_key": 1755783000,
+   "rth": true,
+   "sym": "NVDA",
+   "tf": "60",
+   "window": 250
   },
   "difficulty": 2,
   "id": "si_ed6afe67e423",
@@ -219554,6 +221351,13 @@
   "lesson_text": "No. A green close is not a free pass. The stop at 179.43 was still about 1.2% under the 181.60 buy, and one red open took it. The stop is the exit and only moves up. A green close does not make the stop wrong, and no rule says sell at the close. A green close does not move the stop.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 9,
+    "hide_ticker": true,
+    "tf": "60",
+    "visible_bars": 50,
+    "window_bars": 250
+   },
    "choices": [
     "Yes, you should have sold at the close",
     "No, a green close is not a free pass",
@@ -219612,6 +221416,22 @@
    "lesson_line": "A green close does not move the stop.",
    "simple": "No. The stop did its job, because a green close does not protect a trade from the next day's drop.",
    "tier": "extended",
+   "trade": {
+    "direction": "bullish",
+    "enters_intraday": false,
+    "entry": 181.6,
+    "entry_note": "the fill on the chart's last bar",
+    "source": "course",
+    "stop": 179.43,
+    "stop_note": "under that bar's low",
+    "t1": 188.11,
+    "t2": 192.45,
+    "trim_r": [
+     3,
+     5
+    ],
+    "unit": "bar"
+   },
    "unit": "SET.53",
    "why": "No. A green close is not a free pass. The stop at 179.43 was still about 1.2% under the 181.60 buy, and one red open took it. The stop is the exit and only moves up. A green close does not make the stop wrong, and no rule says sell at the close.",
    "wrong": {
@@ -219624,6 +221444,7 @@
   "skill_id": "setup.red_to_green",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.53.json#q41",
+  "sym": "NVDA",
   "type": "scenario",
   "version": 1
  },
@@ -219996,8 +221817,20 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "Pass; nothing is under the dip"
+  },
+  "asof": "2026-09-24",
+  "bars": {
+   "asof": "2026-09-24",
+   "asof_key": 1790256600,
+   "forward": 21,
+   "forward_to_key": 1790861400,
+   "rth": true,
+   "sym": "PLTR",
+   "tf": "60",
+   "window": 250
   },
   "difficulty": 3,
   "id": "si_753c25c94e73",
@@ -220005,6 +221838,13 @@
   "lesson_text": "Pass. The dip should tag support, its low within 1% of a level. Here the dip low, 188.24, sat 2.9% above the nearest level, the prior day's low at 182.94. That is a trigger with no setup under it. A quick cross helps the grade, but it cannot replace the level. A cross with no level under it is only a trigger.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 21,
+    "hide_ticker": true,
+    "tf": "60",
+    "visible_bars": 50,
+    "window_bars": 250
+   },
    "choices": [
     "Pass; nothing is under the dip",
     "Wait; buy on the close if it holds",
@@ -220013,7 +221853,7 @@
    ],
    "kind": "mcq",
    "q": "Take the cross?",
-   "story": "A leader gaps down 1.4% and crosses in the first hour. The dip low is 188.24. The nearest level, the prior day's low, is 182.94.",
+   "story": "A leader gaps down 1.4% and crosses in the first hour. The dip low is 188.24. The nearest level, the prior day's low, is 182.94. A buy would be 191.80 with the stop at 188.21.",
    "subject": "SET.53#q49"
   },
   "reveal_json": {
@@ -220068,11 +221908,27 @@
     "summary": "PLTR near-miss: the dip low was 2.9% above the nearest level; the rule is within 1%. PLTR: a trigger with no setup under it. The dip tags support: the 9-day EMA, 20-day EMA, 50-day or 200-day SMA, or a level we mark. The setup under the trigger: a leader above the 200-day with a rising 20-day EMA, pulling back into support. No time-of-day rule; a quick cross is a grading factor, not a rule. A real stop order; it only moves up; never wider than the dip's low."
    },
    "facts": {
-    "given": "Take the cross? A leader gaps down 1.4% and crosses in the first hour. The dip low is 188.24. The nearest level, the prior day's low, is 182.94. Pass; nothing is under the dip Take it; the cross was in hour one Take it with a wider stop Wait; buy on the close if it holds"
+    "given": "Take the cross? A leader gaps down 1.4% and crosses in the first hour. The dip low is 188.24. The nearest level, the prior day's low, is 182.94. A buy would be 191.80 with the stop at 188.21. Pass; nothing is under the dip Take it; the cross was in hour one Take it with a wider stop Wait; buy on the close if it holds"
    },
    "lesson_line": "A cross with no level under it is only a trigger.",
    "simple": "Pass, because the dip stopped far above any support level, so the cross has no setup under it.",
    "tier": "extended",
+   "trade": {
+    "direction": "bullish",
+    "enters_intraday": false,
+    "entry": 191.8,
+    "entry_note": "the fill on the chart's last bar",
+    "source": "course",
+    "stop": 188.21,
+    "stop_note": "under that bar's low",
+    "t1": 202.57,
+    "t2": 209.75,
+    "trim_r": [
+     3,
+     5
+    ],
+    "unit": "bar"
+   },
    "unit": "SET.53",
    "why": "Pass. The dip should tag support, its low within 1% of a level. Here the dip low, 188.24, sat 2.9% above the nearest level, the prior day's low at 182.94. That is a trigger with no setup under it. A quick cross helps the grade, but it cannot replace the level.",
    "wrong": {
@@ -220085,6 +221941,7 @@
   "skill_id": "setup.red_to_green",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.53.json#q49",
+  "sym": "PLTR",
   "type": "scenario",
   "version": 1
  },
@@ -220330,8 +222187,20 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "No, a planned loss at the stop"
+  },
+  "asof": "2024-03-14",
+  "bars": {
+   "asof": "2024-03-14",
+   "asof_key": 1710423000,
+   "forward": 7,
+   "forward_to_key": 1711027800,
+   "rth": true,
+   "sym": "AMD",
+   "tf": "60",
+   "window": 250
   },
   "difficulty": 3,
   "id": "si_69870b3e0600",
@@ -220339,6 +222208,13 @@
   "lesson_text": "No. You bought the first-hour cross at 194.80 with the stop at 190.33. The stop came first and the size came from it, so this loss was planned. The first-hour cross is the fast one and the whippy one. The stop is the exit, and it did its job. A stop-out under the rules is a planned loss.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 7,
+    "hide_ticker": true,
+    "tf": "60",
+    "visible_bars": 50,
+    "window_bars": 250
+   },
    "choices": [
     "No, a planned loss at the stop",
     "No, but skip first-hour crosses",
@@ -220421,6 +222297,22 @@
    "lesson_line": "A stop-out under the rules is a planned loss.",
    "simple": "No, because you followed the rules and the stop capped the loss where you planned.",
    "tier": "expert",
+   "trade": {
+    "direction": "bullish",
+    "enters_intraday": false,
+    "entry": 194.8,
+    "entry_note": "the fill on the chart's last bar",
+    "source": "course",
+    "stop": 190.33,
+    "stop_note": "under that bar's low",
+    "t1": 208.21,
+    "t2": 217.15,
+    "trim_r": [
+     3,
+     5
+    ],
+    "unit": "bar"
+   },
    "unit": "SET.53",
    "why": "No. You bought the first-hour cross at 194.80 with the stop at 190.33. The stop came first and the size came from it, so this loss was planned. The first-hour cross is the fast one and the whippy one. The stop is the exit, and it did its job.",
    "wrong": {
@@ -220433,12 +222325,25 @@
   "skill_id": "setup.red_to_green",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.53.json#q53",
+  "sym": "AMD",
   "type": "scenario",
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "No; the stop was the planned exit"
+  },
+  "asof": "2025-01-22",
+  "bars": {
+   "asof": "2025-01-22",
+   "asof_key": 1737556200,
+   "forward": 7,
+   "forward_to_key": 1738161000,
+   "rth": true,
+   "sym": "TSLA",
+   "tf": "60",
+   "window": 250
   },
   "difficulty": 3,
   "id": "si_78ee9af77ca3",
@@ -220446,6 +222351,13 @@
   "lesson_text": "No. Our card treats even a close back under the prior close as a warning sign, not an exit. The stop is the exit, and it only moves up. Here the stop did the selling at 15:30. Under the line is a warning. The stop is the exit.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 7,
+    "hide_ticker": true,
+    "tf": "60",
+    "visible_bars": 50,
+    "window_bars": 250
+   },
    "choices": [
     "Yes; sell on an hourly close under it",
     "No; the stop was the planned exit",
@@ -220500,6 +222412,22 @@
    "lesson_line": "Under the line is a warning. The stop is the exit.",
    "simple": "No, because slipping under the line is a warning, and the stop you set was the exit.",
    "tier": "expert",
+   "trade": {
+    "direction": "bullish",
+    "enters_intraday": false,
+    "entry": 424.08,
+    "entry_note": "the fill on the chart's last bar",
+    "source": "course",
+    "stop": 416.07,
+    "stop_note": "under that bar's low",
+    "t1": 448.11,
+    "t2": 464.13,
+    "trim_r": [
+     3,
+     5
+    ],
+    "unit": "bar"
+   },
    "unit": "SET.53",
    "why": "No. Our card treats even a close back under the prior close as a warning sign, not an exit. The stop is the exit, and it only moves up. Here the stop did the selling at 15:30.",
    "wrong": {
@@ -220512,19 +222440,39 @@
   "skill_id": "setup.red_to_green",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.53.json#q54",
+  "sym": "TSLA",
   "type": "scenario",
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "Yes, a new trade with its own stop"
+  },
+  "asof": "2026-09-15",
+  "bars": {
+   "asof": "2026-09-15",
+   "asof_key": 1789479300,
+   "forward": 60,
+   "forward_to_key": 1790084100,
+   "rth": true,
+   "sym": "TWLO",
+   "tf": "5",
+   "window": 280
   },
   "difficulty": 3,
   "id": "si_d6f5ce5524bc",
   "lesson_origin": "session",
-  "lesson_text": "Yes. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule. The cap is 3 tries in a week and 6 in a month on one stock. You have had none this week. In the TWLO case, the retry on 2026-09-15 at the same level ran 14.8R. A retry is a new trade, inside the cap.",
+  "lesson_text": "Yes. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule. The cap is 3 tries in a week and 6 in a month on one stock. You have had none this week. In the TWLO case, the retry on 2026-09-15 was a fresh cross at the same level. A retry is a new trade, inside the cap.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 60,
+    "hide_ticker": true,
+    "tf": "5",
+    "visible_bars": 80,
+    "window_bars": 280
+   },
    "choices": [
     "No, wait a month after a stop-out",
     "Yes, bigger, to make the loss back",
@@ -220538,7 +222486,7 @@
   },
   "reveal_json": {
    "deeper": {
-    "example": "TWLO on 2026-09-02 met every rule at the 20-day EMA, crossed in hour one and was stopped the same day, best 0.6R. The retry on 2026-09-15, at the same level, ran 14.8R. One case proves nothing, but it shows why a stop-out does not end a name."
+    "example": "TWLO on 2026-09-02 met every rule at the 20-day EMA, crossed in hour one and was stopped the same day, best 0.6R. Two weeks later, on 2026-09-15, it gapped down to the same level and crossed again. One case proves nothing, but it shows why a stop-out does not end a name."
    },
    "depth": {
     "sources": [
@@ -220580,7 +222528,7 @@
    "simple": "Yes, because a fresh trigger is a new trade with its own stop, and you are under the weekly try limit.",
    "tier": "expert",
    "unit": "SET.53",
-   "why": "Yes. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule. The cap is 3 tries in a week and 6 in a month on one stock. You have had none this week. In the TWLO case, the retry on 2026-09-15 at the same level ran 14.8R.",
+   "why": "Yes. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule. The cap is 3 tries in a week and 6 in a month on one stock. You have had none this week. In the TWLO case, the retry on 2026-09-15 was a fresh cross at the same level.",
    "wrong": {
     "No, the first stop-out ends the name": "The cap is 3 tries a week and 6 a month. One stop-out two weeks ago does not end it.",
     "No, wait a month after a stop-out": "A retry needs only a new trigger, as a new trade with every rule. The cap is 3 tries a week and 6 a month.",
@@ -220591,6 +222539,7 @@
   "skill_id": "setup.red_to_green",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.53.json#q55",
+  "sym": "TWLO",
   "type": "scenario",
   "version": 1
  },
@@ -220812,7 +222761,7 @@
    "forward": 20,
    "sym": "CEG",
    "tf": "D",
-   "window": 320
+   "window": 350
   },
   "difficulty": 3,
   "id": "si_99e722666e41",
@@ -220824,8 +222773,8 @@
     "forward_bars": 20,
     "hide_ticker": true,
     "tf": "D",
-    "visible_bars": 120,
-    "window_bars": 320
+    "visible_bars": 150,
+    "window_bars": 350
    },
    "choices": [
     "Watch; buy the open if it gaps",
@@ -220834,7 +222783,8 @@
     "Watch; the 20-day EMA is rising"
    ],
    "kind": "mcq",
-   "q": "The day before a gap down. The daily chart shows the pullback and averages, not RS or the hourly cross. Watch or pass?",
+   "q": "The daily chart shows the pullback and averages, not RS or the hourly cross. Watch or pass?",
+   "story": "The day before a gap down.",
    "subject": "SET.53#q58"
   },
   "reveal_json": {
@@ -220903,7 +222853,7 @@
     "summary": "CEG, 2025-10-01: opened 325.97 against a prior close of 329.07; dip low 323.88; buy 329.08, stop 323.85 (1.6%). CEG: a two-week drift to the 20-day EMA, a gap down that tags it, a wide green first hour; 3R the next day. Every example in the scan had its prior close above the 200-day and a rising 20-day EMA. The setup under the trigger: a leader above the 200-day with a rising 20-day EMA, pulling back into support. The 20-day EMA is rising: today's value above the value 5 sessions ago. A named mistake: buying under the line in anticipation. The line is the prior day's official close, never the open or VWAP. No earnings in the next 3 sessions; a post-earnings flag is after the report, which is fine."
    },
    "facts": {
-    "given": "The day before a gap down. The daily chart shows the pullback and averages, not RS or the hourly cross. Watch or pass? Watch; the 20-day EMA is rising Pass; the 20-day EMA is falling Pass; it is under the 200-day Watch; buy the open if it gaps"
+    "given": "The daily chart shows the pullback and averages, not RS or the hourly cross. Watch or pass? The day before a gap down. Watch; the 20-day EMA is rising Pass; the 20-day EMA is falling Pass; it is under the 200-day Watch; buy the open if it gaps"
    },
    "lesson_line": "A pullback to a rising 20-day is the setup.",
    "simple": "Watch for the cross, because the stock has drifted down to a rising 20-day EMA, which is the setup.",
@@ -220921,7 +222871,7 @@
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.53.json#q58",
   "sym": "CEG",
-  "type": "recall",
+  "type": "scenario",
   "version": 1
  },
  {
@@ -220935,7 +222885,7 @@
    "forward": 20,
    "sym": "APP",
    "tf": "D",
-   "window": 320
+   "window": 350
   },
   "difficulty": 3,
   "id": "si_46eab923c5f7",
@@ -220947,8 +222897,8 @@
     "forward_bars": 20,
     "hide_ticker": true,
     "tf": "D",
-    "visible_bars": 120,
-    "window_bars": 320
+    "visible_bars": 150,
+    "window_bars": 350
    },
    "choices": [
     "Pass; the 20-day EMA is falling",
@@ -220957,7 +222907,8 @@
     "Pass; too far over the 200-day"
    ],
    "kind": "mcq",
-   "q": "The day before a gap down. The daily chart shows the 20-day EMA, not RS or the hourly cross. Watch or pass?",
+   "q": "The daily chart shows the 20-day EMA, not RS or the hourly cross. Watch or pass?",
+   "story": "The day before a gap down.",
    "subject": "SET.53#q59"
   },
   "reveal_json": {
@@ -221019,7 +222970,7 @@
     "summary": "APP near-miss: the 20-day EMA was under its value 5 sessions earlier; the rule is rising. APP: a bounce in a correction, not a pullback in a trend. Each near-miss in our data fails exactly one gate; the chart looks like the setup. The 20-day EMA is rising: today's value above the value 5 sessions ago. A leader has an RS rating of 80 or more. The prior close is within 10% of the 9 EMA. We use the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
    },
    "facts": {
-    "given": "The day before a gap down. The daily chart shows the 20-day EMA, not RS or the hourly cross. Watch or pass? Pass; the 20-day EMA is falling Watch for the cross; it is a leader Watch; it is above the 200-day Pass; too far over the 200-day"
+    "given": "The daily chart shows the 20-day EMA, not RS or the hourly cross. Watch or pass? The day before a gap down. Pass; the 20-day EMA is falling Watch for the cross; it is a leader Watch; it is above the 200-day Pass; too far over the 200-day"
    },
    "lesson_line": "No rising 20-day, no setup under the cross.",
    "simple": "Pass, because the 20-day EMA is falling, so a cross here is a bounce in a correction, not a pullback.",
@@ -221037,7 +222988,7 @@
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.53.json#q59",
   "sym": "APP",
-  "type": "recall",
+  "type": "scenario",
   "version": 1
  },
  {
@@ -221314,7 +223265,29 @@
    ],
    "kind": "mcq",
    "q": "The stock trades 1,500,000 shares a day on average at 12.00. How many dollars a day is that?",
-   "subject": "SET.53#q65"
+   "subject": "SET.53#q65",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Dollars traded a day"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "shares",
+      "key": "shares",
+      "label": "Shares a day",
+      "value": 1500000
+     },
+     {
+      "fmt": "$",
+      "key": "price",
+      "label": "Price",
+      "value": 12
+     }
+    ],
+    "title": "Dollar volume"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -221569,8 +223542,20 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "Up to your fill price, breakeven"
+  },
+  "asof": "2024-11-20",
+  "bars": {
+   "asof": "2024-11-20",
+   "asof_key": 1732113000,
+   "forward": 16,
+   "forward_to_key": 1732717800,
+   "rth": true,
+   "sym": "TWLO",
+   "tf": "60",
+   "window": 250
   },
   "difficulty": 2,
   "id": "si_dc8111f4cc88",
@@ -221578,6 +223563,13 @@
   "lesson_text": "Up to your fill price, 96.36, which is breakeven. Our rule moves the stop to breakeven between 2R and 5R, at the first sell by default. You have just made the first sell, so the stop goes to the fill now. It does not jump to the price you sold at, and the 9 EMA trail is only for what is left. At the first sell, the stop moves up to breakeven.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 16,
+    "hide_ticker": true,
+    "tf": "60",
+    "visible_bars": 50,
+    "window_bars": 250
+   },
    "choices": [
     "Up to the price you sold at",
     "Stay put under the dip's low",
@@ -221622,6 +223614,22 @@
    "lesson_line": "At the first sell, the stop moves up to breakeven.",
    "simple": "Up to your fill price of 96.36, because the stop moves to breakeven at the first sell.",
    "tier": "extended",
+   "trade": {
+    "direction": "bullish",
+    "enters_intraday": false,
+    "entry": 96.36,
+    "entry_note": "the fill on the chart's last bar",
+    "source": "course",
+    "stop": 94.67,
+    "stop_note": "under that bar's low",
+    "t1": 101.43,
+    "t2": 104.81,
+    "trim_r": [
+     3,
+     5
+    ],
+    "unit": "bar"
+   },
    "unit": "SET.53",
    "why": "Up to your fill price, 96.36, which is breakeven. Our rule moves the stop to breakeven between 2R and 5R, at the first sell by default. You have just made the first sell, so the stop goes to the fill now. It does not jump to the price you sold at, and the 9 EMA trail is only for what is left.",
    "wrong": {
@@ -221634,6 +223642,7 @@
   "skill_id": "setup.red_to_green",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.53.json#q69",
+  "sym": "TWLO",
   "type": "scenario",
   "version": 1
  },
@@ -221685,8 +223694,20 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "$117.83"
+  },
+  "asof": "2025-12-04",
+  "bars": {
+   "asof": "2025-12-04",
+   "asof_key": 1764858600,
+   "forward": 20,
+   "forward_to_key": 1765463400,
+   "rth": true,
+   "sym": "TPR",
+   "tf": "60",
+   "window": 250
   },
   "difficulty": 2,
   "id": "si_711e8caf5b85",
@@ -221694,6 +223715,13 @@
   "lesson_text": "One R is the fill minus the stop. Add five of them to the fill: 111.93 + 5 x (111.93 - 110.75) = 117.83. 5R is a mark on the ruler, not a fixed sell. Selling is a judgment, often into a 3, 5 or 7 day push, or at about 5 to 10R. Write your 5R price down. It is a mark to measure from.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 20,
+    "hide_ticker": true,
+    "tf": "60",
+    "visible_bars": 50,
+    "window_bars": 250
+   },
    "choices": [
     "$106.03",
     "$113.11",
@@ -221702,31 +223730,8 @@
    ],
    "kind": "mcq",
    "q": "Fill 111.93, stop 110.75. Where is 5R?",
-   "subject": "SET.53#q71",
-   "visual": {
-    "find": {
-     "as": "price",
-     "label": "5R"
-    },
-    "kind": "ladder",
-    "levels": [
-     {
-      "key": "stop",
-      "label": "Stop",
-      "price": 110.75
-     },
-     {
-      "key": "entry",
-      "label": "Entry",
-      "price": 111.93
-     }
-    ],
-    "r": {
-     "entry": 111.93,
-     "stop": 110.75
-    },
-    "side": "long"
-   }
+   "story": "You bought a red to green at the first-hour cross.",
+   "subject": "SET.53#q71"
   },
   "reveal_json": {
    "depth": {
@@ -221758,11 +223763,27 @@
      "fn": "arith",
      "result": 117.83
     },
-    "given": "Fill 111.93, stop 110.75. Where is 5R? $117.83 $116.65 $113.11 $106.03"
+    "given": "Fill 111.93, stop 110.75. Where is 5R? You bought a red to green at the first-hour cross. $117.83 $116.65 $113.11 $106.03"
    },
    "lesson_line": "Write your 5R price down. It is a mark to measure from.",
    "simple": "117.83, because one R is 111.93 minus 110.75, and adding five of those to the fill lands there.",
    "tier": "core",
+   "trade": {
+    "direction": "bullish",
+    "enters_intraday": false,
+    "entry": 111.93,
+    "entry_note": "the fill on the chart's last bar",
+    "source": "course",
+    "stop": 110.75,
+    "stop_note": "under that bar's low",
+    "t1": 115.47,
+    "t2": 117.83,
+    "trim_r": [
+     3,
+     5
+    ],
+    "unit": "bar"
+   },
    "unit": "SET.53",
    "why": "One R is the fill minus the stop. Add five of them to the fill: 111.93 + 5 x (111.93 - 110.75) = 117.83. 5R is a mark on the ruler, not a fixed sell. Selling is a judgment, often into a 3, 5 or 7 day push, or at about 5 to 10R.",
    "wrong": {
@@ -221775,7 +223796,8 @@
   "skill_id": "setup.red_to_green",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.53.json#q71",
-  "type": "recall",
+  "sym": "TPR",
+  "type": "scenario",
   "version": 1
  },
  {
@@ -222383,8 +224405,20 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "The first 5-minute bar's high"
+  },
+  "asof": "2026-09-17",
+  "bars": {
+   "asof": "2026-09-17",
+   "asof_key": 1789651800,
+   "forward": 30,
+   "forward_to_key": 1790256600,
+   "rth": true,
+   "sym": "SITM",
+   "tf": "5",
+   "window": 279
   },
   "difficulty": 1,
   "id": "si_57a460bf8fde",
@@ -222392,6 +224426,13 @@
   "lesson_text": "The first 5-minute bar's high, called the 5-minute ORH (opening range high). The buy is the first trade through it. The full 9:30 to 10:00 range is the ORB, the slow version of the same day. The prior day's high and the opening print are not the drive's level. Mark the first 5-minute bar's high. The buy is the trade through it.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 30,
+    "hide_ticker": true,
+    "tf": "5",
+    "visible_bars": 79,
+    "window_bars": 279
+   },
    "choices": [
     "The prior session's high",
     "The opening print itself",
@@ -222400,6 +224441,7 @@
    ],
    "kind": "mcq",
    "q": "On our drive card, what is the buy point?",
+   "story": "A leader gaps up and its first 5-minute bar closes green.",
    "subject": "SET.54#q01"
   },
   "reveal_json": {
@@ -222451,7 +224493,7 @@
     "summary": "The trigger: price trades above the first 5-minute bar's high, the 5-minute ORH. The order: a market order the moment it trades through; no waiting for the bar to close. The ORB waits for the full 9:30 to 10:00 range and buys after 10:00; it is the slow version of the same day. A Kicker needs a real red day before the gap. Zarattini et al.: the first 5-minute candle sets the direction; a bearish one means short only, so a bullish one means long only. Kullamagi enters on the opening range high; the candle can be the 1-minute, 5-minute or 60-minute."
    },
    "facts": {
-    "given": "On our drive card, what is the buy point? The first 30-minute bar's high The prior session's high The opening print itself The first 5-minute bar's high"
+    "given": "On our drive card, what is the buy point? A leader gaps up and its first 5-minute bar closes green. The first 30-minute bar's high The prior session's high The opening print itself The first 5-minute bar's high"
    },
    "lesson_line": "Mark the first 5-minute bar's high. The buy is the trade through it.",
    "simple": "The first 5-minute bar's high, because our drive buys the moment price trades through that bar's high.",
@@ -222468,7 +224510,8 @@
   "skill_id": "setup.opening_drive",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.54.json#q01",
-  "type": "recall",
+  "sym": "SITM",
+  "type": "scenario",
   "version": 1
  },
  {
@@ -222540,8 +224583,20 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "A few cents under the day's low"
+  },
+  "asof": "2026-09-17",
+  "bars": {
+   "asof": "2026-09-17",
+   "asof_key": 1789652100,
+   "forward": 40,
+   "forward_to_key": 1790256900,
+   "rth": true,
+   "sym": "CROX",
+   "tf": "5",
+   "window": 280
   },
   "difficulty": 1,
   "id": "si_81667de8af5e",
@@ -222549,6 +224604,13 @@
   "lesson_text": "A few cents under the day's low at the moment of entry, not exactly on it. In a true drive that low is the low of the first 5-minute bar or the open. Kullamagi also puts the stop at the lows of the day. It is not a moving average or the prior close. Stop under the day's low, not on it. In a true drive that low is the first bar or the open.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 40,
+    "hide_ticker": true,
+    "tf": "5",
+    "visible_bars": 80,
+    "window_bars": 280
+   },
    "choices": [
     "Just under yesterday's close",
     "A few cents under the day's low",
@@ -222556,7 +224618,8 @@
     "Under the 50-day moving average"
    ],
    "kind": "mcq",
-   "q": "You are filled on the drive. Where does the stop go?",
+   "q": "Where does the stop go?",
+   "story": "You are filled on the drive at 9:35.",
    "subject": "SET.54#q03"
   },
   "reveal_json": {
@@ -222587,7 +224650,7 @@
     "summary": "The stop: a few cents under the day's low at entry, in a true drive the first bar's low or the open. F62: the stop sits a few cents under the day's low. Kullamagi: the entry is the opening range high; the stop is at the lows of the day."
    },
    "facts": {
-    "given": "You are filled on the drive. Where does the stop go? Under the 50-day moving average A few cents under the day's low Exactly on the first 5-minute bar's low Just under yesterday's close"
+    "given": "Where does the stop go? You are filled on the drive at 9:35. Under the 50-day moving average A few cents under the day's low Exactly on the first 5-minute bar's low Just under yesterday's close"
    },
    "lesson_line": "Stop under the day's low, not on it. In a true drive that low is the first bar or the open.",
    "simple": "A few cents under the day's low, which in a true drive is the first bar's low or the open.",
@@ -222604,7 +224667,8 @@
   "skill_id": "setup.opening_drive",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.54.json#q03",
-  "type": "recall",
+  "sym": "CROX",
+  "type": "scenario",
   "version": 1
  },
  {
@@ -223171,39 +225235,44 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
-   "answer": "1.62%"
+   "answer": "1.06%"
+  },
+  "asof": "2026-10-20",
+  "bars": {
+   "asof": "2026-10-20",
+   "asof_key": 1792503300,
+   "forward": 30,
+   "forward_to_key": 1793108100,
+   "rth": true,
+   "sym": "RPRX",
+   "tf": "5",
+   "window": 280
   },
   "difficulty": 1,
   "id": "si_2a30fe25c9df",
   "lesson_origin": "session",
-  "lesson_text": "The stop distance is the fill minus the stop. Divide by the fill: (277.24 - 272.75) / 277.24 = 1.62%. That is LRCX on 2026-09-18. It sits inside the 1 to 3% we prefer. We accept up to 5%, so the range is a guide, not a hard cap. Stop first, distance second, size last. A tight first bar makes a close stop.",
+  "lesson_text": "The stop distance is the fill minus the stop. Divide by the fill: (61.41 - 60.76) / 61.41 = 1.06%. Those are RPRX's real fill and stop. It sits inside the 1 to 3% we prefer. We accept up to 5%, so the range is a guide, not a hard cap. Stop first, distance second, size last. A tight first bar makes a close stop.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 30,
+    "hide_ticker": true,
+    "tf": "5",
+    "visible_bars": 80,
+    "window_bars": 280
+   },
    "choices": [
-    "1.62%",
-    "4.49%",
-    "16.19%",
-    "98.38%"
+    "0.65%",
+    "1.06%",
+    "10.58%",
+    "98.94%"
    ],
    "kind": "mcq",
-   "q": "The first 5-minute bar runs 272.80 to 277.23. You fill at 277.24 with the stop at 272.75. How far below the fill is the stop?",
-   "subject": "SET.54#q15",
-   "visual": {
-    "find": {
-     "as": "pct",
-     "label": "The distance"
-    },
-    "from": {
-     "label": "",
-     "value": 277.24
-    },
-    "kind": "move",
-    "to": {
-     "label": "",
-     "value": 272.75
-    }
-   }
+   "q": "How far below the fill is the stop?",
+   "story": "The first 5-minute bar's high is 61.40. You fill at 61.41 with the stop at 60.76.",
+   "subject": "SET.54#q15"
   },
   "reveal_json": {
    "depth": {
@@ -223249,31 +225318,48 @@
    "facts": {
     "calc": {
      "args": {
-      "a": 277.24,
-      "b": 272.75,
+      "a": 61.41,
+      "b": 60.76,
       "expr": "(a - b) / a * 100"
      },
      "fn": "arith",
-     "result": 1.62
+     "result": 1.06
     },
-    "given": "The first 5-minute bar runs 272.80 to 277.23. You fill at 277.24 with the stop at 272.75. How far below the fill is the stop? 4.49% 98.38% 16.19% 1.62%"
+    "given": "How far below the fill is the stop? The first 5-minute bar's high is 61.40. You fill at 61.41 with the stop at 60.76. 0.65% 98.94% 10.58% 1.06%"
    },
    "lesson_line": "Stop first, distance second, size last. A tight first bar makes a close stop.",
-   "simple": "1.62 percent, found by taking the fill minus the stop and dividing by the fill.",
+   "simple": "1.06 percent, found by taking the fill minus the stop and dividing by the fill.",
    "tier": "core",
+   "trade": {
+    "direction": "bullish",
+    "enters_intraday": false,
+    "entry": 61.41,
+    "entry_note": "the fill on the chart's last bar",
+    "source": "course",
+    "stop": 60.76,
+    "stop_note": "under that bar's low",
+    "t1": 63.36,
+    "t2": 64.66,
+    "trim_r": [
+     3,
+     5
+    ],
+    "unit": "bar"
+   },
    "unit": "SET.54",
-   "why": "The stop distance is the fill minus the stop. Divide by the fill: (277.24 - 272.75) / 277.24 = 1.62%. That is LRCX on 2026-09-18. It sits inside the 1 to 3% we prefer. We accept up to 5%, so the range is a guide, not a hard cap.",
+   "why": "The stop distance is the fill minus the stop. Divide by the fill: (61.41 - 60.76) / 61.41 = 1.06%. Those are RPRX's real fill and stop. It sits inside the 1 to 3% we prefer. We accept up to 5%, so the range is a guide, not a hard cap.",
    "wrong": {
-    "16.19%": "Decimal slip: moved the point one place too far.",
-    "4.49%": "Stopped at the dollar distance and never divided by the fill.",
-    "98.38%": "The stop is 98.38% of the fill. That is what is left, not the gap."
+    "0.65%": "Stopped at the dollar distance and never divided by the fill.",
+    "10.58%": "Decimal slip: moved the point one place too far.",
+    "98.94%": "The stop is 98.94% of the fill. That is what is left, not the gap."
    }
   },
   "review_status": "draft",
   "skill_id": "setup.opening_drive",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.54.json#q15",
-  "type": "recall",
+  "sym": "RPRX",
+  "type": "scenario",
   "version": 1
  },
  {
@@ -223578,8 +225664,20 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "$607.82"
+  },
+  "asof": "2026-09-17",
+  "bars": {
+   "asof": "2026-09-17",
+   "asof_key": 1789652100,
+   "forward": 12,
+   "forward_to_key": 1790256900,
+   "rth": true,
+   "sym": "SITM",
+   "tf": "5",
+   "window": 280
   },
   "difficulty": 1,
   "id": "si_e3e60197d47e",
@@ -223587,6 +225685,13 @@
   "lesson_text": "One R is the fill minus the stop. Add three of them to the fill: 581.57 + 3 x (581.57 - 572.82) = 607.82. That is a mark to measure with, not an order to sell. SITM got there at 9:50 the same day. Know your 3R price before the open. It is a mark, and the first sell is a judgment.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 12,
+    "hide_ticker": true,
+    "tf": "5",
+    "visible_bars": 80,
+    "window_bars": 280
+   },
    "choices": [
     "$590.32",
     "$599.07",
@@ -223595,35 +225700,12 @@
    ],
    "kind": "mcq",
    "q": "Fill 581.57, stop 572.82. Where is 3R?",
-   "subject": "SET.54#q21",
-   "visual": {
-    "find": {
-     "as": "price",
-     "label": "3R"
-    },
-    "kind": "ladder",
-    "levels": [
-     {
-      "key": "stop",
-      "label": "Stop",
-      "price": 572.82
-     },
-     {
-      "key": "entry",
-      "label": "Entry",
-      "price": 581.57
-     }
-    ],
-    "r": {
-     "entry": 581.57,
-     "stop": 572.82
-    },
-    "side": "long"
-   }
+   "story": "You bought a drive at 9:35.",
+   "subject": "SET.54#q21"
   },
   "reveal_json": {
    "deeper": {
-    "example": "SITM filled at 581.57 with the stop at 572.82. 3R, 607.82, came at 9:50 the same day, which is day 1, when we very rarely sell. 5R came at the open two sessions later, which is day 3. The first sell stays a judgment."
+    "example": "SITM filled at 581.57 with the stop at 572.82. 3R, 607.82, came at 9:50 the same day, which is day 1, when we very rarely sell. The first sell stays a judgment."
    },
    "depth": {
     "sources": [
@@ -223661,7 +225743,7 @@
      "fn": "arith",
      "result": 607.82
     },
-    "given": "Fill 581.57, stop 572.82. Where is 3R? $599.07 $607.82 $590.32 $616.57"
+    "given": "Fill 581.57, stop 572.82. Where is 3R? You bought a drive at 9:35. $599.07 $607.82 $590.32 $616.57"
    },
    "lesson_line": "Know your 3R price before the open. It is a mark, and the first sell is a judgment.",
    "simple": "607.82, because one R is the fill minus the stop, and 3R adds three of those to the fill.",
@@ -223678,7 +225760,8 @@
   "skill_id": "setup.opening_drive",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.54.json#q21",
-  "type": "recall",
+  "sym": "SITM",
+  "type": "scenario",
   "version": 1
  },
  {
@@ -223934,24 +226017,43 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "No; it failed the open-test"
+  },
+  "asof": "2026-10-02",
+  "bars": {
+   "asof": "2026-10-02",
+   "asof_key": 1790948100,
+   "forward": 30,
+   "forward_to_key": 1791552900,
+   "rth": true,
+   "sym": "NVT",
+   "tf": "5",
+   "window": 280
   },
   "difficulty": 2,
   "id": "si_4a0544ea7e02",
   "lesson_origin": "session",
-  "lesson_text": "No. Before the entry, a trade back below the open, or below the first 5-minute low, ends it. The card calls that an open-test or a rejection, not a drive: no trade. SMB says it plainly: with an Opening Drive Play we do not let the stock trade back down against us. Ten cents under is still under. It is not a short either; the card says no trade. A drive does not look back. Under the open before you buy, you pass.",
+  "lesson_text": "No. Before the entry, a trade back below the open, or below the first 5-minute low, ends it. The card calls that an open-test or a rejection, not a drive: no trade. SMB says it plainly: with an Opening Drive Play we do not let the stock trade back down against us. Any trade under the open is under it. It is not a short either; the card says no trade. A drive does not look back. Under the open before you buy, you pass.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 30,
+    "hide_ticker": true,
+    "tf": "5",
+    "visible_bars": 80,
+    "window_bars": 280
+   },
    "choices": [
     "Yes; take it with a wider stop",
     "No; short it under the open",
-    "Yes; ten cents is just noise",
+    "Yes; a small dip is just noise",
     "No; it failed the open-test"
    ],
    "kind": "mcq",
    "q": "Is the drive still on?",
-   "story": "You have not bought yet. The first bar closed green on heavy volume. At 9:42 price trades 10 cents under the open.",
+   "story": "You have not bought yet. The first bar closed green on heavy volume. In the 9:35 bar price trades back under the open, 169.59.",
    "subject": "SET.54#q25"
   },
   "reveal_json": {
@@ -223975,23 +226077,24 @@
     "summary": "Before the entry, a trade back below the open or the first 5-minute low is no trade: an open-test, not a drive. SMB: with an Opening Drive Play, we do not let the stock trade back down against us."
    },
    "facts": {
-    "given": "Is the drive still on? You have not bought yet. The first bar closed green on heavy volume. At 9:42 price trades 10 cents under the open. Yes; ten cents is just noise No; short it under the open Yes; take it with a wider stop No; it failed the open-test"
+    "given": "Is the drive still on? You have not bought yet. The first bar closed green on heavy volume. In the 9:35 bar price trades back under the open, 169.59. Yes; a small dip is just noise No; short it under the open Yes; take it with a wider stop No; it failed the open-test"
    },
    "lesson_line": "A drive does not look back. Under the open before you buy, you pass.",
    "simple": "No, because price went back under the open before you bought, and a real drive never does that.",
    "tier": "core",
    "unit": "SET.54",
-   "why": "No. Before the entry, a trade back below the open, or below the first 5-minute low, ends it. The card calls that an open-test or a rejection, not a drive: no trade. SMB says it plainly: with an Opening Drive Play we do not let the stock trade back down against us. Ten cents under is still under. It is not a short either; the card says no trade.",
+   "why": "No. Before the entry, a trade back below the open, or below the first 5-minute low, ends it. The card calls that an open-test or a rejection, not a drive: no trade. SMB says it plainly: with an Opening Drive Play we do not let the stock trade back down against us. Any trade under the open is under it. It is not a short either; the card says no trade.",
    "wrong": {
     "No; short it under the open": "The card says no trade. It does not turn a failed open-test into a short.",
-    "Yes; take it with a wider stop": "A wider stop only buys more risk on a drive that failed its test.",
-    "Yes; ten cents is just noise": "SMB: we do not let the stock trade back down against us. Under the open is the line crossed."
+    "Yes; a small dip is just noise": "SMB: we do not let the stock trade back down against us. Under the open is the line crossed.",
+    "Yes; take it with a wider stop": "A wider stop only buys more risk on a drive that failed its test."
    }
   },
   "review_status": "draft",
   "skill_id": "setup.opening_drive",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.54.json#q25",
+  "sym": "NVT",
   "type": "scenario",
   "version": 1
  },
@@ -224251,15 +226354,34 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "Pass; RS 77 is not a leader"
+  },
+  "asof": "2026-09-17",
+  "bars": {
+   "asof": "2026-09-17",
+   "asof_key": 1789651800,
+   "forward": 30,
+   "forward_to_key": 1790256600,
+   "rth": true,
+   "sym": "CROX",
+   "tf": "5",
+   "window": 279
   },
   "difficulty": 2,
   "id": "si_d3fcb1d6d834",
   "lesson_origin": "session",
-  "lesson_text": "Pass. We buy leaders: an RS rating of 80 or more, in one of the strongest groups. CROX's 77 is under the line, so a perfect shape does not make it ours. It still ran 5.8R at its best. A trade that works does not change the rule. A drive that works is not always our drive. Under RS 80, I pass.",
+  "lesson_text": "Pass. We buy leaders: an RS rating of 80 or more, in one of the strongest groups. A rating of 77 is under the line, so a perfect shape does not make it ours. It still reached 3R by 10:40 that day. A trade that works does not change the rule. A drive that works is not always our drive. Under RS 80, I pass.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 30,
+    "hide_ticker": true,
+    "tf": "5",
+    "visible_bars": 79,
+    "window_bars": 279
+   },
    "choices": [
     "Pass; a 90% close is stretched",
     "Pass; RS 77 is not a leader",
@@ -224268,12 +226390,12 @@
    ],
    "kind": "mcq",
    "q": "Take it as one of our drives?",
-   "story": "CROX, 2026-09-17: a clean one-bar drive. A 2.2% gap, the first bar closes at 90% of its range, and RS is 77.",
+   "story": "A clean one-bar drive. The open is 2.2% over the prior day's high, the first bar closes at 90% of its range, and RS is 77.",
    "subject": "SET.54#q30"
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The trap is outcome bias. CROX ran 5.8R at its best and hit 3R at 10:40 the same day, so the pass looks wrong in hindsight. The rule judges the bet, not one result: an RS of 80 or more is the leader line, and 77 is under it. Judge the decision by the rule you had at 9:35."
+    "trap": "The trap is outcome bias. This one hit 3R at 10:40 the same day, so the pass looks wrong in hindsight. The rule judges the bet, not one result: an RS of 80 or more is the leader line, and 77 is under it. Judge the decision by the rule you had at 9:35."
    },
    "depth": {
     "sources": [
@@ -224316,13 +226438,13 @@
     "summary": "CROX, 2026-09-17: a gap of 2.2% over the prior high; first bar closed 90% of its range, 1.9x volume; RS 77. CROX: buy 119.34, stop 117.90; 5.8R at its best, 3R at 10:40 the same day. CROX's RS 77 is under the rule's 80. C31: buy leaders, an RS rating of 80 or more in a strong group. The drive: the first 5-minute bar closes above its open and price does not trade back to the open; it may dip in the first minute."
    },
    "facts": {
-    "given": "Take it as one of our drives? CROX, 2026-09-17: a clean one-bar drive. A 2.2% gap, the first bar closes at 90% of its range, and RS is 77. Pass; RS 77 is not a leader Take it; the drive is perfect Take it, but at half size Pass; a 90% close is stretched"
+    "given": "Take it as one of our drives? A clean one-bar drive. The open is 2.2% over the prior day's high, the first bar closes at 90% of its range, and RS is 77. Pass; RS 77 is not a leader Take it; the drive is perfect Take it, but at half size Pass; a 90% close is stretched"
    },
    "lesson_line": "A drive that works is not always our drive. Under RS 80, I pass.",
    "simple": "Pass, because our rule buys only leaders with an RS of 80 or more, and 77 falls short even on a clean drive.",
    "tier": "extended",
    "unit": "SET.54",
-   "why": "Pass. We buy leaders: an RS rating of 80 or more, in one of the strongest groups. CROX's 77 is under the line, so a perfect shape does not make it ours. It still ran 5.8R at its best. A trade that works does not change the rule.",
+   "why": "Pass. We buy leaders: an RS rating of 80 or more, in one of the strongest groups. A rating of 77 is under the line, so a perfect shape does not make it ours. It still reached 3R by 10:40 that day. A trade that works does not change the rule.",
    "wrong": {
     "Pass; a 90% close is stretched": "A strong close is fine. The first bar must close above its open; it need not close in its top 30%.",
     "Take it, but at half size": "Half size is still a buy, and RS 77 is under the line.",
@@ -224333,6 +226455,7 @@
   "skill_id": "setup.opening_drive",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.54.json#q30",
+  "sym": "CROX",
   "type": "scenario",
   "version": 1
  },
@@ -224709,8 +226832,20 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "170 shares"
+  },
+  "asof": "2026-09-11",
+  "bars": {
+   "asof": "2026-09-11",
+   "asof_key": 1789133700,
+   "forward": 20,
+   "forward_to_key": 1789738500,
+   "rth": true,
+   "sym": "SANM",
+   "tf": "5",
+   "window": 280
   },
   "difficulty": 2,
   "id": "si_24d2ca3eaaca",
@@ -224718,6 +226853,13 @@
   "lesson_text": "Dollars at risk are the account times the risk: 100,000 x 0.4% = 400. Divide by the stop distance: 400 / (208.00 - 205.66) is just over 170, so round down to 170. Then cap it: the size is the smaller of the risk-based size and the position cap. The stop sets the size, never the other way round. These are SANM's real fill and stop. Stop first, distance second, size last.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 20,
+    "hide_ticker": true,
+    "tf": "5",
+    "visible_bars": 80,
+    "window_bars": 280
+   },
    "choices": [
     "133 shares",
     "170 shares",
@@ -224726,40 +226868,8 @@
    ],
    "kind": "mcq",
    "q": "Account 100,000. Risk 0.4%. Fill 208.00, stop 205.66. How many shares?",
-   "subject": "SET.54#q37",
-   "visual": {
-    "find": {
-     "as": "shares",
-     "label": "Shares"
-    },
-    "kind": "size",
-    "rows": [
-     {
-      "fmt": "$",
-      "key": "account",
-      "label": "Account",
-      "value": 100000.0
-     },
-     {
-      "fmt": "%",
-      "key": "risk_pct",
-      "label": "Risk",
-      "value": 0.4
-     },
-     {
-      "fmt": "$",
-      "key": "entry",
-      "label": "Entry",
-      "value": 208.0
-     },
-     {
-      "fmt": "$",
-      "key": "stop",
-      "label": "Stop",
-      "value": 205.66
-     }
-    ]
-   }
+   "story": "You bought a drive at 9:35.",
+   "subject": "SET.54#q37"
   },
   "reveal_json": {
    "deeper": {
@@ -224795,11 +226905,27 @@
      "fn": "shares_from_risk",
      "result": 170.0
     },
-    "given": "Account 100,000. Risk 0.4%. Fill 208.00, stop 205.66. How many shares? 400 shares 1,709 shares 133 shares 170 shares"
+    "given": "Account 100,000. Risk 0.4%. Fill 208.00, stop 205.66. How many shares? You bought a drive at 9:35. 400 shares 1,709 shares 133 shares 170 shares"
    },
    "lesson_line": "Stop first, distance second, size last.",
    "simple": "170 shares, because the dollars you risk divided by the fill minus the stop gives 170, rounded down.",
    "tier": "extended",
+   "trade": {
+    "direction": "bullish",
+    "enters_intraday": false,
+    "entry": 208.0,
+    "entry_note": "the fill on the chart's last bar",
+    "source": "course",
+    "stop": 205.66,
+    "stop_note": "under that bar's low",
+    "t1": 215.02,
+    "t2": 219.7,
+    "trim_r": [
+     3,
+     5
+    ],
+    "unit": "bar"
+   },
    "unit": "SET.54",
    "why": "Dollars at risk are the account times the risk: 100,000 x 0.4% = 400. Divide by the stop distance: 400 / (208.00 - 205.66) is just over 170, so round down to 170. Then cap it: the size is the smaller of the risk-based size and the position cap. The stop sets the size, never the other way round. These are SANM's real fill and stop.",
    "wrong": {
@@ -224812,12 +226938,25 @@
   "skill_id": "setup.opening_drive",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.54.json#q37",
-  "type": "recall",
+  "sym": "SANM",
+  "type": "scenario",
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "Let the stop set the size, or skip it"
+  },
+  "asof": "2026-10-05",
+  "bars": {
+   "asof": "2026-10-05",
+   "asof_key": 1791207000,
+   "forward": 30,
+   "forward_to_key": 1791811800,
+   "rth": true,
+   "sym": "WDC",
+   "tf": "5",
+   "window": 279
   },
   "difficulty": 2,
   "id": "si_ea65e4176bb9",
@@ -224825,6 +226964,13 @@
   "lesson_text": "Let the stop set the size, or skip. The stop comes first, a few cents under the day's low, and the size comes from it. WDC's stop sat 3.53% under the 445.63 fill because its first bar was 3.6% tall. We accept up to 5%, so this is a good stop. A wider stop means fewer shares at the same risk. Past 5%, we mostly wait for a tighter trigger. Never tighten the stop to keep shares. The honest stop sets the size. Past 5%, wait for a tighter trigger.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 30,
+    "hide_ticker": true,
+    "tf": "5",
+    "visible_bars": 79,
+    "window_bars": 279
+   },
    "choices": [
     "Buy full size; it is a real drive",
     "Tighten the stop to keep shares",
@@ -224833,7 +226979,7 @@
    ],
    "kind": "mcq",
    "q": "What do you do?",
-   "story": "WDC, 2026-10-05: a real drive, but the first bar is 3.6% tall. The honest stop is 3.53% under the 445.63 fill.",
+   "story": "A real drive, but the first bar is 3.6% tall. The honest stop is 3.53% under the 445.63 fill.",
    "subject": "SET.54#q38"
   },
   "reveal_json": {
@@ -224895,7 +227041,7 @@
     "summary": "WDC, 2026-10-05: the stop 429.88 is 3.53% under the fill 445.63 because the first bar was 3.6% tall. WDC: a real drive whose first bar is too tall for the stop; size down by the stop or skip. A3: stop first; the size comes from the stop; if the honest stop does not fit, skip. A5: shares are account times risk percent, divided by entry minus stop, rounded down, then capped. D41: a real stop order with the broker. TSEM: a tight stop is not a free stop, and a stop-out is not a re-entry without a new trigger. Stop distance: 1 to 3% preferred, 3.5% good, up to 5% acceptable."
    },
    "facts": {
-    "given": "What do you do? WDC, 2026-10-05: a real drive, but the first bar is 3.6% tall. The honest stop is 3.53% under the 445.63 fill. Buy full size; it is a real drive Set a mental stop, not an order Let the stop set the size, or skip it Tighten the stop to keep shares"
+    "given": "What do you do? A real drive, but the first bar is 3.6% tall. The honest stop is 3.53% under the 445.63 fill. Buy full size; it is a real drive Set a mental stop, not an order Let the stop set the size, or skip it Tighten the stop to keep shares"
    },
    "lesson_line": "The honest stop sets the size. Past 5%, wait for a tighter trigger.",
    "simple": "Let the honest stop set the size, and skip only if the stop is too wide for your risk.",
@@ -224912,6 +227058,7 @@
   "skill_id": "setup.opening_drive",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.54.json#q38",
+  "sym": "WDC",
   "type": "scenario",
   "version": 1
  },
@@ -225061,15 +227208,34 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "Yes; an early dip is allowed"
+  },
+  "asof": "2026-09-18",
+  "bars": {
+   "asof": "2026-09-18",
+   "asof_key": 1789738200,
+   "forward": 30,
+   "forward_to_key": 1790343000,
+   "rth": true,
+   "sym": "LRCX",
+   "tf": "5",
+   "window": 279
   },
   "difficulty": 2,
   "id": "si_bd6d9ab0a123",
   "lesson_origin": "session",
-  "lesson_text": "Yes. The first 5-minute bar must close above its open, and price must not trade back to the open before the entry. It need not close in its top 30%: a drive may dip in the first minute. LRCX's bar dipped, closed green at 63% of its range and held the day's low. It ran to 16.8R at its best. Nothing here needed a volume override. Green bar, no trade back to the open. A first-minute dip does not break a drive.",
+  "lesson_text": "Yes. The first 5-minute bar must close above its open, and price must not trade back to the open before the entry. It need not close in its top 30%: a drive may dip in the first minute. This bar dipped, closed green at 63% of its range and held the day's low. Nothing here needed a volume override. Green bar, no trade back to the open. A first-minute dip does not break a drive.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 30,
+    "hide_ticker": true,
+    "tf": "5",
+    "visible_bars": 79,
+    "window_bars": 279
+   },
    "choices": [
     "No; it must close in the top 30%",
     "No; any first-bar dip kills a drive",
@@ -225077,7 +227243,8 @@
     "Yes; the 5.7x volume overrides it"
    ],
    "kind": "mcq",
-   "q": "LRCX's first 5-minute bar dipped, then closed green at 63% of its range on 5.7x volume. Does that bar fit a drive?",
+   "q": "Does that bar fit a drive?",
+   "story": "A leader gaps up. The first 5-minute bar dipped, then closed green at 63% of its range on 5.7x volume.",
    "subject": "SET.54#q41"
   },
   "reveal_json": {
@@ -225115,16 +227282,16 @@
     "summary": "The drive: the first 5-minute bar closes above its open and price does not trade back to the open; it may dip in the first minute. LRCX: the low of the day was in bar 1; the first bar dipped first, and the day closed at 97% of its range. LRCX: buy 277.24 at 9:35, stop 272.75 (1.6%); 3R at the next session's open, 5R at 11:40 that day. LRCX, 2026-09-18: a gap of 1.5%; first 5-minute bar 272.80 to 277.23, closed 63% of its range on 5.7x volume; RS 82."
    },
    "facts": {
-    "given": "LRCX's first 5-minute bar dipped, then closed green at 63% of its range on 5.7x volume. Does that bar fit a drive? No; any first-bar dip kills a drive Yes; an early dip is allowed No; it must close in the top 30% Yes; the 5.7x volume overrides it"
+    "given": "Does that bar fit a drive? A leader gaps up. The first 5-minute bar dipped, then closed green at 63% of its range on 5.7x volume. No; any first-bar dip kills a drive Yes; an early dip is allowed No; it must close in the top 30% Yes; the 5.7x volume overrides it"
    },
    "lesson_line": "Green bar, no trade back to the open. A first-minute dip does not break a drive.",
    "simple": "Yes, because a drive's first bar must close green, and a dip in the first minute is allowed.",
    "tier": "extended",
    "unit": "SET.54",
-   "why": "Yes. The first 5-minute bar must close above its open, and price must not trade back to the open before the entry. It need not close in its top 30%: a drive may dip in the first minute. LRCX's bar dipped, closed green at 63% of its range and held the day's low. It ran to 16.8R at its best. Nothing here needed a volume override.",
+   "why": "Yes. The first 5-minute bar must close above its open, and price must not trade back to the open before the entry. It need not close in its top 30%: a drive may dip in the first minute. This bar dipped, closed green at 63% of its range and held the day's low. Nothing here needed a volume override.",
    "wrong": {
     "No; any first-bar dip kills a drive": "A drive may dip in the first minute. What kills it is trading back to the open before the entry.",
-    "No; it must close in the top 30%": "The card says the first bar need not close in its top 30%. LRCX ran 16.8R at its best.",
+    "No; it must close in the top 30%": "The card says the first bar need not close in its top 30%.",
     "Yes; the 5.7x volume overrides it": "No override is needed. The card itself allows a first-minute dip and a close under the top 30%."
    }
   },
@@ -225132,7 +227299,8 @@
   "skill_id": "setup.opening_drive",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.54.json#q41",
-  "type": "recall",
+  "sym": "LRCX",
+  "type": "scenario",
   "version": 1
  },
  {
@@ -225624,8 +227792,20 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "The plan working; a 1R loss"
+  },
+  "asof": "2026-09-17",
+  "bars": {
+   "asof": "2026-09-17",
+   "asof_key": 1789652100,
+   "forward": 20,
+   "forward_to_key": 1790256900,
+   "rth": true,
+   "sym": "TSEM",
+   "tf": "5",
+   "window": 280
   },
   "difficulty": 3,
   "id": "si_6afead25a6c6",
@@ -225633,6 +227813,13 @@
   "lesson_text": "The plan working: a 1R loss. The stop sat under the day's low, where the rule puts it. So the loss from 216.48 to 214.23 was the risk set at the buy, 1R. The 2.1R by 9:50 came on day 1, when we very rarely sell. A tight stop is not a free stop. The stop under the day's low sets the loss at the buy. A stop-out is the plan, not a mistake.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 20,
+    "hide_ticker": true,
+    "tf": "5",
+    "visible_bars": 80,
+    "window_bars": 280
+   },
    "choices": [
     "A sign the setup does not work",
     "The plan working; a 1R loss",
@@ -225641,7 +227828,7 @@
    ],
    "kind": "mcq",
    "q": "What was this loss?",
-   "story": "TSEM, 2026-09-17: you buy a drive at 216.48 with the stop at 214.23, under the day's low. It reaches 2.1R by 9:50, then falls through its open and takes the stop.",
+   "story": "You buy a drive at 216.48 with the stop at 214.23, under the day's low. It reaches 2.1R by 9:50, then falls through its open and takes the stop.",
    "subject": "SET.54#q51"
   },
   "reveal_json": {
@@ -225696,11 +227883,27 @@
     "summary": "TSEM, 2026-09-17: bought 216.48, reached 2.1R by 9:50, then fell through its open and the stop (214.23). TSEM: a tight stop is not a free stop, and a stop-out is not a re-entry without a new trigger. F62: the stop sits a few cents under the day's low. The stop: a few cents under the day's low at entry, in a true drive the first bar's low or the open. A4: the stop is the exit; it only moves up; the gap rule is the one exception. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
    },
    "facts": {
-    "given": "What was this loss? TSEM, 2026-09-17: you buy a drive at 216.48 with the stop at 214.23, under the day's low. It reaches 2.1R by 9:50, then falls through its open and takes the stop. A reason to widen the next stop The plan working; a 1R loss A broken rule; the stop was tight A sign the setup does not work"
+    "given": "What was this loss? You buy a drive at 216.48 with the stop at 214.23, under the day's low. It reaches 2.1R by 9:50, then falls through its open and takes the stop. A reason to widen the next stop The plan working; a 1R loss A broken rule; the stop was tight A sign the setup does not work"
    },
    "lesson_line": "The stop under the day's low sets the loss at the buy. A stop-out is the plan, not a mistake.",
    "simple": "It was the plan working, because the stop sat where the rule puts it and the loss was the 1R you planned.",
    "tier": "expert",
+   "trade": {
+    "direction": "bullish",
+    "enters_intraday": false,
+    "entry": 216.48,
+    "entry_note": "the fill on the chart's last bar",
+    "source": "course",
+    "stop": 214.23,
+    "stop_note": "under that bar's low",
+    "t1": 223.23,
+    "t2": 227.73,
+    "trim_r": [
+     3,
+     5
+    ],
+    "unit": "bar"
+   },
    "unit": "SET.54",
    "why": "The plan working: a 1R loss. The stop sat under the day's low, where the rule puts it. So the loss from 216.48 to 214.23 was the risk set at the buy, 1R. The 2.1R by 9:50 came on day 1, when we very rarely sell. A tight stop is not a free stop.",
    "wrong": {
@@ -225713,6 +227916,7 @@
   "skill_id": "setup.opening_drive",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.54.json#q51",
+  "sym": "TSEM",
   "type": "scenario",
   "version": 1
  },
@@ -225803,8 +228007,20 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "Only on a new trigger and stop"
+  },
+  "asof": "2026-10-01",
+  "bars": {
+   "asof": "2026-10-01",
+   "asof_key": 1790865300,
+   "forward": 60,
+   "forward_to_key": 1791470100,
+   "rth": true,
+   "sym": "PAYC",
+   "tf": "5",
+   "window": 292
   },
   "difficulty": 3,
   "id": "si_524eb1edb771",
@@ -225812,6 +228028,13 @@
   "lesson_text": "Only on a new trigger. After a stop-out we buy again only on a new trigger, as a new trade with its own stop and every rule. Liking the chart is not a trigger, and the stop is never set wider. Each new try counts: at most 3 tries in a week and 6 in a month on one stock. A stop-out is not a re-entry. A new trigger is a new trade with its own stop.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 60,
+    "hide_ticker": true,
+    "tf": "5",
+    "visible_bars": 92,
+    "window_bars": 292
+   },
    "choices": [
     "No; never trade it this month",
     "Yes, with a wider stop this time",
@@ -225820,7 +228043,7 @@
    ],
    "kind": "mcq",
    "q": "Buy again?",
-   "story": "PAYC, 2026-10-01: you buy at 9:35 and the fill is the high of the day. It slides for an hour and takes the stop at 10:35. You still like the chart.",
+   "story": "You buy at 9:35 and the fill is the high of the day. It slides for an hour and takes the stop at 10:35. You still like the chart.",
    "subject": "SET.54#q53"
   },
   "reveal_json": {
@@ -225868,7 +228091,7 @@
     "summary": "B21: after a stop-out, buy again only on a new trigger, as a new trade. E56: at most 3 tries in a week and 6 in a month on one stock. A4: the stop is the exit; it only moves up; the gap rule is the one exception. PAYC, 2026-10-01: bought 229.02 at 9:35, stop 224.09, stopped at 10:35 the same day. PAYC: the fill was the high of the day; it slid for an hour and took the stop at 10:35."
    },
    "facts": {
-    "given": "Buy again? PAYC, 2026-10-01: you buy at 9:35 and the fill is the high of the day. It slides for an hour and takes the stop at 10:35. You still like the chart. Only on a new trigger and stop Only once a full day has passed Yes, with a wider stop this time No; never trade it this month"
+    "given": "Buy again? You buy at 9:35 and the fill is the high of the day. It slides for an hour and takes the stop at 10:35. You still like the chart. Only on a new trigger and stop Only once a full day has passed Yes, with a wider stop this time No; never trade it this month"
    },
    "lesson_line": "A stop-out is not a re-entry. A new trigger is a new trade with its own stop.",
    "simple": "Only on a new trigger, because a stop-out ends the trade and any new buy is a new trade with its own stop.",
@@ -225885,6 +228108,7 @@
   "skill_id": "setup.opening_drive",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.54.json#q53",
+  "sym": "PAYC",
   "type": "scenario",
   "version": 1
  },
@@ -226283,7 +228507,28 @@
    ],
    "kind": "mcq",
    "q": "Fill 208.00, stop 205.66. A gap-down day opens below the stop. At what price is the loss 2R?",
-   "subject": "SET.54#q60"
+   "subject": "SET.54#q60",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "Where the loss is 2R"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 205.66
+     },
+     {
+      "key": "entry",
+      "label": "Fill",
+      "price": 208.0
+     }
+    ],
+    "side": "long",
+    "title": "The gap-down day"
+   }
   },
   "reveal_json": {
    "deeper": {

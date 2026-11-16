@@ -5122,6 +5122,56 @@
      "modes": {}
     }
    }
+  },
+  "rs.compare": {
+   "digest": "6f6826f3b7cb2e92",
+   "phrasings": {
+    "which sectors are leading this month": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what are the strongest sectors over the last month": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "which sectors are lagging this month": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me sector leadership for the past month": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "news.movers": {
+   "digest": "0fc07180c92d22c5",
+   "phrasings": {
+    "what's moving the market today": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what is driving stocks this morning": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me the catalyst board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what are today's catalysts": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
   }
  },
  "refusals": {

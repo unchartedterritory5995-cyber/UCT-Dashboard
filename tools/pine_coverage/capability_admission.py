@@ -128,6 +128,17 @@ def cmd_census(a):
     print("census snapshot:", dict(pops), "distinct sources", len(snap))
 
 
+def admission_row(src, admitted):
+    """One script's admission as the member door answers it: its capabilities, what is missing, and
+    whether it is admitted. RT1: a script on the kill list is refused at every door, whatever its
+    capabilities say (`runtime_definitions.runtime_admission` answers admitted False for it)."""
+    caps = pc.capabilities_of(src)
+    missing = sorted(c for c in caps if c not in admitted)
+    killed = bool(rt.killed(None, src))
+    return dict(hash=rt.source_hash(src), caps=sorted(caps), admitted=not missing and not killed,
+                missing=missing, killed=killed)
+
+
 def cmd_input(a):
     # the detector and the registry directly: the serving path's process-wide gate and cool-down
     # (final verify of #1204) answer "pending" between runs, which is right for a server, not a census
@@ -138,9 +149,7 @@ def cmd_input(a):
         if not isinstance(src, str) or not src.strip():
             s.update(hash=None, caps=[], admitted=False, missing=["<no source>"])
         else:
-            caps = pc.capabilities_of(src)
-            missing = sorted(c for c in caps if c not in admitted)
-            s.update(hash=rt.source_hash(src), caps=sorted(caps), admitted=not missing, missing=missing)
+            s.update(admission_row(src, admitted))
         rows.append(s)
     reg = rt.admitted_capabilities()
     json.dump({"admittedCapabilities": reg["admitted"], "scripts": rows},
@@ -173,8 +182,10 @@ def ledger_runtime_evidence(inp, lanes, ledger_rows, verdict_ids, engine):
     for key, e in led["byKey"].items():
         if lanes.get(key, {}).get("lane") != "runtime":
             continue
+        # ⛔ L7: PROVEN-exact only. A MATCH_SUBSTITUTED row is never capability evidence (a substituted
+        # script is admitted per script, on rollout_gate's separately named substituted path).
         hits = [(cid, title.get(cid), graded_at.get(cid))
-                for cid, verdict in zip(e["captures"], e["verdicts"]) if verdict == "MATCH"]
+                for cid, verdict in zip(e["captures"], e["verdicts"]) if el.is_match(verdict)]
         if hits:
             out[key] = hits
     return out
@@ -200,7 +211,8 @@ def cmd_evidence(a):
             continue
         lane = lanes.get(key, {}).get("lane")
         verdict = v[s["capture"]]["verdict"]
-        if lane != "runtime" or verdict != "MATCH":
+        # ⛔ L7: a MATCH_SUBSTITUTED capture is never capability evidence (see `ledger_runtime_evidence`)
+        if lane != "runtime" or not el.is_match(verdict):
             continue
         family, community = rg.pine_evidence_script(v[s["capture"]].get("script"), s["capture"])
         for cap in s["caps"]:
@@ -232,7 +244,7 @@ def cmd_report(a):
     # may DIVERGE, and no capture may move MATCH -> DIVERGE (production -> runtime-on). A host-drawn
     # DIVERGE is the production picture unchanged; it is listed, not a stop.
     rep = {"populations": {}, "captures": [], "admittedUngraded": [], "stops": [], "hostDiverge": [],
-           "matchToDiverge": []}
+           "matchToDiverge": [], "substitutedToDiverge": []}
     for pop in ("capture", "committed", "reference", "builtin"):
         rows = [s for s in inp if s["population"] == pop]
         adm = [s for s in rows if s["admitted"]]
@@ -256,6 +268,9 @@ def cmd_report(a):
                 rep["stops" if d.get("lane") == "runtime" else "hostDiverge"].append(row)
             if off == "MATCH" and on == "DIVERGE":
                 rep["matchToDiverge"].append(row)
+            # ⭐ L7 — the same regression from the substituted bucket, named apart (never folded into MATCH)
+            if off == el.MATCH_SUBSTITUTED and on == "DIVERGE":
+                rep["substitutedToDiverge"].append(row)
         elif s["hash"] not in graded_hashes:
             rep["admittedUngraded"].append({"key": s["key"], "lane": d.get("lane"), "guard": d.get("guard"),
                                             "declined": d.get("declined"), "caps": s["caps"]})
@@ -265,6 +280,7 @@ def cmd_report(a):
     print("STOPS (runtime-lane capture DIVERGEs):", [c["capture"] for c in rep["stops"]])
     print("host-drawn DIVERGE (production picture):", [c["capture"] for c in rep["hostDiverge"]])
     print("MATCH->DIVERGE:", [c["capture"] for c in rep["matchToDiverge"]])
+    print("MATCH_SUBSTITUTED->DIVERGE:", [c["capture"] for c in rep["substitutedToDiverge"]])
     print("admitted, ungraded:", len(rep["admittedUngraded"]),
           collections.Counter(r["lane"] for r in rep["admittedUngraded"]))
 

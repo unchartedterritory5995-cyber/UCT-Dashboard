@@ -210,6 +210,9 @@ UNSUPPORTED_CATEGORIES = frozenset({
 })
 STUDIO_ACTIONS = frozenset({
     "opened", "preview", "saved", "save_failed", "discarded", "turn_failed",
+    # The member pressed Undo on a preview at least once in this conversation: the answer
+    # drew, and was not what they wanted (plan section 7, L7).
+    "undone",
 })
 #: Output/presentation kinds a saved conversation's definition carries (shape).
 _KINDS = frozenset({
@@ -237,6 +240,11 @@ _VALUE_RULES: dict = {
         "repair_gate": re.compile(r"[a-z_-]{2,32}:[a-z0-9_-]{2,48}"),
         "input_wrapper": frozenset({"args"}),
         "op_kinds": _csv_of(_CONVERSE_OPS),
+        # What produced the turn (`definition_conversation.turn_stamps`). Each is a
+        # strict pattern, never free text: a hash, a version, a model id.
+        "prompt_sha": re.compile(r"[0-9a-f]{16}"),
+        "vocab_version": re.compile(r"[0-9A-Za-z][0-9A-Za-z._-]{0,31}"),
+        "model": re.compile(r"[a-z0-9][a-z0-9._:@-]{1,63}"),
     },
     "studio_action": {
         "conversation_id": re.compile(_CONV_ID),
@@ -257,6 +265,7 @@ EVENT_SCHEMAS.update({
         "usd": _N, "input_tokens": _N, "output_tokens": _N,
         "cache_read_tokens": _N, "cache_write_tokens": _N, "latency_ms": _N,
         "op_kinds": (str,), "preflight": (bool,),
+        "prompt_sha": (str,), "vocab_version": (str,), "model": (str,), "engine": (int,),
     },
     "studio_action": {
         "import_id": (str,), "conversation_id": (str,), "action": (str,),
@@ -582,6 +591,9 @@ def rollout_report(days: int = 7) -> dict:
             "reached_preview": len([c for c, a in convs.items() if "preview" in a]),
             "saved": len(saved),
             "discarded": len([c for c, a in convs.items() if "discarded" in a]),
+            "undone": len([c for c, a in convs.items() if "undone" in a]),
+            # Undone and still saved: it took a correction to get there.
+            "saved_after_undo": len([c for c, a in convs.items() if "undone" in a and "saved" in a]),
             "save_failed": len([c for c, a in convs.items() if "save_failed" in a]),
             "save_rate": round(len(saved) / len(started), 3) if started else None,
             "client_turn_failures": _tally(p.get("failure") for _, _, p in actions
@@ -590,5 +602,10 @@ def rollout_report(days: int = 7) -> dict:
                                   for k in (p.get("kinds") or "").split(",") if k),
             "saved_origin": _tally(p.get("origin") for _, _, p in actions if p.get("action") == "saved"),
         },
+        # Which instructions, vocabulary, model and engine produced the window's turns
+        # (`definition_conversation.turn_stamps`). More than one value in a row means a
+        # change landed inside the window, so its rates mix two versions.
+        "produced_by": {k: _tally(p.get(k) for _, _, p in turns if p.get(k) is not None)
+                        for k in ("prompt_sha", "vocab_version", "model", "engine")},
         "shared_pool_today": _pool_state(),
     }

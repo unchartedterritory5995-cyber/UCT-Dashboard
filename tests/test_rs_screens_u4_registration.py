@@ -244,6 +244,7 @@ def test_the_descriptions_state_the_writers_numbers():
                   f"more than {zone} past a base pivot",
                   f"{below} below a base pivot to {zone} above it",
                   f"a 20-session closing high in the last {rs_setup.PULLBACK_HIGH_MAX_AGE} sessions",
+                  f"the close at least {rs_setup.PULLBACK_MIN_DEPTH_ATR:g} ATR under that high",
                   f"within {rs_setup.PULLBACK_ATR_BAND:g} ATR of a rising 8-day or 21-day EMA"):
         assert words in setup, words
     for words in (f"closed {rs_setup.BUYOUT_JUMP_PCT:g}% or more above the prior close",

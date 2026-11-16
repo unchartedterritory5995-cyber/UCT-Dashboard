@@ -1151,7 +1151,7 @@
      "computed key (calc)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$140",
     "$2.80",
@@ -1162,6 +1162,28 @@
     "$140": "Counts one condor instead of 2.",
     "$2.80": "Forgets that one contract covers 100 shares.",
     "$2,800": "Slips a decimal place on the 100 shares."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The iron condors",
+    "rows": [
+     {
+      "key": "condors_sold",
+      "label": "Condors sold",
+      "value": 2.0,
+      "fmt": "count"
+     },
+     {
+      "key": "credit_each",
+      "label": "Credit each",
+      "value": 1.4,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Maximum profit",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1198,7 +1220,7 @@
      "computed key (calc)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$5.00",
     "$3.40",
@@ -1209,6 +1231,46 @@
     "$5.00": "Uses the width of one side and forgets the 1.60 credit.",
     "$6.60": "Adds the credit to the width instead of taking it off.",
     "$1.60": "That is the most you can make, the credit. It is not the loss."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The iron condor",
+    "rows": [
+     {
+      "key": "put_bought,_strike",
+      "label": "Put bought, strike",
+      "value": 45.0,
+      "fmt": "$"
+     },
+     {
+      "key": "put_sold,_strike",
+      "label": "Put sold, strike",
+      "value": 50.0,
+      "fmt": "$"
+     },
+     {
+      "key": "call_sold,_strike",
+      "label": "Call sold, strike",
+      "value": 60.0,
+      "fmt": "$"
+     },
+     {
+      "key": "call_bought,_strike",
+      "label": "Call bought, strike",
+      "value": 65.0,
+      "fmt": "$"
+     },
+     {
+      "key": "credit",
+      "label": "Credit",
+      "value": 1.6,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Max loss",
+     "as": "per_share"
+    }
    }
   },
   {
@@ -1279,7 +1341,7 @@
      "computed key (calc)"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$91.85",
     "$88.15",
@@ -1290,6 +1352,46 @@
     "$88.15": "Takes the credit off the short call instead of adding it.",
     "$78.15": "That is the lower break-even, off the short put.",
     "$90.00": "Stops at the short call and forgets the credit."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The iron condor",
+    "rows": [
+     {
+      "key": "put_sold,_strike",
+      "label": "Put sold, strike",
+      "value": 80.0,
+      "fmt": "$"
+     },
+     {
+      "key": "call_sold,_strike",
+      "label": "Call sold, strike",
+      "value": 90.0,
+      "fmt": "$"
+     },
+     {
+      "key": "put_wing,_strike",
+      "label": "Put wing, strike",
+      "value": 75.0,
+      "fmt": "$"
+     },
+     {
+      "key": "call_wing,_strike",
+      "label": "Call wing, strike",
+      "value": 95.0,
+      "fmt": "$"
+     },
+     {
+      "key": "credit",
+      "label": "Credit",
+      "value": 1.85,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Upper break-even",
+     "as": "price"
+    }
    }
   },
   {
@@ -1335,7 +1437,47 @@
      "computed key (calc)"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The iron butterfly",
+    "rows": [
+     {
+      "key": "stock_price",
+      "label": "Stock price",
+      "value": 50.0,
+      "fmt": "$"
+     },
+     {
+      "key": "call_and_put_sold,_s",
+      "label": "Call and put sold, strike",
+      "value": 50.0,
+      "fmt": "$"
+     },
+     {
+      "key": "put_bought,_strike",
+      "label": "Put bought, strike",
+      "value": 45.0,
+      "fmt": "$"
+     },
+     {
+      "key": "call_bought,_strike",
+      "label": "Call bought, strike",
+      "value": 55.0,
+      "fmt": "$"
+     },
+     {
+      "key": "credit",
+      "label": "Credit",
+      "value": 3.2,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Upper of the two break-evens",
+     "as": "price"
+    }
+   }
   },
   {
    "key": "q14",
@@ -1374,7 +1516,7 @@
      "computed key (calc)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$8.90",
     "$5.00",
@@ -1385,6 +1527,40 @@
     "$8.90": "Uses the whole 40-to-50 span instead of one wing.",
     "$5.00": "Uses the wing width and forgets the 1.10 debit.",
     "$6.10": "Adds the debit to the wing width instead of taking it off."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The call butterfly",
+    "rows": [
+     {
+      "key": "lower_call_bought",
+      "label": "Lower call bought, strike",
+      "value": 40.0,
+      "fmt": "$"
+     },
+     {
+      "key": "two_calls_sold",
+      "label": "Two calls sold, strike",
+      "value": 45.0,
+      "fmt": "$"
+     },
+     {
+      "key": "upper_call_bought",
+      "label": "Upper call bought, strike",
+      "value": 50.0,
+      "fmt": "$"
+     },
+     {
+      "key": "net_debit",
+      "label": "Net debit",
+      "value": 1.1,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Max profit",
+     "as": "per_share"
+    }
    }
   },
   {
@@ -1424,7 +1600,7 @@
      "computed key (calc)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$750",
     "$3,000",
@@ -1435,6 +1611,52 @@
     "$750": "Uses the narrower put side.",
     "$3,000": "Uses the wider side and forgets the 2.50 credit.",
     "$3,750": "Adds the credit to the wider side instead of taking it off."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The iron condors",
+    "rows": [
+     {
+      "key": "condors_sold",
+      "label": "Condors sold",
+      "value": 3.0,
+      "fmt": "count"
+     },
+     {
+      "key": "put_bought,_strike",
+      "label": "Put bought, strike",
+      "value": 95.0,
+      "fmt": "$"
+     },
+     {
+      "key": "put_sold,_strike",
+      "label": "Put sold, strike",
+      "value": 100.0,
+      "fmt": "$"
+     },
+     {
+      "key": "call_sold,_strike",
+      "label": "Call sold, strike",
+      "value": 110.0,
+      "fmt": "$"
+     },
+     {
+      "key": "call_bought,_strike",
+      "label": "Call bought, strike",
+      "value": 120.0,
+      "fmt": "$"
+     },
+     {
+      "key": "credit_each",
+      "label": "Credit each",
+      "value": 2.5,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Max loss",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1546,7 +1768,47 @@
      "computed key (calc) on a dated Schwab example"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The index condor",
+    "rows": [
+     {
+      "key": "call_sold,_strike",
+      "label": "Call sold, strike",
+      "value": 6960.0,
+      "fmt": "count"
+     },
+     {
+      "key": "call_bought,_strike",
+      "label": "Call bought, strike",
+      "value": 7060.0,
+      "fmt": "count"
+     },
+     {
+      "key": "put_sold,_strike",
+      "label": "Put sold, strike",
+      "value": 6160.0,
+      "fmt": "count"
+     },
+     {
+      "key": "put_bought,_strike",
+      "label": "Put bought, strike",
+      "value": 6060.0,
+      "fmt": "count"
+     },
+     {
+      "key": "max_profit",
+      "label": "Max profit",
+      "value": 2915.0,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Max loss",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q19",
@@ -1922,14 +2184,14 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 3. Why rewritten to show the intermediate numbers."
+   "fixed": false,
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 2. Why rewritten to show the intermediate numbers."
+   "fixed": false,
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q11": {
    "status": "pass",
@@ -1941,26 +2203,25 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q13": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key right (OIC f22, Fidelity f106: body plus or minus the credit). All four choices are 15 chars, no tell. 53.20 is calc'd; 46.80 and the distractor pairs are the question's own choices, which the rule allows. Wings note is correct from f23.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 4. Why rewritten to show the intermediate numbers."
+   "notes": "Values are strikes; name them as strikes like the other condor cards"
   },
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 3."
+   "fixed": false,
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q16": {
    "status": "pass",
@@ -1978,7 +2239,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Worked it before the key: 100-point sides (f130), $100 a point (Cboe f77), 10,000 - 2,915 = 7,085, matches Schwab f131; calc args match. Max profit = credit is OIC f61, now cited. SPX is European and cash-settled, so no early assignment can push the loss past it. Distractors are real errors (no credit, both sides, credit added). Schwab page refused a plain fetch today (auth error), so f129-f131/f135 rest on the 2026-11-09 live re-read; the numbers agree with each other and with the calc. The deeper note's widest-spread rule comes after q15 (rung 6 before 7), so no give-away."
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q19": {
    "status": "cut",

@@ -1191,7 +1191,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "75%",
     "133%",
@@ -1202,6 +1202,34 @@
     "133%": "You flipped the division and divided the $0.40 stop distance by the spread.",
     "150%": "You counted the spread twice, once going in and once going out.",
     "750%": "A decimal slip: ten times too big."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The spread and the stop",
+    "rows": [
+     {
+      "key": "ask_(our_fill)",
+      "label": "Ask (our fill)",
+      "value": 20.3,
+      "fmt": "$"
+     },
+     {
+      "key": "bid",
+      "label": "Bid",
+      "value": 20.0,
+      "fmt": "$"
+     },
+     {
+      "key": "stop_under_our_fill",
+      "label": "Stop under our fill",
+      "value": 0.4,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Spread as % of the stop",
+     "as": "pct"
+    }
    }
   },
   {
@@ -1433,7 +1461,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "notes": "Ask is our fill, stop is $0.40 under it; label names the computed ratio; key '75%' fills the slot"
   },
   "q22": {
    "status": "pass",

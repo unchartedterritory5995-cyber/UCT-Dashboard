@@ -167,6 +167,9 @@ def fetch(path: str, pub_id: str | None = None) -> dict:
         "sha256": hashlib.sha256(source.encode("utf-8")).hexdigest(),
         "licence": licence,
         "licenceBasis": basis,
+        # ⭐ U15: recorded so the store's licence gate (`pine_library_store.licence_problem`)
+        # reads a flag as well as the id; a non-commercial library is never SERVED.
+        "nonCommercial": bool(store.licence_problem({"licence": licence})),
         "attribution": "%s v%d by %s, published on TradingView as an open-source library" % (name, version, author),
         "url": "https://www.tradingview.com/u/%s/#published-scripts" % author,
         "pubId": pub,

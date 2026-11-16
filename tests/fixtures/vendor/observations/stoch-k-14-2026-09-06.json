@@ -3,7 +3,12 @@
   "shape": "seeded",
   "script": {
     "dialect": "pine",
-    "source": "//@version=5\nindicator(\"uct-stoch-parity-v1\", overlay=false)\nstochK = ta.stoch(close, high, low, 14)\nplot(stochK, title=\"stochK\")\n"
+    "source": "//@version=5\nindicator(\"uct-stoch-parity-v1\", overlay=false)\nstochK = ta.stoch(close, high, low, 14)\nplot(stochK, title=\"stochK\")\n",
+    "pasteLowersTo": {
+      "formula": "stochPine(high, low, close, 14)",
+      "since": "2026-11-14",
+      "why": "Since engine 57 a pasted Pine `ta.stoch` lowers to `stochPine` (the last n finite highs / lows, the previous answer kept where the formula has none; S6 `stochastic-rsi` and S1 probe P2), not to the house `stoch`. Over these bars (no hole, no flat window) the two are the same numbers. This observation's `engine` block is deliberately LEFT on the house formula: `tests/test_vendor_parity_stoch.py` grades that formula. `vendorTruth.test.js` asserts the paste produces THIS formula, and the vendor harness maps the plot by it."
+    }
   },
   "engine": {
     "formula": "stoch(high, low, close, 14)",

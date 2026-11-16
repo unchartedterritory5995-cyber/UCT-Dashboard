@@ -1067,7 +1067,7 @@ export default function AiSearchWidget({
     >
       {chrome && settingsOpen && (
         <NewsSettingsPanel
-          title="AI Search Settings"
+          title="AI Search settings"
           widgetType="aisearch"
           showPerf={false}
           settings={aisSettings}

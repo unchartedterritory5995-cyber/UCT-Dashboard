@@ -1554,7 +1554,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "3,100",
     "120",
@@ -1565,6 +1565,29 @@
     "3,100": "Added advancers and decliners instead of subtracting.",
     "2,150": "Gave the advancers only.",
     "120": "Slipped a decimal place."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The day's breadth",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Advanced",
+      "value": 2150,
+      "fmt": "count"
+     },
+     {
+      "key": "r2",
+      "label": "Declined",
+      "value": 950,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Net advances",
+     "as": "num",
+     "unit": "stocks"
+    }
    }
   },
   {
@@ -1639,7 +1662,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "5,800",
     "3,800",
@@ -1650,6 +1673,34 @@
     "5,800": "Subtracted in the wrong order, so the line rose.",
     "3,800": "Took only the 1,200 advancers off the line.",
     "8,200": "Added both the advancers and the decliners."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The A/D line",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "A/D line yesterday",
+      "value": 5000,
+      "fmt": "count"
+     },
+     {
+      "key": "r2",
+      "label": "Stocks that rose today",
+      "value": 1200,
+      "fmt": "count"
+     },
+     {
+      "key": "r3",
+      "label": "Stocks that fell today",
+      "value": 2000,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "The A/D line now",
+     "as": "num"
+    }
    }
   },
   {
@@ -1824,7 +1875,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "0.33",
     "0.75",
@@ -1835,6 +1886,29 @@
     "0.33": "Divided decliners by advancers, upside down.",
     "0.75": "Divided advancers by the total of both.",
     "2.0": "Divided net advances by the decliners."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The day's breadth",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Advanced",
+      "value": 2400,
+      "fmt": "count"
+     },
+     {
+      "key": "r2",
+      "label": "Declined",
+      "value": 800,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Advance-decline ratio",
+     "as": "num",
+     "unit": "ratio"
+    }
    }
   },
   {
@@ -2255,7 +2329,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "225",
     "180",
@@ -2266,6 +2340,29 @@
     "225": "Added highs and lows instead of subtracting.",
     "180": "Gave the new highs only.",
     "1,350": "Slipped a decimal place."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The day's extremes",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "52-week highs",
+      "value": 180,
+      "fmt": "count"
+     },
+     {
+      "key": "r2",
+      "label": "52-week lows",
+      "value": 45,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Net new highs",
+     "as": "num",
+     "unit": "stocks"
+    }
    }
   },
   {
@@ -2338,7 +2435,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "300%",
     "133%",
@@ -2349,6 +2446,28 @@
     "300%": "Divided highs by lows and skipped the total.",
     "80%": "Gave the total of highs and lows, not a share.",
     "133%": "Divided the total by highs, upside down."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The day's extremes",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "52-week highs",
+      "value": 60,
+      "fmt": "count"
+     },
+     {
+      "key": "r2",
+      "label": "52-week lows",
+      "value": 20,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Record High Percent",
+     "as": "pct"
+    }
    }
   },
   {
@@ -2692,7 +2811,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "205",
     "75",
@@ -2703,6 +2822,29 @@
     "205": "Added the two averages instead of subtracting.",
     "20": "Subtracted the 19 from the 39 day periods.",
     "2.15": "Divided the fast average by the slow one."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The two EMAs",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "19-day EMA of net adv.",
+      "value": 140,
+      "fmt": "count"
+     },
+     {
+      "key": "r2",
+      "label": "39-day EMA of net adv.",
+      "value": 65,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "McClellan Oscillator",
+     "as": "num",
+     "unit": "points"
+    }
    }
   },
   {
@@ -3015,7 +3157,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "0.33",
     "2.0",
@@ -3026,6 +3168,29 @@
     "0.33": "Divided down volume by up volume, upside down.",
     "2.0": "Divided the gap between the volumes by down volume.",
     "2.4": "Subtracted down volume from up volume instead of dividing."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The day's volume",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Up volume, in billions",
+      "value": 3.6,
+      "fmt": "count"
+     },
+     {
+      "key": "r2",
+      "label": "Down volume, in billions",
+      "value": 1.2,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Up/down volume ratio",
+     "as": "num",
+     "unit": "ratio"
+    }
    }
   },
   {
@@ -3138,7 +3303,7 @@
      "fixed before (why and lesson reworded by the checker)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "2.0",
     "0.5",
@@ -3149,6 +3314,40 @@
     "2.0": "Flipped it, putting the volume ratio over the issue ratio.",
     "1.5": "Gave the issue ratio and skipped the volume ratio.",
     "4.5": "Multiplied the two ratios instead of dividing."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The day's breadth",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Advancers",
+      "value": 1800,
+      "fmt": "count"
+     },
+     {
+      "key": "r2",
+      "label": "Decliners",
+      "value": 1200,
+      "fmt": "count"
+     },
+     {
+      "key": "r3",
+      "label": "Up volume, billions",
+      "value": 3,
+      "fmt": "count"
+     },
+     {
+      "key": "r4",
+      "label": "Down volume, billions",
+      "value": 1,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "TRIN",
+     "as": "num"
+    }
    }
   },
   {
@@ -3827,7 +4026,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc recomputed; answer shows it; wrong choices checked. Answer shows the calc, no tell, why walks the steps."
+   "notes": "Advanced and declined counts; slot 1,200 matches key."
   },
   "q08": {
    "status": "pass",
@@ -3838,8 +4037,8 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc recomputed; answer shows it; wrong choices checked. Answer shows the calc, no tell, why walks the steps."
+   "fixed": true,
+   "notes": "'Rose today'/'Fell today' are bare counts of stocks; say so. The A/D line is a running total, so the unit 'stocks' on the slot would be wrong if the key were not reused; drop it."
   },
   "q10": {
    "status": "pass",
@@ -3869,7 +4068,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc recomputed; answer shows it; wrong choices checked. Answer shows the calc, no tell, why walks the steps."
+   "notes": "Advanced/declined counts; slot 3.0 matches key."
   },
   "q15": {
    "status": "cut",
@@ -3942,7 +4141,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc recomputed; answer shows it; wrong choices checked. Answer shows the calc, no tell, why walks the steps."
+   "notes": "Highs and lows counts; slot 135 matches key."
   },
   "q27": {
    "status": "pass",
@@ -3954,7 +4153,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "75 is smallest of 75/80/133/300. 300 = highs/lows; 133 = total/highs; 80 = total. All real slips."
+   "notes": "Highs and lows counts; label is the indicator's name only; slot 75% matches key."
   },
   "q29": {
    "status": "pass",
@@ -4014,7 +4213,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc recomputed; answer shows it; wrong choices checked. Answer shows the calc, no tell, why walks the steps."
+   "notes": "19-day and 39-day EMAs of net advances with their numbers; fast/slow order not handed over; slot 75 matches key."
   },
   "q39": {
    "status": "pass",
@@ -4068,7 +4267,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "3.0 largest. 0.33 flipped; 2.4 = 3.6-1.2; 2.0 = gap/down volume. All real slips."
+   "notes": "Up and down volume in billions; slot 3.0 matches key."
   },
   "q48": {
    "status": "pass",
@@ -4087,7 +4286,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Calc 0.5 matches (1.5 / 3). Wrongs real. Why added the 1.5 and 0.5 figures."
+   "notes": "Inputs are right, but the unit 'times' would read oddly on a TRIN slot if the key were not reused; TRIN is a plain ratio, drop the unit."
   },
   "q51": {
    "status": "pass",

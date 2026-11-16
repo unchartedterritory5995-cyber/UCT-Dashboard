@@ -1008,7 +1008,29 @@
      "fixed before (story and 20% note)"
     ]
    },
-   "batch": "wave9"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The cold spell",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Risk per trade",
+      "value": 2,
+      "fmt": "%"
+     },
+     {
+      "key": "r2",
+      "label": "Losers in a row",
+      "value": 10,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Your drawdown",
+     "as": "pct"
+    }
+   }
   },
   {
    "key": "q14",
@@ -1318,7 +1340,7 @@
      "fixed before (wording)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "20%",
     "22%",
@@ -1329,6 +1351,28 @@
     "20%": "Added up ten 2% losses.",
     "18%": "Gave the size of the hole, not the climb back.",
     "25%": "Treated it like a flat 20% loss."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The cold spell",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Each loss, % of what's left",
+      "value": 2,
+      "fmt": "%"
+     },
+     {
+      "key": "r2",
+      "label": "Losses in a row",
+      "value": 10,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Gain back to the high",
+     "as": "pct"
+    }
    }
   },
   {
@@ -1908,7 +1952,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 1-0.98^10 = 18.3% -> 18. 'Well over 20%' note correct and no longer copies q06's opener. Minor, not changed: '2%' is a weak distractor at rung 5 (one loss), but a replacement like 'About 22%' would hand over q21's key."
+   "notes": "Risk per trade and run of losers stated; slot 'About 18%' matches key. No compounding method handed over."
   },
   "q14": {
    "status": "pass",
@@ -1955,8 +1999,8 @@
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Recomputed calc, answer matches, wrong choices real and distinct, no tell; why walks the steps with the givens (the grader bars derived intermediates)."
+   "fixed": true,
+   "notes": "The 2% is 'of what is left', not of the original account; 'Loss on each trade' alone reads as a flat loss. Say the base."
   },
   "q22": {
    "status": "pass",

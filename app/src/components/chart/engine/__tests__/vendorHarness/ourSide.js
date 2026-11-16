@@ -39,18 +39,24 @@ import { toRenderState } from '../../objectRenderState'
 // ⭐ RT5 — a runtime document's own drawings.
 import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects, runtimeWarmupOf, RUNTIME_WARMUP_KEY, runHalfOf, carriesRunHalf } from '../../runtime/runtimeObjects'
 import { runtimeDeclinedTag } from '../../../../../../../tools/pine_coverage/runtime_lane.mjs'
-import { maxLookback, CHART_CLOCK_WHOLE, TF_MERGE_NEWEST_CODE, TF_MERGE_FIRST_CODE } from '../../ast/interpret'
+import { maxLookback, CHART_CLOCK_WHOLE, TF_MERGE_NEWEST_CODE, TF_MERGE_FIRST_CODE, interpret as interpretTree } from '../../ast/interpret'
 import { setRuntimeDoorClock } from '../../runtime/runtimeColumns'
 import { paneObjectsGate } from '../../ast/paneGate'
-import { otherSymbolRequestsOf, storeTickerOf } from '../../otherSymbols'
+import { otherSymbolRequestsOf, storeTickerOf, witnessRowOf } from '../../otherSymbols'
 import { lowerTfCodesOf, LOWER_TF_SOURCE } from '../../lowerTf'
 import SYMBOL_SCOPE from '../../ast/symbolScope.json'
 import { createFakeChart } from '../fakeChart'
-import { normalizeColor } from '../../../../../../../tools/vendor_harness/compare.mjs'
+import { isThemeColour } from '../../objectTheme'
+import { normalizeColor, COLOUR_WITHHELD_POINT, substitutionProblems, vendorValueOf } from '../../../../../../../tools/vendor_harness/compare.mjs'
+// ⭐ RS RATING L3 — which classification fields a script reads, and the binding's substitution tags.
+import { substitutedFor } from '../../ast/symbolSubstitution'
+import { CLASSIFICATION_FIELD_NAMES } from '../../ast/bind'
 import { validateCapture } from '../../../../../../../tools/vendor_harness/schema.mjs'
 import { fullBarsFor } from '../../../../../utils/barsBackfill'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
+import crypto from 'node:crypto'
 
 // ─── ⭐⭐ C26 — ANOTHER SYMBOL'S BARS, FROM COMMITTED CAPTURES ONLY ─────────────
 //
@@ -212,6 +218,158 @@ function lowerTfSupply(def, capture) {
   return { lowerTf, notes }
 }
 
+// ─── ⭐⭐ RS RATING L8 — THE BARS OUR SERVER SERVES, RECORDED BESIDE A CAPTURE ────────
+//
+// C26 supplies another symbol from committed CAPTURES: TradingView's own bars of that listing.
+// For a symbol TradingView's own bars must NOT feed (an index such as `SP:SPX`, where grading
+// on the vendor's values would be circular, and a Pine seed, which no capture holds as bars),
+// the honest supply is what OUR SERVER serves, recorded: `tests/fixtures/vendor-supply/<capture
+// id>.json` (`uct.harness-supply/v1`). Each `other.<STORE TICKER>` is either
+//   * `{servedBy, source, recordedAtUTC, bars}`: the served bars, in the shape the server
+//     serves them, with where they came from (a fallback says so in `source`); or
+//   * `{notRecorded}`: the source a member is served was not recorded, so NOTHING is supplied
+//     (the read refuses by name, the grade is INCONCLUSIVE), never a stand-in; or
+//     ⚠️ Inline PROVIDER bars (FMP, Yahoo) are committed only under an owner ruling the entry
+//     quotes in `licence` (the RS Rating records: 2026-11-15, "That's fine, I accept it all",
+//     covering those records only; railed in vendorHarness.l9LocalSupply.test.js); or
+//   * (RS RATING L9) `{servedBy, source, recordedAtUTC, rows: {file, sha256, count, first, last}}`:
+//     for provider data NO ruling covers (the repo is public; FMP is class R/LA for member display
+//     and Yahoo class X, `provider_licensing_class.py`), git holds only this manifest and the rows
+//     live OUT of git, in the local supply store
+//     (`$UCT_HARNESS_SUPPLY_STORE`, default `%LOCALAPPDATA%/uct-vendor-batch/supply`), the way a
+//     licence-held capture lives in the capture store. The file is read only when its sha256, row
+//     count and first / last session are the manifest's (else the record throws); a machine
+//     without it supplies NOTHING and the grade is refused by name (INCONCLUSIVE), never run on a
+//     stand-in.
+// and `symbol.<field>` feeds a classification field the capture does not carry with the
+// VENDOR's value read off a committed capture (`vendorValueFrom: 'committed:<path>'`), checked
+// here against that capture's own text before it is fed.
+// and (RS RATING L9) `store.securityType` feeds OUR STORE's instrument class for the chart symbol
+// (`{value: 'Stock'|'ADR'|'ETF', source}`), the field a member's chart threads from
+// `ticker_meta.security_type` (`StockChart.jsx`). It is ours, never the vendor's (a capture carries
+// TradingView's `type`, which is not our class), so it names where it was read, and a record that
+// states none feeds none: the bind then keys no class row, exactly as before.
+// ⛔ A record that names another capture, or a malformed one, throws: it is never half-read.
+const SUPPLY_DIR = path.resolve(process.cwd(), '..', 'tests/fixtures/vendor-supply')
+let _supplyDir = SUPPLY_DIR
+/** Rails only: read recorded supply from a scratch directory (null restores the committed one). */
+export function __setSupplyDirForTests(dir) { _supplyDir = dir || SUPPLY_DIR }
+export const HARNESS_SUPPLY_SCHEMA = 'uct.harness-supply/v1'
+/** The out-of-git rows file a manifest names (`uct.harness-supply-rows/v1`: `{ticker, source,
+ *  servedBy, recordedAtUTC, bars}`). */
+export const HARNESS_SUPPLY_ROWS_SCHEMA = 'uct.harness-supply-rows/v1'
+export const SUPPLY_STORE_ENV = 'UCT_HARNESS_SUPPLY_STORE'
+let _supplyStoreForTests = null
+/** Rails only: read out-of-git rows from a scratch store (null restores the configured one). */
+export function __setSupplyStoreForTests(dir) { _supplyStoreForTests = dir || null }
+/** The local supply store, read per call. */
+export function supplyStoreDir() {
+  if (_supplyStoreForTests) return _supplyStoreForTests
+  if (process.env[SUPPLY_STORE_ENV]) return path.resolve(process.env[SUPPLY_STORE_ENV])
+  const base = process.env.LOCALAPPDATA || process.env.TEMP || os.tmpdir()
+  return path.join(base, 'uct-vendor-batch', 'supply')
+}
+/** Our store's instrument classes (`screener_universe.COARSE_TYPES`, keyed by `bind.js`'s
+ *  `by_class` rows). */
+export const STORE_SECURITY_TYPES = Object.freeze(['Stock', 'ADR', 'ETF'])
+
+/** The Q-RS4 probe's label keys (`IND=<industry>|SEC=<sector>|TYPE=<type>`). */
+const CLASSIFICATION_PROBE_KEY = Object.freeze({ industry: 'IND', sector: 'SEC' })
+
+/** The recorded supply beside this capture, or null when none is committed. */
+export function recordedSupplyOf(capture, dir = _supplyDir) {
+  const id = capture && capture.id
+  if (typeof id !== 'string' || !id) return null
+  const file = path.join(dir, `${id}.json`)
+  if (!fs.existsSync(file)) return null
+  const rec = JSON.parse(fs.readFileSync(file, 'utf8'))
+  const bad = (why) => { throw new Error(`ourSide: recorded supply ${path.basename(file)} refused: ${why}`) }
+  if (!rec || rec.schema !== HARNESS_SUPPLY_SCHEMA) bad(`schema is not ${HARNESS_SUPPLY_SCHEMA}`)
+  if (rec.capture !== id) bad(`it is the record of ${JSON.stringify(rec.capture)}, not of ${id}`)
+  for (const [ticker, e] of Object.entries(rec.other || {})) {
+    if (!e || typeof e !== 'object') bad(`other.${ticker} is not an object`)
+    const forms = [Array.isArray(e.bars), !!(e.rows && typeof e.rows === 'object'),
+      typeof e.notRecorded === 'string' && e.notRecorded.length > 0]
+    if (forms.filter(Boolean).length !== 1) {
+      bad(`other.${ticker} must hold exactly one of \`bars\`, \`rows\` or \`notRecorded\``)
+    }
+    if (!forms[2] && !(typeof e.source === 'string' && e.source && typeof e.servedBy === 'string' && e.servedBy)) {
+      bad(`other.${ticker} records bars without naming \`source\` and \`servedBy\``)
+    }
+    if (forms[1]) e.bars = outOfGitRows(ticker, e, bad)            // [] -> e.notOnThisMachine
+  }
+  for (const [field, e] of Object.entries(rec.symbol || {})) {
+    if (!CLASSIFICATION_PROBE_KEY[field]) bad(`symbol.${field} is not a classification field`)
+    if (!e || typeof e.value !== 'string' || !e.value) bad(`symbol.${field} carries no value`)
+    const from = String(e.vendorValueFrom || '')
+    if (!from.startsWith('committed:')) bad(`symbol.${field} must cite a committed capture (\`committed:<path>\`)`)
+    const probe = path.resolve(process.cwd(), '..', from.slice('committed:'.length))
+    if (!fs.existsSync(probe)) bad(`symbol.${field} cites ${from}, which is not committed`)
+    const texts = ((JSON.parse(fs.readFileSync(probe, 'utf8')).objects || {}).texts || {}).labels || []
+    const key = CLASSIFICATION_PROBE_KEY[field]
+    const said = texts.map((t) => String(t).split('|').find((part) => part.startsWith(`${key}=`)))
+      .filter(Boolean).map((part) => part.slice(key.length + 1))
+    if (!said.includes(e.value)) {
+      bad(`symbol.${field} = ${JSON.stringify(e.value)} is not what ${from} printed (${JSON.stringify(said)})`)
+    }
+  }
+  for (const [field, e] of Object.entries(rec.store || {})) {
+    if (field !== 'securityType') bad(`store.${field} is not a store field the bind reads`)
+    if (!e || !STORE_SECURITY_TYPES.includes(e.value)) {
+      bad(`store.securityType must be one of ${STORE_SECURITY_TYPES.join(' / ')} (our store's class), not ${JSON.stringify(e && e.value)}`)
+    }
+    if (!(typeof e.source === 'string' && e.source)) bad('store.securityType does not say where our store\'s class was read (`source`)')
+    if (Object.prototype.hasOwnProperty.call(e, 'vendorValueFrom')) {
+      bad('store.securityType is our store\'s class, never a vendor value (`vendorValueFrom`)')
+    }
+  }
+  return rec
+}
+
+/** ⭐ RS RATING L9 — the bars an out-of-git manifest names, read from the local supply store and
+ *  checked against the manifest; `undefined` (with `e.notOnThisMachine` set) when the file is not
+ *  on this machine. A file that IS here but is not the manifest's throws (`bad`). */
+function outOfGitRows(ticker, e, bad) {
+  const m = e.rows
+  const name = typeof m.file === 'string' ? m.file : ''
+  if (!name || name !== path.basename(name)) bad(`other.${ticker}.rows.file must be a bare file name in the supply store`)
+  if (!/^[0-9a-f]{64}$/.test(String(m.sha256 || ''))) bad(`other.${ticker}.rows names no sha256`)
+  if (!Number.isInteger(m.count) || m.count < 1) bad(`other.${ticker}.rows names no row count`)
+  const file = path.join(supplyStoreDir(), name)
+  if (!fs.existsSync(file)) {
+    e.notOnThisMachine = `the served bars (${e.source}) are kept out of git (provider data; the repo `
+      + `is public) and ${name} is not in the local supply store (${supplyStoreDir()}, \`${SUPPLY_STORE_ENV}\`)`
+    return undefined
+  }
+  const raw = fs.readFileSync(file)
+  const sha = crypto.createHash('sha256').update(raw).digest('hex')
+  if (sha !== m.sha256) bad(`other.${ticker}.rows: ${name} is not the recorded file (sha256 ${sha.slice(0, 12)}, the manifest says ${m.sha256.slice(0, 12)})`)
+  const doc = JSON.parse(raw.toString('utf8'))
+  if (!doc || doc.schema !== HARNESS_SUPPLY_ROWS_SCHEMA || !Array.isArray(doc.bars)) bad(`other.${ticker}.rows: ${name} is not a ${HARNESS_SUPPLY_ROWS_SCHEMA} file`)
+  if (doc.ticker !== ticker) bad(`other.${ticker}.rows: ${name} holds ${JSON.stringify(doc.ticker)}`)
+  const day = (b) => new Date(b.t * 1000).toISOString().slice(0, 10)
+  if (doc.bars.length !== m.count || day(doc.bars[0]) !== m.first || day(doc.bars[doc.bars.length - 1]) !== m.last) {
+    bad(`other.${ticker}.rows: ${name} holds ${doc.bars.length} sessions ${day(doc.bars[0])}..${day(doc.bars[doc.bars.length - 1])}, the manifest ${m.count} ${m.first}..${m.last}`)
+  }
+  return doc.bars
+}
+
+/** ⭐ RS RATING L9 — our store's class for the chart symbol, from the recorded supply, or {}. */
+function recordedStoreOf(capture) {
+  const rec = recordedSupplyOf(capture)
+  const e = rec && rec.store && rec.store.securityType
+  return e ? { securityType: e.value } : {}
+}
+
+/** The classification fields the recorded supply feeds, and the committed capture each cites. */
+function recordedClassificationOf(capture) {
+  const rec = recordedSupplyOf(capture)
+  const fields = {}
+  const from = {}
+  for (const [field, e] of Object.entries((rec && rec.symbol) || {})) { fields[field] = e.value; from[field] = e.vendorValueFrom }
+  return { fields, from }
+}
+
 /** The secondary supply a capture's script asks for, and the notes naming what
  *  could not be supplied. */
 function otherSymbolSupply(def, capture) {
@@ -221,7 +379,33 @@ function otherSymbolSupply(def, capture) {
   const index = otherCaptureIndex()
   const secondary = new Map()
   const notes = []
-  for (const { ticker } of requests) {
+  // ⭐ RS RATING L8 — a recorded server supply beside this capture answers first, for the
+  // symbols it names (`recordedSupplyOf`); every other symbol keeps C26's committed captures.
+  const recorded = recordedSupplyOf(capture)
+  const unrecorded = []
+  for (const { ticker, spellings } of requests) {
+    // the key the chart fetches it under: a witnessed spelling's row's store key (`SPX`,
+    // `SEED_FRED6725_RS_RATING:RSRATING`), else our store's ticker (`fetchableOtherSymbols`)
+    const row = (spellings || []).map((v) => witnessRowOf(v, ticker)).find(Boolean)
+    const storeKey = row ? row.store : storeTickerOf(ticker)
+    const rec = recorded && recorded.other ? recorded.other[storeKey] : null
+    if (rec) {
+      if (Array.isArray(rec.bars)) {
+        secondary.set(storeKey, { bars: rec.bars, status: 'available' })
+        notes.push(`other symbol ${ticker}: the bars our server serves, recorded beside the capture `
+          + `(${rec.servedBy}; ${rec.source})`
+          + (rec.rows ? `; kept out of git, read from the local supply store as ${rec.rows.file} (sha256 ${rec.rows.sha256.slice(0, 12)})` : ''))
+      } else if (rec.notOnThisMachine) {
+        secondary.set(storeKey, { bars: [], status: 'no_data' })
+        notes.push(`other symbol ${ticker}: not supplied: ${rec.notOnThisMachine}`)
+        unrecorded.push(`other symbol ${ticker}: ${rec.notOnThisMachine}`)
+      } else {
+        secondary.set(storeKey, { bars: [], status: 'no_data' })
+        notes.push(`other symbol ${ticker}: not supplied: ${rec.notRecorded}`)
+        unrecorded.push(`other symbol ${ticker}: ${rec.notRecorded}`)
+      }
+      continue
+    }
     const hit = index.get(`${ticker}|${tf}`)
     if (hit) {
       // ⭐ C29 — keyed as the product keys it: our store's ticker (`BRK-B`).
@@ -237,7 +421,7 @@ function otherSymbolSupply(def, capture) {
     const e = secondary.get(t)
     return e && e.exchange ? e.exchange : null
   }
-  return { secondary, exchangeOf, notes }
+  return { secondary, exchangeOf, notes, unrecorded }
 }
 
 // ─── ⭐⭐ RC1 — WARM BARS: THE SAME SERIES' OWN HISTORY, FROM COMMITTED CAPTURES ─
@@ -533,6 +717,110 @@ export function warmBarsSupply(capture, { dir = OTHER_CAPTURE_DIR, useIndex = tr
  *  warm-up (`runtimeWarmupOf`) is the one payload counted in bars, so it is moved
  *  into the window's indices (never below 0, and never dropped: a curtain that
  *  existed still withholds the run's drawings, as on the chart). */
+/** ⭐ ENGINE 56 — the union of a plot's per-bar witness withholdings (`registry
+ *  .withheldBarsReport`, computed over `calcBars`), sliced to the window: a 0/1 array, or
+ *  null when no bar of it was withheld by name. */
+export function withheldBarsOf(report, key, pre) {
+  const codes = report && report[key]
+  if (!codes) return null
+  const masks = Object.values(codes)
+  if (!masks.length) return null
+  const n = masks[0].length
+  const out = new Array(Math.max(0, n - (pre || 0))).fill(0)
+  for (const m of masks) for (let i = pre || 0; i < n; i++) if (m[i]) out[i - (pre || 0)] = 1
+  return out.some(Boolean) ? { bars: out, codes: Object.keys(codes).sort() } : null
+}
+
+/** ⭐⭐ ENGINE 56 (S4-4) — THE FLOAT-ORDER FLOOR OF A PLOT FED BY A RUNNING TOTAL, per bar
+ *  of the window, or null. Coordinator ruling: where a `cum` (or `sum`) feeds the plot, two
+ *  correct engines that add the same terms in a different order differ by a few ulps of the
+ *  TOTAL, not of the plot (an `ema(ad, 12) - ema(ad, 26)` of a 1e9 accumulation is a 1e6
+ *  difference carrying 1e9's rounding). So the absolute floor on bar i is
+ *  `8 · ε · max |c · total|` over bars 0..i of the computed series (prehistory included; `c` the
+ *  constant the total is scaled by on its way to the plot, `linearTotalsOf`). Only
+ *  the running-total operand's own magnitude enters: a relative 1e-6 error in the plot is
+ *  still a DIVERGE (railed in `vendorHarness.engine56FloatFloor.test.js`). */
+export const FLOAT_ORDER_ULPS = 8
+const RUNNING_TOTAL_NODES = new Set(['cum', 'cumFrom', 'sum'])
+/** ⭐ (review #1265 finding 4) the calls that are LINEAR in their source: a total's float-order
+ *  error passes through them unscaled by any other value. */
+const LINEAR_OF_SOURCE = new Set(['sma', 'ema', 'rma', 'wma', 'change'])
+const TOTAL_PASS_THROUGH = new Set(['tf', 'tf_live', 'tf_merge', 'ltf'])
+const hasTotal = (n) => !!n && typeof n === 'object'
+  && ((n.type === 'call' && RUNNING_TOTAL_NODES.has(n.name)) || (Array.isArray(n.args) && n.args.some(hasTotal)))
+/** A written constant (a finite literal, its negation, `+ - * /` of constants), or null. */
+const constantOf = (n, d = 0) => {
+  if (!n || typeof n !== 'object' || d > 32) return null
+  if (n.type === 'num') return Number.isFinite(n.value) ? n.value : null
+  const a = Array.isArray(n.args) ? n.args.map((x) => constantOf(x, d + 1)) : []
+  if (n.type !== 'op' || a.some((x) => x === null)) return null
+  if (n.name === 'u-' && a.length === 1) return -a[0]
+  if (a.length !== 2) return null
+  const v = n.name === '+' ? a[0] + a[1] : n.name === '-' ? a[0] - a[1] : n.name === '*' ? a[0] * a[1]
+    : n.name === '/' ? a[0] / a[1] : NaN
+  return Number.isFinite(v) ? v : null
+}
+/** The running totals a plot is a LINEAR combination of (sums and differences of totals, a
+ *  total times or over a CONSTANT, an offset, a linear smoother of one), each with the factor
+ *  its float-order error reaches the plot by (`|c|` for `total * c`, `1 / |c|` for `total / c`;
+ *  re-review #1265, 4), or null when a total reaches the plot any other way (a ratio or product
+ *  of totals, a non-constant multiplier or divisor, `abs`, a comparison, …). Only then is the
+ *  absolute floor sound: through a ratio (`cum(hlc3 * v) / cum(v)`) the total's ulps are
+ *  divided away, and the plot is graded by REL 1e-9 on its own magnitude. */
+export function linearTotalsOf(tree) {
+  const totals = []
+  const walk = (n, scale) => {
+    if (!n || typeof n !== 'object' || !hasTotal(n)) return true
+    if (n.type === 'call' && RUNNING_TOTAL_NODES.has(n.name)) { totals.push({ node: n, scale }); return true }
+    const args = Array.isArray(n.args) ? n.args : []
+    if (n.type === 'op' && (n.name === '+' || n.name === '-' || n.name === 'u-')) return args.every((x) => walk(x, scale))
+    if (n.type === 'op' && (n.name === '*' || n.name === '/')) {
+      const [a, b] = args
+      if (n.name === '*' && !hasTotal(a)) {
+        const c = constantOf(a)
+        return c !== null && walk(b, scale * Math.abs(c))
+      }
+      if (!hasTotal(b)) {
+        const c = constantOf(b)
+        if (c === null || c === 0) return false
+        return walk(a, n.name === '*' ? scale * Math.abs(c) : scale / Math.abs(c))
+      }
+      return false
+    }
+    if (n.type === 'offset') return walk(args[0], scale)
+    // a read of the SAME symbol on other bars (`security(tickerid, res, hist)`): the same total's
+    // float order, read where that timeframe's bar closes (never another symbol's, `sym`)
+    if (TOTAL_PASS_THROUGH.has(n.type)) return walk(args[0], scale)
+    // a `?:` draws ONE of its arms on each bar (its test selects, it adds nothing to the value):
+    // the arms decide (accdist-macd's `sh and hist ? hist : na`)
+    if (n.type === 'op' && n.name === '?:' && args.length === 3) return walk(args[1], scale) && walk(args[2], scale)
+    if (n.type === 'call' && LINEAR_OF_SOURCE.has(n.name)) return walk(args[0], scale) && args.slice(1).every((x) => !hasTotal(x))
+    return false
+  }
+  return walk(tree, 1) && totals.length ? totals : null
+}
+export function floatOrderFloorOf(tree, calcBars, pre) {
+  if (!tree || typeof tree !== 'object') return null
+  const totals = linearTotalsOf(tree)
+  if (!totals) return null
+  const len = calcBars.length
+  const mag = new Float64Array(len)
+  for (const { node, scale } of totals) {
+    let col
+    try { col = interpretTree(node, calcBars, undefined, undefined, undefined, {}) } catch { return null }
+    if (!col || typeof col.length !== 'number' || col.length !== len) return null
+    let m = 0
+    for (let i = 0; i < len; i++) {
+      const v = scale * Math.abs(col[i])
+      if (Number.isFinite(v) && v > m) m = v
+      if (m > mag[i]) mag[i] = m
+    }
+  }
+  const out = []
+  for (let i = pre || 0; i < len; i++) out.push(FLOAT_ORDER_ULPS * Number.EPSILON * mag[i])
+  return out
+}
+
 export function columnsInWindow(cols, pre) {
   if (!cols || typeof cols !== 'object' || !(pre > 0)) return cols
   const out = {}
@@ -670,7 +958,45 @@ function symbolOf(capture) {
   // supply uses; where no witness links it, the vendor's spelling is kept (what
   // the harness did before, so nothing unlinked changes).
   const exchange = storeExchangeOfCapture(capture, tv) || tv
-  return { ticker, exchange }
+  // ⭐ RS RATING L8 — a field the capture does not carry may be fed from its recorded supply
+  // (the vendor's value off a committed probe, checked in `recordedSupplyOf`); the capture's
+  // own value, where it has one, wins.
+  // ⭐ RS RATING L9 — and our store's class (`securityType`), so an ETF keys the witnessed L3
+  // `by_class` row as on a member's chart; absent unless the record states it.
+  return { ticker, exchange, ...recordedStoreOf(capture), ...recordedClassificationOf(capture).fields,
+    ...vendorClassificationOf(capture) }
+}
+
+/** ⭐⭐ RS RATING L3 — THE GRADE FEEDS OUR SIDE THE VENDOR'S OWN VALUE of each substituted input
+ *  (RS-RATING-TRANSFER.md: "the grade proves the engine, the substitute is disclosed"): the
+ *  capture's `symbol.industry` / `symbol.sector`, read with `compare.mjs::vendorValueOf` (the
+ *  comparator's own resolver), in the slot our store's string fills on a member's chart. The path
+ *  is the one `bind.js::classificationWith` writes into its tag (`capture.symbol.<field>`), so
+ *  what is fed and what is declared cannot name different fields. A capture without them leaves the
+ *  fields unsettled (a script reading one refuses by name): nothing is invented. ⛔ No
+ *  `securityType` HERE: that is our store's class, and a capture carries TradingView's `type`;
+ *  it comes from the recorded supply's `store` block (`recordedStoreOf`, RS RATING L9). */
+function vendorClassificationOf(capture) {
+  const out = {}
+  for (const f of CLASSIFICATION_FIELD_NAMES) {
+    const got = vendorValueOf(capture, `capture.symbol.${f}`)
+    if (got.found && typeof got.value === 'string' && got.value.trim()) out[f] = got.value
+  }
+  return out
+}
+
+/** ⭐⭐ RS RATING L3 — THIS run's substituted inputs: each classification field the script reads
+ *  that the binding served from the substitution path (`symbolSubstitution.js::substitutedFor`),
+ *  with `value`, what our side was fed for it (the capture's own value, `vendorClassificationOf`). */
+function classificationSubstitutions(source, symbol, capture = null) {
+  // ⭐ RS RATING L8 — a field fed from the recorded supply (not off the capture) cites the
+  // committed capture it was read from, so the comparator never looks for it on this one.
+  const viaRecord = capture ? recordedClassificationOf(capture) : { fields: {}, from: {} }
+  return substitutedFor(source, symbol).map((e) => {
+    const field = e.name.slice('syminfo.'.length)
+    const fromRecord = !vendorValueOf(capture || {}, `capture.symbol.${field}`).found && viaRecord.from[field]
+    return { ...e, value: symbol[field], ...(fromRecord ? { vendorValueFrom: viaRecord.from[field] } : {}) }
+  })
 }
 
 /** The reach of a plot's per-bar colour rule, or null when it has none. */
@@ -775,11 +1101,16 @@ function drawnColours(def, bars, ctx) {
     // (`undefined`, which the comparator skips), not a "none".
     // ⛔ The shift is the binder's OWN `drawShiftOf`, never re-derived here.
     const shift = drawShiftOf(plot)
+    // ⭐ ENGINE 58 — a colour-rule row whose series colour is withheld by name
+    // (`plots[].colorWithheld.points`): a point the renderer was handed no colour of
+    // its own for draws in none, by name — `COLOUR_WITHHELD_POINT`, not a colour.
+    const pointsWithheld = !!(plot.colorWithheld && plot.colorWithheld.points)
     const colors = bars.map((_bar, i) => {
       const at = i + shift
       if (at < 0) return undefined
       const p = at < bars.length ? byTime.get(String(bars[at].t)) : null
       if (!p || !Number.isFinite(p.value)) return null
+      if (pointsWithheld && !p.color) return COLOUR_WITHHELD_POINT
       // ⭐⭐ WHAT THE RENDERER WAS HANDED IS FINAL. The pool already folded the
       // plot's opacity into a point colour and a series colour (`withAlpha`,
       // which MULTIPLIES through); re-applying `opacity` here REPLACED the
@@ -1102,7 +1433,10 @@ export function withheldPlotsOf(clockReport, cols, notes) {
     const what = r.code.startsWith('bar-index:') ? '`bar_index`'
       : r.code.startsWith('running-total:') ? 'a running total'
         : r.code.startsWith('var-origin:') ? '`var`'
-          : r.code.startsWith('request:') ? '`request.security`' : 'time(<timeframe>)'
+          : r.code.startsWith('request:') ? '`request.security`'
+            // engine HL: `windowHoleMask`
+            : r.code.startsWith('window-extreme:') ? 'a window over `na` gaps'
+              : r.code.startsWith('pine:') ? 'a value (engine 56 per-bar witness)' : 'time(<timeframe>)'
     notes.push(`${what} withheld (${r.code}) on ${r.plots.length} plot(s) — ${r.reason}`)
     const whole = CHART_CLOCK_WHOLE.includes(r.code)
     // ⭐ ENGINE 55 — a NEWEST-BAR code is never a whole-series withholding, even on a
@@ -1117,6 +1451,24 @@ export function withheldPlotsOf(clockReport, cols, notes) {
     }
   }
   return out
+}
+
+/** ⭐⭐ L7 (2026-11-14) — THE SUBSTITUTED INPUTS OF ONE GRADE: our side's declaration,
+ *  read by `compare.mjs::compareCapture` (the contract is stated there, beside
+ *  `substitutionProblems`). Each entry is `{name, source, vendorValueFrom, value}`: a
+ *  vendor-only fact the member door answers from UCT data (`source`), which THIS run was
+ *  fed from the vendor instead (`vendorValueFrom`, resolved with `compare.mjs::vendorValueOf`,
+ *  the comparator's own resolver), so the grade proves the translation and only the UCT
+ *  value is left unproven (the member door discloses it).
+ *  ⛔ Nothing in the engine supplies a substituted value yet, so today every run declares
+ *  `[]` and grades exactly as before. L3 (`syminfo.industry`) is the first to fill it: the
+ *  lane that feeds a vendor value into `ctx` pushes its entry here, in the same change.
+ *  A malformed declaration is refused HERE, before it can reach a verdict. */
+export function substitutedInputsOf(capture, declared = []) {
+  const list = Array.isArray(declared) ? declared : []
+  const problems = substitutionProblems(capture, list)
+  if (problems.length) throw new Error(`ourSide: substituted inputs refused: ${problems.join('; ')}`)
+  return list.map((e) => ({ ...e }))
 }
 
 export function runOurSide(capture) {
@@ -1168,6 +1520,17 @@ function runOurSideOnTheParityClock(capture) {
     const supply = otherSymbolSupply(def, capture)
     if (supply.secondary) { ctx.secondary = supply.secondary; ctx.exchangeOf = supply.exchangeOf }
     notes.push(...supply.notes)
+    if (ctx.symbol.securityType) {
+      const rec = recordedSupplyOf(capture)
+      notes.push(`symbol class ${ctx.symbol.securityType}: our store's, recorded beside the capture (${rec.store.securityType.source})`)
+    }
+    // ⭐ RS RATING L8 — a capture whose recorded supply says the served source was NOT recorded is
+    // not graded at all: a grade over another source (a fallback, or TradingView's own bars) would
+    // speak for bars no member is served. INCONCLUSIVE, by name.
+    if (supply.unrecorded && supply.unrecorded.length) {
+      return { ok: false, refusal: `the supply this grade needs is not recorded — ${supply.unrecorded.join('; ')}`,
+        plots: [], notes }
+    }
     // ⭐ C41 — the chart symbol's own intraday bars, from committed captures only.
     const lower = lowerTfSupply(def, capture)
     if (lower.lowerTf) ctx.lowerTf = lower.lowerTf
@@ -1280,6 +1643,8 @@ function runOurSideOnTheParityClock(capture) {
     // not compared (`compare.mjs`, `withheldNewest`), every other bar is.
     const newestHeld = new Set(((registry.chartClockReport(cols) || {}).withheld || [])
       .filter((r) => r.code === TF_MERGE_NEWEST_CODE).flatMap((r) => r.plots))
+    // ⭐ ENGINE 56 — the bars each plot was withheld on by a per-bar witness code
+    const withheldBarsReport = registry.withheldBarsReport(calcCols)
     let colours
     // ⭐ DIV-1 — the plot colours the binder draws over the SAME replayed bars the
     // values were computed on, each sliced to the window.
@@ -1328,6 +1693,8 @@ function runOurSideOnTheParityClock(capture) {
     // they are the plot's warm-up region here, exactly as a tree's own lookback is.
     const curtain = built.lane === 'runtime' ? runtimeWarmupOf(cols) : null
     const plots = []
+    const defPlotByKey = new Map((def.plots || []).map((p) => [p.key, p]))
+    const defInputByKey = new Map((def.inputs || []).map((x) => [x.key, x]))
     for (const [index, o] of (built.translation.outputs || []).entries()) {
       if (o && o.kind === 'alertcondition') continue
       const row = built.lane === 'runtime'
@@ -1358,12 +1725,32 @@ function runOurSideOnTheParityClock(capture) {
           // says its whole sentence, so a grade reads WHY that one plot is not drawn.
           + (why && why.code && why.message ? ` — ${why.message}` : '')
       }
+      const heldBars = row && col ? withheldBarsOf(withheldBarsReport, row.key, replayPre) : null
+      if (heldBars) notes.push(`${row.key}: ${heldBars.bars.filter(Boolean).length} bar(s) withheld by name (${heldBars.codes.join(', ')}) — not compared`)
+      // ⭐⭐ ENGINE 58 — what the door said about this row's colour: withheld whole
+      // by name (graded "not compared", INCONCLUSIVE with the name), withheld on the
+      // bars its rule gives no colour (`COLOUR_WITHHELD_POINT`, counted), or a THEME
+      // reference (`chart.fg_color@85`: our chart's own colour, theme-relative).
+      const defPlot = row ? defPlotByKey.get(row.key) : null
+      const cw = defPlot && defPlot.colorWithheld && typeof defPlot.colorWithheld.code === 'string' ? defPlot.colorWithheld : null
+      const wholeWithheld = !!(cw && !cw.points)
+      const rawColour = defPlot && typeof defPlot.color === 'string' && defPlot.color.startsWith('$')
+        ? ((defInputByKey.get(defPlot.color.slice(1)) || {}).default) : (defPlot && defPlot.color)
+      // ⛔ A WHOLE-WITHHELD colour draws in the chart's neutral ink (a theme reference,
+      // `memberPaneDefinition.WITHHELD_COLOUR_INK`) and is NOT theme-relative: it is not
+      // the script's colour, so it is not compared at all (INCONCLUSIVE by name).
+      const themeRelative = !wholeWithheld && isThemeColour(rawColour)
       plots.push({
         title: o ? o.title : null,
         formula: o ? o.formula : null,
         key: row ? row.key : null,
         withheldBy: heldBy || null,
         withheldNewest: !!(col && row && newestHeld.has(row.key) && col.length > 0 && !(col[col.length - 1] === col[col.length - 1])),
+        // ⭐ ENGINE 56 — 0/1 per window bar: withheld by name, graded "not compared"
+        withheldBars: heldBars ? heldBars.bars : null,
+        withheldBarsCodes: heldBars ? heldBars.codes : null,
+        // ⭐ ENGINE 56 (S4-4) — the float-order floor where a running total feeds the plot
+        floatOrderFloor: built.lane !== 'runtime' && o && o.ast && col ? floatOrderFloorOf(o.ast, calcBars, replayPre) : null,
         hidden: !!(o && o.hidden),
         column: col || null,
         missingReason,
@@ -1373,13 +1760,16 @@ function runOurSideOnTheParityClock(capture) {
         historyReplayed: replay ? { bars: replayPre, file: replaySupply.file } : null,
         // ⭐ F2 — the colour rule's own reach (`compare.mjs::colourWarmupOf`).
         colorLookback: colourRuleLookback(o),
-        colors: row && colours.byKey.has(row.key) ? colours.byKey.get(row.key) : null,
+        colors: !wholeWithheld && row && colours.byKey.has(row.key) ? colours.byKey.get(row.key) : null,
+        ...(themeRelative ? { colorsThemeRelative: true } : {}),
+        ...(cw && cw.points ? { colorsWithheldBy: cw.code } : {}),
         // A positive `offset = N` the translator wrote INTO the tree as `x[N]`
         // (its `_treeShift` hand-off) — see compare.mjs `leadBy`.
         treeShift: o && Number.isInteger(o._treeShift) && o._treeShift > 0 ? o._treeShift : 0,
         // Why there are no colours, when there are none — so the verdict names the
         // cause instead of "could not be resolved".
-        colorsReason: row && !colours.byKey.has(row.key)
+        colorsReason: wholeWithheld ? `withheld by name (${cw.code}) — ${cw.reason}`
+          : row && !colours.byKey.has(row.key)
           ? (o && o.hidden
             ? `our pane draws no series for this row — hidden (${o.hiddenReason || 'unstated'})`
             : (colours.ok ? 'the binder bound no series for this row' : colours.reason))
@@ -1442,6 +1832,10 @@ function runOurSideOnTheParityClock(capture) {
       // ⭐ ENGINE 53 — what the door did with the run half (minted / declined by code); the bind's
       // answer (served / refused) rides on `objects.runHalf`.
       runHalfDoor: built.runHalf ? 'minted' : (built.runHalfDeclined ? `declined:${built.runHalfDeclined.code}` : null),
+      // ⭐ L7 — the inputs this run answered with the VENDOR's value in place of UCT data
+      // (`substitutedInputsOf`); `[]` until a lane feeds one.
+      // ⭐ RS RATING L3 — `syminfo.industry` / `sector`, fed the capture's value (`symbolOf`).
+      substituted: substitutedInputsOf(capture, classificationSubstitutions(source, ctx.symbol, capture)),
     }
   } finally {
     registry.uninstallUserDefinition(HARNESS_DEF_ID)

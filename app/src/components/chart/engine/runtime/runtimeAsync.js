@@ -19,12 +19,14 @@ import { registerRuntimeLane } from '../nativeRegistry.js'
 import { notifyColumnsLanded } from '../serverCompute.js'
 import { withRuntimeObjects, RUNTIME_WARMUP_KEY } from './runtimeObjects.js'
 import { withStrategyRecord } from './strategyRecord.js'
+import { CALC_BARS_KEY } from '../calcBarsWindow.js'
 import {
   runtimeColumnsFor, computeRuntimeColumns, setRuntimeRunner, onRuntimeColumnsLanded,
   RUNTIME_PANE_TIME_BUDGET_MS, RUNTIME_TIME_BUDGET_GUARD, RUNTIME_LIMIT_GUARD, RUNTIME_FAILED_GUARD,
 } from './runtimeColumns.js'
 import { LIMIT_NAMES } from './limits.js'
 import { runtimeSourceHash } from '../runtimeKill.js'
+import { bindSymbolOf } from '../ast/bind.js'
 import { noteRuntimeRunStarted, noteRuntimeRunSettled, resetRuntimeRunTelemetry } from '../runtimeRunTelemetry.js'
 
 let _ready = false
@@ -233,7 +235,7 @@ function workerOf(factory) {
     return null
   }
   _worker.onmessage = (event) => {
-    const { id, ok, columns, error, objects, warmup, strategy } = event.data || {}
+    const { id, ok, columns, error, objects, warmup, strategy, calcBars } = event.data || {}
     const job = _jobs.get(id)
     if (!job) return
     _jobs.delete(id)
@@ -244,6 +246,10 @@ function workerOf(factory) {
     }
     // ⭐⭐ W9-T11 — the run's `strategy` record, re-attached as the worker found it
     if (landed && strategy) withStrategyRecord(landed, strategy)
+    // ⭐⭐ CBC-FMT — and its `calc_bars_count` window record (the disclosure strip reads it)
+    if (landed && calcBars) {
+      Object.defineProperty(landed, CALC_BARS_KEY, { value: calcBars, enumerable: false, configurable: true })
+    }
     settle(job, ok ? null : errorOf(error), landed)
     postHeld(job.coalesce, factory)
   }
@@ -259,7 +265,12 @@ function messageOf(id, def, rows, ctx) {
   const plainDef = {
     id: def && def.id,
     compute: def && def.compute,
-    meta: { runtimeHistory: def && def.meta ? def.meta.runtimeHistory : undefined },
+    meta: {
+      runtimeHistory: def && def.meta ? def.meta.runtimeHistory : undefined,
+      // ⭐⭐ CBC-FMT — the `calc_bars_count` window stamp: the run takes its window from it
+      // (`engine/calcBarsWindow.js`). ⛔ Without it a worker run would compute every bar.
+      ...(def && def.meta && Number.isInteger(def.meta.calcBarsCount) ? { calcBarsCount: def.meta.calcBarsCount } : {}),
+    },
   }
   const plainCtx = {
     tf: ctx && ctx.tf,
@@ -269,11 +280,25 @@ function messageOf(id, def, rows, ctx) {
     ...(ctx && ctx.runtimeInputs && typeof ctx.runtimeInputs === 'object'
       ? { runtimeInputs: { ...ctx.runtimeInputs } } : {}),
     ...(ctx && ctx.symbol && typeof ctx.symbol === 'object'
-      ? { symbol: { ticker: ctx.symbol.ticker, exchange: ctx.symbol.exchange } } : {}),
+      // ⭐ RS RATING L3 — every field the fold reads (`bind.js::BIND_SYMBOL_FIELDS`), not only
+      // `{ticker, exchange}`: the worker's run settles `syminfo.industry` from the same symbol.
+      ? { symbol: { ticker: ctx.symbol.ticker, exchange: ctx.symbol.exchange, ...bindSymbolOf(ctx.symbol) } } : {}),
     // ⭐ P3 WS-F — a framed instance's window slides, so the run refuses a `varip` there
     ...(ctx && ctx.framed === true ? { framed: true } : {}),
     // ⭐⭐ W9-T11 — the window a broker run takes (design 3.4), as the context holds it
     ...(ctx && ctx.historyWindowBars !== undefined ? { historyWindowBars: ctx.historyWindowBars } : {}),
+    // ⭐⭐ RS RATING L5 — the chart's other-symbol cache, for a run that reads another symbol
+    // (`requestSupply.js` decides from it by the host bind's rules): plain entries, each with
+    // the store exchange the bind matches a spelling against (`exchangeOf` is a function and
+    // does not cross), rebuilt as a Map on the other side (`runtimeWorker.js`).
+    ...(ctx && ctx.secondary && typeof ctx.secondary.entries === 'function' ? {
+      secondaryEntries: [...ctx.secondary.entries()].map(([k, e]) => [k, {
+        bars: e && Array.isArray(e.bars) ? e.bars.map((b) => ({ t: b.t, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v })) : [],
+        status: e && e.status,
+        exchange: (e && typeof e.exchange === 'string' && e.exchange)
+          || (typeof ctx.exchangeOf === 'function' ? ctx.exchangeOf(k) : null) || null,
+      }]),
+    } : {}),
   }
   const plainRows = rows.map((b) => ({ t: b.t, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v }))
   return { id, def: plainDef, rows: plainRows, ctx: plainCtx }

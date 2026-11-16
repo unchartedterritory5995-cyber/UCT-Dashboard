@@ -733,6 +733,27 @@ const LEDGER = [
   { file: 'app/src/components/chart/builder/builtinForks.js',
     region: 'SPECS — each customizable built-in\'s parity-proven formula equivalent',
     anchor: 'export const SPECS = Object.freeze({', fate: 'keep' },
+  // ⭐ AGENT H14 (2026-11-15) — `agent/stateRail.js::IND_TYPE`: the words a member types for an
+  // indicator ("the rsi", "my macd", "the bollinger") mapped to the definition each one means,
+  // so the Agent can tell WHICH instance on the chart a request names before it changes one.
+  // ⛔ NOTHING CAN DERIVE IT: "ema" meaning `movingAverage` with `maType` ema is a fact about how
+  // people speak, not about the registry. It reads the chart's OWN rows (`r.defId`), so a renamed
+  // id fails closed (the word matches no row and the Agent asks) rather than changing the wrong
+  // thing. Found by the discovery scan on the first run after it merged, not declared by its PR.
+  // `keep`: the table is the vocabulary.
+  { file: 'app/src/agent/stateRail.js',
+    region: 'IND_TYPE — the words a member says for an indicator, each mapped to the definition it means',
+    anchor: 'const IND_TYPE = [', fate: 'keep' },
+  // ⭐ COND-TA (engine 58, 2026-11-16) — `ast/legacyTaNames.js::LEGACY_TA_NAMES`: the names Pine v1-v4
+  // gave the calls v5 spells `ta.*` (`sma`, `rsi`, `highest`, …), so a v4 `sma(close, 3)` written in
+  // a block is heard as the history call it is. ⛔ NOTHING CAN DERIVE IT: which bare words Pine had
+  // before namespaces is a fact about TradingView's language. It names Pine SPELLINGS, not our
+  // definitions, and it is held name for name to the server's `pine_capabilities._COND_TA_BARE`
+  // (`condTaLanes.test.js` section 5), so the two cannot drift. Found by the discovery scan on the
+  // first full run of the branch. `keep`: the roster is the vocabulary.
+  { file: 'app/src/components/chart/engine/ast/legacyTaNames.js',
+    region: 'LEGACY_TA_NAMES — the bare names Pine v1-v4 gave its ta.* calls',
+    anchor: 'export const LEGACY_TA_NAMES = Object.freeze(new Set([', fate: 'keep' },
 ]
 
 /** What Task 12 RETIRED OUTRIGHT — kept in the file because a retired site that
@@ -1264,7 +1285,11 @@ const RETIRED_BY_B4_ALERTS = [
 // — a content judgment, ledgered `keep`; see its row.
 // ⭐ 21 -> 22 AT RS SPLIT LANE S2 (2026-11-10): `alert_rev_migration.py` names the four RS
 // definitions an alert binds to; ledgered `keep`, see its row.
-const SITE_COUNT = 22
+// ⭐ 22 -> 23 AT AGENT H14 (2026-11-15): `agent/stateRail.js::IND_TYPE`, the spoken-word ->
+// definition map the Agent uses to identify an instance; ledgered `keep`, see its row.
+// ⭐ 23 -> 24 AT COND-TA (2026-11-16): `ast/legacyTaNames.js::LEGACY_TA_NAMES`, Pine v1-v4's bare
+// spellings of its ta.* calls; ledgered `keep`, see its row.
+const SITE_COUNT = 24
 
 describe('the enumeration ledger — the count is a test, not a comment', () => {
   it(`holds ${SITE_COUNT} live sites, and every one of them is still where it says it is`, () => {
@@ -1449,7 +1474,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // server-side rows above, every one `keep`.
     // ⭐ `{keep: 20}` -> `{keep: 21}` AT FIX LANE F1 (2026-11-10): the public RS
     // glossary's `RS_INDICATORS` table joins as a `keep`. See its LEDGER row.
-    expect(counts).toEqual({ keep: 22 })  // 21 -> 22: lane S2's alert rev table
+    expect(counts).toEqual({ keep: 24 })  // 23 -> 24: COND-TA's Pine v1-v4 bare-name roster (legacyTaNames.js)
     // …and by NAME, because a histogram cannot tell an absent bucket from a
     // bucket somebody renamed.
     expect(LEDGER.filter(s2 => s2.fate === 'phase'),
@@ -1547,10 +1572,12 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       ["api/services/signature/registry_defs.py::RS_SPLIT_DEFS — the server lane`s own row registry for the RS split (rsRating, rsPhases, rsVsEma)","keep"],
       ["api/services/signature/rs_provider.py::rs_*_envelope — one provider per RS split row, each naming its own id (an over-match: no list)","keep"],
       ["api/services/voice_client_action_tools.py::_INDICATOR_ALIASES — the voice add_chart_indicator phrase map","keep"],
+      ["app/src/agent/stateRail.js::IND_TYPE — the words a member says for an indicator, each mapped to the definition it means","keep"],
       ["app/src/components/chart/builder/builtinForks.js::SPECS — each customizable built-in's parity-proven formula equivalent","keep"],
       ["app/src/components/chart/discoveryCatalog.js::POPULAR_DEF_IDS — the curated `Popular` tab of the Add Indicator library","keep"],
       ["app/src/components/chart/engine/ast/closedTable.json::the closed table — every name a user formula may call","keep"],
       ["app/src/components/chart/engine/ast/interpret.js::FN — the manifest`s functions bound to the chart`s own maths","keep"],
+      ["app/src/components/chart/engine/ast/legacyTaNames.js::LEGACY_TA_NAMES — the bare names Pine v1-v4 gave its ta.* calls","keep"],
       ["app/src/components/chart/engine/ast/pcf.js::PCF_FUSED / PCF_CALLS — TC2000 spellings bound to table function NAMES, resolved at run time","keep"],
       ["app/src/components/chart/engine/ast/pine.js::PINE_ARG_NAMES — the parameter names Pine gives each function, each row carrying its evidence","keep"],
       ["app/src/components/chart/engine/instances.js::FROZEN_SHIPPED_STACK_ORDER — the retired PANES stacking order, 9 + 5 overlays","keep"],
@@ -2270,9 +2297,13 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // See its LEDGER row for why naming IDS (and only ids) keeps it safe.
     ).toEqual([
       // ⭐ PHASE 4 — `builtinForks.js::SPECS`, the custom-copy formula table. Ledgered.
+      // ⭐ AGENT H14 — `stateRail.js::IND_TYPE`, spoken word -> definition. Ledgered.
+      'app/src/agent/stateRail.js',
       'app/src/components/chart/builder/builtinForks.js',
       'app/src/components/chart/discoveryCatalog.js',
       'app/src/components/chart/engine/ast/interpret.js',
+      // ⭐ COND-TA — `legacyTaNames.js::LEGACY_TA_NAMES`, Pine v1-v4's bare ta.* spellings. Ledgered.
+      'app/src/components/chart/engine/ast/legacyTaNames.js',
       'app/src/components/chart/engine/ast/pcf.js',
       'app/src/components/chart/engine/ast/pine.js',
       'app/src/components/chart/engine/instances.js',
@@ -2372,9 +2403,12 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // `keep`, lives under `app/src` with a `.js` extension, and holds the
     // `Popular` tab's curated ids — a file the discovery scan must keep finding.
     expect(keepWalkable, 'no `keep` walkable file on the ledger — the check below is vacuous')
-      .toEqual(['app/src/components/chart/builder/builtinForks.js',
+      // ⭐ AGENT H14 — IND_TYPE; a `.js` under app/src, walkable.
+      .toEqual(['app/src/agent/stateRail.js',
+        'app/src/components/chart/builder/builtinForks.js',
         'app/src/components/chart/discoveryCatalog.js',
         'app/src/components/chart/engine/ast/interpret.js',
+        'app/src/components/chart/engine/ast/legacyTaNames.js',
         'app/src/components/chart/engine/ast/pcf.js',
         'app/src/components/chart/engine/ast/pine.js',
         'app/src/components/chart/engine/instances.js',

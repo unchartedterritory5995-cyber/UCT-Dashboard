@@ -514,6 +514,19 @@ export const GROUPS = [
   // dark server this group never matches and routing is byte-identical to the base (as playbook / coach). Last in the catalog.
   { id: 'cot', title: 'CFTC COT futures positioning (specs, commercials, open interest): changes, N-year extremes, comparisons', domains: ['cot'], fillLast: true, wordsOnly: true,
     words: [] },
+  // Phase 2 market intelligence (rs.compare): relative strength + sector / industry leadership + the market backdrop in its OWN
+  // group, WORDS-ONLY and fillLast (as indicatorCalc / chartMenu): never a filler, so no existing group and no unrecognised
+  // request changes. `words` stays EMPTY here: capabilities/rsLeadership.js arms them only while the capability is registered
+  // (the server serves the `rs.leadership` kind), so on a dark server this group never matches and routing is byte-identical.
+  { id: 'rs', title: 'Relative strength + leadership: a ticker\'s UCT RS Rating vs its industry / SPY, sector and industry rankings, the market backdrop', domains: ['rs'], fillLast: true, wordsOnly: true,
+    words: [] },
+  // Phase 2 catalysts (news.movers): UCT's catalyst board ("what's moving the market", "why is NVDA up", "catalysts for my
+  // watchlist this week") in its OWN group, WORDS-ONLY and fillLast (as periodSort / chartView): never a filler, so no existing
+  // group and no unrecognised request changes. `words` stays EMPTY here: capabilities/catalysts.js arms them only while the
+  // capability is registered (the server serves `catalysts.board`), so on a dark server routing is byte-identical to the base.
+  { id: 'catalysts', title: 'UCT catalyst board: what moved / is moving the market, why a stock is up or down (stored catalysts + headlines), catalysts for your tickers or watchlist',
+    domains: [], actions: ['news.movers'], fillLast: true, wordsOnly: true,
+    words: [] },
 ]
 // chartReplay: the replay bar's bare playback words, which route there ONLY while a chart's bar replay is on (namedGroups)
 const REPLAY_ON_WORDS = /^(?:please )?(?:play|pause|resume|unpause|stop)\b|\b(?:play|pause|resume) (?:it|playback|playing)\b|\b(?:next|previous|prev|last) bar\b|\bstep (?:it )?(?:forward|back(?:ward)?)\b|\b(?:forward|back) (?:\d+|one|a|ten) bars?\b|\b(?:speed (?:it )?up|slow (?:it )?down|faster|slower)\b|\b(?:1|5|20) ?x\b|\b(?:to )?the (?:start|end|beginning)\b/

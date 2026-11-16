@@ -74,7 +74,9 @@ export function resultText(card, result, fmtPrice = priceFormat([result])) {
   if (as === 'frac') return plain(result, 3)
   if (as === 'shares') return `${Math.round(result).toLocaleString('en-US')} shares`
   if (as === 'times') return `${plain(result)}×`
-  return plain(result, 4)
+  // a hand-written card's plain number, with the unit it names ("0.8 ATRs", "4 sessions")
+  const unit = typeof card.find?.unit === 'string' && card.find.unit.trim() ? ` ${card.find.unit.trim()}` : ''
+  return `${result < 0 ? '−' : ''}${plain(result, 4)}${unit}`
 }
 
 /** The answer as the slot prints it: the question's own key when it is short and states the scored number ("$57.50",

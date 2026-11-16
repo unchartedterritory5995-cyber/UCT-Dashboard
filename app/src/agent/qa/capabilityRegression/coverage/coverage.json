@@ -1,41 +1,41 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 215,
+  "all": 217,
   "withProductionKinds": 205,
-  "darkGated": 10
+  "darkGated": 12
  },
  "totals": {
-  "capabilities": 215,
-  "withAnyRegressionCase": 163,
+  "capabilities": 217,
+  "withAnyRegressionCase": 165,
   "perProtection": {
    "nl": {
-    "covered": 160,
-    "applicable": 215
+    "covered": 162,
+    "applicable": 217
    },
    "routing": {
-    "covered": 157,
-    "applicable": 215
+    "covered": 159,
+    "applicable": 217
    },
    "args": {
-    "covered": 163,
-    "applicable": 215
+    "covered": 165,
+    "applicable": 217
    },
    "execution": {
-    "covered": 160,
-    "applicable": 215
+    "covered": 162,
+    "applicable": 217
    },
    "receipt": {
-    "covered": 132,
-    "applicable": 215
+    "covered": 134,
+    "applicable": 217
    },
    "refusal": {
     "covered": 35,
-    "applicable": 215
+    "applicable": 217
    },
    "permission": {
-    "covered": 208,
-    "applicable": 215
+    "covered": 210,
+    "applicable": 217
    },
    "undo": {
     "covered": 84,
@@ -43,11 +43,11 @@
    },
    "multiStep": {
     "covered": 40,
-    "applicable": 215
+    "applicable": 217
    },
    "phrasings": {
-    "covered": 156,
-    "applicable": 215
+    "covered": 158,
+    "applicable": 217
    }
   }
  },
@@ -7799,6 +7799,60 @@
     "phrasings": []
    }
   },
+  "news.movers": {
+   "domain": "news",
+   "group": "catalysts",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "news.movers: \"what's moving the market today\"",
+     "news.movers: \"what is driving stocks this morning\"",
+     "news.movers: \"show me the catalyst board\"",
+     "news.movers: \"what are today's catalysts\""
+    ],
+    "routing": [
+     "news.movers: \"what's moving the market today\"",
+     "news.movers: \"what is driving stocks this morning\"",
+     "news.movers: \"show me the catalyst board\"",
+     "news.movers: \"what are today's catalysts\""
+    ],
+    "args": [
+     "corpus news.movers"
+    ],
+    "execution": [
+     "news.movers (c)"
+    ],
+    "receipt": [
+     "news.movers (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "newsLibrary.collection": {
    "domain": "newsLibrary",
    "group": "newsLibrary",
@@ -8404,6 +8458,60 @@
     "args": [],
     "execution": [],
     "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "rs.compare": {
+   "domain": "rs",
+   "group": "rs",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "rs.compare: \"which sectors are leading this month\"",
+     "rs.compare: \"what are the strongest sectors over the last month\"",
+     "rs.compare: \"which sectors are lagging this month\"",
+     "rs.compare: \"show me sector leadership for the past month\""
+    ],
+    "routing": [
+     "rs.compare: \"which sectors are leading this month\"",
+     "rs.compare: \"what are the strongest sectors over the last month\"",
+     "rs.compare: \"which sectors are lagging this month\"",
+     "rs.compare: \"show me sector leadership for the past month\""
+    ],
+    "args": [
+     "corpus rs.compare"
+    ],
+    "execution": [
+     "rs.compare (c)"
+    ],
+    "receipt": [
+     "rs.compare (c)"
+    ],
     "refusal": [],
     "permission": [],
     "undo": [],

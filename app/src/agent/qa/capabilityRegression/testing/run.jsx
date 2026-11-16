@@ -10,6 +10,7 @@ import { expect } from 'vitest'
 import { waitFor, fireEvent, screen } from '@testing-library/react'
 import { mountCase, faithful, boardState, chartsOf, refusals, receiptsNow, proposalsNow, nlm1Of } from './harness'
 import { routedNames } from './route'
+import { tilingProblems, sizesOf } from './tiling'
 import { kindsFor } from './registry'
 import * as drawingsStore from '../../../../components/chart/drawingsStore'
 import { resolveLevels } from '../../../../components/chart/drawingFib'
@@ -73,6 +74,9 @@ export function checkExpect(ctx, e, label) {
     if (e.charts.symbolSet) expect([...syms].sort(), `${label}: chart symbols (any order)`).toEqual([...e.charts.symbolSet].sort())
     if (e.charts.keepsIds) for (const id of e.charts.keepsIds) expect(cs.map(w => w.id), `${label}: chart ${id} reused (kept)`).toContain(id)
     if (e.charts.sameSize) expect(new Set(cs.map(w => `${w.w}x${w.h}`)).size, `${label}: all charts the same size`).toBe(1)
+    // #1275: layouts that hold for any number of charts (testing/tiling.js) — one rectangle, no overlap, no gap; exact cell sizes
+    if (e.charts.tiled) expect(tilingProblems(cs), `${label}: the charts tile one rectangle (no overlap, no gap)`).toEqual([])
+    if (e.charts.sizes) expect(sizesOf(cs), `${label}: the charts' cell sizes`).toEqual([...e.charts.sizes].sort())
     if (e.charts.tf) expect(cs.map(w => h.charts.read(w.id)?.tf), `${label}: every chart's timeframe`).toEqual(cs.map(() => e.charts.tf))
     if (e.charts.tfs) expect(cs.map(w => h.charts.read(w.id)?.tf), `${label}: the charts' timeframes`).toEqual(e.charts.tfs)
     if (e.charts.types) expect(cs.map(w => h.charts.read(w.id)?.cs?.chartType ?? null), `${label}: chart types`).toEqual(e.charts.types)

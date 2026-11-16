@@ -61,3 +61,73 @@ def edge_token_targets(request_url: str, page_url: str) -> bool:
         return False
 
     return (r.path or "/").startswith(_BARS_PREFIX)
+
+
+# ── calls the rendered page makes that only a signed-in member can use ────────
+#
+# WHY (measured 2026-11-13, Cloudflare): every render loads the whole app signed out, so the app
+# makes its member start-up calls and `web` answers each one 401. In one trading session that was
+# 3,096 `/api/auth/preferences`, 1,484 `/api/auth/me`, about 1,470 each of `/api/j2/accounts`,
+# `/positions` and `/trades`, 1,544 `/api/breadth-symbols`, 1,450 `/api/signature/definitions` and
+# 1,448 `/api/market-indicators`: about 12,400 requests through the one busy `web` process for an
+# answer that is always the same. The renderer now gives that answer itself and the request never
+# leaves the browser.
+#
+# THE RULE: a GET on the SAME origin as the page, whose path is one of the member-only paths below.
+# The answer is byte-for-byte what `web` sends a client with no session.
+#
+# NOT in the list, on purpose:
+#   * `/api/bars/*`: carries the render capability (above) and is answered for real;
+#   * `/api/bars-history/*`, `/api/bars-today-pack`, `/api/barspack/*`: the chart's own data
+#     family, owned by the bars work; whether the renderer should be let in there is their call;
+#   * `/api/r/*`, `/api/ticker-meta/*`, `/api/ticker-ipo/*`, `/api/chart/markers/*`: answered
+#     for real today and drawn on the chart.
+#
+# Kill switch: `RENDER_SKIP_MEMBER_CALLS=0` on the chart-renderer service (default on).
+
+#: Exactly what `web` answers a request with no session (read from production 2026-11-16).
+SIGNED_OUT_STATUS = 401
+SIGNED_OUT_BODY = '{"detail":"Not authenticated"}'
+SIGNED_OUT_SWITCH = "RENDER_SKIP_MEMBER_CALLS"
+
+_MEMBER_ONLY_PATHS = frozenset({
+    "/api/auth/me",
+    "/api/auth/preferences",
+    "/api/breadth-symbols",
+    "/api/signature/definitions",
+    "/api/market-indicators",
+})
+#: Trailing slash is load-bearing here too: `/api/j2/` must not match `/api/j2x`.
+_MEMBER_ONLY_PREFIXES = ("/api/j2/",)
+
+
+def signed_out_enabled(environ=None) -> bool:
+    import os
+    env = os.environ if environ is None else environ
+    return (env.get(SIGNED_OUT_SWITCH) or "1").strip().lower() not in ("0", "false", "off", "no")
+
+
+def answered_signed_out(request_url: str, page_url: str, method: str = "GET") -> bool:
+    """True when the renderer may answer this request itself with the signed-out 401.
+
+    Fails toward the network: anything it cannot parse, any other origin, any method but GET
+    and any path not named above goes out exactly as before."""
+    if (method or "").upper() != "GET":
+        return False
+    try:
+        r = urlparse(request_url or "")
+        p = urlparse(page_url or "")
+    except Exception:  # noqa: BLE001 - a malformed URL is simply left alone
+        return False
+    if r.scheme != "https" or p.scheme != "https":
+        return False
+    r_host = (r.hostname or "").lower()
+    if not r_host or r_host != (p.hostname or "").lower():
+        return False
+    try:
+        if (r.port or 443) != (p.port or 443):
+            return False
+    except ValueError:
+        return False
+    path = r.path or "/"
+    return path in _MEMBER_ONLY_PATHS or any(path.startswith(x) for x in _MEMBER_ONLY_PREFIXES)

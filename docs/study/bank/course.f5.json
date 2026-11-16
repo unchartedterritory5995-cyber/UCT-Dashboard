@@ -331,7 +331,29 @@
    ],
    "kind": "mcq",
    "q": "Target's Q1 2025 net earnings were $1.036 billion on 456.5 million diluted shares. What is diluted EPS, to the cent?",
-   "subject": "F5.01#q09"
+   "subject": "F5.01#q09",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Diluted EPS"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "net_earnings,_$_bill",
+      "label": "Net earnings, $ billions",
+      "value": 1.036
+     },
+     {
+      "fmt": "count",
+      "key": "diluted_shares,_mill",
+      "label": "Diluted shares, millions",
+      "value": 456.5
+     }
+    ],
+    "title": "Earnings per share"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -597,7 +619,29 @@
    ],
    "kind": "mcq",
    "q": "Gross margin is sales less cost of sales, divided by sales. Target, Q1 2025: sales $23.846 billion, cost $17.128 billion. To one decimal?",
-   "subject": "F5.01#q12"
+   "subject": "F5.01#q12",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Gross margin"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "sales,_$_billions",
+      "label": "Sales, $ billions",
+      "value": 23.846
+     },
+     {
+      "fmt": "count",
+      "key": "cost_of_sales,_$_bil",
+      "label": "Cost of sales, $ billions",
+      "value": 17.128
+     }
+    ],
+    "title": "Gross margin"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -874,7 +918,29 @@
    ],
    "kind": "mcq",
    "q": "Operating margin is income from operations over revenue. Tesla, Q3 2025: $1.624 billion on $28.095 billion of revenue. To one decimal?",
-   "subject": "F5.01#q15"
+   "subject": "F5.01#q15",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Operating margin"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "operating_income,_$_",
+      "label": "Operating income, $ billions",
+      "value": 1.624
+     },
+     {
+      "fmt": "count",
+      "key": "revenue,_$_billions",
+      "label": "Revenue, $ billions",
+      "value": 28.095
+     }
+    ],
+    "title": "Operating margin"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -2754,7 +2820,35 @@
    ],
    "kind": "mcq",
    "q": "Elevance Health (ELV) reported $6.99 EPS vs. $4.71 expected. That included a $1.85 non-operating benefit. What is EPS without it?",
-   "subject": "F5.02#q18"
+   "subject": "F5.02#q18",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "EPS without it"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "reported_eps",
+      "label": "Reported EPS",
+      "value": 6.99
+     },
+     {
+      "fmt": "$",
+      "key": "expected_eps",
+      "label": "Expected EPS",
+      "value": 4.71
+     },
+     {
+      "fmt": "$",
+      "key": "non-operating_benefi",
+      "label": "Non-operating benefit",
+      "value": 1.85
+     }
+    ],
+    "title": "EPS without the benefit"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -2956,7 +3050,22 @@
    "kind": "mcq",
    "q": "How far below the consensus is the guide, as a percent of the consensus?",
    "story": "October 2026. Intel (INTC) beats third-quarter estimates. It guides fourth-quarter EPS to 25 cents. The LSEG consensus was 43 cents.",
-   "subject": "F5.02#q22"
+   "subject": "F5.02#q22",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Guide vs consensus"
+    },
+    "from": {
+     "label": "Consensus (cents)",
+     "value": 43
+    },
+    "kind": "move",
+    "to": {
+     "label": "Guide (cents)",
+     "value": 25
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -3252,7 +3361,29 @@
    ],
    "kind": "mcq",
    "q": "Moderna (MRNA) was expected to lose $1.10 a share. It earned $0.38. How big is the swing in EPS against the estimate?",
-   "subject": "F5.02#q93"
+   "subject": "F5.02#q93",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Swing against the estimate"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "expected_loss_a_shar",
+      "label": "Expected loss a share",
+      "value": 1.1
+     },
+     {
+      "fmt": "$",
+      "key": "actual_earnings_a_sh",
+      "label": "Actual earnings a share",
+      "value": 0.38
+     }
+    ],
+    "title": "The EPS swing"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -4565,7 +4696,29 @@
    ],
    "kind": "mcq",
    "q": "A stock trades at $90. Its EPS over the last 12 months is $3. What's its P/E?",
-   "subject": "F5.03#q10"
+   "subject": "F5.03#q10",
+   "visual": {
+    "find": {
+     "as": "times",
+     "label": "P/E"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "price",
+      "label": "Price",
+      "value": 90
+     },
+     {
+      "fmt": "$",
+      "key": "eps,_last_12_months",
+      "label": "EPS, last 12 months",
+      "value": 3
+     }
+    ],
+    "title": "The P/E"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -4717,7 +4870,35 @@
    ],
    "kind": "mcq",
    "q": "A stock is $100 with EPS of $2, a P/E of 50. A year later EPS is $4 and the price is still $100. What's the P/E now?",
-   "subject": "F5.03#q12"
+   "subject": "F5.03#q12",
+   "visual": {
+    "find": {
+     "as": "times",
+     "label": "P/E now"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "price",
+      "label": "Price",
+      "value": 100
+     },
+     {
+      "fmt": "$",
+      "key": "eps_a_year_ago",
+      "label": "EPS a year ago",
+      "value": 2
+     },
+     {
+      "fmt": "$",
+      "key": "eps_now",
+      "label": "EPS now",
+      "value": 4
+     }
+    ],
+    "title": "The P/E a year later"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -4958,7 +5139,29 @@
    ],
    "kind": "mcq",
    "q": "A stock's P/E is 30. Its EPS is expected to grow 20% a year. What's its PEG ratio?",
-   "subject": "F5.03#q15"
+   "subject": "F5.03#q15",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "PEG ratio"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "p/e",
+      "label": "P/E",
+      "value": 30
+     },
+     {
+      "fmt": "%",
+      "key": "eps_growth,_a_year",
+      "label": "EPS growth, a year",
+      "value": 20
+     }
+    ],
+    "title": "The PEG ratio"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -5043,7 +5246,41 @@
    "kind": "mcq",
    "q": "Measured against its growth, which one is pricier?",
    "story": "Two made-up stocks. ZBRN trades at 15 times earnings, with EPS growing 5% a year. ZVLT trades at 45 times earnings, with EPS growing 45% a year.",
-   "subject": "F5.03#q16"
+   "subject": "F5.03#q16",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "ZBRN's PEG"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "zbrn,_p/e",
+      "label": "ZBRN, P/E",
+      "value": 15
+     },
+     {
+      "fmt": "%",
+      "key": "zbrn,_eps_growth",
+      "label": "ZBRN, EPS growth",
+      "value": 5
+     },
+     {
+      "fmt": "count",
+      "key": "zvlt,_p/e",
+      "label": "ZVLT, P/E",
+      "value": 45
+     },
+     {
+      "fmt": "%",
+      "key": "zvlt,_eps_growth",
+      "label": "ZVLT, EPS growth",
+      "value": 45
+     }
+    ],
+    "title": "Two PEG ratios"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -6564,7 +6801,29 @@
    ],
    "kind": "mcq",
    "q": "MSFT was $209.58 hours before its July 22, 2020 report. Options priced a $9.48 move. What is that as a percent?",
-   "subject": "F5.04#q10"
+   "subject": "F5.04#q10",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The move, as a percent"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "stock_before_the_rep",
+      "label": "Stock before the report",
+      "value": 209.58
+     },
+     {
+      "fmt": "$",
+      "key": "move_the_options_pri",
+      "label": "Move the options price",
+      "value": 9.48
+     }
+    ],
+    "title": "The implied move"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -6852,7 +7111,35 @@
    ],
    "kind": "mcq",
    "q": "You hold 200 shares of a $40 stock into earnings. The implied move is ±9%. What do you lose if it gaps down that much?",
-   "subject": "F5.04#q14"
+   "subject": "F5.04#q14",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Loss on the gap"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "shares",
+      "key": "shares_held",
+      "label": "Shares held",
+      "value": 200
+     },
+     {
+      "fmt": "$",
+      "key": "price",
+      "label": "Price",
+      "value": 40
+     },
+     {
+      "fmt": "%",
+      "key": "implied_move",
+      "label": "Implied move",
+      "value": 9
+     }
+    ],
+    "title": "A gap down into earnings"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -7137,7 +7424,35 @@
    "kind": "mcq",
    "q": "Which loss should you plan for if you hold?",
    "story": "You hold a $20,000 position into tonight's report. Your stop is 4% below the price. The implied move is ±10%.",
-   "subject": "F5.04#q21"
+   "subject": "F5.04#q21",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Loss to plan for"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "position",
+      "label": "Position",
+      "value": 20000
+     },
+     {
+      "fmt": "%",
+      "key": "stop_below_the_price",
+      "label": "Stop below the price",
+      "value": 4
+     },
+     {
+      "fmt": "%",
+      "key": "implied_move",
+      "label": "Implied move",
+      "value": 10
+     }
+    ],
+    "title": "The loss to plan for"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -8134,7 +8449,29 @@
    ],
    "kind": "mcq",
    "q": "The stock is $80. The $80 call and put in the nearest expiry cost $4.40 together. What move, in percent, is priced?",
-   "subject": "F5.05#q09"
+   "subject": "F5.05#q09",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Move priced, in percent"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "stock",
+      "label": "Stock",
+      "value": 80
+     },
+     {
+      "fmt": "$",
+      "key": "call_and_put_togethe",
+      "label": "Call and put together",
+      "value": 4.4
+     }
+    ],
+    "title": "The priced move"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -8355,7 +8692,35 @@
    "kind": "mcq",
    "q": "What is the realized move divided by the implied move?",
    "story": "HXLR closed at $50 before earnings. Its at-the-money straddle cost $2. It closed at $55 after.",
-   "subject": "F5.05#q11"
+   "subject": "F5.05#q11",
+   "visual": {
+    "find": {
+     "as": "times",
+     "label": "Realized / implied move"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "close_before_earning",
+      "label": "Close before earnings",
+      "value": 50
+     },
+     {
+      "fmt": "$",
+      "key": "straddle_cost",
+      "label": "Straddle cost",
+      "value": 2
+     },
+     {
+      "fmt": "$",
+      "key": "close_after_earnings",
+      "label": "Close after earnings",
+      "value": 55
+     }
+    ],
+    "title": "Realized vs implied"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -8895,7 +9260,23 @@
    ],
    "kind": "mcq",
    "q": "Meta, February 2024: front-week options implied about a 9% move. The stock closed up 20.3%. Realized divided by implied?",
-   "subject": "F5.05#q21"
+   "subject": "F5.05#q21",
+   "visual": {
+    "find": {
+     "as": "times",
+     "label": "Realized / implied"
+    },
+    "from": {
+     "label": "Implied move (%)",
+     "value": 9
+    },
+    "kind": "move",
+    "title": "Realized vs implied",
+    "to": {
+     "label": "Realized move (%)",
+     "value": 20.3
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -9214,7 +9595,29 @@
    ],
    "kind": "mcq",
    "q": "A $50 stock has 32% implied volatility. About how much does that imply it moves on an ordinary day?",
-   "subject": "F5.05#q92"
+   "subject": "F5.05#q92",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Typical daily move"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "stock",
+      "label": "Stock",
+      "value": 50
+     },
+     {
+      "fmt": "%",
+      "key": "implied_volatility",
+      "label": "Implied volatility",
+      "value": 32
+     }
+    ],
+    "title": "The ordinary day's move"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -9912,7 +10315,29 @@
    ],
    "kind": "mcq",
    "q": "Your position is 20% of the account. A report gaps it down 15% at the open. What share of the account did you lose?",
-   "subject": "F5.06#q09"
+   "subject": "F5.06#q09",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Share of account lost"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "%",
+      "key": "position,_of_the_acc",
+      "label": "Position, of the account",
+      "value": 20
+     },
+     {
+      "fmt": "%",
+      "key": "gap_down",
+      "label": "Gap down",
+      "value": 15
+     }
+    ],
+    "title": "A gap on a big position"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -10072,7 +10497,35 @@
    ],
    "kind": "mcq",
    "q": "You hold 30% of the account in one name and sell half before the report. It gaps down 10%. How much does the account fall?",
-   "subject": "F5.06#q12"
+   "subject": "F5.06#q12",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The account's fall"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "%",
+      "key": "in_one_name,_of_acco",
+      "label": "In one name, of account",
+      "value": 30
+     },
+     {
+      "fmt": "count",
+      "key": "share_sold_(half)",
+      "label": "Share sold (half)",
+      "value": 0.5
+     },
+     {
+      "fmt": "%",
+      "key": "gap_down",
+      "label": "Gap down",
+      "value": 10
+     }
+    ],
+    "title": "Selling half first"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -10150,7 +10603,29 @@
    ],
    "kind": "mcq",
    "q": "You're up 2% on a stock. A report gaps it down 15%. How far below your entry price are you now?",
-   "subject": "F5.06#q13"
+   "subject": "F5.06#q13",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Below your entry"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "%",
+      "key": "gain_so_far",
+      "label": "Gain so far",
+      "value": 2
+     },
+     {
+      "fmt": "%",
+      "key": "gap_down",
+      "label": "Gap down",
+      "value": 15
+     }
+    ],
+    "title": "Up, then gapped"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -10321,7 +10796,35 @@
    "kind": "mcq",
    "q": "If it gaps down the full expected move, how does the hit compare with your normal risk?",
    "story": "A stock is 25% of your account. It reports after the close, and options price a move of about 8%. You normally risk 1% of the account on a trade.",
-   "subject": "F5.06#q15"
+   "subject": "F5.06#q15",
+   "visual": {
+    "find": {
+     "as": "times",
+     "label": "Hit vs normal risk"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "%",
+      "key": "position,_of_the_acc",
+      "label": "Position, of the account",
+      "value": 25
+     },
+     {
+      "fmt": "%",
+      "key": "expected_move",
+      "label": "Expected move",
+      "value": 8
+     },
+     {
+      "fmt": "%",
+      "key": "normal_risk_a_trade",
+      "label": "Normal risk a trade",
+      "value": 1
+     }
+    ],
+    "title": "The hit vs normal risk"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -11081,7 +11584,29 @@
    "kind": "mcq",
    "q": "Our rule lets you hold this one through. Which belief about the gap holds up?",
    "story": "You're up 40%, or 8R, in a leader you've held for months. It reports after the close, and options price a move of about 9%.",
-   "subject": "F5.06#q24"
+   "subject": "F5.06#q24",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Change vs entry after the gap"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "%",
+      "key": "gain_so_far",
+      "label": "Gain so far",
+      "value": 40
+     },
+     {
+      "fmt": "%",
+      "key": "priced_move",
+      "label": "Priced move",
+      "value": 9
+     }
+    ],
+    "title": "A leader through the gap"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -14817,7 +15342,30 @@
    "kind": "fill_numeric",
    "q": "Netflix forecast 2.5 million new paid members for the first quarter of 2022. It lost 0.2 million. How many million short was it?",
    "subject": "F5.08#q10",
-   "suffix": "million"
+   "suffix": "million",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "How far short",
+     "unit": "million"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "forecast,_millions",
+      "label": "Forecast, millions",
+      "value": 2.5
+     },
+     {
+      "fmt": "count",
+      "key": "lost,_millions",
+      "label": "Lost, millions",
+      "value": 0.2
+     }
+    ],
+    "title": "The subscriber miss"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -15066,7 +15614,29 @@
    "kind": "fill_numeric",
    "prefix": "$",
    "q": "Meta's Q4 2022 EPS was $1.76. Its release says that without restructuring charges, EPS would have been $1.24 higher. What EPS is that?",
-   "subject": "F5.08#q13"
+   "subject": "F5.08#q13",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "EPS without charges"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "reported_eps",
+      "label": "Reported EPS",
+      "value": 1.76
+     },
+     {
+      "fmt": "$",
+      "key": "restructuring_charge",
+      "label": "Restructuring charges",
+      "value": 1.24
+     }
+    ],
+    "title": "EPS without the charges"
+   }
   },
   "reveal_json": {
    "depth": {

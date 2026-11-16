@@ -1091,7 +1091,7 @@
      "the SEC bulletin page (investor.gov) refused WebFetch today"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$9",
     "$216",
@@ -1102,6 +1102,34 @@
     "$9": "That is the cost of one round trip. You make 12 a day.",
     "$216": "Charged the spread twice per round trip. Each round trip pays it once.",
     "$1,080": "A decimal slip: ten times too big."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The spread's daily cost",
+    "rows": [
+     {
+      "key": "round_trips_a_day",
+      "label": "Round trips a day",
+      "value": 12,
+      "fmt": "count"
+     },
+     {
+      "key": "shares_each",
+      "label": "Shares each",
+      "value": 300,
+      "fmt": "shares"
+     },
+     {
+      "key": "spread_each_time",
+      "label": "Spread each time",
+      "value": 0.03,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Spread cost a day",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1504,7 +1532,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "0.03 x 300 x 12 = 108. $9 one round trip, $216 double count, $1,080 slip. Why shows the steps."
+   "notes": "trips, shares, spread; label names daily cost; key '$108'"
   },
   "q16": {
    "status": "pass",

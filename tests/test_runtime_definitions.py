@@ -210,11 +210,21 @@ def test_KILL_is_never_a_delete_the_served_row_is_stamped_the_stored_row_is_not(
 
 def test_the_preview_reads_the_kill_list_and_the_save_switch(client, monkeypatch):
     allow = rt.allow_list()
-    assert client.get("/api/user-definitions/runtime-kill").json() ==         {"kill": [], "allow": allow, "save_enabled": False}
+    # RT1 2026-11-15: the committed kill list (api/data/pine_runtime_killlist.json) is always served
+    committed = list(rt.committed_kills())
+    assert committed, "the committed kill list is read"
+    # RS Rating (2026-11-16): the committed allowlist holds a record on the SUBSTITUTED path, so the read
+    # also carries what it discloses (`substituted`, L7), read off the service function the route asks.
+    # Its run-half evidence (L8) is NOT served: the record's objects v2 is INCONCLUSIVE (no x table in
+    # its captures), which admits no run half, so that key is absent.
+    served = {"substituted": rt.substituted_inputs()}
+    assert served["substituted"] and rt.run_half_evidence() == []
+    want = {"kill": committed, "allow": allow, "save_enabled": False, **served}
+    assert client.get("/api/user-definitions/runtime-kill").json() == want
     monkeypatch.setenv(rt.KILL_ENV, f"{DEF_ID}, not-an-entry, {'A' * 64}")
     monkeypatch.setenv(rt.SAVE_ENV, "1")
     got = client.get("/api/user-definitions/runtime-kill").json()
-    assert got == {"kill": [DEF_ID, "a" * 64], "allow": allow, "save_enabled": True}
+    assert got == {"kill": committed + [DEF_ID, "a" * 64], "allow": allow, "save_enabled": True, **served}
 
 
 # ─── nothing that needs a tree admits a runtime row ──────────────────────────

@@ -1145,7 +1145,7 @@
      "rewritten before to the 2026-11-09 rulebook"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$46.00",
     "$48.00",
@@ -1156,6 +1156,30 @@
     "$48.00": "Counted four times the risk instead of three.",
     "$52.00": "Counted the risk per share twice before multiplying by three.",
     "$120.00": "Multiplied the $40 entry by three instead of the risk."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 38.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 40.0
+     }
+    ],
+    "find": {
+     "label": "3R",
+     "as": "price"
+    },
+    "r": {
+     "entry": 40.0,
+     "stop": 38.0
+    }
    }
   },
   {
@@ -1294,7 +1318,38 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop (both pairs)",
+      "price": 38.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 40.0
+     },
+     {
+      "key": "t1",
+      "label": "First target",
+      "price": 44.0
+     },
+     {
+      "key": "t2",
+      "label": "Second target",
+      "price": 46.0
+     }
+    ],
+    "find": {
+     "label": "Net result",
+     "as": "dollars"
+    },
+    "shares": 200
+   }
   },
   {
    "key": "q16",
@@ -1712,7 +1767,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "notes": "stop/entry ladder with 3R; key '$46.00'"
   },
   "q12": {
    "status": "pass",
@@ -1734,9 +1789,9 @@
   },
   "q15": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "two OCO targets and shared stop right; key 'A $200 gain'"
   },
   "q16": {
    "status": "cut",

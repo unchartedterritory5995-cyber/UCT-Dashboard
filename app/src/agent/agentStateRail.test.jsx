@@ -304,9 +304,11 @@ describe('STATE RAIL · an inherited destroy / replace licence binds to the OBJE
         expect(stateRailRefusal(await planOf(fx, WRONG.drawing[k]), { words: w }), `${k} · ${w}`).toMatch(/^I didn’t change anything/)
     }
   })
-  it('an OVERWRITE still inherits the class ("add the 9 ema. Colour the fast one green")', async () => {
+  // ⛔ CHANGED by H14 UNIQUE IDENTIFICATION (2026-11-14, AUDIT probe 48): this was licensed (an overwrite inherited the whole
+  // CLASS the earlier clause named). Now "it" after naming the 9 EMA never licenses a DIFFERENT indicator (the RSI): refused.
+  it('an OVERWRITE no longer inherits the whole class: "add the 9 ema. make it 20" never changes the RSI (H14)', async () => {
     const fx = stateFixture()
-    expect(stateRailRefusal(await planOf(fx, WRONG.indicator['indicator.update (RSI 14 → 20)']), { words: 'add the 9 ema. make it 20' })).toBe(null)
+    expect(stateRailRefusal(await planOf(fx, WRONG.indicator['indicator.update (RSI 14 → 20)']), { words: 'add the 9 ema. make it 20' })).toMatch(/^I didn’t change anything/)
   })
 })
 

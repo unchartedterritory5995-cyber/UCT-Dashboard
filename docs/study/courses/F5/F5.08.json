@@ -1227,7 +1227,30 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The subscriber miss",
+    "rows": [
+     {
+      "key": "forecast,_millions",
+      "label": "Forecast, millions",
+      "value": 2.5,
+      "fmt": "count"
+     },
+     {
+      "key": "lost,_millions",
+      "label": "Lost, millions",
+      "value": 0.2,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "How far short",
+     "as": "num",
+     "unit": "million"
+    }
+   }
   },
   {
    "key": "q11",
@@ -1330,7 +1353,29 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "EPS without the charges",
+    "rows": [
+     {
+      "key": "reported_eps",
+      "label": "Reported EPS",
+      "value": 1.76,
+      "fmt": "$"
+     },
+     {
+      "key": "restructuring_charge",
+      "label": "Restructuring charges",
+      "value": 1.24,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "EPS without charges",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q14",
@@ -1887,8 +1932,8 @@
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 3. Stem no longer names the unit the choices carry."
+   "fixed": false,
+   "notes": "forecast and lost in millions; how far short; numeric key fills the slot"
   },
   "q11": {
    "status": "pass",
@@ -1905,8 +1950,8 @@
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 2. The answer was the only round figure, so one distractor became a round-ish real mistake."
+   "fixed": false,
+   "notes": "reported EPS and charges; EPS without charges"
   },
   "q14": {
    "status": "pass",

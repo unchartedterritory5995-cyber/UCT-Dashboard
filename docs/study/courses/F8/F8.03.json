@@ -1055,7 +1055,35 @@
      "computed key"
     ]
    },
-   "batch": "wave9"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "Half win, half lose",
+    "rows": [
+     {
+      "key": "share_that_win_(half",
+      "label": "Share that win (half)",
+      "value": 0.5,
+      "fmt": "count"
+     },
+     {
+      "key": "winners_average_(r)",
+      "label": "Winners average (R)",
+      "value": 0.5,
+      "fmt": "count"
+     },
+     {
+      "key": "losers_lose_(r)",
+      "label": "Losers lose (R)",
+      "value": 1,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Average per trade",
+     "as": "r"
+    }
+   }
   },
   {
    "key": "q13",
@@ -1615,7 +1643,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Simple 'a quarter R' = calc expectancy_r(50, 0.5, 1) = -0.25."
+   "notes": "half win 0.5, winners 0.5R, losers 1R, each labelled; slot '-0.25R a trade' from key"
   },
   "q13": {
    "status": "pass",

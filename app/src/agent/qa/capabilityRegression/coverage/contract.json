@@ -1848,6 +1848,19 @@
    ],
    "fast": false
   },
+  "news.movers": {
+   "domain": "news",
+   "group": "catalysts",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "newsLibrary.collection": {
    "domain": "newsLibrary",
    "group": "newsLibrary",
@@ -2016,6 +2029,19 @@
     "charts"
    ],
    "fast": true
+  },
+  "rs.compare": {
+   "domain": "rs",
+   "group": "rs",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
   },
   "screener.deleteSaved": {
    "domain": "screener",

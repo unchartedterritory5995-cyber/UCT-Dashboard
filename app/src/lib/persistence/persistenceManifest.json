@@ -1978,6 +1978,17 @@
       ]
     },
     {
+      "key": "uct.liveCadenceMs",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "internal",
+      "label": "Live candle paint cadence (measurement switch)",
+      "files": [
+        "app/src/utils/streamStatus.js"
+      ]
+    },
+    {
       "key": "uct.barsPool.disabled",
       "store": "localStorage",
       "scope": "device-local",

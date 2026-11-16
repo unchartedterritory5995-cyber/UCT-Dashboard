@@ -1,7 +1,7 @@
 // Single global registry. All chart instances subscribe here for live state.
 // Replaces per-component liveBarRef + series.update logic; multi-chart sync is automatic.
 
-import { LIVE_UI_CADENCE_MS } from '../utils/streamStatus';
+import { LIVE_UI_CADENCE_MS, liveCandleCadenceMs } from '../utils/streamStatus';
 
 const _state = new Map(); // sym -> { tf -> {o,h,l,c,v,t} }
 const _subscribers = new Map(); // sym -> Set<callback>
@@ -34,7 +34,7 @@ function _notifyTickThrottled(sym) {
   _tickThrottleTimers.set(sym, setTimeout(() => {
     _tickThrottleTimers.delete(sym);
     if (_tickPending.get(sym)) { _tickPending.delete(sym); _notify(sym); }
-  }, LIVE_UI_CADENCE_MS));
+  }, liveCandleCadenceMs(LIVE_UI_CADENCE_MS)));
 }
 
 function _notifyCorrection(sym) {

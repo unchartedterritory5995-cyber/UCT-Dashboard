@@ -36,27 +36,86 @@ export function registeredRunHalfObjectRail() {
 export const RUN_HALF_EVIDENCE_MIN_CAPTURES = 2
 let _evidence = new Map()
 
-/** Replace the evidence list: `[{sha256, captures: [{capture, verdict, objectsV2, runtimeOn}]}]`. */
+/** Replace the evidence list: `[{sha256, admission?, substituted?, captures: [{capture, verdict,
+ *  objectsV2, runtimeOn, substituted?}]}]` (the `run_half_evidence` key of the kill read). */
 export function setRunHalfObjectEvidence(list) {
   const next = new Map()
   for (const e of Array.isArray(list) ? list : []) {
     if (!e || typeof e.sha256 !== 'string' || !/^[0-9a-f]{64}$/i.test(e.sha256)) continue
-    next.set(e.sha256.toLowerCase(), Array.isArray(e.captures) ? e.captures.slice() : [])
+    next.set(e.sha256.toLowerCase(), {
+      ...(Object.prototype.hasOwnProperty.call(e, 'admission')
+        ? { admission: e.admission, substituted: e.substituted } : {}),
+      captures: Array.isArray(e.captures) ? e.captures.slice() : [],
+    })
   }
   _evidence = next
 }
 
-/** Is this script (by source sha256) admitted without a comparable object? Only on
- *  `RUN_HALF_EVIDENCE_MIN_CAPTURES` or more DISTINCT captures, each an objects-v2 MATCH of the
- *  run's drawings with the runtime pane on. */
-export function runHalfEvidenceAdmits(sha256) {
-  const caps = typeof sha256 === 'string' ? _evidence.get(sha256.toLowerCase()) : null
-  if (!caps) return false
+// ⭐⭐ RS RATING L9 — THE L7 SUBSTITUTED PATH, NEVER A LOOSER RULE. A stock capture of a script
+// reading `syminfo.industry` can at best grade MATCH_SUBSTITUTED (the industry is UCT data), so a
+// record on the substituted path (`admission: 'substituted'`, `substituted: [names]`) counts
+// MATCH_SUBSTITUTED captures whose OWN names are exactly the record's; a record without
+// `admission` still counts MATCH only. Mirrors `runtime_definitions.py::run_half_entry_admits`
+// (the server serves only what it admits); both answer every case of
+// tests/fixtures/ast/run_half_evidence_parity.json, so the two cannot drift.
+const ADMISSION_SUBSTITUTED = 'substituted'
+
+/** A non-empty list of distinct non-empty names, sorted; null otherwise (`rollout_gate.py::
+ *  _pine_substituted_names`). */
+function substitutedNames(v) {
+  if (!Array.isArray(v) || !v.length || !v.every((n) => typeof n === 'string' && n)) return null
+  if (new Set(v).size !== v.length) return null
+  return v.slice().sort().join('\u0000')
+}
+
+/** The rule over ONE served entry (`{admission?, substituted?, captures}`). */
+export function runHalfEntryAdmits(entry) {
+  if (!entry || typeof entry !== 'object') return false
+  let want
+  let names = null
+  if (entry.admission === undefined || entry.admission === null) {
+    want = 'MATCH'
+  } else if (entry.admission === ADMISSION_SUBSTITUTED) {
+    want = 'MATCH_SUBSTITUTED'
+    names = substitutedNames(entry.substituted)
+    if (names === null) return false
+  } else {
+    return false
+  }
   const seen = new Set()
-  for (const c of caps) {
+  for (const c of Array.isArray(entry.captures) ? entry.captures : []) {
     if (!c || typeof c.capture !== 'string' || !c.capture) continue
-    if (c.verdict !== 'MATCH' || c.objectsV2 !== true || c.runtimeOn !== true) continue
+    if (c.verdict !== want || c.runtimeOn !== true) continue
+    if (names !== null && substitutedNames(c.substituted) !== names) continue
+    // objects-v2 MATCH; or, ON THE SUBSTITUTED PATH ONLY, objects-v2 MATCH_SUBSTITUTED naming exactly
+    // the record's inputs (`objectsV2Substituted`; coordinator ruling 2026-11-15, after owner ruling (a))
+    const objectsOk = c.objectsV2 === true || (names !== null && substitutedNames(c.objectsV2Substituted) === names)
+    if (!objectsOk) continue
     seen.add(c.capture)
   }
   return seen.size >= RUN_HALF_EVIDENCE_MIN_CAPTURES
 }
+
+/** Is this script (by source sha256) admitted without a comparable object? Only on
+ *  `RUN_HALF_EVIDENCE_MIN_CAPTURES` or more DISTINCT captures, each an objects-v2 MATCH of the
+ *  run's drawings with the runtime pane on, graded on the record's own path
+ *  (`runHalfEntryAdmits`). */
+export function runHalfEvidenceAdmits(sha256) {
+  if (_admitEveryForGrade) return true
+  const entry = typeof sha256 === 'string' ? _evidence.get(sha256.toLowerCase()) : null
+  return entry ? runHalfEntryAdmits(entry) : false
+}
+
+// ⭐⭐ RS RATING L8 — THE RUNTIME-ON GRADE IS THE EVIDENCE, SO IT GRADES EVERY RUN HALF.
+// The evidence above IS a runtime-on objects-v2 grade of the RUN's drawings. That lane already
+// grades every script as an admitted member would see it (`__allowEveryRuntimeScriptForTests`,
+// the starter allowlist not applied: an upper bound), because the allowlist is derived FROM its
+// verdicts; the run-half evidence is derived from the same verdicts, so the lane admits every
+// run half the same way, or the evidence could never be produced (a refused run half has its
+// drawings never graded). ⛔ Rails and the vendor harness's runtime-on lane ONLY: never set by a
+// member surface; production admits by `setRunHalfObjectEvidence` alone.
+let _admitEveryForGrade = false
+/** Rails / the runtime-on harness lane only. */
+export function __admitEveryRunHalfForTests() { _admitEveryForGrade = true }
+/** Rails only. */
+export function __resetRunHalfAdmissionForTests() { _admitEveryForGrade = false }

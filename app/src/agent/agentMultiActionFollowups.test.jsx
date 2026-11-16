@@ -1012,7 +1012,7 @@ describe('live train 4 · "four charts, all the same size" on a board of SIX cha
   it('"Add 4 more charts" → 10 charts (the owner\'s pick, said)', async () => {
     const { board, say } = mount(...SIX())
     await say(OWNER)
-    fireEvent.click(screen.getByRole('button', { name: 'Add 4 more charts' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add 4 new charts (a second SPY, QQQ, NVDA and TSLA)' }))   // D18: the label says the duplicates
     await idle()
     await waitFor(() => expect(chartsOf(board)).toHaveLength(10), { timeout: 8000 })
   }, 30000)
@@ -1032,11 +1032,16 @@ describe('live train 4 · "four charts, all the same size" on a board of SIX cha
     expect(board.state.widgets.some(w => w.id === 'wl')).toBe(true)                               // the watchlist stays
     expect(board.state.widgets.some(w => w.id === 'c0')).toBe(true)                               // the SPY chart reused (its ticker kept)
   }, 40000)
-  it('"add four charts for …" / "new charts for …" still ADD (no question)', async () => {
+  // D18 item 2 (owner 2026-11-14): "four NEW charts for …" names tickers the board already shows — asked (use those charts, or
+  // open second ones), never guessed; "Open a second …" adds the four beside them, as before
+  it('"add four new charts for …" with every ticker already shown → asked (D18 item 2); "Open a second …" → 10 charts', async () => {
     const { board, say } = mount(...SIX())
     await say('add four new charts for SPY, QQQ, NVDA and TSLA, all the same size')
+    expect(chartsOf(board)).toHaveLength(6)
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Open a second SPY, QQQ, NVDA and TSLA chart' }).length).toBe(1))
+    fireEvent.click(screen.getByRole('button', { name: 'Open a second SPY, QQQ, NVDA and TSLA chart' }))
+    await idle()
     await waitFor(() => expect(chartsOf(board)).toHaveLength(10), { timeout: 8000 })
-    expect(screen.queryAllByTestId('agent-question')).toHaveLength(0)
   }, 30000)
   it('a board with as many charts as tickers (or fewer) is reused, as on train 3 — no question', async () => {
     const { board, h, say } = mount(...HALF())
@@ -1152,7 +1157,7 @@ describe('review t4 M5 · "…charts, each with an RSI" — the per-chart steps 
     envelopes.push(b => env('apply', plan(b)))
     await say('I would like SPY, QQQ, NVDA and TSLA on equal charts, each with an RSI, thanks')
     await waitFor(() => expect(screen.queryAllByTestId('agent-question')).toHaveLength(1))
-    fireEvent.click(screen.getByRole('button', { name: 'Add 4 more charts' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add 4 new charts (a second SPY, QQQ, NVDA and TSLA)' }))   // D18: the label says the duplicates
     await idle()
     await waitFor(() => expect(chartsOf(board)).toHaveLength(10), { timeout: 10000 })
     const fresh = chartsOf(board).filter(w => !/^c\d$/.test(w.id))

@@ -1097,12 +1097,14 @@ function finalChecks(st, input, gateCtx) {
     if (!row) continue
     if (row.marker) {
       const v = presentationVerdict(def, key, { marker: row.marker }, gateCtx)
-      if (v.status === STATUS.REFUSED) throw err('marker:refused', `${key}: ${v.reason}`, { output: key })
+      // A refusal that is only "another symbol's bars have not arrived yet" is not final: the alert
+      // and header-value gates below already let it through, and the chart draws when they land.
+      if (v.status === STATUS.REFUSED && !v.pending) throw err('marker:refused', `${key}: ${v.reason}`, { output: key })
     }
     const own = (def.paints || []).filter((p, j) => j === ownPaintOf(def.paints, key, p.kind))
     if (own.length) {
       const v = presentationVerdict(def, key, { paints: own }, gateCtx)
-      if (v.status === STATUS.REFUSED) throw err('paint:refused', `${key}: ${v.reason}`, { output: key })
+      if (v.status === STATUS.REFUSED && !v.pending) throw err('paint:refused', `${key}: ${v.reason}`, { output: key })
     }
   }
 
