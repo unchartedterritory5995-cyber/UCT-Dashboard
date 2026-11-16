@@ -296,11 +296,26 @@ def test_a_broken_ruling_file_rules_nothing_and_is_logged(monkeypatch, tmp_path,
     assert "not-pending overrides" in caplog.text
 
 
+def test_a_real_all_stock_deal_the_owner_ruled_in_stays_in_scans(monkeypatch, tmp_path):
+    """LITE: the deal is real and the headline is right; the owner keeps it because it is not pinned."""
+    monkeypatch.setenv("DEAL_STATUS_ENABLED", "1")
+    _names(monkeypatch, LITE="Lumentum Holdings Inc.", MRVL="Marvell Technology, Inc.")
+    t = "Marvell and Lumentum enter into a definitive agreement for Marvell to acquire Lumentum in an all-stock transaction"
+    t2 = "Lumentum (NASDAQ: LITE) agreed to be acquired by Marvell in all-stock deal"
+    _overrides(monkeypatch, tmp_path, {})
+    _news(monkeypatch, [(TODAY - timedelta(days=10), t, ["MRVL", "LITE"]),
+                        (TODAY - timedelta(days=10), t2, ["LITE", "MRVL"])])
+    assert "LITE" in ds.screener_excludes(), "control: without the ruling the deal hides it"
+    _overrides(monkeypatch, tmp_path, {"LITE": "all stock, not pinned"})
+    assert "LITE" not in ds.screener_excludes()
+    assert ds.deal_status("LITE", bars=[])["pending"] is False
+
+
 def test_the_shipped_ruling_file_names_lrn_with_a_reason():
     path = os.path.join(os.path.dirname(ds.__file__), "..", "data", ds.NOT_PENDING_FILENAME)
     with open(path, encoding="utf-8") as fh:
         data = json.load(fh)
-    assert "LRN" in data and all(isinstance(v, str) and len(v) > 20 for v in data.values())
+    assert {"LRN", "LITE"} <= set(data) and all(isinstance(v, str) and len(v) > 20 for v in data.values())
     assert not (set(data) & ds.hand_list()), "a name cannot be both hand-listed and ruled out"
 
 

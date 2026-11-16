@@ -149,7 +149,10 @@ def hand_list() -> frozenset:
 #: about Stride Bank, a private bank; the store tagged it LRN (Stride, Inc.) and the headline
 #: names the target only as "Stride", so no reading of the headline alone can tell them
 #: apart. LRN was left out of every scan from the day the scan-time gate shipped until this
-#: file existed. A name here is never pending on NEWS; a hand list still wins (the owner
+#: file existed. It also carries a REAL deal the owner wants left in scans because the stock
+#: does not trade pinned (owner 2026-11-15, LITE: an all-stock deal closing in 2028 floats with
+#: its acquirer; "I am talking about buyouts that are trading super tight").
+#: A name here is never pending on NEWS; a hand list still wins (the owner
 #: listing a name is the later, more specific ruling), and a price pin stays `possible`.
 NOT_PENDING_FILENAME = "deal_not_pending.json"
 
