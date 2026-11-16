@@ -700,3 +700,132 @@ runtime differential and they were right.
 > `pineArity`, and bare `ta.vwap` is a zero-argument VARIABLE that reaches the table
 > and works today"*. A drop mechanism was written, measured to be inert at that
 > position, and REMOVED rather than left as dead code.
+
+---
+
+## OPEN · 2026-11-14 · Studio track: six small things it needs from the Pine engine team
+
+**Raised by:** the Studio session (lane S1, branch `feat/studio-s1-reference`).
+**Territory:** `app/src/components/chart/builder/**` and `chart/engine/**`. Not ours: the
+Studio track treats both as read-only (`docs/pine/studio/STUDIO-TRACK-PLAN.md`, section 2).
+**Blocking us:** R1 and R2 gate later lanes; nothing here blocks S1.
+
+None of these changes what a member sees or what the engine serves, so none should need an
+engine version bump.
+
+| id | ask | why | where |
+|---|---|---|---|
+| R1 | Move `paneFor` into `editorStatus.js` and `inspectPine` into a plain `.js` module, re-exported from where they are today | `components/studio/verdict/scriptVerdict.js` composes `inspectPine` + `paneFor` + `editorStatus` so Studio can state the status panel's answer as plain data. Both live in `.jsx` files that pull React and CSS modules. Separately, `memberPane/memberPaneDefinition.js` imports `BuilderSheet.jsx`, which would still block a plain-Node read | `builder/PineBox.jsx`, `builder/PineEditorStatus.jsx` |
+| R2 | An admin gate beside `VITE_PINE_EDITOR_STATUS` | So the status panel can be armed for admins first (the owner looks at three scripts) before members | `builder/editorStatusGate.js` |
+| R3 | A read-only way to get named intermediate values for one bar | A value inspector (the mockup's CONSOLE tab) | engine |
+| R4 | The status headline, the four consumer rows and the engine version on the share preview and on install | So a shared script shows the same verdict its author saw | `builder/SharePanel.jsx` |
+| R6 | Export the authoritative Pine name map | The Studio reference currently finds a running form of each built-in call by trying argument shapes; with the map it would not need to search | `engine/ast/pine.js` |
+
+### How to see what Studio reads today
+
+```sh
+cd app
+node node_modules/vitest/vitest.mjs run src/components/studio/reference/buildPineReference.test.js --maxWorkers=1
+```
+
+Passing prints the file's test count with 0 failed. That file uses a fake verdict and
+imports no engine module, so an engine change cannot turn it red. The live build of the
+reference is opt-in (`STUDIO_MEASURE=1`, `pineReference.measure.test.js`) and is run by the
+Studio session only.
+
+---
+
+## OPEN · 2026-11-14 · Studio track: three things for the owner of plain-English authoring (Create Indicator, `/converse`)
+
+**Raised by:** the Studio session.
+**Territory:** `app/src/components/chart/builder/studio/**`, `builder/authoring/**`,
+`api/services/definition_conversation.py`. Not ours, and the Studio track builds no second
+authoring door (`docs/pine/studio/STUDIO-TRACK-PLAN.md`, section 1a and decision D12).
+**Blocking us:** no.
+
+| id | ask | why |
+|---|---|---|
+| R7 | Check the `/converse` door against section 5 of the Studio plan: the budget cannot fail open on a counter error, one in-flight turn per member held durably, a global charge taken with the member charge, prompt and pasted sizes capped server-side, no member data in the model's context | A security and cost review of a planned model door produced this list; it applies to any model door, and this one is the one that exists. Each item may already hold; the ask is to confirm or name the gap |
+| R8 | Consider, in this order: a "Paste a script" mode in the same dock that hands the text to the Pine door and shows the status panel's headline; a short version list beside Undo; a "Report a mismatch" button on each turn wired to the existing support report; the engine's read-back always above the model's words | From a review of a competitor's authoring surface: these are the parts of its layout members visibly use. Its weakness is the one this door already avoids (it trusts the model's summary) |
+| R9 | A list of member phrasings refused before the model is called | The Studio session will run 60 prompts (30 member-style, 30 that should end in an honest "cannot") through the door's deterministic half, the method `docs/indicators/PLAIN-ENGLISH-AUTHORING-2026-11-01.md` used with 58 phrasings, and append the exact phrases here. Nothing to do until that list is appended |
+
+### R9 result, appended 2026-11-14 (measured, no model called)
+
+Method: `conv.understand_turn(message, chart)` with the chart from
+`tests/fixtures/authoring/plain_english_chart_door.json`, over 60 prompts written for this
+(30 member-style requests, 30 requests the door should end in an honest "cannot": options
+data, order placement, messaging, tick data, web fetches, file writes, a member's own
+positions). A plain Python call, not pytest.
+
+| set | prompts | refused before the model | reach the model |
+|---|---|---|---|
+| member-style | 30 | 0 | 30 |
+| should end in "cannot" | 30 | 0 | 30 |
+
+What that does and does not show:
+
+- No member-style phrasing is lost before the model. Good, and it is the same check the
+  2026-11-01 note ran.
+- Every impossible request also reaches the model, so whether it ends honestly rests on
+  the model's turn classification and the patch validator, not on the pre-flight. That
+  half was NOT measured here (it needs model calls).
+- On those requests the planner attaches a term from an unrelated word, which is then
+  context the model sees:
+  - "Email the chart image to me at the close each day." -> `close`
+  - "Remember the last value ... after I close the browser." -> `close`
+  - "Draw the exact option max pain level ..." -> `max`
+  - "Show the real-time sentiment score ..." -> `time`
+  - "Mark the dates of upcoming FOMC meetings for the next year." -> `year`
+  - "Play a sound when price hits my level." -> `price`
+- Four requests written as impossible matched a declared column, so they may be servable
+  as a current value and were mis-filed by the author of the set: institutional ownership
+  -> `inst_pct`, analyst price targets -> `pt_target`, S&P 500 membership -> `index_sp500`,
+  ETF holdings -> `is_etf` (membership only, not holdings).
+- Three member-style requests matched no term at all (average daily range percent; paint
+  inside bars; colour bars by trend against two averages). They still reach the model.
+
+Suggested next measurement for the door's owner: the same 30 "cannot" prompts through the
+full turn, counting how many end as UNSUPPORTED versus a built indicator.
+
+### R9 follow-up, appended 2026-11-14: the model half, measured on production
+
+The same 30 "should end in cannot" prompts through the FULL turn: `POST
+/api/user-definitions/converse` with an empty compact view (a brand-new indicator), signed in
+as the synthetic smoke account in its own browser context. The door stores and applies
+nothing; the only side effect was model spend on that account's ledger.
+
+| outcome (`disposition`) | count |
+|---|---|
+| `unsupported`: a plain refusal that names what is missing | 29 |
+| `clarify`: one question | 1 |
+| a patch (something built) | 0 |
+
+- No request was answered with a look-alike. Several refusals say so in as many words
+  ("I won't build a look-alike under that name") and then offer a real alternative from
+  price and volume.
+- The one `clarify` was "Play a sound when price hits my level": it asked for the level and
+  said the sound is chosen in the alert settings. That is the right answer, and the prompt
+  was mis-filed as impossible by its author.
+- Every turn was one model call. So the unrelated terms the planner attaches on these
+  prompts (R9 above) did not mislead the model on this set.
+- Two prompts are worth the owner's eye: institutional ownership and analyst price targets
+  were refused as "not available from price and volume bars", while the planner matched
+  declared columns for both (`inst_pct`, `pt_target`). The refusal is honest for the chart
+  door as it is; whether those columns should be reachable from it is a product question.
+- This is a 30-prompt set written by one author. It shows the door is honest on plainly
+  impossible requests; it does not measure subtler ones, where a weaker answer would be a
+  quiet substitution. A 40-prompt hidden set written by a separate session exists for that
+  (kept outside the repo); it has not been run.
+
+---
+
+## OPEN · 2026-11-15 · Studio track: two more asks (the experience, and the learning loop)
+
+**Raised by:** the Studio session. Plan: `docs/pine/studio/STUDIO-TRACK-PLAN.md` sections 13 and 14.
+**Blocking us:** no. Note also that the 2026-11-14 entry above is titled "six" and holds five
+rows: there is no R5, and R10 was withdrawn before it was filed.
+
+| id | to | ask | why |
+|---|---|---|---|
+| R11 | the owner of the chart's menus | One "Indicators" entry on the chart toolbar and in the command palette listing every indicator door that exists, in member words | Create Indicator is three menus deep and the doors are not listed together anywhere. A menu of existing doors, not a new door. The Studio session will bring mock-ups for the owner to pick from first (lane S-X); nothing to do until then |
+| R12 | the authoring owner | Four shape-only signals on `converse_turn` telemetry (preview undone, preview discarded, refinements before save, still on a chart seven days after save), and a member-pressed "Send this to UCT" on a turn | So the weekly report can tell a built-and-kept indicator from a built-and-thrown-away one. The allow-list rule stands: no member text unless the member presses to send it |
