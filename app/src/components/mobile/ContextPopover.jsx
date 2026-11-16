@@ -198,41 +198,28 @@ export default function ContextPopover({
             role={it.separator ? (asMenu ? 'separator' : undefined) : 'presentation'}>{it.groupLabel}</div>
         )
       }
-      // ⚠️ KEPT SMALL: this module is in the Notebook's first-open bytes budget.
+      // ⚠️ KEPT SMALL: this module is in the Notebook's first-open bytes budget — ONE element for both
+      // kinds of row. `href` makes it a real link (middle-click and cmd-click open a tab; same look, same
+      // close-on-pick; a link cannot be `disabled`, so a caller that needs that passes no `href`).
       // `check`: a menuitemcheckbox + aria-checked (desktop); a touch sheet's plain button + aria-pressed.
       const check = signature && typeof it.checked == 'boolean'
-      const cls = `${styles.item} ${it.danger ? styles.danger : ''}`
-      const body = (
-        <>
-          {it.icon != null && <span className={styles.icon}>{it.icon}</span>}
-          <span className={styles.label}>{it.label}</span>
-          {check && it.checked && <span className={styles.check} aria-hidden>✓</span>}
-        </>
-      )
-      const onClick = (e) => { it.onClick?.(e); if (!it.keepOpen) onClose?.() }
-      if (it.href) {
-        // A real link (middle-click and cmd-click open a tab). Same row look, same close-on-pick;
-        // a link cannot be `disabled`, so a caller that needs that passes no `href`.
-        return (
-          <a key={it.key ?? it.label ?? i} role={asMenu ? 'menuitem' : undefined} className={cls}
-            href={it.href} {...hintProps(it)} onClick={onClick}>
-            {body}
-          </a>
-        )
-      }
+      const Row = it.href ? 'a' : 'button'
       return (
-        <button
+        <Row
           key={it.key ?? it.label ?? i}
           data-menu-id={it.key}
           role={asMenu ? 'menuitem' + (check ? 'checkbox' : '') : undefined}
           {...{ [asMenu ? 'aria-checked' : 'aria-pressed']: check ? it.checked : undefined }}
-          className={cls}
+          className={`${styles.item} ${it.danger ? styles.danger : ''}`}
+          href={it.href}
           disabled={it.disabled}
           {...hintProps(it)}
-          onClick={onClick}
+          onClick={(e) => { it.onClick?.(e); if (!it.keepOpen) onClose?.() }}
         >
-          {body}
-        </button>
+          {it.icon != null && <span className={styles.icon}>{it.icon}</span>}
+          <span className={styles.label}>{it.label}</span>
+          {check && it.checked && <span className={styles.check} aria-hidden>✓</span>}
+        </Row>
       )
     })
 
