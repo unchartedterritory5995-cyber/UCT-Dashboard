@@ -2255,6 +2255,9 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // Chart Theme is chosen, so a signed histogram that stores no colour of its
       // own follows the theme for free — one palette, not a second one.
       candles: (ctx.cs && ctx.cs.candles) || null,
+      // ⭐ ENGINE 58 — this chart's own colours, for a Pine plot coloured
+      // `chart.fg_color` / `chart.bg_color` (`pool.withThemeColour`).
+      theme: chartThemeOf(ctx.cs),
       // ⭐ UCT RS 3-14 — what the live server row declares, so a guide gated on a
       // value that row drops (a v4 Reading under a v3 server) is not drawn.
       serverDeclares,
@@ -2759,15 +2762,24 @@ export function createBinder({ chart, LWC, scope = '' }) {
             markerLayer.onPrice = markerHost !== series
           }
           const cc = columnColorsForPlot(b.plot)
+          const markCond = cc ? displacedColumn(columns.get(bindingKey(b.instanceId, cc.key)), markShift) : null
+          const unknownNone = unknownColourRule(b.def)
           attempt(() => markerLayer.set(markersFor({
             column: own,
             times: bars.map((bar) => adjustTime(bar.t)),
             marker: markerSpec,
             color: effectiveColor(b.plot, DEFAULT_MARKER_COLOR),
-            condColumn: cc ? displacedColumn(columns.get(bindingKey(b.instanceId, cc.key)), markShift) : null,
+            condColumn: markCond,
             colorUp: cc ? cc.up : null,
             colorDown: cc ? cc.down : null,
-            unknownNone: unknownColourRule(b.def),
+            unknownNone,
+            // ⭐ ENGINE 58 — a palette / gradient / run-computed colour picks each
+            // marker's colour by the ONE per-point rule (`pointColour`) a line uses;
+            // a bar it gives no colour falls back to the plot's own (none, for a Pine
+            // rule row). ⚰️ A palette-coloured `plotshape` drew every glyph in its
+            // series colour, the sheet's gold.
+            colourAt: cc && !cc.up && markCond
+              ? (i) => pointColour(cc, markCond, i, unknownNone) : null,
           })))
         }
       }
