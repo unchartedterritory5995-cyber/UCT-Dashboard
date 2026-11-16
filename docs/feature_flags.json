@@ -3300,6 +3300,14 @@
       "values": ["0", "1"],
       "note": "Desktop speed plan Step 10.1: the KILL SWITCH for real-user speed measurement, POST /api/perf/beacon (api/routers/perf_beacon.py, mounted in api/main.py; client app/src/lib/perfBeacon.js, loaded only after the page load event). SHIPS ON BY DEFAULT as a rollback switch: unset or any value but 0/false/no/off means reports are stored; 0/false/no/off answers {enabled: false} and writes nothing. Read per request in api/services/perf_beacon.py::enabled(). Never deletes a stored row. NUMBERS AND ENUMS ONLY: page = first path segment, client browser|desktop, timings in ms, API calls as /api/<word>[/<word without digits>], country from CF-IPCountry; never a URL, ticker, id, member id or IP (rate limit keys on a salted IP hash). Own store PERF_BEACON_DB_PATH (default <DATA_DIR>/perf_beacon.db), 30-day retention, cap 300,000 loads. Admin read GET /api/admin/perf."
     },
+    "REFERENCE_CACHE_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-16",
+      "where": [],
+      "default": "1",
+      "values": ["0", "1"],
+      "note": "Speed and reliability plan item 9a (2026-11-16): the KILL SWITCH for browser-kept reference answers, api/services/reference_cache.py::allow. SHIPS ON BY DEFAULT as a rollback switch: unset or any value but 0/false/no/off means a COMPLETE answer from GET /api/delisted/{sym} (1 h), /api/ticker-ipo/{ticker} when its first-trade day is final (1 day), /api/single-stock-etfs/{symbol} (5 min), /api/ticker-meta/{ticker} when it names the company (5 min) and /api/chart/markers/{ticker} when a history was built (10 min) carries Cache-Control: private, max-age=N, so the member's own browser answers a repeat ask itself. private = never a shared or edge cache. An empty, non-final or failed answer is never marked. 0/false/no/off sets no header: every answer is byte-for-byte what it was. Read per request in reference_cache.enabled(). Rails: tests/test_reference_cache.py."
+    },
     "REQUEST_TIMING_ENABLED": {
       "status": "dark",
       "since": "2026-11-16",
