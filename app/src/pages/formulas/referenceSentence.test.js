@@ -46,8 +46,15 @@ describe('over the engine\'s real vocabulary', () => {
   it('control: the manifest sentences DO carry placeholders (so the rail below can see one)', () => {
     const carrying = entries().filter((it) => PLACEHOLDER.test(it.sentence || ''))
     expect(carrying.length).toBeGreaterThan(50)
-    expect(carrying.some((it) => it.kind === 'function')).toBe(true)
-    expect(carrying.some((it) => it.kind === 'operator')).toBe(true)
+    expect(carrying.every((it) => it.kind === 'function')).toBe(true)
+  })
+
+  it('the vocabulary already names an operator\'s operands, so none arrives as a template', () => {
+    // Measured on the first run of this file: `vocabulary.js` fills an operator's
+    // `{0}`/`{1}` with `a`/`b` itself. The defect on the page was the functions'.
+    const operators = entries().filter((it) => it.kind === 'operator')
+    expect(operators.length).toBeGreaterThan(0)
+    expect(operators.filter((it) => PLACEHOLDER.test(it.sentence || ''))).toEqual([])
   })
 
   it('no entry reaches the page with a placeholder still in its sentence', () => {
