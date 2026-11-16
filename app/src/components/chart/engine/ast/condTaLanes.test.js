@@ -410,4 +410,42 @@ describe('COND-TA — 6. a guard on a parameter every call site fixes is bar-con
     expect(o.refusal && o.refusal.guard, o.formula || '').toBe('pine:block')
     expect(o.refusal.message).toMatch(/inside a block that does not run on every bar|a function that reads its own history/)
   })
+  // ⭐ fib-pivot-points-alerts: `pp_period = input(title = "Period", type = input.string, defval = "Day", …)`
+  // feeds the guard. A v3 / v4 `input(…)` written with NAMED arguments is a simple input when its
+  // `type =` says so (or its default is a literal); the SOURCE form is a series and stays gated.
+  it('a v4 input written with named arguments fixes the guard; a source input does not', () => {
+    const named = pine(4,
+      'p = input(title = "Period", type = input.string, defval = "Day", options = ["Day", "Year"])',
+      'res = p == "Day" ? "D" : "Y"',
+      'nb(r) =>',
+      '    ch = 0',
+      '    if (r == "Y")',
+      '        ch := change(close) != 0 ? 1 : 0',
+      '    else',
+      '        ch := change(open) != 0 ? 1 : 0',
+      '    ch',
+      'plot(nb(res), "v")')
+    expect(lenient(named).outputs[0].refusal).toBeFalsy()
+    expect(strict(named).blockRuns).toBeUndefined()
+    const source = pine(4,
+      's = input(title = "Source", type = input.source, defval = close)',
+      'float v = na',
+      'if s > 10',   // ⛔ the guard reads ONLY the input, so nothing else can make it vary
+      '    v := sma(close, 3)',
+      'plot(v, "v")')
+    expect(lenient(source).outputs[0].refusal.guard).toBe('pine:block')
+    expect(strict(source).blockRuns.outputs.map((x) => x.index)).toEqual([0])
+    // a default that is a name, with no type written, is not known to be simple
+    const unknown = source.replace('type = input.source, ', '')
+    expect(lenient(unknown).outputs[0].refusal.guard).toBe('pine:block')
+    // the `type =` argument decides even where the default is not one literal
+    const typed = pine(4,
+      'n = input(title = "n", type = input.integer, defval = 10 + 5)',
+      'float v = na',
+      'if n > 3',
+      '    v := sma(close, 3)',
+      'plot(v, "v")')
+    expect(lenient(typed).outputs[0].refusal).toBeFalsy()
+    expect(strict(typed).blockRuns).toBeUndefined()
+  })
 })

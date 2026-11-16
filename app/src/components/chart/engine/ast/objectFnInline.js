@@ -894,6 +894,34 @@ export const isMutator = (tk) => tk && tk.kind === 'punct' && typeof tk.value ==
   && tk.value.length >= 2 && tk.value.endsWith('=')
   && !['==', '!=', '<=', '>=', '=>'].includes(tk.value)
 
+/** v1-v4 `input(…, type = <kind>)` kinds whose value is SIMPLE (fixed for the run): the v4
+ *  `input.*` constants and the v3 bare words. ⛔ `input.source` / `source` is a series. */
+const SIMPLE_INPUT_TYPES = new Set(['input.bool', 'input.integer', 'input.float', 'input.string',
+  'input.symbol', 'input.resolution', 'input.session', 'input.color', 'input.time',
+  'bool', 'integer', 'float', 'string', 'symbol', 'resolution', 'session'])
+/** ⭐ C42 / COND-TA — is the bare `input(…)` opening at `toks[open]` a SIMPLE input?
+ *  Its `type =` argument says so when written (`input(title = "Period", type = input.string,
+ *  defval = "Day")`, fib-pivot-points-alerts: the guard `res == 'Y'` over it holds on every bar);
+ *  otherwise its default must be a literal written into the call (`input(true, …)`,
+ *  `input(defval = 14)`), which cannot be the SOURCE form (`input(close, …)`).
+ *  ⛔ Anything else (a source type, a default that is a name, an unreadable call) is not. */
+function isSimpleBareInput(toks, open) {
+  const isP = (tk, val) => !!tk && tk.kind === 'punct' && tk.value === val
+  const args = splitArgs(toks, open, isP)
+  if (!args || !args.length) return false
+  const typeArg = args.find((a) => a.name === 'type')
+  if (typeArg) {
+    return typeArg.toks.length === 1 && typeArg.toks[0].kind === 'ident' && !typeArg.toks[0].member
+      && SIMPLE_INPUT_TYPES.has(String(typeArg.toks[0].value))
+  }
+  const dflt = args.find((a) => a.name === 'defval') || (args[0].name === null ? args[0] : null)
+  if (!dflt) return false
+  const t = dflt.toks
+  const lit = (x) => !!x && (x.kind === 'number' || x.kind === 'string'
+    || (x.kind === 'ident' && !x.member && (x.value === 'true' || x.value === 'false')))
+  return (t.length === 1 && lit(t[0])) || (t.length === 2 && isP(t[0], '-') && t[1].kind === 'number')
+}
+
 /** Is every token in `toks[from, to)` an invariant atom? `names` are the
  *  invariant names. */
 function allInvariant(toks, from, to, names) {
@@ -926,13 +954,8 @@ function allInvariant(toks, from, to, names) {
       // a guard that varies, and the conditional-call mark refused four drawings
       // of a block that runs on every bar.
       if (v === 'input') {
-        const first = toks[i + 2]
-        const after = toks[i + 3]
-        const literal = first && (first.kind === 'number' || first.kind === 'string'
-          || (first.kind === 'ident' && !first.member && (first.value === 'true' || first.value === 'false')))
-        const ends = after && after.kind === 'punct' && (after.value === ',' || after.value === ')')
         const close = closeOf(toks, i + 1)
-        if (!literal || !ends || close < 0 || close >= to) return false
+        if (close < 0 || close >= to || !isSimpleBareInput(toks, i + 1)) return false
         i = close
         continue
       }
