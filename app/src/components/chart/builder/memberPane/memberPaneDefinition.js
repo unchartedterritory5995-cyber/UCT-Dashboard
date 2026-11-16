@@ -1861,7 +1861,11 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     seen.set(o.kind, ord + 1)
     // ⭐ H4 — a REFUSED row the author hid (`display.none`) is hidden too; only a
     // translated row ever carried `hidden` (`pine.js`, `_authorHidden`).
-    if (o.hidden || o._authorHidden === true) continue
+    // ⭐⭐ B7 (s20, 2026-11-15) — EXCEPT a row the HOST hid as `constant` ("reads no bar"): that is the
+    // host's screening judgement, not the author's, and TradingView draws the line. ⚰️ vw-array-na lost
+    // `plot(array.min(a))` and four siblings here ("hidden helper or beyond its row ceiling") while the
+    // run computed them (TradingView: 1, 3, 6, 2, na).
+    if ((o.hidden && o.hiddenReason !== 'constant') || o._authorHidden === true) continue
     const label = o.title || `${o.kind} ${ord + 1}`
     // ⭐ WS-E — a leftward `offset` is carried (`runtimeRowShift`), the rest withheld.
     const shift = runtimeRowShift(o, shiftCtx)

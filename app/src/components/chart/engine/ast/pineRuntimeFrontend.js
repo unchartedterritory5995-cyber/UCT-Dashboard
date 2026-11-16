@@ -39,6 +39,8 @@ import {
   legacyBarsSignUnstated, LEGACY_BARS_SIGN_SENTENCE, REFUSALS, selfReferenceSentence,
   selfReferencingDeclaration, blockDeclarationReadsOwnHistory, declarationCalcBars, neverNaBoolNamesOf, isBoolishTree,
   isLegacyPineVersion,
+  chartOffsetFunctions, callsInBlocks, callsInConditionalArms, legacyCarryStatements, FN_HISTORY_IN_BLOCK, CARRY_VERSIONS,
+  carryShapeVersion,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 // ⭐⭐ L1 — an imported library's exports are linked in as the script's own.
@@ -382,6 +384,8 @@ export const RUNTIME_REFUSALS = Object.freeze({
   // declines by the same code: never draws the value the columnar lane will not.
   [BOOL_NA_UNWITNESSED]: 'a Pine v1-v5 `bool` that can be `na` meeting `==` or `!=` where this lane cannot answer `na` (TradingView answers `na` there), or one whose `na` bars are not followed',
   [TIE_UNWITNESSED]: 'a `highestbars` / `lowestbars` window over a computed source that holds a tied extreme, in a formula of this engine\'s own language (Pine names the newest)',
+  // ⭐ B3 — `pine.js::callsInBlocks` at //@version=1 (v2/v3 are CARRY, `legacyCarryStatements`)
+  'pine:fn-history-in-block': 'a script function reading a chart series at a bar offset, called inside a block, at a Pine version no capture has shown (v2/v3 repeat the last value of the copy; v4+ reads the chart)',
 })
 /** The engine-57 witness codes a column withheld on EVERY bar declines by (review N1). */
 const BUILTIN_WITNESS_REFUSALS = new Set([STOCH_FLAT_WINDOW, STOCH_LEFT_EDGE, RCI_LEFT_EDGE])
@@ -1697,6 +1701,24 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // ⛔ Not at the C18 object door: it keeps master's answer.
   // (Landing note: runs after the I6a join; the two are disjoint, since `switch` is v4+.)
   if (!atObjectDoor) stmts = v2SelfReferenceStatements(stmts, version)
+  // ⭐⭐ B3 (s22) — a script function that reads a chart series at an offset, called inside a block:
+  // at //@version=2 and 3 its read is CARRY (`pine.js::legacyCarryStatements`: the series becomes a body
+  // local, whose per-call-site history holds on the bars the call does not run; s22 v3, s23 v2); at v1
+  // unwitnessed, refused by name. v4+ reads the chart and is unchanged (s23 -v4, s22 -v5).
+  if (carryShapeVersion(version, lexed.v1Declared)) {
+    const carryFns = chartOffsetFunctions(stmts)
+    const at = callsInBlocks(stmts, new Set(carryFns.keys()))
+    // ⛔ s24: a call in a ternary arm reads the chart every bar. A function called BOTH in a block and in
+    // an arm would need two readings of one body; that mix is not captured, so it is refused by name.
+    const arm = at && CARRY_VERSIONS.has(version) ? callsInConditionalArms(stmts, new Set(carryFns.keys())) : null
+    if (arm) {
+      return fail(new RuntimeRefusal(FN_HISTORY_IN_BLOCK, `\`${arm.value}\` is called in a block AND in a conditional arm at //@version=${version}; the arm reads the chart every bar, the block a copy`, locate(arm)), diagnostics)
+    }
+    if (at && CARRY_VERSIONS.has(version)) stmts = legacyCarryStatements(stmts, version)
+    else if (at) {
+      return fail(new RuntimeRefusal(FN_HISTORY_IN_BLOCK, `\`${at.value}\` at //@version=${version === null ? 1 : version}`, locate(at)), diagnostics)
+    }
+  }
   /** ⭐⭐ W6-T10 — EVERY TOP-LEVEL `enum E` (`collectEnums`), read before the walk so an
    *  `E.member` above its declaration still binds. The statements it read are marked
    *  (`enumDecl`) so the statement walk can tell them from a nested or repeated `enum`.
@@ -2437,6 +2459,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     return null
   }
+  // ⭐ LEGACY SEMANTICS (B2) — a pragma-less source that declares itself Pine v1 (`pine.js::pineV1Declared`)
+  const pineV1 = !!(lexed && lexed.v1Declared === true)
   /** ⭐⭐ P3 WS-B — THE OPTIONS EVERY PURE COLUMN OF THIS RUN IS EVALUATED WITH.
    *  The caller's `interpretOpts`, plus Pine's `na`-condition rule when the caller
    *  states the run starts at the listing (`opts.historyFromListing`, the fact
@@ -2495,6 +2519,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     ? {
       pineVersion,
       pineScript: true,
+      pineV1,
       declWords,
       strict: true,
       basePeriod: basePeriodOf(opts),
@@ -2502,7 +2527,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         || !!(opts.interpretOpts && opts.interpretOpts.newestBarIsForming === true),
       ...objectDoorOpts,
     }
-    : { pineVersion, pineScript: true, declWords, ...objectDoorOpts }
+    : { pineVersion, pineScript: true, pineV1, declWords, ...objectDoorOpts }
   const makeResolver = () => {
     const r = new Resolver(env, TABLE, new Map(), resolverOpts)
     if (inputs && typeof inputs === 'object') r.inputValues = inputs

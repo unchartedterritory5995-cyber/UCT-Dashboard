@@ -682,7 +682,10 @@ const W6T5_MEMBERS = {
       // ⛔ W6-T5 r1 (review B1) — the entry gives no even-count rule (the mean of the two
       // middle values, or one of them?): an even count stops by name (W6-A1).
       if (n % 2 === 0) throw unpinned(`array.median over an even count (${n}): the reference does not say which middle it takes`)
-      provablyFloat(xs, 'array.median')
+      // ⭐⭐ B7 (s20, 2026-11-15) — AN ODD COUNT'S MEDIAN IS ONE OF THE ARRAY'S OWN ELEMENTS, so an
+      // `array<int>` gives back that int and no fraction is ever turned into one: `provablyFloat` asks a
+      // question this answer cannot raise. ⚰️ It stopped the signal-follow-through-ledger run on SPY at
+      // its last bar (`array.median(btpArr)` over 161 whole bar counts), where TradingView prints "15".
       return xs[(n - 1) / 2]
     },
   },
