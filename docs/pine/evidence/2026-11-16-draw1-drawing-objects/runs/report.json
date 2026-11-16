@@ -2,17 +2,17 @@
  "populations": {
   "capture": {
    "scripts": 749,
-   "admitted": 402,
+   "admitted": 384,
    "runtimeLane": 51,
-   "hostLane": 238,
+   "hostLane": 220,
    "refused": 113,
    "coreOnly": 35
   },
   "committed": {
    "scripts": 266,
-   "admitted": 105,
+   "admitted": 101,
    "runtimeLane": 22,
-   "hostLane": 49,
+   "hostLane": 45,
    "refused": 34,
    "coreOnly": 4
   },
@@ -392,74 +392,6 @@
    "production": "MATCH",
    "caps": [
     "core"
-   ]
-  },
-  {
-   "capture": "contraction-box-doji-lines-rddt-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:box",
-    "obj:line",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "contraction-box-doji-lines-rddt-1d-2026-11-15",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:box",
-    "obj:line",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "contraction-box-doji-lines-spy-1d-2026-10-03",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:box",
-    "obj:line",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "contraction-box-doji-lines-spy-1d-2026-11-15",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:box",
-    "obj:line",
-    "reassign",
-    "ternary",
-    "var"
    ]
   },
   {
@@ -908,36 +840,6 @@
    ]
   },
   {
-   "capture": "heat-map-seasons-rddt-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "obj:table",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "heat-map-seasons-spy-1d-2026-10-03",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "obj:table",
-    "ternary"
-   ]
-  },
-  {
    "capture": "heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor-rddt-1d-2026-11-14",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
@@ -956,60 +858,6 @@
     "switch",
     "ternary",
     "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "capture": "htf-candle-footprint-cartel-console-rddt-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "collections:array",
-    "core",
-    "for",
-    "for-in",
-    "generics",
-    "if-block",
-    "max_bars_back",
-    "method-call",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "udt",
-    "var"
-   ]
-  },
-  {
-   "capture": "htf-candle-footprint-cartel-console-spy-1d-2026-10-03",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "collections:array",
-    "core",
-    "for",
-    "for-in",
-    "generics",
-    "if-block",
-    "max_bars_back",
-    "method-call",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "udt",
     "var"
    ]
   },
@@ -2722,86 +2570,6 @@
    "caps": [
     "core",
     "ternary"
-   ]
-  },
-  {
-   "capture": "sonarlab-order-blocks-aapl-1d-2026-10-02",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "for",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "sonarlab-order-blocks-brk-a-1d-2026-10-02",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "for",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "sonarlab-order-blocks-rddt-1d-2026-10-02",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "for",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "sonarlab-order-blocks-spy-1d-2026-10-02",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "for",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "reassign",
-    "ternary",
-    "var"
    ]
   },
   {
@@ -4656,100 +4424,6 @@
    "caps": [
     "core",
     "ternary"
-   ]
-  },
-  {
-   "capture": "vw-object-gc-a-spy-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:box",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-object-gc-a-spy-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:box",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-object-gc-b-spy-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:box",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-object-gc-b-spy-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:box",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-object-gc-c-spy-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:box",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "vw-object-gc-c-spy-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:box",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "ternary",
-    "var"
    ]
   },
   {
@@ -9536,144 +9210,6 @@
    ]
   },
   {
-   "capture": "contraction-box-doji-lines-spy-1d-2026-10-03",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:box",
-    "obj:line",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "contraction-box-doji-lines-spy-1d-2026-11-15",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:box",
-    "obj:line",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "heat-map-seasons-rddt-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "obj:table",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "heat-map-seasons-spy-1d-2026-10-03",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "obj:table",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "htf-candle-footprint-cartel-console-rddt-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "collections:array",
-    "core",
-    "for",
-    "for-in",
-    "generics",
-    "if-block",
-    "max_bars_back",
-    "method-call",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "udt",
-    "var"
-   ]
-  },
-  {
-   "capture": "htf-candle-footprint-cartel-console-spy-1d-2026-10-03",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "collections:array",
-    "core",
-    "for",
-    "for-in",
-    "generics",
-    "if-block",
-    "max_bars_back",
-    "method-call",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "udt",
-    "var"
-   ]
-  },
-  {
-   "capture": "sonarlab-order-blocks-aapl-1d-2026-10-02",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "for",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
    "capture": "vw-cs1-rci-p1-rddt-1d-2026-11-14",
    "lane": "host",
    "runtimeOn": "DIVERGE",
@@ -9703,100 +9239,6 @@
     "if-block",
     "obj:label",
     "realtime-state"
-   ]
-  },
-  {
-   "capture": "vw-object-gc-a-spy-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:box",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-object-gc-a-spy-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:box",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-object-gc-b-spy-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:box",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-object-gc-b-spy-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:box",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-object-gc-c-spy-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:box",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "vw-object-gc-c-spy-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:box",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "ternary",
-    "var"
    ]
   },
   {

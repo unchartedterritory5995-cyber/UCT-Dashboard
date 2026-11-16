@@ -185,6 +185,8 @@ host-drawn DIVERGE (contraction-box spy x2, heat-map-seasons x2, htf-candle-foot
 aapl, vw-object-gc-a/b/c): those are the host lane's production pictures, DIVERGE in both committed snapshots
 before this unit, and admission does not change what the host lane draws.
 
+**Kill entries (coordinator ruling, before the engine-65 train).** With admission on in production, that reach goes to every permitted member, so every newly admitted source with a committed capture grading DIVERGE on either lane is on the committed kill list (`api/data/pine_runtime_killlist.json`) until its own `liftWhen`: contraction-box-doji-lines (lines held 204 vs 205), heat-map-seasons (table cells 30 vs 31), htf-candle-footprint-cartel-console (a box top), sonarlab-order-blocks (AAPL off-listing boxes withheld where TradingView draws 17), and the probes vw-object-gc-a/b/c (a weekly plot). 7 of the 77 newly admitted sources (22 of the 132 rows); 110 rows stay admitted. Rail: `test_DRAW1_every_newly_admitted_object_script_with_a_DIVERGE_capture_is_killed` (derived from both lanes' verdicts; control: without the DRAW-1 entries the scan names exactly those 7 sources). The REACH report was regenerated with the kills (`input` + `report`, reusing hold 3's door rows): stops unchanged, `matchToDiverge` empty, and no newly admitted capture is host-drawn DIVERGE any more.
+
 ## 6. Harness verdict moves
 
 Local, hold 3, both lanes, over 23 selected captures (the obj:box and obj:table evidence, inside-bar-boxes,

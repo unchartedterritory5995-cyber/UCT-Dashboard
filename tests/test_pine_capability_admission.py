@@ -816,6 +816,50 @@ def test_RT1_the_trend_targets_kill_is_lifted_on_its_own_condition():
     assert not pc.capabilities_of(src) <= set(rt.admitted_capabilities()["admitted"])
 
 
+#: ⭐ DRAW-1 (2026-11-16, coordinator ruling): admitting obj:box and obj:table makes scripts servable on
+#: capability evidence alone. Every script that uses either family, is admitted, and has a committed
+#: capture grading DIVERGE on EITHER lane is on the committed kill list until its own `liftWhen`.
+DRAW1_NEW_OBJECT_FAMILIES = {"obj:box", "obj:table"}
+DRAW1_KILLED_SLUGS = {"contraction-box-doji-lines", "heat-map-seasons", "htf-candle-footprint-cartel-console",
+                      "sonarlab-order-blocks", "vw-object-gc-a", "vw-object-gc-b", "vw-object-gc-c"}
+
+
+def _draw1_unkilled_diverging(kills: dict) -> list:
+    """Sources using obj:box / obj:table, admitted on capabilities, with a committed capture grading DIVERGE on
+    either lane, whose sha256 is not in `kills`."""
+    admitted = set(rt.admitted_capabilities()["admitted"])
+    lanes = [json.loads(VERDICTS_RT.read_text(encoding="utf-8"))["results"],
+             json.loads((ROOT / "docs" / "pine" / "vendor-harness" / "production" / "verdicts.json")
+                        .read_text(encoding="utf-8"))["results"]]
+    out = set()
+    for results in lanes:
+        for r in results:
+            if r.get("verdict") != "DIVERGE":
+                continue
+            at = licence_held.fixture_path(r["file"])
+            try:
+                text = (json.loads((at or ROOT / r["file"]).read_text(encoding="utf-8")).get("source") or {}).get("text")
+            except (OSError, ValueError):
+                continue
+            if not isinstance(text, str):
+                continue
+            caps = pc.capabilities_of(text)
+            if caps & DRAW1_NEW_OBJECT_FAMILIES and caps <= admitted and rt.source_hash(text) not in kills:
+                out.add((r["id"], rt.source_hash(text)))
+    return sorted(out)
+
+
+def test_DRAW1_every_newly_admitted_object_script_with_a_DIVERGE_capture_is_killed():
+    kills = rt.committed_kills()
+    assert _draw1_unkilled_diverging(kills) == []
+    doc = json.loads(KILL_DOC.read_text(encoding="utf-8"))
+    assert {s["slug"] for s in doc["scripts"]} >= DRAW1_KILLED_SLUGS
+    # CONTROL: without the DRAW-1 entries the same scan names every one of their sources
+    draw1 = {s["sha256"] for s in doc["scripts"] if s["slug"] in DRAW1_KILLED_SLUGS}
+    named = {sha for _cid, sha in _draw1_unkilled_diverging({k: v for k, v in kills.items() if k not in draw1})}
+    assert named == draw1, (named, draw1)
+
+
 def test_RT1_a_broken_committed_file_kills_nothing_extra(tmp_path, monkeypatch):
     for content in ("{ not json", "[]", '{"scripts": [{"sha256": "zz"}]}'):
         f = tmp_path / "kill.json"
