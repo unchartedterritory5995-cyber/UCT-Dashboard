@@ -92,3 +92,11 @@ def test_P4_the_rail_can_see_a_wrong_alert_and_a_refused_value_answers_nothing()
     assert _alert_column({key: 500}) is None
     special, why = pi.specialize(FIX["stored"], {key: 500})
     assert special is None and "must be at most" in why
+
+
+def test_P5_an_alert_label_names_the_length_its_chart_set():
+    definition = FIX["stored"]
+    key = FIX["specs"][0]["key"]
+    a = aus._instance_label(definition, "u_param2a", {key: 30})
+    b = aus._instance_label(definition, "u_param2a", {})
+    assert a != b and "30" in a and "14" in b

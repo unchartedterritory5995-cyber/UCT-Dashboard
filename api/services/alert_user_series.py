@@ -385,7 +385,13 @@ def _inputs_for(definition: Mapping[str, Any], params: Optional[Mapping]) -> dic
     # a bool) -> the DEFAULT's index; a default not among the options -> index 0
     # (Pine refuses such a script, so the door never mints one).
     enum_options: dict[str, list] = {}
-    for spec in (definition.get("inputs") or []):
+    # ⭐ SETTINGS PARITY (2a) - a folded Pine parameter is a setting too (`param<N>`,
+    # `api/services/param_inputs.py`): declared here exactly as the chart declares it on load, so
+    # an alert's label names the length its chart set ("My Script(80, 30)"), and two alerts one
+    # setting apart never read alike. Its value reaches the tree as the specialised literal
+    # (`tree_for`); the evaluation scope also carries it, unread.
+    from api.services import param_inputs as _param_inputs
+    for spec in [*(definition.get("inputs") or []), *_param_inputs.param_input_specs(definition)]:
         if not isinstance(spec, dict):
             continue
         key, default = spec.get("key"), spec.get("default")

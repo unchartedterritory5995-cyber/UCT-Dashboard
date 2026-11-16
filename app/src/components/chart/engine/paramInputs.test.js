@@ -153,3 +153,26 @@ describe('the parity fixture both lanes read', () => {
     expect(JSON.parse(JSON.stringify(doc))).toEqual(committed)
   })
 })
+
+describe('speed: a settings change recomputes one pane, well inside a second on 5,000 bars', () => {
+  it('change -> new columns on 5,000 bars, warm (the engine has computed this pane once)', () => {
+    const def = migrateMemberDocument(minted())
+    const key = paramInputSpecs(def)[0].key
+    const bars = Array.from({ length: 5000 }, (_, i) => {
+      const c = 100 + 10 * Math.sin(i / 9) + i * 0.01
+      return { t: 1_000_000_000 + i * 86_400, o: c - 0.4, h: c + 1, l: c - 1, c, v: 1000 + i }
+    })
+    registry.computeFor(def, bars, {}, { tf: 'D' })                     // warm: the pane as first drawn
+    const times = []
+    for (const v of [20, 30, 40, 50, 60]) {
+      const t0 = performance.now()
+      const out = registry.computeFor(def, bars, { [key]: v }, { tf: 'D' })
+      times.push(performance.now() - t0)
+      expect(out[plotKeys(def)[1]].length).toBe(5000)
+    }
+    const worst = Math.max(...times)
+    // eslint-disable-next-line no-console
+    console.log(`[2a speed] change -> columns, 5,000 bars, warm: ${times.map((t) => t.toFixed(1)).join(' / ')} ms (worst ${worst.toFixed(1)})`)
+    expect(worst).toBeLessThan(1000)
+  })
+})
