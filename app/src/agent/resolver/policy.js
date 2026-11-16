@@ -35,8 +35,10 @@ export const REASONS = Object.freeze([...CODES, ...SOURCES])
 /** The evidence classes a row exercises (§8). */
 export const EVIDENCE = Object.freeze(['named', 'ordinal-position', 'pointer', 'subject', 'none', 'sole', 'plural', 'previous-chart', 'previous-thing',
   'appositive-after', 'appositive-before', 'container-thing', 'container-chart', 'container-on-chart', 'continuation', 'negated', 'relation',
-  'duplicate', 'offered', 'offered-stale', 'indicator-named', 'drawing-named', 'list-named', 'cross-type', 'filler', 'plan-only'])
-export const WORLDS = Object.freeze(['B3', 'B1', 'BDUP', 'ST'])
+  'duplicate', 'offered', 'offered-stale', 'indicator-named', 'drawing-named', 'list-named', 'cross-type', 'filler', 'plan-only', 'description'])
+export const WORLDS = Object.freeze(['B3', 'B1', 'BDUP', 'ST', 'B3R', 'B3E', 'B4'])
+//   (AUDIT rows) 'B3R' B3 with an RSI on SPY (c1) and IWM (c3) · 'B3E' B3 with c3 EMPTY (no symbol) · 'B4' SPY · QQQ · NVDA · AMD
+//   a plan with several targets joins them with '+' (e.g. 'chart:c1+chart:c2+chart:c3')
 export const INVARIANTS = Object.freeze(['I1', 'I2', 'I3', 'I4', 'I5', 'I6', 'I7', 'I8', 'I9', 'I10'])
 
 // ── the generator (deterministic: fixed vocabularies, fixed order; ids are group + running number) ──
@@ -279,6 +281,23 @@ for (const w of ['do it', 'clean things up a bit', 'go ahead']) {
   add('plan', w, {}, 'chart:c2', 'refuse', 'plan-outside-words', 'plan-only', 'chartRail REMOVAL gate (plan never licenses)', { inv: ['I1'] })
 }
 
+// G24 · AUDIT's rows, VERBATIM (ids, words, contexts, plans and expectations are AUDIT's; source 'audit'; never altered)
+const audit = (id, words, context, plan, expect, reason, evidence, inv) => rows.push({ id, family: FAMILY, words, context: ctx(context), plan, expect, reason, evidence, source: 'audit', inv })
+audit('A1a', 'close this IWM chart', { selection: 'c2' }, 'chart:c2', 'ask', 'pointer-vs-words', 'pointer', ['I4'])
+audit('A1b', 'close this IWM chart', { selection: 'c2' }, 'chart:c3', 'ask', 'pointer-vs-words', 'pointer', ['I4'])
+audit('A2a', 'close the QQQ one, not this', { selection: 'c3' }, 'chart:c3', 'refuse', 'negated-target', 'negated', ['I5'])
+audit('A2b', 'close the QQQ one, not this', { selection: 'c3' }, 'chart:c2', 'resolved:chart:c2', 'named', 'negated', ['I1', 'I5'])
+audit('A3', 'clear my alerts on SPY', {}, 'chart:c1', 'refuse', 'type-mismatch', 'cross-type', ['I3'])
+audit('A4', 'remove the SPY annotation', {}, 'chart:c1', 'refuse', 'type-mismatch', 'cross-type', ['I3'])
+audit('A5', 'close every chart but this one', { selection: 'c2' }, 'chart:c1+chart:c2+chart:c3', 'refuse', 'negated-target', 'negated', ['I5'])
+audit('A6', 'remove the RSI and close the chart', { world: 'B3R', selection: 'c1' }, 'ind:c3:rsi+chart:c1', 'refuse', 'plan-outside-words', 'indicator-named', ['I1', 'I2'])
+audit('A7', 'remove this RSI', { world: 'B3R', selection: 'c1' }, 'ind:c3:rsi', 'refuse', 'plan-outside-words', 'pointer', ['I1'])
+audit('A8', 'drop it from my Tech list', { world: 'ST', previous: 'item:wl1:NVDA' }, 'chart:c2', 'refuse', 'type-mismatch', 'container-thing', ['I3'])
+audit('A9', 'close the empty chart', { world: 'B3E' }, 'chart:c1', 'refuse', 'description-mismatch', 'description', ['I1'])
+audit('A10', 'close the last chart I opened', { previous: 'chart:c2' }, 'chart:c3', 'refuse', 'plan-outside-words', 'previous-chart', ['I1'])
+audit('A11', 'close chart 2', {}, 'chart:c3', 'refuse', 'plan-outside-words', 'ordinal-position', ['I1'])
+audit('A12', 'close both index charts', { world: 'B4' }, 'chart:c1+chart:c3', 'refuse', 'plan-outside-words', 'description', ['I1', 'I2'])
+
 // ── per-row flags from the agreement run against master d4dd1cf16d (filled in BELOW the table, never by changing an expectation) ──
 // masterGap: master APPLIES a wrong target / misreads a type — the expectation stays the policy's
 // overAsk:  master blocks where the policy resolves — expected = master's block for now, `policy` = the policy's resolution
@@ -286,7 +305,7 @@ for (const w of ['do it', 'clean things up a bit', 'go ahead']) {
 const OFFER_OVERASK = 'master: the removal pronoun ask (resolvePronoun 2+) fires before any pick is read — an answer to the Agent’s own question never resolves "it"; and the removal ask offers no choices at all (railAskRef is set only for re-symbols), so the rail-pick path is emulated'
 const over = (policy, why, reason = 'ambiguous-n', expect = 'ask') => ({ overAsk: true, expect, reason, policy, why })
 const FLAGS = {
-  'rm-appB-011': { adds: true, why: 'I1/I3: "it" is the RSI this turn adds (not yet on the chart); the plan destroys the PRE-EXISTING RSI on c1. Master licenses it (stateRail permits prevInd: "an RSI" names the unique RSI on c1) — the same reading AUDIT #1247 accepted for "add a 20 EMA, then remove it" removing the existing EMA 20. AUDIT to rule: policy says refuse.' },
+  'rm-appB-011': { masterGap: true, why: 'I1/I3: "add an X, then delete it" = the X THIS turn creates; a plan removing the PRE-EXISTING RSI on c1 is refused. Master licenses it (stateRail permits prevInd: "an RSI" names the unique RSI on c1). Supersedes AUDIT\'s earlier #1247 allowance (11-16 ruling).' },
   'rm-neg-007': { masterGap: true, why: 'I5: "don’t close SPY" — NEGATOR before a removal verb is not a KEPT lead (KEEP_LEAD has don’t touch/change/remove, not close), and identifiesChart reads SPY as named → master CLOSES SPY (wrong target applied).' },
   'rm-neg-010': over('resolved:chart:c3', 'master misreads KEPT: the KEEP_LEAD phrase "the left chart, remove the right one" runs to the end (KEEP_END needs but/then/and-verb), so "right" is read as kept → refuses the right chart the member asked to remove.', 'negated-target', 'refuse'),
   'rm-rel-001': over('resolved:chart:c3', 'master: the removal path does not read RELATIVE ("to the right of this one"); SPECIFIC_CHART "the chart" fits 2 → ask.'),
@@ -302,9 +321,17 @@ const FLAGS = {
   'rm-list-005': { masterGap: true, why: 'I1: the words name AMD; the plan removes NVDA from Tech and is applied (namesObject: "the Tech list" names the list; the row symbol is not checked).' },
   'rm-xtype-002': { masterGap: true, why: 'I3: "remove the RSI from the SPY chart" — a plan CLOSING the SPY chart is applied (REMOVAL gate passes on "remove", identifiesChart names SPY; the thing noun before FROM_CHART types nothing without a pronoun).' },
   'rm-xtype-003': { masterGap: true, why: 'I3: "delete the trendline" — a plan closing chart c1 is applied (REMOVAL gate passes on "delete"; words name no chart → "as before", no type check without a pronoun).' },
+  // AUDIT rows (expectations AUDIT's, never altered)
+  A1b: { masterGap: true, why: 'I4: "this" points at the clicked QQQ, the words say IWM — a bare conflict asks; master closes IWM (identifiesChart names IWM; the deixis "this" is not weighed against it).' },
+  A10: { masterGap: true, why: 'I1: "the last chart I opened" is the previous chart c2; master applies a plan closing c3 (the back-reference reads no "opened"; SPECIFIC_CHART is not reached because "last" names the 3rd chart by ordinal).' },
+  A12: { masterGap: true, why: 'I1/I2: "both index charts" — SPY and QQQ are the index charts; master applies closing SPY + NVDA (no description read: "both … charts" is a set removal and passes untargeted).' },
+  A2b: { overAsk: true, policy: 'resolved:chart:c2', why: 'AUDIT expects QQQ closed; master refuses: "the QQQ one" is not read as a chart name in the removal path ("QQQ alone doesn’t say to close a chart" — the bare-ticker guard), so the expectation stays AUDIT’s and the row is listed as a known over-block.' },
   'rm-xtype-004': { masterGap: true, why: 'I3: "delete my Swing watchlist" — a plan closing chart c2 is applied (same: no chart named, no type check without a pronoun).' },
 }
 for (const r of rows) if (FLAGS[r.id]) Object.assign(r, FLAGS[r.id])
+// (AUDIT 11-16) the offer rows run on an EMULATION: reported apart, never counted as resolver wins
+export const EMULATED_NOTE = 'master’s removal ask offers no choices; offers emulated as a clicked choice'
+for (const r of rows) if (r.id.startsWith('rm-offer-')) Object.assign(r, { emulated: true, emulatedNote: EMULATED_NOTE })
 
 export const POLICY = Object.freeze(rows.map(r => Object.freeze({ ...r, context: Object.freeze({ ...r.context, offers: r.context.offers ? Object.freeze({ ...r.context.offers, refs: Object.freeze([...r.context.offers.refs]) }) : null }), ...(r.inv ? { inv: Object.freeze([...r.inv]) } : {}) })))
 export default POLICY

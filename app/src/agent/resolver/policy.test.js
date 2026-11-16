@@ -11,7 +11,7 @@
 import { describe, it, expect, afterAll } from 'vitest'
 import { registerBuiltins } from '../builtins'
 import { makeBoard } from '../__fixtures__/board'
-import { stateFixture } from '../__fixtures__/stateBoard'
+import { stateFixture, settingsWithRsi } from '../__fixtures__/stateBoard'
 import { mergeChartSettings } from '../../components/chart/chartDefaults'
 import { planOps, collectTargets, prepareOps } from '../executor'
 import { buildContext, getTargetKind } from '../capabilities'
@@ -24,9 +24,9 @@ registerBuiltins()
 
 // ── 1 · SHAPE ──
 describe(`ORACLE SHAPE · removal policy table (${POLICY.length} rows)`, () => {
-  it('has 150–300 rows, every id unique', () => {
+  it('has 150–320 rows, every id unique', () => {
     expect(POLICY.length).toBeGreaterThanOrEqual(150)
-    expect(POLICY.length).toBeLessThanOrEqual(300)
+    expect(POLICY.length).toBeLessThanOrEqual(320)
     expect(new Set(POLICY.map(r => r.id)).size).toBe(POLICY.length)
   })
   it.each(POLICY.map(r => [r.id, r]))('%s · fields, reason set, flags', (_id, r) => {
@@ -36,13 +36,15 @@ describe(`ORACLE SHAPE · removal policy table (${POLICY.length} rows)`, () => {
     expect(WORLDS).toContain(r.context.world)
     expect(EVIDENCE).toContain(r.evidence)
     expect(REASONS).toContain(r.reason)
-    expect(r.plan).toMatch(/^(?:chart:c[1-3]|ind:c[12]:(?:rsi|ema20)|draw:dr-[a-z]|list:wl[12]|item:wl[12]:[A-Z]+)$/)
+    for (const part of r.plan.split('+')) expect(part).toMatch(/^(?:chart:c[1-4]|ind:c[1-3]:(?:rsi|ema20)|draw:dr-[a-z]|list:wl[12]|item:wl[12]:[A-Z]+)$/)
+    if (r.emulated) expect(r.emulatedNote).toMatch(/emulated/)
     expect(r.expect).toMatch(/^(?:resolved:.+|ask|refuse)$/)
     // a resolved row licenses EXACTLY the plan's target, by a source; a blocked row carries a code
     if (r.expect.startsWith('resolved:')) { expect(r.expect).toBe(`resolved:${r.plan}`); expect(SOURCES).toContain(r.reason) } else expect(CODES).toContain(r.reason)
     for (const i of r.inv || []) expect(INVARIANTS).toContain(i)
     if (r.adds || r.masterGap) { expect(r.expect, 'a gap / add row blocks').not.toMatch(/^resolved:/); expect(typeof r.why, 'justified').toBe('string') }
-    if (r.overAsk) { expect(r.expect, 'overAsk keeps master’s block').not.toMatch(/^resolved:/); expect(r.policy).toMatch(/^resolved:/); expect(typeof r.why).toBe('string') }
+    // (an AUDIT row keeps AUDIT's expectation even where master over-blocks: listed apart, never altered)
+    if (r.overAsk) { if (r.source !== 'audit') expect(r.expect, 'overAsk keeps master’s block').not.toMatch(/^resolved:/); expect(r.policy).toMatch(/^resolved:/); expect(typeof r.why).toBe('string') }
     if (r.context.offers) expect(r.context.offers.refs.length).toBeGreaterThan(0)
   })
   it('no duplicate words + context + plan', () => {
@@ -57,16 +59,23 @@ describe(`ORACLE SHAPE · removal policy table (${POLICY.length} rows)`, () => {
 })
 
 // ── 2 · AGREEMENT with the rails on master ──
-const SYMS = { B3: ['SPY', 'QQQ', 'IWM'], B1: ['SPY'], BDUP: ['SPY', 'SPY', 'IWM'] }
-function boardOf(syms, selected) {
-  const widgets = syms.map((_, i) => ({ id: `c${i + 1}`, type: 'chart', x: i * 8, y: 0, w: 8, h: 20, color: 'N', opts: { settings: mergeChartSettings(null) } }))
+const SYMS = { B3: ['SPY', 'QQQ', 'IWM'], B1: ['SPY'], BDUP: ['SPY', 'SPY', 'IWM'], B3R: ['SPY', 'QQQ', 'IWM'], B3E: ['SPY', 'QQQ', 'IWM'], B4: ['SPY', 'QQQ', 'NVDA', 'AMD'] }
+function boardOf(syms, selected, { rsiOn = [], empty = [] } = {}) {
+  const cw = syms.length > 3 ? 6 : 8
+  const widgets = syms.map((_, i) => ({ id: `c${i + 1}`, type: 'chart', x: i * cw, y: 0, w: cw, h: 20, color: 'N', opts: { settings: rsiOn.includes(`c${i + 1}`) ? settingsWithRsi() : mergeChartSettings(null) } }))
   const g = {}
   syms.forEach((s, i) => { g[`N:c${i + 1}`] = s })
   const b = makeBoard(widgets, g)
-  b.host = { ...b.host, charts: { ...b.host.charts, selected: () => selected } }
+  const base = b.host.charts
+  // (an EMPTY chart: no symbol — the fixture otherwise defaults one)
+  const blank = (x) => (x && empty.includes(x.ref) ? { ...x, symbol: '' } : x)
+  b.host = { ...b.host, charts: { ...base, read: (r) => blank(base.read(r)), list: () => base.list().map(blank), selected: () => selected,
+    canManageIndicators: () => true, canCreateIndicator: () => true, previewHost: () => null } }
   return b.host
 }
 function worldOf(ctx) {
+  if (ctx.world === 'B3R') return boardOf(SYMS.B3R, ctx.selection, { rsiOn: ['c1', 'c3'] })
+  if (ctx.world === 'B3E') return boardOf(SYMS.B3E, ctx.selection, { empty: ['c3'] })
   if (ctx.world !== 'ST') return boardOf(SYMS[ctx.world], ctx.selection)
   const fx = stateFixture()
   fx.host.charts = { ...fx.host.charts, selected: () => ctx.selection }
@@ -74,7 +83,10 @@ function worldOf(ctx) {
 }
 const DRAW_SYM = { 'dr-n': 'NVDA' }
 const INSTANCE = { rsi: 'inst:rsi:1', ema20: 'ovl:1' }
-function opsOf(ref) {
+function opsOf(refs) {
+  return refs.split('+').flatMap(opOf)
+}
+function opOf(ref) {
   const [type, a, b] = ref.split(':')
   if (type === 'chart') return [{ action: 'widget.remove', target: 'board', args: { widget: a } }]
   if (type === 'ind') return [{ action: 'indicator.remove', target: `ixe:${a}`, args: { instance: INSTANCE[b] } }]
@@ -123,17 +135,21 @@ async function railOutcome(r) {
   return { verdict: `resolved:${r.plan}`, text: null, rail: null }
 }
 
-const tally = { agree: 0, agreeBlockedKindDiffers: 0, masterGapOpen: [], masterGapClosed: [], addsOpen: [], addsClosed: [], disagree: [], kindDiffers: [] }
+const tally = { auditOverOpen: [], auditOverClosed: [], emulated: [], agree: 0, agreeBlockedKindDiffers: 0, masterGapOpen: [], masterGapClosed: [], addsOpen: [], addsClosed: [], disagree: [], kindDiffers: [] }
 describe(`ORACLE AGREEMENT · each row against master's rails (chartRail → stateRail)`, () => {
   it.each(POLICY.map(r => [r.id, r.words, r]))('%s · "%s"', async (_id, _w, r) => {
     const got = await railOutcome(r)
     const blocked = (v) => !v.startsWith('resolved:')
     const rec = { id: r.id, words: r.words, ctx: r.context, plan: r.plan, expect: r.expect, rail: got.verdict, text: got.text }
+    // (AUDIT 11-16) emulated rows: reported apart, never counted as agreement or resolver wins
+    if (r.emulated) tally.emulated.push(rec)
+    if (r.overAsk && r.source === 'audit') { (blocked(got.verdict) ? tally.auditOverOpen : tally.auditOverClosed).push(rec); return }
     if (r.masterGap || r.adds) {
       const list = r.masterGap ? (blocked(got.verdict) ? tally.masterGapClosed : tally.masterGapOpen) : (blocked(got.verdict) ? tally.addsClosed : tally.addsOpen)
       list.push(rec)
       return
     }
+    if (r.emulated) { expect(blocked(got.verdict) && blocked(r.expect) ? 'blocked' : got.verdict).toBe(blocked(r.expect) ? 'blocked' : r.expect); return }
     if (got.verdict === r.expect) tally.agree++
     else if (blocked(got.verdict) && blocked(r.expect)) { tally.agree++; tally.agreeBlockedKindDiffers++; tally.kindDiffers.push(rec) }
     else tally.disagree.push(rec)
@@ -144,9 +160,9 @@ afterAll(() => {
   if (!process.env.POLICY_REPORT) return
   const line = (x) => `  ${x.id} · "${x.words}" · ${JSON.stringify(Object.fromEntries(Object.entries(x.ctx).filter(([, v]) => v)))} · plan ${x.plan} · expect ${x.expect} · rail ${x.rail}${x.text ? ` · ${String(x.text).slice(0, 110)}` : ''}`
   console.log([
-    `ORACLE AGREEMENT: rows ${POLICY.length} · agree ${tally.agree} (blocked, kind differs ${tally.agreeBlockedKindDiffers}) · disagree ${tally.disagree.length}`,
+    `ORACLE AGREEMENT: rows ${POLICY.length} · emulated (apart) ${tally.emulated.length} · agree ${tally.agree} (blocked, kind differs ${tally.agreeBlockedKindDiffers}) · disagree ${tally.disagree.length}`,
     `masterGap open ${tally.masterGapOpen.length} / closed ${tally.masterGapClosed.length} · adds open ${tally.addsOpen.length} / closed ${tally.addsClosed.length}`,
     'DISAGREE:', ...tally.disagree.map(line), 'MASTER GAPS (open):', ...tally.masterGapOpen.map(line), 'MASTER GAPS (closed):', ...tally.masterGapClosed.map(line),
-    'ADDS (open):', ...tally.addsOpen.map(line), 'KIND DIFFERS:', ...tally.kindDiffers.map(line),
+    'AUDIT OVER-BLOCK (open):', ...tally.auditOverOpen.map(line), 'AUDIT OVER-BLOCK (closed):', ...tally.auditOverClosed.map(line), 'EMULATED (offer rows, apart):', ...tally.emulated.map(line), 'ADDS (open):', ...tally.addsOpen.map(line), 'KIND DIFFERS:', ...tally.kindDiffers.map(line),
   ].join('\n'))
 })
