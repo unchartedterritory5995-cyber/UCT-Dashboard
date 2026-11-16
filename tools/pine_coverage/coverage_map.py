@@ -388,6 +388,9 @@ def walls_of(row, inv, version, items=frozenset(), decl="indicator"):
     detail = []
     steps = row.get("steps") or []
     step0_guards = {r.get("guard") for r in ((steps[0] if steps else {}).get("refusals") or [])}
+    # DRAW-1: an output-contract refusal on an ATTACHED step (`pine:constant-only` beside a drawn object
+    # program) is about the plots, not an object program that was lost (the relabel at the end).
+    contract_attached = False
     for si, st in enumerate(steps):
         if st.get("threw"):
             keys.add(("bucket", "translator-robustness"))
@@ -402,9 +405,20 @@ def walls_of(row, inv, version, items=frozenset(), decl="indicator"):
                             for g in step0_guards if g)):
             own_program = refused_program_walls(st, inv, items)
             keys |= own_program
+        # ⭐⭐ DRAW-1 (2026-11-16, instrument correction) - AN ATTACHED STEP'S `pine:objects-only` IS
+        # THE CONSEQUENCE OF ITS DROPPED OPS, NOT A WALL OF ITS OWN. The host lane refuses a DIRTY
+        # objects-only program by that name (a clean one is `ok`), and the door still attaches it,
+        # so the step's walls are the ops its object program names (`object_program_walls`). Counted
+        # as a wall it was the bucket `drawing-objects`, which the wall analysis read as "a loss with
+        # nothing named" for 29 sample scripts, 27 of which name every drop. Only when the program
+        # names nothing does the refusal stay the step's (drawing-objects) wall.
+        attached_named = bool(st.get("attached")) and object_program_walls(st, inv)[1]
         for r in st.get("refusals") or []:
             g = r.get("guard") or "unnamed"
             if own_program and g in OBJECT_PROGRAM_GUARDS:
+                detail.append((g, None))
+                continue
+            if attached_named and g in OBJECT_PROGRAM_GUARDS:
                 detail.append((g, None))
                 continue
             # ⛔ PEEL ARTIFACTS ARE NOT WALLS. After step 0 the program has been edited:
@@ -430,6 +444,8 @@ def walls_of(row, inv, version, items=frozenset(), decl="indicator"):
                 keys.add(("bucket", "user-functions"))
             else:
                 keys.add(("bucket", GUARD_BUCKET.get(g, "translator-robustness")))
+                if st.get("attached") and GUARD_BUCKET.get(g) == "output-contract":
+                    contract_attached = True
             detail.append((g, tok))
         if st.get("attached"):
             if st.get("installed") is False:
@@ -452,7 +468,7 @@ def walls_of(row, inv, version, items=frozenset(), decl="indicator"):
         if decl == "strategy":
             keys.discard(("bucket", "output-contract"))
             keys.add(("bucket", "strategy"))
-        elif items & DRAWING_CTORS:
+        elif items & DRAWING_CTORS and not contract_attached:
             keys.discard(("bucket", "output-contract"))
             keys.add(("bucket", "drawing-objects"))
     return keys, detail
