@@ -1473,7 +1473,114 @@ export function finiteWindowCount(series, n) {
   return out
 }
 
+// The partials of `exactSumShewchuk`, reused (grown on demand) so a window allocates nothing.
+let exactPartials = new Float64Array(64)
+/** Shewchuk's non-overlapping partials with `math.fsum`'s final half-even rounding: the exactly
+ *  rounded sum, whatever the data. The fallback of `exactSum`. */
+function exactSumShewchuk(series, lo, hi) {
+  let P = exactPartials
+  let np = 0
+  for (let k = lo; k <= hi; k += 1) {
+    let x = series[k]
+    let i = 0
+    for (let j = 0; j < np; j += 1) {
+      let y = P[j]
+      if ((x < 0 ? -x : x) < (y < 0 ? -y : y)) { const t = x; x = y; y = t }
+      const hiS = x + y
+      const loS = y - (hiS - x)
+      if (loS !== 0) P[i++] = loS
+      x = hiS
+    }
+    if (i >= P.length) { const q = new Float64Array(P.length * 2); q.set(P); P = q; exactPartials = q }
+    P[i] = x
+    np = i + 1
+  }
+  let n = np
+  if (n === 0) return 0
+  let hiS = P[--n]
+  let loS = 0
+  while (n > 0) {
+    const x = hiS
+    const y = P[--n]
+    hiS = x + y
+    loS = y - (hiS - x)
+    if (loS !== 0) break
+  }
+  if (n > 0 && ((loS < 0 && P[n - 1] < 0) || (loS > 0 && P[n - 1] > 0))) {
+    const y = loS * 2
+    const x = hiS + y
+    if (y === x - hiS) hiS = x
+  }
+  return hiS
+}
+const ULP_VIEW = new Float64Array(1)
+const ULP_BITS = new BigInt64Array(ULP_VIEW.buffer)
+/** The adjacent double on the side `dir` (+1 up, -1 down) of a finite non-zero `x`. */
+function adjacentDouble(x, dir) {
+  ULP_VIEW[0] = x
+  ULP_BITS[0] += (x > 0) === (dir > 0) ? 1n : -1n
+  return ULP_VIEW[0]
+}
+/** ⭐⭐ SMA-EXACT (NUMBER PENDING) — THE EXACTLY ROUNDED SUM of `series[lo..hi]`: the true sum of the
+ *  doubles rounded ONCE, identical to Python's `math.fsum` (the twin `ast_interpret._window_mean` /
+ *  `_window_sum` call it; 23,000 / 23,000 random windows, adversarial magnitudes included).
+ *
+ *  WITNESSED: TradingView's `ta.sma` and `math.sum` equal it on every bar of every capture taken from
+ *  2026-11-14 on (31 sma plots, 129,726 bars; 2 math.sum plots, 9,165 bars; `vw-cs2-sma-exact-tie-*`
+ *  T02 / T05 and `vw-pt-na-guard-and-spy` A02 among them), where the left-to-right sum this replaces
+ *  missed the last bit on 29,305 and 2,041 of them and made `ta.change(ta.sma(...)) > 0` true on a
+ *  flat window (E02, bars 488 and 3009). A compensated (Neumaier) sum ties with it on every capture;
+ *  the exactly rounded one is the reading that can be stated. ⛔ NOT `ta.wma`: its left-to-right
+ *  weighted sum matches TradingView on 238,222 / 238,222 bars and the exact one misses 48,723
+ *  (`windowWeightedMean`, unchanged). Table: docs/pine/evidence/2026-11-16-sma-exact-sum/EVIDENCE.md.
+ *
+ *  ⭐ PERFORMANCE WITHOUT GIVING UP EXACTNESS. A compensated sum `s + c` carries the exact error of
+ *  every addition (TwoSum); its only inexact step is summing those errors, off by at most
+ *  `(m - 1) u sum|e_k|`. Where that bound, plus what rounding `s + c` lost, stays strictly inside half
+ *  a gap around the rounded result, the result IS the exactly rounded sum; anywhere else (a tie, a
+ *  cancellation) Shewchuk's partials answer. sma(200) over 5,000 SPY bars: 0.5 ms left-to-right,
+ *  ~4 ms here, 13 ms Shewchuk alone; it fell back on 0.7% of real SPY windows.
+ *
+ *  A window holding an infinity, or one whose sum overflows, answers the left-to-right sum `s`, as
+ *  before (the Python twin falls back the same way: `math.fsum` raises on an overflow). */
+export function exactSum(series, lo, hi) {
+  let s = 0
+  let c = 0
+  let e = 0
+  for (let k = lo; k <= hi; k += 1) {
+    const x = series[k]
+    const t = s + x
+    const bp = t - s
+    const ek = (s - (t - bp)) + (x - bp)
+    c += ek
+    e += ek < 0 ? -ek : ek
+    s = t
+  }
+  const r = s + c
+  const bq = r - s
+  const lost = (s - (r - bq)) + (c - bq)
+  if (!Number.isFinite(r)) return s
+  const bound = 4 * (hi - lo + 3) * 2 ** -53 * e
+  if (Number.isFinite(bound) && r !== 0) {
+    const down = (r - adjacentDouble(r, -1)) / 2
+    const up = (adjacentDouble(r, 1) - r) / 2
+    const g = down < up ? down : up    // both are positive: the half gaps below and above `r`
+    if ((lost < 0 ? -lost : lost) + bound < g * (1 - 1e-9)) return r
+  }
+  return exactSumShewchuk(series, lo, hi)
+}
+
+/** `ta.sma`: the exactly rounded window sum over its length (`exactSum`). A NaN in the window
+ *  answers NaN, as the left-to-right sum did (`skip` windows never hand one in). */
 function windowMean(series, lo, hi) {
+  for (let i = lo; i <= hi; i++) if (Number.isNaN(series[i])) return NaN
+  return exactSum(series, lo, hi) / (hi - lo + 1)
+}
+
+/** The left-to-right mean `ta.dev` and `ta.stdev` centre on, UNCHANGED by SMA-EXACT: neither has a
+ *  capture that separates the two sums yet (`ta.stdev`'s one probe misses for both, its own formula
+ *  is the open question), so each keeps the number it drew. */
+function windowMeanNaive(series, lo, hi) {
   let sum = 0
   for (let i = lo; i <= hi; i++) sum += series[i]
   return sum / (hi - lo + 1)
@@ -1616,10 +1723,11 @@ function pivotCol(series, left, right, beats) {
   return out
 }
 
+/** `math.sum` (and v4 `sum`): the exactly rounded window sum (`exactSum`; witnessed by
+ *  `vw-cs2-sma-exact-tie-{rddt,spy}` T05, 0 misses on 9,165 bars, left-to-right 2,041). */
 function windowSum(series, lo, hi) {
-  let total = 0
-  for (let i = lo; i <= hi; i++) total += series[i]
-  return total
+  for (let i = lo; i <= hi; i++) if (Number.isNaN(series[i])) return NaN
+  return exactSum(series, lo, hi)
 }
 
 // --------------------------------------------------------------------------- //
@@ -1779,7 +1887,7 @@ function barsAgo(src, back, limit) {
  *  plausible CCI that is wrong on every bar, which is precisely the look-alike
  *  failure the PCF refusal table exists to prevent. */
 function windowMeanAbsDev(series, lo, hi) {
-  const avg = windowMean(series, lo, hi)
+  const avg = windowMeanNaive(series, lo, hi)
   let total = 0
   for (let i = lo; i <= hi; i++) total += Math.abs(series[i] - avg)
   return total / (hi - lo + 1)
@@ -1800,7 +1908,7 @@ function windowMeanAbsDev(series, lo, hi) {
  *  user's `sma(close,20) + 2*stdev(close,20)` draws the same band the native
  *  Bollinger definition draws. The Python lane must use the same divisor. */
 function windowStdev(series, lo, hi) {
-  const avg = windowMean(series, lo, hi)
+  const avg = windowMeanNaive(series, lo, hi)
   let sq = 0
   for (let i = lo; i <= hi; i++) sq += (series[i] - avg) ** 2
   return Math.sqrt(sq / (hi - lo + 1))

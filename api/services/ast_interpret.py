@@ -913,7 +913,34 @@ def _window_fn(name: str, reduce: Callable[[Sequence[float], int, int], float],
     return fn
 
 
+def _exact_sum(series: Sequence[float], lo: int, hi: int) -> float:
+    """The exactly rounded window sum (``math.fsum``), twin of ``interpret.js::exactSum``. A NaN in the
+    window answers NaN; a window holding an infinity, or one whose sum overflows (``math.fsum`` raises),
+    answers the left-to-right sum, as the JS twin does."""
+    window = series[lo:hi + 1]
+    if any(v != v for v in window):
+        return float("nan")
+    try:
+        total = math.fsum(window)
+    except (OverflowError, ValueError):  # an overflow, or inf + -inf
+        total = None
+    if total is None or math.isinf(total) or any(math.isinf(v) for v in window):
+        total = 0.0
+        for v in window:
+            total += v
+    return total
+
+
 def _window_mean(series: Sequence[float], lo: int, hi: int) -> float:
+    """``ta.sma``: the EXACTLY ROUNDED window sum over its length (``math.fsum``), the twin of
+    ``interpret.js::windowMean`` / ``exactSum`` (SMA-EXACT, NUMBER PENDING): TradingView's sma
+    equals it on every bar of every capture from 2026-11-14 on. A NaN in the window answers NaN."""
+    return _exact_sum(series, lo, hi) / (hi - lo + 1)
+
+
+def _window_mean_naive(series: Sequence[float], lo: int, hi: int) -> float:
+    """The left-to-right mean ``ta.dev`` / ``ta.stdev`` centre on, unchanged by SMA-EXACT (the twin
+    of ``interpret.js::windowMeanNaive``)."""
     total = 0.0
     for i in range(lo, hi + 1):
         total += series[i]
@@ -1058,10 +1085,8 @@ def _pivot_col(series: Sequence[float], left: int, right: int,
 
 
 def _window_sum(series: Sequence[float], lo: int, hi: int) -> float:
-    total = 0.0
-    for i in range(lo, hi + 1):
-        total += series[i]
-    return total
+    """``math.sum``: the exactly rounded window sum (``math.fsum``), twin of ``interpret.js::windowSum``."""
+    return _exact_sum(series, lo, hi)
 
 
 def _window_mean_abs_dev(series: Sequence[float], lo: int, hi: int) -> float:
@@ -1072,7 +1097,7 @@ def _window_mean_abs_dev(series: Sequence[float], lo: int, hi: int) -> float:
     ``stdev`` returns a plausible CCI that is wrong on every bar, the same
     look-alike failure the PCF refusal table exists to prevent.
     """
-    avg = _window_mean(series, lo, hi)
+    avg = _window_mean_naive(series, lo, hi)
     total = 0.0
     for i in range(lo, hi + 1):
         total += abs(series[i] - avg)
@@ -1089,7 +1114,7 @@ def _window_stdev(series: Sequence[float], lo: int, hi: int) -> float:
     (``sqrt(sqSum / period)``), so a user's ``sma(close,20) + 2*stdev(close,20)``
     draws the same band the native Bollinger definition draws.
     """
-    avg = _window_mean(series, lo, hi)
+    avg = _window_mean_naive(series, lo, hi)
     sq = 0.0
     for i in range(lo, hi + 1):
         sq += (series[i] - avg) ** 2
