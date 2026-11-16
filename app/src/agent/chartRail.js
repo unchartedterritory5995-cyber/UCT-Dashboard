@@ -459,6 +459,11 @@ const REMOVE_WORDS_ALL = new RegExp(REMOVE_WORDS.source, 'gi')
 const asRemoval = (w) => String(w || '').replace(REMOVE_WORDS_ALL, 'close')
 // (the REMOVAL gate also reads "take off / take down <chart>" and "take <the SPY chart> off": the target is checked above)
 const REMOVAL_TAKE = /\btake (?:off|down|away|out)\b|\btake (?:[^\s.;!?]+ ){0,4}?(?:chart|one|panel|graph)s? (?:off|down|away|out)\b/i
+/** The REMOVAL gate: do the words ask to remove a chart at all? A removal word, a "take … off / down" of a chart, or a pronoun taken
+ *  off the BOARD / layout / screen (probe 64a-7 control) — unless an appositive says the pronoun is a THING (probe 66a-2: "take it
+ *  off the board (the trendline)" never asks to remove a chart). */
+export const removalAskedFor = (w) => REMOVAL.test(removalWords(w)) || REMOVAL_TAKE.test(w)
+  || removalPronouns(w).some(p => p.from === 'chart' && pronounAntecedent(p.appos || '')?.type !== 'thing')
 // (a removal may name SEVERAL positions — "close the middle and right charts": each position word of the ONE vocabulary, POS,
 //  read against the chart's own position word, as `named` does)
 const positionSaid = (w, e) => named(w, e)
@@ -844,7 +849,7 @@ export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply'
       const wrong = removalTargetRefusal(w, host, removed, { selected, subject, picked, known, previous, previousLabel })
       if (wrong) return wrong
     }
-    if (removed.length && mode === 'apply' && !REMOVAL.test(removalWords(w)) && !REMOVAL_TAKE.test(w) && !removalPronouns(w).some(p => p.from === 'chart' && pronounAntecedent(p.appos || '')?.type !== 'thing')) {
+    if (removed.length && mode === 'apply' && !removalAskedFor(w)) {
       return `I didn’t change anything: this would have removed ${listOf(removed.map(nameOf))}, and you didn’t ask to remove a chart. Say which chart to remove or replace.`
     }
   }

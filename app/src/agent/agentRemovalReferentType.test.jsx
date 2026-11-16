@@ -15,7 +15,7 @@ import { makeBoard } from './__fixtures__/board'
 import { mergeChartSettings } from '../components/chart/chartDefaults'
 import { planOps, collectTargets, prepareOps } from './executor'
 import { buildContext } from './capabilities'
-import { chartRailRefusal, REMOVAL_PRONOUNS, pronounReferent } from './chartRail'
+import { chartRailRefusal, REMOVAL_PRONOUNS, pronounReferent, removalAskedFor } from './chartRail'
 import { stateRailRefusal, stateEffects } from './stateRail'
 import { stateFixture } from './__fixtures__/stateBoard'
 import { AuthContext } from './../context/AuthContext'
@@ -324,4 +324,18 @@ describe('BOARD + THING APPOSITIVE · end to end, NO prior turn (probe 66a-1 / 6
     expect(p.left()).toEqual(['SPY', 'QQQ', 'IWM'])
     expect(p.transcript().slice(p.transcript().lastIndexOf(words))).toMatch(/I didn’t close a chart: “it” here means the (?:trendline|rsi|alert)/)
   }, 30000)
+})
+
+// ── ⛔ AUDIT mutant K5 · the REMOVAL GATE on its own (removalAskedFor — the second guard behind removalTargets): a pronoun taken off
+// the board / layout / screen asks to remove a chart, UNLESS an appositive says it is a THING ──
+describe('REMOVAL GATE · a thing appositive keeps a board-container pronoun from asking to remove a chart (K5)', () => {
+  it.each(['take it off the board (the trendline)', 'take that off the layout — the alert', 'take this off the screen, the RSI I mean', 'take it out of my layout, I mean the note', 'take it off the board (the MACD)'])('"%s" → no chart removal asked', (words) => {
+    expect(removalAskedFor(words), words).toBe(false)
+  })
+  it.each(['take it off the board', 'take it off the board, the SPY chart I mean', 'take that out of my layout', 'take it off the screen (the left chart)'])('control: "%s" → a chart removal asked', (words) => {
+    expect(removalAskedFor(words), words).toBe(true)
+  })
+  it.each(['take it off', 'take it down a timeframe'])('control: "%s" → no chart removal asked (probe 62 A1 / A2)', (words) => {
+    expect(removalAskedFor(words), words).toBe(false)
+  })
 })
