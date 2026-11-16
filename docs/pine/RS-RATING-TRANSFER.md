@@ -407,10 +407,33 @@ runtime pane on and **`objectsV2: "INCONCLUSIVE"`**.
     `runHalfEvidenceAdmits`).
   - A capture that records no x table can never admit one.
 - **What a permitted account gets** (`PINE_RUNTIME_STAGE` is `admins` on production, so today
-  that is admins only): the RS line and its three averages, equal to TradingView's on every bar of
-  the three captures, with `syminfo.industry` disclosed as UCT data. The two labels ("RS Rating"
-  and the rating number) are withheld by name (`pine:object-removal-lost`): the run half that draws
-  them is not admitted.
+  that is admins only): the RS line and its three averages, with `syminfo.industry` disclosed as
+  UCT data. The two labels ("RS Rating" and the rating number) are withheld by name
+  (`pine:object-removal-lost`): the run half that draws them is not admitted.
+- **What the grade proves, and what it does not** (narrowed 2026-11-16; the earlier wording here,
+  "equal to TradingView's on every bar of the three captures", was true and read wider than it is).
+  - **Proved:** on RDDT, ALAB and CRWV 1D the RS line and its three averages equal TradingView's on
+    every bar (666 / 667 / 411). All three stocks listed after 2023-12-05, so no bar of the proof
+    is older than that date.
+  - **Not equal, and a member sees it:** the plots are served on every symbol, not only the graded
+    three. On NVDA 1D the RS line differs from TradingView's on **1,292 of 6,997 bars**, every one
+    of them before 2023-12-05 (first 1999-01-28, last 2023-12-04); the other 5,705 are exact. The
+    largest difference is 1.83% of the value (maxRel 1.8326e-2, maxAbs 1.78e-2). Re-derived
+    2026-11-16 from the harness's own statistics on master `d615e76494` (both lanes agree). The
+    2026-11-15 grade also recorded that 89 of the 1,292 exceed 0.01% and that the largest falls on
+    2006-01-20; those two figures were NOT re-derived on the 16th. The three averages agree on all
+    6,997 bars.
+  - **Cause as recorded, not proved bar by bar:** the S&P 500 history. We serve FMP `^GSPC`;
+    TradingView reads `SP:SPX`. Q-RS3's probe (`rs-spx-daily`), which would compare the two series
+    directly, grades INCONCLUSIVE because no supply is recorded for it. Tracked as Q-RS9.
+  - **Not part of the proof at all:** the member's own stock bars. The harness feeds our engine
+    TradingView's chart bars from the capture, so the grade says our arithmetic and our SPX and
+    seed supply reproduce TradingView's output on TradingView's bars. Whether our stored bars for
+    a stock equal TradingView's is a separate question this grade does not answer.
+  - **The rating seed is proved separately:** Q-RS2's probe grades MATCH on all 666 RDDT bars in
+    both lanes (values, na pattern and bars-since), now that its supply is recorded
+    (`tests/fixtures/vendor-supply/rs-seed-rsrating-rddt-1d-2026-11-15.json`). Before that record
+    it graded DIVERGE only because nothing was supplied.
 - **What an ordinary member gets today:** the same four plots and no labels, for a second reason
   as well: the run half is declined `run-half:pane-off` ("the per-bar runtime pane is not on
   here") until the runtime stage is raised from `admins`. Measured on master, the committed
@@ -422,8 +445,9 @@ runtime pane on and **`objectsV2: "INCONCLUSIVE"`**.
   owner's act.
 - **Still not served either way.** A member's own EDITED copy (admitted only by capability, and
   `request-other` has no registry row); alerts and scans (the server lane refuses the script by
-  name, HP-7 above). SPY is ungraded (owner ruling); NVDA's RS line differs before 2023-12-05
-  (FMP history against TradingView's).
+  name, HP-7 above). SPY is ungraded (owner ruling).
+- **Served, and different from TradingView:** the RS line on bars before 2023-12-05 (NVDA above;
+  any stock with history that old is exposed the same way). Q-RS9 holds it for the owner's ruling.
 - ⛔ **Checklist line, from this mistake:** an allowlist record's capture fields (`verdict`,
   `objectsV2`, `objectsV2Substituted`) are copied ONLY from a grade taken on the tree being merged,
   never from a document or a spliced snapshot row.
