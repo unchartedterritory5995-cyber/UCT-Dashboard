@@ -3950,6 +3950,28 @@
       "owner_decision": "2026-11-02 owner decision: the Pine runtime runs server-side as a SEPARATE sandboxed service (docs/pine/SERVER-RUNTIME-DESIGN.md sections 0 and 3.6). The owner creates this key in the Railway dashboard (T20); no agent sets it, and it is set on no service.",
       "note": "A SECRET: its value is never recorded in this ledger, in the repo, in a log, in a sentence or in a chat. W5 T12 (2026-11-02): the HMAC key that signs every request from web to the pine-runtime service (design 3.6); the SAME value is set on BOTH services (the service accepts a comma-separated list so a key can rotate). Here it is only asked about being set: server_lane_refusal step 5 answers runtime:server-unavailable while it is not, so a lane never builds a request it cannot sign. (Design 3.5 step 5 names only the URL; the secret is added to that step so a pod holding one without the other fails closed by name instead of at the first request.) Rotation without a joint restart: add the new key to the service, switch web to it, then remove the old one from the service. Rollback: blank it on web (Railway ignores null) and verify a NEW boot. Rails: tests/test_runtime_server_stage.py."
     },
+    "WATCHDOG_CAPTURE_PERSIST": {
+      "repo": "uct-dashboard",
+      "read_at": "api/event_loop_watchdog.py::_persist_enabled, read at each stall capture.",
+      "kind": "kill-switch",
+      "status": "dark",
+      "where": [],
+      "default": "unset = 1 (stored captures ON; nothing runs unless the watchdog runs: WATCHDOG_OBSERVE=1 or WATCHDOG_ENABLED=1)",
+      "owner": "speed and reliability plan",
+      "owner_decision": "2026-11-16: ships on as a rollback switch; set 0 to keep captures in memory only, as before.",
+      "note": "Speed and reliability follow-up (2026-11-16): the KILL SWITCH for STORED stall captures, api/event_loop_watchdog.py. SHIPS ON BY DEFAULT as a rollback switch, and does nothing unless the watchdog itself runs (WATCHDOG_OBSERVE=1 or WATCHDOG_ENABLED=1; production has WATCHDOG_OBSERVE=1). Unset or any value but 0/false/no/off: each event-loop stall capture (taken once per stall, at WATCHDOG_CAPTURE_MS, default 3000) is ALSO written compactly as one JSON line to WATCHDOG_CAPTURE_DIR (default <DATA_DIR>/loop_stalls/YYYY-MM-DD.jsonl, 7-day retention) by its own writer thread, so a restart no longer erases the evidence (on 2026-11-16 the captures of a 42 s and a 16 s freeze were lost that way). Compact form: the event loop's thread in full, other threads as their innermost 12 frames grouped by identical stack, frames as path:line function (no source read). Read back: GET /api/watchdog/stacks?stored_hours=N (admin). 0/false/no/off: captures stay in memory only, as before. WATCHDOG_CAPTURE_MS below WATCHDOG_CHECK_SEC also catches stalls shorter than the probe interval; the miss count that feeds the kill decision is unchanged. Rails: tests/test_loop_stall_capture.py, 11 of 11 mutations caught."
+    },
+    "WATCHDOG_CAPTURE_DIR": {
+      "repo": "uct-dashboard",
+      "read_at": "api/event_loop_watchdog.py::capture_dir, read per write and per read of the stored stall captures.",
+      "kind": "config",
+      "status": "dark",
+      "where": [],
+      "default": "unset = <DATA_DIR>/loop_stalls (one YYYY-MM-DD.jsonl per day, 7-day retention)",
+      "owner": "speed and reliability plan",
+      "owner_decision": "2026-11-16: the default is the decision; set only to move the files (tests point it at a temporary folder).",
+      "note": "Where WATCHDOG_CAPTURE_PERSIST writes the compact stall captures. Only files named YYYY-MM-DD.jsonl in it are ever deleted. Rails: tests/test_loop_stall_capture.py."
+    },
     "FRONT_HOLD_SECONDS": {
       "repo": "uct-dashboard",
       "read_at": "api/front_app.py::hold_seconds, read per request by the front door (web-front), together with FRONT_HOLD_MAX (api/front_app.py::hold_max, default 200).",
