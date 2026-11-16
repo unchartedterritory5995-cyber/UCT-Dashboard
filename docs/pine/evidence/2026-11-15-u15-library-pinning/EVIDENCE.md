@@ -193,3 +193,23 @@ The resume note that stood here is done, with three changes from what it asked: 
 - flow-worker reaches all six by import only, nine to eleven hops from `api/flow_worker_main.py` through `api/auth_surface_check.py` (traced file by file, shortest chain each).
 - What changed in them is the library store's read rules, the per-library admission rule and the pinned entries the runtime client sends. Those run behind `/api/pine/libraries` and `/api/user-definitions/*` and in `web`'s runtime-job client. `api/flow_worker_main.py` mounts none of those routes, and no line of its code calls a Pine or user-definition function (its header comments name `alert_user_series` and `user_definitions` only as past deploy triggers). This is a reading of that file, not a run of flow-worker.
 - So flow-worker on the older copies behaves the same as on the new ones. If some path in it did run a user-formula alert through the older runtime client, a document that imports a library would be withheld by name (the runtime service refuses a pin the request does not meet), never drawn wrong. Its deploys have been manual since 2026-11-12, so a marker bump would restart nothing; the next manual deploy picks these files up.
+
+## Landing train 2 (engine 60, 2026-11-16)
+
+This PR lands as the third input of landing train 2 (`land/pine-engine-train-2`), under engine number 60. The
+"NUMBER PENDING" section above is answered: the number is 60, taken with host parity `--write` and the service
+smoke re-record in the train's number step.
+
+- **Merge onto master 8cdb0af178 (engine 59).** Two conflicts: `memberPaneDefinition.js` (master's one stamp
+  writer `pineTreeStamps` and `calcBarsMeta` kept, `meta.libraries` added beside them on the host document and on
+  the runtime document) and `symbolRosterSpeaks.test.js` (47 + the four library names = 51). Everything else
+  merged without a conflict and its rail is green on the merged tree.
+- **The three security properties, mutant-proved again on the merged tree**, each file restored byte-equal:
+  the deny list fails closed and is consulted (JavaScript UJ-D1 to UJ-D4, Python UP-D1 to UP-D3), a
+  non-commercial licence is never served (UJ-L1, UP-L1, UP-L2), a denied version cannot be listed for promotion
+  (UA-2): 11 killed through `ci/mutants/landing-train-2.json`. No library source in the repository (S-1 a new
+  file with a declaration, S-2 an 81-line library in a named fixture, S-3 a `pine_libraries/` folder) and A-1
+  (an INCONCLUSIVE host-only library promoted): 4 killed by hand, since a manifest holding a library declaration
+  is itself a file the scan refuses. `tests/test_pine_library_pinning.py` 46 passed after the restores.
+- Nothing was promoted to any store and nothing is enabled for members. The production library store was still
+  not read.

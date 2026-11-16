@@ -222,3 +222,23 @@ That is every rule any committed capture exercises today: `not pinnable: []`.
 Not touched in this unit, in measured order by how many of the 33 each blocks: Q-S1d two orders on one tick
 (5), `runtime:strategy-option` v2 / v3 (2), varip (2), `syminfo.mincontract` (4), the limit fill under slippage
 (1, w9-p1-on-close), stop-limit (1, Q-S1j), the AMEX:SPY mintick bind (1, w9-r1-risk-intraday-range).
+
+## Landing train 2 (engine 60, 2026-11-16)
+
+This unit lands as the first input of landing train 2 (`land/pine-engine-train-2`), under engine number 60, with
+its pin ledger as the second input.
+
+- **Re-grade on the merged tree** (master 8cdb0af178 changed `ta.rma`, COND-TA, colours, legacy semantics and
+  `str.tostring` under this unit): the 33 committed verdict files are current byte for byte. 14 MATCH through
+  step 8, 2 EXPECTED-REFUSAL (D12), 17 refuse at step 1. With D12 the Q-S1d count of section 3 is 4, not 5:
+  w9-q-s1b-defaults-v4 now stops at bind, before it can meet two orders on one tick.
+- **The pin ledger** was re-derived from that grade and is the proposal's byte for byte: 31 of 50 rules,
+  `brokerPins.resolved.json` sha256 98942c2b569ecf46..., lock entry at 60. The 14 MATCH captures pin B-VAL,
+  B-FILL, B-MARKET, B-DEFAULTS, B-DIR, B-MARGIN and B-SIG; eleven rules rest on one capture each. B-ROUND-MARK
+  and the 18 rules no committed capture exercises stay unpinned.
+- **D11** is mutant-railed and unwitnessed by any capture (W9-DECISIONS D11 point 7); queue row W9-V-D11 and its
+  generated probe `w9-d11-late-first-use.pine` are the one shape that can exercise it.
+- **Mutants:** the 62 of `ci/mutants/strategy-readbacks.json` were all killed and byte-restored locally on
+  #1406's head ebd06125ce (the cloud dispatch of that day failed on the runner's root, fixed since by #1414).
+  They ride in the train's manifest `ci/mutants/landing-train-2.json`.
+- The strategy broker gate stays off. Nothing here is served to a member.

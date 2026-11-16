@@ -584,6 +584,46 @@
    "rail": "python -m pytest tests/test_pine_library_pinning.py -q -p no:cacheprovider",
    "from": "   \"path\": \"theEccentricTrader/PubLibSwing/3\",",
    "to": "   \"path\": \"TradingView/ValueAtTime/2\","
+  },
+  {
+   "id": "TR-1",
+   "mutant": "train 2: the member door sizes a default percent order without a known minimum contract",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9T4Sizing.test.js",
+   "from": "    if (minContract !== 1) {",
+   "to": "    if (minContract !== 1 && false) {"
+  },
+  {
+   "id": "TR-2",
+   "mutant": "train 2: B-QTY drops out of the committed ledger (the fixed-size member-door run no longer completes)",
+   "file": "app/src/components/chart/engine/runtime/brokerPins.resolved.json",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9T4Sizing.test.js",
+   "from": "\"B-QTY\":",
+   "to": "\"B-QTY-GONE\":"
+  },
+  {
+   "id": "TR-3",
+   "mutant": "train 2: B-PYR is pinned without a capture (the member door serves a rule no capture grades)",
+   "file": "app/src/components/chart/engine/runtime/brokerPins.resolved.json",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9T4Sizing.test.js",
+   "from": "\"B-QTY\":",
+   "to": "\"B-PYR\":[\"nothing\"],\"B-QTY\":"
+  },
+  {
+   "id": "TR-4",
+   "mutant": "train 2: B-CLOSE drops out of the committed ledger (the product-default report no longer equals the all-served one)",
+   "file": "app/src/components/chart/engine/runtime/brokerPins.resolved.json",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/pane/strategyReportPanel.test.jsx",
+   "from": "\"B-CLOSE\":",
+   "to": "\"B-CLOSE-GONE\":"
+  },
+  {
+   "id": "TR-5",
+   "mutant": "train 2: B-PYR is pinned without a capture (a record that used it is served by the report)",
+   "file": "app/src/components/chart/engine/runtime/brokerPins.resolved.json",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/pane/strategyReportPanel.test.jsx",
+   "from": "\"B-QTY\":",
+   "to": "\"B-PYR\":[\"nothing\"],\"B-QTY\":"
   }
  ]
 }
