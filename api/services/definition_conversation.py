@@ -1782,6 +1782,42 @@ def failure_class(result: Mapping[str, Any]) -> str:
     return "concept_refused"
 
 
+@functools.lru_cache(maxsize=1)
+def prompt_sha() -> str:
+    """Which instructions produced this turn: 16 hex characters of the SHA-256 of the
+    system prompt and the tool as the request sends them. Both are constants of the
+    process (``system_prompt``, ``anthropic_tool``), so this is computed once. It
+    changes when the instructions, the tool schema, or the vocabulary text generated
+    into the prompt change, and for no other reason."""
+    import hashlib
+    payload = system_prompt() + "
+" + json.dumps(anthropic_tool(), sort_keys=True,
+                                                   separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+
+
+def turn_stamps() -> Dict[str, Any]:
+    """What produced a turn, so a later change in results can be traced to the change
+    that caused it: the instructions, the firm's concept vocabulary, the model and the
+    engine. Shape only, each from the one place that owns it. A stamp that cannot be
+    read is LEFT OUT (the turn row is still written); it is never guessed."""
+    out: Dict[str, Any] = {}
+    try:
+        out["prompt_sha"] = prompt_sha()
+    except Exception:                              # noqa: BLE001
+        logger.exception("[converse] prompt stamp unavailable")
+    try:
+        from api.services import concept_vocabulary
+        out["vocab_version"] = str(concept_vocabulary.version())
+    except Exception:                              # noqa: BLE001
+        logger.exception("[converse] vocabulary stamp unavailable")
+    if isinstance(dc.MODEL, str) and dc.MODEL:
+        out["model"] = dc.MODEL
+    if isinstance(user_definitions.SCRIPT_ENGINE_VERSION, int):
+        out["engine"] = user_definitions.SCRIPT_ENGINE_VERSION
+    return out
+
+
 def _record_turn(user_id: Any, conversation_id: Any, result: Mapping[str, Any], *,
                  admin: bool, message: Any, latency_ms: int) -> None:
     """⛔ NEVER RAISES and stores SHAPE ONLY (indicator_telemetry's allowlists)."""
@@ -1811,6 +1847,7 @@ def _record_turn(user_id: Any, conversation_id: Any, result: Mapping[str, Any], 
             latency_ms=latency_ms,
             op_kinds=",".join(o for o in ops if isinstance(o, str)) or None,
             preflight=bool(result.get("preflight")),
+            **turn_stamps(),
         )
     except Exception:                              # noqa: BLE001
         logger.exception("[converse] turn telemetry failed")
