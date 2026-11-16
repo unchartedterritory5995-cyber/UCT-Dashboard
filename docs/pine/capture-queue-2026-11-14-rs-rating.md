@@ -47,3 +47,25 @@ minutes earlier WITHOUT `--channel chrome` failed to launch (the bundled Chromiu
 last used by the installed Chrome); whether that launch is what signed the profile out was not
 established. Always pass `--channel chrome` with this profile.
 
+## Tracked: the S&P 500 history difference (added 2026-11-16, for the owner's ruling)
+
+| row | what | size | settles |
+|---|---|---|---|
+| Q-RS9 | RS Rating's RS line on bars before 2023-12-05: we serve FMP `^GSPC`, TradingView reads `SP:SPX` | NVDA 1D: 1,292 of 6,997 bars differ (18.5%), first 1999-01-28, last 2023-12-04, largest 1.83% of the value; 5,705 exact; the three averages exact on all 6,997. Re-derived 2026-11-16 on master `d615e76494`. From the 2026-11-15 grade, not re-derived: 89 of the 1,292 exceed 0.01%. RDDT / ALAB / CRWV (listed after that date) are exact on every bar. | Whether this is a "measured need" under the 2026-11-14 ruling (FMP primary, Yahoo fallback, Massive Indices only if both fail a measured need). It is a member-visible difference today: the plots are served on every symbol. |
+
+Not a TradingView capture. What would turn "cause as recorded" into a measurement: give Q-RS3's
+committed probe (`rs-spx-daily-{rddt,spy}-1d-2026-11-15`, INCONCLUSIVE today for no supply) the FMP
+`^GSPC` rows as an out-of-git manifest record (inline provider bars are ruled only for the
+`rs-rating-fred6724-*` records) and grade it: that compares the two SPX series bar by bar. RDDT's
+window starts after 2023-12-05, so the old bars need the same probe on a long-history symbol
+(one capture, in the Q-RS8 session).
+
+**Q-RS2 graded (2026-11-16).** `rs-seed-rsrating-rddt-1d-2026-11-15` graded DIVERGE (5 of 7) in
+both committed snapshots only because no supply was recorded for it: ours read na on every bar. Its
+supply record is now committed (`tests/fixtures/vendor-supply/rs-seed-rsrating-rddt-1d-2026-11-15.json`,
+the `pine_seed_store` replay entry of the RDDT RS Rating record, unchanged; a public mirror, not
+provider data). Graded on master `8cdb0af178`, a run of exactly that capture, both lanes: **MATCH,
+all 7 items, 666 of 666 bars** (seed close / open / high, the na pattern, bars-since, and the
+chart-close control). The two snapshot rows are replaced textually by that run's rows; no other
+row changed.
+
