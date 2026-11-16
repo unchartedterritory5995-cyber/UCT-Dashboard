@@ -55,6 +55,8 @@ const BARS = CAP.bars.rows.map(([t, o, h, l, c, v]) => ({ t, o, h, l, c, v: v ==
 const SERIES = ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(BARS.map((b) => b[k])))
 
 afterEach(() => { vi.unstubAllEnvs() })
+/** Section 8: bars of this capture where the served `up and close > ta.sma(close, 5)` differs from the per-run reading. */
+const DIFFER_AND_SMA5 = -1
 
 /** The capture's own column for `title`, aligned to its bars (`undefined`: no row). */
 const vendorColumn = (title) => {
@@ -123,7 +125,7 @@ const GATED = {
   "v6 helper reading a parameter's history (F1)": [pine(6, 'h(s) => s[1]', 'float p = na', 'if close > open', '    p := h(close)', 'plot(p, "v")'), /calls `h`, a function that reads its own history/],
   // F2 (the #1326 review): an EXPRESSION's history over a block local — fail closed
   'v6 expression history over a block local (F2)': [pine(6, 'float p = na', 'if close > open', '    x = close * 2', '    p := (x + 0)[1]', 'plot(p, "v")'), /the history of an expression over `x`/],
-  'v6 and right side': [pine(6, 'plot(close > open and ta.rsi(close, 14) > 50 ? 1 : 0, "v")'), /on the right of a Pine v6 `and`/],
+  // ⛔ the right side of a v6 `and` / `or` is NOT in this list: the screener lane still serves it (interim, section 8)
 }
 
 describe('COND-TA — 1. the screener lane refuses by name what no chart is bound to withhold', () => {
@@ -521,5 +523,59 @@ describe('COND-TA — 7. ⛔ known over-refusals: refused by name on the screene
     const host = strict(src)
     for (const [i] of held) expect(host.outputs[i].refusal).toBeFalsy()
     expect(host.blockRuns.outputs.map((x) => x.index)).toEqual(held.map(([i]) => i))
+  })
+})
+
+// ─── ⛔⛔ COND-TA 8 — A KNOWN TradingView DIFFERENCE, SERVED ON THE SCREENER LANE (INTERIM) ─────────
+// Coordinator ruling 2026-11-16 (option B), put to the owner as a decision he can overturn.
+// Pine v6 evaluates `and` / `or` lazily: the right side runs only on the bars where the left side
+// has not decided the answer, so a `ta.*` call there keeps the history of those bars only.
+// SOURCE: TradingView's to-v6 migration guide, whose own example is
+// `close > open and ta.rsi(close, 14) > 50` ("the ta.rsi() call is not evaluated on every bar,
+// which interferes with the internal history that the RSI function stores"). ⚠️ NO CAPTURE
+// witnesses it yet: the probe `tools/visual_conformance/probes/vw-andor-history.pine` is written
+// and has never been captured (queued with the follow-up).
+// The HOST lane gates such a plot (`stampLogicRight`). The SCREENER lane was built to refuse it by
+// name, and that refusal is NOT switched on: it took `pine.screenerCorpus` 38 -> 32 and
+// `pine.blindCorpus` ACCEPTED 37 -> 26 in one step (`close > ta.sma(close, 200) and
+// ta.rsi(close, 14) < 30` is the most natural screen a member writes). So this lane serves the
+// every-bar value, exactly as master does, and that value DIFFERS from TradingView's.
+// ⛔⛔ THIS BLOCK IS MEANT TO GO RED. The follow-up unit (the screener-lane run check + the hoist
+// offer) switches the refusal on with the accepted corpus intact: flip these expectations THEN,
+// and delete the known-difference row in docs/pine/evidence/2026-11-15-cond-ta/EVIDENCE.md.
+describe('COND-TA — 8. ⛔ known TradingView difference: a v6 `and` / `or` right side is served every-bar on the screener lane', () => {
+  const AND = pine(6, 'plot(close > open and close > ta.sma(close, 5) ? 1 : 0, "v")')
+  const OR = pine(6, 'plot(close > open or ta.rising(close, 2) ? 1 : 0, "v")')
+
+  it.each([['and', AND], ['or', OR]])('`%s`: served on the screener lane, gated on the host lane', (_, src) => {
+    const o = lenient(src).outputs[0]
+    expect(o.refusal, o.refusal && o.refusal.message).toBeFalsy()              // ← red when the refusal is switched on
+    expect(lenient(src).blockRuns).toBeUndefined()
+    const host = strict(src)
+    expect(host.outputs[0].refusal).toBeFalsy()
+    expect(host.blockRuns && host.blockRuns.outputs.map((x) => x.index)).toEqual([0])
+  })
+
+  it('⚰️ the served number is not the lazy one: it differs from the per-run reading on RDDT', () => {
+    // the per-run reference (the one `runtime()` equals on `vw-arm-history` T03): `ta.sma(close, 5)`
+    // over the last five bars the right side RAN on (`close > open`), `false` where it did not run
+    const ring = []
+    const lazy = BARS.map((b) => {
+      if (!(b.c > b.o)) return 0
+      ring.push(b.c); if (ring.length > 5) ring.shift()
+      return ring.length === 5 && b.c > ring.reduce((x, y) => x + y, 0) / 5 ? 1 : 0
+    })
+    const served = Array.from(interpret(lenient(AND).outputs[0].ast, BARS, {}))
+    const differ = lazy.filter((v, i) => Number.isFinite(served[i]) && served[i] !== v).length
+    expect(differ).toBe(DIFFER_AND_SMA5)
+    expect(differ).toBeGreaterThan(0)
+  })
+
+  it('⛔ only the right side itself: a `?:` arm inside it, and a block, are still refused by name', () => {
+    const armInside = pine(6, 'plot(close > open and (close > close[1] ? ta.sma(close, 5) : close) > 0 ? 1 : 0, "v")')
+    const o = lenient(armInside).outputs[0]
+    expect(o.refusal && o.refusal.guard, o.formula || '').toBe('pine:block')
+    expect(o.refusal.message).toMatch(/one arm of a `\?:`/)
+    expect(lenient(BLOCK(6, 'ta.sma(close, 3)')).outputs[0].refusal.guard).toBe('pine:block')
   })
 })

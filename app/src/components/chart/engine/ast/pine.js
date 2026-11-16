@@ -7031,7 +7031,8 @@ function armHistoryCallAt(node, historyFns, walk) {
  *  refuses it: that lane binds no chart, so nothing can say the code ran on every bar. */
 export const SCREEN_GATE_SENTENCE = ' — a screen or an alert reads this value on every bar of every symbol, and no '
   + 'chart is bound there to say whether that code ran on each one, so it is not computed; add the script to a '
-  + 'chart instead'
+  + 'chart instead, or give that call its own line above (for example `r = ta.rsi(close, 14)`) and use the name '
+  + 'here, which runs it on every bar'
 
 /** The member's sentence for a stamped arm (the bind adds where it skipped). */
 function armRunsWhy(call, tok, op, ifBranch = false) {
@@ -7078,7 +7079,7 @@ function readsFreeRecurrenceBind(tree, table) {
  *  plot because the bind finds no run after a skip. ⛔ One the walk cannot make
  *  standalone (a free bind of a multi-state recurrence) carries no gate and is
  *  drawn as it always was — never refused here, never guessed. */
-export function armRunGates(trees, table) {
+export function armRunGates(trees, table, opts = {}) {
   const out = []
   // ⭐ L3 — a node is visited once PER ENCLOSING-ARM CONTEXT (`ctx.key`): the same
   // stamped subtree under two different arms runs on two different sets of bars.
@@ -7131,6 +7132,7 @@ export function armRunGates(trees, table) {
       if (guard && !readsFreeRecurrenceBind(guard, table)) {
         const own = { yes: armGuardOf(n, guard, false), no: armGuardOf(n, guard, true) }
         for (const r of stamp.runs) {
+          if (opts.skipLogicRight && r.logicRight) continue
           const g = within(ctx.conds, r.negate ? own.no : own.yes)
           const key = `${printFormula(g)}|${r.why}`
           if (keys.has(key)) continue
@@ -11202,7 +11204,7 @@ export class Resolver {
     if (bindTimeConstantTree(left)) return
     const call = armHistoryCallOf(node.right, this.historyFnsOf ? this.historyFnsOf() : null)
     if (!call) return
-    stampArmRuns(out, [{ negate: mapped === '||', what: 'that right side', why: armRunsWhy(call, node.tok, node.op) }])
+    stampArmRuns(out, [{ negate: mapped === '||', what: 'that right side', logicRight: true, why: armRunsWhy(call, node.tok, node.op) }])
   }
 
   /** ⭐⭐ C48 — RUN A READ THE WAY IT ALWAYS RAN, FOR ITS PARAMETER MINT ALONE.
@@ -28504,7 +28506,17 @@ function translatePineResult(source, opts = {}) {
       // and its value tree's arms (`armRunTreesOf`): a screen or an alert reads the value,
       // never a colour, so a colour's call is not a reason to refuse it.
       if (!isHostLane(opts)) {
-        const valueGates = [...guardsOf(resolver.blockRuns.slice(0, valueBlockRuns)), ...armRunGates(armRunTreesOf(row), table)]
+        // ⛔⛔ INTERIM (coordinator ruling 2026-11-16, option B) — THE RIGHT SIDE OF A v6 `and` / `or`
+        // IS NOT REFUSED HERE YET (`logicRight`): this lane still serves it as the every-bar value,
+        // exactly as master does. That is a KNOWN TradingView DIFFERENCE, not a correct reading (the
+        // to-v6 guide: the right side runs only where the left side has not decided the answer).
+        // Refusing it took a third of the Screener import's accepted corpus off in one step, so the
+        // refusal is switched on together with the hoist offer and the screener-lane run check (the
+        // follow-up unit). Pinned, and written to go red then: `condTaLanes.test.js` section 8. The
+        // host lane keeps its gate. ⛔ A `?:` arm, a block, a helper and an `if` expression are
+        // refused here as built, including one standing INSIDE such a right side.
+        const valueGates = [...guardsOf(resolver.blockRuns.slice(0, valueBlockRuns)),
+          ...armRunGates(armRunTreesOf(row), table, { skipLogicRight: true })]
         if (valueGates.length) {
           throw new PineRefusal('pine:block', `${REFUSALS['pine:block']} — ${valueGates[0].why}${SCREEN_GATE_SENTENCE}`,
             locate(out.tok))

@@ -871,7 +871,7 @@ def test_the_door_stores_nothing_and_logs_no_source(store, on, caplog):
 # (`runs/report.json`, whose lanes `capabilityEvidenceLane.test.js` re-asks of the door) and the
 # committed harness snapshots of both lanes.
 
-REPORT = ROOT / "docs" / "pine" / "evidence" / "2026-11-13-capability-admission" / "runs" / "report.json"
+REPORT = ROOT / "docs" / "pine" / "evidence" / "2026-11-15-cond-ta" / "runs" / "report.json"
 VERDICTS_PROD = ROOT / "docs" / "pine" / "vendor-harness" / "production" / "verdicts.json"
 
 
@@ -880,6 +880,10 @@ VERDICTS_PROD = ROOT / "docs" / "pine" / "vendor-harness" / "production" / "verd
 #: `withheld_whole` with it, if it is then empty — when the capture agent's re-take of NYSE:BRK.A 1D
 #: with `history.startsAtBar0` asserted lands; that capture is expected to grade MATCH on the
 #: runtime lane (D03_dbhf already equals TradingView on 11,335 / 11,335 bars with the listing stated).
+#: 2026-11-16: the re-take landed (`vw-deadband-ticks-brk-a-1d-2026-11-15`, #1373). Runtime-on it grades
+#: INCONCLUSIVE, not MATCH: DBHF, D00, D02 and D03 agree on 11,369 / 11,369 bars and the bar colour
+#: agrees, and D01_mintick has no column on our side. The 09-28 capture is still committed and still
+#: grades as described below, so it stays named here until that capture is retired.
 #: ⭐ COND-TA (engine 58, 2026-11-15) — ADMITTED CAPTURES THE RUNTIME LANE WITHHOLDS WHOLE, BY NAME.
 #: Named one by one, each with why, and each re-proved from its own verdict record on every run
 #: (`withheld_whole`): every plot INCONCLUSIVE because our side computed NO column for it, no
@@ -966,7 +970,11 @@ def test_REACH_the_committed_reach_run_is_the_committed_registrys():
     # out of BOTH sides, every other capture is still held to exact equality, and the test then
     # SKIPS naming it (with its ledger verdict) instead of reporting a full pass.
     assert {c["capture"] for c in report["captures"]} - set(held_absent) == admitted
-    assert report["stops"] == [] and report["matchToDiverge"] == []
+    # ⭐ COND-TA: the reach run lists a runtime-lane DIVERGE as a stop whatever its shape; the only
+    # stops a committed run may carry are the captures named in WITHHELD_WHOLE, each re-proved from
+    # its own verdict record by `reach_rule_violations` (the next test). Any other stop is red here.
+    assert {s["capture"] for s in report["stops"]} <= set(WITHHELD_WHOLE), report["stops"]
+    assert report["matchToDiverge"] == []
     assert sum(1 for c in report["captures"] if c["lane"] == "runtime") >= 10   # not vacuous
     if held_absent:
         pytest.skip(f"the other {len(admitted)} admitted captures were verified equal; "
