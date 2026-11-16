@@ -13619,7 +13619,7 @@ export class Resolver {
       dow = clockLeaf('dayofweek')
     } else {
       // ⭐ A FIXED ZONE IS ARITHMETIC ON THE INSTANT, NOT ON THE NEW YORK CLOCK:
-      // local minutes since 1970 = floor(time / 60) + offset × 60. 1970-01-01
+      // local minutes since 1970 = floor(time / 60) + the offset in minutes. 1970-01-01
       // was a Thursday, Pine's day 5, hence the `+ 4` before the `mod 7`.
       const local = cOp('+', [cCall('floor', [cOp('/', [cSeries('time'), cNum(60)])]), cNum(offset)])
       minuteOfDay = cCall('mod', [local, cNum(1440)])
