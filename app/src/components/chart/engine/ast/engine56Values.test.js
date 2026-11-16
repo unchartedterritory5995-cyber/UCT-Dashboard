@@ -918,7 +918,7 @@ describe('landing train 1 — the built-in `na(x)` is never `na` on the runtime 
   })
 
   it('…and where `na(…)` reads a value the VM steps (the lowered built-in, RS Rating\'s own shape)', () => {
-    const stepped = ['float x = na', 'if close < open', '    x := close']
+    const stepped = ['var float x = na', 'if close < open', '    x := close']
     // the site itself: `na(x) != true`, drawn as Pine draws it (`x` is `na` until the first down bar)
     const site = runtimeRun(v5([...stepped, 'plot(na(x) != true ? 1 : 0)']))
     expect(site.err ? site.err.guard : 'OK').toBe('OK')
