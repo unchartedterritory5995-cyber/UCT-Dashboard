@@ -1,31 +1,27 @@
 /* app/src/pages/charts/LayoutDock.module.css
    The Layout Dock — see LayoutDock.jsx for the model.
 
-   Design rules this file exists to hold:
-   • It is FRAME, not a third toolbar. 28px (shorter than the 33px header, level
-     with the 26px chart-tab strip) on --bg-surface, the same plane as the header
-     and the nav rail, so the workspace is bracketed by one continuous colour.
-     ⛔ Not --bg-elevated: it is one step brighter and reads as a mismatched panel
-     where it meets the rail — the same trap .workspaceHeader documents.
-   • Items are BARE TEXT. No chip, no border, no fill, no per-item ✕. That is what
-     keeps the bar quiet at 20 layouts where a tab bar becomes a wall of boxes.
-   • Type is .chartTab's exact spec (11px / 600 / 0.3px) so it is unmistakably the
-     same product; the SHAPE is deliberately different so it can never be mistaken
-     for a chart tab.
-   • Gold, not green: green already means "which page am I on" in the nav rail.
-     Gold means "which workspace am I in". Two accents, two jobs. */
+   UCT Signature (docs/uct-signature-style.md; owner-approved design 2026-11-15):
+   • It is FRAME, not a third toolbar: a 34px graphite bar (#111214) under a 1px
+     #26282c hairline, bracketing the board.
+   • Tabs are sentence-case TEXT. No chip, no border, no fill, no per-item ✕. That is
+     what keeps the bar quiet at 20 layouts where a tab bar becomes a wall of boxes.
+     Resting #c9c6be, hover #f8f7f3, the open one #f8f7f3.
+   • Gold only where §2b allows it: the open tab's 2px line along its TOP edge (rule 1,
+     the timeframe underline flipped for a bottom bar), the unsaved-changes dot, and the
+     ✓ on the open layout in the library (rule 3). The highlighted row's icon in the
+     tab's action menu turns gold (rule 6). Nothing else. */
 
 .dock {
-  height: 28px;
+  height: 34px;
   flex-shrink: 0;
-  background: var(--bg-surface, #0d1218);
-  border-top: 1px solid var(--border, #1f2937);
+  background: #111214;
+  border-top: 1px solid #26282c;
   display: flex;
   align-items: stretch;
-  /* 6px left so the first item's 11px inner padding lands its TEXT on 16px —
-     the same left edge as the "Charts" title in the header above. */
-  padding: 0 10px 0 6px;
+  padding: 0 8px;
   position: relative;
+  font-family: var(--font-sans, inherit);
 }
 
 /* Merged mode already draws its own bottom seam (.workspaceBodyMerged::after);
@@ -34,10 +30,19 @@
    different CSS module, so its class name is hashed and unreachable from here. */
 .dockMerged { border-top: none; }
 
-.strip {
+/* The LANE takes the free width (the overflow fit is measured against it); the tabs
+   inside it take only what they need, so the ＋ sits right after the last tab. */
+.lane {
   display: flex;
   align-items: stretch;
   flex: 1;
+  min-width: 0;
+}
+
+.strip {
+  display: flex;
+  align-items: stretch;
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
 }
@@ -60,24 +65,19 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 0 11px;
+  padding: 0 10px;
   border: none;
   background: transparent;
   font-family: inherit;
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 600;
-  letter-spacing: 0.3px;
-  /* Matches the cream the header's Widgets / Layouts / Tools buttons wear, so
-     the dock reads as the same chrome bracketing the workspace rather than a
-     dimmer afterthought. The active state still separates cleanly: it moves to
-     GOLD and gains the cap + wash, which is a hue change, not just a step up in
-     brightness. */
-  color: var(--text-bright, #e0dac8);
+  color: #c9c6be;
   cursor: pointer;
   white-space: nowrap;
-  max-width: 148px;
+  max-width: 172px;
   min-width: 0;
   flex-shrink: 0;
+  transition: color 120ms, background 120ms;
 }
 
 .label {
@@ -85,282 +85,292 @@
   text-overflow: ellipsis;
 }
 
-/* The active/hover cap sits ON the dock's top edge, fusing with the frame rather
-   than floating on it — the board reads as hanging from its own name. */
+/* The open tab's gold line sits ON the dock's top edge, fusing with the frame — the
+   board reads as hanging from its own name. */
 .item::before {
   content: '';
   position: absolute;
   top: -1px;
-  left: 6px;
-  right: 6px;
+  left: 10px;
+  right: 10px;
   height: 2px;
+  border-radius: 0 0 2px 2px;
   background: transparent;
 }
 
 /* :not(.itemActive) is LOAD-BEARING, not tidiness: `.item:hover` (0,2,0) outranks
-   `.itemActive` (0,1,0), so an unscoped hover repainted the OPEN layout in the
-   hover colour and swapped its gold cap for the grey ghost — hovering the active
-   item made it look inactive. */
-.item:not(.itemActive):hover { color: var(--text-heading, #f0ead8); }
-/* A grey ghost of the gold cap, so hover teaches where the active mark lands. */
-.item:not(.itemActive):hover::before { background: var(--border-accent, #2a2a2a); }
+   `.itemActive` (0,1,0), so an unscoped hover would repaint the OPEN layout. */
+.item:not(.itemActive):hover { color: #f8f7f3; background: rgba(248, 247, 243, 0.03); }
 
-.itemActive { color: var(--accent, #c9a84c); }
-.itemActive::before { background: var(--accent, #c9a84c); }
-.itemActive::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(180deg, rgba(201, 168, 76, 0.11), rgba(201, 168, 76, 0) 82%);
-}
+.itemActive { color: #f8f7f3; }
+.itemActive::before { background: var(--ut-gold, #dcbb5e); }
 
 .item:focus-visible {
-  outline: 1px solid var(--accent, #c9a84c);
-  outline-offset: -2px;
+  outline: 2px solid rgba(248, 247, 243, 0.4);
+  outline-offset: -3px;
+  border-radius: 6px;
+}
+
+/* A prebuilt layout's small grey lock; the open layout's unsaved-changes dot. */
+.lock { flex: 0 0 auto; color: #93939a; }
+.dirty {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ut-gold, #dcbb5e);
 }
 
 .itemCreating { cursor: default; }
 
+/* Inline name inputs (new layout, rename) — an input well. */
 .nameInput {
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid var(--accent, #c9a84c);
-  border-radius: 3px;
-  color: var(--text, #e5e7eb);
+  height: 24px;
+  box-sizing: border-box;
+  background: #0f1012;
+  border: none;
+  box-shadow: inset 0 0 0 1px rgba(248, 247, 243, 0.08);
+  border-radius: 7px;
+  color: #ededed;
   font: inherit;
-  font-size: 11px;
-  padding: 0 4px;
-  width: 116px;
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 0 8px;
+  width: 132px;
   outline: none;
 }
+.nameInput:focus { box-shadow: inset 0 0 0 1px rgba(248, 247, 243, 0.3); }
+.nameInput::placeholder { color: #93939a; }
 
-/* Fixed right cluster: ⋯ and ＋ never move, whatever the bar is holding, so the
-   two controls stay muscle-memory targets. */
+/* Fixed right cluster: ⋯ +n and the library never move, whatever the bar is holding,
+   so they stay muscle-memory targets. */
 .right {
   display: flex;
-  align-items: stretch;
+  align-items: center;
+  gap: 2px;
   flex-shrink: 0;
 }
-.right::before {
-  content: '';
-  display: block;
-  width: 1px;
-  margin: 7px 6px;
-  background: var(--border, #1f2937);
-}
 
+/* Quiet icon buttons: ＋ new layout, ⋯ overflow, the library. */
 .ctl {
+  align-self: center;
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 0 8px;
+  justify-content: center;
+  gap: 4px;
+  min-width: 28px;
+  height: 26px;
+  padding: 0 6px;
   border: none;
+  border-radius: 6px;
   background: transparent;
   cursor: pointer;
-  color: var(--text-muted, #6d6759);
+  color: #a9a59b;
   font-family: inherit;
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 600;
+  transition: color 120ms, background 120ms;
 }
-.ctl:hover { color: var(--accent, #c9a84c); }
+.ctl:hover { background: rgba(248, 247, 243, 0.07); color: #f8f7f3; }
+.ctl[aria-expanded='true'] { background: rgba(248, 247, 243, 0.07); color: #f8f7f3; }
 .ctl:focus-visible {
-  outline: 1px solid var(--accent, #c9a84c);
+  outline: 2px solid rgba(248, 247, 243, 0.4);
   outline-offset: -2px;
 }
-.count { font-size: 10px; }
+.count { font-size: 11px; font-variant-numeric: tabular-nums; }
 
-/* ── ⋯ browser ──────────────────────────────────────────────────────────────
-   On the theme-invariant --menu-* palette every popup menu in the workspace
-   wears (tokens.css) — a menu is app chrome, so it must not follow the canvas. */
-.browse {
+/* ── the menus: UCT Signature floating menu ─────────────────────────────────
+   Panel #111214, 1px #383b41, radius 10, padding 5; rows 13px #ededed, radius 6,
+   hover #1a1b1f + #f8f7f3; small grey group labels. Dark-only (UCT Signature has no
+   light theme yet), like every other menu in the workspace. */
+.browse,
+.menu,
+.library {
   position: absolute;
-  bottom: 30px;
+  bottom: 40px;
+  background: #111214;
+  border: 1px solid #383b41;
+  border-radius: 10px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55);
+  padding: 5px;
+  display: flex;
+  flex-direction: column;
+  color: #ededed;
+  font-family: var(--font-sans, inherit);
+}
+
+/* ⋯ overflow: what is on the bar but did not fit. */
+.browse {
   right: 8px;
   width: 232px;
   max-height: 320px;
   overflow-y: auto;
-  background: var(--menu-bg, #0e0e10);
-  border: 1px solid var(--menu-border, rgba(255, 255, 255, 0.09));
-  border-radius: 4px;
-  box-shadow: 0 -8px 26px var(--menu-shadow, rgba(0, 0, 0, 0.7));
-  padding: 5px 0;
   z-index: 100;
-  display: flex;
-  flex-direction: column;
 }
 
-.browseSection {
-  padding: 7px 12px 3px;
-  font-size: 9px;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: var(--menu-text-faint, #6b6b6b);
-}
-
-.browseRow {
-  display: block;
-  width: 100%;
-  text-align: left;
-  padding: 6px 12px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 11.5px;
-  color: var(--menu-text, #ededed);
-}
-.browseRow:hover { background: var(--menu-hover, rgba(255, 255, 255, 0.055)); color: var(--menu-accent, #c9a84c); }
-
-.browseEmpty {
-  padding: 8px 12px;
-  font-size: 11px;
-  color: var(--menu-text-faint, #6b6b6b);
-}
-
-/* ── right-click menu ───────────────────────────────────────────────────────
-   Same theme-invariant --menu-* palette as every other popup in the workspace. */
-.menu {
-  position: absolute;
-  bottom: 30px;
-  min-width: 178px;
-  background: var(--menu-bg, #0e0e10);
-  border: 1px solid var(--menu-border, rgba(255, 255, 255, 0.09));
-  border-radius: 4px;
-  box-shadow: 0 -8px 26px var(--menu-shadow, rgba(0, 0, 0, 0.7));
-  padding: 4px 0;
-  z-index: 101;
-  display: flex;
-  flex-direction: column;
-}
-
-.menuHead {
-  padding: 6px 12px 5px;
-  font-size: 9px;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: var(--menu-accent, #c9a84c);
-  border-bottom: 1px solid var(--menu-divider, rgba(255, 255, 255, 0.06));
-  margin-bottom: 4px;
-  max-width: 220px;
+/* Small grey group labels ("On the bar", "Prebuilt", the menu's layout name). */
+.browseSection,
+.menuHead,
+.libraryHead {
+  padding: 8px 10px 3px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #93939a;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.browseSection:first-child,
+.menuHead:first-child,
+.libraryHead:first-child { padding-top: 5px; }
 
-.menuItem {
-  display: block;
+/* One row recipe for every menu row. */
+.browseRow,
+.menuItem,
+.libraryNew,
+.libraryPick {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   width: 100%;
+  min-height: 30px;
   text-align: left;
-  padding: 6px 12px;
+  padding: 6px 10px;
   background: transparent;
   border: none;
+  border-radius: 6px;
   cursor: pointer;
   font-family: inherit;
-  font-size: 11.5px;
-  color: var(--menu-text, #ededed);
+  font-size: 13px;
+  font-weight: 500;
+  color: #ededed;
+  transition: background 100ms, color 100ms;
 }
-.menuItem:hover { background: var(--menu-hover, rgba(255, 255, 255, 0.055)); color: var(--menu-accent, #c9a84c); }
+.browseRow:hover,
+.menuItem:hover,
+.libraryNew:hover { background: #1a1b1f; color: #f8f7f3; }
+.browseRow:focus-visible,
+.menuItem:focus-visible,
+.libraryNew:focus-visible,
+.libraryPick:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: -2px; }
+
+.browseEmpty {
+  padding: 6px 10px 8px;
+  font-size: 12px;
+  color: #93939a;
+}
+
+/* ── right-click menu (an ACTION menu) ──────────────────────────────────────
+   Grey line icons; the highlighted row's icon turns gold (§2b rule 6). */
+.menu {
+  min-width: 210px;
+  max-width: 260px;
+  z-index: 101;
+}
+
+.mic {
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  color: #a9a59b;
+  transition: color 100ms;
+}
+.menuItem:hover:not(:disabled) .mic,
+.menuItem:focus-visible .mic { color: var(--ut-gold, #dcbb5e); }
+
 /* A move that would fall off the end of the bar stays visible but inert — the
    menu keeps the same shape wherever you open it. */
-.menuItem:disabled { color: var(--menu-text-faint, #6b6b6b); cursor: default; }
-.menuItem:disabled:hover { background: transparent; color: var(--menu-text-faint, #6b6b6b); }
+.menuItem:disabled { color: #93939a; opacity: 0.55; cursor: default; }
+.menuItem:disabled:hover { background: transparent; color: #93939a; }
 
-.menuDanger:hover { color: var(--danger, #f87171); }
-.menuDiv { height: 1px; background: var(--menu-divider, rgba(255, 255, 255, 0.06)); margin: 4px 0; }
+.menuDanger { color: #f0827a; }
+.menuDanger:hover { color: #f0827a; }
+.menuDiv { height: 1px; background: #2a2c31; margin: 4px 6px; flex: 0 0 auto; }
 
 /* ── the layout library ─────────────────────────────────────────────────────
-   Anchored above the RIGHT of the rail, under the ＋ that opens it. This is the
-   durable store; the rail above it is only a working set pointing into this. */
+   Anchored above the RIGHT of the rail, over the library button that opens it. This
+   is the durable store; the rail is only a working set pointing into this. */
 .library {
-  position: absolute;
-  bottom: 30px;
   right: 8px;
-  width: 244px;
-  max-height: 340px;
+  width: 260px;
+  max-height: 360px;
   overflow-y: auto;
-  background: var(--menu-bg, #0e0e10);
-  border: 1px solid var(--menu-border, rgba(255, 255, 255, 0.09));
-  border-radius: 4px;
-  box-shadow: 0 -8px 26px var(--menu-shadow, rgba(0, 0, 0, 0.7));
-  padding: 4px 0;
   z-index: 101;
-  display: flex;
-  flex-direction: column;
 }
 
-.libraryHead {
-  padding: 6px 12px 5px;
-  font-size: 9px;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: var(--menu-accent, #c9a84c);
-  border-bottom: 1px solid var(--menu-divider, rgba(255, 255, 255, 0.06));
-  margin-bottom: 4px;
-}
+.libraryNew { font-weight: 600; }
 
-.libraryNew {
-  display: block;
-  width: 100%;
-  text-align: left;
-  padding: 6px 12px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--menu-accent, #c9a84c);
-}
-.libraryNew:hover { background: var(--menu-hover, rgba(255, 255, 255, 0.055)); }
-
-/* One row = one library layout: the name adds it to the bar, the ✕ is the only
+/* One row = one library layout: the name adds it to the bar, the bin is the only
    place in the whole feature that can destroy it. */
-.libraryRow { display: flex; align-items: center; }
-.libraryRow:hover { background: var(--menu-hover, rgba(255, 255, 255, 0.055)); }
+.libraryRow {
+  display: flex;
+  align-items: center;
+  border-radius: 6px;
+  transition: background 100ms;
+}
+.libraryRow:hover { background: #1a1b1f; }
 
 .libraryPick {
   flex: 1;
   min-width: 0;
-  text-align: left;
-  padding: 6px 12px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 11.5px;
-  color: var(--menu-text, #ededed);
+}
+.libraryRow:hover .libraryPick { color: #f8f7f3; }
+.pickName {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.libraryRow:hover .libraryPick { color: var(--menu-accent, #c9a84c); }
+/* The open layout — the gold ✓ (§2b rule 3). */
+.check { flex: 0 0 auto; color: var(--ut-gold, #dcbb5e); font-size: 12px; }
 
 .libraryDel {
   flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin-right: 2px;
+  padding: 0;
   background: transparent;
   border: none;
+  border-radius: 6px;
   cursor: pointer;
-  color: var(--menu-text-faint, #6b6b6b);
-  font-family: inherit;
-  font-size: 11px;
-  padding: 6px 10px;
+  color: #a9a59b;
   opacity: 0;
+  transition: color 100ms, background 100ms;
 }
 .libraryRow:hover .libraryDel { opacity: 1; }
-.libraryDel:focus-visible { opacity: 1; outline: 1px solid var(--danger, #f87171); }
-.libraryDel:hover { color: var(--danger, #f87171); }
+.libraryDel:focus-visible { opacity: 1; outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: -2px; }
+.libraryDel:hover { color: #f0827a; background: rgba(248, 247, 243, 0.07); }
 
+/* The destructive confirm — red text on a faint red soft fill, never a solid red pill. */
 .libraryDelConfirm {
   flex: 0 0 auto;
-  background: var(--danger, #f87171);
+  height: 24px;
+  margin: 0 3px 0 4px;
+  padding: 0 9px;
+  background: rgba(240, 130, 122, 0.12);
   border: none;
-  border-radius: 3px;
+  border-radius: 6px;
   cursor: pointer;
-  color: #0b0f14;
+  color: #f0827a;
   font-family: inherit;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
-  padding: 2px 7px;
-  margin: 0 8px 0 4px;
 }
-.libraryDelConfirm:hover { filter: brightness(1.08); }
+.libraryDelConfirm:hover { background: rgba(240, 130, 122, 0.2); }
+.libraryDelConfirm:focus-visible { outline: 2px solid rgba(240, 130, 122, 0.5); outline-offset: 1px; }
+
+/* Save state at the bar's right end, left of the library (owner 11-15). A fixed minimum width, text right-aligned,
+   so "Saved" ↔ "Unsaved changes · Save" never moves the library button; a gold dot only for unsaved changes. */
+.saveState { flex: 0 0 auto; min-width: 158px; display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; margin: 0 6px 0 10px; font: 500 12px var(--font-sans, inherit); color: #93939a; white-space: nowrap; }
+.saveDot { width: 6px; height: 6px; border-radius: 50%; background: #6f6c66; flex: 0 0 auto; }
+.saveStateDirty { color: #ededed; }
+.saveStateDirty .saveDot { background: var(--ut-gold); }
+.saveLink { border: 0; background: none; padding: 0 2px; cursor: pointer; color: #f8f7f3; font: 600 12px var(--font-sans, inherit); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(248, 247, 243, 0.35); }
+.saveLink:hover { text-decoration-color: #f8f7f3; }

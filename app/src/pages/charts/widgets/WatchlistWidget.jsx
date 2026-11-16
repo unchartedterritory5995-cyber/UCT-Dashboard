@@ -271,7 +271,13 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
   // The library's tab: Prebuilt for a brand-new widget, then whichever tab the member last used
   // in THIS widget (opts.libraryTab), falling back to the open list's own library.
   const railTab = freshOpen ? 'prebuilt' : (opts?.libraryTab || opts?.watchTab || 'prebuilt')
-  const setRailTab = (t) => { if (t !== railTab || freshOpen) onOptsChange?.({ ...(opts || {}), libraryTab: t, libraryFresh: null }) }
+  // Owner 11-15: on a NARROW widget the just-added library is shown only by `libraryFresh`; a tab click
+  // clears that flag, which used to close the library on the very first click. Keep it open instead.
+  const setRailTab = (t) => {
+    if (t === railTab && !freshOpen) return
+    if (narrow && freshOpen) setOverlayOpen(true)
+    onOptsChange?.({ ...(opts || {}), libraryTab: t, libraryFresh: null })
+  }
   const listCount = (() => {
     if (!uctFrame) return null
     if (watchKey === 'flagged') return lib.flagged?.length ?? null

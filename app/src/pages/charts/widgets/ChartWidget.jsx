@@ -990,14 +990,15 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                 {/* ── Price action (at the clicked bar) ── */}
                 {Number.isFinite(ctxMenu.price) && (
                   <>
+                    <div className={styles.chartCtxLabel} aria-hidden="true">At this price</div>
                     <button type="button" className={styles.chartCtxItem} data-menu-id="set-alert" onClick={handleSetAlert}>
                       <UIcon name="bell" size={14} className={styles.chartCtxIcon} />
                       Set alert @ ${ctxMenu.price.toFixed(2)}
                     </button>
-                    <div className={styles.menuDivider} />
                   </>
                 )}
                 {/* ── Chart actions ── */}
+                <div className={styles.chartCtxLabel} aria-hidden="true">This chart</div>
                 <button type="button" className={styles.chartCtxItem} data-menu-id="journal" onClick={handleSendToJournal}>
                   <UIcon name="journal" size={14} className={styles.chartCtxIcon} />Send to Journal
                 </button>
@@ -1015,15 +1016,14 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                 {/* ── Location-aware section — ONE item keyed to WHERE the user
                     right-clicked (watermark / price axis / moving average / candle /
                     blank canvas), opening Chart settings at the matching section. ── */}
+                <div className={styles.chartCtxLabel} aria-hidden="true">Settings</div>
                 {ctxLocItem && (
                   <>
-                    <div className={styles.menuDivider} />
                     <button type="button" className={styles.chartCtxItem} data-menu-id={`settings-${ctxLocItem.target}`} onClick={() => { paneRef.current?.openSettings(ctxLocItem.target); closeCtx() }}>
                       <UIcon name={ctxLocItem.icon} size={14} className={styles.chartCtxIcon} />{ctxLocItem.label}
                     </button>
                   </>
                 )}
-                <div className={styles.menuDivider} />
                 {/* ── Chart configuration ── */}
                 <button type="button" className={styles.chartCtxItem} data-menu-id="settings" onClick={() => { paneRef.current?.openSettings(); closeCtx() }}>
                   <UIcon name="gear" size={14} className={styles.chartCtxIcon} />Chart settings
@@ -1063,8 +1063,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                     </div>
                   )}
                 </div>
+                <div className={styles.chartCtxLabel} aria-hidden="true">Add</div>
                 <button type="button" className={styles.chartCtxItem} data-menu-id="add-widget" onClick={() => setCtxSub('add')}>
-                  <UIcon name="plus" size={14} className={styles.chartCtxIcon} />Add widget ▸
+                  <UIcon name="plus" size={14} className={styles.chartCtxIcon} />Add widget<span className={styles.chartCtxCaret} aria-hidden="true">▸</span>
                 </button>
                 {/* /charts integrated header has no New-chart-tab button (owner 11-11) — the
                     door lives here instead, so chart tabs stay creatable. Once a tab exists
@@ -1077,7 +1078,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                 {/* ── Drawings ── */}
                 {ctxMenu.hasDrawings && (
                   <>
-                    <div className={styles.menuDivider} />
+                    <div className={styles.chartCtxLabel} aria-hidden="true">Drawings</div>
                     <button type="button" className={styles.chartCtxItem} data-menu-id="clear-draw" onClick={() => { ctxMenu.clearDrawings?.(); setCtxToast('Drawings cleared'); closeCtx() }}>
                       <UIcon name="trash" size={14} className={styles.chartCtxIcon} />Clear all drawings
                     </button>

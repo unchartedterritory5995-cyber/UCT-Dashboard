@@ -13,7 +13,7 @@
 //   chartSetup.favoriteTimeframe the timeframe menu's ★ (ChartPane.toggleTfFav): header.timeframes.
 //   chartSetup.compareDisplay    the Compare panel's per-symbol scale ("Same % scale" / "New price scale"),
 //                                its eye (enabled), and "Group only" (compareHideBase).
-//   chartSetup.saveTemplate      Chart Settings → Templates → Save as Template, from ONE chart's settings
+//   chartSetup.saveTemplate      Chart Settings → Save as chart template, from ONE chart's settings
 //                                (the shared chartTemplatesAfterSave: a same-named template is replaced —
 //                                then it is proposed first). Undo puts the old list back.
 //   chartSetup.deleteTemplate    a template's ✕ (chartTemplatesAfterDelete). Proposed; Undo puts it back.

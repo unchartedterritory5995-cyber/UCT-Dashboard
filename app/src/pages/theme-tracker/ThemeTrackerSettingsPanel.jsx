@@ -10,6 +10,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ColorPanel from '../../components/chart/ColorPanel'
+import ChoiceMenu from '../../components/chart/ChoiceMenu'
+import { rowToggleClick } from '../charts/widgets/widgetMenuRowToggle'
 import Switch from '../../components/ui/Switch'
 import WidgetThemeSection from '../charts/widgets/WidgetThemeSection'
 import { THEME_TRACKER_FONT_SIZES } from './themeTrackerSettings'
@@ -66,6 +68,7 @@ export default function ThemeTrackerSettingsPanel({ settings: s, onChange, onRes
       if (e.target.closest?.('[data-color-swatch]')) return
       if (e.target.closest?.('[data-color-panel]')) return
       if (e.target.closest?.('[data-uct-theme-gallery]')) return
+      if (e.target.closest?.('[data-choice-menu]')) return  // a ChoiceMenu's list is portalled outside the panel
       if (panelRef.current && panelRef.current.contains(e.target)) { setActiveTarget(null); return }
       if (gearEl && gearEl.contains(e.target)) return
       onClose?.()
@@ -114,28 +117,23 @@ export default function ThemeTrackerSettingsPanel({ settings: s, onChange, onRes
         onClick={e => e.stopPropagation()}
       >
         <div className={styles.head}>
-          <span className={styles.title}>Theme Tracker Settings</span>
+          <span className={styles.title}>Theme Tracker settings</span>
           <div className={styles.headRight}>
             <button className={styles.uReset} onClick={onReset} title="Restore theme tracker settings to defaults">Reset</button>
-            <button className={styles.close} onClick={onClose} title="Close">✕</button>
+            <button className={styles.close} onClick={onClose} title="Close" aria-label="Close">✕</button>
           </div>
         </div>
 
-        <div className={styles.body}>
+        <div className={styles.body} onClick={rowToggleClick(styles.row)}>
           <div className={styles.sectionLabel}>Theme</div>
           <Row label="UCT theme" hint="whole-widget look">
-            <WidgetThemeSection widgetType={widgetType} currentSettings={s} onSettings={(next) => onChange(next)} themeVars={themeVars} buttonClass={styles.uBtn} buttonLabel="UCT Themes" />
+            <WidgetThemeSection widgetType={widgetType} currentSettings={s} onSettings={(next) => onChange(next)} themeVars={themeVars} buttonClass={styles.uBtn} buttonLabel="UCT themes" />
           </Row>
           {/* Canvas */}
           <div className={styles.sectionLabel}>Canvas</div>
           <Row label="Background">
-            <div className={styles.seg}>
-              {BG_MODES.map(m => (
-                <button key={m.key}
-                  className={`${styles.segBtn}${s.bgMode === m.key ? ' ' + styles.segBtnOn : ''}`}
-                  onClick={() => set({ bgMode: m.key })}>{m.label}</button>
-              ))}
-            </div>
+            <ChoiceMenu ariaLabel="Background" value={s.bgMode}
+              options={BG_MODES.map(m => ({ value: m.key, label: m.label }))} onChange={(v) => set({ bgMode: v })} />
           </Row>
           {s.bgMode === 'solid' && <Row label="Canvas color">{swatch('bg', 'Canvas')}</Row>}
           {s.bgMode === 'gradient' && (
@@ -151,14 +149,9 @@ export default function ThemeTrackerSettingsPanel({ settings: s, onChange, onRes
           {/* Text */}
           <div className={styles.sectionLabel}>Text</div>
           <Row label="Text size" hint="whole tracker">
-            <select
-              className={styles.sizeSelect}
-              value={Number(s.fontSize)}
-              onChange={e => set({ fontSize: Number(e.target.value) })}
-              title="Theme tracker text size"
-            >
-              {THEME_TRACKER_FONT_SIZES.map(px => <option key={px} value={px}>{px}</option>)}
-            </select>
+            <ChoiceMenu ariaLabel="Theme tracker text size" title="Theme tracker text size" value={Number(s.fontSize)}
+              options={THEME_TRACKER_FONT_SIZES.map(px => ({ value: px, label: String(px) }))}
+              onChange={(v) => set({ fontSize: Number(v) })} />
           </Row>
 
           {/* Text colors — no Price/Volume rows: the tracker has neither column */}
@@ -166,7 +159,7 @@ export default function ThemeTrackerSettingsPanel({ settings: s, onChange, onRes
           <Row label="Symbol">{swatch('symColor', 'Symbol')}</Row>
 
           {/* % change */}
-          <div className={styles.sectionLabel}>% Change</div>
+          <div className={styles.sectionLabel}>% change</div>
           <Row label="Up">{swatch('upColor', 'Up')}</Row>
           <Row label="Down">{swatch('downColor', 'Down')}</Row>
 
