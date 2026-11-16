@@ -282,7 +282,10 @@ export function createPrefetch(o = {}) {
     // handoff's 25 ms poll exists to see exactly that).
     else if (!(held.depth || held.restSeen || held.developing)) { try { S().persist.hydrateMem(key) } catch { /* derived */ } }
     const s = S().peek(key)
-    return !!s && HANDOFF_PAINTS.includes(s.status) && (s.depth > 0 || !!s.developing)
+    // (A status in HANDOFF_PAINTS already means rows are held: status.deriveStatus answers
+    // empty / unavailable for an entry with none. No second rows test here: it could not be
+    // proved by a test, 2026-11-16 mutation run.)
+    return !!s && HANDOFF_PAINTS.includes(s.status)
   }
 
   /**
@@ -333,7 +336,7 @@ export function createPrefetch(o = {}) {
       // A SERVER answer is already held and the chart paints it (see HANDOFF_PAINTS): commit,
       // the chart's own request catches the tail up. A LOCAL-only copy is judged by the legacy
       // paint rule on the next line, never by this one (#2c).
-      if (s0 && !date && s0.restSeen && HANDOFF_PAINTS.includes(s0.status) && (s0.depth > 0 || !!s0.developing)) return 'current'
+      if (s0 && !date && s0.restSeen && HANDOFF_PAINTS.includes(s0.status)) return 'current'
       if (_localPaints(s0, fetchTf(String(tf)), showExtended)) return 'current'   // legacy: no request
       // Otherwise only a SERVER answer prepares it. ⛔ NOT a `&warm=1` request and NOT in the
       // shared warm lane: this is the request for the chart the member just asked for. As a

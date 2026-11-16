@@ -306,11 +306,14 @@ describe('handoff contract (peekDisplayable / prepareForDisplay / prepareDailyFo
     expect(w.server.calls.length).toBe(asked)
   })
 
-  it('control: an entry with NO rows is never displayable, whatever its status', async () => {
-    const w = await boot({ modeFor: () => 'fail' })
+  it('control: an entry with NO rows is never displayable (a failed request, and a symbol with no data)', async () => {
+    const w = await boot({ modeFor: (q) => (q.sym === 'DEADX' ? 'nodata' : 'fail') })
     const p = w.pf.prepareForDisplay('NOROWS', '5'); await w.server.drain(); await p
     expect(w.store.peek(w.k('NOROWS', '5'))?.depth || 0).toBe(0)
     expect(w.pf.peekDisplayable('NOROWS', '5')).toBe(false)
+    const d = w.pf.prepareForDisplay('DEADX', '5'); await w.server.drain(); await d
+    expect(w.store.peek(w.k('DEADX', '5'))?.depth || 0).toBe(0)
+    expect(w.pf.peekDisplayable('DEADX', '5')).toBe(false)
   })
 
   it('an entry a first peek made empty is looked up in mem again (the 25 ms poll sees a later promotion)', async () => {
