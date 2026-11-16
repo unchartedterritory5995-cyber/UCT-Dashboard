@@ -52,6 +52,14 @@
     border-bottom: 0;
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
+  /* In the phone sheet (the dock host's overlay case, `ChartsWorkspace.module.css`) the
+     panel is the docked variant: it loses its side border and takes the sheet's top edge. */
+  [data-studio-dock="overlay"] > .panelDocked {
+    border-left: none;
+    border-top: 1px solid var(--menu-border, #242426);
+    border-radius: 16px 16px 0 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
 }
 
 .panelDocked {

@@ -607,16 +607,24 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
         return
       }
       if (row.action === 'indicatorDoor') {
-        // The chart opens its own door. Parked first, so a chart that mounts after the
-        // navigation below still takes it; asked after the palette has closed so focus
-        // returns to the chart's surface, not to this input.
+        // The chart opens its own door. The request is PARKED, so a chart that mounts after a
+        // navigation still takes it.
         const door = row.door
         const onCharts = String(location?.pathname || '').startsWith(CHARTS_PATH)
-        close()
-        setTimeout(() => {
+        if (!onCharts) {
+          // From another page: park the request, then navigate IN THIS TICK, exactly as a route
+          // command does. ⚰️ It was deferred with the request, and from the Screener that left
+          // the address at `/screener?s=...` with Charts on screen (measured on production,
+          // 2026-11-16): the page being left wrote its own address after a late navigation.
           requestIndicatorDoor(door)
-          if (!onCharts) navigate(CHARTS_PATH)
-        }, 0)
+          close()
+          navigate(CHARTS_PATH)
+          return
+        }
+        // Already on the charts page: asked after the palette has closed, so focus returns to the
+        // chart's surface and not to this input.
+        close()
+        setTimeout(() => requestIndicatorDoor(door), 0)
         return
       }
       if (row.action === 'door') {

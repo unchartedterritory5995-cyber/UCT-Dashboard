@@ -76,6 +76,30 @@ describe('wiring and the phone layout (read from source)', () => {
     expect(rule).toMatch(/height:\s*min\(58dvh, 560px\)\s*!important/)
   })
 
+  it('on a phone the dock HOST is the sheet: fixed across the bottom, above the joystick tab', () => {
+    // Measured on production at 390px, 2026-11-16: the panel is DOCKED in a host that overlays the
+    // chart's right edge, so the rule above (the floating panel) never applied there. The host is
+    // what has to move. Tried on the live page before it was written here: 354px of chart visible
+    // above the sheet, and nothing over its Send button.
+    const css = code(src('../../pages/charts/ChartsWorkspace.module.css'))
+    const m = css.match(/@media \(max-width: 1024px\) \{\s*\.studioDock\[data-studio-dock="overlay"\] \{([^}]*)\}/)
+    expect(m, 'no touch-tier rule for the dock host').not.toBeNull()
+    const rule = m[1]
+    expect(rule).toMatch(/position:\s*fixed/)
+    expect(rule).toMatch(/bottom:\s*0/)
+    expect(rule).toMatch(/width:\s*100%/)
+    expect(rule).toMatch(/height:\s*min\(58dvh, 560px\)/)
+    // The joystick's edge tab is a fixed element at z-index 360; the sheet must sit above it.
+    expect(Number(rule.match(/z-index:\s*(\d+)/)[1])).toBeGreaterThan(360)
+    // Only the overlay case: a pane wide enough to give the dock a column keeps it.
+    expect(css).not.toMatch(/@media \(max-width: 1024px\) \{\s*\.studioDock \{/)
+  })
+
+  it("in that sheet the docked panel takes the sheet's top edge, not a side border", () => {
+    const css = code(src('./builder/studio/CreateIndicatorPanel.module.css'))
+    expect(css).toMatch(/\[data-studio-dock="overlay"\] > \.panelDocked \{[^}]*border-left:\s*none;[^}]*border-radius:\s*16px 16px 0 0/)
+  })
+
   it('⛔ CONTROL: the rule check can tell a missing rule from a present one', () => {
     const without = '.panel { position: fixed; width: 360px; }'
     expect(without.match(/@media \(max-width: 1024px\) \{\s*\.panel:not\(\.panelDocked\) \{([^}]*)\}/)).toBeNull()
