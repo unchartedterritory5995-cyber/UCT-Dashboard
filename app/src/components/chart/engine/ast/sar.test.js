@@ -79,7 +79,10 @@ function realSeries() {
     if (seen.has(key)) continue
     seen.add(key)
     const ix = Object.fromEntries(d.bars.fields.map((k, i) => [k, i]))
-    out.push(rows.map((r, i) => ({ t: i, o: r[ix.open], h: r[ix.high], l: r[ix.low], c: r[ix.close], v: r[ix.volume] })))
+    const bars = rows.map((r, i) => ({ t: i, o: r[ix.open], h: r[ix.high], l: r[ix.low], c: r[ix.close], v: r[ix.volume] }))
+    // the capture the series came from, so a disagreement names its series
+    Object.defineProperty(bars, 'source', { value: `${f} (${(d.symbol && (d.symbol.full_name || d.symbol.name)) || d.symbol} ${d.timeframe}, ${rows.length} bars)`, enumerable: false })
+    out.push(bars)
   }
   return out
 }
@@ -109,7 +112,7 @@ describe('the chart\'s own Parabolic SAR, bar for bar', () => {
     let published = 0
     for (const bars of series) {
       const g = grade(bars, 0.02, 0.2)
-      expect(g.bad).toBe(0)
+      expect(g.bad, bars.source).toBe(0)
       published += g.published
     }
     expect(published).toBeGreaterThan(5000)
