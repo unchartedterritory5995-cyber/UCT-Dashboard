@@ -1384,11 +1384,85 @@ function windowOperands(series, n, i, policy) {
   return { lo: 0, hi: n - 1, buf }
 }
 
+function allFinite(series) {
+  for (let i = 0; i < series.length; i++) if (!Number.isFinite(series[i])) return false
+  return true
+}
+
+/** ⭐ SMA-EXACT, THE SLIDING FORM — the same exactly rounded window sums `exactSum` answers bar by bar
+ *  (`ta.sma` divides by `n`), for a series with no `na` (where `skip` and `propagate` read the same plain
+ *  window), in O(1) per bar instead of O(n). It is the server's case: a screener scan over the universe
+ *  ran 3,742 tickers x sma(50) + sma(200) x 1,500 bars in 58.5 s with `exactSum` per window against
+ *  44-47 s before SMA-EXACT; this form brings it back (EVIDENCE.md, "Server side").
+ *
+ *  Every add (the entering value) and every subtract (the leaving one) is a TwoSum, so `s + (the sum of
+ *  the errors e_k)` is the window's sum EXACTLY, after any number of steps. `c` accumulates the errors
+ *  in floating point, off by at most `K u sum|e_k|` after K steps; the certificate is `exactSum`'s
+ *  (what rounding `s + c` lost, plus that bound, strictly inside half a gap around `r`). Where it
+ *  cannot be given, the bar answers `exactSum` over its window and the state restarts from that window,
+ *  so errors carried from a different price scale never outlive one fallback. Railed bar for bar
+ *  against `exactSum` (`smaExactSum.test.js`). */
+function rollingExactSum(series, n, mean) {
+  const out = nan(series.length)
+  if (!(n >= 1) || series.length < n) return out
+  let s = 0
+  let c = 0
+  let e = 0
+  let K = 0
+  const restart = (lo, hi) => {
+    s = 0; c = 0; e = 0; K = 0
+    for (let k = lo; k <= hi; k += 1) {
+      const x = series[k]
+      const t = s + x
+      const bp = t - s
+      const ek = (s - (t - bp)) + (x - bp)
+      c += ek
+      e += ek < 0 ? -ek : ek
+      s = t
+      K += 1
+    }
+  }
+  restart(0, n - 2)
+  for (let i = n - 1; i < series.length; i += 1) {
+    let x = series[i]
+    let t = s + x
+    let bp = t - s
+    let ek = (s - (t - bp)) + (x - bp)
+    c += ek; e += ek < 0 ? -ek : ek; s = t
+    if (i >= n) {
+      x = -series[i - n]
+      t = s + x
+      bp = t - s
+      ek = (s - (t - bp)) + (x - bp)
+      c += ek; e += ek < 0 ? -ek : ek; s = t
+      K += 2
+    } else K += 1
+    const r = s + c
+    let exact = false
+    if (Number.isFinite(r) && r !== 0) {
+      const bq = r - s
+      const lost = (s - (r - bq)) + (c - bq)
+      const bound = 4 * (K + 3) * 2 ** -53 * e
+      if (Number.isFinite(bound)) {
+        exact = (lost < 0 ? -lost : lost) + bound < halfGap(r) * (1 - 1e-9)
+      }
+    }
+    if (exact) { out[i] = mean ? r / n : r; continue }
+    const v = exactSum(series, i - n + 1, i)
+    out[i] = mean ? v / n : v
+    restart(i - n + 1, i)
+  }
+  return out
+}
+
 /** ⚰️ `naCurrent` (the answer on an `na` bar, 0, for `highestbars` / `lowestbars`) WAS A
  *  PARAMETER HERE until S17 measured -1 on the hole bar where it answered 0. They are
  *  `NA.FINITE` now, and `arg` is what `rollingFinite` needs to count bars. */
 function rolling(series, n, reduce, policy = NA.PROPAGATE, arg = false) {
   if (policy === NA.FINITE) return rollingFinite(series, n, reduce, arg)
+  if ((reduce === windowMean || reduce === windowSum) && policy !== NA.FFILL && allFinite(series)) {
+    return rollingExactSum(series, n, reduce === windowMean)
+  }
   const out = nan(series.length)
   // ⭐ FORWARD-FILL IS A SERIES TRANSFORM, DONE ONCE. `ta.wma` replaces an `na`
   // in its lookback with the last finite value and keeps that bar's WEIGHT —
@@ -1513,13 +1587,18 @@ function exactSumShewchuk(series, lo, hi) {
   }
   return hiS
 }
-const ULP_VIEW = new Float64Array(1)
-const ULP_BITS = new BigInt64Array(ULP_VIEW.buffer)
-/** The adjacent double on the side `dir` (+1 up, -1 down) of a finite non-zero `x`. */
-function adjacentDouble(x, dir) {
-  ULP_VIEW[0] = x
-  ULP_BITS[0] += (x > 0) === (dir > 0) ? 1n : -1n
-  return ULP_VIEW[0]
+/** Half the SMALLER of the two gaps around a finite non-zero double `r`: the distance from `r` within
+ *  which every real number rounds to `r` whichever side it lies on. Pure arithmetic (this module reads no
+ *  typed-array bit views): with `2^e <= |r| < 2^(e+1)` the gap above is `2^(e-52)`, and the gap below is
+ *  half that when `|r|` is exactly `2^e`; subnormals have the fixed gap `2^-1074`. */
+function halfGap(r) {
+  const a = r < 0 ? -r : r
+  let e = Math.floor(Math.log2(a))
+  if (2 ** e > a) e -= 1
+  else if (2 ** (e + 1) <= a) e += 1
+  if (e < -1022) return 2 ** -1075
+  const gap = a === 2 ** e && e > -1022 ? 2 ** (e - 53) : 2 ** (e - 52)
+  return gap / 2
 }
 /** ⭐⭐ SMA-EXACT (NUMBER PENDING) — THE EXACTLY ROUNDED SUM of `series[lo..hi]`: the true sum of the
  *  doubles rounded ONCE, identical to Python's `math.fsum` (the twin `ast_interpret._window_mean` /
@@ -1562,10 +1641,7 @@ export function exactSum(series, lo, hi) {
   if (!Number.isFinite(r)) return s
   const bound = 4 * (hi - lo + 3) * 2 ** -53 * e
   if (Number.isFinite(bound) && r !== 0) {
-    const down = (r - adjacentDouble(r, -1)) / 2
-    const up = (adjacentDouble(r, 1) - r) / 2
-    const g = down < up ? down : up    // both are positive: the half gaps below and above `r`
-    if ((lost < 0 ? -lost : lost) + bound < g * (1 - 1e-9)) return r
+    if ((lost < 0 ? -lost : lost) + bound < halfGap(r) * (1 - 1e-9)) return r
   }
   return exactSumShewchuk(series, lo, hi)
 }

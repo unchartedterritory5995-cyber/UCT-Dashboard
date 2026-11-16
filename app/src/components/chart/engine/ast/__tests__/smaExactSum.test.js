@@ -64,6 +64,38 @@ describe('exactSum — the exactly rounded sum, whatever the data', () => {
   })
 })
 
+describe('the sliding form (a series with no na) answers what exactSum answers, bar for bar', () => {
+  it('over price walks, scale jumps, cancellations and exact ties, sma and sum', () => {
+    let seed = 11
+    const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648 }
+    const shapes = [
+      (i, p) => Math.round(p * (1 + (rnd() - 0.5) * 0.04) * 100) / 100,              // cents
+      (i, p) => (i % 97 === 0 ? p * 1e6 : i % 101 === 0 ? p / 1e6 : p * (1 + (rnd() - 0.5) * 0.1)), // scale jumps
+      (i) => (i % 2 ? 1e16 : -1e16) + (i % 3) * 0.5 + rnd() * 1e-3,                  // cancellation
+      (i) => [0.1, 0.2, 0.3, 1e-16, 1][i % 5],                                        // ties and tiny parts
+      (i) => [1e16, 1e-16, 1][i % 3],         // the window where a compensated sum rounds the wrong way
+      (i) => [2 ** 52, 0.5, 2 ** -60, -(2 ** 52)][i % 4] * (i % 7 ? 1 : 2),           // exact halves at powers of two
+    ]
+    let bars = 0
+    for (const step of shapes) {
+      for (const n of [1, 2, 5, 30, 200]) {
+        let p = 100
+        const b = Array.from({ length: 1200 }, (_, i) => { p = step(i, p); return { t: 1600000000 + i * 86400, o: p, h: p, l: p, c: p, v: 1 } })
+        const closes = b.map((x) => x.c)
+        const sma = interpret(parseFormula(`sma(close, ${n})`).ast, b, {})
+        const sum = interpret(parseFormula(`sum(close, ${n})`).ast, b, {})
+        for (let i = n - 1; i < b.length; i += 1) {
+          const want = exactSum(closes, i - n + 1, i)
+          if (!Object.is(sum[i], want)) throw new Error(`sum(${n}) bar ${i}: ${sum[i]} != ${want}`)
+          if (!Object.is(sma[i], want / n)) throw new Error(`sma(${n}) bar ${i}: ${sma[i]} != ${want / n}`)
+          bars += 1
+        }
+      }
+    }
+    expect(bars).toBeGreaterThan(20000)
+  })
+})
+
 describe('the captures (both lanes): T02 `ta.sma(close, 5)` and T05 `math.sum(close, 5)` bit for bit', () => {
   const CAPS = [
     ['vw-cs2-sma-exact-tie-rddt-1d-2026-11-15', 662],
