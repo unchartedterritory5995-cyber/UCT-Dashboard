@@ -180,9 +180,20 @@ def _roll(now: float) -> None:
         _enqueue(done)
 
 
-def record(path: str, status: int, ms: float, now: float | None = None) -> None:
+#: A write is its own class (`POST /api/auth/preferences`): a save and a read of one path are
+#: different work and were hiding each other's numbers.
+_READS = frozenset({"GET", "HEAD", ""})
+_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE", "OPTIONS"})
+#: Minutes this soon after the process started are reported apart from the settled ones.
+AFTER_BOOT_S = 300
+
+
+def record(path: str, status: int, ms: float, now: float | None = None, method: str = "GET") -> None:
     try:
         cls = path_class(path)
+        method = (method or "").upper()
+        if method not in _READS:
+            cls = (method if method in _METHODS else "OTHER") + " " + cls
         error = status >= 500
         with _lock:
             _roll(now if now is not None else time.time())
@@ -334,13 +345,14 @@ class RequestTimingMiddleware:
         t0 = time.perf_counter()
         seen = [False]
         path = scope.get("path") or ""
+        method = scope.get("method") or "GET"
 
         async def timed_send(message):
             if not seen[0] and message.get("type") == "http.response.start":
                 seen[0] = True
                 try:
                     ms = (time.perf_counter() - t0) * 1000.0
-                    record(path, int(message.get("status") or 0), ms)
+                    record(path, int(message.get("status") or 0), ms, method=method)
                     headers = list(message.get("headers") or [])
                     headers.append((b"server-timing", b"app;dur=%.1f" % ms))
                     message = {**message, "headers": headers}
@@ -352,7 +364,7 @@ class RequestTimingMiddleware:
             await self.app(scope, receive, timed_send)
         except Exception:
             if not seen[0]:
-                record(path, 500, (time.perf_counter() - t0) * 1000.0)
+                record(path, 500, (time.perf_counter() - t0) * 1000.0, method=method)
             raise
 
 
@@ -380,7 +392,9 @@ def _minutes(since_minute: int) -> list[dict]:
             continue
     with _lock:
         if _cur["m"] >= since_minute and (_cur["g"][0] or _cur["s"]["n"]):
-            out.append(json.loads(json.dumps(_cur)))
+            live = json.loads(json.dumps(_cur))
+            live["up"] = round(_cur["m"] * 60 - _BOOT)
+            out.append(live)
     return out
 
 
@@ -408,9 +422,17 @@ def summary(hours: int = 24, top: int = 60, now: float | None = None) -> dict[st
     routes: dict[str, list] = {}
     restarts = 0
     last_up: float | None = None
+    # The minutes just after a restart, apart from the rest: the server is 3 to 6 times slower
+    # while its caches warm, and that tail was being read as a property of whole routes.
+    phases = {"after_boot": {"g": new_hist(), "s": new_sampler(), "minutes": 0},
+              "settled": {"g": new_hist(), "s": new_sampler(), "minutes": 0}}
     for row in rows:
         merge(total, row["g"])
         merge_sampler(total_s, row.get("s") or new_sampler())
+        phase = phases["after_boot" if row.get("up") is not None and row["up"] < AFTER_BOOT_S else "settled"]
+        merge(phase["g"], row["g"])
+        merge_sampler(phase["s"], row.get("s") or new_sampler())
+        phase["minutes"] += 1
         hour = by_hour.setdefault(row["m"] // 60, {"g": new_hist(), "s": new_sampler()})
         merge(hour["g"], row["g"])
         merge_sampler(hour["s"], row.get("s") or new_sampler())
@@ -437,6 +459,8 @@ def summary(hours: int = 24, top: int = 60, now: float | None = None) -> dict[st
     return {
         "hours": hours, "minutes_with_data": len(rows), "restarts_seen": restarts, "enabled": enabled(),
         "verdict": verdict, "all": _hist_row(total), "threads": _sampler_row(total_s),
+        "since_restart": {name: {"minutes": v["minutes"], **_hist_row(v["g"]), **_sampler_row(v["s"])}
+                          for name, v in phases.items()},
         "by_hour": [{"hour": time.strftime("%Y-%m-%d %H:00", time.gmtime(h * 3600)), **_hist_row(v["g"]),
                      **_sampler_row(v["s"])} for h, v in sorted(by_hour.items())],
         "routes": [{"route": cls, **_hist_row(h), "share_of_time_pct": round(100.0 * h[1] / all_ms, 1)}
