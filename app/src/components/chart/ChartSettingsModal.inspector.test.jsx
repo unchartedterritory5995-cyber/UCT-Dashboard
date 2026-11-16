@@ -1355,6 +1355,8 @@ describe('THE ADD INDICATOR LIBRARY — one door, five categories, and no fictio
       'Technical', 'Fundamentals', 'Breadth', 'Symbols', 'Positioning',
       // 2026-11-16: the published library is shown here too. It is LAST, so the five
       // catalogue tabs keep their places and the landing tab is unchanged.
+      // 2026-11-16: UCT's house set, just before Members.
+      'UCT',
       'Members',
     ])
     expect(tabs().map((t) => t.textContent.trim()),
