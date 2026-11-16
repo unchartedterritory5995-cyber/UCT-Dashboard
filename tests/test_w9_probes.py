@@ -33,7 +33,7 @@ EXPECTED = {
     "Q-S1b": ["w9-q-s1b-defaults-v4", "w9-q-s1b-defaults-v5", "w9-q-s1b-defaults-v6"],
     "Q-S1c": ["w9-q-s1c-tie"], "Q-S1d": ["w9-q-s1d-same-tick"], "Q-S1e": ["w9-q-s1e-live-past"],
     "Q-S1f": ["w9-q-s1f-reversal-exit"], "Q-S1g": ["w9-q-s1g-pyr-limit"], "Q-S1h": ["w9-q-s1h-fifo"],
-    "Q-S1i": ["w9-q-s1i-funds"], "Q-S1j": ["w9-q-s1j-stop-limit"],
+    "Q-S1i": ["w9-q-s1i-funds", "w9-q-s1i-short-v6"], "Q-S1j": ["w9-q-s1j-stop-limit"],
     "Q-S1k": ["w9-q-s1k-exit-levels", "w9-q-s1k-exit-levels-v6"], "Q-S1l": ["w9-q-s1l-off-grid"],
     "Q-S1m": ["w9-q-s1m-index"], "Q-S1p": ["w9-q-s1p-when"], "Q-S1n": ["s1-broker-core"],
     "W9-D1": ["w9-d1-v6-defaults", "w9-d1-margin50"], "W9-D2": ["w9-d2-currency"],

@@ -233,6 +233,16 @@ strategy.close("L", when = dn)''', decl=FIXED1, ver=5))
     s.append(P("q-s1a-size-v6", "Q-S1a", "v6 default size with none declared", sz, decl="", ver=6,
                extras=[("X01_open_size_0", "strategy.opentrades > 0 ? strategy.opentrades.size(0) : na"),
                        ("X02_close", "close")]))
+    # 2026-11-16 (B-FUNDS, #1485): the SHORT twin of q-s1a-size-v6 - the same crossover, short on the crossunder and
+    # closed on the crossover, v6 defaults (100% of equity, margin 100%). Seven built-in strategies stop at Q-S1i on
+    # NYSE:RDDT 1D holding such a short: at margin 100% a short of the whole equity fails the margin check on the first
+    # bar whose high passes (equity + qty x entry) / (2 x qty). The report's exits say what TradingView does there
+    # (a "Margin call" exit: how many units, at which price); X03 is the high the check reads.
+    s.append(P("q-s1i-short-v6", "Q-S1i", "v6 default size (100% of equity, margin 100%) held SHORT: the margin call",
+               "{SC}\nif dn\n    strategy.entry(\"S\", strategy.short)\nif up\n    strategy.close(\"S\")", decl="", ver=6,
+               extras=[("X01_open_size_0", "strategy.opentrades > 0 ? strategy.opentrades.size(0) : na"),
+                       ("X02_close", "close"),
+                       ("X03_high", "high")]))
     s.append(P("q-s1a-size-v5pct", "Q-S1a", "v5 percent_of_equity 10", sz, decl="default_qty_type = strategy.percent_of_equity, default_qty_value = 10", ver=5,
                extras=[("X01_open_size_0", "strategy.opentrades > 0 ? strategy.opentrades.size(0) : na"),
                        ("X02_close", "close")]))
