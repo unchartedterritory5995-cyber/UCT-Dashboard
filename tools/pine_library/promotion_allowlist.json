@@ -151,34 +151,66 @@
    "path": "Fontiramisu/fontilab/11",
    "sha256": "ee3343eb454a6e5f6fe3cfb4c0a898cfd2339b812369de9d63a032c8d8f5b3c3",
    "imports": [],
-   "reason": "imported by ATR Trend Bands [Misu] (DIVERGE: a colour on bar 0)",
+   "reason": "imported by ATR Trend Bands [Misu] (DIVERGE: a colour on bar 0) Re-graded on engine 61 (2026-11-16) with the deny list emptied in the working tree only, restored byte-equal: ATR Trend Bands is refused by name host-only (pine:timeout) and DIVERGEs with the runtime pane on. Stays denied.",
    "denied": "on the deny list (app/src/components/chart/engine/ast/pineLibraryDeny.json): never served, whatever a store holds, until a re-grade to MATCH",
    "hostOnly": {
     "atr-trend-bands-misu-rddt-1d-2026-11-15": "refused by name (pine:library-denied), so no picture is drawn"
+   },
+   "engine61Undenied": {
+    "hostOnly": {
+     "atr-trend-bands-misu-rddt-1d-2026-11-15": "refused by name (pine:timeout), so no picture is drawn"
+    },
+    "runtimeOn": {
+     "atr-trend-bands-misu-rddt-1d-2026-11-15": "DIVERGE"
+    }
    }
   },
   {
    "path": "loxx/loxxexpandedsourcetypes/4",
    "sha256": "b3ffddf3442cc534a7a1904247b46ff623f690d89456073c22cb5c5959c3ba90",
    "imports": [],
-   "reason": "imported by Black-Scholes Option Pricing Model w/ Greeks [Loxx] (DIVERGE on 4 captures)",
+   "reason": "imported by Black-Scholes Option Pricing Model w/ Greeks [Loxx] (DIVERGE on 4 captures) Re-graded on engine 61 (2026-11-16) the same way: Black-Scholes DIVERGEs on all four captures in both states (table cells 22 vs 8); Deviation-Scaled MA (pine:state) and STD-Filtered Hull MA (pine:block) are refused by name. Stays denied.",
    "denied": "on the deny list (app/src/components/chart/engine/ast/pineLibraryDeny.json): never served, whatever a store holds, until a re-grade to MATCH",
    "hostOnly": {
     "black-scholes-option-pricing-model-w-greeks-loxx-rddt-1d-2026-11-15": "refused by name (pine:library-denied), so no picture is drawn",
     "black-scholes-option-pricing-model-w-greeks-loxx-aapl-1d-2026-11-15": "refused by name (pine:library-denied), so no picture is drawn",
     "black-scholes-option-pricing-model-w-greeks-loxx-jpm-1d-2026-11-15": "refused by name (pine:library-denied), so no picture is drawn",
     "black-scholes-option-pricing-model-w-greeks-loxx-spy-1d-2026-10-03": "refused by name (pine:library-denied), so no picture is drawn"
+   },
+   "engine61Undenied": {
+    "hostOnly": {
+     "black-scholes-option-pricing-model-w-greeks-loxx-rddt-1d-2026-11-15": "DIVERGE",
+     "black-scholes-option-pricing-model-w-greeks-loxx-aapl-1d-2026-11-15": "DIVERGE",
+     "black-scholes-option-pricing-model-w-greeks-loxx-jpm-1d-2026-11-15": "DIVERGE",
+     "black-scholes-option-pricing-model-w-greeks-loxx-spy-1d-2026-10-03": "DIVERGE"
+    },
+    "runtimeOn": {
+     "black-scholes-option-pricing-model-w-greeks-loxx-rddt-1d-2026-11-15": "DIVERGE",
+     "black-scholes-option-pricing-model-w-greeks-loxx-aapl-1d-2026-11-15": "DIVERGE",
+     "black-scholes-option-pricing-model-w-greeks-loxx-jpm-1d-2026-11-15": "DIVERGE",
+     "black-scholes-option-pricing-model-w-greeks-loxx-spy-1d-2026-10-03": "DIVERGE"
+    }
    }
   },
   {
    "path": "TradingView/ValueAtTime/2",
    "sha256": "74c0a0943c6331fdd754391a68fb285feca6ea942dde35e0ec7d01bad8d58169",
    "imports": [],
-   "reason": "imported by Performance (DIVERGE on RDDT and SPY)",
+   "reason": "imported by Performance (DIVERGE on RDDT and SPY) Re-graded on engine 61 (2026-11-16) the same way: Performance DIVERGEs on RDDT and SPY in both states (table cells 55 vs 0). Stays denied.",
    "denied": "on the deny list (app/src/components/chart/engine/ast/pineLibraryDeny.json): never served, whatever a store holds, until a re-grade to MATCH",
    "hostOnly": {
     "performance-rddt-1d-2026-11-15": "refused by name (pine:library-denied), so no picture is drawn",
     "performance-spy-1d-2026-11-15": "refused by name (pine:library-denied), so no picture is drawn"
+   },
+   "engine61Undenied": {
+    "hostOnly": {
+     "performance-rddt-1d-2026-11-15": "DIVERGE",
+     "performance-spy-1d-2026-11-15": "DIVERGE"
+    },
+    "runtimeOn": {
+     "performance-rddt-1d-2026-11-15": "DIVERGE",
+     "performance-spy-1d-2026-11-15": "DIVERGE"
+    }
    }
   },
   {
