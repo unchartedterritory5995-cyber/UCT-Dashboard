@@ -60,14 +60,20 @@
    "docs/pine/capture-queue-2026-11-14-rs-rating.md",
    "docs/pine/capture-queue-2026-11-15-calc-bars.md",
    "docs/pine/capture-queue-2026-11-16-cond-ta-followups.md",
+   "docs/pine/capture-queue-2026-11-16-door-robustness.md",
    "docs/pine/capture-queue-2026-11-16-draw-count-at-cap.md",
+   "docs/pine/capture-queue-2026-11-16-libraries-phase-b.md",
+   "docs/pine/capture-queue-2026-11-16-request-security.md",
    "docs/pine/capture-queue-2026-11-16-rma-last-bit.md",
+   "docs/pine/capture-queue-2026-11-16-runtime-history.md",
+   "docs/pine/capture-queue-2026-11-16-sar-window.md",
+   "docs/pine/capture-queue-2026-11-16-text-colour.md",
    "docs/pine/capture-queue-2026-11-16-tick-tie-and-htf-windows.md"
   ],
   "coverageMeasuredOn": "2026-11-16",
   "coverageMasterSha": "890b6d165c",
-  "fixtures": 753,
-  "ledgerRows": 884
+  "fixtures": 788,
+  "ledgerRows": 919
  },
  "definitions": {
   "priority": "|firm ∪ named ∪ direct| — firm: non-transferring sample scripts whose every host wall is a guard the target's rows name; named: non-transferring scripts the rows name; direct: the target IS a transferring, never-MATCHed sample script (its capture verifies it)",
@@ -87,47 +93,46 @@
   }
  },
  "counts": {
-  "targets": 321,
+  "targets": 338,
   "byStatus": {
-   "CAPTURED": 145,
+   "CAPTURED": 180,
    "NEEDS_CHART": 39,
    "NEEDS_LIVE": 2,
-   "QUEUED": 135
+   "QUEUED": 117
   },
   "byPlanWave": {
    "E": {
-    "CAPTURED": 130,
+    "CAPTURED": 140,
     "NEEDS_CHART": 37,
     "NEEDS_LIVE": 2,
-    "QUEUED": 102
+    "QUEUED": 106
    },
    "W1": {
-    "QUEUED": 6
+    "CAPTURED": 6
    },
    "W3": {
-    "CAPTURED": 2
-   },
-   "W4": {
-    "CAPTURED": 11,
-    "NEEDS_CHART": 2,
-    "QUEUED": 26
-   },
-   "W7": {
     "CAPTURED": 2,
     "QUEUED": 1
+   },
+   "W4": {
+    "CAPTURED": 29,
+    "NEEDS_CHART": 2,
+    "QUEUED": 10
+   },
+   "W7": {
+    "CAPTURED": 3
    }
   },
   "byPriorityBand": {
    "0": {
-    "CAPTURED": 125,
+    "CAPTURED": 152,
     "NEEDS_CHART": 38,
     "NEEDS_LIVE": 2,
-    "QUEUED": 127
+    "QUEUED": 117
    },
    "1-2": {
-    "CAPTURED": 20,
-    "NEEDS_CHART": 1,
-    "QUEUED": 8
+    "CAPTURED": 28,
+    "NEEDS_CHART": 1
    }
   },
   "byDocWave": {
@@ -176,6 +181,9 @@
    "div3-merged-head": {
     "QUEUED": 2
    },
+   "door-robustness": {
+    "QUEUED": 3
+   },
    "draw-count-at-cap": {
     "QUEUED": 2
    },
@@ -195,10 +203,11 @@
     "CAPTURED": 2
    },
    "h5-values": {
-    "QUEUED": 2
+    "CAPTURED": 2
    },
    "honesty-sweep": {
-    "QUEUED": 7
+    "CAPTURED": 3,
+    "QUEUED": 4
    },
    "i6a-n4": {
     "QUEUED": 6
@@ -207,15 +216,16 @@
     "CAPTURED": 1
    },
    "l2-libraries": {
-    "CAPTURED": 1,
+    "CAPTURED": 2
+   },
+   "libraries-phase-b": {
     "QUEUED": 1
    },
    "loop-in-block": {
     "CAPTURED": 1
    },
    "lower-tf": {
-    "CAPTURED": 2,
-    "QUEUED": 4
+    "CAPTURED": 6
    },
    "objcond": {
     "QUEUED": 1
@@ -248,8 +258,14 @@
     "CAPTURED": 1,
     "NEEDS_CHART": 1
    },
+   "runtime-history": {
+    "QUEUED": 12
+   },
    "s1": {
     "CAPTURED": 11,
+    "QUEUED": 1
+   },
+   "text-colour": {
     "QUEUED": 1
    },
    "tick-tie-and-htf-windows": {
@@ -259,23 +275,25 @@
     "CAPTURED": 10
    },
    "uie3-na-index-text": {
-    "QUEUED": 2
+    "CAPTURED": 2
    },
    "w1": {
-    "QUEUED": 6
+    "CAPTURED": 1,
+    "QUEUED": 5
    },
    "w2": {
-    "CAPTURED": 2,
-    "QUEUED": 2
-   },
-   "w3": {
-    "QUEUED": 9
-   },
-   "w34-i4": {
+    "CAPTURED": 3,
     "QUEUED": 1
    },
+   "w3": {
+    "CAPTURED": 3,
+    "QUEUED": 6
+   },
+   "w34-i4": {
+    "CAPTURED": 1
+   },
    "w34-i6c": {
-    "QUEUED": 4
+    "CAPTURED": 4
    },
    "w3w4-d1": {
     "CAPTURED": 8
@@ -294,17 +312,17 @@
     "QUEUED": 2
    },
    "w4-t3": {
-    "QUEUED": 5
+    "CAPTURED": 5
    },
    "w4-t4": {
-    "QUEUED": 2
+    "CAPTURED": 2
    },
    "w6": {
     "QUEUED": 6
    },
    "w6-t6": {
-    "CAPTURED": 1,
-    "QUEUED": 11
+    "CAPTURED": 7,
+    "QUEUED": 5
    },
    "w9": {
     "CAPTURED": 34,
@@ -331,17 +349,17 @@
     "NEEDS_CHART": 1
    }
   },
-  "rowsNeedingProbe": 17,
-  "rowsNeedingProbeLive": 0,
+  "rowsNeedingProbe": 25,
+  "rowsNeedingProbeLive": 1,
   "licenceHeldCensus": 157,
-  "rowsNotCaptureQuestions": 47,
+  "rowsNotCaptureQuestions": 60,
   "rowsNotCaptureByDisposition": {
    "builtin": 1,
    "by-design": 2,
-   "closed": 7,
-   "engine-gap": 12,
-   "ruling": 4,
-   "superseded": 11,
+   "closed": 9,
+   "engine-gap": 18,
+   "ruling": 6,
+   "superseded": 14,
    "withheld-ledger": 10
   },
   "rowsNamingUnreadableCharts": 0
@@ -349,8 +367,10 @@
  "targets": [
   {
    "id": "vw-w3-loop-helper-text@AMEX:SPY@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-w3-loop-helper-text-spy-1d-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-w3-loop-helper-text.pine",
    "sourceKind": "probe",
    "sha256": "9741eb1cf23a4f93947a8c3c8474b670606cb9f2285aed53202a8acfb5fb777f",
@@ -363,7 +383,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "AMEX:SPY D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 2,
@@ -410,8 +432,10 @@
   },
   {
    "id": "vw-hs2-v3-highestbars@AMEX:SPY@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-hs2-v3-highestbars-spy-1d-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-hs2-v3-highestbars.pine",
    "sourceKind": "probe",
    "sha256": "b4fd5f2ac77bd2775dcd9085e9aa423ad23e282525706acda0f543783a1b0fd8",
@@ -424,7 +448,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "AMEX:SPY D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 1,
@@ -470,8 +496,10 @@
   },
   {
    "id": "vw-w3-str-repeat-length@AMEX:SPY@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-w3-str-repeat-length-spy-1d-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-w3-str-repeat-length.pine",
    "sourceKind": "probe",
    "sha256": "9824789bac009c433ab9a4644a76bd7face8d14945851e6bdb0007f681f7c5c5",
@@ -484,7 +512,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "AMEX:SPY D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 1,
@@ -530,8 +560,10 @@
   },
   {
    "id": "vw-w4-session-default-days@BITSTAMP:BTCUSD@60",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-w4-session-default-days-btcusd-60-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-w4-session-default-days.pine",
    "sourceKind": "probe",
    "sha256": "8d648baf7e8e2a3eb790b802affde28ab3c67275bdd1475ff39586239fea874e",
@@ -544,7 +576,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "BITSTAMP:BTCUSD 60"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 1,
@@ -589,8 +623,10 @@
   },
   {
    "id": "vw-w4-session-overnight@BITSTAMP:BTCUSD@60",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-w4-session-overnight-btcusd-60-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-w4-session-overnight.pine",
    "sourceKind": "probe",
    "sha256": "17e09664203085af2d366719a2d724f5196af8613da1ceeb8dae22e1c288118a",
@@ -603,7 +639,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "BITSTAMP:BTCUSD 60"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 1,
@@ -997,8 +1035,10 @@
   },
   {
    "id": "vw-w3-format-date@AMEX:SPY@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-w3-format-date-spy-1d-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-w3-format-date.pine",
    "sourceKind": "probe",
    "sha256": "c3b1dc12ff12ca619a2fa3e06e5192e10f92499cdbef11139ecfbe8ecbe57a02",
@@ -1011,7 +1051,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "AMEX:SPY D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 1,
@@ -1119,8 +1161,10 @@
   },
   {
    "id": "rolling-vwap__043320bb57@AMEX:SPY@5",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/rolling-vwap-spy-5-2026-11-16.json"
+   ],
    "source": "corpus/committed/rolling-vwap__043320bb57.pine",
    "sourceKind": "corpus",
    "sha256": "232f76befd87476a05ced1cf39efc7c5b4cd4600ffb30e2baf0f67079a3bb73a",
@@ -1134,6 +1178,7 @@
    "chartSource": "row",
    "unparsedCharts": [],
    "capturedOn": [
+    "AMEX:SPY 5",
     "AMEX:SPY D",
     "NYSE:RDDT D"
    ],
@@ -1183,6 +1228,7 @@
    "chartSource": "row",
    "unparsedCharts": [],
    "capturedOn": [
+    "AMEX:SPY 5",
     "AMEX:SPY D",
     "NYSE:RDDT D"
    ],
@@ -1504,8 +1550,10 @@
   },
   {
    "id": "renko-candles-overlay__d76a18d49e@NASDAQ:CRWV@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/renko-candles-overlay-crwv-1d-2026-11-16.json"
+   ],
    "source": "corpus/committed/renko-candles-overlay__d76a18d49e.pine",
    "sourceKind": "corpus",
    "sha256": "b41903eaef3cdd27e29411a6d1a102ab8927e22b474e459b3086b4dab3b1da40",
@@ -1520,6 +1568,7 @@
    "unparsedCharts": [],
    "capturedOn": [
     "AMEX:SPY D",
+    "NASDAQ:CRWV D",
     "NYSE:RDDT D"
    ],
    "licence": "corpus",
@@ -1569,6 +1618,7 @@
    "unparsedCharts": [],
    "capturedOn": [
     "AMEX:SPY D",
+    "NASDAQ:CRWV D",
     "NYSE:RDDT D"
    ],
    "licence": "corpus",
@@ -1932,8 +1982,10 @@
   },
   {
    "id": "vw-w34-i4-v2-selfref-seed@AMEX:SPY@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-w34-i4-v2-selfref-seed-spy-1d-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-w34-i4-v2-selfref-seed.pine",
    "sourceKind": "probe",
    "sha256": "8ecf25dce0333836916c900a19ec75315fed5cb94b583fa9a7524b92113474f7",
@@ -1946,7 +1998,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "AMEX:SPY D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -1990,8 +2044,10 @@
   },
   {
    "id": "vw-w4-arm-runs@AMEX:SPY@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-w4-arm-runs-spy-1d-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-w4-arm-runs.pine",
    "sourceKind": "probe",
    "sha256": "dda4032a55f5c35c2b05c460eae1a336e67a66a50ecbd7aaa0684634e45455e8",
@@ -2004,7 +2060,10 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "AMEX:SPY D",
+    "NYSE:RDDT D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -2051,8 +2110,10 @@
   },
   {
    "id": "vw-w4-arm-runs@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-w4-arm-runs-rddt-1d-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-w4-arm-runs.pine",
    "sourceKind": "probe",
    "sha256": "dda4032a55f5c35c2b05c460eae1a336e67a66a50ecbd7aaa0684634e45455e8",
@@ -2065,7 +2126,10 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "AMEX:SPY D",
+    "NYSE:RDDT D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -2112,8 +2176,10 @@
   },
   {
    "id": "vw-w4-session-daymask@AMEX:SPY@60",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-w4-session-daymask-spy-60-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-w4-session-daymask.pine",
    "sourceKind": "probe",
    "sha256": "d8dd39b5f73b5756d27e4ad9ff771d215a2b5e5931f3424333aa6c630487736f",
@@ -2126,7 +2192,10 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "AMEX:SPY 60",
+    "BITSTAMP:BTCUSD 60"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -2169,8 +2238,10 @@
   },
   {
    "id": "vw-w4-session-daymask@BITSTAMP:BTCUSD@60",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-w4-session-daymask-btcusd-60-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-w4-session-daymask.pine",
    "sourceKind": "probe",
    "sha256": "d8dd39b5f73b5756d27e4ad9ff771d215a2b5e5931f3424333aa6c630487736f",
@@ -2183,7 +2254,10 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "AMEX:SPY 60",
+    "BITSTAMP:BTCUSD 60"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -2226,8 +2300,10 @@
   },
   {
    "id": "vw-w4-session-param@AMEX:SPY@5",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-w4-session-param-spy-5-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-w4-session-param.pine",
    "sourceKind": "probe",
    "sha256": "5e5d7f52f7484d609ddf0333153bece58e0c2de84d50c56e17f3eb514293aad8",
@@ -2240,7 +2316,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "AMEX:SPY 5"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -2283,8 +2361,10 @@
   },
   {
    "id": "vw-w4-series-length-v4@AMEX:SPY@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-w4-series-length-v4-spy-1d-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-w4-series-length-v4.pine",
    "sourceKind": "probe",
    "sha256": "58f85957087db5d8a4388a6b99b13363fd461ada02ec67ccc5385ecde904102b",
@@ -2297,7 +2377,10 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "AMEX:SPY D",
+    "NYSE:RDDT D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -2340,8 +2423,10 @@
   },
   {
    "id": "vw-w4-series-length-v4@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-w4-series-length-v4-rddt-1d-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-w4-series-length-v4.pine",
    "sourceKind": "probe",
    "sha256": "58f85957087db5d8a4388a6b99b13363fd461ada02ec67ccc5385ecde904102b",
@@ -2354,7 +2439,10 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "AMEX:SPY D",
+    "NYSE:RDDT D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -2397,8 +2485,10 @@
   },
   {
    "id": "vw-w4-series-length@AMEX:SPY@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-w4-series-length-spy-1d-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-w4-series-length.pine",
    "sourceKind": "probe",
    "sha256": "c13692c61d64127a1284bc5556706a92075c4bc17554dd70205c53801b7d1096",
@@ -2411,7 +2501,10 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "AMEX:SPY D",
+    "NYSE:RDDT D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -2455,14 +2548,134 @@
   },
   {
    "id": "vw-w4-series-length@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-w4-series-length-rddt-1d-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-w4-series-length.pine",
    "sourceKind": "probe",
    "sha256": "c13692c61d64127a1284bc5556706a92075c4bc17554dd70205c53801b7d1096",
    "bytes": 817,
    "stem": "vw-w4-series-length",
    "captureStem": "vw-w4-series-length",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [
+    "AMEX:SPY D",
+    "NYSE:RDDT D"
+   ],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 21,
+    "upperSample": [
+     "builtin:auto-fib-extension__Auto1Fib1Ext",
+     "committed:72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt",
+     "committed:camarilla__jw9faob08r",
+     "committed:liquidity-levels-sonarlab__bba13c46c4",
+     "committed:nubia-auto-midas-anchored-vwap-xdecow__MOpN5jQbSn",
+     "committed:smart-money-concepts-by-welotrades__0bff41a2e5",
+     "committed:strong-start-rvol-dashboard__36140b1cbe",
+     "committed:volume-profile-v054beta__PNSKf75832",
+     "reference:anti-volume-stop-loss__QyDEhGL8DB",
+     "reference:dynamic-support-and-resistance-with-trend-lines-multi-language__1928d26a07",
+     "reference:dynamic-swing-anchored-vwap-strategy-zeiierman-x-pineindicators__ee0c3c9ccd",
+     "reference:fxn-asian-session-range__jNLZBfpYDO"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "runtime:history-dynamic-offset"
+   ],
+   "planWave": "W4",
+   "docWaves": [
+    "w34-i6c"
+   ],
+   "oldestDoc": "2026-11-06",
+   "rows": [
+    "capture-queue-2026-11-06-w34-i6c#W4-S1-v4",
+    "capture-queue-2026-11-06-w34-i6c#W4-S1 (inherited)"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-hist-frac-length@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-hist-frac-length.pine",
+   "sourceKind": "probe",
+   "sha256": "1efa66ac48a1d35f5aa0a4c6f10a3e196e357000de4451d989d3baf892e0a6c0",
+   "bytes": 2674,
+   "stem": "vw-hist-frac-length",
+   "captureStem": "vw-hist-frac-length",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 21,
+    "upperSample": [
+     "builtin:auto-fib-extension__Auto1Fib1Ext",
+     "committed:72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt",
+     "committed:camarilla__jw9faob08r",
+     "committed:liquidity-levels-sonarlab__bba13c46c4",
+     "committed:nubia-auto-midas-anchored-vwap-xdecow__MOpN5jQbSn",
+     "committed:smart-money-concepts-by-welotrades__0bff41a2e5",
+     "committed:strong-start-rvol-dashboard__36140b1cbe",
+     "committed:volume-profile-v054beta__PNSKf75832",
+     "reference:anti-volume-stop-loss__QyDEhGL8DB",
+     "reference:dynamic-support-and-resistance-with-trend-lines-multi-language__1928d26a07",
+     "reference:dynamic-swing-anchored-vwap-strategy-zeiierman-x-pineindicators__ee0c3c9ccd",
+     "reference:fxn-asian-session-range__jNLZBfpYDO"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "runtime:history-dynamic-offset"
+   ],
+   "planWave": "W4",
+   "docWaves": [
+    "runtime-history"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-runtime-history#HIST-F1"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-hist-frac-length@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-hist-frac-length.pine",
+   "sourceKind": "probe",
+   "sha256": "1efa66ac48a1d35f5aa0a4c6f10a3e196e357000de4451d989d3baf892e0a6c0",
+   "bytes": 2674,
+   "stem": "vw-hist-frac-length",
+   "captureStem": "vw-hist-frac-length",
    "symbol": "NYSE:RDDT",
    "tf": "1D",
    "fromListing": false,
@@ -2500,12 +2713,11 @@
    ],
    "planWave": "W4",
    "docWaves": [
-    "w34-i6c"
+    "runtime-history"
    ],
-   "oldestDoc": "2026-11-06",
+   "oldestDoc": "2026-11-16",
    "rows": [
-    "capture-queue-2026-11-06-w34-i6c#W4-S1-v4",
-    "capture-queue-2026-11-06-w34-i6c#W4-S1 (inherited)"
+    "capture-queue-2026-11-16-runtime-history#HIST-F1"
    ],
    "origins": [
     "queue-doc"
@@ -2629,8 +2841,10 @@
   },
   {
    "id": "vw-hs5-int-array-float-param@AMEX:SPY@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-hs5-int-array-float-param-spy-1d-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-hs5-int-array-float-param.pine",
    "sourceKind": "probe",
    "sha256": "573daa5483cf523860ebdf2bc44e70d68667e2b178eaeefa52db3f0ed07e0d64",
@@ -2643,7 +2857,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "AMEX:SPY D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -2744,8 +2960,10 @@
   },
   {
    "id": "vw-hs6-wrap-comment@AMEX:SPY@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-hs6-wrap-comment-spy-1d-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-hs6-wrap-comment.pine",
    "sourceKind": "probe",
    "sha256": "657f95d28ab1a8f811c2a7e888bba3426915f2842d2037bf6a13089bee0874a2",
@@ -2758,7 +2976,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "AMEX:SPY D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -3040,8 +3260,10 @@
   },
   {
    "id": "vw-w1-cmo-cog-derived@AMEX:SPY@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-w1-cmo-cog-derived-spy-1d-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-w1-cmo-cog-derived.pine",
    "sourceKind": "probe",
    "sha256": "89dca50e64c7582d58803cfc831f46f2951931d97e37c974ac0cb14722185228",
@@ -3054,7 +3276,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "AMEX:SPY D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -3197,8 +3421,10 @@
   },
   {
    "id": "vw-w6-forin-fn-two-sites@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-w6-forin-fn-two-sites-rddt-1d-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-w6-forin-fn-two-sites.pine",
    "sourceKind": "probe",
    "sha256": "75a42c0d55c2458ed6714b35c62b048e966d894838ae72f277383852a4ec17d5",
@@ -3211,7 +3437,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -3247,8 +3475,10 @@
   },
   {
    "id": "vw-w6-forin-fn-value@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-w6-forin-fn-value-rddt-1d-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-w6-forin-fn-value.pine",
    "sourceKind": "probe",
    "sha256": "9a681f0372f9c6a582d23447ada59f58cc559a317cd4e75cf906fa6754e56259",
@@ -3261,7 +3491,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -3347,8 +3579,10 @@
   },
   {
    "id": "vw-w6-forin-map@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-w6-forin-map-rddt-1d-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-w6-forin-map.pine",
    "sourceKind": "probe",
    "sha256": "e13f5b5a82db9016da8a01747a4140fc68f230c6ef8653d59cb89e59d91f4410",
@@ -3361,7 +3595,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -3397,8 +3633,10 @@
   },
   {
    "id": "vw-w6-forin-matrix@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-w6-forin-matrix-rddt-1d-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-w6-forin-matrix.pine",
    "sourceKind": "probe",
    "sha256": "20239813fd7cbef5878d67bd9382d1515eeaa3a17bc63fd2233a7594d46e4f5f",
@@ -3411,7 +3649,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -3447,8 +3687,10 @@
   },
   {
    "id": "vw-w6-forin-polyline-all@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-w6-forin-polyline-all-rddt-1d-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-w6-forin-polyline-all.pine",
    "sourceKind": "probe",
    "sha256": "c4e91fb8ac7df1aea7ab3ad5a86995be534dcde0604f7ff76429759518640b8b",
@@ -3461,7 +3703,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -3497,8 +3741,10 @@
   },
   {
    "id": "vw-w6-forin-write-through@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-w6-forin-write-through-rddt-1d-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-w6-forin-write-through.pine",
    "sourceKind": "probe",
    "sha256": "4af605296f87356724856e313d7979a5102e7170dd23ae1933c5553c9a0bfd20",
@@ -3511,7 +3757,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -4711,8 +4959,10 @@
   },
   {
    "id": "vw-lower-tf-bars@NYSE:RDDT@15",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-lower-tf-bars-rddt-15-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-lower-tf-bars.pine",
    "sourceKind": "probe",
    "sha256": "e5aa1cfffc8137b49b6685f8b7935b1f7692a5d4b3d9d35042adf63756d1fe42",
@@ -4725,7 +4975,12 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT 15",
+    "NYSE:RDDT 240",
+    "NYSE:RDDT 5",
+    "NYSE:RDDT 60"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -4753,8 +5008,10 @@
   },
   {
    "id": "vw-lower-tf-bars@NYSE:RDDT@240",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-lower-tf-bars-rddt-240-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-lower-tf-bars.pine",
    "sourceKind": "probe",
    "sha256": "e5aa1cfffc8137b49b6685f8b7935b1f7692a5d4b3d9d35042adf63756d1fe42",
@@ -4767,7 +5024,12 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT 15",
+    "NYSE:RDDT 240",
+    "NYSE:RDDT 5",
+    "NYSE:RDDT 60"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -4795,8 +5057,10 @@
   },
   {
    "id": "vw-lower-tf-bars@NYSE:RDDT@5",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-lower-tf-bars-rddt-5-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-lower-tf-bars.pine",
    "sourceKind": "probe",
    "sha256": "e5aa1cfffc8137b49b6685f8b7935b1f7692a5d4b3d9d35042adf63756d1fe42",
@@ -4809,7 +5073,12 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT 15",
+    "NYSE:RDDT 240",
+    "NYSE:RDDT 5",
+    "NYSE:RDDT 60"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -4837,8 +5106,10 @@
   },
   {
    "id": "vw-lower-tf-bars@NYSE:RDDT@60",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-lower-tf-bars-rddt-60-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-lower-tf-bars.pine",
    "sourceKind": "probe",
    "sha256": "e5aa1cfffc8137b49b6685f8b7935b1f7692a5d4b3d9d35042adf63756d1fe42",
@@ -4851,7 +5122,12 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT 15",
+    "NYSE:RDDT 240",
+    "NYSE:RDDT 5",
+    "NYSE:RDDT 60"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -7302,8 +7578,10 @@
   },
   {
    "id": "vw-h5-format-volume@AMEX:SPY@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-h5-format-volume-spy-1d-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-h5-format-volume.pine",
    "sourceKind": "probe",
    "sha256": "693f3893b23c4faaac82d6fdd5f0f157ab50d404dc4282cd19bc6905168e213e",
@@ -7316,7 +7594,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "AMEX:SPY D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -7344,8 +7624,10 @@
   },
   {
    "id": "vw-h5-request-timeframe-text@AMEX:SPY@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-h5-request-timeframe-text-spy-1d-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-h5-request-timeframe-text.pine",
    "sourceKind": "probe",
    "sha256": "a0dea71de09f4ab4e31454167dcf52522994d7b5ee9ae072a6f4e441a4476be2",
@@ -7358,7 +7640,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "AMEX:SPY D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -8127,8 +8411,10 @@
   },
   {
    "id": "vw-uie3-na-index-v4@AMEX:SPY@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-uie3-na-index-v4-spy-1d-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-uie3-na-index-v4.pine",
    "sourceKind": "probe",
    "sha256": "09dd9959f222ba0173d1e93246f017965f45299dacf6e8c93198176e40ba0199",
@@ -8141,7 +8427,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "AMEX:SPY D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -8169,8 +8457,10 @@
   },
   {
    "id": "vw-uie3-na-text@AMEX:SPY@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-uie3-na-text-spy-1d-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-uie3-na-text.pine",
    "sourceKind": "probe",
    "sha256": "5b40c909c2aa4cba7a6326e3dad2308629665533988c91327fd80819c9cefa2e",
@@ -8183,7 +8473,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "AMEX:SPY D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -9869,6 +10161,7 @@
    "unparsedCharts": [],
    "capturedOn": [
     "AMEX:SPY D",
+    "NASDAQ:CRWV D",
     "NYSE:RDDT D"
    ],
    "licence": "corpus",
@@ -9914,6 +10207,7 @@
    "unparsedCharts": [],
    "capturedOn": [
     "AMEX:SPY D",
+    "NASDAQ:CRWV D",
     "NYSE:RDDT D"
    ],
    "licence": "corpus",
@@ -15316,6 +15610,48 @@
    ]
   },
   {
+   "id": "lib-v5-in-v6@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "docs/pine/probes/lib-v5-in-v6.pine",
+   "sourceKind": "probe",
+   "sha256": "d38b3ae066275ce130eb65c6116d0c1e77e55783b2442b13b90f19df5bc627fa",
+   "bytes": 1710,
+   "stem": "lib-v5-in-v6",
+   "captureStem": "lib-v5-in-v6",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "libraries-phase-b"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-libraries-phase-b#LB1"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
    "id": "vw-draw-count-at-cap@AMEX:SPY@D",
    "status": "QUEUED",
    "evidence": [],
@@ -15488,6 +15824,426 @@
    ]
   },
   {
+   "id": "vw-hist-callsite-kernels-v5@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-hist-callsite-kernels-v5.pine",
+   "sourceKind": "probe",
+   "sha256": "cabf82ccc27af158351fba5559dca868d646972e10ccae87db033758ea0bc1a8",
+   "bytes": 3286,
+   "stem": "vw-hist-callsite-kernels-v5",
+   "captureStem": "vw-hist-callsite-kernels-v5",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "runtime-history"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-runtime-history#HIST-K2"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-hist-callsite-kernels-v5@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-hist-callsite-kernels-v5.pine",
+   "sourceKind": "probe",
+   "sha256": "cabf82ccc27af158351fba5559dca868d646972e10ccae87db033758ea0bc1a8",
+   "bytes": 3286,
+   "stem": "vw-hist-callsite-kernels-v5",
+   "captureStem": "vw-hist-callsite-kernels-v5",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "runtime-history"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-runtime-history#HIST-K2"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-hist-callsite-kernels@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-hist-callsite-kernels.pine",
+   "sourceKind": "probe",
+   "sha256": "4f81bb6e5ec1eabc824f51a4283463280fc8849f160d6654af2d02d8ad4696aa",
+   "bytes": 3174,
+   "stem": "vw-hist-callsite-kernels",
+   "captureStem": "vw-hist-callsite-kernels",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "runtime-history"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-runtime-history#HIST-K1"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-hist-callsite-kernels@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-hist-callsite-kernels.pine",
+   "sourceKind": "probe",
+   "sha256": "4f81bb6e5ec1eabc824f51a4283463280fc8849f160d6654af2d02d8ad4696aa",
+   "bytes": 3174,
+   "stem": "vw-hist-callsite-kernels",
+   "captureStem": "vw-hist-callsite-kernels",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "runtime-history"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-runtime-history#HIST-K1"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-hist-frac-length-v3@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-hist-frac-length-v3.pine",
+   "sourceKind": "probe",
+   "sha256": "327a229d94cfc8ba3e7e4162a4fcabea566a21fe5205630c0c5dee1dc8345db2",
+   "bytes": 1330,
+   "stem": "vw-hist-frac-length-v3",
+   "captureStem": "vw-hist-frac-length-v3",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "runtime-history"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-runtime-history#HIST-F4"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-hist-frac-length-v3@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-hist-frac-length-v3.pine",
+   "sourceKind": "probe",
+   "sha256": "327a229d94cfc8ba3e7e4162a4fcabea566a21fe5205630c0c5dee1dc8345db2",
+   "bytes": 1330,
+   "stem": "vw-hist-frac-length-v3",
+   "captureStem": "vw-hist-frac-length-v3",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "runtime-history"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-runtime-history#HIST-F4"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-hist-frac-length-v4@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-hist-frac-length-v4.pine",
+   "sourceKind": "probe",
+   "sha256": "0a8a4dbd63a0c6d96502e1d35dea8f41014c6d711f002b41953748ff767101a6",
+   "bytes": 1807,
+   "stem": "vw-hist-frac-length-v4",
+   "captureStem": "vw-hist-frac-length-v4",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "runtime-history"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-runtime-history#HIST-F3"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-hist-frac-length-v4@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-hist-frac-length-v4.pine",
+   "sourceKind": "probe",
+   "sha256": "0a8a4dbd63a0c6d96502e1d35dea8f41014c6d711f002b41953748ff767101a6",
+   "bytes": 1807,
+   "stem": "vw-hist-frac-length-v4",
+   "captureStem": "vw-hist-frac-length-v4",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "runtime-history"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-runtime-history#HIST-F3"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-hist-frac-length-v5@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-hist-frac-length-v5.pine",
+   "sourceKind": "probe",
+   "sha256": "b3049b299795b6578e31fa2cb0624b2b4e21fbad959b9362e5cb94b25aea992d",
+   "bytes": 2781,
+   "stem": "vw-hist-frac-length-v5",
+   "captureStem": "vw-hist-frac-length-v5",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "runtime-history"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-runtime-history#HIST-F2"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-hist-frac-length-v5@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-hist-frac-length-v5.pine",
+   "sourceKind": "probe",
+   "sha256": "b3049b299795b6578e31fa2cb0624b2b4e21fbad959b9362e5cb94b25aea992d",
+   "bytes": 2781,
+   "stem": "vw-hist-frac-length-v5",
+   "captureStem": "vw-hist-frac-length-v5",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "runtime-history"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-runtime-history#HIST-F2"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
    "id": "vw-htf-window-sites@AMEX:SPY@D",
    "status": "QUEUED",
    "evidence": [],
@@ -15570,6 +16326,135 @@
     "capture-queue-2026-11-16-tick-tie-and-htf-windows#H01-H02",
     "capture-queue-2026-11-16-tick-tie-and-htf-windows#H03",
     "capture-queue-2026-11-16-tick-tie-and-htf-windows#H04-H05"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-rob1-var-string-text@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-rob1-var-string-text.pine",
+   "sourceKind": "probe",
+   "sha256": "f9ace51a62ce03dbb8307d415e1ac5db04a89a43d0dcd46cfd740c30a2563210",
+   "bytes": 2081,
+   "stem": "vw-rob1-var-string-text",
+   "captureStem": "vw-rob1-var-string-text",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "preamble",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "door-robustness"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-door-robustness#Q-ROB1",
+    "capture-queue-2026-11-16-door-robustness#Q-ROB2"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-rob1b-var-string-guards@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-rob1b-var-string-guards.pine",
+   "sourceKind": "probe",
+   "sha256": "2281123f72eca7aabc1b7f3a400168f3eb1ba47589130d90f5b898866a955093",
+   "bytes": 2751,
+   "stem": "vw-rob1b-var-string-guards",
+   "captureStem": "vw-rob1b-var-string-guards",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "preamble",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "door-robustness"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-door-robustness#Q-ROB4"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-rob3-v4-bgcolor-own-alpha@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-rob3-v4-bgcolor-own-alpha.pine",
+   "sourceKind": "probe",
+   "sha256": "031991bdc4c4dab4fd5e68c939f5db2fbbfdaeeaf9ae7f53730bf8dd5c50dc76",
+   "bytes": 1469,
+   "stem": "vw-rob3-v4-bgcolor-own-alpha",
+   "captureStem": "vw-rob3-v4-bgcolor-own-alpha",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "paint:v4-default-transp"
+   ],
+   "planWave": "W3",
+   "docWaves": [
+    "door-robustness"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-door-robustness#Q-ROB3"
    ],
    "origins": [
     "queue-doc"
@@ -15662,6 +16547,52 @@
     "capture-queue-2026-11-16-tick-tie-and-htf-windows#K09",
     "capture-queue-2026-11-16-tick-tie-and-htf-windows#K11",
     "capture-queue-2026-11-16-tick-tie-and-htf-windows#K21"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-tc1-colour-na-compare@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-tc1-colour-na-compare.pine",
+   "sourceKind": "probe",
+   "sha256": "cd8b3ae3504002ba688418f67abd5dfe1590f47b15fe67af838f0924c3d585a3",
+   "bytes": 2291,
+   "stem": "vw-tc1-colour-na-compare",
+   "captureStem": "vw-tc1-colour-na-compare",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "preamble",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "text-colour"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-text-colour#C1-C3",
+    "capture-queue-2026-11-16-text-colour#N1-N3",
+    "capture-queue-2026-11-16-text-colour#E1",
+    "capture-queue-2026-11-16-text-colour#E2",
+    "capture-queue-2026-11-16-text-colour#B0"
    ],
    "origins": [
     "queue-doc"
@@ -15857,6 +16788,98 @@
    ],
    "namedScripts": [],
    "text": "`flying-buddha-inside-bars-indicator-v1-by-justunclel-rddt-1d-2026-11-14` (held store, s7) | `plotarrow(…, colorup = lime, colordown = red, transp = 20)`: `colorup` / `colordown` are not carried. On 16 of 666 bars TradingView paints `#2962ffcc` and we paint the default series colour `#c9a84ccc`. Its five value plots agree on 666 / 666 bars. It was refused whole before COND-TA's parameter guards (`"
+  },
+  {
+   "key": "capture-queue-2026-11-16-door-robustness#Q-ROB8",
+   "doc": "docs/pine/capture-queue-2026-11-16-door-robustness.md",
+   "line": 17,
+   "docWave": "door-robustness",
+   "needsProbe": "no probe file named (an inline shape or prose)",
+   "needsLive": false,
+   "guards": [],
+   "namedScripts": [],
+   "text": "Q-ROB8 | `reference:check-head-and-shouldersmask-man` (sha256 `7f75ae5de3275c54…`) | NYSE:RDDT 1D, AMEX:SPY 1D, from the listing | whether the per-bar lane's drawing of an admitted, never-captured script MATCHes"
+  },
+  {
+   "key": "capture-queue-2026-11-16-door-robustness#Q-ROB9",
+   "doc": "docs/pine/capture-queue-2026-11-16-door-robustness.md",
+   "line": 18,
+   "docWave": "door-robustness",
+   "needsProbe": "no probe file named (an inline shape or prose)",
+   "needsLive": false,
+   "guards": [],
+   "namedScripts": [],
+   "text": "Q-ROB9 | `reference:multi-timeframe-vwap-v5` (sha256 `3a11805bfef806a1…`) | NYSE:RDDT 1D, AMEX:SPY 1D, from the listing | the same"
+  },
+  {
+   "key": "capture-queue-2026-11-16-request-security#Q-REQ1",
+   "doc": "docs/pine/capture-queue-2026-11-16-request-security.md",
+   "line": 10,
+   "docWave": "request-security",
+   "needsProbe": "probe file owed: vw-req-lookahead-forming.pine",
+   "needsLive": true,
+   "guards": [],
+   "namedScripts": [],
+   "text": "Q-REQ1 | `vw-req-lookahead-forming.pine`: `request.security(syminfo.tickerid, \"W\", close, lookahead = barmerge.lookahead_on)` and the same at `\"M\"`, plus `barstate.isrealtime` | AMEX:SPY 1D during regular hours, the newest bar FORMING (mid-week, mid-month) | what does a look-ahead weekly / monthly read answer on the forming daily bar: the forming period's current close, or something else? | the ru"
+  },
+  {
+   "key": "capture-queue-2026-11-16-request-security#Q-REQ2",
+   "doc": "docs/pine/capture-queue-2026-11-16-request-security.md",
+   "line": 11,
+   "docWave": "request-security",
+   "needsProbe": "probe file owed: vw-req-barmerge-slot.pine",
+   "needsLive": false,
+   "guards": [],
+   "namedScripts": [],
+   "text": "Q-REQ2 | `vw-req-barmerge-slot.pine`: `plot(request.security(syminfo.tickerid, \"W\", close, lookahead = barmerge.gaps_on))`, the same with `barmerge.gaps_off`, and `plot(barmerge.gaps_on ? 1 : 0)` / `plot(barmerge.lookahead_on ? 1 : 0)` in v4 and v5 | NYSE:RDDT 1D | which look-ahead a `barmerge.gaps_*` constant passed in the `lookahead` slot reads as (previous-n-daysweeksmonths-high-low writes `loo"
+  },
+  {
+   "key": "capture-queue-2026-11-16-request-security#Q-REQ4",
+   "doc": "docs/pine/capture-queue-2026-11-16-request-security.md",
+   "line": 12,
+   "docWave": "request-security",
+   "needsProbe": "probe file owed: vw-req-legacy-security-state.pine",
+   "needsLive": false,
+   "guards": [
+    "runtime:request-with-state"
+   ],
+   "namedScripts": [],
+   "text": "Q-REQ4 | `vw-req-legacy-security-state.pine` (v4 and v3): `x = 0.0`, `x := nz(x[1]) + 1`, then `plot(security(tickerid, period, sma(x, 3)))`; and a function with its own running value (`a := hlc3 > hlc3[1] ? a + volume : a`) read as `plot(security(tickerid, period, sma(f(), 14)))`; each beside the same expression plotted bare | NYSE:RDDT 1D from the listing | does a v1-v4 bare `security` at the ch"
+  },
+  {
+   "key": "capture-queue-2026-11-16-request-security#Q-REQ3",
+   "doc": "docs/pine/capture-queue-2026-11-16-request-security.md",
+   "line": 15,
+   "docWave": "request-security",
+   "needsProbe": "probe file owed: vw-req-heikinashi.pine",
+   "needsLive": false,
+   "guards": [
+    "pine:request"
+   ],
+   "namedScripts": [],
+   "text": "Q-REQ3 | `vw-req-heikinashi.pine`: `request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, open / close)` and the v4 `heikinashi(tickerid)` | AMEX:SPY 1D from the listing | is the Heikin Ashi series TradingView hands a request the textbook recursion over the chart's bars (open = average of the previous HA open and close, seeded how?) | refused `pine:request` by name (a different s"
+  },
+  {
+   "key": "capture-queue-2026-11-16-text-colour#TC-A1",
+   "doc": "docs/pine/capture-queue-2026-11-16-text-colour.md",
+   "line": 32,
+   "docWave": "text-colour",
+   "needsProbe": "no probe file named (an inline shape or prose)",
+   "needsLive": false,
+   "guards": [],
+   "namedScripts": [],
+   "text": "TC-A1 | `reference:color-gradient-framework-pinecoders__9ICIDOiMbF` on NYSE:RDDT 1D | `e993b713307bcf78` | the untyped colour parameters (per-call-site copies), `color.new` over a fractional transparency on the bar, `color.from_gradient` over parameters; its plots (its `fill`s are named \"Not drawn by this pane\" on the runtime lane)"
+  },
+  {
+   "key": "capture-queue-2026-11-16-text-colour#TC-A2",
+   "doc": "docs/pine/capture-queue-2026-11-16-text-colour.md",
+   "line": 33,
+   "docWave": "text-colour",
+   "needsProbe": "no probe file named (an inline shape or prose)",
+   "needsLive": false,
+   "guards": [],
+   "namedScripts": [],
+   "text": "TC-A2 | `reference:study-for-squeeze-momentum-indicator-lazybear__2BZblBj6eA` on NYSE:RDDT 1D | `13a3f2f4a179e81a` | colour `==` / `!=`, a colour's past and v4 `iff` with colour arms, read through its six alert conditions"
   }
  ],
  "rowsNotCaptureQuestions": [
@@ -16329,6 +17352,136 @@
    "reason": "S10 vw-fmt-tie-readings-rddt-1d-2026-11-15: all 30 texts; the decimal reading rounds the shortest decimal half up, format.mintick rounds n / tick in binary, zero is unsigned, the default prints 1e+21, grouping by three — served as printed",
    "dispositionLine": 32,
    "text": "Q-FMT1 | `vw-fmt-tie-readings.pine` (S10, captured) | NYSE:RDDT 1D (tick 0.01) | how does `str.tostring` round a decimal tie, a mintick tie, a zero, an exponent, a grouping? | ANSWERED by S10: rules F1-F9, served as printed | nothing: closed"
+  },
+  {
+   "key": "capture-queue-2026-11-16-door-robustness#Q-ROB5",
+   "doc": "docs/pine/capture-queue-2026-11-16-door-robustness.md",
+   "line": 42,
+   "docWave": "door-robustness",
+   "disposition": "closed",
+   "reason": "fixed on 2026-11-16 (dailySessionVwap returns the one-bar session's quotient); its own capture and h3-vwap-source-spy-1d-2026-10-02 witness the fix bit for bit",
+   "dispositionLine": 48,
+   "text": "Q-ROB5 | (existing capture `mtf-key-levels-support-and-resistance-rddt-1d-2026-11-14`) | `D-VWAP` (plot_0): 6 steady-state bars disagree in the 2nd decimal (first at bar 114: vendor 57.3, ours 57.29), persistent to bar 665; W-, M- and Y-VWAP agree on every bar. CAUSE (fixed 2026-11-16, `fix/pine-runtime-mtf-key-levels`): a daily bar is its own session and TradingView computes `(price * volume) / v"
+  },
+  {
+   "key": "capture-queue-2026-11-16-door-robustness#Q-ROB6",
+   "doc": "docs/pine/capture-queue-2026-11-16-door-robustness.md",
+   "line": 43,
+   "docWave": "door-robustness",
+   "disposition": "engine-gap",
+   "reason": "25 of 27 labels drawn since 2026-11-16; the 2 left need a 12M request.security and a computable self-referencing weekly sum, builds rather than TradingView readings",
+   "dispositionLine": 49,
+   "text": "Q-ROB6 | (existing capture `mtf-key-levels-support-and-resistance-rddt-1d-2026-11-14`) | labels: TradingView 27, the per-bar lane 3. CAUSE (fixed 2026-11-16): the string-var text reader knew only `var string X`; an untyped `var X = \"...\"` is a string by its literal. Now 25 of 27. The 2 left are refused by name: the yearly-open label (`security(..., \"12M\", open)`, `pine:request`) and the W-VWAP lab"
+  },
+  {
+   "key": "capture-queue-2026-11-16-door-robustness#Q-ROB7",
+   "doc": "docs/pine/capture-queue-2026-11-16-door-robustness.md",
+   "line": 44,
+   "docWave": "door-robustness",
+   "disposition": "engine-gap",
+   "reason": "the capture exists and grades the item DIVERGE; the missing line needs the same 12M request.security build, and the y1 mismatch follows from that gap",
+   "dispositionLine": 50,
+   "text": "Q-ROB7 | (existing capture `mtf-key-levels-support-and-resistance-rddt-1d-2026-11-14`) | lines: 23 vs 22, and a line's y1 differs (first: vendor 103.2824, ours 101.27). CAUSE: the missing line is the yearly open's (the same `\"12M\"` request refusal); the y1 mismatch is a pairing shift after that gap, not a wrong price"
+  },
+  {
+   "key": "capture-queue-2026-11-16-request-security#Q-REQ-LTF",
+   "doc": "docs/pine/capture-queue-2026-11-16-request-security.md",
+   "line": 13,
+   "docWave": "request-security",
+   "disposition": "ruling",
+   "reason": "A read below the chart's timeframe (lower-tf:store-unmeasured, 10 sample scripts touched): the RULE is captured (vw-lower-tf-), the DATA is not ours to serve. Measured 2026-10-01 (docs/pine/WAVE12-INTEGRATION-STATE.md, R-LTF): our /api/bars/RDDT?tf=15 against TradingView's vw-bar-counters-rddt-15-2026-09-30, 634 sessions: 77.06% of sessions price-equal on every bar (bar 99%), last-bar close equal on 96.99% (bar 99.5%), volume equal on 0.00% (our / TradingView's median 1.383). A data-source decision for the owner, not engine work.",
+   "dispositionLine": 23,
+   "text": "Q-REQ-LTF | (none: a data question) | NYSE:RDDT / AMEX:SPY 15 | does our stored intraday series equal TradingView's? | a read below the chart's timeframe is refused `lower-tf:store-unmeasured` | see the disposition below"
+  },
+  {
+   "key": "capture-queue-2026-11-16-request-security#Q-REQ-DATA",
+   "doc": "docs/pine/capture-queue-2026-11-16-request-security.md",
+   "line": 14,
+   "docWave": "request-security",
+   "disposition": "ruling",
+   "reason": "Symbols we do not hold: USI: / INDEX: breadth (in scope, its own unit: USI:ADVN.NY, USI:DECL.NY, USI:UNCH.NY, USI:UVOL, USI:DVOL, USI:ADD, UPVOL. / DNVOL., INDEX:SLTW), SP: sector indices (SP:SPN, SP:S5MATR, …), ECONOMICS:, QUANDL:, ESD:_EARNINGS; crypto and FX (BINANCE:, BITMEX:, INDEX:BTCUSD, EURUSD) out of scope by owner ruling. Refused by name (other-symbol:).",
+   "dispositionLine": 24,
+   "text": "Q-REQ-DATA | (none: data we do not hold) | any | breadth, sector, economic, crypto and FX symbols | refused by name (`other-symbol:*`) | see the disposition below"
+  },
+  {
+   "key": "capture-queue-2026-11-16-runtime-history#a ta. on the right of a v6 and / or (7 sample scripts)",
+   "doc": "docs/pine/capture-queue-2026-11-16-runtime-history.md",
+   "line": 50,
+   "docWave": "runtime-history",
+   "disposition": "superseded",
+   "reason": "the capture is Q-PT2's own row (vw-andor-history.pine, docs/pine/capture-queue-2026-10-31-prod-ternary.md) and H7's (vw-wsc-h7-v6-shortcircuit.pine)",
+   "dispositionLine": 63,
+   "text": "a `ta.*` on the right of a v6 `and` / `or` (7 sample scripts) | `runtime:conditional-history`, at build | Q-PT2 / H7; then the right side is lowered as a jump and CHECKED or stepped per call site, as a `?:` arm is"
+  },
+  {
+   "key": "capture-queue-2026-11-16-runtime-history#a window length that divides inexactly (len / 3, 6 sample sc",
+   "doc": "docs/pine/capture-queue-2026-11-16-runtime-history.md",
+   "line": 51,
+   "docWave": "runtime-history",
+   "disposition": "superseded",
+   "reason": "the capture is this doc's HIST-F1 to HIST-F4 rows (vw-hist-frac-length.pine)",
+   "dispositionLine": 64,
+   "text": "a window length that divides inexactly (`len / 3`, 6 sample scripts) | `runtime:history-dynamic-offset`, at build | HIST-F1 to HIST-F4"
+  },
+  {
+   "key": "capture-queue-2026-11-16-runtime-history#history in a for / while body (ta.sma(x[i], 50) per pass)",
+   "doc": "docs/pine/capture-queue-2026-11-16-runtime-history.md",
+   "line": 52,
+   "docWave": "runtime-history",
+   "disposition": "superseded",
+   "reason": "the capture is H8's own row (vw-wsc-h8-ta-in-loop.pine, docs/pine/capture-queue-2026-10-31-wsc-history.md)",
+   "dispositionLine": 65,
+   "text": "history in a `for` / `while` body (`ta.sma(x[i], 50)` per pass) | `runtime:conditional-history`, at build | H8"
+  },
+  {
+   "key": "capture-queue-2026-11-16-runtime-history#a branch of a function body decided by a parameter the call ",
+   "doc": "docs/pine/capture-queue-2026-11-16-runtime-history.md",
+   "line": 53,
+   "docWave": "runtime-history",
+   "disposition": "engine-gap",
+   "reason": "the body compiled per call site with the every-bar check on that branch: a build, not a TradingView reading",
+   "dispositionLine": 66,
+   "text": "a branch of a function body decided by a parameter the call site does not fix | `runtime:conditional-history`, at the call | not a capture question: the body compiled per call site with the every-bar check on that branch"
+  },
+  {
+   "key": "capture-queue-2026-11-16-runtime-history#a block local's or a drawing handle's [1] in the DRAWING bui",
+   "doc": "docs/pine/capture-queue-2026-11-16-runtime-history.md",
+   "line": 54,
+   "docWave": "runtime-history",
+   "disposition": "engine-gap",
+   "reason": "W3N-D1 row d already shows TradingView reads the previous RUN; the drawing build needs the per-call-site ring (or this unit's every-bar check) for a block local",
+   "dispositionLine": 67,
+   "text": "a block local's or a drawing handle's `[1]` in the DRAWING build (8 sample scripts: `line.delete(sup[1])` in a block) | `runtime:conditional-history`, at build | not a capture question: W3N-D1 row d shows TradingView reads the previous RUN; the drawing build needs a per-call-site ring for a block local"
+  },
+  {
+   "key": "capture-queue-2026-11-16-runtime-history#a helper parameter that bounds an offset (for i = 1 to lengt",
+   "doc": "docs/pine/capture-queue-2026-11-16-runtime-history.md",
+   "line": 55,
+   "docWave": "runtime-history",
+   "disposition": "engine-gap",
+   "reason": "L4b's declared-buffer ring, reached from the call-site refusal: a build, not a TradingView reading",
+   "dispositionLine": 68,
+   "text": "a helper parameter that bounds an offset (`for i = 1 to length - 1` / `src[i]`) where the call passes a series and the script declares `max_bars_back` | `runtime:history-dynamic-offset`, at the call | not a capture question: L4b's declared-buffer ring, reached from the call-site refusal"
+  },
+  {
+   "key": "capture-queue-2026-11-16-sar-window#sar() window",
+   "doc": "docs/pine/capture-queue-2026-11-16-sar-window.md",
+   "line": 22,
+   "docWave": "sar-window",
+   "disposition": "closed",
+   "reason": "the sar() expansion's 200-bar window does not converge on vw-lower-tf-bars-rddt-15-2026-11-16 (43 bars, 17 value and direction); native SAR is correct, the capture is already in the harness, and what closes it is a build that flips the it.fails in sar.test.js, not a TradingView reading. ⭐ CLOSED 2026-11-16 by fix/pine-sar-warmup: SAR_WARMUP 200 -> 400, measured (docs/pine/evidence/2026-11-16-sar-window/EVIDENCE.md); the it.fails is an it",
+   "dispositionLine": 31,
+   "text": "sar() window | none: engine fix (the capture `vw-lower-tf-bars-rddt-15-2026-11-16` is in the harness) | `NYSE:RDDT 15` | none: the expansion publishes a value that is not the full-history SAR on 43 bars | `sar.test.js` KNOWN `it.fails` flips to `it` | the builder assigned the SAR window fix (2026-11-16)"
+  },
+  {
+   "key": "capture-queue-2026-11-16-sar-window#sar() saved-tree upgrade",
+   "doc": "docs/pine/capture-queue-2026-11-16-sar-window.md",
+   "line": 23,
+   "docWave": "sar-window",
+   "disposition": "engine-gap",
+   "reason": "a stored formula tree is not re-expanded on load, and formula documents carry no engine stamp for savedScriptUpgrade.js to act on; what closes it is a load-time rewrite of the stored 200-bar SAR tree (and a rail that a saved alert does not fire twice on one bar across it), not a TradingView reading",
+   "dispositionLine": 32,
+   "text": "sar() saved-tree upgrade | none: engine gap (load-time rewrite of a stored tree) | any | a formula document saved before 2026-11-16 keeps its stored 200-bar SAR tree, evaluated as stored by every lane (chart, alerts, scans): read back as `sar(step, maxStep)` with a note naming the 200-bar start, and re-expanded at 400 on its next save | a load-time rewrite of stored 200-bar SAR trees to the curren"
   }
  ],
  "licenceHeldCensus": [
@@ -17933,15 +19086,51 @@
    "contextTables": 0
   },
   {
+   "doc": "docs/pine/capture-queue-2026-11-16-door-robustness.md",
+   "wave": "door-robustness",
+   "rows": 9,
+   "contextTables": 0
+  },
+  {
    "doc": "docs/pine/capture-queue-2026-11-16-draw-count-at-cap.md",
    "wave": "draw-count-at-cap",
    "rows": 2,
    "contextTables": 0
   },
   {
+   "doc": "docs/pine/capture-queue-2026-11-16-libraries-phase-b.md",
+   "wave": "libraries-phase-b",
+   "rows": 1,
+   "contextTables": 0
+  },
+  {
+   "doc": "docs/pine/capture-queue-2026-11-16-request-security.md",
+   "wave": "request-security",
+   "rows": 6,
+   "contextTables": 0
+  },
+  {
    "doc": "docs/pine/capture-queue-2026-11-16-rma-last-bit.md",
    "wave": "rma-last-bit",
    "rows": 3,
+   "contextTables": 0
+  },
+  {
+   "doc": "docs/pine/capture-queue-2026-11-16-runtime-history.md",
+   "wave": "runtime-history",
+   "rows": 12,
+   "contextTables": 0
+  },
+  {
+   "doc": "docs/pine/capture-queue-2026-11-16-sar-window.md",
+   "wave": "sar-window",
+   "rows": 2,
+   "contextTables": 0
+  },
+  {
+   "doc": "docs/pine/capture-queue-2026-11-16-text-colour.md",
+   "wave": "text-colour",
+   "rows": 7,
    "contextTables": 0
   },
   {

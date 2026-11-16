@@ -55,6 +55,7 @@ import {
   CENSUS_RUNTIME_ENV, LANE_PRODUCTION, LANE_RUNTIME_ON, requestedLane, assertLaneMeasured, isGateDecline,
 } from '../../../../../../tools/pine_coverage/runtime_lane.mjs'
 import { peelStatement } from '../../../../../../tools/pine_coverage/census_peel.mjs'
+import { paintsWithheldFromDocument, paintsWithheldByTranslation } from '../../../../../../tools/pine_coverage/paint_predicate.mjs'
 import { loadCapture } from '../__tests__/vendorHarness/harness.js'
 import { toProductBars } from '../__tests__/vendorHarness/ourSide.js'
 import { hostObjectRun, hostObjectReaderOpts } from '../runHalfObjectRail.js'
@@ -62,10 +63,18 @@ import { OTHER_SYMBOL_REFUSAL, staticallyUnservable } from '../otherSymbols'
 import { foldNotesForOutput } from './parse'
 import { CALL_EXPANSIONS } from './callExpansions'
 import { supertrendTreesEngine56 } from './__fixtures__/supertrendTreesEngine56.js'
+import { loadPineLibraryStoreFromEnv } from './__tests__/pineLibraryStoreLoader.js'
 
 const INPUT = process.env.COVERAGE_INPUT
 const OUT = process.env.COVERAGE_OUT
 const RUN = !!(INPUT && OUT)
+// ⭐ LIBRARIES, OPT-IN AND MEASURE-ONLY (2026-11-16): `PINE_LIBRARY_STORE=<scratch store dir>`
+// loads that store into the registry for the whole run, so the census can be measured with the
+// store production will hold (the promotion allowlist's versions) instead of an empty one. Unset,
+// nothing is loaded and the census measures the registry as every process starts it: empty. A row
+// measured with a store says how many versions it had (`libraryStore`); a row without one is unchanged.
+// ⛔ The store is a scratch directory outside the repository (library code is never committed).
+const LIBRARIES_LOADED = RUN ? loadPineLibraryStoreFromEnv() : []
 // ⛔ read strictly: a typo throws at collection rather than measuring the other lane
 const LANE = requestedLane(process.env[CENSUS_RUNTIME_ENV], CENSUS_RUNTIME_ENV) || LANE_PRODUCTION
 const RT_ON = LANE === LANE_RUNTIME_ON
@@ -202,7 +211,10 @@ function oneDoor(source, { runtimeDetail = RT_ON, bound = false } = {}) {
     drawsObjects: !!(d.definition && d.definition.objects),
     // an object program the translation built that the pane did NOT carry
     withheldObjects: !!(d.ok && t.objects && (t.objects.ops || []).length && !(d.definition && d.definition.objects)),
-    withheldPaints: (((t.presentation || {}).paints) || []).filter((p) => p && p.withheld).length,
+    // INSTRUMENT (2026-11-16): a paint counts as withheld only when the DOCUMENT does not draw it
+    // (`tools/pine_coverage/paint_predicate.mjs`); the translation's own count rides beside it.
+    withheldPaints: paintsWithheldFromDocument(t, d.ok ? d.definition : null),
+    withheldPaintsTranslated: paintsWithheldByTranslation(t),
     lane: d.lane || (d.ok ? 'host' : null),
     lossVerdict: loss ? loss.verdict : null,
     droppedOps: diag.droppedOps || 0,
@@ -352,7 +364,8 @@ export function boundBlockers(d, bars = referenceBars(), ctx = BOUND_CTX) {
 
 /** ⭐ "TRANSFERS FULLY" — the coverage map's headline predicate, in one place.
  *  Attached by the member door AND installed AND zero refusals AND the object
- *  program carried with nothing dropped or withheld AND no paint withheld. */
+ *  program carried with nothing dropped or withheld AND no paint withheld.
+ *  A paint is withheld when the DOCUMENT the member gets does not draw it (`paint_predicate.mjs`). */
 function isClean(r) {
   return !!r && !!r.attached && r.installed !== false
     && (r.refusals || []).length === 0
@@ -398,6 +411,9 @@ function census(source, cap, { rtOn = RT_ON } = {}) {
   return {
     attached: !!first.attached && first.installed !== false,
     clean: isClean(first),
+    // INSTRUMENT (2026-11-16): the same predicate under the paint rule it had before (every paint the
+    // TRANSLATION withheld counts), so one run states the headline under both definitions.
+    cleanTranslatedPaints: isClean({ ...first, withheldPaints: first.withheldPaintsTranslated }),
     // ⭐ ENGINE 55 — the BOUND predicate (`boundBlockers`), beside the static one.
     cleanBound: isClean(first) && Array.isArray(first.boundWhy) && first.boundWhy.length === 0,
     reachedAfterPeel: !!last.attached,
@@ -463,13 +479,15 @@ describe.skipIf(!RUN)('coverage-map door census (driven by run_census.py)', () =
       vi.stubEnv(RUNTIME_FLAG, '1')
       try {
         const rt = oneDoor(source)
-        row.runtime = { attached: !!rt.attached && rt.installed !== false, clean: isClean(rt), lane: rt.lane || null,
+        row.runtime = { attached: !!rt.attached && rt.installed !== false, clean: isClean(rt),
+          cleanTranslatedPaints: isClean({ ...rt, withheldPaints: rt.withheldPaintsTranslated }), lane: rt.lane || null,
           guard: rt.guard || null, threw: rt.threw || null, refusalGuards: [...new Set((rt.refusals || []).map((x) => x.guard))] }
       } catch (err) {
         row.runtime = { attached: false, clean: false, threw: short((err && err.message) || err) }
       }
       vi.unstubAllEnvs()
-      fs.appendFileSync(OUT, `${JSON.stringify({ key: it.key, lane: LANE, ms: Date.now() - t0, ...row })}\n`)
+      fs.appendFileSync(OUT, `${JSON.stringify({ key: it.key, lane: LANE, ms: Date.now() - t0,
+        ...(LIBRARIES_LOADED.length ? { libraryStore: LIBRARIES_LOADED.length } : {}), ...row })}\n`)
       n += 1
     }
     fs.writeFileSync(cur, '')
@@ -828,5 +846,36 @@ describe('⛔ engine 55 — the census bound check (`boundBlockers`) can fail', 
     const why = boundBlockers(d)
     expect(why.some((w) => w.startsWith('objects:withheld-unknown:'))).toBe(true)
     expect(why).toContain('objects:not-computable')
+  })
+})
+
+// ─── ⛔ SELF-CHECK: THE PAINT RULE (instrument correction, 2026-11-16) ───────────────────
+// A paint counts as withheld only when the document the member gets does not draw it.
+describe('⛔ census paint rule: withheld means the document does not draw it', () => {
+  const t = { presentation: { paints: [
+    { kind: 'barcolor', line: 12, withheld: { code: 'paint:colour', reason: 'x' } },
+    { kind: 'bgcolor', line: 20, withheld: { code: 'paint:offset', reason: 'y' } },
+    { kind: 'bgcolor', line: 30, color: '#ff0000' },
+  ] } }
+  it('the translation count is every paint the translation withheld', () => {
+    expect(paintsWithheldByTranslation(t)).toBe(2)
+    expect(paintsWithheldByTranslation(null)).toBe(0)
+  })
+  it('a withheld paint the document draws (same kind, same line) is not counted', () => {
+    expect(paintsWithheldFromDocument(t, { paints: [{ kind: 'barcolor', line: 12 }, { kind: 'bgcolor', line: 30 }] })).toBe(1)
+  })
+  it('a document paint of another line or another kind lifts nothing', () => {
+    expect(paintsWithheldFromDocument(t, { paints: [{ kind: 'barcolor', line: 13 }, { kind: 'barcolor', line: 20 }] })).toBe(2)
+  })
+  it('no document (the door did not attach), or a document with no paints: every withheld paint counts', () => {
+    expect(paintsWithheldFromDocument(t, null)).toBe(2)
+    expect(paintsWithheldFromDocument(t, { paints: [] })).toBe(2)
+  })
+  it('one document paint lifts one withheld paint, never two on the same line', () => {
+    const two = { presentation: { paints: [
+      { kind: 'barcolor', line: 5, withheld: { code: 'paint:colour', reason: 'a' } },
+      { kind: 'barcolor', line: 5, withheld: { code: 'paint:colour', reason: 'b' } },
+    ] } }
+    expect(paintsWithheldFromDocument(two, { paints: [{ kind: 'barcolor', line: 5 }] })).toBe(1)
   })
 })

@@ -110,6 +110,7 @@ describe('B1 — paints graded against the captures that record them', () => {
     'mcclellan-indicators-spy-1d-2026-10-03.json': ['supply warm vw-object-gc-b-spy-1d-2026-09-28.json 6677 notReplayed', 'plot_4 naBoth 1800/1800 painted=0', 'plot_15 naBoth 1800/1800 painted=0'],
     'renko-candles-overlay-rddt-1d-2026-10-03.json': ['refused pine:collection'],
     'renko-candles-overlay-spy-1d-2026-10-03.json': ['refused pine:collection'],
+    'renko-candles-overlay-crwv-1d-2026-11-16.json': ['refused pine:collection'],
     'supertrend-strategy-rddt-1d-2026-10-02.json': ['supply bar0 warmup=0', 'plot_9 withheld'],
     'supertrend-strategy-spy-1d-2026-10-02.json': ['supply warm vw-object-gc-b-spy-1d-2026-09-28.json 6677 notReplayed', 'plot_9 withheld'],
     'trend-targets-algoalpha-rddt-1d-2026-10-02.json': ['refused pine:state'],
@@ -191,8 +192,8 @@ describe('B1 — paints graded against the captures that record them', () => {
     'volatility-trend-score-backquant-rddt-1d-2026-11-14.json': ['refused pine:type'],
     'volume-delta-hapharmonic-rddt-1d-2026-11-14.json': ['refused pine:type'],
     'volume-profile-auto-line-v2-rddt-1d-2026-11-14.json': ['refused pine:no-output'],
-    'volume-spikes-growing-volume-signals-with-alerts-scanner-rddt-1d-2026-11-14.json': ['refused install door refused: u_member-pane-vendorharness: compute.budget: exceeds the lookback budget — this formula measures 1000 and the cap is 960 (guard "budget:lookback"). Measured {"maxNodes":19,"maxLookback":1000} against caps {"maxNodes":128,"maxLookback":960,"maxSeriesRefs":8}. The tree measured is compute.trees.value.'],
-    'volume-spikes-growing-volume-signals-with-alerts-scanner-spy-1d-2026-11-14.json': ['refused install door refused: u_member-pane-vendorharness: compute.budget: exceeds the lookback budget — this formula measures 1000 and the cap is 960 (guard "budget:lookback"). Measured {"maxNodes":19,"maxLookback":1000} against caps {"maxNodes":128,"maxLookback":960,"maxSeriesRefs":8}. The tree measured is compute.trees.value.'],
+    'volume-spikes-growing-volume-signals-with-alerts-scanner-rddt-1d-2026-11-14.json': ['refused member door refused (budget:lookback): this script is not drawn: its plot `Volume Up Spike Marker` needs 1000 bars of history behind every bar, and one plot may reach back at most 960 here'],
+    'volume-spikes-growing-volume-signals-with-alerts-scanner-spy-1d-2026-11-14.json': ['refused member door refused (budget:lookback): this script is not drawn: its plot `Volume Up Spike Marker` needs 1000 bars of history behind every bar, and one plot may reach back at most 960 here'],
     'volume-suite-by-leviathan-rddt-1d-2026-11-15.json': ['refused pine:tuple'],
     'volume-suite-by-leviathan-spy-1d-2026-11-15.json': ['refused pine:tuple'],
     // ⭐ ENGINE 58 COLOURS (landing train 1): a v1-v3 `bgcolor` with no `transp` draws at 90 (S1), so the three

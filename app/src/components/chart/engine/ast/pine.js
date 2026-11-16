@@ -281,6 +281,9 @@ export const REFUSALS = Object.freeze({
     'the imported library is published under a non-commercial licence, so it is not served on this product',
   'pine:library-denied':
     'this library version is withheld until its drawing is verified against TradingView',
+  // ⭐⭐ U15 Phase B — a v5 library in a v6 script, where the code it reaches changed meaning in v6
+  'pine:library-version':
+    'the imported library is written in Pine v5 and uses something whose meaning changed in v6',
   'pine:strategy-call':
     'a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate',
   // ⚰️ IT SAID "another symbol or another timeframe is outside what one screened
@@ -947,6 +950,7 @@ import { OBJECT_ENUM_VALUES } from '../objectEnums.js'
 
 const TICKER_CALLS = new Set(['ticker.new', 'tickerid'])
 
+
 /** ⛔ W9-OQ-N2 — sinks that refuse (or withhold) their own row. */
 const STRATEGY_TAINT_ROW_SINKS = new Set(['plot', 'plotshape', 'plotchar', 'plotcandle', 'plotbar',
   'plotarrow', 'alertcondition', 'bgcolor', 'barcolor'])
@@ -1407,6 +1411,24 @@ export function derivedSeriesTree(name, table) {
   if (!own(DERIVED_SERIES, name)) return null
   const parts = DERIVED_SERIES[name]
   if (parts.some((p) => !own((table && table.series) || {}, p))) return null
+  // ⭐⭐ `hlcc4` IS `(high + low + 2 * close) / 4`, AS TRADINGVIEW COMPUTES IT (NUMBER PENDING,
+  // 2026-11-16). The reference writes `(high + low + close + close) / 4`, and a left-to-right sum
+  // of four terms rounds twice where TradingView's rounds once, so the two differ in the last
+  // binary digit on some bars. WITNESSED: `h3-vwap-source-spy-1d-2026-10-02` S08
+  // (`ta.vwap(hlcc4)` on a daily chart, each bar its own session): this spelling, through the
+  // session's `(src * volume) / volume`, is TradingView's value bit for bit on 1800 of 1800 bars;
+  // the four-term sum is not (`hlcc4BitExact.test.js`). `2 * close` is exact, so the order of
+  // that product does not matter. A hand-written four-term sum keeps its own arithmetic.
+  if (name === 'hlcc4') {
+    return cOp('/', [cOp('+', [cOp('+', [cSeries('high'), cSeries('low')]), cOp('*', [cNum(2), cSeries('close')])]),
+      cNum(4)])
+  }
+  return meanTree(parts)
+}
+
+/** The left-nested mean `(a + b + …) / n` of bar fields: the reference's arithmetic for `hl2`,
+ *  `hlc3` and `ohlc4`, and a hand-written `(high + low + close + close) / 4`. */
+function meanTree(parts) {
   const sum = parts.map(cSeries).reduce((a, b) => cOp('+', [a, b]))
   return cOp('/', [sum, cNum(parts.length)])
 }
@@ -1429,6 +1451,10 @@ function isBarPriceSource(tree, table) {
   return ['open', 'high', 'low', 'close'].filter((n) => own((table && table.series) || {}, n))
     .map((n) => cSeries(n))
     .concat(['hl2', 'hlc3', 'ohlc4', 'hlcc4'].map((n) => derivedSeriesTree(n, table)).filter(Boolean))
+    // a hand-written `(high + low + close + close) / 4` is still a price the bar holds (the
+    // spelling `hlcc4` expanded to before it took TradingView's arithmetic)
+    .concat(['high', 'low', 'close'].every((n) => own((table && table.series) || {}, n))
+      ? [meanTree(['high', 'low', 'close', 'close'])] : [])
     .some((t) => JSON.stringify(t) === got)
 }
 
@@ -13794,6 +13820,10 @@ export class Resolver {
     const kw = v.tok ? v.tok.value : null
     if (kw === 'true') return 'on'
     if (kw === 'false') return 'off'
+    // ⭐ REQ — the constant written through a plain binding (`igaps = barmerge.gaps_off`)
+    const through = this.builtinNameThrough(v)
+    if (through === 'barmerge.gaps_off') return 'off'
+    if (through === 'barmerge.gaps_on') return 'on'
     // A name bound to a constant (`gaps = igaps`, an `input.bool`): ask the
     // resolver for its folded value, minting nothing.
     const minted = this.paramMint
@@ -13921,7 +13951,10 @@ export class Resolver {
     // (`ticker.new(prefix, ticker, session.*)`) names a session; read once.
     if (asked.session === undefined) {
       const call = asked.symbolNode ? this.tickerCallIn(asked.symbolNode) : null
-      asked.session = call ? call.name : null
+      // ⛔ REQ — a symbol written through `ticker.modify(…)` now reads as the chart's own where
+      // nothing is modified (`unmodifiedTickerArg`); BELOW the chart it keeps the refusal it had
+      // (a ticker-building call names a session), so no lower read is newly served by that rule.
+      asked.session = call ? call.name : (asked.symbolNode ? this.tickerModifierIn(asked.symbolNode) : null)
     }
     const shape = lowerTfRefusal({
       code,
@@ -14034,7 +14067,9 @@ export class Resolver {
       if (!a) continue
       const isSession = a.name === 'session' || (!a.name && i === 2)
       if (!isSession) continue
-      const spelled = a.value && a.value.type === 'name' ? a.value.name : null
+      // ⭐ REQ — the constant may be written through a plain binding (`isess = session.regular`,
+      // then `session = isess`): `builtinNameThrough` follows it, and nothing else.
+      const spelled = this.builtinNameThrough(a.value)
       if (spelled !== 'session.regular') return null
     }
     // ⛔⛔ THE VENUE IS JUDGED HERE TOO, AND THIS IS THE HOLE IT CLOSES. Argument
@@ -14058,6 +14093,43 @@ export class Resolver {
     return null
   }
 
+  /** ⭐⭐ REQ (coverage unit, 2026-11-16) — THE SYMBOL INSIDE `ticker.modify(<symbol>)` WHEN THE CALL
+   *  MODIFIES NOTHING: exactly one argument (positional, or named `tickerid`), or null.
+   *
+   *  Pine's reference, `ticker.modify(tickerid, session, adjustment, backadjustment, settlement_as_close)`:
+   *  "`session` … If session is not given, then `syminfo.session` value is used." "`adjustment` … If
+   *  adjustment is not given, then default adjustment value is used." `backadjustment` and
+   *  `settlement_as_close` default to `inherit`. So with the symbol alone the call asks for that
+   *  symbol on the CHART's session with the instrument's default adjustment — which is the series a
+   *  plain request for the symbol reads on every chart this engine draws (`sym` serves the regular
+   *  session, the chart's own; see `tickerCallArg` on why a NON-default session refuses).
+   *  It is the built-in "Correlation coefficient"'s own spelling: `ticker.modify(input.symbol(…))`.
+   *  ⛔ ANY SECOND ARGUMENT (a session, an adjustment, …) IS A DIFFERENT SERIES and is not read here:
+   *  the call then keeps the refusal it had. */
+  unmodifiedTickerArg(node) {
+    if (!node || node.type !== 'call' || node.name !== 'ticker.modify') return null
+    const args = (node.args || []).filter(Boolean)
+    if (args.length !== 1) return null
+    const a = args[0]
+    if (a.name && a.name !== 'tickerid') return null
+    return a.value !== undefined ? a.value : null
+  }
+
+  /** ⭐ REQ (coverage unit, 2026-11-16) — THE BUILT-IN NAME A NODE SPELLS, through plain bindings:
+   *  `x` where the script wrote `x = session.regular` (or `y = x`) answers `'session.regular'`; a name
+   *  the script does not bind answers itself; anything else (a call, a ternary, a parameter, a
+   *  reassigned or opaque binding, a chain deeper than four) answers null. For the two request
+   *  arguments that are Pine CONSTANTS and that scripts hoist into a name: a ticker call's `session`
+   *  and `lookahead`. ⛔ It folds nothing and resolves nothing: a binding is followed only while it
+   *  is a bare name. */
+  builtinNameThrough(node, depth = 0) {
+    if (!node || node.type !== 'name' || depth > 4) return null
+    const bound = this.env && this.env.get(node.name)
+    if (!bound) return node.name
+    if (bound.kind !== 'expr' || !bound.node) return null
+    return this.builtinNameThrough(bound.node, depth + 1)
+  }
+
   ownSymbolNameOf(node, depth = 0) {
     if (!node || depth > 4) return null
     // ⭐ A CONSTANT-CONDITION TERNARY PICKS ITS BRANCH — the idiom `ownTimeframeOf`
@@ -14070,6 +14142,18 @@ export class Resolver {
     }
     const tick = this.tickerCallArg(node)
     if (tick) return this.ownSymbolNameOf(tick, depth + 1)
+    // ⭐⭐ REQ (coverage unit, 2026-11-16) — `ticker.modify(<symbol>)` WITH NOTHING MODIFIED IS THE SYMBOL.
+    // See `unmodifiedTickerArg` for the reference sentences this rests on.
+    const unmodified = this.unmodifiedTickerArg(node)
+    if (unmodified) return this.ownSymbolNameOf(unmodified, depth + 1)
+    // ⭐⭐ REQ — AN EMPTY SYMBOL IS THE CHART'S OWN. Pine's reference for `request.security`, `symbol`:
+    // "Use an empty string or `syminfo.tickerid` to request data using the chart's symbol." So `""`
+    // (a literal, or an `input.symbol` / v4 `input(type = input.symbol)` whose default is `""`) is
+    // the same request `syminfo.tickerid` makes — the mirror of C28b's empty TIMEFRAME.
+    // ⚰️ It fell through to `pine:request` ("could not be resolved to one symbol").
+    if (node.type === 'string' && String(node.value).trim() === '') return 'syminfo.tickerid'
+    const symDefault = this.symbolInputDefaultOf(node)
+    if (symDefault && symDefault.type === 'string' && String(symDefault.value).trim() === '') return 'syminfo.tickerid'
     if (node.type === 'name') {
       // ⛔⛔ THE BINDING IS CONSULTED FIRST, AND THE ORDER IS THE WHOLE GUARD.
       // `syminfo.tickerid` is NAMESPACED and cannot be shadowed, but the v2/v3
@@ -14141,6 +14225,9 @@ export class Resolver {
       if (prefix === undefined) return inner
       return { ticker: inner.ticker, venue: inner.venue ? '?' : prefix }
     }
+    // ⭐ REQ — `ticker.modify(<symbol>)` with nothing modified (`unmodifiedTickerArg`)
+    const unmodified = this.unmodifiedTickerArg(node)
+    if (unmodified) return this.otherSymbolOf(unmodified, depth + 1)
     if (node.type === 'string') {
       // ⭐ `EXCHANGE:TICKER` IS THE SPELLING `ticker.new` ALREADY TAKES, written as
       // one string, and both are judged by `US_EQUITY_VENUES` so they cannot
@@ -14199,6 +14286,10 @@ export class Resolver {
     const untyped = node.name === 'input'
     if (!untyped && node.name !== 'input.symbol' && node.name !== 'input.string') return undefined
     const args = node.args || []
+    // ⛔ REQ (coverage unit, 2026-11-16) — a v3 / v4 `input(…, type = input.symbol)` is NOT read here. It was
+    // tried: pmax-explorer's twenty `type = input.symbol` inputs then translated twenty per-symbol requests and
+    // its PMax plot moved MATCH -> DIVERGE on the production lane (`vendorHarness.coverageAudit`). Any
+    // `type =` argument is its own declaration and ends the read, as before.
     if (untyped && args.some((a) => a && a.name === 'type')) return undefined
     for (let i = 0; i < args.length; i += 1) {
       const a = args[i]
@@ -14356,8 +14447,20 @@ export class Resolver {
     }
     if (node.type === 'name') {
       const bound = this.env && this.env.get(node.name)
+      // ⭐ REQ — A PARAMETER IS ITS CALLER'S ARGUMENT, FOR NAMING ONLY (C33's rule, other axis): a
+      // spelling this door cannot serve is NAMED when it arrives through a helper
+      // (`ratio("USI:ADVN.NY", …)`), read through the frame the resolver is inside.
+      // ⛔ NOT for serving: `ownSymbolNameOf` / `otherSymbolOf` do not follow a parameter. Measured, a
+      // five-ticker screener whose helper reads each ticker through many fractal offsets
+      // (best-abcd-pattern-screener) then translated past the 10 s budget (`pine:timeout`) where it had
+      // been refused by name at once. Serving through a parameter waits for a per-call-site memo.
+      if (bound && bound.kind === 'param') {
+        return this.throughBinding(bound, (b) => (b && b.node ? this.rawSymbolSpellingOf(b.node, depth + 1) : null))
+      }
       return bound && bound.kind === 'expr' ? this.rawSymbolSpellingOf(bound.node, depth + 1) : null
     }
+    const unmodified = this.unmodifiedTickerArg(node)
+    if (unmodified) return this.rawSymbolSpellingOf(unmodified, depth + 1)
     const tick = this.tickerCallArg(node)
     if (tick) {
       const inner = this.rawSymbolSpellingOf(tick, depth + 1)
@@ -14586,6 +14689,20 @@ export class Resolver {
       const keyword = v && v.tok ? v.tok.value : null
       if (keyword === 'true') { live = true; continue }
       if (keyword === 'false') continue
+
+      // ⭐⭐ REQ (coverage unit, 2026-11-16) — THE CONSTANT WRITTEN THROUGH A PLAIN BINDING.
+      // `ilookahead = barmerge.lookahead_on` then `lookahead = ilookahead` is the same request as
+      // writing the constant at the call (`builtinNameThrough`: bare names only, nothing folded).
+      // ⛔ ONLY THE TWO LOOK-AHEAD CONSTANTS. A name that ends at anything else — an input, a
+      // `barmerge.gaps_*` constant passed as look-ahead (previous-n-daysweeksmonths-high-low writes
+      // `ilookaehad = barmerge.gaps_on`; v4 types all four constants `const bool` and states no
+      // value for any of them) — is not a look-ahead value this door can read, and still declines.
+      // ⛔ RULED (coordinator, 2026-11-16): served only if exactly one reading MATCHes that script's own
+      // captures. Neither can be graded there (its next wall, `pine:offset-literal`, refuses first), so it
+      // stays refused; Q-REQ2 (`capture-queue-2026-11-16-request-security.md`) is the probe that parts them.
+      const through = a.name === 'lookahead' ? this.builtinNameThrough(v) : null
+      if (through === 'barmerge.lookahead_on') { live = true; continue }
+      if (through === 'barmerge.lookahead_off') continue
 
       // ⛔ ANYTHING ELSE STILL DECLINES THE WHOLE CALL. This admits the two
       // declared constants and the two keywords Pine spells them with — never
@@ -16988,6 +17105,47 @@ const reassignState = (prior, env, toks, mut, nameTok) => {
 const stateBinding = (seed, seedEnv, update, updateEnv, at) => ({
   kind: 'state', seed, seedEnv, update, updateEnv, at,
 })
+
+/** ⭐ DOOR-ROBUSTNESS — the SEED nodes of the `var`s declared `var string <name> = …`.
+ *  Keyed by the seed OBJECT because that is what every later binding of the same
+ *  variable keeps (`reassignState`, `foldIfChain`'s "same seed OBJECT" rule), so a
+ *  `var string` is known as text by its DECLARATION wherever it is read, however many
+ *  writes stand between. Read by the drawing lane's text reader (`stringVarTextOf`). */
+const STRING_VAR_SEEDS = new WeakSet()
+
+/** ⭐ DOOR-ROBUSTNESS — is this guard (a parse node) made only of chart-period reads
+ *  (`timeframe.*`), literals and operators? Such a guard has one value on every bar of a chart
+ *  of one period; any other name (an input, a series, a user binding) can change it. */
+const periodOnlyGuard = (n, depth = 0) => {
+  if (!n || typeof n !== 'object' || depth > 32) return false
+  switch (n.type) {
+    case 'number': case 'string': case 'bool': return true
+    case 'name': return /^timeframe\.[a-z_]+$/.test(String(n.name || ''))
+    case 'binary': return periodOnlyGuard(n.left, depth + 1) && periodOnlyGuard(n.right, depth + 1)
+    case 'unary': return periodOnlyGuard(n.arg, depth + 1)
+    case 'paren': return periodOnlyGuard(n.expr || n.inner || n.value, depth + 1)
+    default: return false
+  }
+}
+/** Why a `var string` shown while it still holds its `na` seed is withheld (after "`x` is a `var string` "). */
+export const STRING_VAR_NA_SEED_WHY = 'still holding the `na` it was declared with on this chart, and what TradingView '
+  + 'shows for that is not captured yet (probe `vw-rob1-var-string-text`), so the text is not drawn'
+/** `var string <name> = <seed>`, or `var <name> = "<text>"`: mark the seed. `toks` is the declaration's
+ *  tokens. ⭐ Q-ROB6 (2026-11-16) — an UNTYPED `var` whose seed is a string LITERAL is a string too: Pine
+ *  infers a variable's type from its initial value (a declaration without a type keyword takes the type of
+ *  the value it is initialised with), and a literal is the one value whose type needs nothing read.
+ *  ⛔ Only a literal: an untyped `var` seeded with anything else stays unmarked, so CBC-FMT F11 (`pine:type`
+ *  for a number in a text slot) is not reopened. Measured on mtf-key-levels-support-and-resistance:
+ *  `var DNoSpaces = " "`, read through `DailySpaces + "pdOpen"`, dropped 22 name labels TradingView draws
+ *  (" pdOpen", " pdHigh" ...): the per-bar lane drew 3 labels of TradingView's 27, now 25. */
+const markStringVarSeed = (toks, seed) => {
+  const typed = toks && toks[1]
+  const declaredString = typed && typed.kind === 'ident' && typed.value === 'string'
+  const untyped = typed && typed.kind === 'ident' && toks[2] && toks[2].kind === 'punct' && toks[2].value === '='
+  const literalText = seed && typeof seed === 'object' && seed.type === 'string'
+  if (seed && typeof seed === 'object' && (declaredString || (untyped && literalText))) STRING_VAR_SEEDS.add(seed)
+  return seed
+}
 
 /** How many bars of history a translated `var` accumulates over.
  *
@@ -19481,7 +19639,7 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
         throw new PineRefusal('pine:state',
           `${REFUSALS['pine:state']} — \`${first.value}\``, locate(first))
       }
-      const seedNode = parseWholeExpression(toks.slice(eqAt + 1))
+      const seedNode = markStringVarSeed(toks, parseWholeExpression(toks.slice(eqAt + 1)))
       env.set(varName.value, stateBinding(
         seedNode, new Map(env), selfNode(varName), new Map(env), locate(varName)))
       // ⭐ C48 — a `var` declared in a block that does not run on every bar keeps
@@ -21647,6 +21805,74 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     textRefuse('pine:text-value', `this text's node nests deeper than the runtime reads (${entry})`)
     return null
   }
+  /**
+   * ⭐⭐ DOOR-ROBUSTNESS — THE TEXT A `var string` HOLDS, READ FROM ITS WRITES.
+   *
+   * `var string s = na` / `if g` / `    s := <text>` then `table.cell(…, text = s)` compiles on
+   * TradingView: `s` is a string by declaration. ⚰️ The reader had no branch for a `state`
+   * binding, so the name fell to the numeric last resort, which CBC-FMT (F11) made a
+   * `pine:type` refusal ("a number stands where Pine takes text") — a false sentence here,
+   * and two cells of volume-pace-pressure-table lost. Before F11 that last resort carried the
+   * state as a NUMBER, which is the guess F11 closed; this does not re-open it: a `var` not
+   * declared `string` never reaches here, and a write that is not text refuses by its own name.
+   *
+   * What is served is what the `var` rule states (Pine reference, `var`: initialised once,
+   * then holds its value until a `:=` runs), in the shapes where that needs no memory:
+   *   · never written                      → the seed's text;
+   *   · written on every bar               → that write's text;
+   *   · written under a guard that is the SAME on every bar of the chart (`timeframe.*`,
+   *     an input, a constant: `decidedTest`) → the write's text where the guard holds,
+   *     the text below it (in the end, the seed) where it does not;
+   *   · written in every branch of an `if … else` → the branch's text, per bar.
+   * ⛔ A write under a guard that changes bar to bar, with no write in the other branch, is
+   * a LATCH (the text of the last bar whose guard held). A text template holds no bar-to-bar
+   * memory, so it is refused by name; so is a write that reads the variable's own text.
+   * Returns a text node, or null with `textRefuse` naming why.
+   */
+  const stringVarTextOf = (bound, name, depth) => {
+    const KEEP = { keep: true }
+    const stop = (why) => { textRefuse('pine:text-value', `\`${name}\` is a \`var string\` ${why}`); return null }
+    const walk = (u, env, d) => {
+      if (!u || d > 32) return stop('written through more nested blocks than this reader follows')
+      if (u.type === 'selfref') return KEEP
+      // a fold's arm: the update one branch of an `if` left behind (`foldIfChain::asUpdate`)
+      if (u.type === 'bound' && u.binding && u.binding.kind === 'expr' && u.binding.node) {
+        return walk(u.binding.node, u.binding.env || env, d + 1)
+      }
+      const isArm = (n) => !!n && n.type === 'bound' && !!n.binding && n.binding.kind === 'expr'
+      if (u.type === 'ternary' && isArm(u.yes) && isArm(u.no)) {
+        const condTree = canonicalOf(u.test, null, env)
+        if (!condTree) return stop('written in a block whose condition this reader cannot read')
+        const decided = decidedTest(condTree)
+        if (decided !== null) return walk(decided !== 0 ? u.yes : u.no, env, d + 1)
+        const then = walk(u.yes, env, d + 1)
+        if (!then) return null
+        const other = walk(u.no, env, d + 1)
+        if (!other) return null
+        if (then === KEEP || other === KEEP) {
+          return stop('written in a block that runs on some bars only, so it holds the text of the last bar '
+            + 'that block ran on; a drawing text here is computed from the current bar alone')
+        }
+        const cond = internTree(condTree)
+        return cond ? { t: 'if', cond, then, else: other } : stop('written in a block whose condition this reader cannot carry')
+      }
+      // a write: `name := <text>`
+      if (parseReadsName(u, name)) return stop('built from its own earlier text (it reads itself where it is written)')
+      const text = textNodeOf(u, env, depth + 1, null, env)
+      if (!text && !lastTextRefusal) return stop('written with a text this reader cannot read')
+      return text
+    }
+    lastTextRefusal = null
+    const held = walk(bound.update, bound.updateEnv, 0)
+    if (held !== KEEP) return held
+    // ⛔ THE SEED IS WHAT IS SHOWN, AND AN `na` SEED IS NOT WITNESSED (coordinator ruling B,
+    // 2026-11-16). F4's capture pins a LABEL created with `text = na` as ""; what TradingView
+    // shows for a `var string` still holding `na` (in a table cell above all) is not captured,
+    // so it is withheld by name until probe Q-ROB1 (`vw-rob1-var-string-text.pine`) answers.
+    if (bound.seed && bound.seed.type === 'name' && bound.seed.name === 'na') return stop(STRING_VAR_NA_SEED_WHY)
+    return textNodeOf(bound.seed, bound.seedEnv, depth + 1, null, bound.seedEnv)
+  }
+
   const textNodeOf = (node, scope, depth = 0, inline = null, envAt = null) => {
     if (!node) return null
     // ⛔ C42 — a call the object reader marked in a block that runs once (see
@@ -21882,6 +22108,13 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // uses; a field the binding cannot settle is withheld, never printed.
       if (!enumLeaves && own(BUILTIN_SYMBOL_SCOPED, node.name)) return { t: 'sym', name: node.name }
       const bound = (scope && typeof scope.get === 'function' && scope.get(node.name)) || null
+      // ⭐⭐ DOOR-ROBUSTNESS — A `var string` IS TEXT BY ITS DECLARATION (`stringVarTextOf`):
+      // read from its writes, or refused by the name of what stopped the read. It never
+      // reaches the numeric last resort below, whose `pine:type` ("a number stands where
+      // Pine takes text") is false about a variable the author declared a string.
+      if (!enumLeaves && !inline && bound && bound.kind === 'state' && STRING_VAR_SEEDS.has(bound.seed)) {
+        return stringVarTextOf(bound, node.name, depth)
+      }
       // ⭐⭐ C29 — `timeframe.period` IN A TEXT SLOT IS THE PERIOD'S TEXT, in the
       // script's Pine version: the resolver's own `stringValueOf` (`periodTextOf`),
       // which also records the read so a chart of another period refuses the
@@ -22556,10 +22789,35 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         const c = body ? colorNodeOf(body, scope, depth + 1) : null
         if (c) return c
       }
+      // ⭐ TC (text-colour unit) — AND A SCRIPT'S OWN ONE-EXPRESSION READ METHOD IN THE DOTTED
+      // FORM (`chart.fg_color.transp(50)` over `method transp(color x, int t) => color.new(x, t)`):
+      // the same substitution, the receiver as its first argument — the rewrite `recv.m(a)` →
+      // `m(recv, a)` the Resolver's read methods (`inlineReadMethod`, C11c) and the runtime front
+      // end (`methodCallOf`) already make. ⛔ Only `readMethodDefs`' methods (declared once, not
+      // also a plain function, one expression that writes nothing), and only where nothing in
+      // scope binds the dotted name; the body is read by THIS reader, so a colour it cannot say
+      // is still dropped by name. ⚰️ The call fell to the drop above (`prop:unreadable`), so
+      // volatility-trend-score's two reference lines were not drawn by either lane.
+      if (!bound && plain && splitMethodName(node.name)) {
+        const mf = splitMethodName(node.name)
+        const def = objectColourMethods().get(mf.method)
+        if (def && def.params.length === args.length + 1) {
+          const recvArg = { name: null, value: { type: 'name', name: mf.recv, tok: node.tok } }
+          const body = substituteFrame(def.body, { bound: { params: def.params }, args: [recvArg, ...args], callerEnv: scope })
+          const c = body ? colorNodeOf(body, scope, depth + 1) : null
+          if (c) return c
+        }
+      }
     }
     return null
   }
-  const lateColourOf = (node, scope, depth) => rtColourOf(node, scope, depth) || hostColourOf(node, scope, depth)
+  /** ⭐ TC — the script's own read methods, for the colour reader above (built once, on first ask). */
+  let objectColourMethodsMemo = null
+  const objectColourMethods = () => {
+    if (!objectColourMethodsMemo) objectColourMethodsMemo = readMethodDefs(stmts)
+    return objectColourMethodsMemo
+  }
+  const lateColourOf =(node, scope, depth) => rtColourOf(node, scope, depth) || hostColourOf(node, scope, depth)
 
   /** ⭐⭐ C20 — A DRAWING COLOUR ONLY THE RUNTIME LANE CAN COMPUTE.
    *
@@ -25113,6 +25371,13 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     /** ⭐ C45 / C48 (review round 2) — a guard term NOT decided before bar 0: the op
      *  runs only on some bars (read by `colorNodeOf` through `varies`, below). */
     let canonicalVaries = false
+    /** ⭐ DOOR-ROBUSTNESS — a conjunct made ONLY of chart-period reads and literals
+     *  (`periodOnlyGuard`) whose value is false on every bar at this translation's period, so the
+     *  op never runs on a chart of this period. Read only where a conversion would otherwise
+     *  count a loss (`neverRunOps`). ⛔ Never a guard that reads an input: the object pass folds
+     *  an input at its default, and a member who switches it on must still be told the op is
+     *  lost (measured: htf-liquidity-dashboard-tfo's per-timeframe rows, `if _use and …`). */
+    let decidedFalse = false
     // ⭐ C20 — a drawing inside a runtime `while` runs where the run ARRIVES at
     // its statement, pass by pass — whatever the guards say, and even with none
     // (a `continue` above it skips it on some passes, which no guard shows).
@@ -25219,6 +25484,10 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       if (inRtLoop) continue
       let ast = canonicalOf(node)
       if (ast && !bindTimeConstantTree(ast) && decidedTest(ast) === null) canonicalVaries = true
+      if (ast && !rawTrees && periodOnlyGuard(node)) {
+        const decided = decidedTest(ast)
+        if (decided !== null && (g.negate ? decided !== 0 : decided === 0)) decidedFalse = true
+      }
       if (!ast) {
         if (rtOp && rtAdmits(lastCanonRefusal)) { needReached = true; continue }
         // ⭐⭐ C33 — AN `and` WITH A TERM THIS READER CANNOT READ, GATED BY AN INPUT.
@@ -25319,6 +25588,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     // unchanged.
     const varies = !!(lastBarOnly || requiresLive || requiresEmpty || unknownGuard || needReached
       || liveParts.length || canonicalVaries)
+    const never = decidedFalse && !needReached && !unknownGuard
     if (needReached) {
       if (unknownGuard) return undefined
       // ⛔ Only a guard made of VALUES: object state (a liveness test, a getter,
@@ -25330,10 +25600,10 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     }
     const ref = acc === null ? null : internTree(acc)
     if (acc !== null && ref === null) return undefined
-    if (!liveParts.length) return { when: ref, extra, varies }
+    if (!liveParts.length) return { when: ref, extra, varies, ...(never ? { never } : {}) }
     // ⭐ The pure conjunction stays ONE tree; the live parts AND onto it.
     const parts = ref ? [ref, ...liveParts] : liveParts
-    return { when: parts.length === 1 ? parts[0] : { v: 'bool', op: 'and', args: parts }, extra, varies }
+    return { when: parts.length === 1 ? parts[0] : { v: 'bool', op: 'and', args: parts }, extra, varies, ...(never ? { never } : {}) }
   }
 
   const namedOrPositional = (args, order) => {
@@ -26043,6 +26313,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       const raw = namedOrPositional(op.args, CELL_POSITIONAL)
       const props = {}
       let badCell = false
+      let neverRunText = false
       for (const [k, node] of Object.entries(raw)) {
         if (!OBJECT_CELL_PROPS.includes(k)) { unsupportedProp('cell', k, node); continue }
         const cellRefusalBefore = lastCanonRefusal
@@ -26061,6 +26332,12 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
           // ⭐ P2 — the sentence behind a `cell:text` count, as `createDropWhy`
           // gives a create's (diagnostics only; nothing reads it to decide).
           // ⭐ W3-S1 — the text reader's own named refusal when no canonical one was written.
+          // ⭐ DOOR-ROBUSTNESS — a cell whose block NEVER runs on a chart of this period (`g.never`:
+          // its guard is false on every bar, e.g. `if timeframe.isminutes` folded on a daily
+          // translation) loses nothing when its text cannot be read: TradingView never draws it
+          // here either, and a chart of a period where it would run refuses the drawings by name
+          // (`periodReads.js::periodReadsObjectRefusal`). Named (`neverRunOps`), never counted.
+          if (k === 'text' && g && g.never) { neverRunText = true; break }
           if (k === 'text') {
             const r = lastCanonRefusal !== cellRefusalBefore ? lastCanonRefusal
               : lastTextRefusal !== textRefusalBefore ? lastTextRefusal : null
@@ -26081,6 +26358,12 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
           break
         }
         props[k] = v
+      }
+      if (neverRunText) {
+        diagnostics.neverRunOps = diagnostics.neverRunOps || []
+        const e = `cell@${op.line === undefined ? '?' : op.line}`
+        if (!diagnostics.neverRunOps.includes(e)) diagnostics.neverRunOps.push(e)
+        continue
       }
       if (typeof badCell === 'string') { dropped(badCell); continue }
       if (badCell) { dropped('cell:text'); continue }
@@ -27905,7 +28188,7 @@ function translatePineResult(source, opts = {}) {
         }
         try {
           env.set(nameTok.value, stateBinding(
-            parseWholeExpression(toks.slice(eq + 1)),
+            markStringVarSeed(toks, parseWholeExpression(toks.slice(eq + 1))),
             new Map(env), selfNode(nameTok), new Map(env), locate(nameTok)))
           hangSwitch()
           continue
