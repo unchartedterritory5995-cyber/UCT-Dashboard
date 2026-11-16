@@ -60,6 +60,7 @@
    "docs/pine/capture-queue-2026-11-14-rs-rating.md",
    "docs/pine/capture-queue-2026-11-15-calc-bars.md",
    "docs/pine/capture-queue-2026-11-16-cond-ta-followups.md",
+   "docs/pine/capture-queue-2026-11-16-door-robustness.md",
    "docs/pine/capture-queue-2026-11-16-rma-last-bit.md"
   ],
   "coverageMeasuredOn": "2026-11-05",
@@ -85,19 +86,19 @@
   }
  },
  "counts": {
-  "targets": 319,
+  "targets": 320,
   "byStatus": {
    "CAPTURED": 134,
    "NEEDS_CHART": 39,
    "NEEDS_LIVE": 2,
-   "QUEUED": 144
+   "QUEUED": 145
   },
   "byPlanWave": {
    "E": {
     "CAPTURED": 119,
     "NEEDS_CHART": 37,
     "NEEDS_LIVE": 2,
-    "QUEUED": 111
+    "QUEUED": 112
    },
    "W1": {
     "QUEUED": 6
@@ -120,7 +121,7 @@
     "CAPTURED": 110,
     "NEEDS_CHART": 38,
     "NEEDS_LIVE": 2,
-    "QUEUED": 136
+    "QUEUED": 137
    },
    "1-2": {
     "CAPTURED": 24,
@@ -173,6 +174,9 @@
    },
    "div3-merged-head": {
     "QUEUED": 2
+   },
+   "door-robustness": {
+    "QUEUED": 1
    },
    "fn-series-history": {
     "CAPTURED": 1
@@ -323,7 +327,7 @@
     "NEEDS_CHART": 1
    }
   },
-  "rowsNeedingProbe": 15,
+  "rowsNeedingProbe": 16,
   "rowsNeedingProbeLive": 0,
   "licenceHeldCensus": 156,
   "rowsNotCaptureQuestions": 47,
@@ -15570,6 +15574,49 @@
    "origins": [
     "queue-doc"
    ]
+  },
+  {
+   "id": "vw-rob1-var-string-text@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-rob1-var-string-text.pine",
+   "sourceKind": "probe",
+   "sha256": "f9ace51a62ce03dbb8307d415e1ac5db04a89a43d0dcd46cfd740c30a2563210",
+   "bytes": 2081,
+   "stem": "vw-rob1-var-string-text",
+   "captureStem": "vw-rob1-var-string-text",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "preamble",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "door-robustness"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-door-robustness#Q-ROB1",
+    "capture-queue-2026-11-16-door-robustness#Q-ROB2"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
   }
  ],
  "rowsNeedingProbe": [
@@ -15660,6 +15707,17 @@
    "guards": [],
    "namedScripts": [],
    "text": "Q-RS8 | `docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine` (unchanged, sha256 `caa94fe31a87...5af0`) | NYSE:RDDT 1D, NASDAQ:ALAB 1D, NASDAQ:CRWV 1D, each from the listing, default inputs | The x of RS Rating's two labels. The three committed captures (`rs-rating-fred6724-{rddt,alab,crwv}-1d-2026-11-15`) predate U13 and record no x table, so objects v2 grades INCONCLUSIVE and the run half that"
+  },
+  {
+   "key": "capture-queue-2026-11-14-rs-rating#Q-RS9",
+   "doc": "docs/pine/capture-queue-2026-11-14-rs-rating.md",
+   "line": 54,
+   "docWave": "rs-rating",
+   "needsProbe": "no probe file named (an inline shape or prose)",
+   "needsLive": false,
+   "guards": [],
+   "namedScripts": [],
+   "text": "Q-RS9 | RS Rating's RS line on bars before 2023-12-05: we serve FMP `^GSPC`, TradingView reads `SP:SPX` | NVDA 1D: 1,292 of 6,997 bars differ (18.5%), first 1999-01-28, last 2023-12-04, largest 1.83% of the value; 5,705 exact; the three averages exact on all 6,997. Re-derived 2026-11-16 on master `d615e76494`. From the 2026-11-15 grade, not re-derived: 89 of the 1,292 exceed 0.01%. RDDT / ALAB / C"
   },
   {
    "key": "capture-queue-2026-11-15-calc-bars#Q-FMT2",
@@ -17791,7 +17849,7 @@
   {
    "doc": "docs/pine/capture-queue-2026-11-14-rs-rating.md",
    "wave": "rs-rating",
-   "rows": 8,
+   "rows": 9,
    "contextTables": 0
   },
   {
@@ -17804,6 +17862,12 @@
    "doc": "docs/pine/capture-queue-2026-11-16-cond-ta-followups.md",
    "wave": "cond-ta-followups",
    "rows": 8,
+   "contextTables": 0
+  },
+  {
+   "doc": "docs/pine/capture-queue-2026-11-16-door-robustness.md",
+   "wave": "door-robustness",
+   "rows": 2,
    "contextTables": 0
   },
   {
