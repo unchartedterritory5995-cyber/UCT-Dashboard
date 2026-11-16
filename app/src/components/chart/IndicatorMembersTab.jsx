@@ -17,8 +17,9 @@
 // ⛔ THE EMPTY STATE NEVER SAYS "PUBLISH YOURS". A member who came to find an
 // indicator is not helped by being asked to supply one.
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { fetchDefinitionLibrary, installSharedDefinition } from '../../hooks/useUserDefinitions'
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { fetchDefinitionLibrary, installSharedDefinition, moderateListing } from '../../hooks/useUserDefinitions'
+import { AuthContext } from '../../context/AuthContext'
 import { WHAT_TO_DO } from '../../pages/formulas/shareRefusal'
 import ownStyles from './IndicatorMembersTab.module.css'
 
@@ -36,6 +37,44 @@ export function factsOf(entry) {
   if (entry.placement) out.push(entry.placement)
   if (entry.inputs > 0) out.push(`${entry.inputs} ${entry.inputs === 1 ? 'setting' : 'settings'}`)
   return out.join(', ')
+}
+
+/** The closed reasons UCT gives for a takedown (the server's `TAKEDOWN_REASONS`), in words. */
+export const TAKEDOWN_REASONS = Object.freeze([
+  ['licence', 'Not theirs to share'],
+  ['misleading', 'Misleading'],
+  ['broken', 'Does not work'],
+  ['abuse', 'Abuse'],
+  ['other', 'Other'],
+])
+
+/**
+ * UCT's takedown, for an ADMIN only (the server refuses anyone else). A reason from the
+ * closed set, then one press. Exported so the library page uses the same control.
+ */
+export function TakedownControl({ token, styles, onDone, moderate = moderateListing }) {
+  const [reason, setReason] = useState('other')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const go = async () => {
+    setBusy(true); setError('')
+    const r = await moderate(token, { down: true, reason })
+    setBusy(false)
+    if (r.ok) onDone?.(token)
+    else setError(r.error)
+  }
+  return (
+    <span className={styles.resMeta} data-testid="members-takedown">
+      UCT:{' '}
+      <select aria-label="Reason to take it down" value={reason} disabled={busy}
+        data-testid="members-takedown-reason" onChange={(e) => setReason(e.target.value)}>
+        {TAKEDOWN_REASONS.map(([k, w]) => <option key={k} value={k}>{w}</option>)}
+      </select>{' '}
+      <button type="button" className={styles.resAction} disabled={busy}
+        data-testid="members-takedown-go" onClick={go}>{busy ? 'Taking it down…' : 'Take it down'}</button>
+      {error ? <span className={styles.resRefusedWhy} role="alert"> {error}</span> : null}
+    </span>
+  )
 }
 
 /** Does this entry match what is typed? Name, short name and description; any case. */
@@ -58,8 +97,12 @@ export function entryMatches(entry, query) {
  */
 export default function IndicatorMembersTab({
   styles = ownStyles, query = '', isOnOffer = () => false, onPutOnChart = () => false,
-  fetchLibrary = fetchDefinitionLibrary, install = installSharedDefinition,
+  fetchLibrary = fetchDefinitionLibrary, install = installSharedDefinition, moderate = moderateListing,
 }) {
+  // ⛔ READ WITHOUT `useAuth`, which throws outside the provider: a host mounted without
+  // one (a test, an embed) simply shows no admin control.
+  const auth = useContext(AuthContext)
+  const isAdmin = !!(auth && auth.user && auth.user.role === 'admin')
   const [entries, setEntries] = useState([])
   const [next, setNext] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -139,6 +182,15 @@ export default function IndicatorMembersTab({
                   </span>
                   {e.description ? <span className={styles.resSub}>{e.description}</span> : null}
                   {facts ? <span className={styles.resMeta} data-testid="members-entry-facts">{facts}</span> : null}
+                  {e.licence ? (
+                    <span className={styles.resMeta} data-testid="members-entry-licence">
+                      Licence, from its original script: {e.licence}
+                    </span>
+                  ) : null}
+                  {isAdmin ? (
+                    <TakedownControl token={e.token} styles={styles} moderate={moderate}
+                      onDone={(t) => setEntries((prev) => prev.filter((x) => x.token !== t))} />
+                  ) : null}
                   {done ? (
                     <span className={styles.resMeta} data-testid="members-installed-note" role="status">
                       Installed. Your copy is under “Your indicators”.

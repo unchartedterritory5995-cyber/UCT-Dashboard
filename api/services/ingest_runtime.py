@@ -27,6 +27,8 @@ What the web side asks for, and what it gets
   (feed_protocol.LegacyFilter / RevClock), so they survive an ingest restart.
 * prices: `get_last_price` for every symbol a client holds, coalesced: a symbol that
   had an event is read once per batch tick, and only a changed quote is offered.
+* NH/NL print counters, the volume push's aggregates and Time & Sales prints (PR4c):
+  ingest_side_feeds.SideFeeds, fed from the same on_bar.
 
 A client connection that is new, or that adds a key, is first given a SNAPSHOT of it:
 the developing bucket plus every bucket that closed in the last
@@ -67,12 +69,14 @@ import asyncio
 import logging
 import os
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Callable, Optional
 
 from api.services import bar_broadcaster as bbm
 from api.services import bar_stream
 from api.services import feed_protocol as fp
+from api.services import ingest_side_feeds
 from api.services import massive_reconnect
 
 log = logging.getLogger("api.services.ingest_runtime")
@@ -137,6 +141,9 @@ class IngestRuntime:
         self.lookback_ms = int((SNAPSHOT_LOOKBACK_MIN if snapshot_lookback_ms is None
                                 else snapshot_lookback_ms / 60_000) * 60_000)
         self.server = None
+        self.side = ingest_side_feeds.SideFeeds(
+            monotonic=lambda: self.server._mono() if self.server is not None else time.monotonic(),
+            wall_ms=lambda: self.bc._clock_ms())          # the broadcaster's clock (a test seam)
         # what this process holds, mirroring the union
         self._interest: set = set()              # symbols holding broadcaster interest
         self._keys: set = set()                  # (sym, key) holding a sink
@@ -201,6 +208,7 @@ class IngestRuntime:
                 self.bc.remove_interest([sym])
         for sym in sorted(new_syms):
             self._schedule_seed(sym)
+        self.side.sync(union)        # lease expiry may have released seeds / volume symbols
 
     def _upstream(self, sym: str, want) -> None:
         self.counters["upstream_changes"] += 1
@@ -226,7 +234,8 @@ class IngestRuntime:
         union = self.server.union
         keys = union.client_keys(cid)
         syms = union.client_syms(cid)
-        if self._routes.get(cid) is not client:
+        fresh = self._routes.get(cid) is not client
+        if fresh:
             self._routes[cid] = client
             self._client_view[cid] = (frozenset(), frozenset())   # a fresh buffer
             for k in [k for k in self._price_sent if k[0] == cid]:
@@ -236,6 +245,8 @@ class IngestRuntime:
         for sym in old_syms - syms:
             self._price_sent.pop((cid, sym), None)
         self._reindex()
+        self.side.sync(union)
+        self.side.client_updated(client, union, fresh)
         buf = client.buffer
         added = sorted(keys - old_keys)
         if added:
@@ -257,6 +268,7 @@ class IngestRuntime:
             for k in [k for k in self._price_sent if k[0] == cid]:
                 del self._price_sent[k]
             self._reindex()
+        self.side.client_gone(client)
 
     def _reindex(self) -> None:
         kr: dict = {}
@@ -275,7 +287,9 @@ class IngestRuntime:
         """bar_stream's callback: the broadcaster first (it routes bars through
         `_publish` synchronously), then mark the quote dirty."""
         self.bc.push_aggregate(sym, payload, kind)
-        self._price_dirty.add(sym.upper())
+        su = sym.upper()
+        self._price_dirty.add(su)
+        self.side.on_event(su, payload, kind)
 
     def _publish(self, sink, loop, msg: dict) -> None:
         """BarBroadcaster's publisher: called under its lock, in dispatch order."""
@@ -307,7 +321,8 @@ class IngestRuntime:
             # STALLED: the server closes that client 1013 at its next flush
 
     def before_flush(self) -> None:
-        """Once per batch tick: offer the changed quotes."""
+        """Once per batch tick: the side feeds, then the changed quotes."""
+        self.side.flush()
         if not self._price_dirty:
             return
         dirty, self._price_dirty = self._price_dirty, set()
@@ -482,5 +497,6 @@ class IngestRuntime:
             "routing": {"clients": len(self._routes), "keys": len(self._key_routes),
                         "symbols": len(self._sym_routes)},
             "seeding": self.seeding,
+            "side_feeds": self.side.status(),
             "counters": dict(self.counters),
         }
