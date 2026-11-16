@@ -1,0 +1,246 @@
+"""Web side of stream-ingest (PR5a): the internal feed client (STREAM_FEED_SOURCE=remote).
+
+One asyncio task on the uvicorn loop. It connects to the stream-ingest service's
+`/internal/feed` (Bearer PUSH_SECRET, private network), says `hello`, sends the web
+pod's whole desired set, and folds every `batch` into the RemoteBroadcaster.
+
+    desired = owners  (bar_stream's per-(sym, owner) channel holds: "bars" from the
+                       broadcaster, plus every other owner: "nhnl", "volume", D3 ...)
+            + keys    (RemoteBroadcaster.desired_keys(): every chart (sym, key))
+
+LEVEL-TRIGGERED, FULL REPLACE. Whenever the set changes (the broadcaster says so at
+once; bar_stream's owner holds, changed from other threads, are compared every
+POLL_S) the client sends the WHOLE `desired` again. No patches: one message type,
+nothing to get out of order, and a few KB even at a few thousand symbols.
+
+SEQUENCING (feed_protocol.SeqTracker): a batch in order is applied; the first batch of
+a NEW epoch (ingest restarted) resets the mirror first; a gap or duplicate drops the
+connection and reconnects (the ingest side sends a fresh snapshot to a new connection).
+
+`gen` grows with every connection (max(prev + 1, wall ms)), so a reconnect within the
+ingest-side lease reclaims this pod's held set and can never be refused as stale.
+
+No Massive socket is opened in remote mode (bar_stream.start_stream refuses), so this
+client is the web pod's only market-data source; when it is down, get_last_price
+answers None after 5 s and the quote feed falls back to Finnhub.
+"""
+from __future__ import annotations
+
+import asyncio
+import logging
+import os
+import socket
+import time
+from typing import Callable, Optional
+
+from api.services import feed_protocol as fp
+
+log = logging.getLogger("api.services.feed_client")
+
+POLL_S = 0.25
+DEBOUNCE_S = 0.05
+RECONNECT_MIN_S = 1.0
+RECONNECT_MAX_S = 10.0
+DEFAULT_URL = "ws://stream-ingest.railway.internal:8080/internal/feed"
+
+
+def feed_source() -> str:
+    """STREAM_FEED_SOURCE: "local" (default: this pod reads Massive itself) or "remote"."""
+    v = os.environ.get("STREAM_FEED_SOURCE", "local").strip().lower()
+    return "remote" if v == "remote" else "local"
+
+
+def default_client_id() -> str:
+    rid = os.environ.get("RAILWAY_REPLICA_ID") or socket.gethostname() or "web"
+    return f"web-{rid}"[: fp.MAX_ID_LEN]
+
+
+def bar_stream_owners() -> dict:
+    """{owner: {sym: frozenset[channel]}} from bar_stream's recorded holds."""
+    from api.services import bar_stream
+    with bar_stream._state_lock:
+        snap = {s: dict(o) for s, o in bar_stream._sub_owners.items()}
+    out: dict = {}
+    for sym, owners in snap.items():
+        for owner, chans in owners.items():
+            if chans:
+                out.setdefault(owner, {})[sym] = frozenset(chans)
+    return out
+
+
+_client: Optional["FeedClient"] = None
+_task: Optional[asyncio.Task] = None
+
+
+def start_remote() -> "FeedClient":
+    """Remote mode, at app startup (on the running uvicorn loop): install the
+    RemoteBroadcaster as THE broadcaster and start the feed client task."""
+    global _client, _task
+    from api.services import bar_broadcaster, bar_stream
+    from api.services.remote_broadcaster import RemoteBroadcaster
+    rb = RemoteBroadcaster(on_first_subscribe=bar_stream.subscribe_symbols_one,
+                           on_last_unsubscribe=bar_stream.unsubscribe_symbols_one)
+    bar_broadcaster.install_broadcaster(rb)
+    _client = FeedClient(rb)
+    _task = asyncio.get_running_loop().create_task(_client.run())
+    return _client
+
+
+def status() -> Optional[dict]:
+    return _client.status() if _client is not None else None
+
+
+class FeedClient:
+    def __init__(self, rb, *, url: Optional[str] = None, secret: Optional[str] = None,
+                 client_id: Optional[str] = None,
+                 owners_fn: Callable[[], dict] = bar_stream_owners,
+                 connect=None, clock_ms: Optional[Callable[[], int]] = None):
+        self.rb = rb
+        self.url = url or os.environ.get("STREAM_INGEST_URL", DEFAULT_URL)
+        self.secret = secret if secret is not None else os.environ.get("PUSH_SECRET", "")
+        self.client_id = client_id or default_client_id()
+        self._owners_fn = owners_fn
+        self._connect = connect
+        self._clock_ms = clock_ms or (lambda: int(time.time() * 1000))
+        self.gen = 0
+        self.seq = fp.SeqTracker()
+        self.connected = False
+        self._changed: Optional[asyncio.Event] = None
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
+        self._last_sent = None
+        self.counters = {"connects": 0, "disconnects": 0, "desired_sent": 0, "batches": 0,
+                         "resyncs": 0, "epoch_resets": 0, "protocol_errors": 0}
+        self.last_error: Optional[str] = None
+        rb.on_change = self.mark_changed
+
+    # ── change signalling (any thread) ───────────────────────────────────────
+
+    def mark_changed(self) -> None:
+        loop, ev = self._loop, self._changed
+        if loop is None or ev is None:
+            return
+        try:
+            if asyncio.get_running_loop() is loop:
+                ev.set()
+                return
+        except RuntimeError:
+            pass
+        try:
+            loop.call_soon_threadsafe(ev.set)
+        except RuntimeError:
+            pass
+
+    def desired(self) -> fp.Desired:
+        return fp.Desired(gen=self.gen, owners=self._owners_fn(), keys=self.rb.desired_keys())
+
+    # ── the connection loop ────────────────────────────────────────────────
+
+    async def run(self, stop: Optional[asyncio.Event] = None) -> None:
+        self._loop = asyncio.get_running_loop()
+        self._changed = asyncio.Event()
+        stop = stop or asyncio.Event()
+        wait = RECONNECT_MIN_S
+        while not stop.is_set():
+            try:
+                await self._session(stop)
+                wait = RECONNECT_MIN_S
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:  # noqa: BLE001
+                self.last_error = f"{type(e).__name__}: {e}"[:200]
+                log.warning("[feed_client] %s; reconnect in %.0fs", self.last_error, wait)
+            self.connected = False
+            if stop.is_set():
+                break
+            self.counters["disconnects"] += 1
+            try:
+                await asyncio.wait_for(stop.wait(), timeout=wait)
+            except asyncio.TimeoutError:
+                pass
+            wait = min(wait * 2, RECONNECT_MAX_S)
+
+    async def _session(self, stop: asyncio.Event) -> None:
+        connect = self._connect
+        if connect is None:
+            from websockets.asyncio.client import connect
+        if not self.secret:
+            raise RuntimeError("PUSH_SECRET is not set")
+        headers = {"Authorization": f"Bearer {self.secret}"}
+        async with connect(self.url, additional_headers=headers, max_size=fp.MAX_MESSAGE_BYTES,
+                           ping_interval=20, ping_timeout=60, close_timeout=2,
+                           compression=None) as ws:
+            self.gen = max(self.gen + 1, int(self._clock_ms()))
+            self.seq.reset()
+            await ws.send(fp.encode(fp.Hello(client_id=self.client_id, gen=self.gen)))
+            await self._send_desired(ws, force=True)
+            self.connected = True
+            self.counters["connects"] += 1
+            self.last_error = None
+            sender = asyncio.create_task(self._desired_loop(ws, stop))
+            receiver = asyncio.create_task(self._recv_loop(ws, stop))
+            stopper = asyncio.create_task(stop.wait())
+            try:
+                # Whichever ends first: the feed (an error or a close), the desired sender
+                # (a failed send), or a stop request (which must not wait for the next batch).
+                done, _ = await asyncio.wait({receiver, sender, stopper},
+                                             return_when=asyncio.FIRST_COMPLETED)
+                for t in (receiver, sender):
+                    if t in done and t.exception() is not None:
+                        raise t.exception()
+            finally:
+                for t in (receiver, sender, stopper):
+                    t.cancel()
+                for t in (receiver, sender, stopper):
+                    try:
+                        await t
+                    except (asyncio.CancelledError, Exception):  # noqa: BLE001
+                        pass
+
+    async def _send_desired(self, ws, force: bool = False) -> None:
+        d = self.desired()
+        sig = (d.owners, d.keys)
+        if not force and sig == self._last_sent:
+            return
+        await ws.send(fp.encode(d))
+        self._last_sent = sig
+        self.counters["desired_sent"] += 1
+
+    async def _desired_loop(self, ws, stop: asyncio.Event) -> None:
+        while not stop.is_set():
+            try:
+                await asyncio.wait_for(self._changed.wait(), timeout=POLL_S)
+                await asyncio.sleep(DEBOUNCE_S)     # coalesce a burst of chart switches
+            except asyncio.TimeoutError:
+                pass
+            self._changed.clear()
+            await self._send_desired(ws)
+
+    async def _recv_loop(self, ws, stop: asyncio.Event) -> None:
+        async for data in ws:
+            if stop.is_set():
+                return
+            try:
+                msg = fp.decode(data)
+            except fp.ProtocolError as e:
+                self.counters["protocol_errors"] += 1
+                raise RuntimeError(f"bad batch: {e}") from None
+            if not isinstance(msg, fp.Batch):
+                self.counters["protocol_errors"] += 1
+                raise RuntimeError(f"unexpected {type(msg).__name__} from ingest")
+            action = self.seq.accept(msg.epoch, msg.seq)
+            if action is fp.TrackAction.RESET_AND_APPLY:
+                self.counters["epoch_resets"] += 1
+                self.rb.reset_mirror()
+            elif action is fp.TrackAction.RESYNC:
+                self.counters["resyncs"] += 1
+                raise RuntimeError(f"sequence gap at epoch {msg.epoch} seq {msg.seq}: resync")
+            elif action is fp.TrackAction.DISCARD:
+                continue
+            self.counters["batches"] += 1
+            self.rb.apply_batch(msg)
+
+    def status(self) -> dict:
+        return {"source": "remote", "url": self.url, "client_id": self.client_id,
+                "connected": self.connected, "gen": self.gen,
+                "secret_configured": bool(self.secret), "last_error": self.last_error,
+                "counters": dict(self.counters)}

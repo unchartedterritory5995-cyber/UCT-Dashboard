@@ -927,6 +927,12 @@ def start_stream(on_bar: OnBarCallback) -> None:
     from api.services import vendor_socket_guard
     if vendor_socket_guard.refuse_if_local("massive-bars"):
         return
+    # Invariant 11 (stream-ingest): in remote mode the stream-ingest service holds the
+    # ONE Massive stocks socket. This pod must never open a second one.
+    if os.environ.get("STREAM_FEED_SOURCE", "local").strip().lower() == "remote":
+        _logger.warning("[bar_stream] STREAM_FEED_SOURCE=remote: NOT opening the Massive socket "
+                        "(stream-ingest holds it)")
+        return
 
     def _thread_target():
         global _ws_loop, _ws_thread_ident

@@ -1,0 +1,288 @@
+"""Web side of stream-ingest (PR5a): the BarBroadcaster the web pod uses in REMOTE mode.
+
+With STREAM_FEED_SOURCE=remote the web pod opens NO Massive socket. The stream-ingest
+service holds it and sends `batch` messages (feed_protocol) over the internal feed;
+`feed_client.FeedClient` receives them on the uvicorn event loop and hands each one to
+`RemoteBroadcaster.apply_batch`. This class keeps the SAME interface every web caller
+already uses (subscribe / unsubscribe / add_interest / remove_interest /
+get_last_price / get_partial / ensure_seeded / last_tick_age / get_status), so the SSE
+routes, the D3 price arm and the journal reads do not change.
+
+What it holds (a MIRROR, nothing derived here):
+  * per (sym, key): the bars ingest sent, latest per bucket start t (a few buckets)
+  * per sym: the latest quote {price, ts, trade_ts, volume} and when it arrived
+  * the subscriber queues of the bar SSE, with the web relay's v2/legacy older-t filter
+    and the bar-contract `rev` stamp (feed_protocol.LegacyFilter / RevClock): both live
+    HERE, on web, so an ingest restart (a new epoch) can never rewind or reset them.
+
+Frames reach subscriber queues with `put_nowait` on the queue's own loop: the feed
+client runs on the uvicorn loop, so there is no cross-thread hop at all (the hop that
+starved the in-web reader is gone, not moved).
+
+What it wants (the control plane): `desired_keys()` = every (sym, key) with a chart
+subscriber. Symbol interest goes through `on_first_subscribe` / `on_last_unsubscribe`
+exactly as in local mode (bar_stream.subscribe_symbols_one, owner "bars"); in remote
+mode bar_stream only RECORDS owners, and the feed client sends them as `owners`.
+
+Freshness: get_last_price answers None once no batch has arrived for STALE_S (5 s), so
+the quote feed falls back to Finnhub instead of serving a frozen price. (Ingest sends a
+status batch at least once a second, so a healthy feed is never 5 s quiet.)
+"""
+from __future__ import annotations
+
+import asyncio
+import logging
+import threading
+import time as _time
+from typing import Callable, Optional
+
+from api.services import feed_protocol as fp
+
+log = logging.getLogger("api.services.remote_broadcaster")
+
+STALE_S = 5.0
+#: Buckets kept per (sym, key) in the mirror (the developing one + recent finals).
+_KEEP_BUCKETS = 4
+_QUEUE_MAX = 64
+
+
+def _key_for(tf: str, session: str = "rth") -> str:
+    from api.services.bar_broadcaster import _key_for as kf
+    return kf(tf, session)
+
+
+class RemoteBroadcaster:
+    def __init__(self, on_first_subscribe: Optional[Callable[[str], None]] = None,
+                 on_last_unsubscribe: Optional[Callable[[str], None]] = None, *,
+                 clock_ms: Optional[Callable[[], int]] = None,
+                 monotonic: Callable[[], float] = _time.monotonic,
+                 stale_s: float = STALE_S):
+        self._on_first = on_first_subscribe or (lambda s: None)
+        self._on_last = on_last_unsubscribe or (lambda s: None)
+        self._clock_ms = clock_ms or (lambda: int(_time.time() * 1000))
+        self._mono = monotonic
+        self.stale_s = float(stale_s)
+        # Callers reach this from request handlers (the loop) AND from worker threads
+        # (the D3 arm, journal reads, the quote poller): one lock, held briefly.
+        self._lock = threading.RLock()
+        self._subs: dict = {}            # (sym, key) -> {(queue, v2)}
+        self._sym_keys: dict = {}        # sym -> {key}
+        self._interest: dict = {}        # sym -> refcount
+        self._bars: dict = {}            # (sym, key) -> {t: bar dict incl. final}
+        self._prices: dict = {}          # sym -> {price, ts, trade_ts, volume}
+        self._tick_mono: dict = {}       # sym -> monotonic s of its last price/bar
+        self.legacy = fp.LegacyFilter()
+        self.revs = fp.RevClock()
+        self._fresh_mono: Optional[float] = None   # last batch of any kind
+        self.on_change: Callable[[], None] = lambda: None   # the feed client's "desired changed"
+        self.counters = {"batches": 0, "bars_in": 0, "frames_out": 0, "dropped": 0,
+                         "prices_in": 0, "mirror_resets": 0}
+
+    # ── subscription management (the SSE routes, the quote feed) ─────────────
+
+    def subscribe(self, sym: str, tf: str, session: str = "rth", v2: bool = False) -> asyncio.Queue:
+        sym = sym.upper()
+        k = _key_for(tf, session)
+        q: asyncio.Queue = asyncio.Queue(maxsize=_QUEUE_MAX)
+        with self._lock:
+            had_any = self._wanted(sym)
+            self._subs.setdefault((sym, k), set()).add((q, bool(v2)))
+            self._sym_keys.setdefault(sym, set()).add(k)
+            snap = self._developing(sym, k)
+            if snap is not None:
+                # BarBroadcaster.subscribe puts the current bucket WITHOUT a rev: same here.
+                self._put(q, self._msg(sym, k, snap))
+        if not had_any:
+            self._call(self._on_first, sym)
+        self.on_change()
+        return q
+
+    def unsubscribe(self, sym: str, tf: str, q: asyncio.Queue, session: str = "rth") -> None:
+        sym = sym.upper()
+        k = _key_for(tf, session)
+        with self._lock:
+            subs = self._subs.get((sym, k))
+            if subs:
+                for item in [x for x in subs if x[0] is q]:
+                    subs.discard(item)
+                if not subs:
+                    self._subs.pop((sym, k), None)
+                    ks = self._sym_keys.get(sym)
+                    if ks is not None:
+                        ks.discard(k)
+                        if not ks:
+                            self._sym_keys.pop(sym, None)
+                    self._bars.pop((sym, k), None)
+            still = self._wanted(sym)
+            if not still:
+                self._drop_symbol(sym)
+        if not still:
+            self._call(self._on_last, sym)
+        self.on_change()
+
+    def add_interest(self, symbols) -> None:
+        for raw in symbols:
+            sym = str(raw).upper()
+            if not sym:
+                continue
+            with self._lock:
+                was = self._wanted(sym)
+                self._interest[sym] = self._interest.get(sym, 0) + 1
+            if not was:
+                self._call(self._on_first, sym)
+        self.on_change()
+
+    def remove_interest(self, symbols) -> None:
+        for raw in symbols:
+            sym = str(raw).upper()
+            if not sym:
+                continue
+            with self._lock:
+                cur = self._interest.get(sym, 0)
+                if cur <= 1:
+                    self._interest.pop(sym, None)
+                else:
+                    self._interest[sym] = cur - 1
+                still = self._wanted(sym)
+                if not still:
+                    self._drop_symbol(sym)
+            if not still:
+                self._call(self._on_last, sym)
+        self.on_change()
+
+    def _wanted(self, sym: str) -> bool:
+        return self._interest.get(sym, 0) > 0 or bool(self._sym_keys.get(sym))
+
+    def _drop_symbol(self, sym: str) -> None:
+        """Every client of `sym` is gone (caller holds the lock): drop its mirror, and
+        only now its legacy high-water mark and rev clock (PR3 review: never on one
+        client's unsubscribe)."""
+        self._prices.pop(sym, None)
+        self._tick_mono.pop(sym, None)
+        for key in [k for k in self._bars if k[0] == sym]:
+            del self._bars[key]
+        self.legacy.forget(sym)
+        self.revs.forget(sym)
+
+    @staticmethod
+    def _call(fn, sym: str) -> None:
+        try:
+            fn(sym)
+        except Exception as e:  # noqa: BLE001
+            log.warning("[remote_broadcaster] subscription hook(%s) failed: %s", sym, e)
+
+    def desired_keys(self) -> frozenset:
+        with self._lock:
+            return frozenset(self._subs)
+
+    # ── reads ──────────────────────────────────────────────────────────────
+
+    def feed_fresh(self) -> bool:
+        return self._fresh_mono is not None and self._mono() - self._fresh_mono < self.stale_s
+
+    def get_last_price(self, sym: str) -> Optional[dict]:
+        """The mirror's latest quote, or None (no quote yet, or the feed has been quiet
+        for stale_s: the caller falls back to Finnhub). Same shape as BarBroadcaster's."""
+        if not self.feed_fresh():
+            return None
+        with self._lock:
+            p = self._prices.get(sym.upper())
+            return dict(p) if p is not None else None
+
+    def get_partial(self, sym: str, tf: str, session: str = "rth") -> Optional[dict]:
+        k = _key_for(tf, session)
+        with self._lock:
+            b = self._developing(sym.upper(), k)
+            return dict(b) if b is not None else None
+
+    def _developing(self, sym: str, k: str) -> Optional[dict]:
+        bars = self._bars.get((sym, k))
+        if not bars:
+            return None
+        return bars[max(bars)]
+
+    def ensure_seeded(self, sym: str) -> bool:
+        """Seeding happens in stream-ingest (it holds the minute map)."""
+        return False
+
+    def last_tick_age(self, sym: str) -> Optional[float]:
+        m = self._tick_mono.get(sym.upper())
+        return None if m is None else self._mono() - m
+
+    def push_aggregate(self, sym, payload, kind) -> None:
+        raise RuntimeError("remote mode: market data arrives from stream-ingest, not bar_stream")
+
+    def get_status(self) -> dict:
+        with self._lock:
+            return {
+                "mode": "remote",
+                "subscriber_pairs": len(self._subs),
+                "quote_interest_symbols": len(self._interest),
+                "tracked_partials": sum(len(v) for v in self._sym_keys.values()),
+                "tracked_symbols": len({s for s, _ in self._bars} | set(self._prices)),
+                "symbols": sorted(self._sym_keys),
+                "feed_fresh": self.feed_fresh(),
+                "last_batch_age_s": (None if self._fresh_mono is None
+                                     else round(self._mono() - self._fresh_mono, 2)),
+                **{f"{k}_total": v for k, v in self.counters.items()},
+            }
+
+    # ── the data plane (the feed client, on the uvicorn loop) ────────────────
+
+    def reset_mirror(self) -> None:
+        """A new ingest epoch (ingest restarted): its state is new, drop the mirror.
+        Subscriber queues, the legacy filter and the rev clock are kept."""
+        with self._lock:
+            self._bars.clear()
+            self._prices.clear()
+            self._tick_mono.clear()
+            self.counters["mirror_resets"] += 1
+
+    def apply_batch(self, batch: fp.Batch) -> None:
+        now_m = self._mono()
+        with self._lock:
+            self._fresh_mono = now_m
+            self.counters["batches"] += 1
+            if batch.bars:
+                frames = fp.relay_bars(batch.bars, self.legacy, self.revs, int(self._clock_ms()))
+                for f in frames:
+                    self.counters["bars_in"] += 1
+                    k = (f.sym, f.key)
+                    if not self._wanted(f.sym) or k not in self._subs:
+                        continue     # released while the batch was in flight
+                    bars = self._bars.setdefault(k, {})
+                    bars[f.msg["bar"]["t"]] = f.msg["bar"]
+                    if len(bars) > _KEEP_BUCKETS:
+                        for old in sorted(bars)[:-_KEEP_BUCKETS]:
+                            del bars[old]
+                    self._tick_mono[f.sym] = now_m
+                    for (q, v2) in list(self._subs.get(k, ())):
+                        if fp.LegacyFilter.deliver(f.legacy_ok, v2):
+                            self._put(q, f.msg)
+                            self.counters["frames_out"] += 1
+            for sym, p in batch.prices.items():
+                if not self._wanted(sym):
+                    continue
+                self._prices[sym] = dict(p)
+                self._tick_mono[sym] = now_m
+                self.counters["prices_in"] += 1
+
+    @staticmethod
+    def _msg(sym: str, k: str, bar: dict) -> dict:
+        tf, sess = fp.KEY_SPEC[k]
+        msg = {"sym": sym, "tf": tf, "bar": dict(bar)}
+        if tf == "60":
+            msg["session"] = sess
+        return msg
+
+    def _put(self, q: asyncio.Queue, msg: dict) -> None:
+        """Same-loop put; a full queue drops its oldest (BarBroadcaster._safe_put)."""
+        try:
+            q.put_nowait(msg)
+        except asyncio.QueueFull:
+            try:
+                q.get_nowait()
+                q.put_nowait(msg)
+                self.counters["dropped"] += 1
+            except Exception:  # noqa: BLE001
+                pass

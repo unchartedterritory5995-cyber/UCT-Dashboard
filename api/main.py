@@ -4751,6 +4751,11 @@ def idb_cache_logic_version(src_path: str | None = None) -> int | None:
 
 
 @asynccontextmanager
+def _stream_feed_remote() -> bool:
+    from api.services import feed_client as _fc
+    return _fc.feed_source() == "remote"
+
+
 async def lifespan(app: FastAPI):
     # ⛔ Keep the Web Share Target's query out of OUR access log. The share
     # arrives as GET /journal/share?title=…&text=…&url=…, and `text` carries
@@ -6959,7 +6964,13 @@ async def lifespan(app: FastAPI):
         except Exception:
             logging.getLogger(__name__).exception("brain pack sync failed to start")
 
-    if os.environ.get("STREAM_BARS_ENABLED") == "1":
+    if os.environ.get("STREAM_BARS_ENABLED") == "1" and _stream_feed_remote():
+        # STREAM_FEED_SOURCE=remote: the stream-ingest service holds the Massive socket;
+        # this pod mirrors its feed (no bar_stream thread, no second socket).
+        from api.services import feed_client as _feed_client
+        _feed_client.start_remote()
+        print("[startup] Bar feed: REMOTE (stream-ingest) — no Massive socket in this pod")
+    elif os.environ.get("STREAM_BARS_ENABLED") == "1":
         from api.services import bar_stream, bar_broadcaster, volume_live
         bb = bar_broadcaster.init_broadcaster(
             on_first_subscribe=bar_stream.subscribe_symbols_one,
