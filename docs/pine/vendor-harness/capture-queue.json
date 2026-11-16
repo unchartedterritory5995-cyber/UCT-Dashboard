@@ -60,11 +60,12 @@
    "docs/pine/capture-queue-2026-11-14-rs-rating.md",
    "docs/pine/capture-queue-2026-11-15-calc-bars.md",
    "docs/pine/capture-queue-2026-11-16-cond-ta-followups.md",
+   "docs/pine/capture-queue-2026-11-16-draw-count-at-cap.md",
    "docs/pine/capture-queue-2026-11-16-rma-last-bit.md"
   ],
-  "coverageMeasuredOn": "2026-11-05",
-  "coverageMasterSha": "3ca4b0d358",
-  "fixtures": 726,
+  "coverageMeasuredOn": "2026-11-16",
+  "coverageMasterSha": "890b6d165c",
+  "fixtures": 732,
   "ledgerRows": 884
  },
  "definitions": {
@@ -85,19 +86,19 @@
   }
  },
  "counts": {
-  "targets": 319,
+  "targets": 317,
   "byStatus": {
-   "CAPTURED": 134,
+   "CAPTURED": 130,
    "NEEDS_CHART": 39,
    "NEEDS_LIVE": 2,
-   "QUEUED": 144
+   "QUEUED": 146
   },
   "byPlanWave": {
    "E": {
-    "CAPTURED": 119,
+    "CAPTURED": 115,
     "NEEDS_CHART": 37,
     "NEEDS_LIVE": 2,
-    "QUEUED": 111
+    "QUEUED": 113
    },
    "W1": {
     "QUEUED": 6
@@ -120,10 +121,10 @@
     "CAPTURED": 110,
     "NEEDS_CHART": 38,
     "NEEDS_LIVE": 2,
-    "QUEUED": 136
+    "QUEUED": 138
    },
    "1-2": {
-    "CAPTURED": 24,
+    "CAPTURED": 20,
     "NEEDS_CHART": 1,
     "QUEUED": 8
    }
@@ -138,7 +139,7 @@
     "NEEDS_CHART": 2
    },
    "E-census": {
-    "CAPTURED": 11
+    "CAPTURED": 7
    },
    "b1-paints": {
     "CAPTURED": 2
@@ -172,6 +173,9 @@
     "QUEUED": 3
    },
    "div3-merged-head": {
+    "QUEUED": 2
+   },
+   "draw-count-at-cap": {
     "QUEUED": 2
    },
    "fn-series-history": {
@@ -323,9 +327,9 @@
     "NEEDS_CHART": 1
    }
   },
-  "rowsNeedingProbe": 15,
+  "rowsNeedingProbe": 17,
   "rowsNeedingProbeLive": 0,
-  "licenceHeldCensus": 156,
+  "licenceHeldCensus": 157,
   "rowsNotCaptureQuestions": 47,
   "rowsNotCaptureByDisposition": {
    "builtin": 1,
@@ -427,7 +431,7 @@
     ],
     "named": [],
     "direct": [],
-    "upper": 129,
+    "upper": 126,
     "upperSample": [
      "builtin:24-hour-volume__24hVolume",
      "builtin:aroon-oscillator__Aroon_Oscill",
@@ -487,7 +491,7 @@
     ],
     "named": [],
     "direct": [],
-    "upper": 107,
+    "upper": 104,
     "upperSample": [
      "builtin:24-hour-volume__24hVolume",
      "builtin:aroon-oscillator__Aroon_Oscill",
@@ -547,7 +551,7 @@
     ],
     "named": [],
     "direct": [],
-    "upper": 82,
+    "upper": 79,
     "upperSample": [
      "builtin:advance-decline-ratio__Advance1Decl",
      "builtin:moon-phases__Moon1Phases",
@@ -558,9 +562,9 @@
      "committed:72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt",
      "committed:ad-line-of-sp-sectors__af306a4359",
      "committed:asianrange-and-killzones__ef41eb5ad6",
+     "committed:atr-god-strategy-by-tradesmart__4369755a29",
      "committed:atr-trailing-stop-by-ceyhun__UMldb6tGLd",
-     "committed:banknifty-mcclellan-oscillator__A2qCyYWwcs",
-     "committed:black-scholes-option-pricing-model-w-greeks-loxx__12d143e9b2"
+     "committed:banknifty-mcclellan-oscillator__A2qCyYWwcs"
     ]
    },
    "statedUnblocks": null,
@@ -606,7 +610,7 @@
     ],
     "named": [],
     "direct": [],
-    "upper": 82,
+    "upper": 79,
     "upperSample": [
      "builtin:advance-decline-ratio__Advance1Decl",
      "builtin:moon-phases__Moon1Phases",
@@ -617,9 +621,9 @@
      "committed:72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt",
      "committed:ad-line-of-sp-sectors__af306a4359",
      "committed:asianrange-and-killzones__ef41eb5ad6",
+     "committed:atr-god-strategy-by-tradesmart__4369755a29",
      "committed:atr-trailing-stop-by-ceyhun__UMldb6tGLd",
-     "committed:banknifty-mcclellan-oscillator__A2qCyYWwcs",
-     "committed:black-scholes-option-pricing-model-w-greeks-loxx__12d143e9b2"
+     "committed:banknifty-mcclellan-oscillator__A2qCyYWwcs"
     ]
    },
    "statedUnblocks": null,
@@ -669,7 +673,7 @@
     ],
     "named": [],
     "direct": [],
-    "upper": 75,
+    "upper": 71,
     "upperSample": [
      "builtin:volume-weighted-average-price__VWAP",
      "builtin:williams-fractal__Whilliams_Fr",
@@ -682,7 +686,7 @@
      "committed:delta-volume-candles-lucf__qADnaAfCPp",
      "committed:dual-view-htf-candlestick-patterns-theultimator5__e0385fb61b",
      "committed:elliot-wave-detector-pro__ce1cc9553e",
-     "committed:fibonacci-retracement-statistics-by-volprofex__999c924fce"
+     "committed:higher-time-frame-fair-value-gap-zeroherotrading__202f1347b8"
     ]
    },
    "statedUnblocks": null,
@@ -735,11 +739,10 @@
     ],
     "named": [],
     "direct": [],
-    "upper": 69,
+    "upper": 64,
     "upperSample": [
      "builtin:moon-phases__Moon1Phases",
      "committed:adaptive-trend-following-suite-alpha-extract__d615e5a027",
-     "committed:advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4",
      "committed:ai-supertrend-x-pivot-percentile-strategy-presenttrading__3b9db05a48",
      "committed:atr-god-strategy-by-tradesmart__4369755a29",
      "committed:atr-stepped-pdf-ma-loxx__9b90a3f7bb",
@@ -748,7 +751,8 @@
      "committed:black-scholes-option-pricing-model-w-greeks-loxx__12d143e9b2",
      "committed:elliot-wave-detector-pro__ce1cc9553e",
      "committed:ict-institutional-order-flow-fadi__25d4834579",
-     "committed:ict-killzones-pivots-tfo__d0b8be94f1"
+     "committed:ict-killzones-pivots-tfo__d0b8be94f1",
+     "committed:kalman-price-filter-backquant__47a601e4bc"
     ]
    },
    "statedUnblocks": null,
@@ -812,11 +816,10 @@
     ],
     "named": [],
     "direct": [],
-    "upper": 69,
+    "upper": 64,
     "upperSample": [
      "builtin:moon-phases__Moon1Phases",
      "committed:adaptive-trend-following-suite-alpha-extract__d615e5a027",
-     "committed:advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4",
      "committed:ai-supertrend-x-pivot-percentile-strategy-presenttrading__3b9db05a48",
      "committed:atr-god-strategy-by-tradesmart__4369755a29",
      "committed:atr-stepped-pdf-ma-loxx__9b90a3f7bb",
@@ -825,7 +828,8 @@
      "committed:black-scholes-option-pricing-model-w-greeks-loxx__12d143e9b2",
      "committed:elliot-wave-detector-pro__ce1cc9553e",
      "committed:ict-institutional-order-flow-fadi__25d4834579",
-     "committed:ict-killzones-pivots-tfo__d0b8be94f1"
+     "committed:ict-killzones-pivots-tfo__d0b8be94f1",
+     "committed:kalman-price-filter-backquant__47a601e4bc"
     ]
    },
    "statedUnblocks": null,
@@ -889,11 +893,10 @@
     ],
     "named": [],
     "direct": [],
-    "upper": 69,
+    "upper": 64,
     "upperSample": [
      "builtin:moon-phases__Moon1Phases",
      "committed:adaptive-trend-following-suite-alpha-extract__d615e5a027",
-     "committed:advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4",
      "committed:ai-supertrend-x-pivot-percentile-strategy-presenttrading__3b9db05a48",
      "committed:atr-god-strategy-by-tradesmart__4369755a29",
      "committed:atr-stepped-pdf-ma-loxx__9b90a3f7bb",
@@ -902,7 +905,8 @@
      "committed:black-scholes-option-pricing-model-w-greeks-loxx__12d143e9b2",
      "committed:elliot-wave-detector-pro__ce1cc9553e",
      "committed:ict-institutional-order-flow-fadi__25d4834579",
-     "committed:ict-killzones-pivots-tfo__d0b8be94f1"
+     "committed:ict-killzones-pivots-tfo__d0b8be94f1",
+     "committed:kalman-price-filter-backquant__47a601e4bc"
     ]
    },
    "statedUnblocks": null,
@@ -954,11 +958,10 @@
     ],
     "named": [],
     "direct": [],
-    "upper": 69,
+    "upper": 64,
     "upperSample": [
      "builtin:moon-phases__Moon1Phases",
      "committed:adaptive-trend-following-suite-alpha-extract__d615e5a027",
-     "committed:advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4",
      "committed:ai-supertrend-x-pivot-percentile-strategy-presenttrading__3b9db05a48",
      "committed:atr-god-strategy-by-tradesmart__4369755a29",
      "committed:atr-stepped-pdf-ma-loxx__9b90a3f7bb",
@@ -967,7 +970,8 @@
      "committed:black-scholes-option-pricing-model-w-greeks-loxx__12d143e9b2",
      "committed:elliot-wave-detector-pro__ce1cc9553e",
      "committed:ict-institutional-order-flow-fadi__25d4834579",
-     "committed:ict-killzones-pivots-tfo__d0b8be94f1"
+     "committed:ict-killzones-pivots-tfo__d0b8be94f1",
+     "committed:kalman-price-filter-backquant__47a601e4bc"
     ]
    },
    "statedUnblocks": null,
@@ -1014,20 +1018,20 @@
     ],
     "named": [],
     "direct": [],
-    "upper": 28,
+    "upper": 25,
     "upperSample": [
      "committed:black-scholes-option-pricing-model-w-greeks-loxx__12d143e9b2",
      "committed:heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor__f91c76bdec",
      "committed:ict-killzones-pivots-tfo__d0b8be94f1",
      "committed:initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q",
      "committed:momentum-based-zigzag__38d39d2d6c",
-     "committed:moving-averages-as-support-resistance-mtf__gcBksfRvvy",
      "committed:mtf-key-levels-support-and-resistance__29f470a089",
      "committed:order-block-finder__fVSb3j0I87",
      "committed:relative-volume-at-time__gei8CBKbc5",
      "committed:renderingnature-smc-reversal-engine-v71__f8734584d9",
      "committed:screener-mean-reversion-channel__nTK2sHWDlB",
-     "committed:vold-market-breadth__9c5cde9557"
+     "committed:vold-market-breadth__9c5cde9557",
+     "committed:wyckoff-accumulation-distribution__d9ae726e21"
     ]
    },
    "statedUnblocks": null,
@@ -1735,52 +1739,6 @@
    ]
   },
   {
-   "id": "pivot-high-low-points__hoTsDQRY3L@NYSE:RDDT@D",
-   "status": "CAPTURED",
-   "evidence": [
-    "tests/fixtures/vendor/harness/pivot-high-low-points-rddt-1d-2026-11-14.json"
-   ],
-   "source": "corpus/committed/pivot-high-low-points__hoTsDQRY3L.pine",
-   "sourceKind": "corpus",
-   "sha256": "157699de27f04cd391d0def8bec9d1854fa3414c0477af4d8049d5133e70a223",
-   "bytes": 670,
-   "stem": "pivot-high-low-points__hoTsDQRY3L",
-   "captureStem": "pivot-high-low-points",
-   "symbol": "NYSE:RDDT",
-   "tf": "1D",
-   "fromListing": true,
-   "chartDefaulted": false,
-   "chartSource": "census",
-   "unparsedCharts": [],
-   "capturedOn": [
-    "NYSE:RDDT D"
-   ],
-   "licence": "corpus",
-   "needsLive": false,
-   "priority": 1,
-   "unblocks": {
-    "priority": 1,
-    "firm": [],
-    "named": [],
-    "direct": [
-     "committed:pivot-high-low-points__hoTsDQRY3L"
-    ],
-    "upper": 0,
-    "upperSample": []
-   },
-   "statedUnblocks": null,
-   "guards": [],
-   "planWave": "E",
-   "docWaves": [
-    "E-census"
-   ],
-   "oldestDoc": "",
-   "rows": [],
-   "origins": [
-    "census"
-   ]
-  },
-  {
    "id": "poor-man039s-volume-profile__ZnFTCYyvGJ@NYSE:RDDT@D",
    "status": "CAPTURED",
    "evidence": [
@@ -1812,98 +1770,6 @@
     "named": [],
     "direct": [
      "committed:poor-man039s-volume-profile__ZnFTCYyvGJ"
-    ],
-    "upper": 0,
-    "upperSample": []
-   },
-   "statedUnblocks": null,
-   "guards": [],
-   "planWave": "E",
-   "docWaves": [
-    "E-census"
-   ],
-   "oldestDoc": "",
-   "rows": [],
-   "origins": [
-    "census"
-   ]
-  },
-  {
-   "id": "relative-volume__LnFmPEoFXQ@NYSE:RDDT@D",
-   "status": "CAPTURED",
-   "evidence": [
-    "tests/fixtures/vendor/harness/relative-volume-rddt-1d-2026-11-14.json"
-   ],
-   "source": "corpus/committed/relative-volume__LnFmPEoFXQ.pine",
-   "sourceKind": "corpus",
-   "sha256": "7e60ca18d4b065fa9ca5df9cb36c0899f95b37dd09cce3c8068a24008338f52c",
-   "bytes": 5444,
-   "stem": "relative-volume__LnFmPEoFXQ",
-   "captureStem": "relative-volume",
-   "symbol": "NYSE:RDDT",
-   "tf": "1D",
-   "fromListing": true,
-   "chartDefaulted": false,
-   "chartSource": "census",
-   "unparsedCharts": [],
-   "capturedOn": [
-    "NYSE:RDDT D"
-   ],
-   "licence": "corpus",
-   "needsLive": false,
-   "priority": 1,
-   "unblocks": {
-    "priority": 1,
-    "firm": [],
-    "named": [],
-    "direct": [
-     "committed:relative-volume__LnFmPEoFXQ"
-    ],
-    "upper": 0,
-    "upperSample": []
-   },
-   "statedUnblocks": null,
-   "guards": [],
-   "planWave": "E",
-   "docWaves": [
-    "E-census"
-   ],
-   "oldestDoc": "",
-   "rows": [],
-   "origins": [
-    "census"
-   ]
-  },
-  {
-   "id": "smart-money-interest-index-algoalpha__effdd7852c@NYSE:RDDT@D",
-   "status": "CAPTURED",
-   "evidence": [
-    "tests/fixtures/vendor/harness/smart-money-interest-index-algoalpha-rddt-1d-2026-11-14.json"
-   ],
-   "source": "corpus/committed/smart-money-interest-index-algoalpha__effdd7852c.pine",
-   "sourceKind": "corpus",
-   "sha256": "571a7211764f620cb410daf75749a532fe84fdec5925bcf6994beec3905df250",
-   "bytes": 1413,
-   "stem": "smart-money-interest-index-algoalpha__effdd7852c",
-   "captureStem": "smart-money-interest-index-algoalpha",
-   "symbol": "NYSE:RDDT",
-   "tf": "1D",
-   "fromListing": true,
-   "chartDefaulted": false,
-   "chartSource": "census",
-   "unparsedCharts": [],
-   "capturedOn": [
-    "NYSE:RDDT D"
-   ],
-   "licence": "corpus",
-   "needsLive": false,
-   "priority": 1,
-   "unblocks": {
-    "priority": 1,
-    "firm": [],
-    "named": [],
-    "direct": [
-     "committed:smart-money-interest-index-algoalpha__effdd7852c"
     ],
     "upper": 0,
     "upperSample": []
@@ -2015,53 +1881,6 @@
    ]
   },
   {
-   "id": "support-and-resistance-multi-time-frame__Ph230jpfC9@NYSE:RDDT@D",
-   "status": "CAPTURED",
-   "evidence": [
-    "tests/fixtures/vendor/harness/support-and-resistance-multi-time-frame-rddt-1d-2026-10-02.json"
-   ],
-   "source": "corpus/committed/support-and-resistance-multi-time-frame__Ph230jpfC9.pine",
-   "sourceKind": "corpus",
-   "sha256": "3d6a2d8e4e9c3d187b0217cc77fde75218d8aa706e544a87ff20b517fd004c6d",
-   "bytes": 1640,
-   "stem": "support-and-resistance-multi-time-frame__Ph230jpfC9",
-   "captureStem": "support-and-resistance-multi-time-frame",
-   "symbol": "NYSE:RDDT",
-   "tf": "1D",
-   "fromListing": true,
-   "chartDefaulted": false,
-   "chartSource": "census",
-   "unparsedCharts": [],
-   "capturedOn": [
-    "AMEX:SPY D",
-    "NYSE:RDDT D"
-   ],
-   "licence": "corpus",
-   "needsLive": false,
-   "priority": 1,
-   "unblocks": {
-    "priority": 1,
-    "firm": [],
-    "named": [],
-    "direct": [
-     "committed:support-and-resistance-multi-time-frame__Ph230jpfC9"
-    ],
-    "upper": 0,
-    "upperSample": []
-   },
-   "statedUnblocks": null,
-   "guards": [],
-   "planWave": "E",
-   "docWaves": [
-    "E-census"
-   ],
-   "oldestDoc": "",
-   "rows": [],
-   "origins": [
-    "census"
-   ]
-  },
-  {
    "id": "support-and-resistance__1505@NYSE:RDDT@D",
    "status": "CAPTURED",
    "evidence": [
@@ -2132,7 +1951,7 @@
     "firm": [],
     "named": [],
     "direct": [],
-    "upper": 100,
+    "upper": 98,
     "upperSample": [
      "builtin:advance-decline-ratio__Advance1Decl",
      "builtin:fisher-transform__Fisher_Trans",
@@ -2190,20 +2009,20 @@
     "firm": [],
     "named": [],
     "direct": [],
-    "upper": 69,
+    "upper": 77,
     "upperSample": [
-     "builtin:gaps__Gaps",
      "builtin:relative-strength-index__RSI",
      "builtin:rob-booker-adx-breakout__Rob1Booker1A",
      "committed:adaptive-trend-following-suite-alpha-extract__d615e5a027",
      "committed:anchored-vwap-pinch-handoff-intervals-and-signals__2174489a80",
      "committed:atr-god-strategy-by-tradesmart__4369755a29",
      "committed:auto-harmonic-patterns-open-source__ca6022754b",
+     "committed:auto-trendlines-tradingfinder-support-resistance-signal-alerts__c78da9ac73",
      "committed:banknifty-mcclellan-oscillator__A2qCyYWwcs",
      "committed:blackflag-fts__GdkmXaTINI",
      "committed:camarilla__jw9faob08r",
-     "committed:chart-vwap__804099ca2f",
-     "committed:double-topbottom-ultimate-os__bd013ff4f5"
+     "committed:candlestick-patterns-on-backtest__c85b9d3ec6",
+     "committed:chart-vwap__804099ca2f"
     ]
    },
    "statedUnblocks": null,
@@ -2251,20 +2070,20 @@
     "firm": [],
     "named": [],
     "direct": [],
-    "upper": 69,
+    "upper": 77,
     "upperSample": [
-     "builtin:gaps__Gaps",
      "builtin:relative-strength-index__RSI",
      "builtin:rob-booker-adx-breakout__Rob1Booker1A",
      "committed:adaptive-trend-following-suite-alpha-extract__d615e5a027",
      "committed:anchored-vwap-pinch-handoff-intervals-and-signals__2174489a80",
      "committed:atr-god-strategy-by-tradesmart__4369755a29",
      "committed:auto-harmonic-patterns-open-source__ca6022754b",
+     "committed:auto-trendlines-tradingfinder-support-resistance-signal-alerts__c78da9ac73",
      "committed:banknifty-mcclellan-oscillator__A2qCyYWwcs",
      "committed:blackflag-fts__GdkmXaTINI",
      "committed:camarilla__jw9faob08r",
-     "committed:chart-vwap__804099ca2f",
-     "committed:double-topbottom-ultimate-os__bd013ff4f5"
+     "committed:candlestick-patterns-on-backtest__c85b9d3ec6",
+     "committed:chart-vwap__804099ca2f"
     ]
    },
    "statedUnblocks": null,
@@ -2312,20 +2131,20 @@
     "firm": [],
     "named": [],
     "direct": [],
-    "upper": 33,
+    "upper": 36,
     "upperSample": [
-     "builtin:gaps__Gaps",
-     "committed:adaptive-trend-following-suite-alpha-extract__d615e5a027",
      "committed:anchored-vwap-pinch-handoff-intervals-and-signals__2174489a80",
      "committed:atr-god-strategy-by-tradesmart__4369755a29",
      "committed:camarilla__jw9faob08r",
+     "committed:candlestick-patterns-on-backtest__c85b9d3ec6",
      "committed:chart-vwap__804099ca2f",
      "committed:fx-market-sessions__3KZoMPYziy",
+     "committed:heikin-ashi-supertrend__2fb7267210",
      "committed:ict-turtle-soup-flux-charts__053c3e6056",
      "committed:liquidity-levels-sonarlab__bba13c46c4",
+     "committed:machine-learning-knn-based-strategy__lj1Gjlbycb",
      "committed:machine-learning-moving-average-backquant__4d7ff59e68",
-     "committed:market-profile-with-tpo__b2b119d8ab",
-     "committed:market-sessions-and-volume-profile-by-leviathan__c85c28c18a"
+     "committed:market-profile-with-tpo__b2b119d8ab"
     ]
    },
    "statedUnblocks": null,
@@ -2369,20 +2188,20 @@
     "firm": [],
     "named": [],
     "direct": [],
-    "upper": 33,
+    "upper": 36,
     "upperSample": [
-     "builtin:gaps__Gaps",
-     "committed:adaptive-trend-following-suite-alpha-extract__d615e5a027",
      "committed:anchored-vwap-pinch-handoff-intervals-and-signals__2174489a80",
      "committed:atr-god-strategy-by-tradesmart__4369755a29",
      "committed:camarilla__jw9faob08r",
+     "committed:candlestick-patterns-on-backtest__c85b9d3ec6",
      "committed:chart-vwap__804099ca2f",
      "committed:fx-market-sessions__3KZoMPYziy",
+     "committed:heikin-ashi-supertrend__2fb7267210",
      "committed:ict-turtle-soup-flux-charts__053c3e6056",
      "committed:liquidity-levels-sonarlab__bba13c46c4",
+     "committed:machine-learning-knn-based-strategy__lj1Gjlbycb",
      "committed:machine-learning-moving-average-backquant__4d7ff59e68",
-     "committed:market-profile-with-tpo__b2b119d8ab",
-     "committed:market-sessions-and-volume-profile-by-leviathan__c85c28c18a"
+     "committed:market-profile-with-tpo__b2b119d8ab"
     ]
    },
    "statedUnblocks": null,
@@ -2396,520 +2215,6 @@
    "oldestDoc": "2026-11-03",
    "rows": [
     "capture-queue-2026-11-03-w4-t3#W4-T1"
-   ],
-   "origins": [
-    "queue-doc"
-   ]
-  },
-  {
-   "id": "vw-w19r2-collections@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
-   "source": "tools/visual_conformance/probes/vw-w19r2-collections.pine",
-   "sourceKind": "probe",
-   "sha256": "e061c76371e0b9dc793d40752d5a6b075cdf2524b6db5fb55d6ae6fa8edac4ec",
-   "bytes": 2706,
-   "stem": "vw-w19r2-collections",
-   "captureStem": "vw-w19r2-collections",
-   "symbol": "NYSE:RDDT",
-   "tf": "1D",
-   "fromListing": true,
-   "chartDefaulted": false,
-   "chartSource": "row",
-   "unparsedCharts": [],
-   "capturedOn": [],
-   "licence": "probe",
-   "needsLive": false,
-   "priority": 0,
-   "unblocks": {
-    "priority": 0,
-    "firm": [],
-    "named": [],
-    "direct": [],
-    "upper": 23,
-    "upperSample": [
-     "builtin:pivot-points-standard__Pivot1Points",
-     "committed:auto-trendlines-tradingfinder-support-resistance-signal-alerts__c78da9ac73",
-     "committed:bollinger-band-width-percentile__03JuGF728K",
-     "committed:bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8",
-     "committed:candlestick-patterns-on-backtest__c85b9d3ec6",
-     "committed:initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q",
-     "committed:machine-learning-moving-average-backquant__4d7ff59e68",
-     "committed:market-sessions-and-volume-profile-by-leviathan__c85c28c18a",
-     "committed:one-sided-gaussian-support-resistance-rate-loxx__c801e68b6c",
-     "committed:range-filter-dw__pshyCmQSql",
-     "committed:session-tpo-profile__41088ef96d",
-     "committed:smart-money-concept-tradingfinder-major-minor-ob-fvg-smc__3a423d6669"
-    ]
-   },
-   "statedUnblocks": null,
-   "guards": [
-    "runtime:array"
-   ],
-   "planWave": "W4",
-   "docWaves": [
-    "w6"
-   ],
-   "oldestDoc": "2026-11-06",
-   "rows": [
-    "capture-queue-2026-11-06-w6#Q-W19R2a",
-    "capture-queue-2026-11-06-w6#Q-W19R2b"
-   ],
-   "origins": [
-    "queue-doc"
-   ]
-  },
-  {
-   "id": "vw-w6-array-members@AMEX:SPY@D",
-   "status": "QUEUED",
-   "evidence": [],
-   "source": "tools/visual_conformance/probes/vw-w6-array-members.pine",
-   "sourceKind": "probe",
-   "sha256": "5b57d6a0f0e6ae7dffc4dfc156da7ceedf10edc980e4454eb80b057a61536e7a",
-   "bytes": 5808,
-   "stem": "vw-w6-array-members",
-   "captureStem": "vw-w6-array-members",
-   "symbol": "AMEX:SPY",
-   "tf": "1D",
-   "fromListing": false,
-   "chartDefaulted": false,
-   "chartSource": "row",
-   "unparsedCharts": [],
-   "capturedOn": [],
-   "licence": "probe",
-   "needsLive": false,
-   "priority": 0,
-   "unblocks": {
-    "priority": 0,
-    "firm": [],
-    "named": [],
-    "direct": [],
-    "upper": 23,
-    "upperSample": [
-     "builtin:pivot-points-standard__Pivot1Points",
-     "committed:auto-trendlines-tradingfinder-support-resistance-signal-alerts__c78da9ac73",
-     "committed:bollinger-band-width-percentile__03JuGF728K",
-     "committed:bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8",
-     "committed:candlestick-patterns-on-backtest__c85b9d3ec6",
-     "committed:initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q",
-     "committed:machine-learning-moving-average-backquant__4d7ff59e68",
-     "committed:market-sessions-and-volume-profile-by-leviathan__c85c28c18a",
-     "committed:one-sided-gaussian-support-resistance-rate-loxx__c801e68b6c",
-     "committed:range-filter-dw__pshyCmQSql",
-     "committed:session-tpo-profile__41088ef96d",
-     "committed:smart-money-concept-tradingfinder-major-minor-ob-fvg-smc__3a423d6669"
-    ]
-   },
-   "statedUnblocks": null,
-   "guards": [
-    "runtime:array"
-   ],
-   "planWave": "W4",
-   "docWaves": [
-    "w6"
-   ],
-   "oldestDoc": "2026-11-06",
-   "rows": [
-    "capture-queue-2026-11-06-w6#W6-A1"
-   ],
-   "origins": [
-    "queue-doc"
-   ]
-  },
-  {
-   "id": "vw-w6-forin-fn-two-sites@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
-   "source": "tools/visual_conformance/probes/vw-w6-forin-fn-two-sites.pine",
-   "sourceKind": "probe",
-   "sha256": "75a42c0d55c2458ed6714b35c62b048e966d894838ae72f277383852a4ec17d5",
-   "bytes": 1118,
-   "stem": "vw-w6-forin-fn-two-sites",
-   "captureStem": "vw-w6-forin-fn-two-sites",
-   "symbol": "NYSE:RDDT",
-   "tf": "1D",
-   "fromListing": false,
-   "chartDefaulted": false,
-   "chartSource": "row",
-   "unparsedCharts": [],
-   "capturedOn": [],
-   "licence": "probe",
-   "needsLive": false,
-   "priority": 0,
-   "unblocks": {
-    "priority": 0,
-    "firm": [],
-    "named": [],
-    "direct": [],
-    "upper": 23,
-    "upperSample": [
-     "builtin:pivot-points-standard__Pivot1Points",
-     "committed:auto-trendlines-tradingfinder-support-resistance-signal-alerts__c78da9ac73",
-     "committed:bollinger-band-width-percentile__03JuGF728K",
-     "committed:bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8",
-     "committed:candlestick-patterns-on-backtest__c85b9d3ec6",
-     "committed:initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q",
-     "committed:machine-learning-moving-average-backquant__4d7ff59e68",
-     "committed:market-sessions-and-volume-profile-by-leviathan__c85c28c18a",
-     "committed:one-sided-gaussian-support-resistance-rate-loxx__c801e68b6c",
-     "committed:range-filter-dw__pshyCmQSql",
-     "committed:session-tpo-profile__41088ef96d",
-     "committed:smart-money-concept-tradingfinder-major-minor-ob-fvg-smc__3a423d6669"
-    ]
-   },
-   "statedUnblocks": null,
-   "guards": [
-    "runtime:array"
-   ],
-   "planWave": "W4",
-   "docWaves": [
-    "w6-t6"
-   ],
-   "oldestDoc": "2026-11-06",
-   "rows": [
-    "capture-queue-2026-11-06-w6-t6#W6-F1 (W6-BREAKDOWN §5)"
-   ],
-   "origins": [
-    "queue-doc"
-   ]
-  },
-  {
-   "id": "vw-w6-forin-fn-value@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
-   "source": "tools/visual_conformance/probes/vw-w6-forin-fn-value.pine",
-   "sourceKind": "probe",
-   "sha256": "9a681f0372f9c6a582d23447ada59f58cc559a317cd4e75cf906fa6754e56259",
-   "bytes": 1080,
-   "stem": "vw-w6-forin-fn-value",
-   "captureStem": "vw-w6-forin-fn-value",
-   "symbol": "NYSE:RDDT",
-   "tf": "1D",
-   "fromListing": false,
-   "chartDefaulted": false,
-   "chartSource": "row",
-   "unparsedCharts": [],
-   "capturedOn": [],
-   "licence": "probe",
-   "needsLive": false,
-   "priority": 0,
-   "unblocks": {
-    "priority": 0,
-    "firm": [],
-    "named": [],
-    "direct": [],
-    "upper": 23,
-    "upperSample": [
-     "builtin:pivot-points-standard__Pivot1Points",
-     "committed:auto-trendlines-tradingfinder-support-resistance-signal-alerts__c78da9ac73",
-     "committed:bollinger-band-width-percentile__03JuGF728K",
-     "committed:bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8",
-     "committed:candlestick-patterns-on-backtest__c85b9d3ec6",
-     "committed:initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q",
-     "committed:machine-learning-moving-average-backquant__4d7ff59e68",
-     "committed:market-sessions-and-volume-profile-by-leviathan__c85c28c18a",
-     "committed:one-sided-gaussian-support-resistance-rate-loxx__c801e68b6c",
-     "committed:range-filter-dw__pshyCmQSql",
-     "committed:session-tpo-profile__41088ef96d",
-     "committed:smart-money-concept-tradingfinder-major-minor-ob-fvg-smc__3a423d6669"
-    ]
-   },
-   "statedUnblocks": null,
-   "guards": [
-    "runtime:array"
-   ],
-   "planWave": "W4",
-   "docWaves": [
-    "w6-t6"
-   ],
-   "oldestDoc": "2026-11-06",
-   "rows": [
-    "capture-queue-2026-11-06-w6-t6#W6-F1 (W6-BREAKDOWN §5)"
-   ],
-   "origins": [
-    "queue-doc"
-   ]
-  },
-  {
-   "id": "vw-w6-forin-loopvar-write@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
-   "source": "tools/visual_conformance/probes/vw-w6-forin-loopvar-write.pine",
-   "sourceKind": "probe",
-   "sha256": "84e609121702c3f0a398c8b4f6657181c30fa9ccfc0414c6fd00e9ea9534ca98",
-   "bytes": 1078,
-   "stem": "vw-w6-forin-loopvar-write",
-   "captureStem": "vw-w6-forin-loopvar-write",
-   "symbol": "NYSE:RDDT",
-   "tf": "1D",
-   "fromListing": false,
-   "chartDefaulted": false,
-   "chartSource": "row",
-   "unparsedCharts": [],
-   "capturedOn": [],
-   "licence": "probe",
-   "needsLive": false,
-   "priority": 0,
-   "unblocks": {
-    "priority": 0,
-    "firm": [],
-    "named": [],
-    "direct": [],
-    "upper": 23,
-    "upperSample": [
-     "builtin:pivot-points-standard__Pivot1Points",
-     "committed:auto-trendlines-tradingfinder-support-resistance-signal-alerts__c78da9ac73",
-     "committed:bollinger-band-width-percentile__03JuGF728K",
-     "committed:bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8",
-     "committed:candlestick-patterns-on-backtest__c85b9d3ec6",
-     "committed:initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q",
-     "committed:machine-learning-moving-average-backquant__4d7ff59e68",
-     "committed:market-sessions-and-volume-profile-by-leviathan__c85c28c18a",
-     "committed:one-sided-gaussian-support-resistance-rate-loxx__c801e68b6c",
-     "committed:range-filter-dw__pshyCmQSql",
-     "committed:session-tpo-profile__41088ef96d",
-     "committed:smart-money-concept-tradingfinder-major-minor-ob-fvg-smc__3a423d6669"
-    ]
-   },
-   "statedUnblocks": null,
-   "guards": [
-    "runtime:array"
-   ],
-   "planWave": "W4",
-   "docWaves": [
-    "w6-t6"
-   ],
-   "oldestDoc": "2026-11-06",
-   "rows": [
-    "capture-queue-2026-11-06-w6-t6#W6-F1 (W6-BREAKDOWN §5)"
-   ],
-   "origins": [
-    "queue-doc"
-   ]
-  },
-  {
-   "id": "vw-w6-forin-map@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
-   "source": "tools/visual_conformance/probes/vw-w6-forin-map.pine",
-   "sourceKind": "probe",
-   "sha256": "e13f5b5a82db9016da8a01747a4140fc68f230c6ef8653d59cb89e59d91f4410",
-   "bytes": 1403,
-   "stem": "vw-w6-forin-map",
-   "captureStem": "vw-w6-forin-map",
-   "symbol": "NYSE:RDDT",
-   "tf": "1D",
-   "fromListing": false,
-   "chartDefaulted": false,
-   "chartSource": "row",
-   "unparsedCharts": [],
-   "capturedOn": [],
-   "licence": "probe",
-   "needsLive": false,
-   "priority": 0,
-   "unblocks": {
-    "priority": 0,
-    "firm": [],
-    "named": [],
-    "direct": [],
-    "upper": 23,
-    "upperSample": [
-     "builtin:pivot-points-standard__Pivot1Points",
-     "committed:auto-trendlines-tradingfinder-support-resistance-signal-alerts__c78da9ac73",
-     "committed:bollinger-band-width-percentile__03JuGF728K",
-     "committed:bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8",
-     "committed:candlestick-patterns-on-backtest__c85b9d3ec6",
-     "committed:initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q",
-     "committed:machine-learning-moving-average-backquant__4d7ff59e68",
-     "committed:market-sessions-and-volume-profile-by-leviathan__c85c28c18a",
-     "committed:one-sided-gaussian-support-resistance-rate-loxx__c801e68b6c",
-     "committed:range-filter-dw__pshyCmQSql",
-     "committed:session-tpo-profile__41088ef96d",
-     "committed:smart-money-concept-tradingfinder-major-minor-ob-fvg-smc__3a423d6669"
-    ]
-   },
-   "statedUnblocks": null,
-   "guards": [
-    "runtime:array"
-   ],
-   "planWave": "W4",
-   "docWaves": [
-    "w6-t6"
-   ],
-   "oldestDoc": "2026-11-06",
-   "rows": [
-    "capture-queue-2026-11-06-w6-t6#W6-F1 (W6-BREAKDOWN §5)"
-   ],
-   "origins": [
-    "queue-doc"
-   ]
-  },
-  {
-   "id": "vw-w6-forin-matrix@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
-   "source": "tools/visual_conformance/probes/vw-w6-forin-matrix.pine",
-   "sourceKind": "probe",
-   "sha256": "20239813fd7cbef5878d67bd9382d1515eeaa3a17bc63fd2233a7594d46e4f5f",
-   "bytes": 1246,
-   "stem": "vw-w6-forin-matrix",
-   "captureStem": "vw-w6-forin-matrix",
-   "symbol": "NYSE:RDDT",
-   "tf": "1D",
-   "fromListing": false,
-   "chartDefaulted": false,
-   "chartSource": "row",
-   "unparsedCharts": [],
-   "capturedOn": [],
-   "licence": "probe",
-   "needsLive": false,
-   "priority": 0,
-   "unblocks": {
-    "priority": 0,
-    "firm": [],
-    "named": [],
-    "direct": [],
-    "upper": 23,
-    "upperSample": [
-     "builtin:pivot-points-standard__Pivot1Points",
-     "committed:auto-trendlines-tradingfinder-support-resistance-signal-alerts__c78da9ac73",
-     "committed:bollinger-band-width-percentile__03JuGF728K",
-     "committed:bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8",
-     "committed:candlestick-patterns-on-backtest__c85b9d3ec6",
-     "committed:initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q",
-     "committed:machine-learning-moving-average-backquant__4d7ff59e68",
-     "committed:market-sessions-and-volume-profile-by-leviathan__c85c28c18a",
-     "committed:one-sided-gaussian-support-resistance-rate-loxx__c801e68b6c",
-     "committed:range-filter-dw__pshyCmQSql",
-     "committed:session-tpo-profile__41088ef96d",
-     "committed:smart-money-concept-tradingfinder-major-minor-ob-fvg-smc__3a423d6669"
-    ]
-   },
-   "statedUnblocks": null,
-   "guards": [
-    "runtime:array"
-   ],
-   "planWave": "W4",
-   "docWaves": [
-    "w6-t6"
-   ],
-   "oldestDoc": "2026-11-06",
-   "rows": [
-    "capture-queue-2026-11-06-w6-t6#W6-F1 (W6-BREAKDOWN §5)"
-   ],
-   "origins": [
-    "queue-doc"
-   ]
-  },
-  {
-   "id": "vw-w6-forin-polyline-all@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
-   "source": "tools/visual_conformance/probes/vw-w6-forin-polyline-all.pine",
-   "sourceKind": "probe",
-   "sha256": "c4e91fb8ac7df1aea7ab3ad5a86995be534dcde0604f7ff76429759518640b8b",
-   "bytes": 1257,
-   "stem": "vw-w6-forin-polyline-all",
-   "captureStem": "vw-w6-forin-polyline-all",
-   "symbol": "NYSE:RDDT",
-   "tf": "1D",
-   "fromListing": false,
-   "chartDefaulted": false,
-   "chartSource": "row",
-   "unparsedCharts": [],
-   "capturedOn": [],
-   "licence": "probe",
-   "needsLive": false,
-   "priority": 0,
-   "unblocks": {
-    "priority": 0,
-    "firm": [],
-    "named": [],
-    "direct": [],
-    "upper": 23,
-    "upperSample": [
-     "builtin:pivot-points-standard__Pivot1Points",
-     "committed:auto-trendlines-tradingfinder-support-resistance-signal-alerts__c78da9ac73",
-     "committed:bollinger-band-width-percentile__03JuGF728K",
-     "committed:bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8",
-     "committed:candlestick-patterns-on-backtest__c85b9d3ec6",
-     "committed:initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q",
-     "committed:machine-learning-moving-average-backquant__4d7ff59e68",
-     "committed:market-sessions-and-volume-profile-by-leviathan__c85c28c18a",
-     "committed:one-sided-gaussian-support-resistance-rate-loxx__c801e68b6c",
-     "committed:range-filter-dw__pshyCmQSql",
-     "committed:session-tpo-profile__41088ef96d",
-     "committed:smart-money-concept-tradingfinder-major-minor-ob-fvg-smc__3a423d6669"
-    ]
-   },
-   "statedUnblocks": null,
-   "guards": [
-    "runtime:array"
-   ],
-   "planWave": "W4",
-   "docWaves": [
-    "w6-t6"
-   ],
-   "oldestDoc": "2026-11-06",
-   "rows": [
-    "capture-queue-2026-11-06-w6-t6#W6-F1 (W6-BREAKDOWN §5)"
-   ],
-   "origins": [
-    "queue-doc"
-   ]
-  },
-  {
-   "id": "vw-w6-forin-write-through@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
-   "source": "tools/visual_conformance/probes/vw-w6-forin-write-through.pine",
-   "sourceKind": "probe",
-   "sha256": "4af605296f87356724856e313d7979a5102e7170dd23ae1933c5553c9a0bfd20",
-   "bytes": 1200,
-   "stem": "vw-w6-forin-write-through",
-   "captureStem": "vw-w6-forin-write-through",
-   "symbol": "NYSE:RDDT",
-   "tf": "1D",
-   "fromListing": false,
-   "chartDefaulted": false,
-   "chartSource": "row",
-   "unparsedCharts": [],
-   "capturedOn": [],
-   "licence": "probe",
-   "needsLive": false,
-   "priority": 0,
-   "unblocks": {
-    "priority": 0,
-    "firm": [],
-    "named": [],
-    "direct": [],
-    "upper": 23,
-    "upperSample": [
-     "builtin:pivot-points-standard__Pivot1Points",
-     "committed:auto-trendlines-tradingfinder-support-resistance-signal-alerts__c78da9ac73",
-     "committed:bollinger-band-width-percentile__03JuGF728K",
-     "committed:bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8",
-     "committed:candlestick-patterns-on-backtest__c85b9d3ec6",
-     "committed:initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q",
-     "committed:machine-learning-moving-average-backquant__4d7ff59e68",
-     "committed:market-sessions-and-volume-profile-by-leviathan__c85c28c18a",
-     "committed:one-sided-gaussian-support-resistance-rate-loxx__c801e68b6c",
-     "committed:range-filter-dw__pshyCmQSql",
-     "committed:session-tpo-profile__41088ef96d",
-     "committed:smart-money-concept-tradingfinder-major-minor-ob-fvg-smc__3a423d6669"
-    ]
-   },
-   "statedUnblocks": null,
-   "guards": [
-    "runtime:array"
-   ],
-   "planWave": "W4",
-   "docWaves": [
-    "w6-t6"
-   ],
-   "oldestDoc": "2026-11-06",
-   "rows": [
-    "capture-queue-2026-11-06-w6-t6#W6-F1 (W6-BREAKDOWN §5)"
    ],
    "origins": [
     "queue-doc"
@@ -2940,20 +2245,20 @@
     "firm": [],
     "named": [],
     "direct": [],
-    "upper": 20,
+    "upper": 21,
     "upperSample": [
      "builtin:auto-fib-extension__Auto1Fib1Ext",
      "committed:72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt",
+     "committed:camarilla__jw9faob08r",
      "committed:liquidity-levels-sonarlab__bba13c46c4",
      "committed:nubia-auto-midas-anchored-vwap-xdecow__MOpN5jQbSn",
-     "committed:relative-volume-at-time__gei8CBKbc5",
      "committed:smart-money-concepts-by-welotrades__0bff41a2e5",
-     "committed:support-and-resistance__c4792aabd0",
+     "committed:strong-start-rvol-dashboard__36140b1cbe",
      "committed:volume-profile-v054beta__PNSKf75832",
-     "committed:zigzag-multi-time-frame-with-fibonacci-retracement__ppvz14qunp",
      "reference:anti-volume-stop-loss__QyDEhGL8DB",
-     "reference:fxn-asian-session-range__jNLZBfpYDO",
-     "reference:hma-kahlman-trend-trendlines__AhvnhJbO5J"
+     "reference:dynamic-support-and-resistance-with-trend-lines-multi-language__1928d26a07",
+     "reference:dynamic-swing-anchored-vwap-strategy-zeiierman-x-pineindicators__ee0c3c9ccd",
+     "reference:fxn-asian-session-range__jNLZBfpYDO"
     ]
    },
    "statedUnblocks": null,
@@ -2997,20 +2302,20 @@
     "firm": [],
     "named": [],
     "direct": [],
-    "upper": 20,
+    "upper": 21,
     "upperSample": [
      "builtin:auto-fib-extension__Auto1Fib1Ext",
      "committed:72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt",
+     "committed:camarilla__jw9faob08r",
      "committed:liquidity-levels-sonarlab__bba13c46c4",
      "committed:nubia-auto-midas-anchored-vwap-xdecow__MOpN5jQbSn",
-     "committed:relative-volume-at-time__gei8CBKbc5",
      "committed:smart-money-concepts-by-welotrades__0bff41a2e5",
-     "committed:support-and-resistance__c4792aabd0",
+     "committed:strong-start-rvol-dashboard__36140b1cbe",
      "committed:volume-profile-v054beta__PNSKf75832",
-     "committed:zigzag-multi-time-frame-with-fibonacci-retracement__ppvz14qunp",
      "reference:anti-volume-stop-loss__QyDEhGL8DB",
-     "reference:fxn-asian-session-range__jNLZBfpYDO",
-     "reference:hma-kahlman-trend-trendlines__AhvnhJbO5J"
+     "reference:dynamic-support-and-resistance-with-trend-lines-multi-language__1928d26a07",
+     "reference:dynamic-swing-anchored-vwap-strategy-zeiierman-x-pineindicators__ee0c3c9ccd",
+     "reference:fxn-asian-session-range__jNLZBfpYDO"
     ]
    },
    "statedUnblocks": null,
@@ -3054,20 +2359,20 @@
     "firm": [],
     "named": [],
     "direct": [],
-    "upper": 20,
+    "upper": 21,
     "upperSample": [
      "builtin:auto-fib-extension__Auto1Fib1Ext",
      "committed:72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt",
+     "committed:camarilla__jw9faob08r",
      "committed:liquidity-levels-sonarlab__bba13c46c4",
      "committed:nubia-auto-midas-anchored-vwap-xdecow__MOpN5jQbSn",
-     "committed:relative-volume-at-time__gei8CBKbc5",
      "committed:smart-money-concepts-by-welotrades__0bff41a2e5",
-     "committed:support-and-resistance__c4792aabd0",
+     "committed:strong-start-rvol-dashboard__36140b1cbe",
      "committed:volume-profile-v054beta__PNSKf75832",
-     "committed:zigzag-multi-time-frame-with-fibonacci-retracement__ppvz14qunp",
      "reference:anti-volume-stop-loss__QyDEhGL8DB",
-     "reference:fxn-asian-session-range__jNLZBfpYDO",
-     "reference:hma-kahlman-trend-trendlines__AhvnhJbO5J"
+     "reference:dynamic-support-and-resistance-with-trend-lines-multi-language__1928d26a07",
+     "reference:dynamic-swing-anchored-vwap-strategy-zeiierman-x-pineindicators__ee0c3c9ccd",
+     "reference:fxn-asian-session-range__jNLZBfpYDO"
     ]
    },
    "statedUnblocks": null,
@@ -3111,20 +2416,20 @@
     "firm": [],
     "named": [],
     "direct": [],
-    "upper": 20,
+    "upper": 21,
     "upperSample": [
      "builtin:auto-fib-extension__Auto1Fib1Ext",
      "committed:72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt",
+     "committed:camarilla__jw9faob08r",
      "committed:liquidity-levels-sonarlab__bba13c46c4",
      "committed:nubia-auto-midas-anchored-vwap-xdecow__MOpN5jQbSn",
-     "committed:relative-volume-at-time__gei8CBKbc5",
      "committed:smart-money-concepts-by-welotrades__0bff41a2e5",
-     "committed:support-and-resistance__c4792aabd0",
+     "committed:strong-start-rvol-dashboard__36140b1cbe",
      "committed:volume-profile-v054beta__PNSKf75832",
-     "committed:zigzag-multi-time-frame-with-fibonacci-retracement__ppvz14qunp",
      "reference:anti-volume-stop-loss__QyDEhGL8DB",
-     "reference:fxn-asian-session-range__jNLZBfpYDO",
-     "reference:hma-kahlman-trend-trendlines__AhvnhJbO5J"
+     "reference:dynamic-support-and-resistance-with-trend-lines-multi-language__1928d26a07",
+     "reference:dynamic-swing-anchored-vwap-strategy-zeiierman-x-pineindicators__ee0c3c9ccd",
+     "reference:fxn-asian-session-range__jNLZBfpYDO"
     ]
    },
    "statedUnblocks": null,
@@ -3169,20 +2474,20 @@
     "firm": [],
     "named": [],
     "direct": [],
-    "upper": 20,
+    "upper": 21,
     "upperSample": [
      "builtin:auto-fib-extension__Auto1Fib1Ext",
      "committed:72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt",
+     "committed:camarilla__jw9faob08r",
      "committed:liquidity-levels-sonarlab__bba13c46c4",
      "committed:nubia-auto-midas-anchored-vwap-xdecow__MOpN5jQbSn",
-     "committed:relative-volume-at-time__gei8CBKbc5",
      "committed:smart-money-concepts-by-welotrades__0bff41a2e5",
-     "committed:support-and-resistance__c4792aabd0",
+     "committed:strong-start-rvol-dashboard__36140b1cbe",
      "committed:volume-profile-v054beta__PNSKf75832",
-     "committed:zigzag-multi-time-frame-with-fibonacci-retracement__ppvz14qunp",
      "reference:anti-volume-stop-loss__QyDEhGL8DB",
-     "reference:fxn-asian-session-range__jNLZBfpYDO",
-     "reference:hma-kahlman-trend-trendlines__AhvnhJbO5J"
+     "reference:dynamic-support-and-resistance-with-trend-lines-multi-language__1928d26a07",
+     "reference:dynamic-swing-anchored-vwap-strategy-zeiierman-x-pineindicators__ee0c3c9ccd",
+     "reference:fxn-asian-session-range__jNLZBfpYDO"
     ]
    },
    "statedUnblocks": null,
@@ -3319,26 +2624,22 @@
    ]
   },
   {
-   "id": "vw-type-word-names@AMEX:SPY@D",
-   "status": "CAPTURED",
-   "evidence": [
-    "tests/fixtures/vendor/harness/vw-type-word-names-spy-1d-2026-10-02.json"
-   ],
-   "source": "tools/visual_conformance/probes/vw-type-word-names.pine",
+   "id": "vw-hs5-int-array-float-param@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-hs5-int-array-float-param.pine",
    "sourceKind": "probe",
-   "sha256": "eaa5f358cd6445e6abf77e76fc2d7a9bbc8846ed7f0fa5e97249b57da3f4dc06",
-   "bytes": 1856,
-   "stem": "vw-type-word-names",
-   "captureStem": "vw-type-word-names",
+   "sha256": "573daa5483cf523860ebdf2bc44e70d68667e2b178eaeefa52db3f0ed07e0d64",
+   "bytes": 1390,
+   "stem": "vw-hs5-int-array-float-param",
+   "captureStem": "vw-hs5-int-array-float-param",
    "symbol": "AMEX:SPY",
    "tf": "1D",
    "fromListing": false,
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [
-    "AMEX:SPY D"
-   ],
+   "capturedOn": [],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -3347,33 +2648,34 @@
     "firm": [],
     "named": [],
     "direct": [],
-    "upper": 17,
+    "upper": 15,
     "upperSample": [
-     "committed:72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt",
-     "committed:atr-trailing-stoploss-strategy__oayb1wVXkZ",
-     "committed:fibonacci-retracement-mtflog__54a8dbfa8e",
-     "committed:footprint-iq-pro-tradingiq__3b96428a77",
-     "committed:market-structure-trend-targets-chartprime__d3c06abad6",
-     "committed:smart-money-breakouts-chartprime__ea79c79a67",
-     "committed:smoothed-gaussian-trend-filter-algoalpha__69de2e99a0",
-     "committed:stop-loss-clustering-breakouts-kioseff-trading__c6388de20b",
-     "committed:trailing-take-profit-trailing-stop-loss__41jwaH1ikz",
-     "committed:volume-delta-oi-delta-kioseff-trading__9056fd6b37",
-     "committed:volume-footprint-measuring-classical-indicators-by-math-geometry-intro__e15e52b27d",
-     "reference:divergence-screener-trendoscope__5bfc8355aa"
+     "builtin:auto-fib-retracement__Auto1Fib1Ret",
+     "committed:bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8",
+     "committed:fx-market-sessions__3KZoMPYziy",
+     "committed:ipda-standard-deviations-dexterlab-x-tfo-x-toodegrees__7366c2d2c0",
+     "committed:kalman-psar-backquant__0a389f529b",
+     "committed:mgi-levels-suite__285168ddfb",
+     "committed:one-indicator-multiple-max-40-checked-symbols-and-quotinfinitequot-num__015bb66e64",
+     "committed:smart-money-concepts-by-welotrades__0bff41a2e5",
+     "committed:smc-structures-and-multi-timeframe-fvg-ma-py__fd50b245b6",
+     "committed:supply-demand-mtf-flux-charts__7fb4bff229",
+     "committed:trend-line-harrybot__vMv5yOQxcA",
+     "committed:volume-profile-bar-magnified-order-blocks-jacobmagleby__3b3ebba156"
     ]
    },
    "statedUnblocks": null,
    "guards": [
-    "pine:statement"
+    "runtime:function",
+    "runtime:udt-method"
    ],
    "planWave": "W4",
    "docWaves": [
-    "c45"
+    "honesty-sweep"
    ],
-   "oldestDoc": "2026-10-01",
+   "oldestDoc": "2026-11-07",
    "rows": [
-    "capture-queue-2026-10-01-c45#Q-C45b"
+    "capture-queue-2026-11-07-honesty-sweep#Q-HS5"
    ],
    "origins": [
     "queue-doc"
@@ -3404,20 +2706,20 @@
     "firm": [],
     "named": [],
     "direct": [],
-    "upper": 16,
+    "upper": 13,
     "upperSample": [
      "builtin:seasonality__Seasonality",
      "builtin:volatility-stop__Volatility_S",
-     "committed:fibonacci-retracement-statistics-by-volprofex__999c924fce",
-     "committed:fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated__578addf606",
      "committed:fx-market-sessions__3KZoMPYziy",
      "committed:ict-institutional-order-flow-fadi__25d4834579",
      "committed:neural-network-buy-and-sell-signals__fbbb11d0c7",
      "committed:smart-money-concepts-by-welotrades__0bff41a2e5",
      "committed:supply-demand-mtf-flux-charts__7fb4bff229",
-     "committed:tehthomas-aligned-timeframe-fair-value-gaps__f843e207ca",
-     "committed:volatility-coil-edge-bullbyte__604f0fd1c6",
-     "committed:volume-delta-oi-delta-kioseff-trading__9056fd6b37"
+     "committed:support-resistance-mtf-flux-charts__dd04862677",
+     "committed:volume-delta-oi-delta-kioseff-trading__9056fd6b37",
+     "reference:edufx-amd__0ca9b3c747",
+     "reference:liquidity-pools-pro-willyalgotrader__409687ce4a",
+     "reference:mirage-liquidity-sweep-pro-willyalgotrader__238f0e26eb"
     ]
    },
    "statedUnblocks": null,
@@ -3461,20 +2763,20 @@
     "firm": [],
     "named": [],
     "direct": [],
-    "upper": 16,
+    "upper": 13,
     "upperSample": [
      "builtin:seasonality__Seasonality",
      "builtin:volatility-stop__Volatility_S",
-     "committed:fibonacci-retracement-statistics-by-volprofex__999c924fce",
-     "committed:fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated__578addf606",
      "committed:fx-market-sessions__3KZoMPYziy",
      "committed:ict-institutional-order-flow-fadi__25d4834579",
      "committed:neural-network-buy-and-sell-signals__fbbb11d0c7",
      "committed:smart-money-concepts-by-welotrades__0bff41a2e5",
      "committed:supply-demand-mtf-flux-charts__7fb4bff229",
-     "committed:tehthomas-aligned-timeframe-fair-value-gaps__f843e207ca",
-     "committed:volatility-coil-edge-bullbyte__604f0fd1c6",
-     "committed:volume-delta-oi-delta-kioseff-trading__9056fd6b37"
+     "committed:support-resistance-mtf-flux-charts__dd04862677",
+     "committed:volume-delta-oi-delta-kioseff-trading__9056fd6b37",
+     "reference:edufx-amd__0ca9b3c747",
+     "reference:liquidity-pools-pro-willyalgotrader__409687ce4a",
+     "reference:mirage-liquidity-sweep-pro-willyalgotrader__238f0e26eb"
     ]
    },
    "statedUnblocks": null,
@@ -3494,22 +2796,26 @@
    ]
   },
   {
-   "id": "vw-hs5-int-array-float-param@AMEX:SPY@D",
-   "status": "QUEUED",
-   "evidence": [],
-   "source": "tools/visual_conformance/probes/vw-hs5-int-array-float-param.pine",
+   "id": "vw-type-word-names@AMEX:SPY@D",
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-type-word-names-spy-1d-2026-10-02.json"
+   ],
+   "source": "tools/visual_conformance/probes/vw-type-word-names.pine",
    "sourceKind": "probe",
-   "sha256": "573daa5483cf523860ebdf2bc44e70d68667e2b178eaeefa52db3f0ed07e0d64",
-   "bytes": 1390,
-   "stem": "vw-hs5-int-array-float-param",
-   "captureStem": "vw-hs5-int-array-float-param",
+   "sha256": "eaa5f358cd6445e6abf77e76fc2d7a9bbc8846ed7f0fa5e97249b57da3f4dc06",
+   "bytes": 1856,
+   "stem": "vw-type-word-names",
+   "captureStem": "vw-type-word-names",
    "symbol": "AMEX:SPY",
    "tf": "1D",
    "fromListing": false,
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "AMEX:SPY D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -3518,34 +2824,31 @@
     "firm": [],
     "named": [],
     "direct": [],
-    "upper": 14,
+    "upper": 10,
     "upperSample": [
-     "builtin:auto-fib-retracement__Auto1Fib1Ret",
-     "committed:fx-market-sessions__3KZoMPYziy",
-     "committed:ipda-standard-deviations-dexterlab-x-tfo-x-toodegrees__7366c2d2c0",
-     "committed:kalman-psar-backquant__0a389f529b",
-     "committed:mgi-levels-suite__285168ddfb",
-     "committed:one-indicator-multiple-max-40-checked-symbols-and-quotinfinitequot-num__015bb66e64",
-     "committed:smart-money-concepts-by-welotrades__0bff41a2e5",
-     "committed:smc-structures-and-multi-timeframe-fvg-ma-py__fd50b245b6",
-     "committed:supply-demand-mtf-flux-charts__7fb4bff229",
-     "committed:trend-line-harrybot__vMv5yOQxcA",
-     "committed:volume-profile-bar-magnified-order-blocks-jacobmagleby__3b3ebba156",
-     "reference:divergence-stack-scanner-agpro-series__5bfe6b3a16"
+     "committed:72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt",
+     "committed:atr-trailing-stoploss-strategy__oayb1wVXkZ",
+     "committed:fibonacci-retracement-mtflog__54a8dbfa8e",
+     "committed:market-structure-trend-targets-chartprime__d3c06abad6",
+     "committed:smart-money-breakouts-chartprime__ea79c79a67",
+     "committed:smoothed-gaussian-trend-filter-algoalpha__69de2e99a0",
+     "committed:volume-delta-oi-delta-kioseff-trading__9056fd6b37",
+     "reference:kaufman-adaptive-bands__sXCNphOxWh",
+     "reference:liquidity-swings-luxalgo__780e612168",
+     "reference:most-screener__d7d9ae5349"
     ]
    },
    "statedUnblocks": null,
    "guards": [
-    "runtime:function",
-    "runtime:udt-method"
+    "pine:statement"
    ],
    "planWave": "W4",
    "docWaves": [
-    "honesty-sweep"
+    "c45"
    ],
-   "oldestDoc": "2026-11-07",
+   "oldestDoc": "2026-10-01",
    "rows": [
-    "capture-queue-2026-11-07-honesty-sweep#Q-HS5"
+    "capture-queue-2026-10-01-c45#Q-C45b"
    ],
    "origins": [
     "queue-doc"
@@ -3580,14 +2883,13 @@
     "firm": [],
     "named": [],
     "direct": [],
-    "upper": 9,
+    "upper": 8,
     "upperSample": [
      "committed:auto-harmonic-patterns-open-source__ca6022754b",
      "committed:ict-institutional-order-flow-fadi__25d4834579",
      "committed:ict-killzones-pivots-tfo__d0b8be94f1",
      "committed:mgi-levels-suite__285168ddfb",
      "reference:auto-fibonacci-and-gann-fanretracements-combo__e764b93365",
-     "reference:auto-trendlines-trendoscope__c1dc011801",
      "reference:fibonacci-extention-retracment-pivot-points-by-dgt__smOGfR6p3n",
      "reference:sessions-nephew-sam__nTgXSYRNbD",
      "reference:support-and-resistance__c13363a5d2"
@@ -3641,14 +2943,13 @@
     "firm": [],
     "named": [],
     "direct": [],
-    "upper": 9,
+    "upper": 8,
     "upperSample": [
      "committed:auto-harmonic-patterns-open-source__ca6022754b",
      "committed:ict-institutional-order-flow-fadi__25d4834579",
      "committed:ict-killzones-pivots-tfo__d0b8be94f1",
      "committed:mgi-levels-suite__285168ddfb",
      "reference:auto-fibonacci-and-gann-fanretracements-combo__e764b93365",
-     "reference:auto-trendlines-trendoscope__c1dc011801",
      "reference:fibonacci-extention-retracment-pivot-points-by-dgt__smOGfR6p3n",
      "reference:sessions-nephew-sam__nTgXSYRNbD",
      "reference:support-and-resistance__c13363a5d2"
@@ -3700,14 +3001,13 @@
     "firm": [],
     "named": [],
     "direct": [],
-    "upper": 9,
+    "upper": 8,
     "upperSample": [
      "committed:auto-harmonic-patterns-open-source__ca6022754b",
      "committed:ict-institutional-order-flow-fadi__25d4834579",
      "committed:ict-killzones-pivots-tfo__d0b8be94f1",
      "committed:mgi-levels-suite__285168ddfb",
      "reference:auto-fibonacci-and-gann-fanretracements-combo__e764b93365",
-     "reference:auto-trendlines-trendoscope__c1dc011801",
      "reference:fibonacci-extention-retracment-pivot-points-by-dgt__smOGfR6p3n",
      "reference:sessions-nephew-sam__nTgXSYRNbD",
      "reference:support-and-resistance__c13363a5d2"
@@ -3785,6 +3085,567 @@
     "capture-queue-2026-11-02-w1#E04/E05",
     "capture-queue-2026-11-02-w1#E06/E07",
     "capture-queue-2026-11-02-w1#E08"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-w19r2-collections@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-w19r2-collections.pine",
+   "sourceKind": "probe",
+   "sha256": "e061c76371e0b9dc793d40752d5a6b075cdf2524b6db5fb55d6ae6fa8edac4ec",
+   "bytes": 2706,
+   "stem": "vw-w19r2-collections",
+   "captureStem": "vw-w19r2-collections",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 5,
+    "upperSample": [
+     "committed:bollinger-band-width-percentile__03JuGF728K",
+     "committed:bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8",
+     "committed:supertrend-relative-volume-kernel-optimized-flux-charts__47728a39df",
+     "committed:volume-open-interest-footprint-by-leviathan__f84b8fc7c4",
+     "reference:rsi-kernel-optimized-flux-charts__427926d08f"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "runtime:array"
+   ],
+   "planWave": "W4",
+   "docWaves": [
+    "w6"
+   ],
+   "oldestDoc": "2026-11-06",
+   "rows": [
+    "capture-queue-2026-11-06-w6#Q-W19R2a",
+    "capture-queue-2026-11-06-w6#Q-W19R2b"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-w6-array-members@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-w6-array-members.pine",
+   "sourceKind": "probe",
+   "sha256": "5b57d6a0f0e6ae7dffc4dfc156da7ceedf10edc980e4454eb80b057a61536e7a",
+   "bytes": 5808,
+   "stem": "vw-w6-array-members",
+   "captureStem": "vw-w6-array-members",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 5,
+    "upperSample": [
+     "committed:bollinger-band-width-percentile__03JuGF728K",
+     "committed:bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8",
+     "committed:supertrend-relative-volume-kernel-optimized-flux-charts__47728a39df",
+     "committed:volume-open-interest-footprint-by-leviathan__f84b8fc7c4",
+     "reference:rsi-kernel-optimized-flux-charts__427926d08f"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "runtime:array"
+   ],
+   "planWave": "W4",
+   "docWaves": [
+    "w6"
+   ],
+   "oldestDoc": "2026-11-06",
+   "rows": [
+    "capture-queue-2026-11-06-w6#W6-A1"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-w6-forin-fn-two-sites@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-w6-forin-fn-two-sites.pine",
+   "sourceKind": "probe",
+   "sha256": "75a42c0d55c2458ed6714b35c62b048e966d894838ae72f277383852a4ec17d5",
+   "bytes": 1118,
+   "stem": "vw-w6-forin-fn-two-sites",
+   "captureStem": "vw-w6-forin-fn-two-sites",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 5,
+    "upperSample": [
+     "committed:bollinger-band-width-percentile__03JuGF728K",
+     "committed:bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8",
+     "committed:supertrend-relative-volume-kernel-optimized-flux-charts__47728a39df",
+     "committed:volume-open-interest-footprint-by-leviathan__f84b8fc7c4",
+     "reference:rsi-kernel-optimized-flux-charts__427926d08f"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "runtime:array"
+   ],
+   "planWave": "W4",
+   "docWaves": [
+    "w6-t6"
+   ],
+   "oldestDoc": "2026-11-06",
+   "rows": [
+    "capture-queue-2026-11-06-w6-t6#W6-F1 (W6-BREAKDOWN §5)"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-w6-forin-fn-value@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-w6-forin-fn-value.pine",
+   "sourceKind": "probe",
+   "sha256": "9a681f0372f9c6a582d23447ada59f58cc559a317cd4e75cf906fa6754e56259",
+   "bytes": 1080,
+   "stem": "vw-w6-forin-fn-value",
+   "captureStem": "vw-w6-forin-fn-value",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 5,
+    "upperSample": [
+     "committed:bollinger-band-width-percentile__03JuGF728K",
+     "committed:bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8",
+     "committed:supertrend-relative-volume-kernel-optimized-flux-charts__47728a39df",
+     "committed:volume-open-interest-footprint-by-leviathan__f84b8fc7c4",
+     "reference:rsi-kernel-optimized-flux-charts__427926d08f"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "runtime:array"
+   ],
+   "planWave": "W4",
+   "docWaves": [
+    "w6-t6"
+   ],
+   "oldestDoc": "2026-11-06",
+   "rows": [
+    "capture-queue-2026-11-06-w6-t6#W6-F1 (W6-BREAKDOWN §5)"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-w6-forin-loopvar-write@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-w6-forin-loopvar-write.pine",
+   "sourceKind": "probe",
+   "sha256": "84e609121702c3f0a398c8b4f6657181c30fa9ccfc0414c6fd00e9ea9534ca98",
+   "bytes": 1078,
+   "stem": "vw-w6-forin-loopvar-write",
+   "captureStem": "vw-w6-forin-loopvar-write",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 5,
+    "upperSample": [
+     "committed:bollinger-band-width-percentile__03JuGF728K",
+     "committed:bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8",
+     "committed:supertrend-relative-volume-kernel-optimized-flux-charts__47728a39df",
+     "committed:volume-open-interest-footprint-by-leviathan__f84b8fc7c4",
+     "reference:rsi-kernel-optimized-flux-charts__427926d08f"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "runtime:array"
+   ],
+   "planWave": "W4",
+   "docWaves": [
+    "w6-t6"
+   ],
+   "oldestDoc": "2026-11-06",
+   "rows": [
+    "capture-queue-2026-11-06-w6-t6#W6-F1 (W6-BREAKDOWN §5)"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-w6-forin-map@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-w6-forin-map.pine",
+   "sourceKind": "probe",
+   "sha256": "e13f5b5a82db9016da8a01747a4140fc68f230c6ef8653d59cb89e59d91f4410",
+   "bytes": 1403,
+   "stem": "vw-w6-forin-map",
+   "captureStem": "vw-w6-forin-map",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 5,
+    "upperSample": [
+     "committed:bollinger-band-width-percentile__03JuGF728K",
+     "committed:bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8",
+     "committed:supertrend-relative-volume-kernel-optimized-flux-charts__47728a39df",
+     "committed:volume-open-interest-footprint-by-leviathan__f84b8fc7c4",
+     "reference:rsi-kernel-optimized-flux-charts__427926d08f"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "runtime:array"
+   ],
+   "planWave": "W4",
+   "docWaves": [
+    "w6-t6"
+   ],
+   "oldestDoc": "2026-11-06",
+   "rows": [
+    "capture-queue-2026-11-06-w6-t6#W6-F1 (W6-BREAKDOWN §5)"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-w6-forin-matrix@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-w6-forin-matrix.pine",
+   "sourceKind": "probe",
+   "sha256": "20239813fd7cbef5878d67bd9382d1515eeaa3a17bc63fd2233a7594d46e4f5f",
+   "bytes": 1246,
+   "stem": "vw-w6-forin-matrix",
+   "captureStem": "vw-w6-forin-matrix",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 5,
+    "upperSample": [
+     "committed:bollinger-band-width-percentile__03JuGF728K",
+     "committed:bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8",
+     "committed:supertrend-relative-volume-kernel-optimized-flux-charts__47728a39df",
+     "committed:volume-open-interest-footprint-by-leviathan__f84b8fc7c4",
+     "reference:rsi-kernel-optimized-flux-charts__427926d08f"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "runtime:array"
+   ],
+   "planWave": "W4",
+   "docWaves": [
+    "w6-t6"
+   ],
+   "oldestDoc": "2026-11-06",
+   "rows": [
+    "capture-queue-2026-11-06-w6-t6#W6-F1 (W6-BREAKDOWN §5)"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-w6-forin-polyline-all@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-w6-forin-polyline-all.pine",
+   "sourceKind": "probe",
+   "sha256": "c4e91fb8ac7df1aea7ab3ad5a86995be534dcde0604f7ff76429759518640b8b",
+   "bytes": 1257,
+   "stem": "vw-w6-forin-polyline-all",
+   "captureStem": "vw-w6-forin-polyline-all",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 5,
+    "upperSample": [
+     "committed:bollinger-band-width-percentile__03JuGF728K",
+     "committed:bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8",
+     "committed:supertrend-relative-volume-kernel-optimized-flux-charts__47728a39df",
+     "committed:volume-open-interest-footprint-by-leviathan__f84b8fc7c4",
+     "reference:rsi-kernel-optimized-flux-charts__427926d08f"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "runtime:array"
+   ],
+   "planWave": "W4",
+   "docWaves": [
+    "w6-t6"
+   ],
+   "oldestDoc": "2026-11-06",
+   "rows": [
+    "capture-queue-2026-11-06-w6-t6#W6-F1 (W6-BREAKDOWN §5)"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-w6-forin-write-through@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-w6-forin-write-through.pine",
+   "sourceKind": "probe",
+   "sha256": "4af605296f87356724856e313d7979a5102e7170dd23ae1933c5553c9a0bfd20",
+   "bytes": 1200,
+   "stem": "vw-w6-forin-write-through",
+   "captureStem": "vw-w6-forin-write-through",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 5,
+    "upperSample": [
+     "committed:bollinger-band-width-percentile__03JuGF728K",
+     "committed:bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8",
+     "committed:supertrend-relative-volume-kernel-optimized-flux-charts__47728a39df",
+     "committed:volume-open-interest-footprint-by-leviathan__f84b8fc7c4",
+     "reference:rsi-kernel-optimized-flux-charts__427926d08f"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "runtime:array"
+   ],
+   "planWave": "W4",
+   "docWaves": [
+    "w6-t6"
+   ],
+   "oldestDoc": "2026-11-06",
+   "rows": [
+    "capture-queue-2026-11-06-w6-t6#W6-F1 (W6-BREAKDOWN §5)"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "rs-arm-label-last-bar@AMEX:SPY@D",
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/rs-arm-label-last-bar-spy-1d-2026-11-15.json"
+   ],
+   "source": "tools/visual_conformance/probes/rs-arm-label-last-bar.pine",
+   "sourceKind": "probe",
+   "sha256": "1239b4762d9c1b6a732c38ce4107f80b9669194f49b24ab60796a9c76f770f2d",
+   "bytes": 2173,
+   "stem": "rs-arm-label-last-bar",
+   "captureStem": "rs-arm-label-last-bar",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [
+    "AMEX:SPY D",
+    "NYSE:RDDT D"
+   ],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 5,
+    "upperSample": [
+     "committed:auto-trendlines-tradingfinder-support-resistance-signal-alerts__c78da9ac73",
+     "committed:multi-timeframe-trend-indicator__fa4022ecf5",
+     "committed:trend-line-harrybot__vMv5yOQxcA",
+     "reference:dynamic-swing-anchored-vwap-strategy-zeiierman-x-pineindicators__ee0c3c9ccd",
+     "reference:momentum-terrain-3d-luxalgo__f7eb2c2d64"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "runtime:object-op"
+   ],
+   "planWave": "W4",
+   "docWaves": [
+    "rs-rating"
+   ],
+   "oldestDoc": "2026-11-14",
+   "rows": [
+    "capture-queue-2026-11-14-rs-rating#Q-RS5"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "rs-arm-label-last-bar@NYSE:RDDT@D",
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/rs-arm-label-last-bar-rddt-1d-2026-11-15.json"
+   ],
+   "source": "tools/visual_conformance/probes/rs-arm-label-last-bar.pine",
+   "sourceKind": "probe",
+   "sha256": "1239b4762d9c1b6a732c38ce4107f80b9669194f49b24ab60796a9c76f770f2d",
+   "bytes": 2173,
+   "stem": "rs-arm-label-last-bar",
+   "captureStem": "rs-arm-label-last-bar",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [
+    "AMEX:SPY D",
+    "NYSE:RDDT D"
+   ],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 5,
+    "upperSample": [
+     "committed:auto-trendlines-tradingfinder-support-resistance-signal-alerts__c78da9ac73",
+     "committed:multi-timeframe-trend-indicator__fa4022ecf5",
+     "committed:trend-line-harrybot__vMv5yOQxcA",
+     "reference:dynamic-swing-anchored-vwap-strategy-zeiierman-x-pineindicators__ee0c3c9ccd",
+     "reference:momentum-terrain-3d-luxalgo__f7eb2c2d64"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "runtime:object-op"
+   ],
+   "planWave": "W4",
+   "docWaves": [
+    "rs-rating"
+   ],
+   "oldestDoc": "2026-11-14",
+   "rows": [
+    "capture-queue-2026-11-14-rs-rating#Q-RS5"
    ],
    "origins": [
     "queue-doc"
@@ -3923,6 +3784,53 @@
    ]
   },
   {
+   "id": "vw-w6-enum@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-w6-enum.pine",
+   "sourceKind": "probe",
+   "sha256": "f61d46fb77b74806a82673ed05e4e1233c0287c7bc8326896a8792e054b24252",
+   "bytes": 1718,
+   "stem": "vw-w6-enum",
+   "captureStem": "vw-w6-enum",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 2,
+    "upperSample": [
+     "reference:divergence-screener-trendoscope__5bfc8355aa",
+     "reference:ichimoku-kinko-hyo-一目均衡表__a8a2aa1034"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "runtime:enum"
+   ],
+   "planWave": "W4",
+   "docWaves": [
+    "w6"
+   ],
+   "oldestDoc": "2026-11-06",
+   "rows": [
+    "capture-queue-2026-11-06-w6#W6-E1"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
    "id": "vw-w6-receivers@AMEX:SPY@D",
    "status": "QUEUED",
    "evidence": [],
@@ -3947,11 +3855,10 @@
     "firm": [],
     "named": [],
     "direct": [],
-    "upper": 3,
+    "upper": 2,
     "upperSample": [
-     "committed:fx-market-sessions__3KZoMPYziy",
-     "committed:ipda-standard-deviations-dexterlab-x-tfo-x-toodegrees__7366c2d2c0",
-     "reference:price-divergence-detector-v32-revised-by-justunclel__iWPERpdLcd"
+     "committed:bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8",
+     "reference:enhanced-mcclellan-summation-index__f2989eaa65"
     ]
    },
    "statedUnblocks": null,
@@ -3965,110 +3872,6 @@
    "oldestDoc": "2026-11-06",
    "rows": [
     "capture-queue-2026-11-06-w6#W6-U1"
-   ],
-   "origins": [
-    "queue-doc"
-   ]
-  },
-  {
-   "id": "rs-arm-label-last-bar@AMEX:SPY@D",
-   "status": "CAPTURED",
-   "evidence": [
-    "tests/fixtures/vendor/harness/rs-arm-label-last-bar-spy-1d-2026-11-15.json"
-   ],
-   "source": "tools/visual_conformance/probes/rs-arm-label-last-bar.pine",
-   "sourceKind": "probe",
-   "sha256": "1239b4762d9c1b6a732c38ce4107f80b9669194f49b24ab60796a9c76f770f2d",
-   "bytes": 2173,
-   "stem": "rs-arm-label-last-bar",
-   "captureStem": "rs-arm-label-last-bar",
-   "symbol": "AMEX:SPY",
-   "tf": "1D",
-   "fromListing": true,
-   "chartDefaulted": false,
-   "chartSource": "row",
-   "unparsedCharts": [],
-   "capturedOn": [
-    "AMEX:SPY D",
-    "NYSE:RDDT D"
-   ],
-   "licence": "probe",
-   "needsLive": false,
-   "priority": 0,
-   "unblocks": {
-    "priority": 0,
-    "firm": [],
-    "named": [],
-    "direct": [],
-    "upper": 2,
-    "upperSample": [
-     "committed:multi-timeframe-trend-indicator__fa4022ecf5",
-     "committed:trend-line-harrybot__vMv5yOQxcA"
-    ]
-   },
-   "statedUnblocks": null,
-   "guards": [
-    "runtime:object-op"
-   ],
-   "planWave": "W4",
-   "docWaves": [
-    "rs-rating"
-   ],
-   "oldestDoc": "2026-11-14",
-   "rows": [
-    "capture-queue-2026-11-14-rs-rating#Q-RS5"
-   ],
-   "origins": [
-    "queue-doc"
-   ]
-  },
-  {
-   "id": "rs-arm-label-last-bar@NYSE:RDDT@D",
-   "status": "CAPTURED",
-   "evidence": [
-    "tests/fixtures/vendor/harness/rs-arm-label-last-bar-rddt-1d-2026-11-15.json"
-   ],
-   "source": "tools/visual_conformance/probes/rs-arm-label-last-bar.pine",
-   "sourceKind": "probe",
-   "sha256": "1239b4762d9c1b6a732c38ce4107f80b9669194f49b24ab60796a9c76f770f2d",
-   "bytes": 2173,
-   "stem": "rs-arm-label-last-bar",
-   "captureStem": "rs-arm-label-last-bar",
-   "symbol": "NYSE:RDDT",
-   "tf": "1D",
-   "fromListing": true,
-   "chartDefaulted": false,
-   "chartSource": "row",
-   "unparsedCharts": [],
-   "capturedOn": [
-    "AMEX:SPY D",
-    "NYSE:RDDT D"
-   ],
-   "licence": "probe",
-   "needsLive": false,
-   "priority": 0,
-   "unblocks": {
-    "priority": 0,
-    "firm": [],
-    "named": [],
-    "direct": [],
-    "upper": 2,
-    "upperSample": [
-     "committed:multi-timeframe-trend-indicator__fa4022ecf5",
-     "committed:trend-line-harrybot__vMv5yOQxcA"
-    ]
-   },
-   "statedUnblocks": null,
-   "guards": [
-    "runtime:object-op"
-   ],
-   "planWave": "W4",
-   "docWaves": [
-    "rs-rating"
-   ],
-   "oldestDoc": "2026-11-14",
-   "rows": [
-    "capture-queue-2026-11-14-rs-rating#Q-RS5"
    ],
    "origins": [
     "queue-doc"
@@ -14037,50 +13840,6 @@
    ]
   },
   {
-   "id": "vw-w6-enum@AMEX:SPY@D",
-   "status": "QUEUED",
-   "evidence": [],
-   "source": "tools/visual_conformance/probes/vw-w6-enum.pine",
-   "sourceKind": "probe",
-   "sha256": "f61d46fb77b74806a82673ed05e4e1233c0287c7bc8326896a8792e054b24252",
-   "bytes": 1718,
-   "stem": "vw-w6-enum",
-   "captureStem": "vw-w6-enum",
-   "symbol": "AMEX:SPY",
-   "tf": "1D",
-   "fromListing": false,
-   "chartDefaulted": false,
-   "chartSource": "row",
-   "unparsedCharts": [],
-   "capturedOn": [],
-   "licence": "probe",
-   "needsLive": false,
-   "priority": 0,
-   "unblocks": {
-    "priority": 0,
-    "firm": [],
-    "named": [],
-    "direct": [],
-    "upper": 0,
-    "upperSample": []
-   },
-   "statedUnblocks": null,
-   "guards": [
-    "runtime:enum"
-   ],
-   "planWave": "W4",
-   "docWaves": [
-    "w6"
-   ],
-   "oldestDoc": "2026-11-06",
-   "rows": [
-    "capture-queue-2026-11-06-w6#W6-E1"
-   ],
-   "origins": [
-    "queue-doc"
-   ]
-  },
-  {
    "id": "vw-w6-forin-alias@NYSE:RDDT@D",
    "status": "QUEUED",
    "evidence": [],
@@ -15280,7 +15039,8 @@
    "id": "rs-syminfo-industry@NYSE:RDDT@D",
    "status": "CAPTURED",
    "evidence": [
-    "tests/fixtures/vendor/harness/rs-syminfo-industry-rddt-1d-2026-11-15.json"
+    "tests/fixtures/vendor/harness/rs-syminfo-industry-rddt-1d-2026-11-15.json",
+    "tests/fixtures/vendor/harness/rs-syminfo-industry-rddt-1d-2026-11-16.json"
    ],
    "source": "tools/visual_conformance/probes/rs-syminfo-industry.pine",
    "sourceKind": "probe",
@@ -15484,6 +15244,90 @@
    ]
   },
   {
+   "id": "vw-draw-count-at-cap@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-draw-count-at-cap.pine",
+   "sourceKind": "probe",
+   "sha256": "3bd1b941f8e652d98249a6afb57ab02afd4153bd675cfe865a9e01986132eb5b",
+   "bytes": 2683,
+   "stem": "vw-draw-count-at-cap",
+   "captureStem": "vw-draw-count-at-cap",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "draw-count-at-cap"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-draw-count-at-cap#Q-DRAW-CAP-1"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-draw-count-at-cap@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-draw-count-at-cap.pine",
+   "sourceKind": "probe",
+   "sha256": "3bd1b941f8e652d98249a6afb57ab02afd4153bd675cfe865a9e01986132eb5b",
+   "bytes": 2683,
+   "stem": "vw-draw-count-at-cap",
+   "captureStem": "vw-draw-count-at-cap",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "draw-count-at-cap"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-draw-count-at-cap#Q-DRAW-CAP-2"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
    "id": "vw-ema-last-bit@AMEX:SPY@D",
    "status": "QUEUED",
    "evidence": [],
@@ -15660,6 +15504,28 @@
    "guards": [],
    "namedScripts": [],
    "text": "Q-RS8 | `docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine` (unchanged, sha256 `caa94fe31a87...5af0`) | NYSE:RDDT 1D, NASDAQ:ALAB 1D, NASDAQ:CRWV 1D, each from the listing, default inputs | The x of RS Rating's two labels. The three committed captures (`rs-rating-fred6724-{rddt,alab,crwv}-1d-2026-11-15`) predate U13 and record no x table, so objects v2 grades INCONCLUSIVE and the run half that"
+  },
+  {
+   "key": "capture-queue-2026-11-14-rs-rating#Q-RS10",
+   "doc": "docs/pine/capture-queue-2026-11-14-rs-rating.md",
+   "line": 62,
+   "docWave": "rs-rating",
+   "needsProbe": "probe file owed: rs-rating-fred6724__pziQwiT2.pine",
+   "needsLive": false,
+   "guards": [],
+   "namedScripts": [],
+   "text": "Q-RS10 | `docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine`, in the Q-RS8 session | NYSE:RDDT 1D | TradingView's VISIBLE PRICE RANGE with the script on the price scale, at default settings and a stated visible bar range, plus the same with \"Scale price chart only\" switched on. No committed capture records a visible price range (`tv_capture.js` reads values and objects, not the scale), so the "
+  },
+  {
+   "key": "capture-queue-2026-11-14-rs-rating#Q-RS9",
+   "doc": "docs/pine/capture-queue-2026-11-14-rs-rating.md",
+   "line": 68,
+   "docWave": "rs-rating",
+   "needsProbe": "no probe file named (an inline shape or prose)",
+   "needsLive": false,
+   "guards": [],
+   "namedScripts": [],
+   "text": "Q-RS9 | RS Rating's RS line on bars before 2023-12-05: we serve FMP `^GSPC`, TradingView reads `SP:SPX` | NVDA 1D: 1,292 of 6,997 bars differ (18.5%), first 1999-01-28, last 2023-12-04, largest 1.83% of the value; 5,705 exact; the three averages exact on all 6,997. Re-derived 2026-11-16 on master `d615e76494`. From the 2026-11-15 grade, not re-derived: 89 of the 1,292 exceed 0.01%. RDDT / ALAB / C"
   },
   {
    "key": "capture-queue-2026-11-15-calc-bars#Q-FMT2",
@@ -16220,7 +16086,7 @@
    "title": "Accumulation/distribution",
    "cachedSource": "tools/pine_survey/cache/builtin/accumulationdistribution__Accumulation.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:advance-decline-ratio-bars__Advance_Decl",
@@ -16228,7 +16094,7 @@
    "title": "Advance-decline ratio (bars)",
    "cachedSource": "tools/pine_survey/cache/builtin/advance-decline-ratio-bars__Advance_Decl.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:arnaud-legoux-moving-average__Arnaud1Legou",
@@ -16236,7 +16102,7 @@
    "title": "Arnaud Legoux moving average",
    "cachedSource": "tools/pine_survey/cache/builtin/arnaud-legoux-moving-average__Arnaud1Legou.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:aroon__Aroon",
@@ -16244,7 +16110,7 @@
    "title": "Aroon",
    "cachedSource": "tools/pine_survey/cache/builtin/aroon__Aroon.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:average-daily-range__AverageDayRa",
@@ -16252,7 +16118,7 @@
    "title": "Average daily range",
    "cachedSource": "tools/pine_survey/cache/builtin/average-daily-range__AverageDayRa.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:average-directional-index__Average1Dire",
@@ -16260,7 +16126,7 @@
    "title": "Average directional index",
    "cachedSource": "tools/pine_survey/cache/builtin/average-directional-index__Average1Dire.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:average-true-range__Average_True",
@@ -16268,7 +16134,7 @@
    "title": "Average true range",
    "cachedSource": "tools/pine_survey/cache/builtin/average-true-range__Average_True.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:awesome-oscillator__Awesome_Osci",
@@ -16276,7 +16142,7 @@
    "title": "Awesome oscillator",
    "cachedSource": "tools/pine_survey/cache/builtin/awesome-oscillator__Awesome_Osci.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:balance-of-power__Balance1of1P",
@@ -16284,7 +16150,7 @@
    "title": "Balance of power",
    "cachedSource": "tools/pine_survey/cache/builtin/balance-of-power__Balance1of1P.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:bbtrend__BBTrend",
@@ -16292,7 +16158,7 @@
    "title": "BBTrend",
    "cachedSource": "tools/pine_survey/cache/builtin/bbtrend__BBTrend.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:bollinger-bands-b__Bollinger_Ba",
@@ -16300,7 +16166,7 @@
    "title": "Bollinger Bands %b",
    "cachedSource": "tools/pine_survey/cache/builtin/bollinger-bands-b__Bollinger_Ba.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:bollinger-bands__Bollinger_Ba",
@@ -16308,7 +16174,7 @@
    "title": "Bollinger Bands",
    "cachedSource": "tools/pine_survey/cache/builtin/bollinger-bands__Bollinger_Ba.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:bollinger-bandwidth__Bollinger_Ba",
@@ -16316,7 +16182,7 @@
    "title": "Bollinger BandWidth",
    "cachedSource": "tools/pine_survey/cache/builtin/bollinger-bandwidth__Bollinger_Ba.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:bull-bear-power__BullBearPowe",
@@ -16324,7 +16190,7 @@
    "title": "Bull bear power",
    "cachedSource": "tools/pine_survey/cache/builtin/bull-bear-power__BullBearPowe.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:chaikin-money-flow__Chaikin_Mone",
@@ -16332,7 +16198,7 @@
    "title": "Chaikin money flow",
    "cachedSource": "tools/pine_survey/cache/builtin/chaikin-money-flow__Chaikin_Mone.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:chaikin-oscillator__Chaikin_Osci",
@@ -16340,7 +16206,7 @@
    "title": "Chaikin oscillator",
    "cachedSource": "tools/pine_survey/cache/builtin/chaikin-oscillator__Chaikin_Osci.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:chande-kroll-stop__Chande1Kroll",
@@ -16348,7 +16214,7 @@
    "title": "Chande Kroll stop",
    "cachedSource": "tools/pine_survey/cache/builtin/chande-kroll-stop__Chande1Kroll.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:chande-momentum-oscillator__Chande_Momen",
@@ -16356,7 +16222,7 @@
    "title": "Chande momentum oscillator",
    "cachedSource": "tools/pine_survey/cache/builtin/chande-momentum-oscillator__Chande_Momen.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:choppiness-index__Choppiness_I",
@@ -16364,7 +16230,7 @@
    "title": "Choppiness index",
    "cachedSource": "tools/pine_survey/cache/builtin/choppiness-index__Choppiness_I.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:commodity-channel-index__CCI",
@@ -16372,7 +16238,7 @@
    "title": "Commodity channel index",
    "cachedSource": "tools/pine_survey/cache/builtin/commodity-channel-index__CCI.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:connors-rsi__Connors_RSI",
@@ -16380,7 +16246,7 @@
    "title": "Connors RSI",
    "cachedSource": "tools/pine_survey/cache/builtin/connors-rsi__Connors_RSI.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:coppock-curve__Coppock1Curv",
@@ -16388,7 +16254,7 @@
    "title": "Coppock curve",
    "cachedSource": "tools/pine_survey/cache/builtin/coppock-curve__Coppock1Curv.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:directional-movement-index__DMI",
@@ -16396,7 +16262,7 @@
    "title": "Directional movement index",
    "cachedSource": "tools/pine_survey/cache/builtin/directional-movement-index__DMI.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:donchian-channels__Donchian_Cha",
@@ -16404,7 +16270,7 @@
    "title": "Donchian channels",
    "cachedSource": "tools/pine_survey/cache/builtin/donchian-channels__Donchian_Cha.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:double-exponential-moving-average__DEMA",
@@ -16412,7 +16278,7 @@
    "title": "Double exponential moving average",
    "cachedSource": "tools/pine_survey/cache/builtin/double-exponential-moving-average__DEMA.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:ease-of-movement__EOM",
@@ -16420,7 +16286,7 @@
    "title": "Ease of movement",
    "cachedSource": "tools/pine_survey/cache/builtin/ease-of-movement__EOM.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:elder039s-force-index__EFI",
@@ -16428,7 +16294,7 @@
    "title": "Elder&#039;s force index",
    "cachedSource": "tools/pine_survey/cache/builtin/elder039s-force-index__EFI.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:envelope__ENV",
@@ -16436,7 +16302,7 @@
    "title": "Envelope",
    "cachedSource": "tools/pine_survey/cache/builtin/envelope__ENV.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:exponential-moving-average__EMA",
@@ -16444,7 +16310,7 @@
    "title": "Exponential moving average",
    "cachedSource": "tools/pine_survey/cache/builtin/exponential-moving-average__EMA.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:historical-volatility__Historical_V",
@@ -16452,7 +16318,7 @@
    "title": "Historical volatility",
    "cachedSource": "tools/pine_survey/cache/builtin/historical-volatility__Historical_V.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:ichimoku-cloud__Ichimoku1Clo",
@@ -16460,7 +16326,7 @@
    "title": "Ichimoku cloud",
    "cachedSource": "tools/pine_survey/cache/builtin/ichimoku-cloud__Ichimoku1Clo.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:keltner-channels__Keltner_Chan",
@@ -16468,7 +16334,7 @@
    "title": "Keltner channels",
    "cachedSource": "tools/pine_survey/cache/builtin/keltner-channels__Keltner_Chan.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:klinger-oscillator__Klinger1Osci",
@@ -16476,7 +16342,7 @@
    "title": "Klinger oscillator",
    "cachedSource": "tools/pine_survey/cache/builtin/klinger-oscillator__Klinger1Osci.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:know-sure-thing__Know_Sure_Th",
@@ -16484,7 +16350,7 @@
    "title": "Know sure thing",
    "cachedSource": "tools/pine_survey/cache/builtin/know-sure-thing__Know_Sure_Th.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:least-squares-moving-average__Least1Square",
@@ -16492,7 +16358,7 @@
    "title": "Least squares moving average",
    "cachedSource": "tools/pine_survey/cache/builtin/least-squares-moving-average__Least1Square.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:mass-index__Mass1Index",
@@ -16500,7 +16366,7 @@
    "title": "Mass index",
    "cachedSource": "tools/pine_survey/cache/builtin/mass-index__Mass1Index.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:median__Median",
@@ -16508,7 +16374,7 @@
    "title": "Median",
    "cachedSource": "tools/pine_survey/cache/builtin/median__Median.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:momentum__Momentum",
@@ -16516,7 +16382,7 @@
    "title": "Momentum",
    "cachedSource": "tools/pine_survey/cache/builtin/momentum__Momentum.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:money-flow-index__Money_Flow",
@@ -16524,7 +16390,7 @@
    "title": "Money flow index",
    "cachedSource": "tools/pine_survey/cache/builtin/money-flow-index__Money_Flow.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:moving-average-crossover__MA1Cross",
@@ -16532,7 +16398,7 @@
    "title": "Moving average crossover",
    "cachedSource": "tools/pine_survey/cache/builtin/moving-average-crossover__MA1Cross.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:moving-average-ribbon__MARibbon",
@@ -16540,7 +16406,7 @@
    "title": "Moving average ribbon",
    "cachedSource": "tools/pine_survey/cache/builtin/moving-average-ribbon__MARibbon.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:negative-volume-index__Negative_Vol",
@@ -16548,7 +16414,7 @@
    "title": "Negative volume index",
    "cachedSource": "tools/pine_survey/cache/builtin/negative-volume-index__Negative_Vol.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:on-balance-volume__On_Balance_V",
@@ -16556,7 +16422,7 @@
    "title": "On-balance volume",
    "cachedSource": "tools/pine_survey/cache/builtin/on-balance-volume__On_Balance_V.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:pivot-points-high-low__Pivot1Points",
@@ -16564,7 +16430,7 @@
    "title": "Pivot points high low",
    "cachedSource": "tools/pine_survey/cache/builtin/pivot-points-high-low__Pivot1Points.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:positive-volume-index__Positive_Vol",
@@ -16572,7 +16438,7 @@
    "title": "Positive volume index",
    "cachedSource": "tools/pine_survey/cache/builtin/positive-volume-index__Positive_Vol.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:price-volume-trend__Price_Volume",
@@ -16580,7 +16446,7 @@
    "title": "Price-volume trend",
    "cachedSource": "tools/pine_survey/cache/builtin/price-volume-trend__Price_Volume.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:rank-correlation-index__Rank_Correla",
@@ -16588,7 +16454,7 @@
    "title": "Rank correlation index",
    "cachedSource": "tools/pine_survey/cache/builtin/rank-correlation-index__Rank_Correla.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:rate-of-change__ROC",
@@ -16596,7 +16462,7 @@
    "title": "Rate of change",
    "cachedSource": "tools/pine_survey/cache/builtin/rate-of-change__ROC.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:rci-ribbon__RCI_Ribbon",
@@ -16604,7 +16470,7 @@
    "title": "RCI ribbon",
    "cachedSource": "tools/pine_survey/cache/builtin/rci-ribbon__RCI_Ribbon.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:relative-vigor-index__Relative_Vig",
@@ -16612,7 +16478,7 @@
    "title": "Relative vigor index",
    "cachedSource": "tools/pine_survey/cache/builtin/relative-vigor-index__Relative_Vig.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:relative-volatility-index__Relative_Vol",
@@ -16620,7 +16486,7 @@
    "title": "Relative volatility index",
    "cachedSource": "tools/pine_survey/cache/builtin/relative-volatility-index__Relative_Vol.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:rsi-divergence-indicator__Divergence1I",
@@ -16628,7 +16494,7 @@
    "title": "RSI divergence indicator",
    "cachedSource": "tools/pine_survey/cache/builtin/rsi-divergence-indicator__Divergence1I.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:simple-moving-average__SMA",
@@ -16636,7 +16502,7 @@
    "title": "Simple moving average",
    "cachedSource": "tools/pine_survey/cache/builtin/simple-moving-average__SMA.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:smi-ergodic-indicator__SMI_Ergodic_",
@@ -16644,7 +16510,7 @@
    "title": "SMI ergodic indicator",
    "cachedSource": "tools/pine_survey/cache/builtin/smi-ergodic-indicator__SMI_Ergodic_.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:smi-ergodic-oscillator__SMI_Ergodic_",
@@ -16652,7 +16518,7 @@
    "title": "SMI ergodic oscillator",
    "cachedSource": "tools/pine_survey/cache/builtin/smi-ergodic-oscillator__SMI_Ergodic_.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:smoothed-moving-average__Smoothed1Mov",
@@ -16660,7 +16526,7 @@
    "title": "Smoothed moving average",
    "cachedSource": "tools/pine_survey/cache/builtin/smoothed-moving-average__Smoothed1Mov.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:stochastic-momentum-index__SMI",
@@ -16668,7 +16534,7 @@
    "title": "Stochastic momentum index",
    "cachedSource": "tools/pine_survey/cache/builtin/stochastic-momentum-index__SMI.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:stochastic-rsi__Stochastic_R",
@@ -16676,7 +16542,7 @@
    "title": "Stochastic RSI",
    "cachedSource": "tools/pine_survey/cache/builtin/stochastic-rsi__Stochastic_R.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:stochastic__Stochastic",
@@ -16684,7 +16550,7 @@
    "title": "Stochastic",
    "cachedSource": "tools/pine_survey/cache/builtin/stochastic__Stochastic.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:supertrend__Supertrend",
@@ -16692,7 +16558,7 @@
    "title": "Supertrend",
    "cachedSource": "tools/pine_survey/cache/builtin/supertrend__Supertrend.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:trend-strength-index__Trend1Streng",
@@ -16700,7 +16566,7 @@
    "title": "Trend strength index",
    "cachedSource": "tools/pine_survey/cache/builtin/trend-strength-index__Trend1Streng.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:triple-exponential-moving-average__TEMA",
@@ -16708,7 +16574,7 @@
    "title": "Triple exponential moving average",
    "cachedSource": "tools/pine_survey/cache/builtin/triple-exponential-moving-average__TEMA.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:trix__TRIX",
@@ -16716,7 +16582,7 @@
    "title": "TRIX",
    "cachedSource": "tools/pine_survey/cache/builtin/trix__TRIX.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:true-strength-index__True1Strengt",
@@ -16724,7 +16590,7 @@
    "title": "True strength index",
    "cachedSource": "tools/pine_survey/cache/builtin/true-strength-index__True1Strengt.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:ultimate-oscillator__Ultimate_Osc",
@@ -16732,7 +16598,7 @@
    "title": "Ultimate oscillator",
    "cachedSource": "tools/pine_survey/cache/builtin/ultimate-oscillator__Ultimate_Osc.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:volume-weighted-moving-average__VWMA",
@@ -16740,7 +16606,7 @@
    "title": "Volume-weighted moving average",
    "cachedSource": "tools/pine_survey/cache/builtin/volume-weighted-moving-average__VWMA.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:vortex-indicator__Vortex1Indic",
@@ -16748,7 +16614,7 @@
    "title": "Vortex indicator",
    "cachedSource": "tools/pine_survey/cache/builtin/vortex-indicator__Vortex1Indic.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:weighted-moving-average__WMA",
@@ -16756,7 +16622,7 @@
    "title": "Weighted moving average",
    "cachedSource": "tools/pine_survey/cache/builtin/weighted-moving-average__WMA.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:williams-alligator__Williams_All",
@@ -16764,7 +16630,7 @@
    "title": "Williams alligator",
    "cachedSource": "tools/pine_survey/cache/builtin/williams-alligator__Williams_All.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:williams-percent-range__Willams_R",
@@ -16772,7 +16638,7 @@
    "title": "Williams percent range",
    "cachedSource": "tools/pine_survey/cache/builtin/williams-percent-range__Willams_R.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:woodies-cci__Woodies1CCI",
@@ -16780,7 +16646,7 @@
    "title": "Woodies CCI",
    "cachedSource": "tools/pine_survey/cache/builtin/woodies-cci__Woodies1CCI.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:4-colour-macd__1146",
@@ -16788,7 +16654,7 @@
    "title": "4 colour MACD",
    "cachedSource": "tools/pine_survey/cache/sources/4-colour-macd__1146.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:accdist-macd__2931",
@@ -16796,7 +16662,7 @@
    "title": "AccDist MACD",
    "cachedSource": "tools/pine_survey/cache/sources/accdist-macd__2931.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:accumulationdistribution-volume-adv-ci8dh__OC6f7EUAOj",
@@ -16804,7 +16670,7 @@
    "title": "Accumulation/Distribution Volume (ADV) [cI8DH]",
    "cachedSource": "tools/pine_survey/cache/sources/accumulationdistribution-volume-adv-ci8dh__OC6f7EUAOj.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:accumulationdistribution-with-markers__549",
@@ -16812,7 +16678,7 @@
    "title": "Accumulation/Distribution - with markers",
    "cachedSource": "tools/pine_survey/cache/sources/accumulationdistribution-with-markers__549.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:advance-decline-line-nyse-buschi__JFKaFMrPqZ",
@@ -16820,7 +16686,7 @@
    "title": "Advance Decline Line NYSE-Buschi",
    "cachedSource": "tools/pine_survey/cache/sources/advance-decline-line-nyse-buschi__JFKaFMrPqZ.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:atr-based-trendlines-jd__R4UDQ8nP1z",
@@ -16828,7 +16694,7 @@
    "title": "ATR Based Trendlines - JD",
    "cachedSource": "tools/pine_survey/cache/sources/atr-based-trendlines-jd__R4UDQ8nP1z.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:auto-fib-levels__01de230c0a",
@@ -16836,7 +16702,7 @@
    "title": "Auto Fib Levels",
    "cachedSource": "tools/pine_survey/cache/sources/auto-fib-levels__01de230c0a.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:auto-fibonacci-retracament-levels__8Zm0EBCwa0",
@@ -16844,7 +16710,7 @@
    "title": "Auto Fibonacci Retracament Levels",
    "cachedSource": "tools/pine_survey/cache/sources/auto-fibonacci-retracament-levels__8Zm0EBCwa0.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:average-true-range-stop-loss-finder__d48234236f",
@@ -16852,7 +16718,7 @@
    "title": "Average True Range Stop Loss Finder",
    "cachedSource": "tools/pine_survey/cache/sources/average-true-range-stop-loss-finder__d48234236f.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:average-true-range-trailing-stops-strategy-by-sylvain-vervoort__608",
@@ -16860,7 +16726,7 @@
    "title": "Average True Range Trailing Stops Strategy, by Sylvain Vervoort",
    "cachedSource": "tools/pine_survey/cache/sources/average-true-range-trailing-stops-strategy-by-sylvain-vervoort__608.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:bearish-engulfing__110",
@@ -16868,7 +16734,7 @@
    "title": "Bearish Engulfing",
    "cachedSource": "tools/pine_survey/cache/sources/bearish-engulfing__110.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:best-supertrend-cci__nngZVuIMCz",
@@ -16876,7 +16742,7 @@
    "title": "BEST Supertrend CCI",
    "cachedSource": "tools/pine_survey/cache/sources/best-supertrend-cci__nngZVuIMCz.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:bill-williams-awesome-oscillator-ao__543",
@@ -16884,7 +16750,7 @@
    "title": "Bill Williams. Awesome Oscillator (AO)",
    "cachedSource": "tools/pine_survey/cache/sources/bill-williams-awesome-oscillator-ao__543.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:bollingers-bands-fibonacci-ratios__2778",
@@ -16892,7 +16758,7 @@
    "title": "Bollingers Bands Fibonacci ratios",
    "cachedSource": "tools/pine_survey/cache/sources/bollingers-bands-fibonacci-ratios__2778.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:bullish-engulfing__111",
@@ -16900,7 +16766,7 @@
    "title": "Bullish Engulfing",
    "cachedSource": "tools/pine_survey/cache/sources/bullish-engulfing__111.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:candles__1055",
@@ -16908,7 +16774,7 @@
    "title": "Candles",
    "cachedSource": "tools/pine_survey/cache/sources/candles__1055.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:cci-coded-obv__9",
@@ -16916,7 +16782,7 @@
    "title": "CCI coded OBV",
    "cachedSource": "tools/pine_survey/cache/sources/cci-coded-obv__9.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:cm-donchian-channels-modified__45",
@@ -16924,7 +16790,7 @@
    "title": "CM_Donchian Channels Modified",
    "cachedSource": "tools/pine_survey/cache/sources/cm-donchian-channels-modified__45.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:cm-enhanced-ichimoku-cloud-v5__664",
@@ -16932,7 +16798,7 @@
    "title": "CM_Enhanced_Ichimoku Cloud-V5",
    "cachedSource": "tools/pine_survey/cache/sources/cm-enhanced-ichimoku-cloud-v5__664.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:cm-rsi-2-strat-low__568",
@@ -16940,7 +16806,7 @@
    "title": "_CM_RSI_2_Strat_Low",
    "cachedSource": "tools/pine_survey/cache/sources/cm-rsi-2-strat-low__568.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:cm-stochastic-mtf__648",
@@ -16948,7 +16814,7 @@
    "title": "CM_Stochastic_MTF",
    "cachedSource": "tools/pine_survey/cache/sources/cm-stochastic-mtf__648.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:cm-ultimate-rsi-mtf__454",
@@ -16956,7 +16822,7 @@
    "title": "CM_Ultimate RSI MTF",
    "cachedSource": "tools/pine_survey/cache/sources/cm-ultimate-rsi-mtf__454.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:cog-double-channel-lazybear__7",
@@ -16964,7 +16830,7 @@
    "title": "COG Double Channel [LazyBear]",
    "cachedSource": "tools/pine_survey/cache/sources/cog-double-channel-lazybear__7.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:cumulative-volume-delta__6e0c94af7a",
@@ -16972,7 +16838,7 @@
    "title": "Cumulative Volume Delta",
    "cachedSource": "tools/pine_survey/cache/sources/cumulative-volume-delta__6e0c94af7a.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:demand-and-supply-candles-open__2XdpoRlzHB",
@@ -16980,7 +16846,7 @@
    "title": "Demand and Supply Candles-open",
    "cachedSource": "tools/pine_survey/cache/sources/demand-and-supply-candles-open__2XdpoRlzHB.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:doji-signals__4178",
@@ -16988,7 +16854,7 @@
    "title": "Doji signals",
    "cachedSource": "tools/pine_survey/cache/sources/doji-signals__4178.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:elliot-wave-oscillator-lazybear__14",
@@ -16996,7 +16862,7 @@
    "title": "Elliot Wave Oscillator [LazyBear]",
    "cachedSource": "tools/pine_survey/cache/sources/elliot-wave-oscillator-lazybear__14.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:elliott-wave-oscillator__ZESVhxLVIL",
@@ -17004,7 +16870,7 @@
    "title": "Elliott Wave Oscillator",
    "cachedSource": "tools/pine_survey/cache/sources/elliott-wave-oscillator__ZESVhxLVIL.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:elliott-wave-oscillator__r4MVRjtjDc",
@@ -17012,7 +16878,7 @@
    "title": "Elliott Wave Oscillator",
    "cachedSource": "tools/pine_survey/cache/sources/elliott-wave-oscillator__r4MVRjtjDc.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:ema-ribbon-krypt__GOYNhZP4X9",
@@ -17020,7 +16886,7 @@
    "title": "EMA Ribbon [Krypt]",
    "cachedSource": "tools/pine_survey/cache/sources/ema-ribbon-krypt__GOYNhZP4X9.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:engulfing-candles__JRjO56hfaw",
@@ -17028,7 +16894,7 @@
    "title": "Engulfing Candles",
    "cachedSource": "tools/pine_survey/cache/sources/engulfing-candles__JRjO56hfaw.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:fib-pivot-points-alerts__A4zY3dRcsE",
@@ -17036,7 +16902,7 @@
    "title": "Fib Pivot Points Alerts",
    "cachedSource": "tools/pine_survey/cache/sources/fib-pivot-points-alerts__A4zY3dRcsE.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:fibonacci-bollinger-bands__2835",
@@ -17044,7 +16910,7 @@
    "title": "Fibonacci Bollinger Bands",
    "cachedSource": "tools/pine_survey/cache/sources/fibonacci-bollinger-bands__2835.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:fibonacci-levels__RHEhVHNx6d",
@@ -17052,7 +16918,7 @@
    "title": "Fibonacci levels",
    "cachedSource": "tools/pine_survey/cache/sources/fibonacci-levels__RHEhVHNx6d.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:fibonacci-retracement-lines__BUdXB173r5",
@@ -17060,7 +16926,7 @@
    "title": "Fibonacci retracement lines",
    "cachedSource": "tools/pine_survey/cache/sources/fibonacci-retracement-lines__BUdXB173r5.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:fikira-pivots-fibonacci-retracement-3__z6DqAomUWC",
@@ -17068,7 +16934,7 @@
    "title": "[fikira] Pivots Fibonacci Retracement 3",
    "cachedSource": "tools/pine_survey/cache/sources/fikira-pivots-fibonacci-retracement-3__z6DqAomUWC.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:filtered-waves__qQY0b4PGLS",
@@ -17076,7 +16942,7 @@
    "title": "Filtered Waves",
    "cachedSource": "tools/pine_survey/cache/sources/filtered-waves__qQY0b4PGLS.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:fixed-percent-stop-loss-take-profit-for-study-scripts__8l8h5SVmib",
@@ -17084,7 +16950,15 @@
    "title": "Fixed Percent Stop Loss & Take Profit % - For Study Scripts",
    "cachedSource": "tools/pine_survey/cache/sources/fixed-percent-stop-loss-take-profit-for-study-scripts__8l8h5SVmib.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
+  },
+  {
+   "key": "reference:flying-buddha-inside-bars-indicator-v1-by-justunclel__0d9CiLNXGu",
+   "population": "reference",
+   "title": "Flying Buddha Inside Bars Indicator v1 by JustUncleL",
+   "cachedSource": "tools/pine_survey/cache/sources/flying-buddha-inside-bars-indicator-v1-by-justunclel__0d9CiLNXGu.pine",
+   "sourcePresent": false,
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:fxn-week-and-day-separator__ingZSaBNLa",
@@ -17092,7 +16966,7 @@
    "title": "FXN - Week and Day Separator",
    "cachedSource": "tools/pine_survey/cache/sources/fxn-week-and-day-separator__ingZSaBNLa.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:ichimoku2c__68",
@@ -17100,7 +16974,7 @@
    "title": "Ichimoku2c",
    "cachedSource": "tools/pine_survey/cache/sources/ichimoku2c__68.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:ict-implied-fair-value-gap-ifvg-luxalgo__0c4a257b58",
@@ -17108,7 +16982,15 @@
    "title": "ICT Implied Fair Value Gap (IFVG) [LuxAlgo]",
    "cachedSource": "tools/pine_survey/cache/sources/ict-implied-fair-value-gap-ifvg-luxalgo__0c4a257b58.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
+  },
+  {
+   "key": "reference:inside-bar-setup__a1528b4d74",
+   "population": "reference",
+   "title": "Inside Bar Setup",
+   "cachedSource": "tools/pine_survey/cache/sources/inside-bar-setup__a1528b4d74.pine",
+   "sourcePresent": false,
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:kyadvance-decline-line__Y4kq1XL1p2",
@@ -17116,7 +16998,7 @@
    "title": " [KY]Advance Decline Line",
    "cachedSource": "tools/pine_survey/cache/sources/kyadvance-decline-line__Y4kq1XL1p2.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:linear-regression-channel__XiFnwmUCKS",
@@ -17124,7 +17006,7 @@
    "title": "Linear Regression Channel",
    "cachedSource": "tools/pine_survey/cache/sources/linear-regression-channel__XiFnwmUCKS.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:liquidation-screener__jwAtEwngOd",
@@ -17132,7 +17014,7 @@
    "title": "Liquidation Screener",
    "cachedSource": "tools/pine_survey/cache/sources/liquidation-screener__jwAtEwngOd.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:liquidity-by-makuchaku-efe__8db03bf972",
@@ -17140,7 +17022,7 @@
    "title": "Liquidity by makuchaku & eFe",
    "cachedSource": "tools/pine_survey/cache/sources/liquidity-by-makuchaku-efe__8db03bf972.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:macd-trend-heatmap-by-chartart__1985",
@@ -17148,7 +17030,7 @@
    "title": "MACD trend heatmap (by ChartArt)",
    "cachedSource": "tools/pine_survey/cache/sources/macd-trend-heatmap-by-chartart__1985.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:mamona-candles__1510",
@@ -17156,7 +17038,7 @@
    "title": "Mamona Candles",
    "cachedSource": "tools/pine_survey/cache/sources/mamona-candles__1510.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:market-structure-confluence-algoalpha__bf28f1838f",
@@ -17164,7 +17046,7 @@
    "title": "Market Structure Confluence [AlgoAlpha]",
    "cachedSource": "tools/pine_survey/cache/sources/market-structure-confluence-algoalpha__bf28f1838f.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:mcclellan-oscillator-advndecl-breadth-indicator-lazybear__FnksDSV3kq",
@@ -17172,7 +17054,15 @@
    "title": "McClellan Oscillator - ADVN/DECL breadth indicator [LazyBear]",
    "cachedSource": "tools/pine_survey/cache/sources/mcclellan-oscillator-advndecl-breadth-indicator-lazybear__FnksDSV3kq.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
+  },
+  {
+   "key": "reference:money-flow-index__3LM5J3rc0O",
+   "population": "reference",
+   "title": "Money Flow Index",
+   "cachedSource": "tools/pine_survey/cache/sources/money-flow-index__3LM5J3rc0O.pine",
+   "sourcePresent": false,
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:moving-average-adx__1704",
@@ -17180,7 +17070,7 @@
    "title": "Moving Average ADX",
    "cachedSource": "tools/pine_survey/cache/sources/moving-average-adx__1704.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:moving-average-colored-emasma__1581",
@@ -17188,7 +17078,7 @@
    "title": "Moving Average Colored EMA/SMA",
    "cachedSource": "tools/pine_survey/cache/sources/moving-average-colored-emasma__1581.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:multi-timeframe-support-and-resistance-aba-invest__7d00b883de",
@@ -17196,7 +17086,7 @@
    "title": "Multi Timeframe Support and Resistance [ABA Invest]",
    "cachedSource": "tools/pine_survey/cache/sources/multi-timeframe-support-and-resistance-aba-invest__7d00b883de.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:obv-accumulation-distribution-combination-v2__VQisUlaDL3",
@@ -17204,7 +17094,7 @@
    "title": "OBV Accumulation / Distribution combination v2",
    "cachedSource": "tools/pine_survey/cache/sources/obv-accumulation-distribution-combination-v2__VQisUlaDL3.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:on-balance-volume-macd-acceleratorawesome-oscillator-pivdiv-3__FIPN6o0f6y",
@@ -17212,7 +17102,7 @@
    "title": "[On Balance Volume] [MACD] [Accelerator/Awesome Oscillator] + PivDiv 3",
    "cachedSource": "tools/pine_survey/cache/sources/on-balance-volume-macd-acceleratorawesome-oscillator-pivdiv-3__FIPN6o0f6y.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:orb__xLXe22qQZC",
@@ -17220,7 +17110,7 @@
    "title": "ORB",
    "cachedSource": "tools/pine_survey/cache/sources/orb__xLXe22qQZC.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:pin-bar-indicator__CclWWrUHpq",
@@ -17228,7 +17118,7 @@
    "title": "PIN BAR INDICATOR",
    "cachedSource": "tools/pine_survey/cache/sources/pin-bar-indicator__CclWWrUHpq.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:pivot-based-swing-highs-and-lows__b230ea4c6d",
@@ -17236,7 +17126,7 @@
    "title": "Pivot-based Swing Highs and Lows",
    "cachedSource": "tools/pine_survey/cache/sources/pivot-based-swing-highs-and-lows__b230ea4c6d.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:pivot-points-high-low-extension__Pxr8FVNWPB",
@@ -17244,7 +17134,7 @@
    "title": "Pivot Points High Low Extension",
    "cachedSource": "tools/pine_survey/cache/sources/pivot-points-high-low-extension__Pxr8FVNWPB.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:pivot-points-high-low-hhhllhll-anan__b04lNFHeme",
@@ -17252,7 +17142,7 @@
    "title": "Pivot Points High Low (HH/HL/LH/LL) [Anan] ",
    "cachedSource": "tools/pine_survey/cache/sources/pivot-points-high-low-hhhllhll-anan__b04lNFHeme.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:previous-day-high-and-low__j8jsD7neOj",
@@ -17268,7 +17158,7 @@
    "title": "QuantNomad - Pivot Points Alerts",
    "cachedSource": "tools/pine_survey/cache/sources/quantnomad-pivot-points-alerts__eJJzrMjMYe.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:rate-of-change-and-rsi-zones__2ff596b2f1",
@@ -17276,7 +17166,7 @@
    "title": "Rate Of Change and rsi zones",
    "cachedSource": "tools/pine_survey/cache/sources/rate-of-change-and-rsi-zones__2ff596b2f1.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:relative-volume-rvol-depthhouse__5INmqVXfui",
@@ -17284,7 +17174,7 @@
    "title": "Relative Volume RVOL [DepthHouse]",
    "cachedSource": "tools/pine_survey/cache/sources/relative-volume-rvol-depthhouse__5INmqVXfui.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:rsi-bands-lazybear__197",
@@ -17292,7 +17182,7 @@
    "title": "RSI Bands [LazyBear]",
    "cachedSource": "tools/pine_survey/cache/sources/rsi-bands-lazybear__197.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:rsi-chart-bars__131",
@@ -17300,7 +17190,7 @@
    "title": "RSI Chart Bars",
    "cachedSource": "tools/pine_survey/cache/sources/rsi-chart-bars__131.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:rsi-divergence__Q55lng135i",
@@ -17308,7 +17198,7 @@
    "title": "RSI Divergence",
    "cachedSource": "tools/pine_survey/cache/sources/rsi-divergence__Q55lng135i.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:rssupport-and-resistance__bcx67lT3El",
@@ -17316,7 +17206,7 @@
    "title": "[RS]Support and Resistance",
    "cachedSource": "tools/pine_survey/cache/sources/rssupport-and-resistance__bcx67lT3El.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:simple-moving-averages__kWRFasqqym",
@@ -17324,7 +17214,7 @@
    "title": "Simple Moving Averages",
    "cachedSource": "tools/pine_survey/cache/sources/simple-moving-averages__kWRFasqqym.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:smart-money-concepts-smc-with-macd-signals__507767e966",
@@ -17332,7 +17222,7 @@
    "title": "Smart Money Concepts (SMC) with MACD Signals",
    "cachedSource": "tools/pine_survey/cache/sources/smart-money-concepts-smc-with-macd-signals__507767e966.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:squeeze-momentum-indicator-lazybear__2439",
@@ -17340,7 +17230,7 @@
    "title": "Squeeze Momentum Indicator [LazyBear]",
    "cachedSource": "tools/pine_survey/cache/sources/squeeze-momentum-indicator-lazybear__2439.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:supertrend__VfOPXWDHDP",
@@ -17348,7 +17238,7 @@
    "title": "Supertrend",
    "cachedSource": "tools/pine_survey/cache/sources/supertrend__VfOPXWDHDP.pine",
    "sourcePresent": false,
-   "vendorVerdict": "INCONCLUSIVE"
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:supertrend__nlyrgnVJ8Z",
@@ -17356,7 +17246,7 @@
    "title": "SuperTrend",
    "cachedSource": "tools/pine_survey/cache/sources/supertrend__nlyrgnVJ8Z.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:swing-highs-lows__pkMwWmV2Mf",
@@ -17364,7 +17254,7 @@
    "title": "Swing Highs & Lows",
    "cachedSource": "tools/pine_survey/cache/sources/swing-highs-lows__pkMwWmV2Mf.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:trade-archer-on-balance-volume-moving-averages-v1__897",
@@ -17372,7 +17262,7 @@
    "title": "Trade Archer - On Balance Volume Moving Averages - v1",
    "cachedSource": "tools/pine_survey/cache/sources/trade-archer-on-balance-volume-moving-averages-v1__897.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:trailing-stop-loss__MsDHHzGxlV",
@@ -17380,7 +17270,7 @@
    "title": "Trailing Stop Loss",
    "cachedSource": "tools/pine_survey/cache/sources/trailing-stop-loss__MsDHHzGxlV.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:triple-moving-averages__iRcDB7kRWk",
@@ -17388,7 +17278,7 @@
    "title": "Triple Moving Averages",
    "cachedSource": "tools/pine_survey/cache/sources/triple-moving-averages__iRcDB7kRWk.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:tutorial-rsiwings-priceswings-for-find-pyramiding-entries-with-higher-__pfm3UYqhXM",
@@ -17396,7 +17286,7 @@
    "title": "[Tutorial] RSIwings (priceswings) for find pyramiding entries with higher highs + higher lows and lower highs + lower lows",
    "cachedSource": "tools/pine_survey/cache/sources/tutorial-rsiwings-priceswings-for-find-pyramiding-entries-with-higher-__pfm3UYqhXM.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:uptrick-volatility-weighted-cloud__05e131626e",
@@ -17404,7 +17294,7 @@
    "title": "Uptrick: Volatility Weighted Cloud",
    "cachedSource": "tools/pine_survey/cache/sources/uptrick-volatility-weighted-cloud__05e131626e.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:uptrick-volume-weighted-bands__67e98b8f2a",
@@ -17412,7 +17302,7 @@
    "title": "Uptrick: Volume Weighted Bands",
    "cachedSource": "tools/pine_survey/cache/sources/uptrick-volume-weighted-bands__67e98b8f2a.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:ut-bot-cooldown-visual-fvg__17b93cb3b0",
@@ -17420,15 +17310,7 @@
    "title": "UT Bot + Cooldown + Visual FVG",
    "cachedSource": "tools/pine_survey/cache/sources/ut-bot-cooldown-visual-fvg__17b93cb3b0.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
-  },
-  {
-   "key": "reference:volume-pace-pressure-table__235d4849a0",
-   "population": "reference",
-   "title": "Volume Pace & Pressure Table",
-   "cachedSource": "tools/pine_survey/cache/sources/volume-pace-pressure-table__235d4849a0.pine",
-   "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:vwap__87pM0vNjII",
@@ -17436,7 +17318,7 @@
    "title": "VWAP",
    "cachedSource": "tools/pine_survey/cache/sources/vwap__87pM0vNjII.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:wavetrend-with-crosses-lazybear__2295",
@@ -17444,15 +17326,7 @@
    "title": "WaveTrend with Crosses [LazyBear]",
    "cachedSource": "tools/pine_survey/cache/sources/wavetrend-with-crosses-lazybear__2295.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
-  },
-  {
-   "key": "reference:ytc-swing-highs-lows__H94Z0NbN5P",
-   "population": "reference",
-   "title": "YTC - Swing Highs & Lows",
-   "cachedSource": "tools/pine_survey/cache/sources/ytc-swing-highs-lows__H94Z0NbN5P.pine",
-   "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:z-score-trend-following__d57d6e450b",
@@ -17460,7 +17334,7 @@
    "title": "Z Score & Trend Following",
    "cachedSource": "tools/pine_survey/cache/sources/z-score-trend-following__d57d6e450b.pine",
    "sourcePresent": false,
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   }
  ],
  "docs": [
@@ -17791,7 +17665,7 @@
   {
    "doc": "docs/pine/capture-queue-2026-11-14-rs-rating.md",
    "wave": "rs-rating",
-   "rows": 8,
+   "rows": 10,
    "contextTables": 0
   },
   {
@@ -17804,6 +17678,12 @@
    "doc": "docs/pine/capture-queue-2026-11-16-cond-ta-followups.md",
    "wave": "cond-ta-followups",
    "rows": 8,
+   "contextTables": 0
+  },
+  {
+   "doc": "docs/pine/capture-queue-2026-11-16-draw-count-at-cap.md",
+   "wave": "draw-count-at-cap",
+   "rows": 2,
    "contextTables": 0
   },
   {
