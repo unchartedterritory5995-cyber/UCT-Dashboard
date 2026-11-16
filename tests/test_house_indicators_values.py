@@ -197,6 +197,15 @@ def references(which: str, bars: list[dict], spy: list[dict]) -> dict:
         R["todayPct"] = [r[i] / a[i] * 100 if ok(a[i]) and a[i] else NAN for i in range(n)]
     elif which == "ema_10_21_trend":
         R["ema21"], R["ema10"] = ema(c, 21), ema(c, 10)
+    elif which == "flat_base":
+        out = []
+        for i in range(n):
+            if i < 251:
+                out.append(NAN)
+                continue
+            hh, ll = max(h[i - 24:i + 1]), min(l[i - 24:i + 1])
+            out.append(flag(hh <= ll * 1.15 and c[i] >= max(h[i - 251:i + 1]) * 0.85 and c[i - 25] >= c[i - 125] * 1.2))
+        R["flatBase"] = out
     elif which == "previous_week_high_low":
         weeks, idx = weekly(bars)
         R["pwh"] = [weeks[idx[i] - 1]["h"] if idx[i] >= 1 else NAN for i in range(n)]

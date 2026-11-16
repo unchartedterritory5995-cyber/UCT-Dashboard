@@ -3921,6 +3921,204 @@
      }
     ]
    }
+  },
+  {
+   "slug": "flat_base",
+   "name": "Flat Base",
+   "summary": "Shades a flat base: a 25-session range under 15%, within 15% of the 52-week high, after an advance of 20% or more.",
+   "definition": {
+    "schemaVersion": 1,
+    "id": "house_flat_base",
+    "version": 1,
+    "paints": [
+     {
+      "kind": "bgcolor",
+      "title": "Signal background",
+      "colorMode": "column:flatBase",
+      "colorUp": "#2962FF",
+      "colorDown": "transparent",
+      "opacity": 0.2
+     }
+    ],
+    "compute": {
+     "kind": "ast",
+     "fn": "sha256:6665f543177879aa89ec640e75b8d2465fbb57b28c406460e8c16b010094ab5a",
+     "rev": 1,
+     "ast": {
+      "type": "op",
+      "name": "&&",
+      "args": [
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         {
+          "type": "op",
+          "name": "<=",
+          "args": [
+           {
+            "type": "call",
+            "name": "highest",
+            "args": [
+             {
+              "type": "series",
+              "name": "high"
+             },
+             {
+              "type": "num",
+              "value": 25
+             }
+            ]
+           },
+           {
+            "type": "op",
+            "name": "*",
+            "args": [
+             {
+              "type": "call",
+              "name": "lowest",
+              "args": [
+               {
+                "type": "series",
+                "name": "low"
+               },
+               {
+                "type": "num",
+                "value": 25
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 1.15
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": ">=",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           },
+           {
+            "type": "op",
+            "name": "*",
+            "args": [
+             {
+              "type": "call",
+              "name": "highest",
+              "args": [
+               {
+                "type": "series",
+                "name": "high"
+               },
+               {
+                "type": "num",
+                "value": 252
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 0.85
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "op",
+        "name": ">=",
+        "args": [
+         {
+          "type": "offset",
+          "value": 25,
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": "*",
+          "args": [
+           {
+            "type": "offset",
+            "value": 125,
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             }
+            ]
+           },
+           {
+            "type": "num",
+            "value": 1.2
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "source": "highest(high, 25) <= lowest(low, 25) * 1.15 && close >= highest(high, 252) * 0.85 && close[25] >= close[125] * 1.2"
+    },
+    "meta": {
+     "name": "Flat Base",
+     "shortName": "Flat Base",
+     "category": "Custom",
+     "description": "((1 when (the highest high of the last 25 bars) is less than or equal to ((the lowest low of the last 25 bars) times 1.15) and 0 otherwise) and (1 when close is greater than or equal to ((the highest high of the last 252 bars) times 0.85) and 0 otherwise)) and (1 when (close 25 bars ago) is greater than or equal to ((close 125 bars ago) times 1.2) and 0 otherwise)",
+     "tags": [
+      "custom"
+     ],
+     "tier": "premium",
+     "repaint": "non-repainting",
+     "freshness": "live"
+    },
+    "placement": {
+     "target": "price"
+    },
+    "inputs": [
+     {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     }
+    ],
+    "plots": [
+     {
+      "key": "flatBase",
+      "label": "Flat Base",
+      "style": "line",
+      "color": "$color",
+      "width": "$lineWidth",
+      "role": "primary",
+      "legend": {
+       "decimals": 2
+      },
+      "hidden": true
+     }
+    ]
+   }
   }
  ]
 }
