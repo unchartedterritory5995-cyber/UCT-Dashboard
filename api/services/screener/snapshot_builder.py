@@ -1523,6 +1523,44 @@ def _load_universe():
     return list(screener_universe.symbols())
 
 
+def _prune_second_spellings(universe) -> list:
+    """Delete the stored rows that are a SECOND SPELLING of a listing the universe
+    holds (`screener_universe.second_spelling_of`): ``BRK.B`` when ``BRK-B`` is in the
+    universe AND has a row of its own. Returns the tickers deleted.
+
+    `_stalest` rebuilds every row it finds, in the universe or not, and prunes nothing
+    (its docstring says why: deleting a member-visible row is an owner decision). These
+    rows are the exception the owner delegated on 2026-11-15: each is the same listing
+    as another row, same bars, same price, and it takes a place of its own in every
+    ranking. Dropping the spelling from the universe alone would leave the row rebuilt
+    forever.
+
+    ⛔ NEVER THE ONLY ROW. A dot spelling is deleted only when its hyphen twin already
+    HAS a row; until then it is left (and rebuilt as an orphan), so a listing never
+    vanishes from the Screener for a night. ⛔ NO UNIVERSE, NO DELETE: an unreadable
+    universe file must not empty anything. Never raises: a failed delete costs nothing
+    but the duplicate staying one more night."""
+    try:
+        from api.services.screener import screener_universe
+        names = {str(t).upper() for t in (universe or [])}
+        if not names:
+            return []
+        with snapshot_db.connect() as conn:
+            have = {str(r[0]).upper() for r in conn.execute("SELECT ticker FROM screener_rows") if r[0]}
+            gone = sorted(t for t in have
+                          if screener_universe.second_spelling_of(t, names) in have)
+            if gone:
+                conn.executemany("DELETE FROM screener_rows WHERE UPPER(ticker) = ?",
+                                 [(t,) for t in gone])
+        if gone:
+            log.info("[screener] %d second-spelling row(s) deleted (the hyphen spelling "
+                     "holds the listing): %s", len(gone), ", ".join(gone[:20]))
+        return gone
+    except Exception as e:                                   # noqa: BLE001 - never costs the build
+        log.warning("[screener] second-spelling prune failed: %s: %s", type(e).__name__, e)
+        return []
+
+
 def _stalest(tickers, limit):
     """Order tickers by stalest built_at (never-built first), capped to limit.
 
@@ -1933,6 +1971,7 @@ def _per_run_cap(max_tickers=None):
 def _run_build_locked(max_tickers=None, through_ymd=None) -> dict:
     snapshot_db.init_db()
     universe = _load_universe()
+    _prune_second_spellings(universe)
     targets = _stalest(universe, _per_run_cap(max_tickers))
     built = skipped = errors = 0
     batch = []
