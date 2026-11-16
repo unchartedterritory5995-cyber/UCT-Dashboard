@@ -72,10 +72,13 @@ describe('BarStore D/W/M split: tail from the origin, deep sealed history from t
     const w = world()
     w.net.start(w.key, { depth: w.depth })
     await vi.advanceTimersByTimeAsync(50)
+    expect(w.registry.getSnapshot(w.key).depth).toBe(3000)
     w.net.fetchOnce(w.key, { depth: w.depth })
     await vi.advanceTimersByTimeAsync(20 * 60_000)
     expect(histCalls(w).length).toBe(1)
-    expect(tailBars(w).every((n) => n === FIRST_PAINT_BARS)).toBe(true)
+    expect(tailBars(w).length).toBeGreaterThan(2)                          // the 5-minute polls ran ...
+    expect(tailBars(w).every((n) => n === FIRST_PAINT_BARS)).toBe(true)  // ... small
+    expect(w.registry.getSnapshot(w.key).depth).toBe(3000)               // and never shrank the deep history
   })
 
   it('no deeper ask than first paint: no history request', async () => {
