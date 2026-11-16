@@ -480,12 +480,15 @@ class FakeClock:
 
 
 # ─── scenarios ───────────────────────────────────────────────────────────────
+# Every script carries its version header, as a real one does. Since engine 59 a script with no
+# `//@version` line is Pine v1, and `indicator(` in it refuses pine:version-missing on our side
+# (TradingView rejects it too), so a headerless double graded INCONCLUSIVE for every capture.
 SCRIPTS = [
-    ("alpha", 'indicator("Alpha")\nplot(close)\n', {}),
-    ("bravo", 'indicator("Bravo")\nplot(fooo)\n', {"compile_error": 'Undeclared identifier "fooo"'}),
-    ("charlie", 'indicator("Charlie")\nplot(open)\n', {}),       # its create-new stays bound (ordinal 3)
-    ("delta", 'indicator("Delta")\nplot(high)\n', {"never_computes": True}),
-    ("echo", 'indicator("Echo")\nplot(low)\n', {"crash_at": "vh_capture"}),
+    ("alpha", '//@version=6\nindicator("Alpha")\nplot(close)\n', {}),
+    ("bravo", '//@version=6\nindicator("Bravo")\nplot(fooo)\n', {"compile_error": 'Undeclared identifier "fooo"'}),
+    ("charlie", '//@version=6\nindicator("Charlie")\nplot(open)\n', {}),       # its create-new stays bound (ordinal 3)
+    ("delta", '//@version=6\nindicator("Delta")\nplot(high)\n', {"never_computes": True}),
+    ("echo", '//@version=6\nindicator("Echo")\nplot(low)\n', {"crash_at": "vh_capture"}),
 ]
 
 
