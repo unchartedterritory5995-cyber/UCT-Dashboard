@@ -63,9 +63,11 @@ export function trueRangeTree() {
 // `ta.supertrend(factor, atrPeriod)` is three such recurrences composed, and nothing
 // else — so it is an EXPANSION, never a new table entry or a new evaluator:
 //
-//   upper  = accum(up, (up < self || close[1] > self) ? up : self, W)   — the ratchet
-//   lower  = accum(dn, (dn > self || close[1] < self) ? dn : self, W)
-//   dir    = accum(1, self == 1 ? (close > upper ? -1 : 1)
+//   upper  = accum(nz(up, 0), (up < prev || close[1] > prev) ? up : prev, W)   — the ratchet
+//   lower  = accum(nz(dn, 0), (dn > prev || close[1] < prev) ? dn : prev, W)
+//            with prev = nz(self, 0)
+//   dir    = accum(1, na(atrPine[1]) ? 1
+//                   : self == 1 ? (close > upper ? -1 : 1)
 //                              : (close < lower ? 1 : -1), W)           — the flip
 //   value  = dir == -1 ? lower : upper
 //
@@ -74,12 +76,30 @@ export function trueRangeTree() {
 // line sits below price), 1 a DOWN-trend. `prevSuperTrend == prevUpperBand` in Pine's
 // source is "the previous direction was 1", which is what `dir`'s own state says.
 //
+// ⭐⭐ ENGINE 57 — THE `nz` IS PINE'S, AND WITHOUT IT THE LISTING DREW NOTHING. Pine's
+// `pine_supertrend` reads `prevUpperBand = nz(upperBand[1])` (and the lower band the same
+// way) and sets the direction to 1 while `na(atr[1])`. The expansion had neither: seeded
+// with the raw band, which is `na` for the ATR's first `n - 1` bars, a ratchet whose
+// comparisons answer 0 on an `na` operand (`interpret.js::cmp`) picked `self` and held
+// `na` FOREVER. Off the listing that was invisible (every window is re-seeded where the
+// ATR is long known). From the listing (`opts.historyFromListing`, the listing pass runs
+// from bar 0) it latched on bar 0, and the builtin Supertrend drew NOTHING on all 666
+// bars of NYSE:RDDT 1D (capture `supertrend-0c4115d2-rddt-1d-2026-11-14`, S6). With the
+// two `nz`s and the `na(atr[1])` arm the bands are Pine's own from bar 0: an independent
+// full-history reference (`supertrend.test.js::pineSupertrend`) has 0 mismatches against
+// the capture on both plots over 666 bars, and so does every bar this expansion draws.
+// Off the listing a window's bands and direction are unchanged wherever they were known.
+//
 // ⛔ BOUNDED, AND THEREFORE HONEST ABOUT ITS LEFT EDGE. Each recurrence re-seeds `W`
 // bars back, so a value is a function of a fixed window and never of how many bars were
 // fetched. The direction reads the two bands across ITS window, so the value is WITHHELD
 // (`na`) until both bands were already known `W` bars earlier — the guard below. Before
 // it, the direction would be read off bands that do not exist yet (measured: the first
 // ~W published bars disagreed with a full-history reference on every seed).
+// ⛔ ENGINE 57 KEEPS THE GUARD OFF THE LISTING AND LIFTS IT ON IT: it is now the bounded
+// window's own curtain `2W + n - 1` deep (`unknown` below), `na` on bars `t < 2W + n - 1` off the
+// listing exactly as before, and known on every bar from the listing, where the bands and
+// the direction are Pine's own from bar 0.
 // ⭐ MEASURED AGREEMENT (2026-10-29, `supertrend.test.js`): against an independent
 // full-history implementation of Pine's published `ta.supertrend`, 0 of 77,820 published
 // bars differ at W = 200 over 30 random-walk series × 3 (factor, period) settings — and
@@ -90,7 +110,7 @@ export const SUPERTREND_WARMUP = 200
 /** What a member is told wherever vendor notes are shown. ⛔ The claim is the measured
  *  one and no stronger: the bounded window agrees on every bar we have measured, and a
  *  band whose last reset is older than the window CAN disagree. */
-export const SUPERTREND_NOTE = `TradingView carries the Supertrend bands from the first bar of history; this engine re-seeds each band ${SUPERTREND_WARMUP} bars back and shows nothing for the first ~${2 * SUPERTREND_WARMUP} bars. Every shown bar matched TradingView's published formula on the series we measured, but a band whose last reset is more than ${SUPERTREND_WARMUP} bars old can differ.`
+export const SUPERTREND_NOTE = `TradingView carries the Supertrend bands from the first bar of history; this engine re-seeds each band ${SUPERTREND_WARMUP} bars back and shows nothing for the first ~${2 * SUPERTREND_WARMUP} bars plus the ATR period, except on a chart whose history starts at the symbol's listing, where it carries them from the first bar as TradingView does. Every shown bar matched TradingView's published formula on the series we measured, but a band whose last reset is more than ${SUPERTREND_WARMUP} bars old can differ, and so can the first bars after the warm-up at a long ATR period, whose average is still settling.`
 /** The name an `accum` body reads its own previous value through —
  *  `closedTable.json::functions.accum.recurrence.binds`. Typed here only because this
  *  module is also run by plain node (the parity test), which cannot import JSON; the
@@ -117,21 +137,45 @@ export function supertrendTrees(factorNode, periodNode, warmup = SUPERTREND_WARM
   const up = band('+')
   const dn = band('-')
   const W = cNum(warmup)
-  const upper = cCall('accum', [up, cOp('?:', [
-    cOp('||', [cOp('<', [up, self]), cOp('>', [prevClose, self])]), up, self]), W])
-  const lower = cCall('accum', [dn, cOp('?:', [
-    cOp('||', [cOp('>', [dn, self]), cOp('<', [prevClose, self])]), dn, self]), W])
+  const zero = cNum(0)
+  // Pine's `nz(upperBand[1])` / `nz(lowerBand[1])`: the previous band, 0 where it is `na`
+  const prev = cCall('nz', [self, zero])
+  const upper = cCall('accum', [cCall('nz', [up, zero]), cOp('?:', [
+    cOp('||', [cOp('<', [up, prev]), cOp('>', [prevClose, prev])]), up, prev]), W])
+  const lower = cCall('accum', [cCall('nz', [dn, zero]), cOp('?:', [
+    cOp('||', [cOp('>', [dn, prev]), cOp('<', [prevClose, prev])]), dn, prev]), W])
   const one = cNum(1)
   const minusOne = cNum(-1)
+  // Pine's `if na(atr[1]) direction := 1`, then the flip
   const direction = cCall('accum', [one, cOp('?:', [
-    cOp('==', [self, one]),
-    cOp('?:', [cOp('>', [close, upper]), minusOne, one]),
-    cOp('?:', [cOp('<', [close, lower]), one, minusOne]),
+    cCall('na', [{ type: 'offset', value: 1, args: [atr] }]),
+    one,
+    cOp('?:', [
+      cOp('==', [self, one]),
+      cOp('?:', [cOp('>', [close, upper]), minusOne, one]),
+      cOp('?:', [cOp('<', [close, lower]), one, minusOne]),
+    ]),
   ]), W])
-  const unknown = cOp('||', [
-    cCall('na', [{ type: 'offset', value: warmup, args: [upper] }]),
-    cCall('na', [{ type: 'offset', value: warmup, args: [lower] }]),
-  ])
+  // ⭐⭐ ENGINE 57 — THE GUARD IS A BOUNDED WINDOW'S OWN CURTAIN, `2W + n - 1` DEEP. Off the
+  // listing a bounded `accum` is `na` before its warm-up bar, so `accum(0, 0, 2W + n - 1)` is `na`
+  // exactly on bars `t < 2W + n - 1` — the bars the base expansion withheld (its raw band seeds
+  // were `na` through the ATR's `n - 1` warm-up bars, so its `na(upper[W]) || na(lower[W])` held
+  // for `t < 2W + n - 1`, not `t < 2W`; review F2, railed against a verbatim copy of the base
+  // tree in `supertrend.test.js`). It is in the TREE, so every consumer withholds those bars —
+  // the bare `interpret()`, the screen, the Python lane — whatever warm-up mask it applies or not.
+  // Its body is the constant 0, which forgets its seed at once, so nothing reads it as a value
+  // carried from before the loaded bars (`varOriginMask`; ⚰️ an identity body
+  // `accum(accum(0, self, W), self, W)` was withheld whole off the listing as `var-origin:window`).
+  // From the listing (`opts.historyFromListing`) the listing pass runs it from bar 0 and it is 0 on
+  // every bar, so nothing is withheld there: the bands and the direction are Pine's own from bar 0
+  // (the S6 capture: every drawn bar of both plots, 348 Up + 309 Down, equal). ⚰️ The offset form
+  // could not do that: `upper[W]` reaches before bar 0 on bars `t < W`, which the listing reads as
+  // Pine's `na`, so it blanked bars 9..199 that TradingView draws — and `||` also read the upper
+  // band's REAL `na` on bars 1..n-2 (the ATR warm-up) as unknown and blanked bars W+1..W+n-2.
+  // ⚠️ RESIDUAL, unchanged from the base: off the listing `atrPine` is an RMA seeded on this chart's
+  // bar n-1, which converges to TradingView's only as (1 - 1/n)^k; at a long period (n = 50) bars
+  // past the curtain can still differ at the 1e-6 level (`SUPERTREND_NOTE` says so).
+  const unknown = cCall('na', [cCall('accum', [cNum(0), cNum(0), cNum(2 * warmup + n - 1)])])
   const na = cOp('/', [cNum(0), cNum(0)])
   return {
     value: cOp('?:', [unknown, na, cOp('?:', [cOp('==', [direction, minusOne]), lower, upper])]),
@@ -534,6 +578,19 @@ const canon = (v) => (Array.isArray(v) ? `[${v.map(canon).join(',')}]`
     : JSON.stringify(v))
 const keyOf = (t) => { try { return canon(t) } catch { return null } }
 const same = (a, b) => { const x = keyOf(a); return x !== null && x === keyOf(b) }
+/** The first node of `tree` (depth first, iterative) that `test` accepts, or null. */
+function findNode(tree, test) {
+  const stack = [tree]
+  const seen = new Set()
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object' || seen.has(n)) continue
+    seen.add(n)
+    if (test(n)) return n
+    if (Array.isArray(n.args)) for (let i = n.args.length - 1; i >= 0; i--) stack.push(n.args[i])
+  }
+  return null
+}
 const isCall = (t, name) => !!t && t.type === 'call' && t.name === name && Array.isArray(t.args)
 const isOp = (t, name, n) => !!t && t.type === 'op' && t.name === name && Array.isArray(t.args) && t.args.length === n
 const numOf = (t) => (t && t.type === 'num' ? t.value
@@ -576,14 +633,14 @@ function candidates(t) {
   if ((isOp(t, '+', 2) || isOp(t, '-', 2)) && isCall(t.args[0], 'sma') && isOp(t.args[1], '*', 2)) {
     out.push([t.name === '+' ? 'bbUpper' : 'bbLower', [t.args[0].args[0], t.args[0].args[1], t.args[1].args[0]]])
   }
-  // supertrend / supertrendDirection: `unknown ? na : …`, where `unknown` reads the upper
-  // band `W` bars back; the factor and the ATR period are read off that band's seed.
-  if (isOp(t, '?:', 3) && isOp(t.args[0], '||', 2) && isCall(t.args[0].args[0], 'na')) {
-    const back = t.args[0].args[0].args[0]
-    const upper = back && back.type === 'offset' ? back.args && back.args[0] : null
-    const up = isCall(upper, 'accum') ? upper.args[0] : null
-    const scaled = isOp(up, '+', 2) && isOp(up.args[1], '*', 2) ? up.args[1] : null
-    const atr = scaled && isCall(scaled.args[1], 'atrPine') ? scaled.args[1] : null
+  // supertrend / supertrendDirection: `unknown ? na : …`, where `unknown` is `na(accum(…))`
+  // (engine 57); the factor and the ATR period are read off a band's seed `nz(hl2 ± f ·
+  // atrPine(…), 0)`. Rebuilt and compared below, so a guess here can only miss.
+  if (isOp(t, '?:', 3) && isCall(t.args[0], 'na') && isCall(t.args[0].args[0], 'accum')) {
+    const seed = findNode(t.args[2], (n) => isCall(n, 'nz') && isOp(n.args[0], '+', 2)
+      && isOp(n.args[0].args[1], '*', 2) && isCall(n.args[0].args[1].args[1], 'atrPine'))
+    const scaled = seed ? seed.args[0].args[1] : null
+    const atr = scaled ? scaled.args[1] : null
     if (atr && atr.args.length === 4) {
       out.push(['supertrend', [scaled.args[0], atr.args[3]]])
       out.push(['supertrendDirection', [scaled.args[0], atr.args[3]]])

@@ -457,7 +457,7 @@ describe('the hash that decides a rev bump', () => {
 })
 
 describe('the manifest', () => {
-  it('declares 5 series, 32 clock, 15 operators, 86 functions and 138 scalars — 276 names, one grammar', () => {
+  it('declares 5 series, 32 clock, 15 operators, 87 functions and 138 scalars — 276 names, one grammar', () => {
     expect(Object.keys(TABLE.series)).toHaveLength(5)
     // ⭐ THE FIFTH SECTION (tableVersion 2, 2026-08-26). Thirteen bar-clock
     // values — the seven ET wall-clock fields, `sessionfirst`, `barindex` and the
@@ -612,7 +612,10 @@ describe('the manifest', () => {
     // ⭐ 83 -> 86 (2026-10-30): `accum2`, `accum3`, `accum4` — `accum`'s bounded window
     // over a tuple of K running values (`_functions_multi_state`). Same `int` / `series`
     // argument kinds and `lookback: "argN"` form; no new node type; `tableVersion` unmoved.
-    expect(Object.keys(TABLE.functions)).toHaveLength(86)
+    // ⭐ 86 -> 87 (2026-11-14, engine 57): `stochPine`, Pine's `ta.stoch` — the last n finite
+    // highs / lows, the last value kept where the formula has none. Reached only through
+    // `PINE_CALL_SHAPES.stoch`; the house `stoch` is untouched. Same signature as `stoch`.
+    expect(Object.keys(TABLE.functions)).toHaveLength(87)
     // ⭐ THE FOURTH SECTION (Phase E Task 1). Counted SEPARATELY from the three
     // above, not folded into one total: 48 is the BAR vocabulary a corpus case
     // can exercise against 579 bars, and 54 is the per-symbol vocabulary that
@@ -740,12 +743,14 @@ describe('the manifest', () => {
     // ⭐ 129 -> 130 IS `barsAgo` (2026-09-30, C38) -- see the functions-count note above.
     // ⭐ 130 -> 131 IS `vwapOf` (2026-10-02, H3) -- see the functions-count note above.
     // ⭐ 131 -> 138 IS Phase 1's four plus `accum2`/`accum3`/`accum4` (2026-10-30) -- see the functions-count note above.
-    expect(bar.size).toBe(138)
+    // ⭐ 138 -> 139 IS `stochPine` (2026-11-14, engine 57) -- see the functions-count note above.
+    expect(bar.size).toBe(139)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
     // ⭐ 276 -> 287 (2026-11-06, UCT RS Phase 2a units 2a-01 and 2a-07): the bar half
     // is untouched at 138; the scalar half went 138 -> 139 (`base_pivot_px`) -> 149
     // (the ten bar-derived RS columns), and this is their sum: 138 + 149 = 287.
-    expect(declared.size).toBe(287)
+    // ⭐ 287 -> 288 (2026-11-14, engine 57): `stochPine`; bar half 139, scalars 149.
+    expect(declared.size).toBe(288)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     // ⚠️ `tableVersion` WENT 1 -> 2 ON 2026-08-26, AND THE CRITERION IN THIS

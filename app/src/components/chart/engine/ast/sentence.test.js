@@ -357,6 +357,12 @@ const FORMS = [
   { kind: 'call', name: 'plusDI', parts: ['the ', 3, '-bar +DI of ', 0, ', ', 1, ' and ', 2] },
   { kind: 'call', name: 'minusDI', parts: ['the ', 3, '-bar -DI of ', 0, ', ', 1, ' and ', 2] },
   { kind: 'call', name: 'stoch', parts: ['the ', 3, '-bar stochastic %K of ', 0, ', ', 1, ' and ', 2] },
+  // ⭐ (2026-11-14, engine 57) Pine's `ta.stoch` — the same phrase plus what makes it a different
+  // number: the windows skip `na` values and the answer keeps its last value where it has none.
+  { kind: 'call',
+    name: 'stochPine',
+    parts: ['the ', 3, '-bar stochastic %K of ', 0, ', ', 1, ' and ', 2,
+            ', skipping missing values and keeping its last value where it has none'] },
   { kind: 'call', name: 'cci', parts: ['the ', 3, '-bar commodity channel index of ', 0, ', ', 1, ' and ', 2] },
   { kind: 'call', name: 'williamsR', parts: ['the ', 3, '-bar Williams %R of ', 0, ', ', 1, ' and ', 2] },
   { kind: 'call', name: 'mfi', parts: ['the ', 4, '-bar money flow index of ', 0, ', ', 1, ', ', 2, ' and ', 3] },
@@ -1262,6 +1268,8 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:sqrt',
       'function:stdev',
       'function:stoch',
+      // ⭐ (2026-11-14, engine 57) Pine's `ta.stoch` — see `stochPine` in the forms above.
+      'function:stochPine',
       'function:sum',
       'function:tan',
       'function:valuewhen',
@@ -1291,7 +1299,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 130 -> 131 (2026-10-02, H3): `vwapOf`, Pine's `ta.vwap(source)` for a bar price.
     // ⭐ 131 -> 138 (2026-10-30): Pine coverage Phase 1's `acos`, `alma`,
     // `percentileNearestRank`, `rci`, plus `accum2`, `accum3`, `accum4` (`_functions_multi_state`).
-    expect(entries.length).toBe(138)
+    // ⭐ 138 -> 139 (2026-11-14, engine 57): `stochPine`, Pine's `ta.stoch`.
+    expect(entries.length).toBe(139)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
   })
@@ -1314,7 +1323,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 129 -> 130 (2026-09-30, C38): `barsAgo`, Pine's `x[e]` with a per-bar index.
     // ⭐ 130 -> 131 (2026-10-02, H3): `vwapOf`.
     // ⭐ 131 -> 138 (2026-10-30): Phase 1's four plus `accum2`, `accum3`, `accum4`.
-    expect(subjects.length).toBe(138)
+    // ⭐ 138 -> 139 (2026-11-14, engine 57): `stochPine`, Pine's `ta.stoch`.
+    expect(subjects.length).toBe(139)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     for (const { entry, ast: tree } of subjects) {
@@ -2501,7 +2511,10 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       // (2026-09-27) Pine's `ta.atr`, seeded from bar 0.
       'atr_pine_seeded_from_bar_zero',
       'plus_di', 'minus_di', 'stoch_k',
-      'stoch_d_by_composition', 'cci_20', 'williams_r', 'mfi_14',
+      'stoch_d_by_composition',
+      // (2026-11-14, engine 57) Pine's `ta.stoch`, the last n finite values, the last answer kept.
+      'stoch_pine_last_finite_values_held_answer',
+      'cci_20', 'williams_r', 'mfi_14',
       // (2026-09-28) Pine's `ta.mfi`, bar 0's flow on both sides.
       'mfi_pine_first_window_counts_bar_zero',
       'donchian_upper',
@@ -2767,7 +2780,8 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
     // ⭐ 129 -> 130 (2026-09-30, C38): `barsAgo`, Pine's `x[e]` with a per-bar index.
     // ⭐ 130 -> 131 (2026-10-02, H3): `vwapOf`.
     // ⭐ 131 -> 138 (2026-10-30): Phase 1's four plus `accum2`, `accum3`, `accum4`.
-    expect(sentences.length).toBe(CORPUS.cases.length + 138)
+    // ⭐ 138 -> 139 (2026-11-14, engine 57): `stochPine`, Pine's `ta.stoch`.
+    expect(sentences.length).toBe(CORPUS.cases.length + 139)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     for (const s of sentences) {

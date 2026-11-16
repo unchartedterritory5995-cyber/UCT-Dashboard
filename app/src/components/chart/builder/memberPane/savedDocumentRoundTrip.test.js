@@ -22,6 +22,9 @@ import { applyParamEdit, reconcileParams } from '../paramEdit.js'
 import { treesHash } from '../../engine/ast/trees.js'
 import { validateDefinition } from '../../engine/defSchema.js'
 import { installUserDefinitions, uninstallUserDefinition } from '../../engine/nativeRegistry.js'
+import { PINE_CALL_SHAPES } from '../../engine/ast/pine.js'
+import { CALL_EXPANSIONS } from '../../engine/ast/callExpansions.js'
+import { supertrendTreesEngine56 } from '../../engine/ast/__fixtures__/supertrendTreesEngine56.js'
 
 const REPO = path.resolve(__dirname, '../../../../../..')
 const DIR = path.join(REPO, 'tests/fixtures/pine_param_ids')
@@ -166,9 +169,36 @@ const NEVER_INSTALLED = Object.freeze({
  *  saved computation's digest is not, because the translator now writes a different — correct —
  *  tree, and a bumped `SCRIPT_ENGINE_VERSION` re-translates the member's saved copy from its script. */
 const MOVED_BY_ENGINE = Object.freeze({
-  'corpus/committed/support-and-resistance-multi-time-frame__Ph230jpfC9.pine':
-    'engine 56 (built as 55; #1326 took 55): request.security(…, "W"|"M") with look-ahead off is tf_merge (TradingView\'s merge), no longer tf',
+  'corpus/committed/support-and-resistance-multi-time-frame__Ph230jpfC9.pine': {
+    why: 'engine 56 (built as 55; #1326 took 55): request.security(…, "W"|"M") with look-ahead off is tf_merge (TradingView\'s merge), no longer tf',
+    undo: 'tf_merge',
+  },
+  'corpus/committed/multicator-table__486858895c.pine': {
+    // its ta.stoch feeds only tables and votes, never a saved plot tree, so the digest moves by the supertrend
+    why: 'engine 57: ta.supertrend is the new tree (undone together with ta.stoch back on the house stoch, engine 57\'s two table changes)',
+    undo: 'engine57',
+  },
 })
+const movedKind = (script) => (Object.prototype.hasOwnProperty.call(MOVED_BY_ENGINE, script) ? MOVED_BY_ENGINE[script].undo : null)
+
+/** ⭐⭐ ENGINE 57 — THE CLAIMED MOVE UNDONE BY REBUILDING: `fn` runs with the two table entries engine 57
+ *  changed put back as engine 56 had them (`ta.stoch` on the house `stoch`; `ta.supertrend` on the
+ *  verbatim engine-56 expansion, `__fixtures__/supertrendTreesEngine56.js`), restored in `finally`.
+ *  A document built inside must EQUAL the saved one, so the move can carry nothing else. */
+const withEngine57Undone = (fn) => {
+  const stoch = PINE_CALL_SHAPES.stoch
+  const st = CALL_EXPANSIONS.supertrend
+  const sd = CALL_EXPANSIONS.supertrendDirection
+  const was = [stoch.table, st.build, sd.build]
+  stoch.table = 'stoch'
+  st.build = (a) => { const t = supertrendTreesEngine56(a[0], a[1]); return t ? t.value : null }
+  sd.build = (a) => { const t = supertrendTreesEngine56(a[0], a[1]); return t ? t.direction : null }
+  try {
+    return fn()
+  } finally {
+    [stoch.table, st.build, sd.build] = was
+  }
+}
 
 /** ⭐⭐ ENGINE 55 (review M2) — TODAY'S DOCUMENT WITH THE ONE CLAIMED MOVE UNDONE: every
  *  `tf_merge` node back to `tf`, every `tf_merge(` in a source back to `tf(`, and the trees'
@@ -205,15 +235,25 @@ describe('C46 — the documents that never installed are exempt only while they 
   })
 })
 
-describe('ENGINE 55 — a computation moved on purpose is named, and the move is the one claimed', () => {
-  it.each(Object.keys(MOVED_BY_ENGINE))('%s: its saved digest differs, and with tf_merge mapped back to tf it is EQUAL', (script) => {
+describe('ENGINE 55 / 57 — a computation moved on purpose is named, and the move is the one claimed', () => {
+  it.each(Object.keys(MOVED_BY_ENGINE))('%s: its saved digest differs, and with the claimed move undone it is EQUAL', (script) => {
     expect(SAVED[script], `${script} is not in the saved fixture — drop it from MOVED_BY_ENGINE`).toBeTruthy()
     const built = build(script)
     expect(built.ok, built.reason).toBe(true)
     expect(sha(JSON.stringify(asSaved(built.definition)))).not.toBe(SAVED[script].computeSha)
-    expect(JSON.stringify(built.definition.compute)).toContain('"tf_merge"')
     // review M2 — the move is EXACTLY the one claimed: undo it, and the saved document returns
-    expect(sha(JSON.stringify(asSaved(undoTfMerge(built.definition))))).toBe(SAVED[script].computeSha)
+    if (movedKind(script) === 'tf_merge') {
+      expect(JSON.stringify(built.definition.compute)).toContain('"tf_merge"')
+      expect(sha(JSON.stringify(asSaved(undoTfMerge(built.definition))))).toBe(SAVED[script].computeSha)
+    } else {
+      expect(movedKind(script)).toBe('engine57')
+      const undone = withEngine57Undone(() => build(script))
+      expect(undone.ok, undone.reason).toBe(true)
+      expect(JSON.stringify(undone.definition.compute)).not.toContain('"stochPine"')
+      expect(sha(JSON.stringify(asSaved(undone.definition)))).toBe(SAVED[script].computeSha)
+      // and the swap was undone: a plain build after it is today's document again
+      expect(sha(JSON.stringify(asSaved(build(script).definition)))).toBe(sha(JSON.stringify(asSaved(built.definition))))
+    }
   })
 })
 
@@ -248,8 +288,10 @@ describe('C46 — documents saved under the walk-order ids', () => {
       }
       // …and the document around the manifest is the same document.
       // ⭐ review M2 — a document an engine moved on purpose is compared with that move undone
-      const moved55 = Object.prototype.hasOwnProperty.call(MOVED_BY_ENGINE, script)
-      if (sha(JSON.stringify(asSaved(moved55 ? undoTfMerge(built.definition) : built.definition))) !== was.computeSha) {
+      const kind = movedKind(script)
+      const compared = kind === 'tf_merge' ? undoTfMerge(built.definition)
+        : kind === 'engine57' ? withEngine57Undone(() => build(script)).definition : built.definition
+      if (sha(JSON.stringify(asSaved(compared))) !== was.computeSha) {
         moved.push({ script, problem: 'the saved computation changed' })
       }
     }
@@ -276,8 +318,21 @@ describe('C46 — documents saved under the walk-order ids', () => {
         wrong.push({ script, was: was.editedState, now: valuesOf(doc) })
       }
       // the edited document is byte-for-byte the one the old assignment saved
-      const moved55 = Object.prototype.hasOwnProperty.call(MOVED_BY_ENGINE, script)
-      const [docNow, unedited] = moved55 ? [undoTfMerge(doc), undoTfMerge(built.definition)] : [doc, built.definition]
+      const kind = movedKind(script)
+      let [docNow, unedited] = [doc, built.definition]
+      if (kind === 'tf_merge') [docNow, unedited] = [undoTfMerge(doc), undoTfMerge(built.definition)]
+      if (kind === 'engine57') {
+        // rebuild AND replay inside the undo: an edit may re-translate
+        [docNow, unedited] = withEngine57Undone(() => {
+          const b = build(script).definition
+          let d = b
+          for (const id of Object.keys(was.values)) {
+            const applied = applyParamEdit(d, id, was.values[id])
+            if (applied.ok) d = applied.definition
+          }
+          return [d, b]
+        })
+      }
       if (sha(JSON.stringify(asSaved(docNow, built.definition.compute.fn, unedited))) !== was.editedComputeSha) {
         wrong.push({ script, problem: 'the edited document differs' })
       }

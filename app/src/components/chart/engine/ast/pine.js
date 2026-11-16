@@ -1130,7 +1130,11 @@ export const PINE_CALL_SHAPES = Object.freeze({
   alma: { table: 'alma', pineArity: 4, build: [{ pine: 0 }, { pine: 1 }, { pine: 2 }, { pine: 3 }] },
   // ⭐ THE PERMUTATION. Pine (source, high, low, length) → table (high, low, close,
   // length): Pine's `source` plays the role this table calls `c`.
-  stoch: { table: 'stoch', pineArity: 4, build: [{ pine: 1 }, { pine: 2 }, { pine: 0 }, { pine: 3 }] },
+  // ⭐⭐ ENGINE 57 — AND IT LANDS ON `stochPine`, NOT ON THE HOUSE `stoch`: Pine's own rule
+  // (the last n finite highs / lows, the last value kept where the formula has none; S6
+  // `stochastic-rsi` and S1 probe P2, 0 mismatches; the house column started 10 bars late
+  // and drew 50 on a flat window). See `interpret.js::stochPineScan`.
+  stoch: { table: 'stochPine', pineArity: 4, build: [{ pine: 1 }, { pine: 2 }, { pine: 0 }, { pine: 3 }] },
   // Pine's `ta.wpr(length)` leaves high/low/close implicit; supplying them is an
   // identity, and the rail measures it at max difference 0.
   wpr: { table: 'williams_r', pineArity: 1, build: [{ series: 'high' }, { series: 'low' }, { series: 'close' }, { pine: 0 }] },
