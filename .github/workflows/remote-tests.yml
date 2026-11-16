@@ -85,12 +85,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
+      # full history: some rails read git objects and refs; a shallow checkout fails them (full-suite F-CI-32)
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref }}
-          # full history: some rails read git objects and refs; a shallow checkout fails them (full-suite F-CI-32)
           fetch-depth: 0
           persist-credentials: false
+      - name: Check out the commit under test
+        env:
+          RT_REF: ${{ inputs.ref }}
+        run: |
+          # actions/checkout fetches only branches and tags, never refs/remote-tests/*; fetch the validated ref by
+          # name (anonymous: the repo is public, no credentials are kept) and test exactly that commit.
+          git fetch --no-tags --quiet origin "+$RT_REF:refs/rt/under-test"
+          git checkout --quiet --detach refs/rt/under-test
+          git log -1 --format='testing %H %s'
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -133,11 +141,20 @@ jobs:
       matrix:
         shard: ${{ fromJSON(needs.plan.outputs.shards) }}
     steps:
+      # full history: some rails read git objects and refs; a shallow checkout fails them (full-suite F-CI-32)
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref }}
           fetch-depth: 0
           persist-credentials: false
+      - name: Check out the commit under test
+        env:
+          RT_REF: ${{ inputs.ref }}
+        run: |
+          # actions/checkout fetches only branches and tags, never refs/remote-tests/*; fetch the validated ref by
+          # name (anonymous: the repo is public, no credentials are kept) and test exactly that commit.
+          git fetch --no-tags --quiet origin "+$RT_REF:refs/rt/under-test"
+          git checkout --quiet --detach refs/rt/under-test
+          git log -1 --format='testing %H %s'
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
