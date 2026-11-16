@@ -49,7 +49,7 @@
 // into the member's import line plus "in library X, line L".
 
 import { pineLibraryEntry, pineLibraryHeld, libraryEntryProblem, libraryLicenceProblem, libraryDenied } from './pineLibraryStore.js'
-import { crossVersionDifference, LIBRARY_VERSION } from './pineLibraryVersion.js'
+import { crossVersionDifference, crossVersionAdmitted, admissionTableOf, LIBRARY_VERSION } from './pineLibraryVersion.js'
 
 export { importPathsOf } from './pineLibraryStore.js'
 
@@ -295,6 +295,9 @@ export function linkLibraries(lexed, opts, { lexPine, blockStatements }) {
   const resolve = resolverOf(opts)
   const pins = pinsOf(opts)
   const heldOf = opts && opts.libraries ? () => null : pineLibraryHeld
+  // the committed admission table, or (a rail) `opts.libraryCrossVersion`: a document `{admit: [{path}]}`
+  // read by the same fail-closed reader
+  const admission = opts && opts.libraryCrossVersion ? admissionTableOf(opts.libraryCrossVersion) : undefined
   const mainVersion = lexed.version
   const mainLineCount = (lexed.lines || []).length
 
@@ -345,6 +348,12 @@ export function linkLibraries(lexed, opts, { lexPine, blockStatements }) {
       const crossVersion = lib.version === 5 && mainVersion === 6
       if (lib.version !== mainVersion && !crossVersion) {
         throw new LinkRefusal(`the library \`${imp.path}\` is written in Pine v${lib.version} and this script in v${mainVersion}; TradingView runs each at its own version and this engine compiles one program at one version`)
+      }
+      // ⭐⭐ U15 Phase B (coordinator ruling 2026-11-16) — and only for a version on the admission table
+      // (`pineLibraryCrossVersion.json`: promoted, every newly attaching v6 importer MATCH), so linking
+      // across versions never widens the reach of a version nobody graded in a v6 script
+      if (crossVersion && !crossVersionAdmitted(imp.path, admission)) {
+        throw new LinkRefusal(`the library \`${imp.path}\` is written in Pine v5 and this script in v6. TradingView runs a library at its own version and this engine compiles one program at one version, so a v5 library is linked into a v6 script only for a version graded against TradingView in v6 scripts, and \`${imp.path}\` has not been`, LIBRARY_VERSION)
       }
       const stmts = blockStatements(lib.tokens, lib.indents, 0)
       const defs = stmts.map((s) => ({ stmt: s, ...classify(s) }))

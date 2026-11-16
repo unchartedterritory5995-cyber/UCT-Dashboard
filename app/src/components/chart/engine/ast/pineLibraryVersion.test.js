@@ -25,7 +25,8 @@ import { runtimeClockOpts } from './pineRuntimeClock.js'
 import { lowerIrProgram } from '../runtime/lowerIr.js'
 import { execute } from '../runtime/vm.js'
 import { lexPine, blockStatements } from './pine.js'
-import { crossVersionDifference, LIBRARY_VERSION } from './pineLibraryVersion.js'
+import { crossVersionDifference, crossVersionAdmitted, admissionTableOf, LIBRARY_VERSION } from './pineLibraryVersion.js'
+import COMMITTED_ADMISSION from './pineLibraryCrossVersion.json'
 
 const N = 60
 const BARS = Array.from({ length: N }, (_, i) => ({
@@ -89,14 +90,16 @@ const LIBS = fixtureLibraries({
 })
 
 const same = (a, b) => a.length === b.length && a.every((x, i) => Object.is(x, b[i]))
+// the fixture versions this rail admits (the committed table admits none of them)
+const ADMIT = { admit: Object.keys(LIBS).map((path) => ({ path })) }
 function hostRun(src) {
-  const t = translatePine(src, { libraries: LIBS, mode: 'host' })
+  const t = translatePine(src, { libraries: LIBS, libraryCrossVersion: ADMIT, mode: 'host' })
   const cols = (t.outputs || []).filter((o) => o && o.ast && o.kind !== 'alertcondition')
     .map((o) => Array.from(interpret(o.ast, BARS, {})))
   return { t, cols, why: t.refusal ? `${t.refusal.guard}: ${t.refusal.message}` : null }
 }
 function runtimeRun(src) {
-  const b = buildRuntimeIr(src, { ...runtimeClockOpts(false), bars: BARS, inputs: {}, libraries: LIBS })
+  const b = buildRuntimeIr(src, { ...runtimeClockOpts(false), bars: BARS, inputs: {}, libraries: LIBS, libraryCrossVersion: ADMIT })
   if (!b.ok) return { b, cols: null, why: `${b.refusal.guard}: ${b.refusal.message}` }
   const p = lowerIrProgram(b.ir)
   const { outputs } = execute(p, { bars: N, series: SERIES, columns: p.columns, confirmed: true })
@@ -177,16 +180,50 @@ describe('⭐⭐ a clean v5 library in a v6 script', () => {
   })
 })
 
+describe('⭐⭐ the admission table (coordinator ruling 2026-11-16): only an admitted version links across versions', () => {
+  it('a clean v5 library that is NOT admitted is refused by name in both lanes, as the committed table leaves it', () => {
+    const src = `${V6}${USES}`
+    expect(crossVersionAdmitted('tester/cleanlib/1')).toBe(false)
+    const t = translatePine(src, { libraries: LIBS, mode: 'host' })
+    expect(t.ok).toBe(false)
+    expect(t.refusal.guard).toBe(LIBRARY_VERSION)
+    expect(t.refusal.message).toMatch(/only for a version graded against TradingView in v6 scripts/)
+    const b = buildRuntimeIr(src, { ...runtimeClockOpts(false), inputs: {}, libraries: LIBS })
+    expect(b.ok).toBe(false)
+    expect(b.refusal.guard).toBe(LIBRARY_VERSION)
+    // ⭐ CONTROL — the same library in a v5 script is the exact path and needs no admission
+    expect(translatePine(`${V5}${USES}`, { libraries: LIBS, mode: 'host' }).ok).toBe(true)
+  })
+
+  it('the table fails closed: a document it cannot read admits nothing', () => {
+    for (const bad of [null, {}, { admit: 'x' }, { admit: [{}] }, { admit: [{ path: '' }] }, { admit: [{ path: 'a/b/1' }, 7] }]) {
+      expect(admissionTableOf(bad)).toBe(null)
+      expect(crossVersionAdmitted('a/b/1', admissionTableOf(bad))).toBe(false)
+    }
+    expect([...admissionTableOf({ admit: [] })]).toEqual([])
+    expect(crossVersionAdmitted('a/b/1', admissionTableOf({ admit: [{ path: 'a/b/1' }] }))).toBe(true)
+    // an unreadable override admits nothing, in the linker too
+    const t = translatePine(`${V6}${USES}`, { libraries: LIBS, libraryCrossVersion: { admit: [{}] }, mode: 'host' })
+    expect(t.refusal && t.refusal.guard).toBe(LIBRARY_VERSION)
+  })
+
+  it('the committed table is readable and admits exactly its rows', () => {
+    const table = admissionTableOf(COMMITTED_ADMISSION)
+    expect(table).not.toBe(null)
+    for (const row of COMMITTED_ADMISSION.admit) expect(crossVersionAdmitted(row.path)).toBe(true)
+  })
+})
+
 describe('⛔ each construct the v6 migration guide changed is refused BY NAME, in both lanes', () => {
   CASES.forEach(([name, , sentence], k) => {
     it(name, () => {
       const src = `${V6}import tester/changed/${k + 1} as c\nplot(c.f(close))\n`
-      const t = translatePine(src, { libraries: LIBS, mode: 'host' })
+      const t = translatePine(src, { libraries: LIBS, libraryCrossVersion: ADMIT, mode: 'host' })
       expect(t.ok).toBe(false)
       expect(t.refusal.guard).toBe(LIBRARY_VERSION)
       expect(t.refusal.message).toMatch(sentence)
       expect(t.refusal.line).toBe(3)
-      const b = buildRuntimeIr(src, { ...runtimeClockOpts(false), inputs: {}, libraries: LIBS })
+      const b = buildRuntimeIr(src, { ...runtimeClockOpts(false), inputs: {}, libraries: LIBS, libraryCrossVersion: ADMIT })
       expect(b.ok).toBe(false)
       expect(b.refusal.guard).toBe(LIBRARY_VERSION)
       expect(b.refusal.message).toMatch(sentence)

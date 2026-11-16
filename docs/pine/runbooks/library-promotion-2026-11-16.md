@@ -42,6 +42,8 @@ These are the `promote` rows of the allowlist as merged, with their grades cited
 | theEccentricTrader/PubLibPattern/4 | 9a75c2736c39 | the same script |
 | theEccentricTrader/PubLibCandleTrend/2 | 1d42daae0734 | imported by PubLibSwing/3 |
 | theEccentricTrader/PubLibTrend/3 | 7f31c58b74ea | imported by PubLibPattern/4 |
+| TradingView/ta/11 | da37dca4bc18 | Chandelier exit, Pring's special K, Ulcer index, Aroon oscillator: MATCH host-only, engine 61 (re-graded 2026-11-16) |
+| TradingView/RelativeValue/3 | 44d71612a759 | imported by ta/11 |
 
 The tool reads the list from the allowlist file. These names are here so you can recognise the output.
 
