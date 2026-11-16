@@ -821,8 +821,8 @@
   },
   {
    "capture": "kernel-channel-backquant-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
     "compound-assign",
@@ -1050,8 +1050,8 @@
   },
   {
    "capture": "momentum-based-zigzag-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
+   "lane": "runtime",
+   "runtimeOn": "DIVERGE",
    "production": "INCONCLUSIVE",
    "caps": [
     "conditional-ta",

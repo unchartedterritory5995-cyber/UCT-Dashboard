@@ -22,6 +22,20 @@
       },
       "liftWhen": "the label number-formatting fix (the legacy builder owns it), then a runtime-on re-grade to MATCH on RDDT and SPY",
       "addedBy": "coordinator ruling 2026-11-15 (owner-delegated), option (A)"
+    },
+    {
+      "slug": "momentum-based-zigzag",
+      "sha256": "54a46de5f63e6e9652e93054ebceb1784708fed9227eb37339e086a90f369c13",
+      "source": "corpus/committed/momentum-based-zigzag__38d39d2d6c.pine",
+      "reason": "the runtime lane builds it since the runtime-history unit (a v5 `?:` arm checked to run on every bar), but its run stops by name at the first skip (`ta.crossunder`, line 89) and its 25 drawings are not carried: the runtime-on grade is DIVERGE (TradingView holds 25 drawing objects, our side none)",
+      "evidence": {
+        "capture": "momentum-based-zigzag-rddt-1d-2026-11-14",
+        "verdict": "DIVERGE",
+        "objectsX": "no record paired: TradingView holds 25 drawing object(s) at the last bar and our script has no drawing program; the ZIGZAG plot INCONCLUSIVE (the run stopped, runtime:conditional-history)",
+        "session": "pine heavy run 43932459523 on PR #1450 (f6271ba48d), vendor harness runtime-on lane"
+      },
+      "liftWhen": "a capture witnesses per-call-site ta.crossover / ta.crossunder in a v5 arm (HIST-K2, vw-hist-callsite-kernels-v5) and the drawing build carries its labels, then a runtime-on re-grade to MATCH on RDDT",
+      "addedBy": "coordinator ruling 2026-11-16 (capability admission ON: an admitted script with a DIVERGE capture is killed by source hash)"
     }
   ]
 }

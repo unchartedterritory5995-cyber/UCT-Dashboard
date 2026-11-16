@@ -10,13 +10,16 @@
 // null (the run finished: every bar was drawn). Shared by the conditional-history rails so the
 // question is asked one way.
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
+// ⛔ the tri-state producer rides every build (`pineRuntimeFrontendGate.test.js`): these runs are over
+// finished bars, so the newest bar is stated FINISHED (`false`), never left unknown
+import { runtimeClockOpts } from '../../ast/pineRuntimeClock.js'
 import { lowerIrProgram } from '../lowerIr.js'
 import { execute } from '../vm.js'
 
 /** `{guard, message, at}`: the build's refusal (`at: 'build'`), else the run's stop (`at: 'run'`),
  *  else null (built and ran to the end). */
 export function runRefusalOf(src, { bars, inputs = {}, extra = {}, listing = true } = {}) {
-  const b = buildRuntimeIr(src, { bars, inputs, ...extra })
+  const b = buildRuntimeIr(src, { bars, inputs, ...runtimeClockOpts(false), ...extra })
   if (!b.ok) return { guard: b.refusal && b.refusal.guard, message: String((b.refusal && b.refusal.message) || ''), at: 'build' }
   const program = lowerIrProgram(b.ir, { historyFromListing: listing })
   const series = ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(bars.map((x) => (x[k] == null ? 0 : x[k]))))
@@ -34,5 +37,3 @@ export function runGuardOf(src, opts = {}) {
   return r ? r.guard : null
 }
 
-/** Did the BUILD accept it (the refusal moved to the run, or went away)? */
-export const builds = (src, { bars, inputs = {}, extra = {} } = {}) => buildRuntimeIr(src, { bars, inputs, ...extra }).ok
