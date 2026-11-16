@@ -94,16 +94,16 @@ describe('the server answered what the row reads', () => {
 describe('what a member reads on each screen as it opens', () => {
   test('Top RS Rating: the exact place, the Setup words, and where the place was a month ago', () => {
     expect(read(TOP_RATING)).toEqual([
-      ['RISE5', 1, 'RS 99*', 'Pullback to the 8-day, tight range', ''],
-      ['RISE4', 2, 'RS 96*', 'Pullback to the 8-day, tight range · was #6 a month ago', ''],
+      ['RISE5', 1, 'RS 99*', 'Tight range', ''],
+      ['RISE4', 2, 'RS 96*', 'Tight range · was #6 a month ago', ''],
       ['RUN1', 3, 'RS 93*', 'Extended · was #28 a month ago', ''],
-      ['WALK23', 4, 'RS 92*', 'Pullback to the 8-day, tight range · was #8 a month ago', ''],
+      ['WALK23', 4, 'RS 92*', 'Tight range · was #8 a month ago', ''],
       ['SLIP0', 5, 'RS 90*', 'Pullback to the 21-day, tight range · was #7 a month ago', ''],
-      ['WALK17', 6, 'RS 89', 'Pullback to the 8-day, tight range · was #13 a month ago', ''],
+      ['WALK17', 6, 'RS 89', 'Tight range · was #13 a month ago', ''],
       ['RUN0', 7, 'RS 87', 'Extended · was #43 a month ago', ''],
-      ['RISE3', 8, 'RS 86', 'Pullback to the 8-day, tight range · was #10 a month ago', ''],
+      ['RISE3', 8, 'RS 86', 'Tight range · was #10 a month ago', ''],
     ])
-    expect(rowFacts(rowsOf(TOP_RATING)[0]).map(f => f.label)).toEqual(['Pullback to the 8-day, tight range', 'RS high today', 'At its high', 'RS Rating place 1 of 62'])
+    expect(rowFacts(rowsOf(TOP_RATING)[0]).map(f => f.label)).toEqual(['Tight range', 'RS high today', 'At its high', 'RS Rating place 1 of 62'])
   })
   test('RS New Highs: how old the RS high is, the group, and "Before price" on the one that leads price', () => {
     // Unit U12: the weekly tag is not asked of this read, so the daily tags are the ones these
@@ -155,14 +155,14 @@ describe('what a member reads on each screen as it opens', () => {
   })
   test('UCT RS Leaders: numbered by position, the Setup words, the group', () => {
     expect(read(LEADERS)).toEqual([
-      ['RISE5', 1, 'RS 99*', 'Pullback to the 8-day, tight range · Retail', ''],
-      ['RISE4', 2, 'RS 96*', 'Pullback to the 8-day, tight range · Banks', ''],
+      ['RISE5', 1, 'RS 99*', 'Tight range · Retail', ''],
+      ['RISE4', 2, 'RS 96*', 'Tight range · Banks', ''],
       ['RUN1', 3, 'RS 93*', 'Extended · Drug makers', ''],
-      ['WALK23', 4, 'RS 92*', 'Pullback to the 8-day, tight range · Retail', ''],
+      ['WALK23', 4, 'RS 92*', 'Tight range · Retail', ''],
       ['SLIP0', 5, 'RS 90*', 'Pullback to the 21-day, tight range · Machinery', ''],
-      ['WALK17', 6, 'RS 89', 'Pullback to the 8-day, tight range · Retail', ''],
+      ['WALK17', 6, 'RS 89', 'Tight range · Retail', ''],
       ['RUN0', 7, 'RS 87', 'Extended · Semiconductors', ''],
-      ['RISE3', 8, 'RS 86', 'Pullback to the 8-day, tight range · Oil and gas', ''],
+      ['RISE3', 8, 'RS 86', 'Tight range · Oil and gas', ''],
     ])
     for (const r of rowsOf(LEADERS)) expect(r.rs_rank).toBeGreaterThanOrEqual(80)
   })
@@ -208,11 +208,11 @@ describe('Top RS Rating on its 1-month board', () => {
       ['ONEDAY', 2, 'RS 68', 'Extended · RS Rating up 57 this week', 'One-day move'],
       ['RUN1', 3, 'RS 93*', 'Extended · RS Rating up 18 this week', ''],
       ['RUN0', 4, 'RS 87', 'Extended · RS Rating up 16 this week', ''],
-      ['WALK21', 5, 'RS 51', 'Pullback to the 8-day, tight range · RS Rating up 6 this week', ''],
-      ['RISE5', 6, 'RS 99*', 'Pullback to the 8-day, tight range', ''],
-      ['WALK08', 7, 'RS 37', 'Pullback to the 8-day, tight range · RS Rating up 5 this week', ''],
-      ['WALK04', 8, 'RS 32', 'Pullback to the 8-day, tight range · RS Rating up 9 this week', ''],
-      ['WALK13', 9, 'RS 49', 'Pullback to the 8-day, tight range · RS Rating up 12 this week', ''],
+      ['WALK21', 5, 'RS 51', 'Tight range · RS Rating up 6 this week', ''],
+      ['RISE5', 6, 'RS 99*', 'Tight range', ''],
+      ['WALK08', 7, 'RS 37', 'Tight range · RS Rating up 5 this week', ''],
+      ['WALK04', 8, 'RS 32', 'Tight range · RS Rating up 9 this week', ''],
+      ['WALK13', 9, 'RS 49', 'Tight range · RS Rating up 12 this week', ''],
       // listed forty sessions ago: on the 1-month board before it has any rating
       ['BABY', 12, null, '', 'New issue'],
     ])
