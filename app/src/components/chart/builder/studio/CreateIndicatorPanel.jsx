@@ -180,6 +180,17 @@ function Working({ onStop }) {
   )
 }
 
+/** ⭐ F1 — the dock speaks about the allowance only once less than this share is left. */
+export const ALLOWANCE_NOTE_BELOW = 0.5
+
+/** The sentence for a share left, or null while there is plenty. No times: the allowance
+ *  renews with the market day, which this line does not try to pin to a clock. */
+export function allowanceLine(left) {
+  if (typeof left !== 'number' || !(left < ALLOWANCE_NOTE_BELOW)) return null
+  if (left <= 0) return "Today's UCT Intelligence allowance is used up. It renews each day."
+  return `About ${Math.max(5, Math.round(left * 100))}% of today's UCT Intelligence allowance is left.`
+}
+
 export default function CreateIndicatorPanel({
   onClose, settings = null, onChange = null, sym = null, tf = null, anchorRef = null,
   onPreview, onOpenBuilder = null, onOpenLibrary = null, converse = converseTurn,
@@ -552,6 +563,11 @@ export default function CreateIndicatorPanel({
         </section>
       )}
 
+      {allowanceLine(conv.allowanceLeft) && (
+        <p className={styles.allowance} data-testid="create-indicator-allowance" role="status">
+          {allowanceLine(conv.allowanceLeft)}
+        </p>
+      )}
       <div className={styles.composer}>
         <textarea
           ref={inputRef}
