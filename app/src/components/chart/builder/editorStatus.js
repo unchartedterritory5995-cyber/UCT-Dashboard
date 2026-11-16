@@ -185,7 +185,10 @@ export const FAMILIES = Object.freeze([
   },
   {
     id: 'library',
-    exact: ['pine:module', 'pine:declaration-library', 'runtime:library'],
+    // U15: the four ways a library the store HOLDS is still not compiled (no verified sha256,
+    // other code than the document was saved against, a non-commercial licence, the deny list).
+    exact: ['pine:module', 'pine:declaration-library', 'runtime:library',
+      'pine:library-no-sha', 'pine:library-changed', 'pine:library-licence', 'pine:library-denied'],
     label: 'Imported libraries',
     why: 'This script imports a library we cannot load yet.',
   },

@@ -183,6 +183,13 @@ const EXPECTED_UNEXERCISED = [
   // LENIENT contract, where `barstate.*` still folds to its closed-bar value —
   // so no published script reaches this guard here, and that is correct rather
   // than a gap. `pineStrictMode.test.js` exercises it directly.
+  // ⭐ ARRIVED 2026-11-15 (U15 Phase A) AS NEW GUARDS, not by a corpus script stopping short:
+  // the two published corpora are read with an EMPTY library registry, so no script reaches a
+  // library the store holds and will not compile. Each is pinned in `pineLibraryPinning.test.js`.
+  'pine:library-changed',
+  'pine:library-denied',
+  'pine:library-licence',
+  'pine:library-no-sha',
   'pine:live-bar-state',
   // ⭐⭐ ARRIVED 2026-09-21, NEWLY DECLARED — and it arrived the same way
   // `pine:objects-only` did, by splitting a sentence that was answering the

@@ -142,6 +142,12 @@ describe('(h) — three syminfo fields retire by name, from the roster', () => {
     // block must be indented by a tab or four spaces"; any other indent is a wrap),
     // and master served it. Both lanes now refuse it by that name
     // (`pine.js::refuseOffBlockIndent`, rail `runtime/__tests__/i6aN4BlockIndent.test.js`).
-    expect(Object.keys(REFUSALS).length).toBe(45)
+    //
+    // ⭐ AND 45 → 49 ON 2026-11-15, AGAIN NOT BECAUSE OF (h). U15 Phase A declared four names for a
+    // library the store holds and will not compile: `pine:library-no-sha` (no verified sha256),
+    // `pine:library-changed` (other code than the document was saved against),
+    // `pine:library-licence` (a non-commercial licence) and `pine:library-denied` (the deny list).
+    // Rail: `pineLibraryPinning.test.js`.
+    expect(Object.keys(REFUSALS).length).toBe(49)
   })
 })

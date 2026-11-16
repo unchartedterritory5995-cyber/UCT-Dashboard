@@ -10,7 +10,9 @@
     {
       "path": "Fontiramisu/fontilab/11",
       "reason": "ATR Trend Bands [Misu] imports it and DIVERGEs with it linked: the Upper Band's colour on bar 0",
-      "evidence": ["atr-trend-bands-misu-rddt-1d-2026-11-15"]
+      "evidence": [
+        "atr-trend-bands-misu-rddt-1d-2026-11-15"
+      ]
     },
     {
       "path": "loxx/loxxexpandedsourcetypes/4",
@@ -25,7 +27,10 @@
     {
       "path": "TradingView/ValueAtTime/2",
       "reason": "Performance (TradingView built-in) imports it and DIVERGEs with it linked, on RDDT and SPY",
-      "evidence": ["performance-rddt-1d-2026-11-15", "performance-spy-1d-2026-11-15"]
+      "evidence": [
+        "performance-rddt-1d-2026-11-15",
+        "performance-spy-1d-2026-11-15"
+      ]
     }
   ]
 }
