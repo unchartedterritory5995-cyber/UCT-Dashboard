@@ -26,7 +26,7 @@
 // the manifest already records a reason for all 103 of them.
 
 import { withoutGuardIds } from '../../components/chart/engine/ast/guardIdText'
-import { useMemo, useState } from 'react'
+import { Suspense, lazy, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import UIcon from '../../components/ui/UIcon'
@@ -37,6 +37,11 @@ import {
 import { TABLE } from '../../components/chart/engine/ast/parse'
 import { referenceSentence } from './referenceSentence'
 import styles from './FormulaReference.module.css'
+
+// Opened on request (see the section below): it imports the engine's refusal families.
+// ⛔ The file is `PineNamesSection`, NOT `PineNames`: `pineNames.js` sits beside it, and on a
+// case-insensitive disk `./PineNames` resolved to that module, which has no default export.
+const PineNames = lazy(() => import('./PineNamesSection'))
 
 /** The engine's own reach sentence for a function, or nothing for a kind that
  *  declares none. ⛔ Bar fields, operators and benchmarks have no `lookback` and
@@ -82,6 +87,7 @@ function Excluded({ item }) {
 export default function FormulaReference() {
   const vocab = useMemo(() => buildVocabulary(), [])
   const [query, setQuery] = useState('')
+  const [pineOpen, setPineOpen] = useState(false)
   const result = useMemo(() => searchVocabulary(query, vocab), [query, vocab])
 
   const shown = result.groups.reduce((n, g) => n + g.items.length, 0)
@@ -162,6 +168,28 @@ export default function FormulaReference() {
             </ul>
           </section>
         )}
+
+        {/* ⭐ TRADINGVIEW (PINE) NAMES. A member who writes or pastes Pine looks up `ta.rsi` and
+            sees whether it runs. The answer is the Pine door's own generated coverage file, so
+            it is current by construction. Opened on request: it loads the engine's refusal
+            families, which the rest of this page does not need. The search box above filters it. */}
+        <section className={styles.group} data-group="pine">
+          <h3 className={styles.groupTitle}>TradingView names</h3>
+          <p className={styles.groupBlurb}>
+            Writing or pasting Pine? Look up any TradingView built-in, such as <code>ta.rsi</code> or{' '}
+            <code>request.security</code>, and see whether it runs here.
+          </p>
+          {pineOpen ? (
+            <Suspense fallback={<p className={styles.count}>Loading TradingView names</p>}>
+              <PineNames query={query} />
+            </Suspense>
+          ) : (
+            <button type="button" className={styles.pineOpen} data-testid="pine-open"
+              onClick={() => setPineOpen(true)}>
+              {query.trim() ? `Look for “${query.trim()}” in TradingView names` : 'Show TradingView names'}
+            </button>
+          )}
+        </section>
 
         <p className={styles.footer}>
           <Link to="/charts">Build one on a chart</Link>

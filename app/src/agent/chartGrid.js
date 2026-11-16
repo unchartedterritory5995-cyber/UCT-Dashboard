@@ -50,7 +50,7 @@ export const RAIL_W = 6
 // in the same change, except a Watchlist when a rail is asked for: that one is MOVED into the rail (its list kept). The
 // board's own Undo puts every removed widget back whole (capabilities/board.js commitGrid / undoGrid). Never set by the
 // planner on its own: only from the member's pick, and chartGrid.set with `replace` is always a proposal (confirmIf).
-export function planChartGrid({ board, charts, symbols, timeframe = null, layout = null, newCharts = false, cols, rows, minOf, maxWidgets, detached = [], rail = null, replace = false }) {
+export function planChartGrid({ board, charts, symbols, timeframe = null, layout = null, newCharts = false, cols, rows, minOf, maxWidgets, detached = [], rail = null, replace = false, keep = null }) {
   let syms = (symbols || []).map(s => String(s || '').trim().toUpperCase()).filter(Boolean)
   const n = syms.length
   if (!n) return { ok: false, reason: 'Which tickers?' }
@@ -94,7 +94,10 @@ export function planChartGrid({ board, charts, symbols, timeframe = null, layout
     if (!railMove) railAdd = { type: rail.type, rect: { x: rx, y: 0, w: rw, h: rows } }
   }
   const chartWs = onGrid.filter(w => w.type === 'chart' && charts.has(String(w.id))).sort(readingOrder)
+  const keepSet = keep instanceof Set ? keep : new Set(keep || [])
   // live train 4: a kept chart that already shows one of the tickers keeps it (no ticker swapped between charts)
+  // (D18 item 3 leaves the plain reused grid as it is: "make a 2x2 of …" already shows every requested ticker exactly once —
+  // goldens GW-10 / GW-16 pin its cell order)
   if (replace === 'charts') {
     const own = chartWs.slice(0, n).map(w => String(charts.get(String(w.id))?.symbol || '').toUpperCase())
     const placed = own.map(s => (syms.includes(s) ? s : null))
@@ -103,10 +106,19 @@ export function planChartGrid({ board, charts, symbols, timeframe = null, layout
     const restSyms = syms.filter(s => !placed.includes(s))
     syms = Array.from({ length: n }, (_, i) => placed[i] || restSyms.shift())
   }
+  // ⛔ KEEP ≠ RE-CREATE (live 2026-11-14, #1210 follow-up: "Add AAPL and MSFT …, but keep SPY and NVDA" → "All four in a grid"
+  // made SIX panels — SPY, NVDA, SPY, NVDA, AAPL, MSFT): with newCharts, a ticker the REQUEST keeps (`keep`: the words name it as
+  // kept, or never ask for it at all — chartRail.keepTickers) that a chart on the grid already shows IS that chart: it keeps its
+  // panel (the same widget, arranged with the others) and is never created again. A ticker the words ask for as a new chart
+  // ("open daily charts for … NVDA", "another SPY") is still created. The final board: the existing charts ∪ the new tickers.
+  const showing = new Set(chartWs.map(w => String(charts.get(String(w.id))?.symbol || '').toUpperCase()).filter(s0 => s0 && keepSet.has(s0)))
+  const shown = newCharts ? syms.filter(s0 => showing.has(s0)) : []
+  if (newCharts && shown.length) syms = syms.filter(s0 => !showing.has(s0))
+  const n2 = syms.length
   // the charts that take a cell: the first n (reused for the tickers), or with newCharts every chart (kept as they are)
   const reuseWs = newCharts ? chartWs : chartWs.slice(0, n)
   const k = reuseWs.length
-  const needed = newCharts ? n : n - k
+  const needed = newCharts ? n2 : n - k
   if (board.length + needed + (railAdd ? 1 : 0) > maxWidgets) {
     return { ok: false, reason: boardRefusalSentence(board.length + needed + (railAdd ? 1 : 0)) }
   }
@@ -197,5 +209,9 @@ export function planChartGrid({ board, charts, symbols, timeframe = null, layout
     set[railMove] = { x: cols - (rail.w || RAIL_W), y: 0, w: rail.w || RAIL_W, h: rows }
   }
   const noop = !add.length && !remove.length && !Object.keys(set).length && !unlink.length && reuse.every(r => r.symbol == null && r.tf == null)
-  return { ok: true, reuse: newCharts ? reuse.filter(r => r.id in set) : reuse, add, set, unlink, tiled, shape, reflowed, noop, symbols: syms, timeframe, newCharts: !!newCharts, kept: newCharts ? k : 0, rail: railAdd ? railAdd.type : null, remove, railMoved: railMove }
+  // #1275 (AUDIT): the charts' cells as they END UP (each reused chart's new or kept cell, then each added chart's): a receipt
+  // may say "evenly" only when every one of them is the same size (3 charts on a 2-wide grid are 12x10, 12x10, 24x10 — not even)
+  const cellsOf = [...reuseWs.map(w => set[String(w.id)] || board.find(b => String(b.id) === String(w.id)) || w), ...addRects]
+  const equalCells = cellsOf.length > 0 && new Set(cellsOf.map(r => `${r.w}x${r.h}`)).size === 1
+  return { ok: true, reuse: newCharts ? reuse.filter(r => r.id in set) : reuse, add, set, unlink, tiled, shape, reflowed, noop, equalCells, symbols: syms, shown, timeframe, newCharts: !!newCharts, kept: newCharts ? k : 0, rail: railAdd ? railAdd.type : null, remove, railMoved: railMove }
 }
