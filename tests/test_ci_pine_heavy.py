@@ -12,6 +12,12 @@ What must stay true, each a test below:
     vacuous expected list
   * the mutant runner (tools/ci_mutant_runner.py) refuses a malformed manifest, and reports a mutant
     that survives
+  * (2026-11-16) the derived evidence is checked (`evidence_engine.py queue --check` and `pins --check`,
+    offline, the job red when either is) and the coverage ratchet runs on each lane (offline, its exit
+    unable to hide a run that measured fewer scripts than the corpus holds); the PR trigger covers every
+    path those tools read, DERIVED from the tools' own path constants; both jobs gate the verdict; the
+    ratchet's artifacts stay out of the union rail. The two jobs' steps are EXECUTED here with a stub
+    wrapper, so "the job fails when X" is a run, not a reading of the YAML.
 
 Standard library + PyYAML.
 """
@@ -19,11 +25,14 @@ from __future__ import annotations
 
 import glob
 import json
+import os
 import pathlib
 import re
+import shutil
 import subprocess
 import sys
 
+import pytest
 import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -100,7 +109,9 @@ def test_every_test_command_runs_offline():
             bad.append(f"{name}: no pine-heavy-setup step")
         for run in _runs(job):
             for line in run.splitlines():
-                if re.search(r"vitest run|-m pytest|ci_mutant_runner", line) and name != "rails" and "ci_offline.sh" not in line:
+                m = re.search(r"vitest run|-m pytest|ci_mutant_runner|evidence_engine\.py|coverage_ratchet\.py", line)
+                # (a command named inside an `echo`'d hint is prose, not a run)
+                if m and "echo " not in line[:m.start()] and name != "rails" and "ci_offline.sh" not in line:
                     bad.append(f"{name}: {line.strip()}")
     assert not bad, "test commands outside the no-network wrapper:\n" + "\n".join(bad)
 
@@ -230,3 +241,176 @@ def test_mutant_runner_kills_restores_and_reports_a_survivor(tmp_path, monkeypat
                           "rail": f'"{sys.executable}" -c "pass"'}, root)
     assert not survivor["killed"] and survivor["rc"] != 0
     assert (root / "impl.py").read_text(encoding="utf-8") == "LIMIT = 3\n"
+
+
+# ── the derived evidence and the coverage ratchet (2026-11-16) ────────────────
+# ⚰️ The docs-only #1435 changed coverage-map.json; capture-queue.json (derived from it) went stale on
+# master and no check noticed: nothing ran `queue --check` and this workflow did not trigger on the
+# paths that feed it. And a script that transferred could stop transferring with every check green.
+
+def _glob_rx(g: str):
+    """A GitHub `paths` filter pattern as a regex: `**` crosses `/`, `*` and `?` do not."""
+    out, i = "", 0
+    while i < len(g):
+        if g.startswith("**", i):
+            out, i = out + ".*", i + 2
+        elif g[i] == "*":
+            out, i = out + "[^/]*", i + 1
+        elif g[i] == "?":
+            out, i = out + "[^/]", i + 1
+        else:
+            out, i = out + re.escape(g[i]), i + 1
+    return re.compile(out + r"\Z")
+
+
+def _rel(p) -> str:
+    return pathlib.Path(p).resolve().relative_to(ROOT).as_posix()
+
+
+def _inputs_the_new_jobs_read() -> list[str]:
+    """Every path `evidence_engine.py queue` / `pins` and the coverage ratchet read, from the tools' OWN
+    constants (never a list typed here: a moved input must move this rail)."""
+    sys.path.insert(0, str(ROOT / "tools" / "vendor_harness"))
+    sys.path.insert(0, str(ROOT / "tools" / "pine_coverage"))
+    import coverage_ratchet as R  # noqa: E402
+    import evidence_engine as E  # noqa: E402
+    import corpus_licence  # noqa: E402  (tools/pine_survey, put on sys.path by evidence_engine)
+    out = [_rel(E.DOCS / "capture-queue-2099-01-01-any.md"), _rel(E.COVERAGE), _rel(E.LEDGER), _rel(E.QUEUE_OUT),
+           _rel(E.CORPUS / "committed" / "any.pine"), _rel(E.FIXTURE_ROOT / "harness" / "any.json"),
+           _rel(E.PINS_SRC), _rel(E.PINS_OUT), _rel(E.STRATEGY_VERDICTS_DIR / "any.json"), _rel(E.STRATEGY_CAPTURE_MJS),
+           _rel(corpus_licence.__file__), _rel(E.__file__)]
+    out += [_rel(pathlib.Path(d) / "any.pine") for d in E.PROBE_DIRS]
+    out += [_rel(R.SNAPSHOT), _rel(pathlib.Path(R.CORPUS) / "any.pine"), _rel(R.CORPUS_INDEX), _rel(R.__file__),
+            _rel(R.RC.__file__), _rel(R.CM.__file__), _rel(pathlib.Path(R.RC.APP) / R.RC.CENSUS),
+            _rel(sys.modules[R.CM.usage_of.__module__].__file__),   # api/services/pine_capabilities.py
+            "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",   # the member door the census asks
+            "tools/pine_coverage/runtime_lane.mjs", "tools/pine_coverage/census_peel.mjs"]   # the census imports them
+    return out
+
+
+def test_the_pr_trigger_covers_every_path_the_derived_checks_and_the_ratchet_read():
+    rxs = [_glob_rx(p) for p in _on(_wf())["pull_request"]["paths"]]
+    inputs = _inputs_the_new_jobs_read()
+    assert len(inputs) >= 20, inputs                               # non-vacuity: the constants were read
+    missing = [p for p in inputs if not any(rx.match(p) for rx in rxs)]
+    assert not missing, f"paths the derived checks / the ratchet read that do not trigger pine-heavy: {missing}"
+
+
+def test_the_glob_reading_can_tell_a_covered_path_from_an_uncovered_one():
+    """Control for the rail above: `*` does not cross a directory, `**` does."""
+    assert _glob_rx("docs/pine/capture-queue-*.md").match("docs/pine/capture-queue-2026-11-16-x.md")
+    assert not _glob_rx("docs/pine/capture-queue-*.md").match("docs/pine/sub/capture-queue-x.md")
+    assert _glob_rx("corpus/**").match("corpus/committed/a.pine")
+    assert not _glob_rx("tools/pine_survey/corpus_licence.py").match("tools/pine_survey/other.py")
+
+
+def test_the_new_jobs_gate_the_verdict_and_fit_the_budget():
+    jobs = _wf()["jobs"]
+    for name in ("derived-evidence", "coverage-ratchet"):
+        assert name in jobs, name
+        assert name in jobs["verdict"]["needs"], name
+        assert f"needs.{name}.result" in _runs(jobs["verdict"])[0].split("for r in", 1)[1], \
+            f"{name} is not in the verdict's every-leg-passed loop"
+        assert 0 < jobs[name]["timeout-minutes"] <= 30
+        assert "continue-on-error" not in json.dumps(jobs[name])
+    assert sorted(jobs["coverage-ratchet"]["strategy"]["matrix"]["lane"]) == ["production", "runtime-on"]
+
+
+def test_the_ratchet_artifacts_stay_out_of_the_union_rail():
+    """The ratchet's vitest run is a measurement, not a leg: an artifact matching the union job's download
+    patterns would put the census file in the union twice (or a verdicts file where a lane's belongs)."""
+    jobs = _wf()["jobs"]
+    patterns = [s["with"]["pattern"] for s in jobs["union"]["steps"] if "download-artifact" in str(s.get("uses"))]
+    assert patterns, "the union job downloads nothing"
+    names = [str(s["with"]["name"]) for s in jobs["coverage-ratchet"]["steps"] if "upload-artifact" in str(s.get("uses"))]
+    assert names == ["pine-coverage-ratchet-${{ matrix.lane }}"], names
+    for n in names:
+        for lane in ("production", "runtime-on"):
+            got = n.replace("${{ matrix.lane }}", lane)
+            assert not any(_glob_rx(p).match(got) for p in patterns), (got, patterns)
+
+
+# ── the two steps, EXECUTED with a stub wrapper ───────────────────────────────
+
+STUB_WRAPPER = r"""#!/usr/bin/env bash
+# a stand-in for tools/ci_offline.sh: answers each tool by name, from the environment
+case " $* " in
+  *" queue --check "*) exit "${Q_RC:-0}" ;;
+  *" pins --check "*) exit "${P_RC:-0}" ;;
+esac
+out=""; prev=""
+for a in "$@"; do if [ "$prev" = "--out" ]; then out="$a"; fi; prev="$a"; done
+if [ -n "$out" ]; then
+  mkdir -p "$out"
+  if [ -n "${RESULT:-}" ]; then printf '%s' "$RESULT" > "$out/ratchet-result.json"; fi
+  exit "${TOOL_RC:-0}"
+fi
+echo "stub wrapper: unexpected command: $*" >&2
+exit 97
+"""
+
+
+def _step_run(job: str, needle: str) -> str:
+    runs = [r for r in _runs(_wf()["jobs"][job]) if needle in r]
+    assert len(runs) == 1, (job, needle, len(runs))
+    return runs[0]
+
+
+def _execute(tmp_path, run: str, **env) -> int:
+    """Run a workflow step's script under bash with the stub wrapper and a `python3` that is this Python."""
+    bash = shutil.which("bash")
+    if not bash:
+        pytest.skip("no bash on this machine (the CI rails job has one)")
+    ci = tmp_path / "ci" / "tools"
+    ci.mkdir(parents=True)
+    (ci / "ci_offline.sh").write_text(STUB_WRAPPER, encoding="utf-8", newline="\n")
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    shim = bindir / "python3"
+    shim.write_text('#!/usr/bin/env bash\nexec "%s" "$@"\n' % sys.executable.replace("\\", "/"), encoding="utf-8",
+                    newline="\n")
+    os.chmod(shim, 0o755)
+    script = tmp_path / "step.sh"
+    script.write_text(run, encoding="utf-8", newline="\n")
+    full = dict(os.environ, CI_TOOLS=str(tmp_path / "ci"), GITHUB_STEP_SUMMARY=str(tmp_path / "summary.md"),
+                PATH=str(bindir) + os.pathsep + os.environ.get("PATH", ""), **{k: str(v) for k, v in env.items()})
+    work = tmp_path / "work"
+    work.mkdir()
+    return subprocess.run([bash, str(script)], cwd=str(work), env=full, capture_output=True, text=True).returncode
+
+
+@pytest.mark.parametrize("q,p,ok", [(0, 0, True), (1, 0, False), (0, 1, False), (1, 1, False)])
+def test_the_derived_evidence_step_fails_when_either_check_does(tmp_path, q, p, ok):
+    run = _step_run("derived-evidence", "queue --check")
+    assert "pins --check" in run
+    rc = _execute(tmp_path, run, Q_RC=q, P_RC=p)
+    assert (rc == 0) is ok, f"queue rc {q}, pins rc {p}: step exit {rc}"
+
+
+def _result(verdict, measured, expected=266):
+    return json.dumps({"verdict": verdict, "measured": measured, "expected": expected})
+
+
+@pytest.mark.parametrize("tool_rc,result,want", [
+    (0, _result("PASS", 266), 0),          # the control: a whole PASS passes
+    (1, _result("LOST", 266), 1),          # a lost script fails with the tool's own code
+    (2, _result("REFUSED", 12), 2),        # a refusal fails with the tool's own code
+    (0, _result("PASS", 200), "red"),      # ⛔ exit 0, but it measured fewer scripts than the corpus holds
+    (0, _result("PASS", 0, 0), "red"),     # ⛔ exit 0 over an empty corpus
+    (0, "", "red"),                        # ⛔ exit 0 and no result at all
+])
+def test_the_ratchet_step_cannot_pass_on_an_undermeasured_run(tmp_path, tool_rc, result, want):
+    run = _step_run("coverage-ratchet", "coverage_ratchet.py")
+    rc = _execute(tmp_path, run, LANE="production", TOOL_RC=tool_rc, RESULT=result)
+    if want == "red":
+        assert rc != 0, "the ratchet step passed a run its result says did not measure the whole corpus"
+    else:
+        assert rc == want, f"step exit {rc}, wanted {want}"
+
+
+def test_the_ratchet_step_runs_the_lane_it_is_named_for():
+    run = _step_run("coverage-ratchet", "coverage_ratchet.py")
+    line = next(l for l in run.splitlines() if "coverage_ratchet.py" in l)
+    assert '--lane "$LANE"' in line and "ci_offline.sh" in line and '--out "$out"' in line, line
+    step = next(s for s in _wf()["jobs"]["coverage-ratchet"]["steps"] if "coverage_ratchet.py" in str(s.get("run")))
+    assert step["env"]["LANE"] == "${{ matrix.lane }}"
