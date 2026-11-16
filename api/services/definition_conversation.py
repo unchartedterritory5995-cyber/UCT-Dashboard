@@ -1790,8 +1790,7 @@ def prompt_sha() -> str:
     changes when the instructions, the tool schema, or the vocabulary text generated
     into the prompt change, and for no other reason."""
     import hashlib
-    payload = system_prompt() + "
-" + json.dumps(anthropic_tool(), sort_keys=True,
+    payload = system_prompt() + "\n" + json.dumps(anthropic_tool(), sort_keys=True,
                                                    separators=(",", ":"))
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
 
