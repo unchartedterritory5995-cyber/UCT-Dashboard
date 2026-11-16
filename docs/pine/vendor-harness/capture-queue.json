@@ -60,6 +60,7 @@
    "docs/pine/capture-queue-2026-11-14-rs-rating.md",
    "docs/pine/capture-queue-2026-11-15-calc-bars.md",
    "docs/pine/capture-queue-2026-11-16-cond-ta-followups.md",
+   "docs/pine/capture-queue-2026-11-16-imp.md",
    "docs/pine/capture-queue-2026-11-16-rma-last-bit.md",
    "docs/pine/capture-queue-2026-11-16-tick-tie-and-htf-windows.md"
   ],
@@ -86,12 +87,12 @@
   }
  },
  "counts": {
-  "targets": 319,
+  "targets": 322,
   "byStatus": {
    "CAPTURED": 130,
-   "NEEDS_CHART": 39,
+   "NEEDS_CHART": 38,
    "NEEDS_LIVE": 2,
-   "QUEUED": 148
+   "QUEUED": 152
   },
   "byPlanWave": {
    "E": {
@@ -108,8 +109,8 @@
    },
    "W4": {
     "CAPTURED": 11,
-    "NEEDS_CHART": 2,
-    "QUEUED": 26
+    "NEEDS_CHART": 1,
+    "QUEUED": 30
    },
    "W7": {
     "CAPTURED": 2,
@@ -119,14 +120,14 @@
   "byPriorityBand": {
    "0": {
     "CAPTURED": 110,
-    "NEEDS_CHART": 38,
+    "NEEDS_CHART": 37,
     "NEEDS_LIVE": 2,
-    "QUEUED": 140
+    "QUEUED": 143
    },
    "1-2": {
     "CAPTURED": 20,
     "NEEDS_CHART": 1,
-    "QUEUED": 8
+    "QUEUED": 9
    }
   },
   "byDocWave": {
@@ -198,6 +199,9 @@
    },
    "i6a-n4": {
     "QUEUED": 6
+   },
+   "imp": {
+    "QUEUED": 4
    },
    "l1-libraries": {
     "CAPTURED": 1
@@ -308,8 +312,8 @@
     "QUEUED": 27
    },
    "wsa-for-bound": {
-    "NEEDS_CHART": 2,
-    "QUEUED": 1
+    "NEEDS_CHART": 1,
+    "QUEUED": 2
    },
    "wsc-history": {
     "CAPTURED": 1,
@@ -986,6 +990,66 @@
    "oldestDoc": "2026-10-01",
    "rows": [
     "capture-queue-2026-10-01-c48#vw-cond-window-extremes.pine"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-imp-change-before-reassign@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-imp-change-before-reassign.pine",
+   "sourceKind": "probe",
+   "sha256": "7985c7adcb5db0cb6e188ea1baa8ecc73b004d0433e5e4324cff23015442cf66",
+   "bytes": 1629,
+   "stem": "vw-imp-change-before-reassign",
+   "captureStem": "vw-imp-change-before-reassign",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 1,
+   "unblocks": {
+    "priority": 1,
+    "firm": [
+     "committed:auto-trendline-dojiemoji__c21f83602c"
+    ],
+    "named": [],
+    "direct": [],
+    "upper": 59,
+    "upperSample": [
+     "builtin:gaps__Gaps",
+     "builtin:price-target__Price1Target",
+     "builtin:seasonality__Seasonality",
+     "builtin:trading-sessions__Trading1Sess",
+     "builtin:visible-average-price__Visible1Aver",
+     "committed:ai-supertrend-x-pivot-percentile-strategy-presenttrading__3b9db05a48",
+     "committed:auto-harmonic-patterns-open-source__ca6022754b",
+     "committed:auto-trendline-dojiemoji__c21f83602c",
+     "committed:bollinger-band-width-percentile__03JuGF728K",
+     "committed:candelacharts-equal-highslows-eqheql__4485a6c447",
+     "committed:chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2",
+     "committed:delta-volume-candles-lucf__qADnaAfCPp"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "pine:collection",
+    "runtime:loop"
+   ],
+   "planWave": "W4",
+   "docWaves": [
+    "imp"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-imp#Q-IMP-H (engine gap)"
    ],
    "origins": [
     "queue-doc"
@@ -2682,8 +2746,65 @@
    ]
   },
   {
+   "id": "vw-imp-forin-reorder@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-imp-forin-reorder.pine",
+   "sourceKind": "probe",
+   "sha256": "f4293e97b125d5a7fe01068c26635b1d80afe43056ab914b7f97ed6a3409bf20",
+   "bytes": 2384,
+   "stem": "vw-imp-forin-reorder",
+   "captureStem": "vw-imp-forin-reorder",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 15,
+    "upperSample": [
+     "builtin:gaps__Gaps",
+     "builtin:price-target__Price1Target",
+     "builtin:seasonality__Seasonality",
+     "builtin:trading-sessions__Trading1Sess",
+     "committed:ai-supertrend-x-pivot-percentile-strategy-presenttrading__3b9db05a48",
+     "committed:candelacharts-equal-highslows-eqheql__4485a6c447",
+     "committed:ict-institutional-order-flow-fadi__25d4834579",
+     "committed:market-structure-break-order-block__3a1fb6197f",
+     "committed:support-and-resistance-logistic-regression-flux-charts__9d844269d6",
+     "committed:support-resistance-mtf-flux-charts__dd04862677",
+     "reference:cumulative-volume-delta-divergence__fbc538f076",
+     "reference:fvg-order-blocks-bigbeluga__64decdabc4"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "runtime:loop"
+   ],
+   "planWave": "W4",
+   "docWaves": [
+    "imp"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-imp#Q-IMP-R"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
    "id": "vw-wsa-v6-bool-unmatched@NYSE:RDDT@D",
-   "status": "NEEDS_CHART",
+   "status": "QUEUED",
    "evidence": [],
    "source": "tools/visual_conformance/probes/vw-wsa-v6-bool-unmatched.pine",
    "sourceKind": "probe",
@@ -2694,8 +2815,8 @@
    "symbol": "NYSE:RDDT",
    "tf": "1D",
    "fromListing": false,
-   "chartDefaulted": true,
-   "chartSource": "default",
+   "chartDefaulted": false,
+   "chartSource": "row",
    "unparsedCharts": [],
    "capturedOn": [],
    "licence": "probe",
@@ -2728,11 +2849,13 @@
    ],
    "planWave": "W4",
    "docWaves": [
+    "imp",
     "wsa-for-bound"
    ],
    "oldestDoc": "2026-10-31",
    "rows": [
-    "capture-queue-2026-10-31-wsa-for-bound#Q-A3"
+    "capture-queue-2026-10-31-wsa-for-bound#Q-A3",
+    "capture-queue-2026-11-16-imp#Q-IMP-A3T"
    ],
    "origins": [
     "queue-doc"
@@ -2790,6 +2913,63 @@
    "oldestDoc": "2026-11-07",
    "rows": [
     "capture-queue-2026-11-07-honesty-sweep#Q-HS6"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-wsa-v6-bool-unmatched-tuple@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-wsa-v6-bool-unmatched-tuple.pine",
+   "sourceKind": "probe",
+   "sha256": "ef39b500cf6f5315c9ea8c49af0675919dfc78e1a5c7f2639330f70d59ce7533",
+   "bytes": 1579,
+   "stem": "vw-wsa-v6-bool-unmatched-tuple",
+   "captureStem": "vw-wsa-v6-bool-unmatched-tuple",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 13,
+    "upperSample": [
+     "builtin:seasonality__Seasonality",
+     "builtin:volatility-stop__Volatility_S",
+     "committed:fx-market-sessions__3KZoMPYziy",
+     "committed:ict-institutional-order-flow-fadi__25d4834579",
+     "committed:neural-network-buy-and-sell-signals__fbbb11d0c7",
+     "committed:smart-money-concepts-by-welotrades__0bff41a2e5",
+     "committed:supply-demand-mtf-flux-charts__7fb4bff229",
+     "committed:support-resistance-mtf-flux-charts__dd04862677",
+     "committed:volume-delta-oi-delta-kioseff-trading__9056fd6b37",
+     "reference:edufx-amd__0ca9b3c747",
+     "reference:liquidity-pools-pro-willyalgotrader__409687ce4a",
+     "reference:mirage-liquidity-sweep-pro-willyalgotrader__238f0e26eb"
+    ]
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "runtime:block-value"
+   ],
+   "planWave": "W4",
+   "docWaves": [
+    "imp"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-imp#Q-IMP-A3T"
    ],
    "origins": [
     "queue-doc"
@@ -17774,6 +17954,12 @@
    "doc": "docs/pine/capture-queue-2026-11-16-cond-ta-followups.md",
    "wave": "cond-ta-followups",
    "rows": 8,
+   "contextTables": 0
+  },
+  {
+   "doc": "docs/pine/capture-queue-2026-11-16-imp.md",
+   "wave": "imp",
+   "rows": 3,
    "contextTables": 0
   },
   {

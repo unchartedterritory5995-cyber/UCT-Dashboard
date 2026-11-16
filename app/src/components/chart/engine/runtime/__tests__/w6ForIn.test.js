@@ -26,7 +26,7 @@ import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import { lowerIrProgram } from '../lowerIr.js'
 import { execute } from '../vm.js'
 import { FOR_IN_LIVE_WITNESSED, FOR_IN_LIVE_WITNESSED_RUNTIME, FOR_IN_SNAPSHOT_SOURCES, forInMutationRefusal,
-  forInHeldListRefusal } from '../../ast/forInRule.js'
+  forInHeldListRefusal, forInHelperHeldRefusal } from '../../ast/forInRule.js'
 import { translatePine } from '../../ast/pine.js'
 
 const N = 40
@@ -40,8 +40,8 @@ const H = '//@version=6\nindicator("t", overlay = true)\n'
 const build = (body, extra = {}) => buildRuntimeIr(H + body,
   { bars: BARS, inputs: {}, objectsInRun: true, pane: true, tf: 'D', basePeriod: 'D', ...extra })
 /** The last bar's value of every output. */
-function lastValues(body) {
-  const built = build(body)
+function lastValues(body, extra = {}) {
+  const built = build(body, extra)
   if (!built.ok) throw new Error(`refused ${built.refusal.guard}: ${built.refusal.message}`)
   const program = lowerIrProgram(built.ir, { historyFromListing: true })
   const r = execute(program, { bars: N, series: SERIES, columns: program.columns, confirmed: true, barTimes: BARS.map((b) => b.t) })
@@ -93,13 +93,12 @@ const WALK = (change) => `a = array.from(1.0, 2.0, 3.0)\ns = 0.0\nfor [i, x] in 
 describe('⭐⭐ IMP-1 — SERVED ON THIS LANE: the G-rows, a function body, a field write through a handed element', () => {
   // The values are the index walk over the LIVE list (the manual's Loops page; G01-G07 of
   // `vw-forin-collections-2` grade the same walk against TradingView in the vendor harness rail).
-  it('remove / pop / unshift / insert / clear, a reassignment of the name, a helper handed the list', () => {
-    const helper = 'drop(array<float> arr) =>\n    array.pop(arr)\n'
+  it('remove / pop / unshift / insert / clear, a reassignment of the name', () => {
     const cases = [
       // [1, 2, 3]: pass 0 reads 1 and removes slot 0 → [2, 3]; pass 1 reads slot 1 = 3; 2 passes
       ['array.remove(a, 0)', 4], ['a.remove(0)', 4],
       // pass 0 reads 1, pop → [1, 2]; pass 1 reads 2, pop → [1]; 2 passes
-      ['array.pop(a)', 3], ['drop(a)', 3],
+      ['array.pop(a)', 3],
       // the front grows to 6: passes read 1, 1, 1, 1, 2, 3 (6 passes)
       ['if array.size(a) < 6\n        array.unshift(a, 1.0)', 9],
       ['if array.size(a) < 6\n        array.insert(a, 0, 1.0)', 9],
@@ -109,7 +108,19 @@ describe('⭐⭐ IMP-1 — SERVED ON THIS LANE: the G-rows, a function body, a f
       ['a := array.from(9.0)', 6],
     ]
     for (const [change, want] of cases) {
-      expect(lastValues((change === 'drop(a)' ? helper : '') + WALK(change)), change).toEqual([want])
+      expect(lastValues(WALK(change)), change).toEqual([want])
+    }
+  })
+  it('⛔ G07 HELD: a helper handed the list refuses by its own sentence; with the test-only `forInHelpersServed` it walks live', () => {
+    const helper = 'drop(array<float> arr) =>\n    array.pop(arr)\n'
+    // ⭐ the helper's parameter in the legacy `type[]` form too (G07's own helper is `f_shift(line[] a)`)
+    const legacy = 'dropb(float[] arr) =>\n    array.pop(arr)\n'
+    for (const src of [helper + WALK('drop(a)'), legacy + WALK('dropb(a)')]) {
+      const r = refusal(src)
+      expect(r.guard).toBe('runtime:loop')
+      expect(r.message).toBe(`a loop in a form this lane does not iterate — \`for … in\`: ${forInHelperHeldRefusal('a')}`)
+      // pass 0 reads 1, the helper pops → [1, 2]; pass 1 reads 2, pops → [1]; 2 passes
+      expect(lastValues(src, { forInHelpersServed: true })).toEqual([3])
     }
   })
   it('⛔ CONTROLS — reverse / sort / fill / concat (no capture row), directly or by a helper, stay refused by name', () => {
@@ -133,6 +144,17 @@ describe('⭐⭐ IMP-1 — SERVED ON THIS LANE: the G-rows, a function body, a f
     // …and over a global list, read inside the function (the witness script's `predict`)
     const g = 'var gs = array.from(2.0, 4.0)\ng(float k) =>\n    float t = 0.0\n    for x in gs\n        t += x * k\n    t\n'
     expect(lastValues(`${g}plot(g(1.0))\nplot(g(10.0))\n`)).toEqual([6, 60])
+  })
+  it('⭐ a record holding a DRAWING holds no list, in the value build too (the held-list rule has nothing to guard)', () => {
+    const T = 'type S\n    float v\n    line l\nvar ss = array.new<S>()\nif barstate.isfirst\n    array.push(ss, S.new(1, na))\n'
+    const touch = 'touch(S s) =>\n    s.v := s.v + 1\n    s.v\n'
+    const src = `${T}${touch}for s in ss\n    touch(s)\nplot(array.get(ss, 0).v)\n`
+    const valueBuild = build(src, { objectsInRun: false })
+    expect(valueBuild.ok, valueBuild.refusal && valueBuild.refusal.message).toBe(true)
+    // ⛔ CONTROL — a record holding a LIST, handed to a function that changes that list, still refuses
+    const Q = 'type Q\n    float v\n    array<float> arr\nvar qs = array.new<Q>()\nif barstate.isfirst\n    array.push(qs, Q.new(1, array.new_float()))\n'
+    const grow = 'grow(Q q) =>\n    array.push(q.arr, 1.0)\n'
+    expect(build(`${Q}${grow}for q in qs\n    grow(q)\nplot(close)\n`, { objectsInRun: false }).ok).toBe(false)
   })
   it('handing the element to a function that writes its fields (at any depth): the write is through a reference', () => {
     const T = 'type P\n    float v\nvar ps = array.new<P>()\nif barstate.isfirst\n    array.push(ps, P.new(1))\n    array.push(ps, P.new(2))\n'

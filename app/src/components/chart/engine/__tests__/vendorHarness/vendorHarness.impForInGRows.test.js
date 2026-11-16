@@ -33,6 +33,7 @@ import process from 'node:process'
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import { lowerIrProgram } from '../../runtime/lowerIr.js'
 import { execute } from '../../runtime/vm.js'
+import { forInHelperHeldRefusal } from '../../ast/forInRule.js'
 
 const DIR = path.resolve(process.cwd(), '..', 'tests/fixtures/vendor/harness')
 const CAP = JSON.parse(fs.readFileSync(path.join(DIR, 'vw-forin-collections-2-rddt-1d-2026-10-02.json'), 'utf8'))
@@ -51,9 +52,14 @@ const rowOf = (cap, title) => {
 const TITLES = CAP.study.plots.map((p) => p.title)
 const G_TITLES = TITLES.filter((t) => /^G0[1-7]_/.test(t) || t === 'C00_bar_index_CONTROL')
 
-function runLane(src, cap = CAP) {
+// ⛔ G07 is HELD in the product (`pineRuntimeFrontend.js::FOR_IN_HELPER_SERVED`, queue row Q-IMP-H): the
+// one sample script it frees diverges from its own capture on a defect outside the walk. The grading
+// below runs the machinery with the test-only `forInHelpersServed`, so G07 is proven against
+// TradingView while it stays shut; the last case pins that the product still refuses it by name.
+const SERVE_G07 = { forInHelpersServed: true }
+function runLane(src, cap = CAP, extra = SERVE_G07) {
   const bars = barsOf(cap)
-  const built = buildRuntimeIr(src, { bars, inputs: {}, objectsInRun: true, pane: true, tf: 'D', basePeriod: 'D' })
+  const built = buildRuntimeIr(src, { bars, inputs: {}, objectsInRun: true, pane: true, tf: 'D', basePeriod: 'D', ...extra })
   if (!built.ok) throw new Error(`refused ${built.refusal.guard}: ${built.refusal.message}`)
   const program = lowerIrProgram(built.ir, { historyFromListing: true })
   const r = execute(program, {
@@ -100,6 +106,16 @@ describe('⭐⭐⭐ IMP-1 — the probe, unchanged, MATCHES G01-G07 through the 
     expect(g.compared).toBe(G_TITLES.length * CAP.bars.rows.length)
     expect(g.bad).toEqual({})
   }, 240000)
+})
+
+describe('⛔ G07 HELD — the product refuses the probe at its helper walk, by name', () => {
+  it('without the test-only option the build refuses `for l in hs` (G07) with the held sentence', () => {
+    const bars = barsOf(CAP)
+    const built = buildRuntimeIr(CAP.source.text, { bars, inputs: {}, objectsInRun: true, pane: true, tf: 'D', basePeriod: 'D' })
+    expect(built.ok).toBe(false)
+    expect(built.refusal.guard).toBe('runtime:loop')
+    expect(built.refusal.message).toBe(`a loop in a form this lane does not iterate — \`for … in\`: ${forInHelperHeldRefusal('hs')}`)
+  })
 })
 
 describe('⛔ CONTROLS — the two models the capture rules out read differently here', () => {

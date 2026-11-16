@@ -61,6 +61,12 @@ export const FOR_IN_LIVE_WITNESSED_RUNTIME = Object.freeze(new Set(['push', 'shi
 export const forInMutationRefusal = (src, allowed = FOR_IN_LIVE_WITNESSED) => (
   `the body changes \`${src}\`, the list it walks, by more than ${[...allowed].join(' / ')}`)
 
+/** ⛔ IMP-1 — the runtime lane's sentence for G07 held (`pineRuntimeFrontend.js::FOR_IN_HELPER_SERVED`):
+ *  the body hands the walked list itself to a user function (one that changes it at most by the
+ *  witnessed members; any other change keeps `forInMutationRefusal`). Master refused this too. */
+export const forInHelperHeldRefusal = (src) => (
+  `the body hands \`${src}\`, the list it walks, to a function of this script, not yet served (G07 is held, Q-IMP-H)`)
+
 /** Does this statement list (at any depth, and through any user function it calls) change
  *  the list `name` — a mutating member, a reassignment, or a user function that is handed
  *  it or names it? `allowed`: mutating members that do not count (the question becomes "by

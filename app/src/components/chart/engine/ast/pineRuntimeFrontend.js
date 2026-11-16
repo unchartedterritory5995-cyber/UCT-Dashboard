@@ -101,7 +101,7 @@ import { makeTy, tyOfTypeWord, bindingTy, isCollectionTy, elemTy, udtNameOf, ele
 // ⭐⭐ IMP-1 — this lane reads the RUNTIME set (G01-G07 graded on this lane); the host lane keeps C48's.
 import {
   FOR_IN_SNAPSHOT_SOURCES, FOR_IN_LIVE_WITNESSED_RUNTIME, COLLECTION_MUTATORS, REASSIGN_OPS,
-  bodyMayWriteList, forInMutationRefusal, heldListMutation, forInHeldListRefusal, heldListReach,
+  bodyMayWriteList, forInMutationRefusal, forInHelperHeldRefusal, heldListMutation, forInHeldListRefusal, heldListReach,
 } from './forInRule.js'
 import { readFunctionDefs } from './objectFnInline.js'
 // ⭐⭐ RT5 — the run's own drawings: the store's op table is the one authority
@@ -1315,6 +1315,34 @@ export function paramQualifiers(toks, arrow) {
     qual = null
   }
   return out
+}
+
+/** ⭐⭐ IMP-1 (2026-11-16) — A PARAMETER TYPED `type[]` IS TYPED `array<type>`. The User Manual,
+ *  Arrays: "a variable whose declaration includes `int[]` as the type keyword accepts the type
+ *  `array<int>`" (the legacy form, deprecated but compiling: `vw-forin-collections-2`'s helper
+ *  `f_shift(line[] a)` ran on TradingView). The lexer folds `array<line>` into ONE token carrying
+ *  `typeArgs` (`pine.js::stripTypeArguments`); this folds `line [ ]` before a parameter name into
+ *  that same token, so every header reader below sees one shape. Only inside the header's
+ *  parentheses, only `word [ ] name`; a header with none is returned as it came (same arrays).
+ *  @returns {{toks: object[], arrow: number}} */
+export function foldBracketParamTypes(toks, arrow) {
+  const close = toks.findIndex((t) => isPunct(t, ')'))
+  if (close < 0 || close > arrow) return { toks, arrow }
+  let out = null
+  for (let i = 2; i < close; i += 1) {
+    const t = toks[i]
+    if (t && t.kind === 'ident' && isPunct(toks[i + 1], '[') && isPunct(toks[i + 2], ']')
+        && toks[i + 3] && toks[i + 3].kind === 'ident' && i + 3 < close) {
+      if (!out) out = toks.slice(0, i)
+      out.push({ ...t, value: 'array', typeArgs: [String(t.value)] })
+      i += 2
+      continue
+    }
+    if (out) out.push(t)
+  }
+  if (!out) return { toks, arrow }
+  const folded = out.concat(toks.slice(close))
+  return { toks: folded, arrow: arrow - (toks.length - folded.length) }
 }
 
 export function paramTypeHeads(toks, arrow) {
@@ -12260,6 +12288,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // ⛔ AT THE OBJECT DOOR the host object lane serves `for … in`; the door keeps refusing it
   // (`objectDoorRefuses`) until measure-pair proves its output identical.
   let forInFnDefs = null
+  // ⛔⛔ IMP-1 — G07 GATE. `vw-forin-collections-2` G07 (a helper handed the walked list shifts it:
+  // 3 passes, live) MATCHes through this lane (`vendorHarness.impForInGRows.test.js`, with the
+  // test-only `opts.forInHelpersServed`). It stays SHUT because the one sample script it frees,
+  // `market-structure-break-order-block`, then draws 25 "MSB" labels where its capture
+  // (`market-structure-break-order-block-rddt-1d-2026-11-14`) holds 7: a divergence in that script's
+  // `market` state outside the walk (queue row Q-IMP-H, capture-queue-2026-11-16-imp.md). Flip it
+  // when that row is settled.
+  const FOR_IN_HELPER_SERVED = false
   const lowerForIn = (st, toks, first, scope, out) => {
     const refuse = (why) => {
       note('runtime:loop')
@@ -12300,10 +12336,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (srcTy.kind !== 'array') refuse(`\`${src}\` is not an array this lane can walk`)
     if (!forInFnDefs) forInFnDefs = readFunctionDefs(stmts, { isPunct })
     const rule = { isPunct, isDefined: (m) => definedNames.has(m), fnDefs: forInFnDefs }
-    // ⭐ C48 — a body that changes its own list walks it LIVE; ⭐ IMP-1: by the runtime set, a
-    // reassignment of the list's name (G06) or a helper that changes it by that set (G07).
-    if (!family && bodyMayWriteList(st.sub, src, { ...rule, allowed: FOR_IN_LIVE_WITNESSED_RUNTIME,
-      reassignKeepsWalk: true, followHelpers: true })) refuse(forInMutationRefusal(src, FOR_IN_LIVE_WITNESSED_RUNTIME))
+    // ⭐ C48 — a body that changes its own list walks it LIVE; ⭐ IMP-1: by the runtime set or a
+    // reassignment of the list's name (G06). ⛔ G07 HELD (`FOR_IN_HELPER_SERVED`): a helper handed
+    // the list is read (`followHelpers`); one that changes it by more than that set keeps the
+    // generic sentence, every other one refuses by its own (master refused both).
+    const rtWalk = { ...rule, allowed: FOR_IN_LIVE_WITNESSED_RUNTIME, reassignKeepsWalk: true }
+    if (!family && bodyMayWriteList(st.sub, src, rtWalk)) {
+      if (bodyMayWriteList(st.sub, src, { ...rtWalk, followHelpers: true })) {
+        refuse(forInMutationRefusal(src, FOR_IN_LIVE_WITNESSED_RUNTIME))
+      }
+      if (!(FOR_IN_HELPER_SERVED || opts.forInHelpersServed === true)) refuse(forInHelperHeldRefusal(src))
+    }
     // …and handing the element to a function that changes a list held in one of its fields (at
     // any depth of its calls): the element is a reference, so that is a write through `x` too.
     // ⭐ IMP-1: a function that only writes the element's FIELDS is served (`fieldWritesServed`).
@@ -12438,7 +12481,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
   })
   /** ⛔ (review N1b r2) Does a value of type `ty` hold a list (a collection field of its record
    *  type, at any depth, or one this lane cannot type)? Off for numbers, text and drawings: their
-   *  walks hold no list, and the held-list rule has nothing to guard. */
+   *  walks hold no list, and the held-list rule has nothing to guard.
+   *  ⭐ IMP-1 — a field is typed by its WRITTEN word (`tyOfTypeWord`), not by `writtenTyOf`, which
+   *  answers null for a drawing in the value build (`objectsInRun` off): a `line` field was then
+   *  "a type this lane cannot tell" and every record holding a drawing read as holding a list. */
   const forInElemHoldsList = (ty, seen = new Set()) => {
     if (!ty || ty.kind !== 'udt') return false
     if (seen.has(ty.name)) return false
@@ -12446,7 +12492,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const t = udtTypes.get(ty.name)
     if (!t) return true
     return t.fields.some((f) => {
-      const fty = writtenTyOf(f.type, f.typeArgs)
+      const fty = tyOfTypeWord(f.type, f.typeArgs, { udtTypes, enums: enumDecls })
       if (!fty) return true
       if (fty.kind === 'array' || fty.kind === 'matrix' || fty.kind === 'map') return true
       return forInElemHoldsList(fty, seen)
@@ -13926,7 +13972,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  name, parameters, its own frame, its own persistent-local count, a body and
    *  a result. Not a macro, and not re-parsed at each call: the CODE is shared and
    *  only the state is per call site. */
-  const defineFunction = (st, toks, arrow, spec = null) => {
+  const defineFunction = (st, toks0, arrow0, spec = null) => {
+    // ⭐ IMP-1 — `line[] a` is `array<line> a` (`foldBracketParamTypes`), read by every reader below
+    const { toks, arrow } = foldBracketParamTypes(toks0, arrow0)
     const nameTok = toks[0]
     if (!nameTok || nameTok.kind !== 'ident' || !isPunct(toks[1], '(') || !isPunct(toks[arrow - 1], ')')) {
       throw new RuntimeRefusal('runtime:function',
