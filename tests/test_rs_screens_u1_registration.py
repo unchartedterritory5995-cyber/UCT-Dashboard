@@ -41,10 +41,16 @@ BANNED = re.compile(r"\b(buy|buys|buying|buyable|sell|sells|selling|RSI)\b", re.
 
 # ───────────────────────── the flag ─────────────────────────
 
-def test_the_flag_has_a_ledger_row_and_ships_dark():
+def test_the_flag_has_a_ledger_row_that_says_who_is_served():
+    # Pin moved twice on 2026-11-15: this said the row ships dark; then the owner set `admin`
+    # on web (his preview) and it said armed for admins only; then he released the screens to
+    # every member (the value 1). The ledger records each flip (CLAUDE.md), and the row has to
+    # say who is served.
     row = json.loads((ROOT / "docs" / "feature_flags.json").read_text(encoding="utf-8"))["flags"][pp.FLAG]
     assert pp.FLAG == "RS_SCREENS_ENABLED"
-    assert row["status"] == "dark" and row["where"] == ["web"]
+    assert row["status"] == "armed" and row["where"] == ["web"]
+    assert row["note"].startswith("ARMED FOR EVERYONE") and "released to all members" in row["note"]
+    assert "ARMED FOR ADMINS ONLY" not in row["note"]
     assert "rs_post_pass.enabled" in row["note"] and "RS_SCREENS_KEYS" in row["note"]
 
 

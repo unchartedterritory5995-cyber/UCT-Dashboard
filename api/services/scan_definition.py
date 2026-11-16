@@ -73,6 +73,11 @@ _TF_LIVE = "tf_live"
 #: `assert_scannable`: it reads a symbol's intraday bars, which a daily sweep
 #: does not hold.
 _LTF = "ltf"
+#: ⚠️ ENGINE 55 — PINE'S MERGED HIGHER-TIMEFRAME READ (`tf_merge`). Classified with
+#: `_TF` below (a period changes WHEN, never WHAT) and REFUSED as a screen in
+#: `assert_scannable`: a screen reads the newest finished bar, which is exactly the
+#: bar the merge withholds (its period end is the next session's date).
+_TF_MERGE = "tf_merge"
 #: ⭐ THE BIND-TIME TEXT TRIO. `closedTable.json` settles what they mean to a
 #: classifier in its own words: *"THE TRIO ADDS NO VALUE KIND, AND THAT IS THE
 #: WHOLE DESIGN. A `textop` sits wherever a number sits and every existing walker
@@ -134,12 +139,21 @@ SWEEP_TF = "D"
 
 def _reads_lower_timeframe(tree: Any) -> bool:
     """Does this tree hold an `ltf` node anywhere? Iterative."""
+    return _holds_type(tree, _LTF)
+
+
+def _reads_merged_timeframe(tree: Any) -> bool:
+    """⭐ ENGINE 55 — does this tree hold a `tf_merge` node anywhere? Iterative."""
+    return _holds_type(tree, _TF_MERGE)
+
+
+def _holds_type(tree: Any, kind: str) -> bool:
     stack = [tree]
     while stack:
         node = stack.pop()
         if not isinstance(node, dict):
             continue
-        if node.get("type") == _LTF:
+        if node.get("type") == kind:
             return True
         args = node.get("args")
         if isinstance(args, list):
@@ -290,7 +304,7 @@ def is_boolean_tree(ast: Any, table: Optional[Mapping[str, Any]] = None) -> bool
             # `yields` gate rather than by a lookup that happened to miss.
             kinds[id(node)] = _KIND_NUM
             continue
-        if node_type in (_TF, _SYM, _TF_LIVE, _LTF):
+        if node_type in (_TF, _SYM, _TF_LIVE, _LTF, _TF_MERGE):
             # ⭐ NEITHER CHANGES *WHAT*. A timeframe changes WHICH PERIOD and a
             # symbol changes WHICH INSTRUMENT, so both pass the kind through from
             # the child exactly as an offset's does: `sym('SPY', close > open)` is
@@ -565,6 +579,24 @@ def assert_scannable(definition: Any) -> dict:
             "needs each symbol's intraday bars. A saved scan is run on daily bars "
             "for the whole universe and holds none, so it would answer nothing "
             "for every symbol — the same read works on a chart.",
+        )
+    # ⭐⭐ ENGINE 55 — PINE'S MERGED HIGHER-TIMEFRAME READ CANNOT BE SWEPT. A
+    # `tf_merge` node shows a week's or month's value on the bar that closes it,
+    # and whether the newest finished bar closes its period is the date of the
+    # NEXT session, which the sweep does not hold — so on the one bar a screen
+    # reads, the value is withheld (`ast_interpret.tf_merge_mask`) for every
+    # symbol. Refused at the door, by name; the same read is served on a chart,
+    # and a formula's `tf(…)` (the last closed period) screens as before.
+    if _reads_merged_timeframe(tree):
+        raise ScanRefused(
+            "withheld",
+            "this formula reads a weekly or monthly value the way TradingView's "
+            "`request.security` shows it (`tf_merge`): the period's value appears "
+            "on the bar that closes the period. A saved scan reads the newest "
+            "finished bar, and whether that bar closes its week or month depends on "
+            "the date of the next session, which is not known yet, so it would "
+            "answer nothing for every symbol. The same read works on a chart; "
+            "`tf(…)` reads the last closed week or month and can be screened.",
         )
     if not boolean:
         raise ScanRefused(

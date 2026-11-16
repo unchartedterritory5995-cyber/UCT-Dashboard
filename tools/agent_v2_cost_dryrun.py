@@ -26,6 +26,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, ROOT)
+import conftest  # noqa: E402,F401 -- the census and the tripwire, before any api.* import
 
 GOLDEN = os.path.join(ROOT, "app", "src", "agent", "contract", "manifest.golden.json")
 ACCEPTANCE = os.path.join(ROOT, "app", "src", "agent", "__fixtures__", "program", "v2-acceptance.json")

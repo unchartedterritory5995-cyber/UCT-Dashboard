@@ -1,0 +1,51 @@
+{
+ "schema": "uct.vendor-batch-manifest/v1",
+ "generatedBy": "hand (RS Rating transfer, docs/pine/capture-queue-2026-11-14-rs-rating.md)",
+ "scripts": [
+  {
+   "slug": "rs-rating-fred6724",
+   "path": "docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine",
+   "sha256": "caa94fe31a8788c0f52ca571dbb1b3f8a7499dae913ed5e710720fc8662c5af0",
+   "bytes": 21093,
+   "plots": 3,
+   "drawsObjects": true,
+   "largestWindow": 253
+  },
+  {
+   "slug": "rs-seed-rsrating",
+   "path": "tools/visual_conformance/probes/rs-seed-rsrating.pine",
+   "sha256": "301f25e54f065788d554925ab531ab7b57f7981fa68dec8fb3cf931e221ebc84",
+   "bytes": 1226,
+   "plots": 6,
+   "drawsObjects": false,
+   "largestWindow": 1
+  },
+  {
+   "slug": "rs-spx-daily",
+   "path": "tools/visual_conformance/probes/rs-spx-daily.pine",
+   "sha256": "708cd133c42e5220b2876fef731917b1d2624fe3f6733ecaebc9852f26bbaa31",
+   "bytes": 883,
+   "plots": 6,
+   "drawsObjects": false,
+   "largestWindow": 1
+  },
+  {
+   "slug": "rs-syminfo-industry",
+   "path": "tools/visual_conformance/probes/rs-syminfo-industry.pine",
+   "sha256": "76539c135b16008f845873c52d2155ceeea3070c9eede4195621ff5d71895aae",
+   "bytes": 1010,
+   "plots": 4,
+   "drawsObjects": true,
+   "largestWindow": 1
+  },
+  {
+   "slug": "rs-arm-label-last-bar",
+   "path": "tools/visual_conformance/probes/rs-arm-label-last-bar.pine",
+   "sha256": "1239b4762d9c1b6a732c38ce4107f80b9669194f49b24ab60796a9c76f770f2d",
+   "bytes": 2173,
+   "plots": 2,
+   "drawsObjects": true,
+   "largestWindow": 1
+  }
+ ]
+}

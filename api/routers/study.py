@@ -115,6 +115,18 @@ class AttemptIn(BaseModel):
     time_ms: Optional[int] = None
 
 
+class GameRunIn(BaseModel):
+    kind: str
+    run_id: str
+    right: int = 0
+    total: int = 0
+
+
+class GamePoolIn(BaseModel):
+    kind: str
+    size: int = 20
+
+
 class StepIn(BaseModel):
     n: int = 1
     offset: int = REVEAL_FORWARD_BARS
@@ -201,7 +213,11 @@ def _set_payload(user_id: str, session: dict, ticker: bool = False) -> dict:
             continue
         if p.get("has_chart"):
             p["bars"] = study_store.get_visible_bars(iid)
-            if ticker:
+            # a course chart (prompt_json.chart.hide_ticker) is a dated real example whose ticker gives the outcome away
+            # (NVDA 2023): it stays out of the set, and the answer's reveal names it (2026-11-14, the owner's call to make
+            # was left to us: "you make a judgement call")
+            hide = bool(((p.get("prompt_json") or {}).get("chart") or {}).get("hide_ticker"))
+            if ticker and not hide:
                 p["ticker"] = (study_store.get_item_full(iid) or {}).get("sym") or None
         items.append(p)
     return {
@@ -220,11 +236,26 @@ def _bank_query():
 
 # ── Member routes ─────────────────────────────────────────────────────────────
 
+def _member_map(m: dict, approved_by_skill: dict) -> dict:
+    """The map a member sees. An AUTHORED course unit (`supply: "authored"`, laid on the map by
+    scripts/study/gen_courses.py, docs/study/courses/README.md) shows only once one of its skills has an approved
+    item: the bank imports its questions as drafts and the owner approves them on the review screen, so a unit
+    whose questions are all still drafts would open empty. Every other unit is passed through untouched."""
+    out = json.loads(json.dumps(m)) if m else {}
+    for cur in out.get("curricula") or []:
+        for tr in cur.get("tracks") or []:
+            tr["units"] = [u for u in tr.get("units") or []
+                           if u.get("supply") != "authored"
+                           or any(approved_by_skill.get(s, 0) > 0 for s in u.get("skills") or [])]
+    return out
+
+
 @router.get("/map", dependencies=_ARMED)
 def get_map(user: dict = Depends(require_paid)):
     """The skill map (a stub reading docs/study/skill_map.json) plus this
     member's skill rows so the trail can colour its nodes."""
-    return {"map": _skill_map(), "skills": study_store.list_skills(user["id"])}
+    approved = {r["skill_id"]: int(r.get("approved") or 0) for r in study_store.review_sections()}
+    return {"map": _member_map(_skill_map(), approved), "skills": study_store.list_skills(user["id"])}
 
 
 @router.get("/today", dependencies=_ARMED)
@@ -256,9 +287,7 @@ def post_session(body: SessionIn, user: dict = Depends(require_paid)):
     n = max(1, min(30, int(body.size or study_select.SET_SIZE)))
 
     def bank():
-        rows = study_store.list_bank()
-        if body.skill_id:
-            rows = [r for r in rows if r["skill_id"] == body.skill_id]
+        rows = study_store.list_bank(skill_id=body.skill_id or None)
         if body.hard:
             rows = [r for r in rows if r.get("has_chart") and study_hard.item_eligible(r["id"])]
         return rows
@@ -266,7 +295,8 @@ def post_session(body: SessionIn, user: dict = Depends(require_paid)):
     if body.kind == "unit":
         # §13.9 #1: the unit's walk-throughs first (max 3, prompt_json.order
         # then id), then the scored items as today composes them.
-        ids = study_select.compose_unit(uid, body.skill_id, bank, n=n)
+        ids = study_select.compose_unit(uid, body.skill_id, bank, n=n,
+                                        band=study_store.get_skill_band(uid, body.skill_id))
     else:
         due_slots = 0 if body.kind in ("skill", "checkpoint") else study_select.DUE_SLOTS
         ids = study_select.compose_today(uid, bank, n=n, due_slots=due_slots)
@@ -308,6 +338,8 @@ class SpotSetupIn(BaseModel):
     seed: Optional[str] = None
     # Draw it asks only for charts whose setup has a trade plan (study_trade.plan), so every chart can be scored
     need_plan: bool = False
+    # Daily Chart (docs/study/GAMES.md): the SAME charts for every member on an ET day, so the draw ignores the member
+    shared: bool = False
 
 
 @router.post("/spot-setup", dependencies=_ARMED)
@@ -323,9 +355,11 @@ def post_spot_setup(body: SpotSetupIn, user: dict = Depends(require_paid)):
     uid = user["id"]
     rounds = max(1, min(24, int(body.rounds or 8)))
     view = max(20, min(250, int(body.view or 90)))
-    rows = [r for r in study_store.list_bank() if r.get("has_chart") and r.get("type") == "spot"
+    rows = [r for r in study_store.list_bank(types=("spot",)) if r.get("has_chart") and r.get("type") == "spot"
             and r.get("skill_id") in study_hard.SETUP_RULES]
-    rng = _random.Random(f"{uid}:{_date.today().isoformat()}" + (f":{body.seed[:40]}" if body.seed else ""))
+    day = study_store.et_day_of()
+    rng = _random.Random((f"daily:{day}" if body.shared else f"{uid}:{_date.today().isoformat()}")
+                         + (f":{body.seed[:40]}" if body.seed else ""))
     rng.shuffle(rows)
     by: dict[str, list] = {}
     for r in rows:
@@ -335,21 +369,26 @@ def post_spot_setup(body: SpotSetupIn, user: dict = Depends(require_paid)):
     queues = [list(v) for v in by.values()]
     while len(picked) < rounds and any(queues) and tried < rounds * 12:
         for q in queues:
-            if not q or len(picked) >= rounds:
-                continue
-            iid = q.pop(0)
-            tried += 1
-            full = study_store.get_item_full(iid) or {}
-            if study_hard.key_is_yes(full.get("answer_json")) is not True:
-                continue
-            vis_bars = (study_store.get_visible_bars(iid) or {}).get("bars") or []
-            if body.need_plan:
-                from api.services import study_trade
-                if not study_trade.plan(full.get("skill_id") or "", vis_bars):
+            if len(picked) >= rounds:
+                break
+            # each setup takes ONE chart per pass; a chart that cannot play (a No chart, no plan, no look-alikes) does not
+            # cost its setup the turn: the next one in its queue is tried (2026-11-15: a shuffle that put a No chart
+            # first in Oops's queue gave the run two Kickers and no Oops)
+            while q and tried < rounds * 12:
+                iid = q.pop(0)
+                tried += 1
+                full = study_store.get_item_full(iid) or {}
+                if study_hard.key_is_yes(full.get("answer_json")) is not True:
                     continue
-            look = study_spot_setup.lookalikes(vis_bars, full.get("skill_id") or "", view=view)
-            if look:
-                picked.append((iid, look))
+                vis_bars = (study_store.get_visible_bars(iid) or {}).get("bars") or []
+                if body.need_plan:
+                    from api.services import study_trade
+                    if not study_trade.plan(full.get("skill_id") or "", vis_bars):
+                        continue
+                look = study_spot_setup.lookalikes(vis_bars, full.get("skill_id") or "", view=view)
+                if look:
+                    picked.append((iid, look))
+                    break
     session = study_store.create_session(uid, "free", [iid for iid, _ in picked])
     payload = _set_payload(uid, session)
     looks = dict(picked)
@@ -452,6 +491,28 @@ def post_attempt(body: AttemptIn, user: dict = Depends(require_paid)):
                                                    "daily_done")},
                          "badges_new": result.get("badges_new") or []},
             "skill": result["skill"]}
+
+
+@router.post("/game-runs", dependencies=_ARMED)
+def post_game_run(body: GameRunIn, user: dict = Depends(require_paid)):
+    """A finished run of a computed game (docs/study/GAMES.md §2): capped XP, once per run_id."""
+    try:
+        r = study_store.record_game_run(user["id"], body.kind, body.run_id, body.right, body.total)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"xp_gained": r["xp_gained"], "duplicate": r["duplicate"], "capped": r["capped"],
+            "progress": {"xp_gained": r["xp_gained"], "xp": r["xp"], "level": r["level"], "weekly_xp": r["weekly_xp"],
+                         "badges_new": r["badges_new"]},
+            "badges_new": r["badges_new"]}
+
+
+@router.post("/game-pool", dependencies=_ARMED)
+def post_game_pool(body: GamePoolIn, user: dict = Depends(require_paid)):
+    """Approved material for a pool game: `tf` prompts (scored through /attempts) or `match` word pairs."""
+    try:
+        return {"kind": body.kind, "items": study_store.game_pool(body.kind, body.size)}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/attempts/{attempt_id}/step", dependencies=_ARMED)
@@ -755,6 +816,15 @@ def _forward_bars(item: dict) -> list:
     return stored + extra[:want]
 
 
+def _regular_session(ts: int) -> bool:
+    """A bar that STARTS inside 09:30-16:00 New York on a weekday (unix seconds)."""
+    from zoneinfo import ZoneInfo
+    from datetime import datetime as _dt
+    t = _dt.fromtimestamp(ts, ZoneInfo("America/New_York"))
+    m = t.hour * 60 + t.minute
+    return t.weekday() < 5 and 570 <= m < 960
+
+
 def resolve_bars(spec: dict) -> dict:
     """Resolve an item's `bars` spec against the server's OWN bars.db through
     `bars_sqlite.get_bars_before` ONLY — never a provider fetch (B3). Returns
@@ -773,7 +843,14 @@ def resolve_bars(spec: dict) -> dict:
     if not sym or asof_key is None:
         return {"ok": False, "reason": "bad_spec"}
     asof_key = int(asof_key)
-    visible_rows = bars_sqlite.get_bars_before(sym, tf, window, asof_key)
+    # an intraday course chart asks for the REGULAR session only (`rth`, 2026-11-15): bars.db keeps the extended session
+    # too (04:00-20:00), and the pod's fill (scripts/study/fill_course_intraday.py) stores regular-session bars, so the
+    # two paths must cut the same window
+    rth = bool(spec.get("rth")) and tf not in _FORWARD_HORIZON_DAYS
+    pull = window * 4 + 400 if rth else window
+    visible_rows = bars_sqlite.get_bars_before(sym, tf, pull, asof_key)
+    if rth:
+        visible_rows = [r for r in visible_rows if _regular_session(int(r[0]))][-window:]
     if not visible_rows:
         return {"ok": False, "reason": "no_bars", "sym": sym, "tf": tf}
     fwd_to = spec.get("forward_to_key")
@@ -782,8 +859,8 @@ def resolve_bars(spec: dict) -> dict:
         fwd_to = _key_from_date(d + timedelta(days=forward_n * _FORWARD_HORIZON_DAYS[tf] + 7))
     forward_rows: list = []
     if fwd_to is not None and forward_n > 0:
-        later = bars_sqlite.get_bars_before(sym, tf, window + forward_n + 50, int(fwd_to))
-        forward_rows = [r for r in later if int(r[0]) > asof_key][:forward_n]
+        later = bars_sqlite.get_bars_before(sym, tf, (window + forward_n) * 4 + 800 if rth else window + forward_n + 50, int(fwd_to))
+        forward_rows = [r for r in later if int(r[0]) > asof_key and (not rth or _regular_session(int(r[0])))][:forward_n]
     to_bar = lambda r: {"t": r[0], "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5]}  # noqa: E731
     visible = [to_bar(r) for r in visible_rows]
     forward = [to_bar(r) for r in forward_rows]

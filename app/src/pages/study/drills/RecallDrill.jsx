@@ -17,6 +17,7 @@
  */
 import { useEffect, useRef } from 'react'
 import ChoiceList, { revealLabels } from './ChoiceList'
+import CalcCard from '../ui/CalcCard'
 import { brandWords, choiceAnswer, choiceAnswerable, choicesFromPrompt, questionOf } from './types'
 import styles from './drills.module.css'
 import { lineAnnotations } from '../lineChoices'
@@ -113,16 +114,19 @@ function NumericFill({ item, state, setState, locked, text = false }) {
   )
 }
 
-export function Body({ item, state, setState, locked, reveal }) {
+// `settled`: the verdict screen has closed (DrillPlayer), so a computed question's card fills in where the member sees it
+export function Body({ item, state, setState, locked, reveal, settled = true }) {
   const kind = kindOf(item)
-  if (kind === 'fill_numeric') return <NumericFill item={item} state={state} setState={setState} locked={locked} />
-  if (kind === 'fill_text') return <NumericFill item={item} state={state} setState={setState} locked={locked} text />
+  const card = <CalcCard item={item} reveal={reveal} settled={settled} />
+  if (kind === 'fill_numeric') return <div>{card}<NumericFill item={item} state={state} setState={setState} locked={locked} /></div>
+  if (kind === 'fill_text') return <div>{card}<NumericFill item={item} state={state} setState={setState} locked={locked} text /></div>
   const choices = choicesFor(item)
   const p = item.prompt_json || {}
   return (
     <div>
       <Quote text={p.quote} />
       {kind === 'fill' && p.sentence && <FillSentence sentence={p.sentence} value={state?.choice} />}
+      {card}
       {kind === 'fill' ? (
         <ul role="radiogroup" aria-label="Word bank" className={styles.bank}>
           {choices.map((w, i) => (

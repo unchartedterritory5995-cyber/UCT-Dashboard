@@ -180,6 +180,18 @@ export function provenanceOf(item) {
   if (Array.isArray(r.support) && r.support.length) {
     return { kind: 'support', lines: r.support.map(supportLineOf) }
   }
+  // a course question (docs/study/courses, 2026-11-08): the cited pages, each with the verbatim quote the key rests on
+  const cites = Array.isArray(r.depth?.sources) ? r.depth.sources.filter((c) => c && (c.quote || c.name)) : []
+  if (cites.length) {
+    return {
+      kind: 'support',
+      lines: cites.map((c) => ({
+        source: `${c.name || 'source'}${c.tier ? ` · tier ${c.tier}` : ''}${c.accessed ? ` · read ${c.accessed}` : ''}`,
+        text: c.quote ? `"${c.quote}"` : '',
+        url: typeof c.url === 'string' && c.url.startsWith('https://') ? c.url : null,
+      })),
+    }
+  }
   if (r.quote) return { kind: 'quote', text: String(r.quote) }
   const geometry = facts.geometry || r.geometry
   if (geometry && typeof geometry === 'object' && Object.keys(geometry).length) {
@@ -873,7 +885,9 @@ export default function StudyReview() {
                   {prov.lines.map((l, i) => (
                     <li key={i}>
                       <span className={styles.supportText}>{l.text}</span>
-                      {l.source && <span className={styles.supportFrom}>{l.source}</span>}
+                      {l.source && (l.url
+                        ? <a className={styles.supportFrom} href={l.url} target="_blank" rel="noopener noreferrer">{l.source}</a>
+                        : <span className={styles.supportFrom}>{l.source}</span>)}
                     </li>
                   ))}
                 </ul>
@@ -903,6 +917,19 @@ export default function StudyReview() {
                 <span>{sel.lesson_text || '(no lesson text)'}</span>
                 {sel.lesson_origin && <span className={styles.origin}>{sel.lesson_origin}</span>}
               </p>
+            )}
+            {mode !== 'fix' && sel.reveal_json?.wrong && Object.keys(sel.reveal_json.wrong).length > 0 && (
+              <div className={styles.prov} data-testid="study-wrong">
+                <span className={styles.label}>Why each wrong choice is wrong</span>
+                <ul className={styles.support}>
+                  {Object.entries(sel.reveal_json.wrong).map(([choice, why]) => (
+                    <li key={choice}>
+                      <span className={styles.supportFrom}>{choice}</span>
+                      <span className={styles.supportText}>{String(why)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
 
             <Chips checks={checks} />

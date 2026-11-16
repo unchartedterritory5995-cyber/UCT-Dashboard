@@ -69,6 +69,7 @@ _BOOT_QUIET_S = {
     "bars_continuous_audit": 300,
     "breadth_self_heal": 240,
     "theme_index_prewarm": 150,
+    "screener_deal_gate_warm": 120,
 }
 
 
@@ -4788,6 +4789,19 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] thread switch interval tuning failed (non-fatal): {e}")
 
+    # ⭐ U5 (2026-11-14): the capability detector's own process, off the request GIL
+    # (PINE_CAPABILITY_DETECTOR_WORKER=on). Started 30 s after boot, off the boot path; until it
+    # is READY every detector call answers "still being checked" (fail closed). Off: nothing.
+    try:
+        from api.services import pine_capability_worker
+        if pine_capability_worker.worker_enabled():
+            _cw = threading.Timer(30.0, pine_capability_worker.prestart)
+            _cw.daemon = True
+            _cw.start()
+            print("[startup] capability detector process: starting in 30 s")
+    except Exception as e:
+        print(f"[startup] capability detector process failed to schedule (non-fatal): {e}")
+
     # Self-logging burst capture (2026-06-09/10 thread-exhaustion incident).
     try:
         _start_thread_burst_watch()
@@ -5568,6 +5582,18 @@ async def lifespan(app: FastAPI):
             _t.start()
         except Exception:
             logging.getLogger(__name__).exception("[startup] failed to schedule theme_index prewarm")
+
+    # 🔴 The screener's buyout exclude set (query.deal_gate) is built off the request thread, but
+    # only once something asks. Before this the first SCAN after a deploy started it, and until it
+    # landed (~2 min) every scan used the hand lists plus the saved set alone. Start it on boot,
+    # after the reconnect burst (it reads every deal headline and scans daily bars for pins).
+    try:
+        from api.services.screener import query as _scr_query
+        _dg = threading.Timer(_BOOT_QUIET_S["screener_deal_gate_warm"], _scr_query.warm_deal_gate)
+        _dg.daemon = True
+        _dg.start()
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] failed to schedule the deal gate warm")
 
     try:
         readiness.register("rs_rankings")
@@ -6832,6 +6858,19 @@ async def lifespan(app: FastAPI):
 
         threading.Thread(target=_market_indicator_jobs, daemon=True,
                          name="market_indicator_jobs").start()
+
+    # ⭐ PINE SEEDS (`request.seed`), ingested from each seed's PUBLIC mirror
+    # (`api/services/pine_seed_store.py`, docs/pine/RS-RATING-TRANSFER.md L6). Same lesson
+    # as Cboe above: a store nothing running fills serves an empty chart. On the web pod,
+    # because `/api/bars` answers seed symbols from this pod's `/data/pine_seeds.db`. A
+    # few small CSVs from GitHub every 2 h; the first boot replays the file's history
+    # (at most PINE_SEEDS_MAX_PAGES x 100 uploads).
+    if os.environ.get("PINE_SEEDS_REFRESH", "1") != "0":
+        def _pine_seed_jobs():
+            from api.services import pine_seed_store as _seeds
+            _seeds.refresh_loop()
+
+        threading.Thread(target=_pine_seed_jobs, daemon=True, name="pine_seed_jobs").start()
 
     # Self-healing breadth: refuse a degraded collector push (guard is in the push
     # route) AND recompute any degraded recent day from OUR bars so the Monitor's
@@ -8507,18 +8546,10 @@ async def lifespan(app: FastAPI):
             print("[startup] Similar-matches nightly job registered")
 
         def _cot_daily_catchup():
+            # holiday-aware: the decision lives in cot_service.daily_catchup (tests/test_cot_release_calendar.py pins its
+            # firing days against the old "8+ days old" rule); this is also what fetches a holiday week's Monday release
             try:
-                from datetime import date as _dt
-                from zoneinfo import ZoneInfo as _ZI
-                latest = _cot_service.get_latest_date()
-                if latest:
-                    import datetime as _dtm
-                    days_old = (_dtm.datetime.now(_ZI("America/New_York")).date() - _dt.fromisoformat(latest)).days
-                    if days_old >= 8:
-                        print(f"[scheduler] COT daily catchup: data is {days_old}d stale -- refreshing...")
-                        _cot_service.refresh_from_current()
-                    else:
-                        print(f"[scheduler] COT daily catchup: data is {days_old}d old -- fresh, skipping")
+                _cot_service.daily_catchup()
             except Exception as e:
                 print(f"[scheduler] COT daily catchup error: {e}")
 
@@ -10973,6 +11004,12 @@ async def lifespan(app: FastAPI):
     _boot_mark("ready"); _boot_log()
     yield
     _shutdown_t0 = time.monotonic()  # the deploy gap includes this pod's shutdown (2026-11-12)
+    # U5 (review L4): stop the capability detector process (a no-op when it never started)
+    try:
+        from api.services import pine_capability_worker as _pcw_stop
+        _pcw_stop.shutdown()
+    except Exception as e:
+        print(f"[shutdown] capability detector stop failed (non-fatal): {type(e).__name__}")
     try:
         trade_exchange_news_router.stop_background()
     except Exception as e:

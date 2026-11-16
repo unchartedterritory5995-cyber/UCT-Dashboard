@@ -187,7 +187,7 @@
    *  `graphics().dwglines()` etc. are Map(name → Map(flag → collection)) whose
    *  collections carry `_primitivesDataById` (object-semantics capture,
    *  2026-09-08). Walked defensively: an unreadable family is reported, not zero. */
-  function readGraphics(ds) {
+  function readGraphics(ds, series) {
     const g = tryOr(() => (typeof ds.graphics === 'function' ? ds.graphics() : null), null)
     if (!g) return null
     const families = { lines: 'dwglines', labels: 'dwglabels', boxes: 'dwgboxes', tables: 'dwgtables', tableCells: 'dwgtablecells', linefills: 'dwglinefills' }
@@ -210,7 +210,93 @@
     }
     out.texts.labels = (out.records.labels || []).map((r) => (r && r.t !== undefined ? String(r.t) : ''))
     out.texts.tableCells = (out.records.tableCells || []).map((r) => (r && r.t !== undefined ? String(r.t) : ''))
+    out.xIndex = readXIndex(ds, g, series)
     return out
+  }
+
+  // ── U13: THE x TABLE, so an object's x can be graded ──────────────────────
+  //
+  // ⭐ A line's `x1` / `x2`, a label's `x`, a box's `x1` / `x2` in
+  // `_primitivesDataById` are NOT bar indices and NOT times: each is a POSITION
+  // in the study's own `_indexes` array, whose entries are MODEL bar indices
+  // (the index space of `mainSeries().bars()`). Measured 2026-09-08
+  // (tests/fixtures/vendor/visual/object-semantics-spy-1d-2026-09-08.json):
+  // `_indexes = [259, 264, …, 299]`, the anchor line's x1 = 4, x2 = 10 resolve to
+  // model bars 279 and 299, the 20-bar span `bar_index - 20 .. bar_index` asks for.
+  // No capture before U13 recorded that table, so no x could be graded.
+  //
+  // Recorded here: the table verbatim, the bar time at each entry, and the model
+  // indices of the loaded bars (so a reader maps an entry to the capture's own
+  // `bars.rows` without guessing).
+  // ⛔ READ-ONLY: own data properties are read through their descriptors — no
+  // getter runs and nothing is called. The probe named the table "the study's own
+  // `_indexes`" without the object it hangs off, so the graphics object and the
+  // data source are searched (and any own `*graphics*` object below them, two
+  // levels deep). NOT FOUND IS SAID, with the own keys that were looked at, never
+  // an empty table; TWO DIFFERENT tables is `ambiguous`, never a pick.
+  const X_INDEX_KEYS = ['_indexes', 'indexes']
+  const ownValue = (o, k) => {
+    const d = tryOr(() => Object.getOwnPropertyDescriptor(o, k), null)
+    return d && 'value' in d ? d.value : undefined
+  }
+  function intList(v) {
+    if (!v || typeof v !== 'object') return null
+    const arr = Array.isArray(v) ? v : (ArrayBuffer.isView(v) && !(v instanceof DataView) ? Array.from(v) : null)
+    if (!arr) return null
+    return arr.every((x) => Number.isInteger(x)) ? arr.slice() : null
+  }
+  function readXIndex(ds, g, series) {
+    const hits = []
+    const looked = []
+    const seen = new Set()
+    const visit = (node, at, depth) => {
+      if (!node || typeof node !== 'object' || seen.has(node) || depth > 2) return
+      seen.add(node)
+      const keys = tryOr(() => Object.getOwnPropertyNames(node), [])
+      for (const k of keys) {
+        const v = ownValue(node, k)
+        if (X_INDEX_KEYS.includes(k)) {
+          const list = intList(v)
+          if (list) hits.push({ path: `${at}.${k}`, indexes: list })
+          else looked.push(`${at}.${k}: ${v === null ? 'null' : Array.isArray(v) ? 'array (not all integers)' : typeof v}`)
+        } else if (v && typeof v === 'object' && /graphic/i.test(k)) visit(v, `${at}.${k}`, depth + 1)
+      }
+    }
+    visit(g, 'graphics()', 0)
+    visit(ds, 'dataSource', 0)
+    // ⭐ CONFIRMED AT `graphics()._indexes` (capture session S10, 2026-11-15: read as
+    // `g._indexes` into xmap sidecars, verified 96/96 RDDT and 503/503 SPY against printed
+    // `bar_index` labels). If it is not an own data property on this build (an accessor), read
+    // THAT ONE NAMED property as the capture agent did — never a call, never another name.
+    if (!hits.length) {
+      const list = intList(tryOr(() => g._indexes, undefined))
+      if (list) hits.push({ path: 'graphics()._indexes (accessor)', indexes: list })
+    }
+    // the model index of every loaded bar (the SENTINEL padding is not a bar)
+    const timeAt = new Map()
+    const b = tryOr(() => series.bars(), null)
+    const put = (i, v) => { if (i > SENTINEL && v && num(v[0]) !== null) timeAt.set(i, num(v[0])) }
+    if (b && typeof b.each === 'function') tryOr(() => b.each((i, v) => { put(i, v); return false }), null)
+    else if (b && Array.isArray(b._items)) b._items.forEach((r) => put(r.index, r.value))
+    const idx = [...timeAt.keys()].sort((x, y) => x - y)
+    const modelBars = idx.length
+      ? { first: idx[0], last: idx[idx.length - 1], count: idx.length, contiguous: idx[idx.length - 1] - idx[0] + 1 === idx.length }
+      : null
+    const base = { schema: 'uct.object-x-index/v1', unit: 'an object x is a position in `indexes`; each entry is a model bar index (mainSeries().bars()); `times` is that bar\'s time (unix-s), null off the loaded bars', modelBars }
+    if (!hits.length) {
+      const ownKeys = tryOr(() => Object.getOwnPropertyNames(g), []).slice(0, 80)
+      return { ...base, found: false, reason: 'no own `_indexes` / `indexes` integer array on graphics() or the data source', looked, graphicsOwnKeys: ownKeys }
+    }
+    // one entry per distinct table, the FIRST (shallowest) path found for it
+    const byTable = new Map()
+    for (const h of hits) if (!byTable.has(JSON.stringify(h.indexes))) byTable.set(JSON.stringify(h.indexes), h)
+    const distinct = [...byTable.values()]
+    if (distinct.length > 1) {
+      return { ...base, found: false, ambiguous: true, reason: `${distinct.length} different x tables`, candidates: distinct.map((h) => ({ path: h.path, indexes: h.indexes })) }
+    }
+    const t = distinct[0]
+    return { ...base, found: true, path: t.path, alsoAt: hits.filter((h) => h.path !== t.path).map((h) => h.path),
+      indexes: t.indexes, times: t.indexes.map((i) => (timeAt.has(i) ? timeAt.get(i) : null)) }
   }
 
   // ── is the newest bar still forming? ──────────────────────────────────────
@@ -542,7 +628,7 @@
     // `allowEmptyPlots: true` AND the study holds at least one drawing, so the
     // empty plotValues is recorded as the vendor's answer, by name, in warnings.
     if (!onGrid.length && declaredPlots > 0) {
-      const g0 = o.allowEmptyPlots === true ? readGraphics(ds) : null
+      const g0 = o.allowEmptyPlots === true ? readGraphics(ds, series) : null
       const drawn = g0 ? Object.values(g0.counts || {}).reduce((a, b) => a + (b || 0), 0) : 0
       if (!drawn) throw new Error('the study has no rows on the bar grid — is it still computing? (status ' + JSON.stringify(status) + ')')
       warnings.push(`allowEmptyPlots: the study declares ${declaredPlots} plot(s) and data() holds no rows on the bar grid; it holds ${drawn} drawing(s), which are the whole answer`)
@@ -671,7 +757,7 @@
       },
       bars: { fields: ['time', 'open', 'high', 'low', 'close', 'volume'], timeUnit: 'unix-s', count: bars.length, rows: bars },
       plotValues: { fields: ['time', ...plots.map((p) => p.id)], rows: valueRows },
-      objects: readGraphics(ds),
+      objects: readGraphics(ds, series),
       ...(provenance ? { provenance } : {}),
       warnings,
     }
@@ -690,6 +776,13 @@
       studyRows: rows.length,
       plots: plots.map((p) => `${p.id}:${p.type}:${p.title}`),
       objects: body.objects ? body.objects.counts : null,
+      // ⭐ U13 — read this on the FIRST capture of a session: `found: false` means the
+      // drawings' x cannot be graded (capture-procedure.md, "THE OBJECT x TABLE")
+      objectsX: body.objects && body.objects.xIndex
+        ? { found: body.objects.xIndex.found, path: body.objects.xIndex.path || null,
+          entries: Array.isArray(body.objects.xIndex.indexes) ? body.objects.xIndex.indexes.length : null,
+          reason: body.objects.xIndex.reason || null }
+        : null,
       newestBarIsForming: forming,
       newestBarIsFormingSource: formingSource,
       census: c.control,

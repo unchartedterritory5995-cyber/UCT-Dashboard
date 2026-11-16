@@ -3,13 +3,15 @@
   "isolated_kinds": [
     "breadth.current",
     "catalysts.board",
-    "ratings"
+    "ratings",
+    "rs.leadership"
   ],
   "local_only_actions": [
     "breadth.history",
     "breadth.show",
     "history.afterEvent",
     "journal.reviewTrades",
-    "news.movers"
+    "news.movers",
+    "rs.compare"
   ]
 }

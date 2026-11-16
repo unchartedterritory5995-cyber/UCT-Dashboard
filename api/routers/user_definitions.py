@@ -265,7 +265,7 @@ def _save_or_400(user_id, def_id: str, definition: dict,
     except runtime_definitions.CapabilityCheckBusy as exc:
         # WS-I Part 2 (re-review F1): the capability check was busy; retryable, nothing saved
         return JSONResponse(status_code=503, content={"detail": str(exc), "retryable": True},
-                            headers={"Retry-After": "2"})
+                            headers={"Retry-After": str(getattr(exc, "retry_after", 2))})
     except svc.SaveRefused as exc:
         # ⭐ P0/0P — THE ADMISSION REFUSAL IS STRUCTURED: a 422 whose `detail`
         # is still the store's own sentence (so every client that renders
@@ -432,7 +432,7 @@ def list_definitions(user: dict = Depends(require_paid),
             else svc.list_for_user(user["id"]))
     # WS-I Part 2: ONE detector budget for the whole list (a member has up to 50 rows; each row's
     # capability set is read from the store, and at most `DETECTOR_RUNS_PER_REQUEST` are computed)
-    budget = runtime_definitions.DetectorBudget()
+    budget = runtime_definitions.DetectorBudget(member=str(user["id"]))
     runtime_definitions.prefetch_capabilities(rows, budget)   # the stored sets in ONE query (flag on only)
     stamped = [_stamped(r, budget=budget) for r in rows]
     # ⭐ 2026-11-02 -- LINE IDENTITY, read for every row on ONE connection.
@@ -640,6 +640,16 @@ def public_library(limit: int = 24, after: Optional[int] = None,
     return svc.public_library(limit=limit, after=after)
 
 
+@router.get("/capability-worker")
+def capability_worker(user: dict = Depends(require_paid)):
+    """U5 (review L6): the capability detector process, for the operator before and after
+    arming `PINE_CAPABILITY_DETECTOR_WORKER`: enabled, alive, ready, pid, quarantine size and
+    the call counters. ADMIN ONLY. Reads state; starts nothing."""
+    require_admin(user)
+    from api.services import pine_capability_worker
+    return pine_capability_worker.status()
+
+
 @router.get("/runtime-kill")
 def runtime_kill(user: dict = Depends(require_paid)):
     """RT1 — the runtime lane's per-script kill list and whether the store takes
@@ -660,6 +670,19 @@ def runtime_kill(user: dict = Depends(require_paid)):
     # is byte for byte what it was before Part 2 and a client never asks the new door.
     if runtime_definitions.capability_admission_on():
         out["capability_admission"] = True
+    # ⭐ L7 -- the served scripts answered from UCT data, by source sha256 -> the Pine names, for the
+    # member door to disclose ("uses UCT data for: ..."). ABSENT while none is served (today), so this
+    # read is byte for byte what it was before L7.
+    substituted = runtime_definitions.substituted_inputs()
+    if substituted:
+        out["substituted"] = substituted
+    # ⭐ RS RATING L8 -- the run half's object evidence (`runtime_definitions.run_half_evidence`, from the
+    # same committed allowlist records), latched by the member door into `runHalfRailSeam.js`. ABSENT
+    # while no served record carries an objects-v2 capture (today), so this read is byte for byte what
+    # it was before L8.
+    evidence = runtime_definitions.run_half_evidence()
+    if evidence:
+        out["run_half_evidence"] = evidence
     return out
 
 
@@ -887,7 +910,7 @@ def definition_history(def_id: str, user: dict = Depends(require_paid),
     # 300-version history is one capability lookup, not 300.
     latest = max((r.get("version") for r in rows if isinstance(r, dict)
                   and isinstance(r.get("version"), int)), default=None)
-    budget = runtime_definitions.DetectorBudget()
+    budget = runtime_definitions.DetectorBudget(member=str(user["id"]))
     rows = [dict(r, plot_identities=by_version.get(r.get("version"), {}))
             if isinstance(r, dict) else r
             for r in (runtime_definitions.stamp_served(

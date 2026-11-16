@@ -41,8 +41,12 @@ import { translatePine } from '../engine/ast/pine'
 import {
   memberInputTranslation, memberInputKey, seriesNamesOf, unbackedDeclaredInputs,
 } from './builderInputs'
+import { pineFixtureDir } from '../engine/ast/__tests__/licenceHeld'
 
-const DIR = path.resolve(__dirname, '../../../../../tools/c0_oos_fixtures')
+// ⛔ Several of these scripts are LICENCE-HELD (2026-11-15, docs/pine/vendor-harness/
+// licence-held.json): read from the local store when present, and a case that needs an
+// absent one is SKIPPED BY NAME, never passed.
+const OOS = pineFixtureDir('tools/c0_oos_fixtures')
 
 /** The eight C0 SAVE_BLOCKED scripts, with the identifier each refused on. */
 const BLOCKED = [
@@ -61,7 +65,7 @@ const BLOCKED = [
   ['mid_engagement__22-rsi-levels-regime-map', 'lv3'],
 ]
 
-const read = (n) => fs.readFileSync(path.join(DIR, `${n}.pine`), 'utf8')
+const read = OOS.read
 const translate = (src) => memberInputTranslation(translatePine, src, { paramManifest: true })
 
 describe('memberInputKey — the one predicate both sides compose', () => {
@@ -103,7 +107,7 @@ describe('seriesNamesOf — shape-driven, no vocabulary', () => {
 
 describe('⭐⭐ the invariant — every declared name a formula reads is backed by a row', () => {
   for (const [script, identifier] of BLOCKED) {
-    it(`${script} closes over its own symbols (was: \`${identifier}\`)`, () => {
+    OOS.it([script], `${script} closes over its own symbols (was: \`${identifier}\`)`, () => {
       const t = translate(read(script))
       const unbacked = unbackedDeclaredInputs(t.outputs, t.declared)
       expect([...unbacked.keys()]).toEqual([])
@@ -236,7 +240,7 @@ plot(ta.atr(14) * Multiplier, title = "X")
     expect(hit.reason).not.toMatch(/no bound name/)
   })
 
-  it('⭐ the one of the eight that once carried nothing carries its plots again (wave 15, H1)', () => {
+  OOS.it(['high_engagement__03-supertrend-kivancozbilgic'], '⭐ the one of the eight that once carried nothing carries its plots again (wave 15, H1)', () => {
     // ⚰ This was `one of the eight now carries NOTHING — and that is ruling 1.2
     // working`: under R-F `…03-supertrend` kept only the author's hidden `ohlc4` fill
     // edge, ruling 1.2 refused that too, and every loop over BLOCKED visited a script
@@ -283,7 +287,7 @@ describe('⭐ every carried output brings its own inputs — mechanism B, at the
     expect((t.outputs[t.selected].memberInputs || []).map((r) => r.key)).not.toContain('lv3')
   })
 
-  it('the union over carried outputs covers every name any carried formula reads', () => {
+  OOS.it(BLOCKED.map(([script]) => script), 'the union over carried outputs covers every name any carried formula reads', () => {
     for (const [script] of BLOCKED) {
       const t = translate(read(script))
       const carried = (t.outputs || []).filter((o) => o && o.formula && !o.hidden).slice(0, 12)

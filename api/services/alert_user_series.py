@@ -464,7 +464,8 @@ _SYMBOL_LOCK = threading.Lock()
 
 def _symbol_bars(ticker: str, tf: str, want: int) -> list:
     """Another symbol's latest ``want`` bars at ``tf`` -- THE SCAN'S OWN LOCAL LOADER
-    (``scan_evaluator._read_bars``: ``bars_sqlite``, no network), so ``t`` is the
+    (``local_bars.read_bars``, which ``scan_evaluator._read_bars`` also reads:
+    ``bars_sqlite``, no network), so ``t`` is the
     same store key the alert's own bars carry and ``sym``'s exact-``t`` alignment
     holds. A bar the benchmark lacks is NaN there (UNKNOWN), never forward-filled."""
     import time as _time
@@ -474,9 +475,9 @@ def _symbol_bars(ticker: str, tf: str, want: int) -> list:
         hit = _SYMBOL_CACHE.get(key)
         if hit is not None and now - hit[0] < _SYMBOL_TTL_S:
             return hit[1]
-    from api.services.screener.scan_evaluator import _read_bars
+    from api.services import local_bars
     try:
-        series = _read_bars(store_ticker(ticker), str(tf), int(want))
+        series = local_bars.read_bars(store_ticker(ticker), str(tf), int(want))
     except Exception:                                    # noqa: BLE001 -- unknown, not wrong
         series = []
     with _SYMBOL_LOCK:
@@ -555,6 +556,10 @@ def _unsupplied_reason(tree: Any, codes: Sequence[str]) -> str:
     if UNSUPPLIED_LOWER_TF in codes:
         parts.append("it reads a timeframe below the chart (`ltf`), and the alert "
                      "lane holds no intraday bars for it")
+    if "request:htf-newest-unconfirmed" in codes:
+        parts.append("it reads a weekly or monthly value the way TradingView's "
+                     "`request.security` shows it (`tf_merge`), whose value on the newest "
+                     "finished bar depends on the date of the next session")
     return "; ".join(parts) + "."
 
 
@@ -697,6 +702,13 @@ def _make_value_fn(def_id: str, plot_key: str,
     unsupplied = unsupplied_reads(tree, check_opts)
     if cross_code:
         unsupplied = [cross_code] + [c for c in unsupplied if c != UNSUPPLIED_OTHER_SYMBOL]
+    # ⭐⭐ ENGINE 55 — PINE'S MERGED HIGHER-TIMEFRAME READ (`tf_merge`): the week's
+    # or month's value appears on the bar that closes it, and whether the newest
+    # finished bar closes its period is the next session's date — so on the bar an
+    # alert reads the value is withheld (`ast_interpret.tf_merge_mask`). Refused
+    # here, under the `withheld` gate and its sibling rule.
+    if _lane.reads_tf_merge(tree):
+        unsupplied = list(unsupplied) + [_lane.TF_MERGE_NEWEST_CODE]
     if unsupplied:
         raise AdmissionRefused(
             "withheld",

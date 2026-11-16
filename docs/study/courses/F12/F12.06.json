@@ -1,0 +1,1530 @@
+{
+ "unit": "F12.06",
+ "track": "F12",
+ "title": "Your playbook",
+ "teaches": "A playbook is your own written set of best plays: after each session you write up the setup that made the most sense, section by section (the market, the catalyst, the chart, how buyers and sellers acted, and how you managed it), you start with a few plays you know well, and you fit the format to how you trade.",
+ "skills": [
+  {
+   "id": "process.playbook",
+   "title": "Your playbook"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 2,
+   "publisher": "FT Press (Pearson Education)",
+   "title": "The PlayBook: An Inside Look at How to Think Like a Professional Trader (Mike Bellafiore; first printing July 2013): the publisher's sample pages (contents, introduction, index)",
+   "url": "https://ptgmedia.pearsoncmg.com/images/9780132937641/samplepages/0132937646.pdf",
+   "accessed": "2026-11-09",
+   "why_reliable": "The book itself as published: the publisher's own sample pages on Pearson's media server (copyright page: Publishing as FT Press, First Printing July 2013, ISBN 978-0-13-293764-1). Bellafiore co-founded SMB Capital, a New York proprietary trading firm, and the unit plan names this book's PlayBook method as the source. Quoted only as his method."
+  },
+  {
+   "id": "s2",
+   "tier": 2,
+   "publisher": "SMB Capital (SMB Training blog)",
+   "title": "The SMB PlayBook: Compiling our best trades (Mike Bellafiore, 2011-05-10)",
+   "url": "https://www.smbtraining.com/blog/the-smb-playbook-compiling-our-best-trades",
+   "accessed": "2026-11-09",
+   "why_reliable": "Mike Bellafiore's own signed, dated post on his firm's blog: how SMB's desk used the PlayBook form, with a real filled-in entry (SYY). Same author as s1 (see conflicts)."
+  },
+  {
+   "id": "s3",
+   "tier": 2,
+   "publisher": "SMB Capital (SMB Training blog)",
+   "title": "I trade well when... (Mike Bellafiore, 2016-11-02)",
+   "url": "https://www.smbtraining.com/blog/i-trade-well-when",
+   "accessed": "2026-11-09",
+   "why_reliable": "Bellafiore's own signed, dated post stating the thesis of his book The PlayBook in one sentence."
+  },
+  {
+   "id": "s4",
+   "tier": 2,
+   "publisher": "SMB Capital (SMB Training blog)",
+   "title": "Six and Half Hours of Fun! (Mike Bellafiore, 2010-07-31)",
+   "url": "https://www.smbtraining.com/blog/6-12-hours-of-fun",
+   "accessed": "2026-11-09",
+   "why_reliable": "Bellafiore's own signed, dated post defining the term 'intraday fundamentals', the name of one of his PlayBook sections."
+  },
+  {
+   "id": "s5",
+   "tier": 2,
+   "publisher": "SMB Capital (SMB Training blog)",
+   "title": "Are You Still Focusing on Longer Term Intraday Trades? (Mike Bellafiore, 2013-03-10)",
+   "url": "https://www.smbtraining.com/blog/are-you-still-focusing-on-longer-term-intraday-trades",
+   "accessed": "2026-11-09",
+   "why_reliable": "Bellafiore's own signed, dated answer to a reader, describing how SMB builds its longer intraday swing trades (Trades2Hold) from a catalyst, the technicals and the order flow."
+  },
+  {
+   "id": "s6",
+   "tier": 2,
+   "publisher": "SMB Capital (SMB Training blog)",
+   "title": "Making Intraday Trading Decisions (Mike Bellafiore, 2009-10-21)",
+   "url": "https://www.smbtraining.com/blog/making-intraday-trading-decisions",
+   "accessed": "2026-11-09",
+   "why_reliable": "Bellafiore's own signed, dated post showing how his three checks (intraday fundamentals, technicals, the order flow) combine into one decision, with a WFC example."
+  },
+  {
+   "id": "s7",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "Resources for Developing Your Trading Playbook (2018-01-21)",
+   "url": "https://traderfeed.blogspot.com/2018/01/resources-for-developing-your-trading.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett N. Steenbarger, Ph.D., is named in the contract's Tier 2 list of trading authors (Wiley: The Psychology of Trading, Enhancing Trader Performance, The Daily Trading Coach, Trading Psychology 2.0) and coaches portfolio managers and traders at financial firms (bio on the page). TraderFeed is his own signed, dated blog. An independent author from Bellafiore (s1 to s6)."
+  },
+  {
+   "id": "s8",
+   "tier": 2,
+   "publisher": "Brett Steenbarger, TraderFeed",
+   "title": "Best Practices, Best Processes, and Why Traders Don't Reach Their Potential (2015-12-05)",
+   "url": "https://traderfeed.blogspot.com/2015/12/best-practices-best-processes-and-why.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Steenbarger's own signed, dated post (same author and blog as s7), on studying what you do best."
+  },
+  {
+   "id": "s9",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "Ten Questions to Ask Yourself at Year-End (David Keller, CMT, The Mindful Investor, 2021-12-31)",
+   "url": "https://articles.stockcharts.com/article/articles-mindfulinvestor-2021-12-ten-questions-to-ask-yourself-781/",
+   "accessed": "2026-11-09",
+   "why_reliable": "A StockCharts.com column by David Keller, CMT, the site's Chief Market Strategist (byline and title on the page). Only his best-trade review question is cited."
+  },
+  {
+   "id": "s10",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "What is a trading plan? (Fidelity Learning Center, Smart Money)",
+   "url": "https://www.fidelity.com/learning-center/smart-money/trading-plan",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "h1",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Study: the owner's principles, B. Teaching, rule 8 (the owner quoted)",
+   "url": "repo:docs/study/OWNER_PRINCIPLES.md#b-teaching",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Study: the trade plan for every setup (the app's detectors; the owner's Kicker rulings)",
+   "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "h3",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The house sizing rule, section 6: Management (owner quoted, 2026-06-14)",
+   "url": "repo:docs/study/sizing_rule.md#6-management-so-the-sizing-drills-can-go-full-circle",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "h4",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "h9",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f01",
+   "source": "s1",
+   "quote": "After each trading session, I ask the players on our desk (and now you?) to archive a trading setup that made the most sense to them during that day.",
+   "claim": "Bellafiore has his traders write up, after every session, the setup that made the most sense to them that day."
+  },
+  {
+   "id": "f02",
+   "source": "s1",
+   "quote": "They archive this play in a template form, which we share: the SMB PlayBook.",
+   "claim": "The play is written up on a fixed template, and the collected pages are the SMB PlayBook."
+  },
+  {
+   "id": "f03",
+   "source": "s1",
+   "quote": "This exercise brands their winning trades in their trading brain, synthesizes the most important market patterns for them to study, and helps them internalize their best trading setups so that they trade them instinctively in real-time.",
+   "claim": "Writing the play up helps a trader internalize it, so they trade it instinctively when it shows up again."
+  },
+  {
+   "id": "f04",
+   "source": "s1",
+   "quote": "We break down each trade as follows: The Big Picture Intraday Fundamentals Technical Analysis Reading the Tape Trade Management Trade Strategy Trade Review",
+   "claim": "The book's PlayBook sections: big picture, intraday fundamentals, technical analysis, tape reading, trade management, trade strategy, trade review."
+  },
+  {
+   "id": "f05",
+   "source": "s1",
+   "quote": "It is not my intention to preach that you should dissect trades exactly like I do, as you may trade a different product or time frame",
+   "claim": "Bellafiore does not ask you to copy his sections exactly, since you may trade a different product or time frame."
+  },
+  {
+   "id": "f06",
+   "source": "s1",
+   "quote": "I do, however, encourage you to develop a similar system of archiving your best trading setups that makes the most sense to you in the format that works best for you.",
+   "claim": "Build your own system for archiving your best setups, in the format that works for you."
+  },
+  {
+   "id": "f07",
+   "source": "s1",
+   "quote": "Your PlayBook’s contents are up to you. But its existence, with all due respect, should not be.",
+   "claim": "What goes in your playbook is your choice; having one is not optional."
+  },
+  {
+   "id": "f08",
+   "source": "s1",
+   "quote": "Recently, I met with a series of very experienced but underperforming traders.",
+   "claim": "Bellafiore met a group of very experienced traders who were underperforming."
+  },
+  {
+   "id": "f09",
+   "source": "s1",
+   "quote": "The common denominator for this group was that none of them had a methodology to archive their favorite setups, nor could they clearly, definitively, and instantly articulate their best plays.",
+   "claim": "What they shared: no method to archive their favorite setups, and no clear, instant way to say what their best plays were."
+  },
+  {
+   "id": "f10",
+   "source": "s1",
+   "quote": "Focus unrelentingly on what setups make the most sense to you.",
+   "claim": "Focus hard on the setups that make the most sense to you."
+  },
+  {
+   "id": "f11",
+   "source": "s1",
+   "quote": "You do not become a great trader by being shown cookie cutter technical setups and then soon become successful.",
+   "claim": "Being shown ready-made setups does not make you a great trader."
+  },
+  {
+   "id": "f12",
+   "source": "s1",
+   "quote": "Trades will stop working, and you will have to find new ones that do work.",
+   "claim": "Plays can stop working over time, and then you find new ones."
+  },
+  {
+   "id": "f13",
+   "source": "s1",
+   "quote": "Then you can execute these plays as automatically as you breathe, walk, and talk. But before, each trade is a struggle of indecision and uncertainty.",
+   "claim": "Once a play is internalized you execute it automatically; before that, each trade is a struggle of indecision."
+  },
+  {
+   "id": "f14",
+   "source": "s1",
+   "quote": "They spend their energy searching for more of their favorite setups and focus on where they can add size responsibly.",
+   "claim": "The best traders look for more of their favorite setups and add size responsibly."
+  },
+  {
+   "id": "f15",
+   "source": "s1",
+   "quote": "We review his failed trade in JCP that was still One Good Trade.",
+   "claim": "The book reviews a losing JCP trade that was still a good trade."
+  },
+  {
+   "id": "f16",
+   "source": "s1",
+   "quote": "The Big Picture: First Know What Is Moving the Market",
+   "claim": "The big picture section comes first: know what is moving the market."
+  },
+  {
+   "id": "f17",
+   "source": "s1",
+   "quote": "Intraday Fundamentals: Trade with Real Order Flow Behind Your Stocks",
+   "claim": "The intraday fundamentals section is about the real buying and selling a stock's news brings in."
+  },
+  {
+   "id": "f18",
+   "source": "s1",
+   "quote": "Reading the Tape: Find Better Entries and Exits",
+   "claim": "Tape reading, watching the actual orders, is there to find better entries and exits."
+  },
+  {
+   "id": "f19",
+   "source": "s1",
+   "quote": "You are only as good as the stocks you trade.",
+   "claim": "Your results are only as good as the stocks you pick to trade."
+  },
+  {
+   "id": "f20",
+   "source": "s1",
+   "quote": "You Are Trading Too Many Stocks",
+   "claim": "A section of the book is titled You Are Trading Too Many Stocks."
+  },
+  {
+   "id": "f21",
+   "source": "s2",
+   "quote": "We ask our traders to create a playbook. Plays and patterns that make sense to them that they want to trade more of.",
+   "claim": "A playbook is the plays and patterns that make sense to you and that you want to trade more of."
+  },
+  {
+   "id": "f22",
+   "source": "s2",
+   "quote": "At the end of the day the trader considers a best trade they made, details this trade in our SMB PlayBook template form and then sends it to me.",
+   "claim": "At the end of each day the trader writes up a best trade on the PlayBook form and sends it to Bellafiore."
+  },
+  {
+   "id": "f23",
+   "source": "s2",
+   "quote": "Name of The Play: Gap and Go Above LT Level w/ Buyer",
+   "claim": "The form starts with a short name for the play."
+  },
+  {
+   "id": "f24",
+   "source": "s2",
+   "quote": "Intraday Fundamentals: Sysco beats by $0.03, beats on revs",
+   "claim": "In the SYY entry, the earnings and revenue beat is written under intraday fundamentals."
+  },
+  {
+   "id": "f25",
+   "source": "s2",
+   "quote": "Technical Analysis: 30.50, 31.50, and 32 were longer term technical levels.",
+   "claim": "In the SYY entry, the chart's price levels are written under technical analysis."
+  },
+  {
+   "id": "f26",
+   "source": "s2",
+   "quote": "Reading the Tape: There was a clear buyer at 30.63",
+   "claim": "In the SYY entry, a big buyer holding one price is written under tape reading."
+  },
+  {
+   "id": "f27",
+   "source": "s2",
+   "quote": "All traders can review this playbook and get some practice on specific trades or co-opt one of these trades for themselves.",
+   "claim": "The shared playbook lets traders practise on each other's plays and adopt one for themselves."
+  },
+  {
+   "id": "f28",
+   "source": "s3",
+   "quote": "In The PlayBook, my thesis was for traders to study their best trades and build from them, trading these setups more often and bigger.",
+   "claim": "Bellafiore's thesis: study your best trades, build from them, and trade those setups more often and bigger."
+  },
+  {
+   "id": "f29",
+   "source": "s3",
+   "quote": "If you are not actively studying your strengths, consider doing so.",
+   "claim": "Study your strengths on purpose."
+  },
+  {
+   "id": "f30",
+   "source": "s4",
+   "quote": "SMB coined the term “intraday fundamentals”. It refers to the study of news patterns that provide us clues to how a stock may move intraday.",
+   "claim": "Intraday fundamentals means the news behind a stock and the clues it gives about how the stock may move."
+  },
+  {
+   "id": "f31",
+   "source": "s5",
+   "quote": "We find a stock that has had fresh news of late, so a catalyst behind it. We look for the technicals, long and short, to align.",
+   "claim": "SMB's longer trades start with a stock with fresh news, a catalyst, and then technicals that line up."
+  },
+  {
+   "id": "f32",
+   "source": "s6",
+   "quote": "When I make a trading decision I do not just Read the Tape.  When deciding to buy or sell I do not just consult my charts.",
+   "claim": "Bellafiore never decides on the order flow alone or the chart alone."
+  },
+  {
+   "id": "f33",
+   "source": "s7",
+   "quote": "For a basketball or football team, a playbook is a set of plays that the team runs in various situations.",
+   "claim": "A team's playbook is the set of plays it runs in different situations."
+  },
+  {
+   "id": "f34",
+   "source": "s7",
+   "quote": "Much of the skill of a coach is knowing which plays to call when.",
+   "claim": "Much of the skill is knowing which play fits which situation."
+  },
+  {
+   "id": "f35",
+   "source": "s7",
+   "quote": "Successful traders, I find, start with small, focused playbooks and work at becoming proficient in just a few types of trades.",
+   "claim": "In Steenbarger's experience, good traders start with a small, focused playbook of a few types of trades."
+  },
+  {
+   "id": "f36",
+   "source": "s7",
+   "quote": "They document their plays in journals, trade them in real time, and review action at the end of the day to see what they might have missed.",
+   "claim": "They write their plays down, trade them, and review at the end of the day."
+  },
+  {
+   "id": "f37",
+   "source": "s7",
+   "quote": "Only when they become proficient at a few basic plays do they move on to exploit other ways of making money.",
+   "claim": "They add new plays only after they are proficient at the first few."
+  },
+  {
+   "id": "f38",
+   "source": "s7",
+   "quote": "It's common among active traders to think of playbook trades as \"setups\", as in chart patterns, but this is shortsighted.",
+   "claim": "Treating a playbook trade as just a chart pattern is shortsighted."
+  },
+  {
+   "id": "f39",
+   "source": "s7",
+   "quote": "A pattern of market behavior that has led to favorable market returns over a defined time horizon;",
+   "claim": "A playbook trade starts with a pattern of market behavior that has paid over a defined time frame."
+  },
+  {
+   "id": "f40",
+   "source": "s7",
+   "quote": "A set of rules for identifying this pattern in real time and entering the trade at a point that provides favorable reward relative to risk;",
+   "claim": "It has rules for spotting the pattern live and entering where reward is good relative to risk."
+  },
+  {
+   "id": "f41",
+   "source": "s7",
+   "quote": "A set of rules for sizing the trade, so that the trader can achieve meaningful returns without running the risk of ruin when, by chance, a series of losing trades occurs;",
+   "claim": "It has sizing rules so a run of losing trades, which comes by chance, cannot ruin you."
+  },
+  {
+   "id": "f42",
+   "source": "s7",
+   "quote": "A set of rules for establishing target prices and adding to positions/scaling out of positions/exiting positions;",
+   "claim": "It has rules for targets, adding, scaling out and exiting."
+  },
+  {
+   "id": "f43",
+   "source": "s7",
+   "quote": "A set of rules for establishing the stocks or instruments best able to exploit the patterns being traded.",
+   "claim": "It has rules for which stocks suit the pattern best."
+  },
+  {
+   "id": "f44",
+   "source": "s7",
+   "quote": "When the trader merely views the playbook trade as a set of entry criteria, they leave themselves no guidance for sizing the trade and managing the risk/reward of the position.",
+   "claim": "A play written as entry rules only gives no guide for sizing or managing the trade."
+  },
+  {
+   "id": "f45",
+   "source": "s7",
+   "quote": "How trades are sized and managed is every bit as important as the trade ideas themselves",
+   "claim": "Sizing and managing a trade matter as much as the idea."
+  },
+  {
+   "id": "f46",
+   "source": "s7",
+   "quote": "the most successful traders are those that find the best vehicles for trading their playbooks",
+   "claim": "Finding the best stocks to run your plays in is a big part of doing well."
+  },
+  {
+   "id": "f47",
+   "source": "s7",
+   "quote": "Had they traded exactly the same patterns in the large cap universe, they would have made far less money.",
+   "claim": "The same patterns made far less money in large caps than in the stocks those traders chose."
+  },
+  {
+   "id": "f48",
+   "source": "s7",
+   "quote": "What you add is the review and practice that helps make those patterns and rules your own.",
+   "claim": "Your own review and practice is what makes someone else's patterns and rules yours."
+  },
+  {
+   "id": "f49",
+   "source": "s7",
+   "quote": "We develop expertise by internalizing what we learn.",
+   "claim": "Expertise comes from internalizing what you learn."
+  },
+  {
+   "id": "f50",
+   "source": "s8",
+   "quote": "When I ask traders to identify their strengths, they inevitably give generalized responses that don't map onto best processes.",
+   "claim": "Asked for their strengths, traders give vague answers that don't map onto a specific process."
+  },
+  {
+   "id": "f51",
+   "source": "s8",
+   "quote": "it is vital for traders to understand their strengths and how those strengths manifest themselves as successes.",
+   "claim": "Know your strengths and how they show up in your winning trades."
+  },
+  {
+   "id": "f52",
+   "source": "s9",
+   "quote": "What was your best trade this year? And what tools/insights/approaches/indicators/charts helped you identify that winning trade?",
+   "claim": "Review your best trade by asking what helped you find it."
+  },
+  {
+   "id": "f53",
+   "source": "s10",
+   "quote": "You shouldn't alter a trading plan as a knee-jerk reaction to temporary market events, like when stock prices take a dive.",
+   "claim": "Don't change your plan as a knee-jerk reaction to short-term market moves."
+  },
+  {
+   "id": "f54",
+   "source": "s10",
+   "quote": "You may wish to change your trading plan over time.",
+   "claim": "A plan can change over time, on purpose."
+  },
+  {
+   "id": "f55",
+   "source": "s5",
+   "quote": "We still concentrate on longer intraday swing trades",
+   "claim": "Bellafiore's desk trades intraday, mostly longer intraday swing trades."
+  },
+  {
+   "id": "h01",
+   "source": "h1",
+   "quote": "I would rather have Entry, Stop, Trim, Trail, Advance",
+   "claim": "We break down each trade we teach as Entry, Stop, Trim, Trail, Advance."
+  },
+  {
+   "id": "h02",
+   "source": "h4",
+   "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+   "claim": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R."
+  },
+  {
+   "id": "h03",
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
+  },
+  {
+   "id": "h04",
+   "source": "h2",
+   "quote": "over the red day's high, on the Kicker day, at market as it trades through",
+   "claim": "Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through."
+  },
+  {
+   "id": "h05",
+   "source": "h2",
+   "quote": "under the Kicker's low, or 3.5% under the entry if that is closer",
+   "claim": "Our Kicker stop is under the Kicker's low, or 3.5% under the entry if that is closer."
+  },
+  {
+   "id": "h06",
+   "source": "h2",
+   "quote": "under each higher low, or under the 9 EMA",
+   "claim": "Our Kicker trail is under each higher low, or under the 9 EMA."
+  },
+  {
+   "id": "h07",
+   "source": "h3",
+   "quote": "Hold your winners by selling partials into strength and trailing the rising moving averages.",
+   "claim": "Our rule: hold winners by selling partials into strength and trailing the rising moving averages."
+  },
+  {
+   "id": "h08",
+   "source": "h4",
+   "quote": "The stop is the exit. It only moves up, never down or wider.",
+   "claim": "Our rule: the stop is the exit, and it only moves up, never down or wider."
+  },
+  {
+   "id": "h09",
+   "source": "h4",
+   "quote": "Never raise risk past the rules after a run of winners.",
+   "claim": "Our rule: never raise risk past the rules after a run of winners."
+  },
+  {
+   "id": "h10",
+   "source": "h4",
+   "quote": "Every planned buy has its entry, stop and size written down before the market opens.",
+   "claim": "Our rule: every planned buy has its entry, stop and size written down before the market opens."
+  },
+  {
+   "id": "h11",
+   "source": "h4",
+   "quote": "Setup grades set the size: A and B setups at normal size; A+ sized up; B- or lower sized down.",
+   "claim": "Our rule: the setup's grade sets the size. A and B are normal size, A+ is sized up, B- or lower sized down."
+  },
+  {
+   "id": "h12",
+   "source": "h4",
+   "quote": "The full size at one price with one stop; no adding.",
+   "claim": "Our rule: buy the full size at one price with one stop, and never add."
+  },
+  {
+   "id": "h13",
+   "source": "h4",
+   "quote": "Under 1% is normal; 1.5% is the most any grade uses (E49); 2% is the absolute ceiling.",
+   "claim": "Our rule: under 1% risk is normal, 1.5% is the most any grade uses, and 2% is the absolute ceiling."
+  },
+  {
+   "id": "h14",
+   "source": "h4",
+   "quote": "Max position 40% of the account",
+   "claim": "Our rule: the largest position is 40% of the account."
+  },
+  {
+   "id": "r01",
+   "source": "h9",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "Our rule: the first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r02",
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
+  },
+  {
+   "id": "hw01",
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "Your plays, written down",
+   "steps": [
+    "Your playbook is your set of plays, like a team's: setups that make sense to you and that you want more of.",
+    "At SMB Capital, Mike Bellafiore's traders write one up after each session: the setup that made the most sense.",
+    "The writing is the practice. It helps you act when the play shows up again, instead of hesitating."
+   ],
+   "facts": [
+    "f33",
+    "f21",
+    "f01",
+    "f22",
+    "f03",
+    "f13"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "One page, section by section",
+   "steps": [
+    "His desk's form opens with a short name for the play. Then come the sections.",
+    "His book breaks each trade down in order: big picture, intraday fundamentals, technical analysis, tape reading, trade management, trade strategy, trade review.",
+    "In the SYY page he shared, the earnings beat sits under intraday fundamentals. The price levels sit under technical analysis.",
+    "A pattern is only part of a play. Trading coach Brett Steenbarger adds sizing, targets, adds and exits."
+   ],
+   "facts": [
+    "f23",
+    "f04",
+    "f24",
+    "f25",
+    "f38",
+    "f41",
+    "f42"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "Make it yours: our Kicker page",
+   "steps": [
+    "Bellafiore trades intraday and says you may trade a different time frame. Build the page in a format that works for you.",
+    "Kicker entry: over the red day's high, at market. Stop: under the Kicker candle's low, or 3.5% under entry if closer.",
+    "First sell: judgment, usually day 3 or later. Trail under each higher low or the 9 EMA. That's the page."
+   ],
+   "facts": [
+    "f55",
+    "f05",
+    "f06",
+    "h04",
+    "h05",
+    "h02",
+    "h06",
+    "h03",
+    "hw01"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "process.playbook",
+   "rung": 1,
+   "format": "mcq",
+   "term": "playbook",
+   "q": "What is a trading playbook?",
+   "choices": [
+    "Your written set of best plays",
+    "A list of hot stock tips to buy",
+    "A log of every trade you make",
+    "Chart patterns from a textbook"
+   ],
+   "answer": "Your written set of best plays",
+   "why": "Your written set of best plays. Bellafiore's traders build it from plays and patterns that make sense to them and that they want to trade more of. Steenbarger compares it to a team's playbook: the set of plays it runs in different situations. It is not a log of every trade. It is not a list of tips or textbook patterns either.",
+   "lesson_line": "A playbook is your plays, written down. Not tips, not every trade.",
+   "facts": [
+    "f21",
+    "f33",
+    "f06",
+    "f11",
+    "f01"
+   ],
+   "wrong": {
+    "A log of every trade you make": "That's a full trade log. The playbook keeps the setup that made the most sense to you.",
+    "Chart patterns from a textbook": "Bellafiore says cookie cutter setups don't make a great trader. The plays have to make sense to you.",
+    "A list of hot stock tips to buy": "A tip is a name, not a play. A playbook holds setups you can spot and run again."
+   },
+   "simple": "A playbook is your own written list of best plays, the setups that make sense to you and you want more of.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q02",
+   "skill": "process.playbook",
+   "rung": 1,
+   "format": "tf",
+   "q": "Bellafiore has his traders write up one play after every trading session.",
+   "answer": "True",
+   "why": "True. After each trading session, Bellafiore asks his desk to archive one trading setup from that day. They write it on a template form, and the shared pages are the SMB PlayBook. His blog says the same: at day's end the trader details a best trade on the form. It is one play, not every trade.",
+   "lesson_line": "One play, written up, every session.",
+   "facts": [
+    "f01",
+    "f22",
+    "f02"
+   ],
+   "simple": "True, after each session his traders write up one setup from that day on a template form.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q03",
+   "skill": "process.playbook",
+   "rung": 2,
+   "format": "mcq",
+   "q": "Bellafiore's book splits each PlayBook page into sections. Which of these is one of them?",
+   "choices": [
+    "Trade management",
+    "Analyst targets",
+    "Monthly profit goal",
+    "Online chatter"
+   ],
+   "answer": "Trade management",
+   "why": "Trade management. The book breaks each trade into the big picture, intraday fundamentals, technical analysis, tape reading, trade management, trade strategy and trade review. Analyst targets, money goals and online talk are not on the list. Steenbarger agrees that managing the trade belongs in a play: rules for targets, scaling out and exits.",
+   "lesson_line": "A play isn't only the entry. How you manage it is part of the page.",
+   "facts": [
+    "f04",
+    "f42",
+    "f30"
+   ],
+   "wrong": {
+    "Analyst targets": "Not one of his sections. His page covers the market, the stock's news, its chart and how you traded it.",
+    "Monthly profit goal": "The page records one play. A money goal says nothing about how to spot or run it.",
+    "Online chatter": "Not a section. His intraday fundamentals section studies the news itself, not what people say about it."
+   },
+   "simple": "Trade management is one of his sections, because a play covers how you ran the trade, not only the entry.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q04",
+   "skill": "process.playbook",
+   "rung": 2,
+   "format": "fill",
+   "q": "Finish Bellafiore's rule for picking the play you write up.",
+   "sentence": "Archive the setup that made the most ___ that day.",
+   "bank": [
+    "sense",
+    "money",
+    "volume",
+    "headlines"
+   ],
+   "answer": "sense",
+   "why": "Sense. Bellafiore asks his desk to archive the setup that made the most sense to them that day. His blog says the playbook holds plays and patterns that make sense to the trader. They are the plays the trader wants to trade more of.",
+   "lesson_line": "Write up the setup that made the most sense to you, the play you want more of.",
+   "facts": [
+    "f01",
+    "f21"
+   ],
+   "simple": "The word is sense, because Bellafiore asks for the setup that made the most sense to you that day.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker removed an unsupported sense-versus-profit contrast)"
+    ]
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q05",
+   "skill": "process.playbook",
+   "rung": 3,
+   "format": "tf",
+   "q": "A playbook page is complete once it describes the chart pattern.",
+   "answer": "False",
+   "why": "False. Steenbarger calls it shortsighted to treat a playbook trade as just a chart pattern. A play written as entry rules only gives you no guide for sizing or managing the trade. His playbook trade also has rules for sizing, for targets and exits, and for which stocks suit it. Bellafiore's page runs on to trade management, strategy and review.",
+   "lesson_line": "A chart pattern is only part of a play, never the whole page.",
+   "facts": [
+    "f38",
+    "f44",
+    "f04",
+    "f41",
+    "f42",
+    "f43"
+   ],
+   "simple": "False, because a page that stops at the pattern gives you no guide for sizing or managing the trade.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q06",
+   "skill": "process.playbook",
+   "rung": 3,
+   "format": "mcq",
+   "q": "Bellafiore wants the play written up the same day. What does the writing do for you?",
+   "choices": [
+    "Trains you to act without pause",
+    "Proves the setup will win next time",
+    "Tells you what to buy tomorrow",
+    "Keeps a full record of every trade"
+   ],
+   "answer": "Trains you to act without pause",
+   "why": "It trains you to act without hesitating. Bellafiore says the write-up helps traders internalize their best setups, so they trade them instinctively in real time. Before that, he says, each trade is a struggle of indecision and uncertainty. Steenbarger agrees: we develop expertise by internalizing what we learn. It does not make the setup win. A run of losing trades can still come by chance.",
+   "lesson_line": "Write it down so next time you act instead of debate.",
+   "facts": [
+    "f03",
+    "f13",
+    "f49",
+    "f41",
+    "f01"
+   ],
+   "wrong": {
+    "Proves the setup will win next time": "Nothing does that. Steenbarger notes a run of losing trades can come by chance, even in a good play.",
+    "Tells you what to buy tomorrow": "It names no stock. It records a play, so you spot it and act when it shows up again.",
+    "Keeps a full record of every trade": "That's a full trade log. The write-up keeps the one setup that made the most sense that day."
+   },
+   "simple": "It trains you to act without pause, because writing the play down helps you trade it by instinct next time.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (distractors replaced 2026-11-09)"
+    ]
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q07",
+   "skill": "process.playbook",
+   "rung": 3,
+   "format": "mcq",
+   "q": "Bellafiore's book starts each trade breakdown with the big picture. What does that section look at?",
+   "choices": [
+    "What is moving the whole market",
+    "Why this one stock is moving",
+    "Where your stop goes on the trade",
+    "The stock's long-term weekly chart"
+   ],
+   "answer": "What is moving the whole market",
+   "why": "What is moving the whole market. The book's heading for the section reads: First Know What Is Moving the Market. It comes first in his breakdown, before the sections on the stock and on how you traded it.",
+   "lesson_line": "Start with the market, then the stock, then the trade.",
+   "facts": [
+    "f16",
+    "f04",
+    "f17",
+    "f33",
+    "f34"
+   ],
+   "wrong": {
+    "Why this one stock is moving": "That's about one stock, and his sections on the stock come after. The big picture comes first and looks at the whole market.",
+    "Where your stop goes on the trade": "That's about your own trade, not the market. The big picture comes first and looks at the whole market.",
+    "The stock's long-term weekly chart": "That's still one stock. The big picture looks past any one name to the whole market, and it comes first."
+   },
+   "simple": "The big picture looks at what is moving the whole market, because you start with the market before the stock.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q08",
+   "skill": "process.playbook",
+   "rung": 4,
+   "format": "mcq",
+   "q": "The SYY page Bellafiore shared reads: \"Sysco beats by $0.03, beats on revs.\" Which section is that line in?",
+   "choices": [
+    "Intraday fundamentals",
+    "Technical analysis",
+    "Trade management",
+    "Tape reading"
+   ],
+   "answer": "Intraday fundamentals",
+   "why": "Intraday fundamentals. The line is the news behind the stock: Sysco beat by $0.03 and beat on revenue. SMB coined the term for the study of news patterns that give clues to how a stock may move.",
+   "lesson_line": "The catalyst goes under intraday fundamentals.",
+   "facts": [
+    "f24",
+    "f30",
+    "f17",
+    "f25",
+    "f26",
+    "f18"
+   ],
+   "wrong": {
+    "Technical analysis": "His technical section held price levels: 30.50, 31.50 and 32.",
+    "Trade management": "That section is how the position was handled, not why the stock moved.",
+    "Tape reading": "That section held the order flow: a clear buyer at 30.63."
+   },
+   "simple": "It goes under intraday fundamentals, because an earnings and revenue beat is the news behind the stock.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (attribution and choices reworked 2026-11-09 and 2026-11-10)"
+    ]
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q09",
+   "skill": "process.playbook",
+   "rung": 4,
+   "format": "scenario",
+   "story": "You're writing up today's best trade. The market was up that day. The stock beat earnings, gapped up and cleared its 52-week high. You sold part of it into strength.",
+   "q": "Which detail goes under technical analysis?",
+   "choices": [
+    "It cleared its 52-week high",
+    "It beat earnings estimates",
+    "You sold part into strength",
+    "The market was up that day"
+   ],
+   "answer": "It cleared its 52-week high",
+   "why": "It cleared its 52-week high. That is a price level on the chart. On the SYY page, the chart's levels sat under technical analysis: 30.50, 31.50 and 32 were longer term technical levels. The market being up is the big picture. The earnings beat is the catalyst, filed under intraday fundamentals. Selling part into strength is how you handled the position, not a chart level.",
+   "lesson_line": "Chart levels go under technical analysis. The news and your exits each get their own box.",
+   "facts": [
+    "f25",
+    "f04",
+    "f24",
+    "f30",
+    "f31",
+    "f16"
+   ],
+   "wrong": {
+    "It beat earnings estimates": "That's the catalyst. Bellafiore files news like that under intraday fundamentals.",
+    "The market was up that day": "That's the big picture, the first section: what is moving the whole market. Technical analysis holds the stock's own chart levels.",
+    "You sold part into strength": "That's how you handled the position, not a chart level. Technical analysis holds the stock's chart levels."
+   },
+   "simple": "Clearing its 52-week high goes there, because it is a price level on the chart.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (a gap-and-news distractor replaced 2026-11-09)"
+    ]
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q10",
+   "skill": "process.playbook",
+   "rung": 4,
+   "format": "fill",
+   "house": true,
+   "q": "This is how we break down each trade we teach. Fill in the missing word.",
+   "sentence": "Entry, Stop, Trim, ___, Advance.",
+   "bank": [
+    "Trail",
+    "Target",
+    "Hold",
+    "Add"
+   ],
+   "answer": "Trail",
+   "why": "Trail. We break down each trade we teach as Entry, Stop, Trim, Trail and Advance. The trail is how we hold the rest of a winner. Our rule: sell partials into strength and trail the rising moving averages.",
+   "lesson_line": "Entry, Stop, Trim, Trail, Advance. That's how we break down every trade we teach.",
+   "facts": [
+    "h01",
+    "h07"
+   ],
+   "simple": "The missing word is Trail, because we hold the rest of a winner by trailing the rising moving averages.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (A12) and owner principles",
+     "fixed before (reworded 2026-11-09)"
+    ]
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q11",
+   "skill": "process.playbook",
+   "rung": 5,
+   "format": "mcq",
+   "house": true,
+   "q": "Your Kicker page: entry $20.00, stop $19.30. What is the 3R price?",
+   "answer": "$22.10",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "entry + 3 * (entry - stop)",
+     "entry": 20,
+     "stop": 19.3
+    }
+   },
+   "prefix": "$",
+   "why": "$22.10. R is your risk per share, the $20.00 entry minus the $19.30 stop. The 3R price is the entry plus 3 times R: $20.00 plus 3 times ($20.00 minus $19.30) is $22.10. It is a mark on the page, not an order to sell. The first sell is a judgment, usually day 3 or later.",
+   "lesson_line": "Write the 3R price on the page in dollars. Then judge the first sell as the trade runs.",
+   "facts": [
+    "r01",
+    "r02"
+   ],
+   "simple": "The 3R price is $22.10, because three times the risk from $20.00 to $19.30 is added to the entry.",
+   "deeper": {
+    "trap": "Don't read 3R as a fixed percent or a fixed dollar gain. R is your own risk per share, entry minus stop. So the 3R price moves with your stop. A tighter stop brings it closer, and a wider one pushes it further away."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "computed key",
+     "rests on the owner's rulebook (B19, E51)",
+     "fixed before (re-keyed from 2R to 3R on 2026-11-09)"
+    ]
+   },
+   "batch": "rank",
+   "choices": [
+    "$22.10",
+    "$22.80",
+    "$23.00",
+    "$23.50"
+   ],
+   "wrong": {
+    "$23.00": "You treated 3R as a $3 gain instead of three times your risk.",
+    "$22.80": "You used four times your risk instead of three.",
+    "$23.50": "You used five times your risk instead of three."
+   }
+  },
+  {
+   "key": "q12",
+   "skill": "process.playbook",
+   "rung": 5,
+   "format": "mcq",
+   "q": "You're starting your playbook. How many setups should it hold at first?",
+   "choices": [
+    "A few setups you know well",
+    "Every pattern you can find",
+    "One for every stock you watch",
+    "None until you've traded a year"
+   ],
+   "answer": "A few setups you know well",
+   "why": "A few setups you know well. Steenbarger finds that good traders start with small, focused playbooks. They work at becoming proficient in just a few types of trades. Only then do they move on to new plays. Bellafiore says the same: focus unrelentingly on the setups that make the most sense to you.",
+   "lesson_line": "Start with a few plays you know cold. Add more only when those are second nature.",
+   "facts": [
+    "f35",
+    "f37",
+    "f10",
+    "f43",
+    "f01",
+    "f07"
+   ],
+   "wrong": {
+    "Every pattern you can find": "That spreads you thin. Proficiency comes from a few types of trades first.",
+    "One for every stock you watch": "A play is a pattern you run across stocks, with rules for which stocks suit it. It isn't one page per name.",
+    "None until you've traded a year": "Waiting skips the practice. Bellafiore's desk writes up a play after every session, and having a playbook is not optional."
+   },
+   "simple": "Start with a few setups you know well, because good traders master a few plays before they add more.",
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (a duplicate fourth choice cut 2026-11-09)"
+    ]
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q13",
+   "skill": "process.playbook",
+   "rung": 5,
+   "format": "tf",
+   "q": "The same play can pay very differently depending on which stocks you trade it in.",
+   "answer": "True",
+   "why": "True. Steenbarger saw traders do very well running their patterns in one group of stocks. Had they traded the same patterns in large caps, they would have made far less money. He says the traders who do best find the best vehicles for their playbooks. Bellafiore agrees: you are only as good as the stocks you trade.",
+   "lesson_line": "Write down which stocks the play works best in. It's part of the page.",
+   "facts": [
+    "f46",
+    "f47",
+    "f43",
+    "f19"
+   ],
+   "simple": "True, because the same patterns that paid well in one group of stocks would have made far less in large caps.",
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (why rewritten 2026-11-09)"
+    ]
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q14",
+   "skill": "process.playbook",
+   "rung": 7,
+   "format": "scenario",
+   "story": "Three trades today. A was a big winner on a tip from a friend. B was a small winner on your own setup, traded as written. C lost after you moved your stop lower.",
+   "q": "Which one goes in your playbook tonight?",
+   "choices": [
+    "B, the small winner",
+    "A, the big winner",
+    "C, learn from it",
+    "None, B was small"
+   ],
+   "answer": "B, the small winner",
+   "why": "B, the small winner. It is your own setup, traded as written: a play you can spot again and want more of. Bellafiore asks for the setup that made the most sense that day. A paid more, but a tip is not a pattern of market behavior you can spot again. C broke your plan: our stop only moves up, never lower.",
+   "lesson_line": "Archive the play you'd gladly run again: the setup that made the most sense.",
+   "facts": [
+    "f01",
+    "f21",
+    "f39",
+    "h08"
+   ],
+   "wrong": {
+    "A, the big winner": "A tip isn't a play. A playbook trade starts with a pattern you can spot again.",
+    "C, learn from it": "You moved your stop lower, and our stop only moves up. A broken plan isn't a play to repeat.",
+    "None, B was small": "The size of the win isn't the test. B is your own setup run as written, and his desk writes one up every session."
+   },
+   "simple": "B goes in, because it is your own setup traded as written, a play you can spot and run again.",
+   "deeper": {
+    "trap": "The trap is grading a trade by its profit. A was the biggest winner, but a tip is not a pattern you can spot again. C broke the plan, so it is not a play to repeat. B paid less than A, but it is the play you ran as written and can run again."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q15",
+   "skill": "process.playbook",
+   "rung": 6,
+   "format": "tf",
+   "q": "A trade that lost money can still be a good trade.",
+   "answer": "True",
+   "why": "True. Bellafiore's book reviews a failed JCP trade that was still, in his words, One Good Trade. A play run right still loses sometimes, and Steenbarger notes losing streaks come by chance.",
+   "lesson_line": "Judge the play by how you ran it, not by one result.",
+   "facts": [
+    "f15",
+    "f41"
+   ]
+  },
+  {
+   "key": "q16",
+   "skill": "process.playbook",
+   "rung": 7,
+   "format": "scenario",
+   "story": "You swing trade from daily charts. Bellafiore built his page for intraday trading, with a section on reading live orders.",
+   "q": "How do you use his template?",
+   "choices": [
+    "Adapt it to your time frame",
+    "Copy every section as written",
+    "Wait until you day trade",
+    "Keep only the chart section"
+   ],
+   "answer": "Adapt it to your time frame",
+   "why": "Adapt it to your time frame. Bellafiore says he does not mean for you to dissect trades exactly like him. You may trade a different product or time frame. He asks for a similar system, in the format that works best for you. Keep what every play needs, like sizing and managing, and fit the boxes to how you trade.",
+   "lesson_line": "Keep his idea. Fit the boxes to how you trade.",
+   "facts": [
+    "f05",
+    "f06",
+    "f07",
+    "f55",
+    "f18",
+    "f44",
+    "f48"
+   ],
+   "wrong": {
+    "Copy every section as written": "He says the opposite: you may trade a different product or time frame, so build your own format.",
+    "Wait until you day trade": "His line: what goes in your PlayBook is up to you, but having one isn't optional.",
+    "Keep only the chart section": "A pattern alone gives you no guide for sizing or managing the trade. Keep those parts, in your terms."
+   },
+   "simple": "Adapt it to your time frame, because Bellafiore says you may trade differently and should use the format that works for you.",
+   "deeper": {
+    "trap": "The trap is reading his advice as leave to skip the page. He frees the format, not the habit: what goes in your PlayBook is up to you, but having one is not optional."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (a distractor that contradicted f27 replaced 2026-11-09)"
+    ]
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q17",
+   "skill": "process.playbook",
+   "rung": 7,
+   "format": "scenario",
+   "story": "Your Gap Support page has worked for months. This week it lost twice, both times at the planned stop.",
+   "q": "What do you do with the page?",
+   "choices": [
+    "Keep it; judge it over more trades",
+    "Tear the page out today",
+    "Double size to win it back",
+    "Move the stop lower next time"
+   ],
+   "answer": "Keep it; judge it over more trades",
+   "why": "Keep it and judge it over more trades. Two losses at the planned stop can be chance. Fidelity warns against changing a plan as a knee-jerk reaction to short-term moves.",
+   "lesson_line": "A page earns a rewrite over many trades, not one bad week.",
+   "facts": [
+    "f41",
+    "f53",
+    "f54",
+    "f12"
+   ],
+   "wrong": {
+    "Tear the page out today": "Losing streaks come by chance, and sizing rules plan for them. Plays do stop working, but that shows over many trades.",
+    "Double size to win it back": "That's chasing losses. Steenbarger's sizing rules exist so a losing streak can't ruin you.",
+    "Move the stop lower next time": "That widens your risk because of one bad week. A knee-jerk change to the plan is what Fidelity warns against."
+   }
+  },
+  {
+   "key": "q18",
+   "skill": "process.playbook",
+   "rung": 8,
+   "format": "mcq",
+   "q": "Bellafiore met very experienced traders who were underperforming. What did they have in common?",
+   "choices": [
+    "No method to save their best plays",
+    "Too much risk on each trade",
+    "Too few stocks to choose from",
+    "Not enough chart indicators to use"
+   ],
+   "answer": "No method to save their best plays",
+   "why": "No method to archive their best plays. Bellafiore says none of them had a method to archive their favorite setups. Nor could they clearly and instantly say what their best plays were. Steenbarger hears the same: asked for their strengths, traders give vague answers that don't map onto a process.",
+   "lesson_line": "If you can't name your best plays clearly and at once, write them down.",
+   "facts": [
+    "f08",
+    "f09",
+    "f50",
+    "f20"
+   ],
+   "wrong": {
+    "Too few stocks to choose from": "If anything, his book has a section titled You Are Trading Too Many Stocks.",
+    "Not enough chart indicators to use": "His common thread was no record of their best plays, not a missing tool.",
+    "Too much risk on each trade": "He didn't name risk. What they shared was no method to archive their favorite setups."
+   },
+   "simple": "They had no method to save their best plays, and they could not say clearly what those plays were.",
+   "deeper": {
+    "trap": "Experience is not the same as a record. These traders were very experienced, yet none had a method to archive their favorite setups. Nor could they say clearly what their best plays were."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q19",
+   "skill": "process.playbook",
+   "rung": 8,
+   "format": "scenario",
+   "story": "Your Kicker page has worked for months, traded as written. Bellafiore's thesis is to trade your best setups more often and bigger.",
+   "q": "How do you get bigger?",
+   "choices": [
+    "Size up within your rules",
+    "Double it on the next trade",
+    "Drop the stop since it works",
+    "Go big after a losing day"
+   ],
+   "answer": "Size up within your rules",
+   "why": "Size up within your risk rules. Bellafiore's thesis is to trade your best setups more often and bigger. His best traders look for where they can size up responsibly. Steenbarger's sizing rules exist so a run of losing trades, which comes by chance, cannot ruin you. Our rule: never raise risk past the rules after a run of winners.",
+   "lesson_line": "Bigger in your best play, yes. Never bigger than your risk rules allow.",
+   "facts": [
+    "f28",
+    "f14",
+    "f41",
+    "f40",
+    "h09"
+   ],
+   "wrong": {
+    "Double it on the next trade": "The next trade can start a losing streak. Our rule: never raise risk past the rules after a run of winners.",
+    "Drop the stop since it works": "A play that works still loses sometimes. The stop is part of the page.",
+    "Go big after a losing day": "That's sizing on emotion, not on the play. Responsible size comes from your rules."
+   },
+   "simple": "Size up in steps your rules allow, because a losing streak can still come by chance even in your best play.",
+   "deeper": {
+    "trap": "The trap is reading bigger as bigger right now. A play that has worked for months still loses sometimes, and a losing streak can start on the very next trade. So size grows in steps your rules allow, never in one jump after a good run."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests in part on the owner's rulebook (D45)"
+    ]
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q20",
+   "skill": "process.playbook",
+   "rung": 9,
+   "format": "scenario",
+   "story": "Your first page is a gap play. It has the play's name, why the stock gapped and the gap levels on the chart. It ends at your entry price.",
+   "q": "What does the page still need?",
+   "choices": [
+    "Your stop, size and exits",
+    "More indicators on the chart",
+    "The company's full financials",
+    "Nothing, it's ready to trade"
+   ],
+   "answer": "Your stop, size and exits",
+   "why": "Your stop, size and exits. A play written as entry rules only gives you no guide for sizing or managing the trade. Steenbarger's playbook trade has rules for sizing, and for targets, scaling out and exits. Sizing and managing matter every bit as much as the idea. Our rule: every planned buy has its entry, stop and size written down before the open.",
+   "lesson_line": "The page isn't done at the entry. Stop, size and exits finish it.",
+   "facts": [
+    "f44",
+    "f41",
+    "f42",
+    "f04",
+    "f45",
+    "f40",
+    "h10"
+   ],
+   "wrong": {
+    "More indicators on the chart": "The chart part is done. What's missing is how you'll manage the trade.",
+    "The company's full financials": "The page already says why it gapped. The catalyst box is covered.",
+    "Nothing, it's ready to trade": "Without a stop and a size, you'd be making up the risk in the moment. Sizing and managing matter as much as the idea."
+   },
+   "simple": "It still needs your stop, size and exits, because a page that ends at the entry gives no plan for the risk.",
+   "deeper": {
+    "trap": "A page that ends at the entry can feel finished. But sizing and managing the trade matter as much as the idea. Without the stop and size written down, you'd be making up the risk in the moment."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests in part on the owner's rulebook (D39)"
+    ]
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q21",
+   "skill": "process.playbook",
+   "rung": 8,
+   "format": "scenario",
+   "house": true,
+   "story": "Your Kicker page has worked for months, traded as written. Bellafiore's thesis is to trade your best setups more often and bigger.",
+   "q": "Under our rules, how do you trade it bigger?",
+   "choices": [
+    "Size up when it grades A+",
+    "Add shares as it moves your way",
+    "Risk 3% of the account on it",
+    "Put half the account in it"
+   ],
+   "answer": "Size up when it grades A+",
+   "simple": "Size up when the setup grades A+, because our rule sets size by the grade, never past our limits.",
+   "why": "Size up when it grades A+. Bellafiore's thesis is to trade your best setups more often and bigger. Our rule says how: setup grades set the size, and A+ setups are sized up. Still, 1.5% risk is the most any grade uses, and 2% is the absolute ceiling. We buy the full size at one price, with one stop, and never add. Even a great play loses sometimes, by chance.",
+   "lesson_line": "Bigger in your best play means A+ size at the buy: 1.5% risk at most, and no adding later.",
+   "wrong": {
+    "Add shares as it moves your way": "Our rule: the full size at one price with one stop, no adding. You size up at the buy.",
+    "Put half the account in it": "Our max position is 40% of the account, however good the play.",
+    "Risk 3% of the account on it": "Our absolute ceiling is 2% of the account at risk, and 1.5% is the most any grade uses."
+   },
+   "deeper": {
+    "trap": "The trap is reading bigger as a bet on the hot streak. A play that has worked for months still loses sometimes. Our rule ties size to the grade at the buy: A+ is sized up, to 1.5% risk at most. We never add shares later."
+   },
+   "facts": [
+    "f28",
+    "f41",
+    "h09",
+    "h11",
+    "h12",
+    "h13",
+    "h14"
+   ],
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (D38, A5, A1, A7, D45)",
+     "replaces q19, whose key was a tell"
+    ]
+   },
+   "batch": "wave9"
+  }
+ ],
+ "conflicts": [
+  "Same-author support. Keys that state what Bellafiore's own template or example contains (q03, q07, q08, q09, q18) rest on his own book (s1, FT Press) and his own firm's blog (s2 to s6): two publishers but one author. That is the primary record of his own method, which no independent page reproduces: third-party summary pages were found and rejected as unreliable, and his 2013 SlideShare deck refused the plain client. Where a key is a general trading claim, an independent author (Steenbarger s7/s8, Keller s9, Fidelity s10) is cited too.",
+  "The section lists differ by source. The 2011 blog form (s2) shows Name of The Play, Intraday Fundamentals, Technical Analysis, Reading the Tape, Trade Management. The 2013 book (s1) lists The Big Picture, Intraday Fundamentals, Technical Analysis, Reading the Tape, Trade Management, Trade Strategy, Trade Review, and its contents also name Intuition as a decision factor. No question asks for a count of sections or keys on a section only one source lists, except the book's Big Picture (q07), asked as the book's.",
+  "Bellafiore's thesis is to trade your best setups 'more often and bigger' (s3). It is taught only together with his own 'add size responsibly' (s1) and Steenbarger's sizing-for-losing-streaks rule (s7), never as 'size up because it works' (q19).",
+  "His template is built for intraday trading (tape reading is Level II order flow). Members mostly swing trade, so the unit teaches his own line that you may trade a different time frame and should build the format that works for you (q16), and does not claim a swing version of his sections as his.",
+  "'The tape' is a house word the owner keeps out of model prose. The unit says 'tape reading' only as the name of Bellafiore's section (the unit plan's own 'tape read'), never 'the tape'.",
+  "The units table names '10 worked write-ups from setupPlaybooks.js' and the dossier as inputs. Neither is a source the contract allows (app code and docs/curriculum), so the house setup content here comes only from TRADE_PLANS.md, OWNER_PRINCIPLES.md (the owner's quoted 'Entry, Stop, Trim, Trail, Advance') and sizing_rule.md's owner line.",
+  "Checker, 2026-11-09: the owner's 'Entry, Stop, Trim, Trail, Advance' (owner_verdicts.jsonl, workbench batch 22, 2026-11-07) was said about how a lesson card should break down a trade ('I would rather have ... Numbers stuff like that. Detail and review the trade'), not as five lines of every trade plan, and F12.01 keeps 'Advance' out of its plan lines (a result, not a plan line). q10 said 'Our trade plan ... has five lines for every trade' and 'Every page of yours carries all five' (which also left out the size q20 requires); it now asks the list as how the owner wants each trade we teach broken down, and no item defines 'Advance'."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "fixed": true,
+   "by": "checker",
+   "notes": "f33 (Steenbarger: a team's playbook is its set of plays) and f21/f22 (SMB blog 2011) confirmed live; f01, f03, f13 confirmed in the Pearson sample PDF (Introduction pp. 13-14 and the stroke passage). Changed step 3 from 'you act on it instead of hesitating' (a sure result) to 'It helps you act ...', matching Bellafiore's own 'helps them internalize'."
+  },
+  "w2": {
+   "status": "pass",
+   "fixed": true,
+   "by": "checker",
+   "notes": "f23-f25 confirmed in the live SYY entry; f04 is the book's section list (Introduction p. 13); f38, f41, f42 confirmed on Steenbarger's 2018 post. The SYY page was written by an SMB trader and posted by Bellafiore with his notes, so 'his SYY page' became 'the SYY page he shared'. 'A chart pattern alone is half a page' became 'only part of a play' (Steenbarger calls pattern-only 'shortsighted', no fraction)."
+  },
+  "w3": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Checker 2026-11-09: Step 3's thirds rest on h02 (B19) and h03 (E51), verbatim in section 9; the trail on h06. Step 2 said 'a cent over the red day's high', wording TRADE_PLANS.md dropped on 2026-11-09 (3556ebf263); step and h04's quote now carry the page's current row ('over the red day's high ... at market as it trades through'). Stop wording (h05) still on the page. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19, E51); awaiting cold check. Step 3's 'Trims at 2R and 3R' now the thirds at 3R and 5R"
+  },
+  "q01": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key from f21/f06/f33 before looking. Choices 29-31 chars, no echo. Wrong notes rest on f01, f11, f21. Clean."
+  },
+  "q02": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "True from f01 ('After each trading session ... archive a trading setup') and f22. Simple and why grounded. Overlap with q04 handled by the q04 fix."
+  },
+  "q03": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key from f04. Stem no longer echoes 'trade'. 'Analyst targets' is not a second answer: the question asks for Bellafiore's sections. Wrong notes grounded in f04/f30."
+  },
+  "q04": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q05": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "False from f38/f44. New lesson line no longer gives q20 its key. Clean."
+  },
+  "q06": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key from f03/f13 ('internalize ... trade them instinctively'; 'struggle of indecision'). Key is not the longest (31 vs 35/34). Wrong notes on f41/f01. Clean."
+  },
+  "q07": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key is right: f16 is in the sample's contents ('The Big Picture: First Know What Is Moving the Market', p.19), and f04 puts it first. Two defects. (1) The why ends with 'Steenbarger adds that much of the skill is knowing which play to call when' (f33/f34). That line says nothing about what the big picture section covers, and 'adds' falsely implies he backs the key. Removed, with f33 and f34. (2) The why ('before intraday fundamentals, the stock's own news') and the wrong note ('the next section, intraday fundamentals: the news behind the stock') state q08's key (news goes under intraday fundam"
+  },
+  "q08": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key from f24 (the line is quoted in the stem) and f30. Numbers $0.03, 30.50/31.50/32, 30.63 all in f24-f26 quotes. Trimmed why no longer states q09's rule."
+  },
+  "q09": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Story and distractor said 'sold a third at 3R', a fixed first sell; reworded to 'sold part into strength'; h02 dropped."
+  },
+  "q10": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q11": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+  },
+  "q12": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key from f35/f37/f10. Choices 26-31 chars. 'a year' is in the question itself. Lone middle-ground key is built into a how-many question; accepted."
+  },
+  "q13": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave9; awaiting cold re-read"
+  },
+  "q14": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key B is right (f01, f21, f39; h08 rules out C), and no second answer holds: A came from a tip, not a play, and C broke the stop rule. Two defects. (1) 'All three of them' is an 'all of the above' choice, since A, B and C are the other three choices, and the voice rule bans that. Replaced with 'None, B was too small'. That choice is the real profit-grading mistake the deeper note warns about, and f01 (his desk archives a setup every session) refutes it. It is 21 characters, in line with the others (19, 21, 19). (2) f52 (Keller: 'What was your best trade this year?') is cited but not used. Read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+  },
+  "q15": {
+   "status": "cut",
+   "fixed": false,
+   "by": "track-auditor",
+   "notes": "duplicate of F12.04#q02. Track audit 2026-11-09: both are true/false items on one fact, that a single trade's profit or loss does not make it a good or bad trade ('A single trade's profit or loss tells you whether it was a good trade', False, there; 'A trade that lost money can still be a good trade', True, here). F12.04 is the grading unit and backs it with the peer-reviewed Baron and Hershey study, Duke and Tendler, so it keeps it. This item was right as written: the checker's earlier note stands (f15 JCP 'One Good Trade' in the book, f41 Steenbarger)."
+  },
+  "q16": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key from f05/f06. New trap text is f07 nearly verbatim. Simple is 22 words, at the limit. Clean."
+  },
+  "q17": {
+   "status": "cut",
+   "fixed": false,
+   "by": "track-auditor",
+   "notes": "duplicate of F12.05#q15. Track audit 2026-11-09: both are scenarios where a setup taken by its rules loses a few times in a row, keyed 'too few trades to judge it, keep it' against the distractors 'drop it now' and 'double size to win it back'. F12.05 q15 is the better item: its key rests on Tharp's sample-size line (more than thirty results) and Schwab's trade-smaller line, and its new setup with no history makes it the harder read; this one's 'worked for months' makes the answer easy, and its Fidelity fact is about knee-jerk plan changes after market drops, a step removed from a playbook page's losing week. The checker's earlier note stands (f41, f53, f12 confirmed live)."
+  },
+  "q18": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Keyed from f08/f09 before looking. Both quotes are word for word in the sample (Introduction: 'Recently, I met with a series of very experienced but underperforming traders. The common denominator ... none of them had a methodology to archive their favorite setups'). 'He didn't name risk' holds: the passage names only the missing method and 'flying by the seat of their pants'. f20 ('You Are Trading Too Many Stocks') is in the contents. The key ties 'Not enough chart indicators to use' for longest (34 each), so it is not a lone-longest tell. The lesson line no longer says 'in one line'. Minor: "
+  },
+  "q19": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in wave9: see the resolver's notes"
+  },
+  "q20": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key from f44/f41/f42/f45, plus h10. New trap text paraphrases f44/f45 without the removed unsourced lines. Clean."
+  },
+  "q21": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Keyed A+ before looking, from D38/h11. Each wrong choice breaks a rule in section 9: adding breaks A5/h12, 3% breaks A1/h13 (2% ceiling), half the account breaks A7/h14 (40%). Every number in the why and lesson line is in h13/h14 (1.5%, 2%, 40%) or in the choice itself (3%). No tell: the key is the shortest choice (25 against 30, 27, 26), and 'as it moves your way' is a condition too, so the key is not the lone conditional. Bellafiore's 'add size responsibly' (f14) makes 'Add shares' a real mistake, and 'Under our rules' settles it. Grades are taught in F9.08/F9.09, so the question can be answ"
+  }
+ }
+}

@@ -504,6 +504,12 @@ export const GROUPS = [
   // dark server this group never matches and routing is byte-identical to the base (as playbook / coach). Last in the catalog.
   { id: 'cot', title: 'CFTC COT futures positioning (specs, commercials, open interest): changes, N-year extremes, comparisons', domains: ['cot'], fillLast: true, wordsOnly: true,
     words: [] },
+  // Phase 2 market intelligence (rs.compare): relative strength + sector / industry leadership + the market backdrop in its OWN
+  // group, WORDS-ONLY and fillLast (as indicatorCalc / chartMenu): never a filler, so no existing group and no unrecognised
+  // request changes. `words` stays EMPTY here: capabilities/rsLeadership.js arms them only while the capability is registered
+  // (the server serves the `rs.leadership` kind), so on a dark server this group never matches and routing is byte-identical.
+  { id: 'rs', title: 'Relative strength + leadership: a ticker\'s UCT RS Rating vs its industry / SPY, sector and industry rankings, the market backdrop', domains: ['rs'], fillLast: true, wordsOnly: true,
+    words: [] },
   // Phase 2 catalysts (news.movers): UCT's catalyst board ("what's moving the market", "why is NVDA up", "catalysts for my
   // watchlist this week") in its OWN group, WORDS-ONLY and fillLast (as periodSort / chartView): never a filler, so no existing
   // group and no unrecognised request changes. `words` stays EMPTY here: capabilities/catalysts.js arms them only while the

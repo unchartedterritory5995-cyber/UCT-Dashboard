@@ -16,7 +16,7 @@ import { answerFromBars, pullbacksOf, windowFor, match as barsMatch, CAPABILITY 
 import { registerMarketDataCapabilities, _resetForTest } from './capabilities/marketDataQuote'
 import {
   answerFromEventStudy, answerAfterEvent, freshnessLine, match, historyServed, registerHistoryCapability, _resetHistoryForTest,
-  CAPABILITY, KIND, DESCRIPTIVE, DEFAULT_HORIZONS, BREADTH_DECLINE,
+  CAPABILITY, KIND, DESCRIPTIVE, DEFAULT_HORIZONS, BREADTH_DECLINE, FIRST_OF_RUN_NOTE,
 } from './capabilities/history'
 
 let TURN = 't-history'
@@ -156,6 +156,15 @@ describe('history.afterEvent: pure answer', () => {
     expect(a.present.text).toContain(DESCRIPTIVE)
     expect(a.chart).toEqual({ symbol: 'NVDA', label: 'NVDA' })
     expect(freshnessLine({ ...STUDY, stale: true }, 'NVDA')).toMatch(/— note: a newer completed session exists, so the newest sessions are not included\.$/)
+  })
+  it('AUDIT disclosure: a run of consecutive qualifying days counts once — said only when "first" actually merged a run', () => {
+    const withRun = { ...STUDY, data: { ...STUDY.data, summary: { ...STUDY.data.summary, first_of_run: true } } }
+    expect(answerFromEventStudy(withRun, { symbol: 'NVDA' }).text.split('\n')).toContain(FIRST_OF_RUN_NOTE)
+    expect(FIRST_OF_RUN_NOTE).toMatch(/counts once \(its first session\)/)
+    for (const flag of [false, undefined]) {
+      const none = { ...STUDY, data: { ...STUDY.data, summary: { ...STUDY.data.summary, first_of_run: flag } } }
+      expect(answerFromEventStudy(none, { symbol: 'NVDA' }).text).not.toContain(FIRST_OF_RUN_NOTE)
+    }
   })
   it('refused / unavailable answer in fixed words with no figure', () => {
     expect(says(answerFromEventStudy({ ...STUDY, status: 'refused', data: null }, { symbol: 'NVDA' }))).toBe("I couldn't run that study for NVDA: that request wasn't allowed for this question, so no study was run. No figure is stated.")
