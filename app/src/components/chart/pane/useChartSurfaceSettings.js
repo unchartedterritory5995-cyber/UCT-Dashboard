@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react'
 import usePreferences from '../../../hooks/usePreferences'
 import { mergeChartSettings } from '../chartDefaults'
+import { mergeSettingsOverride } from '../instanceShape'
 import { resolveOwnChartSettingsSource } from './ownChartSettings'
 import { menuThemeVars } from '../../../utils/dividerColor'
 
@@ -55,6 +56,18 @@ export default function useChartSurfaceSettings({ stored = null, onStore = null,
   ), [isOwnChartSurface, ownChartSource, prefs.chart_settings])
   const storedCs = useMemo(() => (stored ? mergeChartSettings(stored) : null), [stored])
   const cs = storedCs || globalCs
+  // ⭐ WHAT THE CANVAS DRAWS WITH: StockChart merges this surface's RAW blob (the same one ChartPane
+  // hands it as `settingsOverride`) over the ACCOUNT's chart_settings, not over the defaults. For a
+  // partial blob the two differ: `cs` above fills a missing key from the defaults, the canvas from the
+  // account. Anything that must name what the member SEES (the EXT pill, the symbol handoff's 60m
+  // series) reads this. Measured 2026-11-16: a widget blob without `extendedHoursShading` on an account
+  // with it off -> `cs` said ON, the canvas drew regular hours, and the handoff prepared the wrong
+  // 60m series. (GridChartCell already resolved it this way.)
+  const canvasCs = useMemo(() => {
+    const base = mergeChartSettings(prefs.chart_settings)
+    const raw = stored || ownChartSource
+    return raw ? mergeSettingsOverride(base, raw) : base
+  }, [prefs.chart_settings, stored, ownChartSource])
 
   const write = useCallback((nextFull) => {
     if (stored || onStore) onStore?.(nextFull)
@@ -77,7 +90,7 @@ export default function useChartSurfaceSettings({ stored = null, onStore = null,
   )
 
   return {
-    cs, menuVars, write, patchHeader,
+    cs, canvasCs, menuVars, write, patchHeader,
     // Resolved workspace chart theme — the host's value if it passed one, else
     // the `charts_theme` pref. ChartPane feeds this to StockChart's canvasTheme.
     theme,

@@ -282,13 +282,14 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // (master fec7c5e4). ChartWidget lost its own `chartCs` when settings
   // resolution moved into ChartPane, so it reads them back through the same hook
   // rather than reaching into the pane.
-  const { menuVars, cs: chartCs } = useChartSurfaceSettings({
+  const { menuVars, cs: chartCs, canvasCs } = useChartSurfaceSettings({
     stored: activeStoredSettings,
     onStore: persistActiveSettings,
     chartsTheme,
   })
-  // StockChart's own rule (utils/viewSession.resolveShowExtended — the one derivation) on the same settings.
-  paneExtRef.current = resolveShowExtended(chartCs)
+  // StockChart's own rule (utils/viewSession.resolveShowExtended — the one derivation) on the settings the
+  // canvas itself draws with (`canvasCs`: the widget's blob over the ACCOUNT's settings, not the defaults).
+  paneExtRef.current = resolveShowExtended(canvasCs)
 
   // Expose an imperative chart API for the Compare Symbols tool (read/write the
   // active chart's comparison overlays + the % price scale). Reads live settings

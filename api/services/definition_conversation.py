@@ -1246,6 +1246,20 @@ def _check_references(envelope: Mapping[str, Any], view: Any) -> None:
             authored[o["output"]] = o["tree"]
         elif name == "remove_output" and isinstance(o.get("output"), str):
             keys.discard(o["output"])
+        if name == "set_color_states":
+            # ⭐ 2026-11-16 -- THE BROWSER'S `color:states-few`, HERE TOO. One state and no
+            # `otherwise` (or an `otherwise` alone) is refused by `applyPatch.set_color_states`;
+            # this door passed it, so the model never got its repair and a member read "couldn't
+            # produce a valid change" for "green shading while it is above 1.2" (house set).
+            states = o.get("states") if isinstance(o.get("states"), list) else []
+            has_otherwise = "otherwise" in o
+            if (not states and has_otherwise) or (len(states) == 1 and not has_otherwise):
+                raise _Refused(
+                    "envelope:reference",
+                    f"ops[{i}] set_color_states: colouring by state needs at least two colours "
+                    "(two states, or one state and an `otherwise` colour). For ONE condition on "
+                    "the candles or the background use `set_paint` with that condition's output; "
+                    "for a line, add an `otherwise` colour.")
         if name in _RESHAPING_OPS and isinstance(o.get("output"), str):
             reshaped.add(o["output"])
 

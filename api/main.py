@@ -4750,6 +4750,11 @@ def idb_cache_logic_version(src_path: str | None = None) -> int | None:
     return found[0] if len(found) == 1 else None
 
 
+def _stream_feed_remote() -> bool:
+    from api.services import feed_client as _fc
+    return _fc.feed_source() == "remote"
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # ⛔ Keep the Web Share Target's query out of OUR access log. The share
@@ -6959,7 +6964,13 @@ async def lifespan(app: FastAPI):
         except Exception:
             logging.getLogger(__name__).exception("brain pack sync failed to start")
 
-    if os.environ.get("STREAM_BARS_ENABLED") == "1":
+    if os.environ.get("STREAM_BARS_ENABLED") == "1" and _stream_feed_remote():
+        # STREAM_FEED_SOURCE=remote: the stream-ingest service holds the Massive socket;
+        # this pod mirrors its feed (no bar_stream thread, no second socket).
+        from api.services import feed_client as _feed_client
+        _feed_client.start_remote()
+        print("[startup] Bar feed: REMOTE (stream-ingest) — no Massive socket in this pod")
+    elif os.environ.get("STREAM_BARS_ENABLED") == "1":
         from api.services import bar_stream, bar_broadcaster, volume_live
         bb = bar_broadcaster.init_broadcaster(
             on_first_subscribe=bar_stream.subscribe_symbols_one,
@@ -11033,6 +11044,12 @@ async def lifespan(app: FastAPI):
     _boot_mark("ready"); _boot_log()
     yield
     _shutdown_t0 = time.monotonic()  # the deploy gap includes this pod's shutdown (2026-11-12)
+    # stream-ingest remote mode: close the feed connection cleanly (a no-op in local mode).
+    try:
+        from api.services import feed_client as _feed_client_stop
+        await _feed_client_stop.stop_remote()
+    except Exception as e:
+        print(f"[shutdown] feed client stop failed (non-fatal): {type(e).__name__}")
     # U5 (review L4): stop the capability detector process (a no-op when it never started)
     try:
         from api.services import pine_capability_worker as _pcw_stop

@@ -153,6 +153,10 @@ COMMITTED = {
         "a branch of a function body decided by a parameter the call ": "engine-gap",
         "a block local's or a drawing handle's [1] in the DRAWING bui": "engine-gap",
         "a helper parameter that bounds an offset (for i = 1 to lengt": "engine-gap"},
+    # 2026-11-16 (coordinator ruling on #1472): the `sar()` expansion's 200-bar window does not converge on
+    # vw-lower-tf-bars-rddt-15-2026-11-16; the capture is in the harness, the fix is a build that flips the KNOWN
+    # `it.fails` in sar.test.js (its control pins 43 bars / 5167-5246 / 17 by name)
+    "capture-queue-2026-11-16-sar-window": {"sar() window": "engine-gap"},
 }
 
 

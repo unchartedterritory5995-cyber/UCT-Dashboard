@@ -7952,6 +7952,185 @@
    "shape": null
   },
   {
+   "name": "newsLibrary.save",
+   "domain": "newsLibrary",
+   "target": "newsLibrary",
+   "summary": "Save ONE UCT News headline to the member's library, or take it out (saved false; its note and collections go with it — Undo puts them back).",
+   "hints": "headline = \"selected\" (the one open in their News widget), \"previous\" (the one your previous turn named), a TICKER (\"NVDA\"), or ≥3 words of its text — never an id you chose. saved = true to save, false to remove from the library. One headline per request.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "headline": {
+      "type": "string"
+     },
+     "saved": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "headline",
+     "saved"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "newsLibrary.setNote",
+   "domain": "newsLibrary",
+   "target": "newsLibrary",
+   "summary": "Add to (mode append) or replace (mode replace) the note on ONE saved UCT News headline. Undo puts the old note back.",
+   "hints": "headline = \"selected\" (the one open in their News widget), \"previous\" (the one your previous turn named), a TICKER (\"NVDA\"), or ≥3 words of its text — never an id you chose. note = the text. mode = append (\"add / also note …\") or replace (only when they say replace / change / rewrite the note). An empty note with replace clears it.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "headline": {
+      "type": "string"
+     },
+     "note": {
+      "type": "string"
+     },
+     "mode": {
+      "type": "string",
+      "enum": [
+       "append",
+       "replace"
+      ]
+     }
+    },
+    "required": [
+     "headline",
+     "note",
+     "mode"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "newsLibrary.collection",
+   "domain": "newsLibrary",
+   "target": "newsLibrary",
+   "summary": "Create a collection in the member's UCT News library, or rename one. Undo removes the new one / renames it back.",
+   "hints": "op = create (name = the new name, collection null) or rename (collection = its current name, name = the new one).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "op": {
+      "type": "string",
+      "enum": [
+       "create",
+       "rename"
+      ]
+     },
+     "collection": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "name": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "op",
+     "collection",
+     "name"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "newsLibrary.deleteCollection",
+   "domain": "newsLibrary",
+   "target": "newsLibrary",
+   "summary": "Delete ONE collection from the member's UCT News library — its headlines stay saved. Shown first; no Undo.",
+   "hints": "collection = its name. Only when they say delete / remove it.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "collection": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "collection"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "newsLibrary.place",
+   "domain": "newsLibrary",
+   "target": "newsLibrary",
+   "summary": "Put ONE UCT News headline in one of the member's collections (saving it first if needed), or take it out. Undo reverses it.",
+   "hints": "headline = \"selected\" (the one open in their News widget), \"previous\" (the one your previous turn named), a TICKER (\"NVDA\"), or ≥3 words of its text — never an id you chose. collection = its name; member = true to put it in, false to take it out.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "headline": {
+      "type": "string"
+     },
+     "collection": {
+      "type": "string"
+     },
+     "member": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "headline",
+     "collection",
+     "member"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "compare.openView",
    "domain": "compare",
    "target": "comparePanel",
