@@ -136,7 +136,8 @@ describe('⭐⭐ IMP-1 — SERVED ON THIS LANE: the G-rows, a function body, a f
       .toBe('the body changes `a`, the list it walks, by more than push / shift / set / remove / pop / unshift / insert / clear')
     // ⛔ a helper handed anything but the list itself is not followed
     const drop = 'drop(array<float> arr) =>\n    array.pop(arr)\n'
-    expect(refusal(`${drop}${WALK('drop(array.slice(a, 0, 1))')}`).guard).toBe('runtime:loop')
+    expect(refusal(`${drop}${WALK('drop(array.slice(a, 0, 1))')}`).message)
+      .toBe(`a loop in a form this lane does not iterate — \`for … in\`: ${forInMutationRefusal('a', FOR_IN_LIVE_WITNESSED_RUNTIME)}`)
   })
   it('a walk inside a function body, over the list each call hands it', () => {
     const f = 'f(array<float> a) =>\n    s = 0.0\n    for x in a\n        s += x\n    s\n'
