@@ -7,6 +7,8 @@
 // The MODEL is scripted; the engine, the read-back and the registry are real.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
 import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import * as registry from '../../engine/nativeRegistry'
 import { mergeChartSettings } from '../../chartDefaults'
@@ -133,6 +135,34 @@ describe('History in the dock', () => {
     await act(async () => { fireEvent.keyDown(screen.getByTestId('create-indicator-history'), { key: 'Escape' }) })
     expect(rows()).toHaveLength(0)
     expect(previewTree()).toBe(before)
+  })
+})
+
+describe('the list never moves the footer (read from the stylesheet)', () => {
+  // jsdom lays nothing out, so this cannot be shown by rendering. Measured on production
+  // 2026-11-16: as a block in the column, the open list put Undo and Add to Chart below
+  // the edge of a 444px dock.
+  const css = fs.readFileSync(path.resolve(__dirname, './CreateIndicatorPanel.module.css'), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+  const rule = (sel) => { const m = css.match(new RegExp(`(?:^|\\n)\\${sel} \\{([^}]*)\\}`)); return m ? m[1] : null }
+
+  it('the list is taken out of the column and anchored above the footer row', () => {
+    const r = rule('.history')
+    expect(r, 'no .history rule').not.toBeNull()
+    expect(r).toMatch(/position:\s*absolute/)
+    expect(r).toMatch(/bottom:\s*58px/)
+    expect(r).toMatch(/max-height:\s*calc\(100% - 130px\)/)
+    expect(r).not.toMatch(/flex:\s*none/)
+  })
+
+  it('both panel variants are positioned, so there is something to anchor to', () => {
+    expect(rule('.panel')).toMatch(/position:\s*fixed/)
+    expect(rule('.panelDocked')).toMatch(/position:\s*relative/)
+  })
+
+  it('⛔ CONTROL: the reader tells a block rule from an anchored one', () => {
+    expect('.history {\n  flex: none;\n}').not.toMatch(/position:\s*absolute/)
+    expect(rule('.noSuchRule')).toBeNull()
   })
 })
 
