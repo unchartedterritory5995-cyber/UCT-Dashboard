@@ -118,7 +118,7 @@ import {
   OBJECT_NAMESPACES, OUT_OF_SCOPE_NAMESPACES, SETTER_PROPS,
 } from './pineObjects.js'
 import {
-  INLINE_SUFFIX, definitionHeader, barInvariantNames, guardIsBarInvariant,
+  INLINE_SUFFIX, definitionHeader, barInvariantNames, barInvariantParams, guardIsBarInvariant,
   guardIsLastBarOnly, oneExecutionTokens, taCallIn, historyCallIn, callHistoryFunctions, isHistoryCallName,
   isTaCallName, setLegacyTaCall,
   readFunctionDefs, objectCollections, drawingFunctions, callOwnedSeriesFor, chartSeriesFor,
@@ -26434,6 +26434,21 @@ function translatePineResult(source, opts = {}) {
   }
   const guardVaries = (condToks) => !invariantNamesOf() || !condToks || !condToks.length
     || !guardIsBarInvariant(condToks, invariantNamesOf())
+  /** ⭐⭐ COND-TA — the same question INSIDE a function body: a parameter is never a top-level
+   *  name (it hides one of the same spelling), and it is fixed for the run only where every call
+   *  site passes a bar-invariant argument (`barInvariantParams`). Read on first use. */
+  let invariantParamsMemo
+  const guardVariesIn = (fnName, params) => {
+    const names = invariantNamesOf()
+    if (!names) return guardVaries
+    if (invariantParamsMemo === undefined) {
+      try { invariantParamsMemo = barInvariantParams(stmts, { isPunct, findTop, boundName }, names) } catch { invariantParamsMemo = new Map() }
+    }
+    const scoped = new Set(names)
+    for (const p of params || []) scoped.delete(p)
+    for (const p of invariantParamsMemo.get(fnName) || []) scoped.add(p)
+    return (condToks) => !condToks || !condToks.length || !guardIsBarInvariant(condToks, scoped)
+  }
   /** ⭐ C42 — the script's value functions that read their own history
    *  (`callHistoryFunctions`), read on first use; a drawing function is judged
    *  where the object reader inlines it. Unreadable → none (the fold then marks
@@ -27230,7 +27245,7 @@ function translatePineResult(source, opts = {}) {
         const beforeFn = new Map(fnEnv)
         const bodyTrace = {}
         let value = arrow === toks.length - 1
-          ? foldStatements(stmt.sub, ctx, fnEnv, bodyTrace, { declarationIsValue: true })
+          ? foldStatements(stmt.sub, { ...ctx, condAware: guardVariesIn(nameTok.value, params) }, fnEnv, bodyTrace, { declarationIsValue: true })
           : exprBinding(parseWholeExpression(toks.slice(arrow + 1)), fnEnv, locate(toks[arrow]))
         // ⭐ A BODY WHOSE LAST STATEMENT IS A DECLARATION RETURNS WHAT IT DECLARES
         // — see `trailingDeclarationName`. The binding read here is the one the

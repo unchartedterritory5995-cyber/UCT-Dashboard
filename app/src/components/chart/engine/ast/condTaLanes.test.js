@@ -352,3 +352,62 @@ describe('COND-TA — 5. one roster on both sides of the wire', () => {
     expect([...LEGACY_TA_NAMES].sort()).toEqual([...new Set(names)].sort())
   })
 })
+
+// ─── ⭐⭐ COND-TA 6 — BAR-CONSTANT PARAMETER GUARDS (`objectFnInline.barInvariantParams`) ──────────
+// A helper whose `if` guard reads a PARAMETER that every call site fixes to a bar-invariant value
+// (the v4 MA-type selector: `get_MA(typ, len)` / `if (typ == "EMA")` / `maVal := ema(src, len)`,
+// macd-with-filter-visual-backtest-module-sample; `is_newbar(res)` in fib-pivot-points-alerts).
+// The guard holds on every bar or on none at each call site, so the call's per-call-site history
+// IS the every-bar history: drawn, as master drew it (both scripts MATCH there). G-b made the v4
+// bare call a history call, and the guard check knew only top-level names: an over-refusal.
+describe('COND-TA — 6. a guard on a parameter every call site fixes is bar-constant', () => {
+  const MA = (v, call, site) => pine(v,
+    `typ = input${v >= 5 ? '.string' : ''}("EMA", "type")`,
+    `len = input${v >= 5 ? '.int' : ''}(3, "len")`,
+    'get_MA(t, n) =>',
+    '    float maVal = na',
+    '    if (t == "EMA")',
+    `        maVal := ${call}(close, n)`,
+    '    maVal',
+    `plot(${site}, "v")`)
+
+  it.each([
+    ['v4 bare ema', MA(4, 'ema', 'get_MA(typ, len)')],
+    ['v5 ta.ema', MA(5, 'ta.ema', 'get_MA(typ, len)')],
+    ['v6 ta.ema, literal arguments', MA(6, 'ta.ema', 'get_MA("EMA", 3)')],
+  ])('%s: served on the screener lane, ungated on the host lane, equal to the every-bar call', (_, src) => {
+    const o = lenient(src).outputs[0]
+    expect(o.refusal, o.refusal && o.refusal.message).toBeFalsy()
+    const t = strict(src)
+    expect(t.outputs[0].refusal).toBeFalsy()
+    expect(t.blockRuns).toBeUndefined()
+    const ours = Array.from(interpret(o.ast, BARS, {}))
+    const every = Array.from(interpret(lenient(pine(6, 'plot(ta.ema(close, 3), "v")')).outputs[0].ast, BARS, {}))
+    expect(ours.filter((x, i) => !sameValue(x, Number.isFinite(every[i]) ? every[i] : null)).length).toBe(0)
+  })
+
+  // ⛔ Numeric selectors, so nothing but this rule can refuse them (a text `?:` refuses on its own).
+  const SEL = (site, extra = []) => pine(6,
+    'm = input.int(1, "mode")',
+    'pick(k) =>',
+    '    float maVal = na',
+    '    if (k == 1)',
+    '        maVal := ta.ema(close, 3)',
+    '    maVal',
+    ...extra,
+    `plot(${site}, "v")`)
+  it('control: the numeric selector over an input is served', () => {
+    expect(lenient(SEL('pick(m)')).outputs[0].refusal).toBeFalsy()
+  })
+  it.each([
+    ['an argument that varies', SEL('pick(close > open ? 1 : 0)')],
+    ['one call site of two varies', `${SEL('pick(m)')}\nplot(pick(close > open ? 1 : 0), "w")`],
+    // `outer`'s parameter hides the input `m`: the argument `m` written in its body is that call's value
+    ["an argument that is another function's parameter", SEL('outer(close > open ? 1 : 0)', ['outer(m) => pick(m)'])],
+    ['a parameter that hides an input of the same name', SEL('pick(close > open ? 1 : 0)').replace('pick(k) =>', 'pick(m) =>').replace('(k == 1)', '(m == 1)')],
+  ])("⛔ still refused on the screener lane, by this rule's sentence: %s", (_, src) => {
+    const o = lenient(src).outputs[0]
+    expect(o.refusal && o.refusal.guard, o.formula || '').toBe('pine:block')
+    expect(o.refusal.message).toMatch(/inside a block that does not run on every bar|a function that reads its own history/)
+  })
+})

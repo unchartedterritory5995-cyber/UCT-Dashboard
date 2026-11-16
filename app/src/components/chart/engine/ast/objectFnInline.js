@@ -1003,6 +1003,72 @@ export function guardIsBarInvariant(toks, names) {
   return allInvariant(toks, 0, toks.length, names)
 }
 
+/** ⭐⭐ COND-TA (bar-constant PARAMETER guards) — per function, the parameters EVERY call site
+ *  fixes to a bar-invariant argument. A guard inside the body that reads only those (and the
+ *  top-level invariant names) holds on every bar or on none FOR EACH CALL SITE, so a `ta.*` call
+ *  under it keeps the every-bar history at that site: `get_MA(typ, len)` / `if (typ == "EMA")` /
+ *  `maVal := ema(src, len)` called as `get_MA(mafilt_type, mafilt_len)` over two inputs.
+ *  Returns `Map<function name, Set<parameter name>>`.
+ *  ⛔ FAIL CLOSED, each by name: a method or an overload (the body Pine picks is by type); a call
+ *  with a named argument, or with a count other than the definition's (a default would stand in);
+ *  a function with no call site at all; an argument written inside ANOTHER function's body that
+ *  reads one of that function's parameters (its value is that call's, not the run's); and any
+ *  argument `allInvariant` does not admit (a series, a history read, a call of a script function). */
+export function barInvariantParams(stmts, h, names) {
+  const out = new Map()
+  if (!names) return out
+  let defs
+  try { defs = readFunctionDefs(stmts, h) } catch { return out }
+  const recs = new Map()
+  for (const [name, def] of defs) {
+    if (def.isMethod || def.overloaded || !def.params.length) continue
+    recs.set(name, { flags: def.params.map(() => true), sites: 0 })
+  }
+  if (!recs.size) return out
+  const scan = (toks, from, hidden) => {
+    for (let i = from; i < toks.length; i += 1) {
+      const tk = toks[i]
+      if (!tk || tk.kind !== 'ident' || tk.member) continue
+      const rec = recs.get(String(tk.value))
+      if (!rec) continue
+      const args = h.isPunct(toks[i + 1], '(') ? splitArgs(toks, i + 1, h.isPunct) : null
+      if (!args || args.length !== rec.flags.length || args.some((a) => a.name !== null)) {
+        rec.flags = rec.flags.map(() => false)
+        continue
+      }
+      rec.sites += 1
+      args.forEach((a, k) => {
+        if (!a.toks.length
+            || a.toks.some((x) => x.kind === 'ident' && hidden.has(String(x.value)))
+            || !allInvariant(a.toks, 0, a.toks.length, names)) rec.flags[k] = false
+      })
+    }
+  }
+  const NONE = new Set()
+  const walk = (list, hidden) => {
+    for (const st of list || []) {
+      scan(st.header || [], 0, hidden)
+      if (st.sub && st.sub.length) walk(st.sub, hidden)
+    }
+  }
+  for (const st of stmts || []) {
+    const head = definitionHeader(st.header, h)
+    if (!head) { scan(st.header || [], 0, NONE); walk(st.sub, NONE); continue }
+    const def = defs.get(head.name)
+    const hidden = new Set(def ? def.params.map((p) => p.name) : [])
+    // ⛔ the definition's own header up to `=>` is not a call site
+    scan(st.header, head.arrow + 1, hidden)
+    walk(st.sub, hidden)
+  }
+  for (const [name, rec] of recs) {
+    if (!rec.sites) continue
+    const def = defs.get(name)
+    const set = new Set(def.params.filter((_, k) => rec.flags[k]).map((p) => p.name))
+    if (set.size) out.set(name, set)
+  }
+  return out
+}
+
 /** ⭐ C14 — `toks[from..]` is exactly one getter on a NAMED handle:
  *  `label.get_y(l)` or `l.get_y()`. Which handle and which property are real is
  *  the converter's question (`getterRef`); this reads only the shape. */
