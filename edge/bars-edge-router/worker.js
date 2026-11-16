@@ -32,6 +32,8 @@
  * tier is ungated today, and changing fallback semantics is a routing change.
  */
 
+import { HIST_PREFIX, handleHistory } from "./history.js";
+
 const BARS_ORIGIN = "https://bars-api-production-1052.up.railway.app";
 const WEB_ORIGIN  = "https://web-production-05cb6.up.railway.app";
 const BARS_TIMEOUT_MS = 8000;
@@ -301,6 +303,14 @@ export async function classifyRequest(request, secret, nowSeconds) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    // Deep intraday history from R2 (history.js). A separate surface from /api/bars: entitlement
+    // IS enforced there, and nothing below this line changes for any other path.
+    if (url.pathname.startsWith(HIST_PREFIX)) {
+      return handleHistory(request, env, async (req) => {
+        const cls = await classifyRequest(req, env && env.CHART_EDGE_SECRET);
+        return cls === VALID || cls === SERVICE_VALID;
+      });
+    }
     const m = url.pathname.match(/^\/api\/bars(?:-history)?\/([^\/?#]+)/);
     if (!m) return fetch(request);
 

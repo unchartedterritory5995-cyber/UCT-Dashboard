@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest'
 import zlib from 'node:zlib'
 import fixture from './__fixtures__/pieces.json'
 import {
-  PieceError, COLUMNS, crc32, encodeSymbol, pieceRelpath, indexRelpath, periodOf,
+  decodeColumns, checkHeader, PieceError, COLUMNS, crc32, encodeSymbol, pieceRelpath, indexRelpath, periodOf,
   parsePrefix, readHeader, decodeBody, decodePiece, toFloats, hasNativeBrotli, nativeBrotliInflate,
 } from './piece'
 
@@ -186,5 +186,32 @@ describe('history-lake piece reader', () => {
     const { offset } = parsePrefix(good)
     await expect(decodePiece(good.subarray(0, good.length - 7))).rejects.toThrow(PieceError)
     await expect(nativeBrotliInflate(good.subarray(offset))).resolves.toHaveLength(CASES[0].header.body)
+  })
+
+  it('decodes what the edge sends: header text plus an already-inflated body', () => {
+    for (const c of CASES) {
+      const data = bytesOf(c)
+      const { header, offset } = parsePrefix(data)
+      const body = inflate(data.subarray(offset))
+      const got = decodeColumns(JSON.stringify(header), body)
+      expect(got.header).toEqual(c.header)
+      for (const k of COLUMNS) expect(Array.from(got[k])).toEqual(c.columns[k])
+      // an ArrayBuffer body (what fetch().arrayBuffer() gives) is accepted
+      const ab = body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength)
+      expect(Array.from(decodeColumns(JSON.stringify(header), ab).c)).toEqual(c.columns.c)
+    }
+    const data = bytesOf(CASES[0])
+    const { header, offset } = parsePrefix(data)
+    const body = inflate(data.subarray(offset))
+    expect(() => decodeColumns('{not json', body)).toThrow(/not valid JSON/)
+    expect(() => decodeColumns('null', body)).toThrow(/missing required keys/)
+    // this path has no header CRC, so the field checks and the column CRC carry it
+    expect(() => decodeColumns(JSON.stringify({ ...header, basis: 'adj' }), body)).toThrow(/unsupported basis/)
+    expect(() => decodeColumns(JSON.stringify({ ...header, crc: header.crc + 1 }), body)).toThrow(/column CRC/)
+    expect(() => decodeColumns(JSON.stringify({ ...header, pscale: 7 }), body)).toThrow(/powers of ten/)
+    expect(() => decodeColumns(JSON.stringify({ ...header, bars: header.bars - 1 }), body)).toThrow(PieceError)
+    const flipped = body.slice(); flipped[flipped.length >> 1] ^= 1
+    expect(() => decodeColumns(JSON.stringify(header), flipped)).toThrow(PieceError)
+    expect(checkHeader(header)).toBe(header)
   })
 })

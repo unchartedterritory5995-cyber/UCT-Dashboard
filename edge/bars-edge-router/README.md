@@ -51,6 +51,22 @@ not (`/api/bars-` is not `/api/bars/`), so history never reaches this Worker.
 Widening the route would silently activate that branch and put the edge in front
 of the cached historical surfaces. Don't.
 
+## Deep intraday history: `/api/hist/*` (history.js, not live until its route and bucket exist)
+
+`history.js` answers `/api/hist/v1/index/<s-SYMBOL>.json` and
+`/api/hist/v1/<series>/<s-SYMBOL>/<period>.ubh` straight from the `HISTORY` R2 bucket (the
+history lake, `tools/history_lake/`). No origin is asked. Its header comment explains how a
+piece is sent (`Content-Encoding: br` with the piece header in `X-Ubh-Header`, so the
+browser inflates it natively) and the `?c=<crc>` version key.
+
+**Entitlement is enforced on this surface** (valid member cookie or valid service header,
+otherwise 401). `/api/bars/*` below is unchanged and still shadow-only.
+
+To turn it on: (1) create the R2 bucket and upload the merged lake, (2) bind it to this
+Worker as `HISTORY`, (3) add the Worker Route `uctintelligence.com/api/hist/*`, (4) deploy
+`worker.js` and `history.js` together (Wrangler, or both files in the dashboard editor).
+Until step 3 the path never reaches this Worker; until step 2 it answers 503.
+
 ## Phase 1 — shadow entitlement (current)
 
 The Worker reads the `uct_chart_edge` cookie, verifies it with

@@ -110,6 +110,11 @@ export function parsePrefix(data) {
   } catch (err) {
     fail(`header is not valid JSON: ${err && err.message}`)
   }
+  return { header: checkHeader(header), offset: end + 4 }
+}
+
+/** Validate a parsed header object (FORMAT.md section 4, step 4). Returns it; throws PieceError. */
+export function checkHeader(header) {
   if (header === null || typeof header !== 'object' || Array.isArray(header)
       || HEADER_KEYS.some((k) => !Object.hasOwn(header, k))) fail('header is missing required keys')
   if (header.v !== FORMAT_VERSION) fail('header version does not match the version byte')
@@ -127,7 +132,7 @@ export function parsePrefix(data) {
   }
   if (typeof header.symbol !== 'string' || !header.symbol) fail('header symbol is empty')
   checkPeriodForm(series, header.period)
-  return { header, offset: end + 4 }
+  return header
 }
 
 /** The validated header only. */
@@ -266,6 +271,21 @@ export async function decodePiece(data, inflate = nativeBrotliInflate) {
   }
   if (!(body instanceof Uint8Array)) body = new Uint8Array(body)
   return decodeBody(header, body)
+}
+
+/** Decode what the edge sends for a piece (edge/bars-edge-router/history.js): the header as JSON
+ *  text (the `X-Ubh-Header` response header) and the body ALREADY inflated by the browser's own
+ *  HTTP layer (`Content-Encoding: br`). The file's header CRC is not available on this path; the
+ *  header is validated field by field and the column CRC still proves every decoded value. */
+export function decodeColumns(headerJson, body) {
+  let header
+  try {
+    header = JSON.parse(headerJson)
+  } catch (err) {
+    fail(`header is not valid JSON: ${err && err.message}`)
+  }
+  if (!(body instanceof Uint8Array)) body = new Uint8Array(body)
+  return decodeBody(checkHeader(header), body)
 }
 
 /** Float prices and volume from a decoded piece: integer / scale, which is exactly the double the
