@@ -1,44 +1,62 @@
 /**
  * Deep intraday history at the edge: `/api/hist/v1/...` served straight from R2.
  *
- *   /api/hist/v1/index/<s-SYMBOL>.json              which pieces a symbol has (bars, bytes, crc, first, last)
- *   /api/hist/v1/<series>/<s-SYMBOL>/<period>.ubh   one piece (tools/history_lake/FORMAT.md)
+ *   /api/hist/v1/index/<s-SYMBOL>.json                           which pieces a symbol has, and where
+ *   /api/hist/v1/<series>/<s-SYMBOL>/<period>.ubh?c=&o=&n=       one piece (tools/history_lake/FORMAT.md)
  *
  * No origin is involved: an entitled request is answered from the `HISTORY` R2 bucket, so a chart's
  * deep history does not depend on the web pod or the bars tier being up, warm or unloaded.
  *
- * HOW A PIECE IS SENT. A piece file is a small plain header followed by ONE Brotli stream of
- * columns. Page code in Chrome cannot inflate Brotli (`new DecompressionStream('brotli')` throws,
- * measured on Chrome 157, 2026-11-16), but every browser's HTTP layer can. So for a client that
- * accepts `br` the response BODY is the piece's Brotli stream, sent as it is stored with
- * `Content-Encoding: br`, and the piece's header rides in `X-Ubh-Header` (compact JSON, ASCII).
- * `fetch()` then hands the page the inflated columns: native speed, off the main thread, and no
- * decoder shipped in the app. `app/src/data/historyLake/piece.js` `decodeColumns` reads that pair,
- * and the column CRC in the header still proves every value end to end.
- * `?raw=1` (or a client without `br`) gets the stored file unchanged.
+ * WHERE A PIECE LIVES. Pieces are stored in PACKS (tools/history_lake/pack.py): every symbol's piece
+ * of one series and one period in one object, `packs/<series>/<period>.pack`. The symbol's index
+ * gives each piece's offset (`off`) and length (`bytes`); the client sends them as `o` and `n`, and
+ * the piece is ONE ranged read of the pack. Nothing from the client is trusted: the bytes read must
+ * be a whole piece whose own header names this symbol, series and period (and `c`, its CRC), or the
+ * answer is 409 (the client's index is older than the pack: it re-reads the index).
  *
- * CACHING. The index lists each piece's column CRC. A request carrying `?c=<that crc>` names one
- * exact content: it is answered `immutable` for a year, and answered 409 when the stored piece no
- * longer has that CRC (the caller's index is old: re-read it). Without `c` the answer is short-lived.
- * Everything is `private`: this is entitled data and must not sit in a shared cache.
+ * HOW A PIECE IS SENT. A piece is a small plain header followed by ONE Brotli stream of columns.
+ * Page code in Chrome cannot inflate Brotli (`new DecompressionStream('brotli')` throws, measured on
+ * Chrome 157, 2026-11-16), but every browser's HTTP layer can. So for a client that accepts `br` the
+ * response BODY is the piece's Brotli stream, as stored, with `Content-Encoding: br`, and the piece's
+ * header rides in `X-Ubh-Header` (compact JSON, ASCII). `fetch()` then hands the page the inflated
+ * columns: native speed, off the main thread, no decoder shipped in the app.
+ * `app/src/data/historyLake/piece.js` `decodeColumns` reads that pair, and the column CRC in the header
+ * still proves every value end to end. `?raw=1` (or a client without `br`) gets the piece unchanged.
  *
- * ENTITLEMENT IS ENFORCED HERE (unlike the shadow block on /api/bars): this is a new surface with
- * no existing anonymous traffic to break. A valid member cookie or a valid service header, or 401.
+ * CACHING. `c` (the piece's column CRC), `o` and `n` name one exact content: answered `immutable` for
+ * a year. Everything is `private`: entitled data never sits in a shared cache. Indexes are short-lived.
+ *
+ * ENTITLEMENT IS ENFORCED HERE (unlike the shadow block on /api/bars): this is a new surface with no
+ * anonymous traffic to break. A valid member cookie or a valid service header, or 401.
+ *
+ * `env.HISTORY_PREFIX` (optional) is prepended to every object key, so the lake can share a bucket.
  */
 
 export const HIST_PREFIX = "/api/hist/";
 export const HEADER_NAME = "X-Ubh-Header";
 export const COLUMNS_TYPE = "application/vnd.uct.ubh-columns";
 export const PIECE_TYPE = "application/vnd.uct.ubh";
+/** The largest piece a request may ask for (a month of 1m bars of the busiest symbol is ~0.3 MB). */
+export const MAX_PIECE_BYTES = 16 * 1024 * 1024;
 
 const SERIES = new Set(["1", "5", "15", "30", "60", "60e"]);
 const PERIOD_RE = { "1": /^\d{4}-(0[1-9]|1[0-2])$/, "5": /^\d{4}Q[1-4]$/ };
 const YEAR_RE = /^\d{4}$/;
 // `s-` + A-Z / 0-9, any other byte as `_` + two upper-case hex digits (piece.js encodeSymbol).
 const SYMBOL_RE = /^s-(?:[A-Z0-9]|_[0-9A-F]{2}){1,64}$/;
+const UINT_RE = /^(0|[1-9]\d{0,14})$/;
 
-/** The R2 key a history path names, or null when the path is not exactly one of the two forms.
- *  Nothing from the URL reaches the bucket except through these patterns. */
+/** piece.js encodeSymbol: `s-` + the ticker, every byte outside A-Z / 0-9 as `_` + two hex digits. */
+export function encodeSymbol(symbol) {
+  let out = "s-";
+  for (const b of new TextEncoder().encode(String(symbol))) {
+    out += (b >= 48 && b <= 57) || (b >= 65 && b <= 90) ? String.fromCharCode(b) : "_" + b.toString(16).toUpperCase().padStart(2, "0");
+  }
+  return out;
+}
+
+/** What a history path names, or null when the path is not exactly one of the two forms. Nothing
+ *  from the URL reaches the bucket except through these patterns. */
 export function parseHistoryPath(pathname) {
   if (typeof pathname !== "string" || !pathname.startsWith(HIST_PREFIX)) return null;
   const parts = pathname.slice(HIST_PREFIX.length).split("/");
@@ -54,7 +72,7 @@ export function parseHistoryPath(pathname) {
     if (!SYMBOL_RE.test(enc) || !file.endsWith(".ubh")) return null;
     const period = file.slice(0, -4);
     if (!(PERIOD_RE[series] || YEAR_RE).test(period)) return null;
-    return { kind: "piece", key: `v1/${series}/${enc}/${period}.ubh`, series, period };
+    return { kind: "piece", key: `packs/${series}/${period}.pack`, series, period, enc };
   }
   return null;
 }
@@ -75,10 +93,10 @@ export function crc32(bytes) {
   return (crc ^ 0xFFFFFFFF) >>> 0;
 }
 
-/** Split a stored piece into its header JSON text and its Brotli body, without inflating.
- *  Returns null when the bytes are not a version 1 piece or the header fails its CRC: on the
- *  `br` path the client never sees the file's prefix, so the header is proven HERE. (The column
- *  CRC inside the header covers the values but not the header's own scales.) */
+/** Split a piece into its header JSON text and its Brotli body, without inflating. Returns null when
+ *  the bytes do not start with a whole version 1 piece header: on the `br` path the client never sees
+ *  the prefix, so the header (and its CRC) is proven HERE; the column CRC inside it proves the body
+ *  in the browser. */
 export function splitPiece(bytes) {
   if (!(bytes instanceof Uint8Array) || bytes.length < 10) return null;
   if (bytes[0] !== 0x55 || bytes[1] !== 0x42 || bytes[2] !== 0x48 || bytes[3] !== 1) return null;
@@ -95,7 +113,6 @@ export function splitPiece(bytes) {
     return null;
   }
   if (!header || typeof header !== "object" || !Number.isSafeInteger(header.crc)) return null;
-  // A response header value must be visible ASCII; the builder writes ASCII-only JSON.
   if (!/^[\x20-\x7e]+$/.test(headerJson)) return null;
   return { headerJson, header, body: bytes.subarray(end + 4) };
 }
@@ -123,15 +140,23 @@ export async function handleHistory(request, env, entitled) {
   if (request.method !== "GET" && request.method !== "HEAD") return plain(405, "method_not_allowed", { allow: "GET, HEAD" });
   const what = parseHistoryPath(url.pathname);
   if (!what) return plain(404, "not_found");
+  let range = null;
+  if (what.kind === "piece") {
+    const o = url.searchParams.get("o"), n = url.searchParams.get("n"), c = url.searchParams.get("c");
+    if (!UINT_RE.test(o || "") || !UINT_RE.test(n || "") || !UINT_RE.test(c || "")) return plain(400, "piece_needs_c_o_n");
+    range = { offset: Number(o), length: Number(n), crc: Number(c) };
+    if (range.length < 10 || range.length > MAX_PIECE_BYTES) return plain(400, "piece_length_out_of_range");
+  }
   let ok = false;
   try { ok = (await entitled(request)) === true; } catch (_e) { ok = false; }
   if (!ok) return plain(401, "not_entitled");
   const bucket = env && env.HISTORY;
   if (!bucket) return plain(503, "history_not_configured", { "retry-after": "30" });
+  const key = (typeof env.HISTORY_PREFIX === "string" ? env.HISTORY_PREFIX : "") + what.key;
 
   let obj;
   try {
-    obj = await bucket.get(what.key);
+    obj = await bucket.get(key, range ? { range: { offset: range.offset, length: range.length } } : undefined);
   } catch (_e) {
     return plain(503, "history_unavailable", { "retry-after": "2" });
   }
@@ -146,16 +171,15 @@ export async function handleHistory(request, env, entitled) {
     });
   }
 
-  const piece = splitPiece(bytes);
-  if (!piece) return plain(502, "stored_piece_unreadable");
-  const want = url.searchParams.get("c");
-  let cache = SHORT;
-  if (want !== null) {
-    if (want !== String(piece.header.crc)) return plain(409, "piece_changed", { "x-ubh-crc": String(piece.header.crc) });
-    cache = FOREVER;
+  // The bytes at (o, n) must be exactly this symbol's piece of this series and period, with this CRC.
+  // Anything else means the client's index is older than the pack: 409, re-read the index.
+  const piece = bytes.length === range.length ? splitPiece(bytes) : null;
+  const h = piece && piece.header;
+  if (!h || h.series !== what.series || h.period !== what.period || encodeSymbol(h.symbol) !== what.enc
+      || h.crc !== range.crc) {
+    return plain(409, "piece_changed");
   }
-  const base = { "cache-control": cache, "x-bars-edge": "history", vary: "Accept-Encoding" };
-
+  const base = { "cache-control": FOREVER, "x-bars-edge": "history", vary: "Accept-Encoding" };
   if (url.searchParams.get("raw") === "1" || !acceptsBrotli(request)) {
     return new Response(head ? null : bytes, { status: 200, headers: { ...base, "content-type": PIECE_TYPE } });
   }
@@ -163,11 +187,6 @@ export async function handleHistory(request, env, entitled) {
     status: 200,
     // `encodeBody: "manual"`: the body is ALREADY Brotli; Cloudflare must pass it through untouched.
     encodeBody: "manual",
-    headers: {
-      ...base,
-      "content-type": COLUMNS_TYPE,
-      "content-encoding": "br",
-      [HEADER_NAME]: piece.headerJson,
-    },
+    headers: { ...base, "content-type": COLUMNS_TYPE, "content-encoding": "br", [HEADER_NAME]: piece.headerJson },
   });
 }

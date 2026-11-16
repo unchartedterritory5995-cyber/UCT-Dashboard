@@ -3,10 +3,11 @@
 //   const src = createHistorySource()
 //   const bars = await src.loadBars('AAPL', '5', { from, to })   // -> { t, o, h, l, c, v, n, ... }
 //
-// One small index per symbol says which pieces exist; a piece is one period (a month of 1m bars, a
-// quarter of 5m, a year of 15/30/60m). The pieces a time range needs are fetched together, decoded
-// (piece.js), joined oldest to newest and split-adjusted (adjust.js). Every piece URL carries the
-// piece's own CRC from the index, so the browser keeps it forever and a changed piece is a new URL.
+// One small index per symbol says which pieces exist and where each one sits in its pack; a piece is
+// one period (a month of 1m bars, a quarter of 5m, a year of 15/30/60m). The pieces a time range needs
+// are fetched together, decoded (piece.js), joined oldest to newest and split-adjusted (adjust.js).
+// Every piece URL carries the piece's CRC, offset and length from the index, so the browser keeps it
+// forever and a changed piece is a new URL.
 //
 // No dependency on React, the BarStore or the DOM: it runs on the page or in a Worker, and `fetch`
 // is a parameter so the tests drive it.
@@ -105,7 +106,11 @@ export function createHistorySource(o = {}) {
   function refreshIndex(sym) { indexes.delete(lakeSymbol(sym)) }
 
   async function loadPiece(symbol, series, entry, signal) {
-    const url = `${base}/v1/${series}/${encodeSymbol(symbol)}/${entry.period}.ubh?c=${entry.crc}`
+    // the piece is one ranged read of its pack: offset `off`, length `bytes` (edge history.js)
+    if (!Number.isSafeInteger(entry.off) || entry.off < 0 || !Number.isSafeInteger(entry.bytes) || entry.bytes <= 0) {
+      throw new HistoryError(`${symbol} ${series}/${entry.period}: the index gives no place for the piece`, { stale: true })
+    }
+    const url = `${base}/v1/${series}/${encodeSymbol(symbol)}/${entry.period}.ubh?c=${entry.crc}&o=${entry.off}&n=${entry.bytes}`
     const res = await get(url, signal)
     if (res.status === 409 || res.status === 404) {
       throw new HistoryError(`${symbol} ${series}/${entry.period}: the index is out of date`, { status: res.status, stale: true })

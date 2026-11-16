@@ -65,8 +65,9 @@ def build() -> dict:
         data = piece.encode_piece(SYMBOL, series, period, _walk(rng, times, 96_000_000), quality=5)
         dec = piece.decode_piece(data)
         hd = dec["header"]
+        # one symbol per pack here, so each piece starts its pack (publish.py writes `off`)
         index["series"].setdefault(series, {})[period] = {
-            "bars": hd["bars"], "bytes": len(data), "crc": hd["crc"], "first": hd["first"], "last": hd["last"]}
+            "bars": hd["bars"], "bytes": len(data), "crc": hd["crc"], "first": hd["first"], "last": hd["last"], "off": 0}
         pieces.append({"relpath": piece.piece_relpath(series, SYMBOL, period), "series": series, "period": period,
                        "b64": base64.b64encode(data).decode("ascii")})
         fl = piece.bars_to_floats(dec)

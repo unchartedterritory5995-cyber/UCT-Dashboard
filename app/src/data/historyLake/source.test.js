@@ -29,8 +29,11 @@ function edge(over = {}) {
     if (!data) return new Response('{}', { status: 404 })
     const { header, offset } = parsePrefix(data)
     if (state.pieceStatus && state.pieceStatus(path)) return new Response('{}', { status: state.pieceStatus(path) })
-    const c = new URLSearchParams(query).get('c')
+    const q = new URLSearchParams(query)
+    const c = q.get('c')
     if (!state.ignoreVersionKey && c !== null && c !== String(header.crc)) return new Response('{}', { status: 409 })
+    // one symbol per pack in this fixture: the piece is the pack's first `n` bytes
+    if (!state.ignoreVersionKey && (q.get('o') !== '0' || q.get('n') !== String(data.length))) return new Response('{}', { status: 409 })
     let body = new Uint8Array(zlib.brotliDecompressSync(data.subarray(offset)))
     let headerJson = JSON.stringify(header)
     if (state.tamper) ({ body, headerJson } = state.tamper(path, { body, headerJson, header }))
@@ -70,7 +73,7 @@ describe('history-lake source', () => {
     expectBars(got, '5')
     expect(e.calls.map((c) => c.url)).toEqual([
       '/api/hist/v1/index/s-MU_2ELT.json',
-      ...['2026Q2', '2026Q3', '2026Q4'].map((p) => `/api/hist/v1/5/s-MU_2ELT/${p}.ubh?c=${INDEX.series['5'][p].crc}`),
+      ...['2026Q2', '2026Q3', '2026Q4'].map((p) => `/api/hist/v1/5/s-MU_2ELT/${p}.ubh?c=${INDEX.series['5'][p].crc}&o=0&n=${INDEX.series['5'][p].bytes}`),
     ])
     expect(e.calls.every((c) => c.init.credentials === 'same-origin')).toBe(true)
   })
@@ -169,8 +172,23 @@ describe('history-lake source', () => {
     swapped.pieces.set(q3, swapped.pieces.get('/api/hist/v1/5/s-MU_2ELT/2026Q2.ubh'))
     const idx = JSON.parse(JSON.stringify(INDEX))
     idx.series['5']['2026Q3'].crc = INDEX.series['5']['2026Q2'].crc
+    idx.series['5']['2026Q3'].bytes = INDEX.series['5']['2026Q2'].bytes
     swapped.index = idx
     await expect(createHistorySource({ fetch: swapped.fetch }).loadBars(SYM, '5')).rejects.toThrow(/different piece/)
+  })
+
+  it('asks for each piece by its place in the pack, and treats an index without one as out of date', async () => {
+    const e = edge()
+    await createHistorySource({ fetch: e.fetch }).loadBars(SYM, '60')
+    const e60 = INDEX.series['60']['2026']
+    expect(e.calls.at(-1).url).toBe(`/api/hist/v1/60/s-MU_2ELT/2026.ubh?c=${e60.crc}&o=0&n=${e60.bytes}`)
+    for (const bad of [undefined, -1, 1.5, '0']) {
+      const idx = JSON.parse(JSON.stringify(INDEX))
+      if (bad === undefined) delete idx.series['60']['2026'].off; else idx.series['60']['2026'].off = bad
+      const w = edge({ index: idx })
+      await expect(createHistorySource({ fetch: w.fetch }).loadBars(SYM, '60')).rejects.toMatchObject({ name: 'HistoryError', stale: true })
+      expect(w.calls.filter((c) => c.url.includes('.ubh'))).toEqual([])          // never asked with a made-up place
+    }
   })
 
   it('refuses pieces that overlap in time', async () => {
