@@ -61,6 +61,9 @@ describe('palette: indicator commands', () => {
     renderPalette('/dashboard')
     await openAndType('paste a script')
     fireEvent.click(await screen.findByRole('option', { name: 'Paste a TradingView script' }))
+    // ⛔ IN THE SAME TICK, with no wait: a deferred navigation let the page being left write its
+    // own address afterwards (measured on production from the Screener, 2026-11-16).
+    expect(screen.getByTestId('route-spy').textContent).toBe('/charts')
     await waitFor(() => expect(screen.getByTestId('route-spy').textContent).toBe('/charts'))
     expect(peekPendingIndicatorDoor()).toBe('pine')
     expect(screen.queryByRole('combobox')).toBeNull()                    // the palette closed
