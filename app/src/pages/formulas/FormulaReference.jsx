@@ -35,6 +35,7 @@ import {
   buildVocabulary, searchVocabulary, reachOf,
 } from '../../components/chart/engine/ast/vocabulary'
 import { TABLE } from '../../components/chart/engine/ast/parse'
+import { referenceSentence } from './referenceSentence'
 import styles from './FormulaReference.module.css'
 
 /** The engine's own reach sentence for a function, or nothing for a kind that
@@ -50,7 +51,7 @@ function Entry({ item }) {
   return (
     <li className={styles.entry} data-kind={item.kind}>
       <code className={styles.sig}>{item.signature}</code>
-      <p className={styles.says}>{withoutGuardIds(item.sentence)}</p>
+      <p className={styles.says}>{withoutGuardIds(referenceSentence(item))}</p>
       {reach && <p className={styles.reach}><UIcon name="clock" size={11} /> {reach}</p>}
       {item.traits.map((t) => (
         <p key={t.key} className={styles.trait} data-trait={t.key}>{t.text}</p>
