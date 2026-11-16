@@ -27156,6 +27156,8 @@ function translatePineResult(source, opts = {}) {
   try {
   // ⭐ WAVE B accumulators: what the script says about how it LOOKS.
   let overlay = null
+  // PRICE-SCALE JOIN: which scale the declaration puts the script on (`declarationScale`).
+  let declScale = null
   const levels = []
   /** ⭐ C1-B — every `fill(handleA, handleB, …)` the script writes, by HANDLE.
    *  Resolved to output indexes after the outputs are known, because a fill may
@@ -27766,6 +27768,7 @@ function translatePineResult(source, opts = {}) {
       // ⭐⭐ WAVE B: THE AUTHOR'S PANE INTENT IS NOW READ. It always sat right
       // here in the tokens and was walked past.
       overlay = declarationOverlay(toks)
+      declScale = declarationScale(toks)
       notes.push(noteOf('pine:declaration',
         'the indicator() declaration decides how a chart draws, and a screen reads none of it',
         first))
@@ -27805,6 +27808,7 @@ function translatePineResult(source, opts = {}) {
         const firstString = toks.find((t) => t.kind === 'string')
         title = firstString ? firstString.value : null
         overlay = declarationOverlay(toks)
+        declScale = declarationScale(toks)
         notes.push(noteOf('pine:strategy-chart', STRATEGY_CHART_NOTE, first))
         calcBarsDeclared(toks, word)
         continue
@@ -30040,6 +30044,8 @@ function translatePineResult(source, opts = {}) {
     // half-carried: a band with one edge is not a band.
     presentation: {
       overlay,
+      // Present only when the declaration passes `scale =`, so every other result keeps its shape.
+      ...(declScale ? { scale: declScale } : {}),
       levels,
       // ⭐ (j) j.3b — `resolver` reaches the fills HERE and nowhere earlier; it does
       // not exist at collection time, which is why a conditional fill colour was
@@ -33193,6 +33199,25 @@ function declarationOverlay(toks) {
     }
   }
   return null
+}
+
+/** PRICE-SCALE JOIN (2026-11-16). `indicator(..., scale = scale.right | scale.left | scale.none)`:
+ *  the scale the author put the script on, as `'right'` / `'left'` / `'none'`; `'other'` when
+ *  the argument is passed and is not one of those three constants; `null` when it is not passed.
+ *  Read for ONE consumer: whether an overlay script's plots join the price pane's autoscale
+ *  (`memberPaneDefinition.joinsPriceScale`). Only an absent argument or `scale.right` joins:
+ *  `scale.none` and `scale.left` take the plots off the price scale on TradingView, and an
+ *  argument this reader cannot name is not guessed at. Still disclosed as chart-only (the scale
+ *  itself is not carried; `DECLARATION_PRESENTATION_ARGS`). */
+const DECLARATION_SCALES = Object.freeze({ 'scale.right': 'right', 'scale.left': 'left', 'scale.none': 'none' })
+function declarationScale(toks) {
+  const a = callNamedArgToks(toks, 'scale')
+  if (!a) return null
+  const v = a.value
+  if (v.length === 1 && v[0].kind === 'ident' && Object.prototype.hasOwnProperty.call(DECLARATION_SCALES, v[0].value)) {
+    return DECLARATION_SCALES[v[0].value]
+  }
+  return 'other'
 }
 
 /** ⭐⭐ P0 0H (2026-10-05) — ONE NAMED ARGUMENT OF THE FIRST CALL IN A STATEMENT,

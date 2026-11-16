@@ -1454,7 +1454,19 @@ rs-rating-fred6724-alab-1d-2026-11-15        NASDAQ:ALAB 1D   4      MATCH_SUBST
     Plot                                     MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 4 paired slots; coordinates are NOT compared by v1
+rs-rating-fred6724-alab-1d-2026-11-16        NASDAQ:ALAB 1D   4      MATCH_SUBSTITUTED all 5 items agree, with substituted inputs fed the vendor's value (syminfo.industry); the UCT data a member is served is not proven
+    RS Line                                  MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 4 paired slots; coordinates are NOT compared by v1
 rs-rating-fred6724-crwv-1d-2026-11-15        NASDAQ:CRWV 1D   4      MATCH_SUBSTITUTED all 5 items agree, with substituted inputs fed the vendor's value (syminfo.industry); the UCT data a member is served is not proven
+    RS Line                                  MATCH_SUBSTITUTED cmp 411 ok 411 warm 0/0 steady 0/411 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 411 ok 411 warm 0/0 steady 0/411 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 411 ok 411 warm 0/0 steady 0/411 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 411 ok 411 warm 0/0 steady 0/411 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 4 paired slots; coordinates are NOT compared by v1
+rs-rating-fred6724-crwv-1d-2026-11-16        NASDAQ:CRWV 1D   4      MATCH_SUBSTITUTED all 5 items agree, with substituted inputs fed the vendor's value (syminfo.industry); the UCT data a member is served is not proven
     RS Line                                  MATCH_SUBSTITUTED cmp 411 ok 411 warm 0/0 steady 0/411 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 411 ok 411 warm 0/0 steady 0/411 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 411 ok 411 warm 0/0 steady 0/411 maxRel 0.00e+0
@@ -1467,6 +1479,12 @@ rs-rating-fred6724-nvda-1d-2026-11-15        NASDAQ:NVDA 1D   4      DIVERGE    
     Plot                                     MATCH_SUBSTITUTED cmp 6997 ok 6997 warm 0/0 steady 0/6997 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 4 paired slots; coordinates are NOT compared by v1
 rs-rating-fred6724-rddt-1d-2026-11-15        NYSE:RDDT 1D     4      MATCH_SUBSTITUTED all 5 items agree, with substituted inputs fed the vendor's value (syminfo.industry); the UCT data a member is served is not proven
+    RS Line                                  MATCH_SUBSTITUTED cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 4 paired slots; coordinates are NOT compared by v1
+rs-rating-fred6724-rddt-1d-2026-11-16        NYSE:RDDT 1D     4      MATCH_SUBSTITUTED all 5 items agree, with substituted inputs fed the vendor's value (syminfo.industry); the UCT data a member is served is not proven
     RS Line                                  MATCH_SUBSTITUTED cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
@@ -1499,10 +1517,12 @@ rs-spx-daily-spy-1d-2026-11-15               AMEX:SPY 1D      6      INCONCLUSIV
     objects                                  MATCH         neither side draws an object
 rs-syminfo-industry-aapl-1d-2026-11-15       NASDAQ:AAPL 1D   0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
 rs-syminfo-industry-alab-1d-2026-11-15       NASDAQ:ALAB 1D   0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
+rs-syminfo-industry-alab-1d-2026-11-16       NASDAQ:ALAB 1D   0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
 rs-syminfo-industry-amd-1d-2026-11-15        NASDAQ:AMD 1D    0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
 rs-syminfo-industry-arkk-1d-2026-11-15       CBOE:ARKK 1D     0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
 rs-syminfo-industry-coin-1d-2026-11-15       NASDAQ:COIN 1D   0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
 rs-syminfo-industry-crwv-1d-2026-11-15       NASDAQ:CRWV 1D   0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
+rs-syminfo-industry-crwv-1d-2026-11-16       NASDAQ:CRWV 1D   0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
 rs-syminfo-industry-gld-1d-2026-11-15        AMEX:GLD 1D      0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
 rs-syminfo-industry-iwm-1d-2026-11-15        AMEX:IWM 1D      0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
 rs-syminfo-industry-jpm-1d-2026-11-15        NYSE:JPM 1D      0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
@@ -1512,6 +1532,7 @@ rs-syminfo-industry-nvda-1d-2026-11-15       NASDAQ:NVDA 1D   0      INCONCLUSIV
 rs-syminfo-industry-pltr-1d-2026-11-15       NASDAQ:PLTR 1D   0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
 rs-syminfo-industry-qqq-1d-2026-11-15        NASDAQ:QQQ 1D    0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
 rs-syminfo-industry-rddt-1d-2026-11-15       NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
+rs-syminfo-industry-rddt-1d-2026-11-16       NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
 rs-syminfo-industry-smh-1d-2026-11-15        NASDAQ:SMH 1D    0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
 rs-syminfo-industry-spy-1d-2026-11-15        AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
 rs-syminfo-industry-tlt-1d-2026-11-15        NASDAQ:TLT 1D    0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw

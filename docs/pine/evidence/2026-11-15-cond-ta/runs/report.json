@@ -1,17 +1,17 @@
 {
  "populations": {
   "capture": {
-   "scripts": 743,
+   "scripts": 749,
    "admitted": 332,
-   "runtimeLane": 43,
+   "runtimeLane": 40,
    "hostLane": 200,
-   "refused": 89,
+   "refused": 92,
    "coreOnly": 35
   },
   "committed": {
    "scripts": 266,
-   "admitted": 72,
-   "runtimeLane": 20,
+   "admitted": 71,
+   "runtimeLane": 19,
    "hostLane": 35,
    "refused": 17,
    "coreOnly": 4
@@ -1197,45 +1197,6 @@
     "reassign",
     "ternary",
     "var"
-   ]
-  },
-  {
-   "capture": "parabolic-sar-rddt-1d-2026-10-03",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "parabolic-sar-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "parabolic-sar-spy-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "ternary"
    ]
   },
   {
@@ -4258,6 +4219,45 @@
     "reassign",
     "ternary",
     "var"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-alab-1d-2026-11-16",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-crwv-1d-2026-11-16",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-rddt-1d-2026-11-16",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
    ]
   },
   {

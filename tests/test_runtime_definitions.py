@@ -218,10 +218,10 @@ def test_the_preview_reads_the_kill_list_and_the_save_switch(client, monkeypatch
     assert len(committed) == 1, "the committed kill list is read"
     # RS Rating (2026-11-16): the committed allowlist holds a record on the SUBSTITUTED path, so the read
     # also carries what it discloses (`substituted`, L7), read off the service function the route asks.
-    # Its run-half evidence (L8) is NOT served: the record's objects v2 is INCONCLUSIVE (no x table in
-    # its captures), which admits no run half, so that key is absent.
-    served = {"substituted": rt.substituted_inputs()}
-    assert served["substituted"] and rt.run_half_evidence() == []
+    # Its run-half evidence (L8) IS served since Q-RS8 (2026-11-16): the three captures were re-taken
+    # with the x table and grade objects v2 MATCH_SUBSTITUTED on master b7cd7a0e63.
+    served = {"substituted": rt.substituted_inputs(), "run_half_evidence": rt.run_half_evidence()}
+    assert served["substituted"] and len(served["run_half_evidence"]) == 1
     want = {"kill": committed, "allow": allow, "save_enabled": False, **served}
     assert client.get("/api/user-definitions/runtime-kill").json() == want
     monkeypatch.setenv(rt.KILL_ENV, f"{DEF_ID}, not-an-entry, {'A' * 64}")
