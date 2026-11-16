@@ -771,3 +771,36 @@ describe('AUDIT T2 probe 67 — an offered headline licenses only when the reply
       expect(savedIds()).toEqual(['evA', 'evD'])
     }, 40000)
 })
+
+// ⛔ AUDIT probe 68 (mutant N2): a TICKER named with NO headline noun ("remove AMD from my saved headlines") gives the description
+// check nothing — only the named-headline check stops a pointer (selected / previous) on ANOTHER headline. Generated: wording ×
+// pointer × action; every wording reaches the library through the MODEL's plan (the model is called, and the answer is the
+// library's own question — only resolveHeadline asks it).
+describe('AUDIT probe 68 — a ticker named without a headline noun stops a pointer on another headline (generated)', () => {
+  const setup = () => { srv.collections.push({ id: 'k1', name: 'Earnings' }); saved('evA', { note: 'old' }); saved('evB', { note: 'old' }) }
+  const snapshot = () => JSON.stringify([...srv.bookmarks.entries()].sort())
+  const WORDS = {
+    unsave: [(r) => [SAVE, { headline: r, saved: false }], ['please remove AMD from my saved headlines', 'please take AMD out of my news library', 'please unsave $AMD from my news library',
+      'please drop $AMD from my saved headlines', 'could you remove amd headlines from my saved headlines']],
+    setNote: [(r) => [NOTE, { headline: r, note: 'watch it', mode: 'append' }], ['please add a note to AMD in my news library: watch it', 'please add a note to $AMD in my saved headlines: watch it',
+      'note on AMD in my news library: watch it']],
+    place: [(r) => [PLACE, { headline: r, collection: 'Earnings', member: true }], ['please put AMD in my Earnings collection', 'please put $AMD into my Earnings collection',
+      'please move AMD into my Earnings collection']],
+  }
+  const POINTERS = {
+    selected: async () => { door.selected = 'evA'; return 'selected' },
+    previous: async (say) => { await say('what does the NVDA headline mean for the stock'); return 'previous' },
+  }
+  const CASES = Object.entries(WORDS).flatMap(([name, [, ws]]) => ws.flatMap(w => Object.keys(POINTERS).map(ptr => [name, w, ptr])))
+  it.each(CASES)('%s · "%s" · pointer %s on NVDA → asked with AMD, no write, no card', async (name, w, ptr) => {
+    setup()
+    const { say } = await mountOn()
+    const ref = await POINTERS[ptr](say)
+    const turns0 = p.turns(), before = snapshot(), w0 = srv.writes
+    p.st.envelopes.push(plan('apply', WORDS[name][0](ref)))
+    const out = await say(w)
+    expect(p.turns(), 'the MODEL planned it').toBe(turns0 + 1)
+    expect(out).toMatch(/Which headline do you mean\? 1\) “AMD unveils new accelerator lineup”/)
+    expect(srv.writes - w0).toBe(0); expect(pending()).toHaveLength(0); expect(snapshot()).toBe(before)
+  }, 40000)
+})
