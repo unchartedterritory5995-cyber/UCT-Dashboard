@@ -1,7 +1,10 @@
 // W9-T4 rails: sizing (fixed, cash, percent of equity), the version defaults, capital and margin.
 //
-// ⛔ EVERY RULE HERE IS UNPINNED (ruling D1). The committed ledger pins nothing, so on the member door
-// every one of these scripts refuses `runtime:strategy-unpinned` by name. The behaviour rails below run
+// ⭐ LANDING TRAIN 2 (engine 60): the committed ledger pins B-QTY, B-DEFAULTS and B-MARGIN, the three T4
+// rules (ruling D1: each by committed captures that MATCH). On the member door a default CASH or
+// PERCENT size still stops, by another name: `runtime:strategy-unsettled`, the symbol's minimum contract
+// (Q-S1a), which no pin lifts; a FIXED size runs; a rule the ledger does not pin still refuses
+// `runtime:strategy-unpinned` by name (the last describe). The behaviour rails below run
 // through the TEST-ONLY pin predicate (`execute(..., { brokerPinned })`, the path the W9-T1 rails use)
 // against hand-built bars, and every expected number is computed by hand in the comment beside it from
 // the hypothesis `broker.js` `defaultSize` states. A Q-S1a / Q-S1b / W9-D1 capture that disagrees moves
@@ -147,7 +150,8 @@ describe('W9-T4 sizing, behind the test-only pin set (hand-computed)', () => {
     expect(err.message).toMatch(/Q-S1i/)
   })
   it('v4 with no value declared: one unit (the hypothesis Q-S1a size-v4 grades)', () => {
-    const { cols, err, res } = attempt('//@version=4\nstrategy("t")\nstrategy.entry("L", true, when = bar_index == 3)\nplot(strategy.position_size)\n')
+    // (ruling D12: a v4 strategy states both margins, or stops at bind; the SIZE default is what this rail holds)
+    const { cols, err, res } = attempt('//@version=4\nstrategy("t", margin_long = 100, margin_short = 100)\nstrategy.entry("L", true, when = bar_index == 3)\nplot(strategy.position_size)\n')
     expect(err).toBeUndefined()
     expect(cols[0][4]).toBe(1)
     expect(res.broker.record.rulesUsed).toEqual(expect.arrayContaining(['B-QTY', 'B-DEFAULTS']))
@@ -302,20 +306,19 @@ describe('W9-T4 pin before serve (D1): nothing T4 adds serves without its pin', 
     cash: `//@version=5\nstrategy("t", default_qty_type = strategy.cash, default_qty_value = 10000)\n${CYCLE}`,
     percent: `//@version=5\nstrategy("t", default_qty_type = strategy.percent_of_equity, default_qty_value = 10)\n${CYCLE}`,
     v6: '//@version=6\nstrategy("t")\nif bar_index == 3\n    strategy.entry("L", strategy.long)\nplot(strategy.position_size)\n',
-    v4: '//@version=4\nstrategy("t")\nstrategy.entry("L", true, when = bar_index == 3)\nplot(strategy.position_size)\n',
+    v4: '//@version=4\nstrategy("t", margin_long = 100, margin_short = 100)\nstrategy.entry("L", true, when = bar_index == 3)\nplot(strategy.position_size)\n',
   }
   const BARS = { v6: DOWN }
-  it('the committed ledger pins none of the T4 rules', () => {
-    for (const r of ['B-QTY', 'B-DEFAULTS', 'B-MARGIN']) expect(Object.keys(RESOLVED.rules)).not.toContain(r)
+  it('the committed ledger pins every T4 rule (every capture that exercises it MATCHes)', () => {
+    for (const r of ['B-QTY', 'B-DEFAULTS', 'B-MARGIN']) expect(Object.keys(RESOLVED.rules)).toContain(r)
     expect(BROKER_RULES['B-QTY'].capture).toBe('Q-S1a')
     expect(BROKER_RULES['B-DEFAULTS'].capture).toBe('Q-S1b')
   })
   for (const [name, src] of Object.entries(SIZED)) {
-    it(`${name}: with the real ledger the run refuses runtime:strategy-unpinned by name`, () => {
-      const { err } = attempt(src, { bars: BARS[name], pins: 'ledger' })
-      expect(err && err.guard).toBe('runtime:strategy-unpinned')
-      expect(BROKER_RULE_IDS).toContain(err.rule)
-      expect(err.message).toContain(err.rule)
+    it(`${name}: with the committed ledger the run completes (every T4 rule the run exercises is pinned)`, () => {
+      const { err, res } = attempt(src, { bars: BARS[name], pins: 'ledger' })
+      expect(err, err && err.message).toBeUndefined()
+      expect(res.broker.record.rulesUsed).toContain('B-QTY')
     })
     it(`${name}: every rule the run used, unpinned alone, stops it naming THAT rule`, () => {
       const full = attempt(src, { bars: BARS[name] })
@@ -338,8 +341,8 @@ describe('W9-T4 pin before serve (D1): nothing T4 adds serves without its pin', 
   // size is pinned once, in strategiesAreRuled.test.js)
   it('the D7 scorecard is unchanged by T4: 0 of every named rule, derived', () => {
     expect(BROKER_RULE_IDS).toContain('B-QTY')
-    expect(strategyScorecardWording()).toBe(strategyScorecardWording({ ledger: { rules: {} } }))
-    expect(strategyScorecardWording()).toMatch(new RegExp(`^0 of ${BROKER_RULE_IDS.length} broker rules are pinned`))
+    expect(strategyScorecardWording()).not.toBe(strategyScorecardWording({ ledger: { rules: {} } }))
+    expect(strategyScorecardWording()).toMatch(new RegExp(`^31 of ${BROKER_RULE_IDS.length} broker rules are pinned`))
   })
 })
 
@@ -349,18 +352,40 @@ describe('W9-T4 the member door (gate on, committed ledger)', () => {
   let seq = 0
   const doc = (source) => ({ id: `w9t4-${seq += 1}`, meta: { runtimeHistory: 'strategy-window' },
     compute: { kind: 'runtime', fn: `runtime:w9t4-${seq}`, outputs: { p: 0 }, source } })
+  const door = (src) => {
+    registerStrategyBrokerGate(() => true)
+    try { return { cols: computeRuntimeColumns(doc(src), UP, CTX) } } catch (err) { return { err } }
+  }
+  // A default percent-of-equity size (declared at v5, the v6 default): B-QTY and B-DEFAULTS are pinned, so
+  // the run no longer stops as unpinned. It stops at the size itself: this door derives the symbol's
+  // minimum contract from the witnessed table, which holds no row (`symbolScope.json::min_contract`).
   for (const src of [
     `//@version=5\nstrategy("t", default_qty_type = strategy.percent_of_equity, default_qty_value = 10)\n${CYCLE}`,
     '//@version=6\nstrategy("t")\nif bar_index == 3\n    strategy.entry("L", strategy.long)\nplot(strategy.position_size)\n',
   ]) {
-    it(`refuses runtime:strategy-unpinned by name: ${src.split('\n')[1]}`, () => {
-      registerStrategyBrokerGate(() => true)
-      let err
-      try { computeRuntimeColumns(doc(src), UP, CTX) } catch (e) { err = e }
-      expect(err && err.guard).toBe('runtime:strategy-unpinned')
-      expect(err.message).toMatch(/is not pinned by a matching TradingView capture/)
+    it(`a default percent size stops at the minimum contract, not at a pin (Q-S1a): ${src.split('\n')[1]}`, () => {
+      const { err } = door(src)
+      expect(err && err.guard).toBe('runtime:strategy-unsettled')
+      expect(err.probe).toBe('Q-S1a')
+      expect(err.message).toMatch(/this symbol's minimum contract is not known to this run/)
+      expect(err.message).not.toMatch(/is not pinned by a matching TradingView capture/)
     })
   }
+  it('a fixed size, every rule it exercises pinned: the run completes', () => {
+    const { err, cols } = door(`//@version=6\nstrategy("t", default_qty_type = strategy.fixed, default_qty_value = 1)\n${CYCLE}`)
+    expect(err, err && err.message).toBeUndefined()
+    expect(cols).toBeTruthy()
+  })
+  // ⭐ D1's point, kept with an UNPINNED rule as its subject: the same fixed-size script with one add under
+  // `pyramiding = 2` reaches B-PYR, which no committed capture grades, and stops naming it.
+  it('a rule the ledger does not pin still refuses runtime:strategy-unpinned by name (B-PYR)', () => {
+    expect(Object.keys(RESOLVED.rules)).not.toContain('B-PYR')
+    const { err } = door('//@version=6\nstrategy("t", default_qty_type = strategy.fixed, default_qty_value = 1, pyramiding = 2)\n'
+      + 'if bar_index == 3 or bar_index == 5\n    strategy.entry("L", strategy.long)\nplot(strategy.position_size)\n')
+    expect(err && err.guard).toBe('runtime:strategy-unpinned')
+    expect(err.rule).toBe('B-PYR')
+    expect(err.message).toMatch(/is not pinned by a matching TradingView capture/)
+  })
 })
 
 describe('W9-T4 readStrategyDeclaration (unit)', () => {

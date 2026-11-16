@@ -18,6 +18,7 @@ import fs from 'node:fs'
 
 import { gradeCapture, loadCapture, HARNESS_DIR } from './harness'
 import { registerPineLibrary, clearPineLibraries } from '../../ast/pineLibraryStore'
+import { fixtureLibrary } from '../../ast/__tests__/libraryFixture.js'
 
 const load = (id) => loadCapture(path.join(HARNESS_DIR, `${id}.json`)).capture
 // ⭐ L2 — opt-in only: the real `TradingView/ta/7` from a scratch store directory
@@ -165,7 +166,8 @@ export highestSince(series bool cond, series float source = high) =>
     hi
 `
 function gradeWithLibrary(cap, entry) {
-  registerPineLibrary(entry)
+  // U15: a fixture entry is stamped with its own sha; a store entry carries its own already
+  registerPineLibrary(entry.sha256 ? entry : fixtureLibrary(entry))
   vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
   vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
   return gradeCapture(cap).verdict

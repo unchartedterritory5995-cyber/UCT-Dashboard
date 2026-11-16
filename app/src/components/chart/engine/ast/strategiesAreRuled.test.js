@@ -174,9 +174,9 @@ plot(ta.crossover(close, ta.sma(close, 50)) ? 1 : 0)
 // Counts come from the committed ledger, so the row cannot claim a pin that is not there.
 describe('D7: the strategy-backtest scorecard wording', () => {
   it('states the pinned count from the ledger, the refusal by name, and that it is not served', () => {
-    expect(pinnedBrokerRules()).toEqual([])
+    expect(pinnedBrokerRules()).toHaveLength(31)
     expect(strategyScorecardWording()).toBe(
-      `0 of ${BROKER_RULE_IDS.length} broker rules are pinned, each verified against a TradingView capture. `
+      `31 of ${BROKER_RULE_IDS.length} broker rules are pinned, each verified against a TradingView capture. `
       + 'A backtest that reaches an unpinned rule stops and refuses by name (runtime:strategy-unpinned). '
       + 'Strategy backtests are not served to members yet.')
     // ⭐ THE ONE PLACE THE VOCABULARY'S SIZE IS PINNED (dated 2026-11-08): 22 S1/T1 rules + 6 W9-T6
@@ -190,7 +190,11 @@ describe('D7: the strategy-backtest scorecard wording', () => {
     // + 3 W9-T8 risk rules (dated 2026-11-08), one per probe that calls its command: B-RISK-ALLOW (W9-R1,
     // allow_entry_in), B-RISK-DDOWN (W9-R1, max_drawdown), B-RISK-INTRADAY-ORDERS (W9-R1i,
     // max_intraday_filled_orders). The three commands no probe calls refuse at build and are not rules.
-    expect(BROKER_RULE_IDS.length).toBe(44)
+    // + 6 value read-back rules (dated 2026-11-15), each witnessed by the committed strategy captures and by no
+    // text: B-ROUND (a fill on an off-grid open), B-ROUND-MARK (the mark of open trades on an off-grid close),
+    // B-TXT-CLOSE-ID, B-TXT-CLOSE-ALL-ID, B-TXT-ENTRY-CLOSE-ID (the exit ids TradingView generates) and
+    // B-TXT-NO-COMMENT (an exit comment with no comment reads the exit id).
+    expect(BROKER_RULE_IDS.length).toBe(50)
   })
 
   it('counts a pin only when the ledger holds it, and only for a rule the broker names', () => {

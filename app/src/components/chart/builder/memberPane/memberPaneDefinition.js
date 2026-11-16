@@ -35,7 +35,7 @@ import { registerStrategyBrokerGate } from '../../engine/strategyBrokerGateRegis
 registerStrategyBrokerGate(strategyBrokerEnabled)
 import { PINE_RECURRENCE_ORIGIN } from '../../engine/nativeRegistry'
 import { pineNaConditionIsFalse } from '../../engine/ast/interpret'
-import { probeRuntimeProgram, probeObjectRuntime, runtimeVersionStamp, colourInputsTheRunReads } from '../../engine/runtime/runtimeColumns'
+import { probeRuntimeProgram, probeObjectRuntime, runtimeVersionStamp, colourInputsTheRunReads, libraryPinsOf } from '../../engine/runtime/runtimeColumns'
 import { requestTargetsUnservable } from '../../engine/runtime/requestSupply'
 import { STRATEGY_WINDOW_HISTORY } from '../../engine/runtime/strategyRecord'
 import { runtimeRepaintOf } from '../../engine/runtime/runtimeRepaint'
@@ -1084,6 +1084,12 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     // (`nativeRegistry.computeFor` → `engine/calcBarsWindow.js`). Absent for every script
     // that declares none, so no other document changes.
     ...calcBarsMeta(t),
+    // ⭐⭐ U15 — THE LIBRARY VERSIONS THIS DOCUMENT WAS TRANSLATED AGAINST, each pinned by the
+    // sha256 of the code that was compiled (`[{path, sha256}]`). The trees already hold that
+    // code; every lane that links the source AGAIN (the run half, a runtime colour, the server
+    // job) is held to these pins and refuses a changed library by name. Absent unless the
+    // script imports one, so no other document changes.
+    ...(libraryPinsOf(t.libraries).length ? { libraries: libraryPinsOf(t.libraries) } : {}),
     // ⭐⭐ C26 — the other symbols the trees read and how the script SPELLED each
     // (`translatePine`'s `otherSymbols`). The bind decides from it which listing
     // TradingView means (`engine/otherSymbols.js`); absent for every script that
@@ -2296,6 +2302,9 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     // trades on the wrong bars. Only when the program rides (`drawsObjects`): a runtime
     // document with no host trees keeps its exact shape.
     ...(drawsObjects ? pineTreeStamps(t) : {}),
+    // ⭐⭐ U15 — the library pins (see the host document's `meta.libraries`): a runtime document
+    // links its source on every run, in the browser and on the server, and is held to them.
+    ...(libraryPinsOf(probe.libraries || t.libraries).length ? { libraries: libraryPinsOf(probe.libraries || t.libraries) } : {}),
     // ⭐ RT1 — the script's identity for the kill switch and the server's save
     // door: the sha256 of the Pine source, recomputed by the server, never trusted.
     runtimeSourceHash: runtimeSourceHash(source),

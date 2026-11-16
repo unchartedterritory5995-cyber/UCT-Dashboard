@@ -156,7 +156,27 @@ export function probeRuntimeProgram(source, { objectsInRun = false } = {}) {
     // `buildRuntimeIr` retries into broker mode only then), so the member door stamps the
     // document `STRATEGY_WINDOW_HISTORY`.
     broker: !!program.broker,
+    // ⭐⭐ U15 — the library versions the build linked, each by the sha256 of the code it
+    // compiled (`pineLibraries.js`): the member door pins them on the document. Absent unless
+    // the script imports one, so every other probe answers exactly as before.
+    ...(Array.isArray(built.libraries) && built.libraries.length ? { libraries: libraryPinsOf(built.libraries) } : {}),
   }
+}
+
+/** ⭐⭐ U15 — `[{path, sha256}]`, sorted by path: a document's library pins (`meta.libraries`). */
+export function libraryPinsOf(libraries) {
+  return (Array.isArray(libraries) ? libraries : [])
+    .filter((l) => l && typeof l.path === 'string' && typeof l.sha256 === 'string')
+    .map((l) => ({ path: l.path, sha256: l.sha256 }))
+    .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0))
+}
+
+/** ⭐⭐ U15 — what a run hands the front end about libraries: the document's pins (a changed
+ *  library is refused by name, `pine:library-changed`). The ENTRIES come from the registry,
+ *  in the browser and on the server alike (the service registers a job's verified entries
+ *  for that one run, `services/pine_runtime/job.mjs`), so both build the same call. */
+function libraryBuildOpts(pins) {
+  return Array.isArray(pins) && pins.length ? { libraryPins: pins } : {}
 }
 
 /** ⭐⭐ UIE PHASE 3 (M4) — WHICH COLOUR INPUTS THE RUN ACTUALLY READS.
@@ -1251,6 +1271,8 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     // author's bounds or options by the front end itself. ⭐ UIE PHASE 3 (M4) — a colour or a
     // source rides apart (`inputDefaults`): it replaces the author's default node.
     ...runtimeBuildInputs(def, ctx && ctx.runtimeInputs && typeof ctx.runtimeInputs === 'object' ? ctx.runtimeInputs : {}),
+    // ⭐⭐ U15 — the document's library pins
+    ...libraryBuildOpts(def && def.meta && def.meta.libraries),
     // `[]` = the caller owns the drawing: `line.new` & co. are skipped, not
     // refused. The document's object program (the host lane's) draws them.
     ...(ownObjects ? { objectsInRun: true } : { objectTrees: [] }),
@@ -1729,6 +1751,8 @@ export function runtimeObjectValues(rt, bars, ctx = {}) {
       built = withTranslateClock(ctx.now, () => buildRuntimeIr(String(rt.source), {
         bars: rows,
         inputs: {},
+        // ⭐⭐ U15 — the run half's library pins (stamped by the member door beside its source)
+        ...libraryBuildOpts(rt && rt.libraryPins),
         objectTrees: [],
         objectTreesAt: at,
         pane: true,

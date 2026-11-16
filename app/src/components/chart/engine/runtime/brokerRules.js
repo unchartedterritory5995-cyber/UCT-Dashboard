@@ -87,6 +87,17 @@ export const BROKER_RULES = Object.freeze({
   'B-RISK-ALLOW': Object.freeze({ capture: 'W9-R1', what: 'strategy.risk.allow_entry_in: a strategy.entry market order in the other direction closes the open position at its fill (and opens nothing); with no position it fills nothing; an entry in the allowed direction is unchanged' }),
   'B-RISK-DDOWN': Object.freeze({ capture: 'W9-R1', what: 'strategy.risk.max_drawdown below its limit: the run is exactly the run without the call (the limit reached is a refusal, not this rule)' }),
   'B-RISK-INTRADAY-ORDERS': Object.freeze({ capture: 'W9-R1i', what: 'strategy.risk.max_intraday_filled_orders below its limit on every trading day: the run is exactly the run without the call (the limit reached is a refusal, not this rule)' }),
+  // ── value read-backs (2026-11-15): what the 33 committed strategy captures WITNESS and no text states ──
+  // (`broker.js` `roundedOpenFill` / `markPx`, `strategyRecord.js` `witnessedExitIdOf`). Each is a rule of its
+  // own so that each is pinned by its own witnesses: the evidence table, capture by capture, is
+  // `docs/pine/evidence/2026-11-15-strategy-readbacks/EVIDENCE.md`, re-derived from the captures alone by
+  // `__tests__/vendorHarness/strategyReadbackWitness.test.js`. Asked only when a run REACHES the case.
+  'B-ROUND': Object.freeze({ capture: 'Q-S1l', what: 'a market order (an entry, strategy.order, strategy.close, strategy.close_all) or a stop order the open reached that fills on a bar open off the tick grid fills at that open rounded to the nearest tick, a tie up' }),
+  'B-ROUND-MARK': Object.freeze({ capture: 'W9-R1i', what: 'strategy.openprofit (and so strategy.equity) marks open trades at the bar close rounded to the nearest tick, a tie up, when that close is off the tick grid' }),
+  'B-TXT-CLOSE-ID': Object.freeze({ capture: 'Q-S1p', what: 'strategy.closedtrades.exit_id of a trade strategy.close(id) closed reads "Close entry(s) order <id>"' }),
+  'B-TXT-CLOSE-ALL-ID': Object.freeze({ capture: 'Q-S1-core', what: 'strategy.closedtrades.exit_id of a trade strategy.close_all() closed reads "Close position order"' }),
+  'B-TXT-ENTRY-CLOSE-ID': Object.freeze({ capture: 'Q-S1b', what: 'strategy.closedtrades.exit_id of a trade a strategy.entry fill closed (a reversal, an allow_entry_in close) reads the id of that entry' }),
+  'B-TXT-NO-COMMENT': Object.freeze({ capture: 'Q-S1k', what: 'strategy.closedtrades.exit_comment of a trade whose closing order carries no comment reads the exit id of the trade' }),
 })
 
 export const BROKER_RULE_IDS = Object.freeze(Object.keys(BROKER_RULES))

@@ -1,0 +1,18 @@
+{
+ "_": "U15 licence gate (coordinator ruling 2026-11-15): which library licences are non-commercial, and so never served on this paid product. Read by tests/test_pine_library_pinning.py (pine_library_store.licence_problem) and app/src/components/chart/engine/ast/pineLibraryPinning.test.js (pineLibraryStore.libraryLicenceProblem), so the two lanes answer one table.",
+ "cases": [
+  {"licence": "MPL-2.0", "nonCommercialExpected": false},
+  {"licence": "MIT", "nonCommercialExpected": false},
+  {"licence": "Apache-2.0", "nonCommercialExpected": false},
+  {"licence": "CC-BY-4.0", "nonCommercialExpected": false},
+  {"licence": "CC-BY-SA-4.0", "nonCommercialExpected": false},
+  {"licence": "SYNC", "nonCommercialExpected": false},
+  {"licence": "CC-BY-NC-SA", "nonCommercialExpected": true},
+  {"licence": "CC-BY-NC-SA-4.0", "nonCommercialExpected": true},
+  {"licence": "CC-BY-NC", "nonCommercialExpected": true},
+  {"licence": "CC BY-NC-ND 4.0", "nonCommercialExpected": true},
+  {"licence": "cc-by-nc-sa", "nonCommercialExpected": true},
+  {"licence": "Non-commercial use only", "nonCommercialExpected": true},
+  {"licence": "MPL-2.0", "nonCommercial": true, "nonCommercialExpected": true}
+ ]
+}

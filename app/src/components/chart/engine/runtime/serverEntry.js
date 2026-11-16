@@ -41,3 +41,7 @@ export { RUNTIME_IR_VERSION } from './ir.js'
 export { NATIVE_TFS } from '../../timeframes.js'
 // The runtime's limits, so the door caps `bars.n` at the same `HISTORY` ceiling the run enforces.
 export { DEFAULT_LIMITS } from './limits.js'
+// ⭐⭐ U15: the library registry the linker reads. The service registers ONE job's verified
+// entries for that run and clears them after it (services/pine_runtime/job.mjs), so the server
+// links exactly as the browser does: through the registry, held to the document's pins.
+export { registerPineLibrary, clearPineLibraries, libraryEntryProblem } from '../ast/pineLibraryStore.js'
