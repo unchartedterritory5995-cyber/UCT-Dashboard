@@ -6965,6 +6965,69 @@ function firstPeriodPartialMask(bars, found, opts) {
   return out
 }
 
+/** ⭐⭐ REQ (coverage unit, 2026-11-16) — THE FIRST PERIOD OF A LOOK-AHEAD READ, OFF THE LISTING, for the
+ *  runtime lane's request (`requestAlignment`, `live: true`): the bars inside the chart's FIRST week / month
+ *  when the chart does not begin at the listing and its first bar does not certainly open that period, as a
+ *  0/1 column; null when there are none. The period's bar is then built from only part of the period (its
+ *  open, high, low and volume are not the period's), which is `firstPeriodPartialMask`'s reason, one period
+ *  earlier: a look-ahead read hands the first period to its OWN bars, a merge to the next period's.
+ *  ⛔ The host's `tf_live` COLUMN is not masked by this (its behaviour is unchanged here); a run carries
+ *  state from bar to bar, so the run refuses by name where a column would draw that period. */
+export const TF_LIVE_FIRST_CODE = 'request:htf-lookahead-first-period-partial'
+/** The sentence for `TF_LIVE_FIRST_CODE`. ⛔ Not a `CHART_CLOCK_WITHHELD` row: that table is the host
+ *  column's (mirrored in `ast_interpret.py`), and only the run's request names this. */
+export const TF_LIVE_FIRST_SENTENCE = 'This indicator reads a weekly or monthly value with `request.security` '
+  + '(look-ahead on). The history of this chart does not begin at the listing of its symbol, and its first bar is '
+  + 'not certainly the first session of its week or month, so the bar of the first period would be built from only '
+  + 'part of that period. What would settle it: a chart whose history begins at the first session of a period, or '
+  + 'at the listing.'
+function tfLiveFirstPeriodMask(bars, code, opts) {
+  if (opts && opts.historyFromListing === true) return null
+  const n = bars.length
+  if (!n || typeof code !== 'string') return null
+  const days = bars.map((b) => isoDay(b && b.t))
+  const name = () => {
+    const sink = opts && opts.chartClockSink
+    if (sink && typeof sink.set === 'function') sink.set(TF_LIVE_FIRST_CODE, TF_LIVE_FIRST_SENTENCE)
+  }
+  if (days.some((d) => !d)) {
+    name()
+    return new Float64Array(n).fill(1)
+  }
+  const daily = !!opts && (opts.tf === 'D' || opts.tf === '1D') && days.every((d) => isoWeekday(d) <= 5)
+  if (daily) {
+    const first = days[0]
+    const dow = isoWeekday(first)
+    const [y, m, d] = first.split('-').map(Number)
+    const [py, pm, pd] = civilFromDays(daysFromCivil(y, m, d) - (dow === 1 ? 3 : 1))
+    const prev = `${String(py).padStart(4, '0')}-${String(pm).padStart(2, '0')}-${String(pd).padStart(2, '0')}`
+    if (tfBucket(prev, code) !== tfBucket(first, code)) return null      // the first bar opens its period
+  }
+  const out = new Float64Array(n)
+  const firstBucket = tfBucket(days[0], code)
+  for (let i = 0; i < n && tfBucket(days[i], code) === firstBucket; i++) out[i] = 1
+  name()
+  return out
+}
+
+/** ⭐ REQ — THE NEWEST BAR OF A LOOK-AHEAD READ, UNLESS IT IS KNOWN FINISHED: a forming daily bar reads the
+ *  forming week / month, a reading no capture shows (`vw-request-htf-alignment-spy-1d-2026-10-02`'s newest bar
+ *  is finished). Withheld by name (`TF_LIVE_FORMING_CODE`) where `newestBarIsForming` is not `false`;
+ *  Q-REQ1 is the capture that settles it. The host's `tf_live` column is unchanged. */
+export const TF_LIVE_FORMING_CODE = 'request:htf-lookahead-forming-unmeasured'
+export const TF_LIVE_FORMING_SENTENCE = 'This indicator reads a weekly or monthly value with `request.security` '
+  + '(look-ahead on). On the bar still forming, that reads the week or month still forming, and what TradingView '
+  + 'shows there has not been captured; that bar is withheld rather than guessed. Every finished bar is drawn.'
+function tfLiveFormingMask(bars, opts) {
+  const n = bars.length
+  if (!n || (opts && opts.newestBarIsForming === false)) return null
+  const out = new Float64Array(n)
+  out[n - 1] = 1
+  const sink = opts && opts.chartClockSink
+  if (sink && typeof sink.set === 'function') sink.set(TF_LIVE_FORMING_CODE, TF_LIVE_FORMING_SENTENCE)
+  return out
+}
+
 /** ⭐ REVIEW L3 — the weekday of an ISO day, Mon = 1 … Sun = 7, from the day count alone. */
 function isoWeekday(iso) {
   const [y, m, d] = iso.split('-').map(Number)
@@ -7357,6 +7420,25 @@ export function tfMergeReads(isos, code, at) {
   return out
 }
 
+/** ⭐⭐ REQ (coverage unit, 2026-11-16) — THE LOOK-AHEAD PICK, ONE AUTHORITY: for each bar of an
+ *  ISO-dated series, the index of the higher-timeframe bar a `tf_live` read hands it (the period the
+ *  bar is INSIDE — Pine's `barmerge.lookahead_on` on historical bars), or -1 for a bar with no
+ *  readable day. The evaluator's `tf_live` arm and the runtime lane's look-ahead request
+ *  (`requestAlignment`, `live: true`) both read this.
+ *  ⭐ WITNESSED on `vw-request-htf-alignment-spy-1d-2026-10-02` (A01 weekly, A04 monthly, A06 the
+ *  previous week through `close[1]`): `vendorHarness.reqLookaheadAlignment.test.js`. */
+export function tfLiveReads(isos, code, at) {
+  const length = isos.length
+  const out = new Array(length).fill(-1)
+  for (let i = 0; i < length; i++) {
+    const iso = isos[i]
+    if (!iso) continue
+    const b = at.get(tfBucket(iso, code))
+    if (b !== undefined) out[i] = b
+  }
+  return out
+}
+
 /** ⭐⭐ RS RATING L5 — WHICH REQUESTED BAR EACH CHART BAR READS, AND WHICH CHART BARS ARE
  *  WITHHELD, for the runtime lane's `request.security`: the host lane's own answer.
  *
@@ -7379,7 +7461,7 @@ export function tfMergeReads(isos, code, at) {
  *  draws with. `opts`: `tf`, `newestBarIsForming`, `historyFromListing`, `chartClockSink`
  *  (receives each withheld code and its sentence).
  *  @returns {{runBars: object[], index: number[], withheld: Float64Array}} */
-export function requestAlignment({ chartBars, srcBars, code = null, other = null, opts = {} }) {
+export function requestAlignment({ chartBars, srcBars, code = null, other = null, live = false, opts = {} }) {
   const n = Array.isArray(chartBars) ? chartBars.length : 0
   const src = Array.isArray(srcBars) ? srcBars : []
   let runBars = src
@@ -7388,7 +7470,7 @@ export function requestAlignment({ chartBars, srcBars, code = null, other = null
     const isos = src.map((b) => isoDay(b && b.t))
     const { htf, at } = resampleTo(src, isos, code)
     runBars = htf
-    srcRead = tfMergeReads(isos, code, at)
+    srcRead = live === true ? tfLiveReads(isos, code, at) : tfMergeReads(isos, code, at)
   }
   const index = new Array(n).fill(-1)
   const sym = other === null ? null : String(other).trim().toUpperCase()
@@ -7407,11 +7489,19 @@ export function requestAlignment({ chartBars, srcBars, code = null, other = null
     }
   }
   const leaf = { type: 'num', value: 0 }
-  let tree = code !== null ? { type: TF_MERGE, value: code, args: [leaf] } : leaf
+  // ⭐ REQ — a look-ahead read is the `tf_live` tree: no merge, so no merge mask. Withheld, by name:
+  // `tfLiveFirstPeriodMask`, the first period of a chart that does not begin at the listing (built from only
+  // part of itself; inside the off-listing warm-up runs, `curtained`, the curtain judges it instead), and
+  // `tfLiveFormingMask`, the newest bar unless it is known finished (the capture's newest bar is finished;
+  // a forming one is Q-REQ1's question).
+  const liveRead = live === true && code !== null
+  let tree = code !== null ? { type: liveRead ? 'tf_live' : TF_MERGE, value: code, args: [leaf] } : leaf
   if (sym !== null) tree = { type: 'sym', value: sym, args: [tree] }
   const o = { ...(opts || {}), symbols: sym !== null ? { [sym]: src } : undefined }
   const masks = [
-    code !== null ? tfMergeMask(tree, chartBars, o) : null,
+    code !== null && !liveRead ? tfMergeMask(tree, chartBars, o) : null,
+    liveRead && o.curtained !== true ? tfLiveFirstPeriodMask(chartBars, code, o) : null,
+    liveRead ? tfLiveFormingMask(chartBars, o) : null,
     sym !== null ? symAlignmentMask(tree, chartBars, o) : null,
   ].filter(Boolean)
   const withheld = new Float64Array(n)
@@ -7914,13 +8004,14 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         // ⭐⭐ RS RATING L5 — the merge pick is `tfMergeReads`, the ONE authority the runtime
         // lane's `request.security` reads too (`requestAlignment`).
         const reads = merge ? tfMergeReads(isos, code, at) : null
+        // ⭐ REQ — and the look-ahead pick is `tfLiveReads`, the one the run's look-ahead request reads
+        const liveReads = live ? tfLiveReads(isos, code, at) : null
         const out = nan(length)
         for (let i = 0; i < length; i++) {
           const iso = isos[i]
           if (!iso) continue
           const b = at.get(tfBucket(iso, code))
-          if (live) out[i] = child[b]
-          else if (merge) {
+          if (live) { if (liveReads[i] >= 0) out[i] = child[liveReads[i]] } else if (merge) {
             if (reads[i] >= 0) out[i] = child[reads[i]]
           } else if (b > 0) out[i] = child[b - 1]
         }

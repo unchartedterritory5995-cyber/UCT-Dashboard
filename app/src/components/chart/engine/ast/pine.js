@@ -926,6 +926,7 @@ import { OBJECT_ENUM_VALUES } from '../objectEnums.js'
 
 const TICKER_CALLS = new Set(['ticker.new', 'tickerid'])
 
+
 /** ⛔ W9-OQ-N2 — sinks that refuse (or withhold) their own row. */
 const STRATEGY_TAINT_ROW_SINKS = new Set(['plot', 'plotshape', 'plotchar', 'plotcandle', 'plotbar',
   'plotarrow', 'alertcondition', 'bgcolor', 'barcolor'])
@@ -13773,6 +13774,10 @@ export class Resolver {
     const kw = v.tok ? v.tok.value : null
     if (kw === 'true') return 'on'
     if (kw === 'false') return 'off'
+    // ⭐ REQ — the constant written through a plain binding (`igaps = barmerge.gaps_off`)
+    const through = this.builtinNameThrough(v)
+    if (through === 'barmerge.gaps_off') return 'off'
+    if (through === 'barmerge.gaps_on') return 'on'
     // A name bound to a constant (`gaps = igaps`, an `input.bool`): ask the
     // resolver for its folded value, minting nothing.
     const minted = this.paramMint
@@ -13900,7 +13905,10 @@ export class Resolver {
     // (`ticker.new(prefix, ticker, session.*)`) names a session; read once.
     if (asked.session === undefined) {
       const call = asked.symbolNode ? this.tickerCallIn(asked.symbolNode) : null
-      asked.session = call ? call.name : null
+      // ⛔ REQ — a symbol written through `ticker.modify(…)` now reads as the chart's own where
+      // nothing is modified (`unmodifiedTickerArg`); BELOW the chart it keeps the refusal it had
+      // (a ticker-building call names a session), so no lower read is newly served by that rule.
+      asked.session = call ? call.name : (asked.symbolNode ? this.tickerModifierIn(asked.symbolNode) : null)
     }
     const shape = lowerTfRefusal({
       code,
@@ -14013,7 +14021,9 @@ export class Resolver {
       if (!a) continue
       const isSession = a.name === 'session' || (!a.name && i === 2)
       if (!isSession) continue
-      const spelled = a.value && a.value.type === 'name' ? a.value.name : null
+      // ⭐ REQ — the constant may be written through a plain binding (`isess = session.regular`,
+      // then `session = isess`): `builtinNameThrough` follows it, and nothing else.
+      const spelled = this.builtinNameThrough(a.value)
       if (spelled !== 'session.regular') return null
     }
     // ⛔⛔ THE VENUE IS JUDGED HERE TOO, AND THIS IS THE HOLE IT CLOSES. Argument
@@ -14037,6 +14047,43 @@ export class Resolver {
     return null
   }
 
+  /** ⭐⭐ REQ (coverage unit, 2026-11-16) — THE SYMBOL INSIDE `ticker.modify(<symbol>)` WHEN THE CALL
+   *  MODIFIES NOTHING: exactly one argument (positional, or named `tickerid`), or null.
+   *
+   *  Pine's reference, `ticker.modify(tickerid, session, adjustment, backadjustment, settlement_as_close)`:
+   *  "`session` … If session is not given, then `syminfo.session` value is used." "`adjustment` … If
+   *  adjustment is not given, then default adjustment value is used." `backadjustment` and
+   *  `settlement_as_close` default to `inherit`. So with the symbol alone the call asks for that
+   *  symbol on the CHART's session with the instrument's default adjustment — which is the series a
+   *  plain request for the symbol reads on every chart this engine draws (`sym` serves the regular
+   *  session, the chart's own; see `tickerCallArg` on why a NON-default session refuses).
+   *  It is the built-in "Correlation coefficient"'s own spelling: `ticker.modify(input.symbol(…))`.
+   *  ⛔ ANY SECOND ARGUMENT (a session, an adjustment, …) IS A DIFFERENT SERIES and is not read here:
+   *  the call then keeps the refusal it had. */
+  unmodifiedTickerArg(node) {
+    if (!node || node.type !== 'call' || node.name !== 'ticker.modify') return null
+    const args = (node.args || []).filter(Boolean)
+    if (args.length !== 1) return null
+    const a = args[0]
+    if (a.name && a.name !== 'tickerid') return null
+    return a.value !== undefined ? a.value : null
+  }
+
+  /** ⭐ REQ (coverage unit, 2026-11-16) — THE BUILT-IN NAME A NODE SPELLS, through plain bindings:
+   *  `x` where the script wrote `x = session.regular` (or `y = x`) answers `'session.regular'`; a name
+   *  the script does not bind answers itself; anything else (a call, a ternary, a parameter, a
+   *  reassigned or opaque binding, a chain deeper than four) answers null. For the two request
+   *  arguments that are Pine CONSTANTS and that scripts hoist into a name: a ticker call's `session`
+   *  and `lookahead`. ⛔ It folds nothing and resolves nothing: a binding is followed only while it
+   *  is a bare name. */
+  builtinNameThrough(node, depth = 0) {
+    if (!node || node.type !== 'name' || depth > 4) return null
+    const bound = this.env && this.env.get(node.name)
+    if (!bound) return node.name
+    if (bound.kind !== 'expr' || !bound.node) return null
+    return this.builtinNameThrough(bound.node, depth + 1)
+  }
+
   ownSymbolNameOf(node, depth = 0) {
     if (!node || depth > 4) return null
     // ⭐ A CONSTANT-CONDITION TERNARY PICKS ITS BRANCH — the idiom `ownTimeframeOf`
@@ -14049,6 +14096,18 @@ export class Resolver {
     }
     const tick = this.tickerCallArg(node)
     if (tick) return this.ownSymbolNameOf(tick, depth + 1)
+    // ⭐⭐ REQ (coverage unit, 2026-11-16) — `ticker.modify(<symbol>)` WITH NOTHING MODIFIED IS THE SYMBOL.
+    // See `unmodifiedTickerArg` for the reference sentences this rests on.
+    const unmodified = this.unmodifiedTickerArg(node)
+    if (unmodified) return this.ownSymbolNameOf(unmodified, depth + 1)
+    // ⭐⭐ REQ — AN EMPTY SYMBOL IS THE CHART'S OWN. Pine's reference for `request.security`, `symbol`:
+    // "Use an empty string or `syminfo.tickerid` to request data using the chart's symbol." So `""`
+    // (a literal, or an `input.symbol` / v4 `input(type = input.symbol)` whose default is `""`) is
+    // the same request `syminfo.tickerid` makes — the mirror of C28b's empty TIMEFRAME.
+    // ⚰️ It fell through to `pine:request` ("could not be resolved to one symbol").
+    if (node.type === 'string' && String(node.value).trim() === '') return 'syminfo.tickerid'
+    const symDefault = this.symbolInputDefaultOf(node)
+    if (symDefault && symDefault.type === 'string' && String(symDefault.value).trim() === '') return 'syminfo.tickerid'
     if (node.type === 'name') {
       // ⛔⛔ THE BINDING IS CONSULTED FIRST, AND THE ORDER IS THE WHOLE GUARD.
       // `syminfo.tickerid` is NAMESPACED and cannot be shadowed, but the v2/v3
@@ -14120,6 +14179,9 @@ export class Resolver {
       if (prefix === undefined) return inner
       return { ticker: inner.ticker, venue: inner.venue ? '?' : prefix }
     }
+    // ⭐ REQ — `ticker.modify(<symbol>)` with nothing modified (`unmodifiedTickerArg`)
+    const unmodified = this.unmodifiedTickerArg(node)
+    if (unmodified) return this.otherSymbolOf(unmodified, depth + 1)
     if (node.type === 'string') {
       // ⭐ `EXCHANGE:TICKER` IS THE SPELLING `ticker.new` ALREADY TAKES, written as
       // one string, and both are judged by `US_EQUITY_VENUES` so they cannot
@@ -14178,6 +14240,10 @@ export class Resolver {
     const untyped = node.name === 'input'
     if (!untyped && node.name !== 'input.symbol' && node.name !== 'input.string') return undefined
     const args = node.args || []
+    // ⛔ REQ (coverage unit, 2026-11-16) — a v3 / v4 `input(…, type = input.symbol)` is NOT read here. It was
+    // tried: pmax-explorer's twenty `type = input.symbol` inputs then translated twenty per-symbol requests and
+    // its PMax plot moved MATCH -> DIVERGE on the production lane (`vendorHarness.coverageAudit`). Any
+    // `type =` argument is its own declaration and ends the read, as before.
     if (untyped && args.some((a) => a && a.name === 'type')) return undefined
     for (let i = 0; i < args.length; i += 1) {
       const a = args[i]
@@ -14335,8 +14401,20 @@ export class Resolver {
     }
     if (node.type === 'name') {
       const bound = this.env && this.env.get(node.name)
+      // ⭐ REQ — A PARAMETER IS ITS CALLER'S ARGUMENT, FOR NAMING ONLY (C33's rule, other axis): a
+      // spelling this door cannot serve is NAMED when it arrives through a helper
+      // (`ratio("USI:ADVN.NY", …)`), read through the frame the resolver is inside.
+      // ⛔ NOT for serving: `ownSymbolNameOf` / `otherSymbolOf` do not follow a parameter. Measured, a
+      // five-ticker screener whose helper reads each ticker through many fractal offsets
+      // (best-abcd-pattern-screener) then translated past the 10 s budget (`pine:timeout`) where it had
+      // been refused by name at once. Serving through a parameter waits for a per-call-site memo.
+      if (bound && bound.kind === 'param') {
+        return this.throughBinding(bound, (b) => (b && b.node ? this.rawSymbolSpellingOf(b.node, depth + 1) : null))
+      }
       return bound && bound.kind === 'expr' ? this.rawSymbolSpellingOf(bound.node, depth + 1) : null
     }
+    const unmodified = this.unmodifiedTickerArg(node)
+    if (unmodified) return this.rawSymbolSpellingOf(unmodified, depth + 1)
     const tick = this.tickerCallArg(node)
     if (tick) {
       const inner = this.rawSymbolSpellingOf(tick, depth + 1)
@@ -14565,6 +14643,20 @@ export class Resolver {
       const keyword = v && v.tok ? v.tok.value : null
       if (keyword === 'true') { live = true; continue }
       if (keyword === 'false') continue
+
+      // ⭐⭐ REQ (coverage unit, 2026-11-16) — THE CONSTANT WRITTEN THROUGH A PLAIN BINDING.
+      // `ilookahead = barmerge.lookahead_on` then `lookahead = ilookahead` is the same request as
+      // writing the constant at the call (`builtinNameThrough`: bare names only, nothing folded).
+      // ⛔ ONLY THE TWO LOOK-AHEAD CONSTANTS. A name that ends at anything else — an input, a
+      // `barmerge.gaps_*` constant passed as look-ahead (previous-n-daysweeksmonths-high-low writes
+      // `ilookaehad = barmerge.gaps_on`; v4 types all four constants `const bool` and states no
+      // value for any of them) — is not a look-ahead value this door can read, and still declines.
+      // ⛔ RULED (coordinator, 2026-11-16): served only if exactly one reading MATCHes that script's own
+      // captures. Neither can be graded there (its next wall, `pine:offset-literal`, refuses first), so it
+      // stays refused; Q-REQ2 (`capture-queue-2026-11-16-request-security.md`) is the probe that parts them.
+      const through = a.name === 'lookahead' ? this.builtinNameThrough(v) : null
+      if (through === 'barmerge.lookahead_on') { live = true; continue }
+      if (through === 'barmerge.lookahead_off') continue
 
       // ⛔ ANYTHING ELSE STILL DECLINES THE WHOLE CALL. This admits the two
       // declared constants and the two keywords Pine spells them with — never

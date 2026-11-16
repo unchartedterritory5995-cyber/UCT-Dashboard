@@ -56,7 +56,7 @@ import NAMED_CONSTANT_TYPES from './namedConstantTypes.json'
 import { splitCommaStatements } from './objectFnInline.js'
 import { literalTostringText, LITERAL_TOSTRING_SENTENCE, LITERAL_TOSTRING_UNCAPTURED } from '../pineTextFormat.js'
 import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, TableRefusal, hullWindows, pineNaConditionIsFalse, listingSeedIsUnpinned,
-  STOCH_FLAT_WINDOW, STOCH_LEFT_EDGE, RCI_LEFT_EDGE, BOOL_NA_UNWITNESSED, TIE_UNWITNESSED } from './interpret.js'
+  STOCH_FLAT_WINDOW, STOCH_LEFT_EDGE, RCI_LEFT_EDGE, BOOL_NA_UNWITNESSED, TIE_UNWITNESSED, TF_RESAMPLABLE } from './interpret.js'
 import { bindConstsFor, foldBound, foldScalar, NotFoldable } from './bind.js'
 import { LOWER_TF_REFUSAL } from '../lowerTf.js'
 import {
@@ -6653,7 +6653,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // would answer with one symbol's state under another symbol's heading.
     if (readsOuterSlot(argOf(positional[2]), scope)) {
       note('runtime:request-with-state')
-      throw new RuntimeRefusal('runtime:request-with-state', '`request.security`', at)
+      throw new RuntimeRefusal('runtime:request-with-state', `\`${node.name}\``, at)
     }
 
     // ⛔⛔ `lookahead` IS REFUSED BY NAME, AND NOT BECAUSE IT IS HARD. Vendor
@@ -6664,7 +6664,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // ⭐ RS RATING L5 — `lookahead = barmerge.lookahead_off` WRITTEN OUT is the default merge,
     // which the host read (`hostTarget.live === false`) and the run's supply serves; only a
     // look-ahead the host did not read as off keeps this refusal.
-    const lookaheadOff = !!hostTarget && hostTarget.live === false
+    // ⭐⭐ REQ (coverage unit, 2026-11-16) — AND LOOK-AHEAD ON AT A WEEKLY / MONTHLY PERIOD IS READ TOO:
+    // the host read it (`hostTarget.live === true`, a `tf_live` code) and the run's supply serves the
+    // period the bar is inside (`requestSupply.js`, `interpret.js::tfLiveReads`), witnessed on
+    // `vw-request-htf-alignment-spy-1d-2026-10-02`. Whether the chart is one that read is above is the
+    // supply's, per chart, by name. A spelling the host could not read keeps this refusal.
+    const lookaheadOff = !!hostTarget && (hostTarget.live === false
+      || (hostTarget.live === true && TF_RESAMPLABLE.includes(hostTarget.code)))
     for (const a2 of node.args) {
       if (a2 && a2.name === 'lookahead' && !lookaheadOff) {
         throw new RuntimeRefusal('runtime:request',
@@ -6674,7 +6680,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
 
     const tfNode = argOf(positional[1])
-    const tfIr = lowerExpr(tfNode, scope)
+    // ⭐⭐ REQ (coverage unit, 2026-11-16) — WHERE THE HOST'S READER SETTLED THE TIMEFRAME, IT IS SETTLED.
+    // `hostTarget` is `pine.js::requestTargetOf`'s reading (a literal, an input default, a constant
+    // ternary, a parameter, a function whose result is fixed before the first bar), and it is what the
+    // supply fetches by. ⚰️ The timeframe was ALSO lowered here as a value and had to come back as text,
+    // so a request the host had read (`alignedTF = getAlignedTimeframe()`, an `if` chain over
+    // `timeframe.in_seconds()`) refused "the timeframe of a request has to be fixed when the script is
+    // written" about a timeframe that is. A literal or a plain name is still lowered as before (its text
+    // is the site's key); only a shape that lowering does not fold takes the host's code.
+    const tfPlain = !!tfNode && (tfNode.type === 'string' || tfNode.type === 'name')
+    let tfIr = hostTarget && !tfPlain ? null : lowerExpr(tfNode, scope)
+    if (hostTarget && (!tfIr || tfIr.kind !== EXPR.STR)) tfIr = str(hostTarget.code === null ? '' : String(hostTarget.code))
     if (!tfIr || tfIr.kind !== EXPR.STR) {
       throw new RuntimeRefusal('runtime:request',
         'the timeframe of a request has to be fixed when the script is written — '
@@ -9394,6 +9410,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
           return colourCall(node.name, given.map((x) => lowerExpr(x, scope)))
         }
         if (node.name === 'request.security') return admitRequest(node, scope, opts)
+        // ⛔ REQ (coverage unit, 2026-11-16) — a v1–v4 bare `security(…)` whose value reads this run's
+        // state stays refused `runtime:request-with-state` (below), the identity included. Routing it
+        // through `admitRequest` (which serves the identity as the expression itself, as for
+        // `request.security`) was built and WITHDRAWN by the coordinator's ruling: no committed capture
+        // grades a v1–v4 bare identity over state MATCH, so the shape waits for Q-REQ4
+        // (`docs/pine/capture-queue-2026-11-16-request-security.md`).
         if (textInputHere(node)) return admitTextInput(node, scope)
         if (heldArray(node.name)) {
           return admitArrayCall(node, scope, false)
