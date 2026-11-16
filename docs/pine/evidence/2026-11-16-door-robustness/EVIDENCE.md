@@ -97,7 +97,7 @@ Two separate causes, both fixed:
    `strTostringCore.cbcfmt` green; `doorRobustness.test.js` asserts it for `var float` and an untyped `var`).
    ⚠️ Conservative where it could serve: `if timeframe.isdaily` does not fold as a constant in this reader
    (`timeframe.isminutes` and `timeframe.multiplier` do), so such a write is refused as a latch.
-2. A cell that never runs on a chart of this period (`guardOf` -> `never`). The two pace cells sit inside
+2. A cell that never runs on a chart of this period (`guardOf` -> `never`, only for a guard made of chart-period reads and literals: `periodOnlyGuard`; a guard that reads an INPUT never counts, because the object pass folds an input at its default and a member may turn it on. The first cut used every decided guard, and the cloud's `partialDrawing` rail caught it on htf-liquidity-dashboard-tfo: 24 cells under `if _use and …` rows stopped being counted as lost). The two pace cells sit inside
    `if timeframe.isminutes and timeframe.multiplier < 60`, false on every bar of a daily chart, and their text
    reads `var string`s still holding their `na` seed there. TradingView never draws them on a daily chart: the
    licence-held captures `volume-pace-pressure-table-{rddt,spy}-1d-2026-11-14` (s4-prove-drawn) read one 2 x 3

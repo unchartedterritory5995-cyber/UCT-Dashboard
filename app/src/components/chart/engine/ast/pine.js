@@ -16973,6 +16973,21 @@ const stateBinding = (seed, seedEnv, update, updateEnv, at) => ({
  *  `var string` is known as text by its DECLARATION wherever it is read, however many
  *  writes stand between. Read by the drawing lane's text reader (`stringVarTextOf`). */
 const STRING_VAR_SEEDS = new WeakSet()
+
+/** ⭐ DOOR-ROBUSTNESS — is this guard (a parse node) made only of chart-period reads
+ *  (`timeframe.*`), literals and operators? Such a guard has one value on every bar of a chart
+ *  of one period; any other name (an input, a series, a user binding) can change it. */
+const periodOnlyGuard = (n, depth = 0) => {
+  if (!n || typeof n !== 'object' || depth > 32) return false
+  switch (n.type) {
+    case 'number': case 'string': case 'bool': return true
+    case 'name': return /^timeframe\.[a-z_]+$/.test(String(n.name || ''))
+    case 'binary': return periodOnlyGuard(n.left, depth + 1) && periodOnlyGuard(n.right, depth + 1)
+    case 'unary': return periodOnlyGuard(n.arg, depth + 1)
+    case 'paren': return periodOnlyGuard(n.expr || n.inner || n.value, depth + 1)
+    default: return false
+  }
+}
 /** Why a `var string` shown while it still holds its `na` seed is withheld (after "`x` is a `var string` "). */
 export const STRING_VAR_NA_SEED_WHY = 'still holding the `na` it was declared with on this chart, and what TradingView '
   + 'shows for that is not captured yet (probe `vw-rob1-var-string-text`), so the text is not drawn'
@@ -25177,10 +25192,12 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     /** ⭐ C45 / C48 (review round 2) — a guard term NOT decided before bar 0: the op
      *  runs only on some bars (read by `colorNodeOf` through `varies`, below). */
     let canonicalVaries = false
-    /** ⭐ DOOR-ROBUSTNESS — a conjunct whose value is the SAME on every bar and false
-     *  (`decidedTest`: literals and chart-period reads folded at this translation's period,
-     *  never an input), so the op never runs on a chart of this period. Read only where a
-     *  conversion would otherwise count a loss (`neverRunOps`). */
+    /** ⭐ DOOR-ROBUSTNESS — a conjunct made ONLY of chart-period reads and literals
+     *  (`periodOnlyGuard`) whose value is false on every bar at this translation's period, so the
+     *  op never runs on a chart of this period. Read only where a conversion would otherwise
+     *  count a loss (`neverRunOps`). ⛔ Never a guard that reads an input: the object pass folds
+     *  an input at its default, and a member who switches it on must still be told the op is
+     *  lost (measured: htf-liquidity-dashboard-tfo's per-timeframe rows, `if _use and …`). */
     let decidedFalse = false
     // ⭐ C20 — a drawing inside a runtime `while` runs where the run ARRIVES at
     // its statement, pass by pass — whatever the guards say, and even with none
@@ -25288,7 +25305,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       if (inRtLoop) continue
       let ast = canonicalOf(node)
       if (ast && !bindTimeConstantTree(ast) && decidedTest(ast) === null) canonicalVaries = true
-      if (ast && !rawTrees) {
+      if (ast && !rawTrees && periodOnlyGuard(node)) {
         const decided = decidedTest(ast)
         if (decided !== null && (g.negate ? decided !== 0 : decided === 0)) decidedFalse = true
       }

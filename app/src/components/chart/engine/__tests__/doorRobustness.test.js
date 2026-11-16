@@ -260,4 +260,23 @@ describe('a cell whose block never runs on a chart of this period loses nothing'
     expect(d.neverRunOps || []).toEqual([])
     expect((d.dropReasons || {})['cell:text']).toBe(1)
   })
+
+  it('⛔ control: a block an INPUT turns off is not "never": a member can turn it on, so its lost cell stays counted', () => {
+    // Measured on htf-liquidity-dashboard-tfo: its per-timeframe rows sit under `if _use and …`, an input at
+    // its default false. The object pass folds the input, but the row is the member's to switch on.
+    const src = [
+      '//@version=5',
+      'indicator("input row", overlay = true)',
+      'showRow = input.bool(false, "row")',
+      'var string unread = na',
+      'if barstate.islast',
+      '    var table t = table.new(position.bottom_right, 1, 1)',
+      '    if showRow',
+      '        table.cell(t, 0, 0, text = unread)',
+      'plot(close)',
+    ].join(LF)
+    const d = translatePine(src, { strict: true, objects: true }).objectDiagnostics || {}
+    expect(d.neverRunOps || []).toEqual([])
+    expect((d.dropReasons || {})['cell:text']).toBe(1)
+  })
 })
