@@ -158,7 +158,10 @@ describe('DIV-1 — honesty: no supplier, or bars whose prehistory is not suppli
     expect(ours.plots.every((p) => p.historyReplayed === null)).toBe(true)
     // so its `var` drawing list is still withheld off the listing, by name
     expect(verdict.objects.withheld).toBe('objects:off-listing')
-  })
+    // ⏱️ a FULL grade of a heavy multi-symbol script: measured 11.5 s (#1467), 13.1 s (#1489) and
+    // 15.45 s (#1494, a timeout) on CI runners against the suite's 15 s default, so it failed on a
+    // slow runner, not on a wrong answer. Same budget as runtimeAllowlistParity's full grades.
+  }, 60_000)
 
   it('⛔ an INTRADAY chart stays cold although a supplier exists (the chart first-paints a shallow window): vw-time-tf SPY 30m', () => {
     const { ours } = grade(load('vw-time-tf-spy-30-2026-10-02'))
