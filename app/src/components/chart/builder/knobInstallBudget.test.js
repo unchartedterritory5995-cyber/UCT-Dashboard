@@ -43,13 +43,15 @@ describe('a knob never costs the script its install', () => {
     const d = memberPaneDefinition({ source: OVER, id: 'u_bt_knobs_over', name: 'over' })
     expect(d.ok, d.reason).toBe(true)
     expect(install(d, 'u_bt_knobs_over')).toEqual({ errors: [], installed: 1 })
+    // all four are given back; `useO` folded to its default (true) takes the first branch, so the
+    // other three are never reached and only `useO` is listed (measured on GitHub runners)
     const back = givenBack(d)
-    expect(new Set(back.map((e) => e.name))).toEqual(new Set(['useO', 'useH', 'useL', 'useC']))
+    expect(back.map((e) => e.name)).toEqual(['useO'])
     for (const e of back) expect(e.reason).toMatch(/install budget[\s\S]*`budget:series`/)
+    for (const knob of ['useO', 'useH', 'useL', 'useC']) expect(d.translation.declared || []).not.toContain(knob)
     // the column is drawn as the author's defaults draw it
     expect(d.translation.outputs[0].formula).not.toMatch(/use[OHLC]/)
     expect(d.translation.outputs[0].formula).toMatch(/\bopen\b/)
-    expect(d.translation.declared || []).not.toContain('useO')
   })
   it('CONTROL: a script under the cap keeps its knob', () => {
     const d = memberPaneDefinition({ source: UNDER, id: 'u_bt_knobs_under', name: 'under' })

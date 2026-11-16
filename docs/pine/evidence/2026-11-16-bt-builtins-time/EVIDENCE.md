@@ -8,10 +8,11 @@ closed; Q-BT2 `"1440"` and Q-BT3 `math.toradians` open).
 
 ⛔ **This PR waits on the capture session's data PRs.** Five BITSTAMP:BTCUSD captures witness what it
 serves; they reach `tests/fixtures/vendor/harness/` only through those PRs (never a copy committed here).
-Until they are on the tree, `ast/btSessionClock.test.js` skips their five blocks by a title that says so,
-and the PR does not merge while a skip stands: once the data PRs land, master is merged in and the skip is
-removed so a missing capture is red. The blocks were run against the licence-store copies on this tree
-(below): 16 / 16 pass.
+`vw-w4-session-overnight-btcusd-60-2026-11-16` (run cq1) landed with #1472 (byte-identical to the copy
+graded here, sha256 `34854e40d950…`); master is merged in (`5465c83b64`) and its block is UNCONDITIONAL. The
+other four (runs ac2 / ac3) are NOT on master: `ast/btSessionClock.test.js` still skips their blocks by a
+title that says so, and the PR does not merge while a skip stands. Every block was run against the
+licence-store copies on this tree, lock hold, `353aa19c44`: 19 / 19 pass.
 
 | capture | probe | rows |
 |---|---|---|
@@ -69,24 +70,26 @@ s_lines, s_useSess, self, time} = 9.
 3. `budget.js`'s note that `budget:series` "cannot fire" held for the table's five price series only (clock
    columns, `self` and knobs are series too); corrected in place. The cap is unchanged.
 
-The same rule reaches one script that was refused at install on master too: the harness's
-`mtf-key-levels-support-and-resistance-{rddt,spy}-1d-2026-11-14` were INCONCLUSIVE on both lanes
-("measures 10 and the cap is 8 … `compute.trees.out2`"). This PR's pine-heavy harness legs grade them on
-this branch; the verdict moves are reported in the PR.
+The rule does NOT reach the one other script refused at install for this cap on master: the harness's
+`mtf-key-levels-support-and-resistance-{rddt,spy}-1d-2026-11-14` still measure 10 against 8 on
+`compute.trees.out2` on this branch (graded on this PC, both lanes): its over-cap column reads no knob
+the door could give back. Unchanged, INCONCLUSIVE.
 
 ## Coverage: the census's own predicate, targets plus controls
 
 `coverageMapDoorCensus.measure.test.js` over a subset input (the 114 scripts whose engine-60 walls touch this
 unit's families, plus 25 transferring controls that read `time(`, sessions, `timeframe.in_seconds`, theme
-colours, `avg(`, `color(` or `syminfo.`), both lanes, on `e52b588ce3`. **Before = the engine-60 census rows,
-2026-11-16** (`runs/cov-e60/{rt,prod}/census.jsonl`; engine 61/62 changed no transfer status: price-scale join,
+colours, `avg(`, `color(` or `syminfo.`), both lanes. **Before = the engine-60 census rows, 2026-11-16**
+(`runs/cov-e60/{rt,prod}/census.jsonl`; engine 61/62 changed no transfer status: price-scale join,
 request-pending and round_to_mintick only). Transfer is the coverage map's predicate (production: `clean`;
 runtime-on: `clean` or attached on the runtime lane at step 0; never a strategy that places orders).
+Measured twice, lock holds on this PC: `e52b588ce3` and again on `353aa19c44` (the knob rule and
+`time("", …)` included; master since then brings no engine source change). The table is the second.
 
 | lane | targets transferring | controls transferring | first wall moved |
 |---|---|---|---|
-| runtime-on | 0 -> **3** | 25 -> 25 | 7 |
-| production | 0 -> **2** | 18 -> 18 | 4 |
+| runtime-on | 0 -> **3** | 25 -> 25 | 8 |
+| production | 0 -> **2** | 18 -> 18 | 6 |
 
 Every target whose first wall moved:
 
@@ -94,13 +97,33 @@ Every target whose first wall moved:
 |---|---|---|---|---|
 | `committed:sessions__2677` | `pine:function` `time` (wrap) | **TRANSFERS** | `pine:function` `time` | **TRANSFERS** |
 | `reference:nylondonasian-sessions-ict-swings__14bce3660b` | `pine:function` `time` (wrap) | **TRANSFERS** | `pine:function` `time` | **TRANSFERS** |
-| `committed:session-highs-and-lows-indicator-smc-sessions-dst-safe__c0ca8cf749` | `pine:function` `time` (wrap) | **TRANSFERS** | `pine:function` `time` | `pine:function` `time` (unchanged: the host lane refuses an earlier shape; the runtime lane carries it) |
+| `committed:session-highs-and-lows-indicator-smc-sessions-dst-safe__c0ca8cf749` | `pine:function` `time` (wrap) | **TRANSFERS** | `pine:function` `time` | `pine:hidden-only` (its plots are all hidden on the host lane; the runtime lane carries it) |
+| `committed:ict-killzone-index-version__28962c02dd` | `pine:function` `time` | attached, refusal `pine:objects-only` | `pine:no-output` | attached, refusal `pine:objects-only` |
 | `committed:chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2` | `pine:function` `time` | attached; object removals withheld | `pine:function` `time` | attached; object removals withheld |
 | `committed:initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q` | `pine:function` `time` (v4 no day list) | `pine:request` `security` | `pine:function` `time` | `pine:function` `time` (another time() shape) |
 | `reference:range-filter-x-hull-suite__8430e18838` | `runtime:request` | attached; partial loss withheld | `pine:function` `time` (`"UTC+1"`) | attached; partial loss withheld |
 | `reference:session-liquidity__96d8d1599c` | `pine:function` `time` (wrap) | `runtime:conditional-history` | `pine:no-output` | `pine:no-output` |
 
-No control and no target moved from transferring to not transferring on either lane.
+No control and no target moved from transferring to not transferring on either lane (139 / 139 rows each).
+
+## Harness: the captures this unit moves, graded on this PC (both lanes, `353aa19c44`)
+
+Committed captures and the licence-store captures of the moved scripts, from a scratch directory outside
+the repo; "master" is `docs/pine/vendor-harness/{production,runtime-on}/verdicts.json`. Both lanes read alike.
+
+| capture | master | this branch |
+|---|---|---|
+| `sessions-rddt-1d-2026-11-14` | INCONCLUSIVE (refused `pine:function`) | **MATCH**, all 10 items agree (paints: plots 3, 7, 11 agree 666/666, plot 15 na on both) |
+| `vw-time-session-spy-1d-2026-09-28` | INCONCLUSIVE | **MATCH**, all 20 items agree (S15 now served) |
+| `session-hilo-rddt-1d-2026-11-14` | MATCH | MATCH, all 4 items (held: the install fix) |
+| `nylondonasian-sessions-ict-swings-rddt-1d-2026-11-14` (licence store) | not graded on master | **MATCH**, all 8 items agree |
+| `range-filter-x-hull-suite-{rddt,spy}-1d-2026-11-14` (licence store) | not graded on master | INCONCLUSIVE: 1 of 15 not compared (two `alertcondition`s draw nothing) |
+| `vw-time-session-spy-60-{ext,rth}-2026-09-28` | INCONCLUSIVE | INCONCLUSIVE, 1 of 20 not compared |
+| `chart-champions…`, `initial-balance…`, `opening-range…`, `mtf-key-levels…` (RDDT and SPY) | INCONCLUSIVE | INCONCLUSIVE (install lookback cap; `pine:function`; not compared; install series cap) |
+
+Two pins in `vendorHarness.b1Paints.test.js` moved with it, to the door's own answer: `sessions-rddt-1d`
+(refused -> the five paint lines above) and `ict-killzone-index-version-rddt-1d` (`pine:no-output` ->
+`pine:objects-only`: its session translates, so the door reaches the objects refusal).
 
 ## Capability admission for the scripts that newly transfer on the runtime lane
 
@@ -110,12 +133,12 @@ and `pine_capabilities.capabilities_of` against the committed kill list (`api/da
 
 | script | sha256 (prefix) | capabilities | admitted | killed | on the graded allow list | graded |
 |---|---|---|---|---|---|---|
-| `committed:sessions__2677` | `73c2cc29a76bf99d` | core, fn-multi, fn-single, if-block, reassign, ternary | yes | no | no | `sessions-rddt-1d-2026-11-14` (committed capture; graded by the pine-heavy legs) |
+| `committed:sessions__2677` | `73c2cc29a76bf99d` | core, fn-multi, fn-single, if-block, reassign, ternary | yes | no | no | `sessions-rddt-1d-2026-11-14` (committed): **MATCH** both lanes, all 10 items |
 | `committed:session-highs-and-lows-indicator-smc-sessions-dst-safe__c0ca8cf749` | `9d9ef18357506d24` | core, fn-multi, fn-single, history-expr, if-block, method-call, obj:delete, obj:label, obj:line, realtime-state, reassign, tuple-destructure, var | yes | no | no | NO CAPTURE: queued as Q-BT6 (NYSE:RDDT 1D + AMEX:SPY 1D) |
-| `reference:nylondonasian-sessions-ict-swings__14bce3660b` | `39bd272630b925ff` | core, fn-multi, fn-single, if-block, obj:line, reassign, ternary, var | yes | no | no | `nylondonasian-sessions-ict-swings-rddt-1d-2026-11-14`, licence store only: graded on this PC, the grade is in the PR |
+| `reference:nylondonasian-sessions-ict-swings__14bce3660b` | `39bd272630b925ff` | core, fn-multi, fn-single, if-block, obj:line, reassign, ternary, var | yes | no | no | `nylondonasian-sessions-ict-swings-rddt-1d-2026-11-14`, licence store only, graded on this PC: **MATCH** both lanes, all 8 items |
 
-So all three would be admitted to members by capability. An admitted script graded DIVERGE goes on the kill
-list in this PR, with a rail.
+So all three would be admitted to members by capability. None graded DIVERGE, so none goes on the kill list;
+session-highs-dst-safe is admitted with no capture behind it until Q-BT6 is taken.
 
 ## Tests (each with the commit it ran on)
 
@@ -124,22 +147,29 @@ list in this PR, with a rail.
 | touched vitest files (`btSessionClock`, `btRuntimeClock`, `pineVocabularyWave`, `w4TextConstants`, `pine.tfternary`, `runtimeClockCalls`, `pineMathCeilAccept`, `pineTimenowAccept`, `openingRangeBoolCast.vendor`, `noRegexLookbehind`) | GitHub runners, `tools/remote_tests.py`, run 43940205861 | `6a1f2e5fb6` | 2 failed (the chart-champions rails, which now translate), every other file green; 5 skipped = the capture blocks |
 | the two chart-champions rails, re-pinned | run 43941706457 | `e52b588ce3` | GREEN, 2 files passed |
 | the pytest twins (`tests/test_pine_*.py`, `tests/test_runtime_definitions.py`) | run 43940205861 | `6a1f2e5fb6` | 1221 passed, 1 skipped |
-| `btSessionClock.test.js` with the five licence-store captures present (untracked, placed only for this run, removed after, absence checked) | this PC, lock hold | `e52b588ce3` | 16 passed (16) |
-| census, both lanes | this PC, lock hold | `e52b588ce3` | 139 / 139 rows each lane |
-| `evidence_engine.py queue --check`, `pins --check`, `refusal_codes.py --check`, `check_repo_hygiene.py` | this PC | after the master merge | pass |
+| session/runtime clock and harness-adjacent rails, `test_pine_capability_admission` | GitHub runners | `5bc583b4b3` | 1 red: the session-hilo install rail (9 > 8), which led to `1063dccb83` |
+| `builder/` (all), session/runtime clock, budget, param ids, `vendorHarness/` (all), `memberPaneTables` + pytest budget / session-window / admission / dispositions | GitHub runners, run 43965028640 | `353aa19c44` | pytest green; vitest 4 red, all four rails of this unit's own making: the knob fixture and the session-hilo rail named knobs that are folded away unread (only the first toggle is listed), and two `b1Paints` pins that moved with the served sessions. Corrected and re-pinned after it |
+| `btSessionClock.test.js` with the five licence-store captures present (untracked, placed only for this run, removed after, absence checked) | this PC, lock hold | `353aa19c44` + the `dc4f4333b7` rail | 19 passed (19) |
+| census, both lanes | this PC, lock hold | `353aa19c44` | 139 / 139 rows each lane |
+| harness over the moved captures, both lanes | this PC, lock hold | `353aa19c44` | the table above |
+| `evidence_engine.py queue --check`, `pins --check`, `refusal_codes.py --check`, `check_repo_hygiene.py`, `test_queue_dispositions.py` | this PC | after each master merge (last `5465c83b64`) | pass |
 
-## Mutants (this PC, lock hold, tree `e52b588ce3`; each restored from a saved copy, `git hash-object` = HEAD)
+## Mutants (this PC, lock holds; each restored from a saved copy, `git hash-object` = HEAD)
 
-| id | mutation | focused rails | result |
-|---|---|---|---|
-| M1-wrap-day | the after-midnight part of a wrapping session asked of today's day list, not tomorrow's | btSessionClock, btRuntimeClock | 4 failed, red |
-| M2-value-wrap | the value after midnight without the `+1440` wrap | btSessionClock, btRuntimeClock | 4 failed, red |
-| M3-v4-days | v4 no-day-list read as every day | btSessionClock | 3 failed, red |
-| M4-avg-version | bare `avg` served in v5 too | btRuntimeClock | 1 failed, red |
-| M5-in-seconds | runtime `timeframe.in_seconds` lowering removed | btRuntimeClock | 3 failed, red |
-| M6-to-midnight | "HHMM-0000" read as empty | btSessionClock | 4 failed, red |
-| M7-utc-sign | a UTC offset read with the wrong sign | btSessionClock | 1 failed, red |
-| M8-legacy-period | bare `period` accepted again in v4+ | btSessionClock, btRuntimeClock, w4TextConstants | 3 failed, red |
+| id | mutation | focused rails | tree | result |
+|---|---|---|---|---|
+| M1-wrap-day | the after-midnight part of a wrapping session asked of today's day list, not tomorrow's | btSessionClock, btRuntimeClock | `e52b588ce3` | 4 failed, red |
+| M2-value-wrap | the value after midnight without the `+1440` wrap | btSessionClock, btRuntimeClock | `e52b588ce3` | 4 failed, red |
+| M3-v4-days | v4 no-day-list read as every day | btSessionClock | `e52b588ce3` | 3 failed, red |
+| M4-avg-version | bare `avg` served in v5 too | btRuntimeClock | `e52b588ce3` | 1 failed, red |
+| M5-in-seconds | runtime `timeframe.in_seconds` lowering removed | btRuntimeClock | `e52b588ce3` | 3 failed, red |
+| M6-to-midnight | "HHMM-0000" read as empty | btSessionClock | `e52b588ce3` | 4 failed, red |
+| M7-utc-sign | a UTC offset read with the wrong sign | btSessionClock | `e52b588ce3` | 1 failed, red |
+| M8-legacy-period | bare `period` accepted again in v4+ | btSessionClock, btRuntimeClock, w4TextConstants | `e52b588ce3` | 3 failed, red |
+| M9-empty-tf | `time("", …)` no longer the chart's own timeframe on the host lane | btSessionClock | `353aa19c44` | 1 failed (the `""` rail), red |
+| M10-membership-tree | a membership read builds the value tree again | btSessionClock | `353aa19c44` | 1 failed (the membership-tree rail), red |
+| M11-knob-budget | the member door stops giving knobs back | btSessionClock, knobInstallBudget | `353aa19c44` | red: the session-hilo install rail (green unmutated in the same hold) |
+| M12-budget-reason | a knob given back loses the budget's reason | knobInstallBudget | see the PR | the hold's run is not a proof (that fixture's set assertion was itself wrong on that tree); re-run on GitHub runners against the corrected fixture |
 
 ## What stays refused, by name
 

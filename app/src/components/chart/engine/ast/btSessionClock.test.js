@@ -15,9 +15,10 @@
 //     capture session's reading, in the header of the captured default-days-v4 source).
 //
 // ⛔ THE CAPTURES REACH `tests/fixtures/vendor/harness/` THROUGH THE CAPTURE SESSION'S DATA PRs, never
-// a copy committed here. Until they are on the tree their block is SKIPPED by a title that says so,
-// and this unit's PR does not merge while any skip stands: once the data PRs land, `HELD` below is
-// removed and a missing capture is RED.
+// a copy committed here. `vw-w4-session-overnight-btcusd-60` landed with #1472 (run cq1): its block is
+// UNCONDITIONAL, so a missing capture is RED. The other four (runs ac2 / ac3) are not on master yet: their
+// blocks are SKIPPED by a title that says so, and this unit's PR does not merge while any skip stands;
+// when their data PR lands, `HELD` below is removed.
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -91,7 +92,7 @@ const secs = (spec) => `na(time(timeframe.period, "${spec}", "GMT+0")) ? -1.0 : 
 const skipTitle = (id) => (HELD(id) ? '' : ' — SKIPPED: WAITS ON THE CAPTURE SESSION\'S DATA PR (capture not on this tree)')
 
 const OVERNIGHT = 'vw-w4-session-overnight-btcusd-60-2026-11-16'
-describe.skipIf(!HELD(OVERNIGHT))(`a wrapping session's membership: ${OVERNIGHT} O1-O4${skipTitle(OVERNIGHT)}`, () => {
+describe(`a wrapping session's membership: ${OVERNIGHT} O1-O4 (on the tree since #1472: unconditional)`, () => {
   it('matches O1-O4 on every bar, and the capture discriminates', () => {
     const res = gradeCapture(OVERNIGHT, '60', {
       O1_na_wrap_all_days: isNa('1800-0200:1234567'),
