@@ -35,7 +35,66 @@ call is unmapped: these 15 are the dark broker's refusal.
 
 ## 2. The armed column (a SEPARATE column; `transfers_fully` unchanged)
 
-TBD
+**The predicate** (coordinator ruling, `runtime/__tests__/strategyArmed.js`, recorded per strategy by the census
+door test as `strategyArmed`, read by `coverage_map.py` as `wouldTransferIfArmed` / `armedWall` and
+`strategyOn.wouldTransferIfArmed` / `armedMeasured` / `armedWalls`): with the objects-only pane, the runtime pane and
+the broker stubbed ON inside the measuring test, the member door attaches the script clean (the census's `isClean`,
+or attached by the runtime lane, as the runtime-on lane judges), its document runs the broker (strategy window),
+`computeRuntimeColumns` on the census reference bars (NYSE:RDDT 1D from the listing, 632 bars, the window
+`bars_window.HISTORY_WINDOW_BARS`, the committed pin ledger) returns a strategy record, and its trades are drawn or
+refused by name (`memberTradeMarkers`). A census row written before this column reads `null`, never `false`.
+
+**Measured** in one local hold (strat-hold2) over the 70 strategies and 15 indicator controls, both lanes, on master
+675b6fd4cf (the five engine files this unit changes written back from master, then restored and hash-checked) and
+on the unit's tree 2987557454:
+
+| | master | this unit |
+|---|---:|---:|
+| transfer fully (`transfers_fully`, both lanes) | 0 | 0 (unchanged by design) |
+| armed: the door attaches clean | 20 | 39 |
+| armed: the door's document runs the broker | 4 | 27 |
+| **armed: would transfer** | **1** | **1** |
+
+The one that would transfer on both trees is `committed:buy-monday-exit-tuesday` (its plots read the broker, so
+the old route already reached it; its run on RDDT places no order and every rule it asks is pinned).
+
+The armed walls, by the first thing that stops each script:
+
+| wall | master | this unit |
+|---|---:|---:|
+| `door:pine:no-output` (tester-only) | 23 | 6 |
+| `strategy:no-broker-run` (the door draws plots, no broker) | 16 | 12 |
+| `run:runtime:strategy-unsettled:Q-S1a` | 0 | 18 |
+| `run:runtime:strategy-unsettled:Q-S1b` (the v4 margin default, D12) | 2 | 7 |
+| `door:pine:request` / `door:pine:module` | 7 / 6 | 7 / 6 |
+| everything else (one or two each) | 15 | 13 |
+
+So the route moved 21 strategies past the door to the broker run, where they now stop by name on the run's own
+unsettled questions: Q-S1a (12 market entries sized by percent of equity on an exchange with no witnessed minimum
+contract; 6 percent-sized STOP entries, a separate question, now queued with its own probe) and Q-S1b. The 12
+`strategy:no-broker-run` are the broker-build refusals the route keeps as host documents: rule 11 repaint inputs
+(`request.security`, `barstate.*`) and Pine v2 / v3 order signatures or unserved risk commands
+(`runtime:strategy-option`).
+
+**With the three `min_contract` rows** (section 5; re-measured in strat-hold3 on 79760faa5f, the census's own
+column on both lanes and the measurement test agree): still **1** would transfer. The 12 market-entry Q-S1a scripts
+size now, and each stops at the next question its own run reaches, by name:
+
+| wall after the rows | scripts | what settles it |
+|---|---:|---|
+| `Q-S1i`: the v6 default (100% of equity) sized on the signal close needs more funds than the strategy holds when the next open is higher (a margin call or a rejected order on TradingView, neither modelled) | 7 | the Q-S1i row (`w9-q-s1i-*` / `vw-s1-q-s1i-funds`), a capture with the report |
+| `Q-S1a`: a percent-of-equity STOP entry (which price sizes it) | 6 | the new `w9-q-s1a-size-stop-v6` probe (this unit) |
+| `Q-S1a`: a percent-of-equity entry while trades are open (whether "available equity" excludes them) | 4 | the Q-S1a row |
+| `runtime:strategy-unpinned` B-EXIT-NA | 1 | Q-S1-core / the Q-S1k na-modify re-take |
+
+Every census row of the 85 is unchanged by the rows with the flag off (rt lane: 0 differ; production lane: only the
+luxalgo `pine:timeout` position again, which moves between any two runs).
+
+**Flag off, nothing moved.** Every census row of the 85 scripts, on both lanes, is identical on the two trees once
+`ms` and the `strategyArmed` counterfactual are set aside, with one exception that is not this unit's:
+`reference:market-structure-with-inducements-sweeps-luxalgo` (an indicator control) carries a `pine:timeout`
+refusal (the translator's TIME budget) whose second position differs between the two runs; the guard set, the
+attach, the lane and `clean` are the same. A refusal raised by a wall-clock budget lands where the clock runs out.
 
 ## 3. The armed route (behind the dark flag)
 
