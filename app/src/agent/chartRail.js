@@ -361,10 +361,9 @@ export function sameSymbolObjects(host, symbol) {
   return new Set(liveCharts(host).filter(c => up(c.symbol) === want).map(c => (linked(c.group) ? `g:${c.group}` : `c:${c.ref}`))).size
 }
 /** How the words identify this existing chart (for a re-symbol), or null: 'pick' | 'name' | 'position' | 'deixis' | 'class' | 'replace'. */
-export function identifiesChart(w, e, host, { selected = null, subject = null, picked = null, sole = false, made = null, removal = false } = {}) {
-  // (AUDIT condition 6: "remove AAPL" never re-symbols the AAPL chart — removal words are no licence to change one; a REMOVAL
-  //  asks which chart its words name: removalTargetRefusal)
-  if (!removal && REMOVE_WORDS.test(w) && !REPLACE.test(w)) return null
+export function identifiesChart(w, e, host, { selected = null, subject = null, picked = null, sole = false, made = null } = {}) {
+  // (AUDIT condition 6: "remove AAPL" never re-symbols the AAPL chart — removal words are no licence to change one)
+  if (REMOVE_WORDS.test(w) && !REPLACE.test(w)) return null
   if (!e.symbol) return 'empty'                                    // an EMPTY chart filled replaces nothing
   if (made && made.has(e.ref)) return 'made'                       // a chart THIS request created (its own new chart)
   if (picked && picked.has(`chart:${e.ref}`)) return 'pick'
@@ -399,11 +398,15 @@ const CHART_WORD = /\b(?:charts?|panels?|graphs?|widgets?)\b/i
 // ⛔ REMOVAL TARGET (AUDIT held-out probe 59, 2026-11-16 — pre-existing): "close the SPY chart" on SPY · QQQ · IWM with a plan
 // closing the QQQ chart was APPLIED — unique identification read re-symbols only; a removal's TARGET was never checked against the
 // words. A removal whose words NAME a chart — its ticker, its position / ordinal, a deixis on the selected / conversation chart, the
-// member's pick — closes ONLY the chart(s) those words identify: the SAME reader as a re-symbol (identifiesChart, removal: true),
+// member's pick — closes ONLY the chart(s) those words identify: the SAME reader as a re-symbol (identifiesChart on asRemoval words),
 // less every chart spatialCheck excludedCharts sets aside. A ticker on two or more independent charts (a link group is one object:
 // naming a linked pair names every chart in it) names them all only in the plural ("both SPY charts"); in the singular, unless a
 // position / deixis narrows it, it is asked. Words that name no chart: as before. (a grid the words state: its own COUNT rule)
 const NAMES_CHART = new Set(['pick', 'name', 'position', 'ordinal', 'deixis'])
+// (identifiesChart refuses every REMOVE_WORDS sentence — AUDIT condition 6, no re-symbol licence; for a removal's TARGET the
+//  same reader runs with those verbs read as the one removal verb it does not gate, "close")
+const REMOVE_WORDS_ALL = new RegExp(REMOVE_WORDS.source, 'gi')
+const asRemoval = (w) => String(w || '').replace(REMOVE_WORDS_ALL, 'close')
 // (the REMOVAL gate also reads "take off / take down <chart>" and "take <the SPY chart> off": the target is checked above)
 const REMOVAL_TAKE = /\btake (?:off|down|away|out)\b|\btake (?:[^\s.;!?]+ ){0,4}?(?:chart|one|panel|graph)s? (?:off|down|away|out)\b/i
 // (a removal may name SEVERAL positions — "close the middle and right charts": each position word, the centre one included, read
@@ -416,7 +419,7 @@ export function removalTargets(w, host, { selected = null, subject = null, picke
   const ids = new Set()
   for (const c of all) {
     const e = { ref: c.ref, symbol: up(c.symbol), position: c.position || null }
-    if (NAMES_CHART.has(identifiesChart(w, e, host, { selected, subject, picked, removal: true })) || positionSaid(w, e)) ids.add(c.ref)
+    if (NAMES_CHART.has(identifiesChart(asRemoval(w), e, host, { selected, subject, picked })) || positionSaid(w, e)) ids.add(c.ref)
   }
   const ambiguous = []
   for (const sym of new Set(all.map(c => up(c.symbol)).filter(Boolean))) {
