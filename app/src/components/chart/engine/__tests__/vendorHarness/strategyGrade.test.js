@@ -258,3 +258,101 @@ describe('step 2: the run\'s own settings and unread inputs (U14)', () => {
     expect(gradeStrategy(c).verdict).toBe('MATCH')
   })
 })
+
+// ─── value read-backs: step 7 (value series) and step 8 (drawn texts), pure ───────────────────────────
+describe('step 7: the value series (value read-backs)', () => {
+  const rows = (f) => Array.from({ length: 30 }, (_, i) => ({ time: T0 + i * DAY, value: f(i) }))
+  const series = (over = {}) => [
+    { title: 'S03_position_size', reference: rows((i) => (i > 10 ? 3 : 0)), ours: rows((i) => (i > 10 ? 3 : 0)) },
+    { title: 'S04_position_avg_price', reference: rows((i) => (i > 10 ? 101.25 : null)), ours: rows((i) => (i > 10 ? 101.25 : null)) },
+    { title: 'S08_equity', reference: rows((i) => 100000 + i * 0.1), ours: rows((i) => 100000 + i * 0.1), ...over },
+  ]
+  const withValues = (values, over = {}) => ({ ...base(5, mkTrades(5), over).args, values })
+
+  it('every series equal: MATCH at step 7, and the grade says how many series it compared', () => {
+    const g = gradeStrategy(withValues({ status: 'ok', series: series() }))
+    expect(g).toMatchObject({ verdict: 'MATCH', step: 7, graded: { trades: true, values: 3, texts: 0 } })
+    expect(g.reason).toMatch(/every value series equal bar by bar/)
+  })
+  it('without values the grade is the one it was (step 4), and says it compared none', () => {
+    expect(gradeStrategy(base(5, mkTrades(5)).args)).toMatchObject({ verdict: 'MATCH', step: 4, graded: { values: 0, texts: 0 } })
+  })
+  it('⛔ one bar of one series differing is DIVERGE, naming the series, the bar and both values', () => {
+    const g = gradeStrategy(withValues({ status: 'ok', series: series({ ours: rows((i) => 100000 + i * 0.1 + (i === 17 ? 0.01 : 0)) }) }))
+    expect(g).toMatchObject({ verdict: 'DIVERGE', step: 7, first: { time: T0 + 17 * DAY, rule: 'B-VAL' }, graded: { values: 0 } })
+    expect(g.reason.startsWith(`value series S08_equity differs at ${T0 + 17 * DAY} (reference 100001.7`)).toBe(true)
+    expect(g.reason).toMatch(/, ours 100001\.7\d*\)$/)
+  })
+  it('a difference inside REL_TOL (float noise) is equal; `na` equals only `na`', () => {
+    expect(gradeStrategy(withValues({ status: 'ok', series: series({ ours: rows((i) => (100000 + i * 0.1) * (1 + 1e-12)) }) })).verdict).toBe('MATCH')
+    const na = series()
+    na[1] = { ...na[1], ours: rows((i) => (i > 10 ? 101.25 : 0)) }
+    expect(gradeStrategy(withValues({ status: 'ok', series: na }))).toMatchObject({ verdict: 'DIVERGE', step: 7 })
+    expect(gradeStrategy(withValues({ status: 'ok', series: na })).reason).toMatch(/S04_position_avg_price differs at \d+ \(reference na, ours 0\)/)
+  })
+  it('⛔ a bar of ours missing is DIVERGE (never compared on the bars that happen to exist)', () => {
+    const s = series({ ours: rows((i) => 100000 + i * 0.1).slice(0, 29) })
+    expect(gradeStrategy(withValues({ status: 'ok', series: s }))).toMatchObject({ verdict: 'DIVERGE', step: 7 })
+  })
+  it('⛔ a bar of ours TradingView does not have is DIVERGE too (the two series must cover the same bars)', () => {
+    const extra = [...rows((i) => 100000 + i * 0.1), { time: T0 + 30 * DAY, value: 100003 }]
+    const g = gradeStrategy(withValues({ status: 'ok', series: series({ ours: extra }) }))
+    expect(g).toMatchObject({ verdict: 'DIVERGE', step: 7 })
+    expect(g.reason).toBe('value series S08_equity has 31 bars of ours against 30')
+  })
+  it('⛔ an unpaired set of plots is INCONCLUSIVE with its reason, never compared by position', () => {
+    const g = gradeStrategy(withValues({ status: 'unpaired', reason: 'our run emitted 2 plot(s) and the capture holds 3' }))
+    expect(g).toMatchObject({ verdict: 'INCONCLUSIVE', step: 7 })
+    expect(g.reason).toBe('the value series cannot be paired: our run emitted 2 plot(s) and the capture holds 3')
+  })
+  it('method (b): only the bars inside the graded range are compared', () => {
+    // the five reference trades close on days 5..45: the graded range holds them all, and bars 50..59 lie after it
+    const graded = { from: T0, to: T0 + 50 * DAY }
+    const sig = { s: [{ time: T0, value: 1 }] }
+    const long = (f) => Array.from({ length: 60 }, (_, i) => ({ time: T0 + i * DAY, value: f(i) }))
+    const one = (bad) => [{ title: 'S08_equity', reference: long((i) => 100000 + i), ours: long((i) => 100000 + i + (i === bad ? 5 : 0)) }]
+    const late = one(55)
+    expect(gradeStrategy(withValues({ status: 'ok', series: late }, { method: 'b', graded, refSignals: sig, ourSignals: sig }))).toMatchObject({ verdict: 'MATCH', step: 7 })
+    // control: the same difference on method (a), which compares every bar, is DIVERGE
+    expect(gradeStrategy(withValues({ status: 'ok', series: late }))).toMatchObject({ verdict: 'DIVERGE', step: 7 })
+    const early = one(7)
+    expect(gradeStrategy(withValues({ status: 'ok', series: early }, { method: 'b', graded, refSignals: sig, ourSignals: sig }))).toMatchObject({ verdict: 'DIVERGE', step: 7 })
+  })
+  it('the values are a function read only at step 7: a trade DIVERGE never reads them', () => {
+    let read = 0
+    const ours = mkTrades(5)
+    ours[3] = { ...ours[3], qty: 99 }
+    const g = gradeStrategy({ ...base(5, ours).args, values: () => { read += 1; return { status: 'ok', series: series() } } })
+    expect(g).toMatchObject({ verdict: 'DIVERGE', step: 4 })
+    expect(read).toBe(0)
+  })
+})
+
+describe('step 8: the drawn texts (value read-backs)', () => {
+  const labels = () => [{ time: T0 + 5 * DAY, text: 'L>X:X' }, { time: T0 + 15 * DAY, text: 'L>Close position order:flat' }, { time: T0 + 15 * DAY, text: 'S>L:L' }]
+  const withTexts = (texts) => ({ ...base(5, mkTrades(5)).args, texts })
+  it('the same texts on the same bars (in any order within a bar): MATCH at step 8, counted', () => {
+    const ours = [labels()[2], labels()[0], labels()[1]]
+    expect(gradeStrategy(withTexts({ status: 'ok', reference: labels(), ours }))).toMatchObject({ verdict: 'MATCH', step: 8, graded: { texts: 3 } })
+  })
+  it.each([
+    ['a text', (l) => { l[0].text = 'L>X:other' }],
+    ['a bar', (l) => { l[0].time += DAY }],
+    ['a missing text', (l) => { l.pop() }],
+    ['a text twice', (l) => { l.push({ ...l[0] }) }],
+  ])('⛔ %s differing is DIVERGE at step 8', (_n, mutate) => {
+    const ours = labels()
+    mutate(ours)
+    const g = gradeStrategy(withTexts({ status: 'ok', reference: labels(), ours }))
+    expect(g).toMatchObject({ verdict: 'DIVERGE', step: 8, graded: { texts: 0 } })
+    expect(g.reason).toMatch(/^the drawn texts at \d+ differ/)
+  })
+  it('texts that could not be drawn are LISTED ungraded and the verdict keeps what it covered', () => {
+    const g = gradeStrategy(withTexts({ status: 'ungraded', what: 'labels (3)', reason: 'the build that draws refused (runtime:x)' }))
+    expect(g).toMatchObject({ verdict: 'MATCH', step: 4, graded: { texts: 0 } })
+    expect(g.ungradedTexts).toEqual([{ what: 'labels (3)', why: 'the build that draws refused (runtime:x)' }])
+  })
+  it('⛔ texts that cannot be read on the reference side are INCONCLUSIVE', () => {
+    expect(gradeStrategy(withTexts({ status: 'unread', reason: 'the capture carries no object x index' }))).toMatchObject({ verdict: 'INCONCLUSIVE', step: 8 })
+  })
+})

@@ -9,17 +9,40 @@
  "timeframe": "1D",
  "gradeMethod": "a",
  "verdict": "DIVERGE",
- "step": 1,
- "reason": "our run refused (runtime:strategy-value) against a TradingView value",
- "first": null,
+ "step": 4,
+ "reason": "exitTime differs at 1714397400",
+ "first": {
+  "time": 1714397400,
+  "rule": "unattributed"
+ },
  "graded": {
-  "trades": false,
+  "trades": true,
   "fills": false,
-  "slots": 0
+  "slots": 0,
+  "values": 0,
+  "texts": 0
  },
  "referenceTrades": 22,
- "rulesExercised": [],
+ "rulesExercised": [
+  "B-CANCEL",
+  "B-CLOSE",
+  "B-DEFAULTS",
+  "B-DIR",
+  "B-EXIT-BIND",
+  "B-EXIT-LIFE",
+  "B-FIFO",
+  "B-FILL",
+  "B-MARGIN",
+  "B-MARKET",
+  "B-ORDER",
+  "B-QTY",
+  "B-ROUND",
+  "B-SIG",
+  "B-TXT-CLOSE-ALL-ID",
+  "B-VAL"
+ ],
  "ungradedSlots": [],
+ "ungradedTexts": [],
  "provenance": {
   "strategySettings": {
    "properties": [

@@ -1298,6 +1298,9 @@ PINS_RESOLVED_SCHEMA = "uct.broker-pins.resolved/v1"
 STRATEGY_VERDICTS_DIR = DOCS / "vendor-harness" / "strategy-verdicts"
 STRATEGY_VERDICT_SCHEMA = "uct.strategy-verdict/v1"
 FILLS_REFUSED = "MATCH-WITHOUT-FILLS"
+#: value read-backs (2026-11-15): a strategy MATCH that compared no value series (the script's own plots, bar
+#: by bar) is a fill match only. It pins nothing: a rule's values are what a member's script reads.
+VALUES_REFUSED = "MATCH-WITHOUT-VALUES"
 NOT_EXERCISED = "MATCH-WITHOUT-EXERCISING-THE-RULE"
 
 
@@ -1549,6 +1552,8 @@ def resolve_pins(pins: dict, ledger_rows: list, sources: dict | None = None) -> 
       * a fixture pins a rule only when its row says it EXERCISED that rule (`rulesExercised`, what
         our broker reached on the capture); a row that states nothing it exercised pins nothing;
       * a strategy verdict pins only when it graded the fills (`graded.fills`), not the trade list alone;
+      * and only when it graded at least one value series (`graded.values`: the capture's plots against
+        ours, bar by bar), not the fills alone (value read-backs, 2026-11-15);
       * ANY committed row that exercised the rule and is not MATCH un-pins it, whether or not
         `brokerPins.json` lists that capture."""
     if not isinstance(pins, dict) or pins.get("schema") != PINS_SCHEMA or not isinstance(pins.get("rules"), dict):
@@ -1561,9 +1566,13 @@ def resolve_pins(pins: dict, ledger_rows: list, sources: dict | None = None) -> 
         cid = r.get("captureId")
         if cid:
             v = r.get("verdict")
-            if el.is_match(v) and r.get("schema") == STRATEGY_VERDICT_SCHEMA \
-                    and not (isinstance(r.get("graded"), dict) and r["graded"].get("fills") is True):
-                v = FILLS_REFUSED   # a trade-list match is not a fill-by-fill match
+            if el.is_match(v) and r.get("schema") == STRATEGY_VERDICT_SCHEMA:
+                g = r.get("graded") if isinstance(r.get("graded"), dict) else {}
+                n_values = g.get("values")
+                if g.get("fills") is not True:
+                    v = FILLS_REFUSED   # a trade-list match is not a fill-by-fill match
+                elif not (isinstance(n_values, int) and not isinstance(n_values, bool) and n_values > 0):
+                    v = VALUES_REFUSED  # a fill match that compared no value series
             # ⛔ L7: only a PROVEN-exact MATCH pins a broker rule; MATCH_SUBSTITUTED un-pins it, like any
             # non-MATCH (`el.is_match`)
             if el.is_match(v) and cid in pinned_ids:

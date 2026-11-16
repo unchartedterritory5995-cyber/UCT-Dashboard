@@ -1702,6 +1702,12 @@ export function renderSummary(results) {
 //   6. REPORT SLOTS (U14), when given: every slot BOTH sides state is compared (counts
 //      exactly, everything else to REL_TOL); a slot either side does not state is listed
 //      as ungraded with its reason, never compared against a default.
+//   7. VALUE SERIES, when given: every plot of the capture against our output of the same plot,
+//      bar by bar, joined on time (`na` only equals `na`; numbers to REL_TOL). The caller pairs the
+//      plots and refuses a pairing it cannot prove (INCONCLUSIVE, never paired anyway). A differing
+//      bar is DIVERGE naming the plot, the bar and both values.
+//   8. DRAWN TEXTS, when given: the label texts per bar, as multisets. Texts the caller could not
+//      draw are listed in `ungradedTexts` with the reason, never dropped and never compared.
 //   ⭐ `graded` says what the MATCH covered. A MATCH with `graded.fills === false` is a
 //      trade-list match only, and `evidence_engine.resolve_pins` never pins from one.
 //   ⛔ Step 2 also blocks on the run's EFFECTIVE settings disagreeing with the read-back
@@ -1776,7 +1782,7 @@ function compareTrades(refTrades, ourTrades, tick) {
  *   `ours.fills` (`{time, side, role, price, qty, id, labelled, rule}`) add step 5; `slots` step 6.
  */
 export function gradeStrategy(g) {
-  const { reference, ours, method = 'a', span, graded, tick = 0.01, settings, refBars, ourBars, refSignals, ourSignals, slots } = g
+  const { reference, ours, method = 'a', span, graded, tick = 0.01, settings, refBars, ourBars, refSignals, ourSignals, slots, values, texts } = g
   // 0. the reference floor: the TradingView capture alone.
   const listed = (reference && reference.trades) || null
   if (!Array.isArray(listed)) return { verdict: 'INCONCLUSIVE', step: 0, reason: 'the capture carries no trade list' }
@@ -1816,12 +1822,12 @@ export function gradeStrategy(g) {
   // 3. signal identity, method (b) only.
   if (method === 'b') {
     // `ourSignals` may be a function (U14), so a caller's run is read only here
-    const sd = signalsDiffer(refSignals, typeof ourSignals === 'function' ? ourSignals() : ourSignals, graded, { rel: REL_TOL, abs: ABS_FLOOR_UNKNOWN_SCALE })
+    const sd = signalsDiffer(typeof refSignals === 'function' ? refSignals() : refSignals, typeof ourSignals === 'function' ? ourSignals() : ourSignals, graded, { rel: REL_TOL, abs: ABS_FLOOR_UNKNOWN_SCALE })
     if (sd) return { verdict: 'INCONCLUSIVE', step: 3, reason: `the warm-up has not converged: ${sd}` }
   }
   // 4. trades and values (our trade list is read for the first time here).
   const r = compareTrades(refTrades.filter(inGraded), (ours.trades || []).filter(inGraded), tick)
-  const covered = { trades: true, fills: false, slots: 0 }
+  const covered = { trades: true, fills: false, slots: 0, values: 0, texts: 0 }
   if (r.verdict !== 'MATCH') return { ...r, step: 4, graded: covered }
   // 5. fills, fill by fill (U14).
   const refFills = reference.fills
@@ -1835,14 +1841,95 @@ export function gradeStrategy(g) {
     covered.fills = true
   }
   // 6. the report slots (U14). `slots` may be a function, so a caller's run is read only here.
+  let done = { ...r, step: covered.fills ? 5 : 4 }
+  let ungradedSlots
   const slotsNow = typeof slots === 'function' ? slots() : slots
   if (slotsNow) {
     const s = compareSlots(slotsNow)
     covered.slots = s.compared.length
-    if (s.verdict !== 'MATCH') return { verdict: s.verdict, reason: s.reason, first: null, step: 6, graded: covered, ungradedSlots: s.ungraded }
-    return { verdict: 'MATCH', step: 6, reason: 'every trade, fill and stated report slot equal', first: null, graded: covered, ungradedSlots: s.ungraded }
+    ungradedSlots = s.ungraded
+    if (s.verdict !== 'MATCH') return { verdict: s.verdict, reason: s.reason, first: null, step: 6, graded: covered, ungradedSlots }
+    done = { verdict: 'MATCH', step: 6, reason: 'every trade, fill and stated report slot equal', first: null }
   }
-  return { ...r, step: covered.fills ? 5 : 4, graded: covered }
+  const extra = ungradedSlots ? { ungradedSlots } : {}
+  // 7. the value series (the script's own plots, bar by bar). A function, read only here.
+  const valuesNow = typeof values === 'function' ? values() : values
+  if (valuesNow) {
+    if (valuesNow.status !== 'ok') {
+      return { verdict: 'INCONCLUSIVE', step: 7, reason: `the value series cannot be paired: ${valuesNow.reason || 'unpaired'}`, first: null, graded: covered, ...extra }
+    }
+    const v = compareValueSeries(valuesNow.series, graded || span)
+    if (v.verdict !== 'MATCH') return { ...v, step: 7, graded: covered, ...extra }
+    covered.values = valuesNow.series.length
+    done = { verdict: 'MATCH', step: 7, reason: `${done.reason}; every value series equal bar by bar`, first: null }
+  }
+  // 8. the texts the script draws (label texts, by bar). Ungraded texts are LISTED, never dropped.
+  const textsNow = typeof texts === 'function' ? texts() : texts
+  if (textsNow) {
+    if (textsNow.status === 'ungraded') extra.ungradedTexts = [{ what: textsNow.what || 'labels', why: textsNow.reason || 'ungraded' }]
+    else if (textsNow.status !== 'ok') {
+      return { verdict: 'INCONCLUSIVE', step: 8, reason: `the drawn texts cannot be read: ${textsNow.reason || 'unread'}`, first: null, graded: covered, ...extra }
+    } else {
+      const t = compareTexts(textsNow.reference, textsNow.ours, graded || span)
+      if (t.verdict !== 'MATCH') return { ...t, step: 8, graded: covered, ...extra }
+      covered.texts = t.compared
+      done = { verdict: 'MATCH', step: 8, reason: `${done.reason}; every drawn text equal`, first: null }
+    }
+  }
+  return { ...done, graded: covered, ...extra }
+}
+
+// ── step 7: the value series ──────────────────────────────────────────────────
+/** A value's tolerance: the corpus harness's (`REL_TOL`, the unknown-scale floor); `na` only equals `na`. */
+const VALUE_TOL = Object.freeze({ rel: REL_TOL, abs: ABS_FLOOR_UNKNOWN_SCALE })
+/**
+ * `series`: `[{ title, reference: [{time, value}], ours: [{time, value}], rule? }]`, one per plot of the
+ * capture, ALREADY PAIRED by the caller (which refuses a pairing it cannot prove). Every bar of the
+ * reference inside `span` must have a bar of ours at that time with an agreeing value.
+ */
+function compareValueSeries(series, span) {
+  for (const s of series) {
+    const ref = (s.reference || []).filter((p) => inSpan(p.time, span))
+    const our = new Map((s.ours || []).filter((p) => inSpan(p.time, span)).map((p) => [p.time, p.value]))
+    const rule = s.rule || 'B-VAL'
+    if (our.size !== ref.length) {
+      return { verdict: 'DIVERGE', reason: `value series ${s.title} has ${our.size} bars of ours against ${ref.length}`, first: { time: ref.length ? ref[0].time : null, rule } }
+    }
+    for (const p of ref) {
+      if (!our.has(p.time) || !valuesAgree(our.get(p.time), p.value, VALUE_TOL)) {
+        const o = our.has(p.time) ? our.get(p.time) : undefined
+        return { verdict: 'DIVERGE', reason: `value series ${s.title} differs at ${p.time} (reference ${isNa(p.value) ? 'na' : p.value}, ours ${o === undefined ? 'no bar' : isNa(o) ? 'na' : o})`, first: { time: p.time, rule } }
+      }
+    }
+  }
+  return { verdict: 'MATCH', reason: 'every value series equal', first: null }
+}
+
+// ── step 8: the drawn texts ───────────────────────────────────────────────────
+/** `reference` / `ours`: `[{ time, text }]`. The same texts on the same bars, as multisets per bar. */
+function compareTexts(reference, ours, span) {
+  const bag = (rows) => {
+    const m = new Map()
+    for (const r of rows || []) {
+      if (!inSpan(r.time, span)) continue
+      if (!m.has(r.time)) m.set(r.time, [])
+      m.get(r.time).push(String(r.text))
+    }
+    for (const v of m.values()) v.sort()
+    return m
+  }
+  const a = bag(reference)
+  const b = bag(ours)
+  let compared = 0
+  for (const t of [...new Set([...a.keys(), ...b.keys()])].sort((x, y) => x - y)) {
+    const x = a.get(t) || []
+    const y = b.get(t) || []
+    if (x.length !== y.length || x.some((v, i) => v !== y[i])) {
+      return { verdict: 'DIVERGE', reason: `the drawn texts at ${t} differ (reference ${JSON.stringify(x)}, ours ${JSON.stringify(y)})`, first: { time: t, rule: 'B-VAL' } }
+    }
+    compared += x.length
+  }
+  return { verdict: 'MATCH', compared }
 }
 
 // ── U14 step 5: fills ─────────────────────────────────────────────────────────

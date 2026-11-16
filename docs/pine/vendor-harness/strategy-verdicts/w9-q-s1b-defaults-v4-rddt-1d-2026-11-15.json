@@ -15,11 +15,14 @@
  "graded": {
   "trades": false,
   "fills": false,
-  "slots": 0
+  "slots": 0,
+  "values": 0,
+  "texts": 0
  },
  "referenceTrades": 40,
  "rulesExercised": [],
  "ungradedSlots": [],
+ "ungradedTexts": [],
  "provenance": {
   "strategySettings": {
    "properties": [

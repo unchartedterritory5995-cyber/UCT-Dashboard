@@ -20,7 +20,9 @@ import path from 'node:path'
 import crypto from 'node:crypto'
 
 import { REPO, HARNESS_DIR } from './harness'
-import { gradeStrategyCapture, strategyVerdictOf, runOurBroker, oursOf, STRATEGY_VERDICT_SCHEMA } from './strategyHarness.js'
+import {
+  gradeStrategyCapture, strategyVerdictOf, runOurBroker, oursOf, STRATEGY_VERDICT_SCHEMA, declaredPlots, valueSeriesOf, referenceTextsOf,
+} from './strategyHarness.js'
 import {
   referenceOfReport, referenceOfCapture, PROPERTY_DEPENDENTS, REPORT_UNITS, unreadDependedOn, effectiveSettingsDisagreements,
 } from '../../../../../../../tools/vendor_harness/strategy_reference.mjs'
@@ -251,7 +253,7 @@ describe('U14 (c) every committed report capture carries a current verdict file'
     const now = strategyVerdictOf(capture, { captureSha256: captureSha(bytes), queueTargetId: row, slotMap: SLOT_MAP })
     expect(now.schema).toBe(STRATEGY_VERDICT_SCHEMA)
     expect(JSON.stringify(now)).not.toContain(capture.source.text.slice(0, 60)) // the source never enters it
-    table.push(`${now.verdict.padEnd(16)} step ${now.step} ${id} (${row}): ${now.reason}${now.first ? ` first ${JSON.stringify(now.first)}` : ''} | fills ${now.graded.fills} slots ${now.graded.slots} | exercised ${now.rulesExercised.join(',')}`)
+    table.push(`${now.verdict.padEnd(16)} step ${now.step} ${id} (${row}): ${now.reason}${now.first ? ` first ${JSON.stringify(now.first)}` : ''} | fills ${now.graded.fills} slots ${now.graded.slots} values ${now.graded.values} texts ${now.graded.texts}${now.ungradedTexts.length ? ` UNGRADED TEXTS ${JSON.stringify(now.ungradedTexts)}` : ''} | exercised ${now.rulesExercised.join(',')}`)
     const text = JSON.stringify(now, null, 1) + '\n'
     const out = path.join(VERDICT_DIR, `${id}.json`)
     if (process.env.UPDATE_STRATEGY_VERDICTS === '1') {
@@ -272,14 +274,23 @@ const S25 = gradeStrategyCapture(CAPTURE, { slotMap: SLOT_MAP })
 /** A run of OURS that answers exactly what TradingView reported, built from the capture's own report (the
  *  record shape `oursOf` reads). It makes the harness's later steps testable on REAL data while our broker
  *  refuses this probe at build: graded against it, s25 must MATCH, and every perturbation below must not. */
-function mirrorRun(capture, { mutateFills = null } = {}) {
+function mirrorRun(capture, { mutateFills = null, mutatePlots = null, mutateLabels = null, drawn = null, settings = null } = {}) {
   const ref = referenceOfCapture(capture)
   const fills = ref.fills.map((f) => ({ ...f }))
   if (mutateFills) mutateFills(fills)
+  // TradingView's own plots, in the capture's order, and its own label texts: what a perfect run of ours emits
+  const pv = capture.plotValues
+  const plots = pv.fields.slice(1).map((_, k) => pv.rows.map((r) => ({ time: r[0], value: r[k + 1] === undefined ? null : r[k + 1] })))
+  if (mutatePlots) mutatePlots(plots)
+  const labels = referenceTextsOf(capture).labels.map((l) => ({ ...l }))
+  if (mutateLabels) mutateLabels(labels)
   return () => ({
     ok: true,
+    plots,
+    drawn: drawn || { status: 'ok', labels },
     record: {
-      settings: { initial_capital: 100000, pyramiding: 2, margin_long: 0, margin_short: 0, process_orders_on_close: false,
+      symbol: { mintick: 0.01, pointvalue: 1 },
+      settings: settings || { initial_capital: 100000, pyramiding: 2, margin_long: 0, margin_short: 0, process_orders_on_close: false,
         calc_on_order_fills: false, calc_on_every_tick: false, slippage: 0, commission: { type: 'percent', value: 0 }, default_qty: null },
       rulesUsed: ['B-MARKET'],
       trades: ref.trades.filter((t) => !t.open).map((t) => ({ n: t.n, dir: t.direction, entryTime: t.entryTime, exitTime: t.exitTime,
@@ -288,21 +299,23 @@ function mirrorRun(capture, { mutateFills = null } = {}) {
         fillPrice: f.price, fillQty: f.qty, id: f.id, rule: 'B-MARKET' })),
     },
     report: { metrics: {}, trades: { rows: ref.trades.map((t) => ({ n: t.n, profit: { status: 'served', value: t.profit } })) } },
-    signals: {},
   })
 }
 
 describe('U14 (b) our broker on s25, graded fill by fill', () => {
-  it('today our broker refuses the probe at BUILD, so s25 is DIVERGE at step 1 and exercises nothing', () => {
-    // ⭐ a refusal against a TradingView value is a DIVERGE (design T2 step 1); the verdict file pins it
+  it('today our broker builds the probe and stops at RUN by name (two orders on one opening tick, Q-S1d): DIVERGE at step 1', () => {
+    // ⭐ a refusal against a TradingView value is a DIVERGE (design T2 step 1); the verdict file pins it.
+    // ⚰️ Before the value read-backs unit it refused at BUILD (`runtime:call-undeclared-builtin-state`, the value
+    // build's `math.round_to_mintick`): the build that draws, the member door's own for this script, serves it.
     expect(S25).toMatchObject({ verdict: 'DIVERGE', step: 1, referenceTrades: 47, rulesExercised: [] })
-    expect(S25.rule).toBe('runtime:call-undeclared-builtin-state')
+    expect(S25.rule).toBe('runtime:strategy-unsettled')
   })
 
-  it('CONTROL: a run that answers exactly TradingView\'s trades and fills MATCHes, fill by fill', () => {
+  it('CONTROL: a run that answers exactly TradingView\'s trades, fills, plots and label texts MATCHes through step 8', () => {
     const g = gradeStrategyCapture(CAPTURE, { slotMap: SLOT_MAP, run: mirrorRun(CAPTURE) })
-    expect(g).toMatchObject({ verdict: 'MATCH', step: 6, graded: { trades: true, fills: true, slots: 0 } })
+    expect(g).toMatchObject({ verdict: 'MATCH', step: 8, graded: { trades: true, fills: true, slots: 0, values: 50, texts: 47 } })
     expect(g.rulesExercised).toEqual(['B-MARKET'])
+    expect(g.ungradedTexts).toBeUndefined()
   })
 
   it.each([
@@ -360,5 +373,168 @@ describe('U14 (b) our broker on s25, graded fill by fill', () => {
     const c = clone(CAPTURE)
     c.provenance.report.tree.filledOrders[10].p += 0.01
     expect(gradeStrategyCapture(c, { slotMap: SLOT_MAP, run: mirrorRun(CAPTURE) })).toMatchObject({ verdict: 'INCONCLUSIVE', step: 5 })
+  })
+})
+
+// ─── value read-backs: step 7 (every plot, bar by bar) and step 8 (the label texts), on the real capture ─────
+describe('value read-backs (step 7): the capture\'s plots against ours, paired fail-closed', () => {
+  const grade = (opts, capture = CAPTURE) => gradeStrategyCapture(capture, { slotMap: SLOT_MAP, run: mirrorRun(CAPTURE, opts) })
+
+  it('the source\'s plots are read in order, with their titles and whether each reads the broker', () => {
+    const d = declaredPlots(CAPTURE.source.text)
+    expect(d).toHaveLength(50)
+    expect(d[0]).toEqual({ title: 'N01_bar_index_CONTROL', readsBroker: false })
+    expect(d[1]).toEqual({ title: 'N02_position_size', readsBroker: true })
+    // a ternary whose comma-separated call arguments sit inside parentheses is ONE argument
+    expect(d.find((p) => p.title === 'N13_last_exit_price')).toEqual({ title: 'N13_last_exit_price', readsBroker: true })
+    expect(d.filter((p) => !p.readsBroker).map((p) => p.title)).toEqual(['N01_bar_index_CONTROL', 'S01_time_CONTROL', 'S02_bar_index_CONTROL'])
+    // every title the source declares is the capture's own style title at that position
+    const styles = CAPTURE.study.styles
+    expect(d.map((p) => p.title)).toEqual(CAPTURE.plotValues.fields.slice(1).map((f) => styles[f].title))
+    // controls: `title =` by name, a call with no title, and a string holding a comma and a parenthesis
+    expect(declaredPlots('plot(close, title = "a, (b")\nplot(x)\nplot(series = y, color = c)\n'))
+      .toEqual([{ title: 'a, (b', readsBroker: false }, { title: null, readsBroker: false }, { title: null, readsBroker: false }])
+  })
+
+  it('⛔ ONE value of ONE series off by a tick-size amount on ONE bar is DIVERGE at step 7, naming the plot and the bar', () => {
+    const g = grade({ mutatePlots: (p) => { p[6][300] = { ...p[6][300], value: p[6][300].value + 0.01 } } })
+    expect(g).toMatchObject({ verdict: 'DIVERGE', step: 7, graded: { fills: true, values: 0 } })
+    expect(g.reason).toMatch(/^value series N07_equity differs at \d+ \(reference [\d.]+, ours [\d.]+\)$/)
+    expect(g.first).toEqual({ time: CAPTURE.plotValues.rows[300][0], rule: 'B-VAL' })
+  })
+
+  it('⛔ `na` only equals `na`: a number where TradingView plots na (and na where it plots a number) is DIVERGE', () => {
+    // N03_position_avg_price is na while flat (bar 0)
+    expect(CAPTURE.plotValues.rows[0][3]).toBeNull()
+    expect(grade({ mutatePlots: (p) => { p[2][0] = { ...p[2][0], value: 0 } } })).toMatchObject({ verdict: 'DIVERGE', step: 7 })
+    expect(grade({ mutatePlots: (p) => { p[1][100] = { ...p[1][100], value: null } } })).toMatchObject({ verdict: 'DIVERGE', step: 7 })
+  })
+
+  it('⛔ THE SWAP: two of our plots in each other\'s place is DIVERGE (a pairing by position is graded, never trusted)', () => {
+    // N04_opentrades and N05_closedtrades: both counts, both plotted on every bar
+    const g = grade({ mutatePlots: (p) => { const t = p[3]; p[3] = p[4]; p[4] = t } })
+    expect(g).toMatchObject({ verdict: 'DIVERGE', step: 7 })
+    expect(g.reason).toMatch(/value series N04_opentrades differs/)
+  })
+
+  it('⛔ a different plot count on our side is INCONCLUSIVE, never paired anyway', () => {
+    const g = grade({ mutatePlots: (p) => { p.pop() } })
+    expect(g).toMatchObject({ verdict: 'INCONCLUSIVE', step: 7 })
+    expect(g.reason).toMatch(/our run emitted 49 plot\(s\) and the capture holds 50/)
+  })
+
+  it('⛔ a style title that contradicts the pairing is INCONCLUSIVE (the capture\'s plot order is not the source\'s)', () => {
+    const c = clone(CAPTURE)
+    const a = c.study.styles.plot_3.title
+    c.study.styles.plot_3.title = c.study.styles.plot_4.title
+    c.study.styles.plot_4.title = a
+    const g = grade({}, c)
+    expect(g).toMatchObject({ verdict: 'INCONCLUSIVE', step: 7 })
+    expect(g.reason).toMatch(/plot 4 is titled "N05_closedtrades" in the capture and "N04_opentrades" in the source/)
+    // and a capture whose plot has no title at all cannot be paired either
+    const n = clone(CAPTURE)
+    delete n.study.styles.plot_0.title
+    expect(grade({}, n)).toMatchObject({ verdict: 'INCONCLUSIVE', step: 7 })
+    // and a source that declares another number of plots than the capture holds
+    const m = clone(CAPTURE)
+    m.source = { ...m.source, text: `${m.source.text}plot(close, "EXTRA")\n` }
+    expect(valueSeriesOf(m, mirrorRun(CAPTURE)().plots)).toEqual({ status: 'unpaired', reason: 'the source declares 51 plot(s) and the capture holds 50' })
+  })
+
+  it('⛔ a run on another tick than the capture\'s is INCONCLUSIVE at step 2 (the tick is the capture\'s own)', () => {
+    const run = mirrorRun(CAPTURE)
+    const off = () => { const r = run(); return { ...r, record: { ...r.record, symbol: { mintick: 0.05, pointvalue: 1 } } } }
+    const g = gradeStrategyCapture(CAPTURE, { slotMap: SLOT_MAP, run: off })
+    expect(g).toMatchObject({ verdict: 'INCONCLUSIVE', step: 2 })
+    expect(g.reason).toMatch(/syminfo\.mintick/)
+  })
+})
+
+describe('value read-backs (step 8): the label texts, by bar', () => {
+  const grade = (opts) => gradeStrategyCapture(CAPTURE, { slotMap: SLOT_MAP, run: mirrorRun(CAPTURE, opts) })
+
+  it('the capture\'s labels are read with their bar times (47 closes, each `entry_id>exit_id:exit_comment`)', () => {
+    const t = referenceTextsOf(CAPTURE)
+    expect(t.status).toBe('ok')
+    expect(t.labels).toHaveLength(47)
+    const bars = new Set(CAPTURE.bars.rows.map((r) => r[0]))
+    for (const l of t.labels) { expect(bars.has(l.time)).toBe(true); expect(l.text).toMatch(/^[LS]>.+:.+$/) }
+    expect(new Set(t.labels.map((l) => l.text))).toEqual(new Set(['L>XL:XL', 'S>XS:XS', 'L>Close position order:Close position order', 'S>L:L', 'L>S:S']))
+  })
+
+  it.each([
+    ['one text differing', (l) => { l[5].text = 'L>XL:other' }],
+    ['a text on another bar', (l) => { l[5].time = CAPTURE.bars.rows[3][0] }],
+    ['a missing label', (l) => { l.splice(9, 1) }],
+    ['an extra label', (l) => { l.push({ ...l[0] }) }],
+  ])('⛔ %s is DIVERGE at step 8 (values graded, texts not)', (_n, mutateLabels) => {
+    const g = grade({ mutateLabels })
+    expect(g).toMatchObject({ verdict: 'DIVERGE', step: 8, graded: { values: 50, texts: 0 } })
+    expect(g.reason).toMatch(/^the drawn texts at \d+ differ/)
+  })
+
+  it('texts our run could not draw are listed UNGRADED with the reason, never dropped and never a MATCH on texts', () => {
+    const g = grade({ drawn: { status: 'ungraded', reason: 'the build that draws refused (runtime:x)' } })
+    expect(g).toMatchObject({ verdict: 'MATCH', step: 7, graded: { values: 50, texts: 0 } })
+    expect(g.ungradedTexts).toEqual([{ what: 'labels (47)', why: 'the build that draws refused (runtime:x)' }])
+  })
+
+  it('⛔ a capture whose objects could not all be read is INCONCLUSIVE at step 8, not graded on a partial list', () => {
+    const c = clone(CAPTURE)
+    c.objects.unreadable = [{ family: 'label' }]
+    expect(gradeStrategyCapture(c, { slotMap: SLOT_MAP, run: mirrorRun(CAPTURE) })).toMatchObject({ verdict: 'INCONCLUSIVE', step: 8 })
+  })
+})
+
+describe('value read-backs: a reversal is ONE fill of both sizes (oursOf)', () => {
+  const order = (over) => ({ status: 'filled', fillTime: 10, side: 'sell', kind: 'entry', id: 'S', fillPrice: 5, fillQty: 1, rule: 'B-MARKET', opened: [2], closed: [1], ...over })
+  const record = (o) => ({ trades: [{ n: 1, qty: 3, open: false }, { n: 2, qty: 1, open: true }], orders: [o] })
+  it('an entry that closed a trade of 3 and opened 1 is a fill of 4; one that only closed, or only opened, is its own size', () => {
+    expect(oursOf(record(order()), null).fills[0].qty).toBe(4)
+    expect(oursOf(record(order({ opened: [], fillQty: 3 })), null).fills[0].qty).toBe(3) // an allow_entry_in close
+    expect(oursOf(record(order({ closed: [] })), null).fills[0].qty).toBe(1)
+    // strategy.order never reverses (B-ORDER): its fill is its own size
+    expect(oursOf(record(order({ kind: 'order' })), null).fills[0].qty).toBe(1)
+  })
+})
+
+// ─── value read-backs on METHOD (b): a broker value is graded as a VALUE (step 7), a signal as a signal (step 3) ───
+describe('value read-backs, method (b) (AMEX:SPY 15, w9-r1-risk-intraday-range): signals and values are told apart', () => {
+  const SPY = JSON.parse(fs.readFileSync(path.join(HARNESS_DIR, 'w9-r1-risk-intraday-range-spy-15-2026-11-15.json'), 'utf8'))
+  // the capture's own read-back (v6 defaults; the probe declares a fixed size of 1)
+  const settings = { initial_capital: 100000, pyramiding: 1, margin_long: 100, margin_short: 100, process_orders_on_close: false,
+    calc_on_order_fills: false, calc_on_every_tick: false, slippage: 0, commission: { type: 'percent', value: 0 }, default_qty: null }
+  const grade = (opts = {}) => gradeStrategyCapture(SPY, { slotMap: SLOT_MAP, run: mirrorRun(SPY, { settings, ...opts }) })
+  const gr = SPY.provenance.gradeRange
+  // a bar inside [X, Y) on which the mirrored plots hold a number
+  const inside = SPY.plotValues.rows.findIndex((r) => r[0] >= gr.fromTime && r[0] < gr.toTime) + 40
+  const titles = SPY.plotValues.fields.slice(1).map((f) => SPY.study.styles[f].title)
+  const control = titles.indexOf('S02_bar_index_CONTROL')
+  const equity = titles.indexOf('S08_equity')
+
+  it('CONTROL: the mirror of the capture MATCHes through step 8 on method (b)', () => {
+    expect(SPY.provenance.gradeMethod).toBe('b')
+    expect(control).toBeGreaterThanOrEqual(0)
+    expect(equity).toBeGreaterThan(control)
+    expect(SPY.plotValues.rows[inside][0]).toBeLessThan(gr.toTime)
+    expect(grade()).toMatchObject({ verdict: 'MATCH', step: 8, graded: { fills: true, values: titles.length } })
+  })
+
+  it('⛔ a BROKER VALUE differing inside [X, Y) is DIVERGE at step 7, never "the warm-up has not converged"', () => {
+    const g = grade({ mutatePlots: (p) => { p[equity][inside] = { ...p[equity][inside], value: p[equity][inside].value + 1 } } })
+    expect(g).toMatchObject({ verdict: 'DIVERGE', step: 7 })
+    expect(g.reason).toMatch(/^value series S08_equity differs at /)
+  })
+
+  it('a SIGNAL (a plot that reads no strategy.* value) differing inside [X, Y) is INCONCLUSIVE at step 3, as before', () => {
+    const g = grade({ mutatePlots: (p) => { p[control][inside] = { ...p[control][inside], value: p[control][inside].value + 1 } } })
+    expect(g).toMatchObject({ verdict: 'INCONCLUSIVE', step: 3 })
+    expect(g.reason).toMatch(/warm-up has not converged: plot S02_bar_index_CONTROL differs/)
+  })
+
+  it('a value differing OUTSIDE [X, Y) is not graded on method (b) (only the graded range is)', () => {
+    const before = SPY.plotValues.rows.findIndex((r) => r[0] >= gr.fromTime) - 5
+    expect(before).toBeGreaterThan(0)
+    expect(grade({ mutatePlots: (p) => { p[equity][before] = { ...p[equity][before], value: 1 } } }).verdict).toBe('MATCH')
   })
 })

@@ -27,7 +27,7 @@
 
 import { pinned } from './brokerPins.js'
 import { ruleCapture, UNPINNED_GUARD, COMMISSION_NET_VALUES, commissionRulesOf, RISK_RULES, BROKER_UNSETTLED_GUARD } from './brokerRules.js'
-import { exitIdOf, exitLabelUnstated, EXIT_LABEL_ROW } from './strategyRecord.js'
+import { exitIdOf, witnessedExitIdOf, EXIT_LABEL_ROW } from './strategyRecord.js'
 
 // declared in brokerRules.js (one authority); re-exported here under its old name for every importer
 export { BROKER_UNSETTLED_GUARD }
@@ -117,6 +117,12 @@ export const BROKER_OPS = Object.freeze({
   // ⭐ W9-T5: the fees a trade paid (R6: "the sum of entry and exit fees paid in the ... trade")
   'strategy.closedtrades.commission': { params: ['trade_num'], returns: 'number' },
   'strategy.opentrades.commission': { params: ['trade_num'], returns: 'number' },
+  // ⭐ value read-backs: the UNIX time, in milliseconds, of the bar a trade's entry / exit filled on
+  // (R6 `strategy.closedtrades.entry_time`: "Returns the UNIX time of the closed trade's entry, expressed in
+  // milliseconds"; that it is the fill BAR's `time` is what the std set's S10 / S11 plots witness)
+  'strategy.opentrades.entry_time': { params: ['trade_num'], returns: 'number' },
+  'strategy.closedtrades.entry_time': { params: ['trade_num'], returns: 'number' },
+  'strategy.closedtrades.exit_time': { params: ['trade_num'], returns: 'number' },
   // ⭐⭐ W9-T7-F1 — a trade's order ids and comments, read off the ORDER LOG (the one authority the record's
   // `orders` and `trades.exitId` are built from). TEXT values (`returns: 'string'`, as a drawing op's text).
   'strategy.opentrades.entry_id': { params: ['trade_num'], returns: 'string' },
@@ -333,6 +339,49 @@ export function makeBroker(cfg, data) {
     needSymbol()
     const k = p / mintick
     return Math.abs(k - Math.round(k)) < 1e-6
+  }
+  /** ⭐⭐ [B-ROUND] / [B-ROUND-MARK] the nearest tick, a tie UP (Pine's own `math.round_to_mintick`), written at
+   *  the tick's own decimals. The tick is the run's `syminfo.mintick` (`#symbol`); a run that was not told it
+   *  refuses by name (`needSymbol`, through `onTick`), it is never guessed. `1e-6` of a tick is `onTick`'s own
+   *  tolerance, so a price a float puts a hair under a half tick is the tie it was written as. */
+  const roundToTick = (p) => Number((Math.floor(p / mintick + 0.5 + 1e-6) * mintick).toFixed(tickDecimals(mintick)))
+  /**
+   * ⭐⭐ [B-ROUND] THE PRICE A FILL ON A BAR'S OPEN TAKES when that open is off the tick grid.
+   *
+   * WITNESSED, never read from a text (the reference and the manual say nothing): across the 33 committed strategy
+   * captures (`tests/fixtures/vendor/harness/*-2026-11-15.json`), 96 of TradingView's reported fills sit on a bar
+   * whose OPEN is off the tick grid, on 18 distinct bars of 23 captures, and every one is that open rounded to the
+   * nearest tick, a tie up (ties all up, below a half tick all down, above all up; buys and sells; no
+   * counterexample, and no reported fill is off the grid). 93 are MARKET fills (entries, `strategy.order`,
+   * `strategy.close`, `strategy.close_all`) and 3 are STOP fills of an exit the open reached. The table, by
+   * capture: `docs/pine/evidence/2026-11-15-strategy-readbacks/EVIDENCE.md`; the rail that re-derives it from the
+   * captures alone: `strategyReadbackWitness.test.js`.
+   *
+   * ⛔ ONLY THE WITNESSED KINDS. A LIMIT order (an entry, a take-profit) the open gapped through, a trailing stop,
+   * a trailing activation, a stop-limit's trigger, and ANY fill on another tick of the bar (the close under
+   * process_orders_on_close, a path vertex under calc_on_order_fills) at an off-grid price stop the run by name
+   * (Q-S1l): no capture shows what TradingView does there, and it never reports an off-grid fill.
+   */
+  const roundedOpenFill = (px, mode, markets, gaps) => {
+    if (onTick(px)) return px
+    if (mode !== 'open') {
+      throw new BrokerRefusal(`an order fills on ${mode === 'poc' ? "the bar's closing tick" : 'a tick inside the bar'} at `
+        + `${px}, off the tick grid of ${mintick}, and TradingView's rounding of a fill is witnessed only on a bar's open`, 'Q-S1l')
+    }
+    const unwitnessed = (what) => {
+      throw new BrokerRefusal(`${what} fills on a bar's open of ${px}, off the tick grid of ${mintick}, and TradingView's `
+        + 'rounding there is witnessed only for a market order and for a stop order the open reached', 'Q-S1l')
+    }
+    for (const m of markets) if (m.immediate && m.type !== 'stop') unwitnessed(`the ${m.type} entry \`${m.id}\``)
+    for (const g of gaps) {
+      if (g.kind === 'entry' && g.o.type === 'stop') continue
+      if (g.kind === 'exit' && g.leg === 'sl') continue
+      unwitnessed(g.kind === 'entry' ? `the ${g.o.type} entry \`${g.o.id}\``
+        : g.kind === 'exit' ? `the ${g.leg === 'tp' ? 'take-profit' : 'trailing stop'} of exit \`${g.x.id}\``
+          : g.kind === 'trigger' ? `the stop-limit \`${g.o.id}\`'s trigger` : `the trailing activation of exit \`${g.x.id}\``)
+    }
+    rule('B-ROUND')
+    return roundToTick(px)
   }
 
   // ─── W9-T5: costs ─────────────────────────────────────────────────────────
@@ -916,6 +965,9 @@ export function makeBroker(cfg, data) {
       const where = atClose ? 'closing tick' : mode === 'vertex' ? 'tick' : 'opening tick'
       throw new BrokerRefusal(`${n} orders fill on the same ${where}, and the order TradingView fills them in is not stated`, 'Q-S1d')
     }
+    // ⭐⭐ [B-ROUND] `px` stays the bar's own price (what an order's level is reached against); `fpx` is the
+    // price the fill takes. On the grid the two are one number and nothing is asked.
+    const fpx = roundedOpenFill(px, mode, markets, gaps)
     let fresh = null
     if (cls.length) {
       const cl = cls[0]
@@ -925,7 +977,7 @@ export function makeBroker(cfg, data) {
       if (atClose) { fillRule = 'B-POC'; rule('B-CLOSE'); rule('B-POC') } else if (mode === 'vertex') {
         fillRule = 'B-FILLS'
       } else { fillRule = 'B-CLOSE'; rule('B-CLOSE'); rule('B-MARKET') }
-      executeClose(cl, px, bar, true)
+      executeClose(cl, fpx, bar, true)
     } else if (markets.length) {
       const m = markets[0]
       if (atClose) fillRule = m.immediate ? 'B-POC-PRICE' : 'B-POC'
@@ -944,12 +996,12 @@ export function makeBroker(cfg, data) {
       // [B-POC-PYR] a close fill that adds to the open position
       if (atClose && open.length && open[0].dir === m.dir) rule('B-POC-PYR')
       const before = open.length + closed.length
-      fresh = fillEntry(m, px, bar, true)
+      fresh = fillEntry(m, fpx, bar, true)
       if (!fresh && open.length + closed.length === before) return { filled: false, fresh: null }
     } else {
       fillRule = atClose ? 'B-POC-PRICE' : 'B-GAP'
       rule(fillRule)
-      for (const g of gaps) fresh = fire(g, px, bar, true) || fresh
+      for (const g of gaps) fresh = fire(g, fpx, bar, true) || fresh
     }
     return { filled: true, fresh }
   }
@@ -1579,14 +1631,44 @@ export function makeBroker(cfg, data) {
   // pre-W9-T5 expression, so its arithmetic (and the bits) cannot move.
   const netOf = (t) => t.profit * pointvalue - t.commission
   const moneyOfClosed = () => sum(closed, netOf)
-  /** HYPOTHESIS (W9-K1..K3 grade it, the std set plots openprofit and equity): an open trade's entry fee is
-   *  PAID (R6 `strategy.opentrades.commission`: "fees paid in the open trade"), so it comes off its open profit
-   *  and off equity; its exit fee is not paid yet and is not counted. */
+  /**
+   * ⭐⭐ value read-backs — WHERE AN OPEN TRADE'S ENTRY FEE GOES, as the W9-K1 / K2 / K3 captures plot it.
+   * The fee is PAID when the entry fills (R6 `strategy.opentrades.commission`: "fees paid in the open trade"), and
+   * TradingView takes it off `strategy.netprofit` on that bar, NOT off `strategy.openprofit`: on every one of the
+   * 372 bars each capture holds a position, the plotted S07_netprofit is the closed trades' net profit minus the
+   * open trade's entry fee (-0.04547 on the first entry bar of W9-K1: 0.1% of 45.47; -1.5 on W9-K2; -5 on W9-K3)
+   * and S09_openprofit is (close - entry price) x size with no fee in it. `strategy.equity` is the same number
+   * either way. ⚰️ W9-T5 took the fee off the open profit (a hypothesis the captures graded, and refuted).
+   * The exit fee is not paid until the exit fills and is counted nowhere before.
+   */
   const openFees = () => sum(open, (t) => t.fee)
+  /** ⛔ `strategy.grossprofit` / `grossloss` while an open trade has paid a fee: the K probes do not plot them, so
+   *  which of the two (if either) the paid entry fee is counted in is not witnessed. Refused by name. */
+  const noOpenFee = (what) => {
+    if (costOn && openFees() > 0) {
+      throw new BrokerRefusal(`${what} is read while an open trade has paid its entry fee, and whether TradingView counts `
+        + 'that fee in it before the trade closes is not witnessed', COMM_ROW[comm.type])
+    }
+  }
   const capital = () => {
     if (!finite(cfg.initialCapital)) throw new BrokerRefusal('the initial capital is not settled', 'Q-S1b')
     if (defaulted.initialCapital) rule('B-DEFAULTS')
     return cfg.initialCapital
+  }
+  /**
+   * ⭐⭐ [B-ROUND-MARK] THE PRICE OPEN TRADES ARE MARKED AT (`strategy.openprofit`, and so `strategy.equity`): the
+   * bar's close, and when that close is off the tick grid, the close rounded to the nearest tick, a tie up.
+   * WITNESSED on `w9-r1-risk-intraday-range-spy-15-2026-11-15` (AMEX:SPY 15m): on all 47 bars where a position is
+   * open and the close is off the grid (24 ties, 10 above a half tick, 13 below), TradingView's plotted
+   * `strategy.openprofit` is (rounded close - `position_avg_price`) x `position_size`, and on none is it the raw
+   * close's (`strategyReadbackWitness.test.js` re-derives it from the capture alone). No RDDT 1D capture holds a
+   * bar with a position and an off-grid close, so on those this asks nothing. A flat run asks nothing either.
+   */
+  const markPx = (bar) => {
+    const c = C[bar]
+    if (!open.length || !finite(c) || onTick(c)) return c
+    rule('B-ROUND-MARK')
+    return roundToTick(c)
   }
   /** [B-VAL] `strategy.equity` at bar `bar`'s close: initial capital + net profit + open profit. */
   const equityAt = (bar, what) => {
@@ -1594,8 +1676,9 @@ export function makeBroker(cfg, data) {
     // not only the `strategy.equity` value) rests on the commission's rules (`commissionRulesOf`)
     askCommission()
     exactOpen(what); exactClosed(what); needSymbol()
-    if (costOn) return capital() + moneyOfClosed() + sum(open, (t) => (C[bar] - t.price) * t.dir * t.qty) * pointvalue - openFees()
-    return capital() + (netPts() + sum(open, (t) => (C[bar] - t.price) * t.dir * t.qty)) * pointvalue
+    const mark = markPx(bar)
+    if (costOn) return capital() + moneyOfClosed() + sum(open, (t) => (mark - t.price) * t.dir * t.qty) * pointvalue - openFees()
+    return capital() + (netPts() + sum(open, (t) => (mark - t.price) * t.dir * t.qty)) * pointvalue
   }
 
   /**
@@ -1725,11 +1808,20 @@ export function makeBroker(cfg, data) {
   const idOfRow = (r, fn, asExit) => {
     if (!r) throw new BrokerRefusal(`\`${fn}\` reads a trade with no order in this broker's log`)
     const id = asExit ? exitIdOf(r) : r.id
-    if (typeof id !== 'string') {
-      throw new BrokerRefusal(`\`${fn}\` reads a trade closed by ${r.kind === 'entry' ? 'a reversing entry' : `\`strategy.${r.kind}\``}, `
+    if (typeof id === 'string') return id
+    // ⭐⭐ value read-backs — an exit id no text states, WITNESSED by the std set's labels on the committed
+    // captures (`strategyRecord.js::witnessedExitIdOf`): served behind the rule of its own witness, asked here
+    const w = asExit ? witnessedExitIdOf(r) : null
+    if (!w) {
+      if (asExit && r.kind === 'entry') {
+        throw new BrokerRefusal(`\`${fn}\` reads a trade closed by a reversing entry that carries a comment, and the exit id `
+          + 'TradingView gives it is witnessed only for an entry placed without one', EXIT_LABEL_ROW)
+      }
+      throw new BrokerRefusal(`\`${fn}\` reads a trade closed by \`strategy.${r.kind}\`, `
         + 'whose exit id TradingView generates itself, and that text is not stated', 'W9-V1')
     }
-    return id
+    rule(w.rule)
+    return w.text
   }
   /** ⭐ W9-T7-F1 — an order's comment as a trade reads it. No comment: R6 says the function returns `na` only "if
    *  there is no entry with this `trade_num`", so whether an order without a comment reads `na` or "" is not stated. */
@@ -1744,6 +1836,14 @@ export function makeBroker(cfg, data) {
         + 'text is not stated', 'W9-V1')
     }
     return r.comment
+  }
+  /** The `time` of bar `bar` as Pine reads it (UNIX milliseconds; the run's bar times are epoch seconds, the
+   *  unit `vm.js` turns into `time` the same way). A run that was handed no bar times refuses by name: a
+   *  trade's time is never a bar index in disguise. */
+  const barTimeMs = (bar, fn) => {
+    const t = timeOf(bar)
+    if (!finite(t)) throw new BrokerRefusal(`\`${fn}\` reads the time of a bar this run was given no time for`)
+    return t * 1000
   }
   const value = (fn, a, bar) => {
     rule('B-VAL')
@@ -1766,24 +1866,26 @@ export function makeBroker(cfg, data) {
       case 'strategy.losstrades': return closed.filter((t) => signOf(t, '`strategy.losstrades`') < 0).length
       case 'strategy.eventrades': return closed.filter((t) => signOf(t, '`strategy.eventrades`') === 0).length
       case 'strategy.netprofit':
-        exactClosed('`strategy.netprofit`'); needSymbol(); return costOn ? moneyOfClosed() : netPts() * pointvalue
+        exactClosed('`strategy.netprofit`'); needSymbol(); return costOn ? moneyOfClosed() - openFees() : netPts() * pointvalue
       case 'strategy.netprofit_percent':
         exactClosed('`strategy.netprofit_percent`'); needSymbol()
-        return (costOn ? moneyOfClosed() : netPts() * pointvalue) / capital() * 100
+        return (costOn ? moneyOfClosed() - openFees() : netPts() * pointvalue) / capital() * 100
       // W9-T5 HYPOTHESIS (W9-K1..K3): with a commission a trade is winning or losing by its NET profit (the
       // profit R6 defines), and the gross figures sum net profits
       case 'strategy.grossprofit':
-        exactClosed('`strategy.grossprofit`'); needSymbol()
+        exactClosed('`strategy.grossprofit`'); needSymbol(); noOpenFee('`strategy.grossprofit`')
         if (costOn) return sum(closed, (t) => (netOf(t) > 0 ? netOf(t) : 0))
         return sum(closed, (t) => (t.profit > 0 ? t.profit : 0)) * pointvalue
       case 'strategy.grossloss':
-        exactClosed('`strategy.grossloss`'); needSymbol()
+        exactClosed('`strategy.grossloss`'); needSymbol(); noOpenFee('`strategy.grossloss`')
         if (costOn) return sum(closed, (t) => (netOf(t) < 0 ? -netOf(t) : 0))
         return sum(closed, (t) => (t.profit < 0 ? -t.profit : 0)) * pointvalue
-      case 'strategy.openprofit':
+      case 'strategy.openprofit': {
         exactOpen('`strategy.openprofit`'); needSymbol()
-        if (costOn) return sum(open, (t) => (C[bar] - t.price) * t.dir * t.qty) * pointvalue - openFees()
-        return sum(open, (t) => (C[bar] - t.price) * t.dir * t.qty) * pointvalue
+        // no fee in it: the entry fee an open trade paid is in `strategy.netprofit` (`openFees`, W9-K1..K3)
+        const mark = markPx(bar)
+        return sum(open, (t) => (mark - t.price) * t.dir * t.qty) * pointvalue
+      }
       case 'strategy.equity': return equityAt(bar, '`strategy.equity`')
       case 'strategy.initial_capital': return capital()
       case 'strategy.opentrades.entry_price': {
@@ -1806,6 +1908,9 @@ export function makeBroker(cfg, data) {
       case 'strategy.closedtrades.entry_bar_index': return tradeAt(closed, a[0], fn).bar
       case 'strategy.closedtrades.exit_bar_index': return tradeAt(closed, a[0], fn).exitBar
       case 'strategy.closedtrades.size': { const t = tradeAt(closed, a[0], fn); return t.dir * t.qty }
+      case 'strategy.opentrades.entry_time': return barTimeMs(tradeAt(open, a[0], fn).bar, fn)
+      case 'strategy.closedtrades.entry_time': return barTimeMs(tradeAt(closed, a[0], fn).bar, fn)
+      case 'strategy.closedtrades.exit_time': return barTimeMs(tradeAt(closed, a[0], fn).exitBar, fn)
       case 'strategy.closedtrades.profit': {
         const t = tradeAt(closed, a[0], fn)
         if (!t.exact) exactClosed(`\`${fn}\``)
@@ -1832,13 +1937,21 @@ export function makeBroker(cfg, data) {
       case 'strategy.closedtrades.exit_id': return idOfRow(rowOf(tradeAt(closed, a[0], fn).xid), fn, true)
       case 'strategy.closedtrades.exit_comment': {
         const r = rowOf(tradeAt(closed, a[0], fn).xid)
-        // the exit of a reversed trade is the reversing ENTRY's fill: whether that entry's comment is the closed
-        // trade's exit comment is not stated (R6 `strategy.entry` `comment` speaks of "the filled order")
-        if (exitLabelUnstated(r, 'exit')) {
+        if (!r) throw new BrokerRefusal(`\`${fn}\` reads a trade with no order in this broker's log`)
+        // the exit of a trade an ENTRY closed (a reversal, an allow_entry_in close) is that entry's fill. With a
+        // comment on the entry, whether that comment is the closed trade's exit comment is not stated (R6
+        // `strategy.entry` `comment` speaks of "the filled order") and no capture witnesses it: refused by name.
+        if (r.kind === 'entry' && (r.comment !== null || !r.commentRecorded)) {
           throw new BrokerRefusal(`\`${fn}\` reads a trade a reversing entry closed, and whether that entry's comment is the `
             + "closed trade's exit comment is not stated", EXIT_LABEL_ROW)
         }
-        return commentOfRow(r, fn)
+        if (!r.commentRecorded || r.comment !== null) return commentOfRow(r, fn)
+        // ⭐⭐ [B-TXT-NO-COMMENT] a closing order placed WITHOUT a comment: the exit comment reads the trade's exit
+        // id, whatever names it. WITNESSED by every std-set label (`entry_id > exit_id : exit_comment`): `L>X:X`
+        // (an exit command), `O1>O2:O2` (strategy.order), `L>Close entry(s) order L:Close entry(s) order L`,
+        // `L>Close position order:Close position order`, `L1>S:S` (a reversal). The id itself asks its own rule.
+        rule('B-TXT-NO-COMMENT')
+        return idOfRow(r, fn, true)
       }
       default: throw new BrokerRefusal(`\`${fn}\` is not a value this broker serves`)
     }
