@@ -235,8 +235,8 @@ describe('UCT RS — one hue on Classic, two on Phase, and a hidden condition pl
     // ⭐ Review finding V3 (unit 7): two identical swatches for one line need to say
     // why, and the second needs to say what it colours — the dialog renders a
     // `tooltip` as visible row text under the control.
-    expect(up.tooltip).toBe('Line colour above its average. Classic uses one colour; keep both swatches the same for a single-colour line')
-    expect(down.tooltip).toBe('Line colour below its average; the Phase preset sets red here')
+    expect(up.tooltip).toBe('Line color above its average. Classic uses one color; keep both swatches the same for a single-color line')
+    expect(down.tooltip).toBe('Line color below its average; the Phase preset sets red here')
   })
 
   // ⭐ Visual review S1 (2026-11-06): seven of thirteen labels truncated to an

@@ -12,6 +12,15 @@ import { parsePref } from '../../hooks/usePreferences'
 // charts_active_template from applyUctDefault().
 export const UCT_DEFAULT_ID = 'uct-default'
 
+// ⭐ THE ONE SWITCH for offering "UCT Default" (owner 11-16: "get rid of the UCT default
+// layout for now — users open on a blank empty workspace and create their own").
+// false = HIDDEN, not deleted: the Layout Dock, the Layouts ▾ Open submenu and the phone's
+// Layouts sheet do not list it, pins reconcile it away, and every path that used to land on
+// it (first visit, a stored active template of 'uct-default', deleting the open layout)
+// opens a BLANK board instead. UCT_DEFAULT_LAYOUT and this id stay in code; flip to true to
+// bring it all back.
+export const UCT_DEFAULT_OFFERED = false
+
 export const DOCK_PREF = 'charts_layout_dock'
 
 /**
@@ -82,6 +91,8 @@ export function addPin(pins, id) {
  *    menu lands on the bar too)
  */
 export function reconcilePins(stored, entries) {
+  // UCT Default hidden (UCT_DEFAULT_OFFERED): ChartsWorkspace stops handing its entry in,
+  // so a stored pin of it drops off the bar here like any deleted layout.
   const ids = entries.map(e => e.id)
   if (!stored) return { pins: ids, known: ids, hidden: false }
   const live = new Set(ids)

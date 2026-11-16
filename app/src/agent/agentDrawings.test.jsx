@@ -96,7 +96,7 @@ describe('drawing.addLevel — the price-axis menu\'s own horizontal line', () =
       reasons.push((await plan(h, [op('drawing.addLevel', a)])).p.refusals[0]?.reason)
     }
     expect(reasons[0]).toMatch(/positive number/)
-    expect(reasons[1]).toMatch(/isn't a colour/)
+    expect(reasons[1]).toMatch(/isn't a color/)
     expect(reasons[2]).toMatch(/already a horizontal line at \$99/)
     expect(drawings().length).toBe(1)
   })
@@ -108,7 +108,7 @@ describe('drawing.style / drawing.remove — ONE drawing, by id', () => {
     const a = store.addDrawing(SYM, { type: 'horizontal', points: [{ price: 1 }], color: '#111111', lineWidth: 1 })
     const b = store.addDrawing(SYM, { type: 'horizontal', points: [{ price: 2 }], color: '#222222', lineWidth: 1 })
     const { p, env } = await plan(h, [op('drawing.style', { drawing: b, color: 'pink', style: 'dashed', width: null })])
-    expect(p.lines[0]).toMatch(/^Restyled the .* colour pink, dashed$/)
+    expect(p.lines[0]).toMatch(/^Restyled the .* color pink, dashed$/)
     const res = await commitPlan(h, p, { env })
     expect(drawings().find(d => d.id === b)).toMatchObject({ color: '#ec4899', lineStyle: 'dashed' })
     expect(drawings().find(d => d.id === a).color).toBe('#111111')

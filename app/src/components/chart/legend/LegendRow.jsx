@@ -71,7 +71,7 @@ import UIcon from '../../ui/UIcon'
  *
  * Shared by `IndicatorChip`'s grid row so the two kinds of row look and behave alike.
  */
-export function RowActs({ name, hidden = false, onToggleHidden, onSettings, onMore, actsClass, actClass, eyeClass }) {
+export function RowActs({ name, hidden = false, onToggleHidden, onSettings, onMore, menuOpen = false, actsClass, actClass, eyeClass }) {
   const stop = (fn) => (e) => {
     e.stopPropagation()
     e.preventDefault?.()
@@ -100,6 +100,7 @@ export function RowActs({ name, hidden = false, onToggleHidden, onSettings, onMo
         <button type="button" tabIndex={-1} className={actClass}
           aria-label={`More for ${name}`} title="More"
           aria-haspopup="menu"
+          aria-expanded={menuOpen ? 'true' : undefined}
           onClick={stop(onMore)} onKeyDown={keyStop}>
           <UIcon name="more" size={14} strokeWidth={1.6} gold={false} />
         </button>
@@ -207,6 +208,9 @@ export default function LegendRow({
    *  opted in). Each is the door the popover's own row already calls. */
   onToggleHidden,
   onSettings,
+  /** ⭐ UCT SIGNATURE — this row's ⋯ menu (or one of its pages) is open: the row holds
+   *  its hover card + strip (`.rowActive`) and the ⋯ reports `aria-expanded`. */
+  menuOpen = false,
   // ⚰️ `onHover` AND `hoverKey` ARE GONE. They drove the hover lift — a pixel
   // added to the drawn series while the pointer was on its label — retired by the
   // owner after production use: hovering a legend must not mutate the plot.
@@ -265,13 +269,14 @@ export default function LegendRow({
      token changes. */
   // ⛔ a colour reaches CSS only through `safeCssColour` (objectColour.js) — a stored or shared value may carry anything
   const color = safeCssColour(rawColor)
-  const ink = color ? { color } : undefined
-  const valInk = color ? { color: 'inherit' } : undefined
+  /* ⭐ Owner 11-16 — EVERY legend row, flat or vertical: the name wears the shared label ink and the
+     value the line's colour (`--row-color`), clamped in CSS to the label's lightness band, so both read
+     at one brightness. A row with no colour prints both in the shared ink. */
+  const valInk = color ? { '--row-color': color } : undefined
   /* ⭐ UCT SIGNATURE — THE VERTICAL ROW'S NAME IS NO LONGER INKED IN THE LINE'S COLOUR.
      The 3×13 colour bar carries the series identity; the name is the signature grey
-     (`--legend-ink-name`) and the value bright white, so a nine-line stack reads calmly
-     instead of as a rainbow. The FLAT strip (Model Book, a grid cell, the phone) is
-     untouched and keeps `ink` above. */
+     and a nine-line stack reads calmly instead of as a rainbow. Since 11-16 the flat strip
+     (volume pane, grouped pane legends, Model Book) follows the same rule. */
   const hasActs = interactive && (typeof onToggleHidden === 'function' || typeof onSettings === 'function')
   const actsCount = hasActs
     ? (hidden ? (typeof onToggleHidden === 'function' ? 1 : 0)
@@ -288,7 +293,6 @@ export default function LegendRow({
         data-instance-id={instanceId}
         data-plot-key={plotKey}
         data-computed={computed === false ? 'false' : undefined}
-        style={ink}
         {...trigger}
       >
         {/* ⭐ THE MICRO-RAIL, IN THE HORIZONTAL STRIP TOO (owner §21, 2026-09-16).
@@ -311,7 +315,7 @@ export default function LegendRow({
   // ─── VERTICAL: ONE subgrid row that spans the legend's own tracks ──────────
   return (
     <span
-      className={`${styles.vRow} ${tone} ${secondary ? styles.vRowSub : ''} ${folded ? styles.rowFolded : ''} ${interactive ? styles.rowLive : ''} ${hasActs ? styles.rowActs : ''} ${hasActs && hidden ? styles.rowActsHidden : ''}`}
+      className={`${styles.vRow} ${tone} ${secondary ? styles.vRowSub : ''} ${folded ? styles.rowFolded : ''} ${interactive ? styles.rowLive : ''} ${hasActs ? styles.rowActs : ''} ${hasActs && hidden ? styles.rowActsHidden : ''} ${hasActs && menuOpen ? styles.rowActive : ''}`}
       data-legend-row={rowId}
       data-hidden={hidden ? 'true' : 'false'}
       data-instance-id={instanceId}
@@ -359,7 +363,8 @@ export default function LegendRow({
           member had picked. The label keeps the hue — it is the identity — and the
           number is always the same crisp white, so the eye lands on it first at
           every hue. */}
-      <span className={styles.vVal}>{value}</span>
+      {/* Owner 11-16: the value wears the series colour via --row-color (clamped to the label's lightness); no colour → the shared ink. */}
+      <span className={styles.vVal} style={valInk}>{value}</span>
       {/* ⛔ THE THIRD CELL IS STILL EMITTED, EMPTY. `.legendVertical` is ONE grid
           for the whole legend and fills by ORDER, so a row that emitted two cells
           would let the next row's label fall into the third track and cascade the
@@ -375,6 +380,7 @@ export default function LegendRow({
           onToggleHidden={typeof onToggleHidden === 'function' ? () => onToggleHidden(rowId) : undefined}
           onSettings={typeof onSettings === 'function' ? () => onSettings(rowId) : undefined}
           onMore={fire}
+          menuOpen={!!menuOpen}
           actsClass={styles.acts} actClass={styles.act} eyeClass={styles.actEye} />
       ) : null}
     </span>

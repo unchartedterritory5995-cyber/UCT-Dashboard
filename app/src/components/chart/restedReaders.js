@@ -36,6 +36,7 @@ import useWatchlistMeta from '../../hooks/useWatchlistMeta'
 import { snapshotBatchKey } from '../../hooks/watchlistMetaKey'
 import useVolumeCurve from '../../hooks/useVolumeCurve'
 import { volumeCurveKey } from '../../hooks/volumeCurveKey'
+import useWatchlistFacts, { watchlistFactsKey } from '../../hooks/useWatchlistFacts'
 
 /** Name, sector, industry, theme, exchange (`useTickerMeta`). */
 export function useChartTickerMeta(sym) {
@@ -84,4 +85,9 @@ export function useChartMeta(tickers) {
 /** The time-of-day volume curve (`useVolumeCurve`). */
 export function useChartVolumeCurve(enabled, tickers) {
   return useVolumeCurve(enabled, tickers, useRestGate(enabled ? volumeCurveKey(tickers) : null))
+}
+
+/** The nightly-snapshot fields of the header's library stats (`useWatchlistFacts`, POST /api/watchlists/column-facts). */
+export function useChartColumnFacts(tickers, fields) {
+  return useWatchlistFacts(tickers, fields, useRestGate(watchlistFactsKey(tickers, fields)))
 }

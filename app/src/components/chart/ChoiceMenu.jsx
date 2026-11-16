@@ -89,6 +89,10 @@ export default function ChoiceMenu({ value, options = [], onChange, ariaLabel, a
           role="listbox"
           aria-label={ariaLabel}
           data-choice-menu=""
+          // ColorPicker's PORTAL_POPUP_ATTR, spelled out (no import): the list portals to <body>, and a
+          // host that closes on an outside mousedown (the chart toolbar's panel under the formula
+          // builder) treats a node carrying it as logically inside whatever opened it.
+          data-chart-portal-popup="choice-menu"
           onKeyDown={onKeyDown}
         >
           {options.map((o, i) => {

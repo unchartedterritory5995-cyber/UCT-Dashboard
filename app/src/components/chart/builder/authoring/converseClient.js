@@ -127,7 +127,7 @@ export async function converseTurn({ message, state, gateCtx = {}, snippets = []
       if (typeof body?.detail === 'string') detail = body.detail
     } catch { /* not JSON */ }
     const reason = status === 402 ? 'Custom indicators require a paid plan.'
-      : (detail || `The assistant could not answer (${status}).`)
+      : (detail || `The UCT Agent could not answer (${status}).`)
     return { ok: false, gate: `http:${status}`, reason, notUnderstood: [], unavailable: [] }
   }
   let body
@@ -138,17 +138,17 @@ export async function converseTurn({ message, state, gateCtx = {}, snippets = []
     return {
       ok: false,
       gate: (body && body.gate) || 'converse:unreadable',
-      reason: (body && typeof body.reason === 'string' && body.reason) || 'The assistant gave no usable answer.',
+      reason: (body && typeof body.reason === 'string' && body.reason) || 'The UCT Agent gave no usable answer.',
       ...(body && body.disposition === 'unsupported' ? { disposition: 'unsupported' } : {}),
       ...(body && body.preflight === true ? { preflight: true } : {}),
       notUnderstood, unavailable,
     }
   }
   if (!body.envelope || typeof body.envelope !== 'object') {
-    return { ok: false, gate: 'converse:no-envelope', reason: 'The assistant gave no change to apply.', notUnderstood, unavailable }
+    return { ok: false, gate: 'converse:no-envelope', reason: 'The UCT Agent gave no change to apply.', notUnderstood, unavailable }
   }
   if (!DISPOSITIONS.includes(body.disposition)) {
-    return { ok: false, gate: 'converse:no-disposition', reason: 'The assistant did not say what kind of answer this was, so nothing was changed.', notUnderstood, unavailable }
+    return { ok: false, gate: 'converse:no-disposition', reason: 'The UCT Agent did not say what kind of answer this was, so nothing was changed.', notUnderstood, unavailable }
   }
   return {
     ok: true, disposition: body.disposition, reply: typeof body.reply === 'string' ? body.reply : '',

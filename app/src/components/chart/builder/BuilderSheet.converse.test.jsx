@@ -11,6 +11,7 @@ import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import { setCreateIndicatorFlag } from './studio/createIndicatorFlag'
 import BuilderSheet from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from './builderStart.testkit.js'
 import { AuthContext } from '../../../context/AuthContext'
 import { clearUserDefinitions } from '../engine/nativeRegistry'
 import { parseFormula } from '../engine/ast/parse'
@@ -55,7 +56,7 @@ describe('BuilderSheet hosts the conversation', () => {
       </AuthContext.Provider>,
     )
     expect(screen.getByTestId('converse')).toBeTruthy()
-    fireEvent.change(screen.getByLabelText('Describe the indicator'), { target: { value: 'RSI overbought' } })
+    fireEvent.change(screen.getByLabelText('Describe it'), { target: { value: 'RSI overbought' } })
     fireEvent.click(screen.getByTestId('converse-send'))
     await flush()
     const conv = H.requests.filter((r) => r.url.endsWith(CONVERSE_ENDPOINT))
@@ -72,7 +73,7 @@ describe('BuilderSheet hosts the conversation', () => {
     // box shows no second button.
     expect(screen.queryByTestId('converse-save')).toBeNull()
     expect(screen.getByTestId('sheet-save').textContent).toBe('Save and add to chart')
-    expect(screen.getByTestId('save-hint').textContent).toMatch(/conversation above/)
+    expect(screen.getByTestId('save-hint').textContent).toMatch(/Saves the indicator from the conversation/)
     fireEvent.click(screen.getByTestId('sheet-save'))
     await flush()
     // definition writes only: the rollout funnel's shape-only telemetry (`studio_action`) is not one
@@ -114,7 +115,7 @@ describe('P3 UX — closing the sheet with an unsaved conversation asks first', 
   it('an unsaved conversation turn makes Cancel ask, names the in-tab draft, and "Close without saving" closes', async () => {
     const onClose = vi.fn()
     mountSheet(onClose)
-    fireEvent.change(screen.getByLabelText('Describe the indicator'), { target: { value: 'RSI overbought' } })
+    fireEvent.change(screen.getByLabelText('Describe it'), { target: { value: 'RSI overbought' } })
     fireEvent.click(screen.getByTestId('converse-send'))
     await flush()
     cancel()
@@ -134,7 +135,7 @@ describe('P3 UX — closing the sheet with an unsaved conversation asks first', 
   it('after the conversation is saved, Cancel closes at once again', async () => {
     const onClose = vi.fn()
     mountSheet(onClose)
-    fireEvent.change(screen.getByLabelText('Describe the indicator'), { target: { value: 'RSI overbought' } })
+    fireEvent.change(screen.getByLabelText('Describe it'), { target: { value: 'RSI overbought' } })
     fireEvent.click(screen.getByTestId('converse-send'))
     await flush()
     fireEvent.click(screen.getByTestId('sheet-save'))

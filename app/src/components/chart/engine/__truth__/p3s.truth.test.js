@@ -93,7 +93,7 @@ describe('1. CHANGE-TURN TRUTH — the model is not the authority on applied sta
     const converse = p3rConverse()
     render(createElement(ConverseBox, { converse, sessionKey: newKey('p3s1') }))
     const send = async (text) => {
-      fireEvent.change(screen.getByLabelText(/Describe the indicator|Change it/), { target: { value: text } })
+      fireEvent.change(screen.getByLabelText(/^Describe it$|^Change it$/), { target: { value: text } })
       fireEvent.click(screen.getByTestId('converse-send'))
       await flush()
     }

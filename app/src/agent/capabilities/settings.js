@@ -112,7 +112,7 @@ export function registerSettingsCapabilities() {
     name: 'settings.setAppTheme',
     surfaces: ['charts'],
     target: 'settings',
-    summary: 'Change the WHOLE APP\'s colour theme (sidebar, panels, pages) — e.g. "switch to dark mode / light mode". Not a chart\'s colours: for one chart use chart.applyTheme.',
+    summary: 'Change the WHOLE APP\'s color theme (sidebar, panels, pages) — e.g. "switch to dark mode / light mode". Not a chart\'s colors: for one chart use chart.applyTheme.',
     hints: `target = the ref of the settings entry. theme: dark = Graphite (the default dark), oled = OLED Black, light = Light; or one of UCT's themes: ${APP_THEMES.map(t => `${t.id} (${t.name}, ${t.family})`).join(', ')}. "Dark mode" = dark; "light mode" = light.`,
     args: { type: 'object', properties: { theme: { type: 'string', enum: THEME_IDS } }, required: ['theme'], additionalProperties: false },
     check: (st, { theme }) => (THEME_IDS.includes(theme) ? null : `“${theme}” isn't one of UCT's app themes.`),

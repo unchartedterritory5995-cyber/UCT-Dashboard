@@ -49,7 +49,7 @@
 import { withoutGuardIds } from './engine/ast/guardIdText'
 import { orderCategories } from './technicalCategories'
 import OptionsSourcePicker from './OptionsSourcePicker'
-import { Fragment, cloneElement, useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { Fragment, cloneElement, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import {
   readEnabled, indTarget, signTarget, styleInputKeys, hiddenPlotOnlyInputKeys,
@@ -69,8 +69,6 @@ import {
 // is there room for two columns. A `matchMedia` of its own here would be a
 // second breakpoint authority beside `useMediaQuery`.
 import useMediaQuery from '../../hooks/useMediaQuery'
-import { useCreateIndicatorAccess } from './builder/studio/createIndicatorFlag'
-import { AuthContext } from '../../context/AuthContext'
 import {
   catalogRows, userCatalogRows, catalogGeneration, userRefusalRows, REFUSED_CATEGORY,
   BUILT_IN_ROWS,
@@ -98,6 +96,10 @@ import useSymbolDiscovery from './useSymbolDiscovery'
 // See the header — this is the reuse, and it is why this file has no `q.trim()`
 // in it and no second `setIndicatorEnabled` call.
 import { matches, isRowOn, toggledRow, rowVisibility } from './IndicatorLibraryDialog'
+// Words a description carries that name no indicator (the word-by-word search fallback skips them).
+const SEARCH_STOP_WORDS = new Set(['the', 'a', 'an', 'and', 'or', 'of', 'on', 'in', 'is', 'it', 'to', 'when', 'while',
+  'with', 'above', 'below', 'over', 'under', 'than', 'crosses', 'cross', 'day', 'days', 'bar', 'bars', 'price', 'close',
+  'my', 'me', 'show', 'mark', 'line', 'up', 'down', 'goes', 'is', 'are', 'at', 'for', 'from', 'by'])
 import { isTouredFirstAdd } from './legend/indicatorTour'
 import IndicatorHistoryButtons from './IndicatorHistoryButtons'
 import UnavailableIndicators from './UnavailableIndicators'
@@ -322,10 +324,16 @@ export default function ChartSettingsIndicators({
   // mounted `BuilderSheet`); the multi-chart grid does not, and simply shows no
   // New Formula action rather than a button that opens nothing.
   onCreateFormula = null,
-  // ⭐ P2 Track B — "+ Create Indicator" (UCT Intelligence). Same absent-prop ⇒
-  // absent-door rule, and additionally DARK behind `useCreateIndicatorFlag`
-  // (default off): with the flag off this surface is byte-identical to before.
+  // ⭐ UCT SIGNATURE R2 (owner Option 1, 2026-11-16) — `onCreateFormula(opts?)` is now the
+  // window's ONE "✦ Create indicator" button, opening the New formula window on its start view.
+  // `opts.description` (the search text, from "Build … with the UCT Agent") is PRE-FILLED into
+  // that view's Describe it box and never sent. `onCreateIndicator` is still accepted (hosts pass
+  // it) but this window no longer offers the separate Create Indicator door.
+  // eslint-disable-next-line no-unused-vars
   onCreateIndicator = null,
+  // (door) => void: open the New formula window on 'pine' | 'image' | 'formula' (the name master
+  // uses for the same doors). Absent ⇒ the "Or …" links under the UCT Agent row are not shown.
+  onOpenBuilderDoor = null,
   // ⭐ THE TIMEFRAME THE CHART IS ON, when the host knows it. Only ever used to SAY
   // something (a calculation timeframe that cannot draw on this chart, a Custom
   // visibility seeded from where the member is) — never to decide what is stored.
@@ -355,13 +363,6 @@ export default function ChartSettingsIndicators({
   // ⭐ The prefix for each catalogue result's state id (`aria-describedby`).
   const resultIdBase = useId()
   const soonDescId = `${resultIdBase}-soon`
-  // ⭐ P2 Track B — DARK, TWO KEYS: the per-browser opt-in (see the flag module)
-  // AND the server-provided admin role. A member flipping localStorage from
-  // DevTools still sees exactly the old "+ New Formula".
-  // ⭐ ROLLOUT — the same one rule as the sheet (`createIndicatorAccess`): an admin
-  // with this browser's opt-in, or a member the server's `cohorts` list releases.
-  const createIndicatorOn = useCreateIndicatorAccess(useContext(AuthContext))
-  const showCreateIndicator = !!(createIndicatorOn && onCreateIndicator)
   // 'active' — what the chart draws, plus the ways in.
   // 'browse'  — the catalogue, entered by focusing/typing in search or picking a
   //             category, left by Back, Escape or clearing the box.
@@ -1158,7 +1159,14 @@ export default function ChartSettingsIndicators({
   }, [browsed, symbolResults])
 
   const results = useMemo(() => {
-    const byQuery = catalog.filter((r) => matches(r, query))
+    let byQuery = catalog.filter((r) => matches(r, query))
+    // Owner 11-16: a sentence ("rsi below 30 above the 200 day") matches nothing as a whole phrase — fall back to
+    // its meaningful words so the closest indicators (RSI) still show above the "Build it with the UCT Agent" row.
+    if (!byQuery.length && /\s/.test(String(query || '').trim())) {
+      const words = String(query).toLowerCase().split(/[^a-z0-9]+/)
+        .filter((w) => w.length >= 2 && !/^\d+$/.test(w) && !SEARCH_STOP_WORDS.has(w))
+      if (words.length) byQuery = catalog.filter((r) => words.some((w) => matches(r, w)))
+    }
     // ⛔ THE REMOTE ROWS ARE NOT RE-FILTERED BY `matches`. They are already the
     // answer to this query — `useSymbolDiscovery` asked the server and the breadth
     // library with it — and a second substring test over a name the server ranked
@@ -2944,7 +2952,7 @@ export default function ChartSettingsIndicators({
             )}
           </span>
           {/* ⭐ PHASE 4 — THE INDICATOR ITSELF, separate from this instance's settings: a member's
-              own formula can be modified (UCT Intelligence, where authorized) or opened in the
+              own formula can be modified (the UCT Agent, where authorized) or opened in the
               formula builder; a formula or a parity-approved built-in can be copied into a NEW
               indicator of their own (a built-in that cannot be reproduced exactly says why). */}
           {hasMore && moreOpen && (
@@ -2954,7 +2962,7 @@ export default function ChartSettingsIndicators({
               {canModify && (
                 <button type="button" role="menuitem" className={styles.menuItem} data-testid="inspector-modify"
                   onClick={() => { setMoreOpen(false); definitionDoors.modify(def.id) }}>
-                  <span>Change it with UCT Intelligence</span><Icon name="spark" size={13} className={styles.spark} />
+                  <span>Change it with the UCT Agent</span><Icon name="spark" size={13} className={styles.spark} />
                 </button>
               )}
               {doorKind === 'user' && (
@@ -3859,45 +3867,22 @@ export default function ChartSettingsIndicators({
     const tabLabel = (libraryTabs.find((t) => t.key === activeTab) || { label: 'anything' }).label
     return (
     <div className={styles.insAdd} data-testid="add-surface" data-guide="indicators.addSurface">
-      {/* ⭐ UCT SIGNATURE — the Indicators window's own header: its title and the two ways to make
-          one, side by side as in the lab. "Describe one" (UCT Intelligence, gold ✦) is the EXISTING
-          `onCreateIndicator` door — live where it is released for this member (the server role /
-          rollout rule `useCreateIndicatorAccess`), otherwise shown disabled with "Soon". */}
+      {/* ⭐ UCT SIGNATURE R2 (owner Option 1, 2026-11-16) — the window's header: its title and ONE
+          way to make an indicator, "✦ Create indicator" (soft-bright; gold only on the ✦). It opens
+          the New formula window on its start view (Describe it, or start from a script / a picture /
+          conditions / a setup). ⚰️ It replaces "Describe one (Soon)" and "+ New formula": two
+          buttons for one job. Search stays the first and only input. */}
       <div className={styles.bHead}>
         <h3 className={styles.bTitle}>Indicators</h3>
-        {showCreateIndicator ? (
-          <button
-            type="button"
-            className={styles.pill}
-            data-testid="settings-create-indicator"
-            data-guide="indicators.create"
-            onClick={() => onCreateIndicator()}
-            title="Build an indicator by describing it — UCT Intelligence previews it on this chart"
-          >
-            <Icon name="spark" size={13} className={styles.spark} />
-            Describe one
-          </button>
-        ) : (
-          <button
-            type="button"
-            className={`${styles.pill} ${styles.soonRow}`}
-            disabled aria-disabled="true" title={SOON} aria-describedby={soonDescId}
-            aria-label="Describe one (coming soon)"
-          >
-            <Icon name="spark" size={13} className={styles.spark} />
-            Describe one<span className={modalStyles.soonTag}>Soon</span>
-          </button>
-        )}
         {onCreateFormula && (
           <button
             type="button"
-            className={styles.pill}
-            data-testid="settings-new-formula"
+            className={styles.addPrim}
+            data-testid="settings-create-indicator"
+            data-guide="indicators.create"
             onClick={() => onCreateFormula()}
-            title="Build your own indicator — conditions, plain English, Pine or ThinkScript"
           >
-            <Icon name="plus" size={13} />
-            New formula
+            <span className={styles.spark} aria-hidden="true">✦</span>Create indicator
           </button>
         )}
       </div>
@@ -3924,7 +3909,7 @@ export default function ChartSettingsIndicators({
                deliberately absent — see `FUNDAMENTALS_STATUS`; promising a search
                that can return nothing is the "fake availability" the brief rules
                out. */
-            placeholder="Search indicators, symbols, or formulas…"
+            placeholder="Search indicators or symbols…"
             aria-label="Search indicators"
             value={query}
             onChange={(e) => {
@@ -4089,6 +4074,36 @@ export default function ChartSettingsIndicators({
             </ul>
           </section>
         ))}
+        {/* ⭐ UCT SIGNATURE R2 — "NOT QUITE IT?" (owner Option 1). While the search has text, always —
+            matches or not — the UCT Agent is offered for exactly what was typed. It opens the New
+            formula window's start view with the words PRE-FILLED in Describe it; nothing is sent
+            until the member presses Send there. With no matches it sits right under that sentence. */}
+        {query.trim() && onCreateFormula && (
+          <section className={styles.insAddGroup} data-testid="agent-build" aria-label="Not quite it?">
+            <div className={styles.insSectionLabel}>Not quite it?</div>
+            <button
+              type="button"
+              className={styles.agentRow}
+              data-testid="agent-build-row"
+              onClick={() => onCreateFormula({ description: query.trim() })}
+            >
+              <span className={styles.spark} aria-hidden="true">✦</span>
+              <span className={styles.agentMain}>
+                <span className={styles.agentName}>Build “{query.trim()}” with the UCT Agent</span>
+                <span className={styles.agentSub}>It writes the formula and shows you a plain-English read-back and a preview before anything is added</span>
+              </span>
+              <span className={styles.agentArrow} aria-hidden="true">→</span>
+            </button>
+            {onOpenBuilderDoor && (
+              <div className={styles.agentAlt} data-testid="agent-build-doors">
+                <span>Or</span>
+                <button type="button" className={styles.agentAltLink} data-testid="door-pine" onClick={() => onOpenBuilderDoor('pine')}>Paste a TradingView script</button>
+                <button type="button" className={styles.agentAltLink} data-testid="door-image" onClick={() => onOpenBuilderDoor('image')}>Start from a picture</button>
+                <button type="button" className={styles.agentAltLink} data-testid="settings-new-formula" onClick={() => onOpenBuilderDoor('formula')}>Write a formula</button>
+              </div>
+            )}
+          </section>
+        )}
         {/* Saved, and not offered — with the gate's own reason, verbatim. Rendered
             only when something was actually refused, so a member whose formulas
             all install sees no heading about nothing. */}

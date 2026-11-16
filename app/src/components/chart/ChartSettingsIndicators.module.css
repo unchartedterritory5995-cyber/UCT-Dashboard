@@ -349,6 +349,22 @@
 }
 .resRow:hover .resAdd { background: rgba(248, 247, 243, 0.08); color: var(--ci-bright); }
 .indEmpty { color: var(--ci-faint); padding: 24px 4px; text-align: center; }
+/* ── "Not quite it?" — the UCT Agent row under a search (UCT Signature R2, owner Option 1).
+   ⛔ Gold on the ✦ only (`.spark`); the row, its arrow and the links are neutral. */
+.agentRow {
+  display: flex; align-items: center; gap: 12px; width: 100%; box-sizing: border-box; padding: 12px 14px; text-align: left;
+  border: 1px solid #2a2c31; border-radius: 9px; background: #16171a; color: var(--ci-text); font: inherit; cursor: pointer;
+}
+.agentRow:hover { background: #1b1c20; border-color: var(--ci-border); }
+.agentRow:focus-visible, .agentAltLink:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: 1px; }
+.agentRow .spark { font-size: 15px; }
+.agentMain { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.agentName { font-size: 13px; font-weight: 600; color: var(--ci-bright); overflow-wrap: anywhere; }
+.agentSub { font-size: 11.5px; color: var(--ci-faint); }
+.agentArrow { flex: 0 0 auto; color: var(--ci-label); font-size: 14px; }
+.agentAlt { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 8px 2px 2px; font-size: 12px; color: var(--ci-faint); }
+.agentAltLink { border: 0; background: none; padding: 0; color: var(--ci-label); font: inherit; cursor: pointer; }
+.agentAltLink:hover { color: var(--ci-bright); }
 .insSearching { color: var(--ci-faint); padding: 10px 12px; background: var(--ci-card); border-radius: 9px; }
 .insUnavailable { padding: 18px 6px; color: var(--ci-dim); }
 .insUnavailableLede { font-weight: 600; color: var(--ci-text); }

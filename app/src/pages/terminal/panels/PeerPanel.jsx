@@ -175,7 +175,7 @@ export default function PeerPanel({ sym }) {
 
       <p className={styles.muted} data-testid="terminal-peer-method">
         {s} is row 1, so each peer reads against it. Prices from the live feed; 1W to YTD from daily closes. A sign (+/-)
-        marks every change, so colour is never the only signal. Click a symbol, or type its row number, to load it.
+        marks every change, so color is never the only signal. Click a symbol, or type its row number, to load it.
         {asOf ? ` Peers as of ${formatTimeEt(asOf, { zoneSuffix: 'ET', absent: '' })}.` : ''}
       </p>
     </div>

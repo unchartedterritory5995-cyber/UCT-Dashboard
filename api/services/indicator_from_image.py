@@ -361,7 +361,7 @@ _TASK = (
     "something like it. Offer them most-likely first, and for each one report:\n"
     "  * what you actually SAW that led you there -- where it sits (its own pane "
     "or on the price), the bounds of its axis, guide lines and their values, how "
-    "many lines, how they cross, shading, colour changes, the title text and any "
+    "many lines, how they cross, shading, color changes, the title text and any "
     "parameters printed in it;\n"
     "  * a name for it if you recognise one, and an empty label if you do not;\n"
     "  * a confidence from 0 to 100, and BE HONEST WITH IT. A picture does not "

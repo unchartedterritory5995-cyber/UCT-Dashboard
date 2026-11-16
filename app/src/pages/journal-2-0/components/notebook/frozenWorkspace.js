@@ -58,5 +58,9 @@ export function frozenWorkspaceValue({ symbol = null } = {}) {
     floatNewWidget: () => {},
     applyThemeToAllCharts: () => {},
     applyThemeToAllWidgets: () => {},
+    // Chart Settings "Apply to all charts" (11-16) writes the /charts layout; a frozen
+    // embed has none, so the door is absent (null ⇒ no control offered).
+    countOtherCharts: null,
+    applyAppearanceToOtherCharts: null,
   }
 }

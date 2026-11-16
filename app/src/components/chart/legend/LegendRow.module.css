@@ -98,15 +98,23 @@
      the name is resting-nav grey #c9c6be at 600 and the value bright white, so the
      stack reads calmly. It is the theme-aware muted ink (#cfcac0 on the dark theme, close
      to the signature resting grey), so every theme/canvas keeps its contrast. */
-  color: var(--legend-ink-muted, var(--text-muted));
-  font-weight: 600;
+  /* ⭐⭐ OWNER 11-16 — ONE INK FOR THE LABEL AND THE VALUE ("make sure they're all the same contrast
+     and brightness"). `--legend-ink-pair` (legendInk.js LEGEND_PAIR_ROLE); the value shares the weight too (500). */
+  color: var(--legend-ink-pair, var(--text-muted));
+  font-weight: 500;
 }
 .vVal, .flatVal {
   /* ⭐⭐ §4 — THE NUMBER WINS THE ROW, and it wins on luminance rather than size.
      Bright neutral against a mid-luminance series colour, 600 against 500: the eye
      lands on `711.65` before `EMA 9` at every hue, including the pale ones, which
-     is exactly what a per-series coloured value could not promise. */
-  color: var(--legend-ink-bright, var(--text-bright));
+     is exactly what a per-series coloured value could not promise.
+     EXPERIMENT (owner 11-16): the vertical value takes its series colour (--row-color, set inline by
+     LegendRow); with none it stays the bright neutral. */
+  /* ⭐ OWNER 11-16 — no colour → the label's own ink (one brightness per row); a coloured value is
+     clamped to the label's lightness band in the @supports block at the end of this file. */
+  color: var(--row-color, var(--legend-ink-pair, var(--text-muted)));
+  /* Owner 11-16 (experiment): the value takes the LABEL's weight — label/value differ only by position + series colour. */
+  font-weight: 500;
 }
 /* ⚰️ `.rail` STOOD HERE — a 2×9px bar of the line colour before every name.
    Retired with the chip's (owner, 2026-09-14): on a nine-row legend it read as
@@ -119,7 +127,7 @@
 .vVal {
   /* ⚰ `text-align: right` WENT WITH THE COLUMN. There is no column to align
      into; the value simply follows its own label. */
-  font-weight: 600;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -143,6 +151,9 @@
   align-items: center;
   gap: 4px;
   white-space: nowrap;
+  /* Owner 11-16: the flat row's name takes the shared label ink too (outside a chart: inherit, as before). */
+  color: var(--legend-ink-pair, inherit);
+  font-weight: 500;
   pointer-events: auto;
   cursor: default;
 }
@@ -249,7 +260,8 @@
   opacity: 0;
 }
 .rowActs:hover::before,
-.rowActs:focus-visible::before { opacity: 1; }
+.rowActs:focus-visible::before,
+.rowActive::before { opacity: 1; }
 .acts {
   position: absolute;
   left: 100%;
@@ -264,6 +276,7 @@
 .rowActs:hover .acts,
 .rowActs:focus-visible .acts,
 .rowActsHidden .acts { display: flex; }
+.rowActive .acts { display: flex; }
 .act {
   width: 22px;
   height: 22px;
@@ -276,7 +289,11 @@
   color: #a9a59b;
   cursor: pointer;
 }
+/* ⭐ `.rowActive` — the row's ⋯ menu (or one of its pages) is open: the row keeps its
+   hover card + strip so the floating menu still has a visible owner, and the ⋯ that
+   opened it reads as the chosen control. */
 .act:hover { background: rgba(248, 247, 243, 0.08); color: var(--ut-gold, #dcbb5e); }
+.act[aria-expanded="true"] { background: rgba(248, 247, 243, 0.08); color: var(--ut-gold, #dcbb5e); }
 .act:focus { outline: none; }
 .act:focus-visible { outline: 1px solid rgba(248, 247, 243, 0.5); outline-offset: -1px; }
 .act svg { display: block; }
@@ -293,7 +310,7 @@
 /* ⛔ TOUCH HAS NO HOVER: the row is the door there and the popover/bottom sheet carries
    every verb, so the strip never shows on a hover-less pointer. */
 @media (hover: none) {
-  .acts, .rowActsHidden .acts { display: none; }
+  .acts, .rowActsHidden .acts, .rowActive .acts { display: none; }
   .rowActs::before { display: none; }
 }
 /* ⭐⭐ §16 — A BRIGHTNESS FILTER, NOT A COLOUR SWAP. Re-inking the label to white
@@ -370,3 +387,16 @@
    stack is a grid and every label has to start at one x. A horizontal strip has no
    column to hold, so an unpainted rule there is a 6px hole before every `O` and
    `H` in the flat legend. This one is emitted only when a colour exists. */
+
+/* Owner 11-16 — the contrast floor for a coloured value: clamp the series colour's OKLCH lightness into the band
+   StockChart publishes for its canvas (--legend-val-lmin/-lmax), keeping chroma and hue. Browsers without
+   relative-colour syntax keep the plain series colour above. */
+/* ⭐ OWNER 11-16 — THE BAND IS NARROW AND CENTRED ON THE LABEL'S INK (legendInk.js legendValueBand: label L ±0.03,
+   measured per canvas sample), so every hue reads as bright as its label. Chroma is capped at 0.14: a fully
+   saturated colour at the label's lightness still LOOKS brighter than grey (Helmholtz–Kohlrausch). */
+@supports (color: oklch(from red l c h)) {
+  .vRow:not(.rowHidden) .vVal[style*="--row-color"],
+  .flat:not(.rowHidden) .flatVal[style*="--row-color"] {
+    color: oklch(from var(--row-color) clamp(var(--legend-val-lmin, 0), l, var(--legend-val-lmax, 1)) min(c, 0.14) h / 1);
+  }
+}

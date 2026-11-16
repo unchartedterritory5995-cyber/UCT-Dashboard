@@ -22,6 +22,7 @@ import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 
 import BuilderSheet, { buildDefinition } from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from './builderStart.testkit.js'
 import { evaluateFormula, FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { FOLD_NOTES } from '../engine/ast/parse'
 import { PINE_DEBOUNCE_MS } from './PineBox'
@@ -51,16 +52,18 @@ const flush = async () => {
 const noop = () => {}
 
 function mount() {
-  return render(
+  const view = render(
     <AuthContext.Provider value={{ user: { id: 7 }, isPaid: true, loading: false }}>
       <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, revalidateOnFocus: false }}>
         <BuilderSheet open onClose={noop} />
       </SWRConfig>
     </AuthContext.Provider>,
   )
+  writeMyself()
+  return view
 }
 
-const formulaField = () => screen.getByLabelText('Formula')
+const formulaField = () => formulaBox()
 // ⏳ HAND-BACK (W3.7): the box became `ImportBox` and its aria-label now names
 // every dialect it reads, so the field is found by TESTID — which is what
 // `pine-box` always meant ("the paste box"), not "the Pine box". Every other
@@ -83,7 +86,7 @@ async function settleFormula() {
 }
 
 async function paste(script) {
-  fireEvent.click(tab(/^import$/i))
+  openSource('pine')
   fireEvent.change(pineField(), { target: { value: script } })
   await settlePine()
 }
@@ -117,12 +120,16 @@ afterEach(() => {
 })
 
 describe('the Pine door is reachable from the builder', () => {
-  it('a Pine tab exists beside the other three', async () => {
+  it('a Pine start exists beside the other three, and it opens as the Script tab', async () => {
     mount()
     await flush()
-    expect(tab(/^import$/i)).toBeTruthy()
-    expect(tab(/library/i)).toBeTruthy()
-    expect(tab(/conditions/i)).toBeTruthy()
+    toStart()
+    // Direction A: the four starts — the script door is one of them
+    for (const name of [/Paste a script/, /From a picture/, /Build from conditions/, /A UCT setup/]) {
+      expect(screen.getByRole('button', { name })).toBeTruthy()
+    }
+    openSource('pine')
+    expect(tab(/^script$/i)).toHaveAttribute('aria-selected', 'true')
     expect(tab(/formula/i)).toBeTruthy()
   })
 
@@ -130,7 +137,7 @@ describe('the Pine door is reachable from the builder', () => {
     mount()
     await flush()
     expect(screen.queryByTestId('pine-box')).toBe(null)
-    fireEvent.click(tab(/^import$/i))
+    openSource('pine')
     expect(screen.getByTestId('pine-box')).toBeTruthy()
     expect(pineField()).toBeTruthy()
   })

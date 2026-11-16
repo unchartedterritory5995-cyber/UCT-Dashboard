@@ -83,7 +83,7 @@ export function chartFromPhrase(phrase, charts, host, { other = null } = {}) {
 
 // ⛔ Two charts in ONE link colour group always show the same symbol (a symbol change goes through the group,
 // exactly as a search pick does): different symbols on them can never both land. Said, never attempted.
-const LINKED = 'Those charts are linked to the same colour group, so they always show the same symbol. Unlink one of them first (set its link colour to not linked), then ask again — nothing has changed.'
+const LINKED = 'Those charts are linked to the same color group, so they always show the same symbol. Unlink one of them first (set its link color to not linked), then ask again — nothing has changed.'
 function linkedTogether(refs, charts) {
   const groups = refs.map(r => charts.find(c => c.ref === r)?.group).filter(g => typeof g === 'string' && g && !g.startsWith('N'))
   return groups.length !== new Set(groups).size

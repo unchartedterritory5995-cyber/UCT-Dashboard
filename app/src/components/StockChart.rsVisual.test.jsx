@@ -512,8 +512,10 @@ describe('⛔ the control — RSI and MACD are untouched', () => {
       expect(menu.querySelector('[data-legend-head="readout"]')).toBeNull()
       expect(menu.querySelector('[data-readout-rows]')).toBeNull()
       expect(menu.querySelector('[data-menu-id="preset"]')).toBeNull()
-      expect([...menu.querySelectorAll('[role="menuitem"]')].map((b) => b.getAttribute('data-menu-id')))
+      // UCT Signature: "Value in header" is a checkbox row (menuitemcheckbox), the rest menu items
+      expect([...menu.querySelectorAll('[role^="menuitem"]')].map((b) => b.getAttribute('data-menu-id')))
         .toEqual(['hidden', 'move', 'settings', 'info-value', 'duplicate', 'custom-copy', 'alerts', 'about', 'remove'])
+      expect(menu.querySelector('[data-menu-id="info-value"]').getAttribute('role')).toBe('menuitemcheckbox')
       expect(chip.getAttribute('aria-label')).toBe(`${menu.querySelector('[data-legend-name]').textContent} options`)
       await closeMenu()
     })

@@ -234,34 +234,34 @@ REFUSALS: Mapping[str, str] = {
     "prompt:empty": (
         "there is nothing to turn into a formula yet"),
     "cost:global": (
-        "the formula assistant has reached its spending limit for today"),
+        "the UCT Agent has reached its spending limit for today"),
     "cost:user": (
-        "you have used up today's allowance of the formula assistant"),
+        "you have used up today's allowance of the UCT Agent"),
     "rate:busy": (
-        "the formula assistant is still working on your previous request -- "
+        "the UCT Agent is still working on your previous request -- "
         "wait for it to finish, then try again"),
     "model:transport": (
-        "the formula assistant could not be reached"),
+        "the UCT Agent could not be reached"),
     "model:no-tool": (
-        "the assistant replied without emitting a formula"),
+        "the UCT Agent replied without emitting a formula"),
     "schema:node": (
-        "the assistant emitted something that is not a formula tree"),
+        "the UCT Agent emitted something that is not a formula tree"),
     "schema:name": (
-        "the assistant used a name that is not in the formula vocabulary"),
+        "the UCT Agent used a name that is not in the formula vocabulary"),
     "schema:number": (
-        "the assistant wrote a number this formula language cannot spell"),
+        "the UCT Agent wrote a number this formula language cannot spell"),
     "lint:repaint": (
-        "the assistant's formula would repaint, so it was not accepted"),
+        "the UCT Agent's formula would repaint, so it was not accepted"),
     "compute:empty": (
-        "the assistant's formula produces no value on the bars in view"),
+        "the UCT Agent's formula produces no value on the bars in view"),
     "compute:wiring": (
-        "the assistant's formula collides with a name this chart already declares"),
+        "the UCT Agent's formula collides with a name this chart already declares"),
     "kind:unknown": (
-        "the assistant was asked for a kind of formula it does not draft"),
+        "the UCT Agent was asked for a kind of formula it does not draft"),
     "scan:not-a-condition": (
         "a screen needs a yes-or-no condition and this expression produces a number"),
     "model:unresolved": (
-        "the assistant could not confidently express part of this request in "
+        "the UCT Agent could not confidently express part of this request in "
         "the supported vocabulary"),
     # ⭐ P0 (2026-10-05). The schema offers `sym`, `tf` and `textop`, but this
     # door cannot finish a tree holding one: it evaluates on the chart's own bars
@@ -269,11 +269,11 @@ REFUSALS: Mapping[str, str] = {
     # read-back has no English for them. Refused BY NAME and terminally — a
     # repair turn would invite the model to answer a DIFFERENT question.
     "unsupported:node": (
-        "this request needs something the formula assistant cannot draft yet"),
+        "this request needs something the UCT Agent cannot draft yet"),
     # ⭐ P0 (2026-10-05). Any unexpected failure after the model call. Logged
     # with its traceback; the member gets a controlled answer, never a 500.
     "internal:error": (
-        "the formula assistant hit an internal problem and drafted nothing"),
+        "the UCT Agent hit an internal problem and drafted nothing"),
 }
 
 #: ⭐ P0 (2026-10-05) — node types this door CANNOT FINISH, each with the honest

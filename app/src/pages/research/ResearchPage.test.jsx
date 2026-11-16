@@ -358,14 +358,14 @@ describe('ResearchPage', () => {
     // AI door inside the existing research experience.
     auth.isPaid = true
     renderWithProviders(<ResearchPage />, { route: '/research/AAPL?section=ai' })
-    expect(screen.getByText('Ask AI: AAPL')).toBeInTheDocument()
+    expect(screen.getByText('Ask the UCT Agent: AAPL')).toBeInTheDocument()
     expect(screen.queryByText(/Key stats/i)).not.toBeInTheDocument()
   })
 
   it('renders the "Ask AI" tab button', () => {
     auth.isPaid = true
     renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
-    expect(screen.getByRole('button', { name: 'Ask AI' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'UCT Agent' })).toBeInTheDocument()
   })
 
   // Seam 12 fix (Journal / Trade Lifecycle Convergence V1): a "Back to

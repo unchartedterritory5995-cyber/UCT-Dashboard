@@ -88,7 +88,7 @@ _DOMAIN_OF = {
     "multiChart": "board",                                # the Multi Chart grid: the workspace as a whole (#1030)
 }
 _DOMAIN_TITLE = {
-    "chart": "a chart's symbol, timeframe, type, scale, session, theme, colours, display settings, volume, templates, panes",
+    "chart": "a chart's symbol, timeframe, type, scale, session, theme, colors, display settings, volume, templates, panes",
     "board": "the Charts workspace: widgets, tabs, arrangement, the Multi Chart grid, app settings, guides",
     "watchlist": "the member's saved watchlists and watchlist widgets",
     "layout": "saved layouts (open, create, save, rename, delete)",

@@ -62,7 +62,7 @@ describe('P3 UX — studio dock voice', () => {
     await say('break it')
     const r = lastUct()
     expect(r.dataset.kind).toBe('refusal')
-    expect(r.textContent).toMatch(/UCT Intelligence proposed a change that does not fit this indicator/)
+    expect(r.textContent).toMatch(/The UCT Agent proposed a change that does not fit this indicator/)
     const detail = within(r).getByTestId('create-indicator-error-detail')
     expect(detail.textContent).toMatch(/output:unknown: /)
     // the headline itself carries no code and no slot id

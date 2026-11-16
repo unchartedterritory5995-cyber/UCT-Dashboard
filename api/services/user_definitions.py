@@ -3081,7 +3081,7 @@ def save(user_id: Any, def_id: str, definition: dict,
     if unsafe_colours:
         raise SaveRefused(
             "presentation",
-            "a drawing colour that is not a colour: "
+            "a drawing color that is not a color: "
             + "; ".join(e["message"] for e in unsafe_colours[:3])
             + ". Nothing was saved.",
             guard="presentation:object-colour",
@@ -3158,7 +3158,7 @@ def save(user_id: Any, def_id: str, definition: dict,
             if refused_c:
                 raise SaveRefused(
                     "presentation",
-                    "a colour that is not a colour: "
+                    "a color that is not a color: "
                     + "; ".join(e["message"] for e in refused_c[:3])
                     + ". Nothing was saved.",
                     guard="presentation:colour",
@@ -3566,7 +3566,7 @@ def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any,
     if unsafe_colours:
         raise SaveRefused(
             "presentation",
-            "a drawing colour that is not a colour: "
+            "a drawing color that is not a color: "
             + "; ".join(e["message"] for e in unsafe_colours[:3])
             + ". Nothing was saved.",
             guard="presentation:object-colour",
@@ -3617,7 +3617,7 @@ def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any,
             if refused_c:
                 raise SaveRefused(
                     "presentation",
-                    "a colour that is not a colour: "
+                    "a color that is not a color: "
                     + "; ".join(e["message"] for e in refused_c[:3])
                     + ". Nothing was saved.",
                     guard="presentation:colour",
