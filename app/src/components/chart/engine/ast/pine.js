@@ -76,6 +76,7 @@
 // screenshot.
 
 import { CALL_EXPANSIONS } from './callExpansions.js'
+import { roundToMintickTree } from './tickRound.js'
 import { TABLE, NODE_TYPES, parseFormula, astHash, isPointwise, TICKER_SHAPE, BAR_READERS, barReadersOf, RECURRENCES , hostAdmissible } from './parse.js'
 // ⭐ THE ONE `yields` RESOLVER IN THIS LANE. See `treeYieldsBool` — this module
 // used to carry a second copy, and closed table v2 made the two disagree in a
@@ -14801,8 +14802,8 @@ export class Resolver {
    *  many arguments it takes and what kind each one is. The only thing this
    *  module supplies is a ROLE ORDER, and only where one has been measured. */
   resolveTableCall(pineName, base, args, tok) {
-    // ⭐⭐ H5 (step 84) — `math.round_to_mintick(x)` IS `math.round(x /
-    // syminfo.mintick) * syminfo.mintick`: Pine's reference, "the value rounded to
+    // ⭐⭐ H5 (step 84) — `math.round_to_mintick(x)` IS `math.round(x * (1 /
+    // syminfo.mintick)) * syminfo.mintick`: Pine's reference, "the value rounded to
     // the symbol's mintick … with ties rounding up", which is `math.round` on the
     // tick count. Written HERE AS THAT PINE and resolved, so the tick is the
     // binding's like every `syminfo.mintick` (settled per symbol from the
@@ -14814,13 +14815,10 @@ export class Resolver {
     // lane's text on the same bars (`vendorHarness.h5MulticatorValues`).
     if (pineName === 'math.round_to_mintick' && Array.isArray(args) && args.length === 1
       && args[0] && !args[0].name) {
+      // ⭐ SAR TICK TIE (2026-11-16) — the tick COUNT is `x * (1 / tick)`, not `x / tick`
+      // (`tickRound.js`: parabolic-sar SPY prints 654.405 as "654.41"; the quotient lands under the half).
       const x = args[0].value !== undefined ? args[0].value : args[0]
-      const mintick = { type: 'name', name: 'syminfo.mintick', tok }
-      return this.resolve({
-        type: 'binary', op: '*', tok, right: mintick,
-        left: { type: 'call', name: 'math.round', tok,
-          args: [{ name: null, value: { type: 'binary', op: '/', tok, left: x, right: mintick } }] },
-      })
+      return this.resolve(roundToMintickTree(x, tok, true))
     }
     const bare = normaliseName(base)
     this.refuseBareModernSpelling(pineName, base, tok)
@@ -27158,6 +27156,8 @@ function translatePineResult(source, opts = {}) {
   try {
   // ⭐ WAVE B accumulators: what the script says about how it LOOKS.
   let overlay = null
+  // PRICE-SCALE JOIN: which scale the declaration puts the script on (`declarationScale`).
+  let declScale = null
   const levels = []
   /** ⭐ C1-B — every `fill(handleA, handleB, …)` the script writes, by HANDLE.
    *  Resolved to output indexes after the outputs are known, because a fill may
@@ -27768,6 +27768,7 @@ function translatePineResult(source, opts = {}) {
       // ⭐⭐ WAVE B: THE AUTHOR'S PANE INTENT IS NOW READ. It always sat right
       // here in the tokens and was walked past.
       overlay = declarationOverlay(toks)
+      declScale = declarationScale(toks)
       notes.push(noteOf('pine:declaration',
         'the indicator() declaration decides how a chart draws, and a screen reads none of it',
         first))
@@ -27807,6 +27808,7 @@ function translatePineResult(source, opts = {}) {
         const firstString = toks.find((t) => t.kind === 'string')
         title = firstString ? firstString.value : null
         overlay = declarationOverlay(toks)
+        declScale = declarationScale(toks)
         notes.push(noteOf('pine:strategy-chart', STRATEGY_CHART_NOTE, first))
         calcBarsDeclared(toks, word)
         continue
@@ -30042,6 +30044,8 @@ function translatePineResult(source, opts = {}) {
     // half-carried: a band with one edge is not a band.
     presentation: {
       overlay,
+      // Present only when the declaration passes `scale =`, so every other result keeps its shape.
+      ...(declScale ? { scale: declScale } : {}),
       levels,
       // ⭐ (j) j.3b — `resolver` reaches the fills HERE and nowhere earlier; it does
       // not exist at collection time, which is why a conditional fill colour was
@@ -33195,6 +33199,25 @@ function declarationOverlay(toks) {
     }
   }
   return null
+}
+
+/** PRICE-SCALE JOIN (2026-11-16). `indicator(..., scale = scale.right | scale.left | scale.none)`:
+ *  the scale the author put the script on, as `'right'` / `'left'` / `'none'`; `'other'` when
+ *  the argument is passed and is not one of those three constants; `null` when it is not passed.
+ *  Read for ONE consumer: whether an overlay script's plots join the price pane's autoscale
+ *  (`memberPaneDefinition.joinsPriceScale`). Only an absent argument or `scale.right` joins:
+ *  `scale.none` and `scale.left` take the plots off the price scale on TradingView, and an
+ *  argument this reader cannot name is not guessed at. Still disclosed as chart-only (the scale
+ *  itself is not carried; `DECLARATION_PRESENTATION_ARGS`). */
+const DECLARATION_SCALES = Object.freeze({ 'scale.right': 'right', 'scale.left': 'left', 'scale.none': 'none' })
+function declarationScale(toks) {
+  const a = callNamedArgToks(toks, 'scale')
+  if (!a) return null
+  const v = a.value
+  if (v.length === 1 && v[0].kind === 'ident' && Object.prototype.hasOwnProperty.call(DECLARATION_SCALES, v[0].value)) {
+    return DECLARATION_SCALES[v[0].value]
+  }
+  return 'other'
 }
 
 /** ⭐⭐ P0 0H (2026-10-05) — ONE NAMED ARGUMENT OF THE FIRST CALL IN A STATEMENT,

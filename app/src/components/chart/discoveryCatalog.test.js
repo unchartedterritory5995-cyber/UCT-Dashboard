@@ -109,7 +109,7 @@ describe('§24 · local discovery — the shipped catalogues, projected', () => 
     expect(rows[0].name).toBe('My Squeeze')
     expect(rows[0].create).toEqual({ via: CREATE_VIA.DEFINITION, defId: 'myFormula' })
     // The category is the PROVENANCE one `indicatorCatalog` assigns, not `meta`'s.
-    expect(rows[0].category).toBe('My formulas')
+    expect(rows[0].category).toBe('My indicators')
   })
 
   it('⭐ a breadth measure arrives with the server\'s own name, group and source', () => {

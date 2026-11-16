@@ -1,7 +1,7 @@
 # The indicator ecosystem: final blueprint (Studio track)
 
-FINAL v9, 2026-11-15; progress and the first house-set run added 2026-11-16 (sections 14a
-and 15, which a later session reads first). This version is a rewrite, not a ninth layer. v1 to v8 were each
+FINAL v9, 2026-11-15; progress and the house-set runs added 2026-11-16 (sections 14a
+and 15, which a later session reads first; section 15 was brought up to date that evening). This version is a rewrite, not a ninth layer. v1 to v8 were each
 corrected by finding something that already existed; v9 was written after six independent
 specialist reviews of v8 against master (a code census, a review of the competitor research
 against the public record, product and interface design, model and learning systems, fit
@@ -538,48 +538,71 @@ the indicator library offered "New formula" and no way to Create Indicator at al
 
 ## 15. Resume here
 
-**State at 2026-11-16.**
+**State at 2026-11-16, end of day.** "LIVE" means used on production as a member (the
+synthetic member account, in its own browser), not only merged.
 
 | lane | what | state |
 |---|---|---|
-| 0a, 0b | the plan and its requests on master, re-filed in the right lists | DONE |
-| 0d | the reference page no longer prints `{0}` | LIVE, read from the production page |
-| O | Create Indicator open to every account | LIVE: both synthetic accounts carry the cohort, and a member turn built an indicator |
-| P1 | eight indicator commands in the command palette | LIVE |
-| L1 | version stamps on every authoring turn | merged; live after the next deploy gate |
-| F1, H1 (first part) | the Indicators window leads with a plain-words box (the owner picked "describe first") | merged; live after the next deploy gate |
-| L3 | colour words: one shared value per word | pull request open, tests pass |
-| fix | a marker on an output that reads another symbol | pull request open, tests pass |
-| L7 (first part) | the owner report counts undone previews and says what produced its turns | pull request open, tests pass |
-| R2 (first cut) | TradingView names on the reference page | written; its browser test is queued |
-| H2 (first part) | Create Indicator from the phone's library, and the dock as a half-height sheet | written; untested; not yet seen at phone width |
-| H | the house set | first run done (section 14a); nothing publishable yet |
+| 0a, 0b, 0d | the plan, its requests, the reference page without `{0}` | DONE |
+| O | Create Indicator open to every account | LIVE |
+| P1 | eight indicator commands in the command palette; from any page they land on Charts | LIVE |
+| L1 | version stamps on every authoring turn | LIVE: the owner report lists the instruction version, vocabulary version, model and engine of its turns |
+| L3 | colour words: one shared value per word | LIVE: the green request draws green |
+| L7 (first part) | the owner report counts undone previews and says what produced its turns | LIVE |
+| F1 | the Indicators window leads with a plain-words box; while a turn runs the dock counts the seconds, says what is usual, and offers Stop | LIVE |
+| V1 (first part) | History beside Undo: every earlier step of the draft, one press to return | LIVE. In a short dock the open list pushed the footer out of reach; the fix is its own pull request |
+| H1 (first part) | a Members tab in the Indicators window: the published library, Install, Put it on this chart | LIVE. The library is empty, so only its empty state has been seen on production |
+| H2 | Create Indicator from the phone's library; the dock as a bottom sheet on a phone; above the joystick tab on a tablet | LIVE at 390 and 820 px |
+| N1 (first slice) | a saved indicator is called an indicator where a member finds one | LIVE |
+| R2 (first cut) | TradingView names on the reference page | LIVE |
+| R3 | the reference as one file for a member's own assistant | LIVE: 305 names, 166 deliberate absences, 755 TradingView names |
+| fix | a marker or paint on an output that reads another symbol | LIVE: both relative-strength requests draw |
+| tool | a refused turn tells an ADMIN why each attempt was refused | LIVE |
+| H | the house set | second look below; nothing published yet |
 
-Lanes not started: N1 (one name), the Mine / UCT / Members tabs, V1 (history beside Undo),
-L4 (house definitions), L5 (worked examples), L6 (demand mining), L8 (a consented report),
-R1 (run over a list from the chart; waits on the Screener's answer to R13), R3, R4, R5, R6.
+**The house set, second look (2026-11-16, production).** Of the five that did not draw on
+the first run: both relative-strength requests draw (the marker fix); volume bars coloured
+by up or down day and the up/down volume ratio now build on every try and draw correctly in
+the dock (four of four through the door, then one each in the dock; nothing in this track
+changed them, an engine release landed the same day); the trailing stop that only moves up
+is now refused honestly, with the nearest thing that can be built, which is the right
+answer: a line here has no memory of its own previous value. So of twenty: fifteen draw,
+five are refused honestly, none fails. "Draws" is not "is right": the flat base and the gap
+ups from the first run are still suspect, and no value has been checked against an
+independent calculation. What blocks publishing is unchanged: names and
+read-backs (section 14a, findings 2 and 3), and the owner's look.
+
+Lanes not started: the UCT tab (waits on the house set), the rest of N1 (the builder's own
+"Your formulas" list and the Agent guide's button names, with their owners), L4 (house
+definitions), L5 (worked examples), L6 (demand mining), L8 (a consented report), R1 (run
+over a list from the chart; waits on the Screener's answer to R13), R4, R5, R6, and the
+launch-readiness list in section 8.
 
 **How the work is done here, learned the slow way:**
 
 - Judge an authoring change in the real dock, as a member. The API's "built" was wrong for
   3 of 14.
-- The machine's heavy lock is not first-come. A queued test can wait an hour behind another
-  session's job train; queue it in the background and keep writing on a branch stacked on
-  the one being tested.
-- Every merge to master cancels the deploy gate in progress (about 30 minutes). Batch
-  merges and agree a window with the other sessions, or nothing reaches production.
+- Look at a layout change on production at the size a member has. The History list passed
+  every test and still pushed the footer off a short dock; a browser test cannot lay out.
+  Try the rule on the live page with an injected style before writing it.
+- The machine's heavy lock is not first-come. Queue a test in the background and keep
+  writing on another branch.
+- A deploy gate in progress is not cancelled by a merge; one still waiting is replaced by
+  the newer one. Merge when green, merge everything that is ready in the same minute, and
+  push once per pull request. (An earlier version of this section said every merge cancels
+  the running gate. That was wrong.)
 - Parse-check every file before queueing its test.
 
-**Next, in order:** merge the three open pull requests in one batch; re-measure on
-production (the green request; the two relative-strength requests in the dock); the phone
-sheet at 390 px on production; then names and read-backs with the authoring owner.
+**Next, in order:** the History fix; names and read-backs with the authoring owner; the
+house set run a third time once names are readable; then the owner's look and the UCT tab.
 
 **Open for the owner:**
 1. Look at the house-set pictures and say which, if any, are right.
 2. Names: may the assistant's own name be used when the formula-derived one is too long to
-   read (finding 2 above)?
-3. Authors on the library (section 12).
-4. May an indicator read fundamentals columns the app already has, as "UCT data"?
+   read (section 14a, finding 2)?
+3. On a tablet the open dock covers the joystick's edge tab. Acceptable?
+4. Authors on the library (section 12).
+5. May an indicator read fundamentals columns the app already has, as "UCT data"?
 
 **Kept outside this repository:** the competitor review, prompt sets and results, the
 hidden set, screenshots, the house-set pictures, and anything with cost figures.

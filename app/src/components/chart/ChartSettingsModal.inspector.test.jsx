@@ -1353,6 +1353,9 @@ describe('THE ADD INDICATOR LIBRARY — one door, five categories, and no fictio
     // underneath was deleted to shorten a strip.
     expect(tabs().map((t) => t.textContent.trim())).toEqual([
       'Technical', 'Fundamentals', 'Breadth', 'Symbols', 'Positioning',
+      // 2026-11-16: the published library is shown here too. It is LAST, so the five
+      // catalogue tabs keep their places and the landing tab is unchanged.
+      'Members',
     ])
     expect(tabs().map((t) => t.textContent.trim()),
       'Popular is back on the strip').not.toContain('Popular')
@@ -1456,7 +1459,7 @@ describe('THE ADD INDICATOR LIBRARY — one door, five categories, and no fictio
       .not.toMatch(/^\.insAddLede\s*\{/m)
     // …and what it promised is still promised, where it is actually useful.
     expect(document.body.querySelector('[role="searchbox"]').getAttribute('placeholder'))
-      .toMatch(/indicators, symbols, or formulas/i)
+      .toMatch(/Search indicators or symbols/i)
   })
 
   it('⚰️ DISCOVERY NAMES ARE MEDIUM, AND THE LEFT COLUMN IS UNTOUCHED', () => {

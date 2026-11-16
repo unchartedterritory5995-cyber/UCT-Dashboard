@@ -55,6 +55,17 @@
 }
 /* The gold spark is UCT Intelligence's mark (house style, the gold mix). */
 .createSpark { color: var(--ut-gold, #dcbb5e); }
+/* Back from the members list to the catalogue. */
+.backRow {
+  align-self: flex-start;
+  display: inline-flex; align-items: center; gap: 8px;
+  min-height: var(--tap-min, 44px);
+  padding: 0 10px 0 4px;
+  background: none; border: 0; cursor: pointer;
+  color: var(--text-bright, #ededed);
+  font: 600 13px var(--font-sans, inherit);
+}
+.backRow:focus-visible { outline: 2px solid var(--ut-gold, #dcbb5e); outline-offset: 2px; }
 .createRow + .createRow { margin-top: 8px; }
 .createPlus {
   flex-shrink: 0;
@@ -83,6 +94,19 @@
   color: var(--text-muted);
   line-height: 1.35;
 }
+
+/* Describe it instead: the empty search's way forward. Touch-sized. */
+.emptyDescribe {
+  display: flex; align-items: center; margin-top: 10px;
+  min-height: var(--tap-min, 44px); padding: 0 14px;
+  background: var(--bg-surface, #1a1b1f);
+  border: 1px dashed var(--ut-gold-glow, var(--border-accent, #3a3a40));
+  border-radius: var(--radius-md, 8px);
+  color: var(--text-bright, #ededed);
+  font: 600 13px var(--font-sans, inherit);
+  cursor: pointer;
+}
+.emptyDescribe:focus-visible { outline: 2px solid var(--ut-gold, #dcbb5e); outline-offset: 2px; }
 
 .empty {
   padding: 18px 4px;

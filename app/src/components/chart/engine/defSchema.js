@@ -2110,6 +2110,15 @@ function validatePlacement(placement, errors) {
       `when the indicator is on the price pane), got ${fmt(placement.ownScale)}`,
     )
   }
+  // PRICE-SCALE JOIN (2026-11-16): `joinPriceScale`, stamped on a Pine translation that
+  // declares `overlay = true` (`memberPaneDefinition.joinsPriceScale`). Behavioural, so only
+  // a real boolean is admitted, for the reason `ownScale` gives above.
+  if (placement.joinPriceScale !== undefined && typeof placement.joinPriceScale !== 'boolean') {
+    errors.push(
+      `placement.joinPriceScale: expected a boolean (true lets an imported overlay script's plots ` +
+      `take part in the price pane's autoscale), got ${fmt(placement.joinPriceScale)}`,
+    )
+  }
 
   // A pane's DEFAULT height, as a fraction of the chart. Optional; `paneLayout`
   // supplies `DEFAULT_PANE_HEIGHT` when absent. It lives on the definition

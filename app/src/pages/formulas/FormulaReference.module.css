@@ -156,6 +156,10 @@
 
 /* TradingView (Pine) names: the section's open button, its namespace groups and the two
    words a row can say. Colour is on the word alone, as up/down is on a number. */
+.downloadRow { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 14px; }
+.downloadNote { flex: 1 1 240px; min-width: 0; font-size: 12px; color: var(--text-muted, #a9a59b); }
+.pineOpen:disabled { opacity: 0.6; cursor: default; }
+@media (max-width: 1024px) { .downloadRow .pineOpen { height: 44px; } }
 .pineOpen {
   border: 0;
   border-radius: 7px;

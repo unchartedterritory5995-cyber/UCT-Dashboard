@@ -164,10 +164,11 @@ def test_OFF_the_default_is_pinned_in_SOURCE():
 def test_OFF_the_kill_read_is_the_one_before_Part_2(store):
     body = _client().get("/api/user-definitions/runtime-kill").json()
     # RS Rating (2026-11-16): the committed allowlist now holds a record on the SUBSTITUTED path, so
-    # the read also carries what that record discloses (`substituted`). It serves no run-half
-    # evidence (its objects v2 is INCONCLUSIVE). Not a Part 2 key: `capability_admission` is still
-    # absent while it is off.
-    assert set(body) == {"kill", "allow", "save_enabled", "substituted"}
+    # the read also carries what that record discloses (`substituted`), and since Q-RS8 (its three
+    # captures re-taken with the x table, objects v2 MATCH_SUBSTITUTED on master b7cd7a0e63) its
+    # run-half evidence (`run_half_evidence`). Neither is a Part 2 key: `capability_admission` is
+    # still absent while it is off.
+    assert set(body) == {"kill", "allow", "save_enabled", "substituted", "run_half_evidence"}
     assert "capability_admission" not in body
 
 
@@ -674,32 +675,108 @@ def _x_verdict(o: dict):
 KILL_DOC = ROOT / "api" / "data" / "pine_runtime_killlist.json"
 
 
+def _kill_entry_problems(s: dict, v: dict) -> list:
+    """Why one kill entry is not held to its graded evidence: a committed capture of THAT source whose
+    runtime-on grade is not MATCH, a reason in the member's words, and the condition that lifts it."""
+    out = []
+    ev = s.get("evidence") or {}
+    r = v.get(ev.get("capture"))
+    if r is None:
+        return [f"{s.get('slug')}: names no committed capture"]
+    if not (r["verdict"] == ev.get("verdict") != "MATCH"):
+        out.append(f"{s.get('slug')}: its capture grades {r['verdict']}, the entry says {ev.get('verdict')}")
+    text = json.loads((ROOT / r["file"]).read_text(encoding="utf-8"))["source"]["text"]
+    if rt.source_hash(text) != s.get("sha256"):
+        out.append(f"{s.get('slug')}: its capture is another source")
+    src = ROOT / str(s.get("source"))
+    if not src.is_file() or rt.source_hash(src.read_text(encoding="utf-8")) != s.get("sha256"):
+        out.append(f"{s.get('slug')}: its source file is another source")
+    if not (s.get("reason") and s.get("liftWhen")):
+        out.append(f"{s.get('slug')}: no reason or no liftWhen")
+    return out
+
+
 def test_RT1_every_committed_kill_is_held_to_its_graded_evidence():
     """Each entry names a committed capture of THAT source whose runtime-on grade is not MATCH, a reason
-    in the member's words, and the condition that lifts it."""
+    in the member's words, and the condition that lifts it. 2026-11-16: the list is EMPTY (parabolic-sar
+    lifted, below), which is a valid state; the rule is shown able to fail on a synthetic entry."""
     doc = json.loads(KILL_DOC.read_text(encoding="utf-8"))
-    assert doc["scripts"], "the committed kill list is empty"
+    assert isinstance(doc["scripts"], list) and doc["_readme"]
     v = _verdicts()
     for s in doc["scripts"]:
-        ev = s["evidence"]
-        r = v[ev["capture"]]
-        assert r["verdict"] == ev["verdict"] != "MATCH", (s["slug"], r["verdict"])
-        text = json.loads((ROOT / r["file"]).read_text(encoding="utf-8"))["source"]["text"]
-        assert rt.source_hash(text) == s["sha256"], s["slug"]
-        assert rt.source_hash((ROOT / s["source"]).read_text(encoding="utf-8")) == s["sha256"], s["slug"]
-        assert s["reason"] and s["liftWhen"], s["slug"]
+        assert _kill_entry_problems(s, v) == [], s["slug"]
         assert s["sha256"] in rt.kill_list()
+    # CONTROL: an entry whose capture grades MATCH (the lifted parabolic-sar entry, as it stood) is red;
+    # the same entry on a capture that DIVERGES is green
+    src = SYNTHETIC_KILL_SOURCE.read_text(encoding="utf-8")
+    entry = {"slug": "synthetic-subject", "sha256": rt.source_hash(src),
+             "source": "corpus/committed/parabolic-sar__xoeoPMOWGJ.pine", "reason": "SYNTHETIC",
+             "liftWhen": "SYNTHETIC", "evidence": {"capture": "parabolic-sar-spy-1d-2026-11-15", "verdict": "DIVERGE"}}
+    assert any("grades MATCH" in p for p in _kill_entry_problems(entry, v))
+    moved = copy.deepcopy(v)
+    moved["parabolic-sar-spy-1d-2026-11-15"]["verdict"] = "DIVERGE"
+    assert _kill_entry_problems(entry, moved) == []
 
 
-def test_RT1_parabolic_sar_is_refused_by_name_at_every_door(store, monkeypatch, on):
-    src = (ROOT / "corpus" / "committed" / "parabolic-sar__xoeoPMOWGJ.pine").read_text(encoding="utf-8")
+#: The by-name rails need a killed script, and the committed kill list is empty since parabolic-sar's kill
+#: was lifted (2026-11-16). They kill a REAL source through a SYNTHETIC entry in a tmp kill list, so they
+#: still prove "a killed script is refused by name at every door" without depending on a real kill.
+SYNTHETIC_KILL_SOURCE = ROOT / "corpus" / "committed" / "parabolic-sar__xoeoPMOWGJ.pine"
+SYNTHETIC_KILL_REASON = "SYNTHETIC kill for the by-name rails (no real kill is on the committed list)"
+
+
+def synthetic_kill(tmp_path, monkeypatch) -> str:
+    """Point the committed kill list at a tmp file killing SYNTHETIC_KILL_SOURCE; returns the source."""
+    src = SYNTHETIC_KILL_SOURCE.read_text(encoding="utf-8")
+    doc = {"_readme": ["tmp, synthetic"], "scripts": [{
+        "slug": "synthetic-subject", "sha256": rt.source_hash(src), "source": str(SYNTHETIC_KILL_SOURCE),
+        "reason": SYNTHETIC_KILL_REASON, "liftWhen": "never: a tmp file", "evidence": {}}]}
+    f = tmp_path / "synthetic-killlist.json"
+    f.write_text(json.dumps(doc), encoding="utf-8")
+    monkeypatch.setattr(rt, "KILLLIST_PATH", str(f))
+    return src
+
+
+def test_RT1_a_killed_script_is_refused_by_name_at_every_door(store, monkeypatch, on, tmp_path):
+    src = SYNTHETIC_KILL_SOURCE.read_text(encoding="utf-8")
+    # CONTROL first: on the committed (empty) list the same script is admitted (every capability it uses
+    # is), and the served kill list does not hold it
+    assert not rt.killed(None, src)
+    assert pc.capabilities_of(src) <= set(rt.admitted_capabilities()["admitted"])
+    assert rt.runtime_admission(src, member="u-x")["admitted"] is True
+    assert rt.source_hash(src) not in _client().get("/api/user-definitions/runtime-kill").json()["kill"]
+    # killed through the synthetic entry: refused by name at the verdict door, the served list and `killed`
+    synthetic_kill(tmp_path, monkeypatch)
     why = rt.killed(None, src)
-    assert why and "one decimal short of TradingView" in why, why
+    assert why and SYNTHETIC_KILL_REASON in why, why
     assert rt.runtime_admission(src, member="u-x")["admitted"] is False
     body = _client().get("/api/user-definitions/runtime-kill").json()
     assert rt.source_hash(src) in body["kill"]
-    # CONTROL: its RDDT capture MATCHes and every capability it uses is admitted; only the kill refuses it
-    assert _verdicts()["parabolic-sar-rddt-1d-2026-11-15"]["verdict"] == "MATCH"
+
+
+#: 2026-11-16 -- the parabolic-sar kill (s28: a label "654.4" where TradingView prints "654.41") is LIFTED
+#: on its own `liftWhen` ("then a runtime-on re-grade to MATCH on RDDT and SPY"): the engine fix writes
+#: `math.round_to_mintick`'s tick count as `x * (1 / syminfo.mintick)` (`ast/tickRound.js`).
+PARABOLIC_SAR_LIFT = ("parabolic-sar-rddt-1d-2026-11-15", "parabolic-sar-spy-1d-2026-11-15")
+
+
+def test_RT1_the_parabolic_sar_kill_is_lifted_on_its_own_condition():
+    src = SYNTHETIC_KILL_SOURCE.read_text(encoding="utf-8")
+    assert rt.source_hash(src) not in rt.committed_kills() and not rt.killed(None, src)
+    v = _verdicts()
+    for cid in PARABOLIC_SAR_LIFT:
+        r = v[cid]
+        text = json.loads((ROOT / r["file"]).read_text(encoding="utf-8"))["source"]["text"]
+        assert rt.source_hash(text) == rt.source_hash(src), cid
+        assert r["verdict"] == "MATCH" and r["objects"]["verdict"] == "MATCH", cid
+        texts = next(t for t in r["objects"]["texts"] if t["family"] == "labels text")
+        assert texts["agree"] is True and texts["onlyVendor"] == [] and texts["onlyOurs"] == [], cid
+        o = r["objectsV2"]
+        assert o["verdict"] == "MATCH" and o["pairedNothing"] is False, cid
+    # the label that held the kill: TradingView printed "654.41" (no label text differs on SPY now)
+    spy = json.loads((ROOT / v[PARABOLIC_SAR_LIFT[1]]["file"]).read_text(encoding="utf-8"))
+    assert "654.41" in spy["objects"]["texts"]["labels"]
+    # ...and lifting the kill ADMITS it: every capability it uses is admitted
     assert pc.capabilities_of(src) <= set(rt.admitted_capabilities()["admitted"])
 
 
@@ -734,11 +811,13 @@ def test_RT1_a_broken_committed_file_kills_nothing_extra(tmp_path, monkeypatch):
     assert rt.kill_list() == ["a" * 64]
 
 
-def test_A8_a_script_with_an_x_DIVERGE_capture_is_evidence_for_no_object_family(monkeypatch):
-    """The rail can fail: parabolic-sar (killed) named as obj:label evidence on its RDDT capture, which
-    on its own grades MATCH with x; and the same entry once ANOTHER capture of that source grades an x
-    that DIVERGES. (Until PR #1374 the committed example was trend-targets, x DIVERGE on RDDT; its fix
-    left no committed x DIVERGE, so that half is shown on a copy of the snapshot.)"""
+def test_A8_a_script_with_an_x_DIVERGE_capture_is_evidence_for_no_object_family(monkeypatch, tmp_path):
+    """The rail can fail: parabolic-sar (killed through a SYNTHETIC entry since its real kill was lifted,
+    2026-11-16) named as obj:label evidence on its RDDT capture, which on its own grades MATCH with x; and
+    the same entry once ANOTHER capture of that source grades an x that DIVERGES. (Until PR #1374 the
+    committed example was trend-targets, x DIVERGE on RDDT; its fix left no committed x DIVERGE, so that
+    half is shown on a copy of the snapshot.)"""
+    synthetic_kill(tmp_path, monkeypatch)
     v = _verdicts()
     good, other = "parabolic-sar-rddt-1d-2026-11-15", "parabolic-sar-spy-1d-2026-11-15"
     r = v[good]

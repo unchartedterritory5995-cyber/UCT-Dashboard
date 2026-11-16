@@ -235,6 +235,15 @@ def build_digest(*, days: int = DIGEST_WINDOW_DAYS, top: int = DIGEST_TOP,
         g["rank"] = i
     reports = open_reports(manifest)
     t = now or _dt.datetime.now(_dt.timezone.utc)
+    # ⭐ L6 (Studio plan, section 7): Create Indicator's demand rides the same daily digest.
+    # Closed categories and counts only, like everything else here. A failure to read it
+    # costs this section, never the digest.
+    try:
+        from api.services import indicator_telemetry  # noqa: PLC0415
+        demand = indicator_telemetry.authoring_demand(min(int(days or 7), 90))
+    except Exception:  # noqa: BLE001
+        log.exception("[support-loop] authoring demand unavailable")
+        demand = None
     return {
         "day": _today_et(t),
         "built_at": t.strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -253,6 +262,7 @@ def build_digest(*, days: int = DIGEST_WINDOW_DAYS, top: int = DIGEST_TOP,
             "counts": {s: sum(1 for r in reports if r["status"] == s) for s in OPEN_REPORT_STATUSES},
             "open": reports,
         },
+        "authoring_demand": demand,
     }
 
 
@@ -309,6 +319,10 @@ def discord_embed(d: dict, *, lines: int = 10) -> dict:
     if fx:
         out.append(f"Fixed on master, dropped off: {', '.join('`' + g['name'] + '`' for g in fx[:8])}"
                    + (f" and {len(fx) - 8} more" if len(fx) > 8 else ""))
+    dem = d.get("authoring_demand") or {}
+    if dem.get("ranked"):
+        top = ", ".join(f"{r['category']} ({r['members']})" for r in dem["ranked"][:6])
+        out.append(f"Create Indicator could not build, by members: {top}")
     c = d["reports"]["counts"]
     out.append(f"Reports: {c.get('new', 0)} new, {c.get('triaged', 0)} triaged.")
     out.append("Triage: `python tools/support_loop/triage.py digest` (docs/pine/support-loop/PHASE-B.md)")

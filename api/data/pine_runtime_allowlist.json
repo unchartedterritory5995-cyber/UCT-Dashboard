@@ -97,7 +97,14 @@
     "no obj:* row changes: the run draws its plots, but its lines, labels and linefills are drawn from the HOST's object",
     "program carried in the runtime document (str.tostring(..., format.mintick) on a mutable value keeps them out of the",
     "run), so objectsLane is not runtime for it. obj:linefill therefore stays withdrawn (FVG Finder alone). The script",
-    "itself stays un-admitted by capability (conditional-ta and obj:linefill are not admitted)."
+    "itself stays un-admitted by capability (conditional-ta and obj:linefill are not admitted).",
+    "",
+    "2026-11-16: the parabolic-sar kill is LIFTED. `math.round_to_mintick` now counts ticks as x * (1 / mintick)",
+    "(ast/tickRound.js): parabolic-sar-spy-1d-2026-11-15 prints \"654.41\" for 654.405 and grades MATCH runtime-on",
+    "(objects v2 MATCH, x 50 of 50), as -rddt-1d-2026-11-15 already did (x 52 of 52). It is on no kill list and no",
+    "capture of it has an x that DIVERGES, so the S28 veto no longer names it. No obj:* row changes here: naming it as",
+    "evidence for an object family is its own admission step. Every capability it uses is admitted, so the script",
+    "itself is admitted by capability from this change on (the REACH run says so)."
   ],
   "scripts": [
     {
@@ -117,20 +124,23 @@
       "slug": "rs-rating-fred6724",
       "sha256": "caa94fe31a8788c0f52ca571dbb1b3f8a7499dae913ed5e710720fc8662c5af0",
       "source": "docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine",
-      "evidence": "MATCH_SUBSTITUTED on three captures (RDDT, ALAB, CRWV 1D from the listing): every value plot equals TradingView's with the vendor's own syminfo.industry fed; the member's chart answers syminfo.industry from UCT data, disclosed by name. The two labels agree on objects v1 (counts, texts, colours) but their x is not witnessed (no x table in these captures), so objects v2 is INCONCLUSIVE and the run half that draws them is NOT admitted (docs/pine/RS-RATING-TRANSFER.md, L7 and the 2026-11-16 correction)",
+      "evidence": "MATCH_SUBSTITUTED on three captures re-taken 2026-11-16 (Q-RS8: RDDT, ALAB, CRWV 1D from the listing, with the capture tool that records the object x table): every value plot equals TradingView's on every bar, and the two labels agree on objects v2 with their x witnessed (exact bar), with the vendor's own syminfo.industry fed; the member's chart answers syminfo.industry from UCT data, disclosed by name. The three 2026-11-15 captures (no x table, objects v2 INCONCLUSIVE) stay in the repo as history and admit nothing (docs/pine/RS-RATING-TRANSFER.md)",
       "admission": "substituted",
       "substituted": ["syminfo.industry"],
       "capabilities": ["conditional-ta", "fn-multi", "fn-single", "for", "if-block", "max_bars_back", "reassign", "switch", "ternary", "typed-array", "var"],
       "captures": [
-        {"id": "rs-rating-fred6724-rddt-1d-2026-11-15", "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
-         "substituted": ["syminfo.industry"], "objectsV2": "INCONCLUSIVE",
-         "graded": "master d615e76494, runtime-on harness, 2026-11-16: capture MATCH_SUBSTITUTED (4 value plots agree on every bar), objects v1 MATCH, objects v2 INCONCLUSIVE (the capture records no x table, taken before U13; verdictWithoutX MATCH). Admits no run half until re-captured (Q-RS8)"},
-        {"id": "rs-rating-fred6724-alab-1d-2026-11-15", "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
-         "substituted": ["syminfo.industry"], "objectsV2": "INCONCLUSIVE",
-         "graded": "master d615e76494, runtime-on harness, 2026-11-16: capture MATCH_SUBSTITUTED (4 value plots agree on every bar), objects v1 MATCH, objects v2 INCONCLUSIVE (the capture records no x table, taken before U13; verdictWithoutX MATCH). Admits no run half until re-captured (Q-RS8)"},
-        {"id": "rs-rating-fred6724-crwv-1d-2026-11-15", "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
-         "substituted": ["syminfo.industry"], "objectsV2": "INCONCLUSIVE",
-         "graded": "master d615e76494, runtime-on harness, 2026-11-16: capture MATCH_SUBSTITUTED (4 value plots agree on every bar), objects v1 MATCH, objects v2 INCONCLUSIVE (the capture records no x table, taken before U13; verdictWithoutX MATCH). Admits no run half until re-captured (Q-RS8)"}
+        {"id": "rs-rating-fred6724-rddt-1d-2026-11-16", "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
+         "substituted": ["syminfo.industry"], "objectsV2": "MATCH_SUBSTITUTED",
+         "objectsV2Substituted": ["syminfo.industry"],
+         "graded": "master b7cd7a0e63 (engine 60), master's own corpus harness, runtime-on, 2026-11-16, a run of exactly the Q-RS8 re-takes: capture MATCH_SUBSTITUTED (the 4 value plots agree on every bar), objects v1 MATCH, objects v2 MATCH_SUBSTITUTED with x witnessed (18 graded fields agree; x: 2 graded, 2 agreeing, 0 differing, exact bar)"},
+        {"id": "rs-rating-fred6724-alab-1d-2026-11-16", "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
+         "substituted": ["syminfo.industry"], "objectsV2": "MATCH_SUBSTITUTED",
+         "objectsV2Substituted": ["syminfo.industry"],
+         "graded": "master b7cd7a0e63 (engine 60), master's own corpus harness, runtime-on, 2026-11-16, a run of exactly the Q-RS8 re-takes: capture MATCH_SUBSTITUTED (the 4 value plots agree on every bar), objects v1 MATCH, objects v2 MATCH_SUBSTITUTED with x witnessed (18 graded fields agree; x: 2 graded, 2 agreeing, 0 differing, exact bar)"},
+        {"id": "rs-rating-fred6724-crwv-1d-2026-11-16", "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
+         "substituted": ["syminfo.industry"], "objectsV2": "MATCH_SUBSTITUTED",
+         "objectsV2Substituted": ["syminfo.industry"],
+         "graded": "master b7cd7a0e63 (engine 60), master's own corpus harness, runtime-on, 2026-11-16, a run of exactly the Q-RS8 re-takes: capture MATCH_SUBSTITUTED (the 4 value plots agree on every bar), objects v1 MATCH, objects v2 MATCH_SUBSTITUTED with x witnessed (18 graded fields agree; x: 2 graded, 2 agreeing, 0 differing, exact bar)"}
       ]
     }
   ],

@@ -12,7 +12,7 @@
 # candidate reaches the serial gate, and so the suites can be sharded in parallel.
 #
 # Coverage equivalence is a rail, not a promise: the `union` job fails unless the set of test
-# files the four shards executed equals the set `vitest list` reports for the same paths, and
+# files the AGENT_SHARDS shards executed equals the set `vitest list` reports for the same paths, and
 # unless the file count clears the same floor the gate uses (30). Since 2026-11-15 (owner D27 #2)
 # it also fails if any file ran in more than one shard.
 name: agent ci
@@ -48,6 +48,18 @@ on:
       - 'api/routers/uct_agent*.py'
       - 'tests/test_uct_agent*.py'
       - 'tools/agent_*'
+      # DOCS THE SUITES READ (11-16, AUDIT): editing one of these changes an Agent test's verdict, so it must run Agent CI
+      # (tests/test_ci_agent_docs_paths.py discovers the reads and holds this list complete)
+      - 'docs/agent/COMPATIBILITY-DECISIONS.md'
+      - 'docs/agent/ROADMAP.md'
+      - 'docs/agent/CHARTS_COVERAGE_MATRIX.md'
+      - 'docs/agent/CHARTS_TEACH_STATUS.md'
+      - 'docs/agent/coach/**'
+      - 'docs/agent/knowledge/EVIDENCE-ROUTING-DESIGN.md'
+      - 'docs/agent/knowledge/e1-eval-seeds.json'
+      - 'docs/agent/knowledge/policy.json'
+      - 'docs/agent/knowledge/setup-criteria.json'
+      - 'docs/agent/program/**'
       - '.github/workflows/agent-ci.yml'
   pull_request:
     branches: [agent/int, master]
@@ -71,6 +83,18 @@ on:
       - 'api/routers/uct_agent*.py'
       - 'tests/test_uct_agent*.py'
       - 'tools/agent_*'
+      # DOCS THE SUITES READ (11-16, AUDIT): editing one of these changes an Agent test's verdict, so it must run Agent CI
+      # (tests/test_ci_agent_docs_paths.py discovers the reads and holds this list complete)
+      - 'docs/agent/COMPATIBILITY-DECISIONS.md'
+      - 'docs/agent/ROADMAP.md'
+      - 'docs/agent/CHARTS_COVERAGE_MATRIX.md'
+      - 'docs/agent/CHARTS_TEACH_STATUS.md'
+      - 'docs/agent/coach/**'
+      - 'docs/agent/knowledge/EVIDENCE-ROUTING-DESIGN.md'
+      - 'docs/agent/knowledge/e1-eval-seeds.json'
+      - 'docs/agent/knowledge/policy.json'
+      - 'docs/agent/knowledge/setup-criteria.json'
+      - 'docs/agent/program/**'
       - '.github/workflows/agent-ci.yml'
 
 concurrency:
@@ -81,7 +105,9 @@ env:
   # DUP-RECEIPT (11-05, owner): + the 8 page tests that drive the Agent (outside src/agent; the shards and the
   # equivalence rail below read this same list, so they stay balanced and complete)
   AGENT_VITEST_PATHS: src/agent src/components/chart/builder/agentMutations src/components/chart/builder/studio/agentRoute.test.jsx src/components/StockChart.timeRangeSync.test.jsx src/pages/breadth/breadthTabHookOrder.test.jsx src/pages/charts/ChartsWorkspace.layoutUndoAgent.test.jsx src/pages/charts/ChartsWorkspace.previousLayout.test.jsx src/pages/charts/ChartsWorkspace.thisChart.test.jsx src/pages/charts/widgets/ChartWidget.agent.test.jsx src/pages/charts/widgets/TradeExchangeNewsWidget.terminal.test.jsx
-  AGENT_SHARDS: '4'
+  # 4 -> 8 (2026-11-16, GitHub Pro: 40 concurrent jobs, was 20). The four runtime-balanced shards each ran 23-28 min,
+  # so the browser suite set agent ci's ~30 min wall. Same plan and timings, cut eight ways.
+  AGENT_SHARDS: '8'
 
 # A PR from a branch in this repo already ran on its push; running it again on the
 # pull_request event only doubles the queue. Fork PRs have no push run here, so they keep it.
@@ -113,7 +139,7 @@ jobs:
         run: python -m pytest tests/test_uct_agent*.py -q -p no:cacheprovider
 
   browser:
-    name: UCT Agent browser tests (shard ${{ matrix.shard }}/4)
+    name: UCT Agent browser tests (shard ${{ matrix.shard }}/8)
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/')
     runs-on: ubuntu-latest
     # 25 -> 40 (2026-11-11): shard 4/4 hit the 25-min limit and was CANCELLED on #1101 (25m18s) and #1107 (25m12s)
@@ -125,7 +151,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -206,7 +232,7 @@ jobs:
           python -m pip install --quiet pytest
           python -m pytest tests/test_uct_agent_capreg_*.py -q -p no:cacheprovider
       # CI COST (2026-11-06, owner): the `post` leg runs ONLY the Python baseline lock above. The vitest
-      # capreg suite at the post clock already runs inside the four browser shards (it lives under src/agent and
+      # capreg suite at the post clock already runs inside the browser shards (it lives under src/agent and
       # `post` is the suite's default clock), and the union rail fails if any shard skips it — so the post
       # leg's own vitest run was a second, identical ~15-minute execution. The `rth` leg is the only place the
       # suite runs at the regular-session clock, so it keeps its vitest run.
