@@ -126,6 +126,27 @@ describe('53 · controls: a genuine exclusion is still an exclusion, and still s
   })
 })
 
+// ── N2 (AUDIT surviving mutant, 2026-11-15): the LOOSE back relation ("Y where X", "Y over X") is the ONLY reader that marks X as
+// changed for the back words CHANGE_TAKE does not also hold — the same X said again under a stay cue ("… and X is fine", "X stays")
+// is then excluded, and the elimination step would license the OTHER chart. The back line keeps X the target: the other chart is
+// asked. (The shared words — instead of / in place of / rather than — are also read by CHANGE_TAKE "<word> X" and pass either way.)
+// GENERATED: back word × relation shape (determiner, words between, lead-in) × stay clause (order, punctuation) × board × casing ──
+const BACK_SHAPES = ['{Y} {r} {X}', 'put {Y} {r} the {X} chart now', 'show {Y} {r} my {X}', 'put {Y} up, please, {r} {X}', 'can you put {Y} {r} {X} is?']
+const STAY = ['{R} and {X} is fine', '{R}; {X} stays', '{R}, {X} remains', '{X} is fine, but {R}', '{R}. {X} is ok']
+const N2_BOARDS = [['SPY', ['SPY', 'QQQ']], ['SPY', ['QQQ', 'SPY']], ['BRK.B', ['BRK.B', 'QQQ']], ['BRK.B', ['IWM', 'BRK.B']]]
+const N2_CASES = []
+for (const r of CHANGE_BACK) for (const shape of BACK_SHAPES) for (const stay of STAY) for (const [X, syms] of N2_BOARDS) for (const [cname, cs] of [['upper', (s) => s], ['dollar', (s) => `$${s.toLowerCase()}`], ['lower', (s) => s.toLowerCase()]]) for (const Y of ['AAPL', 'BRK.A']) {
+  const words = stay.replace('{R}', shape.replace('{r}', r)).replace(/\{X\}/g, cs(X)).replace(/\{Y\}/g, cs(Y))
+  N2_CASES.push([r, cname, words, syms, X, Y])
+}
+describe(`N2 · "Y <back word> X … X is fine": X stays the target, the other chart is never licensed (${N2_CASES.length} cases): back word × shape × stay clause × board × casing`, () => {
+  it.each(N2_CASES)('%s · %s · "%s"', (_r, cname, words, syms, X, Y) => {
+    const at = syms.indexOf(X)
+    if (cname !== 'lower') expect(excludedCharts(words, syms.map((s, i) => ({ ref: `c${i + 1}`, symbol: s })), null).has(`c${at + 1}`), `excluded: ${words}`).toBe(false)
+    syms.forEach((s, i) => { if (i !== at) expect(rail(syms, `c${i + 1}`, Y, words), `${words} → c${i + 1} (${s})`).toBeTruthy() })
+  })
+})
+
 // ── DOTTED: the ticker is matched literally — "BRK.B" never matches "BRKXB" ──
 describe('DOTTED · a dotted ticker is escaped in every per-ticker pattern', () => {
   it('"swap BRK.B for AAPL" on the sole BRK.B chart → licensed; "open BRK.B and AAPL" → refused (BRK.B kept)', () => {

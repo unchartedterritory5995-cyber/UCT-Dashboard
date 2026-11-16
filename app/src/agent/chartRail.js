@@ -315,6 +315,10 @@ export function tickerChanged(words, ticker, others = [], { tight = false } = {}
     // between them states the change outright: "SPY switched to AAPL", "SPY swapped for AAPL")
     if (new RegExp(String.raw`(?:^|[^A-Za-z0-9])${T}(?:['’]s)?\s+(?:(?:chart|one|panel|graph)\s+)?(?:[a-z]+(?:ed|en)\s+)?(?:${altOf(CHANGE_TO)})\s+${det}${O}`, 'i').test(w)) return true
     // the other ticker, then a relation word that points back at this one ("AAPL where SPY is", "AAPL in place of SPY")
+    // (AUDIT N2: for the back words CHANGE_TAKE also holds — instead of / in place of / rather than — the "<word> X" line above
+    //  already decides; for "where" / "over" this line is the ONLY reader. It matters when X is said again under a stay cue —
+    //  "AAPL over SPY and SPY is fine" — which excludes X, and the elimination step would then license the OTHER chart: the
+    //  swap test's N2 block is red without it)
     if (new RegExp(String.raw`(?:^|[^A-Za-z0-9])${O}\b(?:[^.;!?]|\.(?=\S)){0,40}?\b(?:${altOf(CHANGE_BACK)})\s+${det}${T}`, 'i').test(w)) return true
   }
   return false
