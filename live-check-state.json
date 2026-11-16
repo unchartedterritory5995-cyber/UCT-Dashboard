@@ -1,5 +1,5 @@
 {
-  "fingerprint": "service:bars-api=its newest deploy FAILED 56 min ago; still running older 4a9b27e054 and missing 1 changed file",
-  "posted_at": "2026-11-16T20:17:00.238122+00:00",
-  "reason": "new stuck item"
+  "fingerprint": "",
+  "posted_at": "2026-11-16T21:14:55.880159+00:00",
+  "reason": "recovered"
 }
