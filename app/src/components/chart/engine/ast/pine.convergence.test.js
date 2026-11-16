@@ -439,12 +439,15 @@ plot(ss)
     const ast = out.outputs[0].ast
     expect(ast.name).toBe('accum')
     expect(printFormula(ast.args[spec.recurrence.seed])).toBe('close')
-    // Both lags present, the `nz` wrappers gone, and the sign of `c3` preserved.
+    // Both lags present, the `nz` wrappers KEPT in the step (engine 56, A1: an update that
+    // answers `na` mid-series reads the seed again on the next bar, as Pine's `nz` does), and
+    // the sign of `c3` preserved.
     const body = printFormula(ast.args[spec.recurrence.body])
     expect(body).toContain(`${spec.recurrence.binds}[1]`)
     expect(body).toContain('1.36612')
     expect(body).toContain('0.64125')
-    expect(body).not.toContain('nz(')
+    expect(body).toContain(`nz(${spec.recurrence.binds}, close)`)
+    expect(body).toContain(`nz(${spec.recurrence.binds}[1], close)`)
   })
 
   it('⛔ an averaging pair never forgets — `(x + x[2]) / 2` still refuses', () => {
@@ -496,13 +499,15 @@ ${body}
 plot(x)
 `)
 
-  it('⭐ the seed is what the SCRIPT said, and the wrapper is gone from the body', () => {
+  // ⭐ ENGINE 56 (A1): the wrapper STAYS in the step the accumulator runs. On bar 0 it is a no-op
+  // (the lag history holds the seed); after an update that answers `na` it is Pine's `nz`.
+  it('⭐ the seed is what the SCRIPT said, and the wrapper stays in the step', () => {
     const out = pine('x = 0.5 * nz(x[1], close) + 0.5 * open')
     expect(out.refusal, out.refusal && out.refusal.message).toBe(null)
     const ast = out.outputs[0].ast
     expect(ast.name).toBe('accum')
     expect(printFormula(ast.args[spec.recurrence.seed])).toBe('close')
-    expect(printFormula(ast.args[spec.recurrence.body])).toBe('0.5 * self + 0.5 * open')
+    expect(printFormula(ast.args[spec.recurrence.body])).toBe('0.5 * nz(self, close) + 0.5 * open')
   })
 
   it('⭐ the one-argument `nz(x[1])` seeds at the zero Pine itself uses', () => {

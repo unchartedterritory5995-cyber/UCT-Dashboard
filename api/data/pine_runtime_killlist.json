@@ -10,20 +10,6 @@
   ],
   "scripts": [
     {
-      "slug": "trend-targets-algoalpha",
-      "sha256": "08ed07e699888fe78aee08d3bba984d2e65e42d3518a4f9581fa790dbaf124cb",
-      "source": "corpus/committed/trend-targets-algoalpha__92ff5628d7.pine",
-      "reason": "its latest trade's lines are drawn on the wrong bar against TradingView (x1 656 vs 653, with the levels off too)",
-      "evidence": {
-        "capture": "trend-targets-algoalpha-rddt-1d-2026-11-15",
-        "verdict": "DIVERGE",
-        "objectsX": "15 graded, 10 agree, 5 differ",
-        "session": "s28-2026-11-15"
-      },
-      "liftWhen": "an engine fix, then a runtime-on re-grade to MATCH on RDDT and SPY",
-      "addedBy": "coordinator ruling 2026-11-15 (owner-delegated)"
-    },
-    {
       "slug": "parabolic-sar",
       "sha256": "d9f41d606251ebc06a80fad1ffa7aa048245e065fcc65e2f1d04142217d3287b",
       "source": "corpus/committed/parabolic-sar__xoeoPMOWGJ.pine",

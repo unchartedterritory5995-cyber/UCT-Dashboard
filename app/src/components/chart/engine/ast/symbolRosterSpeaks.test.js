@@ -142,6 +142,13 @@ describe('(h) — three syminfo fields retire by name, from the roster', () => {
     // block must be indented by a tab or four spaces"; any other indent is a wrap),
     // and master served it. Both lanes now refuse it by that name
     // (`pine.js::refuseOffBlockIndent`, rail `runtime/__tests__/i6aN4BlockIndent.test.js`).
-    expect(Object.keys(REFUSALS).length).toBe(45)
+    //
+    // ⭐ AND 45 → 47 ON 2026-11-15 (landing train 1), AGAIN NOT BECAUSE OF (h): two inputs each declared one.
+    // CBC-FMT: `pine:calc-bars-count-expr` (a `calc_bars_count` that is not a positive whole-number
+    // literal, TradingView's own compile error; rail `calcBarsWindow.cbcfmt.test.js`). Legacy semantics
+    // B3: `pine:fn-history-in-block` (a script function reading a chart series at an offset, called
+    // inside a block, at v1 on both lanes and v2 / v3 on the host lane; rail
+    // `vendorHarness.b3FnHistoryInBlock.test.js`).
+    expect(Object.keys(REFUSALS).length).toBe(47)
   })
 })

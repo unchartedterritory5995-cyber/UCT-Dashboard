@@ -1,11 +1,11 @@
 {
  "populations": {
   "capture": {
-   "scripts": 706,
-   "admitted": 322,
+   "scripts": 743,
+   "admitted": 329,
    "runtimeLane": 40,
-   "hostLane": 186,
-   "refused": 96,
+   "hostLane": 200,
+   "refused": 89,
    "coreOnly": 35
   },
   "committed": {
@@ -20,8 +20,8 @@
    "scripts": 271,
    "admitted": 122,
    "runtimeLane": 10,
-   "hostLane": 87,
-   "refused": 25,
+   "hostLane": 86,
+   "refused": 26,
    "coreOnly": 7
   },
   "builtin": {
@@ -59,7 +59,7 @@
   {
    "capture": "atr-stepped-pdf-ma-loxx-rddt-1d-2026-10-03",
    "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
     "collections:array",
@@ -75,7 +75,7 @@
   {
    "capture": "atr-trailing-stop-by-ceyhun-rddt-1d-2026-10-02",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
+   "runtimeOn": "MATCH",
    "production": "DIVERGE",
    "caps": [
     "core",
@@ -91,7 +91,7 @@
   {
    "capture": "atr-trailing-stop-by-ceyhun-spy-1d-2026-10-02",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
+   "runtimeOn": "MATCH",
    "production": "DIVERGE",
    "caps": [
     "core",
@@ -629,7 +629,7 @@
   {
    "capture": "fvg-trend-rddt-1d-2026-09-27",
    "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
     "core",
@@ -733,7 +733,41 @@
    ]
   },
   {
+   "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-11-15",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "obj:delete",
+    "obj:line",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "obj:delete",
+    "obj:line",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-11-15",
    "lane": "runtime",
    "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
@@ -1168,8 +1202,8 @@
   {
    "capture": "pivot-high-low-points-rddt-1d-2026-11-14",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core"
    ]
@@ -1356,6 +1390,19 @@
    ]
   },
   {
+   "capture": "rs-syminfo-industry-alab-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
    "capture": "rs-syminfo-industry-amd-1d-2026-11-15",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
@@ -1383,6 +1430,19 @@
   },
   {
    "capture": "rs-syminfo-industry-coin-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-crwv-1d-2026-11-15",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
@@ -1789,8 +1849,8 @@
   {
    "capture": "smart-money-volume-index-algoalpha-rddt-1d-2026-11-14",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
    "caps": [
     "core",
     "ternary"
@@ -2132,7 +2192,7 @@
   {
    "capture": "vw-array-na-rddt-1d-2026-11-15",
    "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
     "collections:array",
@@ -2148,7 +2208,7 @@
   {
    "capture": "vw-array-na-spy-1d-2026-10-02",
    "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
     "collections:array",
@@ -2335,8 +2395,8 @@
   {
    "capture": "vw-bgcolor-barcolor-spy-1d-2026-10-02",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
    "caps": [
     "core",
     "ternary"
@@ -2508,7 +2568,7 @@
   },
   {
    "capture": "vw-cs1-bool-na-v2-rddt-1d-2026-11-14",
-   "lane": null,
+   "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -2520,8 +2580,8 @@
   {
    "capture": "vw-cs1-bool-na-v4-rddt-1d-2026-11-14",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
    "caps": [
     "core",
     "fn-single",
@@ -2531,8 +2591,8 @@
   {
    "capture": "vw-cs1-bool-na-v5-rddt-1d-2026-11-14",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
    "caps": [
     "core",
     "fn-single",
@@ -2569,8 +2629,8 @@
   {
    "capture": "vw-cs1-stoch-p2-rddt-1d-2026-11-14",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "ternary"
@@ -2579,8 +2639,8 @@
   {
    "capture": "vw-cs1-ties-v4-rddt-1d-2026-11-14",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "ternary"
@@ -2589,8 +2649,8 @@
   {
    "capture": "vw-cs1-ties-v5-rddt-1d-2026-11-14",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "ternary"
@@ -2599,8 +2659,8 @@
   {
    "capture": "vw-cs1-transp-v1-rddt-1d-2026-11-14",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
    "caps": [
     "core",
     "ternary"
@@ -2609,8 +2669,8 @@
   {
    "capture": "vw-cs1-transp-v2-rddt-1d-2026-11-14",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
    "caps": [
     "core",
     "ternary"
@@ -2619,8 +2679,8 @@
   {
    "capture": "vw-cs1-transp-v3-rddt-1d-2026-11-14",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
    "caps": [
     "core",
     "ternary"
@@ -2629,8 +2689,8 @@
   {
    "capture": "vw-cs2-bool-na-v1-cum-rddt-1d-2026-11-15",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
    "caps": [
     "core",
     "fn-single",
@@ -2639,7 +2699,7 @@
   },
   {
    "capture": "vw-cs2-bool-na-v1-rddt-1d-2026-11-15",
-   "lane": null,
+   "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -2651,8 +2711,8 @@
   {
    "capture": "vw-cs2-bool-na-v3-cum-rddt-1d-2026-11-15",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
    "caps": [
     "core",
     "fn-single",
@@ -2661,7 +2721,7 @@
   },
   {
    "capture": "vw-cs2-bool-na-v3-rddt-1d-2026-11-15",
-   "lane": null,
+   "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -2673,8 +2733,8 @@
   {
    "capture": "vw-cs2-highestbars-computed-v6-rddt-1d-2026-11-15",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "ternary"
@@ -2683,8 +2743,8 @@
   {
    "capture": "vw-cs2-holed-highest-stoch-v6-rddt-1d-2026-11-15",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "ternary"
@@ -2693,8 +2753,8 @@
   {
    "capture": "vw-cs2-holed-highest-stoch-v6-spy-1d-2026-11-15",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "ternary"
@@ -2703,8 +2763,8 @@
   {
    "capture": "vw-cs2-holed-highest-v5-rddt-1d-2026-11-15",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "ternary"
@@ -2713,8 +2773,8 @@
   {
    "capture": "vw-cs2-holed-highest-v5-spy-1d-2026-11-15",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "ternary"
@@ -2723,8 +2783,8 @@
   {
    "capture": "vw-cs2-holed-highest-v6-rddt-1d-2026-11-15",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "ternary"
@@ -2733,8 +2793,8 @@
   {
    "capture": "vw-cs2-holed-highest-v6-spy-1d-2026-11-15",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "ternary"
@@ -2743,11 +2803,49 @@
   {
    "capture": "vw-cs2-holed-highestbars-rddt-1d-2026-11-15",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs2-label-format-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state"
+   ]
+  },
+  {
+   "capture": "vw-cs2-label-format-v5-helper-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "obj:label",
+    "realtime-state"
+   ]
+  },
+  {
+   "capture": "vw-cs2-label-format-v6-direct-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state"
    ]
   },
   {
@@ -2766,8 +2864,8 @@
   {
    "capture": "vw-cs2-rising-falling-na-v4-rddt-1d-2026-11-15",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "fn-single",
@@ -2777,8 +2875,8 @@
   {
    "capture": "vw-cs2-rising-falling-na-v5-rddt-1d-2026-11-15",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "fn-single",
@@ -2808,8 +2906,8 @@
   {
    "capture": "vw-cs2-stoch-flat-rddt-1d-2026-11-15",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "ternary"
@@ -2818,8 +2916,8 @@
   {
    "capture": "vw-cs2-stoch-flat-window-rddt-1d-2026-11-15",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "ternary"
@@ -2828,8 +2926,8 @@
   {
    "capture": "vw-cs2-v4-ternary-lazy-rddt-1d-2026-11-15",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
    "caps": [
     "conditional-ta",
     "core",
@@ -2840,7 +2938,7 @@
   {
    "capture": "vw-deadband-ticks-aapl-1d-2026-09-28",
    "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
     "compound-assign",
@@ -2874,7 +2972,7 @@
   {
    "capture": "vw-deadband-ticks-brk-a-1d-2026-11-15",
    "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
     "compound-assign",
@@ -2891,7 +2989,7 @@
   {
    "capture": "vw-deadband-ticks-spy-1d-2026-09-28",
    "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
     "compound-assign",
@@ -2927,6 +3025,80 @@
     "if-block",
     "obj:label",
     "realtime-state"
+   ]
+  },
+  {
+   "capture": "vw-fn-history-in-if-v2-rddt-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "if-block",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-fn-history-in-if-v3-rddt-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "if-block",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-fn-history-in-if-v4-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "if-block",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-fn-history-in-if-v5-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "if-block",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-fn-history-in-tern-v1-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-fn-history-in-tern-v3-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
    ]
   },
   {
@@ -3340,8 +3512,8 @@
   {
    "capture": "vw-rt6-runtime-colour-rddt-1d-2026-10-03",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
    "caps": [
     "core",
     "if-block",
@@ -3353,8 +3525,8 @@
   {
    "capture": "vw-rt6-runtime-colour-spy-1d-2026-10-03",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
    "caps": [
     "core",
     "if-block",
@@ -3389,7 +3561,7 @@
   },
   {
    "capture": "vw-ternary-arm-legacy-v1-cum-rddt-1d-2026-11-15",
-   "lane": null,
+   "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -3399,9 +3571,9 @@
   },
   {
    "capture": "vw-ternary-arm-legacy-v1-rddt-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "ternary"
@@ -3410,8 +3582,8 @@
   {
    "capture": "vw-ternary-arm-legacy-v2-cum-rddt-1d-2026-11-15",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
    "caps": [
     "core",
     "ternary"
@@ -3419,9 +3591,9 @@
   },
   {
    "capture": "vw-ternary-arm-legacy-v2-rddt-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "ternary"
@@ -3439,9 +3611,9 @@
   },
   {
    "capture": "vw-ternary-arm-legacy-v3-rddt-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "ternary"
@@ -4004,6 +4176,52 @@
    ]
   },
   {
+   "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-15",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "max_bars_back",
+    "obj:collection",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-spy-1d-2026-11-15",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "max_bars_back",
+    "obj:collection",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
    "capture": "vw-alma-spy-1d-2026-09-27",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
@@ -4163,138 +4381,6 @@
     "core",
     "fn-single",
     "ternary"
-   ]
-  },
-  {
-   "capture": "rs-syminfo-industry-rddt-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:label",
-    "realtime-state",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "rs-syminfo-industry-nvda-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:label",
-    "realtime-state",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "rs-syminfo-industry-alab-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": null,
-   "caps": [
-    "core",
-    "if-block",
-    "obj:label",
-    "realtime-state",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "rs-syminfo-industry-crwv-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": null,
-   "caps": [
-    "core",
-    "if-block",
-    "obj:label",
-    "realtime-state",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:delete",
-    "obj:line",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:delete",
-    "obj:line",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-spy-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "var"
    ]
   }
  ],
@@ -5466,7 +5552,7 @@
   {
    "key": "reference:price-divergence-detector-v32-revised-by-justunclel__iWPERpdLcd",
    "lane": null,
-   "guard": "pine:undefined",
+   "guard": "pine:fn-history-in-block",
    "declined": "runtime:conditional-history",
    "caps": [
     "conditional-ta",
@@ -6052,9 +6138,9 @@
   },
   {
    "key": "reference:ytc-swing-highs-lows__H94Z0NbN5P",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
+   "lane": null,
+   "guard": "pine:fn-history-in-block",
+   "declined": "runtime:directive",
    "caps": [
     "core",
     "fn-multi",
@@ -7132,38 +7218,6 @@
  ],
  "hostDiverge": [
   {
-   "capture": "atr-trailing-stop-by-ceyhun-rddt-1d-2026-10-02",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "atr-trailing-stop-by-ceyhun-spy-1d-2026-10-02",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "ternary"
-   ]
-  },
-  {
    "capture": "auto-trendline-dojiemoji-rddt-1d-2026-10-02",
    "lane": "host",
    "runtimeOn": "DIVERGE",
@@ -7216,57 +7270,6 @@
    ]
   },
   {
-   "capture": "pivot-high-low-points-rddt-1d-2026-11-14",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core"
-   ]
-  },
-  {
-   "capture": "smart-money-volume-index-algoalpha-rddt-1d-2026-11-14",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-bgcolor-barcolor-spy-1d-2026-10-02",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-cs1-bool-na-v4-rddt-1d-2026-11-14",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "fn-single",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-cs1-bool-na-v5-rddt-1d-2026-11-14",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "fn-single",
-    "ternary"
-   ]
-  },
-  {
    "capture": "vw-cs1-rci-p1-rddt-1d-2026-11-14",
    "lane": "host",
    "runtimeOn": "DIVERGE",
@@ -7276,228 +7279,12 @@
    ]
   },
   {
-   "capture": "vw-cs1-stoch-p2-rddt-1d-2026-11-14",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-cs1-ties-v4-rddt-1d-2026-11-14",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-cs1-ties-v5-rddt-1d-2026-11-14",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-cs1-transp-v1-rddt-1d-2026-11-14",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-cs1-transp-v2-rddt-1d-2026-11-14",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-cs1-transp-v3-rddt-1d-2026-11-14",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-cs2-bool-na-v1-cum-rddt-1d-2026-11-15",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "fn-single",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-cs2-bool-na-v3-cum-rddt-1d-2026-11-15",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "fn-single",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-cs2-highestbars-computed-v6-rddt-1d-2026-11-15",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-cs2-holed-highest-stoch-v6-rddt-1d-2026-11-15",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-cs2-holed-highest-stoch-v6-spy-1d-2026-11-15",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-cs2-holed-highest-v5-rddt-1d-2026-11-15",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-cs2-holed-highest-v5-spy-1d-2026-11-15",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-cs2-holed-highest-v6-rddt-1d-2026-11-15",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-cs2-holed-highest-v6-spy-1d-2026-11-15",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-cs2-holed-highestbars-rddt-1d-2026-11-15",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-cs2-rising-falling-na-v4-rddt-1d-2026-11-15",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "fn-single",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-cs2-rising-falling-na-v5-rddt-1d-2026-11-15",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "fn-single",
-    "ternary"
-   ]
-  },
-  {
    "capture": "vw-cs2-sma-exact-tie-spy-1d-2026-11-15",
    "lane": "host",
    "runtimeOn": "DIVERGE",
    "production": "DIVERGE",
    "caps": [
     "core",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-cs2-stoch-flat-rddt-1d-2026-11-15",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-cs2-stoch-flat-window-rddt-1d-2026-11-15",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-cs2-v4-ternary-lazy-rddt-1d-2026-11-15",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-single",
     "ternary"
    ]
   },
@@ -7512,42 +7299,6 @@
     "if-block",
     "obj:label",
     "realtime-state"
-   ]
-  },
-  {
-   "capture": "vw-rt6-runtime-colour-rddt-1d-2026-10-03",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "if-block",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "vw-rt6-runtime-colour-spy-1d-2026-10-03",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "if-block",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "vw-ternary-arm-legacy-v2-cum-rddt-1d-2026-11-15",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "ternary"
    ]
   },
   {

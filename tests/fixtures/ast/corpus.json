@@ -849,6 +849,33 @@
       }
     },
     {
+      "id": "stoch_pine_last_finite_values_held_answer",
+      "source": "stochPine(high, low, close, 14)",
+      "why": "(2026-11-14, engine 57) Pine's `ta.stoch` -- the high and low windows are the last 14 FINITE values (fewer while fewer exist, from bar 13), and where `100 * (close - lo) / (hi - lo)` has no number (an `na` source, a flat window) the previous answer is kept. Over these bars it is `stoch_k`'s %K wherever the house column answers; it differs on a flat window (the house says 50) and over a source with holes. Pinned to the vendor separately by `engine57Builtins.test.js` and `tests/test_engine57_builtins.py` (S6 `stochastic-rsi`, S1 probe P2).",
+      "ast": {
+        "type": "call",
+        "name": "stochPine",
+        "args": [
+          {
+            "type": "series",
+            "name": "high"
+          },
+          {
+            "type": "series",
+            "name": "low"
+          },
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 14
+          }
+        ]
+      }
+    },
+    {
       "id": "cci_20",
       "source": "cci(high, low, close, 20)",
       "why": "the commodity channel index -- the one bound indicator whose maths runs on the TYPICAL price `(h + l + c) / 3` rather than on a single column, so it is the case that would notice a binding packing the three columns in the wrong order.",
@@ -5471,6 +5498,86 @@
           {
             "type": "num",
             "value": 33
+          }
+        ]
+      }
+    },
+    {
+      "id": "pine_tie_newest_is_its_operand",
+      "source": "tieNewest(close * 2)",
+      "why": "(2026-11-14, engine 56 S1) the mark the Pine door writes on a v4 / v5 `ta.highestbars` / `ta.lowestbars` source, where TradingView names the NEWEST of a tie over any source (v4 = v5, witnessed): it is its OPERAND on every bar; what it changes is which tied bar a `highestbars` / `lowestbars` over it names (`interpret.js::isBarPriceTree`, `ast_interpret.is_bar_price_tree`).",
+      "ast": {
+        "type": "call",
+        "name": "tieNewest",
+        "args": [
+          {
+            "type": "op",
+            "name": "*",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "num",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "pine_bool_na_withheld_is_its_operand",
+      "source": "boolNaWithheld(close > sma(close, 20), na(sma(close, 20)))",
+      "why": "(2026-11-14, engine 56 A3) the marker the Pine door writes where a v1-v5 `bool` that is `na` meets an operator no capture has witnessed: it is its OPERAND on every bar, and the bars it withholds (where the flag is not 0) are the masks' business (`interpret.js::boolNaMask`, `ast_interpret.bool_na_mask`). The first 19 bars hold a `na` `sma`, so both lanes must withhold exactly those, and agree on every other bar.",
+      "ast": {
+        "type": "call",
+        "name": "boolNaWithheld",
+        "args": [
+          {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "call",
+                "name": "sma",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "num",
+                    "value": 20
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "call",
+            "name": "na",
+            "args": [
+              {
+                "type": "call",
+                "name": "sma",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "num",
+                    "value": 20
+                  }
+                ]
+              }
+            ]
           }
         ]
       }

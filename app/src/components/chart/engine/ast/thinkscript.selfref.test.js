@@ -37,7 +37,8 @@ describe('a plain self-referencing `def`', () => {
 
   it('⭐⭐ becomes an accumulator, seeded from the `IsNaN` arm', () => {
     const row = one('def s = if IsNaN(s[1]) then close else (s[1] + close) / 2;\nplot p = s;\n')
-    expect(row.formula).toBe(`accum(close, (${spec.recurrence.binds} + close) / 2, ${TS_STATE_WARMUP})`)
+    // ⭐ engine 56 (A1): the `IsNaN` test stays in the step (one rule with `pine.js`)
+    expect(row.formula).toBe(`accum(close, na(${spec.recurrence.binds}) ? close : (${spec.recurrence.binds} + close) / 2, ${TS_STATE_WARMUP})`)
   })
 
   it('⭐⭐ and it is the SAME TREE Pine produces for the same recurrence', () => {
@@ -57,7 +58,7 @@ describe('a plain self-referencing `def`', () => {
     const row = one('def st = if IsNaN(st[1]) then close else if close < st[1] then high else low;\n'
       + 'plot p = st;\n')
     expect(row.formula)
-      .toBe(`accum(close, close < ${spec.recurrence.binds} ? high : low, ${TS_STATE_WARMUP})`)
+      .toBe(`accum(close, na(${spec.recurrence.binds}) ? close : close < ${spec.recurrence.binds} ? high : low, ${TS_STATE_WARMUP})`)
   })
 
   it('⭐⭐ and the NUMBER is the running recurrence, not the seed repeated', () => {
@@ -242,8 +243,9 @@ plot p = close > ST;
   // is where the value starts" mean the same recurrence, so they must produce the
   // same column — and asserting the FORMULA rather than merely `ok` is what makes
   // this a test of the maths instead of a test that something compiled.
+  // ⭐ engine 56 (A1): the `IsNaN` test stays in the step, so the seed arm is written twice
   const WANT = 'close > accum((high + low) / 2 + -1 * hma(max(close[1], high) '
-    + '- min(close[1], low), 4), close < self ? (high + low) / 2 + 1 * hma(max(close[1], '
+    + '- min(close[1], low), 4), na(self) ? (high + low) / 2 + -1 * hma(max(close[1], high) - min(close[1], low), 4) : close < self ? (high + low) / 2 + 1 * hma(max(close[1], '
     + 'high) - min(close[1], low), 4) : (high + low) / 2 + -1 * hma(max(close[1], high) '
     + `- min(close[1], low), 4), ${TS_STATE_WARMUP})`
 
@@ -255,12 +257,16 @@ plot p = close > ST;
     expect(out.outputs.find((o) => !o.refusal).formula).toBe(WANT)
   })
 
-  it('⭐ remedy 2 — `CompoundValue(1, …, DN)` translates it to the SAME tree', () => {
+  // ⭐ ENGINE 56 (A1): remedy 1 keeps its `IsNaN(ST[1])` test in the step (a NaN update re-seeds there);
+  // `CompoundValue` states its first value once and carries a NaN, so remedy 2 is the update alone. The two
+  // trees are equal on every bar whose update is a number, and they are no longer one tree.
+  it('⭐ remedy 2 — `CompoundValue(1, …, DN)` translates it to the update over the same seed', () => {
     const out = translateThinkScript(`${SUPERTREND}`
       + 'def ST = CompoundValue(1, if close < ST[1] then UP else DN, DN);\n'
       + 'plot p = close > ST;\n')
     expect(out.refusal, out.refusal && out.refusal.message).toBe(null)
-    expect(out.outputs.find((o) => !o.refusal).formula).toBe(WANT)
+    const seedArm = 'na(self) ? (high + low) / 2 + -1 * hma(max(close[1], high) - min(close[1], low), 4) : '
+    expect(out.outputs.find((o) => !o.refusal).formula).toBe(WANT.replace(seedArm, ''))
   })
 
   it('⭐⭐ a self-lag DEEPER than one bar TRANSLATES, and the engine computes it', () => {

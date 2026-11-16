@@ -157,6 +157,13 @@ describe('the Pine guard census, by name', () => {
 // constructed self-cycles in `pine.test.js` / `pine.depth.test.js`.
 const EXPECTED_UNEXERCISED = [
   'pine:arity',
+  // ⭐⭐ ARRIVED 2026-11-15 (CBC-FMT), declared with no published witness on purpose: the
+  // `calc_bars_count` reader (`declarationCalcBars`) refuses a count that is not a positive
+  // whole-number literal (an input, an expression: TradingView's own compile error CE10123,
+  // S10 `vw-cbc-input-count`). No script in these two corpora declares a count at all; the
+  // four committed declarers (`corpus/committed`) write positive literals. Railed by
+  // `calcBarsWindow.cbcfmt.test.js` (W4), on the host lane and the runtime front end.
+  'pine:calc-bars-count-expr',
   'pine:character',
   'pine:colour-value',
   'pine:constant-only',
@@ -164,6 +171,12 @@ const EXPECTED_UNEXERCISED = [
   'pine:declaration-library',
   'pine:drawing',
   'pine:empty',
+  // ⭐⭐ ARRIVED 2026-11-15 (legacy semantics B3, landing train 1), declared with no published witness in
+  // these corpora: a script function that reads a chart series at a bar offset, called inside a block.
+  // The host lane refuses it at v2 / v3 (TradingView repeats the function's own copy there, CARRY, which
+  // only the runtime lane can keep) and both lanes refuse it at v1 (which cannot express an `if` block).
+  // Railed on the four `vw-fn-history-in-if` captures by `vendorHarness.b3FnHistoryInBlock.test.js`.
+  'pine:fn-history-in-block',
   'pine:function-def',
   // ⭐ ARRIVED 2026-10-02 (H1), and it arrived because two scripts got BETTER:
   // `10-supertrend` and the OOS `03-supertrend-kivancozbilgic` were its only

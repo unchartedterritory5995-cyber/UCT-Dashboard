@@ -199,10 +199,11 @@ describe('2 — the test is read as a condition, by the version\'s `na` rule', (
   it('off the listing the `na` reading is not claimed: counted, as `SELECT`\'s test is', () => {
     expect(naTestsOf(run(SRC, { listing: false }).program)).toBe(1)
   })
-  it('below v4 nothing is claimed: a v3 `?:` whose test can be na is still counted (`runtime:na-test`), and an arm with history is refused', () => {
+  it('v3 (s18): a `?:` whose test can be na reads it as false like v4+ (nothing counted), and an arm with history is refused', () => {
+    // ⚰️ WAS: below v4 nothing claimed, counted (`runtime:na-test`)
     const p = probeRuntimeProgram(v3('x = 0.0', 'x := close[1]', 'plot(x ? 1 : 2)'))
     expect(p.ok, p.refusal && p.refusal.message).toBe(true)
-    expect(p.naTests).toBe(1)
+    expect(p.naTests).toBe(0)
     expect(refusalOf(v3('x = 0.0', 'x := close[1]', 'plot(x ? sma(close, 3) : 2)')).guard).toBe(R4)
   })
 })

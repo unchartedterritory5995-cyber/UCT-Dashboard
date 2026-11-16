@@ -208,6 +208,8 @@ describe('C45 — a capture that PROVES it starts at the vendor\'s bar 0 is grad
     // object rail share)
     expect(product).toEqual([
       'components/chart/engine/binder.js',
+      // ⭐ CBC-FMT (landing train 1): the calc_bars_count window passes the caller's statement through
+      'components/chart/engine/calcBarsWindow.js',
       'components/chart/engine/nativeRegistry.js',
       'components/chart/engine/runHalfObjectRail.js',
     ])
