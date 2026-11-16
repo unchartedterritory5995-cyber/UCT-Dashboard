@@ -8,7 +8,7 @@
 // not pin STOPS the run by name — `W6-A1` in `docs/pine/capture-queue-2026-11-06-w6.md`,
 // probe `tools/visual_conformance/probes/vw-w6-array-members.pine` — and every such stop
 // has a rail below that reaches it. `array.fill` / `array.insert` are the W19-R2 port
-// (`w19r2Collections.test.js`); the three binary searches are Q-W19R2b.
+// (`w19r2Collections.test.js`); the three binary searches are `udtBinarySearch.test.js`.
 //
 // ⛔ EVERY FIXTURE IS `na`-FREE and MOVES with the bars: the expected value is computed
 // here in JavaScript from the same bars, never typed in.
@@ -230,11 +230,15 @@ describe('⭐ array.sort_indices over real numbers — "It does not modify the o
 })
 
 describe('⭐ v6 array.every / array.some — "zero values are considered false, and all others true"', () => {
-  it('every: all non-zero; some: at least one non-zero', () => {
+  // ⭐⭐ UDT unit (2026-11-16) — both take `array<bool>` (the v6 reference types `id` so), and TradingView does
+  // not compile either over a numeric array (reading of `vw-w6-array-members`, capture queue run cq1-2026-11-16:
+  // "Cannot call … An argument of … type was used but a … is expected"). So the served fixtures are WRITTEN
+  // `array<bool>` and the numeric ones are refused at build (`udtBinarySearch.test.js` has the refusals).
+  it('every: all true; some: at least one true', () => {
     const [e1, e0, s1, s0] = runPine([
-      'a = array.from(close, open)',
-      'z = array.from(close - close, open)',
-      'n = array.from(close - close, 0.0)',
+      'array<bool> a = array.from(close > 0, open > 0)',
+      'array<bool> z = array.from(close < 0, open > 0)',
+      'array<bool> n = array.from(close < 0, open < 0)',
       'plot(array.every(a) ? 1 : 0)',
       'plot(array.every(z) ? 1 : 0)',
       'plot(z.some() ? 1 : 0)',
@@ -245,13 +249,12 @@ describe('⭐ v6 array.every / array.some — "zero values are considered false,
     expect(s1).toEqual(per(() => 1))
     expect(s0).toEqual(per(() => 0))
   })
-  it('⛔ an empty array, an `na` element and a pre-v6 script stop by name (W6-A1)', () => {
-    expect(() => runPine('plot(array.every(array.new_float()) ? 1 : 0)')).toThrow(/array\.every of an empty array.*W6-A1/)
-    expect(() => runPine('a = array.from(close, na)\nplot(array.some(a) ? 1 : 0)')).toThrow(/array\.some over an `na` element.*W6-A1/)
-    expect(() => runPine('a = array.from(close)\nplot(array.every(a) ? 1 : 0)', 5)).toThrow(/older than v6.*W6-A1/)
+  it('⛔ an empty array and a pre-v6 script stop by name (W6-A1)', () => {
+    expect(() => runPine('array<bool> e = array.new_bool()\nplot(array.every(e) ? 1 : 0)')).toThrow(/array\.every of an empty array.*W6-A1/)
+    expect(() => runPine('array<bool> a = array.from(close > 0)\nplot(array.every(a) ? 1 : 0)', 5)).toThrow(/older than v6.*W6-A1/)
   })
   it('⛔ the unmeasured fill of a sized bool array is never read — in any array argument', () => {
-    expect(() => runPine('a = array.new_bool(3)\nplot(array.every(a) ? 1 : 0)')).toThrow(/array\.every reads an element/)
+    expect(() => runPine('array<bool> a = array.new_bool(3)\nplot(array.every(a) ? 1 : 0)')).toThrow(/array\.every reads an element/)
     expect(() => runPine('a = array.from(close)\nb = array.new_bool(1)\nplot(array.covariance(a, b))')).toThrow(/array\.covariance reads an element/)
   })
 })
