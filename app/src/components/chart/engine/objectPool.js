@@ -140,7 +140,8 @@ export const COUNT_AT_CAP_GUARD = 'objects:count-at-cap'
 export const COUNT_AT_CAP_PREFIX = 'The script held more '
 /** The store's reason for a family withheld because its collector ran. */
 export function countAtCapReason(family, capacity) {
-  return `${COUNT_AT_CAP_PREFIX}${family}s than its maximum count (${capacity}) and TradingView's collector ran; `
+  const plural = family === 'box' ? 'boxes' : `${family}s`
+  return `${COUNT_AT_CAP_PREFIX}${plural} than its maximum count (${capacity}) and TradingView's collector ran; `
     + 'which of the oldest TradingView still shows then is not measured for every script'
 }
 
