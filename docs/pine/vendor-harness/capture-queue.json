@@ -58,7 +58,8 @@
    "docs/pine/capture-queue-2026-11-09-div3-merged-head.md",
    "docs/pine/capture-queue-2026-11-10-c22-array-gc.md",
    "docs/pine/capture-queue-2026-11-14-rs-rating.md",
-   "docs/pine/capture-queue-2026-11-15-calc-bars.md"
+   "docs/pine/capture-queue-2026-11-15-calc-bars.md",
+   "docs/pine/capture-queue-2026-11-16-rma-last-bit.md"
   ],
   "coverageMeasuredOn": "2026-11-05",
   "coverageMasterSha": "3ca4b0d358",
@@ -83,19 +84,19 @@
   }
  },
  "counts": {
-  "targets": 316,
+  "targets": 318,
   "byStatus": {
    "CAPTURED": 134,
    "NEEDS_CHART": 39,
    "NEEDS_LIVE": 2,
-   "QUEUED": 141
+   "QUEUED": 143
   },
   "byPlanWave": {
    "E": {
     "CAPTURED": 119,
     "NEEDS_CHART": 37,
     "NEEDS_LIVE": 2,
-    "QUEUED": 108
+    "QUEUED": 110
    },
    "W1": {
     "QUEUED": 6
@@ -118,7 +119,7 @@
     "CAPTURED": 110,
     "NEEDS_CHART": 38,
     "NEEDS_LIVE": 2,
-    "QUEUED": 133
+    "QUEUED": 135
    },
    "1-2": {
     "CAPTURED": 24,
@@ -215,6 +216,9 @@
    },
    "r1-strategy": {
     "CAPTURED": 2
+   },
+   "rma-last-bit": {
+    "QUEUED": 2
    },
    "rs-rating": {
     "CAPTURED": 9,
@@ -15423,6 +15427,94 @@
    "origins": [
     "queue-doc"
    ]
+  },
+  {
+   "id": "vw-ema-last-bit@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-ema-last-bit.pine",
+   "sourceKind": "probe",
+   "sha256": "e7eb2b1e1f3c5b09b5cc8e4e1dd2d2c8c2277a91e6528185c849d1e3a8c21bce",
+   "bytes": 697,
+   "stem": "vw-ema-last-bit",
+   "captureStem": "vw-ema-last-bit",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "preamble",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "rma-last-bit"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-rma-last-bit#E01-E03",
+    "capture-queue-2026-11-16-rma-last-bit#E04",
+    "capture-queue-2026-11-16-rma-last-bit#E07"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-ema-last-bit@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-ema-last-bit.pine",
+   "sourceKind": "probe",
+   "sha256": "e7eb2b1e1f3c5b09b5cc8e4e1dd2d2c8c2277a91e6528185c849d1e3a8c21bce",
+   "bytes": 697,
+   "stem": "vw-ema-last-bit",
+   "captureStem": "vw-ema-last-bit",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "preamble",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "rma-last-bit"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-rma-last-bit#E01-E03",
+    "capture-queue-2026-11-16-rma-last-bit#E04",
+    "capture-queue-2026-11-16-rma-last-bit#E07"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
   }
  ],
  "rowsNeedingProbe": [
@@ -17572,6 +17664,12 @@
    "doc": "docs/pine/capture-queue-2026-11-15-calc-bars.md",
    "wave": "calc-bars",
    "rows": 8,
+   "contextTables": 0
+  },
+  {
+   "doc": "docs/pine/capture-queue-2026-11-16-rma-last-bit.md",
+   "wave": "rma-last-bit",
+   "rows": 3,
    "contextTables": 0
   }
  ]

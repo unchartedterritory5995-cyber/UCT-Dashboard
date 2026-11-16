@@ -917,6 +917,24 @@ describe('landing train 1 — the built-in `na(x)` is never `na` on the runtime 
     expect(rt.col.slice(19).every((v) => v === 1)).toBe(true)
   })
 
+  it('…and where `na(…)` reads a value the VM steps (the lowered built-in, RS Rating\'s own shape)', () => {
+    const stepped = ['float x = na', 'if close < open', '    x := close']
+    // the site itself: `na(x) != true`, drawn as Pine draws it (`x` is `na` until the first down bar)
+    const site = runtimeRun(v5([...stepped, 'plot(na(x) != true ? 1 : 0)']))
+    expect(site.err ? site.err.guard : 'OK').toBe('OK')
+    const firstDown = RDDT.findIndex((b) => b.c < b.o)
+    expect(firstDown).toBeGreaterThan(0)
+    expect(site.col.slice(0, firstDown).every((v) => v === 0)).toBe(true)
+    expect(site.col.slice(firstDown).every((v) => v === 1)).toBe(true)
+    // a `bool` slot every write of which is that built-in
+    const slot = runtimeRun(v5([...stepped, 'bool b = false', 'if close > 0', '    b := na(x)', 'plot(b != true ? 1 : 0)']))
+    expect(slot.err ? slot.err.guard : 'OK').toBe('OK')
+    expect(same(slot.col, site.col)).toBe(true)
+    // ⛔ CONTROL: another built-in in the same place is not cleared (`nz` of a `bool` the VM lost the `na` of)
+    const viaNz = runtimeRun(v5(['y = ta.sma(close, 20)', 'bool c = false', 'if close > 0', '    c := close > y', 'bool b = false', 'if close > 0', '    b := nz(c)', 'plot(b != true ? 1 : 0)']))
+    expect(viaNz.err && viaNz.err.guard).toBe(BOOL_NA_UNWITNESSED)
+  })
+
   it('⛔ CONTROL: a `bool` that CAN be `na` meeting a written `true` is still declined by name', () => {
     // the slot rail above with ONE change: the write is a comparison over a value that can be `na`,
     // which the VM holds as false where Pine holds `na`

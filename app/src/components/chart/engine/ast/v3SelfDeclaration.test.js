@@ -106,6 +106,12 @@ const CONTROLS = {
 }
 
 const V3 = [3, 4, 5, 6]
+/** ⭐ LANDING TRAIN 1 (the review of #1330, item 4, coordinator ruling): a script with NO `//@version` that
+ *  uses v4+ syntax is refused at the MEMBER DOOR by name (`pine:version-missing`: TradingView compiles a
+ *  no-pragma script as v1, which has no `var` and no typed declaration). The three translator doors keep
+ *  their path. These five controls are the ones written with `var` / a typed declaration. */
+const NO_PRAGMA_MODERN = new Set(['var', 'shadowSlot', 'shadowSlotTop', 'blockVar', 'blockString'])
+const doorWant = (shape, v, want) => (v === null && NO_PRAGMA_MODERN.has(shape) ? [want[0], want[1], want[2], 'pine:version-missing'] : want)
 const V12 = [null, 2]
 
 describe('⭐⭐ engine 49 — v3+: a declaration that reads its own history refuses `pine:cycle`, ONE sentence, every door', () => {
@@ -167,7 +173,7 @@ describe('⭐⭐ engine 49 — controls keep their path in every pragma (the che
     for (const v of [...V12, ...V3]) cases.push([shape, v === null ? 'none' : `v${v}`, v, lines, want])
   }
   it.each(cases)('%s, pragma %s', (shape, _label, v, lines, want) => {
-    expect(guards(pineAt(v, lines))).toEqual(want)
+    expect(guards(pineAt(v, lines))).toEqual(doorWant(shape, v, want))
   })
 })
 
@@ -339,7 +345,7 @@ describe('⭐⭐ engine 50 — controls: nothing here reads an undeclared variab
     for (const v of [...V12, ...V3]) cases.push([shape, v === null ? 'none' : `v${v}`, v, lines, want])
   }
   it.each(cases)('%s, pragma %s', (shape, _label, v, lines, want) => {
-    expect(guards(pineAt(v, lines(v)))).toEqual(want)
+    expect(guards(pineAt(v, lines(v)))).toEqual(doorWant(shape, v, want))
   })
 })
 

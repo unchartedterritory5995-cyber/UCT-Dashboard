@@ -1395,7 +1395,7 @@ def _monotone_col(series: Sequence[float], n: int, rising: bool) -> List[float]:
     return out
 
 
-def _smooth_col(series: Sequence[float], n: int, k: float) -> List[float]:
+def _smooth_col(series: Sequence[float], n: int, k: float, wilder: bool = False) -> List[float]:
     """An exponential smoother seeded with the SMA of the first full window.
 
     ⭐ ONE SMOOTHER, TWO CONSTANTS. ``ema`` passes ``2 / (n + 1)`` and ``rma``
@@ -1441,7 +1441,9 @@ def _smooth_col(series: Sequence[float], n: int, k: float) -> List[float]:
                 prev = total / n
                 out[i] = prev
         else:
-            prev = prev * (1 - k) + v * k
+            # ⭐⭐ LANDING TRAIN 1 -- ``ta.rma`` in TradingView's own arithmetic (``interpret.js::rmaStep``,
+            # witnessed bit for bit on 4,063 of 4,063 values); ``ema`` keeps the exponential spelling
+            prev = (prev * (n - 1) + v) / n if wilder else prev * (1 - k) + v * k
             out[i] = prev
     return out
 
@@ -1451,7 +1453,7 @@ def _ema_col(series: Sequence[float], n: int) -> List[float]:
 
 
 def _rma_col(series: Sequence[float], n: int) -> List[float]:
-    return _smooth_col(series, n, 1 / n)
+    return _smooth_col(series, n, 1 / n, wilder=True)
 
 
 def _hma_col(series: Sequence[float], n: int) -> List[float]:

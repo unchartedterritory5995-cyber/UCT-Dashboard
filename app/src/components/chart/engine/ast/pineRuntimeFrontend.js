@@ -2271,9 +2271,6 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const neverNaBool = (e) => !!e && ((e.kind === EXPR.NUM && (e.value === 0 || e.value === 1))
       || (e.kind === EXPR.BINARY && CMP.includes(e.op) && known(e.left) && known(e.right))
       || (e.kind === EXPR.BINARY && (e.op === '&&' || e.op === '||')) || (e.kind === EXPR.UNARY && e.op === '!')
-      // ⭐ LANDING TRAIN 1 — the lowered built-in `na(x)` (`irBuiltin('na', …)`, never a script's own
-      // function, which lowers to `EXPR.CALL`): true or false on every bar, never `na` (`canonNeverTree`)
-      || isNaBuiltin(e)
       || slotNeverNa(e))
     const pineLit = (n) => !!n && n.type === 'number' && !!n.tok && (n.tok.value === 'true' || n.tok.value === 'false')
     // a side is asked when it is a `bool` that can be `na`, or it meets a WRITTEN `true` / `false`
@@ -2384,7 +2381,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
         case EXPR.READ: return slotOk(e.slot)
         case EXPR.CALL: return !!functions[e.fn] && never(functions[e.fn].result, slotOk, d + 1)
         case EXPR.COLUMN: return canonNever(columnTrees[e.index])
-        // ⭐ LANDING TRAIN 1 — the built-in `na(x)` answers true / false on every bar
+        // ⭐ LANDING TRAIN 1 — the LOWERED built-in `na(x)` (`irBuiltin('na', …)`; a script's own
+        // function lowers to `EXPR.CALL`, never here) answers true / false on every bar. A site that
+        // meets a written `true` / `false` is still ASKED, and this is where it is answered.
         case EXPR.BUILTIN: return isNaBuiltin(e)
         default: return false
       }

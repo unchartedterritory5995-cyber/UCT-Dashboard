@@ -2083,7 +2083,7 @@ const SMOOTH_CELLS = 3            // [prev, count, sum]
 function smoothInit(st, o) { st[o] = NaN; st[o + 1] = 0; st[o + 2] = 0 }
 
 /** One bar of a smoother. Returns the value to emit (NaN while warming). */
-function smoothStep(st, o, v, n, k) {
+const smoothStepOf = (recur) => function smoothStepWith(st, o, v, n, k) {
   if (!Number.isFinite(v)) {
     // ⭐⭐⭐ HOLD. VENDOR-PINNED 2026-09-08, AND WE USED TO RESET HERE.
     //
@@ -2116,9 +2116,24 @@ function smoothStep(st, o, v, n, k) {
     if (st[o + 1] === n) { st[o] = st[o + 2] / n; return st[o] }
     return NaN
   }
-  st[o] = st[o] * (1 - k) + v * k
+  st[o] = recur(st[o], v, n, k)
   return st[o]
 }
+/** The exponential step (`ema`, alpha `2 / (n + 1)`). ⚠️ Its last bit is NOT measured against
+ *  TradingView (tracked: "ta.ema / ta.rsi last-bit agreement: untested"). */
+const smoothStep = smoothStepOf((prev, v, n, k) => prev * (1 - k) + v * k)
+/** ⭐⭐ LANDING TRAIN 1 — `ta.rma`, IN TRADINGVIEW'S OWN ARITHMETIC: `(prev * (n - 1) + src) / n`.
+ *  The same seed, hold and NaN prefix as `smoothStep`; only the recurrence's order of operations.
+ *  WITNESSED BIT FOR BIT (float64 patterns, not a tolerance) on 4,063 of 4,063 TradingView values:
+ *  `ta.rma(close, 3)` stepped per call site (W3N-D1c, AMEX:SPY 501 and NYSE:RDDT 314 labels), the
+ *  builtin ATR(14) (653), RSI(14) (652) and DMI(14) +DI / -DI / ADX (652, 652, 639), all NYSE:RDDT
+ *  1D from the listing. ⚰️ It was `prev * (1 - 1/n) + src * (1/n)` (Pine's documented spelling),
+ *  equal to TradingView on 62 / 45 / 52 / 281 / 121 / 67 / 72 of those and within ~1e-12 on the
+ *  rest: one unit in the last place, which a tenth-decimal tie in `str.tostring` printed as a
+ *  different digit (label 437 of W3N-D1c SPY). The house `rsi`, `atr` and `adx` kernels already
+ *  used this order. Python twin: `ast_interpret._smooth_col(..., wilder=True)`.
+ *  `docs/pine/evidence/2026-11-16-rma-summation/EVIDENCE.md`. */
+const rmaStep = smoothStepOf((prev, v, n) => (prev * (n - 1) + v) / n)
 
 function smoothCol(series, n, k) {
   const out = nan(series.length)
@@ -2938,7 +2953,7 @@ const pivotPineStep = (beats) => (st, off, v, n, _k, right) => {
 
 export const CARRIED = Object.freeze({
   ema: { cells: SMOOTH_CELLS, init: smoothInit, step: smoothStep, alpha: (n) => 2 / (n + 1) },
-  rma: { cells: SMOOTH_CELLS, init: smoothInit, step: smoothStep, alpha: (n) => 1 / n },
+  rma: { cells: SMOOTH_CELLS, init: smoothInit, step: rmaStep, alpha: (n) => 1 / n },
   // ⭐ NO `alpha`. These two carry a COUNT, not an average, so the fourth
   // argument their step ignores is the same slot `ema`/`rma` use for a decay —
   // one signature, two uses, which is what lets one driver serve the table.

@@ -50,7 +50,9 @@ for line in open(shardfile, encoding='utf-8'):
     f, mw = gate()
     t0 = time.time()
     log = os.path.join(out, name + '.log')
-    if spec.startswith('!'):
+    if spec.startswith('!@'):
+        cmd = spec[2:].split('\x1f'); cwd = APP
+    elif spec.startswith('!'):
         cmd = spec[1:].split('\x1f'); cwd = W
     else:
         cmd = ['node', 'node_modules/vitest/vitest.mjs', 'run', *spec.split(), f'--maxWorkers={mw}']; cwd = APP
