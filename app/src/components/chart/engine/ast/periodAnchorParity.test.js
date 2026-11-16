@@ -304,7 +304,10 @@ describe('C36 · parity with the Python lane — one fixture, both lanes', () =>
     expect([...codes].sort()).toEqual(Object.keys(CHART_CLOCK_WITHHELD)
       .filter((k) => k !== 'time-anchor:other-bars' && !k.startsWith('bar-index:') && !k.startsWith('running-total:')
         // engine HL: the window-hole codes are exercised by `engineHlHoles.test.js`
-        && !k.startsWith('var-origin:') && !k.startsWith('window-extreme:') && !k.startsWith('arg-extreme:')).sort())
+        && !k.startsWith('var-origin:') && !k.startsWith('window-extreme:') && !k.startsWith('arg-extreme:')
+        // ⭐ ENGINE 56 — the two per-bar witness codes (`pine:bool-na-unwitnessed`, `pine:tie-unwitnessed`)
+        // read no clock; both lanes rail them in `engine56Values.test.js` / `tests/test_engine56_values.py`
+        && !k.startsWith('pine:')).sort())
     for (const code of codes) expect(typeof CHART_CLOCK_WITHHELD[code]('5')).toBe('string')
     for (const code of CHART_CLOCK_WHOLE) expect(Object.keys(CHART_CLOCK_WITHHELD)).toContain(code)
   })

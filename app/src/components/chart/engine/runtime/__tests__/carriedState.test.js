@@ -125,7 +125,10 @@ describe('⭐⭐⭐ graph-vs-runtime differential — every declared member (§4
       // ⛔ THE WARM-UP IS PART OF THE COMPARISON. A recurrence's early bars are
       // where a seeding difference lives and the only place it is ever visible;
       // comparing from bar 20 is how this class of defect survives.
-      expect(want.slice(0, 5).every((v) => Number.isNaN(v)), 'the fixture must exercise a warm-up').toBe(true)
+      // ⭐ ENGINE 56 (probe 11) — `rising` / `falling` answer FALSE on their first `n` samples
+      // (witnessed, s17 v4 / v5): their warm-up is a definite 0, still compared below
+      if (fn === 'rising' || fn === 'falling') expect(want.slice(0, 5), 'the warm-up is false, never na').toEqual([0, 0, 0, 0, 0])
+      else expect(want.slice(0, 5).every((v) => Number.isNaN(v)), 'the fixture must exercise a warm-up').toBe(true)
       sameSeries(out, want, fn)
     })
   }
