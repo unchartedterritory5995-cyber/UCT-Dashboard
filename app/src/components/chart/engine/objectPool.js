@@ -116,6 +116,34 @@ export function collectsAbove(capacity) {
   return capacity + GC_BATCH
 }
 
+/** ⭐⭐ DRAW-1 (2026-11-16, coordinator ruling) — A BOX FAMILY WHOSE COLLECTOR RAN IS WITHHELD BY NAME
+ *  ON THE RUNTIME LANE. The reference calls `max_boxes_count` approximate ("The count is approximate;
+ *  more drawings than the specified count may be displayed."), and the batch rule above does not hold
+ *  for every box script: inside-bar-boxes (rddt 1d, 2026-11-14) made 158 boxes on both sides
+ *  (TradingView's newest id 158, ours 158), every one of the 50 boxes both sides hold agrees, and
+ *  TradingView holds 52 (ids 107-158) where this rule holds 50 (109-158). Which of the oldest boxes
+ *  TradingView still shows once the collector has run is therefore not settled, and the run's store
+ *  withholds the box family (`runtime/objectStore.js` `collect`); the member reads
+ *  `NOT_SHOWN.COUNT_AT_CAP` (`ast/objectLoss.js`). Capture queue Q-DRAW-CAP-1/2
+ *  (`tools/visual_conformance/probes/vw-draw-count-at-cap.pine`).
+ *  For boxes the committed captures DISAGREE: sonarlab-order-blocks (spy, brk-a; cap 20) hold 24 boxes,
+ *  every one paired, as this rule predicts, and inside-bar-boxes holds two more than it predicts. Which
+ *  of the two applies to a given script is the unsettled question, so a box family is withheld once
+ *  its collector runs, whichever shape the script has.
+ *  ⛔ BOXES ONLY, on purpose: labels and lines reach their caps in served runtime-lane scripts too, and
+ *  there every committed capture whose collector ran agrees with this rule (parabolic-sar-rddt-1d-
+ *  2026-11-15: 52 labels held, every one paired, runtime-on MATCH; trendlines-spy and
+ *  swing-highlow-zigzag-chartprime-spy: 52 lines, every one paired). Polylines (cap 100) reach no cap
+ *  in a committed capture, and tables are withheld past their count already (`objectStore.js`). */
+export const COUNT_AT_CAP_FAMILIES = Object.freeze(['box'])
+export const COUNT_AT_CAP_GUARD = 'objects:count-at-cap'
+export const COUNT_AT_CAP_PREFIX = 'The script held more '
+/** The store's reason for a family withheld because its collector ran. */
+export function countAtCapReason(family, capacity) {
+  return `${COUNT_AT_CAP_PREFIX}${family}s than its maximum count (${capacity}) and TradingView's collector ran; `
+    + 'which of the oldest TradingView still shows then is not measured for every script'
+}
+
 /** The lowest Pine version with any drawing object at all. */
 export const DRAWINGS_SINCE_VERSION = 4
 

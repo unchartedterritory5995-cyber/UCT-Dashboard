@@ -70,6 +70,7 @@
   "objects:collector-all",
   "objects:collector-held",
   "objects:collector-held-box",
+  "objects:count-at-cap",
   "objects:enum-na",
   "objects:iterated-tree-not-last-bar",
   "objects:iterated-tree-unbounded",

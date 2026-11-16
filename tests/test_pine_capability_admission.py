@@ -128,7 +128,7 @@ def test_the_committed_admitted_set_is_the_evidence_supported_one():
         "core", "reassign", "ternary", "if-block", "var", "fn-single", "fn-multi", "for",
         "compound-assign", "history-expr", "tuple-destructure",
         # U1 (2026-11-15): object families on objects v2 runtime-on MATCH with records paired;
-        # obj:box withheld by ruling (its box count and ungraded x, test_A7_obj_box_stays_withdrawn_...)
+        # (obj:box came back in DRAW-1 with the count-at-cap carve-out: test_A7_obj_box_is_admitted_...)
         "obj:line", "obj:label", "obj:delete", "obj:collection",
         # U3 (2026-11-15): each on the one evidence rule over the S1-era corpus; realtime-state for
         # closed-bar history only (G6); max_bars_back by coordinator ruling (a)
@@ -145,7 +145,10 @@ def test_the_committed_admitted_set_is_the_evidence_supported_one():
         "conditional-ta",
         # DRAW-1 (2026-11-16, coordinator approval): table.* on Signal Ledger + RCT Mann-Kendall, both
         # drawn by the runtime lane, objects v2 MATCH with tables and cells paired
-        "obj:table"])
+        "obj:table",
+        # DRAW-1 (coordinator ruling 2026-11-16): box.* on its x-graded evidence, with the count-at-cap
+        # carve-out (`objectPool.js` COUNT_AT_CAP_FAMILIES): a box family whose collector ran is withheld by name
+        "obj:box"])
 
 
 # ═══ flag OFF: the answers before Part 2 ═══════════════════════════════════════
@@ -430,49 +433,49 @@ U1_OBJECT_FAMILIES = ["obj:collection", "obj:delete", "obj:label", "obj:line"]
 #: U3 (2026-11-15): two more object operations met the rule on S1's community scripts.
 U3_OBJECT_FAMILIES = ["obj:getter"]   # obj:linefill withdrawn in U3b (test_U3b_...)
 #: DRAW-1 (2026-11-16): table.* met the rule on two community scripts drawn by the run.
-DRAW1_OBJECT_FAMILIES = ["obj:table"]
+DRAW1_OBJECT_FAMILIES = ["obj:table", "obj:box"]
 
 
 def test_A7_the_committed_object_families_are_U1s_four_and_U3s_two():
     rep = rt.admitted_capabilities()
     assert sorted(c for c in rep["admitted"] if c.startswith("obj:")) == sorted(
         U1_OBJECT_FAMILIES + U3_OBJECT_FAMILIES + DRAW1_OBJECT_FAMILIES)
-    # polyline has no runtime-drawn evidence at all; box waits on its count at the cap (DRAW-1);
-    # linefill has one runtime-drawn script (FVG Finder)
-    for c in ("obj:polyline", "obj:box", "obj:linefill"):
+    # polyline has no runtime-drawn evidence at all; linefill has one runtime-drawn script (FVG Finder)
+    for c in ("obj:polyline", "obj:linefill"):
         assert c not in rep["admitted"], c
 
 
-#: ⛔ Coordinator ruling 2026-11-15: obj:box's y evidence passes the rule, but the runtime lane drew a
-#: v4 `box.new` with no `border_color` in #2962ff (v5+ color.blue) where TradingView draws #2196f3
-#: (v4 color.blue). The family waited for runtime object defaults made version-aware.
-#: ⭐ Re-pointed 2026-11-16 (landing train 1, engine 59; coordinator ruling): the defaults ARE
-#: version-aware now (legacy semantics B5, `objectDefaults.js::NAMED_OBJECT_DEFAULTS`), and the capture
-#: the ruling named no longer differs on any colour. obj:box STAYS WITHDRAWN on what that capture
-#: still shows: objects v2 DIVERGE on the COUNT of boxes held (vendor 52, ours 50; the count differed
-#: before too, behind the colour) and an x that is not graded (taken before U13). It comes back only
-#: on x-graded box captures that grade MATCH.
-OBJ_BOX_BUG_CAPTURE = "inside-bar-boxes-rddt-1d-2026-11-14"
+#: ⭐ DRAW-1 (coordinator ruling 2026-11-16): obj:box was withheld on inside-bar-boxes' COUNT (vendor 52,
+#: ours 50). Measured: both sides made 158 boxes (TradingView's newest id 158, ours 158), the 50 boxes both
+#: hold agree on every graded field, and TradingView holds two more of the OLDEST: the batch collector
+#: (`objectPool.js` C7) ran, and the reference calls the count approximate ("The count is approximate; more
+#: drawings than the specified count may be displayed."). obj:box is admitted on its x-graded evidence WITH
+#: a carve-out: on the runtime lane a BOX family whose collector ran is withheld by name
+#: (`objects:count-at-cap`, `runtime/objectStore.js::collect`), so inside-bar-boxes' boxes are withheld,
+#: never drawn at the wrong count.
+OBJ_BOX_COUNT_CAPTURE = "inside-bar-boxes-rddt-1d-2026-11-14"
 
 
-def test_A7_obj_box_stays_withdrawn_on_its_box_count_and_ungraded_x():
+def test_A7_obj_box_is_admitted_with_the_count_at_cap_carve_out():
     doc = json.loads(Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))
-    assert "obj:box" not in doc["capabilities"]
+    assert "obj:box" in doc["capabilities"] and "obj:box" in rt.admitted_capabilities()["admitted"]
     readme = " ".join(doc["_readme"])
-    assert "obj:box IS DELIBERATELY ABSENT" in readme and OBJ_BOX_BUG_CAPTURE in readme
-    assert "vendor 52, ours 50" in readme and "x is not graded" in readme
-    # the evidence the ruling names is what it says: runtime-drawn, objects v2 DIVERGE on the box count
-    r = _verdicts()[OBJ_BOX_BUG_CAPTURE]
+    assert "objects:count-at-cap" in readme and OBJ_BOX_COUNT_CAPTURE in readme
+    # the reading the carve-out rests on: the capture's own grade names the count, and only the count
+    r = _verdicts()[OBJ_BOX_COUNT_CAPTURE]
     o = r["objectsV2"]
-    assert o["verdict"] == "DIVERGE" and "boxes count of boxes held" in o["reason"], o["reason"]
-    assert "vendor 52, ours 50" in o["reason"]
-    assert _x_verdict(o) is None and (o["x"]["graded"], o["x"]["differing"]) == (0, 0), o["x"]
-    # ...and the bug it was first withheld for stays fixed: no colour differs, on any paired box
-    assert "border_color" not in o["reason"] and "#2962ff" not in o["reason"], o["reason"]
+    assert "boxes count of boxes held" in o["reason"] and "vendor 52, ours 50" in o["reason"], o["reason"]
     boxes = next(f for f in o["families"] if f["family"] == "boxes")
     assert boxes["paired"] == 50 and boxes["differing"] == 0, boxes
-    src = (json.loads((ROOT / r["file"]).read_text(encoding="utf-8")).get("source") or {}).get("text")
-    assert "obj:box" in pc.capabilities_of(src)
+    cap = json.loads((ROOT / r["file"]).read_text(encoding="utf-8"))
+    tv = [b["id"] for b in cap["objects"]["records"]["boxes"]]
+    assert len(tv) == 52 and tv == list(range(107, 159)), tv[:3]
+    # it is evidence for nothing, and the carve-out is in the run's store, named
+    assert all(e["capture"] != OBJ_BOX_COUNT_CAPTURE for e in doc["capabilities"]["obj:box"]["evidence"])
+    store = (ROOT / "app/src/components/chart/engine/runtime/objectStore.js").read_text(encoding="utf-8")
+    assert "withhold(fam, countAtCapReason(fam, cap))" in store
+    pool = (ROOT / "app/src/components/chart/engine/objectPool.js").read_text(encoding="utf-8")
+    assert "COUNT_AT_CAP_GUARD = 'objects:count-at-cap'" in pool
 
 
 def test_U3b_linefill_is_withdrawn_until_an_x_graded_capture_carries_it():
@@ -509,9 +512,11 @@ def test_U3b_calc_bars_is_held_while_one_script_runs_past_its_window():
 
 
 def test_A7_a_box_drawing_member_script_is_withheld(on):
-    src = MEMBER_COPY + "var box b = na" + chr(10) + "b := box.new(bar_index - 1, high, bar_index, low)" + chr(10)
+    # (DRAW-1: obj:box is admitted; the unadmitted object family here is now linefill)
+    src = (MEMBER_COPY + "var linefill f = na" + chr(10)
+           + "f := linefill.new(line.new(0, low, 1, low), line.new(0, high, 1, high), color.blue)" + chr(10))
     ok, missing = rt.capability_admitted(src)
-    assert not ok and missing == ["obj:box"], missing
+    assert not ok and missing == ["obj:linefill"], missing
 
 
 def test_A7_an_object_drawing_member_script_is_withheld_while_its_family_is(on, monkeypatch):
@@ -1539,8 +1544,9 @@ def test_F1_a_save_of_an_unadmitted_script_is_refused_not_stored(store, monkeypa
     monkeypatch.setenv(rt.SAVE_ENV, "1")
     monkeypatch.setenv(rt.STAGE_ENV, "admins")
     monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
-    # (a table was the unadmitted example until DRAW-1 admitted obj:table; a box is not admitted)
-    doc = member_doc(MEMBER_COPY + "var box b = na\nb := box.new(bar_index - 1, high, bar_index, low)\n")
+    # (a table was the unadmitted example until DRAW-1 admitted obj:table and obj:box; a linefill is not)
+    doc = member_doc(MEMBER_COPY + "var linefill f = na\n"
+                     + "f := linefill.new(line.new(0, low, 1, low), line.new(0, high, 1, high), color.blue)\n")
     with pytest.raises(ValueError, match="not yet been graded"):
         svc.save(USER, ADX["id"], doc, role="admin")
     assert svc.get(USER, ADX["id"]) is None

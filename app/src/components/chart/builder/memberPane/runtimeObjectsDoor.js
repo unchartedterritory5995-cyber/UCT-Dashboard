@@ -57,12 +57,16 @@ export const VALUE_BUILD_DRAWING_GUARD = 'runtime:object-op'
 export const VALUE_BUILD_NOTHING_GUARD = 'runtime:no-output'
 export const valueBuildDefersToDrawing = (guard) => guard === VALUE_BUILD_DRAWING_GUARD || guard === VALUE_BUILD_NOTHING_GUARD
 
-/** ⭐ DRAW-1 — did the host object program lose a CREATE (`create:<family>`, `guard:create`,
- *  `strategy:create`), by the object pass's own counters? */
+/** ⭐ DRAW-1 — did the host object program lose a CREATE (a `create` drop key of any family, or a
+ *  create dropped for its guard or for a strategy value), by the object pass's own counters? */
 export function hostLostCreates(t) {
   const reasons = (t && t.objectDiagnostics && t.objectDiagnostics.dropReasons) || {}
-  return Object.keys(reasons).some((k) => reasons[k] > 0
-    && (k.startsWith('create:') || k === 'guard:create' || k === 'strategy:create'))
+  // (a drop KEY, `<kind>:<op>`, never a guard code: split rather than spelled whole)
+  return Object.keys(reasons).some((k) => {
+    if (!(reasons[k] > 0)) return false
+    const [kind, op] = k.split(':')
+    return kind === 'create' || ((kind === 'guard' || kind === 'strategy') && op === 'create')
+  })
 }
 
 /**
