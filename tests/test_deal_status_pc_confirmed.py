@@ -47,6 +47,29 @@ def test_a_push_replaces_the_set_so_an_unconfirm_clears_it(pc, monkeypatch):
     assert "ZZPCA" not in ds.pending_deal_symbols()
 
 
+def test_a_push_that_lands_during_a_read_is_not_overwritten_by_that_read(pc, monkeypatch):
+    """CART 2026-11-15: ten approvals pushed seconds apart. The read started for one push
+    finished after the next push's reset and was stored as fresh, without the last name."""
+    monkeypatch.setenv("DEAL_STATUS_ENABLED", "1")
+    pc(["ZZPCA"])
+    real = ds._stale_ref
+    landed = []
+
+    def slow_tail():
+        # `_stale_ref` is read AFTER the PC list inside one snapshot build, so a push made
+        # here lands after this build already holds the older list: the race itself.
+        got = real()
+        if not landed:                       # the NEXT push arrives mid-read, once
+            landed.append(1)
+            pc(["ZZPCA", "ZZPCB"])
+        return got
+    monkeypatch.setattr(ds, "_stale_ref", slow_tail)
+    ds.pending_deal_symbols()                # the read that the second push interrupts
+    assert landed == [1]
+    assert {"ZZPCA", "ZZPCB"} <= ds.pending_deal_symbols()
+    assert ds.is_pending("ZZPCB") and ds.deal_status("ZZPCB")["pending"] is True
+
+
 def test_the_push_needs_the_secret(pc):
     with pytest.raises(HTTPException) as e:
         pc(["ZZPCA"], auth="Bearer wrong")
