@@ -545,11 +545,18 @@ def test_WSI_R1_capabilities_are_asked_BEFORE_captures_and_both_must_hold():
     assert len(reasons) == 2 and "divergent" in reasons[0] and "MATCH" in reasons[1]
 
 
-def test_WSI_R4_conditional_ta_is_a_DIVERGENT_row_that_withholds_its_users():
+def test_WSI_R4_conditional_ta_is_CONFORMANT_since_COND_TA_and_a_divergent_row_still_withholds():
+    """COND-TA (engine 58): R4's `divergent` row described the lane before WS-C (#557). The
+    runtime lane is now exact on every conditional `ta.*` it serves and refuses the rest by
+    name (`ast/condTaLanes.test.js`, `runtime/__tests__/conditionalCallSite.test.js`), so the
+    row is conformant. The rule it exercised stands: the SAME row marked divergent withholds."""
     doc = json.loads(Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))
-    assert doc["capabilities"]["conditional-ta"]["status"] == "divergent"
+    row = doc["capabilities"]["conditional-ta"]
+    assert row["status"] == "conformant" and row["admitted"] is True
     s = dict(doc["scripts"][0], capabilities=doc["scripts"][0]["capabilities"] + ["conditional-ta"])
-    assert any("conditional-ta" in r for r in rg.pine_runtime_admission(s, doc["capabilities"]))
+    assert rg.pine_runtime_admission(s, doc["capabilities"]) == []
+    held = dict(doc["capabilities"], **{"conditional-ta": dict(row, status="divergent")})
+    assert any("conditional-ta" in r for r in rg.pine_runtime_admission(s, held))
 
 
 def test_WSI_R1_every_COMMITTED_script_passes_R1_and_its_evidence_is_real():

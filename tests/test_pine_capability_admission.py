@@ -139,7 +139,10 @@ def test_the_committed_admitted_set_is_the_evidence_supported_one():
         # coordinator rulings 2026-11-13: the one evidence rule, no exceptions in either direction;
         # distinct script families, at least one community script (generics: probes only, out);
         # the array namespace on its own evidence (matrix and map have none)
-        "while", "typed-array", "method-call", "collections:array"])
+        "while", "typed-array", "method-call", "collections:array",
+        # COND-TA (U2, engine 58, 2026-11-15): conditional ta.* is exact-or-refused-by-name on the
+        # runtime lane; 7 captures / 4 community scripts (`ast/condTaLanes.test.js` for the machinery)
+        "conditional-ta"])
 
 
 # ═══ flag OFF: the answers before Part 2 ═══════════════════════════════════════
@@ -188,7 +191,8 @@ def test_the_save_door_follows_the_same_rule(store, monkeypatch):
 def test_the_allow_report_carries_the_admission_only_while_ON(on):
     rep = rt.allow_report()["capability_admission"]
     assert "for" in rep["admitted"] and UNADMITTED_CAP not in rep["admitted"]
-    assert "conditional-ta" in rep["withheld"]
+    # COND-TA: `conditional-ta` is admitted (conformant); it is no longer withheld
+    assert "conditional-ta" in rep["admitted"] and "conditional-ta" not in rep["withheld"]
     assert rt.graded_allow_list() == ["d0853c4724651a1d3c63542a2ae767861030137cb1c75ea57a376c53a1630499"]
 
 
@@ -904,18 +908,65 @@ def test_the_door_stores_nothing_and_logs_no_source(store, on, caplog):
 # (`runs/report.json`, whose lanes `capabilityEvidenceLane.test.js` re-asks of the door) and the
 # committed harness snapshots of both lanes.
 
-REPORT = ROOT / "docs" / "pine" / "evidence" / "2026-11-13-capability-admission" / "runs" / "report.json"
+REPORT = ROOT / "docs" / "pine" / "evidence" / "2026-11-15-cond-ta" / "runs" / "report.json"
 VERDICTS_PROD = ROOT / "docs" / "pine" / "vendor-harness" / "production" / "verdicts.json"
+
+
+#: ⛔⛔ TEMPORARY (coordinator ruling 2026-11-15: RE-CAPTURE is preferred over a named exception).
+#: TODO(COND-TA): remove `vw-deadband-ticks-brk-a-1d-2026-09-28` from this set — and the set and
+#: `withheld_whole` with it, if it is then empty — when the capture agent's re-take of NYSE:BRK.A 1D
+#: with `history.startsAtBar0` asserted lands; that capture is expected to grade MATCH on the
+#: runtime lane (D03_dbhf already equals TradingView on 11,335 / 11,335 bars with the listing stated).
+#: 2026-11-16: the re-take landed (`vw-deadband-ticks-brk-a-1d-2026-11-15`, #1373). Runtime-on it grades
+#: INCONCLUSIVE, not MATCH: DBHF, D00, D02 and D03 agree on 11,369 / 11,369 bars and the bar colour
+#: agrees, and D01_mintick has no column on our side. The 09-28 capture is still committed and still
+#: grades as described below, so it stays named here until that capture is retired.
+#: ⭐ COND-TA (engine 58, 2026-11-15) — ADMITTED CAPTURES THE RUNTIME LANE WITHHOLDS WHOLE, BY NAME.
+#: Named one by one, each with why, and each re-proved from its own verdict record on every run
+#: (`withheld_whole`): every plot INCONCLUSIVE because our side computed NO column for it, no
+#: drawing object on either side, and the only DIVERGE a paint (B1 grades a paint our side did not
+#: draw as a gap). Such a capture shows the member a by-name withholding, never a picture, so it is
+#: not "drawn by the runtime lane". ⛔ A record that drifts from that shape (any plot compared, any
+#: object, any non-paint DIVERGE) is a REACH stop again. ⛔ A capture not named here never gets this
+#: reading: the set is closed.
+WITHHELD_WHOLE = {
+    "vw-deadband-ticks-brk-a-1d-2026-09-28": (
+        "runtime:warmup-never-converges on every column: the capture does not assert its history "
+        "starts at the listing (history.startsAtBar0 'not asserted'), so the run is off the listing and "
+        "its two warm-up runs never agree exactly; with the history stated from bar 0 (its own "
+        "D00_bar_index_CONTROL reads 0 on its first bar) D03_dbhf equals TradingView on 11,335 / 11,335 "
+        "bars. The ATR branch holding the conditional ta.atr is never taken (Threshold Mode = Ticks). "
+        "docs/pine/evidence/2026-11-15-cond-ta/EVIDENCE.md"),
+}
+
+
+def withheld_whole(record: dict) -> bool:
+    """Is this runtime-on verdict record a by-name withholding of the WHOLE run (see above)?"""
+    if not isinstance(record, dict) or record.get("verdictWithoutPaints") != "INCONCLUSIVE":
+        return False
+    plots = record.get("plots") or []
+    if not plots or any(p.get("verdict") != "INCONCLUSIVE"
+                        or "our side produced no column" not in str(p.get("reason") or "") for p in plots):
+        return False
+    objs = record.get("objects") or {}
+    if objs.get("verdict") not in (None, "MATCH") or "neither side draws" not in str(objs.get("reason") or "neither side draws"):
+        return False
+    paints = record.get("paints") or {}
+    return paints.get("verdict") == "DIVERGE" and all(
+        r.get("state") in ("notDrawn", "withheld") for r in (paints.get("rows") or [{"state": "x"}]))
 
 
 def reach_rule_violations(report: dict, rt_verdicts: dict, prod_verdicts: dict) -> list:
     rton = {r["id"]: r["verdict"] for r in rt_verdicts["results"]}
+    records = {r["id"]: r for r in rt_verdicts["results"]}
     prod = {r["id"]: r["verdict"] for r in prod_verdicts["results"]}
     out = []
     if rt_verdicts.get("lane") != "runtime-on" or prod_verdicts.get("lane") != "production":
         out.append("a snapshot is not the lane it is read as")
     for c in report["captures"]:
         if c["lane"] == "runtime" and rton.get(c["capture"]) != "MATCH" and rton.get(c["capture"]) != "INCONCLUSIVE":
+            if c["capture"] in WITHHELD_WHOLE and withheld_whole(records.get(c["capture"])):
+                continue
             out.append(f"{c['capture']}: drawn by the runtime lane and graded {rton.get(c['capture'])}")
     for cid, v in prod.items():
         if v == "MATCH" and rton.get(cid) == "DIVERGE":
@@ -956,7 +1007,11 @@ def test_REACH_the_committed_reach_run_is_the_committed_registrys():
     # out of BOTH sides, every other capture is still held to exact equality, and the test then
     # SKIPS naming it (with its ledger verdict) instead of reporting a full pass.
     assert {c["capture"] for c in report["captures"]} - set(held_absent) == admitted
-    assert report["stops"] == [] and report["matchToDiverge"] == []
+    # ⭐ COND-TA: the reach run lists a runtime-lane DIVERGE as a stop whatever its shape; the only
+    # stops a committed run may carry are the captures named in WITHHELD_WHOLE, each re-proved from
+    # its own verdict record by `reach_rule_violations` (the next test). Any other stop is red here.
+    assert {s["capture"] for s in report["stops"]} <= set(WITHHELD_WHOLE), report["stops"]
+    assert report["matchToDiverge"] == []
     assert sum(1 for c in report["captures"] if c["lane"] == "runtime") >= 10   # not vacuous
     if held_absent:
         pytest.skip(f"the other {len(admitted)} admitted captures were verified equal; "
@@ -986,6 +1041,26 @@ def test_REACH_the_rule_can_fail():
     got = reach_rule_violations(report, rtv, prodv)
     assert any(drawn in p and "runtime lane" in p for p in got), got
     assert any(host_match in p and "MATCH -> DIVERGE" in p for p in got), got
+
+
+def test_REACH_a_whole_run_withholding_is_named_and_re_proved_and_nothing_else_reads_that_way():
+    """COND-TA (engine 58). CONTROLS: each named capture's record IS the shape; the same record with
+    one plot compared, or a capture not named, is a REACH stop."""
+    rtv = json.loads(VERDICTS_RT.read_text(encoding="utf-8"))
+    prodv = json.loads(VERDICTS_PROD.read_text(encoding="utf-8"))
+    recs = {r["id"]: r for r in rtv["results"]}
+    for cid in WITHHELD_WHOLE:
+        assert recs[cid]["verdict"] == "DIVERGE" and withheld_whole(recs[cid]), cid
+        report = {"captures": [{"capture": cid, "lane": "runtime"}]}
+        assert all(cid not in p for p in reach_rule_violations(report, rtv, prodv))
+        drifted = copy.deepcopy(rtv)
+        for r in drifted["results"]:
+            if r["id"] == cid:
+                r["plots"][0] = dict(r["plots"][0], verdict="DIVERGE", reason="2 bars differ")
+        assert any(cid in p for p in reach_rule_violations(report, drifted, prodv))
+    # a DIVERGE capture NOT named never reads as withheld whole, whatever its record
+    other = next(r["id"] for r in rtv["results"] if r["verdict"] == "DIVERGE" and r["id"] not in WITHHELD_WHOLE)
+    assert any(other in p for p in reach_rule_violations({"captures": [{"capture": other, "lane": "runtime"}]}, rtv, prodv))
 
 
 # ═══ SERVING COST, FLAG ON (re-verify of #1204, 2026-11-13) ════════════════════

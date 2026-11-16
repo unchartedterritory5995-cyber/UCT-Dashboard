@@ -59,6 +59,7 @@
    "docs/pine/capture-queue-2026-11-10-c22-array-gc.md",
    "docs/pine/capture-queue-2026-11-14-rs-rating.md",
    "docs/pine/capture-queue-2026-11-15-calc-bars.md",
+   "docs/pine/capture-queue-2026-11-16-cond-ta-followups.md",
    "docs/pine/capture-queue-2026-11-16-rma-last-bit.md"
   ],
   "coverageMeasuredOn": "2026-11-05",
@@ -165,6 +166,10 @@
    },
    "call-site-history": {
     "CAPTURED": 2
+   },
+   "cond-ta-followups": {
+    "NEEDS_CHART": 1,
+    "QUEUED": 3
    },
    "div3-merged-head": {
     "QUEUED": 2
@@ -318,7 +323,7 @@
     "NEEDS_CHART": 1
    }
   },
-  "rowsNeedingProbe": 8,
+  "rowsNeedingProbe": 14,
   "rowsNeedingProbeLive": 0,
   "licenceHeldCensus": 156,
   "rowsNotCaptureQuestions": 47,
@@ -8389,11 +8394,13 @@
    "guards": [],
    "planWave": "E",
    "docWaves": [
+    "cond-ta-followups",
     "prod-ternary"
    ],
    "oldestDoc": "2026-10-31",
    "rows": [
-    "capture-queue-2026-10-31-prod-ternary#Q-PT2"
+    "capture-queue-2026-10-31-prod-ternary#Q-PT2",
+    "capture-queue-2026-11-16-cond-ta-followups#Q-CT1"
    ],
    "origins": [
     "queue-doc"
@@ -8431,11 +8438,13 @@
    "guards": [],
    "planWave": "E",
    "docWaves": [
+    "cond-ta-followups",
     "prod-ternary"
    ],
    "oldestDoc": "2026-10-31",
    "rows": [
-    "capture-queue-2026-10-31-prod-ternary#Q-PT2"
+    "capture-queue-2026-10-31-prod-ternary#Q-PT2",
+    "capture-queue-2026-11-16-cond-ta-followups#Q-CT1"
    ],
    "origins": [
     "queue-doc"
@@ -8977,11 +8986,13 @@
    "guards": [],
    "planWave": "E",
    "docWaves": [
+    "cond-ta-followups",
     "prod-ternary"
    ],
    "oldestDoc": "2026-10-31",
    "rows": [
-    "capture-queue-2026-10-31-prod-ternary#not na(x) and ta.crossover(close, x), x na until some bar an"
+    "capture-queue-2026-10-31-prod-ternary#not na(x) and ta.crossover(close, x), x na until some bar an",
+    "capture-queue-2026-11-16-cond-ta-followups#Q-CT2"
    ],
    "origins": [
     "queue-doc"
@@ -9649,11 +9660,13 @@
    "guards": [],
    "planWave": "E",
    "docWaves": [
+    "cond-ta-followups",
     "wsc-history"
    ],
    "oldestDoc": "2026-10-31",
    "rows": [
-    "capture-queue-2026-10-31-wsc-history#H7"
+    "capture-queue-2026-10-31-wsc-history#H7",
+    "capture-queue-2026-11-16-cond-ta-followups#Q-CT2"
    ],
    "origins": [
     "queue-doc"
@@ -15605,6 +15618,74 @@
    "guards": [],
    "namedScripts": [],
    "text": "Q-FMT2 | a probe of `str.tostring` corners S10 did not hold: a PATTERN at 1e21 or more, a grouping of a size other than three (`#,##`), a negative value under a literal prefix (`\"H (#.##)\"`), a NEGATIVE exact tie through `format.mintick` (-0.125), a tie at a non-power-of-ten tick (0.25) | NYSE:RDDT 1D (tick 0.01) | what TradingView prints for each | each WITHHELD by name (`format:magnitude-uncaptu"
+  },
+  {
+   "key": "capture-queue-2026-11-16-cond-ta-followups#The right side of a Pine v6 and / or on the screener lane",
+   "doc": "docs/pine/capture-queue-2026-11-16-cond-ta-followups.md",
+   "line": 12,
+   "docWave": "cond-ta-followups",
+   "needsProbe": "no probe file named (an inline shape or prose)",
+   "needsLive": false,
+   "guards": [],
+   "namedScripts": [],
+   "text": "The right side of a Pine v6 `and` / `or` on the screener lane | SERVED every-bar, as master did. A known TradingView difference (interim ruling B). | The Import door offers to move the call to its own line (the hoist offer, the same surface as the mintick offer), and the screener lane then refuses the un-hoisted shape by name. `pine.screenerCorpus` and the `pine.blindCorpus` accepted floor must no"
+  },
+  {
+   "key": "capture-queue-2026-11-16-cond-ta-followups#Six over-refused outputs: smoothed-moving-average 1, william",
+   "doc": "docs/pine/capture-queue-2026-11-16-cond-ta-followups.md",
+   "line": 13,
+   "docWave": "cond-ta-followups",
+   "needsProbe": "no probe file named (an inline shape or prose)",
+   "needsLive": false,
+   "guards": [],
+   "namedScripts": [],
+   "text": "Six over-refused outputs: `smoothed-moving-average` 1, `williams-alligator` 3, `smart-money-concepts-by-welotrades` 2 | REFUSED by name on the screener lane; drawn on the host lane. Master's number was right. | The gate is evaluated per symbol server-side (the run check), so an arm that runs on a prefix of bars is served."
+  },
+  {
+   "key": "capture-queue-2026-11-16-cond-ta-followups#A saved Pine Apply import holding the seed shape",
+   "doc": "docs/pine/capture-queue-2026-11-16-cond-ta-followups.md",
+   "line": 14,
+   "docWave": "cond-ta-followups",
+   "needsProbe": "no probe file named (an inline shape or prose)",
+   "needsLive": false,
+   "guards": [],
+   "namedScripts": [],
+   "text": "A saved Pine Apply import holding the seed shape | HELD, and re-applying refuses. | Same run check."
+  },
+  {
+   "key": "capture-queue-2026-11-16-cond-ta-followups#A member notice on the Import door for the v6 and / or shape",
+   "doc": "docs/pine/capture-queue-2026-11-16-cond-ta-followups.md",
+   "line": 15,
+   "docWave": "cond-ta-followups",
+   "needsProbe": "no probe file named (an inline shape or prose)",
+   "needsLive": false,
+   "guards": [],
+   "namedScripts": [],
+   "text": "A member notice on the Import door for the v6 `and` / `or` shape | Not built (it needs a new note code; skipped under the ruling's one-hour limit). | With the hoist offer."
+  },
+  {
+   "key": "capture-queue-2026-11-16-cond-ta-followups#Q-CT3",
+   "doc": "docs/pine/capture-queue-2026-11-16-cond-ta-followups.md",
+   "line": 24,
+   "docWave": "cond-ta-followups",
+   "needsProbe": "no probe file named (an inline shape or prose)",
+   "needsLive": false,
+   "guards": [],
+   "namedScripts": [],
+   "text": "Q-CT3 | `vw-deadband-ticks-brk-a` on NYSE:BRK.A 1D, re-read of `…-2026-11-15` | `D01_mintick` has no column on our side (the member pane did not carry it), which is all that keeps the re-take INCONCLUSIVE on the runtime lane rather than MATCH; every other plot agrees on 11,369 / 11,369 bars. Not a new capture: an engine row (carry the hidden helper, or state why not). Until then the 09-28 capture "
+  },
+  {
+   "key": "capture-queue-2026-11-16-cond-ta-followups#flying-buddha-inside-bars-indicator-v1-by-justunclel-rddt-1d",
+   "doc": "docs/pine/capture-queue-2026-11-16-cond-ta-followups.md",
+   "line": 31,
+   "docWave": "cond-ta-followups",
+   "needsProbe": "no probe file named (an inline shape or prose)",
+   "needsLive": false,
+   "guards": [
+    "pine:block"
+   ],
+   "namedScripts": [],
+   "text": "`flying-buddha-inside-bars-indicator-v1-by-justunclel-rddt-1d-2026-11-14` (held store, s7) | `plotarrow(…, colorup = lime, colordown = red, transp = 20)`: `colorup` / `colordown` are not carried. On 16 of 666 bars TradingView paints `#2962ffcc` and we paint the default series colour `#c9a84ccc`. Its five value plots agree on 666 / 666 bars. It was refused whole before COND-TA's parameter guards (`"
   }
  ],
  "rowsNotCaptureQuestions": [
@@ -17663,6 +17744,12 @@
   {
    "doc": "docs/pine/capture-queue-2026-11-15-calc-bars.md",
    "wave": "calc-bars",
+   "rows": 8,
+   "contextTables": 0
+  },
+  {
+   "doc": "docs/pine/capture-queue-2026-11-16-cond-ta-followups.md",
+   "wave": "cond-ta-followups",
    "rows": 8,
    "contextTables": 0
   },

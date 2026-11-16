@@ -120,10 +120,13 @@ import {
   OBJECT_NAMESPACES, OUT_OF_SCOPE_NAMESPACES, SETTER_PROPS,
 } from './pineObjects.js'
 import {
-  INLINE_SUFFIX, definitionHeader, barInvariantNames, guardIsBarInvariant,
+  INLINE_SUFFIX, definitionHeader, barInvariantNames, barInvariantParams, guardIsBarInvariant,
   guardIsLastBarOnly, oneExecutionTokens, taCallIn, historyCallIn, callHistoryFunctions, isHistoryCallName,
+  isTaCallName, setLegacyTaCall,
   readFunctionDefs, objectCollections, drawingFunctions, callOwnedSeriesFor, chartSeriesFor,
 } from './objectFnInline.js'
+import { legacyTaCallFor } from './legacyTaNames.js'
+import { barConstantTree } from './barConstant.js'
 // ⭐ Pine's method form. Only the SPLITTER is needed here: `mutatorTargets`
 // works on tokens rather than on parse nodes, and what it has to recognise is
 // that `a.push` names a receiver `a`. One splitter, so this file and the object
@@ -7612,26 +7615,19 @@ export function copyKeepingArmRuns(tree) {
  *  else — a bar value, a call, an offset, a clock that moves, a `var` seeded from a
  *  bar — is not, and the bind decides from the chart's bars instead. */
 export function bindTimeConstantTree(tree) {
-  const stack = [tree]
-  while (stack.length) {
-    const n = stack.pop()
-    if (!n || typeof n !== 'object') return false
-    if (n.type === 'num') continue
-    if (n.type === 'series') {
-      if (BIND_TIME_CLOCK.includes(n.name)) continue
-      if (typeof n.inputDefault === 'number' && Number.isFinite(n.inputDefault)) continue
-      return false
-    }
-    if (n.type === 'op' && Array.isArray(n.args)) { for (const a of n.args) stack.push(a); continue }
-    if (n.type === 'call' && Object.hasOwn(RECURRENCES, n.name) && Array.isArray(n.args)) {
+  // ⭐⭐ COND-TA — ONE AUTHORITY (`barConstant.js::barConstantTree`, which the runtime lane's
+  // `invariantTest` asks too). This door adds only its `var` seed rule. ⚰️ Its own copy admitted
+  // no call at all, so `math.max(len, 5) > 10 ? ta.sma(close, 3) : close` was stamped here (and
+  // refused on the screener lane) while the runtime lane, asking a pure call, drew it.
+  return barConstantTree(tree, {
+    table: TABLE,
+    seedOf: (n) => {
+      if (!Object.hasOwn(RECURRENCES, n.name)) return undefined
       const rec = RECURRENCES[n.name]
       const body = n.args[rec.body]
-      if (body && body.type === 'series' && body.name === rec.binds) { stack.push(n.args[rec.seed]); continue }
-      return false
-    }
-    return false
-  }
-  return true
+      return body && body.type === 'series' && body.name === rec.binds ? n.args[rec.seed] : null
+    },
+  })
 }
 
 /** ⭐ C45 — the first call WRITTEN in this parse node that keeps a history of its
@@ -7684,7 +7680,8 @@ function armHistoryCallAt(node, historyFns, walk) {
   switch (node.type) {
     case 'call': {
       const name = typeof node.name === 'string' ? node.name : ''
-      if (name.startsWith('ta.')) return { name, udf: false }
+      // ⭐ COND-TA (engine 58, G-b) — a Pine v1-v4 bare `sma(…)` is the same call (`isTaCallName`)
+      if (isTaCallName(name)) return { name, udf: false }
       if (isHistoryCallName(name, historyFns)) return { name, udf: true }
       if (name.startsWith('request.')) return null
       for (const a of argsOf(node)) { const c = walk(a); if (c) return c }
@@ -7707,6 +7704,13 @@ function armHistoryCallAt(node, historyFns, walk) {
     default: return null
   }
 }
+
+/** ⭐⭐ COND-TA (engine 58) — what the SCREENER lane adds to a gate's own sentence when it
+ *  refuses it: that lane binds no chart, so nothing can say the code ran on every bar. */
+export const SCREEN_GATE_SENTENCE = ' — a screen or an alert reads this value on every bar of every symbol, and no '
+  + 'chart is bound there to say whether that code ran on each one, so it is not computed; add the script to a '
+  + 'chart instead, or give that call its own line above (for example `r = ta.rsi(close, 14)`) and use the name '
+  + 'here, which runs it on every bar'
 
 /** The member's sentence for a stamped arm (the bind adds where it skipped). */
 function armRunsWhy(call, tok, op, ifBranch = false) {
@@ -7753,7 +7757,7 @@ function readsFreeRecurrenceBind(tree, table) {
  *  plot because the bind finds no run after a skip. ⛔ One the walk cannot make
  *  standalone (a free bind of a multi-state recurrence) carries no gate and is
  *  drawn as it always was — never refused here, never guessed. */
-export function armRunGates(trees, table) {
+export function armRunGates(trees, table, opts = {}) {
   const out = []
   // ⭐ L3 — a node is visited once PER ENCLOSING-ARM CONTEXT (`ctx.key`): the same
   // stamped subtree under two different arms runs on two different sets of bars.
@@ -7806,6 +7810,7 @@ export function armRunGates(trees, table) {
       if (guard && !readsFreeRecurrenceBind(guard, table)) {
         const own = { yes: armGuardOf(n, guard, false), no: armGuardOf(n, guard, true) }
         for (const r of stamp.runs) {
+          if (opts.skipLogicRight && r.logicRight) continue
           const g = within(ctx.conds, r.negate ? own.no : own.yes)
           const key = `${printFormula(g)}|${r.why}`
           if (keys.has(key)) continue
@@ -8764,8 +8769,10 @@ export class Resolver {
     //   · the object pass (`refuseCondCalls`) refuses at the read, as C31 did;
     //   · a mark with no guard to carry is refused once the output has resolved
     //     (`condRefusal`), never served;
-    //   · every other resolver — the screener lane's among them, where nothing
-    //     binds a chart — reads as it always has.
+    //   · every other resolver reads as it always has. ⚰️ The screener lane's was
+    //     among them ("nothing binds a chart"), and so it served the every-bar
+    //     number; since COND-TA (engine 58) its output loop sets `condGate` too and
+    //     refuses each value gate by name (`SCREEN_GATE_SENTENCE`).
     // ⭐ G-h (r1) — a paint's / a fill's colour reads a one-run binding the way a plot
     // does (`holderColourGates` turns `condGate` on): ⚰️ r0 read it the every-bar way
     // (`condGateNotesOnly`), and `if barstate.islast` / `s := ta.sma(close, 3)` painted
@@ -11857,7 +11864,18 @@ export class Resolver {
    *  walk reads; skipping the stamp there could only lose it on a memoised node a
    *  later output reuses. */
   stampTernaryArms(out, node, test) {
-    if (!node.ifExpr && !(Number(this.pineVersion) >= 5)) return
+    // ⭐⭐ COND-TA — `?:` ARMS ARE LAZY FROM PINE v4, EAGER BEFORE IT. BOTH WITNESSED (run
+    // s17-2026-11-15, NYSE:RDDT 1D from the listing):
+    //   · probe 10 (`vw-cs2-v4-ternary-lazy`): a v4 arm's `sma`, `barssince` and a helper calling
+    //     `sma` see only the bars the arm ran on (bar 7: TradingView na, the eager `sma` 53.72), as
+    //     v5 / v6 do (`vw-arm-history`); v4 `iff` is eager. ⚰️ Master drew v4 arms off the every-
+    //     bar number, wrong on up to 299 bars: stamped now, withheld by name where the test varies;
+    //   · probe P2 (`vw-ternary-arm-legacy-v1/v2/v3`): in v1 (no pragma), v2 and v3 an arm's
+    //     `change`, `sma`, `ema`, `rma`, `barssince` and `cum` equal their EVERY-BAR values on every
+    //     bar — and `cci-coded-obv` / `trade-archer-obv-mas-v1` (no pragma) equal the eager OBV on
+    //     666 / 666 bars (the lazy reading misses 662). So v1-v3 arms are not stamped: drawn eager.
+    // `iff` is a call, never stamped: eager at every version it exists in.
+    if (!node.ifExpr && !(Number(this.pineVersion) >= 4)) return
     if (!out || out.type !== 'op' || out.name !== '?:') return
     // ⛔ ONE question, not two: a literal or a constant expression is a tree of
     // `num`s, which `bindTimeConstantTree` admits (an `na` test included — it takes
@@ -11883,7 +11901,7 @@ export class Resolver {
     if (bindTimeConstantTree(left)) return
     const call = armHistoryCallOf(node.right, this.historyFnsOf ? this.historyFnsOf() : null)
     if (!call) return
-    stampArmRuns(out, [{ negate: mapped === '||', what: 'that right side', why: armRunsWhy(call, node.tok, node.op) }])
+    stampArmRuns(out, [{ negate: mapped === '||', what: 'that right side', logicRight: true, why: armRunsWhy(call, node.tok, node.op) }])
   }
 
   /** ⭐⭐ C48 — RUN A READ THE WAY IT ALWAYS RAN, FOR ITS PARAMETER MINT ALONE.
@@ -11940,15 +11958,23 @@ export class Resolver {
    *  translated `ok` and disagreed with TradingView on 169 of 315 RDDT bars (bar 2:
    *  100.88 vs 92). Rails: `lenientBlockLocalHistory.test.js`. */
   blockLocalHistory(node) {
-    if (this.mintOnly > 0 || !(node.n >= 1) || !node.arg || node.arg.type !== 'name') return null
-    const bound = this.env.get(node.arg.name)
+    if (this.mintOnly > 0 || !(node.n >= 1) || !node.arg) return null
+    // ⭐⭐ COND-TA (F2, the #1326 review) — AN EXPRESSION'S HISTORY OVER A BLOCK LOCAL is the same
+    // read: `(x + 0)[1]` is the expression at the block's previous RUN, which this lane does not
+    // keep either. ⚰️ Only `name[k]` was asked, so `p := (x + 0)[1]` read the previous BAR's value
+    // with no gate on any lane. FAIL CLOSED: any block-local name the offset's own expression reads.
+    const local = node.arg.type === 'name' ? { name: node.arg.name, expr: false } : this.blockLocalReadIn(node.arg)
+    if (!local) return null
+    const bound = this.env.get(local.name)
     if (!bound || typeof bound !== 'object' || !bound.blockLocal) return null
     if (!this.refuseCondCalls && !this.condGate && !this.screen) return null
     if (bound.blockLocal === 'once') {
       if (this.paramMint) this.mintOnlyRead(() => this.resolve(node))
       return cOp('/', [cNum(0), cNum(0)])
     }
-    const why = `\`${node.arg.name}[${node.n}]\` reads the history of a name declared `
+    const read = local.expr ? `\`(…)[${node.n}]\`, the history of an expression over \`${local.name}\`,`
+      : `\`${local.name}[${node.n}]\``
+    const why = `${read} reads the history of a name declared `
       + 'inside a block that does not run on every bar: TradingView answers the value at the block\'s previous '
       + 'RUN, not the previous bar\'s (capture `vw-call-site-history`, rows C05 / D03), and that history is not kept here'
     const err = new PineRefusal('pine:block', `${REFUSALS['pine:block']} — ${why}`, locate(node.tok))
@@ -11956,6 +11982,26 @@ export class Resolver {
     if (this.refuseCondCalls || this.screen) throw err
     // a chart's plot reads on, and the bind decides (`resolveBinding`)
     this.noteBlockRun(bound, why, err)
+    return null
+  }
+
+  /** ⭐ COND-TA (F2) — the first name a parse expression reads that is bound to a block local
+   *  (`blockLocal`), or null. Walks the expression only (never a function's body). */
+  blockLocalReadIn(expr, d = 0) {
+    if (!expr || typeof expr !== 'object' || d > 64) return null
+    if (Array.isArray(expr)) {
+      for (const x of expr) { const r = this.blockLocalReadIn(x, d + 1); if (r) return r }
+      return null
+    }
+    if (expr.type === 'name') {
+      const b = this.env.get(expr.name)
+      return b && typeof b === 'object' && b.blockLocal ? { name: expr.name, expr: true } : null
+    }
+    for (const [k, v] of Object.entries(expr)) {
+      if (k === 'tok' || k === 'endTok' || !v || typeof v !== 'object') continue
+      const r = this.blockLocalReadIn(v, d + 1)
+      if (r) return r
+    }
     return null
   }
 
@@ -17489,7 +17535,7 @@ function partReadsCallHistory(part, chart, depth = 0) {
         return !(a && a.type === 'name' && chart.has(a.name) && bound(a.name) === undefined)
       }
       case 'call':
-        if (String(n.name || '').startsWith('ta.') || bound(n.name) !== undefined) return true
+        if (isTaCallName(n.name) || bound(n.name) !== undefined) return true
         return (n.args || []).some((a) => walk(a && a.value !== undefined ? a.value : a, d + 1))
       case 'unary': return walk(n.arg, d + 1)
       case 'binary': return walk(n.left, d + 1) || walk(n.right, d + 1)
@@ -22265,7 +22311,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       for (const x of n) { const c = armHistoryCall(x, depth + 1); if (c) return c }
       return null
     }
-    if (n.type === 'call' && typeof n.name === 'string' && n.name.startsWith('ta.')) return n
+    if (n.type === 'call' && typeof n.name === 'string' && isTaCallName(n.name)) return n
     for (const [k, v] of Object.entries(n)) {
       if (k === 'tok' || k === 'endTok' || !v || typeof v !== 'object') continue
       const c = armHistoryCall(v, depth + 1)
@@ -26941,6 +26987,9 @@ export function translatePine(source, opts = {}) {
   const outerCalcBars = CALC_BARS_SINK
   const calcBarsSink = { count: null }
   CALC_BARS_SINK = calcBarsSink
+  // ⭐ COND-TA (engine 58, G-b) — the legacy bare-name predicate is installed by
+  // `translatePineResult` once the version is lexed, and put back HERE, whatever returns.
+  const outerLegacyTa = setLegacyTaCall(null)
   LIBRARY_LINK_SINK = null
   DECL_WORDS_SINK = null
   const sink = new Map()
@@ -26963,6 +27012,7 @@ export function translatePine(source, opts = {}) {
     strategyTaintAtLine = outerTaintAt
     strategyTaintDrawingAtLine = outerTaintDrawingAt
     CALC_BARS_SINK = outerCalcBars
+    setLegacyTaCall(outerLegacyTa)
   }
   if (!t || typeof t !== 'object') return t
   // ⭐⭐ CBC-FMT — the window the host lane computes this script on (`declarationCalcBars`),
@@ -27125,6 +27175,10 @@ function translatePineResult(source, opts = {}) {
   const { tokens, indents, version, lines, rawOffsetMap } = lexed
   const pineV1 = lexed.v1Declared === true
   beginPaletteScope(version)
+  // ⭐ COND-TA (engine 58, G-b) — in Pine v1-v4 (and a script with no `//@version`,
+  // which TradingView compiles as v1) a bare `sma(…)` is a `ta.*` call with its own
+  // call-site history (`legacyTaNames.js`); every history reader asks `isTaCallName`.
+  setLegacyTaCall(legacyTaCallFor(version))
   // ⭐ F1 — what each declared name was declared AS, for `pineConstIntValue`.
   DECL_WORDS_SINK = declarationWordsOf(tokens)
   if (tokens.length === 0) {
@@ -27226,6 +27280,21 @@ function translatePineResult(source, opts = {}) {
   }
   const guardVaries = (condToks) => !invariantNamesOf() || !condToks || !condToks.length
     || !guardIsBarInvariant(condToks, invariantNamesOf())
+  /** ⭐⭐ COND-TA — the same question INSIDE a function body: a parameter is never a top-level
+   *  name (it hides one of the same spelling), and it is fixed for the run only where every call
+   *  site passes a bar-invariant argument (`barInvariantParams`). Read on first use. */
+  let invariantParamsMemo
+  const guardVariesIn = (fnName, params) => {
+    const names = invariantNamesOf()
+    if (!names) return guardVaries
+    if (invariantParamsMemo === undefined) {
+      try { invariantParamsMemo = barInvariantParams(stmts, { isPunct, findTop, boundName }, names) } catch { invariantParamsMemo = new Map() }
+    }
+    const scoped = new Set(names)
+    for (const p of params || []) scoped.delete(p)
+    for (const p of invariantParamsMemo.get(fnName) || []) scoped.add(p)
+    return (condToks) => !condToks || !condToks.length || !guardIsBarInvariant(condToks, scoped)
+  }
   /** ⭐ C42 — the script's value functions that read their own history
    *  (`callHistoryFunctions`), read on first use; a drawing function is judged
    *  where the object reader inlines it. Unreadable → none (the fold then marks
@@ -28034,7 +28103,7 @@ function translatePineResult(source, opts = {}) {
         const beforeFn = new Map(fnEnv)
         const bodyTrace = {}
         let value = arrow === toks.length - 1
-          ? foldStatements(stmt.sub, ctx, fnEnv, bodyTrace, { declarationIsValue: true })
+          ? foldStatements(stmt.sub, { ...ctx, condAware: guardVariesIn(nameTok.value, params) }, fnEnv, bodyTrace, { declarationIsValue: true })
           : exprBinding(parseWholeExpression(toks.slice(arrow + 1)), fnEnv, locate(toks[arrow]))
         // ⭐ A BODY WHOSE LAST STATEMENT IS A DECLARATION RETURNS WHAT IT DECLARES
         // — see `trailingDeclarationName`. The binding read here is the one the
@@ -28898,9 +28967,18 @@ function translatePineResult(source, opts = {}) {
   for (const out of outputs) {
     const resolver = makeResolver(positionEnv(out))
     // ⭐ C48 — see `Resolver.resolveBinding`: a CHART's plot reads a conditional
-    // call through and carries its block's guard for the bind. ⛔ The host lane
-    // only: the screener lane binds no chart, and reads as it always has.
-    resolver.condGate = isHostLane(opts)
+    // call through and carries its block's guard for the bind.
+    // ⭐⭐ COND-TA (engine 58) — THE SCREENER LANE ASKS THE SAME QUESTION, AND HAS NO
+    // BIND TO HAND THE ANSWER TO. ⚰️ It "read as it always had": `if close > open` /
+    // `v := ta.sma(close, 3)` / `plot(v)` translated `ok` as `close > open ? sma(close, 3)
+    // : na`, the EVERY-BAR mean, wrong on 242 of RDDT's 635 bars against
+    // `vw-call-site-history` C03 (and every `?:` arm, block local and `var` filled in a
+    // block the same way). A screen or an alert built from that formula (the Import
+    // tab's Apply) is evaluated column-wise by the server lanes with no `meta.blockRuns`
+    // to stop it. So the screener lane reads with the host lane's gates on, and every
+    // gate the VALUE carries is refused by name at the end of the output
+    // (`SCREEN_GATE_SENTENCE`): no chart is bound there to say the block ran on every bar.
+    resolver.condGate = true
     // ⭐ C29 — the chart-period reads made while THIS output resolves (`recordPeriodRead`).
     const periodReadsBefore = PERIOD_READ_SINK ? PERIOD_READ_SINK.count : 0
     if (PERIOD_READ_SINK) { PERIOD_READ_SINK.inOutput = true; PERIOD_READ_SINK.current = new Set() }
@@ -29050,6 +29128,9 @@ function translatePineResult(source, opts = {}) {
       // ⭐ F2 — and how many block gates the VALUE noted, before the presentation
       // below reads the colour: see `colourRuns`.
       const valueBlockRuns = resolver.blockRuns.length
+      // ⭐ COND-TA — and whether the VALUE left a mark with no guard to carry (the screener
+      // lane refuses the value for its own marks only: a screen reads no colour).
+      const valueCondRefusal = resolver.condRefusal
       row = {
         kind: out.kind,
         title: outputTitle(args, out.kind, out.role) || null,
@@ -29160,7 +29241,7 @@ function translatePineResult(source, opts = {}) {
       // (`engine/blockRuns.js`); a guard this engine cannot read, or a mark with
       // none, refuses the row here — after the whole output, value and
       // presentation, minted what it always minted.
-      if (resolver.condRefusal) throw resolver.condRefusal
+      if (isHostLane(opts) ? resolver.condRefusal : valueCondRefusal) throw (isHostLane(opts) ? resolver.condRefusal : valueCondRefusal)
       // ⛔⛔ W9-OQ-N2 (2026-11-07) - AN OUTPUT A BROKER VALUE REACHES REFUSES BY NAME.
       // With the broker dark, a `strategy.*` STATE value reaching ANY argument of this call
       // (its colour above all, which falls soft to one default colour when uncarried) is a
@@ -29222,7 +29303,28 @@ function translatePineResult(source, opts = {}) {
         }
         for (const g of armRunGates(armTrees, table)) gates.push(g)
       }
-      if (gates.length) Object.defineProperty(row, '_blockRuns', { value: gates, enumerable: false })
+      // ⭐⭐ COND-TA (engine 58) — THE SCREENER LANE BINDS NO CHART: a VALUE gate is a
+      // refusal. ⛔ The value's own gates only — those its value noted (`valueBlockRuns`)
+      // and its value tree's arms (`armRunTreesOf`): a screen or an alert reads the value,
+      // never a colour, so a colour's call is not a reason to refuse it.
+      if (!isHostLane(opts)) {
+        // ⛔⛔ INTERIM (coordinator ruling 2026-11-16, option B) — THE RIGHT SIDE OF A v6 `and` / `or`
+        // IS NOT REFUSED HERE YET (`logicRight`): this lane still serves it as the every-bar value,
+        // exactly as master does. That is a KNOWN TradingView DIFFERENCE, not a correct reading (the
+        // to-v6 guide: the right side runs only where the left side has not decided the answer).
+        // Refusing it took a third of the Screener import's accepted corpus off in one step, so the
+        // refusal is switched on together with the hoist offer and the screener-lane run check (the
+        // follow-up unit). Pinned, and written to go red then: `condTaLanes.test.js` section 8. The
+        // host lane keeps its gate. ⛔ A `?:` arm, a block, a helper and an `if` expression are
+        // refused here as built, including one standing INSIDE such a right side.
+        const valueGates = [...guardsOf(resolver.blockRuns.slice(0, valueBlockRuns)),
+          ...armRunGates(armRunTreesOf(row), table, { skipLogicRight: true })]
+        if (valueGates.length) {
+          throw new PineRefusal('pine:block', `${REFUSALS['pine:block']} — ${valueGates[0].why}${SCREEN_GATE_SENTENCE}`,
+            locate(out.tok))
+        }
+      }
+      if (gates.length && isHostLane(opts)) Object.defineProperty(row, '_blockRuns', { value: gates, enumerable: false })
     } catch (err) {
       row = {
         kind: out.kind,

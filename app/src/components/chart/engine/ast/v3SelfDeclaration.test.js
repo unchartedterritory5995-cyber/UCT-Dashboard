@@ -329,7 +329,7 @@ describe('⭐⭐ engine 50 — controls: nothing here reads an undeclared variab
     blockVar: [() => ['var x = if close > open', '    nz(x[1]) + 1', 'else', '    0.0', 'plot(x)'], ['pine:block', 'pine:block', 'OK', 'pine:block']],
     blockMutable: [() => ['x = 0.0', 'x := if close > open', '    nz(x[1]) + 1', 'else', '    0.0', 'plot(x)'], ['OK', 'OK', 'OK', 'OK']],
     blockString: [() => ['x = if close > open', '    str.length("x[1]") * 1.0', 'else', '    0.0', 'plot(x)'], ['OK', 'OK', 'OK', 'OK']],
-    blockCallHistory: [(v) => ['x = if close > open', `    ${ta(v, 'sma')}(close, 5)[1]`, 'else', '    0.0', 'plot(x)'], ['OK', 'OK', 'runtime:conditional-history', 'OK']],
+    blockCallHistory: [(v) => ['x = if close > open', `    ${ta(v, 'sma')}(close, 5)[1]`, 'else', '    0.0', 'plot(x)'], ['pine:block', 'OK', 'runtime:conditional-history', 'OK']],   // COND-TA (engine 58): the screener lane refuses it by name
     // function namespace: a name that is a function only, a mutable variable of a function's name, a
     // parameter named after a function, and a history read of a CALL
     fnNameMutable: [() => ['x(a) => a * 2', 'float x = 0.0', 'x := nz(x[1]) + 1', 'plot(x)'], ['pine:state', 'pine:state', 'OK', 'pine:state']],
