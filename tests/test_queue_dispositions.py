@@ -157,12 +157,14 @@ def test_the_committed_dispositions_are_exactly_the_reviewed_rows():
     # by PT-GAPS; L2 left this list in PR #937, its capture already queued as vw-pt-request-arm)
     q = json.loads((REPO / "docs/pine/vendor-harness/capture-queue.json").read_text(encoding="utf-8"))
     needing = {r["key"] for r in q["rowsNeedingProbe"]}
-    # the S1 shapes no W9 probe asks stay QUEUED (their table's chart, NYSE:RDDT 1D, is stated in the section lead)
+    # the S1 shapes no W9 probe asks (their table's chart, NYSE:RDDT 1D, is stated in the section lead) were
+    # CAPTURED 2026-11-16 (capture batch 1) as value witnesses, taken in session without the Strategy Tester
+    # report, so not pinnable; the after-close re-take with the report replaces them as pin evidence
     by = {t["id"]: t["status"] for t in q["targets"]}
     for stem in ("vw-s1-q-s1d-close-reverse", "vw-s1-q-s1d-two-entries", "vw-s1-q-s1d-two-stops",
                  "vw-s1-q-s1k-fractional-profit", "vw-s1-q-s1k-na-modify", "vw-s1-q-s1k-profit-and-limit",
                  "vw-s1-q-s1e-stop-past", "vw-s1-q-s1g-blocked-stop-entry", "vw-s1-q-s1h-fifo-exit", "vw-s1-q-s1j-stop-limit"):
-        assert by.get(f"{stem}@NYSE:RDDT@D") == "QUEUED", stem
+        assert by.get(f"{stem}@NYSE:RDDT@D") == "CAPTURED", stem
     assert not any(t.startswith(("vw-s1-q-s1a-", "vw-s1-q-s1b-", "vw-s1-core-")) for t in by)
     # both -nv probes were captured on 2026-11-15 (#1370, the U14 strategy captures): no longer QUEUED
     assert by["w9-p1b-on-close-fills-nv@NYSE:RDDT@D"] == by["w9-p2-order-fills-nv@NYSE:RDDT@D"] == "CAPTURED"

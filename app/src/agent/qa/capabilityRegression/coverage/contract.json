@@ -1861,6 +1861,71 @@
    ],
    "fast": false
   },
+  "newsLibrary.collection": {
+   "domain": "newsLibrary",
+   "group": "newsLibrary",
+   "target": "newsLibrary",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
+  "newsLibrary.deleteCollection": {
+   "domain": "newsLibrary",
+   "group": "newsLibrary",
+   "target": "newsLibrary",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
+  "newsLibrary.place": {
+   "domain": "newsLibrary",
+   "group": "newsLibrary",
+   "target": "newsLibrary",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
+  "newsLibrary.save": {
+   "domain": "newsLibrary",
+   "group": "newsLibrary",
+   "target": "newsLibrary",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
+  "newsLibrary.setNote": {
+   "domain": "newsLibrary",
+   "group": "newsLibrary",
+   "target": "newsLibrary",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
   "pane.move": {
    "domain": "pane",
    "group": "indicatorSetup",

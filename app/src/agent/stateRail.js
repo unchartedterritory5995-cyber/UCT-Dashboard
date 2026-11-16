@@ -209,6 +209,22 @@ const READERS = {
     if (ch.drop && ch.put) return [{ state: 'template', type: 'overwrite', via: 'save', name: `your indicator template “${nm(ch.drop.name)}”` }]
     return []
   },
+  // newsLibrary.* (2026-11-15): the member's UCT News library — a headline taken out (its note and collection places go
+  // with it), a NON-EMPTY note replaced, a collection renamed or deleted, a headline taken out of a collection. A save, a
+  // first note, an appended note, a new collection and putting a headline in one only add.
+  newsLibrary(p) {
+    const out = []
+    for (const o of p.patch?.ops || []) {
+      const hl = o.text ? `the saved headline “${nm(o.text).slice(0, 80)}”` : 'a saved headline'
+      const pointed = o.pointed === true
+      if (o.op === 'unsave') out.push({ state: 'newsLibrary', type: 'remove', name: `${hl} from your library`, id: o.id ? `news:${o.id}` : null, pointed })
+      else if (o.op === 'note' && nm(o.prev).trim() && !(o.mode === 'append' && nm(o.note).startsWith(nm(o.prev)))) out.push({ state: 'newsLibrary', type: 'overwrite', name: `your note on ${hl}`, pointed })
+      else if (o.op === 'rename') out.push({ state: 'newsLibrary', type: 'overwrite', name: `the name of your collection “${nm(o.prev)}”`, label: nm(o.prev) })
+      else if (o.op === 'delete') out.push({ state: 'newsLibrary', type: 'delete', name: `your collection “${nm(o.name)}”`, label: nm(o.name) })
+      else if (o.op === 'place' && o.member === false) out.push({ state: 'newsLibrary', type: 'remove', name: `${hl} from your collection “${nm(o.cname)}”`, label: nm(o.cname), pointed })
+    }
+    return out
+  },
 }
 function templateDiff(prev, write, what) {
   const now = new Map((write || []).map(t => [nm(t.name).toLowerCase(), t]))
@@ -241,7 +257,7 @@ export const STATE_ADDITIVE = /\b(?:add|adds|added|adding|include|includes|inclu
 // anything", "without deleting", "never replace") — a permission said later in that clause is lost too (fail closed)
 const NEGATED = /\b(?:do not|don['’]?t|dont|never|without|no need to|not)\b[^.;,!?]*/gi
 const strip = (w) => String(w || '').replace(NEGATED, ' ')
-function DESTROY_SRC() { return '(?:replac\\w*|instead|swap\\w*|remov\\w*|delet\\w*|clear\\w*|eras\\w*|wip(?:e|es|ed|ing)\\b|get rid|gets rid|getting rid|overwrit\\w*|keep only|only keep|keep just|just keep|reset\\w*|trash\\w*|discard\\w*|unpin\\w*|take (?:off|out|away))' }
+function DESTROY_SRC() { return '(?:replac\\w*|instead|swap\\w*|remov\\w*|delet\\w*|clear\\w*|eras\\w*|wip(?:e|es|ed|ing)\\b|get rid|gets rid|getting rid|overwrit\\w*|keep only|only keep|keep just|just keep|reset\\w*|trash\\w*|discard\\w*|unpin\\w*|unsav\\w*|unbookmark\\w*|take (?:off|out|away))' }
 function MODIFY_SRC() { return '(?:chang\\w*|set|sets|setting|make|makes|making|made|turn\\w*|switch\\w*|updat\\w*|edit\\w*|modif\\w*|renam\\w*|adjust\\w*|bump\\w*|increas\\w*|decreas\\w*|tweak\\w*|recolou?r\\w*|colou?r(?:s|ed|ing)?|paint\\w*|restyl\\w*|move|moves|moved|moving|shift\\w*)' }
 const DESTROY = new RegExp(`\\b${DESTROY_SRC()}`, 'i')
 const MODIFY = new RegExp(`\\b${MODIFY_SRC()}\\b`, 'i')
@@ -263,6 +279,9 @@ export const CLASS = {
   layout: /\b(?:layouts?(?! bar)|arrangements?|workspaces?)\b/i,
   layoutBar: /\b(?:layout bar|the bar|bar)\b/i,
   template: /\btemplates?\b/i,
+  // newsLibrary.* (2026-11-15): the member's saved UCT News headlines and their collections. A bare "collection" is NOT
+  // this class (a watchlist is a collection too: "retire the Momentum collection") — a collection is named by its own name
+  newsLibrary: /\b(?:headlines?|stor(?:y|ies)|articles?|bookmarks?|(?:news|headline) collections?|(?:news )?library)\b/i,
 }
 const classesOf = (e) => e.classes || [e.state]
 const phrase = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
@@ -558,6 +577,9 @@ export function permits(e0, words, subjects = null, previous = null, previousSet
           if (demo && !classesOf(e).some(k => CLASS[k]?.test(rest))) continue
           // a save names its container after the pointer ("save it to my layout")
           if (saving && namesObject(e, rest)) return true
+          // newsLibrary.* (2026-11-15): a headline the member has OPEN (their click) or the one the previous turn named — the
+          // library resolved the pointer to exactly that headline, so "unsave that headline" means it (never another)
+          if (e.pointed && e.state === 'newsLibrary') return true
           if (!spoke) {
             // the message's first words point at the conversation's CURRENT subject ("make it thicker"): an overwrite of
             // EXACTLY that object (never another of its class); a destroy, a replace or a save-over is asked, never assumed
