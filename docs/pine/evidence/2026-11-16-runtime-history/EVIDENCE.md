@@ -110,6 +110,21 @@ Freed by the predicate: **4**; freed AND run to completion on RDDT and SPY: **3*
 time-budget caveat). Controls: 0 lost, 0 gained. 26 of the 75 no longer carry any of the three codes
 (their next wall is another unit's); 49 still do, each named in the queue doc.
 
+## Capability admission (ON in production) for the four newly transferring scripts
+
+`runtime_definitions.capability_admitted` on this tree, and the runtime-on grade of each committed capture of the
+script (PR #1450's own pine-heavy run 43932459523, vendor harness runtime-on lane):
+
+| script | admitted | missing | committed capture, runtime-on grade | action |
+|---|---|---|---|---|
+| `committed:kernel-channel-backquant` | yes | none | `kernel-channel-backquant-rddt-1d-2026-11-14`: INCONCLUSIVE -> **MATCH** (Kernel Midline, Upper, Lower: 666 / 666 bars) | none: a new runtime-on MATCH |
+| `committed:momentum-based-zigzag` | yes | none | `momentum-based-zigzag-rddt-1d-2026-11-14`: INCONCLUSIVE -> **DIVERGE** (TradingView holds 25 drawing objects, our side none; the ZIGZAG plot INCONCLUSIVE, the run stops by name) | **killed by source hash** (`api/data/pine_runtime_killlist.json`, held to that DIVERGE row by `test_RT1_every_committed_kill_is_held_to_its_graded_evidence`) |
+| `reference:cm-gann-swing-highlow-v2` | yes | none | none committed (reference-only source) | none |
+| `reference:supertrend-cluster-zeiierman` | no | `collections:matrix` | none committed | none (not admitted) |
+
+Other runtime-on verdict moves in that run: none from this unit (`supertrend-kivancozbilgic-rddt-1d-2026-10-02` left
+the fixture set on master, #licence fix b39969b3ba). Production lane: no move from this unit.
+
 ## Rails and mutants
 
 Rail: `runtime/__tests__/histRuntimeHistory.test.js` (34 cases). Rails that pinned a BUILD refusal for a

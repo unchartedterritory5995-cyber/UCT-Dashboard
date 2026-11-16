@@ -1049,24 +1049,6 @@
    ]
   },
   {
-   "capture": "momentum-based-zigzag-rddt-1d-2026-11-14",
-   "lane": "runtime",
-   "runtimeOn": "DIVERGE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
    "capture": "nadaraya-watson-rational-quadratic-kernel-non-repainting-rddt-1d-2026-10-03",
    "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",

@@ -77,11 +77,11 @@ describe('WS-I Part 2 — every admitted capability\'s evidence was drawn by the
 // admission ON, the server's verdict (admitted) latched.
 const report = JSON.parse(fs.readFileSync(path.join(REPO,
   'docs/pine/evidence/2026-11-15-cond-ta/runs/report.json'), 'utf8'))
-// ⭐ HIST (NUMBER PENDING, feat/pine-coverage-runtime-history) re-pinned two rows of that report, lane
+// ⭐ HIST (NUMBER PENDING, feat/pine-coverage-runtime-history) re-pinned one row of that report, lane
 // `null` -> `runtime`: `kernel-channel-backquant-rddt-1d-2026-11-14` (a helper with history in a `?:` arm,
-// now drawn while the arm runs every bar) and `momentum-based-zigzag-rddt-1d-2026-11-14` (a v5 arm, the
-// same check; its run stops by name at the first skip). Their door now answers the runtime lane; what
-// each grades there is in docs/pine/evidence/2026-11-16-runtime-history/EVIDENCE.md.
+// now drawn while the arm runs every bar; runtime-on MATCH). `momentum-based-zigzag-rddt-1d-2026-11-14`
+// left the report: the runtime lane reaches it too, its runtime-on grade is DIVERGE, so it is on the
+// committed kill list and no longer admitted (docs/pine/evidence/2026-11-16-runtime-history/EVIDENCE.md).
 
 describe('WS-I Part 2 — the reach run records the lanes the door itself answers', () => {
   beforeAll(() => {
