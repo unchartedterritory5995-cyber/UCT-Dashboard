@@ -266,6 +266,30 @@ def transfers_fully(census_row, u):
         places_orders(u))
 
 
+def runtime_on_transfers(census_row, orders):
+    """⭐ THE RUNTIME-ON LANE'S PREDICATE, in one place: a runtime-on census row transfers when it
+    transfers fully on the host lane OR attaches on the runtime lane, and it is not a strategy that
+    places orders (`orders`: `places_orders` of its usage). Read by `runtime_on_section` below and by
+    tools/pine_coverage/coverage_ratchet.py, so the map and the ratchet cannot disagree."""
+    r = census_row or {}
+    st0 = (r.get("steps") or [{}])[0]
+    return not orders and (bool(r.get("clean")) or (bool(r.get("attached")) and st0.get("lane") == "runtime"))
+
+
+def order_usage_of(src):
+    """The two fields `places_orders` reads (`features`, `orders`), from a script's text alone: the same
+    `strip_code` / `features_of` / `order_calls_in` calls `usage_of` makes, with no inventory (neither field
+    reads one). For a caller that has no TradingView reference extract (the coverage ratchet)."""
+    code, _strings = strip_code(src)
+    return {"features": features_of(code), "orders": order_calls_in(code)}
+
+
+def script_sha(src):
+    """A script's id in the map's `scripts[].sha256` (and the coverage ratchet's snapshot): sha256 of its
+    text, read with universal newlines, first 16 hex."""
+    return hashlib.sha256(src.encode("utf-8")).hexdigest()[:16]
+
+
 # ⭐ W3W4-T0 - THE OBJECT PROGRAM'S OWN VERDICT, READ ON REFUSED STEPS TOO.
 # A door `pine:no-output` / `pine:objects-only` says "ZERO SURVIVING ops" (PJ `refusal: hardRefusals[0] || r`,
 # `draws = program.ops.length > 0`). That is three different facts, told apart by the step's own counters:
@@ -772,9 +796,7 @@ def runtime_on_section(rt_cache, rt_verdicts, prod_verdicts, scripts, decl_of, o
                  % (len(missing), missing[0]))
 
     def transfers(key):
-        r = rows[key]
-        st0 = (r.get("steps") or [{}])[0]
-        return not orders_of(key) and (bool(r.get("clean")) or (bool(r.get("attached")) and st0.get("lane") == "runtime"))
+        return runtime_on_transfers(rows[key], orders_of(key))
 
     by_key = {s["key"]: s for s in scripts}
     on = {s["key"] for s in scripts if transfers(s["key"])}
@@ -929,7 +951,7 @@ def main():
         scripts.append({
             "key": key, "population": key.split(":")[0], "title": m.get("title"), "author": m.get("author"),
             "agreeCount": m.get("agreeCount"), "version": u["version"], "declaration": decl,
-            "sha256": hashlib.sha256(src.encode("utf-8")).hexdigest()[:16],
+            "sha256": script_sha(src),
             "attached": bool(c.get("attached")),
             # ⛔ A STRATEGY THAT PLACES ORDERS DOES NOT TRANSFER FULLY even when the door
             # draws its plots: its trades, markers and tester report are its output, and
