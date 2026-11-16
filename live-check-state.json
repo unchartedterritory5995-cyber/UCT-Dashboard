@@ -1,5 +1,5 @@
 {
-  "fingerprint": "service:web-front=running 1ffddeb654, which is NOT on production: a rollback or a hand deploy of other code|service:web=running 1ffddeb654, which is NOT on production: a rollback or a hand deploy of other code",
-  "posted_at": "2026-11-16T14:54:02.897669+00:00",
-  "reason": "new stuck item"
+  "fingerprint": "",
+  "posted_at": "2026-11-16T14:54:33.304265+00:00",
+  "reason": "recovered"
 }
