@@ -166,7 +166,7 @@ export const SCRIPT_ENGINE_VERSION = 59
 // ⛔ It is the engine that LANDED COND-TA: renumber it with that bump (it equals the number of the
 // history line that begins "58 = COND-TA"; `pineImportHold.test.js` and the Python twin hold both).
 // Keep it `export const PINE_IMPORT_FIX_ENGINE = <n>` on one line: the server reads it.
-export const PINE_IMPORT_FIX_ENGINE = 59
+export const PINE_IMPORT_FIX_ENGINE = 58
 
 /** What the member reads where a held Pine import would have been drawn or evaluated. */
 export const PINE_IMPORT_HELD_SENTENCE = 'This script was imported from Pine before a calculation fix. '
