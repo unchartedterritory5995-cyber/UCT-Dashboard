@@ -255,6 +255,66 @@ exactly these six and nothing else.
   lands. Production had 3 Pine Apply saves, 1 with a call under a ternary arm (read-only count,
   2026-11-15; its shape was not read). The hold is not widened or special-cased for it.
 
+## ⛔ Known TradingView difference, served on the screener lane (interim ruling B, 2026-11-16)
+
+Coordinator ruling, put to the owner as a decision he can overturn.
+
+| shape | screener lane | host lane | versus TradingView |
+|---|---|---|---|
+| a `ta.*` call on the right of a Pine v6 `and` / `or` (`close > open and close > ta.sma(close, 5)`) | **served, every-bar, exactly as master** | gated (`stampLogicRight`), withheld by name where the right side runs after a skip | **differs** on the bars where the per-run history and the every-bar history disagree: 53 of 635 RDDT bars for `up and close > ta.sma(close, 5)` (`vw-call-site-history-rddt-1d-2026-10-01` bars, the per-run reference; `condTaLanes.test.js` section 8 pins the count) |
+
+- **Why it is not refused.** The refusal was built and measured. It took the Screener import's own
+  exams down in one step: `pine.screenerCorpus` 38 -> 32 (`01-oversold-in-uptrend`, `11-ema-stack`,
+  `14-twenty-day-high-on-volume`, `16-pullback-in-uptrend`, `37-weekday-above-ma`,
+  `38-switch-smoothing-choice`), `pine.blindCorpus` 27 -> 20 passing and its accepted floor
+  37 -> 26 of 48, and six cases out of the frozen `screenerColumns` fixture the Python lane reads.
+  `close > ta.sma(close, 200) and ta.rsi(close, 14) < 30` is the most natural screen a member writes.
+- **The source of the rule.** TradingView's to-v6 migration guide (its own example is
+  `close > open and ta.rsi(close, 14) > 50`). ⚠️ No capture witnesses it: the probe
+  `vw-andor-history.pine` was written on 2026-10-31 and has never been captured (queued, Q-CT1 in
+  `docs/pine/capture-queue-2026-11-16-cond-ta-followups.md`).
+- **Scope, exactly.** The screener lane only, and the right side itself only
+  (`armRunGates(…, { skipLogicRight: true })`). A `?:` arm, a block, a helper and an `if`
+  expression stay refused on the screener lane, including one standing inside such a right side.
+- **What does not move.** No floor in `pine.screenerCorpus`, `pine.blindCorpus` or `screenerColumns`.
+- **Pinned.** `ast/condTaLanes.test.js` section 8: served on the screener lane, gated on the host
+  lane, and the served number is shown NOT to be the per-run one. It goes red the day the refusal
+  is switched on.
+- **Closed by** the follow-up unit: the screener-lane run check + the hoist offer, after which the
+  refusal is switched on with the accepted corpus intact. A member notice on the Import door for
+  this shape is part of that unit (it needs a new note code; not built here).
+- **The screener refusal sentence** now also says how to fix a refused shape: "or give that call
+  its own line above (for example `r = ta.rsi(close, 14)`) and use the name here, which runs it on
+  every bar".
+
+## Verification at engine 58 (2026-11-16, master `1fb6e22ced` merged; re-merged at `771264afff`)
+
+- Host parity HP-1: GREEN 166 / 166 (digests rewritten for the engine identity).
+- Service smoke: re-recorded, PASS 4 / 4 (engine 58, canary green, unsigned POST 401).
+- Section 8 (`tests/test_pine_runtime_*.py`, ten files): all green.
+- Vendor harness, master `1fb6e22ced` against this branch, 1,136 captures (the committed fixtures
+  and the 16 held-store folders), both lanes:
+
+  | lane | MATCH | DIVERGE | INCONCLUSIVE | MATCH_SUBSTITUTED |
+  |---|---|---|---|---|
+  | production, before -> after | 251 -> 251 | 165 -> 165 | 720 -> 720 | |
+  | runtime-on, before -> after | 312 -> 312 | 169 -> 169 | 652 -> 652 | 3 -> 3 |
+
+  **0 MATCH -> DIVERGE at capture and plot level.** Two captures move, on both lanes:
+  `vw-cs2-v4-ternary-lazy` DIVERGE -> INCONCLUSIVE (the witnessed v4-lazy wrong value, now withheld
+  by name) and `flying-buddha-inside-bars-indicator-v1-by-justunclel` INCONCLUSIVE -> DIVERGE. The
+  second is a newly graded colour gap that was already there: its five value plots now agree on
+  666 / 666 bars (the parameter guards let the script through), and its `plotarrow` colour differs
+  on 16 bars (`colorup` / `colordown` not carried). Filed for the next colour unit.
+  This run was taken before interim ruling B and before the last master merge; neither touches the
+  host or runtime lane.
+- Admission (REACH) report regenerated from this branch: `runs/report.json` in this folder
+  (319 admitted captures; master's had 274, the 45 more being scripts whose only unadmitted
+  capability was `conditional-ta`). Runtime-lane stops: one, `vw-deadband-ticks-brk-a-1d-2026-09-28`,
+  the named `WITHHELD_WHOLE` exception. Its re-take `…-2026-11-15` grades INCONCLUSIVE on the
+  runtime lane, not the MATCH that was expected: DBHF, D00, D02 and D03 agree on 11,369 / 11,369
+  bars and the bar colour agrees, and `D01_mintick` has no column on our side.
+
 ## Measurements and RESUME (2026-11-15, before the owner's PC restart)
 
 **Status: NOT MERGEABLE YET (coordinator ruling (b)).** Pushed as it stands on

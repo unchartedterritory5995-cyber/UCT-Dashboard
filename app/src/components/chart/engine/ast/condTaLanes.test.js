@@ -56,7 +56,7 @@ const SERIES = ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(BARS.map((
 
 afterEach(() => { vi.unstubAllEnvs() })
 /** Section 8: bars of this capture where the served `up and close > ta.sma(close, 5)` differs from the per-run reading. */
-const DIFFER_AND_SMA5 = -1
+const DIFFER_AND_SMA5 = 53
 
 /** The capture's own column for `title`, aligned to its bars (`undefined`: no row). */
 const vendorColumn = (title) => {
