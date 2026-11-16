@@ -25,6 +25,7 @@ vi.mock('../../components/StockChart', () => ({
       data-pad={String(props.frameRightPadFrac || 0)}
       data-tick-chars={String(props.tickLabelChars ?? '-')}
       data-show-volume={String(props.showVolume)}
+      data-volume-removed={String(props.settingsOverride?.volume?.removed)}
     >
       <span>chart:{props.sym}</span>
       <span>bars:{(props.barsOverride || []).length}</span>
@@ -297,6 +298,7 @@ describe('DrillPlayer', () => {
     expect(screen.getByTestId('stock-chart').getAttribute('data-tick-chars')).toBe('5')
     // its bars carry volume, so the volume pane is the member's own setting
     expect(screen.getByTestId('stock-chart').getAttribute('data-show-volume')).toBe('undefined')
+    expect(screen.getByTestId('stock-chart').getAttribute('data-volume-removed')).toBe('undefined')
   })
 
   // the 2026-11-16 screen check: a Russell 2000 history chart (its source volume was another index's, stored as zeros)
@@ -309,6 +311,8 @@ describe('DrillPlayer', () => {
     render(<DrillPlayer open onClose={() => {}} fetcher={makeFetcher(set)} />)
     await screen.findByTestId('stock-chart')
     expect(screen.getByTestId('stock-chart').getAttribute('data-show-volume')).toBe('false')
+    // removed, not hidden: a hidden volume keeps a "Vol 0" row in the desktop legend (the second screen check)
+    expect(screen.getByTestId('stock-chart').getAttribute('data-volume-removed')).toBe('true')
   })
 
   // the visuals plan, step 3 (2026-11-15): a computed question shows its picture card (prompt_json.visual) under the

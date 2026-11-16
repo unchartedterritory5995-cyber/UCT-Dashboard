@@ -206,10 +206,14 @@ export default function DrillPlayer({
   const rsKey = useMemo(() => rsPairKey(rsPrimed), [rsPrimed])
   // A Slingshot item carries the E4H (4-EMA of highs) beside the house averages,
   // before and after the reveal: the line the trigger is judged against.
+  // a chart whose bars carry no volume at all (an index history chart whose source volume was another index's, stored as
+  // zeros: the 2026-11-16 screen check drew an empty "Volume 0" pane of flat stubs) shows no volume, neither the pane nor
+  // a legend row; any other chart keeps the member's own volume setting
+  const noVolume = useMemo(() => Array.isArray(chartBars) && chartBars.length > 0 && chartBars.every((b) => !Number(b?.v)), [chartBars])
   const studyOverride = useMemo(() => {
     const own = [...(slingshotInstances(chartItem) || []), ...(rsInstances(rsPrimed) || [])]
-    return memberSettingsOverride(chartOpts, { instances: own.length ? own : null })
-  }, [chartOpts, chartItem, rsPrimed])
+    return memberSettingsOverride(chartOpts, { instances: own.length ? own : null, noVolume })
+  }, [chartOpts, chartItem, rsPrimed, noVolume])
   // ⭐ Policy A (2026-11-02): an exhibit has no stored settings of its own, so an
   // edit made on it (a legend hide, a scale toggle) stays on THIS chart for the
   // session instead of falling through to the member's global chart_settings.
@@ -349,10 +353,6 @@ export default function DrillPlayer({
   const framePad = phase === 'reveal' && forwardCount > 0 ? revealRightPad(phone) : 0
   const frameSlots = ((visibleN || baseLen) + Math.max(0, landed - baseLen)) * (1 + framePad)
   const tickChars = String(chartTf).toUpperCase() === 'D' ? tickLabelCharsFor(phone, frameSlots) : INTRADAY_TICK_CHARS
-  // a chart whose bars carry no volume at all (an index history chart whose source volume was another index's, stored as
-  // zeros: the 2026-11-16 screen check drew an empty "Volume 0" pane of flat stubs) hides the pane; any other chart keeps
-  // the member's own volume setting (undefined)
-  const noVolume = useMemo(() => Array.isArray(chartBars) && chartBars.length > 0 && chartBars.every((b) => !Number(b?.v)), [chartBars])
   const chartMarkers = useMemo(() => {
     const rs = chartVisible ? rsMarkMarkers(item, chartBars) : null
     const upTo = chartBars ? chartBars.slice(0, landed) : null
