@@ -48,7 +48,9 @@ function vendor(title) {
 
 /** Bars compared and bars that differ, for a pick and a field of the requested bar. */
 function grade({ code, live, field, back = 0, title, from }) {
-  const a = requestAlignment({ chartBars: BARS, srcBars: BARS, code, live, opts: { tf: 'D', historyFromListing: true } })
+  // the capture's own newest bar is FINISHED (`newestBarIsForming: false`), so no bar is withheld
+  const a = requestAlignment({ chartBars: BARS, srcBars: BARS, code, live,
+    opts: { tf: 'D', historyFromListing: true, newestBarIsForming: CAPTURE.newestBarIsForming } })
   const v = vendor(title)
   let compared = 0
   const wrong = []

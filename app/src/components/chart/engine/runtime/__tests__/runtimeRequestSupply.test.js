@@ -262,8 +262,7 @@ describe('L5 — `lookahead = barmerge.lookahead_off` written out is the default
     expect(() => computeRuntimeColumns(bare, CHART, ctxOf({ historyFromListing: false }))).not.toThrow()
   })
   it('⛔ CONTROL: a look-ahead spelling the host cannot read keeps its refusal', () => {
-    expect(() => runDoc('la = input.bool(true)
-plot(request.security(syminfo.tickerid, "W", close, lookahead = la))'))
+    expect(() => runDoc('la = input.bool(true)\nplot(request.security(syminfo.tickerid, "W", close, lookahead = la))'))
       .toThrow(/lookahead/)
   })
 })
