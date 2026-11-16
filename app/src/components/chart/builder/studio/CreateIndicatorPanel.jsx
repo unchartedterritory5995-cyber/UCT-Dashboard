@@ -485,6 +485,14 @@ export default function CreateIndicatorPanel({
                   {(t.lines || []).map((l, i) => (
                     <span key={i} className={i === 0 ? styles.lead : undefined}>{l}</span>
                   ))}
+                  {/* ⭐ What the assistant says it built: below the engine's words, and labelled as
+                      the assistant's, never mixed into them (Studio plan, section 5). Plain text. */}
+                  {typeof t.said === 'string' && t.said && (
+                    <span className={styles.said} data-testid="create-indicator-said">
+                      <span className={styles.saidLabel}>What the assistant says it built</span>
+                      {t.said}
+                    </span>
+                  )}
                   {/* P3 UX — the engine's code, for support, behind the member sentence */}
                   {Array.isArray(t.details) && t.details.length > 0 && (
                     <details data-testid="create-indicator-error-detail">
