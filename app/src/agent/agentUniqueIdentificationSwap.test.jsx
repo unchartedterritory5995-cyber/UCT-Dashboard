@@ -556,3 +556,54 @@ describe('SEEN · PANEL · the real Agent panel', () => {
     expect(got, out).toEqual(['AAPL', 'QQQ'])
   }, 40000)
 })
+
+// ── SEEN · REMOVAL (AUDIT N6, 2026-11-16): a removal the words LICENSE ("close the QQQ chart …") passes the removal rail; when the
+// plan closes the chart of a ticker the same words ask to SEE ("… and pull up SPY and AAPL"), only the SEEN-STAYS rule reads that
+// the seen ticker leaves the board. GENERATED: removal form × every SEE verb × order × board (2 / 3 / 4 charts, SPY in each place):
+// the plan closing the SPY chart is refused; the plan closing the chart the words name still applies ──
+const rmPlan = (b, ref) => planOps(collectTargets(b.host, ['board', 'chart']), [{ action: 'widget.remove', target: 'board', args: { widget: ref } }], {}, { surface: 'charts' })
+const railRm = (syms, ref, words) => {
+  const b = boardOf(syms)
+  const p = rmPlan(b, ref)
+  expect(p.ok).toBe(true)
+  return chartRailRefusal(p, { words, host: b.host, mode: 'apply' })
+}
+const RM_FORMS = ['close the {O} chart', 'remove the {O} chart', 'delete the {O} chart', 'get rid of the {O} chart', 'drop the {O} chart', 'close {O}’s chart']
+const RM = []
+for (const form of RM_FORMS) for (const verb of SEE_VERBS) for (const order of ['remove first', 'see first']) {
+  const [bname, syms, at] = BOARDS[RM.length % BOARDS.length]
+  const o = syms.findIndex((s, i) => i !== at)
+  const rm = form.replace('{O}', syms[o])
+  RM.push([form, verb, order, bname, order === 'remove first' ? `${rm} and ${verb} SPY and AAPL` : `${verb} SPY and AAPL, then ${rm}`, syms, at, o])
+}
+for (const form of RM_FORMS) for (const [bname, syms, at] of BOARDS) {
+  const o = syms.findIndex((s, i) => i !== at)
+  RM.push([form, 'pull up', 'remove first', bname, `${form.replace('{O}', syms[o])} and pull up SPY and AAPL`, syms, at, o])
+}
+describe(`SEEN · REMOVAL · a licensed removal never takes the seen ticker's last chart (${RM.length} cases): removal form × see verb × order × board`, () => {
+  it.each(RM)('%s · %s · %s · %s · "%s"', (_f, _v, _o, _b, words, syms, at, o) => {
+    expect(railRm(syms, `c${at + 1}`, words), `${words} → closes SPY`).toMatch(leaves('SPY'))
+    expect(railRm(syms, `c${o + 1}`, words), `${words} → closes ${syms[o]}`).toBeNull()
+  })
+  // contradictory words ("remove the SPY chart and show me SPY and AAPL"): the SPY chart is never closed
+  it.each(BOARDS.flatMap(([bname, syms, at]) => ['remove the SPY chart and show me SPY and AAPL', 'close the SPY chart, pull up SPY and AAPL'].map(w => [bname, w, syms, at])))('contradiction · %s · "%s" → refused', (_b, words, syms, at) => {
+    expect(railRm(syms, `c${at + 1}`, words), words).toMatch(leaves('SPY'))
+  })
+})
+describe('SEEN · REMOVAL · PANEL · the real Agent panel', () => {
+  let p
+  beforeEach(() => { p = setupPanel() })
+  afterEach(() => { vi.restoreAllMocks(); cleanup() })
+  const mountOf = (syms) => {
+    const w = Math.floor(24 / syms.length)
+    const widgets = syms.map((_, i) => ({ id: `c${i}`, type: 'chart', x: i * w, y: 0, w, h: 20, color: 'N', opts: { settings: bareSettings() } }))
+    return p.mount(widgets, Object.fromEntries(syms.map((s, i) => [`N:c${i}`, s])), { decorate: (s) => (s ? { ...s, label: `Chart (${s.symbol || 'empty'})` } : s) })
+  }
+  const symsLeft = (m) => m.board.state.widgets.filter(w => w.type === 'chart').map(w => m.h.charts.read(w.id)?.symbol || '')
+  it.each([[['SPY', 'QQQ'], 0], [['QQQ', 'SPY', 'IWM'], 1]])('%j · "close the QQQ chart and pull up SPY and AAPL", a plan closing the SPY chart → nothing closes', async (syms, at) => {
+    const m = mountOf(syms)
+    p.st.envelopes.push(() => p.env('apply', [{ action: 'widget.remove', target: 'board', args: { widget: `c${at}` } }]))
+    const out = await m.say('close the QQQ chart and pull up SPY and AAPL')
+    expect(symsLeft(m), out).toEqual(syms)
+  }, 40000)
+})

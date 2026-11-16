@@ -523,6 +523,8 @@ export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply'
         for (const e of effects) {
           if (e.type === 'symbol' && e.to) final.set(e.ref, up(e.to))
           else if (e.type === 'remove') final.delete(e.ref)
+          // (AUDIT N6: a removal the words LICENSE — "close the QQQ chart and pull up SPY and AAPL" with a plan closing the SPY chart —
+          //  passes the removal rail; this line is the only reader that sees it takes the seen SPY off the board)
         }
         const shown = new Set([...final.values(), ...(plan.plans || []).filter(p => p.virtual && p.after?.symbol).map(p => up(p.after.symbol)),
           ...(plan.plans || []).flatMap(p => (p.after?.grid?.add || []).map(a => up(a.symbol)))].filter(Boolean))
