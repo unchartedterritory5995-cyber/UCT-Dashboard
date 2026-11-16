@@ -60,6 +60,32 @@ committed probe (`rs-spx-daily-{rddt,spy}-1d-2026-11-15`, INCONCLUSIVE today for
 window starts after 2023-12-05, so the old bars need the same probe on a long-history symbol
 (one capture, in the Q-RS8 session).
 
+**Q-RS9 RULED AND CLOSED (owner, 2026-11-16).** Told the size above and asked to accept it or treat
+it as the measured need for a better index source: "I am fine with all of that". Accepted as it
+is: FMP stays primary, no Massive Indices upgrade. The difference stays disclosed in the program
+doc. The SPX-probe measurement above is optional from here, not owed.
+
+**Q-RS8 CAPTURED AND GRADED (2026-11-16).** The owner signed in; RS Rating and the industry probe
+were re-taken on RDDT, ALAB and CRWV 1D from the listing (rig run dirs `qrs8-2026-11-16-{rddt,alab,crwv}`,
+six captures, each written verified, x table recorded). Graded on master `b7cd7a0e63` with master's
+corpus harness: all three RS Rating captures MATCH_SUBSTITUTED runtime-on, objects v2
+MATCH_SUBSTITUTED with x witnessed (2 graded, 2 agreeing, exact bar). The record's `objectsV2` is
+set from that grade and the labels are admitted (program doc, "THE LABELS ARE ADMITTED").
+
+⚠️ **Three rig-tool defects were found taking these, worked around from a scratch wrapper, and are
+owed a tool PR before the repo tool drives the rig again** (`tools/vendor_harness/batch_capture.py`,
+`tools/pine_vendor_capture.py`):
+1. At the tool's 1440-wide window TradingView's Pine editor dialog collapses `Add to chart` to an
+   icon, so the binding gate (which reads the button's text) counts 0. 1760 wide works.
+2. ⛔ `TITLE_JS` does not look at `H2`, where the script title now lives, and its fallback
+   (`/script/i`) selected the **"Publish script"** button, which the tool then clicked on the
+   owner's account (it opens TradingView's publish dialog; nothing was published; the buffer was
+   an unsaved Untitled script and cleanup ran). `--title-selector 'h2[class*="label-"]'` avoids it.
+   The fallback must be an allow-list of what a title element may be.
+3. The binding gate is read the instant `Create new > Indicator` yields a model, before the editor
+   header re-renders (0 / 0, GATE_FAILED). A 15 s poll before the same gate fixes it.
+Rule added by the coordinator: a capture run never clicks anything it cannot name.
+
 **Q-RS2 graded (2026-11-16).** `rs-seed-rsrating-rddt-1d-2026-11-15` graded DIVERGE (5 of 7) in
 both committed snapshots only because no supply was recorded for it: ours read na on every bar. Its
 supply record is now committed (`tests/fixtures/vendor-supply/rs-seed-rsrating-rddt-1d-2026-11-15.json`,
