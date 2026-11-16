@@ -29,9 +29,16 @@ on its own loop; `web` mirrors its feed (`api/services/feed_client.py`, `STREAM_
 
 1. #1434 is merged AND live on `web` (`git merge-base --is-ancestor <its merge> origin/production`).
 2. `stream-ingest` runs the same master, `STREAM_INGEST_CONNECT=0`, deployment SUCCESS.
-3. A window where trades print, so the result can be seen: premarket (03:00-08:30 CT) or after hours
+3. **The universe feed moves too.** `web`'s own reader subscribes `AM.*` and forwards every ticker's minutes to
+   `bars-api` (`bars_live_ingest`, which keeps the 5m series current). In remote mode `web` has no reader, so
+   `stream-ingest` must do it: it runs the same `bar_stream._run_websocket`, which wires `bars_live_ingest` when
+   `BARS_UNIVERSE_STREAM_ENABLED=1` and posts to `BARS_ORIGIN_URL` with `PUSH_SECRET`. Set on `stream-ingest`
+   (done 2026-11-16, inert until it connects): `BARS_UNIVERSE_STREAM_ENABLED=1`,
+   `BARS_ORIGIN_URL=http://bars-api.railway.internal:8080`; `PUSH_SECRET` is the same value on web,
+   stream-ingest and bars-api (compared by hash). Without this, 5m charts fall back to waiting on the vendor.
+4. A window where trades print, so the result can be seen: premarket (03:00-08:30 CT) or after hours
    (15:00-19:00 CT). The owner has said there are no active members yet, so a short feed gap is acceptable.
-4. Baseline recorded: `node scripts/proofs/ingest-lag-read.mjs <out.json> --samples=3 --every=60` (uct-desktop,
+5. Baseline recorded: `node scripts/proofs/ingest-lag-read.mjs <out.json> --samples=3 --every=60` (uct-desktop,
    `PROOF_EMAIL`/`PROOF_PASSWORD` = the synthetic admin from `SMOKE_EMAIL`/`SMOKE_PASSWORD`).
 
 ## Steps
@@ -48,6 +55,8 @@ on its own loop; `web` mirrors its feed (`api/services/feed_client.py`, `STREAM_
      (or `GET /status` with `Authorization: Bearer $PUSH_SECRET` on the private network): connected, frames rising.
    - `web` `/api/admin/bars-stream-status`: `feed_client.connected` true, its counters rising, `resyncs` and
      `protocol_errors` not climbing.
+   - The universe feed: `stream-ingest` status `universe` block (events and flushes rising, `flush_errors` flat)
+     and `bars-api` still answering 5m tails without a provider wait.
    - A browser: a 1m chart's candle moves (`tick-latency-proof.mjs --syms=SPY --tf=1 --seconds=60 --ext=1`).
    - The timing that motivated this: exchange -> pod at the ingest (its own status), and exchange -> browser
      from the proof. Expect the p90 to drop from seconds to the low hundreds of milliseconds.
