@@ -146,8 +146,7 @@ export default function ChartIdentityRow({
             logoSym={logoSym}
             brandLogo={brandLogo}
             displayLabel={displayLabel}
-            labelColor={labelColor}
-            defaultLabelColor={defaultLabelColor}
+            labelColor={labelColor || defaultLabelColor /* SymbolSearch only paints it (Notebook first-open bytes: no second prop there) */}
             boundsRef={boundsRef}
             themeVars={themeVars}
             economic={economic}

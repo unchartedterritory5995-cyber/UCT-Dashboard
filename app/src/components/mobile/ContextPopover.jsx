@@ -203,7 +203,7 @@ export default function ContextPopover({
       // close-on-pick; a link cannot be `disabled`, so a caller that needs that passes no `href`).
       // `check`: a menuitemcheckbox + aria-checked (desktop); a touch sheet's plain button + aria-pressed.
       // (The ✓ itself is the caller's, in `label` — StockChart `chipMenuSigRow`.)
-      const check = signature && typeof it.checked == 'boolean'
+      const check = signature && it.checked != null
       const Row = it.href ? 'a' : 'button'
       return (
         <Row

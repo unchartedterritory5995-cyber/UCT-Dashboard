@@ -104,7 +104,7 @@ test('the control: without `signature`, `checked` is ignored, so a plain caller 
 
 test('CSS: gold is flat var(--ut-gold), hover-only on the desktop menu, never on Delete; labels are not uppercased', () => {
   expect(CSS).toMatch(/\.menu\.signature \.item:not\(\.danger\):hover:not\(:disabled\) \.icon/)
-  expect(CSS).toMatch(/\.icon\.iconGold \{ color: var\(--ut-gold\); \}/)
+  expect(CSS).toMatch(/:focus-visible \.icon \{ color: var\(--ut-gold\); \}/)   // hover/focus only; the ✦ is the caller's own gold node
   // owner 11-16: a checked row's ✓ is WHITE with a bold label (spec "Floating menu" — a ticked toggle, not gold)
   // the white ✓ is StockChart's `.sigCheck` now (the caller draws it; Notebook first-open bytes)
   expect(CSS).toMatch(/\.signature \.item\[aria-checked="true"\] \.label[^{]*\{ font-weight: 600; \}/)

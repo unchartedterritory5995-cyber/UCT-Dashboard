@@ -612,7 +612,7 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
                 <button
                   className={styles.actionBtn}
                   onClick={goToAskAi}
-                  title="Ask the UCT Agent about this security"
+                  title="Ask the UCT Agent"
                   aria-label={`Ask the UCT Agent about ${activeSym}`}
                 >
                   <UIcon name="sparkle" size={14} />

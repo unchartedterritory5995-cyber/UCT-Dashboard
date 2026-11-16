@@ -52,7 +52,7 @@ function splitSymLabel(label, customColor = false) {
   return <><span data-sym-ticker="" {...c}>{m[1]}</span> <span data-sym-name="" {...c}>{m[2]}</span></>
 }
 
-const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hideIcon = false, logoSym = null, brandLogo = false, displayLabel = null, fullLabel = false, splitLabel = false, labelColor = null, defaultLabelColor = null, boundsRef = null, themeVars = null, economic = false, ariaLabel = null, onTypedIntent = null }, ref) {
+const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hideIcon = false, logoSym = null, brandLogo = false, displayLabel = null, fullLabel = false, splitLabel = false, labelColor = null, boundsRef = null, themeVars = null, economic = false, ariaLabel = null, onTypedIntent = null }, ref) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState(POPULAR_RESULTS)
@@ -298,7 +298,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
         {displayLabel ? (
           <span
             className={styles.labelWrap}
-            style={{ ...(fullLabel ? { maxWidth: 'none' } : null), ...((labelColor || defaultLabelColor) ? { color: labelColor || defaultLabelColor } : null) }}
+            style={{ ...(fullLabel ? { maxWidth: 'none' } : null), ...(labelColor ? { color: labelColor } : null) }}
           >
             {logoSym ? (
               <span className={styles.labelLogo}><CompanyLogo sym={logoSym} name={displayLabel} size={splitLabel ? 20 : 16} round /></span>
