@@ -76,6 +76,7 @@ import {
   BUILT_IN_ROWS,
 } from './indicatorCatalog'
 import { isIndicatorEnabled, setIndicatorEnabled, addInstance, definitionVisibility } from './engine/instanceControls'
+import IndicatorMembersTab from './IndicatorMembersTab'
 // The blob-shape readers for the two BUILT-IN rows. They are not instances and
 // not settings slices, so `instanceControls` cannot answer for them — see
 // `isRowOn` below, and `chartDefaults`'s tombstone header for why removal is a
@@ -276,6 +277,12 @@ export function toggledRow(row, settings, registry) {
 // member finishes or skips it; this dialog only reports the add. Absent prop ⇒ no preferences read for it.
 export default function IndicatorLibraryDialog({ open, onClose, settings, onChange, registry, onCreateFormula, onCreateIndicator = null, sheetClassName = '', extraRows = null, onFirstAdd = null }) {
   const [query, setQuery] = useState('')
+  // ⭐ MEMBERS, ON A PHONE AND A TABLET (2026-11-16). The published library is a tab of the
+  // Indicators window, and that window is not the indicators surface at 1024px and below:
+  // this sheet is (measured on production at 820 and 390: no Chart Settings control is
+  // visible). So the sheet opens the same list itself.
+  const [membersOpen, setMembersOpen] = useState(false)
+  useEffect(() => { if (!open) setMembersOpen(false) }, [open])
   const { seen: tourSeen } = useIndicatorTours(typeof onFirstAdd === 'function')
   const searchRef = useRef(null)
   const bodyRef = useRef(null)
@@ -735,6 +742,42 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
 
   if (!open) return null
 
+  if (membersOpen) {
+    return (
+      <Sheet open={open} onClose={onClose} variant="auto" title="Members' indicators" ariaLabel="Members' indicators" maxWidth={640} className={sheetClassName}>
+        <div className={styles.body} data-testid="library-members-view" {...{ [PORTAL_POPUP_ATTR]: 'indicator-library' }}>
+          <button type="button" className={styles.backRow} data-testid="library-members-back"
+            onClick={() => { setMembersOpen(false); setQuery('') }}>
+            <span aria-hidden="true">←</span> All indicators
+          </button>
+          <input
+            type="search"
+            role="searchbox"
+            className={styles.search}
+            placeholder="Search members' indicators"
+            aria-label="Search members' indicators"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <IndicatorMembersTab
+            query={query}
+            isOnOffer={(defId) => generation >= 0 && !!registry?.getDefinition?.(defId)}
+            onPutOnChart={(defId) => {
+              if (!defId || !registry?.getDefinition?.(defId)) return false
+              // the same write a row's first add makes for a definition; a refused write
+              // returns `settings` itself and persists nothing
+              const next = addInstance(settings, defId, registry)
+              if (next === settings) return false
+              onChange?.({ ...next, preset: 'custom' })
+              onClose?.()
+              return true
+            }}
+          />
+        </div>
+      </Sheet>
+    )
+  }
+
   return (
     <Sheet open={open} onClose={onClose} variant="auto" title="Indicators" ariaLabel="Indicator library" maxWidth={640} className={sheetClassName}>
       {/* The portal exemption. See the header. */}
@@ -780,6 +823,24 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
             <span className={styles.createArrow} aria-hidden="true">→</span>
           </button>
         )}
+        {/* ⭐ MEMBERS' INDICATORS, from the library. Like the two rows around it, not filtered
+            by `query`. The typed text is cleared on the way in: it was a search of the
+            catalogue, and the list it opens has its own box. */}
+        <button
+          type="button"
+          className={styles.createRow}
+          data-testid="library-members"
+          onClick={() => { setQuery(''); setMembersOpen(true) }}
+        >
+          <span className={styles.createPlus} aria-hidden="true">◇</span>
+          <span className={styles.createMain}>
+            <span className={styles.createName}>Members' indicators</span>
+            <span className={styles.createBlurb}>
+              Indicators other members chose to publish. Install one to make your own copy.
+            </span>
+          </span>
+          <span className={styles.createArrow} aria-hidden="true">→</span>
+        </button>
         {onCreateFormula && (
           <button
             type="button"

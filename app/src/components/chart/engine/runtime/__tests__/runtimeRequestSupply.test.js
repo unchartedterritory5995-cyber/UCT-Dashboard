@@ -145,6 +145,18 @@ describe('L5 (b)(c) — the supply is the host bind\'s decision', () => {
       ctxOf({ secondary: new Map([['SPY', { bars: [], status: 'loading' }]]) }))).toThrow(/loading|waiting/)
   })
 
+  it('that wait says it is a wait (`pending`), and a refusal does not', () => {
+    const caught = (fn) => { try { fn() } catch (err) { return err } return null }
+    const wait = caught(() => runDoc('plot(request.security("AMEX:SPY", timeframe.period, close))',
+      ctxOf({ secondary: new Map([['SPY', { bars: [], status: 'loading' }]]) })))
+    expect(wait && wait.guard).toBe('runtime:request')
+    expect(wait && wait.pending).toBe(true)
+    const refused = caught(() => runDoc('plot(request.security("AMEX:SPY", timeframe.period, close))',
+      ctxOf({ secondary: new Map([['SPY', { bars: [], status: 'no_data' }]]) })))
+    expect(refused && typeof refused.guard).toBe('string')
+    expect(refused && refused.pending).toBeUndefined()
+  })
+
   it('CONTROL: a script with no request runs exactly as before', () => {
     const out = runDoc('plot(close * 2)')
     expect(Array.from(out.a)).toEqual(CHART.map((b) => b.c * 2))
