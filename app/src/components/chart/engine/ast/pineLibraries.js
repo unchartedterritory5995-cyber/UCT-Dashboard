@@ -49,6 +49,7 @@
 // into the member's import line plus "in library X, line L".
 
 import { pineLibraryEntry, pineLibraryHeld, libraryEntryProblem, libraryLicenceProblem, libraryDenied } from './pineLibraryStore.js'
+import { crossVersionDifference, LIBRARY_VERSION } from './pineLibraryVersion.js'
 
 export { importPathsOf } from './pineLibraryStore.js'
 
@@ -117,6 +118,9 @@ export const LIBRARY_NO_SHA = 'pine:library-no-sha'
 export const LIBRARY_LICENCE = 'pine:library-licence'
 // ⭐⭐ U15 (coordinator ruling 2026-11-15) — a version on the deny list (`pineLibraryDeny.json`)
 export const LIBRARY_DENIED = 'pine:library-denied'
+// ⭐⭐ U15 Phase B — a v5 library inside a v6 script whose reached code holds a construct the v6
+// migration guide changed (`pineLibraryVersion.js`)
+export { LIBRARY_VERSION }
 
 /** `opts.libraryPins` (a document's `meta.libraries`: `[{path, sha256}]`) -> path -> sha. */
 function pinsOf(opts) {
@@ -333,7 +337,13 @@ export function linkLibraries(lexed, opts, { lexPine, blockStatements }) {
       try { lib = lexPine(entry.source) } catch (err) {
         throw new LinkRefusal(`the library \`${imp.path}\` could not be read (${err && err.message ? err.message : err})`)
       }
-      if (lib.version !== mainVersion) {
+      // ⭐⭐ U15 Phase B — A v5 LIBRARY IN A v6 SCRIPT IS LINKED, held to the v6 migration guide: at
+      // emit, the code the script reaches must hold no construct whose meaning v6 changed
+      // (`crossVersionDifference`), or the import line is refused naming it. Every other pair (a v6
+      // library in a v5 script, any older version) stays refused: TradingView runs each at its own
+      // version and this engine compiles one program at one version.
+      const crossVersion = lib.version === 5 && mainVersion === 6
+      if (lib.version !== mainVersion && !crossVersion) {
         throw new LinkRefusal(`the library \`${imp.path}\` is written in Pine v${lib.version} and this script in v${mainVersion}; TradingView runs each at its own version and this engine compiles one program at one version`)
       }
       const stmts = blockStatements(lib.tokens, lib.indents, 0)
@@ -341,7 +351,7 @@ export function linkLibraries(lexed, opts, { lexPine, blockStatements }) {
       if (!defs.some((d) => d.kind === 'library')) {
         throw new LinkRefusal(`\`${imp.path}\` does not declare \`library()\``)
       }
-      unit = { imp, entry, lib, defs, id: linked.size, nested: new Map(), emitted: false, keep: new Set() }
+      unit = { imp, entry, lib, defs, id: linked.size, nested: new Map(), emitted: false, keep: new Set(), crossVersion }
       linked.set(imp.path, unit)
       // its own imports, linked first so their tokens precede this library's
       for (const d of defs) {
@@ -428,6 +438,13 @@ export function linkLibraries(lexed, opts, { lexPine, blockStatements }) {
   /** The library's kept tokens, renamed and repositioned. */
   const emit = (unit) => {
     const kept = unit.defs.filter((d) => unit.keep.has(d))
+    if (unit.crossVersion) {
+      const diff = crossVersionDifference(kept, unit.lib.indents)
+      if (diff) {
+        const at = diff.tok && Number.isFinite(diff.tok.line) ? `, line ${diff.tok.line}` : ''
+        throw new LinkRefusal(`the library \`${unit.imp.path}\` is written in Pine v5 and this script in v6, and the code this script uses holds ${diff.what}${at}: ${diff.why}. TradingView runs a library at its own version; this engine compiles one program at one version, so it links a v5 library only where the two versions mean the same thing`, LIBRARY_VERSION)
+      }
+    }
     const values = new Map()
     const typesAndEnums = new Set()
     const fns = new Set()

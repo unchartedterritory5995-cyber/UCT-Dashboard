@@ -55,6 +55,7 @@ GUARD_BUCKET = {
     "pine:collection": "collections",
     "pine:tuple": "tuples",
     "pine:module": "imports-libraries", "pine:declaration-library": "imports-libraries",
+    "pine:library-version": "imports-libraries",
     "pine:declaration-strategy": "strategy", "pine:strategy-call": "strategy",
     "pine:request": "request-security",
     "pine:text-value": "text-colour-values", "pine:colour-value": "text-colour-values",

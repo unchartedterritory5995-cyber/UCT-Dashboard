@@ -62,10 +62,18 @@ import { OTHER_SYMBOL_REFUSAL, staticallyUnservable } from '../otherSymbols'
 import { foldNotesForOutput } from './parse'
 import { CALL_EXPANSIONS } from './callExpansions'
 import { supertrendTreesEngine56 } from './__fixtures__/supertrendTreesEngine56.js'
+import { loadPineLibraryStoreFromEnv } from './__tests__/pineLibraryStoreLoader.js'
 
 const INPUT = process.env.COVERAGE_INPUT
 const OUT = process.env.COVERAGE_OUT
 const RUN = !!(INPUT && OUT)
+// ⭐ LIBRARIES, OPT-IN AND MEASURE-ONLY (2026-11-16): `PINE_LIBRARY_STORE=<scratch store dir>`
+// loads that store into the registry for the whole run, so the census can be measured with the
+// store production will hold (the promotion allowlist's versions) instead of an empty one. Unset,
+// nothing is loaded and the census measures the registry as every process starts it: empty. A row
+// measured with a store says how many versions it had (`libraryStore`); a row without one is unchanged.
+// ⛔ The store is a scratch directory outside the repository (library code is never committed).
+const LIBRARIES_LOADED = RUN ? loadPineLibraryStoreFromEnv() : []
 // ⛔ read strictly: a typo throws at collection rather than measuring the other lane
 const LANE = requestedLane(process.env[CENSUS_RUNTIME_ENV], CENSUS_RUNTIME_ENV) || LANE_PRODUCTION
 const RT_ON = LANE === LANE_RUNTIME_ON
@@ -462,7 +470,8 @@ describe.skipIf(!RUN)('coverage-map door census (driven by run_census.py)', () =
         row.runtime = { attached: false, clean: false, threw: short((err && err.message) || err) }
       }
       vi.unstubAllEnvs()
-      fs.appendFileSync(OUT, `${JSON.stringify({ key: it.key, lane: LANE, ms: Date.now() - t0, ...row })}\n`)
+      fs.appendFileSync(OUT, `${JSON.stringify({ key: it.key, lane: LANE, ms: Date.now() - t0,
+        ...(LIBRARIES_LOADED.length ? { libraryStore: LIBRARIES_LOADED.length } : {}), ...row })}\n`)
       n += 1
     }
     fs.writeFileSync(cur, '')

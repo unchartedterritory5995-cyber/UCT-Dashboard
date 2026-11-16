@@ -361,6 +361,7 @@ export const RUNTIME_REFUSALS = Object.freeze({
   'pine:library-no-sha': 'the imported library is not served without the sha256 of its own source',
   'pine:library-licence': 'the imported library is published under a non-commercial licence, so it is not served on this product',
   'pine:library-denied': 'this library version is withheld until its drawing is verified against TradingView',
+  'pine:library-version': 'the imported library is written in Pine v5 and uses something whose meaning changed in v6',
   'runtime:no-output': 'a script with nothing to plot',
   // ⭐⭐ S1 — the strategy broker's build refusals (`strategyBroker.js`, docs/pine/strategy-broker-spec.md)
   'runtime:strategy-option': 'a strategy property or order argument this broker does not serve',
