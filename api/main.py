@@ -5231,6 +5231,34 @@ async def lifespan(app: FastAPI):
     except Exception:
         logging.getLogger(__name__).exception("[startup] could not schedule the terminal seed")
 
+    # CREATE INDICATOR, open to every account (owner decision 2026-11-15): every
+    # EXISTING account joins its cohort ONCE per volume; new signups are enrolled at
+    # signup. The same one-shot shape as the terminal seed above: a daemon thread, a
+    # marker written only after the write succeeds, the writer reached through
+    # `rollout_gate`. `CREATE_INDICATOR_COHORT_ENABLED` still decides what is shown.
+    try:
+        import threading as _ci_th
+
+        def _create_indicator_seed():
+            _log = logging.getLogger(__name__)
+            try:
+                from api.services import rollout_gate as _rg
+                _added = _rg.seed_existing_members_into_create_indicator()
+                if _added is None:
+                    _log.info("[startup] create-indicator seed: already ran (marker present)")
+                else:
+                    _log.info("[startup] create-indicator seed: enrolled existing accounts "
+                              "(%d new tag rows)", _added)
+            except Exception:
+                _log.exception("[startup] create-indicator seed failed; no marker written, "
+                               "the next boot retries")
+
+        _ci_th.Thread(target=_create_indicator_seed, name="create-indicator-seed",
+                      daemon=True).start()
+    except Exception:
+        logging.getLogger(__name__).exception(
+            "[startup] could not schedule the create-indicator seed")
+
     # Plan A Task 2 (L-2): internal link MARKS already stored become note links.
     # A flag-file one-shot on a daemon thread with its OWN connection, started HERE --
     # after `_init_auth_db()` has committed -- never from inside `ensure_schema`, where

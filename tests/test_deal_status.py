@@ -311,6 +311,67 @@ def test_a_real_all_stock_deal_the_owner_ruled_in_stays_in_scans(monkeypatch, tm
     assert ds.deal_status("LITE", bars=[])["pending"] is False
 
 
+BY_NAME = "Alpha Widgets to be acquired by Bravo Holdings for $41.25 a share"
+
+
+def _restart(monkeypatch):
+    """What a restart does to the name sources: memory is empty, the disk is not."""
+    from api.services.news import subject
+    monkeypatch.delitem(subject._NAME_CACHE, "AAA", raising=False)
+    ds.reset_cache()
+
+
+def test_a_target_written_by_name_stays_pending_across_a_restart(monkeypatch):
+    """LXFR 2026-11-15: a fresh pod had no company names in memory and dropped the deal."""
+    monkeypatch.setenv("DEAL_STATUS_ENABLED", "1")
+    _names(monkeypatch, AAA="Alpha Widgets Inc")
+    _news(monkeypatch, [(TODAY - timedelta(days=10), BY_NAME, ["AAA"])])
+    assert "AAA" in ds.pending_deal_symbols()          # the build before the restart
+    assert os.path.exists(ds._names_path())
+    _restart(monkeypatch)
+    assert ds._known_name("AAA") == "Alpha Widgets Inc"
+    assert "AAA" in ds.pending_deal_symbols() and "AAA" in ds.screener_excludes()
+    assert ds.names_cold() is False
+
+
+def test_without_the_saved_names_a_restart_does_drop_it(monkeypatch):
+    """The control: the saved file is what holds the deal, nothing else."""
+    monkeypatch.setenv("DEAL_STATUS_ENABLED", "1")
+    _names(monkeypatch, AAA="Alpha Widgets Inc")
+    _news(monkeypatch, [(TODAY - timedelta(days=10), BY_NAME, ["AAA"])])
+    assert "AAA" in ds.pending_deal_symbols()
+    os.remove(ds._names_path())
+    _restart(monkeypatch)
+    assert "AAA" not in ds.pending_deal_symbols()
+    assert ds.names_cold() is True
+
+
+def test_a_cold_build_never_forgets_a_saved_name(monkeypatch):
+    monkeypatch.setenv("DEAL_STATUS_ENABLED", "1")
+    _names(monkeypatch, AAA="Alpha Widgets Inc", BBB="Bravo Holdings Corp")
+    other = "Bravo Holdings to be acquired by Charlie for $9.00 a share"
+    _news(monkeypatch, [(TODAY - timedelta(days=10), BY_NAME, ["AAA"]),
+                        (TODAY - timedelta(days=9), other, ["BBB"])])
+    ds.pending_deal_symbols()
+    _restart(monkeypatch)                                  # AAA cold, BBB still in memory
+    ds.pending_deal_symbols()
+    with open(ds._names_path(), encoding="utf-8") as fh:
+        assert json.load(fh) == {"AAA": "Alpha Widgets Inc", "BBB": "Bravo Holdings Corp"}
+
+
+def test_names_are_not_saved_with_the_flag_off_and_a_damaged_file_is_not_used(monkeypatch, caplog):
+    _names(monkeypatch, AAA="Alpha Widgets Inc")
+    _news(monkeypatch, [(TODAY - timedelta(days=10), BY_NAME, ["AAA"])])
+    assert ds.deal_status("AAA", bars=[])["pending"] is True
+    assert not os.path.exists(ds._names_path())
+    with open(ds._names_path(), "w", encoding="utf-8") as fh:
+        fh.write("{not json")
+    _restart(monkeypatch)
+    with caplog.at_level("WARNING"):
+        assert ds.deal_status("AAA", bars=[])["pending"] is False
+    assert "saved names unreadable" in caplog.text
+
+
 def test_the_shipped_ruling_file_names_lrn_with_a_reason():
     path = os.path.join(os.path.dirname(ds.__file__), "..", "data", ds.NOT_PENDING_FILENAME)
     with open(path, encoding="utf-8") as fh:
