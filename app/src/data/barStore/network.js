@@ -235,10 +235,18 @@ export function createNetwork({
     return _send(r, 'scroll', url, opts.priority || 'urgent', async (json) => {
       if (!json || !Array.isArray(json.bars)) return { error: true }
       const before = registry.getSnapshot(r.key)
+      // ⛔ `filling` IS NOT "NOTHING OLDER". The server answers a window it is still fetching
+      // with the rows it holds, `filling: true` and Retry-After 3 (bars_fetch `to-filling`).
+      // Read as refused/exhausted it ended the chart's deep history for good: production
+      // 2026-11-15, 4 of 10 60m charts stayed at ~470-510 bars. It is reported as such and the
+      // caller asks again (the legacy loader's rule, utils/historyPrepend.js).
+      const filling = json.filling === true
       // #1116's seam rule: nothing older, or a window on another basis ⇒ refused whole.
-      if (prependOlder(before.bars, json.bars) === before.bars) return { ok: true, added: 0, refused: true }
+      if (prependOlder(before.bars, json.bars) === before.bars) {
+        return filling ? { ok: true, added: 0, filling: true, retryAfterMs: 3000 } : { ok: true, added: 0, refused: true }
+      }
       const after = registry.dispatch(r.key, { type: ACTION.SCROLL_BACK, key: r.key, gen, payload: json })
-      return { ok: true, added: after.depth - before.depth }
+      return { ok: true, added: after.depth - before.depth, ...(filling ? { filling: true, retryAfterMs: 3000 } : {}) }
     })
   }
 

@@ -86,6 +86,14 @@ export {
 
 export const DISPLAYABLE = Object.freeze([STATUS.CONTEXT, STATUS.CURRENT])
 export const PREPARED = Object.freeze([STATUS.CONTEXT, STATUS.CURRENT, STATUS.UNAVAILABLE])
+// ⭐ WHAT THE HANDOFF MAY COMMIT ON: every status in which the chart paints the held rows as its
+// candles (chart/useBarSnapshotBars.js PAINTS). `updating` is in it: a key a warm answered
+// earlier in this page life, now a few buckets behind, is a full chart the member's own request
+// catches up. Measured on production 2026-11-15 (5m, 8 flips): such a key was refused here, the
+// handoff waited on a lane-held warm request and the candles came 546-1,180 ms after the key,
+// while keys the store judged `context` painted in ~30 ms. `provisional` (a local-only copy
+// behind the frontier) stays out: that is the legacy handoff's rule too (`seriesDisplayable`).
+export const HANDOFF_PAINTS = Object.freeze([STATUS.CONTEXT, STATUS.CURRENT, STATUS.UPDATING])
 /** D/W/M handoff: a held set paints (the daily paint gate decides how), so it is prepared. */
 const DAILY_PREPARED = Object.freeze([STATUS.PROVISIONAL, STATUS.CONTEXT, STATUS.CURRENT, STATUS.UNAVAILABLE, STATUS.UPDATING])
 
@@ -267,8 +275,14 @@ export function createPrefetch(o = {}) {
     if (!isNativeTf(tf) || !isIntradayTf(tf)) return true
     const key = keyFor(sym, tf, { showExtended })
     if (!key) return true
-    if (!S().peek(key)) _hydrate(key)   // the mem half lands synchronously
-    return DISPLAYABLE.includes(S().peek(key)?.status)
+    const held = S().peek(key)
+    if (!held) _hydrate(key)   // the mem half lands synchronously
+    // An entry that holds no rows is looked up in mem again, SYNCHRONOUSLY and with no new IDB
+    // read: the first peek made the entry, and a warmer may have promoted the key since (the
+    // handoff's 25 ms poll exists to see exactly that).
+    else if (!(held.depth || held.restSeen || held.developing)) { try { S().persist.hydrateMem(key) } catch { /* derived */ } }
+    const s = S().peek(key)
+    return !!s && HANDOFF_PAINTS.includes(s.status) && (s.depth > 0 || !!s.developing)
   }
 
   /**
@@ -316,10 +330,19 @@ export function createPrefetch(o = {}) {
     try {
       const date = isDateTf(normTf(tf) ?? fetchTf(String(tf)))
       const s0 = await _hydrate(key)
+      // A SERVER answer is already held and the chart paints it (see HANDOFF_PAINTS): commit,
+      // the chart's own request catches the tail up. A LOCAL-only copy is judged by the legacy
+      // paint rule on the next line, never by this one (#2c).
+      if (s0 && !date && s0.restSeen && HANDOFF_PAINTS.includes(s0.status) && (s0.depth > 0 || !!s0.developing)) return 'current'
       if (_localPaints(s0, fetchTf(String(tf)), showExtended)) return 'current'   // legacy: no request
-      // Otherwise only a SERVER answer prepares it (legacy asks with `&warm=1`).
-      // Legacy prepareForDisplay asks with `&warm=1` (`_url(sym, tf)` / `_sinceUrl`) — matched.
-      const s = await ensure(key, { until: date ? DAILY_PREPARED : PREPARED, priority: 'urgent', signal, warm: true, local: false, _s0: s0, session: session(showExtended) })
+      // Otherwise only a SERVER answer prepares it. ⛔ NOT a `&warm=1` request and NOT in the
+      // shared warm lane: this is the request for the chart the member just asked for. As a
+      // warm it could be shed by the server (which committed an EMPTY chart: the blank frame
+      // measured on 3 of 10 flips, production 2026-11-15) and it waited behind the list
+      // warmers' two lane slots and their backoff (first candles 353 ms median against the
+      // legacy path's 30 ms). At `visible` rank it leaves at once, and the chart's own request
+      // for the same URL joins it.
+      const s = await ensure(key, { until: date ? DAILY_PREPARED : PREPARED, priority: 'visible', signal, warm: false, local: false, _s0: s0, session: session(showExtended) })
       return _outcome(s, { aborted: !!signal?.aborted, date })
     } catch {
       return 'error'
