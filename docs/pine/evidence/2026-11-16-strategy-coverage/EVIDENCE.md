@@ -39,11 +39,48 @@ TBD
 
 ## 3. The armed route (behind the dark flag)
 
-TBD
+What changes for an ARMED member (nothing changes while the flag is off; rail: `w9ArmedRoute.test.js`, flag off
+and on, through the real door):
+
+| strategy | flag off (today) | flag on, before this unit | flag on, now |
+|---|---|---|---|
+| plots read a `strategy.*` value | refused `pine:strategy-call` | broker document (strategy window) | unchanged |
+| plots read no `strategy.*` value | host document, plots drawn, orders skipped, disclosed | the same host document: no trades | broker document: the same plots, its trades in the record, markers refused by name (W9-MK1), the report |
+| tester-only (orders, no plot) | refused `pine:no-output` | refused `pine:no-output` | broker document on the price pane, a hidden anchor row only; its output is its trades |
+| the broker build refuses (a v2 order signature, an unserved risk command, a repaint-class input) | as the rows above | as the rows above | the host document it had (plots, orders skipped), with the broker's refusal named beside the build (`brokerDeclined`) |
+
+How:
+
+- `pineRuntimeFrontend.js::buildRuntimeIr`: with the broker on, a build that stands with an order call SKIPPED
+  (`runtime:strategy-order` noted), or that refused `runtime:no-output` with one skipped, is built again in broker
+  mode. Rule 11 (repaint-class inputs) is asked first, as for the value-read retry. A broker build that refuses
+  keeps the build that stood, never a refusal in its place. The C18 object door never reaches broker mode (W9
+  rule 4, railed again for the new route). In broker mode a strategy whose orders are its only output is a
+  program (`runtime:no-output` is not raised when the broker lowered an order).
+- `memberPaneDefinition.js`: with both gates on (runtime pane, broker), a host-drawable `strategy()` is offered to
+  the runtime lane, and its document replaces the host's only when it holds the broker (strategy window). Every
+  decline (the kill list, the starter allowlist, a broker refusal, a pairing, a strategy that places no order)
+  keeps the host document. A broker document with no row of its own sits on the price pane.
+- `defSchema.js` and its Python twin `runtime_definitions.py`: a runtime document stamped with the strategy window
+  may map no plot; any other runtime document with an empty output map is still refused (rails on both sides).
+- Known cost, armed only: a host document's run half (`hostPartialRunHalf`) declines `run-half:strategy` when the
+  probe holds the broker, so a strategy whose broker document declines (for example on the starter allowlist) and
+  whose host drawings lost objects keeps its host plots without the run half it could mint while armed before.
 
 ## 4. Q-S1g from a value witness: `B-PYR-PRICE`
 
-TBD
+`vw-s1-q-s1g-blocked-stop-entry` (NYSE:RDDT 1D, 2026-11-16, run cb1; report not requested): pyramiding 1, a long
+from bar 50, `strategy.entry("L2", strategy.long, stop = close * 1.01)` placed on bar 52, the long closed on bar 70.
+L2's stop (60.6707) is reached on bars 53-70 while the position is at the limit, and again on every bar from 71
+after it closes. TradingView's `strategy.position_size` is 1 on bars 51-70 and 0 from bar 71 to the last bar;
+`strategy.opentrades` never exceeds 1. So a price entry reached at the pyramiding limit is not kept waiting.
+
+The broker refused this case by name (`runtime:strategy-unsettled`, Q-S1g). It now serves it under a rule of its
+own, `B-PYR-PRICE` (`brokerRules.js`, appended so S1's 22 stay the first 22): the entry is rejected (`pyramiding`)
+and dropped. The rule is UNPINNED: the value witness carries no fills, and the ledger's own tooling pins only a
+MATCH that graded fills and values (`evidence_engine.resolve_pins`). Until the re-take with the Strategy Tester
+report grades MATCH, a run that reaches the case stops there by name, now under the rule that will pin it.
+Rails: `s1StrategyBroker.test.js` (the witness's shape on synthetic bars; the unpinned stop names the rule).
 
 ## 5. Today's captures
 
