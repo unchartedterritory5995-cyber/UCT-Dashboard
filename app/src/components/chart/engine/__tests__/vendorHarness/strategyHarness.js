@@ -20,6 +20,7 @@
 // capture exercises, and so the rules a MATCH may pin.
 
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
+import { runtimeClockOpts } from '../../ast/pineRuntimeClock.js'
 import { lowerIrProgram } from '../../runtime/lowerIr.js'
 import { execute } from '../../runtime/vm.js'
 import { strategyRecordOf } from '../../runtime/strategyRecord.js'
@@ -57,7 +58,11 @@ export function barsOfCapture(capture) {
 export function runOurBroker(capture, { pins = ALL } = {}) {
   const bars = barsOfCapture(capture)
   if (!bars) return { ok: false, refusal: { rule: 'harness:bars', guard: 'harness:bars', expected: false, message: 'the capture has no unix-s bars' } }
-  const built = buildRuntimeIr(capture.source.text, { bars, inputs: {}, symbol: symbolOf(capture), strategyBroker: true })
+  // the capture says whether its newest bar had finished; the build is told through the one producer
+  // (`pineRuntimeFrontendGate`: no file reaches the runtime lane without it), unknown stays unknown
+  const built = buildRuntimeIr(capture.source.text, {
+    bars, inputs: {}, symbol: symbolOf(capture), strategyBroker: true, ...runtimeClockOpts(capture.newestBarIsForming),
+  })
   if (!built.ok) {
     const r = built.refusal || {}
     const guard = r.guard || r.code || 'build'
