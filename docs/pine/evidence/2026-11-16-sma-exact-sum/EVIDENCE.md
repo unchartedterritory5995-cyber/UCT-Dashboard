@@ -251,9 +251,10 @@ change touches it.
   (ties to even, a case where Neumaier is wrong, infinity and overflow), order independence, both committed
   `vw-cs2-sma-exact-tie` captures bit for bit on the columnar lane (T02 sma5, T05 sum5) and on the runtime
   VM's own window, the fixture's power to tell (left-to-right misses > 100 bars), `ta.wma` left-to-right on a
-  window where the two weighted sums differ, and the na-guard A02 / E02 block (runs when that capture is
-  committed by the capture session's data PR; until then it is skipped by name).
-- `tests/test_ast_sma_exact_sum.py`: the Python twin on the same captures and cases.
+  window where the two weighted sums differ, and `vw-pt-na-guard-and-{rddt,spy}-1d-2026-11-16` (capture
+  batch 1, #1468; unconditional): A02 bit for bit, E02 and E03 on every bar, SPY bars 488 and 3009 flat, and
+  the fixture's power to tell (the left-to-right mean reads a rise there).
+- `tests/test_ast_sma_exact_sum.py`: the Python twin on the same captures and cases, na-guard A02 included.
 - The sliding form is railed bar for bar against `exactSum` over price walks, scale jumps of 1e6,
   cancellation around 1e16, exact halves at powers of two and the window where a compensated sum rounds the
   wrong way (`[1e16, 1e-16, 1]`), for n = 1, 2, 5, 30, 200, sma and sum.
@@ -268,7 +269,12 @@ change touches it.
 
 ## Open
 
-- `vw-pt-na-guard-and-spy-1d-2026-11-16` is in the batch store, not committed; the A02 / E02 rail runs as
-  soon as the capture session commits it.
+- `ta.rma`'s seed (`(sum of the first n) / n`, in `interpret.js` CARRIED.rma and `ast_interpret._smooth_col`)
+  is still a left-to-right sum; no capture separates it yet. RSI / ATR over an `sma` source moved (they read
+  the sma), their own seeds did not.
+- `tools/ast_conformance.py --check` is red independent of this change (barstate / tf lane disagreements,
+  cases not in its frozen log, engine HL digests); this change additionally moves the digests of the cases
+  built on `sma` (`sma_of_close`, `stdev_band`, `bbw_close_20_2`, `bop_twenty`, `rsi_of_a_smoothed_series`,
+  ...). Its log is not re-recorded here: it is not gated, and a re-record over unrelated reds would hide them.
 - `ta.stdev`'s formula: one plot misses everywhere under every sum. Needs its own probe (population vs
   sample divisor, two-pass vs `sqrt(mean(x^2) - mean(x)^2)`) before its sum is touched.

@@ -144,15 +144,35 @@ describe('⛔ `ta.wma` keeps its left-to-right weighted sum (238,222 / 238,222 c
   })
 })
 
-// `vw-pt-na-guard-and-spy-1d-2026-11-16` (A02 `ta.sma(close, 30)`, E02 `not na(x) and ta.change(x) > 0`)
-// lands with the capture session's batch-1 data PR; until then this block names what it waits for.
-const NA_GUARD = path.join(DIR, 'vw-pt-na-guard-and-spy-1d-2026-11-16.json')
-describe.skipIf(!fs.existsSync(NA_GUARD))('vw-pt-na-guard-and-spy: A02 bit-exact on 8,479 bars, E02 flat on 488 and 3009', () => {
-  it('A02 and E02', () => {
-    const cap = JSON.parse(fs.readFileSync(NA_GUARD, 'utf8'))
+// `vw-pt-na-guard-and-{rddt,spy}-1d-2026-11-16` (capture batch 1, #1468): `x = ta.sma(close, 30)`;
+// A02 plots x, E02 `not na(x) and ta.change(x) > 0` (every bar), E03 `not na(x) and ta.sma(x, 3) > close`.
+// The left-to-right sum missed A02 on 4,667 of SPY's bars and read E02 = 1 on bars 488 and 3009, where the
+// closes entering and leaving the window are equal and TradingView reads 0.
+describe('vw-pt-na-guard-and: A02 bit for bit, E02 and E03 on every bar (both symbols)', () => {
+  it.each(['rddt', 'spy'])('%s', (sym) => {
+    const cap = load(`vw-pt-na-guard-and-${sym}-1d-2026-11-16`)
     const b = barsOf(cap)
     const x = Array.from(interpret(parseFormula('sma(close, 30)').ast, b, {}))
-    expect(bitMisses(x, rowOf(cap, 'A02_x'))).toBe(0)
-    for (const bar of [488, 3009]) expect(x[bar] - x[bar - 1]).toBe(0)
+    const x3 = Array.from(interpret(parseFormula('sma(sma(close, 30), 3)').ast, b, {}))
+    const a02 = rowOf(cap, 'A02_x')
+    const e02 = rowOf(cap, 'E02_and_change_positive_every_bar')
+    const e03 = rowOf(cap, 'E03_and_sma3_above_close_every_bar')
+    expect(a02.filter((v) => v != null).length).toBeGreaterThan(600)
+    expect(bitMisses(x, a02)).toBe(0)
+    const fin = Number.isFinite
+    const ours02 = x.map((v, i) => (i > 0 && fin(v) && fin(x[i - 1]) && v - x[i - 1] > 0 ? 1 : 0))
+    const ours03 = x.map((v, i) => (fin(v) && fin(x3[i]) && x3[i] > b[i].c ? 1 : 0))
+    expect(bitMisses(ours02, e02)).toBe(0)
+    expect(bitMisses(ours03, e03)).toBe(0)
+    if (sym === 'spy') {
+      for (const bar of [488, 3009]) {
+        expect(e02[bar]).toBe(0)
+        expect(x[bar] - x[bar - 1]).toBe(0)
+      }
+      // the fixture can tell: the left-to-right mean reads a rise on both bars
+      const closes = b.map((q) => q.c)
+      const naive = (i) => naiveSum(closes, i - 29, i) / 30
+      expect(naive(488) - naive(487) > 0 || naive(3009) - naive(3008) > 0).toBe(true)
+    }
   })
 })

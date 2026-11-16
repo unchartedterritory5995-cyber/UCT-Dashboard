@@ -68,3 +68,13 @@ def test_wma_keeps_its_left_to_right_weighted_sum() -> None:
         w += x * (i + 1)
     assert w / 15 != math.fsum(x * (i + 1) for i, x in enumerate(xs)) / 15
     assert ast_interpret.FN["wma"](xs, 5)[-1] == w / 15
+
+
+@pytest.mark.parametrize("sym", ["rddt", "spy"])
+def test_the_na_guard_capture_a02_is_bit_identical(sym: str) -> None:
+    """``vw-pt-na-guard-and-{sym}-1d-2026-11-16`` A02 is ``ta.sma(close, 30)`` (capture batch 1, #1468)."""
+    cap = json.loads((HARNESS / f"vw-pt-na-guard-and-{sym}-1d-2026-11-16.json").read_text(encoding="utf-8"))
+    closes = [r[4] for r in cap["bars"]["rows"]]
+    a02 = _plot(cap, "A02_x")
+    assert sum(1 for v in a02 if v is not None) > 600
+    assert _misses(ast_interpret.FN["sma"](closes, 30), a02) == 0
