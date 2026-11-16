@@ -986,6 +986,7 @@ def _snapshot() -> dict:
         ttl = _cold_refresh_s() if _STATE.get("cold") else _refresh_s()
         if _STATE.get("day") == today and now - _STATE.get("built", 0) < ttl:
             return _STATE["snap"]
+        gen = _SETS["gen"]
     headlines = stored_headlines(today - timedelta(days=NEWS_LOOKBACK_DAYS))
     cold = _names_cold(headlines)
     if cold:
@@ -995,6 +996,12 @@ def _snapshot() -> dict:
             "news": fold_news(headlines), "stale_ref": _stale_ref(),
             "not_news": news_overrides()}
     with _LOCK:
+        if _SETS["gen"] != gen:
+            # ⛔ A reset landed while this was being read (2026-11-15: ten `--approve` pushes
+            # seconds apart; the build started for push 9 finished AFTER push 10's reset,
+            # stored its older mirror as "fresh", and CART stayed unexcluded until the next
+            # push). A snapshot read before a reset is used by its caller and never kept.
+            return snap
         if _STATE.get("snap") is not snap:
             _SYM_CACHE.clear()
         _STATE.update(day=today, built=now, snap=snap, cold=cold)
@@ -1198,7 +1205,8 @@ def deal_status(sym: str, bars=None) -> dict:
         res = _compute(s, snap, bars)
         if bars is None:
             with _LOCK:
-                _SYM_CACHE[key] = res
+                if _STATE.get("snap") is snap:      # never keep an answer from a superseded read
+                    _SYM_CACHE[key] = res
         return dict(res)
     except Exception as exc:  # noqa: BLE001 -- fail safe: never hide a chart on a bug
         _log.warning("[deal-status] %s failed, treating as not pending: %s", s, exc)
