@@ -646,7 +646,8 @@ describe('AUDIT T2 probe 65e — a description that does not fit the pointed hea
     p.st.envelopes.push(plan('apply', op(ref)))
     const out = await say(w)
     if (kind === 'mismatch') {
-      expect(out).toMatch(/Which headline do you mean\? 1\) “Fed holds rates steady as expected”/)
+      // (an OFFERED pointer: the description picks the Fed offer, not the plan's — asked again from the ask's own list, probe 67)
+      expect(out).toMatch(ptr === 'offered' ? /Which headline do you mean\? 1\) “NVIDIA/ : /Which headline do you mean\? 1\) “Fed holds rates steady as expected”/)
       expect(srv.writes - w0).toBe(0); expect(pending()).toHaveLength(0); expect(snapshot()).toBe(before)
     } else {
       await finish()
@@ -674,5 +675,99 @@ describe('AUDIT T2 probe 65e — a description that does not fit the pointed hea
       await say(w)
       await finish()
       expect(savedIds()).toEqual([FED])
+    }, 40000)
+})
+
+// ⛔ AUDIT T2 (probe 67): an OFFERED id licenses ONLY when the reply selects THAT offer from the ask's own recorded list (its
+// number / ordinal, or a ticker / description fitting only it); a bare reply with 2+ offers, or a pick of another offer than the
+// plan's, is asked again with nothing written; with exactly ONE offer a bare confirm licenses it. Generated: reply form ×
+// the plan's offered index (same / different) × 2–3 offers × action, through the real panel.
+describe('AUDIT T2 probe 67 — an offered headline licenses only when the reply picks it (generated)', () => {
+  const finish = async () => {
+    if (!pending().length) return
+    fireEvent.click(screen.getAllByRole('button', { name: 'Apply' }).at(-1)); await p.idle(); await new Promise(r => setTimeout(r, 0)); await p.idle()
+  }
+  const OFFERS = [A, B, D]                                                    // NVDA · AMD · the Fed (no ticker)
+  const DESC = { evA: 'data center demand', evB: 'the new accelerator lineup', evD: 'rates held steady' }
+  const ORD = ['first', 'second', 'third']
+  const setup = () => { srv.collections.push({ id: 'k1', name: 'Earnings' }); for (const r of OFFERS) saved(r.id, { note: 'old' }) }
+  const snapshot = () => JSON.stringify([...srv.bookmarks.entries()].sort())
+  const ACTIONS = {
+    // (unsave says "remove … from my library": the state rail's split-verb "take <description> out" over-refusal is a recorded follow-up)
+    unsave: { tpl: 'please remove {P} from my library', op: (id) => [SAVE, { headline: id, saved: false }], applied: (id) => expect(srv.bookmarks.has(id)).toBe(false),
+      bare: ['please take the headline out of my library', 'ok, go ahead and unsave the headline'] },
+    setNote: { tpl: 'please add a note to {P}: watch it', op: (id) => [NOTE, { headline: id, note: 'watch it', mode: 'append' }], applied: (id) => expect(srv.bookmarks.get(id).note).toBe('old\nwatch it'),
+      bare: ['please add a note to the headline: watch it'] },
+    place: { tpl: 'please put {P} in my Earnings collection', op: (id) => [PLACE, { headline: id, collection: 'Earnings', member: true }], applied: (id) => expect(srv.bookmarks.get(id).collection_ids).toEqual(['k1']),
+      bare: ['please put the headline in my Earnings collection'] },
+  }
+  const forms = (name, k, row) => [
+    ...(name === 'unsave' ? [['number', `headline ${k}`], ['number', `headline #${k}`]] : []),
+    ['number', `headline number ${k}`], ['ordinal', `the ${ORD[k - 1]} headline`],
+    ...(row.tickers.length ? [['ticker', `the ${row.tickers[0]} headline`]] : []), ['description', `the headline about ${DESC[row.id]}`]]
+  // turn 1: "save it to my library" with nothing open and no subject → the library asks, offering the visible rows in order
+  async function offered(n) {
+    door.visible = OFFERS.slice(0, n)
+    const { say } = await mountOn()
+    expect(await say('save it to my library')).toMatch(n === 2 ? /Which headline do you mean\? 1\) “NVIDIA.*2\) “AMD/ : /1\) “NVIDIA.*2\) “AMD.*3\) “Fed/)
+    return say
+  }
+  const CASES = Object.keys(ACTIONS).flatMap(name => [2, 3].flatMap(n => OFFERS.slice(0, n).flatMap((row, i) => forms(name, i + 1, row).flatMap(([form, pick]) =>
+    [['same', i], ['different', (i + 1) % n]].map(([rel, j]) => [name, n, form, pick, rel, i, j])))))
+  it.each(CASES)('%s · %i offers · %s "%s" · the plan on the %s offer', async (name, n, _form, pick, rel, i, j) => {
+    setup()
+    const say = await offered(n)
+    const before = snapshot(), w0 = srv.writes
+    const a = ACTIONS[name]
+    p.st.envelopes.push(plan('apply', a.op(OFFERS[j].id)))
+    const out = await say(a.tpl.replace('{P}', pick))
+    if (rel === 'same') { await finish(); a.applied(OFFERS[i].id) } else {
+      expect(out).toMatch(/Which headline do you mean\? 1\) “NVIDIA/)
+      expect(srv.writes - w0).toBe(0); expect(pending()).toHaveLength(0); expect(snapshot()).toBe(before)
+    }
+    for (const r of OFFERS) if (r.id !== OFFERS[i].id) expect(srv.bookmarks.get(r.id)).toMatchObject({ note: 'old', collection_ids: [] })
+  }, 40000)
+  const BARE = Object.entries(ACTIONS).flatMap(([name, a]) => a.bare.flatMap(w => [2, 3].map(n => [name, n, w])))
+  it.each(BARE)('%s · %i offers · a BARE reply "%s" with the plan on offer 1 → asked again, nothing written', async (name, n, w) => {
+    setup()
+    const say = await offered(n)
+    const before = snapshot()
+    p.st.envelopes.push(plan('apply', ACTIONS[name].op('evA')))
+    expect(await say(w)).toMatch(/Which headline do you mean\? 1\) “NVIDIA/)
+    expect(snapshot()).toBe(before); expect(pending()).toHaveLength(0)
+  }, 40000)
+  it('ONE offer: a bare confirm licenses it ("yes, unsave that headline" after an ask that offered only the AMD headline)', async () => {
+    setup(); door.selected = 'evA'
+    const { say } = await mountOn()
+    p.st.envelopes.push(plan('apply', [SAVE, { headline: 'selected', saved: false }]))
+    const ask = await say('please unsave the AMD headline')
+    expect(ask).toMatch(/Which headline do you mean\? 1\) “AMD unveils new accelerator lineup”/)
+    expect(ask).not.toMatch(/2\) /)
+    p.st.envelopes.push(plan('apply', [SAVE, { headline: 'evB', saved: false }]))
+    await say('yes, unsave that headline')
+    await finish()
+    expect(savedIds()).toEqual(['evA', 'evD'])
+  }, 40000)
+  // the probe's shape in other words: two offers, the plan on #1
+  it.each(['please drop headline 2 from my library', 'alright then, remove the headline from my library', 'yes, go ahead and take the headline out of my library',
+    'sure, unsave it, the headline I mean'])('67-type: "%s" with the plan on offer 1 → asked again, nothing written', async (w) => {
+    setup()
+    const say = await offered(2)
+    const before = snapshot()
+    p.st.envelopes.push(plan('apply', [SAVE, { headline: 'evA', saved: false }]))
+    const o = await say(w)
+    // asked again — or, when the panel reads a mid-message clause as its own turn ("unsave it"), refused: never written
+    expect(o, o).toMatch(/Which headline do you mean\?|I didn’t change anything/)
+    expect(pending()).toHaveLength(0)
+    expect(snapshot()).toBe(before)
+  }, 40000)
+  it.each(['please take the second one out of my news library', 'please take headline 2 out of my library', 'number 2 please, unsave that headline'])(
+    'the pick WORKS: "%s" with the plan on offer 2 → the AMD headline comes out', async (w) => {
+      setup()
+      const say = await offered(2)
+      p.st.envelopes.push(plan('apply', [SAVE, { headline: 'evB', saved: false }]))
+      await say(w)
+      await finish()
+      expect(savedIds()).toEqual(['evA', 'evD'])
     }, 40000)
 })

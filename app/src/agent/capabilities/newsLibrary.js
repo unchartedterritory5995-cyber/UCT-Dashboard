@@ -62,6 +62,11 @@ export function _resetNewsLibraryForTests() { turns.n = 0; turns.typed = null; t
 function noteTurn(typed, host) {
   const t = String(typed || '').trim()
   if (!t || t === turns.typed) return
+  // (AUDIT T2 probe 67) the panel reads ONE message clause by clause ("yes, go ahead" … "take the headline out of my library"):
+  // a clause at the start or end of the message just noted is that SAME turn — never a new one (the turn count keeps
+  // "the previous turn's offers" honest). A new message that happens to be such a fragment fails safe: its offers read as
+  // this turn's, so nothing offered is licensed and the member is asked again.
+  if (turns.typed && t.length < turns.typed.length && (turns.typed.startsWith(t) || turns.typed.endsWith(t))) return
   turns.typed = t
   turns.n += 1
   // a turn NAMES a headline when its words match exactly one visible row (ticker field / phrase)
@@ -148,7 +153,8 @@ const DESC_STOP_BACK = new Set(['the', 'a', 'an', 'this', 'that', 'these', 'thos
 const DESC_END = new Set(['from', 'out', 'in', 'into', 'to', 'with', 'please', 'off'])
 const DESC_FILLER = new Set(['the', 'a', 'an', 'my', 'your', 'our', 'its', 'news', 'saved', 'library', 'collection', 'collections', 'being', 'is', 'are', 'was',
   'were', 'be', 'been', 'of', 'at', 'by', 'as', 'and', 'or', 'that', 'this', 'it', 'they', 'them', 'some', 'any', 'one', 'there', 'about', 'on', 're',
-  'regarding', 'covering', 'headline', 'headlines', 'story', 'stories', 'article', 'articles', 'item', 'items', 'piece', 'pieces'])
+  'regarding', 'covering', 'headline', 'headlines', 'story', 'stories', 'article', 'articles', 'item', 'items', 'piece', 'pieces',
+  'number', 'no', 'first', 'second', 'third', 'fourth', 'fifth', '1st', '2nd', '3rd', '4th', '5th'])
 const stem = (w) => w.replace(/(?:ies)$/, 'y').replace(/(?:'s|s)$/, '')
 /** the content words of each headline description in the member's words (before a note's ":" text) */
 export function headlineDescriptions(text) {
@@ -160,7 +166,7 @@ export function headlineDescriptions(text) {
     for (let j = i - 1; j >= Math.max(0, i - 3); j--) { if (DESC_STOP_BACK.has(toks[j])) break; qual.unshift(toks[j]) }
     const tail = []
     if (DESC_PREP.has(toks[i + 1])) for (let j = i + 2; j < Math.min(toks.length, i + 10); j++) { if (DESC_END.has(toks[j])) break; tail.push(toks[j]) }
-    const content = [...qual, ...tail].map(w => w.replace(/^\$/, '')).filter(w => w.length >= 2 && !DESC_FILLER.has(w))
+    const content = [...qual, ...tail].map(w => w.replace(/^\$/, '')).filter(w => w.length >= 2 && !DESC_FILLER.has(w) && !/^\d+$/.test(w))
     if (content.length) out.push(content)
   })
   return out
@@ -171,9 +177,39 @@ export function descriptionMatches(content, row) {
   const hit = content.filter(w => bag.has(stem(w))).length
   return hit >= 1 && hit * 2 >= content.length
 }
+// ⛔ AUDIT T2 (probe 67): an OFFERED id (a choice of the previous turn's "Which headline do you mean?") licenses ONLY when this
+// reply's words select THAT offer — its number / ordinal in the ask's own recorded list (turns.offered, in order: "2",
+// "number 2", "#2", "the second (one)", "headline 2"), or a ticker / description that fits ONLY that offer. A bare reply
+// ("the headline", "it", "ok", "go ahead") with 2+ offers, or a pick of a DIFFERENT offer than the plan's, is asked again —
+// nothing written. With exactly ONE offer a bare confirm licenses it.
+const ORDINAL = { first: 1, second: 2, third: 3, fourth: 4, fifth: 5, '1st': 1, '2nd': 2, '3rd': 3, '4th': 4, '5th': 5 }
+export function offerPick(text, rows) {
+  const head = String(text || '').split(':')[0].toLowerCase()
+  const nums = new Set()
+  for (const m of head.matchAll(/(?:^|[^a-z0-9.$])#?([1-9])(?![0-9.%])/g)) nums.add(Number(m[1]))
+  for (const m of head.matchAll(/\b(first|second|third|fourth|fifth|1st|2nd|3rd|4th|5th)\b/g)) nums.add(ORDINAL[m[1]])
+  if (nums.size) return nums.size === 1 && [...nums][0] <= rows.length ? { index: [...nums][0] - 1 } : { ambiguous: true }
+  const descs = headlineDescriptions(text)
+  const tagged = rows.map(r => !!r && r.tickers.some(T => wordsNameHeadline(text, T)))
+  if (!descs.length && !tagged.some(Boolean)) return { bare: true }
+  const fits = rows.map((r, i) => (r && (!tagged.some(Boolean) || tagged[i]) && descs.every(d => descriptionMatches(d, r)) ? i : -1)).filter(i => i >= 0)
+  return fits.length === 1 ? { index: fits[0] } : { ambiguous: true }
+}
+function offerLicensed(text, id, rowOfId) {
+  const offers = previousOffered()
+  if (!offers.includes(id)) return false
+  const pick = offerPick(text, offers.map(rowOfId))
+  if (pick.index != null) return offers[pick.index] === id
+  return !!pick.bare && offers.length === 1
+}
 function resolveHeadline(st, ref, scope, env) {
   const res = resolvePointerOrMatch(st, ref, scope, env)
   if (!res.id || res.via === 'match') return res
+  if (res.via === 'offered') {
+    const pool = dedupe([...st.visible, ...(env?.newsSaved?.byId?.values ? [...env.newsSaved.byId.values()] : [])])
+    const rowOfId = (id) => pool.find(r => r.id === id) || null
+    if (!offerLicensed(turns.typed, res.id, rowOfId)) return { ask: askAmong(previousOffered().map(rowOfId).filter(Boolean), st) }
+  }
   const named = namedByWords(st, scope, env)
   if (named.length && !named.some(r => r.id === res.id)) return { ask: askAmong(named.slice(0, MAX_CHOICES), st) }
   const descs = headlineDescriptions(turns.typed)
@@ -188,7 +224,7 @@ function resolvePointerOrMatch(st, ref, scope, env) {
   const r = String(ref ?? '').trim()
   if (!r) return { ask: askAmong(st.visible.slice(0, MAX_CHOICES), st) }
   const licensed = new Set([...st.selected, previousSubject(), ...previousOffered()].filter(Boolean))
-  if (licensed.has(r)) return { id: r, via: st.selected.includes(r) ? 'selected' : r === previousSubject() ? 'previous' : 'offered' }
+  if (licensed.has(r)) return { id: r, via: st.selected.includes(r) ? 'selected' : previousOffered().includes(r) ? 'offered' : 'previous' }
   if (/^previous$/i.test(r)) { const p = previousSubject(); return p ? { id: p, via: 'previous' } : { ask: askAmong(st.visible.slice(0, MAX_CHOICES), st) } }
   if (POINTER.test(r)) {
     if (st.selected.length === 1) return { id: st.selected[0], via: 'selected' }
@@ -220,7 +256,9 @@ const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 export function wordsNameHeadline(text, ref) {
   const r = String(ref ?? '').trim().replace(/^[“"]|[”"]$/g, '')
   if (!r || POINTER.test(r) || /^previous$/i.test(r)) return true           // a pointer: the click / the previous turn decides
-  if (previousOffered().includes(r) || r === previousSubject()) return true  // an id this library offered / named last turn (a pointer too)
+  // an id of the previous turn's subject is a pointer (resolveHeadline's named-headline + description checks); an OFFERED id is
+  // licensed only by resolveHeadline's offer-selection check (offerLicensed) — never here
+  if (r === previousSubject() || previousOffered().includes(r)) return true
   const tk = TICKER.exec(r)
   if (tk && words(r).length === 1) {
     const T = esc(tk[1].toUpperCase()), t = T.toLowerCase(), s = String(text || '')
@@ -510,7 +548,7 @@ export function registerNewsLibraryCapabilities() {
       if (!id) return st
       const saved = isSaved(st, id)
       if (args.saved === saved) return st
-      const op = { op: args.saved ? 'save' : 'unsave', id, text: textOf(st, id, env), pointed: r.via === 'selected' || r.via === 'previous' }
+      const op = { op: args.saved ? 'save' : 'unsave', id, text: textOf(st, id, env), pointed: r.via === 'selected' || r.via === 'previous' || r.via === 'offered' }
       return { ...st, ids: args.saved ? [...st.ids, id].sort() : st.ids.filter(x => x !== id), ops: [...st.ops, op] }
     },
     describe: (b, a) => { const o = (a.ops || []).filter(x => x.op === 'save' || x.op === 'unsave').at(-1); return o ? lineOf(o) : null },
@@ -555,7 +593,7 @@ export function registerNewsLibraryCapabilities() {
       // ⛔ APPEND by default: an existing note is never replaced unless the mode says so (and the state rail sees an overwrite)
       const next = args.mode === 'replace' ? text : (prev && text ? `${prev}\n${text}` : (prev || text))
       if (next === prev) return st
-      return { ...st, ops: [...st.ops, { op: 'note', id, note: next, prev, mode: args.mode, text: textOf(st, id, env), pointed: r.via === 'selected' || r.via === 'previous' }] }
+      return { ...st, ops: [...st.ops, { op: 'note', id, note: next, prev, mode: args.mode, text: textOf(st, id, env), pointed: r.via === 'selected' || r.via === 'previous' || r.via === 'offered' }] }
     },
     describe: (b, a) => { const o = (a.ops || []).filter(x => x.op === 'note').at(-1); return o ? lineOf(o) : null },
     noop: () => 'The note already says that',
@@ -664,7 +702,7 @@ export function registerNewsLibraryCapabilities() {
       const mem = env?.newsSaved?.member?.get?.(id) ?? st.member?.[id] ?? []
       const inIt = mem.includes(c.id)
       if (inIt === !!args.member) return st
-      return { ...st, ops: [...st.ops, { op: 'place', id, cid: c.id, cname: c.name, member: !!args.member, wasSaved: isSaved(st, id), text: textOf(st, id, env), pointed: r.via === 'selected' || r.via === 'previous' }] }
+      return { ...st, ops: [...st.ops, { op: 'place', id, cid: c.id, cname: c.name, member: !!args.member, wasSaved: isSaved(st, id), text: textOf(st, id, env), pointed: r.via === 'selected' || r.via === 'previous' || r.via === 'offered' }] }
     },
     describe: (b, a) => { const o = (a.ops || []).filter(x => x.op === 'place').at(-1); return o ? lineOf(o) : null },
     noop: (st, _a, args = {}) => (args.member ? 'That headline is already in that collection' : 'That headline isn’t in that collection'),
