@@ -27,6 +27,8 @@ import {
 } from '../pages/journal-2-0/lib/notebookDoors'
 import { NOTEBOOK_TODAY_TO } from '../pages/journal-2-0/lib/dailyBriefLink'
 import { SETUPS_BOARD_PATH, setupsBoardEnabled } from '../pages/journal-2-0/lib/setupsBoardLink'
+import { CHARTS_PATH, INDICATOR_DOORS, requestIndicatorDoor } from './indicatorKit/indicatorDoors'
+import { useCreateIndicatorAccess } from './chart/builder/studio/createIndicatorFlag'
 import styles from './CommandPalette.module.css'
 
 const TICKER_LIKE = /^[A-Z0-9.\-]{1,10}$/
@@ -123,6 +125,45 @@ const NOTEBOOK_COMMANDS = [
     match: phraseStart('active setups', 'setups board', 'setups'),
     when: () => setupsBoardEnabled() },
 ]
+// ⭐ INDICATORS (plan docs/pine/studio/STUDIO-TRACK-PLAN.md section 6, lane P1). Every job a
+// member does with an indicator, by its member name, from anywhere. Each row opens a door
+// that ALREADY exists: a chart door through `indicatorDoors.js` (the charts page opens it on
+// the chart the member is on), or a route. Same six-character rule as the Notebook commands,
+// so none of them can sit above a ticker and take its Enter.
+export const INDICATOR_COMMANDS = [
+  { id: 'ind-add', kind: 'command', label: 'Add an indicator', icon: 'library',
+    action: 'indicatorDoor', door: INDICATOR_DOORS.LIBRARY, keywords: [],
+    match: phraseStart('add an indicator', 'add indicator', 'indicators', 'indicator', 'my indicators') },
+  { id: 'ind-describe', kind: 'command', label: 'Describe an indicator', icon: 'sparkle',
+    action: 'indicatorDoor', door: INDICATOR_DOORS.DESCRIBE, keywords: [],
+    match: phraseStart('describe an indicator', 'describe indicator', 'create an indicator', 'create indicator',
+      'new indicator', 'build an indicator', 'build indicator'),
+    // Offered only where the door would open: the same rule the chart's own button uses.
+    when: ({ createIndicatorOn }) => createIndicatorOn === true },
+  { id: 'ind-paste', kind: 'command', label: 'Paste a TradingView script', icon: 'document',
+    action: 'indicatorDoor', door: INDICATOR_DOORS.PASTE, keywords: [],
+    match: phraseStart('paste a tradingview script', 'paste a script', 'paste script', 'tradingview script',
+      'tradingview', 'pine script', 'import a script', 'import script', 'import an indicator') },
+  { id: 'ind-formula', kind: 'command', label: 'Write a formula', icon: 'document',
+    action: 'indicatorDoor', door: INDICATOR_DOORS.FORMULA, keywords: [],
+    match: phraseStart('write a formula', 'new formula', 'formula') },
+  { id: 'ind-picture', kind: 'command', label: 'Start an indicator from a picture', icon: 'document',
+    action: 'indicatorDoor', door: INDICATOR_DOORS.PICTURE, keywords: [],
+    match: phraseStart('start an indicator from a picture', 'indicator from a picture', 'from a picture',
+      'from a screenshot', 'screenshot') },
+  { id: 'ind-reference', kind: 'command', label: 'Look up a function', icon: 'search',
+    to: '/formulas/reference', keywords: [],
+    match: phraseStart('look up a function', 'lookup a function', 'function reference', 'formula reference',
+      'reference') },
+  { id: 'ind-library', kind: 'command', label: "Browse members' indicators", icon: 'library',
+    to: '/formulas/library', keywords: [],
+    match: phraseStart("browse members' indicators", 'browse members indicators', 'browse indicators',
+      "members' indicators", 'members indicators', 'indicator library', 'community indicators') },
+  { id: 'ind-run', kind: 'command', label: 'Run an indicator over a list', icon: 'search',
+    to: '/screener', keywords: [],
+    match: phraseStart('run an indicator over a list', 'run an indicator', 'run over a list', 'over a list',
+      'scan a list') },
+]
 // Natural-terminology matching (§14): a 2-character floor avoids a bare
 // letter matching half the keyword list, and `.includes()` (not an exact
 // match) lets a partial word like "note" or "thesis" surface the right
@@ -204,6 +245,8 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
   // Notes are left to the quick switcher above, which already searches titles.
   // useContext, not useAuth(): the palette must render (flag off) outside a provider.
   const addressSpaceEnabled = useContext(AuthContext)?.addressSpaceEnabled === true
+  // The chart's own rule for who may open Create Indicator (admin review, or the server's cohort).
+  const createIndicatorOn = useCreateIndicatorAccess(useContext(AuthContext))
   const [savedRows, setSavedRows] = useState([])
   const [savedFor, setSavedFor] = useState(null)
   const [savedError, setSavedError] = useState(false)
@@ -455,9 +498,10 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
 
   const notebookCommandRows = useMemo(() => {
     if (isHelp || !qLower) return []
-    return NOTEBOOK_COMMANDS.filter((cmd) => commandMatches(cmd, qLower, { location }))
+    const ctx = { location, createIndicatorOn }
+    return [...NOTEBOOK_COMMANDS, ...INDICATOR_COMMANDS].filter((cmd) => commandMatches(cmd, qLower, ctx))
       .map((cmd) => ({ kind: 'command', ...cmd }))
-  }, [isHelp, qLower, location])
+  }, [isHelp, qLower, location, createIndicatorOn])
 
   const notebookNoteRows = useMemo(() => {
     if (isHelp || !wantsNoteRows) return []
@@ -560,6 +604,19 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
         openCapture(destination ? { source: 'palette', destination }
                                 : { source: 'palette' })
         close()
+        return
+      }
+      if (row.action === 'indicatorDoor') {
+        // The chart opens its own door. Parked first, so a chart that mounts after the
+        // navigation below still takes it; asked after the palette has closed so focus
+        // returns to the chart's surface, not to this input.
+        const door = row.door
+        const onCharts = String(location?.pathname || '').startsWith(CHARTS_PATH)
+        close()
+        setTimeout(() => {
+          requestIndicatorDoor(door)
+          if (!onCharts) navigate(CHARTS_PATH)
+        }, 0)
         return
       }
       if (row.action === 'door') {
