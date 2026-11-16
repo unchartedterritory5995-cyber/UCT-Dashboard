@@ -139,7 +139,7 @@ const ROWS = [
   { id: 'settings.wmAlign', place: 'settings:canvas', tabLabel: 'Canvas', need: 'watermark', any: ['left', '~right', 'center', '~align', '~alignment'], target: { within: 'chartSettings', label: 'Alignment' }, alt: 'The watermark is off on this chart: turn on Watermark on this tab first, and its settings show below it.', fallback: [{ within: 'chartSettings', label: 'Watermark' }, 'chartSettings.tab.canvas'], name: 'Alignment', say: 'Alignment sets the watermark to the left, the centre or the right. It shows while the watermark is on.', label: 'Aligning the watermark' },
   { id: 'settings.wmMove', place: 'settings:canvas', tabLabel: 'Canvas', need: 'watermark move', target: { within: 'chartSettings', label: 'Move watermark' }, alt: 'The watermark is off on this chart: turn on Watermark on this tab first, and its settings show below it.', fallback: [{ within: 'chartSettings', label: 'Watermark' }, 'chartSettings.tab.canvas'], name: 'Move watermark', say: 'Click Move watermark, then drag it on the chart. Reset to center beside it puts it back.', label: 'Moving the watermark' },
   { id: 'settings.wmReset', place: 'settings:canvas', tabLabel: 'Canvas', need: 'watermark', any: ['reset', 'center'], target: { within: 'chartSettings', label: 'Reset to center' }, alt: 'Reset to center shows here once you have moved this chart’s watermark: it is where it started now. Move watermark places it.', fallback: [{ within: 'chartSettings', label: 'Move watermark' }, 'chartSettings.tab.canvas'], name: 'Reset to center', say: 'Click Reset to center to put the watermark back in the middle.', label: 'Centring the watermark' },
-  { id: 'settings.barInfo', place: 'settings:header', tabLabel: 'Header', need: 'legend', any: ['~bar', '~value', '~field', '~ohlc', '~volume', 'choose'], target: { within: 'chartSettings', label: 'Bar info' }, name: 'Bar info', say: 'Bar info chooses which of the bar’s values the legend shows.', label: 'The legend’s bar values' },
+  { id: 'settings.barInfo', place: 'settings:header', tabLabel: 'Header & legend', need: 'legend', any: ['~bar', '~value', '~field', '~ohlc', '~volume', 'choose'], target: { within: 'chartSettings', label: 'Bar info' }, name: 'Bar info', say: 'Bar info chooses which of the bar’s values the legend shows.', label: 'The legend’s bar values' },
 
   // ── widgets' own controls ──
   ...[
@@ -313,7 +313,7 @@ export function askWhich(rows) {
 /** The catalog as one guide feature (registry.js puts it ahead of the broad features whose words it would otherwise lose). */
 export const CONTROL_FEATURE = {
   id: 'control', slots: ['ctrl'], terms: [], words: [], control: 'that control', title: '{ctrl.label}', titleAny: 'Finding a control', topic: 'charts', caps: [],
-  explain: 'That control is on its widget, its panel or the chart. Add the widget from Widgets ▾ if it isn’t on your board.',
+  explain: 'That control is on its widget, its panel or the chart. Add the widget from + Add widget if it isn’t on your board.',
   // a drawing without the control ("say") is only said when no other walkthrough took the words (capabilities/guide.js)
   match: (q) => { const r = readControl(q); return !!(r?.row || r?.ask) },
   steps: [{ each: 'ctrl' }],

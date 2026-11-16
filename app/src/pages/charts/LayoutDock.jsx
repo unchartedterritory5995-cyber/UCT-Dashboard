@@ -1,8 +1,12 @@
 // app/src/pages/charts/LayoutDock.jsx
 //
-// The Layout Dock — a 28px strip welded to the bottom of the .workspace frame:
-// layouts as bare text, the open one lit gold with a 2px cap seated on the
-// dock's top edge so the board reads as hanging from its own name.
+// The Layout Dock — a 34px strip welded to the bottom of the .workspace frame,
+// in UCT Signature (docs/uct-signature-style.md, owner-approved 2026-11-15):
+// layouts as sentence-case tabs, the open one bright with a 2px GOLD line along
+// its TOP edge (the timeframe underline, flipped because the bar sits at the
+// bottom), a gold dot while it has unsaved changes, a grey lock on prebuilt ones.
+// ＋ (start a new layout, named inline) follows the tabs; the library sits at
+// the right end.
 //
 // ⭐ THE MODEL — the LIBRARY owns layouts, the RAIL is only a working set.
 //
@@ -40,6 +44,13 @@ import styles from './LayoutDock.module.css'
 
 export default function LayoutDock({
   entries, activeId, loading = false, merged = false, isAdmin = false,
+  // `dirty`: the open layout has changes not yet saved (the workspace's own save
+  // state, the same flag the top row's "Unsaved changes" reads). Shown as a dot.
+  dirty = false,
+  // `saveState`: 'saved' | 'auto' | 'dirty' | null — shown at the bar's right end (owner 11-15: it moved here from
+  // beside the layout name, where its changing length pushed the top row's buttons around). `canSave` shows the
+  // "Save" link on an unsaved layout the member may save.
+  saveState = null, canSave = false,
   onOpen, onCreate, onSave, onDuplicate, onDelete, onRename, onRestored,
   agentRef = null,
 }) {
@@ -74,15 +85,19 @@ export default function LayoutDock({
   // always measurable — measuring the VISIBLE row instead would lose the width
   // of an item the moment it was trimmed, and the fit could never be recomputed
   // when the workspace widens again.
+  // stripRef is the LANE (tabs + the ＋ after them): it takes the free width
+  // whatever the tabs hold, so it is what the fit is measured against; the ＋'s
+  // own width is reserved out of it.
   const stripRef = useRef(null)
   const mirrorRef = useRef(null)
+  const newBtnRef = useRef(null)
   const [visibleCount, setVisibleCount] = useState(slots.length)
 
   const measure = useCallback(() => {
     const strip = stripRef.current
     const mirror = mirrorRef.current
     if (!strip || !mirror) return
-    const avail = strip.clientWidth
+    const avail = strip.clientWidth - (newBtnRef.current?.offsetWidth || 0)
     let used = 0
     let fit = 0
     for (const child of mirror.children) {
@@ -130,6 +145,8 @@ export default function LayoutDock({
     (entry) => !!entry && entry.id !== UCT_DEFAULT_ID && (entry.scope !== 'global' || isAdmin),
     [isAdmin],
   )
+
+  const isPrebuilt = (entry) => !!entry && (entry.id === UCT_DEFAULT_ID || entry.scope === 'global')
 
   const mine = useMemo(() => entries.filter(e => e.id !== UCT_DEFAULT_ID && e.scope !== 'global'), [entries])
   const prebuilt = useMemo(() => entries.filter(e => e.id === UCT_DEFAULT_ID || e.scope === 'global'), [entries])
@@ -299,12 +316,16 @@ export default function LayoutDock({
             }}
             onBlur={commitRename}
           />
-        ) : (
+        ) : (<>
           <span className={styles.label}>{entry.name}</span>
-        )}
+          {!isProvisional && isPrebuilt(entry) && <UIcon name="lock" size={11} gold={false} className={styles.lock} />}
+          {active && dirty && <span className={styles.dirty} title="Unsaved changes" aria-hidden="true" />}
+        </>)}
       </button>
     )
   }
+
+  const startCreate = () => { closePopovers(); setDraft(''); setCreating(true) }
 
   if (dock.hidden) return null
 
@@ -318,7 +339,8 @@ export default function LayoutDock({
       aria-label="Saved layouts"
       data-guide="workspace.layouts"
     >
-      <div className={styles.strip} ref={stripRef}>
+      <div className={styles.lane} ref={stripRef}>
+      <div className={styles.strip}>
         {shown.map(s => renderItem(s))}
         {showProvisional && renderItem({ entry: { id: '__provisional', name: provisional }, index: -1 }, true)}
         {creating && (
@@ -343,12 +365,26 @@ export default function LayoutDock({
           </span>
         )}
       </div>
+        <button
+          type="button"
+          ref={newBtnRef}
+          className={styles.ctl}
+          onClick={startCreate}
+          title="New layout"
+          aria-label="New layout"
+        >
+          <UIcon name="plus" size={14} gold={false} />
+        </button>
+      </div>
 
       {/* Width oracle for the fit calculation — never shown, never focusable. */}
       <div className={styles.mirror} ref={mirrorRef} aria-hidden="true">
         {slots.map(s => (
           <span key={`${s.entry.id}@${s.index}`} className={styles.item}>
             <span className={styles.label}>{s.entry.name}</span>
+            {/* width stand-ins for the lock / dot (an <i>, so the mirror's only <span> child stays the name) */}
+            {isPrebuilt(s.entry) && <i className={styles.lock} style={{ width: 11 }} />}
+            {s.entry.id === activeId && dirty && <i className={styles.dirty} />}
           </span>
         ))}
       </div>
@@ -367,6 +403,14 @@ export default function LayoutDock({
             <span className={styles.count}>+{overflow.length}</span>
           </button>
         )}
+        {saveState && (
+          <span className={`${styles.saveState}${saveState === 'dirty' ? ' ' + styles.saveStateDirty : ''}`} data-testid="layout-save-state">
+            <span className={styles.saveDot} aria-hidden="true" />
+            {saveState === 'dirty'
+              ? (<>Unsaved changes{canSave && onSave && <> · <button type="button" className={styles.saveLink} onClick={() => onSave()}>Save</button></>}</>)
+              : saveState === 'auto' ? 'Saves automatically' : 'Saved'}
+          </span>
+        )}
         <button
           type="button"
           className={styles.ctl}
@@ -376,7 +420,7 @@ export default function LayoutDock({
           data-guide="workspace.layoutLibrary"
           aria-expanded={libraryOpen}
         >
-          <UIcon name="plus" size={13} gold={false} />
+          <UIcon name="library" size={15} gold={false} />
         </button>
       </div>
 
@@ -386,7 +430,7 @@ export default function LayoutDock({
           <div className={styles.libraryHead}>Layout library</div>
           <button
             type="button" role="menuitem" className={styles.libraryNew}
-            onClick={() => { closePopovers(); setDraft(''); setCreating(true) }}
+            onClick={startCreate}
           >＋ New layout</button>
           <div className={styles.menuDiv} />
           {mine.length === 0 && <div className={styles.browseEmpty}>No saved layouts yet.</div>}
@@ -396,7 +440,7 @@ export default function LayoutDock({
                 type="button" role="menuitem" className={styles.libraryPick}
                 title={`Add ${e.name} to the bar`}
                 onClick={() => addToBar(e)}
-              >{e.name}</button>
+              ><span className={styles.pickName}>{e.name}</span>{e.id === activeId && <span className={styles.check} aria-hidden="true">✓</span>}</button>
               {/* The library is the ONLY place a layout can be destroyed. */}
               {confirmDeleteId === e.id ? (
                 <button
@@ -412,7 +456,7 @@ export default function LayoutDock({
                   title={`Delete ${e.name} permanently`}
                   aria-label={`Delete ${e.name} permanently`}
                   onClick={() => setConfirmDeleteId(e.id)}
-                >✕</button>
+                ><UIcon name="trash" size={13} gold={false} /></button>
               )}
             </div>
           ))}
@@ -424,7 +468,7 @@ export default function LayoutDock({
                   type="button" role="menuitem" className={styles.libraryPick}
                   title={`Add ${e.name} to the bar`}
                   onClick={() => addToBar(e)}
-                >{e.name}</button>
+                ><span className={styles.pickName}>{e.name}</span>{e.id === activeId && <span className={styles.check} aria-hidden="true">✓</span>}</button>
               </div>
             ))}
           </>)}
@@ -465,12 +509,12 @@ export default function LayoutDock({
             type="button" role="menuitem" className={styles.menuItem}
             disabled={menu.slot.index <= 0}
             onClick={() => move(menu.slot.index, -1)}
-          >← Move left</button>
+          ><span className={styles.mic} aria-hidden="true" />← Move left</button>
           <button
             type="button" role="menuitem" className={styles.menuItem}
             disabled={menu.slot.index >= dock.pins.length - 1}
             onClick={() => move(menu.slot.index, 1)}
-          >Move right →</button>
+          ><span className={styles.mic} aria-hidden="true" />Move right →</button>
           <div className={styles.menuDiv} />
           {/* Only for the layout you are IN: saving the board into some OTHER
               layout would overwrite it with a board it never held. */}
@@ -478,34 +522,34 @@ export default function LayoutDock({
             <button
               type="button" role="menuitem" className={styles.menuItem}
               onClick={() => { onSave?.(); setMenu(null) }}
-            >Save layout to library</button>
+            ><UIcon name="save" size={15} gold={false} className={styles.mic} />Save layout to library</button>
           )}
           {writable(menuEntry) && (
             <button
               type="button" role="menuitem" className={styles.menuItem}
               data-menu-id="rename"
               onClick={() => { setRenameDraft(menuEntry.name); setRenaming(menu.slot.index); setMenu(null) }}
-            >Rename layout</button>
+            ><UIcon name="edit" size={15} gold={false} className={styles.mic} />Rename layout</button>
           )}
           <button
             type="button" role="menuitem" className={styles.menuItem}
             data-menu-id="duplicate"
             onClick={() => { onDuplicate?.(menuEntry); setMenu(null) }}
-          >Duplicate layout</button>
+          ><UIcon name="copy" size={15} gold={false} className={styles.mic} />Duplicate layout</button>
           {historyAvailable && menuEntry.scope === 'user' && menuEntry.id !== UCT_DEFAULT_ID && (
             <button
               type="button" role="menuitem" className={styles.menuItem}
               data-testid="layout-history-open"
               data-menu-id="history"
               onClick={() => { setHistoryEntry(menuEntry); setMenu(null) }}
-            >Version history</button>
+            ><UIcon name="clock" size={15} gold={false} className={styles.mic} />Version history</button>
           )}
           <div className={styles.menuDiv} />
           <button
             type="button" role="menuitem" className={styles.menuItem}
             data-menu-id="close"
             onClick={() => closeSlot(menu.slot.index)}
-          >Close</button>
+          ><UIcon name="x" size={15} gold={false} className={styles.mic} />Close</button>
         </div>
       )}
 

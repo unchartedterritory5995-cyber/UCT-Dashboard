@@ -81,15 +81,19 @@ export function useWatchlistLibrary(query = '', enabled = true) {
 // the library showing Prebuilt. Per browser (this is a convenience, not a record): an exact,
 // namespaced key, and every read/write guarded — private mode or blocked storage → none.
 export const LAST_LIST_KEY = 'uct.charts.watchlist.lastList.v1'
-export function readLastList(storage = globalThis.localStorage) {
+// Per ACCOUNT (owner 11-15): two people signing in on one browser must never open each other's
+// last list (or see its saved name — "Flagged (<the other person>)"). `owner` = the user's id;
+// without one the shared legacy key is used, exactly as before.
+export const lastListKey = (owner) => (owner != null && owner !== '' ? `${LAST_LIST_KEY}.u${owner}` : LAST_LIST_KEY)
+export function readLastList(storage = globalThis.localStorage, owner = null) {
   try {
-    const v = JSON.parse(storage?.getItem(LAST_LIST_KEY) || 'null')
+    const v = JSON.parse(storage?.getItem(lastListKey(owner)) || 'null')
     return v && typeof v.key === 'string' && v.key ? { key: v.key, name: typeof v.name === 'string' ? v.name : null, tab: typeof v.tab === 'string' ? v.tab : null } : null
   } catch { return null }
 }
-export function rememberList(sel, storage = globalThis.localStorage) {
+export function rememberList(sel, storage = globalThis.localStorage, owner = null) {
   if (!sel?.key) return
-  try { storage?.setItem(LAST_LIST_KEY, JSON.stringify({ key: sel.key, name: sel.name || null, tab: sel.tab || null })) } catch { /* storage off: nothing to remember */ }
+  try { storage?.setItem(lastListKey(owner), JSON.stringify({ key: sel.key, name: sel.name || null, tab: sel.tab || null })) } catch { /* storage off: nothing to remember */ }
 }
 
 // ── List actions from the library rail (owner 11-13): the same server calls the Watchlists
