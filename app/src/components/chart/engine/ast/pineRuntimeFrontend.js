@@ -2983,8 +2983,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const everyBarRegions = []
   const everyBarRegionHere = () => {
     const rec = everyBarRegions.length ? everyBarRegions[everyBarRegions.length - 1] : null
-    return rec !== null && !objectsInRun && !atObjectDoor && !inRequestValue
-      && loopDepth === 0 && rec.loopDepth === 0 ? rec : null
+    // (the drawing build and a request's value never reach here: `r4Guard`, the one caller, returns first)
+    return rec !== null && !atObjectDoor && loopDepth === 0 && rec.loopDepth === 0 ? rec : null
   }
   /** The check itself: answers 1, or stops the run. `needs` is `{what, at}`. */
   const everyBarRunsCall = (needs, where) => {
@@ -9581,11 +9581,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // where no statement list can take a hoisted binding (an `if` / `switch` arm, a function
           // branch: `stmtHoistSink` is null there), the expression is lowered in place and handed
           // to the window: the value the hoisted slot would hold on this bar, by construction.
-          // ⛔ Not in a loop (several steps a bar: H8, unwitnessed), not at the object door and
-          // not in the drawing build (each keeps master's answer). The conditional rules below
+          // ⛔ Not at the object door and not in the drawing build (each keeps master's answer); in a
+          // loop (several steps a bar: H8, unwitnessed) the guards below refuse it. The conditional rules below
           // (`conditionalHistoryGuard`, `r4Guard`) are asked of it like any other window.
           let inlineSrc = null
-          if (varSlot === null && srcNode && srcNode.type !== 'name' && loopDepth === 0
+          // (a loop is refused below, by `conditionalHistoryGuard` / `r4Guard`: one guard, not two)
+          if (varSlot === null && srcNode && srcNode.type !== 'name'
               && !atObjectDoor && !objectsInRun && FINITE_WINDOW[win.table].na !== 'propagate') {
             inlineSrc = lowerExpr(srcNode, scope)
             srcLabel = 'an expression'
@@ -9668,7 +9669,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
           conditionalHistoryGuard('a stateful built-in', null)
           // WS-C / R4: every policy but `skip` reads the COMMITTED bar ring, so
           // in a block it would count bars where Pine counts the call's runs.
-          if (FINITE_WINDOW[win.table].na !== 'skip') r4Guard(`\`${node.name}\``, at)
+          // ⭐ HIST-S3 — and of the `skip` members only `sma` is WITNESSED per call site (C48 C03 / D02 /
+          // H03, vw-arm-history T03 / K02 / N02). ⚰️ `stdev` / `sum` / `median` share its run ring and
+          // were served per call site in a function branch on that ground alone (H1: no capture; the
+          // probe's `ta.sum` rows do not even compile in v6, `math.sum` is the sum). Each now asks the
+          // region rule: checked to run on every bar, or refused by name on a parameter branch.
+          if (win.table !== 'sma') r4Guard(`\`${node.name}\``, at)
           const call = windowCall(widx, inlineSrc !== null ? inlineSrc : read(varSlot), lenExpr || undefined)
           // ⛔ THE SIGN IS APPLIED HERE, ON THE WAY OUT, because that is where
           // `pine.js` applies it — `u-` wrapping the bare call, not a second

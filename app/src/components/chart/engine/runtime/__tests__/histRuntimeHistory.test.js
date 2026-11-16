@@ -104,8 +104,9 @@ describe('S1 — before Pine v4 a `?:` runs both arms; `iff` evaluates both argu
     expect(r.refusal, r.refusal && r.refusal.message).toBeUndefined()
     expect(r.stop).toBeUndefined()
     for (const k of [0, 1]) expect(mismatches(r.out[k], rowById(cap, `plot_${k}`))).toBe(0)
-    // the capture holds pivots on 80 bars per row: a fixture that can tell
-    expect(rowById(cap, 'plot_0').filter((x) => !Number.isNaN(x)).length).toBeGreaterThan(40)
+    // the capture holds a pivot on 40 bars of each row (666 bars): a fixture that can tell
+    expect(rowById(cap, 'plot_0').filter((x) => !Number.isNaN(x)).length).toBe(40)
+    expect(rowById(cap, 'plot_1').filter((x) => !Number.isNaN(x)).length).toBeGreaterThan(30)
   })
 
   it('a v4 `?:` stays LAZY: the witnessed arm (vw-cs2-v4-ternary-lazy T00) is never drawn as the every-bar call', () => {
@@ -128,7 +129,9 @@ describe('S1 — before Pine v4 a `?:` runs both arms; `iff` evaluates both argu
 })
 
 describe('S2 — a window that keeps its own ring, over an expression in a block', () => {
-  const FNS = ['ta.sma', 'ta.stdev', 'ta.sum', 'ta.median', 'ta.wma', 'ta.highest', 'ta.lowest', 'ta.highestbars', 'ta.lowestbars']
+  // ⛔ the window sum is `math.sum` in v5 / v6: Pine has no `ta.sum` (capture session reading on
+  // `vw-wsc-h1-window-runs`, 2026-11-16: "Could not find"), so no row here assumes one
+  const FNS = ['ta.sma', 'ta.stdev', 'math.sum', 'ta.median', 'ta.wma', 'ta.highest', 'ta.lowest', 'ta.highestbars', 'ta.lowestbars']
   it.each(FNS)('%s(x * 2 + 1, 5) in a block that runs on every bar equals the call over a named root series', (fn) => {
     const r = run(v6('var float x = 0.0', 'x := close - open',
       'float a = na', 'if bar_index >= 0', `    a := ${fn}(x * 2 + 1, 5)`,
@@ -179,7 +182,7 @@ describe('S3 — a region holding history is drawn while it has run on every bar
     const hit = firstSkip(UP)
     expect(r.stop.skippedBar).toBe(hit.skipped)
     expect(r.stop.bar).toBe(hit.bar)
-    expect(r.stop.message).toContain('`ta.highest` (line 4)')
+    expect(r.stop.message).toContain('`ta.highest` (line 5)')
     expect(r.stop.message).toContain(`skips bar ${hit.skipped} and runs again on bar ${hit.bar}`)
     // the member door's build accepts it: the stop is the run's, on the chart that skips
     expect(probeRuntimeProgram(v6('float a = na', 'if close > open', '    a := ta.highest(high, 5)', 'plot(a)')).ok).toBe(true)
@@ -230,6 +233,27 @@ describe('S3 — a region holding history is drawn while it has run on every bar
     const r = run(src)
     expect(r.refusal, r.refusal && r.refusal.message).toBeUndefined()
     expect(r.stop && r.stop.guard).toBe(R4)   // `m` is na on bar 0: the branch skips it
+  })
+
+  it('⛔ a binding made in ANOTHER branch keeps the build refusal (that branch\'s runs are not this one\'s)', () => {
+    const r = run(v6('float a = na', 'if close > open', '    y = ta.highest(high, 5)', '    if bar_index > 2', '        a := y', 'plot(a)'))
+    expect(r.refusal && r.refusal.guard).toBe(R4)
+  })
+
+  it('⛔ a root binding holding a CHECKED arm is refused where it would be read in a region of its own', () => {
+    // read at the root it is drawn and checked; read inside an `if` its arm would run on THAT block's bars
+    expect(run(v5('t = bar_index >= 0 ? ta.highest(high, 5) : na', 'plot(t)')).stop).toBeUndefined()
+    const r = run(v5('t = bar_index >= 0 ? ta.highest(high, 5) : na', 'float y = na', 'if close > open', '    y := t', 'plot(y)'))
+    expect(r.refusal && r.refusal.guard).toBe(R4)
+  })
+
+  it('⛔ of the `skip` windows only `ta.sma` is served per call site; `ta.stdev` in a parameter branch is refused (H1)', () => {
+    const body = (fn) => v6('f(v) =>', '    r = 0.0', '    if v > 0', `        r := ${fn}(v, 5)`, '    r', 'plot(f(close - open))')
+    // `ta.sma` per call site is witnessed (C48 C03 / H03): served for any run pattern
+    expect(run(body('ta.sma')).out).toBeTruthy()
+    // `ta.stdev` shares its run ring and was served per call site on that ground alone: now refused
+    const r = run(body('ta.stdev'))
+    expect(r.refusal && r.refusal.guard).toBe(R4)
   })
 
   it('⛔ not in a loop, not in the drawing build', () => {

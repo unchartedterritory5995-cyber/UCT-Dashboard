@@ -41,7 +41,7 @@ occurrences). By the refusal each script's runtime build actually raised:
 ### S2 — a window that keeps its own ring, over an expression
 
 Where no statement list can take a hoisted binding (an `if` / `switch` arm, a function branch),
-`ta.sma`, `ta.stdev`, `ta.sum`, `ta.median` (`skip`), `ta.wma` (`ffill`), `ta.highest`, `ta.lowest`,
+`ta.sma`, `ta.stdev`, `math.sum`, `ta.median` (`skip`), `ta.wma` (`ffill`), `ta.highest`, `ta.lowest`,
 `ta.highestbars`, `ta.lowestbars` (`finite`) over an expression are handed the expression in place.
 In `vm.js` `OP.WINDOW` these policies append the value they are handed to a ring of their own and
 never read a committed ring (only `propagate`, `ta.dev`, does), so the in-place value is, bar for
@@ -91,6 +91,16 @@ The Python twins do not run the VM. A runtime document is run on the server by t
 error carrying `guard`, which `runtimeColumns.js` rethrows as is, so an alert / scan over such a
 document is withheld by that guard and sentence (`pine_runtime_client.py` `_withheld`), never computed.
 The host and screener lanes are unchanged.
+
+## Capture-session readings that bear on this unit (2026-11-16)
+
+- `vw-wsc-h1-window-runs`: Pine v6 has NO `ta.sum` ("Could not find"); the window sum is `math.sum`. The
+  capture split the `ta.sum` rows out (U02 / V02 read `na`). Nothing here serves a sum per call site:
+  S2 is a window over an expression in a region checked to run on every bar, and its rail uses
+  `math.sum`.
+- `vw-arm-history-v3` does not compile as written (v3 has no `bar_index`; the probe header says to use
+  `n`). No corrected probe is needed for this unit: v1-v3 arms are witnessed EAGER by
+  `vw-ternary-arm-legacy-{v1,v2,v3}`, which S1 serves.
 
 ## Still refused by name
 

@@ -8,6 +8,7 @@ import { describe, it, expect } from 'vitest'
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import { lowerIrProgram } from '../lowerIr.js'
 import { execute } from '../vm.js'
+import { runGuardOf } from './condHistoryOutcome.js'
 
 const N = 8
 const BARS = Array.from({ length: N }, (_, i) => ({ t: 1700000000 + i * 86400, o: 100, h: 102 + i, l: 98, c: 100 + i, v: 1000 }))
@@ -38,19 +39,18 @@ describe('W6-T2 method as a name', () => {
   it('user function and namespaced forms are untouched', () => {
     expect(out0(5, 'f(x) => x + 1\nplot(f(close) + ta.sma(close, 1))')).toEqual(BARS.map((b) => b.c * 2 + 1))
   })
-  it('v4 held function calling `method` with history still refuses runtime:conditional-history', () => {
+  // ⭐ HIST-S3 — a v4 arm holding history is drawn only while it has run on every bar and STOPS by name
+  // at the first skip (here bar 1: `close > open` is false on bar 0); never the every-bar number
+  it('v4 held function calling `method` with history is never drawn off every bar: runtime:conditional-history', () => {
     const src = `method(x) => x - x[1]
 g(s, n) => n > 0 ? method(s) : s
 up = close > open
 y = up ? g(close, 2) : close
 plot(y)`
-    const b = build(4, src)
-    expect(b.ok).toBe(false)
-    expect(b.refusal.guard).toBe('runtime:conditional-history')
-    // control: the same script with the function renamed refuses identically
-    const c = build(4, src.replace(/method/g, 'mm'))
-    expect(c.ok).toBe(false)
-    expect(c.refusal.guard).toBe('runtime:conditional-history')
+    const guardOf = (s) => runGuardOf(`//@version=4\nindicator("t")\n${s}`, { bars: BARS })
+    expect(guardOf(src)).toBe('runtime:conditional-history')
+    // control: the same script with the function renamed answers identically
+    expect(guardOf(src.replace(/method/g, 'mm'))).toBe('runtime:conditional-history')
   })
   it('v4 `method f(x) =>` (declaration shape) is never read as a name', () => {
     const b = build(4, `method f(x) => x + 1
