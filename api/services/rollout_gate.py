@@ -307,8 +307,7 @@ def seed_existing_members_into_create_indicator(data_dir: Optional[str] = None) 
 
     added = rollout.seed_cohort_all_members(CREATE_INDICATOR_COHORT)
     with open(marker, "w", encoding="utf-8") as fh:
-        fh.write("seeded %d
-" % int(added))
+        fh.write("seeded %d\n" % int(added))
     return int(added)
 
 
