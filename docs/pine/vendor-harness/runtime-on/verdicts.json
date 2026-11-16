@@ -72183,12 +72183,785 @@
    "script": "MTF Levels - S/R",
    "symbol": "NYSE:RDDT",
    "timeframe": "1D",
-   "plots": [],
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "D-VWAP",
+     "ours": "value",
+     "rule": "M1-title",
+     "verdict": "DIVERGE",
+     "reason": "6 steady-state bars disagree; first at bar 114 (value: vendor 57.3 vs ours 57.29) — persistent, last at bar 665",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 960,
+     "color": "compared",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 660,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 5,
+      "colorMismatches": 1,
+      "colorCompared": 661,
+      "colorWithheld": 0,
+      "colorComparable": 666,
+      "valued": 666,
+      "maxAbs": 0.010000000000019327,
+      "maxRel": 0.00017621145374445833,
+      "firstDivergence": {
+       "bar": 114,
+       "time": 1725456600,
+       "kind": "value",
+       "vendor": 57.3,
+       "ours": 57.29
+      },
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 6,
+       "first": {
+        "bar": 114,
+        "time": 1725456600,
+        "kind": "value",
+        "vendor": 57.3,
+        "ours": 57.29
+       },
+       "last": {
+        "bar": 665,
+        "time": 1794580200,
+        "kind": "color",
+        "vendor": 99.01,
+        "ours": 99.01,
+        "vendorColor": "#00000000",
+        "ourColor": "#2196f3ff"
+       },
+       "pattern": {
+        "kind": "persistent",
+        "lastDivergentBar": 665
+       }
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_2",
+     "title": "W-VWAP",
+     "ours": "out2",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 252,
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_4",
+     "title": "M-VWAP",
+     "ours": "out3",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 252,
+     "color": "compared",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 628,
+      "colorWithheld": 0,
+      "colorComparable": 628,
+      "valued": 628,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_6",
+     "title": "Y-VWAP",
+     "ours": "out4",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 252,
+     "color": "compared",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 446,
+      "colorWithheld": 0,
+      "colorComparable": 446,
+      "valued": 446,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
    "notCompared": [],
    "notMeasured": [],
-   "verdict": "INCONCLUSIVE",
-   "reason": "refused on our side: install door refused: u_member-pane-vendorharness: compute.budget: exceeds the series-reference budget — this formula measures 10 and the cap is 8 (guard \"budget:series\"). Measured {\"maxNodes\":54,\"maxLookback\":252,\"maxSeriesRefs\":10} against caps {\"maxNodes\":128,\"maxLookback\":960,\"maxSeriesRefs\":8}. The tree measured is compute.trees.out2.",
-   "ourNotes": []
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "DIVERGE",
+    "verdictWithoutColour": "DIVERGE",
+    "reason": "3 object families differ (count or text); colours agree on 31 paired slots; coordinates are NOT compared by v1",
+    "counts": [
+     {
+      "family": "lines",
+      "vendor": 23,
+      "ours": 22,
+      "agree": false
+     },
+     {
+      "family": "labels",
+      "vendor": 27,
+      "ours": 3,
+      "agree": false
+     },
+     {
+      "family": "boxes",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "tables",
+      "vendor": 1,
+      "ours": 1,
+      "agree": true
+     },
+     {
+      "family": "tableCells",
+      "vendor": 1,
+      "ours": 1,
+      "agree": true
+     }
+    ],
+    "texts": [
+     {
+      "family": "labels text",
+      "agree": false,
+      "onlyVendor": [
+       "                      W-VWAP",
+       " dHigh",
+       " dLow",
+       " dOpen",
+       " mHigh",
+       " mLow",
+       " mOpen",
+       " pdEQ",
+       " pdHigh",
+       " pdLow"
+      ],
+      "onlyOurs": []
+     },
+     {
+      "family": "tableCells text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     }
+    ],
+    "colours": [
+     {
+      "family": "lines colour",
+      "agree": true,
+      "slots": 22,
+      "agreeing": 22,
+      "themeRelative": 0,
+      "differing": 0,
+      "undecodable": 0,
+      "undrawn": 0,
+      "undrawnDiffering": 0,
+      "first": null,
+      "firstUndrawn": null
+     },
+     {
+      "family": "labels colour",
+      "agree": true,
+      "slots": 6,
+      "agreeing": 6,
+      "themeRelative": 0,
+      "differing": 0,
+      "undecodable": 0,
+      "undrawn": 0,
+      "undrawnDiffering": 0,
+      "first": null,
+      "firstUndrawn": null
+     },
+     {
+      "family": "tables colour",
+      "agree": true,
+      "slots": 1,
+      "agreeing": 1,
+      "themeRelative": 0,
+      "differing": 0,
+      "undecodable": 0,
+      "undrawn": 0,
+      "undrawnDiffering": 0,
+      "first": null,
+      "firstUndrawn": null
+     },
+     {
+      "family": "tableCells colour",
+      "agree": true,
+      "slots": 2,
+      "agreeing": 2,
+      "themeRelative": 0,
+      "differing": 0,
+      "undecodable": 0,
+      "undrawn": 0,
+      "undrawnDiffering": 0,
+      "first": null,
+      "firstUndrawn": null
+     }
+    ],
+    "colourUnpaired": {
+     "ours": 0,
+     "vendor": 25
+    }
+   },
+   "verdict": "DIVERGE",
+   "reason": "2 of 5 compared items diverge",
+   "verdictWithoutColour": "DIVERGE",
+   "ourNotes": [
+    "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
+   ],
+   "objectsV2": {
+    "verdict": "DIVERGE",
+    "verdictWithoutX": "DIVERGE",
+    "v1": "DIVERGE",
+    "pairedNothing": false,
+    "differsOnlyByCreationOrder": false,
+    "reason": "2 object families differ field by field (first: lines y1 of line #16209 — vendor 103.2824, ours 101.27); x: 0 graded (0 differ), 47 not resolvable to a bar (the capture records no x table (taken before U13)); v1: 3 object families differ (count or text); colours agree on 31 paired slots; coordinates are NOT compared by v1; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
+    "first": {
+     "family": "lines",
+     "field": "y1",
+     "vendor": 103.2824,
+     "ours": 101.27,
+     "vendorId": 33052,
+     "ourId": 16209,
+     "where": "line #16209"
+    },
+    "firstWithoutX": {
+     "family": "lines",
+     "field": "y1",
+     "vendor": 103.2824,
+     "ours": 101.27,
+     "vendorId": 33052,
+     "ourId": 16209,
+     "where": "line #16209"
+    },
+    "x": {
+     "graded": 0,
+     "agreeing": 0,
+     "differing": 0,
+     "missing": 47,
+     "missingWhy": {
+      "the capture records no x table (taken before U13)": 47
+     },
+     "incompleteFamilies": []
+    },
+    "families": [
+     {
+      "family": "lines",
+      "paired": 22,
+      "unpairedVendor": 1,
+      "unpairedOurs": 0,
+      "graded": 132,
+      "agreeing": 81,
+      "differing": 51,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {
+       "x1": {
+        "agree": 0,
+        "differ": 0,
+        "notGraded": 22
+       },
+       "y1": {
+        "agree": 2,
+        "differ": 20,
+        "notGraded": 0
+       },
+       "x2": {
+        "agree": 0,
+        "differ": 0,
+        "notGraded": 22
+       },
+       "y2": {
+        "agree": 2,
+        "differ": 20,
+        "notGraded": 0
+       },
+       "extend": {
+        "agree": 22,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "style": {
+        "agree": 16,
+        "differ": 6,
+        "notGraded": 0
+       },
+       "width": {
+        "agree": 22,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "color": {
+        "agree": 17,
+        "differ": 5,
+        "notGraded": 0
+       }
+      },
+      "first": {
+       "field": "y1",
+       "vendor": 103.2824,
+       "ours": 101.27,
+       "vendorId": 33052,
+       "ourId": 16209,
+       "where": "line #16209"
+      },
+      "firstWithoutX": {
+       "field": "y1",
+       "vendor": 103.2824,
+       "ours": 101.27,
+       "vendorId": 33052,
+       "ourId": 16209,
+       "where": "line #16209"
+      },
+      "agree": false,
+      "agreeWithoutX": false,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 44,
+       "missingWhy": {
+        "the capture records no x table (taken before U13)": 44
+       },
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "labels",
+      "paired": 3,
+      "unpairedVendor": 24,
+      "unpairedOurs": 0,
+      "graded": 27,
+      "agreeing": 23,
+      "differing": 4,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {
+       "x": {
+        "agree": 0,
+        "differ": 0,
+        "notGraded": 3
+       },
+       "y": {
+        "agree": 2,
+        "differ": 1,
+        "notGraded": 0
+       },
+       "yloc": {
+        "agree": 3,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "text": {
+        "agree": 2,
+        "differ": 1,
+        "notGraded": 0
+       },
+       "style": {
+        "agree": 3,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "size": {
+        "agree": 3,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "textalign": {
+        "agree": 3,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "tooltip": {
+        "agree": 3,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "color": {
+        "agree": 2,
+        "differ": 1,
+        "notGraded": 0
+       },
+       "textcolor": {
+        "agree": 2,
+        "differ": 1,
+        "notGraded": 0
+       }
+      },
+      "first": {
+       "field": "y",
+       "vendor": 100.17,
+       "ours": 99.01,
+       "vendorId": 33097,
+       "ourId": 16231,
+       "where": "label #16231"
+      },
+      "firstWithoutX": {
+       "field": "y",
+       "vendor": 100.17,
+       "ours": 99.01,
+       "vendorId": 33097,
+       "ourId": 16231,
+       "where": "label #16231"
+      },
+      "agree": false,
+      "agreeWithoutX": false,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 3,
+       "missingWhy": {
+        "the capture records no x table (taken before U13)": 3
+       },
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "boxes",
+      "paired": 0,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 0,
+      "agreeing": 0,
+      "differing": 0,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {},
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "tables",
+      "paired": 1,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 6,
+      "agreeing": 6,
+      "differing": 0,
+      "notGraded": 2,
+      "undecoded": {},
+      "byField": {
+       "position": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "columns": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "rows": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "frame_width": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "border_width": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "bgcolor": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "frame_color": {
+        "agree": 0,
+        "differ": 0,
+        "notGraded": 1
+       },
+       "border_color": {
+        "agree": 0,
+        "differ": 0,
+        "notGraded": 1
+       }
+      },
+      "first": null,
+      "firstWithoutX": null,
+      "agree": true,
+      "agreeWithoutX": true,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "tableCells",
+      "paired": 1,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 8,
+      "agreeing": 8,
+      "differing": 0,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {
+       "text": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "text_halign": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "text_valign": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "text_size": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "tooltip": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "text_font_family": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "text_color": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "bgcolor": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       }
+      },
+      "first": null,
+      "firstWithoutX": null,
+      "agree": true,
+      "agreeWithoutX": true,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "linefills",
+      "paired": 0,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 0,
+      "agreeing": 0,
+      "differing": 0,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {},
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     }
+    ],
+    "ungraded": {
+     "lines": [
+      "xloc",
+      "force_overlay"
+     ],
+     "labels": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "boxes": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "tables": [
+      "force_overlay"
+     ],
+     "tableCells": [
+      "width",
+      "height",
+      "text_formatting",
+      "colspan",
+      "rowspan"
+     ],
+     "linefills": []
+    }
+   }
   },
   {
    "file": "tests/fixtures/vendor/harness/mtf-key-levels-support-and-resistance-spy-1d-2026-11-14.json",
@@ -72197,12 +72970,785 @@
    "script": "MTF Levels - S/R",
    "symbol": "AMEX:SPY",
    "timeframe": "1D",
-   "plots": [],
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "D-VWAP",
+     "ours": "value",
+     "rule": "M1-title",
+     "verdict": "DIVERGE",
+     "reason": "34 steady-state bars disagree; first at bar 2038 (value: vendor 126.59 vs ours 126.58) — persistent, last at bar 8506",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 960,
+     "color": "compared",
+     "stats": {
+      "bars": 8507,
+      "compared": 8507,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 8473,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 33,
+      "colorMismatches": 1,
+      "colorCompared": 8474,
+      "colorWithheld": 0,
+      "colorComparable": 8507,
+      "valued": 8507,
+      "maxAbs": 0.010000000000019327,
+      "maxRel": 0.00012115338017936898,
+      "firstDivergence": {
+       "bar": 2038,
+       "time": 983197800,
+       "kind": "value",
+       "vendor": 126.59,
+       "ours": 126.58
+      },
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 8507,
+       "compared": 8507,
+       "divergent": 34,
+       "first": {
+        "bar": 2038,
+        "time": 983197800,
+        "kind": "value",
+        "vendor": 126.59,
+        "ours": 126.58
+       },
+       "last": {
+        "bar": 8506,
+        "time": 1794580200,
+        "kind": "color",
+        "vendor": 754.13,
+        "ours": 754.13,
+        "vendorColor": "#00000000",
+        "ourColor": "#2196f3ff"
+       },
+       "pattern": {
+        "kind": "persistent",
+        "lastDivergentBar": 8506
+       }
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_2",
+     "title": "W-VWAP",
+     "ours": "out2",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "8507 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 252,
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 8507,
+      "compared": 8507,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 8507,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 8507,
+       "compared": 8507,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_4",
+     "title": "M-VWAP",
+     "ours": "out3",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "8507 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 252,
+     "color": "compared",
+     "stats": {
+      "bars": 8507,
+      "compared": 8507,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 8507,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 8100,
+      "colorWithheld": 0,
+      "colorComparable": 8100,
+      "valued": 8100,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 8507,
+       "compared": 8507,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_6",
+     "title": "Y-VWAP",
+     "ours": "out4",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "8507 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 252,
+     "color": "compared",
+     "stats": {
+      "bars": 8507,
+      "compared": 8507,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 8507,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 7878,
+      "colorWithheld": 0,
+      "colorComparable": 7878,
+      "valued": 7878,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 8507,
+       "compared": 8507,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
    "notCompared": [],
    "notMeasured": [],
-   "verdict": "INCONCLUSIVE",
-   "reason": "refused on our side: install door refused: u_member-pane-vendorharness: compute.budget: exceeds the series-reference budget — this formula measures 10 and the cap is 8 (guard \"budget:series\"). Measured {\"maxNodes\":54,\"maxLookback\":252,\"maxSeriesRefs\":10} against caps {\"maxNodes\":128,\"maxLookback\":960,\"maxSeriesRefs\":8}. The tree measured is compute.trees.out2.",
-   "ourNotes": []
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "DIVERGE",
+    "verdictWithoutColour": "DIVERGE",
+    "reason": "3 object families differ (count or text); colours agree on 31 paired slots; coordinates are NOT compared by v1",
+    "counts": [
+     {
+      "family": "lines",
+      "vendor": 23,
+      "ours": 22,
+      "agree": false
+     },
+     {
+      "family": "labels",
+      "vendor": 27,
+      "ours": 3,
+      "agree": false
+     },
+     {
+      "family": "boxes",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "tables",
+      "vendor": 1,
+      "ours": 1,
+      "agree": true
+     },
+     {
+      "family": "tableCells",
+      "vendor": 1,
+      "ours": 1,
+      "agree": true
+     }
+    ],
+    "texts": [
+     {
+      "family": "labels text",
+      "agree": false,
+      "onlyVendor": [
+       "                      W-VWAP",
+       " dHigh",
+       " dLow",
+       " dOpen",
+       " mHigh",
+       " mLow",
+       " mOpen",
+       " pdEQ",
+       " pdHigh",
+       " pdLow"
+      ],
+      "onlyOurs": []
+     },
+     {
+      "family": "tableCells text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     }
+    ],
+    "colours": [
+     {
+      "family": "lines colour",
+      "agree": true,
+      "slots": 22,
+      "agreeing": 22,
+      "themeRelative": 0,
+      "differing": 0,
+      "undecodable": 0,
+      "undrawn": 0,
+      "undrawnDiffering": 0,
+      "first": null,
+      "firstUndrawn": null
+     },
+     {
+      "family": "labels colour",
+      "agree": true,
+      "slots": 6,
+      "agreeing": 6,
+      "themeRelative": 0,
+      "differing": 0,
+      "undecodable": 0,
+      "undrawn": 0,
+      "undrawnDiffering": 0,
+      "first": null,
+      "firstUndrawn": null
+     },
+     {
+      "family": "tables colour",
+      "agree": true,
+      "slots": 1,
+      "agreeing": 1,
+      "themeRelative": 0,
+      "differing": 0,
+      "undecodable": 0,
+      "undrawn": 0,
+      "undrawnDiffering": 0,
+      "first": null,
+      "firstUndrawn": null
+     },
+     {
+      "family": "tableCells colour",
+      "agree": true,
+      "slots": 2,
+      "agreeing": 2,
+      "themeRelative": 0,
+      "differing": 0,
+      "undecodable": 0,
+      "undrawn": 0,
+      "undrawnDiffering": 0,
+      "first": null,
+      "firstUndrawn": null
+     }
+    ],
+    "colourUnpaired": {
+     "ours": 0,
+     "vendor": 25
+    }
+   },
+   "verdict": "DIVERGE",
+   "reason": "2 of 5 compared items diverge",
+   "verdictWithoutColour": "DIVERGE",
+   "ourNotes": [
+    "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
+   ],
+   "objectsV2": {
+    "verdict": "DIVERGE",
+    "verdictWithoutX": "DIVERGE",
+    "v1": "DIVERGE",
+    "pairedNothing": false,
+    "differsOnlyByCreationOrder": false,
+    "reason": "2 object families differ field by field (first: lines y1 of line #212151 — vendor 763.04, ours 753.98); x: 0 graded (0 differ), 47 not resolvable to a bar (the capture records no x table (taken before U13)); v1: 3 object families differ (count or text); colours agree on 31 paired slots; coordinates are NOT compared by v1; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
+    "first": {
+     "family": "lines",
+     "field": "y1",
+     "vendor": 763.04,
+     "ours": 753.98,
+     "vendorId": 425070,
+     "ourId": 212151,
+     "where": "line #212151"
+    },
+    "firstWithoutX": {
+     "family": "lines",
+     "field": "y1",
+     "vendor": 763.04,
+     "ours": 753.98,
+     "vendorId": 425070,
+     "ourId": 212151,
+     "where": "line #212151"
+    },
+    "x": {
+     "graded": 0,
+     "agreeing": 0,
+     "differing": 0,
+     "missing": 47,
+     "missingWhy": {
+      "the capture records no x table (taken before U13)": 47
+     },
+     "incompleteFamilies": []
+    },
+    "families": [
+     {
+      "family": "lines",
+      "paired": 22,
+      "unpairedVendor": 1,
+      "unpairedOurs": 0,
+      "graded": 132,
+      "agreeing": 81,
+      "differing": 51,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {
+       "x1": {
+        "agree": 0,
+        "differ": 0,
+        "notGraded": 22
+       },
+       "y1": {
+        "agree": 2,
+        "differ": 20,
+        "notGraded": 0
+       },
+       "x2": {
+        "agree": 0,
+        "differ": 0,
+        "notGraded": 22
+       },
+       "y2": {
+        "agree": 2,
+        "differ": 20,
+        "notGraded": 0
+       },
+       "extend": {
+        "agree": 22,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "style": {
+        "agree": 16,
+        "differ": 6,
+        "notGraded": 0
+       },
+       "width": {
+        "agree": 22,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "color": {
+        "agree": 17,
+        "differ": 5,
+        "notGraded": 0
+       }
+      },
+      "first": {
+       "field": "y1",
+       "vendor": 763.04,
+       "ours": 753.98,
+       "vendorId": 425070,
+       "ourId": 212151,
+       "where": "line #212151"
+      },
+      "firstWithoutX": {
+       "field": "y1",
+       "vendor": 763.04,
+       "ours": 753.98,
+       "vendorId": 425070,
+       "ourId": 212151,
+       "where": "line #212151"
+      },
+      "agree": false,
+      "agreeWithoutX": false,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 44,
+       "missingWhy": {
+        "the capture records no x table (taken before U13)": 44
+       },
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "labels",
+      "paired": 3,
+      "unpairedVendor": 24,
+      "unpairedOurs": 0,
+      "graded": 27,
+      "agreeing": 23,
+      "differing": 4,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {
+       "x": {
+        "agree": 0,
+        "differ": 0,
+        "notGraded": 3
+       },
+       "y": {
+        "agree": 2,
+        "differ": 1,
+        "notGraded": 0
+       },
+       "yloc": {
+        "agree": 3,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "text": {
+        "agree": 2,
+        "differ": 1,
+        "notGraded": 0
+       },
+       "style": {
+        "agree": 3,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "size": {
+        "agree": 3,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "textalign": {
+        "agree": 3,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "tooltip": {
+        "agree": 3,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "color": {
+        "agree": 2,
+        "differ": 1,
+        "notGraded": 0
+       },
+       "textcolor": {
+        "agree": 2,
+        "differ": 1,
+        "notGraded": 0
+       }
+      },
+      "first": {
+       "field": "y",
+       "vendor": 753.67,
+       "ours": 754.13,
+       "vendorId": 425115,
+       "ourId": 212173,
+       "where": "label #212173"
+      },
+      "firstWithoutX": {
+       "field": "y",
+       "vendor": 753.67,
+       "ours": 754.13,
+       "vendorId": 425115,
+       "ourId": 212173,
+       "where": "label #212173"
+      },
+      "agree": false,
+      "agreeWithoutX": false,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 3,
+       "missingWhy": {
+        "the capture records no x table (taken before U13)": 3
+       },
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "boxes",
+      "paired": 0,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 0,
+      "agreeing": 0,
+      "differing": 0,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {},
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "tables",
+      "paired": 1,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 6,
+      "agreeing": 6,
+      "differing": 0,
+      "notGraded": 2,
+      "undecoded": {},
+      "byField": {
+       "position": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "columns": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "rows": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "frame_width": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "border_width": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "bgcolor": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "frame_color": {
+        "agree": 0,
+        "differ": 0,
+        "notGraded": 1
+       },
+       "border_color": {
+        "agree": 0,
+        "differ": 0,
+        "notGraded": 1
+       }
+      },
+      "first": null,
+      "firstWithoutX": null,
+      "agree": true,
+      "agreeWithoutX": true,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "tableCells",
+      "paired": 1,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 8,
+      "agreeing": 8,
+      "differing": 0,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {
+       "text": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "text_halign": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "text_valign": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "text_size": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "tooltip": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "text_font_family": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "text_color": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "bgcolor": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       }
+      },
+      "first": null,
+      "firstWithoutX": null,
+      "agree": true,
+      "agreeWithoutX": true,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "linefills",
+      "paired": 0,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 0,
+      "agreeing": 0,
+      "differing": 0,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {},
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     }
+    ],
+    "ungraded": {
+     "lines": [
+      "xloc",
+      "force_overlay"
+     ],
+     "labels": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "boxes": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "tables": [
+      "force_overlay"
+     ],
+     "tableCells": [
+      "width",
+      "height",
+      "text_formatting",
+      "colspan",
+      "rowspan"
+     ],
+     "linefills": []
+    }
+   }
   },
   {
    "file": "tests/fixtures/vendor/harness/mtf-watchlist-charts-anan-rddt-1d-2026-11-14.json",
