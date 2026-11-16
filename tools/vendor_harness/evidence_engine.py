@@ -1292,6 +1292,13 @@ PINS_SRC = RT_DIR / "brokerPins.json"
 PINS_OUT = RT_DIR / "brokerPins.resolved.json"
 PINS_SCHEMA = "uct.broker-pins/v1"
 PINS_RESOLVED_SCHEMA = "uct.broker-pins.resolved/v1"
+#: U14: one verdict file per graded strategy capture, written by the strategy harness
+#: (`__tests__/vendorHarness/strategyHarness.js`) and kept current by its rail
+#: (`strategyGrading.test.js` re-grades every one at today's engine and compares).
+STRATEGY_VERDICTS_DIR = DOCS / "vendor-harness" / "strategy-verdicts"
+STRATEGY_VERDICT_SCHEMA = "uct.strategy-verdict/v1"
+FILLS_REFUSED = "MATCH-WITHOUT-FILLS"
+NOT_EXERCISED = "MATCH-WITHOUT-EXERCISING-THE-RULE"
 
 
 class PinResolveError(Exception):
@@ -1339,11 +1346,19 @@ def settings_property_table(path: pathlib.Path = STRATEGY_CAPTURE_MJS) -> dict:
     text = pathlib.Path(path).read_text(encoding="utf-8")
     out = {}
     for key in SETTINGS_DEFAULTS:
-        m = re.search(r"\{ key: '" + re.escape(key) + r"', name: (['\"])(.*?)\1, param: (null|'(\w+)'), kind: '(\w+)'", text)
+        m = re.search(r"\{ key: '" + re.escape(key) + r"', name: (['\"])(.*?)\1, param: (null|'(\w+)'), kind: '(\w+)'([^\n]*)", text)
         if not m:
             raise PinResolveError(f"strategy_capture.mjs PROPERTY_TABLE names no `{key}` (name, param, kind)")
-        out[key] = {"name": m.group(2), "param": m.group(4), "kind": m.group(5)}
+        since = re.search(r"sinceVersion: (\d+)", m.group(6))
+        out[key] = {"name": m.group(2), "param": m.group(4), "kind": m.group(5),
+                    "sinceVersion": int(since.group(1)) if since else None}
     return out
+
+
+def _pine_version(source: str):
+    """The `//@version=N` of a source (strategy_capture.mjs::pineVersionOf's rule), or None."""
+    m = re.search(r"^[ \t]*//[ \t]*@version[ \t]*=[ \t]*(\d+)", str(source or ""), re.M)
+    return int(m.group(1)) if m else None
 
 
 def _strategy_call_args(source: str):
@@ -1465,7 +1480,14 @@ def settings_readback_ok(row: dict, source: str, table: dict) -> bool:
     if not isinstance(props, list):
         return False
     by_name = {" ".join(str(p.get("name", "")).split()).lower(): p for p in props if isinstance(p, dict)}
+    version = _pine_version(source)
     for key, want in expected.items():
+        since = table[key].get("sinceVersion")
+        if since is not None and version is not None and version < since:
+            # U14: the input does not exist below `sinceVersion` (PROPERTY_TABLE, measured on s25 / s26), so the
+            # run takes the R6 default and there is nothing to read back. A source with no //@version is still
+            # held to every input (fail closed).
+            continue
         p = by_name.get(" ".join(table[key]["name"].split()).lower())
         if p is None or "value" not in p or not _same(p["value"], want):
             return False
@@ -1487,22 +1509,61 @@ def committed_sources_by_sha() -> dict:
     return out
 
 
+def read_strategy_verdicts(directory: pathlib.Path = STRATEGY_VERDICTS_DIR) -> list:
+    """Every committed strategy verdict file, as a pin row. A file that is not a verdict of this
+    schema, or whose name is not its own capture id, is an ERROR (never skipped: a verdict the
+    resolve step cannot read could be the one that un-pins a rule)."""
+    rows = []
+    directory = pathlib.Path(directory)
+    if not directory.exists():
+        return rows
+    for f in sorted(directory.glob("*.json")):
+        try:
+            d = json.loads(f.read_text(encoding="utf-8"))
+        except ValueError as e:
+            raise PinResolveError(f"{f.name}: not JSON ({e})") from e
+        if not isinstance(d, dict) or d.get("schema") != STRATEGY_VERDICT_SCHEMA:
+            raise PinResolveError(f"{f.name}: not a {STRATEGY_VERDICT_SCHEMA} verdict")
+        if d.get("captureId") != f.stem:
+            raise PinResolveError(f"{f.name}: names capture {d.get('captureId')!r}, not its own file name")
+        if not isinstance(d.get("rulesExercised"), list):
+            raise PinResolveError(f"{f.name}: rulesExercised must be a list")
+        rows.append(d)
+    return rows
+
+
+def pin_rows(ledger: pathlib.Path = LEDGER, verdicts_dir: pathlib.Path = STRATEGY_VERDICTS_DIR) -> list:
+    """What the resolve step reads: the evidence ledger's rows and the strategy verdict files."""
+    return read_ledger_rows(ledger) + read_strategy_verdicts(verdicts_dir)
+
+
 def resolve_pins(pins: dict, ledger_rows: list, sources: dict | None = None) -> dict:
     """A rule is kept with its fixtures ONLY when every committed verdict for every one of those
     fixtures is MATCH. A DIVERGE or INCONCLUSIVE verdict (or any non-MATCH) un-pins the rule; a
     fixture with NO committed verdict, an empty fixture list or a malformed source is an ERROR (a
     missing fixture fails, it never silently un-pins). A MATCH row also needs its settings read-back
     to show what its own source asks for (`settings_readback_ok`); without it the row is not MATCH.
-    `sources` ({sha256: text}) defaults to the committed probes and corpus."""
+    `sources` ({sha256: text}) defaults to the committed probes and corpus.
+
+    U14 (D1, pin before serve: "a rule is pinned only when every capture that exercises it MATCHes"):
+      * a fixture pins a rule only when its row says it EXERCISED that rule (`rulesExercised`, what
+        our broker reached on the capture); a row that states nothing it exercised pins nothing;
+      * a strategy verdict pins only when it graded the fills (`graded.fills`), not the trade list alone;
+      * ANY committed row that exercised the rule and is not MATCH un-pins it, whether or not
+        `brokerPins.json` lists that capture."""
     if not isinstance(pins, dict) or pins.get("schema") != PINS_SCHEMA or not isinstance(pins.get("rules"), dict):
         raise PinResolveError(f"brokerPins.json must be {{schema: {PINS_SCHEMA!r}, rules: {{...}}}}")
     pinned_ids = {i for ids in pins["rules"].values() if isinstance(ids, list) for i in ids}
     verdicts = {}
+    exercised_by = {}   # rule -> [verdict of every row that exercised it]
     table = None
     for r in ledger_rows:
         cid = r.get("captureId")
         if cid:
             v = r.get("verdict")
+            if el.is_match(v) and r.get("schema") == STRATEGY_VERDICT_SCHEMA \
+                    and not (isinstance(r.get("graded"), dict) and r["graded"].get("fills") is True):
+                v = FILLS_REFUSED   # a trade-list match is not a fill-by-fill match
             # ⛔ L7: only a PROVEN-exact MATCH pins a broker rule; MATCH_SUBSTITUTED un-pins it, like any
             # non-MATCH (`el.is_match`)
             if el.is_match(v) and cid in pinned_ids:
@@ -1511,7 +1572,10 @@ def resolve_pins(pins: dict, ledger_rows: list, sources: dict | None = None) -> 
                     sources = committed_sources_by_sha()
                 if not settings_readback_ok(r, sources.get(r.get("sourceSha256")), table):
                     v = SETTINGS_REFUSED   # design 5.1: the precondition failed, so not MATCH
-            verdicts.setdefault(cid, []).append(v)
+            ex = r.get("rulesExercised")
+            verdicts.setdefault(cid, []).append((v, set(ex) if isinstance(ex, list) else None))
+            for rule in (ex if isinstance(ex, list) else []):
+                exercised_by.setdefault(rule, []).append(v)
     kept = {}
     for rule in sorted(pins["rules"]):
         ids = pins["rules"][rule]
@@ -1520,7 +1584,9 @@ def resolve_pins(pins: dict, ledger_rows: list, sources: dict | None = None) -> 
         missing = [i for i in ids if i not in verdicts]
         if missing:
             raise PinResolveError(f"rule {rule!r}: no committed verdict for fixture(s) {sorted(missing)}")
-        if all(el.is_match(v) for i in ids for v in verdicts[i]):
+        listed_ok = all(el.is_match(v) and ex is not None and rule in ex for i in ids for v, ex in verdicts[i])
+        every_exerciser_ok = all(el.is_match(v) for v in exercised_by.get(rule, []))
+        if listed_ok and every_exerciser_ok:
             kept[rule] = sorted(set(ids))
     return {"schema": PINS_RESOLVED_SCHEMA, "rules": kept}
 
@@ -1531,9 +1597,9 @@ def canonical_pins_text(doc: dict) -> str:
     return json.dumps(doc, sort_keys=True, separators=(",", ":"), ensure_ascii=True) + "\n"
 
 
-def cmd_pins(check: bool = False, src=PINS_SRC, out=PINS_OUT, ledger=LEDGER) -> int:
+def cmd_pins(check: bool = False, src=PINS_SRC, out=PINS_OUT, ledger=LEDGER, verdicts_dir=STRATEGY_VERDICTS_DIR) -> int:
     text = canonical_pins_text(resolve_pins(json.loads(pathlib.Path(src).read_text(encoding="utf-8")),
-                                            read_ledger_rows(ledger)))
+                                            pin_rows(ledger, verdicts_dir)))
     out = pathlib.Path(out)
     if check:
         have = out.read_bytes().decode("utf-8").replace("\r\n", "\n") if out.exists() else ""  # autocrlf checkouts
