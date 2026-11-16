@@ -1,5 +1,5 @@
 {
-  "fingerprint": "",
-  "posted_at": "2026-11-16T21:41:56.277893+00:00",
-  "reason": "morning summary"
+  "fingerprint": "pipeline:master -> production=10 master commits not promoted yet (oldest landed 69 min ago): more than 60 min outside any hold and checks are still running",
+  "posted_at": "2026-11-16T23:16:06.202626+00:00",
+  "reason": "new stuck item"
 }
