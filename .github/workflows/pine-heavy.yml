@@ -19,6 +19,15 @@
 # unless the files the legs ran equal `vitest list` over the roots, each exactly once
 # (tools/ci_vitest_union.py). A folder added under engine/ and named by no leg is red there.
 #
+# ⚰️ DERIVED FILES AND COVERAGE (2026-11-16). The docs-only #1435 changed coverage-map.json, from which
+# docs/pine/vendor-harness/capture-queue.json is DERIVED; `evidence_engine.py queue --check` went red on
+# master and nothing noticed, because no job ran it and this workflow did not trigger on docs/pine/**.
+# So `derived-evidence` runs `queue --check` and `pins --check`, and the paths they read trigger it.
+# And a script that transferred could stop transferring with every check green (the census ran on the
+# dev PC only): `coverage-ratchet` runs the member-door census over corpus/committed, one leg per lane,
+# and fails when a script in docs/pine/coverage-ratchet.json stops transferring
+# (tools/pine_coverage/coverage_ratchet.py; how to update the snapshot: docs/pine/COVERAGE-MAP.md).
+#
 # No secrets, no pull_request_target, read-only token. tests/test_ci_pine_heavy.py rails this file.
 name: pine heavy (PR, parallel)
 
@@ -39,6 +48,19 @@ on:
       - 'tools/ci_offline.sh'
       - 'tools/ci_vitest_union.py'
       - 'tools/ci_mutant_runner.py'
+      # what `derived-evidence` (evidence_engine.py queue / pins) and `coverage-ratchet` read;
+      # tests/test_ci_pine_heavy.py derives the list from the tools' own path constants
+      - 'docs/pine/capture-queue-*.md'
+      - 'docs/pine/coverage-map.json'
+      - 'docs/pine/coverage-ratchet.json'
+      - 'docs/pine/vendor-harness/**'
+      - 'docs/pine/probes/**'
+      - 'tools/visual_conformance/probes/**'
+      - 'tools/pine_coverage/**'
+      - 'tools/pine_survey/corpus_licence.py'
+      - 'corpus/**'
+      - 'api/services/pine_capabilities.py'
+      - 'app/src/components/chart/builder/memberPane/**'
   workflow_dispatch:
     inputs:
       ref:
@@ -331,6 +353,93 @@ jobs:
       - name: pytest the CI rails
         run: python -m pytest tests/test_ci_cost_rails.py tests/test_ci_pine_heavy.py tests/test_run_gate_pine_rails.py -q -p no:cacheprovider
 
+  # ── the derived evidence is what its tool derives (capture queue, broker pins) ───────────────
+  # Both checks always run; the job fails when either does (each exit is kept, neither swallowed).
+  derived-evidence:
+    name: derived evidence is current (capture queue, broker pins)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: actions/checkout@v4
+        with:
+          path: ${{ env.CI_TOOLS }}
+          sparse-checkout: |
+            .github/actions
+            tools
+      - uses: ./.pine-heavy-ci/.github/actions/pine-heavy-setup
+      - name: evidence_engine.py queue --check and pins --check (offline)
+        run: |
+          set -euo pipefail
+          q=0; p=0
+          bash "$CI_TOOLS/tools/ci_offline.sh" python3 tools/vendor_harness/evidence_engine.py queue --check || q=$?
+          bash "$CI_TOOLS/tools/ci_offline.sh" python3 tools/vendor_harness/evidence_engine.py pins --check || p=$?
+          echo "derived evidence: queue --check exit $q, pins --check exit $p" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ "$q" -ne 0 ]; then echo "::error::docs/pine/vendor-harness/capture-queue.json is not what its tool derives: run 'python tools/vendor_harness/evidence_engine.py queue' and commit the file in this PR"; fi
+          if [ "$p" -ne 0 ]; then echo "::error::brokerPins.resolved.json is not the resolution of its sources: run 'python tools/vendor_harness/evidence_engine.py pins' and commit the file in this PR"; fi
+          [ "$q" -eq 0 ] && [ "$p" -eq 0 ]
+
+  # ── the coverage ratchet over the COMMITTED corpus, one leg per lane ─────────────────────────
+  # The member-door census (coverageMapDoorCensus.measure.test.js through run_census.drive, cap 1) over
+  # corpus/committed only, compared with docs/pine/coverage-ratchet.json. FAILS when a script there stops
+  # transferring; REPORTS newly transferring ones with the command that adds them. Its vitest run is a
+  # measurement, not a leg of the partition: its report is never uploaded as pine-heavy-vitest-*, so the
+  # union rail still sees each file once (from the engine-ast legs).
+  coverage-ratchet:
+    name: coverage ratchet, ${{ matrix.lane }} lane
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: [production, runtime-on]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: actions/checkout@v4
+        with:
+          path: ${{ env.CI_TOOLS }}
+          sparse-checkout: |
+            .github/actions
+            tools
+      - uses: ./.pine-heavy-ci/.github/actions/pine-heavy-setup
+      - name: census over corpus/committed, compared with docs/pine/coverage-ratchet.json (offline)
+        env:
+          LANE: ${{ matrix.lane }}
+        run: |
+          set -euo pipefail
+          out="ratchet-out/$LANE"
+          start=$(date +%s); rc=0
+          bash "$CI_TOOLS/tools/ci_offline.sh" python3 tools/pine_coverage/coverage_ratchet.py --lane "$LANE" --out "$out" --summary "$GITHUB_STEP_SUMMARY" || rc=$?
+          echo "LEG coverage-ratchet-$LANE wall: $(( $(date +%s) - start )) s (exit $rc)" | tee -a "$GITHUB_STEP_SUMMARY"
+          # ⛔ the tool's exit is not taken on trust: an exit 0 must come with a result that measured
+          # every committed script (a wrapper or a refactor that exits 0 without measuring is red here)
+          python3 - "$out/ratchet-result.json" "$rc" <<'EOF'
+          import json, sys
+          path, rc = sys.argv[1], int(sys.argv[2])
+          try:
+              r = json.load(open(path, encoding="utf-8"))
+          except (OSError, ValueError) as e:
+              print(f"::error::no readable ratchet result at {path} ({e}): the ratchet never reached a verdict")
+              sys.exit(1)
+          whole = r.get("verdict") == "PASS" and (r.get("expected") or 0) > 0 and r.get("measured") == r.get("expected")
+          if rc == 0 and not whole:
+              print(f"::error::the ratchet exited 0 but its result says {r.get('verdict')} after measuring "
+                    f"{r.get('measured')} of {r.get('expected')} committed scripts")
+              sys.exit(1)
+          EOF
+          exit $rc
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          # the rows a builder downloads to update the snapshot (the command is in the step summary)
+          name: pine-coverage-ratchet-${{ matrix.lane }}
+          path: ratchet-out/${{ matrix.lane }}/
+          if-no-files-found: error
+
   # ── 4. mutants, only when asked (workflow_dispatch with a manifest) ─────────────────────────
   mutants:
     name: mutants (${{ inputs.mutants_manifest }})
@@ -375,15 +484,15 @@ jobs:
   # one named result to watch
   verdict:
     name: pine heavy
-    needs: [vitest, harness-runtime-on, pytest, union, rails, mutants]
+    needs: [vitest, harness-runtime-on, pytest, union, rails, derived-evidence, coverage-ratchet, mutants]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Every leg passed (mutants may be skipped)
         run: |
-          echo "vitest=${{ needs.vitest.result }} harness-runtime-on=${{ needs.harness-runtime-on.result }} pytest=${{ needs.pytest.result }} union=${{ needs.union.result }} rails=${{ needs.rails.result }} mutants=${{ needs.mutants.result }}"
-          for r in "${{ needs.vitest.result }}" "${{ needs.harness-runtime-on.result }}" "${{ needs.pytest.result }}" "${{ needs.union.result }}" "${{ needs.rails.result }}"; do
+          echo "vitest=${{ needs.vitest.result }} harness-runtime-on=${{ needs.harness-runtime-on.result }} pytest=${{ needs.pytest.result }} union=${{ needs.union.result }} rails=${{ needs.rails.result }} derived-evidence=${{ needs.derived-evidence.result }} coverage-ratchet=${{ needs.coverage-ratchet.result }} mutants=${{ needs.mutants.result }}"
+          for r in "${{ needs.vitest.result }}" "${{ needs.harness-runtime-on.result }}" "${{ needs.pytest.result }}" "${{ needs.union.result }}" "${{ needs.rails.result }}" "${{ needs.derived-evidence.result }}" "${{ needs.coverage-ratchet.result }}"; do
             test "$r" = success || exit 1
           done
           case "${{ needs.mutants.result }}" in success|skipped) ;; *) exit 1 ;; esac

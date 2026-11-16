@@ -36,7 +36,7 @@ on:
         default: ""
         type: string
       vitest_shards:
-        description: "split the vitest files over N runners (1-10)"
+        description: "split the vitest files over N runners (1-6; at most 4 run at once)"
         required: false
         default: "1"
         type: string
@@ -114,17 +114,31 @@ jobs:
           sudo mkdir -p /data && sudo chown "$(id -u):$(id -g)" /data
           python -m pip install --quiet -r requirements.txt
           (cd app && npm ci --no-audit --no-fund)
+      # A RED TEST RESULT IS DATA, NOT A FAILED RUN (2026-11-16): every failed run emails the owner, and sessions send
+      # in-progress work here on purpose. The test step may fail without failing the job; its outcome is written to a
+      # verdict file that tools/remote_tests.py reads (red tests -> exit 1). Only the lane itself (checkout, install,
+      # validation) can fail the run.
       - name: pytest
+        id: t
+        continue-on-error: true
         env:
           RT_PYTEST: ${{ inputs.pytest }}
         run: |
           set -o pipefail
           python -m pytest $RT_PYTEST -q -p no:cacheprovider -o junit_family=xunit2 --junitxml=remote-pytest-junit.xml 2>&1 | tee remote-pytest.log
+      - name: Record the verdict
+        if: always()
+        env:
+          OUTCOME: ${{ steps.t.outcome }}
+        run: |
+          echo "$OUTCOME" > remote-pytest-verdict.txt
+          echo "### pytest: $OUTCOME" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: remote-pytest
           path: |
+            remote-pytest-verdict.txt
             remote-pytest-junit.xml
             remote-pytest.log
           if-no-files-found: ignore
@@ -138,6 +152,10 @@ jobs:
     timeout-minutes: 45
     strategy:
       fail-fast: false
+      # SHARE THE POOL (2026-11-16): the account runs 40 jobs at once and the master deploy gate needs 14 of them.
+      # Within an hour of launch, several sessions' remote runs plus PR CI queued two gates behind them. One remote
+      # run uses at most 4 vitest runners at a time (plus pytest), so a burst of session runs cannot starve deploys.
+      max-parallel: 4
       matrix:
         shard: ${{ fromJSON(needs.plan.outputs.shards) }}
     steps:
@@ -164,6 +182,8 @@ jobs:
         working-directory: app
         run: npm ci --no-audit --no-fund
       - name: vitest
+        id: t
+        continue-on-error: true
         working-directory: app
         env:
           RT_VITEST: ${{ inputs.vitest }}
@@ -182,11 +202,20 @@ jobs:
           echo "shard $RT_SHARD/$of: $(wc -l < ../rt-shard.files) of $total files"
           npx vitest run $(cat ../rt-shard.files) --reporter=default --reporter=junit \
             --outputFile.junit=../remote-vitest-junit-$RT_SHARD.xml 2>&1 | tee ../remote-vitest-$RT_SHARD.log
+      - name: Record the verdict
+        if: always()
+        env:
+          OUTCOME: ${{ steps.t.outcome }}
+          RT_SHARD: ${{ matrix.shard }}
+        run: |
+          echo "$OUTCOME" > "remote-vitest-verdict-$RT_SHARD.txt"
+          echo "### vitest shard $RT_SHARD: $OUTCOME" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: remote-vitest-${{ matrix.shard }}
           path: |
+            remote-vitest-verdict-${{ matrix.shard }}.txt
             remote-vitest-junit-${{ matrix.shard }}.xml
             remote-vitest-${{ matrix.shard }}.log
           if-no-files-found: ignore

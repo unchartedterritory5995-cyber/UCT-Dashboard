@@ -283,6 +283,21 @@ CREATE INDEX IF NOT EXISTS idx_definition_listings_owner
   ON definition_listings(user_id, def_id, id DESC);
 CREATE INDEX IF NOT EXISTS idx_definition_listings_feed
   ON definition_listings(id DESC);
+
+-- ⭐ MODERATION (2026-11-16): UCT taking a listing out of the library. APPEND-ONLY like
+-- the listing it overrides; `down` 1 takes it down, 0 lifts that. Keyed by the OWNER of
+-- the listed definition, so it leaves with their account. No admin id is stored (it
+-- would be a second member id this table holds); the admin is in the server log.
+CREATE TABLE IF NOT EXISTS definition_listing_takedowns (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id    TEXT    NOT NULL,
+  def_id     TEXT    NOT NULL,
+  down       INTEGER NOT NULL,
+  reason     TEXT    NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_definition_listing_takedowns_owner
+  ON definition_listing_takedowns(user_id, def_id, id DESC);
 """
 
 
@@ -4309,9 +4324,14 @@ def _newest_listing(c: sqlite3.Connection, user_id: Any, def_id: str):
     ).fetchone()
 
 
-def publish(user_id: Any, def_id: str) -> Optional[dict]:
+def publish(user_id: Any, def_id: str, *, role: Any = None) -> Optional[dict]:
     """List one of my definitions in the public library. ``None`` if there is
     nothing live to publish.
+
+    ⭐ MODERATION (2026-11-16). A definition UCT took down cannot be listed again by
+    its owner (``taken-down``), and one member can have at most
+    ``LISTINGS_PER_MEMBER_MAX`` definitions listed at once (``listing-limit``). An
+    admin is exempt from the cap: the house indicators are published from one.
 
     ⭐ IT MINTS THE SHARE IF THERE ISN'T ONE, because a listing nobody can open is
     a broken row. That is not a hidden side effect: publishing to a library IS
@@ -4332,6 +4352,14 @@ def publish(user_id: Any, def_id: str) -> Optional[dict]:
         why = consumer_refusal("listing", row.get("requirements"))
         if why:
             raise ShareRefused("requirements", why)
+    with contextlib.closing(_connect()) as c:
+        _ensure(c)
+        if _taken_down(c, user_id, def_id):
+            raise ShareRefused("taken-down", TAKEN_DOWN_MESSAGE)
+        if str(role or "") != "admin":
+            mine = _listed_def_ids(c, user_id)
+            if def_id not in mine and len(mine) >= LISTINGS_PER_MEMBER_MAX:
+                raise ShareRefused("listing-limit", LISTING_LIMIT_MESSAGE)
     shared = share(user_id, def_id)
     if shared is None:
         return None
@@ -4346,6 +4374,100 @@ def publish(user_id: Any, def_id: str) -> Optional[dict]:
     return {"def_id": def_id, "listed": True, "token": shared["token"],
             "version": shared["version"], "table_version": shared["table_version"],
             "includesSource": shared["includesSource"]}
+
+
+# ═══ moderation ═══════════════════════════════════════════════════════════
+#
+# Cheap before members arrive and costly after (Studio plan, section 8): UCT can take a
+# listing down, a member cannot list without bound, and a script pasted from somewhere
+# else carries the licence its author put on it.
+
+#: How many definitions one member may have LISTED at once. Unlisting frees a slot.
+LISTINGS_PER_MEMBER_MAX = 20
+
+#: The closed set of reasons an admin gives for a takedown (a free-text field would be a
+#: place for member data and for wording a member reads as an accusation).
+TAKEDOWN_REASONS = ("licence", "misleading", "broken", "abuse", "other")
+
+TAKEN_DOWN_MESSAGE = ("UCT took this indicator out of the library, so it cannot be listed "
+                      "again. Your copy and any link you sent still work.")
+LISTING_LIMIT_MESSAGE = ("You already have %d indicators in the library, the most one member "
+                         "can list at once. Take one out to list this one." % LISTINGS_PER_MEMBER_MAX)
+
+
+def _taken_down(c: sqlite3.Connection, user_id: Any, def_id: str) -> bool:
+    """Is UCT's last word on this listing \"down\"?"""
+    row = c.execute(
+        "SELECT down FROM definition_listing_takedowns WHERE user_id=? AND def_id=?"
+        " ORDER BY id DESC LIMIT 1", (str(user_id), def_id)).fetchone()
+    return bool(row is not None and row["down"])
+
+
+def _listed_def_ids(c: sqlite3.Connection, user_id: Any) -> set:
+    """The member's definitions whose newest listing word is \"listed\"."""
+    rows = c.execute(
+        "SELECT l.def_id FROM definition_listings l"
+        " JOIN (SELECT def_id, MAX(id) AS top FROM definition_listings WHERE user_id=?"
+        "        GROUP BY def_id) m ON m.top=l.id WHERE l.listed=1", (str(user_id),)).fetchall()
+    return {r["def_id"] for r in rows}
+
+
+def _owner_of_token(c: sqlite3.Connection, token: str) -> Optional[tuple]:
+    """(owner, def_id) of a share token, revoked or not (a takedown must still be
+    recordable, and liftable, for a link its owner turned off)."""
+    if not isinstance(token, str) or not token.startswith("sh_"):
+        return None
+    row = c.execute("SELECT user_id, def_id FROM definition_shares WHERE token=?"
+                    " ORDER BY id DESC LIMIT 1", (token,)).fetchone()
+    return (row["user_id"], row["def_id"]) if row is not None else None
+
+
+def take_down(token: str, reason: str, *, down: bool = True) -> Optional[dict]:
+    """UCT takes a library entry down (``down=True``) or lifts that (``False``), named
+    by the token the library shows. ``None`` for a token this store never minted.
+
+    ⛔ IT DOES NOT TOUCH THE OWNER'S LISTING ROWS OR THEIR LINK. The library stops
+    showing the entry and the owner cannot list it again; their own copy, the link
+    they sent, and every installed copy are untouched. Lifting it restores exactly
+    what the owner last asked for.
+    """
+    if reason not in TAKEDOWN_REASONS:
+        raise ValueError("reason must be one of: " + ", ".join(TAKEDOWN_REASONS))
+    with contextlib.closing(_connect()) as c:
+        _ensure(c)
+        owner = _owner_of_token(c, token)
+        if owner is None:
+            return None
+        with c:
+            c.execute("INSERT INTO definition_listing_takedowns"
+                      " (user_id, def_id, down, reason, created_at) VALUES (?,?,?,?,?)",
+                      (str(owner[0]), owner[1], 1 if down else 0, reason, int(time.time())))
+    return {"token": token, "taken_down": bool(down), "reason": reason}
+
+
+#: A Pine header's licence line: "... is subject to the terms of the <licence> at <url>".
+_LICENCE_LINE = re.compile(r"subject to the terms of (?:the )?(.{3,90}?)(?:\s+at\s+\S+)?\s*$", re.I)
+
+
+def licence_of(pine_source: Any) -> Optional[str]:
+    """The licence a pasted script's author declared in its header comments, or None.
+
+    ⭐ ONLY WHAT THE AUTHOR WROTE. Read from the comment lines before the first line of
+    code, so a string in the script body cannot pose as a licence; nothing is inferred
+    when the header says nothing.
+    """
+    if not isinstance(pine_source, str):
+        return None
+    for line in pine_source.splitlines()[:40]:
+        s = line.strip()
+        if not s:
+            continue
+        if not s.startswith("//"):
+            break
+        m = _LICENCE_LINE.search(s.lstrip("/").strip())
+        if m:
+            return m.group(1).strip().rstrip(".")
+    return None
 
 
 def unpublish(user_id: Any, def_id: str) -> bool:
@@ -4399,13 +4521,21 @@ def listing_status(user_id: Any, def_id: str) -> dict:
     with contextlib.closing(_connect()) as c:
         _ensure(c)
         row = _newest_listing(c, user_id, def_id)
+        down = _taken_down(c, user_id, def_id)
     asked = bool(row is not None and row["listed"])
     share = share_status(user_id, def_id)
     share_live = share is not None
     # ⛔ THE SAME COMPARISON `public_library` MAKES, against the same helper.
     stale = bool(share_live and int(share["table_version"]) != _current_table_version())
-    return {"def_id": def_id, "listed": asked and share_live and not stale,
-            "requested": asked, "shared": share_live, "stale_grammar": stale}
+    return {"def_id": def_id, "listed": asked and share_live and not stale and not down,
+            "requested": asked, "shared": share_live, "stale_grammar": stale,
+            "taken_down": down, "licence": _licence_of_live(user_id, def_id)}
+
+
+def _licence_of_live(user_id: Any, def_id: str) -> Optional[str]:
+    """The licence the live version's script declares, for the owner's publish panel."""
+    row = get(user_id, def_id, with_source=True)
+    return licence_of(row.get("pine_source")) if row else None
 
 
 #: How many library entries one page returns. ⚠️ A CAP, NOT A DEFAULT A CALLER MAY
@@ -4461,6 +4591,13 @@ def public_library(limit: int = 24, after: Optional[int] = None) -> dict:
             + " ORDER BY l.id DESC LIMIT ?",
             ((cursor, n + 1) if cursor is not None else (n + 1,)),
         ).fetchall()
+        # ⭐ MODERATION: UCT's newest word per listing, read once for the whole page.
+        taken_down = {(r["user_id"], r["def_id"]) for r in c.execute(
+            "SELECT t.user_id, t.def_id FROM definition_listing_takedowns t"
+            " JOIN (SELECT user_id, def_id, MAX(id) AS top FROM definition_listing_takedowns"
+            "        GROUP BY user_id, def_id) m"
+            "   ON m.user_id=t.user_id AND m.def_id=t.def_id AND m.top=t.id"
+            " WHERE t.down=1").fetchall()}
 
     now_version = _current_table_version()
     entries: list[dict] = []
@@ -4472,12 +4609,14 @@ def public_library(limit: int = 24, after: Optional[int] = None) -> dict:
         live = share_status(row["user_id"], row["def_id"])
         if live is None:
             continue
+        if (row["user_id"], row["def_id"]) in taken_down:
+            continue
         if int(live["table_version"]) != now_version:
             continue
         doc = get(row["user_id"], row["def_id"])
         if doc is None or doc.get("deleted_at") is not None:
             continue
-        pinned = get(row["user_id"], row["def_id"], version=live["version"])
+        pinned = get(row["user_id"], row["def_id"], version=live["version"], with_source=True)
         if pinned is None:
             continue
         definition = pinned["definition"]
@@ -4492,6 +4631,8 @@ def public_library(limit: int = 24, after: Optional[int] = None) -> dict:
             "inputs": len(definition.get("inputs") or []),
             "published_at": row["created_at"],
             "ast_hash": live["ast_hash"],
+            # the licence its author declared, when it was pasted as a script (None otherwise)
+            "licence": licence_of(pinned.get("pine_source")),
         })
     # ⛔ THE CURSOR IS THE LAST ROW *EXAMINED*, not the last one returned. Rows
     # drop out for four reasons above, and paging from the last SURVIVOR would

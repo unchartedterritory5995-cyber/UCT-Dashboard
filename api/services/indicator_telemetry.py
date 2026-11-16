@@ -254,6 +254,8 @@ _VALUE_RULES: dict = {
         "origin": frozenset({"native", "imported"}),
         "failure": frozenset({"network", "http_5xx", "http_429", "http_403", "http_402", "http_other"}),
         "import_id": re.compile(r"[A-Za-z0-9_:-]{1,64}"),
+        # the store's own id shape (`user_definitions.DEF_ID_RE`): never a name or a word
+        "def_id": re.compile(r"u_[0-9a-f]{12}"),
     },
 }
 _N = (int, float)
@@ -271,6 +273,8 @@ EVENT_SCHEMAS.update({
         "import_id": (str,), "conversation_id": (str,), "action": (str,),
         "surface": (str,), "kinds": (str,), "origin": (str,), "created": (bool,),
         "failure": (str,), "turns": _N,
+        # ⭐ L7: on 'saved' only, the stored definition's own id (held to its pattern below)
+        "def_id": (str,),
     },
 })
 
@@ -603,6 +607,48 @@ def authoring_demand(days: int = 7, *, top: int = 12) -> dict:
     }
 
 
+def kept_after(min_age_days: int = 7, window_days: int = 30) -> dict:
+    """⭐ L7 (Studio plan, section 7): was it wanted? Of the indicators saved from the dock at
+    least ``min_age_days`` ago (and within ``window_days`` before that), how many are still
+    stored. A member who saved and then deleted it did not want it after all. READ-ONLY."""
+    min_age = max(1, min(int(min_age_days or 7), 60))
+    window = max(1, min(int(window_days or 30), 180))
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT visitor_id, props FROM landing_events WHERE event = 'studio_action'"
+            " AND created_at < datetime('now', ?) AND created_at >= datetime('now', ?)",
+            (f"-{min_age} days", f"-{min_age + window} days"),
+        ).fetchall()
+    finally:
+        conn.close()
+    saved = set()
+    for uid, props in rows:
+        try:
+            p = json.loads(props) if props else {}
+        except ValueError:
+            continue
+        d = p.get("def_id")
+        if p.get("action") == "saved" and isinstance(d, str) and _DEF_ID.fullmatch(d):
+            saved.add((str(uid), d))
+    from api.services import user_definitions  # noqa: PLC0415
+    kept = 0
+    for uid, d in saved:
+        try:
+            row = user_definitions.get(uid, d)
+        except Exception:  # noqa: BLE001 -- one unreadable row costs that row, not the report
+            continue
+        # `get` answers None for a definition its owner deleted (the store's own rule)
+        if row is not None:
+            kept += 1
+    return {"min_age_days": min_age, "window_days": window, "saved": len(saved),
+            "still_stored": kept,
+            "still_stored_rate": round(kept / len(saved), 3) if saved else None}
+
+
+_DEF_ID = re.compile(r"u_[0-9a-f]{12}")
+
+
 def rollout_report(days: int = 7) -> dict:
     """What the rollout cohort is doing with Create Indicator: the two structured
     events above plus the shared spend ledger. READ-ONLY; aggregates only — the
@@ -666,4 +712,6 @@ def rollout_report(days: int = 7) -> dict:
         "shared_pool_today": _pool_state(),
         # ⭐ L6: what could not be built, ranked by distinct members
         "demand": authoring_demand(days),
+        # ⭐ L7: saved from the dock a week or more ago, and still stored
+        "kept_after_7_days": kept_after(7, 30),
     }

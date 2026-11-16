@@ -338,8 +338,12 @@ export async function saveConversation(cur, { acked = false, settings = null, on
     const m = memberSaveError(stored)
     return { ok: false, error: stored.error, stored, entry: { role: 'uct', kind: 'refusal', codes: [m.code], details: [m.detail], lines: ['Not saved.', m.text] } }
   }
+  // ⭐ L7: the stored definition's own id (its strict shape, never a name), so the owner report
+  // can ask a week later whether it is still kept
+  const savedId = stored.row && typeof stored.row.def_id === 'string' && /^u_[0-9a-f]{12}$/.test(stored.row.def_id)
+    ? stored.row.def_id : undefined
   logStudioAction(cur.lineage, 'saved', { surface: 'studio', created: !!stored.created, origin: 'native',
-    kinds: definitionKinds(stored.storedDoc, stored.requests) })
+    kinds: definitionKinds(stored.storedDoc, stored.requests), def_id: savedId })
   // ⛔ BATCH 1 — FROM HERE THE DEFINITION IS SAVED, WHATEVER FOLLOWS.
   if (typeof beforeAttach === 'function') { try { beforeAttach() } catch { /* the preview teardown */ } }
   let attached

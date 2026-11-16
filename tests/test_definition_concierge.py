@@ -2847,7 +2847,7 @@ def test_the_propose_route_is_MOUNTED_and_PAID_GATED_like_every_other(app, conci
     # 2026-10-07 (Phase 4): 18 -> 19 with `POST /{def_id}/fork`, moved with its siblings.
     # 2026-11-13 (WS-I Part 2): 20 -> 21 with `POST /runtime-admission`, moved with its siblings.
     # 2026-11-15 (U5): 21 -> 22 with `GET /capability-worker` (its OWN require_paid, then require_admin in the body).
-    assert len(routes) == 22
+    assert len(routes) == 24
     propose = [r for r in routes if r.path.endswith("/propose")]
     assert len(propose) == 1 and propose[0].methods == {"POST"}
     assert router_mod.require_paid in [d.call for d in propose[0].dependant.dependencies]
