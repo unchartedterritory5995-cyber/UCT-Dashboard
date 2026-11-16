@@ -451,6 +451,35 @@ def _refusal(gate: str, detail: str = "", *, member: Optional[str] = None,
 
 #: UCT conventions the model may ASSUME (and must disclose). Each is pinned to the
 #: file that declares it by ``tests/test_p2_truth_server.py``.
+#: The colour words the assistant is given, read from the SAME file the browser's read-back
+#: names colours from (`readback.js` imports it), so the value written for "green" is one the
+#: member is then told is "green". `tools/web_frontend_reads.py` declares this read.
+COLOUR_WORDS_PATH = (Path(__file__).resolve().parents[2] / "app" / "src" / "components" / "chart"
+                     / "builder" / "authoring" / "colourWords.json")
+
+
+@functools.lru_cache(maxsize=1)
+def colour_words() -> Dict[str, str]:
+    """word -> value, e.g. ``{"green": "#089981"}``. Every value is a 6-digit upper-case hex
+    whose own name in the file is that word (``tests/test_colour_words.py``)."""
+    raw = json.loads(COLOUR_WORDS_PATH.read_text(encoding="utf-8"))
+    words = raw["words"]
+    names = raw["names"]
+    out: Dict[str, str] = {}
+    for word, value in words.items():
+        if not (isinstance(word, str) and re.fullmatch(r"[a-z]{3,12}", word)
+                and isinstance(value, str) and re.fullmatch(r"#[0-9A-F]{6}", value)
+                and names.get(value) == word):
+            raise ValueError(f"colourWords.json: {word!r} -> {value!r} is not a value the read-back names {word!r}")
+        out[word] = value
+    return out
+
+
+def colour_words_text() -> str:
+    """The words as one prompt clause, in the file's own order: ``green #089981, red #F23645``."""
+    return ", ".join(f"{word} {value}" for word, value in colour_words().items())
+
+
 UCT_DEFAULTS: Tuple[Tuple[str, str], ...] = (
     ("RSI length", "14 (nativeRegistry rsi period)"),
     ("RSI overbought / oversold", "70 / 30 (the firm's Overbought (>70) / Oversold (<30) presets and the RSI 70/30 bands)"),
@@ -617,6 +646,10 @@ CONVERSE_SYSTEM_PROMPT = (
     "assumption `text` alone. UCT conventions:\n"
     + "".join(f"      {name}: {value}\n" for name, value in UCT_DEFAULTS)
     + "    A number the member wrote is never an assumption: use it exactly.\n"
+    + "    A colour the member NAMED is written with UCT's own value for that word, exactly: "
+    + colour_words_text()
+    + ". Never a neighbouring shade: green is not teal. A colour the member did not name "
+    "is your choice and needs no assumption.\n"
     "  * IRRELEVANT: anything the definition does not depend on. Never ask about it.\n\n"
     "`note` is optional and is never shown to anyone; what the member should read "
     "goes in `reply`.\n\n"

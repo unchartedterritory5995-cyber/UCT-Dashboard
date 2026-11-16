@@ -1955,6 +1955,12 @@ function ChartToolbar({
             sheetClassName={sheetClassName}
             extraRows={libraryExtraRows}
             onFirstAdd={typeof onIndicatorFirstAdd === 'function' ? handleLibraryFirstAdd : null}
+            /* Create Indicator from the library: the door a phone has (it has no Chart Settings
+               window to reach it through). The same opening the pane's own button makes: the
+               library and the builder close, a fresh studio opens. */
+            onCreateIndicator={canModifyWithIntelligence && typeof onStudioPreview === 'function'
+              ? () => { setLibraryOpen(false); setBuilderOpen(false); setCreateSeed(null); setCreateEditRow(null); setCreateOpen(true) }
+              : null}
             /* 🔴 THE BUILDER'S DOOR ON `/charts` — its SECOND opener, and on the
                charts workspace its ONLY one.
                `ChartSettingsPanel` (below) has held the builder's single entry

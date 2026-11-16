@@ -19,6 +19,7 @@
       "app/public/massive-card-logo.png",
       "app/scripts/build-cot-facts.mjs",
       "app/scripts/build-flow-facts.mjs",
+      "app/src/components/chart/builder/authoring/colourWords.json",
       "app/src/components/chart/builder/authoring/crossContext.json",
       "app/src/components/chart/builder/authoring/patchSchema.json",
       "app/src/components/chart/builder/authoring/preflightRules.json",
