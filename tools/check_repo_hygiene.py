@@ -84,6 +84,10 @@ BIG_ALLOWLIST = {
     "tests/fixtures/vendor/harness/delta-volume-candles-lucf-spy-1d-2026-11-15.json",
     "tests/fixtures/vendor/harness/sub-spy-1d-2026-11-15.json",
     "tests/fixtures/vendor/harness/volume-suite-by-leviathan-spy-1d-2026-11-15.json",
+    # 2026-11-16 (capture night, run ac8): session-highs-and-lows dst-safe on AMEX:SPY 60m, regular session, is
+    # 5.9 MB (an intraday history from the listing window TradingView loads); same corpus and reason. A capture
+    # cannot be trimmed after the fact: its receipt binds every bar.
+    "tests/fixtures/vendor/harness/session-highs-and-lows-indicator-smc-sessions-dst-safe-spy-60-2026-11-16.json",
     # 2026-11-16, landing train 1: at engine 59 the runtime-on snapshot grew past 5 MB when legacy
     # semantics, engine 56 and the colour review moved their probes onto the drawn lanes, adding ~90
     # row.plots entries to the committed fixtures run. Written by `vendorHarness.corpus.test.js` (the

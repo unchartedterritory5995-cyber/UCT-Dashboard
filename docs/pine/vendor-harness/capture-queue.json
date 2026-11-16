@@ -66,8 +66,8 @@
   ],
   "coverageMeasuredOn": "2026-11-16",
   "coverageMasterSha": "890b6d165c",
-  "fixtures": 788,
-  "ledgerRows": 919
+  "fixtures": 829,
+  "ledgerRows": 968
  },
  "definitions": {
   "priority": "|firm ∪ named ∪ direct| — firm: non-transferring sample scripts whose every host wall is a guard the target's rows name; named: non-transferring scripts the rows name; direct: the target IS a transferring, never-MATCHed sample script (its capture verifies it)",
@@ -89,17 +89,17 @@
  "counts": {
   "targets": 319,
   "byStatus": {
-   "CAPTURED": 180,
+   "CAPTURED": 183,
    "NEEDS_CHART": 39,
    "NEEDS_LIVE": 2,
-   "QUEUED": 98
+   "QUEUED": 95
   },
   "byPlanWave": {
    "E": {
-    "CAPTURED": 140,
+    "CAPTURED": 141,
     "NEEDS_CHART": 37,
     "NEEDS_LIVE": 2,
-    "QUEUED": 90
+    "QUEUED": 89
    },
    "W1": {
     "CAPTURED": 6
@@ -108,9 +108,9 @@
     "CAPTURED": 2
    },
    "W4": {
-    "CAPTURED": 29,
+    "CAPTURED": 31,
     "NEEDS_CHART": 2,
-    "QUEUED": 8
+    "QUEUED": 6
    },
    "W7": {
     "CAPTURED": 3
@@ -118,10 +118,10 @@
   },
   "byPriorityBand": {
    "0": {
-    "CAPTURED": 152,
+    "CAPTURED": 155,
     "NEEDS_CHART": 38,
     "NEEDS_LIVE": 2,
-    "QUEUED": 98
+    "QUEUED": 95
    },
    "1-2": {
     "CAPTURED": 28,
@@ -296,16 +296,17 @@
     "CAPTURED": 2
    },
    "w6": {
-    "QUEUED": 6
+    "CAPTURED": 2,
+    "QUEUED": 4
    },
    "w6-t6": {
     "CAPTURED": 7,
     "QUEUED": 5
    },
    "w9": {
-    "CAPTURED": 34,
+    "CAPTURED": 35,
     "NEEDS_LIVE": 2,
-    "QUEUED": 25
+    "QUEUED": 24
    },
    "wsa-for-bound": {
     "NEEDS_CHART": 2,
@@ -2768,7 +2769,9 @@
   {
    "id": "vw-wsa-v6-bool-unmatched@NYSE:RDDT@D",
    "status": "NEEDS_CHART",
-   "evidence": [],
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-wsa-v6-bool-unmatched-rddt-1d-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-wsa-v6-bool-unmatched.pine",
    "sourceKind": "probe",
    "sha256": "34b86d09db94c4f4744aad1666591c77d3f34df851667ef99c66ece0dbfa3373",
@@ -2781,7 +2784,9 @@
    "chartDefaulted": true,
    "chartSource": "default",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -3184,12 +3189,14 @@
   },
   {
    "id": "vw-w19r2-collections@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-w19r2-collections-rddt-1d-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-w19r2-collections.pine",
    "sourceKind": "probe",
-   "sha256": "e061c76371e0b9dc793d40752d5a6b075cdf2524b6db5fb55d6ae6fa8edac4ec",
-   "bytes": 2706,
+   "sha256": "104368349befeb31f712a703331f6dbfd963cfc5038e79bc43c8d20aa53b56cf",
+   "bytes": 1964,
    "stem": "vw-w19r2-collections",
    "captureStem": "vw-w19r2-collections",
    "symbol": "NYSE:RDDT",
@@ -3198,7 +3205,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -3901,12 +3910,14 @@
   },
   {
    "id": "vw-w6-enum@AMEX:SPY@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-w6-enum-spy-1d-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-w6-enum.pine",
    "sourceKind": "probe",
-   "sha256": "f61d46fb77b74806a82673ed05e4e1233c0287c7bc8326896a8792e054b24252",
-   "bytes": 1718,
+   "sha256": "18970bd9bd1e943b82a36a142d9ffe06a24964c9dba626108c79164abeb6b0dd",
+   "bytes": 2073,
    "stem": "vw-w6-enum",
    "captureStem": "vw-w6-enum",
    "symbol": "AMEX:SPY",
@@ -3915,7 +3926,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "AMEX:SPY D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -7817,7 +7830,8 @@
    "id": "vw-s1-q-s1d-close-reverse@NYSE:RDDT@D",
    "status": "CAPTURED",
    "evidence": [
-    "tests/fixtures/vendor/harness/vw-s1-q-s1d-close-reverse-rddt-1d-2026-11-16.json"
+    "tests/fixtures/vendor/harness/vw-s1-q-s1d-close-reverse-rddt-1d-2026-11-16.json",
+    "tests/fixtures/vendor/harness/vw-s1-q-s1d-close-reverse-rpt-rddt-1d-2026-11-16.json"
    ],
    "source": "tools/visual_conformance/probes/vw-s1-q-s1d-close-reverse.pine",
    "sourceKind": "probe",
@@ -7863,7 +7877,8 @@
    "id": "vw-s1-q-s1d-two-entries@NYSE:RDDT@D",
    "status": "CAPTURED",
    "evidence": [
-    "tests/fixtures/vendor/harness/vw-s1-q-s1d-two-entries-rddt-1d-2026-11-16.json"
+    "tests/fixtures/vendor/harness/vw-s1-q-s1d-two-entries-rddt-1d-2026-11-16.json",
+    "tests/fixtures/vendor/harness/vw-s1-q-s1d-two-entries-rpt-rddt-1d-2026-11-16.json"
    ],
    "source": "tools/visual_conformance/probes/vw-s1-q-s1d-two-entries.pine",
    "sourceKind": "probe",
@@ -7909,7 +7924,8 @@
    "id": "vw-s1-q-s1d-two-stops@NYSE:RDDT@D",
    "status": "CAPTURED",
    "evidence": [
-    "tests/fixtures/vendor/harness/vw-s1-q-s1d-two-stops-rddt-1d-2026-11-16.json"
+    "tests/fixtures/vendor/harness/vw-s1-q-s1d-two-stops-rddt-1d-2026-11-16.json",
+    "tests/fixtures/vendor/harness/vw-s1-q-s1d-two-stops-rpt-rddt-1d-2026-11-16.json"
    ],
    "source": "tools/visual_conformance/probes/vw-s1-q-s1d-two-stops.pine",
    "sourceKind": "probe",
@@ -7955,7 +7971,8 @@
    "id": "vw-s1-q-s1e-stop-past@NYSE:RDDT@D",
    "status": "CAPTURED",
    "evidence": [
-    "tests/fixtures/vendor/harness/vw-s1-q-s1e-stop-past-rddt-1d-2026-11-16.json"
+    "tests/fixtures/vendor/harness/vw-s1-q-s1e-stop-past-rddt-1d-2026-11-16.json",
+    "tests/fixtures/vendor/harness/vw-s1-q-s1e-stop-past-rpt-rddt-1d-2026-11-16.json"
    ],
    "source": "tools/visual_conformance/probes/vw-s1-q-s1e-stop-past.pine",
    "sourceKind": "probe",
@@ -8001,7 +8018,8 @@
    "id": "vw-s1-q-s1g-blocked-stop-entry@NYSE:RDDT@D",
    "status": "CAPTURED",
    "evidence": [
-    "tests/fixtures/vendor/harness/vw-s1-q-s1g-blocked-stop-entry-rddt-1d-2026-11-16.json"
+    "tests/fixtures/vendor/harness/vw-s1-q-s1g-blocked-stop-entry-rddt-1d-2026-11-16.json",
+    "tests/fixtures/vendor/harness/vw-s1-q-s1g-blocked-stop-entry-rpt-rddt-1d-2026-11-16.json"
    ],
    "source": "tools/visual_conformance/probes/vw-s1-q-s1g-blocked-stop-entry.pine",
    "sourceKind": "probe",
@@ -8047,7 +8065,8 @@
    "id": "vw-s1-q-s1h-fifo-exit@NYSE:RDDT@D",
    "status": "CAPTURED",
    "evidence": [
-    "tests/fixtures/vendor/harness/vw-s1-q-s1h-fifo-exit-rddt-1d-2026-11-16.json"
+    "tests/fixtures/vendor/harness/vw-s1-q-s1h-fifo-exit-rddt-1d-2026-11-16.json",
+    "tests/fixtures/vendor/harness/vw-s1-q-s1h-fifo-exit-rpt-rddt-1d-2026-11-16.json"
    ],
    "source": "tools/visual_conformance/probes/vw-s1-q-s1h-fifo-exit.pine",
    "sourceKind": "probe",
@@ -8093,7 +8112,8 @@
    "id": "vw-s1-q-s1j-stop-limit@NYSE:RDDT@D",
    "status": "CAPTURED",
    "evidence": [
-    "tests/fixtures/vendor/harness/vw-s1-q-s1j-stop-limit-rddt-1d-2026-11-16.json"
+    "tests/fixtures/vendor/harness/vw-s1-q-s1j-stop-limit-rddt-1d-2026-11-16.json",
+    "tests/fixtures/vendor/harness/vw-s1-q-s1j-stop-limit-rpt-rddt-1d-2026-11-16.json"
    ],
    "source": "tools/visual_conformance/probes/vw-s1-q-s1j-stop-limit.pine",
    "sourceKind": "probe",
@@ -8139,7 +8159,8 @@
    "id": "vw-s1-q-s1k-fractional-profit@NYSE:RDDT@D",
    "status": "CAPTURED",
    "evidence": [
-    "tests/fixtures/vendor/harness/vw-s1-q-s1k-fractional-profit-rddt-1d-2026-11-16.json"
+    "tests/fixtures/vendor/harness/vw-s1-q-s1k-fractional-profit-rddt-1d-2026-11-16.json",
+    "tests/fixtures/vendor/harness/vw-s1-q-s1k-fractional-profit-rpt-rddt-1d-2026-11-16.json"
    ],
    "source": "tools/visual_conformance/probes/vw-s1-q-s1k-fractional-profit.pine",
    "sourceKind": "probe",
@@ -8185,7 +8206,8 @@
    "id": "vw-s1-q-s1k-na-modify@NYSE:RDDT@D",
    "status": "CAPTURED",
    "evidence": [
-    "tests/fixtures/vendor/harness/vw-s1-q-s1k-na-modify-rddt-1d-2026-11-16.json"
+    "tests/fixtures/vendor/harness/vw-s1-q-s1k-na-modify-rddt-1d-2026-11-16.json",
+    "tests/fixtures/vendor/harness/vw-s1-q-s1k-na-modify-rpt-rddt-1d-2026-11-16.json"
    ],
    "source": "tools/visual_conformance/probes/vw-s1-q-s1k-na-modify.pine",
    "sourceKind": "probe",
@@ -8231,7 +8253,8 @@
    "id": "vw-s1-q-s1k-profit-and-limit@NYSE:RDDT@D",
    "status": "CAPTURED",
    "evidence": [
-    "tests/fixtures/vendor/harness/vw-s1-q-s1k-profit-and-limit-rddt-1d-2026-11-16.json"
+    "tests/fixtures/vendor/harness/vw-s1-q-s1k-profit-and-limit-rddt-1d-2026-11-16.json",
+    "tests/fixtures/vendor/harness/vw-s1-q-s1k-profit-and-limit-rpt-rddt-1d-2026-11-16.json"
    ],
    "source": "tools/visual_conformance/probes/vw-s1-q-s1k-profit-and-limit.pine",
    "sourceKind": "probe",
@@ -11593,7 +11616,8 @@
    "id": "w9-d1-margin50@NYSE:RDDT@D",
    "status": "CAPTURED",
    "evidence": [
-    "tests/fixtures/vendor/harness/w9-d1-margin50-rddt-1d-2026-11-16.json"
+    "tests/fixtures/vendor/harness/w9-d1-margin50-rddt-1d-2026-11-16.json",
+    "tests/fixtures/vendor/harness/w9-d1-margin50-rpt-rddt-1d-2026-11-16.json"
    ],
    "source": "tools/visual_conformance/probes/w9-d1-margin50.pine",
    "sourceKind": "probe",
@@ -11681,7 +11705,8 @@
    "id": "w9-d11-late-first-use@NYSE:RDDT@D",
    "status": "CAPTURED",
    "evidence": [
-    "tests/fixtures/vendor/harness/w9-d11-late-first-use-rddt-1d-2026-11-16.json"
+    "tests/fixtures/vendor/harness/w9-d11-late-first-use-rddt-1d-2026-11-16.json",
+    "tests/fixtures/vendor/harness/w9-d11-late-first-use-rpt-rddt-1d-2026-11-16.json"
    ],
    "source": "tools/visual_conformance/probes/w9-d11-late-first-use.pine",
    "sourceKind": "probe",
@@ -12081,8 +12106,11 @@
   },
   {
    "id": "w9-mk1-markers@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/w9-mk1-markers-rddt-1d-2026-11-16.json",
+    "tests/fixtures/vendor/harness/w9-mk1-markers-rpt-rddt-1d-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/w9-mk1-markers.pine",
    "sourceKind": "probe",
    "sha256": "f2863f38333c3360ad35aa4547500f6c787a5c94c3fa38a97e41cc203925842c",
@@ -12095,7 +12123,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
