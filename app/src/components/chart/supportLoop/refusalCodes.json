@@ -304,6 +304,7 @@
   "runtime:recursion",
   "runtime:repaint-unstated",
   "runtime:request",
+  "runtime:request-pending",
   "runtime:request-with-state",
   "runtime:runtime.error",
   "runtime:statement",

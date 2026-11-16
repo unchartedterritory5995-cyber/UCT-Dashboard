@@ -169,7 +169,11 @@ describe('W2 — every allowlisted script still grades MATCH through the runtime
         expect(valuePlots.length, 'the capture holds value plots').toBeGreaterThan(0)
         expect((verdict.plots || []).length, 'every graded plot agrees').toBe(compared.length)
         expect(compared.length, 'every vendor value plot compared').toBe(valuePlots.length)
-      })
+        // 60 s, not the suite's 15: the FIRST capture graded here pays the runtime lane's and the run
+        // half's cold start (13.5 s measured alone on one worker for RS Rating's RDDT capture, whose
+        // run half is admitted since Q-RS8 and so is now run and object-railed), and it timed out at
+        // 15 s under two workers. A time limit is not part of the grade.
+      }, 60_000)
     }
   }
 })

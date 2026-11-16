@@ -47,6 +47,7 @@ import { parseColor } from '../../../utils/dividerColor'
 import { isVisibleOnTimeframe } from './instanceTimeframe'
 import { resolveInstanceFrames } from './calcTimeframeCapability'
 import { orderByDependency } from './sourceRef'
+import { joinsPriceScaleOf } from './placement'
 
 /** `VWAP_TFS`, verbatim and in order — from `StockChart.jsx`, which no longer
  *  has it: VWAP is FLIPPED (B3 Task 11) and this is the only copy left.
@@ -161,6 +162,7 @@ export function eligibleInstances(instances, registry, ctx) {
     const fold = FOLDS[def.id]
     let out = fold ? fold(inst, c) : inst
     if (def.meta && Array.isArray(def.meta.appearance)) out = averageLook(out, c)
+    else if (joinsPriceScaleOf(def)) out = priceScaleJoinLook(out, c)
 
     // ⭐⭐ HIDDEN HERE ≠ GONE. Visibility (the member's "Show on") and a gated
     // calculation frame (a 1h RSI on a Daily chart) both HIDE rather than DROP:
@@ -208,6 +210,22 @@ export function eligibleInstances(instances, registry, ctx) {
  * ⛔ `renderLook` IS IN-MEMORY. `presentation.lineLookPatch` reads it; nothing
  * persists it — this runs on the render copy `updateChart` builds.
  */
+/**
+ * PRICE-SCALE JOIN (2026-11-16). An imported Pine script that declares `overlay = true`
+ * (`placement.joinPriceScale`) has its plots take part in the price pane's autoscale, as
+ * TradingView's do by default, so a line parked under the bars is in view.
+ *
+ * Folded HERE for the reason `averageLook` is: whether a guest may move the candles' range is
+ * a fact about the SURFACE. A surface that fits price to the candles (`fitPriceToCandles`)
+ * keeps doing so, and only an instance actually drawn on price is touched (a member who moved
+ * it to its own pane gets that pane's rules). In-memory, like every `renderLook`.
+ */
+function priceScaleJoinLook(inst, c) {
+  const onPrice = typeof c.targetOf === 'function' ? c.targetOf(inst) === 'price' : false
+  if (!onPrice || c.fitPriceToCandles) return inst
+  return { ...inst, renderLook: { ...(inst.renderLook || {}), autoscale: 'default' } }
+}
+
 function averageLook(inst, c) {
   const onPrice = typeof c.targetOf === 'function' ? c.targetOf(inst) === 'price' : false
   if (!onPrice) return inst

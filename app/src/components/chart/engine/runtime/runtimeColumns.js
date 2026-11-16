@@ -561,7 +561,8 @@ export const RUNTIME_OBJECTS_STOPPED_REASON = 'working them out stopped at a ste
  *  `guard` and `reason` only). */
 export function runtimeObjectsWithheld(err) {
   if (err && typeof err.guard === 'string' && err.guard) {
-    return { status: 'WITHHELD', live: [], guard: err.guard, reason: String(err.message || err) }
+    return { status: 'WITHHELD', live: [], guard: err.guard, reason: String(err.message || err),
+      ...(err.pending === true ? { pending: true } : {}) }
   }
   return { status: 'WITHHELD', live: [], guard: 'runtime:objects', reason: RUNTIME_OBJECTS_STOPPED_REASON,
     detail: String((err && err.message) || err) }
@@ -1336,8 +1337,13 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   const reqSupply = requestSites.length ? runtimeRequestSupply(program.requests, rows, ctx) : null
   if (reqSupply && reqSupply.refusal) throw refusal(reqSupply.refusal.guard, reqSupply.refusal.message)
   if (reqSupply && reqSupply.pending) {
-    throw refusal('runtime:request', "this script reads another symbol whose bars are still loading; it is "
+    // PENDING, NOT REFUSED (2026-11-16): the guard is unchanged, and the error says the wait is
+    // a wait (`pending`), so a reader that words a refusal does not word this one as final
+    // (`nativeRegistry.js::withRunHalf` holds the run half instead of naming a cause).
+    const waiting = refusal('runtime:request', "this script reads another symbol whose bars are still loading; it is "
       + 'drawn once they arrive')
+    waiting.pending = true
+    throw waiting
   }
   const build = reused ? prevSession.build : (recorder ? recorder.done(built.ir) : null)
   // ⛔ RS RATING L5 — a run that reads requested bars never resumes from a checkpoint: the

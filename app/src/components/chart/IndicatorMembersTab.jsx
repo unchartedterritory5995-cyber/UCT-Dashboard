@@ -20,6 +20,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { fetchDefinitionLibrary, installSharedDefinition } from '../../hooks/useUserDefinitions'
 import { WHAT_TO_DO } from '../../pages/formulas/shareRefusal'
+import ownStyles from './IndicatorMembersTab.module.css'
 
 /** The engine's three repaint verdicts in a chooser's words (the page's own map). */
 export const REPAINT_WORDS = Object.freeze({
@@ -47,14 +48,16 @@ export function entryMatches(entry, query) {
 
 /**
  * @param {object} p
- * @param {object} p.styles            the Indicators window's own class map (one look)
+ * @param {object} [p.styles]          the host's class map, so the list looks like its surroundings
+ *                                     (the Indicators window passes its own). Without one it uses
+ *                                     `IndicatorMembersTab.module.css`, sized for touch.
  * @param {string} [p.query]           the window's search box
  * @param {(defId: string) => boolean} p.isOnOffer  has the installed copy reached the chart's registry yet
  * @param {(defId: string) => boolean} p.onPutOnChart  add the installed copy to this chart
  * @param {Function} [p.fetchLibrary] / [p.install]  injectable doors (tests)
  */
 export default function IndicatorMembersTab({
-  styles, query = '', isOnOffer = () => false, onPutOnChart = () => false,
+  styles = ownStyles, query = '', isOnOffer = () => false, onPutOnChart = () => false,
   fetchLibrary = fetchDefinitionLibrary, install = installSharedDefinition,
 }) {
   const [entries, setEntries] = useState([])
