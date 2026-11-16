@@ -60,9 +60,10 @@ LANES = (RC.LANE_PRODUCTION, RC.LANE_RUNTIME_ON)
 CAP = 1
 #: ⛔ THE NON-VACUITY FLOOR, per lane: a snapshot (or a write) with fewer transferring scripts is refused,
 #: so emptying the snapshot cannot silence the ratchet. Set 2026-11-16 a little under the first measure
-#: (master e9807547d0 + this PR: production 53, runtime-on 81). Lowering one is a code change, by name, in
+#: (master e9807547d0 + the ratchet PR, engine 61: production 58, runtime-on 86 of 266; the engine-60
+#: coverage map's own census, cap 8, gives the same two sets). Lowering one is a code change, by name, in
 #: the PR whose measurement needs it.
-FLOORS = {RC.LANE_PRODUCTION: 45, RC.LANE_RUNTIME_ON: 70}
+FLOORS = {RC.LANE_PRODUCTION: 50, RC.LANE_RUNTIME_ON: 75}
 #: a corpus smaller than this is not the committed corpus (a sparse or broken checkout)
 MIN_CORPUS = 200
 
