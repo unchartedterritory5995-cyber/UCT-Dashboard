@@ -48,7 +48,7 @@ describe('a saved indicator is called an indicator', () => {
   })
 
   it('"formula" is still the name of the typed way in', () => {
-    expect(code(read('./ChartSettingsIndicators.jsx'))).toMatch(/>write a formula</)
+    expect(code(read('./ChartSettingsIndicators.jsx'))).toMatch(/>[Ww]rite a formula</)   // UCT Signature R2: a sentence-case link ("Write a formula")
     expect(code(read('./IndicatorLibraryDialog.jsx'))).toMatch(/New formula/)
   })
 

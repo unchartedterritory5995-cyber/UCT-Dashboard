@@ -70,7 +70,7 @@ function mount() {
     </AuthContext.Provider>,
   )
 }
-const listRowOf = (name) => { toStart(); return within(screen.getByText('Your formulas').closest('section')).getByText(name).closest('li') }
+const listRowOf = (name) => { toStart(); return within(screen.getByText('Your indicators').closest('section')).getByText(name).closest('li') }
 const pineArea = () => screen.getByTestId('pine-box').querySelector('textarea')
 async function openEdit() {
   stubFetch([RUNTIME_ROW])

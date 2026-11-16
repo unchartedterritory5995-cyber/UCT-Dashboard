@@ -52,7 +52,7 @@ describe('while a turn is in flight', () => {
     const { converse } = heldConverse()
     mount(converse)
     await type('Add a 20 EMA')
-    expect(screen.getByTestId('create-indicator-working').textContent).toBe('UCT Intelligence is thinking')
+    expect(screen.getByTestId('create-indicator-working').textContent).toBe('The UCT Agent is thinking')
     const note = () => screen.getByTestId('create-indicator-working-note').textContent
     expect(note()).toBe(`0s. ${USUAL_WAIT}`)
     await act(async () => { vi.advanceTimersByTime(7000) })

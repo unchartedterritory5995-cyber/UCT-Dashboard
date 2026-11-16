@@ -1856,8 +1856,8 @@
    like the rows. Rows (`chipMenuSigRow`): a page row ends in its value (dimmed) + a quiet ▸; a
    not-yet row is one greyed line with a small "Soon" chip (ChartSettingsModal `.soonTag`). */
 .legMenuHeadSig { padding: 6px 10px 7px; margin: 0 0 3px; border-bottom-color: #2a2c31; }
-.legMenuHeadSig .legMenuName { font: 600 13px var(--font-sans); color: #ededed; }
-.legMenuHeadSig .legMenuVal { font: 600 12.5px var(--font-sans); font-variant-numeric: tabular-nums; color: #c9c6be; }
+.legMenuHeadSig .legMenuName { font-size: 13px; font-weight: 600; color: #ededed; }
+.legMenuHeadSig .legMenuVal { font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; color: #c9c6be; }
 .legMenuHeadSig .legMenuSub { margin-top: 2px; font-size: 11px; color: #93939a; }
 .sigRow { display: flex; align-items: center; min-width: 0; }
 .sigName { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

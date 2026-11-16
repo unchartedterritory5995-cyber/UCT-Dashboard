@@ -497,7 +497,7 @@ describe('C5 · on the phone shell a readout chip tap opens the menu sheet; othe
 
 describe('⛔ the control — RSI and MACD are untouched', () => {
   for (const id of ['rsi-1', 'macd-1']) {
-    it(`${id}: 204 px popover, the base header, no readout rows, no Preset row, the shipped verbs`, async () => {
+    it(`${id}: 214 px popover (UCT Signature menu width, owner 11-16), the base header, no readout rows, no Preset row, the shipped verbs`, async () => {
       primeFixture()
       const { container } = mount()
       const chip = await vi.waitFor(() => { const c = chipEl(container, id); expect(c).not.toBeNull(); return c }, { timeout: 8000 })
@@ -508,7 +508,7 @@ describe('⛔ the control — RSI and MACD are untouched', () => {
       expect(chip.textContent).not.toContain(' · ')
       expect(chip.querySelector('[data-stale-value]')).toBeNull()
       const menu = await openMenu(container, id)
-      expect(menu.style.width).toBe('204px')
+      expect(menu.style.width).toBe('214px')
       expect(menu.querySelector('[data-legend-head="readout"]')).toBeNull()
       expect(menu.querySelector('[data-readout-rows]')).toBeNull()
       expect(menu.querySelector('[data-menu-id="preset"]')).toBeNull()

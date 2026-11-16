@@ -140,7 +140,7 @@ describe('the START view — a new formula with no door', () => {
     H.rows = [SAVED]
     mount()
     const edit = await screen.findByRole('button', { name: 'Edit RSI dip' }, { timeout: 4000 })
-    expect(screen.getByRole('heading', { name: 'Your formulas' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Your indicators' })).toBeInTheDocument()
     fireEvent.click(edit)
     await flush()
     expect(screen.getByRole('dialog', { name: 'Edit formula' })).toBeInTheDocument()

@@ -2080,7 +2080,7 @@ export default function BuilderSheet({
   const saveHint = converseActive
     ? 'Saves the indicator from the conversation (Ask the UCT Agent).'
     : supersededByConversation
-    ? `The conversation saved this formula as version ${conversationSaved.version}. Reopen it from "Your formulas" to edit it here.`
+    ? `The conversation saved this indicator as version ${conversationSaved.version}. Reopen it from "Your indicators" to edit it here.`
     : (saveGates.idle && !saveGates.settled)
     ? 'Checking your formula…'
     : (saveGates.idle && saveGates.settled && saveGates.formula && !saveGates.named)
@@ -2828,13 +2828,13 @@ export default function BuilderSheet({
             )}
 
             {!isEditor && rows.length === 0 && (
-              <p className={styles.savedEmpty} data-testid="saved-empty">Formulas you save show up here.</p>
+              <p className={styles.savedEmpty} data-testid="saved-empty">Indicators you save show up here.</p>
             )}
 
             {!isEditor && rows.length > 0 && (
               <section className={styles.group} aria-labelledby="uct-saved-head">
                 <div className={styles.groupHead}>
-                  <h3 className={styles.groupLabel} id="uct-saved-head">Your formulas</h3>
+                  <h3 className={styles.groupLabel} id="uct-saved-head">Your indicators</h3>
                   <span className={styles.groupCount}>{rows.length}</span>
                 </div>
                 <ul className={styles.list}>

@@ -38,8 +38,11 @@ function door(src) {
 }
 
 /** Every inline `color:` an element tree writes. */
+// UCT Signature R2 (owner 11-16, colored values): a row's value colour rides a CSS custom property
+// (`--row-color` / `--chip-color`, clamped in CSS to the label's lightness band), so those count as ink too.
 const inks = (container) => [...container.querySelectorAll('[style]')]
-  .map((e) => e.style.color).filter((c) => typeof c === 'string' && c !== '')
+  .map((e) => e.style.color || e.style.getPropertyValue('--row-color') || e.style.getPropertyValue('--chip-color'))
+  .filter((c) => typeof c === 'string' && c !== '')
 
 // ─── review 1 (HIGH) — a theme-reference plot colour is accepted, and a chip resolves it
 describe('review 1 — the theme reference is a presentation colour, resolved where it is drawn', () => {

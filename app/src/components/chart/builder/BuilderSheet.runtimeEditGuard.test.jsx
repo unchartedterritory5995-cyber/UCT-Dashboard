@@ -60,7 +60,7 @@ function mount() {
 }
 const listRowOf = (name) => {
   toStart()
-  const head = screen.getByText('Your formulas')
+  const head = screen.getByText('Your indicators')
   const list = head.closest('section')
   return within(list).getByText(name).closest('li')
 }
