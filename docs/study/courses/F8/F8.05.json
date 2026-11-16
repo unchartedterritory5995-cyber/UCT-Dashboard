@@ -884,7 +884,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "24 times",
     "2.4 times",
@@ -895,6 +895,34 @@
     "24 times": "Divided $2,400 by 100 instead of by the normal risk.",
     "2.4 times": "Slipped a decimal place in the division.",
     "0.04 times": "Divided the risk by the account only."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The oversized trade",
+    "rows": [
+     {
+      "key": "account",
+      "label": "Account",
+      "value": 60000,
+      "fmt": "$"
+     },
+     {
+      "key": "normal_risk",
+      "label": "Normal risk",
+      "value": 1,
+      "fmt": "%"
+     },
+     {
+      "key": "risk_on_this_trade",
+      "label": "Risk on this trade",
+      "value": 2400,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Times normal risk",
+     "as": "times"
+    }
    }
   },
   {
@@ -970,7 +998,35 @@
      "fixed before"
     ]
    },
-   "batch": "wave9"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "Four trades",
+    "rows": [
+     {
+      "key": "winners_in_a_row",
+      "label": "Winners in a row",
+      "value": 3,
+      "fmt": "count"
+     },
+     {
+      "key": "made_on_each",
+      "label": "Made on each",
+      "value": 500,
+      "fmt": "$"
+     },
+     {
+      "key": "lost_on_the_big_trad",
+      "label": "Lost on the big trade",
+      "value": 2000,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Net after four trades",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q12",
@@ -1191,7 +1247,7 @@
      "fixed before"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "6,400 shares",
     "12,800 shares",
@@ -1202,6 +1258,28 @@
     "6,400 shares": "Doubled six times, once on trade six itself.",
     "12,800 shares": "Doubled two extra times.",
     "24,300 shares": "Tripled after each win instead of doubling."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Doubling after each win",
+    "rows": [
+     {
+      "key": "starting_size",
+      "label": "Starting size",
+      "value": 100,
+      "fmt": "shares"
+     },
+     {
+      "key": "wins_in_a_row",
+      "label": "Wins in a row",
+      "value": 5,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Shares on trade six",
+     "as": "shares"
+    }
    }
   },
   {
@@ -1480,7 +1558,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
+   "notes": "account, normal risk, risk this trade; times normal; key '4 times'"
   },
   "q10": {
    "status": "pass",
@@ -1491,8 +1569,8 @@
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "calc 2000-3*500=500 down rechecked. Wrong notes match each slip. No computed number outside the calc or story. Support f21/f04 (Investopedia) + f27 (Schwab)."
+   "fixed": true,
+   "notes": "'Down after four trades' tells the member the net is a loss, which removes the two 'up' choices. Neutral label."
   },
   "q12": {
    "status": "pass",
@@ -1529,7 +1607,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
+   "notes": "starting size and wins in a row; shares on trade six; key '3,200 shares'"
   },
   "q18": {
    "status": "pass",

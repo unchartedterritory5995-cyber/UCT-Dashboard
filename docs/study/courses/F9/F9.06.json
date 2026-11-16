@@ -558,7 +558,29 @@
      "fixed before"
     ]
    },
-   "batch": "wave9"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The position",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Bought",
+      "value": 300,
+      "fmt": "shares"
+     },
+     {
+      "key": "r2",
+      "label": "Sold",
+      "value": 100,
+      "fmt": "shares"
+     }
+    ],
+    "find": {
+     "label": "Shares still at risk",
+     "as": "shares"
+    }
+   }
   },
   {
    "key": "q02",
@@ -814,7 +836,7 @@
      "computed key (calc)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$600",
     "$200",
@@ -825,6 +847,40 @@
     "$600": "Counted all 300 shares, not the 200 you kept.",
     "$200": "Counted the 100 shares you sold.",
     "$800": "Used the gain from $50 to $54 as the loss per share."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The position",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Bought",
+      "value": 300,
+      "fmt": "shares"
+     },
+     {
+      "key": "r2",
+      "label": "Sold",
+      "value": 100,
+      "fmt": "shares"
+     },
+     {
+      "key": "r3",
+      "label": "Entry",
+      "value": 50,
+      "fmt": "$"
+     },
+     {
+      "key": "r4",
+      "label": "Stop",
+      "value": 48,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "The rest lose",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -953,7 +1009,7 @@
      "rests on the owner's rulebook (B19)"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$0",
     "$200",
@@ -964,6 +1020,46 @@
     "$200": "Assumed the rest stopped at the old $19 stop.",
     "$0": "Subtracted the full original risk from the profit.",
     "$400": "Took the gain per share as two dollars."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The scale-out",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Bought",
+      "value": 600,
+      "fmt": "shares"
+     },
+     {
+      "key": "r2",
+      "label": "Entry",
+      "value": 20,
+      "fmt": "$"
+     },
+     {
+      "key": "r3",
+      "label": "Sold",
+      "value": 200,
+      "fmt": "shares"
+     },
+     {
+      "key": "r4",
+      "label": "Sale price",
+      "value": 23,
+      "fmt": "$"
+     },
+     {
+      "key": "r5",
+      "label": "New stop",
+      "value": 20,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "What the trade made",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1036,7 +1132,35 @@
      "fixed before"
     ]
    },
-   "batch": "wave9"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The position",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Shares",
+      "value": 200,
+      "fmt": "shares"
+     },
+     {
+      "key": "r2",
+      "label": "Entry",
+      "value": 50,
+      "fmt": "$"
+     },
+     {
+      "key": "r3",
+      "label": "New stop",
+      "value": 50,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Money at risk",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q15",
@@ -1074,7 +1198,7 @@
      "computed key (calc)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$13,800",
     "$0",
@@ -1085,6 +1209,40 @@
     "$13,800": "Used the whole position value.",
     "$0": "Thought a stop at your entry gives back nothing.",
     "$180": "Decimal slip: moved the decimal one place."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The position",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Shares",
+      "value": 150,
+      "fmt": "shares"
+     },
+     {
+      "key": "r2",
+      "label": "Entry",
+      "value": 80,
+      "fmt": "$"
+     },
+     {
+      "key": "r3",
+      "label": "Stock now",
+      "value": 92,
+      "fmt": "$"
+     },
+     {
+      "key": "r4",
+      "label": "Stop",
+      "value": 80,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Profit given back",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1131,7 +1289,35 @@
      "fixed before"
     ]
    },
-   "batch": "wave9"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "Open risk at the stops",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "First, before its raise",
+      "value": 500,
+      "fmt": "$"
+     },
+     {
+      "key": "r2",
+      "label": "Second trade's risk",
+      "value": 400,
+      "fmt": "$"
+     },
+     {
+      "key": "r3",
+      "label": "Third trade's risk",
+      "value": 300,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Open risk now",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q17",
@@ -1257,7 +1443,41 @@
      "fixed before"
     ]
    },
-   "batch": "wave9"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The limit",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Limit on open risk",
+      "value": 2000,
+      "fmt": "$"
+     },
+     {
+      "key": "r2",
+      "label": "Open risk now",
+      "value": 1800,
+      "fmt": "$"
+     },
+     {
+      "key": "r3",
+      "label": "Taken off by the raise",
+      "value": 400,
+      "fmt": "$"
+     },
+     {
+      "key": "r4",
+      "label": "New trade risks",
+      "value": 500,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Room under the limit now",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q20",
@@ -1338,7 +1558,7 @@
      "fixed before"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "4%",
     "3.5%",
@@ -1349,6 +1569,28 @@
     "4%": "Ignored the sale and the stop move.",
     "3.5%": "Counted the trade with its stop at entry as a full 1%.",
     "3%": "Counted the half-sold trade as a full 1%."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Open risk",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Trades before the changes",
+      "value": 4,
+      "fmt": "count"
+     },
+     {
+      "key": "r2",
+      "label": "Risk on each",
+      "value": 1,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Open risk after the changes",
+     "as": "pct"
+    }
    }
   },
   {
@@ -1432,7 +1674,7 @@
      "computed key (calc)"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "0.7R",
     "2.3R",
@@ -1443,6 +1685,37 @@
     "2.3R": "Left out the profit from the first sale.",
     "0.7R": "Counted only the first sale.",
     "2.8R": "Averaged the two pieces' R without weighting by shares."
+   },
+   "visual": {
+    "kind": "ladder",
+    "title": "The trade",
+    "side": "long",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 76
+     },
+     {
+      "key": "entry",
+      "label": "Bought 300 here",
+      "price": 80
+     },
+     {
+      "key": "sold",
+      "label": "Sold 100 here",
+      "price": 88
+     },
+     {
+      "key": "exit",
+      "label": "Trailing stop hit, rest sold",
+      "price": 94
+     }
+    ],
+    "find": {
+     "label": "Result in R",
+     "as": "r"
+    }
    }
   },
   {
@@ -1556,7 +1829,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key computed (300-100) and grounded in f23/f11; f14 supports the gain-on-screen note. Choices 22-25 chars, key shortest by 3 (no real tell). No second answer."
+   "notes": "Bought and sold counts stated; slot reads '200 shares'."
   },
   "q02": {
    "status": "pass",
@@ -1605,7 +1878,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed calc, answer matches, wrong choices distinct and real, no tell."
+   "notes": "Bought/sold counts and entry/stop right; the $54 sale price rightly omitted; the 200 left is not shown."
   },
   "q10": {
    "status": "pass",
@@ -1623,7 +1896,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
+   "notes": "Entry, sale and new stop labelled; the kept 400 and the old $19 stop are not on the card; slot $600 matches key."
   },
   "q13": {
    "status": "cut",
@@ -1633,21 +1906,21 @@
   },
   "q14": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Shares, entry and the raised stop clear; $56 and old $48 stop omitted; slot $0."
   },
   "q15": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed calc, answer matches, wrong choices real and distinct, no tell; why walks the steps with the givens (the grader bars derived intermediates)."
+   "notes": "Stock now vs stop vs entry clear; 'Profit given back' = shares x (now - stop); slot $1,800."
   },
   "q16": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "'First, stop to entry $500' reads as if 500 were the risk now; it is the first trade's risk BEFORE its stop was raised (now zero)."
   },
   "q17": {
    "status": "pass",
@@ -1664,8 +1937,8 @@
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc 2000-(1800-400)=600 verified; h10 quote is verbatim rulebook A10. Two Yes, two No; no second answer (the guide-not-cap line does not make a No right). Key shortest by 2 chars, no real tell."
+   "fixed": true,
+   "notes": "'Room for the new trade' reads as the size the new trade can take; the calc is the room under the limit after the raise (the question asks yes/no on a $500 trade)."
   },
   "q20": {
    "status": "pass",
@@ -1676,8 +1949,8 @@
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
+   "fixed": true,
+   "notes": "The answer is open risk AFTER selling half and raising a stop, but the card shows only the starting 4 trades at 1%; label both so the slot is not read as the plain 4%."
   },
   "q22": {
    "status": "cut",
@@ -1688,8 +1961,8 @@
   "q23": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
+   "fixed": true,
+   "notes": "Ladder is fine (all prices on one ruler, no r so no R steps). But the '300 shares' note floats under the ruler; tie it to the entry, and say the rest was sold at the trailing stop."
   },
   "q24": {
    "status": "pass",

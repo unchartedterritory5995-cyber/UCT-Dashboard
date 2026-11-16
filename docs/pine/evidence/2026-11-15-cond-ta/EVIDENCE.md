@@ -1,7 +1,7 @@
-# Engine 55 — COND-TA: a `ta.*` call that runs only on some bars, on every door
+# Engine 58 — COND-TA: a `ta.*` call that runs only on some bars, on every door
 
 Plan unit U2 (`REMAINING-SCOPE-2026-11-14.md` section 2). Branch `fix/pine-engine-cond-ta`, cut from
-`origin/master` `2c37c37f9a`. `SCRIPT_ENGINE_VERSION` 54 -> 55 (**renumber at merge to master + 1**:
+`origin/master` `2c37c37f9a`. `SCRIPT_ENGINE_VERSION` 57 -> 58 (numbered at the merge of master `1fb6e22ced`, 2026-11-16; it was the placeholder 55 while built:
 engines 55-58, calc_bars/format, highest/lowest and the lenient block-local hotfix #1326 are in flight).
 
 ## The rule

@@ -1405,7 +1405,7 @@ function literalCountOf(toks, bind, locals, min) {
   return Number.isInteger(n) && n >= min ? n : null
 }
 
-// ⭐⭐ COND-TA (engine 55) — GAP G-b CLOSED: Pine v1-v4 SPELL THE SAME CALLS BARE.
+// ⭐⭐ COND-TA (engine 58) — GAP G-b CLOSED: Pine v1-v4 SPELL THE SAME CALLS BARE.
 // `sma(close, 3)` in a v4 `if` block is `ta.sma(close, 3)` in v5, and it keeps the same
 // per-call-site history (the v4 User Manual, "Execution of Pine functions and historical
 // context inside function blocks": "The history of series variables used inside Pine

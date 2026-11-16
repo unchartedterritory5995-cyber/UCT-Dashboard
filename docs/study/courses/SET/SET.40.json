@@ -1305,7 +1305,7 @@
      "fixed before"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$48.00",
     "$54.00",
@@ -3741,8 +3741,8 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
+   "fixed": true,
+   "notes": "Single inside-day-high line with a '?'; nothing to see until the answer, and then only one more line. Dropped."
   },
   "q10": {
    "status": "pass",

@@ -219,12 +219,13 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
   it.fails('supertrend-strategy RDDT: MATCH', () => {
     expect(grade('supertrend-strategy-rddt-1d-2026-10-02').v.verdict).toBe('MATCH')
   }, T)
-  it('control: every plot value agrees on both symbols; the barcolor is WITHHELD (expression colour)', () => {
+  it('control: every plot value agrees on both symbols; the barcolor is WITHHELD by name (expression colour)', () => {
     for (const id of ['supertrend-strategy-rddt-1d-2026-10-02', 'supertrend-strategy-spy-1d-2026-10-02']) {
       const { v } = grade(id)
       expect(v.plots.filter((p) => p.verdict === 'DIVERGE'), id).toEqual([])
-      expect(v.paints.verdict, id).toBe('DIVERGE')
-      expect(v.paints.reason, id).toMatch(/withheld/)
+      // ⭐ G5 ruling 2026-11-15: a paint withheld by name is INCONCLUSIVE (it was DIVERGE)
+      expect(v.paints.verdict, id).toBe('INCONCLUSIVE')
+      expect(v.paints.reason, id).toMatch(/withheld by name/)
     }
   }, T)
 

@@ -4036,7 +4036,7 @@
      "when each sell comes is the owner's D-013 judgment"
     ]
    },
-   "batch": "sweep-2026-11-14",
+   "batch": "cards-2026-11-15",
    "choices": [
     "90 shares",
     "80 shares",
@@ -4048,7 +4048,35 @@
     "90 shares": "Took off the first sell only.",
     "70 shares": "Took off the later sell only."
    },
-   "prefix": ""
+   "prefix": "",
+   "visual": {
+    "kind": "size",
+    "title": "The position",
+    "rows": [
+     {
+      "key": "held",
+      "label": "Held",
+      "value": 120,
+      "fmt": "shares"
+     },
+     {
+      "key": "s1",
+      "label": "First sell",
+      "value": 30,
+      "fmt": "shares"
+     },
+     {
+      "key": "s2",
+      "label": "Later sell",
+      "value": 50,
+      "fmt": "shares"
+     }
+    ],
+    "find": {
+     "label": "Left to trail",
+     "as": "shares"
+    }
+   }
   },
   {
    "key": "q81",
@@ -4766,7 +4794,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with rulings"
+   "notes": "Roles, find label, slot format and ladder checked; ok."
   },
   "q81": {
    "status": "cut",

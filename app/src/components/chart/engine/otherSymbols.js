@@ -45,6 +45,8 @@
 //     keeps its refusal (`other-symbol:class-share`).
 
 import { SYMBOL_EXCHANGE_CONFIRMED } from './ast/bind'
+import { isoDay, SERIES_GAPS_READ_NA } from './ast/interpret'
+import REQUEST_WITNESSES from './requestWitnesses.json'
 
 /** The venue spelling `pine.js::otherSymbolOf` records for the chart's own
  *  exchange (`ticker.new(syminfo.prefix, …)`). */
@@ -67,6 +69,13 @@ export const OTHER_SYMBOL_REFUSAL = Object.freeze({
   // ⭐ ENGINE 55 (review M1/L5) — an exchange outside the US listings our bar store holds
   // (`TSX:RY`, `XETR:SAP`), decided from the spelling alone (`spellingUnservable`).
   VENUE_FOREIGN: 'other-symbol:venue-foreign',
+  // ⭐ RS RATING L1b — a spelling served only behind a capture witness (`requestWitnesses.json`)
+  // whose capture has not landed, and one read on a timeframe its witness does not cover.
+  WITNESS_PENDING: 'other-symbol:witness-pending',
+  WITNESS_TIMEFRAME: 'other-symbol:witness-timeframe',
+  // ⭐ RS RATING L6b — `request.seed(source, symbol, …)` naming a seed our store does not
+  // register (`requestWitnesses.json`'s `seed` rows = `pine_seed_store.py::SEEDS`).
+  SEED_UNREGISTERED: 'other-symbol:seed-unregistered',
 })
 
 const CONFIRMED_PINE = new Set(Object.values(SYMBOL_EXCHANGE_CONFIRMED))
@@ -116,6 +125,94 @@ const US_LISTING_SHAPE = /^[A-Z]{1,5}(\.[A-Z])?$/
 // (`ADDYY`, `DECK`, `TICKS` are listings, and must not be told about breadth).
 const BREADTH_SHAPE = /^(ADVDEC|ADVN|ADVQ|ADV|DECN|DECQ|DECL|DEC|UNCH[NQ]?|UVOL[NQ]?|DVOL[NQ]?|TICK[QI]?|TRINQ?|ADDQ?|VOLDQ?)(\.[A-Z]{2})?$/
 
+// ─── ⭐⭐ RS RATING L1b — A SPELLING SERVED ONLY BEHIND ITS CAPTURE WITNESS ─────────────
+//
+// `requestWitnesses.json` holds the other-symbol spellings that are not a US listing
+// (`SP:SPX`, the S&P 500 index): each names the key our bars route serves it under, the
+// chart timeframes its witness covers, the capture that settles it and how that capture
+// places the series' bars on a chart's (`alignment`). ⛔ A row SERVES only when it carries a
+// `witness` and a `captured` date and its `alignment` is one this module knows; until then
+// `staticallyUnservable` (the one gate both lanes ask) refuses the spelling by name, citing
+// the queue row. So turning a spelling on is one data edit, and nothing else moves.
+
+/** How a witness places a series' bars on a chart's, by name. ⛔ An unknown name serves nothing. */
+export const WITNESS_ALIGNMENTS = Object.freeze({
+  // the series' bar of a session date is read on the chart bar of the same date
+  SAME_DATE: 'same-date',
+  // each series bar is read on the chart's NEXT session (Q-RS3: TradingView's `SP:SPX` on a
+  // stock's daily chart reads the previous session's SPX bar, as "D" and as timeframe.period)
+  PREVIOUS_SESSION: 'previous-session',
+  // ⭐ RS RATING L6b — each row on the chart bar of the same date, and a chart bar with no row
+  // reads `na` (no carry-forward), as witnessed (Q-RS2: TradingView's `request.seed`)
+  SAME_DATE_GAPS_NA: 'same-date-gaps-na',
+})
+
+function witnessRowsOf(rows) {
+  const out = {}
+  for (const [k, v] of Object.entries(rows || {})) {
+    if (k.startsWith('_') || !v || typeof v !== 'object' || typeof v.store !== 'string') continue
+    const spelling = k.trim().toUpperCase()
+    out[spelling] = Object.freeze({ ...v, spelling,
+      timeframes: Object.freeze(Array.isArray(v.timeframes) ? v.timeframes.map(String) : []) })
+  }
+  return Object.freeze(out)
+}
+let _witnessRows = witnessRowsOf(REQUEST_WITNESSES && REQUEST_WITNESSES.rows)
+
+/** Every witness row, keyed by spelling. */
+export function requestWitnessRows() { return _witnessRows }
+
+/** ⛔ TEST SEAM — replace the rows (`null` restores the committed file). A rail injects the
+ *  witnessed row exactly as the landed capture's one data edit writes it. */
+export function setRequestWitnessRows(rows) {
+  _witnessRows = witnessRowsOf(rows || (REQUEST_WITNESSES && REQUEST_WITNESSES.rows))
+}
+
+/** The witness row a `venue` + `ticker` spelling names, or null. */
+export function witnessRowOf(venue, ticker) {
+  const v = String(venue == null ? '' : venue).trim().toUpperCase()
+  const t = String(ticker || '').trim().toUpperCase()
+  if (!v || v === '?' || v.startsWith('@') || !t) return null
+  return _witnessRows[`${v}:${t}`] || null
+}
+
+/** ⭐ RS RATING L6b — a Pine seed's spelling, `SEED_<SOURCE>:<SYMBOL>`. */
+export const SEED_SPELLING = /^(SEED_[A-Z0-9_]+):([A-Z0-9_.]+)$/
+
+/** Is this row's capture in, and does this module know how to place its bars? */
+export function witnessRowServes(row) {
+  return !!row && typeof row.witness === 'string' && row.witness.trim() !== ''
+    && typeof row.captured === 'string' && row.captured.trim() !== ''
+    && Object.values(WITNESS_ALIGNMENTS).includes(row.alignment)
+}
+
+function witnessPendingWhy(row) {
+  return { code: OTHER_SYMBOL_REFUSAL.WITNESS_PENDING, reason: `\`${row.spelling}\` is served only once a `
+    + `TradingView capture witnesses it (capture-queue row ${row.queue_row}, probe \`${row.probe}\`), and that `
+    + 'capture has not been matched, so what this indicator draws from it is not computed.' }
+}
+
+/** ⭐ A witnessed series' bars keyed the way the chart keys its own: by SESSION DATE
+ *  (`interpret.js::isoDay` reads unix seconds, a `YYYYMMDD` int or an ISO day — an index's
+ *  daily bars carry unix seconds at the session's UTC midnight, a stock's an ISO date), then
+ *  placed by the row's `alignment`. A bar whose day cannot be read is dropped, never guessed. */
+function witnessedBarsOf(row, bars) {
+  const keyed = []
+  for (const b of bars) {
+    const day = b && isoDay(b.t)
+    if (day) keyed.push(typeof b.t === 'string' && b.t === day ? b : { ...b, t: day })
+  }
+  if (row.alignment === WITNESS_ALIGNMENTS.SAME_DATE_GAPS_NA) {
+    Object.defineProperty(keyed, SERIES_GAPS_READ_NA, { value: true, enumerable: false })
+    return keyed
+  }
+  if (row.alignment !== WITNESS_ALIGNMENTS.PREVIOUS_SESSION) return keyed
+  // each bar is read on the NEXT session; the newest has none yet, so nothing reads it
+  const out = []
+  for (let j = 0; j + 1 < keyed.length; j += 1) out.push({ ...keyed[j], t: keyed[j + 1].t })
+  return out
+}
+
 /**
  * ⭐⭐ ENGINE 55 — AN OTHER-SYMBOL SPELLING NO BINDING CAN EVER SERVE, decided from the
  * spelling alone: `{code, reason}`, or null when the bind must decide (a held listing,
@@ -141,6 +238,9 @@ const BREADTH_SHAPE = /^(ADVDEC|ADVN|ADVQ|ADV|DECN|DECQ|DECL|DEC|UNCH[NQ]?|UVOL[
 export function staticallyUnservable(ticker, venue) {
   const t = String(ticker || '').trim().toUpperCase()
   if (!t) return null
+  // ⭐ RS RATING L1b — a spelling with a witness row is decided by its row alone
+  const row = witnessRowOf(venue, t)
+  if (row) return witnessRowServes(row) ? null : witnessPendingWhy(row)
   const breadth = BREADTH_SHAPE.test(t)
   const notYet = breadth
     ? ' It is a market breadth series (advancing / declining issues or volume), and this breadth symbol is not available yet.'
@@ -173,9 +273,26 @@ export function staticallyUnservable(ticker, venue) {
 export function spellingUnservable(raw) {
   const s = String(raw == null ? '' : raw).trim().toUpperCase()
   if (!s) return null
+  // ⭐ RS RATING L6b — a Pine seed (`request.seed` reads `<SOURCE>:<SYMBOL>`, the source
+  // `SEED_…`): its row's decision, or `other-symbol:seed-unregistered`
+  const seed = SEED_SPELLING.exec(s)
+  if (seed) {
+    if (witnessRowOf(seed[1], seed[2])) {
+      const why = staticallyUnservable(seed[2], seed[1])
+      return why ? { ticker: seed[2], ...why } : null
+    }
+    return { ticker: s, code: OTHER_SYMBOL_REFUSAL.SEED_UNREGISTERED, reason: `\`${s}\` is a Pine Seeds series our `
+      + 'store does not hold (the seeds it serves are listed in `requestWitnesses.json`), so what this indicator draws '
+      + 'from it is not computed.' }
+  }
   const m = /^([A-Z][A-Z0-9_.]{0,15}):(.*)$/.exec(s)
   const venue = m ? m[1] : ''
   const ticker = m ? m[2].trim() : s
+  // ⭐ RS RATING L1b — a witness row's spelling (`SP:SPX`) is the row's to decide
+  if (m && witnessRowOf(venue, ticker)) {
+    const why = staticallyUnservable(ticker, venue)
+    return why ? { ticker, ...why } : null
+  }
   if (m && !US_EQUITY_VENUES.has(venue)) {
     const notYet = BREADTH_SHAPE.test(ticker)
       ? ' It is a market breadth series (advancing / declining issues or volume), and this breadth symbol is not available yet.'
@@ -424,6 +541,13 @@ export function fetchableOtherSymbols(def) {
   if (!def || !def.meta || !Array.isArray(def.meta.otherSymbols)) return []
   const out = []
   for (const { ticker, spellings } of otherSymbolRequestsOf(def)) {
+    // ⭐ RS RATING L1b — a witnessed row is fetched under its store key, and only when every
+    // spelling of the ticker is that one served row
+    const rows = spellings.map((v) => witnessRowOf(v, ticker))
+    if (rows.some(Boolean)) {
+      if (rows.every((r) => r && r === rows[0] && witnessRowServes(r))) out.push(rows[0].store)
+      continue
+    }
     if (!spellings.length || unservableSpelling(ticker)) continue
     // ⭐ C29 — a bare spelling (`''`) may be served too (when the store holds the
     // ticker on a witnessed exchange), so it is worth fetching; the bind decides.
@@ -488,6 +612,37 @@ export function resolveOtherSymbols(def, ctx = {}, confirmed = SYMBOL_EXCHANGE_C
       // ⭐ `static`: decided by the spelling alone, so it is refused under the request
       // guard with the one sentence every door says (`staticOtherSymbolMessage`).
       refused.push({ ticker, code: hopeless.code, reason: hopeless.reason, static: true })
+      continue
+    }
+    // ⭐⭐ RS RATING L1b — A WITNESSED SPELLING (`SP:SPX`) IS ITS ROW'S: no exchange to match,
+    // served from the row's store key on the timeframes its witness covers, its bars keyed by
+    // session date and placed as the witness places them (`witnessedBarsOf`). A pending row
+    // never reaches here (`staticallyUnservable` refused it above).
+    const rows = spellings.map((v) => witnessRowOf(v, ticker))
+    if (rows.some(Boolean)) {
+      const row = rows.find(Boolean)
+      if (!rows.every((r) => r === row)) {
+        no(ticker, OTHER_SYMBOL_REFUSAL.VENUE_MISMATCH, `\`${ticker}\` is spelled both as \`${row.spelling}\` and as `
+          + 'another listing, which are different instruments under one name')
+        continue
+      }
+      const tf = ctx.tf == null ? '' : String(ctx.tf)
+      if (!row.timeframes.includes(tf)) {
+        no(ticker, OTHER_SYMBOL_REFUSAL.WITNESS_TIMEFRAME, `\`${row.spelling}\` is witnessed on `
+          + `${row.timeframes.join(', ') || 'no'} charts only (capture-queue row ${row.queue_row}), and this chart is `
+          + `${tf ? `\`${tf}\`` : 'of no stated timeframe'}`)
+        continue
+      }
+      const entry = secondary ? secondary.get(row.store) : null
+      const held = entry && Array.isArray(entry.bars) ? entry.bars : null
+      if (!held || !held.length) {
+        no(ticker, OTHER_SYMBOL_REFUSAL.NO_BARS, `\`${row.spelling}\`'s bars for this timeframe are not in hand`
+          + (entry && entry.status ? ` (${entry.status})` : ''))
+        if (!entry || String(entry.status || '') === 'loading') refused[refused.length - 1].pending = true
+        continue
+      }
+      symbols[ticker] = witnessedBarsOf(row, held)
+      served.push(ticker)
       continue
     }
     const key = storeTickerOf(ticker)
@@ -582,8 +737,14 @@ export function otherSymbolRefusalOfTree(tree, decision) {
 export function otherSymbolsSignature(def, secondary) {
   const tickers = symTickersOf(def)
   if (!tickers.length) return ''
+  // ⭐ RS RATING L6b — a witnessed spelling's series is held under its row's store key
+  const recorded = new Map(otherSymbolRequestsOf(def).map((r) => [r.ticker, r.spellings]))
+  const keyOf = (t) => {
+    const row = (recorded.get(t) || []).map((v) => witnessRowOf(v, t)).find(Boolean)
+    return row ? row.store : storeTickerOf(t)
+  }
   return tickers.map((t) => {
-    const e = secondary && typeof secondary.get === 'function' ? secondary.get(storeTickerOf(t)) : null
+    const e = secondary && typeof secondary.get === 'function' ? secondary.get(keyOf(t)) : null
     const bars = e && Array.isArray(e.bars) ? e.bars : null
     const last = bars && bars.length ? bars[bars.length - 1] : null
     return `${t}:${e ? e.status || '' : '-'}:${bars ? bars.length : 0}:${last ? `${last.t}/${last.c}` : ''}`

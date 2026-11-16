@@ -475,6 +475,21 @@ def _is_market_indicator(ticker: str) -> bool:
         return False
 
 
+def _is_pine_seed(ticker: str) -> bool:
+    """Is this a registered Pine Seeds series (`SEED_<SOURCE>:<SYMBOL>`)?
+
+    ⭐ THE SAME DOORS AS `_is_market_indicator`, AND FOR THE SAME REASON: the bars proxy,
+    the history proxy, `/api/bars`' serve branch and `/api/bars-history` must all agree. A seed has
+    no rows in bars.db, so a door that forgot it would serve a valid, cacheable empty 200.
+    Served from the web pod's `pine_seed_store` (docs/pine/RS-RATING-TRANSFER.md, L6).
+    """
+    try:
+        from api.services import pine_seed_store as _seeds
+        return _seeds.is_seed_symbol(ticker)
+    except Exception:
+        return False
+
+
 def _is_breadth_derived_indicator(ticker: str) -> bool:
     """A published market indicator whose history is COMPUTED FROM canonical breadth
     (`SRC_BREADTH_DERIVED`: US:MCO/MCS/AD/ZBT today), so its content follows the breadth
@@ -516,6 +531,9 @@ def _bars_proxy_should_route(ticker: str, warm: int) -> bool:
     # Proxying one returns an empty chart. Same authority `serve_bars` routes on, so
     # the exclusion cannot drift from the routing.
     if _is_market_indicator(ticker):
+        return False
+    # A Pine seed is served from the web pod's `pine_seed_store`, like the above.
+    if _is_pine_seed(ticker):
         return False
     if os.environ.get("BARS_PROXY_ENABLED", "0") != "1":
         return False
@@ -1098,6 +1116,7 @@ def _serve_bars_impl(
     # daily payload, so the append is skipped anyway).
     _is_breadth = False
     _is_mkt_ind = False
+    _is_seed = False
     _drec = None
     _meta_pre = None
     try:
@@ -1137,8 +1156,9 @@ def _serve_bars_impl(
             from api.services import delisted_registry as _delisted
             _is_breadth = _breadth_syms.is_breadth_symbol(ticker)
             _is_mkt_ind = (not _is_breadth) and _is_market_indicator(ticker)
-            _drec = None if (_is_breadth or _is_mkt_ind) else _delisted.resolve(ticker)
-            if not (_is_breadth or _is_mkt_ind or _drec):
+            _is_seed = (not _is_breadth) and (not _is_mkt_ind) and _is_pine_seed(ticker)
+            _drec = None if (_is_breadth or _is_mkt_ind or _is_seed) else _delisted.resolve(ticker)
+            if not (_is_breadth or _is_mkt_ind or _is_seed or _drec):
                 # Bar contract: the series meta is read BEFORE the rows, so an answer's
                 # rows are never older than the `series_rev` they carry.
                 from api.services.bar_contract import snapshot_meta as _snap_meta
@@ -1152,6 +1172,10 @@ def _serve_bars_impl(
                 from api.services.market_indicators import series as _mseries
                 _mark_serve("market-indicator")
                 response = JSONResponse(content=_mseries.build_bars(ticker, tf, bars))
+            elif _is_seed:
+                from api.services import pine_seed_store as _seeds
+                _mark_serve("pine-seed")
+                response = JSONResponse(content=_seeds.build_bars(ticker, tf, bars))
             elif _drec:
                 from api.services.bars_fetch import _get_delisted_bars_response
                 # serve_as=ticker keeps a bare aliased symbol (e.g. "BSC") consistent with
@@ -1291,7 +1315,7 @@ def _serve_bars_impl(
         # snapshot helper self-limits to an OPEN regular session (returns None
         # pre-market / weekend / holiday) with a per-ticker ~8s TTL, so a
         # scan/warm storm can't fan out one provider call per request.
-        if (tf == "D" and not to and not _is_breadth and _drec is None
+        if (tf == "D" and not to and not _is_breadth and not _is_seed and _drec is None
                 and not is_index(ticker)
                 and getattr(response, "status_code", 200) == 200):
             try:
@@ -1316,8 +1340,8 @@ def _serve_bars_impl(
         # developing, verified_through, grid, session, series_rev, cache_key — on every
         # tf and every serve branch, in the same single parse.
         if getattr(response, "status_code", 200) == 200:
-            _live_equity = (not _is_breadth and not _is_mkt_ind and _drec is None
-                            and not is_index(ticker))
+            _live_equity = (not _is_breadth and not _is_mkt_ind and not _is_seed
+                            and _drec is None and not is_index(ticker))
             try:
                 response = _augment_with_contract(
                     response, ticker, tf, session,
@@ -1452,6 +1476,10 @@ def serve_bars_history(ticker: str, tf: str = "D", bars: int = 60000,
             # new catalogue was added to `/api/bars` alone.
             from api.services.market_indicators import series as _mseries
             all_bars = (_mseries.build_bars(sym, tfu, bars) or {}).get("bars") or []
+        elif _is_pine_seed(sym):
+            # The third door (see `_is_pine_seed`): bars.db has no seed rows.
+            from api.services import pine_seed_store as _seeds
+            all_bars = (_seeds.build_bars(sym, tfu, bars) or {}).get("bars") or []
         elif is_index(sym):
             # Cash-settled indexes carry unix-ts + aren't date-sliceable here.
             return _no_store(JSONResponse(content={
@@ -1588,7 +1616,8 @@ async def get_bars_history(
     # depends on WHICH POD serves it has to be excluded at every routing decision, not
     # just the ones that look like routing.
     if origin and os.environ.get("BARS_HISTORY_PROXY_ENABLED", "0") == "1" \
-            and not _is_market_indicator(ticker) and not _is_breadth_symbol(ticker):
+            and not _is_market_indicator(ticker) and not _is_breadth_symbol(ticker) \
+            and not _is_pine_seed(ticker):
         # ⛔ BREADTH TOO, for the same reason: a breadth pseudo-ticker's sealed history is
         # composed on the web pod (collector rows + the OHLC store + the breadth authority
         # seam), none of which the worker has. `/api/bars` already keeps breadth local.

@@ -1208,7 +1208,7 @@
      "fixed before (question states the per-share basis)"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$120",
     "$300",
@@ -1219,6 +1219,28 @@
     "$300": "Gives the share count and ignores the dividend.",
     "$1,200": "Slips a decimal place.",
     "$12,000": "Multiplies by 100 twice."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The dividend owed",
+    "rows": [
+     {
+      "key": "calls_short",
+      "label": "Calls short",
+      "value": 3.0,
+      "fmt": "count"
+     },
+     {
+      "key": "dividend,_a_share",
+      "label": "Dividend, a share",
+      "value": 0.4,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Dividend we owe",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1391,7 +1413,35 @@
      "computed key (calc arith)"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The short put",
+    "rows": [
+     {
+      "key": "put_strike",
+      "label": "Put strike",
+      "value": 45.0,
+      "fmt": "$"
+     },
+     {
+      "key": "premium_collected",
+      "label": "Premium collected",
+      "value": 1.8,
+      "fmt": "$"
+     },
+     {
+      "key": "stock_at_expiry",
+      "label": "Stock at expiry",
+      "value": 43.5,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Net cost if assigned",
+     "as": "per_share"
+    }
+   }
   },
   {
    "key": "q18",
@@ -1726,7 +1776,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q14": {
    "status": "pass",
@@ -1751,8 +1801,8 @@
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc 45 - 1.80 = 43.20 (f8). The lesson line and the trap are now third-person mechanics (f22, f8). The OIC sentence is put as OIC's view (f63), not as our advice. Choices 34-39 chars. The rulebook A6/B25 framing stays on the owner flag; no key teaches selling puts as ours."
+   "fixed": true,
+   "notes": "Title 'The assigned put' and 'Net cost a share' presume the assignment the question asks about"
   },
   "q18": {
    "status": "pass",

@@ -921,7 +921,10 @@ def test_the_committed_live_rows_are_exactly_the_session_rows():
     assert got == LIVE_ROWS
     q = json.loads((REPO / "docs/pine/vendor-harness/capture-queue.json").read_text(encoding="utf-8"))
     by = {t["id"]: t["status"] for t in q["targets"]}
-    for tid in ("w9-p3-every-tick-history@NYSE:RDDT@D", "w9-q-s1d-same-tick@NYSE:RDDT@D",
-                "w9-q-s1e-live-past@NYSE:RDDT@D", "vw-w3-loop-ternary-text@AMEX:SPY@D"):
+    # a row that needs no live session is capturable on a closed market: QUEUED until its capture is
+    # committed, CAPTURED after (the two U14 strategy captures of 2026-11-15, #1370), never NEEDS_LIVE
+    for tid in ("w9-q-s1d-same-tick@NYSE:RDDT@D", "vw-w3-loop-ternary-text@AMEX:SPY@D"):
         assert by[tid] == "QUEUED", tid
+    for tid in ("w9-p3-every-tick-history@NYSE:RDDT@D", "w9-q-s1e-live-past@NYSE:RDDT@D"):
+        assert by[tid] == "CAPTURED", tid
     assert by["w9-q-s1o-every-tick@AMEX:SPY@5"] == by["s1-broker-core@AMEX:SPY@5"] == "NEEDS_LIVE"

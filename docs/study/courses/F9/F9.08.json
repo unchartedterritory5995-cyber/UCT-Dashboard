@@ -1029,7 +1029,29 @@
      "a computed key"
     ]
    },
-   "batch": "wave9"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The book",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Whole book, % of account",
+      "value": 200,
+      "fmt": "%"
+     },
+     {
+      "key": "r2",
+      "label": "Positions in the book",
+      "value": 10,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Each position, % of account",
+     "as": "pct"
+    }
+   }
   },
   {
    "key": "q18",
@@ -1511,9 +1533,9 @@
   },
   "q17": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Slot reads '20%' (key is too long to reuse), so the label must say it is a share of the account; positions needs its context."
   },
   "q18": {
    "status": "pass",

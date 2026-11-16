@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/ast/condTaLanes.test.js
 //
-// ─── ⭐⭐ COND-TA (plan unit U2, engine 55) — A `ta.*` CALL THAT RUNS ONLY ON SOME BARS, ON EVERY DOOR ──
+// ─── ⭐⭐ COND-TA (plan unit U2, engine 58) — A `ta.*` CALL THAT RUNS ONLY ON SOME BARS, ON EVERY DOOR ──
 //
 // Pine keeps a `ta.*` call's history PER CALL SITE: a call written in an `if` block, in one
 // arm of a `?:`, in an `if` expression's branch, in a helper called from one, or on the right

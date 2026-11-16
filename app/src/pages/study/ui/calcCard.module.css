@@ -8,8 +8,9 @@
 
 /* the one answer slot */
 .find { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, .06); }
-.findLabel { font-size: 13px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--soft); }
-.ask, .answer { min-width: 64px; padding: 6px 14px; border-radius: 999px; text-align: center; font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* the label wraps, the answer pill never shrinks ("About 33%" overflowed its pill on a phone, 2026-11-15) */
+.findLabel { flex: 1 1 auto; min-width: 0; font-size: 13px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--soft); }
+.ask, .answer { flex: none; min-width: 64px; padding: 6px 14px; border-radius: 999px; text-align: center; font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ask { color: var(--g); border: 1.5px dashed rgba(220, 187, 94, .55); }
 .answer { color: #0d1a12; background: var(--ok); box-shadow: 0 0 0 1px rgba(79, 211, 139, .4), 0 6px 18px rgba(79, 211, 139, .18); animation: fillIn .45s cubic-bezier(.2, .9, .2, 1.05) both; }
 .working { margin: 0; font-size: 14px; line-height: 1.45; color: var(--soft); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
@@ -53,7 +54,8 @@
 
 /* tiles: the size inputs, a quote's two sides */
 .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
-.tile { display: grid; gap: 2px; padding: 10px 12px; border-radius: 12px; background: rgba(255, 255, 255, .04); border: 1px solid rgba(255, 255, 255, .08); }
+/* the value on the tile's floor, so a row of tiles reads level however its labels wrap */
+.tile { display: grid; grid-template-rows: 1fr auto; align-items: start; gap: 2px; padding: 10px 12px; border-radius: 12px; background: rgba(255, 255, 255, .04); border: 1px solid rgba(255, 255, 255, .08); }
 .tileLabel { font-size: 12px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
 .tileValue { font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; }
 
@@ -119,6 +121,8 @@
   .colTrack { height: 128px; width: 46px; }
   .colArrow { margin-top: 54px; }
   .level.hit .levelName { max-width: 58%; }
+  /* "Hold session's low" was cut to "HOLD SESSION'..." at 46% on a 390 phone */
+  .levelName { max-width: 58%; letter-spacing: .06em; }
   .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .quote { grid-template-columns: 1fr 40px 1fr; }
   .ask, .answer { font-size: 15px; padding: 6px 12px; }

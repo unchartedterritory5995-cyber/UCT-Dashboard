@@ -25,6 +25,7 @@
 // An entry is either a definition id (`u_` + 12 hex) or the sha256 of the Pine
 // source (64 hex; a prefix of at least 12 hex is accepted, as git accepts one).
 import { sha256Hex } from './ast/parse.js'
+import { setRunHalfObjectEvidence } from './runHalfRailSeam.js'
 
 /** The server's read of the list (`api/routers/user_definitions.py::runtime_kill`). */
 export const RUNTIME_KILL_PATH = '/api/user-definitions/runtime-kill'
@@ -62,16 +63,28 @@ function maybeRefreshRuntimeLists() {
       .then((r) => (r && r.ok ? r.json() : null))
       .then((d) => {
         if (!d) return
-        setRuntimeKillList(d.kill)
-        setRuntimeAllowList(d.allow)
         // WS-I Part 2 -- a switch-off of capability admission reaches the open tab here too
-        setRuntimeCapabilityAdmission(d.capability_admission)
+        latchRuntimeLists(d)
       })
       .catch(() => { /* the lists stay as they were */ })
       .finally(() => { _listsInFlight = false })
   } catch {
     _listsInFlight = false
   }
+}
+
+/** ⭐⭐ RS RATING L8 — LATCH EVERYTHING THE KILL READ CARRIES, ONE FUNCTION FOR BOTH READERS
+ *  (`MemberPane`'s mount read and the recheck above), so a key the server adds reaches both or
+ *  neither: the kill list, the allowlist, the capability-admission switch, and the run half's
+ *  object evidence (`run_half_evidence`, from the same committed allowlist records:
+ *  `api/services/runtime_definitions.py::run_half_evidence`). ⛔ An absent key latches EMPTY
+ *  (nothing admitted), never "as it was". */
+export function latchRuntimeLists(d) {
+  if (!d || typeof d !== 'object') return
+  setRuntimeKillList(d.kill)
+  setRuntimeAllowList(d.allow)
+  setRuntimeCapabilityAdmission(d.capability_admission)
+  setRunHalfObjectEvidence(d.run_half_evidence)
 }
 
 /** Diagnostics and rails. */

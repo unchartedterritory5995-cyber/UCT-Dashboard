@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/ast/legacyTaNames.js
 //
-// ⭐⭐ COND-TA (engine 55) — THE PINE v1-v4 BARE SPELLINGS OF `ta.*` CALLS.
+// ⭐⭐ COND-TA (engine 58) — THE PINE v1-v4 BARE SPELLINGS OF `ta.*` CALLS.
 //
 // Pine v5 moved these built-ins into the `ta.` namespace (`sum` into `math.`); v1-v4
 // write them bare: `sma(close, 3)`. A bare call keeps the same per-call-site history

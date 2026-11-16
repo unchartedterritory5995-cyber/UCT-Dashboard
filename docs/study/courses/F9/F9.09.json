@@ -1313,7 +1313,7 @@
      "the gap rule's broker-stop mechanics are still an open owner question (see q17 in conflicts)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$51",
     "$57",
@@ -1324,6 +1324,28 @@
     "$51": "Counted two R down from the stop, not from the entry.",
     "$57": "Used the stop price, which is only one R.",
     "$58": "Took two dollars under the entry instead of two R."
+   },
+   "visual": {
+    "kind": "ladder",
+    "title": "The gap rule",
+    "side": "long",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 57
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 60
+     }
+    ],
+    "find": {
+     "label": "The price at 2R lost",
+     "as": "price",
+     "tag": "2R lost"
+    }
    }
   },
   {
@@ -1861,7 +1883,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Math right (54; 51 from stop; 57 = stop; 58). Why walks the steps."
+   "notes": "Ladder of prices on one ruler, no r so no R steps drawn; entry/stop roles right; label 'price at 2R lost' names exactly what the calc gives (54, below the stop); slot $54 matches key."
   },
   "q19": {
    "status": "pass",

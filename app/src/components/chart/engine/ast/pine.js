@@ -102,7 +102,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // evaluation time, which is a refusal at the wrong door.
 import { FN, MAX_SELF_LAG, SEED_RESIDUAL_TOLERANCE, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf, listingSeedIsUnpinned } from './interpret.js'
 import { isLowerTfRequest, lowerTfRefusal, LOWER_TF_REFUSAL } from '../lowerTf.js'
-import { staticallyUnservable, spellingUnservable, staticOtherSymbolMessage, US_EQUITY_VENUES } from '../otherSymbols.js'
+import { staticallyUnservable, spellingUnservable, staticOtherSymbolMessage, US_EQUITY_VENUES, witnessRowOf, SEED_SPELLING } from '../otherSymbols.js'
 import { memberNumber } from './memberValue.js'
 import { timeInputDefaultOf, isTimeInputCall } from '../runtime/runtimeInputs.js'
 // ⭐ The budget's own verdict, asked at the translate door (see the row builder
@@ -2016,6 +2016,12 @@ export const BUILTIN_SYMBOL_SCOPED = Object.freeze({
   'syminfo.currency': 'currency',
   'syminfo.timezone': 'timezone',
   'syminfo.session': 'session',
+  // ⭐ RS RATING L3 (2026-11-15) — the classification fields (`symbolScope.json::classification`).
+  // They settle per BINDING from the symbol's class and strings: TradingView's where a capture
+  // witnesses it, else OUR string tagged substituted (`bind.js::classificationWith`), else refused
+  // by name from the fold.
+  'syminfo.industry': 'industry',
+  'syminfo.sector': 'sector',
 })
 
 /** The `syminfo.*` fields REFUSED BY NAME, with their reasons — read straight off
@@ -5130,7 +5136,10 @@ const VENUE_QUALIFIED = /^([A-Z][A-Z0-9_.]{0,15}):([A-Z][A-Z0-9.-]{0,9})$/
 function tickerWithoutVenue(raw) {
   const found = VENUE_QUALIFIED.exec(raw)
   if (!found) return raw
-  return US_EQUITY_VENUES.has(found[1]) ? found[2] : null
+  if (US_EQUITY_VENUES.has(found[1])) return found[2]
+  // ⭐ RS RATING L1b — a spelling with a witness row (`SP:SPX`, `otherSymbols.js::witnessRowOf`)
+  // names its ticker too; whether it is SERVED is the row's (the static gate and the bind ask it)
+  return witnessRowOf(found[1], found[2]) ? found[2] : null
 }
 
 /** The same question asked of `ticker.new`'s SEPARATE exchange argument.
@@ -5782,7 +5791,7 @@ function parsePostfix(cur) {
       if (node.type === 'name') {
         const joined = `${node.name}.${member}`
         node = isCall
-          ? { type: 'call', name: joined, args, tok: node.tok, endTok }
+          ? seedAsSecurity({ type: 'call', name: joined, args, tok: node.tok, endTok })
           : { type: 'name', name: joined, tok: node.tok }
         continue
       }
@@ -5955,7 +5964,7 @@ function parsePrimary(cur) {
       // `endTok` is the whole of what would change this." This is that.
       // `parseArguments` consumes through the `)`, so the last token it ate IS
       // the closing paren — the same way `thinkscript.js::parseCall` gets it.
-      return { type: 'call', name: tok.value, args, tok, endTok: cur.toks[cur.i - 1] || null }
+      return seedAsSecurity({ type: 'call', name: tok.value, args, tok, endTok: cur.toks[cur.i - 1] || null })
     }
     return { type: 'name', name: tok.value, tok }
   }
@@ -5985,6 +5994,43 @@ function parseArguments(cur) {
 }
 
 /** One statement's tokens → one Pine expression, with nothing left over. */
+/** ⭐⭐ RS RATING L6b — `request.seed(source, symbol, expression)` IS AN OTHER-SYMBOL READ.
+ *  A Pine Seeds series is daily data under the symbol `<SOURCE>:<SYMBOL>`, so the call is
+ *  rewritten here, once, into the read every lane already has:
+ *  `request.security("<SOURCE>:<SYMBOL>", "D", expression)` — both lanes parse with this
+ *  module, so neither can read a seed differently. Whether that spelling is SERVED is
+ *  `otherSymbols.js`'s (`requestWitnesses.json`'s `seed` rows, the frontend's manifest of
+ *  `pine_seed_store.py::SEEDS`): an unregistered seed refuses by name.
+ *  ⛔ ONLY THE THREE-ARGUMENT CALL WITH TEXT LITERALS for source and symbol (positional or
+ *  named `source` / `symbol` / `expression`): `ignore_invalid_symbol` and `calc_bars_count`
+ *  change the read, and a computed source names no series this door can know. Anything else
+ *  is left as it was (and refuses as it always did). */
+function seedAsSecurity(node) {
+  if (!node || node.type !== 'call' || node.name !== 'request.seed') return node
+  const args = node.args || []
+  if (args.length !== 3) return node
+  const names = ['source', 'symbol', 'expression']
+  const slots = [undefined, undefined, undefined]
+  let k = 0
+  for (const a of args) {
+    if (!a) return node
+    const at = a.name ? names.indexOf(a.name) : k++
+    if (at < 0 || slots[at] !== undefined) return node
+    slots[at] = a.value
+  }
+  const [src, sym, expr] = slots
+  if (!src || src.type !== 'string' || !sym || sym.type !== 'string' || !expr) return node
+  const key = `${String(src.value).trim().toUpperCase()}:${String(sym.value).trim().toUpperCase()}`
+  return {
+    type: 'call', name: 'request.security', tok: node.tok, endTok: node.endTok, seed: true,
+    args: [
+      { name: null, value: { type: 'string', value: key, tok: src.tok } },
+      { name: null, value: { type: 'string', value: 'D', tok: sym.tok } },
+      { name: null, value: expr },
+    ],
+  }
+}
+
 export function parseWholeExpression(toks) {
   const cur = new Cursor(toks)
   const node = parseExpression(cur, 0)
@@ -6956,7 +7002,7 @@ function armHistoryCallAt(node, historyFns, walk) {
   switch (node.type) {
     case 'call': {
       const name = typeof node.name === 'string' ? node.name : ''
-      // ⭐ COND-TA (engine 55, G-b) — a Pine v1-v4 bare `sma(…)` is the same call (`isTaCallName`)
+      // ⭐ COND-TA (engine 58, G-b) — a Pine v1-v4 bare `sma(…)` is the same call (`isTaCallName`)
       if (isTaCallName(name)) return { name, udf: false }
       if (isHistoryCallName(name, historyFns)) return { name, udf: true }
       if (name.startsWith('request.')) return null
@@ -6981,7 +7027,7 @@ function armHistoryCallAt(node, historyFns, walk) {
   }
 }
 
-/** ⭐⭐ COND-TA (engine 55) — what the SCREENER lane adds to a gate's own sentence when it
+/** ⭐⭐ COND-TA (engine 58) — what the SCREENER lane adds to a gate's own sentence when it
  *  refuses it: that lane binds no chart, so nothing can say the code ran on every bar. */
 export const SCREEN_GATE_SENTENCE = ' — a screen or an alert reads this value on every bar of every symbol, and no '
   + 'chart is bound there to say whether that code ran on each one, so it is not computed; add the script to a '
@@ -8037,7 +8083,7 @@ export class Resolver {
     //     (`condRefusal`), never served;
     //   · every other resolver reads as it always has. ⚰️ The screener lane's was
     //     among them ("nothing binds a chart"), and so it served the every-bar
-    //     number; since COND-TA (engine 55) its output loop sets `condGate` too and
+    //     number; since COND-TA (engine 58) its output loop sets `condGate` too and
     //     refuses each value gate by name (`SCREEN_GATE_SENTENCE`).
     // ⭐ G-h (r1) — a paint's / a fill's colour reads a one-run binding the way a plot
     // does (`holderColourGates` turns `condGate` on): ⚰️ r0 read it the every-bar way
@@ -12240,11 +12286,12 @@ export class Resolver {
   /** A ternary whose CONDITION is a constant → the branch that actually runs,
    *  else null. THE ONE PLACE THAT DECIDES, read by both timeframe readers.
    *
-   *  ⭐⭐ `res = useCurrentRes ? period : resCustom` IS THE MTF TOGGLE IDIOM and
-   *  two community scripts are nothing but it. `pine.security.test.js` recorded
+   *  ⭐⭐ THE MTF TOGGLE IDIOM: a boolean input picks either the chart's own
+   *  timeframe (`period`) or a second, timeframe-typed input, and the result
+   *  feeds `security`. Two community scripts are nothing but it. `pine.security.test.js` recorded
    *  the case as unwinnable in the words "a TERNARY. No literal exists to fold
    *  to." True — and beside the point, because nobody has to fold the ternary
-   *  itself. `useCurrentRes = input(true, …)` is a CONSTANT, so exactly one arm
+   *  itself. The boolean input's default is a CONSTANT, so exactly one arm
    *  is reachable and the other is dead code in the script as shipped.
    *
    *  ⛔ THE CONDITION IS READ, NEVER ASSUMED. Taking `yes` unconditionally passes
@@ -13361,6 +13408,10 @@ export class Resolver {
       // one string, and both are judged by `US_EQUITY_VENUES` so they cannot
       // disagree about one script.
       const raw = String(node.value).trim().toUpperCase()
+      // ⭐ RS RATING L6b — a registered Pine seed (`SEED_<SOURCE>:<SYMBOL>`, whose source can be
+      // longer than any exchange spelling): its symbol is the ticker, its source the venue
+      const seed = SEED_SPELLING.exec(raw)
+      if (seed && witnessRowOf(seed[1], seed[2]) && TICKER_SHAPE.test(seed[2])) return { ticker: seed[2], venue: seed[1] }
       const ticker = tickerWithoutVenue(raw)
       // ⭐ READ, NEVER RE-TYPED — `parse.js` owns what a ticker may look like.
       if (ticker === null || !TICKER_SHAPE.test(ticker)) return null
@@ -13376,26 +13427,48 @@ export class Resolver {
     // does and for the same recorded reason: TradingView's own Pine Screener
     // "falls back to defaults for `input.symbol`". Every fold lands in
     // `usedInputs`, so a frozen input is never silent.
-    if (node.type === 'call' && (node.name === 'input.symbol' || node.name === 'input.string')) {
-      const args = node.args || []
-      for (let i = 0; i < args.length; i += 1) {
-        const a = args[i]
-        if (a && (a.name === 'defval' || (!a.name && i === 0))) {
-          const folded = this.otherSymbolOf(a.value, depth + 1)
-          if (folded !== null && node.tok) {
-            this.usedInputs.set(`${node.tok.line}:${node.tok.column}`, {
-              call: node.name,
-              title: null,
-              folded: `'${folded.ticker}'`,
-              line: node.tok.line,
-              column: node.tok.column,
-            })
-          }
-          return folded
-        }
+    const dv = this.symbolInputDefaultOf(node)
+    if (dv !== undefined) {
+      if (dv === null) return null
+      const folded = this.otherSymbolOf(dv, depth + 1)
+      if (folded !== null && node.tok) {
+        this.usedInputs.set(`${node.tok.line}:${node.tok.column}`, {
+          call: node.name,
+          title: null,
+          folded: `'${folded.ticker}'`,
+          line: node.tok.line,
+          column: node.tok.column,
+        })
       }
+      return folded
     }
     return null
+  }
+
+  /** ⭐⭐ RS RATING L2 — THE DEFAULT AN INPUT HANDS A REQUEST'S SYMBOL ARGUMENT: the
+   *  `defval` node of `input.symbol(…)` / `input.string(…)` / an UNTYPED `input(…)`;
+   *  `null` for one of those calls with no
+   *  readable default; `undefined` for any other node. ONE reader for `otherSymbolOf`
+   *  and `rawSymbolSpellingOf`, so the fold and the spelling refusal cannot disagree.
+   *  ⭐ Pine types an untyped `input()` by its default's literal type (reference,
+   *  `input`: "the type of the input is determined by the type of the default value"),
+   *  so `input('SP:SPX', title = …)` IS a string input — the shape RS Rating writes for
+   *  its comparative symbol. ⛔ A default that is not text (`input(4200)`, `input(close)`)
+   *  folds to no symbol — `otherSymbolOf` answers null for it — and a `type =` argument
+   *  (v4's `input(…, type = input.resolution)`) is its own declaration, never read here. */
+  symbolInputDefaultOf(node) {
+    if (!node || node.type !== 'call') return undefined
+    const untyped = node.name === 'input'
+    if (!untyped && node.name !== 'input.symbol' && node.name !== 'input.string') return undefined
+    const args = node.args || []
+    if (untyped && args.some((a) => a && a.name === 'type')) return undefined
+    for (let i = 0; i < args.length; i += 1) {
+      const a = args[i]
+      if (a && (a.name === 'defval' || (!a.name && i === 0))) {
+        return a.value
+      }
+    }
+    return untyped ? undefined : null
   }
 
   /** `request.security(<symbol>, <timeframe>, expr)` → the node it means, or null.
@@ -13556,13 +13629,8 @@ export class Resolver {
       // a computed or chart-own prefix (`?`, `@syminfo.prefix`) spells no literal
       return prefix === '?' || String(prefix).startsWith('@') ? null : `${prefix}:${inner}`
     }
-    if (node.type === 'call' && (node.name === 'input.symbol' || node.name === 'input.string')) {
-      const args = node.args || []
-      for (let i = 0; i < args.length; i += 1) {
-        const a = args[i]
-        if (a && (a.name === 'defval' || (!a.name && i === 0))) return this.rawSymbolSpellingOf(a.value, depth + 1)
-      }
-    }
+    const dv = this.symbolInputDefaultOf(node)
+    if (dv) return this.rawSymbolSpellingOf(dv, depth + 1)
     return null
   }
 
@@ -26172,7 +26240,7 @@ export function translatePine(source, opts = {}) {
   const outerDeclWords = DECL_WORDS_SINK
   const outerTaintAt = strategyTaintAtLine
   const outerTaintDrawingAt = strategyTaintDrawingAtLine
-  // ⭐ COND-TA (engine 55, G-b) — the legacy bare-name predicate is installed by
+  // ⭐ COND-TA (engine 58, G-b) — the legacy bare-name predicate is installed by
   // `translatePineResult` once the version is lexed, and put back HERE, whatever returns.
   const outerLegacyTa = setLegacyTaCall(null)
   LIBRARY_LINK_SINK = null
@@ -26351,7 +26419,7 @@ function translatePineResult(source, opts = {}) {
 
   const { tokens, indents, version, lines, rawOffsetMap } = lexed
   beginPaletteScope(version)
-  // ⭐ COND-TA (engine 55, G-b) — in Pine v1-v4 (and a script with no `//@version`,
+  // ⭐ COND-TA (engine 58, G-b) — in Pine v1-v4 (and a script with no `//@version`,
   // which TradingView compiles as v1) a bare `sma(…)` is a `ta.*` call with its own
   // call-site history (`legacyTaNames.js`); every history reader asks `isTaCallName`.
   setLegacyTaCall(legacyTaCallFor(version))
@@ -28099,7 +28167,7 @@ function translatePineResult(source, opts = {}) {
     const resolver = makeResolver(positionEnv(out))
     // ⭐ C48 — see `Resolver.resolveBinding`: a CHART's plot reads a conditional
     // call through and carries its block's guard for the bind.
-    // ⭐⭐ COND-TA (engine 55) — THE SCREENER LANE ASKS THE SAME QUESTION, AND HAS NO
+    // ⭐⭐ COND-TA (engine 58) — THE SCREENER LANE ASKS THE SAME QUESTION, AND HAS NO
     // BIND TO HAND THE ANSWER TO. ⚰️ It "read as it always had": `if close > open` /
     // `v := ta.sma(close, 3)` / `plot(v)` translated `ok` as `close > open ? sma(close, 3)
     // : na`, the EVERY-BAR mean, wrong on 242 of RDDT's 635 bars against
@@ -28212,10 +28280,10 @@ function translatePineResult(source, opts = {}) {
       const flat = !readsBars(ast)
       // ⭐⭐ THE OTHER SPELLING OF "SCAFFOLDING", AND IT IS THE AUTHOR'S OWN STATEMENT
       // TOO. `outputHidden` reads `display = display.none`; this reads the plot the
-      // author gave NO TITLE and then handed to `fill()` as a band edge —
-      //     mPlot = plot(ohlc4, title="", style=plot.style_circles, linewidth=0)
-      //     fill(mPlot, pPlot, …)
-      // which is `high_engagement__03-supertrend-kivancozbilgic` line 29, the script
+      // author gave NO TITLE and then handed to `fill()` as a band edge (an empty-
+      // titled, zero-width plot of `ohlc4` used only as one side of a `fill`), which is
+      // `high_engagement__03-supertrend-kivancozbilgic` line 29 (licence-held, so
+      // described and not quoted: docs/pine/LICENSING.md §2d), the script
       // that made this a ruling. Both facts are required: an untitled plot that nothing
       // fills is still a column, and a NAMED plot handed to `fill()` is a series the
       // author labelled and may well want screened.
@@ -28431,7 +28499,7 @@ function translatePineResult(source, opts = {}) {
         }
         for (const g of armRunGates(armTrees, table)) gates.push(g)
       }
-      // ⭐⭐ COND-TA (engine 55) — THE SCREENER LANE BINDS NO CHART: a VALUE gate is a
+      // ⭐⭐ COND-TA (engine 58) — THE SCREENER LANE BINDS NO CHART: a VALUE gate is a
       // refusal. ⛔ The value's own gates only — those its value noted (`valueBlockRuns`)
       // and its value tree's arms (`armRunTreesOf`): a screen or an alert reads the value,
       // never a colour, so a colour's call is not a reason to refuse it.

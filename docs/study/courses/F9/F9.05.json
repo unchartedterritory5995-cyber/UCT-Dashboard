@@ -564,7 +564,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "0.81%",
     "2.75%",
@@ -575,6 +575,40 @@
     "0.81%": "Averaged the four risks instead of adding them.",
     "2.75%": "Left out the 0.5% trade.",
     "32.5%": "Decimal slip: moved the decimal one place."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Open risk",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "First trade's risk",
+      "value": 1,
+      "fmt": "%"
+     },
+     {
+      "key": "r2",
+      "label": "Second trade's risk",
+      "value": 0.5,
+      "fmt": "%"
+     },
+     {
+      "key": "r3",
+      "label": "Third trade's risk",
+      "value": 1,
+      "fmt": "%"
+     },
+     {
+      "key": "r4",
+      "label": "Fourth trade's risk",
+      "value": 0.75,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Total open risk",
+     "as": "pct"
+    }
    }
   },
   {
@@ -666,7 +700,41 @@
      "fixed before"
     ]
    },
-   "batch": "wave9"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "Two accounts",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Account A: trades",
+      "value": 4,
+      "fmt": "count"
+     },
+     {
+      "key": "r2",
+      "label": "Account A: risk each",
+      "value": 1.5,
+      "fmt": "%"
+     },
+     {
+      "key": "r3",
+      "label": "Account B: trades",
+      "value": 3,
+      "fmt": "count"
+     },
+     {
+      "key": "r4",
+      "label": "Account B: risk each",
+      "value": 2,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Total open risk, each",
+     "as": "pct"
+    }
+   }
   },
   {
    "key": "q09",
@@ -722,7 +790,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "2.5 trades",
     "10 trades",
@@ -733,6 +801,29 @@
     "2.5 trades": "Multiplied 5% by 0.5% instead of dividing.",
     "5 trades": "Used the cap number as the trade count.",
     "100 trades": "Decimal slip: moved the decimal one place."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The cap",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Risk per trade",
+      "value": 0.5,
+      "fmt": "%"
+     },
+     {
+      "key": "r2",
+      "label": "Cap on open risk",
+      "value": 5,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Trades that fit",
+     "as": "num",
+     "unit": "trades"
+    }
    }
   },
   {
@@ -769,7 +860,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "27.5%",
     "3.75%",
@@ -780,6 +871,46 @@
     "27.5%": "Decimal slip: moved the decimal one place.",
     "3.75%": "Counted the $800 trade twice.",
     "3.5%": "Counted the $600 trade twice."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Open risk",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Account",
+      "value": 80000,
+      "fmt": "$"
+     },
+     {
+      "key": "r2",
+      "label": "First trade loses",
+      "value": 600,
+      "fmt": "$"
+     },
+     {
+      "key": "r3",
+      "label": "Second trade loses",
+      "value": 450,
+      "fmt": "$"
+     },
+     {
+      "key": "r4",
+      "label": "Third trade loses",
+      "value": 800,
+      "fmt": "$"
+     },
+     {
+      "key": "r5",
+      "label": "Fourth trade loses",
+      "value": 350,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Total open risk",
+     "as": "pct"
+    }
    }
   },
   {
@@ -830,7 +961,35 @@
      "final check: dropped 'the cap can stretch', which q23 and A10 make defensible"
     ]
    },
-   "batch": "wave9"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The cap",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Cap on open risk",
+      "value": 6,
+      "fmt": "%"
+     },
+     {
+      "key": "r2",
+      "label": "Open risk now",
+      "value": 5,
+      "fmt": "%"
+     },
+     {
+      "key": "r3",
+      "label": "New setup, usual size",
+      "value": 1.5,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Room left under the cap",
+     "as": "pct"
+    }
+   }
   },
   {
    "key": "q13",
@@ -1056,7 +1215,29 @@
      "re-asked in wave9 as arithmetic: the old key leaned on the correlation rule the owner struck on 2026-11-09 (see owner_flags)"
     ]
    },
-   "batch": "wave9"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The chip stocks",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Risk on each trade",
+      "value": 1,
+      "fmt": "%"
+     },
+     {
+      "key": "r2",
+      "label": "Chip stocks held now",
+      "value": 2,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Chip risk if we add the sixth",
+     "as": "pct"
+    }
+   }
   },
   {
    "key": "q20",
@@ -1097,7 +1278,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$400",
     "$2,500",
@@ -1108,6 +1289,58 @@
     "$2,500": "Gave the whole 5% cap, not what is left.",
     "$2,000": "Gave what the five trades already risk.",
     "$400": "Used the average risk of the five trades."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Open risk",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Account",
+      "value": 50000,
+      "fmt": "$"
+     },
+     {
+      "key": "r2",
+      "label": "Cap on open risk",
+      "value": 5,
+      "fmt": "%"
+     },
+     {
+      "key": "r3",
+      "label": "First trade risks",
+      "value": 500,
+      "fmt": "$"
+     },
+     {
+      "key": "r4",
+      "label": "Second trade risks",
+      "value": 400,
+      "fmt": "$"
+     },
+     {
+      "key": "r5",
+      "label": "Third trade risks",
+      "value": 450,
+      "fmt": "$"
+     },
+     {
+      "key": "r6",
+      "label": "Fourth trade risks",
+      "value": 300,
+      "fmt": "$"
+     },
+     {
+      "key": "r7",
+      "label": "Fifth trade risks",
+      "value": 350,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "A sixth trade can risk",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1197,7 +1430,29 @@
      "fixed before"
     ]
    },
-   "batch": "rank"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The gap",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Position, share of account",
+      "value": 20,
+      "fmt": "%"
+     },
+     {
+      "key": "r2",
+      "label": "Gap below entry",
+      "value": 15,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Account down on it",
+     "as": "pct"
+    }
+   }
   },
   {
    "key": "q23",
@@ -1285,8 +1540,8 @@
   "q05": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Recomputed calc, answer matches, wrong choices distinct and real, no tell."
+   "fixed": true,
+   "notes": "Bare 'First trade 1%' could read as a position size; say it is each trade's risk."
   },
   "q06": {
    "status": "pass",
@@ -1302,9 +1557,9 @@
   },
   "q08": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Calc computes A only (4 x 1.5 = 6) but B is also 6 (3 x 2), so 'each' is true of the slot; counts and per-trade risks labelled per account."
   },
   "q09": {
    "status": "cut",
@@ -1316,19 +1571,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed calc, answer matches, wrong choices distinct and real, no tell."
+   "notes": "Per-trade risk and cap clear; slot '10 trades' equals the key."
   },
   "q11": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
+   "notes": "Account and each stop-out loss given in dollars; slot 2.75% matches key."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Own answer: size down to the 1% of room, same stop (calc 6 - 5 = 1; f30 confirmed live on StockCharts). Two breaks. (1) The choice 'Same size, the cap can stretch' collides with q23 and the owner's A10 in this same lesson: q23 teaches that our total open risk is a guide, not a hard cap, so a member who just learned that has a real reason to pick 'the cap can stretch'. Dropped; three choices are allowed. (2) 'Buy half now, add the rest later' was ruled out only by the house rule h01 in a non-house question; the half alone fits under the cap. Wrong note now first rules it out from the story (onc"
+   "fixed": false,
+   "notes": "Label 'Room left under the cap' is exactly cap minus current (1%); the question's size-down answer is not handed over."
   },
   "q13": {
    "status": "pass",
@@ -1370,14 +1625,14 @@
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "2 + 1 = 3 chip trades at 1% = 3%, calc agrees; no rule keyed. Minor: plain addition is light for rung 8 / expert, and teaching 'know your risk in one group' sits near the struck sector rule (owner flag 2 covers it)."
+   "fixed": true,
+   "notes": "The answer (3%) includes the NEW chip trade, but the card shows only the 2 held and the label does not say the sixth is added."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Recomputed calc, answer matches, wrong choices distinct and real, no tell."
+   "fixed": true,
+   "notes": "Bare 'First trade $500' could read as a position size; say it is the risk."
   },
   "q21": {
    "status": "pass",
@@ -1389,8 +1644,8 @@
   "q22": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
+   "fixed": true,
+   "notes": "Position size 20% needs its base (of the account); the result is percent of the account. Stop 5% and 1% rightly omitted."
   },
   "q23": {
    "status": "pass",

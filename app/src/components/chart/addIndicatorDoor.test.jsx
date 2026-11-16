@@ -222,7 +222,7 @@ describe('⭐⭐ SEARCH QQQ → ADD QQQ (owner §9)', () => {
       search('QQQ')
       const again = resultRows().find((o) => o.dataset.resultKind === 'security')
       expect(again, 'the door did not re-open on a chart that already holds QQQ').toBeTruthy()
-      expect(again.textContent, 'the symbol row went inert after one add').not.toMatch(/Active/)
+      expect(again.textContent, 'the symbol row went inert after one add').not.toMatch(/On chart/)
     })
   })
 })

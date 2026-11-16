@@ -12,6 +12,8 @@ sys.path.insert(0, str(_ROOT / "tools" / "vendor_harness"))
 import evidence_engine as ee  # noqa: E402
 
 PINS = {"schema": ee.PINS_SCHEMA, "rules": {"B-PATH": ["fx-a", "fx-b"], "B-SIZE": ["fx-c"]}}
+#: U14: a row pins only the rules it says it exercised; each T2 fixture exercises the rule it is listed for.
+EXERCISED = {"fx-a": ["B-PATH"], "fx-b": ["B-PATH"], "fx-c": ["B-SIZE"]}
 
 
 # W9-T6 r2: every pin fixture needs its settings read back as its source asks. These T2 rails test the
@@ -31,7 +33,7 @@ def rows(**verdicts):
     for cid, vs in verdicts.items():
         for v in (vs if isinstance(vs, list) else [vs]):
             out.append({"captureId": cid.replace("_", "-"), "verdict": v, "sourceSha256": "sha-default",
-                        "provenance": readback()})
+                        "provenance": readback(), "rulesExercised": EXERCISED.get(cid.replace("_", "-"), [])})
     return out
 
 
@@ -76,7 +78,7 @@ def test_the_output_is_canonical_and_order_independent():
 
 def test_FRESHNESS_the_committed_ledger_is_the_resolution_of_its_sources():
     text = ee.canonical_pins_text(ee.resolve_pins(
-        json.loads(ee.PINS_SRC.read_text(encoding="utf-8")), ee.read_ledger_rows()))
+        json.loads(ee.PINS_SRC.read_text(encoding="utf-8")), ee.pin_rows()))
     assert ee.PINS_OUT.read_bytes().decode("utf-8").replace("\r\n", "\n") == text  # autocrlf checkouts
 
 
@@ -86,9 +88,10 @@ def test_FRESHNESS_check_fails_on_a_stale_ledger(tmp_path):
     out = tmp_path / "resolved.json"
     out.write_text('{"rules":{"X":["f"]},"schema":"%s"}\n' % ee.PINS_RESOLVED_SCHEMA, encoding="utf-8")
     led = tmp_path / "ledger.jsonl"
-    assert ee.cmd_pins(check=True, src=src, out=out, ledger=led) == 1
-    assert ee.cmd_pins(check=False, src=src, out=out, ledger=led) == 0
-    assert ee.cmd_pins(check=True, src=src, out=out, ledger=led) == 0
+    vd = tmp_path / "verdicts"
+    assert ee.cmd_pins(check=True, src=src, out=out, ledger=led, verdicts_dir=vd) == 1
+    assert ee.cmd_pins(check=False, src=src, out=out, ledger=led, verdicts_dir=vd) == 0
+    assert ee.cmd_pins(check=True, src=src, out=out, ledger=led, verdicts_dir=vd) == 0
 
 # ─── W9-T6 r2: the settings read-back is a precondition on EVERY pin fixture (design 5.1) ─────────────
 P1_SRC = (ee.REPO / "tools" / "visual_conformance" / "probes" / "w9-p1-on-close.pine").read_text(encoding="utf-8")
@@ -102,9 +105,9 @@ R2_PINS = {"schema": ee.PINS_SCHEMA, "rules": {"B-MARKET": ["core"], "B-POC": ["
 def r2_rows(core=None, p1=None, core_sha="sha-core", p1_sha="sha-p1", core_verdict="MATCH"):
     return [
         {"captureId": "core", "verdict": core_verdict, "queueTargetId": "Q-S1-core", "sourceSha256": core_sha,
-         "provenance": readback() if core is None else core},
+         "provenance": readback() if core is None else core, "rulesExercised": ["B-MARKET"]},
         {"captureId": "p1", "verdict": "MATCH", "queueTargetId": "W9-P1", "sourceSha256": p1_sha,
-         "provenance": readback(process_orders_on_close=True) if p1 is None else p1},
+         "provenance": readback(process_orders_on_close=True) if p1 is None else p1, "rulesExercised": ["B-POC"]},
     ]
 
 
@@ -136,10 +139,28 @@ def test_r2_both_rows_read_back_as_their_sources_ask_pin():
 
 @pytest.mark.parametrize("key,bad", [("process_orders_on_close", True), ("calc_on_order_fills", True),
                                      ("calc_on_every_tick", True), ("backtest_fill_limits_assumption", 2),
-                                     ("use_bar_magnifier", True), ("calc_on_every_history_tick", "true")])
+                                     ("use_bar_magnifier", True)])
 def test_r2_a_default_timing_row_with_a_moved_setting_is_not_match(key, bad):
     r = ee.resolve_pins(R2_PINS, r2_rows(core=readback(**{key: bad})), sources=SRC)
     assert "B-MARKET" not in r["rules"] and "B-POC" in r["rules"]
+
+
+def test_u14_an_input_the_source_version_does_not_have_is_not_read_back():
+    """`calc_on_every_history_tick` exists from //@version=6 (PROPERTY_TABLE sinceVersion, measured on s25):
+    a v5 source (s1-broker-core) has no such input, so its row is not held to it; a v6 source is."""
+    assert ee.settings_property_table()["calc_on_every_history_tick"]["sinceVersion"] == 6
+    v5 = ee.resolve_pins(R2_PINS, r2_rows(core=readback(calc_on_every_history_tick="true")), sources=SRC)
+    assert "B-MARKET" in v5["rules"]
+    no_input = readback()
+    no_input["strategySettings"]["properties"] = [p for p in no_input["strategySettings"]["properties"]
+                                                  if p["name"] != TABLE["calc_on_every_history_tick"]["name"]]
+    assert "B-MARKET" in ee.resolve_pins(R2_PINS, r2_rows(core=no_input), sources=SRC)["rules"]
+    v6 = {"schema": ee.PINS_SCHEMA, "rules": {"B-PATH": ["fx-a"]}}
+    rows_v6 = [{"captureId": "fx-a", "verdict": "MATCH", "sourceSha256": "sha-default", "rulesExercised": ["B-PATH"],
+                "provenance": readback(calc_on_every_history_tick="true")}]
+    assert ee.resolve_pins(v6, rows_v6, sources=SRC)["rules"] == {}
+    rows_v6[0]["provenance"] = readback()
+    assert ee.resolve_pins(v6, rows_v6, sources=SRC)["rules"] == {"B-PATH": ["fx-a"]}
 
 
 def test_r2_a_w9_p1_row_with_poc_true_read_back_passes_and_poc_false_does_not():
@@ -183,3 +204,127 @@ def test_r2_the_committed_probes_are_found_by_their_text_sha():
     shas = ee.committed_sources_by_sha()
     lf = P1_SRC.replace("\r\n", "\n")
     assert shas[hashlib.sha256(lf.encode("utf-8")).hexdigest()] == lf
+
+
+# ─── U14: verdict files -> resolve_pins (D1: pinned only when EVERY capture that exercises it MATCHes) ───
+import re  # noqa: E402
+
+BROKER_RULES_JS = (ee.RT_DIR / "brokerRules.js").read_text(encoding="utf-8")
+#: the ledger's vocabulary, read off brokerRules.js (emulator + presentation rules): `'ID': Object.freeze({ capture:`
+BROKER_RULE_IDS = sorted(set(re.findall(r"'([A-Z][A-Z0-9-]+)': Object\.freeze\(\{ capture:", BROKER_RULES_JS)))
+RULE_IDS = sorted(set(BROKER_RULE_IDS) | set(re.findall(r"export const MARKER_RULE = '([A-Z-]+)'", BROKER_RULES_JS)))
+U_PINS = {"schema": ee.PINS_SCHEMA, "rules": {"B-MARKET": ["core"], "B-PATH": ["core"]}}
+
+
+def sv(cid="core", verdict="MATCH", exercised=("B-MARKET", "B-PATH"), fills=True, sha="sha-core"):
+    """A strategy verdict file's row (the shape strategyHarness.js writes)."""
+    return {"schema": ee.STRATEGY_VERDICT_SCHEMA, "captureId": cid, "verdict": verdict, "sourceSha256": sha,
+            "queueTargetId": "Q-S1-core", "graded": {"trades": True, "fills": fills, "slots": 3},
+            "rulesExercised": list(exercised), "provenance": readback()}
+
+
+def test_u14_rule_vocabulary_is_read_off_brokerRules():
+    assert len(BROKER_RULE_IDS) == 44 and "B-MARKET" in RULE_IDS and "MK-LOOK" in RULE_IDS
+
+
+def test_u14_a_match_that_exercised_the_rule_pins_it():
+    assert ee.resolve_pins(U_PINS, [sv()], sources=SRC)["rules"] == {"B-MARKET": ["core"], "B-PATH": ["core"]}
+
+
+def test_u14_a_pin_from_a_DIVERGE_capture_is_refused():
+    assert ee.resolve_pins(U_PINS, [sv(verdict="DIVERGE")], sources=SRC)["rules"] == {}
+
+
+@pytest.mark.parametrize("bad", ["INCONCLUSIVE", "UNGRADABLE", "EXPECTED-REFUSAL"])
+def test_u14_no_other_verdict_pins(bad):
+    assert ee.resolve_pins(U_PINS, [sv(verdict=bad)], sources=SRC)["rules"] == {}
+
+
+def test_u14_a_capture_pins_only_the_rules_it_exercised():
+    assert ee.resolve_pins(U_PINS, [sv(exercised=["B-MARKET"])], sources=SRC)["rules"] == {"B-MARKET": ["core"]}
+
+
+def test_u14_a_row_that_states_nothing_it_exercised_pins_nothing():
+    row = sv()
+    del row["rulesExercised"]
+    assert ee.resolve_pins(U_PINS, [row], sources=SRC)["rules"] == {}
+
+
+def test_u14_a_trade_list_match_without_the_fills_graded_does_not_pin():
+    assert ee.resolve_pins(U_PINS, [sv(fills=False)], sources=SRC)["rules"] == {}
+
+
+def test_u14_an_UNLISTED_capture_that_exercised_the_rule_and_diverged_unpins_it():
+    rows = [sv(), sv(cid="other", verdict="DIVERGE", exercised=["B-PATH"])]
+    assert ee.resolve_pins(U_PINS, rows, sources=SRC)["rules"] == {"B-MARKET": ["core"]}
+    # control: the same unlisted capture MATCHing leaves both pinned
+    rows = [sv(), sv(cid="other", verdict="MATCH", exercised=["B-PATH"])]
+    assert ee.resolve_pins(U_PINS, rows, sources=SRC)["rules"] == {"B-MARKET": ["core"], "B-PATH": ["core"]}
+
+
+def test_u14_the_settings_precondition_still_applies_to_a_strategy_verdict():
+    row = sv()
+    row["provenance"] = readback(process_orders_on_close=True)
+    assert ee.resolve_pins(U_PINS, [row], sources=SRC)["rules"] == {}
+
+
+def test_u14_verdict_files_are_read_and_a_bad_one_fails(tmp_path):
+    (tmp_path / "core.json").write_text(json.dumps(sv()), encoding="utf-8")
+    rows = ee.read_strategy_verdicts(tmp_path)
+    assert [r["captureId"] for r in rows] == ["core"]
+    (tmp_path / "misnamed.json").write_text(json.dumps(sv(cid="core")), encoding="utf-8")
+    with pytest.raises(ee.PinResolveError, match="not its own file name"):
+        ee.read_strategy_verdicts(tmp_path)
+    (tmp_path / "misnamed.json").write_text(json.dumps({"schema": "other"}), encoding="utf-8")
+    with pytest.raises(ee.PinResolveError, match="not a uct.strategy-verdict/v1"):
+        ee.read_strategy_verdicts(tmp_path)
+
+
+def test_u14_cmd_pins_resolves_from_verdict_files(tmp_path):
+    src = tmp_path / "pins.json"
+    src.write_text(json.dumps(U_PINS), encoding="utf-8")
+    vd = tmp_path / "verdicts"
+    vd.mkdir()
+    out = tmp_path / "resolved.json"
+    led = tmp_path / "ledger.jsonl"
+    with pytest.raises(ee.PinResolveError, match="no committed verdict"):
+        ee.cmd_pins(src=src, out=out, ledger=led, verdicts_dir=vd)
+    (vd / "core.json").write_text(json.dumps(sv(sha=CORE_SHA)), encoding="utf-8")
+    assert ee.cmd_pins(src=src, out=out, ledger=led, verdicts_dir=vd) == 0
+    assert json.loads(out.read_text(encoding="utf-8"))["rules"] == {"B-MARKET": ["core"], "B-PATH": ["core"]}
+
+
+import hashlib  # noqa: E402
+CORE_SHA = hashlib.sha256(CORE_SRC.replace("\r\n", "\n").encode("utf-8")).hexdigest()
+SRC["sha-core"] = CORE_SRC
+
+
+# ── the per-rule pin rail, over the COMMITTED state ────────────────────────────────
+COMMITTED_PINS = json.loads(ee.PINS_SRC.read_text(encoding="utf-8"))
+COMMITTED_RESOLVED = json.loads(ee.PINS_OUT.read_text(encoding="utf-8"))
+COMMITTED_VERDICTS = ee.read_strategy_verdicts()
+
+
+@pytest.mark.parametrize("rule", RULE_IDS)
+def test_u14_PER_RULE_a_committed_pin_rests_on_matching_captures_that_exercised_it(rule):
+    """For every rule: it is pinned in the committed resolved ledger only if every capture brokerPins.json
+    names for it has a committed verdict that is MATCH, graded its fills, and exercised the rule; and no
+    committed verdict that exercised it is anything but MATCH."""
+    exercisers = [v for v in COMMITTED_VERDICTS if rule in v["rulesExercised"]]
+    if rule not in COMMITTED_RESOLVED["rules"]:
+        return
+    listed = COMMITTED_RESOLVED["rules"][rule]
+    assert listed == sorted(set(COMMITTED_PINS["rules"][rule]))
+    by_id = {v["captureId"]: v for v in COMMITTED_VERDICTS}
+    for cid in listed:
+        v = by_id.get(cid)
+        assert v is not None, f"{rule}: pinned by {cid}, which has no committed strategy verdict"
+        assert v["verdict"] == "MATCH" and v["graded"]["fills"] is True and rule in v["rulesExercised"]
+    assert all(v["verdict"] == "MATCH" for v in exercisers), f"{rule}: a committed capture exercised it and did not MATCH"
+
+
+def test_u14_every_committed_ledger_rule_is_in_the_vocabulary():
+    assert set(COMMITTED_PINS["rules"]) <= set(RULE_IDS)
+    assert set(COMMITTED_RESOLVED["rules"]) <= set(RULE_IDS)
+    for v in COMMITTED_VERDICTS:
+        assert set(v["rulesExercised"]) <= set(RULE_IDS), v["captureId"]

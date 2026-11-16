@@ -40,7 +40,7 @@
 //      it where its test varies, exactly as v5 / v6;
 //   5. nothing is refused at TRANSLATION, so the parameters a plot mints do not move,
 //      and the screener lane (which binds no chart) REFUSES each such row by name
-//      (COND-TA, engine 55: its every-bar reading was this capture's wrong number);
+//      (COND-TA, engine 58: its every-bar reading was this capture's wrong number);
 //   6. (review round 2) an `if` used as an EXPRESSION (`y = if up` / `ta.sma(…)` /
 //      `else` / `close`) is the same rule — its branches are blocks, which C48's
 //      statement-form mark never covered (H2); a `var` initialiser runs once, on
@@ -525,7 +525,7 @@ describe('C45 — ⛔ what stays drawn, TradingView\'s number where a capture ho
     expect(door.def.meta.blockRuns).toBeUndefined()
   })
 
-  // ⭐⭐ COND-TA (engine 55+) — FLIPPED, DELIBERATELY, FROM EVIDENCE. This pinned v4 `?:` "not
+  // ⭐⭐ COND-TA (engine 58+) — FLIPPED, DELIBERATELY, FROM EVIDENCE. This pinned v4 `?:` "not
   // witnessed — drawn as before", which drew the EVERY-BAR number. Probe 10 (run s17,
   // `vw-cs2-v4-ternary-lazy`, RDDT 1D from the listing) witnesses the v4 arm LAZY (bar 7:
   // TradingView na, the eager sma 53.72), as the v4 User Manual says ("`barssince` is not called on
@@ -704,7 +704,7 @@ describe('C45 — ⛔ nothing moves at translation', () => {
     expect(t.inputParams.map((p) => [p.id, p.label || p.title])).toEqual([
       ['__uct_param_1001', 'Arm length'], ['__uct_param_1002', 'Mult'], ['__uct_param_1003', 'Other length']])
     expect(t.outputs[0].formula).toBe('(close > open ? sma(close, 5) : close) * 2')
-    // ⭐⭐ COND-TA (engine 55) — FLIPPED, DELIBERATELY: the screener lane's "reads as it
+    // ⭐⭐ COND-TA (engine 58) — FLIPPED, DELIBERATELY: the screener lane's "reads as it
     // always has" was the every-bar number (T03 / K02 above: wrong on 291 / 317 of RDDT's
     // bars), with no chart bound there to withhold it. Each stamped row is refused by name.
     const screen = translatePine(source, { paramManifest: true })

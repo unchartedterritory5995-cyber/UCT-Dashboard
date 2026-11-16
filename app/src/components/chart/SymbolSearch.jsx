@@ -338,7 +338,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
             aria-label="Symbol search"
           >
             <div className={styles.dialogHead}>
-              <span className={styles.dialogTitle}>Symbol Search</span>
+              <span className={styles.dialogTitle}>Symbol search</span>
               <button type="button" className={styles.dialogClose} onClick={() => setOpen(false)} aria-label="Close">
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
                   <line x1="2" y1="2" x2="12" y2="12" /><line x1="12" y1="2" x2="2" y2="12" />
@@ -376,6 +376,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
                   key={c.key}
                   type="button"
                   className={`${styles.chip} ${chip === c.key ? styles.chipActive : ''}`}
+                  aria-pressed={chip === c.key}
                   onClick={() => { setChip(c.key); inputRef.current?.focus() }}
                 >{c.label}</button>
               ))}
@@ -423,8 +424,12 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
                                 <span
                                   className={`${styles.typeBadge} ${badge.kind === 'delisted' ? styles.badgeDelisted : badge.kind === 'breadth' ? styles.badgeBreadth : styles['badge_' + badge.kind] || ''}`}
                                   title={badge.kind === 'breadth' ? (r.group_label ? `UCT Breadth · ${r.group_label}` : 'UCT Breadth indicator') : undefined}
-                                >{badge.text}</span>
+                                >{/^[A-Z]{2,3}$/.test(badge.text) ? badge.text : badge.text.charAt(0).toUpperCase() + badge.text.slice(1).toLowerCase()}</span>
                               )}
+                              {/* UCT Signature gold mix (owner 11-15): the symbol already on this chart gets the gold ✓;
+                                  the highlighted row shows a quiet ↵ "open" hint. */}
+                              {r.ticker === sym && <span className={styles.resultCheck} aria-label="on this chart">✓</span>}
+                              <span className={styles.resultEnter} aria-hidden="true">↵</span>
                             </>
                           )
                         })()}

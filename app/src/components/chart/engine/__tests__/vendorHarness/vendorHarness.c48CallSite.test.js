@@ -552,7 +552,7 @@ describe('C48 — MANY executions: a chart\'s plot is refused where its block sk
       // so nothing the translator folds can renumber them - the property this pin guards.
       ['__uct_param_1001', 'Cond length'], ['__uct_param_1002', 'Mult'], ['__uct_param_1003', 'Other length']])
     expect((t.notes || []).filter((n) => n.code === 'pine:block')).toEqual([])
-    // ⭐⭐ COND-TA (engine 55) — THIS PIN IS FLIPPED, DELIBERATELY. It said "the screener
+    // ⭐⭐ COND-TA (engine 58) — THIS PIN IS FLIPPED, DELIBERATELY. It said "the screener
     // lane binds no chart: no stamp, and the tree it always had", and that tree is the
     // EVERY-BAR number: `close > open ? sma(close, 3) : na` against this file's own capture
     // (`vw-call-site-history-rddt-1d-2026-10-01`, row C03) is wrong on 242 of 635 bars (the

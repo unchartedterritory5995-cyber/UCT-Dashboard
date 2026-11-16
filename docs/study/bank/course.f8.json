@@ -2113,7 +2113,32 @@
    ],
    "kind": "mcq",
    "q": "Plan: buy at $30, stop at $29. You chase it to $33, same stop. Your risk per share is how many times the plan's?",
-   "subject": "F8.02#q08"
+   "subject": "F8.02#q08",
+   "visual": {
+    "find": {
+     "as": "times",
+     "label": "Risk vs the plan"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 29.0
+     },
+     {
+      "key": "plan",
+      "label": "Plan: buy",
+      "price": 30.0
+     },
+     {
+      "key": "chase",
+      "label": "Chase fill",
+      "price": 33.0
+     }
+    ],
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -2329,7 +2354,33 @@
    "kind": "mcq",
    "q": "Same stop. What is really at risk now?",
    "story": "You planned 200 shares at $40 with a stop at $38. That's $400 at risk. The stock opens at $43, and you buy the 200 shares anyway.",
-   "subject": "F8.02#q11"
+   "subject": "F8.02#q11",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Real dollars at risk"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 38.0
+     },
+     {
+      "key": "plan",
+      "label": "Planned entry",
+      "price": 40.0
+     },
+     {
+      "key": "fill",
+      "label": "Actual buy",
+      "price": 43.0
+     }
+    ],
+    "shares": 200,
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -4718,7 +4769,35 @@
    "kind": "mcq",
    "q": "On average, what does each trade make you?",
    "story": "Half your trades win. You cut winners fast, so they average 0.5R. Losers hit the full stop at 1R.",
-   "subject": "F8.03#q12"
+   "subject": "F8.03#q12",
+   "visual": {
+    "find": {
+     "as": "r",
+     "label": "Average per trade"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "share_that_win_(half",
+      "label": "Share that win (half)",
+      "value": 0.5
+     },
+     {
+      "fmt": "count",
+      "key": "winners_average_(r)",
+      "label": "Winners average (R)",
+      "value": 0.5
+     },
+     {
+      "fmt": "count",
+      "key": "losers_lose_(r)",
+      "label": "Losers lose (R)",
+      "value": 1
+     }
+    ],
+    "title": "Half win, half lose"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -6756,7 +6835,29 @@
    ],
    "kind": "mcq",
    "q": "You risk 1% a trade and lose three in a row. You double your risk to win it back, and that one stops out too. What's the day's total loss?",
-   "subject": "F8.04#q15"
+   "subject": "F8.04#q15",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The day's total loss"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "%",
+      "key": "risk_each_trade",
+      "label": "Risk each trade",
+      "value": 1
+     },
+     {
+      "fmt": "count",
+      "key": "losses_in_a_row",
+      "label": "Losses in a row",
+      "value": 3
+     }
+    ],
+    "title": "Then double the risk"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -7337,7 +7438,35 @@
    ],
    "kind": "mcq",
    "q": "Our loss limit is 8% a month. The month began at $40,000, and you're down $2,600. How much more can you lose before new trades stop?",
-   "subject": "F8.04#q23"
+   "subject": "F8.04#q23",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Room left before the limit"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "month_began_at",
+      "label": "Month began at",
+      "value": 40000
+     },
+     {
+      "fmt": "%",
+      "key": "loss_limit",
+      "label": "Loss limit",
+      "value": 8
+     },
+     {
+      "fmt": "$",
+      "key": "down_so_far",
+      "label": "Down so far",
+      "value": 2600
+     }
+    ],
+    "title": "The monthly limit"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -7426,7 +7555,53 @@
    "kind": "mcq",
    "q": "What does our rule say?",
    "story": "Our rule: no new trades at 8% down in a calendar month. The month began at $50,000. Weeks so far: -$1,500, -$1,250, +$500, -$1,750. A textbook setup appears.",
-   "subject": "F8.04#q24"
+   "subject": "F8.04#q24",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Down this month"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "month_began_at",
+      "label": "Month began at",
+      "value": 50000
+     },
+     {
+      "fmt": "%",
+      "key": "loss_limit",
+      "label": "Loss limit",
+      "value": 8
+     },
+     {
+      "fmt": "$",
+      "key": "week_one:_lost",
+      "label": "Week one: lost",
+      "value": 1500
+     },
+     {
+      "fmt": "$",
+      "key": "week_two:_lost",
+      "label": "Week two: lost",
+      "value": 1250
+     },
+     {
+      "fmt": "$",
+      "key": "week_three:_made",
+      "label": "Week three: made",
+      "value": 500
+     },
+     {
+      "fmt": "$",
+      "key": "week_four:_lost",
+      "label": "Week four: lost",
+      "value": 1750
+     }
+    ],
+    "title": "The month so far"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -8422,7 +8597,35 @@
    ],
    "kind": "mcq",
    "q": "Your rule is 1% risk on a $60,000 account. Feeling hot, you set up a trade risking $2,400. How many times your normal risk is that?",
-   "subject": "F8.05#q09"
+   "subject": "F8.05#q09",
+   "visual": {
+    "find": {
+     "as": "times",
+     "label": "Times normal risk"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "account",
+      "label": "Account",
+      "value": 60000
+     },
+     {
+      "fmt": "%",
+      "key": "normal_risk",
+      "label": "Normal risk",
+      "value": 1
+     },
+     {
+      "fmt": "$",
+      "key": "risk_on_this_trade",
+      "label": "Risk on this trade",
+      "value": 2400
+     }
+    ],
+    "title": "The oversized trade"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -8576,7 +8779,35 @@
    "kind": "mcq",
    "q": "Where do the four trades leave you?",
    "story": "Account $50,000, risking 1% a trade. Your last three winners made $500 each. Feeling sure, you risk $2,000 on the next one, and it's stopped out.",
-   "subject": "F8.05#q11"
+   "subject": "F8.05#q11",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Net after four trades"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "winners_in_a_row",
+      "label": "Winners in a row",
+      "value": 3
+     },
+     {
+      "fmt": "$",
+      "key": "made_on_each",
+      "label": "Made on each",
+      "value": 500
+     },
+     {
+      "fmt": "$",
+      "key": "lost_on_the_big_trad",
+      "label": "Lost on the big trade",
+      "value": 2000
+     }
+    ],
+    "title": "Four trades"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -9070,7 +9301,29 @@
    ],
    "kind": "mcq",
    "q": "A friend starts at 100 shares and doubles his size after every win. He wins five in a row. How many shares on trade six?",
-   "subject": "F8.05#q17"
+   "subject": "F8.05#q17",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "Shares on trade six"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "shares",
+      "key": "starting_size",
+      "label": "Starting size",
+      "value": 100
+     },
+     {
+      "fmt": "count",
+      "key": "wins_in_a_row",
+      "label": "Wins in a row",
+      "value": 5
+     }
+    ],
+    "title": "Doubling after each win"
+   }
   },
   "reveal_json": {
    "deeper": {

@@ -102,7 +102,11 @@ Rules every chart question follows (the validator enforces the starred ones):
    (repeat until "left": 0). It picks up approved course charts by itself (`study_store.intraday_candidates`: any
    approved daily chart item with a symbol). Without it the replay runs day by day; charts before 2003-09-10 always
    do (the provider's intraday floor).
-4. Reject the 5 approved size items retired on 2026-11-12 (corrections/size.house_rule.jsonl).
+4. ~~Reject the 5 approved size items retired on 2026-11-12~~ DONE 2026-11-15, on the owner's word instead: "Put them
+   back in the review list for us to go over" (the 5 approved ones moved to draft, logged; the other 7 were drafts).
+5. **Fill the intraday course charts** after every import that adds or changes one (they arrive as misses):
+   `railway ssh --service web -- /opt/venv/bin/python scripts/study/fill_course_intraday.py --dry-run`, then without
+   `--dry-run`; it prints each failing chart's reasons and stores only the ones that pass.
 
 ## How the owner approves charts with less work
 
@@ -150,16 +154,33 @@ The card adds no words or numbers to a question, so a re-import at the same vers
 fix ("(a - b) / c" for an ATR depth) or rule questions as above; a writer pass could give each one an explicit
 `visual`, checked the same way.
 
+**The second half, 2026-11-15 evening: cards written by hand.** A question whose expression no shape can read may carry
+its own `visual`, held to the same contract by `calc_visuals.written_problems` (and so by unit_problems and gen_courses):
+a known kind with its fields, the inputs only, every number on it (labels, title and unit included) stated in the words,
+never the result. Writers wrote 321 across 112 lessons and cold checkers fixed 73 (labels that hinted at the answer,
+a percent with no base, yields drawn on a price ruler, a method in a title such as "delta times move") and dropped 6.
+596 of the 661 computed questions now carry a card; the 65 left are the rule questions above and a few where nothing
+honest fits. A written card may name itself (`title`) and give a plain number its unit (`find.as: "num"`, `unit`).
+A spread's payoff is drawn by each leg's own side (a credit spread written sold-leg-first drew upside down before).
+
 ## Step 4: what the data allows (checked 2026-11-15)
 
 - **Options:** the computed options questions (breakeven, intrinsic and time value, payoff, spreads) carry the payoff
   card above. A conceptual options question has no numbers to draw.
-- **History charts:** the bars copy holds no index series (no S&P 500 or Nasdaq levels), only the funds: SPY from
-  1995, QQQ from 1999, DIA, IWM. A history question quotes index levels ("the S&P 500 closed at 2,237.40"), and a SPY
-  chart would print about a tenth of that, so the chart and the words would disagree (this plan's first rule). History
-  charts wait for an index series on the pod (or a question rewritten to the fund's own prices), each one owner-approved.
-- **Intraday lessons (SET.32-34, 53, 54):** wait for intraday course charts: about 3 months of intraday bars for about
-  30 tickers on the pod, and a forward horizon that knows D/W/M only.
+- **History charts (built 2026-11-15):** the bars hold no index series, only the funds (SPY from 1995, QQQ from 1999,
+  DIA, IWM, the sector funds), so a history question is charted on its fund only when its question, story and choices
+  quote no index LEVEL (a fund prints about a tenth of the S&P 500; the explanation after the answer may keep the
+  levels, as History Detective does, since the answer names the fund). 15 questions in F7.01-F7.09 carry one (SPY, XLE,
+  KRE), each checked against the bars and its outcome confirmed in the closes. More wait for an index series.
+- **Intraday lessons (built 2026-11-15):** a course chart may be `tf` 5/15/30/60 with `asof` "YYYY-MM-DD HH:MM" New
+  York, the START of its last visible bar on the regular session's grid (courses_lib.intraday_asof_problem). The bank
+  passes the server that bar's unix time and `rth: true`, so the import keeps the regular session only (bars.db holds
+  04:00-20:00). The examples' bars come from the provider, which the pod's bars.db mostly lacks, so the import stores
+  them as misses and **scripts/study/fill_course_intraday.py fetches each one on the pod, runs check_bars (the daily
+  checks, per bar) and stores only a chart that passes**. 48 charts in the five lessons, every one checked against the
+  provider's bars on the pod BEFORE it shipped (a read-only run; two META charts whose stop sat inside the provider's
+  candle were dropped), and a cold checker reconciled the words with the real bars (TSLA's stop a candle earlier, VIAV's
+  first candle green, AAPL's fill bar trading 1R over the buy). The drill marks a DECISION BAR on an intraday chart.
 
 ## Open needs
 

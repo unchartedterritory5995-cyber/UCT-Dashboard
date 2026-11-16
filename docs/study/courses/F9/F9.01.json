@@ -709,7 +709,7 @@
      "fixed before (verify notes)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$6,000",
     "$60,600",
@@ -720,6 +720,28 @@
     "$6,000": "Took ten times the real risk percent.",
     "$60,000": "Counted the whole account as at risk.",
     "$60,600": "Added 1% to the account instead of taking 1% of it."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Your risk",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Account",
+      "value": 60000,
+      "fmt": "$"
+     },
+     {
+      "key": "r2",
+      "label": "Risk per trade",
+      "value": 1,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Dollars at risk",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -894,7 +916,29 @@
      "computed key (calc)"
     ]
    },
-   "batch": "wave9"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "Your risk",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Account",
+      "value": 40000,
+      "fmt": "$"
+     },
+     {
+      "key": "r2",
+      "label": "Risk on a B setup",
+      "value": 0.5,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Dollars at risk",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q11",
@@ -992,7 +1036,7 @@
      "fixed before (verify notes)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$500",
     "$460",
@@ -1003,6 +1047,28 @@
     "$500": "Sized from the starting account, not the latest value.",
     "$4,600": "Decimal slip.",
     "$40": "Took 1% of the dollar loss, not of the account."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Your risk now",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Account now",
+      "value": 46000,
+      "fmt": "$"
+     },
+     {
+      "key": "r2",
+      "label": "Risk per trade",
+      "value": 1,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Dollars at risk",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1042,7 +1108,7 @@
      "fixed before (verify notes)"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "10%",
     "57%",
@@ -1053,6 +1119,34 @@
     "10%": "Counted only one trade's share.",
     "57%": "Took 10% of the shrinking balance each time.",
     "70%": "Counted seven losses, not eight."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The losing streak",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Account",
+      "value": 50000,
+      "fmt": "$"
+     },
+     {
+      "key": "r2",
+      "label": "Risk per trade",
+      "value": 5000,
+      "fmt": "$"
+     },
+     {
+      "key": "r3",
+      "label": "Losses in a row",
+      "value": 8,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Account gone",
+     "as": "pct"
+    }
    }
   },
   {
@@ -1452,8 +1546,8 @@
   "q06": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Tell: three of four choices were power-of-ten slips with the answer in the middle. Swapped $60 for a real mistake."
+   "fixed": false,
+   "notes": "Account and risk percent clearly labelled; slot $600 matches key."
   },
   "q07": {
    "status": "pass",
@@ -1476,9 +1570,9 @@
   },
   "q10": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "B-setup risk 0.5% and account correct; A+ 1.5% rightly left off."
   },
   "q11": {
    "status": "pass",
@@ -1496,13 +1590,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
+   "notes": "Uses the account now ($46,000) not the old $50,000; good."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
+   "notes": "Flat $ risk, losses in a row and account all stated; slot 80% matches key."
   },
   "q15": {
    "status": "pass",

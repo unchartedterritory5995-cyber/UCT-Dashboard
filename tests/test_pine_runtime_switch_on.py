@@ -291,6 +291,8 @@ def test_D2_the_two_caps_are_what_the_owner_ruled():
 
 
 def test_D2_trend_targets_saves_under_the_runtime_cap(store, monkeypatch):
+    # RT1 2026-11-15: trend-targets is on the COMMITTED kill list; this rail is about the size cap
+    monkeypatch.setattr(rt, "KILLLIST_PATH", "no-committed-kills.json")
     monkeypatch.setenv(rt.SAVE_ENV, "1")
     monkeypatch.setenv(rt.STAGE_ENV, "all")
     monkeypatch.setenv(rt.ALLOW_ENV, TREND["meta"]["runtimeSourceHash"])
@@ -543,7 +545,7 @@ def test_WSI_R1_capabilities_are_asked_BEFORE_captures_and_both_must_hold():
 
 
 def test_WSI_R4_conditional_ta_is_CONFORMANT_since_COND_TA_and_a_divergent_row_still_withholds():
-    """COND-TA (engine 55): R4's `divergent` row described the lane before WS-C (#557). The
+    """COND-TA (engine 58): R4's `divergent` row described the lane before WS-C (#557). The
     runtime lane is now exact on every conditional `ta.*` it serves and refuses the rest by
     name (`ast/condTaLanes.test.js`, `runtime/__tests__/conditionalCallSite.test.js`), so the
     row is conformant. The rule it exercised stands: the SAME row marked divergent withholds."""

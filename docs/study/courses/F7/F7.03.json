@@ -1581,7 +1581,13 @@
      "the key rests on one source (FRED VIX closes)"
     ]
    },
-   "batch": "wave6"
+   "batch": "history-charts-2026-11-15",
+   "chart": {
+    "sym": "SPY",
+    "asof": "2009-03-09",
+    "window": 250,
+    "forward": 20
+   }
   },
   {
    "key": "q21",
@@ -1867,7 +1873,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer True: the VIX's highest close was 80.86 on November 20, 2008 (f28), months before the March 9, 2009 low (f23, f29 at 49.68). The simple answer now says the VIX peaked, which is grounded."
+   "notes": "cold re-read 2026-11-15 (session lead): the chart and the words agree; check_course_charts 0 problems; the outcome the words name confirmed in the closes"
   },
   "q21": {
    "status": "pass",
