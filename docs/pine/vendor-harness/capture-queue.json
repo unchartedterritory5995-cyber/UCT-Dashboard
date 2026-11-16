@@ -61,6 +61,7 @@
    "docs/pine/capture-queue-2026-11-15-calc-bars.md",
    "docs/pine/capture-queue-2026-11-16-cond-ta-followups.md",
    "docs/pine/capture-queue-2026-11-16-door-robustness.md",
+   "docs/pine/capture-queue-2026-11-16-libraries-phase-b.md",
    "docs/pine/capture-queue-2026-11-16-rma-last-bit.md",
    "docs/pine/capture-queue-2026-11-16-tick-tie-and-htf-windows.md"
   ],
@@ -87,19 +88,19 @@
   }
  },
  "counts": {
-  "targets": 322,
+  "targets": 323,
   "byStatus": {
    "CAPTURED": 145,
    "NEEDS_CHART": 39,
    "NEEDS_LIVE": 2,
-   "QUEUED": 136
+   "QUEUED": 137
   },
   "byPlanWave": {
    "E": {
     "CAPTURED": 130,
     "NEEDS_CHART": 37,
     "NEEDS_LIVE": 2,
-    "QUEUED": 102
+    "QUEUED": 103
    },
    "W1": {
     "QUEUED": 6
@@ -123,7 +124,7 @@
     "CAPTURED": 125,
     "NEEDS_CHART": 38,
     "NEEDS_LIVE": 2,
-    "QUEUED": 128
+    "QUEUED": 129
    },
    "1-2": {
     "CAPTURED": 20,
@@ -209,6 +210,9 @@
    },
    "l2-libraries": {
     "CAPTURED": 1,
+    "QUEUED": 1
+   },
+   "libraries-phase-b": {
     "QUEUED": 1
    },
    "loop-in-block": {
@@ -15317,6 +15321,48 @@
    ]
   },
   {
+   "id": "lib-v5-in-v6@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "docs/pine/probes/lib-v5-in-v6.pine",
+   "sourceKind": "probe",
+   "sha256": "d38b3ae066275ce130eb65c6116d0c1e77e55783b2442b13b90f19df5bc627fa",
+   "bytes": 1710,
+   "stem": "lib-v5-in-v6",
+   "captureStem": "lib-v5-in-v6",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "libraries-phase-b"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-libraries-phase-b#LB1"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
    "id": "vw-ema-last-bit@AMEX:SPY@D",
    "status": "QUEUED",
    "evidence": [],
@@ -18034,6 +18080,12 @@
    "doc": "docs/pine/capture-queue-2026-11-16-door-robustness.md",
    "wave": "door-robustness",
    "rows": 9,
+   "contextTables": 0
+  },
+  {
+   "doc": "docs/pine/capture-queue-2026-11-16-libraries-phase-b.md",
+   "wave": "libraries-phase-b",
+   "rows": 1,
    "contextTables": 0
   },
   {

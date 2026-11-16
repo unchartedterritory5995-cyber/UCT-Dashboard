@@ -281,6 +281,9 @@ export const REFUSALS = Object.freeze({
     'the imported library is published under a non-commercial licence, so it is not served on this product',
   'pine:library-denied':
     'this library version is withheld until its drawing is verified against TradingView',
+  // ⭐⭐ U15 Phase B — a v5 library in a v6 script, where the code it reaches changed meaning in v6
+  'pine:library-version':
+    'the imported library is written in Pine v5 and uses something whose meaning changed in v6',
   'pine:strategy-call':
     'a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate',
   // ⚰️ IT SAID "another symbol or another timeframe is outside what one screened

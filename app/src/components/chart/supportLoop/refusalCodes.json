@@ -159,6 +159,7 @@
   "pine:library-denied",
   "pine:library-licence",
   "pine:library-no-sha",
+  "pine:library-version",
   "pine:live-bar-state",
   "pine:member",
   "pine:module",
