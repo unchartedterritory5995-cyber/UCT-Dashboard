@@ -1,8 +1,9 @@
-// ⭐⭐ NUMBER PENDING (bt, 2026-11-16) — the runtime lane asks the COLUMNAR lane for three more
-// answers instead of refusing them as builtins it does not hold:
+// ⭐⭐ NUMBER PENDING (bt, 2026-11-16) — the runtime lane asks the COLUMNAR lane for more answers
+// instead of refusing them as builtins it does not hold:
 //
-//   · `na(time(tf, session))` as ONE membership read, so a wrapping session (membership measured,
-//     `vw-w4-session-overnight-btcusd-60-2026-11-16`) is served here exactly as there;
+//   · `time(tf, session)` through a UDF parameter for a WRAPPING session, membership and value,
+//     the columnar lane's own session clock (witnessed on BITSTAMP:BTCUSD:
+//     `vw-w4-session-overnight-btcusd-60-2026-11-16`, `vw-bt-session-overnight-value-*`);
 //   · `timeframe.in_seconds([tf])` with a timeframe fixed before bar 0 (`pine.js::timeframeCallOf`,
 //     the lengths measured on vw-time-tf T10-T15);
 //   · the v1-v4 bare `avg(…)`, the migration guide's `math.avg` (the C23 expansion).
@@ -69,10 +70,27 @@ describe('a wrapping session through a UDF parameter, membership only', () => {
       + 'inS(s) => not na(time("", s, TZ))\nplot(inS("1800-0200:23456") ? 1 : x * 0)\n')
     expect(o).toEqual(WANT)
   })
-  it('⛔ its VALUE still refuses by name', () => {
-    const r = refuse(BARS60, '60', `${HEAD5}${STATE}t(s) => time(timeframe.period, s)\nplot(t("1800-0200:1234567") + x * 0)\n`)
-    expect(r.guard).toBe('pine:function')
-    expect(r.message).toMatch(/VALUE inside a wrapping session is not measured/)
+  it('its VALUE: the :30 of the session grid on every in-session bar, after midnight too', () => {
+    // "1930-0230" on bars that open on the hour: in from 20:00 through 02:00, and each reads the
+    // session-grid bar's open 30 minutes earlier (vw-bt-session-overnight-value V1, -1800 s)
+    const [o] = run(BARS60, '60', `${HEAD5}${STATE}t(s) => time(timeframe.period, s)\n`
+      + 'v = t("1930-0230:1234567")\nplot(na(v) ? -1 + x * 0 : (v - time) / 1000 + x * 0)\n')
+    expect(o).toEqual(BARS60.map((_, i) => { const h = i % 24; return h >= 20 || h <= 2 ? -1800 : -1 }))
+  })
+})
+
+describe('bare `period` is Pine v1-v3\'s only (TradingView v4: "Undeclared identifier \'period\'")', () => {
+  it('⛔ v4 refuses it by name on this lane too, and says what to write', () => {
+    const r = refuse(BARS60, '60', `${HEAD4}${STATE}BarInSession(sess) => time(period, sess) != 0\n`
+      + 'plot(BarInSession("0930-1000:23456") ? 1 : x * 0)\n')
+    expect(r.guard).toBe('pine:builtin')
+    expect(r.message).toMatch(/Undeclared identifier 'period'[\s\S]*timeframe\.period/)
+  })
+  it('CONTROL: the same script in v3 is the chart\'s timeframe', () => {
+    // (v3 has no `var`: the state is a plain mutable name)
+    const [o] = run(BARS60, '60', '//@version=3\nstudy("t")\nx = 0.0\nx := close\nBarInSession(sess) => time(period, sess) != 0\n'
+      + 'plot(BarInSession("0000-2359:1234567") ? 1 : x * 0)\n')
+    expect(o.every((v) => v === 1)).toBe(true)
   })
 })
 

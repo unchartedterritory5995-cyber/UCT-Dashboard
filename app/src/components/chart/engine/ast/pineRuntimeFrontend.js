@@ -37,6 +37,7 @@ import {
   OUTPUT_CALLS as PINE_OUTPUT_CALLS, BAR_SERIES_DEFAULTS, paramDefaultShapeOk,
   declarationWordsOf, pineConstIntValue, constIntWritesOf, pineTupleBuiltinCallParts, pineNamespacedName,
   legacyBarsSignUnstated, LEGACY_BARS_SIGN_SENTENCE, REFUSALS, selfReferenceSentence,
+  legacyPeriodUndeclared, legacyPeriodRefusal,
   selfReferencingDeclaration, blockDeclarationReadsOwnHistory, declarationCalcBars, neverNaBoolNamesOf, isBoolishTree,
   isLegacyPineVersion,
   chartOffsetFunctions, callsInBlocks, callsInConditionalArms, legacyCarryStatements, FN_HISTORY_IN_BLOCK, CARRY_VERSIONS,
@@ -3890,7 +3891,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // ⛔ A BINDING WINS — the `if (bound)` above returns before this — for the
       // same reason `ownTimeframeOf` consults one first: `period = "60"` is a
       // legal v2/v3 line and means hourly.
-      return OWN_TF_NAMES.has(node.name)
+      return OWN_TF_NAMES.has(node.name) && !legacyPeriodUndeclared(node.name, pineVersion)
     }
     // ⛔ A `str.*` THAT RETURNS A STRING IS TEXT; one that returns a NUMBER is
     // not. `str.length(s)` composes with ordinary arithmetic and must not mark
@@ -7811,7 +7812,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (name === 'timeframe.in_seconds' && given.length <= 1 && !inRequestValue) {
       if (given.length === 0) return column(columnOf(node, at))
       const g = given[0]
-      if (g && g.type === 'name' && OWN_TF_NAMES.has(g.name) && scope.lookup(g.name) === null && !env.has(g.name)) {
+      if (g && g.type === 'name' && OWN_TF_NAMES.has(g.name) && !legacyPeriodUndeclared(g.name, pineVersion)
+        && scope.lookup(g.name) === null && !env.has(g.name)) {
         return column(columnOf(node, at))
       }
       const c = constantArgOf(g, scope)
@@ -7827,15 +7829,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return null
   }
   /** ⭐ W4 T3 — a `time(tf[, session[, zone]])` call rebuilt with LITERAL arguments the columnar
-   *  lane's session clock reads, or `null` when an argument is not text fixed before bar 0. Shared
-   *  by the call itself and by `na(time(…))` (`naOfSessionClock`). */
+   *  lane's session clock reads, or `null` when an argument is not text fixed before bar 0. */
   const rebuiltSessionClockCall = (node, scope) => {
     const given = (node.args || []).map((a) => (a && a.value !== undefined ? a.value : a))
     const at = locate(node.tok)
     const rebuilt = []
     for (let k = 0; k < given.length; k += 1) {
       const g = given[k]
-      if (k === 0 && g && g.type === 'name' && OWN_TF_NAMES.has(g.name) && scope.lookup(g.name) === null
+      if (k === 0 && g && g.type === 'name' && OWN_TF_NAMES.has(g.name) && !legacyPeriodUndeclared(g.name, pineVersion)
+        && scope.lookup(g.name) === null
         && !env.has(g.name)) { rebuilt.push(g); continue }
       if (k === 2 && isExchangeZoneNode(g, scope)) { rebuilt.push(g); continue }
       const c = constantArgOf(g, scope)
@@ -7855,23 +7857,6 @@ function buildRuntimeIrLinked(source, opts, holder) {
         : { type: 'string', value: c.text, tok: node.tok })
     }
     return { ...node, args: rebuilt.map((value) => ({ name: null, value, tok: node.tok })) }
-  }
-  /** ⭐ NUMBER PENDING (bt) — `na(time(tf, session[, zone]))`: membership, asked as ONE columnar
-   *  expression so the session clock knows only membership is read (`pine.js::resolveCall`, the
-   *  `na` arm) — which is what lets a wrapping session (measured for membership only) be served.
-   *  `null` when the call is not that shape or its arguments are not fixed before bar 0. */
-  const naOfSessionClock = (node, scope) => {
-    if (atObjectDoor || inRequestValue) return null
-    if (String(node.name || '') !== 'na' || definedNames.has('na') || isUserFn('na')) return null
-    const args = node.args || []
-    if (args.length !== 1 || (args[0] && args[0].name)) return null
-    const inner = args[0] && args[0].value !== undefined ? args[0].value : args[0]
-    if (!inner || inner.type !== 'call' || inner.name !== 'time' || definedNames.has('time') || isUserFn('time')) return null
-    const innerArgs = inner.args || []
-    if (innerArgs.length < 2 || innerArgs.length > 3 || innerArgs.some((a) => a && a.name)) return null
-    const rebuilt = rebuiltSessionClockCall(inner, scope)
-    if (!rebuilt) return null
-    return column(columnOf({ ...node, args: [{ name: null, value: rebuilt, tok: node.tok }] }, locate(node.tok)))
   }
 
   /** The family a call belongs to, so a refusal names the right matrix row. */
@@ -8332,6 +8317,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // `request.security(sym, tf, x)` could disagree inside one script.
         // ⛔ AND A BINDING STILL WINS, exactly as it does for the clock fields
         // above and in `ownTimeframeOf`: a script may write `period = "60"`.
+        // ⭐ NUMBER PENDING (bt) — a v4+ script's unbound bare `period` is no Pine name (`legacyPeriodUndeclared`).
+        if (legacyPeriodUndeclared(node.name, pineVersion) && scope.lookup(node.name) === null && !env.has(node.name)) {
+          throw legacyPeriodRefusal(node.tok)
+        }
         if (OWN_TF_NAMES.has(node.name)
             && scope.lookup(node.name) === null && !env.has(node.name)) {
           // ⭐ C29 — the TEXT Pine reads, in this script's version: the one
@@ -9387,9 +9376,6 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // `na` included (any `na` operand makes the sum `na` in both).
         const expanded = callTreeExpansion(node)
         if (expanded) return lowerExpr(expanded, scope, opts)
-        // ⭐ NUMBER PENDING (bt) — `na(time(tf, session))` is ONE columnar membership read.
-        const sessionNa = naOfSessionClock(node, scope)
-        if (sessionNa) return sessionNa
         // ⭐⭐ RT3 — `iff` and `vwma` over runtime state, as the HOST lane spells
         // them (`pine.js::BUILTIN_CALL_TREE`), rebuilt over this call's own nodes.
         const respelled = runtimeRespelling(node, scope)
@@ -14720,6 +14706,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (scope && scope.lookup(node.name) !== null) return null
     const bound = env.get(node.name)
     if (bound) return bound.kind === 'expr' ? ownTimeframeNameOf(bound.node, scope, depth + 1) : null
+    if (legacyPeriodUndeclared(node.name, pineVersion)) throw legacyPeriodRefusal(node.tok)
     return OWN_TF_NAMES.has(node.name) ? node.name : null
   }
 

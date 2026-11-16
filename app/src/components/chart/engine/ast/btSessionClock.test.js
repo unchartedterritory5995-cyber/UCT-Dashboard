@@ -1,19 +1,23 @@
-// ⭐⭐ NUMBER PENDING (bt, 2026-11-16) — `time(tf, session[, zone])`: the wrapping session, the v4
-// default days and the UTC spelling of a fixed zone, held to what witnesses each.
+// ⭐⭐ NUMBER PENDING (bt, 2026-11-16) — `time(tf, session[, zone])`: the wrapping session, the
+// session that runs to midnight, the v4 default days, the UTC spelling of a fixed zone, and the bare
+// `period` of v1-v3 — each held to what witnesses it.
 //
-//   · a session whose end is not after its start, for MEMBERSHIP: capture
-//     `vw-w4-session-overnight-btcusd-60-2026-11-16` (probe
-//     `tools/visual_conformance/probes/vw-w4-session-overnight.pine`, BITSTAMP:BTCUSD 60, 25,215
-//     bars), rows O1-O4, every bar; and the user manual's session table. ⛔ The capture reaches
-//     `tests/fixtures/vendor/harness/` through the capture session's cq1 data PR (never a copy
-//     committed here); until that PR is on the tree the capture block below is SKIPPED, by a title
-//     that says so, and this unit's PR lands after it;
-//   · a v4 session with no day list is Monday to Friday: the v4 reference (`time`) and the
-//     v4->v5 migration guide, quoted at `pine.js::sessionClockOf`; checked here against a calendar
-//     written out by hand;
+//   · four captures of probes under `tools/visual_conformance/probes/`, all BITSTAMP:BTCUSD (a bar
+//     every hour of every day), every bar: `vw-w4-session-overnight-btcusd-60-2026-11-16` (O1-O4,
+//     membership), `vw-bt-session-overnight-value-btcusd-{60,1d}-2026-11-16` (V1-V4, the value
+//     inside a wrapping session), `vw-bt-session-to-midnight-daymask-btcusd-60-2026-11-16` (M1/M2,
+//     "HHMM-0000" under a day list), `vw-w4-session-default-days-v4-btcusd-60-2026-11-16` (N1-N3,
+//     the v4 default days); and the user manual's session table, the v4 reference and the v4->v5
+//     migration guide, quoted at `pine.js::sessionClockOf`;
 //   · "UTC±H" / "UTC±HH:MM" / "GMT±HHMM": the user manual ("UTC (or GMT) offset notation"); the
-//     arithmetic is the measured "GMT-4" one, so the trees must be the same tree.
-// What stays refused keeps its name, and each refusal has a case here.
+//     arithmetic is the measured "GMT-4" one, so the trees must be the same tree;
+//   · bare `period` from v4 on: TradingView's v4 compiler, "Undeclared identifier 'period'" (the
+//     capture session's reading, in the header of the captured default-days-v4 source).
+//
+// ⛔ THE CAPTURES REACH `tests/fixtures/vendor/harness/` THROUGH THE CAPTURE SESSION'S DATA PRs, never
+// a copy committed here. Until they are on the tree their block is SKIPPED by a title that says so,
+// and this unit's PR does not merge while any skip stands: once the data PRs land, `HELD` below is
+// removed and a missing capture is RED.
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -22,8 +26,9 @@ import { interpret } from './interpret.js'
 import { parseFormula } from './parse.js'
 
 const REPO = path.resolve(process.cwd(), '..')
-const OVERNIGHT = path.join(REPO, 'tests', 'fixtures', 'vendor', 'harness', 'vw-w4-session-overnight-btcusd-60-2026-11-16.json')
-const OVERNIGHT_HELD = fs.existsSync(OVERNIGHT)
+const HARNESS = path.join(REPO, 'tests', 'fixtures', 'vendor', 'harness')
+const capPath = (id) => path.join(HARNESS, `${id}.json`)
+const HELD = (id) => fs.existsSync(capPath(id))
 const V6 = '//@version=6\nindicator("p")\n'
 const V4 = '//@version=4\nstudy("p")\n'
 const V3 = '//@version=3\nstudy("p")\n'
@@ -32,6 +37,7 @@ const tr = (src, basePeriod = 'D') => translatePine(src, { strict: true, basePer
 const outputsOf = (src, basePeriod) => {
   const t = tr(src, basePeriod)
   expect(t.ok, t.ok ? '' : `${t.refusal && t.refusal.guard}: ${t.refusal && t.refusal.message}`).toBe(true)
+  for (const o of t.outputs) expect(o.refusal, o.refusal && o.refusal.message).toBeFalsy()
   return t.outputs
 }
 const refusalOf = (src, basePeriod) => {
@@ -42,85 +48,160 @@ const refusalOf = (src, basePeriod) => {
 }
 const evalOn = (formula, bars, tf) => interpret(parseFormula(formula).ast, bars, {}, undefined, undefined, { tf })
 
-describe.skipIf(!OVERNIGHT_HELD)(`a wrapping session, membership: vw-w4-session-overnight O1-O4 on every bar${
-  OVERNIGHT_HELD ? '' : ' — SKIPPED: WAITS ON THE cq1 DATA PR (capture not on this tree)'}`, () => {
-  const d = OVERNIGHT_HELD ? JSON.parse(fs.readFileSync(OVERNIGHT, 'utf8')) : null
-  if (!d) return
+/** A capture's rows, graded against OUR answer to the same question per row. The probes read the
+ *  session in the EXCHANGE zone, which for BITSTAMP:BTCUSD is Etc/UTC (asserted); this engine's
+ *  exchange clock is New York, so each row is asked here with the zone written out: "GMT+0" is that
+ *  clock, by the measured fixed-offset arithmetic. `rows` maps a capture title to a Pine expression. */
+function gradeCapture(id, tf, rows) {
+  const d = JSON.parse(fs.readFileSync(capPath(id), 'utf8'))
+  expect(d.symbol.timezone, id).toBe('Etc/UTC')
   const titles = d.study.plots.map((p) => p.title)
-  const col = (name) => 1 + titles.indexOf(name)
-  const rows = d.plotValues.rows
   const bars = d.bars.rows.map((r) => ({ t: r[0], o: r[1], h: r[2], l: r[3], c: r[4], v: r[5] }))
   const index = new Map(d.bars.rows.map((r, i) => [r[0], i]))
-  // The probe reads the session in the EXCHANGE zone, which for BITSTAMP:BTCUSD is Etc/UTC
-  // (`d.symbol.timezone`, asserted below). This engine's exchange clock is New York, so the same
-  // question is asked here with the zone written out: "GMT+0" is that clock, by the measured
-  // fixed-offset arithmetic.
-  const CASES = [
-    ['O1_na_wrap_all_days', '1800-0200:1234567'],
-    ['O2_na_wrap_weekdays', '1800-0200:23456'],
-    ['O3_na_to_midnight', '2000-0000:1234567'],
-    ['O4_na_whole_day', '0000-0000:1234567'],
-  ]
-
-  it('the capture is the probe, in the zone this rail assumes, and it discriminates', () => {
-    expect(d.symbol.timezone).toBe('Etc/UTC')
-    expect(d.timeframe).toBe('60')
-    expect(rows.length).toBeGreaterThan(20000)
-    const inOf = (name) => rows.filter((r) => r[col(name)] === 0)
-    // O1 and O2 differ exactly on the weekend side of the wrap; O3 is 4 hours a day; O4 every bar
-    const o1 = inOf('O1_na_wrap_all_days').length
-    const o2 = inOf('O2_na_wrap_weekdays').length
-    expect(o1).toBeGreaterThan(o2 + 1000)
-    expect(o2).toBeGreaterThan(5000)
-    expect(inOf('O3_na_to_midnight').every((r) => r[col('HOUR')] >= 20)).toBe(true)
-    expect(inOf('O4_na_whole_day').length).toBe(rows.length)
-    // the after-midnight part belongs to the session that ENDS that day: Friday 00:00-01:59 in,
-    // Friday 18:00 out, Sunday 18:00 in, Saturday never (O2)
-    const o2At = (dow, hour) => rows.filter((r) => r[col('DOW_dayofweek')] === dow && r[col('HOUR')] === hour)
-      .map((r) => r[col('O2_na_wrap_weekdays')])
-    expect(new Set(o2At(6, 1))).toEqual(new Set([0]))
-    expect(new Set(o2At(6, 18))).toEqual(new Set([1]))
-    expect(new Set(o2At(1, 18))).toEqual(new Set([0]))
-    expect(new Set(o2At(7, 1))).toEqual(new Set([1]))
-  })
-
-  for (const [title, spec] of CASES) {
-    it(`${title} ("${spec}") matches on every bar, read as \`na(time(…))\``, () => {
-      const [o] = outputsOf(`${V6}plot(na(time(timeframe.period, "${spec}", "GMT+0")) ? 1 : 0, "${title}")`, '60')
-      const ours = evalOn(o.formula, bars, '60')
-      let bad = 0
-      let first = null
-      for (const r of rows) {
-        const got = ours[index.get(r[0])]
-        if (got !== r[col(title)]) { bad += 1; if (!first) first = { t: r[0], want: r[col(title)], got } }
-      }
-      expect(bad, `${bad}/${rows.length} differ, first ${JSON.stringify(first)} — ${o.formula}`).toBe(0)
-    })
+  const out = {}
+  for (const [title, expr] of Object.entries(rows)) {
+    const col = 1 + titles.indexOf(title)
+    expect(col, `${title} is not a plot of ${id}`).toBeGreaterThan(0)
+    const [o] = outputsOf(`${V6}plot(${expr}, "${title}")`, tf)
+    const ours = evalOn(o.formula, bars, tf)
+    let bad = 0
+    let first = null
+    let n = 0
+    for (const r of d.plotValues.rows) {
+      const want = r[col]
+      if (want === null || want === undefined) continue
+      n += 1
+      const got = ours[index.get(r[0])]
+      if (Math.abs(got - want) > 1e-9) { bad += 1; if (!first) first = { t: r[0], want, got } }
+    }
+    out[title] = { bad, n, first, formula: o.formula }
   }
+  return { d, out }
+}
+const expectAllMatch = (res, min) => {
+  for (const [title, r] of Object.entries(res.out)) {
+    expect(r.n, `${title}: capture too short`).toBeGreaterThanOrEqual(min)
+    expect(r.bad, `${title}: ${r.bad}/${r.n} bars differ, first ${JSON.stringify(r.first)} — ${r.formula}`).toBe(0)
+  }
+}
+const isNa = (spec) => `na(time(timeframe.period, "${spec}", "GMT+0")) ? 1 : 0`
+const secs = (spec) => `na(time(timeframe.period, "${spec}", "GMT+0")) ? -1.0 : (time(timeframe.period, "${spec}", "GMT+0") - time) / 1000.0`
+const skipTitle = (id) => (HELD(id) ? '' : ' — SKIPPED: WAITS ON THE CAPTURE SESSION\'S DATA PR (capture not on this tree)')
+
+const OVERNIGHT = 'vw-w4-session-overnight-btcusd-60-2026-11-16'
+describe.skipIf(!HELD(OVERNIGHT))(`a wrapping session's membership: ${OVERNIGHT} O1-O4${skipTitle(OVERNIGHT)}`, () => {
+  it('matches O1-O4 on every bar, and the capture discriminates', () => {
+    const res = gradeCapture(OVERNIGHT, '60', {
+      O1_na_wrap_all_days: isNa('1800-0200:1234567'),
+      O2_na_wrap_weekdays: isNa('1800-0200:23456'),
+      O3_na_to_midnight: isNa('2000-0000:1234567'),
+      O4_na_whole_day: isNa('0000-0000:1234567'),
+    })
+    expectAllMatch(res, 20000)
+    // ⛔ NON-VACUITY: the after-midnight part belongs to the session that ENDS that day (O2):
+    // Friday 01:00 in, Friday 18:00 out, Sunday 18:00 in, Saturday 01:00 out.
+    const { d } = res
+    const t = d.study.plots.map((p) => p.title)
+    const c = (n) => 1 + t.indexOf(n)
+    const o2At = (dow, hour) => new Set(d.plotValues.rows
+      .filter((r) => r[c('DOW_dayofweek')] === dow && r[c('HOUR')] === hour).map((r) => r[c('O2_na_wrap_weekdays')]))
+    expect(o2At(6, 1)).toEqual(new Set([0]))
+    expect(o2At(6, 18)).toEqual(new Set([1]))
+    expect(o2At(1, 18)).toEqual(new Set([0]))
+    expect(o2At(7, 1)).toEqual(new Set([1]))
+  })
 })
 
-describe('what a wrapping session still refuses, by name', () => {
-  it('its VALUE (the probe read membership only)', () => {
-    const r = refusalOf(`${V6}plot(time(timeframe.period, "1800-0200:1234567") / 1000)`)
+const VALUE60 = 'vw-bt-session-overnight-value-btcusd-60-2026-11-16'
+const VALUE1D = 'vw-bt-session-overnight-value-btcusd-1d-2026-11-16'
+const VALUE_ROWS = {
+  V1_secs_wrap_half_hour: secs('1930-0230:1234567'),
+  V2_secs_wrap_on_the_hour_CONTROL: secs('1800-0200:1234567'),
+  V3_secs_whole_day_wrap: secs('1700-1700:1234567'),
+  V4_secs_wrap_through_the_day: secs('2000-1630:1234567'),
+}
+describe.skipIf(!HELD(VALUE60))(`the VALUE inside a wrapping session, hourly: ${VALUE60}${skipTitle(VALUE60)}`, () => {
+  it('matches V1-V4 on every bar: the session grid continues across midnight (-1800 s at 00:00-02:00)', () => {
+    const res = gradeCapture(VALUE60, '60', VALUE_ROWS)
+    expectAllMatch(res, 20000)
+    const { d } = res
+    const t = d.study.plots.map((p) => p.title)
+    const c = (n) => 1 + t.indexOf(n)
+    // ⛔ NON-VACUITY: the half-hour session answers the :30 BEFORE on an after-midnight bar, which
+    // the bar's own open (0) would not
+    const after = d.plotValues.rows.filter((r) => r[c('HOUR')] === 1)
+    expect(after.length).toBeGreaterThan(500)
+    expect(new Set(after.map((r) => r[c('V1_secs_wrap_half_hour')]))).toEqual(new Set([-1800]))
+  })
+})
+describe.skipIf(!HELD(VALUE1D))(`the VALUE inside a wrapping session, daily: ${VALUE1D}${skipTitle(VALUE1D)}`, () => {
+  it('matches V1-V4 on every bar: the session\'s start the evening before', () => {
+    const res = gradeCapture(VALUE1D, 'D', VALUE_ROWS)
+    expectAllMatch(res, 1000)
+    const v3 = new Set(res.d.plotValues.rows.map((r) => r[1 + res.d.study.plots.map((p) => p.title).indexOf('V3_secs_whole_day_wrap')]))
+    expect(v3).toEqual(new Set([-25200]))
+  })
+})
+
+const TO_MIDNIGHT = 'vw-bt-session-to-midnight-daymask-btcusd-60-2026-11-16'
+describe.skipIf(!HELD(TO_MIDNIGHT))(`"HHMM-0000" under a day list: ${TO_MIDNIGHT}${skipTitle(TO_MIDNIGHT)}`, () => {
+  it('matches M1/M2 on every bar: the hours before midnight are the bar\'s own day\'s session', () => {
+    expectAllMatch(gradeCapture(TO_MIDNIGHT, '60', {
+      M1_na_to_midnight_weekdays: isNa('2000-0000:23456'),
+      M2_na_to_midnight_every_day_CONTROL: isNa('2000-0000:1234567'),
+    }), 20000)
+  })
+})
+
+const DAYS_V4 = 'vw-w4-session-default-days-v4-btcusd-60-2026-11-16'
+describe.skipIf(!HELD(DAYS_V4))(`a v4 session with no day list: ${DAYS_V4}${skipTitle(DAYS_V4)}`, () => {
+  it('the captured v4 source (`timeframe.period`) matches N1-N3 on every bar: Monday to Friday', () => {
+    const d = JSON.parse(fs.readFileSync(capPath(DAYS_V4), 'utf8'))
+    expect(d.source.text).toMatch(/^\/\/@version=4/)
+    const titles = d.study.plots.map((p) => p.title)
+    const c = (n) => 1 + titles.indexOf(n)
+    const bars = d.bars.rows.map((r) => ({ t: r[0], o: r[1], h: r[2], l: r[3], c: r[4], v: r[5] }))
+    const index = new Map(d.bars.rows.map((r, i) => [r[0], i]))
+    // ⭐ the captured source itself, the exchange zone written out (see `gradeCapture`); every row
+    // is a whole-day window, so only the day list decides
+    for (const [title, spec] of [['N1_na_no_day_list', '0000-2359'], ['N2_na_every_day_CONTROL', '0000-2359:1234567'],
+      ['N3_na_monday_to_friday_CONTROL', '0000-2359:23456']]) {
+      const [o] = outputsOf(`${V4}plot(na(time(timeframe.period, "${spec}", "GMT+0")) ? 1 : 0, title = "${title}")`, '60')
+      const ours = evalOn(o.formula, bars, '60')
+      const bad = d.plotValues.rows.filter((r) => ours[index.get(r[0])] !== r[c(title)]).length
+      expect(bad, `${title} — ${o.formula}`).toBe(0)
+    }
+    // ⛔ NON-VACUITY: N1 is out on Saturday and Sunday and in on Monday
+    const n1 = (dow) => new Set(d.plotValues.rows.filter((r) => r[c('DOW_dayofweek')] === dow).map((r) => r[c('N1_na_no_day_list')]))
+    expect(n1(1)).toEqual(new Set([1]))
+    expect(n1(7)).toEqual(new Set([1]))
+    expect(n1(2)).toEqual(new Set([0]))
+  })
+})
+
+describe('what still refuses, by name', () => {
+  it('a v1-v3 session with no day list: no reference text states the default', () => {
+    const r = refusalOf(`${V3}plot(na(time(period, "0930-1600")) ? 0 : 1)`)
     expect(r.guard).toBe('pine:function')
-    expect(r.message).toMatch(/wraps past midnight[\s\S]*VALUE inside a wrapping session is not measured/)
+    expect(r.message).toMatch(/no day list[\s\S]*not stated by any reference text/)
   })
-  it('membership through a binding: the call has to be written inside `na(…)`', () => {
-    const r = refusalOf(`${V6}t = time(timeframe.period, "1800-0200:1234567")\nplot(na(t) ? 1 : 0)`)
-    expect(r.message).toMatch(/wraps past midnight/)
+  it('bare `period` from v4 on (TradingView: "Undeclared identifier \'period\'"), and it says what to write', () => {
+    for (const src of [`${V4}plot(na(time(period, "0930-1600:23456")) ? 0 : 1)`,
+      `${V4}tf = period\nplot(security(syminfo.tickerid, tf, close))`]) {
+      const r = refusalOf(src)
+      expect(r.guard, src).toBe('pine:builtin')
+      expect(r.message, src).toMatch(/Undeclared identifier 'period'[\s\S]*timeframe\.period/)
+    }
   })
-  it('CONTROL: the membership read beside a value read of the same session — the value refuses', () => {
-    const r = refusalOf(`${V6}s = "1800-0200:1234567"\nplot(na(time(timeframe.period, s)) ? 1 : time(timeframe.period, s))`)
-    expect(r.message).toMatch(/VALUE inside a wrapping session/)
-  })
-  it('"HHMM-0000" with a day list that is not every day', () => {
-    const r = refusalOf(`${V6}plot(na(time(timeframe.period, "2000-0000:23456")) ? 1 : 0)`)
-    expect(r.message).toMatch(/runs to midnight/)
+  it('CONTROL: a v4 script\'s OWN `period` is its own, and v3\'s bare `period` is the chart\'s', () => {
+    expect(tr(`${V4}period = "W"\nplot(security(syminfo.tickerid, period, close))`).ok).toBe(true)
+    expect(tr(`${V3}plot(na(time(period, "0930-1600:23456")) ? 0 : 1)`).ok).toBe(true)
   })
   it('CONTROL: a same-day session is untouched — the same tree it always was', () => {
     const [o] = outputsOf(`${V6}plot(time(timeframe.period, "0930-1000:23456") / 1000)`)
     expect(o.formula).toMatch(/dayofweek == 2/)
     expect(o.formula).not.toMatch(/mod\(dayofweek, 7\)/)
+    expect(o.formula).not.toMatch(/\+ 1440/)
   })
 })
 
@@ -128,48 +209,36 @@ describe('what a wrapping session still refuses, by name', () => {
 // Day 0 is Sunday (Pine 1) ... day 6 Saturday (Pine 7), written out, never derived from the code.
 const T60 = Date.UTC(2024, 0, 7, 5, 0) / 1000
 const WEEK = Array.from({ length: 7 * 24 }, (_, i) => ({ t: T60 + i * 3600, o: 1, h: 1, l: 1, c: 1, v: 1 }))
-const PINE_DOW = [1, 2, 3, 4, 5, 6, 7]
 
-describe('a v4 session with no day list is Monday to Friday (v4 reference, migration guide)', () => {
-  it('"0000-0000" (the v4 reference\'s own example) is in on Monday-Friday, out on Saturday and Sunday', () => {
-    const [o] = outputsOf(`${V4}plot(na(time(period, "0000-0000")) ? 0 : 1)`, '60')
-    const got = evalOn(o.formula, WEEK, '60')
-    const want = WEEK.map((_, i) => ([2, 3, 4, 5, 6].includes(PINE_DOW[Math.floor(i / 24)]) ? 1 : 0))
-    expect(Array.from(got)).toEqual(want)
+describe('the same rules on a hand-written calendar (New York clock)', () => {
+  const weekday = (i) => { const day = Math.floor(i / 24); return day >= 1 && day <= 5 }
+  it('v4 "0000-0000" with no day list (the v4 reference\'s own example): Monday-Friday only', () => {
+    const [o] = outputsOf(`${V4}plot(na(time(timeframe.period, "0000-0000")) ? 0 : 1)`, '60')
+    expect(Array.from(evalOn(o.formula, WEEK, '60'))).toEqual(WEEK.map((_, i) => (weekday(i) ? 1 : 0)))
   })
-  it('it is the same tree as ":23456" written out', () => {
-    const a = outputsOf(`${V4}plot(time(period, "0930-1600"))`, '60')[0].formula
-    const b = outputsOf(`${V4}plot(time(period, "0930-1600:23456"))`, '60')[0].formula
-    expect(a).toBe(b)
+  it('v4 with no day list is the same tree as ":23456" written out', () => {
+    expect(outputsOf(`${V4}plot(time(timeframe.period, "0930-1600"))`, '60')[0].formula)
+      .toBe(outputsOf(`${V4}plot(time(timeframe.period, "0930-1600:23456"))`, '60')[0].formula)
   })
-  it('v1-v3 keep the refusal: no reference text states their default', () => {
-    const r = refusalOf(`${V3}plot(na(time(period, "0930-1600")) ? 0 : 1)`)
-    expect(r.guard).toBe('pine:function')
-    expect(r.message).toMatch(/no day list[\s\S]*not stated by any reference text/)
-  })
-})
-
-describe('a wrapping session on a hand-written calendar (New York clock)', () => {
   it('"1800-0200:23456": Sunday 18:00 through Friday 01:00, never Friday evening or Saturday', () => {
     const [o] = outputsOf(`${V6}plot(na(time(timeframe.period, "1800-0200:23456")) ? 0 : 1)`, '60')
-    const got = Array.from(evalOn(o.formula, WEEK, '60'))
     const want = WEEK.map((_, i) => {
       const day = Math.floor(i / 24) // 0 Sunday
       const hour = i % 24
-      if (hour >= 18) return day <= 4 ? 1 : 0 // tomorrow is Monday..Friday
-      if (hour < 2) return day >= 1 && day <= 5 ? 1 : 0 // today is Monday..Friday
+      if (hour >= 18) return day <= 4 ? 1 : 0 // the session that ends tomorrow, Monday..Friday
+      if (hour < 2) return day >= 1 && day <= 5 ? 1 : 0 // the session that ends today
       return 0
     })
-    expect(got).toEqual(want)
-  })
-  it('"1700-1700" (the manual\'s overnight session) holds every hour of every day', () => {
-    const [o] = outputsOf(`${V6}plot(na(time(timeframe.period, "1700-1700")) ? 0 : 1)`, '60')
-    expect(Array.from(evalOn(o.formula, WEEK, '60')).every((v) => v === 1)).toBe(true)
-  })
-  it('"0000-0000:23456" (the manual\'s Monday-to-Friday whole day) is the bar\'s own date', () => {
-    const [o] = outputsOf(`${V6}plot(na(time(timeframe.period, "0000-0000:23456")) ? 0 : 1)`, '60')
-    const want = WEEK.map((_, i) => ([2, 3, 4, 5, 6].includes(PINE_DOW[Math.floor(i / 24)]) ? 1 : 0))
     expect(Array.from(evalOn(o.formula, WEEK, '60'))).toEqual(want)
+  })
+  it('"1930-0230": the value is the :30 of the session grid on every in-session bar, after midnight too', () => {
+    const [o] = outputsOf(`${V6}plot(na(time(timeframe.period, "1930-0230")) ? -1 : (time(timeframe.period, "1930-0230") - time) / 1000)`, '60')
+    const want = WEEK.map((_, i) => { const h = i % 24; return h >= 20 || h <= 2 ? -1800 : -1 })
+    expect(Array.from(evalOn(o.formula, WEEK, '60'))).toEqual(want)
+  })
+  it('"2000-0000:23456": 20:00-23:00 of Monday-Friday themselves', () => {
+    const [o] = outputsOf(`${V6}plot(na(time(timeframe.period, "2000-0000:23456")) ? 0 : 1)`, '60')
+    expect(Array.from(evalOn(o.formula, WEEK, '60'))).toEqual(WEEK.map((_, i) => (i % 24 >= 20 && weekday(i) ? 1 : 0)))
   })
 })
 
