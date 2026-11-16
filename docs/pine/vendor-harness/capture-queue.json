@@ -65,7 +65,7 @@
   ],
   "coverageMeasuredOn": "2026-11-16",
   "coverageMasterSha": "890b6d165c",
-  "fixtures": 726,
+  "fixtures": 732,
   "ledgerRows": 884
  },
  "definitions": {
@@ -328,7 +328,7 @@
     "NEEDS_CHART": 1
    }
   },
-  "rowsNeedingProbe": 16,
+  "rowsNeedingProbe": 17,
   "rowsNeedingProbeLive": 0,
   "licenceHeldCensus": 157,
   "rowsNotCaptureQuestions": 47,
@@ -15040,7 +15040,8 @@
    "id": "rs-syminfo-industry@NYSE:RDDT@D",
    "status": "CAPTURED",
    "evidence": [
-    "tests/fixtures/vendor/harness/rs-syminfo-industry-rddt-1d-2026-11-15.json"
+    "tests/fixtures/vendor/harness/rs-syminfo-industry-rddt-1d-2026-11-15.json",
+    "tests/fixtures/vendor/harness/rs-syminfo-industry-rddt-1d-2026-11-16.json"
    ],
    "source": "tools/visual_conformance/probes/rs-syminfo-industry.pine",
    "sourceKind": "probe",
@@ -15509,9 +15510,20 @@
    "text": "Q-RS8 | `docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine` (unchanged, sha256 `caa94fe31a87...5af0`) | NYSE:RDDT 1D, NASDAQ:ALAB 1D, NASDAQ:CRWV 1D, each from the listing, default inputs | The x of RS Rating's two labels. The three committed captures (`rs-rating-fred6724-{rddt,alab,crwv}-1d-2026-11-15`) predate U13 and record no x table, so objects v2 grades INCONCLUSIVE and the run half that"
   },
   {
+   "key": "capture-queue-2026-11-14-rs-rating#Q-RS10",
+   "doc": "docs/pine/capture-queue-2026-11-14-rs-rating.md",
+   "line": 62,
+   "docWave": "rs-rating",
+   "needsProbe": "probe file owed: rs-rating-fred6724__pziQwiT2.pine",
+   "needsLive": false,
+   "guards": [],
+   "namedScripts": [],
+   "text": "Q-RS10 | `docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine`, in the Q-RS8 session | NYSE:RDDT 1D | TradingView's VISIBLE PRICE RANGE with the script on the price scale, at default settings and a stated visible bar range, plus the same with \"Scale price chart only\" switched on. No committed capture records a visible price range (`tv_capture.js` reads values and objects, not the scale), so the "
+  },
+  {
    "key": "capture-queue-2026-11-14-rs-rating#Q-RS9",
    "doc": "docs/pine/capture-queue-2026-11-14-rs-rating.md",
-   "line": 54,
+   "line": 68,
    "docWave": "rs-rating",
    "needsProbe": "no probe file named (an inline shape or prose)",
    "needsLive": false,
@@ -17657,7 +17669,7 @@
   {
    "doc": "docs/pine/capture-queue-2026-11-14-rs-rating.md",
    "wave": "rs-rating",
-   "rows": 9,
+   "rows": 10,
    "contextTables": 0
   },
   {
