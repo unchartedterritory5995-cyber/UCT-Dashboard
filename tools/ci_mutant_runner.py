@@ -91,18 +91,25 @@ def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--manifest", required=True)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--repo", default=None,
+                    help="the checkout the manifest's files and rails live in (default: this tool's own repo). "
+                         "pine-heavy runs this tool from a sparse tools checkout, so it names the workspace.")
     a = ap.parse_args(argv)
+    root = pathlib.Path(a.repo).resolve() if a.repo else ROOT
+    if not root.is_dir():
+        print(f"[mutants] --repo {a.repo} is not a directory")
+        return 2
     try:
         doc = json.loads(pathlib.Path(a.manifest).read_text(encoding="utf-8"))
     except (OSError, ValueError) as err:
         print(f"[mutants] cannot read {a.manifest}: {err}")
         return 2
-    problems = validate(doc)
+    problems = validate(doc, root)
     if problems:
         for p in problems:
             print(f"::error::{p}")
         return 2
-    results = [run_one(m) for m in doc["mutants"]]
+    results = [run_one(m, root) for m in doc["mutants"]]
     ok = all(r["rc"] == 0 and r["killed"] and r["greenAfterRestore"] and r["restoredByteEqual"] for r in results)
     pathlib.Path(a.out).write_text(json.dumps({"schema": SCHEMA, "manifest": a.manifest, "mutants": results}, indent=1) + "\n", encoding="utf-8")
     for r in results:

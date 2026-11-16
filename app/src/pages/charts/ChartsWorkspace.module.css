@@ -547,6 +547,13 @@
     height: min(58dvh, 560px);
     z-index: 8500;
   }
+  /* TABLET, the docked column. Measured on production at 820x1180, 2026-11-16: the joystick's
+     edge tab (fixed, z-index 360) sat over the dock's Send button and took its taps. The dock
+     owns the right edge while it is open, as the phone sheet above does, so it sits just above
+     the tab. Tried on the live page first: the element under Send became Send. */
+  .studioDock[data-studio-dock="dock"] {
+    z-index: 370;
+  }
 }
 
 .chartFill {

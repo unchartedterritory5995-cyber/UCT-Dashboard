@@ -164,7 +164,8 @@ def test_the_committed_dispositions_are_exactly_the_reviewed_rows():
                  "vw-s1-q-s1e-stop-past", "vw-s1-q-s1g-blocked-stop-entry", "vw-s1-q-s1h-fifo-exit", "vw-s1-q-s1j-stop-limit"):
         assert by.get(f"{stem}@NYSE:RDDT@D") == "QUEUED", stem
     assert not any(t.startswith(("vw-s1-q-s1a-", "vw-s1-q-s1b-", "vw-s1-core-")) for t in by)
-    assert by["w9-p1b-on-close-fills-nv@NYSE:RDDT@D"] == by["w9-p2-order-fills-nv@NYSE:RDDT@D"] == "QUEUED"
+    # both -nv probes were captured on 2026-11-15 (#1370, the U14 strategy captures): no longer QUEUED
+    assert by["w9-p1b-on-close-fills-nv@NYSE:RDDT@D"] == by["w9-p2-order-fills-nv@NYSE:RDDT@D"] == "CAPTURED"
     assert not any(t.startswith(("w9-p1b-on-close-fills@", "w9-p2-order-fills@")) for t in by)
     for rid in ("G-f", "G-i"):
         assert f"capture-queue-2026-10-31-prod-ternary#{rid}" in needing
