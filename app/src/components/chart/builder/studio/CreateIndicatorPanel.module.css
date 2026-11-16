@@ -35,6 +35,25 @@
    full height of the chart section, one divider on the chart side, no card chrome.
    Opacity-only entrance: the reflow itself is instant, so the chart never animates
    through intermediate widths. */
+/* ── PHONE AND TABLET (the touch tier, 1024px and below) ──
+   A half-height sheet across the bottom, so the chart being previewed stays in view above
+   it. It was a fixed 360px panel at every width, which on a phone covered the chart it was
+   drawing on. `!important` because the floating position is an inline style measured from
+   the chart; the docked variant (the workspace's reserved column) is left alone. */
+@media (max-width: 1024px) {
+  .panel:not(.panelDocked) {
+    top: auto !important;
+    left: 0 !important;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: min(58dvh, 560px) !important;
+    border-radius: 16px 16px 0 0;
+    border-bottom: 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
 .panelDocked {
   position: relative;
   z-index: auto;
