@@ -140,7 +140,27 @@
         {"id": "rs-rating-fred6724-crwv-1d-2026-11-16", "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
          "substituted": ["syminfo.industry"], "objectsV2": "MATCH_SUBSTITUTED",
          "objectsV2Substituted": ["syminfo.industry"],
-         "graded": "master b7cd7a0e63 (engine 60), master's own corpus harness, runtime-on, 2026-11-16, a run of exactly the Q-RS8 re-takes: capture MATCH_SUBSTITUTED (the 4 value plots agree on every bar), objects v1 MATCH, objects v2 MATCH_SUBSTITUTED with x witnessed (18 graded fields agree; x: 2 graded, 2 agreeing, 0 differing, exact bar)"}
+         "graded": "master b7cd7a0e63 (engine 60), master's own corpus harness, runtime-on, 2026-11-16, a run of exactly the Q-RS8 re-takes: capture MATCH_SUBSTITUTED (the 4 value plots agree on every bar), objects v1 MATCH, objects v2 MATCH_SUBSTITUTED with x witnessed (18 graded fields agree; x: 2 graded, 2 agreeing, 0 differing, exact bar)"},
+        {"id": "rs-rating-fred6724-seta-rddt-1d-2026-11-16", "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
+         "substituted": ["syminfo.industry"], "objectsV2": "MATCH_SUBSTITUTED",
+         "objectsV2Substituted": ["syminfo.industry"],
+         "inputs": {"ratingOnly": true, "offset": 60, "rsNewHigh": "Historical RS New Highs", "lookback": 100, "sizeLabHigh": "Small", "plotNewLow": true, "rsNewLow": "RS New Lows", "lookback2": 120, "sizeLabLow": "Normal", "boolMa": true, "lenMa": 30, "typMa": "SMA", "boolMa2": true, "allowReplay": true, "first2": 190, "scnd2": 110, "thrd2": 95.5, "frth2": 88, "ffth2": 75, "sxth2": 50, "svth2": 20},
+         "graded": "settings branch feat/pine-param-settings 1e18dc7f8c (settings parity 2c), the corpus harness runtime-on, 2026-11-16, the capture graded at its own moved settings (captureInputs.js): capture MATCH_SUBSTITUTED (the 4 value plots agree on every bar), objects v1 MATCH, objects v2 MATCH_SUBSTITUTED (318 graded fields agree; x: 45 graded, 0 differing, exact bar); supply: the owner's FMP ^GSPC record 2026-11-16T23:13:34Z and the seed replay 2026-11-16T22:57:15Z"},
+        {"id": "rs-rating-fred6724-seta-alab-1d-2026-11-16", "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
+         "substituted": ["syminfo.industry"], "objectsV2": "MATCH_SUBSTITUTED",
+         "objectsV2Substituted": ["syminfo.industry"],
+         "inputs": {"ratingOnly": true, "offset": 60, "rsNewHigh": "Historical RS New Highs", "lookback": 100, "sizeLabHigh": "Small", "plotNewLow": true, "rsNewLow": "RS New Lows", "lookback2": 120, "sizeLabLow": "Normal", "boolMa": true, "lenMa": 30, "typMa": "SMA", "boolMa2": true, "allowReplay": true, "first2": 190, "scnd2": 110, "thrd2": 95.5, "frth2": 88, "ffth2": 75, "sxth2": 50, "svth2": 20},
+         "graded": "settings branch feat/pine-param-settings 1e18dc7f8c (settings parity 2c), the corpus harness runtime-on, 2026-11-16, the capture graded at its own moved settings (captureInputs.js): capture MATCH_SUBSTITUTED (the 4 value plots agree on every bar), objects v1 MATCH, objects v2 MATCH_SUBSTITUTED (353 graded fields agree; x: 50 graded, 0 differing, exact bar); supply: the owner's FMP ^GSPC record 2026-11-16T23:13:34Z and the seed replay 2026-11-16T22:57:15Z"},
+        {"id": "rs-rating-fred6724-setb-rddt-1d-2026-11-16", "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
+         "substituted": ["syminfo.industry"], "objectsV2": "MATCH_SUBSTITUTED",
+         "objectsV2Substituted": ["syminfo.industry"],
+         "inputs": {"hideRSRat": true, "SpxValue": 5000, "plotNewHigh": false, "plotNewLow": true, "rsNewLow": "Historical RS New Lows  Before Price", "lookback2": 200, "sizeLabLow": "Large", "boolMa": true, "fillMa": true, "lenMa2": 40},
+         "graded": "settings branch feat/pine-param-settings 1e18dc7f8c (settings parity 2c), the corpus harness runtime-on, 2026-11-16, the capture graded at its own moved settings (captureInputs.js): capture MATCH_SUBSTITUTED (the 4 value plots agree on every bar), objects v1 MATCH, objects v2 MATCH_SUBSTITUTED (42 graded fields agree; x: 6 graded, 0 differing, exact bar); supply: the owner's FMP ^GSPC record 2026-11-16T23:13:34Z and the seed replay 2026-11-16T22:57:15Z"},
+        {"id": "rs-rating-fred6724-setb-alab-1d-2026-11-16", "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
+         "substituted": ["syminfo.industry"], "objectsV2": "MATCH_SUBSTITUTED",
+         "objectsV2Substituted": ["syminfo.industry"],
+         "inputs": {"hideRSRat": true, "SpxValue": 5000, "plotNewHigh": false, "plotNewLow": true, "rsNewLow": "Historical RS New Lows  Before Price", "lookback2": 200, "sizeLabLow": "Large", "boolMa": true, "fillMa": true, "lenMa2": 40},
+         "graded": "settings branch feat/pine-param-settings 1e18dc7f8c (settings parity 2c), the corpus harness runtime-on, 2026-11-16, the capture graded at its own moved settings (captureInputs.js): capture MATCH_SUBSTITUTED (the 4 value plots agree on every bar), objects v1 MATCH, objects v2 MATCH_SUBSTITUTED (both sides hold the same objects; no field of a paired record graded); supply: the owner's FMP ^GSPC record 2026-11-16T23:13:34Z and the seed replay 2026-11-16T22:57:15Z"}
       ]
     }
   ],
