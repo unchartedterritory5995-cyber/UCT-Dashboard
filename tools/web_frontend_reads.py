@@ -52,6 +52,7 @@ DECLARED_READS = {
     "app/src/components/chart/engine/ast/conceptVocabulary.json": "api/services/concept_vocabulary.py",
     "app/src/components/chart/engine/ast/symbolScope.json": "api/services/ast_bind.py",
     "app/src/components/chart/builder/authoring/preflightRules.json": "api/services/conversation_preflight.py",
+    "app/src/components/chart/builder/authoring/colourWords.json": "api/services/definition_conversation.py",
     "app/src/components/chart/builder/authoring/crossContext.json": "api/services/conversation_preflight.py, definition_conversation.py",
     "app/src/components/chart/builder/authoring/patchSchema.json": "api/services/definition_conversation.py",
     "app/src/constants/setupGroups.js": "api/services/concept_vocabulary.py: firm setup names",
