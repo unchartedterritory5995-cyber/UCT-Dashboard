@@ -20,7 +20,8 @@ Rails that go red when this unit lands, on purpose: `ast/condTaLanes.test.js` se
 
 | id | probe | what it settles |
 |---|---|---|
-| Q-CT1 | `tools/visual_conformance/probes/vw-andor-history.pine` (written 2026-10-31, never captured) on NYSE:RDDT 1D from the listing, then AMEX:SPY 1D | A `ta.*` on the right of a v6 `and` / `or`. Today the rule rests on TradingView's to-v6 migration guide alone. Rows B01 to B05 against the per-run reference (B01 differs from the every-bar reading on 84 of 636 RDDT bars, B02 on 53, B03 on 7, by the reference that matched `vw-arm-history` T03 to T05). |
+| Q-CT1 | `tools/visual_conformance/probes/vw-andor-history.pine` (written 2026-10-31, never captured) on NYSE:RDDT 1D from the listing, then AMEX:SPY 1D | A `ta.*` on the right of a v6 `and` / `or`. Today the rule is stated by TradingView's to-v6 migration guide; NOT captured (probe `vw-andor-history` written 2026-10-31, never taken). ⛔ The follow-up unit must not switch the screener-lane refusal on until this row is captured and graded. Top of the next capture session. Rows B01 to B05 against the per-run reference (B01 differs from the every-bar reading on 84 of 636 RDDT bars, B02 on 53, B03 on 7, by the reference that matched `vw-arm-history` T03 to T05). |
+| Q-CT3 | `vw-deadband-ticks-brk-a` on NYSE:BRK.A 1D, re-read of `…-2026-11-15` | `D01_mintick` has no column on our side (the member pane did not carry it), which is all that keeps the re-take INCONCLUSIVE on the runtime lane rather than MATCH; every other plot agrees on 11,369 / 11,369 bars. Not a new capture: an engine row (carry the hidden helper, or state why not). Until then the 09-28 capture stays the named `WITHHELD_WHOLE` exception. |
 | Q-CT2 | `tools/visual_conformance/probes/vw-pt-na-guard-and.pine` and `vw-wsc-h7-v6-shortcircuit.pine`, same symbols | The same rule beside an `na` guard, and for `or`. |
 
 ## Not a capture: a colour gap made visible

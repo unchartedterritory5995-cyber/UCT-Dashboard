@@ -710,10 +710,13 @@ describe('C45 — ⛔ nothing moves at translation', () => {
     const screen = translatePine(source, { paramManifest: true })
     expect(screen.mode).toBe('screener')
     expect(screen.blockRuns).toBeUndefined()
-    expect(screen.outputs.map((o) => (o.refusal ? o.refusal.guard : 'ok'))).toEqual(['pine:block', 'pine:block', 'ok'])
+    // ⛔ INTERIM (coordinator ruling B, 2026-11-16): the `?:` arm is refused; the right side of the
+    // v6 `and` is still SERVED every-bar on this lane, a known TradingView difference (stated by the
+    // to-v6 guide, not captured) pinned in `ast/condTaLanes.test.js` section 8. The middle entry
+    // goes back to `pine:block` when the follow-up unit switches that refusal on.
+    expect(screen.outputs.map((o) => (o.refusal ? o.refusal.guard : 'ok'))).toEqual(['pine:block', 'ok', 'ok'])
     expect(screen.outputs[0].refusal.message).toMatch(/`ta\.sma` is called in one arm of a `\?:`/)
-    expect(screen.outputs[1].refusal.message).toMatch(/on the right of a Pine v6 `and`/)
-    for (const o of screen.outputs.slice(0, 2)) expect(o.refusal.message).toContain(SCREEN_GATE_SENTENCE)
+    expect(screen.outputs[0].refusal.message).toContain(SCREEN_GATE_SENTENCE)
     expect(screen.outputs[2].formula).toBe(t.outputs[2].formula)
   })
 })

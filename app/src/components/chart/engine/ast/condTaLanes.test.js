@@ -532,9 +532,11 @@ describe('COND-TA — 7. ⛔ known over-refusals: refused by name on the screene
 // has not decided the answer, so a `ta.*` call there keeps the history of those bars only.
 // SOURCE: TradingView's to-v6 migration guide, whose own example is
 // `close > open and ta.rsi(close, 14) > 50` ("the ta.rsi() call is not evaluated on every bar,
-// which interferes with the internal history that the RSI function stores"). ⚠️ NO CAPTURE
-// witnesses it yet: the probe `tools/visual_conformance/probes/vw-andor-history.pine` is written
-// and has never been captured (queued with the follow-up).
+// which interferes with the internal history that the RSI function stores").
+// ⚠️ EVIDENCE: stated by TradingView's to-v6 migration guide; NOT captured (probe
+// `vw-andor-history` written 2026-10-31, never taken; queued as Q-CT1). The count pinned below is
+// a difference from the PER-RUN REFERENCE, not from TradingView. ⛔ The follow-up must not switch
+// the refusal on until Q-CT1 is captured and graded.
 // The HOST lane gates such a plot (`stampLogicRight`). The SCREENER lane was built to refuse it by
 // name, and that refusal is NOT switched on: it took `pine.screenerCorpus` 38 -> 32 and
 // `pine.blindCorpus` ACCEPTED 37 -> 26 in one step (`close > ta.sma(close, 200) and

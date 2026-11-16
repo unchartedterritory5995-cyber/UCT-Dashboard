@@ -207,24 +207,24 @@ elsewhere first (`pine:named-argument`), so that check has no rail of its own.
 |---|---|---|
 | host lane, ok -> `pine:block` | 10 outputs in 3 scripts | **0** |
 | host lane, `pine:block` -> ok | 0 | 13 outputs in 2 scripts (`advanced-custom-multi-ma-signals` 5, `ha-inside-bars-indicator-v1` 8: guards over named-argument inputs now read as constant) |
-| screener lane, ok -> `pine:block` | 188 outputs in 51 scripts | **130 outputs in 43 scripts** |
-| screener lane, scripts refused whole | 24 | 20 |
+| screener lane, ok -> `pine:block` | 188 outputs in 51 scripts | **103 outputs in 23 scripts** (130 in 43 before interim ruling B, below) |
+| screener lane, scripts refused whole | 24 | 3 |
 
-Runs: `lc-base.json` and `lc-new5.json` in the scratch folder (local). `fib-pivot-points-alerts`,
+Runs: `lc-base.json` and `lc-new6.json` (the final tree) in the scratch folder (local); `lc-new5.json` is the run before ruling B. `fib-pivot-points-alerts`,
 `macd-with-filter` and `19-strategy-supertrend-atr` are back to drawn on both lanes.
 
 ### Every remaining screener-lane refusal, classified (step 3)
 
 | group | outputs | scripts | class |
 |---|---:|---:|---|
-| `tools/visual_conformance/probes/vw-*` (written so the test varies; the witnesses themselves) | 95 | 20 | wrong-value removal |
-| `tests/fixtures/pine_blind` and `pine_screener`: a `ta.*` on the right of a v6 `and` / `or` | 17 | 17 | wrong-value removal (witness `vw-andor-history`) |
+| `tools/visual_conformance/probes/vw-*` (written so the test varies; the witnesses themselves; the three `and` / `or` probes are served since ruling B) | 85 | 17 | wrong-value removal |
+| `tests/fixtures/pine_blind` and `pine_screener`: a `ta.*` on the right of a v6 `and` / `or` | 0 | 0 | SERVED (interim ruling B): 17 outputs in 17 fixtures were refused before it. A known TradingView difference, below; the rule is stated by TradingView's to-v6 migration guide and is NOT captured |
 | `supply-and-demand-zones-with-enhanced-signals`: `find_max` / `find_min` (`ta.highest` / `ta.lowest`) under `ta.change(high) != 0 …` | 2 | 1 | wrong-value removal (C48 shape) |
 | `tradingviews-technical-analysis` (v4): `crossunder` inside a nested `?:` | 6 | 1 | wrong-value removal (v4 lazy, probe 10) |
 | `vumanchu-b-divergences` (v4): `f_bot_fractal` reads `src[k]` in a `?:` arm | 4 | 1 | wrong-value removal (F1, H01) |
 | the six below | 6 | 3 | **over-refusal** |
 
-Total: 130 outputs in 43 scripts (counted from `lc-new5.json`).
+Total: 103 outputs in 23 scripts (counted from `lc-new6.json`, the final tree).
 
 ## ⛔ Known over-refusals on the screener lane (coordinator ruling 2026-11-15: ship, pinned, fix next)
 
@@ -261,7 +261,7 @@ Coordinator ruling, put to the owner as a decision he can overturn.
 
 | shape | screener lane | host lane | versus TradingView |
 |---|---|---|---|
-| a `ta.*` call on the right of a Pine v6 `and` / `or` (`close > open and close > ta.sma(close, 5)`) | **served, every-bar, exactly as master** | gated (`stampLogicRight`), withheld by name where the right side runs after a skip | **differs** on the bars where the per-run history and the every-bar history disagree: 53 of 635 RDDT bars for `up and close > ta.sma(close, 5)` (`vw-call-site-history-rddt-1d-2026-10-01` bars, the per-run reference; `condTaLanes.test.js` section 8 pins the count) |
+| a `ta.*` call on the right of a Pine v6 `and` / `or` (`close > open and close > ta.sma(close, 5)`) | **served, every-bar, exactly as master** | gated (`stampLogicRight`), withheld by name where the right side runs after a skip | **differs from the per-run reference** (not measured against TradingView) on 53 of 635 RDDT bars for `up and close > ta.sma(close, 5)` (the bars of `vw-call-site-history-rddt-1d-2026-10-01`; `condTaLanes.test.js` section 8 pins the count) |
 
 - **Why it is not refused.** The refusal was built and measured. It took the Screener import's own
   exams down in one step: `pine.screenerCorpus` 38 -> 32 (`01-oversold-in-uptrend`, `11-ema-stack`,
@@ -269,10 +269,11 @@ Coordinator ruling, put to the owner as a decision he can overturn.
   `38-switch-smoothing-choice`), `pine.blindCorpus` 27 -> 20 passing and its accepted floor
   37 -> 26 of 48, and six cases out of the frozen `screenerColumns` fixture the Python lane reads.
   `close > ta.sma(close, 200) and ta.rsi(close, 14) < 30` is the most natural screen a member writes.
-- **The source of the rule.** TradingView's to-v6 migration guide (its own example is
-  `close > open and ta.rsi(close, 14) > 50`). ⚠️ No capture witnesses it: the probe
-  `vw-andor-history.pine` was written on 2026-10-31 and has never been captured (queued, Q-CT1 in
-  `docs/pine/capture-queue-2026-11-16-cond-ta-followups.md`).
+- **The source of the rule.** Stated by TradingView's to-v6 migration guide (its own example is
+  `close > open and ta.rsi(close, 14) > 50`); NOT captured (probe `vw-andor-history` written
+  2026-10-31, never taken). Queued as Q-CT1 in
+  `docs/pine/capture-queue-2026-11-16-cond-ta-followups.md`. ⛔ The follow-up unit must not switch
+  the refusal on until Q-CT1 is captured and graded.
 - **Scope, exactly.** The screener lane only, and the right side itself only
   (`armRunGates(…, { skipLogicRight: true })`). A `?:` arm, a block, a helper and an `if`
   expression stay refused on the screener lane, including one standing inside such a right side.
@@ -280,6 +281,8 @@ Coordinator ruling, put to the owner as a decision he can overturn.
 - **Pinned.** `ast/condTaLanes.test.js` section 8: served on the screener lane, gated on the host
   lane, and the served number is shown NOT to be the per-run one. It goes red the day the refusal
   is switched on.
+- **Mutants** (restored from a copy, control green): B1, the screener lane refuses the right side
+  again, and B2, the exemption swallows every arm gate: both KILLED.
 - **Closed by** the follow-up unit: the screener-lane run check + the hoist offer, after which the
   refusal is switched on with the accepted corpus intact. A member notice on the Import door for
   this shape is part of that unit (it needs a new note code; not built here).
