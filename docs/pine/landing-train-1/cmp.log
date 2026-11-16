@@ -1,0 +1,384 @@
+== harness fix lane 0 (production / production): before {'DIVERGE': 92, 'INCONCLUSIVE': 479, 'MATCH': 171} after {'DIVERGE': 56, 'INCONCLUSIVE': 490, 'MATCH': 196} (graded 742 / 742; not comparable 97 / 97)
+   DIVERGE -> MATCH: harness/pivot-high-low-points-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: harness/smart-money-volume-index-algoalpha-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: harness/vw-cbc-history-reads-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: harness/vw-cbc-mbb-and-input-rddt-1d-2026-11-15.json
+   DIVERGE -> INCONCLUSIVE: harness/vw-cs1-bool-na-v4-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: harness/vw-cs1-bool-na-v5-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: harness/vw-cs1-calc-bars-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: harness/vw-cs1-stoch-p2-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: harness/vw-cs1-ties-v4-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: harness/vw-cs1-ties-v5-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: harness/vw-cs1-transp-v1-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: harness/vw-cs1-transp-v2-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: harness/vw-cs1-transp-v3-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: harness/vw-cs2-bool-na-v1-cum-rddt-1d-2026-11-15.json
+   DIVERGE -> INCONCLUSIVE: harness/vw-cs2-bool-na-v3-cum-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: harness/vw-cs2-highestbars-computed-v6-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: harness/vw-cs2-holed-highest-stoch-v6-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: harness/vw-cs2-holed-highest-stoch-v6-spy-1d-2026-11-15.json
+   DIVERGE -> MATCH: harness/vw-cs2-holed-highest-v5-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: harness/vw-cs2-holed-highest-v5-spy-1d-2026-11-15.json
+   DIVERGE -> MATCH: harness/vw-cs2-holed-highest-v6-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: harness/vw-cs2-holed-highest-v6-spy-1d-2026-11-15.json
+   DIVERGE -> MATCH: harness/vw-cs2-holed-highestbars-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: harness/vw-cs2-label-format-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: harness/vw-cs2-label-format-v5-helper-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: harness/vw-cs2-rising-falling-na-v4-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: harness/vw-cs2-rising-falling-na-v5-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: harness/vw-cs2-stoch-flat-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: harness/vw-cs2-stoch-flat-window-rddt-1d-2026-11-15.json
+   DIVERGE -> INCONCLUSIVE: harness/vw-fn-history-in-if-v2-rddt-1d-2026-11-15.json
+   DIVERGE -> INCONCLUSIVE: harness/vw-fn-history-in-if-v3-rddt-1d-2026-11-15.json
+   DIVERGE -> INCONCLUSIVE: harness/vw-fn-history-in-tern-v1-rddt-1d-2026-11-15.json
+   DIVERGE -> INCONCLUSIVE: harness/vw-rt6-runtime-colour-rddt-1d-2026-10-03.json
+   DIVERGE -> INCONCLUSIVE: harness/vw-rt6-runtime-colour-spy-1d-2026-10-03.json
+   INCONCLUSIVE -> MATCH: harness/vw-ternary-arm-legacy-v1-rddt-1d-2026-11-15.json
+   DIVERGE -> INCONCLUSIVE: harness/vw-ternary-arm-legacy-v2-cum-rddt-1d-2026-11-15.json
+   INCONCLUSIVE -> MATCH: harness/vw-ternary-arm-legacy-v2-rddt-1d-2026-11-15.json
+   INCONCLUSIVE -> MATCH: harness/vw-ternary-arm-legacy-v3-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: harness/vw-wse-calc-bars-bar-index-rddt-1d-2026-11-14.json
+   INCONCLUSIVE -> MATCH: observations/stoch-k-14-2026-09-06.json
+   moves: {'DIVERGE->MATCH': 21, 'DIVERGE->INCONCLUSIVE': 15, 'INCONCLUSIVE->MATCH': 4}
+== harness fix lane 1 (runtime-on / runtime-on): before {'DIVERGE': 92, 'INCONCLUSIVE': 427, 'MATCH': 220, 'MATCH_SUBSTITUTED': 3} after {'DIVERGE': 55, 'INCONCLUSIVE': 427, 'MATCH': 257, 'MATCH_SUBSTITUTED': 3} (graded 742 / 742; not comparable 97 / 97)
+   INCONCLUSIVE -> MATCH: harness/atr-stepped-pdf-ma-loxx-rddt-1d-2026-10-03.json
+   INCONCLUSIVE -> MATCH: harness/fvg-trend-rddt-1d-2026-09-27.json
+   INCONCLUSIVE -> MATCH: harness/long_tail__09-signal-follow-through-ledger-spy-1d-2026-11-15.json
+   INCONCLUSIVE -> MATCH: harness/mid_engagement__20-mann-kendall-trend-significance-rddt-1d-2026-11-15.json
+   INCONCLUSIVE -> MATCH: harness/mid_engagement__20-mann-kendall-trend-significance-spy-1d-2026-11-15.json
+   INCONCLUSIVE -> MATCH: harness/one-sided-gaussian-support-resistance-rate-loxx-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: harness/pivot-high-low-points-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: harness/smart-money-volume-index-algoalpha-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: harness/trend-targets-algoalpha-rddt-1d-2026-11-15.json
+   INCONCLUSIVE -> MATCH: harness/vw-array-na-rddt-1d-2026-11-15.json
+   INCONCLUSIVE -> MATCH: harness/vw-array-na-spy-1d-2026-10-02.json
+   DIVERGE -> INCONCLUSIVE: harness/vw-cbc-history-reads-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: harness/vw-cbc-mbb-and-input-rddt-1d-2026-11-15.json
+   DIVERGE -> INCONCLUSIVE: harness/vw-cs1-bool-na-v4-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: harness/vw-cs1-bool-na-v5-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: harness/vw-cs1-calc-bars-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: harness/vw-cs1-stoch-p2-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: harness/vw-cs1-ties-v4-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: harness/vw-cs1-ties-v5-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: harness/vw-cs1-transp-v1-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: harness/vw-cs1-transp-v2-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: harness/vw-cs1-transp-v3-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: harness/vw-cs2-bool-na-v1-cum-rddt-1d-2026-11-15.json
+   DIVERGE -> INCONCLUSIVE: harness/vw-cs2-bool-na-v3-cum-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: harness/vw-cs2-highestbars-computed-v6-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: harness/vw-cs2-holed-highest-stoch-v6-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: harness/vw-cs2-holed-highest-stoch-v6-spy-1d-2026-11-15.json
+   DIVERGE -> MATCH: harness/vw-cs2-holed-highest-v5-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: harness/vw-cs2-holed-highest-v5-spy-1d-2026-11-15.json
+   DIVERGE -> MATCH: harness/vw-cs2-holed-highest-v6-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: harness/vw-cs2-holed-highest-v6-spy-1d-2026-11-15.json
+   DIVERGE -> MATCH: harness/vw-cs2-holed-highestbars-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: harness/vw-cs2-label-format-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: harness/vw-cs2-label-format-v5-helper-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: harness/vw-cs2-rising-falling-na-v4-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: harness/vw-cs2-rising-falling-na-v5-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: harness/vw-cs2-stoch-flat-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: harness/vw-cs2-stoch-flat-window-rddt-1d-2026-11-15.json
+   INCONCLUSIVE -> MATCH: harness/vw-deadband-ticks-aapl-1d-2026-09-28.json
+   INCONCLUSIVE -> MATCH: harness/vw-deadband-ticks-brk-a-1d-2026-11-15.json
+   INCONCLUSIVE -> MATCH: harness/vw-deadband-ticks-spy-1d-2026-09-28.json
+   DIVERGE -> INCONCLUSIVE: harness/vw-fn-history-in-if-v2-rddt-1d-2026-11-15.json
+   DIVERGE -> INCONCLUSIVE: harness/vw-fn-history-in-if-v3-rddt-1d-2026-11-15.json
+   DIVERGE -> INCONCLUSIVE: harness/vw-fn-history-in-tern-v1-rddt-1d-2026-11-15.json
+   DIVERGE -> INCONCLUSIVE: harness/vw-rt6-runtime-colour-rddt-1d-2026-10-03.json
+   DIVERGE -> INCONCLUSIVE: harness/vw-rt6-runtime-colour-spy-1d-2026-10-03.json
+   INCONCLUSIVE -> MATCH: harness/vw-ternary-arm-legacy-v1-rddt-1d-2026-11-15.json
+   DIVERGE -> INCONCLUSIVE: harness/vw-ternary-arm-legacy-v2-cum-rddt-1d-2026-11-15.json
+   INCONCLUSIVE -> MATCH: harness/vw-ternary-arm-legacy-v2-rddt-1d-2026-11-15.json
+   INCONCLUSIVE -> MATCH: harness/vw-ternary-arm-legacy-v3-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: harness/vw-wse-calc-bars-bar-index-rddt-1d-2026-11-14.json
+   INCONCLUSIVE -> MATCH: observations/stoch-k-14-2026-09-06.json
+   moves: {'INCONCLUSIVE->MATCH': 15, 'DIVERGE->MATCH': 22, 'DIVERGE->INCONCLUSIVE': 15}
+== harness held lane 0 (production / production): before {'DIVERGE': 152, 'INCONCLUSIVE': 586, 'MATCH': 155} after {'DIVERGE': 54, 'INCONCLUSIVE': 606, 'MATCH': 233} (graded 893 / 893; not comparable 0 / 0)
+   DIVERGE -> INCONCLUSIVE: s1-evidence-2026-11-14/captures/vw-cs1-bool-na-v4-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: s1-evidence-2026-11-14/captures/vw-cs1-bool-na-v5-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s1-evidence-2026-11-14/captures/vw-cs1-calc-bars-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s1-evidence-2026-11-14/captures/vw-cs1-stoch-p2-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s1-evidence-2026-11-14/captures/vw-cs1-ties-v4-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s1-evidence-2026-11-14/captures/vw-cs1-ties-v5-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: s1-evidence-2026-11-14/captures/vw-cs1-transp-v1-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: s1-evidence-2026-11-14/captures/vw-cs1-transp-v2-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: s1-evidence-2026-11-14/captures/vw-cs1-transp-v3-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s1-evidence-2026-11-14/captures/vw-wse-calc-bars-bar-index-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: s1-evidence-2026-11-14/captures/ytc-swing-highs-lows-no-mbb-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: s10-2026-11-15/captures/vw-cbc-history-reads-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: s10-2026-11-15/captures/vw-cbc-mbb-and-input-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: s10-2026-11-15/captures/vw-cs2-highestbars-computed-v6-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: s10-2026-11-15/captures/vw-cs2-holed-highest-stoch-v6-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: s10-2026-11-15/captures/vw-cs2-holed-highest-stoch-v6-spy-1d-2026-11-15.json
+   DIVERGE -> MATCH: s10-2026-11-15/captures/vw-cs2-holed-highest-v5-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: s10-2026-11-15/captures/vw-cs2-holed-highest-v5-spy-1d-2026-11-15.json
+   DIVERGE -> MATCH: s10-2026-11-15/captures/vw-cs2-holed-highest-v6-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: s10-2026-11-15/captures/vw-cs2-holed-highest-v6-spy-1d-2026-11-15.json
+   DIVERGE -> MATCH: s10-2026-11-15/captures/vw-cs2-stoch-flat-window-rddt-1d-2026-11-15.json
+   INCONCLUSIVE -> MATCH: s11-2026-11-15/captures/dot-dynamics-rddt-1d-2026-11-15.json
+   INCONCLUSIVE -> MATCH: s11-2026-11-15/captures/inside-bar-setup-rddt-1d-2026-11-15.json
+   INCONCLUSIVE -> MATCH: s11-2026-11-15/captures/money-flow-index-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: s17-2026-11-15/captures/vw-cs2-holed-highest-v5-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: s17-2026-11-15/captures/vw-cs2-holed-highest-v5-spy-1d-2026-11-15.json
+   DIVERGE -> MATCH: s17-2026-11-15/captures/vw-cs2-holed-highest-v6-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: s17-2026-11-15/captures/vw-cs2-holed-highest-v6-spy-1d-2026-11-15.json
+   DIVERGE -> MATCH: s17-2026-11-15/captures/vw-cs2-holed-highestbars-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: s17-2026-11-15/captures/vw-cs2-label-format-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: s17-2026-11-15/captures/vw-cs2-rising-falling-na-v4-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: s17-2026-11-15/captures/vw-cs2-rising-falling-na-v5-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: s17-2026-11-15/captures/vw-cs2-stoch-flat-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: s17-2026-11-15/captures/vw-cs2-v6-computed-ties-rddt-1d-2026-11-15.json
+   INCONCLUSIVE -> MATCH: s17-2026-11-15/captures/vw-ternary-arm-legacy-v1-rddt-1d-2026-11-15.json
+   INCONCLUSIVE -> MATCH: s17-2026-11-15/captures/vw-ternary-arm-legacy-v2-rddt-1d-2026-11-15.json
+   INCONCLUSIVE -> MATCH: s17-2026-11-15/captures/vw-ternary-arm-legacy-v3-rddt-1d-2026-11-15.json
+   DIVERGE -> INCONCLUSIVE: s18-2026-11-15/captures/vw-cs2-bool-na-v1-cum-rddt-1d-2026-11-15.json
+   DIVERGE -> INCONCLUSIVE: s18-2026-11-15/captures/vw-cs2-bool-na-v3-cum-rddt-1d-2026-11-15.json
+   DIVERGE -> INCONCLUSIVE: s18-2026-11-15/captures/vw-ternary-arm-legacy-v2-cum-rddt-1d-2026-11-15.json
+   DIVERGE -> INCONCLUSIVE: s18-2026-11-15/captures/vw-ytc-bar46-decompose-cum-rddt-1d-2026-11-15.json
+   DIVERGE -> INCONCLUSIVE: s2-prove-drawn-2026-11-13/captures/4-colour-macd-rddt-1d-2026-11-13.json
+   DIVERGE -> MATCH: s2-prove-drawn-2026-11-13/captures/cci-coded-obv-rddt-1d-2026-11-13.json
+   DIVERGE -> MATCH: s2-prove-drawn-2026-11-13/captures/cm-enhanced-ichimoku-cloud-v5-rddt-1d-2026-11-13.json
+   DIVERGE -> INCONCLUSIVE: s2-prove-drawn-2026-11-13/captures/cm-rsi-2-strat-low-rddt-1d-2026-11-13.json
+   DIVERGE -> MATCH: s2-prove-drawn-2026-11-13/captures/cm-stochastic-mtf-rddt-1d-2026-11-13.json
+   DIVERGE -> MATCH: s2-prove-drawn-2026-11-13/captures/cm-stochastic-mtf-spy-1d-2026-11-13.json
+   DIVERGE -> MATCH: s2-prove-drawn-2026-11-13/captures/cm-ultimate-rsi-mtf-rddt-1d-2026-11-13.json
+   DIVERGE -> MATCH: s2-prove-drawn-2026-11-13/captures/cm-ultimate-rsi-mtf-spy-1d-2026-11-13.json
+   DIVERGE -> MATCH: s2-prove-drawn-2026-11-13/captures/elliot-wave-oscillator-lazybear-rddt-1d-2026-11-13.json
+   DIVERGE -> MATCH: s2-prove-drawn-2026-11-13/captures/ichimoku2c-rddt-1d-2026-11-13.json
+   DIVERGE -> MATCH: s2-prove-drawn-2026-11-13/captures/mamona-candles-rddt-1d-2026-11-13.json
+   DIVERGE -> MATCH: s2-prove-drawn-2026-11-13/captures/moving-average-colored-emasma-rddt-1d-2026-11-13.json
+   DIVERGE -> MATCH: s2-prove-drawn-2026-11-13/captures/rsi-bands-lazybear-rddt-1d-2026-11-13.json
+   DIVERGE -> MATCH: s2-prove-drawn-2026-11-13/captures/rsi-chart-bars-rddt-1d-2026-11-13.json
+   DIVERGE -> MATCH: s2-prove-drawn-2026-11-13/captures/rsi-divergence-rddt-1d-2026-11-13.json
+   DIVERGE -> MATCH: s2-prove-drawn-2026-11-13/captures/simple-moving-averages-rddt-1d-2026-11-13.json
+   DIVERGE -> MATCH: s2-prove-drawn-2026-11-13/captures/triple-moving-averages-rddt-1d-2026-11-13.json
+   DIVERGE -> INCONCLUSIVE: s2-prove-drawn-2026-11-13/captures/wavetrend-with-crosses-lazybear-rddt-1d-2026-11-13.json
+   DIVERGE -> MATCH: s21-2026-11-15/captures/vw-cs2-label-format-v5-helper-rddt-1d-2026-11-15.json
+   DIVERGE -> INCONCLUSIVE: s22-2026-11-15/captures/vw-fn-history-in-if-v3-rddt-1d-2026-11-15.json
+   DIVERGE -> INCONCLUSIVE: s23-2026-11-15/captures/vw-fn-history-in-if-v2-rddt-1d-2026-11-15.json
+   DIVERGE -> INCONCLUSIVE: s24-2026-11-15/captures/vw-fn-history-in-tern-v1-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: s3-prove-drawn-2026-11-14/captures/accumulationdistribution-with-markers-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: s3-prove-drawn-2026-11-14/captures/average-true-range-trailing-stops-strategy-by-sylvain-vervoort-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s3-prove-drawn-2026-11-14/captures/bollingers-bands-fibonacci-ratios-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s3-prove-drawn-2026-11-14/captures/candles-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s3-prove-drawn-2026-11-14/captures/cm-donchian-channels-modified-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: s3-prove-drawn-2026-11-14/captures/cog-double-channel-lazybear-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s3-prove-drawn-2026-11-14/captures/elliott-wave-oscillator-47b47d10-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s3-prove-drawn-2026-11-14/captures/engulfing-candles-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s3-prove-drawn-2026-11-14/captures/fibonacci-retracement-lines-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s3-prove-drawn-2026-11-14/captures/fikira-pivots-fibonacci-retracement-3-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s3-prove-drawn-2026-11-14/captures/fikira-pivots-fibonacci-retracement-3-spy-1d-2026-11-14.json
+   DIVERGE -> MATCH: s3-prove-drawn-2026-11-14/captures/ict-implied-fair-value-gap-ifvg-luxalgo-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s3-prove-drawn-2026-11-14/captures/linear-regression-channel-96b3e699-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s3-prove-drawn-2026-11-14/captures/macd-trend-heatmap-by-chartart-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s3-prove-drawn-2026-11-14/captures/moving-average-adx-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s3-prove-drawn-2026-11-14/captures/pin-bar-indicator-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: s3-prove-drawn-2026-11-14/captures/smart-money-volume-index-algoalpha-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: s3-prove-drawn-2026-11-14/captures/uptrick-volatility-weighted-cloud-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: s3-prove-drawn-2026-11-14/captures/uptrick-volume-weighted-bands-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s4-prove-drawn-2026-11-14/captures/accdist-macd-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s4-prove-drawn-2026-11-14/captures/accdist-macd-spy-1d-2026-11-14.json
+   DIVERGE -> MATCH: s4-prove-drawn-2026-11-14/captures/accumulationdistribution-volume-adv-ci8dh-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s4-prove-drawn-2026-11-14/captures/bill-williams-awesome-oscillator-ao-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s4-prove-drawn-2026-11-14/captures/doji-signals-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: s4-prove-drawn-2026-11-14/captures/on-balance-volume-macd-acceleratorawesome-oscillator-pivdiv-3-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s4-prove-drawn-2026-11-14/captures/pivot-high-low-points-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s4-prove-drawn-2026-11-14/captures/quantnomad-pivot-points-alerts-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: s4-prove-drawn-2026-11-14/captures/squeeze-momentum-indicator-lazybear-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s4-prove-drawn-2026-11-14/captures/swing-highs-lows-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s4-prove-drawn-2026-11-14/captures/trade-archer-on-balance-volume-moving-averages-v1-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s4-prove-drawn-2026-11-14/captures/tutorial-rsiwings-priceswings-for-find-pyramiding-entries-with-higher-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: s4-prove-drawn-2026-11-14/captures/ytc-swing-highs-lows-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s5-prove-drawn-2026-11-14/captures/aroon-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s5-prove-drawn-2026-11-14/captures/bbtrend-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s5-prove-drawn-2026-11-14/captures/connors-rsi-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s6-prove-drawn-2026-11-14/captures/rank-correlation-index-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s6-prove-drawn-2026-11-14/captures/rci-ribbon-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s6-prove-drawn-2026-11-14/captures/rsi-divergence-indicator-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s6-prove-drawn-2026-11-14/captures/stochastic-rsi-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s6-prove-drawn-2026-11-14/captures/supertrend-0c4115d2-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: s7-ahead-2026-11-14/captures/flying-buddha-inside-bars-indicator-v1-by-justunclel-rddt-1d-2026-11-14.json
+   moves: {'DIVERGE->INCONCLUSIVE': 26, 'DIVERGE->MATCH': 72, 'INCONCLUSIVE->MATCH': 6}
+== harness held lane 1 (runtime-on / runtime-on): before {'DIVERGE': 157, 'INCONCLUSIVE': 542, 'MATCH': 191, 'MATCH_SUBSTITUTED': 3} after {'DIVERGE': 55, 'INCONCLUSIVE': 555, 'MATCH': 280, 'MATCH_SUBSTITUTED': 3} (graded 893 / 893; not comparable 0 / 0)
+   INCONCLUSIVE -> MATCH: probes-2026-09-28/captures/vw-deadband-ticks-aapl-1d-2026-09-28.json
+   INCONCLUSIVE -> MATCH: probes-2026-09-28/captures/vw-deadband-ticks-spy-1d-2026-09-28.json
+   DIVERGE -> MATCH: s1-evidence-2026-11-14/captures/linear-regression-channel-8b555890-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s1-evidence-2026-11-14/captures/non-repainting-swing-highlow-signals-rddt-1d-2026-11-14.json
+   INCONCLUSIVE -> MATCH: s1-evidence-2026-11-14/captures/one-sided-gaussian-support-resistance-rate-loxx-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: s1-evidence-2026-11-14/captures/vw-cs1-bool-na-v4-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: s1-evidence-2026-11-14/captures/vw-cs1-bool-na-v5-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s1-evidence-2026-11-14/captures/vw-cs1-calc-bars-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s1-evidence-2026-11-14/captures/vw-cs1-stoch-p2-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s1-evidence-2026-11-14/captures/vw-cs1-ties-v4-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s1-evidence-2026-11-14/captures/vw-cs1-ties-v5-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: s1-evidence-2026-11-14/captures/vw-cs1-transp-v1-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: s1-evidence-2026-11-14/captures/vw-cs1-transp-v2-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: s1-evidence-2026-11-14/captures/vw-cs1-transp-v3-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s1-evidence-2026-11-14/captures/vw-wse-calc-bars-bar-index-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: s1-evidence-2026-11-14/captures/ytc-swing-highs-lows-no-mbb-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: s10-2026-11-15/captures/vw-cbc-history-reads-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: s10-2026-11-15/captures/vw-cbc-mbb-and-input-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: s10-2026-11-15/captures/vw-cs2-highestbars-computed-v6-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: s10-2026-11-15/captures/vw-cs2-holed-highest-stoch-v6-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: s10-2026-11-15/captures/vw-cs2-holed-highest-stoch-v6-spy-1d-2026-11-15.json
+   DIVERGE -> MATCH: s10-2026-11-15/captures/vw-cs2-holed-highest-v5-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: s10-2026-11-15/captures/vw-cs2-holed-highest-v5-spy-1d-2026-11-15.json
+   DIVERGE -> MATCH: s10-2026-11-15/captures/vw-cs2-holed-highest-v6-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: s10-2026-11-15/captures/vw-cs2-holed-highest-v6-spy-1d-2026-11-15.json
+   DIVERGE -> MATCH: s10-2026-11-15/captures/vw-cs2-stoch-flat-window-rddt-1d-2026-11-15.json
+   INCONCLUSIVE -> MATCH: s11-2026-11-15/captures/dot-dynamics-rddt-1d-2026-11-15.json
+   INCONCLUSIVE -> MATCH: s11-2026-11-15/captures/money-flow-index-rddt-1d-2026-11-15.json
+   INCONCLUSIVE -> MATCH: s13-2026-11-15/captures/vw-deadband-ticks-brk-a-1d-2026-11-15.json
+   DIVERGE -> MATCH: s17-2026-11-15/captures/vw-cs2-holed-highest-v5-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: s17-2026-11-15/captures/vw-cs2-holed-highest-v5-spy-1d-2026-11-15.json
+   DIVERGE -> MATCH: s17-2026-11-15/captures/vw-cs2-holed-highest-v6-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: s17-2026-11-15/captures/vw-cs2-holed-highest-v6-spy-1d-2026-11-15.json
+   DIVERGE -> MATCH: s17-2026-11-15/captures/vw-cs2-holed-highestbars-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: s17-2026-11-15/captures/vw-cs2-label-format-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: s17-2026-11-15/captures/vw-cs2-rising-falling-na-v4-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: s17-2026-11-15/captures/vw-cs2-rising-falling-na-v5-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: s17-2026-11-15/captures/vw-cs2-stoch-flat-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: s17-2026-11-15/captures/vw-cs2-v6-computed-ties-rddt-1d-2026-11-15.json
+   INCONCLUSIVE -> MATCH: s17-2026-11-15/captures/vw-ternary-arm-legacy-v1-rddt-1d-2026-11-15.json
+   INCONCLUSIVE -> MATCH: s17-2026-11-15/captures/vw-ternary-arm-legacy-v2-rddt-1d-2026-11-15.json
+   INCONCLUSIVE -> MATCH: s17-2026-11-15/captures/vw-ternary-arm-legacy-v3-rddt-1d-2026-11-15.json
+   DIVERGE -> INCONCLUSIVE: s18-2026-11-15/captures/vw-cs2-bool-na-v1-cum-rddt-1d-2026-11-15.json
+   DIVERGE -> INCONCLUSIVE: s18-2026-11-15/captures/vw-cs2-bool-na-v3-cum-rddt-1d-2026-11-15.json
+   DIVERGE -> INCONCLUSIVE: s18-2026-11-15/captures/vw-ternary-arm-legacy-v2-cum-rddt-1d-2026-11-15.json
+   DIVERGE -> INCONCLUSIVE: s18-2026-11-15/captures/vw-ytc-bar46-decompose-cum-rddt-1d-2026-11-15.json
+   DIVERGE -> INCONCLUSIVE: s2-prove-drawn-2026-11-13/captures/4-colour-macd-rddt-1d-2026-11-13.json
+   DIVERGE -> MATCH: s2-prove-drawn-2026-11-13/captures/cci-coded-obv-rddt-1d-2026-11-13.json
+   DIVERGE -> MATCH: s2-prove-drawn-2026-11-13/captures/cm-enhanced-ichimoku-cloud-v5-rddt-1d-2026-11-13.json
+   DIVERGE -> INCONCLUSIVE: s2-prove-drawn-2026-11-13/captures/cm-rsi-2-strat-low-rddt-1d-2026-11-13.json
+   DIVERGE -> MATCH: s2-prove-drawn-2026-11-13/captures/cm-stochastic-mtf-rddt-1d-2026-11-13.json
+   DIVERGE -> MATCH: s2-prove-drawn-2026-11-13/captures/cm-stochastic-mtf-spy-1d-2026-11-13.json
+   DIVERGE -> MATCH: s2-prove-drawn-2026-11-13/captures/cm-ultimate-rsi-mtf-rddt-1d-2026-11-13.json
+   DIVERGE -> MATCH: s2-prove-drawn-2026-11-13/captures/cm-ultimate-rsi-mtf-spy-1d-2026-11-13.json
+   DIVERGE -> MATCH: s2-prove-drawn-2026-11-13/captures/elliot-wave-oscillator-lazybear-rddt-1d-2026-11-13.json
+   DIVERGE -> MATCH: s2-prove-drawn-2026-11-13/captures/ichimoku2c-rddt-1d-2026-11-13.json
+   DIVERGE -> MATCH: s2-prove-drawn-2026-11-13/captures/mamona-candles-rddt-1d-2026-11-13.json
+   DIVERGE -> MATCH: s2-prove-drawn-2026-11-13/captures/moving-average-colored-emasma-rddt-1d-2026-11-13.json
+   DIVERGE -> MATCH: s2-prove-drawn-2026-11-13/captures/rsi-bands-lazybear-rddt-1d-2026-11-13.json
+   DIVERGE -> MATCH: s2-prove-drawn-2026-11-13/captures/rsi-chart-bars-rddt-1d-2026-11-13.json
+   DIVERGE -> MATCH: s2-prove-drawn-2026-11-13/captures/rsi-divergence-rddt-1d-2026-11-13.json
+   DIVERGE -> MATCH: s2-prove-drawn-2026-11-13/captures/simple-moving-averages-rddt-1d-2026-11-13.json
+   DIVERGE -> MATCH: s2-prove-drawn-2026-11-13/captures/triple-moving-averages-rddt-1d-2026-11-13.json
+   DIVERGE -> MATCH: s2-prove-drawn-2026-11-13/captures/twiggs-money-flow-lazybear-rddt-1d-2026-11-13.json
+   DIVERGE -> INCONCLUSIVE: s2-prove-drawn-2026-11-13/captures/wavetrend-with-crosses-lazybear-rddt-1d-2026-11-13.json
+   INCONCLUSIVE -> MATCH: s20-2026-11-15/captures/long_tail__09-signal-follow-through-ledger-spy-1d-2026-11-15.json
+   INCONCLUSIVE -> MATCH: s20-2026-11-15/captures/mid_engagement__20-mann-kendall-trend-significance-rddt-1d-2026-11-15.json
+   INCONCLUSIVE -> MATCH: s20-2026-11-15/captures/mid_engagement__20-mann-kendall-trend-significance-spy-1d-2026-11-15.json
+   INCONCLUSIVE -> MATCH: s20-2026-11-15/captures/vw-array-na-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: s21-2026-11-15/captures/vw-cs2-label-format-v5-helper-rddt-1d-2026-11-15.json
+   DIVERGE -> INCONCLUSIVE: s22-2026-11-15/captures/vw-fn-history-in-if-v3-rddt-1d-2026-11-15.json
+   DIVERGE -> INCONCLUSIVE: s23-2026-11-15/captures/vw-fn-history-in-if-v2-rddt-1d-2026-11-15.json
+   DIVERGE -> INCONCLUSIVE: s24-2026-11-15/captures/vw-fn-history-in-tern-v1-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: s28-2026-11-15/captures/trend-targets-algoalpha-rddt-1d-2026-11-15.json
+   DIVERGE -> MATCH: s3-prove-drawn-2026-11-14/captures/accumulationdistribution-with-markers-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: s3-prove-drawn-2026-11-14/captures/average-true-range-trailing-stops-strategy-by-sylvain-vervoort-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s3-prove-drawn-2026-11-14/captures/bollingers-bands-fibonacci-ratios-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s3-prove-drawn-2026-11-14/captures/candles-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s3-prove-drawn-2026-11-14/captures/cm-donchian-channels-modified-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: s3-prove-drawn-2026-11-14/captures/cog-double-channel-lazybear-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s3-prove-drawn-2026-11-14/captures/elliott-wave-oscillator-47b47d10-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s3-prove-drawn-2026-11-14/captures/engulfing-candles-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s3-prove-drawn-2026-11-14/captures/fibonacci-retracement-lines-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s3-prove-drawn-2026-11-14/captures/fikira-pivots-fibonacci-retracement-3-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s3-prove-drawn-2026-11-14/captures/fikira-pivots-fibonacci-retracement-3-spy-1d-2026-11-14.json
+   DIVERGE -> MATCH: s3-prove-drawn-2026-11-14/captures/ict-implied-fair-value-gap-ifvg-luxalgo-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s3-prove-drawn-2026-11-14/captures/linear-regression-channel-96b3e699-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s3-prove-drawn-2026-11-14/captures/macd-trend-heatmap-by-chartart-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s3-prove-drawn-2026-11-14/captures/moving-average-adx-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s3-prove-drawn-2026-11-14/captures/pin-bar-indicator-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: s3-prove-drawn-2026-11-14/captures/smart-money-volume-index-algoalpha-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: s3-prove-drawn-2026-11-14/captures/uptrick-volatility-weighted-cloud-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: s3-prove-drawn-2026-11-14/captures/uptrick-volume-weighted-bands-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s4-prove-drawn-2026-11-14/captures/accdist-macd-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s4-prove-drawn-2026-11-14/captures/accdist-macd-spy-1d-2026-11-14.json
+   DIVERGE -> MATCH: s4-prove-drawn-2026-11-14/captures/accumulationdistribution-volume-adv-ci8dh-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s4-prove-drawn-2026-11-14/captures/bill-williams-awesome-oscillator-ao-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s4-prove-drawn-2026-11-14/captures/doji-signals-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: s4-prove-drawn-2026-11-14/captures/on-balance-volume-macd-acceleratorawesome-oscillator-pivdiv-3-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s4-prove-drawn-2026-11-14/captures/pivot-high-low-points-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s4-prove-drawn-2026-11-14/captures/quantnomad-pivot-points-alerts-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: s4-prove-drawn-2026-11-14/captures/squeeze-momentum-indicator-lazybear-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s4-prove-drawn-2026-11-14/captures/swing-highs-lows-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s4-prove-drawn-2026-11-14/captures/trade-archer-on-balance-volume-moving-averages-v1-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s4-prove-drawn-2026-11-14/captures/tutorial-rsiwings-priceswings-for-find-pyramiding-entries-with-higher-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: s4-prove-drawn-2026-11-14/captures/ytc-swing-highs-lows-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s5-prove-drawn-2026-11-14/captures/aroon-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s5-prove-drawn-2026-11-14/captures/bbtrend-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s5-prove-drawn-2026-11-14/captures/connors-rsi-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s6-prove-drawn-2026-11-14/captures/rank-correlation-index-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s6-prove-drawn-2026-11-14/captures/rci-ribbon-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s6-prove-drawn-2026-11-14/captures/rsi-divergence-indicator-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s6-prove-drawn-2026-11-14/captures/stochastic-rsi-rddt-1d-2026-11-14.json
+   DIVERGE -> MATCH: s6-prove-drawn-2026-11-14/captures/supertrend-0c4115d2-rddt-1d-2026-11-14.json
+   DIVERGE -> INCONCLUSIVE: s7-ahead-2026-11-14/captures/flying-buddha-inside-bars-indicator-v1-by-justunclel-rddt-1d-2026-11-14.json
+   moves: {'INCONCLUSIVE->MATCH': 13, 'DIVERGE->MATCH': 76, 'DIVERGE->INCONCLUSIVE': 26}
+== census lane 0: 2541 / 2541 sources
+   door OK: 1179 -> 1189; kinds {None: 1362, 'ast': 1179} -> {None: 1352, 'ast': 1189}
+   guard changes: 145
+       20  screen: OK -> pine:window-dependent
+       18  pane: pine:undefined -> OK
+       18  door: pine:undefined -> OK
+       11  screen: OK -> pine:fn-history-in-block
+       10  pane: OK -> pine:fn-history-in-block
+       10  door: OK -> pine:fn-history-in-block
+        9  screen: pine:undefined -> OK
+        9  runtime: pine:undefined -> OK
+        6  runtime: OK -> pine:bool-na-unwitnessed
+        5  screen: pine:module -> pine:window-dependent
+        3  screen: pine:state -> pine:window-dependent
+        3  pane: pine:arity -> OK
+        3  door: pine:arity -> OK
+        3  pane: pine:undefined -> pine:fn-history-in-block
+        3  door: pine:undefined -> pine:fn-history-in-block
+        2  screen: pine:undefined -> pine:fn-history-in-block
+        2  pane: OK -> pine:objects-only
+        2  runtime: OK -> runtime:directive
+        1  screen: OK -> pine:calc-bars-count-expr
+        1  pane: OK -> pine:calc-bars-count-expr
+        1  runtime: OK -> pine:calc-bars-count-expr
+        1  door: OK -> pine:calc-bars-count-expr
+        1  pane: pine:undefined -> pine:state
+        1  runtime: pine:undefined -> pine:state
+        1  door: pine:undefined -> pine:state
+        1  screen: pine:no-output -> pine:window-dependent
+   translation digests changed: {'doorSig': 711, 'screenSig': 160, 'paneSig': 183}
+   on-listing plots drawn bars: 3475251 -> 3619281; fully blank plots: 846 -> 850
+   sources whose served columns moved: 188 (on 161, off 163); clock / error changes: 139
+== census lane 1: 2541 / 2541 sources
+   door OK: 1376 -> 1386; kinds {'runtime': 197, 'ast': 1179, None: 1165} -> {'runtime': 197, 'ast': 1189, None: 1155}
+   guard changes: 145
+       20  screen: OK -> pine:window-dependent
+       18  pane: pine:undefined -> OK
+       18  door: pine:undefined -> OK
+       11  screen: OK -> pine:fn-history-in-block
+       10  pane: OK -> pine:fn-history-in-block
+       10  door: OK -> pine:fn-history-in-block
+        9  screen: pine:undefined -> OK
+        9  runtime: pine:undefined -> OK
+        6  runtime: OK -> pine:bool-na-unwitnessed
+        5  screen: pine:module -> pine:window-dependent
+        3  screen: pine:state -> pine:window-dependent
+        3  pane: pine:arity -> OK
+        3  door: pine:arity -> OK
+        3  pane: pine:undefined -> pine:fn-history-in-block
+        3  door: pine:undefined -> pine:fn-history-in-block
+        2  screen: pine:undefined -> pine:fn-history-in-block
+        2  pane: OK -> pine:objects-only
+        2  runtime: OK -> runtime:directive
+        1  screen: OK -> pine:calc-bars-count-expr
+        1  pane: OK -> pine:calc-bars-count-expr
+        1  runtime: OK -> pine:calc-bars-count-expr
+        1  door: OK -> pine:calc-bars-count-expr
+        1  pane: pine:undefined -> pine:state
+        1  runtime: pine:undefined -> pine:state
+        1  door: pine:undefined -> pine:state
+        1  screen: pine:no-output -> pine:window-dependent
+   translation digests changed: {'doorSig': 824, 'screenSig': 160, 'paneSig': 183}
+   on-listing plots drawn bars: 3949731 -> 4117308; fully blank plots: 995 -> 1014
+   sources whose served columns moved: 213 (on 186, off 173); clock / error changes: 141
+GATE PASS

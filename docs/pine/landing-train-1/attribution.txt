@@ -1,0 +1,169 @@
+
+=== fix-0  total moves 40; UNATTRIBUTED 0
+    1  DIVERGE      -> INCONCLUSIVE  CBC-FMT
+    6  DIVERGE      -> INCONCLUSIVE  colour-reader + #1330 review
+    1  DIVERGE      -> INCONCLUSIVE  engine 56-v2 (bool-na v4)
+    1  DIVERGE      -> INCONCLUSIVE  engine 56-v2 (bool-na v5)
+    1  DIVERGE      -> INCONCLUSIVE  legacy semantics
+    2  DIVERGE      -> INCONCLUSIVE  legacy semantics (v1/v3 bool-na)
+    1  DIVERGE      -> INCONCLUSIVE  legacy semantics B3 (ternary)
+    2  DIVERGE      -> INCONCLUSIVE  legacy semantics B3 (v2/v3 CARRY)
+    5  DIVERGE      -> MATCH         CBC-FMT
+    1  DIVERGE      -> MATCH         engine 56-v2 (S10 ties)
+    1  DIVERGE      -> MATCH         engine 56-v2 (S4-2 newest tie)
+    2  DIVERGE      -> MATCH         engine 56-v2 (S4-2 ties)
+    2  DIVERGE      -> MATCH         engine 56-v2 (rising/falling)
+    3  DIVERGE      -> MATCH         engine 57
+    7  DIVERGE      -> MATCH         engine HL
+    1  INCONCLUSIVE -> MATCH         engine 57 (stoch)
+    3  INCONCLUSIVE -> MATCH         legacy semantics
+
+=== fix-1  total moves 52; UNATTRIBUTED 0
+    1  DIVERGE      -> INCONCLUSIVE  CBC-FMT
+    6  DIVERGE      -> INCONCLUSIVE  colour-reader + #1330 review
+    1  DIVERGE      -> INCONCLUSIVE  engine 56-v2 (bool-na v4)
+    1  DIVERGE      -> INCONCLUSIVE  engine 56-v2 (bool-na v5)
+    1  DIVERGE      -> INCONCLUSIVE  legacy semantics
+    2  DIVERGE      -> INCONCLUSIVE  legacy semantics (v1/v3 bool-na)
+    1  DIVERGE      -> INCONCLUSIVE  legacy semantics B3 (ternary)
+    2  DIVERGE      -> INCONCLUSIVE  legacy semantics B3 (v2/v3 CARRY)
+    1  DIVERGE      -> MATCH         #1374 (stamps on the runtime document)
+    5  DIVERGE      -> MATCH         CBC-FMT
+    1  DIVERGE      -> MATCH         engine 56-v2 (S10 ties)
+    1  DIVERGE      -> MATCH         engine 56-v2 (S4-2 newest tie)
+    2  DIVERGE      -> MATCH         engine 56-v2 (S4-2 ties)
+    2  DIVERGE      -> MATCH         engine 56-v2 (rising/falling)
+    3  DIVERGE      -> MATCH         engine 57
+    7  DIVERGE      -> MATCH         engine HL
+    3  INCONCLUSIVE -> MATCH         CBC-FMT (str.tostring label text)
+    1  INCONCLUSIVE -> MATCH         colour-reader + #1330 review (RT6 runtime colour)
+    1  INCONCLUSIVE -> MATCH         engine 57 (stoch)
+    1  INCONCLUSIVE -> MATCH         engine HL (ta.highest / lowest FINITE)
+    3  INCONCLUSIVE -> MATCH         legacy semantics
+    2  INCONCLUSIVE -> MATCH         legacy semantics B7
+    1  INCONCLUSIVE -> MATCH         legacy semantics B7 (array.median)
+    2  INCONCLUSIVE -> MATCH         ta.rma summation (train-owned)
+    1  INCONCLUSIVE -> MATCH         ta.rma summation (train-owned) / engine 57
+
+=== held-0  total moves 104; UNATTRIBUTED 0
+    1  DIVERGE      -> INCONCLUSIVE  CBC-FMT
+    1  DIVERGE      -> INCONCLUSIVE  colour-reader (B4 iff)
+    1  DIVERGE      -> INCONCLUSIVE  colour-reader (color.new over a rule; W2 colourNewOverRule)
+   10  DIVERGE      -> INCONCLUSIVE  colour-reader + #1330 review
+    1  DIVERGE      -> INCONCLUSIVE  colour-reader + #1330 review (v3 transp)
+    1  DIVERGE      -> INCONCLUSIVE  engine 56-v2 (A1 nz) + colour-reader (B4 iff)
+    1  DIVERGE      -> INCONCLUSIVE  engine 56-v2 (A2 percentrank, bands from bar 100)
+    1  DIVERGE      -> INCONCLUSIVE  engine 56-v2 (S4-1 pivots, left-na)
+    1  DIVERGE      -> INCONCLUSIVE  engine 56-v2 (bool-na v4)
+    1  DIVERGE      -> INCONCLUSIVE  engine 56-v2 (bool-na v5)
+    1  DIVERGE      -> INCONCLUSIVE  legacy semantics
+    2  DIVERGE      -> INCONCLUSIVE  legacy semantics (v1/v3 bool-na)
+    1  DIVERGE      -> INCONCLUSIVE  legacy semantics B3 (ternary)
+    2  DIVERGE      -> INCONCLUSIVE  legacy semantics B3 (v2/v3 CARRY)
+    1  DIVERGE      -> INCONCLUSIVE  legacy semantics B3 (ytc witness)
+    5  DIVERGE      -> MATCH         CBC-FMT
+    2  DIVERGE      -> MATCH         colour-reader (B4 iff)
+    1  DIVERGE      -> MATCH         colour-reader (B4 subject-less switch)
+    4  DIVERGE      -> MATCH         colour-reader + #1330 review
+    1  DIVERGE      -> MATCH         colour-reader + #1330 review (no-pragma palette)
+    1  DIVERGE      -> MATCH         colour-reader + #1330 review (no-pragma plotshape/plotchar)
+    1  DIVERGE      -> MATCH         colour-reader + #1330 review (v1 palette)
+    1  DIVERGE      -> MATCH         colour-reader + #1330 review (v1 plotshape)
+    1  DIVERGE      -> MATCH         colour-reader + #1330 review (v1-v3 default transp)
+    3  DIVERGE      -> MATCH         colour-reader + #1330 review (v1-v3 palette)
+    1  DIVERGE      -> MATCH         colour-reader + #1330 review (v1-v3 transp default)
+    2  DIVERGE      -> MATCH         colour-reader + #1330 review (v2 default transp)
+    1  DIVERGE      -> MATCH         colour-reader + #1330 review (v2 palette)
+    2  DIVERGE      -> MATCH         colour-reader + #1330 review (v2 plotshape)
+    1  DIVERGE      -> MATCH         colour-reader + #1330 review (v3 colours)
+    1  DIVERGE      -> MATCH         colour-reader + #1330 review (v3 default 35 + opacity fold)
+    2  DIVERGE      -> MATCH         colour-reader + #1330 review (v3 default transp)
+    1  DIVERGE      -> MATCH         colour-reader + #1330 review (v3 palette)
+    1  DIVERGE      -> MATCH         colour-reader + #1330 review (v3 plotshape)
+    2  DIVERGE      -> MATCH         colour-reader + #1330 review (v4 colours + offset invariant)
+    1  DIVERGE      -> MATCH         engine 56-v2 (A2 percentrank)
+    1  DIVERGE      -> MATCH         engine 56-v2 (A3 bool-na) + colours
+    2  DIVERGE      -> MATCH         engine 56-v2 (S10 ties)
+    2  DIVERGE      -> MATCH         engine 56-v2 (S4-1 pivots)
+    2  DIVERGE      -> MATCH         engine 56-v2 (S4-2 newest tie)
+    2  DIVERGE      -> MATCH         engine 56-v2 (S4-2 ties)
+    2  DIVERGE      -> MATCH         engine 56-v2 (S4-4 float-order floor)
+    2  DIVERGE      -> MATCH         engine 56-v2 (rising/falling)
+    3  DIVERGE      -> MATCH         engine 57
+    2  DIVERGE      -> MATCH         engine 57 (rci)
+    2  DIVERGE      -> MATCH         engine 57 (rsi via rma) + colours
+    1  DIVERGE      -> MATCH         engine 57 (stoch S6)
+    2  DIVERGE      -> MATCH         engine 57 (stoch) + colours
+    1  DIVERGE      -> MATCH         engine 57 (supertrend)
+   11  DIVERGE      -> MATCH         engine HL
+    1  DIVERGE      -> MATCH         legacy semantics B5 (v4 box defaults) + colours
+    1  DIVERGE      -> MATCH         ta.rma summation (train-owned)
+    1  INCONCLUSIVE -> MATCH         colour-reader + #1330 review (S11 A: var barcolors)
+    1  INCONCLUSIVE -> MATCH         colour-reader + #1330 review (S11 A: var colour)
+    1  INCONCLUSIVE -> MATCH         colour-reader + #1330 review (S11 D)
+    3  INCONCLUSIVE -> MATCH         legacy semantics
+
+=== held-1  total moves 115; UNATTRIBUTED 0
+    1  DIVERGE      -> INCONCLUSIVE  CBC-FMT
+    1  DIVERGE      -> INCONCLUSIVE  colour-reader (B4 iff)
+    1  DIVERGE      -> INCONCLUSIVE  colour-reader (color.new over a rule; W2 colourNewOverRule)
+   10  DIVERGE      -> INCONCLUSIVE  colour-reader + #1330 review
+    1  DIVERGE      -> INCONCLUSIVE  colour-reader + #1330 review (v3 transp)
+    1  DIVERGE      -> INCONCLUSIVE  engine 56-v2 (A1 nz) + colour-reader (B4 iff)
+    1  DIVERGE      -> INCONCLUSIVE  engine 56-v2 (A2 percentrank, bands from bar 100)
+    1  DIVERGE      -> INCONCLUSIVE  engine 56-v2 (S4-1 pivots, left-na)
+    1  DIVERGE      -> INCONCLUSIVE  engine 56-v2 (bool-na v4)
+    1  DIVERGE      -> INCONCLUSIVE  engine 56-v2 (bool-na v5)
+    1  DIVERGE      -> INCONCLUSIVE  legacy semantics
+    2  DIVERGE      -> INCONCLUSIVE  legacy semantics (v1/v3 bool-na)
+    1  DIVERGE      -> INCONCLUSIVE  legacy semantics B3 (ternary)
+    2  DIVERGE      -> INCONCLUSIVE  legacy semantics B3 (v2/v3 CARRY)
+    1  DIVERGE      -> INCONCLUSIVE  legacy semantics B3 (ytc witness)
+    1  DIVERGE      -> MATCH         #1374 (stamps on the runtime document)
+    5  DIVERGE      -> MATCH         CBC-FMT
+    3  DIVERGE      -> MATCH         colour-reader (B4 iff)
+    1  DIVERGE      -> MATCH         colour-reader (B4 subject-less switch)
+    4  DIVERGE      -> MATCH         colour-reader + #1330 review
+    1  DIVERGE      -> MATCH         colour-reader + #1330 review (no-pragma palette)
+    1  DIVERGE      -> MATCH         colour-reader + #1330 review (no-pragma plotshape/plotchar)
+    1  DIVERGE      -> MATCH         colour-reader + #1330 review (v1 palette)
+    1  DIVERGE      -> MATCH         colour-reader + #1330 review (v1 plotshape)
+    1  DIVERGE      -> MATCH         colour-reader + #1330 review (v1-v3 default transp)
+    3  DIVERGE      -> MATCH         colour-reader + #1330 review (v1-v3 palette)
+    1  DIVERGE      -> MATCH         colour-reader + #1330 review (v1-v3 transp default)
+    2  DIVERGE      -> MATCH         colour-reader + #1330 review (v2 default transp)
+    1  DIVERGE      -> MATCH         colour-reader + #1330 review (v2 palette)
+    2  DIVERGE      -> MATCH         colour-reader + #1330 review (v2 plotshape)
+    1  DIVERGE      -> MATCH         colour-reader + #1330 review (v3 colours)
+    1  DIVERGE      -> MATCH         colour-reader + #1330 review (v3 default 35 + opacity fold)
+    2  DIVERGE      -> MATCH         colour-reader + #1330 review (v3 default transp)
+    1  DIVERGE      -> MATCH         colour-reader + #1330 review (v3 palette)
+    1  DIVERGE      -> MATCH         colour-reader + #1330 review (v3 plotshape)
+    2  DIVERGE      -> MATCH         colour-reader + #1330 review (v4 colours + offset invariant)
+    1  DIVERGE      -> MATCH         colour-reader + #1330 review (v6 default transp + str.tostring)
+    1  DIVERGE      -> MATCH         engine 56-v2 (A2 percentrank)
+    1  DIVERGE      -> MATCH         engine 56-v2 (A3 bool-na) + colours
+    2  DIVERGE      -> MATCH         engine 56-v2 (S10 ties)
+    1  DIVERGE      -> MATCH         engine 56-v2 (S4-1 pivots + colour-reader)
+    2  DIVERGE      -> MATCH         engine 56-v2 (S4-1 pivots)
+    2  DIVERGE      -> MATCH         engine 56-v2 (S4-2 newest tie)
+    2  DIVERGE      -> MATCH         engine 56-v2 (S4-2 ties)
+    2  DIVERGE      -> MATCH         engine 56-v2 (S4-4 float-order floor)
+    2  DIVERGE      -> MATCH         engine 56-v2 (rising/falling)
+    3  DIVERGE      -> MATCH         engine 57
+    2  DIVERGE      -> MATCH         engine 57 (rci)
+    2  DIVERGE      -> MATCH         engine 57 (rsi via rma) + colours
+    1  DIVERGE      -> MATCH         engine 57 (stoch S6)
+    2  DIVERGE      -> MATCH         engine 57 (stoch) + colours
+    1  DIVERGE      -> MATCH         engine 57 (supertrend)
+   11  DIVERGE      -> MATCH         engine HL
+    1  DIVERGE      -> MATCH         legacy semantics B5 (v4 box defaults) + colours
+    1  DIVERGE      -> MATCH         ta.rma summation (train-owned)
+    3  INCONCLUSIVE -> MATCH         CBC-FMT (str.tostring label text)
+    1  INCONCLUSIVE -> MATCH         colour-reader + #1330 review (S11 A: var colour)
+    1  INCONCLUSIVE -> MATCH         colour-reader + #1330 review (S11 D)
+    1  INCONCLUSIVE -> MATCH         engine HL (ta.highest / lowest FINITE)
+    3  INCONCLUSIVE -> MATCH         legacy semantics
+    1  INCONCLUSIVE -> MATCH         legacy semantics B7
+    1  INCONCLUSIVE -> MATCH         legacy semantics B7 (array.median)
+    2  INCONCLUSIVE -> MATCH         ta.rma summation (train-owned)
