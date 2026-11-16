@@ -109,8 +109,11 @@ export function panelsAfter(plan, host) {
 }
 
 // ── what the member's words say ────────────────────────────────────────────────────────────────────────────────────────
-const POS = /\b(top[- ]left|top[- ]right|bottom[- ]left|bottom[- ]right|upper[- ]left|upper[- ]right|lower[- ]left|lower[- ]right|left|right|top|bottom|upper|lower)\b/gi
-const normPos = (w) => w.toLowerCase().replace(/\s/, '-').replace('upper', 'top').replace('lower', 'bottom')
+// (the ONE position vocabulary — a corner, a side, an edge, the middle; "far" / "-most" / "-hand" say the same place: probe 60b
+//  "the leftmost chart" is the left one — normPos reduces every form to the host's own position word)
+const POS = /\b((?:top|bottom|upper|lower)[- ](?:left|right)(?:most|[- ]hand)?|(?:far[- ])?(?:left|right)(?:most|[- ]hand)?|(?:far[- ])?(?:top|bottom|upper|lower)(?:most)?|middle|cent(?:er|re))\b(?![-‐][A-Za-z])/gi
+const normPos = (w) => w.toLowerCase().replace(/^far[- ]/, '').replace(/most$/, '').replace(/[- ]hand$/, '').replace(/^cent(?:er|re)$/, 'middle')
+  .replace(/\s/, '-').replace('upper', 'top').replace('lower', 'bottom')
 const KEEP_LEAD = /\b(?:keep|keeping|kept|leave|leaving|retain|retaining|preserve|preserving|hold on to|holding on to|(?:do not|don['’]?t|never) (?:change|touch|replace|remove|move|lose|drop)|without (?:changing|touching|replacing|removing|losing|dropping)|(?:plus|with|alongside|besides|and|along with) (?:my|the|our) (?:existing|current|old|original))\s+/gi
 const KEEP_END = /(?=$|[.;!?]|,\s*(?:but|then|and then)\b|\s(?:but|then|while|so)\b|\sand (?:then |also )?(?:add|put|make|change|switch|replace|set|open|show|create)\b)/i
 const STAY = /\b((?:[A-Z]{1,5}|\$[A-Za-z]{1,5})(?:\s*(?:,|and|&)\s*(?:[A-Z]{1,5}|\$[A-Za-z]{1,5}))*)\s+(?:stays?|remains?|should stay|stay(?:s)? put|in place)\b/g
@@ -455,17 +458,28 @@ const REMOVE_WORDS_ALL = new RegExp(REMOVE_WORDS.source, 'gi')
 const asRemoval = (w) => String(w || '').replace(REMOVE_WORDS_ALL, 'close')
 // (the REMOVAL gate also reads "take off / take down <chart>" and "take <the SPY chart> off": the target is checked above)
 const REMOVAL_TAKE = /\btake (?:off|down|away|out)\b|\btake (?:[^\s.;!?]+ ){0,4}?(?:chart|one|panel|graph)s? (?:off|down|away|out)\b/i
-// (a removal may name SEVERAL positions — "close the middle and right charts": each position word, the centre one included, read
-//  against the chart's own position word, as `named` does)
-const POS_MIDDLE = /\b(?:middle|cent(?:er|re))\b/i
-const positionSaid = (w, e) => named(w, e) || (!!e.position && POS_MIDDLE.test(String(w || '')) && matchPosition([{ position: e.position }], 'middle').length > 0)
+// (a removal may name SEVERAL positions — "close the middle and right charts": each position word of the ONE vocabulary, POS,
+//  read against the chart's own position word, as `named` does)
+const positionSaid = (w, e) => named(w, e)
+// ⛔ FAIL CLOSED (AUDIT probe 60b: "remove the leftmost chart" with a plan closing the RIGHT chart was applied — the position word was
+// unknown, so no target was read and the removal fell through as untargeted): words that ask to remove ONE SPECIFIC chart — a
+// singular chart noun under a determiner, with or without a qualifier ("the … chart", "that one", "this chart", "my … chart") — and
+// resolve to NO chart never close one: asked. Only a whole-board or set removal ("close all my charts", "clear the board", "close
+// everything except X", "close the charts") proceeds without a named target. Never depends on the position vocabulary.
+const SPECIFIC_CHART = /\b(?:the|that|this|my|your|our)\s+(?:[^\s.,;:!?]+\s+){0,3}?(?:chart|one|panel|graph|widget)\b(?!s)/i
+const SET_REMOVAL = /\b(?:all|every|everything|each|both|whole|entire|rest|others|remaining|except|excluding|other\s+than|apart\s+from|but\s+not)\b|\b(?:clear|close|wipe|empty|reset|clean(?:\s+up)?)\s+(?:out\s+)?(?:the|my)\s+(?:whole\s+|entire\s+)?(?:board|layout|screen)\b/i
 const pluralOf = (sym) => new RegExp(String.raw`\b(?:both|all|every|each)\b[^.;!?]*?\$?${escRe(sym)}(?![A-Za-z0-9])|(?:^|[^A-Za-z0-9])\$?${escRe(sym)}\s+(?:charts|ones|panels|graphs)\b`, 'i')
 export function removalTargets(w, host, { selected = null, subject = null, picked = null } = {}) {
   const all = liveCharts(host)
   const ids = new Set()
+  // (the SOLE chart in scope — a link group is one object — is named by the class noun: "close the chart", as for a re-symbol)
+  const { count: inScope } = chartsInScope(host)
+  const groups = new Set(all.map(c => (linked(c.group) ? `g:${c.group}` : `c:${c.ref}`)))
+  const sole = inScope === 1 || (groups.size === 1 && inScope === all.length)
   for (const c of all) {
     const e = { ref: c.ref, symbol: up(c.symbol), position: c.position || null }
-    if (NAMES_CHART.has(identifiesChart(asRemoval(w), e, host, { selected, subject, picked })) || positionSaid(w, e)) ids.add(c.ref)
+    const how = identifiesChart(asRemoval(w), e, host, { selected, subject, picked, sole })
+    if (NAMES_CHART.has(how) || (sole && how === 'class') || positionSaid(w, e)) ids.add(c.ref)
   }
   const ambiguous = []
   for (const sym of new Set(all.map(c => up(c.symbol)).filter(Boolean))) {
@@ -487,6 +501,11 @@ function removalTargetRefusal(w, host, removed, { selected, subject, picked, kno
   if (ambiguous.length) {
     const a = ambiguous[0]
     return `Which ${a.symbol} chart should I close? ${a.charts.length} charts show ${a.symbol} (${listOf(a.charts.map(where))}), so nothing was changed — say which one, for example “close the ${a.charts[0].position ? `${a.charts[0].position.replace('-', ' ')} ` : ''}${a.symbol} chart”, or “close both ${a.symbol} charts”.`
+  }
+  const specific = !ids.size && !SET_REMOVAL.test(w) ? SPECIFIC_CHART.exec(w) : null
+  if (specific) {
+    const eg = all.find(c => c.symbol) || all[0]
+    return `Which chart should I close? I can’t tell which chart “${specific[0]}” is, so nothing was changed. Name it by its ticker or its place — for example “close ${eg?.symbol ? `the ${up(eg.symbol)} chart` : 'the left chart'}”.`
   }
   const bad = removed.filter(e => excluded.has(e.ref) || (ids.size && !ids.has(e.ref)))
   if (!bad.length) return null

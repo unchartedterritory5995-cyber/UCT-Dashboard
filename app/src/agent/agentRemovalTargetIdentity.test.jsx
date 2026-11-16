@@ -27,8 +27,8 @@ const SYMS = ['SPY', 'QQQ', 'IWM', 'DIA']
 const layoutOf = (n) => (n === 4
   ? [0, 1, 2, 3].map(i => ({ x: (i % 2) * 12, y: Math.floor(i / 2) * 10, w: 12, h: 10 }))
   : Array.from({ length: n }, (_, i) => ({ x: i * Math.floor(24 / n), y: 0, w: Math.floor(24 / n), h: 20 })))
-function boardOf(syms, { colors = null, selected = null } = {}) {
-  const lay = layoutOf(syms.length)
+function boardOf(syms, { colors = null, selected = null, layout = null } = {}) {
+  const lay = layout || layoutOf(syms.length)
   const widgets = syms.map((_, i) => ({ id: `c${i + 1}`, type: 'chart', ...lay[i], color: colors?.[i] || 'N', opts: settings() }))
   const groupSyms = {}
   syms.forEach((s, i) => { groupSyms[(colors?.[i] || 'N') === 'N' ? `N:c${i + 1}` : colors[i]] = s })
@@ -182,8 +182,68 @@ describe('REMOVAL TARGET · existing protections unchanged', () => {
   })
 })
 
+// ── ⛔ FAIL CLOSED (AUDIT probe 60b): words asking to remove ONE SPECIFIC chart that resolve to NO chart → asked, whatever the plan
+// targets. GENERATED: unresolved qualifier × verb × board size × plan target. (never depends on the position vocabulary: the
+// mutant that removes the new position words leaves every case here refused)
+const UNRESOLVED = ['the funky chart', 'the other one', 'the leftmost-ish chart', 'my favourite chart', 'the big one', 'that chart', 'this one',
+  'the AAPL chart', 'the purple panel', 'the weird graph']
+const UNR_CASES = []
+for (const q of UNRESOLVED) for (const verb of Object.keys(VERBS)) for (const n of [2, 3, 4]) for (let j = 0; j < n; j++) UNR_CASES.push([q, verb, n, j])
+describe(`FAIL CLOSED · an unresolved specific chart is never removed (${UNR_CASES.length} cases): qualifier × verb × board × plan target`, () => {
+  it.each(UNR_CASES)('"%s" · %s · %i charts · plan closes #%i', (q, verb, n, j) => {
+    const words = VERBS[verb](q)
+    expect(rail(boardOf(SYMS.slice(0, n)), `c${j + 1}`, words), words).toMatch(/^Which chart should I close\?/)
+  })
+})
+// ── the probe-60b words, and the widened position vocabulary (ONE source: chartRail POS / normPos) ──
+const VERT = [{ x: 0, y: 0, w: 24, h: 10 }, { x: 0, y: 10, w: 24, h: 10 }]
+const VOCAB = [
+  ...['leftmost', 'far left', 'far-left', 'left-hand', 'left hand'].flatMap(p => [[2, null, p, 0], [3, null, p, 0]]),
+  ...['rightmost', 'far right', 'right-hand'].flatMap(p => [[2, null, p, 1], [3, null, p, 2]]),
+  ...[['centre', 1], ['center', 1], ['middle', 1]].map(([p, k]) => [3, null, p, k]),
+  ...[['top left-hand', 0], ['upper left', 0], ['upper-right', 1], ['lower left', 2], ['bottom rightmost', 3], ['lower right-hand', 3]].map(([p, k]) => [4, null, p, k]),
+  ...[['top', 0], ['upper', 0], ['topmost', 0], ['bottom', 1], ['lower', 1], ['bottommost', 1]].map(([p, k]) => [2, VERT, p, k]),
+  ...[['first', 0], ['last', 1]].map(([p, k]) => [2, null, p, k]),
+  ...[['first', 0], ['last', 2]].map(([p, k]) => [3, null, p, k]),
+]
+const VOC_CASES = []
+for (const [n, lay, p, k] of VOCAB) for (const verb of Object.keys(VERBS)) for (let j = 0; j < n; j++) VOC_CASES.push([p, n, lay ? 'stacked' : 'row', verb, j, k, lay])
+describe(`POSITION WORDS · the named chart is closed, every other refused (${VOC_CASES.length} cases): word × board × verb × plan target`, () => {
+  it.each(VOC_CASES)('"the %s chart" · %i charts (%s) · %s · plan closes #%i', (p, n, _l, verb, j, k, lay) => {
+    const b = boardOf(SYMS.slice(0, n), { layout: lay })
+    const words = VERBS[verb](`the ${p} chart`)
+    const got = rail(b, `c${j + 1}`, words)
+    if (j === k) expect(got, words).toBeNull()
+    else expect(got, words).toMatch(/^Which chart should I close\?/)
+  })
+  it.each(['remove the leftmost chart', 'close the leftmost one', 'get rid of the far left chart'])('probe 60b · "%s" on SPY · QQQ · IWM: IWM (right) refused, SPY (left) closed', (words) => {
+    expect(rail(boardOf(['SPY', 'QQQ', 'IWM']), 'c3', words)).toMatch(/^Which chart should I close\?/)
+    expect(rail(boardOf(['SPY', 'QQQ', 'IWM']), 'c2', words)).toMatch(/^Which chart should I close\?/)
+    expect(rail(boardOf(['SPY', 'QQQ', 'IWM']), 'c1', words)).toBeNull()
+  })
+})
+// ── WHOLE-BOARD / SET controls: no named target needed ──
+describe('FAIL CLOSED · whole-board and set removals still proceed', () => {
+  const SET = ['close all my charts', 'clear the board', 'close the charts', 'remove all the charts', 'close everything', 'get rid of every chart', 'delete both charts']
+  const S_CASES = []
+  for (const words of SET) for (const n of [2, 3, 4]) for (let j = 0; j < n; j++) S_CASES.push([words, n, j])
+  it.each(S_CASES)('"%s" · %i charts · plan closes #%i → applies', (words, n, j) => {
+    expect(rail(boardOf(SYMS.slice(0, n)), `c${j + 1}`, words), words).toBeNull()
+  })
+  it.each([['close everything except the SPY chart', 'c1'], ['close all the charts except SPY', 'c1'], ['remove everything but not the QQQ chart', 'c2']])('"%s" → the excepted chart refused, the others apply', (words, keep) => {
+    for (const ref of ['c1', 'c2', 'c3']) {
+      const got = rail(boardOf(['SPY', 'QQQ', 'IWM']), ref, words)
+      if (ref === keep) expect(got, words).toMatch(/^Which chart should I close\?/)
+      else expect(got, words).toBeNull()
+    }
+  })
+  it.each(['close the chart', 'remove my chart', 'get rid of this chart'])('the SOLE chart: "%s" → closed', (words) => {
+    expect(rail(boardOf(['SPY']), 'c1', words)).toBeNull()
+  })
+})
+
 // ── END TO END · the REAL panel (AgentPanel + useAgent + planner + rail + runtime) on the fixture board: AUDIT's probe-59 words ──
-const PROBE59 = ['close the SPY chart', 'remove the SPY chart', 'get rid of the SPY chart please', 'delete my SPY chart']
+const PROBE59 = ['close the SPY chart', 'remove the SPY chart', 'get rid of the SPY chart please', 'delete my SPY chart', 'remove the leftmost chart']
 function mountPanel() {
   const b = boardOf(['SPY', 'QQQ', 'IWM'])
   const envelopes = []
