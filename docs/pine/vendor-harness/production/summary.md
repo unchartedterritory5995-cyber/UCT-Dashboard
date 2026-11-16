@@ -1278,12 +1278,12 @@ rs-rating-fred6724-rddt-1d-2026-11-15        NYSE:RDDT 1D     4      DIVERGE    
     Plot                                     MATCH_SUBSTITUTED cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     objects                                  DIVERGE       TradingView holds 2 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-removal-lost) — the object gate withheld the whole drawing program for a lost removal (guard:delete)
 rs-rating-fred6724-spy-1d-2026-11-15         AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: the supply this grade needs is not recorded — other symbol SPX: not graded, by owner ruling 2026-11-15 ("Leave spy blank imo"). The served SPX source (FMP) is recorded since L9 (local supply store, out of git), but this capture is deliberately not supplied, so no verdict implies a pass or a fail for it. Before the ruling, the L5 builder's probe on the yfinance fallback read a rating of 63 where TradingView draws 64.
-rs-seed-rsrating-rddt-1d-2026-11-15          NYSE:RDDT 1D     6      DIVERGE           S01_seed_close: bar 638 t=1791379800 na vendor=199.57 ours=na
-    S01_seed_close                           DIVERGE           cmp 666 ok 641 warm 0/0 steady 25/666 maxRel 0.00e+0 — 25 steady-state bars disagree; first at bar 638 (na: vendor 199.57 vs ours na) — scattered, last at bar 662
-    S02_seed_open                            DIVERGE           cmp 666 ok 641 warm 0/0 steady 25/666 maxRel 0.00e+0 — 25 steady-state bars disagree; first at bar 638 (na: vendor 0 vs ours na) — scattered, last at bar 662
-    S03_seed_high                            DIVERGE           cmp 666 ok 641 warm 0/0 steady 25/666 maxRel 0.00e+0 — 25 steady-state bars disagree; first at bar 638 (na: vendor 1000 vs ours na) — scattered, last at bar 662
-    S04_seed_is_na                           DIVERGE           cmp 666 ok 0 warm 0/0 steady 666/666 maxRel 0.00e+0 — 666 steady-state bars disagree; first at bar 0 (na: vendor 1 vs ours na) — persistent, last at bar 665
-    S05_barssince_seed                       DIVERGE           cmp 666 ok 638 warm 0/0 steady 28/666 maxRel 0.00e+0 — 28 steady-state bars disagree; first at bar 638 (na: vendor 0 vs ours na) — persistent, last at bar 665
+rs-seed-rsrating-rddt-1d-2026-11-15          NYSE:RDDT 1D     6      MATCH             all 7 items agree
+    S01_seed_close                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S02_seed_open                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S03_seed_high                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S04_seed_is_na                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S05_barssince_seed                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     S06_chart_close_CONTROL                  MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 rs-spx-daily-rddt-1d-2026-11-15              NYSE:RDDT 1D     6      INCONCLUSIVE      5 of 7 items could not be compared

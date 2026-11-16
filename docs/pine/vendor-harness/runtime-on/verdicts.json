@@ -97069,12 +97069,12 @@
      "title": "S01_seed_close",
      "ours": "value",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "25 steady-state bars disagree; first at bar 638 (na: vendor 199.57 vs ours na) — scattered, last at bar 662",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 0,
-     "color": "unresolvable on our side",
+     "color": "compared",
      "stats": {
       "bars": 666,
       "compared": 666,
@@ -97083,24 +97083,18 @@
       "withheldVendorValued": 0,
       "withheldWarmupVendorValued": 0,
       "floatOrderFloorUsed": 0,
-      "matching": 641,
+      "matching": 666,
       "vendorRowsMissing": 0,
-      "naMismatches": 25,
+      "naMismatches": 0,
       "valueMismatches": 0,
       "colorMismatches": 0,
-      "colorCompared": 0,
+      "colorCompared": 25,
       "colorWithheld": 0,
       "colorComparable": 25,
       "valued": 25,
       "maxAbs": 0,
       "maxRel": 0,
-      "firstDivergence": {
-       "bar": 638,
-       "time": 1791379800,
-       "kind": "na",
-       "vendor": 199.57,
-       "ours": null
-      },
+      "firstDivergence": null,
       "warmup": {
        "bars": 0,
        "compared": 0,
@@ -97110,25 +97104,10 @@
       "steady": {
        "bars": 666,
        "compared": 666,
-       "divergent": 25,
-       "first": {
-        "bar": 638,
-        "time": 1791379800,
-        "kind": "na",
-        "vendor": 199.57,
-        "ours": null
-       },
-       "last": {
-        "bar": 662,
-        "time": 1794321000,
-        "kind": "na",
-        "vendor": 12.5,
-        "ours": null
-       },
-       "pattern": {
-        "kind": "scattered",
-        "lastDivergentBar": 662
-       }
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
       },
       "vendorRowGapsAfterStart": 0
      }
@@ -97138,12 +97117,12 @@
      "title": "S02_seed_open",
      "ours": "out2",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "25 steady-state bars disagree; first at bar 638 (na: vendor 0 vs ours na) — scattered, last at bar 662",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 0,
-     "color": "unresolvable on our side",
+     "color": "compared",
      "stats": {
       "bars": 666,
       "compared": 666,
@@ -97152,24 +97131,18 @@
       "withheldVendorValued": 0,
       "withheldWarmupVendorValued": 0,
       "floatOrderFloorUsed": 0,
-      "matching": 641,
+      "matching": 666,
       "vendorRowsMissing": 0,
-      "naMismatches": 25,
+      "naMismatches": 0,
       "valueMismatches": 0,
       "colorMismatches": 0,
-      "colorCompared": 0,
+      "colorCompared": 25,
       "colorWithheld": 0,
       "colorComparable": 25,
       "valued": 25,
       "maxAbs": 0,
       "maxRel": 0,
-      "firstDivergence": {
-       "bar": 638,
-       "time": 1791379800,
-       "kind": "na",
-       "vendor": 0,
-       "ours": null
-      },
+      "firstDivergence": null,
       "warmup": {
        "bars": 0,
        "compared": 0,
@@ -97179,25 +97152,10 @@
       "steady": {
        "bars": 666,
        "compared": 666,
-       "divergent": 25,
-       "first": {
-        "bar": 638,
-        "time": 1791379800,
-        "kind": "na",
-        "vendor": 0,
-        "ours": null
-       },
-       "last": {
-        "bar": 662,
-        "time": 1794321000,
-        "kind": "na",
-        "vendor": 0,
-        "ours": null
-       },
-       "pattern": {
-        "kind": "scattered",
-        "lastDivergentBar": 662
-       }
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
       },
       "vendorRowGapsAfterStart": 0
      }
@@ -97207,12 +97165,12 @@
      "title": "S03_seed_high",
      "ours": "out3",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "25 steady-state bars disagree; first at bar 638 (na: vendor 1000 vs ours na) — scattered, last at bar 662",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 0,
-     "color": "unresolvable on our side",
+     "color": "compared",
      "stats": {
       "bars": 666,
       "compared": 666,
@@ -97221,24 +97179,18 @@
       "withheldVendorValued": 0,
       "withheldWarmupVendorValued": 0,
       "floatOrderFloorUsed": 0,
-      "matching": 641,
+      "matching": 666,
       "vendorRowsMissing": 0,
-      "naMismatches": 25,
+      "naMismatches": 0,
       "valueMismatches": 0,
       "colorMismatches": 0,
-      "colorCompared": 0,
+      "colorCompared": 25,
       "colorWithheld": 0,
       "colorComparable": 25,
       "valued": 25,
       "maxAbs": 0,
       "maxRel": 0,
-      "firstDivergence": {
-       "bar": 638,
-       "time": 1791379800,
-       "kind": "na",
-       "vendor": 1000,
-       "ours": null
-      },
+      "firstDivergence": null,
       "warmup": {
        "bars": 0,
        "compared": 0,
@@ -97248,25 +97200,10 @@
       "steady": {
        "bars": 666,
        "compared": 666,
-       "divergent": 25,
-       "first": {
-        "bar": 638,
-        "time": 1791379800,
-        "kind": "na",
-        "vendor": 1000,
-        "ours": null
-       },
-       "last": {
-        "bar": 662,
-        "time": 1794321000,
-        "kind": "na",
-        "vendor": 1000,
-        "ours": null
-       },
-       "pattern": {
-        "kind": "scattered",
-        "lastDivergentBar": 662
-       }
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
       },
       "vendorRowGapsAfterStart": 0
      }
@@ -97276,12 +97213,12 @@
      "title": "S04_seed_is_na",
      "ours": "out4",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "666 steady-state bars disagree; first at bar 0 (na: vendor 1 vs ours na) — persistent, last at bar 665",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 0,
-     "color": "unresolvable on our side",
+     "color": "compared",
      "stats": {
       "bars": 666,
       "compared": 666,
@@ -97290,24 +97227,18 @@
       "withheldVendorValued": 0,
       "withheldWarmupVendorValued": 0,
       "floatOrderFloorUsed": 0,
-      "matching": 0,
+      "matching": 666,
       "vendorRowsMissing": 0,
-      "naMismatches": 666,
+      "naMismatches": 0,
       "valueMismatches": 0,
       "colorMismatches": 0,
-      "colorCompared": 0,
+      "colorCompared": 666,
       "colorWithheld": 0,
       "colorComparable": 666,
       "valued": 666,
       "maxAbs": 0,
       "maxRel": 0,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 1711027800,
-       "kind": "na",
-       "vendor": 1,
-       "ours": null
-      },
+      "firstDivergence": null,
       "warmup": {
        "bars": 0,
        "compared": 0,
@@ -97317,25 +97248,10 @@
       "steady": {
        "bars": 666,
        "compared": 666,
-       "divergent": 666,
-       "first": {
-        "bar": 0,
-        "time": 1711027800,
-        "kind": "na",
-        "vendor": 1,
-        "ours": null
-       },
-       "last": {
-        "bar": 665,
-        "time": 1794580200,
-        "kind": "na",
-        "vendor": 1,
-        "ours": null
-       },
-       "pattern": {
-        "kind": "persistent",
-        "lastDivergentBar": 665
-       }
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
       },
       "vendorRowGapsAfterStart": 0
      }
@@ -97345,12 +97261,12 @@
      "title": "S05_barssince_seed",
      "ours": "out5",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "28 steady-state bars disagree; first at bar 638 (na: vendor 0 vs ours na) — persistent, last at bar 665",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 0,
-     "color": "unresolvable on our side",
+     "color": "compared",
      "stats": {
       "bars": 666,
       "compared": 666,
@@ -97359,24 +97275,18 @@
       "withheldVendorValued": 0,
       "withheldWarmupVendorValued": 0,
       "floatOrderFloorUsed": 0,
-      "matching": 638,
+      "matching": 666,
       "vendorRowsMissing": 0,
-      "naMismatches": 28,
+      "naMismatches": 0,
       "valueMismatches": 0,
       "colorMismatches": 0,
-      "colorCompared": 0,
+      "colorCompared": 28,
       "colorWithheld": 0,
       "colorComparable": 28,
       "valued": 28,
       "maxAbs": 0,
       "maxRel": 0,
-      "firstDivergence": {
-       "bar": 638,
-       "time": 1791379800,
-       "kind": "na",
-       "vendor": 0,
-       "ours": null
-      },
+      "firstDivergence": null,
       "warmup": {
        "bars": 0,
        "compared": 0,
@@ -97386,25 +97296,10 @@
       "steady": {
        "bars": 666,
        "compared": 666,
-       "divergent": 28,
-       "first": {
-        "bar": 638,
-        "time": 1791379800,
-        "kind": "na",
-        "vendor": 0,
-        "ours": null
-       },
-       "last": {
-        "bar": 665,
-        "time": 1794580200,
-        "kind": "na",
-        "vendor": 3,
-        "ours": null
-       },
-       "pattern": {
-        "kind": "persistent",
-        "lastDivergentBar": 665
-       }
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
       },
       "vendorRowGapsAfterStart": 0
      }
@@ -97469,12 +97364,12 @@
     "verdict": "MATCH",
     "reason": "neither side draws an object"
    },
-   "verdict": "DIVERGE",
-   "reason": "5 of 7 compared items diverge",
+   "verdict": "MATCH",
+   "reason": "all 7 items agree",
    "ourNotes": [
-    "other symbol RSRATING: no committed capture of RSRATING at 1D — the vendor bars (and listing) this read would need",
+    "other symbol RSRATING: the bars our server serves, recorded beside the capture (api/services/pine_seed_store.py::build_bars (the /api/bars seed door); pine_seed_store's replay of Fred6725/rs-log output/RSRATING.csv (812 uploads applied oldest first, each non-empty upload replacing the series; newest upload 64440c2a0187a53f8f9da3b6f6563306d97482af, 2026-11-11T03:04:36Z), read back through build_bars)",
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0",
-    "other symbol RSRATING: refused (other-symbol:no-bars) — `SEED_FRED6725_RS_RATING:RSRATING`'s bars for this timeframe are not in hand"
+    "other symbol RSRATING: served"
    ],
    "objectsV2": {
     "verdict": "MATCH",
