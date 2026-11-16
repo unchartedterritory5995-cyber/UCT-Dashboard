@@ -1,0 +1,32 @@
+//@version=4
+study("UCTPROBE_VW_TC1_COLOUR_NA_COMPARE", overlay = false)
+
+// --- 2026-11-16 text-colour unit (TC) - a COLOUR compared with `na` ---
+//
+// engulfing-sinyal (v4) writes `alertcondition(Bueng != na, ...)` where `Bueng` is
+// `<condition> ? color.yellow : na`. What TradingView answers for `<colour> != na`,
+// `<colour> == na` and `na(<colour>)` is not captured, so the runtime lane refuses a colour
+// compared with `na` by name (`runtime:colour`, "a colour compared with `na`"). Each row below is its own plot of
+// 1 / 0, so the capture records the answer bar by bar:
+//
+//   C1  colour != na          C2  colour == na          C3  na(colour)
+//   N1  number != na          N2  number == na          N3  na(number)     (the same three on a NUMBER,
+//                                                                            so a reader can tell a colour
+//                                                                            rule from the general `na` rule)
+//   B0  bar_index             (control: the capture's bars are the bars we compute on)
+//
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults, after the close, with
+// tools/vendor_harness/tv_capture.js. If a row does not compile on v4 (C3 is the likeliest),
+// record the compile error text and remove only that row, as the B1 probe did for D1.
+
+up = close > open
+c = up ? color.yellow : na
+x = up ? close : na
+
+plot(c != na ? 1 : 0, "C1")
+plot(c == na ? 1 : 0, "C2")
+plot(x != na ? 1 : 0, "N1")
+plot(x == na ? 1 : 0, "N2")
+plot(na(x) ? 1 : 0, "N3")
+plot(bar_index, "B0")
+plot(na(c) ? 1 : 0, "C3")
