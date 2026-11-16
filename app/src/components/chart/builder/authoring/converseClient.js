@@ -160,6 +160,7 @@ export async function converseTurn({ message, state, gateCtx = {}, snippets = []
       ...(body && body.disposition === 'unsupported' ? { disposition: 'unsupported' } : {}),
       ...(body && body.preflight === true ? { preflight: true } : {}),
       notUnderstood, unavailable,
+      ...allowanceOf(body),
     }
   }
   if (!body.envelope || typeof body.envelope !== 'object') {
@@ -171,5 +172,12 @@ export async function converseTurn({ message, state, gateCtx = {}, snippets = []
   return {
     ok: true, disposition: body.disposition, reply: typeof body.reply === 'string' ? body.reply : '',
     turn: body.turn || null, envelope: body.envelope, notUnderstood, unavailable,
+    ...allowanceOf(body),
   }
+}
+
+/** ⭐ F1: the share of today's allowance left (0 to 1) when the server sent one. */
+export function allowanceOf(body) {
+  const v = body && body.allowance_left
+  return typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1 ? { allowanceLeft: v } : {}
 }
