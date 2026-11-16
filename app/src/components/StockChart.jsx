@@ -242,6 +242,8 @@ import { getSnapshot as getLivePriceStoreSnapshot } from '../hooks/livePriceStor
 import { _packStillIngesting, setPrefetchShowExtended, barsBeforeUrl, registerSymbolWarmer } from '../utils/prefetchBars'
 import { resolveShowExtended } from '../utils/viewSession'
 import * as realtimeCandle from '../lib/realtimeCandle'
+import { newestSeriesBar } from './chart/newestSeriesBar'
+import { barsHistorySplitEnabled } from '../utils/barsHistorySplit'
 import { LIVE_PERIOD_SECONDS } from '../lib/liveBarMerge'
 import { publishChartReadout } from '../lib/chartReadoutStore'
 import { shouldApplyRange, rangeFitsBars, rangeBarsEnd, viewMostlyBars } from '../pages/charts/grid/rangeGuard'
@@ -2283,34 +2285,10 @@ if (typeof window !== 'undefined') window.__uctBarsPush = setBarsPushEnabled
 // Ramped 25 → 100 on 2026-09-03 after the 25% canary held clean (no blank-chart /
 // stops-at-2024 reports). Instant revert: set this to 0 + redeploy, or per-browser
 // window.__uctBarsHistory(false). Spec: docs/superpowers/specs/2026-08-31-edge-deep-history.
-export const BARS_HISTORY_SPLIT_ROLLOUT_PCT = 100
-
-function _barsHistoryBucket() {
-  try {
-    let b = localStorage.getItem('uct.barsHistory.bucket')
-    if (b == null) { b = String(Math.floor(Math.random() * 100)); localStorage.setItem('uct.barsHistory.bucket', b) }
-    const n = parseInt(b, 10)
-    return Number.isFinite(n) ? n : 100
-  } catch { return 100 }  // no storage → out of rollout (safe default-off)
-}
-
-export function _barsHistorySplitEnabled() {
-  try {
-    const ls = typeof localStorage !== 'undefined' ? localStorage.getItem('uct.barsHistory.enabled') : null
-    if (ls === '1') return true     // explicit opt-in (canary)
-    if (ls === '0') return false    // explicit opt-out
-    return _barsHistoryBucket() < BARS_HISTORY_SPLIT_ROLLOUT_PCT
-  } catch { return false }
-}
-
-export function setBarsHistorySplitEnabled(on) {
-  try {
-    if (on) localStorage.setItem('uct.barsHistory.enabled', '1')
-    else localStorage.removeItem('uct.barsHistory.enabled')
-    window.dispatchEvent(new Event('uct-barshistory-change'))
-  } catch { /* ignore */ }
-}
-if (typeof window !== 'undefined') window.__uctBarsHistory = setBarsHistorySplitEnabled
+// ⭐ MOVED to utils/barsHistorySplit.js (2026-11-16) so the BarStore reads the SAME switch and builds the
+// SAME history URL; re-exported here under the names the legacy hook and its tests use.
+export { BARS_HISTORY_SPLIT_ROLLOUT_PCT, setBarsHistorySplitEnabled } from '../utils/barsHistorySplit'
+export const _barsHistorySplitEnabled = barsHistorySplitEnabled
 
 // ── Fix 2: edge deep-history on FIRST PAINT (instant full history for a new ticker) ──
 // The split-fetch above only pulls deep sealed history from the edge AFTER the user pans
@@ -11317,14 +11295,11 @@ export default function StockChart({
           // What the last paint decided for the indicator window (`plotWindow.js`): the rows
           // it holds, the first row drawn (0: every row) and that row's time.
           plotWindow: () => ({ ...plotWindowRef.current }),
-          newestBar: () => {
-            try {
-              const d = candleSeriesRef.current?.data?.()
-              const last = d && d.length ? d[d.length - 1] : null
-              if (!last) return null
-              return { time: last.time ?? null, close: Number.isFinite(last.close) ? last.close : (Number.isFinite(last.value) ? last.value : null), count: d.length }
-            } catch { return null }
-          },
+          // ⛔ O(log n), NOT a copy: the tick-latency proof reads this on every animation frame for
+          // every chart, and `series.data()` rebuilds the whole series each call (2026-11-16: 4.4 s
+          // of main thread per 90 s with 4 charts, a quarter of the page's measured work). The newest
+          // bar is one by-index lookup; `count` (rarely read) still walks the series, on demand.
+          newestBar: () => { try { return newestSeriesBar(candleSeriesRef.current) } catch { return null } },
           // Read-only: what each ENGINE series actually handed the renderer
           // (the fundamentals acceptance harness reads plotted values from here).
           engineSeries: () => {
