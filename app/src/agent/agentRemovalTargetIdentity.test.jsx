@@ -222,6 +222,24 @@ describe(`POSITION WORDS · the named chart is closed, every other refused (${VO
     expect(rail(boardOf(['SPY', 'QQQ', 'IWM']), 'c1', words)).toBeNull()
   })
 })
+// ── ONE specific chart the words fit SEVERAL charts of ("the bottom chart" on a 2×2) → asked, whichever chart the plan closes ──
+const SIDE_WORDS = ['the bottom chart', 'the top one', 'the left chart', 'the right-hand one', 'the lower chart', 'the far left chart', 'the topmost one']
+const SIDE_CASES = []
+for (const q of SIDE_WORDS) for (const verb of Object.keys(VERBS)) for (let j = 0; j < 4; j++) SIDE_CASES.push([q, verb, j])
+describe(`ONE CHART, SEVERAL FIT · asked on a 2×2 (${SIDE_CASES.length} cases): side word × verb × plan target`, () => {
+  it.each(SIDE_CASES)('"%s" · %s · plan closes #%i', (q, verb, j) => {
+    const words = VERBS[verb](q)
+    expect(rail(boardOf(SYMS.slice(0, 4)), `c${j + 1}`, words), words).toMatch(/^Which chart should I close\? “.*” fits 2 charts/)
+  })
+  it('the plural names both on purpose: "close the bottom charts" closes either bottom chart, the top ones refused', () => {
+    for (const j of [0, 1, 2, 3]) {
+      const got = rail(boardOf(SYMS.slice(0, 4)), `c${j + 1}`, 'close the bottom charts')
+      if (j >= 2) expect(got).toBeNull()
+      else expect(got).toMatch(/^Which chart should I close\?/)
+    }
+  })
+})
+
 // ── WHOLE-BOARD / SET controls: no named target needed ──
 describe('FAIL CLOSED · whole-board and set removals still proceed', () => {
   const SET = ['close all my charts', 'clear the board', 'close the charts', 'remove all the charts', 'close everything', 'get rid of every chart', 'delete both charts']

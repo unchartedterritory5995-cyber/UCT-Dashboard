@@ -468,6 +468,7 @@ const positionSaid = (w, e) => named(w, e)
 // everything except X", "close the charts") proceeds without a named target. Never depends on the position vocabulary.
 const SPECIFIC_CHART = /\b(?:the|that|this|my|your|our)\s+(?:[^\s.,;:!?]+\s+){0,3}?(?:chart|one|panel|graph|widget)\b(?!s)/i
 const SET_REMOVAL = /\b(?:all|every|everything|each|both|whole|entire|rest|others|remaining|except|excluding|other\s+than|apart\s+from|but\s+not)\b|\b(?:clear|close|wipe|empty|reset|clean(?:\s+up)?)\s+(?:out\s+)?(?:the|my)\s+(?:whole\s+|entire\s+)?(?:board|layout|screen)\b/i
+const SEVERAL = /\b(?:charts|ones|panels|graphs|widgets|and)\b|[&,]/i
 const pluralOf = (sym) => new RegExp(String.raw`\b(?:both|all|every|each)\b[^.;!?]*?\$?${escRe(sym)}(?![A-Za-z0-9])|(?:^|[^A-Za-z0-9])\$?${escRe(sym)}\s+(?:charts|ones|panels|graphs)\b`, 'i')
 export function removalTargets(w, host, { selected = null, subject = null, picked = null } = {}) {
   const all = liveCharts(host)
@@ -506,6 +507,13 @@ function removalTargetRefusal(w, host, removed, { selected, subject, picked, kno
   if (specific) {
     const eg = all.find(c => c.symbol) || all[0]
     return `Which chart should I close? I can’t tell which chart “${specific[0]}” is, so nothing was changed. Name it by its ticker or its place — for example “close ${eg?.symbol ? `the ${up(eg.symbol)} chart` : 'the left chart'}”.`
+  }
+  // (…and ONE specific chart the words fit SEVERAL objects of — "the bottom chart" on a 2×2 — is asked, never a guess: a link group is
+  //  one object; a plural noun or a list names several on purpose)
+  const one = !SET_REMOVAL.test(w) && !SEVERAL.test(w) ? SPECIFIC_CHART.exec(w) : null
+  if (one && new Set(all.filter(c => ids.has(c.ref)).map(c => (linked(c.group) ? `g:${c.group}` : `c:${c.ref}`))).size > 1) {
+    const fits = all.filter(c => ids.has(c.ref)).map(where)
+    return `Which chart should I close? “${one[0]}” fits ${fits.length} charts (${listOf(fits)}), so nothing was changed — say which one.`
   }
   const bad = removed.filter(e => excluded.has(e.ref) || (ids.size && !ids.has(e.ref)))
   if (!bad.length) return null
