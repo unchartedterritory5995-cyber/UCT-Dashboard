@@ -67,6 +67,8 @@ GUARD_BUCKET = {
     "pine:arity": "call-mapping", "pine:named-argument": "call-mapping", "pine:role-order": "call-mapping",
     "pine:input-kind": "call-mapping", "pine:operator": "call-mapping",
     "pine:drawing": "drawing-objects",
+    # DRAW-1: a drawing step's condition the object reader could not read, named (`pine.js`, OBJECT_CONDITION_WHY)
+    "pine:object-condition": "drawing-objects",
     # objects-only in the STRICT lane = an object-only script whose object program is not clean
     "pine:no-output": "output-contract", "pine:objects-only": "drawing-objects",
     "pine:presentation-only": "output-contract", "pine:constant-only": "output-contract",

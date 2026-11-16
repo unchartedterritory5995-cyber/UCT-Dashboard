@@ -505,6 +505,30 @@ export const REFUSALS = Object.freeze({
     + 'not offered',
 })
 
+/** ⭐⭐ DRAW-1 (2026-11-16) — WHY A DRAWING STEP'S CONDITION COULD NOT BE READ, WHEN NOTHING
+ *  THREW. A `guard:<kind>` drop is named by the refusal its condition's tree threw
+ *  (`noteGuardRefusal`, `guardRefusals`); five return paths of the object pass's guard reader
+ *  threw none, and a read-before-write withhold (C14) named its names but no guard, so the
+ *  census counted those drops as "op dropped, no guard named". Each now carries this guard and
+ *  its own sentence. Diagnostics only: what is drawn, dropped and disclosed is unchanged. */
+const OBJECT_CONDITION_GUARD = 'pine:object-condition'
+const objectConditionWhy = (message) => Object.freeze({ guard: OBJECT_CONDITION_GUARD, message })
+const OBJECT_CONDITION_WHY = Object.freeze({
+  unparsed: objectConditionWhy('the condition of this drawing step is not an expression the object reader parses'),
+  loopScalar: objectConditionWhy('the condition reads a number taken off a drawing inside a loop: that number is '
+    + 'written once a bar, and the loop body reads it on every pass, which the object reader does not follow'),
+  unlifted: objectConditionWhy("the condition reads a drawing's state in a form the object reader cannot lift "
+    + 'into a per-bar test'),
+  loopCross: objectConditionWhy("the condition is a crossing of a drawing's value inside a loop: a crossing is "
+    + 'observed once a bar, and a loop body runs several times a bar'),
+  unreduced: objectConditionWhy('the condition does not reduce to an expression this chart computes, and no '
+    + 'narrower reason was recorded for it'),
+  unrecorded: objectConditionWhy('the condition of this drawing step could not be read, and no narrower reason '
+    + 'was recorded for it'),
+  readBeforeWrite: (names) => objectConditionWhy(`the step reads ${(names || []).map((n) => `\`${n}\``).join(', ')} `
+    + "before the script's own later write of it on the same bar, which the object reader does not order"),
+})
+
 /** ⭐⭐ RULING D2 (2026-09-12) — THE GUARDS WHOSE SENTENCE PROMISES SOMETHING
  *  ABOUT THE *OTHER ROWS*, AND THEREFORE CANNOT BE SHARED BETWEEN LANES.
  *
@@ -20960,6 +20984,10 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *  Every existing call site passes nothing and behaves exactly as before. */
   /** ⭐ C17 — the refusal the last unresolvable tree threw (`guardRefusals`). */
   let lastCanonRefusal = null
+  /** ⭐ DRAW-1 — the reason `guardOfIn` returned `undefined` on when no refusal was thrown
+   *  (`OBJECT_CONDITION_WHY`), read only to NAME the drop (`guardRefusals`). */
+  let guardDropWhy = null
+  const dropWhy = (why) => { guardDropWhy = why; return undefined }
   /** ⭐⭐ W3-S1 (2026-11-02) — THE TEXT READER'S OWN REFUSAL, BY NAME, AND NOT ON
    *  `lastCanonRefusal`. That one is read to DECIDE (`rtAdmits`: which refusals the
    *  runtime lane may answer where the drawing stands), so a text-only give-up must
@@ -25065,6 +25093,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   }
   const guardOf = (guards, op) => {
     const opScope = scopeEnv
+    guardDropWhy = null
     try {
       return guardOfIn(guards, opScope, op)
     } finally {
@@ -25094,7 +25123,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     for (const g of guards) {
       scopeEnv = g.locals ? scopeFor(g.locals, op) : opScope
       let node
-      try { node = parseWholeExpression(g.toks) } catch { return undefined }
+      try { node = parseWholeExpression(g.toks) } catch { return dropWhy(OBJECT_CONDITION_WHY.unparsed) }
       // ⭐⭐ `barstate.islast` IS ANSWERABLE HERE AND NOWHERE ELSE.
       // `BUILTIN_CONSTANT_TREE` deliberately refuses it, and that ruling is
       // right for a SCAN: "the last bar" depends on how many bars were asked
@@ -25162,7 +25191,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       if (readsState(node) || (hostPasses && loopIds.length && mentionsLoop(node))) {
         // ⛔ C14 — a scalar is written once per bar; a loop body reads it per iteration.
         // ⭐ C25 — a LOOP scalar is written per pass, where it stands: read per pass.
-        if (loopIds.length && mentionsScalar(node, 0, true)) return undefined
+        if (loopIds.length && mentionsScalar(node, 0, true)) return dropWhy(OBJECT_CONDITION_WHY.loopScalar)
         const live = liftLive(node)
         if (!live) {
           // ⭐ C25 — named: the loop scalar this condition could not lift, as the
@@ -25172,14 +25201,14 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
             const b = nm ? scopeEnv.get(nm) : null
             if (b && b.kind === 'opaque') lastCanonRefusal = { guard: b.guard, message: b.message }
           }
-          return undefined
+          return dropWhy(OBJECT_CONDITION_WHY.unlifted)
         }
         // ⭐⭐ C16 — INSIDE A COUNTED LOOP a `get`/`size` comparison has one
         // answer per ITERATION, and the runtime evaluates the body op per
         // iteration (`low < box.get_bottom(b)` for each zone in institutional-
         // smc). ⛔ Only a crossing still refuses there: it is observed once per
         // bar, and a body runs several times a bar.
-        if (loopIds.length && liveHasCross(live)) return undefined
+        if (loopIds.length && liveHasCross(live)) return dropWhy(OBJECT_CONDITION_WHY.loopCross)
         // ⭐⭐ C16 — LATCHED: evaluated ONCE where the `if` stands, and read by
         // every op of its block and of its `else` (the reader hands both the
         // SAME condition tokens). Re-evaluating it per op let the block's own
@@ -25205,14 +25234,15 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         }
         if (partial) {
           diagnostics.guardPartial = diagnostics.guardPartial || []
-          const e = `${op.k}@${op.line === undefined ? '?' : op.line}: ${(partial.why && partial.why.guard) || 'refused'}`
+          // ⭐ DRAW-1 — never head-less: a term that threw no guard is `pine:object-condition`
+          const e = `${op.k}@${op.line === undefined ? '?' : op.line}: ${(partial.why && partial.why.guard) || OBJECT_CONDITION_GUARD}`
           if (!diagnostics.guardPartial.includes(e)) diagnostics.guardPartial.push(e)
           liveParts.push(latchOf(g.toks, partial.live))
           unknownGuard = true
           continue
         }
         lastCanonRefusal = whole
-        return undefined
+        return dropWhy(OBJECT_CONDITION_WHY.unreduced)
       }
       // ⭐⭐ SYNTHESISED IN THE PARSER'S SHAPE, NOT THE RESOLVER'S.
       //
@@ -25700,7 +25730,10 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     colourOpConditional = !!(g && g.varies)
     colourOpFirstBarOnly = firstBarOnlyCreate(op, g)
     if (g === undefined) {
-      noteGuardRefusal(op, brokerRefusal || lastCanonRefusal)
+      // ⭐ DRAW-1 — a drop is never head-less: the refusal the condition threw, else the reason
+      // `guardOfIn` returned on (`guardDropWhy`), else the general sentence.
+      noteGuardRefusal(op, brokerRefusal || (lastCanonRefusal && lastCanonRefusal.guard ? lastCanonRefusal : null)
+        || guardDropWhy || OBJECT_CONDITION_WHY.unrecorded)
       if (op.k === 'loop') unconverted(op.body, 'guard:loop')
       if (op.k === 'delete' || op.k === 'clear') lostRemoval(`guard:${op.k}`, op)
       if (op.k === 'create') { lostCreate(op.family); lostInto(op) }
@@ -26270,6 +26303,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
             const staleBounds = staleReads(src, { when: o.when, from: o.from, to: o.to, step: o.step })
             if (staleBounds.length) {
               noteReadBeforeWrite(src, staleBounds)
+              noteGuardRefusal(src, OBJECT_CONDITION_WHY.readBeforeWrite(staleBounds))
               unconverted(src.body, 'guard:loop')
               dropped(`guard:${src.k}`)
               continue
@@ -26287,6 +26321,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         const stale = staleReads(src, o)
         if (!stale.length) { out.push(o); continue }
         noteReadBeforeWrite(src, stale)
+        noteGuardRefusal(src, OBJECT_CONDITION_WHY.readBeforeWrite(stale))
         if (src.k === 'create') { lostCreate(src.family); lostInto(src) }
         if (src.k === 'update') { contentLostBy(src, o.target); stateLostBy(src, o.target) }
         if (src.k === 'delete' || src.k === 'clear') { lostRemoval(`guard:${src.k}`, src); stateLostBy(src, o.target) }
@@ -29963,9 +29998,23 @@ function translatePineResult(source, opts = {}) {
   const paintOnlyWin = isHostLane(opts) && resolved.length === 0 && paintDraws && paintsClean
     && !objectsLost
 
+  // ⭐⭐ DRAW-1 — A CLEAN OBJECT PROGRAM WHOSE EVERY PLOT IS `na` ON EVERY BAR IS THE OBJECT-ONLY
+  // WIN TOO. `plotshape(show ? x : na)` with `show` an input left off folds to the literal `na`
+  // (`parse.js`: `na` IS `0 / 0`), so the row is hidden as `constant` and the script used to
+  // carry `pine:constant-only` ("nothing here a chart or a screen could move on") beside a
+  // drawing that moves on every bar (high-low-open-mid-ranges: 171 ops, 0 dropped, 7 such rows).
+  // A plot of `na` draws nothing on TradingView (the reference: `na` is "not available", no
+  // value is plotted) and nothing here. ⛔ ONLY `na`: a constant NUMBER (`plot(50)`) is a line
+  // TradingView draws and this pane hides as `constant`, so it keeps the refusal. Host lane
+  // only: the screener contract is unchanged (still no column to filter on).
+  const naOnlyObjectsWin = isHostLane(opts) && resolved.length > 0
+    && resolved.every((r) => r.refusal === null && r.hidden && r.hiddenReason === 'constant' && isNaConstantTree(r.ast))
+    && !!(objectPass.program && Array.isArray(objectPass.program.ops) && objectPass.program.ops.length > 0)
+    && !!(objectPass.diagnostics && objectPass.diagnostics.droppedOps === 0)
+
   let noContent = null
   if (!blocked && usable.length === 0 && refusals.length === 0
-      && !(isHostLane(opts) && (objectOnlyCleanWin || paintOnlyWin))) {
+      && !(isHostLane(opts) && (objectOnlyCleanWin || paintOnlyWin || naOnlyObjectsWin))) {
     // ⛔ THE REASON IS DERIVED FROM WHY THE ROWS WERE HIDDEN, never defaulted.
     // Ordered most-specific first: a passthrough says the meaning was in
     // presentation, a constant says the column cannot move, and only an
@@ -33350,6 +33399,14 @@ function barVaryingNamesFor(table) {
   return set
 }
 const BAR_VARYING_SET = new Set([...BAR_READERS, ...Object.keys(RECURRENCES)])
+
+/** ⭐ DRAW-1 — is this formula tree Pine's `na` itself (`parse.js` canonicalises the word
+ *  `na` to `0 / 0`)? Exactly that node: a tree that merely evaluates to `na` somewhere is
+ *  not asked about here. */
+export function isNaConstantTree(node) {
+  return !!(node && node.type === 'op' && node.name === '/' && Array.isArray(node.args) && node.args.length === 2
+    && node.args.every((a) => a && a.type === 'num' && a.value === 0))
+}
 
 export function readsBars(node, table = TABLE) {
   const barFns = barVaryingNamesFor(table)

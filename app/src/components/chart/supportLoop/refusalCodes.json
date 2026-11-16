@@ -164,6 +164,7 @@
   "pine:na",
   "pine:named-argument",
   "pine:no-output",
+  "pine:object-condition",
   "pine:object-removal-lost",
   "pine:objects-only",
   "pine:offset-literal",
