@@ -1126,7 +1126,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "95%",
     "19%",
@@ -1137,6 +1137,28 @@
     "5.3%": "Divided by the 152 million with jobs, not the whole labor force.",
     "95%": "Gave the employed share of the labor force.",
     "19%": "Divided the employed by the unemployed."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The jobless rate",
+    "rows": [
+     {
+      "key": "employed,_millions",
+      "label": "Employed, millions",
+      "value": 152,
+      "fmt": "count"
+     },
+     {
+      "key": "unemployed,_millions",
+      "label": "Unemployed, millions",
+      "value": 8,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Unemployment rate",
+     "as": "pct"
+    }
    }
   },
   {
@@ -1249,7 +1271,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "2.5 points",
     "0.7 points",
@@ -1260,6 +1282,22 @@
     "0.7 points": "Added the forecast to the actual.",
     "2.5 points": "Divided the actual by the forecast.",
     "0.5 points": "Used the print and ignored the forecast."
+   },
+   "visual": {
+    "kind": "move",
+    "from": {
+     "label": "Forecast (%)",
+     "value": 0.2
+    },
+    "to": {
+     "label": "Actual (%)",
+     "value": 0.5
+    },
+    "find": {
+     "label": "The surprise",
+     "as": "num",
+     "unit": "points"
+    }
    }
   },
   {
@@ -1414,7 +1452,13 @@
      "fixed before"
     ]
    },
-   "batch": "wave6"
+   "batch": "history-charts-2026-11-15",
+   "chart": {
+    "sym": "SPY",
+    "asof": "2022-09-12",
+    "window": 120,
+    "forward": 10
+   }
   },
   {
    "key": "q20",
@@ -1455,7 +1499,13 @@
      "fixed before"
     ]
    },
-   "batch": "wave6"
+   "batch": "index-charts-2026-11-16",
+   "chart": {
+    "sym": "IXIC",
+    "asof": "2022-09-12",
+    "window": 120,
+    "forward": 10
+   }
   },
   {
    "key": "q21",
@@ -1578,7 +1628,36 @@
      "fixed before"
     ]
    },
-   "batch": "wave6"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "Payrolls vs the forecast",
+    "rows": [
+     {
+      "key": "forecast",
+      "label": "Forecast",
+      "value": 100000,
+      "fmt": "count"
+     },
+     {
+      "key": "reported",
+      "label": "Reported",
+      "value": 73000,
+      "fmt": "count"
+     },
+     {
+      "key": "revisions,_down",
+      "label": "Revisions, down",
+      "value": 258000,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Short, counting revisions",
+     "as": "num",
+     "unit": "jobs"
+    }
+   }
   },
   {
    "key": "q24",
@@ -1621,7 +1700,13 @@
      "fixed before"
     ]
    },
-   "batch": "wave6"
+   "batch": "history-charts-2026-11-15",
+   "chart": {
+    "sym": "SPY",
+    "asof": "2025-07-31",
+    "window": 120,
+    "forward": 10
+   }
   }
  ],
  "conflicts": [
@@ -1732,7 +1817,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
+   "notes": "employed and unemployed in millions; key '5%'"
   },
   "q13": {
    "status": "pass",
@@ -1751,7 +1836,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
+   "notes": "forecast then actual, both percents, like quantities; surprise in points; key '0.3 points'"
   },
   "q16": {
    "status": "pass",
@@ -1776,13 +1861,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Both above forecast from f59, f35, f36. New simple grounded. Minor: story's 'The Dow Jones forecasts:' could read as the index; left as is."
+   "notes": "cold re-read 2026-11-15 (session lead): the chart and the words agree; check_course_charts 0 problems; the outcome the words name confirmed in the closes"
   },
   "q20": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Tech hardest from f62, f65; numbers f60, f66. New trap grounded in f65, f68."
+   "notes": "Cold check on IX/IXIC.json, IX/SPX.json and IX/DJI.json. Window 2022-03-22..2022-09-12 (120), replay 2022-09-13..2022-09-26 (10). Sept 13, 2022: Nasdaq Composite 12,266.41 -> 11,633.57, -5.16% ('5.2%'); S&P 500 4,110.41 -> 3,932.69, -4.32% ('about 4.3%'); Dow 32,381.34 -> 31,104.97, -3.94% ('3.9%'). (Also checked: Nasdaq 100 -5.54%, Russell 2000 -3.91%.) The replay plays the -5.16% day first and the slide after it, which contradicts no words. No give-away: the chart ends Sept 12 and the drop plays only after the answer; the only cue is that a member who recognises the ~12,000 price scale as th"
   },
   "q21": {
    "status": "pass",
@@ -1799,14 +1884,14 @@
   "q23": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc (100000-73000)+258000 = 285000 re-checked. 258,000 and the 100,000 Dow Jones estimate re-read live on CNBC. Intermediate 27,000 only as a distractor."
+   "fixed": true,
+   "notes": "'Short of the forecast' could be read as 27,000 (excluding revisions). The calc counts the revisions; name that. Key is too long so the label is all the member sees with the slot '285,000 jobs'."
   },
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f58; f72, f73 re-read live on CNBC today: 'fell further', 'sharply lower', 75.5% from 40% on Thursday). Break: 'Futures ignored the jobs report' contradicts the question's own premise (weak jobs news hit stocks) and the story's 'fall further', so it is a silly choice under README rule 'a wrong choice is never obviously silly'. Replaced with 'Treasury yields rose on the news', a real misreading (rising yields pressure stocks, f69) refuted by f72; story now says yields drop so it is decidable from the page (still 4 sentences). Key 30 vs 32/28/29, not longest. Overlap noted: q21's why "
+   "fixed": false,
+   "notes": "cold re-read 2026-11-15 (session lead): the chart and the words agree; check_course_charts 0 problems; the outcome the words name confirmed in the closes"
   }
  }
 }

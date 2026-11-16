@@ -1160,7 +1160,29 @@
    "kind": "mcq",
    "q": "The group drops and both stops hit. What did you lose?",
    "story": "Your plan risks 1% a trade. Two setups trigger in chip stocks that tend to move together. You take full size in both.",
-   "subject": "F12.01#q18"
+   "subject": "F12.01#q18",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Total lost"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "%",
+      "key": "risk,_first_trade",
+      "label": "Risk, first trade",
+      "value": 1
+     },
+     {
+      "fmt": "%",
+      "key": "risk,_second_trade",
+      "label": "Risk, second trade",
+      "value": 1
+     }
+    ],
+    "title": "Two linked stops"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -7748,7 +7770,41 @@
    ],
    "kind": "mcq",
    "q": "Trade A risked $200 and made $500. Trade B risked $1,000 and made $1,500. Which did better for its risk?",
-   "subject": "F12.05#q03"
+   "subject": "F12.05#q03",
+   "visual": {
+    "find": {
+     "as": "times",
+     "label": "Trade A, times its risk"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "trade_a_risked",
+      "label": "Trade A risked",
+      "value": 200
+     },
+     {
+      "fmt": "$",
+      "key": "trade_a_made",
+      "label": "Trade A made",
+      "value": 500
+     },
+     {
+      "fmt": "$",
+      "key": "trade_b_risked",
+      "label": "Trade B risked",
+      "value": 1000
+     },
+     {
+      "fmt": "$",
+      "key": "trade_b_made",
+      "label": "Trade B made",
+      "value": 1500
+     }
+    ],
+    "title": "Two trades"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -8485,7 +8541,41 @@
    ],
    "kind": "mcq",
    "q": "Your last 20 trades: 6 broke a rule and lost 7R in total. The other 14 made +9R. What did all 20 make, in R?",
-   "subject": "F12.05#q13"
+   "subject": "F12.05#q13",
+   "visual": {
+    "find": {
+     "as": "r",
+     "label": "All 20 trades, in R"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "rule-breakers",
+      "label": "Rule-breakers",
+      "value": 6
+     },
+     {
+      "fmt": "count",
+      "key": "r_lost_on_them",
+      "label": "R lost on them",
+      "value": 7
+     },
+     {
+      "fmt": "count",
+      "key": "other_trades",
+      "label": "Other trades",
+      "value": 14
+     },
+     {
+      "fmt": "count",
+      "key": "r_won_on_them",
+      "label": "R won on them",
+      "value": 9
+     }
+    ],
+    "title": "Twenty trades"
+   }
   },
   "reveal_json": {
    "deeper": {

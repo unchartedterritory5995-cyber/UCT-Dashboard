@@ -1873,7 +1873,7 @@
      "computed key (calc)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "29.3 points",
     "6.5 points",
@@ -1884,6 +1884,23 @@
     "29.3 points": "Added the two returns instead of subtracting.",
     "65 points": "Decimal slip: dropped the point in 6.5.",
     "1.6 points": "Divided 17.9 by 11.4, which gives a ratio, not a gap."
+   },
+   "visual": {
+    "kind": "move",
+    "title": "Barber and Odean, % a year",
+    "from": {
+     "label": "The market",
+     "value": 17.9
+    },
+    "to": {
+     "label": "Heaviest traders",
+     "value": 11.4
+    },
+    "find": {
+     "label": "Points a year behind",
+     "as": "num",
+     "unit": "points"
+    }
    }
   },
   {
@@ -3682,8 +3699,8 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "17.9-11.4=6.5 confirmed. Wrongs: 29.3 sum, 65 decimal slip, 1.6 ratio; all real. No tell; why walks the subtraction."
+   "fixed": true,
+   "notes": "Move suits two like annual returns, but bars print 17.9 and 11.4 with no percent sign; put the unit in the title."
   },
   "q16": {
    "status": "pass",

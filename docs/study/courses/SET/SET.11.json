@@ -2109,7 +2109,7 @@
      "+2 computed key (bundle width)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "1.48%",
     "2.72%",
@@ -2120,6 +2120,37 @@
     "1.48%": "That uses only the top two averages. Use the highest and the lowest.",
     "1.10%": "That is the dollar amount read as a percent. Divide it first.",
     "27.2%": "That slips a decimal place."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "a1",
+      "label": "Highest average",
+      "price": 41.2
+     },
+     {
+      "key": "a2",
+      "label": "Middle average",
+      "price": 40.6
+     },
+     {
+      "key": "price",
+      "label": "Price",
+      "price": 40.5
+     },
+     {
+      "key": "a3",
+      "label": "Lowest average",
+      "price": 40.1
+     }
+    ],
+    "find": {
+     "label": "Bundle width, % of price",
+     "as": "pct"
+    },
+    "title": "The averages"
    }
   },
   {
@@ -4012,7 +4043,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
+   "notes": "Roles, find label, slot format and ladder checked; ok."
   },
   "q28": {
    "status": "pass",

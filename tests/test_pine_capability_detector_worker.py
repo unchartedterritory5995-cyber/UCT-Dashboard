@@ -20,6 +20,7 @@ import json
 import sqlite3
 import threading
 import time
+from multiprocessing.connection import wait as _mp_wait
 from pathlib import Path
 
 import pytest
@@ -72,6 +73,15 @@ def worker(monkeypatch):
     w.ensure_started()
     assert w.ready.wait(30), "the detector process never said READY"
     return w
+
+
+def _gone(proc, within: float = 5.0) -> bool:
+    """Has the OS ended this child? Read from its SENTINEL (POSIX: its pipe hits EOF; Windows: its
+    handle is signalled), never `join()` + `is_alive()`: on POSIX those call waitpid, and the
+    product's own reaper thread (`pcw._reap`) waits on the same pid. Whichever loses gets ECHILD,
+    which multiprocessing reports as "still alive" for a child that is already reaped (three
+    pine-heavy runs: HUNG, JUNK, HUNG)."""
+    return bool(_mp_wait([proc.sentinel], within))
 
 
 def _no_inline(monkeypatch) -> list:
@@ -213,8 +223,7 @@ def test_a_HUNG_child_is_killed_at_the_timeout_and_answers_pending(worker, monke
     caps, _e, status = pcw.detect(MEMBER_COPY + "// @@HANG@@\n", timeout=0.5)
     assert caps is None and status == pcw.TIMEOUT
     assert time.perf_counter() - t0 < 1.5              # bounded: the caller never waits on a hang
-    proc.join(5)
-    assert not proc.is_alive(), "the hung child was not killed"
+    assert _gone(proc), "the hung child was not killed"
     worker.ensure_started()
     assert worker.ready.wait(30)
     monkeypatch.setattr(rt, "_DETECTOR_IDLE_UNTIL", [0.0])
@@ -249,8 +258,7 @@ def test_a_child_that_answers_JUNK_is_out_of_step_killed_and_pending(worker, mon
     proc = worker.proc
     caps, _ran, status = pcw.detect(MEMBER_COPY + "// @@JUNK@@\n")
     assert caps is None and status == pcw.ERROR and worker.proc is None
-    proc.join(5)
-    assert not proc.is_alive()
+    assert _gone(proc)
 
 
 def test_M1_a_source_that_TIMED_OUT_is_quarantined_not_retried_on_every_list(worker, monkeypatch):
@@ -387,7 +395,9 @@ def test_L3_a_pipe_that_will_not_take_the_source_is_a_bounded_timeout(monkeypatc
     w.proc, w.conn = Proc(), Stuck()
     w.ready.set()
     t0 = time.perf_counter()
-    assert w.detect(MEMBER_COPY) == (None, 0.0, pcw.TIMEOUT)
+    caps, ran, status = w.detect(MEMBER_COPY)
+    assert caps is None and status == pcw.TIMEOUT
+    assert 0.25 <= ran < 1.0                       # follow-up L1: the stall is charged, not 0
     assert time.perf_counter() - t0 < 1.0 and Proc.terminated and w.proc is None
     assert w.next_start_kind == "timeout"
 
@@ -551,3 +561,115 @@ def test_GATE_8_concurrent_cold_lists_through_the_worker_each_under_1s_one_run(w
     assert errors == []
     assert max(walls.values()) < 1.0, walls
     assert worker.stats["ok"] - ok0 == 1
+
+
+# ─── U5 follow-up (re-review): a hang is charged, variants are refused, the save says why ────────
+
+HANG = MEMBER_COPY + "// @@HANG@@ follow-up\n"
+
+
+def test_FL1_a_timeout_charges_its_WALL_time_not_zero(worker, monkeypatch):
+    monkeypatch.setattr(pcw, "CALL_TIMEOUT_S", 0.5)
+    caps, ran, status = pcw.detect(HANG)
+    assert caps is None and status == pcw.TIMEOUT
+    assert 0.45 <= ran < 1.5, ran
+
+
+def test_FL1_a_hang_charges_the_request_budget_and_the_cool_down(worker, monkeypatch):
+    monkeypatch.setattr(pcw, "CALL_TIMEOUT_S", 0.5)
+    _no_inline(monkeypatch)
+    b = rt.DetectorBudget()
+    assert rt.capabilities_for(HANG + "// budget\n", budget=b) is None
+    assert b.spent >= 0.45 and b.done == 1
+    # the duty cycle (1/3) cools the detector for 2x the run: a hang is not free
+    assert rt._DETECTOR_IDLE_UNTIL[0] - time.monotonic() >= 0.8
+
+
+def test_FL1_a_hang_at_the_verdict_door_charges_the_members_own_budget(worker, monkeypatch):
+    monkeypatch.setattr(pcw, "CALL_TIMEOUT_S", 0.5)
+    _no_inline(monkeypatch)
+    out = rt.runtime_admission(HANG + "// verdict\n", member="m-hang")
+    assert out["missing"] == [rt.PENDING]
+    assert rt._verdict_member_spent("m-hang", time.monotonic()) >= 0.45
+
+
+def test_FL1_a_member_whose_sources_keep_striking_is_quarantined_as_a_member(worker, monkeypatch):
+    """One-character variants of a hanging script each hash differently; the member strike is what
+    stops them. Another member is untouched, and so are this member's stored or cached sets."""
+    monkeypatch.setattr(pcw, "CALL_TIMEOUT_S", 0.5)
+    _no_inline(monkeypatch)
+    for i in range(pcw.MEMBER_STRIKES_LIMIT):
+        assert pcw.detect(HANG + f"// variant {i}\n", member="m-var")[2] == pcw.TIMEOUT
+        worker.ensure_started()
+        assert worker.ready.wait(30)
+    starts = worker.stats["starts"]
+    assert pcw.detect(HANG + "// variant next\n", member="m-var") == (None, 0.0, pcw.QUARANTINED)
+    assert pcw.detect(MEMBER_COPY, member="m-var")[2] == pcw.QUARANTINED   # any fresh run, this member
+    assert worker.stats["starts"] == starts                                # the child untouched
+    assert pcw.detect(MEMBER_COPY, member="m-other")[2] == pcw.OK
+    assert pcw.is_quarantined(MEMBER_COPY, member="m-var") is True
+    assert pcw.status()["members_quarantined"] == 1
+    # the strikes age out of the window
+    later = time.monotonic() + pcw.MEMBER_STRIKE_WINDOW_S + 1
+    assert worker.member_quarantined("m-var", later) is False
+
+
+def test_FL1_capabilities_for_strikes_the_requests_member(worker, monkeypatch):
+    monkeypatch.setattr(pcw, "CALL_TIMEOUT_S", 0.5)
+    _no_inline(monkeypatch)
+    for i in range(pcw.MEMBER_STRIKES_LIMIT):
+        monkeypatch.setattr(rt, "_DETECTOR_IDLE_UNTIL", [0.0])
+        assert rt.capabilities_for(HANG + f"// cf {i}\n", budget=rt.DetectorBudget(member="m-list")) is None
+        worker.ensure_started()
+        assert worker.ready.wait(30)
+    assert worker.member_quarantined("m-list", time.monotonic()) is True
+
+
+def test_FL1_the_list_and_history_routes_name_their_member_on_the_budget(monkeypatch):
+    seen = []
+    real = rt.DetectorBudget
+
+    class Spy(real):
+        def __init__(self, *a, **k):
+            super().__init__(*a, **k)
+            seen.append(self.member)
+    monkeypatch.setattr(rt, "DetectorBudget", Spy)
+    router_mod.list_definitions(user={"id": "u-route", "role": "admin", "plan": "premium"},
+                                graph=False, engine=None)
+    assert seen == ["u-route"]
+    src = (ROOT / "api" / "routers" / "user_definitions.py").read_text(encoding="utf-8")
+    assert src.count('DetectorBudget(member=str(user["id"]))') == 2       # list AND history
+
+
+def test_FL3_a_quarantined_script_at_the_save_door_says_PAUSED_not_busy(worker, monkeypatch):
+    monkeypatch.setattr(pcw, "CALL_TIMEOUT_S", 0.5)
+    monkeypatch.setenv(rt.SAVE_ENV, "1")
+    monkeypatch.setenv(rt.STAGE_ENV, "admins")
+    _no_inline(monkeypatch)
+    src = HANG + "// save\n"
+    with pytest.raises(rt.CapabilityCheckPaused, match="temporarily paused after repeated failures; try again later"):
+        svc.save(USER, ADX["id"], member_doc(src), role="admin")
+    assert svc.get(USER, ADX["id"]) is None                                 # nothing stored
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from api.middleware.auth_middleware import get_current_user_with_plan
+    app = FastAPI()
+    app.include_router(router_mod.router)
+    app.dependency_overrides[get_current_user_with_plan] = lambda: {"id": USER, "role": "admin", "plan": "premium"}
+    r = TestClient(app).post("/api/user-definitions", json={"definition": member_doc(src)})
+    assert r.status_code == 503 and r.headers.get("Retry-After") == "600"
+    assert "temporarily paused" in r.json()["detail"] and r.json()["retryable"] is True
+
+
+def test_FL3_a_busy_gate_still_says_busy_with_a_short_retry(worker, monkeypatch):
+    monkeypatch.setenv(rt.SAVE_ENV, "1")
+    monkeypatch.setenv(rt.STAGE_ENV, "admins")
+    _no_inline(monkeypatch)
+    holder = _hold_gate(rt.SAVE_WAIT_SECONDS + 1.0)
+    try:
+        with pytest.raises(rt.CapabilityCheckBusy) as exc:
+            svc.save(USER, ADX["id"], member_doc(), role="admin")
+        assert not isinstance(exc.value, rt.CapabilityCheckPaused)
+        assert "try again in a moment" in str(exc.value) and exc.value.retry_after == 2
+    finally:
+        holder.join(10)

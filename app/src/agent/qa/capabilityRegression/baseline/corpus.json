@@ -12022,7 +12022,18 @@
         "refusal": false
       },
       "phrasings": [
-        {"text": "how is that one set right now", "gaps": {"a": {"id": "GAP-WIDGET-READ-ROUTE", "router": "v1", "reason": "v1 ONLY (the kill-switch fallback): boardEdit has no v1 words in this message (workspace + agent only); the model can still ask for the group (need_groups). Routing v2 (production) reaches it since the budget-cut tie rule (routingV2.js TIE)", "owner": "agent-lead", "mode": "\"how is that one set right now\" → widget.readOptions"}}}
+        {
+          "text": "how is that one set right now",
+          "gaps": {
+            "a": {
+              "id": "GAP-WIDGET-READ-ROUTE",
+              "router": "v1",
+              "reason": "v1 ONLY (the kill-switch fallback): boardEdit has no v1 words in this message (workspace + agent only); the model can still ask for the group (need_groups). Routing v2 (production) reaches it since the budget-cut tie rule (routingV2.js TIE)",
+              "owner": "agent-lead",
+              "mode": "\"how is that one set right now\" → widget.readOptions"
+            }
+          }
+        }
       ]
     },
     {
@@ -12575,6 +12586,49 @@
         "add the fib tool to my favourites",
         "star the fibonacci retracement tool",
         "put the fib tool on my favorites toolbar"
+      ]
+    },
+    {
+      "id": "rs.compare",
+      "source": "Phase 2 market intelligence (11-13): relative strength + sector / industry leadership, owner-style phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "rs.compare"
+      ],
+      "board": "ONE",
+      "needs": [
+        "rs.compare"
+      ],
+      "ownWords": [
+        "rs"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "rs.compare",
+            "target": "$stockData",
+            "args": {
+              "scope": "sectors",
+              "symbols": null,
+              "industry": null,
+              "period": "1M"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*rs\\.leadership.*\"scope\":\"sectors\",\"period\":\"1M\""
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "which sectors are leading this month",
+        "what are the strongest sectors over the last month",
+        "which sectors are lagging this month",
+        "show me sector leadership for the past month"
       ]
     }
   ],

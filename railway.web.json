@@ -30,6 +30,7 @@
       "app/src/components/chart/engine/ast/guardIdText.js",
       "app/src/components/chart/engine/ast/interpret.js",
       "app/src/components/chart/engine/ast/parse.js",
+      "app/src/components/chart/engine/ast/pineLibraryDeny.json",
       "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
       "app/src/components/chart/engine/ast/sentence.js",
       "app/src/components/chart/engine/ast/symbolScope.json",

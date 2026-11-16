@@ -32,6 +32,11 @@ from api.services import runtime_definitions as rt
 from api.services import user_definitions as svc
 
 ROOT = Path(__file__).resolve().parents[1]
+
+import sys  # noqa: E402
+
+sys.path.insert(0, str(ROOT / "tools" / "vendor_harness"))
+import licence_held  # noqa: E402 -- licence-held captures: read from the local store, skipped by name
 FIXTURE = ROOT / "tests" / "fixtures" / "runtime_documents" / "documents.json"
 DOCS = {d["slug"]: d for d in json.loads(FIXTURE.read_text(encoding="utf-8"))["documents"]}
 ADX = DOCS["adx-and-di-for-v4"]["definition"]
@@ -41,11 +46,11 @@ USER = "u-capadmit"
 #: ⭐ THE CASE THIS SLICE EXISTS FOR: the graded ADX script with one comment line added, as a
 #: member's own copy would be. Same capabilities, a different sha256, so the allowlist misses it.
 MEMBER_COPY = ADX["compute"]["source"] + "\n// my own copy\n"
-#: A script using a capability the committed registry does NOT admit (`udt`: one script's evidence,
-#: U3 2026-11-15). Was a `switch` script until U3 admitted `switch` on S1's second community script.
-UNADMITTED_CAP = "udt"
-UNADMITTED_SCRIPT = ("//@version=5\nindicator('u')\ntype P\n    float v\n"
-                     "p = P.new(close)\nplot(p.v)\n")
+#: A script using a capability the committed registry does NOT admit (`collections:matrix`: no
+#: runtime-drawn MATCH capture). It was `switch` until U3 admitted switch, then `udt` until U3b did.
+UNADMITTED_CAP = "collections:matrix"
+UNADMITTED_SCRIPT = ("//@version=5\nindicator('u')\nm = matrix.new<float>(2, 2, close)\n"
+                     "plot(close)\n")
 
 
 def member_doc(source: str = MEMBER_COPY) -> dict:
@@ -127,7 +132,10 @@ def test_the_committed_admitted_set_is_the_evidence_supported_one():
         "obj:line", "obj:label", "obj:delete", "obj:collection",
         # U3 (2026-11-15): each on the one evidence rule over the S1-era corpus; realtime-state for
         # closed-bar history only (G6); max_bars_back by coordinator ruling (a)
-        "obj:getter", "obj:linefill", "switch", "for-in", "max_bars_back", "realtime-state",
+        # (obj:linefill withdrawn in U3b: no x-graded linefill capture since U13)
+        "obj:getter", "switch", "for-in", "max_bars_back", "realtime-state",
+        # U3b (2026-11-15): S20 supplied the second community scripts; calc-bars HELD (non-binding windows)
+        "udt", "generics",
         # coordinator rulings 2026-11-13: the one evidence rule, no exceptions in either direction;
         # distinct script families, at least one community script (generics: probes only, out);
         # the array namespace on its own evidence (matrix and map have none)
@@ -263,8 +271,12 @@ def test_C3_an_id_outside_the_vocabulary_counts_missing(tmp_path, monkeypatch, o
         rt._reset_capability_cache(persisted=True)
 
 
-def test_C1_a_matrix_or_map_script_is_withheld(on):
+def test_C1_a_matrix_or_map_script_is_withheld(on, monkeypatch):
     """The collection namespaces are admitted on their own evidence: matrix and map have none."""
+    # fresh detector runs back to back: this rail is admission POLICY, not the duty cycle (the GATE
+    # rails test the cool-down). Without this the 2nd run can land inside the 1st one's cool-down
+    # (2 x its run time, no floor) and answer pending: red on every Linux runner, green on Windows.
+    monkeypatch.setattr(rt, "DETECTOR_DUTY_CYCLE", 1.0)
     for body, cap in (("m = matrix.new<float>(2, 2)\n", "collections:matrix"),
                       ("var mp = map.new<string, float>()\n", "collections:map")):
         ok, missing = rt.capability_admitted(MEMBER_COPY + body)
@@ -402,7 +414,7 @@ def test_A7_an_x_grade_that_DIVERGES_vetoes_the_family():
 #: U1 (2026-11-15): the object families admitted on objects v2 runtime-on evidence (y graded, G1).
 U1_OBJECT_FAMILIES = ["obj:collection", "obj:delete", "obj:label", "obj:line"]
 #: U3 (2026-11-15): two more object operations met the rule on S1's community scripts.
-U3_OBJECT_FAMILIES = ["obj:getter", "obj:linefill"]
+U3_OBJECT_FAMILIES = ["obj:getter"]   # obj:linefill withdrawn in U3b (test_U3b_...)
 
 
 def test_A7_the_committed_object_families_are_U1s_four_and_U3s_two():
@@ -434,13 +446,47 @@ def test_A7_obj_box_waits_for_version_aware_object_defaults():
     assert "obj:box" in pc.capabilities_of(src)
 
 
+def test_U3b_linefill_is_withdrawn_until_an_x_graded_capture_carries_it():
+    """U3b: the three linefill captures U3 admitted on were taken before the x table and now grade
+    objects v2 INCONCLUSIVE, so no evidence is left; the row is gone and the readme says why."""
+    doc = json.loads(Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))
+    assert "obj:linefill" not in doc["capabilities"]
+    assert "obj:linefill is WITHDRAWN" in " ".join(doc["_readme"])
+    v = _verdicts()
+    for cid in ("trend-targets-algoalpha-rddt-1d-2026-10-02", "trend-targets-algoalpha-spy-1d-2026-10-02",
+                "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-14"):
+        assert v[cid]["objectsV2"]["verdict"] != "MATCH", cid
+
+
+#: U3b: calc-bars is HELD. Its evidence passes the count, but a window the chart never exceeds
+#: witnesses nothing: the picture is the same whether calc_bars_count is honoured or ignored.
+CALC_BARS_BINDING_ONLY = "wyckoff-accumulation-distribution-spy-1d-2026-10-02"
+
+
+def test_U3b_calc_bars_is_held_while_one_script_runs_past_its_window():
+    import re
+    doc = json.loads(Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))
+    assert "calc-bars" not in doc["capabilities"]
+    readme = " ".join(doc["_readme"])
+    assert "calc-bars is HELD" in readme and CALC_BARS_BINDING_ONLY in readme
+    # the measurement the hold rests on: Sweep Reversal Map's window is wider than both charts
+    for cid in ("high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15",
+                "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15",
+                CALC_BARS_BINDING_ONLY):
+        cap = json.loads((ROOT / _verdicts()[cid]["file"]).read_text(encoding="utf-8"))
+        window = int(re.search(r"calc_bars_count\s*=\s*(\d+)", cap["source"]["text"]).group(1))
+        binding = window < len(cap["bars"]["rows"])
+        assert binding is (cid == CALC_BARS_BINDING_ONLY), (cid, window, len(cap["bars"]["rows"]))
+
+
 def test_A7_a_box_drawing_member_script_is_withheld(on):
     src = MEMBER_COPY + "var box b = na" + chr(10) + "b := box.new(bar_index - 1, high, bar_index, low)" + chr(10)
     ok, missing = rt.capability_admitted(src)
     assert not ok and missing == ["obj:box"], missing
 
 
-def test_A7_an_object_drawing_member_script_is_withheld_while_its_family_is(on):
+def test_A7_an_object_drawing_member_script_is_withheld_while_its_family_is(on, monkeypatch):
+    monkeypatch.setattr(rt, "DETECTOR_DUTY_CYCLE", 1.0)   # two fresh runs; a policy rail, not the cool-down
     src = MEMBER_COPY + "var table t = table.new(position.top_right, 1, 1)\n"
     ok, missing = rt.capability_admitted(src)
     assert not ok and "obj:table" in missing
@@ -533,8 +579,8 @@ def _phantoms(registry: dict) -> list:
                 bad.append((cap, cid, "names another script"))
             if e.get("community") is not community:
                 bad.append((cap, cid, "states the wrong community flag"))
-            fixture = ROOT / r["file"]
-            if not fixture.is_file():
+            fixture = licence_held.fixture_path(r["file"])
+            if fixture is None or not fixture.is_file():
                 bad.append((cap, cid, "no fixture"))
                 continue
             text = (json.loads(fixture.read_text(encoding="utf-8")).get("source") or {}).get("text")
@@ -542,14 +588,35 @@ def _phantoms(registry: dict) -> list:
                 bad.append((cap, cid, "the capture's script does not use it"))
             if cap.startswith(rg.PINE_CAPABILITY_OBJECT_PREFIX):
                 bad += [(cap, cid, why) for why in _object_evidence_problems(cap, e, r)]
+                sha = rt.source_hash(text)
+                if sha in _x_vetoed_sources():
+                    bad.append((cap, cid, "its script has a capture whose x DIVERGES"))
+                if sha in rt.committed_kills():
+                    bad.append((cap, cid, "its script is on the kill list"))
     return bad
+
+
+def _x_vetoed_sources() -> set:
+    """Coordinator ruling 2026-11-15: ONE capture whose x DIVERGES vetoes its SCRIPT (by source sha256)
+    as evidence for every object family: the same source draws the same way on every chart."""
+    out = set()
+    for r in _verdicts().values():
+        if _x_verdict(r.get("objectsV2") or {}) != "DIVERGE":
+            continue
+        at = licence_held.fixture_path(r["file"])
+        try:
+            text = (json.loads((at or ROOT / r["file"]).read_text(encoding="utf-8")).get("source") or {}).get("text")
+        except (OSError, ValueError):
+            continue
+        if isinstance(text, str):
+            out.add(rt.source_hash(text))
+    return out
 
 
 #: The objects v2 family whose OWN paired records witness an object capability; the operations
 #: (delete, collection, getter) are witnessed by every paired record of the capture.
 OBJECT_FAMILY_OF = {"obj:line": "lines", "obj:label": "labels", "obj:box": "boxes", "obj:table": "tables",
                     "obj:linefill": "linefills"}
-X_GRADES = ROOT / "docs" / "pine" / "evidence" / "2026-11-15-u1-u3-admission" / "runs" / "x-grades.json"
 
 
 def _object_evidence_problems(cap: str, e: dict, r: dict) -> list:
@@ -566,12 +633,79 @@ def _object_evidence_problems(cap: str, e: dict, r: dict) -> list:
     want = by.get(OBJECT_FAMILY_OF[cap], 0) if cap in OBJECT_FAMILY_OF else sum(by.values())
     if e.get("objectsPaired") != want or not want:
         out.append(f"states {e.get('objectsPaired')} paired records; the verdict pairs {want}")
-    if "objectsX" in e:
-        grades = {g["of"]: g for g in json.loads(X_GRADES.read_text(encoding="utf-8"))["grades"]}
-        xg = grades.get(r["id"])
-        if not xg or xg.get("verdict") != e.get("objectsX") or xg.get("capture") != e.get("objectsXCapture"):
-            out.append("its x grade is not the committed x-grade record")
+    # U3b: since U13 (#1335) the verdict grades x itself; an entry's objectsX IS that verdict's x answer
+    if e.get("objectsX") != _x_verdict(o):
+        out.append(f"states x {e.get('objectsX')}; the verdict's x is {_x_verdict(o)}")
     return out
+
+
+def _x_verdict(o: dict):
+    """The x answer of one objects v2 grade: DIVERGE on any x difference, MATCH when x was graded and
+    nothing was missing, INCONCLUSIVE when some x could not be graded, None when none was."""
+    x = o.get("x") or {}
+    if not x.get("graded"):
+        return None
+    return "DIVERGE" if x.get("differing") else ("INCONCLUSIVE" if x.get("missing") else "MATCH")
+
+
+# ═══ RT1 — the committed kill list (2026-11-15) ════════════════════════════════
+
+KILL_DOC = ROOT / "api" / "data" / "pine_runtime_killlist.json"
+
+
+def test_RT1_every_committed_kill_is_held_to_its_graded_evidence():
+    """Each entry names a committed capture of THAT source whose runtime-on grade is not MATCH, a reason
+    in the member's words, and the condition that lifts it."""
+    doc = json.loads(KILL_DOC.read_text(encoding="utf-8"))
+    assert doc["scripts"], "the committed kill list is empty"
+    v = _verdicts()
+    for s in doc["scripts"]:
+        ev = s["evidence"]
+        r = v[ev["capture"]]
+        assert r["verdict"] == ev["verdict"] != "MATCH", (s["slug"], r["verdict"])
+        text = json.loads((ROOT / r["file"]).read_text(encoding="utf-8"))["source"]["text"]
+        assert rt.source_hash(text) == s["sha256"], s["slug"]
+        assert rt.source_hash((ROOT / s["source"]).read_text(encoding="utf-8")) == s["sha256"], s["slug"]
+        assert s["reason"] and s["liftWhen"], s["slug"]
+        assert s["sha256"] in rt.kill_list()
+
+
+def test_RT1_trend_targets_is_refused_by_name_at_every_door(store, monkeypatch, on):
+    src = (ROOT / "corpus" / "committed" / "trend-targets-algoalpha__92ff5628d7.pine").read_text(encoding="utf-8")
+    why = rt.killed(None, src)
+    assert why and "wrong bar against TradingView" in why, why
+    assert rt.runtime_admission(src, member="u-x")["admitted"] is False
+    body = _client().get("/api/user-definitions/runtime-kill").json()
+    assert rt.source_hash(src) in body["kill"]
+    # CONTROL: its SPY capture MATCHes and its plot capabilities are admitted; only the kill refuses it
+    assert _verdicts()["trend-targets-algoalpha-spy-1d-2026-11-15"]["verdict"] == "MATCH"
+
+
+def test_RT1_a_broken_committed_file_kills_nothing_extra(tmp_path, monkeypatch):
+    for content in ("{ not json", "[]", '{"scripts": [{"sha256": "zz"}]}'):
+        f = tmp_path / "kill.json"
+        f.write_text(content, encoding="utf-8")
+        monkeypatch.setattr(rt, "KILLLIST_PATH", str(f))
+        assert rt.committed_kills() == {}, content
+    monkeypatch.setenv(rt.KILL_ENV, "a" * 64)
+    assert rt.kill_list() == ["a" * 64]
+
+
+def test_A8_a_script_with_an_x_DIVERGE_capture_is_evidence_for_no_object_family():
+    """The rail can fail: trend-targets (x DIVERGES on RDDT, s28) named as obj:line evidence on its
+    SPY capture, which on its own grades MATCH with x."""
+    v = _verdicts()
+    good = "trend-targets-algoalpha-spy-1d-2026-11-15"
+    r = v[good]
+    fam, comm = rg.pine_evidence_script(r["script"], good)
+    o = r["objectsV2"]
+    lines = next(f["paired"] for f in o["families"] if f["family"] == "lines")
+    fake = {"obj:line": {"admitted": True, "evidence": [
+        {"capture": good, "script": fam, "community": comm, "verdict": "MATCH", "runtimePane": "on",
+         "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": lines, "objectsX": _x_verdict(o)}]}}
+    got = {why for _c, _id, why in _phantoms(fake)}
+    assert "its script has a capture whose x DIVERGES" in got, got
+    assert "its script is on the kill list" in got, got
 
 
 def test_A8_no_phantom_evidence():
@@ -603,11 +737,11 @@ def test_A8_the_rail_can_fail():
     fe, ce = rg.pine_evidence_script(v[empty]["script"], empty)
     fake["obj:delete"] = {"admitted": True, "evidence": [
         {"capture": empty, "script": fe, "community": ce, "objectsV2": "MATCH", "objectsPaired": 3,
-         "objectsX": "MATCH", "objectsXCapture": "no-such-recapture"}]}
+         "objectsX": "MATCH"}]}
     got = {(c, why) for c, _id, why in _phantoms(fake)}
     assert ("obj:delete", "its objects v2 MATCH paired nothing") in got
     assert ("obj:delete", "states 3 paired records; the verdict pairs 0") in got
-    assert ("obj:delete", "its x grade is not the committed x-grade record") in got
+    assert ("obj:delete", "states x MATCH; the verdict's x is None") in got
     assert ("for", "no such capture in the runtime-on verdicts") in got
     assert ("for", "runtime-on verdict is DIVERGE") in got
     assert ("for", "names another script") in got
@@ -757,26 +891,44 @@ def reach_rule_violations(report: dict, rt_verdicts: dict, prod_verdicts: dict) 
     return out
 
 
-def _admitted_capture_ids() -> set:
+def _admitted_capture_ids(held_absent: dict | None = None) -> set:
     """The captures the committed registry admits, from the detector itself (not the serving path,
-    whose process-wide gate and cool-down answer "pending" between runs)."""
+    whose process-wide gate and cool-down answer "pending" between runs).
+
+    A licence-held capture (docs/pine/vendor-harness/licence-held.json) is read from the local
+    capture store; one that is not on this machine is recorded in `held_absent` {id: file}, so the
+    caller can say so by name rather than count it either way."""
     admitted = set(rt.admitted_capabilities()["admitted"])
     out = set()
     for r in _verdicts().values():
+        at = licence_held.fixture_path(r["file"])
+        if at is None and licence_held.entry(r["file"]) is not None:
+            if held_absent is not None:
+                held_absent[r["id"]] = r["file"]
+            continue
         try:
-            text = (json.loads((ROOT / r["file"]).read_text(encoding="utf-8")).get("source") or {}).get("text")
+            text = (json.loads((at or ROOT / r["file"]).read_text(encoding="utf-8")).get("source") or {}).get("text")
         except (OSError, ValueError):
             continue
-        if isinstance(text, str) and text.strip() and pc.capabilities_of(text) <= admitted:
+        if isinstance(text, str) and text.strip() and pc.capabilities_of(text) <= admitted \
+                and not rt.killed(None, text):
             out.add(r["id"])
     return out
 
 
 def test_REACH_the_committed_reach_run_is_the_committed_registrys():
     report = json.loads(REPORT.read_text(encoding="utf-8"))
-    assert {c["capture"] for c in report["captures"]} == _admitted_capture_ids()
+    held_absent: dict = {}
+    admitted = _admitted_capture_ids(held_absent)
+    # ⛔ A held capture that is not on this machine cannot be classified either way: it is taken
+    # out of BOTH sides, every other capture is still held to exact equality, and the test then
+    # SKIPS naming it (with its ledger verdict) instead of reporting a full pass.
+    assert {c["capture"] for c in report["captures"]} - set(held_absent) == admitted
     assert report["stops"] == [] and report["matchToDiverge"] == []
     assert sum(1 for c in report["captures"] if c["lane"] == "runtime") >= 10   # not vacuous
+    if held_absent:
+        pytest.skip(f"the other {len(admitted)} admitted captures were verified equal; "
+                    + licence_held.note(sorted(held_absent.values())))
 
 
 def test_REACH_no_runtime_lane_DIVERGE_and_no_MATCH_to_DIVERGE():

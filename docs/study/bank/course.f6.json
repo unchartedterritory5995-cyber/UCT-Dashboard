@@ -694,7 +694,35 @@
    ],
    "kind": "mcq",
    "q": "You own 200 shares of XYZ and two standard XYZ 30 puts. If you exercise both puts, how much cash do you receive?",
-   "subject": "F6.01#q14"
+   "subject": "F6.01#q14",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Cash we receive"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "shares",
+      "key": "shares_we_own",
+      "label": "Shares we own",
+      "value": 200.0
+     },
+     {
+      "fmt": "count",
+      "key": "puts_we_exercise",
+      "label": "Puts we exercise",
+      "value": 2.0
+     },
+     {
+      "fmt": "$",
+      "key": "put_strike",
+      "label": "Put strike",
+      "value": 30.0
+     }
+    ],
+    "title": "The put exercise"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -2167,7 +2195,29 @@
    ],
    "kind": "mcq",
    "q": "A call is quoted at 1.50. What does one contract cost, before commissions?",
-   "subject": "F6.02#q04"
+   "subject": "F6.02#q04",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "One contract costs"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "call_quote,_per_shar",
+      "label": "Call quote, per share",
+      "value": 1.5
+     },
+     {
+      "fmt": "count",
+      "key": "contracts",
+      "label": "Contracts",
+      "value": 1.0
+     }
+    ],
+    "title": "The premium"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -2634,7 +2684,29 @@
    ],
    "kind": "mcq",
    "q": "You buy 3 call contracts quoted at 2.40. What's the total premium you pay, before commissions?",
-   "subject": "F6.02#q10"
+   "subject": "F6.02#q10",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Total premium paid"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "contracts",
+      "label": "Contracts",
+      "value": 3.0
+     },
+     {
+      "fmt": "$",
+      "key": "call_quote,_per_shar",
+      "label": "Call quote, per share",
+      "value": 2.4
+     }
+    ],
+    "title": "The premium"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -2767,7 +2839,35 @@
    "kind": "mcq",
    "q": "What's the net on this trade when it fills, before commissions?",
    "story": "You buy 2 calls at 3.10. In the same order, you sell 2 higher-strike calls at 1.25. Same stock, same expiry.",
-   "subject": "F6.02#q12"
+   "subject": "F6.02#q12",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Net when it fills"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "calls_bought_at",
+      "label": "Calls bought at",
+      "value": 3.1
+     },
+     {
+      "fmt": "$",
+      "key": "calls_sold_at",
+      "label": "Calls sold at",
+      "value": 1.25
+     },
+     {
+      "fmt": "count",
+      "key": "contracts_each_leg",
+      "label": "Contracts each leg",
+      "value": 2.0
+     }
+    ],
+    "title": "The spread order"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -2860,7 +2960,35 @@
    ],
    "kind": "mcq",
    "q": "You sell 1 put at 2.80 and buy 1 lower-strike put at 1.05, same expiry. What credit do you collect, before commissions?",
-   "subject": "F6.02#q13"
+   "subject": "F6.02#q13",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Credit we collect"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "put_sold_at",
+      "label": "Put sold at",
+      "value": 2.8
+     },
+     {
+      "fmt": "$",
+      "key": "lower_put_bought_at",
+      "label": "Lower put bought at",
+      "value": 1.05
+     },
+     {
+      "fmt": "count",
+      "key": "contracts",
+      "label": "Contracts",
+      "value": 1.0
+     }
+    ],
+    "title": "The put spread"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -2947,7 +3075,29 @@
    "kind": "mcq",
    "q": "If you sell to close now, what's your loss before commissions?",
    "story": "In June you buy a call for $500 in total. By September the call's market price is $300. You've lost faith in the trade.",
-   "subject": "F6.02#q14"
+   "subject": "F6.02#q14",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Our loss"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "paid_in_total",
+      "label": "Paid in total",
+      "value": 500.0
+     },
+     {
+      "fmt": "$",
+      "key": "market_price_now",
+      "label": "Market price now",
+      "value": 300.0
+     }
+    ],
+    "title": "The closing sale"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -3149,7 +3299,35 @@
    ],
    "kind": "mcq",
    "q": "You bought 4 calls at 1.20 and sold them at 2.05. What's your profit before commissions?",
-   "subject": "F6.02#q17"
+   "subject": "F6.02#q17",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Our profit"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "calls",
+      "label": "Calls",
+      "value": 4.0
+     },
+     {
+      "fmt": "$",
+      "key": "bought_at",
+      "label": "Bought at",
+      "value": 1.2
+     },
+     {
+      "fmt": "$",
+      "key": "sold_at",
+      "label": "Sold at",
+      "value": 2.05
+     }
+    ],
+    "title": "The round trip"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -3229,7 +3407,17 @@
    "kind": "mcq",
    "q": "If you sold it right back at the bid, what would you lose, before commissions?",
    "story": "A call shows bid 7.90, ask 8.00. You buy one contract at the ask. Nothing moves.",
-   "subject": "F6.02#q18"
+   "subject": "F6.02#q18",
+   "visual": {
+    "ask": 8.0,
+    "bid": 7.9,
+    "find": {
+     "as": "dollars",
+     "label": "What we lose"
+    },
+    "kind": "quote",
+    "title": "Buy at ask, sell at bid"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -3314,7 +3502,35 @@
    ],
    "kind": "mcq",
    "q": "Your account is $50,000. You buy 4 calls at 1.50 and they expire worthless. What percent of the account is gone, before commissions?",
-   "subject": "F6.02#q20"
+   "subject": "F6.02#q20",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Percent of account lost"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "account",
+      "label": "Account",
+      "value": 50000.0
+     },
+     {
+      "fmt": "count",
+      "key": "calls_bought",
+      "label": "Calls bought",
+      "value": 4.0
+     },
+     {
+      "fmt": "$",
+      "key": "price_each",
+      "label": "Call quote, per share",
+      "value": 1.5
+     }
+    ],
+    "title": "The premium at risk"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -3411,7 +3627,29 @@
    "kind": "mcq",
    "q": "If you buy it back here, what do you lose, before commissions?",
    "story": "You sell to open an XYZ 50 call for 4.00 without owning XYZ. A takeover bid sends XYZ to 69. The call now costs 19.00 to buy back.",
-   "subject": "F6.02#q21"
+   "subject": "F6.02#q21",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Our loss"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "sold_the_call_at",
+      "label": "Sold the call at",
+      "value": 4.0
+     },
+     {
+      "fmt": "$",
+      "key": "buy_it_back_at",
+      "label": "Buy it back at",
+      "value": 19.0
+     }
+    ],
+    "title": "The short call"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -3500,7 +3738,35 @@
    "kind": "mcq",
    "q": "Counting the call's cost, how much cash have you put into those 100 shares, before commissions?",
    "story": "You bought one 100-strike call for 2.50. At expiry it's in the money, and your broker exercises it.",
-   "subject": "F6.02#q22"
+   "subject": "F6.02#q22",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Cash put in"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "call_strike",
+      "label": "Call strike",
+      "value": 100.0
+     },
+     {
+      "fmt": "$",
+      "key": "call_cost,_per_share",
+      "label": "Call cost, per share",
+      "value": 2.5
+     },
+     {
+      "fmt": "shares",
+      "key": "shares_bought",
+      "label": "Shares bought",
+      "value": 100.0
+     }
+    ],
+    "title": "Exercised call"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -3588,7 +3854,20 @@
    ],
    "kind": "mcq",
    "q": "XYZ is at 50. You sell the 50 put for 3.00. If XYZ goes to zero, what do you lose, before commissions?",
-   "subject": "F6.02#q23"
+   "subject": "F6.02#q23",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "What we lose"
+    },
+    "kind": "payoff",
+    "option": "put",
+    "premium": 3.0,
+    "side": "short",
+    "strike": 50.0,
+    "title": "The short put at zero",
+    "underlying": 0.0
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -5649,7 +5928,35 @@
    "kind": "mcq",
    "q": "Your call finished in the money. What did the trade make or lose, per share?",
    "story": "You paid 5.00 for the 50 call. On expiry day the stock closes at 54.",
-   "subject": "F6.03#q21"
+   "subject": "F6.03#q21",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Made or lost"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "call_strike",
+      "label": "Call strike",
+      "value": 50.0
+     },
+     {
+      "fmt": "$",
+      "key": "premium_paid",
+      "label": "Premium paid",
+      "value": 5.0
+     },
+     {
+      "fmt": "$",
+      "key": "stock_at_expiry",
+      "label": "Stock at expiry",
+      "value": 54.0
+     }
+    ],
+    "title": "The call at expiry"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -7046,7 +7353,29 @@
    ],
    "kind": "mcq",
    "q": "Your call has a 0.45 delta. The stock rises $2, nothing else changes. About how much should the call gain, per share?",
-   "subject": "F6.04#q09"
+   "subject": "F6.04#q09",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Call's gain"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "call_delta",
+      "label": "Call delta",
+      "value": 0.45
+     },
+     {
+      "fmt": "$",
+      "key": "stock_rises",
+      "label": "Stock rises",
+      "value": 2.0
+     }
+    ],
+    "title": "The call and the move"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -7131,7 +7460,29 @@
    "kind": "mcq",
    "q": "What should the put do?",
    "story": "You own a put with a -0.40 delta. The stock rises $1. Nothing else changes.",
-   "subject": "F6.04#q10"
+   "subject": "F6.04#q10",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "What the put does"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "put_delta,_a_negativ",
+      "label": "Put delta, a negative",
+      "value": 0.4
+     },
+     {
+      "fmt": "$",
+      "key": "stock_rises",
+      "label": "Stock rises",
+      "value": 1.0
+     }
+    ],
+    "title": "The put and the move"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -7215,7 +7566,29 @@
    ],
    "kind": "mcq",
    "q": "A call has a 0.40 delta, and the contract covers 100 shares. About how many shares does it act like?",
-   "subject": "F6.04#q11"
+   "subject": "F6.04#q11",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "It acts like"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "call_delta",
+      "label": "Call delta",
+      "value": 0.4
+     },
+     {
+      "fmt": "shares",
+      "key": "shares_per_contract",
+      "label": "Shares per contract",
+      "value": 100.0
+     }
+    ],
+    "title": "One call contract"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -7300,7 +7673,29 @@
    "kind": "mcq",
    "q": "Looking at the call alone, what happens to your short call, per share?",
    "story": "You sold a call with a 0.35 delta. The stock rises $2. Nothing else changes.",
-   "subject": "F6.04#q12"
+   "subject": "F6.04#q12",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Our short call"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "short_call_delta",
+      "label": "Delta of the call we sold",
+      "value": 0.35
+     },
+     {
+      "fmt": "$",
+      "key": "stock_rises",
+      "label": "Stock rises",
+      "value": 2.0
+     }
+    ],
+    "title": "The short call and the move"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -7521,7 +7916,35 @@
    ],
    "kind": "mcq",
    "q": "You own 3 calls at a 0.55 delta. The stock rises $4, nothing else changes. About how much should the position gain?",
-   "subject": "F6.04#q15"
+   "subject": "F6.04#q15",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Position's gain"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "calls",
+      "label": "Calls",
+      "value": 3.0
+     },
+     {
+      "fmt": "count",
+      "key": "delta_each",
+      "label": "Delta each",
+      "value": 0.55
+     },
+     {
+      "fmt": "$",
+      "key": "stock_rises",
+      "label": "Stock rises",
+      "value": 4.0
+     }
+    ],
+    "title": "The calls and the move"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -8140,7 +8563,35 @@
    "kind": "mcq",
    "q": "For the next $1 move, how does your exposure compare with 300 shares?",
    "story": "You'd normally buy 300 shares. This time you buy 3 at-the-money calls, each with a 0.50 delta.",
-   "subject": "F6.04#q24"
+   "subject": "F6.04#q24",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "Exposure like"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "shares",
+      "key": "shares_we'd_buy",
+      "label": "Shares we'd buy",
+      "value": 300.0
+     },
+     {
+      "fmt": "count",
+      "key": "calls_bought",
+      "label": "Calls bought",
+      "value": 3.0
+     },
+     {
+      "fmt": "count",
+      "key": "delta_each",
+      "label": "Delta each",
+      "value": 0.5
+     }
+    ],
+    "title": "Calls against shares"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -8778,7 +9229,35 @@
    ],
    "kind": "mcq",
    "q": "An option with 60 days left is worth 2.60. Its theta is -0.04. Three days pass, nothing else changes. About what is it worth?",
-   "subject": "F6.05#q09"
+   "subject": "F6.05#q09",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Worth after"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "worth_now",
+      "label": "Worth now",
+      "value": 2.6
+     },
+     {
+      "fmt": "count",
+      "key": "theta,_a_daily_loss",
+      "label": "Theta, a daily loss",
+      "value": 0.04
+     },
+     {
+      "fmt": "count",
+      "key": "days_that_pass",
+      "label": "Days that pass",
+      "value": 3.0
+     }
+    ],
+    "title": "Theta's toll"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -8864,7 +9343,29 @@
    "kind": "mcq",
    "q": "About what does the quiet day cost your position?",
    "story": "You own 4 calls on a stock you expect to break out. Each shows theta -0.15. The stock and its implied volatility sit still all day.",
-   "subject": "F6.05#q10"
+   "subject": "F6.05#q10",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "The quiet day costs"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "calls",
+      "label": "Calls",
+      "value": 4.0
+     },
+     {
+      "fmt": "count",
+      "key": "theta_each,_a_loss",
+      "label": "Theta each, a loss a day",
+      "value": 0.15
+     }
+    ],
+    "title": "Theta's toll"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -9028,7 +9529,23 @@
    ],
    "kind": "mcq",
    "q": "Cboe's theta table: a 45 call is 1.71 with 35 days left and 0.76 with 7 days left. What did those four weeks cost, per share?",
-   "subject": "F6.05#q12"
+   "subject": "F6.05#q12",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "What those weeks cost"
+    },
+    "from": {
+     "label": "Call, 35 days left",
+     "value": 1.71
+    },
+    "kind": "move",
+    "title": "Four weeks of decay",
+    "to": {
+     "label": "Call, 7 days left",
+     "value": 0.76
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -9188,7 +9705,35 @@
    "kind": "mcq",
    "q": "Using delta and theta, roughly what does the call gain, per share?",
    "story": "You own a call with delta 0.40 and theta -0.05. Overnight the stock rises $1. Implied volatility doesn't change.",
-   "subject": "F6.05#q14"
+   "subject": "F6.05#q14",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Call's gain"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "delta",
+      "label": "Delta",
+      "value": 0.4
+     },
+     {
+      "fmt": "count",
+      "key": "theta,_a_loss",
+      "label": "Theta, a loss a day",
+      "value": 0.05
+     },
+     {
+      "fmt": "$",
+      "key": "stock_rises",
+      "label": "Stock rises",
+      "value": 1.0
+     }
+    ],
+    "title": "Delta and theta"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -9651,7 +10196,25 @@
    ],
    "kind": "mcq",
    "q": "A far out-of-the-money call expiring Friday costs 0.10. Its theta is -0.02. What share of its price does one day of decay take?",
-   "subject": "F6.05#q22"
+   "subject": "F6.05#q22",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Share of its price"
+    },
+    "kind": "share",
+    "part": {
+     "fmt": "$",
+     "label": "Theta, a loss a day",
+     "value": 0.02
+    },
+    "title": "One day of decay",
+    "whole": {
+     "fmt": "$",
+     "label": "Call's price",
+     "value": 0.1
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -10656,7 +11219,29 @@
    ],
    "kind": "mcq",
    "q": "Your call has a vega of 0.12. IV rises 4 points, nothing else changes. About how much does the call gain, per share?",
-   "subject": "F6.06#q10"
+   "subject": "F6.06#q10",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Call's gain"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "call_vega",
+      "label": "Call vega",
+      "value": 0.12
+     },
+     {
+      "fmt": "count",
+      "key": "iv_rises,_points",
+      "label": "IV rises, points",
+      "value": 4.0
+     }
+    ],
+    "title": "The call and the IV move"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -10733,7 +11318,35 @@
    ],
    "kind": "mcq",
    "q": "You hold one call with a vega of 0.08. IV drops 15 points after the news. About how much does that cost you, per contract?",
-   "subject": "F6.06#q12"
+   "subject": "F6.06#q12",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Cost per contract"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "call_vega",
+      "label": "Call vega",
+      "value": 0.08
+     },
+     {
+      "fmt": "count",
+      "key": "iv_drops,_points",
+      "label": "IV drops, points",
+      "value": 15.0
+     },
+     {
+      "fmt": "count",
+      "key": "calls_held",
+      "label": "Calls held",
+      "value": 1.0
+     }
+    ],
+    "title": "The call and the IV move"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -11194,7 +11807,53 @@
    "kind": "mcq",
    "q": "Using delta and vega, about what is the call worth at the open?",
    "story": "Day before earnings, stock at 100. A trader buys the 100 call, expiring next week, for $4.40. Delta 0.50, vega 0.05, IV 80%. The stock opens $3 higher and IV drops to 40%.",
-   "subject": "F6.06#q17"
+   "subject": "F6.06#q17",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Worth at the open"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "call_price",
+      "label": "Call price",
+      "value": 4.4
+     },
+     {
+      "fmt": "count",
+      "key": "delta",
+      "label": "Delta",
+      "value": 0.5
+     },
+     {
+      "fmt": "$",
+      "key": "stock_rises",
+      "label": "Stock rises",
+      "value": 3.0
+     },
+     {
+      "fmt": "count",
+      "key": "vega",
+      "label": "Vega",
+      "value": 0.05
+     },
+     {
+      "fmt": "%",
+      "key": "iv_before",
+      "label": "IV before",
+      "value": 80.0
+     },
+     {
+      "fmt": "%",
+      "key": "iv_after",
+      "label": "IV after",
+      "value": 40.0
+     }
+    ],
+    "title": "Delta and vega at the open"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -11464,7 +12123,35 @@
    "kind": "mcq",
    "q": "About how much value did the IV drop take from the put, per share?",
    "story": "From a Fidelity options webinar: a put bought before a report for $1.88 was worth $2.77 after it. Its IV fell from 94.38% to 33.23%. Vega was 0.0193.",
-   "subject": "F6.06#q20"
+   "subject": "F6.06#q20",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Value the drop took"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "%",
+      "key": "iv_before",
+      "label": "IV before",
+      "value": 94.38
+     },
+     {
+      "fmt": "%",
+      "key": "iv_after",
+      "label": "IV after",
+      "value": 33.23
+     },
+     {
+      "fmt": "count",
+      "key": "vega",
+      "label": "Vega",
+      "value": 0.0193
+     }
+    ],
+    "title": "The IV drop"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -12638,7 +13325,36 @@
    ],
    "kind": "mcq",
    "q": "A call has a delta of 0.45 and a gamma of 0.05. The stock rises $1. About what is the new delta?",
-   "subject": "F6.07#q08"
+   "subject": "F6.07#q08",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "New delta",
+     "unit": "delta"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "call_delta",
+      "label": "Call delta",
+      "value": 0.45
+     },
+     {
+      "fmt": "count",
+      "key": "gamma",
+      "label": "Gamma",
+      "value": 0.05
+     },
+     {
+      "fmt": "$",
+      "key": "stock_rises",
+      "label": "Stock rises",
+      "value": 1.0
+     }
+    ],
+    "title": "Gamma's step"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -12724,7 +13440,36 @@
    "kind": "mcq",
    "q": "About what is the put's delta now?",
    "story": "You own a put with a delta of -0.30 and a gamma of 0.05. The stock drops $1.",
-   "subject": "F6.07#q09"
+   "subject": "F6.07#q09",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Put's new delta",
+     "unit": "delta"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "put_delta,_a_negativ",
+      "label": "Put delta, a negative",
+      "value": 0.3
+     },
+     {
+      "fmt": "count",
+      "key": "gamma",
+      "label": "Gamma",
+      "value": 0.05
+     },
+     {
+      "fmt": "$",
+      "key": "stock_drops",
+      "label": "Stock drops",
+      "value": 1.0
+     }
+    ],
+    "title": "Gamma's step"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -12892,7 +13637,35 @@
    ],
    "kind": "mcq",
    "q": "Your call has a delta of 0.35 and a gamma of 0.04. The stock rises $1. One contract now acts like how many shares?",
-   "subject": "F6.07#q11"
+   "subject": "F6.07#q11",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "One contract acts like"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "call_delta",
+      "label": "Call delta",
+      "value": 0.35
+     },
+     {
+      "fmt": "count",
+      "key": "gamma",
+      "label": "Gamma",
+      "value": 0.04
+     },
+     {
+      "fmt": "$",
+      "key": "stock_rises",
+      "label": "Stock rises",
+      "value": 1.0
+     }
+    ],
+    "title": "Gamma's step"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -13720,8 +14493,18 @@
   "version": 1
  },
  {
+  "adjustment_basis": "index level",
   "answer_json": {
    "answer": "Short gamma kept adding exposure"
+  },
+  "asof": "2024-12-17",
+  "bars": {
+   "asof": "2024-12-17",
+   "forward": 5,
+   "source": "index",
+   "sym": "SPX",
+   "tf": "D",
+   "window": 320
   },
   "difficulty": 3,
   "id": "si_485bd55d7a16",
@@ -13729,6 +14512,13 @@
   "lesson_text": "Short gamma kept adding exposure. Near the money on expiry day, gamma is at its peak. Each drop pushed the puts' deltas toward -1.00, so each point down cost more until they got there. Time decay still worked for you as a seller, but it could not keep up. The Fed statement came out at 2:00 p.m. Eastern on December 18, 2024. The index quickly lost almost 3% and closed down 2.9%. Same-day put sellers likely faced significant losses. Short same-day options into a scheduled event can unravel within hours. Know that risk before you sell.",
   "module": "F6",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 5,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 120,
+    "window_bars": 320
+   },
    "choices": [
     "The puts' deltas shrank as it fell",
     "Short gamma kept adding exposure",
@@ -13844,6 +14634,7 @@
   "skill_id": "options.gamma",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F6/F6.07.json#q21",
+  "sym": "SPX",
   "type": "scenario",
   "version": 1
  },
@@ -14526,7 +15317,29 @@
    ],
    "kind": "mcq",
    "q": "A $50 stock has an implied volatility of 30%. What is its one-year, one standard deviation move?",
-   "subject": "F6.08#q05"
+   "subject": "F6.08#q05",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "One-year move"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "stock_price",
+      "label": "Stock price",
+      "value": 50.0
+     },
+     {
+      "fmt": "%",
+      "key": "implied_volatility",
+      "label": "Implied volatility",
+      "value": 30.0
+     }
+    ],
+    "title": "One standard deviation"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -14767,7 +15580,35 @@
    ],
    "kind": "mcq",
    "q": "A $100 stock has an implied volatility of 20%. Which one-year range holds about 95% of outcomes?",
-   "subject": "F6.08#q08"
+   "subject": "F6.08#q08",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Low end of the range"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "stock_price",
+      "label": "Stock price",
+      "value": 100.0
+     },
+     {
+      "fmt": "%",
+      "key": "implied_volatility",
+      "label": "Implied volatility",
+      "value": 20.0
+     },
+     {
+      "fmt": "%",
+      "key": "outcomes_in_the_rang",
+      "label": "Outcomes in the range",
+      "value": 95.0
+     }
+    ],
+    "title": "The 95% range"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -14865,7 +15706,35 @@
    ],
    "kind": "mcq",
    "q": "An $80 stock has an implied volatility of 35%. What is its one standard deviation move over the next 30 calendar days?",
-   "subject": "F6.08#q09"
+   "subject": "F6.08#q09",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "One standard deviation"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "stock_price",
+      "label": "Stock price",
+      "value": 80.0
+     },
+     {
+      "fmt": "%",
+      "key": "implied_volatility",
+      "label": "Implied volatility",
+      "value": 35.0
+     },
+     {
+      "fmt": "count",
+      "key": "calendar_days",
+      "label": "Calendar days",
+      "value": 30.0
+     }
+    ],
+    "title": "The 30-day move"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -14967,7 +15836,29 @@
    ],
    "kind": "mcq",
    "q": "A $48 stock has an implied volatility of 40%. Using the Rule of 16, what is one day's expected move?",
-   "subject": "F6.08#q10"
+   "subject": "F6.08#q10",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "One day's expected move"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "stock_price",
+      "label": "Stock price",
+      "value": 48.0
+     },
+     {
+      "fmt": "%",
+      "key": "implied_volatility",
+      "label": "Implied volatility",
+      "value": 40.0
+     }
+    ],
+    "title": "One day's move"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -15059,7 +15950,29 @@
    "kind": "mcq",
    "q": "What price range are the options pricing for the report?",
    "story": "A stock trades at $216.88 into its earnings report. The options price a move of $16.74 for the report, either way.",
-   "subject": "F6.08#q11"
+   "subject": "F6.08#q11",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "Low end of the range"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "stock_price",
+      "label": "Stock price",
+      "value": 216.88
+     },
+     {
+      "fmt": "$",
+      "key": "priced_move,_either_",
+      "label": "Priced move, either way",
+      "value": 16.74
+     }
+    ],
+    "title": "The earnings range"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -15219,7 +16132,29 @@
    ],
    "kind": "mcq",
    "q": "Same stock, same IV. The one-week expected move is $3. About what is the four-week move?",
-   "subject": "F6.08#q13"
+   "subject": "F6.08#q13",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Four-week move"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "one-week_expected_mo",
+      "label": "One-week expected move",
+      "value": 3.0
+     },
+     {
+      "fmt": "count",
+      "key": "weeks",
+      "label": "Weeks to scale to",
+      "value": 4.0
+     }
+    ],
+    "title": "Time scaling"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -15388,7 +16323,29 @@
    ],
    "kind": "mcq",
    "q": "A stock trades at $162.50 into tonight's report. The 162.50 straddle expiring tomorrow costs $8.30. Where does the priced range top out?",
-   "subject": "F6.08#q15"
+   "subject": "F6.08#q15",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "Top of the priced range"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "stock_price",
+      "label": "Stock price",
+      "value": 162.5
+     },
+     {
+      "fmt": "$",
+      "key": "straddle_cost",
+      "label": "Straddle cost",
+      "value": 8.3
+     }
+    ],
+    "title": "Stock and straddle"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -15501,7 +16458,36 @@
    "kind": "mcq",
    "q": "About how many one-day standard deviations is that move?",
    "story": "A $100 stock carries an implied volatility of 20%. Today it moves $7.",
-   "subject": "F6.08#q16"
+   "subject": "F6.08#q16",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Size in daily SDs",
+     "unit": "daily SDs"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "stock_price",
+      "label": "Stock price",
+      "value": 100.0
+     },
+     {
+      "fmt": "%",
+      "key": "implied_volatility",
+      "label": "Implied volatility",
+      "value": 20.0
+     },
+     {
+      "fmt": "$",
+      "key": "today's_move",
+      "label": "Today's move",
+      "value": 7.0
+     }
+    ],
+    "title": "Today's move"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -15787,7 +16773,35 @@
    "kind": "mcq",
    "q": "Using the Rule of 16, was it a big day against what its options price?",
    "story": "A $60 stock has an implied volatility of 32%. Today it's up $1.10. A friend calls it a big day.",
-   "subject": "F6.08#q19"
+   "subject": "F6.08#q19",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "A normal day's move"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "stock_price",
+      "label": "Stock price",
+      "value": 60.0
+     },
+     {
+      "fmt": "%",
+      "key": "implied_volatility",
+      "label": "Implied volatility",
+      "value": 32.0
+     },
+     {
+      "fmt": "$",
+      "key": "today's_move",
+      "label": "Today's move",
+      "value": 1.1
+     }
+    ],
+    "title": "A normal day"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -16096,7 +17110,35 @@
    "kind": "mcq",
    "q": "Using the Rule of 16, what does the IV tell you about that stop?",
    "story": "You buy a $40 stock with an implied volatility of 56%. You put your stop $0.90 below your entry.",
-   "subject": "F6.08#q23"
+   "subject": "F6.08#q23",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "One day's expected move"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "stock_price",
+      "label": "Stock price",
+      "value": 40.0
+     },
+     {
+      "fmt": "%",
+      "key": "implied_volatility",
+      "label": "Implied volatility",
+      "value": 56.0
+     },
+     {
+      "fmt": "$",
+      "key": "stop_below_entry",
+      "label": "Stop below entry",
+      "value": 0.9
+     }
+    ],
+    "title": "The stop against IV"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -17285,7 +18327,20 @@
    "kind": "mcq",
    "q": "You bought the 110 call. What percentage did it make?",
    "story": "A stock trades at 100. The 95 call costs 7.10, the 100 call 4.15 and the 110 call 1.00. It closes at 115 on expiry day.",
-   "subject": "F6.09#q14"
+   "subject": "F6.09#q14",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Percent made"
+    },
+    "kind": "payoff",
+    "option": "call",
+    "premium": 1.0,
+    "side": "long",
+    "strike": 110.0,
+    "title": "The 110 call at expiry",
+    "underlying": 115.0
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -17721,7 +18776,35 @@
    ],
    "kind": "mcq",
    "q": "You own shares bought at 50 and buy the 45 put for 0.55. Held to expiry, what's your worst-case loss per share?",
-   "subject": "F6.09#q20"
+   "subject": "F6.09#q20",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Worst-case loss"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "shares_bought_at",
+      "label": "Shares bought at",
+      "value": 50.0
+     },
+     {
+      "fmt": "$",
+      "key": "put_strike",
+      "label": "Put strike",
+      "value": 45.0
+     },
+     {
+      "fmt": "$",
+      "key": "put_cost",
+      "label": "Put cost",
+      "value": 0.55
+     }
+    ],
+    "title": "Shares plus a put"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -18148,7 +19231,35 @@
    ],
    "kind": "mcq",
    "q": "Your target is 110 by expiry. You buy the 110 call for 1.00. Held to expiry, how far past your target must the stock go to break even?",
-   "subject": "F6.09#q26"
+   "subject": "F6.09#q26",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Past target to break even"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "our_target",
+      "label": "Our target",
+      "value": 110.0
+     },
+     {
+      "fmt": "$",
+      "key": "call_strike",
+      "label": "Call strike",
+      "value": 110.0
+     },
+     {
+      "fmt": "$",
+      "key": "call_premium",
+      "label": "Call premium",
+      "value": 1.0
+     }
+    ],
+    "title": "Past the target"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -19177,7 +20288,30 @@
    ],
    "kind": "mcq",
    "q": "You buy a call with 45 days left for a 3-week plan. How many days will be left when the plan ends?",
-   "subject": "F6.10#q09"
+   "subject": "F6.10#q09",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Days left at the end",
+     "unit": "days"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "days_left_now",
+      "label": "Days left now",
+      "value": 45.0
+     },
+     {
+      "fmt": "count",
+      "key": "plan_length,_weeks",
+      "label": "Plan length, weeks",
+      "value": 3.0
+     }
+    ],
+    "title": "The plan's clock"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -19487,7 +20621,35 @@
    "kind": "mcq",
    "q": "You own one call with 30 days left and one with 50. The stock sits still for 20 days. Which loses more?",
    "story": "The stock sits at 50 and volatility holds steady. The Options Industry Council's model prices the at-the-money call at $2.95 with 50 days left, $2.28 with 30, and $1.32 with 10.",
-   "subject": "F6.10#q13"
+   "subject": "F6.10#q13",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "The 30-day call's loss"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "50_days_left",
+      "label": "50 days left",
+      "value": 2.95
+     },
+     {
+      "fmt": "$",
+      "key": "30_days_left",
+      "label": "30 days left",
+      "value": 2.28
+     },
+     {
+      "fmt": "$",
+      "key": "10_days_left",
+      "label": "10 days left",
+      "value": 1.32
+     }
+    ],
+    "title": "At-the-money call prices"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -19675,7 +20837,23 @@
    ],
    "kind": "mcq",
    "q": "A 5-day at-the-money call costs $0.93. The 50-day one costs $2.95, with ten times the time. How many times the 5-day price is it?",
-   "subject": "F6.10#q15"
+   "subject": "F6.10#q15",
+   "visual": {
+    "find": {
+     "as": "times",
+     "label": "Times the 5-day price"
+    },
+    "from": {
+     "label": "5-day call",
+     "value": 0.93
+    },
+    "kind": "move",
+    "title": "Time and price",
+    "to": {
+     "label": "50-day call",
+     "value": 2.95
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -20338,7 +21516,29 @@
    "kind": "mcq",
    "q": "What changes if you buy the three weeklies instead?",
    "story": "You'll risk $300 on a breakout. One at-the-money call 60 days out costs $3.00, or $300 a contract. This Friday's at-the-money weekly costs $1.00, so you could buy three.",
-   "subject": "F6.10#q22"
+   "subject": "F6.10#q22",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Premium at risk"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "weekly_call_price",
+      "label": "Weekly call price",
+      "value": 1.0
+     },
+     {
+      "fmt": "count",
+      "key": "weeklies_bought",
+      "label": "Weeklies bought",
+      "value": 3.0
+     }
+    ],
+    "title": "The weeklies"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -21449,7 +22649,30 @@
    "kind": "mcq",
    "q": "How many contracts do you buy?",
    "story": "Your plan risks $750 on this trade. You treat the whole premium as the risk. The call you want costs 2.50.",
-   "subject": "F6.11#q15"
+   "subject": "F6.11#q15",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Contracts to buy",
+     "unit": "contract(s)"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "risk_we_accept",
+      "label": "Risk we accept",
+      "value": 750.0
+     },
+     {
+      "fmt": "$",
+      "key": "call_price,_per_shar",
+      "label": "Call price, per share",
+      "value": 2.5
+     }
+    ],
+    "title": "Sizing by premium"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -21690,7 +22913,41 @@
    "kind": "mcq",
    "q": "Which plan's worst case was fixed before the gap?",
    "story": "A stock sits at 50. Plan A: 100 shares, stop at 47. Plan B: one 50 call at 2.00. Overnight it gaps to 40.",
-   "subject": "F6.11#q19"
+   "subject": "F6.11#q19",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Plan B's premium paid"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "stock_price",
+      "label": "Stock price",
+      "value": 50.0
+     },
+     {
+      "fmt": "shares",
+      "key": "plan_a_shares",
+      "label": "Plan A shares",
+      "value": 100.0
+     },
+     {
+      "fmt": "$",
+      "key": "plan_a_stop",
+      "label": "Plan A stop",
+      "value": 47.0
+     },
+     {
+      "fmt": "$",
+      "key": "plan_b_call_price",
+      "label": "Plan B call price",
+      "value": 2.0
+     }
+    ],
+    "title": "Plan A or Plan B"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -21778,7 +23035,20 @@
    "kind": "mcq",
    "q": "What did the trade end up doing, per contract?",
    "story": "The stock is at 47. You buy the 50 call for 1.60. Two weeks later the stock is 58 and the call is 8.40. You hold for more, and at expiry the stock closes at 44.",
-   "subject": "F6.11#q20"
+   "subject": "F6.11#q20",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Premium per contract"
+    },
+    "kind": "payoff",
+    "option": "call",
+    "premium": 1.6,
+    "side": "long",
+    "strike": 50.0,
+    "title": "The 50 call at expiry",
+    "underlying": 44.0
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -22043,7 +23313,41 @@
    "kind": "mcq",
    "q": "What is likely to happen if you hold them through the close?",
    "story": "You own two 100-strike calls. It's expiry day, the stock is at 104, and your account holds $3,000 in cash.",
-   "subject": "F6.11#q23"
+   "subject": "F6.11#q23",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Cash if exercised"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "calls",
+      "label": "Calls",
+      "value": 2.0
+     },
+     {
+      "fmt": "$",
+      "key": "call_strike",
+      "label": "Call strike",
+      "value": 100.0
+     },
+     {
+      "fmt": "$",
+      "key": "stock_at_expiry",
+      "label": "Stock at expiry",
+      "value": 104.0
+     },
+     {
+      "fmt": "$",
+      "key": "cash_in_the_account",
+      "label": "Cash in the account",
+      "value": 3000.0
+     }
+    ],
+    "title": "Expiry day"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -22374,7 +23678,36 @@
    "kind": "mcq",
    "q": "You want calls that control the same number of shares. How many do you buy?",
    "story": "You'd normally buy 100 shares of a stock at 50, a $5,000 position. The six-month 50 call costs 5.00.",
-   "subject": "F6.11#q26"
+   "subject": "F6.11#q26",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Contracts to buy",
+     "unit": "contract(s)"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "stock_price",
+      "label": "Stock price",
+      "value": 50.0
+     },
+     {
+      "fmt": "shares",
+      "key": "shares_we'd_normally",
+      "label": "Shares we'd normally buy",
+      "value": 100.0
+     },
+     {
+      "fmt": "$",
+      "key": "call_price",
+      "label": "Call price",
+      "value": 5.0
+     }
+    ],
+    "title": "Calls for 100 shares"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -23449,7 +24782,28 @@
    ],
    "kind": "mcq",
    "q": "You buy the 60/65 call spread for 1.75. What's the most it can make at expiry, per spread?",
-   "subject": "F6.12#q10"
+   "subject": "F6.12#q10",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Most it can make"
+    },
+    "kind": "payoff",
+    "legs": [
+     {
+      "side": "long",
+      "strike": 60.0
+     },
+     {
+      "side": "short",
+      "strike": 65.0
+     }
+    ],
+    "net_debit": 1.75,
+    "option": "call",
+    "side": "long",
+    "title": "The 60/65 call spread"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -23545,7 +24899,29 @@
    ],
    "kind": "mcq",
    "q": "You sell 2 of the 30/35 call spreads for 1.40 each. What's the most you can lose at expiry?",
-   "subject": "F6.12#q11"
+   "subject": "F6.12#q11",
+   "visual": {
+    "contracts": 2.0,
+    "find": {
+     "as": "dollars",
+     "label": "Most we can lose"
+    },
+    "kind": "payoff",
+    "legs": [
+     {
+      "side": "long",
+      "strike": 35.0
+     },
+     {
+      "side": "short",
+      "strike": 30.0
+     }
+    ],
+    "net_debit": -1.4,
+    "option": "call",
+    "side": "short",
+    "title": "The 30/35 call spread, sold"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -23989,7 +25365,29 @@
    "kind": "mcq",
    "q": "What did one spread lose?",
    "story": "XYZ trades at 51. You sell the 50/45 put spread for 1.50. Bad news hits overnight, and XYZ gaps to 38 and stays there through expiry.",
-   "subject": "F6.12#q16"
+   "subject": "F6.12#q16",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "What one spread lost"
+    },
+    "kind": "payoff",
+    "legs": [
+     {
+      "side": "long",
+      "strike": 45.0
+     },
+     {
+      "side": "short",
+      "strike": 50.0
+     }
+    ],
+    "net_debit": -1.5,
+    "option": "put",
+    "side": "short",
+    "title": "The 50/45 put spread, sold",
+    "underlying": 38.0
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -24174,7 +25572,29 @@
    ],
    "kind": "mcq",
    "q": "Your plan risks $750. You sell the 25/20 put spread for 1.25. Fees aside, how many spreads keep the total max loss at $750?",
-   "subject": "F6.12#q18"
+   "subject": "F6.12#q18",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Spreads we can hold",
+     "unit": "spreads"
+    },
+    "kind": "payoff",
+    "legs": [
+     {
+      "side": "long",
+      "strike": 20.0
+     },
+     {
+      "side": "short",
+      "strike": 25.0
+     }
+    ],
+    "net_debit": -1.25,
+    "option": "put",
+    "side": "short",
+    "title": "The 25/20 put spread, sold"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -24808,7 +26228,29 @@
    ],
    "kind": "mcq",
    "q": "You sell the 55/50 put spread for 0.50. One max loss erases how many max wins?",
-   "subject": "F6.12#q26"
+   "subject": "F6.12#q26",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Max wins one max loss erases",
+     "unit": "wins"
+    },
+    "kind": "payoff",
+    "legs": [
+     {
+      "side": "long",
+      "strike": 50.0
+     },
+     {
+      "side": "short",
+      "strike": 55.0
+     }
+    ],
+    "net_debit": -0.5,
+    "option": "put",
+    "side": "short",
+    "title": "The 55/50 put spread, sold"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -25709,7 +27151,35 @@
    "kind": "mcq",
    "q": "How much cash do you set aside?",
    "story": "XYZ trades at 48. You sell one XYZ 45 put and want it cash-secured.",
-   "subject": "F6.13#q08"
+   "subject": "F6.13#q08",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Cash set aside"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "stock_price",
+      "label": "Stock price",
+      "value": 48.0
+     },
+     {
+      "fmt": "$",
+      "key": "put_strike",
+      "label": "Put strike",
+      "value": 45.0
+     },
+     {
+      "fmt": "count",
+      "key": "puts_sold",
+      "label": "Puts sold",
+      "value": 1.0
+     }
+    ],
+    "title": "The cash-secured put"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -25803,7 +27273,35 @@
    ],
    "kind": "mcq",
    "q": "You buy a stock at 48 and sell the 50 call for 1.50. What is the most you can make per share at expiry?",
-   "subject": "F6.13#q10"
+   "subject": "F6.13#q10",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Most we make"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "bought_the_stock_at",
+      "label": "Bought the stock at",
+      "value": 48.0
+     },
+     {
+      "fmt": "$",
+      "key": "call_strike",
+      "label": "Call strike",
+      "value": 50.0
+     },
+     {
+      "fmt": "$",
+      "key": "call_premium",
+      "label": "Call premium collected",
+      "value": 1.5
+     }
+    ],
+    "title": "The covered call"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -25931,7 +27429,29 @@
    ],
    "kind": "mcq",
    "q": "XYZ is at 47. You sell the 45 put for 1.20, and later you're assigned. What is your real cost per share?",
-   "subject": "F6.13#q12"
+   "subject": "F6.13#q12",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Our real cost"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "put_strike",
+      "label": "Put strike",
+      "value": 45.0
+     },
+     {
+      "fmt": "$",
+      "key": "premium_collected",
+      "label": "Premium collected",
+      "value": 1.2
+     }
+    ],
+    "title": "The assigned put"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -26137,7 +27657,29 @@
    ],
    "kind": "mcq",
    "q": "You buy a stock at 40 and sell a covered call for 1.50. What is the most you can lose per share?",
-   "subject": "F6.13#q15"
+   "subject": "F6.13#q15",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Most we can lose"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "bought_the_stock_at",
+      "label": "Bought the stock at",
+      "value": 40.0
+     },
+     {
+      "fmt": "$",
+      "key": "call_premium",
+      "label": "Call premium collected",
+      "value": 1.5
+     }
+    ],
+    "title": "The covered call"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -26405,7 +27947,29 @@
    "kind": "mcq",
    "q": "What do you take in per share for the shares and the call together?",
    "story": "You bought XYZ at 40 and sold the 42.50 call for 1.80. At expiry XYZ is at 49, and you're assigned.",
-   "subject": "F6.13#q18"
+   "subject": "F6.13#q18",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "What we take in"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "call_strike",
+      "label": "Call strike",
+      "value": 42.5
+     },
+     {
+      "fmt": "$",
+      "key": "call_premium",
+      "label": "Call premium collected",
+      "value": 1.8
+     }
+    ],
+    "title": "Assigned on the call"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -26500,7 +28064,41 @@
    "kind": "mcq",
    "q": "Do you sell the 45 call against your shares?",
    "story": "You just bought a breakout at 44. You think it can run to 54 over the next few weeks. The 45 call pays 3.",
-   "subject": "F6.13#q19"
+   "subject": "F6.13#q19",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "Sale price if called away"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "bought_the_breakout_",
+      "label": "Bought the breakout at",
+      "value": 44.0
+     },
+     {
+      "fmt": "$",
+      "key": "our_run_target",
+      "label": "Our run target",
+      "value": 54.0
+     },
+     {
+      "fmt": "$",
+      "key": "call_strike",
+      "label": "Call strike",
+      "value": 45.0
+     },
+     {
+      "fmt": "$",
+      "key": "call_premium",
+      "label": "Call premium we'd collect",
+      "value": 3.0
+     }
+    ],
+    "title": "The breakout and the call"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -26601,7 +28199,41 @@
    ],
    "kind": "mcq",
    "q": "Bought at 50, sold the 55 call for 2. The stock closes at 70 at expiry. How much more per share would the shares alone have made?",
-   "subject": "F6.13#q20"
+   "subject": "F6.13#q20",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Shares alone made more by"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "bought_at",
+      "label": "Bought at",
+      "value": 50.0
+     },
+     {
+      "fmt": "$",
+      "key": "call_strike",
+      "label": "Call strike",
+      "value": 55.0
+     },
+     {
+      "fmt": "$",
+      "key": "call_premium",
+      "label": "Call premium collected",
+      "value": 2.0
+     },
+     {
+      "fmt": "$",
+      "key": "stock_at_expiry",
+      "label": "Stock at expiry",
+      "value": 70.0
+     }
+    ],
+    "title": "Shares against the call"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -26684,7 +28316,35 @@
    "kind": "mcq",
    "q": "Against the market price, how much are you down per share?",
    "story": "XYZ is at 50. You sell the 50 put for 3. XYZ drops to 40, and you're assigned.",
-   "subject": "F6.13#q22"
+   "subject": "F6.13#q22",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "We are down"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "put_strike",
+      "label": "Put strike",
+      "value": 50.0
+     },
+     {
+      "fmt": "$",
+      "key": "premium_collected",
+      "label": "Premium collected",
+      "value": 3.0
+     },
+     {
+      "fmt": "$",
+      "key": "market_price_now",
+      "label": "Market price now",
+      "value": 40.0
+     }
+    ],
+    "title": "The assigned put"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -26930,7 +28590,35 @@
    "kind": "mcq",
    "q": "How did that do against just buying 100 shares at 48?",
    "story": "XYZ is at 48. You sell the 45 put for 1.20, hoping to buy a dip. It never dips and runs to 60 by expiry.",
-   "subject": "F6.13#q25"
+   "subject": "F6.13#q25",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Total premium collected"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "put_strike",
+      "label": "Put strike",
+      "value": 45.0
+     },
+     {
+      "fmt": "$",
+      "key": "premium_collected",
+      "label": "Premium collected",
+      "value": 1.2
+     },
+     {
+      "fmt": "shares",
+      "key": "shares_compared",
+      "label": "Shares compared",
+      "value": 100.0
+     }
+    ],
+    "title": "Put against shares"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -27861,7 +29549,35 @@
    ],
    "kind": "mcq",
    "q": "You buy the 50 call at 2.10 and the 50 put at 1.90. Before fees, what's the most one straddle can lose?",
-   "subject": "F6.14#q09"
+   "subject": "F6.14#q09",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Most one straddle can lose"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "strike,_both_options",
+      "label": "Strike, both options",
+      "value": 50.0
+     },
+     {
+      "fmt": "$",
+      "key": "call_bought_at",
+      "label": "Call bought at",
+      "value": 2.1
+     },
+     {
+      "fmt": "$",
+      "key": "put_bought_at",
+      "label": "Put bought at",
+      "value": 1.9
+     }
+    ],
+    "title": "The straddle"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -28027,7 +29743,41 @@
    ],
    "kind": "mcq",
    "q": "You buy the 210 call for 2.40 and the 190 put for 2.10. Where is the lower break-even at expiry?",
-   "subject": "F6.14#q11"
+   "subject": "F6.14#q11",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "Lower break-even"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "call_strike",
+      "label": "Call strike",
+      "value": 210.0
+     },
+     {
+      "fmt": "$",
+      "key": "call_premium",
+      "label": "Call premium",
+      "value": 2.4
+     },
+     {
+      "fmt": "$",
+      "key": "put_strike",
+      "label": "Put strike",
+      "value": 190.0
+     },
+     {
+      "fmt": "$",
+      "key": "put_premium",
+      "label": "Put premium",
+      "value": 2.1
+     }
+    ],
+    "title": "The strangle"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -28186,7 +29936,29 @@
    ],
    "kind": "mcq",
    "q": "You sell the March 60 call at 1.95 and buy the May 60 call at 3.10. Before fees, what's the most one spread can lose?",
-   "subject": "F6.14#q13"
+   "subject": "F6.14#q13",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Most one spread can lose"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "march_60_call_sold_a",
+      "label": "March 60 call sold at",
+      "value": 1.95
+     },
+     {
+      "fmt": "$",
+      "key": "may_60_call_bought_a",
+      "label": "May 60 call bought at",
+      "value": 3.1
+     }
+    ],
+    "title": "The calendar spread"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -28444,7 +30216,29 @@
    ],
    "kind": "mcq",
    "q": "Stock at 200. The 200 straddle costs 12.00. What percent move at expiry gets it back to even?",
-   "subject": "F6.14#q16"
+   "subject": "F6.14#q16",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Move needed to break even"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "stock_price",
+      "label": "Stock price",
+      "value": 200.0
+     },
+     {
+      "fmt": "$",
+      "key": "straddle_cost",
+      "label": "Straddle cost",
+      "value": 12.0
+     }
+    ],
+    "title": "The straddle's cost"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -28698,7 +30492,35 @@
    "kind": "mcq",
    "q": "What did the trade make or lose, per share?",
    "story": "A stock trades at 120 ahead of a court ruling. You buy the 120 straddle for 9.00 and hold it to expiry. It closes at 126.",
-   "subject": "F6.14#q19"
+   "subject": "F6.14#q19",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Made or lost"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "strike,_both_options",
+      "label": "Strike, both options",
+      "value": 120.0
+     },
+     {
+      "fmt": "$",
+      "key": "straddle_cost",
+      "label": "Straddle cost",
+      "value": 9.0
+     },
+     {
+      "fmt": "$",
+      "key": "stock_at_expiry",
+      "label": "Stock at expiry",
+      "value": 126.0
+     }
+    ],
+    "title": "The straddle at expiry"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -28901,7 +30723,41 @@
    "kind": "mcq",
    "q": "Fees aside, what's the result per share?",
    "story": "You buy the later 45 call and sell the near 50 call for a 3.80 debit. The stock runs to 70 by the near expiry. You're assigned on the 50 and exercise the 45 to cover.",
-   "subject": "F6.14#q21"
+   "subject": "F6.14#q21",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Result"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "later_call_bought,_s",
+      "label": "Later call bought, strike",
+      "value": 45.0
+     },
+     {
+      "fmt": "$",
+      "key": "near_call_sold,_stri",
+      "label": "Near call sold, strike",
+      "value": 50.0
+     },
+     {
+      "fmt": "$",
+      "key": "net_debit",
+      "label": "Net debit",
+      "value": 3.8
+     },
+     {
+      "fmt": "$",
+      "key": "stock_at_near_expiry",
+      "label": "Stock at near expiry",
+      "value": 70.0
+     }
+    ],
+    "title": "Assigned on the near call"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -29254,7 +31110,41 @@
    "kind": "mcq",
    "q": "If it's still at 140 at expiry, what is the trader's loss per share?",
    "story": "A trader sold the 110 call and the 90 put for 3.00 total. Overnight, a takeover bid sends the stock to 140.",
-   "subject": "F6.14#q25"
+   "subject": "F6.14#q25",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Our loss"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "call_sold,_strike",
+      "label": "Call sold, strike",
+      "value": 110.0
+     },
+     {
+      "fmt": "$",
+      "key": "put_sold,_strike",
+      "label": "Put sold, strike",
+      "value": 90.0
+     },
+     {
+      "fmt": "$",
+      "key": "credit_taken_in",
+      "label": "Credit taken in",
+      "value": 3.0
+     },
+     {
+      "fmt": "$",
+      "key": "stock_at_expiry",
+      "label": "Stock at expiry",
+      "value": 140.0
+     }
+    ],
+    "title": "The short strangle"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -29420,7 +31310,36 @@
    ],
    "kind": "mcq",
    "q": "Account $100,000, risk 1% a trade. Our stop on an option is the premium paid. A straddle costs $450 a contract. How many can you buy?",
-   "subject": "F6.14#q27"
+   "subject": "F6.14#q27",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Contracts we can buy",
+     "unit": "contracts"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "account",
+      "label": "Account",
+      "value": 100000.0
+     },
+     {
+      "fmt": "%",
+      "key": "risk_a_trade",
+      "label": "Risk a trade",
+      "value": 1.0
+     },
+     {
+      "fmt": "$",
+      "key": "straddle_cost,_a_con",
+      "label": "Straddle cost, a contract",
+      "value": 450.0
+     }
+    ],
+    "title": "Sizing by premium"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -30451,7 +32370,29 @@
    ],
    "kind": "mcq",
    "q": "You sell 2 iron condors for a 1.40 credit each. What is your maximum profit?",
-   "subject": "F6.15#q09"
+   "subject": "F6.15#q09",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Maximum profit"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "condors_sold",
+      "label": "Condors sold",
+      "value": 2.0
+     },
+     {
+      "fmt": "$",
+      "key": "credit_each",
+      "label": "Credit each",
+      "value": 1.4
+     }
+    ],
+    "title": "The iron condors"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -30528,7 +32469,47 @@
    ],
    "kind": "mcq",
    "q": "Buy the 45 put, sell the 50 put, sell the 60 call, buy the 65 call. Credit 1.60. What's the max loss per share?",
-   "subject": "F6.15#q10"
+   "subject": "F6.15#q10",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Max loss"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "put_bought,_strike",
+      "label": "Put bought, strike",
+      "value": 45.0
+     },
+     {
+      "fmt": "$",
+      "key": "put_sold,_strike",
+      "label": "Put sold, strike",
+      "value": 50.0
+     },
+     {
+      "fmt": "$",
+      "key": "call_sold,_strike",
+      "label": "Call sold, strike",
+      "value": 60.0
+     },
+     {
+      "fmt": "$",
+      "key": "call_bought,_strike",
+      "label": "Call bought, strike",
+      "value": 65.0
+     },
+     {
+      "fmt": "$",
+      "key": "credit",
+      "label": "Credit",
+      "value": 1.6
+     }
+    ],
+    "title": "The iron condor"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -30716,7 +32697,47 @@
    ],
    "kind": "mcq",
    "q": "You sell the 80 put and the 90 call, with wings at 75 and 95, for a 1.85 credit. What's the upper break-even at expiry?",
-   "subject": "F6.15#q12"
+   "subject": "F6.15#q12",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "Upper break-even"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "put_sold,_strike",
+      "label": "Put sold, strike",
+      "value": 80.0
+     },
+     {
+      "fmt": "$",
+      "key": "call_sold,_strike",
+      "label": "Call sold, strike",
+      "value": 90.0
+     },
+     {
+      "fmt": "$",
+      "key": "put_wing,_strike",
+      "label": "Put wing, strike",
+      "value": 75.0
+     },
+     {
+      "fmt": "$",
+      "key": "call_wing,_strike",
+      "label": "Call wing, strike",
+      "value": 95.0
+     },
+     {
+      "fmt": "$",
+      "key": "credit",
+      "label": "Credit",
+      "value": 1.85
+     }
+    ],
+    "title": "The iron condor"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -30794,7 +32815,47 @@
    "kind": "mcq",
    "q": "Where are your two break-evens at expiry?",
    "story": "A stock trades at 50. You sell the 50 call and the 50 put, and buy the 45 put and the 55 call. You collect 3.20.",
-   "subject": "F6.15#q13"
+   "subject": "F6.15#q13",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "Upper of the two break-evens"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "stock_price",
+      "label": "Stock price",
+      "value": 50.0
+     },
+     {
+      "fmt": "$",
+      "key": "call_and_put_sold,_s",
+      "label": "Call and put sold, strike",
+      "value": 50.0
+     },
+     {
+      "fmt": "$",
+      "key": "put_bought,_strike",
+      "label": "Put bought, strike",
+      "value": 45.0
+     },
+     {
+      "fmt": "$",
+      "key": "call_bought,_strike",
+      "label": "Call bought, strike",
+      "value": 55.0
+     },
+     {
+      "fmt": "$",
+      "key": "credit",
+      "label": "Credit",
+      "value": 3.2
+     }
+    ],
+    "title": "The iron butterfly"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -30878,7 +32939,41 @@
    ],
    "kind": "mcq",
    "q": "You buy one 40 call, sell two 45 calls and buy one 50 call, for 1.10. What's the max profit per share at expiry?",
-   "subject": "F6.15#q14"
+   "subject": "F6.15#q14",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Max profit"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "lower_call_bought",
+      "label": "Lower call bought, strike",
+      "value": 40.0
+     },
+     {
+      "fmt": "$",
+      "key": "two_calls_sold",
+      "label": "Two calls sold, strike",
+      "value": 45.0
+     },
+     {
+      "fmt": "$",
+      "key": "upper_call_bought",
+      "label": "Upper call bought, strike",
+      "value": 50.0
+     },
+     {
+      "fmt": "$",
+      "key": "net_debit",
+      "label": "Net debit",
+      "value": 1.1
+     }
+    ],
+    "title": "The call butterfly"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -30973,7 +33068,53 @@
    ],
    "kind": "mcq",
    "q": "3 iron condors: buy the 95 put, sell the 100 put, sell the 110 call, buy the 120 call. Credit 2.50 each. Max loss?",
-   "subject": "F6.15#q15"
+   "subject": "F6.15#q15",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Max loss"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "condors_sold",
+      "label": "Condors sold",
+      "value": 3.0
+     },
+     {
+      "fmt": "$",
+      "key": "put_bought,_strike",
+      "label": "Put bought, strike",
+      "value": 95.0
+     },
+     {
+      "fmt": "$",
+      "key": "put_sold,_strike",
+      "label": "Put sold, strike",
+      "value": 100.0
+     },
+     {
+      "fmt": "$",
+      "key": "call_sold,_strike",
+      "label": "Call sold, strike",
+      "value": 110.0
+     },
+     {
+      "fmt": "$",
+      "key": "call_bought,_strike",
+      "label": "Call bought, strike",
+      "value": 120.0
+     },
+     {
+      "fmt": "$",
+      "key": "credit_each",
+      "label": "Credit each",
+      "value": 2.5
+     }
+    ],
+    "title": "The iron condors"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -31207,7 +33348,47 @@
    "kind": "mcq",
    "q": "What is the max loss on this one condor?",
    "story": "Schwab's example from April 7, 2026: SPX near 6,560. Sell the 6,960 call, buy the 7,060 call. Sell the 6,160 put, buy the 6,060 put. Max profit is $2,915.",
-   "subject": "F6.15#q18"
+   "subject": "F6.15#q18",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Max loss"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "call_sold,_strike",
+      "label": "Call sold, strike",
+      "value": 6960.0
+     },
+     {
+      "fmt": "count",
+      "key": "call_bought,_strike",
+      "label": "Call bought, strike",
+      "value": 7060.0
+     },
+     {
+      "fmt": "count",
+      "key": "put_sold,_strike",
+      "label": "Put sold, strike",
+      "value": 6160.0
+     },
+     {
+      "fmt": "count",
+      "key": "put_bought,_strike",
+      "label": "Put bought, strike",
+      "value": 6060.0
+     },
+     {
+      "fmt": "$",
+      "key": "max_profit",
+      "label": "Max profit",
+      "value": 2915.0
+     }
+    ],
+    "title": "The index condor"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -32937,7 +35118,29 @@
    ],
    "kind": "mcq",
    "q": "Short 3 calls, no shares. Exercised the day before the ex-date, and you're assigned. Dividend: $0.40 a share. What dividend do you owe?",
-   "subject": "F6.16#q13"
+   "subject": "F6.16#q13",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Dividend we owe"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "calls_short",
+      "label": "Calls short",
+      "value": 3.0
+     },
+     {
+      "fmt": "$",
+      "key": "dividend,_a_share",
+      "label": "Dividend, a share",
+      "value": 0.4
+     }
+    ],
+    "title": "The dividend owed"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -33348,7 +35551,35 @@
    "kind": "mcq",
    "q": "What do you most likely hold on Monday, and at what net cost?",
    "story": "You sold one 45 put for 1.80. On expiry Friday the stock closes at 43.50. You don't close the put.",
-   "subject": "F6.16#q17"
+   "subject": "F6.16#q17",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Net cost if assigned"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "put_strike",
+      "label": "Put strike",
+      "value": 45.0
+     },
+     {
+      "fmt": "$",
+      "key": "premium_collected",
+      "label": "Premium collected",
+      "value": 1.8
+     },
+     {
+      "fmt": "$",
+      "key": "stock_at_expiry",
+      "label": "Stock at expiry",
+      "value": 43.5
+     }
+    ],
+    "title": "The short put"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -34833,7 +37064,41 @@
    ],
    "kind": "mcq",
    "q": "You bought 6 calls at $1.80. They double to $3.60, and you sell 3. How much cash comes back?",
-   "subject": "F6.17#q09"
+   "subject": "F6.17#q09",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Cash that comes back"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "calls_bought",
+      "label": "Calls bought",
+      "value": 6.0
+     },
+     {
+      "fmt": "$",
+      "key": "bought_at",
+      "label": "Bought at",
+      "value": 1.8
+     },
+     {
+      "fmt": "$",
+      "key": "price_now",
+      "label": "Price now",
+      "value": 3.6
+     },
+     {
+      "fmt": "count",
+      "key": "calls_sold",
+      "label": "Calls sold",
+      "value": 3.0
+     }
+    ],
+    "title": "Selling half"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -35014,7 +37279,29 @@
    ],
    "kind": "mcq",
    "q": "E*TRADE says some traders close an option at a 50% loss. On a call bought for $3.20, at what option price do they exit?",
-   "subject": "F6.17#q11"
+   "subject": "F6.17#q11",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "Exit price"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "paid_for_the_call",
+      "label": "Paid for the call",
+      "value": 3.2
+     },
+     {
+      "fmt": "%",
+      "key": "loss_we_accept",
+      "label": "Loss we accept",
+      "value": 50.0
+     }
+    ],
+    "title": "The 50% stop"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -35166,7 +37453,29 @@
    ],
    "kind": "mcq",
    "q": "Your 50 call is worth $7.00. You sell it and buy the 55 call for $3.50. How much cash comes back, per contract?",
-   "subject": "F6.17#q13"
+   "subject": "F6.17#q13",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Cash back, per contract"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "50_call_sold_at",
+      "label": "50 call sold at",
+      "value": 7.0
+     },
+     {
+      "fmt": "$",
+      "key": "55_call_bought_at",
+      "label": "55 call bought at",
+      "value": 3.5
+     }
+    ],
+    "title": "Rolling up"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -35401,7 +37710,29 @@
    ],
    "kind": "mcq",
    "q": "Your call expiring Friday is bid $0.90. The same strike two months out costs $3.10. What does rolling out cost, per contract?",
-   "subject": "F6.17#q16"
+   "subject": "F6.17#q16",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Cost of rolling out"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "old_call,_bid",
+      "label": "Old call, bid",
+      "value": 0.9
+     },
+     {
+      "fmt": "$",
+      "key": "new_call,_two_months",
+      "label": "New call, price to buy",
+      "value": 3.1
+     }
+    ],
+    "title": "Rolling out"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -35502,7 +37833,29 @@
    ],
    "kind": "mcq",
    "q": "You sold a put spread for $1.20. It costs $0.25 to close now. Hold to expiry instead: what's the most extra you can make per spread?",
-   "subject": "F6.17#q17"
+   "subject": "F6.17#q17",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Most extra by holding"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "credit_received",
+      "label": "Credit received",
+      "value": 1.2
+     },
+     {
+      "fmt": "$",
+      "key": "cost_to_close_now",
+      "label": "Cost to close now",
+      "value": 0.25
+     }
+    ],
+    "title": "Close or hold"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -37314,7 +39667,36 @@
    ],
    "kind": "mcq",
    "q": "Open interest is 6,000. Today's only activity: 1,000 contracts where both sides open, 800 where both close. What's the new open interest?",
-   "subject": "F6.18#q12"
+   "subject": "F6.18#q12",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "New open interest",
+     "unit": "contracts"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "open_interest",
+      "label": "Open interest at the start",
+      "value": 6000.0
+     },
+     {
+      "fmt": "count",
+      "key": "both_sides_open",
+      "label": "Contracts: both sides open",
+      "value": 1000.0
+     },
+     {
+      "fmt": "count",
+      "key": "both_sides_close",
+      "label": "Contracts: both sides close",
+      "value": 800.0
+     }
+    ],
+    "title": "Open interest"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -38110,7 +40492,30 @@
    "kind": "mcq",
    "q": "Roughly what net position did that leave market makers with?",
    "story": "One index put traded over 100,000 contracts in a day. By the close, market makers had bought about 52,000 and sold about 55,000.",
-   "subject": "F6.18#q21"
+   "subject": "F6.18#q21",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Sold more than bought by",
+     "unit": "contracts"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "market_makers_bought",
+      "label": "Market makers bought",
+      "value": 52000.0
+     },
+     {
+      "fmt": "count",
+      "key": "market_makers_sold",
+      "label": "Market makers sold",
+      "value": 55000.0
+     }
+    ],
+    "title": "Market makers' book"
+   }
   },
   "reveal_json": {
    "deeper": {

@@ -490,7 +490,7 @@ export default function ScatterWidget({ color, opts, onOptsChange }) {
       {settingsOpen && (
         <NhnlSettingsPanel settings={settings} onChange={patchSettings} onReset={resetSettings}
           onClose={() => setSettingsOpen(false)} gearEl={gearRef.current} hostEl={rootRef.current}
-          themeVars={panelThemeVars} title="Market Map Settings" widgetType="scatter" />
+          themeVars={panelThemeVars} title="Market map settings" widgetType="scatter" />
       )}
 
       {/* Toolbar: a row of saved-universe TABS (switch / delete) + a ＋ to add one;

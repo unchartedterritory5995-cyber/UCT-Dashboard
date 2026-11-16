@@ -447,6 +447,33 @@ def _runs_rows(body: RunsBody) -> list:
     return rows
 
 
+def _prune_runs(conn, today: str) -> None:
+    """Retention for both tables: daily sums `RUNS_RETAIN_DAYS`, tab rows `RUNS_TAB_RETAIN_DAYS`.
+    (Follow-up review: run by the read too, not only by a day's first stored batch.)"""
+    base = datetime.fromisoformat(today)
+    conn.execute(f"DELETE FROM {RUNS_TABLE} WHERE day < ?",
+                 ((base - timedelta(days=RUNS_RETAIN_DAYS)).date().isoformat(),))
+    conn.execute(f"DELETE FROM {RUNS_TAB_TABLE} WHERE day < ?",
+                 ((base - timedelta(days=RUNS_TAB_RETAIN_DAYS)).date().isoformat(),))
+
+
+def _count_refused(day: str) -> None:
+    """One more batch the caps refused today. Never raises."""
+    try:
+        conn = get_connection()
+    except Exception:  # noqa: BLE001
+        return
+    try:
+        conn.execute(_RUNS_DDL)
+        conn.execute(f"INSERT INTO {RUNS_TABLE} (day, metric, key, n) VALUES (?, 'count', 'refused', 1) "
+                     "ON CONFLICT(day, metric, key) DO UPDATE SET n = n + 1", (day,))
+        conn.commit()
+    except Exception:  # noqa: BLE001
+        log.exception("[pine-runtime-telemetry] refused count failed")
+    finally:
+        conn.close()
+
+
 def record_runs(body: RunsBody, user_id: Any = None, *, day: Optional[str] = None) -> bool:
     """Aggregate one batch into the day's per-code sums and its tab's row. True when stored.
     Never raises. (Who may post is the route's question: `runs`.)"""
@@ -462,6 +489,10 @@ def record_runs(body: RunsBody, user_id: Any = None, *, day: Optional[str] = Non
     except Exception:  # noqa: BLE001
         refused = None
     if refused is not None:
+        # ⭐ follow-up review L1: a batch the caps refused is a hole in the sample. It is COUNTED
+        # (one integer per ET day, no member, no tab) and fails `nothing_dropped`, so a gate read
+        # can never pass over runs it was not allowed to see.
+        _count_refused(d)
         return False
     stops = sum(body.stops.values())
     completed = body.ok + stops
@@ -483,11 +514,7 @@ def record_runs(body: RunsBody, user_id: Any = None, *, day: Optional[str] = Non
                 "ON CONFLICT(day, tab) DO UPDATE SET runs = runs + excluded.runs, "
                 "stops = stops + excluded.stops", (d, body.tab, completed, stops))
         if _runs_pruned_day[0] != d:
-            base = datetime.fromisoformat(d)
-            conn.execute(f"DELETE FROM {RUNS_TABLE} WHERE day < ?",
-                         ((base - timedelta(days=RUNS_RETAIN_DAYS)).date().isoformat(),))
-            conn.execute(f"DELETE FROM {RUNS_TAB_TABLE} WHERE day < ?",
-                         ((base - timedelta(days=RUNS_TAB_RETAIN_DAYS)).date().isoformat(),))
+            _prune_runs(conn, d)
             _runs_pruned_day[0] = d
         conn.commit()
         return True
@@ -560,6 +587,7 @@ def _summary(counts: dict, stops: dict, hist: dict, tabs: list) -> dict:
     return {
         "runs": completed, "started": counts.get("started", 0), "ok": counts.get("ok", 0),
         "stops": n_stops, "declined": counts.get("declined", 0), "dropped": counts.get("dropped", 0),
+        "refused": counts.get("refused", 0),
         "stop_rate": (round(n_stops / completed, 6) if completed else None),
         "stop_rate_upper_95": (round(upper, 6) if upper is not None else None),
         "by_code": dict(sorted(stops.items(), key=lambda kv: (-kv[1], kv[0]))),
@@ -585,7 +613,7 @@ def cohort_criterion(total: dict) -> dict:
         "no_tab_dominates": share is not None and share <= COHORT_MAX_TAB_SHARE,
         "no_worker_failed": total["worker_failed"] == 0,
         "no_load_failed": total["load_failed"] == 0,
-        "nothing_dropped": total["dropped"] == 0,
+        "nothing_dropped": total["dropped"] == 0 and total["refused"] == 0,
     }
     out["passes"] = all(out[k] for k in ("enough_runs", "stop_rate_under_threshold",
                                          "upper_bound_under_threshold", "enough_tabs",
@@ -610,6 +638,8 @@ def runs_report(days: int = 14, *, today: Optional[str] = None) -> dict:
         try:
             conn.execute(_RUNS_DDL)
             conn.execute(_RUNS_TAB_DDL)
+            _prune_runs(conn, end)
+            conn.commit()
             rows = conn.execute(f"SELECT day, metric, key, n FROM {RUNS_TABLE} WHERE day >= ? AND day <= ?",
                                 (since, end)).fetchall()
             tab_rows = conn.execute(f"SELECT day, tab, runs, stops FROM {RUNS_TAB_TABLE} "
@@ -636,12 +666,32 @@ def runs_report(days: int = 14, *, today: Optional[str] = None) -> dict:
         window_tabs[tab] = (cur[0] + int(r), cur[1] + int(s))
     total = _summary(*tot, list(window_tabs.values()))
     days_out = sorted(set(per_day) | set(day_tabs), reverse=True)
+    # ⭐ follow-up review L2: the criterion reads its OWN window, never longer than the tab rows are
+    # kept (`RUNS_TAB_RETAIN_DAYS`): over a longer window the run sums would cover days whose tabs
+    # are gone, and the tab test would grade a different sample than the rate.
+    crit_days = min(days, RUNS_TAB_RETAIN_DAYS)
+    crit_since = (datetime.fromisoformat(end) - timedelta(days=crit_days - 1)).date().isoformat()
+    ctot: tuple = ({}, {}, {})
+    for d, cell in per_day.items():
+        if d < crit_since:
+            continue
+        for idx in range(3):
+            for key, n in cell[idx].items():
+                ctot[idx][key] = ctot[idx].get(key, 0) + n
+    ctabs: dict = {}
+    for d, tab, r, st in tab_rows:
+        if d < crit_since:
+            continue
+        cur = ctabs.get(tab, (0, 0))
+        ctabs[tab] = (cur[0] + int(r), cur[1] + int(st))
+    crit_total = _summary(*ctot, list(ctabs.values()))
     return {
         "days": days, "since": since, "through": end,
         "by_day": [{"day": d, **_summary(*per_day.get(d, ({}, {}, {})), day_tabs.get(d, []))}
                    for d in days_out],
         "total": total,
-        "cohort_criterion": cohort_criterion(total),
+        "criterion_window": {"days": crit_days, "since": crit_since, "through": end, "total": crit_total},
+        "cohort_criterion": {**cohort_criterion(crit_total), "window_days": crit_days},
     }
 
 

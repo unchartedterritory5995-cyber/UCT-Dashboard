@@ -1318,8 +1318,18 @@ describe('schema v2 — many trees, one hash', () => {
         + 'A NEW name here is a second authority over one field; a MISSING one means the '
         + 'band stopped being drawn and every "fills are supported" claim went stale with it. '
         + '`memberDocumentMigration.js` reads it only to tell a STATIC band from a conditional '
-        + 'one before resolving a door-stamped opacity (`upgradeFromDoorStamps`); it draws nothing.',
-      ).toEqual(['binder.js', 'memberDocumentMigration.js'])
+        + 'one before resolving a door-stamped opacity (`upgradeFromDoorStamps`); it draws nothing. '
+        + '`otherSymbols.js` (`staticOtherSymbolRefusals`) and `nativeRegistry.js` (`refuseColourReaders`) '
+        + 'read only `fill.colorMode`, to refuse BY NAME a plot whose band colour reads a refused '
+        + 'symbol (engine 55 review F1, 53589fa5a2); they draw nothing either.',
+      ).toEqual(['binder.js', 'memberDocumentMigration.js', 'nativeRegistry.js', 'otherSymbols.js'])
+      // ⛔ and the two refusal readers read the band's COLOUR MODE only, never `fill.with` or a band
+      for (const name of ['nativeRegistry.js', 'otherSymbols.js']) {
+        const src = engineSources().find(([n]) => n === name)[1]
+        const reads = src.match(/\.fill\b(?!\s*\()[.\w]*/g) || []
+        expect(reads.length, name).toBeGreaterThan(0)
+        expect(reads.every((r) => r === '.fill' || r === '.fill.colorMode'), `${name}: ${reads.join(', ')}`).toBe(true)
+      }
       // ⛔ AND THE PROBE IS NOT VACUOUS, in both directions. `defSchema.js` — the
       // one legitimate reader, excluded above — must MATCH, or the pattern has
       // rotted into one that reports every deletion as done; and the Array

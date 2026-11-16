@@ -669,14 +669,21 @@ def upsert_intraday(bars_id: str, tf: str, built: dict, *, source: str = "") -> 
              datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")))
 
 
+#: An index history chart's adjustment_basis (scripts/study/courses_lib.INDEX_BASIS; a test pins the two): its bars are
+#: index levels the pod's fill stored. Nothing from bars.db or the stock provider is ever added to them (2026-11-16).
+INDEX_BASIS = "index level"
+
+
 def intraday_candidates() -> list[dict]:
     """Approved daily chart items that name their symbol: what the replay within the day can be filled for. One row per
-    item (several items can share a chart snapshot; the fill groups by `bars_ref`)."""
+    item (several items can share a chart snapshot; the fill groups by `bars_ref`). An index history chart is not one:
+    the stock provider's bars under its name are not that index."""
     with contextlib.closing(_connect()) as c:
         rows = c.execute(
             "SELECT i.id, i.type, i.skill_id, i.sym, i.bars_ref FROM study_items i JOIN study_bars b ON b.id=i.bars_ref "
-            "WHERE i.review_status=? AND b.tf='D' AND i.sym IS NOT NULL AND i.sym != '' ORDER BY i.id",
-            (STATUS_APPROVED,)).fetchall()
+            "WHERE i.review_status=? AND b.tf='D' AND i.sym IS NOT NULL AND i.sym != '' "
+            "AND COALESCE(i.adjustment_basis, '') != ? ORDER BY i.id",
+            (STATUS_APPROVED, INDEX_BASIS)).fetchall()
     return [dict(r) for r in rows]
 
 

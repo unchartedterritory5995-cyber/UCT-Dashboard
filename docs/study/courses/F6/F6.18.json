@@ -1132,7 +1132,7 @@
      "fixed before (exercise wording)"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "6,200",
     "7,800",
@@ -1143,6 +1143,35 @@
     "7,800": "Adds both the opens and the closes.",
     "7,000": "Adds the opens and forgets to take off the closes.",
     "6,800": "Adds the closes and forgets the opens."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Open interest",
+    "rows": [
+     {
+      "key": "open_interest",
+      "label": "Open interest at the start",
+      "value": 6000.0,
+      "fmt": "count"
+     },
+     {
+      "key": "both_sides_open",
+      "label": "Contracts: both sides open",
+      "value": 1000.0,
+      "fmt": "count"
+     },
+     {
+      "key": "both_sides_close",
+      "label": "Contracts: both sides close",
+      "value": 800.0,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "New open interest",
+     "as": "num",
+     "unit": "contracts"
+    }
    }
   },
   {
@@ -1528,7 +1557,30 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "Market makers' book",
+    "rows": [
+     {
+      "key": "market_makers_bought",
+      "label": "Market makers bought",
+      "value": 52000.0,
+      "fmt": "count"
+     },
+     {
+      "key": "market_makers_sold",
+      "label": "Market makers sold",
+      "value": 55000.0,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Sold more than bought by",
+     "as": "num",
+     "unit": "contracts"
+    }
+   }
   },
   {
    "key": "q22",
@@ -1776,8 +1828,8 @@
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
+   "fixed": true,
+   "notes": "Counts need their unit named"
   },
   "q13": {
    "status": "pass",
@@ -1837,10 +1889,9 @@
   },
   "q21": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Slot would print '3,000 contracts' under 'Net position' with no long or short; name what the calc gives, neutral to the direction"
   },
   "q22": {
    "status": "pass",

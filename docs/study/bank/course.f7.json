@@ -1263,7 +1263,29 @@
    ],
    "kind": "mcq",
    "q": "An index falls 25% from its record, then rises 20% off the low. How far below the old record is it now?",
-   "subject": "F7.01#q18"
+   "subject": "F7.01#q18",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Below the old record"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "%",
+      "key": "fall_from_the_record",
+      "label": "Fall from the record",
+      "value": 25
+     },
+     {
+      "fmt": "%",
+      "key": "rise_off_the_low",
+      "label": "Rise off the low",
+      "value": 20
+     }
+    ],
+    "title": "Fall, then a bounce"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -1437,8 +1459,18 @@
   "version": 1
  },
  {
+  "adjustment_basis": "index level",
   "answer_json": {
    "answer": "No, it closed 18.9% below the record"
+  },
+  "asof": "2025-04-08",
+  "bars": {
+   "asof": "2025-04-08",
+   "forward": 40,
+   "source": "index",
+   "sym": "SPX",
+   "tf": "D",
+   "window": 320
   },
   "difficulty": 3,
   "id": "si_5fe66c1fe830",
@@ -1446,6 +1478,13 @@
   "lesson_text": "No. It closed at 4,982.77, 18.9% below the 6,144.15 record, inches short of the line. S&P Dow Jones Indices counts the 20% on closing prices from the previous peak. So the dip past 20% on April 7 didn't count. The index never closed a full 20% below the record in that sell-off. Closes make the call. A scary intraday low isn't a bear market until a close makes it official.",
   "module": "F7",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 40,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 120,
+    "window_bars": 320
+   },
    "choices": [
     "Yes, nearly 19% down is close enough",
     "No, it closed 18.9% below the record",
@@ -1455,22 +1494,7 @@
    "kind": "mcq",
    "q": "By S&P Dow Jones Indices' rule, did the April 8 close make it a bear market?",
    "story": "The S&P 500's record close was 6,144.15 in February 2025. On April 7 it briefly traded past the 20% line. On April 8 it fell 1.57% to close at 4,982.77.",
-   "subject": "F7.01#q20",
-   "visual": {
-    "find": {
-     "as": "pct",
-     "label": "The fall"
-    },
-    "from": {
-     "label": "Peak",
-     "value": 6144.15
-    },
-    "kind": "move",
-    "to": {
-     "label": "Low",
-     "value": 4982.77
-    }
-   }
+   "subject": "F7.01#q20"
   },
   "reveal_json": {
    "deeper": {
@@ -1570,12 +1594,22 @@
   "skill_id": "history.how_markets_move",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.01.json#q20",
+  "sym": "SPX",
   "type": "scenario",
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "January 3, the record close"
+  },
+  "asof": "2022-06-13",
+  "bars": {
+   "asof": "2022-06-13",
+   "forward": 20,
+   "sym": "SPY",
+   "tf": "D",
+   "window": 320
   },
   "difficulty": 3,
   "id": "si_e8c4fad39387",
@@ -1583,6 +1617,13 @@
   "lesson_text": "January 3, the record close. A bear market is declared at the 20% mark, but the whole decline from the high counts. So the 2022 bear was already more than five months old when it became official on June 13. Tom McClellan puts it plainly: a bear market starts right after the final high. A bear market starts at the high, not at the 20% mark.",
   "module": "F7",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 20,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 120,
+    "window_bars": 320
+   },
    "choices": [
     "June 13, the first 20% close",
     "The day it hit its final low",
@@ -1676,6 +1717,7 @@
   "skill_id": "history.how_markets_move",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.01.json#q21",
+  "sym": "SPY",
   "type": "recall",
   "version": 1
  },
@@ -1815,8 +1857,17 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "Only if it's 20% off its own high"
+  },
+  "asof": "2025-04-03",
+  "bars": {
+   "asof": "2025-04-03",
+   "forward": 60,
+   "sym": "SPY",
+   "tf": "D",
+   "window": 450
   },
   "difficulty": 3,
   "id": "si_54ae52e01fde",
@@ -1824,6 +1875,13 @@
   "lesson_text": "Only if it's 20% off its own high. S&P Dow Jones Indices measures the S&P 500 from its own previous peak, on closes. The Russell 2000 got there first, and the Nasdaq Composite was there before the S&P 500. In that sell-off the S&P 500 never closed 20% down, and by June it set a new record. Check each index against its own high. Small caps, the Nasdaq and the S&P 500 can sit in different places.",
   "module": "F7",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 60,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 250,
+    "window_bars": 450
+   },
    "choices": [
     "Only once the Dow falls 20% too",
     "Yes, one index in a bear is enough",
@@ -1918,6 +1976,7 @@
   "skill_id": "history.how_markets_move",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.01.json#q23",
+  "sym": "SPY",
   "type": "scenario",
   "version": 1
  },
@@ -2708,8 +2767,17 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "True"
+  },
+  "asof": "2020-03-23",
+  "bars": {
+   "asof": "2020-03-23",
+   "forward": 20,
+   "sym": "SPY",
+   "tf": "D",
+   "window": 260
   },
   "difficulty": 1,
   "id": "si_1e63da0f3181",
@@ -2717,6 +2785,13 @@
   "lesson_text": "True. The S&P 500 closed at a record 3,386.15 on February 19, 2020. Its closing low was 2,237.40 on March 23. That speed is what makes it a fast crash. A fast crash is fast. In 2020, record to low took about a month.",
   "module": "F7",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 20,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 60,
+    "window_bars": 260
+   },
    "choices": [
     "True",
     "False"
@@ -2779,6 +2854,7 @@
   "skill_id": "history.fast_crash",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.02.json#q02",
+  "sym": "SPY",
   "type": "recall",
   "version": 1
  },
@@ -2837,8 +2913,17 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "About 34%"
+  },
+  "asof": "2020-03-23",
+  "bars": {
+   "asof": "2020-03-23",
+   "forward": 20,
+   "sym": "SPY",
+   "tf": "D",
+   "window": 260
   },
   "difficulty": 1,
   "id": "si_edbb52627ea5",
@@ -2846,6 +2931,13 @@
   "lesson_text": "About 34%. The Fed says stock prices tumbled in March 2020, down as much as 34% from peak to trough. CNBC says the S&P 500 fell more than 30% from its February record. That fall took weeks, not one day. 2020: about 34% gone, from a February record to a March low.",
   "module": "F7",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 20,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 60,
+    "window_bars": 260
+   },
    "choices": [
     "About 12%",
     "About 20%",
@@ -2908,6 +3000,7 @@
   "skill_id": "history.fast_crash",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.02.json#q04",
+  "sym": "SPY",
   "type": "recall",
   "version": 1
  },
@@ -2994,8 +3087,18 @@
   "version": 1
  },
  {
+  "adjustment_basis": "index level",
   "answer_json": {
    "answer": "Four times"
+  },
+  "asof": "2020-03-06",
+  "bars": {
+   "asof": "2020-03-06",
+   "forward": 12,
+   "source": "index",
+   "sym": "SPX",
+   "tf": "D",
+   "window": 260
   },
   "difficulty": 1,
   "id": "si_4de74035049a",
@@ -3003,6 +3106,13 @@
   "lesson_text": "Four times: March 9, 12, 16 and 18, 2020. Each was a Level 1 halt on a 7% drop in the S&P 500. Each time, trading stayed stopped for the full 15 minutes before it restarted. Four 7% halts in one month. That's what a fast crash looks like.",
   "module": "F7",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 12,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 60,
+    "window_bars": 260
+   },
    "choices": [
     "One time",
     "Two times",
@@ -3058,6 +3168,7 @@
   "skill_id": "history.fast_crash",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.02.json#q07",
+  "sym": "SPX",
   "type": "recall",
   "version": 1
  },
@@ -3617,8 +3728,18 @@
   "version": 1
  },
  {
+  "adjustment_basis": "index level",
   "answer_json": {
    "answer": "6.2%"
+  },
+  "asof": "2020-03-16",
+  "bars": {
+   "asof": "2020-03-16",
+   "forward": 10,
+   "source": "index",
+   "sym": "SPX",
+   "tf": "D",
+   "window": 260
   },
   "difficulty": 3,
   "id": "si_0ff17b6c6723",
@@ -3626,6 +3747,13 @@
   "lesson_text": "6.2%. Take the gap between 2,386.13 and 2,237.40. Divide it by 2,386.13, the earlier close. The VIX hit a record on March 16, yet the S&P 500 fell another 6.2% by March 23. A record fear reading shows stress. It does not mark the low. Record fear doesn't mark the low on its own. Let price show you the selling is done.",
   "module": "F7",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 10,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 60,
+    "window_bars": 260
+   },
    "choices": [
     "6.2%",
     "6.6%",
@@ -3634,22 +3762,7 @@
    ],
    "kind": "mcq",
    "q": "March 16, 2020: the VIX closes at a record. The S&P 500 closes at 2,386.13, and at 2,237.40 on March 23. How much lower is March 23?",
-   "subject": "F7.02#q16",
-   "visual": {
-    "find": {
-     "as": "pct",
-     "label": "The fall"
-    },
-    "from": {
-     "label": "Peak",
-     "value": 2386.13
-    },
-    "kind": "move",
-    "to": {
-     "label": "Low",
-     "value": 2237.4
-    }
-   }
+   "subject": "F7.02#q16"
   },
   "reveal_json": {
    "deeper": {
@@ -3714,12 +3827,23 @@
   "skill_id": "history.fast_crash",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.02.json#q16",
+  "sym": "SPX",
   "type": "recall",
   "version": 1
  },
  {
+  "adjustment_basis": "index level",
   "answer_json": {
    "answer": "Down 2.9% on the day"
+  },
+  "asof": "2020-03-20",
+  "bars": {
+   "asof": "2020-03-20",
+   "forward": 10,
+   "source": "index",
+   "sym": "SPX",
+   "tf": "D",
+   "window": 260
   },
   "difficulty": 3,
   "id": "si_aec052ccfe3e",
@@ -3727,6 +3851,13 @@
   "lesson_text": "Down 2.9%, to 2,237.40. The Fed's news came out at 8:00 a.m., before the 9:30 a.m. open. Stocks still fell, as failed votes in the Senate weighed on Wall Street. That close was the low. The next day the S&P 500 closed at 2,447.33. The low looked like just another bad day. You only see it later.",
   "module": "F7",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 10,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 60,
+    "window_bars": 260
+   },
    "choices": [
     "About flat on the day",
     "Down 7%, trading halted",
@@ -3843,12 +3974,22 @@
   "skill_id": "history.fast_crash",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.02.json#q17",
+  "sym": "SPX",
   "type": "scenario",
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "Well above its March low"
+  },
+  "asof": "2020-03-23",
+  "bars": {
+   "asof": "2020-03-23",
+   "forward": 35,
+   "sym": "SPY",
+   "tf": "D",
+   "window": 320
   },
   "difficulty": 3,
   "id": "si_af9d3f0287ad",
@@ -3856,6 +3997,13 @@
   "lesson_text": "Well above its March low. On May 8, 2020 the S&P 500 closed at 2,929.80. Its closing low was 2,237.40 on March 23. It was still below the 3,386.15 February record, which it passed on August 18. Price turned weeks before that jobs report came out. In 2020, price bottomed weeks before the worst jobs report. Don't wait for the news to turn.",
   "module": "F7",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 35,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 120,
+    "window_bars": 320
+   },
    "choices": [
     "Well above its March low",
     "Still making new lows",
@@ -3957,6 +4105,7 @@
   "skill_id": "history.fast_crash",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.02.json#q18",
+  "sym": "SPY",
   "type": "scenario",
   "version": 1
  },
@@ -4175,8 +4324,17 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "No, the S&P 500 hit a record in August"
+  },
+  "asof": "2020-06-30",
+  "bars": {
+   "asof": "2020-06-30",
+   "forward": 60,
+   "sym": "SPY",
+   "tf": "D",
+   "window": 320
   },
   "difficulty": 3,
   "id": "si_4eab85ec78b8",
@@ -4184,6 +4342,13 @@
   "lesson_text": "No. The S&P 500 closed at a record 3,389.78 on August 18, 2020. Unemployment that month was still 8.4%, against 3.5% in February. By November the Fed noted record highs while earnings stayed uncertain. Stocks did not wait for the economy. In 2020 stocks hit records long before the economy healed. Don't wait for the all-clear.",
   "module": "F7",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 60,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 120,
+    "window_bars": 320
+   },
    "choices": [
     "Yes, stocks waited for the economy",
     "No, the S&P 500 hit a record in August",
@@ -4278,6 +4443,7 @@
   "skill_id": "history.fast_crash",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.02.json#q21",
+  "sym": "SPY",
   "type": "scenario",
   "version": 1
  },
@@ -5967,8 +6133,18 @@
   "version": 1
  },
  {
+  "adjustment_basis": "index level",
   "answer_json": {
    "answer": "51%"
+  },
+  "asof": "2008-12-01",
+  "bars": {
+   "asof": "2008-12-01",
+   "forward": 20,
+   "source": "index",
+   "sym": "IXIC",
+   "tf": "D",
+   "window": 500
   },
   "difficulty": 3,
   "id": "si_e9af495534fc",
@@ -5976,6 +6152,13 @@
   "lesson_text": "51%. Subtract 1,398.07 from the 2,859.12 peak, then divide by the peak. The NBER, which dates US recessions, made its call on December 1, 2008. It dated the start to December 2007, a year earlier. By then the Nasdaq was already about half below its October 31, 2007 high. Official calls come late. Price had already done the talking.",
   "module": "F7",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 20,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 300,
+    "window_bars": 500
+   },
    "choices": [
     "5.1%",
     "34%",
@@ -5984,22 +6167,7 @@
    ],
    "kind": "mcq",
    "q": "Dec. 1, 2008: the NBER calls a recession. The Nasdaq closes at 1,398.07, off a 2,859.12 peak. How far down, to the nearest percent?",
-   "subject": "F7.03#q17",
-   "visual": {
-    "find": {
-     "as": "pct",
-     "label": "The fall"
-    },
-    "from": {
-     "label": "Peak",
-     "value": 2859.12
-    },
-    "kind": "move",
-    "to": {
-     "label": "Low",
-     "value": 1398.07
-    }
-   }
+   "subject": "F7.03#q17"
   },
   "reveal_json": {
    "deeper": {
@@ -6078,6 +6246,7 @@
   "skill_id": "history.long_bear",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.03.json#q17",
+  "sym": "IXIC",
   "type": "recall",
   "version": 1
  },
@@ -6196,8 +6365,18 @@
   "version": 1
  },
  {
+  "adjustment_basis": "index level",
   "answer_json": {
    "answer": "No: still under the last rally top"
+  },
+  "asof": "2009-02-06",
+  "bars": {
+   "asof": "2009-02-06",
+   "forward": 25,
+   "source": "index",
+   "sym": "IXIC",
+   "tf": "D",
+   "window": 320
   },
   "difficulty": 3,
   "id": "si_048665fc7ecb",
@@ -6205,6 +6384,13 @@
   "lesson_text": "No. It held a higher low on January 20, at 1,440.86, above the November 20 low. But the bounce stalled at 1,591.71 on February 6, below the 1,652.38 rally top. The rule needs both steps, the higher low and then a close above the last rally top. On March 9 the Nasdaq closed at 1,268.64, a new low. Half the proof isn't proof. You need the higher low AND a break above the last rally top.",
   "module": "F7",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 25,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 120,
+    "window_bars": 320
+   },
    "choices": [
     "Yes: it made a clear higher low",
     "No: it has not made a higher low yet",
@@ -6320,12 +6506,22 @@
   "skill_id": "history.long_bear",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.03.json#q19",
+  "sym": "IXIC",
   "type": "scenario",
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "True"
+  },
+  "asof": "2009-03-09",
+  "bars": {
+   "asof": "2009-03-09",
+   "forward": 20,
+   "sym": "SPY",
+   "tf": "D",
+   "window": 450
   },
   "difficulty": 3,
   "id": "si_d67799808f46",
@@ -6333,6 +6529,13 @@
   "lesson_text": "True. The VIX measures the near-term volatility the options market expects. Its highest close from October 2007 to June 2009 was 80.86, on November 20, 2008. At the Nasdaq's final low on March 9, 2009, it closed at 49.68, far below that peak. Peak fear and the final price low came months apart. Peak fear and the final price low can come months apart.",
   "module": "F7",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 20,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 250,
+    "window_bars": 450
+   },
    "choices": [
     "True",
     "False"
@@ -6412,6 +6615,7 @@
   "skill_id": "history.long_bear",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.03.json#q20",
+  "sym": "SPY",
   "type": "recall",
   "version": 1
  },
@@ -6422,23 +6626,23 @@
   "difficulty": 3,
   "id": "si_b06e99607d68",
   "lesson_origin": "session",
-  "lesson_text": "May 2, 2003. October 9 was the low, but only hindsight knew it. February 13 held a higher low, above the October low. May 2 was the first close above the November 27 rally top of 1,487.94, which completed the rule on these swings. Even then it pointed to a possible turn, not a sure one. The Nasdaq went on to close at 2,153.83 on January 26, 2004. Confirmation comes late. That's the price of not guessing.",
+  "lesson_text": "May 2, 2003. October 9 was the low, but only hindsight knew it. March 11 held a higher low, above the October low. May 2 was the first close above the November 27 rally top of 1,487.94, which completed the rule on these swings. Even then it pointed to a possible turn, not a sure one. The Nasdaq went on to close at 2,153.83 on January 26, 2004. Confirmation comes late. That's the price of not guessing.",
   "module": "F7",
   "prompt_json": {
    "choices": [
     "May 2, 2003",
     "Nov. 27, 2002",
-    "Feb. 13, 2003",
+    "March 11, 2003",
     "Oct. 9, 2002"
    ],
    "kind": "mcq",
    "q": "Using these swings, which date confirmed the turn up?",
-   "story": "Oct. 9, 2002: the Nasdaq closes at 1,114.11. Nov. 27: a rally tops at 1,487.94. Feb. 13, 2003: a pullback holds at 1,261.79. May 2, 2003: it closes at 1,504.22.",
+   "story": "Oct. 9, 2002: the Nasdaq closes at 1,114.11. Nov. 27: a rally tops at 1,487.94. March 11, 2003: a pullback holds at 1,271.47. May 2, 2003: it closes at 1,502.88.",
    "subject": "F7.03#q21"
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The trap is calling the turn on February 13. ChartSchool says a higher low alone is still too early. The change of trend is confirmed only when the previous reaction high is passed. Waiting for May 2 is late, a known criticism of Dow theory, but it acts on evidence, not a guess."
+    "trap": "The trap is calling the turn on March 11. ChartSchool says a higher low alone is still too early. The change of trend is confirmed only when the previous reaction high is passed. Waiting for May 2 is late, a known criticism of Dow theory, but it acts on evidence, not a guess."
    },
    "depth": {
     "sources": [
@@ -6457,18 +6661,39 @@
       "url": "https://fred.stlouisfed.org/data/NASDAQCOM"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "Federal Reserve Bank of St. Louis, FRED: NASDAQ Composite (NASDAQCOM), table data: daily closes (source: Nasdaq, Inc.)",
-      "quote": "2003-02-13|1261.790",
-      "tier": 1,
-      "url": "https://fred.stlouisfed.org/data/NASDAQCOM"
+      "accessed": "2026-11-16",
+      "name": "Associated Press (in the Honolulu Star-Bulletin): Stocks fall on uncertainty (Hope Yen), Closing Market Report, March 11, 2003",
+      "quote": "The Nasdaq composite index declined 6.90, or 0.5 percent, to 1,271.47.",
+      "tier": 2,
+      "url": "https://archives.starbulletin.com/2003/03/11/business/market.html"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "Federal Reserve Bank of St. Louis, FRED: NASDAQ Composite (NASDAQCOM), table data: daily closes (source: Nasdaq, Inc.)",
-      "quote": "2003-05-02|1504.220",
-      "tier": 1,
-      "url": "https://fred.stlouisfed.org/data/NASDAQCOM"
+      "accessed": "2026-11-16",
+      "name": "Associated Press (in the Honolulu Star-Bulletin): Stocks fall on war jitters (Amy Baldwin), Closing Market Report, February 13, 2003",
+      "quote": "The Nasdaq composite index slipped 1.53, or 0.1 percent, to 1,277.44",
+      "tier": 2,
+      "url": "https://archives.starbulletin.com/2003/02/13/business/market.html"
+     },
+     {
+      "accessed": "2026-11-16",
+      "name": "Associated Press (in the Honolulu Star-Bulletin): Optimism lifts stocks (Hope Yen), Closing Market Report, May 2, 2003",
+      "quote": "The Nasdaq gained 30.32, or 2.1 percent, to 1,502.88, the highest level seen since June 18, 2002",
+      "tier": 2,
+      "url": "https://archives.starbulletin.com/2003/05/02/business/market.html"
+     },
+     {
+      "accessed": "2026-11-16",
+      "name": "CNN/Money: Stocks seize the day (Alexandra Twin), May 2, 2003, 5:42 PM EDT; Internet Archive copy of May 3, 2003",
+      "quote": "The Nasdaq composite (up 30.32 to 1502.88",
+      "tier": 2,
+      "url": "https://web.archive.org/web/20030503062812/http://money.cnn.com:80/2003/05/02/markets/markets_newyork/index.htm"
+     },
+     {
+      "accessed": "2026-11-16",
+      "name": "Associated Press (in the Honolulu Star-Bulletin): Stocks end mixed on weak economic data (Hope Yen), Closing Market Report, May 1, 2003",
+      "quote": "The Nasdaq composite index rose 8.25, or 0.6 percent, to 1,472.56.",
+      "tier": 2,
+      "url": "https://archives.starbulletin.com/2003/05/01/business/market.html"
      },
      {
       "accessed": "2026-11-09",
@@ -6513,18 +6738,18 @@
       "url": "https://www.investopedia.com/terms/d/dowtheory.asp"
      }
     ],
-    "summary": "The Nasdaq closed at 1,114.11 on October 9, 2002, the lowest close on the page between the March 2000 peak and the recovery. The rally off the October 2002 low peaked at a close of 1,487.94 on November 27, 2002, the highest close before May 2003. The pullback after that rally held at 1,261.79 on February 13, 2003, above the October 2002 low (a higher low). On May 2, 2003 the Nasdaq closed at 1,504.22, its first close above the November 27, 2002 rally top of 1,487.94. The Nasdaq closed at 2,153.83 on January 26, 2004. A downtrend holds until price makes a higher low and then rises above the last rally high. A higher low alone is not enough; the turn is confirmed only when the last rally high is cleared. Waiting for the last rally high to be cleared is criticized as late. Stocks turned up in late October 2002 when earnings came in less bad than feared. Higher highs and higher lows after a downtrend point to a possible turn up."
+    "summary": "The Nasdaq closed at 1,114.11 on October 9, 2002, the lowest close on the page between the March 2000 peak and the recovery. The rally off the October 2002 low peaked at a close of 1,487.94 on November 27, 2002, the highest close before May 2003. On March 11, 2003 the Nasdaq closed at 1,271.47, its lowest close of the pullback after the November 2002 rally top, and above the October 2002 low (a higher low). The pullback's earlier dip closed at 1,277.44 on February 13, 2003, above the March 11 close, so March 11 was the pullback's low on closes. On May 2, 2003 the Nasdaq closed at 1,502.88, its highest close since June 18, 2002 and its first close above the November 27, 2002 rally top of 1,487.94. CNN/Money reported the same May 2, 2003 close: the Nasdaq rose 30.32 points to 1,502.88. The day before, May 1, 2003, the Nasdaq closed at 1,472.56, still below the November 27, 2002 rally top of 1,487.94. The Nasdaq closed at 2,153.83 on January 26, 2004. A downtrend holds until price makes a higher low and then rises above the last rally high. A higher low alone is not enough; the turn is confirmed only when the last rally high is cleared. Waiting for the last rally high to be cleared is criticized as late. Stocks turned up in late October 2002 when earnings came in less bad than feared. Higher highs and higher lows after a downtrend point to a possible turn up."
    },
    "facts": {
-    "given": "Using these swings, which date confirmed the turn up? Oct. 9, 2002: the Nasdaq closes at 1,114.11. Nov. 27: a rally tops at 1,487.94. Feb. 13, 2003: a pullback holds at 1,261.79. May 2, 2003: it closes at 1,504.22. May 2, 2003 Oct. 9, 2002 Nov. 27, 2002 Feb. 13, 2003"
+    "given": "Using these swings, which date confirmed the turn up? Oct. 9, 2002: the Nasdaq closes at 1,114.11. Nov. 27: a rally tops at 1,487.94. March 11, 2003: a pullback holds at 1,271.47. May 2, 2003: it closes at 1,502.88. May 2, 2003 Oct. 9, 2002 Nov. 27, 2002 March 11, 2003"
    },
    "lesson_line": "Confirmation comes late. That's the price of not guessing.",
-   "simple": "May 2, 2003, because that was the first close above the November rally top after the higher low in February.",
+   "simple": "May 2, 2003, because that was the first close above the November rally top after the higher low in March.",
    "tier": "expert",
    "unit": "F7.03",
-   "why": "May 2, 2003. October 9 was the low, but only hindsight knew it. February 13 held a higher low, above the October low. May 2 was the first close above the November 27 rally top of 1,487.94, which completed the rule on these swings. Even then it pointed to a possible turn, not a sure one. The Nasdaq went on to close at 2,153.83 on January 26, 2004.",
+   "why": "May 2, 2003. October 9 was the low, but only hindsight knew it. March 11 held a higher low, above the October low. May 2 was the first close above the November 27 rally top of 1,487.94, which completed the rule on these swings. Even then it pointed to a possible turn, not a sure one. The Nasdaq went on to close at 2,153.83 on January 26, 2004.",
    "wrong": {
-    "Feb. 13, 2003": "That's the higher low, step one. The turn isn't confirmed until the last rally top is cleared.",
+    "March 11, 2003": "That's the higher low, step one. The turn isn't confirmed until the last rally top is cleared.",
     "Nov. 27, 2002": "That's the rally top. On its own, a rally looks like every other bear market rally.",
     "Oct. 9, 2002": "That was the low, but only hindsight knew it. On the day, it was just another lower low."
    }
@@ -6608,8 +6833,18 @@
   "version": 1
  },
  {
+  "adjustment_basis": "index level",
   "answer_json": {
    "answer": "Let price decide: wait for its signal"
+  },
+  "asof": "2009-03-12",
+  "bars": {
+   "asof": "2009-03-12",
+   "forward": 30,
+   "source": "index",
+   "sym": "IXIC",
+   "tf": "D",
+   "window": 320
   },
   "difficulty": 3,
   "id": "si_2ff542569d89",
@@ -6617,6 +6852,13 @@
   "lesson_text": "Let price decide. An expert's call is an opinion, and this one was wrong. The rule waits for a higher low, then a close above the last rally top. The Nasdaq held a higher low at 1,501.80 on March 30. On April 9, 2009 it closed at 1,652.54, its first close above 1,652.38. By the Fed's February 2010 report, broad indexes were about 65% above the March 2009 low. Opinions are free. I'd rather let price show me the turn.",
   "module": "F7",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 30,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 120,
+    "window_bars": 320
+   },
    "choices": [
     "Let the NBER decide: wait for its call",
     "Let the expert decide: new lows ahead",
@@ -6753,6 +6995,7 @@
   "skill_id": "history.long_bear",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.03.json#q23",
+  "sym": "IXIC",
   "type": "scenario",
   "version": 1
  },
@@ -6954,7 +7197,7 @@
    "q": "How a bear ends",
    "steps": [
     "A downtrend holds until price makes a higher low, then clears the last rally high.",
-    "After the October 2002 low, the Nasdaq held a higher low in February 2003. On May 2, it cleared its November high.",
+    "After the October 2002 low, the Nasdaq held a higher low the next March. In early May, it cleared its November high.",
     "You only see the bottom in hindsight. The rule gets you in late, but on evidence, not a guess.",
     "Even then, it points to a possible turn, not a sure one."
    ],
@@ -6999,18 +7242,18 @@
       "url": "https://fred.stlouisfed.org/data/NASDAQCOM"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "Federal Reserve Bank of St. Louis, FRED: NASDAQ Composite (NASDAQCOM), table data: daily closes (source: Nasdaq, Inc.)",
-      "quote": "2003-02-13|1261.790",
-      "tier": 1,
-      "url": "https://fred.stlouisfed.org/data/NASDAQCOM"
+      "accessed": "2026-11-16",
+      "name": "Associated Press (in the Honolulu Star-Bulletin): Stocks fall on uncertainty (Hope Yen), Closing Market Report, March 11, 2003",
+      "quote": "The Nasdaq composite index declined 6.90, or 0.5 percent, to 1,271.47.",
+      "tier": 2,
+      "url": "https://archives.starbulletin.com/2003/03/11/business/market.html"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "Federal Reserve Bank of St. Louis, FRED: NASDAQ Composite (NASDAQCOM), table data: daily closes (source: Nasdaq, Inc.)",
-      "quote": "2003-05-02|1504.220",
-      "tier": 1,
-      "url": "https://fred.stlouisfed.org/data/NASDAQCOM"
+      "accessed": "2026-11-16",
+      "name": "Associated Press (in the Honolulu Star-Bulletin): Optimism lifts stocks (Hope Yen), Closing Market Report, May 2, 2003",
+      "quote": "The Nasdaq gained 30.32, or 2.1 percent, to 1,502.88, the highest level seen since June 18, 2002",
+      "tier": 2,
+      "url": "https://archives.starbulletin.com/2003/05/02/business/market.html"
      },
      {
       "accessed": "2026-11-09",
@@ -7836,8 +8079,18 @@
   "version": 1
  },
  {
+  "adjustment_basis": "index level",
   "answer_json": {
    "answer": "16.2%"
+  },
+  "asof": "2022-03-29",
+  "bars": {
+   "asof": "2022-03-29",
+   "forward": 22,
+   "source": "index",
+   "sym": "IXIC",
+   "tf": "D",
+   "window": 320
   },
   "difficulty": 2,
   "id": "si_b3431246247e",
@@ -7845,6 +8098,13 @@
   "lesson_text": "16.2%. Take the gain, 14,619.64 less 12,581.22, and divide by the start, 12,581.22. Investopedia rounds the same two-week move to 16%. The Nasdaq set new lows four weeks later, so it was a bear market rally. There is no sure way to tell one until it unwinds. A bear rally can run 16% in two weeks and still fail. Size alone proves nothing.",
   "module": "F7",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 22,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 120,
+    "window_bars": 320
+   },
    "choices": [
     "1.62%",
     "13.9%",
@@ -7853,22 +8113,7 @@
    ],
    "kind": "mcq",
    "q": "In March 2022 the Nasdaq closed at 12,581.22 on the 14th and 14,619.64 on the 29th. How much did it rally?",
-   "subject": "F7.04#q12",
-   "visual": {
-    "find": {
-     "as": "pct",
-     "label": "The change"
-    },
-    "from": {
-     "label": "",
-     "value": 12581.22
-    },
-    "kind": "move",
-    "to": {
-     "label": "",
-     "value": 14619.64
-    }
-   }
+   "subject": "F7.04#q12"
   },
   "reveal_json": {
    "deeper": {
@@ -7947,6 +8192,7 @@
   "skill_id": "history.bottoms",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.04.json#q12",
+  "sym": "IXIC",
   "type": "recall",
   "version": 1
  },
@@ -8308,7 +8554,23 @@
    ],
    "kind": "mcq",
    "q": "The S&P 500's 2022 low close was 3,577.03. By the 20% rule, what close marks a new bull market? Round to a whole point.",
-   "subject": "F7.04#q17"
+   "subject": "F7.04#q17",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "A new bull market closes at",
+     "tag": "Bull market"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "low",
+      "label": "2022 low close",
+      "price": 3577.03
+     }
+    ],
+    "side": "long"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -8522,8 +8784,18 @@
   "version": 1
  },
  {
+  "adjustment_basis": "index level",
   "answer_json": {
    "answer": "Not proven. Early pops often fail"
+  },
+  "asof": "2022-10-04",
+  "bars": {
+   "asof": "2022-10-04",
+   "forward": 10,
+   "source": "index",
+   "sym": "SPX",
+   "tf": "D",
+   "window": 320
   },
   "difficulty": 3,
   "id": "si_cc550b4082e6",
@@ -8531,6 +8803,13 @@
   "lesson_text": "Not proven yet. Early rallies often fail and pull investors back into the decline. Two days is too soon for a follow-through day, which comes several days into a rally attempt. This was the S&P 500, Sept. 30 to Oct. 4, 2022. It closed at a new low of 3,577.03 on Oct. 12. The first pop off a low proves little. I wait for the market to prove it.",
   "module": "F7",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 10,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 120,
+    "window_bars": 320
+   },
    "choices": [
     "Likely. Sellers look exhausted",
     "Yes. That new low was capitulation",
@@ -8625,6 +8904,7 @@
   "skill_id": "history.bottoms",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.04.json#q19",
+  "sym": "SPX",
   "type": "scenario",
   "version": 1
  },
@@ -8728,8 +9008,17 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "Price climbing back over that low"
+  },
+  "asof": "2022-10-12",
+  "bars": {
+   "asof": "2022-10-12",
+   "forward": 30,
+   "sym": "SPY",
+   "tf": "D",
+   "window": 400
   },
   "difficulty": 3,
   "id": "si_b5ec590c36ac",
@@ -8737,6 +9026,13 @@
   "lesson_text": "Price climbing back over that low. A CMT Association article says the S&P 500 undercut its summer lows in October, but fewer stocks made a new low. Once the index moved back above the June lows, the divergence was confirmed. A divergence is a clue. Price getting back above the old low confirmed it.",
   "module": "F7",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 30,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 200,
+    "window_bars": 400
+   },
    "choices": [
     "One more new low on heavy volume",
     "Price climbing back over that low",
@@ -8844,12 +9140,23 @@
   "skill_id": "history.bottoms",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.04.json#q22",
+  "sym": "SPY",
   "type": "recall",
   "version": 1
  },
  {
+  "adjustment_basis": "index level",
   "answer_json": {
    "answer": "True"
+  },
+  "asof": "2022-10-12",
+  "bars": {
+   "asof": "2022-10-12",
+   "forward": 55,
+   "source": "index",
+   "sym": "IXIC",
+   "tf": "D",
+   "window": 400
   },
   "difficulty": 3,
   "id": "si_1900a46f5390",
@@ -8857,6 +9164,13 @@
   "lesson_text": "True. On FRED's closes, the S&P 500's lowest 2022 close came Oct. 12, at 3,577.03. The Nasdaq closed lower still on Dec. 28, at 10,213.29, below its Oct. 12 close of 10,417.10. That day the S&P 500 closed at 3,783.22, well above its low. This is about closes. Intraday lows can fall on other days. Bottoms are a process. Different indexes can bottom weeks apart.",
   "module": "F7",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 55,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 200,
+    "window_bars": 400
+   },
    "choices": [
     "True",
     "False"
@@ -8922,6 +9236,7 @@
   "skill_id": "history.bottoms",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.04.json#q23",
+  "sym": "IXIC",
   "type": "recall",
   "version": 1
  },
@@ -10194,7 +10509,29 @@
    ],
    "kind": "mcq",
    "q": "On the NYSE today, 2,140 stocks rose and 1,060 fell. What were net advances?",
-   "subject": "F7.05#q09"
+   "subject": "F7.05#q09",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Net advances"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "stocks_that_rose",
+      "label": "Stocks that rose",
+      "value": 2140
+     },
+     {
+      "fmt": "count",
+      "key": "stocks_that_fell",
+      "label": "Stocks that fell",
+      "value": 1060
+     }
+    ],
+    "title": "Net advances"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -10271,7 +10608,35 @@
    ],
    "kind": "mcq",
    "q": "The A/D line read 15,200 yesterday. Today 1,250 stocks rose and 1,900 fell. Where does the A/D line stand now?",
-   "subject": "F7.05#q10"
+   "subject": "F7.05#q10",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "A/D line now"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "a/d_line_yesterday",
+      "label": "A/D line yesterday",
+      "value": 15200
+     },
+     {
+      "fmt": "count",
+      "key": "stocks_that_rose",
+      "label": "Stocks that rose",
+      "value": 1250
+     },
+     {
+      "fmt": "count",
+      "key": "stocks_that_fell",
+      "label": "Stocks that fell",
+      "value": 1900
+     }
+    ],
+    "title": "The A/D line"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -10600,7 +10965,29 @@
    ],
    "kind": "mcq",
    "q": "Today 60 stocks hit new 52-week highs and 140 hit new 52-week lows. What percent of that total are new highs?",
-   "subject": "F7.05#q14"
+   "subject": "F7.05#q14",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Highs, % of the total"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "new_52-week_highs",
+      "label": "New 52-week highs",
+      "value": 60
+     },
+     {
+      "fmt": "count",
+      "key": "new_52-week_lows",
+      "label": "New 52-week lows",
+      "value": 140
+     }
+    ],
+    "title": "New highs and lows"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -10701,7 +11088,29 @@
    ],
    "kind": "mcq",
    "q": "The 19-day EMA of net advances is +150. The 39-day EMA is +60. What is the McClellan Oscillator?",
-   "subject": "F7.05#q15"
+   "subject": "F7.05#q15",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "McClellan Oscillator"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "19-day_ema_of_net_ad",
+      "label": "19-day EMA of net advances",
+      "value": 150
+     },
+     {
+      "fmt": "count",
+      "key": "39-day_ema",
+      "label": "39-day EMA",
+      "value": 60
+     }
+    ],
+    "title": "The McClellan Oscillator"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -10979,7 +11388,29 @@
    ],
    "kind": "mcq",
    "q": "The McClellan Oscillator jumps from -75 to +60 within a week. How many points did it climb?",
-   "subject": "F7.05#q18"
+   "subject": "F7.05#q18",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Points climbed"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "before:_below_zero",
+      "label": "Before: below zero",
+      "value": 75
+     },
+     {
+      "fmt": "count",
+      "key": "after:_above_zero",
+      "label": "After: above zero",
+      "value": 60
+     }
+    ],
+    "title": "A jump in a week"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -11132,8 +11563,17 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "They can warn months before a top"
+  },
+  "asof": "2007-10-31",
+  "bars": {
+   "asof": "2007-10-31",
+   "forward": 60,
+   "sym": "SPY",
+   "tf": "D",
+   "window": 400
   },
   "difficulty": 3,
   "id": "si_f8a95177bacc",
@@ -11141,6 +11581,13 @@
   "lesson_text": "They can warn months before a top. The NYSE A/D line peaked in early June 2007. McClellan dates it to June 4, just over 4 months before the Dow's final top. The NYSE Composite still made new highs in July and October. So a divergence is a warning with no clock: breadth gauges are poor timing tools. A divergence is a warning with no clock on it. Price tells you when.",
   "module": "F7",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 60,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 200,
+    "window_bars": 400
+   },
    "choices": [
     "They prove the index's highs were fake",
     "They only show up after the top",
@@ -11228,6 +11675,7 @@
   "skill_id": "history.breadth",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.05.json#q20",
+  "sym": "SPY",
   "type": "scenario",
   "version": 1
  },
@@ -11346,8 +11794,18 @@
   "version": 1
  },
  {
+  "adjustment_basis": "index level",
   "answer_json": {
    "answer": "Broad: many stocks are joining in"
+  },
+  "asof": "2026-04-16",
+  "bars": {
+   "asof": "2026-04-16",
+   "forward": 20,
+   "source": "index",
+   "sym": "SPX",
+   "tf": "D",
+   "window": 320
   },
   "difficulty": 3,
   "id": "si_67309f7e8a4b",
@@ -11355,6 +11813,13 @@
   "lesson_text": "Broad: many stocks are joining in. The S&P 500's A/D line has climbed with the index since the late-March low. An A/D line rising with its index shows strong participation, and Fidelity read that pairing as broadly bullish. It grades breadth as of mid-April 2026. It is not a forecast. Index and A/D line rising together is the healthy picture.",
   "module": "F7",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 20,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 120,
+    "window_bars": 320
+   },
    "choices": [
     "Bearish: breadth is now diverging",
     "Weak: it's only a bounce off the low",
@@ -11435,12 +11900,23 @@
   "skill_id": "history.breadth",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.05.json#q22",
+  "sym": "SPX",
   "type": "scenario",
   "version": 1
  },
  {
+  "adjustment_basis": "index level",
   "answer_json": {
    "answer": "A known Nasdaq quirk, not a crash call"
+  },
+  "asof": "2024-06-05",
+  "bars": {
+   "asof": "2024-06-05",
+   "forward": 20,
+   "source": "index",
+   "sym": "IXIC",
+   "tf": "D",
+   "window": 320
   },
   "difficulty": 3,
   "id": "si_668f51340747",
@@ -11448,6 +11924,13 @@
   "lesson_text": "A known Nasdaq quirk, not a crash call. Nasdaq's listing standards are looser than the NYSE's, so more stocks that fail list there, and each adds to the declines. Its A/D line started down when its data began in 1972 and has never got back to that level. It fell from 2010 to 2012 while the Nasdaq rose. McClellan called the June 2024 picture not unusual. Don't read the Nasdaq A/D line like the NYSE's. It can fall for long stretches while the index rises.",
   "module": "F7",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 20,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 120,
+    "window_bars": 320
+   },
    "choices": [
     "A known Nasdaq quirk, not a crash call",
     "Its record-low level says sell the index",
@@ -11570,6 +12053,7 @@
   "skill_id": "history.breadth",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.05.json#q23",
+  "sym": "IXIC",
   "type": "scenario",
   "version": 1
  },
@@ -11695,8 +12179,18 @@
   "version": 1
  },
  {
+  "adjustment_basis": "index level",
   "answer_json": {
    "answer": "True"
+  },
+  "asof": "2011-07-07",
+  "bars": {
+   "asof": "2011-07-07",
+   "forward": 30,
+   "source": "index",
+   "sym": "SPX",
+   "tf": "D",
+   "window": 320
   },
   "difficulty": 3,
   "id": "si_f866a4cddbdc",
@@ -11704,6 +12198,13 @@
   "lesson_text": "True. In July-August 2011 the S&P 500 fell 19%, which broke the usual pattern. McClellan's study goes back to 1926. After a new A/D line high, the drop over the next 3 months was usually about 10% at most. 2020 was another big exception. A new high tilts the odds, but it does not remove the risk. Strong breadth tilts the odds. It never removes the risk.",
   "module": "F7",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 30,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 120,
+    "window_bars": 320
+   },
    "choices": [
     "True",
     "False"
@@ -11790,6 +12291,7 @@
   "skill_id": "history.breadth",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.05.json#q25",
+  "sym": "SPX",
   "type": "recall",
   "version": 1
  },
@@ -12794,7 +13296,30 @@
    ],
    "kind": "mcq",
    "q": "January 3, 2022: the 2-year Treasury yields 0.78% and the 10-year 1.63%. What is the 2s10s?",
-   "subject": "F7.06#q10"
+   "subject": "F7.06#q10",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "The 2s10s",
+     "unit": "points"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "%",
+      "key": "two",
+      "label": "2-year yield",
+      "value": 0.78
+     },
+     {
+      "fmt": "%",
+      "key": "ten",
+      "label": "10-year yield",
+      "value": 1.63
+     }
+    ],
+    "title": "The yields"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -13053,7 +13578,30 @@
    ],
    "kind": "mcq",
    "q": "The Fed's range was 0-0.25% in January 2022 and 4.25-4.50% by December. How far did the top end rise?",
-   "subject": "F7.06#q13"
+   "subject": "F7.06#q13",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Rise in the top end",
+     "unit": "points"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "%",
+      "key": "start",
+      "label": "Top end, January 2022",
+      "value": 0.25
+     },
+     {
+      "fmt": "%",
+      "key": "end",
+      "label": "Top end, December",
+      "value": 4.5
+     }
+    ],
+    "title": "The Fed's top rate"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -13264,8 +13812,17 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "True"
+  },
+  "asof": "2022-03-15",
+  "bars": {
+   "asof": "2022-03-15",
+   "forward": 20,
+   "sym": "SPY",
+   "tf": "D",
+   "window": 320
   },
   "difficulty": 2,
   "id": "si_a0336fb82a39",
@@ -13273,6 +13830,13 @@
   "lesson_text": "True. The Fed's June report says the expected rate path started rising in the prior year's third quarter. Treasury and corporate yields rose with it, and broad stock indexes fell, before the first hike in March. Markets trade the expected path. By the time the Fed moves, much of it is priced.",
   "module": "F7",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 20,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 120,
+    "window_bars": 320
+   },
    "choices": [
     "True",
     "False"
@@ -13335,6 +13899,7 @@
   "skill_id": "history.fed_rates",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.06.json#q15",
+  "sym": "SPY",
   "type": "recall",
   "version": 1
  },
@@ -13855,7 +14420,29 @@
    "kind": "mcq",
    "q": "Where did the 2s10s end the year?",
    "story": "Over 2022 the 2-year Treasury yield rose from 0.78% to 4.41%. The 10-year rose from 1.63% to 3.88%.",
-   "subject": "F7.06#q21"
+   "subject": "F7.06#q21",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "The 2s10s at year end"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "%",
+      "key": "two",
+      "label": "2-year yield, year end",
+      "value": 4.41
+     },
+     {
+      "fmt": "%",
+      "key": "ten",
+      "label": "10-year yield, year end",
+      "value": 3.88
+     }
+    ],
+    "title": "The yields at year end"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -14107,8 +14694,17 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "True"
+  },
+  "asof": "2023-02-28",
+  "bars": {
+   "asof": "2023-02-28",
+   "forward": 10,
+   "sym": "SPY",
+   "tf": "D",
+   "window": 400
   },
   "difficulty": 3,
   "id": "si_3db7a8b3e028",
@@ -14116,6 +14712,13 @@
   "lesson_text": "True. The Fed's March 2023 report says broad stock indexes were volatile but rose moderately, on net, from June 2022. It points to easing inflation and resilient earnings. Meanwhile the Fed kept hiking, to 4.25-4.5% in December 2022. Rising rates don't automatically mean falling stocks. The market looks ahead. It can turn up before the Fed stops hiking.",
   "module": "F7",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 10,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 200,
+    "window_bars": 400
+   },
    "choices": [
     "True",
     "False"
@@ -14181,6 +14784,7 @@
   "skill_id": "history.fed_rates",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.06.json#q24",
+  "sym": "SPY",
   "type": "recall",
   "version": 1
  },
@@ -15228,7 +15832,29 @@
    ],
    "kind": "mcq",
    "q": "152 million people have jobs. 8 million are unemployed. What is the unemployment rate?",
-   "subject": "F7.07#q12"
+   "subject": "F7.07#q12",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Unemployment rate"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "employed,_millions",
+      "label": "Employed, millions",
+      "value": 152
+     },
+     {
+      "fmt": "count",
+      "key": "unemployed,_millions",
+      "label": "Unemployed, millions",
+      "value": 8
+     }
+    ],
+    "title": "The jobless rate"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -15499,7 +16125,23 @@
    ],
    "kind": "mcq",
    "q": "Forecasters expect CPI to rise 0.2%. It comes in at 0.5%. How big is the surprise?",
-   "subject": "F7.07#q15"
+   "subject": "F7.07#q15",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "The surprise",
+     "unit": "points"
+    },
+    "from": {
+     "label": "Forecast (%)",
+     "value": 0.2
+    },
+    "kind": "move",
+    "to": {
+     "label": "Actual (%)",
+     "value": 0.5
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -15820,8 +16462,17 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "Both came in above forecast"
+  },
+  "asof": "2022-09-12",
+  "bars": {
+   "asof": "2022-09-12",
+   "forward": 10,
+   "sym": "SPY",
+   "tf": "D",
+   "window": 320
   },
   "difficulty": 3,
   "id": "si_c67841615e4c",
@@ -15829,6 +16480,13 @@
   "lesson_text": "Both came in above forecast. The Dow Jones survey expected headline CPI to fall 0.1% and core to rise 0.3%. Headline rose 0.1% and core rose 0.6%, double its forecast. The S&P 500 fell about 4.3%, its worst day since June 2020. A 10.6% drop in gasoline held the headline down. Core showed the pressure. Read every number against its forecast. A small print can still be a big surprise.",
   "module": "F7",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 10,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 120,
+    "window_bars": 320
+   },
    "choices": [
     "Gas prices fell that month",
     "Headline fell below forecast",
@@ -15930,12 +16588,23 @@
   "skill_id": "history.data_calendar",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.07.json#q19",
+  "sym": "SPY",
   "type": "scenario",
   "version": 1
  },
  {
+  "adjustment_basis": "index level",
   "answer_json": {
    "answer": "High-growth tech names"
+  },
+  "asof": "2022-09-12",
+  "bars": {
+   "asof": "2022-09-12",
+   "forward": 10,
+   "source": "index",
+   "sym": "IXIC",
+   "tf": "D",
+   "window": 320
   },
   "difficulty": 3,
   "id": "si_c9ee0a5b84ed",
@@ -15943,6 +16612,13 @@
   "lesson_text": "High-growth tech names. They're seen as most exposed to higher rates, and the hot print had traders expecting the Fed to raise rates more. Higher rates hit the most expensive and riskiest investments hardest. The Nasdaq fell 5.2%, against about 4.3% for the S&P 500 and 3.9% for the Dow. Hot inflation is a rate story. That day, the stocks most exposed to rates fell hardest.",
   "module": "F7",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 10,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 120,
+    "window_bars": 320
+   },
    "choices": [
     "All stocks fell about evenly",
     "Cheap, low-risk stocks",
@@ -16022,6 +16698,7 @@
   "skill_id": "history.data_calendar",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.07.json#q20",
+  "sym": "IXIC",
   "type": "recall",
   "version": 1
  },
@@ -16208,7 +16885,36 @@
    "kind": "mcq",
    "q": "Counting the revisions, how did the job count compare with what was expected?",
    "story": "Aug. 1, 2025, 8:30 a.m. The Dow Jones forecast for July payrolls is +100,000. BLS reports +73,000. It also revises May and June down by 258,000 combined.",
-   "subject": "F7.07#q23"
+   "subject": "F7.07#q23",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Short, counting revisions",
+     "unit": "jobs"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "forecast",
+      "label": "Forecast",
+      "value": 100000
+     },
+     {
+      "fmt": "count",
+      "key": "reported",
+      "label": "Reported",
+      "value": 73000
+     },
+     {
+      "fmt": "count",
+      "key": "revisions,_down",
+      "label": "Revisions, down",
+      "value": 258000
+     }
+    ],
+    "title": "Payrolls vs the forecast"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -16300,8 +17006,17 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "It signals lower profits ahead"
+  },
+  "asof": "2025-07-31",
+  "bars": {
+   "asof": "2025-07-31",
+   "forward": 10,
+   "sym": "SPY",
+   "tf": "D",
+   "window": 320
   },
   "difficulty": 3,
   "id": "si_0457081d73e0",
@@ -16309,6 +17024,13 @@
   "lesson_text": "It signals lower profits ahead. Research on unemployment news finds two messages: lower rates, good for stocks, and lower future earnings and dividends, bad for stocks. That day, futures fell further after the report while Treasury yields fell sharply and the odds of a cut jumped. Weak jobs news cuts two ways: lower rates, but lower earnings too.",
   "module": "F7",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 10,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 120,
+    "window_bars": 320
+   },
    "choices": [
     "The cut was already priced in",
     "It signals lower profits ahead",
@@ -16396,6 +17118,7 @@
   "skill_id": "history.data_calendar",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.07.json#q24",
+  "sym": "SPY",
   "type": "scenario",
   "version": 1
  },
@@ -16823,8 +17546,18 @@
   "version": 1
  },
  {
+  "adjustment_basis": "index level",
   "answer_json": {
    "answer": "The dot-com bubble bursting"
+  },
+  "asof": "2000-03-10",
+  "bars": {
+   "asof": "2000-03-10",
+   "forward": 60,
+   "source": "index",
+   "sym": "IXIC",
+   "tf": "D",
+   "window": 450
   },
   "difficulty": 1,
   "id": "si_11cc00608c77",
@@ -16832,6 +17565,13 @@
   "lesson_text": "The dot-com bubble bursting. Most major indexes, the Nasdaq among them, hit record highs in March 2000. From spring 2000 stocks fell, with a particularly steep drop in the Nasdaq. Investors had grown worried about lofty valuations and higher interest rates. CNBC says the bursting of the tech bubble led directly to the 2000-2002 bear market. The S&P 500 lost 49.1% from March 2000 to October 2002. When a few sectors trade at lofty prices, their fall can drag the whole market down for years.",
   "module": "F7",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 60,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 250,
+    "window_bars": 450
+   },
    "choices": [
     "A collapse in home prices",
     "The US losing its AAA rating",
@@ -16922,6 +17662,7 @@
   "skill_id": "history.detective",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.08.json#q04",
+  "sym": "IXIC",
   "type": "recall",
   "version": 1
  },
@@ -17196,6 +17937,7 @@
   "version": 1
  },
  {
+  "adjustment_basis": "index level",
   "answer_json": {
    "accept": [
     "19.8",
@@ -17204,31 +17946,32 @@
    ],
    "answer": 19.8
   },
+  "asof": "2018-12-24",
+  "bars": {
+   "asof": "2018-12-24",
+   "forward": 20,
+   "source": "index",
+   "sym": "SPX",
+   "tf": "D",
+   "window": 320
+  },
   "difficulty": 2,
   "id": "si_23ec54692404",
   "lesson_origin": "session",
   "lesson_text": "19.8%. Take 2,930.75 minus 2,351.10, divide by 2,930.75, and turn it into a percent. That is the fall from the September 2018 closing peak to the December 24 close. Worries about earnings, global growth, trade tensions and the Fed weighed on stocks. Investor.gov says a bear market is generally a fall of 20% or more over at least two months. On closing prices, this fall stopped just short of that line. Measure from the closing peak. Late 2018 came within a hair of 20%, then turned.",
   "module": "F7",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 20,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 120,
+    "window_bars": 320
+   },
    "kind": "fill_numeric",
    "q": "The S&P 500 closed at a 2,930.75 peak in September 2018 and at 2,351.10 on December 24. How far did it fall, in %? One decimal.",
    "subject": "F7.08#q08",
-   "suffix": "%",
-   "visual": {
-    "find": {
-     "as": "pct",
-     "label": "The fall"
-    },
-    "from": {
-     "label": "Peak",
-     "value": 2930.75
-    },
-    "kind": "move",
-    "to": {
-     "label": "Low",
-     "value": 2351.1
-    }
-   }
+   "suffix": "%"
   },
   "reveal_json": {
    "deeper": {
@@ -17288,6 +18031,7 @@
   "skill_id": "history.detective",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.08.json#q08",
+  "sym": "SPX",
   "type": "recall",
   "version": 1
  },
@@ -19656,7 +20400,30 @@
    ],
    "kind": "mcq",
    "q": "In 2022 the energy index returned 64.56% and the S&P 500 returned -18.11%. By how many points did energy beat it?",
-   "subject": "F7.09#q11"
+   "subject": "F7.09#q11",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Energy's lead",
+     "unit": "points"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "%",
+      "key": "energy_index_return",
+      "label": "Energy index return",
+      "value": 64.56
+     },
+     {
+      "fmt": "%",
+      "key": "s&p_500,_a_loss_of",
+      "label": "S&P 500, a loss of",
+      "value": 18.11
+     }
+    ],
+    "title": "Energy vs the S&P 500"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -20153,8 +20920,17 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "Energy and banking"
+  },
+  "asof": "2020-03-31",
+  "bars": {
+   "asof": "2020-03-31",
+   "forward": 20,
+   "sym": "XLE",
+   "tf": "D",
+   "window": 260
   },
   "difficulty": 3,
   "id": "si_68f2698bc6d8",
@@ -20162,6 +20938,13 @@
   "lesson_text": "Energy and banking. The Fed said the drop was widespread across all sectors, with the largest declines in energy and banking. That quarter the energy fund XLE fell 50.72% and the financials fund XLF 31.94%. Defensive funds fell too, but far less: XLP 12.99% and XLU 13.53%. A crash hits every group, but not equally. Note who breaks and who holds up.",
   "module": "F7",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 20,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 60,
+    "window_bars": 260
+   },
    "choices": [
     "Tech and discretionary",
     "Energy and banking",
@@ -20284,6 +21067,7 @@
   "skill_id": "history.sectors",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.09.json#q16",
+  "sym": "XLE",
   "type": "scenario",
   "version": 1
  },
@@ -20615,8 +21399,17 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "Pass until the group is strong"
+  },
+  "asof": "2023-03-15",
+  "bars": {
+   "asof": "2023-03-15",
+   "forward": 60,
+   "sym": "KRE",
+   "tf": "D",
+   "window": 300
   },
   "difficulty": 3,
   "id": "si_5e418fe3c2e6",
@@ -20624,6 +21417,13 @@
   "lesson_text": "Pass until the group is strong. In March 2023 bank stocks fell sharply as the banking sector came under stress. They fell sharply despite official support for the banks, and stayed below where the year began. Cheap can get cheaper. Buy relative strength and avoid relative weakness, and this group was breaking. Don't fight a group that's breaking. A cheap stock in a weak group can stay cheap.",
   "module": "F7",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 60,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 100,
+    "window_bars": 300
+   },
    "choices": [
     "Sell everything and go to cash",
     "Buy it, the Fed will rescue banks",
@@ -20711,6 +21511,7 @@
   "skill_id": "history.sectors",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F7/F7.09.json#q20",
+  "sym": "KRE",
   "type": "scenario",
   "version": 1
  },

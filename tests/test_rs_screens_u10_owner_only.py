@@ -427,11 +427,13 @@ def test_the_gate_is_still_one_the_ledger_index_can_see():
 def test_the_ledger_row_states_the_three_values_and_the_rollback():
     row = json.loads((ROOT / "docs" / "feature_flags.json").read_text(encoding="utf-8"))["flags"][pp.FLAG]
     note = row["note"]
-    # 2026-11-15: the owner set `admin` on web, so the row is armed, for admins only. A row
-    # that said "armed" and no more would read as released to members.
+    # 2026-11-15: the owner set `admin` on web (armed for admins only), then released the
+    # screens to every member the same day (the value 1). The row says who is served, and
+    # how to take the screens back from members without turning the data off.
     assert row["status"] == "armed" and row["where"] == ["web"]
-    assert note.startswith("ARMED FOR ADMINS ONLY") and "not released to members" in note
-    assert "A full release is the value 1" in note
+    assert note.startswith("ARMED FOR EVERYONE") and "released to all members" in note
+    assert "ARMED FOR ADMINS ONLY" not in note
+    assert "set admin" in note and "17:29:56Z" in note
     for words in ("THREE VALUES", "unset/0/false/no/off = off for everyone",
                   "1/true/yes/on = everyone", "admin = ", "_breadth_dc_scope",
                   "An unrecognised value takes the default (off)",

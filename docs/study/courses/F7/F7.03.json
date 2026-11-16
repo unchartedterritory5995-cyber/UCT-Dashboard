@@ -215,6 +215,51 @@
    "title": "Understanding the Dotcom Bubble: Causes, Impact, and Lessons (Adam Hayes, CFA)",
    "url": "https://www.investopedia.com/terms/d/dotcom-bubble.asp",
    "accessed": "2026-11-09"
+  },
+  {
+   "id": "s27",
+   "tier": 2,
+   "publisher": "Associated Press (in the Honolulu Star-Bulletin)",
+   "title": "Stocks fall on uncertainty (Hope Yen), Closing Market Report, March 11, 2003",
+   "url": "https://archives.starbulletin.com/2003/03/11/business/market.html",
+   "accessed": "2026-11-16",
+   "why_reliable": "An Associated Press closing market report (major financial press, README Tier 2) in the newspaper's own online archive. The page prints no date: its archive path is 2003/03/11, and its other closes (Dow 7,524.06, S&P 500 800.73) are that day's closes in Yahoo's daily index data."
+  },
+  {
+   "id": "s28",
+   "tier": 2,
+   "publisher": "Associated Press (in the Honolulu Star-Bulletin)",
+   "title": "Optimism lifts stocks (Hope Yen), Closing Market Report, May 2, 2003",
+   "url": "https://archives.starbulletin.com/2003/05/02/business/market.html",
+   "accessed": "2026-11-16",
+   "why_reliable": "An Associated Press closing market report (major financial press, README Tier 2) in the newspaper's own online archive. The page prints no date: its archive path is 2003/05/02, and its other closes (Dow 8,582.68, S&P 500 930.08) are that day's closes in Yahoo's daily index data."
+  },
+  {
+   "id": "s29",
+   "tier": 2,
+   "publisher": "CNN/Money",
+   "title": "Stocks seize the day (Alexandra Twin), May 2, 2003, 5:42 PM EDT; Internet Archive copy of May 3, 2003",
+   "url": "https://web.archive.org/web/20030503062812/http://money.cnn.com:80/2003/05/02/markets/markets_newyork/index.htm",
+   "accessed": "2026-11-16",
+   "why_reliable": "CNN/Money's own closing market story (major financial press, README Tier 2), dated on the page, as the Internet Archive kept it the next morning. The live money.cnn.com address now answers with a not-found page."
+  },
+  {
+   "id": "s30",
+   "tier": 2,
+   "publisher": "Associated Press (in the Honolulu Star-Bulletin)",
+   "title": "Stocks end mixed on weak economic data (Hope Yen), Closing Market Report, May 1, 2003",
+   "url": "https://archives.starbulletin.com/2003/05/01/business/market.html",
+   "accessed": "2026-11-16",
+   "why_reliable": "An Associated Press closing market report (major financial press, README Tier 2) in the newspaper's own online archive. The page prints no date: its archive path is 2003/05/01, and its other closes (S&P 500 916.30) are that day's closes in Yahoo's daily index data."
+  },
+  {
+   "id": "s31",
+   "tier": 2,
+   "publisher": "Associated Press (in the Honolulu Star-Bulletin)",
+   "title": "Stocks fall on war jitters (Amy Baldwin), Closing Market Report, February 13, 2003",
+   "url": "https://archives.starbulletin.com/2003/02/13/business/market.html",
+   "accessed": "2026-11-16",
+   "why_reliable": "An Associated Press closing market report (major financial press, README Tier 2) in the newspaper's own online archive. The page prints no date: its archive path is 2003/02/13, and its other closes (S&P 500 817.37) are that day's closes in Yahoo's daily index data."
   }
  ],
  "facts": [
@@ -292,15 +337,33 @@
   },
   {
    "id": "f13",
-   "source": "s1",
-   "quote": "2003-02-13|1261.790",
-   "claim": "The pullback after that rally held at 1,261.79 on February 13, 2003, above the October 2002 low (a higher low)."
+   "source": "s27",
+   "quote": "The Nasdaq composite index declined 6.90, or 0.5 percent, to 1,271.47.",
+   "claim": "On March 11, 2003 the Nasdaq closed at 1,271.47, its lowest close of the pullback after the November 2002 rally top, and above the October 2002 low (a higher low)."
   },
   {
    "id": "f14",
-   "source": "s1",
-   "quote": "2003-05-02|1504.220",
-   "claim": "On May 2, 2003 the Nasdaq closed at 1,504.22, its first close above the November 27, 2002 rally top of 1,487.94."
+   "source": "s28",
+   "quote": "The Nasdaq gained 30.32, or 2.1 percent, to 1,502.88, the highest level seen since June 18, 2002",
+   "claim": "On May 2, 2003 the Nasdaq closed at 1,502.88, its highest close since June 18, 2002 and its first close above the November 27, 2002 rally top of 1,487.94."
+  },
+  {
+   "id": "f13b",
+   "source": "s31",
+   "quote": "The Nasdaq composite index slipped 1.53, or 0.1 percent, to 1,277.44",
+   "claim": "The pullback's earlier dip closed at 1,277.44 on February 13, 2003, above the March 11 close, so March 11 was the pullback's low on closes."
+  },
+  {
+   "id": "f14b",
+   "source": "s29",
+   "quote": "The Nasdaq composite (up 30.32 to 1502.88",
+   "claim": "CNN/Money reported the same May 2, 2003 close: the Nasdaq rose 30.32 points to 1,502.88."
+  },
+  {
+   "id": "f14c",
+   "source": "s30",
+   "quote": "The Nasdaq composite index rose 8.25, or 0.6 percent, to 1,472.56.",
+   "claim": "The day before, May 1, 2003, the Nasdaq closed at 1,472.56, still below the November 27, 2002 rally top of 1,487.94."
   },
   {
    "id": "f15",
@@ -785,7 +848,7 @@
    "title": "How a bear ends",
    "steps": [
     "A downtrend holds until price makes a higher low, then clears the last rally high.",
-    "After the October 2002 low, the Nasdaq held a higher low in February 2003. On May 2, it cleared its November high.",
+    "After the October 2002 low, the Nasdaq held a higher low the next March. In early May, it cleared its November high.",
     "You only see the bottom in hindsight. The rule gets you in late, but on evidence, not a guess.",
     "Even then, it points to a possible turn, not a sure one."
    ],
@@ -1449,7 +1512,7 @@
      "computed key (drawdown_pct)"
     ]
    },
-   "batch": "rank",
+   "batch": "index-charts-2026-11-16",
    "choices": [
     "49%",
     "5.1%",
@@ -1460,6 +1523,12 @@
     "5.1%": "Decimal slip.",
     "49%": "Gave what is left, not the fall.",
     "34%": "Divided the drop by the peak plus the low."
+   },
+   "chart": {
+    "sym": "IXIC",
+    "asof": "2008-12-01",
+    "window": 300,
+    "forward": 20
    }
   },
   {
@@ -1550,7 +1619,13 @@
      "fixed before: the old key was wrong by the unit's own rule and the story was rebuilt"
     ]
    },
-   "batch": "wave6"
+   "batch": "index-charts-2026-11-16",
+   "chart": {
+    "sym": "IXIC",
+    "asof": "2009-02-06",
+    "window": 120,
+    "forward": 25
+   }
   },
   {
    "key": "q20",
@@ -1581,29 +1656,38 @@
      "the key rests on one source (FRED VIX closes)"
     ]
    },
-   "batch": "wave6"
+   "batch": "history-charts-2026-11-15",
+   "chart": {
+    "sym": "SPY",
+    "asof": "2009-03-09",
+    "window": 250,
+    "forward": 20
+   }
   },
   {
    "key": "q21",
    "skill": "history.long_bear",
    "rung": 8,
    "format": "scenario",
-   "story": "Oct. 9, 2002: the Nasdaq closes at 1,114.11. Nov. 27: a rally tops at 1,487.94. Feb. 13, 2003: a pullback holds at 1,261.79. May 2, 2003: it closes at 1,504.22.",
+   "story": "Oct. 9, 2002: the Nasdaq closes at 1,114.11. Nov. 27: a rally tops at 1,487.94. March 11, 2003: a pullback holds at 1,271.47. May 2, 2003: it closes at 1,502.88.",
    "q": "Using these swings, which date confirmed the turn up?",
    "choices": [
     "May 2, 2003",
     "Oct. 9, 2002",
     "Nov. 27, 2002",
-    "Feb. 13, 2003"
+    "March 11, 2003"
    ],
    "answer": "May 2, 2003",
-   "why": "May 2, 2003. October 9 was the low, but only hindsight knew it. February 13 held a higher low, above the October low. May 2 was the first close above the November 27 rally top of 1,487.94, which completed the rule on these swings. Even then it pointed to a possible turn, not a sure one. The Nasdaq went on to close at 2,153.83 on January 26, 2004.",
+   "why": "May 2, 2003. October 9 was the low, but only hindsight knew it. March 11 held a higher low, above the October low. May 2 was the first close above the November 27 rally top of 1,487.94, which completed the rule on these swings. Even then it pointed to a possible turn, not a sure one. The Nasdaq went on to close at 2,153.83 on January 26, 2004.",
    "lesson_line": "Confirmation comes late. That's the price of not guessing.",
    "facts": [
     "f11",
     "f12",
     "f13",
+    "f13b",
     "f14",
+    "f14b",
+    "f14c",
     "f15",
     "f68",
     "f69",
@@ -1614,11 +1698,11 @@
    "wrong": {
     "Oct. 9, 2002": "That was the low, but only hindsight knew it. On the day, it was just another lower low.",
     "Nov. 27, 2002": "That's the rally top. On its own, a rally looks like every other bear market rally.",
-    "Feb. 13, 2003": "That's the higher low, step one. The turn isn't confirmed until the last rally top is cleared."
+    "March 11, 2003": "That's the higher low, step one. The turn isn't confirmed until the last rally top is cleared."
    },
-   "simple": "May 2, 2003, because that was the first close above the November rally top after the higher low in February.",
+   "simple": "May 2, 2003, because that was the first close above the November rally top after the higher low in March.",
    "deeper": {
-    "trap": "The trap is calling the turn on February 13. ChartSchool says a higher low alone is still too early. The change of trend is confirmed only when the previous reaction high is passed. Waiting for May 2 is late, a known criticism of Dow theory, but it acts on evidence, not a guess."
+    "trap": "The trap is calling the turn on March 11. ChartSchool says a higher low alone is still too early. The change of trend is confirmed only when the previous reaction high is passed. Waiting for May 2 is late, a known criticism of Dow theory, but it acts on evidence, not a guess."
    },
    "tier": "expert",
    "risk": {
@@ -1706,23 +1790,30 @@
      "fixed before: 'Buy everything now' and the 'Short it' note were reworked"
     ]
    },
-   "batch": "wave6"
+   "batch": "index-charts-2026-11-16",
+   "chart": {
+    "sym": "IXIC",
+    "asof": "2009-03-12",
+    "window": 120,
+    "forward": 30
+   }
   }
  ],
  "conflicts": [
-  "Nasdaq low and recovery dates: Investopedia's dotcom page (s26) says the Nasdaq fell from 5,048 on March 10, 2000 'to 1,139.90 by Oct. 4, 2002' (76.81%) and reclaimed its high 'on April 24, 2015'. FRED's daily closes (s1) show the lowest close was 1,114.11 on October 9, 2002 (77.93% below 5,048.62) and the first close above 5,048.62 was 5,056.06 on April 23, 2015. The file uses FRED's closes (Tier 1) for every number and date; f84 is no longer cited by any question (the checker took it off q12, whose reveal names April 23, 2015 from f27: a member would have seen both dates side by side).",
+  "Nasdaq low and recovery dates: Investopedia's dotcom page (s26) says the Nasdaq fell from 5,048 on March 10, 2000 'to 1,139.90 by Oct. 4, 2002' (76.81%) and reclaimed its high 'on April 24, 2015'. FRED's daily closes (s1) show the lowest close was 1,114.11 on October 9, 2002 (77.93% below 5,048.62) and the first close above 5,048.62 was 5,056.06 on April 23, 2015. The file uses FRED's closes (Tier 1) for these numbers and dates and for every Nasdaq close it quotes except the 2003 ones in f13, f13b, f14, f14b and f14c, which come from news reports (see the FRED note below); f84 is no longer cited by any question (the checker took it off q12, whose reveal names April 23, 2015 from f27: a member would have seen both dates side by side).",
   "2002 volatility: the Fed's February 2003 report (s7) says implied volatility on the S&P 100 hit 'its highest reading since the stock market crash of 1987' by early October 2002; FRED's VIX (S&P 500, s2) shows its 2002 high close on August 5, 2002 (45.08), not at the October low (42.13 on October 9). Different indexes. No question asks about volatility at the 2002 low; the volatility question (q20) uses only 2008-09 VIX closes.",
   "Which year was worst in 2000-02 depends on the index: broad stock prices fell most in 2002 (s7: net declines 'exceeded those posted during either of the preceding two years'; broad indexes about -20% in 2002), but the Nasdaq fell 39% in 2000 (s4) and 'more than 30 percent' in 2002 (s7). q22 says 'broad stock prices' for that reason.",
   "Unit title says 2008-09; the bear began at the October 2007 peak (s12: the S&P 500 fell 57 percent 'from its October 2007 peak to its trough in March 2009'). Questions say 2007 to 2009. The S&P 500 peaked in October 2007 per s12 while the Nasdaq's highest close was October 31, 2007 (f17); each number names its index. No S&P 500 daily closes are used (FRED's SP500 series covers only the last ten years).",
   "Source tier for NBER: README §3 lists 'NBER and Federal Reserve research papers' under Tier 2; the units plan lists 'NBER business-cycle dates' as Tier 1. The cited pages are the Business Cycle Dating Committee's own announcements (the official US recession chronology, which s13 uses to date the 2007 recession), so s17-s20 are marked Tier 1 with why_reliable. Every NBER-keyed question (q04, q15, q17, q18, q23) also cites a FRED or Federal Reserve fact.",
-  "Dow theory's turn rule (a higher low, then a close above the last rally high: ChartSchool f68/f69 and Investopedia f75) is a convention for confirming a turn, not a guarantee; ChartSchool itself says it is criticized as late (f73), and the file says so (w3, q21). Picking which swing is 'the last rally top' is a judgment, so q19, q21 and q23 name the levels in the story; the 'first close above' and 'never closed above' claims (f14, f18, f25, f27) were checked against every row of s1 (2026-11-09).",
-  "2003 higher low: the Nasdaq made two pullback lows after the November 2002 rally, 1,261.79 on February 13 and 1,269.48 on March 11, 2003; both are above the October 2002 low. q21 and w3 use February 13 (the lower one).",
+  "Dow theory's turn rule (a higher low, then a close above the last rally high: ChartSchool f68/f69 and Investopedia f75) is a convention for confirming a turn, not a guarantee; ChartSchool itself says it is criticized as late (f73), and the file says so (w3, q21). Picking which swing is 'the last rally top' is a judgment, so q19, q21 and q23 name the levels in the story; the 'first close above' and 'never closed above' claims (f18, f25, f27) were checked against every row of s1 (2026-11-09); f14's was checked again on 2026-11-16 against Yahoo's daily Nasdaq closes, because s1's 2003 rows are not closes (see the FRED note).",
+  "2003 higher low: on closes, the pullback after the November 2002 rally made its low at 1,271.47 on March 11, 2003 (AP, f13); its earlier dip closed at 1,277.44 on February 13 (AP, f13b). Both are above the October 2002 low of 1,114.11. q21 and w3 use March 11, the lower close. Until 2026-11-16 they used February 13 at 1,261.79, from s1: that row is the day's intraday low (AP: the Nasdaq closed at 1,277.44 'recovering from an earlier deficit of 17.18' below the prior close of 1,278.97), and s1's March 11 row (1,269.48) is that day's low too, which is why February 13 looked like the lower point.",
   "Checker, swing scale (q19, q21, q23, w3): the turn rule depends on which swings count. On the smallest swings it fired and failed in late 2008: Nasdaq low 1,316.12 (Nov 20), bounce top 1,535.57 (Nov 28), higher low 1,398.07 (Dec 1), first close above that top 1,571.74 (Dec 8); the higher low broke on Feb 23, 2009 (1,387.72) and a new low came on March 9 (s1, every row checked 2026-11-09). Investopedia's Dow theory page (s22) calls minor trends of 'a few days to a few weeks' market noise. The old q19 mixed scales: it took the Nov 4 top (before the Nov 20 low) as 'the last rally top' while using the Dec 1 dip as the higher low, but by ChartSchool's rule (f68) the reaction high before that higher low is Nov 28's 1,535.57, which the Jan 6 close of 1,652.38 had already cleared, so its 'not confirmed' key was wrong by the unit's own rule. q19 is now on the larger swings q21 and q23 use: Jan 6 top 1,652.38, Jan 20 higher low 1,440.86 (lowest close Jan 7 to Feb 5), Feb 6 bounce 1,591.71 (highest close Jan 21 to March 9), no close above 1,652.38 before March 9. w3 now says even a confirmed turn is only a possible one (f75: 'possible reversal').",
   "Checker, 2000 rally tops (w2, q10): the July 17, 2000 top (4,274.67) was ABOVE the May 1, 2000 rally top (3,958.08), and a Sept 1, 2000 top (4,234.33) came between July 2000 and January 2001 (s1). w2 said 'Each rally topped below the last one' and q10's story called July 2000 and January 2001 the 'next' rally tops; they now say 'From mid-2000 on, each big rally topped below the last one' and 'later rally tops included'. Checked: from July 17, 2000 to the October 2002 low, every swing high after a 10 percent or larger move was lower than the one before.",
-  "Checker, 2002-03 minor swings (q21): the Nasdaq also topped at 1,418.99 on Nov 6, 2002 (after the Oct 9 low and before a dip to 1,319.19 on Nov 11) and at 1,460.99 on Jan 14, 2003; on those smaller swings the rule fired on Nov 20, 2002 and again on April 23, 2003 (first close above 1,460.99 after the Feb 13 low). q21's story names only the Nov 27 top, so it now asks 'Using these swings, which date confirmed the turn up?', and f12's claim no longer calls Nov 27 the 'first' rally top.",
+  "Checker, 2002-03 minor swings (q21): the Nasdaq also topped at 1,418.99 on Nov 6, 2002 (after the Oct 9 low and before a dip to 1,319.19 on Nov 11) and at 1,460.99 on Jan 14, 2003; on those smaller swings the rule fired on Nov 20, 2002 and again on April 23, 2003 (first close above 1,460.99 after the March 11 low: 1,466.16 in Yahoo's daily closes; s1's 1,468.08 that day is the intraday high). q21's story names only the Nov 27 top, so it now asks 'Using these swings, which date confirmed the turn up?', and f12's claim no longer calls Nov 27 the 'first' rally top.",
   "Checker, sources: s23 (Investopedia, Downtrend) and its fact f77 were removed. The live page answers 403 to every client the checker may use (plain client, WebFetch), and the newest archived copy (web.archive.org 2025-08-09, page 'Updated January 01, 2024') does not contain the f77 sentence, so it could not be confirmed. q01, q10 and w2 cite f88 (Investopedia, Dow theory) with ChartSchool f65 instead. Investopedia s22 and s24 also refuse plain clients and WebFetch: their quotes (f74-f76, f88; f78-f81) were confirmed on web.archive.org snapshots (s22: 2026-01-11, by Adam Hayes, updated August 10, 2025, reviewed by Gordon Scott, CMT; s24: 2026-03-28, by James Chen, CMT, updated April 11, 2025). s25 and s26 were read in the quote checker's own 2026-11-09 fetch of the live pages.",
   "Checker, Fed first cut (q13): the Fed also cut its discount rate on August 17, 2007, a month before the first cut to its federal funds target (September 18, 2007). q13 now says 'the Fed's first cut to its rate target'; the statement is true either way (August 2007 or September 2007 to March 2009 is more than a year).",
-  "Track audit 2026-11-09: q16 cut as a duplicate of F7.04#q08 (capitulation is only confirmed afterwards, same Investopedia sentence, same true/false form). Style: fact claims and prose now write '%' and dotted month abbreviations like the rest of F7; quotes are untouched. The track now uses 'official' for the 20% bull and bear labels (F7.01, F7.04) and keeps 'confirm' for price evidence of a turn, the sense q14, q19 and q21 use."
+  "Track audit 2026-11-09: q16 cut as a duplicate of F7.04#q08 (capitulation is only confirmed afterwards, same Investopedia sentence, same true/false form). Style: fact claims and prose now write '%' and dotted month abbreviations like the rest of F7; quotes are untouched. The track now uses 'official' for the 20% bull and bear labels (F7.01, F7.04) and keeps 'confirm' for price evidence of a turn, the sense q14, q19 and q21 use.",
+  "Checker, FRED rows that are not closes (2026-11-16): s1's NASDAQCOM rows from January 22, 2003 to August 6, 2004 often hold the day's intraday high or low, not the close. Of the 389 rows in that span, 330 differ from Yahoo's daily ^IXIC closes, and 316 of those equal that day's high or low; the 2002 rows (but for June 13, 2002, 0.02 off) and the rows from August 9, 2004 on match. The rows this unit used or names are among them: February 12-14, 2003 (1,278.74 and 1,261.79 are lows, 1,310.37 a high; closes 1,278.97, 1,277.44, 1,310.17), March 10-12 (1,277.18 and 1,269.48 lows, 1,279.59 a high; closes 1,278.37, 1,271.47, 1,279.24) and May 1, 2 and 5 (1,478.85 and 1,504.22 highs, 1,502.66 a low; closes 1,472.56, 1,502.88, 1,504.04). AP closing reports (s27, s28, s30, s31) and CNN/Money (s29) state the closes the unit uses, so f13, f13b, f14, f14b and f14c cite them, not s1. f15 (January 26, 2004, 2,153.83) is inside the span but matches Yahoo's close (Yahoo's high and close are the same that day); f11, f12 and every other s1 row the unit quotes are outside it and match Yahoo's closes. The answer to q21 is the same on true closes: May 1 closed at 1,472.56 (f14c), May 2 at 1,502.88 (f14)."
  ],
  "verify": {
   "w1": {
@@ -1848,8 +1939,8 @@
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
+   "fixed": true,
+   "notes": "Cold check 2026-11-15. Words agree with IXIC: Dec 1, 2008 close 1,398.07 (also the day's low); Oct 31, 2007 close 2,859.12, the highest close of that bull market (first close above it Apr 27, 2011, 2,869.88); fall 51.1% -> 51%; 'about half below its October 31, 2007 high' holds. Problem with window 250: it opens Dec 5, 2007 (2,666.36), 273 bars after the peak, so the price axis never reaches the 2,859.12 the question names; the window's top is the Dec 26, 2007 close 2,724.41 (high 2,734.82 on Dec 11). A fall measured from that visible top is 48.7% (48.9% from the high), which rounds to the '49"
   },
   "q18": {
    "status": "pass",
@@ -1861,19 +1952,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: No, still under the 1,652.38 top. The higher low (f86 above f19) is in, but f87 at 1,591.71 is below f22. 'On these swings' closes the December 2008 minor-swing second answer recorded in conflicts. The 'not made a higher low' note correctly rebuts it. The Fed note rests on f56, f57 and f23."
+   "notes": "Cold check 2026-11-15. Every story level is a close on IXIC: Nov 20, 2008 1,316.12 (lowest close since the Oct 31, 2007 peak; the prior low close was 1,386.42 on Nov 19), Jan 6, 2009 1,652.38 (highest close after Nov 20 in the window), Jan 20 1,440.86 (lowest close Jan 7-Feb 5), Feb 6 1,591.71 (highest close Jan 21-Mar 9); no close above 1,652.38 from Jan 7 to Mar 9. Window 120 (Aug 18, 2008 to Feb 6, 2009) shows every swing the story names, so the member reads the swings off it; it also shows the Nov 4, 2008 top of 1,780.12, which cannot make a 'Yes' choice right (1,591.71 is below both tops)"
   },
   "q20": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer True: the VIX's highest close was 80.86 on November 20, 2008 (f28), months before the March 9, 2009 low (f23, f29 at 49.68). The simple answer now says the VIX peaked, which is grounded."
+   "notes": "cold re-read 2026-11-15 (session lead): the chart and the words agree; check_course_charts 0 problems; the outcome the words name confirmed in the closes"
   },
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Own answer May 2, 2003 (f14 is the first close above f12, after the f13 higher low). The deeper trap is now split into short sentences, grounded in f69 and f73. The key is the last date in the story, but the rule forces that, and each wrong date has a real misconception note."
+   "fixed": true,
+   "notes": "2026-11-16 correction: FRED's 2003 NASDAQCOM rows used here were intraday highs/lows, not closes. Story now uses the true closes (higher low March 11, 2003 at 1,271.47; May 2 close 1,502.88), each quoted from AP/CNN closing reports (f13, f13b, f14, f14b, f14c), every quote re-read on the saved page; key unchanged (May 2 is still the first close above 1,487.94; May 1 closed 1,472.56)."
   },
   "q22": {
    "status": "pass",
@@ -1885,7 +1976,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "My answer before the key: let price decide (f68, f75; f80/f81 show the expert call was wrong). Key matches. Tried: second answer (none; NBER and news notes grounded in f63, f47, f49, f64), length tell (key 36, others 37-39, parallel form), scale of 'last rally top' (story names the Jan 6 level and says 'last big rally', in line with q19 and the conflicts note), rulebook (B18 market filter governs when to trade, not what confirms a turn; F66 never trade from someone else's call agrees with rejecting the expert). Every number in the why is in f24, f25, f22, f47. First-person lesson line is F7 ho"
+   "notes": "Cold check 2026-11-15. Asof Mar 12, 2009 is the third day off the Mar 9 low (closes 1,268.64 Mar 9, the lowest close of the bear and of the window; 1,358.28, 1,371.64, 1,426.10), matching 'bouncing off a new low made on March 9'. The window (Sep 19, 2008 to Mar 12, 2009) shows the Jan 6 top of 1,652.38 the story names. The question is about process (let price decide), so the chart gives nothing away; it shows the hurdle and the fresh low. Replay 30: the Mar 30 close of 1,501.80 is the lowest close between the Mar 26 swing high (1,587.00) and Apr 8 (day 12, the why's higher low); the Apr 9 clos"
   }
  }
 }
