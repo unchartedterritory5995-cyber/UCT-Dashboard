@@ -468,19 +468,22 @@ const positionSaid = (w, e) => named(w, e)
 // everything except X", "close the charts") proceeds without a named target. Never depends on the position vocabulary.
 const SPECIFIC_CHART = /\b(?:the|that|this|my|your|our)\s+(?:[^\s.,;:!?]+\s+){0,3}?(?:chart|one|panel|graph|widget)\b(?!s)/i
 const SET_REMOVAL = /\b(?:all|every|everything|each|both|whole|entire|rest|others|remaining|except|excluding|other\s+than|apart\s+from|but\s+not)\b|\b(?:clear|close|wipe|empty|reset|clean(?:\s+up)?)\s+(?:out\s+)?(?:the|my)\s+(?:whole\s+|entire\s+)?(?:board|layout|screen)\b/i
+const BACK_REF = /\b(?:the|that)\s+(?:chart|one|graph|panel)\s+(?:(?:that|which)\s+)?(?:I|you|we)\b/i
 const SEVERAL = /\b(?:charts|ones|panels|graphs|widgets|and)\b|[&,]/i
 const pluralOf = (sym) => new RegExp(String.raw`\b(?:both|all|every|each)\b[^.;!?]*?\$?${escRe(sym)}(?![A-Za-z0-9])|(?:^|[^A-Za-z0-9])\$?${escRe(sym)}\s+(?:charts|ones|panels|graphs)\b`, 'i')
 export function removalTargets(w, host, { selected = null, subject = null, picked = null } = {}) {
   const all = liveCharts(host)
   const ids = new Set()
   // (the SOLE chart in scope — a link group is one object — is named by the class noun: "close the chart", as for a re-symbol)
-  const { count: inScope } = chartsInScope(host)
+  //  (counted over the chart WIDGETS a removal can close: closing one closes its chart tabs with it, so a tab is no other target)
   const groups = new Set(all.map(c => (linked(c.group) ? `g:${c.group}` : `c:${c.ref}`)))
-  const sole = inScope === 1 || (groups.size === 1 && inScope === all.length)
+  const sole = groups.size === 1
   for (const c of all) {
     const e = { ref: c.ref, symbol: up(c.symbol), position: c.position || null }
     const how = identifiesChart(asRemoval(w), e, host, { selected, subject, picked, sole })
     if (NAMES_CHART.has(how) || (sole && how === 'class') || positionSaid(w, e)) ids.add(c.ref)
+    // (a back-reference to the conversation's chart — "the one I just changed", "the chart you made" — is that chart, as a deixis is)
+    if (subject && c.ref === subject && BACK_REF.test(w)) ids.add(c.ref)
   }
   const ambiguous = []
   for (const sym of new Set(all.map(c => up(c.symbol)).filter(Boolean))) {

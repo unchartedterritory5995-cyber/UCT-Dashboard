@@ -240,6 +240,21 @@ describe(`ONE CHART, SEVERAL FIT · asked on a 2×2 (${SIDE_CASES.length} cases)
   })
 })
 
+// ── a back-reference to the conversation's chart ("the one I just changed") names that chart; with none, it fails closed ──
+describe('BACK-REFERENCE · the conversation\'s subject chart', () => {
+  const BR = ['close the one I just changed', 'remove the chart you just made weekly', 'get rid of the one we were looking at']
+  const C = []
+  for (const words of BR) for (const n of [2, 3, 4]) for (let s = 0; s < n; s++) for (let j = 0; j < n; j++) C.push([words, n, s, j])
+  it.each(C)('"%s" · %i charts · subject #%i · plan closes #%i', (words, n, s, j) => {
+    const b = boardOf(SYMS.slice(0, n))
+    const got = chartRailRefusal(removal(b, `c${j + 1}`), { words, host: b.host, mode: 'apply', subject: `c${s + 1}` })
+    if (j === s) expect(got, words).toBeNull()
+    else expect(got, words).toMatch(/^Which chart should I close\?/)
+    const none = boardOf(SYMS.slice(0, n))
+    expect(chartRailRefusal(removal(none, `c${j + 1}`), { words, host: none.host, mode: 'apply' }), words).toMatch(/^Which chart should I close\?/)
+  })
+})
+
 // ── WHOLE-BOARD / SET controls: no named target needed ──
 describe('FAIL CLOSED · whole-board and set removals still proceed', () => {
   const SET = ['close all my charts', 'clear the board', 'close the charts', 'remove all the charts', 'close everything', 'get rid of every chart', 'delete both charts']
