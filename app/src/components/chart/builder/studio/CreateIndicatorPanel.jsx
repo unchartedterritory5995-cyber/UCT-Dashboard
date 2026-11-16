@@ -290,6 +290,11 @@ export default function CreateIndicatorPanel({
   // discard it, or keep editing). An opened-but-untouched or just-saved definition
   // closes without a question; a create keeps the accepted no-prompt contract.
   const [confirmLeave, setConfirmLeave] = useState(null)   // 'close' | 'discard' | null
+  // ⭐ V1 — the History list (the earlier steps of this draft). Closed by a pick, by Esc,
+  // by its own button, and whenever there is no longer more than one step to offer.
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const stepCount = conv.steps.length
+  useEffect(() => { if (stepCount < 2) setHistoryOpen(false) }, [stepCount])
   const askOrClose = useCallback(() => { if (editMode && conv.dirty) setConfirmLeave('close'); else close() }, [editMode, conv.dirty, close])
   const askOrCancel = useCallback(() => { if (editMode && conv.dirty) setConfirmLeave('discard'); else cancel() }, [editMode, conv.dirty, cancel])
 
@@ -535,9 +540,47 @@ export default function CreateIndicatorPanel({
           disabled={busy || saving || blocked || !message.trim()} onClick={() => submit()}>Send</button>
       </div>
 
+      {/* ⭐ V1 — HISTORY: every earlier step of this draft, newest first, each one press away.
+          What a step WAS is the read-back's own sentence for that step. Nothing here saves:
+          going back is a preview change like any other, and Undo-able in the sense that the
+          steps before it are still listed. */}
+      {historyOpen && stepCount >= 2 && (
+        <div className={styles.history} role="region" aria-label="Earlier steps of this draft"
+          data-testid="create-indicator-history"
+          onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setHistoryOpen(false) } }}>
+          <div className={styles.historyHead}>
+            <span>Earlier steps</span>
+            <button type="button" className={styles.historyClose} aria-label="Close history"
+              data-testid="create-indicator-history-close" onClick={() => setHistoryOpen(false)}>Close</button>
+          </div>
+          <ol className={styles.historyList} reversed>
+            {[...conv.steps].reverse().map((st) => (
+              <li key={st.index} className={styles.historyRow} data-testid="create-indicator-history-step"
+                data-step={st.step}>
+                <div className={styles.historyWhat}>
+                  <span className={styles.historyStep}>Step {st.step}</span>
+                  {st.empty
+                    ? <span className={styles.historyLine}>Before anything was built</span>
+                    : (st.lines.length ? st.lines : [st.name || 'Indicator']).map((l, i) => (
+                      <span key={i} className={styles.historyLine}>{l}</span>))}
+                </div>
+                <button type="button" className={styles.ghost} disabled={!conv.canUndo}
+                  data-testid="create-indicator-history-go"
+                  onClick={() => { if (conv.goBackTo(st.index)) setHistoryOpen(false) }}>Go back to this</button>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+
       <div className={styles.foot}>
         <button type="button" className={styles.ghost} data-testid="create-indicator-undo"
           disabled={!conv.canUndo} onClick={conv.undo}>Undo</button>
+        {stepCount >= 2 && (
+          <button type="button" className={styles.ghost} data-testid="create-indicator-history-toggle"
+            aria-expanded={historyOpen} disabled={!conv.canUndo}
+            onClick={() => setHistoryOpen((v) => !v)}>History</button>
+        )}
         <span className={styles.footSpacer} />
         {editMode ? (
           <button type="button" className={styles.ghost} data-testid="create-indicator-cancel" onClick={askOrCancel}
