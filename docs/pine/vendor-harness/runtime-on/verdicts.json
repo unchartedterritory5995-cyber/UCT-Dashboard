@@ -145853,8 +145853,8 @@
      "title": "P01_rci_sma5_10",
      "ours": "out3",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "8 steady-state bars disagree; first at bar 42 (value: vendor 97.87279253249042 vs ours 98.78787878787878) — scattered, last at bar 49",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 15,
@@ -145867,24 +145867,18 @@
       "withheldVendorValued": 0,
       "withheldWarmupVendorValued": 0,
       "floatOrderFloorUsed": 0,
-      "matching": 658,
+      "matching": 666,
       "vendorRowsMissing": 0,
       "naMismatches": 0,
-      "valueMismatches": 8,
+      "valueMismatches": 0,
       "colorMismatches": 0,
-      "colorCompared": 648,
+      "colorCompared": 656,
       "colorWithheld": 0,
       "colorComparable": 656,
       "valued": 656,
-      "maxAbs": 1.5054662936151288,
-      "maxRel": 0.12989377052001327,
-      "firstDivergence": {
-       "bar": 42,
-       "time": 1716298200,
-       "kind": "value",
-       "vendor": 97.87279253249042,
-       "ours": 98.78787878787878
-      },
+      "maxAbs": 2.842170943040401e-14,
+      "maxRel": 3.137818526314051e-16,
+      "firstDivergence": null,
       "warmup": {
        "bars": 0,
        "compared": 0,
@@ -145894,25 +145888,10 @@
       "steady": {
        "bars": 666,
        "compared": 666,
-       "divergent": 8,
-       "first": {
-        "bar": 42,
-        "time": 1716298200,
-        "kind": "value",
-        "vendor": 97.87279253249042,
-        "ours": 98.78787878787878
-       },
-       "last": {
-        "bar": 49,
-        "time": 1717162200,
-        "kind": "value",
-        "vendor": -96.65698144513028,
-        "ours": -95.15151515151516
-       },
-       "pattern": {
-        "kind": "scattered",
-        "lastDivergentBar": 49
-       }
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
       },
       "vendorRowGapsAfterStart": 0
      }
@@ -146017,16 +145996,16 @@
    "notCompared": [],
    "notMeasured": [],
    "tolerance": {
-    "rel": 1e-9,
-    "abs": 1e-8,
+    "rel": 1e-09,
+    "abs": 1e-08,
     "absReason": "1e-6 of the tick (pricescale 100)"
    },
    "objects": {
     "verdict": "MATCH",
     "reason": "neither side draws an object"
    },
-   "verdict": "DIVERGE",
-   "reason": "1 of 6 compared items diverge",
+   "verdict": "MATCH",
+   "reason": "all 6 items agree",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
@@ -159082,8 +159061,8 @@
      "title": "T01_sma5_equals_prev",
      "ours": "value",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "2 steady-state bars disagree; first at bar 3665 (value: vendor 1 vs ours 0) — scattered, last at bar 4632",
+     "verdict": "MATCH",
+     "reason": "8507 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 6,
@@ -159096,24 +159075,18 @@
       "withheldVendorValued": 0,
       "withheldWarmupVendorValued": 0,
       "floatOrderFloorUsed": 0,
-      "matching": 8505,
+      "matching": 8507,
       "vendorRowsMissing": 0,
       "naMismatches": 0,
-      "valueMismatches": 2,
+      "valueMismatches": 0,
       "colorMismatches": 0,
-      "colorCompared": 8505,
+      "colorCompared": 8507,
       "colorWithheld": 0,
       "colorComparable": 8507,
       "valued": 8507,
-      "maxAbs": 1,
-      "maxRel": 1,
-      "firstDivergence": {
-       "bar": 3665,
-       "time": 1187357400,
-       "kind": "value",
-       "vendor": 1,
-       "ours": 0
-      },
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
       "warmup": {
        "bars": 0,
        "compared": 0,
@@ -159123,25 +159096,10 @@
       "steady": {
        "bars": 8507,
        "compared": 8507,
-       "divergent": 2,
-       "first": {
-        "bar": 3665,
-        "time": 1187357400,
-        "kind": "value",
-        "vendor": 1,
-        "ours": 0
-       },
-       "last": {
-        "bar": 4632,
-        "time": 1308576600,
-        "kind": "value",
-        "vendor": 1,
-        "ours": 0
-       },
-       "pattern": {
-        "kind": "scattered",
-        "lastDivergentBar": 4632
-       }
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
       },
       "vendorRowGapsAfterStart": 0
      }
@@ -159174,8 +159132,8 @@
       "colorWithheld": 0,
       "colorComparable": 8503,
       "valued": 8503,
-      "maxAbs": 2.2737367544323206e-13,
-      "maxRel": 4.1114017894666507e-16,
+      "maxAbs": 0,
+      "maxRel": 0,
       "firstDivergence": null,
       "warmup": {
        "bars": 0,
@@ -159222,8 +159180,8 @@
       "colorWithheld": 0,
       "colorComparable": 8502,
       "valued": 8502,
-      "maxAbs": 2.2737367544323206e-13,
-      "maxRel": 4.1114017894666507e-16,
+      "maxAbs": 0,
+      "maxRel": 0,
       "firstDivergence": null,
       "warmup": {
        "bars": 0,
@@ -159270,8 +159228,8 @@
       "colorWithheld": 0,
       "colorComparable": 8502,
       "valued": 8502,
-      "maxAbs": 2.2737367544323206e-13,
-      "maxRel": 4.263256414661414e-11,
+      "maxAbs": 0,
+      "maxRel": 0,
       "firstDivergence": null,
       "warmup": {
        "bars": 0,
@@ -159318,8 +159276,8 @@
       "colorWithheld": 0,
       "colorComparable": 8503,
       "valued": 8503,
-      "maxAbs": 9.094947017729282e-13,
-      "maxRel": 3.2891214315733207e-16,
+      "maxAbs": 0,
+      "maxRel": 0,
       "firstDivergence": null,
       "warmup": {
        "bars": 0,
@@ -159390,16 +159348,16 @@
    "notCompared": [],
    "notMeasured": [],
    "tolerance": {
-    "rel": 1e-9,
-    "abs": 1e-8,
+    "rel": 1e-09,
+    "abs": 1e-08,
     "absReason": "1e-6 of the tick (pricescale 100)"
    },
    "objects": {
     "verdict": "MATCH",
     "reason": "neither side draws an object"
    },
-   "verdict": "DIVERGE",
-   "reason": "1 of 7 compared items diverge",
+   "verdict": "MATCH",
+   "reason": "all 7 items agree",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
