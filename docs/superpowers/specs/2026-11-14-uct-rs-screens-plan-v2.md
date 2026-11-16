@@ -314,3 +314,17 @@ Leaders list of that day (50 names, ratings as of 2026-11-13).
 - **UCT RS Leaders stays a kept list of 50 to 65 names** (section 14). The first live list held 50
   because no stock had yet been carried past 50th; the buffer only shows from the second session on.
   A hard 50 would drop and re-add names ranked near 50th from one day to the next.
+- **The Leader score failed its test on development data, so the screens stay rating-ordered**
+  (section 8: "If it fails, the screens stay rating-ordered for good"). Full development run on the
+  server on 2026-11-15, `python -m api.services.rs_leader_test --from-date 2020-11-13`: 251 formation
+  dates (2020-11-13 to 2025-11-06), ratings computed from daily bars (99.6% of 5,851 stocks agree with
+  the stored rating on the cross-check session). Top minus bottom quintile at 21 sessions: +0.11
+  points, 90% interval -0.78 to +1.22 over 50 non-overlapping windows (the test needs the interval
+  above zero). Positive in 1 of the 4 most recent years: 2022 -0.30, 2023 -0.19, 2024 +1.52,
+  2025 -0.15 (needs 3). Quintile order: Spearman 0.30 (needs 0.8). The holdout year was not read;
+  a score that fails on development data has nothing to confirm there. The harness also noted that
+  removing the High part raised the spread by 0.25 points or more in 3 of 4 years; nothing was
+  changed, and a score without High would be a new score that needs its own test. The universe is
+  as held today (stocks that later delisted are missing), which flatters every number above. The
+  score stays unseen; the nightly record behind `RS_LEADER_SHADOW_ENABLED` costs little and can be
+  switched off with that one variable.
