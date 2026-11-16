@@ -128,7 +128,7 @@ def test_the_committed_admitted_set_is_the_evidence_supported_one():
         "core", "reassign", "ternary", "if-block", "var", "fn-single", "fn-multi", "for",
         "compound-assign", "history-expr", "tuple-destructure",
         # U1 (2026-11-15): object families on objects v2 runtime-on MATCH with records paired;
-        # obj:box withheld by ruling (the v4 default border colour, test_A7_obj_box_waits_...)
+        # obj:box withheld by ruling (its box count and ungraded x, test_A7_obj_box_stays_withdrawn_...)
         "obj:line", "obj:label", "obj:delete", "obj:collection",
         # U3 (2026-11-15): each on the one evidence rule over the S1-era corpus; realtime-state for
         # closed-bar history only (G6); max_bars_back by coordinator ruling (a)
@@ -164,8 +164,10 @@ def test_OFF_the_default_is_pinned_in_SOURCE():
 def test_OFF_the_kill_read_is_the_one_before_Part_2(store):
     body = _client().get("/api/user-definitions/runtime-kill").json()
     # RS Rating (2026-11-16): the committed allowlist now holds a record on the SUBSTITUTED path, so
-    # the read also carries what that record discloses (`substituted`) and its run-half evidence.
-    # Neither is a Part 2 key: `capability_admission` is still absent while it is off.
+    # the read also carries what that record discloses (`substituted`), and since Q-RS8 (its three
+    # captures re-taken with the x table, objects v2 MATCH_SUBSTITUTED on master b7cd7a0e63) its
+    # run-half evidence (`run_half_evidence`). Neither is a Part 2 key: `capability_admission` is
+    # still absent while it is off.
     assert set(body) == {"kill", "allow", "save_enabled", "substituted", "run_half_evidence"}
     assert "capability_admission" not in body
 
@@ -434,23 +436,34 @@ def test_A7_the_committed_object_families_are_U1s_four_and_U3s_two():
         assert c not in rep["admitted"], c
 
 
-#: ⛔ Coordinator ruling 2026-11-15: obj:box's y evidence passes the rule, but the runtime lane draws a
+#: ⛔ Coordinator ruling 2026-11-15: obj:box's y evidence passes the rule, but the runtime lane drew a
 #: v4 `box.new` with no `border_color` in #2962ff (v5+ color.blue) where TradingView draws #2196f3
-#: (v4 color.blue). The family waits for runtime object defaults made version-aware.
+#: (v4 color.blue). The family waited for runtime object defaults made version-aware.
+#: ⭐ Re-pointed 2026-11-16 (landing train 1, engine 59; coordinator ruling): the defaults ARE
+#: version-aware now (legacy semantics B5, `objectDefaults.js::NAMED_OBJECT_DEFAULTS`), and the capture
+#: the ruling named no longer differs on any colour. obj:box STAYS WITHDRAWN on what that capture
+#: still shows: objects v2 DIVERGE on the COUNT of boxes held (vendor 52, ours 50; the count differed
+#: before too, behind the colour) and an x that is not graded (taken before U13). It comes back only
+#: on x-graded box captures that grade MATCH.
 OBJ_BOX_BUG_CAPTURE = "inside-bar-boxes-rddt-1d-2026-11-14"
 
 
-def test_A7_obj_box_waits_for_version_aware_object_defaults():
+def test_A7_obj_box_stays_withdrawn_on_its_box_count_and_ungraded_x():
     doc = json.loads(Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))
     assert "obj:box" not in doc["capabilities"]
     readme = " ".join(doc["_readme"])
     assert "obj:box IS DELIBERATELY ABSENT" in readme and OBJ_BOX_BUG_CAPTURE in readme
-    assert "#2962ff" in readme and "#2196f3" in readme
-    # the evidence the ruling names is what it says: runtime-drawn, objects v2 DIVERGE on a box colour
+    assert "vendor 52, ours 50" in readme and "x is not graded" in readme
+    # the evidence the ruling names is what it says: runtime-drawn, objects v2 DIVERGE on the box count
     r = _verdicts()[OBJ_BOX_BUG_CAPTURE]
     o = r["objectsV2"]
-    assert o["verdict"] == "DIVERGE" and "boxes border_color" in o["reason"], o["reason"]
-    assert "#2196f3" in o["reason"] and "#2962ff" in o["reason"]
+    assert o["verdict"] == "DIVERGE" and "boxes count of boxes held" in o["reason"], o["reason"]
+    assert "vendor 52, ours 50" in o["reason"]
+    assert _x_verdict(o) is None and (o["x"]["graded"], o["x"]["differing"]) == (0, 0), o["x"]
+    # ...and the bug it was first withheld for stays fixed: no colour differs, on any paired box
+    assert "border_color" not in o["reason"] and "#2962ff" not in o["reason"], o["reason"]
+    boxes = next(f for f in o["families"] if f["family"] == "boxes")
+    assert boxes["paired"] == 50 and boxes["differing"] == 0, boxes
     src = (json.loads((ROOT / r["file"]).read_text(encoding="utf-8")).get("source") or {}).get("text")
     assert "obj:box" in pc.capabilities_of(src)
 
@@ -662,32 +675,130 @@ def _x_verdict(o: dict):
 KILL_DOC = ROOT / "api" / "data" / "pine_runtime_killlist.json"
 
 
+def _kill_entry_problems(s: dict, v: dict) -> list:
+    """Why one kill entry is not held to its graded evidence: a committed capture of THAT source whose
+    runtime-on grade is not MATCH, a reason in the member's words, and the condition that lifts it."""
+    out = []
+    ev = s.get("evidence") or {}
+    r = v.get(ev.get("capture"))
+    if r is None:
+        return [f"{s.get('slug')}: names no committed capture"]
+    if not (r["verdict"] == ev.get("verdict") != "MATCH"):
+        out.append(f"{s.get('slug')}: its capture grades {r['verdict']}, the entry says {ev.get('verdict')}")
+    text = json.loads((ROOT / r["file"]).read_text(encoding="utf-8"))["source"]["text"]
+    if rt.source_hash(text) != s.get("sha256"):
+        out.append(f"{s.get('slug')}: its capture is another source")
+    src = ROOT / str(s.get("source"))
+    if not src.is_file() or rt.source_hash(src.read_text(encoding="utf-8")) != s.get("sha256"):
+        out.append(f"{s.get('slug')}: its source file is another source")
+    if not (s.get("reason") and s.get("liftWhen")):
+        out.append(f"{s.get('slug')}: no reason or no liftWhen")
+    return out
+
+
 def test_RT1_every_committed_kill_is_held_to_its_graded_evidence():
     """Each entry names a committed capture of THAT source whose runtime-on grade is not MATCH, a reason
-    in the member's words, and the condition that lifts it."""
+    in the member's words, and the condition that lifts it. 2026-11-16: the list is EMPTY (parabolic-sar
+    lifted, below), which is a valid state; the rule is shown able to fail on a synthetic entry."""
     doc = json.loads(KILL_DOC.read_text(encoding="utf-8"))
-    assert doc["scripts"], "the committed kill list is empty"
+    assert isinstance(doc["scripts"], list) and doc["_readme"]
     v = _verdicts()
     for s in doc["scripts"]:
-        ev = s["evidence"]
-        r = v[ev["capture"]]
-        assert r["verdict"] == ev["verdict"] != "MATCH", (s["slug"], r["verdict"])
-        text = json.loads((ROOT / r["file"]).read_text(encoding="utf-8"))["source"]["text"]
-        assert rt.source_hash(text) == s["sha256"], s["slug"]
-        assert rt.source_hash((ROOT / s["source"]).read_text(encoding="utf-8")) == s["sha256"], s["slug"]
-        assert s["reason"] and s["liftWhen"], s["slug"]
+        assert _kill_entry_problems(s, v) == [], s["slug"]
         assert s["sha256"] in rt.kill_list()
+    # CONTROL: an entry whose capture grades MATCH (the lifted parabolic-sar entry, as it stood) is red;
+    # the same entry on a capture that DIVERGES is green
+    src = SYNTHETIC_KILL_SOURCE.read_text(encoding="utf-8")
+    entry = {"slug": "synthetic-subject", "sha256": rt.source_hash(src),
+             "source": "corpus/committed/parabolic-sar__xoeoPMOWGJ.pine", "reason": "SYNTHETIC",
+             "liftWhen": "SYNTHETIC", "evidence": {"capture": "parabolic-sar-spy-1d-2026-11-15", "verdict": "DIVERGE"}}
+    assert any("grades MATCH" in p for p in _kill_entry_problems(entry, v))
+    moved = copy.deepcopy(v)
+    moved["parabolic-sar-spy-1d-2026-11-15"]["verdict"] = "DIVERGE"
+    assert _kill_entry_problems(entry, moved) == []
 
 
-def test_RT1_trend_targets_is_refused_by_name_at_every_door(store, monkeypatch, on):
-    src = (ROOT / "corpus" / "committed" / "trend-targets-algoalpha__92ff5628d7.pine").read_text(encoding="utf-8")
+#: The by-name rails need a killed script, and the committed kill list is empty since parabolic-sar's kill
+#: was lifted (2026-11-16). They kill a REAL source through a SYNTHETIC entry in a tmp kill list, so they
+#: still prove "a killed script is refused by name at every door" without depending on a real kill.
+SYNTHETIC_KILL_SOURCE = ROOT / "corpus" / "committed" / "parabolic-sar__xoeoPMOWGJ.pine"
+SYNTHETIC_KILL_REASON = "SYNTHETIC kill for the by-name rails (no real kill is on the committed list)"
+
+
+def synthetic_kill(tmp_path, monkeypatch) -> str:
+    """Point the committed kill list at a tmp file killing SYNTHETIC_KILL_SOURCE; returns the source."""
+    src = SYNTHETIC_KILL_SOURCE.read_text(encoding="utf-8")
+    doc = {"_readme": ["tmp, synthetic"], "scripts": [{
+        "slug": "synthetic-subject", "sha256": rt.source_hash(src), "source": str(SYNTHETIC_KILL_SOURCE),
+        "reason": SYNTHETIC_KILL_REASON, "liftWhen": "never: a tmp file", "evidence": {}}]}
+    f = tmp_path / "synthetic-killlist.json"
+    f.write_text(json.dumps(doc), encoding="utf-8")
+    monkeypatch.setattr(rt, "KILLLIST_PATH", str(f))
+    return src
+
+
+def test_RT1_a_killed_script_is_refused_by_name_at_every_door(store, monkeypatch, on, tmp_path):
+    src = SYNTHETIC_KILL_SOURCE.read_text(encoding="utf-8")
+    # CONTROL first: on the committed (empty) list the same script is admitted (every capability it uses
+    # is), and the served kill list does not hold it
+    assert not rt.killed(None, src)
+    assert pc.capabilities_of(src) <= set(rt.admitted_capabilities()["admitted"])
+    assert rt.runtime_admission(src, member="u-x")["admitted"] is True
+    assert rt.source_hash(src) not in _client().get("/api/user-definitions/runtime-kill").json()["kill"]
+    # killed through the synthetic entry: refused by name at the verdict door, the served list and `killed`
+    synthetic_kill(tmp_path, monkeypatch)
     why = rt.killed(None, src)
-    assert why and "wrong bar against TradingView" in why, why
+    assert why and SYNTHETIC_KILL_REASON in why, why
     assert rt.runtime_admission(src, member="u-x")["admitted"] is False
     body = _client().get("/api/user-definitions/runtime-kill").json()
     assert rt.source_hash(src) in body["kill"]
-    # CONTROL: its SPY capture MATCHes and its plot capabilities are admitted; only the kill refuses it
-    assert _verdicts()["trend-targets-algoalpha-spy-1d-2026-11-15"]["verdict"] == "MATCH"
+
+
+#: 2026-11-16 -- the parabolic-sar kill (s28: a label "654.4" where TradingView prints "654.41") is LIFTED
+#: on its own `liftWhen` ("then a runtime-on re-grade to MATCH on RDDT and SPY"): the engine fix writes
+#: `math.round_to_mintick`'s tick count as `x * (1 / syminfo.mintick)` (`ast/tickRound.js`).
+PARABOLIC_SAR_LIFT = ("parabolic-sar-rddt-1d-2026-11-15", "parabolic-sar-spy-1d-2026-11-15")
+
+
+def test_RT1_the_parabolic_sar_kill_is_lifted_on_its_own_condition():
+    src = SYNTHETIC_KILL_SOURCE.read_text(encoding="utf-8")
+    assert rt.source_hash(src) not in rt.committed_kills() and not rt.killed(None, src)
+    v = _verdicts()
+    for cid in PARABOLIC_SAR_LIFT:
+        r = v[cid]
+        text = json.loads((ROOT / r["file"]).read_text(encoding="utf-8"))["source"]["text"]
+        assert rt.source_hash(text) == rt.source_hash(src), cid
+        assert r["verdict"] == "MATCH" and r["objects"]["verdict"] == "MATCH", cid
+        texts = next(t for t in r["objects"]["texts"] if t["family"] == "labels text")
+        assert texts["agree"] is True and texts["onlyVendor"] == [] and texts["onlyOurs"] == [], cid
+        o = r["objectsV2"]
+        assert o["verdict"] == "MATCH" and o["pairedNothing"] is False, cid
+    # the label that held the kill: TradingView printed "654.41" (no label text differs on SPY now)
+    spy = json.loads((ROOT / v[PARABOLIC_SAR_LIFT[1]]["file"]).read_text(encoding="utf-8"))
+    assert "654.41" in spy["objects"]["texts"]["labels"]
+    # ...and lifting the kill ADMITS it: every capability it uses is admitted
+    assert pc.capabilities_of(src) <= set(rt.admitted_capabilities()["admitted"])
+
+
+#: The trend-targets kill (s28: its latest trade's lines on the wrong bar, x1 656 vs 653) was LIFTED by the
+#: engine fix of PR #1374 (the runtime document's host object program carries the Pine tree stamps): its
+#: `liftWhen` was "an engine fix, then a runtime-on re-grade to MATCH on RDDT and SPY".
+TREND_TARGETS_LIFT = ("trend-targets-algoalpha-rddt-1d-2026-11-15", "trend-targets-algoalpha-spy-1d-2026-11-15")
+
+
+def test_RT1_the_trend_targets_kill_is_lifted_on_its_own_condition():
+    src = (ROOT / "corpus" / "committed" / "trend-targets-algoalpha__92ff5628d7.pine").read_text(encoding="utf-8")
+    assert rt.source_hash(src) not in rt.committed_kills() and not rt.killed(None, src)
+    v = _verdicts()
+    for cid in TREND_TARGETS_LIFT:
+        r = v[cid]
+        text = json.loads((ROOT / r["file"]).read_text(encoding="utf-8"))["source"]["text"]
+        assert rt.source_hash(text) == rt.source_hash(src), cid
+        o = r["objectsV2"]
+        assert r["verdict"] == "MATCH" and o["verdict"] == "MATCH" and o["pairedNothing"] is False, cid
+        assert _x_verdict(o) == "MATCH" and o["x"]["graded"] == 15, (cid, o["x"])
+    # ...and lifting the kill admits nothing: the script still uses capabilities that are not admitted
+    assert not pc.capabilities_of(src) <= set(rt.admitted_capabilities()["admitted"])
 
 
 def test_RT1_a_broken_committed_file_kills_nothing_extra(tmp_path, monkeypatch):
@@ -700,21 +811,33 @@ def test_RT1_a_broken_committed_file_kills_nothing_extra(tmp_path, monkeypatch):
     assert rt.kill_list() == ["a" * 64]
 
 
-def test_A8_a_script_with_an_x_DIVERGE_capture_is_evidence_for_no_object_family():
-    """The rail can fail: trend-targets (x DIVERGES on RDDT, s28) named as obj:line evidence on its
-    SPY capture, which on its own grades MATCH with x."""
+def test_A8_a_script_with_an_x_DIVERGE_capture_is_evidence_for_no_object_family(monkeypatch, tmp_path):
+    """The rail can fail: parabolic-sar (killed through a SYNTHETIC entry since its real kill was lifted,
+    2026-11-16) named as obj:label evidence on its RDDT capture, which on its own grades MATCH with x; and
+    the same entry once ANOTHER capture of that source grades an x that DIVERGES. (Until PR #1374 the
+    committed example was trend-targets, x DIVERGE on RDDT; its fix left no committed x DIVERGE, so that
+    half is shown on a copy of the snapshot.)"""
+    synthetic_kill(tmp_path, monkeypatch)
     v = _verdicts()
-    good = "trend-targets-algoalpha-spy-1d-2026-11-15"
+    good, other = "parabolic-sar-rddt-1d-2026-11-15", "parabolic-sar-spy-1d-2026-11-15"
     r = v[good]
     fam, comm = rg.pine_evidence_script(r["script"], good)
     o = r["objectsV2"]
-    lines = next(f["paired"] for f in o["families"] if f["family"] == "lines")
-    fake = {"obj:line": {"admitted": True, "evidence": [
+    labels = next(f["paired"] for f in o["families"] if f["family"] == "labels")
+    fake = {"obj:label": {"admitted": True, "evidence": [
         {"capture": good, "script": fam, "community": comm, "verdict": "MATCH", "runtimePane": "on",
-         "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": lines, "objectsX": _x_verdict(o)}]}}
+         "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": labels, "objectsX": _x_verdict(o)}]}}
+    got = {why for _c, _id, why in _phantoms(fake)}
+    assert "its script is on the kill list" in got, got
+    # CONTROL: as committed, no capture of that source has an x that DIVERGES
+    assert "its script has a capture whose x DIVERGES" not in got, got
+    moved = copy.deepcopy(v)
+    x = moved[other]["objectsV2"]["x"]
+    assert x["graded"] and not x["differing"]
+    x["differing"], x["agreeing"] = 1, x["agreeing"] - 1
+    monkeypatch.setattr(sys.modules[__name__], "_verdicts", lambda: moved)
     got = {why for _c, _id, why in _phantoms(fake)}
     assert "its script has a capture whose x DIVERGES" in got, got
-    assert "its script is on the kill list" in got, got
 
 
 def test_A8_no_phantom_evidence():

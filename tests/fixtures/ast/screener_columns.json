@@ -1433,7 +1433,7 @@
   },
   {
    "id": "18-stochastic-oversold",
-   "source": "stoch(high, low, close, 14) < 20 ? 1 : 0",
+   "source": "stochPine(high, low, close, 14) < 20 ? 1 : 0",
    "ast": {
     "type": "op",
     "name": "?:",
@@ -1444,7 +1444,7 @@
       "args": [
        {
         "type": "call",
-        "name": "stoch",
+        "name": "stochPine",
         "args": [
          {
           "type": "series",

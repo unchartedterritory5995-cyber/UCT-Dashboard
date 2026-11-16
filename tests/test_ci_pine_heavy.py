@@ -197,6 +197,29 @@ def test_mutant_manifest_validation(tmp_path):
     assert any("nothing is mutated" in p for p in M.validate(same, root))
 
 
+def test_the_mutant_job_names_the_workspace_as_the_repo():
+    """pine-heavy runs the runner from a sparse tools checkout ($CI_TOOLS); without --repo every
+    manifest file under app/ read "not a file inside the repo" (run 43830888172, 62 of 62)."""
+    line = next(l for l in WF_PATH.read_text(encoding="utf-8").splitlines() if "ci_mutant_runner.py" in l and "run:" in l)
+    assert '--repo "$GITHUB_WORKSPACE"' in line, line
+
+
+def test_the_runner_reads_the_manifest_against_the_named_repo(tmp_path):
+    other = tmp_path / "work"
+    other.mkdir()
+    (other / "impl.py").write_text("LIMIT = 3" + chr(10), encoding="utf-8")
+    man = tmp_path / "m.json"
+    man.write_text(json.dumps({"schema": M.SCHEMA, "mutants": [{"id": "A", "mutant": "a", "file": "impl.py",
+                                                              "from": "LIMIT = 9", "to": "LIMIT = 4", "rail": "true"}]}),
+                   encoding="utf-8")
+    # resolved against --repo: the file IS found there (so the complaint is about `from`, not the path) ...
+    assert M.main(["--manifest", str(man), "--out", str(tmp_path / "o.json"), "--repo", str(other)]) == 2
+    assert any("occurs 0 times" in p for p in M.validate(json.loads(man.read_text(encoding="utf-8")), other))
+    # ... and against the tool's own repo it is not a file at all
+    assert any("not a file inside the repo" in p for p in M.validate(json.loads(man.read_text(encoding="utf-8")), M.ROOT))
+    assert M.main(["--manifest", str(man), "--out", str(tmp_path / "o.json"), "--repo", str(tmp_path / "nope")]) == 2
+
+
 def test_mutant_runner_kills_restores_and_reports_a_survivor(tmp_path, monkeypatch):
     root = _repo(tmp_path)
     rail = f'"{sys.executable}" -c "import sys; sys.exit(0 if open(\'impl.py\').read() == \'LIMIT = 3\\n\' else 1)"'

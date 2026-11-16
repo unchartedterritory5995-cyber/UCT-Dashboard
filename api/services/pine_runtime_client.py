@@ -468,6 +468,18 @@ class PineRuntimeClient:
             return [_withheld(j.job, g, s) for j in jobs]
         doc_sha = hashlib.sha256(doc_text.encode("utf-8")).hexdigest()
         owner = owner_pseudonym(self.secret, owner_id)
+        # ⭐⭐ U15 -- THE LIBRARIES A RUNTIME DOCUMENT LINKS, from THIS server's store, held to the
+        # document's own pins (`meta.libraries`, the sha256 of the code it was saved against). The
+        # service has no store (no volume): it is handed the entries and checks each sha again. A
+        # pin the store cannot honour withholds every job by name and sends nothing.
+        libraries = None
+        pins = (doc.get("meta") or {}).get("libraries") if isinstance(doc.get("meta"), dict) else None
+        if pins:
+            from api.services import pine_library_store  # noqa: PLC0415 -- the store's one reader
+            libraries, why = pine_library_store.pinned_entries(pins)
+            if why:
+                self._loud(why[0], why[1], doc_sha[:12])
+                return [_withheld(j.job, why[0], why[1]) for j in jobs]
 
         out: List[Optional[JobResult]] = [None] * len(jobs)
         pending: List[Tuple[int, Job, Dict[str, Any], str]] = []
@@ -501,7 +513,8 @@ class PineRuntimeClient:
         for start in range(0, len(pending), size):
             chunk = pending[start:start + size]
             body = {"protocol": PROTOCOL, "profile": profile, "engine": dict(self.identity),
-                    "definition": {"def_id": def_id, "version": version, "doc_sha256": doc_sha, "doc": doc_text},
+                    "definition": {"def_id": def_id, "version": version, "doc_sha256": doc_sha, "doc": doc_text,
+                                   **({"libraries": libraries} if libraries else {})},
                     "owner": owner, "jobs": [w for (_, _, w, _) in chunk]}
             answers = self._run_chunk(body, [(j, w["bars"]["n"]) for (_, j, w, _) in chunk], profile, doc_sha, owner)
             for (i, _, _, key), res in zip(chunk, answers):

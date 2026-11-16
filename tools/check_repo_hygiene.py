@@ -84,6 +84,12 @@ BIG_ALLOWLIST = {
     "tests/fixtures/vendor/harness/delta-volume-candles-lucf-spy-1d-2026-11-15.json",
     "tests/fixtures/vendor/harness/sub-spy-1d-2026-11-15.json",
     "tests/fixtures/vendor/harness/volume-suite-by-leviathan-spy-1d-2026-11-15.json",
+    # 2026-11-16, landing train 1: at engine 59 the runtime-on snapshot grew past 5 MB when legacy
+    # semantics, engine 56 and the colour review moved their probes onto the drawn lanes, adding ~90
+    # row.plots entries to the committed fixtures run. Written by `vendorHarness.corpus.test.js` (the
+    # production snapshot is 4.5 MB); the same human-readable JSON dumper. Listed to unblock the gate;
+    # it may shrink if a later capture programme splits the fixtures corpus.
+    "docs/pine/vendor-harness/runtime-on/verdicts.json",
 }
 # A `.env*` may be tracked only when it carries no value — a template.
 ENV_ALLOWLIST = {".env.example"}

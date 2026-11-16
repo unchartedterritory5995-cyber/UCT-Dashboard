@@ -370,7 +370,7 @@ describe('W9-T7 [B-EXIT-LEVELS] profit and limit together, by version (Q-S1k)', 
     expect([trades[0].exit.price, trades[0].exit.time]).toEqual([99.6, at(2)])
   })
   it('refuses by name (Q-S1k): the pair in Pine v4 (no v4 text read)', () => {
-    unsettled(`//@version=4\nstrategy("t")\nstrategy.entry("L", true, qty = 1, when = bar_index == 1)\nstrategy.exit("x", "L", profit = 150, limit = 104)\nplot(strategy.position_size)\n`, 'Q-S1k')
+    unsettled(`//@version=4\nstrategy("t", margin_long = 100, margin_short = 100)\nstrategy.entry("L", true, qty = 1, when = bar_index == 1)\nstrategy.exit("x", "L", profit = 150, limit = 104)\nplot(strategy.position_size)\n`, 'Q-S1k')
   })
 })
 
@@ -406,10 +406,11 @@ const SAMPLES = {
 
 describe('W9-T7 pin before serve (D1): nothing T7 adds serves without its own pin', () => {
   afterEach(() => registerStrategyBrokerGate(() => false))
-  it('each T7 rule is named, with the capture row the design gives it, and the ledger pins none', () => {
+  it('each T7 rule is named; the ledger pins B-OCA and B-ORDER and leaves the six others unpinned', () => {
     expect(T7_RULES.map((r) => BROKER_RULES[r].capture))
       .toEqual(['W9-X1', 'W9-X2', 'W9-X2', 'W9-X3', 'W9-X4', 'W9-X4', 'Q-S1j', 'Q-S1k'])
-    for (const r of T7_RULES) expect(Object.keys(RESOLVED.rules)).not.toContain(r)
+    for (const r of ['B-OCA', 'B-ORDER']) expect(Object.keys(RESOLVED.rules), r).toContain(r)
+    for (const r of T7_RULES) if (r !== 'B-OCA' && r !== 'B-ORDER') expect(Object.keys(RESOLVED.rules), r).not.toContain(r)
   })
   for (const rule of T7_RULES) {
     const [src] = SAMPLES[rule]
@@ -422,17 +423,19 @@ describe('W9-T7 pin before serve (D1): nothing T7 adds serves without its own pi
       expect(err.rule).toBe(rule)
       expect(err.message).toContain(BROKER_RULES[rule].capture)
     })
-    it(`${rule}: on the committed ledger the run refuses runtime:strategy-unpinned`, () => {
-      const { err } = attempt(src, { pins: 'ledger' })
-      expect(err && err.guard).toBe('runtime:strategy-unpinned')
-      expect(BROKER_RULE_IDS).toContain(err.rule)
+    it(`${rule}: with the committed ledger - B-OCA and B-ORDER run; the six unpinned rules still stop by name`, () => {
+      const r = attempt(src, { pins: 'ledger' })
+      if (rule === 'B-OCA' || rule === 'B-ORDER') { expect(r.err, r.err && r.err.message).toBeUndefined(); expect(r.res.broker.record.rulesUsed).toContain(rule); return }
+      expect(r.err && r.err.guard).toBe('runtime:strategy-unpinned')
+      expect(BROKER_RULE_IDS).toContain(r.err.rule)
     })
-    it(`${rule}: the member door (gate on, committed ledger) refuses by name`, () => {
+    it(`${rule}: the member door (gate on, committed ledger) - pinned rules run; the unpinned ones stop by name`, () => {
       registerStrategyBrokerGate(() => true)
       const doc = { id: `w9t7-${rule}`, meta: { runtimeHistory: 'strategy-window' },
         compute: { kind: 'runtime', fn: `runtime:w9t7-${rule}`, outputs: { p: 0 }, source: src } }
       let err
       try { computeRuntimeColumns(doc, A, { tf: 'D', newestBarIsForming: false, historyFromListing: true, symbol: SYMBOL, historyWindowBars: 30 }) } catch (e) { err = e }
+      if (rule === 'B-OCA' || rule === 'B-ORDER') { expect(err, err && err.message).toBeUndefined(); return }
       expect(err && err.guard).toBe('runtime:strategy-unpinned')
       expect(err.message).toMatch(/is not pinned by a matching TradingView capture/)
     })
@@ -450,8 +453,8 @@ describe('W9-T7 pin before serve (D1): nothing T7 adds serves without its own pi
       expect(err && err.rule, rule).toBe(rule)
     }
   })
-  it('the D7 scorecard stays derived: 0 of every named rule (the size is pinned once, strategiesAreRuled.test.js)', () => {
+  it('the D7 scorecard stays derived: 31 of every named rule', () => {
     for (const r of T7_RULES) expect(BROKER_RULE_IDS).toContain(r)
-    expect(strategyScorecardWording()).toMatch(new RegExp(`^0 of ${BROKER_RULE_IDS.length} broker rules are pinned`))
+    expect(strategyScorecardWording()).toMatch(new RegExp(`^31 of ${BROKER_RULE_IDS.length} broker rules are pinned`))
   })
 })

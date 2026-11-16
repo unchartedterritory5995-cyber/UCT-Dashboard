@@ -547,6 +547,62 @@ def _pool_state() -> dict:
         return {}
 
 
+def authoring_demand(days: int = 7, *, top: int = 12) -> dict:
+    """⭐ L6 (Studio plan, section 7): what members asked Create Indicator for that it could
+    not build, RANKED BY DISTINCT MEMBERS. One member asking ten times is one ask; ten members
+    asking once each is ten. The rows are the closed demand categories each turn already
+    carries (`definition_conversation.unsupported_category`), so nothing here can hold a
+    member's words. READ-ONLY.
+
+    ``other`` is the share the taxonomy cannot place yet: a falling ``unclassified_share``
+    means it is learning. ``could_not_produce`` is a different signal, kept apart: requests
+    the assistant tried and failed to express (a defect to fix, not demand to weigh).
+    """
+    days = max(1, min(int(days or 7), 90))
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT visitor_id, props, date(created_at) FROM landing_events"
+            " WHERE event = 'converse_turn' AND created_at >= datetime('now', ?)",
+            (f"-{days} days",),
+        ).fetchall()
+    finally:
+        conn.close()
+    cells: dict = {}
+    invalid_members, invalid_turns = set(), 0
+    for uid, props, day in rows:
+        try:
+            p = json.loads(props) if props else {}
+        except ValueError:
+            continue
+        if p.get("failure_class") == "model_invalid":
+            invalid_members.add(str(uid)); invalid_turns += 1
+        cat = p.get("unsupported_category")
+        if cat not in UNSUPPORTED_CATEGORIES:
+            continue
+        c = cells.setdefault(cat, {"members": set(), "cohort": set(), "turns": 0, "last_day": None})
+        c["members"].add(str(uid))
+        if p.get("access") == "cohort":
+            c["cohort"].add(str(uid))
+        c["turns"] += 1
+        c["last_day"] = max(c["last_day"] or day, day)
+    ranked = sorted(({"category": k, "members": len(v["members"]),
+                     "members_excluding_admins": len(v["cohort"]),
+                     "turns": v["turns"], "last_day": v["last_day"]} for k, v in cells.items()),
+                    key=lambda r: (-r["members"], -r["turns"], r["category"]))
+    for i, r in enumerate(ranked, 1):
+        r["rank"] = i
+    total = sum(r["turns"] for r in ranked)
+    other = next((r for r in ranked if r["category"] == "other"), None)
+    return {
+        "window_days": days,
+        "ranked": ranked[:max(1, int(top))],
+        "categories": len(ranked),
+        "unclassified_share": round(other["turns"] / total, 3) if (other and total) else (0.0 if total else None),
+        "could_not_produce": {"members": len(invalid_members), "turns": invalid_turns},
+    }
+
+
 def rollout_report(days: int = 7) -> dict:
     """What the rollout cohort is doing with Create Indicator: the two structured
     events above plus the shared spend ledger. READ-ONLY; aggregates only — the
@@ -608,4 +664,6 @@ def rollout_report(days: int = 7) -> dict:
         "produced_by": {k: _tally(p.get(k) for _, _, p in turns if p.get(k) is not None)
                         for k in ("prompt_sha", "vocab_version", "model", "engine")},
         "shared_pool_today": _pool_state(),
+        # ⭐ L6: what could not be built, ranked by distinct members
+        "demand": authoring_demand(days),
     }

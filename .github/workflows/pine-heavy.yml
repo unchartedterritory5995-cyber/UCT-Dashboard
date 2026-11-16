@@ -364,7 +364,7 @@ jobs:
       - name: Every mutant turns its rail red, and every file comes back byte-equal (offline)
         env:
           MANIFEST: ${{ inputs.mutants_manifest }}
-        run: bash "$CI_TOOLS/tools/ci_offline.sh" python "$CI_TOOLS/tools/ci_mutant_runner.py" --manifest "$MANIFEST" --out mutants-result.json
+        run: bash "$CI_TOOLS/tools/ci_offline.sh" python "$CI_TOOLS/tools/ci_mutant_runner.py" --repo "$GITHUB_WORKSPACE" --manifest "$MANIFEST" --out mutants-result.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:

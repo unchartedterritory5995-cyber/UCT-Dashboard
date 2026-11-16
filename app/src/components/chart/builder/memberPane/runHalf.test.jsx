@@ -436,6 +436,47 @@ describe('⭐⭐ the bind draws the run\'s drawings only where every gate passes
       expect(runHalfOf(bind(def))).toEqual({ state: 'pending', code: 'runtime:in-flight' })
       expect(runtimeObjectsOf(bind(def))).toBe(null)
     })
+    // ONE WITHHOLDING, ONE REASON (2026-11-16): seen on production, the note read "the script
+    // reads another symbol or timeframe, which this chart cannot hand that run" for the seconds
+    // the other symbol's bars took to load, then a different reason once they had.
+    const waiting = () => Object.assign(new Error('this script reads another symbol whose bars are still loading'),
+      { guard: 'runtime:request', pending: true })
+    it('pending: a run waiting for another symbol\'s bars is held, and no cause is worded', () => {
+      const def = install(door().definition)
+      registry.registerRuntimeLane(() => { throw waiting() })
+      expect(runHalfOf(bind(def))).toEqual({ state: 'pending', code: registry.RUN_HALF_REQUEST_PENDING })
+      expect(runtimeObjectsOf(bind(def))).toBe(null)
+    })
+    it('the wait RESOLVES: once the run can answer, the answer is the one a chart that never waited gets', () => {
+      const def = install(door().definition)
+      const never = runHalfOf(bind(def))
+      expect(never.state, 'CONTROL: this document is served when nothing waits').toBe('served')
+      registry.registerRuntimeLane(() => { throw waiting() })
+      expect(runHalfOf(bind(def)).state).toBe('pending')
+      // the bars arrive: the same lane as before the wait, asked again
+      registry.registerRuntimeLane(runtimeColumnsFor)
+      expect(runHalfOf(bind(def))).toEqual(never)
+      // and a wait that ends in a refusal ends on that refusal's own sentence, the same one a
+      // chart that never waited reads (one withholding, one reason, on every surface)
+      registry.registerRuntimeLane(() => { throw Object.assign(new Error('refused'), { guard: 'runtime:request' }) })
+      const refused = runHalfOf(bind(def))
+      expect(refused).toEqual({ state: 'refused', code: 'runtime:request' })
+      expect(runHalfRefusedSentence(refused.code)).toMatch(/cannot hand that run/)
+      expect(runHalfRefusedSentence(registry.RUN_HALF_REQUEST_PENDING), 'the pending code is never worded as a cause')
+        .not.toMatch(/cannot hand that run/)
+    })
+    it('pending: the same wait, reached as a withheld payload beside the plain run\'s columns', () => {
+      const def = install(door().definition)
+      registry.registerRuntimeLane(fake({ status: 'WITHHELD', live: [], guard: 'runtime:request', reason: 'x', pending: true }))
+      expect(runHalfOf(bind(def))).toEqual({ state: 'pending', code: registry.RUN_HALF_REQUEST_PENDING })
+    })
+    it('CONTROL: a request the run REFUSES (not a wait) is still refused, with its own code', () => {
+      const def = install(door().definition)
+      registry.registerRuntimeLane(() => { throw Object.assign(new Error('refused'), { guard: 'runtime:request' }) })
+      expect(runHalfOf(bind(def))).toEqual({ state: 'refused', code: 'runtime:request' })
+      registry.registerRuntimeLane(fake({ status: 'WITHHELD', live: [], guard: 'runtime:request', reason: 'x' }))
+      expect(runHalfOf(bind(def))).toEqual({ state: 'refused', code: 'runtime:request' })
+    })
     it('⛔ a family the run withholds that the host program draws: refused', () => {
       const def = install(door().definition)
       registry.registerRuntimeLane(fake({ status: 'ok', live: [], withheld: { line: 'not measured' } }))

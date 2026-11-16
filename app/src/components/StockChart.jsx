@@ -169,6 +169,7 @@ import { serverDeclares, subscribeServerDefinitions } from './chart/engine/serve
 // Compare panel (unit 3-12) by this window event; one spelling, the panel's own.
 import { COMPARE_OPEN_EVENT } from '../pages/charts/compareGroups'
 import { cardEvidenceText } from './chart/engine/readoutSchema'
+import { chartThemeOf } from './chart/engine/objectTheme'
 import { RS_LEARN_VIDEOS, learnHref } from '../lib/deskVideoHref'
 // ⭐ VA2 — the plan's §13 counts (on since the server lists the six events; `VITE_RS_TELEMETRY_ENABLED=0` turns them off; see the module).
 import { createRsInstanceTracker, noteRsCard, noteRsLearn } from '../lib/rsTelemetry'
@@ -5814,6 +5815,9 @@ export default function StockChart({
    */
   const readoutChipOpts = {
     scalarsOf: (def, inputs) => scalarsFor(def, inputs, { sym: symRef.current, tf: resolvedTfRef.current }),
+    // ⭐ ENGINE 58 — the chart's own two colours, so a chip whose plot is coloured by a
+    // theme reference (`chart.fg_color@85`) wears what the line wears (`readout.js`).
+    theme: chartThemeOf(cs),
   }
   /**
    * ⭐ Phase 2a visual round (VA3) — what a READOUT definition's chip prints, for

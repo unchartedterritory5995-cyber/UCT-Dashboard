@@ -6,36 +6,9 @@
     "refused by name with its `reason`. Nothing is deleted: removing an entry brings the script back on the next read.",
     "An entry comes off ONLY when its `liftWhen` is met (an engine fix, then a re-grade to MATCH on the named captures).",
     "tests/test_pine_capability_admission.py holds every entry to its evidence capture (a committed runtime-on verdict",
-    "that is not MATCH, on a capture whose source hashes to the entry's sha256). Edit as text."
+    "that is not MATCH, on a capture whose source hashes to the entry's sha256). Edit as text.",
+    "Lifted: trend-targets-algoalpha (PR #1374), parabolic-sar (2026-11-16, round_to_mintick on a half tick, both captures MATCH).",
+    "Empty is a valid state: the by-name rails use a synthetic entry (tests/test_pine_capability_admission.py)."
   ],
-  "scripts": [
-    {
-      "slug": "trend-targets-algoalpha",
-      "sha256": "08ed07e699888fe78aee08d3bba984d2e65e42d3518a4f9581fa790dbaf124cb",
-      "source": "corpus/committed/trend-targets-algoalpha__92ff5628d7.pine",
-      "reason": "its latest trade's lines are drawn on the wrong bar against TradingView (x1 656 vs 653, with the levels off too)",
-      "evidence": {
-        "capture": "trend-targets-algoalpha-rddt-1d-2026-11-15",
-        "verdict": "DIVERGE",
-        "objectsX": "15 graded, 10 agree, 5 differ",
-        "session": "s28-2026-11-15"
-      },
-      "liftWhen": "an engine fix, then a runtime-on re-grade to MATCH on RDDT and SPY",
-      "addedBy": "coordinator ruling 2026-11-15 (owner-delegated)"
-    },
-    {
-      "slug": "parabolic-sar",
-      "sha256": "d9f41d606251ebc06a80fad1ffa7aa048245e065fcc65e2f1d04142217d3287b",
-      "source": "corpus/committed/parabolic-sar__xoeoPMOWGJ.pine",
-      "reason": "a label prints its price one decimal short of TradingView (654.4 vs 654.41, s28 SPY)",
-      "evidence": {
-        "capture": "parabolic-sar-spy-1d-2026-11-15",
-        "verdict": "DIVERGE",
-        "objectsX": "50 graded, 50 agree, 0 differ (the label TEXT differs; x, y and colours agree)",
-        "session": "s28-2026-11-15"
-      },
-      "liftWhen": "the label number-formatting fix (the legacy builder owns it), then a runtime-on re-grade to MATCH on RDDT and SPY",
-      "addedBy": "coordinator ruling 2026-11-15 (owner-delegated), option (A)"
-    }
-  ]
+  "scripts": []
 }

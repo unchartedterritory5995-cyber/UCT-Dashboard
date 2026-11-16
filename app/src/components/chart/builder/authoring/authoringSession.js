@@ -17,9 +17,9 @@
 // the preview acknowledgement. The hook keeps its React state; the Agent keeps nothing
 // but the session the store already holds.
 
-import { newAuthoringState, applyTurn, undo as undoState, readback, isDirty } from './index'
+import { newAuthoringState, applyTurn, undo as undoState, undoTo as undoToState, readback, isDirty } from './index'
 import { openAuthoringState } from './authoringState'
-import { converseTurn, distinctNotUnderstood } from './converseClient'
+import { converseTurn, STOPPED_GATE, distinctNotUnderstood } from './converseClient'
 import { classifyTurn, OUTCOMES } from './turnOutcome'
 import { preflight } from './preflight'
 import { readSession, clearSession } from './conversationSessions'
@@ -78,6 +78,9 @@ export function replyLines(rb, state, changes = []) {
 }
 
 export const NOTHING_CHANGED = 'Nothing on the chart changed.'
+/** What the dock says after the member pressed Stop. The request left the browser, so the
+ *  server may still have worked on it: said plainly, because it can count toward the day. */
+export const STOPPED_LINE = 'Stopped. A request that was already sent can still count toward today\'s allowance.'
 
 /** ⭐ PHASE 4 — the first line of an opened definition's conversation. */
 export function openedEntry(open) {
@@ -200,8 +203,15 @@ function withCreateName(envelope, words, accept) {
  * @returns `{ok, entries, state: next|null, changed}` — `changed`: a new revision of the
  *          definition (the preview acknowledgement resets, the "updated" cue fires).
  */
-export async function modelTurn(before, current, words, { snippets = [], gateCtx = {}, converse = converseTurn, keepCreateName = null } = {}) {
-  const res = await converse({ message: words, state: before, gateCtx, snippets })
+export async function modelTurn(before, current, words, { snippets = [], gateCtx = {}, converse = converseTurn, keepCreateName = null, signal = null } = {}) {
+  const res = await converse({ message: words, state: before, gateCtx, snippets, signal })
+  // ⭐ STOP (2026-11-16) — the member stopped waiting. Whatever came back (or did not) is
+  // NOT read: no reply, no patch, no refusal. Checked on the signal as well as the gate,
+  // so an answer that landed in the same instant as the press is dropped too.
+  if ((signal && signal.aborted) || (res && res.gate === STOPPED_GATE)) {
+    return { ok: false, state: null, changed: false, outcome: 'stopped', stopped: true,
+      entries: [{ role: 'uct', kind: 'stopped', lines: [STOPPED_LINE, NOTHING_CHANGED] }] }
+  }
   const unclear = distinctNotUnderstood(res).map((n) => `I didn't understand "${n.clause || n.text || ''}"${n.reason ? ` — ${n.reason}` : ''}.`)
   const gaps = [...unclear, ...unavailableLines(res)]
   const turn = classifyTurn(res)
@@ -217,7 +227,7 @@ export async function modelTurn(before, current, words, { snippets = [], gateCtx
     const failure = clientFailureOf(turn.gate)
     if (failure) logStudioAction(before.lineage, 'turn_failed', { surface: 'studio', failure })
     return said(false, { role: 'uct', kind: 'refusal', gate: turn.gate,
-      lines: [memberRefusal(turn.gate, turn.reason), ...gaps, NOTHING_CHANGED] }, { gate: turn.gate, reason: turn.reason })
+      lines: [memberRefusal(turn.gate, turn.reason, { retryAfterS: res && res.retryAfterS }), ...gaps, NOTHING_CHANGED] }, { gate: turn.gate, reason: turn.reason })
   }
   // ⭐ BATCH 1 — a name the member gave in the same message rides in this envelope.
   const named = turn.outcome === OUTCOMES.CHANGE ? withMemberName(turn.envelope, words) : turn.envelope
@@ -279,6 +289,38 @@ export function undoTurn(cur, gateCtx = {}) {
   return { state: next, entry: { role: 'uct', kind: 'undo', lines: next.working
     ? ['Undid the last change.', ...(after.outputs || []).map((o) => (o.phrase ? `${o.name || o.label} — ${o.phrase}` : o.sentence)).filter(Boolean)]
     : ['Undid the last change. The chart preview is cleared.'] } }
+}
+
+/** One line per output, as the read-back says it. */
+const outputLinesOf = (rb) => (rb.outputs || [])
+  .map((o) => (o.phrase ? `${o.name || o.label} — ${o.phrase}` : o.sentence)).filter(Boolean)
+
+/**
+ * ⭐ V1 (2026-11-16) — THE EARLIER STEPS OF THIS DRAFT, oldest first: what the indicator
+ * WAS before each applied change, said by the same read-back the card uses (never model
+ * prose, never the member's words). `index` is the place in `state.history` that
+ * `goBackToTurn` takes. A step with no indicator yet (before the first build) is `empty`.
+ * @returns {{index: number, step: number, empty: boolean, name: string|null, lines: string[]}[]}
+ */
+export function historySteps(cur, gateCtx = {}) {
+  return ((cur && cur.history) || []).map((snap, index) => {
+    if (!snap.working) return { index, step: index + 1, empty: true, name: null, lines: [] }
+    const rb = readback(snap.working, snap, gateCtx)
+    return { index, step: index + 1, empty: false, name: rb.name || null, lines: outputLinesOf(rb) }
+  })
+}
+
+/** Go back to an earlier step. @returns null (no such step) | `{state, entry, steps}` where
+ *  `steps` is how many applied changes were taken back. */
+export function goBackToTurn(cur, index, gateCtx = {}) {
+  if (!cur || !Number.isInteger(index) || index < 0 || index >= cur.history.length) return null
+  const steps = cur.history.length - index
+  const next = undoToState(cur, index)
+  const after = readback(next.working, next, gateCtx)
+  const head = steps === 1 ? 'Undid the last change.' : `Went back ${steps} changes.`
+  return { state: next, steps, entry: { role: 'uct', kind: 'undo', lines: next.working
+    ? [head, ...outputLinesOf(after)]
+    : [`${head} The chart preview is cleared.`] } }
 }
 
 /**

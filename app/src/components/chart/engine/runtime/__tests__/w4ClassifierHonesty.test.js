@@ -17,12 +17,13 @@
 import { describe, it, expect } from 'vitest'
 
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
+import { fixtureLibraries } from '../../ast/__tests__/libraryFixture.js'
 
 const N = 40
 const BARS = Array.from({ length: N }, (_, i) => ({
   t: 1700000000 + i * 86400, o: 100 + i * 0.1, h: 102 + i * 0.1, l: 98 + i * 0.1, c: 100.5 + i * 0.1, v: 1000 + i,
 }))
-const LIBS = { 'tester/fx/1': { source: '//@version=5\nlibrary("fx")\nexport mid(float h, float l) => (h + l) / 2\n' } }
+const LIBS = fixtureLibraries({ 'tester/fx/1': { source: '//@version=5\nlibrary("fx")\nexport mid(float h, float l) => (h + l) / 2\n' } })
 
 const STATE = 'var float x = 0.0\nx := close\n'
 const V5 = '//@version=5\nindicator("t")\n'

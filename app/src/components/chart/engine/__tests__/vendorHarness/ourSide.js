@@ -39,14 +39,15 @@ import { toRenderState } from '../../objectRenderState'
 // ⭐ RT5 — a runtime document's own drawings.
 import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects, runtimeWarmupOf, RUNTIME_WARMUP_KEY, runHalfOf, carriesRunHalf } from '../../runtime/runtimeObjects'
 import { runtimeDeclinedTag } from '../../../../../../../tools/pine_coverage/runtime_lane.mjs'
-import { maxLookback, CHART_CLOCK_WHOLE, TF_MERGE_NEWEST_CODE, TF_MERGE_FIRST_CODE } from '../../ast/interpret'
+import { maxLookback, CHART_CLOCK_WHOLE, TF_MERGE_NEWEST_CODE, TF_MERGE_FIRST_CODE, interpret as interpretTree } from '../../ast/interpret'
 import { setRuntimeDoorClock } from '../../runtime/runtimeColumns'
 import { paneObjectsGate } from '../../ast/paneGate'
 import { otherSymbolRequestsOf, storeTickerOf, witnessRowOf } from '../../otherSymbols'
 import { lowerTfCodesOf, LOWER_TF_SOURCE } from '../../lowerTf'
 import SYMBOL_SCOPE from '../../ast/symbolScope.json'
 import { createFakeChart } from '../fakeChart'
-import { normalizeColor, substitutionProblems, vendorValueOf } from '../../../../../../../tools/vendor_harness/compare.mjs'
+import { isThemeColour } from '../../objectTheme'
+import { normalizeColor, COLOUR_WITHHELD_POINT, substitutionProblems, vendorValueOf } from '../../../../../../../tools/vendor_harness/compare.mjs'
 // ⭐ RS RATING L3 — which classification fields a script reads, and the binding's substitution tags.
 import { substitutedFor } from '../../ast/symbolSubstitution'
 import { CLASSIFICATION_FIELD_NAMES } from '../../ast/bind'
@@ -716,6 +717,110 @@ export function warmBarsSupply(capture, { dir = OTHER_CAPTURE_DIR, useIndex = tr
  *  warm-up (`runtimeWarmupOf`) is the one payload counted in bars, so it is moved
  *  into the window's indices (never below 0, and never dropped: a curtain that
  *  existed still withholds the run's drawings, as on the chart). */
+/** ⭐ ENGINE 56 — the union of a plot's per-bar witness withholdings (`registry
+ *  .withheldBarsReport`, computed over `calcBars`), sliced to the window: a 0/1 array, or
+ *  null when no bar of it was withheld by name. */
+export function withheldBarsOf(report, key, pre) {
+  const codes = report && report[key]
+  if (!codes) return null
+  const masks = Object.values(codes)
+  if (!masks.length) return null
+  const n = masks[0].length
+  const out = new Array(Math.max(0, n - (pre || 0))).fill(0)
+  for (const m of masks) for (let i = pre || 0; i < n; i++) if (m[i]) out[i - (pre || 0)] = 1
+  return out.some(Boolean) ? { bars: out, codes: Object.keys(codes).sort() } : null
+}
+
+/** ⭐⭐ ENGINE 56 (S4-4) — THE FLOAT-ORDER FLOOR OF A PLOT FED BY A RUNNING TOTAL, per bar
+ *  of the window, or null. Coordinator ruling: where a `cum` (or `sum`) feeds the plot, two
+ *  correct engines that add the same terms in a different order differ by a few ulps of the
+ *  TOTAL, not of the plot (an `ema(ad, 12) - ema(ad, 26)` of a 1e9 accumulation is a 1e6
+ *  difference carrying 1e9's rounding). So the absolute floor on bar i is
+ *  `8 · ε · max |c · total|` over bars 0..i of the computed series (prehistory included; `c` the
+ *  constant the total is scaled by on its way to the plot, `linearTotalsOf`). Only
+ *  the running-total operand's own magnitude enters: a relative 1e-6 error in the plot is
+ *  still a DIVERGE (railed in `vendorHarness.engine56FloatFloor.test.js`). */
+export const FLOAT_ORDER_ULPS = 8
+const RUNNING_TOTAL_NODES = new Set(['cum', 'cumFrom', 'sum'])
+/** ⭐ (review #1265 finding 4) the calls that are LINEAR in their source: a total's float-order
+ *  error passes through them unscaled by any other value. */
+const LINEAR_OF_SOURCE = new Set(['sma', 'ema', 'rma', 'wma', 'change'])
+const TOTAL_PASS_THROUGH = new Set(['tf', 'tf_live', 'tf_merge', 'ltf'])
+const hasTotal = (n) => !!n && typeof n === 'object'
+  && ((n.type === 'call' && RUNNING_TOTAL_NODES.has(n.name)) || (Array.isArray(n.args) && n.args.some(hasTotal)))
+/** A written constant (a finite literal, its negation, `+ - * /` of constants), or null. */
+const constantOf = (n, d = 0) => {
+  if (!n || typeof n !== 'object' || d > 32) return null
+  if (n.type === 'num') return Number.isFinite(n.value) ? n.value : null
+  const a = Array.isArray(n.args) ? n.args.map((x) => constantOf(x, d + 1)) : []
+  if (n.type !== 'op' || a.some((x) => x === null)) return null
+  if (n.name === 'u-' && a.length === 1) return -a[0]
+  if (a.length !== 2) return null
+  const v = n.name === '+' ? a[0] + a[1] : n.name === '-' ? a[0] - a[1] : n.name === '*' ? a[0] * a[1]
+    : n.name === '/' ? a[0] / a[1] : NaN
+  return Number.isFinite(v) ? v : null
+}
+/** The running totals a plot is a LINEAR combination of (sums and differences of totals, a
+ *  total times or over a CONSTANT, an offset, a linear smoother of one), each with the factor
+ *  its float-order error reaches the plot by (`|c|` for `total * c`, `1 / |c|` for `total / c`;
+ *  re-review #1265, 4), or null when a total reaches the plot any other way (a ratio or product
+ *  of totals, a non-constant multiplier or divisor, `abs`, a comparison, …). Only then is the
+ *  absolute floor sound: through a ratio (`cum(hlc3 * v) / cum(v)`) the total's ulps are
+ *  divided away, and the plot is graded by REL 1e-9 on its own magnitude. */
+export function linearTotalsOf(tree) {
+  const totals = []
+  const walk = (n, scale) => {
+    if (!n || typeof n !== 'object' || !hasTotal(n)) return true
+    if (n.type === 'call' && RUNNING_TOTAL_NODES.has(n.name)) { totals.push({ node: n, scale }); return true }
+    const args = Array.isArray(n.args) ? n.args : []
+    if (n.type === 'op' && (n.name === '+' || n.name === '-' || n.name === 'u-')) return args.every((x) => walk(x, scale))
+    if (n.type === 'op' && (n.name === '*' || n.name === '/')) {
+      const [a, b] = args
+      if (n.name === '*' && !hasTotal(a)) {
+        const c = constantOf(a)
+        return c !== null && walk(b, scale * Math.abs(c))
+      }
+      if (!hasTotal(b)) {
+        const c = constantOf(b)
+        if (c === null || c === 0) return false
+        return walk(a, n.name === '*' ? scale * Math.abs(c) : scale / Math.abs(c))
+      }
+      return false
+    }
+    if (n.type === 'offset') return walk(args[0], scale)
+    // a read of the SAME symbol on other bars (`security(tickerid, res, hist)`): the same total's
+    // float order, read where that timeframe's bar closes (never another symbol's, `sym`)
+    if (TOTAL_PASS_THROUGH.has(n.type)) return walk(args[0], scale)
+    // a `?:` draws ONE of its arms on each bar (its test selects, it adds nothing to the value):
+    // the arms decide (accdist-macd's `sh and hist ? hist : na`)
+    if (n.type === 'op' && n.name === '?:' && args.length === 3) return walk(args[1], scale) && walk(args[2], scale)
+    if (n.type === 'call' && LINEAR_OF_SOURCE.has(n.name)) return walk(args[0], scale) && args.slice(1).every((x) => !hasTotal(x))
+    return false
+  }
+  return walk(tree, 1) && totals.length ? totals : null
+}
+export function floatOrderFloorOf(tree, calcBars, pre) {
+  if (!tree || typeof tree !== 'object') return null
+  const totals = linearTotalsOf(tree)
+  if (!totals) return null
+  const len = calcBars.length
+  const mag = new Float64Array(len)
+  for (const { node, scale } of totals) {
+    let col
+    try { col = interpretTree(node, calcBars, undefined, undefined, undefined, {}) } catch { return null }
+    if (!col || typeof col.length !== 'number' || col.length !== len) return null
+    let m = 0
+    for (let i = 0; i < len; i++) {
+      const v = scale * Math.abs(col[i])
+      if (Number.isFinite(v) && v > m) m = v
+      if (m > mag[i]) mag[i] = m
+    }
+  }
+  const out = []
+  for (let i = pre || 0; i < len; i++) out.push(FLOAT_ORDER_ULPS * Number.EPSILON * mag[i])
+  return out
+}
+
 export function columnsInWindow(cols, pre) {
   if (!cols || typeof cols !== 'object' || !(pre > 0)) return cols
   const out = {}
@@ -996,11 +1101,16 @@ function drawnColours(def, bars, ctx) {
     // (`undefined`, which the comparator skips), not a "none".
     // ⛔ The shift is the binder's OWN `drawShiftOf`, never re-derived here.
     const shift = drawShiftOf(plot)
+    // ⭐ ENGINE 58 — a colour-rule row whose series colour is withheld by name
+    // (`plots[].colorWithheld.points`): a point the renderer was handed no colour of
+    // its own for draws in none, by name — `COLOUR_WITHHELD_POINT`, not a colour.
+    const pointsWithheld = !!(plot.colorWithheld && plot.colorWithheld.points)
     const colors = bars.map((_bar, i) => {
       const at = i + shift
       if (at < 0) return undefined
       const p = at < bars.length ? byTime.get(String(bars[at].t)) : null
       if (!p || !Number.isFinite(p.value)) return null
+      if (pointsWithheld && !p.color) return COLOUR_WITHHELD_POINT
       // ⭐⭐ WHAT THE RENDERER WAS HANDED IS FINAL. The pool already folded the
       // plot's opacity into a point colour and a series colour (`withAlpha`,
       // which MULTIPLIES through); re-applying `opacity` here REPLACED the
@@ -1323,7 +1433,10 @@ export function withheldPlotsOf(clockReport, cols, notes) {
     const what = r.code.startsWith('bar-index:') ? '`bar_index`'
       : r.code.startsWith('running-total:') ? 'a running total'
         : r.code.startsWith('var-origin:') ? '`var`'
-          : r.code.startsWith('request:') ? '`request.security`' : 'time(<timeframe>)'
+          : r.code.startsWith('request:') ? '`request.security`'
+            // engine HL: `windowHoleMask`
+            : r.code.startsWith('window-extreme:') ? 'a window over `na` gaps'
+              : r.code.startsWith('pine:') ? 'a value (engine 56 per-bar witness)' : 'time(<timeframe>)'
     notes.push(`${what} withheld (${r.code}) on ${r.plots.length} plot(s) — ${r.reason}`)
     const whole = CHART_CLOCK_WHOLE.includes(r.code)
     // ⭐ ENGINE 55 — a NEWEST-BAR code is never a whole-series withholding, even on a
@@ -1530,6 +1643,8 @@ function runOurSideOnTheParityClock(capture) {
     // not compared (`compare.mjs`, `withheldNewest`), every other bar is.
     const newestHeld = new Set(((registry.chartClockReport(cols) || {}).withheld || [])
       .filter((r) => r.code === TF_MERGE_NEWEST_CODE).flatMap((r) => r.plots))
+    // ⭐ ENGINE 56 — the bars each plot was withheld on by a per-bar witness code
+    const withheldBarsReport = registry.withheldBarsReport(calcCols)
     let colours
     // ⭐ DIV-1 — the plot colours the binder draws over the SAME replayed bars the
     // values were computed on, each sliced to the window.
@@ -1578,6 +1693,8 @@ function runOurSideOnTheParityClock(capture) {
     // they are the plot's warm-up region here, exactly as a tree's own lookback is.
     const curtain = built.lane === 'runtime' ? runtimeWarmupOf(cols) : null
     const plots = []
+    const defPlotByKey = new Map((def.plots || []).map((p) => [p.key, p]))
+    const defInputByKey = new Map((def.inputs || []).map((x) => [x.key, x]))
     for (const [index, o] of (built.translation.outputs || []).entries()) {
       if (o && o.kind === 'alertcondition') continue
       const row = built.lane === 'runtime'
@@ -1608,12 +1725,32 @@ function runOurSideOnTheParityClock(capture) {
           // says its whole sentence, so a grade reads WHY that one plot is not drawn.
           + (why && why.code && why.message ? ` — ${why.message}` : '')
       }
+      const heldBars = row && col ? withheldBarsOf(withheldBarsReport, row.key, replayPre) : null
+      if (heldBars) notes.push(`${row.key}: ${heldBars.bars.filter(Boolean).length} bar(s) withheld by name (${heldBars.codes.join(', ')}) — not compared`)
+      // ⭐⭐ ENGINE 58 — what the door said about this row's colour: withheld whole
+      // by name (graded "not compared", INCONCLUSIVE with the name), withheld on the
+      // bars its rule gives no colour (`COLOUR_WITHHELD_POINT`, counted), or a THEME
+      // reference (`chart.fg_color@85`: our chart's own colour, theme-relative).
+      const defPlot = row ? defPlotByKey.get(row.key) : null
+      const cw = defPlot && defPlot.colorWithheld && typeof defPlot.colorWithheld.code === 'string' ? defPlot.colorWithheld : null
+      const wholeWithheld = !!(cw && !cw.points)
+      const rawColour = defPlot && typeof defPlot.color === 'string' && defPlot.color.startsWith('$')
+        ? ((defInputByKey.get(defPlot.color.slice(1)) || {}).default) : (defPlot && defPlot.color)
+      // ⛔ A WHOLE-WITHHELD colour draws in the chart's neutral ink (a theme reference,
+      // `memberPaneDefinition.WITHHELD_COLOUR_INK`) and is NOT theme-relative: it is not
+      // the script's colour, so it is not compared at all (INCONCLUSIVE by name).
+      const themeRelative = !wholeWithheld && isThemeColour(rawColour)
       plots.push({
         title: o ? o.title : null,
         formula: o ? o.formula : null,
         key: row ? row.key : null,
         withheldBy: heldBy || null,
         withheldNewest: !!(col && row && newestHeld.has(row.key) && col.length > 0 && !(col[col.length - 1] === col[col.length - 1])),
+        // ⭐ ENGINE 56 — 0/1 per window bar: withheld by name, graded "not compared"
+        withheldBars: heldBars ? heldBars.bars : null,
+        withheldBarsCodes: heldBars ? heldBars.codes : null,
+        // ⭐ ENGINE 56 (S4-4) — the float-order floor where a running total feeds the plot
+        floatOrderFloor: built.lane !== 'runtime' && o && o.ast && col ? floatOrderFloorOf(o.ast, calcBars, replayPre) : null,
         hidden: !!(o && o.hidden),
         column: col || null,
         missingReason,
@@ -1623,13 +1760,16 @@ function runOurSideOnTheParityClock(capture) {
         historyReplayed: replay ? { bars: replayPre, file: replaySupply.file } : null,
         // ⭐ F2 — the colour rule's own reach (`compare.mjs::colourWarmupOf`).
         colorLookback: colourRuleLookback(o),
-        colors: row && colours.byKey.has(row.key) ? colours.byKey.get(row.key) : null,
+        colors: !wholeWithheld && row && colours.byKey.has(row.key) ? colours.byKey.get(row.key) : null,
+        ...(themeRelative ? { colorsThemeRelative: true } : {}),
+        ...(cw && cw.points ? { colorsWithheldBy: cw.code } : {}),
         // A positive `offset = N` the translator wrote INTO the tree as `x[N]`
         // (its `_treeShift` hand-off) — see compare.mjs `leadBy`.
         treeShift: o && Number.isInteger(o._treeShift) && o._treeShift > 0 ? o._treeShift : 0,
         // Why there are no colours, when there are none — so the verdict names the
         // cause instead of "could not be resolved".
-        colorsReason: row && !colours.byKey.has(row.key)
+        colorsReason: wholeWithheld ? `withheld by name (${cw.code}) — ${cw.reason}`
+          : row && !colours.byKey.has(row.key)
           ? (o && o.hidden
             ? `our pane draws no series for this row — hidden (${o.hiddenReason || 'unstated'})`
             : (colours.ok ? 'the binder bound no series for this row' : colours.reason))
