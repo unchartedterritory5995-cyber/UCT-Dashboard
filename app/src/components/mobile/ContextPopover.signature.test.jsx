@@ -60,13 +60,13 @@ test('an unchecked boolean row says aria-checked="false" and shows no check', ()
   expect(row.querySelector('[class*="check"]')).toBeNull()
 })
 
-test('detail is the caller's to draw (in `label`): the popover renders icon + label only', () => {
+test("detail is the caller's to draw (in label): the popover renders icon + label only", () => {
   render(<ContextPopover open signature onClose={() => {}} anchor={{ x: 0, y: 0 }} items={ITEMS()} />)
   const row = screen.getByRole('menuitem', { name: /Display in/ })
   expect(row.textContent).toBe('mDisplay in')
 })
 
-test('the signature class is on the menu (a gold ✦ is the caller's own icon node)', () => {
+test("the signature class is on the menu (a gold ✦ is the caller's own icon node)", () => {
   render(<ContextPopover open signature onClose={() => {}} anchor={{ x: 0, y: 0 }} items={ITEMS()} />)
   expect(screen.getByRole('menu').className).toMatch(/signature/)
 })
