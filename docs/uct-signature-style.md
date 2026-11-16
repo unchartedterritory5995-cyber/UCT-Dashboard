@@ -39,8 +39,9 @@ metallic gradient/glow, never a gold fill, gold border, gold text block or gold 
    framed day / year in a calendar.
 2. **The open section's bar:** the 2px inset bar on the current item of a sidebar / rail
    (Chart Settings sections), and the current page's icon in the site's left nav (gold icon on
-   a neutral pill; the other nav icons rest at `#c9c6be`, one step lighter than menu icons so
-   they stay crisp on the near-black rail, and every page has its own icon shape).
+   a neutral outlined pill). EXCEPTION (owner 11-15, final): the site's LEFT NAV is the brand rail — every
+   nav icon is flat UCT gold (no metallic gradient/glow), the current page full strength on its pill; every
+   page has its own icon shape.
 3. **The ✓ on the chosen option** in any menu or dropdown (ChoiceMenu, chart type, timeframe,
    right-click template list, column picker).
 4. **A favourite's filled star** (timeframes, drawing tools). Empty stars stay grey.
