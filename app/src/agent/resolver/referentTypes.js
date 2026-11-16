@@ -46,6 +46,8 @@ export const REFERENT_TYPES = Object.freeze({
   savedScreens: { types: ['screen'], note: 'a saved screener screen' },
   chartTemplates: { types: ['template'], note: 'a chart template' },
   indicatorTemplates: { types: ['template'], note: 'an indicator template' },
+  // (#1325 news library — caught by the completeness rail on the 11-16 master merge; the headline family is P3)
+  newsLibrary: { types: ['headline', 'collection'], note: 'a saved headline, its note, or a collection (by action)' },
 })
 for (const [k, row] of Object.entries(REFERENT_TYPES)) for (const t of row.types) if (!REF_TYPES.includes(t)) throw new Error(`referentTypes: ${k} → unknown type ${t}`)
 
