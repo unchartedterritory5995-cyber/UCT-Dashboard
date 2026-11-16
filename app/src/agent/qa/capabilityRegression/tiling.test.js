@@ -1,6 +1,9 @@
 // #1275 (AUDIT): the capreg `charts.tiled` / `charts.sizes` assertions (testing/tiling.js) — each catches what it claims to.
 import { describe, it, expect } from 'vitest'
 import { tilingProblems, sizesOf } from './testing/tiling'
+import { pinClock } from './testing/clock'
+
+pinClock()                   // one fixed instant (testing/clock.js): the suite never reads the wall clock
 
 const R = (id, x, y, w, h) => ({ id, x, y, w, h })
 const GW19 = [R('c1', 0, 0, 12, 10), R('a', 12, 0, 12, 10), R('b', 0, 10, 24, 10)]
