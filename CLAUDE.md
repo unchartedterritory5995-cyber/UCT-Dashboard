@@ -73,6 +73,9 @@ workflow triggers on that ref, nothing deploys; the repo is public, so it is rea
 `remote tests` workflow from MASTER, prints the failing test ids, and deletes the ref. Exit 0 green / 1 red /
 2 the lane could not run. Paths: pytest under `tests/`, vitest app-relative under `src/`. Keep tiny local checks
 local; send anything heavier than a few files here. Rails: `tests/test_remote_tests_lane.py`.
+⛔ **Never delete a `refs/remote-tests/*` ref you did not create.** Other sessions' runs are using them (one was
+deleted mid-run on 2026-11-16 by a "leftover ref" cleanup that counted every session's refs); the tool deletes
+its own ref when it finishes.
 
 ## ⛔⛔ flow-worker DEPLOYS ARE MANUAL (owner decision 2026-11-12) — read before touching options-flow code
 

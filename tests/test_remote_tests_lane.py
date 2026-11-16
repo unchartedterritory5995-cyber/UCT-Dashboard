@@ -146,6 +146,40 @@ def test_test_jobs_fetch_the_ref_under_test_by_name():
             i for i, s in enumerate(steps) if s.get("name") in ("pytest", "vitest", "npm ci", "Install")), name
 
 
+def test_a_red_test_result_does_not_fail_the_run():
+    """2026-11-16: red runs emailed the owner once per session test run. The test step may fail (continue-on-error),
+    its outcome is written to a verdict file that is uploaded, and the helper decides from the verdicts."""
+    for job, verdict_file in (("pytest", "remote-pytest-verdict.txt"), ("vitest", "remote-vitest-verdict-")):
+        steps = _wf()["jobs"][job]["steps"]
+        test = [s for s in steps if s.get("name") == job][0]
+        assert test.get("id") == "t" and test.get("continue-on-error") is True, job
+        rec = [s for s in steps if s.get("name") == "Record the verdict"]
+        assert len(rec) == 1 and rec[0]["if"] == "always()", job
+        assert rec[0]["env"]["OUTCOME"] == "${{ steps.t.outcome }}" and verdict_file in rec[0]["run"], job
+        up = [s for s in steps if "upload-artifact" in (s.get("uses") or "")][0]
+        assert verdict_file in up["with"]["path"], job
+        for s in steps:   # nothing else may swallow a failure: only the test step is allowed to
+            if s is not test:
+                assert not s.get("continue-on-error"), (job, s.get("name"))
+
+
+def test_decide_reads_the_verdicts_not_the_run_colour():
+    assert rt.decide("success", 2, {"pytest": "success", "vitest-1": "success"})[0] == rt.OK
+    assert rt.decide("success", 2, {"pytest": "success", "vitest-1": "failure"})[0] == rt.FAIL
+    assert rt.decide("success", 1, {"pytest": "cancelled"})[0] == rt.FAIL
+    assert rt.decide("success", 3, {"pytest": "success", "vitest-1": "success"})[0] == rt.LANE   # a verdict missing
+    assert rt.decide("failure", 1, {"pytest": "success"})[0] == rt.LANE                            # the lane broke
+    assert rt.decide("cancelled", 1, {})[0] == rt.LANE
+
+
+def test_read_verdicts(tmp_path):
+    (tmp_path / "remote-pytest").mkdir()
+    (tmp_path / "remote-pytest" / "remote-pytest-verdict.txt").write_text("failure\n", encoding="utf-8")
+    (tmp_path / "remote-vitest-2").mkdir()
+    (tmp_path / "remote-vitest-2" / "remote-vitest-verdict-2.txt").write_text("success", encoding="utf-8")
+    assert rt.read_verdicts(tmp_path) == {"pytest": "failure", "vitest-2": "success"}
+
+
 def test_a_vitest_filter_matching_nothing_fails():
     run = [s for s in _wf()["jobs"]["vitest"]["steps"] if s.get("name") == "vitest"][0]["run"]
     assert re.search(r'if \[ "\$total" -eq 0 \]; then [^\n]*exit 1; fi', run), "an empty match must exit 1"

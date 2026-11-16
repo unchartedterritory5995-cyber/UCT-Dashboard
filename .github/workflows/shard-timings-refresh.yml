@@ -1,0 +1,75 @@
+# promotion-gate: no — a weekly CI-data job (schedule + manual dispatch); it never runs on a push and never decides promotion.
+#
+# ─── SHARD TIMINGS REFRESH: keep the browser-test shards balanced as tests are added (2026-11-16) ───────────
+#
+# WHY. agent-ci.yml (8 shards) and master-deploy-gate.yml (10 shards) cut the Agent browser files by MEASURED
+# time (tools/agent_vitest_shards.py). The committed timings go stale as files are added or slow down, and one
+# shard drifts long again (before 2026-11-16 one gate shard ran 25-27 min while the rest ran 13-17).
+#
+# HOW. Weekly, this job takes the per-file times from the last green master deploy gate runs (their
+# gate-agent-shard-N artifacts), records fresh medians, and SAVES them to the Actions cache under the key
+# `agent-shard-timings-<ISO week of today + 7 days>`: always a FUTURE week, never the current one.
+# Each shard job restores the key of ITS COMMIT'S week by exact key. Because cache entries are immutable and
+# the key for a week exists before that week starts (or never), every shard of one run reads the same file or
+# all fall back to the committed tools/agent_vitest_shard_timings.json. No commit, no PR, no repo setting.
+# Rails: tests/test_shard_timings_refresh.py.
+name: shard timings refresh
+
+on:
+  schedule:
+    - cron: '0 22 * * 0'   # Sunday 22:00 UTC; a late start only skips a week, never writes the current one
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: shard-timings-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    name: record fresh shard timings for next week
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            tools/agent_vitest_shards.py
+            tools/agent_vitest_shard_timings.json
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: The key (the ISO week of today + 7 days; never the current week)
+        id: key
+        run: echo "key=agent-shard-timings-$(date -u -d '+7 days' +%G-W%V)" >> "$GITHUB_OUTPUT"
+      - name: Per-file times from the last 5 green master deploy gate runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ids=$(gh run list -R "$GITHUB_REPOSITORY" --workflow master-deploy-gate.yml --status success --limit 5 \
+                --json databaseId -q '.[].databaseId')
+          echo "gate runs: $ids"
+          for id in $ids; do gh run download "$id" -R "$GITHUB_REPOSITORY" -p 'gate-agent-shard-*' -D "runs/$id" || true; done
+          n=$(find runs -name 'shard-*.json' | wc -l); echo "shard reports: $n"
+          test "$n" -gt 0 || { echo "::error::no gate shard reports downloaded"; exit 1; }
+          echo "RT_IDS=$(echo $ids | tr ' ' ',')" >> "$GITHUB_ENV"
+      - name: Record the medians (refuse a thin result)
+        run: |
+          set -euo pipefail
+          mkdir -p .shard-timings
+          python3 tools/agent_vitest_shards.py --record-timings $(find runs -name 'shard-*.json' | sort) \
+            --source "master deploy gate runs $RT_IDS" --timings .shard-timings/agent_vitest_shard_timings.json
+          files=$(python3 -c "import json; print(len(json.load(open('.shard-timings/agent_vitest_shard_timings.json'))['files_ms']))")
+          echo "files timed: $files"
+          test "$files" -ge 30 || { echo "::error::only $files files timed; not saving"; exit 1; }
+          python3 -c "import json; print(*sorted(json.load(open('.shard-timings/agent_vitest_shard_timings.json'))['files_ms']), sep=chr(10))" > timed-files.txt
+          echo "--- the 10-shard gate plan these timings give"
+          python3 tools/agent_vitest_shards.py --files-list timed-files.txt --of 10 --timings .shard-timings/agent_vitest_shard_timings.json --plan
+      - name: Save for next week (immutable; an existing key is left as it is)
+        uses: actions/cache/save@v4
+        with:
+          path: .shard-timings/agent_vitest_shard_timings.json
+          key: ${{ steps.key.outputs.key }}

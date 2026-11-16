@@ -1606,6 +1606,7 @@ import { withPrimaryEconomic, stripPrimaryEconomic, keepOnEconomicPrimary } from
 import { sourceCapabilityOf } from './chart/engine/sourceCapability'
 import { observationReadout, economicStatusLine } from './chart/economic/econUi'
 import { runtimePaneEnabled } from './chart/engine/runtimePaneGate'
+import { armRuntimeLaneWarm, whenIdle } from './chart/engine/runtimeLaneWarm'
 import { readSuccessBody } from '../lib/responseBody'
 import { archiveHref } from '../utils/traderArchive'
 import { createAdaptiveFrameLoop } from './chart/adaptiveFrameLoop'
@@ -1640,6 +1641,13 @@ const useChartBars = BARSTORE ? useBarSnapshotBars : useLegacyChartBars
 engineRegistry.registerRuntimeLaneLoader(() => (runtimePaneEnabled()
   ? import('./chart/engine/runtime/runtimeAsync.js').then((m) => m.ensureRuntimeLane())
   : Promise.reject(new Error('the runtime pane is switched off'))))
+
+// ⚡ PRELOAD (perf/pine-runtime-chunk-preload) — the same lane, WARMED: its loader chunk imported
+// and its worker spawned (`runtimeAsync.warmRuntimeLane`), so a saved per-bar script is drawn without
+// paying the ~1.3 MB worker chunk on its first run. ⛔ The import stays here, in the chart's module,
+// for the reason above, and it is reached only through `armRuntimeLaneWarm` (after the first chart
+// paint, in idle time, for a permitted member with a definition on that lane: `runtimeLaneWarm.js`).
+const warmRuntimeLaneNow = () => import('./chart/engine/runtime/runtimeAsync.js').then((m) => m.warmRuntimeLane())
 
 // ⚡ THE SERVER LANE'S COLUMNS ARE ASKED FOR AHEAD OF THE MEMBER (2026-11-12). The bars
 // prefetch already knows which symbols are next; this registers the lane's warmer with it
@@ -4420,6 +4428,17 @@ export default function StockChart({
   // behaviour is to draw nothing for it), and a toast on a render path would fire
   // on every chart.
   const { generation: userDefsGeneration } = useInstalledUserDefinitions()
+  // ⚡ PRELOAD — re-asked whenever the installed definitions change (a later install can make the
+  // answer yes); `armRuntimeLaneWarm` warms at most once per page, after the first paint, in idle time.
+  useEffect(() => {
+    armRuntimeLaneWarm({
+      afterPaint: afterFirstChartPaint,
+      idle: whenIdle,
+      permitted: runtimePaneEnabled,
+      usesLane: engineRegistry.anyInstalledRuntimeDefinition,
+      load: warmRuntimeLaneNow,
+    })
+  }, [userDefsGeneration])
 
   const mergedMarkers = useMemo(
     () => {

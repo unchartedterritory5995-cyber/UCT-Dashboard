@@ -897,7 +897,11 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     try { const cr = createdRef.current; madeNow = cr && cr.turn === (memoryRef.current?.currentTurn?.() ?? null) ? new Set(cr.refs.map(String)) : null } catch { madeNow = null }
     let listRows = null
     try { listRows = (getTargetKind('watchlist')?.list?.(host) || []).map(l => ({ name: l.name, symbols: (l.symbols || []).map(x => String(x).toUpperCase()) })) } catch { listRows = null }
-    const c0 = chartRailRefusal(plan, { words: railWordsRef.current, host, mode, subject: subjectChart, picked: railPickedRef.current, made: madeNow, lists: listRows, out: chartAsk })
+    // (owner 11-16, REFERENT TYPE: the one object the previous applied turn made or changed — typed — is what a destroying
+    //  pronoun means when the words do not say: the same `previous` the state rail licenses a destroy by)
+    let prevObj = null, prevLabel = null
+    try { const ts = turnSubjectsRef.current; prevObj = ts?.previous || null; prevLabel = (ts?.candidates || []).find(x => x.id === prevObj)?.label || null } catch { prevObj = null }
+    const c0 = chartRailRefusal(plan, { words: railWordsRef.current, host, mode, subject: subjectChart, picked: railPickedRef.current, made: madeNow, lists: listRows, out: chartAsk, previous: prevObj, previousLabel: prevLabel })
     const c = c0 && `${c0}${notDoneLine(notDoneAdds(plan, (p) => { try { return chartEffects({ ok: true, plans: [p] }, host).length > 0 } catch { return true } }))}`
     railCardRef.current = false
     railAskRef.current = c && chartAsk.ask ? { ...chartAsk.ask, plan } : null
