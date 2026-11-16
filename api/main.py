@@ -4750,12 +4750,12 @@ def idb_cache_logic_version(src_path: str | None = None) -> int | None:
     return found[0] if len(found) == 1 else None
 
 
-@asynccontextmanager
 def _stream_feed_remote() -> bool:
     from api.services import feed_client as _fc
     return _fc.feed_source() == "remote"
 
 
+@asynccontextmanager
 async def lifespan(app: FastAPI):
     # ⛔ Keep the Web Share Target's query out of OUR access log. The share
     # arrives as GET /journal/share?title=…&text=…&url=…, and `text` carries
@@ -11044,6 +11044,12 @@ async def lifespan(app: FastAPI):
     _boot_mark("ready"); _boot_log()
     yield
     _shutdown_t0 = time.monotonic()  # the deploy gap includes this pod's shutdown (2026-11-12)
+    # stream-ingest remote mode: close the feed connection cleanly (a no-op in local mode).
+    try:
+        from api.services import feed_client as _feed_client_stop
+        await _feed_client_stop.stop_remote()
+    except Exception as e:
+        print(f"[shutdown] feed client stop failed (non-fatal): {type(e).__name__}")
     # U5 (review L4): stop the capability detector process (a no-op when it never started)
     try:
         from api.services import pine_capability_worker as _pcw_stop

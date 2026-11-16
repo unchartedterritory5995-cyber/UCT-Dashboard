@@ -74,6 +74,12 @@ class RemoteBroadcaster:
         self.legacy = fp.LegacyFilter()
         self.revs = fp.RevClock()
         self._fresh_mono: Optional[float] = None   # last batch of any kind
+        # What ingest was last told (FeedClient.sent_desired): the mirror keeps data
+        # for these, and prunes the rest only once ingest knows (finding: a re-add
+        # inside the debounce would otherwise never get a snapshot back).
+        self._sent_keys: frozenset = frozenset()
+        self._sent_syms: frozenset = frozenset()
+        self._last_emit_wall: Optional[float] = None
         self.on_change: Callable[[], None] = lambda: None   # the feed client's "desired changed"
         self.counters = {"batches": 0, "bars_in": 0, "frames_out": 0, "dropped": 0,
                          "prices_in": 0, "mirror_resets": 0}
@@ -112,10 +118,7 @@ class RemoteBroadcaster:
                         ks.discard(k)
                         if not ks:
                             self._sym_keys.pop(sym, None)
-                    self._bars.pop((sym, k), None)
             still = self._wanted(sym)
-            if not still:
-                self._drop_symbol(sym)
         if not still:
             self._call(self._on_last, sym)
         self.on_change()
@@ -144,8 +147,6 @@ class RemoteBroadcaster:
                 else:
                     self._interest[sym] = cur - 1
                 still = self._wanted(sym)
-                if not still:
-                    self._drop_symbol(sym)
             if not still:
                 self._call(self._on_last, sym)
         self.on_change()
@@ -153,16 +154,23 @@ class RemoteBroadcaster:
     def _wanted(self, sym: str) -> bool:
         return self._interest.get(sym, 0) > 0 or bool(self._sym_keys.get(sym))
 
-    def _drop_symbol(self, sym: str) -> None:
-        """Every client of `sym` is gone (caller holds the lock): drop its mirror, and
-        only now its legacy high-water mark and rev clock (PR3 review: never on one
-        client's unsubscribe)."""
-        self._prices.pop(sym, None)
-        self._tick_mono.pop(sym, None)
-        for key in [k for k in self._bars if k[0] == sym]:
-            del self._bars[key]
-        self.legacy.forget(sym)
-        self.revs.forget(sym)
+    def sent_desired(self, keys, syms) -> None:
+        """FeedClient sent ingest this desired set. Prune the mirror to it: a key no
+        longer sent loses its bars; a symbol no longer sent at all (no key, no owner)
+        loses its quote and, only then, its legacy high-water mark and rev clock
+        (PR3 review: never on one client's unsubscribe)."""
+        keys, syms = frozenset(keys), frozenset(syms)
+        with self._lock:
+            self._sent_keys, self._sent_syms = keys, syms
+            for k in [k for k in self._bars if k not in keys]:
+                del self._bars[k]
+            gone = {s for s in (set(self._prices) | {s for s, _ in self.legacy._hi})
+                    if s not in syms and not any(k[0] == s for k in keys)}
+            for s in gone:
+                self._prices.pop(s, None)
+                self._tick_mono.pop(s, None)
+                self.legacy.forget(s)
+                self.revs.forget(s)
 
     @staticmethod
     def _call(fn, sym: str) -> None:
@@ -221,6 +229,12 @@ class RemoteBroadcaster:
                 "tracked_partials": sum(len(v) for v in self._sym_keys.values()),
                 "tracked_symbols": len({s for s, _ in self._bars} | set(self._prices)),
                 "symbols": sorted(self._sym_keys),
+                # the keys bars_rail_monitor reads (same meaning as BarBroadcaster's)
+                "bars_emitted_total": self.counters["frames_out"],
+                "bars_dropped_total": self.counters["dropped"],
+                "last_emit_at": self._last_emit_wall or 0.0,
+                "last_emit_age_s": (round(_time.time() - self._last_emit_wall, 1)
+                                    if self._last_emit_wall else None),
                 "feed_fresh": self.feed_fresh(),
                 "last_batch_age_s": (None if self._fresh_mono is None
                                      else round(self._mono() - self._fresh_mono, 2)),
@@ -248,8 +262,8 @@ class RemoteBroadcaster:
                 for f in frames:
                     self.counters["bars_in"] += 1
                     k = (f.sym, f.key)
-                    if not self._wanted(f.sym) or k not in self._subs:
-                        continue     # released while the batch was in flight
+                    if k not in self._subs and k not in self._sent_keys:
+                        continue     # released, and ingest already knows
                     bars = self._bars.setdefault(k, {})
                     bars[f.msg["bar"]["t"]] = f.msg["bar"]
                     if len(bars) > _KEEP_BUCKETS:
@@ -260,8 +274,11 @@ class RemoteBroadcaster:
                         if fp.LegacyFilter.deliver(f.legacy_ok, v2):
                             self._put(q, f.msg)
                             self.counters["frames_out"] += 1
+                            self._last_emit_wall = _time.time()
             for sym, p in batch.prices.items():
-                if not self._wanted(sym):
+                # any symbol this pod holds (a chart, quote interest, or ANY bar_stream
+                # owner: what a local-mode minute map would have answered for)
+                if not (self._wanted(sym) or sym in self._sent_syms):
                     continue
                 self._prices[sym] = dict(p)
                 self._tick_mono[sym] = now_m

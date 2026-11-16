@@ -55,6 +55,10 @@ _pending_unsubscribe: dict[str, set[str]] = {}
 # "volume") share the one connection without one's release narrowing another's feed.
 _sub_owners: dict[str, dict[str, frozenset[str]]] = {}
 _state_lock = threading.Lock()
+#: STREAM_FEED_SOURCE=remote: this pod has no socket; owner holds are only RECORDED
+#: (feed_client sends them to stream-ingest), so nothing is queued for a drain that
+#: never runs. Set once at startup by feed_client.start_remote.
+_record_only = False
 
 # ── Owner-scoped channels (STREAM_SCOPED_CHANNELS) ───────────────────────────
 # Wire order of the channels for one symbol. Fixed so the messages stay
@@ -758,6 +762,8 @@ def _reconcile_locked(sym: str) -> None:
     have = _active_channels.get(sym, set())
     added = want - have
     removed = have - want
+    if _record_only:
+        added = removed = set()      # no socket to send to: just record (see _record_only)
     if added:
         _pending_subscribe.setdefault(sym, set()).update(added)
         left = _pending_unsubscribe.get(sym)

@@ -136,7 +136,10 @@ def test_the_last_client_leaving_drops_the_symbol_but_one_client_leaving_does_no
         assert hooks["last"] == [] and rb.legacy.high("ZZA", "1") == T0 + MIN, "interest still holds it"
         assert rb.get_last_price("ZZA") is not None
         rb.remove_interest(["ZZA"])
-        assert hooks["last"] == ["ZZA"] and rb.legacy.high("ZZA", "1") is None
+        assert hooks["last"] == ["ZZA"]
+        assert rb.get_last_price("ZZA") is not None, "kept until ingest has been told"
+        rb.sent_desired(frozenset(), frozenset())          # the feed client told ingest
+        assert rb.legacy.high("ZZA", "1") is None
         assert rb.revs.peek("ZZA", "1") is None and rb.get_last_price("ZZA") is None
     asyncio.run(go())
 
@@ -352,3 +355,74 @@ def test_feed_client_resets_on_a_new_epoch_and_resyncs_on_a_gap(monkeypatch):
         stop.set()
         await asyncio.wait_for(task, 2)
     asyncio.run(go())
+
+
+
+def test_a_key_readded_before_ingest_was_told_still_gets_its_snapshot():
+    """Fast tf toggle: unsubscribe + resubscribe inside the debounce. Ingest never sees
+    a change (so sends no new snapshot); the mirror must still answer at once."""
+    async def go():
+        rb, c, _ = make_rb()
+        a = rb.subscribe("ZZA", "1")
+        rb.sent_desired({("ZZA", "1")}, {"ZZA"})
+        rb.apply_batch(batch(1, [("ZZA", "1", bar(T0 + MIN, 11.0))]))
+        rb.unsubscribe("ZZA", "1", a)
+        b = rb.subscribe("ZZA", "1")                   # before the next desired is sent
+        snap = drain(b)
+        assert snap and snap[0]["bar"]["t"] == T0 + MIN
+        assert rb.get_partial("ZZA", "1")["t"] == T0 + MIN
+    asyncio.run(go())
+
+
+def test_prices_for_any_owner_held_symbol_are_kept():
+    """A symbol only some other bar_stream owner holds (no chart, no quote interest):
+    local mode's minute map answered get_last_price for it, so must the mirror."""
+    async def go():
+        rb, c, _ = make_rb()
+        rb.sent_desired(frozenset(), {"ZZV"})
+        rb.apply_batch(batch(1, prices={"ZZV": {"price": 3.0, "ts": T0}, "ZZX": {"price": 1.0, "ts": T0}}))
+        assert rb.get_last_price("ZZV")["price"] == 3.0
+        assert rb.get_last_price("ZZX") is None, "a symbol nobody holds is not mirrored"
+    asyncio.run(go())
+
+
+def test_status_carries_what_the_push_rail_monitor_reads():
+    from api.services import bars_rail_monitor as mon
+    async def go():
+        rb, c, _ = make_rb()
+        q = rb.subscribe("ZZA", "1", v2=True)
+        rb.apply_batch(batch(1, [("ZZA", "1", bar(T0, 10.0))]))
+        st = rb.get_status()
+        for k in ("bars_emitted_total", "bars_dropped_total", "subscriber_pairs", "last_emit_age_s"):
+            assert k in st, k
+        assert st["bars_emitted_total"] == 1
+        obs = mon.observe({"enabled": True, "broadcaster": st}, token="t", now=0.0)
+        assert obs["kind"] != mon.UNREADABLE, obs.get("reason")
+        assert obs["emitted"] == 1 and obs["dropped"] == 0
+    asyncio.run(go())
+
+
+def test_main_lifespan_is_still_the_async_context_manager_and_local_is_the_default():
+    """Review catch: a helper inserted under @asynccontextmanager took the decorator off
+    lifespan, which made `_stream_feed_remote()` an always-truthy object (remote mode
+    forced on) and lifespan a bare generator."""
+    import ast
+    src = (H.TAPE_DIR.parents[2] / "api" / "main.py").read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    fns = {n.name: n for n in tree.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+    life = fns["lifespan"]
+    assert isinstance(life, ast.AsyncFunctionDef)
+    assert [ast.unparse(d) for d in life.decorator_list] == ["asynccontextmanager"]
+    helper = fns["_stream_feed_remote"]
+    assert isinstance(helper, ast.FunctionDef) and helper.decorator_list == []
+    ns: dict = {}
+    exec(compile(ast.Module(body=[helper], type_ignores=[]), "main.py", "exec"), ns)
+    assert ns["_stream_feed_remote"]() is False
+
+
+def test_remote_mode_records_owner_holds_without_queueing(monkeypatch):
+    monkeypatch.setattr(bs, "_record_only", True)
+    bs.subscribe_symbols(["ZZR"], owner="nhnl", channels=["T"])
+    assert "ZZR" in bs._sub_owners and "ZZR" not in bs._pending_subscribe
+    bs.unsubscribe_symbols(["ZZR"], owner="nhnl")
+    assert "ZZR" not in bs._sub_owners and "ZZR" not in bs._pending_unsubscribe

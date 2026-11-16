@@ -70,20 +70,34 @@ def bar_stream_owners() -> dict:
 
 _client: Optional["FeedClient"] = None
 _task: Optional[asyncio.Task] = None
+_stop: Optional[asyncio.Event] = None
 
 
 def start_remote() -> "FeedClient":
     """Remote mode, at app startup (on the running uvicorn loop): install the
     RemoteBroadcaster as THE broadcaster and start the feed client task."""
-    global _client, _task
+    global _client, _task, _stop
     from api.services import bar_broadcaster, bar_stream
     from api.services.remote_broadcaster import RemoteBroadcaster
+    bar_stream._record_only = True
     rb = RemoteBroadcaster(on_first_subscribe=bar_stream.subscribe_symbols_one,
                            on_last_unsubscribe=bar_stream.unsubscribe_symbols_one)
     bar_broadcaster.install_broadcaster(rb)
     _client = FeedClient(rb)
-    _task = asyncio.get_running_loop().create_task(_client.run())
+    _stop = asyncio.Event()
+    _task = asyncio.get_running_loop().create_task(_client.run(_stop))
     return _client
+
+
+async def stop_remote(timeout_s: float = 3.0) -> None:
+    """App shutdown: close the feed connection cleanly (no-op when not started)."""
+    if _stop is None or _task is None:
+        return
+    _stop.set()
+    try:
+        await asyncio.wait_for(_task, timeout_s)
+    except (asyncio.TimeoutError, asyncio.CancelledError):
+        _task.cancel()
 
 
 def status() -> Optional[dict]:
@@ -141,12 +155,15 @@ class FeedClient:
         stop = stop or asyncio.Event()
         wait = RECONNECT_MIN_S
         while not stop.is_set():
+            connects = self.counters["connects"]
             try:
                 await self._session(stop)
                 wait = RECONNECT_MIN_S
             except asyncio.CancelledError:
                 raise
             except Exception as e:  # noqa: BLE001
+                if self.counters["connects"] > connects:
+                    wait = RECONNECT_MIN_S     # that session was up: start the backoff over
                 self.last_error = f"{type(e).__name__}: {e}"[:200]
                 log.warning("[feed_client] %s; reconnect in %.0fs", self.last_error, wait)
             self.connected = False
@@ -204,6 +221,9 @@ class FeedClient:
         await ws.send(fp.encode(d))
         self._last_sent = sig
         self.counters["desired_sent"] += 1
+        # Only now may the mirror forget what is no longer wanted: ingest knows, so a
+        # later re-add is a visible change and brings a fresh snapshot.
+        self.rb.sent_desired(d.keys, frozenset(s for syms in d.owners.values() for s in syms))
 
     async def _desired_loop(self, ws, stop: asyncio.Event) -> None:
         while not stop.is_set():
