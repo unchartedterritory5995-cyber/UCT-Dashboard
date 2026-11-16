@@ -471,6 +471,45 @@ const SET_REMOVAL = /\b(?:all|every|everything|each|both|whole|entire|rest|other
 const BACK_REF = /\b(?:the|that)\s+(?:chart|one|graph|panel)\s+(?:(?:that|which)\s+)?(?:I|you|we)\b/i
 const SEVERAL = /\b(?:charts|ones|panels|graphs|widgets|and)\b|[&,]/i
 const pluralOf = (sym) => new RegExp(String.raw`\b(?:both|all|every|each)\b[^.;!?]*?\$?${escRe(sym)}(?![A-Za-z0-9])|(?:^|[^A-Za-z0-9])\$?${escRe(sym)}\s+(?:charts|ones|panels|graphs)\b`, 'i')
+// ⛔ PRONOUN OBJECT (AUDIT held-out probe 61a, 2026-11-16 — LIVE): board SPY · QQQ · IWM, nothing selected, no conversation chart,
+// "close it" with a model plan closing QQQ was APPLIED — "it" is no chart noun, so SPECIFIC_CHART never failed closed. A bare object
+// PRONOUN of a removal verb ("close it", "remove that", "delete this", "get rid of them", "close that one", "take it off") resolves
+// as a deixis does, in this order: (1) the SELECTED chart; (2) else the conversation's chart (`subject`, as the back-reference);
+// (3) else 2+ chart OBJECTS on the board (a link group is one) → ASKED, never applied; (4) else the sole chart object. "them" /
+// "those" name the set the selection and the conversation chart make; with neither → asked. A plan closing any other chart is
+// refused (removalTargetRefusal's `bad`). Only the OBJECT of a removal verb counts: "make it weekly and close the SPY chart" never
+// reads "it" as a removal target (every other bare "it" is left out of the target read).
+export const REMOVAL_PRONOUNS = ['it', 'that', 'this', 'them', 'those', 'that one', 'this one']
+const PRONOUN_OBJ = String.raw`(?:(?:that|this)\s+one|it|that|this|them|those)`
+const PRONOUN_VERB = String.raw`(?:remove|removing|delete|deleting|close|closing|drop|dropping|clear|get(?:ting)?\s+rid\s+of|tak(?:e|ing)\s+(?:off|down|away|out))`
+const PRONOUN_END = String.raw`(?=\s*(?:$|[.,;:!?])|\s+(?:and|then|but|please|pls|now|too|also|as\s+well|for\s+me|right\s+now|off|down|away|out)\b)`
+const PRONOUN_SRC = String.raw`\b${PRONOUN_VERB}\s+(${PRONOUN_OBJ})${PRONOUN_END}|\btak(?:e|ing)\s+(${PRONOUN_OBJ})\s+(?:off|down|away|out)\b`
+/** The bare pronoun objects of removal verbs in the words: [{ phrase, plural, index, length }] (the pronoun's own span). */
+export function removalPronouns(words) {
+  const out = []
+  for (const m of String(words || '').matchAll(new RegExp(PRONOUN_SRC, 'gi'))) {
+    // (the verb's object ends the match — the end test is a lookahead; "take <it> off": the object follows "take")
+    const phrase = m[1] || m[2]
+    const index = m[1] ? m.index + m[0].length - phrase.length : m.index + m[0].match(/^\S+\s+/)[0].length
+    out.push({ phrase, plural: /^(?:them|those)$/i.test(phrase), index, length: phrase.length })
+  }
+  return out
+}
+/** What a removal's pronoun object names: { refs: Set } — or { ask: true } when nothing resolves it. */
+function resolvePronoun(pr, all, { selected = null, subject = null } = {}) {
+  const key = (c) => (linked(c.group) ? `g:${c.group}` : `c:${c.ref}`)
+  // (a chart in a link group names its whole group: one object)
+  const groupOf = (ref) => { const c = ref != null && all.find(x => x.ref === ref); return c ? all.filter(x => key(x) === key(c)).map(x => x.ref) : [] }
+  const sel = groupOf(selected), sub = groupOf(subject)
+  if (pr.plural) {
+    const set = [...sel, ...sub]
+    return set.length ? { refs: new Set(set) } : { ask: true }
+  }
+  if (sel.length) return { refs: new Set(sel) }
+  if (sub.length) return { refs: new Set(sub) }
+  if (new Set(all.map(key)).size === 1) return { refs: new Set(all.map(c => c.ref)) }
+  return { ask: true }
+}
 export function removalTargets(w, host, { selected = null, subject = null, picked = null } = {}) {
   const all = liveCharts(host)
   const ids = new Set()
@@ -478,9 +517,21 @@ export function removalTargets(w, host, { selected = null, subject = null, picke
   //  (counted over the chart WIDGETS a removal can close: closing one closes its chart tabs with it, so a tab is no other target)
   const groups = new Set(all.map(c => (linked(c.group) ? `g:${c.group}` : `c:${c.ref}`)))
   const sole = groups.size === 1
+  // (probe 61a: each pronoun object is resolved in its own order, below; it — and every other bare "it" — is out of the deixis read)
+  const prons = removalPronouns(w)
+  let wr = String(w || '')
+  for (const p of [...prons].sort((a, b) => b.index - a.index)) wr = `${wr.slice(0, p.index)} ${wr.slice(p.index + p.length)}`
+  wr = wr.replace(/\bit\b/gi, ' ')
+  let pronoun = null
+  for (const p of prons) {
+    const r = resolvePronoun(p, all, { selected, subject })
+    if (r.ask) { pronoun = { phrase: p.phrase, ask: true }; break }
+    for (const ref of r.refs) ids.add(ref)
+    pronoun = { phrase: p.phrase, refs: r.refs }
+  }
   for (const c of all) {
     const e = { ref: c.ref, symbol: up(c.symbol), position: c.position || null }
-    const how = identifiesChart(asRemoval(w), e, host, { selected, subject, picked, sole })
+    const how = identifiesChart(asRemoval(wr), e, host, { selected, subject, picked, sole })
     if (NAMES_CHART.has(how) || (sole && how === 'class') || positionSaid(w, e)) ids.add(c.ref)
     // (a back-reference to the conversation's chart — "the one I just changed", "the chart you made" — is that chart, as a deixis is)
     if (subject && c.ref === subject && BACK_REF.test(w)) ids.add(c.ref)
@@ -496,12 +547,17 @@ export function removalTargets(w, host, { selected = null, subject = null, picke
   let excluded = new Set()
   try { excluded = new Set(excludedCharts(w, all, selected)) } catch { excluded = new Set() }
   for (const r of excluded) ids.delete(r)
-  return { ids, ambiguous, excluded, all }
+  return { ids, ambiguous, excluded, all, pronoun }
 }
 function removalTargetRefusal(w, host, removed, { selected, subject, picked, known }) {
   if (requestedPanels(w) != null || gridStated(w, known)) return null
-  const { ids, ambiguous, excluded, all } = removalTargets(w, host, { selected, subject, picked })
+  const { ids, ambiguous, excluded, all, pronoun } = removalTargets(w, host, { selected, subject, picked })
   const where = (c) => (c.position ? `the ${c.position.replace('-', ' ')} one` : c.label || 'a chart')
+  // ⛔ probe 61a: a pronoun object nothing resolves (no selection, no conversation chart, 2+ chart objects) — asked, never applied
+  if (pronoun?.ask) {
+    const eg = all.find(c => c.symbol) || all[0]
+    return `Which chart should I close? Nothing is selected, so I can’t tell which chart “${pronoun.phrase}” means, and nothing was changed. Click the chart, or name it by its ticker or its place — for example “close ${eg?.symbol ? `the ${up(eg.symbol)} chart` : 'the left chart'}”.`
+  }
   if (ambiguous.length) {
     const a = ambiguous[0]
     return `Which ${a.symbol} chart should I close? ${a.charts.length} charts show ${a.symbol} (${listOf(a.charts.map(where))}), so nothing was changed — say which one, for example “close the ${a.charts[0].position ? `${a.charts[0].position.replace('-', ' ')} ` : ''}${a.symbol} chart”, or “close both ${a.symbol} charts”.`
@@ -640,7 +696,7 @@ export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply'
       const wrong = removalTargetRefusal(w, host, removed, { selected, subject, picked, known })
       if (wrong) return wrong
     }
-    if (removed.length && mode === 'apply' && !REMOVAL.test(removalWords(w)) && !REMOVAL_TAKE.test(w)) {
+    if (removed.length && mode === 'apply' && !REMOVAL.test(removalWords(w)) && !REMOVAL_TAKE.test(w) && !removalPronouns(w).length) {
       return `I didn’t change anything: this would have removed ${listOf(removed.map(nameOf))}, and you didn’t ask to remove a chart. Say which chart to remove or replace.`
     }
   }
