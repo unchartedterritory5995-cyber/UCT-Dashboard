@@ -206,6 +206,13 @@ def references(which: str, bars: list[dict], spy: list[dict]) -> dict:
             hh, ll = max(h[i - 24:i + 1]), min(l[i - 24:i + 1])
             out.append(flag(hh <= ll * 1.15 and c[i] >= max(h[i - 251:i + 1]) * 0.85 and c[i - 25] >= c[i - 125] * 1.2))
         R["flatBase"] = out
+    elif which == "up_down_volume_ratio_50":
+        up = [v[i] if c[i] > o[i] else 0.0 for i in range(n)]
+        dn = [v[i] if c[i] < o[i] else 0.0 for i in range(n)]
+        udr = [sum(up[i - 49:i + 1]) / sum(dn[i - 49:i + 1]) if i >= 49 and sum(dn[i - 49:i + 1]) else NAN
+               for i in range(n)]
+        R["udr"] = udr
+        R["strong"] = [flag(ok(u) and u > 1.2, ok(u)) for u in udr]
     elif which == "previous_week_high_low":
         weeks, idx = weekly(bars)
         R["pwh"] = [weeks[idx[i] - 1]["h"] if idx[i] >= 1 else NAN for i in range(n)]
