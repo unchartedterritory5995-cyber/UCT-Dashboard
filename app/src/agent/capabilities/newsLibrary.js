@@ -142,6 +142,74 @@ function resolveHeadline(st, ref, scope, env) {
   return { none: TICKER.test(r) ? `There’s no ${r.replace('$', '').toUpperCase()} headline ${scope === 'union' ? 'on your News widget or in your library' : 'on your News widget'} right now. Nothing was changed.`
     : 'I can’t tell which headline you mean. Click it (or open its ⋯ menu) in your News widget, or name its ticker. Nothing was changed.' }
 }
+
+// ── ⛔ WORDS-KEYED TARGETS (AUDIT T2 probe 63, 2026-11-16) ─────────────────────────────────────────────────────────────
+// The MODEL's arg never picks the target on its own: a ticker / phrase `headline`, a `collection` name (and a rename's new
+// name) license a write ONLY when the MEMBER's own words of this turn name it — else the op is dropped before anything runs
+// (useAgent's `askedBy` gate, the one deleteCollection already used). And each action has its own VERB FAMILY: taking a
+// headline OUT of the library is licensed only by library-removal words (unsave / unbookmark / remove · take … out of my
+// library / delete the headline) — note words ("clear the note") license only setNote, and collection words ("out of my
+// Earnings collection") only place. Pointers (selected / previous / an offered id) stay with resolveHeadline (unchanged).
+const norm = (s) => ` ${String(s ?? '').toLowerCase().replace(/[“”"'’]/g, '').replace(/[^a-z0-9$]+/g, ' ').trim()} `
+const HL_NOUN = '(?:headlines?|stor(?:y|ies)|articles?|news(?: items?)?|ones?|bookmarks?)'
+const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+/** the member's words name this headline reference (a ticker typed in capitals / $nvda / "nvda headline", or the phrase) */
+export function wordsNameHeadline(text, ref) {
+  const r = String(ref ?? '').trim().replace(/^[“"]|[”"]$/g, '')
+  if (!r || POINTER.test(r) || /^previous$/i.test(r)) return true           // a pointer: the click / the previous turn decides
+  const tk = TICKER.exec(r)
+  if (tk && words(r).length === 1) {
+    const T = esc(tk[1].toUpperCase()), t = T.toLowerCase(), s = String(text || '')
+    if (new RegExp(`(?:^|[^A-Za-z0-9$])\\$?${T}(?![A-Za-z0-9])`).test(s)) return true
+    return new RegExp(`\\$${t}\\b|\\b${t}\\s+${HL_NOUN}\\b|\\b${HL_NOUN}\\s+(?:about|on|for|from|re)\\s+\\$?${t}\\b`).test(s.toLowerCase())
+  }
+  if (words(r).length >= 3) return norm(text).includes(norm(r))
+  return true                                                               // an id: licensed only if offered / selected / previous
+}
+/** the member's words name this collection (its whole name, any case) */
+export const wordsNameCollection = (text, name) => norm(name).trim() !== '' && norm(text).includes(norm(name))
+const NOTE_W = /\bnotes?\b|\bannotat/i
+const COLL_W = /\bcollections?\b/i
+const UNSAVE_W = /\bun-?(?:save|bookmark)/i
+const LIB_OUT = /\b(?:remove|take|delete|drop|get rid of|pull|clear)\b[^.;!?]*\b(?:from|out of|off) (?:of )?(?:my |the )?(?:news |research )?(?:library|saved headlines|saved stories|bookmarks)\b/i
+const HL_DELETE = /\b(?:delete|remove|drop|get rid of)\s+(?:the |that |this |my )?(?:\$?[\w-]+ )?(?:headline|story|article|bookmark)\b/i
+/** library-removal words: the ONLY words that take a headline out of the library */
+export function asksUnsave(text) {
+  const s = String(text || '')
+  if (UNSAVE_W.test(s)) return true
+  if (NOTE_W.test(s)) return false                                          // a note's words license only setNote
+  if (LIB_OUT.test(s)) return true
+  return HL_DELETE.test(s) && !COLL_W.test(s)                               // a collection's words license only place
+}
+const outOfCollection = (text, name) => {
+  const n = esc(norm(name).trim())
+  return new RegExp(`\\b(?:out of|from|off) (?:of )?(?:my |the )?(?:news )?${n}(?: news)? collection\\b|\\b(?:out of|from) (?:my |the )?(?:news )?collection (?:called |named )?${n}\\b`).test(norm(text))
+}
+const headlineWhy = (a) => `your words didn’t name that headline (“${String(a?.headline ?? '').slice(0, 60)}”) — name its ticker or click it in your News widget.`
+const DELETE_W = /\b(?:delete|deleting|deleted|remove|removing|get rid of|erase|trash|discard)\b/i
+export const ASKED = {
+  'newsLibrary.save': {
+    by: (t, a) => (a.saved === false ? asksUnsave(t) : true) && wordsNameHeadline(t, a.headline),
+    why: (a, t) => (a.saved === false && !asksUnsave(t) ? 'a headline comes out of your library only when you ask for exactly that (“unsave the AMD headline” / “take it out of my library”) — a note or a collection is changed on its own.' : headlineWhy(a)),
+  },
+  'newsLibrary.setNote': {
+    by: (t, a) => NOTE_W.test(t) && wordsNameHeadline(t, a.headline),
+    why: (a, t) => (!NOTE_W.test(t) ? 'a headline’s note changes only when you ask about its note (“add a note to the NVDA headline: …”).' : headlineWhy(a)),
+  },
+  'newsLibrary.collection': {
+    by: (t, a) => (a.op === 'rename' ? wordsNameCollection(t, a.collection) && wordsNameCollection(t, a.name) : true),
+    why: () => 'a collection is renamed only when you name it and its new name (“rename my Macro collection to Fed”).',
+  },
+  'newsLibrary.deleteCollection': {
+    // AUDIT (Q2): only DELETE words — "tidy up my collections" / "clean up the library" never do; (T2) naming THAT collection
+    by: (t, a) => DELETE_W.test(t) && wordsNameCollection(t, a.collection),
+    why: () => 'a collection is deleted only when you ask for exactly that (“delete my Earnings collection”).',
+  },
+  'newsLibrary.place': {
+    by: (t, a) => wordsNameCollection(t, a.collection) && (a.member === false ? outOfCollection(t, a.collection) : true) && wordsNameHeadline(t, a.headline),
+    why: (a, t) => (!wordsNameCollection(t, a.collection) || (a.member === false && !outOfCollection(t, a.collection)) ? 'a headline goes into or out of a collection only when you name it (“take the AMD headline out of my Earnings collection”).' : headlineWhy(a)),
+  },
+}
 function askAmong(rows, st) {
   const list = rows.slice(0, MAX_CHOICES)
   if (!list.length) return st.hasNews ? 'Which headline? Click it (or open its ⋯ menu) in your News widget, or name its ticker. Nothing was changed.' : NO_NEWS
@@ -346,6 +414,8 @@ export function registerNewsLibraryCapabilities() {
   registerCapability({
     ...common,
     name: 'newsLibrary.save',
+    askedBy: ASKED['newsLibrary.save'].by,
+    askedByWhy: ASKED['newsLibrary.save'].why,
     summary: 'Save ONE UCT News headline to the member\'s library, or take it out (saved false; its note and collections go with it — Undo puts them back).',
     hints: `${HEADLINE_HINT}. saved = true to save, false to remove from the library. One headline per request.`,
     args: { type: 'object', properties: { headline: headlineArg, saved: { type: 'boolean' } }, required: ['headline', 'saved'], additionalProperties: false },
@@ -386,6 +456,8 @@ export function registerNewsLibraryCapabilities() {
   registerCapability({
     ...common,
     name: 'newsLibrary.setNote',
+    askedBy: ASKED['newsLibrary.setNote'].by,
+    askedByWhy: ASKED['newsLibrary.setNote'].why,
     summary: 'Add to (mode append) or replace (mode replace) the note on ONE saved UCT News headline. Undo puts the old note back.',
     hints: `${HEADLINE_HINT}. note = the text. mode = append ("add / also note …") or replace (only when they say replace / change / rewrite the note). An empty note with replace clears it.`,
     args: { type: 'object', properties: { headline: headlineArg, note: { type: 'string' }, mode: { type: 'string', enum: ['append', 'replace'] } }, required: ['headline', 'note', 'mode'], additionalProperties: false },
@@ -428,6 +500,8 @@ export function registerNewsLibraryCapabilities() {
   registerCapability({
     ...common,
     name: 'newsLibrary.collection',
+    askedBy: ASKED['newsLibrary.collection'].by,
+    askedByWhy: ASKED['newsLibrary.collection'].why,
     summary: 'Create a collection in the member\'s UCT News library, or rename one. Undo removes the new one / renames it back.',
     hints: 'op = create (name = the new name, collection null) or rename (collection = its current name, name = the new one).',
     args: { type: 'object', properties: { op: { type: 'string', enum: ['create', 'rename'] }, collection: { type: ['string', 'null'] }, name: { type: 'string' } }, required: ['op', 'collection', 'name'], additionalProperties: false },
@@ -472,8 +546,8 @@ export function registerNewsLibraryCapabilities() {
     hints: 'collection = its name. Only when they say delete / remove it.',
     args: { type: 'object', properties: { collection: { type: 'string' } }, required: ['collection'], additionalProperties: false },
     // ⛔ AUDIT (Q2): only DELETE words license it — "tidy up my collections" / "clean up the library" never do
-    askedBy: /\b(?:delete|deleting|deleted|remove|removing|get rid of|erase|trash|discard)\b/,
-    askedByWhy: 'a collection is deleted only when you ask for exactly that (“delete my Earnings collection”).',
+    askedBy: ASKED['newsLibrary.deleteCollection'].by,               // T2 (probe 63): and naming THAT collection
+    askedByWhy: ASKED['newsLibrary.deleteCollection'].why,
     fast: ({ raw, typed, host }) => {
       noteTurn(typed || raw, host)
       const m = /^(?:delete|remove) (?:the |my )?(?:news )?collection [“"]?(.+?)[”"]?$/i.exec(raw.trim()) || /^(?:delete|remove) (?:the |my )?[“"]?(.+?)[”"]? (?:news )?collection$/i.exec(raw.trim())
@@ -495,6 +569,8 @@ export function registerNewsLibraryCapabilities() {
   registerCapability({
     ...common,
     name: 'newsLibrary.place',
+    askedBy: ASKED['newsLibrary.place'].by,
+    askedByWhy: ASKED['newsLibrary.place'].why,
     summary: 'Put ONE UCT News headline in one of the member\'s collections (saving it first if needed), or take it out. Undo reverses it.',
     hints: `${HEADLINE_HINT}. collection = its name; member = true to put it in, false to take it out.`,
     args: { type: 'object', properties: { headline: headlineArg, collection: { type: 'string' }, member: { type: 'boolean' } }, required: ['headline', 'collection', 'member'], additionalProperties: false },

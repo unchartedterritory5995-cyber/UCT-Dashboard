@@ -393,3 +393,154 @@ describe('contract and routing', () => {
     expect(srv.bookmarks.size).toBe(0)
   }, 40000)
 })
+
+// ⛔ AUDIT T2 (held-out probe 63, 2026-11-16): the TARGET is words-keyed and each action has its own VERB FAMILY. Generated:
+// every action × the member's target × the plan's target × a wording family, through the real panel with a scripted plan
+// (the wordings start "please …" so the fast path never reads them — the MODEL's plan is what is tested). A plan whose
+// target the member's words do not name is refused whole, before any write; one that matches runs (a card is applied).
+describe('AUDIT T2 probe 63 — words-keyed targets and verb families (generated)', () => {
+  const T = { NVDA: 'evA', AMD: 'evB' }
+  const PAIRS = [['NVDA', 'NVDA'], ['AMD', 'AMD'], ['NVDA', 'AMD'], ['AMD', 'NVDA']]
+  const finish = async () => {
+    if (!pending().length) return
+    fireEvent.click(screen.getAllByRole('button', { name: 'Apply' }).at(-1)); await p.idle(); await new Promise(r => setTimeout(r, 0)); await p.idle()
+  }
+  const REFUSED = /I didn’t change anything/
+  async function run(words, ...ops) {
+    const { say } = await mountOn()
+    const w0 = srv.writes
+    p.st.envelopes.push(plan('apply', ...ops))
+    const out = await say(words)
+    expect(p.turns(), 'the MODEL planned it (never the fast path)').toBe(1)
+    return { out, wrote: () => srv.writes - w0 }
+  }
+  const expectRefused = (r) => { expect(r.out).toMatch(REFUSED); expect(r.wrote()).toBe(0); expect(pending()).toHaveLength(0) }
+
+  const UNSAVE_WORDS = ['please take the {T} headline out of my library', 'please unsave the {T} headline', 'please remove the {T} headline from my library']
+  describe.each(UNSAVE_WORDS)('newsLibrary.save saved:false — "%s"', (tpl) => {
+    it.each(PAIRS)('member names %s, the plan unsaves %s', async (said, planned) => {
+      saved('evA'); saved('evB')
+      const r = await run(tpl.replace('{T}', said), [SAVE, { headline: planned, saved: false }])
+      await finish()
+      if (said === planned) expect(savedIds()).toEqual(Object.values(T).filter(id => id !== T[said]))
+      else { expectRefused(r); expect(savedIds()).toEqual(['evA', 'evB']) }
+    }, 40000)
+  })
+
+  const NOTE_WORDS = [['please add a note to the {T} headline: watch it', 'append', 'old\nwatch it'], ['please replace the note on the {T} headline with watch it', 'replace', 'watch it'],
+    ['please clear the note on the {T} headline', 'replace', '']]
+  describe.each(NOTE_WORDS)('newsLibrary.setNote — "%s"', (tpl, mode, want) => {
+    it.each(PAIRS)('member names %s, the plan writes the note on %s', async (said, planned) => {
+      saved('evA', { note: 'old' }); saved('evB', { note: 'old' })
+      const r = await run(tpl.replace('{T}', said), [NOTE, { headline: planned, note: mode === 'append' ? 'watch it' : want, mode }])
+      await finish()
+      const other = said === 'NVDA' ? 'evB' : 'evA'
+      if (said === planned) expect(srv.bookmarks.get(T[said]).note).toBe(want)
+      else { expectRefused(r); expect(srv.bookmarks.get(T[said]).note).toBe('old') }
+      expect(srv.bookmarks.get(other).note).toBe('old')
+      expect(savedIds()).toEqual(['evA', 'evB'])                          // a note's words never take a headline out
+    }, 40000)
+  })
+
+  const PLACE_WORDS = [['please put the {T} headline in my Earnings collection', true], ['please take the {T} headline out of my Earnings collection', false]]
+  describe.each(PLACE_WORDS)('newsLibrary.place — "%s"', (tpl, member) => {
+    it.each(PAIRS)('member names %s, the plan places %s', async (said, planned) => {
+      srv.collections.push({ id: 'k1', name: 'Earnings' }, { id: 'k2', name: 'Macro' })
+      saved('evA', { collection_ids: member ? [] : ['k1'] }); saved('evB', { collection_ids: member ? [] : ['k1'] })
+      const r = await run(tpl.replace('{T}', said), [PLACE, { headline: planned, collection: 'Earnings', member }])
+      await finish()
+      const inK1 = (id) => srv.bookmarks.get(id).collection_ids.includes('k1')
+      const other = said === 'NVDA' ? 'evB' : 'evA'
+      if (said === planned) expect(inK1(T[said])).toBe(member)
+      else { expectRefused(r); expect(inK1(T[said])).toBe(!member) }
+      expect(inK1(other)).toBe(!member)
+      expect(savedIds()).toEqual(['evA', 'evB'])
+    }, 40000)
+    it('the plan names ANOTHER collection than the member\'s words (Macro for Earnings): refused', async () => {
+      srv.collections.push({ id: 'k1', name: 'Earnings' }, { id: 'k2', name: 'Macro' })
+      saved('evA', { collection_ids: member ? [] : ['k1', 'k2'] })
+      expectRefused(await run(tpl.replace('{T}', 'NVDA'), [PLACE, { headline: 'NVDA', collection: 'Macro', member }]))
+    }, 40000)
+  })
+
+  const CPAIRS = [['Earnings', 'Earnings'], ['Macro', 'Macro'], ['Earnings', 'Macro'], ['Macro', 'Earnings']]
+  describe.each(['please rename my {X} collection to Fed', 'please rename the news collection {X} to Fed'])('newsLibrary.collection rename — "%s"', (tpl) => {
+    it.each(CPAIRS)('member names %s, the plan renames %s', async (said, planned) => {
+      srv.collections.push({ id: 'k1', name: 'Earnings' }, { id: 'k2', name: 'Macro' })
+      const r = await run(tpl.replace('{X}', said), [COLL, { op: 'rename', collection: planned, name: 'Fed' }])
+      await finish()
+      const names = srv.collections.map(c => c.name).sort()
+      if (said === planned) expect(names).toEqual(['Earnings', 'Macro'].map(n => (n === said ? 'Fed' : n)).sort())
+      else { expectRefused(r); expect(names).toEqual(['Earnings', 'Macro']) }
+    }, 40000)
+    it('the plan\'s NEW name is not the member\'s ("Rates" for "Fed"): refused', async () => {
+      srv.collections.push({ id: 'k1', name: 'Earnings' })
+      expectRefused(await run(tpl.replace('{X}', 'Earnings'), [COLL, { op: 'rename', collection: 'Earnings', name: 'Rates' }]))
+      expect(srv.collections.map(c => c.name)).toEqual(['Earnings'])
+    }, 40000)
+  })
+
+  describe.each(['please delete my {X} collection', 'please remove the {X} collection'])('newsLibrary.deleteCollection — "%s"', (tpl) => {
+    it.each(CPAIRS)('member names %s, the plan deletes %s', async (said, planned) => {
+      srv.collections.push({ id: 'k1', name: 'Earnings' }, { id: 'k2', name: 'Macro' })
+      const { say } = await mountOn()
+      p.st.envelopes.push(plan('propose', [DEL, { collection: planned }]))
+      const out = await say(tpl.replace('{X}', said))
+      if (said === planned) {
+        expect(pending()).toHaveLength(1)
+        await finish()
+        expect(srv.collections.map(c => c.name)).toEqual(['Earnings', 'Macro'].filter(n => n !== said))
+      } else {
+        expect(out).toMatch(REFUSED)
+        expect(pending()).toHaveLength(0)
+        expect(srv.collections.map(c => c.name)).toEqual(['Earnings', 'Macro'])
+      }
+    }, 40000)
+  })
+
+  // the cross-family rows: a note's words and a collection's words never license taking the headline out of the library
+  it.each(['please clear the note on the NVDA headline', 'please remove the note from the NVDA headline', 'please erase the note on the NVDA headline',
+    'please delete the note on the NVDA headline'])('note words × an UNSAVE plan: "%s" → refused, the bookmark (note, collections) kept', async (w) => {
+    srv.collections.push({ id: 'k1', name: 'Earnings' })
+    saved('evA', { note: 'keep me', collection_ids: ['k1'] })
+    const r = await run(w, [SAVE, { headline: 'NVDA', saved: false }])
+    expectRefused(r)
+    expect(r.out).toMatch(/a headline comes out of your library only when you ask for exactly that/)
+    expect(srv.bookmarks.get('evA')).toMatchObject({ note: 'keep me', collection_ids: ['k1'] })
+  }, 40000)
+  it.each(['please take the NVDA headline out of my Earnings collection', 'please remove the NVDA headline from my Earnings collection'])(
+    'collection words × an UNSAVE plan: "%s" → refused, the bookmark kept', async (w) => {
+      srv.collections.push({ id: 'k1', name: 'Earnings' })
+      saved('evA', { collection_ids: ['k1'] })
+      expectRefused(await run(w, [SAVE, { headline: 'NVDA', saved: false }]))
+      expect(srv.bookmarks.get('evA').collection_ids).toEqual(['k1'])
+    }, 40000)
+
+  // the probe's own sentences (63a-1, 63c-2), and their correct plans
+  it('63a-1: NVDA and AMD saved, "take the AMD headline out of the library", the plan unsaves NVDA → refused, both kept', async () => {
+    saved('evA'); saved('evB')
+    const r = await run('take the AMD headline out of the library', [SAVE, { headline: 'NVDA', saved: false }])
+    expectRefused(r)
+    expect(r.out).toMatch(/your words didn’t name that headline \(“NVDA”\)/)
+    expect(savedIds()).toEqual(['evA', 'evB'])
+  }, 40000)
+  it('63a-1 (the right plan): the AMD headline comes out, NVDA stays', async () => {
+    saved('evA'); saved('evB')
+    await run('take the AMD headline out of the library', [SAVE, { headline: 'AMD', saved: false }])
+    await finish()
+    expect(savedIds()).toEqual(['evA'])
+  }, 40000)
+  it('63c-2: NVDA saved with a note, "clear the note on the NVDA headline", the plan unsaves NVDA → refused, the bookmark kept', async () => {
+    saved('evA', { note: 'my note' })
+    const r = await run('clear the note on the NVDA headline', [SAVE, { headline: 'NVDA', saved: false }])
+    expectRefused(r)
+    expect(srv.bookmarks.get('evA').note).toBe('my note')
+  }, 40000)
+  it('63c-2 (the right plan): the note is cleared, the headline stays saved', async () => {
+    saved('evA', { note: 'my note' })
+    await run('clear the note on the NVDA headline', [NOTE, { headline: 'NVDA', note: '', mode: 'replace' }])
+    await finish()
+    expect(savedIds()).toEqual(['evA'])
+    expect(srv.bookmarks.get('evA').note).toBe('')
+  }, 40000)
+})

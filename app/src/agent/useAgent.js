@@ -1683,13 +1683,20 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     // boardDetach.setMerged (AUDIT, D21): a capability that declares `askedBy` runs only when the member's OWN words ask for it —
     // never planned from additive words alone ("add a news widget"): such an op is dropped here, on every path
     {
-      const asked = (o) => { const c = getCapability(o?.action); return !(c?.askedBy instanceof RegExp) || (gateWords || []).some(t => typeof t === 'string' && c.askedBy.test(t.toLowerCase())) }
+      // newsLibrary.* (AUDIT T2 probe 63): `askedBy` may also be a FUNCTION of (the member's words, the op's args) — its
+      // target is words-keyed (the member's own words name THAT headline / collection) and its verb family is its own. It
+      // reads this turn's words together (an answered question's words with the answer); a plan that misread them is
+      // refused WHOLE, never run in part
+      const said = (gateWords || []).filter(t => typeof t === 'string').join(' . ')
+      const keyed = (c) => typeof c?.askedBy === 'function'
+      const asked = (o) => { const c = getCapability(o?.action); if (keyed(c)) return !!c.askedBy(said, o?.args || {}); return !(c?.askedBy instanceof RegExp) || (gateWords || []).some(t => typeof t === 'string' && c.askedBy.test(t.toLowerCase())) }
       const kept = (opsIn || []).filter(asked)
       if (kept.length !== (opsIn || []).length) {
-        if (!kept.length) {
+        if (!kept.length || (opsIn || []).some(o => !asked(o) && keyed(getCapability(o?.action)))) {
           // each capability says what its own words are (askedByWhy); the merged view's sentence is the default
-          const dropped = (opsIn || []).find(o => !asked(o))
-          const text = `I didn’t change anything: ${getCapability(dropped?.action)?.askedByWhy || 'the board’s merged view changes only when you ask for it (“merge the board” / “unmerge the widgets”).'}`
+          const dropped = (opsIn || []).find(o => !asked(o) && keyed(getCapability(o?.action))) || (opsIn || []).find(o => !asked(o))
+          const why = getCapability(dropped?.action)?.askedByWhy
+          const text = `I didn’t change anything: ${(typeof why === 'function' ? why(dropped?.args || {}, said) : why) || 'the board’s merged view changes only when you ask for it (“merge the board” / “unmerge the widgets”).'}`
           push({ role: 'refusal', text })
           record({ member, outcome: text, outcomeData: { kind: 'refused', actions: (opsIn || []).map(o => o?.action) }, telemetry: { path, refused: true, voice } })
           return undefined
