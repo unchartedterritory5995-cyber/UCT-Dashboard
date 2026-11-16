@@ -9,7 +9,7 @@ export { compactView, VIEW_CONTRACT, VIEW_MAX_CHARS } from './compactView'
 export { readback, presentationLines, vocabularyLines, SEMANTICS_LINE } from './readback'
 export { nameOfTree, derivedDefName, derivedRowName, namingSnapshot, applyDerivedNaming } from './derivedName'
 export {
-  newAuthoringState, openAuthoringState, applyTurn, undo, prepareSave, isDirty, STATE_CONTRACT, HISTORY_MAX,
+  newAuthoringState, openAuthoringState, applyTurn, undo, undoTo, prepareSave, isDirty, STATE_CONTRACT, HISTORY_MAX,
 } from './authoringState'
 export { classifyTurn, OUTCOMES } from './turnOutcome'
 export { preflight } from './preflight'
