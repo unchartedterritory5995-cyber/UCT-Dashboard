@@ -14,3 +14,23 @@ name (`pine:text-value`) until a capture says what TradingView shows:
 | Q-ROB4 | `vw-rob1b-var-string-guards.pine` | G01-G08: the `var string` shapes the drawing lane now SERVES whose only witness today is a licence-held capture (williams-r-rsi-ema-tendance-silver-wong s11, volume-pace-pressure-table s4-prove-drawn, both regraded MATCH locally; CI cannot reproduce them): a write under an input comparison at its default (true and false), sequential blocks over one input, a write under `timeframe.isminutes` on a daily chart (the seed), a write under an input bool, and a cell inside a block that never runs on a daily chart (absent). G05 (`timeframe.isdaily`) is refused as a latch today and settles whether to serve it. This committed capture replaces the licence-held witnesses |
 | Q-ROB3 | `vw-rob3-v4-bgcolor-own-alpha.pine` | A1-A3: what a v4 `bgcolor` with no `transp` draws over a colour with its OWN alpha (`color.new(c, 50)`): the alpha, the 90 default, or both. Withheld today by name (`paint:v4-default-transp`); frees relative-strength-index-divergences-libertus's two backgrounds. A4 is the control. ⚠️ The chart MODEL does not settle it alone: the licence-held libertus capture (s11, RDDT 1D 2026-11-15) reads `styleState.transparency` 90 on both background rows AND palette colours at alpha 0.5, so how the two combine on screen needs this probe read with the pixels (or the renderer's composite) beside the model |
 | Q-ROB2 | `vw-rob1-var-string-text.pine` | C03, L02: a `var string` written in a block that runs on some bars only (the latch). Not served by a text template at all today; the capture decides whether carrying it (a text column, or the run) is worth building. C04-C06 are the controls for the shapes that are served |
+
+## The per-bar lane's drawing of mtf-key-levels (new by reach, not a changed drawing)
+
+The member door now offers a host-budget-refused script to the per-bar lane, so the runtime-on harness grades
+`mtf-key-levels-support-and-resistance-{rddt,spy}-1d-2026-11-14` for the first time: INCONCLUSIVE -> DIVERGE
+(2 of 5 items). The script is NOT admitted for the pane (`capability_admitted`: missing `obj:table`,
+`request-other`; the door says `runtime:not-yet-graded`), so no member sees this drawing. Each diverging item is
+an engine defect of the per-bar lane, tracked here; the captures already exist, no probe is asked:
+
+| row | probe | what it settles |
+|---|---|---|
+| Q-ROB5 | (existing capture `mtf-key-levels-support-and-resistance-rddt-1d-2026-11-14`) | `D-VWAP` (plot_0): 6 steady-state bars disagree in the 2nd decimal (first at bar 114: vendor 57.3, ours 57.29), persistent to bar 665; W-, M- and Y-VWAP agree on every bar |
+| Q-ROB6 | (existing capture `mtf-key-levels-support-and-resistance-rddt-1d-2026-11-14`) | labels: TradingView 27, the per-bar lane 3 |
+| Q-ROB7 | (existing capture `mtf-key-levels-support-and-resistance-rddt-1d-2026-11-14`) | lines: 23 vs 22, and a line's y1 differs (first: vendor 103.2824, ours 101.27) |
+
+| not a capture | disposition | reason |
+|---|---|---|
+| Q-ROB5 | engine-gap | the capture exists and grades the item DIVERGE; what it needs is a per-bar-lane fix, not a TradingView reading |
+| Q-ROB6 | engine-gap | the capture exists and grades the item DIVERGE; what it needs is a per-bar-lane fix, not a TradingView reading |
+| Q-ROB7 | engine-gap | the capture exists and grades the item DIVERGE; what it needs is a per-bar-lane fix, not a TradingView reading |

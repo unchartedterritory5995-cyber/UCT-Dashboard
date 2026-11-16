@@ -148,3 +148,28 @@ ledger; nothing filed in the repo), head `ef326c36ec`, engine 61 + this branch:
 (`Cross Tenkan/Kijun`, `Cross EMA9/EMA18`): the newly served output is witnessed. volume-pace-pressure-table
 draws what it drew before engine 59, and both captures MATCH. The dot-dynamics move from DIVERGE is master's
 engines 55-61, not this branch (its paint stays withheld); recorded, not claimed.
+
+## 6. Harness verdict moves (cloud, pine-heavy run on `2df75b8b17`), and admission of the newly reached scripts
+
+Production lane: no verdict moves against master's committed snapshot. Runtime-on lane, two moves, both
+**new by reach, not a changed drawing** (coordinator ruling A): `mtf-key-levels-support-and-resistance-rddt-1d-2026-11-14`
+and `-spy-1d-2026-11-14` go INCONCLUSIVE ("refused on our side: install door refused") -> DIVERGE (2 of 5 items),
+because the door now offers the budget-refused script to the per-bar lane, whose drawing of it diverges:
+`D-VWAP` 6 bars off in the 2nd decimal (first at bar 114, 57.3 vs 57.29), labels 27 vs 3, lines 23 vs 22 with a
+line's y1 off (103.2824 vs 101.27). W-, M- and Y-VWAP agree on every bar. Each item is a backlog row (Q-ROB5,
+Q-ROB6, Q-ROB7, disposition `engine-gap`, in the door-robustness capture queue).
+
+The real admission on this tree (`runtime_definitions.capability_admitted` / `not_graded`, with
+`PINE_RUNTIME_CAPABILITY_ADMISSION=on`, against the committed registry) for the four scripts the per-bar lane
+newly reaches:
+
+| script | admitted? | reason | captures |
+|---|---|---|---|
+| committed:mtf-key-levels-support-and-resistance | **no**: `runtime:not-yet-graded` | capabilities `obj:table`, `request-other` not admitted | 2 committed, runtime-on DIVERGE (above): no kill-list entry is needed, the pane never draws it |
+| reference:check-head-and-shouldersmask-man | **yes**, by capability | - | none (committed or licence-held) |
+| reference:multi-timeframe-vwap-v5 | **yes**, by capability | - | none |
+| reference:range-filter-buy-and-sell-5min | not yet: `pending` (the detector's budget did not settle its set) | the door says "still being checked" | none |
+
+So two of the newly reached scripts are drawn by the per-bar lane for a member whose pane is permitted, on
+capability evidence and with no capture of their own; no DIVERGE is known for either. That is capability
+admission working as admitted; a capture of each is the way to know (queue rows are the coordinator's call).
