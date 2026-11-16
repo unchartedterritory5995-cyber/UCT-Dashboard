@@ -13,6 +13,7 @@ import contextlib
 import hashlib
 import json
 import os
+import pathlib
 import sqlite3
 from datetime import datetime, timezone
 
@@ -106,6 +107,59 @@ def test_the_read_writes_nothing_and_creates_no_file(db, tmp_path):
     out = _read({})
     assert env.validate_envelope(out) == [] and out["status"] == "ok" and out["provider_calls"] == 0
     assert _digest(path) == before and sorted(os.listdir(tmp_path)) == listing
+
+
+def _wal_sidecars(path) -> dict:
+    """Bytes (None when absent) of the main DB, its -wal and its -shm."""
+    out = {}
+    for suffix in ("", "-wal", "-shm"):
+        p = path + suffix
+        out[suffix or "main"] = open(p, "rb").read() if os.path.exists(p) else None
+    return out
+
+
+def test_a_WAL_store_with_uncheckpointed_rows_is_read_without_a_checkpoint_or_any_byte_changed(tmp_path, monkeypatch):
+    # The real store runs in WAL mode (catalyst.store._connect sets journal_mode=WAL). A read-WRITE connection that
+    # closes last CHECKPOINTS the WAL into the main DB and deletes the -wal / -shm sidecars; only `mode=ro` leaves the
+    # store as it found it. This pins that: rows committed but NOT checkpointed live only in the -wal, the reader must
+    # still see them, and the main DB, -wal and -shm must all be byte-identical afterwards (no sidecar appears or goes).
+    path = str(tmp_path / "catalysts.db")
+    monkeypatch.setattr(cat_store, "_DB_PATH", path)
+    w = sqlite3.connect(path)
+    assert w.execute("PRAGMA journal_mode=WAL").fetchone()[0] == "wal"
+    w.executescript(cat_store._SCHEMA)
+    for col in ("rating_change TEXT", "thesis_status TEXT"):
+        w.execute(f"ALTER TABLE catalysts ADD COLUMN {col}")
+    w.commit()
+    w.execute("PRAGMA wal_checkpoint(TRUNCATE)")                       # the schema is in the main DB ...
+    w.execute("PRAGMA wal_autocheckpoint=0")
+    for r in (_row("AAA"), _row("BBB", rank=2)):                        # ... the rows only in the -wal
+        w.execute(f"INSERT INTO catalysts ({','.join(r)}) VALUES ({','.join('?' * len(r))})", tuple(r.values()))
+    w.commit()
+    w.setconfig(sqlite3.SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, True)        # the writer goes away WITHOUT checkpointing
+    w.close()
+    # the rows really are only in the -wal: the main DB file on its own has none of them
+    lone = tmp_path / "lone"
+    lone.mkdir()
+    (lone / "main.db").write_bytes(open(path, "rb").read())
+    with contextlib.closing(sqlite3.connect(lone / "main.db")) as c:
+        assert c.execute("SELECT COUNT(*) FROM catalysts").fetchone()[0] == 0
+    # the -shm is SQLite's shared-memory wal-index, rebuilt by the first reader after the writer left; prime it with a
+    # plain read-only open so the snapshot is the steady state (a second read-only open then changes no byte of it)
+    with contextlib.closing(sqlite3.connect(pathlib.Path(path).as_uri() + "?mode=ro", uri=True)) as c:
+        assert c.execute("SELECT COUNT(*) FROM catalysts").fetchone()[0] == 2
+    before, listing = _wal_sidecars(path), sorted(os.listdir(tmp_path))
+    assert before["-wal"] and before["-shm"]                            # WAL data and the index are both on disk
+
+    out = cb.read_catalysts_board({}, {})
+
+    assert env.validate_envelope(out) == [] and out["status"] == "ok" and out["provider_calls"] == 0
+    assert [r["symbol"] for r in out["data"]["rows"]] == ["AAA", "BBB"]  # it saw the un-checkpointed WAL rows
+    after = _wal_sidecars(path)
+    for name in ("main", "-wal", "-shm"):
+        assert (after[name] is None) == (before[name] is None), f"{name} appeared or disappeared"
+        assert after[name] == before[name], f"{name} changed: the read was not read-only"
+    assert sorted(os.listdir(tmp_path)) == listing
 
 
 def test_ABSENT_no_file_is_an_honest_empty_board_and_no_file_is_created(tmp_path, monkeypatch):
