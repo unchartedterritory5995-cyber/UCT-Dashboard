@@ -1018,6 +1018,13 @@ function formatReplayDate(t) {
   return formatETDate(t * 1000)
 }
 
+/** The words a member typed into the library's search before choosing "Describe it
+ *  instead": they go into Create Indicator's box, not sent. Anything else: no seed. */
+export function libraryDescribeSeed(opts) {
+  const s = opts && typeof opts.seed === 'string' ? opts.seed.trim() : ''
+  return s ? s.slice(0, 400) : null
+}
+
 function ChartToolbar({
   // Phone chart shell: MobileDrawBar presents the drawing tools instead, so
   // this strip hides ENTIRELY (its dialogs still portal out, its imperative
@@ -1959,7 +1966,7 @@ function ChartToolbar({
                window to reach it through). The same opening the pane's own button makes: the
                library and the builder close, a fresh studio opens. */
             onCreateIndicator={canModifyWithIntelligence && typeof onStudioPreview === 'function'
-              ? () => { setLibraryOpen(false); setBuilderOpen(false); setCreateSeed(null); setCreateEditRow(null); setCreateOpen(true) }
+              ? (opts) => { setLibraryOpen(false); setBuilderOpen(false); setCreateSeed(libraryDescribeSeed(opts)); setCreateEditRow(null); setCreateOpen(true) }
               : null}
             /* 🔴 THE BUILDER'S DOOR ON `/charts` — its SECOND opener, and on the
                charts workspace its ONLY one.
