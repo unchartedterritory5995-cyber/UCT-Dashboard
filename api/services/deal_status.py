@@ -25,7 +25,10 @@ Three sources, merged:
      missing the last DEAL_STATUS_STALE_SESSIONS (default 3) sessions of the market's own
      calendar (a completed buyout stops printing). Only the TARGET is ever pending: never the
      acquirer, a parent whose unit or stake is sold, a backer, or a symbol merely tagged on a
-     headline about someone else (see `parse_headline`).
+     headline about someone else (see `parse_headline`). A headline that names the target
+     by a word another company shares ("Stride" = Stride Bank, tagged LRN) cannot be told
+     apart from its text: the owner rules it out in `api/data/deal_not_pending.json`
+     (`news_overrides`), which news never overrides.
   3. PRICE BEHAVIOUR (corroboration only). A gap of 8%+ that never filled, then 15+
      sessions in a tiny range (range < 2%, ATR < 0.5% of price). Beside a news deal price
      it confirms the deal (0.95, and it keeps an old headline alive). ON ITS OWN it only
@@ -139,6 +142,40 @@ def hand_list() -> frozenset:
         _log.warning("[deal-status] hand list is not a list")
         return frozenset()
     return frozenset(str(t).upper() for t in data if t)
+
+
+#: Owner rulings that a stored headline is about a DIFFERENT company: {symbol: reason}.
+#: WHY. 2026-09-08 "Chime Inks $590 Million Deal to Buy Longtime Bank Partner Stride" is
+#: about Stride Bank, a private bank; the store tagged it LRN (Stride, Inc.) and the headline
+#: names the target only as "Stride", so no reading of the headline alone can tell them
+#: apart. LRN was left out of every scan from the day the scan-time gate shipped until this
+#: file existed. It also carries a REAL deal the owner wants left in scans because the stock
+#: does not trade pinned (owner 2026-11-15, LITE: an all-stock deal closing in 2028 floats with
+#: its acquirer; "I am talking about buyouts that are trading super tight").
+#: A name here is never pending on NEWS; a hand list still wins (the owner
+#: listing a name is the later, more specific ruling), and a price pin stays `possible`.
+NOT_PENDING_FILENAME = "deal_not_pending.json"
+
+
+def _not_pending_path() -> str:
+    return os.path.join(os.path.dirname(__file__), "..", "data", NOT_PENDING_FILENAME)
+
+
+def news_overrides() -> frozenset:
+    """Symbols whose news deal the owner ruled is not theirs (`NOT_PENDING_FILENAME`).
+    Empty when the file is missing; empty and logged on any fault."""
+    try:
+        with open(_not_pending_path(), "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+    except FileNotFoundError:
+        return frozenset()
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("[deal-status] not-pending overrides load failed: %s", exc)
+        return frozenset()
+    if not isinstance(data, dict):
+        _log.warning("[deal-status] not-pending overrides is not an object")
+        return frozenset()
+    return frozenset(str(t).strip().upper() for t in data if str(t).strip())
 
 
 def hand_deals() -> frozenset:
@@ -885,7 +922,8 @@ def _snapshot() -> dict:
     if cold:
         _warm_names_async()
     snap = {"day": today, "hand": hand_deals(), "mirror": mirror_list(),
-            "news": fold_news(headlines), "stale_ref": _stale_ref()}
+            "news": fold_news(headlines), "stale_ref": _stale_ref(),
+            "not_news": news_overrides()}
     with _LOCK:
         if _STATE.get("snap") is not snap:
             _SYM_CACHE.clear()
@@ -915,6 +953,14 @@ def _names_cold(headlines) -> bool:
     except Exception:  # noqa: BLE001
         return False
     return False
+
+
+def names_cold() -> bool:
+    """True while the CURRENT snapshot was built with some deal headline's company name not
+    yet in memory (after a restart): a target written by name may be missing from the sets.
+    A consumer that keeps its own last good set must not shrink it on such a build."""
+    with _LOCK:
+        return bool(_STATE.get("cold"))
 
 
 _WARM_LOCK = threading.Lock()
@@ -1010,6 +1056,10 @@ def _compute(sym: str, snap: dict, bars) -> dict:
         src.append("pc_exclude_mirror")
         conf = CONF_HAND
     deal = snap["news"].get(sym)
+    if sym in snap.get("not_news", ()):
+        # owner ruling: the headline is about another company (`NOT_PENDING_FILENAME`). Dropped
+        # before the completed checks, so the name is never reported as a completed deal either.
+        deal = None
     if deal is not None and deal["active"] and _delisted(sym):
         deal = None
         out["completed"] = True

@@ -24,10 +24,11 @@
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import { translatePine, PINE_TRANSLATE_MAX_DEPTH } from './pine.js'
 
-const HERE = path.dirname(new URL(import.meta.url).pathname.replace(/^\//, ''))
+const HERE = path.dirname(fileURLToPath(import.meta.url))
 const REPO = path.resolve(HERE, '../../../../../..')
 const NORMAL = path.join(REPO, 'tests/fixtures/pine/10-supertrend.pine')
 const SAR = path.join(REPO, 'corpus/committed/parabolic-sar__xoeoPMOWGJ.pine')

@@ -229,6 +229,73 @@ def test_a_full_build_saves_its_set_for_the_next_boot(snap, deal):
     assert Q._load_deal_last() == frozenset({"ZZZ", "BRK-B"})
 
 
+def _names(monkeypatch, cold, in_window=True, ruled=frozenset()):
+    from api.services.screener import query as Q
+    monkeypatch.setattr(deal_status, "names_cold", lambda: cold)
+    monkeypatch.setattr(deal_status, "news_overrides", lambda: frozenset(ruled))
+    monkeypatch.setattr(Q, "_in_cold_window", lambda: in_window)
+
+
+def test_a_build_made_with_names_cold_never_drops_a_saved_name(snap, deal, monkeypatch):
+    """LXFR 2026-11-15: the restart build missed a target written by name and served it."""
+    from api.services.screener import query as Q
+    Q._save_deal_last({"ZZZ", "TECH"})
+    deal("on", {"TECH"})                         # the cold build missed ZZZ
+    _names(monkeypatch, cold=True)
+    assert _tickers() == ALL - {"TECH", "ZZZ"}
+    assert Q._load_deal_last() == frozenset({"ZZZ", "TECH"}), "a cold build must not be saved"
+
+
+def test_the_same_build_with_names_warm_replaces_the_saved_set(snap, deal, monkeypatch):
+    """The control: once names are in, a name the build no longer holds DOES leave."""
+    from api.services.screener import query as Q
+    Q._save_deal_last({"ZZZ", "TECH"})
+    deal("on", {"TECH"})
+    _names(monkeypatch, cold=False)
+    assert _tickers() == ALL - {"TECH"}
+    assert Q._load_deal_last() == frozenset({"TECH"})
+
+
+def test_names_cold_past_the_boot_window_is_an_ordinary_build(snap, deal, monkeypatch):
+    """A symbol with no name anywhere keeps the pod cold for good; it must not pin an old set."""
+    from api.services.screener import query as Q
+    Q._save_deal_last({"ZZZ", "TECH"})
+    deal("on", {"TECH"})
+    _names(monkeypatch, cold=True, in_window=False)
+    assert _tickers() == ALL - {"TECH"}
+    assert Q._load_deal_last() == frozenset({"TECH"})
+
+
+def test_an_owner_ruling_leaves_the_saved_set_at_once_even_with_names_cold(snap, deal, monkeypatch):
+    from api.services.screener import query as Q
+    Q._save_deal_last({"ZZZ", "BRK-B", "TECH"})
+    deal("on", {"TECH"})
+    _names(monkeypatch, cold=True, ruled={"BRK.B"})
+    assert _tickers() == ALL - {"TECH", "ZZZ"}
+
+
+def test_a_names_cold_set_is_refreshed_within_about_a_minute(snap, deal, monkeypatch):
+    import time as _t
+    from api.services.screener import query as Q
+    deal("on", {"TECH"})
+    _names(monkeypatch, cold=True)
+    _tickers()
+    age = _t.monotonic() - Q._DEAL_MEMO["at"]
+    assert Q.DEAL_GATE_MAX_AGE_S - 61 <= age <= Q.DEAL_GATE_MAX_AGE_S
+    _names(monkeypatch, cold=False)
+    Q._reset_deal_memo()
+    _tickers()
+    assert _t.monotonic() - Q._DEAL_MEMO["at"] < 5
+
+
+def test_names_cold_reads_the_snapshots_own_flag(monkeypatch):
+    deal_status.reset_cache()
+    assert deal_status.names_cold() is False
+    monkeypatch.setitem(deal_status._STATE, "cold", True)
+    assert deal_status.names_cold() is True
+    deal_status.reset_cache()
+
+
 def test_the_boot_warm_starts_the_build_and_only_with_the_flag_on(monkeypatch):
     from api.services.screener import query as Q
     spawned = []

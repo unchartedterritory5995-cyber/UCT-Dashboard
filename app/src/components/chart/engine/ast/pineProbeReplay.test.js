@@ -19,11 +19,12 @@
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { createHash } from 'node:crypto'
 
 import { translatePine, Resolver } from './pine.js'
 
-const HERE = path.dirname(new URL(import.meta.url).pathname.replace(/^\//, ''))
+const HERE = path.dirname(fileURLToPath(import.meta.url))
 const REPO = path.resolve(HERE, '../../../../../..')
 
 /** `x_k = x_{k-1} > open ? high : low`: every level is a comparison whose
