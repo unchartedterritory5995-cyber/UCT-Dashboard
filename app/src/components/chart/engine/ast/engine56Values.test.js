@@ -676,7 +676,10 @@ describe('finding 1 - no untracked bool reaches `== true/false` with the compari
     expect(checked).toBeGreaterThan(0)
   })
   it('a numeric state seeded `na` (`os := c ? 0 : d ? 1 : os[1]`, a zig-zag\'s) meets `== 1` / `!= 1` served, never withheld', () => {
-    const src = ['//@version=4', 'study("r1")', 'os = 0', 'os := close > highest(close, 10)[1] ? 0 : close < lowest(close, 10)[1] ? 1 : os[1]',
+    // ⭐ landing train 1: the two windows are hoisted out of the `?:` arms. COND-TA (engine 58) withholds a
+    // `ta.*` call written INSIDE a `?:` arm by name (`pine:block`, its own rule); this rail is about the
+    // numeric state meeting `== 1` / `!= 1`, which is the same state either way.
+    const src = ['//@version=4', 'study("r1")', 'hi = highest(close, 10)[1]', 'lo = lowest(close, 10)[1]', 'os = 0', 'os := close > hi ? 0 : close < lo ? 1 : os[1]',
       'plot(os == 1 and os[1] != 1 ? 1 : 0)'].join('\n')
     const { col, codes, formula } = doorOn(src)
     expect(formula).not.toMatch(/boolNaWithheld/)
