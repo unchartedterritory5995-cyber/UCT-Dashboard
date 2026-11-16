@@ -16989,10 +16989,20 @@ const periodOnlyGuard = (n, depth = 0) => {
 /** Why a `var string` shown while it still holds its `na` seed is withheld (after "`x` is a `var string` "). */
 export const STRING_VAR_NA_SEED_WHY = 'still holding the `na` it was declared with on this chart, and what TradingView '
   + 'shows for that is not captured yet (probe `vw-rob1-var-string-text`), so the text is not drawn'
-/** `var string <name> = <seed>`: mark the seed. `toks` is the declaration's tokens. */
+/** `var string <name> = <seed>`, or `var <name> = "<text>"`: mark the seed. `toks` is the declaration's
+ *  tokens. ⭐ Q-ROB6 (2026-11-16) — an UNTYPED `var` whose seed is a string LITERAL is a string too: Pine
+ *  infers a variable's type from its initial value (a declaration without a type keyword takes the type of
+ *  the value it is initialised with), and a literal is the one value whose type needs nothing read.
+ *  ⛔ Only a literal: an untyped `var` seeded with anything else stays unmarked, so CBC-FMT F11 (`pine:type`
+ *  for a number in a text slot) is not reopened. Measured on mtf-key-levels-support-and-resistance:
+ *  `var DNoSpaces = " "`, read through `DailySpaces + "pdOpen"`, dropped 22 name labels TradingView draws
+ *  (" pdOpen", " pdHigh" ...): the per-bar lane drew 3 labels of TradingView's 27, now 25. */
 const markStringVarSeed = (toks, seed) => {
   const typed = toks && toks[1]
-  if (seed && typeof seed === 'object' && typed && typed.kind === 'ident' && typed.value === 'string') STRING_VAR_SEEDS.add(seed)
+  const declaredString = typed && typed.kind === 'ident' && typed.value === 'string'
+  const untyped = typed && typed.kind === 'ident' && toks[2] && toks[2].kind === 'punct' && toks[2].value === '='
+  const literalText = seed && typeof seed === 'object' && seed.type === 'string'
+  if (seed && typeof seed === 'object' && (declaredString || (untyped && literalText))) STRING_VAR_SEEDS.add(seed)
   return seed
 }
 

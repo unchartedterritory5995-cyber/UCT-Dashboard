@@ -120,6 +120,36 @@ describe('a `var string` in a drawing text is read from its writes', () => {
     expect(diagText(t)).not.toMatch(/pine:type/)
   })
 
+  it('⭐ Q-ROB6: an UNTYPED `var` seeded with a string literal is a string (Pine infers the type from the value)', () => {
+    const t = T('var s = "hello"')
+    expect(cellsOf(t).length).toBe(1)
+    expect(JSON.stringify(textOf(t))).toContain('"hello"')
+    expect(diagText(t)).not.toMatch(/pine:type/)
+  })
+
+  it('⭐ Q-ROB6: the mtf-key-levels shape: a plain name re-assigned between such vars, then concatenated', () => {
+    // `var DNoSpaces = " "` / `DailySpaces = DNoSpaces` / `DailySpaces := exnone ? DNoSpaces : …` / text = DailySpaces + "pdOpen"
+    const src = [
+      '//@version=4',
+      'study("spaces", overlay = true)',
+      'var DNoSpaces = " "',
+      'var DSpaces = "     "',
+      'exnone = input(true, title = "short")',
+      'DailySpaces = DNoSpaces',
+      'DailySpaces := exnone ? DNoSpaces : DSpaces',
+      'var label l = na',
+      'if barstate.islast',
+      '    l := label.new(bar_index, close, text = DailySpaces + "pdOpen")',
+      'plot(close)',
+    ].join(LF)
+    const t = translatePine(src, { strict: true, objects: true })
+    const creates = (((t.objects || {}).ops) || []).filter((o) => o.k === 'create' && o.family === 'label')
+    expect(creates.length).toBe(1)
+    expect(JSON.stringify(creates[0].props.text)).toContain('"pdOpen"')
+    expect(JSON.stringify(creates[0].props.text)).toContain('" "')
+    expect(((t.objectDiagnostics || {}).dropReasons || {})['create:label'] || 0).toBe(0)
+  })
+
   it('written on every bar: that write\'s text (a per-bar condition between two literals)', () => {
     const t = T('var string s = "seed"', 's := close > open ? "up" : "down"')
     expect(cellsOf(t).length).toBe(1)
