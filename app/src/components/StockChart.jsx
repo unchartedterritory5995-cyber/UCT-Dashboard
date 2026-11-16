@@ -242,6 +242,7 @@ import { getSnapshot as getLivePriceStoreSnapshot } from '../hooks/livePriceStor
 import { _packStillIngesting, setPrefetchShowExtended, barsBeforeUrl, registerSymbolWarmer } from '../utils/prefetchBars'
 import { resolveShowExtended } from '../utils/viewSession'
 import * as realtimeCandle from '../lib/realtimeCandle'
+import { newestSeriesBar } from './chart/newestSeriesBar'
 import { LIVE_PERIOD_SECONDS } from '../lib/liveBarMerge'
 import { publishChartReadout } from '../lib/chartReadoutStore'
 import { shouldApplyRange, rangeFitsBars, rangeBarsEnd, viewMostlyBars } from '../pages/charts/grid/rangeGuard'
@@ -11317,14 +11318,11 @@ export default function StockChart({
           // What the last paint decided for the indicator window (`plotWindow.js`): the rows
           // it holds, the first row drawn (0: every row) and that row's time.
           plotWindow: () => ({ ...plotWindowRef.current }),
-          newestBar: () => {
-            try {
-              const d = candleSeriesRef.current?.data?.()
-              const last = d && d.length ? d[d.length - 1] : null
-              if (!last) return null
-              return { time: last.time ?? null, close: Number.isFinite(last.close) ? last.close : (Number.isFinite(last.value) ? last.value : null), count: d.length }
-            } catch { return null }
-          },
+          // ⛔ O(log n), NOT a copy: the tick-latency proof reads this on every animation frame for
+          // every chart, and `series.data()` rebuilds the whole series each call (2026-11-16: 4.4 s
+          // of main thread per 90 s with 4 charts, a quarter of the page's measured work). The newest
+          // bar is one by-index lookup; `count` (rarely read) still walks the series, on demand.
+          newestBar: () => { try { return newestSeriesBar(candleSeriesRef.current) } catch { return null } },
           // Read-only: what each ENGINE series actually handed the renderer
           // (the fundamentals acceptance harness reads plotted values from here).
           engineSeries: () => {
