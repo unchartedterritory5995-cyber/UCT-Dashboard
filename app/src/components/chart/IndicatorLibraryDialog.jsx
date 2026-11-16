@@ -871,6 +871,13 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
             {symbolsLoading
               ? `Nothing matches “${query}” yet — still searching symbols…`
               : `Nothing matches “${query}”.`}
+            {/* ⭐ DESCRIBE IT INSTEAD, with the typed words in Create Indicator's box (not sent). */}
+            {onCreateIndicator && query.trim() && !symbolsLoading && (
+              <button type="button" className={styles.emptyDescribe} data-testid="empty-describe"
+                onClick={() => onCreateIndicator({ seed: query.trim() })}>
+                Describe “{query.trim()}” instead
+              </button>
+            )}
           </div>
         )}
         {indicatorGroups.map(renderGroup)}

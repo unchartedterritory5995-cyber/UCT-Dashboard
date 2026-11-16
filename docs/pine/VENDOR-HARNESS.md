@@ -270,6 +270,22 @@ signs in once, in the window it opens; nothing after that needs a person.
 ⚠️ **Status: built and proved against a recording double only. It has NOT been run
 against live TradingView.** The first live run is the owner's (steps below).
 
+⛔⛔ **A CAPTURE RUN NEVER CLICKS ANYTHING IT CANNOT NAME** (coordinator ruling, 2026-11-16).
+On 2026-11-16, the first live runs on TradingView's current editor:
+- the script title had moved into an `H2`, and the title finder's fallback (`/script/i` over every
+  control above the editor) chose the **"Publish script"** button, which the driver clicked on the
+  owner's account (the publish dialog opened; nothing was published; the buffer was an unsaved
+  Untitled script and cleanup ran). The finder (`tools/vendor_harness/rig_title.js`) is now an
+  allow-list: one heading above the editor whose own text is a script name, or nothing. Railed over
+  the recorded header, which holds a "Publish script" button, in
+  `app/src/components/chart/engine/__tests__/vendorHarness/rigTitle.test.js`.
+- at the 1440-wide window the editor collapsed `Add to chart` to an icon, so the binding gate counted
+  0 and refused every script: the rig window is now 1760 x 1000 (`RIG_VIEWPORT`).
+- the binding gate was read the instant `Create new > Indicator` produced a model, before the header
+  re-rendered (0 / 0): it now waits up to 15 s (`BINDING_SETTLE_S`) and then decides as before.
+After those three, 109 captures were taken in one signed-in session (runs `cb1`..`cq1-2026-11-16`)
+with every title the driver clicked printed and reading "Untitled script".
+
 ### What it does per script
 
 gate v2.1 → the session is still signed in (the layout answers 200) → the scratch

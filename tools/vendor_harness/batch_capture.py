@@ -225,26 +225,25 @@ MODELS_JS = "() => {" + _MONACO + r"""
   return { ok: true, seen: f.seen, uris: f.M.editor.getModels().map((m) => String(m.uri)).filter((u) => u.includes('.pine')) };
 }"""
 
-#: The script-title control: the element holding the editor's script name, above
-#: the editor, inside the panel that also holds the add/update control.
-#: Returns its CENTRE for a real (CDP) pointer click — never a DOM `.click()`,
-#: because the menu opens on pointer events. `sel` overrides the heuristic.
-TITLE_JS = r"""(sel) => {
-  const own = (el) => [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent.trim()).join(' ').trim();
-  const vis = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && el.offsetParent !== null };
-  const centre = (el) => { const r = el.getBoundingClientRect(); return { ok: true, x: r.left + r.width / 2, y: r.top + r.height / 2, text: own(el) || (el.textContent || '').trim().slice(0, 60) } };
-  if (sel) { const el = document.querySelector(sel); return el && vis(el) ? { ...centre(el), how: 'selector' } : { ok: false, why: `selector ${sel} matched nothing visible` } }
-  const ed = document.querySelector('.monaco-editor'); if (!ed) return { ok: false, why: 'no editor' };
-  let box = ed.parentElement;
-  const holdsAction = (n) => [...n.querySelectorAll('*')].some((e) => ['Add to chart', 'Update on chart'].includes(own(e)));
-  while (box && !holdsAction(box)) box = box.parentElement;
-  if (!box) return { ok: false, why: 'no panel holds both the editor and an add/update control' };
-  const top = ed.getBoundingClientRect().top;
-  const cands = [...box.querySelectorAll('button,[role="button"],div,span')]
-    .filter((el) => vis(el) && el.getBoundingClientRect().bottom <= top + 2 && own(el));
-  const pick = cands.find((el) => own(el) === 'Untitled script') || cands.find((el) => /script/i.test(own(el)) && own(el).length < 60);
-  return pick ? { ...centre(pick), how: 'heuristic' } : { ok: false, why: 'no script-title control found', candidates: cands.slice(0, 12).map(own) };
-}"""
+#: The script-title control of TradingView's Pine editor, from `rig_title.js` (one function
+#: expression, its leading comment dropped). Returns its CENTRE for a real (CDP) pointer click,
+#: never a DOM `.click()`, because the menu opens on pointer events.
+#: ⛔ A CAPTURE RUN NEVER CLICKS ANYTHING IT CANNOT NAME (2026-11-16): the finder is an
+#: allow-list (a heading whose own text is a script name, exactly one, above the editor), never a
+#: fallback over every control. Its old fallback chose "Publish script" and the driver clicked it on
+#: the owner's account. Railed over the recorded header in
+#: app/src/components/chart/engine/__tests__/vendorHarness/rigTitle.test.js.
+_RIG_TITLE_SRC = (HERE / "rig_title.js").read_text(encoding="utf-8")
+TITLE_JS = _RIG_TITLE_SRC[_RIG_TITLE_SRC.index("(sel) =>"):].strip()
+
+#: The rig browser's viewport. ⛔ 1760 wide, not the member-pane tool's 1440 desktop tier: at 1440
+#: TradingView's Pine editor dialog collapses `Add to chart` to an icon, so the binding gate (which
+#: reads the button's own text) counts 0 and every script is refused (measured 2026-11-16).
+RIG_VIEWPORT = {"width": 1760, "height": 1000}
+
+#: How long the binding gate waits for the editor header to re-render after `Create new > Indicator`
+#: before it decides. Read the instant the fresh model appears, it counted 0 / 0 (2026-11-16).
+BINDING_SETTLE_S = 15.0
 
 #: A visible menu row by OWN text; `a.rightOf` picks a submenu row to the right.
 MENU_ITEM_JS = r"""(a) => {
@@ -686,6 +685,9 @@ class Driver:
         return fresh[-1]
 
     def binding_gate(self):
+        # the header re-renders after `Create new > Indicator`; wait for it, then decide as before
+        self.poll("binding_gate:settle", BINDING_JS, None, lambda r: bool(r and r.get("gate")),
+                  BINDING_SETTLE_S)
         g = self.ev("binding_gate", BINDING_JS)
         if not g or not g.get("gate"):
             raise GateFailed(f"binding gate: {g and g.get('addToChart')} own-text `Add to chart`, "
@@ -1187,7 +1189,7 @@ def _launch(args, body):
     print(f"[batch] profile: {profile}  (this tool's own; never your Chrome's)")
     from playwright.sync_api import sync_playwright
     with sync_playwright() as p:
-        launch = dict(headless=False, viewport={"width": TIERS[-1][1], "height": TIERS[-1][2]},
+        launch = dict(headless=False, viewport=dict(RIG_VIEWPORT),
                       args=["--window-position=40,40"])
         if args.channel:
             launch["channel"] = args.channel

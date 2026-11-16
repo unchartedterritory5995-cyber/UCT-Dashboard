@@ -1,0 +1,21 @@
+//@version=6
+indicator("UCTPROBE_VW_HTF_WINDOW_SITES", overlay = false)
+// PROVENANCE: written 2026-11-16 (engine 59's open note on `tf_merge` and the two window masks).
+// NEVER COMPILED ON TRADINGVIEW.
+// A window call INSIDE a weekly request.security, look-ahead off: ta.stoch and ta.highest / ta.lowest
+// evaluated on the WEEKLY bars and merged onto the daily chart. No committed capture plots one, so the
+// engine still asks the two window masks about such a site on the chart's own bars as well
+// (`builtinWitnessMask`, `windowHoleMask`), which withholds daily bars the weekly read does not need.
+// CAPTURE: NYSE:RDDT 1D and AMEX:SPY 1D from the listing, keep full float64 text.
+plot(request.security(syminfo.tickerid, "W", ta.stoch(close, high, low, 5)), "H01_weekly_stoch5")
+plot(request.security(syminfo.tickerid, "W", ta.stoch(close, high, low, 14)), "H02_weekly_stoch14")
+// the constructed flat run of `engine57Builtins.test.js` (F5): chart bars 60..74 flat on the DAILY series
+// only when the expression is read on daily bars; inside the request `bar_index` is the weekly index
+float y = bar_index >= 60 and bar_index < 75 ? 1000.0 : close
+plot(request.security(syminfo.tickerid, "W", ta.stoch(close, y, y, 5)), "H03_weekly_stoch5_flat_run")
+// a holed source under a weekly window extreme
+float x = bar_index % 50 == 30 ? na : close
+plot(request.security(syminfo.tickerid, "W", ta.highest(x, 10)), "H04_weekly_highest10_holed")
+plot(request.security(syminfo.tickerid, "W", ta.lowest(x, 10)), "H05_weekly_lowest10_holed")
+plot(request.security(syminfo.tickerid, "W", bar_index), "H06_weekly_bar_index_CONTROL")
+plot(bar_index, "H00_bar_index_CONTROL")
