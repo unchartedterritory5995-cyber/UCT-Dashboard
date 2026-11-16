@@ -6,6 +6,7 @@
     "watchPatterns": [
       "api/stream_ingest_main.py",
       "api/services/ingest_runtime.py",
+      "api/services/ingest_side_feeds.py",
       "api/services/ingest_feed_server.py",
       "api/services/feed_protocol.py",
       "api/services/ingest_core.py",

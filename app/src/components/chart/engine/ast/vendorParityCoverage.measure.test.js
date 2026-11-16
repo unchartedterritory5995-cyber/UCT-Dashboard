@@ -52,19 +52,29 @@ const declaredFunctions = () => Object.keys(closedTable.functions || {})
 
 /** Fixture text, concatenated once. Includes nested dirs (parity/, reference/,
  *  raw_captures/, observations/) because captures live in all of them. */
-const vendorText = () => {
-  if (!fs.existsSync(VENDOR)) return ''
-  const out = []
+// ⛔ FILE BY FILE, NEVER ONE JOINED STRING. The vendor fixtures passed 512 MiB on
+// 2026-11-16 (576 MB, 904 files) and V8 caps one string at 2^29 - 24 characters, so
+// `out.join('\n')` threw `RangeError: Invalid string length` and both tests below
+// went red on a fixture COUNT, not on a coverage fact. A name is covered when ANY
+// one file contains it; a name cannot span two files, so the per-file answer is the
+// joined answer, read one file at a time.
+const vendorCoverage = (names) => {
+  const covered = new Set()
+  let chars = 0
+  if (!fs.existsSync(VENDOR)) return { covered, chars }
   const walk = (dir) => {
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
       const p = path.join(dir, e.name)
       if (e.isDirectory()) { walk(p); continue }
       if (!/\.(json|md|txt)$/i.test(e.name)) continue
-      try { out.push(fs.readFileSync(p, 'utf8')) } catch { /* unreadable is not covered */ }
+      let text
+      try { text = fs.readFileSync(p, 'utf8') } catch { continue /* unreadable is not covered */ }
+      chars += text.length
+      for (const n of names) if (!covered.has(n) && text.includes(n)) covered.add(n)
     }
   }
   walk(VENDOR)
-  return out.join('\n')
+  return { covered, chars }
 }
 
 /** How many corpus scripts call each name. Comments stripped first — a name in
@@ -90,7 +100,11 @@ describe('⭐⭐ Phase 1 queue — declared, used, never measured', () => {
   it('⛔ CONTROL — the manifest and the fixtures were both found', () => {
     // Every count below is trivially satisfied by an empty read of either side.
     expect(declaredFunctions().length).toBeGreaterThan(20)
-    expect(vendorText().length).toBeGreaterThan(1000)
+    const { covered, chars } = vendorCoverage(['ta.sma', 'ta.__definitely_not_a_real_name__'])
+    expect(chars).toBeGreaterThan(1000)
+    // and the per-file reader can tell a covered name from one no fixture holds
+    expect(covered.has('ta.sma')).toBe(true)
+    expect(covered.has('ta.__definitely_not_a_real_name__')).toBe(false)
   })
 
   it('⛔ CONTROL — the demand counter can tell a used name from an unused one', () => {
@@ -103,13 +117,13 @@ describe('⭐⭐ Phase 1 queue — declared, used, never measured', () => {
 
   it('⭐⭐ prints the queue: used by the corpus, no vendor evidence', () => {
     const names = declaredFunctions()
-    const vendor = vendorText()
+    const vendor = vendorCoverage(names).covered
     const demand = corpusDemand(names)
 
     const rows = names.map((n) => ({
       name: n,
       scripts: demand.get(n) || 0,
-      covered: vendor.includes(n),
+      covered: vendor.has(n),
     }))
 
     const uncoveredUsed = rows.filter((r) => !r.covered && r.scripts > 0)
