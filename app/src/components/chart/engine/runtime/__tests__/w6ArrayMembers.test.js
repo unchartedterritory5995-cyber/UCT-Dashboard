@@ -265,15 +265,14 @@ describe('⛔ `array.slice` stays a copy linked to its source: the new writers r
   })
 })
 
-describe('⛔ KEPT REFUSED BY NAME at build, until a capture settles them (W6-A1, Q-W19R2b)', () => {
+// (The three binary searches left this list in the UDT unit: served from their reference entries,
+// `udtBinarySearch.test.js`.)
+describe('⛔ KEPT REFUSED BY NAME at build, until a capture settles them (W6-A1)', () => {
   it.each([
     ['array.percentile_linear_interpolation', 'array.percentile_linear_interpolation(a, 50)'],
     ['array.standardize', 'array.sum(array.standardize(a))'],
     ['array.percentrank', 'array.percentrank(a, 0)'],
     ['array.mode', 'array.mode(a)'],
-    ['array.binary_search', 'array.binary_search(a, close)'],
-    ['array.binary_search_leftmost', 'array.binary_search_leftmost(a, close)'],
-    ['array.binary_search_rightmost', 'array.binary_search_rightmost(a, close)'],
   ])('%s', (name, expr) => {
     const built = build(`${OHLC}plot(${expr})`)
     expect(built.ok).toBe(false)

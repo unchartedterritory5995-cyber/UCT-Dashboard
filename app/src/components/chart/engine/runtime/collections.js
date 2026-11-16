@@ -106,6 +106,22 @@ const at = (arr, i, what, budget) => {
   return i
 }
 
+/** ⭐⭐ UDT UNIT (2026-11-16) — `array.get` AT AN `na` INDEX READS `na` AND DOES NOT STOP, in a v4 or v6
+ *  script: WITNESSED, not read.
+ *   · v4: `vw-uie3-na-index-v4-spy-1d-2026-11-16` (probe `vw-uie3-na-index-v4.pine`, Q-UIE3a) reads
+ *     `array.get(array.from(10, 20), round(max(sign(na), 0)))` as `na` on all 8,508 AMEX:SPY bars, its
+ *     `bar_index` control plotting on every one.
+ *   · v6: `bollinger-band-width-percentile-rddt-1d-2026-11-14` calls `array.get(colorMap, math.round(bbwp))`
+ *     on its first bars, where `bbwp` is still `na`; TradingView draws on, and with this answer every plotted
+ *     value of that capture grades MATCH. ⚠️ There the value it reads colours an `na` point, so that capture
+ *     proves "no stop" more than it proves the value; `vw-udt-na-index-v6.pine` (queue row UDT-N1) asks the
+ *     v6 value directly.
+ *  ⛔ Only `array.get`, only an `na` index (a fraction or an index out of range keeps the stop), only v4 and v6
+ *  (v5 is not witnessed), and never at the live C18 object door, which keeps master's stop (`doorKeepsMaster`). */
+const NA_INDEX_VERSIONS = Object.freeze(new Set([4, 6]))
+const naIndexReadsNa = (i, budget) => typeof i === 'number' && Number.isNaN(i) && !!budget
+  && NA_INDEX_VERSIONS.has(budget.pineVersion) && !doorKeepsMaster(budget)
+
 /** The per-element default for `array.new<T>(size)` with no initial value.
  *
  *  ⛔⛔ ONLY `float` AND `int` ARE SERVED, AND THAT IS A MEASUREMENT BOUNDARY
@@ -1021,7 +1037,7 @@ const ARRAY_FNS_RAW = Object.freeze({
   'array.size': { args: ['array'], returns: 'number', fn: (a) => a[0].length },
   'array.get': {
     args: ['array', 'number'], returns: 'any',
-    fn: (a, budget) => a[0][at(a[0], a[1], 'array.get', budget)],
+    fn: (a, budget) => (naIndexReadsNa(a[1], budget) ? NaN : a[0][at(a[0], a[1], 'array.get', budget)]),
   },
   'array.set': {
     args: ['array', 'number', 'any'], returns: 'void',

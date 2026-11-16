@@ -66,7 +66,7 @@
   ],
   "coverageMeasuredOn": "2026-11-16",
   "coverageMasterSha": "890b6d165c",
-  "fixtures": 735,
+  "fixtures": 736,
   "ledgerRows": 884
  },
  "definitions": {
@@ -87,19 +87,19 @@
   }
  },
  "counts": {
-  "targets": 334,
+  "targets": 336,
   "byStatus": {
-   "CAPTURED": 130,
+   "CAPTURED": 131,
    "NEEDS_CHART": 39,
    "NEEDS_LIVE": 2,
-   "QUEUED": 163
+   "QUEUED": 164
   },
   "byPlanWave": {
    "E": {
-    "CAPTURED": 115,
+    "CAPTURED": 116,
     "NEEDS_CHART": 37,
     "NEEDS_LIVE": 2,
-    "QUEUED": 119
+    "QUEUED": 120
    },
    "W1": {
     "QUEUED": 6
@@ -119,10 +119,10 @@
   },
   "byPriorityBand": {
    "0": {
-    "CAPTURED": 110,
+    "CAPTURED": 111,
     "NEEDS_CHART": 38,
     "NEEDS_LIVE": 2,
-    "QUEUED": 155
+    "QUEUED": 156
    },
    "1-2": {
     "CAPTURED": 20,
@@ -256,10 +256,11 @@
     "CAPTURED": 10
    },
    "udt": {
-    "QUEUED": 2
+    "QUEUED": 4
    },
    "uie3-na-index-text": {
-    "QUEUED": 2
+    "CAPTURED": 1,
+    "QUEUED": 1
    },
    "w1": {
     "QUEUED": 6
@@ -8636,8 +8637,10 @@
   },
   {
    "id": "vw-uie3-na-index-v4@AMEX:SPY@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-uie3-na-index-v4-spy-1d-2026-11-16.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-uie3-na-index-v4.pine",
    "sourceKind": "probe",
    "sha256": "09dd9959f222ba0173d1e93246f017965f45299dacf6e8c93198176e40ba0199",
@@ -8650,7 +8653,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "AMEX:SPY D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -16231,6 +16236,90 @@
    "origins": [
     "queue-doc"
    ]
+  },
+  {
+   "id": "vw-udt-na-index-v5@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-udt-na-index-v5.pine",
+   "sourceKind": "probe",
+   "sha256": "a5e48fe85b10bf4e972bf242940feca605d25c751a4c3fb10b273ee13e59ebd4",
+   "bytes": 824,
+   "stem": "vw-udt-na-index-v5",
+   "captureStem": "vw-udt-na-index-v5",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "udt"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-udt#UDT-N1"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-udt-na-index-v6@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-udt-na-index-v6.pine",
+   "sourceKind": "probe",
+   "sha256": "0fac6b335a297422f128df12f7337a475fea1e199a44de0b4f196342e16484e8",
+   "bytes": 1184,
+   "stem": "vw-udt-na-index-v6",
+   "captureStem": "vw-udt-na-index-v6",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "udt"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-udt#UDT-N1"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
   }
  ],
  "rowsNeedingProbe": [
@@ -18512,7 +18601,7 @@
   {
    "doc": "docs/pine/capture-queue-2026-11-16-udt.md",
    "wave": "udt",
-   "rows": 2,
+   "rows": 3,
    "contextTables": 0
   }
  ]

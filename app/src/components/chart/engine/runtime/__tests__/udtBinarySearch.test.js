@@ -20,6 +20,7 @@ import { describe, it, expect } from 'vitest'
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import { lowerIrProgram } from '../lowerIr.js'
 import { execute } from '../vm.js'
+import { Budget } from '../limits.js'
 
 const N = 6
 // `low < open < close < high` on every bar (the sorted row below relies on it)
@@ -124,6 +125,36 @@ describe('⛔ what the three entries do not settle stops the run BY NAME (Q-W19R
     expect(() => runPine(`a = array.from(low, high)\nplot(${fn}(a, na))`)).toThrow(/of an `na` target.*Q-W19R2b/)
     // CONTROL: the same calls over a sorted, na-free array run
     expect(runPine(`a = array.from(low, high)\nplot(${fn}(a, high))`)[0].every(Number.isFinite)).toBe(true)
+  })
+})
+
+describe('⭐ array.get at an `na` index reads `na` and does not stop — v4 and v6 (witnessed), never at the object door', () => {
+  const GET = 'a = array.from(10.0, 20.0)\nfloat nothing = na\nplot(array.get(a, math.round(nothing)))\nplot(bar_index)'
+  it('v6: `na`, every bar, and the run goes on (bollinger-band-width-percentile\'s first bars)', () => {
+    const [g, n] = runPine(GET)
+    expect(g.every(Number.isNaN)).toBe(true)
+    expect(n).toEqual(per((_, i) => i))
+  })
+  it('v4: `na` (vw-uie3-na-index-v4-spy-1d-2026-11-16, N03)', () => {
+    const built = buildRuntimeIr('//@version=4\nstudy("t")\na = array.from(10, 20)\nfloat nothing = na\n'
+      + 'plot(array.get(a, round(max(sign(nothing), 0))))', { bars: BARS, inputs: {} })
+    expect(built.ok, built.ok ? '' : built.refusal.message).toBe(true)
+    const program = lowerIrProgram(built.ir)
+    const { outputs } = execute(program, { bars: N, series: SERIES, columns: program.columns, confirmed: true })
+    expect(Array.from(outputs[0]).every(Number.isNaN)).toBe(true)
+  })
+  it('⛔ v5 (not witnessed), a fractional index and an index past the end keep the stop', () => {
+    expect(() => runPine(GET, 5)).toThrow(/array\.get: index NaN is outside an array of 2/)
+    expect(() => runPine('a = array.from(10.0, 20.0)\nplot(array.get(a, 0.5))')).toThrow(/array\.get: index 0\.5/)
+    expect(() => runPine('a = array.from(10.0, 20.0)\nplot(array.get(a, 2))')).toThrow(/array\.get: index 2 is outside/)
+  })
+  it('⛔ the C18 object door\'s run keeps master\'s stop (it is the one caller that carries `budget.unmeasured`)', () => {
+    const built = build(GET)
+    const program = lowerIrProgram(built.ir)
+    const budget = new Budget()
+    budget.unmeasured = { probe: -7.5, colourProbe: 0, hits: [] }
+    expect(() => execute(program, { bars: N, series: SERIES, columns: program.columns, confirmed: true }, undefined, { budget }))
+      .toThrow(/array\.get: index NaN is outside an array of 2/)
   })
 })
 

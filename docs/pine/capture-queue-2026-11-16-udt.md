@@ -15,6 +15,12 @@ questions already lived. This doc holds the two shapes the unit leaves refused t
 |---|---|---|---|---|
 | UDT-G1 | `tools/visual_conformance/probes/vw-udt-fn-global-history.pine` rows G01, G03-G06 | NYSE:RDDT 1D from the listing | `g[n]` inside a function body for a mutable global `g`: the global's own committed series (its value at the END of an earlier bar) whatever the call site and frame? A `var` counter (G01), a global reassigned AFTER the call (G03), a run-time offset (G04), a function called only on even bars (G05: the previous BAR's value or the previous CALL's?), a plain global reassigned with `:=` (G06) | refused at build by name, `runtime:function-global-state` ("a function body reading a mutable GLOBAL ..."); a plain read of the global is served (C11). Blocks `bolingger-bands-inside-bar-boxes` (with a run-time offset no ring can bound: `runtime:history-dynamic-offset` follows), `heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor`, `auto-length-moving-average-trend-signals-zeiierman`, `market-structure-break-order-block` |
 
+## UDT-N1: `array.get` at an `na` index, v6 and v5
+
+| id | probe | chart | question | engine today |
+|---|---|---|---|---|
+| UDT-N1 | `tools/visual_conformance/probes/vw-udt-na-index-v6.pine` rows N01, N03; `tools/visual_conformance/probes/vw-udt-na-index-v5.pine` row N01 | NYSE:RDDT 1D from the listing | what `array.get(a, na)` answers in v6 and in v5: `na`, the first element, or a runtime error? (v4 is measured: `na`, `vw-uie3-na-index-v4-spy-1d-2026-11-16`) | runtime lane, since the UDT unit: v4 and v6 read `na` and run on (v6 on the witness of `bollinger-band-width-percentile-rddt-1d-2026-11-14`, whose read colours an `na` point, so the v6 VALUE is what this row confirms); v5 stops by name (`array.get: index NaN is outside an array`); the C18 object door keeps master's stop |
+
 ## UDT-T1: a user function parameter typed `T[]`
 
 | id | probe | chart | question | engine today |

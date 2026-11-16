@@ -1,0 +1,89 @@
+# UDTs / methods / enums, collections, user functions: the coverage unit (2026-11-16)
+
+Branch `feat/pine-coverage-udt-collections`. Engine number: NUMBER PENDING (`scriptEngineVersion.js`), numbered
+master + 1 when the coordinator lands the train. Everything here is the RUNTIME lane, which stays dark for members;
+the production (host) lane is unchanged by this unit.
+
+## 1. What changed
+
+| shape | lane | served or refused | authority |
+|---|---|---|---|
+| `array.binary_search` | runtime | served over a sorted, `na`-free numeric array; an empty array is -1; a value held by more than one element STOPS by name | v6 reference: "returns an element's index if the value from that element equals the target value. Otherwise, it returns -1"; "does not necessarily correspond to the first or last occurrence" |
+| `array.binary_search_leftmost` | runtime | served as stated; an EMPTY array STOPS by name | v6 reference: "the first element whose retrieved value equals that value. Otherwise … the last element whose retrieved value is less than the target value, or 0 if the target value is less than the value from the first element" |
+| `array.binary_search_rightmost` | runtime | served as stated; an EMPTY array answers 0 | the reference sentence ("the last element … equals … Otherwise … the first element … greater …, or the array's last index plus one"); the empty case is WITNESSED (section 3) |
+| `array.insert` at `size` | runtime | an append (an empty array's index 0 included); negative and past-`size` keep their stop | WITNESSED (section 3); the reference lists only 0..size-1 and -size..-1 |
+| any of the three searches over an unsorted array, an `na` element or target, a non-numeric element | runtime | STOP by name (`… (Q-W19R2b)`) | the entries: "must be sorted in ascending order … for correct results" |
+| `array.every` / `array.some` over a non-bool array | runtime | REFUSED at build by name (`runtime:array`, "TradingView does not compile it") | v6 reference types `id` as `array<bool>`; reading of `vw-w6-array-members` (run cq1-2026-11-16, PR #1472): "Cannot call {funId} with argument … a {currentTypeDocStr} is expected". Fail closed: served only over an array this lane can PROVE holds `bool` (a written `array<bool>`, or a call built in place) |
+| an `enum` whose fields share a name or title | runtime | REFUSED at build by name (`runtime:enum`) | reading of `vw-w6-enum` (run cq1-2026-11-16): "The name or title of the {enumName} enum's {firstFieldName} field cannot match the name or title of the {secondFieldName} field. Choose unique names and titles for all the enum's fields." W6-T10 had served two same-title fields as two members |
+| assigning a `for x in a` element variable | runtime | still refused (`runtime:loop`), now as what it is | reading of `vw-w6-forin-loopvar-write` (run cq1-2026-11-16): "Variable {variableName} cannot be mutable" |
+| `array.get` at an `na` index | runtime (pane only; the C18 object door keeps master's stop) | `na`, the run goes on, in v4 and v6; v5, a fractional index and an index out of range keep the stop | v4 MEASURED: `vw-uie3-na-index-v4-spy-1d-2026-11-16` (our probe, run cq1, carried byte-identical from PR #1472) reads `na` on all 8,508 bars. v6: BBWP's capture runs on through `array.get(colorMap, math.round(na))` on its first bars; that read colours an `na` point, so the v6 VALUE is asked directly by UDT-N1 |
+
+## 2. Coverage: the census over the unit's targets
+
+**CENSUS PENDING** (owner's order 2026-11-16: ship what is verified now; the census needs the busy PC lock). The hold
+script is ready: the unit's 72 wall-touched targets, the 4 other sample scripts that write a binary search or an enum,
+and 8 controls, on both lanes, then `coverage_ratchet.py --lane runtime-on --write`. Numbers land in a follow-up.
+
+What the dev probe (the runtime lane's own `probeRuntimeProgram`, the census's runtime counterfactual) shows on this
+tree, engine-60 census BEFORE -> this tree:
+- `committed:bollinger-band-width-percentile` (E1, sole walls `runtime:array` x3): **builds whole on the runtime lane**.
+  Expected runtime-on lane: newly transfers. Production lane: unchanged (the host still refuses `pine:collection`).
+  The real capability admission ADMITS it (`runtime_definitions.capability_admitted` -> `(True, [])`) and it is not on
+  the kill list, so its capture must grade MATCH (section 3).
+- `reference:rsi-kernel-optimized-flux-charts`: the binary searches build; next wall `pine:function` `math.e` (another
+  unit's).
+- Every other target's first wall on this tree is another unit's code (libraries, lower-tf requests, `for … in`, time,
+  text) or a shape left refused in section 4.
+
+## 3. Witnesses
+
+| served shape | witness | status |
+|---|---|---|
+| the three binary searches over a sorted array | the v6 reference sentences (quoted in section 1 and in each rail of `udtBinarySearch.test.js`), including the reference's own examples (3 in (-2, 0, 1, 5, 9): leftmost 2, rightmost 3; 5 in (4, 5, 5, 5): leftmost 1, rightmost 3) | rails green remotely (run 1) |
+| rightmost of an empty array = 0; `array.insert` at `size` = append; `array.get(a, na)` = `na` in v6 | `bollinger-band-width-percentile-rddt-1d-2026-11-14` graded through the member door, runtime-on lane (`vendorHarness.udtBinarySearch.test.js`) | **PENDING**. Remote run 1 graded it DIVERGE ("1 of 6 compared items diverge"): the run stopped on its first bars at `array.get(colorMap, math.round(na))`. With the `na`-index rule a dev run of the lane matches TradingView on all 666 bars of BBWP, MA and both alert lines; the background paint still has to be graded by the harness. **If that rail does not grade MATCH, the three shapes revert to named stops before this lands.** |
+| `array.get(a, na)` = `na` in v4 | `vw-uie3-na-index-v4-spy-1d-2026-11-16` N03 | measured |
+
+## 4. Still refused by name, with queue rows
+
+Every wall of this unit that the census reaches on a target, and why it is not served:
+
+| guard (runtime lane) | shape | why it stays refused | queue row |
+|---|---|---|---|
+| `runtime:function-global-state` | `g[n]` of a mutable global inside a function body (a plain read of `g` is served, C11) | no reference sentence and no capture says whose past it is inside a frame; on `bolingger-bands-inside-bar-boxes` the offset is also a run-time value no ring can bound (`runtime:history-dynamic-offset` follows) | UDT-G1, probe `vw-udt-fn-global-history.pine` |
+| `runtime:function` | a parameter typed `T[]` (`float[] a`) | no sentence; and on its three scripts it only moves the first wall (next: `timeframe.in_seconds`, a `str.tostring` format, a `label` statement) | UDT-T1, probe `vw-udt-legacy-array-param.pine` |
+| `runtime:function` | the default parameter value `freq = alert.freq_once_per_bar` (the lane's sentence: "default values are not supported yet") | the script it blocks (`one-indicator-multiple-max-40-…`) then needs other-symbol requests (crypto, FX) | none needed: not this unit's last wall |
+| `runtime:array` | `array.standardize`, `percentile_linear_interpolation`, `percentrank`, `mode` | unchanged (W6-A1) | W6-A1 |
+| `runtime:CollectionError` (run time) | the binary searches' unsettled cases; `array.insert` negative or past `size`; `array.fill` past the end or negative | the reference does not settle them | Q-W19R2a, Q-W19R2b |
+| `runtime:udt-method`, `runtime:enum`, `runtime:call-undeclared-builtin-state:<field/method …>` | overloads on number receivers, an enum outside a binding, drawing getters in the VALUE build | unchanged; on this unit's targets each sits beside another unit's wall (libraries, `color()` casts, lower-tf requests) | W6-U1, W6-E1 |
+
+## 5. Probes for the capture session
+
+The four W6 probes that did not compile, and the W19-R2 probe that raised, were split so that each question that
+can fail to compile or raise has its own file (TradingView's error text names no line or value, so one combined file
+reads as one unattributable error). Each has an `A00` `bar_index` control and one question per plot.
+
+| row | probe | chart |
+|---|---|---|
+| Q-W19R2b | `tools/visual_conformance/probes/vw-w19r2-collections.pine` (B01-B05, L01-L05, R01-R05; nothing left can raise) | NYSE:RDDT 1D |
+| Q-W19R2b | `vw-w19r2b-empty-binary-search.pine`, `vw-w19r2b-empty-leftmost.pine`, `vw-w19r2b-empty-rightmost.pine` | NYSE:RDDT 1D |
+| Q-W19R2a | `vw-w19r2a-insert-at-size.pine`, `vw-w19r2a-insert-into-empty.pine`, `vw-w19r2a-insert-negative.pine`, `vw-w19r2a-fill-past-end.pine`, `vw-w19r2a-fill-negative-from.pine` | NYSE:RDDT 1D |
+| W6-A1 | `vw-w6-array-members.pine` (N07 / E01 / E02 removed), `vw-w6-array-every-empty.pine` | AMEX:SPY 1D |
+| W6-E1 | `vw-w6-enum.pine` (T03 / E01 and the same-title fields removed: answered) | AMEX:SPY 1D |
+| W6-U1 | `vw-w6-receivers.pine` (U01-U02, U05-U06), `vw-w6-receivers-get-float.pine`, `vw-w6-receivers-get-int.pine`, `vw-w6-receivers-na-field.pine`, `vw-w6-receivers-pick-int.pine`, `vw-w6-receivers-m-int.pine` | AMEX:SPY 1D |
+| UDT-G1 | `vw-udt-fn-global-history.pine` | NYSE:RDDT 1D |
+| UDT-T1 | `vw-udt-legacy-array-param.pine` | NYSE:RDDT 1D |
+
+`vw-w6-forin-loopvar-write` needs no new probe: its compile error IS the answer, and its queue mention is retired
+(`capture-queue-2026-11-06-w6-t6.md`). `evidence_engine.py queue` gains 16 targets and drops that one.
+
+## 6. Tests and mutants
+
+- Remote run 1 (`tools/remote_tests.py`, HEAD `7e38ba2918`): pytest `tests/test_pine_*.py tests/test_runtime_definitions.py`
+  green; vitest 4 failures: three in `w6ArrayMembers.test.js` (a W6-T5 block still pinned the binary searches as
+  refused, now moved to `udtBinarySearch.test.js`) and the BBWP grade (section 3). Both addressed; run 2 is on the PR head.
+- Local light checks on this tree: `refusal_codes.py --check`, `evidence_engine.py queue --check` and `pins --check`,
+  `check_repo_hygiene.py`: all exit 0. No guard code added (the refusals reuse `runtime:array`, `runtime:enum`,
+  `runtime:loop`), no regex added.
+- Mutants: **PENDING** (they edit files, so they run under the PC lock; eight are scripted: insert-at-size stopping,
+  leftmost's not-found answer, the duplicate stop, the sort check, rightmost-of-empty, the every/some refusal, the enum
+  title clash, the for-in sentence).
