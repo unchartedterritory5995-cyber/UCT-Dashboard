@@ -538,26 +538,30 @@ the indicator library offered "New formula" and no way to Create Indicator at al
 
 ## 15. Resume here
 
-**State at 2026-11-16, end of day.** "LIVE" means used on production as a member (the
-synthetic member account, in its own browser), not only merged.
+**State at the end of 2026-11-16.** "LIVE" means used on production as a member (the synthetic
+member account, in its own browser), not only merged. "Merged" means on master and waiting for
+the deploy gate.
 
 | lane | what | state |
 |---|---|---|
 | 0a, 0b, 0d | the plan, its requests, the reference page without `{0}` | DONE |
 | O | Create Indicator open to every account | LIVE |
 | P1 | eight indicator commands in the command palette; from any page they land on Charts | LIVE |
-| L1 | version stamps on every authoring turn | LIVE: the owner report lists the instruction version, vocabulary version, model and engine of its turns |
-| L3 | colour words: one shared value per word | LIVE: the green request draws green |
-| L7 (first part) | the owner report counts undone previews and says what produced its turns | LIVE |
-| F1 | the Indicators window leads with a plain-words box; while a turn runs the dock counts the seconds, says what is usual, and offers Stop | LIVE |
-| V1 (first part) | History beside Undo: every earlier step of the draft, one press to return | LIVE. In a short dock the open list pushed the footer out of reach; the fix is its own pull request |
-| H1 (first part) | a Members tab in the Indicators window: the published library, Install, Put it on this chart | LIVE. The library is empty, so only its empty state has been seen on production |
-| H2 | Create Indicator from the phone's library; the dock as a bottom sheet on a phone; above the joystick tab on a tablet | LIVE at 390 and 820 px |
-| N1 (first slice) | a saved indicator is called an indicator where a member finds one | LIVE |
-| R2 (first cut) | TradingView names on the reference page | LIVE |
-| R3 | the reference as one file for a member's own assistant | LIVE: 305 names, 166 deliberate absences, 755 TradingView names |
-| fix | a marker or paint on an output that reads another symbol | LIVE: both relative-strength requests draw |
-| tool | a refused turn tells an ADMIN why each attempt was refused | LIVE |
+| L1 | version stamps on every authoring turn | LIVE |
+| L3 | colour words: one shared value per word | LIVE |
+| L4 | house definitions: `chart_twins`, seven Screener columns each proved equal to its column on the same bars; a Screener term ("ADR %") reaches the assistant with its house formula | merged (#1458) |
+| L6 | demand mining: what could not be built, ranked by distinct members, in the owner report and the daily digest | merged (#1444) |
+| L7 | undone previews and what produced each turn (LIVE); still stored a week after saving | merged (#1471) |
+| L8 | "Send this conversation to UCT": a consented report through the support loop's door, withdrawable | merged (#1456) |
+| F1 | the plain-words box first; the wait counts seconds and offers Stop; the allowance left, said once below half | LIVE; the allowance line merged (#1455) |
+| V1 (first part) | History beside Undo, every earlier step one press away | LIVE |
+| H1 (first part) | a Members tab in the Indicators window; on a phone and a tablet, Members' indicators in the library sheet | LIVE at 390, 820 and 1200 px (empty state only: nothing is published yet) |
+| H2 | Create Indicator from the phone's library; the dock as a bottom sheet; above the joystick tab on a tablet | LIVE |
+| N1 | a saved indicator is called an indicator: the Indicators window, the library, the builder's own list; X7, no verdict word, held by a rail | LIVE (slice 1); merged (slice 2, #1453) |
+| X5 | a search that finds nothing offers "Describe it instead" with the words in Create Indicator's box | merged (#1454) |
+| R2, R3 | TradingView names on the reference page; the reference as one file for a member's own assistant | LIVE |
+| launch | library moderation (UCT takedown, a 20-listing cap per member, the licence line); spend that cannot be written still counts | merged (#1451, #1452) |
+| tool | a refused turn tells an admin why each attempt was refused | LIVE |
 | H | the house set | second look below; nothing published yet |
 
 **The house set, second look (2026-11-16, production).** Of the five that did not draw on
@@ -572,11 +576,22 @@ ups from the first run are still suspect, and no value has been checked against 
 independent calculation. What blocks publishing is unchanged: names and
 read-backs (section 14a, findings 2 and 3), and the owner's look.
 
-Lanes not started: the UCT tab (waits on the house set), the rest of N1 (the builder's own
-"Your formulas" list and the Agent guide's button names, with their owners), L4 (house
-definitions), L5 (worked examples), L6 (demand mining), L8 (a consented report), R1 (run
-over a list from the chart; waits on the Screener's answer to R13), R4, R5, R6, and the
-launch-readiness list in section 8.
+Not started, and why:
+
+- **The UCT tab**: waits for the owner to approve house indicators (names and read-backs first).
+- **L5, worked examples**: an example is admitted only once the owner has approved it, and the
+  proof is a paid evaluation run, which needs the owner's spend approval.
+- **R1, run over a list from the chart**: waits for the Screener owner's answer to R13.
+- **R4 and R5**: requests to the Pine engine owner (a verdict on a shared indicator; two exports
+  for the inspector).
+- **R6, a load budget on library cards**: worth building once members publish; the library is
+  empty today.
+- **H2, the remainder (tabs as a strip in the phone sheet)**: a layout change the owner should see
+  as a mock-up first (section 6).
+- **O6, a separate budget lane for admins and measuring runs**: a decision on its size is the
+  owner's; today the shared pool was raised instead.
+- From the launch-readiness list: the paid evaluation run and the hidden set (spend approval, a
+  separate session), and the capability worker before the runtime lane for all (Pine engine).
 
 **How the work is done here, learned the slow way:**
 
@@ -593,8 +608,10 @@ launch-readiness list in section 8.
   the running gate. That was wrong.)
 - Parse-check every file before queueing its test.
 
-**Next, in order:** the History fix; names and read-backs with the authoring owner; the
-house set run a third time once names are readable; then the owner's look and the UCT tab.
+**Next, in order:** check each merged change on production once its deploy gate has run (the
+evening's: L4, L6, L7, L8, the allowance line, moderation, Describe it instead, one name slice 2);
+then names and read-backs with the authoring owner, the house set a third time, and the owner's
+look.
 
 **Open for the owner:**
 1. Look at the house-set pictures and say which, if any, are right.

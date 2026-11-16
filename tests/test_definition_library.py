@@ -78,7 +78,7 @@ def test_a_SHARED_definition_is_NOT_in_the_library_until_it_is_also_LISTED(store
     assert store.public_library()["entries"] == []
     assert store.listing_status(USER, "u_000000000001") == {
         "def_id": "u_000000000001", "listed": False, "requested": False,
-        "shared": True, "stale_grammar": False,
+        "shared": True, "stale_grammar": False, "taken_down": False, "licence": None,
     }
 
 
@@ -124,7 +124,8 @@ def test_revoking_the_LINK_removes_the_listing_with_no_second_write(store):
     state = store.listing_status(USER, "u_000000000001")
     # ⭐ AND THE PANEL CAN EXPLAIN WHY IT VANISHED: the owner still asked for it.
     assert state == {"def_id": "u_000000000001", "listed": False,
-                     "requested": True, "shared": False, "stale_grammar": False}
+                     "requested": True, "shared": False, "stale_grammar": False,
+                     "taken_down": False, "licence": None}
 
 
 def test_a_DELETED_definition_leaves_the_library_immediately(store):

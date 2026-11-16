@@ -171,6 +171,8 @@ def _report_summary(r: dict, manifest: Optional[dict]) -> dict:
         "source_bytes": r.get("source_bytes"), "source_hash": r.get("source_hash"),
         "same_script_reports": r.get("same_script_reports", 1),
         "translator_version": r.get("translator_version"),
+        # ⭐ L8: a pasted script ('pine') or a Create Indicator conversation ('converse')
+        "kind": r.get("kind") or "pine",
     }
 
 
