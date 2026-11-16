@@ -174,12 +174,18 @@ const REMOVAL = /\b(?:remove|removing|delete|deleting|close|closing|get rid|repl
 //   CHANGE_BACK  "Y … <word> X"  → X changes to Y ("AAPL where SPY is", "AAPL over SPY", "AAPL rather than SPY")
 //   CHANGE_OFF   "X <word>"      → X is taken off ("SPY off and AAPL on") — only AFTER the ticker: "<word> X" is the exclusion
 //                cue "hands off NVDA", never a change
-//   SEE_VERBS    a verb that asks to SEE the tickers it governs ("show SPY and AAPL")
-export const CHANGE_TAKE = ['replace', 'replaces', 'replaced', 'replacing', 'swap out', 'swapping out', 'swapped out', 'get rid of', 'getting rid of', 'switch out', 'switching out', 'instead of', 'in place of', 'rather than']
+//   SEE_VERBS    a verb that asks to SEE the tickers it governs ("show SPY and AAPL", "give me SPY and AAPL", "put up SPY, AAPL")
+//   TAKE_OFF + PUT_ON  "<off> X … <on> Y" (either order, one request) → X changes to Y ("take off SPY, put on AAPL", "put AAPL
+//                on and take off SPY"); "<off> X" ALONE is a removal, never a change (H14 follow-up 3)
+//   (CHANGE_TAKE "no more X" with another ticker named is a change, never an ADD: "no more SPY, AAPL" — H14 follow-up 4)
+export const CHANGE_TAKE = ['replace', 'replaces', 'replaced', 'replacing', 'swap out', 'swapping out', 'swapped out', 'get rid of', 'getting rid of', 'switch out', 'switching out', 'instead of', 'in place of', 'rather than', 'no more']
 export const CHANGE_TO = ['for', 'into', 'to']
 export const CHANGE_BACK = ['where', 'instead of', 'in place of', 'rather than', 'over']
 export const CHANGE_OFF = ['off']
-export const SEE_VERBS = ['show', 'showing', 'open', 'opening', 'pull up', 'pulling up', 'bring up', 'bringing up', 'see', 'view', 'viewing', 'display', 'displaying']
+export const SEE_VERBS = ['show', 'showing', 'open', 'opening', 'pull up', 'pulling up', 'bring up', 'bringing up', 'see', 'view', 'viewing', 'display', 'displaying',
+  'give me', 'giving me', 'give us', 'let me see', 'let me look at', 'look at', 'looking at', 'put up', 'putting up']
+export const TAKE_OFF = ['take off', 'taking off', 'take down', 'taking down']
+export const PUT_ON = ['put on', 'putting on', 'put up', 'putting up']
 const altOf = (ws) => ws.map(x => x.replace(/\s+/g, String.raw`\s+`)).join('|')
 const SEE_VERB = new RegExp(String.raw`\b(?:${altOf(SEE_VERBS)})\b`, 'gi')
 const SEE_FILLER = new Set(['and', '&', 'plus', 'also', 'both', 'the', 'me', 'my', 'us', 'a', 'an', 'up', 'of', 'chart', 'charts', 'too', 'as', 'well'])
@@ -192,7 +198,17 @@ const named = (words, e, host) => {
   for (const pm of String(words || '').matchAll(POS)) if (matchPosition([{ position: e.position }], normPos(pm[1])).length) return true
   return false
 }
-export const isAdditive = (words, known = []) => (ADDITIVE.test(words) || ADD_REST.test(words) || addsCharts(words, known)) && !REPLACE.test(words)
+// ⛔ H14 follow-up 4: a CHANGE_TAKE phrase that takes a ticker the words change ("no more SPY, AAPL") is no ADDITIVE word —
+// read with those phrases out ("no more" is not "more"); with no other ticker named ("no more SPY" alone) the words are as said
+const takenOut = (words, known = []) => {
+  const w = String(words || '')
+  // (a sentence-ending "." is no part of a lowercase ticker: "no more spy. aapl now")
+  const named = [...new Set([...tickersIn(w), ...knownIn(w.replace(/\.(?=\s|$)/g, ' '), known).map(up)])]
+  if (named.length < 2) return w
+  return w.replace(new RegExp(String.raw`\b(?:${altOf(CHANGE_TAKE)})\s+(?:(?:the|my|that|this|a|an)\s+)?\$?([A-Za-z][A-Za-z0-9.]{0,9})`, 'gi'),
+    (m, x) => { const t = up(x.replace(/\.$/, '')); return named.includes(t) && tickerChanged(w, t, named) ? ' ' : m })
+}
+export const isAdditive = (words, known = []) => (ADDITIVE.test(takenOut(words, known)) || ADD_REST.test(words) || addsCharts(words, known)) && !REPLACE.test(words)
 // ⛔ MULTI (hotfix 11-13, AUDIT probe 33 e1/e2 — STRUCTURAL, not vocabulary): a change that gives TWO OR MORE existing charts new
 // tickers in one turn needs the words to say so outright: a replace word (replace / instead / swap out / change|switch <chart> to
 // …), every one of those charts addressed by its position ("NVDA on the left and AMD on the right"), or the WHOLE grid stated
@@ -299,6 +315,7 @@ export function tickerChanged(words, ticker, others = [], { tight = false } = {}
   // (a change needs a NEW symbol: with no other ticker named, "rather than the NVDA one" / "X off" is about a setting — "log on
   //  this one rather than the NVDA one" excludes NVDA's chart, it changes no ticker)
   if (!others.some(o => up(o) && up(o) !== up(ticker))) return false
+  if (others.some(o => up(o) !== up(ticker) && offOnSwap(w, ticker, o))) return true
   if (!tight && new RegExp(String.raw`\b(?:${altOf(CHANGE_TAKE)})\s+${det}${T}`, 'i').test(w)) return true
   if (!tight && new RegExp(String.raw`(?:^|[^A-Za-z0-9])${T}(?:['’]s)?\s+(?:(?:chart|one|panel|graph)\s+)?(?:${altOf(CHANGE_OFF)})\b`, 'i').test(w)) return true
   for (const o of others) {
@@ -324,6 +341,18 @@ export function tickerChanged(words, ticker, others = [], { tight = false } = {}
   return false
 }
 
+/** ⛔ H14 follow-up 3: "<TAKE_OFF> X … <PUT_ON> Y" (or "put Y on"), either order, in one request — X's chart changes to Y. */
+export function offOnSwap(words, ticker, to) {
+  const t = reEsc(up(ticker)), o = reEsc(up(to))
+  if (!t || !o || t === o) return false
+  const det = String.raw`(?:(?:the|my|that|this|a|an)\s+)?`
+  const N = String.raw`(?:(?:['’]s)?\s+(?:chart|one|panel|graph))?`
+  const OFF = String.raw`\b(?:${altOf(TAKE_OFF)})\s+${det}\$?${t}(?![A-Za-z0-9])${N}`
+  const O = String.raw`${det}\$?${o}(?![A-Za-z0-9])`
+  const ON = [String.raw`\b(?:${altOf(PUT_ON)})\s+${O}`,
+    ...PUT_ON.map(p => { const [v, ...rest] = p.split(/\s+/); return String.raw`\b${reEsc(v)}\s+${O}\s+${rest.map(reEsc).join(String.raw`\s+`)}\b` })].join('|')
+  return new RegExp(String.raw`${OFF}[^]*?(?:${ON})|(?:${ON})[^]*?${OFF}`, 'i').test(String(words || ''))
+}
 /** The other tickers a sentence names, for tickerChanged: its all-caps symbols, plus any board symbol said in any casing. */
 export function namedTickers(words, symbols = []) {
   const w = String(words || '')
@@ -333,15 +362,24 @@ export function namedTickers(words, symbols = []) {
   const said = (symbols || []).map(up).filter(Boolean).filter(x => new RegExp(String.raw`(?:^|[^a-z0-9])\$?${reEsc(x.toLowerCase())}(?![a-z0-9])`).test(lower))
   return [...new Set([...caps, ...said])]
 }
+// ⛔ AUDIT RULING (H14 follow-up 1): a see verb that GOVERNS X wins over a change relation on X elsewhere in the request ("AAPL
+// where SPY and show me SPY and AAPL": SPY is asked to see — the plan dropping it is refused). Only the governed occurrence ITSELF
+// being the change's operand ("show SPY to AAPL": a CHANGE_TO / CHANGE_OFF word right after it, and X changed) is no see.
+const OPERAND_NEXT = new RegExp(String.raw`^\s*(?:(?:chart|one|panel|graph)\s+)?(?:${altOf([...CHANGE_TO, ...CHANGE_OFF])})\b`, 'i')
 export function tickerAskedToSee(words, ticker, others = []) {
   const w = String(words || '')
   const want = up(ticker)
-  if (!want || tickerChanged(w, want, others)) return false
+  if (!want) return false
+  const changed = tickerChanged(w, want, others)
   for (const m of w.matchAll(SEE_VERB)) {
     const rest = w.slice(m.index + m[0].length).split(/[.;!?](?=\s|$)/)[0]     // (a dotted ticker is no sentence end)
-    for (const tok of rest.match(/[^\s,]+/g) || []) {
+    for (const k of rest.matchAll(/[^\s,]+/g)) {
+      const tok = k[0]
       const t = up(tok.replace(/^\$/, ''))
-      if (t === want) return true
+      if (t === want) {
+        if (!(changed && OPERAND_NEXT.test(rest.slice(k.index + tok.length)))) return true
+        break
+      }
       if (SEE_FILLER.has(tok.toLowerCase()) || others.some(o => up(o) === t)) continue
       break
     }
@@ -362,7 +400,8 @@ export function sameSymbolObjects(host, symbol) {
 /** How the words identify this existing chart (for a re-symbol), or null: 'pick' | 'name' | 'position' | 'deixis' | 'class' | 'replace'. */
 export function identifiesChart(w, e, host, { selected = null, subject = null, picked = null, sole = false, made = null } = {}) {
   // (AUDIT condition 6: "remove AAPL" never re-symbols the AAPL chart — removal words are no licence to change one)
-  if (REMOVE_WORDS.test(w) && !REPLACE.test(w)) return null
+  // (H14 follow-up 3: "take off SPY, put on AAPL" is a change of THIS chart's ticker — offOnSwap — never a removal word)
+  if (REMOVE_WORDS.test(w) && !REPLACE.test(w) && !(e.symbol && e.to && offOnSwap(w, e.symbol, e.to))) return null
   if (!e.symbol) return 'empty'                                    // an EMPTY chart filled replaces nothing
   if (made && made.has(e.ref)) return 'made'                       // a chart THIS request created (its own new chart)
   if (picked && picked.has(`chart:${e.ref}`)) return 'pick'
@@ -392,7 +431,8 @@ export function identifiesChart(w, e, host, { selected = null, subject = null, p
   if (sole) return 'sole'                                          // ⛔ D23: the only chart in scope is identified by being it
   return null
 }
-const REMOVE_WORDS = /\b(?:remove|removing|delete|deleting|drop|dropping|get rid of|take (?:off|out|away))\b/i
+// (every TAKE_OFF phrase is a removal word too: "take down SPY" / "taking off SPY" alone never re-symbols — H14 follow-up 3)
+const REMOVE_WORDS = new RegExp(String.raw`\b(?:remove|removing|delete|deleting|drop|dropping|get rid of|take (?:off|out|away)|${altOf(TAKE_OFF)})\b`, 'i')
 const CHART_WORD = /\b(?:charts?|panels?|graphs?|widgets?)\b/i
 export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply', subject = null, picked = null, made = null, lists = null, out = null } = {}) {
   if (!plan?.ok) return null

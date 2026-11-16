@@ -13,7 +13,7 @@ import { registerBuiltins } from './builtins'
 import { makeBoard } from './__fixtures__/board'
 import { mergeChartSettings } from '../components/chart/chartDefaults'
 import { planOps, collectTargets } from './executor'
-import { chartRailRefusal, tickerAskedToSee, tickerChanged, tickerSetAside, CHANGE_TAKE, CHANGE_TO, CHANGE_BACK, CHANGE_OFF, SEE_VERBS } from './chartRail'
+import { chartRailRefusal, tickerAskedToSee, tickerChanged, tickerSetAside, isAdditive, CHANGE_TAKE, CHANGE_TO, CHANGE_BACK, CHANGE_OFF, SEE_VERBS, TAKE_OFF, PUT_ON } from './chartRail'
 import { excludedCharts } from './spatialCheck'
 import { setupPanel, bareSettings } from './testing/panelHarness'
 
@@ -284,4 +284,164 @@ describe('53 · PANEL · two SPY charts ask; a linked pair applies; "QQQ instead
       expect(symsOf(m, syms.length), out).toEqual(syms)
     }
   }, 60000)
+})
+
+// ══ H14 FOLLOW-UPS (AUDIT non-blocking, 2026-11-15) — STRUCTURAL, every form GENERATED from the exported word sets ══════════
+//   FU1  AUDIT RULING: a see verb that GOVERNS X wins over a change relation on X in the same request — on the sole chart "AAPL
+//        where SPY and show me SPY and AAPL" keeps SPY: the plan dropping it is refused with the "add …" guidance, never applied
+//   FU2  the see-verb gaps ("give me", "let me look at", "let me see", "put up", …) are SEE_VERBS (the ONE set): a plan dropping
+//        the shown ticker they govern is refused; a change relation still switches the chart
+//   FU3  "take off X … put on Y" (TAKE_OFF × PUT_ON, either order) is a swap on X's chart; "take off X" alone stays refused
+//   FU4  "no more X, Y" (CHANGE_TAKE "no more" with another ticker named) is a swap on X's chart; "and also Y" stays additive
+const TCASE = { upper: (s) => s, dollar: (s) => `$${s.toLowerCase()}` }
+const SEE_CO = ['{A} and {B}', '{A} & {B}', '{A}, {B}', 'both {A} and {B}', 'me {A} plus {B}']
+const leaves = (X) => new RegExp(`would leave ${X.replace('.', '\\.')} off your board[^]*add `)
+
+// ── FU1 · AUDIT RULING: change relation (every FORM) × see clause (every verb, rotated) × order × ticker casing ──
+const FU1 = []
+for (const [rel, tpl] of FORMS) for (const order of ['change first', 'see first']) for (const [cname, cs] of Object.entries(TCASE)) {
+  const i = FU1.length
+  const [X, Y] = PAIRS[i % PAIRS.length]
+  const verb = SEE_VERBS[i % SEE_VERBS.length]
+  const [A, B] = i % 2 ? [Y, X] : [X, Y]
+  const see = `${verb} ${SEE_CO[i % SEE_CO.length].replace('{A}', cs(A)).replace('{B}', cs(B))}`
+  const change = fill(tpl, cs(X), cs(Y))
+  FU1.push([rel, order, cname, order === 'change first' ? `${change} and ${see}` : `${see}, ${change}`, X, Y])
+}
+// …and every see verb on AUDIT's own shape ("Y where X and <verb> X and Y")
+for (const verb of SEE_VERBS) for (const [X, Y] of PAIRS) FU1.push(['back · where', 'audit shape', 'upper', `${Y} where ${X} and ${verb} ${X} and ${Y}`, X, Y])
+describe(`FU1 · AUDIT RULING · a see verb governing X wins over a change on X → the plan dropping X is refused (${FU1.length} cases): relation × see verb × order × casing`, () => {
+  it.each(FU1)('%s · %s · %s · "%s"', (_r, _o, _c, words, X, Y) => {
+    expect(tickerAskedToSee(words, X, [X, Y]), words).toBe(true)
+    expect(rail([X], 'c1', Y, words), words).toMatch(leaves(X))
+  })
+  it.each(PAIRS)('the reading is per OCCURRENCE: "%s to %s" governed by nothing → still a change (the plan applies)', (X, Y) => {
+    expect(rail([X], 'c1', Y, `${X} to ${Y}, and show me ${Y}`)).toBeNull()
+  })
+  // (the governed occurrence ITSELF the operand of a CHANGE_TO word — "show SPY for AAPL" — is the change, as on master)
+  it.each(CHANGE_TO.flatMap(r => PAIRS.map(([X, Y]) => [`show ${X} ${r} ${Y}`, X, Y])))('operand control · "%s" → the change applies', (words, X, Y) => {
+    expect(tickerAskedToSee(words, X, [X, Y]), words).toBe(false)
+    expect(rail([X], 'c1', Y, words), words).toBeNull()
+  })
+})
+
+// ── FU2 · every SEE verb × joiner × order × verb casing → a plan dropping the governed shown ticker is refused ──
+const VCASE = { lower: (v) => v, title: (v) => v[0].toUpperCase() + v.slice(1), words: (v) => v.replace(/\b[a-z]/g, c => c.toUpperCase()) }
+const FU2 = [], FU2_CTL = []
+for (const verb of SEE_VERBS) for (const co of SEE_CO) for (const order of ['shown first', 'new first']) for (const [vname, vc] of Object.entries(VCASE)) {
+  const [X, Y] = PAIRS[FU2.length % PAIRS.length]
+  const [A, B] = order === 'shown first' ? [X, Y] : [Y, X]
+  FU2.push([verb, order, vname, `${vc(verb)} ${co.replace('{A}', A).replace('{B}', B)}`, X, Y])
+}
+for (const verb of SEE_VERBS) for (const r of CHANGE_BACK) {
+  const [X, Y] = PAIRS[FU2_CTL.length % PAIRS.length]
+  FU2_CTL.push([verb, r, `${verb} ${Y} ${r} ${X}`, X, Y])
+}
+describe(`FU2 · SEE verb × joiner × order × casing → refused (${FU2.length} cases); controls: a change relation still switches (${FU2_CTL.length})`, () => {
+  it.each(FU2)('%s · %s · %s · "%s"', (_v, _o, _c, words, X, Y) => {
+    expect(rail([X], 'c1', Y, words), words).toMatch(leaves(X))
+  })
+  it.each(FU2_CTL)('control · %s · %s · "%s" → the sole chart switches', (_v, _r, words, X, Y) => {
+    expect(rail([X], 'c1', Y, words), words).toBeNull()
+  })
+  it.each(SEE_VERBS.flatMap(v => PAIRS.map(([X, Y]) => [`${v} ${Y}`, X, Y])))('control · "%s" (the shown ticker NOT named) → the sole chart switches', (words, X, Y) => {
+    expect(rail([X], 'c1', Y, words), words).toBeNull()
+  })
+})
+
+// (the GAPS AUDIT named are pinned HERE, not read from SEE_VERBS — a set that lost one would also lose its generated cases)
+const GAPS = ['give me', 'let me look at', 'let me see', 'put up']
+const FU2_GAP = []
+for (const verb of GAPS) for (const co of SEE_CO) for (const order of ['shown first', 'new first']) for (const [vname, vc] of Object.entries(VCASE)) for (const [cname, cs] of Object.entries(TCASE)) {
+  const [X, Y] = PAIRS[FU2_GAP.length % PAIRS.length]
+  const [A, B] = order === 'shown first' ? [X, Y] : [Y, X]
+  FU2_GAP.push([verb, order, vname, cname, `${vc(verb)} ${co.replace('{A}', cs(A)).replace('{B}', cs(B))}`, X, Y])
+}
+describe(`FU2 · AUDIT's see-verb gaps × joiner × order × verb casing × ticker casing → refused (${FU2_GAP.length} cases)`, () => {
+  it.each(FU2_GAP)('%s · %s · %s · %s · "%s"', (_v, _o, _vc, _c, words, X, Y) => {
+    expect(rail([X], 'c1', Y, words), words).toMatch(leaves(X))
+  })
+})
+
+// ── FU3 · TAKE_OFF × PUT_ON × "put Y on" form × order × joiner × board: X's chart switches, no other chart ever ──
+const JOIN = [', ', ' and ', ' then ', '. ']
+const ON_FORMS = PUT_ON.flatMap(p => { const [v, ...rest] = p.split(' '); return [`${p} {Y}`, `${v} {Y} ${rest.join(' ')}`] })
+const FU3 = []
+for (const off of TAKE_OFF) for (const on of ON_FORMS) for (const order of ['off first', 'on first']) {
+  const i = FU3.length
+  const j = JOIN[i % JOIN.length]
+  const o = `${off} {X}`
+  const [bname, syms, at] = [['sole', ['SPY'], 0], ...BOARDS][i % (BOARDS.length + 1)]
+  FU3.push([off, on, order, fill(order === 'off first' ? `${o}${j}${on}` : `${on}${j}${o}`, 'SPY', 'AAPL'), bname, syms, at])
+}
+describe(`FU3 · "take off X … put on Y" is a swap on X's chart (${FU3.length} cases): take-off × put-on × form × order × joiner × board`, () => {
+  it.each(FU3)('%s · %s · %s · "%s" · %s', (_off, _on, _o, words, _b, syms, at) => {
+    expect(tickerChanged(words, 'SPY', ['AAPL']), words).toBe(true)
+    expect(rail(syms, `c${at + 1}`, 'AAPL', words), words).toBeNull()
+    syms.forEach((s, i) => { if (i !== at) expect(rail(syms, `c${i + 1}`, 'AAPL', words), `${words} → c${i + 1} (${s})`).toBeTruthy() })
+  })
+  // a GENUINE removal ("take off SPY" alone, or with an ADD) never re-symbols: refused on the sole chart, asked on several
+  const GENUINE = TAKE_OFF.flatMap(off => [`${off} SPY`, `${off} the SPY chart`, `${off} SPY and add AAPL`, `${off} SPY, put on the RSI`])
+  it.each(GENUINE)('control · "%s" → never re-symbols SPY', (words) => {
+    expect(rail(['SPY'], 'c1', 'AAPL', words), words).toBeTruthy()
+    expect(rail(['SPY', 'QQQ'], 'c1', 'AAPL', words), words).toBeTruthy()
+  })
+})
+
+// ── FU4 · "no more X, Y" → a swap on X's chart; "and also Y" / "Y too" / "no more X" alone stay refused ──
+const NO_MORE = ['no more {X}, {Y}', 'no more {X}; {Y} please', 'no more {X} — {Y}', '{Y}, no more {X}', 'no more {X}, {Y} instead', 'no more {X}. {Y} now']
+const FU4 = [], FU4_NEG = []
+for (const tpl of NO_MORE) for (const [bname, syms, at] of [['sole', ['SPY'], 0], ...BOARDS]) {
+  for (const [cname, cs] of Object.entries(TCASE)) FU4.push([bname, cname, fill(tpl, cs('SPY'), cs('AAPL')), syms, at])
+  if (syms.length === 1) FU4.push([bname, 'lower', fill(tpl, 'spy', 'aapl'), syms, at])
+  for (const [cname, cs] of Object.entries(CASES)) FU4_NEG.push([bname, cname, fill(tpl, cs('SPY'), cs('AAPL')), syms, at])
+}
+describe(`FU4 · "no more X, Y" is a swap on X's chart (${FU4.length} cases), never another chart (${FU4_NEG.length} cases)`, () => {
+  it.each(FU4)('%s · %s · "%s" → the X chart switches', (_b, _c, words, syms, at) => {
+    expect(isAdditive(words, ['SPY', 'AAPL']), words).toBe(false)
+    expect(rail(syms, `c${at + 1}`, 'AAPL', words), words).toBeNull()
+  })
+  it.each(FU4_NEG)('%s · %s · "%s" → no other chart', (_b, _c, words, syms, at) => {
+    syms.forEach((s, i) => { if (i !== at) expect(rail(syms, `c${i + 1}`, 'AAPL', words), `${words} → c${i + 1} (${s})`).toBeTruthy() })
+  })
+  const STILL = ['and also {Y}', '{Y} as well', 'no more {X} and also {Y}', 'no more {X}, {Y} too', 'no more {X}', 'no more charts, {Y}']
+  it.each(STILL.flatMap(t => PAIRS.map(([X, Y]) => [fill(t, X, Y), X, Y])))('control · "%s" → refused (additive / no new ticker named)', (words, X, Y) => {
+    expect(rail([X], 'c1', Y, words), words).toBeTruthy()
+  })
+})
+
+// ── FU · the REAL panel, end to end ──
+describe('FU · PANEL · the real Agent panel', () => {
+  let p
+  beforeEach(() => { p = setupPanel() })
+  afterEach(() => { vi.restoreAllMocks(); cleanup() })
+  const decorate = (s) => (s ? { ...s, label: `Chart (${s.symbol || 'empty'})` } : s)
+  const mountOf = (syms) => {
+    const w = Math.floor(24 / syms.length)
+    const widgets = syms.map((_, i) => ({ id: `c${i}`, type: 'chart', x: i * w, y: 0, w, h: 20, color: 'N', opts: { settings: bareSettings() } }))
+    return p.mount(widgets, Object.fromEntries(syms.map((s, i) => [`N:c${i}`, s])), { decorate })
+  }
+  const sayWith = async (syms, target, words) => {
+    const m = mountOf(syms)
+    p.st.envelopes.push(b => p.env('apply', [{ action: 'chart.setSymbol', target: b.context.charts[target].ref, args: { symbol: 'AAPL' } }]))
+    const out = await m.say(words)
+    return [Array.from({ length: syms.length }, (_, i) => m.h.charts.read(`c${i}`)?.symbol || ''), out]
+  }
+  it.each([
+    ['AAPL where SPY and show me SPY and AAPL', ['SPY'], 0, ['SPY']],
+    ['give me SPY and AAPL', ['SPY'], 0, ['SPY']],
+    ['let me look at SPY and AAPL', ['SPY'], 0, ['SPY']],
+    ['put up SPY and AAPL', ['SPY'], 0, ['SPY']],
+    ['take off SPY, put on AAPL', ['SPY'], 0, ['AAPL']],
+    ['take off SPY, put on AAPL', ['SPY', 'QQQ'], 0, ['AAPL', 'QQQ']],
+    ['take off SPY, put on AAPL', ['SPY', 'QQQ'], 1, ['SPY', 'QQQ']],
+    ['take off SPY', ['SPY'], 0, ['SPY']],
+    ['no more SPY, AAPL', ['SPY'], 0, ['AAPL']],
+    ['no more SPY, AAPL', ['QQQ', 'SPY'], 1, ['QQQ', 'AAPL']],
+    ['no more SPY, AAPL', ['QQQ', 'SPY'], 0, ['QQQ', 'SPY']],
+    ['and also AAPL', ['SPY'], 0, ['SPY']],
+  ])('"%s" on %j, the plan on chart %i → %j', async (words, syms, target, want) => {
+    const [got, out] = await sayWith(syms, target, words)
+    expect(got, out).toEqual(want)
+  }, 40000)
 })
