@@ -199,7 +199,11 @@ describe('L5 (d) — requestTargetsUnservable, the door\'s static half of the su
     expect(requestTargetsUnservable([{ own: true, ticker: null, venue: null, code: 'W', live: false }], 1)).toBe(null)
     expect(requestTargetsUnservable([{ own: false, ticker: 'SPY', venue: 'AMEX', code: null, live: false }], 1)).toBe(null)
     expect(requestTargetsUnservable([null], 1)).toMatch(/cannot be read before/)
-    expect(requestTargetsUnservable([{ own: true, ticker: null, venue: null, code: 'W', live: true }], 1)).toMatch(/looks ahead/)
+    // ⭐ REQ — look-ahead at a weekly / monthly period is served (`vw-request-htf-alignment-spy-1d`);
+    // look-ahead at any other code keeps its refusal, by name
+    expect(requestTargetsUnservable([{ own: true, ticker: null, venue: null, code: 'W', live: true }], 1)).toBe(null)
+    expect(requestTargetsUnservable([{ own: true, ticker: null, venue: null, code: 'M', live: true }], 1)).toBe(null)
+    expect(requestTargetsUnservable([{ own: true, ticker: null, venue: null, code: '3M', live: true }], 1)).toMatch(/looks ahead/)
     expect(requestTargetsUnservable([{ own: true, ticker: null, venue: null, code: '3M', live: false }], 1)).toMatch(/weekly or monthly/)
     expect(requestTargetsUnservable([], 1)).toMatch(/not recorded/)
   })
@@ -215,8 +219,26 @@ describe('L5 — `lookahead = barmerge.lookahead_off` written out is the default
     expect(Array.from(wOff.a)).toEqual(Array.from(w.a))
   })
 
-  it('⛔ CONTROL: `lookahead = barmerge.lookahead_on` keeps its refusal', () => {
-    expect(() => runDoc('plot(request.security(syminfo.tickerid, "W", close, lookahead = barmerge.lookahead_on))'))
+  // ⭐⭐ REQ (coverage unit, 2026-11-16) — `lookahead = barmerge.lookahead_on` at a weekly / monthly period
+  // reads the period each bar is INSIDE (`interpret.js::tfLiveReads`), the reading TradingView was captured
+  // giving (`vw-request-htf-alignment-spy-1d-2026-10-02` A01 / A04, `vendorHarness.reqLookaheadAlignment`).
+  // ⚰️ It was refused here whatever the period ("the realtime half of that alignment is not measured yet").
+  it('`lookahead = barmerge.lookahead_on` at "W" reads the week each bar is inside: the week's own last close', () => {
+    const on = runDoc('plot(request.security(syminfo.tickerid, "W", close, lookahead = barmerge.lookahead_on))')
+    const lastOfWeek = new Map()
+    for (const b of CHART) lastOfWeek.set(tfBucket(b.t, 'W'), b.c)
+    expect(Array.from(on.a)).toEqual(CHART.map((b) => lastOfWeek.get(tfBucket(b.t, 'W'))))
+    const off = runDoc('plot(request.security(syminfo.tickerid, "W", close))')
+    expect(Array.from(on.a)).not.toEqual(Array.from(off.a))
+  })
+  it('⛔ CONTROL: off the listing, the first week is built from part of itself and the run refuses by that name', () => {
+    expect(() => runDoc('plot(request.security(syminfo.tickerid, "W", close, lookahead = barmerge.lookahead_on))',
+      ctxOf({ historyFromListing: false, newestBarIsForming: false })))
+      .toThrow(/request:htf-lookahead-first-period-partial/)
+  })
+  it('⛔ CONTROL: a look-ahead spelling the host cannot read keeps its refusal', () => {
+    expect(() => runDoc('la = input.bool(true)
+plot(request.security(syminfo.tickerid, "W", close, lookahead = la))'))
       .toThrow(/lookahead/)
   })
 })
