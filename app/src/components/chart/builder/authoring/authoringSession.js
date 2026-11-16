@@ -19,7 +19,7 @@
 
 import { newAuthoringState, applyTurn, undo as undoState, undoTo as undoToState, readback, isDirty } from './index'
 import { openAuthoringState } from './authoringState'
-import { converseTurn, distinctNotUnderstood } from './converseClient'
+import { converseTurn, STOPPED_GATE, distinctNotUnderstood } from './converseClient'
 import { classifyTurn, OUTCOMES } from './turnOutcome'
 import { preflight } from './preflight'
 import { readSession, clearSession } from './conversationSessions'
@@ -78,6 +78,9 @@ export function replyLines(rb, state, changes = []) {
 }
 
 export const NOTHING_CHANGED = 'Nothing on the chart changed.'
+/** What the dock says after the member pressed Stop. The request left the browser, so the
+ *  server may still have worked on it: said plainly, because it can count toward the day. */
+export const STOPPED_LINE = 'Stopped. A request that was already sent can still count toward today\'s allowance.'
 
 /** ⭐ PHASE 4 — the first line of an opened definition's conversation. */
 export function openedEntry(open) {
@@ -200,8 +203,15 @@ function withCreateName(envelope, words, accept) {
  * @returns `{ok, entries, state: next|null, changed}` — `changed`: a new revision of the
  *          definition (the preview acknowledgement resets, the "updated" cue fires).
  */
-export async function modelTurn(before, current, words, { snippets = [], gateCtx = {}, converse = converseTurn, keepCreateName = null } = {}) {
-  const res = await converse({ message: words, state: before, gateCtx, snippets })
+export async function modelTurn(before, current, words, { snippets = [], gateCtx = {}, converse = converseTurn, keepCreateName = null, signal = null } = {}) {
+  const res = await converse({ message: words, state: before, gateCtx, snippets, signal })
+  // ⭐ STOP (2026-11-16) — the member stopped waiting. Whatever came back (or did not) is
+  // NOT read: no reply, no patch, no refusal. Checked on the signal as well as the gate,
+  // so an answer that landed in the same instant as the press is dropped too.
+  if ((signal && signal.aborted) || (res && res.gate === STOPPED_GATE)) {
+    return { ok: false, state: null, changed: false, outcome: 'stopped', stopped: true,
+      entries: [{ role: 'uct', kind: 'stopped', lines: [STOPPED_LINE, NOTHING_CHANGED] }] }
+  }
   const unclear = distinctNotUnderstood(res).map((n) => `I didn't understand "${n.clause || n.text || ''}"${n.reason ? ` — ${n.reason}` : ''}.`)
   const gaps = [...unclear, ...unavailableLines(res)]
   const turn = classifyTurn(res)
@@ -217,7 +227,7 @@ export async function modelTurn(before, current, words, { snippets = [], gateCtx
     const failure = clientFailureOf(turn.gate)
     if (failure) logStudioAction(before.lineage, 'turn_failed', { surface: 'studio', failure })
     return said(false, { role: 'uct', kind: 'refusal', gate: turn.gate,
-      lines: [memberRefusal(turn.gate, turn.reason), ...gaps, NOTHING_CHANGED] }, { gate: turn.gate, reason: turn.reason })
+      lines: [memberRefusal(turn.gate, turn.reason, { retryAfterS: res && res.retryAfterS }), ...gaps, NOTHING_CHANGED] }, { gate: turn.gate, reason: turn.reason })
   }
   // ⭐ BATCH 1 — a name the member gave in the same message rides in this envelope.
   const named = turn.outcome === OUTCOMES.CHANGE ? withMemberName(turn.envelope, words) : turn.envelope
