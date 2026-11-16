@@ -83,6 +83,81 @@ def build_endpoint_query(zone: str, since: str, until: str) -> str:
             "}}}")
 
 
+# ── members only: our own automation is not a member ─────────────────────────
+#
+# Measured 2026-11-13: one of our own headless clients made 70% of all requests, nearly all of them
+# cached files, and every one counted as a success. The totals above therefore flatter the day. This
+# second request asks the same questions with our own clients removed.
+
+#: Our monitors and workers name themselves; these user-agent patterns are theirs.
+SERVICE_AGENTS = ("uct-%", "UCT-%", "%(uct-%")
+_ADDRESS = re.compile(r"^[0-9A-Fa-f:.]{3,45}$")
+
+
+def service_clients(path: str | None = None) -> list[str]:
+    """Addresses of our own automated clients, one per line (`#` starts a comment).
+
+    Read from SCOREBOARD_SERVICE_CLIENTS or `service_clients.txt` beside this file. The file is kept
+    out of this public repository on purpose. Anything that is not an address is ignored, because
+    these strings go into the request."""
+    path = path or os.environ.get("SCOREBOARD_SERVICE_CLIENTS") or os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "service_clients.txt")
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            lines = [line.split("#")[0].strip() for line in f]
+    except OSError:
+        return []
+    return [line for line in lines if _ADDRESS.match(line)]
+
+
+def member_filter(addresses: list[str]) -> str:
+    agents = ", ".join('{userAgent_notlike:"%s"}' % a for a in SERVICE_AGENTS)
+    out = f"AND:[{agents}]"
+    if addresses:
+        out = "clientIP_notin:[" + ", ".join('"%s"' % a for a in addresses) + "], " + out
+    return out
+
+
+def build_member_query(zone: str, since: str, until: str, addresses: list[str]) -> str:
+    """Counts only. `api` is every /api path; `timed` is the uncached API calls that are not streams,
+    which is the population the over-one-second share is taken from."""
+    base = f'datetime_geq:"{since}", datetime_lt:"{until}", requestSource:"eyeball", ' + member_filter(addresses)
+    api = base + ', clientRequestPath_like:"/api/%"'
+    timed = api + ', clientRequestPath_notlike:"/api/stream/%", cacheStatus:"dynamic"'
+    asks = {
+        "all": base, "errors": base + ", edgeResponseStatus_geq:500",
+        "api": api, "api_errors": api + ", edgeResponseStatus_geq:500", "api_gave_up": api + ", edgeResponseStatus:499",
+        "timed": timed, "over_1s": timed + ", originResponseDurationMs_gt:1000",
+        "over_3s": timed + ", originResponseDurationMs_gt:3000",
+    }
+    body = " ".join(f"{name}: httpRequestsAdaptiveGroups(limit:1, filter:{{{flt}}}){{count}}" for name, flt in asks.items())
+    return '{viewer{zones(filter:{zoneTag:"' + zone + '"}){ ' + body + " }}}"
+
+
+def member_summary(zone_data: dict, total_requests: int, addresses: list[str]) -> dict:
+    def n(name: str) -> int:
+        rows = zone_data.get(name) or []
+        return rows[0]["count"] if rows else 0
+
+    def pct(part: int, whole: int) -> float | None:
+        return round(100 * part / whole, 2) if whole else None
+
+    requests, api, timed = n("all"), n("api"), n("timed")
+    return {
+        "service_addresses_excluded": len(addresses),
+        "our_own_requests": max(total_requests - requests, 0),
+        "our_own_share_pct": pct(max(total_requests - requests, 0), total_requests),
+        "requests": requests,
+        "success_pct": round(100 * (1 - n("errors") / requests), 3) if requests else None,
+        "api_requests": api,
+        "api_success_pct": round(100 * (1 - n("api_errors") / api), 3) if api else None,
+        "api_server_errors": n("api_errors"),
+        "api_gave_up_pct": pct(n("api_gave_up"), api),
+        "api_over_1s_pct": pct(n("over_1s"), timed),
+        "api_over_3s_pct": pct(n("over_3s"), timed),
+    }
+
+
 # ── pure: turning Cloudflare's rows into the report ───────────────────────────
 
 _SYMBOL = re.compile(r"^[A-Z0-9.^-]{1,8}$")
@@ -182,6 +257,19 @@ def render(s: dict) -> str:
         + (f"; {s['gateway_errors_inside_gaps_pct']}% of gateway errors fall inside them" if s["gaps"] else ""),
         f"  minutes with server p95 over 1 s   {s['minutes_over_1s']}",
     ]
+    m = s.get("members")
+    if m and m.get("requests"):
+        lines += [
+            f"  MEMBERS ONLY (our own automation removed: {m['our_own_requests']:,} requests, {m['our_own_share_pct']}% of all)",
+            f"    requests          {m['requests']:,}   succeeded {m['success_pct']}%",
+            f"    API calls         {m['api_requests']:,}   succeeded {m['api_success_pct']}%   ({m['api_server_errors']:,} server errors)",
+            f"    API calls the member gave up on   {m['api_gave_up_pct']}%",
+            f"    API calls over 1 s   {m['api_over_1s_pct']}%   over 3 s   {m['api_over_3s_pct']}%   (uncached, streams left out)",
+        ]
+        if not m["service_addresses_excluded"]:
+            lines.append("    note: no service_clients.txt, so only clients that name themselves were removed")
+    elif s.get("members_error"):
+        lines.append(f"  MEMBERS ONLY: could not measure ({s['members_error']})")
     if s["worst_hour"]:
         w = s["worst_hour"]
         lines.append(f"  slowest hour        {w['hour']}: p95 {w['p95_ms']:,} ms, {w['minutes_over_1s']} of 60 minutes over 1 s")
@@ -254,6 +342,15 @@ def self_check(out=print) -> int:
             {"count": 3, "dimensions": {"clientRequestPath": "/api/bars/MSFT"}, "avg": {"originResponseDurationMs": 2000}}])]
          == ["/api/bars/:sym", "/api/auth/me"]),
         ("a quiet window says so", "no requests" in render(summarize({}, "a", "b"))),
+        ("our own clients are taken out of the members' numbers", member_summary(
+            {"all": [{"count": 300}], "errors": [{"count": 9}], "api": [{"count": 200}], "api_errors": [{"count": 8}],
+             "api_gave_up": [{"count": 4}], "timed": [{"count": 100}], "over_1s": [{"count": 21}], "over_3s": [{"count": 8}]},
+            1000, ["192.0.2.1"]) == {
+                "service_addresses_excluded": 1, "our_own_requests": 700, "our_own_share_pct": 70.0, "requests": 300,
+                "success_pct": 97.0, "api_requests": 200, "api_success_pct": 96.0, "api_server_errors": 8,
+                "api_gave_up_pct": 2.0, "api_over_1s_pct": 21.0, "api_over_3s_pct": 8.0}),
+        ("only an address can enter the request", 'clientIP_notin:["192.0.2.1"]' in member_filter(["192.0.2.1"])
+         and "clientIP_notin" not in member_filter([])),
         ("the window is whole hours", window(24, dt.datetime(2026, 11, 14, 10, 37, tzinfo=dt.timezone.utc))
          == ("2026-11-13T10:00:00Z", "2026-11-14T10:00:00Z")),
     ]
@@ -293,6 +390,12 @@ def main(argv=None) -> int:
     except CouldNotMeasure as exc:
         print(f"COULD NOT MEASURE: {exc}")
         return 2
+    try:  # a second request; if it fails the report above still stands
+        addresses = service_clients()
+        summary["members"] = member_summary(fetch(build_member_query(zone, since, until, addresses), token),
+                                            summary["requests"], addresses)
+    except CouldNotMeasure as exc:
+        summary["members_error"] = str(exc)
     print(json.dumps(summary, indent=1) if args.json else render(summary))
     if args.history:
         line = {k: v for k, v in summary.items() if k not in ("gap_list", "hours", "slow_endpoints")}
