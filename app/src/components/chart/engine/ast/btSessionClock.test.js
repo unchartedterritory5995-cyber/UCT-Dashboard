@@ -197,6 +197,12 @@ describe('what still refuses, by name', () => {
     expect(tr(`${V4}period = "W"\nplot(security(syminfo.tickerid, period, close))`).ok).toBe(true)
     expect(tr(`${V3}plot(na(time(period, "0930-1600:23456")) ? 0 : 1)`).ok).toBe(true)
   })
+  it('`""` is the chart\'s own timeframe on this lane too (the reference: "the script\'s main timeframe")', () => {
+    const own = outputsOf(`${V6}plot(na(time(timeframe.period, "0930-1000:23456")) ? 0 : 1)`)[0].formula
+    expect(outputsOf(`${V6}plot(na(time("", "0930-1000:23456")) ? 0 : 1)`)[0].formula).toBe(own)
+    // CONTROL: another literal is still another timeframe
+    expect(refusalOf(`${V6}plot(na(time("W", "0930-1000:23456")) ? 0 : 1)`).message).toMatch(/OWN timeframe/)
+  })
   it('CONTROL: a same-day session is untouched — the same tree it always was', () => {
     const [o] = outputsOf(`${V6}plot(time(timeframe.period, "0930-1000:23456") / 1000)`)
     expect(o.formula).toMatch(/dayofweek == 2/)

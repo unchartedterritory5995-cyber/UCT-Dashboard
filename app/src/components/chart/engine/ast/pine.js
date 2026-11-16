@@ -13491,7 +13491,12 @@ export class Resolver {
     if (!tfNode || !sessNode) throw no('it needs both a timeframe and a session')
 
     // ── 1. THE TIMEFRAME: the chart's own, and only that. ────────────────────
-    const isOwnTf = this.ownTimeframeOf(tfNode) !== null
+    // ⭐ NUMBER PENDING (bt) — `""` IS THE CHART'S OWN TIMEFRAME. The reference (`time`, argument
+    // `timeframe`): "If the value is an empty string, the function uses the script's main
+    // timeframe." The runtime lane already reads it so (W4 T3, `rebuiltSessionClockCall`); this
+    // lane refused it as "another timeframe", so a script asking `time("", sess)` was answered on
+    // one lane and refused on the other.
+    const isOwnTf = this.ownTimeframeOf(tfNode) !== null || this.timeframeLiteralOf(tfNode) === ''
     const lit = isOwnTf ? null : this.timeframeLiteralOf(tfNode)
     const code = lit === null ? null : PINE_TF_SPELLING[String(lit).trim().toUpperCase()]
     if (!isOwnTf && code !== this.basePeriod) {
