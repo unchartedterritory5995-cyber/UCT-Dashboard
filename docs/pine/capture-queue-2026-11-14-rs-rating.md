@@ -47,6 +47,20 @@ minutes earlier WITHOUT `--channel chrome` failed to launch (the bundled Chromiu
 last used by the installed Chrome); whether that launch is what signed the profile out was not
 established. Always pass `--channel chrome` with this profile.
 
+## Display: an overlay script's plots and the price scale (added 2026-11-16)
+
+Seen on production in a real browser (smoke account, RDDT 1D, RS Rating pasted from the committed
+source): the RS line's last value was 43.57 while the price scale showed about 80 to 220, so most
+of the line was below the pane. The values were right and not visible. Ruled (coordinator,
+2026-11-16): a Pine translation's own `overlay = true` plots join the price pane's autoscale, as
+TradingView's do by default; natives keep the guest rule. Built as `placement.joinPriceScale`
+(`memberPaneDefinition.joinsPriceScale`, `eligibility.js::priceScaleJoinLook`,
+`__tests__/priceScaleJoin.test.js`).
+
+| row | script | symbols / timeframe | settles |
+|---|---|---|---|
+| Q-RS10 | `docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine`, in the Q-RS8 session | NYSE:RDDT 1D | TradingView's VISIBLE PRICE RANGE with the script on the price scale, at default settings and a stated visible bar range, plus the same with "Scale price chart only" switched on. No committed capture records a visible price range (`tv_capture.js` reads values and objects, not the scale), so the join rests on TradingView's documented default, not a witnessed number. Needs a capture-tool field for the price scale's visible range first. Also worth one probe with `scale = scale.none` and one with `scale = scale.left`, which this door does NOT join. |
+
 ## Tracked: the S&P 500 history difference (added 2026-11-16, for the owner's ruling)
 
 | row | what | size | settles |
