@@ -1,5 +1,5 @@
 {
-  "fingerprint": "pipeline:master -> production=5 master commits not promoted yet (oldest landed 79 min ago): more than 60 min outside any hold and checks are still running|service:terminal-next-monitor=1160 changed files on master not deployed; the branch moved 49 min ago and Railway started no deploy",
-  "posted_at": "2026-11-16T06:27:29.146929+00:00",
+  "fingerprint": "pipeline:master -> production=5 master commits not promoted yet (oldest landed 102 min ago): more than 60 min outside any hold and checks are still running|service:terminal-next-monitor=1160 changed files on master not deployed; the branch moved 72 min ago and Railway started no deploy",
+  "posted_at": "2026-11-16T06:50:17.012374+00:00",
   "reason": "new stuck item"
 }
