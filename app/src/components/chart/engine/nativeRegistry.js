@@ -181,6 +181,8 @@ import { runtimeWarmupOf, RUNTIME_OBJECTS_KEY, withRunHalfState, carriesRunHalf 
 import { LIMIT_NAMES } from './runtime/limits'
 import { registeredObjectRuntimeValues, inputsAtDefaults } from './objectRuntimeSeam.js'
 import { manifestAtDefaults } from './paramLiteral.js'
+// ⭐ SETTINGS PARITY (2a): one instance's parameter settings, written into its literals.
+import { specializeParams } from './paramInputs.js'
 import { noteRuntimeLoadFailed } from './runtimeRunTelemetry.js'
 // ⭐⭐ CBC-FMT — `calc_bars_count`: the window both lanes take (pure, imports nothing).
 import { calcBarsWindowOf, windowContext, widenToChart, withCalcBarsRecord, calcBarsWindowReport,
@@ -3681,6 +3683,9 @@ function runHalfGateSignature(def) {
     + `${runtimeKillOf({ defId: def.id, source }) ? 'k' : ''}${runtimeNotGradedOf({ source }) ? 'g' : ''}`
 }
 
+/** The guard a parameter setting the door would refuse carries (`paramInputs.js`). */
+export const PARAM_SETTING_GUARD = 'setting:param-refused'
+
 export function computeFor(def, bars, inputs, ctx) {
   if (def?.compute?.kind === 'runtime') {
     return runtimeColumnsOrReasons(def, Array.isArray(bars) ? bars : [], inputs, ctx)
@@ -3699,6 +3704,16 @@ export function computeFor(def, bars, inputs, ctx) {
   // had one.
   if (def?.compute?.kind === 'ast') {
     const rows = Array.isArray(bars) ? bars : []
+    // ⭐ SETTINGS PARITY (2a): the instance's parameter settings (`param<N>` inputs) are
+    // written into the literals they stand for (`paramInputs.specializeParams`), memoised per
+    // value set, so this pane computes the tree its member chose. A value the door would refuse
+    // is refused by name on every column, never computed.
+    const special = specializeParams(def, inputs)
+    if (special && special.refused) {
+      const message = `${special.refused}: the chart does not compute a setting the indicator's own bounds refuse`
+      return withColumnErrors({}, Object.fromEntries(astPlotKey(def).map((k) => [k, { guard: PARAM_SETTING_GUARD, message }])))
+    }
+    def = special
     // ⭐⭐ CBC-FMT — `calc_bars_count`: THE ONE SEAM where the host lane takes its window
     // (`engine/calcBarsWindow.js`). Every caller of `computeFor` (the binder, the object
     // lane, the vendor harness) inherits it; a chart of N bars or fewer, and every document
