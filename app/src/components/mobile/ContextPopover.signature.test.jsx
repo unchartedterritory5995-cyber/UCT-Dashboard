@@ -27,10 +27,10 @@ const ITEMS = (onValue = () => {}) => [
   { key: 'remove', label: 'Delete', icon: <i>t</i>, danger: true, onClick: () => {} },
 ]
 
-test('group labels render as role="presentation", non-focusable, and never as menu items', () => {
+test('group labels render as plain generic divs (no role), non-focusable, and never as menu items', () => {
   render(<ContextPopover open signature onClose={() => {}} anchor={{ x: 0, y: 0 }} items={ITEMS()} />)
   const label = screen.getByText('This line')
-  expect(label.getAttribute('role')).toBe('presentation')
+  expect(label.hasAttribute('role')).toBe(false)   // generic: what role="presentation" on a div amounts to
   expect(label.hasAttribute('tabindex')).toBe(false)
   expect(label.tagName).toBe('DIV')
   const menu = screen.getByRole('menu')

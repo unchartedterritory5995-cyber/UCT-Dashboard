@@ -25,7 +25,7 @@ import styles from './ContextPopover.module.css'
  * ⭐ UCT SIGNATURE (opt-in, docs/uct-signature-style.md §2b). One item field and one prop,
  * neither of which any other caller passes, so every other surface renders exactly as before:
  *   `{ groupLabel: 'This line' }` — a small grey sentence-case label over a group of rows. NOT a
- *       row: `role="presentation"`, never focusable, so a `role="menu"` still holds only items.
+ *       row: a plain (generic) div, never focusable, so a `role="menu"` still holds only items.
  *   (A row's dimmed value, ▸ and gold ✦ are drawn by the CALLER into `label` / `icon` —
  *   StockChart `chipMenuSigRow` — so the Notebook's first-open bytes don't carry them.)
  *   `signature` (prop) — the highlighted row's icon turns gold, and an item's boolean `checked`
@@ -195,7 +195,7 @@ export default function ContextPopover({
       if (it.separator || it.groupLabel != null) {
         return (
           <div key={'s' + i} className={it.separator ? styles.separator : styles.groupLabel}
-            role={it.separator ? (asMenu ? 'separator' : undefined) : 'presentation'}>{it.groupLabel}</div>
+            role={it.separator && asMenu ? 'separator' : undefined}>{it.groupLabel}</div>
         )
       }
       // ⚠️ KEPT SMALL: this module is in the Notebook's first-open bytes budget — ONE element for both

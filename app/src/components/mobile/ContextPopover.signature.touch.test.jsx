@@ -21,7 +21,7 @@ test('touch sheet: labels inert, checked row pressed with a check, detail shown,
   )
   const dialog = screen.getByRole('dialog')
   const label = within(dialog).getByText('This line')
-  expect(label.getAttribute('role')).toBe('presentation')
+  expect(label.hasAttribute('role')).toBe(false)
   expect(label.hasAttribute('tabindex')).toBe(false)
   expect(within(dialog).queryByRole('menuitem')).toBeNull()
   const row = within(dialog).getByRole('button', { name: /Value in header/ })
