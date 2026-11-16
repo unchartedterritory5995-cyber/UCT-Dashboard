@@ -51,7 +51,28 @@
 // ⛔ A v6 library inside a v5 script stays refused (`pineLibraries.js`): the
 // guide describes v5 → v6, and nothing here reads the reverse.
 
+import ADMISSION from './pineLibraryCrossVersion.json'
+
 export const LIBRARY_VERSION = 'pine:library-version'
+
+// ⭐⭐ U15 Phase B (coordinator ruling 2026-11-16) — THE ADMISSION TABLE. A v5 version is linked into a
+// v6 script only when `pineLibraryCrossVersion.json` names it: a `promote` version of the promotion
+// allowlist whose newly attaching v6 importers all grade MATCH host-only. So cross-version linking never
+// widens the reach of a version a store holds that nobody graded in a v6 script.
+/** The admission table of a parsed document: Set(path), or NULL when the document cannot be read as a
+ *  list of rows that each name a path. ⛔ FAIL CLOSED: null admits NOTHING. */
+export function admissionTableOf(doc) {
+  const rows = doc && typeof doc === 'object' ? doc.admit : null
+  if (!Array.isArray(rows)) return null
+  if (rows.some((d) => !d || typeof d !== 'object' || typeof d.path !== 'string' || !d.path)) return null
+  return new Set(rows.map((d) => d.path))
+}
+const ADMITTED = admissionTableOf(ADMISSION)
+
+/** Is the v5 version `path` admitted into v6 scripts? `table` is the committed one; a rail passes another. */
+export function crossVersionAdmitted(path, table = ADMITTED) {
+  return !!table && table.has(String(path))
+}
 
 const isPunct = (t, v) => !!t && t.kind === 'punct' && t.value === v
 const isWord = (t, v) => !!t && t.kind === 'ident' && !t.member && t.value === v
@@ -94,7 +115,7 @@ const CHANGED_COLOURS = {
 }
 
 const nameOf = (t) => (t && t.kind === 'ident' ? String(t.value) : null)
-const isPureCall = (name, member) => PURE_CALLS.has(name) || PURE_PREFIXES.some((p) => name.startsWith(p))
+const isPureCall = (name, member) => name !== 'math.random' && (PURE_CALLS.has(name) || PURE_PREFIXES.some((p) => name.startsWith(p)))
   || (member && PURE_MEMBERS.has(name))
   || (!member && /\.(size|get|first|last|includes|indexof|min|max|sum|avg)$/.test(name) && !name.startsWith('ta.'))
 
@@ -120,7 +141,8 @@ function logicalLines(toks, indents) {
   for (let i = 0; i < toks.length; i += 1) {
     const t = toks[i]
     const prev = toks[i - 1]
-    const dangles = prev && ((prev.kind === 'punct' && !CLOSERS.has(prev.value))
+    // `=>` closes a header: the body below it is its own line
+    const dangles = prev && ((prev.kind === 'punct' && !CLOSERS.has(prev.value) && prev.value !== '=>')
       || isWord(prev, 'and') || isWord(prev, 'or') || isWord(prev, 'not'))
     if (!cur || (t.line !== prev.line && depth === 0 && !dangles)) {
       cur = { toks: [], indent: indents[t.line - 1] || 0 }
@@ -322,6 +344,18 @@ export function crossVersionDifference(kept, indents) {
           }
           if (a > 0 && toks[a - 1].kind === 'ident' && toks[a - 1].line === toks[a].line) a = -1 // a call
         }
+        // `a * 3 / 2` is `(a * 3) / 2`: a product before the left operand belongs to it
+        while (a > 0 && toks[a - 1].kind === 'punct' && ['*', '/', '%'].includes(toks[a - 1].value)) {
+          a -= 2
+          if (a >= 0 && isPunct(toks[a], ')')) {
+            let dd = 0
+            for (; a >= 0; a -= 1) {
+              if (isPunct(toks[a], ')')) dd += 1
+              else if (isPunct(toks[a], '(')) { dd -= 1; if (dd === 0) break }
+            }
+          }
+          if (a < 0) break
+        }
         const left = a >= 0 ? toks.slice(a, i) : []
         let b = i + 1
         if (isPunct(toks[b], '-')) b += 1
@@ -375,8 +409,11 @@ export function crossVersionDifference(kept, indents) {
           conds.push(lt.slice(s + 1, i))
         }
         if (isWord(lt[i], 'not')) {
-          const operand = lt[i + 1] && isPunct(lt[i + 1], '(') ? lt.slice(i + 1, closeOf(lt, i + 1)) : lt.slice(i + 1, i + 2)
-          conds.push(operand)
+          // the operand: a bracket group, or a name with its call / history brackets
+          let e = i + 2
+          if (isPunct(lt[i + 1], '(')) e = closeOf(lt, i + 1)
+          else while (e < lt.length && (isPunct(lt[e], '(') || isPunct(lt[e], '['))) e = closeOf(lt, e)
+          conds.push(lt.slice(i + 1, e))
         }
       }
       for (const c of conds) {

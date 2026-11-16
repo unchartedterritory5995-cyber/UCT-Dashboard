@@ -1,8 +1,12 @@
 """promotion_check.py - hold a library store to the promotion allowlist, and install from it.
 
     python tools/pine_library/promotion_check.py paths
-    python tools/pine_library/promotion_check.py check   --store <dir> [--exact]
-    python tools/pine_library/promotion_check.py install --from <staging dir> --into <store dir> [--apply]
+    python tools/pine_library/promotion_check.py check   [--store <dir>] [--exact]
+    python tools/pine_library/promotion_check.py install --from <staging dir> [--into <store dir>] [--apply]
+
+`--store` / `--into` default to the store this server serves (`pine_library_store.store_root()`:
+`$PINE_LIBRARY_DIR`, else `$DATA_DIR/pine_libraries`), so on the web pod the bare command reads
+the production store.
 
 The promotion allowlist (`tools/pine_library/promotion_allowlist.json`) names the ONLY library
 versions that may be copied into the production store, each pinned by the sha256 of the source
@@ -134,10 +138,10 @@ def install(staging: str, target: str, doc: dict, apply: bool) -> tuple[list[str
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("action", choices=("paths", "check", "install"))
-    ap.add_argument("--store", help="check: the store directory")
+    ap.add_argument("--store", help="check: the store directory (default: this server's store)")
     ap.add_argument("--exact", action="store_true", help="check: a served entry that is not promoted fails")
     ap.add_argument("--from", dest="staging", help="install: the staging store fetched from TradingView")
-    ap.add_argument("--into", help="install: the store to copy into")
+    ap.add_argument("--into", help="install: the store to copy into (default: this server's store)")
     ap.add_argument("--apply", action="store_true", help="install: write (without it, print the plan only)")
     ap.add_argument("--allowlist", default=ALLOWLIST)
     a = ap.parse_args(argv)
@@ -146,16 +150,18 @@ def main(argv=None) -> int:
         print(" ".join(sorted(r["path"] for r in doc.get("promote") or [])))
         return 0
     if a.action == "check":
-        if not a.store:
-            ap.error("check needs --store")
-        problems, lines = check(a.store, doc, exact=a.exact)
-        print("store: %s" % a.store)
+        root = a.store or store.store_root()
+        problems, lines = check(root, doc, exact=a.exact)
+        print("store: %s%s" % (root, "" if os.path.isdir(root) else " (does not exist)"))
         print("\n".join(lines))
     else:
-        if not (a.staging and a.into):
-            ap.error("install needs --from and --into")
-        problems, lines = install(a.staging, a.into, doc, a.apply)
-        print("install %s -> %s (%s)" % (a.staging, a.into, "APPLY" if a.apply else "plan only, nothing written"))
+        if not a.staging:
+            ap.error("install needs --from")
+        into = a.into or store.store_root()
+        if os.path.abspath(into) == os.path.abspath(a.staging):
+            ap.error("--from and --into are the same directory")
+        problems, lines = install(a.staging, into, doc, a.apply)
+        print("install %s -> %s (%s)" % (a.staging, into, "APPLY" if a.apply else "plan only, nothing written"))
         print("\n".join(lines))
     for p in problems:
         print("PROBLEM   " + p)

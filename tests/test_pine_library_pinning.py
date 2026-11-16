@@ -533,6 +533,14 @@ def promotion_problems(doc, deny_paths):
             out.append("%s is on the deny list" % p)
         if p in never or p in held:
             out.append("%s is also listed as held out or never promoted" % p)
+        # ⭐ U15 Phase B (2026-11-16): a promoted version is linked with what IT imports, so every one of
+        # those must be promoted too, or the importing script is refused at the nested import line
+        imports = row.get("imports")
+        promoted = {r.get("path") for r in doc.get("promote") or []}
+        if not isinstance(imports, list):
+            out.append("%s does not record what it imports" % p)
+        else:
+            out.extend("%s imports %s, which is not promoted" % (p, dep) for dep in imports if dep not in promoted)
         graded = row.get("hostOnly")
         if not isinstance(graded, dict) or not graded:
             out.append("%s has no host-only grade" % p)
@@ -553,7 +561,8 @@ def test_every_promoted_library_is_pinned_licensed_undenied_and_match_host_only(
 
 
 def test_the_promotion_rule_refuses_each_way_a_row_can_be_wrong():
-    good = {"path": "tester/pinlib/1", "sha256": "a" * 64, "licence": "MPL-2.0", "hostOnly": {"cap-1": "MATCH"}}
+    good = {"path": "tester/pinlib/1", "sha256": "a" * 64, "licence": "MPL-2.0", "hostOnly": {"cap-1": "MATCH"},
+            "imports": []}
 
     def problems(**change):
         return promotion_problems({"promote": [dict(good, **change)]}, {"tester/denied/1"})
@@ -571,3 +580,131 @@ def test_the_promotion_rule_refuses_each_way_a_row_can_be_wrong():
     assert problems(hostOnly={"cap-1": "DIVERGE"}) != []
     assert promotion_problems({"promote": [good], "heldOut": [{"path": "tester/pinlib/1"}]}, set()) != []
     assert promotion_problems({"promote": [good], "neverPromoted": {"paths": ["tester/pinlib/1"]}}, set()) != []
+    assert problems(imports=None) != []
+    assert problems(imports=["tester/other/1"]) != []
+    dep = dict(good, path="tester/other/1")
+    assert promotion_problems({"promote": [dict(good, imports=["tester/other/1"]), dep]}, set()) == []
+
+
+# ── U15 Phase B: the cross-version admission table (coordinator ruling 2026-11-16) ─────────────────
+# A v5 library is linked into a v6 script only for a version this table names; a version is named only
+# when it is promoted AND every capture of every newly attaching v6 importer grades MATCH host-only.
+
+CROSS_VERSION = os.path.join(REPO, "app", "src", "components", "chart", "engine", "ast", "pineLibraryCrossVersion.json")
+
+
+def cross_version_problems(doc, promotion):
+    """Why the admission table breaks its rule, one sentence per problem ([] = it holds)."""
+    out = []
+    rows = doc.get("admit")
+    if not isinstance(rows, list):
+        return ["the table has no `admit` list"]
+    promoted = {r.get("path") for r in promotion.get("promote") or []}
+    for row in rows:
+        p = row.get("path") if isinstance(row, dict) else None
+        if not isinstance(p, str) or not store.parse_import_path(p):
+            out.append("%r is not a library version" % (p,))
+            continue
+        if p not in promoted:
+            out.append("%s is not a promoted version" % p)
+        graded = row.get("v6Importers")
+        if not isinstance(graded, dict) or not graded:
+            out.append("%s names no graded v6 importer" % p)
+        elif any(v != "MATCH" for v in graded.values()):
+            out.append("%s has a v6 importer that is not MATCH host-only: %r" % (p, graded))
+    return out
+
+
+def test_every_cross_version_admission_is_promoted_and_match_in_v6_scripts():
+    doc = json.load(open(CROSS_VERSION, encoding="utf-8"))
+    assert cross_version_problems(doc, json.load(open(PROMOTION, encoding="utf-8"))) == []
+    assert "fail closed" in " ".join(doc["_"]).lower()
+
+
+def test_the_cross_version_rule_refuses_each_way_a_row_can_be_wrong():
+    promotion = {"promote": [{"path": "tester/pinlib/1"}]}
+    good = {"path": "tester/pinlib/1", "v6Importers": {"cap-1": "MATCH"}}
+    assert cross_version_problems({"admit": [good]}, promotion) == []
+    assert cross_version_problems({"admit": [dict(good, path="tester/other/1")]}, promotion) != []
+    assert cross_version_problems({"admit": [dict(good, v6Importers={})]}, promotion) != []
+    assert cross_version_problems({"admit": [dict(good, v6Importers={"cap-1": "MATCH", "cap-2": "INCONCLUSIVE"})]}, promotion) != []
+    assert cross_version_problems({"admit": [dict(good, path="not a path")]}, promotion) != []
+    assert cross_version_problems({}, promotion) != []
+
+
+# ── the owner's promotion check and install (tools/pine_library/promotion_check.py) ───────────────
+
+def _promotion_check():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "promotion_check", os.path.join(REPO, "tools", "pine_library", "promotion_check.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+OUTER = "//@version=5\nlibrary(\"outer\")\nimport tester/pinlib/1 as p\nexport f(float x) => p.twice(x)\n"
+
+
+def _doc(*rows):
+    return {"promote": [{"path": e["path"], "sha256": e["sha256"], "licence": "MPL-2.0", "imports": [],
+                         "hostOnly": {"cap": "MATCH"}} for e in rows],
+            "heldOut": [{"path": "tester/held/1"}], "neverPromoted": {"paths": []}}
+
+
+def test_the_promotion_check_passes_only_on_the_pinned_code(tmp_path):
+    pc_ = _promotion_check()
+    stage = str(tmp_path / "stage")
+    e = entry()
+    store.write_entry(e, root=stage)
+    assert pc_.check(stage, _doc(e))[0] == []
+    # a different sha under the same path
+    other = entry(source=LIB_V2)
+    assert any("allowlist pins" in p for p in pc_.check(stage, _doc(other))[0])
+    # missing
+    assert any("missing" in p for p in pc_.check(str(tmp_path / "empty"), _doc(e))[0])
+    # a promoted library whose own import is not promoted
+    outer = entry(path="tester/outer/1", source=OUTER)
+    store.write_entry(outer, root=stage)
+    assert any("imports tester/pinlib/1, which is not promoted" in p for p in pc_.check(stage, _doc(outer))[0])
+    assert pc_.check(stage, _doc(outer, e))[0] == []
+    # --exact: a served entry that is not promoted fails; a held-out one is named
+    held = entry(path="tester/held/1")
+    store.write_entry(held, root=stage)
+    problems, lines = pc_.check(stage, _doc(outer, e), exact=True)
+    assert any("tester/held/1 is served by this store and is not promoted (held out)" in p for p in problems)
+    assert any(l.startswith("OTHER") and "tester/held/1" in l for l in lines)
+    assert pc_.check(stage, _doc(outer, e), exact=False)[0] == []
+    # an empty allowlist is never a pass
+    assert pc_.check(stage, {"promote": []})[0] != []
+
+
+def test_the_promotion_install_plans_then_copies_and_never_overwrites(tmp_path):
+    pc_ = _promotion_check()
+    stage, target = str(tmp_path / "stage"), str(tmp_path / "target")
+    e = entry()
+    store.write_entry(e, root=stage)
+    problems, plan = pc_.install(stage, target, _doc(e), apply=False)
+    assert problems == [] and any(l.startswith("COPY") for l in plan)
+    assert not os.path.exists(target), "a plan wrote something"
+    problems, plan = pc_.install(stage, target, _doc(e), apply=True)
+    assert problems == [] and store.entry_status("tester/pinlib/1", root=target)[1]["sha256"] == e["sha256"]
+    # again: kept, not rewritten
+    assert any(l.startswith("KEEP") for l in pc_.install(stage, target, _doc(e), apply=True)[1])
+    # the target holds OTHER code under the path: refused, nothing written
+    target2 = str(tmp_path / "target2")
+    store.write_entry(entry(source=LIB_V2), root=target2)
+    problems, _ = pc_.install(stage, target2, _doc(e), apply=True)
+    assert any("refusing to overwrite" in p for p in problems)
+    assert store.entry_status("tester/pinlib/1", root=target2)[1]["sha256"] == sha(LIB_V2)
+    # a staging store that fails `check --exact` installs nothing
+    store.write_entry(entry(path="tester/held/1"), root=stage)
+    target3 = str(tmp_path / "target3")
+    problems, _ = pc_.install(stage, target3, _doc(e), apply=True)
+    assert problems and not os.path.exists(target3)
+
+
+def test_the_promotion_check_defaults_to_this_servers_store(root, capsys):
+    pc_ = _promotion_check()
+    assert pc_.main(["check", "--allowlist", PROMOTION]) == 1
+    assert "store: %s" % root in capsys.readouterr().out
