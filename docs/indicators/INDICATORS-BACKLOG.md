@@ -52,6 +52,8 @@ item names its evidence; re-read the code before acting on a line number.
 | 29 | **Share and Run over a list are not reachable from a row of "Your indicators".** Share lives in the formula builder's Share tab, and the builder opens an existing row on its Formula tab by a deliberate rule (`editRow` wins over `initialMode`), so a row action cannot land on Share without a change inside the builder | `BuilderSheet.jsx` (the W4a hand-back comment); Studio plan section 6 | small to medium | Indicators | Either a way to open the builder on a named tab for an existing row, or the Share panel made mountable on its own |
 | 30 | **Returning to an earlier SAVED version from the dock.** The dock's History (#1423) covers the steps of the current draft. The stored versions (`GET /{def_id}/history`) are only listed, read-only, in the builder's Share tab; making an old version the working copy needs a decision on line identity (which lines of the old version are the same lines as today's) | `SharePanel.jsx`; `authoringState.openAuthoringState` | medium | Indicators | Decide the identity rule; the dock list can then show saved versions under the draft's steps |
 | 31 | **The reference's reasons for absent names are written for engineers.** The reference page and now the downloadable file show the manifest's `reason` for each deliberately absent name; many are long, in capitals, and carry internal markers. They are true, and hard for a member or a member's assistant to use | Formula reference, "Deliberately not available"; `ast/vocabulary.js` | medium (166 entries) | Indicators and formulas pages | A short member sentence per entry beside the full reason, starting with the fourteen that name a substitute |
+| 32 | **Two security rails fail on master as it stands**, both outside this track's files: `tests/test_budget_isolation.py::test_G2_every_ledger_writer_is_classified_as_audited` expects `reserve_member_call(market_date, ticker` on one line in `indicator_from_image.py`, where master splits the call; `tests/test_user_definitions_auth.py::test_require_paid_is_defined_PER_ROUTER_and_this_task_invented_no_shared_one` requires every router's paid sentence to be unique, and four Screener routers share "The screener requires a paid plan" | Studio session, 2026-11-16 | small | the owners of those files | Fix each rail or its file; neither is a product defect |
+| 33 | **Twins for more Screener columns**: distance from the 20-day high and low, gap %, relative volume, the 52-week distances. `chart_twins` holds seven; each new one needs its parity case | `api/services/chart_twins.py`; Studio plan L4 | small each | Indicators | Add a twin with its case in `tests/test_chart_twins_parity.py` |
 
 ## Programme items (not defects)
 
@@ -60,6 +62,14 @@ item names its evidence; re-read the code before acting on a line number.
 - **IC-1 v1.1 P1/P2.** See `IC-1-V1.1-P1-P2-PLAN-2026-11-02.md`. It waits for #573 to land. P3 is held for the Screener owner, and `isCondition` waits for Sprint 3.
 
 ## Done
+
+- **L6 demand mining** in the owner report and the daily digest. #1444, 2026-11-16.
+- **L4 house definitions**, **L7 kept a week later**, **L8 Send this conversation to UCT**, the allowance line, and library moderation. #1458, #1471, #1456, #1455, #1451, 2026-11-16.
+- **Spend that cannot be written still counts**; an unreadable ledger answers no room. #1452, 2026-11-16.
+- **One name, slice 2** (the builder's list) and the X7 verdict-word rail. #1453, 2026-11-16.
+- **Describe it instead** on a search that finds nothing. #1454, 2026-11-16.
+- **Members' indicators on a phone and a tablet.** #1438, 2026-11-16.
+- **History no longer pushes the dock's footer out of reach.** #1436, 2026-11-16.
 
 - **History in the dock, a wait that can be stopped, and the hourly limit's own wait.** #1423, #1425, 2026-11-16.
 - **A Members tab in the Indicators window** (the published library, Install, Put it on this chart). #1428, 2026-11-16.
