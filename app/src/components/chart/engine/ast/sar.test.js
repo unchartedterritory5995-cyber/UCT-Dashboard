@@ -58,34 +58,60 @@ function grade(bars, step, max) {
   const full = computeParabolicSAR(bars, step, max)
   let published = 0
   let bad = 0
+  const wrong = []   // [bar, value wrong, direction wrong] for every disagreeing bar
   for (let i = 0; i < bars.length; i++) {
     if (!Number.isFinite(value[i])) continue
     published += 1
     const ref = full[i]
-    if (Math.abs(value[i] - ref.value) > 1e-9 * Math.abs(ref.value)) bad += 1
-    if (dir[i] !== (ref.isUptrend ? 1 : -1)) bad += 1
+    const v = Math.abs(value[i] - ref.value) > 1e-9 * Math.abs(ref.value)
+    const d = dir[i] !== (ref.isUptrend ? 1 : -1)
+    bad += v + d
+    if (v || d) wrong.push([i, v, d])
   }
-  return { published, bad }
+  return { published, bad, wrong }
+}
+
+/** The bars of one harness capture, carrying the capture's name (`source`, `file`). */
+function seriesOf(f) {
+  const d = JSON.parse(fs.readFileSync(path.join(HARNESS, f), 'utf8'))
+  const rows = d && d.bars && d.bars.rows
+  if (!Array.isArray(rows)) return null
+  const ix = Object.fromEntries(d.bars.fields.map((k, i) => [k, i]))
+  const bars = rows.map((r, i) => ({ t: i, o: r[ix.open], h: r[ix.high], l: r[ix.low], c: r[ix.close], v: r[ix.volume] }))
+  // the capture the series came from, so a disagreement names its series
+  const sym = (d.symbol && (d.symbol.full_name || d.symbol.name)) || d.symbol
+  Object.defineProperty(bars, 'source', { value: `${f} (${sym} ${d.timeframe}, ${rows.length} bars)`, enumerable: false })
+  Object.defineProperty(bars, 'file', { value: f, enumerable: false })
+  Object.defineProperty(bars, 'key', { value: `${sym}|${d.timeframe}|${rows.length}|${rows.length ? rows[0][0] : ''}`, enumerable: false })
+  return bars
 }
 
 function realSeries() {
   const out = []
   const seen = new Set()
   for (const f of fs.readdirSync(HARNESS).filter((n) => n.endsWith('.json')).sort()) {
-    const d = JSON.parse(fs.readFileSync(path.join(HARNESS, f), 'utf8'))
-    const rows = d && d.bars && d.bars.rows
-    if (!Array.isArray(rows) || rows.length < 450) continue
-    const key = `${d.symbol}|${d.timeframe}|${rows.length}|${rows[0][0]}`
-    if (seen.has(key)) continue
-    seen.add(key)
-    const ix = Object.fromEntries(d.bars.fields.map((k, i) => [k, i]))
-    const bars = rows.map((r, i) => ({ t: i, o: r[ix.open], h: r[ix.high], l: r[ix.low], c: r[ix.close], v: r[ix.volume] }))
-    // the capture the series came from, so a disagreement names its series
-    Object.defineProperty(bars, 'source', { value: `${f} (${(d.symbol && (d.symbol.full_name || d.symbol.name)) || d.symbol} ${d.timeframe}, ${rows.length} bars)`, enumerable: false })
+    const bars = seriesOf(f)
+    if (!bars || bars.length < 450) continue
+    if (seen.has(bars.key)) continue
+    seen.add(bars.key)
     out.push(bars)
   }
   return out
 }
+
+// ⛔⛔ KNOWN DIVERGENCE (2026-11-16) — THE FIX FLIPS IT, NOTHING ELSE MAY DROP IT.
+// The `sar()` expansion's 200-bar window (`SAR_WARMUP`) does not converge on
+// vw-lower-tf-bars-rddt-15-2026-11-16 (NYSE:RDDT 15m, 20,886 bars): 43 published bars
+// (5167-5246) disagree with the chart's full-history `computeParabolicSAR`, 17 of them in
+// value AND direction (60 counted). Native SAR is correct: the full-history loop started
+// 200 bars before bar 5167 gives the expansion's answer (205.86 UP vs 208.52 DOWN) and
+// rejoins only at 5247, 280 bars on; started 400+ bars back it rejoins within 28-87 bars.
+// So "inside the measured domain it equals full-history SAR on every bar" is false here:
+// a fixed 200-bar SAR window does not always converge. Engine gap, not a capture
+// question: `docs/pine/capture-queue-2026-11-16-sar-window.md`. The series is graded by
+// its own `it.fails` below and its divergence is pinned by name in a control; every
+// other series still asserts 0 in the rail.
+const KNOWN_SAR_WINDOW = 'vw-lower-tf-bars-rddt-15-2026-11-16.json'
 
 describe('the chart\'s own Parabolic SAR, bar for bar', () => {
   const SETTINGS = [[0.02, 0.2], [0.03, 0.3], [0.02, 0.4], [0.1, 0.5]]
@@ -109,13 +135,39 @@ describe('the chart\'s own Parabolic SAR, bar for bar', () => {
     const series = realSeries()
     // ⛔ NON-VACUITY — the harness must actually be there.
     expect(series.length).toBeGreaterThan(20)
+    // the known series is graded by its own `it.fails` below, never silently dropped
+    expect(fs.existsSync(path.join(HARNESS, KNOWN_SAR_WINDOW)), KNOWN_SAR_WINDOW).toBe(true)
     let published = 0
     for (const bars of series) {
+      if (bars.file === KNOWN_SAR_WINDOW) continue
       const g = grade(bars, 0.02, 0.2)
       expect(g.bad, bars.source).toBe(0)
       published += g.published
     }
     expect(published).toBeGreaterThan(5000)
+  }, 120000)
+
+  it.fails('KNOWN (sar() window, 2026-11-16): vw-lower-tf-bars-rddt-15 equals the full-history SAR on every published bar; the fix flips this', () => {
+    const bars = seriesOf(KNOWN_SAR_WINDOW)
+    expect(grade(bars, 0.02, 0.2).bad, bars.source).toBe(0)
+  }, 120000)
+
+  it('control: that divergence BY NAME, so the it.fails cannot pass because something else broke: 43 bars, 5167-5246, 17 value and direction', () => {
+    const bars = seriesOf(KNOWN_SAR_WINDOW)
+    expect(bars.length).toBe(20886)
+    const g = grade(bars, 0.02, 0.2)
+    expect(g.published).toBe(bars.length - SAR_WARMUP - 1)
+    expect(g.wrong.length).toBe(43)
+    expect(g.wrong[0][0]).toBe(5167)
+    expect(g.wrong[g.wrong.length - 1][0]).toBe(5246)
+    expect(g.wrong.filter(([, v, d]) => v && d).length).toBe(17)
+    expect(g.bad).toBe(60)
+    // native SAR is the correct side: started 400 bars back it agrees with the full history at 5167
+    const from = 5167 - 400
+    const part = computeParabolicSAR(bars.slice(from), 0.02, 0.2)
+    const full = computeParabolicSAR(bars, 0.02, 0.2)
+    expect(part[400].value).toBeCloseTo(full[5167].value, 9)
+    expect(part[400].isUptrend).toBe(full[5167].isUptrend)
   }, 120000)
 
   it('direction flips really happen in the graded data (the reversal arms are exercised)', () => {
