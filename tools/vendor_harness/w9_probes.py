@@ -467,6 +467,24 @@ if dn
     s.append(P("mk1-markers", "W9-MK1", "trade-marker presentation (read from graphics() and properties().state())", LONGS, decl=FIXED1))
     s.append(P("s2-sharpe", "W9-S2", "Sharpe and Sortino at the default risk_free_rate", LONGS, decl=FIXED1))
     s.append(P("s2-sharpe-rf0", "W9-S2", "Sharpe and Sortino at risk_free_rate = 0 (the second capture of the row)", LONGS, decl=FIXED1 + ", risk_free_rate = 0"))
+    # 2026-11-16, ruling D11 (docs/pine/W9-DECISIONS-2026-11-07.md): the exception is mutant-railed and no capture
+    # exercises it. This probe has the one shape that can: 300 bars of orders under rules the committed captures
+    # already witness, then the FIRST use of one rule no capture has graded (B-PYR: an add under pyramiding = 2).
+    s.append(P("d11-late-first-use", "W9-V-D11", "ruling D11: a long prefix under witnessed rules, then the first use of the "
+               "pyramiding rule (B-PYR) from bar 300 on; a difference there has an exact prefix and a one-rule culprit set",
+               '''{SC}
+if up
+    strategy.entry("L", strategy.long)
+if dn
+    strategy.close("L")
+// from bar 300 on: one add, two bars after the first entry filled (the run's first same-direction entry on an open trade)
+if bar_index >= 300 and strategy.opentrades == 1 and bar_index - strategy.opentrades.entry_bar_index(0) == 2
+    strategy.entry("L", strategy.long)''',
+               decl=FIXED1 + ", " + PYR2,
+               extras=[("X01_first_open_entry_bar", "strategy.opentrades > 0 ? strategy.opentrades.entry_bar_index(0) : na"),
+                       ("X02_second_open_entry_price", "strategy.opentrades > 1 ? strategy.opentrades.entry_price(1) : na")],
+               notes=["MATCH pins B-PYR and leaves D11 unwitnessed. A DIVERGE whose first difference is on or after bar 300",
+                      "is the first real capture of the exception: the rules of the prefix stay pinned, B-PYR does not."]))
     return s
 
 

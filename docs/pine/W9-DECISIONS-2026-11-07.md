@@ -180,6 +180,18 @@ the 33 strategy captures first graded MATCH through every step.
    `evidence_engine.py::culprit_scope` applies the exception inside `resolve_pins` and fails closed.
    Rails: `tests/test_broker_pins_resolve.py` (`test_d11_*`), `strategyGrade.test.js` ("ruling D11"),
    `strategyGrading.test.js`. Mutants: `ci/mutants/strategy-readbacks-b.json` P2 to P7.
+7. **The exception is mutant-railed and UNWITNESSED in practice (stated 2026-11-16).** No committed capture
+   exercises it: every one of the 33 that is not MATCH today stops at step 1 (a refusal, before any bar), where
+   there is no first difference to locate, so the strict rule un-pins what it exercised (nothing). w9-x5-cancel,
+   the capture the ruling was first applied to, had the culprit set B-MARGIN and B-MARKET (not B-CANCEL), which
+   would have un-pinned a rule every strategy asks; it was fixed in the broker instead (B-CANCEL, the waiting
+   exit) and is MATCH. Until a real capture
+   DIVERGEs at a located bar with a non-empty culprit set, the only evidence that the exception behaves as ruled
+   is its fixtures and mutants, and the fail-closed default (point 5) is not to be weakened on their strength.
+   Queue row **W9-V-D11** (`docs/pine/capture-queue-2026-11-05-w9.md`, probe `w9-d11-late-first-use.pine`) is the
+   one shape that can exercise it: on NYSE:RDDT 1D our run asks thirteen rules by bar 287, all of them pinned, and
+   B-PYR (graded by no capture) first on bar 304. If TradingView agrees, B-PYR pins and D11 stays unwitnessed; if
+   it differs on or after that bar, that capture is D11's first witness.
 
 ### D12: a setting the run would have to assume is a refusal about the SETTING
 

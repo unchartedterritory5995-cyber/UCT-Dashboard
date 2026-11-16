@@ -49,6 +49,8 @@ EXPECTED = {
     # U14 (run s27-2026-11-15): W9-R1i's method (b) variant (range_guard.py over w9-r1-risk-intraday on the
     # AMEX:SPY 15 window), and the //@version=3 Properties read-back (G1 evidence, not a rule probe)
     "W9-G1": ["w9-g1-v3-properties"],
+    # 2026-11-16, ruling D11: the one shape that can exercise the exception (late first use of B-PYR)
+    "W9-V-D11": ["w9-d11-late-first-use"],
 }
 EXPECTED["W9-R1i"] = ["w9-r1-risk-intraday", "w9-r1-risk-intraday-range"]
 #: method (b) variants: range_guard.py over their parent probe. The capture of W9-R1i's was taken with the parent's
