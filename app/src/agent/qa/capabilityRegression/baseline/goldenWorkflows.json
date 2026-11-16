@@ -757,6 +757,12 @@
               ],
               "keepsIds": [
                 "c1"
+              ],
+              "tiled": true,
+              "sizes": [
+                "12x10",
+                "12x10",
+                "24x10"
               ]
             },
             "indicatorsEach": {

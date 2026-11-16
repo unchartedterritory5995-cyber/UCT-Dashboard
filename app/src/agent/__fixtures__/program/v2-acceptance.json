@@ -1578,7 +1578,11 @@
         "listCount": {
           "Momentum": 1
         },
-        "charts": 1
+        "charts": 1,
+        "symbol": {
+          "c": "NVDA"
+        },
+        "transcript": "NVDA is already on your board — I used that chart"
       }
     },
     {
