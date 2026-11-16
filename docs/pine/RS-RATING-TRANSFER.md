@@ -385,29 +385,48 @@ the program branch merged with master `fd670de1ee`. Graded on three captures; NO
   An admitted RS Rating would therefore draw on a member's chart and be refused by name on alerts
   and scans.
 
-**ADMITTED (2026-11-16, engine 58).** The registry blockers named above are gone: `switch` and
-`max_bars_back` are conformant since #1347 (U1 + U3) and `conditional-ta` since #1409 (COND-TA).
-The record is in `api/data/pine_runtime_allowlist.json`: slug `rs-rating-fred6724`, sha256
-`caa94fe31a87...5af0` (the original source, `docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine`),
-`admission: "substituted"`, `substituted: ["syminfo.industry"]`, the 11 census capabilities, and
-the three captures RDDT / ALAB / CRWV, each `MATCH_SUBSTITUTED`, runtime pane on,
-`objectsV2: "MATCH_SUBSTITUTED"`, `objectsV2Substituted: ["syminfo.industry"]`.
+**ADMITTED FOR ITS PLOTS; THE LABELS ARE NOT (2026-11-16, engine 58, corrected the same day).**
+The registry blockers named above are gone: `switch` and `max_bars_back` are conformant since #1347
+(U1 + U3) and `conditional-ta` since #1409 (COND-TA). The record is in
+`api/data/pine_runtime_allowlist.json`: slug `rs-rating-fred6724`, sha256 `caa94fe31a87...5af0`
+(the original source), `admission: "substituted"`, `substituted: ["syminfo.industry"]`, the 11
+census capabilities, and the three captures RDDT / ALAB / CRWV, each `MATCH_SUBSTITUTED` with the
+runtime pane on and **`objectsV2: "INCONCLUSIVE"`**.
 
-- **What a member gets.** Pasting the published script unchanged draws it on a chart: the RS line
-  and its averages from the host lane, the rating labels from the per-bar run (the run half). The
-  door says by name that `syminfo.industry` is answered from UCT data.
-- **Re-graded on this tree, through the production gate.** `runtimeAllowlistParity.test.js` now
-  grades all three captures with the committed allowlist AND the served run-half evidence latched,
-  as the browser latches them from the kill read: each is MATCH_SUBSTITUTED, every plot agrees on
-  every bar (666 / 667 / 411 bars), and the labels are drawn and agree. Without the evidence
-  latched the labels are withheld by name (`pine:object-removal-lost`), which is how the rail
-  found that it had not been latching it.
-- **What is still not served.**
-  - A member's own EDITED copy does not hash to this record. It is admitted only by capability,
-    and `request-other` has no registry row yet (last measured before #1342 served runtime requests).
-  - Alerts and scans: the server lane refuses the script by name (HP-7 above).
-  - SPY is ungraded (owner ruling); NVDA's RS line differs before 2023-12-05 (FMP history against
-    TradingView's), its labels agree.
+- ⚰️ **The correction.** #1410 merged the record with `objectsV2: "MATCH_SUBSTITUTED"` on all
+  three captures. That value was copied from this document and from snapshot rows graded BEFORE
+  U13 (#1335), when objects v2 did not grade x. Graded on master `d615e76494` with master's own
+  harness, all three are: capture MATCH_SUBSTITUTED, objects v1 MATCH, **objects v2 INCONCLUSIVE**
+  (`verdictWithoutX` MATCH; x: 0 graded, 2 not resolvable, "the capture records no x table (taken
+  before U13)"). The record claimed evidence the harness does not reproduce. The landing train's
+  re-grade found it; the record now says what is graded.
+- **What each grade covers.**
+  - Objects v1 (what `runtimeAllowlistParity.test.js` reads): counts, texts and colours. No
+    coordinates.
+  - Objects v2 with x witnessed is what admits a run half (`run_half_entry_admits`,
+    `runHalfEvidenceAdmits`).
+  - A capture that records no x table can never admit one.
+- **What a permitted account gets** (`PINE_RUNTIME_STAGE` is `admins` on production, so today
+  that is admins only): the RS line and its three averages, equal to TradingView's on every bar of
+  the three captures, with `syminfo.industry` disclosed as UCT data. The two labels ("RS Rating"
+  and the rating number) are withheld by name (`pine:object-removal-lost`): the run half that draws
+  them is not admitted.
+- **What an ordinary member gets today:** the same four plots and no labels, for a second reason
+  as well: the run half is declined `run-half:pane-off` ("the per-bar runtime pane is not on
+  here") until the runtime stage is raised from `admins`. Measured on master, the committed
+  allowlist latched.
+- **What finishes it.** Q-RS8 (`docs/pine/capture-queue-2026-11-14-rs-rating.md`): re-take the
+  three captures with the current `tv_capture.js`, which records the x table. If objects v2 then
+  grades MATCH_SUBSTITUTED with x witnessed, the record's `objectsV2` is set from THAT grade and
+  the labels are admitted for permitted accounts. Raising the runtime stage for members is the
+  owner's act.
+- **Still not served either way.** A member's own EDITED copy (admitted only by capability, and
+  `request-other` has no registry row); alerts and scans (the server lane refuses the script by
+  name, HP-7 above). SPY is ungraded (owner ruling); NVDA's RS line differs before 2023-12-05
+  (FMP history against TradingView's).
+- ⛔ **Checklist line, from this mistake:** an allowlist record's capture fields (`verdict`,
+  `objectsV2`, `objectsV2Substituted`) are copied ONLY from a grade taken on the tree being merged,
+  never from a document or a spliced snapshot row.
 
 ## Owner rulings
 

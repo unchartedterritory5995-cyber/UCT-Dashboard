@@ -33,3 +33,17 @@ owed, and none of it is a TradingView capture:
 |---|---|---|
 | Q-RS6 | Record the bars `/api/bars/SPX?tf=D` serves from FMP (on the pod, or on a machine with the FMP key) into the three `tests/fixtures/vendor-supply/rs-rating-fred6724-*.json` records, replacing the yfinance record and SPY's `notRecorded`, then regrade runtime-on | Whether the primary SPX source equals TradingView's. If it does, RDDT (and NVDA within the served depth) grade MATCH_SUBSTITUTED, and SPY can be graded. |
 | Q-RS7 (optional) | RS Rating on a WEEKLY chart (RDDT 1W) | What TradingView draws for `request.security(syminfo.tickerid, 'D', close)` below the chart's timeframe. Today it is refused by name (L8 4b). |
+
+## ⭐ TOP OF THE NEXT CAPTURE SESSION (added 2026-11-16)
+
+| row | script | symbols / timeframe | settles |
+|---|---|---|---|
+| Q-RS8 | `docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine` (unchanged, sha256 `caa94fe31a87...5af0`) | NYSE:RDDT 1D, NASDAQ:ALAB 1D, NASDAQ:CRWV 1D, each from the listing, default inputs | The x of RS Rating's two labels. The three committed captures (`rs-rating-fred6724-{rddt,alab,crwv}-1d-2026-11-15`) predate U13 and record no x table, so objects v2 grades INCONCLUSIVE and the run half that draws the rating labels is not admitted. Re-take with the current `tools/vendor_harness/tv_capture.js` (it records `graphics()._indexes`), re-take the matching `rs-syminfo-industry` probe on the same three symbols in the same session (the grade reads TradingView's industry string from it), then grade runtime-on on master. Objects v2 MATCH_SUBSTITUTED with x witnessed on at least two of the three admits the labels. |
+
+The rig (`tools/vendor_harness/batch_capture.py`, profile `%LOCALAPPDATA%/uct-capture-profile/tradingview`)
+read **signed out** on 2026-11-16 09:5xZ (`recon --channel chrome`: the layout answers 403 "Chart Not
+Found"), so this needs one sign-in at the keyboard in the window the tool opens. ⚠️ A `recon` run a few
+minutes earlier WITHOUT `--channel chrome` failed to launch (the bundled Chromium against a profile
+last used by the installed Chrome); whether that launch is what signed the profile out was not
+established. Always pass `--channel chrome` with this profile.
+

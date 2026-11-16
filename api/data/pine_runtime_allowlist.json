@@ -107,20 +107,20 @@
       "slug": "rs-rating-fred6724",
       "sha256": "caa94fe31a8788c0f52ca571dbb1b3f8a7499dae913ed5e710720fc8662c5af0",
       "source": "docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine",
-      "evidence": "MATCH_SUBSTITUTED on three captures (RDDT, ALAB, CRWV 1D from the listing): every plot and label equals TradingView's with the vendor's own syminfo.industry fed; the member's chart answers syminfo.industry from UCT data, disclosed by name (docs/pine/RS-RATING-TRANSFER.md, L7)",
+      "evidence": "MATCH_SUBSTITUTED on three captures (RDDT, ALAB, CRWV 1D from the listing): every value plot equals TradingView's with the vendor's own syminfo.industry fed; the member's chart answers syminfo.industry from UCT data, disclosed by name. The two labels agree on objects v1 (counts, texts, colours) but their x is not witnessed (no x table in these captures), so objects v2 is INCONCLUSIVE and the run half that draws them is NOT admitted (docs/pine/RS-RATING-TRANSFER.md, L7 and the 2026-11-16 correction)",
       "admission": "substituted",
       "substituted": ["syminfo.industry"],
       "capabilities": ["conditional-ta", "fn-multi", "fn-single", "for", "if-block", "max_bars_back", "reassign", "switch", "ternary", "typed-array", "var"],
       "captures": [
         {"id": "rs-rating-fred6724-rddt-1d-2026-11-15", "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
-         "substituted": ["syminfo.industry"], "objectsV2": "MATCH_SUBSTITUTED", "objectsV2Substituted": ["syminfo.industry"],
-         "graded": "docs/pine/RS-RATING-TRANSFER.md, integration status (runtime-on harness, objects v2; spliced into docs/pine/vendor-harness/runtime-on/verdicts.json)"},
+         "substituted": ["syminfo.industry"], "objectsV2": "INCONCLUSIVE",
+         "graded": "master d615e76494, runtime-on harness, 2026-11-16: capture MATCH_SUBSTITUTED (4 value plots agree on every bar), objects v1 MATCH, objects v2 INCONCLUSIVE (the capture records no x table, taken before U13; verdictWithoutX MATCH). Admits no run half until re-captured (Q-RS8)"},
         {"id": "rs-rating-fred6724-alab-1d-2026-11-15", "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
-         "substituted": ["syminfo.industry"], "objectsV2": "MATCH_SUBSTITUTED", "objectsV2Substituted": ["syminfo.industry"],
-         "graded": "docs/pine/RS-RATING-TRANSFER.md, integration status (runtime-on harness, objects v2; spliced into docs/pine/vendor-harness/runtime-on/verdicts.json)"},
+         "substituted": ["syminfo.industry"], "objectsV2": "INCONCLUSIVE",
+         "graded": "master d615e76494, runtime-on harness, 2026-11-16: capture MATCH_SUBSTITUTED (4 value plots agree on every bar), objects v1 MATCH, objects v2 INCONCLUSIVE (the capture records no x table, taken before U13; verdictWithoutX MATCH). Admits no run half until re-captured (Q-RS8)"},
         {"id": "rs-rating-fred6724-crwv-1d-2026-11-15", "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
-         "substituted": ["syminfo.industry"], "objectsV2": "MATCH_SUBSTITUTED", "objectsV2Substituted": ["syminfo.industry"],
-         "graded": "docs/pine/RS-RATING-TRANSFER.md, integration status (runtime-on harness, objects v2; spliced into docs/pine/vendor-harness/runtime-on/verdicts.json)"}
+         "substituted": ["syminfo.industry"], "objectsV2": "INCONCLUSIVE",
+         "graded": "master d615e76494, runtime-on harness, 2026-11-16: capture MATCH_SUBSTITUTED (4 value plots agree on every bar), objects v1 MATCH, objects v2 INCONCLUSIVE (the capture records no x table, taken before U13; verdictWithoutX MATCH). Admits no run half until re-captured (Q-RS8)"}
       ]
     }
   ],
