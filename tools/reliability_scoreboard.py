@@ -110,6 +110,25 @@ def service_clients(path: str | None = None) -> list[str]:
     return [line for line in lines if _ADDRESS.match(line)]
 
 
+#: The page only our headless chart renderer loads. A member's browser never opens it.
+RENDER_PAGE = "/r/chart"
+#: An address that loaded the render page at least this often in the window is a renderer.
+RENDERER_MIN_LOADS = 10
+
+
+def build_renderer_query(zone: str, since: str, until: str) -> str:
+    """Which addresses loaded the render page, most first. The renderer's address changes with
+    every release of its service (seen 2026-11-16), so a fixed list goes stale in a day."""
+    flt = f'datetime_geq:"{since}", datetime_lt:"{until}", requestSource:"eyeball", clientRequestPath:"{RENDER_PAGE}"'
+    return ('{viewer{zones(filter:{zoneTag:"' + zone + '"}){ renderers: httpRequestsAdaptiveGroups('
+            f"limit:50, filter:{{{flt}}}, orderBy:[count_DESC]){{count dimensions{{clientIP}}}} }}}}}}")
+
+
+def renderer_addresses(zone_data: dict) -> list[str]:
+    return [r["dimensions"]["clientIP"] for r in zone_data.get("renderers") or []
+            if r.get("count", 0) >= RENDERER_MIN_LOADS and _ADDRESS.match(r["dimensions"].get("clientIP") or "")]
+
+
 def member_filter(addresses: list[str]) -> str:
     agents = ", ".join('{userAgent_notlike:"%s"}' % a for a in SERVICE_AGENTS)
     out = f"AND:[{agents}]"
@@ -391,7 +410,8 @@ def main(argv=None) -> int:
         print(f"COULD NOT MEASURE: {exc}")
         return 2
     try:  # a second request; if it fails the report above still stands
-        addresses = service_clients()
+        found = renderer_addresses(fetch(build_renderer_query(zone, since, until), token))
+        addresses = sorted(set(service_clients()) | set(found))
         summary["members"] = member_summary(fetch(build_member_query(zone, since, until, addresses), token),
                                             summary["requests"], addresses)
     except CouldNotMeasure as exc:
