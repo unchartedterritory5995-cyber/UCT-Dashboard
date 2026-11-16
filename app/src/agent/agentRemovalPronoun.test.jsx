@@ -69,8 +69,11 @@ describe('the pronoun reader', () => {
     }
   })
   it.each(['make it weekly and close the SPY chart', 'close the SPY chart and make it weekly', 'close that SPY chart', 'close this chart',
-    'close all of them', 'close both of them', 'remove it from my watchlist', 'close the one I just changed'])('"%s" → no pronoun object', (w) => {
+    'close all of them', 'close both of them', 'close the one I just changed'])('"%s" → no pronoun object', (w) => {
     expect(removalPronouns(w)).toEqual([])
+  })
+  it('probe 64a-7: "remove it from my watchlist" is a pronoun taken out of a THING container (no chart)', () => {
+    expect(removalPronouns('remove it from my watchlist').map(p => [p.phrase, p.from, p.container])).toEqual([['it', 'thing', 'watchlist']])
   })
 })
 
@@ -227,7 +230,8 @@ describe(`CONTINUATION · a pronoun the words go on past is no removal (${CONT_C
   it.each(CONT_CASES)('"… %s" · "%s" · %s · %s', (c, p, verb, ctx) => {
     const words = CONT_VERBS[verb](p, c)
     const n = ctx === 'sole' ? 1 : 3
-    expect(removalPronouns(words).some(x => x.cont), words).toBe(true)
+    // (probe 64a-7: "take it off of drawings" reads as an item taken out of a THING container — no chart either way)
+    expect(removalPronouns(words).some(x => x.cont || x.from === 'thing'), words).toBe(true)
     for (let j = 0; j < n; j++) {
       const b = boardOf(SYMS.slice(0, n), { selected: ctx === 'selected' ? 'c2' : null })
       const got = rail(b, `c${j + 1}`, words, { subject: ctx === 'conversation' ? 'c2' : null })

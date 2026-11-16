@@ -195,3 +195,88 @@ describe('REFERENT TYPE · end to end: an RSI just added on the clicked QQQ char
     expect(/I didn’t close a chart: “it” here means the RSI|Which do you mean by “it” — the RSI[^,]*, or the QQQ chart\?/.test(t), t).toBe(true)
   }, 60000)
 })
+
+// ── ⛔ AUDIT probe 64a-1 · APPOSITIVE: the noun phrase said right AFTER the pronoun clause types it, exactly as one before it does ──
+const APPOS_FORMS = {
+  ', the X I mean': (v, np) => `${v}, ${np} I mean`,
+  ' — the X': (v, np) => `${v} — ${np}`,
+  ', I mean the X': (v, np) => `${v}, I mean ${np}`,
+  ' (the X)': (v, np) => `${v} (${np})`,
+}
+const APPOS_NPS = { 'the RSI': 'thing', 'the trendline': 'thing', 'the alert': 'thing', 'the MACD': 'thing', 'the note': 'thing', 'the SPY chart': 'chart', 'the IWM chart': 'chart' }
+const AP_CASES = []
+for (const form of Object.keys(APPOS_FORMS)) for (const [np, type] of Object.entries(APPOS_NPS)) for (const p of REMOVAL_PRONOUNS) for (const verb of Object.keys(VERBS)) for (const ctx of ['none', 'selected', 'conversation chart']) AP_CASES.push([form, np, type, p, verb, ctx])
+describe(`APPOSITIVE · "delete it, the RSI I mean" types the pronoun (${AP_CASES.length} cases × each plan target)`, () => {
+  it.each(AP_CASES)('%s · "%s" (%s) · "%s" · %s · %s', (form, np, type, p, verb, ctx) => {
+    const words = APPOS_FORMS[form](VERBS[verb](p), np)
+    const named = np === 'the SPY chart' ? 0 : 2
+    for (let j = 0; j < 3; j++) {
+      const b = boardOf(SYMS, { selected: ctx === 'selected' ? 'c2' : null })
+      const got = chartRail(b, `c${j + 1}`, words, { subject: ctx === 'conversation chart' ? 'c2' : null })
+      if (type === 'thing') expect(got, `${words} · #${j + 1}`).toMatch(/^I didn’t close a chart: “[^”]+” here means the /)
+      else if (j !== named) expect(got, `${words} · #${j + 1}`).toMatch(REFUSED)
+      // (the named chart closes — "take <it> off" alone never passes the removal gate, probe 62 A1)
+      else if (verb === 'take off' && !/ one$/.test(p)) expect(got, `${words} · #${j + 1}`).toMatch(/you didn’t ask to remove a chart/)
+      else expect(got, `${words} · #${j + 1}`).toBeNull()
+    }
+  })
+})
+
+// ── ⛔ AUDIT probe 64a-7 · CONTAINER: "remove it from my watchlist" — the pronoun is an ITEM of a thing container, never a chart ──
+const CONTAINERS = ['my watchlist', 'the Tech list', 'my notes', 'my alerts', 'my drawing board', 'my tech watchlist']
+const CONT_FORMS = {
+  'remove … from': (p, c) => `remove ${p} from ${c}`,
+  'delete … from': (p, c) => `delete ${p} from ${c}`,
+  'drop … from': (p, c) => `drop ${p} from ${c}`,
+  'get rid of … from': (p, c) => `get rid of ${p} from ${c}`,
+  'take … off': (p, c) => `take ${p} off ${c}`,
+  'take … out of': (p, c) => `take ${p} out of ${c}`,
+  'remove … out of': (p, c) => `remove ${p} out of ${c}`,
+}
+const CN_CASES = []
+for (const c of CONTAINERS) for (const form of Object.keys(CONT_FORMS)) for (const p of REMOVAL_PRONOUNS) for (const ctx of ['none', 'selected', 'conversation chart']) CN_CASES.push([c, form, p, ctx])
+describe(`CONTAINER · an item taken out of a thing container is no chart (${CN_CASES.length} cases × each plan target)`, () => {
+  it.each(CN_CASES)('"%s" · %s · "%s" · %s', (c, form, p, ctx) => {
+    const words = CONT_FORMS[form](p, c)
+    for (let j = 0; j < 3; j++) {
+      const b = boardOf(SYMS, { selected: ctx === 'selected' ? 'c2' : null })
+      expect(chartRail(b, `c${j + 1}`, words, { subject: ctx === 'conversation chart' ? 'c2' : null }), `${words} · #${j + 1}`).toMatch(/^I didn’t close a chart: “[^”]+” here means something in your /)
+    }
+  })
+  // the chart CONTAINER: the board / layout / screen — a chart removed from it is closed
+  it.each(['remove it from the board', 'take it off the board', 'drop that from my layout', 'get rid of this from the screen', 'delete that one from the board', 'take it out of my layout'])('control: "%s" with QQQ selected → QQQ closes, another chart refused', (words) => {
+    expect(chartRail(boardOf(SYMS, { selected: 'c2' }), 'c2', words, {})).toBeNull()
+    expect(chartRail(boardOf(SYMS, { selected: 'c2' }), 'c1', words, {})).toMatch(REFUSED)
+  })
+  it.each(['the SPY chart is done, remove it from the board', 'the SPY chart is done, take it off the board'])('control: "%s" (a chart antecedent) → the SPY chart closes, the clicked QQQ refused', (words) => {
+    expect(chartRail(boardOf(SYMS, { selected: 'c2' }), 'c1', words, {})).toBeNull()
+    expect(chartRail(boardOf(SYMS, { selected: 'c2' }), 'c2', words, {})).toMatch(REFUSED)
+  })
+  it('control: "remove it from the board" with nothing selected on 3 charts → asked', () => {
+    expect(chartRail(boardOf(SYMS), 'c2', 'remove it from the board', {})).toMatch(/^Which chart should I close\? Nothing is selected/)
+  })
+  it('the state rail reads the same container: "remove it from my watchlist" is a list item, never a chart', () => {
+    expect(pronounReferent('remove it from my watchlist')).toEqual({ kind: 'thing', word: 'watchlist' })
+    expect(pronounReferent('take it off the board').kind).toBe('chart')
+    expect(pronounReferent('delete it, the RSI I mean')).toEqual({ kind: 'thing', word: 'rsi' })
+  })
+})
+
+// ── END TO END · probes 64a-1 and 64a-7 on the REAL panel over two turns (an RSI added on the clicked QQQ chart first) ──
+describe('REFERENT TYPE · end to end: probes 64a-1 and 64a-7', () => {
+  it.each([
+    ['delete it, the RSI I mean', /I didn’t close a chart: “it” here means the rsi|Which do you mean by “it”|Proposed changes\s*Remove RSI[^—]*from Chart c2/],
+    ['remove it from my watchlist', /I didn’t close a chart: “it” here means something in your watchlist|Which do you mean by “it”/],
+  ])('"%s" with QQQ clicked and a plan closing QQQ → QQQ stays', async (words, said) => {
+    const p = mountPanel()
+    p.script([{ action: 'indicator.add', target: 'ixe:c2', args: { defId: 'rsi', inputs: null } }])
+    await p.say('could you put an rsi on the qqq chart for me')
+    p.envelopes.length = 0
+    expect(p.rsiOn('c2')).toBe(true)
+    p.script([{ action: 'widget.remove', target: 'board', args: { widget: 'c2' } }])
+    await p.say(words)
+    expect(p.left()).toEqual(['SPY', 'QQQ', 'IWM'])
+    const t = p.transcript().slice(p.transcript().lastIndexOf(words))
+    expect(said.test(t) || !p.rsiOn('c2'), t).toBe(true)
+  }, 60000)
+})
