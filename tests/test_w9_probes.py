@@ -27,7 +27,9 @@ EXPECTED = {
     "Q-S1-core": ["s1-broker-core"], "Q-S1-core-b": ["s1-broker-core-range"],
     # 2026-11-08, W9 integration review N2: two full exits on one trade (S1's B-EXIT-BIND witness)
     "Q-S1-core-2x": ["w9-q-s1core-two-exits"],
-    "Q-S1a": ["w9-q-s1a-size-v4", "w9-q-s1a-size-v6", "w9-q-s1a-size-v5pct", "w9-q-s1a-size-v5cash", "w9-q-s1a-size-v2"],
+    # + the STOP entry under v6's percent default (2026-11-16, the strategy coverage unit: six built-ins stop there)
+    "Q-S1a": ["w9-q-s1a-size-v4", "w9-q-s1a-size-v6", "w9-q-s1a-size-v5pct", "w9-q-s1a-size-v5cash", "w9-q-s1a-size-v2",
+              "w9-q-s1a-size-stop-v6"],
     "Q-S1b": ["w9-q-s1b-defaults-v4", "w9-q-s1b-defaults-v5", "w9-q-s1b-defaults-v6"],
     "Q-S1c": ["w9-q-s1c-tie"], "Q-S1d": ["w9-q-s1d-same-tick"], "Q-S1e": ["w9-q-s1e-live-past"],
     "Q-S1f": ["w9-q-s1f-reversal-exit"], "Q-S1g": ["w9-q-s1g-pyr-limit"], "Q-S1h": ["w9-q-s1h-fifo"],
