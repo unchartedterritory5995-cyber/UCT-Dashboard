@@ -544,3 +544,69 @@ describe('AUDIT T2 probe 63 — words-keyed targets and verb families (generated
     expect(srv.bookmarks.get('evA').note).toBe('')
   }, 40000)
 })
+
+// ⛔ AUDIT T2 (probe 63 family, D30): a POINTER (selected / previous) never overrides the member's own words — when the words
+// name a DIFFERENT headline, nothing is written (asked, the named one offered); words that name nothing keep the pointer
+describe('AUDIT T2 probe 63 family — a pointer never overrides the headline the member named', () => {
+  const finish = async () => {
+    if (!pending().length) return
+    fireEvent.click(screen.getAllByRole('button', { name: 'Apply' }).at(-1)); await p.idle(); await new Promise(r => setTimeout(r, 0)); await p.idle()
+  }
+  const CASES = [
+    ['unsave', 'please unsave the {T} headline', (ref) => [SAVE, { headline: ref, saved: false }]],
+    ['setNote', 'please add a note to the {T} headline: watch it', (ref) => [NOTE, { headline: ref, note: 'watch it', mode: 'append' }]],
+    ['place', 'please put the {T} headline in my Earnings collection', (ref) => [PLACE, { headline: ref, collection: 'Earnings', member: true }]],
+  ]
+  const setup = () => { srv.collections.push({ id: 'k1', name: 'Earnings' }); saved('evA', { note: 'old' }); saved('evB', { note: 'old' }) }
+  const snapshot = () => JSON.stringify([...srv.bookmarks.entries()].sort())
+  describe.each(CASES)('%s', (_name, tpl, op) => {
+    it('the SELECTED headline is NVDA, the member names AMD, the plan says headline:"selected" → no write, asked with AMD', async () => {
+      setup(); door.selected = 'evA'
+      const { say } = await mountOn()
+      const before = snapshot(), w0 = srv.writes
+      p.st.envelopes.push(plan('apply', op('selected')))
+      const out = await say(tpl.replace('{T}', 'AMD'))
+      expect(p.turns()).toBe(1)
+      expect(out).toMatch(/Which headline do you mean\? 1\) “AMD unveils new accelerator lineup”/)
+      expect(srv.writes - w0).toBe(0); expect(pending()).toHaveLength(0); expect(snapshot()).toBe(before)
+    }, 40000)
+    it('the PREVIOUS turn named NVDA, the member now names AMD, the plan says headline:"previous" → no write', async () => {
+      setup()
+      const { say } = await mountOn()
+      await say('what does the NVDA headline mean for the stock')
+      const before = snapshot(), w0 = srv.writes
+      p.st.envelopes.push(plan('apply', op('previous')))
+      const out = await say(tpl.replace('{T}', 'AMD'))
+      expect(out).toMatch(/Which headline do you mean\?/)
+      expect(srv.writes - w0).toBe(0); expect(pending()).toHaveLength(0); expect(snapshot()).toBe(before)
+    }, 40000)
+    it('control: the SELECTED headline is NVDA and the member names NVDA → applies to NVDA', async () => {
+      setup(); door.selected = 'evA'
+      const { say } = await mountOn()
+      p.st.envelopes.push(plan('apply', op('selected')))
+      await say(tpl.replace('{T}', 'NVDA'))
+      await finish()
+      const a = srv.bookmarks.get('evA')
+      if (_name === 'unsave') expect(savedIds()).toEqual(['evB'])
+      else if (_name === 'setNote') expect(a.note).toBe('old\nwatch it')
+      else expect(a.collection_ids).toEqual(['k1'])
+      expect(srv.bookmarks.get('evB')).toMatchObject({ note: 'old', collection_ids: [] })
+    }, 40000)
+  })
+  // (a bare "please unsave this" names no headline / library word, so the routing never gives the model the library — the fast path covers "unsave this" below)
+  it.each(['please unsave this headline', 'please take this headline out of my library'])('control: "%s" with NVDA SELECTED (words name nothing specific) → NVDA comes out', async (w) => {
+    setup(); door.selected = 'evA'
+    const { say } = await mountOn()
+    p.st.envelopes.push(plan('apply', [SAVE, { headline: 'selected', saved: false }]))
+    await say(w)
+    await finish()
+    expect(savedIds()).toEqual(['evB'])
+  }, 40000)
+  it('control: "unsave this" (the fast path) with NVDA SELECTED → NVDA comes out', async () => {
+    setup(); door.selected = 'evA'
+    const { say } = await mountOn()
+    await say('unsave this')
+    await finish()
+    expect(savedIds()).toEqual(['evB'])
+  }, 40000)
+})

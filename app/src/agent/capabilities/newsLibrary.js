@@ -121,7 +121,28 @@ const quoteOf = (t) => (t ? `“${t.length > 80 ? `${t.slice(0, 79)}…` : t}”
 
 // ── resolving a reference → { id } | { ask } | { none } ──
 const POINTER = /^(?:selected|this|that|it|this one|that one|the selected one|the open one|this headline|that headline)$/i
+// ⛔ AUDIT T2 (probe 63 family, D30): a POINTER (selected / previous / an offered id) never overrides the member's own words.
+// When this turn's words NAME a headline (a ticker in the forms wordsNameHeadline accepts, or a quoted ≥3-word phrase) and
+// the pointer resolves to a DIFFERENT one, nothing is written: the member is asked, the named one(s) offered. Words that name
+// nothing specific ("unsave this", "clear the note on it") leave the pointer as it was.
+function namedByWords(st, scope, env) {
+  const text = String(turns.typed || '')
+  if (!text) return []
+  const pool = dedupe([...st.visible, ...(scope === 'union' && env?.newsSaved?.byId?.values ? [...env.newsSaved.byId.values()] : [])])
+  const tags = [...new Set(pool.flatMap(r => r.tickers))]
+  const out = new Set()
+  for (const T of tags) if (wordsNameHeadline(text, T)) for (const r of pool) if (r.tickers.includes(T)) out.add(r.id)
+  for (const m of text.matchAll(/[“"]([^”"]{3,200})[”"]/g)) if (words(m[1]).length >= 3) for (const r of matchRows(pool, m[1])) out.add(r.id)
+  return [...out].map(id => pool.find(r => r.id === id))
+}
 function resolveHeadline(st, ref, scope, env) {
+  const res = resolvePointerOrMatch(st, ref, scope, env)
+  if (!res.id || res.via === 'match') return res
+  const named = namedByWords(st, scope, env)
+  if (!named.length || named.some(r => r.id === res.id)) return res
+  return { ask: askAmong(named.slice(0, MAX_CHOICES), st) }
+}
+function resolvePointerOrMatch(st, ref, scope, env) {
   const r = String(ref ?? '').trim()
   if (!r) return { ask: askAmong(st.visible.slice(0, MAX_CHOICES), st) }
   const licensed = new Set([...st.selected, previousSubject(), ...previousOffered()].filter(Boolean))
