@@ -109,6 +109,14 @@ describe('S1 — before Pine v4 a `?:` runs both arms; `iff` evaluates both argu
     expect(rowById(cap, 'plot_1').filter((x) => !Number.isNaN(x)).length).toBeGreaterThan(30)
   })
 
+  it('v4 `iff` reached off the column route (its test reads a slot) is eager too, and equals the every-bar call', () => {
+    const got = run(v4('var float s = 0.0', 's := s + 1', 'plot(iff(s > 3, sma(close, 3), 0))'))
+    expect(got.refusal, got.refusal && got.refusal.message).toBeUndefined()
+    expect(got.stop).toBeUndefined()
+    const sma3 = run(v4('plot(sma(close, 3))')).out[0]
+    expect(mismatches(got.out[0], sma3.map((v, i) => (i + 1 > 3 ? v : 0)))).toBe(0)
+  })
+
   it('a v4 `?:` stays LAZY: the witnessed arm (vw-cs2-v4-ternary-lazy T00) is never drawn as the every-bar call', () => {
     const cap = load('vw-cs2-v4-ternary-lazy-rddt-1d-2026-11-15')
     expect(cap.source.sha256).toBe('0c10e17b72d59e376126c76ff586a90fbcf73c0eb3e55288dfc88a4597e5a363')
