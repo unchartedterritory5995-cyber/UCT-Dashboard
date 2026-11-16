@@ -208,11 +208,14 @@ def test_KILL_is_never_a_delete_the_served_row_is_stamped_the_stored_row_is_not(
     assert "runtimeKilled" not in back["definition"]["meta"]
 
 
-def test_the_preview_reads_the_kill_list_and_the_save_switch(client, monkeypatch):
+def test_the_preview_reads_the_kill_list_and_the_save_switch(client, monkeypatch, tmp_path):
     allow = rt.allow_list()
-    # RT1 2026-11-15: the committed kill list (api/data/pine_runtime_killlist.json) is always served
+    # RT1 2026-11-15: the committed kill list (api/data/pine_runtime_killlist.json) is always served.
+    # 2026-11-16: it is EMPTY (parabolic-sar lifted), so a SYNTHETIC entry in a tmp list stands in for it
+    from tests.test_pine_capability_admission import synthetic_kill
+    synthetic_kill(tmp_path, monkeypatch)
     committed = list(rt.committed_kills())
-    assert committed, "the committed kill list is read"
+    assert len(committed) == 1, "the committed kill list is read"
     # RS Rating (2026-11-16): the committed allowlist holds a record on the SUBSTITUTED path, so the read
     # also carries what it discloses (`substituted`, L7), read off the service function the route asks.
     # Its run-half evidence (L8) is NOT served: the record's objects v2 is INCONCLUSIVE (no x table in
