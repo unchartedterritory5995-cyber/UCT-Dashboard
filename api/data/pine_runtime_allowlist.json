@@ -77,7 +77,16 @@
     "S28 (2026-11-15): every obj:* row is re-derived with the S28 x re-captures. A script with ANY capture whose x",
     "DIVERGES, or on the committed kill list (pine_runtime_killlist.json), is evidence for no object family:",
     "trend-targets-algoalpha (x DIVERGES on RDDT, killed) and parabolic-sar (a label one decimal short on SPY, killed).",
-    "obj:linefill stays withdrawn (FVG Finder alone once AlgoAlpha is vetoed: one script)."
+    "obj:linefill stays withdrawn (FVG Finder alone once AlgoAlpha is vetoed: one script).",
+    "",
+    "PR #1374 (2026-11-15): the trend-targets-algoalpha kill is LIFTED. The engine fix (the runtime document's host",
+    "object program now carries the Pine tree stamps) re-grades trend-targets-algoalpha-{rddt,spy}-1d-2026-11-15 to",
+    "MATCH runtime-on, objects v2 MATCH with x graded (15 of 15 on each). No capture of it has an x that DIVERGES any",
+    "more and it is on no kill list, so the S28 veto no longer names it. It is still evidence for NO object family, and",
+    "no obj:* row changes: the run draws its plots, but its lines, labels and linefills are drawn from the HOST's object",
+    "program carried in the runtime document (str.tostring(..., format.mintick) on a mutable value keeps them out of the",
+    "run), so objectsLane is not runtime for it. obj:linefill therefore stays withdrawn (FVG Finder alone). The script",
+    "itself stays un-admitted by capability (conditional-ta and obj:linefill are not admitted)."
   ],
   "scripts": [
     {
@@ -484,7 +493,7 @@
         {"capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-15", "script": "ZZMTF", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 8, "objectsX": "MATCH"},
         {"capture": "zigzag-multi-time-frame-with-fibonacci-retracement-spy-1d-2026-11-15", "script": "ZZMTF", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 8, "objectsX": "MATCH"}
       ],
-      "note": "line.* drawings (U1; re-derived S28 2026-11-15): objectsPaired is the capture's paired LINE records. Each entry: objects v2 MATCH (x graded) with the run drawing, objectsPaired records paired and objectsX the capture's own x verdict. A script with ANY capture whose x DIVERGES, or on the kill list, is evidence for no object family (trend-targets-algoalpha since S28). Evidence: the runtime-on harness over tests/fixtures/vendor at master bbc9b92351 plus the S28 x re-captures (2026-11-15, VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-s28-x-recaptures."
+      "note": "line.* drawings (U1; re-derived S28 2026-11-15): objectsPaired is the capture's paired LINE records. Each entry: objects v2 MATCH (x graded) with the run drawing, objectsPaired records paired and objectsX the capture's own x verdict. A script with ANY capture whose x DIVERGES, or on the kill list, is evidence for no object family (trend-targets-algoalpha from S28 until PR #1374 re-graded it to MATCH and lifted its kill; see the readme). Evidence: the runtime-on harness over tests/fixtures/vendor at master bbc9b92351 plus the S28 x re-captures (2026-11-15, VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-s28-x-recaptures."
     },
     "obj:label": {
       "status": "conformant",
@@ -499,7 +508,7 @@
         {"capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-15", "script": "ZZMTF", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 7, "objectsX": "MATCH"},
         {"capture": "zigzag-multi-time-frame-with-fibonacci-retracement-spy-1d-2026-11-15", "script": "ZZMTF", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 7, "objectsX": "MATCH"}
       ],
-      "note": "label.* drawings (U1; re-derived S28 2026-11-15): objectsPaired is the capture's paired LABEL records. Each entry: objects v2 MATCH (x graded) with the run drawing, objectsPaired records paired and objectsX the capture's own x verdict. A script with ANY capture whose x DIVERGES, or on the kill list, is evidence for no object family (trend-targets-algoalpha since S28). Evidence: the runtime-on harness over tests/fixtures/vendor at master bbc9b92351 plus the S28 x re-captures (2026-11-15, VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-s28-x-recaptures."
+      "note": "label.* drawings (U1; re-derived S28 2026-11-15): objectsPaired is the capture's paired LABEL records. Each entry: objects v2 MATCH (x graded) with the run drawing, objectsPaired records paired and objectsX the capture's own x verdict. A script with ANY capture whose x DIVERGES, or on the kill list, is evidence for no object family (trend-targets-algoalpha from S28 until PR #1374 re-graded it to MATCH and lifted its kill; see the readme). Evidence: the runtime-on harness over tests/fixtures/vendor at master bbc9b92351 plus the S28 x re-captures (2026-11-15, VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-s28-x-recaptures."
     },
     "obj:delete": {
       "status": "conformant",
@@ -515,7 +524,7 @@
         {"capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-15", "script": "ZZMTF", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 15, "objectsX": "MATCH"},
         {"capture": "zigzag-multi-time-frame-with-fibonacci-retracement-spy-1d-2026-11-15", "script": "ZZMTF", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 15, "objectsX": "MATCH"}
       ],
-      "note": "x.delete() on a drawing (U1; re-derived S28 2026-11-15): objectsPaired is every paired record of the capture. Each entry: objects v2 MATCH (x graded) with the run drawing, objectsPaired records paired and objectsX the capture's own x verdict. A script with ANY capture whose x DIVERGES, or on the kill list, is evidence for no object family (trend-targets-algoalpha since S28). Evidence: the runtime-on harness over tests/fixtures/vendor at master bbc9b92351 plus the S28 x re-captures (2026-11-15, VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-s28-x-recaptures."
+      "note": "x.delete() on a drawing (U1; re-derived S28 2026-11-15): objectsPaired is every paired record of the capture. Each entry: objects v2 MATCH (x graded) with the run drawing, objectsPaired records paired and objectsX the capture's own x verdict. A script with ANY capture whose x DIVERGES, or on the kill list, is evidence for no object family (trend-targets-algoalpha from S28 until PR #1374 re-graded it to MATCH and lifted its kill; see the readme). Evidence: the runtime-on harness over tests/fixtures/vendor at master bbc9b92351 plus the S28 x re-captures (2026-11-15, VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-s28-x-recaptures."
     },
     "obj:collection": {
       "status": "conformant",
@@ -528,7 +537,7 @@
         {"capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-15", "script": "ZZMTF", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 15, "objectsX": "MATCH"},
         {"capture": "zigzag-multi-time-frame-with-fibonacci-retracement-spy-1d-2026-11-15", "script": "ZZMTF", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 15, "objectsX": "MATCH"}
       ],
-      "note": "drawings held in arrays or read through *.all (U1; re-derived S28 2026-11-15): objectsPaired is every paired record. Each entry: objects v2 MATCH (x graded) with the run drawing, objectsPaired records paired and objectsX the capture's own x verdict. A script with ANY capture whose x DIVERGES, or on the kill list, is evidence for no object family (trend-targets-algoalpha since S28). Evidence: the runtime-on harness over tests/fixtures/vendor at master bbc9b92351 plus the S28 x re-captures (2026-11-15, VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-s28-x-recaptures."
+      "note": "drawings held in arrays or read through *.all (U1; re-derived S28 2026-11-15): objectsPaired is every paired record. Each entry: objects v2 MATCH (x graded) with the run drawing, objectsPaired records paired and objectsX the capture's own x verdict. A script with ANY capture whose x DIVERGES, or on the kill list, is evidence for no object family (trend-targets-algoalpha from S28 until PR #1374 re-graded it to MATCH and lifted its kill; see the readme). Evidence: the runtime-on harness over tests/fixtures/vendor at master bbc9b92351 plus the S28 x re-captures (2026-11-15, VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-s28-x-recaptures."
     },
     "obj:getter": {
       "status": "conformant",
@@ -537,7 +546,7 @@
         {"capture": "fair-value-gap-rddt-1d-2026-11-15", "script": "Fair Value Gap SpaceManBTC", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 42, "objectsX": "MATCH"},
         {"capture": "vw-int-array-avg-rddt-1d-2026-11-15", "script": "UCTPROBE_VW_INT_ARRAY_AVG", "community": false, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 31, "objectsX": "MATCH"}
       ],
-      "note": "x.get_*() reads on a drawing (U3; re-derived S28 2026-11-15): objectsPaired is every paired record of the capture. Each entry: objects v2 MATCH (x graded) with the run drawing, objectsPaired records paired and objectsX the capture's own x verdict. A script with ANY capture whose x DIVERGES, or on the kill list, is evidence for no object family (trend-targets-algoalpha since S28). Evidence: the runtime-on harness over tests/fixtures/vendor at master bbc9b92351 plus the S28 x re-captures (2026-11-15, VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-s28-x-recaptures."
+      "note": "x.get_*() reads on a drawing (U3; re-derived S28 2026-11-15): objectsPaired is every paired record of the capture. Each entry: objects v2 MATCH (x graded) with the run drawing, objectsPaired records paired and objectsX the capture's own x verdict. A script with ANY capture whose x DIVERGES, or on the kill list, is evidence for no object family (trend-targets-algoalpha from S28 until PR #1374 re-graded it to MATCH and lifted its kill; see the readme). Evidence: the runtime-on harness over tests/fixtures/vendor at master bbc9b92351 plus the S28 x re-captures (2026-11-15, VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-s28-x-recaptures."
     },
     "conditional-ta": {
       "status": "divergent",

@@ -195998,9 +195998,9 @@
     "absReason": "1e-6 of the tick (pricescale 100)"
    },
    "objects": {
-    "verdict": "DIVERGE",
-    "verdictWithoutColour": "DIVERGE",
-    "reason": "1 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1",
+    "verdict": "MATCH",
+    "verdictWithoutColour": "MATCH",
+    "reason": "object counts and texts agree; colours agree on 15 paired slots; coordinates are NOT compared by v1",
     "counts": [
      {
       "family": "lines",
@@ -196036,21 +196036,9 @@
     "texts": [
      {
       "family": "labels text",
-      "agree": false,
-      "onlyVendor": [
-       " ✔ TP1 ▸ 114.20",
-       " ✔ TP2 ▸ 93.70",
-       " ✔ TP3 ▸ 73.20",
-       "Entry ▸ 134.70",
-       "✘ SL ▸ 175.70"
-      ],
-      "onlyOurs": [
-       " ✔ TP1 ▸ 64.60",
-       " ✔ TP2 ▸ 38.22",
-       " ✔ TP3 ▸ 11.85",
-       "Entry ▸ 90.97",
-       "✘ SL ▸ 143.72"
-      ]
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
      },
      {
       "family": "tableCells text",
@@ -196059,10 +196047,37 @@
       "onlyOurs": []
      }
     ],
-    "colours": [],
+    "colours": [
+     {
+      "family": "lines colour",
+      "agree": true,
+      "slots": 5,
+      "agreeing": 5,
+      "themeRelative": 0,
+      "differing": 0,
+      "undecodable": 0,
+      "undrawn": 0,
+      "undrawnDiffering": 0,
+      "first": null,
+      "firstUndrawn": null
+     },
+     {
+      "family": "labels colour",
+      "agree": true,
+      "slots": 10,
+      "agreeing": 10,
+      "themeRelative": 0,
+      "differing": 0,
+      "undecodable": 0,
+      "undrawn": 0,
+      "undrawnDiffering": 0,
+      "first": null,
+      "firstUndrawn": null
+     }
+    ],
     "colourUnpaired": {
-     "ours": 10,
-     "vendor": 10
+     "ours": 0,
+     "vendor": 0
     }
    },
    "paints": {
@@ -196082,43 +196097,27 @@
      }
     ]
    },
-   "verdict": "DIVERGE",
-   "reason": "1 of 7 compared items diverge",
-   "verdictWithoutPaints": "DIVERGE",
-   "verdictWithoutColour": "DIVERGE",
+   "verdict": "MATCH",
+   "reason": "all 7 items agree",
+   "verdictWithoutPaints": "MATCH",
+   "verdictWithoutColour": "MATCH",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0",
     "paints: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
    "objectsV2": {
-    "verdict": "DIVERGE",
-    "verdictWithoutX": "DIVERGE",
-    "v1": "DIVERGE",
+    "verdict": "MATCH",
+    "verdictWithoutX": "MATCH",
+    "v1": "MATCH",
     "pairedNothing": false,
     "differsOnlyByCreationOrder": false,
-    "reason": "2 object families differ field by field (first: lines x1 of line #275 — vendor 653, ours 656); x: 15 graded, 5 differ (exact bar); v1: 1 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
-    "first": {
-     "family": "lines",
-     "field": "x1",
-     "vendor": 653,
-     "ours": 656,
-     "vendorId": 49,
-     "ourId": 275,
-     "where": "line #275"
-    },
-    "firstWithoutX": {
-     "family": "lines",
-     "field": "y1",
-     "vendor": 134.7,
-     "ours": 90.97,
-     "vendorId": 49,
-     "ourId": 275,
-     "where": "line #275"
-    },
+    "reason": "every paired record agrees on 77 graded fields; x: 15 graded, 0 differ (exact bar); v1: object counts and texts agree; colours agree on 15 paired slots; coordinates are NOT compared by v1; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
+    "first": null,
+    "firstWithoutX": null,
     "x": {
      "graded": 15,
-     "agreeing": 10,
-     "differing": 5,
+     "agreeing": 15,
+     "differing": 0,
      "missing": 0,
      "missingWhy": {},
      "incompleteFamilies": []
@@ -196130,19 +196129,19 @@
       "unpairedVendor": 0,
       "unpairedOurs": 0,
       "graded": 30,
-      "agreeing": 20,
-      "differing": 10,
+      "agreeing": 30,
+      "differing": 0,
       "notGraded": 0,
       "undecoded": {},
       "byField": {
        "x1": {
-        "agree": 0,
-        "differ": 5,
+        "agree": 5,
+        "differ": 0,
         "notGraded": 0
        },
        "y1": {
-        "agree": 0,
-        "differ": 5,
+        "agree": 5,
+        "differ": 0,
         "notGraded": 0
        },
        "x2": {
@@ -196151,8 +196150,8 @@
         "notGraded": 0
        },
        "y2": {
-        "agree": 0,
-        "differ": 5,
+        "agree": 5,
+        "differ": 0,
         "notGraded": 0
        },
        "extend": {
@@ -196176,38 +196175,17 @@
         "notGraded": 0
        }
       },
-      "first": {
-       "field": "x1",
-       "vendor": 653,
-       "ours": 656,
-       "vendorId": 49,
-       "ourId": 275,
-       "where": "line #275"
-      },
-      "firstWithoutX": {
-       "field": "y1",
-       "vendor": 134.7,
-       "ours": 90.97,
-       "vendorId": 49,
-       "ourId": 275,
-       "where": "line #275"
-      },
-      "agree": false,
-      "agreeWithoutX": false,
+      "first": null,
+      "firstWithoutX": null,
+      "agree": true,
+      "agreeWithoutX": true,
       "x": {
        "graded": 10,
-       "agreeing": 5,
-       "differing": 5,
+       "agreeing": 10,
+       "differing": 0,
        "missing": 0,
        "missingWhy": {},
-       "first": {
-        "field": "x1",
-        "vendor": 653,
-        "ours": 656,
-        "vendorId": 49,
-        "ourId": 275,
-        "where": "line #275"
-       }
+       "first": null
       },
       "xIncomplete": false,
       "differsOnlyByCreationOrder": false
@@ -196218,8 +196196,8 @@
       "unpairedVendor": 0,
       "unpairedOurs": 0,
       "graded": 45,
-      "agreeing": 35,
-      "differing": 10,
+      "agreeing": 45,
+      "differing": 0,
       "notGraded": 0,
       "undecoded": {},
       "byField": {
@@ -196229,8 +196207,8 @@
         "notGraded": 0
        },
        "y": {
-        "agree": 0,
-        "differ": 5,
+        "agree": 5,
+        "differ": 0,
         "notGraded": 0
        },
        "yloc": {
@@ -196239,8 +196217,8 @@
         "notGraded": 0
        },
        "text": {
-        "agree": 0,
-        "differ": 5,
+        "agree": 5,
+        "differ": 0,
         "notGraded": 0
        },
        "style": {
@@ -196274,24 +196252,10 @@
         "notGraded": 0
        }
       },
-      "first": {
-       "field": "y",
-       "vendor": 134.7,
-       "ours": 90.97,
-       "vendorId": 50,
-       "ourId": 276,
-       "where": "label #276"
-      },
-      "firstWithoutX": {
-       "field": "y",
-       "vendor": 134.7,
-       "ours": 90.97,
-       "vendorId": 50,
-       "ourId": 276,
-       "where": "label #276"
-      },
-      "agree": false,
-      "agreeWithoutX": false,
+      "first": null,
+      "firstWithoutX": null,
+      "agree": true,
+      "agreeWithoutX": true,
       "x": {
        "graded": 5,
        "agreeing": 5,
@@ -198454,6 +198418,6 @@
    "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-15",
    "zigzag-multi-time-frame-with-fibonacci-retracement-spy-1d-2026-11-15"
   ],
-  "from": "a runtime-on corpus run on branch pine/rs-l5-runtime-requests (RS RATING L9, engine 68 placeholder): RDDT / NVDA / SPY Q-RS1 regraded on the server's PRIMARY SPX (FMP ^GSPC, recorded 2026-11-15T13:50:55Z, 9286 sessions from 1990-01-02, committed in tests/fixtures/vendor-supply/ under the owner ruling of 2026-11-15); the two Q-RS4 rows are L8's run; every other row is this snapshot's own run, unchanged (docs/pine/RS-RATING-TRANSFER.md, L9 status); RS RATING Q-RS1b / Q-RS4b (NASDAQ:ALAB, NASDAQ:CRWV, s13-2026-11-15) graded runtime-on with objects v2 on branch pine/rs-rating-integrate over the same FMP ^GSPC and seed records, in a run of exactly the RS captures plus adx-and-di-for-v4-rddt (the runtime-lane control); that run's RDDT row is identical to the committed one; S28 x re-captures (s28-2026-11-15, 9 captures of corpus/committed sources): graded alone, on this lane, at the merge of feat/pine-x-recaptures-s28 with master ecd8c3cccd (SCRIPT_ENGINE_VERSION 57), VENDOR_HARNESS_DIR = a directory holding exactly those 9 captures; every other row is the snapshot as master committed it, unchanged"
+  "from": "a runtime-on corpus run on branch pine/rs-l5-runtime-requests (RS RATING L9, engine 68 placeholder): RDDT / NVDA / SPY Q-RS1 regraded on the server's PRIMARY SPX (FMP ^GSPC, recorded 2026-11-15T13:50:55Z, 9286 sessions from 1990-01-02, committed in tests/fixtures/vendor-supply/ under the owner ruling of 2026-11-15); the two Q-RS4 rows are L8's run; every other row is this snapshot's own run, unchanged (docs/pine/RS-RATING-TRANSFER.md, L9 status); RS RATING Q-RS1b / Q-RS4b (NASDAQ:ALAB, NASDAQ:CRWV, s13-2026-11-15) graded runtime-on with objects v2 on branch pine/rs-rating-integrate over the same FMP ^GSPC and seed records, in a run of exactly the RS captures plus adx-and-di-for-v4-rddt (the runtime-lane control); that run's RDDT row is identical to the committed one; S28 x re-captures (s28-2026-11-15, 9 captures of corpus/committed sources): graded alone, on this lane, at the merge of feat/pine-x-recaptures-s28 with master ecd8c3cccd (SCRIPT_ENGINE_VERSION 57), VENDOR_HARNESS_DIR = a directory holding exactly those 9 captures; every other row is the snapshot as master committed it, unchanged; trend-targets trade-bar fix (PR #1374, 2026-11-15): the 2 rows trend-targets-algoalpha-{rddt,spy}-1d-2026-11-15 were RE-GRADED alone, on this lane, at f670002c18 (fix/pine-runtime-object-history-delete merged with master 771264afff, SCRIPT_ENGINE_VERSION 57, engine number pending), VENDOR_HARNESS_DIR = a directory holding exactly those 2 captures, and REPLACE the S28 rows in place; every other row is unchanged"
  }
 }

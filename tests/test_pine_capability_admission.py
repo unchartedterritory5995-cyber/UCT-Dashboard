@@ -670,15 +670,37 @@ def test_RT1_every_committed_kill_is_held_to_its_graded_evidence():
         assert s["sha256"] in rt.kill_list()
 
 
-def test_RT1_trend_targets_is_refused_by_name_at_every_door(store, monkeypatch, on):
-    src = (ROOT / "corpus" / "committed" / "trend-targets-algoalpha__92ff5628d7.pine").read_text(encoding="utf-8")
+def test_RT1_parabolic_sar_is_refused_by_name_at_every_door(store, monkeypatch, on):
+    src = (ROOT / "corpus" / "committed" / "parabolic-sar__xoeoPMOWGJ.pine").read_text(encoding="utf-8")
     why = rt.killed(None, src)
-    assert why and "wrong bar against TradingView" in why, why
+    assert why and "one decimal short of TradingView" in why, why
     assert rt.runtime_admission(src, member="u-x")["admitted"] is False
     body = _client().get("/api/user-definitions/runtime-kill").json()
     assert rt.source_hash(src) in body["kill"]
-    # CONTROL: its SPY capture MATCHes and its plot capabilities are admitted; only the kill refuses it
-    assert _verdicts()["trend-targets-algoalpha-spy-1d-2026-11-15"]["verdict"] == "MATCH"
+    # CONTROL: its RDDT capture MATCHes and every capability it uses is admitted; only the kill refuses it
+    assert _verdicts()["parabolic-sar-rddt-1d-2026-11-15"]["verdict"] == "MATCH"
+    assert pc.capabilities_of(src) <= set(rt.admitted_capabilities()["admitted"])
+
+
+#: The trend-targets kill (s28: its latest trade's lines on the wrong bar, x1 656 vs 653) was LIFTED by the
+#: engine fix of PR #1374 (the runtime document's host object program carries the Pine tree stamps): its
+#: `liftWhen` was "an engine fix, then a runtime-on re-grade to MATCH on RDDT and SPY".
+TREND_TARGETS_LIFT = ("trend-targets-algoalpha-rddt-1d-2026-11-15", "trend-targets-algoalpha-spy-1d-2026-11-15")
+
+
+def test_RT1_the_trend_targets_kill_is_lifted_on_its_own_condition():
+    src = (ROOT / "corpus" / "committed" / "trend-targets-algoalpha__92ff5628d7.pine").read_text(encoding="utf-8")
+    assert rt.source_hash(src) not in rt.committed_kills() and not rt.killed(None, src)
+    v = _verdicts()
+    for cid in TREND_TARGETS_LIFT:
+        r = v[cid]
+        text = json.loads((ROOT / r["file"]).read_text(encoding="utf-8"))["source"]["text"]
+        assert rt.source_hash(text) == rt.source_hash(src), cid
+        o = r["objectsV2"]
+        assert r["verdict"] == "MATCH" and o["verdict"] == "MATCH" and o["pairedNothing"] is False, cid
+        assert _x_verdict(o) == "MATCH" and o["x"]["graded"] == 15, (cid, o["x"])
+    # ...and lifting the kill admits nothing: the script still uses capabilities that are not admitted
+    assert not pc.capabilities_of(src) <= set(rt.admitted_capabilities()["admitted"])
 
 
 def test_RT1_a_broken_committed_file_kills_nothing_extra(tmp_path, monkeypatch):
@@ -691,21 +713,31 @@ def test_RT1_a_broken_committed_file_kills_nothing_extra(tmp_path, monkeypatch):
     assert rt.kill_list() == ["a" * 64]
 
 
-def test_A8_a_script_with_an_x_DIVERGE_capture_is_evidence_for_no_object_family():
-    """The rail can fail: trend-targets (x DIVERGES on RDDT, s28) named as obj:line evidence on its
-    SPY capture, which on its own grades MATCH with x."""
+def test_A8_a_script_with_an_x_DIVERGE_capture_is_evidence_for_no_object_family(monkeypatch):
+    """The rail can fail: parabolic-sar (killed) named as obj:label evidence on its RDDT capture, which
+    on its own grades MATCH with x; and the same entry once ANOTHER capture of that source grades an x
+    that DIVERGES. (Until PR #1374 the committed example was trend-targets, x DIVERGE on RDDT; its fix
+    left no committed x DIVERGE, so that half is shown on a copy of the snapshot.)"""
     v = _verdicts()
-    good = "trend-targets-algoalpha-spy-1d-2026-11-15"
+    good, other = "parabolic-sar-rddt-1d-2026-11-15", "parabolic-sar-spy-1d-2026-11-15"
     r = v[good]
     fam, comm = rg.pine_evidence_script(r["script"], good)
     o = r["objectsV2"]
-    lines = next(f["paired"] for f in o["families"] if f["family"] == "lines")
-    fake = {"obj:line": {"admitted": True, "evidence": [
+    labels = next(f["paired"] for f in o["families"] if f["family"] == "labels")
+    fake = {"obj:label": {"admitted": True, "evidence": [
         {"capture": good, "script": fam, "community": comm, "verdict": "MATCH", "runtimePane": "on",
-         "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": lines, "objectsX": _x_verdict(o)}]}}
+         "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": labels, "objectsX": _x_verdict(o)}]}}
+    got = {why for _c, _id, why in _phantoms(fake)}
+    assert "its script is on the kill list" in got, got
+    # CONTROL: as committed, no capture of that source has an x that DIVERGES
+    assert "its script has a capture whose x DIVERGES" not in got, got
+    moved = copy.deepcopy(v)
+    x = moved[other]["objectsV2"]["x"]
+    assert x["graded"] and not x["differing"]
+    x["differing"], x["agreeing"] = 1, x["agreeing"] - 1
+    monkeypatch.setattr(sys.modules[__name__], "_verdicts", lambda: moved)
     got = {why for _c, _id, why in _phantoms(fake)}
     assert "its script has a capture whose x DIVERGES" in got, got
-    assert "its script is on the kill list" in got, got
 
 
 def test_A8_no_phantom_evidence():

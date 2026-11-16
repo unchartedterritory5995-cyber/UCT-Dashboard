@@ -291,7 +291,8 @@ def test_D2_the_two_caps_are_what_the_owner_ruled():
 
 
 def test_D2_trend_targets_saves_under_the_runtime_cap(store, monkeypatch):
-    # RT1 2026-11-15: trend-targets is on the COMMITTED kill list; this rail is about the size cap
+    # RT1 2026-11-15: the COMMITTED kill list is set aside (trend-targets was on it until PR #1374 lifted
+    # it); this rail is about the size cap
     monkeypatch.setattr(rt, "KILLLIST_PATH", "no-committed-kills.json")
     monkeypatch.setenv(rt.SAVE_ENV, "1")
     monkeypatch.setenv(rt.STAGE_ENV, "all")

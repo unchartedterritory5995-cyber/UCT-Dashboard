@@ -3,6 +3,21 @@
 Branch `fix/pine-runtime-object-history-delete`. Parked for a PC restart. The cause and the
 fix are proven on the two captures. The engine-number steps and the corpus before/after are NOT done.
 
+## RESUMED 2026-11-15 (after the park): what was finished, what is still open
+
+- Merged with master 771264afff (SCRIPT_ENGINE_VERSION 57). The rail is 7/7 on the merged tree and its
+  mutant (the runtime stamp removed) turns the same 4 cases red.
+- Both captures re-graded alone on the merged tree and REPLACED in the committed snapshots:
+  runtime-on RDDT DIVERGE -> MATCH (x 15 graded, 15 agree), SPY MATCH -> MATCH; production
+  INCONCLUSIVE on both (refused `pine:state`), unchanged.
+- The `trend-targets-algoalpha` entry is off `api/data/pine_runtime_killlist.json` (its `liftWhen` is met).
+  The capability-admission reach report regenerates byte-equal: the script stays un-admitted by
+  capability (`conditional-ta`, `obj:linefill`). It is evidence for no object family: its drawings come
+  from the HOST object program carried in the runtime document, not from the run.
+- STILL OPEN: the engine number (NUMBER PENDING, the coordinator assigns it at merge, with the host-parity
+  and service-smoke re-records), and item 4 below (saved runtime documents minted before the fix).
+- Items 1 to 3 of "LEFT TO DO" below are superseded by the `pine heavy` workflow on the PR.
+
 ## The bug (TradingView capture, NYSE:RDDT 1D from the listing, 666 bars, 2026-11-15)
 
 On the runtime pane, the last trade's 5 lines and 5 labels stood at bar 656 with
