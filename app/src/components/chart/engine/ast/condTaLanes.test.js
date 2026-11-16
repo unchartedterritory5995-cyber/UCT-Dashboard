@@ -462,3 +462,64 @@ describe('COND-TA — 6. a guard on a parameter every call site fixes is bar-con
     expect(lenient(chain).outputs[1].refusal.guard).toBe('pine:block')
   })
 })
+
+// ─── ⛔ COND-TA 7 — KNOWN OVER-REFUSALS ON THE SCREENER LANE (coordinator ruling 2026-11-15) ──────
+// Six outputs in three scripts are refused on the screener lane although master's number was
+// RIGHT: smoothed-moving-average (1) and williams-alligator (3), whose seed arm
+// `smma := na(smma[1]) ? ta.sma(src, len) : <recurrence>` runs on a PREFIX of bars (so the call's
+// history is the every-bar history), and smart-money-concepts-by-welotrades (2), under
+// `if barstate.isconfirmed and <input>` (constant on closed bars). No static proof exists that an
+// arm runs on a prefix (a data gap can re-enter the seed arm); the host lane proves it per chart
+// at the bind and DRAWS all three. The screener lane binds no chart, so it refuses by name.
+// ⛔⛔ THIS BLOCK IS MEANT TO GO RED. The follow-up unit is the "screener-lane run check (the gate
+// evaluated per symbol server-side)", next after the RS Rating admission. The day it lands these
+// six are served and the first expectation of each case fails: flip them to served THEN, and
+// delete the over-refusal section of docs/pine/evidence/2026-11-15-cond-ta/EVIDENCE.md with them.
+describe('COND-TA — 7. ⛔ known over-refusals: refused by name on the screener lane, drawn on the host lane', () => {
+  const SMMA = pine(6,
+    'len = input.int(7, "Length")',
+    'smma = 0.0',
+    'smma := na(smma[1]) ? ta.sma(close, len) : (smma[1] * (len - 1) + close) / len',
+    'plot(smma, "SMMA")')
+  const ALLIGATOR = pine(6,
+    'smma(src, length) =>',
+    '    s = 0.0',
+    '    s := na(s[1]) ? ta.sma(src, length) : (s[1] * (length - 1) + src) / length',
+    '    s',
+    'plot(smma(hl2, 13), "Jaw")',
+    'plot(smma(hl2, 8), "Teeth")',
+    'plot(smma(hl2, 5), "Lips")')
+
+  it.each([
+    ['the smoothed moving average seed arm (1 output)', SMMA, 1],
+    ['the alligator, the same arm in a function (3 outputs)', ALLIGATOR, 3],
+  ])('%s', (_, src, n) => {
+    const screen = lenient(src)
+    expect(screen.outputs).toHaveLength(n)
+    for (const o of screen.outputs) {
+      expect(o.refusal && o.refusal.guard, o.formula || '').toBe('pine:block')   // ← red when the run check lands
+      expect(o.refusal.message).toMatch(/`ta\.sma` is called in one arm of a `\?:`/)
+      expect(o.refusal.message).toContain(SCREEN_GATE_SENTENCE)
+    }
+    // the host lane: translated, gated, and DRAWN on RDDT (the arm never runs again after a skip)
+    const host = strict(src)
+    expect(host.outputs.every((o) => !o.refusal)).toBe(true)
+    expect(host.blockRuns && host.blockRuns.outputs.map((x) => x.index)).toEqual(Array.from({ length: n }, (__, i) => i))
+    const { door, cols, errors } = bind(src)
+    expect(door.def, door.refusal || '').toBeTruthy()
+    expect(Object.keys(errors)).toEqual([])
+    const drawn = Object.values(cols).filter((c) => c && typeof c.length === 'number' && Array.from(c).some(Number.isFinite))
+    expect(drawn).toHaveLength(n)
+  })
+
+  it('smart-money-concepts-by-welotrades: `high_eqh` / `low_eqh` (2 outputs)', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'corpus/committed/smart-money-concepts-by-welotrades__0bff41a2e5.pine'), 'utf8')
+    const screen = lenient(src)
+    const held = screen.outputs.map((o, i) => [i, o]).filter(([, o]) => o.refusal && o.refusal.guard === 'pine:block'
+      && /`(high_eqh|low_eqh)` calls `ta\.pivot(high|low)` inside a block/.test(o.refusal.message))
+    expect(held).toHaveLength(2)                                                  // ← red when the run check lands
+    const host = strict(src)
+    for (const [i] of held) expect(host.outputs[i].refusal).toBeFalsy()
+    expect(host.blockRuns.outputs.map((x) => x.index)).toEqual(held.map(([i]) => i))
+  })
+})

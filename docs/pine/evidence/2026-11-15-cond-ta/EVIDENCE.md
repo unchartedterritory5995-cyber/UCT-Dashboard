@@ -165,7 +165,7 @@ Rail: `ast/condTaLanes.test.js` (M12: `vendorHarness.c48CallSite.test.js`). Cont
 | M11 | the screener lane refuses a value for its COLOUR's gates too | SURVIVED on the first pass: every colour rail was one the host withholds ALONE (`colourWithholdsAlone`), where the mutant is equivalent. Rail added (`a hiding colour with a conditional call`: an `na` entry, so the host keeps the gate on the plot); re-run pending (lock moratorium) |
 | M12 | the c48 pin with the screener serving again | KILLED |
 
-## Known over-refusal (coordinator ruling: ship as is, fix next)
+## Known over-refusal (FIXED 2026-11-16, see "Bar-constant parameter guards" below; kept as the record)
 
 `fib-pivot-points-alerts` (v4, community; held s3, NYSE:RDDT 1D): **MATCH -> INCONCLUSIVE** on
 both lanes. Its helper `is_newbar(res)` writes `if(res == 'Y')` / `ch := change(t) != 0 ? 1 : 0`.
@@ -175,6 +175,85 @@ but the host's guard check knows only top-level invariant names, not a call site
 the runtime lane declines too (`runtime:conditional-history`). By name, never wrong. Next PR:
 "bar-constant parameter guards" (substitute the call-site arguments into the guard, v4 and v5
 together), which rails this capture back to MATCH.
+
+## Bar-constant parameter guards (2026-11-16, step 1 of the resume plan)
+
+A guard inside a function body that reads a PARAMETER holds on every bar or on none, at each call
+site, when every call site passes a bar-invariant argument. A `ta.*` call under it then keeps the
+every-bar history, so it is drawn, as master drew it.
+
+| rule | where | the script that needed it |
+|---|---|---|
+| a parameter every call site fixes is an invariant name inside that body | `objectFnInline.barInvariantParams`, asked by the fold of a function body (`pine.js`, `guardVariesIn`) | `macd-with-filter-visual-backtest-module-sample` (`get_MA(typ, len)` / `if (typ == "EMA")`) |
+| a parameter HIDES a top-level invariant name of the same spelling | same | none in the corpus. On master a varying argument to such a parameter was read as the input and drawn every-bar: a wrong value, now gated |
+| a v3 / v4 `input(…)` written with NAMED arguments is a simple input when `type =` says so; with no type its default must be a literal; a source type is a series | `objectFnInline.isSimpleBareInput` | `fib-pivot-points-alerts` (`pp_period = input(title = "Period", type = input.string, defval = "Day", …)`) |
+| a parameter passed on to another function is fixed where the caller's own parameter is (least fixed point, so recursion proves nothing) | `barInvariantParams` | `19-strategy-supertrend-atr` (`filterLong(enable)` calls `filter(enable)`) |
+| a call written in a function nothing calls is not a call site | `barInvariantParams` (`reached`) | `19-strategy-supertrend-atr` (`filterShort` is defined and never used) |
+
+Fail closed, each by name: a method, an overload, a named argument, an argument count other than the
+definition's, a function with no call site, and any argument the invariant reader does not admit.
+
+Rail: `ast/condTaLanes.test.js` section 6 (10 cases). Mutants, each restored from a copy and the
+control green after: P1 (proven parameters never added), P2 (parameters not hidden), P3 (a varying
+argument admitted), P4 (an enclosing parameter read as the top-level name), I1 (source type admitted),
+I2 (`type =` ignored), I3 (any default admitted), T1 (proven parameters never fed back), T2 (every
+enclosing parameter taken as fixed), T3 (hidden parameters not removed), R1 (unreached bodies
+scanned), R2 (reach does not follow calls): all KILLED. A guard on a named argument (P5) is refused
+elsewhere first (`pine:named-argument`), so that check has no rail of its own.
+
+### Blast radius after (same 1,278 files, base `5443154808`)
+
+| lane | before these fixes | after |
+|---|---|---|
+| host lane, ok -> `pine:block` | 10 outputs in 3 scripts | **0** |
+| host lane, `pine:block` -> ok | 0 | 13 outputs in 2 scripts (`advanced-custom-multi-ma-signals` 5, `ha-inside-bars-indicator-v1` 8: guards over named-argument inputs now read as constant) |
+| screener lane, ok -> `pine:block` | 188 outputs in 51 scripts | **130 outputs in 43 scripts** |
+| screener lane, scripts refused whole | 24 | 20 |
+
+Runs: `lc-base.json` and `lc-new5.json` in the scratch folder (local). `fib-pivot-points-alerts`,
+`macd-with-filter` and `19-strategy-supertrend-atr` are back to drawn on both lanes.
+
+### Every remaining screener-lane refusal, classified (step 3)
+
+| group | outputs | scripts | class |
+|---|---:|---:|---|
+| `tools/visual_conformance/probes/vw-*` (written so the test varies; the witnesses themselves) | 95 | 20 | wrong-value removal |
+| `tests/fixtures/pine_blind` and `pine_screener`: a `ta.*` on the right of a v6 `and` / `or` | 17 | 17 | wrong-value removal (witness `vw-andor-history`) |
+| `supply-and-demand-zones-with-enhanced-signals`: `find_max` / `find_min` (`ta.highest` / `ta.lowest`) under `ta.change(high) != 0 …` | 2 | 1 | wrong-value removal (C48 shape) |
+| `tradingviews-technical-analysis` (v4): `crossunder` inside a nested `?:` | 6 | 1 | wrong-value removal (v4 lazy, probe 10) |
+| `vumanchu-b-divergences` (v4): `f_bot_fractal` reads `src[k]` in a `?:` arm | 4 | 1 | wrong-value removal (F1, H01) |
+| the six below | 6 | 3 | **over-refusal** |
+
+Total: 130 outputs in 43 scripts (counted from `lc-new5.json`).
+
+## ⛔ Known over-refusals on the screener lane (coordinator ruling 2026-11-15: ship, pinned, fix next)
+
+Six outputs in three scripts are refused on the screener lane although master's number was RIGHT.
+The earlier rule "ship only when every remaining refusal is a wrong-value removal" is relaxed for
+exactly these six and nothing else.
+
+| script | outputs | shape |
+|---|---:|---|
+| `smoothed-moving-average` (built-in) | 1 | `smma := na(smma[1]) ? ta.sma(src, len) : (smma[1] * (len - 1) + src) / len` |
+| `williams-alligator` (built-in) | 3 | the same arm inside `smma(src, length)`, called three times |
+| `smart-money-concepts-by-welotrades` | 2 | `high_eqh` / `low_eqh` under `if barstate.isconfirmed and show_equal_highlow` |
+
+- **Why master was right.** The seed arm runs on a PREFIX of bars (while `smma[1]` is `na`) and
+  never again, so the call's own history is the every-bar history on every bar it runs.
+  `barstate.isconfirmed` is true on every closed bar.
+- **Why it is refused now.** No static proof exists that an arm runs on a prefix: a gap in the data
+  can make `smma[1]` `na` again and re-enter the arm, and from that bar the two readings differ.
+  The host lane proves it per chart at the bind (no skip-then-run on this chart's bars) and DRAWS
+  all three. The screener lane binds no chart, so it refuses by name.
+- **Pinned.** `ast/condTaLanes.test.js` section 7: each refuses by name on the screener lane and
+  is translated, gated and drawn on the host lane. The block goes red the day the follow-up lands.
+- **Follow-up unit, next after the RS Rating admission:** the screener-lane run check (the gate
+  evaluated per symbol server-side).
+- **Saved imports: NOT RESOLVED by re-applying.** The narrowed Pine-import hold holds an Apply
+  document with a CALL under a `?:` arm. A member's existing Apply save of the seed shape is held,
+  and re-applying now refuses, so that member loses a screen that was correct until the run check
+  lands. Production had 3 Pine Apply saves, 1 with a call under a ternary arm (read-only count,
+  2026-11-15; its shape was not read). The hold is not widened or special-cased for it.
 
 ## Measurements and RESUME (2026-11-15, before the owner's PC restart)
 
