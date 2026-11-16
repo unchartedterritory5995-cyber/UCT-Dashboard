@@ -54,22 +54,32 @@ The tool reads the list from the allowlist file. These names are here so you can
 Paste each command exactly as written, one at a time, including its leading `!`. The `!` runs it in
 this PC's shell (Git Bash).
 
-**What each command is.** `MSYS_NO_PATHCONV=1 railway ssh --service web -- <program> <arguments>`.
-It runs ONE program on the `web` pod and prints its output.
+**What each command is.**
+`MSYS_NO_PATHCONV=1 railway ssh --service web -- sh -c 'cd /app; ...; echo EXIT=$?'`, the shape that
+was measured to work (`lesson_railway_ssh_python_probe_recipe`, 2026-08-24 and 09-13):
+- ONE `sh -c '...'` string, whose script starts with `cd /app`. A `railway ssh` call does not start in
+  `/app`.
+- The venv Python by absolute path, `PYTHONPATH=/app timeout N /opt/venv/bin/python ...`. Bare
+  `python3` on the pod is the Nix system Python, with no app dependencies.
+- An inner `timeout N`. Both it and the `cd /app` are load-bearing.
+- No single quote and no `*` inside the script, and semicolons only.
 - `MSYS_NO_PATHCONV=1` stops Git Bash from rewriting `/app/...` and `/data/...` into Windows paths.
-- No command needs a shell on the pod. None uses quotes, `;`, `|`, `>`, `$` or `&&`, so nothing
-  depends on how `railway ssh` joins its arguments.
-- `/tmp` on the pod persists between commands until `web` restarts.
+- Every command ends `echo EXIT=$?`, so it always prints its exit status.
 
-**What the commands print.** Library paths, sha256s, statuses, and the names and sizes of the files
-this runbook writes. Nothing reads a database, a member's file or an environment variable.
+⛔ **An EMPTY output means the command did not run. Stop.** `railway ssh` can drop arguments and
+print nothing, which reads like success. Every command here prints at least an `EXIT=` line.
+
+**What the commands print.** Library paths, sha256s, statuses, the names and sizes of the files this
+runbook writes, and `EXIT=` lines. Nothing reads a database, a member's file or an environment
+variable. `/tmp` on the pod persists between commands until `web` restarts.
 
 ## 0. Preconditions
 
-1. #1463 is merged to master and `web` has deployed it. This command must list both files:
+1. #1463 is merged to master and `web` has deployed it. This command must list both files and print
+   `EXIT=0`:
 
    ```
-   ! MSYS_NO_PATHCONV=1 railway ssh --service web -- ls -l /app/tools/pine_library/promotion_check.py /app/tools/pine_library/promotion_allowlist.json
+   ! MSYS_NO_PATHCONV=1 railway ssh --service web -- sh -c 'cd /app; ls -l tools/pine_library/promotion_check.py tools/pine_library/promotion_allowlist.json; echo EXIT=$?'
    ```
 
    If `promotion_check.py` is missing (`No such file`), `web` has not deployed the merge yet: stop
@@ -78,7 +88,7 @@ this runbook writes. Nothing reads a database, a member's file or an environment
 ## 1. Read what the production store holds today (read-only)
 
 ```
-! MSYS_NO_PATHCONV=1 railway ssh --service web -- /opt/venv/bin/python /app/tools/pine_library/promotion_check.py check
+! MSYS_NO_PATHCONV=1 railway ssh --service web -- sh -c 'cd /app; PYTHONPATH=/app timeout 150 /opt/venv/bin/python tools/pine_library/promotion_check.py check; echo EXIT=$?'
 ```
 
 - **The first line is `store: <path>`.**
@@ -87,8 +97,8 @@ this runbook writes. Nothing reads a database, a member's file or an environment
     backup at step 2.
   - Any other path: `PINE_LIBRARY_DIR` is set on `web`. **Stop and report it.** Steps 2 and 7 below
     name `/data/pine_libraries`.
-- **Expected: `MISSING` for each of the six versions, then `PROMOTION CHECK: FAIL`.** Nothing has been
-  promoted yet, so this is the normal answer.
+- **Expected: `MISSING` for each of the six versions, then `PROMOTION CHECK: FAIL` and `EXIT=1`.**
+  Nothing has been promoted yet, so this is the normal answer.
 - **A `PROMOTED` line** means that version is already there under the graded sha256. The install
   keeps it.
 - **A `WRONG-SHA` line** means production holds that version under different code. **Stop and report
@@ -104,28 +114,28 @@ this runbook writes. Nothing reads a database, a member's file or an environment
 ## 2. Back up the store (skip if step 1 said `does not exist`)
 
 ```
-! MSYS_NO_PATHCONV=1 railway ssh --service web -- mkdir -p /data/backups
+! MSYS_NO_PATHCONV=1 railway ssh --service web -- sh -c 'cd /app; mkdir -p /data/backups; echo EXIT=$?'
 ```
 
 ```
-! MSYS_NO_PATHCONV=1 railway ssh --service web -- tar -czf /data/backups/pine_libraries-2026-11-16-pre-promotion.tgz -C /data pine_libraries
+! MSYS_NO_PATHCONV=1 railway ssh --service web -- sh -c 'cd /app; timeout 150 tar -czf /data/backups/pine_libraries-2026-11-16-pre-promotion.tgz -C /data pine_libraries; echo EXIT=$?'
 ```
 
 ```
-! MSYS_NO_PATHCONV=1 railway ssh --service web -- sha256sum /data/backups/pine_libraries-2026-11-16-pre-promotion.tgz
+! MSYS_NO_PATHCONV=1 railway ssh --service web -- sh -c 'cd /app; ls -l /data/backups/pine_libraries-2026-11-16-pre-promotion.tgz; sha256sum /data/backups/pine_libraries-2026-11-16-pre-promotion.tgz; echo EXIT=$?'
 ```
 
-`tar` prints nothing when it succeeds. Write down the sha256. ⚠️ `/data/backups/` is on the same
+Each must print `EXIT=0`. Write down the sha256 the third one prints. ⚠️ `/data/backups/` is on the same
 volume as the store. It covers a mistake made by this runbook, not the loss of the volume.
 
 ## 3. Fetch the six versions into a staging folder
 
 ```
-! MSYS_NO_PATHCONV=1 railway ssh --service web -- env PINE_LIBRARY_DIR=/tmp/pine_libraries_staging /opt/venv/bin/python /app/tools/pine_library/fetch_library.py theEccentricTrader/PubLibSwing/3 theEccentricTrader/PubLibPattern/4 theEccentricTrader/PubLibCandleTrend/2 theEccentricTrader/PubLibTrend/3 TradingView/ta/11 TradingView/RelativeValue/3
+! MSYS_NO_PATHCONV=1 railway ssh --service web -- sh -c 'cd /app; PINE_LIBRARY_DIR=/tmp/pine_libraries_staging PYTHONPATH=/app timeout 300 /opt/venv/bin/python tools/pine_library/fetch_library.py theEccentricTrader/PubLibSwing/3 theEccentricTrader/PubLibPattern/4 theEccentricTrader/PubLibCandleTrend/2 theEccentricTrader/PubLibTrend/3 TradingView/ta/11 TradingView/RelativeValue/3; echo EXIT=$?'
 ```
 
 - It prints `store: /tmp/pine_libraries_staging`, then one `ok <path> MPL-2.0 (header) -> <file>` per
-  version.
+  version, then `EXIT=0`. `EXIT=124` means it timed out.
 - It reads TradingView's public, unauthenticated endpoints only. It writes only into
   `/tmp/pine_libraries_staging`, never into the store.
 - **A `FAIL ...` line** (a network error, a timeout): the pod could not reach TradingView. Nothing
@@ -134,10 +144,10 @@ volume as the store. It covers a mistake made by this runbook, not the loss of t
 ## 4. Check the staging folder against the allowlist (the sha check)
 
 ```
-! MSYS_NO_PATHCONV=1 railway ssh --service web -- /opt/venv/bin/python /app/tools/pine_library/promotion_check.py check --store /tmp/pine_libraries_staging --exact
+! MSYS_NO_PATHCONV=1 railway ssh --service web -- sh -c 'cd /app; PYTHONPATH=/app timeout 150 /opt/venv/bin/python tools/pine_library/promotion_check.py check --store /tmp/pine_libraries_staging --exact; echo EXIT=$?'
 ```
 
-The last line must be **`PROMOTION CHECK: PASS`**, with one `PROMOTED <path> <sha256>` line per
+The last lines must be **`PROMOTION CHECK: PASS`** and `EXIT=0`, with one `PROMOTED <path> <sha256>` line per
 version. The check uses the store's own rule (`entry_status`: sha256, licence, deny list), then the
 allowlist's sha256 for each version, then that every library a promoted version imports is promoted
 too.
@@ -152,13 +162,13 @@ First the plan. It writes nothing, and must end `PROMOTION INSTALL: PASS` with a
 line per version:
 
 ```
-! MSYS_NO_PATHCONV=1 railway ssh --service web -- /opt/venv/bin/python /app/tools/pine_library/promotion_check.py install --from /tmp/pine_libraries_staging
+! MSYS_NO_PATHCONV=1 railway ssh --service web -- sh -c 'cd /app; PYTHONPATH=/app timeout 150 /opt/venv/bin/python tools/pine_library/promotion_check.py install --from /tmp/pine_libraries_staging; echo EXIT=$?'
 ```
 
 Then the write:
 
 ```
-! MSYS_NO_PATHCONV=1 railway ssh --service web -- /opt/venv/bin/python /app/tools/pine_library/promotion_check.py install --from /tmp/pine_libraries_staging --apply
+! MSYS_NO_PATHCONV=1 railway ssh --service web -- sh -c 'cd /app; PYTHONPATH=/app timeout 150 /opt/venv/bin/python tools/pine_library/promotion_check.py install --from /tmp/pine_libraries_staging --apply; echo EXIT=$?'
 ```
 
 - It prints `WROTE <path> -> <file>` per copied version, then `PROMOTION INSTALL: PASS`.
@@ -173,10 +183,10 @@ Then the write:
 On the pod:
 
 ```
-! MSYS_NO_PATHCONV=1 railway ssh --service web -- /opt/venv/bin/python /app/tools/pine_library/promotion_check.py check
+! MSYS_NO_PATHCONV=1 railway ssh --service web -- sh -c 'cd /app; PYTHONPATH=/app timeout 150 /opt/venv/bin/python tools/pine_library/promotion_check.py check; echo EXIT=$?'
 ```
 
-The last line must be **`PROMOTION CHECK: PASS`**, with a `PROMOTED` line per version. Any `OTHER`
+The last lines must be **`PROMOTION CHECK: PASS`** and `EXIT=0`, with a `PROMOTED` line per version. Any `OTHER`
 lines must be exactly the ones step 1 listed.
 
 Then **through the read door**, in your own browser, signed in as yourself:
@@ -197,19 +207,19 @@ Report the outputs of steps 1 and 6 to the coordinator.
 ## 7. Rollback (only if needed)
 
 ```
-! MSYS_NO_PATHCONV=1 railway ssh --service web -- mv /data/pine_libraries /data/pine_libraries.rolled-back-2026-11-16
+! MSYS_NO_PATHCONV=1 railway ssh --service web -- sh -c 'cd /app; mv /data/pine_libraries /data/pine_libraries.rolled-back-2026-11-16; echo EXIT=$?'
 ```
 
 Only if step 2 made a backup:
 
 ```
-! MSYS_NO_PATHCONV=1 railway ssh --service web -- tar -xzf /data/backups/pine_libraries-2026-11-16-pre-promotion.tgz -C /data
+! MSYS_NO_PATHCONV=1 railway ssh --service web -- sh -c 'cd /app; timeout 150 tar -xzf /data/backups/pine_libraries-2026-11-16-pre-promotion.tgz -C /data; echo EXIT=$?'
 ```
 
 Then read back what the store holds now:
 
 ```
-! MSYS_NO_PATHCONV=1 railway ssh --service web -- /opt/venv/bin/python /app/tools/pine_library/promotion_check.py check
+! MSYS_NO_PATHCONV=1 railway ssh --service web -- sh -c 'cd /app; PYTHONPATH=/app timeout 150 /opt/venv/bin/python tools/pine_library/promotion_check.py check; echo EXIT=$?'
 ```
 
 - The store moves aside. It is never deleted.
