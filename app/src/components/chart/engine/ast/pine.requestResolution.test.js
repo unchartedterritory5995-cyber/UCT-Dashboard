@@ -12,7 +12,6 @@ import { buildRuntimeIr } from './pineRuntimeFrontend.js'
 //     data using the chart's symbol";
 //   * `ticker.modify(<symbol>)` with nothing modified: "If session is not given, then `syminfo.session` value
 //     is used", "If adjustment is not given, then default adjustment value is used";
-//   * a v3 / v4 `input(…, type = input.symbol)`: the v4 → v5 migration renames it `input.symbol`, default kept;
 //   * a `session` / `gaps` / `lookahead` CONSTANT written through a plain binding is that constant.
 // The served trees are the existing `sym` / identity / `tf_merge` nodes, whose readings are witnessed
 // (`vw-other-symbol-rddt-1d-2026-09-30` O02 / O03; engine 55's merge captures).
@@ -50,12 +49,11 @@ describe('REQ (a) — the symbol, known before bar 0', () => {
       "plot(request.security(ticker.modify('SPY', adjustment = adjustment.dividends), timeframe.period, close))")))).toBe('pine:request')
   })
 
-  it('⭐ a v4 `input(…, type = input.symbol)` default is the symbol', () => {
-    expect(treeOf(translatePine(src("s = input('SPY', type = input.symbol)\nplot(security(s, timeframe.period, close))", 4))))
-      .toEqual({ type: 'sym', value: 'SPY', args: [CLOSE] })
-  })
-
-  it('⛔ CONTROL: an `input` of another declared type is not a symbol', () => {
+  it('⛔ a v3 / v4 `input(…, type = …)` is its own declaration, never read as a symbol here', () => {
+    // measured: reading `type = input.symbol` sent pmax-explorer's twenty symbol inputs into twenty
+    // per-symbol requests and moved its PMax plot MATCH -> DIVERGE on the production lane
+    expect(refusedAt(translatePine(src("s = input('SPY', type = input.symbol)\nplot(security(s, timeframe.period, close))", 4))))
+      .toBe('pine:request')
     expect(refusedAt(translatePine(src("s = input('SPY', type = input.resolution)\nplot(security(s, timeframe.period, close))", 4))))
       .toBe('pine:request')
   })

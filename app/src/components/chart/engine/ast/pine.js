@@ -922,9 +922,6 @@ import { OBJECT_ENUM_VALUES } from '../objectEnums.js'
 
 const TICKER_CALLS = new Set(['ticker.new', 'tickerid'])
 
-/** ⭐ REQ — the `type =` spellings of a v3 / v4 `input(…)` that declare a SYMBOL or a STRING input
- *  (`Resolver.symbolInputDefaultOf`): v4's `input.symbol` / `input.string`, v3's bare `symbol` / `string`. */
-const SYMBOL_INPUT_TYPES = new Set(['input.symbol', 'symbol', 'input.string', 'string'])
 
 /** ⛔ W9-OQ-N2 — sinks that refuse (or withhold) their own row. */
 const STRATEGY_TAINT_ROW_SINKS = new Set(['plot', 'plotshape', 'plotchar', 'plotcandle', 'plotbar',
@@ -13599,7 +13596,7 @@ export class Resolver {
    *  hourly, and reading it as the chart's own timeframe answers off whatever
    *  bars happen to be loaded. */
   ownTimeframeOf(node, depth = 0) {
-    if (!node || depth > TF_READ_HOPS) return null
+    if (!node || depth > (this.objectPass ? TF_READ_HOPS : 4)) return null
     if (node.type === 'ternary') {
       const taken = this.constantBranchOf(node)
       return taken ? this.ownTimeframeOf(taken, depth + 1) : null
@@ -13615,7 +13612,7 @@ export class Resolver {
   }
 
   timeframeLiteralOf(node, depth = 0) {
-    if (!node || depth > TF_READ_HOPS) return null
+    if (!node || depth > (this.objectPass ? TF_READ_HOPS : 4)) return null
     if (node.type === 'string') return node.value
     if (node.type === 'ternary') {
       const taken = this.constantBranchOf(node)
@@ -14239,18 +14236,11 @@ export class Resolver {
     const untyped = node.name === 'input'
     if (!untyped && node.name !== 'input.symbol' && node.name !== 'input.string') return undefined
     const args = node.args || []
-    // ⭐⭐ REQ (coverage unit, 2026-11-16) — v3 / v4 DECLARE THE INPUT'S TYPE BY ARGUMENT, and a
-    // symbol or string type IS the input this reads: `input("AAPL", type = input.symbol)` (v4),
-    // `input("AAPL", type = symbol)` (v3) are `input.symbol("AAPL")` (the v4 → v5 migration guide
-    // renames the form; the default is unchanged). ⚰️ Any `type =` argument used to end the read,
-    // so every v4 screener's symbol input refused "could not be resolved to one symbol".
-    // ⛔ Every OTHER declared type (a resolution, a number, a source) is its own declaration and
-    // still ends the read here.
-    const typed = untyped ? args.find((a) => a && a.name === 'type') : null
-    if (typed) {
-      const spelled = typed.value && typed.value.type === 'name' ? typed.value.name : null
-      if (!SYMBOL_INPUT_TYPES.has(spelled)) return undefined
-    }
+    // ⛔ REQ (coverage unit, 2026-11-16) — a v3 / v4 `input(…, type = input.symbol)` is NOT read here. It was
+    // tried: pmax-explorer's twenty `type = input.symbol` inputs then translated twenty per-symbol requests and
+    // its PMax plot moved MATCH -> DIVERGE on the production lane (`vendorHarness.coverageAudit`). Any
+    // `type =` argument is its own declaration and ends the read, as before.
+    if (untyped && args.some((a) => a && a.name === 'type')) return undefined
     for (let i = 0; i < args.length; i += 1) {
       const a = args[i]
       if (a && (a.name === 'defval' || (!a.name && i === 0))) {

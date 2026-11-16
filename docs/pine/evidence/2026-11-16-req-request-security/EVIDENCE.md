@@ -19,17 +19,26 @@ the 109 sample scripts the request family touches (the wall analysis of the engi
 | (a) resolution | `builtin:correlation-coefficient` | `pine:request` (unresolved symbol) | transfers: clean AND clean on the bound check | `ticker.modify(input.symbol("GOOG"))` with nothing modified is GOOG: an ordinary `sym` read |
 | (b) stateful expression | `reference:money-flow-index-mtf-alerts` | `runtime:request-with-state` | transfers (runtime lane) | a v3 bare `security(tickerid, res, <stateful>)` whose `res` folds to the chart's own period is the expression in this run |
 
-Slice (a)'s own count: of 30 targets whose wall list held an "unresolved symbol / timeframe" wall, 3 are freed
-of it; 1 transfers (above), 1 (`cppivot-boss-floor-pivots…`) now attaches and then fails install on the host
-budget `budget:series` (13 series references, cap 8), 1 (`machine-learning-logistic-regression-v3`) moves on
-to `pine:offset-literal`. Slice (b)'s own count: of the 20 scripts blocked by `runtime:request-with-state` on
+Slice (a)'s own count: 1 transfers (above). Two further readings were built, measured and WITHDRAWN before the
+push (see "Withdrawn" below), so the cppivot and machine-learning moves the first measurement reported are not in
+this PR. Slice (b)'s own count: of the 20 scripts blocked by `runtime:request-with-state` on
 a bare `security(…)`, 1 transfers; 7 more now reach the request door and stop at a named request wall
 (look-ahead below the chart, a timeframe read below the chart, another symbol, a dynamic timeframe), which is
 where their real wall was.
 
 `budget:series` failures this unit uncovered (for the cap ruling): `cppivot-boss-floor-pivots-with-atr-dilation-
-and-dynamic-levels` (13 > 8, newly reached), `swing-points-and-liquidity-by-leviathan` (14 > 8, already so on
-master, after peeling).
+and-dynamic-levels` (13 > 8) once its six-hop timeframe chain is read on the plot lane (withdrawn here, so not
+reached on this branch), `swing-points-and-liquidity-by-leviathan` (14 > 8, already so on master, after peeling).
+
+## Withdrawn (built, measured, reverted before the push)
+
+- **The timeframe reader's 16 hops on the PLOT lane.** The cloud's `pineProbeReplay` rail measured
+  artemis-oscillator-pro's plot-lane translation moving (more Resolver steps AND a different output digest), and
+  `pine.c10ConstantTests` pins the confinement. Per the coordinator's ruling (revert if a previously served
+  output moves) it is object-pass only again. It freed no transfer: cppivot then fails `budget:series`.
+- **A v3 / v4 `input(…, type = input.symbol)` default read as the symbol.** The cloud's production harness
+  lane measured pmax-explorer SPY's PMax plot MATCH -> DIVERGE (`vendorHarness.coverageAudit`): its twenty
+  symbol inputs became twenty per-symbol requests. Reverted; it freed no transfer either.
 
 The per-target table (identifiers only) is in the PR body.
 
@@ -39,9 +48,7 @@ The per-target table (identifiers only) is in the PR body.
 |---|---|---|
 | an empty symbol `''` (a literal, or an `input.symbol('')` default) is the chart's own | host + runtime | reference, `request.security`, `symbol`: "Use an empty string or `syminfo.tickerid` to request data using the chart's symbol." Served as the identity |
 | `ticker.modify(<symbol>)` with no other argument is `<symbol>` | host + runtime | reference, `ticker.modify`: "If session is not given, then `syminfo.session` value is used", "If adjustment is not given, then default adjustment value is used"; `backadjustment` / `settlement_as_close` default to inherit. Served as the existing `sym` read (`vw-other-symbol-rddt-1d-2026-09-30` O02 / O03 MATCH) |
-| a v3 / v4 `input(…, type = input.symbol / symbol / input.string / string)` default is the symbol | host + runtime | the v4 → v5 migration (the form renamed `input.symbol`, the default unchanged); the fold is recorded in `usedInputs` as `input.symbol`'s is |
 | a `session` / `gaps` / `lookahead` constant written through a plain binding | host + runtime | the constant itself: `Resolver.builtinNameThrough` follows bare names only and folds nothing |
-| the timeframe reader follows 16 hops on the plot lane (it was object-pass only) | host | coordinator ruling 2026-11-16, kept on proof: `paramIds.test.js` green; `runtimeAllowlistParity.test.js` green (RS Rating's three captures stay MATCH_SUBSTITUTED) |
 | a v1–v4 bare `security(…)` goes through the runtime request door (`admitRequest`) | runtime | the v4 → v5 rename; the identity question is asked first (C23's rule, already served for `request.security`) |
 | `lookahead = barmerge.lookahead_on` at `W` / `M` on the runtime lane | runtime | the committed `vw-request-htf-alignment-spy-1d-2026-10-02` (AMEX:SPY 1D, 1,800 bars): A01 (weekly close), A04 (monthly close), A06 (`close[1]`: last week's close) exact on every graded bar, by the pick (`interpret.js::tfLiveReads`) AND by the runtime lane's own run (`computeRuntimeColumns`, off the listing, warm-up curtain); A02 / A05 (look-ahead off) unchanged; the controls show the two picks part on more than 1,000 bars (`vendorHarness.reqLookaheadAlignment.test.js`) |
 

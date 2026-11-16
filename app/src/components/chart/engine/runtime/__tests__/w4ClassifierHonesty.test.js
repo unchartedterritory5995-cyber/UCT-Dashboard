@@ -38,10 +38,14 @@ const refusalOf = (src) => {
 }
 
 describe('A — the v1–v4 spelling of a request is the request wall', () => {
+  // ⭐⭐ REQ (coverage unit, 2026-11-16) — a bare v1–v4 `security(…)` is now asked the request door's own
+  // question first (`pineRuntimeFrontend.js::admitRequest`), as `request.security` always was: a request for
+  // THIS chart at THIS chart's period is the expression itself (C23), state and all. So the wall these rows
+  // pin is a GENUINE request over state, at another period ("W"); the identity is pinned below as building.
   const CASES = [
-    ['v4 `security` over state', `${V4}${STATE}plot(security(syminfo.tickerid, "D", sma(x, 3)))\n`],
-    ['no version line (v1) `security`', `${NOVER}${STATE}plot(security(tickerid, "D", sma(x, 3)))\n`],
-    ['v4 `security` bound to a name', `${V4}${STATE}y = security(syminfo.tickerid, "D", sma(x, 3))\nplot(y)\n`],
+    ['v4 `security` over state', `${V4}${STATE}plot(security(syminfo.tickerid, "W", sma(x, 3)))\n`],
+    ['no version line (v1) `security`', `${NOVER}${STATE}plot(security(tickerid, "W", sma(x, 3)))\n`],
+    ['v4 `security` bound to a name', `${V4}${STATE}y = security(syminfo.tickerid, "W", sma(x, 3))\nplot(y)\n`],
     ['`security_lower_tf` over state', `${V4}${STATE}plot(security_lower_tf(syminfo.tickerid, "1", sma(x, 3)))\n`],
     ['`financial` over state', `${V4}${STATE}plot(financial(syminfo.tickerid, "X", "FQ", sma(x, 3)))\n`],
   ]
@@ -63,6 +67,15 @@ describe('A — the v1–v4 spelling of a request is the request wall', () => {
   it('⛔ a script that DEFINES `security` is calling its own function, not a request', () => {
     const b = run(`${V4}security(a, b) => a + b\n${STATE}plot(security(x, 1))\n`)
     expect(b.ok).toBe(true)
+  })
+
+  it('⭐ REQ — the v4 identity over state builds exactly as the v5 `request.security` identity does', () => {
+    const v4 = run(`${V4}${STATE}plot(security(syminfo.tickerid, "D", sma(x, 3)))\n`)
+    const v5 = run(`${V5}${STATE}plot(request.security(syminfo.tickerid, "D", ta.sma(x, 3)))\n`)
+    expect(v5.ok, v5.ok ? '' : v5.refusal.message).toBe(true)
+    expect(v4.ok, v4.ok ? '' : v4.refusal.message).toBe(true)
+    expect((v4.ir.requests || []).length).toBe(0)
+    expect((v5.ir.requests || []).length).toBe(0)
   })
 
   it('a request the lane serves still builds (nothing newly refused)', () => {
