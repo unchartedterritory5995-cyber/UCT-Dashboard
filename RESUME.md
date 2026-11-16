@@ -1,121 +1,92 @@
-# RESUME: landing train 1 (`land/pine-engine-train-1`), PARKED
+# RESUME: landing train 1 (`land/pine-engine-train-1`), IN PROGRESS
 
 > ⛔ Remove this file (and `docs/pine/landing-train-1/`) in the commit that opens the train PR.
-> Parked 2026-11-15 before a PC restart. No regression has been run on the combined tree yet.
+> Checkpoint written 2026-11-15 (second session). All inputs are merged; the union rails ran once;
+> NO census / harness regression has run yet, the engine number is NOT set, no PR is open.
 
-## What the train is
-Five finished engine branches landed as ONE engine number with ONE before/after regression run.
-Each branch already passed its own focused rails and mutants; their builders own their content.
-Merge commits only, no force, conflicts resolved by keeping BOTH sides' rules.
-COND-TA (`fix/pine-engine-cond-ta`, worktree `eng-condta`) is NOT in the train: it lands first as
-engine 58, so the train takes **59** (= master + 1 at push; re-check at push).
+## Coordinator changes since the first park (they override the older text)
+- COND-TA does NOT land first. The train takes master + 1 at push (expected **58**; re-read
+  `origin/master:app/src/components/chart/engine/scriptEngineVersion.js` before the number step and before pushing).
+- Input heads are frozen (verified with `git rev-parse origin/<branch>` on 2026-11-15):
+  eng57 `5b276cacb6`, eng56-v2 `e63532f7b6`, colour-reader `d2115c85e1` PLUS `fix/pine-engine58-colours`
+  `968066d775` (the review of #1330, not contained in colour-reader), legacy `f5676682b0`, hl-cbc `5d5003c34e`.
 
-## Inputs
+## Done (first-parent chain of the branch)
+| commit | what | conflicts (all resolved by keeping both sides) |
+|---|---|---|
+| `49ebc0b470` | hl-cbc `5d5003c34e` | none |
+| `f0d25abf88` | `origin/master` `ecd8c3cccd` (engine 57) | none |
+| `91e90b57dd` | eng57 `5b276cacb6` | `ast_interpret.py`, `interpret.js`, `pineRuntimeFrontend.js`, `scriptEngineVersion.js` |
+| `53bc09ee87` | eng56-v2 `e63532f7b6` | 12 files; `FINITE_WINDOW.highestbars/lowestbars` = HL's `NA.FINITE` + `arg: true` AND eng56's `reduceNewest` / `holdsTie` (`naCurrent` is gone); roster pins 89 functions / 141 bar names / 290 declared |
+| `df33cd2a6f` | colour-reader `d2115c85e1` | `pineRuntimeFrontend.js`, `ourSide.js`, `compare.mjs`, `scriptEngineVersion.js`, `capture-queue.json` (regenerated) |
+| `03f49f56de` | engine58-colours `968066d775` | `memberPaneDefinition.js`, `compare.mjs` (2), `IndicatorChip.jsx`, `LegendRow.jsx`, `scriptEngineVersion.js` (the review's rewritten #1330 line replaces the older one) |
+| `b5ac5b63df` | legacy `f5676682b0` | `pine.js` (4: `pineScript` AND `pineV1`), `pineRuntimeFrontend.js` (5), `scriptEngineVersion.js`, `capture-queue.json` (regenerated) |
+| `5ded7c555c` | `GRAMMAR.md` regenerated (`FORMULA_DOCS_WRITE=1` on `formulaDocs.test.js`); `periodAnchorParity` excludes `stoch:` / `rci:` | - |
 
-| # | branch | head the train takes | state at park |
-|---|---|---|---|
-| 1 | `land/pine-engine-hl-cbc` (#1332 + #1333, engine HL + CBC-FMT) | `5d5003c34eacddaace3c776795d8468b3a2a47ee` | **IN** (merge `49ebc0b470`, clean, no conflicts) |
-| 2 | `fix/pine-engine57-builtins` (#1294, supertrend / stoch / RCI) | PENDING: its builder pushes a frozen head after its 54 mutants (local head was `8c8945b258`, origin `fe9140a2f5`) | not merged |
-| 3 | `fix/pine-engine56-values-v2` (#1265-v2, bool-na, ties, pivots, percentrank, rising/falling) | PENDING: local branch in `C:/Users/Patrick/uct-worktrees/eng56`, builder finishing roots + python (head was `389c81bcb2`) | not merged |
-| 4 | `fix/pine-engine-colour-reader` (#1330 + B4 nested iff/switch colour reader) | PENDING (local head was `26f9342a2e`, origin `1d173f426c`) | not merged |
-| 5 | `fix/pine-engine-legacy-semantics` (n, v1 barssince, v2/v3 carry, object defaults, arrays) | PENDING: Part B in progress, local in `eng-legacy` (head was `f9240dcc1e`) | not merged |
+`scriptEngineVersion.js`: `SCRIPT_ENGINE_VERSION` is still 57; every input's history line is kept and
+starts `NUMBER PENDING =` (seven lines: HL, CBC-FMT, #1294, #1265-v2, #1330 + review, B4, legacy). Step E
+replaces those prefixes with the one number. `evidence_engine.py queue --check` PASS after the last merge.
+`tools/lookback_agreement.json` was rewritten by its rail and did not change.
 
-Base: `origin/master` `f95e46af88` (engine 57). When COND-TA merges, `git merge origin/master` into
-the train FIRST, then take the pending inputs. Take each head from the coordinator's report, never
-from a moving worktree; confirm with `git -C <wt> log -1` / `git rev-parse origin/<branch>`.
+## Rails run on the combined tree so far
+- Python (one file at a time, all green): `test_engine_hl_holes` 12, `test_engine56_values` 14,
+  `test_engine57_builtins` 21, `test_ast_interpret` 105, `test_ast_scalars` 174, `test_ast_bounded_state` 39,
+  `test_ast_period_anchor_parity` 137, `test_ast_tc2000_remainder` 17, `test_cbcfmt_calc_bars_server` 18,
+  `test_definition_colour_trust` 67, `test_queue_dispositions` 10, `test_alert_user_admission` 37.
+- vitest, the union of the inputs' test files (`docs/pine/landing-train-1/rails.union`, 49 files), at `b5ac5b63df`:
+  `regen` 2 files passed; `ast` 22 files, 3 failed; `engine/__tests__` 15 files / 266 tests, 1 failed;
+  `runtime` + `builder` 12 files, 1 failed. The five failing files and their state:
 
-Phase-A evidence per input (read each branch's EVIDENCE.md):
-- hl-cbc: `docs/pine/evidence/2026-11-15-engine-hl-holes/EVIDENCE.md`, `docs/pine/evidence/2026-11-15-cbc-fmt/EVIDENCE.md`.
-  Coordinator: 15 vitest files 666 passed / 7 skipped; Python focused + AST conformance 444 / 5 skipped; mutants 3/3 killed.
-- eng57: `docs/pine/evidence/2026-11-14-engine57-builtins/EVIDENCE.md` (52 mutants killed; harness both lanes
-  0 MATCH->DIVERGE; scoped census 0 guard changes). Open note 5: it must rebase after the colour engine
-  (`dual-supertrend-ichimoku-and-dmi` colour) and move engine 55's dark-plot census rail subject (note 4; done in `8c8945b258`).
-- eng56: `docs/pine/evidence/2026-11-14-engine56-values/EVIDENCE.md`. ⚠️ Its census + harness tables were
-  measured at `86dc5eeb5d`; it says they are OWED on the final head. The train's one regression is that measurement.
-- colour: `docs/pine/evidence/2026-11-14-engine58-colours/EVIDENCE.md` + `docs/pine/evidence/2026-11-15-colour-reader-b4/EVIDENCE.md`.
-- legacy: `docs/pine/evidence/2026-11-15-legacy-semantics/EVIDENCE.md`.
+| file | cause | state |
+|---|---|---|
+| `periodAnchorParity.test.js` | eng57's `stoch:` / `rci:` codes not excluded (fails on the eng57 head alone too) | fixed in `5ded7c555c`, re-run OWED |
+| `pine.guardCensus.test.js` | legacy's new guard `pine:fn-history-in-block` not on the unexercised roster | edited (this commit), NOT RUN |
+| `engine58Review.test.jsx` "the legend row: the same" | master's signature legend no longer inks the VERTICAL row's name; the review rail asked the vertical row for text ink | rail re-pointed at the flat strip + the vertical rail (this commit), NOT RUN, mutant not run |
+| `savedDocumentRoundTrip.test.js` (2 tests) | two documents moved by eng56-v2 (bisected over the merge chain: equal at `ecd8c3cccd`, `f0d25abf88`, `91e90b57dd`; moved at `53bc09ee87`; unchanged after): OBV-everget (`crossOver(…) != 0` operand cast) and opening-range (`show_mid and timeframe.isintraday` keeps its `&&`, `show_mid` gained as an input) | `MOVED_BY_ENGINE` entries + `undoEngine56` written (this commit); a Python prototype of the same undo reproduces the pre-merge trees, manifest and sources exactly; the JS is NOT RUN |
+| `engine57Builtins.test.js` F5 | the rail's runtime half is stale against master: since RS Rating L5 (#1342) the runtime lane SERVES a weekly self-request (`request.security(syminfo.tickerid, "W", close)` is OK at `ecd8c3cccd`), and this rail's script refuses `runtime:unbound` on `bar_index` instead of `interpret:bind-time-text`. Same answer at every commit of the chain incl. master itself | OPEN, see next section |
 
-## Conflict map (previewed with `git merge-tree` on the heads at park; re-preview on the frozen heads)
-Every input conflicts in `scriptEngineVersion.js`: ONE new number (59), every branch's history
-line(s) under it (replace each `NUMBER PENDING =` / `57 =` / `58 =` prefix of the incoming lines with
-the single `59 =` line, keep every sentence), `export const SCRIPT_ENGINE_VERSION = 59` once.
+## OPEN: engine 57 x master (the F5 rail and mutant F5b)
+1. `docs/pine/landing-train-1/probe.test.js` (scratch, run with `vitest.scratch.config.mjs`, `TRAIN_TEST=probe.test.js`
+   `TRAIN_OUT=<json>`) asks: with a weekly self-request over a `ta.stoch` whose weekly window is an unpinned flat run
+   (variants `cum` / `inline`, no `bar_index`), does the RUNTIME lane serve bars the host lane withholds by
+   `stoch:flat-window`? It has NOT RUN (the lock gate stopped on disk space). If `rtServedWhereHostWithheld > 0`
+   that is an unowned gap between #1342 and #1294: STOP and report it. If the runtime declines or matches, re-point
+   the F5 rail's runtime half at what the lane does today.
+2. Why F5b survives (read off the code, not yet run): `interpret.js::builtinWitnessMask` lists the nested reads as
+   `sym`, `tf`, `tf_live`, `ltf` and NOT `tf_merge` (line `const into = nested || node.type === 'sym' || …`), and
+   the F5 rail's `request.security(…, "W", …)` translates to `tf_merge` since engine 56 (#1264). So the root mask
+   treats the site as un-nested, evaluates its arguments on the CHART's bars and names `stoch:flat-window` itself;
+   the child's own sink is not needed for the rail to pass. `windowHoleMask` (engine HL) has the same list, in JS and
+   in Python (`("tf", "tf_live", "sym", "ltf")`). Effect, as read: over-withholding at the root (bars flagged from
+   a daily analysis of a weekly site) and the code named from the wrong bars; the child's own mask still withholds the
+   right weekly bars, so no wrong value is served. NOT fixed here (product change outside the conflict map): report it.
+   The `tf` child's `chartClockSink` IS reachable (a formula `tf(…)` and Pine's `tf_live` share that line), so the
+   F5b rail is: the F5 tree with `tf_merge` re-typed `tf` (the probe computes it as `tfClock` / `tfNaN`), clock must
+   equal `[stoch:flat-window]`; prove it red with F5b (`chartClockSink: undefined` added to the `tf` child's options),
+   green without.
+3. eng57 mutants K11, R1-R9, X1-X3: NOT RUN. The branch's mutant runner was never committed and is not in any
+   scratchpad; rebuild each from EVIDENCE.md's one-line description, copy-aside discipline.
 
-- **eng56** (hardest; real semantic overlap with engine HL):
-  - `ast/interpret.js` `FINITE_WINDOW.highestbars/lowestbars`: HL made them `na: NA.FINITE, arg: true`
-    (offset in BARS over holes, `rolling(series, n, reduce, policy, arg)`); eng56 added `reduceNewest`
-    + `holdsTie` and still passes `naCurrent` (`rolling(..., naCurrent)` on its base). Keep HL's
-    window (`NA.FINITE`, `arg: true`, HL's `rolling` signature) AND eng56's `reduceNewest` / `holdsTie`;
-    `windowFnNewest` must call `rolling(..., FINITE_WINDOW[name].na, FINITE_WINDOW[name].arg === true)`.
-    Check eng56's `windowArgExtreme(…, newest)` against HL's index mapping under `arg: true` (HL counts the
-    offset in bars across holes; the newest-tie walk must use the same mapping). Ask eng56's owner if unsure.
-  - `ast/interpret.js` masks list + `TableRefusal` sentences: keep `windowHoleMask` AND `boolNaMask` +
-    `argExtremeTieMask`; keep `'window-extreme:left-edge'` AND `BOOL_NA_UNWITNESSED` / `TIE_UNWITNESSED` sentences.
-  - `api/services/ast_interpret.py`: keep `window_hole_mask` AND the `(bool_na_mask, arg_extreme_tie_mask)`
-    loop; keep `_HOLE_*`/`window_hole_mask` AND `_WITNESS_*`/`_witness_mask` definitions.
-  - `ast/pineRuntimeFrontend.js`: union of imports (`declarationCalcBars` + `neverNaBoolNamesOf, isBoolishTree`;
-    `literalTostringText…` import kept; `naConditionIsFalse` vs eng56's `pineNaConditionIsFalse`: check which
-    name exists after the merge and keep every caller working); union of sentence table entries; keep HL's
-    comment AND eng56's `BOOL_NA_UNWITNESSED || TIE_UNWITNESSED` decline.
-  - `__tests__/vendorHarness/ourSide.js`: chain both labels (`window-extreme:` -> 'a window over `na` gaps',
-    `pine:` -> 'a value (engine 56 per-bar witness)').
-  - `ast/periodAnchorParity.test.js`: exclude both prefix sets (`window-extreme:`, `arg-extreme:`, `pine:`).
-- **eng57**: `ast_interpret.py` (both masks: `window_hole_mask` and `builtin_witness_mask`), `interpret.js`
-  (both sentence groups; the mask doc comment names both), `pineRuntimeFrontend.js` (union imports
-  incl. `STOCH_FLAT_WINDOW, STOCH_LEFT_EDGE, RCI_LEFT_EDGE`; union sentence table; keep HL comment AND the
-  `STOCH_FLAT_WINDOW` decline).
-- **colour**: `pineRuntimeFrontend.js` import union (`declarationCalcBars` + `isLegacyPineVersion`);
-  `docs/pine/vendor-harness/capture-queue.json`: regenerate (`python tools/vendor_harness/evidence_engine.py queue --write`, then `queue --check`).
-- **legacy**: `pineRuntimeFrontend.js` import union + sentence-table union (`LITERAL_TOSTRING_UNCAPTURED` AND
-  `'pine:fn-history-in-block'`); `capture-queue.json` regenerate as above.
-- After all merges: regenerate anything generated (`docs/formulas/GRAMMAR.md`, `tools/lookback_agreement.json`
-  via its rail, host-parity digests) and re-run `queue --check`, `evidence_engine.py pins --check`.
+## NOT DONE (in order)
+1. Re-run the five files above; finish the F5 / F5b work; commit.
+2. Step D in full, sharded by folder under the lock: `engine/ast`, `engine/runtime`, `builder`, `engine/__tests__`
+   (eng56-v2 never ran `builder`, `engine/__tests__` or its pytest list on its final head), the 43
+   `tests/test_ast_*.py` + the engine files one at a time, `tests/test_pine_runtime_*.py`,
+   `node --test services/pine_runtime/test/*.test.mjs`.
+3. Step C: tiny dry run of `census.train.test.js` (both lanes, read a row), then `measure.sh after`,
+   `measure.sh before-<BASE>` at `BASE = git merge-base HEAD origin/master` (`ecd8c3cccd` today), `cmp.py`,
+   attribution of every move. `measure.sh` and `vitest.train.config.mjs` in the folder still carry the FIRST
+   session's scratchpad path: set `O=` / `S=` to the current scratch copy before use.
+4. Step E (number 58 = master + 1, host parity `--write` / `--check`, `service_smoke.json` re-record, smoke 4/4).
+5. `queue --check`, `pins --check`, the five named pytest files, `check_repo_hygiene.py`; remove this file and
+   `docs/pine/landing-train-1/`; push; ONE PR. Do not merge, do not close #1265 / #1294 / #1330 / #1332 / #1333.
 
-## The regression (step C): ONE before/after on the combined tree
-Tools (copies committed in `docs/pine/landing-train-1/`, live copies in the session scratchpad
-`C:/Users/Patrick/AppData/Local/Temp/claude/6c61ec7db4c79b74/269630a0-d11b-41f6-8959-ec8ae95a9506/scratchpad/TRAIN1/`):
-`sources.py` (census input, built ONCE from the train head), `census.train.test.js` + `vitest.train.config.mjs`
-(four doors + the member door's served columns on RDDT 1D listing bars, on and off the listing; `TRAIN_LANE=0`
-production / `1` runtime-on, the harness's own flag stubs), `measure.sh TAG [c0 c1 f0 f1 h0 h1]` (one heavy-lock
-hold per run, RAM gate >= 6 GB, maxWorkers = clamp(floor((freeGB-6)/1.5),1,4)), `held_dirs.txt` (the held store:
-every `uct-vendor-batch/runs/*/captures` except `admit-grade`, `regrade-*`, `licence-moved-*`), `cmp.py BEFORE AFTER`
-(the moves; exit 1 on any capture that becomes DIVERGE), `record_train.py` (service_smoke launcher).
-If the coordinator's sharded census/harness runner has landed (byte-identical to serial), use it instead.
-⚠️ `census.train.test.js` has NEVER RUN: the 6-source dry run was queued behind the heavy lock and
-stopped at park. Dry-run it first, both lanes, on a subset (`sources.tiny.json`: 3 repo + 3 held sources,
-`TRAIN_IN=$T/sources.tiny.json`), and read one output row before the full run. `measure.sh` and `cmp.py`
-are untested too. The harness half of `measure.sh` uses the stock `vendorHarness.corpus.test.js`, as
-every engine builder did.
+## Tooling added this session (`docs/pine/landing-train-1/`)
+`inlock.py` + `lock.sh` (one heavy-lock hold, one process per shard, free RAM and C: measured before each shard,
+stops under 8 GB disk / 6 GB RAM; `lock.sh LABEL TIMEOUT OUTDIR SHARDFILE`), `vitest.scratch.config.mjs` +
+`bisect.test.js` / `probe.test.js` (scratch tests outside the repo tree), `rails.union`. They hard-code this
+session's scratchpad path; fix it on resume.
 
-```bash
-T=C:/Users/Patrick/AppData/Local/Temp/claude/6c61ec7db4c79b74/269630a0-d11b-41f6-8959-ec8ae95a9506/scratchpad/TRAIN1
-W=C:/Users/Patrick/uct-worktrees/train-1
-# (if the scratchpad is gone: mkdir -p $T && cp $W/docs/pine/landing-train-1/* $T/)
-# 0. at the final train head (all five in, master re-merged), freeze the inputs:
-git -C $W checkout land/pine-engine-train-1
-python $T/sources.py                                  # -> $T/sources.json
-rm -rf $T/fixtures && cp -r $W/tests/fixtures/vendor $T/fixtures   # the SAME capture set for both sides
-BASE=$(git -C $W merge-base HEAD origin/master)       # = origin/master at the train's base
-# 1. AFTER
-bash $T/measure.sh after
-# 2. BEFORE = the base tree itself (reuse $T/before-$BASE if it already exists for this exact sha)
-git -C $W checkout --detach $BASE && bash $T/measure.sh before-$BASE
-git -C $W checkout land/pine-engine-train-1 && git -C $W status --short   # must be clean
-# 3. diff + gate (0 MATCH->DIVERGE, 0 new DIVERGE); attribute EVERY move to a branch
-python $T/cmp.py before-$BASE after
-```
-Attribution: each move is attributed by what it reads (supertrend/stoch/rci -> eng57; highest/lowest/
-highestbars/lowestbars holes, calc_bars_count, str.tostring -> hl-cbc; colours/transp/palette/iff/switch
-colour -> colour; `n`, v1 barssince, v2/v3 carry, object defaults, arrays -> legacy; bool na, ties, pivots,
-percentrank, rising/falling, v1/v2 self-declaration -> eng56) and checked against that branch's own EVIDENCE
-move list. If needed, grade the moved captures alone on the branch's own worktree
-(`VENDOR_HARNESS_DIR=<dir of the moved captures>`). Any move no branch explains: STOP and report.
-
-## Then (D, E, F)
-- D: the union of the five branches' focused rails (`git diff --name-only $BASE...<head>` per input, test files),
-  the section 8 list `python -m pytest tests/test_pine_runtime_*.py -q -p no:cacheprovider`, and
-  `node --test services/pine_runtime/test/*.test.mjs`; pytest one file at a time; vitest under the lock.
-- E (number last): set 59 (= master + 1 at push); `node tools/pine_runtime_host_parity.mjs --write` then
-  `--check`; service_smoke re-record per commit `3ce7585ee3`'s message with `$T/record_train.py`
-  (Node 20.20.2, heavy lock), then a plain smoke PASS 4/4.
-- F: push, ONE PR listing each branch, its evidence and its attributed census/harness moves; THEN close
-  #1265, #1294, #1330, #1332, #1333 with a pointer to the train PR. Do NOT merge.
+## Machine note
+2026-11-15 ~20:50: C: read 26 GB free, then 0.7 GB (the lock gate refused to start a shard), then 17 GB a few
+minutes later, with this train writing about 7 MB in total. Something else on the box takes and frees ~25 GB.

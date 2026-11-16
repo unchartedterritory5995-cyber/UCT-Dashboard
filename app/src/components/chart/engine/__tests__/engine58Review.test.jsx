@@ -77,8 +77,16 @@ describe('review 2 — a fully transparent colour gives the legend text its own 
     expect(inks(some.container).length).toBeGreaterThan(0)
   })
   it('the legend row: the same', () => {
-    expect(inks(render(<LegendRow rowId="r" label="EMA" value="1" color={COLOUR_NONE} vertical />).container)).toEqual([])
-    expect(inks(render(<LegendRow rowId="r" label="EMA" value="1" color="#c07be0" vertical />).container).length).toBeGreaterThan(0)
+    // ⭐ landing train 1 — master's signature legend (2026-11-15) no longer inks the VERTICAL row's
+    // name in the line's colour (the micro-rail carries it), so the text ink this review item guards
+    // lives on the FLAT strip, and the vertical row is asked of its rail: a colour that draws nothing
+    // paints neither (the row keeps the legend's own readable ink), a real colour paints both.
+    const paints = (container) => [...container.querySelectorAll('[style]')]
+      .map((e) => e.style.color || e.style.background).filter((c) => typeof c === 'string' && c !== '')
+    expect(inks(render(<LegendRow rowId="r" label="EMA" value="1" color={COLOUR_NONE} />).container)).toEqual([])
+    expect(inks(render(<LegendRow rowId="r" label="EMA" value="1" color="#c07be0" />).container).length).toBeGreaterThan(0)
+    expect(paints(render(<LegendRow rowId="r" label="EMA" value="1" color={COLOUR_NONE} vertical />).container)).toEqual([])
+    expect(paints(render(<LegendRow rowId="r" label="EMA" value="1" color="#c07be0" vertical />).container).length).toBeGreaterThan(0)
   })
 })
 
