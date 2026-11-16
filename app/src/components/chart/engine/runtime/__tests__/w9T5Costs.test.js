@@ -450,9 +450,10 @@ describe('W9-T5 pin before serve (D1): nothing T5 adds serves without its own pi
     'B-SLIPPAGE': `${DECL('slippage = 3')}${ENTER}${CLOSE3}plot(strategy.position_size)\n`,
     'B-POC-COST': `${DECL('process_orders_on_close = true, slippage = 3')}${ENTER}${CLOSE3}plot(strategy.position_size)\n`,
   }
-  it('each T5 rule is named, with the capture row the design gives it, and the ledger pins none', () => {
+  it('each T5 rule is named, with its capture row; the ledger pins the four W9-K rules and leaves B-POC-COST unpinned', () => {
     expect(T5_RULES.map((r) => BROKER_RULES[r].capture)).toEqual(['W9-K1', 'W9-K2', 'W9-K3', 'W9-K4', 'W9-P1'])
-    for (const r of T5_RULES) expect(Object.keys(RESOLVED.rules)).not.toContain(r)
+    for (const r of ['B-COMM-PCT', 'B-COMM-CONTRACT', 'B-COMM-ORDER', 'B-SLIPPAGE']) expect(Object.keys(RESOLVED.rules), r).toContain(r)
+    expect(Object.keys(RESOLVED.rules)).not.toContain('B-POC-COST')
   })
   for (const rule of T5_RULES) {
     const src = SAMPLES[rule]
@@ -465,23 +466,25 @@ describe('W9-T5 pin before serve (D1): nothing T5 adds serves without its own pi
       expect(err.rule).toBe(rule)
       expect(err.message).toContain(BROKER_RULES[rule].capture)
     })
-    it(`${rule}: on the committed ledger the run refuses runtime:strategy-unpinned`, () => {
-      const { err } = attempt(src, { pins: 'ledger' })
-      expect(err && err.guard).toBe('runtime:strategy-unpinned')
-      expect(BROKER_RULE_IDS).toContain(err.rule)
+    it(`${rule}: with the committed ledger the run completes when ${rule} is pinned; the one unpinned T5 case stops by name`, () => {
+      const r = attempt(src, { pins: 'ledger' })
+      // B-POC-COST's src also exercises B-POC first, which stays unpinned: the run stops at the first one it meets
+      if (rule === 'B-POC-COST') { expect(r.err && r.err.guard).toBe('runtime:strategy-unpinned'); expect(['B-POC', 'B-POC-COST']).toContain(r.err.rule); return }
+      expect(r.err, r.err && r.err.message).toBeUndefined()
+      expect(r.used).toContain(rule)
     })
-    it(`${rule}: the member door (gate on, committed ledger) refuses by name`, () => {
+    it(`${rule}: the member door (gate on, committed ledger) - pinned rules RUN; B-POC-COST stops by name`, () => {
       registerStrategyBrokerGate(() => true)
       const doc = { id: `w9t5-${rule}`, meta: { runtimeHistory: 'strategy-window' },
         compute: { kind: 'runtime', fn: `runtime:w9t5-${rule}`, outputs: { p: 0 }, source: src } }
       let err
       try { computeRuntimeColumns(doc, A, { tf: 'D', newestBarIsForming: false, historyFromListing: true, symbol: SYMBOL, historyWindowBars: 30 }) } catch (e) { err = e }
-      expect(err && err.guard).toBe('runtime:strategy-unpinned')
-      expect(err.message).toMatch(/is not pinned by a matching TradingView capture/)
+      if (rule === 'B-POC-COST') { expect(err && err.guard).toBe('runtime:strategy-unpinned'); return }
+      expect(err, err && err.message).toBeUndefined()
     })
   }
-  it('the D7 scorecard stays derived: 0 of every named rule (the size is pinned once, strategiesAreRuled.test.js)', () => {
+  it('the D7 scorecard stays derived: 31 of every named rule (the size is pinned once, strategiesAreRuled.test.js)', () => {
     for (const r of T5_RULES) expect(BROKER_RULE_IDS).toContain(r)
-    expect(strategyScorecardWording()).toMatch(new RegExp(`^0 of ${BROKER_RULE_IDS.length} broker rules are pinned`))
+    expect(strategyScorecardWording()).toMatch(new RegExp(`^31 of ${BROKER_RULE_IDS.length} broker rules are pinned`))
   })
 })
