@@ -196,7 +196,15 @@ def read_day(path: Path, day: str, symbols: Optional[frozenset] = None,
     if nulls:
         raise BuildError(f"{path}: null values {nulls}")
     stats = {"rows_in_file": tb.num_rows, "rows": 0, "symbols": 0, "out_of_order_rows": 0,
-             "duplicate_rows": 0, "foreign_rows": 0, "outside_0400_2000": 0}
+             "duplicate_rows": 0, "foreign_rows": 0, "outside_0400_2000": 0, "unnamed_rows": 0}
+    # The vendor file occasionally carries rows with NO ticker (2006-08-31: nine, all zero price and
+    # volume). A bar nobody can ask for is not data: left out and counted, never a reason to stop.
+    import pyarrow.compute as pcmp
+    named = pcmp.not_equal(pcmp.utf8_trim_whitespace(tb["ticker"]), "")
+    n_unnamed = tb.num_rows - int(pcmp.sum(named).as_py() or 0)
+    if n_unnamed:
+        stats["unnamed_rows"] = n_unnamed
+        tb = tb.filter(named)
     empty = DayData(day, [], np.zeros(1, dtype=np.int64), np.zeros(0, dtype=np.int64),
                     {k: np.zeros(0, dtype=np.int64) for k in piece.COLUMNS}, stats)
     if tb.num_rows == 0:
@@ -205,8 +213,6 @@ def read_day(path: Path, day: str, symbols: Optional[frozenset] = None,
     enc = tb["ticker"].combine_chunks().dictionary_encode()
     codes = enc.indices.to_numpy(zero_copy_only=False).astype(np.int64)
     names_seen = enc.dictionary.to_pylist()
-    if any(not nm for nm in names_seen):
-        raise BuildError(f"{path}: empty ticker")
     ws = tb["window_start"].to_numpy(zero_copy_only=False)
     fcols = {k: tb[src].to_numpy(zero_copy_only=False)
              for k, src in (("o", "open"), ("h", "high"), ("l", "low"), ("c", "close"), ("v", "volume"))}
@@ -342,7 +348,8 @@ class Builder:
             "pieces_unchanged": 0,
             "bytes_written": 0, "series": {s: {"pieces": 0, "bars": 0, "bytes": 0} for s in SERIES},
             "flush_seconds": 0.0, "anomalies": {"out_of_order_rows": 0, "duplicate_rows": 0,
-                                                "foreign_rows": 0, "outside_0400_2000": 0},
+                                                "foreign_rows": 0, "outside_0400_2000": 0,
+                                                "unnamed_rows": 0},
             "uncovered_calendar_days": [],
         }
 

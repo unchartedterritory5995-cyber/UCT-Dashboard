@@ -470,6 +470,20 @@ def test_build_refuses_instead_of_guessing(workroot, syn_raw):
     assert summary["anomalies"]["foreign_rows"] == 1 and summary["rows"] == 49
     assert sum(P.read_header(p.read_bytes())["bars"] for k, p in _pieces_on_disk(out).items() if k[1] == "1") == 49
 
+    # rows with NO ticker (the vendor's 2006-08-31 file has nine): left out and counted, and the
+    # named rows build exactly as they would without them
+    raw = _newdir(workroot, "unnamed_raw")
+    junk = [["", 0, "0.0", "0.0", "0.0", "0.0", rows[5][6], 1], ["  ", 0, "0.0", "0.0", "0.0", "0.0", rows[9][6], 1]]
+    _write_day(raw, "2026-11-10", [list(r) for r in rows[:20]] + junk + [list(r) for r in rows[20:]])
+    out = _newdir(workroot, "unnamed_out")
+    summary = _build(raw, out, "2026-11-10")
+    assert summary["anomalies"]["unnamed_rows"] == 2 and summary["rows"] == 50
+    clean_raw, clean_out = _newdir(workroot, "unnamed_clean_raw"), _newdir(workroot, "unnamed_clean_out")
+    _write_day(clean_raw, "2026-11-10", [list(r) for r in rows])
+    _build(clean_raw, clean_out, "2026-11-10")
+    got, want = _pieces_on_disk(out), _pieces_on_disk(clean_out)
+    assert got.keys() == want.keys() and all(got[k].read_bytes() == want[k].read_bytes() for k in want)
+
     # a bar that does not start on a minute
     raw = _newdir(workroot, "offmin_raw")
     off = [list(r) for r in rows]
