@@ -89,7 +89,7 @@ declare — how many operands they take and what they answer.
 | `!` | 1 | true or false |
 | `?:` | 3 | passthrough |
 
-## Functions (88)
+## Functions (89)
 
 `Needs` is how far back the function reads — the number the engine adds up to
 decide whether a formula can run at all.

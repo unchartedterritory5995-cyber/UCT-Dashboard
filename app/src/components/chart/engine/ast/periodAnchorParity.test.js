@@ -307,7 +307,11 @@ describe('C36 · parity with the Python lane — one fixture, both lanes', () =>
         && !k.startsWith('var-origin:') && !k.startsWith('window-extreme:') && !k.startsWith('arg-extreme:')
         // ⭐ ENGINE 56 — the two per-bar witness codes (`pine:bool-na-unwitnessed`, `pine:tie-unwitnessed`)
         // read no clock; both lanes rail them in `engine56Values.test.js` / `tests/test_engine56_values.py`
-        && !k.startsWith('pine:')).sort())
+        && !k.startsWith('pine:')
+        // ⭐ ENGINE 57 (landing train 1) — the three built-in witness codes (`stoch:flat-window`,
+        // `stoch:left-edge`, `rci:left-edge`) read no clock either; `engine57Builtins.test.js` and
+        // `tests/test_engine57_builtins.py` rail them on both lanes
+        && !k.startsWith('stoch:') && !k.startsWith('rci:')).sort())
     for (const code of codes) expect(typeof CHART_CLOCK_WITHHELD[code]('5')).toBe('string')
     for (const code of CHART_CLOCK_WHOLE) expect(Object.keys(CHART_CLOCK_WITHHELD)).toContain(code)
   })
