@@ -167,6 +167,10 @@ const SOON = 'Coming soon'
 /** ⭐ PHASE 4 — the "Your indicators" tab (`discoveryCatalog.tabOf` files a member's
  *  own formula under `formulas`, which `resultsForTab` already answers). */
 const YOUR_INDICATORS_TAB = Object.freeze({ key: 'formulas', label: 'Your indicators' })
+/** ⭐ MEMBERS (2026-11-16) — what other members published, shown here instead of only on a
+ *  page of its own (`IndicatorMembersTab`). Not a catalogue category: its rows are not in
+ *  `results`, so a universal search does not list them; the tab filters by the same box. */
+export const MEMBERS_TAB = Object.freeze({ key: 'members', label: 'Members' })
 import SourceField from './SourceField'
 // FT-070 / COV-11 — save / apply indicator templates (renders nothing unless
 // VITE_INDICATOR_TEMPLATES_ENABLED=1; see IndicatorTemplatesBar.jsx).
@@ -192,6 +196,7 @@ import { setInstancePlotStyle, setInstanceDisplayTarget, setInstanceDotSize, dot
 // through the ENGINE's preset helpers, the ones the settings dialog and the phone
 // sheet use, so the three surfaces cannot name different presets for one instance.
 import { applyPresetInputs, presetsOf, detectPreset, CUSTOM_PRESET } from './engine/instanceControls'
+import IndicatorMembersTab from './IndicatorMembersTab'
 // ⭐⭐ THE PANE MAP, AS A READ. `chartDataMap` asks `resolveDisplayTarget`,
 // `paneOwnerOf`, `paneOwnKeys` and `paneOwnersNeeded` — the same four answers
 // `StockChart` hands `computePaneLayout` — so this component never forms its own
@@ -1085,7 +1090,8 @@ export default function ChartSettingsIndicators({
     [registry, generation])
   const libraryTabs = useMemo(() => {
     const base = libraryTabsFor({ economic: econAvailable, research: featureRows.length > 0 })
-    return ownFormulaCount > 0 ? [YOUR_INDICATORS_TAB, ...base] : base
+    // Members sits after the catalogue's own tabs, so the tab a member lands on is unchanged.
+    return ownFormulaCount > 0 ? [YOUR_INDICATORS_TAB, ...base, MEMBERS_TAB] : [...base, MEMBERS_TAB]
   }, [econAvailable, featureRows.length, ownFormulaCount])
   // ⚠️ A TAB ARRIVING LATE (`Economic`, once its catalogue answers) widens the strip's
   // CONTENT without resizing the strip, so the ResizeObserver never re-measures.
@@ -1411,6 +1417,18 @@ export default function ChartSettingsIndicators({
     // — and must leave the member's current selection alone, hence the disarm.
     if (!commit(next)) pendingAddRef.current = null
   }, [settings, onChange, registry, resultByKey, armAdd, leaveBrowse, openFeature, onFirstAdd])
+
+  /** ⭐ MEMBERS — put a just-installed copy on this chart: the same write a result row's
+   *  first add makes for a definition (`addInstance`), and the same landing (browse closes).
+   *  A refused write returns `settings` itself and persists nothing. */
+  const putInstalledOnChart = useCallback((defId) => {
+    if (!defId || !registry?.getDefinition?.(defId)) return false
+    const next = addInstance(settings, defId, registry)
+    if (next === settings) return false
+    onChange?.({ ...next, preset: 'custom' })
+    leaveBrowse()
+    return true
+  }, [settings, onChange, registry, leaveBrowse])
 
   const addAnother = useCallback((row, e) => {
     e.stopPropagation()
@@ -4087,7 +4105,15 @@ export default function ChartSettingsIndicators({
             )}
           </div>
         )}
-        {(activeTab !== 'fundamentals' || fundAvailable) && tabResults.length === 0 && refusals.length === 0 && (
+        {activeTab === MEMBERS_TAB.key && (
+          <IndicatorMembersTab
+            styles={styles}
+            query={query}
+            isOnOffer={(defId) => generation >= 0 && !!registry?.getDefinition?.(defId)}
+            onPutOnChart={putInstalledOnChart}
+          />
+        )}
+        {activeTab !== MEMBERS_TAB.key && (activeTab !== 'fundamentals' || fundAvailable) && tabResults.length === 0 && refusals.length === 0 && (
           <div className={styles.indEmpty}>
             {/* ⚠️ "SEARCHING" IS NOT "NOTHING MATCHES", and the difference is a
                 network round trip. Telling a member their ticker does not exist
@@ -4147,7 +4173,7 @@ export default function ChartSettingsIndicators({
         {/* Saved, and not offered — with the gate's own reason, verbatim. Rendered
             only when something was actually refused, so a member whose formulas
             all install sees no heading about nothing. */}
-        {refusals.length > 0 && (
+        {activeTab !== MEMBERS_TAB.key && refusals.length > 0 && (
           <section className={styles.insAddGroup} data-testid="user-definition-refusals">
             <div className={styles.insSectionLabel}>{REFUSED_CATEGORY}</div>
             <p className={styles.resRefusedLede}>
