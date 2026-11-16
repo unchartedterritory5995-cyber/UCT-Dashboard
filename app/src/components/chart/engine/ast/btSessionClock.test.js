@@ -192,9 +192,17 @@ describe('a membership read is the membership tree (the install budget)', () => 
     // ⚰️ MEASURED on e64bc57ee0: with the value tree in the membership read, its background paint
     // measured 10 series references against the install cap of 8 (`budget:series`) and the whole
     // definition failed to install; the coverage ratchet named it LOST on both lanes.
+    // ⚰️ AND THE MEMBERSHIP TREE ALONE DID NOT FIX IT (remote run on 5bc583b4b3: 9 against 8). The
+    // rest were the script's own `s_useSess` / `s_incWE` / `s_lines` toggles, live as knobs once
+    // the session translated (on master the refused session folded them). The member door now
+    // gives knobs back to the install budget, by name (`builderInputs.js`, `budgetRefusal`;
+    // the general rail is `builder/knobInstallBudget.test.js`).
     const src = fs.readFileSync(path.join(REPO, 'corpus', 'committed', 'session-hilo__WM2g5GtC4h.pine'), 'utf8')
     const d = memberPaneDefinition({ source: src, id: 'u_bt_hilo', name: 'session-hilo' })
     expect(d.ok, d.reason).toBe(true)
+    const given = new Set((d.translation.outputs || []).flatMap((o) => o.skippedInputs || [])
+      .filter((e) => e && e.budgetBound).map((e) => e.name))
+    expect(given.has('s_useSess') && given.has('s_incWE'), JSON.stringify([...given])).toBe(true)
     try {
       const r = registry.installUserDefinitions([d.definition])
       expect(r.errors, JSON.stringify(r.errors)).toEqual([])
