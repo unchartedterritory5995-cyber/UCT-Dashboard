@@ -99,6 +99,10 @@ export function memberSettingsOverride(chartOpts, extras = null) {
   }
   if (o.volume === false) out = mergeSettingsOverride(out, { volume: { visible: false } })
   else if (o.volume === true) out = mergeSettingsOverride(out, { volume: { visible: true } })
+  // a chart whose bars carry no volume at all (2026-11-16: an index history chart whose source volume was another
+  // index's, stored as zeros) has none to show: REMOVED, not hidden, so neither the pane nor a "Vol 0" legend row is
+  // drawn (hidden keeps a legend row to bring it back; the screen check found "Vol 0" there)
+  if (extras && extras.noVolume) out = mergeSettingsOverride(out, { volume: { removed: true } })
   const instances = extras && Array.isArray(extras.instances) ? extras.instances : null
   if (instances && instances.length) out = mergeSettingsOverride(out, { indicatorInstances: instances })
   return out

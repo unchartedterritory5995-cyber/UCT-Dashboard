@@ -237,6 +237,11 @@ _VALUE_RULES: dict = {
         "repair_gate": re.compile(r"[a-z_-]{2,32}:[a-z0-9_-]{2,48}"),
         "input_wrapper": frozenset({"args"}),
         "op_kinds": _csv_of(_CONVERSE_OPS),
+        # What produced the turn (`definition_conversation.turn_stamps`). Each is a
+        # strict pattern, never free text: a hash, a version, a model id.
+        "prompt_sha": re.compile(r"[0-9a-f]{16}"),
+        "vocab_version": re.compile(r"[0-9A-Za-z][0-9A-Za-z._-]{0,31}"),
+        "model": re.compile(r"[a-z0-9][a-z0-9._:@-]{1,63}"),
     },
     "studio_action": {
         "conversation_id": re.compile(_CONV_ID),
@@ -257,6 +262,7 @@ EVENT_SCHEMAS.update({
         "usd": _N, "input_tokens": _N, "output_tokens": _N,
         "cache_read_tokens": _N, "cache_write_tokens": _N, "latency_ms": _N,
         "op_kinds": (str,), "preflight": (bool,),
+        "prompt_sha": (str,), "vocab_version": (str,), "model": (str,), "engine": (int,),
     },
     "studio_action": {
         "import_id": (str,), "conversation_id": (str,), "action": (str,),

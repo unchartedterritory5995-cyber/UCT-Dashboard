@@ -1959,10 +1959,18 @@ function chartTickMarkFormatter(time, tickMarkType) {
 // mark a session or two later fits, so a bare "4" stood where "Mar" belongs. On a daily study chart such a day mark is
 // always within a few sessions of the month it stands in for, so a day mark in a month's first week names its month
 // ("Mar 4"); later days stay bare numbers, the usual axis. Intraday and the year and month marks read as everywhere.
+// An intraday study chart (2026-11-16) gives its labels a five-character slot (the drill's INTRADAY_TICK_CHARS), so a
+// half-hour mark reads "10:30", not "10:30 AM": in the regular session (09:30 to 16:00) the hour says morning or
+// afternoon, and the eight-character form crowded every time mark off a phone's axis after a replay. The hour marks keep
+// "10 AM" and "12 PM", as on every chart.
 export function studyTickMarkFormatter(time, tickMarkType) {
   if (typeof time !== 'number' && tickMarkType === 2) {
     const d = _dayDate(time)
     if (d && d.getUTCDate() <= 7) return `${_MO[d.getUTCMonth()]} ${d.getUTCDate()}`
+  }
+  if (typeof time === 'number' && tickMarkType >= 3) {
+    const d = new Date(time * 1000)
+    if (d.getUTCMinutes() !== 0) return `${d.getUTCHours() % 12 || 12}:${String(d.getUTCMinutes()).padStart(2, '0')}`
   }
   return chartTickMarkFormatter(time, tickMarkType)
 }

@@ -59,7 +59,7 @@ import { alignTicks, developing, fetchIntraday } from './challenges/replayTicks'
 import { useRunOnTicks } from '../../lab/fx'   // pure motion (bars running on, tick by tick); no styling rides in
 import ReplayClock from './ui/ReplayClock'
 import { markerGapBars, tradeAnnotations, tradeLevelLines, tradeMarkers } from './challenges/tradeMarks'
-import { plotWidthPx, revealRightPad, tickLabelCharsFor } from './studyChartFrame'
+import { INTRADAY_TICK_CHARS, plotWidthPx, revealRightPad, tickLabelCharsFor } from './studyChartFrame'
 import { HudCombo } from './ui/HudLooks'
 import StudyButton from './ui/StudyButton'
 import sa from './ui/answerLooks.module.css'
@@ -206,10 +206,14 @@ export default function DrillPlayer({
   const rsKey = useMemo(() => rsPairKey(rsPrimed), [rsPrimed])
   // A Slingshot item carries the E4H (4-EMA of highs) beside the house averages,
   // before and after the reveal: the line the trigger is judged against.
+  // a chart whose bars carry no volume at all (an index history chart whose source volume was another index's, stored as
+  // zeros: the 2026-11-16 screen check drew an empty "Volume 0" pane of flat stubs) shows no volume, neither the pane nor
+  // a legend row; any other chart keeps the member's own volume setting
+  const noVolume = useMemo(() => Array.isArray(chartBars) && chartBars.length > 0 && chartBars.every((b) => !Number(b?.v)), [chartBars])
   const studyOverride = useMemo(() => {
     const own = [...(slingshotInstances(chartItem) || []), ...(rsInstances(rsPrimed) || [])]
-    return memberSettingsOverride(chartOpts, { instances: own.length ? own : null })
-  }, [chartOpts, chartItem, rsPrimed])
+    return memberSettingsOverride(chartOpts, { instances: own.length ? own : null, noVolume })
+  }, [chartOpts, chartItem, rsPrimed, noVolume])
   // ⭐ Policy A (2026-11-02): an exhibit has no stored settings of its own, so an
   // edit made on it (a legend hide, a scale toggle) stays on THIS chart for the
   // session instead of falling through to the member's global chart_settings.
@@ -348,7 +352,7 @@ export default function DrillPlayer({
   // the frame the chart shows now: the question's window, the days landed after it, and the blank room once answered
   const framePad = phase === 'reveal' && forwardCount > 0 ? revealRightPad(phone) : 0
   const frameSlots = ((visibleN || baseLen) + Math.max(0, landed - baseLen)) * (1 + framePad)
-  const tickChars = String(chartTf).toUpperCase() === 'D' ? tickLabelCharsFor(phone, frameSlots) : null
+  const tickChars = String(chartTf).toUpperCase() === 'D' ? tickLabelCharsFor(phone, frameSlots) : INTRADAY_TICK_CHARS
   const chartMarkers = useMemo(() => {
     const rs = chartVisible ? rsMarkMarkers(item, chartBars) : null
     const upTo = chartBars ? chartBars.slice(0, landed) : null
@@ -583,6 +587,7 @@ export default function DrillPlayer({
               hideJournalOverlay
               hideCompare
               hideLegend={phone}
+              showVolume={noVolume ? false : undefined}
               showDrawingTools={false}
               entryDate={entryDate}
               exitDate={exitDate}

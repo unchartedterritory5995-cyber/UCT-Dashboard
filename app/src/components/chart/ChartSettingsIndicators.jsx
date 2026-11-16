@@ -147,6 +147,15 @@ const PATHS = {
   search: 'M7 2.8a4.2 4.2 0 1 0 0 8.4 4.2 4.2 0 0 0 0-8.4zM10.2 10.2 13.5 13.5',
   spark: 'M8 2l1.5 4.5L14 8l-4.5 1.5L8 14l-1.5-4.5L2 8l4.5-1.5z',
 }
+// The Indicators window's plain-words box: three requests the door was measured building in
+// one turn (STUDIO-TRACK-PLAN.md section 14), and the longest text the box hands over.
+export const DESCRIBE_EXAMPLES = Object.freeze([
+  'Distance from the 50-day average, in ATRs',
+  'Mark bars where volume spikes',
+  'Paint inside bars',
+])
+const DESCRIBE_MAX = 400
+
 const Icon = ({ name, size = 15, className }) => (
   <svg className={className} width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor"
     strokeWidth={name === 'more' ? 2.4 : 1.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -326,6 +335,9 @@ export default function ChartSettingsIndicators({
   // absent-door rule, and additionally DARK behind `useCreateIndicatorFlag`
   // (default off): with the flag off this surface is byte-identical to before.
   onCreateIndicator = null,
+  // (door) => void: open the builder on 'pine' | 'image' | 'formula'. Absent on a host with no
+  // builder doors, where the header keeps the single "New formula" pill.
+  onOpenBuilderDoor = null,
   // ⭐ THE TIMEFRAME THE CHART IS ON, when the host knows it. Only ever used to SAY
   // something (a calculation timeframe that cannot draw on this chart, a Custom
   // visibility seeded from where the member is) — never to decide what is stored.
@@ -362,6 +374,16 @@ export default function ChartSettingsIndicators({
   // with this browser's opt-in, or a member the server's `cohorts` list releases.
   const createIndicatorOn = useCreateIndicatorAccess(useContext(AuthContext))
   const showCreateIndicator = !!(createIndicatorOn && onCreateIndicator)
+  // The Indicators window's plain-words box. What is typed is handed to Create Indicator as a
+  // PREFILLED request: the member still reads it and presses Send there. Nothing is asked of
+  // the model from here.
+  const [describeText, setDescribeText] = useState('')
+  const describeIt = (text) => {
+    const seed = String(text == null ? '' : text).trim()
+    setDescribeText('')
+    if (seed) onCreateIndicator({ seed })
+    else onCreateIndicator()
+  }
   // 'active' — what the chart draws, plus the ways in.
   // 'browse'  — the catalogue, entered by focusing/typing in search or picking a
   //             category, left by Back, Escape or clearing the box.
@@ -3865,19 +3887,7 @@ export default function ChartSettingsIndicators({
           rollout rule `useCreateIndicatorAccess`), otherwise shown disabled with "Soon". */}
       <div className={styles.bHead}>
         <h3 className={styles.bTitle}>Indicators</h3>
-        {showCreateIndicator ? (
-          <button
-            type="button"
-            className={styles.pill}
-            data-testid="settings-create-indicator"
-            data-guide="indicators.create"
-            onClick={() => onCreateIndicator()}
-            title="Build an indicator by describing it — UCT Intelligence previews it on this chart"
-          >
-            <Icon name="spark" size={13} className={styles.spark} />
-            Describe one
-          </button>
-        ) : (
+        {!showCreateIndicator && (
           <button
             type="button"
             className={`${styles.pill} ${styles.soonRow}`}
@@ -3888,7 +3898,7 @@ export default function ChartSettingsIndicators({
             Describe one<span className={modalStyles.soonTag}>Soon</span>
           </button>
         )}
-        {onCreateFormula && (
+        {onCreateFormula && !onOpenBuilderDoor && (
           <button
             type="button"
             className={styles.pill}
@@ -3901,6 +3911,51 @@ export default function ChartSettingsIndicators({
           </button>
         )}
       </div>
+      {/* ⭐ DESCRIBE FIRST (owner pick 2026-11-15, plan docs/pine/studio/STUDIO-TRACK-PLAN.md section 6):
+          the plain-words box is the first thing in the window, where the "Describe one" pill stood.
+          It is the SAME door (`onCreateIndicator`), now carrying what was typed as a prefilled
+          request. The three examples are requests this door was measured building in one turn. */}
+      {showCreateIndicator && (
+        <div className={styles.describeBlock} data-testid="describe-block">
+          <form
+            className={`${styles.aiBar} ${styles.describeBar}`}
+            data-guide="indicators.create"
+            onSubmit={(e) => { e.preventDefault(); describeIt(describeText) }}
+          >
+            <Icon name="spark" size={14} className={styles.spark} />
+            <input
+              type="text"
+              data-testid="describe-input"
+              value={describeText}
+              onChange={(e) => setDescribeText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Escape' && describeText) { e.preventDefault(); e.stopPropagation(); setDescribeText('') } }}
+              placeholder="Describe an indicator in plain words"
+              aria-label="Describe an indicator in plain words"
+              maxLength={DESCRIBE_MAX}
+            />
+            <button type="submit" className={styles.iconBtn} data-testid="settings-create-indicator"
+              aria-label="Describe it" title="Opens UCT Intelligence with your words. It previews on this chart; nothing is saved until you say so">
+              <Icon name="send" size={14} />
+            </button>
+          </form>
+          <div className={styles.describeChips} role="group" aria-label="Examples">
+            {DESCRIBE_EXAMPLES.map((ex) => (
+              <button key={ex} type="button" className={styles.pill} data-testid="describe-example"
+                onClick={() => describeIt(ex)}>{ex}</button>
+            ))}
+          </div>
+        </div>
+      )}
+      {onOpenBuilderDoor && (
+        <p className={styles.describeAlt} data-testid="describe-alt">
+          {showCreateIndicator ? 'Or ' : 'Start one: '}
+          <button type="button" data-testid="door-pine" onClick={() => onOpenBuilderDoor('pine')}>paste a TradingView script</button>{onCreateFormula ? ', ' : ' or '}
+          <button type="button" data-testid="door-image" onClick={() => onOpenBuilderDoor('image')}>start from a picture</button>
+          {/* "Write a formula" is the SAME door the "New formula" pill was (`onCreateFormula`), under its member name. */}
+          {onCreateFormula && (<>, or{' '}
+            <button type="button" data-testid="settings-new-formula" onClick={() => onCreateFormula()}>write a formula</button></>)}.
+        </p>
+      )}
       {/* ⚰️⚰️ A LINE OF EXPLANATORY COPY STOOD HERE — *"Search and add
           indicators, symbols, breadth and your own formulas."* It was written when
           this surface was new and the search box said less; the placeholder says

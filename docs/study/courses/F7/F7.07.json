@@ -1499,7 +1499,13 @@
      "fixed before"
     ]
    },
-   "batch": "wave6"
+   "batch": "index-charts-2026-11-16",
+   "chart": {
+    "sym": "IXIC",
+    "asof": "2022-09-12",
+    "window": 120,
+    "forward": 10
+   }
   },
   {
    "key": "q21",
@@ -1861,7 +1867,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Tech hardest from f62, f65; numbers f60, f66. New trap grounded in f65, f68."
+   "notes": "Cold check on IX/IXIC.json, IX/SPX.json and IX/DJI.json. Window 2022-03-22..2022-09-12 (120), replay 2022-09-13..2022-09-26 (10). Sept 13, 2022: Nasdaq Composite 12,266.41 -> 11,633.57, -5.16% ('5.2%'); S&P 500 4,110.41 -> 3,932.69, -4.32% ('about 4.3%'); Dow 32,381.34 -> 31,104.97, -3.94% ('3.9%'). (Also checked: Nasdaq 100 -5.54%, Russell 2000 -3.91%.) The replay plays the -5.16% day first and the slide after it, which contradicts no words. No give-away: the chart ends Sept 12 and the drop plays only after the answer; the only cue is that a member who recognises the ~12,000 price scale as th"
   },
   "q21": {
    "status": "pass",

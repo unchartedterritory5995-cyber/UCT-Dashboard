@@ -168,3 +168,76 @@ def test_the_REPORT_is_admin_only():
     app.dependency_overrides[get_current_user_with_plan] = lambda: who["user"]
     c = TestClient(app, raise_server_exceptions=False)
     assert c.get("/api/indicator-telemetry/rollout-report").status_code == 403
+
+
+# --- version stamps: what produced the turn (plan section 7, L1) -----------------
+
+def test_every_turn_is_stamped_with_what_produced_it(store, conv, model):
+    from api.services import concept_vocabulary, definition_concierge as dc, user_definitions
+    e = env(1, [{"op": "set_slot", "slot": "value#1", "value": 80}])
+    model([emits(e)])
+    conv.converse("make it 80", user_id="u1", view=view(1, [out("value", RSI_GT_70)]))
+    (_, p), = rows("converse_turn")
+    assert p["prompt_sha"] == conv.prompt_sha() and len(p["prompt_sha"]) == 16
+    assert p["vocab_version"] == concept_vocabulary.version()
+    assert p["model"] == dc.MODEL
+    assert p["engine"] == user_definitions.SCRIPT_ENGINE_VERSION
+
+
+def test_a_refusal_before_the_model_is_stamped_too(store, conv):
+    conv.converse("Plot VIX's RSI 14", user_id="u1", view=empty_view(0),
+                  chart={"sym": "XRPN", "tf": "1D"})
+    (_, p), = rows("converse_turn")
+    assert p["failure_class"] == "preflight_refused" and p["prompt_sha"] == conv.prompt_sha()
+
+
+def test_the_prompt_stamp_moves_when_the_instructions_or_the_tool_move(conv, monkeypatch):
+    conv.prompt_sha.cache_clear()
+    base = conv.prompt_sha()
+    try:
+        monkeypatch.setattr(conv, "CONVERSE_SYSTEM_PROMPT", conv.CONVERSE_SYSTEM_PROMPT + " ")
+        conv.prompt_sha.cache_clear()
+        assert conv.prompt_sha() != base
+        monkeypatch.undo()
+        real_tool = conv.anthropic_tool()
+        monkeypatch.setattr(conv, "anthropic_tool", lambda: dict(real_tool, description="x"))
+        conv.prompt_sha.cache_clear()
+        assert conv.prompt_sha() != base
+        monkeypatch.undo()
+        conv.prompt_sha.cache_clear()
+        assert conv.prompt_sha() == base      # control: unchanged inputs, unchanged stamp
+    finally:
+        conv.prompt_sha.cache_clear()
+
+
+def test_a_stamp_that_cannot_be_read_is_left_out_and_the_turn_is_still_recorded(
+        store, conv, model, monkeypatch):
+    def boom():
+        raise RuntimeError("no prompt")
+    monkeypatch.setattr(conv, "prompt_sha", boom)
+    e = env(1, [{"op": "set_slot", "slot": "value#1", "value": 80}])
+    model([emits(e)])
+    conv.converse("make it 80", user_id="u1", view=view(1, [out("value", RSI_GT_70)]))
+    (_, p), = rows("converse_turn")
+    assert "prompt_sha" not in p and p["failure_class"] == "ok" and "model" in p
+
+
+@pytest.mark.parametrize("key,value", [
+    ("prompt_sha", "make it eighty"),          # words, not a hash
+    ("prompt_sha", "0123456789ABCDEF"),        # not lower-case hex
+    ("vocab_version", "the member said this"),
+    ("model", "Please Build Me A Table"),
+    ("engine", "57"),                          # a string where a number is owed
+    ("engine", True),
+])
+def test_a_stamp_can_never_carry_free_text(key, value):
+    assert tel._prop_violation("converse_turn", key, value) is not None
+
+
+@pytest.mark.parametrize("key,value", [
+    ("prompt_sha", "0123456789abcdef"), ("vocab_version", "2026-11-15.1"),
+    ("model", "claude-opus-5"), ("engine", 57),
+])
+def test_a_well_formed_stamp_is_accepted(key, value):
+    assert tel._prop_violation("converse_turn", key, value) is None
+
