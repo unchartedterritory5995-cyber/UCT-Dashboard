@@ -21,14 +21,26 @@ import DENY from './pineLibraryDeny.json'
 // ⭐⭐ U15 (coordinator ruling 2026-11-15) — THE DENY LIST: a version named in
 // `pineLibraryDeny.json` is never compiled, whatever a store holds (the Python store reads
 // the same file). An entry is removed only by a re-grade to MATCH (the file says how).
-const DENIED = new Map((Array.isArray(DENY && DENY.deny) ? DENY.deny : [])
-  .filter((d) => d && typeof d.path === 'string').map((d) => [d.path, d]))
+/** ⭐⭐ U15 — the deny table of a parsed deny document: Map(path -> row), or NULL when the
+ *  document cannot be read as a deny list. ⛔ FAIL CLOSED: null denies EVERY version (the
+ *  Python store's `_deny_doc` answers the same way). A document with no `deny` array, or
+ *  with one row that names no path, is unreadable as a whole: dropping the one bad row
+ *  would serve exactly the version that row was written to withhold. An empty array is a
+ *  readable list that denies nothing. */
+export function denyTableOf(doc) {
+  const rows = doc && typeof doc === 'object' ? doc.deny : null
+  if (!Array.isArray(rows)) return null
+  if (rows.some((d) => !d || typeof d !== 'object' || typeof d.path !== 'string' || !d.path)) return null
+  return new Map(rows.map((d) => [d.path, d]))
+}
+const DENIED = denyTableOf(DENY)
 export const LIBRARY_DENIED_SENTENCE = String((DENY && DENY.memberSentence)
   || 'this library version is withheld until its drawing is verified against TradingView')
 
-/** ⭐⭐ U15 — the member's sentence when `path` is on the deny list, or null. */
-export function libraryDenied(path) {
-  return DENIED.has(String(path)) ? LIBRARY_DENIED_SENTENCE : null
+/** ⭐⭐ U15 — the member's sentence when `path` is on the deny list (or the list could not
+ *  be read), or null. `table` is the committed list's; a rail passes another. */
+export function libraryDenied(path, table = DENIED) {
+  return (!table || table.has(String(path))) ? LIBRARY_DENIED_SENTENCE : null
 }
 
 const IMPORT_PATH = /^([A-Za-z0-9_]{1,80})\/([A-Za-z0-9_]{1,80})\/([1-9][0-9]{0,5})$/

@@ -8,7 +8,7 @@
 // that claim instead of assuming it: it WRITES `tests/fixtures/ast/library_link_parity.json`
 // (`LIBRARY_LINK_PARITY_WRITE=1`) from the member door's own documents — one script importing a
 // fixture library, one with the same function pasted in — and the chart's own bind, and otherwise
-// requires the JS lane to reproduce it exactly. `tests/test_library_link_parity.py` holds the
+// requires the JS lane to reproduce it exactly. `tests/test_pine_library_link_parity.py` holds the
 // Python lane to the same file. The library is written from scratch for this file.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import fs from 'node:fs'
@@ -73,7 +73,7 @@ function buildDoc() {
   return {
     _: 'U15 — a library linked by the member door, evaluated by the server lanes. Written by '
       + 'app/src/components/chart/engine/__tests__/libraryLinkParity.test.js (LIBRARY_LINK_PARITY_WRITE=1) and read by '
-      + 'that file and by tests/test_library_link_parity.py. `cases`: the member door\'s own host document for a script '
+      + 'that file and by tests/test_pine_library_link_parity.py. `cases`: the member door\'s own host document for a script '
       + 'importing a fixture library and for the same script with the functions pasted in; each plot\'s tree and the '
       + 'chart\'s bind over `bars` (RDDT 1D from vw-arm-history), null = not computable.',
     bars: bars.map((b) => ({ t: b.t, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v })),

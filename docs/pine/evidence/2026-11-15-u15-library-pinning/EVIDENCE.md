@@ -44,7 +44,7 @@ scratch for that rail.
 - The door stamps the pins; a script with no import carries none.
 - A runtime document draws against its pinned code and is refused once the registry holds other code.
 
-**`engine/__tests__/libraryLinkParity.test.js` + `tests/test_library_link_parity.py`**
+**`engine/__tests__/libraryLinkParity.test.js` + `tests/test_pine_library_link_parity.py`**
 - The JS lane writes `tests/fixtures/ast/library_link_parity.json` (fixture library, RDDT 1D bars from a committed capture).
 - The Python lane (`ast_interpret`, the alert and scan evaluator) reproduces the chart's columns for the imported document and for the same functions pasted in.
 - The trees name no library.
@@ -88,31 +88,108 @@ See the PR body for the run. J1–J5 (JS), P1–P4 (Python), S1–S2 (service):
     - Performance (2 captures).
   - INCONCLUSIVE: Volume Profile Heatmap.
 - **Promotion allowlist** (`tools/pine_library/promotion_allowlist.json`, ruling 2026-11-15). A version is promoted only when every newly-attaching importing script grades MATCH, and NC is excluded:
-  - promote: the four theEccentricTrader libraries behind All Chart Patterns, and PineCoders/ConditionalAverages/2 behind Rolling VWAP;
+  - promote: the four theEccentricTrader libraries behind All Chart Patterns, and PineCoders/ConditionalAverages/2 behind Rolling VWAP (⚰️ ConditionalAverages/2 left `promote` after the host-only re-grade: see the next section);
   - held out: TradingView/ta/11 (with its dependency RelativeValue/3), because Aroon oscillator DIVERGEs on it; it joins once values-v2 merges and Aroon re-grades MATCH. Also held out: fontilab/11, loxxexpandedsourcetypes/4, ValueAtTime/2 and VisibleChart/3;
   - never promoted: the ten Trendoscope CC-BY-NC-SA versions.
 - ⛔ **Promotion note:** the host lane serves a linked import WITHOUT runtime admission. Promoting a store that holds those versions makes the four DIVERGE scripts draw where they now refuse. The promotion is the coordinator's call after this merges.
 
-## Engine number
-Changes door outcomes, so it takes the next free engine number at push (number-last).
+## Host-only re-grade (2026-11-15, after merging origin/master `771264afff`, engine 57)
+The runtime pane is off for members, so the picture a promoted library would draw is the host lane's.
+The probe is `f4Sweep.measure.test.js` narrowed to the importing scripts (`F4_SWEEP_ONLY`, with the
+out-of-git capture folders in `F4_SWEEP_DIRS` and the scratch store in `PINE_LIBRARY_STORE`). Its `on`
+state is the objects pane on with `VITE_PINE_RUNTIME_PANE_ENABLED` unset; its `runtime` state is the same
+capture with the pane on.
 
-## ⛔ PARKED 2026-11-15 22:2xZ: RESUME NOTE (pushed as a draft before a planned PC restart)
+| Importing script (captures) | Libraries | Host-only | Runtime pane on |
+|---|---|---|---|
+| All Chart Patterns (RDDT 1D, SPY 1D) | theEccentricTrader PubLibSwing/3, PubLibPattern/4, PubLibCandleTrend/2, PubLibTrend/3 | MATCH, MATCH | MATCH, MATCH |
+| Rolling VWAP (RDDT 1D, SPY 1D) | PineCoders/ConditionalAverages/2 | INCONCLUSIVE, INCONCLUSIVE: the door refuses the script (`pine:block`, a `while` reached through the library), so nothing is drawn | MATCH, MATCH |
+| Chandelier exit (RDDT), Pring's special K (SPY), Ulcer index (RDDT) | TradingView/ta/11 (+ RelativeValue/3) | MATCH, MATCH, MATCH | MATCH, MATCH, MATCH |
+| Aroon oscillator (RDDT) | TradingView/ta/11 | DIVERGE | DIVERGE |
+| Volume Profile Heatmap (RDDT) | PineCoders/VisibleChart/3 | INCONCLUSIVE | INCONCLUSIVE |
+| ATR Trend Bands (RDDT) | Fontiramisu/fontilab/11 (denied) | refused, `pine:library-denied` | refused, `pine:library-denied` |
+| Black-Scholes (RDDT, AAPL, JPM, SPY) | loxx/loxxexpandedsourcetypes/4 (denied) | refused, `pine:library-denied` | refused, `pine:library-denied` |
+| Performance (RDDT, SPY) | TradingView/ValueAtTime/2 (denied) | refused, `pine:library-denied` | refused, `pine:library-denied` |
 
-**Passed on this head, before parking:**
-- JS rails, 49/49:
-  - `pineLibraryPinning.test.js`: pin, no-sha, licence and deny;
-  - `libraryLinkParity.test.js`;
-  - `pineLibraries.test.js`, `usePineLibraries.test.jsx`, `runtimeLibraryDoor.test.js`, `libraryImportRefusal.test.js`.
-- Earlier JS sweep, 18 files, 210 passed: memberPaneDefinition, the saved and runtime document round trips, capRound4, h5, host-parity rails.
-- Python rails: `test_pine_library_pinning.py` (39), `test_library_link_parity.py`, `test_pine_library_store.py`, allowlist rails.
-- Mutants, all killed, each restored byte-equal: J1–J5, P1–P4, L1–L3, D1–D2, S1–S2.
-- Gate list (an earlier head, before the licence and deny commits): steps 1–4, 6 and 7 green.
+What it changed in `tools/pine_library/promotion_allowlist.json`:
+- **`promote` is now the four theEccentricTrader versions only.** Each row carries `hostOnly` and `runtimeOn` per capture.
+- **PineCoders/ConditionalAverages/2 moved to `heldOut`.** It was listed on the pane-on grade alone. In the lane members are served its importing script draws nothing, which is not a MATCH.
+- **TradingView/ta/11 stays held out.** Aroon oscillator still DIVERGEs on engine 57, pane off and on. (The note above expected engine 56 to fix it. It did not re-grade MATCH.)
+- The three denied versions are refused by name in both states, on real captures of real importing scripts.
 
-**Left to do:**
-1. Re-run gate step 5, `node --test services/pine_runtime/test/*.test.mjs`. It went red on the earlier head (the sandbox's boot export check against the fixture bundles); that is FIXED here (boot check reverted, per-document fail-closed, a real-bundle rail added) but not re-run in full. Then re-run the full gate list (master deploy gate, `pine-runtime` job steps 1–7).
-2. The runtime-pane-OFF (host-only) re-grade behind `tools/pine_library/promotion_allowlist.json`: the probe is the P0 probe with `VITE_PINE_RUNTIME_PANE_ENABLED` unset. Record its result in the file.
-3. Rebase onto master; squash the WIP commits.
-4. Take the engine number LAST (master + 1 at push): bump `scriptEngineVersion.js` with its history line, then `node tools/pine_runtime_host_parity.mjs --write` and `--check`.
-5. Re-run the rails above; mark the PR ready.
+`tests/test_pine_library_pinning.py` now holds the file to its rule: every promoted row has a sha256, a licence the store serves, is not on the deny list, and is MATCH host-only on every capture.
 
-**Known and pre-existing (NOT this PR):** `tests/test_pine_capability_detector_worker.py::test_OFF_the_detector_runs_in_process_and_no_process_is_started` fails when it runs after `tests/test_pine_capabilities.py`, on origin/master `4548ee75fb` as well.
+## The three security properties, each with a rail a mutant turns red (2026-11-15)
+**No library source is in the repository** (`tests/test_pine_library_pinning.py`):
+- Every tracked or addable file holding a Pine library declaration (the word, an opening bracket and a quoted title, at the start of a line) must be a named fixture file (two tables, each row with its reason). A new one is red until it is named.
+- No library source in those files is longer than 40 lines (a fixture is a handful; a real library runs to hundreds).
+- No `pine_libraries/` store folder is tracked or addable.
+- The scan is shown to see a declaration written seven ways (plain, indented, single-quoted, inside a Python string, a JSON string, a JS template, a store entry) and to ignore three look-alikes.
+- One-off check, not a rail: the longest code lines of all 83 fetched sources (759 lines) were searched for in every tracked file. No file changed by this PR holds one. 19 files already on master do: 7 community scripts in `corpus/committed/` and 12 captures of them, where an author's own script shares a line with that author's library. None of them holds a library declaration.
+
+**The deny list fails closed**, in both languages:
+- Before this pass the JavaScript side did not: a deny document with no `deny` array, or with a row that named no path, denied nothing (the bad row was dropped). `denyTableOf` now returns null for any document that cannot be read as a list, and null denies every version.
+- The Python store treated a row with no path the same way (dropped it). It now treats the whole list as unreadable.
+- Rails: 8 unreadable shapes in Python, 11 in JavaScript, each denying everything; a control that a readable list denies only what it names and an empty list denies nothing.
+
+**A non-commercial licence is never served:** unchanged rules (`licence_problem`, `libraryLicenceProblem`, one shared table of cases), re-proved by mutants on this head.
+
+Mutants on this head, each restored from a saved copy and checked byte-equal:
+
+| Mutant | Rail that went red |
+|---|---|
+| P-D1 an unreadable deny list fails open (Python) | `test_an_unreadable_deny_list_denies_every_version` |
+| P-D2 a deny row with no path is dropped (Python) | `test_a_deny_list_that_cannot_be_read_as_one_denies_every_version[row-without-path]` |
+| P-D3 the deny list is not consulted (Python) | `test_a_denied_version_is_never_served_whatever_the_store_holds` |
+| P-L1 the licence rule answers nothing (Python) | `test_the_licence_rule_is_the_tables[CC-BY-NC-SA]` |
+| P-L2 the `nonCommercial` flag is ignored (Python) | `test_the_licence_rule_is_the_tables[MPL-2.0+flag]` |
+| S-1 a new file holds a library declaration | `test_no_file_holds_a_library_declaration_that_is_not_a_named_fixture` |
+| S-2 an 81-line library pasted into a named fixture file | `test_every_library_fixture_is_fixture_sized` |
+| S-3 a `pine_libraries/` folder appears | `test_no_library_store_is_in_the_repository` |
+| A-1 a library INCONCLUSIVE host-only is promoted | `test_every_promoted_library_is_pinned_licensed_undenied_and_match_host_only` |
+| J-D1 to J-D4, J-L1 (JavaScript deny and licence) | `pineLibraryPinning.test.js` (each one named in the status section below) |
+
+## Engine number: NUMBER PENDING (the coordinator assigns it at merge)
+This PR takes no number: no `scriptEngineVersion.js` change, no host-parity `--write`, no service smoke re-record.
+- **A script that imports nothing is served exactly as before.** Host parity `--check` on this head: 164 of 166 cases equal the committed digests (the 2 others are the known Node-version report, not gated), with no digest re-recorded. pine-heavy grades both harness lanes on the committed captures.
+- **A script that imports a library can be served differently**, wherever a store holds that version: the three denied versions and any non-commercial version stop being served, and a version held without a sha256 stops being served. `docs/pine/capture-queue-2026-10-02-l2-libraries.md` speaks of "the 50 production libraries", and `docs/pine/COVERAGE-MAP.md` says the production registry is empty. This pass did not read the production store, so it cannot say which is true today.
+- So the change needs a number unless the production store is confirmed empty. If it is empty, no existing document changes and no number is needed.
+
+## Status 2026-11-15 (resumed after the park; local runs, before the push)
+The resume note that stood here is done, with three changes from what it asked: master was MERGED (a merge commit, nothing rebased or squashed), no engine number was taken (see above), and the "known pre-existing" detector-worker failure it named is fixed on master (#1377) and did not appear.
+
+**Merge of origin/master `771264afff`.** Two conflicts:
+- `api/data/pine_runtime_allowlist.json` `_readme`: both paragraphs kept (U15 libraries, then U3b and S28). No capability row conflicted: this PR adds none.
+- `memberPaneDefinition.js`, one import line: `libraryPinsOf` and `requestTargetsUnservable` both kept.
+- `evidence_engine.py queue` rewrote the queue with no change in content; `queue --check` PASS; `pins --check` PASS.
+
+**The `watch-list` check.** `api/services/pine_library_store.py` reads `app/src/components/chart/engine/ast/pineLibraryDeny.json` while `web` serves. The file is now declared in `tools/web_frontend_reads.py` (`DECLARED_READS`) and named in `railway.web.json` `watchPatterns`, so a change to the deny list redeploys `web`. `tests/test_web_frontend_reads.py`: 18 passed.
+
+**Gate, `pine-runtime` job, on Node 20.20.2 (the image's major):**
+- the server bundle builds and imports;
+- step 5, `node --test services/pine_runtime/test/*.test.mjs`: **147 tests, 147 pass, 0 fail**;
+- host parity `--host node --check`: HP-1 GREEN, 164/166 (2 REPORTED, not gated); `--mutation-control`: HP-4 GREEN (red on 35 cases);
+- closure `--check`: host-neutral, 107/107 watched;
+- section 8 pytest, one file at a time: client 131, codec 211, composition 39, deploy_gate 27, dockerfile 15, engine_identity 6, result_integrity 6, run_telemetry 47, service_smoke 23, shared_stamp 4, stop_telemetry 30, switch_on 65. All passed.
+
+**Focused rails:**
+- vitest, 7 files, **69 passed**: `pineLibraryPinning` 16, `pineLibraries` 20, `libraryLinkParity` 2, `usePineLibraries` 2, `runtimeLibraryDoor` 3, `libraryImportRefusal` 7, `memberPaneDefinition` 19.
+- pytest: `test_pine_library_pinning.py` 46, `test_pine_library_link_parity.py` 3, `test_pine_library_store.py` 8, `test_pine_capability_admission.py` 134, `test_pine_allowlist_measured_verdicts.py` 5, `test_pine_capabilities.py` 68, `test_pine_capability_detector_worker.py` 47. All passed.
+- `tests/test_library_link_parity.py` was renamed `tests/test_pine_library_link_parity.py`: under its old name no pull-request job ran it (pine-heavy's Python leg globs `tests/test_pine_*.py`).
+
+**JavaScript mutants** (`pineLibraryPinning.test.js`, 16 passed before and after; each file restored byte-equal):
+- J-D1 an unreadable deny document read as an empty list: red (the fail-closed rail);
+- J-D2 a deny row with no path dropped: red (the fail-closed rail);
+- J-D3 a null table denies nothing: red (the fail-closed rail);
+- J-D4 the deny list not consulted: red (2 tests);
+- J-L1 the licence rule answers nothing: red (2 tests).
+
+**Not done here, by instruction:** nothing was enabled for members and nothing was promoted to any store. The pull-request checks (pine-heavy, watch-list) ran after the push: their results are in the PR body.
+
+## flow-worker watch coverage: classification (required by `docs/runbooks/deploy-windows.md`)
+`python tools/flow_worker_watch_coverage.py` against origin/master is red on six files: `api/routers/pine_libraries.py`, `api/services/pine_capabilities.py`, `api/services/pine_library_store.py`, `api/services/pine_runtime_client.py`, `api/services/rollout_gate.py`, `api/services/runtime_definitions.py`.
+
+**flow-worker stranded: NOT EXERCISED, safe. No marker bump.**
+- flow-worker reaches all six by import only, nine to eleven hops from `api/flow_worker_main.py` through `api/auth_surface_check.py` (traced file by file, shortest chain each).
+- What changed in them is the library store's read rules, the per-library admission rule and the pinned entries the runtime client sends. Those run behind `/api/pine/libraries` and `/api/user-definitions/*` and in `web`'s runtime-job client. `api/flow_worker_main.py` mounts none of those routes, and no line of its code calls a Pine or user-definition function (its header comments name `alert_user_series` and `user_definitions` only as past deploy triggers). This is a reading of that file, not a run of flow-worker.
+- So flow-worker on the older copies behaves the same as on the new ones. If some path in it did run a user-formula alert through the older runtime client, a document that imports a library would be withheld by name (the runtime service refuses a pin the request does not meet), never drawn wrong. Its deploys have been manual since 2026-11-12, so a marker bump would restart nothing; the next manual deploy picks these files up.

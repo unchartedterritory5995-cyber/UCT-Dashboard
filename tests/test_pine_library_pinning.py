@@ -9,6 +9,8 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
+import subprocess
 
 import pytest
 from fastapi import FastAPI
@@ -324,3 +326,247 @@ def test_an_unreadable_deny_list_denies_every_version(root, monkeypatch):
     store.write_entry(entry())
     monkeypatch.setattr(store, "DENY_FILE", os.path.join(root, "no-such-deny.json"))
     assert store.entry_status("tester/pinlib/1")[0] == "denied"
+
+
+@pytest.mark.parametrize("text", [
+    "not json at all",
+    "[]",
+    "{}",
+    '{"deny": "Fontiramisu/fontilab/11"}',
+    '{"deny": [{"reason": "a row that names no path"}]}',
+    '{"deny": [{"path": "Fontiramisu/fontilab/11"}, 5]}',
+    '{"deny": [{"path": ""}]}',
+    '{"deny": [{"path": 11}]}',
+], ids=["not-json", "a-list", "no-deny", "deny-not-a-list", "row-without-path", "row-not-an-object", "empty-path",
+        "path-not-a-string"])
+def test_a_deny_list_that_cannot_be_read_as_one_denies_every_version(root, monkeypatch, text):
+    """FAIL CLOSED, whichever way the file is wrong. One bad row makes the whole list unreadable:
+    dropping it would serve exactly the version it was written to withhold."""
+    store.write_entry(entry())
+    bad = os.path.join(root, "deny.json")
+    with open(bad, "w", encoding="utf-8") as f:
+        f.write(text)
+    monkeypatch.setattr(store, "DENY_FILE", bad)
+    assert store.entry_status("tester/pinlib/1")[0] == "denied"
+    assert store.read_entry("tester/pinlib/1") is None
+    assert store.list_entries() == []
+    _, refusal = store.pinned_entries([{"path": "tester/pinlib/1", "sha256": sha(LIB)}])
+    assert refusal[0] == store.DENIED_GUARD
+
+
+def test_control_a_readable_deny_list_denies_only_what_it_names(root, monkeypatch):
+    store.write_entry(entry())
+    store.write_entry(entry(path="tester/pinlib/2"))
+    ok = os.path.join(root, "deny.json")
+    with open(ok, "w", encoding="utf-8") as f:
+        json.dump({"deny": [{"path": "tester/pinlib/2"}]}, f)
+    monkeypatch.setattr(store, "DENY_FILE", ok)
+    assert store.entry_status("tester/pinlib/1")[0] == "ok"
+    assert store.entry_status("tester/pinlib/2")[0] == "denied"
+    with open(ok, "w", encoding="utf-8") as f:
+        json.dump({"deny": []}, f)                       # an empty list is readable: nothing denied
+    assert store.entry_status("tester/pinlib/2")[0] == "ok"
+
+
+# ── no library SOURCE is in this repository (the repository is public) ─────────────────────────
+#
+# A Pine library opens with a `library("Title")` declaration. Every file that holds one is named
+# below with its reason: a fixture written from scratch for a rail. A new file with a library
+# declaration turns this red until someone has looked at it and named it here. The scan reads
+# tracked AND untracked-not-ignored files, so it is red before the `git add`, not after the push.
+
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+#: file -> why a library declaration may stand in it. Fixtures only, each written for its rail.
+LIBRARY_DECLARATIONS_ALLOWED = {
+    "tests/test_pine_library_pinning.py": "this file's fixtures (pinlib, a stand-in under a denied path, the scan's own cases)",
+    "tests/test_pine_library_store.py": "the store rail's fixture library and the declaration parser's cases",
+    "tools/pine_library/fetch_library.py": "the owner's fetch tool: it names the declaration it looks for, and holds no source",
+    "docs/pine/vendor-harness/objects-triage-2026-09-28.md": "prose that quotes the declaration's shape, no source",
+}
+
+#: `library(` then a quote, as code or inside a string literal of any depth (`\"`, `\\\"`), at the
+#: START OF A LINE, which is where Pine requires a declaration. An escaped newline (`\n`, `\r\n`
+#: inside a string) and an opening quote or backtick count as a line start. `find_library("c")`,
+#: `fixtureLibrary("x")` and `x.library("z")` are not declarations.
+_LIBRARY_DECLARATION = re.compile(r"""(?:^|\\+[nr]|["'`])[ \t]*library[ \t]*\([ \t]*\\*["']""", re.M)
+
+#: A real library runs to hundreds of lines; no fixture here needs more than a handful.
+FIXTURE_LINES_MAX = 40
+
+
+def library_declaration_files(root=REPO):
+    """Every tracked or untracked-not-ignored text file under `root` holding a library declaration."""
+    listed = subprocess.run(["git", "grep", "--untracked", "-l", "-I", "-F", "-e", "library", "--", "."],
+                            cwd=root, capture_output=True, text=True, encoding="utf-8")
+    assert listed.returncode in (0, 1), listed.stderr       # 1 = nothing matched; anything else = git failed
+    out = []
+    for rel in listed.stdout.splitlines():
+        try:
+            with open(os.path.join(root, rel), encoding="utf-8", errors="replace") as f:
+                text = f.read()
+        except OSError:
+            continue
+        if _LIBRARY_DECLARATION.search(text):
+            out.append(rel.replace(os.sep, "/"))
+    return sorted(out)
+
+
+def longest_library_source(text):
+    """The line count of the longest library source `text` holds (0 = none). A source runs from its
+    declaration to the first blank line or the end of its template / triple-quoted string, or to the
+    end of the one physical line it is written on when it is a string with escaped newlines."""
+    longest = 0
+    for m in _LIBRARY_DECLARATION.finditer(text):
+        at = m.end()
+        line = text[at:].split("\n", 1)[0]
+        if "\\n" in line:                                   # one string literal, newlines escaped
+            lines = line.count("\\n") + 1
+        else:                                               # real lines, up to the first blank one
+            lines = len(re.split(r"""\n[ \t]*\r?\n|`|\"\"\"|'''""", text[at:], maxsplit=1)[0].splitlines())
+        longest = max(longest, lines)
+    return longest
+
+
+def test_no_file_holds_a_library_declaration_that_is_not_a_named_fixture():
+    found = library_declaration_files()
+    assert found, "the scan found no library declaration at all: it is not reading the repository"
+    allowed = dict(LIBRARY_DECLARATIONS_ALLOWED, **JS_LIBRARY_FIXTURE_FILES)
+    unnamed = [f for f in found if f not in allowed]
+    assert not unnamed, ("these files hold a Pine `library(...)` declaration and are not named as fixture files "
+                         "(LIBRARY_DECLARATIONS_ALLOWED / JS_LIBRARY_FIXTURE_FILES). The repository is public and "
+                         "holds NO third-party library source: if this is a fixture written from scratch, name the "
+                         "file with its reason; if it is fetched code, it belongs in the out-of-git store, never "
+                         "here:\n  " + "\n  ".join(unnamed))
+    gone = [f for f in allowed if f not in found]
+    assert not gone, "named as holding a fixture library but no longer does (remove the row):\n  " + "\n  ".join(gone)
+
+
+#: The JavaScript rails that write a fixture library, each from scratch for that rail.
+JS_LIBRARY_FIXTURE_FILES = {
+    "app/src/components/chart/engine/ast/pineLibraries.test.js": "the linker rail's fixture libraries",
+    "app/src/components/chart/engine/ast/pineLibraryPinning.test.js": "the pinning rail's fixture libraries",
+    "app/src/components/chart/engine/ast/pineLibraryValueFnName.test.js": "a fixture library",
+    "app/src/components/chart/engine/__tests__/libraryLinkParity.test.js": "the splice check's fixture library",
+    "app/src/components/chart/engine/__tests__/vendorHarness/vendorHarness.capRound4.test.js":
+        "a stand-in written for the rail; the real version is read from the out-of-git store, opt-in",
+    "app/src/components/chart/engine/runtime/__tests__/libraryImportRefusal.test.js": "a fixture library",
+    "app/src/components/chart/builder/memberPane/runtimeLibraryDoor.test.js": "a fixture library",
+    "app/src/components/chart/builder/memberPane/runtimeParamDefaults.test.js": "a fixture library",
+    "app/src/components/chart/builder/usePineLibraries.test.jsx": "a fixture library",
+    "services/pine_runtime/test/library.test.mjs": "the service rail's fixture library",
+    "app/src/components/chart/engine/runtime/__tests__/w4ClassifierHonesty.test.js": "a fixture library",
+    "app/src/components/chart/engine/ast/pine.test.js": "a three-line script that declares library(), to show the declaration is refused",
+    "app/src/components/chart/engine/runtime/__tests__/runtimeStrategy.test.js": "the same three-line refusal case",
+    "app/src/components/chart/engine/runtime/__tests__/sourceToRuntime.test.js": "the same three-line refusal case",
+}
+
+
+def test_the_scan_sees_a_declaration_written_each_way(tmp_path):
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    cases = {
+        "plain.pine": '//@version=5\nlibrary("x")\nexport f() => 1\n',
+        "indented.pine": '//@version=6\n  library ( "x", overlay = true)\n',
+        "single.pine": "library('x')\n",
+        "in_python.py": 'LIB = "//@version=5\\nlibrary(\\"x\\")\\nexport f() => 1\\n"\n',
+        "in_json.json": json.dumps({"path": "a/b/1", "source": '//@version=5\nlibrary("x")\n'}),
+        "in_js.js": "const LIB = `//@version=5\nlibrary('x')\n`\n",
+        "store/a/b/1.json": json.dumps({"path": "a/b/1", "source": '//@version=5\r\nlibrary("x")\r\n'}),
+    }
+    not_declarations = {
+        "ctypes_use.py": 'import ctypes.util\nctypes.util.find_library("c")\n',
+        "helper.js": 'const e = fixtureLibrary("x"); registerPineLibrary("y"); obj.library("z")\n',
+        "prose.md": "a library (the TradingView one) is pinned; see library() in the manual\n",
+    }
+    for rel, text in {**cases, **not_declarations}.items():
+        p = tmp_path / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(text, encoding="utf-8", newline="")
+    assert library_declaration_files(str(tmp_path)) == sorted(cases)
+
+
+def test_every_library_fixture_is_fixture_sized():
+    """A fetched library pasted into a NAMED file would pass the list above. It does not pass this."""
+    too_long = {}
+    for rel in library_declaration_files():
+        with open(os.path.join(REPO, rel), encoding="utf-8", errors="replace") as f:
+            n = longest_library_source(f.read())
+        if n > FIXTURE_LINES_MAX:
+            too_long[rel] = n
+    assert not too_long, "a library source longer than %d lines (a fixture is a handful): %r" % (FIXTURE_LINES_MAX, too_long)
+    # the measure itself, both ways a source is written
+    assert longest_library_source('LIB = "//@version=5\\nlibrary(\\"x\\")' + "\\nexport f() => 1" * 60 + '"\n') == 61
+    assert longest_library_source('//@version=5\nlibrary("x")\n' + "export f() => 1\n" * 60 + "\nplot(close)\n") == 61
+    assert longest_library_source("nothing here\n") == 0
+
+
+def test_no_library_store_is_in_the_repository():
+    """The store's own layout (`pine_libraries/<Author>/<Library>/<N>.json`) is never tracked or addable."""
+    listed = subprocess.run(["git", "ls-files", "-co", "--exclude-standard"], cwd=REPO, capture_output=True,
+                            text=True, encoding="utf-8", check=True).stdout.splitlines()
+    assert len(listed) > 1000, "git listed almost nothing: the scan is not reading the repository"
+    assert [p for p in listed if "pine_libraries/" in p or "pine-libraries" in p] == []
+
+
+# ── the promotion allowlist is held to its own rule ───────────────────────────────────────────
+# (tools/pine_library/promotion_allowlist.json: the only versions an owner may copy into the
+# production store. The runtime pane is off for members, so the HOST-ONLY grade is the one that counts.)
+
+PROMOTION = os.path.join(REPO, "tools", "pine_library", "promotion_allowlist.json")
+
+
+def promotion_problems(doc, deny_paths):
+    """Why a promotion allowlist breaks its rule, one sentence per problem ([] = it holds)."""
+    out = []
+    never = set((doc.get("neverPromoted") or {}).get("paths") or [])
+    held = {r.get("path") for r in doc.get("heldOut") or []}
+    for row in doc.get("promote") or []:
+        p = row.get("path")
+        if not store.parse_import_path(str(p)):
+            out.append("%r is not a library version" % (p,))
+        if not re.fullmatch(r"[0-9a-f]{64}", str(row.get("sha256"))):
+            out.append("%s is not pinned by a sha256" % p)
+        if not row.get("licence") or store.licence_problem(row):
+            out.append("%s has no licence the store serves" % p)
+        if p in deny_paths:
+            out.append("%s is on the deny list" % p)
+        if p in never or p in held:
+            out.append("%s is also listed as held out or never promoted" % p)
+        graded = row.get("hostOnly")
+        if not isinstance(graded, dict) or not graded:
+            out.append("%s has no host-only grade" % p)
+        elif any(v != "MATCH" for v in graded.values()):
+            out.append("%s is not MATCH host-only on every capture: %r" % (p, graded))
+    return out
+
+
+def test_every_promoted_library_is_pinned_licensed_undenied_and_match_host_only():
+    doc = json.load(open(PROMOTION, encoding="utf-8"))
+    deny = {d["path"] for d in json.load(open(store.DENY_FILE, encoding="utf-8"))["deny"]}
+    assert doc["promote"], "an empty promote list would pass every check below: nothing was read"
+    assert promotion_problems(doc, deny) == []
+    # every denied version is accounted for as held out, never silently absent
+    assert deny <= {r["path"] for r in doc["heldOut"]}
+    # every never-promoted path is a version, and none is promoted
+    assert all(store.parse_import_path(p) for p in doc["neverPromoted"]["paths"])
+
+
+def test_the_promotion_rule_refuses_each_way_a_row_can_be_wrong():
+    good = {"path": "tester/pinlib/1", "sha256": "a" * 64, "licence": "MPL-2.0", "hostOnly": {"cap-1": "MATCH"}}
+
+    def problems(**change):
+        return promotion_problems({"promote": [dict(good, **change)]}, {"tester/denied/1"})
+
+    assert problems() == []
+    assert problems(sha256="abc") != []
+    assert problems(licence="CC-BY-NC-SA") != []
+    assert problems(licence="") != []
+    assert problems(nonCommercial=True) != []
+    assert problems(path="tester/denied/1") != []
+    assert problems(path="not a path") != []
+    assert problems(hostOnly={}) != []
+    assert problems(hostOnly=None) != []
+    assert problems(hostOnly={"cap-1": "MATCH", "cap-2": "INCONCLUSIVE"}) != []
+    assert problems(hostOnly={"cap-1": "DIVERGE"}) != []
+    assert promotion_problems({"promote": [good], "heldOut": [{"path": "tester/pinlib/1"}]}, set()) != []
+    assert promotion_problems({"promote": [good], "neverPromoted": {"paths": ["tester/pinlib/1"]}}, set()) != []

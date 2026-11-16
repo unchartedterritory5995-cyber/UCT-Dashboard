@@ -20,7 +20,7 @@ import { sha256Hex } from './parse.js'
 import { LIBRARY_CHANGED, LIBRARY_NO_SHA, LIBRARY_LICENCE, LIBRARY_DENIED } from './pineLibraries.js'
 import {
   registerPineLibrary, clearPineLibraries, pineLibraryUnservable, libraryEntryProblem, ensurePineLibraries,
-  markPineLibraryUnservable, libraryLicenceProblem, libraryDenied,
+  markPineLibraryUnservable, libraryLicenceProblem, libraryDenied, denyTableOf, LIBRARY_DENIED_SENTENCE,
 } from './pineLibraryStore.js'
 import { fixtureLibrary } from './__tests__/libraryFixture.js'
 import * as registry from '../nativeRegistry'
@@ -142,6 +142,26 @@ describe('U15 — the deny list (pineLibraryDeny.json): withheld until verified 
     expect(libraryDenied('TradingView/ta/11')).toBe(null)
     expect(libraryDenied('PineCoders/VisibleChart/3')).toBe(null)
     expect(libraryDenied(PATH)).toBe(null)
+  })
+
+  it('⛔ FAIL CLOSED — a deny document that cannot be read as a list denies EVERY version', () => {
+    const unreadable = [
+      null, undefined, 'x', [], {}, { deny: 'Fontiramisu/fontilab/11' },
+      { deny: [{ reason: 'a row that names no path' }] },
+      { deny: [{ path: DENIED_PATH }, 5] },
+      { deny: [{ path: '' }] }, { deny: [{ path: 11 }] }, { deny: [null] },
+    ]
+    for (const doc of unreadable) {
+      expect(denyTableOf(doc), JSON.stringify(doc)).toBe(null)
+      expect(libraryDenied(PATH, denyTableOf(doc)), JSON.stringify(doc)).toBe(LIBRARY_DENIED_SENTENCE)
+    }
+    // control: a readable list denies only what it names, and an empty list denies nothing
+    const one = denyTableOf({ deny: [{ path: 'tester/other/2' }] })
+    expect(libraryDenied('tester/other/2', one)).toBe(LIBRARY_DENIED_SENTENCE)
+    expect(libraryDenied(PATH, one)).toBe(null)
+    expect(libraryDenied(PATH, denyTableOf({ deny: [] }))).toBe(null)
+    // the committed list is readable (so the controls above it are not denied by accident)
+    expect(denyTableOf(JSON.parse(fs.readFileSync(path.resolve(__dirname, 'pineLibraryDeny.json'), 'utf8'))).size).toBe(3)
   })
 
   it('⭐ the store\'s 409 `library:denied` is remembered under the deny refusal', async () => {

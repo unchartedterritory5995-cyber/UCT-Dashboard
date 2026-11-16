@@ -73,6 +73,10 @@ def _deny_doc() -> dict:
             doc = json.load(f)
         if not isinstance(doc, dict) or not isinstance(doc.get("deny"), list):
             raise ValueError("no deny list")
+        # one row that names no path makes the whole list unreadable: dropping the row would
+        # serve exactly the version it was written to withhold (`denyTableOf` is the JS twin)
+        if any(not isinstance(d, dict) or not isinstance(d.get("path"), str) or not d["path"] for d in doc["deny"]):
+            raise ValueError("a deny row names no path")
         return doc
     except (OSError, ValueError):
         return {"deny": [{"path": "*"}], "memberSentence": None}

@@ -1,54 +1,107 @@
 {
  "_": [
   "U15 promotion allowlist (coordinator ruling 2026-11-15): the ONLY library versions that may be copied from an owner-run fetch into the production store (`$DATA_DIR/pine_libraries`).",
-  "A version is listed only when EVERY newly-attaching importing script in the U15 sample (65 scripts, 132 captures) grades MATCH with it linked, and its licence is not non-commercial.",
+  "A version is listed under `promote` only when EVERY capture of every newly-attaching importing script in the U15 sample (65 scripts, 132 captures) grades MATCH with it linked AND WITH THE RUNTIME PANE OFF (`hostOnly`), and its licence is not non-commercial. The runtime pane is off for members, so the host lane's picture is the one a promoted library would draw.",
   "Each version is pinned by the sha256 of the source that was graded: promote exactly that code, never a re-fetch with another sha.",
   "Non-commercial (CC-BY-NC*) libraries are never promoted (the store refuses to serve them: pine:library-licence).",
-  "Promotion is a separate, coordinator-authorised step after U15 Phase A merges. Measured 2026-11-15 on the local store (docs/pine/evidence/2026-11-15-u15-library-pinning/EVIDENCE.md, P0)."
+  "Promotion is a separate, coordinator-authorised step after U15 Phase A merges. Nothing in this file enables anything: no store is written by it. Measured 2026-11-15 on the local store (docs/pine/evidence/2026-11-15-u15-library-pinning/EVIDENCE.md, P0 and the host-only re-grade).",
+  "tests/test_pine_library_pinning.py holds this file to its own rule (every promoted row: a sha256, a licence the store serves, not on the deny list, and every hostOnly capture MATCH)."
  ],
- "gradedWith": "member door + harness, objects pane and runtime pane on (host lane, runtime fallback); the runtime-pane-off re-grade of the same captures is recorded beside each row as hostOnly",
+ "gradedWith": "member door + harness (f4Sweep.measure.test.js with PINE_LIBRARY_STORE), objects pane on. `hostOnly` = VITE_PINE_RUNTIME_PANE_ENABLED unset (the sweep's `on` state); `runtimeOn` = the same capture with the runtime pane on (the sweep's `runtime` state).",
  "promote": [
   {
    "path": "theEccentricTrader/PubLibSwing/3",
    "sha256": "3cbd09d934016a46d43c8097857bc3fae7af23111e22a414f671db740fc8551f",
    "licence": "MPL-2.0",
    "licenceBasis": "header",
-   "reason": "imported by All Chart Patterns [theEccentricTrader] (committed corpus), which grades MATCH on RDDT 1D and AMEX:SPY 1D with the store loaded"
+   "reason": "imported by All Chart Patterns [theEccentricTrader] (committed corpus), which grades MATCH on RDDT 1D and AMEX:SPY 1D with the store loaded",
+   "hostOnly": {
+    "all-chart-patterns-theeccentrictrader-rddt-1d-2026-11-15": "MATCH",
+    "all-chart-patterns-theeccentrictrader-spy-1d-2026-10-03": "MATCH"
+   },
+   "runtimeOn": {
+    "all-chart-patterns-theeccentrictrader-rddt-1d-2026-11-15": "MATCH",
+    "all-chart-patterns-theeccentrictrader-spy-1d-2026-10-03": "MATCH"
+   }
   },
   {
    "path": "theEccentricTrader/PubLibPattern/4",
    "sha256": "9a75c2736c3911de262ef1dacc78fa82b5010177a3d31bbf2744f391ec177327",
    "licence": "MPL-2.0",
    "licenceBasis": "header",
-   "reason": "imported by All Chart Patterns [theEccentricTrader] (MATCH on RDDT and SPY)"
+   "reason": "imported by All Chart Patterns [theEccentricTrader] (MATCH on RDDT and SPY)",
+   "hostOnly": {
+    "all-chart-patterns-theeccentrictrader-rddt-1d-2026-11-15": "MATCH",
+    "all-chart-patterns-theeccentrictrader-spy-1d-2026-10-03": "MATCH"
+   },
+   "runtimeOn": {
+    "all-chart-patterns-theeccentrictrader-rddt-1d-2026-11-15": "MATCH",
+    "all-chart-patterns-theeccentrictrader-spy-1d-2026-10-03": "MATCH"
+   }
   },
   {
    "path": "theEccentricTrader/PubLibCandleTrend/2",
    "sha256": "1d42daae07346debbf5b9b5a151a4862c0b173b3ea342e95a4db33271a2d5b52",
    "licence": "MPL-2.0",
    "licenceBasis": "header",
-   "reason": "imported by theEccentricTrader/PubLibPattern/4 (a dependency of All Chart Patterns, MATCH on RDDT and SPY)"
+   "reason": "imported by theEccentricTrader/PubLibPattern/4 (a dependency of All Chart Patterns, MATCH on RDDT and SPY)",
+   "hostOnly": {
+    "all-chart-patterns-theeccentrictrader-rddt-1d-2026-11-15": "MATCH",
+    "all-chart-patterns-theeccentrictrader-spy-1d-2026-10-03": "MATCH"
+   },
+   "runtimeOn": {
+    "all-chart-patterns-theeccentrictrader-rddt-1d-2026-11-15": "MATCH",
+    "all-chart-patterns-theeccentrictrader-spy-1d-2026-10-03": "MATCH"
+   }
   },
   {
    "path": "theEccentricTrader/PubLibTrend/3",
    "sha256": "7f31c58b74ea16895550afcaa830a3ce96190b5fea34bab62275389c10688d1e",
    "licence": "MPL-2.0",
    "licenceBasis": "header",
-   "reason": "imported by theEccentricTrader/PubLibPattern/4 (a dependency of All Chart Patterns, MATCH on RDDT and SPY)"
-  },
+   "reason": "imported by theEccentricTrader/PubLibPattern/4 (a dependency of All Chart Patterns, MATCH on RDDT and SPY)",
+   "hostOnly": {
+    "all-chart-patterns-theeccentrictrader-rddt-1d-2026-11-15": "MATCH",
+    "all-chart-patterns-theeccentrictrader-spy-1d-2026-10-03": "MATCH"
+   },
+   "runtimeOn": {
+    "all-chart-patterns-theeccentrictrader-rddt-1d-2026-11-15": "MATCH",
+    "all-chart-patterns-theeccentrictrader-spy-1d-2026-10-03": "MATCH"
+   }
+  }
+ ],
+ "heldOut": [
   {
    "path": "PineCoders/ConditionalAverages/2",
    "sha256": "24f89264710a97c33672fe8d222858f94a5606580ccbeb1530649f39ee05e57c",
    "licence": "MPL-2.0",
    "licenceBasis": "header",
-   "reason": "imported by Rolling VWAP (committed corpus), which grades MATCH on RDDT 1D and AMEX:SPY 1D with the store loaded"
-  }
- ],
- "heldOut": [
+   "reason": "imported by Rolling VWAP (committed corpus). With the runtime pane OFF the member door refuses the script (pine:block: a `while` reached through this library), so the host lane draws nothing and the captures grade INCONCLUSIVE, not MATCH. With the runtime pane on both captures grade MATCH. It was listed under `promote` on the pane-on grade alone; the host-only re-grade (2026-11-15) moved it here. It joins `promote` when its importing script grades MATCH in the lane members are served.",
+   "hostOnly": {
+    "rolling-vwap-rddt-1d-2026-10-03": "INCONCLUSIVE",
+    "rolling-vwap-spy-1d-2026-10-03": "INCONCLUSIVE"
+   },
+   "runtimeOn": {
+    "rolling-vwap-rddt-1d-2026-10-03": "MATCH",
+    "rolling-vwap-spy-1d-2026-10-03": "MATCH"
+   }
+  },
   {
    "path": "TradingView/ta/11",
    "sha256": "da37dca4bc18ce3b825d1d9c8b682f97859508cc5bb8bd3e51e1a28713edee80",
-   "reason": "also imported by Aroon oscillator (DIVERGE, bar 116: a tie in highestbars; joins once engine values-v2 merges and the capture re-grades MATCH). Chandelier exit, Pring's special K and Ulcer index grade MATCH on it."
+   "reason": "also imported by Aroon oscillator, which DIVERGEs (bar 116: a tie in highestbars) with the runtime pane off and on, still on engine 57 (re-graded 2026-11-15). Chandelier exit, Pring's special K and Ulcer index grade MATCH on it in both states. It joins `promote` once the Aroon capture re-grades MATCH.",
+   "hostOnly": {
+    "chandelier-exit-rddt-1d-2026-11-15": "MATCH",
+    "pring039s-special-k-spy-1d-2026-11-15": "MATCH",
+    "ulcer-index-rddt-1d-2026-11-15": "MATCH",
+    "aroon-oscillator-rddt-1d-2026-11-15": "DIVERGE"
+   },
+   "runtimeOn": {
+    "chandelier-exit-rddt-1d-2026-11-15": "MATCH",
+    "pring039s-special-k-spy-1d-2026-11-15": "MATCH",
+    "ulcer-index-rddt-1d-2026-11-15": "MATCH",
+    "aroon-oscillator-rddt-1d-2026-11-15": "DIVERGE"
+   }
   },
   {
    "path": "TradingView/RelativeValue/3",
@@ -59,24 +112,43 @@
    "path": "Fontiramisu/fontilab/11",
    "sha256": "ee3343eb454a6e5f6fe3cfb4c0a898cfd2339b812369de9d63a032c8d8f5b3c3",
    "reason": "imported by ATR Trend Bands [Misu] (DIVERGE: a colour on bar 0)",
-   "denied": "on the deny list (app/src/components/chart/engine/ast/pineLibraryDeny.json): never served, whatever a store holds, until a re-grade to MATCH"
+   "denied": "on the deny list (app/src/components/chart/engine/ast/pineLibraryDeny.json): never served, whatever a store holds, until a re-grade to MATCH",
+   "hostOnly": {
+    "atr-trend-bands-misu-rddt-1d-2026-11-15": "refused by name (pine:library-denied), so no picture is drawn"
+   }
   },
   {
    "path": "loxx/loxxexpandedsourcetypes/4",
    "sha256": "b3ffddf3442cc534a7a1904247b46ff623f690d89456073c22cb5c5959c3ba90",
    "reason": "imported by Black-Scholes Option Pricing Model w/ Greeks [Loxx] (DIVERGE on 4 captures)",
-   "denied": "on the deny list (app/src/components/chart/engine/ast/pineLibraryDeny.json): never served, whatever a store holds, until a re-grade to MATCH"
+   "denied": "on the deny list (app/src/components/chart/engine/ast/pineLibraryDeny.json): never served, whatever a store holds, until a re-grade to MATCH",
+   "hostOnly": {
+    "black-scholes-option-pricing-model-w-greeks-loxx-rddt-1d-2026-11-15": "refused by name (pine:library-denied), so no picture is drawn",
+    "black-scholes-option-pricing-model-w-greeks-loxx-aapl-1d-2026-11-15": "refused by name (pine:library-denied), so no picture is drawn",
+    "black-scholes-option-pricing-model-w-greeks-loxx-jpm-1d-2026-11-15": "refused by name (pine:library-denied), so no picture is drawn",
+    "black-scholes-option-pricing-model-w-greeks-loxx-spy-1d-2026-10-03": "refused by name (pine:library-denied), so no picture is drawn"
+   }
   },
   {
    "path": "TradingView/ValueAtTime/2",
    "sha256": "74c0a0943c6331fdd754391a68fb285feca6ea942dde35e0ec7d01bad8d58169",
    "reason": "imported by Performance (DIVERGE on RDDT and SPY)",
-   "denied": "on the deny list (app/src/components/chart/engine/ast/pineLibraryDeny.json): never served, whatever a store holds, until a re-grade to MATCH"
+   "denied": "on the deny list (app/src/components/chart/engine/ast/pineLibraryDeny.json): never served, whatever a store holds, until a re-grade to MATCH",
+   "hostOnly": {
+    "performance-rddt-1d-2026-11-15": "refused by name (pine:library-denied), so no picture is drawn",
+    "performance-spy-1d-2026-11-15": "refused by name (pine:library-denied), so no picture is drawn"
+   }
   },
   {
    "path": "PineCoders/VisibleChart/3",
    "sha256": "76b2ad4d7c813cfa97f7f5434154235fad488b5a9baf79db6ecff0806a68a60b",
-   "reason": "imported by Volume Profile Heatmap (INCONCLUSIVE)"
+   "reason": "imported by Volume Profile Heatmap (INCONCLUSIVE)",
+   "hostOnly": {
+    "volume-profile-heatmap-rddt-1d-2026-11-15": "INCONCLUSIVE"
+   },
+   "runtimeOn": {
+    "volume-profile-heatmap-rddt-1d-2026-11-15": "INCONCLUSIVE"
+   }
   }
  ],
  "neverPromoted": {
@@ -93,5 +165,12 @@
    "Trendoscope/reversalchartpatterns/2",
    "Trendoscope/utils/6"
   ]
+ },
+ "hostOnlyRegrade": {
+  "date": "2026-11-15",
+  "engine": 57,
+  "base": "origin/master 771264afff merged into fix/pine-library-pinning",
+  "probe": "F4_SWEEP_OUT=<json> F4_SWEEP_ONLY=<the importing scripts> F4_SWEEP_DIRS=<out-of-git capture store> PINE_LIBRARY_STORE=<scratch store> vitest run f4Sweep.measure.test.js",
+  "result": "All Chart Patterns MATCH on both captures. Rolling VWAP does not attach in the host lane (pine:block: a `while` reached through ConditionalAverages), so it is INCONCLUSIVE host-only and MATCH only with the runtime pane on: PineCoders/ConditionalAverages/2 leaves `promote`. Chandelier exit, Pring's special K and Ulcer index MATCH; Aroon oscillator still DIVERGEs on engine 57, so TradingView/ta/11 stays held out. The three denied versions are refused by name in both states."
  }
 }
