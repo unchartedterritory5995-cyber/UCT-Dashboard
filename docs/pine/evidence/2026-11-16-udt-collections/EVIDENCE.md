@@ -104,3 +104,21 @@ reads as one unattributable error). Each has an `A00` `bar_index` control and on
   stop, the sort check, rightmost-of-empty, the every/some refusal, the enum title clash, the for-in sentence, the
   `na`-index rule, the object door's master answer, v5 kept out), validated by `ci_mutant_runner.validate`, run by
   pine-heavy's dispatch mutants job (run 43970583944).
+
+## 7. Follow-up (branch `feat/pine-udt-readings-ac6`, stacked on #1486): TradingView's answers from capture run ac6
+
+The capture session ran this unit's split probes in run ac6 (2026-11-16). The compile and runtime errors it read,
+verbatim with TradingView's values unsubstituted, and what the runtime lane does with each:
+
+| reading | probe(s) | runtime lane now |
+|---|---|---|
+| Compilation error: "The {argName} argument is not used. The first method argument should be used." | `vw-w6-receivers`, `-get-float`, `-get-int`, `-pick-int` | a `method` whose body never reads its first parameter is REFUSED at the declaration (`runtime:udt-method`), called or not. 161 method declarations in the 679-script sample were checked: none is caught (TradingView compiled them all). The four probes were broken by this, not by the overloads they asked about, so each now reads its receiver at no cost and is re-queued |
+| Runtime error: "Index {index} is out of bounds, array size is {size}." | `vw-w19r2a-fill-past-end`, `vw-w19r2a-fill-negative-from` | already a stop; the sentence now says TradingView stops there too. A reversed range keeps the unsettled sentence (unasked) |
+| Runtime error: "The sizes of the `id1` and `id2` arrays must be equal." | `vw-w6-array-members` (V02) | already a stop; sentence cites the reading. V02 leaves the probe; V03 and Q01, never reached, get one file each |
+| Runtime error: "Cannot access the '{name}' field of an undefined object. The object is 'na'." | `vw-w6-receivers-na-field` | already a stop at the bar the read is reached; sentence cites the reading |
+| Compilation error: "Could not find {kind} '{fullName}'" | `vw-w6-receivers-m-int` (U09) | already refused (every number receiver among number overloads, W6-U1) |
+
+Seven existing rails used methods that never read their receiver (W6-T9's overload rails, one W6-T3b typing rail,
+one realtime rail): each now reads it at no cost to the value, and each still asserts what it asserted. CAPTURED in ac6
+but not yet graded (the captures land in a data PR): the insert, empty-search, `na`-index, global-history, `T[]` and
+enum probes.
