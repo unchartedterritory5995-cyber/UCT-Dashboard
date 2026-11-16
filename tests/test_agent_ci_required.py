@@ -15,12 +15,10 @@ PATHS = acr.agent_paths(DOC)
 JOBS = acr.required_jobs(DOC)
 
 #: C3: the exact job set, verified against agent-ci.yml. A change here is a deliberate, reviewed change.
+#: 2026-11-16: the browser shards went 4 -> 8 (GitHub Pro, 40 concurrent jobs), so nine jobs became thirteen.
 EXPECTED_JOBS = {
     "UCT Agent server tests (production dependency set)",
-    "UCT Agent browser tests (shard 1/4)",
-    "UCT Agent browser tests (shard 2/4)",
-    "UCT Agent browser tests (shard 3/4)",
-    "UCT Agent browser tests (shard 4/4)",
+    *(f"UCT Agent browser tests (shard {i}/8)" for i in range(1, 9)),
     "UCT Agent capability regression (deterministic, no model) @ post",
     "UCT Agent capability regression (deterministic, no model) @ rth",
     "UCT Agent capability regression (deterministic, no model)",
@@ -45,8 +43,8 @@ def test_paths_are_agent_ci_push_paths_read_at_run_time():
     assert PATHS == (raw.get("on") or raw[True])["push"]["paths"]
 
 
-def test_required_jobs_are_exactly_the_nine_agent_jobs():
-    assert len(JOBS) == 9 and set(JOBS) == EXPECTED_JOBS, JOBS
+def test_required_jobs_are_exactly_the_thirteen_agent_jobs():
+    assert len(JOBS) == 13 and set(JOBS) == EXPECTED_JOBS, JOBS
 
 
 def test_the_workflow_runs_the_tool_and_watches_the_right_workflow():

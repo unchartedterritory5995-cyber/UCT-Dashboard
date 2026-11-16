@@ -145,7 +145,8 @@ def _run_sampler(boot_window: float, ticks: int = 3) -> None:
     async def _main():
         task = asyncio.get_running_loop().create_task(
             boot_probe.run_sampler(tick=0.01, boot_window=boot_window))
-        await asyncio.sleep(0.01 * ticks + 0.05)
+        # + 2.0 s: the lines are built on a worker thread (2026-11-16), one hop per line, and a cold first reading takes ~0.8 s on Windows
+        await asyncio.sleep(0.01 * ticks + 2.0)
         task.cancel()
         try:
             await task
@@ -363,3 +364,49 @@ def test_generic_pool_work_names_the_job_a_nameless_pool_is_running():
     finally:
         gate.set()
         pool.shutdown(wait=True)
+
+
+# ── 4. the per-thread reading is built OFF the loop (2026-11-16) ───────────────────────
+
+def test_the_lines_are_built_off_the_loop_and_the_limiter_is_read_on_it(caplog, monkeypatch):
+    """⚰️ 2026-11-16: stored stall captures showed the loop thread in `_thread_cpu_ticks` <-
+    `summary_line` <- `run_sampler` for 1.5 s at a time during boot (one /proc read per thread,
+    each handing the interpreter lock back). Both lines are now built on a worker thread; only
+    the anyio reading stays on the loop. Control: the loop thread is known and differs."""
+    import threading
+    seen = {}
+    real_summary, real_steady, real_tokens = boot_probe.summary_line, boot_probe.steady_line, boot_probe._anyio_tokens
+
+    def summary(*a, **k):
+        seen.setdefault("summary", threading.get_ident())
+        return real_summary(*a, **k)
+
+    def steady(*a, **k):
+        seen.setdefault("steady", threading.get_ident())
+        return real_steady(*a, **k)
+
+    def tokens():
+        seen.setdefault("tokens", threading.get_ident())
+        return real_tokens()
+
+    async def _main(boot_window, ticks):
+        seen["loop"] = threading.get_ident()
+        task = asyncio.get_running_loop().create_task(boot_probe.run_sampler(tick=0.01, boot_window=boot_window))
+        await asyncio.sleep(0.01 * ticks + 0.3)
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+    monkeypatch.setattr(boot_probe, "summary_line", summary)
+    monkeypatch.setattr(boot_probe, "steady_line", steady)
+    monkeypatch.setattr(boot_probe, "_anyio_tokens", tokens)
+    monkeypatch.setattr(boot_probe, "STEADY_S", 0.02)
+    with caplog.at_level(logging.INFO, logger="boot_probe"):
+        asyncio.run(_main(1e9, 3))
+        asyncio.run(_main(0.0, 8))
+    assert {"summary", "steady", "tokens", "loop"} <= set(seen), seen
+    assert seen["summary"] != seen["loop"] and seen["steady"] != seen["loop"]
+    assert seen["tokens"] == seen["loop"]
+    assert any(m.startswith("[boot-probe]") and " anyio 0/" in m for m in caplog.messages)

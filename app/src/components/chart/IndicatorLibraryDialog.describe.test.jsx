@@ -66,7 +66,9 @@ describe('wiring and the phone layout (read from source)', () => {
 
   it('the toolbar passes the door only to an account its own Create Indicator button would open for', () => {
     const t = code(src('./ChartToolbar.jsx'))
-    expect(t).toMatch(/onCreateIndicator=\{canModifyWithIntelligence && typeof onStudioPreview === 'function'\s*\?\s*\(\) => \{[^}]*setCreateOpen\(true\)[^}]*\}\s*:\s*null\}/)
+    expect(t).toMatch(/onCreateIndicator=\{canModifyWithIntelligence && typeof onStudioPreview === 'function'\s*\?\s*\((?:opts)?\) => \{[^}]*setCreateOpen\(true\)[^}]*\}\s*:\s*null\}/)
+    // the library's "Describe it instead" carries its words through as the dock's seed
+    expect(t).toMatch(/setCreateSeed\(libraryDescribeSeed\(opts\)\)/)
   })
 
   it('at the touch tier the dock is a bottom sheet, and the docked variant is left alone', () => {
