@@ -46,6 +46,34 @@ reference, builtin, test-fixture or probe script of v4+ uses an unbound bare `pe
 wrote it in v4 are re-spelled `timeframe.period` (`pine.tfternary`, `w4TextConstants` x4,
 `runtimeClockCalls` x1).
 
+## A regression this unit caused, and its fix: a knob may never cost the script its install
+
+The coverage ratchet named `corpus/committed/session-hilo__WM2g5GtC4h.pine` LOST on both lanes on
+`e64bc57ee0`: it attaches on master and failed to INSTALL here (`compute.budget: exceeds the
+series-reference budget`). Its session, `"1800-1500"`, wraps; on master that refused, which folded the
+script's `Use Session Constraint` / `Include Weekends` / `Show Lines` toggles to their defaults. Served
+here, those toggles became live member knobs, and every live input is a distinct `series` name to
+`budget.js::seriesRefs` (cap 8). Measured per tree (a scratch diagnostic on GitHub runners, never
+committed): master `value` = {high, self, time}; this branch {dayofweek, high, hour, minute, s_incWE,
+s_lines, s_useSess, self, time} = 9.
+
+1. `5bc583b4b3`: a membership read (`na(time(…))` with a wrapping session) is the membership tree alone,
+   without the value tree's `time` / `periodseconds` (10 -> 9; railed, M10).
+2. `1063dccb83`: the member door (`builder/builderInputs.js::memberInputTranslation`) gives back the knobs
+   an output over `budget:series` reads, folded to the author's defaults, only when that brings fewer
+   outputs over the cap, and names each in the row's skipped inputs (`budgetRefusal`, flag `budgetBound`).
+   A script with no output over the cap is untouched, so this only turns a definition the registry refuses
+   into one it installs. Rails: `builder/knobInstallBudget.test.js` (an over-cap fixture measured at 9,
+   its four toggles given back by name, installs; an under-cap control keeps its knob) and the session-hilo
+   install rail in `ast/btSessionClock.test.js`; mutants M11, M12.
+3. `budget.js`'s note that `budget:series` "cannot fire" held for the table's five price series only (clock
+   columns, `self` and knobs are series too); corrected in place. The cap is unchanged.
+
+The same rule reaches one script that was refused at install on master too: the harness's
+`mtf-key-levels-support-and-resistance-{rddt,spy}-1d-2026-11-14` were INCONCLUSIVE on both lanes
+("measures 10 and the cap is 8 … `compute.trees.out2`"). This PR's pine-heavy harness legs grade them on
+this branch; the verdict moves are reported in the PR.
+
 ## Coverage: the census's own predicate, targets plus controls
 
 `coverageMapDoorCensus.measure.test.js` over a subset input (the 114 scripts whose engine-60 walls touch this
@@ -73,6 +101,21 @@ Every target whose first wall moved:
 | `reference:session-liquidity__96d8d1599c` | `pine:function` `time` (wrap) | `runtime:conditional-history` | `pine:no-output` | `pine:no-output` |
 
 No control and no target moved from transferring to not transferring on either lane.
+
+## Capability admission for the scripts that newly transfer on the runtime lane
+
+Capability admission is ON in production (`PINE_RUNTIME_CAPABILITY_ADMISSION=on`, the coordinator's
+reading of the service; this tree's local default is off). Read with `api/services/runtime_definitions.py`
+and `pine_capabilities.capabilities_of` against the committed kill list (`api/data/pine_runtime_killlist.json`):
+
+| script | sha256 (prefix) | capabilities | admitted | killed | on the graded allow list | graded |
+|---|---|---|---|---|---|---|
+| `committed:sessions__2677` | `73c2cc29a76bf99d` | core, fn-multi, fn-single, if-block, reassign, ternary | yes | no | no | `sessions-rddt-1d-2026-11-14` (committed capture; graded by the pine-heavy legs) |
+| `committed:session-highs-and-lows-indicator-smc-sessions-dst-safe__c0ca8cf749` | `9d9ef18357506d24` | core, fn-multi, fn-single, history-expr, if-block, method-call, obj:delete, obj:label, obj:line, realtime-state, reassign, tuple-destructure, var | yes | no | no | NO CAPTURE: queued as Q-BT6 (NYSE:RDDT 1D + AMEX:SPY 1D) |
+| `reference:nylondonasian-sessions-ict-swings__14bce3660b` | `39bd272630b925ff` | core, fn-multi, fn-single, if-block, obj:line, reassign, ternary, var | yes | no | no | `nylondonasian-sessions-ict-swings-rddt-1d-2026-11-14`, licence store only: graded on this PC, the grade is in the PR |
+
+So all three would be admitted to members by capability. An admitted script graded DIVERGE goes on the kill
+list in this PR, with a rail.
 
 ## Tests (each with the commit it ran on)
 
