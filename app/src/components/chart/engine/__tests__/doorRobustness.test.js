@@ -240,4 +240,24 @@ describe('a cell whose block never runs on a chart of this period loses nothing'
     expect((d.dropReasons || {})['cell:text']).toBe(1)
     expect(JSON.stringify(d.cellTextWhy || [])).toContain(STRING_VAR_NA_SEED_WHY.slice(0, 40))
   })
+
+  it('⛔ control: the ELSE of a block that never runs DOES run, so its unreadable cell is still a loss', () => {
+    // `if timeframe.isminutes` is false on every bar of a daily chart, so its `else` arm runs on every bar:
+    // the arm's guard is the NEGATED conjunct, decided true. Only a conjunct that is false makes an op never run.
+    const src = [
+      '//@version=5',
+      'indicator("else arm", overlay = true)',
+      'var string unread = na',
+      'if barstate.islast',
+      '    var table t = table.new(position.bottom_right, 1, 1)',
+      '    if timeframe.isminutes',
+      '        table.cell(t, 0, 0, text = "intraday")',
+      '    else',
+      '        table.cell(t, 0, 0, text = unread)',
+      'plot(close)',
+    ].join(LF)
+    const d = translatePine(src, { strict: true, objects: true }).objectDiagnostics || {}
+    expect(d.neverRunOps || []).toEqual([])
+    expect((d.dropReasons || {})['cell:text']).toBe(1)
+  })
 })
