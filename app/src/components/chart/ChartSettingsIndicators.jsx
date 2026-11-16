@@ -387,10 +387,13 @@ export default function ChartSettingsIndicators({
   // PREFILLED request: the member still reads it and presses Send there. Nothing is asked of
   // the model from here.
   const [describeText, setDescribeText] = useState('')
-  const describeIt = (text) => {
+  // ⭐ 2026-11-16 — `send`: the member submitted the plain-words box itself (or pressed one of its
+  // examples), so the words go as the first turn and the preview is the next thing they see.
+  // A search's words ("Describe it instead") are still only placed in the box.
+  const describeIt = (text, { send = false } = {}) => {
     const seed = String(text == null ? '' : text).trim()
     setDescribeText('')
-    if (seed) onCreateIndicator({ seed })
+    if (seed) onCreateIndicator(send ? { seed, send: true } : { seed })
     else onCreateIndicator()
   }
   // 'active' — what the chart draws, plus the ways in.
@@ -3942,7 +3945,7 @@ export default function ChartSettingsIndicators({
           <form
             className={`${styles.aiBar} ${styles.describeBar}`}
             data-guide="indicators.create"
-            onSubmit={(e) => { e.preventDefault(); describeIt(describeText) }}
+            onSubmit={(e) => { e.preventDefault(); describeIt(describeText, { send: true }) }}
           >
             <Icon name="spark" size={14} className={styles.spark} />
             <input
@@ -3956,14 +3959,14 @@ export default function ChartSettingsIndicators({
               maxLength={DESCRIBE_MAX}
             />
             <button type="submit" className={styles.iconBtn} data-testid="settings-create-indicator"
-              aria-label="Describe it" title="Opens UCT Intelligence with your words. It previews on this chart; nothing is saved until you say so">
+              aria-label="Describe it" title="Sends your words to UCT Intelligence. It previews on this chart; nothing is saved until you say so">
               <Icon name="send" size={14} />
             </button>
           </form>
           <div className={styles.describeChips} role="group" aria-label="Examples">
             {DESCRIBE_EXAMPLES.map((ex) => (
               <button key={ex} type="button" className={styles.pill} data-testid="describe-example"
-                onClick={() => describeIt(ex)}>{ex}</button>
+                onClick={() => describeIt(ex, { send: true })}>{ex}</button>
             ))}
           </div>
         </div>
