@@ -83,17 +83,27 @@ describe('REQ (a) — constants written through a plain binding', () => {
   })
 })
 
-describe('REQ (b) — a v1-v4 bare `security(…)` is the runtime lane\'s request door', () => {
-  const head = (v) => `//@version=${v}\nstudy("t")\n`
-  it('⭐ `security(tickerid, period, <stateful>)` at the chart\'s own period builds as the expression itself', () => {
-    const body = 'f() =>\n    a = 0.0\n    a := hlc3 > hlc3[1] ? a + volume : a\nr = security(tickerid, period, sma(f(), 14))\nplot(r)\n'
+describe('REQ (b) — a v1-v4 bare `security(…)` over state stays refused until a capture witnesses it (Q-REQ4)', () => {
+  const head = (v) => `//@version=${v}
+study("t")
+`
+  it('⛔ at the chart's own period, a value that reads this run's own state is refused by name', () => {
+    const body = 'x = 0.0
+x := nz(x[1]) + 1
+r = security(tickerid, period, sma(x, 3))
+plot(r)
+'
     const r = buildRuntimeIr(`${head(3)}${body}`, { bars: [], inputs: {} })
-    expect(r.ok, r.ok ? '' : r.refusal.message).toBe(true)
-    expect(r.ir.requests || []).toHaveLength(0)
+    expect(r.ok).toBe(false)
+    expect(r.refusal.guard).toBe('runtime:request-with-state')
   })
 
-  it('⛔ CONTROL: a bare `security` whose value reads this run\'s own mutable state is still refused', () => {
-    const body = 'x = 0.0\nx := nz(x[1]) + 1\nr = security(tickerid, "W", x)\nplot(r)\n'
+  it('⛔ and at another period too', () => {
+    const body = 'x = 0.0
+x := nz(x[1]) + 1
+r = security(tickerid, "W", x)
+plot(r)
+'
     const r = buildRuntimeIr(`${head(4)}${body}`, { bars: [], inputs: {} })
     expect(r.ok).toBe(false)
     expect(r.refusal.guard).toBe('runtime:request-with-state')

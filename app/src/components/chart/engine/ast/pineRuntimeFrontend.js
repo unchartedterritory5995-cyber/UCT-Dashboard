@@ -9273,20 +9273,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
           return colourCall(node.name, given.map((x) => lowerExpr(x, scope)))
         }
         if (node.name === 'request.security') return admitRequest(node, scope, opts)
-        // ⭐⭐ REQ (coverage unit, 2026-11-16) — THE v1–v4 SPELLING IS THE SAME REQUEST. `security(…)`
-        // became `request.security(…)` in v5 (the v4 → v5 migration guide: a rename, the arguments
-        // unchanged but `resolution` → `timeframe`, which `positionaliseSecurityArgs` already
-        // reads). ⚰️ A bare one whose value reads this run's state fell to the refusal below
-        // (`runtime:request-with-state`) without ever being asked the question `admitRequest`
-        // asks first: is it THIS chart at THIS chart's period? `security(tickerid, res, f(state))`
-        // with `res = useChartTf ? period : custom` is the MTF toggle idiom, and on its default
-        // it is the identity — the expression itself, in this run's own context.
-        // ⛔ ONLY BEFORE v5 (in v5/v6 the bare name is no Pine function), only when the script
-        // defines no function of that name (a user function is routed above), and NOTHING NEW IS
-        // SERVED: every rule `admitRequest` applies to `request.security` applies unchanged.
-        // ⛔ A bare `security` whose arguments read no slot still goes to the columnar lane, as it
-        // always has (`dependsOnTextInput` is not asked about it): one request, one translation.
-        if (node.name === 'security' && !(pineVersion >= 5)) return admitRequest(node, scope, opts)
+        // ⛔ REQ (coverage unit, 2026-11-16) — a v1–v4 bare `security(…)` whose value reads this run's
+        // state stays refused `runtime:request-with-state` (below), the identity included. Routing it
+        // through `admitRequest` (which serves the identity as the expression itself, as for
+        // `request.security`) was built and WITHDRAWN by the coordinator's ruling: no committed capture
+        // grades a v1–v4 bare identity over state MATCH, so the shape waits for Q-REQ4
+        // (`docs/pine/capture-queue-2026-11-16-request-security.md`).
         if (textInputHere(node)) return admitTextInput(node, scope)
         if (heldArray(node.name)) {
           return admitArrayCall(node, scope, false)

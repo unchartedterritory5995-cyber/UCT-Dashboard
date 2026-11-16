@@ -324,7 +324,7 @@
     "NEEDS_CHART": 1
    }
   },
-  "rowsNeedingProbe": 20,
+  "rowsNeedingProbe": 21,
   "rowsNeedingProbeLive": 1,
   "licenceHeldCensus": 157,
   "rowsNotCaptureQuestions": 49,
@@ -15542,9 +15542,22 @@
    "text": "Q-REQ2 | `vw-req-barmerge-slot.pine`: `plot(request.security(syminfo.tickerid, \"W\", close, lookahead = barmerge.gaps_on))`, the same with `barmerge.gaps_off`, and `plot(barmerge.gaps_on ? 1 : 0)` / `plot(barmerge.lookahead_on ? 1 : 0)` in v4 and v5 | NYSE:RDDT 1D | which look-ahead a `barmerge.gaps_*` constant passed in the `lookahead` slot reads as (previous-n-daysweeksmonths-high-low writes `loo"
   },
   {
+   "key": "capture-queue-2026-11-16-request-security#Q-REQ4",
+   "doc": "docs/pine/capture-queue-2026-11-16-request-security.md",
+   "line": 12,
+   "docWave": "request-security",
+   "needsProbe": "probe file owed: vw-req-legacy-security-state.pine",
+   "needsLive": false,
+   "guards": [
+    "runtime:request-with-state"
+   ],
+   "namedScripts": [],
+   "text": "Q-REQ4 | `vw-req-legacy-security-state.pine` (v4 and v3): `x = 0.0`, `x := nz(x[1]) + 1`, then `plot(security(tickerid, period, sma(x, 3)))`; and a function with its own running value (`a := hlc3 > hlc3[1] ? a + volume : a`) read as `plot(security(tickerid, period, sma(f(), 14)))`; each beside the same expression plotted bare | NYSE:RDDT 1D from the listing | does a v1-v4 bare `security` at the ch"
+  },
+  {
    "key": "capture-queue-2026-11-16-request-security#Q-REQ3",
    "doc": "docs/pine/capture-queue-2026-11-16-request-security.md",
-   "line": 14,
+   "line": 15,
    "docWave": "request-security",
    "needsProbe": "probe file owed: vw-req-heikinashi.pine",
    "needsLive": false,
@@ -16029,21 +16042,21 @@
   {
    "key": "capture-queue-2026-11-16-request-security#Q-REQ-LTF",
    "doc": "docs/pine/capture-queue-2026-11-16-request-security.md",
-   "line": 12,
+   "line": 13,
    "docWave": "request-security",
    "disposition": "ruling",
    "reason": "A read below the chart's timeframe (lower-tf:store-unmeasured, 10 sample scripts touched): the RULE is captured (vw-lower-tf-), the DATA is not ours to serve. Measured 2026-10-01 (docs/pine/WAVE12-INTEGRATION-STATE.md, R-LTF): our /api/bars/RDDT?tf=15 against TradingView's vw-bar-counters-rddt-15-2026-09-30, 634 sessions: 77.06% of sessions price-equal on every bar (bar 99%), last-bar close equal on 96.99% (bar 99.5%), volume equal on 0.00% (our / TradingView's median 1.383). A data-source decision for the owner, not engine work.",
-   "dispositionLine": 22,
+   "dispositionLine": 23,
    "text": "Q-REQ-LTF | (none: a data question) | NYSE:RDDT / AMEX:SPY 15 | does our stored intraday series equal TradingView's? | a read below the chart's timeframe is refused `lower-tf:store-unmeasured` | see the disposition below"
   },
   {
    "key": "capture-queue-2026-11-16-request-security#Q-REQ-DATA",
    "doc": "docs/pine/capture-queue-2026-11-16-request-security.md",
-   "line": 13,
+   "line": 14,
    "docWave": "request-security",
    "disposition": "ruling",
    "reason": "Symbols we do not hold: USI: / INDEX: breadth (in scope, its own unit: USI:ADVN.NY, USI:DECL.NY, USI:UNCH.NY, USI:UVOL, USI:DVOL, USI:ADD, UPVOL. / DNVOL., INDEX:SLTW), SP: sector indices (SP:SPN, SP:S5MATR, …), ECONOMICS:, QUANDL:, ESD:_EARNINGS; crypto and FX (BINANCE:, BITMEX:, INDEX:BTCUSD, EURUSD) out of scope by owner ruling. Refused by name (other-symbol:).",
-   "dispositionLine": 23,
+   "dispositionLine": 24,
    "text": "Q-REQ-DATA | (none: data we do not hold) | any | breadth, sector, economic, crypto and FX symbols | refused by name (`other-symbol:*`) | see the disposition below"
   }
  ],
@@ -17651,7 +17664,7 @@
   {
    "doc": "docs/pine/capture-queue-2026-11-16-request-security.md",
    "wave": "request-security",
-   "rows": 5,
+   "rows": 6,
    "contextTables": 0
   },
   {

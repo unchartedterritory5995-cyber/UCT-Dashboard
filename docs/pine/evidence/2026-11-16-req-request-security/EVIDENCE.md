@@ -12,19 +12,23 @@ the 109 sample scripts the request family touches (the wall analysis of the engi
 `e9807547d0` (engine 61; it differs from the merged `6ee6fb2d0e` only by two non-engine commits, #1440 and
 #1441), AFTER = this branch, both in one lock hold, the head recorded at every stage.
 
-**2 of the 109 newly transfer, both sole-family scripts**, one per slice:
+**1 of the 109 newly transfers (sole-family)**:
 
 | slice | script | before | after | what serves it |
 |---|---|---|---|---|
 | (a) resolution | `builtin:correlation-coefficient` | `pine:request` (unresolved symbol) | transfers: clean AND clean on the bound check | `ticker.modify(input.symbol("GOOG"))` with nothing modified is GOOG: an ordinary `sym` read |
-| (b) stateful expression | `reference:money-flow-index-mtf-alerts` | `runtime:request-with-state` | transfers (runtime lane) | a v3 bare `security(tickerid, res, <stateful>)` whose `res` folds to the chart's own period is the expression in this run |
+
+The first push also transferred `reference:money-flow-index-mtf-alerts` (slice b) by routing a v1–v4 bare
+`security(…)` through the request door, where the identity over state is the expression itself. That was
+WITHDRAWN by the coordinator's ruling (no committed capture grades a v1–v4 bare identity over state MATCH);
+it waits for Q-REQ4, which would free it.
 
 Slice (a)'s own count: 1 transfers (above). Two further readings were built, measured and WITHDRAWN before the
 push (see "Withdrawn" below), so the cppivot and machine-learning moves the first measurement reported are not in
-this PR. Slice (b)'s own count: of the 20 scripts blocked by `runtime:request-with-state` on
-a bare `security(…)`, 1 transfers; 7 more now reach the request door and stop at a named request wall
-(look-ahead below the chart, a timeframe read below the chart, another symbol, a dynamic timeframe), which is
-where their real wall was.
+this PR. Slice (b)'s own count: 0 on this branch (1 on the first push, withdrawn, Q-REQ4). Of the
+20 scripts blocked by `runtime:request-with-state` on a bare `security(…)`, the first push showed 7 more would
+stop at a named request wall behind it (look-ahead below the chart, a timeframe below the chart, another
+symbol, a dynamic timeframe): the state wall is not their only one.
 
 `budget:series` failures this unit uncovered (for the cap ruling): `cppivot-boss-floor-pivots-with-atr-dilation-
 and-dynamic-levels` (13 > 8) once its six-hop timeframe chain is read on the plot lane (withdrawn here, so not
@@ -36,6 +40,9 @@ reached on this branch), `swing-points-and-liquidity-by-leviathan` (14 > 8, alre
   artemis-oscillator-pro's plot-lane translation moving (more Resolver steps AND a different output digest), and
   `pine.c10ConstantTests` pins the confinement. Per the coordinator's ruling (revert if a previously served
   output moves) it is object-pass only again. It freed no transfer: cppivot then fails `budget:series`.
+- **A v1–v4 bare `security(…)` through the request door.** Ruled: re-pin only shapes a committed capture
+  grades MATCH; none grades a v1–v4 bare identity over state, so `w4ClassifierHonesty` keeps master's refusals
+  and the routing is out (Q-REQ4).
 - **A v3 / v4 `input(…, type = input.symbol)` default read as the symbol.** The cloud's production harness
   lane measured pmax-explorer SPY's PMax plot MATCH -> DIVERGE (`vendorHarness.coverageAudit`): its twenty
   symbol inputs became twenty per-symbol requests. Reverted; it freed no transfer either.
@@ -49,7 +56,6 @@ The per-target table (identifiers only) is in the PR body.
 | an empty symbol `''` (a literal, or an `input.symbol('')` default) is the chart's own | host + runtime | reference, `request.security`, `symbol`: "Use an empty string or `syminfo.tickerid` to request data using the chart's symbol." Served as the identity |
 | `ticker.modify(<symbol>)` with no other argument is `<symbol>` | host + runtime | reference, `ticker.modify`: "If session is not given, then `syminfo.session` value is used", "If adjustment is not given, then default adjustment value is used"; `backadjustment` / `settlement_as_close` default to inherit. Served as the existing `sym` read (`vw-other-symbol-rddt-1d-2026-09-30` O02 / O03 MATCH) |
 | a `session` / `gaps` / `lookahead` constant written through a plain binding | host + runtime | the constant itself: `Resolver.builtinNameThrough` follows bare names only and folds nothing |
-| a v1–v4 bare `security(…)` goes through the runtime request door (`admitRequest`) | runtime | the v4 → v5 rename; the identity question is asked first (C23's rule, already served for `request.security`) |
 | `lookahead = barmerge.lookahead_on` at `W` / `M` on the runtime lane | runtime | the committed `vw-request-htf-alignment-spy-1d-2026-10-02` (AMEX:SPY 1D, 1,800 bars): A01 (weekly close), A04 (monthly close), A06 (`close[1]`: last week's close) exact on every graded bar, by the pick (`interpret.js::tfLiveReads`) AND by the runtime lane's own run (`computeRuntimeColumns`, off the listing, warm-up curtain); A02 / A05 (look-ahead off) unchanged; the controls show the two picks part on more than 1,000 bars (`vendorHarness.reqLookaheadAlignment.test.js`) |
 
 ### Look-ahead and gaps on the runtime lane (slice c)
