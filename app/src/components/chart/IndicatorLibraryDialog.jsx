@@ -688,7 +688,7 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
                   {/* ⭐ NAMED, NOT JUST TINTED. A colour alone is not a
                       distinction for a member who cannot see it, and the
                       heading scrolls out of view on a long list. */}
-                  {row.userDefined && <span className={styles.mine}>Your formula</span>}
+                  {row.userDefined && <span className={styles.mine}>Your indicator</span>}
                   {hiddenRow && <span className={styles.pill} data-testid="row-hidden">Hidden</span>}
                   {row.sessionOnly && <span className={styles.pill}>Intraday only</span>}
                   {/* ⭐⭐ THE LINTER'S MEASUREMENT, PER PLOT — never the
@@ -830,7 +830,7 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
                 untouched below it. Same split `useUserDefinitions` draws when it
                 refuses to paraphrase the store's refusal. */}
             <p className={styles.refusedLede}>
-              These saved formulas are not being offered on this chart. The reason
+              These saved indicators are not being offered on this chart. The reason
               below comes from the check that refused each one.
             </p>
             {/* ⛔ NOT a `role="listbox"` and NOT `role="option"`. There is no
@@ -847,7 +847,7 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
                   <span className={styles.main}>
                     <span className={styles.titleRow}>
                       <span className={styles.name}>{row.name}</span>
-                      <span className={styles.mine}>Your formula</span>
+                      <span className={styles.mine}>Your indicator</span>
                     </span>
                     {/* ⛔ THE GATE'S OWN SENTENCE, WHOLE AND UNEDITED — including
                         the `<id>: ` prefix the door itself writes. A definition

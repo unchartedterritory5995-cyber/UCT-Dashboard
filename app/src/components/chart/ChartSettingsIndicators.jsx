@@ -3741,7 +3741,7 @@ export default function ChartSettingsIndicators({
                 {row.chip || row.shortName}
               </span>
             )}
-            {row.userDefined && <span className={styles.resMine}>Your formula</span>}
+            {row.userDefined && <span className={styles.resMine}>Your indicator</span>}
             {/* ⭐ PHASE 4 — IS IT USED HERE? The member's own indicator says so. */}
             {/* (`ACTIVE` already marks one that is on; this says the other half.) */}
             {row.userDefined && !on && (
@@ -3979,7 +3979,7 @@ export default function ChartSettingsIndicators({
                deliberately absent — see `FUNDAMENTALS_STATUS`; promising a search
                that can return nothing is the "fake availability" the brief rules
                out. */
-            placeholder="Search indicators, symbols, or formulas…"
+            placeholder="Search indicators or symbols…"
             aria-label="Search indicators"
             value={query}
             onChange={(e) => {
@@ -4151,7 +4151,7 @@ export default function ChartSettingsIndicators({
           <section className={styles.insAddGroup} data-testid="user-definition-refusals">
             <div className={styles.insSectionLabel}>{REFUSED_CATEGORY}</div>
             <p className={styles.resRefusedLede}>
-              These saved formulas are not being offered on this chart. The reason
+              These saved indicators are not being offered on this chart. The reason
               below comes from the check that refused each one.
             </p>
             <ul className={styles.resList}>
@@ -4165,7 +4165,7 @@ export default function ChartSettingsIndicators({
                   <span className={styles.resMain}>
                     <span className={styles.resTitleRow}>
                       <span className={styles.resName}>{row.name}</span>
-                      <span className={styles.resMine}>Your formula</span>
+                      <span className={styles.resMine}>Your indicator</span>
                     </span>
                     {row.messages.map((message, i) => (
                       <span key={i} className={styles.resRefusedWhy} data-testid="user-definition-refusal-reason">{message}</span>
