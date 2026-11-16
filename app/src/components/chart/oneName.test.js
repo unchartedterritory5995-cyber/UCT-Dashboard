@@ -26,6 +26,9 @@ const SURFACES = [
   './IndicatorMembersTab.jsx',
   './indicatorCatalog.js',
   '../../pages/formulas/FormulaLibrary.jsx',
+  // the formula builder: its own list of saved work (slice 2). "New formula" and "Edit
+  // formula" stay, they name the typed way of writing one.
+  './builder/BuilderSheet.jsx',
 ].filter((p) => fs.existsSync(path.resolve(__dirname, p)))
 
 describe('a saved indicator is called an indicator', () => {
