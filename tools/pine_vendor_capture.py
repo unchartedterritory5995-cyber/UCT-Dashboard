@@ -444,7 +444,9 @@ def main() -> int:
     with sync_playwright() as p:
         launch = dict(
             headless=False,
-            viewport={"width": TIERS[-1][1], "height": TIERS[-1][2]},
+            # 1760 wide, not the 1440 desktop tier: at 1440 TradingView's Pine editor collapses
+            # `Add to chart` to an icon (batch_capture.RIG_VIEWPORT, measured 2026-11-16)
+            viewport={"width": 1760, "height": 1000},
             args=["--window-position=40,40"],
         )
         if args.channel:

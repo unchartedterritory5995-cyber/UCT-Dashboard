@@ -6579,6 +6579,21 @@ export function listUserDefinitions() {
   return [..._userById.values()]
 }
 
+/** ⚡ PRELOAD (perf/pine-runtime-chunk-preload) — does a definition run (in whole or in part) on the
+ *  per-bar lane: a runtime document, a host document's run half (`compute.runtimeObjects`), or its
+ *  run-read paint colours (`compute.runtimeColours`)? The chart warms the lane's worker after its
+ *  first paint only when one of the member's installed definitions does (`runtimeLaneWarm.js`). */
+export function definitionUsesRuntimeLane(def) {
+  const c = def && def.compute
+  return !!(c && (c.kind === 'runtime' || c.runtimeObjects || c.runtimeColours))
+}
+
+/** ⚡ Is any user definition installed in this session on the per-bar lane? */
+export function anyInstalledRuntimeDefinition() {
+  for (const d of _userById.values()) if (definitionUsesRuntimeLane(d)) return true
+  return false
+}
+
 /**
  * @returns {object|null} the definition, or null when nothing is registered under `defId`.
  *

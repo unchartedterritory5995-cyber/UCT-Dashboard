@@ -168,12 +168,25 @@ jobs:
       # partition (greedy longest-first over the committed per-file timings). A file with no recorded time is still
       # assigned (p90 weight, onto the lightest shard); a deleted file's stale timing is ignored. Refresh the timings:
       # see tools/agent_vitest_shards.py's docstring.
+      # REFRESHED TIMINGS (2026-11-16): shard-timings-refresh.yml saves fresh per-file times weekly under the key of a
+      # FUTURE week. Every shard of a run derives the SAME key from its commit's date and restores it by EXACT key (no
+      # fallback keys; cache entries are immutable), so all shards plan from the identical file, or all from the
+      # committed tools/agent_vitest_shard_timings.json on a miss. Rails: tests/test_shard_timings_refresh.py.
+      - name: Pick this commit's week of shard timings
+        id: tweek
+        run: echo "week=$(TZ=UTC git log -1 --format=%cd --date=format-local:%G-W%V)" >> "$GITHUB_OUTPUT"
+      - name: Restore that week's refreshed shard timings (exact key; a miss keeps the committed file)
+        uses: actions/cache/restore@v4
+        with:
+          path: .shard-timings/agent_vitest_shard_timings.json
+          key: agent-shard-timings-${{ steps.tweek.outputs.week }}
       - name: vitest shard
         working-directory: app
         run: |
           npx vitest list $AGENT_VITEST_PATHS --filesOnly > ../agent-files.txt
-          python3 ../tools/agent_vitest_shards.py --files-list ../agent-files.txt --of "${AGENT_SHARDS}" --plan
-          python3 ../tools/agent_vitest_shards.py --files-list ../agent-files.txt --of "${AGENT_SHARDS}" \
+          T=../tools/agent_vitest_shard_timings.json; [ -s ../.shard-timings/agent_vitest_shard_timings.json ] && T=../.shard-timings/agent_vitest_shard_timings.json; echo "shard timings: $T"
+          python3 ../tools/agent_vitest_shards.py --files-list ../agent-files.txt --of "${AGENT_SHARDS}" --timings "$T" --plan
+          python3 ../tools/agent_vitest_shards.py --files-list ../agent-files.txt --of "${AGENT_SHARDS}" --timings "$T" \
             --shard ${{ matrix.shard }} > ../shard-${{ matrix.shard }}.files
           # never fall through to an unfiltered `vitest run` (it would run the whole app suite)
           test -s ../shard-${{ matrix.shard }}.files || { echo "::error::shard ${{ matrix.shard }} has no files"; exit 1; }
