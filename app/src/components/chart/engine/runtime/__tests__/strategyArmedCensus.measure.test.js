@@ -95,12 +95,16 @@ function door(source) {
   const withheldObjects = !!(d.ok && t.objects && (t.objects.ops || []).length && !(d.definition && d.definition.objects))
   const withheldPaints = (((t.presentation || {}).paints) || []).filter((p) => p && p.withheld).length
   const lossVerdict = loss ? loss.verdict : null
-  const clean = !!d.ok && installed !== false && refusals.length === 0
-    && (lossVerdict === 'clean' || lossVerdict == null) && !withheldObjects && !(withheldPaints > 0)
+  const lane = d.lane || (d.ok ? 'host' : null)
+  // the RUNTIME-ON lane's judgement (`coverage_map.py::runtimeClean`): a runtime document keeps the host
+  // translation's refusals beside it by design, so an attach by the runtime lane is what counts there
+  const clean = (!!d.ok && installed !== false && refusals.length === 0
+    && (lossVerdict === 'clean' || lossVerdict == null) && !withheldObjects && !(withheldPaints > 0))
+    || (!!d.ok && installed !== false && lane === 'runtime')
   let holdsBroker = false
   try { holdsBroker = !!d.ok && JSON.stringify(d.definition).includes(`"${STRATEGY_WINDOW_HISTORY}"`) } catch { holdsBroker = false }
   return {
-    attached: !!d.ok, clean, lane: d.lane || (d.ok ? 'host' : null), guard: d.guard || null,
+    attached: !!d.ok, clean, lane, guard: d.guard || null,
     reason: d.ok ? null : short(d.reason), refusals: [...new Set(refusals)], holdsBroker,
     runtimeDeclined: d.runtimeDeclined ? d.runtimeDeclined.code : null,
   }

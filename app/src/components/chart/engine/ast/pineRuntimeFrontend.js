@@ -1422,6 +1422,13 @@ function calcBarsRefusal(toks) {
   if (cbc && cbc.guard) throw new PineRefusal(cbc.guard, cbc.why, locate(cbc.tok))
 }
 
+/** ⭐⭐ W9 ARMED ROUTE — did this build SKIP an order call (`runtime:strategy-order`, noted where the order set
+ *  `STRATEGY_ORDER_CALLS` is read)? A refused build carries its diagnostics too. */
+function strategyOrdersSkipped(built) {
+  const fam = built && built.diagnostics && built.diagnostics.families
+  return !!(fam && fam['runtime:strategy-order'] > 0)
+}
+
 export function buildRuntimeIr(source, opts = {}) {
   const holder = { link: null }
   let built = buildRuntimeIrLinked(source, opts, holder)
@@ -1431,16 +1438,31 @@ export function buildRuntimeIr(source, opts = {}) {
   // a broker VALUE read - is retried. DARK behind `VITE_PINE_STRATEGY_BROKER_ENABLED`
   // (`strategyBrokerGate.js`); `opts.strategyBroker` overrides it for rails.
   const brokerOn = opts.strategyBroker !== undefined ? opts.strategyBroker === true : strategyBrokerEnabled()
+  // ⭐⭐ W9 ARMED ROUTE (coordinator ruling 2026-11-16) — with the broker on, EVERY strategy that places orders
+  // is built by the broker, not only one whose outputs read a `strategy.*` value: a strategy's trades are its
+  // output. Two cases join the value read: a build that stands with its orders SKIPPED (`runtime:strategy-order`
+  // noted), and a tester-only build that refused `runtime:no-output` because its orders were its only output.
+  // ⛔ For those two the build that stands today is never lost: a broker build that refuses keeps it, with the
+  // broker's refusal named beside it (`brokerDeclined`), exactly as the broker-dark build draws.
+  const valueRead = !!(built && built.ok === false && built.refusal && built.refusal.guard === 'pine:strategy-call')
+  const ordersSkipped = !valueRead && strategyOrdersSkipped(built)
+    && (built.ok === true || (built.refusal && built.refusal.guard === 'runtime:no-output'))
   // W9 rule 4 - NEVER at the C18 object door: it builds exactly what master builds.
-  if (brokerOn && opts.objectDoor !== true && opts.__strategyBroker !== true && built && built.ok === false
-      && built.refusal && built.refusal.guard === 'pine:strategy-call') {
+  if (brokerOn && opts.objectDoor !== true && opts.__strategyBroker !== true && built && (valueRead || ordersSkipped)) {
+    const plainLink = holder.link
     holder.link = null
     // ⭐⭐ W9-T1 RULE 11 — a repaint-class input refuses broker mode BY NAME, before it is built.
     const repaint = strategyRepaintConstruct(source)
-    if (repaint) {
-      return { ok: false, refusal: { guard: 'runtime:strategy-repaint', message: `\`${repaint}\` in a strategy whose trades the broker would compute`, line: null, column: null }, diagnostics: [] }
+    const repaintRefusal = repaint ? { guard: 'runtime:strategy-repaint', message: `\`${repaint}\` in a strategy whose trades the broker would compute`, line: null, column: null } : null
+    if (repaintRefusal && valueRead) return { ok: false, refusal: repaintRefusal, diagnostics: [] }
+    const viaBroker = repaintRefusal ? { ok: false, refusal: repaintRefusal, diagnostics: [] } : buildRuntimeIrLinked(source, { ...opts, __strategyBroker: true }, holder)
+    if (valueRead || viaBroker.ok || built.ok !== true) {
+      built = viaBroker
+    } else {
+      holder.link = plainLink
+      built = { ...built, brokerDeclined: { guard: (viaBroker.refusal && viaBroker.refusal.guard) || 'runtime:strategy-option',
+        message: (viaBroker.refusal && viaBroker.refusal.message) || '' } }
     }
-    built = buildRuntimeIrLinked(source, { ...opts, __strategyBroker: true }, holder)
   }
   const link = holder.link
   // ⭐⭐ L1 — present only when a library was linked, so every other result is
@@ -1668,6 +1690,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  `buildRuntimeIr`'s retry. `brokerDecl` is the declaration it read. */
   const brokerMode = opts.__strategyBroker === true
   let brokerDecl = null
+  /** ⭐⭐ W9 ARMED ROUTE — how many order commands the broker build lowered: a strategy whose orders are its
+   *  only output (no plot, no drawing) is a program in broker mode. */
+  let brokerOrdersLowered = 0
 
   /** How many drawing-as-value creates this build has lowered. ⛔ THIS LANE'S
    *  OWN ORDINAL — see `runtime/handles.js`: it is NOT the object program's
@@ -12600,6 +12625,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             throw brokerRefusal(e, first)
           }
           out.push(exprStmt(brokerCall(word, placed.map((n) => (n === null ? null : lowerExpr(n, scope))), 'void'), 0))
+          brokerOrdersLowered += 1
           continue
         }
         // ⛔⛔ W9 open question 9.7 (2026-11-07) — WITH THE BROKER DARK THE ORDER IS
@@ -15082,7 +15108,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
 
   // ⭐ RT5 — a script whose only output is drawings is a program when this
   // lane draws them.
-  if (!outputs.length && !(objectsInRun && objectOpsLowered > 0)) {
+  // ⭐⭐ W9 ARMED ROUTE — and a strategy whose orders are its only output, when the broker runs them: its
+  // trades (the record, the markers, the report) are what it draws.
+  if (!outputs.length && !(objectsInRun && objectOpsLowered > 0) && !(brokerMode && brokerOrdersLowered > 0)) {
     return fail(new RuntimeRefusal('runtime:no-output', null, null), diagnostics)
   }
   if (objectsInRun) diagnostics.objectOps = objectOpsLowered

@@ -98,6 +98,10 @@ export const BROKER_RULES = Object.freeze({
   'B-TXT-CLOSE-ALL-ID': Object.freeze({ capture: 'Q-S1-core', what: 'strategy.closedtrades.exit_id of a trade strategy.close_all() closed reads "Close position order"' }),
   'B-TXT-ENTRY-CLOSE-ID': Object.freeze({ capture: 'Q-S1b', what: 'strategy.closedtrades.exit_id of a trade a strategy.entry fill closed (a reversal, an allow_entry_in close) reads the id of that entry' }),
   'B-TXT-NO-COMMENT': Object.freeze({ capture: 'Q-S1k', what: 'strategy.closedtrades.exit_comment of a trade whose closing order carries no comment reads the exit id of the trade' }),
+  // ── 2026-11-16, the strategy coverage unit: Q-S1g, witnessed by VALUES (vw-s1-q-s1g-blocked-stop-entry, the
+  // report not requested), so pinned only by a re-take with the Strategy Tester report. APPENDED, never inserted:
+  // rails read S1's 22 rules as the first 22 of this table.
+  'B-PYR-PRICE': Object.freeze({ capture: 'Q-S1g', what: 'a price (stop / limit) entry whose level is reached while the position is at the pyramiding limit does not execute, then or later: it is not kept waiting' }),
 })
 
 export const BROKER_RULE_IDS = Object.freeze(Object.keys(BROKER_RULES))

@@ -689,8 +689,15 @@ export function makeBroker(cfg, data) {
       rule('B-PYR')
       if (defaulted.pyramiding) rule('B-DEFAULTS')
       if (o.type === 'market') { endRow(o.row, 'rejected', 'pyramiding'); return null }
-      throw new BrokerRefusal(`a price entry \`${o.id}\` triggered at the pyramiding limit, and whether it is `
-        + 'cancelled or kept waiting is not stated', 'Q-S1g')
+      // ⭐ Q-S1g [B-PYR-PRICE] — a price entry whose level is reached at the pyramiding limit does not execute
+      // and is NOT kept waiting. Witnessed by VALUES (vw-s1-q-s1g-blocked-stop-entry, NYSE:RDDT 1D, 2026-11-16,
+      // pyramiding 1): `L2`'s stop is reached on bars 53-70 while long and again on every bar from 71 after the
+      // position closes, and `strategy.position_size` stays 0 from bar 71 to the last bar. Its own rule, unpinned
+      // until a capture with the Strategy Tester report grades it MATCH (which also says whether TradingView lists
+      // the order at all): until then the run stops here by name, as before, under the rule that will pin it.
+      rule('B-PYR-PRICE')
+      endRow(o.row, 'rejected', 'pyramiding')
+      return null
     }
     if (!reversed) price = entryFillPx(o, price0)
     if (open.length && maxEntries > 1) { rule('B-PYR'); if (defaulted.pyramiding) rule('B-DEFAULTS') }

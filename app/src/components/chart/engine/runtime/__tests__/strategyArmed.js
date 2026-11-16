@@ -83,7 +83,9 @@ export function armedStrategyVerdict({ source, door, bars, ctx }) {
   } catch (e) {
     out.run = { ok: false, guard: (e && (e.guard || e.code)) || 'runtime:error', rule: (e && e.rule) || null,
       capture: (e && (e.capture || e.probe)) || null, message: short(e && e.message) }
-    out.wall = `run:${out.run.guard}${out.run.rule ? `:${out.run.rule}` : ''}`
+    // the rule an unpinned stop names, else the capture row an unsettled one names (`BrokerRefusal.probe`)
+    const which = out.run.rule || out.run.capture
+    out.wall = `run:${out.run.guard}${which ? `:${which}` : ''}`
     return out
   } finally {
     try { registry.uninstallUserDefinition(ARMED_DEF_ID) } catch { /* nothing installed */ }

@@ -194,7 +194,10 @@ describe('D7: the strategy-backtest scorecard wording', () => {
     // text: B-ROUND (a fill on an off-grid open), B-ROUND-MARK (the mark of open trades on an off-grid close),
     // B-TXT-CLOSE-ID, B-TXT-CLOSE-ALL-ID, B-TXT-ENTRY-CLOSE-ID (the exit ids TradingView generates) and
     // B-TXT-NO-COMMENT (an exit comment with no comment reads the exit id).
-    expect(BROKER_RULE_IDS.length).toBe(50)
+    // + 1 (dated 2026-11-16, the strategy coverage unit): B-PYR-PRICE (Q-S1g), a price entry reached at the
+    // pyramiding limit is not kept waiting, witnessed by the VALUES of vw-s1-q-s1g-blocked-stop-entry and
+    // pinned only by a re-take with the Strategy Tester report.
+    expect(BROKER_RULE_IDS.length).toBe(51)
   })
 
   it('counts a pin only when the ledger holds it, and only for a rule the broker names', () => {

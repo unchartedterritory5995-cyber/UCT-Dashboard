@@ -257,10 +257,13 @@ function strategyBars() {
   return armedBars
 }
 const ARMED_CTX = () => ({ ...BOUND_CTX, historyWindowBars: historyWindowBarsOf(path.resolve(process.cwd(), '..')) })
-/** The census's own door answer (`oneDoor` judged by `isClean`), in the shape `strategyArmed.js` reads. */
+/** The census's own door answer, in the shape `strategyArmed.js` reads, judged as the RUNTIME-ON lane judges it
+ *  (`coverage_map.py::runtimeClean`): `isClean`, or attached by the runtime lane (a runtime document keeps the
+ *  host translation's refusals beside it by design, so `isClean` cannot judge it, and the broker runs only there). */
 function armedDoor(source) {
   const r = oneDoor(source, { runtimeDetail: false })
-  return { attached: !!r.attached && r.installed !== false, clean: isClean(r), guard: r.guard || null,
+  const attached = !!r.attached && r.installed !== false
+  return { attached, clean: isClean(r) || (attached && r.lane === 'runtime'), guard: r.guard || null, lane: r.lane || null,
     refusals: (r.refusals || []).map((x) => x.guard).filter(Boolean), runtimeDeclined: r.runtimeDeclined || null }
 }
 
