@@ -31,17 +31,28 @@ const attempt = (src, { bars = QUIET, pins, window = 5000, confirmed = true, lis
 const SCRIPT = `${V5}if bar_index == 3\n    strategy.entry("L", strategy.long)\nif bar_index == 10\n    strategy.close("L")\n`
   + 'plot(strategy.position_size)\nplot(strategy.netprofit)\n'
 
-describe('W9-T1 pinned(): the committed ledger is empty, so nothing serves', () => {
-  it('the production ledger pins no rule', () => {
-    expect(Object.keys(RESOLVED.rules)).toEqual([])
+import PINS_SRC from '../brokerPins.json'
+describe('W9-T1 pinned(): the committed ledger holds the rules the captures witness, by their fixture ids', () => {
+  it('ONE AUTHORITY: brokerPins.resolved.json is the resolution of brokerPins.json (2)', () => {
+    expect(PINS_SRC.rules).toEqual(RESOLVED.rules)
+    expect(Object.keys(RESOLVED.rules).sort()).toEqual([
+      'B-CANCEL', 'B-CLOSE', 'B-COMM-CONTRACT', 'B-COMM-ORDER', 'B-COMM-PCT', 'B-DEFAULTS', 'B-DIR', 'B-EXIT-BIND',
+      'B-EXIT-LIFE', 'B-FIFO', 'B-FILL', 'B-GAP', 'B-MARGIN', 'B-MARKET', 'B-OCA', 'B-ORDER', 'B-PATH', 'B-QTY',
+      'B-REVERSE', 'B-RISK-ALLOW', 'B-RISK-DDOWN', 'B-ROUND', 'B-SIG', 'B-SLIPPAGE', 'B-TICK-HIST',
+      'B-TXT-CLOSE-ALL-ID', 'B-TXT-CLOSE-ID', 'B-TXT-ENTRY-CLOSE-ID', 'B-TXT-NO-COMMENT', 'B-VAL', 'B-WHEN',
+    ])
   })
-  it('with the real ledger a run stops at the first rule it reaches, by name', () => {
-    const { err } = attempt(SCRIPT) // no brokerPinned: the committed ledger
-    expect(err).toBeDefined()
-    expect(err.guard).toBe('runtime:strategy-unpinned')
-    expect(err.rule).toBe('B-VAL') // the plot reads a value on bar 0, before any order is placed
-    expect(err.message).toMatch(/B-VAL/)
-    expect(err.message).toMatch(/Q-S1-core/)
+  it('with the real ledger a run that exercises only pinned rules completes; an unpinned rule stops it by name', () => {
+    // SCRIPT exercises B-VAL, B-FILL, B-MARKET, B-CLOSE, B-DEFAULTS, B-DIR, B-FIFO, B-MARGIN, B-QTY, B-SIG, all pinned
+    const { err, res } = attempt(SCRIPT) // no brokerPinned: the committed ledger
+    expect(err).toBeUndefined()
+    expect(res.broker.record.rulesUsed).toEqual(expect.arrayContaining(['B-VAL', 'B-FILL', 'B-MARKET']))
+    // a script that exercises an UNPINNED rule (B-POC-COST, under process_orders_on_close with a cost) still stops
+    const POC = '//@version=5\nstrategy("t", process_orders_on_close = true, commission_type = strategy.commission.percent, commission_value = 0.1)\n'
+      + 'if bar_index == 3\n    strategy.entry("L", strategy.long)\nplot(strategy.position_size)\n'
+    const r = attempt(POC)
+    expect(r.err && r.err.guard).toBe('runtime:strategy-unpinned')
+    expect(['B-POC', 'B-POC-COST']).toContain(r.err.rule)
   })
   it('every rule the run used, taken out of the pin set one at a time, stops the run naming THAT rule', () => {
     const full = attempt(SCRIPT, { pins: ALL })

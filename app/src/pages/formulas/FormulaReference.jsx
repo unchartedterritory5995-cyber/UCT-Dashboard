@@ -26,30 +26,20 @@
 // the manifest already records a reason for all 103 of them.
 
 import { withoutGuardIds } from '../../components/chart/engine/ast/guardIdText'
-import { Suspense, lazy, useMemo, useState } from 'react'
+import { Suspense, lazy, useCallback, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import UIcon from '../../components/ui/UIcon'
 import TileCard from '../../components/TileCard'
-import {
-  buildVocabulary, searchVocabulary, reachOf,
-} from '../../components/chart/engine/ast/vocabulary'
-import { TABLE } from '../../components/chart/engine/ast/parse'
+import { buildVocabulary, searchVocabulary } from '../../components/chart/engine/ast/vocabulary'
 import { referenceSentence } from './referenceSentence'
+import { buildReferenceText, saveTextFile, reachFor } from './referenceDownload'
 import styles from './FormulaReference.module.css'
 
 // Opened on request (see the section below): it imports the engine's refusal families.
 // ⛔ The file is `PineNamesSection`, NOT `PineNames`: `pineNames.js` sits beside it, and on a
 // case-insensitive disk `./PineNames` resolved to that module, which has no default export.
 const PineNames = lazy(() => import('./PineNamesSection'))
-
-/** The engine's own reach sentence for a function, or nothing for a kind that
- *  declares none. ⛔ Bar fields, operators and benchmarks have no `lookback` and
- *  inventing "0 bars" for them would state a fact the manifest never declared. */
-function reachFor(item) {
-  const spec = (TABLE.functions || {})[item.name]
-  return spec ? reachOf(spec) : null
-}
 
 function Entry({ item }) {
   const reach = item.kind === 'function' ? reachFor(item) : null
@@ -88,6 +78,19 @@ export default function FormulaReference() {
   const vocab = useMemo(() => buildVocabulary(), [])
   const [query, setQuery] = useState('')
   const [pineOpen, setPineOpen] = useState(false)
+  // ⭐ THE WHOLE REFERENCE AS ONE FILE (2026-11-16), for a member who writes with their own
+  // assistant. Built from the objects this page renders, plus the TradingView names, which
+  // load on the press. '' | 'busy' | 'done' | 'failed'
+  const [download, setDownload] = useState('')
+  const downloadReference = useCallback(async () => {
+    setDownload('busy')
+    let pine = {}
+    // The TradingView names are an addition: if they cannot load, the file still carries
+    // the whole formula vocabulary rather than failing outright.
+    try { pine = (await import('./referencePineData')).pineForDownload() } catch { pine = {} }
+    const text = buildReferenceText(vocab, { plain: withoutGuardIds, ...pine })
+    setDownload(saveTextFile(text) ? 'done' : 'failed')
+  }, [vocab])
   const result = useMemo(() => searchVocabulary(query, vocab), [query, vocab])
 
   const shown = result.groups.reduce((n, g) => n + g.items.length, 0)
@@ -100,6 +103,18 @@ export default function FormulaReference() {
           Every name you can write in a formula, in the engine&rsquo;s own words.
           {' '}Type what you want it to <em>do</em> &mdash; the descriptions are searched too.
         </p>
+
+        <div className={styles.downloadRow}>
+          <button type="button" className={styles.pineOpen} data-testid="reference-download"
+            disabled={download === 'busy'} onClick={downloadReference}>
+            {download === 'busy' ? 'Preparing the file' : 'Download for your assistant'}
+          </button>
+          <span className={styles.downloadNote} data-testid="reference-download-note" role="status">
+            {download === 'done' ? 'Saved as uct-formula-reference.md. Attach it to your assistant, then paste what it writes into “write a formula” (Chart Settings, Indicators, Add indicator).'
+              : download === 'failed' ? 'This browser would not save the file. Try another browser.'
+                : 'One file with every name on this page, for an assistant that writes formulas with you.'}
+          </span>
+        </div>
 
         <div className={styles.searchRow}>
           <UIcon name="search" size={14} />

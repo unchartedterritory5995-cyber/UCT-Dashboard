@@ -415,6 +415,10 @@ def _member_tree_phrase(gate: str) -> str:
     return REFUSALS.get(gate) or dc.REFUSALS.get(gate) or REFUSALS["converse:unchecked"]
 
 
+#: The longest validator diagnostic an ADMIN's refused response carries per attempt.
+DIAGNOSTIC_MAX_CHARS = 600
+
+
 class _Refused(Exception):
     """One gate saying no.
 
@@ -1738,6 +1742,14 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
         logger.exception("[converse] usage accounting failed")
     _record_turn(user_id, conversation_id, result, admin=admin, message=message,
                  latency_ms=latency_ms)
+    if admin and not result.get("ok") and trace.get("refusals"):
+        # WHY EACH ATTEMPT WAS REFUSED, FOR THE BUILDERS ONLY (2026-11-16). The house set
+        # found requests that fail twice at a name or reference check, and nothing outside
+        # a DEBUG log said WHICH name: the failure could be counted and never fixed. An
+        # admin's response carries what the repair turn was told. A member's never does:
+        # the text can echo model output and is written for a model, not a person. Added
+        # AFTER the turn is recorded, so it reaches no telemetry row.
+        result["diagnostic"] = trace["refusals"]
     return result
 
 
@@ -1992,6 +2004,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
     cost_usd = 0.0
     attempts = 0
     last: Optional[_Refused] = None
+    refusals: List[Dict[str, Any]] = []
     extra = {"not_understood": not_understood, "unavailable": unavailable}
 
     while attempts < MAX_MODEL_CALLS:
@@ -2040,6 +2053,8 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             check_output_renames(envelope, message, view, turns)
         except _Refused as refused:
             last = refused
+            refusals.append({"attempt": attempts, "gate": refused.gate,
+                             "detail": refused.detail[:DIAGNOSTIC_MAX_CHARS]})
             # the diagnostic (op path, validator text) is for the model and a DEBUG
             # log, never the member; it can echo model output, so not at INFO
             logger.debug("[converse] attempt %d refused at %s: %s", attempts, refused.gate,
@@ -2114,5 +2129,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         }
 
     refused = last or _Refused("model:no-tool", "no patch in the answer")
+    # what each attempt was refused for: the outer door decides who may read it
+    trace["refusals"] = refusals
     return {"ok": False, "gate": refused.gate, "reason": refused.reason,
             "attempts": attempts, **extra}

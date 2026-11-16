@@ -63,6 +63,7 @@ DECLARED_READS = {
     "app/src/components/chart/engine/runtime/runtimeRepaint.json": "api/services/runtime_repaint.py",
     "app/src/components/chart/engine/runtime/ir.js": "api/services/pine_runtime_client.py: engine identity",
     "app/src/components/chart/engine/ast/pineRuntimeFrontend.js": "api/services/pine_runtime_client.py: engine identity",
+    "app/src/components/chart/engine/ast/pineLibraryDeny.json": "api/services/pine_library_store.py: the library deny list (unreadable = every library denied)",
     "app/src/components/chart/supportLoop/pineBuiltins.json": "api/services/indicator_support.py",
     "app/src/components/chart/supportLoop/doorNameCoverage.json": "api/services/indicator_support_loop.py",
     "app/src/components/chart/engine/scriptEngineVersion.js": "api/services/user_definitions.py: SCRIPT_ENGINE_VERSION",

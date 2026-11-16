@@ -10,16 +10,23 @@
  "gradeMethod": "b",
  "verdict": "DIVERGE",
  "step": 1,
- "reason": "our run refused (runtime:strategy-value) against a TradingView value",
+ "reason": "our run refused (interpret:bind-time-text) against a TradingView value",
  "first": null,
  "graded": {
   "trades": false,
   "fills": false,
-  "slots": 0
+  "slots": 0,
+  "values": 0,
+  "texts": 0
  },
  "referenceTrades": 20,
  "rulesExercised": [],
  "ungradedSlots": [],
+ "ungradedTexts": [],
+ "firstDifference": null,
+ "prefixExact": null,
+ "culprit": null,
+ "afterDifference": null,
  "provenance": {
   "strategySettings": {
    "properties": [

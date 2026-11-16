@@ -165,9 +165,17 @@ const MODEL = "UCT Intelligence couldn't produce a valid change for that. Try re
  * scalar the chart cannot read …).
  * @param {string|null} gate  the turn's gate code (`cost:user`, `http:502`, `network`, …)
  * @param {string} reason     what the server said
+ * @param {{retryAfterS?: number|null}} [extra]  the hourly window's own wait, when the server gave one
  */
-export function memberRefusal(gate, reason = '') {
+export function memberRefusal(gate, reason = '', extra = {}) {
   const g = String(gate || '')
+  // The hourly window says how long is left (`Retry-After`). "Wait a minute" was wrong
+  // by up to an hour for a member who had reached it.
+  const wait = extra && Number.isFinite(extra.retryAfterS) && extra.retryAfterS > 0 ? extra.retryAfterS : null
+  if (g === 'http:429' && wait) {
+    const mins = Math.ceil(wait / 60)
+    return `You've reached this hour's limit of requests to UCT Intelligence. Try again in about ${mins === 1 ? 'a minute' : `${mins} minutes`}.`
+  }
   if (REFUSAL_BY_GATE[g]) return REFUSAL_BY_GATE[g]
   if (g === 'network' || g === 'model:transport' || /^http:(0|5\d\d)$/.test(g)) return PLATFORM
   if (/^(envelope|model|schema|converse|internal):/.test(g)) return MODEL
