@@ -3856,3 +3856,7 @@
 
 /* Sidebar section icons turn gold on hover (owner 11-15) — the action-list hover rule (§2b-6) applied to the rail. */
 .side .tab:hover svg, .side .tab:focus-visible svg { color: var(--ut-gold) !important; }
+/* Sidebar-foot buttons' icons turn gold on hover too (owner 11-15), like the sections above them. */
+.side .sideFoot .tplBtn:hover svg, .side .sideFoot .resetBtn:not(.resetBtnConfirm):hover svg,
+.side .sideFoot .tplBtn:focus-visible svg { color: var(--ut-gold) !important; }
+.side .sideFoot .tplBtn:hover svg *, .side .sideFoot .resetBtn:not(.resetBtnConfirm):hover svg * { stroke: currentColor !important; }

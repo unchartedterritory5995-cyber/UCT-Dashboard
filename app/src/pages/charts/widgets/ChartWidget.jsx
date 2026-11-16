@@ -917,6 +917,15 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
               </>
             ) : (
               <>
+                {/* Reset view leads the menu (owner 11-15): the one action reached for most. */}
+                <button type="button" className={styles.chartCtxItem} data-menu-id="reset" onClick={() => {
+                  ctxMenu.resetView?.(); closeCtx()
+                  // Return focus to the chart so type-to-search works immediately (else
+                  // the first keypress hits a global drawing-tool hotkey, not the search).
+                  requestAnimationFrame(() => { try { paneRef.current?.focus?.() } catch { /* noop */ } })
+                }}>
+                  <UIcon name="refresh" size={14} className={styles.chartCtxIcon} />Reset view
+                </button>
                 {/* ── B9 · The indicator pane under the pointer ──
                     A right-click inside an indicator's own pane leads with that
                     indicator's rows: the legend chip's rows and handlers, built
@@ -1004,14 +1013,6 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                 </button>
                 <button type="button" className={styles.chartCtxItem} data-menu-id="journal-choose" onClick={handleSendToJournalChoose}>
                   <UIcon name="journal" size={14} className={styles.chartCtxIcon} />Send to Journal (choose where)…
-                </button>
-                <button type="button" className={styles.chartCtxItem} data-menu-id="reset" onClick={() => {
-                  ctxMenu.resetView?.(); closeCtx()
-                  // Return focus to the chart so type-to-search works immediately (else
-                  // the first keypress hits a global drawing-tool hotkey, not the search).
-                  requestAnimationFrame(() => { try { paneRef.current?.focus?.() } catch { /* noop */ } })
-                }}>
-                  <UIcon name="refresh" size={14} className={styles.chartCtxIcon} />Reset view
                 </button>
                 {/* ── Location-aware section — ONE item keyed to WHERE the user
                     right-clicked (watermark / price axis / moving average / candle /

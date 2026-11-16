@@ -146,8 +146,8 @@ export default function FundamentalsSettingsPanel({ settings: s, onChange, onRes
 
           {/* % change */}
           <div className={styles.sectionLabel}>% change</div>
-          <Row label="Up">{swatch('upColor', 'Up')}</Row>
-          <Row label="Down">{swatch('downColor', 'Down')}</Row>
+          {/* up / down pair in one row (owner 11-15) */}
+          <Row label="Up / down">{swatch('upColor', 'Up')}{swatch('downColor', 'Down')}</Row>
         </div>
       </div>
 

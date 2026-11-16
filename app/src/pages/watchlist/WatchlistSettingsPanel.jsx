@@ -245,11 +245,8 @@ export default function WatchlistSettingsPanel({
               other columns) EXCEPT the up/down % change, which has its own colors below. */}
           <div className={styles.sectionLabel}>Text color</div>
           <Row label="Text" hint="all columns except % change">{swatch('textColor', 'Text color')}</Row>
-
-          {/* % change */}
-          <div className={styles.sectionLabel}>% change</div>
-          <Row label="Up">{swatch('upColor', 'Up')}</Row>
-          <Row label="Down">{swatch('downColor', 'Down')}</Row>
+          {/* Up / down pairs are ONE row, first swatch up, second down (owner 11-15, like Chart Settings) */}
+          <Row label="% change">{swatch('upColor', 'Up')}{swatch('downColor', 'Down')}</Row>
 
           {/* Gridlines */}
           <div className={styles.sectionLabel}>Gridlines</div>
@@ -258,15 +255,10 @@ export default function WatchlistSettingsPanel({
           {/* Tick flash */}
           <div className={styles.sectionLabel}>Tick flash</div>
           <Row label="Background tint" hint="pulse on each update">
+            {s.tintEnabled && <>{swatch('tintUp', 'Up tint')}{swatch('tintDown', 'Down tint')}</>}
             <Switch checked={s.tintEnabled} onClick={() => set({ tintEnabled: !s.tintEnabled })} title="Toggle tick tint"
               className={styles.toggle} checkedClassName={styles.toggleOn} knobClassName={styles.knob} />
           </Row>
-          {s.tintEnabled && (
-            <>
-              <Row label="Up tint">{swatch('tintUp', 'Up tint')}</Row>
-              <Row label="Down tint">{swatch('tintDown', 'Down tint')}</Row>
-            </>
-          )}
 
           {/* Symbol column */}
           <div className={styles.sectionLabel}>Symbol column</div>

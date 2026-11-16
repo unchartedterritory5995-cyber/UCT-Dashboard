@@ -157,24 +157,16 @@ export default function ThemeTrackerSettingsPanel({ settings: s, onChange, onRes
           {/* Text colors — no Price/Volume rows: the tracker has neither column */}
           <div className={styles.sectionLabel}>Text colors</div>
           <Row label="Symbol">{swatch('symColor', 'Symbol')}</Row>
-
-          {/* % change */}
-          <div className={styles.sectionLabel}>% change</div>
-          <Row label="Up">{swatch('upColor', 'Up')}</Row>
-          <Row label="Down">{swatch('downColor', 'Down')}</Row>
+          {/* Up / down pairs are ONE row, first swatch up, second down (owner 11-15, like Chart Settings) */}
+          <Row label="% change">{swatch('upColor', 'Up')}{swatch('downColor', 'Down')}</Row>
 
           {/* Tick flash */}
           <div className={styles.sectionLabel}>Tick flash</div>
           <Row label="Background tint" hint="pulse on each update">
+            {s.tintEnabled && <>{swatch('tintUp', 'Up tint')}{swatch('tintDown', 'Down tint')}</>}
             <Switch checked={s.tintEnabled} onClick={() => set({ tintEnabled: !s.tintEnabled })} title="Toggle tick tint"
               className={styles.toggle} checkedClassName={styles.toggleOn} knobClassName={styles.knob} />
           </Row>
-          {s.tintEnabled && (
-            <>
-              <Row label="Up tint">{swatch('tintUp', 'Up tint')}</Row>
-              <Row label="Down tint">{swatch('tintDown', 'Down tint')}</Row>
-            </>
-          )}
 
           {/* Symbol column */}
           <div className={styles.sectionLabel}>Symbol column</div>
