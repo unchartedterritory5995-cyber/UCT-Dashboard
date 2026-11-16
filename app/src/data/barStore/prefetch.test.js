@@ -288,6 +288,39 @@ describe('handoff contract (peekDisplayable / prepareForDisplay / prepareDailyFo
     expect(w.server.calls.length).toBe(0)
   })
 
+  // 2026-11-15 (production, 5m): a key a warm had answered earlier in the page life, now behind the
+  // frontier (`updating`), was refused by the handoff although the chart paints that status; the
+  // handoff then waited on a lane-held warm request (candles 546-1,180 ms after the key).
+  it('a held SERVER answer that is behind (updating) is displayable, and a second prepare asks nothing', async () => {
+    const w = await boot({ modeFor: () => 'behind' })
+    const p = w.pf.prepareForDisplay('BHD', '5')
+    await w.server.drain()
+    await p
+    const s = w.store.peek(w.k('BHD', '5'))
+    expect(s.restSeen).toBe(true)
+    expect(s.status).toBe('updating')          // the precondition: not context / current
+    expect(s.depth).toBeGreaterThan(0)
+    expect(w.pf.peekDisplayable('BHD', '5')).toBe(true)
+    const asked = w.server.calls.length
+    await expect(w.pf.prepareForDisplay('BHD', '5')).resolves.toBe('current')
+    expect(w.server.calls.length).toBe(asked)
+  })
+
+  it('control: an entry with NO rows is never displayable, whatever its status', async () => {
+    const w = await boot({ modeFor: () => 'fail' })
+    const p = w.pf.prepareForDisplay('NOROWS', '5'); await w.server.drain(); await p
+    expect(w.store.peek(w.k('NOROWS', '5'))?.depth || 0).toBe(0)
+    expect(w.pf.peekDisplayable('NOROWS', '5')).toBe(false)
+  })
+
+  it('an entry a first peek made empty is looked up in mem again (the 25 ms poll sees a later promotion)', async () => {
+    const w = await boot()
+    expect(w.pf.peekDisplayable('LATE', '5')).toBe(false)       // creates the empty entry
+    w.mem.memPut('LATE', '5', intradayRows(5, now - 300))       // a warmer promotes the key afterwards
+    expect(w.pf.peekDisplayable('LATE', '5')).toBe(true)
+    expect(w.server.calls.length).toBe(0)
+  })
+
   it("'current' from a current IDB copy with no request; 'current' after repairing a stale one", async () => {
     const w = await boot()
     await w.idb.idbPutMonotonic('IDB', '5', intradayRows(5, now - 300))
