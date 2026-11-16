@@ -191873,12 +191873,26 @@
     "other symbol SPX: served"
    ],
    "objectsV2": {
-    "verdict": "MATCH_SUBSTITUTED",
+    "verdict": "INCONCLUSIVE",
+    "verdictWithoutX": "MATCH",
     "v1": "MATCH",
     "pairedNothing": false,
     "differsOnlyByCreationOrder": false,
-    "reason": "every paired record agrees on 18 graded fields; v1: object counts and texts agree; colours agree on 4 paired slots; coordinates are NOT compared by v1; not graded: x coordinates (the capture holds no bar index or time), xloc",
+    "reason": "every paired record agrees on 18 graded fields; x: 0 graded (0 differ), 2 not resolvable to a bar (the capture records no x table (taken before U13)), so x is not witnessed and this is not a MATCH (G1); v1: object counts and texts agree; colours agree on 4 paired slots; coordinates are NOT compared by v1; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
     "first": null,
+    "firstWithoutX": null,
+    "x": {
+     "graded": 0,
+     "agreeing": 0,
+     "differing": 0,
+     "missing": 2,
+     "missingWhy": {
+      "the capture records no x table (taken before U13)": 2
+     },
+     "incompleteFamilies": [
+      "labels"
+     ]
+    },
     "families": [
      {
       "family": "lines",
@@ -191892,7 +191906,18 @@
       "undecoded": {},
       "byField": {},
       "first": null,
+      "firstWithoutX": null,
       "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
       "differsOnlyByCreationOrder": false
      },
      {
@@ -191906,6 +191931,11 @@
       "notGraded": 0,
       "undecoded": {},
       "byField": {
+       "x": {
+        "agree": 0,
+        "differ": 0,
+        "notGraded": 2
+       },
        "y": {
         "agree": 2,
         "differ": 0,
@@ -191953,7 +191983,20 @@
        }
       },
       "first": null,
-      "agree": true,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": true,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 2,
+       "missingWhy": {
+        "the capture records no x table (taken before U13)": 2
+       },
+       "first": null
+      },
+      "xIncomplete": true,
       "differsOnlyByCreationOrder": false
      },
      {
@@ -191968,7 +192011,18 @@
       "undecoded": {},
       "byField": {},
       "first": null,
+      "firstWithoutX": null,
       "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
       "differsOnlyByCreationOrder": false
      },
      {
@@ -191983,7 +192037,18 @@
       "undecoded": {},
       "byField": {},
       "first": null,
+      "firstWithoutX": null,
       "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
       "differsOnlyByCreationOrder": false
      },
      {
@@ -191998,7 +192063,18 @@
       "undecoded": {},
       "byField": {},
       "first": null,
+      "firstWithoutX": null,
       "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
       "differsOnlyByCreationOrder": false
      },
      {
@@ -192013,27 +192089,33 @@
       "undecoded": {},
       "byField": {},
       "first": null,
+      "firstWithoutX": null,
       "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
       "differsOnlyByCreationOrder": false
      }
     ],
     "ungraded": {
      "lines": [
-      "x1",
-      "x2",
       "xloc",
       "force_overlay"
      ],
      "labels": [
-      "x",
       "xloc",
       "text_font_family",
       "text_formatting",
       "force_overlay"
      ],
      "boxes": [
-      "left",
-      "right",
       "xloc",
       "text_font_family",
       "text_formatting",
@@ -192867,12 +192949,26 @@
     "other symbol SPX: served"
    ],
    "objectsV2": {
-    "verdict": "MATCH_SUBSTITUTED",
+    "verdict": "INCONCLUSIVE",
+    "verdictWithoutX": "MATCH",
     "v1": "MATCH",
     "pairedNothing": false,
     "differsOnlyByCreationOrder": false,
-    "reason": "every paired record agrees on 18 graded fields; v1: object counts and texts agree; colours agree on 4 paired slots; coordinates are NOT compared by v1; not graded: x coordinates (the capture holds no bar index or time), xloc",
+    "reason": "every paired record agrees on 18 graded fields; x: 0 graded (0 differ), 2 not resolvable to a bar (the capture records no x table (taken before U13)), so x is not witnessed and this is not a MATCH (G1); v1: object counts and texts agree; colours agree on 4 paired slots; coordinates are NOT compared by v1; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
     "first": null,
+    "firstWithoutX": null,
+    "x": {
+     "graded": 0,
+     "agreeing": 0,
+     "differing": 0,
+     "missing": 2,
+     "missingWhy": {
+      "the capture records no x table (taken before U13)": 2
+     },
+     "incompleteFamilies": [
+      "labels"
+     ]
+    },
     "families": [
      {
       "family": "lines",
@@ -192886,7 +192982,18 @@
       "undecoded": {},
       "byField": {},
       "first": null,
+      "firstWithoutX": null,
       "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
       "differsOnlyByCreationOrder": false
      },
      {
@@ -192900,6 +193007,11 @@
       "notGraded": 0,
       "undecoded": {},
       "byField": {
+       "x": {
+        "agree": 0,
+        "differ": 0,
+        "notGraded": 2
+       },
        "y": {
         "agree": 2,
         "differ": 0,
@@ -192947,7 +193059,20 @@
        }
       },
       "first": null,
-      "agree": true,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": true,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 2,
+       "missingWhy": {
+        "the capture records no x table (taken before U13)": 2
+       },
+       "first": null
+      },
+      "xIncomplete": true,
       "differsOnlyByCreationOrder": false
      },
      {
@@ -192962,7 +193087,18 @@
       "undecoded": {},
       "byField": {},
       "first": null,
+      "firstWithoutX": null,
       "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
       "differsOnlyByCreationOrder": false
      },
      {
@@ -192977,7 +193113,18 @@
       "undecoded": {},
       "byField": {},
       "first": null,
+      "firstWithoutX": null,
       "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
       "differsOnlyByCreationOrder": false
      },
      {
@@ -192992,7 +193139,18 @@
       "undecoded": {},
       "byField": {},
       "first": null,
+      "firstWithoutX": null,
       "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
       "differsOnlyByCreationOrder": false
      },
      {
@@ -193007,27 +193165,33 @@
       "undecoded": {},
       "byField": {},
       "first": null,
+      "firstWithoutX": null,
       "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
       "differsOnlyByCreationOrder": false
      }
     ],
     "ungraded": {
      "lines": [
-      "x1",
-      "x2",
       "xloc",
       "force_overlay"
      ],
      "labels": [
-      "x",
       "xloc",
       "text_font_family",
       "text_formatting",
       "force_overlay"
      ],
      "boxes": [
-      "left",
-      "right",
       "xloc",
       "text_font_family",
       "text_formatting",
@@ -193331,12 +193495,26 @@
     "other symbol SPX: served"
    ],
    "objectsV2": {
-    "verdict": "MATCH_SUBSTITUTED",
+    "verdict": "INCONCLUSIVE",
+    "verdictWithoutX": "MATCH",
     "v1": "MATCH",
     "pairedNothing": false,
     "differsOnlyByCreationOrder": false,
-    "reason": "every paired record agrees on 18 graded fields; v1: object counts and texts agree; colours agree on 4 paired slots; coordinates are NOT compared by v1; not graded: x coordinates (the capture holds no bar index or time), xloc",
+    "reason": "every paired record agrees on 18 graded fields; x: 0 graded (0 differ), 2 not resolvable to a bar (the capture records no x table (taken before U13)), so x is not witnessed and this is not a MATCH (G1); v1: object counts and texts agree; colours agree on 4 paired slots; coordinates are NOT compared by v1; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
     "first": null,
+    "firstWithoutX": null,
+    "x": {
+     "graded": 0,
+     "agreeing": 0,
+     "differing": 0,
+     "missing": 2,
+     "missingWhy": {
+      "the capture records no x table (taken before U13)": 2
+     },
+     "incompleteFamilies": [
+      "labels"
+     ]
+    },
     "families": [
      {
       "family": "lines",
@@ -193350,7 +193528,18 @@
       "undecoded": {},
       "byField": {},
       "first": null,
+      "firstWithoutX": null,
       "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
       "differsOnlyByCreationOrder": false
      },
      {
@@ -193364,6 +193553,11 @@
       "notGraded": 0,
       "undecoded": {},
       "byField": {
+       "x": {
+        "agree": 0,
+        "differ": 0,
+        "notGraded": 2
+       },
        "y": {
         "agree": 2,
         "differ": 0,
@@ -193411,7 +193605,20 @@
        }
       },
       "first": null,
-      "agree": true,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": true,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 2,
+       "missingWhy": {
+        "the capture records no x table (taken before U13)": 2
+       },
+       "first": null
+      },
+      "xIncomplete": true,
       "differsOnlyByCreationOrder": false
      },
      {
@@ -193426,7 +193633,18 @@
       "undecoded": {},
       "byField": {},
       "first": null,
+      "firstWithoutX": null,
       "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
       "differsOnlyByCreationOrder": false
      },
      {
@@ -193441,7 +193659,18 @@
       "undecoded": {},
       "byField": {},
       "first": null,
+      "firstWithoutX": null,
       "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
       "differsOnlyByCreationOrder": false
      },
      {
@@ -193456,7 +193685,18 @@
       "undecoded": {},
       "byField": {},
       "first": null,
+      "firstWithoutX": null,
       "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
       "differsOnlyByCreationOrder": false
      },
      {
@@ -193471,27 +193711,33 @@
       "undecoded": {},
       "byField": {},
       "first": null,
+      "firstWithoutX": null,
       "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
       "differsOnlyByCreationOrder": false
      }
     ],
     "ungraded": {
      "lines": [
-      "x1",
-      "x2",
       "xloc",
       "force_overlay"
      ],
      "labels": [
-      "x",
       "xloc",
       "text_font_family",
       "text_formatting",
       "force_overlay"
      ],
      "boxes": [
-      "left",
-      "right",
       "xloc",
       "text_font_family",
       "text_formatting",
@@ -198454,6 +198700,6 @@
    "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-15",
    "zigzag-multi-time-frame-with-fibonacci-retracement-spy-1d-2026-11-15"
   ],
-  "from": "a runtime-on corpus run on branch pine/rs-l5-runtime-requests (RS RATING L9, engine 68 placeholder): RDDT / NVDA / SPY Q-RS1 regraded on the server's PRIMARY SPX (FMP ^GSPC, recorded 2026-11-15T13:50:55Z, 9286 sessions from 1990-01-02, committed in tests/fixtures/vendor-supply/ under the owner ruling of 2026-11-15); the two Q-RS4 rows are L8's run; every other row is this snapshot's own run, unchanged (docs/pine/RS-RATING-TRANSFER.md, L9 status); RS RATING Q-RS1b / Q-RS4b (NASDAQ:ALAB, NASDAQ:CRWV, s13-2026-11-15) graded runtime-on with objects v2 on branch pine/rs-rating-integrate over the same FMP ^GSPC and seed records, in a run of exactly the RS captures plus adx-and-di-for-v4-rddt (the runtime-lane control); that run's RDDT row is identical to the committed one; S28 x re-captures (s28-2026-11-15, 9 captures of corpus/committed sources): graded alone, on this lane, at the merge of feat/pine-x-recaptures-s28 with master ecd8c3cccd (SCRIPT_ENGINE_VERSION 57), VENDOR_HARNESS_DIR = a directory holding exactly those 9 captures; every other row is the snapshot as master committed it, unchanged"
+  "from": "a runtime-on corpus run on branch pine/rs-l5-runtime-requests (RS RATING L9, engine 68 placeholder): RDDT / NVDA / SPY Q-RS1 regraded on the server's PRIMARY SPX (FMP ^GSPC, recorded 2026-11-15T13:50:55Z, 9286 sessions from 1990-01-02, committed in tests/fixtures/vendor-supply/ under the owner ruling of 2026-11-15); the two Q-RS4 rows are L8's run; every other row is this snapshot's own run, unchanged (docs/pine/RS-RATING-TRANSFER.md, L9 status); RS RATING Q-RS1b / Q-RS4b (NASDAQ:ALAB, NASDAQ:CRWV, s13-2026-11-15) graded runtime-on with objects v2 on branch pine/rs-rating-integrate over the same FMP ^GSPC and seed records, in a run of exactly the RS captures plus adx-and-di-for-v4-rddt (the runtime-lane control); that run's RDDT row is identical to the committed one; S28 x re-captures (s28-2026-11-15, 9 captures of corpus/committed sources): graded alone, on this lane, at the merge of feat/pine-x-recaptures-s28 with master ecd8c3cccd (SCRIPT_ENGINE_VERSION 57), VENDOR_HARNESS_DIR = a directory holding exactly those 9 captures; every other row is the snapshot as master committed it, unchanged; RS RATING CORRECTION 2026-11-16: the three RS Rating rows rddt / alab / crwv are re-graded on master d615e76494 with master's own harness (runtime-on, a run of exactly those three captures): capture MATCH_SUBSTITUTED and objects v1 MATCH as before, objects v2 INCONCLUSIVE (the captures record no x table, taken before U13); the rows they replace carried objects v2 MATCH_SUBSTITUTED from a run before objects v2 graded x"
  }
 }
