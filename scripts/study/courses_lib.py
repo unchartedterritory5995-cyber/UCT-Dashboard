@@ -546,6 +546,8 @@ def question_problems(q: dict, *, unit: dict, facts: dict, sources: dict, skills
                 out.append(p)
         else:
             out.append(f"chart.tf must be D or one of {', '.join(INTRADAY_TFS)} (minutes)")
+        if str(chart.get("sym") or "").upper() in INDEX_SERIES and tf != "D":
+            out.append("an index chart is daily (chart.tf D)")
         if not 20 <= int(chart.get("window", 120)) <= 400 or not 0 <= int(chart.get("forward", 20)) <= 250:
             out.append("chart.window must be 20-400 bars and chart.forward 0-250")
         sym = str(chart.get("sym") or "")
@@ -592,11 +594,29 @@ WARMUP_BARS = 200
 # lessons). A chart may name `tf` 5 / 15 / 30 / 60 (minutes) with `asof` "YYYY-MM-DD HH:MM", the START of its last
 # visible bar in New York time on the regular session's grid (09:30 + a whole number of bars). The bank passes the
 # server that bar's exact unix time (`asof_key`) and an end for the replay (`forward_to_key`), so the import resolves it
-# from the pod's own bars when they are there; scripts/study/fill_course_intraday.py fetches the rest from the provider
+# from the pod's own bars when they are there; scripts/study/fill_course_charts.py fetches the rest from the provider
 # ON THE POD, checks each chart (check_course_charts.check_bars) and stores only the ones that pass. Regular hours only.
 INTRADAY_TFS = ("5", "15", "30", "60")
-INTRADAY_WARMUP = 60          # hidden bars ahead of the window, so the 9 and 20 EMA are formed from the first candle
+#: hidden bars ahead of an intraday window, as WARMUP_BARS for a daily one: the member's own averages (the 9 and 21 EMA,
+#: the 50 and the 200) are formed from the first candle. It was 60 until 2026-11-16: the screen check found the 200's
+#: legend with no value on every intraday chart, because 60 bars cannot form a 200-bar average.
+INTRADAY_WARMUP = 200
 _NY = None
+
+# ── index history charts (2026-11-16, the owner's "Visual for all lessons really"): a history question that quotes an
+# index level ("the S&P 500 fell from 1,565 to 677") is drawn on that INDEX, not on a fund whose prices would not match
+# the words. The symbol is the chart's own name for the series; the value is Yahoo's, the source the app's index charts
+# already use (api/index_bars.py). The import never reads bars.db for these (`source: "index"`: an "SPX" row there, if
+# any, is not this series); scripts/study/fill_course_charts.py fetches each on the pod, runs check_course_charts and
+# stores only the charts that pass. Daily only. IXIC, not COMP, for the Nasdaq Composite: COMP is a listed stock.
+INDEX_SERIES = {"SPX": "^GSPC", "IXIC": "^IXIC", "NDX": "^NDX", "DJI": "^DJI", "RUT": "^RUT"}
+#: the indexes whose volume in that history is their own. Yahoo's Russell 2000 volume is the S&P 500's on 92.5% of days
+#: and its Nasdaq 100 volume the Composite's on 80% (measured 2026-11-16), so those two charts carry no volume at all
+#: rather than another index's.
+INDEX_OWN_VOLUME = frozenset({"SPX", "IXIC", "DJI"})
+#: the item's adjustment_basis for an index chart: index levels, never split-adjusted prices. The server's forward
+#: top-up and the replay's intraday fill read it and leave these charts to their stored bars.
+INDEX_BASIS = "index level"
 
 
 def _ny():
@@ -897,7 +917,7 @@ def build_items(doc: dict, *, only_passed: bool = True) -> list[dict]:
         }
         if chart and str(chart.get("tf") or "D") != "D":
             # an intraday chart: the server resolves it by exact unix times (the bar's start; the replay's end a week on,
-            # of which it keeps the first `forward` regular-session bars); fill_course_intraday.py fetches what the pod
+            # of which it keeps the first `forward` regular-session bars); fill_course_charts.py fetches what the pod
             # does not hold. The item's asof is the day.
             ctf, key0 = str(chart["tf"]), intraday_key(chart["asof"])
             it.update(sym=str(chart["sym"]).upper(), asof=chart["asof"][:10], adjustment_basis="split-adjusted",
@@ -905,9 +925,12 @@ def build_items(doc: dict, *, only_passed: bool = True) -> list[dict]:
                             "forward_to_key": key0 + 7 * 86400, "rth": True,
                             "window": int(chart.get("window", 120)) + INTRADAY_WARMUP, "forward": int(chart.get("forward", 20))})
         elif chart:
-            it.update(sym=str(chart["sym"]).upper(), asof=chart["asof"], adjustment_basis="split-adjusted",
-                      bars={"sym": str(chart["sym"]).upper(), "tf": "D", "asof": chart["asof"],
-                            "window": int(chart.get("window", 120)) + WARMUP_BARS, "forward": int(chart.get("forward", 20))})
+            csym = str(chart["sym"]).upper()
+            index = csym in INDEX_SERIES
+            it.update(sym=csym, asof=chart["asof"], adjustment_basis=INDEX_BASIS if index else "split-adjusted",
+                      bars={"sym": csym, "tf": "D", "asof": chart["asof"],
+                            "window": int(chart.get("window", 120)) + WARMUP_BARS, "forward": int(chart.get("forward", 20)),
+                            **({"source": "index"} if index else {})})
         items.append(it)
     return items
 
