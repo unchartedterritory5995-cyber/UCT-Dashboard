@@ -85,7 +85,7 @@ import {
 } from '../runtime/runtimeInputs.js'
 import { TEXT_FNS, producesText, compileTimeFormat } from '../runtime/text.js'
 import { canonicalZone, dateStringMs, INSTANT_FIELDS } from '../runtime/clockFns.js'
-import { ARRAY_FNS, producesArray, producesMap, isVoid, argKind, DOOR_GATED_ARRAY } from '../runtime/collections.js'
+import { ARRAY_FNS, producesArray, producesMap, isVoid, argKind, DOOR_GATED_ARRAY, CALL_SITE_RUNS } from '../runtime/collections.js'
 import { MAP_TYPE_SEP, MAP_ANSWER_READ } from '../runtime/maps.js'
 // ⭐ Pine's method form, and it decides no legality — see `ufcs.js`. The rewrite
 // hands `array.push` / `table.cell` to the rosters this file already consults,
@@ -2936,7 +2936,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
   let r4CulpritSeen = null
   let r4RegionCulprit = null
   /** Lower `fn()` inside a region that runs only when `invariant` is false. */
-  const inR4Region = (invariant, fn) => {
+  const inR4Region = (invariant, fn, armGuard = null) => {
     if (invariant) return fn()
     const prev = r4Region
     const prevCulprit = r4RegionCulprit
@@ -2944,7 +2944,58 @@ function buildRuntimeIrLinked(source, opts, holder) {
     r4CulpritSeen = null
     r4Cond += 1
     r4Region = (r4RegionSeq += 1)
-    try { return fn() } finally { r4Cond -= 1; r4Region = prev; r4RegionCulprit = prevCulprit }
+    // ⭐ HIST-S3 — this region's record (`everyBarRegions`): `r4Guard` writes `needs` on it
+    const rec = { needs: armGuard, loopDepth }
+    everyBarRegions.push(rec)
+    let body
+    try { body = fn() } finally {
+      everyBarRegions.pop()
+      r4Cond -= 1; r4Region = prev; r4RegionCulprit = prevCulprit
+    }
+    if (rec.needs === null) return body
+    // the region holds history this lane reads off every bar: it must RUN on every bar
+    if (owner !== null) functions[owner].rt5Lex = true
+    // (an `if` with no body: the check is its test, read for its effect and dropped)
+    if (Array.isArray(body)) return [ifStmt(binary('==', everyBarRunsCall(rec.needs, 'the block'), num(1)), [], []), ...body]
+    // a `?:` arm (an expression): the check runs first, then the arm is the value
+    return { ...ternary(binary('==', everyBarRunsCall(rec.needs, 'that arm'), num(1)), body, naValue()), lazy: true }
+  }
+  // ─── ⭐⭐⭐ HIST-S3 (NUMBER PENDING) — THE HOST LANE'S ENGINE-58 GATE, AS A RUN-TIME CHECK ───
+  //
+  // A call written in a block (or a `?:` arm) keeps the history of the bars that block RUNS on
+  // (C48). The every-bar reading of it is exact exactly when the block's runs ARE the chart's
+  // bars, which is a fact about the data: the host lane stamps the block's guard and its bind
+  // refuses the plot on a chart where the block "runs on a bar after a bar it skipped"
+  // (`engine/blockRuns.js`, engine 58). This lane refused the same shapes at BUILD, whatever the
+  // chart. Now a region holding history that is not stepped per call site (`servedCondCall` is
+  // the per-call-site set) is lowered as on every bar, and CHECKED as it runs: a per-call-site
+  // record of the bar it last ran on (`CARRIED2.valuewhen` over `bar_index`, occurrence 1: the
+  // ring `ta.change` per call site already uses) is read at the head of the region, and the
+  // first run that does not follow a run on the previous bar STOPS THE RUN BY NAME
+  // (`collections.js` `call site runs`, guard `runtime:conditional-history`): nothing is drawn.
+  // While the check holds, the region has run on every bar so far, so every call in it has the
+  // history of an unconditional call, in every Pine version (an eager and a lazy `?:` agree
+  // there too).
+  // ⛔ NOT in a loop (several steps a bar), not in the drawing build, not at the object door,
+  // not inside a request's value: each keeps its refusal. ⛔ A branch on a PARAMETER in a
+  // function body still refuses carrying the parameter's name, so a call site that fixes it
+  // compiles its own copy (`condParam`), as before.
+  const everyBarRegions = []
+  const everyBarRegionHere = () => {
+    const rec = everyBarRegions.length ? everyBarRegions[everyBarRegions.length - 1] : null
+    return rec !== null && !objectsInRun && !atObjectDoor && !inRequestValue
+      && loopDepth === 0 && rec.loopDepth === 0 ? rec : null
+  }
+  /** The check itself: answers 1, or stops the run. `needs` is `{what, at}`. */
+  const everyBarRunsCall = (needs, where) => {
+    const barNow = column(columnOf({ type: 'name', name: 'bar_index', tok: needs.tok }, needs.at))
+    const ring = pushCarried2({ fn: 'valuewhen', n: 1, name: `runs of ${where} holding ${needs.what}` })
+    const line = needs.at && Number.isInteger(needs.at.line) ? ` (line ${needs.at.line})` : ''
+    return arrayCall(CALL_SITE_RUNS, [carried2Call(ring, num(1), barNow), barNow,
+      str(`${needs.what}${line} is written in ${where === 'that arm' ? 'one arm of `?:`' : 'a block'} that does not `
+        + 'have to run on every bar. Pine keeps the history of such a call per call site, and this is drawn '
+        + `only while ${where} has run on every bar of the chart (its history is then every bar's)`),
+      str(where)])
   }
   /** Does this test read nothing that changes from bar to bar? Inputs, literals
    *  and pointwise arithmetic over them, by the columnar resolver's own tree.
@@ -2960,6 +3011,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     try { if (fixedTextOf(test, scope) !== null) return true } catch { /* not fixed text */ }
     if (owner !== null && scope) {
       let foreign = null
+      let foreignParam = null
       const subst = (x, d) => {
         if (!x || typeof x !== 'object' || d > 64) return x
         if (Array.isArray(x)) return x.map((y) => subst(y, d + 1))
@@ -2968,6 +3020,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
           if (sl !== null && slots[sl] && slots[sl].owner === owner) {
             if (frameConsts && frameConsts.has(sl)) return frameConstNode(frameConsts.get(sl), x.tok)
             if (foreign === null) foreign = x.name
+            // ⭐ HIST-S3 — only a PARAMETER is a name a call site can fix (`simpleSpecialisation`
+            // reads the parameter list): a body LOCAL is never the culprit
+            if (foreignParam === null) {
+              const fnRec = functions[owner]
+              foreignParam = fnRec && Number.isInteger(fnRec.params) && Number.isInteger(slots[sl].index)
+                && slots[sl].index < fnRec.params ? x.name : false
+            }
           }
           return x
         }
@@ -2976,7 +3035,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
         return out
       }
       const t2 = subst(test, 0)
-      if (foreign !== null) { r4CulpritSeen = foreign; return false }
+      // ⚰️ every frame name was recorded as the culprit, so a branch on a body LOCAL took the
+      // parameter route and was refused for a call site that can fix nothing (HIST-S3)
+      if (foreign !== null) { r4CulpritSeen = typeof foreignParam === 'string' ? foreignParam : null; return false }
       test = t2
     }
     // ⭐ W4-T2 — a `simple` root name (`var enableMA = maTypeInput != "None"`) is
@@ -3084,16 +3145,25 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // history binding is a slot) would refuse a correct script. Only history
   // WRITTEN in the block or the function body (or in a binding made there)
   // belongs to the call site.
-  const r4Guard = (what, at) => {
+  const r4Guard = (what, at, strict = false) => {
     // ⛔ NOT inside a request's value: that expression is evaluated over the
     // REQUESTED symbol's own bars, as a series, wherever the call stands.
     if (objectsInRun || r4Level() <= 0 || inRequestValue) return
+    // a branch on a PARAMETER: a call site that fixes it can settle this (`invariantTest`)
+    const onParam = owner !== null && loopDepth === 0 && typeof r4RegionCulprit === 'string'
+    // ⭐⭐ HIST-S3 — otherwise the region is drawn as on every bar and CHECKED as it runs
+    // (`everyBarRegions`): the caller goes on to lower the every-bar form. ⛔ `strict` callers
+    // (a binding made in ANOTHER branch: that branch's runs are not this region's) still refuse.
+    const rec = strict || onParam ? null : everyBarRegionHere()
+    if (rec !== null) {
+      if (rec.needs === null) rec.needs = { what, at, tok: at && at.tok ? at.tok : null }
+      return
+    }
     note('runtime:conditional-history')
     const err = new RuntimeRefusal('runtime:conditional-history',
       `${what} inside a block, loop or function branch that does not run on every bar — `
       + 'Pine keeps that history per call site, and this lane serves only the shapes witnessed so far', at)
-    // a branch on a PARAMETER: a call site that fixes it can settle this (`invariantTest`)
-    if (owner !== null && loopDepth === 0 && typeof r4RegionCulprit === 'string') {
+    if (onParam) {
       err.frameName = r4RegionCulprit
       err.condParam = true
       err.condWhat = what
@@ -3351,6 +3421,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return false
   }
   const SHORT_CIRCUIT = new Set(['and', 'or', '&&', '||'])
+  // ⭐⭐ HIST-S1 — a `?:` written before Pine v4 (v1 is no `//@version`) evaluates BOTH arms on
+  // every bar (`armHistoryGuard` names the captures); v4 and later run only the arm taken.
+  const LEGACY_EAGER_ARMS = pineVersion === null || pineVersion < 4
   // A binding the resolver will expand (`y = up ? ta.sma(close, 5) : close`, read
   // later as `plot(y)`) is walked once, where it is first lowered.
   const armChecked = new WeakSet()
@@ -3393,6 +3466,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
   let lazyArmRegion = null
   const lazyArmContext = () => pineVersion !== null && pineVersion >= 6 && !objectsInRun && !atObjectDoor
     && owner === null && loopDepth === 0 && r4Level() === 0 && !inRequestValue
+  /** ⭐ HIST-S3 — `?:` nodes lowered as a jump whose arms are CHECKED to run on every bar. */
+  const everyBarArmNodes = new WeakSet()
+  const everyBarArmBindings = new WeakSet()
+  let everyBarArmMarks = 0
+  const everyBarArmContext = () => !objectsInRun && !atObjectDoor && loopDepth === 0 && !inRequestValue
   const armServable = (n, d = 0) => {
     if (!n || typeof n !== 'object') return true
     if (d > 64) return false
@@ -3438,11 +3516,19 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (b && b.kind === 'expr' && b.node) {
         if (!armChecked.has(b)) {
           armChecked.add(b)
+          const marksBefore = everyBarArmMarks
           if (armHistoryGuard(b.node, scope, true, d + 1, opaque)) lazyArmBindings.add(b)
+          if (everyBarArmMarks > marksBefore) everyBarArmBindings.add(b)
         }
         if (lazyArmBindings.has(b)) {
           // a later read of the same binding, in a place its `?:` cannot be split
-          if (opaque || !lazyArmContext()) refuseLazyArm(node, `(bound to \`${node.name}\`, read where it cannot run as written)`)
+          // ⭐ HIST-S3 — a binding holding a CHECKED arm is read only where it was made (not in
+          // a region of its own: there the arm would run on the READER's bars and stop the run
+          // for a line Pine runs on every bar)
+          const readable = everyBarArmBindings.has(b)
+            ? everyBarArmContext() && r4Level() === 0 && (b.owner === undefined ? null : b.owner) === owner
+            : lazyArmContext()
+          if (opaque || !readable) refuseLazyArm(node, `(bound to \`${node.name}\`, read where it cannot run as written)`)
           return true
         }
       }
@@ -3451,15 +3537,23 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const own = () => {
       let arms = null
       let test = null
-      if (node.type === 'ternary') { arms = [node.yes, node.no]; test = node.test }
-      // ⭐ review M3 — v4 `iff(c, a, b)` is the same choice (`runtimeRespelling`);
-      // whether Pine evaluates its untaken argument is NOT witnessed, so history
-      // in either argument is refused by name, exactly as for `?:`.
-      else if (node.type === 'call' && node.name === 'iff' && pineVersion !== null && pineVersion < 5
-        && (node.args || []).length === 3 && !(node.args || []).some((a) => a && a.name)) {
-        const g = node.args.map((a) => (a && a.value !== undefined ? a.value : a))
-        arms = [g[1], g[2]]; test = g[0]
+      if (node.type === 'ternary') {
+        // ⭐⭐ HIST-S1 (NUMBER PENDING) — BEFORE PINE v4 A `?:` RUNS BOTH ARMS ON EVERY BAR.
+        // WITNESSED: `vw-ternary-arm-legacy-{v1,v2,v3}(-cum)-rddt-1d-2026-11-15` (run s17, probe
+        // P2: `change`, `sma`, `ema`, `rma`, `barssince`, `cum` in the else arm equal their
+        // every-bar values on every bar; a lazy arm misses from bar 4). So the arm's history is
+        // the bar's, which is what `SELECT` computes: nothing to refuse. ⚰️ This lane refused
+        // every such arm by name while the host lane drew it (engine 58, "not stamped").
+        // ⛔ v4 and later are LAZY (`vw-cs2-v4-ternary-lazy`, vw-arm-history) and keep the rule.
+        if (LEGACY_EAGER_ARMS || node.eagerIff === true) return false
+        arms = [node.yes, node.no]; test = node.test
       }
+      // ⚰️ review M3 refused history in an argument of v1-v4 `iff(c, a, b)` ("whether Pine
+      // evaluates its untaken argument is NOT witnessed"). It is now: `vw-cs2-v4-ternary-lazy`
+      // row C00 (`iff(up, sma(close, 5), close)` equals the every-bar `sma` where `up`, 666 / 666,
+      // beside a lazy `?:` that does not), and the reference calls `iff` a function, whose
+      // arguments are evaluated before the call. `runtimeRespelling` writes it as a `?:` that
+      // `SELECT` evaluates on every bar, so it is served, not walked here.
       else if (node.type === 'binary' && SHORT_CIRCUIT.has(node.op) && pineVersion >= 6) { arms = [node.right]; test = node.left }
       if (!arms || !arms.some((a) => lexArmHistory(a))) return false
       let inv = false
@@ -3475,6 +3569,18 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (node.type === 'ternary' && !opaque && lazyArmContext() && !holdsColour(node, scope)
           && armServable(node.yes) && armServable(node.no)) {
         lazyArmNodes.add(node)
+        return true
+      }
+      // ⭐⭐ HIST-S3 — every other `?:` reached as a node of its own is lowered as a JUMP too,
+      // each arm that holds history CHECKED to run on every bar (`everyBarRegions`): while it
+      // does, the arm's history is every bar's, whichever arm rule the script's version has.
+      // ⛔ Not a branch on a PARAMETER (the call site may fix it: `condParam`, below), not a
+      // colour, not where the `?:` cannot be split (`opaque`).
+      if (node.type === 'ternary' && !opaque && everyBarArmContext() && !holdsColour(node, scope)
+          && !(owner !== null && typeof culprit === 'string')) {
+        lazyArmNodes.add(node)
+        everyBarArmNodes.add(node)
+        everyBarArmMarks += 1
         return true
       }
       note('runtime:conditional-history')
@@ -6061,7 +6167,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const tok = node.tok
     const v5 = pineVersion !== null && pineVersion >= 5
     if (name === 'iff' && given.length === 3 && !v5) {
-      return { type: 'ternary', test: given[0], yes: given[1], no: given[2], tok }
+      // ⭐ HIST-S1 — `eagerIff`: a function's arguments run on every bar (`armHistoryGuard`)
+      return { type: 'ternary', test: given[0], yes: given[1], no: given[2], tok, eagerIff: true }
     }
     const bare = name.startsWith('ta.') ? name.slice(3) : name
     // a spelling the script's version actually has: `ta.x` from v5, bare before
@@ -8105,6 +8212,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // form is reached operator by operator (`splitForArms`), never as one column
       const splitForArms = armHistoryGuard(node, scope, true)
       lexForeign = false
+      let everyBarColumn = false
       // ⭐ W3W4-D1 — THE DRAWING BUILD ASKS THE SAME QUESTION AS THE PLOT LANE, in a block
       // of the main body only (a function body keeps its refusal): history WRITTEN in a block that
       // runs on some bars is that call site's. `servedCondCall` is the ONE served set; every
@@ -8126,15 +8234,19 @@ function buildRuntimeIrLinked(source, opts, holder) {
         }
         if (lexForeign) {
           if (objectsInRun) drawRefuse('a series with history bound in another branch')
-          r4Guard('a series with history bound in another branch', locate(node.tok))
+          r4Guard('a series with history bound in another branch', locate(node.tok), true)
         }
         const served = servedCondCall(node, scope)
         if (served) return served
         if (!condTransparent(node)) {
           if (objectsInRun) drawRefuse(node.type === 'call' ? `\`${node.name}\`` : 'a series with history')
           r4Guard(node.type === 'call' ? `\`${node.name}\`` : 'a series with history', locate(node.tok))
+          // ⭐ HIST-S3 — `r4Guard` came back: the region is CHECKED to run on every bar, so
+          // this pure subtree is the every-bar column it would be at the root
+          everyBarColumn = true
         }
-      } else if (!splitForArms && !mbbDynamicColumn(node, scope)) try {
+      }
+      if ((!(condHistory && r4Level() > 0) || everyBarColumn) && !splitForArms && !mbbDynamicColumn(node, scope)) try {
         return column(columnOf(node, locate(node.tok)))
       } catch (e) {
         // ⛔ ONLY over a subtree that really does carry text, and only for the
@@ -8568,12 +8680,18 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // with no note. ⛔ Not at the object door, which builds what master builds.
         if (!atObjectDoor && !lazyArmNodes.has(node)) armHistoryGuard(node, scope, false)
         if (lazyArmNodes.has(node)) {
-          if (!lazyArmContext()) refuseLazyArm(node, '(read where it cannot run as written)')
+          // ⭐ HIST-S3 — a CHECKED arm (`everyBarArmNodes`): its region carries the every-bar
+          // check from the start when the arm holds history, and it is never the arm-only
+          // served region (`ta.change` per call site is witnessed for the v6 root arm alone)
+          const checked = everyBarArmNodes.has(node)
+          if (!(checked ? everyBarArmContext() : lazyArmContext())) refuseLazyArm(node, '(read where it cannot run as written)')
           const lowerLazyArm = (arm) => inR4Region(false, () => {
             const prev = lazyArmRegion
-            lazyArmRegion = r4Region
+            lazyArmRegion = checked ? null : r4Region
             try { return lowerArm(arm, scope) } finally { lazyArmRegion = prev }
-          })
+          }, checked && lexArmHistory(arm)
+            ? { what: 'history (a `ta.*` call, or a function that keeps it)', at: locate(node.tok), tok: node.tok }
+            : null)
           const test = lowerExpr(node.test, scope)
           const yes = lowerLazyArm(node.yes)
           const no = lowerLazyArm(node.no)
@@ -9455,7 +9573,24 @@ function buildRuntimeIrLinked(source, opts, holder) {
             const hoisted = hoistCommittedSeries(srcNode, scope, node.name)
             if (hoisted) { varSlot = hoisted.slot; srcLabel = hoisted.label }
           }
-          if (varSlot === null) {
+          // ⭐⭐ HIST-S2 (NUMBER PENDING) — A WINDOW THAT KEEPS ITS OWN RING NEEDS NO COMMITTED
+          // SERIES. Only the `propagate` policy (`dev`) reads the source's committed bar ring
+          // (`vm.js` `OP.WINDOW`, its last branch); `skip` (sma / stdev / sum / median), `ffill`
+          // (wma) and `finite` (highest / lowest / highestbars / lowestbars) each append the value
+          // the call is handed to a ring of their own, exactly as they do for a slot source. So
+          // where no statement list can take a hoisted binding (an `if` / `switch` arm, a function
+          // branch: `stmtHoistSink` is null there), the expression is lowered in place and handed
+          // to the window: the value the hoisted slot would hold on this bar, by construction.
+          // ⛔ Not in a loop (several steps a bar: H8, unwitnessed), not at the object door and
+          // not in the drawing build (each keeps master's answer). The conditional rules below
+          // (`conditionalHistoryGuard`, `r4Guard`) are asked of it like any other window.
+          let inlineSrc = null
+          if (varSlot === null && srcNode && srcNode.type !== 'name' && loopDepth === 0
+              && !atObjectDoor && !objectsInRun && FINITE_WINDOW[win.table].na !== 'propagate') {
+            inlineSrc = lowerExpr(srcNode, scope)
+            srcLabel = 'an expression'
+          }
+          if (varSlot === null && inlineSrc === null) {
             if (!srcNode || srcNode.type !== 'name') {
               note('runtime:history-expression')
               throw new RuntimeRefusal('runtime:history-expression',
@@ -9502,11 +9637,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // with the columnar lane about how wide the window is.
           const span = FINITE_WINDOW[win.table].span(n)
           // the ring must reach `span - 1` bars back; the live bar completes it
-          if (span > 1) {
+          if (span > 1 && inlineSrc === null) {
             if (owner !== null) fnHistorySlotFor(owner, varSlot, span - 1, at)
             else historySlotFor(varSlot, span - 1, at)
           }
-          const histIndex = span > 1
+          // an in-place source has no ring: its window never reads one (HIST-S2 above)
+          const histIndex = span > 1 && inlineSrc === null
             ? (owner !== null ? functions[owner].historyByVarSlot.get(varSlot) : historyByVarSlot.get(varSlot))
             : 0
           // ⭐⭐ A WINDOW IS NOW MATERIALISED PER CALL SITE, like history and
@@ -9533,7 +9669,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // WS-C / R4: every policy but `skip` reads the COMMITTED bar ring, so
           // in a block it would count bars where Pine counts the call's runs.
           if (FINITE_WINDOW[win.table].na !== 'skip') r4Guard(`\`${node.name}\``, at)
-          const call = windowCall(widx, read(varSlot), lenExpr || undefined)
+          const call = windowCall(widx, inlineSrc !== null ? inlineSrc : read(varSlot), lenExpr || undefined)
           // ⛔ THE SIGN IS APPLIED HERE, ON THE WAY OUT, because that is where
           // `pine.js` applies it — `u-` wrapping the bare call, not a second
           // reducer with a flipped comparison. One reducer, one negation node.
