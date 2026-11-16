@@ -188,18 +188,6 @@ if up
     strategy.entry("L", strategy.long, qty = 5000)
 if dn
     strategy.close_all()''', decl="initial_capital = 1000, margin_long = 100, margin_short = 100"))
-    # 2026-11-16 (strategy coverage): the v6 default (100% of equity) sized on the signal bar's close and filled at a
-    # HIGHER open needs a little more than the equity. Seven built-in strategies stop there by name (Q-S1i) on
-    # NYSE:RDDT 1D; no committed capture holds such a fill beyond the funds (w9-q-s1a-size-v6's only gap-up, bar 630,
-    # stayed within them). Bar 67 closes at 63.58 and bar 68 opens at 64.07 on RDDT: is the order filled whole,
-    # reduced to what the funds buy at the open, or rejected?
-    s.append(P("q-s1i-gap-up-v6", "Q-S1i", "v6 default size (100% of equity) filled at a higher open than its signal close", '''{SC}
-if bar_index == 67
-    strategy.entry("L", strategy.long)
-if bar_index == 90
-    strategy.close("L")''', decl="", ver=6,
-               extras=[("X01_open_size_0", "strategy.opentrades > 0 ? strategy.opentrades.size(0) : na"),
-                       ("X02_close", "close")]))
     s.append(P("q-s1j-stop-limit", "Q-S1j", "a stop-limit entry (stop and limit on one order)", '''{SC}
 if up
     strategy.entry("L", strategy.long, stop = math.round_to_mintick(close * 1.01), limit = math.round_to_mintick(close * 1.012))

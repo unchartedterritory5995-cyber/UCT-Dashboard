@@ -41,7 +41,7 @@ Rules for every row below:
 | Q-S1f | `w9-q-s1f-reversal-exit.pine` | NYSE:RDDT 1D | 1 | exit id by label | reversal against an exit with no from_entry | T7 | no |
 | Q-S1g | `w9-q-s1g-pyr-limit.pine` | NYSE:RDDT 1D | 1 | open trades | a price entry at the limit | T7 | no |
 | Q-S1h | `w9-q-s1h-fifo.pine` | NYSE:RDDT 1D | 1 | closed trade sizes; entry bar | the FIFO split | T7 | no |
-| Q-S1i | `w9-q-s1i-funds.pine`, `w9-q-s1i-gap-up-v6.pine` | NYSE:RDDT 1D | 2 | exit comment by label; the size filled at bar 68 (gap-up run) | margin call (deferred); the v6 default (100% of equity) filled at a higher open than its signal close: whole, reduced or rejected (added 2026-11-16: seven built-in strategies stop there) | deferred | no |
+| Q-S1i | `w9-q-s1i-funds.pine` | NYSE:RDDT 1D | 1 | exit comment by label | margin call (deferred) | deferred | no |
 | Q-S1j | `w9-q-s1j-stop-limit.pine` | NYSE:RDDT 1D | 1 | std | stop-limit | T7 | no |
 | Q-S1k | `w9-q-s1k-exit-levels.pine`, `w9-q-s1k-exit-levels-v6.pine` | NYSE:RDDT 1D | 2 | std | exit levels, v5 and v6 | T7 | no |
 | Q-S1l | `w9-q-s1l-off-grid.pine` | NYSE:RDDT 1D | 1 | exit price as a full double, and in mintick units | off-grid rounding | T1 | no |
