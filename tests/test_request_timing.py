@@ -20,6 +20,10 @@ from api.services import request_timing as rt
 def clean(tmp_path, monkeypatch):
     monkeypatch.setenv("REQUEST_TIMING_DIR", str(tmp_path / "rt"))
     monkeypatch.delenv(rt.KILL_SWITCH, raising=False)
+    # No background writer in these tests: tests that need a minute on disk drain the queue
+    # themselves. A writer thread left running by an earlier test raced that drain and took a
+    # minute first (1 run in 4 failed test_minutes_just_after_a_restart_are_reported_apart).
+    monkeypatch.setattr(rt, "_writer_started", True)
     rt._reset_for_tests()
     yield
     rt._reset_for_tests()
