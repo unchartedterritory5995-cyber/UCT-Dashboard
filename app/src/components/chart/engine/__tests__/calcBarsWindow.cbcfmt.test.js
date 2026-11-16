@@ -23,7 +23,7 @@ import { buildRuntimeIr } from '../ast/pineRuntimeFrontend'
 import { computeRuntimeColumns } from '../runtime/runtimeColumns'
 import { objectReaderFor } from '../objectColumns'
 import {
-  calcBarsWindowOf, calcBarsWindowReport, CALC_BARS_REQUEST_GUARD,
+  calcBarsWindowOf, calcBarsWindowReport, CALC_BARS_REQUEST_GUARD, CALC_BARS_REQUEST_SOURCE,
   CALC_BARS_FORMING_GUARD, CALC_BARS_WINDOW_CODE,
 } from '../calcBarsWindow'
 
@@ -101,6 +101,17 @@ describe('W4 — the one reader (`pine.js::declarationCalcBars`)', () => {
     const zero = translatePine(`${CB(0)}plot(close)\n`, { strict: true })
     expect(zero.ok).toBe(true)
     expect(zero.calcBarsCount).toBeUndefined()
+  })
+  // landing train 1: the scan carries no lookbehind (iOS 16 floor, src/noRegexLookbehind.test.js)
+  it('the request scan reads a call, never a longer name or a member of something else', () => {
+    const NL = String.fromCharCode(10)
+    for (const yes of ['security(a)', 'x = security (a)', 'plot(request.security(t, "", close))', 'request . financial(a)', `plot(close)${NL}financial(a)`]) {
+      expect(CALC_BARS_REQUEST_SOURCE.test(yes), yes).toBe(true)
+    }
+    for (const no of ['my_security(a)', 'lib.security(a)', 'xfinancial(a)', 'security = 1', 'a.request.security(x)', 'xrequest.security(x)']) {
+      expect(CALC_BARS_REQUEST_SOURCE.test(no), no).toBe(false)
+    }
+    expect(CALC_BARS_REQUEST_SOURCE.global || CALC_BARS_REQUEST_SOURCE.sticky).toBe(false) // .test() keeps no lastIndex
   })
   it('the member door writes the stamp, and the request fact beside it', () => {
     flags()

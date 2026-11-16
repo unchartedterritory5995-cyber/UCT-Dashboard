@@ -288,11 +288,11 @@ describe('report-only cases (the V8 sin/cos 1-ulp finding): named, pinned, measu
   it('the list is the three trig cases and nothing else (pinned), each a real corpus case', () => {
     expect([...hp.reportOnlyOf(corpus).keys()].sort()).toEqual(['transcendental@calcbars', 'transcendental@forming', 'transcendental@listing'])
     expect(corpus.reportOnly.reason).toMatch(/Math\.sin/)
-    // ...and the list is DERIVED from the one trig script: every bar set it runs on, no other script
-    const trig = corpus.scripts.find((s) => s.name === 'transcendental')
-    expect(readFileSync(join(hp.FIXTURE_DIR, trig.file), 'utf8')).toMatch(/math\.(sin|cos)/)
-    expect([...hp.reportOnlyOf(corpus).keys()].sort())
-      .toEqual((trig.barSets || Object.keys(corpus.barSets)).map((set) => `transcendental@${set}`).sort())
+    // ...and every listed case is a case of the ONE trig script (the only corpus script that calls
+    // math.sin / math.cos): a case of any other script can never be listed, whatever the pin says
+    const trig = corpus.scripts.filter((s) => s.file && /math\.(sin|cos)\(/.test(readFileSync(join(hp.FIXTURE_DIR, s.file), 'utf8')))
+    expect(trig.map((s) => s.name)).toEqual(['transcendental'])
+    for (const name of hp.reportOnlyOf(corpus).keys()) expect(name.split('@')[0], name).toBe('transcendental')
     expect(() => hp.reportOnlyOf({ ...corpus, reportOnly: { reason: 'r', cases: ['no_such@case'] } })).toThrow(/not a corpus case/)
   })
 

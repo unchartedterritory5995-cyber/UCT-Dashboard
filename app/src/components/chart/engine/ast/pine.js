@@ -32104,18 +32104,21 @@ export const LEGACY_PLOT_DEFAULT_TRANSP = 35
  *  (`strippedForScan`), so `// ta.ema` or `"color.red"` is not syntax. Returns the
  *  first form found (for the sentence), or null. */
 export const NO_VERSION_GUARD = 'pine:version-missing'
+// ⛔ NO LOOKBEHIND (the declared floor is iOS 16; Safari before 16.4 throws on `(?<!` when the
+// chunk is PARSED, `src/noRegexLookbehind.test.js`). "Not preceded by a word character or a dot"
+// is written as a consumed prefix, `(?:^|[^\w.])`, and the form itself is capture group 1.
 const MODERN_PINE_FORMS = Object.freeze([
-  /(?<![\w.])(?:ta|math|str|request|array|matrix|map|input|color|chart|timeframe|ticker|runtime|log|polyline|box|table|label|line|linefill)\.[A-Za-z_]\w*/,
-  /(?<![\w.])(?:plot|hline)\.style_\w+/,
-  /(?<![\w.])(?:indicator|library)\s*\(/,
-  /(?:^|\n)[ \t]*(?:var|varip)[ \t]+[A-Za-z_]/,
+  /(?:^|[^\w.])((?:ta|math|str|request|array|matrix|map|input|color|chart|timeframe|ticker|runtime|log|polyline|box|table|label|line|linefill)\.[A-Za-z_]\w*)/,
+  /(?:^|[^\w.])((?:plot|hline)\.style_\w+)/,
+  /(?:^|[^\w.])((?:indicator|library)\s*\()/,
+  /(?:^|\n)[ \t]*((?:var|varip)[ \t]+[A-Za-z_])/,
 ])
 export function modernPineSyntaxIn(source) {
   if (typeof source !== 'string' || !source) return null
   const text = strippedForScan(source)
   for (const re of MODERN_PINE_FORMS) {
     const m = re.exec(text)
-    if (m) return m[0].trim()
+    if (m) return m[1].trim()
   }
   return null
 }

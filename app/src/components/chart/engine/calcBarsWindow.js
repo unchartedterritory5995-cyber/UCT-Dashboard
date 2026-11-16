@@ -56,8 +56,11 @@ export const CALC_BARS_FORMING_GUARD = 'pine:calc-bars-forming'
 export const CALC_BARS_WINDOW_CODE = 'calc-bars:window'
 
 /** Any request of other bars in a SOURCE (comments and strings stripped first), the
- *  identity request included, and the pre-v5 bare spellings. Over-declares. */
-export const CALC_BARS_REQUEST_SOURCE = /(?<![\w.])(?:request\s*\.\s*[A-Za-z_]\w*|security|financial)\s*\(/
+ *  identity request included, and the pre-v5 bare spellings. Over-declares.
+ *  ⛔ `.test()` only, and NO LOOKBEHIND (iOS 16 floor: Safari before 16.4 throws on `(?<!`
+ *  when the chunk is parsed, `src/noRegexLookbehind.test.js`): "not preceded by a word
+ *  character or a dot" is the consumed prefix `(?:^|[^\w.])`. */
+export const CALC_BARS_REQUEST_SOURCE = /(?:^|[^\w.])(?:request\s*\.\s*[A-Za-z_]\w*|security|financial)\s*\(/
 
 /** A drawing property that is a bar coordinate (`objectStore.PROP_KIND` 'x'). */
 const X_PROPS = Object.freeze(['x', 'x1', 'x2', 'left', 'right'])

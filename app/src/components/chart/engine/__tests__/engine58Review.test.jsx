@@ -140,6 +140,17 @@ describe('review 4 — a no-pragma script in v4+ syntax is refused by name, neve
     // …and a script that declares its version is never asked
     expect(memberPaneDefinition({ source: '//@version=5\nindicator("u")\nplot(ta.sma(close, 3))\n', id: 'u_member-pane-v5' }).ok).toBe(true)
   })
+  // landing train 1: the four forms carry no lookbehind (iOS 16 floor); "not preceded by a word character
+  // or a dot" is a consumed prefix and the form is the capture, so the boundary is railed on both sides
+  it('the boundary: a longer name, or a member of something else, is not the namespace; the first column is', () => {
+    expect(modernPineSyntaxIn('study("u")@x = beta.gamma@y = meta.color@plot(close)@'.split('@').join(String.fromCharCode(10)))).toBeNull()
+    expect(modernPineSyntaxIn('study("u")@y = foo.line.new@z = a.plot.style_line@plot(close)@'.split('@').join(String.fromCharCode(10)))).toBeNull()
+    expect(modernPineSyntaxIn('study("u")@myindicator(1)@lib.library(2)@plot(close)@'.split('@').join(String.fromCharCode(10)))).toBeNull()
+    expect(modernPineSyntaxIn('ta.sma(close, 3)')).toBe('ta.sma')
+    expect(modernPineSyntaxIn('x=color.red')).toBe('color.red')
+    expect(modernPineSyntaxIn('indicator ("u")')).toBe('indicator (')
+    expect(modernPineSyntaxIn('study("u")@  varip n = 0@'.split('@').join(String.fromCharCode(10)))).toBe('varip n')
+  })
   it('the legacy predicate is strict: undefined is an error, null is v1', () => {
     expect(() => isPreV4PineVersion(undefined)).toThrow(/needs the script's Pine version/)
     expect(isPreV4PineVersion(null)).toBe(true)
