@@ -955,6 +955,14 @@ def _names_cold(headlines) -> bool:
     return False
 
 
+def names_cold() -> bool:
+    """True while the CURRENT snapshot was built with some deal headline's company name not
+    yet in memory (after a restart): a target written by name may be missing from the sets.
+    A consumer that keeps its own last good set must not shrink it on such a build."""
+    with _LOCK:
+        return bool(_STATE.get("cold"))
+
+
 _WARM_LOCK = threading.Lock()
 
 

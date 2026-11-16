@@ -742,7 +742,13 @@
     "score": 0,
     "reasons": []
    },
-   "batch": "wave6"
+   "batch": "index-charts-2026-11-16",
+   "chart": {
+    "sym": "IXIC",
+    "asof": "2000-03-10",
+    "window": 250,
+    "forward": 60
+   }
   },
   {
    "key": "q05",
@@ -881,7 +887,13 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "index-charts-2026-11-16",
+   "chart": {
+    "sym": "SPX",
+    "asof": "2018-12-24",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q09",
@@ -1372,7 +1384,7 @@
  ],
  "conflicts": [
   "Bear market definition: Investor.gov (f31) says 'Generally' a 20% fall 'over at least a two-month period'; S&P Dow Jones Indices (f43-f47, via CNBC) counts the 2020 fall of 1.1 months as a bear market, and its full table also lists 1990's -19.9% as one while leaving out late 2018's -19.8%. So no question keys whether 2020 or late 2018 'was a bear market'. Questions say 'fall', give the depth, and q08 says 2018 stopped 'just short of the 20% fall that generally marks a bear market'.",
-  "Charts show SPY, the SPDR S&P 500 ETF, split-adjusted; the facts quote the S&P 500 index. The fund's percent moves track the index closely but not exactly (dividends, fees), so every depth or price is given as the index's own close, and every chart question that quotes a level names the S&P 500 in its reveal. q08 works from index closes, so it carries no chart: a fund axis near 293 beside an index close of 2,930.75 would only confuse. The only fund numbers are q15's, and those are the SEC note's own SPY figures.",
+  "The SPY charts show the SPDR S&P 500 ETF, split-adjusted; the facts quote the S&P 500 index. The fund's percent moves track the index closely but not exactly (dividends, fees), so every depth or price is given as the index's own close, and every chart question that quotes a level names the S&P 500 in its reveal. q04 and q08 are charted on the indexes themselves (the Nasdaq Composite and the S&P 500, added 2026-11-16), so their axes print the index closes the words quote. The only fund numbers are q15's, and those are the SEC note's own SPY figures.",
   "2000-02 depth and length: S&P DJI via CNBC (f44) says 49.1% over 30.5 months; Fox Business (f56, Ned Davis data) says 49 percent over 31 months. They agree within rounding; the file uses S&P DJI's 49.1% and 30.5 months. The Fox Business page (December 26, 2018) opens by saying the S&P 500 had entered bear market territory, which was true only intraday on December 24, 2018 (the close was down 19.8% from the peak, per FRED). Only its 2000-02 and 2007-09 rows are used, and each matches S&P DJI.",
   "2007-09 depth: Federal Reserve History (f02) says 57 percent; S&P DJI (f45) says 56.8%. Same fall, rounded differently. The file says 57% where it cites the Fed and 56.8% where it cites S&P DJI or computes from 1,565.15 and 676.53.",
   "'First close above' claims (f34 April 23, 2019; f39 January 19, 2024; f42 April 23, 2015) rest on the whole daily series at the cited FRED range URL, which starts before the peak and ends on the recovery day, so the checker can confirm no close in between was higher. The quote itself is only the recovery row. CNBC (f52) confirms the January 19, 2024 record separately. Investopedia gives April 24, 2015 for the Nasdaq's recovery; FRED's first close above 5,048.62 is April 23, 2015, and the file uses FRED. Investopedia was not cited (it refuses the plain client).",
@@ -1424,8 +1436,8 @@
   "q04": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right: f49 (CNBC, re-read live: 'The bursting of the Tech Bubble led directly to the 2000-2002 bear market') and f56 (Fox, re-read live). Two defects. (1) lesson_line says 'When the market's leaders trade at lofty prices': f14 says 'lofty valuations of some sectors', not leaders, and the line frames leaders as the danger in a course whose rulebook (section 9, C31) teaches 'Buy leaders'. Reworded to the quote's 'some sectors'. (2) The pandemic wrong note 'a fall that took weeks, not years' states q07's key (2020 was the fastest), the same giveaway the q01 fix removed. Reworded to name the y"
+   "fixed": false,
+   "notes": "Words agree with the data: IXIC record close 5048.62 on 2000-03-10 (also the record high 5132.52; no higher close until 5056.06 on 2015-04-23), so 'Nasdaq hit record highs in March 2000' holds; SPX 1527.46 (2000-03-24) -> 776.76 (2002-10-09) = -49.15% ('lost 49.1%'). Window 1999-03-17 (2428.97) to 2000-03-10 = +107.9%; every shown day and the 200 warmup days are real candles (IXIC real from 1990-04-05; the stale-open check passes). Give-away check: the run-up hints 'bubble', but it shows no cause and no burst; the question's own '2000-02' already names the era, and the picture is the 'lofty va"
   },
   "q05": {
    "status": "pass",
@@ -1448,8 +1460,8 @@
   "q08": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
+   "fixed": true,
+   "notes": "Words agree with the data: SPX 2,930.75 = 2018-09-20 close and the highest close ever up to then; 2,351.10 = 2018-12-24 close (and that day's low); fall 19.778% -> 19.8, keyed 19.8. Trap check: the visible high 2940.91 (09-21) differs from the closing peak, but the question states both closes, and the deeper trap says to measure close to close; the replay's 2018-12-26 low 2346.58 (intraday 20.2% off the 2940.91 high) agrees with 'on closing prices, this fall stopped just short' and no later close goes under 2351.10. No give-away: the member computes from stated numbers. FIX: forward 40 -> 20. "
   },
   "q09": {
    "status": "pass",

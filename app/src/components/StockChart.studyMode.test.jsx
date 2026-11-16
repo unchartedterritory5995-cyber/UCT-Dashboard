@@ -174,6 +174,18 @@ describe('StockChart studyMode (T1)', () => {
     expect(studyTickMarkFormatter('2025-01-02', 0)).toBe('2025')
   })
 
+  // the 2026-11-16 screen check: an intraday drill's axis lost every time mark on a phone after the replay ("10:30 AM"
+  // needs an eight-character slot); a half hour reads "10:30" in a five-character one, the hour and the day as before
+  it('the study formatter on an intraday chart: a half hour drops its AM/PM, the hour and the day keep theirs', () => {
+    const at = (iso) => Date.parse(`${iso}Z`) / 1000   // the chart's intraday time: the New York wall clock read as UTC
+    expect(studyTickMarkFormatter(at('2026-09-15T10:30:00'), 3)).toBe('10:30')
+    expect(studyTickMarkFormatter(at('2026-09-15T13:30:00'), 3)).toBe('1:30')
+    expect(studyTickMarkFormatter(at('2026-09-15T10:00:00'), 3)).toBe('10 AM')
+    expect(studyTickMarkFormatter(at('2026-09-15T12:00:00'), 3)).toBe('12 PM')
+    expect(studyTickMarkFormatter(at('2026-09-15T09:30:00'), 2)).toBe('Sep 15')
+    for (const t of ['09:30', '10:30', '12:30', '15:30']) expect(studyTickMarkFormatter(at(`2026-09-15T${t}:00`), 3).length).toBeLessThanOrEqual(5)
+  })
+
   // The Study trade levels' axis tags (tradeMarks.tradeLevelLines) ask for dark chips with the level's ink, so they do not
   // read as the chart's own solid last-price tag; a line that asks for nothing keeps the library's colour-filled tag.
   it('a price line that asks for its own tag colours gets them; one that does not, does not', async () => {

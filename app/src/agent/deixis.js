@@ -1113,9 +1113,11 @@ export function chartsNamedBySymbol(text, charts = []) {
   const bySym = new Map()
   for (const c of charts) { const k = String(c.symbol || '').toUpperCase(); if (k) bySym.set(k, [...(bySym.get(k) || []), c]) }
   for (const [sym, list] of bySym) {
-    if (list.length !== 1) continue
+    // ⛔ (AUDIT 53) a link group is ONE object: every chart showing the symbol following one link colour is named together
+    const objs = new Set(list.map(c => (typeof c.group === 'string' && c.group && !c.group.startsWith('N') ? `g:${c.group}` : `c:${c.ref}`)))
+    if (objs.size !== 1) continue
     const re = new RegExp(`(?:^|[^A-Za-z0-9.])${escapeRe(sym)}(?![A-Za-z0-9])`, sym.length <= 2 ? '' : 'i')
-    if (re.test(s)) named.add(list[0].ref)
+    if (re.test(s)) for (const c of list) named.add(c.ref)
   }
   return named
 }
@@ -1144,6 +1146,8 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
   const words = context ? `${text} ${context}` : String(text || '')
   const charts = host?.charts?.list?.() || []
   if (charts.length < 2) return null
+  // ⛔ D23 / probe 50e1: charts that all follow ONE link colour are one object (a change to one moves them all) — never asked which
+  if (new Set(charts.map(c => (typeof c.group === 'string' && c.group && !c.group.startsWith('N') ? `g:${c.group}` : `c:${c.ref}`))).size === 1) return null
   const aliases = new Set((ops || []).map(o => o?.args?.as).filter(a => typeof a === 'string' && a))
   const targets = new Map()                                  // chart ref → the op kind's snapshots
   for (const o of ops || []) {

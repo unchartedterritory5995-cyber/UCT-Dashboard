@@ -2776,15 +2776,16 @@
       "note": ""
     },
     "CREATE_INDICATOR_COHORT_ENABLED": {
-      "status": "pending",
-      "since": "2026-10-07",
-      "where": [],
+      "status": "armed",
+      "where": [
+        "web"
+      ],
       "default": "0",
       "values": [
         "0",
         "1"
       ],
-      "note": "PENDING SINCE 2026-10-07 -- the controlled member rollout of Create Indicator (UCT Intelligence conversational authoring). ENABLEMENT gate, default OFF, read per call FIRST in api/services/rollout_gate.py::create_indicator_cohort_enabled (cohort 'create-indicator', a rollout: user_tags row written only by tools/rollout_cohort.py). /converse (api/routers/user_definitions.py::require_create_indicator_access) admits an admin OR a member this flag + cohort release; the dock and BuilderSheet read the EFFECTIVE cohorts list off _access_payload (createIndicatorFlag.js). Admins keep their dark-review access regardless of this flag. Set on NO service and the cohort is empty: nobody outside the admins can reach it. Owner decision left: set CREATE_INDICATOR_COHORT_ENABLED=1 on web and tag the cohort. Rollback: unset the flag (new conversations stop on the next request / auth refresh; saved indicators are untouched ordinary user definitions), or remove one member's tag with tools/rollout_cohort.py (no redeploy)."
+      "note": "ARMED ON web 2026-11-15 -- owner decision 2026-11-15: Create Indicator is open to every paid account (the product has not launched; the staged pilot in docs/indicators/CONVERSE-ROLLOUT-PROPOSAL-2026-11-02.md is not followed before launch). Every account is in the cohort: new signups by rollout_gate.enroll_in_create_indicator (api/routers/auth.py), existing accounts once per volume by rollout_gate.seed_existing_members_into_create_indicator (api/main.py lifespan, marker .create_indicator_seed_v1). The browser door now accepts the cohort for admins too (createIndicatorFlag.js::createIndicatorAccess). Rollback is still this flag: unset it and new conversations stop on the next request; no tag is touched. Plan: docs/pine/studio/STUDIO-TRACK-PLAN.md section 8. HISTORY (pending 2026-10-07 to 2026-11-15): the controlled member rollout of Create Indicator (UCT Intelligence conversational authoring). ENABLEMENT gate, default OFF, read per call FIRST in api/services/rollout_gate.py::create_indicator_cohort_enabled (cohort 'create-indicator', a rollout: user_tags row written only by tools/rollout_cohort.py). /converse (api/routers/user_definitions.py::require_create_indicator_access) admits an admin OR a member this flag + cohort release; the dock and BuilderSheet read the EFFECTIVE cohorts list off _access_payload (createIndicatorFlag.js). Admins keep their dark-review access regardless of this flag. Set on NO service and the cohort is empty: nobody outside the admins can reach it. Owner decision left: set CREATE_INDICATOR_COHORT_ENABLED=1 on web and tag the cohort. Rollback: unset the flag (new conversations stop on the next request / auth refresh; saved indicators are untouched ordinary user definitions), or remove one member's tag with tools/rollout_cohort.py (no redeploy)."
     },
     "TERMINAL_NEXT_ENABLED": {
       "status": "armed",
@@ -3299,6 +3300,14 @@
       "default": "1",
       "values": ["0", "1"],
       "note": "Desktop speed plan Step 10.1: the KILL SWITCH for real-user speed measurement, POST /api/perf/beacon (api/routers/perf_beacon.py, mounted in api/main.py; client app/src/lib/perfBeacon.js, loaded only after the page load event). SHIPS ON BY DEFAULT as a rollback switch: unset or any value but 0/false/no/off means reports are stored; 0/false/no/off answers {enabled: false} and writes nothing. Read per request in api/services/perf_beacon.py::enabled(). Never deletes a stored row. NUMBERS AND ENUMS ONLY: page = first path segment, client browser|desktop, timings in ms, API calls as /api/<word>[/<word without digits>], country from CF-IPCountry; never a URL, ticker, id, member id or IP (rate limit keys on a salted IP hash). Own store PERF_BEACON_DB_PATH (default <DATA_DIR>/perf_beacon.db), 30-day retention, cap 300,000 loads. Admin read GET /api/admin/perf."
+    },
+    "REFERENCE_CACHE_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-16",
+      "where": [],
+      "default": "1",
+      "values": ["0", "1"],
+      "note": "Speed and reliability plan item 9a (2026-11-16): the KILL SWITCH for browser-kept reference answers, api/services/reference_cache.py::allow. SHIPS ON BY DEFAULT as a rollback switch: unset or any value but 0/false/no/off means a COMPLETE answer from GET /api/delisted/{sym} (1 h), /api/ticker-ipo/{ticker} when its first-trade day is final (1 day), /api/single-stock-etfs/{symbol} (5 min), /api/ticker-meta/{ticker} when it names the company (5 min) and /api/chart/markers/{ticker} when a history was built (10 min) carries Cache-Control: private, max-age=N, so the member's own browser answers a repeat ask itself. private = never a shared or edge cache. An empty, non-final or failed answer is never marked. 0/false/no/off sets no header: every answer is byte-for-byte what it was. Read per request in reference_cache.enabled(). Rails: tests/test_reference_cache.py."
     },
     "REQUEST_TIMING_ENABLED": {
       "status": "dark",
@@ -3932,6 +3941,17 @@
       "owner": "pine parity programme",
       "owner_decision": "2026-11-02 owner decision: the Pine runtime runs server-side as a SEPARATE sandboxed service (docs/pine/SERVER-RUNTIME-DESIGN.md sections 0 and 3.6). The owner creates this key in the Railway dashboard (T20); no agent sets it, and it is set on no service.",
       "note": "A SECRET: its value is never recorded in this ledger, in the repo, in a log, in a sentence or in a chat. W5 T12 (2026-11-02): the HMAC key that signs every request from web to the pine-runtime service (design 3.6); the SAME value is set on BOTH services (the service accepts a comma-separated list so a key can rotate). Here it is only asked about being set: server_lane_refusal step 5 answers runtime:server-unavailable while it is not, so a lane never builds a request it cannot sign. (Design 3.5 step 5 names only the URL; the secret is added to that step so a pod holding one without the other fails closed by name instead of at the first request.) Rotation without a joint restart: add the new key to the service, switch web to it, then remove the old one from the service. Rollback: blank it on web (Railway ignores null) and verify a NEW boot. Rails: tests/test_runtime_server_stage.py."
+    },
+    "FRONT_HOLD_SECONDS": {
+      "repo": "uct-dashboard",
+      "read_at": "api/front_app.py::hold_seconds, read per request by the front door (web-front), together with FRONT_HOLD_MAX (api/front_app.py::hold_max, default 200).",
+      "kind": "config",
+      "status": "dark",
+      "where": [],
+      "default": "unset = 0 (the front door never holds a request: a failed connection to web is an immediate 502, as before)",
+      "owner": "speed and reliability plan",
+      "owner_decision": "2026-11-16: built dark as plan item 7. The 2026-11-13 design chose fail-fast; holding a read was put to the owner on 2026-11-15 as a reversal of that call. Arm on web-front only after a measured web restart on production.",
+      "note": "Seconds a GET or HEAD with no body may wait for web after its CONNECTION to web failed (nothing was sent), retried every 0.4 to 0.9 s, capped at 90. Never held: any write, /api/stream/*, /api/live-prices, /api/live/*, /api/bars*, /api/health. At most FRONT_HOLD_MAX requests are held at once; the rest fail fast. A held answer carries X-UCT-Front-Held (ms) and is web's fresh answer, late, not a stored copy. Way back: unset it on web-front (a web-front release has no gap). Rails: tests/test_front_app.py (holding section), 7 of 7 mutations caught."
     }
   }
 }
