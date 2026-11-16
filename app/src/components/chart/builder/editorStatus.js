@@ -123,7 +123,9 @@ export const FAMILIES = Object.freeze([
   {
     id: 'fault',
     exact: ['import:internal-error', 'runtime:failed', 'runtime:build', 'runtime:unnamed-refusal',
-      'runtime:not-from-listing', 'runtime:output-map', 'runtime:document'],
+      'runtime:not-from-listing', 'runtime:output-map', 'runtime:document',
+      // door robustness: the host document the door built did not pass the install door's own check
+      'pine:install'],
     prefix: ['runtime:worker-'],
     label: 'Engine fault',
     why: 'Our engine could not finish this script. That is on us, not your script.',
@@ -215,7 +217,9 @@ export const FAMILIES = Object.freeze([
     id: 'limits',
     exact: ['pine:window', 'pine:window-dependent', 'pine:budget', 'pine:timeout', 'runtime:limit',
       'runtime:time-budget', 'runtime:history-start', 'runtime:warmup-never-converges',
-      'chart:scalar-current-only'],
+      'chart:scalar-current-only',
+      // door robustness: a plot past a host-lane compute budget, refused by the member door by name
+      'budget:lookback', 'budget:series', 'budget:nodes'],
     prefix: ['runtime:calc-bars-', 'pine:calc-bars-'],
     label: 'History and compute limits',
     why: 'This needs more history or more computing than a chart here allows, so it is withheld.',

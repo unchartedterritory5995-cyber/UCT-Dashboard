@@ -28,7 +28,7 @@ GOOD_REF = "refs/remote-tests/20261116-180000-abcdef0123-my-change"
 
 def test_good_requests_are_accepted():
     assert rt.validate(GOOD_REF, ["tests/test_a.py", "tests/test_b.py::test_x[p-1]"], [], 1) == []
-    assert rt.validate(GOOD_REF, [], ["src/agent", "src/pages/charts/a.test.jsx"], "10") == []
+    assert rt.validate(GOOD_REF, [], ["src/agent", "src/pages/charts/a.test.jsx"], "6") == []
     assert rt.validate("refs/heads/fix/x-y", ["tests/"], ["src/lib"], 4) == []
 
 
@@ -49,7 +49,7 @@ def test_bad_vitest_paths_are_refused(path):
     assert rt.validate(GOOD_REF, [], [path], 1)
 
 
-@pytest.mark.parametrize("shards", [0, 11, "x", "", -1])
+@pytest.mark.parametrize("shards", [0, 7, 11, "x", "", -1])
 def test_bad_shard_counts_are_refused(shards):
     assert rt.validate(GOOD_REF, [], ["src/lib"], shards)
 
@@ -178,6 +178,14 @@ def test_read_verdicts(tmp_path):
     (tmp_path / "remote-vitest-2").mkdir()
     (tmp_path / "remote-vitest-2" / "remote-vitest-verdict-2.txt").write_text("success", encoding="utf-8")
     assert rt.read_verdicts(tmp_path) == {"pytest": "failure", "vitest-2": "success"}
+
+
+def test_one_remote_run_cannot_crowd_out_the_deploy_gate():
+    """2026-11-16: an hour after launch, session runs + PR CI queued two master deploy gates. Bound each run."""
+    strategy = _wf()["jobs"]["vitest"]["strategy"]
+    assert strategy.get("max-parallel") == 4, strategy
+    assert rt.MAX_SHARDS == 6
+    assert rt.validate(GOOD_REF, [], ["src/lib"], 6) == [] and rt.validate(GOOD_REF, [], ["src/lib"], 7)
 
 
 def test_a_vitest_filter_matching_nothing_fails():

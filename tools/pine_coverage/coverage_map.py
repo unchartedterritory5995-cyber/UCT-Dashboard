@@ -32,6 +32,13 @@ the member door (memberPaneDefinition -> installUserDefinitions, production flag
 state) attaches it with zero refusals, nothing dropped or withheld from its object
 program, and no paint withheld. It is a door verdict, NOT a numeric-parity verdict:
 parity is graded only where a vendor capture exists, reported separately.
+
+THE PAINT RULE (instrument correction, 2026-11-16; `tools/pine_coverage/paint_predicate.mjs`): a paint
+(`bgcolor` / `barcolor`) counts as withheld only when the DOCUMENT the member gets does not draw it. A
+row's `withheldPaints` is that count; `withheldPaintsTranslated` is the count before the correction (every
+paint the translation marked withheld, including one the door then draws from the per-bar run), and
+`cleanTranslatedPaints` is `clean` under that earlier rule, so one census states the headline both ways.
+A row written before the correction has only `withheldPaints`, under the earlier rule.
 """
 import argparse
 import collections
@@ -74,7 +81,13 @@ GUARD_BUCKET = {
     "pine:timeout": "translator-robustness", "pine:roundtrip": "translator-robustness",
     "pine:budget": "translator-robustness", "pine:character": "translator-robustness",
     "pine:empty": "translator-robustness", "threw": "translator-robustness", "killed": "translator-robustness",
+    # DOOR-ROBUSTNESS (2026-11-16): a refusal the DOOR makes over a clean translation, named on the step
+    # (`guard`) with no refusal row: a plot past a host-lane compute budget, or a document its own check refuses
+    "budget:lookback": "compute-budget", "budget:series": "compute-budget", "budget:nodes": "compute-budget",
+    "pine:install": "translator-robustness",
 }
+# the guards the member door itself refuses by, over a clean translation (no refusal row carries them)
+DOOR_GUARDS = frozenset({"budget:lookback", "budget:series", "budget:nodes", "pine:install"})
 BUCKET_LABEL = {
     "imperative": "Imperative execution: if/for/while blocks, := reassignment, var state carried across bars",
     "user-functions": "User-defined functions with multi-line bodies",
@@ -96,6 +109,7 @@ BUCKET_LABEL = {
     "paint-withheld": "A per-bar paint the door withheld (colour typing), with the object program clean",
     "output-contract": "Script offers nothing the pane carries (no plot, hidden-only, constant-only)",
     "translator-robustness": "Translator timeout / crash / round-trip failure",
+    "compute-budget": "A plot past a host-lane compute budget (bars of history, distinct series, formula size)",
 }
 ITEM_GUARDS = {"pine:function", "pine:builtin", "pine:arity", "pine:named-argument", "pine:role-order",
                "pine:input-kind", "pine:request", "pine:strategy-call", "pine:drawing", "pine:text-value",
@@ -262,6 +276,30 @@ def transfers_fully(census_row, u):
     tools/support_loop/remeasure.py, so the daily number and the map cannot disagree."""
     return bool((census_row or {}).get("clean")) and not (
         places_orders(u))
+
+
+def runtime_on_transfers(census_row, orders):
+    """⭐ THE RUNTIME-ON LANE'S PREDICATE, in one place: a runtime-on census row transfers when it
+    transfers fully on the host lane OR attaches on the runtime lane, and it is not a strategy that
+    places orders (`orders`: `places_orders` of its usage). Read by `runtime_on_section` below and by
+    tools/pine_coverage/coverage_ratchet.py, so the map and the ratchet cannot disagree."""
+    r = census_row or {}
+    st0 = (r.get("steps") or [{}])[0]
+    return not orders and (bool(r.get("clean")) or (bool(r.get("attached")) and st0.get("lane") == "runtime"))
+
+
+def order_usage_of(src):
+    """The two fields `places_orders` reads (`features`, `orders`), from a script's text alone: the same
+    `strip_code` / `features_of` / `order_calls_in` calls `usage_of` makes, with no inventory (neither field
+    reads one). For a caller that has no TradingView reference extract (the coverage ratchet)."""
+    code, _strings = strip_code(src)
+    return {"features": features_of(code), "orders": order_calls_in(code)}
+
+
+def script_sha(src):
+    """A script's id in the map's `scripts[].sha256` (and the coverage ratchet's snapshot): sha256 of its
+    text, read with universal newlines, first 16 hex."""
+    return hashlib.sha256(src.encode("utf-8")).hexdigest()[:16]
 
 
 # ⭐ W3W4-T0 - THE OBJECT PROGRAM'S OWN VERDICT, READ ON REFUSED STEPS TOO.
@@ -431,6 +469,10 @@ def walls_of(row, inv, version, items=frozenset(), decl="indicator"):
             else:
                 keys.add(("bucket", GUARD_BUCKET.get(g, "translator-robustness")))
             detail.append((g, tok))
+        if si == 0 and not st.get("attached") and not (st.get("refusals") or []) and st.get("guard") in DOOR_GUARDS:
+            # DOOR-ROBUSTNESS - the door refused a script whose translation is clean: the step names the guard
+            keys.add(("bucket", GUARD_BUCKET[st["guard"]]))
+            detail.append((st["guard"], None))
         if st.get("attached"):
             if st.get("installed") is False:
                 keys.add(("bucket", "translator-robustness"))
@@ -754,9 +796,7 @@ def runtime_on_section(rt_cache, rt_verdicts, prod_verdicts, scripts, decl_of, o
                  % (len(missing), missing[0]))
 
     def transfers(key):
-        r = rows[key]
-        st0 = (r.get("steps") or [{}])[0]
-        return not orders_of(key) and (bool(r.get("clean")) or (bool(r.get("attached")) and st0.get("lane") == "runtime"))
+        return runtime_on_transfers(rows[key], orders_of(key))
 
     by_key = {s["key"]: s for s in scripts}
     on = {s["key"] for s in scripts if transfers(s["key"])}
@@ -911,7 +951,7 @@ def main():
         scripts.append({
             "key": key, "population": key.split(":")[0], "title": m.get("title"), "author": m.get("author"),
             "agreeCount": m.get("agreeCount"), "version": u["version"], "declaration": decl,
-            "sha256": hashlib.sha256(src.encode("utf-8")).hexdigest()[:16],
+            "sha256": script_sha(src),
             "attached": bool(c.get("attached")),
             # ⛔ A STRATEGY THAT PLACES ORDERS DOES NOT TRANSFER FULLY even when the door
             # draws its plots: its trades, markers and tester report are its output, and

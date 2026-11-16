@@ -60,12 +60,13 @@
    "docs/pine/capture-queue-2026-11-14-rs-rating.md",
    "docs/pine/capture-queue-2026-11-15-calc-bars.md",
    "docs/pine/capture-queue-2026-11-16-cond-ta-followups.md",
+   "docs/pine/capture-queue-2026-11-16-door-robustness.md",
    "docs/pine/capture-queue-2026-11-16-rma-last-bit.md",
    "docs/pine/capture-queue-2026-11-16-tick-tie-and-htf-windows.md"
   ],
   "coverageMeasuredOn": "2026-11-16",
   "coverageMasterSha": "890b6d165c",
-  "fixtures": 732,
+  "fixtures": 735,
   "ledgerRows": 884
  },
  "definitions": {
@@ -86,25 +87,26 @@
   }
  },
  "counts": {
-  "targets": 319,
+  "targets": 322,
   "byStatus": {
    "CAPTURED": 130,
    "NEEDS_CHART": 39,
    "NEEDS_LIVE": 2,
-   "QUEUED": 148
+   "QUEUED": 151
   },
   "byPlanWave": {
    "E": {
     "CAPTURED": 115,
     "NEEDS_CHART": 37,
     "NEEDS_LIVE": 2,
-    "QUEUED": 115
+    "QUEUED": 117
    },
    "W1": {
     "QUEUED": 6
    },
    "W3": {
-    "CAPTURED": 2
+    "CAPTURED": 2,
+    "QUEUED": 1
    },
    "W4": {
     "CAPTURED": 11,
@@ -121,7 +123,7 @@
     "CAPTURED": 110,
     "NEEDS_CHART": 38,
     "NEEDS_LIVE": 2,
-    "QUEUED": 140
+    "QUEUED": 143
    },
    "1-2": {
     "CAPTURED": 20,
@@ -174,6 +176,9 @@
    },
    "div3-merged-head": {
     "QUEUED": 2
+   },
+   "door-robustness": {
+    "QUEUED": 3
    },
    "fn-series-history": {
     "CAPTURED": 1
@@ -327,15 +332,15 @@
     "NEEDS_CHART": 1
    }
   },
-  "rowsNeedingProbe": 17,
+  "rowsNeedingProbe": 19,
   "rowsNeedingProbeLive": 0,
   "licenceHeldCensus": 157,
-  "rowsNotCaptureQuestions": 47,
+  "rowsNotCaptureQuestions": 50,
   "rowsNotCaptureByDisposition": {
    "builtin": 1,
    "by-design": 2,
    "closed": 7,
-   "engine-gap": 12,
+   "engine-gap": 15,
    "ruling": 4,
    "superseded": 11,
    "withheld-ledger": 10
@@ -15420,6 +15425,135 @@
    ]
   },
   {
+   "id": "vw-rob1-var-string-text@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-rob1-var-string-text.pine",
+   "sourceKind": "probe",
+   "sha256": "f9ace51a62ce03dbb8307d415e1ac5db04a89a43d0dcd46cfd740c30a2563210",
+   "bytes": 2081,
+   "stem": "vw-rob1-var-string-text",
+   "captureStem": "vw-rob1-var-string-text",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "preamble",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "door-robustness"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-door-robustness#Q-ROB1",
+    "capture-queue-2026-11-16-door-robustness#Q-ROB2"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-rob1b-var-string-guards@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-rob1b-var-string-guards.pine",
+   "sourceKind": "probe",
+   "sha256": "2281123f72eca7aabc1b7f3a400168f3eb1ba47589130d90f5b898866a955093",
+   "bytes": 2751,
+   "stem": "vw-rob1b-var-string-guards",
+   "captureStem": "vw-rob1b-var-string-guards",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "preamble",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "door-robustness"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-door-robustness#Q-ROB4"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-rob3-v4-bgcolor-own-alpha@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-rob3-v4-bgcolor-own-alpha.pine",
+   "sourceKind": "probe",
+   "sha256": "031991bdc4c4dab4fd5e68c939f5db2fbbfdaeeaf9ae7f53730bf8dd5c50dc76",
+   "bytes": 1469,
+   "stem": "vw-rob3-v4-bgcolor-own-alpha",
+   "captureStem": "vw-rob3-v4-bgcolor-own-alpha",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "paint:v4-default-transp"
+   ],
+   "planWave": "W3",
+   "docWaves": [
+    "door-robustness"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-door-robustness#Q-ROB3"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
    "id": "vw-round-to-mintick-ties@AMEX:SPY@D",
    "status": "QUEUED",
    "evidence": [],
@@ -15701,6 +15835,28 @@
    ],
    "namedScripts": [],
    "text": "`flying-buddha-inside-bars-indicator-v1-by-justunclel-rddt-1d-2026-11-14` (held store, s7) | `plotarrow(…, colorup = lime, colordown = red, transp = 20)`: `colorup` / `colordown` are not carried. On 16 of 666 bars TradingView paints `#2962ffcc` and we paint the default series colour `#c9a84ccc`. Its five value plots agree on 666 / 666 bars. It was refused whole before COND-TA's parameter guards (`"
+  },
+  {
+   "key": "capture-queue-2026-11-16-door-robustness#Q-ROB8",
+   "doc": "docs/pine/capture-queue-2026-11-16-door-robustness.md",
+   "line": 17,
+   "docWave": "door-robustness",
+   "needsProbe": "no probe file named (an inline shape or prose)",
+   "needsLive": false,
+   "guards": [],
+   "namedScripts": [],
+   "text": "Q-ROB8 | `reference:check-head-and-shouldersmask-man` (sha256 `7f75ae5de3275c54…`) | NYSE:RDDT 1D, AMEX:SPY 1D, from the listing | whether the per-bar lane's drawing of an admitted, never-captured script MATCHes"
+  },
+  {
+   "key": "capture-queue-2026-11-16-door-robustness#Q-ROB9",
+   "doc": "docs/pine/capture-queue-2026-11-16-door-robustness.md",
+   "line": 18,
+   "docWave": "door-robustness",
+   "needsProbe": "no probe file named (an inline shape or prose)",
+   "needsLive": false,
+   "guards": [],
+   "namedScripts": [],
+   "text": "Q-ROB9 | `reference:multi-timeframe-vwap-v5` (sha256 `3a11805bfef806a1…`) | NYSE:RDDT 1D, AMEX:SPY 1D, from the listing | the same"
   }
  ],
  "rowsNotCaptureQuestions": [
@@ -16173,6 +16329,36 @@
    "reason": "S10 vw-fmt-tie-readings-rddt-1d-2026-11-15: all 30 texts; the decimal reading rounds the shortest decimal half up, format.mintick rounds n / tick in binary, zero is unsigned, the default prints 1e+21, grouping by three — served as printed",
    "dispositionLine": 32,
    "text": "Q-FMT1 | `vw-fmt-tie-readings.pine` (S10, captured) | NYSE:RDDT 1D (tick 0.01) | how does `str.tostring` round a decimal tie, a mintick tie, a zero, an exponent, a grouping? | ANSWERED by S10: rules F1-F9, served as printed | nothing: closed"
+  },
+  {
+   "key": "capture-queue-2026-11-16-door-robustness#Q-ROB5",
+   "doc": "docs/pine/capture-queue-2026-11-16-door-robustness.md",
+   "line": 42,
+   "docWave": "door-robustness",
+   "disposition": "engine-gap",
+   "reason": "the capture exists and grades the item DIVERGE; what it needs is a per-bar-lane fix, not a TradingView reading",
+   "dispositionLine": 48,
+   "text": "Q-ROB5 | (existing capture `mtf-key-levels-support-and-resistance-rddt-1d-2026-11-14`) | `D-VWAP` (plot_0): 6 steady-state bars disagree in the 2nd decimal (first at bar 114: vendor 57.3, ours 57.29), persistent to bar 665; W-, M- and Y-VWAP agree on every bar"
+  },
+  {
+   "key": "capture-queue-2026-11-16-door-robustness#Q-ROB6",
+   "doc": "docs/pine/capture-queue-2026-11-16-door-robustness.md",
+   "line": 43,
+   "docWave": "door-robustness",
+   "disposition": "engine-gap",
+   "reason": "the capture exists and grades the item DIVERGE; what it needs is a per-bar-lane fix, not a TradingView reading",
+   "dispositionLine": 49,
+   "text": "Q-ROB6 | (existing capture `mtf-key-levels-support-and-resistance-rddt-1d-2026-11-14`) | labels: TradingView 27, the per-bar lane 3"
+  },
+  {
+   "key": "capture-queue-2026-11-16-door-robustness#Q-ROB7",
+   "doc": "docs/pine/capture-queue-2026-11-16-door-robustness.md",
+   "line": 44,
+   "docWave": "door-robustness",
+   "disposition": "engine-gap",
+   "reason": "the capture exists and grades the item DIVERGE; what it needs is a per-bar-lane fix, not a TradingView reading",
+   "dispositionLine": 50,
+   "text": "Q-ROB7 | (existing capture `mtf-key-levels-support-and-resistance-rddt-1d-2026-11-14`) | lines: 23 vs 22, and a line's y1 differs (first: vendor 103.2824, ours 101.27)"
   }
  ],
  "licenceHeldCensus": [
@@ -17774,6 +17960,12 @@
    "doc": "docs/pine/capture-queue-2026-11-16-cond-ta-followups.md",
    "wave": "cond-ta-followups",
    "rows": 8,
+   "contextTables": 0
+  },
+  {
+   "doc": "docs/pine/capture-queue-2026-11-16-door-robustness.md",
+   "wave": "door-robustness",
+   "rows": 9,
    "contextTables": 0
   },
   {

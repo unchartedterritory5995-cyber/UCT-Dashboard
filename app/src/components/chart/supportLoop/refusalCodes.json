@@ -154,6 +154,7 @@
   "pine:history-ref",
   "pine:indent",
   "pine:input-kind",
+  "pine:install",
   "pine:library-changed",
   "pine:library-denied",
   "pine:library-licence",
