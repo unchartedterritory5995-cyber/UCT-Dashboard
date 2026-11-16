@@ -209,5 +209,9 @@ export function planChartGrid({ board, charts, symbols, timeframe = null, layout
     set[railMove] = { x: cols - (rail.w || RAIL_W), y: 0, w: rail.w || RAIL_W, h: rows }
   }
   const noop = !add.length && !remove.length && !Object.keys(set).length && !unlink.length && reuse.every(r => r.symbol == null && r.tf == null)
-  return { ok: true, reuse: newCharts ? reuse.filter(r => r.id in set) : reuse, add, set, unlink, tiled, shape, reflowed, noop, symbols: syms, shown, timeframe, newCharts: !!newCharts, kept: newCharts ? k : 0, rail: railAdd ? railAdd.type : null, remove, railMoved: railMove }
+  // #1275 (AUDIT): the charts' cells as they END UP (each reused chart's new or kept cell, then each added chart's): a receipt
+  // may say "evenly" only when every one of them is the same size (3 charts on a 2-wide grid are 12x10, 12x10, 24x10 — not even)
+  const cellsOf = [...reuseWs.map(w => set[String(w.id)] || board.find(b => String(b.id) === String(w.id)) || w), ...addRects]
+  const equalCells = cellsOf.length > 0 && new Set(cellsOf.map(r => `${r.w}x${r.h}`)).size === 1
+  return { ok: true, reuse: newCharts ? reuse.filter(r => r.id in set) : reuse, add, set, unlink, tiled, shape, reflowed, noop, equalCells, symbols: syms, shown, timeframe, newCharts: !!newCharts, kept: newCharts ? k : 0, rail: railAdd ? railAdd.type : null, remove, railMoved: railMove }
 }

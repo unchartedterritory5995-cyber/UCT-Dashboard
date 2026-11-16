@@ -1044,8 +1044,9 @@ export function registerBoardCapabilities() {
       const gone = g.remove?.length ? ` — replacing your ${(g.removedNames || []).every(x => /\bchart\b/i.test(String(x))) ? 'charts' : 'board'}: removed ${andList((g.removedNames || []).map(x => `the ${x}`))} (Undo puts ${g.remove.length === 1 ? 'it' : 'them'} back)` : ''
       // KEEP ≠ RE-CREATE: tickers a chart already showed are said as kept, never as added
       const kept = g.shown?.length ? ` (${andList(g.shown)} kept as ${g.shown.length === 1 ? 'it is' : 'they are'})` : ''
-      if (g.newCharts && !g.symbols.length) return `Arranged your ${g.kept === 1 ? 'chart' : `${g.kept} charts`} evenly${kept} — every ticker you named is already on the board, so nothing new was added`
-      if (g.newCharts) return `Added ${gridPhrase(g, { fresh: true })}${g.kept ? ` beside your ${g.kept === 1 ? 'chart' : `${g.kept} charts`}${kept}, re-tiled evenly` : ''}${line}${rail}`
+      // #1275 (AUDIT): "evenly" only when every resulting cell is the same size (planChartGrid's equalCells); else a neutral word
+      if (g.newCharts && !g.symbols.length) return `${g.equalCells ? 'Arranged' : 'Re-arranged'} your ${g.kept === 1 ? 'chart' : `${g.kept} charts`}${g.equalCells ? ' evenly' : ''}${kept} — every ticker you named is already on the board, so nothing new was added`
+      if (g.newCharts) return `Added ${gridPhrase(g, { fresh: true })}${g.kept ? ` beside your ${g.kept === 1 ? 'chart' : `${g.kept} charts`}${kept}, re-tiled${g.equalCells ? ' evenly' : ''}` : ''}${line}${rail}`
       const nNew = g.add.filter(a => !a.type || a.type === 'chart').length
       const parts = [g.reuse.length && nNew ? `${g.reuse.length} reused, ${nNew} new` : nNew ? `${nNew} new` : null,
         g.unlink.length ? `${g.unlink.length} unlinked so ${g.unlink.length === 1 ? 'it' : 'each'} can show its own ticker` : null].filter(Boolean)
