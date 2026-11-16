@@ -37,7 +37,7 @@ import {
   __allowEveryRuntimeScriptForTests,
 } from '../../runtimeKill'
 import { __permitRuntimePaneForTests, runtimePaneEnabled } from '../../runtimePaneGate'
-import { setRunHalfObjectEvidence } from '../../runHalfRailSeam'
+import { setRunHalfObjectEvidence, runHalfEvidenceAdmits } from '../../runHalfRailSeam'
 
 const ALLOWLIST = path.join(REPO, 'api', 'data', 'pine_runtime_allowlist.json')
 const doc = JSON.parse(fs.readFileSync(ALLOWLIST, 'utf8'))
@@ -137,11 +137,26 @@ describe('W2 — every allowlisted script still grades MATCH through the runtime
         else expect(door.runHalf && door.runHalf.minted, 'neither a runtime-lane script nor a minted run half').toBe(true)
         if (s.admission !== 'substituted') expect(door.lane).toBe('runtime')
         const { verdict } = gradeCapture(cap)
-        expect(verdict.verdict, verdict.reason).toBe(want)
-        // the objects (RS Rating's rating labels) are graded too, and must be the record's own grade
-        // ⛔ non-vacuity for a host-partial script: TradingView holds drawings and ours are DRAWN and agree
-        // (a withheld drawing program grades the objects DIVERGE: `pine:object-removal-lost`)
-        if (door.lane !== 'runtime') {
+        // ⛔⛔ WHAT EACH GRADE HERE COVERS (2026-11-16 correction, after #1410 overstated it):
+        //   · `verdict.objects` is objects v1: counts, texts and colours. NO coordinates, no x.
+        //   · objects v2, WITH x witnessed, is what admits a run half (`runHalfEvidenceAdmits`, from the
+        //     record's `objectsV2` grade). This rail never reads objects v2.
+        //   · a capture that records no x table can never admit one: its objects v2 is INCONCLUSIVE.
+        // So for a host-partial script the drawings are checked on v1 ONLY where the committed evidence
+        // admits the run half. Where it does not (RS Rating today: its three captures predate the x
+        // table), the labels must be WITHHELD BY NAME at the production gate, never drawn on a claim
+        // the harness does not reproduce, and the capture then grades DIVERGE for that named gap alone.
+        const runHalfAdmitted = door.lane !== 'runtime' && runHalfEvidenceAdmits(String(s.sha256).toLowerCase())
+        if (door.lane === 'runtime' || runHalfAdmitted) {
+          expect(verdict.verdict, verdict.reason).toBe(want)
+        } else {
+          expect((c.objectsV2 || null), 'a record that admits no run half does not claim an objects-v2 MATCH').not.toMatch(/^MATCH/)
+          expect(verdict.objects && verdict.objects.verdict, verdict.objects && verdict.objects.reason).toBe('DIVERGE')
+          expect(String(verdict.objects.reason)).toMatch(/our drawing is withheld by name \(pine:object-removal-lost\)/)
+          expect(verdict.verdict, verdict.reason).toBe('DIVERGE')
+        }
+        if (runHalfAdmitted) {
+          // ⛔ non-vacuity: TradingView holds drawings and ours are drawn and agree on objects v1
           expect(String(verdict.objects && verdict.objects.reason), 'the capture holds drawings').not.toMatch(/neither side draws/)
           expect(['MATCH', 'MATCH_SUBSTITUTED'], verdict.objects && verdict.objects.reason).toContain(verdict.objects && verdict.objects.verdict)
         }

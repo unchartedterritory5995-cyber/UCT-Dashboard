@@ -164,9 +164,10 @@ def test_OFF_the_default_is_pinned_in_SOURCE():
 def test_OFF_the_kill_read_is_the_one_before_Part_2(store):
     body = _client().get("/api/user-definitions/runtime-kill").json()
     # RS Rating (2026-11-16): the committed allowlist now holds a record on the SUBSTITUTED path, so
-    # the read also carries what that record discloses (`substituted`) and its run-half evidence.
-    # Neither is a Part 2 key: `capability_admission` is still absent while it is off.
-    assert set(body) == {"kill", "allow", "save_enabled", "substituted", "run_half_evidence"}
+    # the read also carries what that record discloses (`substituted`). It serves no run-half
+    # evidence (its objects v2 is INCONCLUSIVE). Not a Part 2 key: `capability_admission` is still
+    # absent while it is off.
+    assert set(body) == {"kill", "allow", "save_enabled", "substituted"}
     assert "capability_admission" not in body
 
 
