@@ -205,7 +205,8 @@ CREATE TABLE IF NOT EXISTS indicator_support_reports (
     status             TEXT NOT NULL DEFAULT 'new'
                        CHECK (status IN ('new', 'triaged', 'fixed', 'wontfix')),
     created_at         TEXT NOT NULL,
-    status_changed_at  TEXT NOT NULL
+    status_changed_at  TEXT NOT NULL,
+    kind               TEXT NOT NULL DEFAULT 'pine'
 );
 CREATE INDEX IF NOT EXISTS idx_isr_user ON indicator_support_reports(user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_isr_hash ON indicator_support_reports(source_hash);
@@ -275,6 +276,16 @@ def ensure_schema(conn) -> None:
     _migrate_gap_table(conn)
     _migrate_gap_kinds(conn)
     conn.executescript(_SCHEMA)
+    _migrate_report_kind(conn)
+
+
+def _migrate_report_kind(conn) -> None:
+    """⭐ L8 (2026-11-16): a report table made before `kind` existed gains it, every existing
+    row reading 'pine' (which is what each of them is). Additive; nothing is rewritten."""
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(indicator_support_reports)").fetchall()}
+    if cols and "kind" not in cols:
+        conn.execute("ALTER TABLE indicator_support_reports ADD COLUMN kind TEXT NOT NULL DEFAULT 'pine'")
+        conn.commit()
 
 
 def _conn():
@@ -580,24 +591,51 @@ def _public(row: dict, *, with_source: bool) -> dict:
         "tradingview_link": row["tradingview_link"],
         "gaps": json.loads(row["gaps"] or "[]"), "translator_version": row["translator_version"],
         "source_bytes": row["source_bytes"], "source_hash": row["source_hash"],
+        "kind": row.get("kind") or "pine",
     }
     if with_source:
         out["source"] = row["source"]
     return out
 
 
+#: ⭐ L8: what a report is about. 'pine': a pasted script that does not match TradingView (the
+#: first door). 'converse': a Create Indicator conversation the member chose to send.
+REPORT_KINDS = ("pine", "converse")
+
+#: The fields a 'converse' report's document may carry (a JSON object, built by the dock).
+CONVERSE_FIELDS = frozenset({"transcript", "definition", "readback", "chart"})
+
+
+def _check_converse(source: str) -> None:
+    """A conversation report is a JSON object with a non-empty transcript and nothing else
+    than the declared fields: what UCT will read is exactly what the dialog said it sends."""
+    try:
+        doc = json.loads(source)
+    except ValueError:
+        raise ReportRefused(422, "source-format", "That conversation could not be read.") from None
+    if (not isinstance(doc, dict) or not set(doc) <= CONVERSE_FIELDS
+            or not isinstance(doc.get("transcript"), list) or not doc["transcript"]):
+        raise ReportRefused(422, "source-format", "That conversation could not be read.")
+
+
 _COLS = ("id, user_id, consent, source, source_hash, source_bytes, note, tradingview_link,"
          " symbol, timeframe, gaps, translator_version, status, created_at, status_changed_at")
 
 
+#: What every read selects: the original columns, then `kind` (kept out of `_COLS` so a write
+#: that names only the original columns still lands as 'pine').
+_SEL = _COLS + ", kind"
+
+
 def _row(r) -> dict:
-    keys = [c.strip() for c in _COLS.split(",")]
+    keys = [c.strip() for c in _SEL.split(",")]
     return dict(zip(keys, r))
 
 
 def create_report(user_id: Any, *, consent: Any, source: Any, note: Any = None,
                   tradingview_link: Any = None, symbol: Any = None, timeframe: Any = None,
-                  gaps: Any = None, now: Optional[_dt.datetime] = None) -> dict:
+                  gaps: Any = None, kind: Any = None,
+                  now: Optional[_dt.datetime] = None) -> dict:
     """Store one opt-in report. Raises ``ReportRefused``; stores NOTHING on any
     refusal. Returns the member-facing view of the row (no source), with
     ``duplicate: True`` when this member already has the same script open."""
@@ -608,6 +646,9 @@ def create_report(user_id: Any, *, consent: Any, source: Any, note: Any = None,
     if consent is not True:
         raise ReportRefused(422, "consent",
                             "A report can only be sent with your consent to send the script's code.")
+    kind_v = "pine" if kind is None else kind
+    if kind_v not in REPORT_KINDS:
+        raise ReportRefused(422, "kind", "That is not a kind of report UCT collects.")
     if not isinstance(source, str) or not source.strip():
         raise ReportRefused(422, "source", "There is no script code to send.")
     size = len(source.encode("utf-8"))
@@ -618,7 +659,11 @@ def create_report(user_id: Any, *, consent: Any, source: Any, note: Any = None,
     link_v = _opt_str(tradingview_link, "link", MAX_LINK_CHARS, _LINK_RE)
     sym_v = _opt_str(symbol, "symbol", 32, _SYMBOL_RE)
     tf_v = _opt_str(timeframe, "timeframe", 6, _TF_RE)
-    gap_list = [{"name": n, "kind": k} for n, k in clean_gaps(gaps or [], 0)]
+    if kind_v == "converse":
+        _check_converse(source)
+    # a conversation carries no Pine gaps: they describe a pasted script
+    gap_list = ([] if kind_v == "converse"
+                else [{"name": n, "kind": k} for n, k in clean_gaps(gaps or [], 0)])
 
     uid = str(user_id)
     t = now or _now()
@@ -636,7 +681,7 @@ def create_report(user_id: Any, *, consent: Any, source: Any, note: Any = None,
             raise ReportRefused(429, "rate",
                                 "You have sent several reports recently. Please try again later.")
         dup = conn.execute(
-            f"SELECT {_COLS} FROM indicator_support_reports"
+            f"SELECT {_SEL} FROM indicator_support_reports"
             " WHERE user_id = ? AND source_hash = ? AND status IN ('new', 'triaged')"
             " ORDER BY created_at DESC LIMIT 1", (uid, h)).fetchone()
         if dup is not None:
@@ -644,13 +689,14 @@ def create_report(user_id: Any, *, consent: Any, source: Any, note: Any = None,
         rid = uuid.uuid4().hex
         stamp = _iso(t)
         conn.execute(
-            f"INSERT INTO indicator_support_reports ({_COLS})"
-            " VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?)",
+            f"INSERT INTO indicator_support_reports ({_SEL})"
+            " VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?, ?)",
             (rid, uid, source, h, size, note_v, link_v, sym_v, tf_v,
-             json.dumps(gap_list, separators=(",", ":")), translator_version(), stamp, stamp),
+             json.dumps(gap_list, separators=(",", ":")), translator_version(), stamp, stamp,
+             kind_v),
         )
         conn.commit()
-        row = conn.execute(f"SELECT {_COLS} FROM indicator_support_reports WHERE id = ?",
+        row = conn.execute(f"SELECT {_SEL} FROM indicator_support_reports WHERE id = ?",
                            (rid,)).fetchone()
     finally:
         conn.close()
@@ -661,7 +707,7 @@ def list_mine(user_id: Any) -> list[dict]:
     conn = _conn()
     try:
         rows = conn.execute(
-            f"SELECT {_COLS} FROM indicator_support_reports WHERE user_id = ?"
+            f"SELECT {_SEL} FROM indicator_support_reports WHERE user_id = ?"
             " ORDER BY created_at DESC LIMIT 100", (str(user_id),)).fetchall()
     finally:
         conn.close()
@@ -675,7 +721,7 @@ def get_mine(user_id: Any, report_id: str) -> Optional[dict]:
     conn = _conn()
     try:
         r = conn.execute(
-            f"SELECT {_COLS} FROM indicator_support_reports WHERE id = ? AND user_id = ?",
+            f"SELECT {_SEL} FROM indicator_support_reports WHERE id = ? AND user_id = ?",
             (report_id, str(user_id))).fetchone()
     finally:
         conn.close()
@@ -707,11 +753,11 @@ def admin_list_reports(status: Optional[str] = None, limit: int = 200) -> list[d
     try:
         if status in STATUSES:
             rows = conn.execute(
-                f"SELECT {_COLS} FROM indicator_support_reports WHERE status = ?"
+                f"SELECT {_SEL} FROM indicator_support_reports WHERE status = ?"
                 " ORDER BY created_at DESC LIMIT ?", (status, limit)).fetchall()
         else:
             rows = conn.execute(
-                f"SELECT {_COLS} FROM indicator_support_reports"
+                f"SELECT {_SEL} FROM indicator_support_reports"
                 " ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
         counts = dict(conn.execute(
             "SELECT source_hash, COUNT(*) FROM indicator_support_reports GROUP BY source_hash").fetchall())
@@ -730,7 +776,7 @@ def admin_get_report(report_id: str) -> Optional[dict]:
         return None
     conn = _conn()
     try:
-        r = conn.execute(f"SELECT {_COLS} FROM indicator_support_reports WHERE id = ?",
+        r = conn.execute(f"SELECT {_SEL} FROM indicator_support_reports WHERE id = ?",
                          (report_id,)).fetchone()
     finally:
         conn.close()
