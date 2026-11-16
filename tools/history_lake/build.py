@@ -330,7 +330,8 @@ class Builder:
     def __init__(self, raw: Path, out: Path, *, symbols: Optional[Iterable[str]] = None,
                  rebuild: bool = False, quality: int = piece.DEFAULT_QUALITY,
                  foreign_rows: str = "error", chunk_rows: int = 1_000_000, jobs: int = 1,
-                 packs: bool = False, log=_log):
+                 packs: bool = False, spill_dir: Optional[Path] = None, min_spill_free_gb: float = 15.0,
+                 log=_log):
         self.raw, self.out = Path(raw), Path(out)
         self.symbols = frozenset(symbols) if symbols else None
         self.rebuild, self.quality = rebuild, int(quality)
@@ -346,7 +347,14 @@ class Builder:
         self.packs = bool(packs)
         self._pack_in = None                         # PackReader of the period being flushed, or None
         self._pack_out = None                        # its PackWriter
-        self.spill = self.out / "_spill"
+        # --spill-dir: the day-by-day scratch rows (~120 MB a day, read back at every flush) on another
+        # disk. 2026-11-16: three pack builds held this PC's spinning D: at 93% busy, almost all of it
+        # this scratch; on the SSD the disk stops being the limit. The builder owns ONLY its own
+        # subfolder there, named after its output folder, and refuses to start, or stops (resumable,
+        # nothing lost: the ledger only records finished days), when that disk falls below
+        # `min_spill_free_gb` free.
+        self.spill = (Path(spill_dir) / f"_spill_{self.out.name}") if spill_dir else (self.out / "_spill")
+        self.min_spill_free = float(min_spill_free_gb) * 2 ** 30 if spill_dir else 0.0
         self.lock_path = self.out / "build.lock"
         self.ledger_path = self.out / "ledger.json"
         self.open_periods: Dict[Tuple[str, str], List[_Block]] = {}
@@ -415,6 +423,7 @@ class Builder:
                         continue
                     self.log(f"{day}: file size changed ({done.get('size')} -> {size}); folding it in again")
                 self._flush_periods_before(day)
+                self._check_spill_room()
                 self._process_day(day, path, size)
             self._flush(list(self.open_periods))
         finally:
@@ -469,6 +478,14 @@ class Builder:
                  + (f"  anomalies {s['days'][-1]['anomalies']}" if s['days'][-1]['anomalies'] else ""))
         if not keys:
             self._settle_days()
+
+    def _check_spill_room(self) -> None:
+        if not self.min_spill_free:
+            return
+        free = shutil.disk_usage(self.spill).free
+        if free < self.min_spill_free:
+            raise BuildError(f"only {free / 2 ** 30:.1f} GB free where the scratch rows go ({self.spill}); "
+                             f"stopping before that disk fills (rerun the same command to resume)")
 
     def _flush_periods_before(self, day: str) -> None:
         stale = [key for key in self.open_periods if piece.period_of(key[0], day) != key[1]]
@@ -704,6 +721,10 @@ def main(argv: Optional[List[str]] = None) -> int:
                     help="rows whose bar is not on the file's ET date: stop (default) or leave out")
     ap.add_argument("--chunk-rows", type=int, default=1_000_000, help="rows gathered per flush chunk")
     ap.add_argument("--jobs", type=int, default=1, help="processes that encode pieces (default 1)")
+    ap.add_argument("--spill-dir", type=Path, default=None,
+                    help="put the scratch rows here (a faster disk) instead of <out>/_spill")
+    ap.add_argument("--min-spill-free-gb", type=float, default=15.0,
+                    help="with --spill-dir: stop (resumable) when that disk has less free than this")
     ap.add_argument("--packs", action="store_true",
                     help="write one pack file per series and period (pack.py) instead of a file per piece")
     args = ap.parse_args(argv)
@@ -711,7 +732,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     try:
         summary = Builder(Path(args.raw), Path(args.out), symbols=symbols, rebuild=args.rebuild,
                           quality=args.quality, foreign_rows=args.foreign_rows,
-                          chunk_rows=args.chunk_rows, jobs=args.jobs, packs=args.packs).run(args.days)
+                          chunk_rows=args.chunk_rows, jobs=args.jobs, packs=args.packs,
+                          spill_dir=args.spill_dir, min_spill_free_gb=args.min_spill_free_gb).run(args.days)
     except BuildError as exc:
         print(f"BUILD FAILED: {exc}", file=sys.stderr)
         return 2

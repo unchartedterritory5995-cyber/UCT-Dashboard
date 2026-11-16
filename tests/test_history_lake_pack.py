@@ -227,3 +227,43 @@ def test_publish_checks_merges_stamps_and_uploads_in_order(raw, tmp_path):
     doc = json.loads((tmp_path / "pub" / "v1" / "index" / "s-AAA.json").read_text())
     assert doc["splits"] == [["2026-12-01", 4.0]] and "off" in doc["series"]["1"]["2026-11"]
     assert PUB.main(["--from", str(tmp_path / "raw")]) == 2                 # no packs there
+
+
+def test_scratch_rows_on_another_disk_change_nothing_and_stop_before_it_fills(raw, tmp_path, monkeypatch):
+    here = tmp_path / "here"
+    BLD.Builder(raw, here, quality=5, packs=True, **QUIET).run(ALL)
+    scratch = tmp_path / "ssd"
+    scratch.mkdir()
+    (scratch / "someone_elses_file").write_text("keep me")
+    there = tmp_path / "there"
+    seen = []                                       # where the scratch rows were while days were folded in
+    real_flush = BLD.Builder._flush
+
+    def spy(self, keys):
+        seen.append(((scratch / "_spill_there").is_dir(), any((scratch / "_spill_there").glob("*.bin")),
+                     (there / "_spill").exists()))
+        return real_flush(self, keys)
+
+    monkeypatch.setattr(BLD.Builder, "_flush", spy)
+    BLD.Builder(raw, there, quality=5, packs=True, spill_dir=scratch, min_spill_free_gb=0.001, **QUIET).run(ALL)
+    monkeypatch.setattr(BLD.Builder, "_flush", real_flush)
+    assert seen and all(s == (True, True, False) for s in seen)           # on the other disk, never beside the output
+    assert _tree(there) == _tree(here)                                     # same packs, same ledger
+    assert sorted(p.name for p in scratch.iterdir()) == ["someone_elses_file"]   # its own folder only, and gone
+    assert not (there / "_spill").exists()
+
+    # the disk running low stops the build before a day is read, and a rerun resumes
+    import shutil as _sh
+    real = _sh.disk_usage
+    monkeypatch.setattr(BLD.shutil, "disk_usage", lambda p: real(p)._replace(free=2 ** 20))
+    low = tmp_path / "low"
+    with pytest.raises(BLD.BuildError, match="free where the scratch rows go"):
+        BLD.Builder(raw, low, quality=5, packs=True, spill_dir=scratch, min_spill_free_gb=1, **QUIET).run(ALL)
+    assert not (low / "build.lock").exists()
+    assert not (low / "ledger.json").exists() or json.loads((low / "ledger.json").read_text())["days"] == {}
+    monkeypatch.setattr(BLD.shutil, "disk_usage", real)
+    BLD.Builder(raw, low, quality=5, packs=True, spill_dir=scratch, min_spill_free_gb=0.001, **QUIET).run(ALL)
+    assert _tree(low) == _tree(here)
+    # without --spill-dir there is no check at all (the default scratch lives with the output)
+    monkeypatch.setattr(BLD.shutil, "disk_usage", lambda p: real(p)._replace(free=0))
+    BLD.Builder(raw, tmp_path / "plain", quality=5, packs=True, **QUIET).run("2026-11-27")
