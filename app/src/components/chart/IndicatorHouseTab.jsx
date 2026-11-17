@@ -19,8 +19,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { saveUserDefinition } from '../../hooks/useUserDefinitions'
 import ownStyles from './IndicatorMembersTab.module.css'
 
-/** A fresh definition id in the store's own shape (`u_` + 12 hex), as the builder mints one. */
-export function freshDefId() {
+/** A NEW definition id in the store's own shape (`u_` + 12 hex), as the builder mints one.
+ *  Named `mint`, not `fresh`: the one-freshness rail (rails/oneKey.census) reads a `fresh` name
+ *  segment as a function that judges BAR freshness, and this one judges nothing. */
+export function mintDefId() {
   const bytes = new Uint8Array(6)
   const c = typeof globalThis !== 'undefined' ? globalThis.crypto : undefined
   if (c && typeof c.getRandomValues === 'function') c.getRandomValues(bytes)
@@ -64,7 +66,7 @@ export default function IndicatorHouseTab({
   const install = useCallback(async (item) => {
     setState((p) => ({ ...p, [item.slug]: 'busy' }))
     // ⛔ A NEW ID EVERY TIME: the copy is the member's own definition, never the house one.
-    const r = await save({ ...item.definition, id: freshDefId(), version: 1 }, null)
+    const r = await save({ ...item.definition, id: mintDefId(), version: 1 }, null)
     if (r && r.ok) {
       setState((p) => ({ ...p, [item.slug]: { defId: (r.row && r.row.def_id) || null } }))
       return
