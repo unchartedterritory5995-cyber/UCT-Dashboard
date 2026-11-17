@@ -334,7 +334,10 @@
       "shares": 456.5
      },
      "fn": "arith",
-     "result": 2.27
+     "result": 2.27,
+     "steps": {
+      "step1": 2.27
+     }
     },
     "given": "Target's Q1 2025 net earnings were $1.036 billion on 456.5 million diluted shares. What is diluted EPS, to the cent? $579.50 $0.44 $22.70 $2.27"
    },
@@ -523,7 +526,12 @@
       "q4": 187.8
      },
      "fn": "arith",
-     "result": 17.1
+     "result": 17.1,
+     "steps": {
+      "step1": 17.09,
+      "step2": 0.17,
+      "step3": 32.1
+     }
     },
     "given": "Amazon's net sales were $187.8 billion in Q4 2024 and $155.7 billion in Q1 2025. By what percent did they fall, to one decimal? 32.1% 20.6% 82.9% 17.1%"
    },
@@ -622,7 +630,12 @@
       "sales": 23846
      },
      "fn": "arith",
-     "result": 28.2
+     "result": 28.2,
+     "steps": {
+      "step1": 28.17,
+      "step2": 0.28,
+      "step3": 6718.0
+     }
     },
     "given": "Gross margin is sales less cost of sales, divided by sales. Target, Q1 2025: sales $23.846 billion, cost $17.128 billion. To one decimal? 28.2% 39.2% 71.8% 282.0%"
    },
@@ -900,7 +913,11 @@
       "revenue": 28095
      },
      "fn": "arith",
-     "result": 5.8
+     "result": 5.8,
+     "steps": {
+      "step1": 5.78,
+      "step2": 0.06
+     }
     },
     "given": "Operating margin is income from operations over revenue. Tesla, Q3 2025: $1.624 billion on $28.095 billion of revenue. To one decimal? 5.8% 0.1% 0.6% 1.6%"
    },
@@ -2280,7 +2297,11 @@
       "low": 2.15
      },
      "fn": "arith",
-     "result": 2.25
+     "result": 2.25,
+     "steps": {
+      "step1": 2.25,
+      "step2": 4.5
+     }
     },
     "given": "Qualcomm (QCOM) guided next-quarter EPS to $2.15 to $2.35. What is the midpoint of that range? $2.25 $2.15 $0.20 $1.13"
    },
@@ -2467,7 +2488,10 @@
       "expr": "actual - benefit"
      },
      "fn": "arith",
-     "result": 5.14
+     "result": 5.14,
+     "steps": {
+      "step1": 5.14
+     }
     },
     "given": "Elevance Health (ELV) reported $6.99 EPS vs. $4.71 expected. That included a $1.85 non-operating benefit. What is EPS without it? $2.28 $8.84 $5.14 $2.86"
    },
@@ -2663,7 +2687,12 @@
       "guide": 0.25
      },
      "fn": "arith",
-     "result": 42.0
+     "result": 42.0,
+     "steps": {
+      "step1": 41.86,
+      "step2": 0.42,
+      "step3": 0.18
+     }
     },
     "given": "How far below the consensus is the guide, as a percent of the consensus? October 2026. Intel (INTC) beats third-quarter estimates. It guides fourth-quarter EPS to 25 cents. The LSEG consensus was 43 cents. About 42% below About 18% below About 72% below About 58% below"
    },
@@ -2823,7 +2852,11 @@
       "low": 2.15
      },
      "fn": "arith",
-     "result": 2.25
+     "result": 2.25,
+     "steps": {
+      "step1": 2.25,
+      "step2": 4.5
+     }
     },
     "given": "What most likely moved the stock? Qualcomm (QCOM) reports adjusted EPS of $2.17 against $2.16 expected. It guides next-quarter EPS to $2.15 to $2.35. Analysts expected $2.27. The guide: $2.25 midpoint, under $2.27 The beat: $2.17 is above $2.16 The top of the guide range, $2.35 Nothing: the stock is likely unchanged"
    },
@@ -2922,7 +2955,10 @@
       "expr": "actual - estimate"
      },
      "fn": "arith",
-     "result": 1.48
+     "result": 1.48,
+     "steps": {
+      "step1": 1.48
+     }
     },
     "given": "Moderna (MRNA) was expected to lose $1.10 a share. It earned $0.38. How big is the swing in EPS against the estimate? $0.38 $0.72 $1.10 $1.48"
    },
@@ -3093,7 +3129,11 @@
       "shares": 1000
      },
      "fn": "arith",
-     "result": 15000.0
+     "result": 15000.0,
+     "steps": {
+      "step1": 15000.0,
+      "step2": 15.0
+     }
     },
     "given": "The stop triggers at the open. About how much do you lose on the 1,000 shares? You buy 1,000 shares of ZQRT at $50 and set a stop at $45, so you plan to risk $5,000. It reports after the close and guides far below the consensus. It opens at $35. $5,000 $10,000 $15,000 $20,000"
    },
@@ -4539,7 +4579,10 @@
       "pe": 30
      },
      "fn": "arith",
-     "result": 1.5
+     "result": 1.5,
+     "steps": {
+      "step1": 1.5
+     }
     },
     "given": "A stock's P/E is 30. Its EPS is expected to grow 20% a year. What's its PEG ratio? 1.5 0.15 0.30 0.67"
    },
@@ -4654,7 +4697,10 @@
       "pe": 15
      },
      "fn": "arith",
-     "result": 3.0
+     "result": 3.0,
+     "steps": {
+      "step1": 3.0
+     }
     },
     "given": "Measured against its growth, which one is pricier? Two made-up stocks. ZBRN trades at 15 times earnings, with EPS growing 5% a year. ZVLT trades at 45 times earnings, with EPS growing 45% a year. ZBRN, the slow grower, PEG 3 ZVLT, the fast grower, PEG 1 They cost about the same Can't tell without share prices"
    },
@@ -4985,7 +5031,12 @@
       "growth": 500
      },
      "fn": "arith",
-     "result": 0.01
+     "result": 0.01,
+     "steps": {
+      "step1": 0.01,
+      "step2": 6.0,
+      "step3": 5.0
+     }
     },
     "given": "How should a trader read that 500%? Palantir's Q2 2024 report: GAAP EPS grew 500% year over year, to $0.06 from $0.01. Net income was $134 million, up from $28 million. Its Q1 report was the sixth straight GAAP-profitable quarter. Tiny $0.01 base, but real profit It means nothing, it came off one cent Sales must have grown just as fast It proves growth is speeding up"
    },
@@ -5942,7 +5993,11 @@
       "price": 209.58
      },
      "fn": "arith",
-     "result": 4.5
+     "result": 4.5,
+     "steps": {
+      "step1": 4.52,
+      "step2": 0.05
+     }
     },
     "given": "MSFT was $209.58 hours before its July 22, 2020 report. Options priced a $9.48 move. What is that as a percent? 0.5% 22.1% 9.5% 4.5%"
    },
@@ -6210,7 +6265,12 @@
       "shares": 200
      },
      "fn": "arith",
-     "result": 720.0
+     "result": 720.0,
+     "steps": {
+      "step1": 720.0,
+      "step2": 72000.0,
+      "step3": 8000.0
+     }
     },
     "given": "You hold 200 shares of a $40 stock into earnings. The implied move is ±9%. What do you lose if it gaps down that much? $720 $1,800 $7,200 $8,000"
    },
@@ -6504,7 +6564,11 @@
       "position": 20000
      },
      "fn": "arith",
-     "result": 2000.0
+     "result": 2000.0,
+     "steps": {
+      "step1": 2000.0,
+      "step2": 200000.0
+     }
     },
     "given": "Which loss should you plan for if you hold? You hold a $20,000 position into tonight's report. Your stop is 4% below the price. The implied move is ±10%. About $2,000, and maybe more About $800, plus a little slippage None, the stop caps the loss About $1,000, half of the ±10%"
    },
@@ -7345,7 +7409,11 @@
       "straddle": 4.4
      },
      "fn": "arith",
-     "result": 5.5
+     "result": 5.5,
+     "steps": {
+      "step1": 5.5,
+      "step2": 0.06
+     }
     },
     "given": "The stock is $80. The $80 call and put in the nearest expiry cost $4.40 together. What move, in percent, is priced? 55% 18.2% 2.8% 5.5%"
    },
@@ -7583,7 +7651,10 @@
       "realised": 10
      },
      "fn": "arith",
-     "result": 2.5
+     "result": 2.5,
+     "steps": {
+      "step1": 2.5
+     }
     },
     "given": "What is the realized move divided by the implied move? HXLR closed at $50 before earnings. Its at-the-money straddle cost $2. It closed at $55 after. 2.5x 0.4x 6.0x 14.0x"
    },
@@ -8051,7 +8122,10 @@
       "realised": 20.3
      },
      "fn": "arith",
-     "result": 2.3
+     "result": 2.3,
+     "steps": {
+      "step1": 2.26
+     }
     },
     "given": "Meta, February 2024: front-week options implied about a 9% move. The stock closed up 20.3%. Realized divided by implied? 2.3x 0.2x 0.4x 1.3x"
    },
@@ -8347,7 +8421,12 @@
       "price": 50
      },
      "fn": "arith",
-     "result": 1.0
+     "result": 1.0,
+     "steps": {
+      "step1": 1.0,
+      "step2": 16.0,
+      "step3": 1600.0
+     }
     },
     "given": "A $50 stock has 32% implied volatility. About how much does that imply it moves on an ordinary day? $1.00 $2.20 $4.60 $16.00"
    },
@@ -8439,7 +8518,12 @@
       "price": 200
      },
      "fn": "arith",
-     "result": 184.0
+     "result": 184.0,
+     "steps": {
+      "step1": 184.0,
+      "step2": 0.92,
+      "step3": 0.08
+     }
     },
     "given": "Cboe's example: a $200 stock, and options imply about 8% either way. What price range is that? $184 to $216 $168 to $232 $192 to $208 $184 to $200"
    },
@@ -8983,7 +9067,11 @@
       "position_pct": 20
      },
      "fn": "arith",
-     "result": 3.0
+     "result": 3.0,
+     "steps": {
+      "step1": 3.0,
+      "step2": 300.0
+     }
     },
     "given": "Your position is 20% of the account. A report gaps it down 15% at the open. What share of the account did you lose? 5% 15% 1.3% 3%"
    },
@@ -9158,7 +9246,12 @@
       "position_pct": 30
      },
      "fn": "arith",
-     "result": 1.5
+     "result": 1.5,
+     "steps": {
+      "step1": 1.5,
+      "step2": 150.0,
+      "step3": 15.0
+     }
     },
     "given": "You hold 30% of the account in one name and sell half before the report. It gaps down 10%. How much does the account fall? 1.5% 3% 7.5% 15%"
    },
@@ -9260,7 +9353,16 @@
       "gap_pct": 15
      },
      "fn": "arith",
-     "result": 13.3
+     "result": 13.3,
+     "steps": {
+      "step1": 13.3,
+      "step2": 0.13,
+      "step3": 0.87,
+      "step4": 1.02,
+      "step5": 0.85,
+      "step6": 0.02,
+      "step7": 0.15
+     }
     },
     "given": "You're up 2% on a stock. A report gaps it down 15%. How far below your entry price are you now? 13.3% 1.3% 11.0% 15.3%"
    },
@@ -9450,7 +9552,12 @@
       "position_pct": 25
      },
      "fn": "arith",
-     "result": 2.0
+     "result": 2.0,
+     "steps": {
+      "step1": 2.0,
+      "step2": 2.0,
+      "step3": 200.0
+     }
     },
     "given": "If it gaps down the full expected move, how does the hit compare with your normal risk? A stock is 25% of your account. It reports after the close, and options price a move of about 8%. You normally risk 1% of the account on a trade. About 2x your normal risk About the same as normal About 8x your risk About 25x your risk"
    },
@@ -9660,7 +9767,11 @@
       "stop": 34
      },
      "fn": "arith",
-     "result": 1000.0
+     "result": 1000.0,
+     "steps": {
+      "step1": 1000.0,
+      "step2": 2.0
+     }
     },
     "given": "You own 500 shares, sell stop at $34. A report gaps the stock to $32 and your stop fills there. How much more did you lose than planned? $1,000 $2 $100 $200"
    },
@@ -10129,7 +10240,16 @@
       "move_pct": 9
      },
      "fn": "arith",
-     "result": 27.0
+     "result": 27.0,
+     "steps": {
+      "step1": 27.4,
+      "step2": 0.27,
+      "step3": 1.27,
+      "step4": 1.4,
+      "step5": 0.91,
+      "step6": 0.4,
+      "step7": 0.09
+     }
     },
     "given": "Our rule lets you hold this one through. Which belief about the gap holds up? You're up 40%, or 8R, in a leader you've held for months. It reports after the close, and options price a move of about 9%. Still up about 27% after a 9% gap My stop will cap the loss Leaders don't gap down on reports The priced 9% is the most it can drop"
    },
@@ -11309,7 +11429,10 @@
       "expr": "day_volume / avg_volume"
      },
      "fn": "arith",
-     "result": 4.0
+     "result": 4.0,
+     "steps": {
+      "step1": 4.0
+     }
     },
     "given": "Average daily volume is 800,000 shares. On the earnings gap day it trades 3,200,000. How many times average is that? 4x 0.25x 5x 40x"
    },
@@ -13380,7 +13503,10 @@
       "lost": 0.2
      },
      "fn": "arith",
-     "result": 2.7
+     "result": 2.7,
+     "steps": {
+      "step1": 2.7
+     }
     },
     "given": "Netflix forecast 2.5 million new paid members for the first quarter of 2022. It lost 0.2 million. How many million short was it?"
    },
@@ -13542,7 +13668,12 @@
       "expr": "(consensus - actual) / consensus * 100"
      },
      "fn": "arith",
-     "result": 12.2
+     "result": 12.2,
+     "steps": {
+      "step1": 12.16,
+      "step2": 0.12,
+      "step3": 0.18
+     }
     },
     "given": "Walmart, first quarter of fiscal 2023: adjusted EPS $1.30. The Refinitiv consensus was $1.48. By what percent did it miss?"
    },
@@ -13630,7 +13761,10 @@
       "reported": 1.76
      },
      "fn": "arith",
-     "result": 3.0
+     "result": 3.0,
+     "steps": {
+      "step1": 3.0
+     }
     },
     "given": "Meta's Q4 2022 EPS was $1.76. Its release says that without restructuring charges, EPS would have been $1.24 higher. What EPS is that?"
    },
@@ -13861,7 +13995,12 @@
       "expr": "(consensus - actual) / consensus * 100"
      },
      "fn": "arith",
-     "result": 28.7
+     "result": 28.7,
+     "steps": {
+      "step1": 28.66,
+      "step2": 0.29,
+      "step3": 0.88
+     }
     },
     "given": "Target, first quarter 2022: adjusted EPS $2.19. The Refinitiv consensus was $3.07. By what percent did it miss?"
    },
@@ -14606,7 +14745,11 @@
       "low": 26
      },
      "fn": "arith",
-     "result": 27.25
+     "result": 27.25,
+     "steps": {
+      "step1": 27.25,
+      "step2": 54.5
+     }
     },
     "given": "How does Meta's guide compare with what analysts expect? Meta guides first-quarter 2023 revenue to $26 billion to $28.5 billion. Refinitiv's consensus is $27.1 billion. Bloomberg News cites an average projection of $27.3 billion. Midpoint $27.25B: between the two A beat: the top end is $28.5B A miss: the bottom end is $26B Can't say: a range isn't one number"
    },

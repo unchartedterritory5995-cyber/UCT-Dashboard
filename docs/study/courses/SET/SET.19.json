@@ -2,7 +2,7 @@
  "unit": "SET.19",
  "track": "SET",
  "title": "Power Earnings Gap",
- "teaches": "The Power Earnings Gap as we trade it: an established leader in a base or a quiet uptrend reports a quarter the market did not expect and gaps up on heavy volume; the gap day closes strong with the gap still open; we buy as price trades over the first orderly pause high with a market order, the stop sits a few cents under the pause or trigger-day low, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest on the 10-day or 21-day trail, and a loss taken at the stop is the system working.",
+ "teaches": "The Power Earnings Gap as we trade it: an established leader in a base or a quiet uptrend reports a quarter the market did not expect and gaps up on heavy volume; the gap day closes strong with the gap still open; we buy as price trades over the first orderly pause high with a market order, the stop sits a few cents under the pause or trigger-day low, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest on the 9 or 20 EMA trail, and a loss taken at the stop is the system working.",
  "skills": [
   {
    "id": "setup.power_earnings_gap",

@@ -509,7 +509,10 @@
       "shares_per_contract": 100
      },
      "fn": "arith",
-     "result": 300.0
+     "result": 300.0,
+     "steps": {
+      "step1": 300.0
+     }
     },
     "given": "You buy 3 standard call contracts on a stock. If you exercise all of them, how many shares do you buy? 300 shares 3,000 shares 30,000 shares 10,000 shares"
    },
@@ -690,7 +693,11 @@
       "strike": 30
      },
      "fn": "arith",
-     "result": 6000.0
+     "result": 6000.0,
+     "steps": {
+      "step1": 6000.0,
+      "step2": 3000.0
+     }
     },
     "given": "You own 200 shares of XYZ and two standard XYZ 30 puts. If you exercise both puts, how much cash do you receive? $6,000 $3,000 $12,000 $60,000"
    },
@@ -1073,7 +1080,10 @@
       "shares_per_contract": 100
      },
      "fn": "arith",
-     "result": 5.0
+     "result": 5.0,
+     "steps": {
+      "step1": 5.0
+     }
     },
     "given": "How many standard put contracts do you buy? You own 500 shares of XYZ. You want to buy puts that cover every share. 5 contracts 500 contracts 50 contracts 1 contract"
    },
@@ -1968,7 +1978,11 @@
       "premium": 1.5
      },
      "fn": "arith",
-     "result": 150.0
+     "result": 150.0,
+     "steps": {
+      "step1": 150.0,
+      "step2": 150.0
+     }
     },
     "given": "A call is quoted at 1.50. What does one contract cost, before commissions? $150 $1.50 $15 $1,500"
    },
@@ -2387,7 +2401,11 @@
       "premium": 2.4
      },
      "fn": "arith",
-     "result": 720.0
+     "result": 720.0,
+     "steps": {
+      "step1": 720.0,
+      "step2": 7.2
+     }
     },
     "given": "You buy 3 call contracts quoted at 2.40. What's the total premium you pay, before commissions? $7,200 $240 $7.20 $720"
    },
@@ -2542,7 +2560,12 @@
       "short": 1.25
      },
      "fn": "arith",
-     "result": 370.0
+     "result": 370.0,
+     "steps": {
+      "step1": 370.0,
+      "step2": 3.7,
+      "step3": 1.85
+     }
     },
     "given": "What's the net on this trade when it fills, before commissions? You buy 2 calls at 3.10. In the same order, you sell 2 higher-strike calls at 1.25. Same stock, same expiry. $370 debit $370 credit $185 debit $870 debit"
    },
@@ -2649,7 +2672,12 @@
       "short": 2.8
      },
      "fn": "arith",
-     "result": 175.0
+     "result": 175.0,
+     "steps": {
+      "step1": 175.0,
+      "step2": 1.75,
+      "step3": 1.75
+     }
     },
     "given": "You sell 1 put at 2.80 and buy 1 lower-strike put at 1.05, same expiry. What credit do you collect, before commissions? $385 $280 $175 $1.75"
    },
@@ -2752,7 +2780,10 @@
       "value": 300
      },
      "fn": "arith",
-     "result": 200.0
+     "result": 200.0,
+     "steps": {
+      "step1": 200.0
+     }
     },
     "given": "If you sell to close now, what's your loss before commissions? In June you buy a call for $500 in total. By September the call's market price is $300. You've lost faith in the trade. $200 $500 $300 Nothing until it expires"
    },
@@ -2953,7 +2984,12 @@
       "multiplier": 100
      },
      "fn": "arith",
-     "result": 340.0
+     "result": 340.0,
+     "steps": {
+      "step1": 340.0,
+      "step2": 3.4,
+      "step3": 0.85
+     }
     },
     "given": "You bought 4 calls at 1.20 and sold them at 2.05. What's your profit before commissions? $85 $340 $820 $480"
    },
@@ -3035,7 +3071,11 @@
       "multiplier": 100
      },
      "fn": "arith",
-     "result": 10.0
+     "result": 10.0,
+     "steps": {
+      "step1": 10.0,
+      "step2": 0.1
+     }
     },
     "given": "If you sold it right back at the bid, what would you lose, before commissions? A call shows bid 7.90, ask 8.00. You buy one contract at the ask. Nothing moves. $10 $0.10 Nothing, the price didn't move $790"
    },
@@ -3152,7 +3192,13 @@
       "premium": 1.5
      },
      "fn": "arith",
-     "result": 1.2
+     "result": 1.2,
+     "steps": {
+      "step1": 1.2,
+      "step2": 0.01,
+      "step3": 600.0,
+      "step4": 6.0
+     }
     },
     "given": "Your account is $50,000. You buy 4 calls at 1.50 and they expire worthless. What percent of the account is gone, before commissions? 1.2% 12% 6% 120%"
    },
@@ -3256,7 +3302,11 @@
       "multiplier": 100
      },
      "fn": "arith",
-     "result": 1500.0
+     "result": 1500.0,
+     "steps": {
+      "step1": 1500.0,
+      "step2": 15.0
+     }
     },
     "given": "If you buy it back here, what do you lose, before commissions? You sell to open an XYZ 50 call for 4.00 without owning XYZ. A takeover bid sends XYZ to 69. The call now costs 19.00 to buy back. $1,500 $1,900 $2,300 $6,900"
    },
@@ -3373,7 +3423,11 @@
       "strike": 100
      },
      "fn": "arith",
-     "result": 10250.0
+     "result": 10250.0,
+     "steps": {
+      "step1": 10250.0,
+      "step2": 102.5
+     }
     },
     "given": "Counting the call's cost, how much cash have you put into those 100 shares, before commissions? You bought one 100-strike call for 2.50. At expiry it's in the money, and your broker exercises it. $10,250 $10,000 $9,750 $250"
    },
@@ -3474,7 +3528,11 @@
       "strike": 50
      },
      "fn": "arith",
-     "result": 4700.0
+     "result": 4700.0,
+     "steps": {
+      "step1": 4700.0,
+      "step2": 47.0
+     }
     },
     "given": "XYZ is at 50. You sell the 50 put for 3.00. If XYZ goes to zero, what do you lose, before commissions? $4,700 $300 $5,000 Unlimited"
    },
@@ -5381,7 +5439,11 @@
       "strike": 50
      },
      "fn": "arith",
-     "result": 1.0
+     "result": 1.0,
+     "steps": {
+      "step1": 1.0,
+      "step2": 4.0
+     }
     },
     "given": "Your call finished in the money. What did the trade make or lose, per share? You paid 5.00 for the 50 call. On expiry day the stock closes at 54. Lost $1 a share Made $4 a share Lost the whole $5 Broke even"
    },
@@ -6663,7 +6725,10 @@
       "move": 2
      },
      "fn": "arith",
-     "result": 0.9
+     "result": 0.9,
+     "steps": {
+      "step1": 0.9
+     }
     },
     "given": "Your call has a 0.45 delta. The stock rises $2, nothing else changes. About how much should the call gain, per share? $1.55 $4.44 $2.45 $0.90"
    },
@@ -6749,7 +6814,11 @@
       "move": 1
      },
      "fn": "arith",
-     "result": 0.4
+     "result": 0.4,
+     "steps": {
+      "step1": 0.4,
+      "step2": -0.4
+     }
     },
     "given": "What should the put do? You own a put with a -0.40 delta. The stock rises $1. Nothing else changes. Lose about $0.40 a share Gain about $0.40 a share Lose about $0.60 a share Gain about $0.60 a share"
    },
@@ -6855,7 +6924,10 @@
       "shares": 100
      },
      "fn": "arith",
-     "result": 40.0
+     "result": 40.0,
+     "steps": {
+      "step1": 40.0
+     }
     },
     "given": "A call has a 0.40 delta, and the contract covers 100 shares. About how many shares does it act like? About 40 shares About 100 shares About 4 shares About 60 shares"
    },
@@ -6948,7 +7020,10 @@
       "move": 2
      },
      "fn": "arith",
-     "result": 0.7
+     "result": 0.7,
+     "steps": {
+      "step1": 0.7
+     }
     },
     "given": "Looking at the call alone, what happens to your short call, per share? You sold a call with a 0.35 delta. The stock rises $2. Nothing else changes. You lose about $0.70 on the call You gain about $0.70 on the call You lose about $0.35 on the call You gain about $0.35 on the call"
    },
@@ -7173,7 +7248,12 @@
       "move": 4
      },
      "fn": "arith",
-     "result": 660.0
+     "result": 660.0,
+     "steps": {
+      "step1": 660.0,
+      "step2": 6.6,
+      "step3": 1.65
+     }
     },
     "given": "You own 3 calls at a 0.55 delta. The stock rises $4, nothing else changes. About how much should the position gain? $660 $220 $1,200 $6,600"
    },
@@ -7742,7 +7822,11 @@
       "expr": "contracts * delta * 100"
      },
      "fn": "arith",
-     "result": 150.0
+     "result": 150.0,
+     "steps": {
+      "step1": 150.0,
+      "step2": 1.5
+     }
     },
     "given": "For the next $1 move, how does your exposure compare with 300 shares? You'd normally buy 300 shares. This time you buy 3 at-the-money calls, each with a 0.50 delta. Like about 150 shares Like about 300 shares Like about 100 shares Like about 50 shares"
    },
@@ -8350,7 +8434,11 @@
       "value": 2.6
      },
      "fn": "arith",
-     "result": 2.48
+     "result": 2.48,
+     "steps": {
+      "step1": 2.48,
+      "step2": 0.12
+     }
     },
     "given": "An option with 60 days left is worth 2.60. Its theta is -0.04. Three days pass, nothing else changes. About what is it worth? $2.72 $0.12 $2.56 $2.48"
    },
@@ -8451,7 +8539,11 @@
       "theta": 0.15
      },
      "fn": "arith",
-     "result": 60.0
+     "result": 60.0,
+     "steps": {
+      "step1": 60.0,
+      "step2": 0.6
+     }
     },
     "given": "About what does the quiet day cost your position? You own 4 calls on a stock you expect to break out. Each shows theta -0.15. The stock and its implied volatility sit still all day. $60 $15 $0.60 $0"
    },
@@ -8595,7 +8687,10 @@
       "start": 1.71
      },
      "fn": "arith",
-     "result": 0.95
+     "result": 0.95,
+     "steps": {
+      "step1": 0.95
+     }
     },
     "given": "Cboe's theta table: a 45 call is 1.71 with 35 days left and 0.76 with 7 days left. What did those four weeks cost, per share? $0.95 $2.47 $2.25 $1.71"
    },
@@ -8787,7 +8882,11 @@
       "theta": 0.05
      },
      "fn": "arith",
-     "result": 0.35
+     "result": 0.35,
+     "steps": {
+      "step1": 0.35,
+      "step2": 0.4
+     }
     },
     "given": "Using delta and theta, roughly what does the call gain, per share? You own a call with delta 0.40 and theta -0.05. Overnight the stock rises $1. Implied volatility doesn't change. $0.35 $0.40 $0.45 $1.00"
    },
@@ -9204,7 +9303,11 @@
       "theta": 0.02
      },
      "fn": "arith",
-     "result": 20.0
+     "result": 20.0,
+     "steps": {
+      "step1": 20.0,
+      "step2": 0.2
+     }
     },
     "given": "A far out-of-the-money call expiring Friday costs 0.10. Its theta is -0.02. What share of its price does one day of decay take? 2% 20% 5% 80%"
    },
@@ -10116,7 +10219,10 @@
       "vega": 0.12
      },
      "fn": "arith",
-     "result": 0.48
+     "result": 0.48,
+     "steps": {
+      "step1": 0.48
+     }
     },
     "given": "Your call has a vega of 0.12. IV rises 4 points, nothing else changes. About how much does the call gain, per share? $0.03 $4.12 $48.00 $0.48"
    },
@@ -10222,7 +10328,11 @@
       "vega": 0.08
      },
      "fn": "arith",
-     "result": 120.0
+     "result": 120.0,
+     "steps": {
+      "step1": 120.0,
+      "step2": 1.2
+     }
     },
     "given": "You hold one call with a vega of 0.08. IV drops 15 points after the news. About how much does that cost you, per contract? $1.20 $120 $8 $1,500"
    },
@@ -10555,7 +10665,13 @@
       "today": 50
      },
      "fn": "arith",
-     "result": 75.0
+     "result": 75.0,
+     "steps": {
+      "step1": 75.0,
+      "step2": 0.75,
+      "step3": 30.0,
+      "step4": 40.0
+     }
     },
     "given": "Over the past year a stock's IV ranged from 20% to 60%. Today it's 50%. Where does today sit in that range? 75% 83% 125% 250%"
    },
@@ -10686,7 +10802,14 @@
       "vega": 0.05
      },
      "fn": "arith",
-     "result": 3.9
+     "result": 3.9,
+     "steps": {
+      "step1": 3.9,
+      "step2": 5.9,
+      "step3": 2.0,
+      "step4": 1.5,
+      "step5": 40.0
+     }
     },
     "given": "Using delta and vega, about what is the call worth at the open? Day before earnings, stock at 100. A trader buys the 100 call, expiring next week, for $4.40. Delta 0.50, vega 0.05, IV 80%. The stock opens $3 higher and IV drops to 40%. About $3.90, down $0.50 About $5.90, up $1.50 About $2.40, down $2.00 About $4.40, no change"
    },
@@ -10939,7 +11062,11 @@
       "vega": 0.0193
      },
      "fn": "arith",
-     "result": 1.18
+     "result": 1.18,
+     "steps": {
+      "step1": 1.18,
+      "step2": 61.15
+     }
     },
     "given": "About how much value did the IV drop take from the put, per share? From a Fidelity options webinar: a put bought before a report for $1.88 was worth $2.77 after it. Its IV fell from 94.38% to 33.23%. Vega was 0.0193. About $1.18 About $0.89 About $0.02 About $2.77"
    },
@@ -12006,7 +12133,11 @@
       "move": 1
      },
      "fn": "arith",
-     "result": 0.5
+     "result": 0.5,
+     "steps": {
+      "step1": 0.5,
+      "step2": 0.05
+     }
     },
     "given": "A call has a delta of 0.45 and a gamma of 0.05. The stock rises $1. About what is the new delta? 0.40 0.95 0.45 0.50"
    },
@@ -12107,7 +12238,11 @@
       "move": -1
      },
      "fn": "arith",
-     "result": -0.35
+     "result": -0.35,
+     "steps": {
+      "step1": -0.35,
+      "step2": -0.05
+     }
     },
     "given": "About what is the put's delta now? You own a put with a delta of -0.30 and a gamma of 0.05. The stock drops $1. -0.35 -0.25 -0.30 -0.05"
    },
@@ -12286,7 +12421,12 @@
       "shares_per_contract": 100
      },
      "fn": "arith",
-     "result": 39.0
+     "result": 39.0,
+     "steps": {
+      "step1": 39.0,
+      "step2": 0.39,
+      "step3": 0.04
+     }
     },
     "given": "Your call has a delta of 0.35 and a gamma of 0.04. The stock rises $1. One contract now acts like how many shares? 39 shares 35 shares 43 shares 390 shares"
    },
@@ -13619,7 +13759,11 @@
       "price": 50
      },
      "fn": "arith",
-     "result": 15.0
+     "result": 15.0,
+     "steps": {
+      "step1": 15.0,
+      "step2": 1500.0
+     }
     },
     "given": "A $50 stock has an implied volatility of 30%. What is its one-year, one standard deviation move? $65.00 $35.00 $1.50 $15.00"
    },
@@ -13860,7 +14004,13 @@
       "price": 100
      },
      "fn": "arith",
-     "result": 60.0
+     "result": 60.0,
+     "steps": {
+      "step1": 60.0,
+      "step2": 40.0,
+      "step3": 4000.0,
+      "step4": 200.0
+     }
     },
     "given": "A $100 stock has an implied volatility of 20%. Which one-year range holds about 95% of outcomes? $60 to $140 $80 to $120 $40 to $160 $90 to $110"
    },
@@ -13969,7 +14119,14 @@
       "price": 80
      },
      "fn": "arith",
-     "result": 8.03
+     "result": 8.03,
+     "steps": {
+      "step1": 8.03,
+      "step2": 28.0,
+      "step3": 0.29,
+      "step4": 2800.0,
+      "step5": 0.08
+     }
     },
     "given": "An $80 stock has an implied volatility of 35%. What is its one standard deviation move over the next 30 calendar days? $28.00 $2.30 $8.03 $9.66"
    },
@@ -14068,7 +14225,12 @@
       "price": 48
      },
      "fn": "arith",
-     "result": 1.2
+     "result": 1.2,
+     "steps": {
+      "step1": 1.2,
+      "step2": 19.2,
+      "step3": 1920.0
+     }
     },
     "given": "A $48 stock has an implied volatility of 40%. Using the Rule of 16, what is one day's expected move? $1.20 $19.20 $4.80 $120.00"
    },
@@ -14168,7 +14330,10 @@
       "price": 216.88
      },
      "fn": "arith",
-     "result": 200.14
+     "result": 200.14,
+     "steps": {
+      "step1": 200.14
+     }
     },
     "given": "What price range are the options pricing for the report? A stock trades at $216.88 into its earnings report. The options price a move of $16.74 for the report, either way. $200.14 to $233.62 $208.51 to $225.25 $216.88 to $233.62 $183.40 to $250.36"
    },
@@ -14244,7 +14409,10 @@
       "expr": "daily * 16"
      },
      "fn": "arith",
-     "result": 48.0
+     "result": 48.0,
+     "steps": {
+      "step1": 48.0
+     }
     },
     "given": "A stock's options price a one-day move of about 3%. Using the Rule of 16, about what implied volatility is that? 0.19% 12% 48% 756%"
    },
@@ -14345,7 +14513,11 @@
       "week": 3
      },
      "fn": "arith",
-     "result": 6.0
+     "result": 6.0,
+     "steps": {
+      "step1": 6.0,
+      "step2": 2.0
+     }
     },
     "given": "Same stock, same IV. The one-week expected move is $3. About what is the four-week move? About $6 About $12 About $3 About $1.50"
    },
@@ -14428,7 +14600,11 @@
       "inside": 68
      },
      "fn": "arith",
-     "result": 16.0
+     "result": 16.0,
+     "steps": {
+      "step1": 16.0,
+      "step2": 32.0
+     }
     },
     "given": "A one standard deviation range holds about 68% of outcomes. About what percent of the time does the stock end above it? 32% 34% 84% 16%"
    },
@@ -14534,7 +14710,10 @@
       "straddle": 8.3
      },
      "fn": "arith",
-     "result": 170.8
+     "result": 170.8,
+     "steps": {
+      "step1": 170.8
+     }
     },
     "given": "A stock trades at $162.50 into tonight's report. The 162.50 straddle expiring tomorrow costs $8.30. Where does the priced range top out? $170.80 $154.20 $162.50 $8.30"
    },
@@ -14638,7 +14817,13 @@
       "price": 100
      },
      "fn": "arith",
-     "result": 5.6
+     "result": 5.6,
+     "steps": {
+      "step1": 5.6,
+      "step2": 1.25,
+      "step3": 20.0,
+      "step4": 2000.0
+     }
     },
     "given": "About how many one-day standard deviations is that move? A $100 stock carries an implied volatility of 20%. Today it moves $7. About 5.6 About 0.35 About 7 About 1.25"
    },
@@ -14714,7 +14899,11 @@
       "vix": 28
      },
      "fn": "arith",
-     "result": 8.1
+     "result": 8.1,
+     "steps": {
+      "step1": 8.08,
+      "step2": 3.46
+     }
     },
     "given": "The VIX, the S&P 500's 30-day volatility gauge, reads 28. About what one-month move is that pricing? About 8.1% About 2.3% About 28% About 1.75%"
    },
@@ -14923,7 +15112,12 @@
       "price": 60
      },
      "fn": "arith",
-     "result": 1.2
+     "result": 1.2,
+     "steps": {
+      "step1": 1.2,
+      "step2": 19.2,
+      "step3": 1920.0
+     }
     },
     "given": "Using the Rule of 16, was it a big day against what its options price? A $60 stock has an implied volatility of 32%. Today it's up $1.10. A friend calls it a big day. No, a day's expected move is about $1.20 Yes, a move near 2% is a big day Yes, a normal day is only about 1% No, a day's expected move is $19.20"
    },
@@ -15239,7 +15433,12 @@
       "price": 40
      },
      "fn": "arith",
-     "result": 1.4
+     "result": 1.4,
+     "steps": {
+      "step1": 1.4,
+      "step2": 22.4,
+      "step3": 2240.0
+     }
     },
     "given": "Using the Rule of 16, what does the IV tell you about that stop? You buy a $40 stock with an implied volatility of 56%. You put your stop $0.90 below your entry. Inside one day's $1.40 expected move Well outside a normal day's move Nothing, IV is only for option traders It should be $1.40 away instead"
    },
@@ -16062,7 +16261,11 @@
       "expr": "(1 - delta) * 100"
      },
      "fn": "arith",
-     "result": 78.0
+     "result": 78.0,
+     "steps": {
+      "step1": 78.0,
+      "step2": 0.78
+     }
     },
     "given": "A call shows a 0.22 delta. Read as rough odds, what's the chance it expires worthless? 78% 22% 2.2% 99.78%"
    },
@@ -16281,7 +16484,13 @@
       "strike": 110
      },
      "fn": "arith",
-     "result": 400.0
+     "result": 400.0,
+     "steps": {
+      "step1": 400.0,
+      "step2": 4.0,
+      "step3": 4.0,
+      "step4": 5.0
+     }
     },
     "given": "You bought the 110 call. What percentage did it make? A stock trades at 100. The 95 call costs 7.10, the 100 call 4.15 and the 110 call 1.00. It closes at 115 on expiry day. Up 15% Up 400% Up 500% Up 1,400%"
    },
@@ -16661,7 +16870,11 @@
       "strike": 45
      },
      "fn": "arith",
-     "result": 5.55
+     "result": 5.55,
+     "steps": {
+      "step1": 5.55,
+      "step2": 5.0
+     }
     },
     "given": "You own shares bought at 50 and buy the 45 put for 0.55. Held to expiry, what's your worst-case loss per share? $5.55 $6.10 $50.55 $55.50"
    },
@@ -16872,7 +17085,12 @@
       "expr": "(ask - bid) / ask * 100"
      },
      "fn": "arith",
-     "result": 50.0
+     "result": 50.0,
+     "steps": {
+      "step1": 50.0,
+      "step2": 0.5,
+      "step3": 0.1
+     }
     },
     "given": "A far out-of-the-money call is quoted 0.10 bid, 0.20 ask. How wide is the spread, as a percent of the ask? 100% 67% 50% 10%"
    },
@@ -17046,7 +17264,11 @@
       "target": 110
      },
      "fn": "arith",
-     "result": 1.0
+     "result": 1.0,
+     "steps": {
+      "step1": 1.0,
+      "step2": 111.0
+     }
     },
     "given": "Your target is 110 by expiry. You buy the 110 call for 1.00. Held to expiry, how far past your target must the stock go to break even? $1.00 $10.00 $100.00 $111.00"
    },
@@ -17961,7 +18183,10 @@
       "plan_days": 21
      },
      "fn": "arith",
-     "result": 24.0
+     "result": 24.0,
+     "steps": {
+      "step1": 24.0
+     }
     },
     "given": "You buy a call with 45 days left for a 3-week plan. How many days will be left when the plan ends? 42 days 66 days 24 days 21 days"
    },
@@ -18278,7 +18503,10 @@
       "start": 2.28
      },
      "fn": "arith",
-     "result": 0.96
+     "result": 0.96,
+     "steps": {
+      "step1": 0.96
+     }
     },
     "given": "You own one call with 30 days left and one with 50. The stock sits still for 20 days. Which loses more? The stock sits at 50 and volatility holds steady. The Options Industry Council's model prices the at-the-money call at $2.95 with 50 days left, $2.28 with 30, and $1.32 with 10. The 30-day call, down $0.96 The 50-day call, down $0.67 Both lose the same over 20 days No loss, since the stock sat still"
    },
@@ -18450,7 +18678,10 @@
       "shorter": 0.93
      },
      "fn": "arith",
-     "result": 3.2
+     "result": 3.2,
+     "steps": {
+      "step1": 3.17
+     }
     },
     "given": "A 5-day at-the-money call costs $0.93. The 50-day one costs $2.95, with ten times the time. How many times the 5-day price is it? 3.2x 3.9x 10.0x 31.7x"
    },
@@ -19066,7 +19297,11 @@
       "premium": 1.0
      },
      "fn": "arith",
-     "result": 300.0
+     "result": 300.0,
+     "steps": {
+      "step1": 300.0,
+      "step2": 3.0
+     }
     },
     "given": "What changes if you buy the three weeklies instead? You'll risk $300 on a breakout. One at-the-money call 60 days out costs $3.00, or $300 a contract. This Friday's at-the-money weekly costs $1.00, so you could buy three. Same $300 at risk, far less time Three times the profit, same risk Less risk, since each one is cheaper A higher break-even on each contract"
    },
@@ -19973,7 +20208,11 @@
       "shares": 100
      },
      "fn": "arith",
-     "result": 3.0
+     "result": 3.0,
+     "steps": {
+      "step1": 3.0,
+      "step2": 250.0
+     }
     },
     "given": "How many contracts do you buy? Your plan risks $750 on this trade. You treat the whole premium as the risk. The call you want costs 2.50. 3 contracts, $750 in premium 300 contracts, 750 / 2.50 As many as your cash buys 6 contracts, out if halved"
    },
@@ -20236,7 +20475,10 @@
       "shares": 100
      },
      "fn": "arith",
-     "result": 200.0
+     "result": 200.0,
+     "steps": {
+      "step1": 200.0
+     }
     },
     "given": "Which plan's worst case was fixed before the gap? A stock sits at 50. Plan A: 100 shares, stop at 47. Plan B: one 50 call at 2.00. Overnight it gaps to 40. Plan B: the call, $200 at most Plan A: the stop, $300 at most Both, the stop and the premium Neither: a gap can hit either plan"
    },
@@ -20330,7 +20572,10 @@
       "shares": 100
      },
      "fn": "arith",
-     "result": 160.0
+     "result": 160.0,
+     "steps": {
+      "step1": 160.0
+     }
     },
     "given": "What did the trade end up doing, per contract? The stock is at 47. You buy the 50 call for 1.60. Two weeks later the stock is 58 and the call is 8.40. You hold for more, and at expiry the stock closes at 44. Lost the whole $160 premium Made $680 on the run to 58 Lost $300, from 47 to 44 Broke even on a round trip"
    },
@@ -20602,7 +20847,11 @@
       "strike": 100
      },
      "fn": "arith",
-     "result": 20000.0
+     "result": 20000.0,
+     "steps": {
+      "step1": 20000.0,
+      "step2": 200.0
+     }
     },
     "given": "What is likely to happen if you hold them through the close? You own two 100-strike calls. It's expiry day, the stock is at 104, and your account holds $3,000 in cash. Exercise: $20,000 for 200 shares They settle in cash, about $800 Nothing; the calls just expire They roll into next month's calls"
    },
@@ -20884,7 +21133,10 @@
       "shares": 100
      },
      "fn": "arith",
-     "result": 1.0
+     "result": 1.0,
+     "steps": {
+      "step1": 1.0
+     }
     },
     "given": "You want calls that control the same number of shares. How many do you buy? You'd normally buy 100 shares of a stock at 50, a $5,000 position. The six-month 50 call costs 5.00. 1 contract, $500 in premium 10 contracts, the full $5,000 5 contracts, half the cash 100 contracts, one per share"
    },
@@ -21765,7 +22017,12 @@
       "multiplier": 100
      },
      "fn": "arith",
-     "result": 325.0
+     "result": 325.0,
+     "steps": {
+      "step1": 325.0,
+      "step2": 3.25,
+      "step3": 5.0
+     }
     },
     "given": "You buy the 60/65 call spread for 1.75. What's the most it can make at expiry, per spread? $500 $175 $675 $325"
    },
@@ -21867,7 +22124,13 @@
       "multiplier": 100
      },
      "fn": "arith",
-     "result": 720.0
+     "result": 720.0,
+     "steps": {
+      "step1": 720.0,
+      "step2": 360.0,
+      "step3": 3.6,
+      "step4": 5.0
+     }
     },
     "given": "You sell 2 of the 30/35 call spreads for 1.40 each. What's the most you can lose at expiry? $360 $1,000 $720 $280"
    },
@@ -22286,7 +22549,12 @@
       "short_strike": 50
      },
      "fn": "arith",
-     "result": 350.0
+     "result": 350.0,
+     "steps": {
+      "step1": 350.0,
+      "step2": 3.5,
+      "step3": 5.0
+     }
     },
     "given": "What did one spread lose? XYZ trades at 51. You sell the 50/45 put spread for 1.50. Bad news hits overnight, and XYZ gaps to 38 and stays there through expiry. $350 $1,050 $500 $650"
    },
@@ -22477,7 +22745,13 @@
       "short_strike": 25
      },
      "fn": "arith",
-     "result": 2.0
+     "result": 2.0,
+     "steps": {
+      "step1": 2.0,
+      "step2": 375.0,
+      "step3": 3.75,
+      "step4": 5.0
+     }
     },
     "given": "Your plan risks $750. You sell the 25/20 put spread for 1.25. Fees aside, how many spreads keep the total max loss at $750? 1 spread 6 spreads 2 spreads 7 spreads"
    },
@@ -23022,7 +23296,12 @@
       "short_strike": 55
      },
      "fn": "arith",
-     "result": 9.0
+     "result": 9.0,
+     "steps": {
+      "step1": 9.0,
+      "step2": 4.5,
+      "step3": 5.0
+     }
     },
     "given": "You sell the 55/50 put spread for 0.50. One max loss erases how many max wins? 10 wins 5 wins 4.5 wins 9 wins"
    },
@@ -23747,7 +24026,10 @@
       "strike": 45
      },
      "fn": "arith",
-     "result": 4500.0
+     "result": 4500.0,
+     "steps": {
+      "step1": 4500.0
+     }
     },
     "given": "How much cash do you set aside? XYZ trades at 48. You sell one XYZ 45 put and want it cash-secured. $4,500 $4,800 $45 Just the premium"
    },
@@ -23839,7 +24121,11 @@
       "strike": 50
      },
      "fn": "arith",
-     "result": 3.5
+     "result": 3.5,
+     "steps": {
+      "step1": 3.5,
+      "step2": 2.0
+     }
     },
     "given": "You buy a stock at 48 and sell the 50 call for 1.50. What is the most you can make per share at expiry? $2.00 $1.50 $0.50 $3.50"
    },
@@ -23981,7 +24267,10 @@
       "strike": 45
      },
      "fn": "arith",
-     "result": 43.8
+     "result": 43.8,
+     "steps": {
+      "step1": 43.8
+     }
     },
     "given": "XYZ is at 47. You sell the 45 put for 1.20, and later you're assigned. What is your real cost per share? $46.20 $45.00 $45.80 $43.80"
    },
@@ -24181,7 +24470,10 @@
       "premium": 1.5
      },
      "fn": "arith",
-     "result": 38.5
+     "result": 38.5,
+     "steps": {
+      "step1": 38.5
+     }
     },
     "given": "You buy a stock at 40 and sell a covered call for 1.50. What is the most you can lose per share? $1.50 $38.50 Unlimited $40"
    },
@@ -24432,7 +24724,10 @@
       "strike": 42.5
      },
      "fn": "arith",
-     "result": 44.3
+     "result": 44.3,
+     "steps": {
+      "step1": 44.3
+     }
     },
     "given": "What do you take in per share for the shares and the call together? You bought XYZ at 40 and sold the 42.50 call for 1.80. At expiry XYZ is at 49, and you're assigned. $49 $50.80 $42.50 $44.30"
    },
@@ -24540,7 +24835,10 @@
       "strike": 45
      },
      "fn": "arith",
-     "result": 48.0
+     "result": 48.0,
+     "steps": {
+      "step1": 48.0
+     }
     },
     "given": "Do you sell the 45 call against your shares? You just bought a breakout at 44. You think it can run to 54 over the next few weeks. The 45 call pays 3. Yes, it's free money on the way up Yes, it protects the breakout No, it caps your exit at 48 No, it adds risk below 44"
    },
@@ -24656,7 +24954,13 @@
       "strike": 55
      },
      "fn": "arith",
-     "result": 13.0
+     "result": 13.0,
+     "steps": {
+      "step1": 13.0,
+      "step2": 20.0,
+      "step3": 7.0,
+      "step4": 5.0
+     }
     },
     "given": "Bought at 50, sold the 55 call for 2. The stock closes at 70 at expiry. How much more per share would the shares alone have made? $13 $15 $17 $20"
    },
@@ -24759,7 +25063,11 @@
       "strike": 50
      },
      "fn": "arith",
-     "result": 7.0
+     "result": 7.0,
+     "steps": {
+      "step1": 7.0,
+      "step2": 47.0
+     }
     },
     "given": "Against the market price, how much are you down per share? XYZ is at 50. You sell the 50 put for 3. XYZ drops to 40, and you're assigned. $7 $10 $4 $3"
    },
@@ -24997,7 +25305,10 @@
       "shares": 100
      },
      "fn": "arith",
-     "result": 120.0
+     "result": 120.0,
+     "steps": {
+      "step1": 120.0
+     }
     },
     "given": "How did that do against just buying 100 shares at 48? XYZ is at 48. You sell the 45 put for 1.20, hoping to buy a dip. It never dips and runs to 60 by expiry. Better, paid $120 to wait Lost $120 on the put The same, both made money Kept $120, shares beat it"
    },
@@ -25792,7 +26103,11 @@
       "put": 1.9
      },
      "fn": "arith",
-     "result": 400.0
+     "result": 400.0,
+     "steps": {
+      "step1": 400.0,
+      "step2": 4.0
+     }
     },
     "given": "You buy the 50 call at 2.10 and the 50 put at 1.90. Before fees, what's the most one straddle can lose? $210 $4.00 $4,000 $400"
    },
@@ -26159,7 +26474,11 @@
       "near": 1.95
      },
      "fn": "arith",
-     "result": 115.0
+     "result": 115.0,
+     "steps": {
+      "step1": 115.0,
+      "step2": 1.15
+     }
     },
     "given": "You sell the March 60 call at 1.95 and buy the May 60 call at 3.10. Before fees, what's the most one spread can lose? $505 $115 $310 $1.15"
    },
@@ -26386,7 +26705,11 @@
       "price": 200
      },
      "fn": "arith",
-     "result": 6.0
+     "result": 6.0,
+     "steps": {
+      "step1": 6.0,
+      "step2": 0.06
+     }
     },
     "given": "Stock at 200. The 200 straddle costs 12.00. What percent move at expiry gets it back to even? 6% 3% 0.6% 0.06%"
    },
@@ -26641,7 +26964,11 @@
       "strike": 120
      },
      "fn": "arith",
-     "result": 3.0
+     "result": 3.0,
+     "steps": {
+      "step1": 3.0,
+      "step2": 6.0
+     }
     },
     "given": "What did the trade make or lose, per share? A stock trades at 120 ahead of a court ruling. You buy the 120 straddle for 9.00 and hold it to expiry. It closes at 126. Lost $3 a share Made $6 a share Made $3 a share Lost the full $9"
    },
@@ -26836,7 +27163,11 @@
       "short_strike": 50
      },
      "fn": "arith",
-     "result": 1.2
+     "result": 1.2,
+     "steps": {
+      "step1": 1.2,
+      "step2": 5.0
+     }
     },
     "given": "Fees aside, what's the result per share? You buy the later 45 call and sell the near 50 call for a 3.80 debit. The stock runs to 70 by the near expiry. You're assigned on the 50 and exercise the 45 to cover. A $1.20 gain A $3.80 loss A $5.00 gain Unlimited loss"
    },
@@ -27167,7 +27498,11 @@
       "price": 140
      },
      "fn": "arith",
-     "result": 27.0
+     "result": 27.0,
+     "steps": {
+      "step1": 27.0,
+      "step2": 30.0
+     }
     },
     "given": "If it's still at 140 at expiry, what is the trader's loss per share? A trader sold the 110 call and the 90 put for 3.00 total. Overnight, a takeover bid sends the stock to 140. $27 a share $30 a share $3 a share $33 a share"
    },
@@ -28172,7 +28507,11 @@
       "expr": "credit * 100 * contracts"
      },
      "fn": "arith",
-     "result": 280.0
+     "result": 280.0,
+     "steps": {
+      "step1": 280.0,
+      "step2": 140.0
+     }
     },
     "given": "You sell 2 iron condors for a 1.40 credit each. What is your maximum profit? $140 $2.80 $2,800 $280"
    },
@@ -28297,7 +28636,11 @@
       "short_call": 60
      },
      "fn": "arith",
-     "result": 3.4
+     "result": 3.4,
+     "steps": {
+      "step1": 3.4,
+      "step2": 5.0
+     }
     },
     "given": "Buy the 45 put, sell the 50 put, sell the 60 call, buy the 65 call. Credit 1.60. What's the max loss per share? $5.00 $3.40 $6.60 $1.60"
    },
@@ -28503,7 +28846,10 @@
       "short_call": 90
      },
      "fn": "arith",
-     "result": 91.85
+     "result": 91.85,
+     "steps": {
+      "step1": 91.85
+     }
     },
     "given": "You sell the 80 put and the 90 call, with wings at 75 and 95, for a 1.85 credit. What's the upper break-even at expiry? $91.85 $88.15 $90.00 $78.15"
    },
@@ -28614,7 +28960,10 @@
       "expr": "body + credit"
      },
      "fn": "arith",
-     "result": 53.2
+     "result": 53.2,
+     "steps": {
+      "step1": 53.2
+     }
     },
     "given": "Where are your two break-evens at expiry? A stock trades at 50. You sell the 50 call and the 50 put, and buy the 45 put and the 55 call. You collect 3.20. At 46.80 and 53.20 45.00 and 55.00 41.80 and 58.20 48.40 and 51.60"
    },
@@ -28729,7 +29078,11 @@
       "mid": 45
      },
      "fn": "arith",
-     "result": 3.9
+     "result": 3.9,
+     "steps": {
+      "step1": 3.9,
+      "step2": 5.0
+     }
     },
     "given": "You buy one 40 call, sell two 45 calls and buy one 50 call, for 1.10. What's the max profit per share at expiry? $8.90 $5.00 $6.10 $3.90"
    },
@@ -28857,7 +29210,13 @@
       "short_call": 110
      },
      "fn": "arith",
-     "result": 2250.0
+     "result": 2250.0,
+     "steps": {
+      "step1": 2250.0,
+      "step2": 750.0,
+      "step3": 7.5,
+      "step4": 10.0
+     }
     },
     "given": "3 iron condors: buy the 95 put, sell the 100 put, sell the 110 call, buy the 120 call. Credit 2.50 each. Max loss? $750 $3,000 $2,250 $3,750"
    },
@@ -29116,7 +29475,12 @@
       "max_profit": 2915
      },
      "fn": "arith",
-     "result": 7085.0
+     "result": 7085.0,
+     "steps": {
+      "step1": 7085.0,
+      "step2": 10000.0,
+      "step3": 100.0
+     }
     },
     "given": "What is the max loss on this one condor? Schwab's example from April 7, 2026: SPX near 6,560. Sell the 6,960 call, buy the 7,060 call. Sell the 6,160 put, buy the 6,060 put. Max profit is $2,915. $7,085 $10,000 $14,170 $12,915"
    },
@@ -30588,7 +30952,11 @@
       "shares_per_contract": 100
      },
      "fn": "arith",
-     "result": 120.0
+     "result": 120.0,
+     "steps": {
+      "step1": 120.0,
+      "step2": 300.0
+     }
     },
     "given": "Short 3 calls, no shares. Exercised the day before the ex-date, and you're assigned. Dividend: $0.40 a share. What dividend do you owe? $120 $300 $1,200 $12,000"
    },
@@ -30977,7 +31345,10 @@
       "strike": 45
      },
      "fn": "arith",
-     "result": 43.2
+     "result": 43.2,
+     "steps": {
+      "step1": 43.2
+     }
     },
     "given": "What do you most likely hold on Monday, and at what net cost? You sold one 45 put for 1.80. On expiry Friday the stock closes at 43.50. You don't close the put. 100 shares, net cost $43.20 a share 100 shares at $43.50, the closing price Nothing: the put expires worthless Short 100 shares at the $45 strike"
    },
@@ -32258,7 +32629,11 @@
       "sold": 3
      },
      "fn": "arith",
-     "result": 1080.0
+     "result": 1080.0,
+     "steps": {
+      "step1": 1080.0,
+      "step2": 10.8
+     }
     },
     "given": "You bought 6 calls at $1.80. They double to $3.60, and you sell 3. How much cash comes back? $10.80 $540 $2,160 $1,080"
    },
@@ -32345,7 +32720,10 @@
       "trail": 1.5
      },
      "fn": "arith",
-     "result": 4.7
+     "result": 4.7,
+     "steps": {
+      "step1": 4.7
+     }
     },
     "given": "At what price does your trailing stop trigger? Your call is bid $4.00. You set a sell trailing stop $1.50 under the bid. The bid climbs to $6.20, then starts to fall. $4.70 $2.50 $4.00 $6.20"
    },
@@ -32436,7 +32814,10 @@
       "premium": 3.2
      },
      "fn": "arith",
-     "result": 1.6
+     "result": 1.6,
+     "steps": {
+      "step1": 1.6
+     }
     },
     "given": "E*TRADE says some traders close an option at a 50% loss. On a call bought for $3.20, at what option price do they exit? $4.80 $6.40 $2.70 $1.60"
    },
@@ -32611,7 +32992,11 @@
       "sold": 7
      },
      "fn": "arith",
-     "result": 350.0
+     "result": 350.0,
+     "steps": {
+      "step1": 350.0,
+      "step2": 3.5
+     }
     },
     "given": "Your 50 call is worth $7.00. You sell it and buy the 55 call for $3.50. How much cash comes back, per contract? $3.50 $1,050 $350 $700"
    },
@@ -32850,7 +33235,11 @@
       "old_bid": 0.9
      },
      "fn": "arith",
-     "result": 220.0
+     "result": 220.0,
+     "steps": {
+      "step1": 220.0,
+      "step2": 2.2
+     }
     },
     "given": "Your call expiring Friday is bid $0.90. The same strike two months out costs $3.10. What does rolling out cost, per contract? $400 $220 $310 $2.20"
    },
@@ -32948,7 +33337,10 @@
       "expr": "cost * 100"
      },
      "fn": "arith",
-     "result": 25.0
+     "result": 25.0,
+     "steps": {
+      "step1": 25.0
+     }
     },
     "given": "You sold a put spread for $1.20. It costs $0.25 to close now. Hold to expiry instead: what's the most extra you can make per spread? $25 $120 $95 $145"
    },
@@ -33551,7 +33943,10 @@
       "expr": "credit * 3"
      },
      "fn": "arith",
-     "result": 2.4
+     "result": 2.4,
+     "steps": {
+      "step1": 2.4
+     }
     },
     "given": "Under that rule, at what price do you buy the put back? You sold a put for $0.80. tastylive says it closes a losing short option at a net loss of twice the credit. $2.40 $1.60 $0.80 $0.40"
    },
@@ -34581,7 +34976,11 @@
       "oi": 6000
      },
      "fn": "arith",
-     "result": 6200.0
+     "result": 6200.0,
+     "steps": {
+      "step1": 6200.0,
+      "step2": 7000.0
+     }
     },
     "given": "Open interest is 6,000. Today's only activity: 1,000 contracts where both sides open, 800 where both close. What's the new open interest? 6,200 7,800 7,000 6,800"
    },
@@ -35255,7 +35654,10 @@
       "sold": 55000
      },
      "fn": "arith",
-     "result": 3000.0
+     "result": 3000.0,
+     "steps": {
+      "step1": 3000.0
+     }
     },
     "given": "Roughly what net position did that leave market makers with? One index put traded over 100,000 contracts in a day. By the close, market makers had bought about 52,000 and sold about 55,000. Short about 3,000 contracts Short over 100,000 Long about 52,000 Flat, buys equal sells"
    },

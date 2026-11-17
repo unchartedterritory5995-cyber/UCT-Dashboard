@@ -597,7 +597,12 @@
       "level": 40
      },
      "fn": "arith",
-     "result": 40.4
+     "result": 40.4,
+     "steps": {
+      "step1": 40.4,
+      "step2": 1.01,
+      "step3": 0.01
+     }
     },
     "given": "A stock just cleared its $40.00 breakout level. You'll pay at most 1% above it. What limit price caps your buy? $40.40 $41.00 $44.00 $40.80"
    },
@@ -2385,7 +2390,10 @@
       "trail": 1.5
      },
      "fn": "arith",
-     "result": 29.7
+     "result": 29.7,
+     "steps": {
+      "step1": 29.7
+     }
     },
     "given": "Your sell trailing stop is $1.50 below the price. The stock climbs to a high of $31.20, then slips. Where is your stop now? $28.20 $32.70 $30.73 $29.70"
    },
@@ -2484,7 +2492,15 @@
       "trail_pct": 10
      },
      "fn": "arith",
-     "result": 35.0
+     "result": 35.0,
+     "steps": {
+      "step1": 35.0,
+      "step2": 0.35,
+      "step3": 14.0,
+      "step4": 54.0,
+      "step5": 0.9,
+      "step6": 0.1
+     }
     },
     "given": "You bought at $40 with a 10% trailing stop. It peaks at $60, then falls and fills right at your stop. What's your gain? 35% 40% 50% 135%"
    },
@@ -2810,7 +2826,12 @@
       "stop": 48
      },
      "fn": "arith",
-     "result": 3.0
+     "result": 3.0,
+     "steps": {
+      "step1": 3.0,
+      "step2": 6.0,
+      "step3": 2.0
+     }
     },
     "given": "Entry $50, sell stop $48. It gaps open at $44 and the stop sells there. How many times your planned loss did you take? 6x 2x 3x 0.3x"
    },
@@ -3288,7 +3309,12 @@
       "trail_pct": 20
      },
      "fn": "arith",
-     "result": 64.0
+     "result": 64.0,
+     "steps": {
+      "step1": 64.0,
+      "step2": 0.8,
+      "step3": 0.2
+     }
     },
     "given": "You bought at $50 with a 20% trailing stop. The stock peaks at $80, then rolls over. Near what price does the stop trigger? Near $64 Near $40 Near $74 Near $70"
    },
@@ -4267,7 +4293,12 @@
       "target": 221.0
      },
      "fn": "arith",
-     "result": 1.0
+     "result": 1.0,
+     "steps": {
+      "step1": 1.0,
+      "step2": 1.5,
+      "step3": 1.5
+     }
     },
     "given": "A broker's sample bracket: buy at $219.50, stop at $218.00, target at $221.00. How many dollars of reward per dollar of risk? 2 to 1 0.5 to 1 1.5 to 1 1 to 1"
    },
@@ -4440,7 +4471,12 @@
       "stop": 38
      },
      "fn": "arith",
-     "result": 46.0
+     "result": 46.0,
+     "steps": {
+      "step1": 46.0,
+      "step2": 6.0,
+      "step3": 2.0
+     }
     },
     "given": "Entry $40, stop $38. What price is 3R, three times your risk above the entry? $46.00 $48.00 $52.00 $120.00"
    },
@@ -4684,7 +4720,14 @@
       "t1": 44
      },
      "fn": "arith",
-     "result": 200.0
+     "result": 200.0,
+     "steps": {
+      "step1": 200.0,
+      "step2": 400.0,
+      "step3": -200.0,
+      "step4": 4.0,
+      "step5": -2.0
+     }
     },
     "given": "If each order fills at its price, what is your net result? You buy 200 shares at $40 with a $38 stop. You split the exits into two OCO pairs of 100 shares: targets $44 and $46, both stops $38. It hits $44, then falls to $38. A $200 gain A $400 gain A $200 loss Break even"
    },
@@ -5999,7 +6042,11 @@
       "order": 2000
      },
      "fn": "arith",
-     "result": 0.67
+     "result": 0.67,
+     "steps": {
+      "step1": 0.67,
+      "step2": 0.01
+     }
     },
     "given": "A stock trades about 300,000 shares a day. You want 2,000 shares. What percent of a day's volume is that? 6.7% 0.0067% 150% 0.67%"
    },
@@ -6368,7 +6415,11 @@
       "stop": 38
      },
      "fn": "arith",
-     "result": 150.0
+     "result": 150.0,
+     "steps": {
+      "step1": 150.0,
+      "step2": 0.3
+     }
     },
     "given": "You hold 500 shares. Your sell stop at $38.00 fills at $37.70 in a fast drop. What did slippage cost you, in dollars? $1,500 $0.30 $150 $18,850"
    },
@@ -6480,7 +6531,20 @@
       "pc": 25.1
      },
      "fn": "arith",
-     "result": 0.26
+     "result": 0.26,
+     "steps": {
+      "step1": 0.26,
+      "step10": 10000.0,
+      "step11": 15030.0,
+      "step2": 0.0,
+      "step3": 0.07,
+      "step4": 25.07,
+      "step5": 50130.0,
+      "step6": 2000.0,
+      "step7": 25030.0,
+      "step8": 25100.0,
+      "step9": 1000.0
+     }
     },
     "given": "Offers: 400 at $25.00, 600 at $25.05, 1,000 at $25.10. Your 2,000-share market buy takes all three. Slippage vs $25.00, in percent? 0.26% 0.40% 0.60% 2.60%"
    },
@@ -6825,7 +6889,11 @@
       "stop_distance": 1
      },
      "fn": "arith",
-     "result": 500.0
+     "result": 500.0,
+     "steps": {
+      "step1": 500.0,
+      "step2": 1.25
+     }
     },
     "given": "You risk $400 with a stop $1.00 below entry, so you buy 400 shares. A fast drop fills your stop $0.25 lower. What do you lose? $400 $100 $1.25 $500"
    },
@@ -6943,7 +7011,14 @@
       "stop": 39
      },
      "fn": "arith",
-     "result": 1840.0
+     "result": 1840.0,
+     "steps": {
+      "step1": 1840.0,
+      "step2": 300.0,
+      "step3": 1540.0,
+      "step4": 1.0,
+      "step5": 2.2
+     }
     },
     "given": "What is your total risk to the $39.00 stop now? You plan 1,000 shares at a $40.00 limit, stop $39.00. Only 300 fill. The stock jumps, and you buy the other 700 at market for $41.20. $1,840 $1,000 $2,200 $300"
    },
@@ -7279,7 +7354,11 @@
       "expr": "adv * cap / 100"
      },
      "fn": "arith",
-     "result": 8000.0
+     "result": 8000.0,
+     "steps": {
+      "step1": 8000.0,
+      "step2": 800000.0
+     }
     },
     "given": "A $50 stock averages 800,000 shares a day. Our cap is 1% of average daily volume. What is the most shares you can own? 8,000 shares 16,000 shares 80,000 shares 400,000 shares"
    },
@@ -8399,7 +8478,11 @@
       "shares": 100
      },
      "fn": "arith",
-     "result": 50.0
+     "result": 50.0,
+     "steps": {
+      "step1": 50.0,
+      "step2": 3000.0
+     }
     },
     "given": "You bought 100 shares at $30. It doubles to $60. How many shares do you sell to get your whole cost back? 100 shares 50 shares 30 shares 25 shares"
    },
@@ -8551,7 +8634,17 @@
       "top": 15
      },
      "fn": "arith",
-     "result": 250.0
+     "result": 250.0,
+     "steps": {
+      "step1": 250.0,
+      "step2": 750.0,
+      "step3": 500.0,
+      "step4": 1000.0,
+      "step5": 250.0,
+      "step6": 5.0,
+      "step7": 5.0,
+      "step8": 2.5
+     }
     },
     "given": "Leaving out commissions, who made more? You buy 200 shares at $10, then sell 100 at $12.50 and 100 at $15. A friend buys 200 at $10 and sells all 200 at $15. Your friend, by $250 You did, by selling early The same profit for both Your friend, by $500"
    },
@@ -8648,7 +8741,17 @@
       "stop": 10
      },
      "fn": "arith",
-     "result": 250.0
+     "result": 250.0,
+     "steps": {
+      "step1": 250.0,
+      "step2": 250.0,
+      "step3": 0.0,
+      "step4": 250.0,
+      "step5": 0.0,
+      "step6": 0.0,
+      "step7": 2.5,
+      "step8": 0.0
+     }
     },
     "given": "Leaving out commissions, what did the partial do against holding all 200 to that stop? You buy 200 shares at $10. It rallies to $12.50, where you sell 100. Then it falls back and your breakeven stop sells the rest at $10. Made you $250 more Made no difference Left you worse off Made you $500 more"
    },
@@ -8922,7 +9025,12 @@
       "stop": 47.5
      },
      "fn": "arith",
-     "result": 57.5
+     "result": 57.5,
+     "steps": {
+      "step1": 57.5,
+      "step2": 7.5,
+      "step3": 2.5
+     }
     },
     "given": "Entry $50, stop $47.50. Where is the 3R price? $53.00 $55.00 $42.50 $57.50"
    },
@@ -9009,7 +9117,12 @@
       "stop": 77
      },
      "fn": "arith",
-     "result": 95.0
+     "result": 95.0,
+     "steps": {
+      "step1": 95.0,
+      "step2": 15.0,
+      "step3": 3.0
+     }
     },
     "given": "Entry $80, stop $77. Where does the 5R mark sit? $95.00 $98.00 $110.00 $400.00"
    },
@@ -9440,7 +9553,12 @@
       "stop": 38
      },
      "fn": "arith",
-     "result": 46.0
+     "result": 46.0,
+     "steps": {
+      "step1": 46.0,
+      "step2": 6.0,
+      "step3": 2.0
+     }
     },
     "given": "What does our plan do now? You bought 300 shares at $40, stop $38, in one order. By day 5 it has run to $46, 3R, and it sits well above its rising 9 EMA. Sell some at $46, trail the rest Sell all 300 at $46, one target Hold all 300 and never sell a share Add 100 more shares at $46"
    },

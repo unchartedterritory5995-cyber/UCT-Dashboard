@@ -2,7 +2,7 @@
  "unit": "SET.30",
  "track": "SET",
  "title": "Parabolic Long",
- "teaches": "The parabolic long as we trade it: Bracco's parabolic burst mirrored, a 3 to 5 day accelerating panic drop that ends on a gap-down climax day, bought only after the turn on the first 5-minute close back over VWAP, the stop a few cents under the climax low, the daily 9 EMA as the target, the one long our 200-day rule allows below the line, and a loss taken at the stop as the cost of being a day early.",
+ "teaches": "The parabolic long as we trade it: Bracco's parabolic burst mirrored, a 3 to 5 day accelerating panic drop that ends on a gap-down climax day, bought only after the turn on the first 5-minute close back over VWAP, the stop a few cents under the climax low, the daily 9 EMA as the target, the one long our 200-day rule allows below the line, and below it only on an index or a levered index ETF, never a single stock (D-009), and a loss taken at the stop as the cost of being a day early.",
  "skills": [
   {
    "id": "setup.parabolic_long",

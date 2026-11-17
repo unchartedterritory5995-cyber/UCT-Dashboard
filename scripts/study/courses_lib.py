@@ -337,6 +337,19 @@ def calc_steps(calc: dict) -> dict:
             return {"spread": r2(a["ask"] - a["bid"]), "midpoint": r2((a["ask"] + a["bid"]) / 2)}
         if fn == "dollar_volume":
             return {}
+        if fn == "arith":
+            # every part of the expression, worked out ("(25.10 - 24.71) * 3" gives 0.39 and 1.17), so a plain
+            # arithmetic question can show its steps too (the SET.22 checker could not: "0.39 and 1.17" were rejected)
+            import ast
+            expr = str(a.get("expr") or "")
+            values = {k: v for k, v in a.items() if k != "expr" and isinstance(v, (int, float))}
+            tree = ast.parse(expr, mode="eval")
+            out, n = {}, 0
+            for node in ast.walk(tree):
+                if isinstance(node, ast.BinOp):
+                    n += 1
+                    out[f"step{n}"] = r2(_arith(ast.unparse(node), **values))
+            return out
     except (KeyError, TypeError, ZeroDivisionError):
         return {}
     return {}

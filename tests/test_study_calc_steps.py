@@ -31,3 +31,9 @@ def test_without_the_steps_it_would_not(monkeypatch):
     monkeypatch.setattr(cl, "calc_steps", lambda calc: {})
     item = [it for it in cl.build_items(_doc(WHY)) if it.get("_key") == "q01"][0]
     assert any("500" in p or "2.22" in p for p in cl.strict_grounding(item))
+
+
+def test_plain_arithmetic_shows_every_part():
+    # SET.22 q16: how far under the gap-up low (53.03) did the test day dip (52.45)? The steps are 0.58 and 1.09%.
+    steps = cl.calc_steps({"fn": "arith", "args": {"expr": "(a - b) / a * 100", "a": 53.03, "b": 52.45}, "round": 2})
+    assert 0.58 in steps.values() and 1.09 in steps.values()

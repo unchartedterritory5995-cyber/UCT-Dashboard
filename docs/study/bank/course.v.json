@@ -1235,7 +1235,14 @@
       "expr": "(c1 + c2 + c3 + c4 + c5) / 5"
      },
      "fn": "arith",
-     "result": 22.8
+     "result": 22.8,
+     "steps": {
+      "step1": 22.8,
+      "step2": 114.0,
+      "step3": 91.0,
+      "step4": 66.0,
+      "step5": 42.0
+     }
     },
     "given": "The last five closes are $20, $22, $24, $25 and $23. What is the 5-day simple moving average? $114.00 $28.50 $22.80 $21.50"
    },
@@ -2652,7 +2659,10 @@
       "today": 3000000
      },
      "fn": "arith",
-     "result": 2.5
+     "result": 2.5,
+     "steps": {
+      "step1": 2.5
+     }
     },
     "given": "A stock trades 3,000,000 shares today. Its 50-day average volume is 1,200,000 shares. What is its relative volume? 0.4x 2.5x 25.0x 1.5x"
    },
@@ -3873,7 +3883,10 @@
       "low": 50.1
      },
      "fn": "arith",
-     "result": 2.3
+     "result": 2.3,
+     "steps": {
+      "step1": 2.3
+     }
     },
     "given": "Today's high is $52.40 and today's low is $50.10. What is the day's range? $2.30 $23.00 $51.25 $102.50"
    },
@@ -3977,7 +3990,13 @@
       "top": 60
      },
      "fn": "arith",
-     "result": 50.0
+     "result": 50.0,
+     "steps": {
+      "step1": 50.0,
+      "step2": 0.5,
+      "step3": 10.0,
+      "step4": 20.0
+     }
     },
     "given": "A stock rallies from $40 to $60, then pulls back to $50. What percent of the rally has it given back? 50.0% 83.3% 125.0% 200.0%"
    },
@@ -6463,7 +6482,12 @@
       "open": 50.0
      },
      "fn": "arith",
-     "result": 2.5
+     "result": 2.5,
+     "steps": {
+      "step1": 2.5,
+      "step2": 1.0,
+      "step3": 0.4
+     }
     },
     "given": "Open $50.00, high $50.50, low $49.00, close $50.40. How many times the body is the lower shadow? 3.5x 0.4x 2.5x 3.75x"
    },
@@ -7036,7 +7060,11 @@
       "open": 30.0
      },
      "fn": "arith",
-     "result": 32.0
+     "result": 32.0,
+     "steps": {
+      "step1": 32.0,
+      "step2": 64.0
+     }
     },
     "given": "A long white candle opens at $30.00 and closes at $34.00. Below what price must the next black candle close for a dark cloud cover? $34.00 $30.00 $31.00 $32.00"
    },
@@ -8810,7 +8838,10 @@
       "open": 40.0
      },
      "fn": "arith",
-     "result": 1.2
+     "result": 1.2,
+     "steps": {
+      "step1": 1.2
+     }
     },
     "given": "Open $40.00, high $41.50, low $39.60, close $41.20. How big is the real body? $1.20 $1.50 $1.60 $1.90"
    },
@@ -8918,7 +8949,10 @@
       "high": 27.4
      },
      "fn": "arith",
-     "result": 2.1
+     "result": 2.1,
+     "steps": {
+      "step1": 2.1
+     }
     },
     "given": "Open $25.00, high $27.40, low $24.80, close $25.30. How long is the upper shadow? $2.10 $2.30 $2.40 $2.60"
    },
@@ -9029,7 +9063,10 @@
       "low": 57.0
      },
      "fn": "arith",
-     "result": 2.4
+     "result": 2.4,
+     "steps": {
+      "step1": 2.4
+     }
     },
     "given": "Open $60.00, high $60.10, low $57.00, close $59.40. How long is the lower shadow? $2.40 $0.70 $0.60 $0.10"
    },
@@ -10985,7 +11022,11 @@
       "low": 40
      },
      "fn": "arith",
-     "result": 60.0
+     "result": 60.0,
+     "steps": {
+      "step1": 60.0,
+      "step2": 10.0
+     }
     },
     "given": "Cup low $40. Right lip and breakout $50. Add the cup's depth to the breakout: what's the textbook target? $50 $10 $60 $90"
    },
@@ -11312,7 +11353,11 @@
       "top": 30
      },
      "fn": "arith",
-     "result": 38.0
+     "result": 38.0,
+     "steps": {
+      "step1": 38.0,
+      "step2": 10.0
+     }
     },
     "given": "The flagpole runs from $20 to $30. The flag breaks out at $28. Add the pole's length to the breakout: what's the target? $40 $38 $58 $10"
    },
@@ -11576,7 +11621,10 @@
       "other_line": 2
      },
      "fn": "arith",
-     "result": 5.0
+     "result": 5.0,
+     "steps": {
+      "step1": 5.0
+     }
     },
     "given": "On a rising wedge, at least how many touches across both lines do Bulkowski and Fidelity's guide want? 3 touches 4 touches 5 touches 6 touches"
    },
@@ -12126,7 +12174,12 @@
       "second": 49
      },
      "fn": "arith",
-     "result": 2.0
+     "result": 2.0,
+     "steps": {
+      "step1": 2.0,
+      "step2": 0.02,
+      "step3": 1.0
+     }
     },
     "given": "First low $50.00, second low $49.00. How far below the first low is the second? 2% 20% 50% 98%"
    },
@@ -12362,7 +12415,11 @@
       "neck": 50
      },
      "fn": "arith",
-     "result": 40.0
+     "result": 40.0,
+     "steps": {
+      "step1": 40.0,
+      "step2": 10.0
+     }
     },
     "given": "Head at $60, neckline at $50. Measure head to neckline and subtract that from the neckline. What's the target? $40 $30 $20 $10"
    },
@@ -15149,7 +15206,10 @@
       "high": 11.04
      },
      "fn": "arith",
-     "result": 11.05
+     "result": 11.05,
+     "steps": {
+      "step1": 11.05
+     }
     },
     "given": "Kicker day. The red day before it topped at $11.04. You enter a cent over that high as it trades through. What do you pay? $12.04 $10.94 $11.14 $11.05"
    },
@@ -15847,7 +15907,12 @@
       "stop": 29
      },
      "fn": "arith",
-     "result": 33.0
+     "result": 33.0,
+     "steps": {
+      "step1": 33.0,
+      "step2": 3.0,
+      "step3": 1.0
+     }
     },
     "given": "Oops Reversal: you buy the reclaim of yesterday's $30.00 close. Your stop is $29.00, just under the day's low. Where is the 3R price? $32.00 $31.00 $33.00 $34.00"
    },
@@ -16237,7 +16302,12 @@
       "low": 39.2
      },
      "fn": "arith",
-     "result": 2.0
+     "result": 2.0,
+     "steps": {
+      "step1": 2.0,
+      "step2": 0.02,
+      "step3": 0.8
+     }
     },
     "given": "Where does our stop go? You buy our Kicker at $40.00. The Kicker candle's low is $39.20. Under the Kicker low, 2% away 3.5% under your $40.00 entry Under the prior red day's low Under the rising 9 EMA"
    },
@@ -16607,7 +16677,11 @@
       "lower": 47.5
      },
      "fn": "arith",
-     "result": 47.0
+     "result": 47.0,
+     "steps": {
+      "step1": 47.0,
+      "step2": 0.5
+     }
     },
     "given": "Launchpad. The 20 EMA is $48.00, the 50 SMA is $47.50 and the ATR is $2.00. Where does the line-based stop sit? $47.00 $47.50 $48.00 $48.50"
    },
@@ -16718,7 +16792,12 @@
       "stop": 57
      },
      "fn": "arith",
-     "result": 3.0
+     "result": 3.0,
+     "steps": {
+      "step1": 3.0,
+      "step2": 9.0,
+      "step3": 3.0
+     }
     },
     "given": "Counting in R, where is it? You buy a setup at $60 with its stop at $57. It reaches $69 and keeps going. At 3R, three times the risk At 5R, five times the risk At 9R: nine dollars At 4R: from the stop"
    },
@@ -16893,7 +16972,12 @@
       "stop": 43.5
      },
      "fn": "arith",
-     "result": 52.5
+     "result": 52.5,
+     "steps": {
+      "step1": 52.5,
+      "step2": 7.5,
+      "step3": 1.5
+     }
     },
     "given": "A setup fires with its trigger at $45.00 and its stop at $43.50. Where is the 5R price? $52.50 $51.00 $49.50 $46.50"
    },
@@ -16972,7 +17056,13 @@
       "low": 48.0
      },
      "fn": "arith",
-     "result": 30.0
+     "result": 30.0,
+     "steps": {
+      "step1": 30.0,
+      "step2": 0.3,
+      "step3": 0.6,
+      "step4": 2.0
+     }
     },
     "given": "Is this a Go Signal day? A strong stock with a rising 20-day opens under yesterday's close and sweeps yesterday's low. The day's range is $48.00 to $50.00. It closes at $48.60. No: it closed 30% up its range Yes: weak open, then a sweep Yes: the 20-day is rising No: the open was too weak"
    },
@@ -18257,7 +18347,10 @@
       "stop": 46
      },
      "fn": "arith",
-     "result": 4.0
+     "result": 4.0,
+     "steps": {
+      "step1": 4.0
+     }
     },
     "given": "You buy at $50 with your stop at $46. What is your R per share? $46 $0.40 $54 $4"
    },
@@ -19339,7 +19432,11 @@
       "win": 500
      },
      "fn": "arith",
-     "result": 401.0
+     "result": 401.0,
+     "steps": {
+      "step1": 401.0,
+      "step2": 99.0
+     }
     },
     "given": "Your win rate is 1%. What is the net result? Over 100 trades, 99 lose $1 each. One trade makes $500. A $401 profit A $99 loss $500 profit A $4.01 gain"
    },
@@ -19507,7 +19604,12 @@
       "target": 23
      },
      "fn": "arith",
-     "result": 3.0
+     "result": 3.0,
+     "steps": {
+      "step1": 3.0,
+      "step2": 3.0,
+      "step3": 1.0
+     }
     },
     "given": "Entry $20, stop $19, target $23. How many dollars can you make for each dollar you risk? $4 $0.33 $3 $1.15"
    },
@@ -20054,7 +20156,13 @@
       "stop": 155
      },
      "fn": "arith",
-     "result": 2.0
+     "result": 2.0,
+     "steps": {
+      "step1": 2.0,
+      "step2": 2.0,
+      "step3": 30.0,
+      "step4": 15.0
+     }
     },
     "given": "Roughly how much of the account did you lose? You risk 1% of the account. Entry $170, with a stop order at $155 resting with your broker. Bad news hits overnight, and the stock opens at $140. About 2%, twice your plan 1%, your stop capped the loss None yet, the gap skipped it About 18%, as far as it fell"
    },
@@ -21156,7 +21264,10 @@
       "trades": 4
      },
      "fn": "arith",
-     "result": 6.0
+     "result": 6.0,
+     "steps": {
+      "step1": 6.0
+     }
     },
     "given": "You hold four trades. Each one risks 1.5% of the account to its stop. What is your portfolio heat? 1.5% 6% 5.5% 4%"
    },
@@ -21327,7 +21438,10 @@
       "trades": 5
      },
      "fn": "arith",
-     "result": 5.0
+     "result": 5.0,
+     "steps": {
+      "step1": 5.0
+     }
     },
     "given": "If chips have a bad day, how much of the account is at risk? You hold five chip stocks. Each one risks 1% of the account to its stop. About 5%, if all five stops hit About 1%, one stop will hit All the money in the stocks About 0.2%, 1% split five ways"
    },
@@ -21533,7 +21647,11 @@
       "stop": 55
      },
      "fn": "arith",
-     "result": 700.0
+     "result": 700.0,
+     "steps": {
+      "step1": 700.0,
+      "step2": 7.0
+     }
     },
     "given": "You own 100 shares bought at $50. They now trade at $62, and your stop is $55. What is your open risk? $1,200 $700 $500 $7"
    },
@@ -21871,7 +21989,12 @@
       "pct": 20
      },
      "fn": "arith",
-     "result": 68.0
+     "result": 68.0,
+     "steps": {
+      "step1": 68.0,
+      "step2": 6800.0,
+      "step3": 80.0
+     }
     },
     "given": "You set a 20% trailing stop. The stock peaks at $85, then starts to fall. Where is your stop? $68 $85 $102 $106"
    },
@@ -21971,7 +22094,10 @@
       "stop": 45
      },
      "fn": "arith",
-     "result": 15.0
+     "result": 15.0,
+     "steps": {
+      "step1": 15.0
+     }
     },
     "given": "What does the stop lock in if it fills at $45? You bought at $30. The stock ran to $60, and your 25% trailing stop now sits at $45. Then the stock turns down. $15 a share, half the gain $30 a share, the whole gain $45 a share, the stop price $22.50 a share, 75% of the gain"
    },
@@ -22258,7 +22384,11 @@
       "price": 20
      },
      "fn": "arith",
-     "result": 7.5
+     "result": 7.5,
+     "steps": {
+      "step1": 7.5,
+      "step2": 0.07
+     }
     },
     "given": "Which one moves more for its price? Stock A trades at $300 with a daily ATR of $6. Stock B trades at $20 with a daily ATR of $1.50. B, about 7.5% a day A, ATR is bigger About the same B, 1.5% a day"
    },
@@ -22423,7 +22553,10 @@
       "prev_close": 50
      },
      "fn": "arith",
-     "result": 4.0
+     "result": 4.0,
+     "steps": {
+      "step1": 4.0
+     }
     },
     "given": "What is today's true range? Yesterday the stock closed at $50. Today it gaps up: high $54, low $52.50. $4.00 $5.50 $6.50 $8.00"
    },
@@ -22597,7 +22730,11 @@
       "mult": 3
      },
      "fn": "arith",
-     "result": 72.5
+     "result": 72.5,
+     "steps": {
+      "step1": 72.5,
+      "step2": 7.5
+     }
     },
     "given": "The 22-day high is $80 and the 22-day ATR is $2.50. Where is a long Chandelier Exit set 3 ATRs down? $72.50 $70.00 $25.00 $7.50"
    },
@@ -24382,7 +24519,10 @@
       "trail": 2
      },
      "fn": "arith",
-     "result": 35.4
+     "result": 35.4,
+     "steps": {
+      "step1": 35.4
+     }
     },
     "given": "You buy at $30 and set a sell trailing stop $2 below the price. It climbs to $37.40, then dips to $36. Where is your stop now? $28.00 $35.40 $37.40 $34.00"
    },
@@ -24611,7 +24751,10 @@
       "trail": 3
      },
      "fn": "arith",
-     "result": 34.0
+     "result": 34.0,
+     "steps": {
+      "step1": 34.0
+     }
     },
     "given": "Where does your buy stop trigger? You're short at $40 with a $3 trailing buy stop. The stock falls to a low of $31, then bounces. At $34 At $43 At $37 At $31"
    },
@@ -25387,7 +25530,10 @@
       "ordered": 800
      },
      "fn": "arith",
-     "result": 500.0
+     "result": 500.0,
+     "steps": {
+      "step1": 500.0
+     }
     },
     "given": "You send an immediate-or-cancel (IOC) order to buy 800 shares. Only 300 can fill right away. How many shares get canceled? 500 shares 800 shares 1,100 shares 240,000 shares"
    },
@@ -26015,7 +26161,11 @@
       "shares": 1000
      },
      "fn": "arith",
-     "result": 90.0
+     "result": 90.0,
+     "steps": {
+      "step1": 90.0,
+      "step2": 0.09
+     }
     },
     "given": "You send a market buy for 1,000 shares with the ask at $15.20. They fill at an average of $15.29. What did slippage cost you? $0.09 $900 $90 $15,290"
    },
@@ -26745,7 +26895,11 @@
       "short_price": 18
      },
      "fn": "arith",
-     "result": 1880.0
+     "result": 1880.0,
+     "steps": {
+      "step1": 1880.0,
+      "step2": 9.4
+     }
     },
     "given": "You short 200 shares at $18.00. A squeeze hits and you buy to cover at $27.40. How much did you lose, before costs? $1,880 $940 $188 $9.40"
    },
@@ -27910,7 +28064,10 @@
       "shares": 100
      },
      "fn": "arith",
-     "result": 345.0
+     "result": 345.0,
+     "steps": {
+      "step1": 345.0
+     }
     },
     "given": "A call is quoted at $3.45. One contract covers 100 shares. What does one contract cost, before fees? $3.45 $3,450 $103.45 $345"
    },
@@ -29707,7 +29864,10 @@
       "move": 2
      },
      "fn": "arith",
-     "result": 0.8
+     "result": 0.8,
+     "steps": {
+      "step1": 0.8
+     }
     },
     "given": "Your call has a delta of 0.40. The stock rises $2, all else equal. About how much does the option gain per share? $0.40 $2.00 $0.80 $5.00"
    },
@@ -29784,7 +29944,10 @@
       "theta": 0.06
      },
      "fn": "arith",
-     "result": 6.0
+     "result": 6.0,
+     "steps": {
+      "step1": 6.0
+     }
     },
     "given": "Your option's theta is -0.06. If nothing else changes, about how much does one contract lose in a day? $6 $0.06 $0.60 $1,667"
    },
@@ -31235,7 +31398,12 @@
       "short_call": 65
      },
      "fn": "arith",
-     "result": 350.0
+     "result": 350.0,
+     "steps": {
+      "step1": 350.0,
+      "step2": 3.5,
+      "step3": 5.0
+     }
     },
     "given": "Iron condor: sell the 65 call, buy the 70 call, sell the 55 put, buy the 50 put, for a $1.50 credit. Max loss per contract? $650 $350 $1,000 $500"
    },
@@ -31932,7 +32100,11 @@
       "opened": 300
      },
      "fn": "arith",
-     "result": 1200.0
+     "result": 1200.0,
+     "steps": {
+      "step1": 1200.0,
+      "step2": 1500.0
+     }
     },
     "given": "What happened to volume and open interest? A call series has open interest of 1,200. Today's only trade: one trader buys 300 to open. The seller was closing 300 calls she owned. Volume 300; open interest stays 1,200 Volume 300; open interest rises to 1,500 Volume 600; open interest up to 1,500 No volume; open interest falls to 900"
    },
@@ -32951,7 +33123,10 @@
       "shares": 20
      },
      "fn": "arith",
-     "result": 2.5
+     "result": 2.5,
+     "steps": {
+      "step1": 2.5
+     }
     },
     "given": "A company earns $50 million in net income. It has 20 million shares outstanding. What is its EPS? $0.40 $70.00 $25.00 $2.50"
    },
@@ -33209,7 +33384,11 @@
       "revenue": 835000
      },
      "fn": "arith",
-     "result": 70.1
+     "result": 70.1,
+     "steps": {
+      "step1": 70.06,
+      "step2": 0.7
+     }
     },
     "given": "Revenue is $835,000. Gross profit is $585,000. What is the gross margin, to one decimal place? 29.9% 142.7% 7.0% 70.1%"
    },
@@ -33435,7 +33614,11 @@
       "revenue": 57006
      },
      "fn": "arith",
-     "result": 63.2
+     "result": 63.2,
+     "steps": {
+      "step1": 63.17,
+      "step2": 0.63
+     }
     },
     "given": "NVIDIA, Q3 fiscal 2026: revenue $57,006 million, operating income $36,010 million. What is the operating margin, to one decimal? 63.2% 158.3% 171.5% 632.0%"
    },
@@ -34200,7 +34383,12 @@
       "expr": "(actual - estimate) / estimate * 100"
      },
      "fn": "arith",
-     "result": 4.0
+     "result": 4.0,
+     "steps": {
+      "step1": 4.0,
+      "step2": 0.04,
+      "step3": 0.05
+     }
     },
     "given": "NVIDIA's adjusted EPS was $1.30. The estimate was $1.25. What was the EPS surprise, in percent? 5% 4% 104% 0.4%"
    },
@@ -34297,7 +34485,12 @@
       "expr": "(actual - estimate) / estimate_size * 100"
      },
      "fn": "arith",
-     "result": 50.0
+     "result": 50.0,
+     "steps": {
+      "step1": 50.0,
+      "step2": 0.5,
+      "step3": 0.1
+     }
     },
     "given": "How does that report read? Analysts expect a loss of $0.20 a share. The company reports a loss of $0.10 a share. A beat: a 50% positive surprise A miss: the company still lost money A miss: a 50% negative surprise A beat: a 100% positive surprise"
    },
@@ -36038,7 +36231,11 @@
       "shares_millions": 80
      },
      "fn": "arith",
-     "result": 2.0
+     "result": 2.0,
+     "steps": {
+      "step1": 2.0,
+      "step2": 2000.0
+     }
     },
     "given": "A stock trades at $25. It has 80 million shares outstanding and a float of 50 million. What is its market cap? $3.2 billion $2 billion $1.25 billion $20 billion"
    },
@@ -36206,7 +36403,10 @@
       "outstanding": 100
      },
      "fn": "arith",
-     "result": 70.0
+     "result": 70.0,
+     "steps": {
+      "step1": 70.0
+     }
     },
     "given": "A company has 100 million shares outstanding. Insiders hold 30 million restricted shares. Roughly how many shares float? 30 million 100 million 70 million 130 million"
    },
@@ -36488,7 +36688,11 @@
       "price": 216.88
      },
      "fn": "arith",
-     "result": 7.7
+     "result": 7.7,
+     "steps": {
+      "step1": 7.72,
+      "step2": 0.08
+     }
     },
     "given": "A stock at $216.88 has an expected move of $16.74 either way. What is that as a percent of the price, to one decimal? 7.7% 7.2% 3.9% 0.8%"
    },
@@ -39540,7 +39744,11 @@
       "start": 5.24
      },
      "fn": "arith",
-     "result": 30.0
+     "result": 30.0,
+     "steps": {
+      "step1": 30.0,
+      "step2": 0.3
+     }
     },
     "given": "Oct. 1, 2026: the 10-year Treasury yielded 5.24%. Oct. 30: 4.94%. How many basis points did it fall? 1,018 basis points 0.3 basis points 30 basis points 300 basis points"
    },
@@ -41232,7 +41440,11 @@
       "two": 4.56
      },
      "fn": "arith",
-     "result": 38.0
+     "result": 38.0,
+     "steps": {
+      "step1": 38.0,
+      "step2": 0.38
+     }
     },
     "given": "Oct. 30, 2026: the 2-year Treasury yields 4.56%, the 10-year 4.94%. What is the 10-year minus 2-year spread? -38 basis points 38 basis points 0.38 basis points 950 basis points"
    },
@@ -41951,7 +42163,10 @@
       "expr": "adv - dec"
      },
      "fn": "arith",
-     "result": 1200.0
+     "result": 1200.0,
+     "steps": {
+      "step1": 1200.0
+     }
     },
     "given": "2,150 stocks advanced today and 950 declined. What were net advances? 3,100 120 2,150 1,200"
    },
@@ -42132,7 +42347,11 @@
       "prev": 5000
      },
      "fn": "arith",
-     "result": 4200.0
+     "result": 4200.0,
+     "steps": {
+      "step1": 4200.0,
+      "step2": -800.0
+     }
     },
     "given": "The A/D line stood at 5,000 yesterday. Today 1,200 stocks rose and 2,000 fell. Where is the A/D line now? 5,800 3,800 8,200 4,200"
    },
@@ -42511,7 +42730,10 @@
       "expr": "adv / dec"
      },
      "fn": "arith",
-     "result": 3.0
+     "result": 3.0,
+     "steps": {
+      "step1": 3.0
+     }
     },
     "given": "2,400 stocks advanced and 800 declined. What is the advance-decline ratio? 0.33 0.75 3.0 2.0"
    },
@@ -43144,7 +43366,10 @@
       "lows": 45
      },
      "fn": "arith",
-     "result": 135.0
+     "result": 135.0,
+     "steps": {
+      "step1": 135.0
+     }
     },
     "given": "Today 180 stocks hit 52-week highs and 45 hit 52-week lows. What are net new highs? 225 180 135 1,350"
    },
@@ -43294,7 +43519,12 @@
       "lows": 20
      },
      "fn": "arith",
-     "result": 75.0
+     "result": 75.0,
+     "steps": {
+      "step1": 75.0,
+      "step2": 0.75,
+      "step3": 80.0
+     }
     },
     "given": "60 stocks made 52-week highs and 20 made 52-week lows. What is the Record High Percent? 300% 133% 80% 75%"
    },
@@ -43564,7 +43794,11 @@
       "total": 500
      },
      "fn": "arith",
-     "result": 68.0
+     "result": 68.0,
+     "steps": {
+      "step1": 68.0,
+      "step2": 0.68
+     }
     },
     "given": "In a 500-stock index, 340 stocks trade above their 50-day moving average. What percent is that? 32% 50% 68% 680%"
    },
@@ -43947,7 +44181,10 @@
       "slow": 65
      },
      "fn": "arith",
-     "result": 75.0
+     "result": 75.0,
+     "steps": {
+      "step1": 75.0
+     }
     },
     "given": "The 19-day EMA of net advances is +140. The 39-day EMA is +65. What is the McClellan Oscillator? 205 75 20 2.15"
    },
@@ -44540,7 +44777,10 @@
       "up": 3.6
      },
      "fn": "arith",
-     "result": 3.0
+     "result": 3.0,
+     "steps": {
+      "step1": 3.0
+     }
     },
     "given": "Up volume was 3.6 billion shares and down volume was 1.2 billion. What is the up/down volume ratio? 0.33 2.0 2.4 3.0"
    },
@@ -44803,7 +45043,12 @@
       "upv": 3
      },
      "fn": "arith",
-     "result": 0.5
+     "result": 0.5,
+     "steps": {
+      "step1": 0.5,
+      "step2": 1.5,
+      "step3": 3.0
+     }
     },
     "given": "1,800 advancers and 1,200 decliners. Up volume 3 billion, down volume 1 billion. What is TRIN? 2.0 0.5 1.5 4.5"
    },
@@ -47005,7 +47250,10 @@
       "market": 17.9
      },
      "fn": "arith",
-     "result": 6.5
+     "result": 6.5,
+     "steps": {
+      "step1": 6.5
+     }
     },
     "given": "Barber and Odean: the heaviest traders earned 11.4% a year and the market 17.9%. How many points a year did they trail by? 29.3 points 6.5 points 65 points 1.6 points"
    },
@@ -52634,7 +52882,12 @@
       "wins": 10
      },
      "fn": "arith",
-     "result": 40.0
+     "result": 40.0,
+     "steps": {
+      "step1": 40.0,
+      "step2": 0.4,
+      "step3": 25.0
+     }
     },
     "given": "You made 25 trades: 10 winners and 15 losers. What's your win rate? 66.7% 28.6% 60% 40%"
    },
@@ -52862,7 +53115,12 @@
       "expr": "(a + b + c) / 3"
      },
      "fn": "arith",
-     "result": 400.0
+     "result": 400.0,
+     "steps": {
+      "step1": 400.0,
+      "step2": 1200.0,
+      "step3": 800.0
+     }
     },
     "given": "Your three winning trades made $300, $500 and $400. What's your average win? $1,200 $500 $600 $400"
    },
@@ -53030,7 +53288,10 @@
       "win": 6
      },
      "fn": "arith",
-     "result": 3.0
+     "result": 3.0,
+     "steps": {
+      "step1": 3.0
+     }
     },
     "given": "Your average win is 6%. Your average loss is 2%. What's your payoff ratio? 0.33 0.75 2.00 3.00"
    },
@@ -53184,7 +53445,10 @@
       "gross_profit": 9000
      },
      "fn": "arith",
-     "result": 1.5
+     "result": 1.5,
+     "steps": {
+      "step1": 1.5
+     }
     },
     "given": "Your winners made $9,000 in total. Your losers lost $6,000 in total. What's your profit factor? 2.50 0.67 1.50 0.60"
    },

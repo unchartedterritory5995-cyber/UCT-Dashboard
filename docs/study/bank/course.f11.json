@@ -795,7 +795,11 @@
       "trips": 12
      },
      "fn": "arith",
-     "result": 108.0
+     "result": 108.0,
+     "steps": {
+      "step1": 108.0,
+      "step2": 9.0
+     }
     },
     "given": "You make 12 round trips a day (buy, then sell), 300 shares each, and give up a $0.03 spread each time. What does the spread cost you a day? $9 $216 $1,080 $108"
    },
@@ -2114,7 +2118,12 @@
       "low": 48
      },
      "fn": "arith",
-     "result": 53.0
+     "result": 53.0,
+     "steps": {
+      "step1": 53.0,
+      "step2": 159.0,
+      "step3": 104.0
+     }
     },
     "given": "Yesterday's high was $56, the low $48 and the close $55. What's today's base pivot point for your 5-minute chart? $55.00 $159.00 $52.00 $53.00"
    },
@@ -2279,7 +2288,10 @@
       "weeks": 30
      },
      "fn": "arith",
-     "result": 150.0
+     "result": 150.0,
+     "steps": {
+      "step1": 150.0
+     }
     },
     "given": "Weinstein's average is 30 weeks long. A normal week has 5 trading days. About how many days does it cover on a daily chart? 150 days 180 days 210 days 1,500 days"
    },
@@ -2556,7 +2568,12 @@
       "low": 100
      },
      "fn": "arith",
-     "result": 112.0
+     "result": 112.0,
+     "steps": {
+      "step1": 112.0,
+      "step2": 336.0,
+      "step3": 220.0
+     }
     },
     "given": "By ChartSchool's rule, which base pivot fits your daily chart this month? You swing trade off the daily chart. Last month's high was $120, low $100, close $116. Yesterday's high was $118, low $112, close $115. $112, from last month's bar $115, yesterday's bar $116, last month's close $110, the midpoint"
    },
@@ -3914,7 +3931,11 @@
       "stop": 18.35
      },
      "fn": "arith",
-     "result": 800.0
+     "result": 800.0,
+     "steps": {
+      "step1": 800.0,
+      "step2": 0.25
+     }
     },
     "given": "A day trade in a $50,000 account: entry $18.60, stop $18.35, just under the first 10-minute low. You'll risk $200. How many shares? 800 shares 1,075 shares 2,688 shares 8,000 shares"
    },
@@ -4100,7 +4121,12 @@
       "stop": 39.2
      },
      "fn": "arith",
-     "result": 42.4
+     "result": 42.4,
+     "steps": {
+      "step1": 42.4,
+      "step2": 2.4,
+      "step3": 0.8
+     }
     },
     "given": "A Go Signal: price trades through $40.00, the prior close, and you buy. Stop $39.20. What price is 3R? $42.40 $41.60 $43.00 $44.00"
    },
@@ -4450,7 +4476,11 @@
       "stop": 20
      },
      "fn": "arith",
-     "result": 10.0
+     "result": 10.0,
+     "steps": {
+      "step1": 10.0,
+      "step2": 0.1
+     }
     },
     "given": "Jeffrey Hirsch allows stops up to 20%, but no position may lose over 2% of the portfolio. With a 20% stop, how big can the position be? 20% of the portfolio 10% of the portfolio 2% of the portfolio 40% of the portfolio"
    },
@@ -4589,7 +4619,12 @@
       "pct": 3.5
      },
      "fn": "arith",
-     "result": 48.25
+     "result": 48.25,
+     "steps": {
+      "step1": 48.25,
+      "step2": 0.96,
+      "step3": 0.04
+     }
     },
     "given": "Where does our stop go? You buy our Kicker at $50.00. The Kicker candle's low is $47.00. $48.25, 3.5% under entry Just under the $47.00 low $45.00, 10% under entry $48.50, 3% under entry"
    },
@@ -4692,7 +4727,11 @@
       "stop": 10
      },
      "fn": "arith",
-     "result": 2.5
+     "result": 2.5,
+     "steps": {
+      "step1": 2.5,
+      "step2": 250.0
+     }
     },
     "given": "What's the problem? Your day trades put 25% of the account in, with stops 2% under entry. You switch to position trades, keep 25% positions, and set stops 10% under. Risk is now 2.5%, over our ceiling None, the size didn't change Risk fell, the stop is farther away Risk is now 10%, same as the stop"
    },
@@ -4816,7 +4855,11 @@
       "stop": 0.25
      },
      "fn": "arith",
-     "result": 400.0
+     "result": 400.0,
+     "steps": {
+      "step1": 400.0,
+      "step2": 4.0
+     }
     },
     "given": "What do you do? A day trade. Your stop is 0.25% under entry, at the low of the first few minutes. You risk 1% of the account, as on your swing trades. Cap the size, far under 400% Buy the full 400%, on margin Widen the stop to shrink the size Tighten the stop even further"
    },
@@ -7306,7 +7349,13 @@
       "shares": 1000
      },
      "fn": "arith",
-     "result": 260.0
+     "result": 260.0,
+     "steps": {
+      "step1": 260.0,
+      "step2": 0.26,
+      "step3": 0.3,
+      "step4": 0.04
+     }
     },
     "given": "Thin stock. 9:31: $24.80 bid, $25.10 ask. 10:30: $24.98 bid, $25.02 ask. Buy 1,000 at the ask, sell at the bid. Extra cost at 9:31 vs 10:30? $300 $40 $340 $260"
    },
@@ -7435,7 +7484,11 @@
       "weekdays": 5
      },
      "fn": "arith",
-     "result": 3.0
+     "result": 3.0,
+     "steps": {
+      "step1": 3.0,
+      "step2": 4.0
+     }
     },
     "given": "It's Sunday, Nov. 22, 2026. How many full NYSE sessions does the coming week hold? 2 sessions 5 sessions 3 sessions 4 sessions"
    },

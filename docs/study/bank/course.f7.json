@@ -985,7 +985,12 @@
       "peak": 6144.15
      },
      "fn": "arith",
-     "result": 4915.32
+     "result": 4915.32,
+     "steps": {
+      "step1": 4915.32,
+      "step2": 491532.0,
+      "step3": 80.0
+     }
     },
     "given": "The S&P 500's record close in February 2025 was 6,144.15. At what close would it be down exactly 20%? 4,915.32 7,372.98 6,124.15 5,120.13"
    },
@@ -1094,7 +1099,14 @@
       "rise": 20
      },
      "fn": "arith",
-     "result": 10.0
+     "result": 10.0,
+     "steps": {
+      "step1": 10.0,
+      "step2": 90.0,
+      "step3": 9000.0,
+      "step4": 75.0,
+      "step5": 120.0
+     }
     },
     "given": "An index falls 25% from its record, then rises 20% off the low. How far below the old record is it now? 10% 1% 5% 20%"
    },
@@ -4253,7 +4265,13 @@
       "peak_year": 2000
      },
      "fn": "arith",
-     "result": 31.0
+     "result": 31.0,
+     "steps": {
+      "step1": 31.0,
+      "step2": 24.0,
+      "step3": 7.0,
+      "step4": 2.0
+     }
     },
     "given": "About how many months did the Nasdaq take to fall from its March 2000 peak to its October 2002 low? About 31 months About 3 months About 12 months About 24 months"
    },
@@ -6798,7 +6816,10 @@
       "low": 3577.03
      },
      "fn": "arith",
-     "result": 4292.0
+     "result": 4292.0,
+     "steps": {
+      "step1": 4292.44
+     }
     },
     "given": "The S&P 500's 2022 low close was 3,577.03. By the 20% rule, what close marks a new bull market? Round to a whole point. 4,471 5,151 4,650 4,292"
    },
@@ -8323,7 +8344,10 @@
       "expr": "adv - dec"
      },
      "fn": "arith",
-     "result": 1080.0
+     "result": 1080.0,
+     "steps": {
+      "step1": 1080.0
+     }
     },
     "given": "On the NYSE today, 2,140 stocks rose and 1,060 fell. What were net advances? 3,200 2,140 -1,080 1,080"
    },
@@ -8422,7 +8446,11 @@
       "prior": 15200
      },
      "fn": "arith",
-     "result": 14550.0
+     "result": 14550.0,
+     "steps": {
+      "step1": 14550.0,
+      "step2": 16450.0
+     }
     },
     "given": "The A/D line read 15,200 yesterday. Today 1,250 stocks rose and 1,900 fell. Where does the A/D line stand now? 15,850 13,300 14,550 18,350"
    },
@@ -8624,7 +8652,11 @@
       "total": 500
      },
      "fn": "arith",
-     "result": 24.0
+     "result": 24.0,
+     "steps": {
+      "step1": 24.0,
+      "step2": 0.24
+     }
     },
     "given": "In a 500-stock index, 120 stocks close above their 50-day average. What percent of the index is that? 76% 32% 417% 24%"
    },
@@ -8726,7 +8758,12 @@
       "nl": 140
      },
      "fn": "arith",
-     "result": 30.0
+     "result": 30.0,
+     "steps": {
+      "step1": 30.0,
+      "step2": 0.3,
+      "step3": 200.0
+     }
     },
     "given": "Today 60 stocks hit new 52-week highs and 140 hit new 52-week lows. What percent of that total are new highs? 43% 70% 233% 30%"
    },
@@ -8818,7 +8855,10 @@
       "expr": "ema19 - ema39"
      },
      "fn": "arith",
-     "result": 90.0
+     "result": 90.0,
+     "steps": {
+      "step1": 90.0
+     }
     },
     "given": "The 19-day EMA of net advances is +150. The 39-day EMA is +60. What is the McClellan Oscillator? 210 -90 2.5 90"
    },
@@ -9083,7 +9123,10 @@
       "start": -75
      },
      "fn": "arith",
-     "result": 135.0
+     "result": 135.0,
+     "steps": {
+      "step1": 135.0
+     }
     },
     "given": "The McClellan Oscillator jumps from -75 to +60 within a week. How many points did it climb? 15 135 -135 75"
    },
@@ -10451,7 +10494,10 @@
       "expr": "bp / 100"
      },
      "fn": "arith",
-     "result": 0.75
+     "result": 0.75,
+     "steps": {
+      "step1": 0.75
+     }
     },
     "given": "The Fed raises its target range by 75 basis points. How many percentage points is that? 7.5 points 0.075 points 75 points 0.75 points"
    },
@@ -10551,7 +10597,10 @@
       "two": 0.78
      },
      "fn": "arith",
-     "result": 0.85
+     "result": 0.85,
+     "steps": {
+      "step1": 0.85
+     }
     },
     "given": "January 3, 2022: the 2-year Treasury yields 0.78% and the 10-year 1.63%. What is the 2s10s? 2.41 points 0.85 points 1.63 points -0.85 points"
    },
@@ -10836,7 +10885,10 @@
       "top_start": 0.25
      },
      "fn": "arith",
-     "result": 4.25
+     "result": 4.25,
+     "steps": {
+      "step1": 4.25
+     }
     },
     "given": "The Fed's range was 0-0.25% in January 2022 and 4.25-4.50% by December. How far did the top end rise? 4.50 points 4.75 points 4.25 points 0.425 points"
    },
@@ -11506,7 +11558,10 @@
       "two": 4.41
      },
      "fn": "arith",
-     "result": -0.53
+     "result": -0.53,
+     "steps": {
+      "step1": -0.53
+     }
     },
     "given": "Where did the 2s10s end the year? Over 2022 the 2-year Treasury yield rose from 0.78% to 4.41%. The 10-year rose from 1.63% to 3.88%. -0.53, inverted +0.53, normal slope +0.85, unchanged -1.38, far inverted"
    },
@@ -12645,7 +12700,12 @@
       "unemployed": 8
      },
      "fn": "arith",
-     "result": 5.0
+     "result": 5.0,
+     "steps": {
+      "step1": 5.0,
+      "step2": 0.05,
+      "step3": 160.0
+     }
     },
     "given": "152 million people have jobs. 8 million are unemployed. What is the unemployment rate? 95% 19% 5.3% 5%"
    },
@@ -12890,7 +12950,10 @@
       "forecast": 0.2
      },
      "fn": "arith",
-     "result": 0.3
+     "result": 0.3,
+     "steps": {
+      "step1": 0.3
+     }
     },
     "given": "Forecasters expect CPI to rise 0.2%. It comes in at 0.5%. How big is the surprise? 2.5 points 0.7 points 0.3 points 0.5 points"
    },
@@ -13506,7 +13569,11 @@
       "revisions": 258000
      },
      "fn": "arith",
-     "result": 285000.0
+     "result": 285000.0,
+     "steps": {
+      "step1": 285000.0,
+      "step2": 27000.0
+     }
     },
     "given": "Counting the revisions, how did the job count compare with what was expected? Aug. 1, 2025, 8:30 a.m. The Dow Jones forecast for July payrolls is +100,000. BLS reports +73,000. It also revises May and June down by 258,000 combined. 285,000 fewer than expected 27,000 fewer than expected 258,000 fewer than expected 73,000 more than expected"
    },
@@ -16170,7 +16237,10 @@
       "spx": -18.11
      },
      "fn": "arith",
-     "result": 82.67
+     "result": 82.67,
+     "steps": {
+      "step1": 82.67
+     }
     },
     "given": "In 2022 the energy index returned 64.56% and the S&P 500 returned -18.11%. By how many points did energy beat it? 46.45 points 64.56 points 8.27 points 82.67 points"
    },

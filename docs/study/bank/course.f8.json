@@ -541,7 +541,11 @@
       "same": 6
      },
      "fn": "arith",
-     "result": 75.0
+     "result": 75.0,
+     "steps": {
+      "step1": 75.0,
+      "step2": 0.75
+     }
     },
     "given": "Of your 8 plan breaks this month, 6 were the same mistake. What percent of your breaks was that one mistake? 133% 175% 300% 75%"
    },
@@ -797,7 +801,13 @@
       "expr": "a + b + c + d + e"
      },
      "fn": "arith",
-     "result": 1200.0
+     "result": 1200.0,
+     "steps": {
+      "step1": 1200.0,
+      "step2": 940.0,
+      "step3": 720.0,
+      "step4": 420.0
+     }
     },
     "given": "Which mistake cost you more this month? This month's log: five chased entries lost $240, $180, $300, $220 and $260. Two stops you moved lower lost $450 and $500. Chasing, $1,200 over the month Moving the stop, $500 on one hit Neither, losses come with trading Too few trades this month to tell"
    },
@@ -1896,7 +1906,12 @@
       "stop": 29
      },
      "fn": "arith",
-     "result": 4.0
+     "result": 4.0,
+     "steps": {
+      "step1": 4.0,
+      "step2": 4.0,
+      "step3": 1.0
+     }
     },
     "given": "Plan: buy at $30, stop at $29. You chase it to $33, same stop. Your risk per share is how many times the plan's? 3 times 0.25 times 1.1 times 4 times"
    },
@@ -2131,7 +2146,11 @@
       "stop": 38
      },
      "fn": "arith",
-     "result": 1000.0
+     "result": 1000.0,
+     "steps": {
+      "step1": 1000.0,
+      "step2": 5.0
+     }
     },
     "given": "Same stop. What is really at risk now? You planned 200 shares at $40 with a stop at $38. That's $400 at risk. The stock opens at $43, and you buy the 200 shares anyway. $1,000 $400 $600 $8,600"
    },
@@ -2521,7 +2540,12 @@
       "top": 120.75
      },
      "fn": "arith",
-     "result": 91.0
+     "result": 91.0,
+     "steps": {
+      "step1": 90.92,
+      "step2": 0.91,
+      "step3": 109.78
+     }
     },
     "given": "Investopedia's GameStop case: it topped at $120.75, then traded at $10.97 a few weeks later. How far down was a buyer at the top? 9% 1,001% 110% 91%"
    },
@@ -2688,7 +2712,12 @@
       "stop": 48.45
      },
      "fn": "arith",
-     "result": 10.3
+     "result": 10.3,
+     "steps": {
+      "step1": 10.28,
+      "step2": 0.1,
+      "step3": 5.55
+     }
     },
     "given": "Yesterday's low was $48.50. Today it opens up 8% at $54. Your stop is $48.45, a few cents under that low. How far below $54 is it? 11.5% 89.7% 18.3% 10.3%"
    },
@@ -6162,7 +6191,12 @@
       "risk": 1
      },
      "fn": "arith",
-     "result": 5.0
+     "result": 5.0,
+     "steps": {
+      "step1": 5.0,
+      "step2": 3.0,
+      "step3": 2.0
+     }
     },
     "given": "You risk 1% a trade and lose three in a row. You double your risk to win it back, and that one stops out too. What's the day's total loss? 6% 7% 8% 5%"
    },
@@ -6709,7 +6743,12 @@
       "lost": 2600
      },
      "fn": "arith",
-     "result": 600.0
+     "result": 600.0,
+     "steps": {
+      "step1": 600.0,
+      "step2": 3200.0,
+      "step3": 320000.0
+     }
     },
     "given": "Our loss limit is 8% a month. The month began at $40,000, and you're down $2,600. How much more can you lose before new trades stop? $3,200 $392 $600 $5,800"
    },
@@ -6846,7 +6885,14 @@
       "start": 50000
      },
      "fn": "arith",
-     "result": 8.0
+     "result": 8.0,
+     "steps": {
+      "step1": 8.0,
+      "step2": 0.08,
+      "step3": -4000.0,
+      "step4": -2250.0,
+      "step5": -2750.0
+     }
     },
     "given": "What does our rule say? Our rule: no new trades at 8% down in a calendar month. The month began at $50,000. Weeks so far: -$1,500, -$1,250, +$500, -$1,750. A textbook setup appears. Stop: you're at the 8% limit Take it: you're still under 8% Take it, this setup is too good Stop, but only for 15 minutes"
    },
@@ -7725,7 +7771,12 @@
       "risk_pct": 1
      },
      "fn": "arith",
-     "result": 4.0
+     "result": 4.0,
+     "steps": {
+      "step1": 4.0,
+      "step2": 600.0,
+      "step3": 60000.0
+     }
     },
     "given": "Your rule is 1% risk on a $60,000 account. Feeling hot, you set up a trade risking $2,400. How many times your normal risk is that? 24 times 2.4 times 0.04 times 4 times"
    },
@@ -7910,7 +7961,11 @@
       "wins": 3
      },
      "fn": "arith",
-     "result": 500.0
+     "result": 500.0,
+     "steps": {
+      "step1": 500.0,
+      "step2": 1500.0
+     }
     },
     "given": "Where do the four trades leave you? Account $50,000, risking 1% a trade. Your last three winners made $500 each. Feeling sure, you risk $2,000 on the next one, and it's stopped out. $500 down $1,000 up $1,500 up $2,000 down"
    },
@@ -8361,7 +8416,14 @@
       "start": 100
      },
      "fn": "arith",
-     "result": 3200.0
+     "result": 3200.0,
+     "steps": {
+      "step1": 3200.0,
+      "step2": 1600.0,
+      "step3": 800.0,
+      "step4": 400.0,
+      "step5": 200.0
+     }
     },
     "given": "A friend starts at 100 shares and doubles his size after every win. He wins five in a row. How many shares on trade six? 6,400 shares 12,800 shares 24,300 shares 3,200 shares"
    },

@@ -355,7 +355,11 @@
       "pct": 1
      },
      "fn": "arith",
-     "result": 600.0
+     "result": 600.0,
+     "steps": {
+      "step1": 600.0,
+      "step2": 60000.0
+     }
     },
     "given": "Your account is $60,000. You risk 1% on a trade. How many dollars are at risk? $6,000 $60,600 $60,000 $600"
    },
@@ -507,7 +511,11 @@
       "pct": 2
      },
      "fn": "arith",
-     "result": 1600.0
+     "result": 1600.0,
+     "steps": {
+      "step1": 1600.0,
+      "step2": 160000.0
+     }
     },
     "given": "Your account is $80,000. What is our absolute ceiling on one trade's risk? $800 $1,200 $16,000 $1,600"
    },
@@ -594,7 +602,11 @@
       "loss": 750
      },
      "fn": "arith",
-     "result": 0.5
+     "result": 0.5,
+     "steps": {
+      "step1": 0.5,
+      "step2": 0.01
+     }
     },
     "given": "Your account is $150,000. If this trade hits its stop, you lose $750. What percent of the account is at risk? 50% 200% 0.5% 5%"
    },
@@ -686,7 +698,11 @@
       "pct": 0.5
      },
      "fn": "arith",
-     "result": 200.0
+     "result": 200.0,
+     "steps": {
+      "step1": 200.0,
+      "step2": 20000.0
+     }
     },
     "given": "Your plan risks 1.5% on A+ setups and 0.5% on B setups. Account $40,000. A B setup triggers. How much do you risk? $200 $600 $800 $20"
    },
@@ -915,7 +931,11 @@
       "pct": 1
      },
      "fn": "arith",
-     "result": 460.0
+     "result": 460.0,
+     "steps": {
+      "step1": 460.0,
+      "step2": 46000.0
+     }
     },
     "given": "You started at $50,000 risking 1%, or $500. Losses took the account to $46,000. At 1%, what's your dollar risk now? $500 $460 $4,600 $40"
    },
@@ -1024,7 +1044,12 @@
       "n": 8
      },
      "fn": "arith",
-     "result": 80.0
+     "result": 80.0,
+     "steps": {
+      "step1": 80.0,
+      "step2": 0.8,
+      "step3": 40000.0
+     }
     },
     "given": "Account $50,000. You risk a flat $5,000 a trade, 10% of the account. You lose 8 in a row. What percent of the account is gone? 10% 57% 70% 80%"
    },
@@ -1258,7 +1283,11 @@
       "risk": 400
      },
      "fn": "arith",
-     "result": 0.4
+     "result": 0.4,
+     "steps": {
+      "step1": 0.4,
+      "step2": 0.0
+     }
     },
     "given": "What has happened to your risk as a percent of the account? You set your risk at $400 a trade when the account was $40,000. The account has grown to $100,000. You still risk $400. It fell to 0.4% of the account It's still 1% of the account It grew with the account It depends on the stop"
    },
@@ -2063,7 +2092,10 @@
       "risk": 300
      },
      "fn": "arith",
-     "result": 200.0
+     "result": 200.0,
+     "steps": {
+      "step1": 200.0
+     }
     },
     "given": "You'll risk $300 on this trade. Your stop is $1.50 below your entry. How many shares do you buy? 450 shares 2,000 shares 200 shares 150 shares"
    },
@@ -2394,7 +2426,11 @@
       "stop_pct": 5
      },
      "fn": "arith",
-     "result": 20.0
+     "result": 20.0,
+     "steps": {
+      "step1": 20.0,
+      "step2": 0.2
+     }
     },
     "given": "You risk 1% of the account. Your stop is 5% below entry. What percent of the account goes into the stock? 5% 0.2% 4% 20%"
    },
@@ -2486,7 +2522,11 @@
       "stop_pct": 4
      },
      "fn": "arith",
-     "result": 1.0
+     "result": 1.0,
+     "steps": {
+      "step1": 1.0,
+      "step2": 100.0
+     }
     },
     "given": "Your position is 25% of the account. The stop is 4% below entry. What percent of the account do you lose if the stop fills? 100% 1% 6.25% 21%"
    },
@@ -2588,7 +2628,10 @@
       "risk": 300
      },
      "fn": "arith",
-     "result": 150.0
+     "result": 150.0,
+     "steps": {
+      "step1": 150.0
+     }
     },
     "given": "What's the right size now? You'll risk $300. You planned 300 shares with a stop $1 under entry. The chart says the real stop is $2 under. 150 shares, stop $2 under 300 shares, stop $1 under 300 shares, stop $2 under 600 shares, stop $2 under"
    },
@@ -2872,7 +2915,12 @@
       "stop_b": 8
      },
      "fn": "arith",
-     "result": 4.0
+     "result": 4.0,
+     "steps": {
+      "step1": 4.0,
+      "step2": 0.25,
+      "step3": 0.06
+     }
     },
     "given": "Two trades each risk 0.5% of the account. A's stop is 2% away, B's is 8% away. How do the position sizes compare? A's position is 4 times as big as B's A's position is twice as big as B's A holds 2% of the account, B holds 8% Both hold the same share of the account"
    },
@@ -3167,7 +3215,11 @@
       "stop_pct": 8
      },
      "fn": "arith",
-     "result": 2.4
+     "result": 2.4,
+     "steps": {
+      "step1": 2.4,
+      "step2": 240.0
+     }
     },
     "given": "What does his plan lose if the stop fills? A friend says he risks 1% a trade. He holds 30% of his account in one stock, with the stop 8% below. 2.4% of the account 3.75% of the account 0.24% of the account 12.5% of the account"
    },
@@ -3568,7 +3620,11 @@
       "stop_pct": 6
      },
      "fn": "arith",
-     "result": 16.67
+     "result": 16.67,
+     "steps": {
+      "step1": 16.67,
+      "step2": 0.17
+     }
     },
     "given": "What's the right size? You love this setup. Your plan risks 1%, and the honest stop is 6% under entry. You want to put in 40%. 16.67% of the account, stop at 6% 40% of the account, stop at 2.5% 40% of the account, stop at 6% 6% of the account, stop at 6%"
    },
@@ -3707,7 +3763,11 @@
       "stop_pct": 2
      },
      "fn": "arith",
-     "result": 0.8
+     "result": 0.8,
+     "steps": {
+      "step1": 0.8,
+      "step2": 80.0
+     }
     },
     "given": "You risk 1% and the stop is 2% below entry, so risk math says 50%. Our cap is 40%. At 40%, what percent of the account do you risk? 0.08% 0.4% 1% 0.8%"
    },
@@ -4134,7 +4194,10 @@
       "risk": 1.5
      },
      "fn": "arith",
-     "result": 3.0
+     "result": 3.0,
+     "steps": {
+      "step1": 3.0
+     }
     },
     "given": "You risk $1.50 a share. You sell for a gain of $4.50 a share. What R-multiple is that? 0.33R 6R 4.5R 3R"
    },
@@ -4451,7 +4514,11 @@
       "wins": 18
      },
      "fn": "arith",
-     "result": 45.0
+     "result": 45.0,
+     "steps": {
+      "step1": 45.0,
+      "step2": 0.45
+     }
     },
     "given": "You closed 40 trades. 18 of them made money. What's your win rate? 55% 18% 45% 222%"
    },
@@ -4700,7 +4767,12 @@
       "stop": 38
      },
      "fn": "arith",
-     "result": 50.0
+     "result": 50.0,
+     "steps": {
+      "step1": 50.0,
+      "step2": 10.0,
+      "step3": 2.0
+     }
     },
     "given": "Our plan has the entry at $40 and the stop at $38. At what price is the trade up 5R? $45 $30 $48 $50"
    },
@@ -4796,7 +4868,12 @@
       "stop": 28
      },
      "fn": "arith",
-     "result": 4.0
+     "result": 4.0,
+     "steps": {
+      "step1": 4.0,
+      "step2": 8.0,
+      "step3": 2.0
+     }
     },
     "given": "You bought at $30 with a stop at $28. You skipped the stop and sold at $22. How many R did you lose? 8R 4R 3R 0.25R"
    },
@@ -5074,7 +5151,11 @@
       "w": 2
      },
      "fn": "arith",
-     "result": 33.0
+     "result": 33.0,
+     "steps": {
+      "step1": 33.33,
+      "step2": 3.0
+     }
     },
     "given": "Your winners average +2R and your losers -1R. What win rate makes the expectancy zero? About 33% 50% 67% Over 50%"
    },
@@ -5180,7 +5261,11 @@
       "risk": 200
      },
      "fn": "arith",
-     "result": 7000.0
+     "result": 7000.0,
+     "steps": {
+      "step1": 7000.0,
+      "step2": 70.0
+     }
     },
     "given": "Your expectancy is +0.35R. You risk $200 a trade. On average, what do 100 trades make? $20,000 $35 $7,000 $70"
    },
@@ -5271,7 +5356,11 @@
       "q": 0.55
      },
      "fn": "arith",
-     "result": 2.8
+     "result": 2.8,
+     "steps": {
+      "step1": 2.77,
+      "step2": 0.03
+     }
     },
     "given": "Your system loses 55% of its trades, and each trade is independent. What's the chance the next 6 all lose? Round to one decimal. 28% 3.3% 5.0% 2.8%"
    },
@@ -5545,7 +5634,10 @@
       "q": 0.55
      },
      "fn": "arith",
-     "result": 55.0
+     "result": 55.0,
+     "steps": {
+      "step1": 55.0
+     }
     },
     "given": "What's the chance the next draw is a loser? You've drawn six losers in a row from your marble bag. Losers are 55% of the marbles, and each one goes back in. 55%, same as every draw Lower, a winner is due Higher, you're on a cold streak Tiny, seven straight is rare"
    },
@@ -5710,7 +5802,25 @@
       "q": 0.55
      },
      "fn": "arith",
-     "result": 19.5
+     "result": 19.5,
+     "steps": {
+      "step1": 19.5,
+      "step10": 13.78,
+      "step11": 0.35,
+      "step12": 0.0,
+      "step13": 0.22,
+      "step14": 12.6,
+      "step15": 0.03,
+      "step16": 0.03,
+      "step2": 0.19,
+      "step3": 0.03,
+      "step4": 0.17,
+      "step5": 0.01,
+      "step6": 13.43,
+      "step7": 0.03,
+      "step8": 13.43,
+      "step9": 0.0
+     }
     },
     "given": "How often will 20 draws include a run of 6 or more losers? Your marble bag: 45% winners at +2R, 55% losers at -1R. You draw 20 times, putting each marble back. About 19.5% of the time About 2.8% of the time Less than 1% of the time About 55% of the time"
    },
@@ -5813,7 +5923,12 @@
       "wins": 9
      },
      "fn": "arith",
-     "result": 7.0
+     "result": 7.0,
+     "steps": {
+      "step1": 7.0,
+      "step2": 18.0,
+      "step3": 11.0
+     }
     },
     "given": "What did the 20 draws make? You play the bag for 20 draws: 9 winners at +2R and 11 losers at -1R. Six of the losers came in a row. +7R -2R +18R -6R, the streak sank it"
    },
@@ -7242,7 +7357,14 @@
       "risk": 2
      },
      "fn": "arith",
-     "result": 18.0
+     "result": 18.0,
+     "steps": {
+      "step1": 18.29,
+      "step2": 0.18,
+      "step3": 0.82,
+      "step4": 0.98,
+      "step5": 0.02
+     }
     },
     "given": "How deep is your drawdown now? Your account sits at its high. Each trade risks 2% of the account as it stands. A cold spell hands you ten full losers in a row. About 18% 20% 2% Well over 20%"
    },
@@ -7360,7 +7482,11 @@
       "expr": "account * cap / 100"
      },
      "fn": "arith",
-     "result": 4500.0
+     "result": 4500.0,
+     "steps": {
+      "step1": 4500.0,
+      "step2": 450000.0
+     }
     },
     "given": "Your account is $90,000, down 10% from its high. Under our drawdown ladder, what's the most you put in one stock? $450 $900 $4,050 $4,500"
    },
@@ -7660,7 +7786,15 @@
       "risk": 2
      },
      "fn": "arith",
-     "result": 22.0
+     "result": 22.0,
+     "steps": {
+      "step1": 22.39,
+      "step2": 0.22,
+      "step3": 1.22,
+      "step4": 0.82,
+      "step5": 0.98,
+      "step6": 0.02
+     }
     },
     "given": "From your high, you take ten losses in a row, each 2% of what's left. To the nearest percent, what gain gets you back to the high? 20% 22% 18% 25%"
    },
@@ -8073,7 +8207,12 @@
       "start": 60000
      },
      "fn": "arith",
-     "result": 55200.0
+     "result": 55200.0,
+     "steps": {
+      "step1": 55200.0,
+      "step2": 5520000.0,
+      "step3": 92.0
+     }
     },
     "given": "You started the month at $60,000. At what account value does our monthly loss limit stop new trades for the month? $65,217 $64,800 $59,520 $55,200"
    },
@@ -8194,7 +8333,12 @@
       "peak": 80000
      },
      "fn": "arith",
-     "result": 76000.0
+     "result": 76000.0,
+     "steps": {
+      "step1": 76000.0,
+      "step2": 7600000.0,
+      "step3": 95.0
+     }
     },
     "given": "Your account peaked at $80,000 and fell 10%. Under our rule, at what value does the normal cap come back? $4,000 $68,400 $72,000 $76,000"
    },
@@ -8683,7 +8827,12 @@
       "expr": "a + b + c + d"
      },
      "fn": "arith",
-     "result": 3.25
+     "result": 3.25,
+     "steps": {
+      "step1": 3.25,
+      "step2": 2.5,
+      "step3": 1.5
+     }
     },
     "given": "Four open trades risk 1%, 0.5%, 1% and 0.75% of your account at their stops. What's your total open risk? 0.81% 2.75% 32.5% 3.25%"
    },
@@ -8874,7 +9023,10 @@
       "r": 1.5
      },
      "fn": "arith",
-     "result": 6.0
+     "result": 6.0,
+     "steps": {
+      "step1": 6.0
+     }
     },
     "given": "Account A has four trades risking 1.5% each. Account B has three trades risking 2% each. Which has more total open risk? Both have 6% at risk A, it has more trades B, its trades are bigger Can't say without stops"
    },
@@ -8967,7 +9119,10 @@
       "per_trade": 0.5
      },
      "fn": "arith",
-     "result": 10.0
+     "result": 10.0,
+     "steps": {
+      "step1": 10.0
+     }
     },
     "given": "You risk 0.5% of the account per trade. Your cap on total open risk is 5%. How many such trades fit within the cap? 2.5 trades 10 trades 5 trades 100 trades"
    },
@@ -9080,7 +9235,14 @@
       "expr": "(a + b + c + d) / account * 100"
      },
      "fn": "arith",
-     "result": 2.75
+     "result": 2.75,
+     "steps": {
+      "step1": 2.75,
+      "step2": 0.03,
+      "step3": 2200.0,
+      "step4": 1850.0,
+      "step5": 1050.0
+     }
     },
     "given": "Account $80,000. Four open trades would lose $600, $450, $800 and $350 at their stops. What's your total open risk? 27.5% 3.75% 3.5% 2.75%"
    },
@@ -9196,7 +9358,10 @@
       "expr": "cap - current"
      },
      "fn": "arith",
-     "result": 1.0
+     "result": 1.0,
+     "steps": {
+      "step1": 1.0
+     }
     },
     "given": "How do you fit it within the cap? Your rule caps total open risk at 6%. Your open trades risk 5% now. A new setup would risk 1.5% at your usual size. Size it down to 1%, same stop Same size, move the stop closer Buy half now, add the rest later Raise the cap to 7% this once"
    },
@@ -9536,7 +9701,11 @@
       "r": 1
      },
      "fn": "arith",
-     "result": 3.0
+     "result": 3.0,
+     "steps": {
+      "step1": 3.0,
+      "step2": 3.0
+     }
     },
     "given": "If you take it, how much of your total open risk sits in chip stocks? Your limit on total open risk is 6%. Five trades risk 1% each, and two of them are chip stocks. Your sixth setup is another chip stock at 1%. 3%, all three chips 1%, only the new one 2%, the two you hold 6%, your whole total"
    },
@@ -9666,7 +9835,16 @@
       "expr": "account * cap / 100 - (a + b + c + d + e)"
      },
      "fn": "arith",
-     "result": 500.0
+     "result": 500.0,
+     "steps": {
+      "step1": 500.0,
+      "step2": 2500.0,
+      "step3": 2000.0,
+      "step4": 250000.0,
+      "step5": 1650.0,
+      "step6": 1350.0,
+      "step7": 900.0
+     }
     },
     "given": "Account $50,000, cap 5% total open risk. Five trades risk $500, $400, $450, $300 and $350. How much can a sixth trade risk? $400 $2,500 $2,000 $500"
    },
@@ -9848,7 +10026,11 @@
       "position_pct": 20
      },
      "fn": "arith",
-     "result": 3.0
+     "result": 3.0,
+     "steps": {
+      "step1": 3.0,
+      "step2": 300.0
+     }
     },
     "given": "At the open, about how much is the account down on this position? One position is 20% of your account, with the stop 5% under entry. That's 1% at risk. It opens 15% below your entry on news. 1% 2% 0.3% 3%"
    },
@@ -10100,7 +10282,10 @@
       "sold": 100
      },
      "fn": "arith",
-     "result": 200.0
+     "result": 200.0,
+     "steps": {
+      "step1": 200.0
+     }
     },
     "given": "You bought 300 shares, then sold 100 at a profit and left the stop. Which shares can still lose money at the stop? The 200 you still hold All 300 shares you bought None, the sale covered it Not while it shows a gain"
    },
@@ -10954,7 +11139,14 @@
       "stop": 20
      },
      "fn": "arith",
-     "result": 600.0
+     "result": 600.0,
+     "steps": {
+      "step1": 600.0,
+      "step2": 600.0,
+      "step3": 0.0,
+      "step4": 3.0,
+      "step5": 0.0
+     }
     },
     "given": "You buy 600 at $20, stop $19. At 3R, $23, you sell 200 and move the stop to $20. The rest stops out there. What did the trade make? $0 $200 $400 $600"
    },
@@ -11175,7 +11367,11 @@
       "stop": 80
      },
      "fn": "arith",
-     "result": 1800.0
+     "result": 1800.0,
+     "steps": {
+      "step1": 1800.0,
+      "step2": 12.0
+     }
     },
     "given": "You hold 150 shares bought at $80. The stock is at $92 and your stop is at $80. If it's hit, how much profit do you give back? $13,800 $0 $180 $1,800"
    },
@@ -11274,7 +11470,10 @@
       "third": 300
      },
      "fn": "arith",
-     "result": 700.0
+     "result": 700.0,
+     "steps": {
+      "step1": 700.0
+     }
     },
     "given": "Counted from your entries, what's your total open risk now? You have three open trades. If every stop is hit, they lose $500, $400 and $300 from your entries. You raise the first one's stop to its entry. $700 $1,200 $500 $0"
    },
@@ -11532,7 +11731,11 @@
       "open_risk": 1800
      },
      "fn": "arith",
-     "result": 600.0
+     "result": 600.0,
+     "steps": {
+      "step1": 600.0,
+      "step2": 1400.0
+     }
     },
     "given": "Can you take a new trade that risks $500? You keep your total open risk under $2,000. Right now it's $1,800. Raising one stop to its entry takes $400 off. Yes, you have $600 of room No, you're at $1,800 already Yes, you have $2,000 of room No, wait for a trade to close"
    },
@@ -11714,7 +11917,12 @@
       "untouched": 2
      },
      "fn": "arith",
-     "result": 2.5
+     "result": 2.5,
+     "steps": {
+      "step1": 2.5,
+      "step2": 2.0,
+      "step3": 0.5
+     }
     },
     "given": "Four trades each risk 1% of the account. You sell half of one, stop kept, and raise another's stop to entry. Total open risk from entry now? 4% 3.5% 3% 2.5%"
    },
@@ -11830,7 +12038,17 @@
       "stop": 76
      },
      "fn": "arith",
-     "result": 3.0
+     "result": 3.0,
+     "steps": {
+      "step1": 3.0,
+      "step2": 3600.0,
+      "step3": 1200.0,
+      "step4": 800.0,
+      "step5": 2800.0,
+      "step6": 4.0,
+      "step7": 8.0,
+      "step8": 14.0
+     }
     },
     "given": "300 shares at $80, stop $76. You sell 100 at $88, raise the stop to $80, then trail it to $94, where it's hit. Result in R? 0.7R 2.3R 2.8R 3R"
    },
@@ -12955,7 +13173,13 @@
       "value": 24000
      },
      "fn": "arith",
-     "result": 2000.0
+     "result": 2000.0,
+     "steps": {
+      "step1": 2000.0,
+      "step2": 6000.0,
+      "step3": 4000.0,
+      "step4": 0.25
+     }
     },
     "given": "$40,000 of stock bought with a $20,000 margin loan falls to $24,000. Using FINRA's 25% floor, how big is the margin call? $6,000 $4,000 $10,000 $2,000"
    },
@@ -13061,7 +13285,11 @@
       "position": 20000
      },
      "fn": "arith",
-     "result": 60.0
+     "result": 60.0,
+     "steps": {
+      "step1": 60.0,
+      "step2": 600000.0
+     }
     },
     "given": "You put up $10,000 and borrow $10,000 to buy $20,000 of stock. It falls 30%. Ignoring interest, what percent of your money is lost? 30% 60% 15% 6%"
    },
@@ -13629,7 +13857,15 @@
       "value": 20000
      },
      "fn": "arith",
-     "result": 40.0
+     "result": 40.0,
+     "steps": {
+      "step1": 40.0,
+      "step2": 0.4,
+      "step3": 0.6,
+      "step4": 15000.0,
+      "step5": 0.75,
+      "step6": 0.25
+     }
     },
     "given": "You buy $20,000 of stock with a $9,000 margin loan. How far, in percent, can it fall before your equity hits FINRA's 25% floor? 25% 30% 55% 40%"
    },
@@ -14619,7 +14855,12 @@
       "expr": "account * cap / 100 / entry"
      },
      "fn": "arith",
-     "result": 400.0
+     "result": 400.0,
+     "steps": {
+      "step1": 400.0,
+      "step2": 20000.0,
+      "step3": 2000000.0
+     }
     },
     "given": "Account $50,000, risk 1%. Entry $50, stop $49.50. Under our rules, how many shares do you buy? 500 shares 1,000 shares 4,000 shares 400 shares"
    },
@@ -14689,7 +14930,11 @@
       "pct": 1
      },
      "fn": "arith",
-     "result": 800.0
+     "result": 800.0,
+     "steps": {
+      "step1": 800.0,
+      "step2": 80000.0
+     }
     },
     "given": "Account $80,000. The setup is an A and you use the top of its range. How many dollars are at risk? $400 $600 $8,000 $800"
    },
@@ -14766,7 +15011,11 @@
       "pct": 1
      },
      "fn": "arith",
-     "result": 40000.0
+     "result": 40000.0,
+     "steps": {
+      "step1": 40000.0,
+      "step2": 4000000.0
+     }
     },
     "given": "A stock trades 4 million shares a day on average. Under our rule, what's the most shares you may own? 400,000 shares 4,000,000 shares 200,000 shares 40,000 shares"
    },
@@ -14945,7 +15194,11 @@
       "pct": 200
      },
      "fn": "arith",
-     "result": 120000.0
+     "result": 120000.0,
+     "steps": {
+      "step1": 120000.0,
+      "step2": 12000000.0
+     }
     },
     "given": "Account $60,000. Our market reading is Green, so margin is allowed. What's the most all your positions together can be worth? $60,000 $90,000 $12,000 $120,000"
    },
@@ -15030,7 +15283,10 @@
       "n": 10
      },
      "fn": "arith",
-     "result": 20.0
+     "result": 20.0,
+     "steps": {
+      "step1": 20.0
+     }
     },
     "given": "A full book of 10 positions at 200% of the account. About how big is the average position? About 20% of the account About 10% of the account About 40% of the account About 2% of the account"
    },
@@ -16164,7 +16420,12 @@
       "pivot": 50
      },
      "fn": "arith",
-     "result": 52.0
+     "result": 52.0,
+     "steps": {
+      "step1": 52.0,
+      "step2": 1.04,
+      "step3": 0.04
+     }
     },
     "given": "The buy point is $50. Under our 4% chase line, what's the highest price you may pay? $54.00 $48.00 $2.00 $52.00"
    },
@@ -16709,7 +16970,12 @@
       "stop": 57
      },
      "fn": "arith",
-     "result": 54.0
+     "result": 54.0,
+     "steps": {
+      "step1": 54.0,
+      "step2": 6.0,
+      "step3": 3.0
+     }
     },
     "given": "Entry $60, stop $57. The stock gaps down. Below what price does the first 30 minutes' loss pass 2R, our gap-rule ceiling? $51 $57 $58 $54"
    },

@@ -2,7 +2,7 @@
  "unit": "SET.11",
  "track": "SET",
  "title": "Launchpad",
- "teaches": "The launchpad as we trade it: after a real correction a stock rests five weeks or more under three averages pinched within 3% of price near a flat 200-day, the launch bar closes above all four averages up 2% or more in the top of its range, the stop sits a few cents under the launch day's low, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest on the 21-day trail, and the stock, the base and the market, not the bar, carry the edge.",
+ "teaches": "The launchpad as we trade it: after a real correction a stock rests five weeks or more under three averages pinched within 3% of price near a flat 200-day, the launch bar closes above all four averages up 2% or more in the top of its range, the stop sits a few cents under the launch day's low, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest on the 20 EMA trail, and the stock, the base and the market, not the bar, carry the edge.",
  "skills": [
   {
    "id": "setup.launchpad",

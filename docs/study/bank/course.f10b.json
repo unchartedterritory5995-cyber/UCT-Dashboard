@@ -704,7 +704,11 @@
       "years": 0.25
      },
      "fn": "arith",
-     "result": 600.0
+     "result": 600.0,
+     "steps": {
+      "step1": 600.0,
+      "step2": 2400.0
+     }
     },
     "given": "You short $20,000 of stock at a 12% yearly borrow fee. The price stays flat for a quarter of a year. What's the borrow cost? $60 $1,200 $2,400 $600"
    },
@@ -796,7 +800,11 @@
       "shares": 300
      },
      "fn": "arith",
-     "result": 1050.0
+     "result": 1050.0,
+     "steps": {
+      "step1": 1050.0,
+      "step2": 3.5
+     }
     },
     "given": "You short 300 shares at $22.00. It rallies and you buy to cover at $25.50. How much did you lose? $1,050 $6,600 $7,650 $10,500"
    },
@@ -1028,7 +1036,10 @@
       "shares": 400
      },
      "fn": "arith",
-     "result": 300.0
+     "result": 300.0,
+     "steps": {
+      "step1": 300.0
+     }
     },
     "given": "You're short 400 shares through the ex-dividend date. The stock pays a $0.75 dividend. What do you owe the lender? $300 $0 $0.75 $30"
    },
@@ -1129,7 +1140,10 @@
       "shares": 1000
      },
      "fn": "arith",
-     "result": 5000.0
+     "result": 5000.0,
+     "steps": {
+      "step1": 5000.0
+     }
     },
     "given": "What is FINRA's minimum maintenance margin on this short? You're short 1,000 shares of a $10.00 stock. FINRA's minimum for a short at $5 or more is $5.00 a share or 30% of its value, whichever is greater. $5,000 $3,000 $10,000 $2,500"
    },
@@ -1482,7 +1496,12 @@
       "value": 30000
      },
      "fn": "arith",
-     "result": 2000.0
+     "result": 2000.0,
+     "steps": {
+      "step1": 2000.0,
+      "step2": 24000.0,
+      "step3": 12000.0
+     }
     },
     "given": "If the price and the fee hold, what will two months of borrowing cost? You want to short $30,000 of a hard-to-borrow stock. The borrow fee is 40% a year. You aim to make $3,000 over two months. About $2,000, most of your target About $12,000, more than the target Nothing until you buy to cover About $1,200, a share of the target"
    },
@@ -1772,7 +1791,17 @@
       "value": 40000
      },
      "fn": "arith",
-     "result": 2700.0
+     "result": 2700.0,
+     "steps": {
+      "step1": 2700.0,
+      "step2": 3200.0,
+      "step3": 500.0,
+      "step4": 4000.0,
+      "step5": 800.0,
+      "step6": 4.0,
+      "step7": 9600.0,
+      "step8": 3200.0
+     }
     },
     "given": "What did you net, before commissions? You short 1,000 shares at $40.00 and cover at $36.00 three months later. The borrow fee ran 8% a year on $40,000. You were short through the ex-dividend date of a $0.50 dividend. $2,700 $4,000 $3,200 $3,500"
    },
@@ -2647,7 +2676,10 @@
       "short_interest": 6000000
      },
      "fn": "arith",
-     "result": 8.0
+     "result": 8.0,
+     "steps": {
+      "step1": 8.0
+     }
     },
     "given": "Short interest is 6,000,000 shares. Average daily volume is 750,000 shares. What is days to cover? 0.1 days 5.25 days 80 days 8 days"
    },
@@ -3119,7 +3151,11 @@
       "shares": 400
      },
      "fn": "arith",
-     "result": 1600.0
+     "result": 1600.0,
+     "steps": {
+      "step1": 1600.0,
+      "step2": 4.0
+     }
     },
     "given": "You short 400 shares at $25.00, buy stop $26.00. Good news gaps it open at $29.00, and your stop fills there. What did you lose? $1,600 $2,000 $11,600 $16,000"
    },
@@ -3255,7 +3291,12 @@
       "shares": 1000
      },
      "fn": "arith",
-     "result": 6000.0
+     "result": 6000.0,
+     "steps": {
+      "step1": 6000.0,
+      "step2": 300.0,
+      "step3": 20.0
+     }
     },
     "given": "Short 1,000 shares. FINRA minimum: 30% of value or $5 a share, whichever is more. It goes $20 to $40. How much does the minimum rise? $6,000 $20,000 $12,000 $5,000"
    },

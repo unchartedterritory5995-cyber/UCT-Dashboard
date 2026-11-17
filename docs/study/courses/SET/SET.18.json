@@ -2,7 +2,7 @@
  "unit": "SET.18",
  "track": "SET",
  "title": "Episodic Pivot",
- "teaches": "The Episodic Pivot as we trade it: a neglected stock, flat or down for months, is re-priced by a named surprise on huge volume; the gap holds and closes in the upper half; the buy is at market over the opening-range high on day one, or over the gap-day high on a delayed entry while the gap holds; the stop sits a few cents under the day's low, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest on the 10-day trail, and a loss taken at the stop is the system working.",
+ "teaches": "The Episodic Pivot as we trade it: a neglected stock, flat or down for months, is re-priced by a named surprise on huge volume; the gap holds and closes in the upper half; the buy is at market over the opening-range high on day one, or over the gap-day high on a delayed entry while the gap holds; the stop sits a few cents under the day's low, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest on the 9 EMA trail, and a loss taken at the stop is the system working.",
  "skills": [
   {
    "id": "setup.episodic_pivot",

@@ -2,7 +2,7 @@
  "unit": "F9.09",
  "track": "F9",
  "title": "Our account rules: the market and the trade",
- "teaches": "Our rules for when and what the account trades: the market reading (Green, Yellow, Orange, Red) decides whether and how much we trade, the 200-day line is a hard rule with one parabolic exception, we buy leaders within 4% of the buy point, skip buys in the 3 days before earnings, sell a trade still under 1R after 10 trading days, hand a gap through the stop to the first 30-minute low with a 2R ceiling, enter with market orders in regular hours behind a real broker stop, write the plan before the open, and journal and review the numbers.",
+ "teaches": "Our rules for when and what the account trades: the market reading (Green, Yellow, Orange, Red) decides whether and how much we trade, the 200-day line is a hard rule for stocks (only indexes and levered ETFs get the parabolic or reversal-extension exception), we buy leaders within 4% of the buy point, skip buys in the 3 days before earnings, sell a trade still under 1R after 10 trading days, hand a gap through the stop to the first 30-minute low with a 2R ceiling, enter with market orders in regular hours behind a real broker stop, write the plan before the open, and journal and review the numbers.",
  "skills": [
   {
    "id": "risk.trade_rules",

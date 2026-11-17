@@ -1803,7 +1803,11 @@
       "shares": 500
      },
      "fn": "arith",
-     "result": 200.0
+     "result": 200.0,
+     "steps": {
+      "step1": 200.0,
+      "step2": 0.4
+     }
     },
     "given": "Bid $9.80, ask $10.20. You buy 500 shares at the ask and sell right away at the bid. What did the spread cost you? $0.40 $100 $200 $2,000"
    },
@@ -2287,7 +2291,18 @@
       "expr": "((a_ask - a_bid) / ((a_ask + a_bid) / 2)) / ((b_ask - b_bid) / ((b_ask + b_bid) / 2))"
      },
      "fn": "arith",
-     "result": 20.0
+     "result": 20.0,
+     "steps": {
+      "step1": 20.0,
+      "step2": 0.02,
+      "step3": 0.0,
+      "step4": 0.1,
+      "step5": 5.0,
+      "step6": 0.2,
+      "step7": 200.0,
+      "step8": 10.0,
+      "step9": 400.0
+     }
     },
     "given": "As a percent of the midpoint, which spread costs more? Stock A quotes $4.95 bid, $5.05 ask. Stock B quotes $199.90 bid, $200.10 ask. B's spread is wider in cents. You'd put the same dollars in either. A costs about 20x more B costs about 2x more They cost about the same Can't tell without the size"
    },
@@ -2603,7 +2618,12 @@
       "stop_distance": 0.4
      },
      "fn": "arith",
-     "result": 75.0
+     "result": 75.0,
+     "steps": {
+      "step1": 75.0,
+      "step2": 0.75,
+      "step3": 0.3
+     }
     },
     "given": "You buy at the $20.30 ask. The bid is $20.00. Your stop is $0.40 under your fill. What percent of that $0.40 is the spread? 75% 133% 150% 750%"
    },
@@ -3355,7 +3375,11 @@
       "expr": "b_shares * b_price / 1000000"
      },
      "fn": "arith",
-     "result": 60.0
+     "result": 60.0,
+     "steps": {
+      "step1": 60.0,
+      "step2": 60000000.0
+     }
     },
     "given": "Which one trades more dollars each day? PNQL trades 3 million shares a day at $2. VRXD trades 400,000 shares a day at $150. These are made-up examples. VRXD, at $60 million a day PNQL, at 3 million shares a day Same, about $6 million each Can't tell without market cap"
    },
@@ -3952,7 +3976,11 @@
       "shares": 2500000
      },
      "fn": "arith",
-     "result": 100.0
+     "result": 100.0,
+     "steps": {
+      "step1": 100.0,
+      "step2": 100000000.0
+     }
     },
     "given": "A $40 stock averages 2,500,000 shares a day. What is its average daily dollar volume? $100 million $10 million $1 billion $62,500"
    },
@@ -4044,7 +4072,10 @@
       "today": 4.8
      },
      "fn": "arith",
-     "result": 4.0
+     "result": 4.0,
+     "steps": {
+      "step1": 4.0
+     }
     },
     "given": "A stock averages 1.2 million shares a day. Today it trades 4.8 million. Today is how many times its average? 4 times 3.6 times 6 times 0.25 times"
    },
@@ -4145,7 +4176,11 @@
       "order": 20000
      },
      "fn": "arith",
-     "result": 25.0
+     "result": 25.0,
+     "steps": {
+      "step1": 25.0,
+      "step2": 0.25
+     }
     },
     "given": "You want 20,000 shares of a stock that averages 80,000 a day. What share of a normal day is your order? 25% 75% 250% 400%"
    },
@@ -4228,7 +4263,11 @@
       "pct": 1
      },
      "fn": "arith",
-     "result": 6000.0
+     "result": 6000.0,
+     "steps": {
+      "step1": 6000.0,
+      "step2": 600000.0
+     }
     },
     "given": "Our rule: never own more than 1% of a stock's average daily volume. It averages 600,000 shares. Most we'd own? 6,000 shares 60,000 shares 600 shares 600,000 shares"
    },
@@ -4801,7 +4840,12 @@
       "open_h": 9.5
      },
      "fn": "arith",
-     "result": 78.0
+     "result": 78.0,
+     "steps": {
+      "step1": 78.0,
+      "step2": 390.0,
+      "step3": 6.5
+     }
     },
     "given": "Regular hours only, how many 5-minute bars make one full trading day? 390 bars 72 bars 84 bars 78 bars"
    },
@@ -6360,7 +6404,11 @@
       "shares": 50
      },
      "fn": "arith",
-     "result": 1.5
+     "result": 1.5,
+     "steps": {
+      "step1": 1.5,
+      "step2": 1500.0
+     }
     },
     "given": "A stock trades at $30 with 50 million shares outstanding. What is its market cap? $15 billion $1.5 million $80 million $1.5 billion"
    },
@@ -6453,7 +6501,10 @@
       "outstanding": 80
      },
      "fn": "arith",
-     "result": 50.0
+     "result": 50.0,
+     "steps": {
+      "step1": 50.0
+     }
     },
     "given": "80 million shares are outstanding. Insiders hold 30 million, all restricted. The rest trade freely. What is the float? 30 million 110 million 50 million 80 million"
    },
@@ -6553,7 +6604,11 @@
       "product_millions": 1200
      },
      "fn": "arith",
-     "result": 1.2
+     "result": 1.2,
+     "steps": {
+      "step1": 1.2,
+      "step2": 1200.0
+     }
     },
     "given": "A $20 stock has 100 million shares outstanding and 60 million in the float. What is its float-adjusted market cap? $2 billion $800 million $1.2 million $1.2 billion"
    },
@@ -7075,7 +7130,11 @@
       "short_shares": 3
      },
      "fn": "arith",
-     "result": 25.0
+     "result": 25.0,
+     "steps": {
+      "step1": 25.0,
+      "step2": 0.25
+     }
     },
     "given": "A stock has a 12 million share float and 3 million shares sold short. Short interest is what percent of the float? 25% 75% 400% 3%"
    },
@@ -7645,7 +7704,10 @@
       "move": 3
      },
      "fn": "arith",
-     "result": 9.0
+     "result": 9.0,
+     "steps": {
+      "step1": 9.0
+     }
     },
     "given": "The index falls 3% today. About how much should a 3x fund on that index lose today? 6% 3% 1% 9%"
    },
@@ -8008,7 +8070,17 @@
       "up": 10
      },
      "fn": "arith",
-     "result": 91.0
+     "result": 91.0,
+     "steps": {
+      "step1": 91.0,
+      "step2": 130.0,
+      "step3": 0.7,
+      "step4": 1.3,
+      "step5": -0.3,
+      "step6": 0.3,
+      "step7": -30.0,
+      "step8": 30.0
+     }
     },
     "given": "A 3x fund starts at $100. The index rises 10% one day and falls 10% the next. What is the fund worth, before fees? $99 $100 $91 $70"
    },
@@ -8107,7 +8179,10 @@
       "lev": 3
      },
      "fn": "arith",
-     "result": 3000.0
+     "result": 3000.0,
+     "steps": {
+      "step1": 3000.0
+     }
     },
     "given": "You hold $9,000 of a plain index fund. How much of a 3x fund on the same index swings about as much in a day? $27,000 $3,000 $9,000 $6,000"
    },
@@ -8493,7 +8568,15 @@
       "lev": 3
      },
      "fn": "arith",
-     "result": 15.9
+     "result": 15.9,
+     "steps": {
+      "step1": 15.93,
+      "step2": 0.16,
+      "step3": 1.16,
+      "step4": 1.03,
+      "step5": 0.03,
+      "step6": 3.0
+     }
     },
     "given": "About how much does the 3x fund gain over the five days, before fees? The index rises 1% every day for five days straight, about 5.1% in total. You hold a 3x fund that hits its daily target each day. 15.9%, more than 3x 15.3%, same as 3x 14.7%, under 3x 15%, 3% x 5 days"
    },
@@ -8599,7 +8682,18 @@
       "gain": 9.09
      },
      "fn": "arith",
-     "result": 1.82
+     "result": 1.82,
+     "steps": {
+      "step1": 1.82,
+      "step2": 0.02,
+      "step3": 0.98,
+      "step4": 0.9,
+      "step5": 1.09,
+      "step6": 0.1,
+      "step7": -0.09,
+      "step8": 10.0,
+      "step9": -10.0
+     }
     },
     "given": "An inverse fund moves opposite the index each day. The index goes 100, 110, 100. What percent does the fund lose? 1.82% 9.09% 10% 19.09%"
    },

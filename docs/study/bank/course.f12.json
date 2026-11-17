@@ -789,7 +789,12 @@
       "support": 50
      },
      "fn": "arith",
-     "result": 48.5
+     "result": 48.5,
+     "steps": {
+      "step1": 48.5,
+      "step2": 0.97,
+      "step3": 0.03
+     }
     },
     "given": "Schwab's sample exit: price falls 3% below a recent support level. Support is $50. At what price do you get out? $48.50 $49.85 $51.50 $53.00"
    },
@@ -1180,7 +1185,10 @@
       "risk_b": 1
      },
      "fn": "arith",
-     "result": 2.0
+     "result": 2.0,
+     "steps": {
+      "step1": 2.0
+     }
     },
     "given": "The group drops and both stops hit. What did you lose? Your plan risks 1% a trade. Two setups trigger in chip stocks that tend to move together. You take full size in both. 2%, as each stop loses its 1% 1%, as it's really one idea 1%, the plan's per-trade cap Under 1%, as risk is split"
    },
@@ -2108,7 +2116,12 @@
       "start": 6000
      },
      "fn": "arith",
-     "result": 1.0
+     "result": 1.0,
+     "steps": {
+      "step1": 1.0,
+      "step2": 0.01,
+      "step3": 60.0
+     }
     },
     "given": "S&P 500 futures were at 6,000 at 4:00 p.m. yesterday. At 8:45 a.m. today they're at 5,940. How far down are they, in percent? 1% 10% 60% 99%"
    },
@@ -2367,7 +2380,10 @@
       "stop": 48
      },
      "fn": "arith",
-     "result": 5.5
+     "result": 5.5,
+     "steps": {
+      "step1": 5.5
+     }
     },
     "given": "If you buy at $53.50, what's your risk per share to the $48 stop? Your plan: buy over $50, stop at $48, so $2 of risk a share. Overnight news hits, and the stock gaps up. At 9:45 a.m. it trades at $53.50. $5.50, up from the planned $2 Still $2, the stop didn't move $3.50, how far it gapped past $50 Less, the move is in my favor"
    },
@@ -4453,7 +4469,12 @@
       "stop": 19
      },
      "fn": "arith",
-     "result": 2.0
+     "result": 2.0,
+     "steps": {
+      "step1": 2.0,
+      "step2": 2.0,
+      "step3": 1.0
+     }
     },
     "given": "What R goes in your log? You bought at $20 with a stop at $19. It slid, so you moved the stop to $18. It hit there. A loss of 2R on the trade A loss of 1R on it A loss of 0.5R on it No R, the plan changed"
    },
@@ -5974,7 +5995,12 @@
       "target": 56
      },
      "fn": "arith",
-     "result": 0.6
+     "result": 0.6,
+     "steps": {
+      "step1": 0.6,
+      "step2": 3.0,
+      "step3": 5.0
+     }
     },
     "given": "Plan: buy at $50, stop $48, target $56. You chase and fill at $53, same stop and target. Reward per $1 of risk now? $0.60 $1.20 $1.67 $3.00"
    },
@@ -7106,7 +7132,10 @@
       "risk_a": 200
      },
      "fn": "arith",
-     "result": 2.5
+     "result": 2.5,
+     "steps": {
+      "step1": 2.5
+     }
     },
     "given": "Trade A risked $200 and made $500. Trade B risked $1,000 and made $1,500. Which did better for its risk? Trade A, it made 2.5x its risk Trade B, it made $1,500 in all Neither, the sizes differ too much Can't tell without the win rate"
    },
@@ -7472,7 +7501,11 @@
       "wins": 4
      },
      "fn": "arith",
-     "result": 40.0
+     "result": 40.0,
+     "steps": {
+      "step1": 40.0,
+      "step2": 0.4
+     }
     },
     "given": "Ten breakout trades, in R: +2, -1, -1, +3, -1.5, +2.5, -1, -0.5, +2.5, -1. What's the win rate? 67% 60% 50% 40%"
    },
@@ -7558,7 +7591,19 @@
       "t9": 2.5
      },
      "fn": "arith",
-     "result": 0.4
+     "result": 0.4,
+     "steps": {
+      "step1": 0.4,
+      "step10": 1.0,
+      "step2": 4.0,
+      "step3": 5.0,
+      "step4": 2.5,
+      "step5": 3.0,
+      "step6": 4.0,
+      "step7": 1.5,
+      "step8": 3.0,
+      "step9": 0.0
+     }
     },
     "given": "Same ten trades: +2, -1, -1, +3, -1.5, +2.5, -1, -0.5, +2.5, -1. What's the average R per trade? 0.4R -0.6R -0.4R 1.6R"
    },
@@ -7824,7 +7869,10 @@
       "expr": "clean + broke"
      },
      "fn": "arith",
-     "result": 2.0
+     "result": 2.0,
+     "steps": {
+      "step1": 2.0
+     }
     },
     "given": "Your last 20 trades: 6 broke a rule and lost 7R in total. The other 14 made +9R. What did all 20 make, in R? +16R +2R +9R -2R"
    },
@@ -7906,7 +7954,19 @@
       "n": 10
      },
      "fn": "arith",
-     "result": 1.2
+     "result": 1.2,
+     "steps": {
+      "step1": 1.2,
+      "step10": 2.0,
+      "step2": 12.0,
+      "step3": 10.5,
+      "step4": 9.5,
+      "step5": 8.5,
+      "step6": 7.5,
+      "step7": 5.0,
+      "step8": 4.0,
+      "step9": 3.2
+     }
     },
     "given": "Your last ten losses, sized in R: 1, 1, 1.2, 0.8, 1, 2.5, 1, 1, 1, 1.5. How big is the average loss? 1.2R 1.0R 0.8R 0.1R"
    },
@@ -9463,7 +9523,12 @@
       "stop": 19.3
      },
      "fn": "arith",
-     "result": 22.1
+     "result": 22.1,
+     "steps": {
+      "step1": 22.1,
+      "step2": 2.1,
+      "step3": 0.7
+     }
     },
     "given": "Your Kicker page: entry $20.00, stop $19.30. What is the 3R price? $22.10 $22.80 $23.00 $23.50"
    },

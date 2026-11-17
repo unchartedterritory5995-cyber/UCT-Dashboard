@@ -2,7 +2,7 @@
  "unit": "SET.20",
  "track": "SET",
  "title": "News Gapper",
- "teaches": "The News Gapper as we trade it: a fresh named catalyst, most often an earnings report, gaps a liquid stock up on at least three times its average volume; the gap holds and the day closes green in the upper half; the buy is the first pullback and reclaim, a market order as price trades over the prior day's high after two down days or an inside day that hold the gap-day low, or day one over the opening-range high for an A+; the stop sits a few cents under the pullback low, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest on the 10-day or 21-day trail, and a loss taken at the stop is the system working.",
+ "teaches": "The News Gapper as we trade it: a fresh named catalyst, most often an earnings report, gaps a liquid stock up on at least three times its average volume; the gap holds and the day closes green in the upper half; the buy is the first pullback and reclaim, a market order as price trades over the prior day's high after two down days or an inside day that hold the gap-day low, or day one over the opening-range high for an A+; the stop sits a few cents under the pullback low, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest on the 9 or 20 EMA trail, and a loss taken at the stop is the system working.",
  "skills": [
   {
    "id": "setup.news_gapper",
