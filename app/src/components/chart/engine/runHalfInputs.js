@@ -277,6 +277,87 @@ export function withRunHalfInputs(def) {
 /** Plot style keys the run never reads (a line's width). */
 const STYLE_ONLY = /^(lineWidth|out\d+Width)$/
 
+// ─── ⭐⭐ SETTINGS PARITY (2c, colours): A PLOT'S COLOUR SETTING IS THE SCRIPT'S COLOUR INPUT ─────
+//
+// The host declares a plot's colour as a styling input (`color`, `out2Color`, ...: `plots[].color` is
+// `$<key>`), but on TradingView that colour is the script's own input (`colorRS`), and the DRAWINGS
+// may read it too (RS Rating's rating label is written in `textcolor = colorRS`). So a moved line
+// colour must reach the run as that input, or the label keeps the author's blue beside a red line.
+// The link: the host plot's key -> the run's output index (`ro.outputs`) -> the output call at that
+// index in the source -> its `color = <name>` argument, when <name> is one of the script's literal
+// colour inputs. ⛔ Accepted only when both sides state the SAME default colour; anything else is no
+// link, and a moved colour without one still refuses the run half by name.
+const OUTPUT_ORDER = new Set(['plot', 'plotshape', 'plotchar', 'plotarrow', 'plotcandle', 'plotbar', 'fill',
+  'bgcolor', 'barcolor', 'hline'])
+const _colourArgMemo = new Map()
+
+/** Per output call in source order, the bare name its `color` argument reads (or null). */
+function outputColourNames(source) {
+  const src = String(source || '')
+  if (_colourArgMemo.has(src)) return _colourArgMemo.get(src)
+  const out = []
+  try {
+    const lexed = lexPine(src)
+    const visit = (list) => {
+      for (const st of list || []) {
+        const toks = st.header || []
+        for (let i = 0; i < toks.length; i++) {
+          const t = toks[i]
+          if (!t || t.kind !== 'ident' || !OUTPUT_ORDER.has(t.value) || !isPunct(toks[i + 1], '(')) continue
+          if (i > 0 && isPunct(toks[i - 1], '.')) continue
+          // the call's own argument tokens, to its matching close paren
+          let depth = 0
+          let j = i + 1
+          const args = []
+          for (; j < toks.length; j++) {
+            if (isPunct(toks[j], '(') || isPunct(toks[j], '[')) depth += 1
+            else if (isPunct(toks[j], ')') || isPunct(toks[j], ']')) { depth -= 1; if (depth === 0) break }
+            if (depth >= 1 && j > i + 1) args.push(toks[j])
+          }
+          let name = null
+          for (let k = 0; k + 2 < args.length; k++) {
+            if (args[k].kind === 'ident' && args[k].value === 'color' && isPunct(args[k + 1], '=')
+              && args[k + 2].kind === 'ident' && (isPunct(args[k + 3], ',') || k + 3 >= args.length)) {
+              name = String(args[k + 2].value)
+            }
+          }
+          out.push(name)
+          break   // one output call per statement
+        }
+        if (st.sub && st.sub.length) visit(st.sub)
+      }
+    }
+    visit(blockStatements(lexed.tokens, lexed.indents, 0))
+  } catch {
+    _colourArgMemo.set(src, [])
+    return []
+  }
+  _colourArgMemo.set(src, out)
+  return out
+}
+
+/** `{hostKey: pineColourInputName}` for every host colour setting linked to a script colour input. */
+export function hostColourLinks(def) {
+  const ro = runHalfOfDef(def)
+  if (!ro || !isObj(ro.outputs)) return {}
+  const rt = new Map(rtSpecsOf(ro.source).filter((s) => s.type === 'color').map((s) => [s.key, s]))
+  const names = outputColourNames(ro.source)
+  const links = {}
+  for (const spec of Array.isArray(def.inputs) ? def.inputs : []) {
+    if (!spec || spec.type !== 'color' || spec.fromRunHalf || rt.has(spec.key)) continue
+    // a stored plot names its colour setting as `$<key>`; an installed one resolves it and keeps the
+    // reference in `$refs.color`
+    const plot = (def.plots || []).find((p) => p && (p.color === `$${spec.key}`
+      || (p.$refs && p.$refs.color === spec.key)))
+    const index = plot ? ro.outputs[plot.key] : undefined
+    const name = Number.isInteger(index) ? names[index] : null
+    const pine = name ? rt.get(name) : null
+    if (pine && typeof spec.default === 'string' && typeof pine.default === 'string'
+      && pine.default.toUpperCase() === spec.default.toUpperCase()) links[spec.key] = name
+  }
+  return links
+}
+
 /**
  * The instance's values in the run's vocabulary (Pine names): `{ok: true, values, moved}` with
  * `moved` the Pine names off their defaults, or `{ok: false, key}` naming the first moved
@@ -304,6 +385,8 @@ export function runHalfRunInputs(def, inputs) {
       name = spec.key
     } else if (STYLE_ONLY.test(spec.key)) {
       continue
+    } else if (spec.type === 'color') {
+      name = hostColourLinks(def)[spec.key] || null   // a plot's colour is the script's colour input
     }
     if (!name || !pineNames.has(name)) return { ok: false, key: spec.key, label: spec.label || spec.key }
     // a switch the host keeps as 1 / 0 is a Pine bool

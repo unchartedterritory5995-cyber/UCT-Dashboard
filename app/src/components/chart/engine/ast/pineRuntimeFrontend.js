@@ -1582,7 +1582,16 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // v4's type rides NAMED or as the THIRD positional argument (`input(close, "Src", input.source)`)
     const typeArg = args.find((a) => a && a.name === 'type') || args.filter((a) => a && !a.name)[2]
     const legacy = call.name === 'input' && typeArg && typeArg.value ? typeArg.value.name : null
-    const kind = call.name === 'input.color' || legacy === 'input.color' ? 'color'
+    // ⭐ SETTINGS PARITY (2c, colours) — a plain `input(…)` whose DEFAULT is a colour is a colour
+    // input (Pine infers an input's type from its default): `input(color.orange)`,
+    // `input(color.rgb(0, 0, 255, 0))`, `input(#2962FF)` (`runtimeInputs.js` reads the same three)
+    const firstPos = args.filter((a) => a && !a.name)[0]
+    const defArg = args.find((a) => a && a.name === 'defval') || firstPos
+    const dv = defArg && defArg.value
+    const colourDefault = call.name === 'input' && !legacy && !!dv && (dv.type === 'colour'
+      || (dv.type === 'name' && typeof dv.name === 'string' && dv.name.startsWith('color.'))
+      || (dv.type === 'call' && (dv.name === 'color.rgb' || dv.name === 'color.new')))
+    const kind = call.name === 'input.color' || legacy === 'input.color' || colourDefault ? 'color'
       : call.name === 'input.source' || legacy === 'input.source' ? 'source' : null
     if (!kind) {
       throw new RuntimeRefusal('runtime:statement',

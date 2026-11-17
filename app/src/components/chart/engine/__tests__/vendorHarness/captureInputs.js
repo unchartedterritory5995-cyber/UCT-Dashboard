@@ -21,6 +21,7 @@
 
 import { lexPine, blockStatements, findTop, isPunct, boundName, parseWholeExpression } from '../../ast/pine.js'
 import { paramInputKey } from '../../paramInputs.js'
+import { hostColourLinks } from '../../runHalfInputs.js'
 
 const IN_ID = /^in_(\d+)$/
 
@@ -109,6 +110,12 @@ export function captureInstanceInputs(capture, def) {
     if (!spec) {
       const pid = Object.keys(manifest).find((id) => manifest[id] && manifest[id].sourceName === name)
       spec = pid ? byKey.get(paramInputKey(pid)) : null
+    }
+    if (!spec) {
+      // ⭐ a script colour input a plot draws with is that plot's colour setting (`hostColourLinks`)
+      const links = hostColourLinks(def)
+      const hostKey = Object.keys(links).find((k) => links[k] === name)
+      spec = hostKey ? byKey.get(hostKey) : null
     }
     if (!spec) return { ok: false, why: `"${i.name}" (${name}) was moved and is not a setting of our document` }
     let v = i.value

@@ -116,9 +116,11 @@ describe('the run is handed the chart\'s values, in its own names', () => {
   })
 
   it('⛔ a moved plot colour the run cannot be handed is named, never dropped', () => {
+    // (the line colour IS handed since the colour links, `runHalfColours.test.js`; the fill's helper
+    // plot `out3` draws in a literal, so its colour setting has no input behind it)
     const def = migrateMemberDocument(minted().definition)
-    const r = runHalfRunInputs(def, { color: '#FF0000' })
-    expect(r).toMatchObject({ ok: false, key: 'color' })
+    const r = runHalfRunInputs(def, { out3Color: '#FF0000' })
+    expect(r).toMatchObject({ ok: false, key: 'out3Color' })
   })
 })
 
