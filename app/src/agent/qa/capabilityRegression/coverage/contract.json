@@ -2697,6 +2697,19 @@
    ],
    "fast": false
   },
+  "widget.moveTab": {
+   "domain": "widget",
+   "group": "tabOrder",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
   "widget.readOptions": {
    "domain": "widget",
    "group": "boardEdit",

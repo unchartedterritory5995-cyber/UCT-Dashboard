@@ -20,6 +20,7 @@ import { looksLikeFormula } from '../../../capabilities/indicatorAuthoring'
 import { listDrafts } from '../../../../components/chart/builder/agentAuthoring'
 import { readFavoriteTools } from '../../../../components/chart/drawToolFavorites'
 import { normalizeDock } from '../../../../pages/charts/widgets/chartDock'
+import { orderedWidgetTabList } from '../../../../pages/charts/widgetTabs'
 
 /** A hex colour's hue family (red / green / blue / yellow / …) — a colour word maps to a palette shade, never one exact hex. */
 export function hueFamily(hex) {
@@ -206,6 +207,8 @@ export function checkExpect(ctx, e, label) {
     }
   }
   if ('replay' in e) expect(ctx.st.replay, `${label}: the Replay Mode cutoff`).toBe(e.replay)
+  // widget.moveTab: a widget's tab strip, in the order the member sees it (labels)
+  if (e.widgetTabs) expect(orderedWidgetTabList(board.state.widgets.find(w => w.id === e.widgetTabs.widget) || {}).map(t => t.label), `${label}: the ${e.widgetTabs.widget} tab strip`).toEqual(e.widgetTabs.labels)
   // the Custom-Period Sort's floating panel ({start, end, group} | null) and the Period Sort widgets on the board (their opts)
   if ('periodSortPanel' in e) expect(ctx.st.periodSort?.panel ?? null, `${label}: the Custom-Period Sort panel`).toEqual(e.periodSortPanel)
   if (e.periodSortWidgets) expect(board.state.widgets.filter(w => w.type === 'periodsort').map(w => w.opts), `${label}: the Period Sort widgets`).toEqual(e.periodSortWidgets)

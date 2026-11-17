@@ -4165,6 +4165,45 @@
    "shape": null
   },
   {
+   "name": "widget.moveTab",
+   "domain": "widget",
+   "target": "board",
+   "summary": "Move one of a widget's tabs to another place in its tab strip (right-click a tab → Move left / Move right): left, right, first, last or a position (1 = the first tab). Nothing else changes. Undo puts the order back.",
+   "hints": "target = the ref of the board entry; widget = its id; tab = \"main\" (the widget's own content), \"1\", \"2\"… or the tab's name, from the board entry's widgetTabs. NOT chart tabs (those are chart.*Tab). to = first | last | left | right | a position number (1 = first), as the strip shows it.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": "string"
+     },
+     "tab": {
+      "type": "string"
+     },
+     "to": {
+      "type": [
+       "string",
+       "number"
+      ]
+     }
+    },
+    "required": [
+     "widget",
+     "tab",
+     "to"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "widget.addTab",
    "domain": "widget",
    "target": "board",

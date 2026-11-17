@@ -63,7 +63,7 @@ import { planChartGrid, GRID_PATTERNS, MAX_GRID_CHARTS } from '../chartGrid'
 import { unknownSymbols } from '../agentClient'
 import { dayOf } from './calendar'
 import { loadJournalCapture } from '../../components/journalCaptureLoader'
-import { widgetTabList, setActiveWidgetTab, renameWidgetTab, closeWidgetTab, sanitizeWidgetTabs, addWidgetTab, WIDGET_TAB_TYPES } from '../../pages/charts/widgetTabs'
+import { widgetTabList, setActiveWidgetTab, renameWidgetTab, closeWidgetTab, sanitizeWidgetTabs, addWidgetTab, WIDGET_TAB_TYPES, moveWidgetTab, orderedWidgetTabList } from '../../pages/charts/widgetTabs'
 // a slot holds a handful of widgets as tabs — the Agent stops adding at this many (the header scrolls beyond)
 const MAX_WIDGET_TABS = 8
 
@@ -77,7 +77,7 @@ const extraOff = (env, color) => (isExtraGroup(color) && env?.target?.extraGroup
   ? `Link colors E–H aren't switched on in UCT for your account — use ${linkGroups(false).join(', ')}.` : null)
 const SCAN_KEYS = PRESET_SCANS.map(s => s.key)
 const GEOM = ['x', 'y', 'w', 'h']
-const FIELDS = ['x', 'y', 'w', 'h', 'color', 'opts', 'wtabs', 'activeWtab', 'mainTabName']
+const FIELDS = ['x', 'y', 'w', 'h', 'color', 'opts', 'wtabs', 'activeWtab', 'mainTabName', 'wtabOrder']   // wtabOrder: the tab strip's order (widget.moveTab)
 // ⭐ acceptance 2026-10-29: a chart the GRID ADDED, as it draws — it stores no settings (it reads the defaults); the first
 // indicator change writes them out in full and marks the style preset "custom", and that change's own Undo leaves both
 // so. Nothing the member sees differs, and the grid's Undo removes the chart whole, so it is not stale for it ("open
@@ -1781,6 +1781,96 @@ export function registerBoardCapabilities() {
     describe(b, a, { widget, tab }) {
       const o = b.board.find(w => w.id === String(widget)), n = a.board.find(w => w.id === String(widget))
       return o && n && !same(o, n) ? `Closed the “${findWtab(o, tab)?.label || tab}” tab of the ${nameOf(o, b.board)}` : null
+    },
+  })
+
+  // ── widget.moveTab (Charts family tab-reorder, 11-17): a widget tab's place in its strip — right-click a tab → Move left /
+  // Move right (WidgetHeader onMoveTab → WidgetHost.handleMoveTab → widgetTabs.moveWidgetTab). A move to a far place is the SAME
+  // one-step writer applied step by step, as the member's own clicks would. Non-destructive; exact Undo (the board kind's set
+  // patch puts the widget — its tab order — back). Which widget: a tab NAME that several widgets hold is asked, with the real
+  // choices, unless the words name one; the same-type rule is the shared whichWidget guard. ──
+  const TAB_TO = ['first', 'last', 'left', 'right']
+  const tabPlace = (to) => {
+    const s = String(to ?? '').trim().toLowerCase()
+    if (TAB_TO.includes(s)) return s
+    const n = Number(s.replace(/^(\d+)(?:st|nd|rd|th)$/, '$1'))
+    return Number.isInteger(n) ? n : null
+  }
+  // where the tab would go, in the strip as the member sees it (orderedWidgetTabList): { from, to } (0-based) or { why }
+  const tabMove = (t, x, to) => {
+    const ids = orderedWidgetTabList(t).map(e => e.id)
+    const from = ids.indexOf(x.id)
+    const p = tabPlace(to)
+    if (from < 0) return { why: 'I can’t find that tab in the widget’s strip.' }
+    if (p == null) return { why: `“${to}” isn’t a place in the tab strip — say first, last, left, right or a position (1 to ${ids.length}).` }
+    if (typeof p === 'number' && (p < 1 || p > ids.length)) return { why: `The ${label(t.type)} has ${ids.length} tabs, so there is no position ${p} — say a position from 1 to ${ids.length}, first or last.` }
+    const dest = p === 'first' ? 0 : p === 'last' ? ids.length - 1 : p === 'left' ? from - 1 : p === 'right' ? from + 1 : p - 1
+    if (dest < 0) return { from, to: from, edge: 'first' }
+    if (dest >= ids.length) return { from, to: from, edge: 'last' }
+    return { from, to: dest }
+  }
+  const tabPlaceWord = (i, n) => (i === 0 ? 'first' : i === n - 1 ? 'last' : `number ${i + 1}`)
+  const WORDS_OF = (s) => ` ${String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()} `
+  reg({
+    ...common,
+    name: 'widget.moveTab',
+    summary: 'Move one of a widget\'s tabs to another place in its tab strip (right-click a tab → Move left / Move right): left, right, first, last or a position (1 = the first tab). Nothing else changes. Undo puts the order back.',
+    hints: `${wtabHint} to = first | last | left | right | a position number (1 = first), as the strip shows it.`,
+    args: { type: 'object', properties: { ...wtabArgs, to: { type: ['string', 'number'] } }, required: ['widget', 'tab', 'to'], additionalProperties: false },
+    // which widget: a tab name several widgets hold → asked (the real ones), unless the words name one; else the shared guard
+    resolveArgs(args, host, member, how = {}) {
+      if (how?.approved) return null
+      let s = null
+      try { s = host?.widgets?.snapshot?.() } catch { s = null }
+      const vis = Array.isArray(s?.visible) ? new Set(s.visible.map(v => String(v.id))) : null
+      const raw = (s?.raw || []).filter(x => !vis || vis.has(String(x.id)))
+      const q = String(args?.tab ?? '').trim().toLowerCase()
+      const byName = q && q !== 'main' && !/^\d+$/.test(q)
+      if (byName) {
+        const holders = raw.filter(w => sanitizeWidgetTabs(w).tabs.length && findWtab(w, q))
+        if (holders.length > 1) {
+          // the words with the TAB's own mention taken out ("make calendar the first tab" names the tab, not the Calendar widget):
+          // the mention followed by "tab" when there is one, else the first
+          let said = WORDS_OF(member)
+          const tw = WORDS_OF(q)
+          const at = said.indexOf(`${tw}tab `) >= 0 ? said.indexOf(`${tw}tab `) : said.indexOf(tw)
+          if (at >= 0) said = `${said.slice(0, at)} ${said.slice(at + tw.length - 1)}`
+          const named = holders.filter(w => [label(w.type), positionWord(w, raw)].filter(Boolean).some(n => said.includes(WORDS_OF(n.replace(/-/g, ' ')))))
+          if (named.length === 1) return String(named[0].id) === String(args.widget) ? null : { args: { ...args, widget: String(named[0].id) } }
+          const lbl = (w) => `${label(w.type)}${positionWord(w, raw) ? ` (${positionWord(w, raw)})` : ''}`
+          return { ask: { arg: 'widget', text: `Which widget’s “${findWtab(holders[0], q).label}” tab — ${holders.map(lbl).join(' or ')}?`, choices: holders.map(w => ({ ref: String(w.id), label: lbl(w) })) } }
+        }
+        // the one widget holding that tab, when the plan named another: re-aimed only when the words name the tab
+        if (holders.length === 1 && String(holders[0].id) !== String(args.widget) && WORDS_OF(member).includes(WORDS_OF(q))) return { args: { ...args, widget: String(holders[0].id) } }
+      }
+      return whichWidget(args, host, member, how)
+    },
+    check(st, { widget, tab, to }) {
+      const { t, x, why } = tabbed(st, widget, tab)
+      if (why) return why
+      return tabMove(t, x, to).why || null
+    },
+    apply(st, { widget, tab, to }) {
+      const { t, x } = tabbed(st, widget, tab)
+      const m = tabMove(t, x, to)
+      if (m.why || m.from === m.to) return st
+      let next = t
+      for (let i = 0; i < Math.abs(m.to - m.from); i += 1) next = moveWidgetTab(next, x.id, m.to < m.from ? -1 : 1)
+      return setWidget(st, t, next)
+    },
+    describe(b, a, { widget, tab }) {
+      const o = b.board.find(w => w.id === String(widget)), n = a.board.find(w => w.id === String(widget))
+      if (!o || !n || same(o, n)) return null
+      const x = findWtab(o, tab)
+      const ids = orderedWidgetTabList(n).map(e => e.id)
+      return `Moved the ${nameOf(o, b.board)}'s “${x?.label || tab}” tab to ${tabPlaceWord(ids.indexOf(x?.id), ids.length)} in its strip`
+    },
+    noop: (st, _a, { widget, tab, to } = {}) => {
+      const r = tabbed(st, widget, tab)
+      if (r.why) return 'Nothing to move'
+      const m = tabMove(r.t, r.x, to)
+      const n = orderedWidgetTabList(r.t).length
+      return `The “${r.x.label}” tab is already ${m.edge ? `the ${m.edge}` : tabPlaceWord(m.from, n)} in the ${label(r.t.type)}'s strip`
     },
   })
 

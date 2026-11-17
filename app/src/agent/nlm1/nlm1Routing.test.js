@@ -220,6 +220,8 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
     uctIntelligence: ['add uct intelligence to this chart', 'turn off auto patterns', 'turn on the setups layer', 'show candlestick patterns on this chart'],
     // #1070: the Drawing Boards actions' own words — a switch / rename / delete / new verb governing the board noun, or "drawing board"
     drawingBoards: ['switch to my Earnings board', 'rename Board 3 to Gaps', 'delete the current drawing board', 'make me a new board called Breakouts'],
+    // Charts family tab-reorder (11-17): widget.moveTab's own words — a tab noun with a place in the strip
+    tabOrder: ['move the calendar tab left', 'make news the first tab', 'put the breadth tab in position 2', 'move the scanner tab to the end'],
     // #1076 (Lead decision 2026-11-11): the drawing menu's Duplicate and a position's entry / stop / target alerts
     drawingOps: ['duplicate this trendline', 'make a duplicate of the trendline', 'set the stop and target alerts on my position', 'alert me at my stop'],
     // #1030: the Multi Chart grid's own words (the grid as a thing acted on, a shape with rows AND columns, sync WITH what it syncs)

@@ -5172,6 +5172,46 @@
      "modes": {}
     }
    }
+  },
+  "widget.moveTab.first": {
+   "digest": "b2b8f3ff12da7128",
+   "phrasings": {
+    "make breadth the first tab in the watchlist": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "move the breadth tab to the front of the watchlist": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the watchlist’s breadth tab first": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "widget.moveTab.left": {
+   "digest": "0ad102667679f77f",
+   "phrasings": {
+    "move the breadth tab in the watchlist left": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "shift the watchlist’s breadth tab one to the left": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "move breadth one tab left in the watchlist": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
   }
  },
  "refusals": {

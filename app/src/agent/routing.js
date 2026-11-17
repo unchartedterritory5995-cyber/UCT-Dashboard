@@ -285,7 +285,13 @@ export const GROUPS = [
       /\b(?:favou?rit\w*|star|unstar|starred)\b.*\b(?:tools?|toolbar)\b|\b(?:tools?|toolbar)\b.*\bfavou?rit\w*\b/] },
   // C1-167..170: the four Drawing Boards actions in their OWN group, WORDS-ONLY (as #1027's watchlistShow, #1073's compareGroups), so the
   // drawings group keeps master's size and routing v2's unrecognised-request fill (at its 55-action budget) is unchanged
-  { id: 'drawingBoards', title: 'Drawing Boards: switch the board you draw on, make a new board, rename one, delete one', domains: [], fillLast: true, wordsOnly: true,
+  // Charts family tab-reorder (11-17): a widget tab's place in its strip, in its OWN words-only group (as drawingBoards): never a
+  // filler, so no unmatched request changes — the workspace group is at the NL-1 reroute budget and boardEdit at v2's packing edge.
+  // The words: a tab noun with a place ("move the calendar tab left", "put the breadth tab in position 2", "make news the first tab").
+  { id: 'tabOrder', title: 'Move a widget tab left, right, first, last or to a position in its tab strip', domains: [], fillLast: true, wordsOnly: true,
+    actions: ['widget.moveTab'],
+    words: [/\btabs?\b.*\b(?:first|last|left|right|front|end|start|position)\b|\b(?:first|last) tab\b|\breorder\b.*\btabs?\b/] },
+  { id: 'drawingBoards', title:'Drawing Boards: switch the board you draw on, make a new board, rename one, delete one', domains: [], fillLast: true, wordsOnly: true,
     actions: ['drawing.setActiveBoard', 'drawing.createBoard', 'drawing.renameBoard', 'drawing.deleteBoard'],
     // a Drawing Board by its verb ("switch to my Swing board", "rename Board 2 to Earnings"), the verb governing the board noun within
     // two words — a bare "board" is the workspace ("remove everything from the board" is not a Drawing Board)

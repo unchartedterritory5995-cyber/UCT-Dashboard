@@ -12928,6 +12928,100 @@
         "show me the catalyst board",
         "what are today's catalysts"
       ]
+    },
+    {
+      "id": "widget.moveTab.first",
+      "source": "Charts family tab-reorder (11-17): right-click a widget tab → Move left / Move right (WidgetHost.handleMoveTab → widgetTabs.moveWidgetTab)",
+      "capabilities": [
+        "widget.moveTab"
+      ],
+      "board": "TABS",
+      "needs": [
+        "widget.moveTab"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "widget.moveTab",
+            "target": "$board",
+            "args": {
+              "widget": "wl1",
+              "tab": "Breadth",
+              "to": "first"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "widgetTabs": {
+          "widget": "wl1",
+          "labels": [
+            "Breadth",
+            "Momentum",
+            "Calendar"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "make breadth the first tab in the watchlist",
+        "move the breadth tab to the front of the watchlist",
+        "put the watchlist’s breadth tab first"
+      ]
+    },
+    {
+      "id": "widget.moveTab.left",
+      "source": "Charts family tab-reorder (11-17): right-click a widget tab → Move left / Move right (WidgetHost.handleMoveTab → widgetTabs.moveWidgetTab)",
+      "capabilities": [
+        "widget.moveTab"
+      ],
+      "board": "TABS",
+      "needs": [
+        "widget.moveTab"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "widget.moveTab",
+            "target": "$board",
+            "args": {
+              "widget": "wl1",
+              "tab": "Breadth",
+              "to": "left"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "widgetTabs": {
+          "widget": "wl1",
+          "labels": [
+            "Momentum",
+            "Breadth",
+            "Calendar"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "move the breadth tab in the watchlist left",
+        "shift the watchlist’s breadth tab one to the left",
+        "move breadth one tab left in the watchlist"
+      ]
     }
   ],
   "refusals": [
