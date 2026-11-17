@@ -630,6 +630,38 @@ function chipMenuSigRow(it) {
 }
 
 /**
+ * ⭐ UCT SIGNATURE (owner 11-16) — the Volume chip's **Display in** page in the same look as
+ * its menu page (`chipMenuSigRow`): a back row (quiet grey ‹ + the menu's name), a grey group
+ * label, then one row per destination. The current one is bold with a white ✓ at the right and
+ * stays readable (it is still refused — `displaySubmenu` gives it no handler — so its reason is
+ * its tooltip, not a second line); an orphan target is one greyed line with its reason as the
+ * tooltip. No icons. Keys, handlers and order are `displaySubmenu`'s, unchanged.
+ */
+function displayPageSigRows(backLabel, options, onBack) {
+  return [
+    { key: '_back', keepOpen: true, onClick: onBack, hint: 'Back to the menu',
+      label: (
+        <span className={styles.sigRow}>
+          <span className={styles.sigBack} aria-hidden="true">‹</span>
+          <span className={styles.sigName}>{backLabel}</span>
+        </span>
+      ) },
+    { groupLabel: 'Display in' },
+    ...options.map((s) => ({
+      ...s,
+      icon: undefined,
+      hint: s.hint || (typeof s.disabled === 'string' ? s.disabled : undefined),
+      label: s.checked === true ? (
+        <span className={`${styles.sigRow} ${styles.sigChosen}`}>
+          <span className={styles.sigName}>{s.label}</span>
+          <span className={styles.sigCheck} aria-hidden="true">✓</span>
+        </span>
+      ) : s.label,
+    })),
+  ]
+}
+
+/**
  * ⭐⭐ TRACK B — THE POPOVER'S HEADER. It answers *"what is this?"* before the
  * menu offers a single verb.
  *
@@ -8505,32 +8537,6 @@ export default function StockChart({
   // host it follows. `resolveDisplayTarget` is the same authority the layout and
   // the placement resolver both consume, so the legend cannot disagree with where
   // the series actually drew — which is the failure mode that reads as correct.
-  /**
-   * Is the VOLUME pane below the PRICE pane, right now?
-   *
-   * ⭐⭐ ASKED OF THE RENDERER, BY IDENTITY — never of a pane index. Each series is
-   * asked which pane it is in and the two answers are compared with EACH OTHER, so
-   * the question survives any arrangement: Price is not pane 0 and has not been
-   * since panes became movable, and "volume is pane 1" was never true either.
-   *
-   * ⛔ FALSE IS THE RIGHT ANSWER FOR A BANDED VOLUME. With no separate pane both
-   * lookups return the same index, so this answers false and the Volume row keeps
-   * the head position it has always had — which is correct, because a banded volume
-   * is drawn INSIDE Price rather than beneath it.
-   *
-   * ⚠ IT IS A FUNCTION, NOT A MEMO. The pane a series lives in is renderer state
-   * that changes without a React render (a drag, a reorder), and a memo keyed on
-   * `cs` would answer from the wrong frame.
-   */
-  const volumeBelowPrice = useCallback(() => {
-    try {
-      const p = candleSeriesRef.current?.getPane?.()?.paneIndex?.()
-      const v = volumeSeriesRef.current?.getPane?.()?.paneIndex?.()
-      if (!Number.isInteger(p) || !Number.isInteger(v)) return false
-      return v > p
-    } catch { return false }
-  }, [])
-
   const chipPaneHost = useCallback((chip) => {
     const id = chip && chip.instanceId
     if (typeof id !== 'string' || !id) return null
@@ -19420,14 +19426,10 @@ export default function StockChart({
           const volHiddenNow = cs.volume?.visible === false
           const volMove = volItems.find((i) => i.key === 'move')
           const onMovePage = chipPage === 'move' && volMove && !volMove.disabled
+          // UCT Signature on BOTH pages (owner 11-16): the Display in page is `displayPageSigRows`.
           const volPage = onMovePage
-            ? [
-                { key: '_back', label: 'Volume', icon: 'collapse', keepOpen: true,
-                  onClick: () => setChipPage(null) },
-                { separator: true },
-                ...volMove.submenu.map((s) => ({ ...s, icon: s.checked ? 'check' : 'expand' })),
-              ]
-            : volItems.map((it) => (it.key === 'move' && !it.disabled
+            ? displayPageSigRows('Volume', volMove.submenu, () => setChipPage(null))
+            : volItems.map((it) => chipMenuSigRow(it.key === 'move' && !it.disabled
               ? { ...it, keepOpen: true, onClick: () => setChipPage('move') }
               : it))
           const volValue = crosshairData && crosshairData.volume != null ? formatVolume(crosshairData.volume) : ''
@@ -19437,16 +19439,16 @@ export default function StockChart({
               open
               onClose={close}
               anchor={chipMenu.anchor}
-              title={onMovePage ? 'Volume' : undefined}
+              /* ⛔ NO `title` on the Display in page either: its back row already names Volume. */
               width={214}  // the chart right-click menu's width (UCT Signature, owner 11-16)
               dense
-              signature={!onMovePage}
+              signature
               /* UCT Signature: no sub-line — "Display in" already names the placement. */
               header={onMovePage ? null : (
                 <LegendMenuHeader label="Volume" hidden={volHiddenNow} value={volValue} sig />
               )}
-              items={volPage.map(onMovePage ? chipMenuRowToPopoverRow : chipMenuSigRow)}
-              sheetClassName={sheetCls + (!onMovePage ? ' ' + popStyles.signature : '')} /* the touch sheet's UCT Signature look rides the Sheet's class (ContextPopover: Notebook bytes) */
+              items={volPage}
+              sheetClassName={sheetCls + ' ' + popStyles.signature} /* the touch sheet's UCT Signature look rides the Sheet's class (ContextPopover: Notebook bytes) */
             />
           )
         }
@@ -20541,22 +20543,23 @@ export default function StockChart({
         // the two could differ (the strip abbreviates, the pane spells out).
         const priceChips = indChips.filter((c) => chipPaneHost(c) == null)
         const studyOverlays = liveLegendOverlays(crosshairData.overlays)
-        // ⭐⭐ §13/§14 — VOLUME PRINTS LAST, BECAUSE ITS PANE IS LAST.
+        // ⭐⭐ §13/§14 — VOLUME PRINTS LAST.
         //
         // ⚰ IT USED TO HEAD THE STACK, inherited from the old vertical legend where
         // it sat directly under the O/H/L/C rows and belonged to them. In V2 the
-        // OHLC readings live in the bar-info strip and the stack is PLOTS — so the
-        // stack should read in the order the panes do: the things drawn on Price,
-        // then the thing drawn beneath it.
+        // OHLC readings live in the bar-info strip and the stack is PLOTS.
         //
-        // ⛔ THIS IS NOT "VOLUME IS ALWAYS LAST" HARD-CODED. `volumeBelowPrice` asks
-        // the RENDERER which pane each series is in, by identity, the same way
-        // `chromePlan` resolves every other piece of price-owned chrome — so a
-        // member who arranges Volume ABOVE Price gets its row above the price
-        // studies, and a banded volume (no pane of its own) keeps the head position
-        // it has always had. No pane INDEX is assumed anywhere; the two indices are
-        // only ever compared with each other.
-        const studyVolLast = volRowInPriceStack && volumeBelowPrice()
+        // ⭐⭐ OWNER 11-16 — AN OVERLAID VOLUME IS LISTED BELOW THE PRICE STUDIES. Volume is in
+        // this stack only when it has no pane of its own (`volRowInPriceStack`), i.e. it is
+        // overlaid on Price, where its bars sit along the BOTTOM of the pane — so its row goes
+        // under EMA 9 / SMA 50 / every price-pane indicator, the way the chart reads. It is
+        // put last AFTER the member's row order too (`orderPaneRows`): its place is where its
+        // bars are drawn, not a slot in a list.
+        // ⚰️ `volumeBelowPrice()` (the renderer's pane indices compared) decided this and is
+        // retired: in this stack Volume and the candles share one pane, so it always answered
+        // false and kept Volume at the head — the position the owner asked to change.
+        // A volume in its own pane is not in this stack at all (`volPaneRows`): unchanged.
+        const studyVolLast = volRowInPriceStack
         // ⭐⭐ ONE STACK, IN THE MEMBER'S OWN ORDER (owner §11, 2026-09-17).
         //
         // ⚰️ IT WAS THREE CONCATENATED BLOCKS — volume, then every legacy moving
@@ -20581,19 +20584,20 @@ export default function StockChart({
         // sorts to the end with the other unidentifiable rows, which is where it
         // already sat.
         //
-        // ⚠️ VOLUME PARTICIPATES ONLY WHEN IT IS REALLY IN THIS STACK. A banded
-        // volume IS a member of the price pane and the settings list files it
-        // there too, so it can be ordered among the averages; a volume with its
-        // own pane is not in this stack at all and its `studyVolLast` placement
-        // rule — which asks the RENDERER which pane is below which — is untouched.
-        const studyItems = orderPaneRows(cs, PRICE_PANE, [
-          ...(volRowInPriceStack && !studyVolLast ? [{ kind: 'vol', id: 'volume' }] : []),
+        // ⚠️ VOLUME IS IN THIS STACK ONLY WHEN IT IS OVERLAID ON PRICE, and then it is
+        // moved to the end AFTER the member's order is applied (`studyVolLast`, above):
+        // the averages and indicators keep the member's order among themselves. A volume
+        // with its own pane is not in this stack at all.
+        const studyRows = orderPaneRows(cs, PRICE_PANE, [
           ...studyOverlays.map((ov, i) => ({
             kind: 'ma', ov, i, id: ov.csIndex >= 0 ? overlayRowId(ov.csIndex) : null,
           })),
           ...priceChips.map((c) => ({ kind: 'chip', c, id: c.instanceId })),
           ...(studyVolLast ? [{ kind: 'vol', id: 'volume' }] : []),
         ], (it) => it.id)
+        const studyItems = studyVolLast
+          ? [...studyRows.filter((it) => it.kind !== 'vol'), ...studyRows.filter((it) => it.kind === 'vol')]
+          : studyRows
         const studyTotal = studyItems.length
         // ⭐⭐ THE FOLD IS GEOMETRIC, NOT A CONSTANT. `studyRowBudget` is how many
         // rows fit between the stack's own top and the PRICE PANE'S bottom, in
@@ -20818,8 +20822,8 @@ export default function StockChart({
                   `parityGateBlindness.test.js`, which is also why this JSX is
                   inline and not hoisted into a helper. */}
               <div className={styles.studyStack} ref={studyStackRef}>
-                {/* ⭐ VOLUME IS A STUDY ROW — first, above the moving averages,
-                    exactly where the old vertical legend printed it.
+                {/* ⭐ VOLUME IS A STUDY ROW — last, below the moving averages and every
+                    price-pane indicator, where its overlaid bars sit (owner 11-16).
                     ⛔ ITS PANE OWNERSHIP, SIZING AND RENDERING ARE UNTOUCHED. This
                     row only REPORTS the state: a hidden volume pane keeps a
                     dimmed, value-less row (the way back), and a REMOVED one takes

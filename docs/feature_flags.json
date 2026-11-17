@@ -707,7 +707,17 @@
       "where": [
         "bars-api"
       ],
-      "note": "ARMED on bars-api 2026-10-14 ~18:13Z (owner-run --set, owner approval 2026-10-14). Verified in-process via /internal/live-status: enabled=true, covered5=3640, daily_seen=13251, stream_alive and daily_alive true. Universe live bars, SERVING side (api/services/bars_live_store.py). ENABLEMENT GATE, default OFF, read per call. When ON, bars-api keeps every cap_universe ticker's 5m series current from the web pod's AM.* stream (POST /internal/live-bars, service-gated) plus a per-socket-epoch provider backfill, and every ticker's daily bar current from the whole-market snapshot every BARS_LIVE_DAILY_POLL_S (10 s); a covered series is fresh by construction in bars_fetch._needs_fresh and is served from SQLite with no provider call. Arms together with BARS_UNIVERSE_STREAM_ENABLED on web. Status: GET /internal/live-status (service token). Rollback: set 0 (reads fall back to the old freshness path at once)."
+      "note": "ARMED on bars-api 2026-10-14 ~18:13Z (owner-run --set, owner approval 2026-10-14). Verified in-process via /internal/live-status: enabled=true, covered5=3640, daily_seen=13251, stream_alive and daily_alive true. Universe live bars, SERVING side (api/services/bars_live_store.py). ENABLEMENT GATE, default OFF, read per call. When ON, bars-api keeps every cap_universe ticker's 5m series current from the web pod's AM.* stream (POST /internal/live-bars, service-gated) plus a per-socket-epoch provider backfill, and every ticker's daily bar current from the whole-market snapshot every BARS_LIVE_DAILY_POLL_S (10 s); a covered series is fresh by construction in bars_fetch._needs_fresh and is served from SQLite with no provider call. Arms together with BARS_UNIVERSE_STREAM_ENABLED on web. Status: GET /internal/live-status (service token). Rollback: set 0 (reads fall back to the old freshness path at once). 2026-11-17: while this proves a ticker's 5m, bars_fetch also rebuilds its 15m (and so 30m/60m) tail from that 5m on the read path (BARS_LIVE_DERIVE_15, default ON; kill switch =0 reverts 15m to a provider series)."
+    },
+    "BARS_LIVE_1M_ENABLED": {
+      "status": "armed",
+      "since": "2026-11-17",
+      "where": [
+        "bars-api",
+        "web",
+        "stream-ingest"
+      ],
+      "note": "ARMED 2026-11-17 ~03:27Z on bars-api, web and stream-ingest (owner-run --set; read back as 1 on all three). Soak starts when minutes flow (04:00 ET); not yet verified in-process (stream-ingest is inert while STREAM_INGEST_CONNECT=0, so web forwards the minutes until the cutover). Shipped dark in #1515 (merged 2026-11-17). Live 1m coverage: the forwarder (bars_live_ingest, on whichever service holds the Massive socket: web today, stream-ingest after the cutover) adds the minutes to its pushes, and bars-api (bars_live_store) keeps a requested ticker's 1m current on demand (urgent repair, recent-minutes ring, epoch checkpoint), so a covered 1m read is served from SQLite. Needs BARS_LIVE_COVERAGE_ENABLED. Arming is an owner switch: set it on bars-api, web and stream-ingest together, in a session window, and watch 1m Server-Timing (no bars(miss)), bars-api memory and the repair queue. Rollback: 0 on bars-api."
     },
     "BARS_UNIVERSE_STREAM_ENABLED": {
       "status": "armed",

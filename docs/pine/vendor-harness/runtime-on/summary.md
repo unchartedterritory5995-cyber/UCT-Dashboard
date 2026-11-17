@@ -1484,6 +1484,18 @@ rs-rating-fred6724-nvda-1d-2026-11-15        NASDAQ:NVDA 1D   4      DIVERGE    
     Plot                                     MATCH_SUBSTITUTED cmp 6997 ok 6997 warm 0/0 steady 0/6997 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 6997 ok 6997 warm 0/0 steady 0/6997 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 4 paired slots; coordinates are NOT compared by v1
+rs-rating-fred6724-pm-alab-1d-2026-11-16     NASDAQ:ALAB 1D   4      DIVERGE           RS Line: bar 667 t=1794839400 value vendor=91.66778802657285 ours=89.9090280321675
+    RS Line                                  DIVERGE           cmp 668 ok 667 warm 0/0 steady 1/668 maxRel 1.92e-2 — 1 steady-state bars disagree; first at bar 667 (value: vendor 91.66778802657285 vs ours 89.9090280321675) — persistent, last at bar 667
+    Plot                                     MATCH_SUBSTITUTED cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    objects                                  DIVERGE       1 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1
+rs-rating-fred6724-pm-rddt-1d-2026-11-16     NYSE:RDDT 1D     4      MATCH_SUBSTITUTED all 5 items agree, with substituted inputs fed the vendor's value (syminfo.industry); the UCT data a member is served is not proven
+    RS Line                                  MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 4 paired slots; coordinates are NOT compared by v1
 rs-rating-fred6724-rddt-1d-2026-11-15        NYSE:RDDT 1D     4      MATCH_SUBSTITUTED all 5 items agree, with substituted inputs fed the vendor's value (syminfo.industry); the UCT data a member is served is not proven
     RS Line                                  MATCH_SUBSTITUTED cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
@@ -1496,7 +1508,59 @@ rs-rating-fred6724-rddt-1d-2026-11-16        NYSE:RDDT 1D     4      MATCH_SUBST
     Plot                                     MATCH_SUBSTITUTED cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 4 paired slots; coordinates are NOT compared by v1
+rs-rating-fred6724-seta-alab-1d-2026-11-16   NASDAQ:ALAB 1D   4      MATCH_SUBSTITUTED all 5 items agree, with substituted inputs fed the vendor's value (syminfo.industry); the UCT data a member is served is not proven
+    RS Line                                  MATCH_SUBSTITUTED cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 7.45e-16
+    Plot                                     MATCH_SUBSTITUTED cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 1.30e-15
+    objects                                  MATCH         object counts and texts agree; colours agree on 51 paired slots; coordinates are NOT compared by v1
+rs-rating-fred6724-seta-rddt-1d-2026-11-16   NYSE:RDDT 1D     4      MATCH_SUBSTITUTED all 5 items agree, with substituted inputs fed the vendor's value (syminfo.industry); the UCT data a member is served is not proven
+    RS Line                                  MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 5.62e-16
+    Plot                                     MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 1.52e-15
+    objects                                  MATCH         object counts and texts agree; colours agree on 46 paired slots; coordinates are NOT compared by v1
+rs-rating-fred6724-setb-alab-1d-2026-11-16   NASDAQ:ALAB 1D   4      MATCH_SUBSTITUTED all 5 items agree, with substituted inputs fed the vendor's value (syminfo.industry); the UCT data a member is served is not proven
+    RS Line                                  MATCH_SUBSTITUTED cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 8.95e-16
+    Plot                                     MATCH_SUBSTITUTED cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 8.95e-16
+    Plot                                     MATCH_SUBSTITUTED cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1
+rs-rating-fred6724-setb-rddt-1d-2026-11-16   NYSE:RDDT 1D     4      MATCH_SUBSTITUTED all 5 items agree, with substituted inputs fed the vendor's value (syminfo.industry); the UCT data a member is served is not proven
+    RS Line                                  MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 6.95e-16
+    Plot                                     MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 6.95e-16
+    Plot                                     MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 6 paired slots; coordinates are NOT compared by v1
+rs-rating-fred6724-setc-alab-1d-2026-11-16   NASDAQ:ALAB 1D   4      MATCH_SUBSTITUTED all 5 items agree, with substituted inputs fed the vendor's value (syminfo.industry); the UCT data a member is served is not proven
+    RS Line                                  MATCH_SUBSTITUTED cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 1.09e-15
+    Plot                                     MATCH_SUBSTITUTED cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 4 paired slots; coordinates are NOT compared by v1
+rs-rating-fred6724-setc-rddt-1d-2026-11-16   NYSE:RDDT 1D     4      MATCH_SUBSTITUTED all 5 items agree, with substituted inputs fed the vendor's value (syminfo.industry); the UCT data a member is served is not proven
+    RS Line                                  MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 7.75e-16
+    Plot                                     MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 4 paired slots; coordinates are NOT compared by v1
 rs-rating-fred6724-spy-1d-2026-11-15         AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: the supply this grade needs is not recorded — other symbol SPX: not graded, by owner ruling 2026-11-15 ("Leave spy blank imo"). The served SPX source (FMP) is recorded since L9 (local supply store, out of git), but this capture is deliberately not supplied, so no verdict implies a pass or a fail for it. Before the ruling, the L5 builder's probe on the yfinance fallback read a rating of 63 where TradingView draws 64.
+rs-seed-rsrating-pm-alab-1d-2026-11-16       NASDAQ:ALAB 1D   6      DIVERGE           S01_seed_close: bar 639 t=1791379800 na vendor=199.57 ours=na
+    S01_seed_close                           DIVERGE           cmp 668 ok 643 warm 0/0 steady 25/668 maxRel 0.00e+0 — 25 steady-state bars disagree; first at bar 639 (na: vendor 199.57 vs ours na) — scattered, last at bar 663
+    S02_seed_open                            DIVERGE           cmp 668 ok 643 warm 0/0 steady 25/668 maxRel 0.00e+0 — 25 steady-state bars disagree; first at bar 639 (na: vendor 0 vs ours na) — scattered, last at bar 663
+    S03_seed_high                            DIVERGE           cmp 668 ok 643 warm 0/0 steady 25/668 maxRel 0.00e+0 — 25 steady-state bars disagree; first at bar 639 (na: vendor 1000 vs ours na) — scattered, last at bar 663
+    S04_seed_is_na                           DIVERGE           cmp 668 ok 0 warm 0/0 steady 668/668 maxRel 0.00e+0 — 668 steady-state bars disagree; first at bar 0 (na: vendor 1 vs ours na) — persistent, last at bar 667
+    S05_barssince_seed                       DIVERGE           cmp 668 ok 639 warm 0/0 steady 29/668 maxRel 0.00e+0 — 29 steady-state bars disagree; first at bar 639 (na: vendor 0 vs ours na) — persistent, last at bar 667
+    S06_chart_close_CONTROL                  MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+rs-seed-rsrating-pm-rddt-1d-2026-11-16       NYSE:RDDT 1D     6      DIVERGE           S01_seed_close: bar 638 t=1791379800 na vendor=199.57 ours=na
+    S01_seed_close                           DIVERGE           cmp 667 ok 642 warm 0/0 steady 25/667 maxRel 0.00e+0 — 25 steady-state bars disagree; first at bar 638 (na: vendor 199.57 vs ours na) — scattered, last at bar 662
+    S02_seed_open                            DIVERGE           cmp 667 ok 642 warm 0/0 steady 25/667 maxRel 0.00e+0 — 25 steady-state bars disagree; first at bar 638 (na: vendor 0 vs ours na) — scattered, last at bar 662
+    S03_seed_high                            DIVERGE           cmp 667 ok 642 warm 0/0 steady 25/667 maxRel 0.00e+0 — 25 steady-state bars disagree; first at bar 638 (na: vendor 1000 vs ours na) — scattered, last at bar 662
+    S04_seed_is_na                           DIVERGE           cmp 667 ok 0 warm 0/0 steady 667/667 maxRel 0.00e+0 — 667 steady-state bars disagree; first at bar 0 (na: vendor 1 vs ours na) — persistent, last at bar 666
+    S05_barssince_seed                       DIVERGE           cmp 667 ok 638 warm 0/0 steady 29/667 maxRel 0.00e+0 — 29 steady-state bars disagree; first at bar 638 (na: vendor 0 vs ours na) — persistent, last at bar 666
+    S06_chart_close_CONTROL                  MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
 rs-seed-rsrating-rddt-1d-2026-11-15          NYSE:RDDT 1D     6      MATCH             all 7 items agree
     S01_seed_close                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     S02_seed_open                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
@@ -1504,6 +1568,22 @@ rs-seed-rsrating-rddt-1d-2026-11-15          NYSE:RDDT 1D     6      MATCH      
     S04_seed_is_na                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     S05_barssince_seed                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     S06_chart_close_CONTROL                  MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+rs-spx-daily-pm-alab-1d-2026-11-16           NASDAQ:ALAB 1D   6      INCONCLUSIVE      5 of 7 items could not be compared
+    X01_spx_D_open                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (other-symbol:no-bars)
+    X02_spx_D_high                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (other-symbol:no-bars)
+    X03_spx_D_low                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (other-symbol:no-bars)
+    X04_spx_D_close                          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (other-symbol:no-bars)
+    X05_spx_period_close                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (other-symbol:no-bars)
+    X06_chart_close_CONTROL                  MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+rs-spx-daily-pm-rddt-1d-2026-11-16           NYSE:RDDT 1D     6      INCONCLUSIVE      5 of 7 items could not be compared
+    X01_spx_D_open                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (other-symbol:no-bars)
+    X02_spx_D_high                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (other-symbol:no-bars)
+    X03_spx_D_low                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (other-symbol:no-bars)
+    X04_spx_D_close                          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (other-symbol:no-bars)
+    X05_spx_period_close                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (other-symbol:no-bars)
+    X06_chart_close_CONTROL                  MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 rs-spx-daily-rddt-1d-2026-11-15              NYSE:RDDT 1D     6      INCONCLUSIVE      5 of 7 items could not be compared
     X01_spx_D_open                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (other-symbol:no-bars)
@@ -1536,6 +1616,8 @@ rs-syminfo-industry-ko-1d-2026-11-15         NYSE:KO 1D       0      INCONCLUSIV
 rs-syminfo-industry-msft-1d-2026-11-15       NASDAQ:MSFT 1D   0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
 rs-syminfo-industry-nvda-1d-2026-11-15       NASDAQ:NVDA 1D   0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
 rs-syminfo-industry-pltr-1d-2026-11-15       NASDAQ:PLTR 1D   0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
+rs-syminfo-industry-pm-alab-1d-2026-11-16    NASDAQ:ALAB 1D   0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
+rs-syminfo-industry-pm-rddt-1d-2026-11-16    NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
 rs-syminfo-industry-qqq-1d-2026-11-15        NASDAQ:QQQ 1D    0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
 rs-syminfo-industry-rddt-1d-2026-11-15       NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
 rs-syminfo-industry-rddt-1d-2026-11-16       NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw

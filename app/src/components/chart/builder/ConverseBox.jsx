@@ -44,6 +44,9 @@ import { stampSemantics } from '../engine/definitionSemantics'
 import { memberError, memberSaveError, conversationEditability, memberRefusal } from './authoring/memberWords'
 import { logStudioAction, definitionKinds, clientFailureOf } from './authoring/studioTelemetry'
 import { outputNamer } from './authoring/readback'
+import { nameFromAssistant } from './authoring/authoringSession'
+import { keepAssistantName } from './authoring/readableName'
+import { renamePatch } from './authoring/memberNamePatch'
 import { ackCheckboxText } from './authoring/repaintWarning'
 
 // ⭐ UCT Signature (Direction A, owner 2026-11-16): sentence-case labels, an input well,
@@ -80,6 +83,7 @@ function changeLine(c) {
     case 'requests-cleared': return `Requests on ${c.output} were cancelled with it.`
     case 'intent-cleared': return `The signal choice on ${c.output} was cleared with it.`
     case 'paint-removed': return c.text ? `${c.output}: ${withoutGuardIds(c.text)}` : null
+    case 'scan-moved': return `Running this over a list now reads ${c.output}: the line it read (${c.from}) was removed.`
     default: return null
   }
 }
@@ -254,7 +258,15 @@ export default function ConverseBox({
         return
       }
       if (gaps.length) say({ role: 'uct', kind: 'gaps', lines: gaps })
-      applyEnvelope(turn.envelope, turn.outcome === OUTCOMES.CHANGE ? { updated: true } : { reply: turn.reply })
+      // ⭐ 2026-11-17 — THE ASSISTANT'S NAME, HERE TOO. The turn that CREATES the indicator keeps the
+      // assistant's name when the derived one is unreadable (`readableName.js`, the dock's rule): a
+      // member read "EMA 10 · EMA 21 +2" on the chart for "EMA 10/21 Trend". The host shows it in its
+      // name field, where the member can change it before saving.
+      const creating = turn.outcome === OUTCOMES.CHANGE && !stateRef.current.working
+      const envelope = creating
+        ? nameFromAssistant(stateRef.current, turn.envelope, words, gateCtx, keepAssistantName)
+        : turn.envelope
+      applyEnvelope(envelope, turn.outcome === OUTCOMES.CHANGE ? { updated: true } : { reply: turn.reply })
     } finally {
       setBusy(false)
     }
@@ -292,11 +304,20 @@ export default function ConverseBox({
     say({ role: 'uct', kind: 'opened', lines: [`Opened “${(editing.prior.meta && editing.prior.meta.name) || editing.defId}” (saved version ${editing.version}).`, ...readback(next.working, next, gateCtx).lines] })
   }, [editing, commit, say, gateCtx])
 
-  const save = useCallback(async () => {
-    const cur = stateRef.current
+  const save = useCallback(async (hostName) => {
+    let cur = stateRef.current
     if (!cur.working || saving) return
     setSaving(true)
     try {
+      // ⭐ 2026-11-17 — THE NAME IN THE HOST'S FIELD IS THE NAME SAVED. It was ignored: a member who
+      // typed a name into the window and saved from the conversation got the derived one. A string
+      // only (a click event is not a name); an unchanged or empty field changes nothing.
+      const wanted = typeof hostName === 'string' ? hostName.replace(/\s+/g, ' ').trim() : ''
+      const has = (cur.working.meta && cur.working.meta.name) || ''
+      if (wanted && wanted !== has) {
+        const renamed = applyTurn(cur, renamePatch(cur, wanted), { gateCtx })
+        if (renamed.result.status === 'applied') { commit(renamed.state); cur = renamed.state }
+      }
       const stored = await storeConversation(cur, { previewAcked: acked })
       if (!stored.ok) {
         logStudioAction(cur.lineage, 'save_failed', { surface: 'sheet' })
@@ -353,14 +374,16 @@ export default function ConverseBox({
   const notEditable = !!(editability && !editability.editable && state.defId !== editing.defId)
   const offerOpen = editing && editing.prior && state.defId !== editing.defId && !notEditable
   const saveLabel = state.defId ? 'Save changes' : 'Save and add to chart'
+  /** What the conversation's indicator is called now (the host shows it in its name field). */
+  const workingName = (state.working && state.working.meta && typeof state.working.meta.name === 'string') ? state.working.meta.name : ''
 
   // ⭐ SLICE 2 — HOSTED: the sheet footer is the ONE primary save. It shows this
   // conversation's commit while the conversation has unsaved changes.
   const hosted = typeof onCommitState === 'function'
   useLayoutEffect(() => { if (commitRef) commitRef.current = { save } })
   useEffect(() => {
-    if (hosted) onCommitState({ dirty: unsaved, canSave, saving, label: saveLabel })
-  }, [hosted, onCommitState, unsaved, canSave, saving, saveLabel])
+    if (hosted) onCommitState({ dirty: unsaved, canSave, saving, label: saveLabel, name: workingName })
+  }, [hosted, onCommitState, unsaved, canSave, saving, saveLabel, workingName])
   useEffect(() => () => { if (hosted) onCommitState(null) }, [hosted, onCommitState])
 
   return (

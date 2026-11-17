@@ -50,6 +50,7 @@ function changeWords(c) {
     case 'requests-cleared': return `Requests on ${c.output} were cancelled with it.`
     case 'intent-cleared': return `The signal choice on ${c.output} was cleared with it.`
     case 'paint-removed': return c.text ? `${c.output}: ${c.text}` : null
+    case 'scan-moved': return `Running this over a list now reads ${c.output}: the line it read (${c.from}) was removed.`
     default: return null
   }
 }
@@ -203,6 +204,24 @@ function withCreateName(envelope, words, accept) {
 }
 
 /**
+ * The envelope a NEW indicator is applied with, once the question "whose name?" is answered.
+ * `keep(name, { derivedName })` is asked with the name the engine WOULD derive (a dry run of the same
+ * patch against the same state; `applyTurn` writes nothing). Used by the dock (`modelTurn`) and by the
+ * New formula window's Describe box (`ConverseBox`), so the two cannot answer differently.
+ * ⛔ The caller decides WHETHER this turn creates the indicator; this only decides the name.
+ */
+export function nameFromAssistant(state, envelope, words, gateCtx, keep) {
+  if (typeof keep !== 'function') return envelope
+  let ctx = { derivedName: null }
+  try {
+    const dry = applyTurn(state, envelope, { gateCtx, memberWords: words })
+    const w = dry && dry.state && dry.state.working
+    ctx = { derivedName: (w && w.meta && typeof w.meta.name === 'string') ? w.meta.name : null }
+  } catch { ctx = { derivedName: null } }
+  return withCreateName(envelope, words, (n) => keep(n, ctx))
+}
+
+/**
  * THE MODEL HALF OF A TURN — one `/converse` call; the server declares what the turn is
  * (`classifyTurn`). ANSWER / UNSUPPORTED / REFUSED are the assistant's words and nothing
  * else (the state is not touched); CLARIFY records its questions; only a CHANGE reaches
@@ -249,15 +268,7 @@ export async function modelTurn(before, current, words, { snippets = [], gateCtx
   // the same patch against the same state; `applyTurn` writes nothing), so a caller can keep
   // the assistant's name only where the derived one is unreadable (`readableName.js`, the dock).
   const wantsName = typeof keepCreateName === 'function' && !before.working
-  let nameCtx = { derivedName: null }
-  if (wantsName) {
-    try {
-      const dry = applyTurn(current(), named, { gateCtx, memberWords: words })
-      const w = dry && dry.state && dry.state.working
-      nameCtx = { derivedName: (w && w.meta && typeof w.meta.name === 'string') ? w.meta.name : null }
-    } catch { nameCtx = { derivedName: null } }
-  }
-  const envelope = wantsName ? withCreateName(named, words, (n) => keepCreateName(n, nameCtx)) : named
+  const envelope = wantsName ? nameFromAssistant(current(), named, words, gateCtx, keepCreateName) : named
   const now = current()
   const out = applyTurn(now, envelope, { gateCtx, memberWords: words })
   const { result } = out

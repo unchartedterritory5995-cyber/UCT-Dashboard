@@ -222,6 +222,42 @@ describe('/charts volume — Overlay on price (TradingView style)', () => {
     expect(!strip || !strip.contains(row), 'the volume row is still in a volume-pane strip').toBe(true)
   })
 
+  // ⭐ Owner 11-16 — overlaid on price, Volume's bars sit along the BOTTOM of the price pane, so
+  // its row is listed BELOW the moving averages, not above them.
+  // The price stack's rows, top to bottom, by the name each row's control carries (the default
+  // averages are engine chips, Volume a LegendRow: both say `<name> options`).
+  const priceStackNames = (view) => {
+    const vol = view.container.querySelector('[data-legend-row="volume"]')
+    const stack = vol && vol.parentElement
+    return stack ? [...stack.children].map((el) => el.getAttribute('aria-label')).filter(Boolean)
+      .map((l) => l.replace(/ options$/, '')) : []
+  }
+  const stackOf = async (view) => vi.waitFor(() => {
+    act(() => { for (const fn of H.crosshairHandlers) fn(eventAt()) })
+    const names = priceStackNames(view)
+    expect(names, 'no moving-average rows beside the volume row').toContain('EMA 9')
+    return names
+  }, { timeout: 3000 })
+
+  it('⭐ the overlaid Volume row is listed LAST, below EMA 9 / EMA 20 / SMA 50 / SMA 200', async () => {
+    const view = render(chartsLook({ volume: { displayIn: 'price' } }))
+    await vi.waitFor(() => expect(lastVol()).toBeTruthy())
+    const names = await stackOf(view)
+    expect(names).toEqual(['EMA 9', 'EMA 20', 'SMA 50', 'SMA 200', 'Volume'])
+  })
+
+  it('…even when a saved price-pane row order lists Volume first (its place is where its bars are drawn)', async () => {
+    const view = render(chartsLook({ volume: { displayIn: 'price' },
+      settingsOverride: mergeChartSettings({
+        volume: { maPeriod: 50, displayIn: 'price' }, header: { legendMode: 'always' },
+        paneSeriesOrder: { price: ['volume'] },
+      }) }))
+    await vi.waitFor(() => expect(lastVol()).toBeTruthy())
+    const names = await stackOf(view)
+    expect(names.at(-1), `the volume row is not last: ${names.join(', ')}`).toBe('Volume')
+    expect(names.slice(0, 4)).toEqual(['EMA 9', 'EMA 20', 'SMA 50', 'SMA 200'])
+  })
+
   it('…and in Own pane mode it lives in the volume pane’s strip (the contrast)', async () => {
     const view = render(chartsLook())
     await vi.waitFor(() => expect(lastVol()).toBeTruthy())
