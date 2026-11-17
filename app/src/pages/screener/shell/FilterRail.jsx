@@ -55,7 +55,7 @@ function groupOpen({ open, key, startCollapsed, stored, active }) {
 //                   control for one filter; null falls back to the stock control
 export default function FilterRail({ meta, activeFilters, onChange, onClear, variant = 'rail',
   matchCount, matchCountEmpty, matchCountLoading, matchCountAsOf = null, criteriaSlot = null,
-  presentation = 'select', common = null, startCollapsed = false,
+  presentation = 'select', common = null, startCollapsed = false, skin = null,
   openStore = 'rail', showClear = true, controlFor = null }) {
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(() => (startCollapsed ? {}
@@ -235,7 +235,9 @@ export default function FilterRail({ meta, activeFilters, onChange, onClear, var
   }
 
   return (
-    <div ref={railRootRef} className={variant === 'sheet' ? styles.railSheet : styles.rail} data-testid="filter-rail" data-guide="screener.filters">
+    <div ref={railRootRef} className={variant === 'sheet' ? styles.railSheet : styles.rail} data-testid="filter-rail" data-guide="screener.filters"
+      /* `skin="signature"`: UCT Signature, for the Focus layout's Filters drawer (ScannerShell.module.css). Absent, the rail is as it was. */
+      data-skin={skin || undefined}>
       <div className={styles.railSearchRow}>
         <UIcon name="search" size={12} />
         <Input ref={searchRef} className={styles.railSearch}
