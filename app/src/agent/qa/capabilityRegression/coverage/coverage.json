@@ -1792,7 +1792,7 @@
     "multiStep": false,
     "phrasings": true
    },
-   "phrasings": 8,
+   "phrasings": 17,
    "evidence": {
     "nl": [
      "chart.setSetting.gradient: \"turn the gradient off on this chart\"",
@@ -1812,21 +1812,33 @@
     ],
     "args": [
      "corpus chart.setSetting.gradient",
-     "corpus chart.setSetting.grid"
+     "corpus chart.setSetting.grid",
+     "corpus chart.setSetting.headerTitleColor",
+     "corpus chart.setSetting.headerDayUpColor",
+     "corpus chart.setSetting.headerDayDownColor"
     ],
     "execution": [
      "chart.setSetting.gradient (c)",
-     "chart.setSetting.grid (c)"
+     "chart.setSetting.grid (c)",
+     "chart.setSetting.headerTitleColor (c)",
+     "chart.setSetting.headerDayUpColor (c)",
+     "chart.setSetting.headerDayDownColor (c)"
     ],
     "receipt": [
      "chart.setSetting.gradient (c)",
-     "chart.setSetting.grid (c)"
+     "chart.setSetting.grid (c)",
+     "chart.setSetting.headerTitleColor (c)",
+     "chart.setSetting.headerDayUpColor (c)",
+     "chart.setSetting.headerDayDownColor (c)"
     ],
     "refusal": [],
     "permission": [],
     "undo": [
      "chart.setSetting.gradient: undo restores",
-     "chart.setSetting.grid: undo restores"
+     "chart.setSetting.grid: undo restores",
+     "chart.setSetting.headerTitleColor: undo restores",
+     "chart.setSetting.headerDayUpColor: undo restores",
+     "chart.setSetting.headerDayDownColor: undo restores"
     ],
     "multiStep": [],
     "phrasings": []

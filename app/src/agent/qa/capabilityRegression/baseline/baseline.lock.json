@@ -5172,6 +5172,66 @@
      "modes": {}
     }
    }
+  },
+  "chart.setSetting.headerTitleColor": {
+   "digest": "fe5c4deb31feaee4",
+   "phrasings": {
+    "make the title color orange": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "change the ticker title color to orange": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "color the chart title orange": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chart.setSetting.headerDayUpColor": {
+   "digest": "8ebccf6c5a4641fc",
+   "phrasings": {
+    "make the up-day color teal": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "set the day change up color to teal": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show up days in teal in the header": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chart.setSetting.headerDayDownColor": {
+   "digest": "6c61b47817620faf",
+   "phrasings": {
+    "make the down-day color #3366ff": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "set the day change down color to #3366ff": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show down days in #3366ff in the header": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
   }
  },
  "refusals": {
@@ -5488,7 +5548,7 @@
    "mode": null
   },
   "GW-19.daily-charts-each-with-50sma": {
-   "digest": "4f95da5faaa1a67a",
+   "digest": "ba9b16d24883f44c",
    "gap": false,
    "mode": null
   },

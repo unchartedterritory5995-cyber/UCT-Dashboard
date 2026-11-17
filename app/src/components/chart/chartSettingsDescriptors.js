@@ -49,6 +49,7 @@ import {
   PRICE_LINE_STYLES, GRID_LINES, TIME_FORMATS, TIME_ZONES, PRICE_DECIMALS, RIGHT_MARGIN_MIN, RIGHT_MARGIN_MAX,
 } from './chartViewOptions'
 import { HEADER_STATS, HEADER_STAT_BY_KEY, cleanStatLabel, statLabelsOf, withStatLabel } from './headerStatCatalog'
+import { headerColors } from './pane/headerDefaultColors'
 
 export const CHART_SETTINGS_DESCRIPTOR_VERSION = 1
 
@@ -82,6 +83,8 @@ export const WM_LINES = [['logo', 'Logo', true], ['ticker', 'Ticker'], ['interva
 
 const BAR_TYPES = ['bars', 'hlc']
 // UI prerequisites that are another SETTING (the dialog only shows the control while it holds).
+// the day change's up / down swatches show only while the day change itself is on (renderShowRow: swatches only while on)
+const WHEN_DAY_CHANGE = { setting: 'header.showChange', value: true, why: 'The day change beside the title is off — turn it on first; its up-day and down-day colors only show then.' }
 const WHEN_WATERMARK = { setting: 'watermark.visible', value: true, why: 'Turn the watermark on first — its details only apply while it is shown.' }
 const WHEN_SWING = { setting: 'swingLabels.enabled', value: true, why: 'Turn swing labels on first — their options only apply while they are shown.' }
 const WHEN_CROSSHAIR = { setting: 'crosshair.mode', not: 'off', why: 'The crosshair is off — turn it on first to change its color.' }
@@ -236,6 +239,16 @@ const ELIGIBLE = [
   E('myTradeMarkers', 'markers', "My trades (a small marker on each bar where the member's own Journal fills on this symbol happened)", 'bool', { ui: 'Chart Settings → Markers → Your activity → My trades' }),
   // One stat's short name in the info row: value "<stat>=<name>" (the stat by key or by its name; an empty name puts the
   // stat's own name back). Known stat keys only, cleaned to STAT_LABEL_MAX characters — withStatLabel, as the dialog's rename.
+  // Header colors (Charts family, header-colors): the title and the day change — the dialog's own swatches (COLOR_PATHS hdrTitle /
+  // hdrDayUp / hdrDayDown → header.colors.<key>, section spread, preset custom: withSetting's nested write). Read through the
+  // pane header's ONE authority (headerColors): an unsaved color reads as what the header draws (white title, candle-colored
+  // day change). The legend color and the per-stat colors stay known (header.colors.*): the legend ink is contrast-adjusted.
+  E('header.colors.title', 'header', 'Title color', 'color', { ui: 'Chart Settings → Header & legend → Title → Title color',
+    read: (cs) => headerColors(cs).title }),
+  E('header.colors.dayChangeUp', 'header', 'Up-day color (the day change beside the title)', 'color', { ui: 'Chart Settings → Header & legend → Title → Day change → Up-day color',
+    requires: WHEN_DAY_CHANGE, read: (cs) => headerColors(cs).dayChangeUp }),
+  E('header.colors.dayChangeDown', 'header', 'Down-day color (the day change beside the title)', 'color', { ui: 'Chart Settings → Header & legend → Title → Day change → Down-day color',
+    requires: WHEN_DAY_CHANGE, read: (cs) => headerColors(cs).dayChangeDown }),
   E('header.statLabels', 'header', 'Info row stat names (a short custom label per stat)', 'statLabel', { ui: 'Chart Settings → Header & legend → Stats beside the ticker',
     read: (cs) => statLabelsOf(cs?.header),
     write: (cs, v) => ({ header: { ...(cs?.header || {}), statLabels: withStatLabel(cs?.header, v.key, v.label) } }),
@@ -290,7 +303,7 @@ const KNOWN = [
   K('header.showNextEarnings', 'header', 'Next earnings in the info row (Info row fields)', 'Chart Settings → Header & legend → Stats beside the ticker'),
   K('header.showUctRating', 'header', 'UCT rating in the info row (Info row fields)', 'Chart Settings → Header & legend → Stats beside the ticker'),
   K('header.showLegend', 'header', 'Chart legend (legacy on/off)', 'Chart Settings → Header & legend → Legend'),
-  K('header.colors.*', 'header', 'Header colors', 'Chart Settings → Header & legend'),
+  K('header.colors.*', 'header', 'Header colors (the legend and each info-row stat)', 'Chart Settings → Header & legend'),
   K('volume.plotStyle', 'volume', 'Volume plot style (declared, not yet honoured)', 'Chart Settings → Indicators → Volume'),
   K('drawingDefaults.*', 'drawings', 'Default drawing style', 'drawing → Save as default'),
   K('theme', 'canvas', 'Light/dark palette (Shift+T)', 'Shift+T on the chart'),
