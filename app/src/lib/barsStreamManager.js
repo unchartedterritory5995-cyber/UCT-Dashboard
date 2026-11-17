@@ -300,7 +300,15 @@ function _connectBucket(bucket) {
       // Per-key delivery state (drives `delivering`).
       const wasDelivering = !!_keyState.get(key)?.everDelivered
       const ks = _keyState.get(key) || {}
-      ks.everDelivered = true
+      // ⛔ ONLY A DEVELOPING (non-final) FRAME MAKES THE PUSH FEED "DELIVERING" (2026-11-17).
+      // On subscribe the server sends the last ~15 min of closed FINALS at once but may hold the
+      // current bucket back (a new symbol's partial bar waits for its first seed, up to 3 s). A
+      // final is a past bucket, not the live candle: counting it flipped `delivering` on, the
+      // tick fallback (barStore liveFeed, the legacy writers) went silent, and nothing opened the
+      // current minute until the held bar arrived. Measured in production: every 1m chart opened
+      // on the PREVIOUS minute for 2-6+ s after a ticker switch. Set below, AFTER the straggler
+      // drop: a discarded late frame is not a live candle either.
+      const _developingFrame = !(data.bar && data.bar.final === true)
       ks.lastBarAt = Date.now()
       // Per-key t ordering: a NON-final frame older than the newest bar seen is a
       // straggler (reordered delivery) — drop it so no consumer is moved backwards. An
@@ -312,6 +320,7 @@ function _connectBucket(bucket) {
         return
       }
       if (_t != null && !(Number.isFinite(ks.lastBarT) && ks.lastBarT > _t)) ks.lastBarT = _t
+      if (_developingFrame) ks.everDelivered = true
       _keyState.set(key, ks)
       // THROTTLED keyed dispatch (see _pendingBar): coalesce to ~2x/sec so the candle
       // ticks on the same calm heartbeat as the quotes — but flush the PRIOR bucket's
