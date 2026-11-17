@@ -282,8 +282,10 @@ const OWNED = [
 const K = (id, section, label, ui) => ({ id, section, label, agent: 'known', ui })
 const KNOWN = [
   K('crosshair.enabled', 'canvas', 'Crosshair (legacy on/off)', 'Chart Settings → Canvas → Crosshair'),
-  K('header.timeframes', 'header', 'Favorite timeframes', 'Timeframe menu ★'),
-  K('header.customTimeframes', 'header', 'Custom timeframes', 'Timeframe menu → Custom interval'),
+  // (discovery honesty, 11-17) favorite / custom timeframes and the default drawing style are WRITTEN by their own Agent
+  // capabilities (the timeframe menu's ★ / Custom interval, the drawing menu's Save as default): specialized, never "not yet"
+  { ...S('header.timeframes', 'chartSetup.favoriteTimeframe'), section: 'header', label: 'Favorite timeframes', ui: 'Timeframe menu ★' },
+  { ...S('header.customTimeframes', 'chart.addCustomTimeframe'), section: 'header', label: 'Custom timeframes', ui: 'Timeframe menu → Custom interval' },
   // (W1-B) the Info row stores `header.fields` (headerFields.js); these legacy flags are migration inputs it reads only
   // when `fields` is absent — writing them would change nothing on a migrated chart, so they stay known.
   K('header.showMarketCap', 'header', 'Market cap in the info row (Info row fields)', 'Chart Settings → Header & legend → Stats beside the ticker'),
@@ -292,13 +294,31 @@ const KNOWN = [
   K('header.showLegend', 'header', 'Chart legend (legacy on/off)', 'Chart Settings → Header & legend → Legend'),
   K('header.colors.*', 'header', 'Header colors', 'Chart Settings → Header & legend'),
   K('volume.plotStyle', 'volume', 'Volume plot style (declared, not yet honoured)', 'Chart Settings → Indicators → Volume'),
-  K('drawingDefaults.*', 'drawings', 'Default drawing style', 'drawing → Save as default'),
+  { ...S('drawingDefaults.*', 'drawing.saveDefaults'), section: 'drawings', label: 'Default drawing style', ui: 'drawing → Save as default' },
   K('theme', 'canvas', 'Light/dark palette (Shift+T)', 'Shift+T on the chart'),
   // (owner 11-16, was Soon) An ACTION, not a stored key — no blob path is named `applyToAllCharts`, so nothing can write
   // it. Known so the Agent can say what it does and where it is; it copies the look only (chartAppearance.js), never the
   // symbol, timeframe, indicators or drawings. Making it Agent-runnable is a contract change (manifest golden) of its own.
   K('applyToAllCharts', 'layout', "Apply to all charts (copies this chart's look to every other chart in the layout)", 'Chart Settings → Apply to all charts (at the foot of the sidebar)'),
 ]
+
+// ⛔ DISCOVERY HONESTY (agentDiscoveryHonesty.test.js): every known row says WHY the Agent can't write it —
+//   `legacyOf`  a legacy INPUT of a row the Agent does write (never listed to the member as "not yet": the Agent can
+//               already do what it controls — the crosshair, the legend, the info-row stats);
+//   `wouldBe`   the capability (or eligible row) it would take — none of them may be registered / eligible, so a row an
+//               Agent capability starts writing can't stay "known".
+const KNOWN_WHY = {
+  'crosshair.enabled': { legacyOf: 'crosshair.mode' },
+  'header.showMarketCap': { legacyOf: 'header.fields' },
+  'header.showNextEarnings': { legacyOf: 'header.fields' },
+  'header.showUctRating': { legacyOf: 'header.fields' },
+  'header.showLegend': { legacyOf: 'header.legendMode' },
+  'header.colors.*': { wouldBe: ['header.colors.legend', 'header.colors.marketCap'] },
+  'volume.plotStyle': { wouldBe: ['volume.plotStyle'] },
+  theme: { wouldBe: ['chart.setPalette'] },
+  applyToAllCharts: { wouldBe: ['chart.applyToAllCharts'] },
+}
+for (const d of KNOWN) Object.assign(d, KNOWN_WHY[d.id] || {})
 
 // ── internal: bookkeeping or dead data, never offered ──
 const I = (id, why) => ({ id, agent: 'internal', why })
