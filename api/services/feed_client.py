@@ -62,6 +62,10 @@ class SideWorker:
         self.side = side
         self.q: queue.Queue = queue.Queue(maxsize=maxsize)
         self.counters = {"queued": 0, "done": 0, "dropped": 0, "errors": 0}
+        # Overflow never loses a reset: a dropped new_epoch, or a dropped batch (its T&S
+        # prints), is replayed as a flag the thread acts on before its next item.
+        self._epoch_owed = False
+        self._gap_owed = False
         self._thread = threading.Thread(target=self._run, name="feed-side-feeds", daemon=True)
         self._thread.start()
 
@@ -71,6 +75,10 @@ class SideWorker:
             self.counters["queued"] += 1
         except queue.Full:
             self.counters["dropped"] += 1
+            if name == "new_epoch":
+                self._epoch_owed = True
+            else:
+                self._gap_owed = True
 
     def close(self) -> None:
         try:
@@ -85,6 +93,13 @@ class SideWorker:
                 return
             name, args = item
             try:
+                if self._epoch_owed:
+                    self._epoch_owed = False
+                    self.side.new_epoch()            # also gaps every tape
+                    self._gap_owed = False
+                if self._gap_owed and hasattr(self.side, "_tas_gap"):
+                    self._gap_owed = False
+                    self.side._tas_gap(None)         # lost prints: tick direction restarts
                 getattr(self.side, name)(*args)
             except Exception as e:  # noqa: BLE001 - a side feed never kills its thread
                 self.counters["errors"] += 1

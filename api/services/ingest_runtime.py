@@ -166,6 +166,7 @@ class IngestRuntime:
         # NON-final bars are held, and `_reoffer` sends the seeded bucket. Bounded by
         # SEED_HOLD_S so a slow or failed seed never blanks the live candle.
         self._seed_hold: dict = {}
+        self._first_seed: set = set()            # first seed scheduled, not finished
         self._reader: Optional[asyncio.Task] = None
         self._grace_until: Optional[float] = None
         self.counters = {"bars_routed": 0, "bars_unrouted": 0, "bars_superseded": 0,
@@ -388,6 +389,7 @@ class IngestRuntime:
             self._seed_sem = asyncio.Semaphore(SEED_WORKERS)
         if first:
             self._seed_hold.setdefault(sym, self._now())
+            self._first_seed.add(sym)
         task = loop.create_task(self._seed(sym))
         self._seed_tasks.add(task)
         task.add_done_callback(self._seed_tasks.discard)
@@ -408,12 +410,17 @@ class IngestRuntime:
             if self.bc.apply_seed(sym, bars):
                 self.counters["seeds_applied"] += 1
                 self._seed_hold.pop(sym, None)
+                self._first_seed.discard(sym)
                 self._reoffer(sym)
             else:
                 self._release_hold(sym)       # a failed seed: the live bars are all there is
 
     def _release_hold(self, sym: str) -> None:
-        if self._seed_hold.pop(sym, None) is not None:
+        # Re-offer even when the hold already EXPIRED: a bar dropped while held is marked
+        # sent by the broadcaster and would not come again until the bucket changes.
+        held = self._seed_hold.pop(sym, None) is not None
+        if held or sym in self._first_seed:
+            self._first_seed.discard(sym)
             self._reoffer(sym)
 
     def _reoffer(self, sym: str) -> None:

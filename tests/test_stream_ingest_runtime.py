@@ -843,7 +843,9 @@ def test_a_slow_seed_never_blanks_the_live_candle_past_the_hold():
         rig.trade("ZZA", T0 + 32_000, 6.1, 10)             # past the hold: sent
         await until(lambda: [u for u in bars_in(c, ("ZZA", "1")) if u.bar["t"] == T0])
         assert rig.rt.counters["seed_hold_expired"] == 1
-        gate.set()
+        n = rig.rt.counters["seed_reoffers"]
+        gate.set()                                         # then the seed FAILS: still re-offered
+        await until(lambda: rig.rt.counters["seed_reoffers"] > n)
         await c.close()
         await asyncio.wait_for(t, 2)
         await rig.rt.stop_reader()
