@@ -125,26 +125,40 @@ def _vision_ledger(world):
                          " WHERE ticker = 'indicator-vision:racer'").fetchone()
 
 
+def _vision_fit():
+    """How many worst-case reservations one member's vision share holds, DERIVED from the door's own constants
+    (the worker calls with no note). Never retyped: #1509 re-measured the prompt (2026-11-16) and the count fell
+    from 3 to 2; a typed 3 turned master red. The owner accepted the measured bound (2026-11-17)."""
+    from api.services import indicator_from_image as svc
+    fit = int(svc.MEMBER_VISION_USD // svc.worst_case_usd(""))
+    assert 1 <= fit < 8, f"the race needs 1 <= fit < 8 threads to contend; fit={fit}"
+    return fit, svc.MEMBER_VISION_USD
+
+
 def test_VISION_threads_in_two_processes_hold_one_members_share(world):
-    """Eight threads in each process, one member, every call billed: three fit in $1, whoever gets there."""
+    """Eight threads in each process, one member, every call billed: exactly the share's worst-case reservations
+    fit, whoever gets there."""
+    fit, limit = _vision_fit()
     a, b = world.start("vision", world.go, "racer", "8"), world.start("vision", world.go, "racer", "8")
     world.race(a, b)
     ra, rb = world.line(a), world.line(b)
-    assert ra["calls"] + rb["calls"] == 3
+    assert ra["calls"] + rb["calls"] == fit
     rows, usd = _vision_ledger(world)
-    assert rows == 3 and usd <= 1.0
-    assert sum(g == "vision:member-share" for g in ra["gates"] + rb["gates"]) == 13
+    assert rows == fit and usd <= limit
+    assert sum(g == "vision:member-share" for g in ra["gates"] + rb["gates"]) == 16 - fit
 
 
 def test_VISION_a_second_process_sees_what_the_first_already_spent(world):
+    fit, limit = _vision_fit()
     a = world.start("vision", world.go, "racer", "2")
     world.race(a)
-    assert world.line(a)["calls"] == 2
+    first = min(2, fit)
+    assert world.line(a)["calls"] == first
     pathlib.Path(world.go).unlink()
     b = world.start("vision", world.go, "racer", "4")
     world.race(b)
-    assert world.line(b)["calls"] == 1
-    assert _vision_ledger(world)[1] <= 1.0
+    assert world.line(b)["calls"] == min(4, fit - first)
+    assert _vision_ledger(world)[1] <= limit
 
 
 # ═══ one web replica: the supported scope, docs/agent/budget/SINGLE-REPLICA-SCOPE.md ═════════════
