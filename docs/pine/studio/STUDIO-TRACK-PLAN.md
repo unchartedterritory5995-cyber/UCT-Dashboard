@@ -614,6 +614,13 @@ the chart as soon as the chart knows it (it was Install, a wait, then Put it on 
 A member who already holds an unchanged copy gets that copy, recognised by its maths, so a
 second press no longer leaves two identical indicators.
 
+**Correction, 2026-11-17 04:00Z: the plain-words box is gone from the Indicators window.**
+Seen in the owner's own browser. The layouts release served at about 02:12Z gave the window
+one header button, "Create indicator", by the owner's choice; the box that #1500 made send
+on Enter no longer exists there. Every sentence above about Enter sending, and the count of
+four actions, describes the build served from 00:31Z to 02:12Z. From a chart to a first
+preview has to be counted again on the current window before any number is quoted.
+
 **Checked on production, 2026-11-17 03:45Z (served f2a0d35916).** One press: 0.7 seconds from "Add to chart" to the indicator on the chart, with the toast naming it; on a second visit the row said the member has it, and a second press added that same copy (one definition, not two). The two rebuilt indicators were photographed on a chart again: the relative strength line has its shape, and the gap-up shows its marker with no line across the chart. Every copy made by these checks was deleted.
 
 **The set.** Eleven are in the UCT tab (#1496), and the flat base makes twelve (#1501): distribution day count; relative strength
@@ -701,7 +708,7 @@ the deploy gate.
 | H | the house set: fourteen indicators in a UCT tab (window and phone sheet), each held to an independent calculation and looked at on a chart; one press adds one | LIVE with fourteen; one-press add and the two rebuilt are #1532, #1534 |
 | N2 | the dock keeps the assistant's name where the derived one is unreadable; "What the assistant says it built" under the engine's lines | LIVE (#1495) |
 | door | a one-colour colour-states patch is refused at the door, so the model gets its repair; so is a bars-back count compared across its sign, and the prompt states that convention | #1493, #1499, #1506 |
-| X1 | the plain-words box sends what the member typed: four actions on Charts (was five), two where a chart shows "Add to Chart" | LIVE (#1500) |
+| X1 | the plain-words box sends what the member typed | SUPERSEDED the same night: the layouts release (#1477, the owner's Option 1 of 2026-11-16) replaced the plain-words box in the Indicators window with one "Create indicator" button that opens the New formula window's start view. #1500's send plumbing remains (toolbar, pane, dock) and nothing in the window calls it now; its window rail is skipped. It was live and checked on the build before that release |
 | toast | the chart's "added" toast and Undo list name a member's indicator, not its id | LIVE (#1518): "Flat Base added" |
 | spend | the picture door's prompt bound re-measured, so a reservation bounds the prompt again (a member's daily picture share now holds two worst-case reservations, not three; the owner may raise it). It turned the master deploy gate red for about 70 minutes: two Agent limit tests held the literal three. They derive the count now | #1509, #1522 |
 
