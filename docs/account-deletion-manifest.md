@@ -278,17 +278,38 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 |---|---|---|---|
 | `chart_iq_feedback` | `user_id` | Direct (chart_iq_feedback.db) | `DELETE FROM chart_iq_feedback WHERE user_id = ?` |
 
-**uct_agent.db** -- a second database, which no statement on auth.db reaches: **1 tables**, deleted by `api/services/member_store_erasure.py` through `member_store_erasure.purge_user`.
+**uct_agent.db** -- a second database, which no statement on auth.db reaches: **5 tables**, deleted by `api/services/member_store_erasure.py` through `member_store_erasure.purge_user`. **3 columns** keep their rows and lose the member's id (NULL, or '' where the column is NOT NULL).
 
 | Table | Owner key | Ownership | How the purge deletes it |
 |---|---|---|---|
+| `agent_turns` | `conversation_id` → `agent_conversations.user_id` | **Indirect** (uct_agent.db) | join delete through `agent_conversations`, run before the direct deletes |
 | `agent_conversation_state` | `user_id` | Direct (uct_agent.db) | `DELETE FROM agent_conversation_state WHERE user_id = ?` |
+| `agent_turns` | `user_id` | Direct (uct_agent.db) | `DELETE FROM agent_turns WHERE user_id = ?` |
+| `agent_telemetry` | `user_id` | Direct (uct_agent.db) | `DELETE FROM agent_telemetry WHERE user_id = ?` |
+| `agent_requests` | `user_id` | Direct (uct_agent.db) | `DELETE FROM agent_requests WHERE user_id = ?` |
+| `agent_conversations` | `user_id` | Direct (uct_agent.db) | `DELETE FROM agent_conversations WHERE user_id = ?` |
+| `agent_spend` | `user_id` | **Anonymised** (uct_agent.db) | `UPDATE agent_spend SET user_id = NULL WHERE user_id = ?` ('' where NOT NULL); the rest of each row is kept |
+| `agent_rate_events` | `user_id` | **Anonymised** (uct_agent.db) | `UPDATE agent_rate_events SET user_id = NULL WHERE user_id = ?` ('' where NOT NULL); the rest of each row is kept |
+| `agent_inflight` | `user_id` | **Anonymised** (uct_agent.db) | `UPDATE agent_inflight SET user_id = NULL WHERE user_id = ?` ('' where NOT NULL); the rest of each row is kept |
 
-**study.db** -- a second database, which no statement on auth.db reaches: **1 tables**, deleted by `api/services/member_store_erasure.py` through `member_store_erasure.purge_user`.
+**study.db** -- a second database, which no statement on auth.db reaches: **11 tables**, deleted by `api/services/member_store_erasure.py` through `member_store_erasure.purge_user`. **3 columns** keep their rows and lose the member's id (NULL, or '' where the column is NOT NULL).
 
 | Table | Owner key | Ownership | How the purge deletes it |
 |---|---|---|---|
 | `study_game_runs` | `user_id` | Direct (study.db) | `DELETE FROM study_game_runs WHERE user_id = ?` |
+| `study_attempts` | `user_id` | Direct (study.db) | `DELETE FROM study_attempts WHERE user_id = ?` |
+| `study_item_state` | `user_id` | Direct (study.db) | `DELETE FROM study_item_state WHERE user_id = ?` |
+| `study_skill` | `user_id` | Direct (study.db) | `DELETE FROM study_skill WHERE user_id = ?` |
+| `study_sessions` | `user_id` | Direct (study.db) | `DELETE FROM study_sessions WHERE user_id = ?` |
+| `study_badges` | `user_id` | Direct (study.db) | `DELETE FROM study_badges WHERE user_id = ?` |
+| `study_checkpoints` | `user_id` | Direct (study.db) | `DELETE FROM study_checkpoints WHERE user_id = ?` |
+| `study_weekly_xp` | `user_id` | Direct (study.db) | `DELETE FROM study_weekly_xp WHERE user_id = ?` |
+| `study_reminder_log` | `user_id` | Direct (study.db) | `DELETE FROM study_reminder_log WHERE user_id = ?` |
+| `study_feedback` | `user_id` | Direct (study.db) | `DELETE FROM study_feedback WHERE user_id = ?` |
+| `study_profile` | `user_id` | Direct (study.db) | `DELETE FROM study_profile WHERE user_id = ?` |
+| `study_items` | `reviewed_by` | **Anonymised** (study.db) | `UPDATE study_items SET reviewed_by = NULL WHERE reviewed_by = ?` ('' where NOT NULL); the rest of each row is kept |
+| `study_corrections` | `by_user` | **Anonymised** (study.db) | `UPDATE study_corrections SET by_user = NULL WHERE by_user = ?` ('' where NOT NULL); the rest of each row is kept |
+| `study_feedback` | `handled_by` | **Anonymised** (study.db) | `UPDATE study_feedback SET handled_by = NULL WHERE handled_by = ?` ('' where NOT NULL); the rest of each row is kept |
 
 **Deleted WITH the account row** -- 2 tables in auth.db, deleted by `auth._cascade_delete_user` in the same transaction as `DELETE FROM users` (`DELETED_WITH_THE_ACCOUNT_ROW`), so they go if and only if the account goes.
 
@@ -361,10 +382,24 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
   (`account_tombstones.STORE_REPLAYS`). Evaluators that read an alert once and act on it later
   (the outbound drain, the reminder sweep, the standing-screen nightly run) re-check that it
   still exists before sending.
+- The UCT Agent's history (uct_agent.db) and the member's Study record (study.db), through
+  `member_store_erasure.purge_user` (owner ruling 2026-11-17; tables and columns listed above,
+  generated). Rows that are terms in a limit SHARED across members keep their amount and time
+  and lose the member's id, so no shared limit loosens when an account goes: the Agent's dollar
+  ledger (`agent_spend`, the daily cap sums the ET day), the global request window
+  (`agent_rate_events`) and the global in-flight count (`agent_inflight`). The Study bank's
+  reviewer columns are cleared the same way. The frozen weekly leaderboards
+  (`study_weekly_close.rows_json`: display names and XP, no member id) show the member's own
+  entries as "Member" -- found by their display name AND that week's XP, both read before their
+  rows go. ⚠️ An entry frozen under a display name the member has since CHANGED is not found:
+  the board stores no member id to match on. Every other table in both stores carries no member
+  column; `tests/test_member_store_erasure.py` names each one with its reason, fails by name on
+  a new table in either store, and proves after a deletion that the member's id and display name
+  appear in no cell of either file.
 - ⛔ NOT purged, by name: `tests/test_alert_erasure.py::KNOWN_UNPURGED` is the census ledger of
   every member-keyed table any module creates that this purge does not delete (community,
-  study, agent, AI-search, workspace docs, chart layouts, ...), each with its reason; the census
-  rail fails by name on any table that is neither purged, cascaded, trigger-emptied nor listed.
+  AI-search, workspace docs, chart layouts, ...), each with its reason; the census rail fails by
+  name on any table that is neither purged, cascaded, trigger-emptied nor listed.
 - External-party data — SnapTrade's own revoke is unaffected; it runs via the existing broker
   purge (`journal_two/broker/service.py::purge_on_account_deletion`), which this purge overlaps
   on the 5 broker tables it covers and extends to the other 9.
@@ -416,6 +451,21 @@ delete them and that the code names them.
   already emptied by its AFTER DELETE trigger on `j2_note_documents`; it is now deleted by the
   member's id as well. The rest of uct_agent.db and study.db stays in `KNOWN_UNPURGED`, awaiting
   an owner ruling. Rail: `tests/test_member_store_erasure.py`.
+- 2026-11-17, OWNER RULING (delegated to and taken by the coordinator): deleting an account
+  ERASES the member's UCT Agent conversation history -- conversations, turns, and any
+  member-keyed telemetry or state in uct_agent.db -- and the rest of their Study data, every
+  member-keyed table in study.db; rows that carry no member identifier may stay, and a rail must
+  prove they carry none. `member_store_erasure` now deletes `agent_conversations`, `agent_turns`
+  (by the member's id, and by the conversation for a turn row keyed otherwise), `agent_telemetry`
+  and `agent_requests` beside `agent_conversation_state`, and every Study member table beside
+  `study_game_runs`; it clears the member's id from `agent_spend`, `agent_rate_events` and
+  `agent_inflight` (shared limits) and from the Study bank's reviewer columns, and renames the
+  member's frozen leaderboard entries. All seventeen tables left `KNOWN_UNPURGED`. Kept, with no
+  member column: `agent_replicas`, `study_bars`, `study_intraday`, `study_terms`, `study_trust`,
+  plus the anonymised `study_items`, `study_corrections` and the renamed `study_weekly_close`.
+  Rail: `tests/test_member_store_erasure.py` (both members seeded in every member table through
+  each store's own write API, the admin door's order, a per-store census of the CREATE TABLE
+  statements, and a cell-by-cell scan of both files for the member's id and display name).
 
 ## Backups — no restore brings a deleted account back (wave 10, ruling R-9)
 
