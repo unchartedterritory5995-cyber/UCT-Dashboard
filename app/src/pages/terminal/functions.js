@@ -404,9 +404,11 @@ export const FUNCTIONS = [
     market: { panel: 'RepeatContracts', args: [{ kind: 'etDate', prop: 'date' }, { kind: 'repeatOrder', prop: 'order' }] } },
   // PCHG: every stock ranked by percent change between two dates (GET /api/scans/period-change).
   // `PCHG QTD`, `PCHG 2026-01-02 2026-06-30 LOSERS`; a start alone means "since that day".
-  { code: 'PCHG', label: 'Performance between any two dates', group: 'Market',
+  // `PCHG QTD SECTORS` ranks sectors, industries or themes over the same dates instead
+  // (GET /api/scans/period-change-groups); a group opens to its own stocks.
+  { code: 'PCHG', label: 'Performance between any two dates (stocks, sectors, industries, themes)', group: 'Market',
     market: { panel: 'PeriodChange', args: [{ kind: 'periodRange', prop: 'range' }, { kind: 'periodDate', prop: 'start' },
-      { kind: 'periodDate', prop: 'end' }, { kind: 'periodSide', prop: 'side' }] } },
+      { kind: 'periodDate', prop: 'end' }, { kind: 'periodUnit', prop: 'unit' }, { kind: 'periodSide', prop: 'side' }] } },
   // TSRC: a word or phrase searched across every indexed earnings call, with its monthly share
   // of calls (GET /api/earnings/transcript-search and /transcript-trend). `TSRC pricing power`.
   { code: 'TSRC', label: 'Search every earnings call', group: 'Market',
@@ -680,7 +682,8 @@ const FUNCTION_WORDS = {
   FLWL: { example: 'FLWL OPEN', keywords: ['cream of the crop', 'open flow board', 'flow lists', 'open flow'] },
   CONFL: { example: 'CONFL BULL', keywords: ['confluence', 'dark pool and flow', 'long-dated flow', 'leaps'] },
   ACCUM: { example: 'ACCUM LATEST', keywords: ['repeat hits', 'accumulation', 'repeat contracts', 'flow read', 'bullish premium'] },
-  PCHG: { example: 'PCHG QTD', keywords: ['period change', 'performance between dates', 'since a date', 'best this quarter', 'custom range'] },
+  PCHG: { example: 'PCHG QTD SECTORS', keywords: ['period change', 'performance between dates', 'since a date', 'best this quarter', 'custom range',
+    'sector performance', 'industry performance', 'theme performance'] },
   TSRC: { example: 'TSRC pricing power', keywords: ['search earnings calls', 'transcript search', 'who said', 'call mentions'] },
   EXMV: { example: 'NVDA EXMV', keywords: ['expected move', 'implied move', 'earnings straddle', 'priced move'] },
   TROT: { example: 'TROT IN', keywords: ['theme rotation', 'rotating in', 'rotating out', 'themes gaining rank'] },

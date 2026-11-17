@@ -6,13 +6,17 @@
 //     order or before the floor (the service has no check of its own);
 //   * the route's answer: ok, computing, unavailable, refused and not-this-route are five states;
 //     a row with no percent is dropped, never drawn as 0; the days the server used are reported,
-//     and two dates on one trading day are flagged.
+//     and two dates on one trading day are flagged;
+//   * wave 5: the words for what is ranked collide with no range or list-end word; the groups
+//     route's answer has the same five states; a group's stocks take their own change from the
+//     stock ranking, and one it does not hold has no percent (never a 0).
 // The fixtures are the route's real shape (api/services/scan_period.py _assemble), made-up tickers.
 import { describe, it, expect } from 'vitest'
 import {
-  DEFAULT_PERIOD_RANGE, PERIOD_CHANGE_CODE, PERIOD_FLOOR, PERIOD_RANGES, PERIOD_RANGE_ARG_WORDS, PERIOD_SIDES, PERIOD_SIDE_ARG_WORDS,
-  breadthOf, dayOfYmd, normPeriodSide, parsePeriodDate, parsePeriodRange, parsePeriodSide, periodChangeCommandArgs, periodChangeUrl,
-  periodRead, periodRequest, rangeDates, shiftDay, sideRows, snapNote,
+  DEFAULT_PERIOD_RANGE, DEFAULT_PERIOD_UNIT, PERIOD_CHANGE_CODE, PERIOD_FLOOR, PERIOD_RANGES, PERIOD_RANGE_ARG_WORDS, PERIOD_SIDES,
+  PERIOD_SIDE_ARG_WORDS, PERIOD_UNITS, PERIOD_UNIT_ARG_WORDS, WHOLE_MARKET_HISTORY_FROM, breadthOf, dayOfYmd, groupMemberRows,
+  normPeriodSide, normPeriodUnit, parsePeriodDate, parsePeriodRange, parsePeriodSide, parsePeriodUnit, periodChangeCommandArgs,
+  periodChangeUrl, periodGroupsRead, periodGroupsUrl, periodRead, periodRequest, rangeDates, shiftDay, sideRows, snapNote,
 } from './periodChangeModel'
 
 const TODAY = '2026-11-17'
@@ -218,5 +222,136 @@ describe('PCHG list ends, breadth and the snap note', () => {
     expect(snapNote({ askedStart: '2025-12-31', askedEnd: '2026-11-17', startDay: '2025-12-31', endDay: '2026-11-16' })).toEqual({ startMoved: false, endMoved: true })
     expect(snapNote({ askedStart: '2026-10-31', askedEnd: '2026-11-16', startDay: '2026-10-30', endDay: '2026-11-16' })).toEqual({ startMoved: true, endMoved: false })
     expect(snapNote({ askedStart: '2026-10-31', askedEnd: '2026-11-16', startDay: null, endDay: null })).toEqual({ startMoved: false, endMoved: false })
+  })
+})
+
+// ── wave 5: sectors, industries and themes over the same two dates ──────────────────────────
+// The fixture is the groups route's real shape (api/services/scan_period.py
+// get_period_change_groups), made-up names and tickers.
+const GROUPS_OK = {
+  status: 'ok',
+  group: 'sector',
+  results: [
+    { name: 'Technology', period_change: 38.25, count: 3, members: ['AAA', 'EEE', 'FFF'] },
+    { name: 'Energy', period_change: 4.0, count: 1, members: ['BBB'] },
+    { name: 'Healthcare', period_change: -61.3, count: 1, members: ['DDD'] },
+  ],
+  count: 3,
+  start: 20251231,
+  end: 20261116,
+  as_of: '2026-11-17T09:41:00-05:00',
+}
+
+describe('PCHG what to rank', () => {
+  it('the four units, the words they are typed as, and the token each chip writes', () => {
+    expect(Object.keys(PERIOD_UNITS)).toEqual(['stocks', 'sector', 'industry', 'theme'])
+    expect(DEFAULT_PERIOD_UNIT).toBe('stocks')
+    for (const [raw, want] of [['STOCKS', 'stocks'], ['stock', 'stocks'], ['SECTORS', 'sector'], ['Sector', 'sector'], ['industries', 'industry'],
+      ['INDUSTRY', 'industry'], [' themes ', 'theme'], ['THEME', 'theme']]) expect(parsePeriodUnit(raw), raw).toBe(want)
+    for (const bad of [null, undefined, '', 'GROUPS', 'etf', 'toString', 'constructor', 7]) expect(parsePeriodUnit(bad), String(bad)).toBeNull()
+    for (const [key, u] of Object.entries(PERIOD_UNITS)) if (u.token) expect(parsePeriodUnit(u.token), key).toBe(key)
+    expect(PERIOD_UNITS.stocks.token).toBeNull()
+    expect(new Set(Object.values(PERIOD_UNIT_ARG_WORDS))).toEqual(new Set(Object.keys(PERIOD_UNITS)))
+    // a prop may carry the typed word or the key itself; anything else is the stocks
+    expect(normPeriodUnit('SECTORS')).toBe('sector')
+    expect(normPeriodUnit('industry')).toBe('industry')
+    for (const other of [null, undefined, '', 'nonsense', 'constructor', 7]) expect(normPeriodUnit(other), String(other)).toBe('stocks')
+  })
+
+  it('no word is shared with a range or a list end, so the three kinds share one command', () => {
+    for (const w of Object.keys(PERIOD_UNIT_ARG_WORDS)) {
+      expect(parsePeriodRange(w), w).toBeNull()
+      expect(parsePeriodSide(w), w).toBeNull()
+    }
+    for (const w of [...Object.keys(PERIOD_RANGE_ARG_WORDS), ...Object.keys(PERIOD_SIDE_ARG_WORDS)]) expect(parsePeriodUnit(w), w).toBeNull()
+    // and no unit word reads as a date
+    for (const w of Object.keys(PERIOD_UNIT_ARG_WORDS)) expect(parsePeriodDate(w), w).toBeNull()
+  })
+
+  it('the arguments a pick writes: the unit sits between the range and the list end, and the stocks write nothing', () => {
+    expect(periodChangeCommandArgs({ unit: 'stocks' })).toEqual([])
+    expect(periodChangeCommandArgs({ unit: 'sector' })).toEqual(['SECTORS'])
+    expect(periodChangeCommandArgs({ range: 'qtd', unit: 'INDUSTRIES', side: 'losers' })).toEqual(['QTD', 'INDUSTRIES', 'LOSERS'])
+    expect(periodChangeCommandArgs({ start: '2026-01-02', end: '2026-06-30', unit: 'theme' })).toEqual(['2026-01-02', '2026-06-30', 'THEMES'])
+    expect(periodChangeCommandArgs({ unit: 'nonsense', side: 'losers' })).toEqual(['LOSERS'])
+  })
+
+  it('the groups route for a unit, and none for the stocks', () => {
+    expect(periodGroupsUrl('2026-01-02', '2026-06-30', 'sector')).toBe('/api/scans/period-change-groups?start=20260102&end=20260630&group=sector')
+    expect(periodGroupsUrl('2026-01-02', '2026-06-30', 'industry')).toContain('&group=industry')
+    expect(periodGroupsUrl('2026-01-02', '2026-06-30', 'theme')).toContain('&group=theme')
+    for (const none of ['stocks', 'SECTORS', 'nonsense', null, 'constructor']) expect(periodGroupsUrl('2026-01-02', '2026-06-30', none), String(none)).toBeNull()
+  })
+})
+
+describe('PCHG periodGroupsRead', () => {
+  it('the groups, biggest gain first, with their stock counts, their stocks and the days the server used', () => {
+    const out = periodGroupsRead(GROUPS_OK, 'sector')
+    expect(out.state).toBe('ok')
+    expect(out.rows).toEqual([
+      { key: 'pchg-sector-Technology', name: 'Technology', pct: 38.25, count: 3, members: ['AAA', 'EEE', 'FFF'] },
+      { key: 'pchg-sector-Energy', name: 'Energy', pct: 4, count: 1, members: ['BBB'] },
+      { key: 'pchg-sector-Healthcare', name: 'Healthcare', pct: -61.3, count: 1, members: ['DDD'] },
+    ])
+    expect(out).toMatchObject({ startDay: '2025-12-31', endDay: '2026-11-16', sameDay: false, mayBePartial: false, coverage: null, asOf: '2026-11-17T09:41:00-05:00' })
+    // the two list helpers written for stocks read these rows too
+    expect(sideRows(out.rows, 'losers', 2).rows.map((r) => r.name)).toEqual(['Healthcare', 'Energy'])
+    expect(breadthOf(out.rows)).toEqual({ up: 2, down: 1, flat: 0 })
+  })
+
+  it('a group with no percent or no name is dropped (never a 0), a name sent twice is one row, and a missing count is not a 0', () => {
+    const out = periodGroupsRead({ ...GROUPS_OK, results: [
+      { name: 'Low', period_change: -5, count: 2, members: ['a', 'A', ' b '] }, { name: 'NoPct', period_change: null, count: 4 }, { period_change: 9 }, null,
+      { name: 'Top', period_change: '40.5', members: ['X', 'Y'] }, { name: 'top', period_change: 1 }, { name: 'Bare', period_change: 2 },
+      { name: 'ZeroCount', period_change: 1.5, count: 0, members: [] },
+    ] }, 'sector')
+    expect(out.rows.map((r) => [r.name, r.pct, r.count, r.members])).toEqual([
+      ['Top', 40.5, 2, ['X', 'Y']], ['Bare', 2, null, []], ['ZeroCount', 1.5, null, []], ['Low', -5, 2, ['A', 'B']],
+    ])
+  })
+
+  it('computing, unavailable, refused and not-this-read are four states, none of them an empty list', () => {
+    expect(periodGroupsRead({ status: 'computing', group: 'sector', results: [], count: 0, error: null }, 'sector')).toMatchObject({ state: 'computing', rows: [] })
+    expect(periodGroupsRead({ status: 'unavailable', group: 'sector', results: [], count: 0, error: 'not this far back' }, 'sector').state).toBe('unavailable')
+    expect(periodGroupsRead({ status: 'error', group: 'sector', results: [], count: 0, error: 'start must be before end' }, 'sector').state).toBe('refused')
+    expect(periodGroupsRead({ status: 'error', group: 'etf', results: [], count: 0, error: 'bad group' }, 'sector').state).toBe('failed')
+    // an answer for another group, the stock route's own answer, or an unknown unit is not this read
+    expect(periodGroupsRead(GROUPS_OK, 'industry').state).toBe('failed')
+    expect(periodGroupsRead(OK, 'sector').state).toBe('failed')
+    expect(periodGroupsRead(GROUPS_OK, 'stocks').state).toBe('failed')
+    for (const body of [undefined, null, [], 'x', {}, { status: 'ok', group: 'sector' }, { detail: 'Scanner presets require a paid plan' }]) {
+      expect(periodGroupsRead(body, 'sector').state, JSON.stringify(body)).toBe('failed')
+    }
+    expect(periodGroupsRead({ ...GROUPS_OK, results: [] }, 'sector')).toMatchObject({ state: 'ok', rows: [], startDay: '2025-12-31' })
+  })
+
+  it('flags two dates on one trading day, a range older than the whole-market history, and a coverage receipt that reads', () => {
+    expect(periodGroupsRead({ ...GROUPS_OK, start: 20261116, end: 20261116 }, 'sector').sameDay).toBe(true)
+    expect(WHOLE_MARKET_HISTORY_FROM).toBe('2004-01-01')
+    expect(periodGroupsRead({ ...GROUPS_OK, start: 19990104 }, 'sector').mayBePartial).toBe(true)
+    expect(periodGroupsRead({ ...GROUPS_OK, start: 20040102 }, 'sector').mayBePartial).toBe(false)
+    expect(periodGroupsRead({ ...GROUPS_OK, start: undefined }, 'sector').mayBePartial).toBe(false)
+    const coverage = { evaluated: 5300, answered: 4812, dropped: 78, not_computable: 410, dropped_symbols: [] }
+    expect(periodGroupsRead({ ...GROUPS_OK, coverage }, 'sector').coverage).toEqual({ evaluated: 5300, ranked: 4812, leftOut: 78, noPrice: 410 })
+  })
+})
+
+describe('PCHG groupMemberRows', () => {
+  const stocks = periodRead({ ...OK, results: [...OK.results, { sym: 'EEE', period_change: -3.5, net_change: -1, start_close: 20, end_close: 19 }] }).rows
+  const tech = periodGroupsRead(GROUPS_OK, 'sector').rows[0]
+  it('each stock of the group with its own change, biggest gain first; one the stock list does not hold comes last with no percent', () => {
+    const out = groupMemberRows(tech, stocks)
+    expect(out.rows.map((r) => [r.sym, r.pct])).toEqual([['AAA', 212.5], ['EEE', -3.5], ['FFF', null]])
+    expect(out).toMatchObject({ total: 3, known: 2 })
+    expect(out.rows[0]).toMatchObject({ startClose: 10, endClose: 31.25, dollars: 21.25, industry: 'Semiconductors' })
+    expect(out.rows[2]).toEqual({ key: 'pchg-FFF', sym: 'FFF', pct: null, dollars: null, startClose: null, endClose: null, price: null, industry: null, sector: null })
+  })
+  it('the losers end reverses the stocks that have a change and still keeps the unknown last', () => {
+    expect(groupMemberRows(tech, stocks, 'LOSERS').rows.map((r) => r.sym)).toEqual(['EEE', 'AAA', 'FFF'])
+  })
+  it('with no stock ranking on hand every stock is listed with no percent, in the order sent', () => {
+    expect(groupMemberRows(tech, []).rows.map((r) => [r.sym, r.pct])).toEqual([['AAA', null], ['EEE', null], ['FFF', null]])
+    expect(groupMemberRows(tech, null)).toMatchObject({ total: 3, known: 0 })
+    expect(groupMemberRows(null, stocks)).toEqual({ rows: [], total: 0, known: 0 })
   })
 })

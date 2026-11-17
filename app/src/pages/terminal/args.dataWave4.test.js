@@ -3,13 +3,15 @@
 // args.js keeps its own small copies of vocabularies the panel models own (so the panels' code
 // stays out of the shell's first-open bytes). This rail pins each copy to its owner.
 import { describe, it, expect } from 'vitest'
-import { ARG_KINDS, CONFLUENCE_LEAN_WORDS, REPEAT_ORDER_WORDS, PERIOD_RANGE_WORDS, PERIOD_SIDE_WORDS, ROTATION_SIDE_ARG_WORDS, applyArgs } from './args'
+import {
+  ARG_KINDS, CONFLUENCE_LEAN_WORDS, REPEAT_ORDER_WORDS, PERIOD_RANGE_WORDS, PERIOD_SIDE_WORDS, PERIOD_UNIT_WORDS, ROTATION_SIDE_ARG_WORDS, applyArgs,
+} from './args'
 import { BY_CODE } from './functions'
 import { CONFLUENCE_LEAN_ARG_WORDS, CONFLUENCE_LEANS, parseConfluenceLean } from './panels/confluenceModel'
 import { REPEAT_ORDER_ARG_WORDS, REPEAT_ORDERS, parseRepeatOrder } from './panels/repeatContractsModel'
 import {
-  PERIOD_RANGE_ARG_WORDS, PERIOD_SIDE_ARG_WORDS, PERIOD_RANGES, PERIOD_SIDES,
-  parsePeriodRange, parsePeriodSide, parsePeriodDate, periodChangeCommandArgs,
+  PERIOD_RANGE_ARG_WORDS, PERIOD_SIDE_ARG_WORDS, PERIOD_UNIT_ARG_WORDS, PERIOD_RANGES, PERIOD_SIDES, PERIOD_UNITS,
+  parsePeriodRange, parsePeriodSide, parsePeriodUnit, parsePeriodDate, periodChangeCommandArgs,
 } from './panels/periodChangeModel'
 import { callSearchCommandArgs, parseCallQuery } from './panels/callSearchModel'
 import { ROTATION_SIDE_WORDS, ROTATION_SIDES, parseRotationSide } from './panels/themeRotationModel'
@@ -22,6 +24,7 @@ describe('data wave 4 argument kinds match the panels that own the words', () =>
     ['repeatOrder', REPEAT_ORDER_WORDS, REPEAT_ORDER_ARG_WORDS, parseRepeatOrder, REPEAT_ORDERS],
     ['periodRange', PERIOD_RANGE_WORDS, PERIOD_RANGE_ARG_WORDS, parsePeriodRange, PERIOD_RANGES],
     ['periodSide', PERIOD_SIDE_WORDS, PERIOD_SIDE_ARG_WORDS, parsePeriodSide, PERIOD_SIDES],
+    ['periodUnit', PERIOD_UNIT_WORDS, PERIOD_UNIT_ARG_WORDS, parsePeriodUnit, PERIOD_UNITS],
     ['rotationSide', ROTATION_SIDE_ARG_WORDS, ROTATION_SIDE_WORDS, parseRotationSide, ROTATION_SIDES],
   ])('%s: the copy equals the model, word for word, and every chip token is taken', (kind, copy, owner, parse, chips) => {
     expect(copy).toEqual(owner)
@@ -52,6 +55,9 @@ describe('data wave 4 argument kinds match the panels that own the words', () =>
     expect(run('ACCUM', ['11/14', 'latest']).props).toEqual({ date: '2026-11-14', order: 'latest' })
     expect(run('ACCUM', ['latest']).props).toEqual({ order: 'latest' })
     expect(run('PCHG', ['qtd', 'losers']).props).toEqual({ range: 'qtd', side: 'losers' })
+    // what to rank: sectors, industries or themes over the same dates
+    expect(run('PCHG', ['qtd', 'sectors', 'losers']).props).toEqual({ range: 'qtd', unit: 'sector', side: 'losers' })
+    expect(run('PCHG', ['themes']).props).toEqual({ unit: 'theme' })
     // two dates: the first typed is the start, the second the end
     expect(run('PCHG', ['2026-01-02', '2026-06-30']).props).toEqual({ start: '2026-01-02', end: '2026-06-30' })
     expect(run('PCHG', ['2026-01-02']).props).toEqual({ start: '2026-01-02' })
@@ -61,6 +67,7 @@ describe('data wave 4 argument kinds match the panels that own the words', () =>
   it('what each panel writes back is read as the same pick', () => {
     const run = (code, tokens) => applyArgs(BY_CODE[code].market, tokens, TODAY).props
     expect(run('PCHG', periodChangeCommandArgs({ range: 'qtd', side: 'losers' }))).toEqual({ range: 'qtd', side: 'losers' })
+    expect(run('PCHG', periodChangeCommandArgs({ range: 'qtd', unit: 'industry', side: 'losers' }))).toEqual({ range: 'qtd', unit: 'industry', side: 'losers' })
     const dated = run('PCHG', periodChangeCommandArgs({ start: '2026-01-02', end: '2026-06-30' }))
     expect(dated.start).toBe('2026-01-02')
     expect(dated.end).toBe('2026-06-30')
