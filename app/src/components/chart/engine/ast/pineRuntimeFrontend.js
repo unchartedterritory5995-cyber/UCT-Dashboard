@@ -107,6 +107,7 @@ import { readFunctionDefs } from './objectFnInline.js'
 // ⭐⭐ RT5 — the run's own drawings: the store's op table is the one authority
 // over which drawing calls exist, what they take and what they return.
 import { OBJECT_OPS, ANY_METHODS, paramsOfAny, declaredCapsOf, isArmSafeObjectOp } from '../runtime/objectStore.js'
+import { historyHeldOf } from '../objectPool.js'
 import { setterPineParams, setterPineParamsOfAny } from '../objectSetterParams.js'
 // ⭐⭐ ENGINE 54 — the source call a drawing is made at, as the host object pass names it
 import { objectSiteKey } from './objectProgram.js'
@@ -15901,7 +15902,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       carried2: carried2Main,
       requests,
       // ⭐ RT5 — the declared `max_*_count`s, comments and strings stripped.
-      ...(objectsInRun ? { objectCaps: declaredCapsOf(strippedForScan(source)) } : {}),
+      ...(objectsInRun ? { objectCaps: { ...declaredCapsOf(strippedForScan(source)), ...historyHeldOf(strippedForScan(source)) } } : {}),
       ...(brokerMode ? { broker: brokerDecl } : {}),
     })
   } catch (e) { return fail(e, diagnostics) }
