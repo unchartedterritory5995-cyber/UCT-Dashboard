@@ -48,15 +48,22 @@
   flex-shrink: 0;
 }
 
-/* The page's one top row (PageHeader via SurfaceHeader, restyled here): title, view
-   tabs, date control, the faint meta line, then Share · Export CSV · Columns pushed
-   right by PageHeader's own `.right { margin-left: auto }`. Wraps only when narrow. */
+/* The page's top bar (PageHeader via SurfaceHeader, restyled here; owner round 3):
+   the view tabs alone on the left, every action grouped on the right by
+   PageHeader's own `.right { margin-left: auto }` with an 8px gap — the one
+   flexible space is between the two groups. 44px tall; the current tab's 2px gold
+   underline sits flush on the bar's bottom hairline. Wraps only when narrow. */
 .page .sigHeader {
-  gap: 18px;
-  row-gap: 8px;
-  min-height: 56px;
-  /* Right inset clears the app's fixed help "?" in the top-right corner. */
-  padding: 10px 56px 10px 14px;
+  gap: 16px;
+  row-gap: 0;
+  min-height: 44px;
+  /* Right inset clears the app's fixed help "?" in the top-right corner
+     (measured: 28px button, 12px from the edge → 52px; 60px leaves air). */
+  padding: 0 60px 0 6px;
+  align-items: stretch;
+  /* When narrow, the action group wraps ABOVE the tabs (wrap-reverse), so the
+     tabs — and the gold underline — always sit on the bar's bottom hairline. */
+  flex-wrap: wrap-reverse;
   /* The same theme surface as the sheet below, so the top row and the table read
      as one continuous panel (was --bg: near-black next to Slate's grey surface). */
   background: var(--br-panel);
@@ -64,13 +71,13 @@
   box-shadow: none;
 }
 .page .sigHeader h1 { font-size: 18px; font-weight: 700; color: var(--br-bright); letter-spacing: 0; }
-.page .sigHeader > div { gap: 14px; row-gap: 8px; }
-.page .sigHeader > div:last-child:not(:first-child) { gap: 6px; }
+.page .sigHeader > div { gap: 8px; row-gap: 6px; align-items: center; flex-wrap: wrap; }
+.page .sigHeader > div:first-of-type { align-items: stretch; }
 
 .pageCot { padding: 0; --page-pad-top: 0px; --page-pad-x: 0px; }
 
 .cotTabHeader { padding: 20px 24px 0; margin-bottom: 0; }
-.page .sigHeader.cotTabHeader { padding: 10px 56px 10px 6px; margin: 0 0 14px; }
+.page .sigHeader.cotTabHeader { padding: 0 60px 0 6px; margin: 0 0 14px; }
 
 /* View tabs — plain text, the current one bright with a 2px gold underline (the only
    gold on the page besides the left nav's current item, spec §2b.1). */
@@ -85,7 +92,9 @@
   font-family: var(--font-sans);
   font-size: 13px;
   font-weight: 500;
-  padding: 8px 10px;
+  height: 44px;
+  box-sizing: border-box;
+  padding: 0 10px;
   border: none;
   border-radius: 0;
   background: transparent;
@@ -617,7 +626,7 @@ tbody tr { cursor: pointer; }
     margin: -12px -8px 0;
   }
   .legend { margin: 0 -8px -8px; padding: 6px 12px; }
-  .page .sigHeader { padding: 6px 12px; gap: 10px; }
+  .page .sigHeader { padding: 0 12px; gap: 10px; }
   /* Scroll shadow hint on right edge */
   .tableWrap::after {
     content: '';
@@ -1061,3 +1070,43 @@ tbody tr { cursor: pointer; }
   overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
 .page .sigHeader { padding-left: 6px; }
+
+/* ── Top-bar status button (owner round 3): "● Updated 7:24 PM". The dot is the
+   theme's up colour while the stored session is fresh, grey once stale; it pulses
+   while a refresh runs. Clicking it refreshes. */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--br-rest);
+  font: 500 12px var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.status:hover { background: var(--br-soft); color: var(--br-bright); }
+.status:focus-visible { outline: 2px solid var(--br-ring); outline-offset: 1px; }
+.statusDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--br-faint);
+}
+.statusFresh { background: var(--br-up); }
+.statusPulse { animation: statusPulse 0.9s ease-in-out infinite; }
+@keyframes statusPulse { 50% { opacity: 0.25; } }
+@media (prefers-reduced-motion: reduce) { .statusPulse { animation: none; } }
+
+/* ⋯ — the overflow menu's icon button (spec: icon button, 28px). */
+.moreBtn { width: 28px; padding: 0; background: transparent; color: var(--br-rest); }
+.moreBtn:hover, .moreBtn[aria-expanded='true'] { background: var(--br-soft); color: var(--br-bright); }
+
+@media (max-width: 1024px) {
+  .status, .moreBtn { min-height: var(--tap-min); }
+}

@@ -72,7 +72,10 @@ vi.mock('swr', () => ({
 import Breadth, { VIEWS_DAY_CHOICES } from '../Breadth'
 
 const render90 = () => render(<MemoryRouter><Breadth /></MemoryRouter>)
-const metaText = () => document.querySelector('[class*="meta"]')?.textContent ?? ''
+// The count now lives in the top bar's status button (owner round 3, 2026-11-17):
+// its accessible name leads with what the window holds ("40 trading days shown · …",
+// or "Updating…" while a different window is still on its way).
+const metaText = () => document.querySelector('[data-testid="breadth-status"]')?.getAttribute('aria-label') ?? ''
 const dayPill = (label) => screen.getAllByRole('button').find(b => b.textContent === label)
 
 beforeEach(() => { localStorage.clear() })

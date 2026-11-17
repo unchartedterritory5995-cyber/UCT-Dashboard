@@ -10,7 +10,9 @@ import TickerPopup from '../components/TickerPopup'
 import MarketBreadth from '../components/tiles/MarketBreadth'
 import { SkeletonTileContent } from '../components/Skeleton'
 import { useAuth } from '../context/AuthContext'
-import { formatETFull } from '../utils/timeAgo'
+import { formatETFull, formatETTime } from '../utils/timeAgo'
+import { explainMustShowAge } from '../components/provenance/freshnessAge'
+import Menu, { MenuItem } from './screener/focus/Menu'
 import useBreadthCustomize from './breadth/useBreadthCustomize'
 import { useLiveBreadth } from '../hooks/useLiveBreadth'
 import { drillTarget } from './breadth/liveDrill'
@@ -44,7 +46,6 @@ export {
   TIER_SCORES, TIER_LABELS, TIER_TIP_COLORS, TIER_CELL_COLORS,
   HM_METRICS, HM_METRICS_BY_KEY, FFILL_KEYS, PCTILE_KEYS, TREEMAP_DEF,
 }
-import UIcon from '../components/ui/UIcon'
 import SurfaceHeader from './SurfaceHeader'
 import { useInTerminalPanel, PanelState } from '../components/terminal'
 import jsonFetcher from '../utils/jsonFetcher'
@@ -979,6 +980,26 @@ export default function Breadth() {
     ? formatETFull(storedRows[0]._created_at + 'Z')
     : null
 
+  // The top bar's status button (owner round 3). Fresh = the stored session is
+  // inside the end-of-day age threshold (TERM-006's authority, the same one every
+  // FreshnessBadge reads), or a live intraday reading is on screen.
+  const lastStamp = storedRows[0]?._created_at ? storedRows[0]._created_at + 'Z' : null
+  const statusFresh = !!liveBreadth?.data
+    || (lastStamp != null && explainMustShowAge({ asOf: lastStamp, dataClass: 'end_of_day' }).reason === 'within_threshold')
+  const statusTime = lastStamp ? formatETTime(lastStamp).replace(/\s+[A-Z]{2,5}$/, '') : ''
+  const statusCount = isViewsTab
+    ? (rows.length > 0
+        ? (windowMismatch ? 'Updating…' : `${rows.length} trading days shown`)
+        : isLoading ? 'Loading…' : 'No data')
+    : (grid.count > 0
+        ? `${formatNumber(grid.count)} sessions shown`
+        : grid.ready ? 'No data' : grid.datesFailed ? 'Could not load' : 'Loading…')
+  const statusLabel = `${statusCount}${lastUpdated ? ` · updated ${lastUpdated}` : ''} · click to refresh`
+  const statusText = (isViewsTab ? windowMismatch : false)
+    ? 'Updating…'
+    : statusTime ? `Updated ${statusTime}`
+      : (isViewsTab ? (isLoading ? 'Loading…' : 'No data') : (grid.ready ? 'No data' : grid.datesFailed ? 'Could not load' : 'Loading…'))
+
   // ── Share: a branded UCT snapshot of the on-screen sheet. The capture target
   //    is the scroll container (tableWrapRef), so it's exactly what's visible. ──
   const shareSubtitle = lastUpdated ? `updated ${lastUpdated}` : ''
@@ -1097,135 +1118,137 @@ export default function Breadth() {
 
   return (
     <div className={pageCls}>
+      {/* ⭐ THE TOP BAR (owner round 3, 2026-11-17): the view tabs alone on the left;
+          everything actionable grouped on the right — status · date · Columns · ⋯.
+          Views keeps its window pills in the date's place; the other tabs carry
+          the tabs only. */}
       <SurfaceHeader
         title="Breadth"
         className={styles.sigHeader}
-        right={activeTab !== 'heatmap' ? (
+        right={(
           <>
             <AgentDockButton className={styles.hdrBtn} />
-            {/* Share (branded snapshot) · Export CSV · Columns — soft buttons in the
-                same top row, pushed right; Columns is the row's one primary. */}
-            {activeTab === 'breadth' && (
-              <div className={customizeStyles.anchor}>
-                <button
-                  className={styles.hdrBtn}
-                  onClick={() => setShareOpen(o => !o)}
-                  title="Share a UCT Intelligence snapshot of the breadth sheet"
-                >
-                  Share
-                </button>
-                {shareOpen && (
-                  <ScreenshotPopover
-                    title="Share Breadth"
-                    onDownload={onShareDownload}
-                    onCopy={onShareCopy}
-                    onShare={onShareUrl}
-                    onClose={() => setShareOpen(false)}
-                  />
-                )}
-              </div>
-            )}
+            {/* One status button replaces the "N sessions · updated …" line and the
+                refresh icon: the dot is the theme's up colour while the stored
+                session is fresh (the TERM-006 age authority), grey once stale;
+                clicking it refreshes. */}
             <button
-              className={styles.exportBtn}
-              onClick={() => exportCsv(rows, visibleCols)}
-              title="Download as CSV"
+              type="button"
+              className={styles.status}
+              data-testid="breadth-status"
+              onClick={onManualRefresh}
+              aria-busy={refreshing || undefined}
+              aria-label={statusLabel}
+              title={statusLabel}
             >
-              Export CSV
+              <span
+                className={`${styles.statusDot} ${statusFresh ? styles.statusFresh : ''} ${refreshing ? styles.statusPulse : ''}`}
+                aria-hidden="true"
+              />
+              {refreshing ? 'Refreshing…' : statusText}
             </button>
-            {activeTab === 'breadth' && (
-              <div className={customizeStyles.anchor}>
-                <button
-                  className={`${styles.hdrBtn} ${styles.hdrBtnPrimary} ${customizeOpen ? styles.hdrBtnOpen : ''}`}
-                  onClick={() => setCustomizeOpen(o => !o)}
-                  data-guide="breadth.customize"
-                  aria-expanded={customizeOpen}
-                  title="Choose which metrics show as columns in the sheet"
-                >
-                  Columns
-                  <span className={styles.hdrChevron} aria-hidden="true">
-                    <svg width="9" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                  </span>
-                </button>
-                {customizeOpen && (
-                  <CustomizePanel
-                    title="Columns"
-                    cols={COLS}
-                    activePreset={customize.activePreset}
-                    hidden={customize.hidden}
-                    presetNames={customize.presetNames}
-                    isDefaultActive={customize.isDefaultActive}
-                    onToggleHidden={customize.toggleHidden}
-                    onSavePreset={customize.savePreset}
-                    onRenamePreset={customize.renamePreset}
-                    onDeletePreset={customize.deletePreset}
-                    onSwitchPreset={customize.switchPreset}
-                    onResetActive={customize.resetActive}
-                    onClose={() => setCustomizeOpen(false)}
-                  />
-                )}
+            {isViewsTab ? (
+              // Views keeps its window pills (a lens is defined by how many sessions
+              // it spans). The Monitor sheet instead scrolls freely across all time.
+              <div className={styles.daysPills}>
+                {VIEWS_DAY_CHOICES.map(d => (
+                  <button
+                    key={d}
+                    className={`${styles.daysPill} ${effectiveDays === d ? styles.daysPillActive : ''}`}
+                    onClick={() => setViewsDays(d)}
+                  >
+                    {d}d
+                  </button>
+                ))}
               </div>
+            ) : (
+              <>
+                <BreadthDateNav
+                  topDate={monitorTopDate}
+                  minDate={grid.min}
+                  maxDate={grid.max}
+                  canForward={monitorTopIndex > 0}
+                  onStep={onDateStep}
+                  onPickDate={onDatePick}
+                  onPickYear={onYearPick}
+                />
+                {/* Only when an earlier session is framed: on the latest one there is
+                    nothing to go back to. */}
+                {monitorTopIndex > 0 && (
+                  <button
+                    type="button"
+                    className={`${styles.hdrBtn} ${styles.todayBtn}`}
+                    onClick={onJumpToday}
+                    title="Jump back to the latest session (top of the sheet)"
+                  >
+                    Back to latest
+                  </button>
+                )}
+                <div className={customizeStyles.anchor}>
+                  <button
+                    className={`${styles.hdrBtn} ${styles.hdrBtnPrimary} ${customizeOpen ? styles.hdrBtnOpen : ''}`}
+                    onClick={() => setCustomizeOpen(o => !o)}
+                    data-guide="breadth.customize"
+                    aria-expanded={customizeOpen}
+                    title="Choose which metrics show as columns in the sheet"
+                  >
+                    Columns
+                    <span className={styles.hdrChevron} aria-hidden="true">
+                      <svg width="9" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                    </span>
+                  </button>
+                  {customizeOpen && (
+                    <CustomizePanel
+                      title="Columns"
+                      cols={COLS}
+                      activePreset={customize.activePreset}
+                      hidden={customize.hidden}
+                      presetNames={customize.presetNames}
+                      isDefaultActive={customize.isDefaultActive}
+                      onToggleHidden={customize.toggleHidden}
+                      onSavePreset={customize.savePreset}
+                      onRenamePreset={customize.renamePreset}
+                      onDeletePreset={customize.deletePreset}
+                      onSwitchPreset={customize.switchPreset}
+                      onResetActive={customize.resetActive}
+                      onClose={() => setCustomizeOpen(false)}
+                    />
+                  )}
+                </div>
+                {/* ⋯ — the Signature floating menu the Screener uses (focus/Menu):
+                    Share (branded snapshot) and Export CSV. */}
+                <div className={customizeStyles.anchor}>
+                  <Menu
+                    label="More"
+                    trigger={(
+                      <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+                        <circle cx="3.5" cy="8" r="1.4" fill="currentColor" /><circle cx="8" cy="8" r="1.4" fill="currentColor" /><circle cx="12.5" cy="8" r="1.4" fill="currentColor" />
+                      </svg>
+                    )}
+                    align="right"
+                    width={180}
+                    testId="breadth-more-menu"
+                    triggerClassName={`${styles.hdrBtn} ${styles.moreBtn}`}
+                  >
+                    <MenuItem onSelect={() => setShareOpen(true)}>Share</MenuItem>
+                    <MenuItem onSelect={() => exportCsv(rows, visibleCols)}>Export CSV</MenuItem>
+                  </Menu>
+                  {shareOpen && (
+                    <ScreenshotPopover
+                      title="Share Breadth"
+                      onDownload={onShareDownload}
+                      onCopy={onShareCopy}
+                      onShare={onShareUrl}
+                      onClose={() => setShareOpen(false)}
+                    />
+                  )}
+                </div>
+              </>
             )}
           </>
-        ) : null}
+        )}
       >
         <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
-        {isViewsTab ? (
-          // Views keeps its window pills (a lens is defined by how many sessions
-          // it spans). The Monitor sheet instead scrolls freely across all time.
-          <div className={styles.daysPills}>
-            {VIEWS_DAY_CHOICES.map(d => (
-              <button
-                key={d}
-                className={`${styles.daysPill} ${effectiveDays === d ? styles.daysPillActive : ''}`}
-                onClick={() => setViewsDays(d)}
-              >
-                {d}d
-              </button>
-            ))}
-          </div>
-        ) : (
-          // Monitor: the calendar comes right after the tabs, with a "Today"
-          // jump-to-present button beside it; the "updated" meta follows to its right.
-          <>
-            <BreadthDateNav
-              topDate={monitorTopDate}
-              minDate={grid.min}
-              maxDate={grid.max}
-              canForward={monitorTopIndex > 0}
-              onStep={onDateStep}
-              onPickDate={onDatePick}
-              onPickYear={onYearPick}
-            />
-            <button
-              className={`${styles.hdrBtn} ${styles.todayBtn}`}
-              onClick={onJumpToday}
-              title="Jump to the present day (top of the sheet)"
-            >
-              Today
-            </button>
-          </>
-        )}
-        <span className={styles.meta}>
-          {isViewsTab
-            ? (rows.length > 0
-                ? (windowMismatch
-                    ? `Updating…${lastUpdated ? ` · updated ${lastUpdated}` : ''}`
-                    : `${rows.length} trading days${lastUpdated ? ` · updated ${lastUpdated}` : ''}`)
-                : isLoading ? 'Loading…' : 'No data')
-            : (grid.count > 0
-                ? `${formatNumber(grid.count)} sessions${lastUpdated ? ` · updated ${lastUpdated}` : ''}`
-                : grid.ready ? 'No data' : grid.datesFailed ? 'Could not load' : 'Loading…')}
-        </span>
-        {activeTab === 'breadth' && (
-          <button
-            className={`${styles.hdrBtn} ${styles.refreshBtn} ${refreshing ? styles.spinning : ''}`}
-            onClick={onManualRefresh}
-            title="Refresh breadth data now"
-            aria-label="Refresh breadth data"
-          >
-            <UIcon name="refresh" size={14} gold={false} />
-          </button>
-        )}
       </SurfaceHeader>
 
       {errorBanner}

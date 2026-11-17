@@ -106,5 +106,7 @@ button.hostStep:disabled:hover { color: inherit; border-color: transparent; }
     min-height: var(--tap-min);
     min-width: var(--tap-min);
   }
+  /* Touch inputs render the date larger; size the field to it so it never clips. */
+  div.host input { width: calc(5.6em + 14px); }
 }
 
