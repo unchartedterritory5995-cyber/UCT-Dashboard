@@ -565,6 +565,9 @@ class ConverseIn(BaseModel):
     view: dict
     authoring: Optional[dict] = None
     snippets: Optional[list] = None
+    #: ⭐ L5 -- the MEASURING switch for worked examples. Honoured for an admin only
+    #: (`worked_examples.enabled`); from anyone else it is ignored, never an error.
+    examples: Optional[bool] = None
     # ⭐ P2X (owner decision 1). OPTIONAL, OPAQUE, CLIENT-GENERATED: keys the
     # per-conversation cost aggregate in `definition_conversation`. Typed `Any`
     # on purpose -- a malformed id is IGNORED by the service, never a 422, so
@@ -627,7 +630,8 @@ def converse_definition(body: ConverseIn, user: dict = Depends(require_paid),
     return definition_conversation.converse(
         body.message, user_id=user["id"], view=body.view,
         authoring=body.authoring, snippets=body.snippets, chart=chart,
-        admin=(user.get("role") == "admin"), conversation_id=body.conversationId)
+        admin=(user.get("role") == "admin"), conversation_id=body.conversationId,
+        examples=body.examples is True)
 
 
 @router.get("/library")
