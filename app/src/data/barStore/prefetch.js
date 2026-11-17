@@ -422,6 +422,7 @@ export function createPrefetch(o = {}) {
   async function prepareForDisplay(sym, tf, { signal = null, showExtended } = {}) {
     const key = keyFor(sym, tf, { showExtended })
     if (!key) return 'error'
+    if (typed && typed.key === key) typed.kept = true   // Enter on a typed text: never abort its warm
     _own(key)
     try {
       const date = isDateTf(normTf(tf) ?? fetchTf(String(tf)))
@@ -667,8 +668,47 @@ export function createPrefetch(o = {}) {
     }, delay))
     if (!held) tickerMeta(sym)
   }
+  // ⭐ TYPED INTRADAY (2026-11-17). The typed warm was D/W/M only, so a member who typed a ticker on a
+  // 5m / 60m / 1m chart waited on the chart's own request after Enter (~70-110 ms: a cold first paint
+  // measured on production, 40 random stocks) while the same Enter on daily painted from memory. The
+  // intraday key of the typed text is now asked when the text settles (SymbolSearch
+  // TYPED_INTENT_SETTLE_MS, 140 ms): by Enter it is held and the handoff paints it like a list flip.
+  // ⛔ A PREFIX IS NOT A TICKER: the daily pack holds every symbol's daily set, so text with none is a
+  // partial word on the way to one and costs nothing (the D path's rule, read from the D key).
+  function _warmTypedIntraday(sym, tf) {
+    if (!_isSym(String(sym))) return null
+    const T = String(sym).trim().toUpperCase()
+    const key = keyFor(T, tf)
+    const p = key ? parseKey(key) : null
+    if (!p || p.window || !isIntradayTf(p.tf)) return null
+    if (typed && typed.key !== key) {
+      if (!typed.kept) typed.ctl.abort()
+      typed = null
+    }
+    const held = S().peek(key)
+    if (held?.restSeen && HANDOFF_PAINTS.includes(held.status)) return null   // the flip paints it as it is
+    if (typed && typed.key === key) return null
+    const ctl = new AbortController()
+    const mine = { key, ctl, kept: false }
+    typed = mine
+    return (async () => {
+      const d = await _hydrate(keyFor(T, 'D'))
+      if (typed !== mine) return 'superseded'
+      if (!d?.depth && !packIngesting()) return 'unknown'
+      const s0 = await _hydrate(key)
+      if (typed !== mine) return 'superseded'
+      tellSymbolWarmers([T], tf, { priority: true })
+      if (_localPaints(s0, fetchTf(String(tf)))) return 'cache'
+      const s = await ensure(key, { until: DISPLAYABLE, priority: 'urgent', signal: ctl.signal, local: false, _s0: s0 || {} })
+      if (ctl.signal.aborted && !mine.kept) return false
+      // (an intraday answer early in a bucket can be the forming bar alone: still the server's answer)
+      return s?.restSeen && !s.error && (s.depth || s.developing) ? 'network' : false
+    })().catch(() => false).finally(() => { if (typed === mine) typed = null })
+  }
+
   function warmTypedSymbol(sym, tf = 'D') {
-    if (!sym || !tf || !['D', 'W', 'M'].includes(String(tf))) return null
+    if (!sym || !tf) return null
+    if (!['D', 'W', 'M'].includes(String(tf))) return _warmTypedIntraday(sym, tf)
     if (!_isSym(String(sym))) return null
     const key = keyFor(String(sym).trim().toUpperCase(), tf)
     if (!key) return null
