@@ -545,7 +545,14 @@
   background: #a9a59b;
 }
 
-.listName { flex: 0 1 auto; min-width: 0; font-size: 13px; font-weight: 500; color: #ededed; }
+/* The NAME keeps its line; the formula text beside it is what gives way. Seen on production
+   2026-11-17: "Uncharted Clouds" wrapped onto two lines and collided with its formula text,
+   because the name could shrink and the one-line formula could not. */
+.listName {
+  flex: 0 0 auto; max-width: 62%; min-width: 0;
+  font-size: 13px; font-weight: 500; color: #ededed;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 
 .listSource {
   flex: 1 1 auto;
