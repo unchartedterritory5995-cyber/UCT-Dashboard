@@ -1888,7 +1888,11 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
             result["allowance_left"] = left
     except Exception:                              # noqa: BLE001
         logger.exception("[converse] allowance read failed")
-    if admin and not result.get("ok") and trace.get("refusals"):
+    # ⭐ 2026-11-17 -- AND ON A TURN THAT WAS REPAIRED INTO A CHANGE. Measured on production:
+    # about one built turn in four pays a second model call, nearly always at one gate
+    # (`envelope:reference`), and the gate code alone does not say which name. A repair doubles
+    # the member's wait, so its cause has to be readable to be fixed.
+    if admin and trace.get("refusals"):
         # WHY EACH ATTEMPT WAS REFUSED, FOR THE BUILDERS ONLY (2026-11-16). The house set
         # found requests that fail twice at a name or reference check, and nothing outside
         # a DEBUG log said WHICH name: the failure could be counted and never fixed. An
@@ -2169,6 +2173,10 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
     attempts = 0
     last: Optional[_Refused] = None
     refusals: List[Dict[str, Any]] = []
+    # what each attempt was refused for: the outer door decides who may read it. Set here, not at
+    # the refused exit alone, so a turn REPAIRED into a change carries its first attempt's reason.
+    if isinstance(trace, dict):
+        trace["refusals"] = refusals
     extra = {"not_understood": not_understood, "unavailable": unavailable}
 
     while attempts < MAX_MODEL_CALLS:
