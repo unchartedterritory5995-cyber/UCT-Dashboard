@@ -314,14 +314,40 @@ def transfers_fully(census_row, u):
         places_orders(u))
 
 
-def runtime_on_transfers(census_row, orders):
+RUNTIME_KILLLIST = os.path.join(ROOT, "api", "data", "pine_runtime_killlist.json")
+
+
+def runtime_killed_hashes(path=RUNTIME_KILLLIST):
+    """The COMMITTED half of the runtime lane's kill list (`runtime_definitions.kill_list()` serves its
+    union with the operator's PINE_RUNTIME_KILL_LIST): the full sha256 of each listed script's source.
+    ⛔ Fails LOUD when unreadable: a census that silently read "nothing is killed" would count every
+    killed script as served, which is the defect this exists to stop."""
+    with open(path, encoding="utf-8") as f:
+        return {e["sha256"] for e in json.load(f)["scripts"]}
+
+
+def is_runtime_killed(src, killed):
+    """Is this source on the kill list? `runtime_definitions.source_hash` is sha256 of the text as the
+    door receives it; a checkout can hold it with CRLF, so the LF form is tried too."""
+    if not src or not killed:
+        return False
+    return (hashlib.sha256(src.encode("utf-8")).hexdigest() in killed
+            or hashlib.sha256(src.replace("\r\n", "\n").encode("utf-8")).hexdigest() in killed)
+
+
+def runtime_on_transfers(census_row, orders, killed=False):
     """⭐ THE RUNTIME-ON LANE'S PREDICATE, in one place: a runtime-on census row transfers when it
     transfers fully on the host lane OR attaches on the runtime lane, and it is not a strategy that
     places orders (`orders`: `places_orders` of its usage). Read by `runtime_on_section` below and by
-    tools/pine_coverage/coverage_ratchet.py, so the map and the ratchet cannot disagree."""
+    tools/pine_coverage/coverage_ratchet.py, so the map and the ratchet cannot disagree.
+    ⭐ 2026-11-17: `killed` (`is_runtime_killed`). A script on the runtime kill list falls back OFF the
+    runtime lane at every door, refused by name, so its runtime ATTACH is not a transfer a member gets.
+    The census runs the door without that list, so the predicate applies it. A killed script that is
+    clean on the HOST lane still transfers: the kill list never touches the host lane."""
     r = census_row or {}
     st0 = (r.get("steps") or [{}])[0]
-    return not orders and (bool(r.get("clean")) or (bool(r.get("attached")) and st0.get("lane") == "runtime"))
+    return not orders and (bool(r.get("clean")) or (
+        bool(r.get("attached")) and st0.get("lane") == "runtime" and not killed))
 
 
 def order_usage_of(src):
@@ -847,8 +873,11 @@ def runtime_on_section(rt_cache, rt_verdicts, prod_verdicts, scripts, decl_of, o
         sys.exit("--runtime-cache has no row for %d sample scripts (first %s) - re-run run_census.py --runtime-on"
                  % (len(missing), missing[0]))
 
+    killed = runtime_killed_hashes()
+
     def transfers(key):
-        return runtime_on_transfers(rows[key], orders_of(key))
+        src = open(inputs[key]["path"], encoding="utf-8", newline="").read() if key in inputs else ""
+        return runtime_on_transfers(rows[key], orders_of(key), is_runtime_killed(src, killed))
 
     by_key = {s["key"]: s for s in scripts}
     on = {s["key"] for s in scripts if transfers(s["key"])}
