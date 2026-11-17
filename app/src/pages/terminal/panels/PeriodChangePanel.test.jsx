@@ -7,7 +7,10 @@
 //     one day instead of drawing a market of 0% moves;
 //   * the two ends of the list, the count that is drawn and the count that is not;
 //   * a range chip and the two date boxes pick the range; a bad pair is refused before it is sent;
-//   * a symbol loads into the linked panels; row numbers follow the rows on screen.
+//   * a symbol loads into the linked panels; row numbers follow the rows on screen;
+//   * wave 5: sectors, industries and themes are ranked over the same dates from their own route,
+//     with the same states; a group opens the list of its stocks, whose own changes are a second
+//     read that fails apart (the stocks stay listed, with no change and never a 0%).
 // The fixtures are the route's real shape (api/services/scan_period.py _assemble), made-up tickers.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, within, waitFor } from '@testing-library/react'
@@ -20,7 +23,7 @@ vi.mock('../../../utils/jsonFetcher', () => ({ default: vi.fn() }))
 vi.mock('../../calendar/earningsModalRow', async (orig) => ({ ...(await orig()), todayIso: () => '2026-11-17' }))
 import jsonFetcher from '../../../utils/jsonFetcher'
 import { PanelFreshnessContext, PanelListContext, TerminalPanelContext } from '../../../components/terminal'
-import PeriodChangePanel, { MAX_ROWS, PAGE_ROWS, PERIOD_CHANGE_CODE, periodChangeUrl } from './PeriodChangePanel'
+import PeriodChangePanel, { MAX_ROWS, PAGE_ROWS, PERIOD_CHANGE_CODE, periodChangeUrl, periodGroupsUrl } from './PeriodChangePanel'
 import { colourLiteralsIn } from '../__tests__/themeScope'
 import { expectNoAxeViolations } from '../../journal-2-0/a11y/axeHarness'
 
@@ -234,7 +237,7 @@ describe('PCHG populated', () => {
     // the typed dates fill the two boxes, and no range chip is pressed
     expect(screen.getByTestId('terminal-pchg-from').value).toBe('2026-10-31')
     expect(screen.getByTestId('terminal-pchg-to').value).toBe('2026-11-13')
-    expect(screen.getAllByRole('button', { pressed: true }).map((b) => b.textContent)).toEqual(['Biggest gainers'])
+    expect(screen.getAllByRole('button', { pressed: true }).map((b) => b.textContent)).toEqual(['Stocks', 'Biggest gainers'])
     expect(asked()).toEqual([url])
   })
 
@@ -347,6 +350,190 @@ describe('PCHG picking a range', () => {
   })
 })
 
+// ── wave 5: sectors, industries and themes ──────────────────────────────────────────────────
+// The groups route's real shape (api/services/scan_period.py get_period_change_groups).
+const SECTORS_URL = periodGroupsUrl('2025-12-31', TODAY, 'sector')
+const INDUSTRIES_URL = periodGroupsUrl('2025-12-31', TODAY, 'industry')
+const THEMES_URL = periodGroupsUrl('2025-12-31', TODAY, 'theme')
+const SECTORS = {
+  status: 'ok',
+  group: 'sector',
+  results: [
+    { name: 'Technology', period_change: 38.25, count: 3, members: ['AAA', 'CCC', 'FFF'] },
+    { name: 'Energy', period_change: 4.0, count: 1, members: ['BBB'] },
+    { name: 'Healthcare', period_change: -61.3, count: 1, members: ['DDD'] },
+  ],
+  count: 3,
+  start: 20251231,
+  end: 20261116,
+  as_of: '2026-11-17T09:41:00-05:00',
+}
+const groupNames = () => rowsOf().map((r) => r.getAttribute('data-name'))
+
+describe('PCHG sectors, industries and themes', () => {
+  it('the typed word ranks sectors from the groups route alone, with each sector\'s stock count', async () => {
+    serve({ [SECTORS_URL]: SECTORS })
+    const { setFreshness, publishRows } = renderPanel({ unit: 'SECTORS' })
+    await screen.findByTestId('terminal-pchg-table')
+    expect(SECTORS_URL).toBe('/api/scans/period-change-groups?start=20251231&end=20261117&group=sector')
+    expect(screen.getByTestId('terminal-pchg').getAttribute('data-unit')).toBe('sector')
+    expect(screen.getByTestId('terminal-pchg-unit-sector').getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByTestId('terminal-pchg-unit-stocks').getAttribute('aria-pressed')).toBe('false')
+    expect(groupNames()).toEqual(['Technology', 'Energy', 'Healthcare'])
+    const cells = rowsOf().map((r) => [...r.querySelectorAll('td')].map((td) => td.textContent))
+    expect(cells).toEqual([['1Technology', '+38.3%', '3'], ['2Energy', '+4.0%', '1'], ['3Healthcare', '-61.3%', '1']])
+    expect(within(screen.getByTestId('terminal-pchg-table')).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Sector', 'Change', 'Stocks'])
+    expect(screen.getByTestId('terminal-pchg-totals').textContent)
+      .toBe('3 sectors ranked from the close of 2025-12-31 to the close of 2026-11-16: 2 rose, 1 fell.')
+    // the dates snap exactly as they do for stocks, and the panel says which days were used
+    expect(screen.getByTestId('terminal-pchg-snapped').textContent)
+      .toBe("Today's close (2026-11-17) is not published yet, so the list ends at the close of 2026-11-16.")
+    expect(screen.getByRole('table', { name: 'Biggest gainers from 2025-12-31 to 2026-11-16, 3 of 3 sectors' })).toBeTruthy()
+    await waitFor(() => expect(setFreshness).toHaveBeenCalledWith({ source: SOURCE, age: { asOfDate: '2026-11-16' } }))
+    const method = screen.getByTestId('terminal-pchg-method').textContent
+    expect(method).toContain('A sector\'s change is the average of its stocks\' changes, each stock counting the same, after its best tenth of stocks (at least one) is capped')
+    expect(method).toContain('a stock with none on file is in no sector')
+    expect(method).toContain('it is not a forecast or a recommendation.')
+    expect(screen.queryByTestId('terminal-pchg-partial')).toBeNull()
+    // a list of groups names no stock, so no stock row is published and the stock route is not asked
+    expect(publishRows.mock.calls.every(([rows]) => rows.length === 0)).toBe(true)
+    expect(asked().every((url) => url === SECTORS_URL)).toBe(true)
+    expect(document.body.textContent).not.toMatch(/[—–]/)
+  })
+
+  it('a chip switches what is ranked, each from its own read, and the other end of the list still applies', async () => {
+    serve({ [YTD_URL]: OK, [SECTORS_URL]: SECTORS, [INDUSTRIES_URL]: { ...SECTORS, group: 'industry', results: [{ name: 'Semiconductors', period_change: 12.5, count: 40, members: [] }] },
+      [THEMES_URL]: { ...SECTORS, group: 'theme', results: [{ name: 'AI, Chips & Power', period_change: -2, count: 9, members: ['AAA'] }] } })
+    const { rerun } = renderPanel()
+    await screen.findByTestId('terminal-pchg-table')
+    expect(asked()).toEqual([YTD_URL])
+    fireEvent.click(screen.getByTestId('terminal-pchg-unit-sector'))
+    await waitFor(() => expect(screen.getByTestId('terminal-pchg-totals').textContent).toContain('3 sectors ranked'))
+    fireEvent.click(screen.getByTestId('terminal-pchg-side-losers'))
+    expect(groupNames()).toEqual(['Healthcare', 'Energy', 'Technology'])
+    expect(screen.getByRole('table', { name: 'Biggest losers from 2025-12-31 to 2026-11-16, 3 of 3 sectors' })).toBeTruthy()
+    fireEvent.click(screen.getByTestId('terminal-pchg-unit-industry'))
+    await waitFor(() => expect(screen.getByTestId('terminal-pchg-totals').textContent).toBe('1 industry ranked from the close of 2025-12-31 to the close of 2026-11-16: 1 rose, 0 fell.'))
+    fireEvent.click(screen.getByTestId('terminal-pchg-unit-theme'))
+    await waitFor(() => expect(groupNames()).toEqual(['AI, Chips & Power']))
+    expect(screen.getByTestId('terminal-pchg-method').textContent).toContain('These are the UCT themes; a theme with none of its stocks in that list is not shown.')
+    expect(asked()).toEqual(expect.arrayContaining([SECTORS_URL, INDUSTRIES_URL, THEMES_URL]))
+    // back to stocks is the stock route again
+    fireEvent.click(screen.getByTestId('terminal-pchg-unit-stocks'))
+    await waitFor(() => expect(screen.getByTestId('terminal-pchg-totals').textContent).toContain('4 stocks ranked'))
+    // outside a registered panel nothing is written back
+    expect(rerun).not.toHaveBeenCalled()
+  })
+
+  it('computing, both dates on one day, no group ranked and a failed read are each said in the group\'s own words', async () => {
+    serve({ [SECTORS_URL]: { status: 'computing', group: 'sector', results: [], count: 0, error: null } })
+    renderPanel({ unit: 'sector' })
+    expect((await screen.findByTestId('terminal-pchg-computing')).textContent).toContain('That is not the same as no sectors.')
+    cleanup()
+    serve({ [SECTORS_URL]: { ...SECTORS, start: 20261116, end: 20261116, results: SECTORS.results.map((r) => ({ ...r, period_change: 0 })) } })
+    renderPanel({ unit: 'sector' })
+    expect((await screen.findByTestId('terminal-pchg-same-day')).textContent).toContain('Both dates land on one trading day, 2026-11-16')
+    expect(screen.queryByTestId('terminal-pchg-table')).toBeNull()
+    cleanup()
+    serve({ [THEMES_URL]: { ...SECTORS, group: 'theme', results: [] } })
+    renderPanel({ unit: 'THEMES' })
+    expect((await screen.findByTestId('terminal-pchg-empty')).textContent).toContain('No theme could be ranked from 2025-12-31 to 2026-11-16.')
+    cleanup()
+    // an answer for another group is not this read: an error with Retry, never a list
+    serve({ [INDUSTRIES_URL]: SECTORS })
+    renderPanel({ unit: 'industry' })
+    const err = await screen.findByTestId('terminal-pchg-error')
+    expect(err.getAttribute('data-kind')).toBe('error')
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy()
+    cleanup()
+    serve({ [SECTORS_URL]: fail(402) })
+    renderPanel({ unit: 'sector' })
+    expect((await screen.findByTestId('terminal-pchg-error')).getAttribute('data-kind')).toBe('locked')
+  })
+
+  it('a range older than the whole-market history says what that does to every group', async () => {
+    const url = periodGroupsUrl('1999-01-04', '2000-03-10', 'sector')
+    serve({ [url]: { ...SECTORS, start: 19990104, end: 20000310 } })
+    renderPanel({ start: '1999-01-04', end: '2000-03-10', unit: 'sector' })
+    await screen.findByTestId('terminal-pchg-table')
+    const note = screen.getByTestId('terminal-pchg-partial').textContent
+    expect(note).toContain('companies that have since stopped trading are missing from every sector')
+    expect(note).toContain('The server does not say when it did this for sectors.')
+  })
+
+  it('a sector opens its stocks, each with its own change from the stock ranking, and Back returns to the row it came from', async () => {
+    serve({ [SECTORS_URL]: SECTORS, [YTD_URL]: OK })
+    const { publishRows, run } = renderPanel({ unit: 'sector' })
+    await screen.findByTestId('terminal-pchg-table')
+    expect(asked()).toEqual([SECTORS_URL])
+    fireEvent.click(screen.getByRole('button', { name: 'Technology: list its stocks' }))
+    const members = await screen.findByTestId('terminal-pchg-members')
+    // only now is the stock ranking read
+    expect(asked()).toContain(YTD_URL)
+    expect(screen.queryByTestId('terminal-pchg-table')).toBeNull()
+    expect(screen.getByTestId('terminal-pchg-group-head').textContent)
+      .toBe('Technology: +38.3% from the close of 2025-12-31 to the close of 2026-11-16, 3 stocks.')
+    const rows = within(members).getAllByRole('row').slice(1).map((r) => [...r.querySelectorAll('td')].map((td) => td.textContent))
+    // biggest gain first; FFF is in the sector but not in the stock ranking: no percent, never a 0
+    expect(rows.map((r) => r[1])).toEqual(['+212.5%', '+0.0%', 'n/a'])
+    for (const s of ['1', 'AAA']) expect(rows[0][0]).toContain(s)
+    expect(rows[0][2]).toBe('$10.00 to $31.25 (+$21.25)')
+    expect(rows[2][0]).toContain('FFF')
+    expect(rows[2][2]).toBe('n/a')
+    expect(screen.getByRole('table', { name: 'The stocks in Technology from 2025-12-31 to 2026-11-16, biggest gainers first, 3 of 3' })).toBeTruthy()
+    expect(screen.getByTestId('terminal-pchg-members-method').textContent).toContain('it is not the plain average of this list')
+    expect(screen.queryByTestId('terminal-pchg-members-failed')).toBeNull()
+    expect(publishRows).toHaveBeenLastCalledWith(['$AAA', '$CCC', '$FFF'])
+    fireEvent.click(screen.getByTestId('panel-symbol-CCC'))
+    expect(run).toHaveBeenCalledWith('$CCC')
+    // the keyboard went to Back, and comes back to the sector's own row
+    const back = screen.getByTestId('terminal-pchg-back')
+    expect(back.textContent).toBe('Back to all sectors')
+    expect(document.activeElement).toBe(back)
+    fireEvent.click(back)
+    expect(groupNames()).toEqual(['Technology', 'Energy', 'Healthcare'])
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Technology: list its stocks' })))
+    expect(publishRows).toHaveBeenLastCalledWith([])
+  })
+
+  it('when the stocks\' own changes cannot be read the stocks are still listed, with no change and a Retry', async () => {
+    serve({ [SECTORS_URL]: SECTORS })
+    renderPanel({ unit: 'sector' })
+    await screen.findByTestId('terminal-pchg-table')
+    fireEvent.click(screen.getByRole('button', { name: 'Technology: list its stocks' }))
+    const failed = await screen.findByTestId('terminal-pchg-members-failed')
+    expect(failed.textContent).toContain('Each stock\'s own change could not be read just now.')
+    expect(failed.textContent).toContain('The stocks are listed without it; that is not a change of 0%.')
+    const cells = within(screen.getByTestId('terminal-pchg-members')).getAllByRole('row').slice(1).map((r) => r.querySelectorAll('td')[1].textContent)
+    expect(cells).toEqual(['n/a', 'n/a', 'n/a'])
+    expect(document.body.textContent).not.toContain('0.0%')
+    // the sector's own figure is still shown: it came from the read that worked
+    expect(screen.getByTestId('terminal-pchg-group-head').textContent).toContain('Technology: +38.3%')
+    serve({ [SECTORS_URL]: SECTORS, [YTD_URL]: OK })
+    fireEvent.click(within(failed).getByRole('button', { name: 'Retry' }))
+    await waitFor(() => expect(screen.queryByTestId('terminal-pchg-members-failed')).toBeNull())
+    expect(within(screen.getByTestId('terminal-pchg-members')).getAllByRole('row').slice(1).map((r) => r.querySelectorAll('td')[1].textContent))
+      .toEqual(['+212.5%', '+0.0%', 'n/a'])
+  })
+
+  it('a long group list is drawn fifty at a time, and counted', async () => {
+    const results = Array.from({ length: 120 }, (_, i) => ({ name: `Industry ${String(i).padStart(3, '0')}`, period_change: 300 - i, count: 5, members: [] }))
+    serve({ [INDUSTRIES_URL]: { ...SECTORS, group: 'industry', results, count: 120 } })
+    renderPanel({ unit: 'INDUSTRIES' })
+    await screen.findByTestId('terminal-pchg-table')
+    expect(rowsOf()).toHaveLength(PAGE_ROWS)
+    expect(screen.getByTestId('terminal-pchg-cut').textContent.trim()).toBe('Showing the 50 biggest gainers of 120 industries.')
+    fireEvent.click(screen.getByTestId('terminal-pchg-more'))
+    expect(rowsOf()).toHaveLength(100)
+    fireEvent.click(screen.getByTestId('terminal-pchg-more'))
+    expect(rowsOf()).toHaveLength(120)
+    expect(screen.queryByTestId('terminal-pchg-cut')).toBeNull()
+    // a group the server sent no stock list for says so when opened
+    fireEvent.click(screen.getByRole('button', { name: 'Industry 000: list its stocks' }))
+    expect((await screen.findByTestId('terminal-pchg-members-empty')).textContent).toContain('The server sent no stock list for Industry 000.')
+  })
+})
+
 describe('PCHG follows the member\'s theme', () => {
   it('the panel, its model and its form styles hold no hard-coded color', () => {
     for (const f of ['PeriodChangePanel.jsx', 'periodChangeModel.js', 'panelForm.module.css']) {
@@ -364,6 +551,16 @@ describe('PCHG accessibility', () => {
     await expectNoAxeViolations(document.body.firstElementChild)
     fireEvent.click(screen.getByTestId('terminal-pchg-rank'))
     expect(screen.getByTestId('terminal-pchg-form-error')).toBeTruthy()
+    await expectNoAxeViolations(document.body.firstElementChild)
+  }, 60_000)
+
+  it('the sector list and one sector\'s stocks pass axe (WCAG A and AA)', async () => {
+    serve({ [SECTORS_URL]: SECTORS, [YTD_URL]: OK })
+    renderPanel({ unit: 'sector' })
+    await screen.findByTestId('terminal-pchg-table')
+    await expectNoAxeViolations(document.body.firstElementChild)
+    fireEvent.click(screen.getByRole('button', { name: 'Technology: list its stocks' }))
+    await screen.findByTestId('terminal-pchg-members')
     await expectNoAxeViolations(document.body.firstElementChild)
   }, 60_000)
 })

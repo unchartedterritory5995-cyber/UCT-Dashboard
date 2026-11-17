@@ -81,6 +81,12 @@ export const PERIOD_RANGE_WORDS = Object.freeze({
   YTD: 'ytd', YEAR: 'ytd',
   '1M': 'm1', '3M': 'm3', '6M': 'm6', '1Y': 'y1', '12M': 'y1',
 })
+export const PERIOD_UNIT_WORDS = Object.freeze({
+  STOCKS: 'stocks', STOCK: 'stocks',
+  SECTORS: 'sector', SECTOR: 'sector',
+  INDUSTRIES: 'industry', INDUSTRY: 'industry',
+  THEMES: 'theme', THEME: 'theme',
+})
 export const PERIOD_SIDE_WORDS = Object.freeze({
   GAINERS: 'gainers', GAINER: 'gainers', UP: 'gainers', TOP: 'gainers', BEST: 'gainers',
   LOSERS: 'losers', LOSER: 'losers', DOWN: 'losers', BOTTOM: 'losers', WORST: 'losers',
@@ -361,6 +367,13 @@ export const ARG_KINDS = {
       return isRealIsoDate(iso) ? iso : null
     },
     describe: (v) => `date ${v}`,
+  },
+  /** PCHG's what-to-rank: stocks, or sectors, industries and themes over the same dates
+   *  (panels/periodChangeModel.js PERIOD_UNIT_ARG_WORDS). `PCHG QTD SECTORS`. */
+  periodUnit: {
+    takes: 'STOCKS, SECTORS, INDUSTRIES or THEMES',
+    parse: (tok) => PERIOD_UNIT_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
+    describe: (v) => ({ stocks: 'stocks', sector: 'sectors', industry: 'industries', theme: 'themes' })[v] || v,
   },
   /** PCHG's end of the list (panels/periodChangeModel.js PERIOD_SIDE_ARG_WORDS). */
   periodSide: {
