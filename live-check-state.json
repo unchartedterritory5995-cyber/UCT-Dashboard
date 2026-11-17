@@ -1,5 +1,5 @@
 {
-  "fingerprint": "pipeline:master -> production=12 master commits not promoted yet (oldest landed 68 min ago): more than 60 min outside any hold and checks are still running",
-  "posted_at": "2026-11-17T05:18:22.244850+00:00",
+  "fingerprint": "service:bars-api=running d4425d42cb, which is NOT on master: a rollback or a hand deploy of other code",
+  "posted_at": "2026-11-17T05:41:19.322856+00:00",
   "reason": "new stuck item"
 }
