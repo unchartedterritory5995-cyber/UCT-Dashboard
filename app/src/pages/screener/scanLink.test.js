@@ -60,9 +60,13 @@ describe('what the Screener does with the hint', () => {
     expect(m).toMatch(/scanHintRef = useRef\(typeof window !== 'undefined' \? scanIdFromSearch\(window\.location\.search\) : null\)/)
     expect(m).toMatch(/scanHintRef\.current = null\s+const hint = resolveScanHint\(id, scans, unscannable\)/)
     expect(m).toMatch(/if \(hint\.open\) \{ setOpen\(true\); if \(hint\.detailId\) setDetailId\(hint\.detailId\) \}/)
+    // under a router the hint leaves THROUGH the router; the bare replaceState is the no-router path only
+    expect(m).toMatch(/setScanHintRead\(true\)\s+if \(inRouter\) return\s+try \{/)
+    expect(m).toMatch(/\{inRouter && scanHintRead && <ScanHintOut \/>\}/)
     expect(m).toMatch(/replaceState\(window\.history\.state, '', `\$\{pathname\}\$\{withoutScanParam\(search\)\}\$\{hash\}`\)/)
     // no second run door: the reader starts no run and calls no endpoint
-    const reader = m.slice(m.indexOf('scanHintRef = useRef'), m.indexOf('}, [defRows, scans, unscannable])'))
+    const reader = m.slice(m.indexOf('scanHintRef = useRef'), m.indexOf('}, [defRows, scans, unscannable, inRouter])'))
+    expect(reader.length).toBeGreaterThan(200)
     expect(reader).not.toMatch(/fetch\(|setRun\(|RunNow|\/api\//)
   })
 })

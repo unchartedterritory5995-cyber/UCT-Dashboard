@@ -17,7 +17,9 @@ import ArtifactHistory, { useArtifactVersionsAvailable } from '../../components/
 import RecentlyDeleted from '../../components/artifactHistory/RecentlyDeleted'
 import { GROUPS, FALLBACK_GROUP, offeredStarters } from './focus/screenGroups'
 import { usePhonePanel } from './shell/phonePanel'
+import { useInRouterContext } from 'react-router-dom'
 import { scanIdFromSearch, withoutScanParam, resolveScanHint } from './scanLink'
+import ScanHintOut from './ScanHintOut'
 
 // ⭐ THE ONE BUILDER, LAZY. `ChartToolbar` mounts `BuilderSheet` statically;
 // this is its SECOND opener (spec §5.5 "`/screener` authoring door") and it
@@ -346,6 +348,11 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
   // Read ONCE, after the member's own rows have loaded, then removed from the address so a refresh or a
   // later visit does not reopen it. ⛔ The id is a hint: one that is malformed, unknown or not this
   // member's opens nothing and says nothing (`scanLink.resolveScanHint`).
+  // ⛔ REMOVED THROUGH THE ROUTER (`ScanHintOut`), never behind its back: `replaceState` alone leaves
+  // the router's own location holding the hint, and the next navigation built from it puts it back.
+  // The bare `replaceState` below is only for a mount with no router around it.
+  const inRouter = useInRouterContext()
+  const [scanHintRead, setScanHintRead] = useState(false)
   const scanHintRef = useRef(typeof window !== 'undefined' ? scanIdFromSearch(window.location.search) : null)
   useEffect(() => {
     const id = scanHintRef.current
@@ -353,11 +360,13 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
     scanHintRef.current = null
     const hint = resolveScanHint(id, scans, unscannable)
     if (hint.open) { setOpen(true); if (hint.detailId) setDetailId(hint.detailId) }
+    setScanHintRead(true)
+    if (inRouter) return
     try {
       const { pathname, search, hash } = window.location
       window.history.replaceState(window.history.state, '', `${pathname}${withoutScanParam(search)}${hash}`)
     } catch { /* the address is cosmetic */ }
-  }, [defRows, scans, unscannable])
+  }, [defRows, scans, unscannable, inRouter])
   // The on-demand run currently on screen: `{defId, session, payload}`. Matched,
   // never assumed — see the header note.
   const [run, setRun] = useState(null)
@@ -521,6 +530,7 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
 
   return (
     <div className={styles.saveMenuWrap} ref={wrapRef}>
+      {inRouter && scanHintRead && <ScanHintOut />}
       <button type="button" className="btn btn-primary" data-guide="screener.screens" onClick={() => setOpen(o => !o)}>
         Screener ▾
       </button>
