@@ -609,7 +609,7 @@ function loadEditor() {
  *  (already mounted and already the value carrier) stays the box. Never a reload. */
 const TEXTAREA_FALLBACK = null
 
-function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSourceChange, onImportTelemetry, sym = null, tf = null, savedRow = null }) {
+function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSourceChange, onImportTelemetry, sym = null, tf = null, savedRow = null, onStatusHeadline = null }) {
   const inspect = useCallback(
     (s, opts) => (dialect === undefined ? inspectPine(s, opts) : inspectSource(s, dialect, opts)),
     [dialect],
@@ -659,6 +659,15 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
   const editorStatusNow = usePineEditorStatus({ enabled: statusOn, report, inspectedSource: inspected, savedRow })
   const statusMarks = useMemo(
     () => (editorStatusNow ? toLineMarks(editorStatusNow, inspected) : null), [editorStatusNow, inspected])
+  // ⭐ STUDIO R4 — the host is told the panel's sentence and the exact text it is about, so a save
+  // of THAT text can put it on record for people the script is shared with. Null while the panel
+  // is off, is still checking a newer buffer, or has no sentence: nothing is recorded then.
+  const headlineNow = editorStatusNow && text === inspected && typeof editorStatusNow.headline === 'string'
+    ? editorStatusNow.headline : null
+  useEffect(() => {
+    if (typeof onStatusHeadline !== 'function') return
+    onStatusHeadline(headlineNow ? { headline: headlineNow, source: inspected } : null)
+  }, [onStatusHeadline, headlineNow, inspected])
   /** The panel's `Line N` button: caret to the start of that line, scrolled into
    *  view. CodeMirror when it has loaded, the textarea otherwise. */
   const goToLine = useCallback((n) => {
@@ -1628,7 +1637,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
  */
 export function ImportBox({
   onPick, disabled = false, initialSource = '', dialect = 'auto', onSourceChange = null,
-  onImportTelemetry = null, sym = null, tf = null, savedRow = null,
+  onImportTelemetry = null, sym = null, tf = null, savedRow = null, onStatusHeadline = null,
 }) {
   return (
     <PasteBox
@@ -1636,6 +1645,7 @@ export function ImportBox({
       disabled={disabled}
       initialSource={initialSource}
       dialect={dialect}
+      onStatusHeadline={onStatusHeadline}
       onSourceChange={onSourceChange}
       onImportTelemetry={onImportTelemetry}
       sym={sym}

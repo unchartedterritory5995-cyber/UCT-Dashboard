@@ -922,6 +922,29 @@ export async function installSharedDefinition(token) {
   }
 }
 
+/**
+ * ⭐ STUDIO R4 — put the AUTHOR's status-panel sentence on record for the version they just saved
+ * (`POST /{id}/status-headline`), so a share link, the install answer and a library entry can say
+ * what the author was told. Owner only and the live version only, both enforced by the server.
+ * ⛔ NEVER THROWS AND NEVER BLOCKS A SAVE: the caller does not wait on it, and a refusal (a newer
+ * version exists: 409) is an answer, not an error to show.
+ * @returns {Promise<{ok: boolean, status: number|null}>}
+ */
+export async function recordStatusHeadline(defId, { version, engine, headline } = {}) {
+  if (typeof defId !== 'string' || !defId || !Number.isInteger(version) || !Number.isInteger(engine)) return { ok: false, status: null }
+  const text = typeof headline === 'string' ? headline.trim() : ''
+  if (!text) return { ok: false, status: null }
+  try {
+    const r = await fetch(`${USER_DEFINITIONS_KEY}/${encodeURIComponent(defId)}/status-headline`, {
+      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ version, engine, headline: text }),
+    })
+    return { ok: !!r.ok, status: r.status }
+  } catch {
+    return { ok: false, status: null }
+  }
+}
+
 /** Every stored version of one definition, oldest first — tombstones included. */
 export async function fetchDefinitionHistory(defId) {
   let r
