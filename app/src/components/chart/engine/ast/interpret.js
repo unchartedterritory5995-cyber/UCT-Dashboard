@@ -8376,6 +8376,13 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
   // ⚠️ AND IT INHERITS `memo`'s SELF-FREE GATE UNCHANGED (`id !== undefined`),
   // so a subtree that reads a recurrence bind is never cached here either.
   const crossMemo = opts && opts.crossMemo instanceof Map ? opts.crossMemo : null
+  // ⭐⭐ HEADLESS (R6) — THE EVALUATION COUNTER, ONE AT THE CHOKEPOINT (`evalNode`, below): a unit is
+  // one node this pass EVALUATED into its value (a memo hit, here or in `crossMemo`, costs none). The
+  // headless export (`headlessCompute.js`) hands an object here and reads `units` as the formula
+  // lane's `work`; the nested passes of a `tf` / `sym` / `ltf` read spread these options, so they
+  // count into the same object. ⛔ It is a COUNT: nothing reads it back, so no value moves with it,
+  // and with no sink (every chart) the evaluator does what it did. No clock is read.
+  const workSink = opts && opts.workSink && typeof opts.workSink === 'object' ? opts.workSink : null
   // ⛔⛔ C12r (2026-09-29) — A NESTED `tf` / `sym` READ RUNS ON OTHER BARS, SO IT
   // GETS ITS OWN MEMO. `crossMemo` is keyed on the node OBJECT and was handed
   // to the nested `interpret` unchanged, so a node object shared between the
@@ -8476,6 +8483,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
     }
     const special = chartClockValue(n)
     const value = special !== undefined ? special : evalNodeRaw(n)
+    if (workSink !== null) workSink.units += 1
     if (id !== undefined) {
       memo.set(id, value)
       if (crossMemo !== null) crossMemo.set(n, value)
