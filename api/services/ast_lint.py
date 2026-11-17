@@ -391,6 +391,11 @@ def _arg_yields_bool(node: Any, table: Mapping[str, Any]) -> bool:
     # UNANALYSABLE here and therefore "repaints", while the interpreter's resolver accepted the
     # same tree. The door refused it twice as `lint:repaint` and a member read "the formula would
     # repaint" about a formula that reads only earlier bars (Indicators backlog 63).
+    # ENGINE NUMBER PENDING -- THE SERVED SET GROWS. A formula or a pasted script that passes a
+    # shifted condition to a condition-role function (`ta.valuewhen(cond[1], x, 0)`) measured
+    # `repaints` and the store's `repaint` gate refused the save ("a formula whose past values
+    # can change after the fact is not saved"); it now measures `non-repainting` and is saved and
+    # served. No STORED document changes its answer: none of this shape could be stored.
     if kind in ("sym", "ltf", "tf_live", "tf_merge", "tf", "offset"):
         args = node.get("args") or []
         return len(args) == 1 and _arg_yields_bool(args[0], table)

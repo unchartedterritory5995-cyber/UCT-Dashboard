@@ -230,6 +230,10 @@ function argYieldsBool(node, table) {
     // ("a new high for the first time in 30 days") was called unanalysable and therefore
     // "repaints", while `sentence.js::yieldsOf` accepted the same tree (Indicators backlog 63;
     // the server twin is `ast_lint._arg_yields_bool`).
+    // ENGINE NUMBER PENDING — THE SERVED SET GROWS. A formula or a pasted script that passes a
+    // shifted condition to a condition-role function (`ta.valuewhen(cond[1], x, 0)`) measured
+    // `repaints` and the store refused the save; it now measures `non-repainting` and is saved
+    // and served. No STORED document changes its answer: none of this shape could be stored.
     case 'offset':
     case 'sym':
     case 'ltf':
