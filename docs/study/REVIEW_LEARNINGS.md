@@ -86,3 +86,69 @@ From his setup review, 2026-11-14 and 2026-11-16 (SET.07 Flat Base, SET.08 Bull 
 24. **A shape question shows the shape.** "Yes but need visual always for these"; "a visual along with it to see would
     be nice. Using our tick by tick with live lessons. Build this it is critical" (SET.07). A question about what a
     base, flag, line or candle looks like shows it: a chart or a picture card (docs/study/VISUALS_PLAN.md).
+
+From his setup review, 2026-11-17 (SET.07, in chat):
+
+25. **Write it in his voice, with more detail.** "Question and explanation can be much better worded and detailed imo.
+    Sounds way too AI and not much in my prose at all" (on "The breakout fills at 48.60, the day's low sits at 46.40:
+    which is the one thing you never do?"). Every question and explanation follows docs/study/VOICE.md, which is
+    measured from his own Substack writing: short sentences, fragments welcome, "I" for judgment and "you" for
+    instruction, the verdict first, his phrases ("area to risk against", "get involved", "sit on hands"), and its
+    do/don't table. Read his real sentences in VOICE.md section 3 before writing. Textbook phrasing ("the primary stop",
+    "lifts the grade", "the level it must trade through", "by default") reads as AI. Detail means working the
+    question's own numbers through ("46.40 under a 48.60 fill is 4.5%, inside our 5%, so the stop stays where the chart
+    puts it"), not adding words.
+26. **A chart claim needs a chart, and a plain sentence.** "Can still be worded better, not a great question,
+    especially without a chart example but also poorly worded" (on "Volume that dries up in the second half of the
+    base lifts the grade, but we do not need it to buy", true/false). A statement about how a base, its volume or
+    its lines behave is shown on a real example (rule 24 widened from shapes to volume and lines); and a true/false
+    stem is one plain claim, not a rule with a "but" clause bolted on.
+
+From reading ALL of his feedback again, 2026-11-17 (his ask: "analyze all the feedback DEEPLY and THOROUGHLY ... and
+apply the suggestions broadly to improve our prose and system every time i give feedback"). Rules 25 and 26 were one
+note each; read together with everything before them, they say more:
+
+27. **No working words in member text.** Members never see our setup cards, the rulebook, decision numbers or
+    "criteria". 918 lines in the library say "our card". That sounds like a spec sheet, not a trader, and it is how
+    the scanner cutoffs in rule 22 slipped in as "rules". State what we look for as ours: "we want three taps", "we
+    don't buy stocks under the 200-day". `voice_lint` flags it as a hard tell.
+28. **A question gives enough to decide, and never leads.** "I would make the question a bit more detailed please";
+    "I think that question is very leading btw" (workbench). Bare stems ("When do you buy?", "Our rule?") make the
+    member guess what we mean. Give the screen: the ticker or chart, the numbers, what just happened. Then ask what a
+    trader asks there, with no hint in the stem.
+29. **Teach like a trade review, not a glossary.** Across his notes the asks are the same: "explain how", "show the
+    steps", "give a proper way to calculate", "explain how you can find the move on our app", "give some entry and
+    sizing indications or entry tactics" (workbench), "Detail and review the trade and explain the trade and the setup
+    and the entry and the pattern and teach it all" (workbench). An explanation that only names the right answer and
+    restates the rule fails all of these. Every explanation gives the verdict, the numbers worked out, the reason,
+    and the practical how (VOICE.md section 10).
+30. **His method is judgment, so never fake a formula.** "a flag is a flag imo", "def more of just a judgement thing",
+    "volume really only raises the grade ... Always a bit of it is it depends", "sometimes it is not R based.
+    Sometimes it is day based", the first-week 3% test he called "far too strict". When we turn a judgment into a
+    hard number we teach something he doesn't do. Teach what he looks for and why, show it on real charts, and where
+    it depends, say what it depends on. Only his rulebook numbers are hard numbers (rule 22).
+31. **Examples are names he'd trade, in good spots.** "I want to see this in stocks I would like to trade idk what the
+    heck SIBN is. I want it in good spots on good stocks"; "it is a lame regional bank"; "Liquid and sizable". His own
+    picks are the anchors where they fit: SHOP 9/28 (Oops), AMD and RBRK (Kicker), MSTR (Launchpad), NAVN (HVE).
+
+### How his feedback is applied, every time (the loop)
+
+Each failure behind this loop happened; the fixes say why each step exists.
+
+1. **Save every verdict the same day, word for word** (StudyReview verdicts and owner_verdicts.jsonl).
+2. **Re-read ALL of his feedback, not just the new notes.** Look for what the new notes have in common with old
+   ones, and for what his silent cuts and keeps say. Every word-free cut so far was trivia, a fill-in-the-blank, or
+   arithmetic for its own sake. A rule written from one note misses the pattern. Rules 19-24 came only after he said
+   "i hope you are analyzing it", and rule 25 after the same mistake repeated in a lesson already reworked.
+3. **Turn each pattern into a standing rule here, and into a check where a machine can count it.** A rule only a
+   writer reads gets missed. `voice_lint` (rule 25, 27), `library_audit` (style mix) and `check_course_charts`
+   (examples vs real bars) are gates, not reports.
+4. **Match his magnitude.** "much better" means a rewrite, not one added sentence. He has said so before: "You did not
+   make ALL changes to the level and effect and magnitude that my feedback mandated" (round 17b).
+5. **Rework everything he hasn't reached yet, and re-check what he kept, before he sees more.** Writers get the
+   rules, VOICE.md section 10 and the before-and-after models. A separate checker scores voice as well as facts. Every
+   rework is gated on `voice_lint --strict`.
+6. **He reviews the real member screen, 10 questions at a time on localhost**, so he judges what members get,
+   charts and reveal included, not chat text. Chat hid the charts ("I cant see it").
+7. **Tell him in a few lines what was learned and what changed**, then keep the questions in front of him. Do not
+   bury them under status updates.
