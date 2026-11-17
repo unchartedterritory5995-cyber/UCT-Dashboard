@@ -8,7 +8,7 @@
 // admits it (kill list, allowlist, capability verdict: `runtimeLaneDefinition`'s own checks) and its
 // document draws EXACTLY what the host document draws. This module is that last check.
 //
-// ⛔ WHY IT EXISTS: measured on the committed corpus, the runtime document of 8 of the 14 expensive
+// ⛔ WHY IT EXISTS: measured on the committed corpus, the runtime document of 7 of the 14 expensive
 // scripts it builds draws a DIFFERENT picture: no fills (keltner's ten bands, sessions' four; the
 // runtime lane does not draw a fill yet, `RUNTIME_UNDRAWN_KINDS`), seven markers fewer
 // (opening-range), two arrows fewer and sixteen rows the host hides (cpr). A move that draws less is
