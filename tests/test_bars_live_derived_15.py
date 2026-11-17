@@ -251,6 +251,37 @@ def test_the_since_poll_reads_the_rebuilt_tail_without_the_provider(env):
     assert calls == []
 
 
+def test_the_since_poll_carries_the_forming_bucket_as_the_live_5m_now_says(env):
+    """The chart's catch-up poll asks for bars after 09:15; the forming 09:30 bucket was
+    stored when 5m reached 09:35, and the stream has moved on inside it since."""
+    sq, calls, _, live = env
+    _seed(sq, live, five_end=(9, 40))
+    _read("15")
+    sq.put_bars("SPY", "5", [{"t": _ts(2026, 11, 11, 9, 35), "o": 10.0, "h": 12.0, "l": 9.5,
+                              "c": 10.5, "v": 5000},
+                             {"t": _ts(2026, 11, 11, 9, 40), "o": 10.5, "h": 10.6, "l": 10.4,
+                              "c": 10.45, "v": 700}])
+    bars_fetch.cache.clear()
+    resp = bars_fetch._get_bars_since_response("SPY", "15", 30, str(_ts(2026, 11, 11, 9, 15)))
+    last = orjson.loads(resp.body)["bars"][-1]
+    assert last["t"] == _ts(2026, 11, 11, 9, 30)
+    assert last["h"] == 12.0 and last["c"] == 10.45
+    assert calls == []
+
+
+def test_a_tail_that_has_not_caught_up_with_the_live_5m_is_not_fresh(env):
+    """If the read-path rebuild was shed (a held write lock), the stale 15m must not be
+    called fresh just because the 5m is: the normal repair runs instead."""
+    sq, _, _, live = env
+    _seed(sq, live)
+    stale = sq.get_last_ts("SPY", "15")
+    assert stale < _DAY0
+    assert bars_fetch._needs_fresh(stale, "15", "SPY") is True
+    _read("15")
+    caught_up = sq.get_last_ts("SPY", "15")
+    assert bars_fetch._needs_fresh(caught_up, "15", "SPY") is False
+
+
 def test_the_derived_series_carries_the_streams_proof(env):
     sq, _, _, live = env
     _seed(sq, live)
@@ -320,6 +351,19 @@ def test_a_thinner_live_derivation_never_downgrades_a_stored_bucket(env):
     assert d is None or all(x["t"] != b for x in d["rows"])
     assert {x["t"]: x for x in _today(sq, "15")}[b]["v"] == 10 ** 9
     assert sq.get_last_ts("SPY", "15") == last
+
+
+def test_a_read_with_nothing_to_rebuild_starts_no_writer_thread(env, monkeypatch):
+    sq, _, _, live = env
+    _seed(sq, live)
+    _read("60")                                              # 15m and 60m caught up
+    jobs = []
+    real = bars_fetch._bounded_job
+    monkeypatch.setattr(bars_fetch, "_bounded_job", lambda key, *a, **k: (jobs.append(key), real(key, *a, **k))[1])
+    for tf in ("15", "60"):
+        bars_fetch.cache.clear()
+        _read(tf)
+    assert not [k for k in jobs if k.startswith("lderive_live_")], jobs
 
 
 def test_an_unchanged_tail_is_not_rewritten(env, monkeypatch):

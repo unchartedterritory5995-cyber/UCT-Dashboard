@@ -1179,6 +1179,16 @@ def _live_derive_on_read(ticker_up: str, tf: str) -> None:
         return
     if not last:
         return                            # nothing stored: the cold path fetches depth
+    # Steady state (between stream pushes, or a tail already rebuilt by another read):
+    # the stored tail IS the derivation, which two read-only checks show on this thread
+    # — no writer thread is started for a read that has nothing to write.
+    try:
+        l15 = last if tf == _DERIVED_BASE_TF else _sqlite.get_last_ts(ticker_up, _DERIVED_BASE_TF)
+        if (l15 and _local_derived_tail(ticker_up, _DERIVED_BASE_TF, int(l15)) is None
+                and (tf == _DERIVED_BASE_TF or _local_derived_tail(ticker_up, tf, int(last)) is None)):
+            return
+    except Exception:                      # noqa: BLE001 — unknown: let the job decide
+        pass
     _bounded_job(f"lderive_live_{ticker_up}_{tf}",
                  lambda: _local_tail_repair(ticker_up, tf, int(last)),
                  _LOCAL_DERIVE_DEADLINE_SECONDS)
