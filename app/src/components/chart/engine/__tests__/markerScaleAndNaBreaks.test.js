@@ -168,13 +168,14 @@ describe('row 41 — an event glyph in a pane does not move the pane\'s scale (r
 // AUTHORED (house / member) definitions only. The SAME document, once with its Pine stamps and
 // once without, is the pair: only the stamps differ.
 describe('ruling on #1550 — Pine absolute bool keeps its y; authored inBar yes/no rides the host', () => {
-  const PINE_ABS = '//@version=5
-indicator("x")
-r = close / 1000
-plot(r, "r")
-'
-    + 'plotshape(close > open, "f", shape.circle, location.absolute)
-'
+  const PINE_ABS = [
+    '//@version=5',
+    'indicator("x")',
+    'r = close / 1000',
+    'plot(r, "r")',
+    'plotshape(close > open, "f", shape.circle, location.absolute)',
+    '',
+  ].join(String.fromCharCode(10))
   const pineDoc = () => {
     const r = memberPaneDefinition({ id: 'u_pine_abs_bool', name: 'x', source: PINE_ABS })
     expect(r.ok, r.reason).toBe(true)
@@ -196,7 +197,7 @@ plot(r, "r")
     expect(got.range.to).toBeGreaterThanOrEqual(1)
   })
 
-  it('⭐ authored inBar yes/no rides the host: the same document without its Pine stamps leaves the range in the line's band', () => {
+  it('⭐ authored inBar yes/no rides the host: the same document without its Pine stamps leaves the range in the band of the line', () => {
     const def = pineDoc()
     const k = keysOf(def)
     const authored = { ...def, meta: { ...(def.meta || {}) } }
