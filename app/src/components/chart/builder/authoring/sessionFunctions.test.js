@@ -99,7 +99,7 @@ describe('…and what is drawn is the reader\'s own number', () => {
     expect(out.outputs).toBeNull()
     expect(out.refusal.code).toBe('opening-range:bars-longer')
     expect(out.refusal.message).toMatch(/longer than the opening range this indicator asks for/)
-    expect(out.refusal.message).toMatch(/A shorter chart timeframe shows it/)
+    expect(out.refusal.message).toMatch(/What would settle it here: a chart timeframe whose bars are no longer than the range/)
     expect(out.refusal.message).not.toMatch(/periodseconds|openingRangeHigh|NaN/)
     // exactly the three lines that read the range are named; the session's own two are not
     expect(Object.keys(out.refusal.plots).sort()).toEqual(['breakout', 'orHigh', 'orLow'])

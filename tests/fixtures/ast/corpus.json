@@ -3041,13 +3041,15 @@
       "id": "opening_range_high_30",
       "source": "openingRangeHigh(30)",
       "why": "(2026-11-17) THE REGULAR SESSION'S OWN VALUES, MEASURED ACROSS THE LANES. One forward pass in each (`indicators.js::computeSessionRegular`, `indicator_compute.compute_session_regular_raw`) over the clock's `regularfirst` / `regularhours` and nothing else. These 579 five-minute bars hold three extended-hours sessions (04:00 to 20:00 New York), a weekend and the end of daylight saving, so the digest carries what a bar outside regular hours reads (the last regular session's value), the blank before the first regular open, and a 09:30 that sits at a different UTC hour on the third day. `openingRangeHigh(30)` is the same running high over the six bars that open before 10:00, frozen after. On a chart whose bars are longer than the range, or do not divide it, both lanes answer nothing and name why (`opening-range:bars-longer` / `opening-range:bars-do-not-divide`).",
-      "ast": {"type": "call", "name": "openingRangeHigh", "args": [{"type": "num", "value": 30}]}
+      "ast": {"type": "call", "name": "openingRangeHigh", "args": [{"type": "num", "value": 30}]},
+      "opts": {"tf": "5"}
     },
     {
       "id": "opening_range_low_30",
       "source": "openingRangeLow(30)",
       "why": "(2026-11-17) THE REGULAR SESSION'S OWN VALUES, MEASURED ACROSS THE LANES. One forward pass in each (`indicators.js::computeSessionRegular`, `indicator_compute.compute_session_regular_raw`) over the clock's `regularfirst` / `regularhours` and nothing else. These 579 five-minute bars hold three extended-hours sessions (04:00 to 20:00 New York), a weekend and the end of daylight saving, so the digest carries what a bar outside regular hours reads (the last regular session's value), the blank before the first regular open, and a 09:30 that sits at a different UTC hour on the third day. `openingRangeLow(30)`: the first thirty minutes' low, frozen after.",
-      "ast": {"type": "call", "name": "openingRangeLow", "args": [{"type": "num", "value": 30}]}
+      "ast": {"type": "call", "name": "openingRangeLow", "args": [{"type": "num", "value": 30}]},
+      "opts": {"tf": "5"}
     },
     {
       "id": "avwap_from_a_mid_series_instant",

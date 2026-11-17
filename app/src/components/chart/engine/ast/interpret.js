@@ -6013,12 +6013,13 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
   [OPENING_RANGE_BARS_LONGER]: (tf) => 'An opening range is the high or low of the first minutes of the '
     + `regular session, so it is read on bars no longer than the range itself. This chart's bars (${tfSpelled(tf)}) `
     + 'are longer than the opening range this indicator asks for, so what it draws from it is withheld on this '
-    + 'chart rather than answered with a whole bar\'s high or low. A shorter chart timeframe shows it.',
+    + 'chart rather than answered with a whole bar\'s high or low. What would settle it here: a chart '
+    + 'timeframe whose bars are no longer than the range (a shorter one).',
   [OPENING_RANGE_BARS_DO_NOT_DIVIDE]: (tf) => 'An opening range is the high or low of the first minutes of the '
     + `regular session, read from whole bars. This chart's bars (${tfSpelled(tf)}) do not divide the opening `
     + 'range this indicator asks for evenly (a 45-minute range on 30-minute bars), so what it draws from it is '
-    + 'withheld on this chart rather than rounded to a longer or shorter range. A chart timeframe that divides '
-    + 'the range shows it.',
+    + 'withheld on this chart rather than rounded to a longer or shorter range. What would settle it here: '
+    + 'a chart timeframe that divides the range into whole bars.',
   // ⭐⭐ ENGINE 56 (S4-2) — a tie in a `highestbars` / `lowestbars` window over a computed source.
   [TIE_UNWITNESSED]: () => 'When two bars of a `highestbars` / `lowestbars` window hold the same extreme, '
     + 'TradingView names the NEWEST of them, over any source and at every Pine version measured (v4, v5 and '
