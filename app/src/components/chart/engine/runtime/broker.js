@@ -642,8 +642,9 @@ export function makeBroker(cfg, data) {
    * ⛔ ONLY THAT SHAPE IS SERVED (`marginCallUnwitnessed`): one open SHORT trade at margin_short 100, no
    * commission, no slippage, the default fill timing, no risk command, no exit bound to the trade, a whole-unit
    * symbol at point value 1. Anything else past the funds still stops by name at the margin check (Q-S1i), as do:
-   * a cover that truncates to 0, a size above the trade, a tick that is an exact half-tick, a size that differs
-   * between the tick's price and its rounded fill, and an order filling on the same tick as a due margin call.
+   * a cover that truncates to 0, a tick that is an exact half-tick, a size that differs between the tick's price and
+   * its rounded fill, and an order filling on the same tick as a due margin call. A size ABOVE the trade closes the
+   * whole trade ([B-MARGIN-CALL-ALL], w9-q-s1b-defaults-v6, 2026-11-17).
    */
   const MARGIN_CALL_COMMENT = 'Margin call'
   /** why the open position is NOT the shape w9-q-s1i-short-v6 witnesses; null when it is */
@@ -714,22 +715,25 @@ export function makeBroker(cfg, data) {
       throw new BrokerRefusal(`a margin call is due at ${px}, exactly half a tick off the grid of ${mintick}, and which way `
         + 'TradingView rounds a margin call\'s fill there is not witnessed', 'Q-S1i')
     }
-    if (atPx.whole || atPx.units === 0 || atPx.units > t.qty) {
+    if (atPx.whole || atPx.units === 0) {
       throw new BrokerRefusal(atPx.units === 0 ? `a margin call is due at ${px} and the loss covers less than one unit, so `
         + 'the manual\'s size is 0, and what TradingView does then is not witnessed'
-        : atPx.whole ? `a margin call's Loss / Current Price at ${px} sits on a whole number, where its truncation turns on `
-          + 'floating-point rounding'
-          : `a margin call at ${px} would liquidate ${atPx.units} units of a trade of ${t.qty}, and whether TradingView then `
-            + 'closes the whole trade is not witnessed', 'Q-S1i')
+        : `a margin call's Loss / Current Price at ${px} sits on a whole number, where its truncation turns on `
+          + 'floating-point rounding', 'Q-S1i')
     }
     rule('B-MARGIN-CALL')
-    const row = logRow({ kind: 'margin_call', id: null, side: 'buy', qty: atPx.units, qtyPercent: null, type: 'market',
+    // ⭐⭐ [B-MARGIN-CALL-ALL] (2026-11-17) a size above the trade closes the WHOLE trade. Witnessed by
+    // w9-q-s1b-defaults-v6, bar 154: the manual's size at its open 104.90 is 1,540 of a short of 1,306, and TradingView
+    // lists one margin call of 1,306 at 104.90 (the trade's remainder), nothing more.
+    let units = atPx.units
+    if (units > t.qty) { rule('B-MARGIN-CALL-ALL'); units = t.qty }
+    const row = logRow({ kind: 'margin_call', id: null, side: 'buy', qty: units, qtyPercent: null, type: 'market',
       limit: null, stop: null, from: null, oca: null, comment: MARGIN_CALL_COMMENT, commentRecorded: true })
     const keep = fillRule
     fillRule = 'B-MARGIN-CALL'
     orderFees = 0
-    logFill(row, bar, fill, atPx.units)
-    closingWith(row, () => closePart(t, atPx.units, fill, bar, true))
+    logFill(row, bar, fill, units)
+    closingWith(row, () => closePart(t, units, fill, bar, true))
     fillRule = keep
     afterPositionChange()
   }
@@ -814,6 +818,16 @@ export function makeBroker(cfg, data) {
   }
   const fillEntry = (o, price0, bar, exact) => {
     orderFees = 0
+    // a same-side default size taken only at a fill: the pyramiding limit rejects the order without one ([B-PYR]);
+    // any other fill needs it, and which equity sizes it is not stated (Q-S1a)
+    if (o.lazySize && !(o.kind === 'entry' && allow === null && open.length >= maxEntries && open[0].dir === o.dir)) {
+      throw new BrokerRefusal(o.lazySize, 'Q-S1a')
+    }
+    // a reversal's size taken against trades that are no longer open the other way at its fill: not witnessed
+    if (finite(o.sizeEquity) && !(open.length && open.every((t) => t.dir !== o.dir))) {
+      throw new BrokerRefusal(`the entry \`${o.id}\` was sized as a reversal of the open trades, which are not open against it `
+        + 'at its fill, and what TradingView fills then is not witnessed', 'Q-S1a')
+    }
     if (o.kind === 'order') return fillOrder(o, price0, bar, exact)
     // ⭐⭐ W9-T8 [B-RISK-ALLOW] an entry the declared direction may forbid
     if (allow !== null) {
@@ -826,6 +840,21 @@ export function makeBroker(cfg, data) {
     // is known to fill (not at the pyramiding limit), so a dropped entry asks no cost rule.
     let price = price0
     if (open.length && open[0].dir !== o.dir) {
+      // ⭐⭐ Q-S1a [B-FUNDS-REVERSE] (2026-11-17) — a reversal sized as a percent of equity ([B-QTY-REVERSE]) whose NEW
+      // size x fill price exceeds the equity it was sized from (the signal close's) is REJECTED whole: nothing closes,
+      // nothing opens, not kept waiting. Witnessed by w9-q-s1b-defaults-v6: of its 25 reversals the 12 within that
+      // equity are TradingView's, the 13 past it are absent, and 3 of those (bars 52, 65, 632) WOULD fit the equity
+      // at the fill open (the open trade marked there): the check is against the sizing equity, not a re-mark.
+      if (finite(o.sizeEquity) && !costOn && !slipTicks) {
+        needSymbol()
+        if (o.qty * price0 * pointvalue > o.sizeEquity) {
+          rule('B-FUNDS-REVERSE')
+          rule('B-MARGIN')
+          if (defaulted.margin) rule('B-DEFAULTS')
+          endRow(o.row, 'rejected', 'funds')
+          return null
+        }
+      }
       // [B-REVERSE] an entry against the position closes it and opens the new size
       rule('B-REVERSE')
       price = entryFillPx(o, price0)
@@ -1145,7 +1174,15 @@ export function makeBroker(cfg, data) {
     const oneCommand = gaps.length > 0 && markets.length + cls.length === 0
       && gaps.every((g) => g.kind === 'exit' && g.x === gaps[0].x)
       && new Set(gaps.map((g) => g.t)).size === gaps.length
-    if (n > 1 && !oneCommand) {
+    // ⭐⭐ Q-S1d [B-ENTRY-ORDER] (2026-11-17) several MARKET `strategy.entry` orders and nothing else on one OPENING
+    // tick are taken in the order the script placed them, each against the position the one before it left; served
+    // only while every one before the last fills nothing. Witnessed by w9-q-s1b-defaults-v6 (`L2`, placed every fourth
+    // bar while long, beside `S` on a crossunder bar and `L1` on a crossover bar): bars 229 and 629, `L2` (placed
+    // first) rejected at the pyramiding limit, then `S` reverses the long (fills of 1,027 and 776); bars 65 and 585,
+    // both rejected; bar 641, `L1` and `L2` both rejected. Had `S` gone first, `L2` would have reversed it back.
+    const entryQueue = mode === 'open' && cls.length === 0 && gaps.length === 0 && markets.length > 1
+      && markets.every((m) => m.kind === 'entry' && m.type === 'market' && !m.immediate)
+    if (n > 1 && !oneCommand && !entryQueue) {
       const where = atClose ? 'closing tick' : mode === 'vertex' ? 'tick' : 'opening tick'
       throw new BrokerRefusal(`${n} orders fill on the same ${where}, and the order TradingView fills them in is not stated`, 'Q-S1d')
     }
@@ -1162,6 +1199,23 @@ export function makeBroker(cfg, data) {
         fillRule = 'B-FILLS'
       } else { fillRule = 'B-CLOSE'; rule('B-CLOSE'); rule('B-MARKET') }
       executeClose(cl, fpx, bar, true)
+    } else if (entryQueue) {
+      rule('B-ENTRY-ORDER')
+      fillRule = 'B-MARKET'
+      rule(fillRule)
+      let any = false
+      for (const [k, m] of markets.entries()) {
+        const before = open.length + closed.length
+        const made = fillEntry(m, fpx, bar, true)
+        if (!made && open.length + closed.length === before) continue
+        any = true
+        fresh = made || fresh
+        if (k < markets.length - 1) {
+          throw new BrokerRefusal(`the entry \`${m.id}\` filled on an opening tick where ${markets.length - 1 - k} later entr`
+            + `${markets.length - 1 - k === 1 ? 'y waits' : 'ies wait'}, and what TradingView does with them then is not witnessed`, 'Q-S1d')
+        }
+      }
+      return { filled: any, fresh }
     } else if (markets.length) {
       const m = markets[0]
       if (atClose) fillRule = m.immediate ? 'B-POC-PRICE' : 'B-POC'
@@ -1457,16 +1511,21 @@ export function makeBroker(cfg, data) {
     }
     let qty = qtyV
     // [B-QTY] na -> the declaration's default order size (W9-T4: fixed, cash or percent of equity)
-    if (!finite(qty)) qty = defaultSize(type === 'stoplimit' ? 'stop-limit' : type, id, bar)
-    if (!(qty > 0)) throw new BrokerRefusal(`${fn} with a quantity of ${qty}`, 'Q-S1a')
+    const sized = {}
+    if (!finite(qty)) qty = defaultSize(type === 'stoplimit' ? 'stop-limit' : type, id, bar, dir, kind, sized)
+    if (!sized.lazy && !(qty > 0)) throw new BrokerRefusal(`${fn} with a quantity of ${qty}`, 'Q-S1a')
     // [B-IMMEDIATE] a limit at a worse price than the market (or a stop at a better
     // one) fills on the next tick rather than waiting
     const immediate = type === 'limit' ? (dir > 0 ? level >= cl : level <= cl)
       : type === 'stop' ? (dir > 0 ? level <= cl : level >= cl) : false
     const oca = ocaOf(ocaN, ocaT, fn)
+    // a same-side size taken only at a fill (`defaultSize`) is never reduced by an OCA group: stopped now, as before
+    if (sized.lazy && oca) throw new BrokerRefusal(sized.lazy, 'Q-S1a')
     // `byDefault`: the size is the declaration's default order size ([B-QTY], `defaultSize`), read by [B-FUNDS]
+    // `lazySize`: the stop a same-side default size takes if the order fills; `sizeEquity`: the equity a reversal's
+    // size was taken from ([B-QTY-REVERSE], read by [B-FUNDS-REVERSE]), NaN otherwise
     const o = { id, kind, dir, qty, type, level, limit: type === 'stoplimit' ? limV : NaN, placedBar: bar, immediate, oca,
-      byDefault: !finite(qtyV) }
+      byDefault: !finite(qtyV), lazySize: sized.lazy || null, sizeEquity: finite(sized.sizeEquity) ? sized.sizeEquity : NaN }
     // [B-MODIFY] an unfilled order with the same id is modified, not duplicated
     const prev = entries.find((e) => e.id === id)
     if (prev) {
@@ -1924,13 +1983,16 @@ export function makeBroker(cfg, data) {
    *     `symbolScope.json::min_contract` row (W9-T4-F1), so elsewhere this refuses even once B-QTY is pinned.
    * Every case the hypothesis does not reach refuses by name (Q-S1a): a price (limit / stop) order,
    * whose sizing price could be its level or the signal close; a percent order placed while trades are
-   * open ("available" equity may exclude what they hold); a percent value above 100; a size below one
-   * whole unit.
+   * open ("available" equity may exclude what they hold) EXCEPT the reversal at the v6 default ([B-QTY-REVERSE])
+   * and a same-side order the pyramiding limit rejects (sized only if it fills); a percent value above 100; a size
+   * below one whole unit.
    */
   /** the declared-or-defaulted `default_qty_type` ('fixed' / 'cash' / 'percent_of_equity', or null): ONE reading,
    *  shared by `defaultSize` and [B-FUNDS] */
   const defaultQtyType = () => (cfg.qtyType === undefined ? (finite(cfg.defaultQty) ? 'fixed' : null) : cfg.qtyType)
-  const defaultSize = (type, id, bar) => {
+  /** `dir` / `kind`: the order's (W9-T4 r2026-11-17, the reversal); `out` (optional): receives `sizeEquity` (the
+   *  equity a reversal was sized from, [B-FUNDS-REVERSE]) or `lazy` (a same-side size taken only at a fill). */
+  const defaultSize = (type, id, bar, dir, kind, out) => {
     const qtyType = defaultQtyType()
     if (qtyType === 'fixed') {
       if (!finite(cfg.defaultQty)) {
@@ -1986,10 +2048,29 @@ export function makeBroker(cfg, data) {
         throw new BrokerRefusal(`a percent-of-equity default size of ${v} (more than 100) is not served`, 'Q-S1a')
       }
       if (open.length) {
-        throw new BrokerRefusal(`the entry \`${id}\` takes a percent-of-equity default size while trades are open, `
-          + 'and whether "available equity" excludes what they hold is not stated', 'Q-S1a')
-      }
-      money = equityAt(bar, '`strategy.entry` sized as a percent of equity') * v / 100
+        const unstated = `the entry \`${id}\` takes a percent-of-equity default size while trades are open, `
+          + 'and whether "available equity" excludes what they hold is not stated'
+        const sameSide = open.every((t) => t.dir === dir)
+        // ⭐⭐ Q-S1a [B-QTY-REVERSE] (2026-11-17) — a REVERSAL: a market `strategy.entry` against every open trade, at
+        // the v6 default (percent 100, margins 100), no risk command. Witnessed by w9-q-s1b-defaults-v6 (NYSE:RDDT 1D,
+        // report ok): each of its 12 reversals fills the open size PLUS floor(strategy.equity at the signal close,
+        // the open trade's profit INCLUDED, / that close) (bar 84: 2,160 closed + floor(148,945.60 / 68.13) = 2,186
+        // new = TradingView's fill of 4,346). The equity it was sized from rides on the order ([B-FUNDS-REVERSE]).
+        if (!sameSide && open.every((t) => t.dir !== dir) && kind === 'entry' && type === 'market' && v === 100
+          && cfg.marginLong === 100 && cfg.marginShort === 100 && allow === null) {
+          rule('B-QTY-REVERSE')
+          const eq = equityAt(bar, '`strategy.entry` sized as a percent of equity')
+          if (out) out.sizeEquity = eq
+          money = eq * v / 100
+        } else if (sameSide && kind === 'entry' && type === 'market' && out) {
+          // ⭐ (2026-11-17) the SAME side: the size is taken only if the order fills. At the pyramiding limit it does
+          // not ([B-PYR]: rejected at its fill without a size), which is what w9-q-s1b-defaults-v6 witnesses for its
+          // `L2` (placed every fourth bar while long, never filled). An order of this kind that WOULD fill stops there
+          // by name, with this sentence (`fillEntry`): which equity sizes it is still not stated (Q-S1a).
+          out.lazy = unstated
+          return NaN
+        } else throw new BrokerRefusal(unstated, 'Q-S1a')
+      } else money = equityAt(bar, '`strategy.entry` sized as a percent of equity') * v / 100
     }
     // a hair of tolerance so 10000 / 100 does not floor to 99 through binary rounding
     const units = Math.floor(money / (px * pointvalue) + 1e-9)

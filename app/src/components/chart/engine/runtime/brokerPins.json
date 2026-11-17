@@ -57,6 +57,10 @@
    "w9-x4-order-rddt-1d-2026-11-15",
    "w9-x5-cancel-rddt-1d-2026-11-15"
   ],
+  "B-ENTRY-ORDER": [
+   "w9-q-s1b-defaults-v5-rddt-1d-2026-11-15",
+   "w9-q-s1b-defaults-v6-rddt-1d-2026-11-15"
+  ],
   "B-EXIT-BIND": [
    "w9-q-s1e-live-past-rddt-1d-2026-11-15",
    "w9-q-s1k-exit-levels-rddt-1d-2026-11-15",
@@ -103,7 +107,11 @@
   "B-FUNDS": [
    "w9-q-s1a-size-v6-rddt-1d-2026-11-15"
   ],
+  "B-FUNDS-REVERSE": [
+   "w9-q-s1b-defaults-v6-rddt-1d-2026-11-15"
+  ],
   "B-FUNDS-SHORT": [
+   "w9-q-s1b-defaults-v6-rddt-1d-2026-11-15",
    "w9-q-s1i-short-v6-rddt-1d-2026-11-16"
   ],
   "B-GAP": [
@@ -129,7 +137,11 @@
    "w9-x5-cancel-rddt-1d-2026-11-15"
   ],
   "B-MARGIN-CALL": [
+   "w9-q-s1b-defaults-v6-rddt-1d-2026-11-15",
    "w9-q-s1i-short-v6-rddt-1d-2026-11-16"
+  ],
+  "B-MARGIN-CALL-ALL": [
+   "w9-q-s1b-defaults-v6-rddt-1d-2026-11-15"
   ],
   "B-MARKET": [
    "w9-k1-commission-pct-rddt-1d-2026-11-15",
@@ -161,6 +173,11 @@
    "w9-x3-oca-rddt-1d-2026-11-15",
    "w9-x5-cancel-rddt-1d-2026-11-15"
   ],
+  "B-PYR": [
+   "w9-d11-late-first-use-rpt-rddt-1d-2026-11-16",
+   "w9-q-s1b-defaults-v5-rddt-1d-2026-11-15",
+   "w9-q-s1b-defaults-v6-rddt-1d-2026-11-15"
+  ],
   "B-QTY": [
    "w9-k1-commission-pct-rddt-1d-2026-11-15",
    "w9-k2-commission-contract-rddt-1d-2026-11-15",
@@ -175,6 +192,9 @@
    "w9-r1-risk-ddown-rddt-1d-2026-11-15",
    "w9-x3-oca-rddt-1d-2026-11-15",
    "w9-x5-cancel-rddt-1d-2026-11-15"
+  ],
+  "B-QTY-REVERSE": [
+   "w9-q-s1b-defaults-v6-rddt-1d-2026-11-15"
   ],
   "B-REVERSE": [
    "w9-r1-risk-ddown-rddt-1d-2026-11-15"

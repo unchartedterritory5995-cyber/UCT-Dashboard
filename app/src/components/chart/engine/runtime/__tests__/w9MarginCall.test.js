@@ -115,7 +115,21 @@ describe('[B-MARGIN-CALL] what the capture does not witness still stops by name 
       [125, 126, 124.5, 125], FLAT, FLAT])
     stops(SHORT(), bars, /same tick as an order's fill/)
   })
-  it('a size above the trade (an open of 140: Cover TRUNCATE(-33,564 / 140) = -239, 956 of 732)', () => {
-    stops(SHORT(), SPIKE(103, [[140, 141, 139.5, 140]]), /would liquidate 956 units of a trade of 732/)
+})
+
+describe('[B-MARGIN-CALL-ALL] a size above the trade closes the whole trade (w9-q-s1b-defaults-v6, bar 154)', () => {
+  // ⚰️ this stopped by name (Q-S1i) until w9-q-s1b-defaults-v6 was read (2026-11-17): its bar 154 sizes 1,540 of a
+  // short of 1,306 at the open 104.90 and TradingView closes the 1,306
+  it('an open of 140: Cover TRUNCATE(-33,564 / 140) = -239, size 956 of a trade of 732: all 732 bought back at 140', () => {
+    const { err, rec, cols } = run(SHORT(), SPIKE(103, [[140, 141, 139.5, 140]]))
+    expect(err, err && err.message).toBeUndefined()
+    expect(cols[0][5]).toBe(0)
+    expect(rec.orders.filter((o) => o.kind === 'margin_call').map((o) => [o.fillPrice, o.fillQty])).toEqual([[103, 268], [140, 732]])
+    expect(rec.rulesUsed).toEqual(expect.arrayContaining(['B-MARGIN-CALL', 'B-MARGIN-CALL-ALL']))
+  })
+  it('a call within the trade never asks it; unpinned, the capped call stops by name', () => {
+    expect(run(SHORT(), SPIKE(103)).rec.rulesUsed).not.toContain('B-MARGIN-CALL-ALL')
+    const { err } = run(SHORT(), SPIKE(103, [[140, 141, 139.5, 140]]), { pins: (id) => id !== 'B-MARGIN-CALL-ALL' })
+    expect(err && err.rule).toBe('B-MARGIN-CALL-ALL')
   })
 })

@@ -58,7 +58,7 @@ it stop), or a `runtime:strategy-option` / `runtime:strategy-value` refusal at b
 | Q-S1a | default size other than a stated fixed one: v4 `default_qty_value` unstated; v6 / explicit `strategy.percent_of_equity`, `strategy.cash` (which price sizes it, what rounding) | the references state no value / no formula |
 | Q-S1b | the per-version defaults of B-DEFAULTS on the chart (v5's 1,000,000 vs v4/v6's 100,000; v5 margin 0) | reference only, never witnessed |
 | Q-S1c | a bar whose open is exactly half-way between high and low, with a price order in range | M names "closer to the high" / "closer to the low" only |
-| Q-S1d | two or more orders filling on one tick (a close and an entry placed on one bar; two price orders at one level) | the fill order is not stated |
+| Q-S1d | two or more orders filling on one tick (a close and an entry placed on one bar; two price orders at one level) | the fill order is not stated; market entries alone on one opening tick are answered (B-ENTRY-ORDER, 2026-11-17) while every one before the last fills nothing |
 | Q-S1e | an exit that becomes live already past its level; an immediate order whose next open moved back | "next available tick" for a price already past is not stated |
 | Q-S1f | does a reversal end an exit with no `from_entry` ("until the position closes")? | not stated |
 | Q-S1g | a price entry triggered at the pyramiding limit: cancelled or kept? | not stated |
@@ -104,6 +104,10 @@ Every rule above serves only when `pinned(rule)` is true, asked when a run REACH
 | B-MARGIN | Q-S1i | the margin check (a margin call is served only on the shape B-MARGIN-CALL names) |
 | B-FUNDS-SHORT | Q-S1i | (2026-11-17) a flat short market entry at the v6 default size and margin 100 the funds cannot carry at its fill is rejected (w9-q-s1i-short-v6) |
 | B-MARGIN-CALL | Q-S1i | (2026-11-17) TradingView's margin call on one open short trade at margin 100: User Manual "Margin and leverage" size (TRUNCATE(Available Funds / Margin Ratio / price) x 4) on each tick of the path, filled at the tick rounded to the nearest tick; exit id `Close position order`, comment `Margin call` (w9-q-s1i-short-v6) |
+| B-QTY-REVERSE | Q-S1a | (2026-11-17) a reversal (market strategy.entry against every open trade) at the percent default 100, margins 100: new size floor(equity at the signal close, open profit included, / close); fills the open size plus it (w9-q-s1b-defaults-v6) |
+| B-FUNDS-REVERSE | Q-S1i | (2026-11-17) such a reversal whose new size x fill price exceeds the equity it was sized from is rejected whole (w9-q-s1b-defaults-v6) |
+| B-MARGIN-CALL-ALL | Q-S1i | (2026-11-17) a margin call whose size exceeds the trade closes the whole trade (w9-q-s1b-defaults-v6, bar 154) |
+| B-ENTRY-ORDER | Q-S1d | (2026-11-17) several market strategy.entry orders on one opening tick are taken in placement order, served while every one before the last fills nothing (w9-q-s1b-defaults-v5 / -v6) |
 | B-SIG | Q-S1-core | positional order arguments follow the Pine version's signature |
 | B-WHEN | Q-S1p | the `when` argument (v4, and v5) |
 | B-DIR | Q-S1-core | strategy.long / strategy.short (v4 `long`) as directions |

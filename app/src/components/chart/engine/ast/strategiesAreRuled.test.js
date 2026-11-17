@@ -176,9 +176,11 @@ describe('D7: the strategy-backtest scorecard wording', () => {
   it('states the pinned count from the ledger, the refusal by name, and that it is not served', () => {
     // 32 since 2026-11-16: B-FUNDS (Q-S1i), pinned by w9-q-s1a-size-v6 grading MATCH
     // 34 since 2026-11-17: B-FUNDS-SHORT and B-MARGIN-CALL (Q-S1i), pinned by w9-q-s1i-short-v6 grading MATCH
-    expect(pinnedBrokerRules()).toHaveLength(34)
+    // 39 since 2026-11-17 (the reversal slice): B-QTY-REVERSE, B-FUNDS-REVERSE, B-MARGIN-CALL-ALL, B-ENTRY-ORDER and
+    // B-PYR, pinned by w9-q-s1b-defaults-v6 grading MATCH (B-PYR with w9-d11-late-first-use-rpt too)
+    expect(pinnedBrokerRules()).toHaveLength(39)
     expect(strategyScorecardWording()).toBe(
-      `34 of ${BROKER_RULE_IDS.length} broker rules are pinned, each verified against a TradingView capture. `
+      `39 of ${BROKER_RULE_IDS.length} broker rules are pinned, each verified against a TradingView capture. `
       + 'A backtest that reaches an unpinned rule stops and refuses by name (runtime:strategy-unpinned). '
       + 'Strategy backtests are not served to members yet.')
     // ⭐ THE ONE PLACE THE VOCABULARY'S SIZE IS PINNED (dated 2026-11-08): 22 S1/T1 rules + 6 W9-T6
@@ -205,7 +207,10 @@ describe('D7: the strategy-backtest scorecard wording', () => {
     // + 2 (dated 2026-11-17, Q-S1i's short answered): B-FUNDS-SHORT (the short twin of B-FUNDS) and B-MARGIN-CALL
     // (TradingView's margin call on one short trade at margin 100), both witnessed by the committed report capture
     // w9-q-s1i-short-v6 (9 entries taken, 11 absent; 13 margin calls, share for share).
-    expect(BROKER_RULE_IDS.length).toBe(54)
+    // + 4 (dated 2026-11-17, the reversal at the v6 default answered): B-QTY-REVERSE (the reversal's size), B-FUNDS-REVERSE
+    // (rejected past the equity it was sized from), B-MARGIN-CALL-ALL (a margin call above the trade closes it all),
+    // B-ENTRY-ORDER (market entries on one opening tick in the order placed), witnessed by w9-q-s1b-defaults-v6.
+    expect(BROKER_RULE_IDS.length).toBe(58)
   })
 
   it('counts a pin only when the ledger holds it, and only for a rule the broker names', () => {

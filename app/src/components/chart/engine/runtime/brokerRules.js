@@ -107,6 +107,11 @@ export const BROKER_RULES = Object.freeze({
   // ── 2026-11-17, Q-S1i's SHORT answered by a committed report capture (w9-q-s1i-short-v6). APPENDED, never inserted.
   'B-FUNDS-SHORT': Object.freeze({ capture: 'Q-S1i', what: 'with no position open, a short market strategy.entry sized by the percent-of-equity default at 100, at a short margin of 100%, that would need more than the equity at its fill price is rejected: no trade, no smaller size, not kept waiting' }),
   'B-MARGIN-CALL': Object.freeze({ capture: 'Q-S1i', what: 'one open short trade at a short margin of 100% whose Available Funds fall below zero on a tick of the bar (its open after the open\'s fills, then each path vertex) is margin-called there: the User Manual\'s size (TRUNCATE(Available Funds / Margin Ratio / price) x 4) is bought back at that tick rounded to the nearest tick, closing part of the trade; its exit id reads "Close position order" and its exit comment "Margin call"' }),
+  // ── 2026-11-17, the reversal at the v6 default answered by a committed report capture (w9-q-s1b-defaults-v6). APPENDED.
+  'B-QTY-REVERSE': Object.freeze({ capture: 'Q-S1a', what: 'a market strategy.entry against every open trade (a reversal) at the percent-of-equity default 100, margins 100: the new size is floor(strategy.equity at the signal close, the open trades\' profit included, / that close); the order fills the open size plus it' }),
+  'B-FUNDS-REVERSE': Object.freeze({ capture: 'Q-S1i', what: 'such a reversal whose new size x fill price exceeds the equity it was sized from (the signal close\'s) is rejected whole: nothing closes, nothing opens, not kept waiting' }),
+  'B-MARGIN-CALL-ALL': Object.freeze({ capture: 'Q-S1i', what: 'a margin call whose manual size exceeds the trade closes the whole trade' }),
+  'B-ENTRY-ORDER': Object.freeze({ capture: 'Q-S1d', what: 'several market strategy.entry orders (and nothing else) on one opening tick are taken in the order the script placed them, each against the position the one before left; served while every one before the last fills nothing' }),
 })
 
 export const BROKER_RULE_IDS = Object.freeze(Object.keys(BROKER_RULES))
