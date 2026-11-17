@@ -696,19 +696,64 @@ jobs:
       - name: Every listed file ran
         run: python3 tools/ci_whole_app_rails.py --ran whole-app-report.json
 
+  # ── BARS RAILS (2026-11-17) ──────────────────────────────────────────────────────
+  # Bars are the CRITICAL path (CLAUDE.md "Bars Freshness & Reliability Architecture"), and
+  # tests/test_bar_contract.py sat red on master unseen: it went red on a DATE (a wall-clock read
+  # behind a pinned seam) and no gate ran it. Its OWN job, in parallel with every other job (no
+  # `needs:`), named in `verdict.needs`. The file list is tools/bars_gate_rails.py's: every
+  # tests/test_bars_*.py and tests/test_bar_*.py, plus the named bars rails, minus the exclusions it
+  # names with their reasons. Installed as `remote-tests.yml` installs ("green on a clean runner").
+  # ⛔ NEVER SKIPPED: no conditional, no optional-failure flag, no path filter. An empty list fails
+  # (pytest with no paths would run the whole tests/ tree). tests/test_bars_deploy_gate.py rails all
+  # of this, and the list includes it.
+  bars-rails:
+    name: Bars rails (the critical path)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install the bars rails' dependencies
+        run: |
+          sudo mkdir -p /data && sudo chown "$(id -u):$(id -g)" /data
+          python -m pip install --quiet -r requirements.txt
+          (cd app && npm ci --no-audit --no-fund)
+
+      - name: Bars rails (tools/bars_gate_rails.py)
+        run: |
+          set -euo pipefail
+          files="$(python tools/bars_gate_rails.py)"
+          test -n "$files"
+          echo "bars rails: $(echo "$files" | wc -w) files"
+          python -m pytest $files -q -p no:cacheprovider
+
   # One named verdict for the whole gate. Runs even when a dependency failed or was
   # cancelled, and passes ONLY if every job above succeeded.
   verdict:
     name: master deploy gate verdict
-    needs: [gate, agent-browser, agent-browser-union, pine-runtime, whole-app-engine-rails]
+    needs: [gate, agent-browser, agent-browser-union, pine-runtime, whole-app-engine-rails, bars-rails]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Every gate job succeeded
         run: |
-          echo "gate=${{ needs.gate.result }} agent-browser=${{ needs.agent-browser.result }} union=${{ needs.agent-browser-union.result }} pine-runtime=${{ needs.pine-runtime.result }} whole-app-engine-rails=${{ needs.whole-app-engine-rails.result }}"
-          if [ "${{ needs.gate.result }}" = success ] && [ "${{ needs.agent-browser.result }}" = success ] && [ "${{ needs.agent-browser-union.result }}" = success ] && [ "${{ needs.pine-runtime.result }}" = success ] && [ "${{ needs.whole-app-engine-rails.result }}" = success ]; then
+          echo "gate=${{ needs.gate.result }} agent-browser=${{ needs.agent-browser.result }} union=${{ needs.agent-browser-union.result }} pine-runtime=${{ needs.pine-runtime.result }} whole-app-engine-rails=${{ needs.whole-app-engine-rails.result }} bars-rails=${{ needs.bars-rails.result }}"
+          if [ "${{ needs.gate.result }}" = success ] && [ "${{ needs.agent-browser.result }}" = success ] && [ "${{ needs.agent-browser-union.result }}" = success ] && [ "${{ needs.pine-runtime.result }}" = success ] && [ "${{ needs.whole-app-engine-rails.result }}" = success ] && [ "${{ needs.bars-rails.result }}" = success ]; then
             echo "master deploy gate: ALL JOBS GREEN"; exit 0
           fi
           exit 1
@@ -739,3 +784,4 @@ jobs:
           echo "  python -m pytest tests/test_uct_agent*.py -q"
           echo "  (cd app && npm ci && npx vitest run $AGENT_VITEST_PATHS)  # CI runs this as 10 runtime-balanced shards + an equivalence rail"
           echo "  (cd app && npx vitest run \$(python ../tools/ci_whole_app_rails.py --print-list))  # the engine's whole-app rails"
+          echo "  python -m pytest $(python tools/bars_gate_rails.py) -q -p no:cacheprovider   # the bars-rails job (remote: python tools/remote_tests.py --pytest $(python tools/bars_gate_rails.py))"

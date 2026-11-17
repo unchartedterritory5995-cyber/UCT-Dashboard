@@ -27,7 +27,7 @@ export function LayoutThumb({ widgets }) {
 }
 
 const STATUS = { pending: 'Waiting for review', approved: 'Shared', declined: 'Not approved' }
-const usedLine = n => (n === 1 ? 'used once' : `used ${n} times`)
+const usedLine = n => (n === 0 ? 'not used yet' : n === 1 ? 'used once' : `used ${n} times`)
 
 function Card({ item, children, sub }) {
   return (
@@ -67,6 +67,15 @@ export default function CommunityLayouts({ board, api, isAdmin = false, reloadKe
     box.current?.querySelector('button')?.focus()
     return () => { if (opener && opener.isConnected) opener.focus?.() }
   }, [])
+  // Found on the live site: after "Stop sharing" the button that held the focus is gone, the
+  // focus falls to the page behind, and Escape and Tab no longer reach this window. After every
+  // render, a focus that was lost (or sits on a button that just became disabled) comes back to
+  // the window itself. A focus that is somewhere real (the name box on top of it) is left alone.
+  useEffect(() => {
+    const el = document.activeElement
+    const lost = !el || el === document.body || (box.current?.contains(el) && el.disabled)
+    if (lost) box.current?.focus()
+  })
   const onKeyDown = e => {
     if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onClose(); return }
     if (e.key !== 'Tab') return
@@ -101,7 +110,7 @@ export default function CommunityLayouts({ board, api, isAdmin = false, reloadKe
   const others = items.filter(i => !i.mine)
   return (
     <div className={focus.dialogScrim} onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div ref={box} role="dialog" aria-modal="true" aria-labelledby={titleId} className={s.cmWindow} onKeyDown={onKeyDown} data-testid="community-layouts">
+      <div ref={box} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} className={s.cmWindow} onKeyDown={onKeyDown} data-testid="community-layouts">
         <div className={s.cmHead}>
           <div>
             <h2 id={titleId} className={focus.dialogTitle}>Community layouts</h2>

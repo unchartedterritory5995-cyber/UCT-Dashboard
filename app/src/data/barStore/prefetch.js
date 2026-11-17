@@ -671,6 +671,8 @@ export function createPrefetch(o = {}) {
       intentTimers.delete(key)
       tellSymbolWarmers([sym], tf, { priority: true })
       if (!held) prefetch([key], { priority: 'urgent' })
+      // the pointer rests on the row: its deep history from now too (a no-op off the lake)
+      try { S().primeLake?.(key) } catch { /* a warm only */ }
     }, delay))
     if (!held) tickerMeta(sym)
   }
@@ -711,6 +713,8 @@ export function createPrefetch(o = {}) {
       const s0 = (await _raced(_hydrate(key), INTENT_HYDRATE_RACE_MS)) ?? S().peek(key)
       if (typed !== mine) return 'superseded'
       tellSymbolWarmers([T], tf, { priority: true })
+      // the deep history too, from now (historyFeed prime): by Enter its pieces are on their way
+      try { S().primeLake?.(key) } catch { /* a warm only */ }
       if (_localPaints(s0, fetchTf(String(tf)))) return 'cache'
       const s = await ensure(key, { until: DISPLAYABLE, priority: 'urgent', signal: ctl.signal, local: false, _s0: s0 || {} })
       if (ctl.signal.aborted && !mine.kept) return false

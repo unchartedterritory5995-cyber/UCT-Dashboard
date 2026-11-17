@@ -36,6 +36,7 @@ tests/test_uct_agent*.py                           agent-lead
 docs/agent/program/**                              agent-lead
 tools/agent_*                                      agent-lead
 tests/fixtures/agent_v2_*.json                     agent-lead
+tests/fixtures/agent_ci_evidence/**                agent-lead
 
 # ── A · Market Intelligence & Data (contract MD-1) ──
 api/services/uct_agent/marketdata/**                     agent-md

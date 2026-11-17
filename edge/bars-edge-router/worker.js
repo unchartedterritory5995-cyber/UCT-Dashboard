@@ -301,7 +301,7 @@ export async function classifyRequest(request, secret, nowSeconds) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     // Deep intraday history from R2 (history.js). A separate surface from /api/bars: entitlement
     // IS enforced there, and nothing below this line changes for any other path.
@@ -309,7 +309,7 @@ export default {
       return handleHistory(request, env, async (req) => {
         const cls = await classifyRequest(req, env && env.CHART_EDGE_SECRET);
         return cls === VALID || cls === SERVICE_VALID;
-      });
+      }, ctx);
     }
     const m = url.pathname.match(/^\/api\/bars(?:-history)?\/([^\/?#]+)/);
     if (!m) return fetch(request);

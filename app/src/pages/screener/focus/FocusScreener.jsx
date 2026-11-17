@@ -215,7 +215,7 @@ function FocusList({ mode, onMode, modeTabs = null }) {
     let alive = true
     listCommunity().then(out => { if (alive && out.ok) setReviewCount(toReview(out.data.queue)) })
     return () => { alive = false }
-  }, [watchReview])
+  }, [watchReview, community.reload]) // `reload`: the admin just shared one themselves
   const [newsEl, setNewsEl] = useState(null)
   const navigate = useNavigate()
   const { meta, error: metaError, retry: retryMeta } = useScreenerMeta()

@@ -233,10 +233,11 @@ def composed_schema() -> Dict[str, Any]:
         spec[2] for spec in call_expansions.CALL_EXPANSIONS.values())
         + ". Lengths are whole-number literals (supertrend's factor is any positive number). "
         "supertrend / supertrendDirection follow TradingView's published ta.supertrend "
-        "formula as bounded recurrences, shown after a ~400-bar warm-up; they carry a "
-        "disclosed difference (a band last reset long ago can differ from TradingView), "
-        "so never call them identical to TradingView. The others are exact closed forms "
-        "over the table.")
+        "formula and are shown after a ~400-bar warm-up; they carry a disclosed difference "
+        "(where the trend has not flipped for a long time the line can differ slightly from "
+        "TradingView), so never call them identical to TradingView. Tell the member that in "
+        "those plain words; never describe how it is computed. The others are exact closed "
+        "forms over the table.")
     # ⭐ SLICE 2 — THE MODEL MUST SAY WHAT ITS TURN IS. Optional in the shared
     # engine file (older envelopes and the engine's own tests carry none); required
     # of the model here, so mutation is never inferred from which fields happen to
@@ -561,7 +562,11 @@ CONVERSE_SYSTEM_PROMPT = (
     "  * Where it draws: a separate / own / new / lower pane, a sub-chart or \"below "
     "the chart\" is placement \"pane\"; on the price chart, an overlay or \"on the "
     "candles\" is placement \"price\". A ratio, percentage or difference that is not "
-    "in price units belongs in \"pane\" unless the member says otherwise.\n"
+    "in price units belongs in \"pane\" unless the member says otherwise. An indicator "
+    "draws in ONE place. When one request names outputs on two different scales (an "
+    "oscillator such as RSI together with moving averages of price), never put them in "
+    "one placement: build the part named first, where it belongs, and say in `reply` "
+    "that the rest is a second indicator the member can ask for next.\n"
     "  * Presentation: set_style (color, width, style, hidden, lineStyle "
     "solid/dashed/dotted/largeDashed, breaks true where a line has no value on some bars by "
     "design -- a level kept N bars after an event -- so it is not joined across them), "
@@ -637,6 +642,11 @@ CONVERSE_SYSTEM_PROMPT = (
     "the chart's own bars and ask the member to switch charts. \"Yesterday's\", \"the prior "
     "day's\" and \"today's\" values are DAILY values: set_calculation_timeframe D, so they hold "
     "on an intraday chart; `high[1]` alone is only the previous BAR.\n"
+    "  When this bar is COMPARED with \"the last N\", \"the previous N\" or \"the prior N\" bars "
+    "or days, the window is the N bars BEFORE this one: wrap it in an offset of 1 (volume above "
+    "the highest volume of the last 10 days is volume > offset 1 of highest(volume, 10)). A "
+    "window that includes this bar compares it with itself. Only \"is AT an N-bar high or low\" "
+    "includes this bar (close >= highest(close, N)).\n"
     "  A `sym` goes OUTSIDE a timeframe read, never under one: SPY's weekly close is "
     "sym(SPY, tf(close, W)). Wrap only what is read from the other symbol: "
     "\"close above SPY's 50 EMA\" compares the chart's close with "
