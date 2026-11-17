@@ -679,7 +679,25 @@ PINNED_FAMILIES = [
     ("/api/wisdom/archive/image/img_1", "archive-images"),
     ("/api/tsdr-lessons/link-transcript", "internal"),
     ("/api/time-and-sales/status", "admin-ops"),
+    # Chart IQ: per-action member reads and votes beside /api/patterns, never market-data's bulk tier.
+    ("/api/chart-iq/NVDA", "screener"),
+    ("/api/chart-iq/NVDA/feedback", "screener"),
+    ("/api/chart-iq/pack/status", "screener"),
+    # The two telemetry beacons: anonymous-writable intake whose own durable quotas are the real limit.
+    ("/api/perf/beacon", "public-intake"),
+    ("/api/desktop/event", "public-intake"),
+    # ...and their admin reads stay admin-ops (the beacon prefixes are the exact doors, nothing wider).
+    ("/api/admin/perf", "admin-ops"),
+    ("/api/admin/desktop-events", "admin-ops"),
 ]
+
+
+def test_the_massive_card_logo_is_EXEMPT_and_only_that_one_file():
+    """Discord's media proxy fetches it from shared IPs: a 429 is a broken card icon. The exemption
+    is the exact file, so a dynamic route added under /api/brand is unclassified, never exempt."""
+    hit = rlp.classify("/api/brand/massive-card-logo.png")
+    assert hit is not None and hit[0] == rlp.KIND_EXEMPT, hit
+    assert rlp.classify("/api/brand/some-new-dynamic-route") is None
 
 
 def _family_of(path, index=None):

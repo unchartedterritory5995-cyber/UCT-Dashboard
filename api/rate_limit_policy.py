@@ -256,7 +256,13 @@ FAMILIES: dict[str, Family] = {
          # The Pine support loop (gap counts + opt-in mismatch reports).
          "/api/indicator-support",
          # The Pine library store the chart's translators fetch an `import` line from.
-         "/api/pine"),
+         "/api/pine",
+         # Chart IQ (934f2673e7, paid and dark behind CHART_IQ_ENABLED): pattern recognition
+         # drawn on a daily chart, the sibling of /api/patterns. One read per daily chart the
+         # toggle shows (SWR-deduped 60 s, never polled, cached server-side), one POST per vote,
+         # and the admin-only pack status/build/export. Its engine already runs at most 2 at
+         # once behind the router's own semaphore; this is the member's per-action ceiling.
+         "/api/chart-iq"),
     ),
     "member-workspace": Family(
         TIER_STANDARD,
@@ -320,10 +326,19 @@ FAMILIES: dict[str, Family] = {
     "public-intake": Family(
         TIER_INTAKE,
         "Writes an anonymous browser can make (waitlist, landing analytics, client "
-        "error reports, the Q1 probe sink, the live trading room call request): "
-        "a few per page view at most.",
+        "error reports, the Q1 probe sink, the live trading room call request, and the "
+        "two telemetry beacons): a few per page view at most. The beacons -- the speed "
+        "report (/api/perf/beacon, one sendBeacon per page load, no session read) and "
+        "the desktop shell's event door (/api/desktop/event, session optional: launch "
+        "and crash come before sign-in) -- each keep their OWN durable hourly quota per "
+        "key plus a global hourly cap, counted from stored rows (perf_beacon.RATE_LIMIT "
+        "/ GLOBAL_LIMIT_PER_HOUR, desktop_events.RATE_LIMIT / GLOBAL_LIMIT_PER_HOUR). "
+        "Those stay the real limit and answer 200 with the excess dropped; this family "
+        "is the HTTP ceiling above them, bounding the body read and the count query "
+        "that an over-quota flood still costs.",
         ("/api/waitlist", "/api/landing-analytics", "/api/client-errors", "/api/ltr",
-         "/api/q1-probe-result", "/api/q1-probe-results"),
+         "/api/q1-probe-result", "/api/q1-probe-results",
+         "/api/perf/beacon", "/api/desktop/event"),
     ),
     "inbound-alerts": Family(
         TIER_BULK,
@@ -412,6 +427,14 @@ EXEMPT: dict[str, str] = {
     "/api/discord/interactions": "Discord posts every member's slash command from "
                                  "its own IPs; a 429 is a failed command. The "
                                  "per-member /chart budget lives in the handler.",
+    # ecb22ce7f0: the Massive Discord cards' author icon. The exact file path, never a
+    # /api/brand prefix: a dynamic route added beside it must fail the census and be decided.
+    "/api/brand/massive-card-logo.png": "One static 256px PNG (24 h Cache-Control, no "
+                                        "auth) that Discord's media proxy fetches "
+                                        "anonymously from its own shared IPs as the "
+                                        "Massive cards' author icon; a 429 is a broken "
+                                        "icon on a card in the member channel. The same "
+                                        "shape as /og-image.png.",
     # ── app/dist only (see DIST_ONLY) ─────────────────────────────────────────
     "/assets": "Hashed static bundle from app/dist, edge-cacheable; a page load "
                "fetches dozens, and limiting them throttles page loads, not API use.",
