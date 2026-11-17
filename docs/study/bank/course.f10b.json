@@ -25,42 +25,21 @@
      {
       "accessed": "2026-11-09",
       "name": "SEC, Investor.gov: Investor Bulletin: An Introduction to Short Sales (Oct. 29, 2015, updated September 9, 2026)",
-      "quote": "A short sale generally involves the sale of a stock you do not own (or that you will borrow for delivery).",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-51"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Investor Bulletin: An Introduction to Short Sales (Oct. 29, 2015, updated September 9, 2026)",
-      "quote": "Typically, when you sell short, your brokerage firm loans you the stock. The stock you borrow comes from either the firm’s own inventory, the margin account of other brokerage firm clients, or another lender.",
+      "quote": "A short sale generally involves the sale of a stock you do not own (or that you will borrow for delivery). … Typically, when you sell short, your brokerage firm loans you the stock. The stock you borrow comes from either the firm’s own inventory, the margin account of other brokerage firm clients, or another lender.",
       "tier": 1,
       "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-51"
      },
      {
       "accessed": "2026-11-09",
       "name": "SEC, Investor.gov: Stock Purchases and Sales: Long and Short",
-      "quote": "The investor later closes out the position by returning the borrowed security to the stock lender, typically by purchasing securities on the open market.",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/stock-purchases-and-sales-long-and"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Stock Purchases and Sales: Long and Short",
-      "quote": "Having a “long” position in a security means that you own the security.",
+      "quote": "The investor later closes out the position by returning the borrowed security to the stock lender, typically by purchasing securities on the open market. … Having a “long” position in a security means that you own the security.",
       "tier": 1,
       "url": "https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/stock-purchases-and-sales-long-and"
      },
      {
       "accessed": "2026-11-09",
       "name": "FINRA: Short Interest: What It Is, What It Is Not (Investor Insights, January 25, 2023)",
-      "quote": "For example, an investor might sell a security short and purchase shares to close the position on the same trade date.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/short-interest"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Short Interest: What It Is, What It Is Not (Investor Insights, January 25, 2023)",
-      "quote": "On the other hand, an investor might hold a short position open for days or weeks, perhaps as a hedge against another position.",
+      "quote": "For example, an investor might sell a security short and purchase shares to close the position on the same trade date. … On the other hand, an investor might hold a short position open for days or weeks, perhaps as a hedge against another position.",
       "tier": 1,
       "url": "https://www.finra.org/investors/insights/short-interest"
      },
@@ -119,7 +98,7 @@
      {
       "accessed": "2026-11-09",
       "name": "SEC, Investor.gov: Investor Bulletin: An Introduction to Short Sales (Oct. 29, 2015, updated September 9, 2026)",
-      "quote": "If the price of the stock drops, short sellers buy the stock at the lower price and make a profit. If the price of the stock rises, short sellers will incur a loss.",
+      "quote": "If the price of the stock drops, short sellers buy the stock at the lower price and make a profit. If the price of the stock rises, short sellers will incur a loss. … Since the price is lower, the investor profits on the difference -- in this case $20 a share (minus transaction costs such as commissions and fees).",
       "tier": 1,
       "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-51"
      },
@@ -129,13 +108,6 @@
       "quote": "To close the position, the investor can purchase the stock in the market, which they hope will be at a lower price than they sold the shares short.",
       "tier": 1,
       "url": "https://www.finra.org/investors/insights/short-interest"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Investor Bulletin: An Introduction to Short Sales (Oct. 29, 2015, updated September 9, 2026)",
-      "quote": "Since the price is lower, the investor profits on the difference -- in this case $20 a share (minus transaction costs such as commissions and fees).",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-51"
      }
     ],
     "summary": "A short makes money when the stock falls and loses when it rises. You close a short by buying the stock in the market, hoping to pay less than you sold it for. The short's profit is the sale price minus the buy-back price, before costs: $20 a share in the SEC example."
@@ -257,21 +229,7 @@
      {
       "accessed": "2026-11-09",
       "name": "Charles Schwab: Short Selling: The Risks and Rewards (June 1, 2026)",
-      "quote": "You may be able to short the most liquid shares for nothing, while the least liquid shares could come with an annualized interest rate of more than 100% of the value of your position.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/ins-and-outs-short-selling"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: Short Selling: The Risks and Rewards (June 1, 2026)",
-      "quote": "As with other forms of borrowing, you'll be charged interest on the value of the outstanding shares until they're returned",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/ins-and-outs-short-selling"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: Short Selling: The Risks and Rewards (June 1, 2026)",
-      "quote": "Rates can also change suddenly if the shares become more or less liquid. Interest accrues daily at the prevailing rate and is deducted from your account on a monthly basis.",
+      "quote": "You may be able to short the most liquid shares for nothing, while the least liquid shares could come with an annualized interest rate of more than 100% of the value of your position. … As with other forms of borrowing, you'll be charged interest on the value of the outstanding shares until they're returned … Rates can also change suddenly if the shares become more or less liquid. Interest accrues daily at the prevailing rate and is deducted from your account on a monthly basis.",
       "tier": 2,
       "url": "https://www.schwab.com/learn/story/ins-and-outs-short-selling"
      },
@@ -332,14 +290,7 @@
      {
       "accessed": "2026-11-09",
       "name": "SEC: Key Points About Regulation SHO (modified 5/31/2022)",
-      "quote": "Regulation SHO requires a broker-dealer to have reasonable grounds to believe that the security can be borrowed so that it can be delivered on the date delivery is due before effecting a short sale order in any equity security.",
-      "tier": 1,
-      "url": "https://www.sec.gov/investor/pubs/regsho.htm"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC: Key Points About Regulation SHO (modified 5/31/2022)",
-      "quote": "This “locate” must be made and documented prior to effecting the short sale.",
+      "quote": "Regulation SHO requires a broker-dealer to have reasonable grounds to believe that the security can be borrowed so that it can be delivered on the date delivery is due before effecting a short sale order in any equity security. … This “locate” must be made and documented prior to effecting the short sale. … an order can be marked “long” when the seller owns the security being sold",
       "tier": 1,
       "url": "https://www.sec.gov/investor/pubs/regsho.htm"
      },
@@ -356,13 +307,6 @@
       "quote": "Your broker will have to \"locate\" the security you're targeting before you can do a short sale.",
       "tier": 2,
       "url": "https://www.schwab.com/learn/story/ins-and-outs-short-selling"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC: Key Points About Regulation SHO (modified 5/31/2022)",
-      "quote": "an order can be marked “long” when the seller owns the security being sold",
-      "tier": 1,
-      "url": "https://www.sec.gov/investor/pubs/regsho.htm"
      },
      {
       "accessed": "2026-11-09",
@@ -421,28 +365,14 @@
      {
       "accessed": "2026-11-09",
       "name": "SEC: Press release 2007-114: SEC Votes on Regulation SHO Amendments and Proposals; Also Votes to Eliminate Tick Test (June 13, 2007)",
-      "quote": "The Commission adopted Rule 10a-1 in 1938 after several years of considering the effects of short selling in a declining market.",
-      "tier": 1,
-      "url": "https://www.sec.gov/newsroom/press-releases/2007-114-sec-votes-regulation-sho-amendments-proposals-also-votes-eliminate-tick-test"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC: Press release 2007-114: SEC Votes on Regulation SHO Amendments and Proposals; Also Votes to Eliminate Tick Test (June 13, 2007)",
-      "quote": "Short sales are not permitted on minus ticks or zero-minus ticks, subject to narrow exceptions. The operation of these provisions is commonly described as the “tick test.”",
-      "tier": 1,
-      "url": "https://www.sec.gov/newsroom/press-releases/2007-114-sec-votes-regulation-sho-amendments-proposals-also-votes-eliminate-tick-test"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC: Press release 2007-114: SEC Votes on Regulation SHO Amendments and Proposals; Also Votes to Eliminate Tick Test (June 13, 2007)",
-      "quote": "SEC Votes on Regulation SHO Amendments and Proposals; Also Votes to Eliminate “Tick” Test For Immediate Release 2007-114 Washington, D.C., June 13, 2007",
+      "quote": "The Commission adopted Rule 10a-1 in 1938 after several years of considering the effects of short selling in a declining market. … Short sales are not permitted on minus ticks or zero-minus ticks, subject to narrow exceptions. The operation of these provisions is commonly described as the “tick test.” … SEC Votes on Regulation SHO Amendments and Proposals; Also Votes to Eliminate “Tick” Test For Immediate Release 2007-114 Washington, D.C., June 13, 2007",
       "tier": 1,
       "url": "https://www.sec.gov/newsroom/press-releases/2007-114-sec-votes-regulation-sho-amendments-proposals-also-votes-eliminate-tick-test"
      },
      {
       "accessed": "2026-11-09",
       "name": "SEC: Key Points About Regulation SHO (modified 5/31/2022)",
-      "quote": "In 2010, the Commission adopted Rule 201 of Regulation SHO.",
+      "quote": "In 2010, the Commission adopted Rule 201 of Regulation SHO. … Regulation SHO requires a broker-dealer to have reasonable grounds to believe that the security can be borrowed so that it can be delivered on the date delivery is due before effecting a short sale order in any equity security.",
       "tier": 1,
       "url": "https://www.sec.gov/investor/pubs/regsho.htm"
      },
@@ -459,13 +389,6 @@
       "quote": "Compliance with Regulation SHO began on January 3, 2005.",
       "tier": 1,
       "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-51"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC: Key Points About Regulation SHO (modified 5/31/2022)",
-      "quote": "Regulation SHO requires a broker-dealer to have reasonable grounds to believe that the security can be borrowed so that it can be delivered on the date delivery is due before effecting a short sale order in any equity security.",
-      "tier": 1,
-      "url": "https://www.sec.gov/investor/pubs/regsho.htm"
      }
     ],
     "summary": "The SEC adopted its short-sale tick test, Rule 10a-1, in 1938. The old tick test barred short sales on a downtick (minus or zero-minus tick), with narrow exceptions. On June 13, 2007, the SEC voted to eliminate the tick test. The SEC adopted Rule 201, today's short-sale price test, in 2010. The short-sale circuit breaker trips when a stock falls 10% or more from the prior day's close. Compliance with Regulation SHO, the SEC's short-sale rulebook with the locate requirement, began on January 3, 2005. Before any short sale, the broker must have reasonable grounds to believe the shares can be borrowed and delivered on time. That is the locate."
@@ -598,7 +521,7 @@
      {
       "accessed": "2026-11-09",
       "name": "SEC, Investor.gov: Investor Bulletin: An Introduction to Short Sales (Oct. 29, 2015, updated September 9, 2026)",
-      "quote": "Since the price is lower, the investor profits on the difference -- in this case $20 a share (minus transaction costs such as commissions and fees).",
+      "quote": "Since the price is lower, the investor profits on the difference -- in this case $20 a share (minus transaction costs such as commissions and fees). … Company A is trading at $60 a share, so the investor borrows shares of Company A stock at $60 a share and immediately sells them in a short sale. … Later, Company A’s stock price declines to $40 a share, and the investor buys shares back on the open market to replace the borrowed shares.",
       "tier": 1,
       "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-51"
      },
@@ -608,20 +531,6 @@
       "quote": "To close the position, the investor can purchase the stock in the market, which they hope will be at a lower price than they sold the shares short.",
       "tier": 1,
       "url": "https://www.finra.org/investors/insights/short-interest"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Investor Bulletin: An Introduction to Short Sales (Oct. 29, 2015, updated September 9, 2026)",
-      "quote": "Company A is trading at $60 a share, so the investor borrows shares of Company A stock at $60 a share and immediately sells them in a short sale.",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-51"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Investor Bulletin: An Introduction to Short Sales (Oct. 29, 2015, updated September 9, 2026)",
-      "quote": "Later, Company A’s stock price declines to $40 a share, and the investor buys shares back on the open market to replace the borrowed shares.",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-51"
      }
     ],
     "summary": "The short's profit is the sale price minus the buy-back price, before costs: $20 a share in the SEC example. You close a short by buying the stock in the market, hoping to pay less than you sold it for. SEC example: borrow the shares and sell them short at $60. SEC example: the stock falls to $40 and the short seller buys shares back to replace the borrowed ones."
@@ -680,21 +589,14 @@
      {
       "accessed": "2026-11-09",
       "name": "SEC: Press release 2007-114: SEC Votes on Regulation SHO Amendments and Proposals; Also Votes to Eliminate Tick Test (June 13, 2007)",
-      "quote": "SEC Votes on Regulation SHO Amendments and Proposals; Also Votes to Eliminate “Tick” Test For Immediate Release 2007-114 Washington, D.C., June 13, 2007",
-      "tier": 1,
-      "url": "https://www.sec.gov/newsroom/press-releases/2007-114-sec-votes-regulation-sho-amendments-proposals-also-votes-eliminate-tick-test"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC: Press release 2007-114: SEC Votes on Regulation SHO Amendments and Proposals; Also Votes to Eliminate Tick Test (June 13, 2007)",
-      "quote": "The general consensus from these analyses and the roundtable was that the Commission should remove price test restrictions because they modestly reduce liquidity and do not appear necessary to prevent manipulation.",
+      "quote": "SEC Votes on Regulation SHO Amendments and Proposals; Also Votes to Eliminate “Tick” Test For Immediate Release 2007-114 Washington, D.C., June 13, 2007 … The general consensus from these analyses and the roundtable was that the Commission should remove price test restrictions because they modestly reduce liquidity and do not appear necessary to prevent manipulation.",
       "tier": 1,
       "url": "https://www.sec.gov/newsroom/press-releases/2007-114-sec-votes-regulation-sho-amendments-proposals-also-votes-eliminate-tick-test"
      },
      {
       "accessed": "2026-11-09",
       "name": "SEC: Key Points About Regulation SHO (modified 5/31/2022)",
-      "quote": "In 2010, the Commission adopted Rule 201 of Regulation SHO.",
+      "quote": "In 2010, the Commission adopted Rule 201 of Regulation SHO. … Once the circuit breaker in Rule 201 has been triggered, the price test restriction will apply to short sale orders in that security for the remainder of the day and the following day, unless an exception applies.",
       "tier": 1,
       "url": "https://www.sec.gov/investor/pubs/regsho.htm"
      },
@@ -704,13 +606,6 @@
       "quote": "The circuit breaker would be triggered for a security any day in which the price declines by 10 percent or more from the prior day’s closing price.",
       "tier": 1,
       "url": "https://www.sec.gov/newsroom/press-releases/2010-26-sec-approves-short-selling-restrictions"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC: Key Points About Regulation SHO (modified 5/31/2022)",
-      "quote": "Once the circuit breaker in Rule 201 has been triggered, the price test restriction will apply to short sale orders in that security for the remainder of the day and the following day, unless an exception applies.",
-      "tier": 1,
-      "url": "https://www.sec.gov/investor/pubs/regsho.htm"
      }
     ],
     "summary": "On June 13, 2007, the SEC voted to eliminate the tick test. The SEC removed the tick test because the studies found it modestly reduced liquidity and did not seem needed to stop manipulation. The SEC adopted Rule 201, today's short-sale price test, in 2010. The short-sale circuit breaker trips when a stock falls 10% or more from the prior day's close. Once Rule 201 trips, the short-sale price test lasts the rest of that day and the next day."
@@ -786,14 +681,7 @@
      {
       "accessed": "2026-11-09",
       "name": "Charles Schwab: Short Selling: The Risks and Rewards (June 1, 2026)",
-      "quote": "Rates can also change suddenly if the shares become more or less liquid. Interest accrues daily at the prevailing rate and is deducted from your account on a monthly basis.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/ins-and-outs-short-selling"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: Short Selling: The Risks and Rewards (June 1, 2026)",
-      "quote": "As with other forms of borrowing, you'll be charged interest on the value of the outstanding shares until they're returned",
+      "quote": "Rates can also change suddenly if the shares become more or less liquid. Interest accrues daily at the prevailing rate and is deducted from your account on a monthly basis. … As with other forms of borrowing, you'll be charged interest on the value of the outstanding shares until they're returned",
       "tier": 2,
       "url": "https://www.schwab.com/learn/story/ins-and-outs-short-selling"
      },
@@ -885,14 +773,7 @@
      {
       "accessed": "2026-11-09",
       "name": "SEC, Investor.gov: Investor Bulletin: An Introduction to Short Sales (Oct. 29, 2015, updated September 9, 2026)",
-      "quote": "if the stock price increases to $80 a share, and the investor must buy back the shares on the open market to replace the borrowed shares, the investor would suffer a $20 loss per share",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-51"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Investor Bulletin: An Introduction to Short Sales (Oct. 29, 2015, updated September 9, 2026)",
-      "quote": "If the price of the stock drops, short sellers buy the stock at the lower price and make a profit. If the price of the stock rises, short sellers will incur a loss.",
+      "quote": "if the stock price increases to $80 a share, and the investor must buy back the shares on the open market to replace the borrowed shares, the investor would suffer a $20 loss per share … If the price of the stock drops, short sellers buy the stock at the lower price and make a profit. If the price of the stock rises, short sellers will incur a loss. … Company A is trading at $60 a share, so the investor borrows shares of Company A stock at $60 a share and immediately sells them in a short sale. … shorting a stock leaves an investor open to the possibility of unlimited losses, since a stock can theoretically keep rising indefinitely",
       "tier": 1,
       "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-51"
      },
@@ -902,20 +783,6 @@
       "quote": "To close the position, the investor can purchase the stock in the market, which they hope will be at a lower price than they sold the shares short.",
       "tier": 1,
       "url": "https://www.finra.org/investors/insights/short-interest"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Investor Bulletin: An Introduction to Short Sales (Oct. 29, 2015, updated September 9, 2026)",
-      "quote": "Company A is trading at $60 a share, so the investor borrows shares of Company A stock at $60 a share and immediately sells them in a short sale.",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-51"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Investor Bulletin: An Introduction to Short Sales (Oct. 29, 2015, updated September 9, 2026)",
-      "quote": "shorting a stock leaves an investor open to the possibility of unlimited losses, since a stock can theoretically keep rising indefinitely",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-51"
      }
     ],
     "summary": "If the stock rises from $60 to $80 and the short seller buys back, the loss is $20 a share. A short makes money when the stock falls and loses when it rises. You close a short by buying the stock in the market, hoping to pay less than you sold it for. SEC example: borrow the shares and sell them short at $60. A short's loss has no fixed cap, because a stock can keep rising."
@@ -981,14 +848,7 @@
      {
       "accessed": "2026-11-09",
       "name": "SEC: Press release 2010-26: SEC Approves Short Selling Restrictions (Feb. 24, 2010)",
-      "quote": "The circuit breaker would be triggered for a security any day in which the price declines by 10 percent or more from the prior day’s closing price.",
-      "tier": 1,
-      "url": "https://www.sec.gov/newsroom/press-releases/2010-26-sec-approves-short-selling-restrictions"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC: Press release 2010-26: SEC Approves Short Selling Restrictions (Feb. 24, 2010)",
-      "quote": "At that point, short selling would be permitted if the price of the security is above the current national best bid.",
+      "quote": "The circuit breaker would be triggered for a security any day in which the price declines by 10 percent or more from the prior day’s closing price. … At that point, short selling would be permitted if the price of the security is above the current national best bid. … It will enable long sellers to stand in the front of the line and sell their shares before any short sellers once the circuit breaker is triggered.",
       "tier": 1,
       "url": "https://www.sec.gov/newsroom/press-releases/2010-26-sec-approves-short-selling-restrictions"
      },
@@ -1005,13 +865,6 @@
       "quote": "Once the circuit breaker in Rule 201 has been triggered, the price test restriction will apply to short sale orders in that security for the remainder of the day and the following day, unless an exception applies.",
       "tier": 1,
       "url": "https://www.sec.gov/investor/pubs/regsho.htm"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC: Press release 2010-26: SEC Approves Short Selling Restrictions (Feb. 24, 2010)",
-      "quote": "It will enable long sellers to stand in the front of the line and sell their shares before any short sellers once the circuit breaker is triggered.",
-      "tier": 1,
-      "url": "https://www.sec.gov/newsroom/press-releases/2010-26-sec-approves-short-selling-restrictions"
      }
     ],
     "summary": "The short-sale circuit breaker trips when a stock falls 10% or more from the prior day's close. After the trigger, a short sale is allowed only at a price above the current national best bid. Once Rule 201 trips, a short sale cannot be executed or shown at or below the current national best bid. Once Rule 201 trips, the short-sale price test lasts the rest of that day and the next day. After the trigger, holders who are selling go to the front of the line ahead of short sellers."
@@ -1061,28 +914,14 @@
      {
       "accessed": "2026-11-09",
       "name": "SEC: Key Points About Regulation SHO (modified 5/31/2022)",
-      "quote": "This “locate” must be made and documented prior to effecting the short sale.",
-      "tier": 1,
-      "url": "https://www.sec.gov/investor/pubs/regsho.htm"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC: Key Points About Regulation SHO (modified 5/31/2022)",
-      "quote": "Selling stock short without having located stock for delivery at settlement. This activity would violate Regulation SHO, except for short sales by market makers engaged in bona fide market making activities.",
+      "quote": "This “locate” must be made and documented prior to effecting the short sale. … Selling stock short without having located stock for delivery at settlement. This activity would violate Regulation SHO, except for short sales by market makers engaged in bona fide market making activities.",
       "tier": 1,
       "url": "https://www.sec.gov/investor/pubs/regsho.htm"
      },
      {
       "accessed": "2026-11-09",
       "name": "SEC, Division of Market Regulation: Responses to Frequently Asked Questions Concerning Regulation SHO (modified 10/15/2015)",
-      "quote": "Prior to a customer’s short sale of 100 shares of XYZ stock, the executing broker-dealer obtains an appropriate locate for the securities.",
-      "tier": 1,
-      "url": "https://www.sec.gov/files/divisions/marketreg/mrfaqregsho1204.htm"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Division of Market Regulation: Responses to Frequently Asked Questions Concerning Regulation SHO (modified 10/15/2015)",
-      "quote": "For a \"hard to borrow\" security or a threshold security, a broker-dealer may not re-apply a locate for intra-day buy-to cover trades.",
+      "quote": "Prior to a customer’s short sale of 100 shares of XYZ stock, the executing broker-dealer obtains an appropriate locate for the securities. … For a \"hard to borrow\" security or a threshold security, a broker-dealer may not re-apply a locate for intra-day buy-to cover trades.",
       "tier": 1,
       "url": "https://www.sec.gov/files/divisions/marketreg/mrfaqregsho1204.htm"
      },
@@ -1167,14 +1006,7 @@
      {
       "accessed": "2026-11-09",
       "name": "Charles Schwab: Short Selling: The Risks and Rewards (June 1, 2026)",
-      "quote": "the value of any dividends paid will be deducted from short-seller's account on the pay date and delivered to the stock's owner.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/ins-and-outs-short-selling"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: Short Selling: The Risks and Rewards (June 1, 2026)",
-      "quote": "Some short sellers choose to close their short positions before the stock's ex-dividend date to avoid having to pay.",
+      "quote": "the value of any dividends paid will be deducted from short-seller's account on the pay date and delivered to the stock's owner. … Some short sellers choose to close their short positions before the stock's ex-dividend date to avoid having to pay.",
       "tier": 2,
       "url": "https://www.schwab.com/learn/story/ins-and-outs-short-selling"
      },
@@ -1282,21 +1114,7 @@
      {
       "accessed": "2026-11-09",
       "name": "FINRA: Rule 4210, Margin Requirements",
-      "quote": "$5.00 per share or 30 percent of the current market value, whichever amount is greater, of each stock \"short\" in the account selling at $5.00 per share or above",
-      "tier": 1,
-      "url": "https://www.finra.org/rules-guidance/rulebooks/finra-rules/4210"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Rule 4210, Margin Requirements",
-      "quote": "$2.50 per share or 100 percent of the current market value, whichever amount is greater, of each stock \"short\" in the account selling at less than $5.00 per share",
-      "tier": 1,
-      "url": "https://www.finra.org/rules-guidance/rulebooks/finra-rules/4210"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Rule 4210, Margin Requirements",
-      "quote": "House Margin and Limits Procedures shall be established by members to: (A) review limits and types of credit extended to all customers; (B) formulate their own margin requirements",
+      "quote": "$5.00 per share or 30 percent of the current market value, whichever amount is greater, of each stock \"short\" in the account selling at $5.00 per share or above … $2.50 per share or 100 percent of the current market value, whichever amount is greater, of each stock \"short\" in the account selling at less than $5.00 per share … House Margin and Limits Procedures shall be established by members to: (A) review limits and types of credit extended to all customers; (B) formulate their own margin requirements",
       "tier": 1,
       "url": "https://www.finra.org/rules-guidance/rulebooks/finra-rules/4210"
      }
@@ -1363,7 +1181,7 @@
      {
       "accessed": "2026-11-09",
       "name": "SEC, Division of Trading and Markets: Responses to Frequently Asked Questions Concerning Rule 201 of Regulation SHO",
-      "quote": "Thus, if the Rule 201 circuit breaker is triggered on a Friday, the price test restriction will be in effect on that Friday and on the following Monday.",
+      "quote": "Thus, if the Rule 201 circuit breaker is triggered on a Friday, the price test restriction will be in effect on that Friday and on the following Monday. … if the price of a covered security declines intra-day by at least 10% on a day on which the security is already subject to the short sale price test restriction of Rule 201, the restriction will be re-triggered",
       "tier": 1,
       "url": "https://www.sec.gov/rules-regulations/staff-guidance/trading-markets-frequently-asked-questions-7"
      },
@@ -1380,13 +1198,6 @@
       "quote": "The circuit breaker would be triggered for a security any day in which the price declines by 10 percent or more from the prior day’s closing price.",
       "tier": 1,
       "url": "https://www.sec.gov/newsroom/press-releases/2010-26-sec-approves-short-selling-restrictions"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Division of Trading and Markets: Responses to Frequently Asked Questions Concerning Rule 201 of Regulation SHO",
-      "quote": "if the price of a covered security declines intra-day by at least 10% on a day on which the security is already subject to the short sale price test restriction of Rule 201, the restriction will be re-triggered",
-      "tier": 1,
-      "url": "https://www.sec.gov/rules-regulations/staff-guidance/trading-markets-frequently-asked-questions-7"
      }
     ],
     "summary": "A Friday trigger keeps the short-sale price test on through the following Monday. Once Rule 201 trips, the short-sale price test lasts the rest of that day and the next day. The short-sale circuit breaker trips when a stock falls 10% or more from the prior day's close. A fresh 10% drop on a day the restriction is already on triggers it again."
@@ -1446,35 +1257,14 @@
      {
       "accessed": "2026-11-09",
       "name": "Public Investing (Public.com Help Center): What are forced buy-ins and recalls? (April 14, 2026)",
-      "quote": "If a recall occurs and replacement shares cannot be borrowed, your broker may be required to close your short position by purchasing shares in the market.",
-      "tier": 2,
-      "url": "https://help.public.com/en/articles/14626901-what-are-forced-buy-ins-and-recalls"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Public Investing (Public.com Help Center): What are forced buy-ins and recalls? (April 14, 2026)",
-      "quote": "Forced buy-ins can occur without advance notice and at prevailing market prices.",
-      "tier": 2,
-      "url": "https://help.public.com/en/articles/14626901-what-are-forced-buy-ins-and-recalls"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Public Investing (Public.com Help Center): What are forced buy-ins and recalls? (April 14, 2026)",
-      "quote": "Even if you still believe a stock's price will decline, you may be required to close your position due to share availability or regulatory requirements.",
+      "quote": "If a recall occurs and replacement shares cannot be borrowed, your broker may be required to close your short position by purchasing shares in the market. … Forced buy-ins can occur without advance notice and at prevailing market prices. … Even if you still believe a stock's price will decline, you may be required to close your position due to share availability or regulatory requirements.",
       "tier": 2,
       "url": "https://help.public.com/en/articles/14626901-what-are-forced-buy-ins-and-recalls"
      },
      {
       "accessed": "2026-11-09",
       "name": "Investopedia: Buy-In (James Chen, updated July 7, 2026)",
-      "quote": "A forced buy-in occurs in a short seller’s account when the original lender of the shares recalls them. This can also occur when the broker is no longer able to borrow shares for the shorted position.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/b/buyin.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Buy-In (James Chen, updated July 7, 2026)",
-      "quote": "In some cases, an account holder might not be notified before a forced buy-in.",
+      "quote": "A forced buy-in occurs in a short seller’s account when the original lender of the shares recalls them. This can also occur when the broker is no longer able to borrow shares for the shorted position. … In some cases, an account holder might not be notified before a forced buy-in.",
       "tier": 2,
       "url": "https://www.investopedia.com/terms/b/buyin.asp"
      },
@@ -1534,21 +1324,7 @@
      {
       "accessed": "2026-11-09",
       "name": "Investopedia: Hard-to-Borrow List (Gordon Scott, updated May 18, 2026)",
-      "quote": "Those on the hard-to-borrow list can have higher stock loan fees as a result of being in shorter supply.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/h/hardtoborrowlist.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Hard-to-Borrow List (Gordon Scott, updated May 18, 2026)",
-      "quote": "This alerts account holders that if they attempt to sell that security short, their trade order may be refused.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/h/hardtoborrowlist.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Hard-to-Borrow List (Gordon Scott, updated May 18, 2026)",
-      "quote": "A stock goes on the hard-to-borrow list if a broker has limited shares of the stock.",
+      "quote": "Those on the hard-to-borrow list can have higher stock loan fees as a result of being in shorter supply. … This alerts account holders that if they attempt to sell that security short, their trade order may be refused. … A stock goes on the hard-to-borrow list if a broker has limited shares of the stock.",
       "tier": 2,
       "url": "https://www.investopedia.com/terms/h/hardtoborrowlist.asp"
      },
@@ -1562,7 +1338,7 @@
      {
       "accessed": "2026-11-09",
       "name": "SEC: Staff Report on Equity and Options Market Structure Conditions in Early 2021 (October 14, 2021)",
-      "quote": "During the second quarter of 2020, the cost to borrow GME was greater than 100%. This is an exceptionally high cost to borrow.",
+      "quote": "During the second quarter of 2020, the cost to borrow GME was greater than 100%. This is an exceptionally high cost to borrow. … For perspective, between January 2007 and July 2018, the securities of just 222 firms had lending fees greater than 100% at any point, accounting for just 0.01% of observations. … Average lending fees were 1.5% during that same period.",
       "tier": 1,
       "url": "https://www.sec.gov/files/staff-report-equity-options-market-struction-conditions-early-2021.pdf"
      },
@@ -1575,20 +1351,6 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "SEC: Staff Report on Equity and Options Market Structure Conditions in Early 2021 (October 14, 2021)",
-      "quote": "For perspective, between January 2007 and July 2018, the securities of just 222 firms had lending fees greater than 100% at any point, accounting for just 0.01% of observations.",
-      "tier": 1,
-      "url": "https://www.sec.gov/files/staff-report-equity-options-market-struction-conditions-early-2021.pdf"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC: Staff Report on Equity and Options Market Structure Conditions in Early 2021 (October 14, 2021)",
-      "quote": "Average lending fees were 1.5% during that same period.",
-      "tier": 1,
-      "url": "https://www.sec.gov/files/staff-report-equity-options-market-struction-conditions-early-2021.pdf"
-     },
-     {
-      "accessed": "2026-11-09",
       "name": "SEC: Press release 2010-26: SEC Approves Short Selling Restrictions (Feb. 24, 2010)",
       "quote": "The circuit breaker would be triggered for a security any day in which the price declines by 10 percent or more from the prior day’s closing price.",
       "tier": 1,
@@ -1596,10 +1358,10 @@
      },
      {
       "accessed": "2026-11-12",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "name": "Our trading rules",
       "quote": "Skip a short when the stock is hard to borrow or the borrow fee is high.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": null
      }
     ],
     "summary": "Hard-to-borrow stocks can carry higher loan fees because lendable shares are scarce. On a hard-to-borrow stock, a short sale order may be refused. A stock is hard to borrow when the broker has few shares of it to lend. Borrow rates run from nothing for the most liquid stocks to more than 100% a year for the least liquid. In the second quarter of 2020, GameStop's (GME) cost to borrow was above 100%, which the SEC staff called exceptionally high. Hard-to-borrow shares carry fees that can be large. From 2007 to 2018, lending fees above 100% a year were rare: 0.01% of observations. Lending fees averaged 1.5% a year from 2007 to 2018. The short-sale circuit breaker trips when a stock falls 10% or more from the prior day's close. D48, our rule: we skip a short that is hard to borrow or carries a high borrow fee."
@@ -1683,30 +1445,16 @@
      {
       "accessed": "2026-11-09",
       "name": "Investopedia: Short Selling: Your Step-by-Step Guide for Shorting Stocks (Adam Hayes, Ph.D., CFA; updated April 16, 2026)",
-      "quote": "based on an annualized rate that can range from a small fraction of a percent to more than 100% of the short trade's value and is prorated for the number of days that the short trade is open",
+      "quote": "based on an annualized rate that can range from a small fraction of a percent to more than 100% of the short trade's value and is prorated for the number of days that the short trade is open … Shares that are difficult to borrow (because of high short interest, limited float, etc.) have hard-to-borrow fees that can be substantial.",
       "tier": 2,
       "url": "https://www.investopedia.com/terms/s/shortselling.asp"
      },
      {
       "accessed": "2026-11-09",
       "name": "Charles Schwab: Short Selling: The Risks and Rewards (June 1, 2026)",
-      "quote": "Rates can also change suddenly if the shares become more or less liquid. Interest accrues daily at the prevailing rate and is deducted from your account on a monthly basis.",
+      "quote": "Rates can also change suddenly if the shares become more or less liquid. Interest accrues daily at the prevailing rate and is deducted from your account on a monthly basis. … You may be able to short the most liquid shares for nothing, while the least liquid shares could come with an annualized interest rate of more than 100% of the value of your position. … As with other forms of borrowing, you'll be charged interest on the value of the outstanding shares until they're returned",
       "tier": 2,
       "url": "https://www.schwab.com/learn/story/ins-and-outs-short-selling"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: Short Selling: The Risks and Rewards (June 1, 2026)",
-      "quote": "You may be able to short the most liquid shares for nothing, while the least liquid shares could come with an annualized interest rate of more than 100% of the value of your position.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/ins-and-outs-short-selling"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Short Selling: Your Step-by-Step Guide for Shorting Stocks (Adam Hayes, Ph.D., CFA; updated April 16, 2026)",
-      "quote": "Shares that are difficult to borrow (because of high short interest, limited float, etc.) have hard-to-borrow fees that can be substantial.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/s/shortselling.asp"
      },
      {
       "accessed": "2026-11-09",
@@ -1716,18 +1464,11 @@
       "url": "https://www.sec.gov/files/staff-report-equity-options-market-struction-conditions-early-2021.pdf"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: Short Selling: The Risks and Rewards (June 1, 2026)",
-      "quote": "As with other forms of borrowing, you'll be charged interest on the value of the outstanding shares until they're returned",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/ins-and-outs-short-selling"
-     },
-     {
       "accessed": "2026-11-12",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "name": "Our trading rules",
       "quote": "Skip a short when the stock is hard to borrow or the borrow fee is high.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": null
      }
     ],
     "summary": "The borrow fee is a yearly rate, from a fraction of a percent to over 100%, charged for the days the short is open. The borrow rate can change suddenly; it accrues daily at the current rate and is charged monthly at Schwab. Borrow rates run from nothing for the most liquid stocks to more than 100% a year for the least liquid. Hard-to-borrow shares carry fees that can be large. Borrowing shares to open or keep a short has a cost, the lending fee. You pay interest on the value of the borrowed shares until you return them. D48, our rule: we skip a short that is hard to borrow or carries a high borrow fee."
@@ -1793,35 +1534,14 @@
      {
       "accessed": "2026-11-09",
       "name": "SEC, Division of Trading and Markets: Responses to Frequently Asked Questions Concerning Rule 201 of Regulation SHO",
-      "quote": "Is the determination regarding whether the Rule 201 circuit breaker has been triggered limited to regular trading hours (as defined under Regulation NMS)? Answer: Yes.",
-      "tier": 1,
-      "url": "https://www.sec.gov/rules-regulations/staff-guidance/trading-markets-frequently-asked-questions-7"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Division of Trading and Markets: Responses to Frequently Asked Questions Concerning Rule 201 of Regulation SHO",
-      "quote": "Regular trading hours is defined by Rule 600(b)(64) of Regulation NMS to mean the time between 9:30 a.m. and 4:00 p.m. Eastern Time",
-      "tier": 1,
-      "url": "https://www.sec.gov/rules-regulations/staff-guidance/trading-markets-frequently-asked-questions-7"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Division of Trading and Markets: Responses to Frequently Asked Questions Concerning Rule 201 of Regulation SHO",
-      "quote": "the covered security's price is based on trades reported in the consolidated system for the covered security during regular trading hours",
+      "quote": "Is the determination regarding whether the Rule 201 circuit breaker has been triggered limited to regular trading hours (as defined under Regulation NMS)? Answer: Yes. … Regular trading hours is defined by Rule 600(b)(64) of Regulation NMS to mean the time between 9:30 a.m. and 4:00 p.m. Eastern Time … the covered security's price is based on trades reported in the consolidated system for the covered security during regular trading hours",
       "tier": 1,
       "url": "https://www.sec.gov/rules-regulations/staff-guidance/trading-markets-frequently-asked-questions-7"
      },
      {
       "accessed": "2026-11-09",
       "name": "SEC: Press release 2010-26: SEC Approves Short Selling Restrictions (Feb. 24, 2010)",
-      "quote": "The circuit breaker would be triggered for a security any day in which the price declines by 10 percent or more from the prior day’s closing price.",
-      "tier": 1,
-      "url": "https://www.sec.gov/newsroom/press-releases/2010-26-sec-approves-short-selling-restrictions"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC: Press release 2010-26: SEC Approves Short Selling Restrictions (Feb. 24, 2010)",
-      "quote": "The rule generally applies to all equity securities that are listed on a national securities exchange, whether traded on an exchange or in the over-the-counter market.",
+      "quote": "The circuit breaker would be triggered for a security any day in which the price declines by 10 percent or more from the prior day’s closing price. … The rule generally applies to all equity securities that are listed on a national securities exchange, whether traded on an exchange or in the over-the-counter market.",
       "tier": 1,
       "url": "https://www.sec.gov/newsroom/press-releases/2010-26-sec-approves-short-selling-restrictions"
      },
@@ -1886,21 +1606,7 @@
      {
       "accessed": "2026-11-09",
       "name": "Charles Schwab: Short Selling: The Risks and Rewards (June 1, 2026)",
-      "quote": "For example, you could log off one night with a short position carrying a 20% interest rate, only to log in the next day to find it has surged to 85%.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/ins-and-outs-short-selling"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: Short Selling: The Risks and Rewards (June 1, 2026)",
-      "quote": "As a result, you may find it no longer makes sense to keep your position open.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/ins-and-outs-short-selling"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: Short Selling: The Risks and Rewards (June 1, 2026)",
-      "quote": "Rates can also change suddenly if the shares become more or less liquid. Interest accrues daily at the prevailing rate and is deducted from your account on a monthly basis.",
+      "quote": "For example, you could log off one night with a short position carrying a 20% interest rate, only to log in the next day to find it has surged to 85%. … As a result, you may find it no longer makes sense to keep your position open. … Rates can also change suddenly if the shares become more or less liquid. Interest accrues daily at the prevailing rate and is deducted from your account on a monthly basis.",
       "tier": 2,
       "url": "https://www.schwab.com/learn/story/ins-and-outs-short-selling"
      },
@@ -1914,7 +1620,7 @@
      {
       "accessed": "2026-11-09",
       "name": "SEC: Staff Report on Equity and Options Market Structure Conditions in Early 2021 (October 14, 2021)",
-      "quote": "Even when a share can be borrowed, short sellers may find it costly to borrow stock to enter or maintain a short position. This cost is known as a securities lending fee, or simply a “lending fee.”",
+      "quote": "Even when a share can be borrowed, short sellers may find it costly to borrow stock to enter or maintain a short position. This cost is known as a securities lending fee, or simply a “lending fee.” … Average lending fees were 1.5% during that same period.",
       "tier": 1,
       "url": "https://www.sec.gov/files/staff-report-equity-options-market-struction-conditions-early-2021.pdf"
      },
@@ -1926,18 +1632,11 @@
       "url": "https://www.investopedia.com/terms/h/hardtoborrowlist.asp"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "SEC: Staff Report on Equity and Options Market Structure Conditions in Early 2021 (October 14, 2021)",
-      "quote": "Average lending fees were 1.5% during that same period.",
-      "tier": 1,
-      "url": "https://www.sec.gov/files/staff-report-equity-options-market-struction-conditions-early-2021.pdf"
-     },
-     {
       "accessed": "2026-11-12",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "name": "Our trading rules",
       "quote": "Skip a short when the stock is hard to borrow or the borrow fee is high.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": null
      }
     ],
     "summary": "Schwab's example: a 20% borrow rate one night can be 85% the next day. A jump in the borrow rate can make a short no longer worth holding. The borrow rate can change suddenly; it accrues daily at the current rate and is charged monthly at Schwab. The borrow fee is a yearly rate, from a fraction of a percent to over 100%, charged for the days the short is open. Borrowing shares to open or keep a short has a cost, the lending fee. Hard-to-borrow stocks can carry higher loan fees because lendable shares are scarce. Lending fees averaged 1.5% a year from 2007 to 2018. D48, our rule: we skip a short that is hard to borrow or carries a high borrow fee."
@@ -2039,7 +1738,7 @@
      {
       "accessed": "2026-11-09",
       "name": "SEC, Investor.gov: Investor Bulletin: An Introduction to Short Sales (Oct. 29, 2015, updated September 9, 2026)",
-      "quote": "Since the price is lower, the investor profits on the difference -- in this case $20 a share (minus transaction costs such as commissions and fees).",
+      "quote": "Since the price is lower, the investor profits on the difference -- in this case $20 a share (minus transaction costs such as commissions and fees). … If the stock you borrow pays a dividend, you must pay the dividend to the person or firm making the loan.",
       "tier": 1,
       "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-51"
      },
@@ -2052,29 +1751,8 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Investor Bulletin: An Introduction to Short Sales (Oct. 29, 2015, updated September 9, 2026)",
-      "quote": "If the stock you borrow pays a dividend, you must pay the dividend to the person or firm making the loan.",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-51"
-     },
-     {
-      "accessed": "2026-11-09",
       "name": "Charles Schwab: Short Selling: The Risks and Rewards (June 1, 2026)",
-      "quote": "the value of any dividends paid will be deducted from short-seller's account on the pay date and delivered to the stock's owner.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/ins-and-outs-short-selling"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: Short Selling: The Risks and Rewards (June 1, 2026)",
-      "quote": "As with other forms of borrowing, you'll be charged interest on the value of the outstanding shares until they're returned",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/ins-and-outs-short-selling"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: Short Selling: The Risks and Rewards (June 1, 2026)",
-      "quote": "Some short sellers choose to close their short positions before the stock's ex-dividend date to avoid having to pay.",
+      "quote": "the value of any dividends paid will be deducted from short-seller's account on the pay date and delivered to the stock's owner. … As with other forms of borrowing, you'll be charged interest on the value of the outstanding shares until they're returned … Some short sellers choose to close their short positions before the stock's ex-dividend date to avoid having to pay.",
       "tier": 2,
       "url": "https://www.schwab.com/learn/story/ins-and-outs-short-selling"
      }
@@ -2141,10 +1819,10 @@
     "sources": [
      {
       "accessed": "2026-11-12",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "name": "Our trading rules",
       "quote": "Skip a short when the stock is hard to borrow or the borrow fee is high.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": null
      },
      {
       "accessed": "2026-11-09",
@@ -2280,14 +1958,7 @@
      {
       "accessed": "2026-11-09",
       "name": "SEC, Investor.gov: Investor Bulletin: An Introduction to Short Sales (Oct. 29, 2015, updated September 9, 2026)",
-      "quote": "A short sale generally involves the sale of a stock you do not own (or that you will borrow for delivery).",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-51"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Investor Bulletin: An Introduction to Short Sales (Oct. 29, 2015, updated September 9, 2026)",
-      "quote": "Typically, when you sell short, your brokerage firm loans you the stock. The stock you borrow comes from either the firm’s own inventory, the margin account of other brokerage firm clients, or another lender.",
+      "quote": "A short sale generally involves the sale of a stock you do not own (or that you will borrow for delivery). … Typically, when you sell short, your brokerage firm loans you the stock. The stock you borrow comes from either the firm’s own inventory, the margin account of other brokerage firm clients, or another lender. … Company A is trading at $60 a share, so the investor borrows shares of Company A stock at $60 a share and immediately sells them in a short sale. … Later, Company A’s stock price declines to $40 a share, and the investor buys shares back on the open market to replace the borrowed shares. … Since the price is lower, the investor profits on the difference -- in this case $20 a share (minus transaction costs such as commissions and fees). … if the stock price increases to $80 a share, and the investor must buy back the shares on the open market to replace the borrowed shares, the investor would suffer a $20 loss per share",
       "tier": 1,
       "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-51"
      },
@@ -2304,34 +1975,6 @@
       "quote": "Traders cover the short by buying back the borrowed shares and returning them to the lender.",
       "tier": 2,
       "url": "https://www.investopedia.com/terms/s/shortselling.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Investor Bulletin: An Introduction to Short Sales (Oct. 29, 2015, updated September 9, 2026)",
-      "quote": "Company A is trading at $60 a share, so the investor borrows shares of Company A stock at $60 a share and immediately sells them in a short sale.",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-51"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Investor Bulletin: An Introduction to Short Sales (Oct. 29, 2015, updated September 9, 2026)",
-      "quote": "Later, Company A’s stock price declines to $40 a share, and the investor buys shares back on the open market to replace the borrowed shares.",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-51"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Investor Bulletin: An Introduction to Short Sales (Oct. 29, 2015, updated September 9, 2026)",
-      "quote": "Since the price is lower, the investor profits on the difference -- in this case $20 a share (minus transaction costs such as commissions and fees).",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-51"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Investor Bulletin: An Introduction to Short Sales (Oct. 29, 2015, updated September 9, 2026)",
-      "quote": "if the stock price increases to $80 a share, and the investor must buy back the shares on the open market to replace the borrowed shares, the investor would suffer a $20 loss per share",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-51"
      }
     ]
    },
@@ -2371,7 +2014,7 @@
      {
       "accessed": "2026-11-09",
       "name": "FINRA: Short Interest: What It Is, What It Is Not (Investor Insights, January 25, 2023)",
-      "quote": "To open a short position, an investor places a short sale order with their brokerage firm in a stock that the investor does not own. This is done in a margin account.",
+      "quote": "To open a short position, an investor places a short sale order with their brokerage firm in a stock that the investor does not own. This is done in a margin account. … Because the investor does not own the shares, the brokerage firm will look to “locate” shares prior to executing the short sale.",
       "tier": 1,
       "url": "https://www.finra.org/investors/insights/short-interest"
      },
@@ -2391,22 +2034,8 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "FINRA: Short Interest: What It Is, What It Is Not (Investor Insights, January 25, 2023)",
-      "quote": "Because the investor does not own the shares, the brokerage firm will look to “locate” shares prior to executing the short sale.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/short-interest"
-     },
-     {
-      "accessed": "2026-11-09",
       "name": "SEC: Key Points About Regulation SHO (modified 5/31/2022)",
-      "quote": "Regulation SHO requires a broker-dealer to have reasonable grounds to believe that the security can be borrowed so that it can be delivered on the date delivery is due before effecting a short sale order in any equity security.",
-      "tier": 1,
-      "url": "https://www.sec.gov/investor/pubs/regsho.htm"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC: Key Points About Regulation SHO (modified 5/31/2022)",
-      "quote": "This “locate” must be made and documented prior to effecting the short sale.",
+      "quote": "Regulation SHO requires a broker-dealer to have reasonable grounds to believe that the security can be borrowed so that it can be delivered on the date delivery is due before effecting a short sale order in any equity security. … This “locate” must be made and documented prior to effecting the short sale.",
       "tier": 1,
       "url": "https://www.sec.gov/investor/pubs/regsho.htm"
      },
@@ -2420,14 +2049,7 @@
      {
       "accessed": "2026-11-09",
       "name": "Investopedia: Hard-to-Borrow List (Gordon Scott, updated May 18, 2026)",
-      "quote": "Those on the hard-to-borrow list can have higher stock loan fees as a result of being in shorter supply.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/h/hardtoborrowlist.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Hard-to-Borrow List (Gordon Scott, updated May 18, 2026)",
-      "quote": "This alerts account holders that if they attempt to sell that security short, their trade order may be refused.",
+      "quote": "Those on the hard-to-borrow list can have higher stock loan fees as a result of being in shorter supply. … This alerts account holders that if they attempt to sell that security short, their trade order may be refused.",
       "tier": 2,
       "url": "https://www.investopedia.com/terms/h/hardtoborrowlist.asp"
      }
@@ -2470,28 +2092,14 @@
      {
       "accessed": "2026-11-09",
       "name": "SEC, Investor.gov: Investor Bulletin: An Introduction to Short Sales (Oct. 29, 2015, updated September 9, 2026)",
-      "quote": "As with buying stock on margin, your brokerage firm will charge you interest on the loan, and you are subject to the margin rules.",
+      "quote": "As with buying stock on margin, your brokerage firm will charge you interest on the loan, and you are subject to the margin rules. … If the stock you borrow pays a dividend, you must pay the dividend to the person or firm making the loan.",
       "tier": 1,
       "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-51"
      },
      {
       "accessed": "2026-11-09",
       "name": "Charles Schwab: Short Selling: The Risks and Rewards (June 1, 2026)",
-      "quote": "As with other forms of borrowing, you'll be charged interest on the value of the outstanding shares until they're returned",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/ins-and-outs-short-selling"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: Short Selling: The Risks and Rewards (June 1, 2026)",
-      "quote": "You may be able to short the most liquid shares for nothing, while the least liquid shares could come with an annualized interest rate of more than 100% of the value of your position.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/ins-and-outs-short-selling"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: Short Selling: The Risks and Rewards (June 1, 2026)",
-      "quote": "Rates can also change suddenly if the shares become more or less liquid. Interest accrues daily at the prevailing rate and is deducted from your account on a monthly basis.",
+      "quote": "As with other forms of borrowing, you'll be charged interest on the value of the outstanding shares until they're returned … You may be able to short the most liquid shares for nothing, while the least liquid shares could come with an annualized interest rate of more than 100% of the value of your position. … Rates can also change suddenly if the shares become more or less liquid. Interest accrues daily at the prevailing rate and is deducted from your account on a monthly basis. … For example, you could log off one night with a short position carrying a 20% interest rate, only to log in the next day to find it has surged to 85%.",
       "tier": 2,
       "url": "https://www.schwab.com/learn/story/ins-and-outs-short-selling"
      },
@@ -2505,30 +2113,9 @@
      {
       "accessed": "2026-11-09",
       "name": "SEC: Staff Report on Equity and Options Market Structure Conditions in Early 2021 (October 14, 2021)",
-      "quote": "For perspective, between January 2007 and July 2018, the securities of just 222 firms had lending fees greater than 100% at any point, accounting for just 0.01% of observations.",
+      "quote": "For perspective, between January 2007 and July 2018, the securities of just 222 firms had lending fees greater than 100% at any point, accounting for just 0.01% of observations. … Average lending fees were 1.5% during that same period.",
       "tier": 1,
       "url": "https://www.sec.gov/files/staff-report-equity-options-market-struction-conditions-early-2021.pdf"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC: Staff Report on Equity and Options Market Structure Conditions in Early 2021 (October 14, 2021)",
-      "quote": "Average lending fees were 1.5% during that same period.",
-      "tier": 1,
-      "url": "https://www.sec.gov/files/staff-report-equity-options-market-struction-conditions-early-2021.pdf"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: Short Selling: The Risks and Rewards (June 1, 2026)",
-      "quote": "For example, you could log off one night with a short position carrying a 20% interest rate, only to log in the next day to find it has surged to 85%.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/ins-and-outs-short-selling"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Investor Bulletin: An Introduction to Short Sales (Oct. 29, 2015, updated September 9, 2026)",
-      "quote": "If the stock you borrow pays a dividend, you must pay the dividend to the person or firm making the loan.",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-51"
      }
     ]
    },
@@ -2567,7 +2154,7 @@
      {
       "accessed": "2026-11-09",
       "name": "SEC: Key Points About Regulation SHO (modified 5/31/2022)",
-      "quote": "The term “short squeeze” refers to the pressure on short sellers to cover their positions as a result of sharp price increases or difficulty in borrowing the security the sellers are short.",
+      "quote": "The term “short squeeze” refers to the pressure on short sellers to cover their positions as a result of sharp price increases or difficulty in borrowing the security the sellers are short. … The rush by short sellers to cover produces additional upward pressure on the price of the stock, which then can cause an even greater squeeze.",
       "tier": 1,
       "url": "https://www.sec.gov/investor/pubs/regsho.htm"
      },
@@ -2577,13 +2164,6 @@
       "quote": "A short squeeze might occur when an event triggers short sellers en masse to purchase shares to cover their short positions.",
       "tier": 1,
       "url": "https://www.sec.gov/files/staff-report-equity-options-market-struction-conditions-early-2021.pdf"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC: Key Points About Regulation SHO (modified 5/31/2022)",
-      "quote": "The rush by short sellers to cover produces additional upward pressure on the price of the stock, which then can cause an even greater squeeze.",
-      "tier": 1,
-      "url": "https://www.sec.gov/investor/pubs/regsho.htm"
      },
      {
       "accessed": "2026-11-09",
@@ -2640,7 +2220,7 @@
      {
       "accessed": "2026-11-09",
       "name": "Investopedia: How Can You Lose More Money Than You Invest Shorting a Stock? (updated October 19, 2026)",
-      "quote": "This is why you are able to lose more money than you received from the investment in the short.",
+      "quote": "This is why you are able to lose more money than you received from the investment in the short. … Because stocks never trade in negative numbers, the furthest a stock can possibly fall is to zero. This puts a limit on the maximum profit that can be achieved in a short sale.",
       "tier": 2,
       "url": "https://www.investopedia.com/ask/answers/05/shortsaleloss.asp"
      },
@@ -2650,13 +2230,6 @@
       "quote": "Unlike a traditional long position — when risk is limited to the amount invested — shorting a stock leaves an investor open to the possibility of unlimited losses, since a stock can theoretically keep rising indefinitely.",
       "tier": 1,
       "url": "https://www.sec.gov/investor/pubs/regsho.htm"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: How Can You Lose More Money Than You Invest Shorting a Stock? (updated October 19, 2026)",
-      "quote": "Because stocks never trade in negative numbers, the furthest a stock can possibly fall is to zero. This puts a limit on the maximum profit that can be achieved in a short sale.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/ask/answers/05/shortsaleloss.asp"
      },
      {
       "accessed": "2026-11-09",
@@ -2717,14 +2290,7 @@
      {
       "accessed": "2026-11-09",
       "name": "SEC, Investor.gov: Stop, Stop-Limit, and Trailing Stop Orders: Investor Bulletin (updated August 18, 2026)",
-      "quote": "A buy stop order is entered at a stop price above the current market price.",
-      "tier": 1,
-      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-stop-stop-limit-trailing-stop"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Stop, Stop-Limit, and Trailing Stop Orders: Investor Bulletin (updated August 18, 2026)",
-      "quote": "Investors generally use a buy stop order in an attempt to limit a loss or to protect a profit on a stock that they have sold short.",
+      "quote": "A buy stop order is entered at a stop price above the current market price. … Investors generally use a buy stop order in an attempt to limit a loss or to protect a profit on a stock that they have sold short. … A sell stop order is entered at a stop price below the current market price. Investors generally use a sell stop order in an attempt to limit a loss or to protect a profit on a stock that they own.",
       "tier": 1,
       "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-stop-stop-limit-trailing-stop"
      },
@@ -2736,18 +2302,11 @@
       "url": "https://www.finra.org/investors/insights/stop-orders-factors-consider-during-volatile-markets"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Stop, Stop-Limit, and Trailing Stop Orders: Investor Bulletin (updated August 18, 2026)",
-      "quote": "A sell stop order is entered at a stop price below the current market price. Investors generally use a sell stop order in an attempt to limit a loss or to protect a profit on a stock that they own.",
-      "tier": 1,
-      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-stop-stop-limit-trailing-stop"
-     },
-     {
       "accessed": "2026-11-12",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "name": "Our trading rules",
       "quote": "Every position has a real stop order with the broker, not a stop kept in your head.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": null
      }
     ],
     "summary": "A buy stop sits above the current price. Investors generally use a buy stop to try to limit a loss on a stock they sold short. A buy stop buys once the price rises to the stop, to limit a short's loss. A sell stop sits below the price and protects a stock you own. Our rule: every position has a real stop order with the broker."
@@ -2872,37 +2431,16 @@
      {
       "accessed": "2026-11-09",
       "name": "FINRA: Short Interest: What It Is, What It Is Not (Investor Insights, January 25, 2023)",
-      "quote": "The short interest data is just a snapshot that reflects short positions held by brokerage firms at a specific moment in time on two discrete days each month.",
+      "quote": "The short interest data is just a snapshot that reflects short positions held by brokerage firms at a specific moment in time on two discrete days each month. … “Short interest” is a snapshot of the total open short positions existing on the books and records of brokerage firms for all equity securities on a given settlement date. … Often, the data shown on free investor sites represents the results of a proprietary calculation and not the raw short interest data that FINRA and the exchanges disseminate.",
       "tier": 1,
       "url": "https://www.finra.org/investors/insights/short-interest"
      },
      {
       "accessed": "2026-11-09",
       "name": "FINRA: About Equity Short Interest (publish schedule)",
-      "quote": "Once the short position reports are received, the short interest data is compiled for each security and provided for publication on the 7th business day after the reporting settlement date.",
+      "quote": "Once the short position reports are received, the short interest data is compiled for each security and provided for publication on the 7th business day after the reporting settlement date. … The mid-month short interest report is based on short positions held by members on the settlement date of the 15th of each month.",
       "tier": 1,
       "url": "https://www.finra.org/finra-data/browse-catalog/equity-short-interest"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: About Equity Short Interest (publish schedule)",
-      "quote": "The mid-month short interest report is based on short positions held by members on the settlement date of the 15th of each month.",
-      "tier": 1,
-      "url": "https://www.finra.org/finra-data/browse-catalog/equity-short-interest"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Short Interest: What It Is, What It Is Not (Investor Insights, January 25, 2023)",
-      "quote": "“Short interest” is a snapshot of the total open short positions existing on the books and records of brokerage firms for all equity securities on a given settlement date.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/short-interest"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Short Interest: What It Is, What It Is Not (Investor Insights, January 25, 2023)",
-      "quote": "Often, the data shown on free investor sites represents the results of a proprietary calculation and not the raw short interest data that FINRA and the exchanges disseminate.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/short-interest"
      }
     ],
     "summary": "Short interest is measured on just two days a month. FINRA publishes short interest on the 7th business day after its settlement date. One report is taken mid-month, around the 15th; the other at month end. Short interest is a snapshot of all open short positions on brokers' books on one settlement date. Free sites often show their own calculation, not FINRA's raw short interest."
@@ -2947,14 +2485,7 @@
      {
       "accessed": "2026-11-09",
       "name": "SEC: Staff Report on Equity and Options Market Structure Conditions in Early 2021 (October 14, 2021)",
-      "quote": "Short interest can exceed 100%—as it did with GME—when the same shares are lent multiple times by successive purchasers.",
-      "tier": 1,
-      "url": "https://www.sec.gov/files/staff-report-equity-options-market-struction-conditions-early-2021.pdf"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC: Staff Report on Equity and Options Market Structure Conditions in Early 2021 (October 14, 2021)",
-      "quote": "GME short interest (as a percent of float) in January 2021 reached 122.97%",
+      "quote": "Short interest can exceed 100%—as it did with GME—when the same shares are lent multiple times by successive purchasers. … GME short interest (as a percent of float) in January 2021 reached 122.97%",
       "tier": 1,
       "url": "https://www.sec.gov/files/staff-report-equity-options-market-struction-conditions-early-2021.pdf"
      }
@@ -3001,21 +2532,14 @@
      {
       "accessed": "2026-11-09",
       "name": "SEC, Investor.gov: Stop, Stop-Limit, and Trailing Stop Orders: Investor Bulletin (updated August 18, 2026)",
-      "quote": "A stop order, also referred to as a stop-loss order, is an order to buy or sell a stock once the price of the stock reaches a specified price, known as the stop price.",
+      "quote": "A stop order, also referred to as a stop-loss order, is an order to buy or sell a stock once the price of the stock reaches a specified price, known as the stop price. … The stop price is a trigger that causes the stop order to become a market order. The execution price an investor receives for this market order can deviate significantly from the stop price",
       "tier": 1,
       "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-stop-stop-limit-trailing-stop"
      },
      {
       "accessed": "2026-11-09",
       "name": "Charles Schwab: Short Selling: The Risks and Rewards (June 1, 2026)",
-      "quote": "Buy-stop orders trigger a market order to buy back the shares at the next available price if the stock price rises to or above the stop price.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/ins-and-outs-short-selling"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: Short Selling: The Risks and Rewards (June 1, 2026)",
-      "quote": "neither method guarantees that the order will execute at or near the \"stop\" price you designate, and in fact, the stop order could lock in significant losses if the price gaps up.",
+      "quote": "Buy-stop orders trigger a market order to buy back the shares at the next available price if the stock price rises to or above the stop price. … neither method guarantees that the order will execute at or near the \"stop\" price you designate, and in fact, the stop order could lock in significant losses if the price gaps up.",
       "tier": 2,
       "url": "https://www.schwab.com/learn/story/ins-and-outs-short-selling"
      },
@@ -3032,13 +2556,6 @@
       "quote": "One big risk is when a bullish catalyst (e.g., earnings, news, technical event, etc.) pushes the stock price higher, prompting short sellers to \"head for the exits\" all at once.",
       "tier": 2,
       "url": "https://www.schwab.com/learn/story/whats-short-squeeze-and-why-does-it-happen"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Stop, Stop-Limit, and Trailing Stop Orders: Investor Bulletin (updated August 18, 2026)",
-      "quote": "The stop price is a trigger that causes the stop order to become a market order. The execution price an investor receives for this market order can deviate significantly from the stop price",
-      "tier": 1,
-      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-stop-stop-limit-trailing-stop"
      }
     ],
     "summary": "A stop order acts only once the price reaches the stop price. A buy stop sends a market order to buy back at the next available price once the price reaches it. A buy stop can lock in big losses if the stock gaps up past it. Gaps come from orders that build while the market is closed, like buying after strong earnings. Good news can push a shorted stock up and send shorts for the exits together. Once triggered, a stop is a market order, and the fill can be far from the stop price."
@@ -3115,14 +2632,7 @@
      {
       "accessed": "2026-11-09",
       "name": "Investopedia: Short Squeeze: Definition, Causes, and Examples (Cory Mitchell, CMT; updated June 22, 2024)",
-      "quote": "if a stock has one million shares sold short and its average daily trading volume is 100,000 shares, then the days to cover would be 10 days.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/s/shortsqueeze.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Short Squeeze: Definition, Causes, and Examples (Cory Mitchell, CMT; updated June 22, 2024)",
-      "quote": "In general, the higher a stock’s days-to-cover figure, the more susceptible it may be to a short squeeze.",
+      "quote": "if a stock has one million shares sold short and its average daily trading volume is 100,000 shares, then the days to cover would be 10 days. … In general, the higher a stock’s days-to-cover figure, the more susceptible it may be to a short squeeze.",
       "tier": 2,
       "url": "https://www.investopedia.com/terms/s/shortsqueeze.asp"
      }
@@ -3186,58 +2696,23 @@
      {
       "accessed": "2026-11-09",
       "name": "Charles Schwab: Short Selling: The Risks and Rewards (June 1, 2026)",
-      "quote": "Let's say stock ZYX recently dropped from $90 per share to $66 before rebounding to $84, and you think it's poised for another decline.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/ins-and-outs-short-selling"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: Short Selling: The Risks and Rewards (June 1, 2026)",
-      "quote": "Enter a short position only if the stock falls below $80 per share. Set a buy-stop order at $84 in the hope of limiting a potential loss to $4 per share.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/ins-and-outs-short-selling"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: Short Selling: The Risks and Rewards (June 1, 2026)",
-      "quote": "Close out the position at or below $74 per share.",
+      "quote": "Let's say stock ZYX recently dropped from $90 per share to $66 before rebounding to $84, and you think it's poised for another decline. … Enter a short position only if the stock falls below $80 per share. Set a buy-stop order at $84 in the hope of limiting a potential loss to $4 per share. … Close out the position at or below $74 per share.",
       "tier": 2,
       "url": "https://www.schwab.com/learn/story/ins-and-outs-short-selling"
      },
      {
       "accessed": "2026-11-09",
       "name": "SEC, Investor.gov: Stop, Stop-Limit, and Trailing Stop Orders: Investor Bulletin (updated August 18, 2026)",
-      "quote": "A buy stop order is entered at a stop price above the current market price.",
-      "tier": 1,
-      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-stop-stop-limit-trailing-stop"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Stop, Stop-Limit, and Trailing Stop Orders: Investor Bulletin (updated August 18, 2026)",
-      "quote": "Investors generally use a buy stop order in an attempt to limit a loss or to protect a profit on a stock that they have sold short.",
+      "quote": "A buy stop order is entered at a stop price above the current market price. … Investors generally use a buy stop order in an attempt to limit a loss or to protect a profit on a stock that they have sold short.",
       "tier": 1,
       "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-stop-stop-limit-trailing-stop"
      },
      {
       "accessed": "2026-11-12",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "The stop sits a few cents under the day's low, not exactly on it.",
+      "name": "Our trading rules",
+      "quote": "The stop sits a few cents under the day's low, not exactly on it. … Shorts are our long setups reversed, for almost every setup. … Every position has a real stop order with the broker, not a stop kept in your head.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Shorts are our long setups reversed, for almost every setup.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Every position has a real stop order with the broker, not a stop kept in your head.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": null
      }
     ],
     "summary": "Schwab's example: a stock falls from $90 to $66, bounces to $84, and looks ready to drop again. Short only below $80, with the buy stop at the $84 bounce high: $4 a share at risk. In Schwab's example, $74 is the profit target, where the short is closed. A buy stop sits above the current price. Investors generally use a buy stop to try to limit a loss on a stock they sold short. Our rule: the stop sits a few cents past the low, not exactly on it. Our rule: shorts are our long setups reversed. Our rule: every position has a real stop order with the broker."
@@ -3329,23 +2804,16 @@
      {
       "accessed": "2026-11-09",
       "name": "SEC, Investor.gov: Stop, Stop-Limit, and Trailing Stop Orders: Investor Bulletin (updated August 18, 2026)",
-      "quote": "A buy stop order is entered at a stop price above the current market price.",
-      "tier": 1,
-      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-stop-stop-limit-trailing-stop"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Stop, Stop-Limit, and Trailing Stop Orders: Investor Bulletin (updated August 18, 2026)",
-      "quote": "Investors generally use a buy stop order in an attempt to limit a loss or to protect a profit on a stock that they have sold short.",
+      "quote": "A buy stop order is entered at a stop price above the current market price. … Investors generally use a buy stop order in an attempt to limit a loss or to protect a profit on a stock that they have sold short.",
       "tier": 1,
       "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-stop-stop-limit-trailing-stop"
      },
      {
       "accessed": "2026-11-12",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "name": "Our trading rules",
       "quote": "Shares = account × risk % ÷ (entry − stop), rounded down, then capped: the size is the SMALLER of the risk-based size and the position cap",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": null
      }
     ],
     "summary": "Short only below $80, with the buy stop at the $84 bounce high: $4 a share at risk. A buy stop sits above the current price. Investors generally use a buy stop to try to limit a loss on a stock they sold short. Our rule: shares are the account times the risk percent, divided by the distance to the stop, rounded down, then capped."
@@ -3359,7 +2827,13 @@
       "stop": 31.5
      },
      "fn": "shares_from_risk",
-     "result": 133.0
+     "result": 133.0,
+     "steps": {
+      "raw_shares": 133.33,
+      "risk_dollars": 200.0,
+      "risk_per_share": 1.5,
+      "stop_pct": 5.0
+     }
     },
     "given": "Account $40,000, risking 0.5%. You short at $30.00 with a buy stop at $31.50. How many shares? 133 shares 7 shares 1,333 shares 400 shares"
    },
@@ -3466,7 +2940,11 @@
       "stop": 52.0
      },
      "fn": "r_multiple",
-     "result": 2.5
+     "result": 2.5,
+     "steps": {
+      "gain_per_share": 5.0,
+      "risk_per_share": 2.0
+     }
     },
     "given": "You short at $50.00 with a buy stop at $52.00. You cover at $45.00. How many R did you make? 2.5R 3.5R 5.0R 7.0R"
    },
@@ -3515,14 +2993,7 @@
      {
       "accessed": "2026-11-09",
       "name": "Charles Schwab: What Is Short Interest? (June 4, 2024)",
-      "quote": "Rather than looking at the absolute level of short interest in a stock, they're often looking at a ratio rather than the total number of shares that are short.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/what-is-short-interest"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: What Is Short Interest? (June 4, 2024)",
-      "quote": "That's because a large company with billions of shares outstanding will likely have more short interest than a smaller company with a few million shares, but that doesn't necessarily indicate higher levels of bearish sentiment in the larger company.",
+      "quote": "Rather than looking at the absolute level of short interest in a stock, they're often looking at a ratio rather than the total number of shares that are short. … That's because a large company with billions of shares outstanding will likely have more short interest than a smaller company with a few million shares, but that doesn't necessarily indicate higher levels of bearish sentiment in the larger company.",
       "tier": 2,
       "url": "https://www.schwab.com/learn/story/what-is-short-interest"
      },
@@ -3536,14 +3007,7 @@
      {
       "accessed": "2026-11-09",
       "name": "SEC: Staff Report on Equity and Options Market Structure Conditions in Early 2021 (October 14, 2021)",
-      "quote": "if a stock has 100 shares outstanding and 5 of them are currently being sold short, then the stock would have short interest of 5%.",
-      "tier": 1,
-      "url": "https://www.sec.gov/files/staff-report-equity-options-market-struction-conditions-early-2021.pdf"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC: Staff Report on Equity and Options Market Structure Conditions in Early 2021 (October 14, 2021)",
-      "quote": "Short interest ratios tend to be quite low; for large non-financial stocks, they are often less than 2.5% whereas for small non-financial stocks they still tend to be less than 13%.",
+      "quote": "if a stock has 100 shares outstanding and 5 of them are currently being sold short, then the stock would have short interest of 5%. … Short interest ratios tend to be quite low; for large non-financial stocks, they are often less than 2.5% whereas for small non-financial stocks they still tend to be less than 13%.",
       "tier": 1,
       "url": "https://www.sec.gov/files/staff-report-equity-options-market-struction-conditions-early-2021.pdf"
      }
@@ -3618,7 +3082,7 @@
      {
       "accessed": "2026-11-09",
       "name": "Charles Schwab: Short Selling: The Risks and Rewards (June 1, 2026)",
-      "quote": "neither method guarantees that the order will execute at or near the \"stop\" price you designate, and in fact, the stop order could lock in significant losses if the price gaps up.",
+      "quote": "neither method guarantees that the order will execute at or near the \"stop\" price you designate, and in fact, the stop order could lock in significant losses if the price gaps up. … Buy-stop orders trigger a market order to buy back the shares at the next available price if the stock price rises to or above the stop price.",
       "tier": 2,
       "url": "https://www.schwab.com/learn/story/ins-and-outs-short-selling"
      },
@@ -3642,13 +3106,6 @@
       "quote": "One big risk is when a bullish catalyst (e.g., earnings, news, technical event, etc.) pushes the stock price higher, prompting short sellers to \"head for the exits\" all at once.",
       "tier": 2,
       "url": "https://www.schwab.com/learn/story/whats-short-squeeze-and-why-does-it-happen"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: Short Selling: The Risks and Rewards (June 1, 2026)",
-      "quote": "Buy-stop orders trigger a market order to buy back the shares at the next available price if the stock price rises to or above the stop price.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/ins-and-outs-short-selling"
      }
     ],
     "summary": "A buy stop can lock in big losses if the stock gaps up past it. Once triggered, a stop is a market order, and the fill can be far from the stop price. Gaps come from orders that build while the market is closed, like buying after strong earnings. Good news can push a shorted stock up and send shorts for the exits together. A buy stop sends a market order to buy back at the next available price once the price reaches it."
@@ -3753,14 +3210,7 @@
      {
       "accessed": "2026-11-09",
       "name": "FINRA: Rule 4210, Margin Requirements",
-      "quote": "$5.00 per share or 30 percent of the current market value, whichever amount is greater, of each stock \"short\" in the account selling at $5.00 per share or above",
-      "tier": 1,
-      "url": "https://www.finra.org/rules-guidance/rulebooks/finra-rules/4210"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Rule 4210, Margin Requirements",
-      "quote": "Substantial additional margin must be required in all cases where the securities carried in \"long\" or \"short\" positions are subject to unusually rapid or violent changes in value",
+      "quote": "$5.00 per share or 30 percent of the current market value, whichever amount is greater, of each stock \"short\" in the account selling at $5.00 per share or above … Substantial additional margin must be required in all cases where the securities carried in \"long\" or \"short\" positions are subject to unusually rapid or violent changes in value",
       "tier": 1,
       "url": "https://www.finra.org/rules-guidance/rulebooks/finra-rules/4210"
      },
@@ -3854,35 +3304,7 @@
      {
       "accessed": "2026-11-09",
       "name": "FINRA: Short Interest: What It Is, What It Is Not (Investor Insights, January 25, 2023)",
-      "quote": "Some websites might redistribute the Short Sale Volume Daily File and refer to the data as “short interest,” but this is incorrect",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/short-interest"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Short Interest: What It Is, What It Is Not (Investor Insights, January 25, 2023)",
-      "quote": "The Short Sale Volume Daily File reflects the aggregate volume of trades within certain parameters executed as short sales on individual trade dates.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/short-interest"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Short Interest: What It Is, What It Is Not (Investor Insights, January 25, 2023)",
-      "quote": "an investor might sell a security short and purchase shares to close the position on the same trade date. That position would not appear in the short interest data",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/short-interest"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Short Interest: What It Is, What It Is Not (Investor Insights, January 25, 2023)",
-      "quote": "“Short interest” is a snapshot of the total open short positions existing on the books and records of brokerage firms for all equity securities on a given settlement date.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/short-interest"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Short Interest: What It Is, What It Is Not (Investor Insights, January 25, 2023)",
-      "quote": "The short interest data is just a snapshot that reflects short positions held by brokerage firms at a specific moment in time on two discrete days each month.",
+      "quote": "Some websites might redistribute the Short Sale Volume Daily File and refer to the data as “short interest,” but this is incorrect … The Short Sale Volume Daily File reflects the aggregate volume of trades within certain parameters executed as short sales on individual trade dates. … an investor might sell a security short and purchase shares to close the position on the same trade date. That position would not appear in the short interest data … “Short interest” is a snapshot of the total open short positions existing on the books and records of brokerage firms for all equity securities on a given settlement date. … The short interest data is just a snapshot that reflects short positions held by brokerage firms at a specific moment in time on two discrete days each month.",
       "tier": 1,
       "url": "https://www.finra.org/investors/insights/short-interest"
      }
@@ -3940,14 +3362,7 @@
      {
       "accessed": "2026-11-09",
       "name": "Investopedia: Short Squeeze: Definition, Causes, and Examples (Cory Mitchell, CMT; updated June 22, 2024)",
-      "quote": "A heavy short interest does not mean that the price will rise. It means that many people believe it will fall.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/s/shortsqueeze.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Short Squeeze: Definition, Causes, and Examples (Cory Mitchell, CMT; updated June 22, 2024)",
-      "quote": "There are many examples of stocks that moved higher after they had a heavy short interest. But there are also many heavily shorted stocks that then keep falling in price.",
+      "quote": "A heavy short interest does not mean that the price will rise. It means that many people believe it will fall. … There are many examples of stocks that moved higher after they had a heavy short interest. But there are also many heavily shorted stocks that then keep falling in price. … Active traders will monitor highly shorted stocks and watch for them to start rising.",
       "tier": 2,
       "url": "https://www.investopedia.com/terms/s/shortsqueeze.asp"
      },
@@ -3961,16 +3376,9 @@
      {
       "accessed": "2026-11-09",
       "name": "SEC: Key Points About Regulation SHO (modified 5/31/2022)",
-      "quote": "claiming that there will be an imminent short squeeze, in which the alleged “naked” short sellers will be forced to cover open short positions at increasing prices. These claims in fact may be false.",
+      "quote": "claiming that there will be an imminent short squeeze, in which the alleged “naked” short sellers will be forced to cover open short positions at increasing prices. These claims in fact may be false. … The term “short squeeze” refers to the pressure on short sellers to cover their positions as a result of sharp price increases or difficulty in borrowing the security the sellers are short.",
       "tier": 1,
       "url": "https://www.sec.gov/investor/pubs/regsho.htm"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Short Squeeze: Definition, Causes, and Examples (Cory Mitchell, CMT; updated June 22, 2024)",
-      "quote": "Active traders will monitor highly shorted stocks and watch for them to start rising.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/s/shortsqueeze.asp"
      },
      {
       "accessed": "2026-11-09",
@@ -3978,13 +3386,6 @@
       "quote": "One potential signal could be when a stock has fallen through a series of lower lows while trading at higher volumes.",
       "tier": 2,
       "url": "https://www.schwab.com/learn/story/ins-and-outs-short-selling"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC: Key Points About Regulation SHO (modified 5/31/2022)",
-      "quote": "The term “short squeeze” refers to the pressure on short sellers to cover their positions as a result of sharp price increases or difficulty in borrowing the security the sellers are short.",
-      "tier": 1,
-      "url": "https://www.sec.gov/investor/pubs/regsho.htm"
      },
      {
       "accessed": "2026-11-09",
@@ -4044,14 +3445,14 @@
      {
       "accessed": "2026-11-09",
       "name": "FINRA: Rule 2264, Margin Disclosure Statement",
-      "quote": "The firm can increase its \"house\" maintenance margin requirements at any time and is not required to provide you advance written notice.",
+      "quote": "The firm can increase its \"house\" maintenance margin requirements at any time and is not required to provide you advance written notice. … The firm can sell your securities or other assets without contacting you.",
       "tier": 1,
       "url": "https://www.finra.org/rules-guidance/rulebooks/finra-rules/2264"
      },
      {
       "accessed": "2026-11-09",
       "name": "FINRA: Rule 4210, Margin Requirements",
-      "quote": "Substantial additional margin must be required in all cases where the securities carried in \"long\" or \"short\" positions are subject to unusually rapid or violent changes in value",
+      "quote": "Substantial additional margin must be required in all cases where the securities carried in \"long\" or \"short\" positions are subject to unusually rapid or violent changes in value … $5.00 per share or 30 percent of the current market value, whichever amount is greater, of each stock \"short\" in the account selling at $5.00 per share or above",
       "tier": 1,
       "url": "https://www.finra.org/rules-guidance/rulebooks/finra-rules/4210"
      },
@@ -4061,20 +3462,6 @@
       "quote": "if there is a sudden increase in the price of the stock being shorted, short sellers would face margin calls requiring them either to post additional collateral or to exit their position.",
       "tier": 1,
       "url": "https://www.sec.gov/files/staff-report-equity-options-market-struction-conditions-early-2021.pdf"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Rule 2264, Margin Disclosure Statement",
-      "quote": "The firm can sell your securities or other assets without contacting you.",
-      "tier": 1,
-      "url": "https://www.finra.org/rules-guidance/rulebooks/finra-rules/2264"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Rule 4210, Margin Requirements",
-      "quote": "$5.00 per share or 30 percent of the current market value, whichever amount is greater, of each stock \"short\" in the account selling at $5.00 per share or above",
-      "tier": 1,
-      "url": "https://www.finra.org/rules-guidance/rulebooks/finra-rules/4210"
      }
     ],
     "summary": "A broker can raise its own margin requirement at any time, without notice. Brokers must require substantially more margin on positions that swing unusually fast or violently. A sudden jump in a shorted stock brings margin calls: add collateral or get out. A broker can sell your securities without contacting you first. FINRA's minimum maintenance on a short at $5 or more is 30% of its current value or $5 a share, whichever is greater."
@@ -4125,21 +3512,7 @@
      {
       "accessed": "2026-11-09",
       "name": "SEC: Staff Report on Equity and Options Market Structure Conditions in Early 2021 (October 14, 2021)",
-      "quote": "If either the National Best Bid equals the stock’s upper bound or the National Best Offer equals the stock’s lower bound for fifteen seconds, the stock’s trading will be paused for five minutes.",
-      "tier": 1,
-      "url": "https://www.sec.gov/files/staff-report-equity-options-market-struction-conditions-early-2021.pdf"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC: Staff Report on Equity and Options Market Structure Conditions in Early 2021 (October 14, 2021)",
-      "quote": "On January 28 alone, 19 LULD pauses were triggered in GME.",
-      "tier": 1,
-      "url": "https://www.sec.gov/files/staff-report-equity-options-market-struction-conditions-early-2021.pdf"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC: Staff Report on Equity and Options Market Structure Conditions in Early 2021 (October 14, 2021)",
-      "quote": "Significant price movement in GME during January 2021 triggered 40 LULD pauses, compared with only one in all of 2020.",
+      "quote": "If either the National Best Bid equals the stock’s upper bound or the National Best Offer equals the stock’s lower bound for fifteen seconds, the stock’s trading will be paused for five minutes. … On January 28 alone, 19 LULD pauses were triggered in GME. … Significant price movement in GME during January 2021 triggered 40 LULD pauses, compared with only one in all of 2020.",
       "tier": 1,
       "url": "https://www.sec.gov/files/staff-report-equity-options-market-struction-conditions-early-2021.pdf"
      },
@@ -4222,28 +3595,7 @@
      {
       "accessed": "2026-11-09",
       "name": "SEC: Staff Report on Equity and Options Market Structure Conditions in Early 2021 (October 14, 2021)",
-      "quote": "However, it also shows that such buying was a small fraction of overall buy volume",
-      "tier": 1,
-      "url": "https://www.sec.gov/files/staff-report-equity-options-market-struction-conditions-early-2021.pdf"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC: Staff Report on Equity and Options Market Structure Conditions in Early 2021 (October 14, 2021)",
-      "quote": "it was the positive sentiment, not the buying-to-cover, that sustained the weeks-long price appreciation of GameStop stock.",
-      "tier": 1,
-      "url": "https://www.sec.gov/files/staff-report-equity-options-market-struction-conditions-early-2021.pdf"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC: Staff Report on Equity and Options Market Structure Conditions in Early 2021 (October 14, 2021)",
-      "quote": "During these times, short sellers covering their positions likely contributed to increases in GME’s price.",
-      "tier": 1,
-      "url": "https://www.sec.gov/files/staff-report-equity-options-market-struction-conditions-early-2021.pdf"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC: Staff Report on Equity and Options Market Structure Conditions in Early 2021 (October 14, 2021)",
-      "quote": "While a short squeeze did not appear to be the main driver of events",
+      "quote": "However, it also shows that such buying was a small fraction of overall buy volume … it was the positive sentiment, not the buying-to-cover, that sustained the weeks-long price appreciation of GameStop stock. … During these times, short sellers covering their positions likely contributed to increases in GME’s price. … While a short squeeze did not appear to be the main driver of events",
       "tier": 1,
       "url": "https://www.sec.gov/files/staff-report-equity-options-market-struction-conditions-early-2021.pdf"
      }
@@ -4312,35 +3664,7 @@
      {
       "accessed": "2026-11-09",
       "name": "SEC: Staff Report on Equity and Options Market Structure Conditions in Early 2021 (October 14, 2021)",
-      "quote": "GME short interest (as a percent of float) in January 2021 reached 122.97%",
-      "tier": 1,
-      "url": "https://www.sec.gov/files/staff-report-equity-options-market-struction-conditions-early-2021.pdf"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC: Staff Report on Equity and Options Market Structure Conditions in Early 2021 (October 14, 2021)",
-      "quote": "By January 27, GME closed at a high of $347.51 per share, representing a more than 1,600% increase from its closing price on January 11.",
-      "tier": 1,
-      "url": "https://www.sec.gov/files/staff-report-equity-options-market-struction-conditions-early-2021.pdf"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC: Staff Report on Equity and Options Market Structure Conditions in Early 2021 (October 14, 2021)",
-      "quote": "The following day, share prices jumped further to an intraday high of $483.00.",
-      "tier": 1,
-      "url": "https://www.sec.gov/files/staff-report-equity-options-market-struction-conditions-early-2021.pdf"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC: Staff Report on Equity and Options Market Structure Conditions in Early 2021 (October 14, 2021)",
-      "quote": "GME’s intraday share price increased approximately 2,700% from its intraday low on January 8 to its intraday high on January 28",
-      "tier": 1,
-      "url": "https://www.sec.gov/files/staff-report-equity-options-market-struction-conditions-early-2021.pdf"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC: Staff Report on Equity and Options Market Structure Conditions in Early 2021 (October 14, 2021)",
-      "quote": "followed by a decrease of over 86% from that day to the closing price at the end of the first week of February.",
+      "quote": "GME short interest (as a percent of float) in January 2021 reached 122.97% … By January 27, GME closed at a high of $347.51 per share, representing a more than 1,600% increase from its closing price on January 11. … The following day, share prices jumped further to an intraday high of $483.00. … GME’s intraday share price increased approximately 2,700% from its intraday low on January 8 to its intraday high on January 28 … followed by a decrease of over 86% from that day to the closing price at the end of the first week of February.",
       "tier": 1,
       "url": "https://www.sec.gov/files/staff-report-equity-options-market-struction-conditions-early-2021.pdf"
      }
@@ -4354,7 +3678,10 @@
       "start": 347.51
      },
      "fn": "pct_change",
-     "result": 39.0
+     "result": 39.0,
+     "steps": {
+      "change": 135.49
+     }
     },
     "given": "What happened next? Short interest in this stock topped its float. It just closed up more than 1,600% in about two weeks. You short this close with a buy stop 20% above. It fell over 86%, no new high first Stopped out: it spiked 39% first It kept squeezing higher for weeks A small new high, stop not hit"
    },
@@ -4421,14 +3748,7 @@
      {
       "accessed": "2026-11-09",
       "name": "SEC: Staff Report on Equity and Options Market Structure Conditions in Early 2021 (October 14, 2021)",
-      "quote": "the closing price rose to $31.40 from $19.95 the prior day",
-      "tier": 1,
-      "url": "https://www.sec.gov/files/staff-report-equity-options-market-struction-conditions-early-2021.pdf"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC: Staff Report on Equity and Options Market Structure Conditions in Early 2021 (October 14, 2021)",
-      "quote": "By January 27, GME closed at a high of $347.51 per share, representing a more than 1,600% increase from its closing price on January 11.",
+      "quote": "the closing price rose to $31.40 from $19.95 the prior day … By January 27, GME closed at a high of $347.51 per share, representing a more than 1,600% increase from its closing price on January 11. … GME short interest (as a percent of float) in January 2021 reached 122.97%",
       "tier": 1,
       "url": "https://www.sec.gov/files/staff-report-equity-options-market-struction-conditions-early-2021.pdf"
      },
@@ -4452,13 +3772,6 @@
       "quote": "Unlike a traditional long position — when risk is limited to the amount invested — shorting a stock leaves an investor open to the possibility of unlimited losses, since a stock can theoretically keep rising indefinitely.",
       "tier": 1,
       "url": "https://www.sec.gov/investor/pubs/regsho.htm"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC: Staff Report on Equity and Options Market Structure Conditions in Early 2021 (October 14, 2021)",
-      "quote": "GME short interest (as a percent of float) in January 2021 reached 122.97%",
-      "tier": 1,
-      "url": "https://www.sec.gov/files/staff-report-equity-options-market-struction-conditions-early-2021.pdf"
      }
     ],
     "summary": "GameStop closed at $19.95 on January 12, 2021, the day before it closed at $31.40. On January 27, 2021 GameStop closed at $347.51, up more than 1,600% from its January 11 close. A long can lose at most 100% of what the shares cost; a short's price can keep rising. A stock can fall only to zero, but it can rise without limit. A long's loss is limited to what it cost; a short's loss has no limit, because a stock can keep rising. GameStop's short interest reached 122.97% of its float in January 2021."
@@ -4470,7 +3783,10 @@
       "start": 19.95
      },
      "fn": "pct_change",
-     "result": 1642.0
+     "result": 1642.0,
+     "steps": {
+      "change": 327.56
+     }
     },
     "given": "You short at the $19.95 close on January 12, 2021. It closes at $347.51 on January 27. What's your loss on the move, as a % of the sale? 1,642% 94% 164% 328%"
    },
@@ -4550,14 +3866,7 @@
      {
       "accessed": "2026-11-09",
       "name": "Charles Schwab: What's a Short Squeeze and Why Does It Happen? (August 29, 2025)",
-      "quote": "The markets may run out of new buyers willing to pay higher and higher prices and the stock may in the end fall quickly.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/whats-short-squeeze-and-why-does-it-happen"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: What's a Short Squeeze and Why Does It Happen? (August 29, 2025)",
-      "quote": "A short squeeze is a high-risk situation, and it may cause havoc in the market, but it won't last forever.",
+      "quote": "The markets may run out of new buyers willing to pay higher and higher prices and the stock may in the end fall quickly. … A short squeeze is a high-risk situation, and it may cause havoc in the market, but it won't last forever.",
       "tier": 2,
       "url": "https://www.schwab.com/learn/story/whats-short-squeeze-and-why-does-it-happen"
      },
@@ -4618,38 +3927,10 @@
     "sources": [
      {
       "accessed": "2026-11-12",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "No short-interest rule.",
+      "name": "Our trading rules",
+      "quote": "No short-interest rule. … Shorts are our long setups reversed, for almost every setup. … Shares = account × risk % ÷ (entry − stop), rounded down, then capped: the size is the SMALLER of the risk-based size and the position cap … Setup grades set the size: A and B setups at normal size; A+ sized up; B- or lower sized down. … A tight stop never justifies a bigger position than that: a gap can jump the stop.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Shorts are our long setups reversed, for almost every setup.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Shares = account × risk % ÷ (entry − stop), rounded down, then capped: the size is the SMALLER of the risk-based size and the position cap",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Setup grades set the size: A and B setups at normal size; A+ sized up; B- or lower sized down.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "A tight stop never justifies a bigger position than that: a gap can jump the stop.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": null
      },
      {
       "accessed": "2026-11-09",
@@ -4703,10 +3984,10 @@
     "sources": [
      {
       "accessed": "2026-11-12",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "name": "Our trading rules",
       "quote": "shorts only below the 200-day, never above it unless it is a parabolic short.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": null
      }
     ],
     "summary": "Our rule: we short only below the 200-day average, unless it is a parabolic short."
@@ -4755,10 +4036,10 @@
     "sources": [
      {
       "accessed": "2026-11-12",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "name": "Our trading rules",
       "quote": "Skip a short when the stock is hard to borrow or the borrow fee is high.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": null
      },
      {
       "accessed": "2026-11-09",
@@ -4834,14 +4115,7 @@
      {
       "accessed": "2026-11-09",
       "name": "SEC, Investor.gov: Stop, Stop-Limit, and Trailing Stop Orders: Investor Bulletin (updated August 18, 2026)",
-      "quote": "A buy stop order is entered at a stop price above the current market price.",
-      "tier": 1,
-      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-stop-stop-limit-trailing-stop"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Stop, Stop-Limit, and Trailing Stop Orders: Investor Bulletin (updated August 18, 2026)",
-      "quote": "Investors generally use a buy stop order in an attempt to limit a loss or to protect a profit on a stock that they have sold short.",
+      "quote": "A buy stop order is entered at a stop price above the current market price. … Investors generally use a buy stop order in an attempt to limit a loss or to protect a profit on a stock that they have sold short.",
       "tier": 1,
       "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-stop-stop-limit-trailing-stop"
      }
@@ -4890,14 +4164,7 @@
      {
       "accessed": "2026-11-09",
       "name": "FINRA: Short Interest: What It Is, What It Is Not (Investor Insights, January 25, 2023)",
-      "quote": "“Short interest” is a snapshot of the total open short positions existing on the books and records of brokerage firms for all equity securities on a given settlement date.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/short-interest"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Short Interest: What It Is, What It Is Not (Investor Insights, January 25, 2023)",
-      "quote": "The short interest data is just a snapshot that reflects short positions held by brokerage firms at a specific moment in time on two discrete days each month.",
+      "quote": "“Short interest” is a snapshot of the total open short positions existing on the books and records of brokerage firms for all equity securities on a given settlement date. … The short interest data is just a snapshot that reflects short positions held by brokerage firms at a specific moment in time on two discrete days each month.",
       "tier": 1,
       "url": "https://www.finra.org/investors/insights/short-interest"
      },
@@ -4918,14 +4185,7 @@
      {
       "accessed": "2026-11-09",
       "name": "Investopedia: Short Squeeze: Definition, Causes, and Examples (Cory Mitchell, CMT; updated June 22, 2024)",
-      "quote": "A heavy short interest does not mean that the price will rise. It means that many people believe it will fall.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/s/shortsqueeze.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Short Squeeze: Definition, Causes, and Examples (Cory Mitchell, CMT; updated June 22, 2024)",
-      "quote": "There are many examples of stocks that moved higher after they had a heavy short interest. But there are also many heavily shorted stocks that then keep falling in price.",
+      "quote": "A heavy short interest does not mean that the price will rise. It means that many people believe it will fall. … There are many examples of stocks that moved higher after they had a heavy short interest. But there are also many heavily shorted stocks that then keep falling in price.",
       "tier": 2,
       "url": "https://www.investopedia.com/terms/s/shortsqueeze.asp"
      }
@@ -4967,28 +4227,14 @@
      {
       "accessed": "2026-11-09",
       "name": "SEC: Key Points About Regulation SHO (modified 5/31/2022)",
-      "quote": "The term “short squeeze” refers to the pressure on short sellers to cover their positions as a result of sharp price increases or difficulty in borrowing the security the sellers are short.",
-      "tier": 1,
-      "url": "https://www.sec.gov/investor/pubs/regsho.htm"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC: Key Points About Regulation SHO (modified 5/31/2022)",
-      "quote": "The rush by short sellers to cover produces additional upward pressure on the price of the stock, which then can cause an even greater squeeze.",
+      "quote": "The term “short squeeze” refers to the pressure on short sellers to cover their positions as a result of sharp price increases or difficulty in borrowing the security the sellers are short. … The rush by short sellers to cover produces additional upward pressure on the price of the stock, which then can cause an even greater squeeze.",
       "tier": 1,
       "url": "https://www.sec.gov/investor/pubs/regsho.htm"
      },
      {
       "accessed": "2026-11-09",
       "name": "SEC: Staff Report on Equity and Options Market Structure Conditions in Early 2021 (October 14, 2021)",
-      "quote": "Short sellers that cover their positions by buying the underlying stock would cause additional upward price pressure on the stock, which could force other short sellers to exit their positions",
-      "tier": 1,
-      "url": "https://www.sec.gov/files/staff-report-equity-options-market-struction-conditions-early-2021.pdf"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "SEC: Staff Report on Equity and Options Market Structure Conditions in Early 2021 (October 14, 2021)",
-      "quote": "if there is a sudden increase in the price of the stock being shorted, short sellers would face margin calls requiring them either to post additional collateral or to exit their position.",
+      "quote": "Short sellers that cover their positions by buying the underlying stock would cause additional upward price pressure on the stock, which could force other short sellers to exit their positions … if there is a sudden increase in the price of the stock being shorted, short sellers would face margin calls requiring them either to post additional collateral or to exit their position.",
       "tier": 1,
       "url": "https://www.sec.gov/files/staff-report-equity-options-market-struction-conditions-early-2021.pdf"
      },

@@ -306,6 +306,42 @@ def calc_value(calc: dict) -> float:
     return round(run_calc(calc), int(calc.get("round", 2)))
 
 
+def calc_steps(calc: dict) -> dict:
+    """The in-between numbers of a calc, so an explanation can show its work (his note: "show the steps", "explain how
+    it is calculated"; REVIEW_LEARNINGS rules 3 and 29). They ride in reveal facts.calc.steps, which the grounding
+    check reads, so "$500 at risk / 2.22 a share = 225.2, round down to 225" grounds. Before 2026-11-17 those numbers
+    were rejected as ungrounded and the checkers had to describe the steps without them. Only plain arithmetic of the
+    calc's own args, rounded to 2 decimals."""
+    a = (calc or {}).get("args") or {}
+    fn = (calc or {}).get("fn")
+    r2 = lambda x: round(float(x), 2)  # noqa: E731
+    try:
+        if fn == "shares_from_risk":
+            dollars = a["account"] * a["risk_pct"] / 100
+            per = abs(a["entry"] - a["stop"])
+            return {"risk_dollars": r2(dollars), "risk_per_share": r2(per), "raw_shares": r2(dollars / per),
+                    "stop_pct": r2(per / a["entry"] * 100)}
+        if fn in ("risk_dollars", "risk_pct_of_account"):
+            per = abs(a["entry"] - a["stop"])
+            out = {"risk_per_share": r2(per), "risk_dollars": r2(per * a["shares"])}
+            return out
+        if fn == "position_pct":
+            return {"position_dollars": r2(a["shares"] * a["price"])}
+        if fn == "r_multiple":
+            per = abs(a["entry"] - a["stop"])
+            gain = (a["exit"] - a["entry"]) if a.get("side", "long") == "long" else (a["entry"] - a["exit"])
+            return {"risk_per_share": r2(per), "gain_per_share": r2(gain)}
+        if fn == "pct_change":
+            return {"change": r2(a["end"] - a["start"])}
+        if fn == "spread_pct":
+            return {"spread": r2(a["ask"] - a["bid"]), "midpoint": r2((a["ask"] + a["bid"]) / 2)}
+        if fn == "dollar_volume":
+            return {}
+    except (KeyError, TypeError, ZeroDivisionError):
+        return {}
+    return {}
+
+
 def _num_text(x: float) -> str:
     return str(int(x)) if float(x).is_integer() else repr(float(x))
 
@@ -778,9 +814,63 @@ def strict_grounding(it: dict) -> list[str]:
 
 # ── building ──────────────────────────────────────────────────────────────────────────────────────────────────────
 
+_OWNER_ASIDE = re.compile(r"\s*\([^()]*(?:owner|docs/|\.json|\.md)[^()]*\)", re.I)
+
+
+def member_source_name(src: dict) -> str:
+    """The name a member reads under "Sources" on a reveal. Our own working files (the setup criteria cards, the
+    research dossiers, the rulebook, the verdict log) are cited by what they ARE to a member, never by a repo path or
+    "criteria card" (REVIEW_LEARNINGS rule 27: no working words in member text; the 2026-11-17 localhost review showed
+    "UCT setup criteria card: ... (docs/study/setups/criteria/01-flat-base.json ...)" as a dead link, three times)."""
+    url, pub, title = str(src.get("url") or ""), str(src.get("publisher") or ""), str(src.get("title") or "")
+    if url.startswith("repo:"):
+        path = url[5:].split("#")[0]
+        if path.endswith("sizing_rule.md") or "owner_verdicts" in path or "RULINGS" in path or "DECISIONS" in path:
+            return "Our trading rules"
+        if "/setups/criteria/" in path:
+            setup = re.split(r"\s+criteria card", title, flags=re.I)[0].strip() or "setup"
+            return f"Our {setup} playbook"
+        if "/setups/research/" in path:
+            setup = re.split(r"\s+dossier", title, flags=re.I)[0].strip() or "setup"
+            return f"Our {setup} research, on real charts"
+        if "GLOSSARY" in path:
+            return "Our setup glossary"
+        if path.startswith("app/"):
+            return _OWNER_ASIDE.sub("", title).split(":")[0].strip() or "The UCT app"
+        if "TRADE_PLANS" in path:
+            return "Our trade plans"
+        return "Our trading rules"          # the house rule files (OWNER_PRINCIPLES, REVIEW_LEARNINGS, the skill map)
+    pub = _OWNER_ASIDE.sub("", pub).strip()
+    # a title's trailing note about the owner ("...: the post the owner named for B26") is ours, not the source's
+    title = ":".join(p for i, p in enumerate(title.split(":")) if i == 0 or "owner" not in p.lower())
+    title = _OWNER_ASIDE.sub("", title).strip()
+    if "substack" in (pub + url).lower():   # on our Substack he writes as TSDR
+        title = re.sub(r"\bthe owner's\b", "TSDR's", title, flags=re.I)
+        title = re.sub(r"\bthe owner\b", "TSDR", title, flags=re.I)
+    return f"{pub}: {title}" if pub and title else (pub or title)
+
+
 def _source_cite(src: dict, fact: dict) -> dict:
-    return {"name": f"{src.get('publisher')}: {src.get('title')}", "url": src.get("url"),
+    url = src.get("url")
+    return {"name": member_source_name(src), "url": None if str(url or "").startswith("repo:") else url,
             "quote": fact.get("quote"), "accessed": src.get("accessed"), "tier": src.get("tier")}
+
+
+def _merge_cites(cites: list[dict]) -> list[dict]:
+    """One line per source on the reveal: facts cited from the same source merge, their quotes kept together (the
+    grounding check reads every quote, so none is dropped)."""
+    out: list[dict] = []
+    seen: dict[tuple, dict] = {}
+    for c in cites:
+        key = (c.get("name"), c.get("url"))
+        if key in seen:
+            prev = seen[key]
+            if c.get("quote") and c.get("quote") not in str(prev.get("quote") or ""):
+                prev["quote"] = f"{prev['quote']} … {c['quote']}" if prev.get("quote") else c["quote"]
+            continue
+        seen[key] = dict(c)
+        out.append(seen[key])
+    return out
 
 
 def _difficulty(rung: int) -> int:
@@ -801,7 +891,7 @@ def build_items(doc: dict, *, only_passed: bool = True) -> list[dict]:
     for n, w in enumerate(doc.get("walkthroughs") or [], start=1):
         if only_passed and (verify.get(w.get("key")) or {}).get("status") != "pass":
             continue
-        cites = [_source_cite(sources.get(facts[f]["source"], {}), facts[f]) for f in w.get("facts") or [] if f in facts]
+        cites = _merge_cites([_source_cite(sources.get(facts[f]["source"], {}), facts[f]) for f in w.get("facts") or [] if f in facts])
         steps = [dedash(s) for s in w.get("steps") or []]
         it = {
             "id": item_id(ref_base, f"walk:{w.get('key')}"), "version": 1, "type": "walkthrough",
@@ -855,10 +945,13 @@ def build_items(doc: dict, *, only_passed: bool = True) -> list[dict]:
         if q.get("calc"):
             val = calc_value(q["calc"])
             reveal_facts["calc"] = {"fn": q["calc"]["fn"], "args": q["calc"].get("args") or {}, "result": val}
+            steps = calc_steps(q["calc"])
+            if steps:
+                reveal_facts["calc"]["steps"] = steps      # the in-between numbers an explanation may show (calc_steps)
             if fmt == "numeric":
                 answer_json = {"answer": val, "accept": numeric_accept(val)}
         cited = [f for f in q.get("facts") or [] if f in facts]
-        cites = [_source_cite(sources.get(facts[f]["source"], {}), facts[f]) for f in cited]
+        cites = _merge_cites([_source_cite(sources.get(facts[f]["source"], {}), facts[f]) for f in cited])
         why, line = dedash(q.get("why") or ""), dedash(q.get("lesson_line") or "")
         reveal = {
             "unit": unit, "why": why, "lesson_line": line, "facts": reveal_facts,
