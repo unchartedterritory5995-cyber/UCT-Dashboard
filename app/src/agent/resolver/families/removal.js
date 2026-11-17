@@ -246,6 +246,75 @@ function antecedentMade(before, word) {
   return /\b(?:a|an|another|new|one)\s+(?:\S+\s+){0,2}$/.test(lead) || /\b(?:add|put|draw|create|make|plot|set\s+up)\s+(?:\S+\s+){0,3}$/.test(lead)
 }
 
+// ── P2 · RELATION FAMILIES the P1 reader left to the class noun (design §8 'relation'; the anchor rule I6 for each) ──────────
+//   COMPLEMENT  "the other one / chart", "the others", "the other two", "the rest", "every other chart", "all the other charts":
+//               the board minus an ANCHOR — what the words negate ("not SPY, the other one"), else the pointer order's chart
+//               (the click → the conversation chart / previous chart). No anchor → asked. A count ("the other two") must fit.
+//   BOTH        "both of them / those / these": the pointer set when it is two objects, else the board when it is exactly two
+//               objects, else asked ("both" says two — never a pick from three).
+//   ORDER       "the chart after / before / following / preceding <anchor>": the board's reading-order neighbour of a NAMED chart
+//               or of the click ("this one" / "it"); none on that side → asked; the anchor is never the target.
+const OTHER_N = { two: 2, three: 3, four: 4, '2': 2, '3': 3, '4': 4 }
+const COMPLEMENT = /\b(?:(?:the|that)\s+other\s+(?:(two|three|four|[2-4])\s+)?(ones|charts|panels|graphs|one|chart|panel|graph)\b|(?:the|that)\s+other\s+(two|three|four|[2-4])\b|(?:all\s+(?:of\s+)?)?the\s+(others|rest|remaining\s+(?:ones|charts))\b|every\s+other\s+(?:one|chart|panel)\b|all\s+the\s+other\s+(?:ones|charts|panels)\b)/i
+const BOTH_PRON = /\bboth\s+(?:of\s+)?(?:them|those|these)\b/i
+const ORDER_REL = /\b(?:the|that)\s+(?:chart|one|panel|graph)\s+(?:(?:right|just|immediately|directly)\s+)?(after|before|following|preceding)\s+((?:the|my)\s+[^,.;:!?—–]{1,30}?\b(?:chart|one|panel|graph)\b|(?:this|that)(?:\s+(?:one|chart|panel|graph))?\b|it\b)/i
+const readingOrder = (charts) => [...charts].sort((a, b) => ((a.cell?.y ?? 0) - (b.cell?.y ?? 0)) || ((a.cell?.x ?? 0) - (b.cell?.x ?? 0)))
+/** The pointer order's chart (the click → the conversation chart → the previous chart), as refs with its link group, or []. */
+function pointerAnchor(w) {
+  const { charts } = w
+  const prevChart = typeOfId(w.previous) === 'chart' ? String(w.previous).slice(6) : null
+  const r = [w.selection, w.subject, prevChart].find(x => x != null && charts.some(c => c.ref === x))
+  return r != null ? withGroup(charts, [r]) : []
+}
+/** → { kind, group, anchors: [typed id], index, length } | null. Pure; reads only `w` and the reading's negated set. */
+export function relationFamilies(text, w, reading) {
+  const { charts } = w
+  const all = charts.map(c => c.ref)
+  const asked = (refs, kind, m, anchors = []) => ({ kind, group: { type: 'chart', refs: refs.map(cid), source: 'relation', ask: 'ambiguous-n' }, anchors, index: m.index, length: m[0].length })
+  const hit = (refs, kind, m, anchors, plural = false) => ({ kind, group: { type: 'chart', refs: refs.map(cid), source: 'relation', ...(plural ? { plural: true } : {}) }, anchors, index: m.index, length: m[0].length })
+  // (a generic "one / others / rest / both of them" stands for a THING when the words or the conversation are about one — "remove the
+  // others from my watchlist", "delete both of them" right after adding two studies: no chart relation; the thing families are P3)
+  const thingy = (m) => !/(?:charts?|panels?|graphs?)/i.test(m[0]) && (() => { const t = typeOfNoun(blank(text, m.index, m[0].length)); return (t && t !== 'chart') || (w.previous && typeOfId(w.previous) !== 'chart') })()
+  const c0 = COMPLEMENT.exec(text)
+  const c = c0 && !thingy(c0) ? c0 : null
+  // ("keep QQQ and close the rest": a negation already says what is kept — the P1 set read (SET_ALL) handles it, as before)
+  const restWord = c && /^(?:others|rest|remaining)/i.test(c[4] || '')
+  if (c && !(restWord && reading.negated.size)) {
+    const neg = [...reading.negated].map(x => x.slice(6))
+    const anchor = neg.length ? withGroup(charts, neg) : pointerAnchor(w)
+    const anchorIds = neg.length ? [] : anchor.map(cid)          // (a negated anchor is already refused as negated-target)
+    const pool = all.filter(r => !anchor.includes(r))
+    const plural = restWord || /s$/i.test(c[2] || '') || !!c[3] || /^every|^all/i.test(c[0])
+    const n = OTHER_N[String(c[1] || c[3] || '').toLowerCase()] || (plural ? null : 1)
+    if (!anchor.length || !pool.length) return asked(pool.length ? pool : all, 'complement', c, anchorIds)
+    const k = objectsOf(charts, pool)
+    if (n != null && k !== n) return asked(pool, 'complement', c, anchorIds)
+    return hit(pool, 'complement', c, anchorIds, plural)
+  }
+  const b = BOTH_PRON.exec(text)
+  if (b && !thingy(b)) {
+    const sel = w.selection && charts.some(x => x.ref === w.selection) ? withGroup(charts, [w.selection]) : []
+    const sub = pointerAnchor({ ...w, selection: null })
+    const set = [...new Set([...sel, ...sub])]
+    if (set.length && objectsOf(charts, set) === 2) return hit(set, 'both', b, [], true)
+    if (objectsOf(charts, all) === 2) return hit(all, 'both', b, [], true)
+    return asked(all, 'both', b)
+  }
+  const o = ORDER_REL.exec(text)
+  if (o && !thingy(o)) {
+    let anchor = []
+    if (/^(?:this|that|it)\b/i.test(o[2])) anchor = pointerAnchor(w)
+    else { const ms = chartMentions(o[2], w).filter(x => x.refs && x.refs.length); const refs = [...new Set(ms.flatMap(x => x.refs))]; if (refs.length && objectsOf(charts, refs) === 1) anchor = refs }
+    if (!anchor.length) return asked(all, 'order', o)
+    const order = readingOrder(charts).map(x => x.ref)
+    const at = /^(?:after|following)$/i.test(o[1]) ? Math.max(...anchor.map(r => order.indexOf(r))) + 1 : Math.min(...anchor.map(r => order.indexOf(r))) - 1
+    const t = order[at]
+    if (t == null) return asked(all.filter(r => !anchor.includes(r)), 'order', o, anchor.map(cid))
+    return hit(withGroup(charts, [t]), 'order', o, anchor.map(cid))
+  }
+  return null
+}
+
 /**
  * READ the removal family's evidence. `input`: { words: { typed, carried }, world } (resolver/world.js shapes).
  * → { family, groups, negated: Set, anchors: Set, destroying, cont, offers }
@@ -271,8 +340,9 @@ export function readRemoval(input) {
       return reading
     }
     if (BARE_CONFIRM.test(typed.trim())) {
-      const refs = w.offers.refs.map(cid)
-      reading.groups.push(refs.length === 1 ? { type: 'chart', refs, source: 'offered' } : { type: 'chart', refs, source: 'offered', ask: 'ambiguous-n' })
+      // (each offer is one OBJECT: a linked pair offered once confirms the pair)
+      const refs = withGroup(charts, w.offers.refs).map(cid)
+      reading.groups.push(objectsOf(charts, w.offers.refs) === 1 ? { type: 'chart', refs, source: 'offered' } : { type: 'chart', refs, source: 'offered', ask: 'ambiguous-n' })
       ev('offered', { type: 'chart', count: refs.length })
       return reading
     }
@@ -314,9 +384,17 @@ export function readRemoval(input) {
     const spansVerb = rc?.match && destroying(String(rc.match[0]))
     if (rc && rc.match && !spansVerb && (anchored || rc.hits.length)) {
       relation = true
-      if (w.selection) reading.anchors.add(cid(w.selection))
-      const hits = rc.hits.map(c => c.ref)
-      reading.groups.push(hits.length === 1 || (rc.plural && hits.length) ? { type: 'chart', refs: withGroup(charts, hits).map(cid), source: 'relation', plural: !!rc.plural }
+      // (P2 · a LINKED anchor is one object: the relation is read from each of its charts, and none of them is ever the target)
+      const anchorGroup = w.selection ? withGroup(charts, [w.selection]) : []
+      for (const a of anchorGroup) reading.anchors.add(cid(a))
+      let hits = rc.hits.map(c => c.ref)
+      if (anchorGroup.length > 1) {
+        const all = new Set(hits)
+        for (const a of anchorGroup) if (a !== w.selection) { try { for (const c of relativeChart(text, charts, a)?.hits || []) all.add(c.ref) } catch { /* no relation */ } }
+        hits = [...all].filter(r => !anchorGroup.includes(r))
+        if (!rc.plural && objectsOf(charts, hits) > 1) hits = []
+      }
+      reading.groups.push((hits.length && objectsOf(charts, hits) === 1) || (rc.plural && hits.length) ? { type: 'chart', refs: withGroup(charts, hits).map(cid), source: 'relation', plural: !!rc.plural }
         : { type: 'chart', refs: charts.map(c => cid(c.ref)).filter(x => !reading.anchors.has(x)), source: 'relation', ask: 'ambiguous-n' })
       text = blank(text, rc.match.index, rc.match[0].length)
       ev('relation', { hits: hits.length })
@@ -342,6 +420,18 @@ export function readRemoval(input) {
     reading.groups.push(prev && charts.some(c => c.ref === prev) ? { type: 'chart', refs: withGroup(charts, [prev]).map(cid), source: 'previous' } : { type: 'chart', refs: charts.map(c => cid(c.ref)), source: 'previous', ask: 'ambiguous-n' })
     text = blank(text, br.index, br[0].length)
     ev('previous', { type: 'chart' })
+  }
+
+  // ── P2 RELATION FAMILIES (I6: the anchor is never the target; I2: a relation that fits 2+ objects is asked) ──
+  if (!relation) {
+    const rg = relationFamilies(text, w, reading)
+    if (rg) {
+      relation = true
+      reading.groups.push(rg.group)
+      for (const a of rg.anchors) reading.anchors.add(a)
+      text = blank(text, rg.index, rg.length)
+      ev('relation', { kind: rg.kind, hits: rg.group.ask ? 0 : rg.group.refs.length })
+    }
   }
 
   // ── PRONOUN OBJECTS of removal verbs (chartRail removalPronouns): appositive → container → antecedent → previous → pointer ──
@@ -450,7 +540,19 @@ export function readRemoval(input) {
       if (x.pointer) { reading.groups.push(pointerGroup(w)); continue }
       if (!x.refs) {
         // the class noun: "the chart" / "all my charts" — the set, the sole chart, the click, else asked
-        if (x.plural) { reading.groups.push({ type: 'chart', refs: charts.map(c => cid(c.ref)).filter(r => !reading.negated.has(r)), source: 'named', plural: true }); continue }
+        if (x.plural) {
+          const refs = charts.map(c => cid(c.ref)).filter(r => !reading.negated.has(r))
+          // (P2 · BOTH: "both charts" says two — on a board of another size the set is no pick: asked)
+          if (x.det === 'both' && objectsOf(charts, refs.map(r => r.slice(6))) !== 2) { reading.groups.push({ type: 'chart', refs, source: 'named', ask: 'ambiguous-n' }); continue }
+          reading.groups.push({ type: 'chart', refs, source: 'named', plural: true }); continue
+        }
+        // (P2 · COMPLEMENT by negation: "close the chart that isn't this one" — the class noun is the board minus what is negated)
+        if (reading.negated.size && x.det !== 'this' && x.det !== 'that') {
+          const pool = charts.map(c => c.ref).filter(r => !reading.negated.has(cid(r)))
+          reading.groups.push(pool.length && objectsOf(charts, pool) === 1 ? { type: 'chart', refs: pool.map(cid), source: 'relation' } : { type: 'chart', refs: (pool.length ? pool : charts.map(c => c.ref)).map(cid), source: 'relation', ask: 'ambiguous-n' })
+          ev('relation', { kind: 'complement-negated' })
+          continue
+        }
         const g = pointerGroup(w)
         reading.groups.push(x.det === 'this' || x.det === 'that' || g.source === 'sole' || g.ask ? g : { ...g })
         continue
