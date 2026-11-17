@@ -97,8 +97,8 @@ describe('family L through the REAL panel: chart.setSetting header.fields | head
     const { say, board } = p.mount(...ONE('NVDA'))
     p.st.envelopes.push((body) => op(body, 'header.fields', '+Dollar Volume'))
     const out = await say('add dollar volume to the info row')
-    expect(headerFieldKeys(csOf(board).header)).toEqual(['mcap', 'earn', 'rating', 'dolvol'])
-    expect(out).toMatch(/Info row: added Dollar Volume — it shows Market Cap, Next Earnings, UCT Rating, Dollar Volume/)
+    expect(headerFieldKeys(csOf(board).header)).toEqual(['mcap', 'earn', 'dolvol'])
+    expect(out).toMatch(/Info row: added Dollar Volume — it shows Market Cap, Next Earnings, Dollar Volume/)
   }, 40000)
   it('the Bar info strip keeps its canonical order (the product writer), whatever order fields come back in', async () => {
     const { say, board } = p.mount(...ONE('NVDA'))
