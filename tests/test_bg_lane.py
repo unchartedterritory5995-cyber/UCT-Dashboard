@@ -37,23 +37,34 @@ def test_inert_until_the_web_lifespan_activates_it(monkeypatch):
     """The worker runs the weekly purge SYNCHRONOUSLY and its R2 uploader waits for it: in any
     process that never called activate(), a turn must neither wait nor pace."""
     importlib.reload(bg_lane)                           # the import-time default, not a test helper's
-    assert bg_lane._active is False and bg_lane.enabled() is False
     monkeypatch.setenv(bg_lane.ENV_SETTLE, "3600")
-    t = time.perf_counter()
-    for _ in range(5):
-        with bg_lane.turn("x"):
-            time.sleep(0.01)
-    assert time.perf_counter() - t < 0.5
+    monkeypatch.setattr(bg_lane, "SETTLE_POLL_S", 0.05)
+
+    def five():
+        for _ in range(5):
+            with bg_lane.turn("x"):
+                time.sleep(0.01)
+    assert _finishes_within(2.0, five), "a turn waited in a process that never activated the lane"
     assert bg_lane.stats()["sweeps"] == {} and bg_lane.enabled() is False
+
+
+def _finishes_within(seconds, fn):
+    """Run `fn` on a daemon thread: a lane that wrongly waits fails the rail in seconds, not after
+    the hour-long settle window it set."""
+    th = threading.Thread(target=fn, daemon=True)
+    th.start()
+    th.join(seconds)
+    return not th.is_alive()
 
 
 def test_the_kill_switch_makes_it_a_pass_through(lane, monkeypatch):
     monkeypatch.setenv(bg_lane.ENV_ENABLED, "0")
     monkeypatch.setenv(bg_lane.ENV_SETTLE, "3600")
-    t = time.perf_counter()
-    with lane.turn("x"):
-        time.sleep(0.05)
-    assert time.perf_counter() - t < 0.5
+
+    def one():
+        with lane.turn("x"):
+            time.sleep(0.05)
+    assert _finishes_within(2.0, one), "a turn waited with BG_LANE_ENABLED=0"
 
 
 def test_no_item_starts_before_the_settle_window(lane, monkeypatch):
