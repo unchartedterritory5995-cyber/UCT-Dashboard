@@ -236,6 +236,7 @@ def test_D1_telemetry_logs_shape_only_never_member_text_or_definition_content(
                            "repair_gate",  # P3: a gate CODE or None, never content
                            "input_wrapper",  # P3S: the unwrapped wrapper NAME ("args") or None, never content
                            "examples",  # L5: HOW MANY worked examples rode along (a count or None), never content
+                           "mended",  # WHICH deterministic mends the answer needed (names or None), never content
                            "conversation"}
     for rec in caplog.records:
         assert marker not in rec.getMessage()

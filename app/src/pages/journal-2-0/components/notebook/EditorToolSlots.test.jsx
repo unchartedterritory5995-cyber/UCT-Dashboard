@@ -215,6 +215,6 @@ describe('the editor draws the slots', () => {
     expect(src).toContain('<FindBarSlot')
     expect(src).toContain('<TableToolbarSlot')
     expect(src).not.toMatch(/import\(['"]\.\/(NoteFindBar|TableToolbar)['"]\)/)
-    expect(src).not.toMatch(/<(NoteFindBar|TableToolbar)/)
+    expect(src).not.toMatch(/<(NoteFindBar|TableToolbar)\b/)
   })
 })

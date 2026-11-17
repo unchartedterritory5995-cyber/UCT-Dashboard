@@ -98,6 +98,22 @@ const filesMatching = (re) => SHIPPED
   .map(f => f.file)
   .sort()
 
+// ─── WHOSE `PRESETS`: THE WHOLE-BLOB SCAN READS PROVENANCE, NOT A NAME (2026-11-17) ──
+// The subject of door SEVEN is ONE table pair: `PRESETS` / `CHART_DEFAULTS` from
+// `components/chart/chartDefaults.js`. A name match alone counted any module with its
+// own `PRESETS` — twice now: `agent/guide/slots.js`'s `GRID_PRESETS[` (2026-11-08, closed
+// by `\b`), then the Screener scan board's own layout table (`focus/board/boardModel.js`'s
+// `PRESETS`, 39d679b4a2), which made master red with two files that never touch
+// chart_settings. So a site is a file that USES one of the two names AND takes it from
+// `chartDefaults` (a named or a namespace import; nothing re-exports the module,
+// measured 2026-11-17). Every BULK_BLOB_SITES entry imports from it, which the `stale`
+// check proves on every run; the control below proves both halves can decide.
+const WHOLE_BLOB_USE = /\bPRESETS\s*\[|CHART_DEFAULTS\s*\)\s*\)?/
+const FROM_CHART_DEFAULTS = new RegExp(
+  "import[^;]*\\b(?:PRESETS|CHART_DEFAULTS)\\b[^;]*from\\s*['\"][^'\"]*chartDefaults(?:\\.js)?['\"]"
+  + "|import\\s*\\*\\s*as\\s+\\w+\\s+from\\s*['\"][^'\"]*chartDefaults(?:\\.js)?['\"]")
+const isWholeBlobSite = (src) => WHOLE_BLOB_USE.test(src) && FROM_CHART_DEFAULTS.test(src)
+
 // ─── WHO CALLS THE WRITER ───────────────────────────────────────────────────
 //
 // Four entries, three of which write. `ChartToolbar` is here BECAUSE it does
@@ -411,7 +427,11 @@ describe('the control-door census — how many doors, and whether an eighth exis
     // chart_settings, and it read as a whole-blob site. The subject is the chart-settings
     // `PRESETS` table; `X.PRESETS[` still matches (`.` is a boundary). Every BULK_BLOB_SITES
     // entry still matches, which the `stale` check below proves on every run.
-    const bulk = filesMatching(/\bPRESETS\s*\[|CHART_DEFAULTS\s*\)\s*\)?/)
+    // ⭐ 2026-11-17: and the name must come FROM chartDefaults (`isWholeBlobSite`, above).
+    const bulk = SHIPPED
+      .filter(f => f.file !== THE_WRITER && isWholeBlobSite(f.src))
+      .map(f => f.file)
+      .sort()
 
     // ⛔ NON-VACUITY FIRST, AND THAT ORDER IS LOAD-BEARING (fix round 1 minor:
     // measured, this used to sit LAST — after `unlisted`/`stale` — so a
@@ -443,6 +463,20 @@ describe('the control-door census — how many doors, and whether an eighth exis
       'a BULK_BLOB_SITES entry no longer matches the regex — drop it, an exemption for a site ' +
       'that no longer exists excuses the next one.',
     ).toEqual([])
+  })
+
+  it('⛔ CONTROL — a whole-blob site is a chartDefaults PRESETS / CHART_DEFAULTS use, and only that', () => {
+    // Each half can decide: the use without the provenance, and the provenance without the use, are not sites.
+    const named = "import { PRESETS } from './chartDefaults'\nconst s = { ...PRESETS[id].settings }"
+    const multiLine = "import {\n  CHART_DEFAULTS,\n  PRESETS,\n} from '../components/chart/chartDefaults.js'\nconst d = JSON.parse(JSON.stringify(CHART_DEFAULTS))"
+    const namespace = "import * as cd from '../chart/chartDefaults'\nconst s = cd.PRESETS[k]"
+    const ownTable = "export const PRESETS = [{ id: 'a' }]\nexport const DEFAULT_PRESET = PRESETS[0]"
+    const ownTableImported = "import { PRESETS } from './boardModel'\nconst first = PRESETS[0].id"
+    const importOnly = "import { CHART_DEFAULTS } from './chartDefaults'\nconst tz = CHART_DEFAULTS.timezone"
+    expect([named, multiLine, namespace].map(isWholeBlobSite)).toEqual([true, true, true])
+    expect([ownTable, ownTableImported, importOnly].map(isWholeBlobSite)).toEqual([false, false, false])
+    // and the real tree still has sites, so the provenance clause did not empty the scan
+    expect(SHIPPED.filter(f => isWholeBlobSite(f.src)).length).toBeGreaterThan(3)
   })
 
   // ⛔ MASTER'S ASSERTIONS, PROMOTED TO THEIR OWN TEST (2026-08-27 merge).

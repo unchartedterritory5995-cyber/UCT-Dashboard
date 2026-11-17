@@ -66,6 +66,19 @@ COOKIE_NAME = "uct_chart_edge"
 #: influence the historical edge cache this phase is forbidden to touch.
 COOKIE_PATH = "/api/bars"
 
+#: ⭐ THE HISTORY LAKE ROUTE (2026-11-17). `/api/hist/*` is served by the same Worker and ENFORCES the
+#: same member entitlement (`edge/bars-edge-router/history.js`), but a `Path=/api/bars` cookie is never
+#: sent there (RFC 6265: `/api/hist` does not start with `/api/bars`). Measured on production the
+#: morning the route went live: a signed-in member got 401 `not_entitled` from every `/api/hist/`
+#: request. So the SAME token is issued a second time under this path: two cookies, one value, each
+#: scoped to exactly one Worker route and nothing wider (it still never reaches `/api/bars-history`,
+#: `/api/bars-today-pack` or any other endpoint). `HIST_PREFIX` in history.js must stay this path + "/"
+#: (`tests/test_chart_edge_token.py` reads both).
+HIST_COOKIE_PATH = "/api/hist"
+
+#: Every path the entitlement cookie is issued AND revoked on (auth.py `_set_chart_edge_cookie`).
+COOKIE_PATHS = (COOKIE_PATH, HIST_COOKIE_PATH)
+
 #: Entitlement class — WHO the bearer is, not what they may read.
 #:
 #: ⛔⛔ TWO TRUST PATHS, TWO VALUES, AND THEY MUST NEVER BE INTERCHANGEABLE.

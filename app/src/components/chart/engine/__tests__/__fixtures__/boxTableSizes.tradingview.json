@@ -1,0 +1,5 @@
+{
+ "source": "TradingView, probe tools/visual_conformance/probes/vw-lb3-box-table-sizes.pine on NYSE:RDDT 1D (run lb3, 2026-11-17); fillText traced read-only. Font px of a box's text ('B' + size word) and of a table cell ('C' + size word). NUMBERS ONLY.",
+ "box": { "tiny": 8, "small": 10, "normal": 14, "large": 20, "huge": 36 },
+ "tableCell": { "tiny": 8, "small": 10, "normal": 14, "large": 20, "huge": 36 }
+}

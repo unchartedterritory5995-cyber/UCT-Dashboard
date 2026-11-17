@@ -94,6 +94,27 @@ export const PANEL_IMPORTERS = {
   Regime: () => import('./panels/RegimePanel'),
   InsiderBuys: () => import('./panels/InsiderPanel'),
   RsLeaders: () => import('./panels/RsLeadersPanel'),
+  // data wave 1 (2026-11-17): data the app already served that had no Terminal panel
+  Upgrades: () => import('./panels/UpgradesPanel'),
+  HighsLows: () => import('./panels/HighsLowsPanel'),
+  Sectors: () => import('./panels/SectorsPanel'),
+  LongRun: () => import('./panels/LongRunPanel'),
+  EarningsScoreboard: () => import('./panels/EarningsReactionsPanel'),
+  Levels: () => import('./panels/LevelsPanel'),
+  // data wave 2 (2026-11-17)
+  Highs52: () => import('./panels/Highs52Panel'),
+  RsScreens: () => import('./panels/RsScreensPanel'),
+  Learn: () => import('./panels/LearnPanel'),
+  // data wave 3 (2026-11-17)
+  Performance: () => import('./panels/PerformancePanel'),
+  FlowLists: () => import('./panels/FlowListsPanel'),
+  // data wave 4 (2026-11-17)
+  Confluence: () => import('./panels/ConfluencePanel'),
+  RepeatContracts: () => import('./panels/RepeatContractsPanel'),
+  PeriodChange: () => import('./panels/PeriodChangePanel'),
+  CallSearch: () => import('./panels/CallSearchPanel'),
+  ExpectedMove: () => import('./panels/ExpectedMovePanel'),
+  ThemeRotation: () => import('./panels/ThemeRotationPanel'),
   ThemeBoard: () => import('./panels/ThemeBoardPanel'),
   // wave 8, lane E: market reads (SENT)
   Sentiment: () => import('./panels/SentimentPanel'),

@@ -129,6 +129,10 @@ const ARG_SAMPLE = {
   timeframe: 'W', calendarDay: 'TODAY', code: 'GP', symbol: 'AMD', lookback: '3M', cadence: 'D',
   moversLens: 'UP', contribWindow: '1W', themeName: 'SEMICONDUCTORS', alertPrice: '950', watchlistPick: '2', mine: 'MINE',
   etDate: '2026-01-02', scatUniverse: 'NDX', scatY: 'RS_RANK', scatX: 'CHG_1M',
+  longRunLens: '60D', analystKind: 'DOWN', hiloSide: 'LOWS', hiloGroup: 'SECTOR', rsScreen: 'NHBP',
+  journalAccount: 'ALL', flowList: 'OPEN',
+  confluenceLean: 'BEAR', repeatOrder: 'LATEST', periodRange: 'QTD', periodDate: '2026-01-02', periodSide: 'LOSERS', callQuery: 'margins',
+  rotationSide: 'OUT',
 }
 
 afterEach(cleanup)

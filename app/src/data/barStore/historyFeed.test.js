@@ -7,7 +7,7 @@ import zlib from 'node:zlib'
 import fixture from '../historyLake/__fixtures__/source.json'
 import { parsePrefix } from '../historyLake/piece'
 import { createHistorySource, HEADER_NAME } from '../historyLake/source'
-import { createHistoryFeed, lakeSeriesOfKey, historyLakeEnabled, HISTORY_LAKE_KEY } from './historyFeed'
+import { createHistoryFeed, lakeSeriesOfKey, historyLakeEnabled, lakeOnByDefault, appHistoryFeed, HISTORY_LAKE_KEY } from './historyFeed'
 import { keyOf } from './types'
 
 const INDEX = fixture.index
@@ -116,5 +116,47 @@ describe('historyFeed', () => {
       globalThis.localStorage = { getItem: () => { throw new Error('blocked') } }
       expect(historyLakeEnabled()).toBe(false)
     } finally { delete globalThis.localStorage }
+  })
+
+  it('the app\'s default (byDefault): ON unless this browser says 0; 1 still forces on; unreadable = the default', () => {
+    expect(historyLakeEnabled({ byDefault: true })).toBe(true)          // node: no storage at all
+    const store = {}
+    globalThis.localStorage = { getItem: (k) => (k in store ? store[k] : null) }
+    try {
+      expect(historyLakeEnabled({ byDefault: true })).toBe(true)
+      store[HISTORY_LAKE_KEY] = '0'; expect(historyLakeEnabled({ byDefault: true })).toBe(false)
+      store[HISTORY_LAKE_KEY] = '1'; expect(historyLakeEnabled({ byDefault: true })).toBe(true)
+      store[HISTORY_LAKE_KEY] = 'off'; expect(historyLakeEnabled({ byDefault: true })).toBe(true)   // only '0' turns it off
+      globalThis.localStorage = { getItem: () => { throw new Error('blocked') } }
+      expect(historyLakeEnabled({ byDefault: true })).toBe(true)
+    } finally { delete globalThis.localStorage }
+  })
+
+  it('the default is ON for the app (any build mode) and OFF only in the test runner', () => {
+    expect(lakeOnByDefault('production')).toBe(true)
+    expect(lakeOnByDefault('development')).toBe(true)
+    expect(lakeOnByDefault('test')).toBe(false)
+    expect(lakeOnByDefault()).toBe(false)                                // this suite runs in mode 'test'
+  })
+
+  it('the app store\'s feed: built in production unless this browser says 0; never by default in the test runner', () => {
+    const make = () => ({ feed: true })
+    expect(appHistoryFeed('production', make)).toEqual({ feed: true })   // node: no storage, the default
+    const store = {}
+    globalThis.localStorage = { getItem: (k) => (k in store ? store[k] : null) }
+    try {
+      expect(appHistoryFeed('production', make)).toEqual({ feed: true })
+      store[HISTORY_LAKE_KEY] = '0'; expect(appHistoryFeed('production', make)).toBe(null)
+      delete store[HISTORY_LAKE_KEY]
+      expect(appHistoryFeed('test', make)).toBe(null)
+      store[HISTORY_LAKE_KEY] = '1'; expect(appHistoryFeed('test', make)).toEqual({ feed: true })
+    } finally { delete globalThis.localStorage }
+  })
+
+  it('getBarStore builds the app store with appHistoryFeed (read from the source: one wiring, one place)', async () => {
+    const { readFileSync } = await import('node:fs')
+    const src = readFileSync(new URL('./index.js', import.meta.url), 'utf8')
+    const body = src.slice(src.indexOf('export function getBarStore'), src.indexOf('export function _resetBarStoreForTests'))
+    expect(body).toMatch(/createBarStore\(\{\s*history:\s*appHistoryFeed\(\)\s*\}\)/)
   })
 })

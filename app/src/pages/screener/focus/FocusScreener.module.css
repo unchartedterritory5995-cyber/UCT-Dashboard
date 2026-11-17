@@ -359,3 +359,26 @@ button.pill:focus-visible { outline: 2px solid var(--scr-ring); outline-offset: 
 /* The picker's two columns: the group rail, then the open group's screens. */
 .smLayout { display: flex; flex: 1 1 auto; min-height: 0; }
 .smLayout .smBody { flex: 1 1 auto; min-width: 0; }
+
+/* The scan board (board/boardModel.js). `data-board` is set only for a member who has the board
+   (SCREENER_SCAN_BOARD_ENABLED, desktop), so nothing below touches the page anyone else sees. */
+.page[data-board] { background: var(--scr-well); }
+.page[data-board] .topBar { background: transparent; border-bottom: 0; padding: 8px 52px 2px 10px; gap: 6px; flex-wrap: nowrap; }
+.page[data-board] .topBar > * { flex-shrink: 0; }
+.page[data-board] .topBar > .spacer { flex: 1 1 0; min-width: 0; }
+.page[data-board] .topBar > [aria-label='Pinned screens'] { flex-shrink: 1; min-width: 0; }
+.page[data-board] .subBar { border-bottom: 0; padding: 2px 14px 4px; min-height: 36px; }
+.page[data-board] .notices { border-bottom: 0; padding: 0 14px 6px; min-height: 0; }
+.page[data-board] .listWrap { flex: 1 1 auto; min-width: 0; border-right: 0; }
+.page[data-board] .listWrap[data-lab-rows='chips'] { flex: none; }
+.page[data-board] .pane { padding: 0; gap: 6px; }
+.page[data-board] .chartBox, .page[data-board] .chartBox:has(.deskStack) { min-height: 0; }
+.page[data-board] .deskChart { min-height: 0; }
+.page[data-board] .pane[data-chrome='slim'] .paneMeta { padding: 0 4px; }
+.page[data-board] .pane[data-chrome='slim'] .paneFoot { padding: 4px 4px 0; border-top: 0; }
+.page[data-board] .row:not(.rowSel):hover { background: var(--scr-raised); }
+.page[data-board] .rowSel { background: var(--scr-selected); }
+.page[data-board] .screenBtn { height: 34px; padding: 0 12px; border-radius: 8px; background: var(--scr-soft); }
+.screenNameLab { font-size: 13px; font-weight: 600; color: var(--scr-text); white-space: nowrap; }
+.deskNewsFree { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; height: 100%; }
+.deskNewsFree > * { flex: 1 1 auto; min-height: 0; }

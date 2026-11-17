@@ -28,7 +28,7 @@ import { mergeNhnlSettings, nhnlDefaultsForTheme, nhnlWidgetStyleVars } from './
 import chrome from './NewHighsLowsWidget.module.css'
 import styles from './ScatterWidget.module.css'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
-import { prewarmVisibleList } from '../../../utils/prefetchBars'
+import { prewarmVisibleList } from '../../../utils/barsWarm'
 import { KIND, channelFor, useChannel } from '../../../lib/context/contextChannels'
 import Input from '../../../components/ui/Input'
 import { formatCompact } from '../../../lib/presentation/presentationPrimitives'

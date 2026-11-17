@@ -123,6 +123,10 @@
      the eye ran them together. §11's rule still holds — the air goes BETWEEN the
      rows and the container's own padding is unchanged. */
   row-gap: 8px;
+  /* ⭐ HALF THE `row-gap`, exactly as `.studyStack` sets it: a pane readout's rows (MACD and
+     its signal) meet, so the pointer never falls through to the chart between them and flips
+     every number. Railed with the stack's in `legendOneRow.test.jsx`. */
+  --row-hit-pad: 4px;
   align-content: start;
   /* ⭐ THE LEGEND'S TYPE, NOT THE VOLUME STRIP'S (owner: "for the indicator values
      can you use the same font, font thickness, and color, and boldness as the
@@ -529,6 +533,19 @@
 /* No toolbar band at all (legendFlush): the legend's first row sits at the pane's top. */
 .legendFlush {
   transform: translateY(-30px);
+}
+/* ⭐ AN OPEN STACK SITS ABOVE THE PANE DIVIDER (2026-11-17). A stack opened with `+N more` runs
+   down past the price pane by the member's own choice, so its last rows and its `Less` button can
+   land ON the divider between two panes. The chart library draws that divider's drag handle at
+   z-index 50 in this same stacking context (9px tall, full width), far above the legend's 3: the
+   handle took the pointer on the lower half of `Less` (measured: a click there did nothing) and a
+   row lying across it lost its hover. One above the handle, and only while the stack is open, so
+   the legend at rest stacks exactly as before. The divider stays draggable everywhere else along
+   its length: the legend box takes no pointer, only its rows do.
+   ⛔ 51 IS DERIVED FROM THE LIBRARY, NOT CHOSEN: `StockChart.studyDisclosure.test.js` reads the
+   handle's z-index out of lightweight-charts and fails if this stops being above it. */
+.legendStackOpen {
+  z-index: 51;
 }
 /* ⭐⭐ OWNER 11-16 — "make sure they're all the same contrast and brightness": the date, the O/H/L/C
    labels and their values share ONE ink (`--legend-ink-pair`, legendInk.js LEGEND_PAIR_ROLE); the

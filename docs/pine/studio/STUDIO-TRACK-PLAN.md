@@ -290,8 +290,8 @@ build-time flag with no per-user stage.
 | O2 | The door's client check accepts the cohort for admins as well as the browser switch | `createIndicatorFlag.js` | revert |
 | O3 | `CREATE_INDICATOR_COHORT_ENABLED=1` on web; the ledger row moves from pending to armed in the same change | env, `feature_flags.json` | unset: read first on every call, so new turns stop at once |
 | O4 | `VITE_PINE_EDITOR_STATUS=1` at build; request R2 (an admin-only stage) is no longer needed | `Dockerfile.web`, ledger | rebuild without it |
-| O5 | Rehearse the reversal of O3 once and record how long it takes to act | - | - |
-| O6 | Set the per-member daily allowance and the shared interactive reserve on purpose. The reserve is one pool shared by every model feature, admins and this track's own measuring runs, and it is smaller than one admin's cap: a measuring run can pause the assistant for everyone for the day | env | - |
+| O5 | Rehearse the reversal of O3 once and record how long it takes to act. **REHEARSED on production 2026-11-17, on the owner's go (his words: do anything like that at any time while there are no users).** Closing took about 80 seconds: the variable deleted, the web service redeployed, a fresh boot serving. Confirmed as the synthetic member: the sign-in payload no longer listed the cohort, so the browser hides the door, and a turn answered 403 in 0.1 s with no model call. Restoring took about 6 minutes: on web, `--set` does not restart the running image, it starts a full build of the production branch, so a restore is also a deploy of whatever production holds. After it the member's turn answered again. Not tested: setting the variable with deploys skipped and then `railway redeploy`, which should restore in the 80 seconds closing took. The steps, and the trap: (1) `railway variable delete CREATE_INDICATOR_COHORT_ENABLED --service web`; (2) ⛔ that STAGES the change and does not restart the pod, so the feature is still on: `railway redeploy --service web --yes`; (3) confirm from the POD, not from `railway variables` (a fresh boot in `/api/health`, and a Create Indicator turn answering the closed sentence as the synthetic member); (4) to restore, `railway variables --service web --set CREATE_INDICATOR_COHORT_ENABLED=1` and confirm a boot the same way. The time to act is one web deploy, not "at once" as row O3 says: the variable is read on every call, from a process that has to restart to see it | - | - |
+| O6 | Set the per-member daily allowance and the shared interactive reserve on purpose. The reserve is one pool shared by every model feature, admins and this track's own measuring runs, and it is smaller than one admin's cap: a measuring run can pause the assistant for everyone for the day. **Both are set on the web service as of 2026-11-17** (read them with `railway variables --service web --kv`; the values are not written here). Admin turns and this track's measuring runs still count against the shared reserve, by the owner's ruling of 2026-10-07; today's measuring runs stayed inside it | env | set |
 | O7 | Split credit and authentication failures from transport failures, so an outage is not read as a billing problem (Indicators backlog item 4) | Indicators | - |
 
 **Not opened yet, and why.** The runtime lane for every account
@@ -368,7 +368,7 @@ track" means a pull request written here and reviewed by the owner (section 4).
 | R1 | **Run over a list, from the chart.** A row action on each of Mine and on the legend chip, opening the existing run flow with the indicator already chosen; the "No scannable formulas yet" state offers it. A numeric line goes through the existing threshold builder | this track, Screener reviews | X1 for J5; a run started from a chart finishes with the existing receipt |
 | R2 | **Pine names in the reference.** First cut straight from the generated name coverage that already exists, so it is current by construction: every Pine built-in, whether it runs, and the reason when it does not. Then this track's measured layer on top: the answer at the chart door under each access profile, stamped "measured at N, current M" and hidden per name when stale | this track; formulas pages review | a Pine author finds `ta.rsi` and `request.security` and reads whether each runs |
 | R3 | **A downloadable reference** generated from the same data, for members who write Pine with their own assistant, and "Paste what your assistant wrote" as the path back in | this track | the file regenerates from the data with no hand edits |
-| R4 | **The verdict on a shared indicator.** The saved row's verdict and the engine version on the share preview and on install | Pine engine (request) | the installer sees the headline the author saw |
+| R4 | **The verdict on a shared indicator.** The saved row's verdict and the engine version on the share preview and on install. The page-side spec (field names `headline`, `engine_version`, optional `headline_current`; one line under the name, above Install) is Indicators backlog row 43; the engine builds the fields to it | Pine engine (request) | the installer sees the headline the author saw |
 | R5 | **Inspect a bar.** For a pinned bar, the value of every named top-level variable in the script, with "why is this empty" linking to the line. Built by deriving a probe copy of the script that plots each named variable, running it through the same door, and reading the columns: no new engine internals. The engine provides two small exports: a headless "definition to columns for these bars", and the script's top-level names with line numbers. Stated limits: no variables local to a block; the probe's own verdict is shown if it differs | this track; Pine engine for the two exports | on 20 scripts, plotted values equal the legend, and each inspected variable equals the same expression plotted by hand, on production |
 | R6 | **Load time.** A budget for an indicator's time to draw, shown on library and share cards, and a refusal to publish over it | this track; Pine engine advises | the number on the card equals a fresh measurement |
 
@@ -679,6 +679,34 @@ its id; fixed in #1518 (every member-made indicator had this, not only house one
 Only one request was timed in the dock: the synthetic member's daily allowance was spent by
 the day's other checks.
 
+## 14c. What 2026-11-17 measured
+
+Through the production door, as the synthetic admin, with requests the assistant had not seen
+(relatives of the house indicators with other numbers and wording, and new ideas in the same
+vocabulary). The requests and the per-request results stay local.
+
+- **Every request built, with worked examples off and on, and the formulas read correct both
+  ways.** A request for "ADR percent over 14 days" kept the house shape with the member's 14.
+  The earlier door fixes (the bars-back sign, the one-colour state, the reference checks) are
+  what made the difference; examples added nothing that could be measured on this set.
+- **About one turn in four paid a second model call**, nearly always at one gate
+  (`envelope:reference`). That, not build rate, is now the largest cost a member feels: a repair
+  roughly doubles the wait. Indicators backlog 46.
+- **A declared input cannot be a length.** Through the patch engine a declared input is applied as
+  a level or a multiple and refused as a window. Settings for a built indicator therefore come
+  from the formula's own slots (S1 above), not from the assistant declaring inputs.
+- **A house term was recognised only by the Screener's own label.** Of fifteen ordinary
+  phrasings, two matched. Fixed by L4's second part.
+
+**The walk of 2026-11-17 (production, the synthetic admin, read-only, 1200 / 820 / 390 px).** No
+horizontal overflow in the Indicators window or the New formula window at any width. The
+palette lists all eight indicator jobs by their member names and closes on Esc with focus
+back on the chart's settings button. Three things were found and are in hand: the cursor did
+not start in "Describe it" (#1594); on a phone "Create indicator" was three taps deep and
+below the fold (the phone sheet now leads with it); and the window opened by "Create
+indicator" is titled "New formula" (Indicators backlog 49, an owner decision). Counting the
+actions per job again, and the walk with the owner, come after these are served.
+
 ## 15. Resume here
 
 **State at the end of 2026-11-16.** "LIVE" means used on production as a member (the synthetic
@@ -711,6 +739,28 @@ the deploy gate.
 | X1 | the plain-words box sends what the member typed | SUPERSEDED the same night: the layouts release (#1477, the owner's Option 1 of 2026-11-16) replaced the plain-words box in the Indicators window with one "Create indicator" button that opens the New formula window's start view. #1500's send plumbing remains (toolbar, pane, dock) and nothing in the window calls it now; its window rail is skipped. It was live and checked on the build before that release |
 | toast | the chart's "added" toast and Undo list name a member's indicator, not its id | LIVE (#1518): "Flat Base added" |
 | spend | the picture door's prompt bound re-measured, so a reservation bounds the prompt again (a member's daily picture share now holds two worst-case reservations, not three; the owner may raise it). It turned the master deploy gate red for about 70 minutes: two Agent limit tests held the literal three. They derive the count now | #1509, #1522 |
+| L4 (second part) | the words members use for a house term reach its definition ("relative volume", "distance from the 52 week high"); nineteen twins, each proved equal to its Screener column | merged (#1572) |
+| L5 | worked examples: the nearest one or two house builds ride along as data for a new indicator. Built and dark. Measured on and off through the production door with new requests on 2026-11-17: every request built both ways, the formulas read correct both ways, and the share built without a repair did not rise. The bar in section 9 is not met, so it stays OFF for members | merged (#1563), OFF |
+| S1 | **a built indicator's numbers are settings**: every length, level and multiple is an editable field, derived from the formula at read time and changed by the ordinary slot edit (no model call, live preview, Undo). In the Create Indicator dock (#1583), and in the New formula window under what was described and on its Inputs tab, whose count had read 0 (#1589). All fourteen house indicators checked: every setting shown can be changed in one step | merged; per-chart values are the engine's (Indicators backlog 45) |
+| R1 | run over a list from the indicator itself: a row on the legend chip and on each row of "Your indicators" opens the Screener's existing run flow on that indicator (`/screener?scan=<id>`, read once, removed through the router; an unknown or foreign id opens nothing) | merged (#1566, #1585) |
+| R4, R5 | the page-side spec for the verdict on a shared indicator and the two engine exports for "Inspect a bar" are filed with repros; the engine builds to them | Indicators backlog 43, 44 |
+| O7 | a credit or key failure at the model provider is told apart from a transport failure, and a member reads the platform's sentence, not a billing one | LIVE (#1555) |
+| tool | an admin's turn that was repaired into a change says what the first attempt was refused for | merged (#1580) |
+| polish | names in the New formula window follow the assistant's name (#1553, and #1564 for the close prompt it broke); "can't be drawn here" in a member's words (#1557); the scan-moved change is said (#1549); the spent-allowance message once (#1568) | merged |
+| gate | five long-standing reds on master found while running the gate's own suite before merging, and fixed: four vision truth cases and the ledger-writer rail (#1562), the refusal-sentence truth case (in #1563) | merged |
+| door | three deterministic mends before the door's check, so an answer whose maths is right does not pay a second model call: an output read by its key is written out; an assumption pointed at a slot that is not there keeps its words; one colour state on the candles or the background is re-spelled as the paint it means. Each is recorded by name on every turn | merged (#1590, #1601) |
+| L4 (third part) | a Screener column the chart computes exactly is a term on the chart door, not "unavailable"; twenty-four twins | merged (#1588) |
+| L2, C1 | `tools/converse_eval.py` builds again (an image type had no loader since 2026-11-12 and the runner graded nothing), with a rail that needs no bundler; and nine house indicators are regression cases beside the three examples, each run through the door, the engine and the grader (17 of 17 with the controls). **The rule:** a change to the door, the instructions or the vocabulary runs both offline commands first (`python tools/converse_eval.py --offline`, and the same with `--cases tests/fixtures/authoring/converse_eval_house_cases.json --script tests/fixtures/authoring/converse_eval_house_scripted.json`) and says so in its pull request; a change to the instructions or the model also needs the live run, which needs the owner's approval of the spend | merged (#1591, #1603); the live baseline waits for the owner; the tests run in no lane yet (Indicators backlog 51) |
+| X1, X9, X6 | the New formula window opens with the cursor in "Describe it" on a desktop (#1594); "Create indicator" is the first row of the phone's Indicators sheet (#1596); a saved indicator's name keeps its line in the window's list (#1602); the formula reference speaks to a member in a member's words and no longer prints the engine's notes (#1605) | merged |
+| V1 (second part) | an indicator saved more than once lists its saved versions in the dock's History; "Use this version" makes one the draft again as one undoable step, with a line that was deleted since coming back as a new line | merged (#1633) |
+| S1 (second part) | the same number in several places is never merged; changing one offers to move the others of its kind that still hold the old value | merged (#1633) |
+| share | Share on each row of "Your indicators" (the builder's own panel in a window of its own); the row keeps its name with five doors (they sit on a second line); the panel says "indicator" for one | #1628 LIVE; the row and the words #1642 |
+| X6 | the builder window is titled by where it opens: "Create indicator" / "Edit indicator" from a chart, "New formula" / "Edit formula" from the Screener (owner decision 2026-11-17) | #1642 |
+| H2 (remainder) | phone and tablet: one "Showing" control in the indicator library, every list with its count (the owner picked mock-up B) | #1642 |
+| O5 | the kill switch rehearsed on production: about 80 seconds to close, about 6 minutes to restore | DONE 2026-11-17 |
+| tool | the evaluation runner's own tests run on pull requests with node present, and a skip fails | merged (#1634) |
+| R4 | page side built to backlog 43 (one line under the name on the share preview, on library and Members cards, in the install note); it draws nothing until the server sends `headline` | built; merges after the engine's fields |
+| R5 | "Inspect a bar": the probe copy, the per-bar reader and the panel are built and tested against stand-ins for the engine's two exports | built; wired when the exports land |
 
 **The house set, second look (2026-11-16, production).** Of the five that did not draw on
 the first run: both relative-strength requests draw (the marker fix); volume bars coloured
@@ -724,17 +774,29 @@ ups from the first run are still suspect, and no value has been checked against 
 independent calculation. What blocks publishing is unchanged: names and
 read-backs (section 14a, findings 2 and 3), and the owner's look.
 
-Not started, and why:
+Not finished, and why (as of the afternoon of 2026-11-17):
 
-- **L5, worked examples**: an example is admitted only once the owner has approved it, and the
-  proof is a paid evaluation run, which needs the owner's spend approval.
-- **R1, run over a list from the chart**: waits for the Screener owner's answer to R13.
-- **R4 and R5**: requests to the Pine engine owner (a verdict on a shared indicator; two exports
-  for the inspector).
-- **R6, a load budget on library cards**: worth building once members publish; the library is
-  empty today.
-- **H2, the remainder (tabs as a strip in the phone sheet)**: a layout change the owner should see
-  as a mock-up first (section 6).
+- **L5, worked examples**: built, measured on and off through the production door, and left
+  off: no gain (see the L5 row above).
+- **R1, run over a list from the chart**: done (see the R1 row above).
+- **R4 and R5**: the page sides are built (rows above); the engine's fields and its two exports
+  are being built on 2026-11-17 and each page side is wired when its piece is on master.
+- **The live baseline run** of the evaluation runner: the owner approved it on 2026-11-17 with a
+  hard stop; it needs a dedicated model key set on the machine by the owner
+  (`docs/indicators/E2E-EVAL-CREDENTIALS.md`), which is the one step still open.
+- **R6, a load budget on library cards**: designed with the engine's owner on 2026-11-17, and
+  waiting for one engine export. The verdict (refuse to publish) is a deterministic work count
+  over one seeded 5,000-bar reference series, never a clock, with the budget a fraction of the
+  engine's existing whole-run ceiling; the server computes it at publish (off the request path)
+  and keeps it on the listing row; the card shows a class (light, moderate, heavy) from that
+  count and the share preview adds the time it took on the viewer's own device. The engine
+  builds the headless export `(definition, bars) -> { lane, outputs, work }` and the reference
+  series; this track then builds the publish path, the refusal and the cards. Nothing is
+  shipped on the cards before the server sends the field.
+- **H2, the remainder**: DONE 2026-11-17 (#1642). The owner saw the three mock-ups and picked B, one
+  dropdown. The library sheet (the indicators surface on a phone and a tablet) has one "Showing"
+  control naming every list with its count: all, on this chart, yours, UCT's, members', and each
+  catalogue heading. The two door rows and their separate views with a way back are gone.
 - **O6, a separate budget lane for admins and measuring runs**: a decision on its size is the
   owner's; today the shared pool was raised instead.
 - From the launch-readiness list: the paid evaluation run and the hidden set (spend approval, a

@@ -94,6 +94,10 @@ BIG_ALLOWLIST = {
     # production snapshot is 4.5 MB); the same human-readable JSON dumper. Listed to unblock the gate;
     # it may shrink if a later capture programme splits the fixtures corpus.
     "docs/pine/vendor-harness/runtime-on/verdicts.json",
+    # 2026-11-17, feat/pine-host-known-divergence: the production snapshot crossed 5 MB (5.2 MB) when it was regenerated
+    # on the engine-68 tree and graded the 101 captures committed since the last regeneration (863 -> 867 rows with
+    # the licence-held one). Same writer, same reason as the runtime-on line above.
+    "docs/pine/vendor-harness/production/verdicts.json",
     # 2026-11-16, PR #1472 (queue run 1): a BITSTAMP:BTCUSD 60-minute capture (24/7 hours: 25,216 bars, ~7x
     # a stock's 60-minute window) is 5.1 MB. Same corpus and same reason as the S9 / S12 lines above; a
     # capture cannot be trimmed after the fact (its receipt, an fnv1a over its characters, binds every bar).

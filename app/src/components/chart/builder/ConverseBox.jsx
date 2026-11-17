@@ -44,7 +44,9 @@ import { stampSemantics } from '../engine/definitionSemantics'
 import { memberError, memberSaveError, conversationEditability, memberRefusal, chartRefusalWords } from './authoring/memberWords'
 import { logStudioAction, definitionKinds, clientFailureOf } from './authoring/studioTelemetry'
 import { outputNamer } from './authoring/readback'
-import { nameFromAssistant } from './authoring/authoringSession'
+import { nameFromAssistant, settingTurn } from './authoring/authoringSession'
+import { settingsOf } from './authoring/derivedSettings'
+import SettingsFields from './studio/SettingsFields'
 import { keepAssistantName } from './authoring/readableName'
 import { renamePatch } from './authoring/memberNamePatch'
 import { ackCheckboxText } from './authoring/repaintWarning'
@@ -134,6 +136,25 @@ export default function ConverseBox({
   /** ⭐ DIRECTION A — 'start' is the start view's "Describe it" well (nothing to undo,
    *  no identity line until there is an indicator); 'ask' is the editor's Ask tab. */
   const startWell = variant === 'start'
+  // ⭐ 2026-11-17 — THE START VIEW OPENS WITH THE CURSOR IN "DESCRIBE IT". Measured on production: the
+  // window opened with focus on the dialog itself, so after "Create indicator" (or the palette's
+  // "Describe an indicator") a member still had to click the box before typing. After the sheet's own
+  // focus handling has run (a tick later), and never over something the member is already typing in.
+  // ⛔ NOT ON A TOUCH SCREEN: a keyboard that opens by itself covers the four doors under the box.
+  const inputRef = useRef(null)
+  useEffect(() => {
+    if (!startWell) return undefined
+    const coarse = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      && window.matchMedia('(pointer: coarse)').matches
+    if (coarse) return undefined
+    const t = setTimeout(() => {
+      const el = inputRef.current
+      const at = typeof document !== 'undefined' ? document.activeElement : null
+      const typing = at && at !== el && (at.tagName === 'INPUT' || at.tagName === 'TEXTAREA' || at.isContentEditable)
+      if (el && !el.disabled && !typing) el.focus()
+    }, 0)
+    return () => clearTimeout(t)
+  }, [startWell])
   const [initial] = useState(() => readSession(sessionKey))
   /** The key this conversation is kept under. A NEW definition's conversation
    *  moves to its `edit:<id>` key once saved, so "New formula" later starts clean
@@ -294,6 +315,22 @@ export default function ConverseBox({
     say({ role: 'uct', kind: 'undo', lines: ['Undid the last change.', ...readback(next.working, next, gateCtx).lines] })
   }, [commit, say, gateCtx])
 
+  // ⭐ SETTINGS (2026-11-17) — the tunable numbers of the indicator this conversation built, derived
+  // from its own formula and stored nowhere (`authoring/derivedSettings.js`). One number set from
+  // its field is the ordinary slot edit: no request to the assistant, one Undo step.
+  const numberSettings = useMemo(() => settingsOf(state.working), [state.working])
+  const setNumber = useCallback((setting, value) => {
+    const cur = stateRef.current
+    if (busy || saving || !cur.working) return { ok: false }
+    const out = settingTurn(cur, setting, value, { gateCtx })
+    if (!out.ok) return out
+    commit(out.state)
+    setPartial(null)
+    setAcked(false)
+    for (const e of out.entries) say(e)
+    return out
+  }, [busy, saving, commit, say, gateCtx])
+
   const openEditing = useCallback(() => {
     if (!editing || !editing.prior) return
     const next = openAuthoringState(editing.prior, { defId: editing.defId, version: editing.version })
@@ -380,10 +417,11 @@ export default function ConverseBox({
   // ⭐ SLICE 2 — HOSTED: the sheet footer is the ONE primary save. It shows this
   // conversation's commit while the conversation has unsaved changes.
   const hosted = typeof onCommitState === 'function'
-  useLayoutEffect(() => { if (commitRef) commitRef.current = { save } })
+  useLayoutEffect(() => { if (commitRef) commitRef.current = { save, setNumber } })
   useEffect(() => {
-    if (hosted) onCommitState({ dirty: unsaved, canSave, saving, label: saveLabel, name: workingName })
-  }, [hosted, onCommitState, unsaved, canSave, saving, saveLabel, workingName])
+    // `numbers`: the indicator's own settings, so the host's Inputs tab counts and shows them
+    if (hosted) onCommitState({ dirty: unsaved, canSave, saving, label: saveLabel, name: workingName, numbers: numberSettings })
+  }, [hosted, onCommitState, unsaved, canSave, saving, saveLabel, workingName, numberSettings])
   useEffect(() => () => { if (hosted) onCommitState(null) }, [hosted, onCommitState])
 
   return (
@@ -452,7 +490,7 @@ export default function ConverseBox({
           to whatever is underneath (measured: the drill board's list moved).
           `send` already refuses a second turn while one is in flight. */}
       <div style={S.well}>
-        <textarea id="converse-input" style={S.input} value={message} disabled={disabled} rows={2}
+        <textarea id="converse-input" ref={inputRef} style={S.input} value={message} disabled={disabled} rows={2}
           placeholder={state.working ? 'e.g. make it 80 · paint the candles gold · alert me when it becomes true' : 'e.g. RSI under 30 while price is above its 200-day average'}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(message) } }} />
@@ -475,6 +513,11 @@ export default function ConverseBox({
           <div style={S.head}>What will run (from the definition itself)</div>
           <ul style={S.list}>{rb.lines.map((l, i) => <li key={i}>{l}</li>)}</ul>
         </div>
+      )}
+
+      {/* ⭐ every length, level and multiple of what was built, as a field (the preview below follows) */}
+      {state.working && (
+        <SettingsFields settings={numberSettings} onSet={setNumber} disabled={busy || saving} label="Numbers in this indicator" />
       )}
 
       {state.working && (

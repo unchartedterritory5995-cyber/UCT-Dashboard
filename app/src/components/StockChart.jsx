@@ -111,6 +111,7 @@ import { clampVolPct, resolveVolPanePct, latchOnDrag, volPanePctOfStack,
 // ⚠️ `INDICATOR_LABELS` USED TO BE IMPORTED FROM `chartRegion` ALONGSIDE THESE.
 // B4 retired that nine-row table into the catalogue; `labelFor` is the reader.
 import { catalogRows, labelFor, anyLabelFor, oscillatorIds } from './chart/indicatorCatalog'
+import { scanLink } from '../pages/screener/scanLink'
 import { createSessionShadingPrimitive, computeSessionBands } from './chart/sessionShadingPrimitive'
 import { createSwingLabelsPrimitive } from './chart/swingLabelsPrimitive'
 import { createLevelZonesPrimitive } from './chart/levelZonesPrimitive'
@@ -207,6 +208,8 @@ import IndicatorChip from './chart/legend/IndicatorChip'
 import LegendRow from './chart/legend/LegendRow'
 import { legendRows } from './chart/legend/legendRows'
 import { createLegendPointerHold } from './chart/legend/legendPointerHold'
+import { menuAnchorWithRoom } from './chart/legend/legendMenuPlace'
+import { stackDrawnOpen, stackExpandIsStale } from './chart/legend/stackExpand'
 // ⭐ UCT RS design round (2026-11-08) — a pane's corner table (`meta.paneTable`).
 import PaneRanksTable from './chart/pane/PaneRanksTable'
 import { paneTableFits, paneTableOwners } from './chart/engine/paneTable'
@@ -536,12 +539,43 @@ export function studyFoldRoom(total, budget, disclosureRows = 1) {
  * legend for the life of the chart, before the fold ever got to fold it (measured, WebKit, 20
  * studies, the hub at 390/834 AND a mouse desktop at 1200). Waiting one frame for the folded
  * legend to render is what lets the fold do its job.
+ *
+ * ⛔ AND NO DECISION WHILE THE MEMBER HAS THE STACK EXPANDED (`expanded`, owner 2026-11-16).
+ * The collapse answers "the legend the chart chose to draw does not fit". A stack opened with
+ * `+N more` is taller than the pane BY THE MEMBER'S OWN CHOICE, and deciding on it punished the
+ * click: measured on production, `+3 more` on a short pane made the whole legend hover-only
+ * (gone the moment the pointer left the chart) and shrank its type, and `Less` did not bring it
+ * back, because the full height is only remembered while not collapsed. `fullLegendMeasurable`
+ * below keeps the expanded height out of that memory for the same reason.
  */
-export function nextCompactLegend(cur, fullBottom, rbTop, foldSettled = true) {
+export function nextCompactLegend(cur, fullBottom, rbTop, foldSettled = true, expanded = false) {
+  if (expanded) return null
   if (!foldSettled || !(fullBottom > 0)) return null
   if (!cur && fullBottom > rbTop) return true
   if (cur && fullBottom < rbTop - 12) return false
   return null
+}
+
+/**
+ * May this frame's legend height be remembered as "the full legend" the collapse is decided on?
+ * Only a settled fold, drawn full (not collapsed), and FOLDED: an expanded stack's height is the
+ * member's choice, never the chart's (see `nextCompactLegend`).
+ */
+export function fullLegendMeasurable(foldSettled, compact, expanded) {
+  return !!foldSettled && !compact && !expanded
+}
+
+/**
+ * Does the range bar (3M / 6M / YTD ...) step aside for the legend?
+ *
+ * It always did while the legend is collapsed to hover-only. It also does while the member has
+ * the study stack EXPANDED: the fold's budget ends where this bar's band begins, so a stack opened
+ * with `+N more` runs down into the band by definition, and the bar sat ON TOP of the stack's last
+ * rows and its `Less` button (measured 2026-11-16: a click on `Less` pressed `3M`). `Less` brings
+ * the bar back.
+ */
+export function rangeBarYieldsToLegend(compactLegend, stackExpanded) {
+  return !!compactLegend || !!stackExpanded
 }
 
 /**
@@ -1672,6 +1706,7 @@ import { useCalcFrames } from './chart/engine/useCalcFrames'
 import { useFundamentalSources } from './chart/engine/useFundamentalSources'
 import { useMarketCapAuthority } from './chart/engine/useMarketCapAuthority'
 import { useServerColumns } from './chart/engine/useServerColumns'
+import { useRuntimeLists } from './chart/engine/useRuntimeLists'
 import { armServerWarm } from './chart/engine/serverWarm'
 import { loadBreadthSymbols, breadthRecord } from '../hooks/useBreadthSymbols'
 import useMarketIndicators, { canonicalFamily, canonicalPresentation, canonicalDomain, canonicalSourceCapability, canonicalProduct, loadMarketIndicators } from '../hooks/useMarketIndicators'
@@ -5991,6 +6026,12 @@ export default function StockChart({
   // The `+N` fold, expanded in place. False on every mount on purpose: a strip
   // that reopens itself is a strip the user closed for nothing.
   const [chipsExpanded, setChipsExpanded] = useState(false)
+  // Read by the rAF sampler (a `[]`-deps loop): the collapse is never decided on an expanded stack.
+  const chipsExpandedRef = useRef(false)
+  chipsExpandedRef.current = chipsExpanded
+  // Is there a fold at all (a `+N more` / `Less` button)? Written where the legend renders, read
+  // by the sampler: an expand with no fold left is dropped (`stackExpandIsStale`).
+  const studyCanFoldRef = useRef(null)
   const legendHoveringRef = useRef(false)
   /** ⭐⭐ THE HOVER-ONLY LEGEND HOLDS WHILE THE POINTER IS ON IT (owner, 2026-11-16: it
    *  "flickers when I hold my mouse over it"; measured, 132 mounts and unmounts in 181
@@ -7063,6 +7104,23 @@ export default function StockChart({
     setChipAbout(null)
     setChipMenu({ rowId, anchor })
   }, [])
+
+  /* ⭐ A ROW'S MENU NEVER COVERS ITS OWN ROW WHEN THERE IS ROOM BESIDE IT (2026-11-17).
+   * The popover clamps itself into the viewport, and on a short chart that slid a 418px menu up
+   * over the row it was opened from. Once the menu is in the DOM its real size is known, so the
+   * anchor is moved beside the row here, in a LAYOUT effect: the popover positions itself in a
+   * passive effect, which runs after this re-render, so it is only ever shown in its final place.
+   * The rule is `legendMenuPlace.menuAnchorWithRoom`; it returns the same anchor when nothing
+   * moves (and the moved anchor carries no `besideX`), so this runs at most once per open.
+   * ⛔ Desktop only by construction: on touch the popover is a bottom sheet, not a `role="menu"`. */
+  useLayoutEffect(() => {
+    const anchor = chipMenu?.anchor
+    if (!anchor || !Number.isFinite(anchor.besideX)) return
+    const el = document.querySelector('[role="menu"][data-guide="chart.chipMenu"]')
+    if (!el) return
+    const next = menuAnchorWithRoom(anchor, el.offsetHeight, el.offsetWidth, window.innerWidth, window.innerHeight)
+    if (next !== anchor) setChipMenu((m) => (m && m.anchor === anchor ? { ...m, anchor: next } : m))
+  }, [chipMenu])
 
   /** The chip's four handlers, or NULL on a read-only mount.
    *
@@ -8688,6 +8746,12 @@ export default function StockChart({
   // the chart to ask again. Same role `secondarySources` plays one line up,
   // and it joins the SAME dependency array below for the same reason.
   const serverColumnsGeneration = useServerColumns()
+  // ⭐⭐ AND THE RUNTIME LANE'S LISTS (kill / allow / capability admission / run-half evidence). The
+  // gates answer from a latch read over the network; this starts the first read on mount and changes
+  // when it (or a capability verdict) lands, so a run half refused while the lists were empty is asked
+  // again. ⚰️ 2026-11-17: without it RS Rating's label and dots never drew after a reload
+  // (`useRuntimeLists.js`). Same dependency array as `serverColumnsGeneration`, same reason.
+  const runtimeListsGeneration = useRuntimeLists()
   // ⚡ THE LANE IS TOLD WHAT THIS CHART IS ON (serverCompute `chartShows`), so the ask of a chart
   // being raced through a list is held and, if the chart has moved on, never sent: the chart the
   // member lands on is not queued behind requests for the ones they passed (measured: 7.0 s).
@@ -14317,6 +14381,17 @@ export default function StockChart({
         // then open a moment), whereas this runs on every commit whatever armed it.
         // Verified load-bearing: disable this and the TF-flip test reds.
         pendingTfReframeRef.current = null
+      } else if (pendingTfReframeRef.current && pendingTfReframeRef.current.tf === resolvedTf && userViewMovedRef.current) {
+        // ⛔⛔ THE MEMBER MOVED THE VIEW SINCE THE SWITCH: THE SETTLING IS OVER FOR THE FRAME.
+        // Release WITHOUT re-asserting. `userViewMovedRef` is cleared by the switch itself (the
+        // zoomKey branch above), so here it can only mean a drag, a wheel, a Go-to-date or a
+        // synced chart's range AFTER the switch. ⚰️ (2026-11-17) The re-assert below ran first
+        // and the release check after it, so the first framing pass after a member's move put
+        // the outgoing frame back: drag a chart the moment it appears and the next late answer
+        // (its name and sector, its listing date) snapped it to newest-at-right. The rest gate
+        // (#1207) moved those answers past the first paint, which is how a negative control saw
+        // it (dailyFirstPaintAcceptance.test.jsx, NC-D and SETTLING).
+        pendingTfReframeRef.current = null
       } else if (pendingTfReframeRef.current && pendingTfReframeRef.current.tf === resolvedTf) {
         // Just switched INTO this timeframe: deterministically re-assert the PRESERVED
         // viewport (same last-candle position + zoom width as the outgoing view) on every
@@ -14358,9 +14433,10 @@ export default function StockChart({
         // bar ("today's candle opens on tomorrow, then snaps back"). Keeping the guard armed means
         // THIS reserve-aware re-assert (above) runs on that commit and cancels the slide — `to` is
         // invariant across the yesterday→today flip (idx(yesterday)+1 == idx(today)+0). A user pan
-        // (userViewMovedRef) still ends the hold so a deliberate scroll is never fought, and off-gate
-        // the reserve is 0 so the release timing is byte-identical to before.
-        const _reserveHolding = _intradayLoadReserve(filteredBars, resolvedTf) > 0 && !userViewMovedRef.current
+        // ends the guard before this branch (the `userViewMovedRef` arm above, the one place that
+        // rule lives), so a deliberate scroll is never fought, and off-gate the reserve is 0 so the
+        // release timing is byte-identical to before.
+        const _reserveHolding = _intradayLoadReserve(filteredBars, resolvedTf) > 0
         if (filteredBars.length === oldBarCount && _sessionSettled && !_reserveHolding) pendingTfReframeRef.current = null
       } else {
         // "Was viewing the latest": last bar visible with a normal (not huge) right gap.
@@ -14534,7 +14610,7 @@ export default function StockChart({
     // (mutation M3 SURVIVED): something else in this list is already unstable per
     // render. Kept as the one declaration that names this dependency; the full
     // reasoning is at the `useInstalledUserDefinitions` call site above.
-  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, strategyHistoryWindow, strategyWindowPending, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, compactAxes, _plotWindowFullKey, _pinnedFull, _overlayActive, _hasOverride, _study, tickLabelChars, nextEarnRows])
+  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, strategyHistoryWindow, strategyWindowPending, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, runtimeListsGeneration, compactAxes, _plotWindowFullKey, _pinnedFull, _overlayActive, _hasOverride, _study, tickLabelChars, nextEarnRows])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
@@ -17924,16 +18000,19 @@ export default function StockChart({
               if (moreRows !== null && moreRows !== studyMoreRowsRef.current) { setStudyMoreRows(moreRows); foldSettled = false }
             }
             const leg = legendRef.current
-            if (foldSettled && leg && !compactLegendRef.current) {
+            if (leg && fullLegendMeasurable(foldSettled, compactLegendRef.current, chipsExpandedRef.current)) {
               lastFullBottomRef.current = leg.getBoundingClientRect().bottom - container.getBoundingClientRect().top
             }
             // The PRICE pane's own bottom, in container coordinates — the legend
             // lives in Price, so "does it still fit" is a question about Price.
             const nextCompact = nextCompactLegend(compactLegendRef.current, lastFullBottomRef.current,
-              plan.collapseThresholdPx, foldSettled)
+              plan.collapseThresholdPx, foldSettled, chipsExpandedRef.current)
             if (nextCompact !== null) setCompactLegend(nextCompact)
+            // The pane grew until every row fits: there is no `Less` to press, so the expand ends here.
+            const staleExpand = stackExpandIsStale(chipsExpandedRef.current, studyCanFoldRef.current, foldSettled)
+            if (staleExpand) setChipsExpanded(false)
             // A budget or compact state just changed: the next frames must measure the result.
-            if (!foldSettled || nextCompact !== null) settled = false
+            if (!foldSettled || nextCompact !== null || staleExpand) settled = false
           }
         }
       } catch { return null /* pane API missing → CSS fallback; keep measuring */ }
@@ -19596,6 +19675,9 @@ export default function StockChart({
           onPreset: (id, presetId) => { close(); handleChipPreset(id, presetId) },
           onModify: () => { close(); try { toolbarRef.current?.openCreateIndicator?.({ defId: c.defId }) } catch { /* noop */ } },
           onEditFormula: () => { close(); try { toolbarRef.current?.openFormulaEditor?.({ defId: c.defId }) } catch { /* noop */ } },
+          // ⭐ R1 — the Screener's existing run flow, opened on this indicator. `window.open(_, '_self')` is
+          // this file's navigation primitive (no router context here; see the desk-marker handler).
+          onRunOverList: () => { close(); const to = scanLink(c.defId); if (to) { try { window.open(to, '_self') } catch { /* noop */ } } },
           onScriptUpgrade: () => { close(); try { toolbarRef.current?.openScriptUpgrade?.({ defId: c.defId }) } catch { /* noop */ } },
           onCustomCopy: () => { close(); try { toolbarRef.current?.createCustomCopy?.({ def, inputs: (inst && inst.inputs) || {} }) } catch { /* noop */ } },
           onSettings: (id) => { close(); handleChipSettings(id) },
@@ -20672,6 +20754,7 @@ export default function StockChart({
         while (studyFitFrom > 0 && studyFitFrom < studyTotal
           && sameInstanceAsPrev(studyFitFrom)) studyFitFrom -= 1
         const studyCanFold = studyFitFrom < studyTotal
+        studyCanFoldRef.current = studyCanFold
         const studyFoldFrom = chipsExpanded ? studyTotal : studyFitFrom
         const studyMoreCount = studyTotal - studyFitFrom
         return (
@@ -20681,7 +20764,7 @@ export default function StockChart({
              SUBTREE: they fire as the pointer moves onto and off its rows. */
           onPointerEnter={(e) => legendHoldRef.current.enter(e)}
           onPointerLeave={() => legendHoldRef.current.leave()}
-          className={`${styles.legend}${legendV2 ? ' ' + styles.legendV2 : ''}${compactLegend && legendV2 ? ' ' + styles.legendCompact : ''}${legendFlush ? ' ' + styles.legendFlush : toolbarCollapsed ? ' ' + styles.legendToolbarHidden : ''}`}
+          className={`${styles.legend}${legendV2 ? ' ' + styles.legendV2 : ''}${compactLegend && legendV2 ? ' ' + styles.legendCompact : ''}${stackDrawnOpen(legendV2, chipsExpanded, studyCanFold) ? ' ' + styles.legendStackOpen : ''}${legendFlush ? ' ' + styles.legendFlush : toolbarCollapsed ? ' ' + styles.legendToolbarHidden : ''}`}
           /* Drop below the index pane so the legend never covers it; reserve the
              right price-axis width so the BAR INFO strip wraps before it. */
           style={{
@@ -21286,7 +21369,8 @@ export default function StockChart({
           </div>
         </div>
       )}
-      {showRangeSelector && chartReady && filteredBars?.length > 1 && !compactLegend && (
+      {showRangeSelector && chartReady && filteredBars?.length > 1
+        && !rangeBarYieldsToLegend(compactLegend, legendV2 && chipsExpanded) && (
         <div ref={rangeBarRef} data-guide="chart.range" className={styles.rangeBar}>
           {RANGE_OPTS.map(([label, val], i) => (
             <button

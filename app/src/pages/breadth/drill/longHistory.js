@@ -4,17 +4,25 @@
 // once per page; a failure is simply "no longer history" and may be retried.
 const LONG_HISTORY_DAYS = 400
 export const longHistoryCache = { rows: null, promise: null }
+/** TERM-033: what a FAILED long-history read resolves to (a refused answer or a network failure,
+ *  logged with its cause). "No longer history", never an empty year: nothing is cached, the drill
+ *  keeps the page's own window (the caller sets rows only on an answer), and the next range pick
+ *  asks again. */
+export const LONG_HISTORY_FAILED = null
 export function loadLongHistory() {
   if (longHistoryCache.rows) return Promise.resolve(longHistoryCache.rows)
   if (!longHistoryCache.promise) {
     longHistoryCache.promise = fetch(`/api/breadth-monitor?days=${LONG_HISTORY_DAYS}`)
-      .then(r => (r.ok ? r.json() : null))
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
       .then(d => {
         const got = Array.isArray(d?.rows) ? d.rows : null
         longHistoryCache.rows = got
         return got
       })
-      .catch(() => null)
+      .catch((e) => {
+        console.warn('[breadth drill] the 6M / 1Y count history did not load; the page window stands', e)
+        return LONG_HISTORY_FAILED
+      })
       .finally(() => { longHistoryCache.promise = null })
   }
   return longHistoryCache.promise

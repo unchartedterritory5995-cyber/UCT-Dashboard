@@ -1,12 +1,12 @@
 {
  "populations": {
   "capture": {
-   "scripts": 761,
-   "admitted": 385,
-   "runtimeLane": 53,
-   "hostLane": 226,
-   "refused": 106,
-   "coreOnly": 35
+   "scripts": 867,
+   "admitted": 442,
+   "runtimeLane": 72,
+   "hostLane": 244,
+   "refused": 126,
+   "coreOnly": 44
   },
   "committed": {
    "scripts": 266,
@@ -864,8 +864,8 @@
   {
    "capture": "ict-killzone-index-version-rddt-1d-2026-11-14",
    "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "fn-multi",
@@ -1955,6 +1955,33 @@
    ]
   },
   {
+   "capture": "renko-candles-overlay-crwv-1d-2026-11-16",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "conditional-ta",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "max_bars_back",
+    "obj:box",
+    "obj:collection",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "var",
+    "while"
+   ]
+  },
+  {
    "capture": "renko-candles-overlay-rddt-1d-2026-10-03",
    "lane": "runtime",
    "runtimeOn": "MATCH",
@@ -2101,6 +2128,19 @@
    ]
   },
   {
+   "capture": "rs-syminfo-industry-alab-1d-2026-11-16",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
    "capture": "rs-syminfo-industry-amd-1d-2026-11-15",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
@@ -2141,6 +2181,19 @@
   },
   {
    "capture": "rs-syminfo-industry-crwv-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-crwv-1d-2026-11-16",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
@@ -2244,6 +2297,32 @@
    ]
   },
   {
+   "capture": "rs-syminfo-industry-pm-alab-1d-2026-11-16",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-pm-rddt-1d-2026-11-16",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
    "capture": "rs-syminfo-industry-qqq-1d-2026-11-15",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
@@ -2258,6 +2337,19 @@
   },
   {
    "capture": "rs-syminfo-industry-rddt-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-rddt-1d-2026-11-16",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
@@ -2501,6 +2593,48 @@
    ]
   },
   {
+   "capture": "session-highs-and-lows-indicator-smc-sessions-dst-safe-rddt-60-2026-11-16",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "history-expr",
+    "if-block",
+    "method-call",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "realtime-state",
+    "reassign",
+    "tuple-destructure",
+    "var"
+   ]
+  },
+  {
+   "capture": "session-highs-and-lows-indicator-smc-sessions-dst-safe-spy-60-2026-11-16",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "history-expr",
+    "if-block",
+    "method-call",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "realtime-state",
+    "reassign",
+    "tuple-destructure",
+    "var"
+   ]
+  },
+  {
    "capture": "session-hilo-rddt-1d-2026-11-14",
    "lane": "host",
    "runtimeOn": "MATCH",
@@ -2523,8 +2657,8 @@
   {
    "capture": "sessions-rddt-1d-2026-11-14",
    "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "fn-multi",
@@ -2551,17 +2685,6 @@
    "production": "INCONCLUSIVE",
    "caps": [
     "core",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "supertrend-kivancozbilgic-rddt-1d-2026-10-02",
-   "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "reassign",
     "ternary"
    ]
   },
@@ -2679,6 +2802,33 @@
     "reassign",
     "ternary",
     "var"
+   ]
+  },
+  {
+   "capture": "syminfo-mincontract-aapl-1d-2026-11-16",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "syminfo-mincontract-rddt-1d-2026-11-16",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "syminfo-mincontract-spy-1d-2026-11-16",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core"
    ]
   },
   {
@@ -3077,6 +3227,28 @@
    ]
   },
   {
+   "capture": "vw-andor-history-rddt-1d-2026-11-16",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "max_bars_back",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-andor-history-spy-1d-2026-11-16",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "max_bars_back",
+    "ternary"
+   ]
+  },
+  {
    "capture": "vw-arm-history-rddt-1d-2026-10-02",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
@@ -3373,6 +3545,70 @@
     "if-block",
     "reassign",
     "ternary"
+   ]
+  },
+  {
+   "capture": "vw-bt-session-overnight-value-btcusd-1d-2026-11-16",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-bt-session-overnight-value-btcusd-60-2026-11-16",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-bt-session-to-midnight-daymask-btcusd-60-2026-11-16",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-bt-time-1440-spy-1d-2026-11-16",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-bt-time-1440-spy-60-2026-11-16",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-bt-toradians-spy-1d-2026-11-16",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core"
    ]
   },
   {
@@ -3944,6 +4180,42 @@
    ]
   },
   {
+   "capture": "vw-draw-count-at-cap-rddt-1d-2026-11-16",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "core",
+    "if-block",
+    "obj:box",
+    "obj:collection",
+    "obj:label",
+    "obj:line",
+    "reassign",
+    "var"
+   ]
+  },
+  {
+   "capture": "vw-draw-count-at-cap-spy-1d-2026-11-16",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "core",
+    "if-block",
+    "obj:box",
+    "obj:collection",
+    "obj:label",
+    "obj:line",
+    "reassign",
+    "var"
+   ]
+  },
+  {
    "capture": "vw-fmt-tie-readings-rddt-1d-2026-11-15",
    "lane": "host",
    "runtimeOn": "DIVERGE",
@@ -4188,6 +4460,40 @@
    ]
   },
   {
+   "capture": "vw-hs2-v3-highestbars-spy-1d-2026-11-16",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-hs6-wrap-comment-spy-1d-2026-11-16",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "switch"
+   ]
+  },
+  {
+   "capture": "vw-imp-forin-reorder-rddt-1d-2026-11-16",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "core",
+    "for-in",
+    "if-block",
+    "realtime-state",
+    "reassign"
+   ]
+  },
+  {
    "capture": "vw-input-tf-text-v5-spy-1d-2026-10-01",
    "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
@@ -4314,6 +4620,42 @@
     "obj:label",
     "reassign",
     "while"
+   ]
+  },
+  {
+   "capture": "vw-lower-tf-bars-rddt-15-2026-11-16",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-lower-tf-bars-rddt-240-2026-11-16",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-lower-tf-bars-rddt-5-2026-11-16",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-lower-tf-bars-rddt-60-2026-11-16",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core"
    ]
   },
   {
@@ -4492,6 +4834,28 @@
    ]
   },
   {
+   "capture": "vw-pt-na-guard-and-rddt-1d-2026-11-16",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "max_bars_back",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-pt-na-guard-and-spy-1d-2026-11-16",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "max_bars_back",
+    "ternary"
+   ]
+  },
+  {
    "capture": "vw-ratchet-stops-rddt-1d-2026-10-02",
    "lane": "host",
    "runtimeOn": "MATCH",
@@ -4580,6 +4944,16 @@
     "if-block",
     "method-call",
     "obj:label"
+   ]
+  },
+  {
+   "capture": "vw-tc1-colour-na-compare-rddt-1d-2026-11-16",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "ternary"
    ]
   },
   {
@@ -4838,8 +5212,8 @@
   {
    "capture": "vw-time-session-spy-1d-2026-09-28",
    "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "fn-single",
@@ -5082,6 +5456,75 @@
    ]
   },
   {
+   "capture": "vw-udt-fn-global-history-rddt-1d-2026-11-16",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "compound-assign",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "vw-udt-legacy-array-param-rddt-1d-2026-11-16",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "typed-array"
+   ]
+  },
+  {
+   "capture": "vw-udt-na-index-v5-rddt-1d-2026-11-16",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-udt-na-index-v6-rddt-1d-2026-11-16",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-uie3-na-index-v4-spy-1d-2026-11-16",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-uie3-na-text-spy-1d-2026-11-16",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
    "capture": "vw-var-seed-spy-1d-2026-09-28",
    "lane": "runtime",
    "runtimeOn": "MATCH",
@@ -5091,6 +5534,96 @@
     "reassign",
     "ternary",
     "var"
+   ]
+  },
+  {
+   "capture": "vw-w1-cmo-cog-derived-spy-1d-2026-11-16",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-w19r2-collections-rddt-1d-2026-11-16",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-w19r2a-insert-at-size-rddt-1d-2026-11-16",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-w19r2a-insert-into-empty-rddt-1d-2026-11-16",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-w19r2a-insert-negative-rddt-1d-2026-11-16",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-w19r2b-empty-binary-search-rddt-1d-2026-11-16",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-w19r2b-empty-leftmost-rddt-1d-2026-11-16",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-w19r2b-empty-rightmost-rddt-1d-2026-11-16",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-w34-i4-v2-selfref-seed-spy-1d-2026-11-16",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "ternary"
    ]
   },
   {
@@ -5196,6 +5729,202 @@
    ]
   },
   {
+   "capture": "vw-w4-arm-runs-rddt-1d-2026-11-16",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "max_bars_back",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-w4-arm-runs-spy-1d-2026-11-16",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "max_bars_back",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-w4-session-daymask-btcusd-60-2026-11-16",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-w4-session-daymask-spy-60-2026-11-16",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-w4-session-default-days-btcusd-60-2026-11-16",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-w4-session-default-days-v4-btcusd-60-2026-11-16",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-w4-session-overnight-btcusd-60-2026-11-16",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-w4-session-param-spy-5-2026-11-16",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "vw-w6-array-every-empty-spy-1d-2026-11-16",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "core",
+    "generics",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-w6-forin-fn-two-sites-rddt-1d-2026-11-16",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for-in",
+    "generics"
+   ]
+  },
+  {
+   "capture": "vw-w6-forin-fn-value-rddt-1d-2026-11-16",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for-in",
+    "generics"
+   ]
+  },
+  {
+   "capture": "vw-w6-forin-write-through-rddt-1d-2026-11-16",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "core",
+    "for-in",
+    "generics",
+    "method-call",
+    "reassign",
+    "udt",
+    "var"
+   ]
+  },
+  {
+   "capture": "vw-wsa-v6-bool-unmatched-rddt-1d-2026-11-16",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "switch",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-wsa-v6-bool-unmatched-tuple-rddt-1d-2026-11-16",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "history-expr",
+    "if-block",
+    "switch",
+    "ternary",
+    "tuple-destructure"
+   ]
+  },
+  {
+   "capture": "vw-wsc-h7-v6-shortcircuit-rddt-1d-2026-11-16",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "max_bars_back",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-wsc-h7-v6-shortcircuit-spy-1d-2026-11-16",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "max_bars_back",
+    "ternary"
+   ]
+  },
+  {
    "capture": "w4-cross-round-spy-1d-2026-09-30",
    "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
@@ -5272,71 +6001,6 @@
     "reassign",
     "ternary",
     "var"
-   ]
-  },
-  {
-   "capture": "rs-syminfo-industry-alab-1d-2026-11-16",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:label",
-    "realtime-state",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "rs-syminfo-industry-crwv-1d-2026-11-16",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:label",
-    "realtime-state",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "rs-syminfo-industry-pm-alab-1d-2026-11-16",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:label",
-    "realtime-state",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "rs-syminfo-industry-pm-rddt-1d-2026-11-16",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:label",
-    "realtime-state",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "rs-syminfo-industry-rddt-1d-2026-11-16",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:label",
-    "realtime-state",
-    "ternary"
    ]
   },
   {
@@ -5482,8 +6146,8 @@
   {
    "capture": "vw-time-session-spy-1d-2026-09-27",
    "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "fn-single",
@@ -5498,6 +6162,17 @@
    "caps": [
     "core",
     "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "supertrend-kivancozbilgic-rddt-1d-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "reassign",
     "ternary"
    ]
   }
@@ -5671,27 +6346,6 @@
     "if-block",
     "reassign",
     "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:session-highs-and-lows-indicator-smc-sessions-dst-safe__c0ca8cf749",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "method-call",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
     "tuple-destructure",
     "var"
    ]
@@ -9218,30 +9872,6 @@
    ]
   },
   {
-   "capture": "vw-fmt-tie-readings-rddt-1d-2026-11-15",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "fn-single",
-    "if-block",
-    "obj:label",
-    "realtime-state"
-   ]
-  },
-  {
-   "capture": "vw-time-tf-bitstamp-btcusd-1d-2026-09-30",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "fn-single",
-    "ternary"
-   ]
-  },
-  {
    "capture": "vw-w3n-draw-block-history-a-rddt-1d-2026-11-15",
    "lane": "host",
    "runtimeOn": "DIVERGE",
@@ -9342,6 +9972,140 @@
     "obj:label",
     "reassign"
    ]
+  }
+ ],
+ "refusedByName": [
+  {
+   "capture": "vw-bt-session-overnight-value-btcusd-1d-2026-11-16",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ],
+   "guard": "pine:known-divergence",
+   "slug": "vw-bt-session-overnight-value"
+  },
+  {
+   "capture": "vw-bt-session-overnight-value-btcusd-60-2026-11-16",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ],
+   "guard": "pine:known-divergence",
+   "slug": "vw-bt-session-overnight-value"
+  },
+  {
+   "capture": "vw-bt-session-to-midnight-daymask-btcusd-60-2026-11-16",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ],
+   "guard": "pine:known-divergence",
+   "slug": "vw-bt-session-to-midnight-daymask"
+  },
+  {
+   "capture": "vw-fmt-tie-readings-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-single",
+    "if-block",
+    "obj:label",
+    "realtime-state"
+   ],
+   "guard": "pine:known-divergence",
+   "slug": "vw-fmt-tie-readings"
+  },
+  {
+   "capture": "vw-time-tf-bitstamp-btcusd-1d-2026-09-30",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ],
+   "guard": "pine:known-divergence",
+   "slug": "vw-time-tf"
+  },
+  {
+   "capture": "vw-w4-arm-runs-rddt-1d-2026-11-16",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "max_bars_back",
+    "ternary"
+   ],
+   "guard": "pine:known-divergence",
+   "slug": "vw-w4-arm-runs"
+  },
+  {
+   "capture": "vw-w4-arm-runs-spy-1d-2026-11-16",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "max_bars_back",
+    "ternary"
+   ],
+   "guard": "pine:known-divergence",
+   "slug": "vw-w4-arm-runs"
+  },
+  {
+   "capture": "vw-w4-session-default-days-btcusd-60-2026-11-16",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ],
+   "guard": "pine:known-divergence",
+   "slug": "vw-w4-session-default-days"
+  },
+  {
+   "capture": "vw-w4-session-default-days-v4-btcusd-60-2026-11-16",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ],
+   "guard": "pine:known-divergence",
+   "slug": "vw-w4-session-default-days-v4"
+  },
+  {
+   "capture": "vw-w4-session-overnight-btcusd-60-2026-11-16",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ],
+   "guard": "pine:known-divergence",
+   "slug": "vw-w4-session-overnight"
   },
   {
    "capture": "vw-int-cast-spy-1d-2026-09-27",
@@ -9352,7 +10116,9 @@
     "core",
     "fn-single",
     "ternary"
-   ]
+   ],
+   "guard": "pine:known-divergence",
+   "slug": "vw-int-cast"
   },
   {
    "capture": "vw-nvi-pvi-spy-1d-truncated-2026-09-27",
@@ -9362,7 +10128,9 @@
    "caps": [
     "core",
     "ternary"
-   ]
+   ],
+   "guard": "pine:known-divergence",
+   "slug": "vw-nvi-pvi"
   }
  ],
  "matchToDiverge": [],

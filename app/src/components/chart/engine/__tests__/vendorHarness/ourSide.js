@@ -378,7 +378,10 @@ function otherSymbolSupply(def, capture) {
     const rec = recorded && recorded.other ? recorded.other[storeKey] : null
     if (rec) {
       if (Array.isArray(rec.bars)) {
-        secondary.set(storeKey, { bars: rec.bars, status: 'available' })
+        // SUPPLY-ATTRIBUTED (2026-11-17): the counterfactual run (`runOurSideWithSupply`) replaces these
+        // bars for ONE run; every graded run reads the recorded supply as served
+        const over = _supplyOverride && Array.isArray(_supplyOverride[storeKey]) ? _supplyOverride[storeKey] : null
+        secondary.set(storeKey, { bars: over || rec.bars, status: 'available' })
         notes.push(`other symbol ${ticker}: the bars our server serves, recorded beside the capture `
           + `(${rec.servedBy}; ${rec.source})`
           + (rec.rows ? `; kept out of git, read from the local supply store as ${rec.rows.file} (sha256 ${rec.rows.sha256.slice(0, 12)})` : ''))
@@ -1081,6 +1084,18 @@ function drawnColours(def, bars, ctx, inputs = undefined) {
     const plot = plotByKey.get(b.plotKey) || {}
     const seriesColor = b.series.__options && b.series.__options.color
     const byTime = new Map(data.map((p) => [String(p.time), p]))
+    // ⭐⭐ A GAP-BREAKING LINE IS DRAWN BY MORE THAN ONE SERIES (`gapRuns.js`): the
+    // primary holds the NEWEST valued run and whitespace elsewhere, and each earlier
+    // run is drawn by a run series the binding owns (`runSeries` / `runData`). Reading
+    // the primary alone read every earlier run as "none" — a renderer that drew the
+    // colour, scored as one that did not (row 42: `plot.style_linebr` now breaks, and
+    // supertrend-strategy / pa-zigzag read 332 and 8 phantom colour misses). What the
+    // renderer was handed for a bar is the valued point of whichever series drew it.
+    for (const run of (Array.isArray(b.runData) ? b.runData : [])) {
+      for (const p of (Array.isArray(run) ? run : [])) {
+        if (p && Number.isFinite(p.value)) byTime.set(String(p.time), p)
+      }
+    }
     // ⭐⭐ A DISPLACED PLOT'S COLOUR IS READ WHERE THE RENDERER DREW IT.
     // `offset = -N` draws the value computed on bar i at bar i - N (the binder's
     // `displacedColumn`), and TradingView's study data keys that value — and its
@@ -1462,6 +1477,21 @@ export function substitutedInputsOf(capture, declared = []) {
   const problems = substitutionProblems(capture, list)
   if (problems.length) throw new Error(`ourSide: substituted inputs refused: ${problems.join('; ')}`)
   return list.map((e) => ({ ...e }))
+}
+
+// SUPPLY-ATTRIBUTED (coordinator ruling on #1541, 2026-11-17): the counterfactual run of
+// `supplyAttribution.js` - our side on the recorded supply with TradingView's witnessed values on the
+// dates they differ. ONLY that file calls it; it never feeds a grade a member reads (the grade runs on
+// the recorded supply, RS RATING L8), it only proves which side of a difference is the data.
+let _supplyOverride = null
+/** Our side, once, with `overrides` (`{<store ticker>: bars}`) in place of the recorded supply. */
+export function runOurSideWithSupply(capture, overrides) {
+  _supplyOverride = overrides || null
+  try {
+    return runOurSide(capture)
+  } finally {
+    _supplyOverride = null
+  }
 }
 
 export function runOurSide(capture) {

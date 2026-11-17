@@ -41,6 +41,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from zoneinfo import ZoneInfo
 
+from api.services import buzz_extract
+
 ENABLED_ENV = "SOCIAL_POLARITY_ENABLED"
 RETENTION_ENV = "SOCIAL_TEXT_RETENTION_DAYS"
 DEFAULT_RETENTION_DAYS = 90
@@ -190,7 +192,11 @@ BULL_AT = 0.2
 _TOKEN = re.compile(r"[a-z][a-z']*|[\U0001F300-\U0001FAFF]")
 _URL = re.compile(r"https?://\S+|www\.\S+")
 # A cashtag names the ticker, never the mood: $BULL (Webull), $BEAR, $RIP, $MOON are symbols.
-_CASHTAG = re.compile(r"(?<![A-Za-z0-9])\$[A-Za-z]{1,6}(?:[.-][A-Za-z]{1,2})?\b")
+# The posts scored here are the ones `buzz_extract` counts mentions in, so the grammar is ITS
+# grammar (the Discord /buzz tier-1 cashtag, recorded in tests/a8_cashtag_grammars.baseline.json),
+# read from it rather than restated: a copy here was a second authority that drifts the day one
+# side changes. Its capture group does not matter to `.sub`, which replaces the whole match.
+_CASHTAG = buzz_extract._CASHTAG
 # "/s" closes a sarcastic line: the words say the opposite of the meaning, so no label.
 _SARCASM = re.compile(r"(?:^|\s)/s(?:\s|$|[.!?)])")
 

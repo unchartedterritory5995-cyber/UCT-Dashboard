@@ -44,6 +44,61 @@ function isRealIsoDate(iso) {
 /** The comparison windows `lookback` accepts (REL, CORR). Each panel draws every one of them, and
  *  says so out loud for anything else (panels/RelPanel.jsx, panels/CorrPanel.jsx; railed). */
 export const LOOKBACK_WINDOWS = Object.freeze(['1M', '3M', '6M', '1Y', '2Y', 'YTD'])
+/** The words the data-wave-1 lenses accept (see the kinds at the foot of ARG_KINDS). Exported for
+ *  args.dataWave1.test.js, which checks each against the panel that owns the vocabulary. */
+export const LONG_RUN_WORDS = Object.freeze({
+  '30D': '30D', 30: '30D', '60D': '60D', 60: '60D', '90D': '90D', 90: '90D',
+  VOL1Y: 'VOL1Y', VOLUME1Y: 'VOL1Y', '1YVOL': 'VOL1Y',
+  VOLMAX: 'VOLMAX', VOLEVER: 'VOLMAX', MAXVOL: 'VOLMAX', ALLTIME: 'VOLMAX',
+  IPO: 'IPO', IPOS: 'IPO', LISTINGS: 'IPO',
+})
+export const ANALYST_KIND_WORDS = Object.freeze({
+  UP: 'upgrades', UPGRADE: 'upgrades', UPGRADES: 'upgrades',
+  DOWN: 'downgrades', DN: 'downgrades', DOWNGRADE: 'downgrades', DOWNGRADES: 'downgrades',
+  PT: 'targets', TARGET: 'targets', TARGETS: 'targets',
+})
+export const HILO_SIDE_WORDS = Object.freeze({
+  HIGHS: 'highs', HIGH: 'highs', HI: 'highs', NH: 'highs',
+  LOWS: 'lows', LOW: 'lows', LO: 'lows', NL: 'lows',
+})
+export const FLOW_LIST_ARG_WORDS = Object.freeze({
+  CREAM: 'cream', CROP: 'cream', TOP: 'cream',
+  OPEN: 'open', BOARD: 'open', OPENFLOW: 'open',
+})
+// data wave 4: copies of the panel models' words (args.dataWave4.test.js pins each to its owner)
+export const CONFLUENCE_LEAN_WORDS = Object.freeze({
+  ALL: 'all', BOTH: 'all', ANY: 'all',
+  BULL: 'bullish', BULLS: 'bullish', BULLISH: 'bullish', LONG: 'bullish',
+  BEAR: 'bearish', BEARS: 'bearish', BEARISH: 'bearish', SHORT: 'bearish',
+})
+export const REPEAT_ORDER_WORDS = Object.freeze({
+  STRONG: 'strong', STRONGEST: 'strong', SCORE: 'strong', TOP: 'strong', BEST: 'strong',
+  LATEST: 'latest', RECENT: 'latest', NEWEST: 'latest', TIME: 'latest',
+})
+export const PERIOD_RANGE_WORDS = Object.freeze({
+  MTD: 'mtd', MONTH: 'mtd',
+  QTD: 'qtd', QUARTER: 'qtd',
+  YTD: 'ytd', YEAR: 'ytd',
+  '1M': 'm1', '3M': 'm3', '6M': 'm6', '1Y': 'y1', '12M': 'y1',
+})
+export const PERIOD_SIDE_WORDS = Object.freeze({
+  GAINERS: 'gainers', GAINER: 'gainers', UP: 'gainers', TOP: 'gainers', BEST: 'gainers',
+  LOSERS: 'losers', LOSER: 'losers', DOWN: 'losers', BOTTOM: 'losers', WORST: 'losers',
+})
+export const ROTATION_SIDE_ARG_WORDS = Object.freeze({
+  IN: 'in', INTO: 'in', UP: 'in', RISING: 'in', LEADERS: 'in', GAINING: 'in',
+  OUT: 'out', DOWN: 'out', FADING: 'out', FALLING: 'out', LAGGARDS: 'out', LOSING: 'out',
+})
+export const RS_SCREEN_ARG_WORDS = Object.freeze({
+  LEADERS: 'starter_rs_leaders', LEADER: 'starter_rs_leaders', LDR: 'starter_rs_leaders',
+  TOP: 'starter_rs_top_rating', RATING: 'starter_rs_top_rating',
+  NH: 'starter_rs_new_high', HIGHS: 'starter_rs_new_high',
+  NHBP: 'starter_rs_nh_before_price', BEFORE: 'starter_rs_nh_before_price',
+  EXIT: 'starter_rs_exit_warning_5', WARN: 'starter_rs_exit_warning_5', WARNINGS: 'starter_rs_exit_warning_5',
+})
+export const HILO_GROUP_WORDS = Object.freeze({
+  SECTOR: 'sector', SECTORS: 'sector', INDUSTRY: 'industry', INDUSTRIES: 'industry', THEME: 'theme', THEMES: 'theme',
+})
 /** The cadences `cadence` accepts (RRG's daily or weekly closes; panels/RrgPanel.jsx RRG_CADENCES). */
 export const CADENCES = Object.freeze(['D', 'W'])
 
@@ -215,6 +270,123 @@ export const ARG_KINDS = {
     takes: 'two metrics, Y then X (RS_RANK DIST_52W_HIGH)',
     parse: (tok) => parseScatMetric(tok),
     describe: (v) => `X axis ${scatMetricLabel(v)}`,
+  },
+  // ── data wave 1 (2026-11-17): the lenses of the new market panels. The accepted words are each
+  // panel's own (panels/longRunModel.js LENS_WORDS, UpgradesPanel KIND_WORDS, HighsLowsPanel
+  // SIDE_WORDS / GROUP_WORDS); args.dataWave1.test.js pins every word here to the value that
+  // panel's own reader gives, so the two cannot drift. Typed here as plain maps so the panels'
+  // code stays out of the shell's first-open bytes.
+  /** LEAD's list: gainers over 30, 60 or 90 sessions, volume records, new listings. */
+  longRunLens: {
+    takes: '30D, 60D, 90D, VOL1Y, VOLMAX or IPO',
+    parse: (tok) => LONG_RUN_WORDS[String(tok).toUpperCase()] ?? null,
+    describe: (v) => `list ${v}`,
+  },
+  /** UPDG's cut: upgrades, downgrades or target changes. */
+  analystKind: {
+    takes: 'UP, DOWN or PT',
+    parse: (tok) => ANALYST_KIND_WORDS[String(tok).toUpperCase()] ?? null,
+    describe: (v) => ({ upgrades: 'upgrades', downgrades: 'downgrades', targets: 'target changes' })[v],
+  },
+  /** HILO's side: the highs list or the lows list (both is the bare command). */
+  hiloSide: {
+    takes: 'HIGHS or LOWS',
+    parse: (tok) => HILO_SIDE_WORDS[String(tok).toUpperCase()] ?? null,
+    describe: (v) => `new ${v}`,
+  },
+  /** HILO's grouping: rank sectors, industries or themes instead of stocks. */
+  hiloGroup: {
+    takes: 'SECTOR, INDUSTRY or THEME',
+    parse: (tok) => HILO_GROUP_WORDS[String(tok).toUpperCase()] ?? null,
+    describe: (v) => `by ${v}`,
+  },
+  // ── data wave 2 (2026-11-17). RSS's screen: one of the five UCT RS screens, by its short word.
+  // The value is the screen's starter id (panels/rsScreensModel.js RS_SCREEN_WORDS owns the words;
+  // args.dataWave2.test.js pins this map to it).
+  rsScreen: {
+    takes: 'LEADERS, TOP, NH, NHBP or EXIT',
+    parse: (tok) => RS_SCREEN_ARG_WORDS[String(tok).toUpperCase()] ?? null,
+    describe: (v) => `screen ${String(v).replace(/^starter_rs_/, '').replace(/_/g, ' ')}`,
+  },
+  // ── data wave 3 (2026-11-17) ──
+  /** PERF's account: `ALL`, or the account's place in the Journal's own list (`2` is the second).
+   *  Never an id, so a command, a link and the history carry nothing personal. The reader is
+   *  panels/performanceModel.js parsePerformanceAccount (pinned by args.dataWave3.test.js). */
+  journalAccount: {
+    takes: 'ALL, or an account number (1, 2, 3)',
+    parse: (tok) => {
+      const t = String(tok ?? '').trim().toUpperCase()
+      if (t === 'ALL') return 'all'
+      return /^\d{1,2}$/.test(t) && Number(t) >= 1 ? Number(t) : null
+    },
+    describe: (v) => (v === 'all' ? 'all accounts' : `account ${v}`),
+  },
+  /** FLWL's list: Cream of the Crop or the open flow board (panels/flowListsModel.js LIST_WORDS). */
+  flowList: {
+    takes: 'CREAM or OPEN',
+    parse: (tok) => FLOW_LIST_ARG_WORDS[String(tok).toUpperCase()] ?? null,
+    describe: (v) => (v === 'open' ? 'the open flow board' : 'Cream of the Crop'),
+  },
+  // ── data wave 4 (2026-11-17) ──
+  /** CONFL's direction (panels/confluenceModel.js CONFLUENCE_LEAN_ARG_WORDS; pinned by args.dataWave4.test.js). */
+  confluenceLean: {
+    takes: 'BULL or BEAR',
+    parse: (tok) => CONFLUENCE_LEAN_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
+    describe: (v) => (v === 'all' ? 'every direction' : `${v} names`),
+  },
+  /** ACCUM's order (panels/repeatContractsModel.js REPEAT_ORDER_ARG_WORDS). */
+  repeatOrder: {
+    takes: 'STRONG or LATEST',
+    parse: (tok) => REPEAT_ORDER_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
+    describe: (v) => (v === 'latest' ? 'latest first' : 'strongest first'),
+  },
+  /** PCHG's one-click range (panels/periodChangeModel.js PERIOD_RANGE_ARG_WORDS). */
+  periodRange: {
+    takes: 'a range (MTD, QTD, YTD, 1M, 3M, 6M, 1Y)',
+    parse: (tok) => PERIOD_RANGE_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
+    describe: (v) => `range ${({ mtd: 'MTD', qtd: 'QTD', ytd: 'YTD', m1: '1M', m3: '3M', m6: '6M', y1: '1Y' })[v] || v}`,
+  },
+  /** PCHG's own dates, a whole date each (`2026-01-02`, `20260102`, `1/2/2026`): the first typed
+   *  is the start, the second the end. Unlike `etDate` a year is always typed, because a range
+   *  can reach back decades. The panel model (periodRequest) decides what the server can take. */
+  periodDate: {
+    takes: 'one or two dates (YYYY-MM-DD)',
+    parse: (tok) => {
+      const t = String(tok ?? '').trim()
+      let m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(t) || /^(\d{4})(\d{2})(\d{2})$/.exec(t)
+      let parts = m ? [m[1], m[2], m[3]] : null
+      if (!parts) { m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(t); if (m) parts = [m[3], m[1], m[2]] }
+      if (!parts || Number(parts[0]) < 1900 || Number(parts[0]) > 2200) return null
+      const iso = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`
+      return isRealIsoDate(iso) ? iso : null
+    },
+    describe: (v) => `date ${v}`,
+  },
+  /** PCHG's end of the list (panels/periodChangeModel.js PERIOD_SIDE_ARG_WORDS). */
+  periodSide: {
+    takes: 'GAINERS or LOSERS',
+    parse: (tok) => PERIOD_SIDE_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
+    describe: (v) => (v === 'losers' ? 'biggest losers' : 'biggest gainers'),
+  },
+  /** TSRC's search words: a REST kind (`rest: true`), every word typed after the code, joined.
+   *  Any non-empty text is taken here; the PANEL (callSearchModel.callQuery) says why a query
+   *  cannot run (too short, too long), next to the box, because a one-letter word inside a phrase
+   *  ("plan b") is fine while a one-letter query is not, and this kind sees one word at a time.
+   *  Lower case, always: the command line carries no letter case (the shell upper-cases what is
+   *  typed), and in capitals a plain "and" / "or" / "not" would reach the search as an operator. */
+  callQuery: {
+    takes: 'a word or a phrase (TSRC pricing power)',
+    parse: (tok) => {
+      const t = String(tok ?? '').replace(/\s+/g, ' ').trim().toLowerCase()
+      return t ? t : null
+    },
+    describe: (v) => `search "${v}"`,
+  },
+  /** TROT's side: themes rotating in, or rotating out (panels/themeRotationModel.js ROTATION_SIDE_WORDS). */
+  rotationSide: {
+    takes: 'IN or OUT',
+    parse: (tok) => ROTATION_SIDE_ARG_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
+    describe: (v) => (v === 'out' ? 'themes rotating out' : 'themes rotating in'),
   },
 }
 

@@ -30890,6 +30890,12 @@ const PINE_PLOT_STYLES = Object.freeze({
   'plot.style_circles': 'markers',
 })
 
+/** The plot styles whose `na` bars are a BREAK, not a bridge (User Manual, `plot()`
+ *  `style`): `linebr` and `areabr`. `plot.style_steplinebr` is not mapped at all
+ *  (its na handling is stated nowhere beyond its name, presentation spec U8), so it
+ *  stays `styleUncarried`. */
+const PINE_BREAKING_STYLES = Object.freeze(new Set(['plot.style_linebr', 'plot.style_areabr']))
+
 // ⭐ BOTH SPELLINGS, ONE ANSWER. A bare `red` is only a colour when nothing in
 // the script has bound that name to something else — a member's own variable
 // called `green` must not silently become a colour. The bound-name check is the
@@ -31587,18 +31593,48 @@ function colourInputNameOf(node, env, depth = 0, ctx = null) {
   return null
 }
 
+/** Is a colour branch the INPUT itself (through names), not `color.new(<input>, t)` or any other wrapper? */
+function colourBranchIsBareInput(node, env, depth = 0) {
+  if (!node || depth > 6) return false
+  if (node.type === 'name') {
+    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+    return !!(bound && bound.kind === 'expr') && colourBranchIsBareInput(bound.node, bound.env || env, depth + 1)
+  }
+  return node.type === 'call' && (node.name === 'input.color' || node.name === 'input')
+}
+
 /** For a fill's colour argument: which `input.color` each of its two colours
  *  (`colorUp` / `colorDown`) comes from, matched by the colour each branch folds
  *  to. Null where a branch reads no input, or the match is ambiguous. */
 function fillColourInputsOf(args, env, colorUp, colorDown, ctx = null) {
   const a = (args || []).find((x) => x && x.name === 'color')
     || (args || []).filter((x) => x && !x.name)[2]
-  const node = a && a.value
+  let node = a && a.value
+  // ⭐ SETTINGS PARITY (area colours, 2026-11-17) — a fill colour written through a NAME is that name's
+  // ternary: RS Rating writes `fillCol = rs > rsMA ? posCol : negCol` then `fill(…, color = fillCol)`, and its
+  // two area colours were never the member's knob
+  for (let d = 0; node && node.type === 'name' && d < 4; d += 1) {
+    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (!bound || bound.kind !== 'expr') break
+    env = bound.env || env
+    node = bound.node
+  }
   if (!node || node.type !== 'ternary') return null
   const yesHex = staticColourOf(node.yes, env, 0, ctx)
   const noHex = staticColourOf(node.no, env, 0, ctx)
-  const yesIn = colourInputNameOf(node.yes, env, 0, ctx)
-  const noIn = colourInputNameOf(node.no, env, 0, ctx)
+  const withOwn = (branch, info) => {
+    if (!info) return info
+    // ⭐ OWN TRANSPARENCY: the branch IS the input (no `color.new(input, t)` around it), so the input's own
+    // default carries the band's alpha and a member's pick is the WHOLE colour, alpha included (TradingView
+    // set F: positive / negative area picked at 0.5 / 0.6 paint at 0.5 / 0.6, not the default's 0.25)
+    if (!colourBranchIsBareInput(branch, env)) return info
+    const t = colourHelperTransparency(branch, env, ctx)
+    const alpha = Number.isFinite(t) && t > 0 && t <= 100 ? Math.round((1 - t / 100) * 255) : null
+    return { ...info, own: true, ...(alpha !== null && /^#[0-9a-f]{6}$/i.test(info.hex)
+      ? { ownHex: `${info.hex.toUpperCase()}${alpha.toString(16).padStart(2, '0').toUpperCase()}` } : {}) }
+  }
+  const yesIn = withOwn(node.yes, colourInputNameOf(node.yes, env, 0, ctx))
+  const noIn = withOwn(node.no, colourInputNameOf(node.no, env, 0, ctx))
   const pick = (hex) => {
     const fromYes = yesHex && yesHex === hex ? yesIn : undefined
     const fromNo = noHex && noHex === hex ? noIn : undefined
@@ -33570,8 +33606,19 @@ function outputPresentation(args, ctx) {
       pres.style = 'markers'
     }
   } else if (st && st.value && st.value.type === 'name') {
-    if (Object.hasOwn(PINE_PLOT_STYLES, st.value.name)) pres.style = PINE_PLOT_STYLES[st.value.name]
-    else pres.styleUncarried = st.value.name
+    if (Object.hasOwn(PINE_PLOT_STYLES, st.value.name)) {
+      pres.style = PINE_PLOT_STYLES[st.value.name]
+      // ⭐⭐ 2026-11-17 (backlog row 42) — THE TWO "WITH BREAKS" STYLES BREAK. The
+      // User Manual: `plot.style_linebr` *"Allows the plotting of discontinuous lines
+      // by not plotting on na values, and not joining such gaps."*; `plot.style_areabr`
+      // *"is similar to plot.style_area but it doesn't bridge over na values."* —
+      // against `plot.style_line`, which *"does draw a line through them by joining
+      // the most recent non-na value to the next non-na value."* Both mapped to the
+      // bridging style and drew joined. `sparse` is the document's own "blank by
+      // design" (`binder.js`: one render series per valued run, because
+      // lightweight-charts 5.2 joins whitespace).
+      if (PINE_BREAKING_STYLES.has(st.value.name)) pres.sparse = true
+    } else pres.styleUncarried = st.value.name
   }
 
   const trArg = arg('transp')

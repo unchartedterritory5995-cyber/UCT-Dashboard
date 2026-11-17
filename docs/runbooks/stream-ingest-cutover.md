@@ -28,7 +28,11 @@ on its own loop; `web` mirrors its feed (`api/services/feed_client.py`, `STREAM_
 ## Preconditions
 
 1. #1434 is merged AND live on `web` (`git merge-base --is-ancestor <its merge> origin/production`).
-2. `stream-ingest` runs the same master, `STREAM_INGEST_CONNECT=0`, deployment SUCCESS.
+2. `stream-ingest` runs the same master, `STREAM_INGEST_CONNECT=0`, deployment SUCCESS, **and holds the vendor
+   key**: `MASSIVE_API_KEY=${{web.MASSIVE_API_KEY}}` (a Railway reference, so the secret is never typed). ⚰️ The
+   first cutover (2026-11-17, premarket) missed this: ingest's connect gate refused with "MASSIVE_API_KEY is not
+   set", `web` was already remote, and the live feed was down ~8 minutes until the reference was set and ingest
+   redeployed. Check it BY NAME before step 1: `railway variables --service stream-ingest --kv`, names only.
 3. **The universe feed moves too.** `web`'s own reader subscribes `AM.*` and forwards every ticker's minutes to
    `bars-api` (`bars_live_ingest`, which keeps the 5m series current). In remote mode `web` has no reader, so
    `stream-ingest` must do it: it runs the same `bar_stream._run_websocket`, which wires `bars_live_ingest` when
@@ -51,8 +55,14 @@ on its own loop; `web` mirrors its feed (`api/services/feed_client.py`, `STREAM_
 3. `railway variables --service stream-ingest --set STREAM_INGEST_CONNECT=1` (redeploys `stream-ingest`).
    It connects to Massive 45 s after boot.
 4. Verify, in this order:
-   - `stream-ingest` status: `railway ssh --service stream-ingest -- python -m api.stream_ingest_main --status`
-     (or `GET /status` with `Authorization: Bearer $PUSH_SECRET` on the private network): connected, frames rising.
+   - `stream-ingest` status: the RUNNING service's `GET /status` (Bearer `$PUSH_SECRET`), read from inside the
+     container so the secret never leaves it. ⛔ `python -m api.stream_ingest_main --status` builds a FRESH process
+     (uptime 0, nothing connected) and is not the service's state; and the shell's `python` is not the service's
+     interpreter (`/opt/venv/bin/python`; the system one has no `orjson`). What worked on 2026-11-17 (PowerShell;
+     `railway.exe` directly, the whole remote command in ONE quoted string, double quotes inside the code):
+     `railway.exe ssh --service stream-ingest -- "/opt/venv/bin/python -c '<code that GETs http://localhost:8080/status
+     with Authorization: Bearer os.environ[PUSH_SECRET] and prints runtime.upstream / universe>'"`.
+     Expect: `vendor_socket` "connected", `upstream.connected` true, frames rising, `universe.flush_errors` 0.
    - `web` `/api/admin/bars-stream-status`: `feed_client.connected` true, its counters rising, `resyncs` and
      `protocol_errors` not climbing.
    - The universe feed: `stream-ingest` status `universe` block (events and flushes rising, `flush_errors` flat)

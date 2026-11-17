@@ -7670,7 +7670,7 @@
     "Morning Star"
    ],
    "q": "Which candle name fits this description?",
-   "quote": "Two opposite-coloured bars opening at the same price, the second session restarted from where the first began.",
+   "quote": "Two opposite-colored bars opening at the same price, the second session restarted from where the first began.",
    "subject": "Separating Lines"
   },
   "reveal_json": {
@@ -7687,7 +7687,7 @@
     "story": "The second session restarted from where the first one began, as if the first day had not happened. In an uptrend that means a red day was erased at the next open. In a downtrend it means a green day was.",
     "where": "Inside a trend, in either direction. It is a continuation shape: the market shrugs off one day against the trend."
    },
-   "quote": "Two opposite-coloured bars opening at the same price — the second session restarted from where the first began.",
+   "quote": "Two opposite-colored bars opening at the same price — the second session restarted from where the first began.",
    "source": "api/services/screener/candle_catalog.py#separating-lines",
    "system": "the firm's candle catalog"
   },
@@ -7732,7 +7732,7 @@
     "story": "The second session restarted from where the first one began, as if the first day had not happened. In an uptrend that means a red day was erased at the next open. In a downtrend it means a green day was.",
     "where": "Inside a trend, in either direction. It is a continuation shape: the market shrugs off one day against the trend."
    },
-   "quote": "Two opposite-coloured bars opening at the same price — the second session restarted from where the first began.",
+   "quote": "Two opposite-colored bars opening at the same price — the second session restarted from where the first began.",
    "source": "api/services/screener/candle_catalog.py#separating-lines",
    "system": "the firm's candle catalog"
   },
