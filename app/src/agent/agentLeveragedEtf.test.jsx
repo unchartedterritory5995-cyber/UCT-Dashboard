@@ -90,8 +90,10 @@ describe('the words: verbs × leverage × direction × noun (generated)', () => 
     expect(chooseFund(f, { leverage: null, direction: 'bull' }).several.map(r => r.ticker)).toEqual(['NVUU', 'NVU3'])
     expect(chooseFund(f, { leverage: 2, direction: null }).several.map(r => r.ticker)).toEqual(['NVUU', 'NVDD'])
     expect(chooseFund(f, { leverage: 3, direction: 'bear' }).none).toBe(true)
-    // the words chose both and two funds fit: the control's own ★ most-liquid default for that side
-    expect(chooseFund(FAMILIES.AMD, { leverage: 2, direction: 'bull' }).pick.ticker).toBe('AMUX')
+    // ⛔ AUDIT #1600: the words chose both and two funds still fit — asked, never the control's ★ default (AMUX)
+    const both = chooseFund(FAMILIES.AMD, { leverage: 2, direction: 'bull' })
+    expect(both.pick).toBeUndefined()
+    expect(both.several.map(r => r.ticker)).toEqual(['AMUU', 'AMUX'])
     expect(chooseFund(FAMILIES.AMD, { leverage: null, direction: 'bull' }).several.map(r => r.ticker)).toEqual(['AMUU', 'AMUX'])
   })
 })
@@ -200,6 +202,47 @@ describe('add: a NEW chart born on the fund — never an existing chart replaced
     expect(screen.getAllByRole('button').some(x => /NVU3/.test(x.textContent))).toBe(true)
     expect(b.state.widgets.length).toBe(n0)
     expect(symOf(b, 'c0')).toBe('NVDA')
+  }, 40000)
+})
+
+// ⛔ AUDIT #1600: leverage AND direction said, and two or more funds still match (AMD: two 2x bull funds) — asked with exactly
+// the matching funds as the choices, never the control's ★ most-liquid default; nothing changes until the member picks
+describe('both said and several still match: asked, never the default (generated)', () => {
+  const AMD_SYMS = { 'N:c0': 'AMD', 'N:c1': 'TSLA' }
+  const LEVS = ['2x', '2X', 'double']
+  const BULLS = ['bull', 'long', 'bullish']
+  const SWITCH = LEVS.flatMap(l => BULLS.flatMap(d => [`switch this chart to the ${l} ${d} ETF`, `show me the ${l} ${d} ETF of AMD`]))
+  const ADD = LEVS.flatMap(l => BULLS.map(d => `add a new chart of the ${l} ${d} ETF of AMD`))
+  // the question names exactly the matching funds (as choices when the family was read ahead, else in its words)
+  const asked = () => { const t = document.body.textContent; return ['AMUU', 'AMUX'].every(x => t.includes(x)) && /Which/.test(t) }
+  it.each(SWITCH)('switch "%s": asked with AMUU and AMUX (the two 2x bull funds); nothing changed', async (w) => {
+    const { say, board: b } = mountOn('c0', AMD_SYMS)
+    await settle()
+    const out = await say(w)
+    expect(out).not.toMatch(/Switched/)
+    expect(asked()).toBe(true)
+    expect(symOf(b, 'c0')).toBe('AMD')
+    expect(symOf(b, 'c1')).toBe('TSLA')
+    expect(p.turns()).toBe(0)
+  }, 40000)
+  it.each(ADD)('add "%s": asked with AMUU and AMUX; no chart created', async (w) => {
+    const { say, board: b } = mountOn('c0', AMD_SYMS)
+    await settle()
+    const n0 = b.state.widgets.length
+    await say(w)
+    expect(asked()).toBe(true)
+    expect(b.state.widgets.length).toBe(n0)
+    expect(symOf(b, 'c0')).toBe('AMD')
+  }, 40000)
+  it('the member\'s pick — the one that is NOT the default (AMUU) — is the one switched to', async () => {
+    const { say, board: b } = mountOn('c0', AMD_SYMS)
+    await settle()
+    await say('show me the 2x bull ETF of AMD')
+    expect(screen.getAllByRole('button').filter(x => /^AMU/.test(x.textContent))).toHaveLength(2)
+    fireEvent.click(screen.getAllByRole('button').find(x => /^AMUU/.test(x.textContent)))
+    await p.idle(); await settle(); await p.idle()
+    expect(symOf(b, 'c0')).toBe('AMUU')
+    expect(symOf(b, 'c1')).toBe('TSLA')
   }, 40000)
 })
 

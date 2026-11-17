@@ -13,8 +13,8 @@
 //
 // Which fund: the member's words choose by direction (bull / long / up · bear / short / inverse / down) and leverage (2x, 3x,
 // double, triple). One fund fits → it. Several fit and the words do not choose (2x vs 3x, bull vs bear) → asked, the real funds
-// as the choices; when the words name both and the family has two such funds, the control's own ★ most-liquid default is the
-// one its pill segment goes to, so it is that one. None fits → refused, naming what the family has. Never a guess.
+// as the choices — and so when the words name both and two or more funds still match (AUDIT #1600: never the control's ★
+// default). None fits → refused, naming what the family has. Never a guess.
 // Targeting is the chart kind's (named / clicked / "Which chart?"), never its own. No market values are said.
 
 import { registerCapability, registerContextProvider, registerWarmup, getCapability } from '../capabilities'
@@ -64,13 +64,8 @@ export function chooseFund(fam, { leverage = null, direction = null } = {}) {
   if (leverage != null) hit = hit.filter(r => Math.abs(Number(r.factor) - Number(leverage)) < 1e-9)
   if (!hit.length) return { none: true, has: all }
   if (hit.length === 1) return { pick: hit[0] }
-  // the words chose direction AND leverage and still two funds fit: the control's own ★ most-liquid default for that side
-  // (the fund its pill segment switches to) — the same pick a click on that segment makes
-  if (direction && leverage != null) {
-    const best = direction === 'bull' ? fam.best_long : fam.best_short
-    const b = hit.find(r => r.ticker === best)
-    if (b) return { pick: b }
-  }
+  // ⛔ AUDIT #1600: several still fit — even when the words named BOTH direction and leverage (two 2x bull funds) — asked,
+  // the real matching funds as the choices. Never the control's ★ most-liquid default: the member picks.
   return { several: hit }
 }
 const what = ({ leverage, direction }) => `${leverage != null ? `${fmtFactor(leverage)}X ` : ''}${direction || 'leveraged or inverse'}`.trim()
