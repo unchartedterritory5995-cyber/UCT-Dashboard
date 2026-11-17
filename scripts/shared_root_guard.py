@@ -102,18 +102,7 @@ def _strip_win_component_tails(p: str) -> str:
     return drive + "".join(x if (not x or x[0] in _SEPS or x in (".", "..")) else (x.rstrip(" .") or x) for x in parts)
 
 
-_DRIVE_PATH = re.compile(r"^[A-Za-z]:[\\/]|^[A-Za-z]:$")
-
-
 def _canon(p: str) -> str:
-    # ⭐ A DRIVE-LETTER spelling is judged by WINDOWS rules on every host (2026-11-17). On Linux, abspath made
-    # `C:\DATA\auth.db` a relative file under the cwd, case-sensitive and backslash-separated, so it was never
-    # "inside" the `C:\data` root and three rails were red on every CI runner. Only stricter: on Windows nothing
-    # changes; elsewhere a drive path can now only be refused more, never let through.
-    if os.name != "nt" and _DRIVE_PATH.match(p):
-        import ntpath
-        out = ntpath.normcase(ntpath.normpath(p))
-        return out.rstrip("\\/") if len(out.rstrip("\\/")) > 2 else out
     out = os.path.normcase(os.path.abspath(p))
     if os.name == "nt":
         out = _strip_win_component_tails(out)
@@ -127,8 +116,7 @@ def canonical_roots(roots=None) -> list[str]:
 def _inside(full: str, croots: list[str]) -> str | None:
     full = full.rstrip("\\/") if len(full.rstrip("\\/")) > 2 else full
     for r in croots:
-        # either separator: a drive-letter root canonicalised by Windows rules on a POSIX host is backslash-separated
-        if full == r or full.startswith(r + os.sep) or full.startswith(r + "\\"):
+        if full == r or full.startswith(r + os.sep):
             return r
     return None
 

@@ -2,6 +2,7 @@
 persona file against the plan's own table, the sentences against their sources, and the pure helpers the
 verdicts and the defect ledger are built from. No browser, no sandbox, no api import."""
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -17,7 +18,13 @@ PLAN = REPO / "docs" / "superpowers" / "plans" / "2026-10-24-notebook-widgets-p2
 SPEC = json.loads((REPO / "tools" / "notebook_campaign" / "personas.json").read_text(encoding="utf-8"))
 
 
-@pytest.mark.parametrize("path", [r"C:\data", r"C:\DATA\auth.db", r"c:\data\sub", "/data", "/data/x"])
+# EACH OS IS ASKED ABOUT ITS OWN SPELLINGS OF THE ROOT (the convention tests/test_converse_eval_runner.py records):
+# scripts/shared_root_guard.py canonicalises per OS, so on Linux a drive-letter string is a file name in the working
+# directory, not the shared root. Asking Linux to refuse one failed this case on every Linux runner (2026-11-17).
+_ROOT_SPELLINGS = ([r"C:\data", r"C:\DATA\auth.db", r"c:\data\sub"] if os.name == "nt" else []) + ["/data", "/data/x"]
+
+
+@pytest.mark.parametrize("path", _ROOT_SPELLINGS)
 def test_the_shared_data_root_is_refused(path):
     assert sm.refuse_shared_root(path)
 
@@ -1150,7 +1157,8 @@ def test_m3_an_evidence_folder_under_the_shared_root_is_refused(tmp_path, capsys
     data.mkdir()
     (data / sm.MANIFEST_NAME).write_text(json.dumps({"members": {}}), encoding="utf-8")
     monkeypatch.setattr(rc, "load_walk_libs", lambda root: pytest.fail("the walk libs were loaded"))
-    code = rc.main(["--run-id", "x", "--base", "http://127.0.0.1:1", "--data-dir", str(data), "--out", r"C:\data\x"])
+    out = r"C:\data\x" if os.name == "nt" else "/data/x"           # this OS's own spelling of the shared root
+    code = rc.main(["--run-id", "x", "--base", "http://127.0.0.1:1", "--data-dir", str(data), "--out", out])
     assert code == 3 and "--out" in capsys.readouterr().out
 
 
