@@ -70,3 +70,22 @@ TradingView matches." The editor status panel files `pine:known-divergence` unde
 
 Rails: `tests/test_pine_host_known_divergence.py`, `app/src/components/chart/engine/hostKnownDivergence.test.js`,
 `tests/test_queue_dispositions.py` (the doc's 30 engine-gap rows), `editorStatus.families.test.js` (spec = FAMILIES).
+
+## Supply-attributed grade (coordinator ruling on #1541, round 3)
+
+RS Rating was listed on one capture: `rs-rating-fred6724-nvda-1d-2026-11-15`, RS line 1292 of 6997 bars off (up to 1.8%).
+Cause, measured: TradingView's RS line is NVDA close / TradingView's own SP:SPX close * 3360 on all 6997 bars (witness
+`rs-spx-daily-spy-1d-2026-11-15`), and the SPX our server serves (FMP ^GSPC) differs from TradingView's on exactly 1292
+read dates, all before 2023-12-05. The engine is not the cause; the data is.
+
+The grade rule (`tools/vendor_harness/compare.mjs::attributableToSupply`, `vendorHarness/supplyAttribution.js`), only where
+the supply symbol has a committed TradingView witness (`requestWitnesses.json` row `witness`): a DIVERGE plot grades
+MATCH_SUBSTITUTED when (1) it reads no window (`lookback === 0`), (2) every steady divergence is a value on a date where our
+supply differs from the witness, and (3) our side, run again with the witness's values on those dates, agrees on every bar.
+The record names the UCT source, the witness and N of M dates. The member-facing grade stays on our supply (L8); the
+counterfactual only proves the cause. Rails: `vendorHarness.supplyAttributed.test.js` (the pure rule with its controls; NVDA
+real: MATCH_SUBSTITUTED, 1292 bars; control: one mismatch on an agreeing date stays DIVERGE; control: a difference on a
+differing date the witness does not explain stays DIVERGE; RDDT: no differing date in its window).
+
+The data itself is a separate data-source decision: `docs/pine/capture-queue-2026-11-17-fmp-gspc-history.md` (1292 sessions,
+32 over 0.1% between 1999 and 2008).
