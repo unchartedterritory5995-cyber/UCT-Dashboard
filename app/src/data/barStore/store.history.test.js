@@ -28,7 +28,8 @@ const makeStore = (extra = {}) => createBarStore({
 
 describe('createBarStore + history lake', () => {
   it('an injected feed gives a subscribed chart older bars as soon as it is answered', async () => {
-    const olderBars = vi.fn(async (key, beforeT) => ({ bars: [{ t: beforeT - 120, o: 100, h: 101, l: 99, c: 100.3, v: 1 }, { t: beforeT - 60, o: 100, h: 101, l: 99, c: 100.4, v: 1 }] }))
+    // the lake covers the join: the rows before it and the bar AT it (historyFeed.olderBars)
+    const olderBars = vi.fn(async (key, beforeT) => ({ bars: [{ t: beforeT - 120, o: 100, h: 101, l: 99, c: 100.3, v: 1 }, { t: beforeT - 60, o: 100, h: 101, l: 99, c: 100.4, v: 1 }, { t: beforeT, o: 100, h: 101, l: 99, c: 100.5, v: 1 }] }))
     const store = makeStore({ history: { olderBars } })
     const key = keyOf({ sym: 'SIM', tf: '1' })
     const off = store.subscribe(key, () => {})
