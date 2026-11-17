@@ -70,7 +70,7 @@ import { BARSTORE } from '../../components/chart/barStoreSwitch'
 import { prefetchTickerMeta as _defaultTickerMeta } from '../../hooks/useTickerMeta'
 import {
   _packStillIngesting, URGENT_MAX_PER_CALL, GRID_WARM_TFS, listPrewarmDisabled, _typedCachePaints,
-  tellSymbolWarmers,
+  tellSymbolWarmers, TYPED_REASK_MS,
 } from '../../utils/prefetchBars'
 
 // Lane plumbing the chart imports from the same module — re-exported unchanged so one import
@@ -105,7 +105,8 @@ const SCAN_WARM_CAP = 100
 const DEEP_WARM_TFS = Object.freeze(['D', 'W', 'M'])
 const DEEP_WARM_CAP = 120
 const REPLAY_WARM_TFS = Object.freeze(['5', '15', '30', '60'])
-const TYPED_FRESH_MS = 60_000
+// The typed warm's re-ask window is the legacy module's TYPED_REASK_MS (imported above), never a
+// number of this module's: both warmers skip a re-ask on the same rule.
 const COOLDOWN_MAX_KEYS = 400
 /** TERM-033: what a FAILED device-cache hydrate resolves to (`_hydrate`). "Nothing was hydrated",
  *  never an answer: the caller takes its verdict on the store as it stands, so the key is asked of
@@ -611,7 +612,7 @@ export function createPrefetch(o = {}) {
     }
     const held = S().peek(key)
     const typedSym = String(sym).trim().toUpperCase()
-    if (held?.restSeen && held.status === STATUS.CURRENT && asked.has(key) && now() - asked.get(key).at < TYPED_FRESH_MS) {
+    if (held?.restSeen && held.status === STATUS.CURRENT && asked.has(key) && now() - asked.get(key).at < TYPED_REASK_MS) {
       tellSymbolWarmers([typedSym], tf, { priority: true })   // a known name, bars current: its companions may not be
       return null
     }
