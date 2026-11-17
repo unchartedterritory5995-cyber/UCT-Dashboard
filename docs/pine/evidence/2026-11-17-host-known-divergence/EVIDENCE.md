@@ -89,3 +89,32 @@ differing date the witness does not explain stays DIVERGE; RDDT: no differing da
 
 The data itself is a separate data-source decision: `docs/pine/capture-queue-2026-11-17-fmp-gspc-history.md` (1292 sessions,
 32 over 0.1% between 1999 and 2008).
+
+## Other-symbol unsettled bars (coordinator ruling on #1541, round 4)
+
+`rs-rating-fred6724-pm-alab-1d-2026-11-16` (22:53:14Z) read SP:SPX 7416.59 on its newest bar (2026-11-16); the committed
+witnesses `rs-spx-daily-pm-rddt-1d-2026-11-16` (22:52:03Z) and `rs-spx-daily-pm-alab-1d-2026-11-16` (22:55:39Z) read 7561.67.
+TradingView contradicts itself there, so the bar is UNSETTLED: `compare.mjs::unsettledRecord` and the plot loop grade such a
+bar INCONCLUSIVE by name (`otherSymbolUnsettled`: symbol, date, every read with its capture and capturedAtUTC) when it is
+one of at most 3 value divergences of a zero-lookback plot, our side reproduces the capture's value reading a candidate
+value, and another committed witness of that date reads a different value. Rails:
+`vendorHarness.otherSymbolUnsettled.test.js`. The timed question is queued NEEDS_LIVE under its own probe
+(`rs-spx-afterclose.pine`, `docs/pine/capture-queue-2026-11-17-spx-after-close.md`).
+
+## Push 2: the regenerated verdicts (PR run 44016939154, merged engine-67 tree)
+
+Both lanes regenerated from the PR's own pine-heavy artifacts (production 863 graded, runtime-on 863; master's committed
+files held 763: 101 captures committed since were never graded there, one removed). This unit's rules move exactly two
+rows: RS Line on `rs-rating-fred6724-nvda-1d-2026-11-15` DIVERGE -> MATCH_SUBSTITUTED (supply-attributed; runtime-on
+capture MATCH_SUBSTITUTED, production capture still DIVERGE on its withheld labels) and on
+`rs-rating-fred6724-pm-alab-1d-2026-11-16` DIVERGE -> MATCH_SUBSTITUTED (one bar unsettled). Every other moved row is the
+merged master tree's own (engine 67), not this unit's rules, which reach only captures with a recorded supply:
+production ict-killzone-index-version-rddt, sessions-rddt (INCONCLUSIVE -> MATCH), vw-time-session-spy-1d (x2) INCONCLUSIVE ->
+MATCH, vw-time-session-spy-60 ext/rth plot moves; runtime-on the same plus atr-support-and-resistance-spy (MATCH ->
+INCONCLUSIVE), inside-bar-boxes-rddt and mtf-key-levels rddt/spy (DIVERGE -> INCONCLUSIVE), volatility-trend-score.
+
+The list re-derived (`host_divergence.py --write`, `--check` AGREES 29/29): rs-rating-fred6724 is off; rs-seed-rsrating
+and 19 probes newly graded in the regen are on. Members lose 9 member scripts (artemis-oscillator-pro,
+average-day-range-adr-pivots, contraction-box-doji-lines, ema-ribbon-trend-filter-strixedge, heat-map-seasons,
+htf-candle-footprint-cartel-console, htf-liquidity-dashboard-tfo, position-size-calc, vold-market-breadth); the other 20
+are probes. Ratchet (`--rows` from the same run): production 59, runtime-on 91, both PASS.

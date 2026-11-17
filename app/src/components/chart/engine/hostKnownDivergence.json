@@ -275,69 +275,34 @@
    "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of request-realtime-alignment-spy-5-b-2026-10-01 DIVERGE (MATCH, or INCONCLUSIVE by name)"
   },
   {
-   "slug": "rs-rating-fred6724",
-   "sha256": "caa94fe31a8788c0f52ca571dbb1b3f8a7499dae913ed5e710720fc8662c5af0",
-   "title": "RS Rating",
-   "source": "docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine",
-   "reason": "on a captured NASDAQ:NVDA 1D chart (capture rs-rating-fred6724-nvda-1d-2026-11-15) it draws something that differs from TradingView: plot `RS Line`: 1292 steady-state bars disagree; first at bar 4 (value: vendor 0.11226225436176289 vs ours 0.1122640604261686); scattered, last at bar 6257",
+   "slug": "rs-seed-rsrating",
+   "sha256": "301f25e54f065788d554925ab531ab7b57f7981fa68dec8fb3cf931e221ebc84",
+   "title": "UCTPROBE_RS_SEED_RSRATING",
+   "source": "tools/visual_conformance/probes/rs-seed-rsrating.pine",
+   "reason": "on a captured NASDAQ:ALAB 1D chart (capture rs-seed-rsrating-pm-alab-1d-2026-11-16) it draws something that differs from TradingView: plot `S01_seed_close`: 25 steady-state bars disagree; first at bar 639 (na: vendor 199.57 vs ours na); scattered, last at bar 663",
    "evidence": {
     "diverge": [
      {
-      "capture": "rs-rating-fred6724-alab-1d-2026-11-15",
+      "capture": "rs-seed-rsrating-pm-alab-1d-2026-11-16",
       "symbol": "NASDAQ:ALAB",
-      "timeframe": "1D",
-      "kind": "withheld",
-      "firstDiverging": "TradingView holds 2 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-removal-lost)"
-     },
-     {
-      "capture": "rs-rating-fred6724-crwv-1d-2026-11-15",
-      "symbol": "NASDAQ:CRWV",
-      "timeframe": "1D",
-      "kind": "withheld",
-      "firstDiverging": "TradingView holds 2 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-removal-lost)"
-     },
-     {
-      "capture": "rs-rating-fred6724-nvda-1d-2026-11-15",
-      "symbol": "NASDAQ:NVDA",
       "timeframe": "1D",
       "kind": "drawn",
-      "firstDiverging": "plot `RS Line`: 1292 steady-state bars disagree; first at bar 4 (value: vendor 0.11226225436176289 vs ours 0.1122640604261686) — scattered, last at bar 6257"
+      "firstDiverging": "plot `S01_seed_close`: 25 steady-state bars disagree; first at bar 639 (na: vendor 199.57 vs ours na) — scattered, last at bar 663"
      },
      {
-      "capture": "rs-rating-fred6724-rddt-1d-2026-11-15",
+      "capture": "rs-seed-rsrating-pm-rddt-1d-2026-11-16",
       "symbol": "NYSE:RDDT",
       "timeframe": "1D",
-      "kind": "withheld",
-      "firstDiverging": "TradingView holds 2 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-removal-lost)"
-     },
-     {
-      "capture": "rs-rating-fred6724-alab-1d-2026-11-16",
-      "symbol": "NASDAQ:ALAB",
-      "timeframe": "1D",
-      "kind": "withheld",
-      "firstDiverging": "TradingView holds 2 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-removal-lost)"
-     },
-     {
-      "capture": "rs-rating-fred6724-crwv-1d-2026-11-16",
-      "symbol": "NASDAQ:CRWV",
-      "timeframe": "1D",
-      "kind": "withheld",
-      "firstDiverging": "TradingView holds 2 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-removal-lost)"
-     },
-     {
-      "capture": "rs-rating-fred6724-rddt-1d-2026-11-16",
-      "symbol": "NYSE:RDDT",
-      "timeframe": "1D",
-      "kind": "withheld",
-      "firstDiverging": "TradingView holds 2 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-removal-lost)"
+      "kind": "drawn",
+      "firstDiverging": "plot `S01_seed_close`: 25 steady-state bars disagree; first at bar 638 (na: vendor 199.57 vs ours na) — scattered, last at bar 662"
      }
     ],
-    "match": [],
-    "inconclusive": [
-     "rs-rating-fred6724-spy-1d-2026-11-15"
-    ]
+    "match": [
+     "rs-seed-rsrating-rddt-1d-2026-11-15"
+    ],
+    "inconclusive": []
    },
-   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of rs-rating-fred6724-alab-1d-2026-11-15, rs-rating-fred6724-crwv-1d-2026-11-15, rs-rating-fred6724-nvda-1d-2026-11-15, rs-rating-fred6724-rddt-1d-2026-11-15, rs-rating-fred6724-alab-1d-2026-11-16, rs-rating-fred6724-crwv-1d-2026-11-16, rs-rating-fred6724-rddt-1d-2026-11-16 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of rs-seed-rsrating-pm-alab-1d-2026-11-16, rs-seed-rsrating-pm-rddt-1d-2026-11-16 DIVERGE (MATCH, or INCONCLUSIVE by name)"
   },
   {
    "slug": "vold-market-breadth",
@@ -368,6 +333,55 @@
    "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vold-market-breadth-rddt-1d-2026-09-28, vold-market-breadth-spy-1d-2026-10-03 DIVERGE (MATCH, or INCONCLUSIVE by name)"
   },
   {
+   "slug": "vw-bt-session-overnight-value",
+   "sha256": "31bd3943a37dcdbd6f0cccb3ee3d89ed5d3f20908a2d917fb4b4a8586c66d58c",
+   "title": "UCTPROBE_VW_BT_SESSION_OVERNIGHT_VALUE",
+   "source": "tools/visual_conformance/probes/vw-bt-session-overnight-value.pine",
+   "reason": "on a captured BITSTAMP:BTCUSD 1D chart (capture vw-bt-session-overnight-value-btcusd-1d-2026-11-16) it draws something that differs from TradingView: plot `HOUR`: 5537 steady-state bars disagree; first at bar 0 (value: vendor 0 vs ours 9); persistent, last at bar 5536",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vw-bt-session-overnight-value-btcusd-1d-2026-11-16",
+      "symbol": "BITSTAMP:BTCUSD",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "plot `HOUR`: 5537 steady-state bars disagree; first at bar 0 (value: vendor 0 vs ours 9) — persistent, last at bar 5536"
+     },
+     {
+      "capture": "vw-bt-session-overnight-value-btcusd-60-2026-11-16",
+      "symbol": "BITSTAMP:BTCUSD",
+      "timeframe": "60",
+      "kind": "drawn",
+      "firstDiverging": "plot `HOUR`: 25216 steady-state bars disagree; first at bar 0 (value: vendor 0 vs ours 19) — persistent, last at bar 25215"
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-bt-session-overnight-value-btcusd-1d-2026-11-16, vw-bt-session-overnight-value-btcusd-60-2026-11-16 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "vw-bt-session-to-midnight-daymask",
+   "sha256": "68d306be47b687ff44d4a05b1e253cb9098711f65d0f5be15e87d7a97f93a1e9",
+   "title": "UCTPROBE_VW_BT_SESSION_TO_MIDNIGHT_DAYMASK",
+   "source": "tools/visual_conformance/probes/vw-bt-session-to-midnight-daymask.pine",
+   "reason": "on a captured BITSTAMP:BTCUSD 60 chart (capture vw-bt-session-to-midnight-daymask-btcusd-60-2026-11-16) it draws something that differs from TradingView: plot `HOUR`: 25216 steady-state bars disagree; first at bar 0 (value: vendor 0 vs ours 19); persistent, last at bar 25215",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vw-bt-session-to-midnight-daymask-btcusd-60-2026-11-16",
+      "symbol": "BITSTAMP:BTCUSD",
+      "timeframe": "60",
+      "kind": "drawn",
+      "firstDiverging": "plot `HOUR`: 25216 steady-state bars disagree; first at bar 0 (value: vendor 0 vs ours 19) — persistent, last at bar 25215"
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-bt-session-to-midnight-daymask-btcusd-60-2026-11-16 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
    "slug": "vw-fmt-tie-readings",
    "sha256": "aed6aa3bd544d3440c6310587e7c52e56ee691a3d0667fb497d1efa55374760c",
    "title": "UCTPROBE_VW_FMT_TIE_READINGS",
@@ -387,6 +401,27 @@
     "inconclusive": []
    },
    "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-fmt-tie-readings-rddt-1d-2026-11-15 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "vw-h5-format-volume",
+   "sha256": "693f3893b23c4faaac82d6fdd5f0f157ab50d404dc4282cd19bc6905168e213e",
+   "title": "UCTPROBE H5 format.volume",
+   "source": "tools/visual_conformance/probes/vw-h5-format-volume.pine",
+   "reason": "on a captured AMEX:SPY 1D chart (capture vw-h5-format-volume-spy-1d-2026-11-16) it draws something that differs from TradingView: tableCells count of tableCells held: TradingView 34, ours 18",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vw-h5-format-volume-spy-1d-2026-11-16",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "tableCells count of tableCells held: TradingView 34, ours 18"
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-h5-format-volume-spy-1d-2026-11-16 DIVERGE (MATCH, or INCONCLUSIVE by name)"
   },
   {
    "slug": "vw-int-cast",
@@ -561,6 +596,160 @@
     ]
    },
    "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-time-tf-bitstamp-btcusd-1d-2026-09-30 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "vw-w3-format-date",
+   "sha256": "c3b1dc12ff12ca619a2fa3e06e5192e10f92499cdbef11139ecfbe8ecbe57a02",
+   "title": "vw-w3-format-date",
+   "source": "tools/visual_conformance/probes/vw-w3-format-date.pine",
+   "reason": "on a captured AMEX:SPY 1D chart (capture vw-w3-format-date-spy-1d-2026-11-16) it draws something that differs from TradingView: tableCells count of tableCells held: TradingView 6, ours 0",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vw-w3-format-date-spy-1d-2026-11-16",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "tableCells count of tableCells held: TradingView 6, ours 0"
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-w3-format-date-spy-1d-2026-11-16 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "vw-w3-loop-helper-text",
+   "sha256": "9741eb1cf23a4f93947a8c3c8474b670606cb9f2285aed53202a8acfb5fb777f",
+   "title": "vw-w3-loop-helper-text",
+   "source": "tools/visual_conformance/probes/vw-w3-loop-helper-text.pine",
+   "reason": "on a captured AMEX:SPY 1D chart (capture vw-w3-loop-helper-text-spy-1d-2026-11-16) it draws something that differs from TradingView: tableCells count of tableCells held: TradingView 8, ours 0",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vw-w3-loop-helper-text-spy-1d-2026-11-16",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "tableCells count of tableCells held: TradingView 8, ours 0"
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-w3-loop-helper-text-spy-1d-2026-11-16 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "vw-w3-str-repeat-length",
+   "sha256": "9824789bac009c433ab9a4644a76bd7face8d14945851e6bdb0007f681f7c5c5",
+   "title": "vw-w3-str-repeat-length",
+   "source": "tools/visual_conformance/probes/vw-w3-str-repeat-length.pine",
+   "reason": "on a captured AMEX:SPY 1D chart (capture vw-w3-str-repeat-length-spy-1d-2026-11-16) it draws something that differs from TradingView: tableCells count of tableCells held: TradingView 8, ours 0",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vw-w3-str-repeat-length-spy-1d-2026-11-16",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "tableCells count of tableCells held: TradingView 8, ours 0"
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-w3-str-repeat-length-spy-1d-2026-11-16 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "vw-w4-arm-runs",
+   "sha256": "dda4032a55f5c35c2b05c460eae1a336e67a66a50ecbd7aaa0684634e45455e8",
+   "title": "UCTPROBE_VW_W4_ARM_RUNS",
+   "source": "tools/visual_conformance/probes/vw-w4-arm-runs.pine",
+   "reason": "on a captured NYSE:RDDT 1D chart (capture vw-w4-arm-runs-rddt-1d-2026-11-16) it draws something that differs from TradingView: plot `W03_fixnan_in_true_arm`: 93 steady-state bars disagree; first at bar 7 (value: vendor 59.8 vs ours 45.97); scattered, last at bar 663",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vw-w4-arm-runs-rddt-1d-2026-11-16",
+      "symbol": "NYSE:RDDT",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "plot `W03_fixnan_in_true_arm`: 93 steady-state bars disagree; first at bar 7 (value: vendor 59.8 vs ours 45.97) — scattered, last at bar 663"
+     },
+     {
+      "capture": "vw-w4-arm-runs-spy-1d-2026-11-16",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "plot `E01_change2_every_bar`: 1 steady-state bars disagree; first at bar 8507 (value: vendor -13.549999999999955 vs ours -13.529999999999973) — persistent, last at bar 8507"
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-w4-arm-runs-rddt-1d-2026-11-16, vw-w4-arm-runs-spy-1d-2026-11-16 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "vw-w4-session-default-days",
+   "sha256": "8d648baf7e8e2a3eb790b802affde28ab3c67275bdd1475ff39586239fea874e",
+   "title": "UCTPROBE_VW_W4_SESSION_DEFAULT_DAYS",
+   "source": "tools/visual_conformance/probes/vw-w4-session-default-days.pine",
+   "reason": "on a captured BITSTAMP:BTCUSD 60 chart (capture vw-w4-session-default-days-btcusd-60-2026-11-16) it draws something that differs from TradingView: plot `DOW_dayofweek`: 4539 steady-state bars disagree; first at bar 0 (value: vendor 2 vs ours 1); scattered, last at bar 25201",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vw-w4-session-default-days-btcusd-60-2026-11-16",
+      "symbol": "BITSTAMP:BTCUSD",
+      "timeframe": "60",
+      "kind": "drawn",
+      "firstDiverging": "plot `DOW_dayofweek`: 4539 steady-state bars disagree; first at bar 0 (value: vendor 2 vs ours 1) — scattered, last at bar 25201"
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-w4-session-default-days-btcusd-60-2026-11-16 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "vw-w4-session-default-days-v4",
+   "sha256": "c6d80a846603d4f29d6a0982275779e5c31b21c8ff49e3c18bc70c7874b6600c",
+   "title": "UCTPROBE_VW_W4_SESSION_DEFAULT_DAYS_V4",
+   "source": "tools/visual_conformance/probes/vw-w4-session-default-days-v4.pine",
+   "reason": "on a captured BITSTAMP:BTCUSD 60 chart (capture vw-w4-session-default-days-v4-btcusd-60-2026-11-16) it draws something that differs from TradingView: plot `DOW_dayofweek`: 4539 steady-state bars disagree; first at bar 0 (value: vendor 2 vs ours 1); scattered, last at bar 25201",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vw-w4-session-default-days-v4-btcusd-60-2026-11-16",
+      "symbol": "BITSTAMP:BTCUSD",
+      "timeframe": "60",
+      "kind": "drawn",
+      "firstDiverging": "plot `DOW_dayofweek`: 4539 steady-state bars disagree; first at bar 0 (value: vendor 2 vs ours 1) — scattered, last at bar 25201"
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-w4-session-default-days-v4-btcusd-60-2026-11-16 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "vw-w4-session-overnight",
+   "sha256": "17e09664203085af2d366719a2d724f5196af8613da1ceeb8dae22e1c288118a",
+   "title": "UCTPROBE_VW_W4_SESSION_OVERNIGHT",
+   "source": "tools/visual_conformance/probes/vw-w4-session-overnight.pine",
+   "reason": "on a captured BITSTAMP:BTCUSD 60 chart (capture vw-w4-session-overnight-btcusd-60-2026-11-16) it draws something that differs from TradingView: plot `HOUR`: 25215 steady-state bars disagree; first at bar 0 (value: vendor 0 vs ours 19); persistent, last at bar 25214",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vw-w4-session-overnight-btcusd-60-2026-11-16",
+      "symbol": "BITSTAMP:BTCUSD",
+      "timeframe": "60",
+      "kind": "drawn",
+      "firstDiverging": "plot `HOUR`: 25215 steady-state bars disagree; first at bar 0 (value: vendor 0 vs ours 19) — persistent, last at bar 25214"
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-w4-session-overnight-btcusd-60-2026-11-16 DIVERGE (MATCH, or INCONCLUSIVE by name)"
   }
  ]
 }
