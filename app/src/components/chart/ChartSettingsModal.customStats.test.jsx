@@ -33,18 +33,18 @@ describe('custom header stats', () => {
     expect(within(setup).getByText('EMA 21', { selector: 'b' })).toBeTruthy()
     fireEvent.click(within(setup).getByRole('button', { name: /Add to header/ }))
     const h = spy.mock.lastCall[0].header
-    expect(h.fields).toEqual(['mcap', 'earn', 'rating', 'cx:c1'])
+    expect(h.fields).toEqual(['mcap', 'earn', 'cx:c1'])
     expect(h.customStats).toEqual([{ id: 'c1', defId: 'movingAverage', plotKey: 'ma', inputs: { maType: 'ema', period: 21 }, name: 'EMA 21' }])
     // back on the picker: the Custom group lists it, ticked; untick removes it
     const p2 = screen.getByRole('region', { name: 'Info row stats' })
     const box = within(p2).getByRole('checkbox', { name: 'EMA 21' })
     expect(box.getAttribute('aria-checked')).toBe('true')
-    expect(within(p2).getByText('4 shown')).toBeTruthy()
+    expect(within(p2).getByText('3 shown')).toBeTruthy()
     fireEvent.click(within(p2).getByRole('button', { name: 'Done' }))
-    expect(names()).toEqual(['Market Cap', 'Next Earnings', 'UCT Rating', 'EMA 21'])
+    expect(names()).toEqual(['Market Cap', 'Next Earnings', 'EMA 21'])
     fireEvent.click(screen.getByRole('button', { name: 'Remove EMA 21' }))
     const h2 = spy.mock.lastCall[0].header
-    expect(h2.fields).toEqual(['mcap', 'earn', 'rating'])
+    expect(h2.fields).toEqual(['mcap', 'earn'])
     expect(h2.customStats).toEqual([])
   })
 

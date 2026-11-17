@@ -41,7 +41,7 @@ describe('headerCustomStats storage', () => {
   it('a legacy header with no `fields` keeps its row when a custom stat is added', () => {
     const header = {}
     const p = addCustomStatPatch(header, ema, headerStatKeys(header))
-    expect(p.fields).toEqual(['mcap', 'earn', 'rating', 'cx:c1'])
+    expect(p.fields).toEqual(['mcap', 'earn', 'cx:c1'])
   })
 
   it('a cx key with no stored entry is not a stat (stale keys never print)', () => {
