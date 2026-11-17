@@ -5159,8 +5159,13 @@ const SCOPE_TYPES = new Set(['tf', 'tf_live', 'tf_merge', 'sym', 'ltf'])
  *  walk visits a unit once: a unit's children's units depend only on the unit
  *  (a self-free node's descendants are self-free except a recurrence's own
  *  body, which is keyed on that recurrence). */
-export function evaluationUnits(root, held) {
+export function evaluationUnits(root, held, recurrences) {
   const { idOf, freeOf } = structuralMaps(root)
+  // ⭐ ROUTE BY COST (NUMBER PENDING) — `recurrences`, when a Map is handed in, is filled with
+  // every recurrence this walk reaches (its unit key -> `{node, units}`) and how many of the units
+  // are keyed on it: what ONE step of that recurrence computes. `recurrenceStepsPerBar` reads it.
+  // The units and their count are unchanged: this only says which recurrence a unit belongs to.
+  const tally = recurrences instanceof Map ? recurrences : null
   const heldShape = new Map()
   if (held && typeof held.has === 'function') {
     const seen = new Set()
@@ -5202,17 +5207,45 @@ export function evaluationUnits(root, held) {
     const free = freeOf.get(n)
     if (units.has(key)) continue
     units.add(key)
+    if (tally && !read && rec) tally.get(rec).units += 1
     if (!n || typeof n !== 'object' || Array.isArray(n)) continue
     if (runtimeRead) continue
     if (scope === '' && free && heldShape.get(sid) === true) continue
     const args = Array.isArray(n.args) ? n.args : []
     const childScope = SCOPE_TYPES.has(n.type) ? `${scope}>${sid}` : scope
     const bodies = bodyArgsOf(n)
+    if (tally && bodies.size && !tally.has(`${scope}|${sid}`)) tally.set(`${scope}|${sid}`, { node: n, units: 0 })
     for (let ai = 0; ai < args.length; ai += 1) {
       stack.push([args[ai], childScope, bodies.has(ai) ? `${scope}|${sid}` : rec])
     }
   }
   return { count: units.size }
+}
+
+/** ⭐⭐ ROUTE BY COST (NUMBER PENDING, docs/pine/evidence/2026-11-17-host-lane-cost/EVIDENCE.md) —
+ *  THE STEPS ONE BAR OF THIS TREE COSTS IN RECURRENCES, on the bounded window.
+ *
+ *  The host lane computes a recurrence (`accum`, `accumK`: a Pine `var` / running state) over a
+ *  BOUNDED WINDOW: every bar re-runs the recurrence from its warm-up bar, so one bar costs the
+ *  recurrence's warm-up times what one of its steps computes. That is the work the runtime lane does
+ *  once per bar instead (it carries the state forward), and it is what made the 17 host documents
+ *  over a second slow (supertrend and trailing-stop state, a 250-bar warm-up per `var`).
+ *
+ *  ⭐ DERIVED FROM THE EVALUATOR'S OWN UNITS (`evaluationUnits`, the walk `budget:nodes` thresholds and
+ *  the memo is keyed on): a step computes the units keyed on its recurrence, the warm-up is the
+ *  recurrence's own declared lookback (`ownLookback`, the manifest's `lookback`). Per recurrence the
+ *  walk visits once, so a shared recurrence counts once, exactly as it is memoised.
+ *  ⛔ AN ESTIMATE, AND AN UPPER ONE: a chart that states its listing takes the listing pass where the
+ *  trajectories agree (cheaper), and a recurrence under `tf` steps on fewer bars. No clock: the same
+ *  tree gives the same number everywhere. */
+export function recurrenceStepsPerBar(root) {
+  const recurrences = new Map()
+  evaluationUnits(root, undefined, recurrences)
+  let steps = 0
+  for (const { node, units } of recurrences.values()) {
+    steps += ownLookback(node, fnSpec(node.name)) * units
+  }
+  return steps
 }
 
 /** Does the pass hold this node's column? The ONE predicate `evalNode` skips on
