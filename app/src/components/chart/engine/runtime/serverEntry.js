@@ -45,6 +45,9 @@ export { DEFAULT_LIMITS } from './limits.js'
 // entries for that run and clears them after it (services/pine_runtime/job.mjs), so the server
 // links exactly as the browser does: through the registry, held to the document's pins.
 export { registerPineLibrary, clearPineLibraries, libraryEntryProblem } from '../ast/pineLibraryStore.js'
+// ⭐ STUDIO R5 (Indicators backlog 44): a script's top-level names with their lines, read by the
+// engine's own lexer and statement splitter ("Inspect a bar" builds its probe copy from them).
+export { topLevelNames } from './topLevelNames.js'
 // ⭐⭐ HEADLESS (Studio R6): a saved definition computed with no chart, and the seeded reference series
 // its `work` is measured over, so the service computes a definition's work itself and never trusts a
 // client's number (`../headlessCompute.js`, `../referenceSeries.js`). The lane router is the chart's own.
