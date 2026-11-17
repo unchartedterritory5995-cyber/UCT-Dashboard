@@ -1891,6 +1891,8 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
 _BUDGET_GATES = {"cost:user": "budget_user", "cost:global": "budget_global",
                  "rate:busy": "rate_limited"}
 _PLATFORM_GATES = {"model:transport"}
+#: ⭐ O7 -- the provider refused OUR ACCOUNT. Its own class: an outage heals, this needs a person.
+_ACCOUNT_GATES = {"model:unavailable"}
 _INTERNAL_GATES = {"internal:error"}
 _MODEL_GATE_PREFIXES = ("envelope:", "model:", "schema:", "lint:", "budget:", "converse:")
 
@@ -1946,6 +1948,8 @@ def failure_class(result: Mapping[str, Any]) -> str:
         return "backstop_refused"
     if gate in _BUDGET_GATES:
         return _BUDGET_GATES[gate]
+    if gate in _ACCOUNT_GATES:
+        return "provider_account"
     if gate in _PLATFORM_GATES:
         return "platform"
     if gate in _INTERNAL_GATES:
@@ -2146,9 +2150,14 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         try:
             msg, in_tokens, out_tokens = _call_model(messages)
         except Exception as exc:                   # noqa: BLE001 -- never raises out
-            logger.warning("[converse] model call failed: %s", exc)
+            gate = dc.model_failure_gate(exc)
+            if gate == "model:unavailable":
+                # ERROR, not WARNING: this does not heal by itself (O7)
+                logger.error("[converse] the provider refused the account: %s", type(exc).__name__)
+            else:
+                logger.warning("[converse] model call failed: %s", exc)
             dc.charge_unreported(exc, user_id, market_date, dc.MODEL, dc.MAX_TOKENS, _request_for(messages))
-            return _refusal("model:transport", **extra)
+            return _refusal(gate, **extra)
 
         # ⭐ P3S -- with the cache breakpoint, `input_tokens` is only the UNCACHED part;
         # the cached prefix arrives as these two fields and must be charged too, or the

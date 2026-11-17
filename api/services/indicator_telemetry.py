@@ -198,6 +198,7 @@ FAILURE_CLASSES = frozenset({
     "budget_global",      # the shared member pool
     "rate_limited",       # the hourly request window
     "platform",           # the model provider could not be reached
+    "provider_account",   # the provider refused OUR account (key, permission, credit): needs a person
     "internal",           # an unexpected server error
 })
 #: Unsupported demand, aggregated. ⭐ Derived from the refusal reasons that exist

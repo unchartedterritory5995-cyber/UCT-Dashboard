@@ -177,7 +177,9 @@ export function memberRefusal(gate, reason = '', extra = {}) {
     return `You've reached this hour's limit of requests to UCT Intelligence. Try again in about ${mins === 1 ? 'a minute' : `${mins} minutes`}.`
   }
   if (REFUSAL_BY_GATE[g]) return REFUSAL_BY_GATE[g]
-  if (g === 'network' || g === 'model:transport' || /^http:(0|5\d\d)$/.test(g)) return PLATFORM
+  // `model:unavailable` (O7): the provider refused our account. The member is told what they are
+  // told for an outage, never the reason: it is ours to fix and nothing they did.
+  if (g === 'network' || g === 'model:transport' || g === 'model:unavailable' || /^http:(0|5\d\d)$/.test(g)) return PLATFORM
   if (/^(envelope|model|schema|converse|internal):/.test(g)) return MODEL
   return reason || MODEL
 }
