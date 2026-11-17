@@ -833,8 +833,9 @@ function relationWordRefusal(w, host, removed, { all, excluded, selected, subjec
     return check(pool, excluded.size ? [] : anchor, phrase)
   }
   const b = REL_BOTH_PRON.exec(s) || REL_BOTH_CHARTS.exec(s)
-  if (b && !(REL_BOTH_PRON.test(s) && thingAbout(b))) {
+  if (b) {
     const phrase = b[0].trim()
+    if (REL_BOTH_PRON.test(s) && thingAbout(b)) return ask(phrase)      // ("both of them" about a THING: asked, never skipped)
     const sel = selected != null && all.some(x => x.ref === selected) ? expand([selected]) : []
     const sub = [subject, prevChart].find(x => x != null && all.some(y => y.ref === x))
     const set = REL_BOTH_PRON.test(s) ? [...new Set([...sel, ...(sub != null ? expand([sub]) : [])])] : []
@@ -843,8 +844,9 @@ function relationWordRefusal(w, host, removed, { all, excluded, selected, subjec
     return check(target, [], phrase)
   }
   const o = REL_ORDER.exec(s)
-  if (o && !thingAbout(o)) {
+  if (o) {
     const phrase = o[0].trim()
+    if (thingAbout(o)) return ask(phrase)                               // ("the one after it" about a THING: asked, never skipped)
     let anchor = []
     if (/^(?:this|that|it)\b/i.test(o[2])) anchor = pointer()
     else { const hit = all.filter(x => symbolSaid(o[2], x.symbol) || named(o[2], { ref: x.ref, symbol: up(x.symbol), position: x.position || null }, host)).map(x => x.ref); if (hit.length && objs(hit) === 1) anchor = expand(hit) }

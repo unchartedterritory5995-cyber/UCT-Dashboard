@@ -128,21 +128,47 @@ export function railRelationCases(seed = 7) {
   // THING — the previous target was a thing, or the words name a thing noun — is no chart: every chart close is blocked ──
   const THING_PREV = ['ind:c1:rsi', 'draw:SPY:dr-1', 'list:wl1', 'alert:a1']
   const THING_NOUN = ['RSI', 'trendline', 'MACD', 'fib', 'alert', 'moving average', 'horizontal line']
-  // ("both of them" about a thing is NOT covered here: the rail skips its relation read instead of asking — reported to the PL, 11-17)
-  const generic = [...PARA.complementOne.filter(p => !/chart|panel/.test(p)), ...PARA.complementSet.filter(p => !/charts/.test(p))]
+  const generic = [...PARA.complementOne.filter(p => !/chart|panel/.test(p)), ...PARA.complementSet.filter(p => !/charts/.test(p)), ...PARA.both]
+  // the ORDER branch's generic form ("the one after it / before that / following this one")
+  const ORDER_GENERIC = ['the one after', 'the one before', 'the one following', 'the one preceding']
+  const ORDER_ANCHOR = ['it', 'that', 'this one']
   for (const sh of SHAPES.filter(s => !s.link)) {
     const syms = [...POOL].sort(() => rnd() - 0.5).slice(0, sh.n)
     const refs = syms.map((_, i) => `c${i + 1}`)
     const pushAll = (words, w, kind) => {
-      for (const [col, plan] of [...refs.map(r => ['chart', [r]]), ['allCharts', [...refs]]]) out.push({ id: `rr-thing-${String(++k).padStart(4, '0')}`, fam: 'thingAbout', words, w, plan, expect: 'blocked', col, shape: sh.shape, anchorKind: kind })
+      const fam = /^order/.test(kind) ? 'thingAboutOrder' : 'thingAbout'
+      for (const [col, plan] of [...refs.map(r => ['chart', [r]]), ['allCharts', [...refs]]]) out.push({ id: `rr-thing-${String(++k).padStart(4, '0')}`, fam, words, w, plan, expect: 'blocked', col, shape: sh.shape, anchorKind: kind })
     }
     for (let i = 0; i < sh.n; i++) {
+      for (const p of ORDER_GENERIC) {
+        const words = `${p} ${pick(ORDER_ANCHOR)}`
+        pushAll(`${pick(VERBS)} ${words}`, { syms, refs, link: null, selection: refs[i], subject: refs[(i + 1) % sh.n], previous: pick(THING_PREV) }, 'orderPreviousThing')
+        pushAll(`the ${pick(THING_NOUN)} is wrong, ${pick(VERBS)} ${words}`, { syms, refs, link: null, selection: refs[i], subject: refs[(i + 1) % sh.n], previous: null }, 'orderThingWords')
+        // (report only, never asserted: the order form WITH a chart noun after a thing — "delete the chart before that")
+        for (const [col, plan] of refs.map(r => ['chart', [r]])) out.push({ id: `rr-ordn-${String(++k).padStart(4, '0')}`, fam: 'orderChartNoun', words: `${pick(VERBS)} the chart ${pick(['before', 'after'])} that`, w: { syms, refs, link: null, selection: refs[i], subject: null, previous: pick(THING_PREV) }, plan, expect: 'blocked', col, shape: sh.shape, anchorKind: 'previousThing' })
+      }
       for (const p of generic) {
         // (a1) the previous target was a thing; the click / the conversation chart would otherwise anchor the relation
         pushAll(`${pick(VERBS)} ${p}`, { syms, refs, link: null, selection: refs[i], subject: refs[(i + 1) % sh.n], previous: pick(THING_PREV) }, 'previousThing')
         // (a2) the words name a thing noun before the generic relation
         pushAll(`the ${pick(THING_NOUN)} is wrong, ${pick(VERBS)} ${p}`, { syms, refs, link: null, selection: refs[i], subject: refs[(i + 1) % sh.n], previous: null }, 'thingWords')
       }
+    }
+  }
+  // ── CONTROLS (AUDIT 11-17): "both charts" (an explicit chart noun) stays a chart reading with a THING as the previous target; "both
+  // of them" with a CHART as the previous target still resolves — no over-ask ──
+  for (let rep = 0; rep < 4; rep++) {
+    const s2 = [...POOL].sort(() => rnd() - 0.5).slice(0, 2)
+    for (const both of ['both charts', 'both the charts', 'both of the charts']) {
+      out.push({ id: `rr-ctl-${String(++k).padStart(4, '0')}`, fam: 'thingControl', words: `${pick(VERBS)} ${both}`, w: { syms: s2, refs: ['c1', 'c2'], link: null, selection: null, subject: null, previous: pick(THING_PREV) }, plan: ['c1', 'c2'], expect: 'resolved', col: 'pair', shape: 'two', anchorKind: 'previousThing' })
+    }
+    for (const p of PARA.both) {
+      // two charts, the previous target a chart: "both of them" = the board
+      out.push({ id: `rr-ctl-${String(++k).padStart(4, '0')}`, fam: 'thingControl', words: `${pick(VERBS)} ${p}`, w: { syms: s2, refs: ['c1', 'c2'], link: null, selection: null, subject: null, previous: `chart:c${1 + (rep % 2)}` }, plan: ['c1', 'c2'], expect: 'resolved', col: 'pair', shape: 'two', anchorKind: 'previousChart' })
+      // three charts: the click + the previous chart
+      const s3 = [...POOL].sort(() => rnd() - 0.5).slice(0, 3)
+      const [a, b] = [['c1', 'c3'], ['c2', 'c3'], ['c1', 'c2'], ['c3', 'c1']][rep]
+      out.push({ id: `rr-ctl-${String(++k).padStart(4, '0')}`, fam: 'thingControl', words: `${pick(VERBS)} ${p}`, w: { syms: s3, refs: ['c1', 'c2', 'c3'], link: null, selection: a, subject: null, previous: `chart:${b}` }, plan: [a, b], expect: 'resolved', col: 'pair', shape: 'three', anchorKind: 'previousChart' })
     }
   }
   // ── BOTH + EXCEPTION (AUDIT 11-17 mutant: the excluded guard dropped from `relWord === OK && …`): "both" resolved to a pair with
@@ -185,7 +211,7 @@ describe(`RELATION-WORD REMOVALS · the chart rail over generated families (${CA
     }
     expect(T.cases).toBeGreaterThan(1000)
   }, 300000)
-  for (const fam of ['complement', 'everyOther', 'both', 'order', 'thingAbout', 'bothExcept']) {
+  for (const fam of ['complement', 'everyOther', 'both', 'order', 'thingAbout', 'thingAboutOrder', 'bothExcept', 'thingControl']) {
     it(`${fam}: the rail never applies what the model blocks (anchor · a pick · outside)`, () => {
       expect(T.byFam[fam]?.cases).toBeGreaterThan(40)
       expect(T.wrongApply.filter(x => x.includes(`[${fam}/`))).toEqual([])
