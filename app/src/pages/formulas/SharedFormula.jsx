@@ -45,6 +45,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import UIcon from '../../components/ui/UIcon'
 import { previewSharedDefinition, installSharedDefinition } from '../../hooks/useUserDefinitions'
 import { whatToDo } from './shareRefusal'
+import { sharedVerdict } from './sharedVerdict'
 import styles from './SharedFormula.module.css'
 
 /** Every plot's source text, as `[key, source]`, for a definition of either schema.
@@ -163,12 +164,21 @@ export default function SharedFormula() {
   const meta = def.meta || {}
   const sources = plotSources(def)
   const repaint = repaintWords(def)
+  // ⭐ R4 — the verdict the AUTHOR was shown for this saved version, as the server sends it. Never
+  // worked out here; nothing is drawn when the saved row has none (`sharedVerdict.js`).
+  const verdict = sharedVerdict(shared)
 
   return (
     <div className={styles.page}>
       <div className={styles.card} data-testid="shared-formula">
         <div className={styles.eyebrow}><UIcon name="link" size={13} /> Shared formula</div>
         <h1 className={styles.title}>{meta.name || 'Untitled formula'}</h1>
+        {verdict ? (
+          <p className={styles.verdict} data-testid="shared-formula-verdict">
+            <span>{verdict.headline}</span>
+            {verdict.checked ? <span className={styles.verdictChecked}>, {verdict.checked}</span> : null}
+          </p>
+        ) : null}
 
         <h2 className={styles.sectionHdr}>What it computes</h2>
         {sources.length === 0 ? (
