@@ -482,3 +482,37 @@ def test_watch_once_cli(tmp_path, capsys):
     # no remote named origin in the fixture: the fetch fails quietly and the tick still evaluates the local ref
     assert cs.main(["--repo", str(repo), "--log", str(log), "watch", "--once"]) == 0
     assert json.loads(log.read_text(encoding="utf-8"))["source"] == "watch"
+
+
+# ---- AUDIT 2026-11-17: free / total PHYSICAL memory (MB) at the start of every evaluate and watch tick ----------
+def _mem_ok(row):
+    free, total = row["mem_free_mb"], row["mem_total_mb"]
+    return isinstance(free, int) and isinstance(total, int) and 0 < free <= total
+
+
+def test_every_line_records_free_and_total_physical_memory(tmp_path):
+    repo, c0 = make_repo(tmp_path, {})
+    c1 = move_master(repo, {"docs/other.md": "m\n"})
+    log = tmp_path / "shadow.log"
+    cs.append_log(verdict(repo, c0, c1), log)                      # evaluate
+    _git(repo, "update-ref", "refs/remotes/origin/master", c1)
+    assert cs.watch_once(repo, log, fetch=False) is not None        # watch tick
+    rows = [json.loads(x) for x in log.read_text(encoding="utf-8").splitlines()]
+    assert [r["source"] for r in rows] == ["evaluate", "watch"]
+    assert all(_mem_ok(r) for r in rows), [(r["mem_free_mb"], r["mem_total_mb"]) for r in rows]
+
+
+def test_memory_unreadable_is_null_never_a_failure(tmp_path, monkeypatch):
+    import builtins
+    import importlib.util
+    if importlib.util.find_spec("psutil") is not None:
+        pytest.skip("psutil present: the fallback paths are not reached")
+    monkeypatch.setattr(cs.os, "name", "posix")                    # skip the Windows API path
+    real_open = builtins.open
+
+    def no_proc(path, *a, **k):
+        if str(path) == "/proc/meminfo":
+            raise OSError("no /proc here")
+        return real_open(path, *a, **k)
+    monkeypatch.setattr(builtins, "open", no_proc)
+    assert cs.memory_mb() == {"mem_free_mb": None, "mem_total_mb": None}

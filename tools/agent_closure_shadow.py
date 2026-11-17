@@ -1716,6 +1716,40 @@ def vitest_related(tree_dir: Path, t0: str, t1: str, paths: list[str]) -> tuple[
     return sorted(files), None
 
 
+def memory_mb() -> dict:
+    """{'mem_free_mb', 'mem_total_mb'} of the box's PHYSICAL memory, or nulls when it cannot be read (never raises).
+    psutil when installed; else GlobalMemoryStatusEx on Windows; else /proc/meminfo."""
+    try:
+        import psutil  # type: ignore
+        vm = psutil.virtual_memory()
+        return {"mem_free_mb": int(vm.available // 2**20), "mem_total_mb": int(vm.total // 2**20)}
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        if os.name == "nt":
+            import ctypes
+
+            class MEMORYSTATUSEX(ctypes.Structure):
+                _fields_ = [("dwLength", ctypes.c_ulong), ("dwMemoryLoad", ctypes.c_ulong),
+                            ("ullTotalPhys", ctypes.c_ulonglong), ("ullAvailPhys", ctypes.c_ulonglong),
+                            ("ullTotalPageFile", ctypes.c_ulonglong), ("ullAvailPageFile", ctypes.c_ulonglong),
+                            ("ullTotalVirtual", ctypes.c_ulonglong), ("ullAvailVirtual", ctypes.c_ulonglong),
+                            ("ullAvailExtendedVirtual", ctypes.c_ulonglong)]
+            st = MEMORYSTATUSEX()
+            st.dwLength = ctypes.sizeof(MEMORYSTATUSEX)
+            if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(st)):
+                return {"mem_free_mb": int(st.ullAvailPhys // 2**20), "mem_total_mb": int(st.ullTotalPhys // 2**20)}
+        else:
+            kv = {}
+            for ln in open("/proc/meminfo", encoding="utf-8"):
+                k, v = ln.split(":", 1)
+                kv[k] = int(v.split()[0])
+            return {"mem_free_mb": kv["MemAvailable"] // 1024, "mem_total_mb": kv["MemTotal"] // 1024}
+    except Exception:  # noqa: BLE001
+        pass
+    return {"mem_free_mb": None, "mem_total_mb": None}
+
+
 def evaluate(repo: Path, t0: str, t1: str, pr: int | None, pr_files: list[str] | None = None,
              pr_head: str | None = None, tree_dir: Path | None = None, use_gh: bool = True,
              cache_dir: "Path | None" = None) -> dict:
@@ -1725,10 +1759,12 @@ def evaluate(repo: Path, t0: str, t1: str, pr: int | None, pr_files: list[str] |
     t1f = _git(repo, "rev-parse", t1).strip()
     import time as _time
     started = _time.monotonic()
+    mem = memory_mb()  # at the START of the evaluation
     rec: dict = {"time": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"), "tool": TOOL_VERSION,
                  "pr": pr, "t0": t0f, "t1": t1f, "pr_head": None, "delta": [], "verdict": None, "reasons": {},
                  "global_reasons": [], "related_graph": [], "related_vitest": None, "vitest_disagreement": None,
-                 "stats": {}, "disabled_features": sorted(dis), "full_carry_result": None, "source": "evaluate"}
+                 "stats": {}, "disabled_features": sorted(dis), "full_carry_result": None, "source": "evaluate",
+                 **mem}
     delta = delta_files(repo, t0f, t1f)
     rec["delta"] = delta
     rec["delta_range"] = f"{t0f[:10]}..{t1f[:10]}"
@@ -1933,6 +1969,7 @@ def watch_once(repo: Path, log: Path, remote: str = "origin", branch: str = "mas
                cache_dir: "Path | None" = None, fetch: bool = True) -> "dict | None":
     """Evaluate the NEW master tip against the last evaluated one (T0 = last watched T1; first run: the tip's first
     parent). Git is read-only apart from `git fetch <remote> <branch>`. Appends one line to `log`; nothing else."""
+    mem = memory_mb()  # at the START of the tick
     if fetch:
         subprocess.run(["git", "-C", str(repo), "fetch", "--quiet", "--no-tags", remote, branch],
                        capture_output=True, timeout=300)
@@ -1947,6 +1984,7 @@ def watch_once(repo: Path, log: Path, remote: str = "origin", branch: str = "mas
         rec = {"time": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"), "tool": TOOL_VERSION,
                "t0": t0, "t1": tip, "error": f"{type(e).__name__}: {e}"[:500]}
     rec["source"] = "watch"
+    rec.update(mem)
     append_log(rec, log)
     return rec
 
