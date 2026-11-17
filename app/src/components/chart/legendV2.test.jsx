@@ -430,37 +430,28 @@ describe('§8 — the geometric fold', () => {
     expect(pred).toContain('a.c.instanceId === b.c.instanceId')
   })
 
-  it('⭐⭐ VOLUME PRINTS WHERE ITS PANE IS, AND THE PANE IS ASKED — never an index', () => {
+  it('⭐⭐ VOLUME IN THE PRICE STACK PRINTS LAST — overlaid, its bars sit at the bottom of Price', () => {
     // §13/§14. Volume used to head the stack, inherited from the old legend where
-    // it sat under the O/H/L/C rows. The stack is PLOTS now, so it reads in pane
-    // order: the things drawn on Price, then the thing drawn beneath it.
-    // ⛔ AND THE TWO PANE INDICES ARE ONLY EVER COMPARED WITH EACH OTHER. Price is
-    // not pane 0 and Volume is not pane 1; both are asked of their own series by
-    // identity, which is the only form of the question that survives a reorder.
-    const pred = between(STOCK_CHART, 'const volumeBelowPrice = useCallback(', '}, [])')
-    expect(pred).toContain('candleSeriesRef.current?.getPane?.()?.paneIndex?.()')
-    expect(pred).toContain('volumeSeriesRef.current?.getPane?.()?.paneIndex?.()')
-    expect(pred, 'the predicate compares against a literal pane index')
-      .toMatch(/return v > p/)
-    expect(pred, 'a hard-coded pane number crept in').not.toMatch(/[=<>]\s*[01]\b/)
-    // ⭐⭐ AND SINCE 2026-09-16 THE QUESTION IS ASKED ONE STEP EARLIER (owner §15).
-    // Volume in a pane of its own has its readout in THAT pane — `volPaneRows` —
-    // so it is not in the price stack at all, and `Vol 9.1M` is printed once
-    // rather than once here and once six pixels below. `volRowInPriceStack` is the
-    // gate; it is `volLegendRowVisible && !volumeOwnsItsPane`, so a BANDED volume
-    // (drawn INSIDE Price) still keeps the head position it always had.
+    // it sat under the O/H/L/C rows. The stack is PLOTS now.
+    // ⭐⭐ SINCE 2026-09-16 (owner §15) Volume in a pane of its own has its readout in
+    // THAT pane — `volPaneRows` — so it is not in the price stack at all, and `Vol 9.1M`
+    // is printed once. `volRowInPriceStack` is the gate; it is
+    // `volLegendRowVisible && !volumeOwnsItsPane`.
     // ⚠️ AGAINST THE FILE, NOT `block()`: the gate is derived with the rest of the
     // row inputs, ABOVE the `indChips` line this block starts at.
     expect(STOCK_CHART).toContain('const volRowInPriceStack = volLegendRowVisible && !volumeOwnsItsPane')
-    expect(block()).toContain('const studyVolLast = volRowInPriceStack && volumeBelowPrice()')
-    // ⚰️ IT WAS `const studyHeadN = (volRowInPriceStack && !studyVolLast) ? 1 : 0`,
-    // a row COUNT used as an offset into two concatenated blocks. The stack is one
-    // array now (`studyItems`), so the same decision is the ternary that puts the
-    // volume entry at its head or its tail — same predicate, same two positions,
-    // no arithmetic for anything downstream to get wrong.
-    expect(block()).toContain(
-      "...(volRowInPriceStack && !studyVolLast ? [{ kind: 'vol', id: 'volume' }] : []),")
+    // ⭐⭐ OWNER 11-16 — so a Volume in this stack is OVERLAID on Price, and it is listed
+    // below every price-pane study, AFTER the member's row order is applied.
+    // ⚰️ IT WAS `volRowInPriceStack && volumeBelowPrice()` — the renderer's two pane
+    // indices compared — which in this stack always answered false (one shared pane), so
+    // Volume headed it. Behaviour is pinned in `StockChart.volumeOverlay.test.jsx`.
+    expect(block()).toContain('const studyVolLast = volRowInPriceStack')
+    expect(stripComments(block()), 'the retired pane-index question is asked again').not.toContain('volumeBelowPrice')
+    expect(block(), 'volume can still head the stack')
+      .not.toContain("...(volRowInPriceStack && !studyVolLast ? [{ kind: 'vol', id: 'volume' }] : []),")
     expect(block()).toContain("...(studyVolLast ? [{ kind: 'vol', id: 'volume' }] : []),")
+    expect(block(), 'the member order can lift volume off the bottom again')
+      .toContain("[...studyRows.filter((it) => it.kind !== 'vol'), ...studyRows.filter((it) => it.kind === 'vol')]")
   })
 
   it('⛔ AND THE BUDGET IS BOTH A ROOM TEST AND A SHARE OF THE PANE', () => {

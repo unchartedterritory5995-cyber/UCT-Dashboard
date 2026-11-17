@@ -171,6 +171,9 @@
   flex-direction: column;
   gap: 16px;
 }
+/* Owner 11-17: a long "Your indicators" list squeezed "Or start from" below its cards (they
+   overlapped). Sections in the scroller keep their natural height; the scroller scrolls. */
+.content > * { flex-shrink: 0; }
 .panel { display: flex; flex-direction: column; gap: 12px; }
 .describe { display: flex; flex-direction: column; gap: 8px; }
 .panel[hidden], .describe[hidden] { display: none; }

@@ -278,7 +278,26 @@
 .volLegLabel { color: var(--legend-ink-pair, var(--text-muted)); font-weight: 500; }
 .volLegVal { color: var(--legend-ink-pair, var(--text-muted)); font-weight: 500; font-variant-numeric: tabular-nums; }
 :global([data-charts-theme='sunrise']) .volLegend,
-:global([data-charts-theme='sunrise']) .paneLegend { background: rgba(255, 255, 255, 0.55); }
+:global([data-charts-theme='sunrise']) .paneLegend { background: rgba(255, 255, 255, 0.5); /* = the sunrise `.studyStack` */ }
+/* ⭐⭐ OWNER 11-16 — A SUB-PANE'S LEGEND ROWS LINE UP WITH THE PRICE PANE'S. Both strips (the volume
+   pane's `.volLegend` and every other pane's `.paneLegend`) are stacks of the SAME `LegendRow`s the
+   price pane's `.studyStack` holds, but their BOX was still the old horizontal volume strip's: 2px 7px
+   of padding (names 5px right of the price pane's), a filled 3px-radius panel, and no line-height
+   (a `normal` ~17px line, so a looser pitch than the price stack's 14 + 8). They take the price
+   stack's row metrics now: the same padding (so the same left inset from the shared `left: 8px`),
+   the same 14px line under the shared 8px row gap, and the same whisper wash instead of a panel.
+   ⛔ COPIED VALUES, RAILED EQUAL: `legend/paneLegendMetrics.test.js` fails if `.studyStack`'s change
+   and these do not. (Not `composes`: `.studyStack [data-legend-row="volume"]`'s extra air above the
+   Volume row must not reach the volume pane, where Volume is the first row.) */
+.paneLegend,
+.volLegend {
+  line-height: 14px;
+  padding: 0 3px 0 2px;
+  border-radius: 0;
+  background: color-mix(in srgb, var(--chart-panel-bg, rgba(14, 15, 13, 0.88)) 12%, transparent);
+  backdrop-filter: blur(1.5px);
+  -webkit-backdrop-filter: blur(1.5px);
+}
 :global([data-charts-theme='sunrise']) .volLegLabel,
 :global([data-charts-theme='sunrise']) .volLegVal { color: var(--legend-ink-pair, #33404f); }
 .rangeBtn {
@@ -2048,3 +2067,7 @@
 .sigGold { display: inline-flex; color: var(--ut-gold); }
 .sigGold svg, .sigGold svg * { stroke: currentColor; }
 .sigCheck { margin-left: auto; padding-left: 12px; color: #f8f7f3; font-weight: 600; }
+/* The Display in page (`displayPageSigRows`): a quiet grey ‹ on the back row; the current
+   destination stays readable while refused (a disabled row is greyed), bold with its white ✓. */
+.sigBack { flex: none; margin-right: 8px; font-size: 14px; line-height: 1; color: #93939a; }
+.sigChosen { color: #f8f7f3; font-weight: 600; }
