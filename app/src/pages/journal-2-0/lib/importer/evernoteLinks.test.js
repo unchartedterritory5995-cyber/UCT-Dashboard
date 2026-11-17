@@ -300,7 +300,9 @@ describe('the cross-import key matches the title the SERVER stores: strip()[:300
     // path stores through it. The cut must be import_title's OWN return line, not the same shape
     // anywhere else in the file, and `import_confirm` must call it.
     expect(src).toMatch(/def import_title\(raw: Any\) -> str:[\s\S]*?\n {4}return \(raw or "Untitled"\)\.strip\(\)\[:MAX_TITLE_CHARS\]\r?\n/)
-    expect(src).toMatch(/title = import_title\(n\.get\("title"\)\)/)
+    // The call, not an assignment: since ddcad9c107 the import path passes `import_title(n.get("title"))`
+    // straight into the row it prepares, so a `title = ` prefix here went red on a correct server.
+    expect(src).toMatch(/import_title\(n\.get\("title"\)\)/)
   })
 
   it('cuts a 301-character title at 300', () => {
