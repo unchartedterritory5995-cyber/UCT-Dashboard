@@ -438,6 +438,21 @@ describe('ruling D12: a Pine v4 strategy that states no margin stops at bind, by
     expect(none.err.setting).toBe(V4_MARGIN_DEFAULT_SETTING)
   })
 
+  // ⭐⭐ RULING D12b (2026-11-17): EXACTLY the declaration shape both v4 captures have (a title and `overlay`, nothing
+  // else) runs at the margin TradingView read back for it, 0, behind B-V4-MARGIN0. Every other shape still stops.
+  it('D12b: `strategy("t", overlay = true)` (the witnessed shape, title by position) runs at margin 0 under B-V4-MARGIN0', () => {
+    const V4OV = (decl) => `//@version=4\nstrategy("t", overlay = true${decl})\nstrategy.entry("L", true, when = bar_index == 1)\nplot(strategy.position_size)\n`
+    const ok = served(V4OV(''))
+    expect(ok.cols[0][2]).toBe(1)
+    expect(ok.rec.rulesUsed).toContain('B-V4-MARGIN0')
+    const un = attempt(V4OV(''), { pins: (id) => id !== 'B-V4-MARGIN0' })
+    expect(un.err && un.err.rule).toBe('B-V4-MARGIN0')
+    // one more argument is another shape: D12's bind refusal, unchanged
+    for (const extra of [', shorttitle = "s"', ', pyramiding = 1', ', initial_capital = 100000']) {
+      expect(attempt(V4OV(extra)).err.setting, extra).toBe(V4_MARGIN_DEFAULT_SETTING)
+    }
+  })
+
   it('ONE margin stated is still not both: it stops the same way', () => {
     expect(attempt(V4(', margin_long = 100')).err.setting).toBe(V4_MARGIN_DEFAULT_SETTING)
     expect(attempt(V4(', margin_short = 0')).err.setting).toBe(V4_MARGIN_DEFAULT_SETTING)

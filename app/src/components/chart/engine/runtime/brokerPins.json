@@ -276,6 +276,10 @@
    "w9-g1-v3-properties-rddt-1d-2026-11-15",
    "w9-q-s1a-size-v2-rddt-1d-2026-11-15"
   ],
+  "B-V4-MARGIN0": [
+   "w9-q-s1a-size-v4-rddt-1d-2026-11-15",
+   "w9-q-s1b-defaults-v4-rddt-1d-2026-11-15"
+  ],
   "B-VAL": [
    "w9-k1-commission-pct-rddt-1d-2026-11-15",
    "w9-k2-commission-contract-rddt-1d-2026-11-15",

@@ -115,6 +115,8 @@ export const BROKER_RULES = Object.freeze({
   // ── 2026-11-17, Pine v2 / v3 strategies from the two committed v2 / v3 report captures (w9-q-s1a-size-v2,
   // w9-g1-v3-properties). APPENDED, never inserted.
   'B-V3': Object.freeze({ capture: 'W9-G1', what: 'a Pine v2 / v3 strategy: strategy.entry(id, direction) and strategy.close(id), by position, with a named `when`, and the Properties read back for those versions (fixed size 1, initial capital 100,000, pyramiding 1, no commission or slippage, no margin input: a position worth more than the equity refuses)' }),
+  // ── 2026-11-17, ruling D12b: the v4 margin default, for the declaration shape both committed v4 report captures have.
+  'B-V4-MARGIN0': Object.freeze({ capture: 'Q-S1b', what: 'a Pine v4 strategy whose strategy() states exactly a title and overlay (no margin, size, capital, pyramiding or cost argument) runs at margin_long = margin_short = 0, the value TradingView read back on w9-q-s1a-size-v4 and w9-q-s1b-defaults-v4 (the v4 reference reads 100: the capture overrules it for that shape only)' }),
 })
 
 export const BROKER_RULE_IDS = Object.freeze(Object.keys(BROKER_RULES))
