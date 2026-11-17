@@ -430,7 +430,15 @@ def maybe_auto_heal() -> None:
 
     def _run():
         try:
-            heal_recent(5)
+            # ⚡ A turn of the web pod's background lane (api/services/bg_lane.py). The dashboard
+            # warm fires this ~20 s after boot, past `_BOOT_QUIET_S["breadth_self_heal"]`, and the
+            # recompute (every session x the universe, plus an 800-day dividend read) was busy in
+            # every event-loop stall capture from +3 to +18 min on 2026-11-17. It is a repair: an
+            # agreeing recompute writes nothing, and waiting for the settle window means the bars
+            # it needs are warm (the reason this hook exists).
+            from api.services import bg_lane
+            with bg_lane.turn("breadth-auto-heal"):
+                heal_recent(5)
         except Exception as e:
             print(f"[breadth-heal] auto-heal error (non-fatal): {e}")
 
@@ -446,7 +454,9 @@ def start_background_heal(delay_seconds: int = 40) -> None:
     def _run():
         time.sleep(max(0, delay_seconds))
         try:
-            res = heal_recent(10)
+            from api.services import bg_lane    # see maybe_auto_heal
+            with bg_lane.turn("breadth-self-heal-boot"):
+                res = heal_recent(10)
             print(f"[breadth-heal] boot pass: "
                   f"{len(res.get('healed', []))} healed of last 10")
         except Exception as e:
