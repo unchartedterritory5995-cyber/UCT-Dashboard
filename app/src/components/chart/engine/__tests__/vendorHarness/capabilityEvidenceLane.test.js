@@ -76,12 +76,14 @@ describe('WS-I Part 2 — every admitted capability\'s evidence was drawn by the
 // is asked again here as the reach run asked it: the allowlist EMPTY, capability
 // admission ON, the server's verdict (admitted) latched.
 const report = JSON.parse(fs.readFileSync(path.join(REPO,
-  'docs/pine/evidence/2026-11-15-cond-ta/runs/report.json'), 'utf8'))
+  'docs/pine/evidence/2026-11-16-draw1-drawing-objects/runs/report.json'), 'utf8'))
 // ⭐ HIST (NUMBER PENDING, feat/pine-coverage-runtime-history) re-pinned one row of that report, lane
 // `null` -> `runtime`: `kernel-channel-backquant-rddt-1d-2026-11-14` (a helper with history in a `?:` arm,
 // now drawn while the arm runs every bar; runtime-on MATCH). `momentum-based-zigzag-rddt-1d-2026-11-14`
 // left the report: the runtime lane reaches it too, its runtime-on grade is DIVERGE, so it is on the
 // committed kill list and no longer admitted (docs/pine/evidence/2026-11-16-runtime-history/EVIDENCE.md).
+// ⭐ DRAW-1 (engine 66, feat/pine-coverage-drawings): the reach run is RE-DERIVED on the engine-65 train
+// tree (input, CAPADMIT_MODE=admission, report), so it carries HIST's rows above as the tool answers them.
 
 describe('WS-I Part 2 — the reach run records the lanes the door itself answers', () => {
   beforeAll(() => {

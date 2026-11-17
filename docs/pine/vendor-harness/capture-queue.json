@@ -62,6 +62,7 @@
    "docs/pine/capture-queue-2026-11-16-bt-builtins-time.md",
    "docs/pine/capture-queue-2026-11-16-cond-ta-followups.md",
    "docs/pine/capture-queue-2026-11-16-door-robustness.md",
+   "docs/pine/capture-queue-2026-11-16-draw-count-at-cap.md",
    "docs/pine/capture-queue-2026-11-16-libraries-phase-b.md",
    "docs/pine/capture-queue-2026-11-16-request-security.md",
    "docs/pine/capture-queue-2026-11-16-rma-last-bit.md",
@@ -94,19 +95,19 @@
   }
  },
  "counts": {
-  "targets": 356,
+  "targets": 358,
   "byStatus": {
    "CAPTURED": 180,
    "NEEDS_CHART": 39,
    "NEEDS_LIVE": 2,
-   "QUEUED": 135
+   "QUEUED": 137
   },
   "byPlanWave": {
    "E": {
     "CAPTURED": 140,
     "NEEDS_CHART": 37,
     "NEEDS_LIVE": 2,
-    "QUEUED": 114
+    "QUEUED": 116
    },
    "W1": {
     "CAPTURED": 6
@@ -129,7 +130,7 @@
     "CAPTURED": 152,
     "NEEDS_CHART": 38,
     "NEEDS_LIVE": 2,
-    "QUEUED": 132
+    "QUEUED": 134
    },
    "1-2": {
     "CAPTURED": 28,
@@ -188,6 +189,9 @@
    },
    "door-robustness": {
     "QUEUED": 3
+   },
+   "draw-count-at-cap": {
+    "QUEUED": 2
    },
    "fn-series-history": {
     "CAPTURED": 1
@@ -16511,6 +16515,90 @@
    ]
   },
   {
+   "id": "vw-draw-count-at-cap@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-draw-count-at-cap.pine",
+   "sourceKind": "probe",
+   "sha256": "bc57dac4a432d64564ed37abd362e2fedce8b08b535c13458648ab332075aca1",
+   "bytes": 3211,
+   "stem": "vw-draw-count-at-cap",
+   "captureStem": "vw-draw-count-at-cap",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "draw-count-at-cap"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-draw-count-at-cap#Q-DRAW-CAP-1"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-draw-count-at-cap@NYSE:RDDT@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-draw-count-at-cap.pine",
+   "sourceKind": "probe",
+   "sha256": "bc57dac4a432d64564ed37abd362e2fedce8b08b535c13458648ab332075aca1",
+   "bytes": 3211,
+   "stem": "vw-draw-count-at-cap",
+   "captureStem": "vw-draw-count-at-cap",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "draw-count-at-cap"
+   ],
+   "oldestDoc": "2026-11-16",
+   "rows": [
+    "capture-queue-2026-11-16-draw-count-at-cap#Q-DRAW-CAP-2"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
    "id": "vw-ema-last-bit@AMEX:SPY@D",
    "status": "QUEUED",
    "evidence": [],
@@ -20054,6 +20142,12 @@
    "doc": "docs/pine/capture-queue-2026-11-16-door-robustness.md",
    "wave": "door-robustness",
    "rows": 9,
+   "contextTables": 0
+  },
+  {
+   "doc": "docs/pine/capture-queue-2026-11-16-draw-count-at-cap.md",
+   "wave": "draw-count-at-cap",
+   "rows": 2,
    "contextTables": 0
   },
   {

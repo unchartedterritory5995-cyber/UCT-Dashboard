@@ -154,6 +154,13 @@ export function dropHeads(diag) {
     const m = /^cell@([\d?]+): (\S+)/.exec(String(e))
     if (m) out.push(`cell:text@${m[1]}: ${m[2] === 'no' ? 'unrecorded' : m[2]}`)
   }
+  // ⭐ DRAW-1 — a `guard:partial` step (C33: carried, withheld on the bars its unread term
+  // decides) is named in `guardPartial` (`<op>@<line>: <guard>`); its head is keyed `partial`,
+  // the drop key's own kind, so the census can say which guard it was.
+  for (const e of d.guardPartial || []) {
+    const m = /^\w+@([\d?]+): (\S+)/.exec(String(e))
+    if (m) out.push(`partial@${m[1]}: ${m[2] === 'refused' ? 'unrecorded' : m[2]}`)
+  }
   return [...new Set(out)].slice(0, 60)
 }
 

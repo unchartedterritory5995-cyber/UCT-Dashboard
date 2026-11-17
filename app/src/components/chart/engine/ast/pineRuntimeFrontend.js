@@ -548,6 +548,9 @@ export const RUNTIME_STATE_KERNELS = Object.freeze(Object.fromEntries([
 export const MAX_PIVOT_SPAN = 5000
 
 const OBJECT_NS = /^(line|label|box|table|polyline|linefill)\./
+/** ⭐ DRAW-1 — the drawing families Pine casts `na` to (`box(na)`), and the type words a
+ *  binding writes for one (`var line l = na`). */
+const DRAWING_CAST_FAMILY = /^(line|label|box|table|polyline|linefill)$/
 const ARRAY_NS = /^(array|matrix|map)\./
 
 // ── ⭐⭐ USER-DEFINED TYPES — `type Foo` ─────────────────────────────────────
@@ -4446,9 +4449,49 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  map filled only where a statement is SKIPPED would miss the commonest
    *  spelling and `b.delete()` would refuse for a reason that is not true. */
   const drawingHandles = new Map()
-  const noteHandle = (name, value) => {
+  const noteHandle = (name, value, scope = null) => {
     const hit = holdsObjectCall(value)
-    if (hit) drawingHandles.set(String(name), hit.slice(0, hit.indexOf('.')))
+    if (hit) { drawingHandles.set(String(name), hit.slice(0, hit.indexOf('.'))); return }
+    // ⭐ DRAW-1 — `b = box(na)` holds a box's handle exactly as `box b = na` does.
+    const cast = drawingCastFamily(value, scope)
+    if (cast) drawingHandles.set(String(name), cast)
+  }
+  /** ⭐ DRAW-1 — a binding whose WRITTEN type is a drawing family (`var line l = na`):
+   *  the name holds that family's handle from its declaration on, so a method on it
+   *  (`l.delete()`, `l.get_y1()`) is a drawing operation before any `l := line.new(…)`
+   *  has been read (a comma line writes the delete first). A record, never a guard. */
+  const noteWrittenHandle = (name, toks, eq) => {
+    const annot = Number.isInteger(eq) && eq >= 2 ? toks[eq - 2] : null
+    if (annot && annot.kind === 'ident' && DRAWING_CAST_FAMILY.test(String(annot.value))
+        && !definedNames.has(String(annot.value))) drawingHandles.set(String(name), String(annot.value))
+  }
+
+  /** ⭐⭐ DRAW-1 — `line(na)`, `label(na)`, `box(na)`, `table(na)`, `linefill(na)`,
+   *  `polyline(na)`: the family, or null. The Pine v5/v6 reference states each one
+   *  exactly ("Casts na to box", "Casts na to line", …): the value is `na`, typed as
+   *  that family's handle, so `var b = box(na)` IS `var box b = na`. ⛔ Only an `na`
+   *  argument (the reference's "usually na"; a cast of a handle is not served here),
+   *  only positional, and never a script's own function of that name. */
+  const drawingCastFamily = (node, scope) => {
+    if (!node || node.type !== 'call' || !DRAWING_CAST_FAMILY.test(String(node.name || ''))) return null
+    if (definedNames.has(node.name) || !Array.isArray(node.args) || node.args.length !== 1) return null
+    const a = node.args[0]
+    if (!a || a.name) return null
+    const v = a.value !== undefined ? a.value : a
+    const na = scope ? isBuiltinNa(v, scope) : !!(v && v.type === 'name' && v.name === 'na' && !env.has('na'))
+    return na ? String(node.name) : null
+  }
+  /** ⭐ DRAW-1 — a drawing cast anywhere in this subtree (`array.new<box>(10, box(na))`). The
+   *  route decision asks it: the columnar lane has no `box` and refuses it `pine:function`
+   *  before the call arm that reads it is ever reached (`holdsObjectCall`'s rule). */
+  const holdsDrawingCast = (node, scope, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 24) return false
+    if (drawingCastFamily(node, scope)) return true
+    for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value', 'cond', 'recv']) {
+      if (holdsDrawingCast(node[k], scope, depth + 1)) return true
+    }
+    return Array.isArray(node.args)
+      && node.args.some((a) => holdsDrawingCast(a && a.value !== undefined ? a.value : a, scope, depth + 1))
   }
 
   /**
@@ -5337,6 +5380,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (objectsInRun && value && value.type === 'call') {
       const m = /^(line|label|box|table|linefill)\.(new|copy)$/.exec(String(value.name || ''))
       if (m) return makeTy('drawing', { name: m[1] })
+      // ⭐ DRAW-1 — `box(na)` types its slot as `box na` does (`declaredTyAt` / `writtenTyOf`)
+      const cast = drawingCastFamily(value, scope)
+      if (cast) return writtenTyOf(cast, null)
     }
     // ⭐ L4c / L4d — `c ? label.new(…) : na` (or `c ? na : label.new(…)`) holds that family's handle or `na`
     {
@@ -8390,6 +8436,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // bar; an enum is a fixed string the drawing layer reads.
     if (!inRequestValue && !readsSlot(node, scope) && !dependsOnTextInput(node, scope)
         && !readsPlotRef(node) && !holdsColour(node, scope) && !holdsObjectCall(node)
+        // ⭐ DRAW-1 — nor a drawing cast (`box(na)`): the call arm below reads it as `na`
+        && !holdsDrawingCast(node, scope)
         && !(node.type === 'name' && objectEnumValue(node.name) !== undefined)
         // ⭐ RT5 — nor is a drawing family's live list (`label.all`), nor text
         // this run prints (`str.tostring`), which the columnar lane refuses.
@@ -9133,6 +9181,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
         return hist(column(columnOf(node.arg, locate(node.tok))), back)
       }
       case 'call': {
+        // ⭐⭐ DRAW-1 — `box(na)` is `na` (the reference: "Casts na to box"); its type
+        // reaches the slot through `initialiserTy` and the handle record (`noteHandle`).
+        if (drawingCastFamily(node, scope)) return lowerExpr(node.args[0].value, scope, opts)
         // ⭐⭐ S1 — a per-trade broker function (`strategy.opentrades.entry_price(0)`).
         if (brokerMode && typeof node.name === 'string' && node.name.startsWith('strategy.')
             && !definedNames.has(node.name)) {
@@ -9764,6 +9815,23 @@ function buildRuntimeIrLinked(source, opts, holder) {
             note('runtime:array')
             throw new RuntimeRefusal('runtime:array',
               familyDetail('runtime:array', `${ns}.${uf.method}`), locate(node.tok))
+          }
+        }
+        // ⭐⭐ DRAW-1 — A DRAWING READ BY ITS METHOD FORM (`b.get_top()`, on a name this lane saw
+        // hold a drawing: `noteHandle` / `noteWrittenHandle`) IS A DRAWING USED AS A VALUE, and is
+        // named as one, exactly as `box.get_top(b)` is by `callFamily` below. It refused
+        // `runtime:call-undeclared-builtin-state` ("the closed table does not declare this
+        // builtin"), a wrong name that also kept the member door from asking the DRAWING build
+        // (`runtimeObjectsDoor.js`, `runtime:object-op`), the one build that reads it. Under
+        // `objectsInRun` the call never reaches here (`objectCallTarget`, above).
+        {
+          const uf = splitMethodName(node.name)
+          const fam = uf && !definedNames.has(node.name) ? drawingHandles.get(uf.recv) : null
+          const rs = fam ? lookupReadable(uf.recv, scope) : null
+          if (fam && !userMethodShadows(uf.method, { type: 'name', name: uf.recv, tok: node.tok }, scope)
+              && !(rs !== null && rs !== undefined && (slotIsCollection(rs) || slotUdt(rs)))) {
+            note('runtime:object-op')
+            throw new RuntimeRefusal('runtime:object-op', objectOpDetail(`${fam}.${uf.method}`), locate(node.tok))
           }
         }
         const fam = callFamily(node.name)
@@ -13861,8 +13929,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // declared a slot for the handle (its `var … = na` declaration is a
         // handle binding too), so asking for one first would refuse at
         // `runtime:unbound` and blame the wrong statement.
-        noteHandle(nameTok.value, value)
-        if (objectPassOwnsDrawing && holdsObjectCall(value)) continue
+        noteHandle(nameTok.value, value, scope)
+        // ⭐ DRAW-1 — `b := box(na)` (the variable lets go of its object) is the object
+        // program's step (`reset:target`), skipped here exactly as `b := box.new(…)` is.
+        if (objectPassOwnsDrawing && (holdsObjectCall(value) || drawingCastFamily(value, scope))) continue
         const slot = scope.lookup(nameTok.value)
         if (slot === null) refuseUnboundReassign(nameTok, toks)
         // ⭐ W6-T10 — `x := E.field` only into a variable of that enum (`admitEnumAssign`).
@@ -13912,7 +13982,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // nothing. ⭐ Skipping also gives the better failure: a name this lane
         // never declared refuses LOUDLY at `pine:undefined` if anything outside
         // a drawing call reads it, instead of quietly yielding `na`.
-        noteHandle(nameTok.value, value)
+        noteHandle(nameTok.value, value, scope)
+        noteWrittenHandle(nameTok.value, toks, eq)
         if (objectPassOwnsDrawing && holdsObjectCall(value)) continue
         const slot = scope.declare(nameTok.value, newSlot(nameTok.value, declarationPersists(toks)))
         if (word === 'varip') slots[slot].varip = true   // ⭐ P3 WS-F — see the `varip` site
@@ -14145,7 +14216,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // from its absence. The proved copies are the `var` branch above and the
         // `:=` branch; this one read as protection and was not
         // (`lesson_a_guard_repeated_is_a_guard_unproved`).
-        noteHandle(nameTok.value, value)
+        noteHandle(nameTok.value, value, scope)
+        noteWrittenHandle(nameTok.value, toks, eq)
         const isCollection = holdsArray(value, scope)
         // ⛔⛔ A RECORD BINDING IS ALWAYS A SLOT, NEVER AN `env` MACRO — an
         // `env` macro is SUBSTITUTED at each use, so `ob = orderBlock.new(…)`
