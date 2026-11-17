@@ -52,7 +52,9 @@ DOCKERFILE = os.path.join(REPO, "Dockerfile.web")
 sys.path.insert(0, REPO)
 from tools import vite_flag_index          # noqa: E402  the ONE reader of the names
 
-_ARG_RE = re.compile(r"^ARG\s+(VITE_[A-Z0-9_]+)\s*$", re.M)
+#: ⭐ 2026-11-17 — an ARG may carry a DEFAULT (`ARG VITE_X=1`): the value an UNSET Railway variable bakes. One flag
+#: does (VITE_PINE_STRATEGY_BROKER_ENABLED, `tests/test_strategy_serve_arming.py`); a set Railway variable overrides it.
+_ARG_RE = re.compile(r"^ARG\s+(VITE_[A-Z0-9_]+)(?:=\S*)?\s*$", re.M)
 
 
 def vite_names_read() -> set[str]:

@@ -28,8 +28,9 @@ import { runtimeStrategyOf } from '../strategyRecord'
 import { drawsTradeMarkers, memberTradeMarkers } from '../tradeMarkers'
 
 export const ARMED_SCHEMA = 'uct.strategy-armed/v1'
-/** A source that DECLARES a strategy (the call form, at the start of a line). */
-export const STRATEGY_DECLARATION = /^[ \t]*strategy[ \t]*\(/m
+/** A source that DECLARES a strategy (the call form, at the start of a line): the member door's own predicate,
+ *  re-exported (one authority: the door's strategy-backtest disclosure reads the same one). */
+export { STRATEGY_DECLARATION } from '../../../builder/memberPane/memberPaneDefinition'
 const ARMED_DEF_ID = 'u_strategy-armed-census'
 
 /** The broker gate's flag NAME, read off its module (`import.meta.env.<NAME> === '1'`), never typed. */
