@@ -266,3 +266,8 @@ tools/scan_handoff_out.json
 # licence-held translated document (docs/pine/LICENSING.md 2d): graphWireFixture.test.js re-emits it
 # locally when the held source is on the machine; it must never be committed again.
 tests/fixtures/graph_wire/u_c2d900000005.json
+
+# The Pine capture queue is DERIVED ON DEMAND (tools/vendor_harness/evidence_engine.py queue), never committed:
+# committed, it was the conflicting file in 5 of 5 unmergeable Pine PRs on 2026-11-16 (39 master commits in
+# three days). `queue --check` (pine-heavy's derived-evidence job) fails if it is tracked again.
+docs/pine/vendor-harness/capture-queue.json
