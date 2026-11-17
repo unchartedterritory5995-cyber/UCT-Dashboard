@@ -847,7 +847,15 @@ export function compareCapture(capture, ours, opts = {}) {
   // with an edited input is a different script as far as the numbers go, and
   // grading it against the defaults would report the edit as a divergence.
   const changed = nonDefaultInputs(capture)
-  if (changed.length) return inconclusive(`the vendor study ran with non-default inputs (${changed.map((i) => `${i.name || i.id}=${JSON.stringify(i.value)} vs default ${JSON.stringify(i.defval)}`).join(', ')}); v1 compares at default inputs only — re-capture at defaults`)
+  // ⭐⭐ SETTINGS PARITY (2c) — UNLESS OUR SIDE RAN AT THE SAME SETTINGS. `ourSide.js` now computes a
+  // capture at the inputs TradingView recorded in it (`captureInputs.js`) and reports them
+  // (`ours.capturedInputs`: Pine name -> the vendor's value, one per moved input); a capture whose
+  // every moved input our side moved too is graded like any other, and says which settings it
+  // graded (`settings`). One our side did not move, or could not, stays INCONCLUSIVE by name.
+  const tookSettings = changed.length && ours && ours.ok && ours.capturedInputs
+    && typeof ours.capturedInputs === 'object' && Object.keys(ours.capturedInputs).length === changed.length
+  if (tookSettings) base.settings = { ...ours.capturedInputs }
+  if (changed.length && !tookSettings) return inconclusive(`the vendor study ran with non-default inputs (${changed.map((i) => `${i.name || i.id}=${JSON.stringify(i.value)} vs default ${JSON.stringify(i.defval)}`).join(', ')}); v1 compares at default inputs only — re-capture at defaults`)
   if (!ours || !ours.ok) return inconclusive(`refused on our side: ${(ours && ours.refusal) || 'no result'}`)
   // ⭐ L7 — a substituted input must have been FED the vendor's own value, or nothing below
   // proves the engine (`substitutionProblems`).

@@ -86,6 +86,7 @@ import {
   saveFrozenList, saveStandingAlert, saveToNotebook,
 } from './focusActions'
 import styles from './FocusScreener.module.css'
+import menuStyles from './FocusMenus.module.css'
 import { useScreenerAgentHost } from '../../../agent/hosts/usePageAgentHosts'
 
 // Every column the list, the chart header and the setup line read. Each must be a
@@ -146,7 +147,10 @@ function rememberNamed(item) {
   } catch { /* private mode or full: the name is just not kept */ }
 }
 
-export default function FocusScreener() {
+// `modeTabs`: the page's Stocks | Options switch (Screener.jsx), or null for a member without
+// Options. It is the first thing on the top bar, so the page has ONE bar; Table mode has no top
+// bar of its own, so there it gets a slim bar to itself.
+export default function FocusScreener({ modeTabs = null }) {
   const [mode, setMode] = useState(() => {
     const m = readLS(MODE_KEY, 'list')
     return m === 'table' || m === 'grid' || m === 'map' ? m : 'list'
@@ -155,6 +159,7 @@ export default function FocusScreener() {
   if (mode === 'table') {
     return (
       <div className={styles.page} data-testid="focus-screener" data-mode="table">
+        {modeTabs && <div className={menuStyles.modeBar}>{modeTabs}</div>}
         <div className={styles.tableMode}>
           {/* Screener.jsx hides its own checklist while the Focus layout is on; Table mode keeps it reachable. */}
           <HowToChecklist surface="screener.stocks" />
@@ -166,12 +171,12 @@ export default function FocusScreener() {
       </div>
     )
   }
-  return <FocusList mode={mode} onMode={onMode} />
+  return <FocusList mode={mode} onMode={onMode} modeTabs={modeTabs} />
 }
 
 // `mode` is 'list' (the list and its chart pane), 'grid' (the same results on the chart grid) or
 // 'map' (the same results as a treemap): one screen, one set of rows, three ways to look at them.
-function FocusList({ mode, onMode }) {
+function FocusList({ mode, onMode, modeTabs = null }) {
   const navigate = useNavigate()
   const { meta, error: metaError, retry: retryMeta } = useScreenerMeta()
   const viewColumnsFor = useMemo(() => {
@@ -1099,6 +1104,7 @@ function FocusList({ mode, onMode }) {
         <a href="#focus-save" className={styles.skipLink} onClick={skipToSave}>Skip to save results</a>
       </SkipLinkPortal>
       <FocusTopBar
+        optionsTab={modeTabs}
         screenMenu={<ScreenMenu apiRef={screenMenuApi} landing={!landed} pool={pool} currentName={current?.name} currentId={current?.id} isEdited={isEdited} count={pending ? null : shownTotal} countPending={pending && !error}
           starters={starters} saved={saved} pinned={effectivePinned} onTogglePin={togglePin} onApply={chooseScreen}
           onSaveChanges={current?.kind === 'saved' && isEdited ? saveChanges : null}
@@ -1124,19 +1130,30 @@ function FocusList({ mode, onMode }) {
           onLibrary={() => setSheet('library')} onGlossary={() => openFilters()} shortcuts={shortcuts}
           onRsHelp={starters.some(x => x && x.row) ? openRsHelp : null} />}
       />
-      {/* RS screens: the quick controls row, only for a starter that declares controls. */}
-      {rsControls.length > 0 && <QuickControls controls={rsControls} filters={s.filters} sort={s.sort} rank={s.rank} onChoose={chooseOption} onReset={resetControls} />}
-      {rsHeadOn && <RsHeaderLine newLine={newLine} showNewLine={newLineShows} asOf={rsAsOf} share={rsShare} pending={pending} alerts={alertToggle} />}
-      {rsMarketOn && <RsMarketLine text={marketLine.text} state={marketLine.state} onHide={hideMarketLine} />}
-      {rsNoteOn && <RsFirstVisit onHow={openRsHelp} onDismiss={() => setPref('screener_rs_note_seen', '1')} />}
-      {metaError && !meta && (
-        // The list still renders with the current screen; only the filter registry is missing.
-        <div className={styles.metaNote} role="alert">
-          <span>Filters couldn&apos;t be loaded, so the drawer is empty for now.</span>
-          <button type="button" className={styles.btn} onClick={retryMeta}>Retry</button>
+      {/* The context line: the open screen's quick controls (a starter that declares them), then
+          its facts at the far end. One line; nothing is drawn for a screen with neither. */}
+      {(rsControls.length > 0 || rsHeadOn) && (
+        <div className={styles.subBar} data-testid="focus-context">
+          {rsControls.length > 0 && <QuickControls controls={rsControls} filters={s.filters} sort={s.sort} rank={s.rank} onChoose={chooseOption} onReset={resetControls} />}
+          {rsHeadOn && <RsHeaderLine newLine={newLine} showNewLine={newLineShows} asOf={rsAsOf} share={rsShare} pending={pending} alerts={alertToggle} />}
         </div>
       )}
-      {drops.length > 0 && <p className={styles.dropNote} role="status">{drops.join(' ')}</p>}
+      {/* The notices line: everything the page has to say, on one quiet line (never a stack of
+          banners over the list). Nothing is drawn when there is nothing to say. */}
+      {(rsMarketOn || rsNoteOn || (metaError && !meta) || drops.length > 0) && (
+        <div className={styles.notices} data-testid="focus-notices">
+          {rsMarketOn && <RsMarketLine text={marketLine.text} state={marketLine.state} onHide={hideMarketLine} />}
+          {rsNoteOn && <RsFirstVisit onHow={openRsHelp} onDismiss={() => setPref('screener_rs_note_seen', '1')} />}
+          {metaError && !meta && (
+            // The list still renders with the current screen; only the filter registry is missing.
+            <div className={styles.metaNote} role="alert">
+              <span>Filters couldn&apos;t be loaded, so the drawer is empty for now.</span>
+              <button type="button" className={styles.btn} onClick={retryMeta}>Retry</button>
+            </div>
+          )}
+          {drops.length > 0 && <p className={styles.dropNote} role="status">{drops.join(' ')}</p>}
+        </div>
+      )}
       {body}
       <PhoneChartSheet open={phoneSheet && listShowing} onClose={closePhoneSheet} row={selected}
         onPrev={stepPrev} onNext={stepNext} canPrev={sel.index > 0} canNext={sel.index < listRows.length - 1 || listHasMore}>
