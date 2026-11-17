@@ -102,12 +102,21 @@ Add-Check 'MEMBER_SMOKE_* present' $haveCreds $(if ($haveCreds) { 'both names se
 
 # 6 -- one paced member login -------------------------------------------------
 if ($haveCreds) {
+    # This login is a CHECK, so its session is signed out in `finally` -- on success, failure
+    # and Ctrl-C (2026-11-17: tools that never signed out left 301 live smoke sessions). A failed
+    # sign-out is printed with the session id's first 6 characters, never the cookie. The Python
+    # tools do the same through tools/synthetic_session.py.
+    $ws = $null
+    $ua = @{ 'User-Agent' = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/140.0 Safari/537.36' }
     try {
+        if (-not ([string][Environment]::GetEnvironmentVariable('MEMBER_SMOKE_EMAIL')).Trim().ToLower().EndsWith('@uctintelligence.internal')) {
+            throw 'MEMBER_SMOKE_EMAIL is not a @uctintelligence.internal address; refusing to sign in'
+        }
         $body = @{ email = [Environment]::GetEnvironmentVariable('MEMBER_SMOKE_EMAIL')
                    password = [Environment]::GetEnvironmentVariable('MEMBER_SMOKE_PASSWORD') } | ConvertTo-Json
         $lr = Invoke-WebRequest -Uri 'https://uctintelligence.com/api/auth/login' -Method Post -Body $body `
-                -ContentType 'application/json' -TimeoutSec 30 -UseBasicParsing `
-                -Headers @{ 'User-Agent' = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/140.0 Safari/537.36' }
+                -ContentType 'application/json' -TimeoutSec 30 -UseBasicParsing -SessionVariable ws `
+                -Headers $ua
         $lj = $lr.Content | ConvertFrom-Json
         $role = $lj.user.role; if (-not $role) { $role = $lj.role }
         Add-Check 'member-smoke login 200 role=member' (($lr.StatusCode -eq 200) -and ($role -eq 'member')) `
@@ -116,6 +125,17 @@ if ($haveCreds) {
     } catch {
         Add-Check 'member-smoke login 200 role=member' $false ("login failed: {0}" -f $_.Exception.Message) `
             'If 429, wait a minute - the endpoint is 5/min per IP.'
+    } finally {
+        $sc = if ($ws) { $ws.Cookies.GetCookies('https://uctintelligence.com')['uct_session'] } else { $null }
+        if ($sc) {
+            try {
+                $null = Invoke-WebRequest -Uri 'https://uctintelligence.com/api/auth/logout' -Method Post `
+                          -WebSession $ws -TimeoutSec 30 -UseBasicParsing -Headers $ua
+            } catch {
+                [Console]::Error.WriteLine(("SIGN-OUT FAILED: member-smoke session {0}... : {1} -- it is still a live login; it must be revoked." -f `
+                    $sc.Value.Substring(0, [Math]::Min(6, $sc.Value.Length)), $_.Exception.Message))
+            }
+        }
     }
 } else { Add-Check 'member-smoke login 200 role=member' $false 'skipped - credentials absent' '' }
 

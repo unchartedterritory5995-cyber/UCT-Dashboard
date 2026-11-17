@@ -760,7 +760,12 @@ def main(argv=None) -> int:
         with sync_playwright() as pw:
             rq = pw.request.new_context(base_url=BASE, user_agent=UA)
             fcr._pace_login()
-            r = rq.post("/api/auth/login", data={"email": email, "password": password})
+            # tools/synthetic_session.py signs this session OUT when the run ends, however it ends.
+            try:
+                from tools import synthetic_session as S  # noqa: PLC0415 -- package import
+            except ImportError:
+                import synthetic_session as S  # noqa: PLC0415 -- script import (tools/ on sys.path)
+            r = S.sign_in_playwright(rq, BASE, credentials=(email, password)).response
             if r.status != 200:
                 say(f"INCONCLUSIVE: login http {r.status}")
                 return 2

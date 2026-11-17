@@ -311,9 +311,12 @@ def main(runs=1, label="GEX BEFORE", hook=None, out=None):
             ctx = b.new_context(user_agent=UA, viewport={"width": 1600, "height": 1000})
             try:
                 rig._pace_login()
-                r = ctx.request.post(BASE + "/api/auth/login",
-                                     data={"email": os.environ["MEMBER_SMOKE_EMAIL"],
-                                           "password": os.environ["MEMBER_SMOKE_PASSWORD"]})
+                # tools/synthetic_session.py signs this session OUT when the run ends, however it ends.
+                try:
+                    from tools import synthetic_session as S  # noqa: PLC0415 -- package import
+                except ImportError:
+                    import synthetic_session as S  # noqa: PLC0415 -- script import (tools/ on sys.path)
+                r = S.sign_in_playwright(ctx, BASE, "member_smoke").response
                 if r.status != 200:
                     print("  run %d: login http %s -> INCONCLUSIVE" % (i, r.status))
                     continue
