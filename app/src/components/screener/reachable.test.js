@@ -756,13 +756,8 @@ const AWAITING_A_DECISION = {
   'app/src/components/chart/engine/runtime/columnDigest.js':
     'Reached ONLY through serverEntry.js (the W5 T3 column codec, JS half; the Python half is '
     + 'api/services/pine_runtime_codec.py). Leaves this register with serverEntry.js.',
-  // Studio R5 (Indicators backlog 44), 2026-11-17: an engine export the Studio page's "Inspect a
-  // bar" is built against. ⏳ The decision owed: that page imports it (the entry goes in that
-  // commit), or it leaves this register with serverEntry.js.
-  'app/src/components/chart/engine/runtime/topLevelNames.js':
-    'Reached ONLY through serverEntry.js (Studio R5: a script\'s top-level names with their lines, '
-    + 'read by the engine\'s own lexer and statement splitter; rail __tests__/topLevelNames.test.js). '
-    + 'Its consumer is the Studio "Inspect a bar" page, not built yet.',
+  // ⚰️ `engine/runtime/topLevelNames.js` stood here until 2026-11-17 (Studio R5): "Inspect a bar" imports it
+  // (`builder/inspect/inspectDoors.js`), so it is reachable from the app and needs no entry.
   // ⚰️ `engine/headlessCompute.js` and `engine/referenceSeries.js` stood here until 2026-11-17 (Studio R6):
   // the share page now imports both to time a formula on the viewer's own device
   // (`pages/formulas/deviceDrawTime.js`), so they are reachable from the app and need no entry.
