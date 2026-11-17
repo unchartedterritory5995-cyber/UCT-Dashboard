@@ -86,8 +86,9 @@ describe('the rules are named, each with its capture row; the ledger pins every 
     expect(BROKER_RULES[rule].capture).toBe(row)
     expect(pinned(rule)).toBe(!UNPINNED.has(rule))
   })
-  it('the exit ids the captures witness are the three kinds `witnessedExitIdOf` names, each behind its own rule', () => {
-    expect(Object.values(WITNESSED_EXIT_ID_RULES).sort()).toEqual(['B-TXT-CLOSE-ALL-ID', 'B-TXT-CLOSE-ID', 'B-TXT-ENTRY-CLOSE-ID'])
+  it('the exit ids the captures witness are the four kinds `witnessedExitIdOf` names, each behind its own rule', () => {
+    // + the margin call's (2026-11-17): `Close position order`, behind B-MARGIN-CALL, the rule of the event itself
+    expect(Object.values(WITNESSED_EXIT_ID_RULES).sort()).toEqual(['B-MARGIN-CALL', 'B-TXT-CLOSE-ALL-ID', 'B-TXT-CLOSE-ID', 'B-TXT-ENTRY-CLOSE-ID'])
     for (const rule of Object.values(WITNESSED_EXIT_ID_RULES)) expect(Object.keys(BROKER_RULES)).toContain(rule)
   })
 })
@@ -365,6 +366,7 @@ describe('the exit texts the captures witness: strategy.closedtrades.exit_id / e
     expect(witnessedExitIdOf(row())).toEqual({ text: 'Close entry(s) order L', rule: 'B-TXT-CLOSE-ID' })
     expect(witnessedExitIdOf(row({ kind: 'close_all', from: null }))).toEqual({ text: 'Close position order', rule: 'B-TXT-CLOSE-ALL-ID' })
     expect(witnessedExitIdOf(row({ kind: 'entry', id: 'S', from: null }))).toEqual({ text: 'S', rule: 'B-TXT-ENTRY-CLOSE-ID' })
+    expect(witnessedExitIdOf(row({ kind: 'margin_call', from: null, comment: 'Margin call' }))).toEqual({ text: 'Close position order', rule: 'B-MARGIN-CALL' })
     // not witnessed: an entry with a comment, or one whose comment the script computes
     expect(witnessedExitIdOf(row({ kind: 'entry', id: 'S', comment: 'flip' }))).toBe(null)
     expect(witnessedExitIdOf(row({ kind: 'entry', id: 'S', commentRecorded: false }))).toBe(null)

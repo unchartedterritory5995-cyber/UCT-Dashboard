@@ -58,6 +58,28 @@ def test_a_missing_fixture_fails_it_never_silently_unpins():
         ee.resolve_pins(PINS, rows(fx_a="MATCH", fx_c="MATCH"), sources=SOURCES)
 
 
+def ledger_row(cid, production="INCONCLUSIVE"):
+    """The evidence ledger's OWN row for a capture (evidence_ledger.SCHEMA): the indicator harness's per-lane grade,
+    no top-level broker `verdict` (every one of the 972 committed rows on 2026-11-17 has this shape)."""
+    return {"schema": ee.LEDGER_SCHEMA, "captureId": cid, "sourceSha256": "sha-default", "rows": [],
+            "verdicts": {"production": {"verdict": production, "reason": "member door refused (pine:strategy-call)"},
+                         "runtime-on": None}}
+
+
+def test_the_indicator_harness_ledger_row_is_not_a_broker_verdict():
+    # 2026-11-17 (Q-S1i, B-MARGIN-CALL): w9-q-s1i-short-v6 carries such a row beside its MATCHing strategy verdict.
+    # Read as a broker row, its missing `verdict` was a non-MATCH and no capture promoted through it could pin.
+    r = ee.resolve_pins(PINS, rows(fx_a="MATCH", fx_b="MATCH", fx_c="MATCH") + [ledger_row("fx-b")], sources=SOURCES)
+    assert r["rules"] == {"B-PATH": ["fx-a", "fx-b"], "B-SIZE": ["fx-c"]}
+    # a ledger row with a top-level verdict is still read as one (fail closed: only the per-lane row is skipped)
+    r = ee.resolve_pins(PINS, rows(fx_a="MATCH", fx_b="MATCH", fx_c="MATCH") + [{**ledger_row("fx-b"), "verdict": "DIVERGE"}],
+                        sources=SOURCES)
+    assert "B-PATH" not in r["rules"]
+    # and a fixture with ONLY such a row has no committed verdict: an ERROR, never a pin and never a silent un-pin
+    with pytest.raises(ee.PinResolveError, match="fx-b"):
+        ee.resolve_pins(PINS, rows(fx_a="MATCH", fx_c="MATCH") + [ledger_row("fx-b")], sources=SOURCES)
+
+
 @pytest.mark.parametrize("bad", [[], "fx-a", [""], None])
 def test_a_malformed_fixture_list_fails(bad):
     with pytest.raises(ee.PinResolveError):
@@ -227,9 +249,14 @@ def sv(cid="core", verdict="MATCH", exercised=("B-MARKET", "B-PATH"), fills=True
 def test_u14_rule_vocabulary_is_read_off_brokerRules():
     # 51 since 2026-11-16: B-PYR-PRICE (Q-S1g, a value witness; strategiesAreRuled.test.js pins the same count)
     # 52 since 2026-11-16: B-FUNDS (Q-S1i, the report capture w9-q-s1a-size-v6)
-    assert len(BROKER_RULE_IDS) == 52 and "B-MARKET" in RULE_IDS and "MK-LOOK" in RULE_IDS
+    # 54 since 2026-11-17: B-FUNDS-SHORT and B-MARGIN-CALL (Q-S1i, the report capture w9-q-s1i-short-v6)
+    # 58 since 2026-11-17: B-QTY-REVERSE, B-FUNDS-REVERSE, B-MARGIN-CALL-ALL, B-ENTRY-ORDER (w9-q-s1b-defaults-v6)
+    # 59 since 2026-11-17: B-V3 (Pine v2 / v3, w9-q-s1a-size-v2 and w9-g1-v3-properties)
+    assert len(BROKER_RULE_IDS) == 59 and "B-MARKET" in RULE_IDS and "MK-LOOK" in RULE_IDS
     assert "B-ROUND" in RULE_IDS and "B-TXT-CLOSE-ID" in RULE_IDS and "B-PYR-PRICE" in RULE_IDS
     assert "B-FUNDS" in RULE_IDS
+    assert "B-FUNDS-SHORT" in RULE_IDS and "B-MARGIN-CALL" in RULE_IDS
+    assert {"B-QTY-REVERSE", "B-FUNDS-REVERSE", "B-MARGIN-CALL-ALL", "B-ENTRY-ORDER", "B-V3"} <= set(RULE_IDS)
 
 
 def test_u14_a_match_that_exercised_the_rule_pins_it():

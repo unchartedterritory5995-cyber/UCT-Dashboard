@@ -40,7 +40,7 @@ export const BROKER_RULES = Object.freeze({
   'B-EXIT-LIFE': Object.freeze({ capture: 'Q-S1-core', what: 'how long an exit lives' }),
   'B-EXIT-NA': Object.freeze({ capture: 'Q-S1-core', what: 'an exit with every level na places nothing' }),
   'B-FIFO': Object.freeze({ capture: 'Q-S1-core', what: 'exits close the oldest trades first' }),
-  'B-MARGIN': Object.freeze({ capture: 'Q-S1i', what: 'the margin check (a margin call is never modelled)' }),
+  'B-MARGIN': Object.freeze({ capture: 'Q-S1i', what: 'the margin check (a margin call is served only on the shape B-MARGIN-CALL names; any other refuses)' }),
   // the order arguments and the declaration
   'B-SIG': Object.freeze({ capture: 'Q-S1-core', what: 'positional order arguments follow the Pine version\'s signature' }),
   'B-WHEN': Object.freeze({ capture: 'Q-S1p', what: 'the `when` argument (v4, and v5)' }),
@@ -104,6 +104,17 @@ export const BROKER_RULES = Object.freeze({
   'B-PYR-PRICE': Object.freeze({ capture: 'Q-S1g', what: 'a price (stop / limit) entry whose level is reached while the position is at the pyramiding limit does not execute, then or later: it is not kept waiting' }),
   // ── 2026-11-16, Q-S1i answered by a committed report capture (w9-q-s1a-size-v6). APPENDED, never inserted.
   'B-FUNDS': Object.freeze({ capture: 'Q-S1i', what: 'with no position open, a long market strategy.entry sized by the percent-of-equity default at 100, at a long margin of 100%, that would need more than the equity at its fill price is rejected: no trade, no smaller size, not kept waiting' }),
+  // ── 2026-11-17, Q-S1i's SHORT answered by a committed report capture (w9-q-s1i-short-v6). APPENDED, never inserted.
+  'B-FUNDS-SHORT': Object.freeze({ capture: 'Q-S1i', what: 'with no position open, a short market strategy.entry sized by the percent-of-equity default at 100, at a short margin of 100%, that would need more than the equity at its fill price is rejected: no trade, no smaller size, not kept waiting' }),
+  'B-MARGIN-CALL': Object.freeze({ capture: 'Q-S1i', what: 'one open short trade at a short margin of 100% whose Available Funds fall below zero on a tick of the bar (its open after the open\'s fills, then each path vertex) is margin-called there: the User Manual\'s size (TRUNCATE(Available Funds / Margin Ratio / price) x 4) is bought back at that tick rounded to the nearest tick, closing part of the trade; its exit id reads "Close position order" and its exit comment "Margin call"' }),
+  // ── 2026-11-17, the reversal at the v6 default answered by a committed report capture (w9-q-s1b-defaults-v6). APPENDED.
+  'B-QTY-REVERSE': Object.freeze({ capture: 'Q-S1a', what: 'a market strategy.entry against every open trade (a reversal) at the percent-of-equity default 100, margins 100: the new size is floor(strategy.equity at the signal close, the open trades\' profit included, / that close); the order fills the open size plus it' }),
+  'B-FUNDS-REVERSE': Object.freeze({ capture: 'Q-S1i', what: 'such a reversal whose new size x fill price exceeds the equity it was sized from (the signal close\'s) is rejected whole: nothing closes, nothing opens, not kept waiting' }),
+  'B-MARGIN-CALL-ALL': Object.freeze({ capture: 'Q-S1i', what: 'a margin call whose manual size exceeds the trade closes the whole trade' }),
+  'B-ENTRY-ORDER': Object.freeze({ capture: 'Q-S1d', what: 'several market strategy.entry orders (and nothing else) on one opening tick are taken in the order the script placed them, each against the position the one before left; served while every one before the last fills nothing' }),
+  // ── 2026-11-17, Pine v2 / v3 strategies from the two committed v2 / v3 report captures (w9-q-s1a-size-v2,
+  // w9-g1-v3-properties). APPENDED, never inserted.
+  'B-V3': Object.freeze({ capture: 'W9-G1', what: 'a Pine v2 / v3 strategy: strategy.entry(id, direction) and strategy.close(id), by position, with a named `when`, and the Properties read back for those versions (fixed size 1, initial capital 100,000, pyramiding 1, no commission or slippage, no margin input: a position worth more than the equity refuses)' }),
 })
 
 export const BROKER_RULE_IDS = Object.freeze(Object.keys(BROKER_RULES))
