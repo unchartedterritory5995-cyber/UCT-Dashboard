@@ -3893,10 +3893,10 @@ w2-warmup-spy-12m-2026-09-22                 SPY 12M          14     MATCH      
     W13_cum_close_FROM_BAR0                  MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
     W14_sma1_DEGENERATE_WINDOW               MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
 
-TOTAL 863 captures — MATCH 207 · DIVERGE 72 · INCONCLUSIVE 584
-WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 119 captures) — MATCH 207 · DIVERGE 72 · INCONCLUSIVE 584
+TOTAL 866 captures — MATCH 207 · DIVERGE 74 · INCONCLUSIVE 585
+WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 119 captures) — MATCH 207 · DIVERGE 74 · INCONCLUSIVE 585
 CHANGED BY OBJECT COLOUR (0): none
-WITHOUT PAINTS (the verdict before B1; paints graded on 36 captures) — MATCH 208 · DIVERGE 72 · INCONCLUSIVE 583
+WITHOUT PAINTS (the verdict before B1; paints graded on 36 captures) — MATCH 208 · DIVERGE 74 · INCONCLUSIVE 584
 CHANGED BY PAINTS (1): vw-bgcolor-barcolor-spy-1d-2026-10-02 MATCH → INCONCLUSIVE
 ```
 

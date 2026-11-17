@@ -126,7 +126,7 @@ atr-support-and-resistance-rddt-1d-2026-09-2 NYSE:RDDT 1D     9      MATCH      
     Moving Average                           MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 60 paired slots; coordinates are NOT compared by v1
     paints                                   MATCH         4 paints agree bar for bar
-atr-support-and-resistance-spy-1d-2026-10-03 AMEX:SPY 1D      9      INCONCLUSIVE      1 of 11 items could not be compared
+atr-support-and-resistance-spy-1d-2026-10-03 AMEX:SPY 1D      9      MATCH             all 11 items agree
     Impulse Up                               MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Impulse Down                             MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     RSI Mid Line Support                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
@@ -136,7 +136,7 @@ atr-support-and-resistance-spy-1d-2026-10-03 AMEX:SPY 1D      9      INCONCLUSIV
     Ran Previous High                        MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Ran Previous Low                         MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Moving Average                           MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
-    objects                                  INCONCLUSIVE  our boxes are withheld by name (objects:count-at-cap: No box is shown on this chart: the script holds more of them than its maximum count, and TradingView describes that count as approximate (more drawings than the specified count may be displayed), so which of the oldest ones TradingView still shows is not known here; none are drawn rather than a guess.); every other object family's counts and texts agree
+    objects                                  MATCH         object counts and texts agree; colours agree on 414 paired slots; coordinates are NOT compared by v1
     paints                                   MATCH         4 paints agree bar for bar
 atr-trailing-stop-by-ceyhun-rddt-1d-2026-10- NYSE:RDDT 1D     4      MATCH             all 6 items agree
     Fast Trail                               MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
@@ -4560,10 +4560,10 @@ w2-warmup-spy-12m-2026-09-22                 SPY 12M          14     MATCH      
     W13_cum_close_FROM_BAR0                  MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
     W14_sma1_DEGENERATE_WINDOW               MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
 
-TOTAL 863 captures — MATCH 278 · DIVERGE 68 · INCONCLUSIVE 503 · MATCH_SUBSTITUTED 14 (verified with substituted inputs; never counted as MATCH)
-WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 177 captures) — MATCH 278 · DIVERGE 68 · INCONCLUSIVE 503
+TOTAL 866 captures — MATCH 279 · DIVERGE 68 · INCONCLUSIVE 503 · MATCH_SUBSTITUTED 16 (verified with substituted inputs; never counted as MATCH)
+WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 180 captures) — MATCH 279 · DIVERGE 68 · INCONCLUSIVE 503
 CHANGED BY OBJECT COLOUR (0): none
-WITHOUT PAINTS (the verdict before B1; paints graded on 63 captures) — MATCH 279 · DIVERGE 67 · INCONCLUSIVE 503
+WITHOUT PAINTS (the verdict before B1; paints graded on 63 captures) — MATCH 280 · DIVERGE 67 · INCONCLUSIVE 503
 CHANGED BY PAINTS (2): vw-bgcolor-barcolor-spy-1d-2026-10-02 MATCH → INCONCLUSIVE; vw-deadband-ticks-brk-a-1d-2026-09-28 INCONCLUSIVE → DIVERGE
 ```
 

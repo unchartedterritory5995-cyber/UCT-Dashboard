@@ -118,3 +118,36 @@ and 19 probes newly graded in the regen are on. Members lose 9 member scripts (a
 average-day-range-adr-pivots, contraction-box-doji-lines, ema-ribbon-trend-filter-strixedge, heat-map-seasons,
 htf-candle-footprint-cartel-console, htf-liquidity-dashboard-tfo, position-size-calc, vold-market-breadth); the other 20
 are probes. Ratchet (`--rows` from the same run): production 59, runtime-on 91, both PASS.
+
+## Round 5: re-derived on the engine-68 tree (coordinator, after push 2 went red)
+
+Push 2's verdicts were regenerated on the engine-67 tree (before #1556's box GC). Merged origin/master (engine 68, `60a9774f6a`),
+the NUMBER PENDING line resolved onto 68, and everything re-derived on that tree (merge `c7a24b4790`):
+
+- **Verdicts**: pine-heavy dispatched on the merge commit (run 44025598931, `ref` = the SHA, pushed to a refs/remote-tests ref
+  so nothing else triggered): production and runtime-on 866 graded each. The licence-held capture CI cannot read
+  (`supertrend-kivancozbilgic-rddt-1d-2026-10-02`, licence-held.json) was graded locally on the same tree from the capture
+  store (INCONCLUSIVE on both lanes, as on master) and spliced in under its canonical path: 867 per lane. Moves against
+  master's committed files: this unit's two RS rows, and master's own (sessions-rddt, vw-time-session-spy x4,
+  ict-killzone-index-version-rddt; runtime-on also inside-bar-boxes-rddt and mtf-key-levels rddt/spy DIVERGE -> INCONCLUSIVE,
+  volatility-trend-score plot moves). atr-support-and-resistance-spy does NOT move on engine 68.
+- **Host list**: `host_divergence --check` AGREES 29/29. **Ratchet** (`--rows` from the same run): production 59, runtime-on 91.
+- **The four reds, each decided from the regenerated evidence**:
+  - `test_A7_obj_box_is_admitted_with_the_count_at_cap_carve_out`: RAIL CHANGED. On engine 68 the subject
+    (inside-bar-boxes-rddt-1d-2026-11-14) is graded "our boxes are withheld by name (objects:count-at-cap ...)", 0 paired;
+    "boxes count of boxes held - vendor 52, ours 50" was the engine-66 run that drew 50. The reference no longer supports the
+    old reading; the TradingView side (52 records, ids 107..158) and every other assertion stand.
+  - `test_DRAW1_every_newly_admitted_object_script_with_a_DIVERGE_capture_is_killed`: RECORD FIXED (kill list). Four
+    newly graded probes admitted by obj:table grade DIVERGE (table cells): vw-h5-format-volume (18 vs 34), vw-w3-format-date
+    (0 vs 6), vw-w3-loop-helper-text (0 vs 8), vw-w3-str-repeat-length (0 vs 8). Each is killed with its evidence capture.
+  - `test_REACH_the_committed_reach_run_is_the_committed_registrys`: RECORD FIXED (reach run). `runs/report.json` re-derived
+    by the tool's three steps (input with the cov-e60 cache, `capabilityAdmission.measure.test.js CAPADMIT_MODE=admission`,
+    report). The first pass showed three new runtime-lane stops (vw-imp-change-before-reassign 316 bars, vw-w4-series-length
+    and its v4 twin, one bar of stdev residue); by the REACH stop rule each is killed, and the re-run's only stop is
+    vw-deadband-ticks-brk-a (WITHHELD_WHOLE). 52 runtime-lane MATCH, matchToDiverge empty.
+  - `capabilityEvidenceLane.test.js` (supertrend: host): RECORD FIXED (verdicts). The capture was never removed from the
+    harness: it is licence-held, so CI's regeneration cannot grade it; it is graded locally and spliced (above).
+- **Rails, local on the merged tree with the licence-held store** (one lock hold): test_pine_capability_admission.py 138 passed
+  (0 skipped); test_pine_host_known_divergence + test_queue_dispositions 26 passed; capabilityEvidenceLane.test.js 490 passed.
+- `pinePresentation.test.js` (RS Rating Inputs tab, red in the dispatched run) is red on master itself (remote-tests run
+  44027874723 on refs/heads/master): not this unit.

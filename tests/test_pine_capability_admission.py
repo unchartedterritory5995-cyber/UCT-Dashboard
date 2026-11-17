@@ -462,12 +462,17 @@ def test_A7_obj_box_is_admitted_with_the_count_at_cap_carve_out():
     assert "obj:box" in doc["capabilities"] and "obj:box" in rt.admitted_capabilities()["admitted"]
     readme = " ".join(doc["_readme"])
     assert "objects:count-at-cap" in readme and OBJ_BOX_COUNT_CAPTURE in readme
-    # the reading the carve-out rests on: the capture's own grade names the count, and only the count
+    # the reading the carve-out rests on: TradingView holds 52 boxes at a cap of 50 (the capture, below), and the run
+    # WITHHOLDS the box family by name there. ⭐ Engine 68 (#1556: count-at-cap withholds only the shape no capture
+    # witnesses) — re-graded on the engine-68 tree (feat/pine-host-known-divergence), the grade no longer reads "boxes
+    # count of boxes held — vendor 52, ours 50" (the engine-66 run that drew 50): our boxes are withheld by name, and
+    # every other family's counts and texts agree
     r = _verdicts()[OBJ_BOX_COUNT_CAPTURE]
     o = r["objectsV2"]
-    assert "boxes count of boxes held" in o["reason"] and "vendor 52, ours 50" in o["reason"], o["reason"]
+    assert "our boxes are withheld by name (objects:count-at-cap" in o["reason"], o["reason"]
+    assert "every other object family's counts and texts agree" in o["reason"], o["reason"]
     boxes = next(f for f in o["families"] if f["family"] == "boxes")
-    assert boxes["paired"] == 50 and boxes["differing"] == 0, boxes
+    assert boxes["paired"] == 0 and boxes["differing"] == 0, boxes
     cap = json.loads((ROOT / r["file"]).read_text(encoding="utf-8"))
     tv = [b["id"] for b in cap["objects"]["records"]["boxes"]]
     assert len(tv) == 52 and tv == list(range(107, 159)), tv[:3]
