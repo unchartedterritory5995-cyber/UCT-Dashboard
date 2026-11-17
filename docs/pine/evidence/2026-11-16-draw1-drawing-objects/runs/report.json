@@ -4,8 +4,8 @@
    "scripts": 749,
    "admitted": 383,
    "runtimeLane": 53,
-   "hostLane": 220,
-   "refused": 110,
+   "hostLane": 221,
+   "refused": 109,
    "coreOnly": 35
   },
   "committed": {
@@ -863,7 +863,7 @@
   },
   {
    "capture": "ict-killzone-index-version-rddt-1d-2026-11-14",
-   "lane": null,
+   "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
