@@ -213,9 +213,10 @@ def test_D1_the_save_SWITCH_is_still_asked_first(store, monkeypatch):
 #: RS Rating (fred6724), admitted 2026-11-16 on the SUBSTITUTED path (three MATCH_SUBSTITUTED captures,
 #: `syminfo.industry` answered from UCT data and disclosed): docs/pine/RS-RATING-TRANSFER.md.
 RS_RATING_HASH = "caa94fe31a8788c0f52ca571dbb1b3f8a7499dae913ed5e710720fc8662c5af0"
-#: its captures: the three at the defaults (Q-RS8 re-takes), then each settings set (A, B, C: the colours) on RDDT and ALAB
+#: its captures: the three at the defaults (Q-RS8 re-takes), then each settings set (A, B, C: the colours, D: the
+#: comparison symbol) on RDDT and ALAB
 RS_CAPTURES = ([f"rs-rating-fred6724-{s}-1d-2026-11-16" for s in ("rddt", "alab", "crwv")]
-               + [f"rs-rating-fred6724-{v}-{s}-1d-2026-11-16" for v in ("seta", "setb", "setc") for s in ("rddt", "alab")])
+               + [f"rs-rating-fred6724-{v}-{s}-1d-2026-11-16" for v in ("seta", "setb", "setc", "setd") for s in ("rddt", "alab")])
 
 
 def test_D6_the_committed_allowlist_holds_ONLY_adx_and_di_for_v4():
