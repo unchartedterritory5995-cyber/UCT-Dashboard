@@ -112,13 +112,19 @@ MAX_TOKENS: int = 8192
 #: the byte bound `budget.worst_case_usd` uses for text does not apply to it.
 IMAGE_TOKENS_WORST: int = 4784
 
-#: The most this call's fixed prompt can bill: its 33,166 bytes (system, tool schema, framing of the user
-#: turn) at an ASSUMED 2 bytes a token, plus `budget.FRAMING_TOKENS`: about $0.332 a call, against the $0.467
-#: a token per byte reserved. ⛔ The 2 is a conservative assumption, not a measurement: no live call is allowed
+#: The most this call's fixed prompt can bill: its bytes (system, tool schema, framing of the user turn) at an
+#: ASSUMED 2 bytes a token, plus `budget.FRAMING_TOKENS`.
+#: RE-MEASURED 2026-11-16: the request is 35,732 bytes (it was 33,166 when this was first pinned; the function
+#: table in the prompt grows with the engine), so the bound is 17,866 + 4,000 = 21,866 tokens. Pinned at 23,000:
+#: 1,134 tokens of headroom, about 2,270 more bytes of prompt (6%) before the test fails again. That is about
+#: $0.344 a call, against the $0.453 a token per byte reserves.
+#: ⚠️ MEMBER-FACING: at $0.344 a member's `MEMBER_VISION_USD` holds TWO worst-case reservations, where at the
+#: old $0.332 it held three. It only bites on calls that time out (a call that answers settles at its real,
+#: far smaller cost). Raising the member figure is the owner's decision. ⛔ The 2 is a conservative assumption, not a measurement: no live call is allowed
 #: here, so no provider token count exists. 3 bytes a token left only 45 tokens of slack and held only at
 #: 2.3 bytes a token or more, so it was not a proven bound. Replace it with a count if one is ever made.
 #: `tests/test_vision_spend_containment.py` fails if the prompt outgrows it.
-PROMPT_TOKENS_WORST: int = 20_600
+PROMPT_TOKENS_WORST: int = 23_000
 
 #: One member's hard daily ceiling on the $4 interactive lane. A fixed figure on purpose: as a fraction of the
 #: lane it would rise whenever the lane did. Without it, one member's timeouts could drain the lane for everyone.
