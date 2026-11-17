@@ -27,7 +27,7 @@
 // the formula editor shows them. (Checked against the fourteen house indicators, 2026-11-17: these
 // rules leave their lengths, levels and multiples and nothing else.)
 
-import { parameterSlots, outputTrees, nodeAt, parsePath } from './slots'
+import { slotsOfTree, outputTrees, nodeAt, parsePath } from './slots'
 import { nameOfTree } from './derivedName'
 import { PATCH_CONTRACT, PATCH_LIMITS } from './patchValidate'
 import { collapseExpansions } from '../../engine/ast/callExpansions'
@@ -82,9 +82,18 @@ function captionOf(parent, node) {
  */
 export function settingsOf(def) {
   if (!isObj(def)) return []
-  const trees = new Map(outputTrees(def).map((o) => [o.key, collapseExpansions(o.tree)]))
+  return settingsOfTrees(outputTrees(def))
+}
+
+/**
+ * The same, over bare trees: `[{key, tree}]` in plot order. The New formula window's form holds
+ * formulas, not a definition, and derives its Inputs from them with this.
+ */
+export function settingsOfTrees(list) {
+  const outputs = (Array.isArray(list) ? list : []).filter((o) => o && typeof o.key === 'string' && isObj(o.tree))
+  const trees = new Map(outputs.map((o) => [o.key, collapseExpansions(o.tree)]))
   const groups = new Map()
-  for (const slot of parameterSlots(def)) {
+  for (const slot of outputs.flatMap((o) => slotsOfTree(o.key, o.tree))) {
     if (slot.kind !== 'number' || typeof slot.value !== 'number' || !Number.isFinite(slot.value)) continue
     const tree = trees.get(slot.output)
     const segs = parsePath(slot.path)

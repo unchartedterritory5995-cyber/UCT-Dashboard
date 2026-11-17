@@ -44,7 +44,9 @@ import { stampSemantics } from '../engine/definitionSemantics'
 import { memberError, memberSaveError, conversationEditability, memberRefusal, chartRefusalWords } from './authoring/memberWords'
 import { logStudioAction, definitionKinds, clientFailureOf } from './authoring/studioTelemetry'
 import { outputNamer } from './authoring/readback'
-import { nameFromAssistant } from './authoring/authoringSession'
+import { nameFromAssistant, settingTurn } from './authoring/authoringSession'
+import { settingsOf } from './authoring/derivedSettings'
+import SettingsFields from './studio/SettingsFields'
 import { keepAssistantName } from './authoring/readableName'
 import { renamePatch } from './authoring/memberNamePatch'
 import { ackCheckboxText } from './authoring/repaintWarning'
@@ -294,6 +296,22 @@ export default function ConverseBox({
     say({ role: 'uct', kind: 'undo', lines: ['Undid the last change.', ...readback(next.working, next, gateCtx).lines] })
   }, [commit, say, gateCtx])
 
+  // ⭐ SETTINGS (2026-11-17) — the tunable numbers of the indicator this conversation built, derived
+  // from its own formula and stored nowhere (`authoring/derivedSettings.js`). One number set from
+  // its field is the ordinary slot edit: no request to the assistant, one Undo step.
+  const numberSettings = useMemo(() => settingsOf(state.working), [state.working])
+  const setNumber = useCallback((setting, value) => {
+    const cur = stateRef.current
+    if (busy || saving || !cur.working) return { ok: false }
+    const out = settingTurn(cur, setting, value, { gateCtx })
+    if (!out.ok) return out
+    commit(out.state)
+    setPartial(null)
+    setAcked(false)
+    for (const e of out.entries) say(e)
+    return out
+  }, [busy, saving, commit, say, gateCtx])
+
   const openEditing = useCallback(() => {
     if (!editing || !editing.prior) return
     const next = openAuthoringState(editing.prior, { defId: editing.defId, version: editing.version })
@@ -380,10 +398,11 @@ export default function ConverseBox({
   // ⭐ SLICE 2 — HOSTED: the sheet footer is the ONE primary save. It shows this
   // conversation's commit while the conversation has unsaved changes.
   const hosted = typeof onCommitState === 'function'
-  useLayoutEffect(() => { if (commitRef) commitRef.current = { save } })
+  useLayoutEffect(() => { if (commitRef) commitRef.current = { save, setNumber } })
   useEffect(() => {
-    if (hosted) onCommitState({ dirty: unsaved, canSave, saving, label: saveLabel, name: workingName })
-  }, [hosted, onCommitState, unsaved, canSave, saving, saveLabel, workingName])
+    // `numbers`: the indicator's own settings, so the host's Inputs tab counts and shows them
+    if (hosted) onCommitState({ dirty: unsaved, canSave, saving, label: saveLabel, name: workingName, numbers: numberSettings })
+  }, [hosted, onCommitState, unsaved, canSave, saving, saveLabel, workingName, numberSettings])
   useEffect(() => () => { if (hosted) onCommitState(null) }, [hosted, onCommitState])
 
   return (
@@ -475,6 +494,11 @@ export default function ConverseBox({
           <div style={S.head}>What will run (from the definition itself)</div>
           <ul style={S.list}>{rb.lines.map((l, i) => <li key={i}>{l}</li>)}</ul>
         </div>
+      )}
+
+      {/* ⭐ every length, level and multiple of what was built, as a field (the preview below follows) */}
+      {state.working && (
+        <SettingsFields settings={numberSettings} onSet={setNumber} disabled={busy || saving} label="Numbers in this indicator" />
       )}
 
       {state.working && (
