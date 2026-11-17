@@ -135,11 +135,17 @@ def _snapshot_key(c: dict):
 
 
 @router.post("/options-quotes")
-async def options_quotes_batch(contracts: list[dict]):
+async def options_quotes_batch(contracts: list[dict], _auth: dict = Depends(require_flow_user)):
     """
     Fetch current prices for multiple option contracts.
     Body: [{"symbol":"AAPL","strike":250,"expDate":"2026-03-20","cp":"C"}, ...]
     Falls back to Unusual Whales for contracts Schwab can't price.
+
+    Signed-in session or service token (`require_flow_user`, since 2026-11-17; the
+    route had no check of its own). Its HTTP callers are same-origin fetches from
+    the Options Flow page, which is behind the sign-in guard. `_auth` is unused
+    in the body, so the in-process call in api/oi_snapshots.py
+    (`options_quotes_batch(payload)`) is unaffected.
     """
     results = await schwab.get_batch_option_quotes(contracts)
     # ── UW fallback for failed contracts ──

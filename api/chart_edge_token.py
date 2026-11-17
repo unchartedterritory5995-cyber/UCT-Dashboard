@@ -76,8 +76,15 @@ COOKIE_PATH = "/api/bars"
 #: (`tests/test_chart_edge_token.py` reads both).
 HIST_COOKIE_PATH = "/api/hist"
 
+#: ⭐ THE LIVE CHART STREAM (2026-11-17, docs/plans/2026-11-17-stream-edge.md). `/api/stream/bars` is
+#: served by the stream-edge service, which has no session database: it admits a member by this same
+#: signed token (api/stream_edge_main.py `edge_access`). Exactly that one path: the token never reaches
+#: `/api/stream/prices` or any other stream. Until the edge routes the path to stream-edge, web answers
+#: it with the member's session as always and the extra cookie is ignored.
+STREAM_COOKIE_PATH = "/api/stream/bars"
+
 #: Every path the entitlement cookie is issued AND revoked on (auth.py `_set_chart_edge_cookie`).
-COOKIE_PATHS = (COOKIE_PATH, HIST_COOKIE_PATH)
+COOKIE_PATHS = (COOKIE_PATH, HIST_COOKIE_PATH, STREAM_COOKIE_PATH)
 
 #: Entitlement class — WHO the bearer is, not what they may read.
 #:

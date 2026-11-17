@@ -105,9 +105,16 @@ const manifestEntry = (out) => {
   return Object.values(m).find((e) => e.isEntry && e.src === 'index.html')?.file || ''
 }
 
+// ⛔ The admin session this tool opens is ALWAYS signed out (2026-11-17: 301 live smoke sessions were
+// left behind by tools that never did): `signOut` runs in the `finally` around the work below and on
+// Ctrl-C. A failed sign-out is printed on stderr with the session id's first 6 characters, never the
+// cookie. The Python tools do the same through tools/synthetic_session.py.
+let signOut = async () => {}
+
 // getMap(chunk) -> the parsed map, or null when this build has no such chunk.
 async function productionMaps() {
   if (!process.env.SMOKE_EMAIL || !process.env.SMOKE_PASSWORD) throw new Error('SMOKE_EMAIL / SMOKE_PASSWORD are not set')
+  if (!process.env.SMOKE_EMAIL.trim().toLowerCase().endsWith('@uctintelligence.internal')) throw new Error('SMOKE_EMAIL is not a @uctintelligence.internal address; refusing to sign in')
   const UA = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) uct-resolve-client-error' }
   const login = await fetch(`${SITE}/api/auth/login`, {
     method: 'POST', headers: { ...UA, 'Content-Type': 'application/json' },
@@ -115,6 +122,20 @@ async function productionMaps() {
   })
   if (!login.ok) throw new Error(`admin sign-in refused (${login.status})`)
   const cookie = login.headers.getSetCookie().map((c) => c.split(';')[0]).join('; ')
+  const sid = (/(?:^|; )uct_session=([^;]{6})/.exec(cookie) || [])[1] || '?'
+  signOut = async () => {
+    signOut = async () => {}
+    try {
+      const r = await fetch(`${SITE}/api/auth/logout`, { method: 'POST', headers: { ...UA, Cookie: cookie } })
+      if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    } catch (e) {
+      console.error(`SIGN-OUT FAILED: session ${sid}... on ${SITE}: ${e.message}. It is still a live admin login; it must be revoked.`)
+    }
+  }
+  process.once('SIGINT', () => { signOut().finally(() => process.exit(130)) })
+  const me = await fetch(`${SITE}/api/auth/me`, { headers: { ...UA, Cookie: cookie } })
+  const who = me.ok ? ((await me.json()).user?.email || '') : ''
+  if (who.trim().toLowerCase() !== process.env.SMOKE_EMAIL.trim().toLowerCase()) throw new Error(`/api/auth/me answered ${me.status} for a different or no account`)
   console.log(`production build ${await liveBuildId()} (its own source maps)`)
   return async (chunk) => {
     const r = await fetch(`${SITE}/api/admin/client-errors/sourcemap/${encodeURIComponent(chunk)}`, { headers: { ...UA, Cookie: cookie } })
@@ -142,16 +163,20 @@ async function rebuiltMaps() {
   }
 }
 
-const getMap = argv.includes('--rebuild') ? await rebuiltMaps() : await productionMaps()
-const consumers = new Map()
-for (const f of frames) {
-  if (!consumers.has(f.chunk)) {
-    const m = await getMap(f.chunk)
-    consumers.set(f.chunk, m ? new SourceMapConsumer(m) : null)
+try {
+  const getMap = argv.includes('--rebuild') ? await rebuiltMaps() : await productionMaps()
+  const consumers = new Map()
+  for (const f of frames) {
+    if (!consumers.has(f.chunk)) {
+      const m = await getMap(f.chunk)
+      consumers.set(f.chunk, m ? new SourceMapConsumer(m) : null)
+    }
+    const c = consumers.get(f.chunk)
+    if (!c) { console.log(`  ${f.chunk}:${f.line}:${f.col}  ->  (not in this build: the report came from an earlier build)`); continue }
+    const p = c.originalPositionFor({ line: f.line, column: f.col - 1 })
+    const where = p.source ? `${p.source.replace(/^(\.\.\/)+/, '')}:${p.line}:${p.column + 1}${p.name ? ` (${p.name})` : ''}` : '(no source mapping at that position)'
+    console.log(`  ${f.chunk}:${f.line}:${f.col}  ->  ${where}`)
   }
-  const c = consumers.get(f.chunk)
-  if (!c) { console.log(`  ${f.chunk}:${f.line}:${f.col}  ->  (not in this build: the report came from an earlier build)`); continue }
-  const p = c.originalPositionFor({ line: f.line, column: f.col - 1 })
-  const where = p.source ? `${p.source.replace(/^(\.\.\/)+/, '')}:${p.line}:${p.column + 1}${p.name ? ` (${p.name})` : ''}` : '(no source mapping at that position)'
-  console.log(`  ${f.chunk}:${f.line}:${f.col}  ->  ${where}`)
+} finally {
+  await signOut()
 }

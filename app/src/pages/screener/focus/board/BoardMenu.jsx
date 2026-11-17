@@ -25,7 +25,10 @@ export function BoardMenu({ board, api, onSaveAs, onCommunity = null, onShare = 
     )
   }
   return (
-    <Menu label="Layout" trigger={<>Layout <span aria-hidden="true">▾</span></>} align="right" width={290} testId="board-menu">
+    <Menu label="Layout" align="right" width={290} testId="board-menu"
+      /* An admin with shared layouts to review sees the count on the button itself, so one waiting
+         is not missed until the menu happens to be opened. Grey: it is a count, not a selection. */
+      trigger={<>Layout{reviewCount > 0 && <span className={s.reviewCount} title={`${reviewCount} shared ${reviewCount === 1 ? 'layout' : 'layouts'} to review`} data-testid="board-review-count">{reviewCount}</span>} <span aria-hidden="true">▾</span></>}>
       <MenuHeading>Presets</MenuHeading>
       {PRESETS.map(item)}
       {board.mine.length > 0 && <MenuHeading>My layouts</MenuHeading>}

@@ -57,8 +57,21 @@ WALL_MAX_DIST_PCT = float(os.environ.get("GEX_WALL_MAX_DIST_PCT", "15.0"))
 
 
 # ── Chain source (LCQ-02, 2026-09-29) ─────────────────────────────────────────
-# GEX has read Schwab's /chains through a personal retail login, which is not a licence to
-# redisplay to members; the licensing register's remedy (LCQ-02) is to re-source from Massive.
+# LICENSING POSITION ON RECORD (comment corrected 2026-11-17; no new ruling is made here). Until
+# then this comment said the Schwab read was not licensed for member display. That contradicted
+# the record: the owner approved showing Schwab-sourced option data to members. Licensing
+# register rows T-77 / T-78 (scenario LA):
+# "ANSWERED BY THE OWNER 2026-09-19: Schwab confirmed — Commercial/Redistribution tier with
+# display to non-account-holders"; ESC-10: "CLOSED AND APPROVED BY THE OWNER 2026-09-26"
+# (docs/terminal-research/09-security-licensing-cost/licensing-register.md); owner, verbatim,
+# 2026-09-26: "consider finnhub and schwab closed and approved"
+# (docs/terminal-research/12-decisions/DECISION_CARDS_2026-09-26.md). The agreement document
+# itself is NOT captured in this repo. Still restricted, and not loosened by any of this:
+# Schwab-derived GEX inside PUBLIC recordings (T-79, class R, pending T-18).
+# The register's old remedy, re-sourcing the chain from Massive (its A8), was "RETIRED
+# 2026-09-19: ESC-10 answered". So GEX_CHAIN_SOURCE is NOT a licence gate. It only picks which
+# chain the arithmetic below reads: `schwab` is the code default and the rollback, `massive` is
+# what production runs, `shadow` compares the two.
 # Measured 2026-09-29 against our own Massive key: the options snapshot carries greeks, IV and
 # OI on 88/88 near-the-money SPY contracts. `massive` builds a chain in SCHWAB'S OWN SHAPE
 # (callExpDateMap / putExpDateMap keyed "YYYY-MM-DD:dte" -> strike -> [contract]) so every line

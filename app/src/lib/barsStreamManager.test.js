@@ -359,3 +359,26 @@ describe('delivering = a DEVELOPING frame, never past finals alone (2026-11-17, 
     expect(bars.getStatus('AAPL', '1').delivering).toBe(true)
   })
 })
+
+describe('edge entitlement refresh (stream-edge, 2026-11-17)', () => {
+  it('re-mints the edge cookie every EDGE_REFRESH_MS while a stream is open, and stops after', () => {
+    vi.useFakeTimers()
+    const fetchSpy = vi.fn(() => Promise.resolve({ ok: true }))
+    const saved = global.fetch
+    global.fetch = fetchSpy
+    try {
+      const unsub = bars.subscribe('AAPL', '1', {})
+      bars._flushRebuild()
+      expect(fetchSpy).not.toHaveBeenCalled()
+      vi.advanceTimersByTime(bars.EDGE_REFRESH_MS)
+      expect(fetchSpy).toHaveBeenCalledTimes(1)
+      expect(fetchSpy.mock.calls[0][0]).toBe('/api/auth/me')
+      vi.advanceTimersByTime(bars.EDGE_REFRESH_MS)
+      expect(fetchSpy).toHaveBeenCalledTimes(2)
+      unsub()
+      bars._flushRebuild()
+      vi.advanceTimersByTime(bars.EDGE_REFRESH_MS * 3)
+      expect(fetchSpy).toHaveBeenCalledTimes(2)
+    } finally { global.fetch = saved; vi.useRealTimers() }
+  })
+})
