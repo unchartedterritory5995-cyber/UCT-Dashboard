@@ -8,19 +8,16 @@
  "symbol": "NYSE:RDDT",
  "timeframe": "1D",
  "gradeMethod": "a",
- "verdict": "DIVERGE",
- "step": 7,
- "reason": "value series X01_first_open_entry_bar has 667 bars of ours against 666",
- "first": {
-  "time": 1711027800,
-  "rule": "B-VAL"
- },
+ "verdict": "MATCH",
+ "step": 8,
+ "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+ "first": null,
  "graded": {
   "trades": true,
   "fills": true,
   "slots": 9,
-  "values": 0,
-  "texts": 0
+  "values": 38,
+  "texts": 32
  },
  "referenceTrades": 32,
  "rulesExercised": [
@@ -94,6 +91,7 @@
  "prefixExact": null,
  "culprit": null,
  "afterDifference": null,
+ "newestBarNotRun": 1794839400,
  "provenance": {
   "strategySettings": {
    "properties": [
