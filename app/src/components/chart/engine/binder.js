@@ -979,6 +979,11 @@ export function createBinder({ chart, LWC, scope = '' }) {
   // the header's info values, so a refused output says the chart's own reason
   // instead of a blank; never consulted by the paint.
   let lastColumnErrors = new Map()
+  /** ⭐⭐ HOST WORKER — the instances the last sync held (their values were in the host lane's
+   *  worker). One that is no longer held has LANDED: its series are re-set below whatever the
+   *  plan says, because the landing repaints with the SAME bars (a `noop` plan, whose `applyData`
+   *  leaves a series untouched) and the series still holds the stale picture. */
+  let heldLastSync = new Set()
 
   // ─── THE TWO MEMOS (spec §5: "columnar→object mapping reused, never
   //     re-allocated per update") ─────────────────────────────────────────────
@@ -2335,6 +2340,9 @@ export function createBinder({ chart, LWC, scope = '' }) {
     // able to change which series get bound: an object program that refuses has
     // to cost its own pictures and nothing else.
     attempt(() => syncObjects(ctx, instances, bars, runCols, heldIds))
+    // ⭐⭐ HOST WORKER — held last sync, not held now: the values landed (see `heldLastSync`).
+    const landedNow = new Set([...heldLastSync].filter((id) => !heldIds.has(id)))
+    heldLastSync = heldIds
     lastColumnErrors = new Map()
     for (const [id, c] of runCols) lastColumnErrors.set(id, c ? columnErrors(c) : null)
 
@@ -2960,7 +2968,15 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // ⛔ THE SAME ARRAY when there is no window (`windowedPoints` returns its argument),
       // so every chart without one makes exactly the calls it always made.
       const drawn = windowedPoints(split ? split.primary : points, ctx.plotWindowFrom)
-      if (firstBindNeedsSetData(b, planMode)) {
+      // ⭐⭐ HOST WORKER — STALE-WHILE-REVALIDATE ON THE RENDERER TOO: a series this pane already
+      // holds keeps the picture it holds while its values are in the worker (its points are placed by
+      // bar time, so they stay where they were; a new bar has no point yet, as the pending answer
+      // says). It is handed no data, so a poll costs the renderer one `setData` (the landing's,
+      // below) and not two. ⛔ A series bound for the first time is set as always.
+      const holdPicture = heldIds.has(b.instanceId) && !firstBindNeedsSetData(b, planMode)
+      if (holdPicture) {
+        // the series is left exactly as it is
+      } else if (firstBindNeedsSetData(b, planMode) || landedNow.has(b.instanceId)) {
         attempt(() => series.setData(drawn))
       } else if (typeof ctx.applyData === 'function') {
         attempt(() => ctx.applyData(series, drawn))
@@ -2974,10 +2990,14 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // a style, pane or visibility change can never leave an old run behind.
       const carried = (b.from && Array.isArray(b.from.runSeries)) ? b.from.runSeries : []
       const carriedData = (b.from && Array.isArray(b.from.runData)) ? b.from.runData : []
-      const wanted = split ? split.runs : []
+      const wanted = holdPicture ? [] : (split ? split.runs : [])
       const runSeries = []
       const runData = []
-      if (wanted.length) {
+      if (holdPicture) {
+        // ⭐ HOST WORKER — and its run series are carried as they are (see `holdPicture`)
+        runSeries.push(...carried)
+        runData.push(...carriedData)
+      } else if (wanted.length) {
         const ropts = runSeriesOptions(p.options)
         for (let k = 0; k < wanted.length; k++) {
           let rs = carried[k] || null
@@ -2995,7 +3015,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
           runData.push(wanted[k])
         }
       }
-      for (let k = wanted.length; k < carried.length; k++) attempt(() => chart.removeSeries(carried[k]))
+      if (!holdPicture) for (let k = wanted.length; k < carried.length; k++) attempt(() => chart.removeSeries(carried[k]))
 
       next.push({
         markerLayer,

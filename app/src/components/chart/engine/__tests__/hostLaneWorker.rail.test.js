@@ -211,6 +211,41 @@ describe('2. stale-while-revalidate: a recompute never blanks the pane', () => {
   })
 })
 
+describe('2b. the landing repaints a noop plan (StockChart leaves a series untouched when its bars did not change)', () => {
+  it('a poll costs the renderer ONE setData per series (the landing\'s); the landed values are set though the plan is noop', () => {
+    doorDef(COSTLY)
+    const fake = createFakeChart()
+    fakeCalls = fake.calls
+    const binder = createBinder({ chart: fake.chart, LWC: fake.LWC, scope: 'rail' })
+    // ⭐ StockChart's own rule (`_applyData`): a noop plan (the same bars, the same settings) touches
+    // no series; new bars are a full setData
+    let last = null
+    const sync = (bars) => {
+      const plan = last === bars ? { noop: true } : { fresh: true }
+      last = bars
+      binder.sync({ ...syncCtx(bars), plan, applyData: (series, data) => { if (series && data && !plan.noop) series.setData(data) } })
+    }
+    const a = barsOf(daily.slice(-301, -1))
+    sync(a)
+    workers.drain()
+    sync(a)                                   // landed, first bind
+    const b = barsOf(daily.slice(-300))       // the poll: a new bar
+    const setsBefore = fake.count('setData')
+    sync(b)                                   // pending: the series keep the picture they hold
+    expect(fake.count('setData') - setsBefore, 'a pending poll re-set the series (the renderer paid twice)').toBe(0)
+    workers.drain()
+    sync(b)                                   // landed: the SAME bars, a noop plan
+    const series = fake.seriesCreated.filter((sr) => finiteValues(sr).length).length
+    expect(fake.count('setData') - setsBefore, 'one setData per series: the landing\'s').toBe(series)
+    const fresh = registry.computeFor(registry.getDefinition(HARNESS_DEF_ID), b, undefined, { ...CTX })
+    const newest = b[b.length - 1].t
+    const want = Object.values(fresh).filter((col) => Number.isFinite(col[b.length - 1])).length
+    expect(want, 'non-vacuity: the fresh values draw on the newest bar').toBeGreaterThan(0)
+    const drawnOnNewest = fake.seriesCreated.filter((sr) => new Map(finiteValues(sr)).has(newest)).length
+    expect(drawnOnNewest, 'the landed values never reached the series: a noop plan kept the stale picture').toBeGreaterThan(0)
+  })
+})
+
 // ─── 3. a superseded result never paints ───────────────────────────────────────────────────────────
 describe('3. a newer request supersedes an older one', () => {
   it('only the newest waiting job of a pane is ever posted; the replaced one is forgotten, not pending forever', () => {

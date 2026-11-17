@@ -246,10 +246,25 @@ def sign_in(page, base, email, password):
     return r.ok
 
 
+#: ⭐ the workspace is ready: a widget on it, or its "Add widget" door. A cold sandbox can take 40 s
+#: to draw it (measured 2026-11-17: no door at 20 s, the door at 40 s), and a fixed wait read that as
+#: "no chart widget".
+WORKSPACE_READY_JS = """() => document.querySelectorAll('[data-widget-id]').length > 0
+  || [...document.querySelectorAll('button')].some(b => /Add widget/.test(b.textContent || ''))"""
+
+
+def wait_for_workspace(page):
+    try:
+        page.wait_for_function(WORKSPACE_READY_JS, timeout=120000)
+    except Exception:
+        pass
+    page.wait_for_timeout(2000)
+
+
 def install(page, base, source, settle_s=0, expect_runtime=False):
     """The member door, through its UI. Returns what was saved."""
     page.goto(f"{base}/charts", wait_until="domcontentloaded")
-    page.wait_for_timeout(8000)
+    wait_for_workspace(page)
     chart = page.evaluate(ENSURE_CHART_JS)
     print(f"[probe] chart widget: {chart}", flush=True)
     if not chart.get("widgets"):
@@ -421,7 +436,7 @@ def main() -> int:
             else pathlib.Path(args.script).read_text(encoding="utf-8")
         import re
         m = re.search(r"""(?:indicator|study|strategy)\s*\(\s*(?:title\s*=\s*)?["']([^"']+)["']""", source)
-        title = args.title or (m.group(1) if m else None)
+        title = args.title or (m.group(1).strip() if m else None)   # a title with a trailing space never matched its chip
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=not args.headed)
@@ -450,7 +465,7 @@ def main() -> int:
                 return 1
         else:
             page.goto(f"{args.base}/charts", wait_until="domcontentloaded")
-            page.wait_for_timeout(8000)
+            wait_for_workspace(page)
             chart = page.evaluate(ENSURE_CHART_JS)
             print(f"[probe] chart widget: {chart}", flush=True)
             if not chart.get("widgets"):
