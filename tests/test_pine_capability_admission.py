@@ -450,7 +450,8 @@ def test_A7_the_committed_object_families_are_U1s_four_and_U3s_two():
 #: hold agree on every graded field, and TradingView holds two more of the OLDEST: the batch collector
 #: (`objectPool.js` C7) ran, and the reference calls the count approximate ("The count is approximate; more
 #: drawings than the specified count may be displayed."). obj:box is admitted on its x-graded evidence WITH
-#: a carve-out: on the runtime lane a BOX family whose collector ran is withheld by name
+#: a carve-out: on the runtime lane a BOX family whose collector ran in a script that reads a past value of a variable
+#: holding a box (DRAW-1 GC, `objectPool.js::historyHeldOf`) is withheld by name
 #: (`objects:count-at-cap`, `runtime/objectStore.js::collect`), so inside-bar-boxes' boxes are withheld,
 #: never drawn at the wrong count.
 OBJ_BOX_COUNT_CAPTURE = "inside-bar-boxes-rddt-1d-2026-11-14"

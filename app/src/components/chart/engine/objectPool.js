@@ -136,13 +136,45 @@ export function collectsAbove(capacity) {
  *  swing-highlow-zigzag-chartprime-spy: 52 lines, every one paired). Polylines (cap 100) reach no cap
  *  in a committed capture, and tables are withheld past their count already (`objectStore.js`). */
 export const COUNT_AT_CAP_FAMILIES = Object.freeze(['box'])
+/** ⭐⭐ DRAW-1 GC (2026-11-17, coordinator ruling after the engine-66 regression) — THE CARVE-OUT IS THE
+ *  SHAPE THE CAPTURES DO NOT WITNESS, NEVER THE WHOLE FAMILY. Withholding every box family whose collector
+ *  ran threw away TradingView's own garbage collection where it IS witnessed: rs-arm-label-last-bar-spy
+ *  (s10, cap 500: TradingView holds the newest 503, ours drew 0), sonarlab-order-blocks (boxes in arrays,
+ *  cap 20: 24 held, every one paired). The committed vw-draw-count-at-cap captures (2026-11-16, cap 20,
+ *  one create per family every third bar) separate the shapes: lines never held and labels held in a
+ *  `var` follow C7 on both charts (SPY 22 / 22 of 2836 made, RDDT 25 / 25 of 223), while BOXES held in a
+ *  `var` whose PAST value the script reads (`box.set_right(myBox[1], ...)`, inside-bar-boxes' shape) hold
+ *  20 and 23: C7 does not describe them, as it did not describe inside-bar-boxes (52 where it holds 50).
+ *  So a box family is withheld only when its collector runs AND the script reads a past value of a
+ *  variable holding a box (`historyHeldOf`); every other box family keeps C7: the oldest dropped, the
+ *  newest kept. */
 export const COUNT_AT_CAP_GUARD = 'objects:count-at-cap'
 export const COUNT_AT_CAP_PREFIX = 'The script held more '
 /** The store's reason for a family withheld because its collector ran. */
 export function countAtCapReason(family, capacity) {
   const plural = family === 'box' ? 'boxes' : `${family}s`
   return `${COUNT_AT_CAP_PREFIX}${plural} than its maximum count (${capacity}) and TradingView's collector ran; `
-    + 'which of the oldest TradingView still shows then is not measured for every script'
+    + `which of the oldest TradingView still shows then is not measured for a script that reads a past value of `
+    + `the variable holding its ${plural}`
+}
+
+/** ⭐ DRAW-1 GC — the families of `COUNT_AT_CAP_FAMILIES` whose handle a script keeps in a variable it
+ *  reads at a past offset (`myBox[1]`), off the stripped source (comments and strings out,
+ *  `pine.js::strippedForScan`), as `{ historyHeld: [...] }` beside the declared caps, or `{}`. A name is a
+ *  family's when it is declared with the family's type (`var box b = na`, `box b = ...`) or assigned that
+ *  family's constructor (`b := box.new(...)`); an array of them (`box[]`) is not a name of this kind. */
+export function historyHeldOf(stripped) {
+  const s = String(stripped || '')
+  const out = []
+  for (const fam of COUNT_AT_CAP_FAMILIES) {
+    const names = new Set()
+    for (const m of s.matchAll(new RegExp(`\\b${fam}\\s+([A-Za-z_]\\w*)\\s*=`, 'g'))) names.add(m[1])
+    for (const m of s.matchAll(new RegExp(`\\b([A-Za-z_]\\w*)\\s*:?=\\s*${fam}\\.new\\b`, 'g'))) names.add(m[1])
+    for (const n of names) {
+      if (new RegExp(`\\b${n}\\s*\\[\\s*\\d+\\s*\\]`).test(s)) { out.push(fam); break }
+    }
+  }
+  return out.length ? { historyHeld: out } : {}
 }
 
 /** The lowest Pine version with any drawing object at all. */

@@ -30,7 +30,10 @@ EXPECTED = {
     # + the STOP entry under v6's percent default (2026-11-16, the strategy coverage unit: six built-ins stop there)
     "Q-S1a": ["w9-q-s1a-size-v4", "w9-q-s1a-size-v6", "w9-q-s1a-size-v5pct", "w9-q-s1a-size-v5cash", "w9-q-s1a-size-v2",
               "w9-q-s1a-size-stop-v6"],
-    "Q-S1b": ["w9-q-s1b-defaults-v4", "w9-q-s1b-defaults-v5", "w9-q-s1b-defaults-v6"],
+    "Q-S1b": ["w9-q-s1b-defaults-v4", "w9-q-s1b-defaults-v5", "w9-q-s1b-defaults-v6",
+              # 2026-11-17, ruling D12b: one probe per other v4 declaration shape the armed census meets
+              "w9-q-s1b-v4-shape-a", "w9-q-s1b-v4-shape-b", "w9-q-s1b-v4-shape-c", "w9-q-s1b-v4-shape-d",
+              "w9-q-s1b-v4-shape-e"],
     "Q-S1c": ["w9-q-s1c-tie"], "Q-S1d": ["w9-q-s1d-same-tick"], "Q-S1e": ["w9-q-s1e-live-past"],
     "Q-S1f": ["w9-q-s1f-reversal-exit"], "Q-S1g": ["w9-q-s1g-pyr-limit"], "Q-S1h": ["w9-q-s1h-fifo"],
     "Q-S1i": ["w9-q-s1i-funds", "w9-q-s1i-short-v6"], "Q-S1j": ["w9-q-s1j-stop-limit"],

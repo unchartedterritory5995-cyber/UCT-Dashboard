@@ -1596,6 +1596,15 @@ def resolve_pins(pins: dict, ledger_rows: list, sources: dict | None = None) -> 
     exercised_by = {}   # rule -> [verdict of every row that exercised it]
     table = None
     for r in ledger_rows:
+        # ⭐ 2026-11-17 (Q-S1i, B-MARGIN-CALL) — the evidence ledger's own row (LEDGER_SCHEMA) is the INDICATOR
+        # harness's grade of a capture, one verdict per lane (`verdicts: {production, runtime-on}`), and states no
+        # broker verdict at all (no top-level `verdict`). A strategy capture promoted through that harness (the
+        # 2026-11-16 night's captures) carries one beside its strategy verdict file. ⚰️ Read as a broker row, its
+        # missing `verdict` was a non-MATCH, so such a capture could never pin a rule, whatever its broker grade.
+        # The strategy verdict file is the broker's grade; a capture with only a ledger row is still "no committed
+        # verdict" (an ERROR below, never a silent un-pin).
+        if r.get("schema") == LEDGER_SCHEMA and "verdict" not in r:
+            continue
         cid = r.get("captureId")
         if cid:
             v = r.get("verdict")
