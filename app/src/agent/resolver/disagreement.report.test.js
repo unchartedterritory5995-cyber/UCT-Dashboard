@@ -148,9 +148,10 @@ describe('SHADOW-DISAGREEMENT REPORT · grouped by reusable cause', () => {
     expect(ORACLE.resolverDisagree.filter(x => x.flag !== 'emulated').map(x => x.id)).toEqual([])
     // every production ≠ policy row is a FLAGGED one (masterGap / overAsk / adds / emulated) — none unflagged
     expect(ORACLE.prodDiffers.filter(x => x.flag === 'plain').map(x => x.id)).toEqual([])
-    // every masterGap row is still open in production (a closed one: drop its flag through AUDIT)
-    const gaps = POLICY.filter(r => r.masterGap).map(r => r.id)
-    expect(ORACLE.prodDiffers.filter(x => x.flag === 'masterGap').map(x => x.id).sort()).toEqual([...gaps].sort())
+    // a masterGap row production now BLOCKS is CLOSED (its rail fix landed): listed, so AUDIT drops its flag — never a failure
+    // (the flag records master's gap at the time the row was written; a closed gap is progress)
+    const open = new Set(ORACLE.prodDiffers.filter(x => x.flag === 'masterGap').map(x => x.id))
+    ORACLE.masterGapClosed = POLICY.filter(r => r.masterGap && !open.has(r.id)).map(r => r.id)
   }, 120000)
   for (const [suite, cases] of [['matrix', () => matrixCases(31)], ['metamorphic', () => metamorphicCases(32)],
     ['sequences', () => sequenceRuns(33).flatMap(run => run.steps.filter(s => s.plan).map((s, i) => ({ ...s, id: `seq-${run.seed}-${i}` })))],
@@ -193,6 +194,7 @@ afterAll(async () => {
     ...fam('ORACLE adds (the resolver adds a block)', report.oracle.adds),
     ...fam('ORACLE emulated (offer rows, apart)', report.oracle.emulated),
     `ORACLE unflagged production ≠ policy: ${report.oracle.unflagged.length}`,
+    `ORACLE masterGap rows CLOSED in production (drop the flag through AUDIT): ${(ORACLE.masterGapClosed || []).length}${(ORACLE.masterGapClosed || []).length ? ` (${ORACLE.masterGapClosed.join(', ')})` : ''}`,
     `GENERATED · cases ${GEN.cases} · skipped ${GEN.skipped} (linked shapes / unbuilt plans) · ${Object.entries(GEN.bySuite).map(([k, v]) => `${k} ${v.cases} (prod≠model ${v.prodDiffers}, resolver≠model ${v.resolverDisagree})`).join(' · ')}`,
     ...fam('GENERATED resolver ≠ model', report.generated.resolverDisagree),
     ...fam('GENERATED production APPLIES where the model blocks', report.generated.prodApplies),
