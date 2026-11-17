@@ -39,7 +39,7 @@ import * as nativeRegistry from '../components/chart/engine/nativeRegistry'
 import { tickersIn } from './multiChart'
 import { matchPosition } from './fastPath'
 import { pronounReferent } from './chartRail'
-import { activeIndicatorAlertPeers } from './capabilities/indicatorAlerts'
+import { activeIndicatorAlertPeers, indicatorAlertPeers } from './capabilities/indicatorAlerts'
 
 export const STATE_RAIL_MARK = 'state-rail'
 
@@ -222,7 +222,9 @@ const READERS = {
     const own = { label, id: `alert:${b.id || p.ref}`, instanceId: b.instanceId || null, inScope: Number(b.activeInScope) || 0,
       sym: String(b.sym || '').toLowerCase(), peers: (() => { try { return activeIndicatorAlertPeers() } catch { return null } })(),
       ownWords: [b.sym, b.instanceLabel, b.indicator].filter(Boolean).flatMap(x => String(x).toLowerCase().split(/[^a-z0-9]+/)).filter(t => t.length >= 2) }
-    if (p.after?.deleted || p.patch?.delete) return [{ state: 'alert', type: 'delete', name: `your indicator alert “${nm(label)}”`, ...own }]
+    // ⛔ (AUDIT #1263, wrong-target hard delete) a delete's words are read against EVERY alert, running or paused — "delete the
+    // MACD alert" never deletes the RSI one, whichever of them is running
+    if (p.after?.deleted || p.patch?.delete) return [{ state: 'alert', type: 'delete', name: `your indicator alert “${nm(label)}”`, ...own, peers: (() => { try { return indicatorAlertPeers() } catch { return null } })() }]
     const pausing = (p.patch?.toggle && p.patch.to === false) || (p.after && p.before && p.before.active === true && p.after.active === false)
     if (pausing) return [{ state: 'alert', type: 'pause', name: `your indicator alert “${nm(label)}” (it would stop notifying you)`, ...own }]
     return []
@@ -353,16 +355,24 @@ const DTYPE_NOUN = { trendline: /\btrend ?lines?\b/i, horizontal: /\bhorizontal(
 const ALERT_STOP = new Set(['the', 'my', 'alert', 'alerts', 'alarm', 'alarms', 'notification', 'notifications', 'on', 'of', 'for', 'and', 'all', 'every', 'each', 'both', 'your', 'that', 'this', 'these', 'those'])
 const ALERT_FILL = new Set(['turn', 'off', 'switch', 'shut', 'it', 'its', 'them', 'please', 'now', 'just', 'an', 'a', 'our', 'any', 'one', 'running', 'active', 'current', 'indicator', 'in', 'at', 'here', 'too', 'also', 'again', 'chart', 'set'])
 const ALERT_ALL = /\b(?:all|every|each|both)\b|\b(?:the|my|these|those|your)\s+(?:[\w.()-]+\s+){0,2}?(?:alerts|alarms|notifications)\b/i
-function pauseNamesAlert(e, clause) {
+// (AUDIT #1263) a DELETE's object: its verb words are known, and any plural alert noun is explicit ("delete my NVDA alerts")
+let DELETE_VERB_TOK = null                                    // (built on first use: MORE_DESTROY is declared further down)
+const deleteVerbTok = (t) => (DELETE_VERB_TOK ||= new RegExp(String.raw`^(?:${DESTROY_SRC().slice(3, -1)}|${MORE_DESTROY}|get|gets|getting|rid)$`, 'i')).test(t)
+const ALERT_PLURAL = /\b(?:alerts|alarms|notifications)\b/i
+const ALERT_RULES = { pause: { verb: (t) => PAUSE_ANY.test(t), all: (c) => ALERT_ALL.test(c) }, delete: { verb: deleteVerbTok, all: (c) => ALERT_ALL.test(c) || ALERT_PLURAL.test(c) } }
+/** Do these words COVER exactly this alert (pause or delete) — or an explicit plural that includes it? Fail closed. */
+function namesAlert(e, clause) {
+  const rule = ALERT_RULES[e.type]
+  if (!rule) return false
   const self = String(e.id || '').replace(/^alert:/, '')
   const peers = e.peers?.length ? e.peers : [{ id: self, sym: e.sym || '', words: e.ownWords || [] }]
   const got = tokens(clause)
   const syms = new Set(peers.map(p => p.sym).filter(Boolean))
   const peerWords = new Set(peers.flatMap(p => p.words || []))
-  // every word of the object must be one UCT knows (an alert's own, a known indicator, a symbol a running alert is on, or the
+  // every word of the object must be one UCT knows (an alert's own, a known indicator, a symbol an alert is on, or the
   // words of the request itself): "the nvda alert", "the alert on QQQ" while the QQQ one is paused, "my squeeze alert" name no
   // running alert — fails closed, never the one that happens to be running
-  const known = (t) => ALERT_STOP.has(t) || ALERT_FILL.has(t) || PAUSE_ANY.test(t) || /^\d+$/.test(t) || syms.has(t) || peerWords.has(t) || IND_TYPE.some(([re]) => re.test(t))
+  const known = (t) => ALERT_STOP.has(t) || ALERT_FILL.has(t) || rule.verb(t) || /^\d+$/.test(t) || syms.has(t) || peerWords.has(t) || IND_TYPE.some(([re]) => re.test(t))
   if (got.some(t => !known(t))) return false
   const symSaid = new Set(got.filter(t => syms.has(t)))
   const indRes = IND_TYPE.map(([re]) => re).filter(re => re.test(clause))
@@ -375,14 +385,25 @@ function pauseNamesAlert(e, clause) {
   }
   const covered = peers.filter(covers)
   if (!covered.some(p => String(p.id) === self)) return false
-  return covered.length === 1 || ALERT_ALL.test(clause)
+  return covered.length === 1 || rule.all(clause)
+}
+// a DELETE's object may list alerts one by one ("the RSI alert and the MACD alert"): each part must name its alert exactly
+// ("remove the RSI and its alert" with two alerts names neither), or the whole is an explicit plural ("the RSI and MACD alerts")
+const ALERT_JOIN = /\s+(?:and|or|&|plus)\s+|\s*,\s*/i
+function deleteNamesAlert(e, obj) {
+  const parts = String(obj || '').split(ALERT_JOIN).map(x => x.trim()).filter(Boolean)
+  if (parts.length < 2) return namesAlert(e, obj)
+  return (ALERT_RULES.delete.all(obj) && namesAlert(e, obj)) || parts.some(part => CLASS.alert.test(part) && namesAlert(e, part))
 }
 /** Does this clause name the effect's object — its class, or (when it names no OTHER class) its own name? */
 export function namesObject(e, clause0, why = null) {
   const mine = classesOf(e)
-  // ⛔ (#1263, AUDIT T2) a pause names an alert only when its words COVER it (pauseNamesAlert): "pause the MACD alert" never
+  // ⛔ (#1263, AUDIT T2) a pause names an alert only when its words COVER it (namesAlert): "pause the MACD alert" never
   // pauses the RSI one, even when the RSI one is the only alert running; "pause the alert" with several running names none
-  if (e.state === 'alert' && e.type === 'pause' && CLASS.alert.test(clause0)) return pauseNamesAlert(e, clause0)
+  if (e.state === 'alert' && e.type === 'pause' && CLASS.alert.test(clause0)) return namesAlert(e, clause0)
+  // ⛔ (AUDIT #1263, wrong-target hard delete) a DELETE names an alert only when its words cover EXACTLY it (or an explicit
+  // plural that includes it): "delete the MACD alert" never deletes the RSI one; "delete the alert" with several fails closed
+  if (e.state === 'alert' && e.type === 'delete' && CLASS.alert.test(clause0)) return deleteNamesAlert(e, clause0)
   // ⛔ (#1263) "delete the RSI alert" names an ALERT, never the RSI: the words naming the alert (up to three before its noun)
   // are not read as naming anything else ("remove the RSI and its alert" still names the RSI)
   const clause = mine.includes('alert') ? clause0 : String(clause0 || '').replace(/\b(?:the|my|that|this|your|its|their|an?)\s+(?:(?!(?:and|or|then|but)\b)[\w.()-]+\s+){0,3}?(?:alerts?|alarms?|notifications?)\b|\b[\w.()-]+\s+(?:alerts?|alarms?|notifications?)\b/gi, ' ')
@@ -413,6 +434,7 @@ export function namesObject(e, clause0, why = null) {
     return false
   }
   const label = labelOf(e)
+  if (e.state === 'alert' && e.type === 'delete') return deleteNamesAlert(e, clause)
   return !!label && (has(clause, label) || phrase(label).split(' ').filter(t => t.length >= 3 && /[a-z]/.test(t)).some(t => has(clause, t)))
 }
 // clauses: punctuation, "then", "but", and an "and" that starts a new request ("…, and clear …", "add X and remove Y")
@@ -479,6 +501,9 @@ const POINTS = /^(?:it|them|both(?= of them|\s*$)|all of them|(?:the|that|this|t
 const OBJ_END = /\s(?:with|for|by|using|like|as|and|onto|into|to|at|than)\s/i
 // (#1263) a PAUSE keeps "for / at": "pause my alert for NVDA" names the alert on NVDA (a time said is refused before: TIMED)
 const PAUSE_END = /\s(?:with|by|using|like|as|and|onto|into|to|than)\s/i
+// (AUDIT #1263) an alert DELETE keeps "for / at / and": "delete my alert for NVDA", "the RSI alert and the MACD alert" (each part
+// must then name its alert exactly: deleteNamesAlert); a new request after "and" is its own clause already (CLAUSES)
+const ALERT_DELETE_END = /\s(?:with|by|using|like|as|onto|into|to|than)\s/i
 const SAVE_END = /\s(?:with|for|by|using|like|and|at|than)\s/i
 // a NEW object ("a 20 ema", "another line", "some notes"): never an existing one to destroy or change
 const INDEFINITE = /^(?:a|an|another|some|any|new|one more|more|extra)\b/i
@@ -623,7 +648,7 @@ export function permits(e0, words, subjects = null, previous = null, previousSet
         if (cut >= 0) obj = obj.slice(0, cut)
         // a display verb's object is where it goes ("go back TO the list picker", "take the watchlist back TO its picker")
         if (e.type === 'replace' && e.state === 'widget') obj = obj.replace(/^\s*(?:to|back to|over to|into)\s+/i, ' ')
-        const end = obj.search(saving ? SAVE_END : e.type === 'pause' ? PAUSE_END : OBJ_END)
+        const end = obj.search(saving ? SAVE_END : e.type === 'pause' ? PAUSE_END : e.state === 'alert' && e.type === 'delete' ? ALERT_DELETE_END : OBJ_END)
         if (end >= 0) obj = obj.slice(0, end)
         obj = obj.trim().replace(/^(?:up|out|off|away|over|down|of|rid of)\s+/i, '')
         // a widget's content may be switched to a NEW pick ("pick a different list"); nothing else is named by "a …"

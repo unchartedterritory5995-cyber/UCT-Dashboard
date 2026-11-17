@@ -202,7 +202,10 @@ describe('STATE RAIL census — by tool, from the registry', () => {
         const eff = stateEffects(plan)
         const nouns = [...new Set(eff.map(e => NOUN[e.state]))].join(' and the ')
         const explicit = eff.every(e => e.type === 'overwrite') ? `add AAPL, and change the ${nouns}` : eff.every(e => e.type === 'replace') ? `add AAPL, and replace the ${nouns}`
-          : eff.every(e => e.type === 'pause') ? `add AAPL, and pause the ${nouns}` : `add AAPL, and remove the ${nouns}`
+          : eff.every(e => e.type === 'pause') ? `add AAPL, and pause the ${nouns}`
+            // (AUDIT #1263) a singular "the alert" covers both alerts in the book (a delete reads paused ones too) and names neither:
+            // the explicit words for a hard delete here are the plural
+            : eff.every(e => e.state === 'alert' && e.type === 'delete') ? 'add AAPL, and remove the alerts' : `add AAPL, and remove the ${nouns}`
         // …and the same permit for ANOTHER class licenses nothing here
         for (const [st, noun] of Object.entries(NOUN)) if (!eff.some(e => (e.classes || [e.state]).includes(st))) expect(stateRailRefusal(plan, { words: `add AAPL, and remove the ${noun}` }), `${r.name} cross-kind ${noun}`).toBeTruthy()
         expect(stateRailRefusal(plan, { words: explicit }), `${r.name} explicit "${explicit}"`).toBe(null)

@@ -220,6 +220,9 @@ const phrase = (a) => indicatorAlertPhrase(a, labelFor(a))
 const alertWordsOf = (a) => [a.sym, labelFor(a), a.indicator].filter(Boolean).flatMap(x => String(x).toLowerCase().split(/[^a-z0-9]+/)).filter(t => t.length >= 2)
 /** Every ACTIVE alert's id, symbol and own words — which of them a pause's words cover (the state rail, AUDIT #1263 T2). */
 export const activeIndicatorAlertPeers = () => rows().filter(x => x.active).map(x => ({ id: String(x.id), sym: String(x.sym || '').toLowerCase(), words: alertWordsOf(x) }))
+/** Every alert's id, symbol and own words, active or paused — which of them a DELETE's words cover (AUDIT #1263: a delete
+ *  is a hard delete, and a paused alert is deleted as surely as a running one). */
+export const indicatorAlertPeers = () => rows().map(x => ({ id: String(x.id), sym: String(x.sym || '').toLowerCase(), words: alertWordsOf(x) }))
 const statusOf = (a) => (a.active ? 'active' : 'paused')
 
 /** The indicator half of "what alerts do I have" (alert.list), read as indicatorAlert.list reads it: { rows: [line] },

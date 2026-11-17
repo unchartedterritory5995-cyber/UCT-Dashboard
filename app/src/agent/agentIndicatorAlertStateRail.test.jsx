@@ -49,9 +49,15 @@ describe('an EXISTING indicator alert is state: a delete is a destroy, licensed 
   it.each(ADDITIVE)('an additive (or permit-less) request never deletes an existing alert: "%s"', async (w) => {
     expect(stateRailRefusal(await planOf(DELETE_RSI_ALERT), { words: w })).toMatch(REFUSED)
   })
-  const EXPLICIT = ['delete the RSI alert', 'remove my rsi alert', 'Delete the alert', 'get rid of the alert', 'cancel the RSI alert', 'Cancel my alerts', 'delete the alert on SPY', 'trash the alarm']
+  const EXPLICIT = ['delete the RSI alert', 'remove my rsi alert', 'cancel the RSI alert', 'Cancel my alerts', 'delete the RSI alert on SPY', 'trash the rsi alarm']
   it.each(EXPLICIT)('its own words delete it: "%s"', async (w) => {
     expect(stateRailRefusal(await planOf(DELETE_RSI_ALERT), { words: w })).toBe(null)
+  })
+  // ⛔ AUDIT #1263 (wrong-target hard delete): with the RSI and the MACD alert both on SPY, a singular object that covers both
+  // names neither — fails closed (agentIndicatorAlertDeleteCoverage.test.jsx generates the class)
+  const UNCOVERED = ['Delete the alert', 'get rid of the alert', 'delete the alert on SPY', 'trash the alarm']
+  it.each(UNCOVERED)('a singular object covering two alerts deletes neither: "%s"', async (w) => {
+    expect(stateRailRefusal(await planOf(DELETE_RSI_ALERT), { words: w })).toMatch(REFUSED)
   })
   const OTHER_KIND = ['remove the RSI', 'delete my drawings', 'clear the watchlist', 'remove the indicators', 'delete my layout']
   it.each(OTHER_KIND)('a delete of something ELSE never licenses deleting an alert: "%s"', async (w) => {
