@@ -1,0 +1,101 @@
+{
+  "run_id": "44131757008",
+  "run_number": "1518",
+  "run_attempt": "1",
+  "sha": "fbe013280903c2aea4fa766cceac6df2cd647794",
+  "branch": "master",
+  "finished": "2026-11-17T17:02:50.116479+00:00",
+  "vitest": {
+    "shards_total": 6,
+    "shards_reported": 0,
+    "shards_success": 0,
+    "shards_cancelled": 0,
+    "shards_failed": 0,
+    "shards_unreadable": [],
+    "shards_missing": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6"
+    ],
+    "shards_without_totals": [],
+    "collected": 0,
+    "passed": 0,
+    "failed": 0,
+    "per_test_timeouts": 0,
+    "shard_runner_lines": {},
+    "runner_line": "",
+    "ok": false,
+    "ok_basis": "all_success=False (0/6) \u00b7 every_shard_has_totals=True \u00b7 failed=0 \u00b7 missing=6 \u00b7 runner_verdict_unreadable=0",
+    "suite": "vitest",
+    "sharded": true,
+    "shards_not_run": [],
+    "totals_line_found": false,
+    "skipped": 0,
+    "files_collected": 0,
+    "files_failed": 0,
+    "files_passed": 0,
+    "files_skipped": 0,
+    "wall_s": null,
+    "failed_files": [],
+    "shard_totals": {}
+  },
+  "pytest": {
+    "shards_total": 0,
+    "shards_reported": 0,
+    "shards_success": 0,
+    "shards_cancelled": 0,
+    "shards_failed": 0,
+    "shards_unreadable": [],
+    "shards_missing": [],
+    "shards_without_totals": [],
+    "collected": 0,
+    "passed": 0,
+    "failed": 0,
+    "per_test_timeouts": 0,
+    "shard_runner_lines": {},
+    "runner_line": "",
+    "ok": false,
+    "ok_basis": "no shards declared at all \u2014 UNREADABLE, not a pass"
+  },
+  "runner_line": {
+    "vitest": "",
+    "pytest": ""
+  },
+  "outcome": {
+    "vitest": {
+      "job_result": "skipped",
+      "test_step_outcome": "UNREADABLE",
+      "elapsed_s": -1.0,
+      "timeout_minutes": 60,
+      "timed_out": false,
+      "timed_out_basis": "job_result=skipped, elapsed_s=-1, cap_s=3600, threshold_s=3540 (cap-60) -> not a cap cut",
+      "ran": true
+    },
+    "pytest": {
+      "job_result": "skipped",
+      "test_step_outcome": "UNREADABLE",
+      "elapsed_s": -1.0,
+      "timeout_minutes": 20,
+      "timed_out": false,
+      "timed_out_basis": "job_result=skipped, elapsed_s=-1, cap_s=1200, threshold_s=1140 (cap-60) -> not a cap cut",
+      "ran": true
+    }
+  },
+  "verdict": "RED",
+  "detail": {
+    "dir": "results/44131757008",
+    "pytest_collect_errors": "results/44131757008/pytest_collect_errors.txt",
+    "pytest_error_buckets": "results/44131757008/pytest_error_buckets.txt",
+    "pytest_failures": "results/44131757008/pytest_failures.txt",
+    "vitest_failures": "UNREADABLE: not written (results/44131757008/vitest_failures.txt)",
+    "vitest_junit": "UNREADABLE: not written (results/44131757008/vitest-junit.xml)",
+    "collect_profile": "results/44131757008/collect_profile.json"
+  },
+  "contract_gaps": [
+    "detail 'vitest_failures' names results/44131757008/vitest_failures.txt, which was not written",
+    "detail 'vitest_junit' names results/44131757008/vitest-junit.xml, which was not written"
+  ]
+}
