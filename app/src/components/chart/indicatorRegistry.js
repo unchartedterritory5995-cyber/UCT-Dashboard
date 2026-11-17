@@ -1140,7 +1140,12 @@ export function listIndicators(settings, opts = {}) {
       ? VOLUME_FIELDS.map(f => (f.key === 'separatePane' ? { ...f, disabled: opts.volumePaneFixed } : f))
       : VOLUME_FIELDS,
     path: { kind: 'section', key: 'volume' },
-    values: settings?.volume || {},
+    // ⭐ A HOST THAT DEFAULTS VOLUME TO ITS OWN PANE (/charts, `volumePaneByDefault`)
+    // reads the member's `displayIn`, not `separatePane` — so the toggle shows THAT
+    // answer (absent ⇒ ON), and `patchFor` writes both keys. See volumePresentation.js.
+    values: opts.volumePaneByDefault
+      ? { ...(settings?.volume || {}), separatePane: settings?.volume?.displayIn !== 'price' }
+      : (settings?.volume || {}),
     canToggle: true,
     enabledKey: 'visible',   // volume uses `visible`, overlays use `enabled`
   })
@@ -1298,6 +1303,12 @@ export function patchFor(row, patch, settings) {
         [row.path.key]: { ...(settings.indicators?.[row.path.key] || {}), ...patch },
       },
     }
+  }
+  // ⭐ Volume's Separate pane toggle is a Display in choice: write `displayIn` beside
+  // `separatePane`, exactly as `legend/volumeChip.withVolumeDisplay` does, so a host
+  // that defaults volume to a pane (/charts) sees the choice. See volumePresentation.js.
+  if (row.path.key === 'volume' && patch && typeof patch.separatePane === 'boolean') {
+    patch = { ...patch, displayIn: patch.separatePane ? 'pane' : 'price' }
   }
   return { [row.path.key]: { ...(settings[row.path.key] || {}), ...patch } }
 }

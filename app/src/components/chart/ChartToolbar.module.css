@@ -113,7 +113,7 @@
   align-items: center;
   justify-content: center;
   border: none;
-  border-radius: 3px;
+  border-radius: 6px;
   /* NO PERMANENT SURFACE. Each control used to carry its own box one step off
      the canvas; twenty of them in a row is what made the drawing tools read as a
      strip of keyboard keys. At rest the row is now ink on the chart, and the
@@ -123,7 +123,9 @@
      the literals are the dark-canvas values, kept as fallbacks for any host that
      does not publish them. */
   background: transparent;
-  color: var(--chart-cmd-icon, #989791);
+  /* UCT Signature "resting nav" (#c9c6be on dark, owner 11-16): one step
+     brighter than dim, so every tool reads as clickable at rest. */
+  color: var(--chart-cmd-icon, #c9c6be);
   cursor: pointer;
   padding: 0;
   /* width/opacity/margin are animated so show/hide of a drawing tool collapses
@@ -144,21 +146,25 @@
   pointer-events: none;
 }
 .btn:hover {
-  background: var(--chart-cmd-surface-hover, rgba(255, 255, 255, 0.07));
-  color: var(--chart-cmd-icon-hover, #c8c7c0);
+  background: var(--chart-cmd-surface-hover, rgba(248, 247, 243, 0.07));
+  color: var(--chart-cmd-icon-hover, #f8f7f3);
 }
 /* Pressed reads as a firmer version of the same surface -- no scale, no bounce.
    This is a trading workstation. */
 .btn:active:not(:disabled) {
-  background: var(--chart-cmd-surface-pressed, rgba(255, 255, 255, 0.12));
+  background: var(--chart-cmd-surface-pressed, rgba(248, 247, 243, 0.11));
 }
 /* CLEARLY SUBDUED, NOT GONE. The shipped rule multiplied 0.25 by the row's own
    0.75 and composited to 1.34:1 -- an undo arrow you cannot find is not
    "disabled", it is missing. This is an explicit ink (~2.4:1): plainly
    unavailable, still legibly a control. */
+/* UCT Signature (owner 11-16): disabled = the resting ink at ~30% opacity, so
+   "available" vs "not now" reads at a glance across the action cluster. The
+   light canvas publishes a slightly higher value (see commandBarFor). */
 .btn:disabled {
   background: transparent;
-  color: var(--chart-cmd-icon-disabled, #51514d);
+  color: var(--chart-cmd-icon, #c9c6be);
+  opacity: var(--chart-cmd-disabled-opacity, 0.3);
   cursor: default;
   pointer-events: none;
 }
@@ -192,22 +198,32 @@
   pointer-events: none;
 }
 
-/* THE ARMED TOOL. Gold ink on a warm-tinted charcoal, plus ONE restrained
-   inset edge -- not icon + fill + border + glow stacked together. Gold means
-   "selected / important" in UCT, so it stays scarce: the surface is 0.12 alpha,
-   the recognition comes from the ink.
-   THE EDGE IS `inset`, SO THE BOX NEVER GROWS. A real border here would add
-   2px and shove every tool to its right by two pixels on selection. */
+/* THE ARMED TOOL (and a toggle that is ON, e.g. the magnet) — UCT Signature
+   gold mix (owner 11-16): a FLAT GOLD ICON and nothing else. No gold fill, no
+   gold edge — the one gold mark in the row is the ink of what is current.
+   --chart-cmd-icon-active is the canvas-aware brand gold (#dcbb5e = --ut-gold on
+   a dark canvas, the darker #7a5c16 on a light one); --ut-gold is the fallback. */
 .btn.active {
-  background: var(--chart-cmd-surface-active, rgba(220, 187, 94, 0.12));
-  color: var(--chart-cmd-icon-active, #dcbb5e);
-  box-shadow: inset 0 0 0 1px var(--chart-cmd-edge-active, rgba(220, 187, 94, 0.3));
+  background: transparent;
+  color: var(--chart-cmd-icon-active, var(--ut-gold, #dcbb5e));
 }
-/* Hovering the already-armed tool lifts the surface, never the gold -- so the
-   selected state cannot be confused with a hover on its neighbour. */
+/* Hovering the already-armed tool lifts the neutral surface, never the gold --
+   so the selected state cannot be confused with a hover on its neighbour. */
 .btn.active:hover {
-  background: var(--chart-cmd-surface-pressed, rgba(255, 255, 255, 0.12));
-  color: var(--chart-cmd-icon-active, #dcbb5e);
+  background: var(--chart-cmd-surface-hover, rgba(248, 247, 243, 0.07));
+  color: var(--chart-cmd-icon-active, var(--ut-gold, #dcbb5e));
+}
+
+/* ── Group hairline (owner 11-16, UCT Signature) ──
+   1px × 14px between TOOLS' own groups, with ~4px either side (plus the 2px
+   flex gap ≈ 8px of air), vertically centred on the 22px buttons. */
+.groupDivider {
+  flex: 0 0 1px;
+  width: 1px;
+  height: 14px;
+  margin: 4px 4px 0;
+  background: var(--chart-cmd-divider, rgba(248, 247, 243, 0.08));
+  pointer-events: none;
 }
 
 .btn.danger:not(:disabled):hover {

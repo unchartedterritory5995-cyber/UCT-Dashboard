@@ -38,7 +38,7 @@ export const SECTIONS = [
   // Last on purpose (owner, 2026-08-10). It is the only section that answers a
   // question the reader BROUGHT rather than presenting what we hold, so it
   // reads as the follow-on to the report rather than part of it.
-  { id: 'ai', label: 'Ask AI', icon: 'sparkle' },
+  { id: 'ai', label: 'UCT Agent', icon: 'sparkle' },
 ]
 
 export const SECTION_IDS = SECTIONS.map((s) => s.id)
@@ -67,7 +67,7 @@ export const GROUPS = [
   { id: 'company', label: 'Company', icon: 'info', members: ['profile', 'financials'] },
   { id: 'print', label: 'The Print', icon: 'clock', members: ['history', 'brief', 'call'] },
   { id: 'coverage', label: 'Coverage', icon: 'bolt', members: ['analysts', 'catalysts', 'news', 'filings'] },
-  { id: 'ai', label: 'Ask AI', icon: 'sparkle', members: ['ai'] },
+  { id: 'ai', label: 'UCT Agent', icon: 'sparkle', members: ['ai'] },
 ]
 
 export const GROUP_IDS = GROUPS.map((g) => g.id)

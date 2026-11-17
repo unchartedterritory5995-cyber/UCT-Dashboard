@@ -11,23 +11,17 @@ const base = () => mergeChartSettings(JSON.stringify({}))
 const openTab = (name) => fireEvent.click(screen.getByRole('tab', { name }))
 
 // Every Soon control, by the accessible name it carries (each ends "(coming soon)").
+// (11-15, turn 7) Body / Borders / Wick, the last-price line + its style, the price label, grid Lines, Right
+// margin, Time format and Price decimals became real settings — ChartSettingsModal.viewOptions.test.jsx covers them.
 const SOON = {
-  'Price style': [
-    'Show body (coming soon)', 'Show borders (coming soon)', 'Show wick (coming soon)',
-    'Last price line (coming soon)', 'Last price line style: Dashed (coming soon)',
-    'Price label on the scale (coming soon)',
-  ],
-  Canvas: [
-    'Shade pre / post-market (coming soon)', 'Grid lines: Both (coming soon)', 'Session breaks (coming soon)',
-    'Right margin (coming soon)', 'Time zone: Exchange (New York) (coming soon)',
-    'Time format: 12-hour (coming soon)', 'Price decimals: Auto (coming soon)',
-  ],
-  Markers: [
-    'Next earnings date (coming soon)', 'Pre-market high & low (coming soon)',
-    'My trades (coming soon)', 'Price alerts (coming soon)',
-  ],
+  'Price style': [],
+  // (11-15, turn 8) Session breaks and Pre-market high & low became real settings too (viewOptions test).
+  // (11-16) Shade pre / post-market and Time zone became real settings too (viewOptions test).
+  Canvas: [],
+  // (11-16) Next earnings date and Price alerts became real settings (viewOptions test).
+  // (11-16) My trades became real too (viewOptions test) — the last Markers Soon row.
+  Markers: [],
 }
-const SIDEBAR = 'Apply to all charts (coming soon)'
 
 const soonControls = () => [...document.body.querySelectorAll('[aria-label$="(coming soon)"]')]
 
@@ -46,7 +40,8 @@ describe('ChartSettingsModal — Soon rows', () => {
       render(<ChartSettingsModal open settings={base()} onChange={vi.fn()} />)
       openTab(tab)
       const found = soonControls().map((el) => el.getAttribute('aria-label')).sort()
-      expect(found).toEqual([...names, SIDEBAR].sort())
+      // (11-16) the sidebar's "Apply to all charts" became real (ChartSettingsModal.applyAll.test.jsx)
+      expect(found).toEqual([...names].sort())
       for (const el of soonControls()) {
         expectInert(el)
         const desc = document.getElementById(el.getAttribute('aria-describedby') || '')
@@ -78,32 +73,22 @@ describe('ChartSettingsModal — Soon rows', () => {
     })
   }
 
-  it('Body / Borders / Wick keep their live colour swatches beside the Soon square', () => {
+  it('Body / Borders / Wick keep their live colour swatches beside their on/off', () => {
     render(<ChartSettingsModal open settings={base()} onChange={vi.fn()} />)
     openTab('Price style')
     fireEvent.click(screen.getByTitle('Body Up'))
     expect(document.body.querySelector('[data-color-panel]')).toBeTruthy()
   })
 
-  it('the working rows beside the Soon rows still write (countdown, show grid lines)', () => {
+  it('the working rows beside the Soon rows still write (countdown, grid lines)', () => {
     const onChange = vi.fn()
     render(<ChartSettingsModal open settings={base()} onChange={onChange} />)
     openTab('Price style')
     fireEvent.click(screen.getByRole('switch', { name: /Countdown to bar close/i }))
     expect(onChange.mock.calls.at(-1)[0].countdown).toBe(true)
     openTab('Canvas')
-    fireEvent.click(screen.getByRole('switch', { name: 'Show grid lines' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Grid lines/ }))
+    fireEvent.click(screen.getByRole('option', { name: /^Off/ }))
     expect(onChange.mock.calls.at(-1)[0].grid.visible).toBe(false)
-  })
-
-  it('the sidebar "Apply to all charts" row is a Soon checkbox that writes nothing', () => {
-    const onChange = vi.fn()
-    render(<ChartSettingsModal open settings={base()} onChange={onChange} />)
-    const box = screen.getByRole('button', { name: SIDEBAR })
-    expectInert(box)
-    const row = box.closest('[data-soon]')
-    expect(within(row).getByText('Soon')).toBeTruthy()
-    fireEvent.click(box); fireEvent.click(row)
-    expect(onChange).not.toHaveBeenCalled()
   })
 })

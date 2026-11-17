@@ -28,7 +28,7 @@ export const COV4B_HELD_OUT = [
   // controls the guide must first bring into view
   ['how do I turn on thin bars', 'Thin bars'],
   ['how do I close the second tab of my watchlist', 'Closing a widget tab'],
-  ['how do I change the link colour of a chart tab', 'A chart tab’s link colour'],
+  ['how do I change the link colour of a chart tab', 'A chart tab’s link color'],
 ]
 // ⛔ THE ROWS ABOVE ARE NOT EDITED. A KNOWN MISS is asserted both ways (not what was named; what it reaches today) and listed
 // in testing/agent/guide/knownMisses.json. Recorded 2026-11-09.

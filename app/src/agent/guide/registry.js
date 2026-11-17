@@ -103,19 +103,19 @@ export const GUIDE_FEATURES = [
   // ── ⭐ GUIDE SYSTEM: the nested, multi-step Charts families ──
   {
     // the Inspector of one indicator (components/chart/ChartSettingsIndicators.jsx), and its colour panel (ChartSettingsModal)
-    id: 'indicatorColor', slots: ['ind'], except: /\b(prev|prior|previous)[- ]?day\b|\b(crosshair|grid|watermark|background)\b/, terms: ['indicator colour', 'indicator color'], control: 'the chart’s settings gear', title: 'Changing the colour of {ind.label}', titleAny: 'Changing an indicator’s colour', topic: 'indicators',
+    id: 'indicatorColor', slots: ['ind'], except: /\b(prev|prior|previous)[- ]?day\b|\b(crosshair|grid|watermark|background)\b/, terms: ['indicator colour', 'indicator color'], control: 'the chart’s settings gear', title: 'Changing the color of {ind.label}', titleAny: 'Changing an indicator’s color', topic: 'indicators',
     words: [/\bindicators?\b.*\bcolou?rs?\b|\bcolou?rs?\b.*\bindicators?\b/, /\b(line|plot|moving average|average)\b.*\bcolou?rs?\b|\bcolou?rs?\b.*\b(line|plot|moving average|average)\b/],
     match: (q) => (/\b(re)?colou?r\w*\b/.test(q) || COLOUR_NAME.test(q)) && !!readIndicator(q),
     caps: ['indicatorStyle.set'],
-    explain: 'An indicator’s colour is in its own settings: the gear on the chart, the Indicators tab, click the indicator, then click the colour swatch under Appearance.',
+    explain: 'An indicator’s color is in its own settings: the gear on the chart, the Indicators tab, click the indicator, then click the color swatch under Appearance.',
     steps: [
       GEAR,
       INDICATORS_TAB,
       ...rowStep(SWATCH),
-      { target: SWATCH, name: 'the colour swatch', text: 'Click this swatch to open the colours. An indicator with several lines has one swatch for each.', waitFor: 'chartSettings.colorPanel' },
-      { target: 'chartSettings.colorPanel', name: 'the colour panel', text: 'Pick a colour. The line on the chart changes as you pick.' },
+      { target: SWATCH, name: 'the color swatch', text: 'Click this swatch to open the colors. An indicator with several lines has one swatch for each.', waitFor: 'chartSettings.colorPanel' },
+      { target: 'chartSettings.colorPanel', name: 'the color panel', text: 'Pick a color. The line on the chart changes as you pick.' },
     ],
-    doIt: { say: 'Tell me the colour and which indicator — for example “make the RSI orange”.' },
+    doIt: { say: 'Tell me the color and which indicator — for example “make the RSI orange”.' },
   },
   {
     // the same Inspector, one field of it
@@ -207,7 +207,7 @@ export const GUIDE_FEATURES = [
     id: 'widgetHeader', slots: ['ctl'], terms: ['widget header'], control: 'the widget’s header', title: 'Widget controls: {ctl.label}', topic: 'arrange',
     words: [/\b(float|pop[- ]?out|popout)\b.*\b(widgets?|charts?|window)?\b/, /\b(close|remove|delete|get rid of)\b.*\b(widgets?|panel)\b/, /\b(add|new)\b.*\btab\b.*\bwidget\b/, /\bwidget\b.*\btabs?\b/, /\b(own|separate|new) window\b/, /\bother monitor\b|\bsecond (monitor|screen)\b/],
     caps: [],
-    explain: 'Each widget’s header carries its controls: the colour dot links it, + adds a tab, ▣ floats it over other widgets, ⧉ opens it in its own window and × closes it.',
+    explain: 'Each widget’s header carries its controls: the color dot links it, + adds a tab, ▣ floats it over other widgets, ⧉ opens it in its own window and × closes it.',
     steps: [
       { target: 'widget.{ctl.id}', name: 'that button', text: '{ctl.say}' },
     ],
@@ -257,7 +257,7 @@ export const GUIDE_FEATURES = [
     id: 'compare', terms: ['compare symbols'], control: 'the Tools menu', title: 'Comparing symbols on a chart', topic: 'charts',
     words: [/\b(compare|comparing|comparison|overlay)\b.*\b(symbols?|tickers?|stocks?|charts?|against|with|to)\b/, /\bcompare\b/],
     caps: ['chart.compare'],
-    explain: 'Tools → Compare Symbols overlays other symbols on a chart. Type a ticker in the panel, and each one gets its own colour and scale option.',
+    explain: 'Tools → Compare Symbols overlays other symbols on a chart. Type a ticker in the panel, and each one gets its own color and scale option.',
     steps: [
       TOOLS_MENU,
       { target: 'workspace.tools.compare', name: 'Compare Symbols', text: 'Click Compare Symbols.', waitFor: 'compare.panel' },
@@ -389,7 +389,7 @@ export const GUIDE_FEATURES = [
     id: 'layoutSave', terms: ['save a layout', 'save layout'], control: 'the Layouts menu', title: 'Saving a layout', topic: 'layouts',
     words: [/\bsav(e|es|ing)\b.*\b(layouts?|board|workspace|setup|arrangement)\b/, /\b(layouts?|board)\b.*\bsav(e|ed|ing)\b/, /\bkeep\b.*\b(layout|board)\b/],
     caps: ['layout.saveCurrent'],
-    explain: 'The layout name (top left) → Save layout: Save current arrangement updates the layout you have open; to keep a new one, type a name and click Save template. Saved layouts sit on the bar at the bottom.',
+    explain: 'The layout name (top left) → Save layout: Save current arrangement updates the layout you have open; to keep a new one, type a name and click Save template. Saved layouts sit as tabs beside the layout name.',
     steps: [
       LAYOUTS_MENU,
       { target: 'workspace.saveLayout', name: 'Save layout', text: 'Click Save layout.', waitFor: 'workspace.saveCurrent' },
@@ -432,16 +432,16 @@ export const GUIDE_FEATURES = [
     doIt: { say: 'Tell me the change — for example “make the background black”, “hide the grid lines” or “make the crosshair dashed”.' },
   },
   {
-    id: 'link', terms: ['link colour', 'link colours', 'link color', 'link colors', 'linking charts', 'linked charts'], control: 'the colour dot on the chart’s header', title: 'Linking charts and widgets', topic: 'arrange',
+    id: 'link', terms: ['link colour', 'link colours', 'link color', 'link colors', 'linking charts', 'linked charts'], control: 'the color dot on the chart’s header', title: 'Linking charts and widgets', topic: 'arrange',
     words: [/\b(link|unlink|linking|linked)\b.*\b(charts?|widgets?|watch ?lists?)\b/, /\b(charts?|widgets?)\b.*\b(link|unlink|linked|in sync|sync)\b/, /\bcolou?r (dot|group|link)s?\b/],
     caps: ['widget.setLink'],
     // pages/charts/WidgetHeader.jsx — the dot cycles through the groups on click (nextGroup); grey = not linked
-    explain: 'The coloured dot at the left of each widget’s header is its link colour. Widgets with the same colour show the same symbol — pick a ticker in a linked watchlist and every chart in that colour follows. Click the dot to cycle through the colours; grey means not linked.',
+    explain: 'The colored dot at the left of each widget’s header is its link color. Widgets with the same color show the same symbol — pick a ticker in a linked watchlist and every chart in that color follows. Click the dot to cycle through the colors; grey means not linked.',
     steps: [
-      { target: 'widget.link', text: 'This dot is the chart’s link colour — click it to cycle through the colours. Widgets of the same colour show the same symbol; grey means not linked.' },
+      { target: 'widget.link', text: 'This dot is the chart’s link color — click it to cycle through the colors. Widgets of the same color show the same symbol; grey means not linked.' },
     ],
     doIt: {
-      action: 'widget.setLink', arg: 'color', ask: 'Which link colour?', kind: 'board', widgetArg: 'widget',
+      action: 'widget.setLink', arg: 'color', ask: 'Which link color?', kind: 'board', widgetArg: 'widget',
       choices: [['A', 'Gold'], ['B', 'Blue'], ['C', 'Green'], ['D', 'Purple'], ['N', 'Not linked']],
     },
   },
@@ -449,7 +449,7 @@ export const GUIDE_FEATURES = [
     id: 'symbol', terms: ['chart symbol', 'symbol search'], control: 'the symbol search', title: 'Changing a chart’s symbol', topic: 'charts',
     words: [/\b(symbol|ticker|stock)\b/, /\bsearch (for )?(a )?(stock|ticker|symbol)\b/],
     caps: ['chart.setSymbol'],
-    explain: 'Each chart shows one symbol. Click the symbol name at the top-left of the chart, type a ticker or a company name, and pick it from the list. Charts that share a link colour change together.',
+    explain: 'Each chart shows one symbol. Click the symbol name at the top-left of the chart, type a ticker or a company name, and pick it from the list. Charts that share a link color change together.',
     steps: [
       { target: 'chart.symbol', text: 'Click the symbol name, then type a ticker or company name and pick it from the list.' },
     ],
@@ -473,7 +473,7 @@ export const GUIDE_FEATURES = [
     id: 'indicators', slots: ['ind'], except: /\banchored vwap\b|\banchor\w*\b.*\bvwap\b/, terms: ['chart settings indicators'], control: 'the chart’s settings gear', title: 'Adding {ind.say}', titleAny: 'Adding and configuring an indicator', topic: 'indicators',
     words: [/\bindicators?\b/, /\b(rsi|macd|vwap|atr|bollinger|studies|study)\b/, MOVING_AVERAGE],
     caps: ['indicator.add'],
-    explain: 'Indicators are in Chart settings → Indicators: search for one (RSI, MACD, a moving average…) and add it; click an indicator already on the chart to change its settings, colours and the pane it draws in.',
+    explain: 'Indicators are in Chart settings → Indicators: search for one (RSI, MACD, a moving average…) and add it; click an indicator already on the chart to change its settings, colors and the pane it draws in.',
     steps: [
       GEAR,
       INDICATORS_TAB,
@@ -484,7 +484,7 @@ export const GUIDE_FEATURES = [
       { only: 'ind', target: [{ within: 'indicators.addSurface', aria: 'Add another {ind.name}' }, { within: 'indicators.addSurface', attr: 'data-def-id', value: '{ind.id}' }], name: 'the result', text: '{ind.name} is already on this chart. Click this ＋ to add another.', altText: 'Click {ind.name} to add it to this chart.', waitFor: { not: { within: 'indicators.addSurface', attr: 'data-def-id', value: '{ind.id}' } } },
       // the row just added is the selected one: "SMA 5", not the SMA 50 above it
       { only: 'ind', target: [ROW_ON, ...added()], name: 'the indicator list', text: '{ind.addedSay} is on the chart.{ind.addNext}', noBack: true },
-      { unless: 'ind', target: { within: 'chartSettings', aria: 'Search indicators' }, name: 'the search box', text: 'Search for an indicator and add it. The ones already on the chart are listed in the Indicators section — click one to change its settings, colours and pane.' },
+      { unless: 'ind', target: { within: 'chartSettings', aria: 'Search indicators' }, name: 'the search box', text: 'Search for an indicator and add it. The ones already on the chart are listed in the Indicators section — click one to change its settings, colors and pane.' },
     ],
     doIt: {
       // the choices are the chart's OWN quick set (catalog rows its right-click menu offers) — never a hand list here
@@ -521,10 +521,12 @@ export const GUIDE_FEATURES = [
     id: 'layouts', terms: ['layout', 'layouts', 'saved layout', 'saved layouts'], control: 'your layouts bar', title: 'Saving and switching layouts', topic: 'layouts',
     words: [/\blayouts?\b/, /\bsave (my |this )?(board|workspace|setup)\b/, /\bswitch (my )?(board|workspace)\b/],
     caps: ['layout.open'],
-    explain: 'A layout is a saved board — its widgets, charts and their settings. Your layouts sit in the bar at the top: click one to switch. The + opens the library, where you create, save, rename and copy them.',
+    explain: 'A layout is a saved board — its widgets, charts and their settings. Your layouts sit as tabs beside the layout name at the top: click one to switch, and the + after them starts a new one. Layout library… in the layout name’s menu holds every layout you have made.',
     steps: [
       { target: 'workspace.layouts', text: 'Your saved layouts — click one to switch to it.' },
-      { target: 'workspace.layoutLibrary', text: 'Open the library.', waitFor: 'workspace.layoutLibraryMenu' },
+      // the library button left the bar with the bottom rail (owner 11-16): it is a row in the Layouts menu now
+      LAYOUTS_MENU,
+      { target: 'workspace.layoutLibrary', text: 'Click Layout library… to open the library.', waitFor: 'workspace.layoutLibraryMenu' },
       // ⭐ PHASE 3: the library itself (pages/charts/LayoutDock.jsx): ＋ New layout and every saved layout; save / rename /
       // duplicate are on each layout's own menu on the bar
       { target: 'workspace.layoutLibraryMenu', text: 'Start a ＋ New layout here, or open any saved one. To save, rename or duplicate a layout, open its own menu on the bar.' },
@@ -629,7 +631,7 @@ export const GUIDE_FEATURES = [
     words: [/\b(table|sheet|monitor|rows?|readings?)\b/],
     caps: ['breadth.page'],
     // pages/Breadth.jsx — the monitor table (tableWrap)
-    explain: 'The Breadth sheet has one row per session, newest at the top, and one column per breadth metric — how many stocks are above their moving averages, up or down big, at new highs or lows. Colours mark how strong or weak each reading is.',
+    explain: 'The Breadth sheet has one row per session, newest at the top, and one column per breadth metric — how many stocks are above their moving averages, up or down big, at new highs or lows. Colors mark how strong or weak each reading is.',
     steps: [
       { target: 'breadth.table', text: 'One row per session, newest at the top; each column is a breadth metric.' },
     ],

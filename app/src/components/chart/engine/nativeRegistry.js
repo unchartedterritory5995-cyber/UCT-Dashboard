@@ -1477,7 +1477,7 @@ const RAW_DEFS = [
 
   nativeDef('awesome', 'awesome',
     { name: 'Awesome Oscillator', shortName: 'AO', category: CAT.MOMENTUM, quickMenu: false, legendParams: ['fastPeriod', 'slowPeriod'],
-      description: 'A fast minus a slow average of the bar midpoint, coloured by whether it is rising.',
+      description: 'A fast minus a slow average of the bar midpoint, colored by whether it is rising.',
       tags: ['awesome oscillator', 'ao', 'bill williams', 'momentum'] },
     autoPane(0.15),
     [periodInput('fastPeriod', 'Fast', 5, 1, 100), periodInput('slowPeriod', 'Slow', 34, 1, 300)],
@@ -4945,10 +4945,10 @@ const RS_LINE_V5_RAW = {
     // ⭐ The pair carries its own instructions (review finding V3): two identical
     // swatches for one line say why, and the second says what it colours.
     { ...colorInput('color', 'Line above avg', RS_INFO), group: 'Line', activeWhen: RS_RATIO_VIEW,
-      tooltip: 'Line colour above its average. Classic uses one colour; keep both swatches the same for a single-colour line' },
+      tooltip: 'Line color above its average. Classic uses one color; keep both swatches the same for a single-color line' },
     { ...colorInput('lineDownColor', 'Line below avg', RS_INFO), group: 'Line', activeWhen: RS_RATIO_VIEW,
-      tooltip: 'Line colour below its average; the Phase preset sets red here' },
-    { ...colorInput('maColor', 'Average colour', RS_NEUTRAL), group: 'Line', activeWhen: RS_RATIO_VIEW },
+      tooltip: 'Line color below its average; the Phase preset sets red here' },
+    { ...colorInput('maColor', 'Average color', RS_NEUTRAL), group: 'Line', activeWhen: RS_RATIO_VIEW },
     // ⭐ DESIGN ROUND (2026-11-08) — two presentation switches, OFF by default so
     // every chart draws exactly as before, and set by NO preset (owner decision:
     // a saved chart keeps its preset name whatever these say). Neither is
@@ -4959,7 +4959,7 @@ const RS_LINE_V5_RAW = {
     { key: 'shadeVsAverage', type: 'bool', label: 'Shade vs avg', default: false, group: 'Line', activeWhen: RS_RATIO_VIEW,
       tooltip: 'Shade the gap between the RS line and its average: green while the line is above the average, red while it is below.' },
     { key: 'showCrossMarkers', type: 'bool', label: 'Cross markers', default: false, group: 'Line', activeWhen: RS_RATIO_VIEW,
-      tooltip: 'A small arrow where the RS line crosses its average: pointing up where it crosses above, down where it crosses below. The arrows take the line\'s two colours.' },
+      tooltip: 'A small arrow where the RS line crosses its average: pointing up where it crosses above, down where it crosses below. The arrows take the line\'s two colors.' },
     // ⭐ UCT RS split, U7a (map §(b), the rollback rule): `showAverage` is the slim
     // UCT RS Line's switch for the average and its shade (`RS_LINE_SLIM_RAW`).
     // Declared here LEGACY so an instance that stored it under the slim definition
@@ -4976,7 +4976,7 @@ const RS_LINE_V5_RAW = {
     { key: 'maLength2', type: 'int', label: 'Average 2 (bars)', default: 50, min: 2, max: 200, step: 1, group: 'Line', legacy: true },
     { key: 'maType2', type: 'enum', label: 'Average 2 type', default: 'SMA', group: 'Line', legacy: true,
       options: RS_MA_TYPE_OPTIONS },
-    { ...colorInput('ma2Color', 'Average 2 colour', RS_MA2), group: 'Line', legacy: true },
+    { ...colorInput('ma2Color', 'Average 2 color', RS_MA2), group: 'Line', legacy: true },
     { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1, group: 'Line' },
     { key: 'lookback', type: 'int', label: 'Lookback (bars)', default: 252, min: 20, max: 500, step: 1, group: 'New highs',
       tooltip: 'New-high lookback: bars for a new high. 252 bars is one trading year on a daily chart; on a weekly chart use 52. Shorter reacts faster and fires more often.' },
@@ -4984,17 +4984,17 @@ const RS_LINE_V5_RAW = {
       tooltip: 'Price-high tolerance: price counts as not at its high when it is more than this far below its lookback high.' },
     { key: 'shortHistoryDots', type: 'bool', label: 'Short history', default: true, group: 'New highs',
       activeWhen: RS_RATIO_VIEW,
-      tooltip: 'Mark RS highs over all available history when the stock has fewer bars than the lookback. Drawn in a muted colour.' },
+      tooltip: 'Mark RS highs over all available history when the stock has fewer bars than the lookback. Drawn in a muted color.' },
     { ...colorInput('dotColor', 'New-high dot', RS_INFO), group: 'New highs', activeWhen: RS_RATIO_VIEW,
-      tooltip: 'Colour of the small RS new-high dot' },
+      tooltip: 'Color of the small RS new-high dot' },
     { ...colorInput('dotBeforePriceColor', 'Before-price dot', RS_GOLD), group: 'New highs', activeWhen: RS_RATIO_VIEW,
-      tooltip: 'Colour of the large RS-high-before-price dot; gold by default, the one gold element on the chart' },
+      tooltip: 'Color of the large RS-high-before-price dot; gold by default, the one gold element on the chart' },
     { ...colorInput('dotPartialColor', 'Short-history dot', RS_NEUTRAL), group: 'New highs', activeWhen: RS_RATIO_VIEW },
     { key: 'showNewLow', type: 'bool', label: 'RS new lows', default: false, group: 'New highs',
       activeWhen: RS_RATIO_VIEW,
       tooltip: 'RS new lows: small dot when the RS line is at its lowest level of the lookback. Relative weakness. Daily and weekly charts only.' },
     { ...colorInput('dotLowColor', 'New-low dot', RS_NEUTRAL), group: 'New highs', activeWhen: RS_RATIO_VIEW,
-      tooltip: 'Colour of the small RS new-low dot' },
+      tooltip: 'Color of the small RS new-low dot' },
     // ⭐ VA2 — THE RATING GROUP (plan §6.3, collapsed). Every control dims while
     // the rating is switched off. `showRatingHistory` (the rating pane) is NOT
     // declared: there is no rating pane, and a switch with nothing behind it is
@@ -5020,9 +5020,9 @@ const RS_LINE_V5_RAW = {
     { key: 'showRanksTable', type: 'bool', label: 'Ranks table', default: true, group: 'Rating',
       activeWhen: RS_RATING_ON,
       tooltip: 'A small table in the corner of the pane on daily charts: how the 1, 3, 6, 9 and 12-month returns each rank, 1 to 99, and the RS Rating. On a narrow screen it steps aside and the Rating card shows the same numbers.' },
-    { key: 'ratingBands', type: 'bool', label: 'Rating colours', default: true, group: 'Rating',
+    { key: 'ratingBands', type: 'bool', label: 'Rating colors', default: true, group: 'Rating',
       activeWhen: RS_RATING_ON,
-      tooltip: 'Colour the rating in the readout by the site\'s bands: 80 and above, 60 to 79, 40 to 59, and below 40. The bands are rules of thumb, not tested cut-offs.' },
+      tooltip: 'Color the rating in the readout by the site\'s bands: 80 and above, 60 to 79, 40 to 59, and below 40. The bands are rules of thumb, not tested cut-offs.' },
     // ⭐ THE STRESS TEST GROUP (VA2; plan §6.3, collapsed).
     // ⭐ THE STRESS-TEST DOT (plan §6.7; UCT workshops, Kell; visual round A3). An
     // RS new high on a day the benchmark closed down by the red-day threshold —
@@ -5033,7 +5033,7 @@ const RS_LINE_V5_RAW = {
       activeWhen: RS_RATIO_VIEW,
       tooltip: 'Red-day highs: large dot when the RS line makes a new high on a day the benchmark closed down at least 0.5%. Strength on a weak day; the UCT stress test, where it is the gold dot. Daily and weekly charts only.' },
     { ...colorInput('dotRedColor', 'Red-day dot', RS_INFO), group: 'Stress test', activeWhen: RS_RATIO_VIEW,
-      tooltip: 'Colour of the red-day RS-high dot; the Stress test preset makes it gold' },
+      tooltip: 'Color of the red-day RS-high dot; the Stress test preset makes it gold' },
     // ⭐ THE METHOD GROUP (VA2; plan §6.3, collapsed): each reading's lengths, each
     // dimmed unless its Reading is chosen.
     // ⭐ MANSFIELD VIEW, NOW LEGACY (v4, decision D2). It was the pane's reading
@@ -5052,10 +5052,10 @@ const RS_LINE_V5_RAW = {
     { key: 'mansfieldLength', type: 'int', label: 'Mansfield (bars)', default: 200, min: 2, max: 500, step: 1, group: 'Method',
       activeWhen: RS_MANSFIELD_VIEW,
       tooltip: 'Mansfield length in bars: the average the ratio is measured against. 200 on a daily chart; Weinstein\'s 52 weeks on a weekly chart (the weekly Trend preset sets it).' },
-    { ...colorInput('mansfieldColor', 'Mansfield colour', RS_INFO), group: 'Method', activeWhen: RS_MANSFIELD_VIEW,
-      tooltip: 'Colour of the Mansfield line under Mansfield view; the Trend preset gives it the blue' },
+    { ...colorInput('mansfieldColor', 'Mansfield color', RS_INFO), group: 'Method', activeWhen: RS_MANSFIELD_VIEW,
+      tooltip: 'Color of the Mansfield line under Mansfield view; the Trend preset gives it the blue' },
     { ...colorInput('dotCrossColor', 'Zero-cross dot', RS_NEUTRAL), group: 'Method', activeWhen: RS_MANSFIELD_VIEW,
-      tooltip: 'Colour of the dot where the Mansfield line crosses up through zero; the Trend preset gives it the blue' },
+      tooltip: 'Color of the dot where the Mansfield line crosses up through zero; the Trend preset gives it the blue' },
     // ⭐ v4 — THE PHASE 3 METHOD INPUTS (unit 3-08). Ranges and defaults are the
     // server row's (`registry_defs._RS_PHASE3_RANGES`, `relative_strength`'s
     // defaults), railed field by field by `test_rs_columns_provider.py`. Each is
@@ -5682,7 +5682,7 @@ const RS_LINE_SLIM_RAW = {
     { key: 'maType', type: 'enum', label: 'Average type', default: 'EMA', group: 'Average',
       options: [['EMA', 'Exponential'], ['SMA', 'Simple']],
       tooltip: 'Exponential reacts faster; simple is what StockCharts uses.' },
-    { ...colorInput('maColor', 'Average colour', RS_NEUTRAL), group: 'Average', activeWhen: RS_AVERAGE_ON },
+    { ...colorInput('maColor', 'Average color', RS_NEUTRAL), group: 'Average', activeWhen: RS_AVERAGE_ON },
     // ⭐ 2026-11-13 — THE SECOND AVERAGE (Deepvue's MA2, a 50 SMA off by default;
     // Webster reads the 21 and the 50 on the RS line). Presentation only: none of
     // the four is a server input, so it keys no fetch, moves no `compute.rev` and
@@ -5696,27 +5696,27 @@ const RS_LINE_SLIM_RAW = {
     { key: 'maType2', type: 'enum', label: 'Average 2 type', default: 'SMA', group: 'Average',
       options: RS_MA_TYPE_OPTIONS, activeWhen: RS_AVERAGE2_ON,
       tooltip: 'Simple by default (Deepvue draws its second RS average as a 50 SMA); exponential reacts faster.' },
-    { ...colorInput('ma2Color', 'Average 2 colour', RS_MA2), group: 'Average', activeWhen: RS_AVERAGE2_ON,
-      tooltip: 'Colour of the second average on the RS line.' },
+    { ...colorInput('ma2Color', 'Average 2 color', RS_MA2), group: 'Average', activeWhen: RS_AVERAGE2_ON,
+      tooltip: 'Color of the second average on the RS line.' },
     // ── rendered: Line (folded) ──
-    { ...colorInput('color', 'Line colour', RS_INFO), group: 'Line', tooltip: 'Colour of the RS line' },
+    { ...colorInput('color', 'Line color', RS_INFO), group: 'Line', tooltip: 'Color of the RS line' },
     { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1, group: 'Line' },
     // ── rendered: New highs (folded) ──
     { key: 'lookback', type: 'int', label: 'Lookback (bars)', default: 252, min: 20, max: 500, step: 1, group: 'New highs',
       tooltip: 'New-high lookback: bars for a new high. 252 bars is one trading year on a daily chart; on a weekly chart use 52. Shorter reacts faster and fires more often.' },
     { ...colorInput('dotColor', 'New-high dot', RS_INFO), group: 'New highs',
-      tooltip: 'Colour of the RS new-high dot' },
+      tooltip: 'Color of the RS new-high dot' },
     { ...colorInput('dotBeforePriceColor', 'Before-price dot', RS_GOLD), group: 'New highs',
-      tooltip: 'Colour of the large RS-high-before-price dot; gold by default, the one gold element on the chart' },
+      tooltip: 'Color of the large RS-high-before-price dot; gold by default, the one gold element on the chart' },
     { ...colorInput('dotRedColor', 'Red-day dot', RS_INFO), group: 'New highs', activeWhen: { key: 'showRedDay', equals: true },
-      tooltip: 'Colour of the red-day RS-high dot' },
+      tooltip: 'Color of the red-day RS-high dot' },
     // ── rendered: Rating (folded) ──
     { key: 'showRanksTable', type: 'bool', label: 'Ranks table', default: true, group: 'Rating',
       activeWhen: RS_RATING_ON,
       tooltip: 'A small table beside the chart label on daily charts: how the 1, 3, 6, 9 and 12-month returns each rank, 1 to 99, and the RS Rating. On a narrow screen it steps aside and the Rating card shows the same numbers.' },
-    { key: 'ratingBands', type: 'bool', label: 'Rating colours', default: true, group: 'Rating',
+    { key: 'ratingBands', type: 'bool', label: 'Rating colors', default: true, group: 'Rating',
       activeWhen: RS_RATING_ON,
-      tooltip: 'Colour the rating in the readout by the site\'s bands: 80 and above, 60 to 79, 40 to 59, and below 40. The bands are rules of thumb, not tested cut-offs.' },
+      tooltip: 'Color the rating in the readout by the site\'s bands: 80 and above, 60 to 79, 40 to 59, and below 40. The bands are rules of thumb, not tested cut-offs.' },
     // ── legacy: declared, never rendered, never sent (the header above) ──
     // Each keeps the v5 type, range and option vocabulary EXACTLY, so every value
     // a v5 build could have stored is still a legal value here.
@@ -5736,7 +5736,7 @@ const RS_LINE_SLIM_RAW = {
     { key: 'showComponents', type: 'bool', label: 'Components', default: false, group: 'Rating', legacy: true },
     { key: 'showMansfield', type: 'bool', label: 'Mansfield view', default: false, group: 'Method', legacy: true },
     { key: 'mansfieldLength', type: 'int', label: 'Mansfield (bars)', default: 200, min: 2, max: 500, step: 1, group: 'Method', legacy: true },
-    { ...colorInput('mansfieldColor', 'Mansfield colour', RS_INFO), group: 'Method', legacy: true },
+    { ...colorInput('mansfieldColor', 'Mansfield color', RS_INFO), group: 'Method', legacy: true },
     { ...colorInput('dotCrossColor', 'Zero-cross dot', RS_NEUTRAL), group: 'Method', legacy: true },
     { key: 'rrgRatioLength', type: 'int', label: 'RS-Ratio (bars)', default: 10, min: 3, max: 60, step: 1, group: 'Method', legacy: true },
     { key: 'rrgMomentumLength', type: 'int', label: 'Momentum bars', default: 5, min: 2, max: 30, step: 1, group: 'Method', legacy: true },
@@ -6025,8 +6025,8 @@ const RS_RATING_RAW = {
   placement: { target: 'pane', pane: rsSplitPane(), axis: 'visible' },
   inputs: [
     // Style only: the server computes everything else from the stored history.
-    { ...colorInput('color', 'Line colour', RS_INFO), group: 'Style',
-      tooltip: 'Colour of the rating line; its 21-session average stays in the neutral' },
+    { ...colorInput('color', 'Line color', RS_INFO), group: 'Style',
+      tooltip: 'Color of the rating line; its 21-session average stays in the neutral' },
     { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1, group: 'Style' },
   ],
   plots: [
@@ -6123,8 +6123,8 @@ const RS_PHASES_RAW = {
       tooltip: 'Short average in bars: the quick average of the RS line and of the benchmark. Each trend is the short average against the long one. 3 is Deepvue\'s setting.' },
     { key: 'longEma', type: 'int', label: 'Long avg (bars)', default: 10, min: 3, max: 60, step: 1, group: 'Simple',
       tooltip: 'Long average in bars: the slow average the short one is measured against. 10 is Deepvue\'s setting. The long average must be longer than the short one to mean anything.' },
-    { ...colorInput('color', 'Histogram colour', RS_NEUTRAL), group: 'Style',
-      tooltip: 'Colour of the divergence histogram; the shading keeps the blue and red phase colours' },
+    { ...colorInput('color', 'Histogram color', RS_NEUTRAL), group: 'Style',
+      tooltip: 'Color of the divergence histogram; the shading keeps the blue and red phase colors' },
   ],
   plots: [
     // ⭐ THE CONDITION COLUMN, HIDDEN: 1 / 0 / null from the server, drawn by
@@ -6293,13 +6293,13 @@ const RS_EXIT_RAW = {
       tooltip: 'Fast average of the RS line, in bars. 0 is automatic: 21 on a daily chart, 8 on a weekly one. A Quick Break is the RS line dropping below it. These lengths come from a community summary of Mike Webster\'s teaching, not a published rule: test what suits you.' },
     { key: 'slowLength', type: 'int', label: 'Slow avg (bars)', default: 0, min: 0, max: 400, step: 1, group: 'Averages',
       tooltip: 'Slow average of the RS line, in bars. 0 is automatic: 50 on a daily chart, 21 on a weekly one. A Grateful Dead Break is the RS line dropping below it. It is kept longer than the fast average.' },
-    { ...colorInput('color', 'Line colour', RS_INFO), group: 'Style', tooltip: 'Colour of the RS line; the two averages stay in the neutral' },
+    { ...colorInput('color', 'Line color', RS_INFO), group: 'Style', tooltip: 'Color of the RS line; the two averages stay in the neutral' },
     { ...colorInput('quickColor', 'Quick Break dot', RS_GOLD), group: 'Style', activeWhen: RS_QUICK_ON,
-      tooltip: 'Colour of the Quick Break dot; gold, the caution colour' },
+      tooltip: 'Color of the Quick Break dot; gold, the caution color' },
     { ...colorInput('quicksandColor', 'Quicksand dot', RS_CAUTION_ORANGE), group: 'Style', activeWhen: RS_QUICKSAND_ON,
-      tooltip: 'Colour of the Quicksand dot; between the caution gold and the loss red' },
+      tooltip: 'Color of the Quicksand dot; between the caution gold and the loss red' },
     { ...colorInput('deadColor', 'Dead Break dot', RS_BEAR), group: 'Style', activeWhen: RS_DEAD_ON,
-      tooltip: 'Colour of the Grateful Dead Break dot; the loss red' },
+      tooltip: 'Color of the Grateful Dead Break dot; the loss red' },
   ],
   plots: [
     // ⭐ `legend.showValue: false`: the RS ratio means nothing to a member (the slim RS

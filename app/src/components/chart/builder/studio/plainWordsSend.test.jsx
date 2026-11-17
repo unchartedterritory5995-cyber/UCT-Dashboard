@@ -129,7 +129,9 @@ describe('who may ask for it', () => {
     expect(door.slice(0, 400)).not.toMatch(/openCreateIndicatorFor\?\.\(opts\)/)
   })
 
-  it('in the window, the box and its examples ask to send; "Describe it instead" does not', () => {
+  // Superseded by the owner's 'Option 1' Indicators window (11-16): the window no longer has a plain-words box,
+  // so there is no box or example to send from. The door's send path is still covered above.
+  it.skip('in the window, the box and its examples ask to send; "Describe it instead" does not', () => {
     const win = code(WINDOW_SRC)
     expect(win).toMatch(/onSubmit=\{\(e\) => \{ e\.preventDefault\(\); describeIt\(describeText, \{ send: true \}\) \}\}/)
     expect(win).toMatch(/describeIt\(ex, \{ send: true \}\)/)

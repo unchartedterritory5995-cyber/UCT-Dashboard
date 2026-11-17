@@ -171,7 +171,7 @@ export function alreadyOnChart(st, defId, inputs) {
 // definition declares as a colour, a source or text is refused here, before Indicators is asked — paint
 // and data links stay in the settings dialog until Indicators ships its own validated ops for them
 // (docs/agent/PHASE2-SHARED-CONTRACT.md). An undeclared key is left to Indicators' own refusal.
-const UNSETTABLE_WORD = { color: 'colours', source: 'data sources', text: 'text' }
+const UNSETTABLE_WORD = { color: 'colors', source: 'data sources', text: 'text' }
 export function unsettableInput(defId, inputs) {
   if (!inputs) return null
   let declared = []
@@ -343,7 +343,7 @@ export function extReceiptLine(receipt, name, where) {
     // ⭐ 2a-12b: `plotKey` only when ONE dot output was sized (absent = the instance level, as the Dot size control writes it)
     case 'setDotSize': return `Changed ${name}'s dot size${c.plotKey ? ` (${c.plotKey})` : ''}${where} — ${dotSizeWord(c.before)} → ${dotSizeWord(c.after)}.`
     case 'setPlotStyle': return `Changed how ${name}${c.plotKey ? ` (${c.plotKey})` : ''} is drawn${where} — ${c.before || 'default'} → ${c.after}.`
-    case 'setColor': return `Changed ${name}'s ${String(c.target || '').startsWith('sign:') ? `${c.target === 'sign:up' ? 'up' : 'down'} colour` : 'colour'}${where} to ${colorName(c.after)}.`
+    case 'setColor': return `Changed ${name}'s ${String(c.target || '').startsWith('sign:') ? `${c.target === 'sign:up' ? 'up' : 'down'} color` : 'color'}${where} to ${colorName(c.after)}.`
     // calc-TF family: which bars COMPUTE it (never the chart's timeframe, never where it shows)
     case 'setCalculationTimeframe': return c.after
       ? `Calculated ${name}${where} on ${calcWord(c.after)} bars (was ${c.before ? `${calcWord(c.before)} bars` : 'the chart\'s own timeframe'})${c.chartTf ? ` — the chart itself stays on ${chartTfWord(c.chartTf)}` : ''}.`

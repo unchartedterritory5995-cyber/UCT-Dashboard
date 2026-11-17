@@ -58,6 +58,33 @@ master push is a full deploy gate and a deploy, and wasted runs still cost wall-
 - If runs fail with "The job was not started because ... spending limit": that is the budget, not the code.
   Tell the owner; do not re-push to retry.
 
+### The queue is the cost now: 40 jobs at once, for every session (measured 2026-11-16)
+
+The account runs **40 jobs at a time** (GitHub Pro) and every session shares them, first come first served:
+a deploy-gate job waits behind whatever PR jobs were queued before it. On 2026-11-16, 20:06-23:06Z, the 40
+slots were full the whole three hours with 50-130 jobs waiting; the deploy gate (12-13 minutes of work)
+finished 28-68 minutes after its push; a Pine PR took a median 64 minutes from open to merge (a quarter took
+over 4 hours) against 23 minutes for everything else. `pine heavy` alone was 50% of all runner minutes, and
+24% of all runner minutes went to runs a newer push then cancelled. Measure it again with
+`python tools/ci_queue_report.py --hours 3` before believing a number here.
+
+- **One push carries the whole unit: code, tests, evidence docs, runbooks.** A one-file docs commit pushed
+  minutes after the code re-runs every job of every workflow the PR triggers (`pine heavy`: 19 jobs,
+  ~100 runner-minutes; a PR's `paths:` filter reads the WHOLE PR, never the new commit). 6 of 41 `pine heavy`
+  PR runs in that window were docs-only pushes.
+- **One check per commit.** Never dispatch a workflow by hand on a commit whose PR run already ran it. For a
+  mutant proof on a PR branch: `gh workflow run pine-heavy.yml --ref <branch> -f mutants_manifest=<path> -f
+  skip_legs=true` runs the mutant job alone (three such doubled runs in that window, ~100 runner-minutes each).
+- **`docs/pine/vendor-harness/capture-queue.json` is NOT committed** (since 2026-11-16; git ignores it). It
+  was the conflicting file in 5 of the 5 open Pine PRs GitHub could not merge that day, and every conflict
+  cost a merge of master, a regenerate commit and a full `pine heavy` re-run. Anything that wants the queue
+  derives it (`evidence_engine.build_queue()`, ~6 s); `python tools/vendor_harness/evidence_engine.py queue`
+  writes a local copy to read. **A branch cut before that change conflicts on it ONCE when it merges master:
+  resolve with `git rm docs/pine/vendor-harness/capture-queue.json`.** Never `git add -f` it back.
+- **Merge master into a PR only when GitHub reports a conflict or the PR needs something master has.** A
+  catch-up merge re-runs everything: 15 of those 41 runs were triggered by one.
+- **Batch small related PRs into a train** (the `train/eNN` precedent): one check and one deploy instead of N.
+
 ## ⭐ Heavy tests run on GitHub, not on this PC (2026-11-16, GitHub Pro: 40 concurrent jobs)
 
 The dev PC runs ONE heavy test job at a time (`heavy_lock`, RAM limits) and every session queues behind it.

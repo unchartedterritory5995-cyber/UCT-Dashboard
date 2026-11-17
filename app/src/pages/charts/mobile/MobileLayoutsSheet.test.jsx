@@ -21,6 +21,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import MobileLayoutsSheet from './MobileLayoutsSheet'
+import { UCT_DEFAULT_OFFERED } from '../layoutDockPins'
 
 const MINE = [
   { id: 11, name: 'Swing board', scope: 'user' },
@@ -57,7 +58,17 @@ describe('MOB-01 — the phone can reach the layout system', () => {
     expect(screen.getByText('Swing board')).toBeInTheDocument()
     expect(screen.getByText('Earnings week')).toBeInTheDocument()
     expect(screen.getByText('UCT Standard')).toBeInTheDocument()
-    expect(screen.getByText('UCT Default')).toBeInTheDocument()   // the frozen restore point
+    // UCT Default is HIDDEN while UCT_DEFAULT_OFFERED is false (owner 11-16).
+    if (UCT_DEFAULT_OFFERED) expect(screen.getByText('UCT Default')).toBeInTheDocument()
+    else expect(screen.queryByText('UCT Default')).not.toBeInTheDocument()
+    expect(screen.getByText('Prebuilt')).toBeInTheDocument()
+  })
+
+  it.skipIf(UCT_DEFAULT_OFFERED)('UCT Default hidden: no Prebuilt heading when no firm layout is published', () => {
+    setup({ prebuilt: [] })
+    expect(screen.queryByText('UCT Default')).not.toBeInTheDocument()
+    expect(screen.queryByText('Prebuilt')).not.toBeInTheDocument()
+    expect(screen.getByText('Swing board')).toBeInTheDocument()
   })
 
   it('applying a layout calls ChartsWorkspace\'s applyTemplate with that row, and closes', async () => {
@@ -68,7 +79,7 @@ describe('MOB-01 — the phone can reach the layout system', () => {
     expect(p.onClose).toHaveBeenCalled()
   })
 
-  it('the prebuilt "UCT Default" routes to applyUctDefault, not to applyTemplate', async () => {
+  it.runIf(UCT_DEFAULT_OFFERED)('the prebuilt "UCT Default" routes to applyUctDefault, not to applyTemplate', async () => {
     const p = setup()
     await userEvent.click(screen.getByRole('button', { name: /UCT Default/ }))
     expect(p.onApplyUctDefault).toHaveBeenCalledTimes(1)

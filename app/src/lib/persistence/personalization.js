@@ -15,7 +15,7 @@
 // wording of each row, and which kinds of layout exist.
 import { GRID_MAX_CELLS } from '../../pages/charts/grid/gridLayouts'
 import { MAX_COMPARISONS, MAX_CHART_TEMPLATES } from '../../components/chart/chartCeilings'
-import { layoutAutoSaves, UCT_DEFAULT_ID } from '../../pages/charts/layoutDockPins'
+import { layoutAutoSaves, UCT_DEFAULT_ID, UCT_DEFAULT_OFFERED } from '../../pages/charts/layoutDockPins'
 
 /** The limits a member can run into, each pointing at the code that enforces it. `source.file`
  *  declares the constant; `consumer` is the file that applies it to the member. */
@@ -63,7 +63,9 @@ export function densityCeilings(list = CEILINGS) {
 export const LAYOUT_KINDS = [
   { id: 'own', label: 'Layouts you created or duplicated', probe: { id: 'your-layout', scope: 'user' } },
   { id: 'prebuilt', label: 'Prebuilt layouts shared with every member', probe: { id: 'prebuilt-layout', scope: 'global' } },
-  { id: 'uct-default', label: 'The UCT Default layout', probe: { id: UCT_DEFAULT_ID, scope: 'global' } },
+  // Listed only while UCT Default is offered (layoutDockPins UCT_DEFAULT_OFFERED) — a hidden
+  // layout is not a kind a member can have open.
+  ...(UCT_DEFAULT_OFFERED ? [{ id: 'uct-default', label: 'The UCT Default layout', probe: { id: UCT_DEFAULT_ID, scope: 'global' } }] : []),
 ]
 
 /** Splits the layout kinds by what `autoSaves` (the workspace's own rule, by default) answers
