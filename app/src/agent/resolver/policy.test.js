@@ -59,7 +59,7 @@ describe(`ORACLE SHAPE · removal policy table (${POLICY.length} rows)`, () => {
 })
 
 // ── 2 · AGREEMENT with the rails on master ──
-const SYMS = { B3: ['SPY', 'QQQ', 'IWM'], B1: ['SPY'], BDUP: ['SPY', 'SPY', 'IWM'], B3R: ['SPY', 'QQQ', 'IWM'], B3E: ['SPY', 'QQQ', 'IWM'], B4: ['SPY', 'QQQ', 'NVDA', 'AMD'] }
+const SYMS = { B3: ['SPY', 'QQQ', 'IWM'], B1: ['SPY'], BDUP: ['SPY', 'SPY', 'IWM'], B3R: ['SPY', 'QQQ', 'IWM'], B3E: ['SPY', 'QQQ', 'IWM'], B4: ['SPY', 'QQQ', 'NVDA', 'AMD'], B2: ['SPY', 'QQQ'] }
 function boardOf(syms, selected, { rsiOn = [], empty = [] } = {}) {
   const cw = syms.length > 3 ? 6 : 8
   const widgets = syms.map((_, i) => ({ id: `c${i + 1}`, type: 'chart', x: i * cw, y: 0, w: cw, h: 20, color: 'N', opts: { settings: rsiOn.includes(`c${i + 1}`) ? settingsWithRsi() : mergeChartSettings(null) } }))

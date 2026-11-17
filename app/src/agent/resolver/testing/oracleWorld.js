@@ -7,7 +7,7 @@ import { stateFixture, settingsWithRsi } from '../../__fixtures__/stateBoard'
 import { mergeChartSettings } from '../../../components/chart/chartDefaults'
 import { worldFromHost } from '../world'
 
-export const SYMS = { B3: ['SPY', 'QQQ', 'IWM'], B1: ['SPY'], BDUP: ['SPY', 'SPY', 'IWM'], B3R: ['SPY', 'QQQ', 'IWM'], B3E: ['SPY', 'QQQ', 'IWM'], B4: ['SPY', 'QQQ', 'NVDA', 'AMD'] }
+export const SYMS = { B3: ['SPY', 'QQQ', 'IWM'], B1: ['SPY'], BDUP: ['SPY', 'SPY', 'IWM'], B3R: ['SPY', 'QQQ', 'IWM'], B3E: ['SPY', 'QQQ', 'IWM'], B4: ['SPY', 'QQQ', 'NVDA', 'AMD'], B2: ['SPY', 'QQQ'] }
 export function boardHost(syms, { rsiOn = [] } = {}) {
   const cw = syms.length > 3 ? 6 : 8
   const widgets = syms.map((_, i) => ({ id: `c${i + 1}`, type: 'chart', x: i * cw, y: 0, w: cw, h: 20, color: 'N', opts: { settings: rsiOn.includes(`c${i + 1}`) ? settingsWithRsi() : mergeChartSettings(null) } }))
