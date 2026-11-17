@@ -365,6 +365,21 @@ export const FUNCTIONS = [
   // /darkpool-levels), until now only drawable as chart indicators.
   { code: 'LVL', label: 'Key levels (call wall, put wall, zero gamma, dark pool)', group: 'Options',
     ticker: { panel: 'Levels' } },
+
+  // ── data wave 2 (2026-11-17) ──
+  // H52: the 52-WEEK highs and lows (the Breadth Monitor drill lists); HILO is highs and lows of
+  // the day. Live in the session, else the latest finished session, and it says which.
+  { code: 'H52', label: 'New 52-week highs and lows (Breadth Monitor lists)', group: 'Market',
+    market: { panel: 'Highs52', args: [{ kind: 'hiloSide', prop: 'side' }] } },
+  // RSS: the five UCT RS screens, read from the same saved-screens list and scan door the Screener
+  // uses. The screens have their own server switch; off, the panel says so and runs no scan.
+  { code: 'RSS', label: 'RS screens (leaders, top rating, new highs, exit warnings)', group: 'Market',
+    market: { panel: 'RsScreens', args: [{ kind: 'rsScreen', prop: 'screen' }] } },
+  // LEARN: the teaching UCT holds on one stock: Desk articles that chart it, Desk video moments
+  // that mention it, Model Book appearances. Never the trader archive (owner ruling 2026-10-17).
+  // LRN is a real ticker (Stride), so the code is the word.
+  { code: 'LEARN', label: 'Lessons on this stock (Desk articles, videos, Model Book)', group: 'Security',
+    ticker: { panel: 'Learn' } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -617,6 +632,10 @@ const FUNCTION_WORDS = {
   LEAD: { example: 'LEAD 60D', keywords: ['30 day gainers', 'long run leaders', 'volume record', 'new listings', 'recent ipos'] },
   EMOV: { example: 'EMOV 11/12', keywords: ['earnings reactions', 'earnings movers', 'earnings scoreboard', 'who reported'] },
   LVL: { keywords: ['key levels', 'call wall', 'put wall', 'zero gamma', 'dark pool levels'] },
+  H52: { example: 'H52 LOWS', keywords: ['52 week highs', '52 week lows', 'yearly highs', 'new 52 week highs'] },
+  RSS: { example: 'RSS NHBP', keywords: ['rs screens', 'rs new highs', 'rs exit warnings', 'top rs rating'],
+    note: 'Says so if the RS screens are switched off.' },
+  LEARN: { example: 'NVDA LEARN', keywords: ['lessons', 'desk articles', 'desk videos', 'learn about this stock'] },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]
