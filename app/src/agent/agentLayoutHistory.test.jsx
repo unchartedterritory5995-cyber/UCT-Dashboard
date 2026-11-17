@@ -17,6 +17,8 @@ import { setupPanel, ONE } from './testing/panelHarness'
 import { selectGroups, GROUPS } from './routing'
 import { HISTORY_NOT_HERE, HISTORY_DARK, _resetLayoutHistoryCache, beforeMoment } from './capabilities/layoutHistory'
 import { versionHistoryAgentSource } from '../pages/charts/versionHistoryAgent'
+import { stateRailRefusal, stateRailDecision } from './stateRail'
+import { noteConversation } from './agentClient'
 import VersionHistoryPanel from '../pages/charts/VersionHistory'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
@@ -301,6 +303,47 @@ describe('layoutHistory.list — answered from the server', () => {
     expect(await cap.answer(collectTargets(d.h, ['layoutHistory']).get('boardVersions').snap, { count: null }, d.h)).toBe(HISTORY_DARK)
     const m = host({}, { mobile: true })
     expect(await cap.answer(collectTargets(m.h, ['layoutHistory']).get('boardVersions').snap, { count: null }, m.h)).toBe(HISTORY_NOT_HERE)
+  })
+})
+
+// ⛔ AUDIT T2 (#1248): the plan carries what the state rail resolves relative / pointer words against — the base, the
+// history it read (createdAt per version) and the versions the Agent last listed / offered in THIS conversation
+describe('AUDIT T2: the plan carries its history and what was offered; the rail resolves the words against them', () => {
+  const restoreOfPlan = (p) => p.plans.find(x => x.kind === 'layoutHistory')?.patch?.restore
+  it('history + createdAt on the plan: "the previous version" licenses version 3 (base 4), never version 1', async () => {
+    noteConversation('conv-a')
+    const { h } = host()
+    const three = await plan(h, [restore({ stepsBack: 1 })])
+    const w3 = restoreOfPlan(three.p)
+    expect(w3).toMatchObject({ version: 3, base: 4, createdAt: ET('2026-11-13T20:30:00Z') })
+    expect(w3.history.map(v => v.version)).toEqual([4, 3, 2, 1])
+    expect(stateRailRefusal(three.p, { words: 'revert to the previous version' })).toBe(null)
+    const one = await plan(h, [restore({ version: 1 })])
+    expect(stateRailRefusal(one.p, { words: 'revert to the previous version' })).toMatch(/^I didn’t restore anything: those words mean version 3, not version 1\./)
+    expect(stateRailRefusal(one.p, { words: 'restore the version before this one' })).toMatch(/^I didn’t restore anything/)
+    expect(stateRailRefusal(one.p, { words: 'restore version 1' })).toBe(null)
+    noteConversation(null)
+  })
+  it('"restore that one": only the ONE version the list just showed, in this conversation', async () => {
+    noteConversation('conv-a')
+    const { h } = host()
+    buildContext(h, CTX)
+    const cap = getCapability('layoutHistory.list')
+    const snap = () => collectTargets(h, ['layoutHistory']).get('boardVersions').snap
+    await cap.answer(snap(), { count: 2 }, h)                         // shows 4 (current) and 3
+    const three = (await plan(h, [restore({ version: 3 })])).p
+    const two = (await plan(h, [restore({ version: 2 })])).p
+    expect(stateRailRefusal(three, { words: 'restore that one' })).toBe(null)
+    expect(stateRailRefusal(two, { words: 'restore that one' })).toMatch(/^I didn’t restore anything/)
+    await cap.answer(snap(), { count: 3 }, h)                         // shows 4, 3, 2: "that one" names none of them
+    const three2 = (await plan(h, [restore({ version: 3 })])).p
+    const d = stateRailDecision(three2, { words: 'restore that one' })
+    expect(d.ask).toMatchObject({ kind: 'versions' })
+    expect(d.ask.versions.map(v => v.version)).toEqual([3, 2])
+    await cap.answer(snap(), { count: 2 }, h)
+    noteConversation('conv-b')                                         // another conversation: nothing was offered there
+    expect(stateRailRefusal((await plan(h, [restore({ version: 3 })])).p, { words: 'restore that one' })).toMatch(/^I didn’t restore anything/)
+    noteConversation(null)
   })
 })
 

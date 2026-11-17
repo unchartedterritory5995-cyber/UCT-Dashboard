@@ -40,6 +40,7 @@ import * as nativeRegistry from '../components/chart/engine/nativeRegistry'
 import { tickersIn } from './multiChart'
 import { matchPosition } from './fastPath'
 import { pronounReferent } from './chartRail'
+import { restoreWordsTarget, olderVersions, versionLabel } from './versionWords'
 
 export const STATE_RAIL_MARK = 'state-rail'
 
@@ -201,7 +202,10 @@ const READERS = {
     const w = p.patch?.restore
     if (!w) return []
     const b = p.before || {}
-    return [{ state: 'layout', type: 'overwrite', own: 'restoreVersion', version: w.version ?? null, layout: b.layout ?? null, layoutNames: b.layoutNames || [],
+    // (AUDIT T2: relative / time / pointer words are read against what the plan was made on — the current base, the
+    //  history it read, each version's createdAt, and the versions the Agent last listed / offered in this conversation)
+    return [{ state: 'layout', type: 'overwrite', own: 'restoreVersion', version: w.version ?? null, base: w.base ?? null, createdAt: w.createdAt ?? null,
+      history: Array.isArray(w.history) ? w.history : null, offered: Array.isArray(w.offered) ? w.offered : null, layout: b.layout ?? null, layoutNames: b.layoutNames || [],
       name: `your board as it is now (version ${w.base ?? '?'}), replaced by version ${w.version ?? '?'}` }]
   },
   layoutDock(p) {
@@ -407,8 +411,7 @@ export function homograph(e, words) {
 //   · an object that only POINTS ("it", "them", "that one", "the fast one"): an overwrite takes the class the clause before it
 //     named; a destroy / replace takes only the very object that clause named or made ("add a 20 EMA, then remove it")
 // #1248 (layoutHistory.restore): the words that ask for an earlier saved version of the board back
-const RESTORE_VERB = /\b(?:restor\w*|revert\w*|roll(?:ed|ing)? ?back|go(?:es|ing)? back to|put (?:it|the board|my board) back)\b/i
-const RESTORE_WHAT = /\b(?:versions?|v\d+|saves?|saved|history|backup|earlier|previous|prior|last|before|yesterday|ago|this morning|as it was|how it was|\d+|it|that(?: one)?|this one)\b/i
+const RESTORE_VERB = /\b(?:restor\w*|revert\w*|roll(?:ed|ing)? ?back|go(?:es|ing)? back (?:to|(?=(?:\d+|one|two|three|four|five|six) (?:saves?|versions?|steps?)))|put (?:it|the board|my board) back|take (?:it|me|the board|my board|the layout|my layout) back)\b/i
 // "switch to version 4" / "go back to version 4" / a bare "version 4": the version BY NUMBER
 const TO_VERSION = /\b(?:switch\w*|go(?:es|ing)?|chang\w*|mov\w*|jump\w*|take (?:me|it|the board|my board))\s+(?:back\s+)?to\s+(?:version|v)\s*\d+\b/i
 const BARE_VERSION = /^\s*(?:the\s+)?(?:version|v)\s*\d+(?:\s+please)?\s*$/i
@@ -429,15 +432,34 @@ function otherLayoutIn(e, c) {
   const n = layoutNamedIn(c, e)
   return n && !(e.layout && phrase(n) === phrase(e.layout)) ? n : null
 }
-/** #1248: does this clause ask for exactly this restore? Its own words (a restore verb with a version word, or the version
- *  BY NUMBER — "switch to version 4", "version 4"); a version number it names must be the planned one; a layout it names
- *  must be the one this board document holds. */
-function restoreAskedIn(e, c) {
+/** #1248: does this clause ask for exactly this restore? The version BY NUMBER ("restore version 4", "switch to version 4",
+ *  "version 4") must be the planned one; a layout it names must be the one this board document holds.
+ *  ⛔ AUDIT T2 (words must cover the target): relative / time / pointer words license ONLY the version they resolve to
+ *  (versionWords.js) — "previous" the newest usable version older than the base, "yesterday" the ONE version saved then,
+ *  "that one" the ONE version the Agent last listed / offered here; "earlier / an older one" is asked (why.versions),
+ *  never applied. `why` (optional) records what to ask / say. */
+function restoreAskedIn(e, c, why = null) {
   if (NEG.test(c) || otherLayoutIn(e, c)) return false
   const nums = versionsIn(c)
-  if (nums.length && !nums.includes(Number(e.version))) return false
-  if (RESTORE_VERB.test(c) && RESTORE_WHAT.test(c)) return true
-  return nums.length > 0 && (TO_VERSION.test(c) || BARE_VERSION.test(c))
+  if (nums.length) return nums.includes(Number(e.version)) && (RESTORE_VERB.test(c) || TO_VERSION.test(c) || BARE_VERSION.test(c))
+  if (!RESTORE_VERB.test(c)) return false
+  let r
+  try { r = restoreWordsTarget(c, e, Date.now()) } catch { return false }
+  const want = Number(e.version)
+  if (r.kind === 'resolved') {
+    if (r.versions.length === 1 && r.versions[0] === want) return true
+    if (why) why.restoreMeant = r.versions
+    return false
+  }
+  if (r.kind === 'pointer') {
+    if (r.offered.length === 1 && r.offered[0] === want && olderVersions(e).some(v => Number(v.version) === want)) return true
+    if (why && r.offered.length > 1) why.versions = olderVersions(e).filter(v => r.offered.includes(Number(v.version))).slice(0, 6)
+    else if (why && r.offered.length === 1) why.restoreMeant = r.offered
+    else if (why) why.pointerNone = true
+    return false
+  }
+  if (r.kind === 'ask' && why) why.versions = olderVersions(e).slice(0, 5)
+  return false
 }
 const NEG = /\b(?:no|not|nothing|none|never|without|neither|nor|don['’]?t|dont|doesn['’]?t|didn['’]?t|won['’]?t|can['’]?t|cannot|shouldn['’]?t|mustn['’]?t)\b|n['’]t\b/i
 // destroy verbs the member uses for their own things (beyond DESTROY): "drop TSLA from Momentum", "take TSLA off the list",
@@ -539,7 +561,11 @@ export function permits(e0, words, subjects = null, previous = null, previousSet
   const why = extra?.why || {}
   // #1248: a board restore is licensed by ITS OWN words only — a restore verb with a version word (or a pointer at the
   // version just listed), in a clause that is not negated. Nothing below (modify / pick verbs, subjects) can license it.
-  if (e.own === 'restoreVersion') return clausesOf(words).some(c => restoreAskedIn(e, c))
+  if (e.own === 'restoreVersion') {
+    // (a version the member PICKED from the versions this rail asked with: exactly that version)
+    if (extra?.picked && e.version != null && extra.picked.has(`ver:${e.version}`)) return true
+    return clausesOf(words).some(c => restoreAskedIn(e, c, extra?.why || null))
+  }
   // a PICK the member made from the choices this rail asked with: exactly that object
   if (e.id && extra?.picked && extra.picked.has(e.id)) return true
   // before / prev: the classes and the clause the latest earlier clause NAMED; spoke: an earlier clause said anything of
@@ -723,9 +749,25 @@ export function stateRailDecision(plan, ctx = {}) {
     const names = why.listMany.lists.map(l => `“${l.name}”`)
     return { text: `${listOf(why.listMany.syms)} ${why.listMany.syms.length === 1 ? 'is' : 'are'} on ${listOf(names)} — which list should I remove ${why.listMany.syms.length === 1 ? 'it' : 'them'} from? Nothing was changed.`, ask: { kind: 'lists', lists: why.listMany.lists } }
   }
+  // (#1248 AUDIT T2) which saved version a restore means: the recent versions as the choices
+  if (why.versions?.length && first?.own === 'restoreVersion') return { text, ask: { kind: 'versions', versions: why.versions.map(v => ({ version: Number(v.version), label: versionLabel(v) })) } }
   const ask = why.previousMany ? { kind: 'previous' } : why.demo ? { kind: 'demo', effect: first } : why.labelOther ? { kind: 'label', effect: first, ...why.labelOther } : why.rows ? { kind: 'rows', rows: why.rows } : null
   if (ask?.kind === 'rows') return { text: `I didn’t change anything: your list has changed since I showed it, so I can’t be sure which ones you mean. The top ones it showed were ${listOf(ask.rows)} — say them by name (for example “remove ${listOf(ask.rows)}”).`, ask }
   return { text, ask }
+}
+/** (#1248 AUDIT T2) What to say when a restore's words do not cover the planned version — or null (the generic refusal). */
+function restoreRefusalText(e, why) {
+  if (why.versions) {
+    if (!why.versions.length) return 'I didn’t restore anything: your board has no earlier saved version to go back to. Nothing was changed.'
+    return `I didn’t restore anything: which version do you mean? The recent ones: ${why.versions.map(versionLabel).join('; ')}. Pick one, or say its number (for example “restore version ${why.versions[0].version}”). Nothing was changed.`
+  }
+  if (why.pointerNone) return 'I didn’t restore anything: I haven’t shown you a version here for “that one” to mean. Say the version number (for example “restore version 3”), or “show my board’s version history” to see them. Nothing was changed.'
+  if (Array.isArray(why.restoreMeant)) {
+    const m = why.restoreMeant
+    const said = m.length === 1 ? `those words mean version ${m[0]}, not version ${e.version}` : m.length ? `${m.length} saved versions match those words (${m.map(v => `version ${v}`).join(', ')})` : 'no single saved version matches those words'
+    return `I didn’t restore anything: ${said}. Say the version number to restore (for example “restore version ${m.length === 1 ? m[0] : e.version}”), or “show my board’s version history” to see them. Nothing was changed.`
+  }
+  return null
 }
 export function stateRailRefusal(plan, { words = '', mode = 'apply', subjects = null, previous = null, previousSet = null, made = null, views = null, picked = null, scope = null } = {}) {
   if (!plan?.ok) return null
@@ -747,6 +789,12 @@ export function stateRailRefusal(plan, { words = '', mode = 'apply', subjects = 
       if (e.own !== 'restoreVersion') continue
       const other = clausesOf(w).filter(c => !NEG.test(c) && (RESTORE_VERB.test(c) || versionsIn(c).length)).map(c => otherLayoutIn(e, c)).find(Boolean)
       if (other) return `I didn’t restore anything: Version history keeps your whole board, not each saved layout, so “${plainName(other)}” has no versions of its own${e.layout ? ` (your board has “${plainName(e.layout)}” open)` : ''}. Say “show my board’s version history” to see the board’s saved versions, then which one to restore.`
+      // ⛔ AUDIT T2: words that name no single version are ASKED (the recent versions as the choices); words that name
+      // another version than the plan's (or none, or several) are refused — never restored
+      const why = {}
+      permits(e, w, subjects, previous, previousSet, made, { views, picked, why })
+      const t = restoreRefusalText(e, why)
+      if (t) return t
     }
     const what = listOf([...new Set(bad.map(said))])
     const lead = isStateAdditive(w) ? `you asked to add, but this would ${what}. Adding never replaces or removes what you already have` : `this would ${what}, and you didn’t ask for that`

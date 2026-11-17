@@ -20,6 +20,7 @@
 
 import { registerCapability, registerTargetKind, registerContextProvider, normalizeArgs } from '../capabilities'
 import { diffPrefs, keyLabel, sourceLabel, listWorkspaceVersions, readWorkspaceVersion } from '../../pages/charts/versionHistoryApi'
+import { activeConversationId } from '../agentClient'
 
 const REF = 'boardVersions'
 const LABEL = 'Board version history (Layouts → Version history)'
@@ -37,7 +38,15 @@ const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`
 
 // ── the server's list, read for planning; every write re-reads it first ──
 const cache = { status: 'unknown', versions: [], at: 0, docs: new Map() }
-export function _resetLayoutHistoryCache() { cache.status = 'unknown'; cache.versions = []; cache.at = 0; cache.docs = new Map() }
+export function _resetLayoutHistoryCache() { cache.status = 'unknown'; cache.versions = []; cache.at = 0; cache.docs = new Map(); offered = null }
+
+// ⛔ AUDIT T2 (#1248): the versions the Agent last LISTED or OFFERED in this conversation (never the current one) — the
+// only thing "restore that one" / "restore it" may point at (the state rail licenses a pointer only when this holds ONE
+// version, the planned one). Another conversation → none.
+let offered = null
+const convNow = () => { try { return String(activeConversationId() || '') } catch { return '' } }
+export function noteOffered(versions) { offered = { conv: convNow(), versions: [...new Set((versions || []).map(Number).filter(Number.isFinite))] } }
+export function offeredVersions() { return offered && offered.conv === convNow() ? [...offered.versions] : [] }
 
 const slim = (v) => ({
   version: Number(v.version), createdAt: Number(v.created_at), source: v.source || null,
@@ -129,7 +138,7 @@ function resolveTarget(versions, args) {
     if (!target) return { refuse: `Your board's history doesn't go back that far — the oldest version kept here is ${verLabel(usable[usable.length - 1] || head)}. ${NOTHING}` }
   } else {
     const shown = usable.slice(0, 5).map(v => `${verLabel(v)}${v === head ? ' — current' : ''}`).join('; ')
-    return { refuse: `Which version should I restore? The latest: ${shown}. Say a version number, how many saves back, or a date. ${NOTHING}` }
+    return { offered: usable.slice(0, 5).filter(v => v !== head).map(v => v.version), refuse: `Which version should I restore? The latest: ${shown}. Say a version number, how many saves back, or a date. ${NOTHING}` }
   }
   if (target.version === head.version) return { refuse: `Version ${head.version} is your current board, so there is nothing to restore. ${NOTHING}` }
   return { target, head }
@@ -240,6 +249,7 @@ export function registerLayoutHistoryCapabilities() {
       const all = cache.versions
       if (!all.length) return 'Your board has no saved versions yet. One is kept each time your board is saved.'
       const n = Math.max(1, Math.min(SHOW_MAX, Math.trunc(Number(args?.count) || SHOW_DEFAULT)))
+      noteOffered(all.slice(0, n).filter((v, i) => i > 0 && !v.tombstone).map(v => v.version))
       const rows = all.slice(0, n).map((v, i) => `Version ${v.version} — ${etStamp(v.createdAt)} · ${sourceLabel({ source: v.source, restored_from: v.restoredFrom })}${i === 0 ? ' (current)' : ''}`)
       const more = all.length > n ? `\n…and ${plural(all.length - n, 'older version')}.` : ''
       return `${rows.join('\n')}${more}\nI can restore one of these (I'll show you what it changes first). Restoring adds it back as a new version, and the one you have now is still in Version history.`
@@ -281,7 +291,8 @@ export function registerLayoutHistoryCapabilities() {
     },
     apply(st, args, env) {
       const r = env.layoutHistory.byKey.get(keyOf(args))
-      return { ...st, want: { version: r.target.version, sha: r.target.sha, base: r.head.version, baseSha: r.head.sha, createdAt: r.target.createdAt, source: r.target.source, restoredFrom: r.target.restoredFrom, changes: r.diff.changes, kept: r.diff.kept } }
+      return { ...st, want: { version: r.target.version, sha: r.target.sha, base: r.head.version, baseSha: r.head.sha, createdAt: r.target.createdAt, source: r.target.source, restoredFrom: r.target.restoredFrom, changes: r.diff.changes, kept: r.diff.kept,
+      history: (env.layoutHistory.versions || cache.versions.map(historyRow)).map(v => ({ ...v })), offered: offeredVersions() } }
     },
     describe(b, a) {
       const w = a.want
@@ -293,6 +304,8 @@ export function registerLayoutHistoryCapabilities() {
   })
 }
 
+// the history a plan was made on (the state rail reads relative / time words against it — AUDIT T2)
+const historyRow = (v) => ({ version: v.version, createdAt: v.createdAt, tombstone: !!v.tombstone })
 // one key per request, on the args as the planner will see them (aliases / coercion applied)
 const keyOf = (a) => JSON.stringify([a?.version ?? null, a?.stepsBack ?? null, a?.before ?? null])
 
@@ -307,9 +320,10 @@ export async function resolveLayoutHistoryOps(host, ops) {
     const key = keyOf(args)
     if (byKey.has(key)) continue
     const r = resolveTarget(cache.versions, args)
+    if (r.offered) noteOffered(r.offered)
     if (r.refuse) { byKey.set(key, r); continue }
     const [t, h] = await Promise.all([prefsOf(host, r.target.version), prefsOf(host, r.head.version)])
     byKey.set(key, { ...r, diff: t === undefined || h === undefined ? undefined : diffPrefs(t, h) })
   }
-  return { status, byKey }
+  return { status, byKey, versions: cache.versions.map(historyRow) }
 }
