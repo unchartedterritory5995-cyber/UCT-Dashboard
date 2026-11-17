@@ -591,6 +591,9 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
       // Clamped to the width input's own [1, 4], the Builder's Pine-import rule.
       ...(Number.isFinite(p.width) ? { width: pineLineWidth(p.width) } : {}),
       ...(p.marker && p.marker.shape ? { marker: p.marker } : {}),
+      // ⭐ ROW 42 — `plot.style_linebr` / `style_areabr` break at `na` (`pine.js`
+      // `PINE_BREAKING_STYLES`); every other style bridges, as TradingView draws it.
+      ...(p.sparse === true ? { sparse: true } : {}),
       ...(condKey ? { colorMode: `column:${condKey}`, colorUp: p.colorUp, colorDown: p.colorDown } : {}),
       ...(paletteKey ? { colorMode: `column:${paletteKey}`, colorPalette: p.colorPalette.slice() } : {}),
       ...(gradientKey ? {
@@ -2151,6 +2154,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       // `linewidth`, as the host lane's rows carry it (see that projection).
       ...(Number.isFinite(p.width) ? { width: pineLineWidth(p.width) } : {}),
       ...(p.marker && p.marker.shape ? { marker: p.marker } : {}),
+      // ⭐ ROW 42 — a "with breaks" style breaks at `na`, as the host lane's rows say.
+      ...(p.sparse === true ? { sparse: true } : {}),
       // ⭐ WS-E — a leftward `offset`, drawn by the binder as a host row's is.
       ...(Number.isInteger(displace) && displace < 0 ? { displace } : {}),
       // The host output this row draws — the vendor harness and the pane's

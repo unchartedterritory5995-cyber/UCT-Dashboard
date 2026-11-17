@@ -592,6 +592,42 @@ function providerFor(mode, range, include) {
   return autoscaleProvider(mode)
 }
 
+/**
+ * ⭐⭐ 2026-11-17 (backlog row 41) — DOES A GLYPH MARKER'S COLUMN GIVE IT A Y?
+ *
+ * A `markers` plot with a `marker` block draws a glyph on the bars its column
+ * marks. Only ONE of its positions reads the column as a coordinate: `inBar`,
+ * which is what the translator makes of Pine's `location.absolute` — reference:
+ * *"Shape is plotted on chart using indicator value as a price coordinate."* For
+ * every other location the reference says the series *"is treated as a series of
+ * boolean values"*, and the User Manual uses `location.top` precisely so a
+ * `plotchar` value does not enter the scale (*"We use location.top because the
+ * default location.abovebar will put the price into play in the script's scale,
+ * which will often interfere with other plots."* — the PRICE, never the value).
+ * So an `aboveBar` / `belowBar` glyph's column is an EVENT (0/1), not a y.
+ *
+ * ⭐ AND SO IS AN `inBar` GLYPH ON A YES/NO OUTPUT (`outputType` CONDITION). A
+ * condition's 1 is "true", not a price: drawn at its value it sat at y = 1 and
+ * stretched its pane to 0..1, flattening a relative strength line of ~0.15
+ * (production, AGL daily, 2026-11-17). A number output at `inBar` (Pine's
+ * `plotshape(cond ? rsi : na, location = location.absolute)`) keeps its value
+ * as its y, and keeps its place in the autoscale walk.
+ *
+ * A `markers` plot WITHOUT a glyph (SAR's dots, Pine's `plot.style_circles`) is a
+ * plotted value and is never an event here.
+ *
+ * @param {object} plot
+ * @param {boolean} conditionOutput  the plot's output types as a CONDITION
+ * @returns {boolean} true when the glyph has no y of its own
+ */
+export function markerIsEvent(plot, conditionOutput) {
+  if (!plot || plot.style !== 'markers') return false
+  const m = plot.marker
+  if (!m || typeof m !== 'object' || Array.isArray(m)) return false
+  const position = m.position || 'aboveBar'
+  return position !== 'inBar' || conditionOutput === true
+}
+
 /** The provider for a placement's mode. Total: never returns undefined, so the
  *  complete-key-set rule cannot be broken by a bad mode. */
 export function autoscaleProvider(mode) {
@@ -743,8 +779,16 @@ export function seriesOptionsForPlot(plot, ctx) {
     // ⭐ …AND THE SAME OUTRANKING FOR AUTOSCALE: a moving average on price is
     // part of the candles' framing (a far SMA 200 stays in view), as the overlay
     // renderer drew it, unless the surface fits price to the candles.
-    autoscaleInfoProvider: providerFor((plot && plot.autoscale) || c.autoscale, c.autoscaleRange,
-      plot && plot.autoscaleInclude),
+    // ⭐⭐ 2026-11-17 (row 41) — AN EVENT GLYPH THAT RIDES A HOST TAKES NO PART IN
+    // THE WALK (`markerIsEvent`). Its own series holds a 0/1 column and draws
+    // nothing (no line, no point markers under a glyph); the glyph rides a series
+    // that IS on the scale (the price series, or the pane's own line —
+    // `binder.js`), so excluding the column moves no glyph off screen. A glyph
+    // with NO host (a pane of markers only) keeps today's walk: its column is the
+    // only thing that frames the pane.
+    autoscaleInfoProvider: c.markerOnHost === true ? AUTOSCALE_EXCLUDE
+      : providerFor((plot && plot.autoscale) || c.autoscale, c.autoscaleRange,
+        plot && plot.autoscaleInclude),
   }
 
   // ── A CANDLESTICK, WHICH SHARES ONLY THE BASE ─────────────────────────
