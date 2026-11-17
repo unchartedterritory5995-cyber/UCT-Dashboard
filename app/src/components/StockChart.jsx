@@ -208,6 +208,8 @@ import IndicatorChip from './chart/legend/IndicatorChip'
 import LegendRow from './chart/legend/LegendRow'
 import { legendRows } from './chart/legend/legendRows'
 import { createLegendPointerHold } from './chart/legend/legendPointerHold'
+import { menuAnchorWithRoom } from './chart/legend/legendMenuPlace'
+import { stackDrawnOpen, stackExpandIsStale } from './chart/legend/stackExpand'
 // ⭐ UCT RS design round (2026-11-08) — a pane's corner table (`meta.paneTable`).
 import PaneRanksTable from './chart/pane/PaneRanksTable'
 import { paneTableFits, paneTableOwners } from './chart/engine/paneTable'
@@ -6046,6 +6048,9 @@ export default function StockChart({
   // Read by the rAF sampler (a `[]`-deps loop): the collapse is never decided on an expanded stack.
   const chipsExpandedRef = useRef(false)
   chipsExpandedRef.current = chipsExpanded
+  // Is there a fold at all (a `+N more` / `Less` button)? Written where the legend renders, read
+  // by the sampler: an expand with no fold left is dropped (`stackExpandIsStale`).
+  const studyCanFoldRef = useRef(null)
   const legendHoveringRef = useRef(false)
   /** ⭐⭐ THE HOVER-ONLY LEGEND HOLDS WHILE THE POINTER IS ON IT (owner, 2026-11-16: it
    *  "flickers when I hold my mouse over it"; measured, 132 mounts and unmounts in 181
@@ -7118,6 +7123,23 @@ export default function StockChart({
     setChipAbout(null)
     setChipMenu({ rowId, anchor })
   }, [])
+
+  /* ⭐ A ROW'S MENU NEVER COVERS ITS OWN ROW WHEN THERE IS ROOM BESIDE IT (2026-11-17).
+   * The popover clamps itself into the viewport, and on a short chart that slid a 418px menu up
+   * over the row it was opened from. Once the menu is in the DOM its real size is known, so the
+   * anchor is moved beside the row here, in a LAYOUT effect: the popover positions itself in a
+   * passive effect, which runs after this re-render, so it is only ever shown in its final place.
+   * The rule is `legendMenuPlace.menuAnchorWithRoom`; it returns the same anchor when nothing
+   * moves (and the moved anchor carries no `besideX`), so this runs at most once per open.
+   * ⛔ Desktop only by construction: on touch the popover is a bottom sheet, not a `role="menu"`. */
+  useLayoutEffect(() => {
+    const anchor = chipMenu?.anchor
+    if (!anchor || !Number.isFinite(anchor.besideX)) return
+    const el = document.querySelector('[role="menu"][data-guide="chart.chipMenu"]')
+    if (!el) return
+    const next = menuAnchorWithRoom(anchor, el.offsetHeight, el.offsetWidth, window.innerWidth, window.innerHeight)
+    if (next !== anchor) setChipMenu((m) => (m && m.anchor === anchor ? { ...m, anchor: next } : m))
+  }, [chipMenu])
 
   /** The chip's four handlers, or NULL on a read-only mount.
    *
@@ -18005,8 +18027,11 @@ export default function StockChart({
             const nextCompact = nextCompactLegend(compactLegendRef.current, lastFullBottomRef.current,
               plan.collapseThresholdPx, foldSettled, chipsExpandedRef.current)
             if (nextCompact !== null) setCompactLegend(nextCompact)
+            // The pane grew until every row fits: there is no `Less` to press, so the expand ends here.
+            const staleExpand = stackExpandIsStale(chipsExpandedRef.current, studyCanFoldRef.current, foldSettled)
+            if (staleExpand) setChipsExpanded(false)
             // A budget or compact state just changed: the next frames must measure the result.
-            if (!foldSettled || nextCompact !== null) settled = false
+            if (!foldSettled || nextCompact !== null || staleExpand) settled = false
           }
         }
       } catch { return null /* pane API missing → CSS fallback; keep measuring */ }
@@ -20753,6 +20778,7 @@ export default function StockChart({
         while (studyFitFrom > 0 && studyFitFrom < studyTotal
           && sameInstanceAsPrev(studyFitFrom)) studyFitFrom -= 1
         const studyCanFold = studyFitFrom < studyTotal
+        studyCanFoldRef.current = studyCanFold
         const studyFoldFrom = chipsExpanded ? studyTotal : studyFitFrom
         const studyMoreCount = studyTotal - studyFitFrom
         return (
@@ -20762,7 +20788,7 @@ export default function StockChart({
              SUBTREE: they fire as the pointer moves onto and off its rows. */
           onPointerEnter={(e) => legendHoldRef.current.enter(e)}
           onPointerLeave={() => legendHoldRef.current.leave()}
-          className={`${styles.legend}${legendV2 ? ' ' + styles.legendV2 : ''}${compactLegend && legendV2 ? ' ' + styles.legendCompact : ''}${legendFlush ? ' ' + styles.legendFlush : toolbarCollapsed ? ' ' + styles.legendToolbarHidden : ''}`}
+          className={`${styles.legend}${legendV2 ? ' ' + styles.legendV2 : ''}${compactLegend && legendV2 ? ' ' + styles.legendCompact : ''}${stackDrawnOpen(legendV2, chipsExpanded, studyCanFold) ? ' ' + styles.legendStackOpen : ''}${legendFlush ? ' ' + styles.legendFlush : toolbarCollapsed ? ' ' + styles.legendToolbarHidden : ''}`}
           /* Drop below the index pane so the legend never covers it; reserve the
              right price-axis width so the BAR INFO strip wraps before it. */
           style={{
