@@ -24,7 +24,7 @@ function check(cases) {
 
 const REL = relationCases(41)
 describe(`RELATION FAMILIES · generated (${REL.length} cases, seed 41)`, () => {
-  for (const fam of ['complement', 'both', 'order', 'neighbour']) {
+  for (const fam of ['complement', 'everyOther', 'both', 'order', 'neighbour']) {
     it(`${fam}: every case gets the model's verdict; no wrong-target apply`, () => {
       const cs = REL.filter(c => c.family === fam)
       expect(cs.length).toBeGreaterThan(20)

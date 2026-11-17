@@ -247,7 +247,7 @@ function antecedentMade(before, word) {
 }
 
 // ── P2 · RELATION FAMILIES the P1 reader left to the class noun (design §8 'relation'; the anchor rule I6 for each) ──────────
-//   COMPLEMENT  "the other one / chart", "the others", "the other two", "the rest", "every other chart", "all the other charts":
+//   COMPLEMENT  "the other one / chart", "the others", "the other two", "the rest", "all the other charts":
 //               the board minus an ANCHOR — what the words negate ("not SPY, the other one"), else the pointer order's chart
 //               (the click → the conversation chart / previous chart). No anchor → asked. A count ("the other two") must fit.
 //   BOTH        "both of them / those / these": the pointer set when it is two objects, else the board when it is exactly two
@@ -255,7 +255,9 @@ function antecedentMade(before, word) {
 //   ORDER       "the chart after / before / following / preceding <anchor>": the board's reading-order neighbour of a NAMED chart
 //               or of the click ("this one" / "it"); none on that side → asked; the anchor is never the target.
 const OTHER_N = { two: 2, three: 3, four: 4, '2': 2, '3': 3, '4': 4 }
-const COMPLEMENT = /\b(?:(?:the|that)\s+other\s+(?:(two|three|four|[2-4])\s+)?(ones|charts|panels|graphs|one|chart|panel|graph)\b|(?:the|that)\s+other\s+(two|three|four|[2-4])\b|(?:all\s+(?:of\s+)?)?the\s+(others|rest|remaining\s+(?:ones|charts))\b|every\s+other\s+(?:one|chart|panel)\b|all\s+the\s+other\s+(?:ones|charts|panels)\b)/i
+const COMPLEMENT = /\b(?:(?:the|that)\s+other\s+(?:(two|three|four|[2-4])\s+)?(ones|charts|panels|graphs|one|chart|panel|graph)\b|(?:the|that)\s+other\s+(two|three|four|[2-4])\b|(?:all\s+(?:of\s+)?)?the\s+(others|rest|remaining\s+(?:ones|charts))\b|all\s+the\s+other\s+(?:ones|charts|panels)\b)/i
+// (AUDIT 11-17: "every other chart" is ambiguous — all the others, or alternating charts — so it is ALWAYS asked, never applied)
+const EVERY_OTHER = /\bevery\s+other\s+(?:one|chart|panel|graph)s?\b/i
 const BOTH_PRON = /\bboth\s+(?:of\s+)?(?:them|those|these)\b/i
 const ORDER_REL = /\b(?:the|that)\s+(?:chart|one|panel|graph)\s+(?:(?:right|just|immediately|directly)\s+)?(after|before|following|preceding)\s+((?:the|my)\s+[^,.;:!?—–]{1,30}?\b(?:chart|one|panel|graph)\b|(?:this|that)(?:\s+(?:one|chart|panel|graph))?\b|it\b)/i
 const readingOrder = (charts) => [...charts].sort((a, b) => ((a.cell?.y ?? 0) - (b.cell?.y ?? 0)) || ((a.cell?.x ?? 0) - (b.cell?.x ?? 0)))
@@ -275,6 +277,8 @@ export function relationFamilies(text, w, reading) {
   // (a generic "one / others / rest / both of them" stands for a THING when the words or the conversation are about one — "remove the
   // others from my watchlist", "delete both of them" right after adding two studies: no chart relation; the thing families are P3)
   const thingy = (m) => !/(?:charts?|panels?|graphs?)/i.test(m[0]) && (() => { const t = typeOfNoun(blank(text, m.index, m[0].length)); return (t && t !== 'chart') || (w.previous && typeOfId(w.previous) !== 'chart') })()
+  const eo = EVERY_OTHER.exec(text)
+  if (eo) return asked(all, 'every-other', eo)
   const c0 = COMPLEMENT.exec(text)
   const c = c0 && !thingy(c0) ? c0 : null
   // ("keep QQQ and close the rest": a negation already says what is kept — the P1 set read (SET_ALL) handles it, as before)

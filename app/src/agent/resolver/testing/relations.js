@@ -3,7 +3,7 @@
 // × anchor kinds (the click · the conversation chart · the previous chart · a negated chart · none) × plan columns. The EXPECTED
 // outcome comes from a small reference MODEL written here (objects, anchors, board order) — it never calls the resolver or a
 // resolver reader, so a resolver change cannot move its own goalposts. Deterministic: a fixed seed → the same cases.
-//   complement   "the other one", "the others", "the other two", "the rest", "every other chart" — the board minus the anchor
+//   complement   "the other one", "the others", "the other two", "the rest" — the board minus the anchor ("every other chart": always asked, AUDIT 11-17)
 //   both         "both of them / those / these" — the pointer set when it is two objects, else a two-object board, else asked
 //   order        "the chart after / before <the SYM chart | this one | it>" — the reading-order neighbour, never the anchor
 //   neighbour    "next to / beside / to the right of / to its left <anchor>" (deixis' P1 relations, re-protected as a family)
@@ -15,8 +15,10 @@ import { prng, VERBS, TICKER_POOL } from './generate'
 const NUM = { 1: 'first', 2: 'second', 3: 'third', 4: 'fourth' }
 export const PARAPHRASES = Object.freeze({
   complementOne: ['the other one', 'the other chart', 'that other chart', 'the other panel'],
-  complementSet: ['the others', 'the other charts', 'the rest', 'all the others', 'every other chart', 'all the other charts', 'the other ones'],
+  complementSet: ['the others', 'the other charts', 'the rest', 'all the others', 'all the other charts', 'the other ones'],
   complementN: [(n) => `the other ${n === 2 ? 'two' : n === 3 ? 'three' : n}`, (n) => `the other ${n} charts`],
+  // (AUDIT 11-17: ambiguous, all the others vs alternating: always asked)
+  everyOther: ['every other chart', 'every other one', 'every other panel'],
   both: ['both of them', 'both of those', 'both of these'],
   order: [['after', 'the chart after'], ['after', 'the one following'], ['before', 'the chart before'], ['before', 'the one preceding']],
   neighbour: [['next', 'the chart next to'], ['next', 'the one beside'], ['right', 'the chart to the right of'], ['left', 'the chart to the left of']],
@@ -48,6 +50,7 @@ export function modelReferent(family, w, { n = null, plural = false, side = null
     if (want != null && objects(w, pool) !== want) return { ...out, C: pool }
     return { ...out, R: pool, plural }
   }
+  if (family === 'everyOther') return { anchor: [], C: all }
   if (family === 'both') {
     const sel = w.selection ? expand(w, [w.selection]) : []
     const sub = pointerOf({ ...w, selection: null })
@@ -124,6 +127,7 @@ export function relationCases(seed = 41) {
         push('complement', `${V()} ${r.pick(PARAPHRASES.complementSet)}`, w, modelReferent('complement', w, { plural: true }), meta)
         const cn = 2 + r.int(2)
         push('complement', `${V()} ${r.pick(PARAPHRASES.complementN)(cn)}`, w, modelReferent('complement', w, { n: cn, plural: true }), meta)
+        push('everyOther', `${V()} ${r.pick(PARAPHRASES.everyOther)}`, w, modelReferent('everyOther', w), meta)
         // both: the pointer set (click + conversation chart) — the anchor kind adds the second member
         const wb = anchorKind === 'click' ? shapeWorld(syms, { link: sh.link, selection: refs[i], subject: refs[(i + 1) % sh.n] }) : w
         push('both', `${V()} ${r.pick(PARAPHRASES.both)}`, wb, modelReferent('both', wb), meta)
