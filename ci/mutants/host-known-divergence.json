@@ -1,0 +1,29 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "HK-J1",
+   "mutant": "the member preview door does not ask the host known-divergence list",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "  const hostListed = hostKnownDivergenceOf(source)",
+   "to": "  const hostListed = null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/hostKnownDivergence.test.js"
+  },
+  {
+   "id": "HK-J2",
+   "mutant": "the install door installs a host row the server stamped",
+   "file": "app/src/components/chart/engine/nativeRegistry.js",
+   "from": "      if (typeof hk === 'string' && hk) {",
+   "to": "      if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/hostKnownDivergence.test.js"
+  },
+  {
+   "id": "HK-J3",
+   "mutant": "the browser reader matches no source (a list that names nothing)",
+   "file": "app/src/components/chart/engine/hostKnownDivergence.js",
+   "from": "  let e = _entries.get(sha256Hex(source))",
+   "to": "  let e = undefined",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/hostKnownDivergence.test.js"
+  }
+ ]
+}

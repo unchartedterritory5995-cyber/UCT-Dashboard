@@ -40,6 +40,21 @@ describe('the list', () => {
     expect(hostKnownDivergenceList()).not.toContain(runtimeSourceHash(CONTROL))
   })
 
+  it('is ON in the app: no source outside the rails turns it off (the seam is called by test-setup.js only)', () => {
+    const SRC = path.join(REPO, 'app', 'src')
+    const callers = []
+    const walk = (dir) => {
+      for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+        const p = path.join(dir, ent.name)
+        if (ent.isDirectory()) { if (ent.name !== 'node_modules' && ent.name !== '__tests__') walk(p); continue }
+        if (!/\.(js|jsx)$/.test(ent.name) || /\.test\./.test(ent.name)) continue
+        if (fs.readFileSync(p, 'utf8').includes('__ignoreHostKnownDivergenceForTests')) callers.push(path.relative(SRC, p).replace(/\\/g, '/'))
+      }
+    }
+    walk(SRC)
+    expect(callers.sort()).toEqual(['components/chart/engine/hostKnownDivergence.js', 'test-setup.js'])
+  })
+
   it('names the script by its source hash, the CRLF form included', () => {
     expect(hostKnownDivergenceOf(LISTED).guard).toBe(HOST_KNOWN_DIVERGENCE_GUARD)
     expect(hostKnownDivergenceOf(LISTED.replace(/\n/g, '\r\n'))).not.toBe(null)
