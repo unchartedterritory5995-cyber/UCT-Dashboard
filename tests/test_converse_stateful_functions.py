@@ -216,3 +216,17 @@ def test_the_tree_those_instructions_describe_passes_the_door(conv, model, clean
     model([emits(create(tree))])
     r = conv.converse("x", user_id="u1", view=EMPTY())
     assert r["ok"] is True and r["attempts"] == 1, r.get("gate")
+
+
+# Seen on production after the fix, 2026-11-17: one SuperTrend reply in three told the member it
+# is computed "as a bounded recurrence". The word came from the description the assistant is
+# handed with the function list. What a member needs is the consequence, in plain words.
+
+def test_what_the_assistant_is_told_about_supertrend_is_in_a_members_words():
+    import json
+    from api.services import definition_conversation as dcv
+    said = json.dumps(dcv.composed_schema()) + dcv.system_prompt()
+    assert "recurrence" not in said.lower()
+    assert "never call them identical to TradingView" in said
+    assert "where the trend has not flipped for a long time" in said
+    assert "never describe how it is computed" in said
