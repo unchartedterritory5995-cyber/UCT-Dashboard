@@ -375,7 +375,10 @@ function otherSymbolSupply(def, capture) {
     const rec = recorded && recorded.other ? recorded.other[storeKey] : null
     if (rec) {
       if (Array.isArray(rec.bars)) {
-        secondary.set(storeKey, { bars: rec.bars, status: 'available' })
+        // SUPPLY-ATTRIBUTED (2026-11-17): the counterfactual run (`runOurSideWithSupply`) replaces these
+        // bars for ONE run; every graded run reads the recorded supply as served
+        const over = _supplyOverride && Array.isArray(_supplyOverride[storeKey]) ? _supplyOverride[storeKey] : null
+        secondary.set(storeKey, { bars: over || rec.bars, status: 'available' })
         notes.push(`other symbol ${ticker}: the bars our server serves, recorded beside the capture `
           + `(${rec.servedBy}; ${rec.source})`
           + (rec.rows ? `; kept out of git, read from the local supply store as ${rec.rows.file} (sha256 ${rec.rows.sha256.slice(0, 12)})` : ''))
@@ -1453,6 +1456,21 @@ export function substitutedInputsOf(capture, declared = []) {
   const problems = substitutionProblems(capture, list)
   if (problems.length) throw new Error(`ourSide: substituted inputs refused: ${problems.join('; ')}`)
   return list.map((e) => ({ ...e }))
+}
+
+// SUPPLY-ATTRIBUTED (coordinator ruling on #1541, 2026-11-17): the counterfactual run of
+// `supplyAttribution.js` - our side on the recorded supply with TradingView's witnessed values on the
+// dates they differ. ONLY that file calls it; it never feeds a grade a member reads (the grade runs on
+// the recorded supply, RS RATING L8), it only proves which side of a difference is the data.
+let _supplyOverride = null
+/** Our side, once, with `overrides` (`{<store ticker>: bars}`) in place of the recorded supply. */
+export function runOurSideWithSupply(capture, overrides) {
+  _supplyOverride = overrides || null
+  try {
+    return runOurSide(capture)
+  } finally {
+    _supplyOverride = null
+  }
 }
 
 export function runOurSide(capture) {

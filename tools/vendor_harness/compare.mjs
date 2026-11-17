@@ -495,6 +495,9 @@ export function comparePlot({ times, vendor, ours, vendorColors = null, ourColor
   let gapAfterRows = 0
   const steadyComparedBars = []
   const steadyDivergentBars = []
+  // SUPPLY-ATTRIBUTED (2026-11-17): every steady divergent bar with its time and kind, kept OFF the
+  // serialised stats (non-enumerable, below) so a verdicts file does not grow by a list per plot
+  const steadyDivergent = []
   for (let i = 0; i < n; i++) {
     const v = vendor[i]
     if (v === undefined) {
@@ -554,6 +557,7 @@ export function comparePlot({ times, vendor, ours, vendorColors = null, ourColor
       if (region === res.steady) {
         res.steady.last = rec
         steadyDivergentBars.push(i)
+        steadyDivergent.push({ bar: i, time: times[i], kind })
       }
     } else {
       res.matching += 1
@@ -562,7 +566,31 @@ export function comparePlot({ times, vendor, ours, vendorColors = null, ourColor
   }
   res.vendorRowGapsAfterStart = gapAfterRows
   res.steady.pattern = divergencePattern(steadyComparedBars, steadyDivergentBars, res.steady)
+  Object.defineProperty(res, 'steadyDivergent', { value: steadyDivergent, enumerable: false })
   return res
+}
+
+// ── SUPPLY-ATTRIBUTED DIVERGENCE (coordinator ruling on #1541, 2026-11-17) ──────────────
+//
+// A capture that reads ANOTHER symbol is graded on the bars OUR SERVER serves for it (RS RATING L8, never
+// on TradingView's own: `ourSide.js::recordedSupplyOf`). Where that supply differs from TradingView's own
+// series, the plot differs because the DATA differs, not the engine. Where (and only where) the supply
+// symbol has a committed TradingView WITNESS of that symbol (`requestWitnesses.json` row `witness`,
+// committed), a DIVERGE plot is graded MATCH_SUBSTITUTED when ALL of:
+//   1. it reads no window (`lookback === 0`): a windowed plot spanning a differing date stays DIVERGE;
+//   2. EVERY steady divergent bar is a VALUE difference on a date where our supply differs from the
+//      witness (`attributableToSupply`): one difference on an agreeing date keeps it DIVERGE;
+//   3. our side, run again on the supply with the witness's values on those dates (the counterfactual,
+//      `vendorHarness/supplyAttribution.js`), agrees with TradingView on every bar of that plot.
+// The record names the UCT source, the witness and N of M dates (`supplyAttributed`). The grade a member
+// reads stays on OUR supply; the counterfactual only proves which side of the difference is the data.
+
+/** Is every steady divergence of a zero-lookback plot a value difference on a supply-differing date?
+ *  @param {{lookback: number|null, divergent: {time: number, kind: string}[], diffDays: Set<string>,
+ *            dayOf: (t: number) => string|null}} arg */
+export function attributableToSupply({ lookback, divergent, diffDays, dayOf }) {
+  if (lookback !== 0 || !Array.isArray(divergent) || !divergent.length || !diffDays || !diffDays.size) return false
+  return divergent.every((d) => d.kind === 'value' && diffDays.has(dayOf(d.time)))
 }
 
 /**
@@ -937,13 +965,34 @@ export function compareCapture(capture, ours, opts = {}) {
       .filter((x) => x !== null)
     const r = comparePlot({ times, vendor: vendorVals, ours: oursCol, vendorColors: colourUngraded ? null : gradedVendorColors, ourColors: colourUngraded ? null : gradedOurColors, warmupBars, colorWarmupBars, tol, oursUnreadAfter: unreadAfter.length ? Math.min(...unreadAfter) : null,
       withheldBars: leadBy(o.withheldBars, treeShift) || null, floatOrderFloor: leadBy(o.floatOrderFloor, treeShift) || null })
-    const pv = plotVerdict(r, {
+    let pv = plotVerdict(r, {
       colorMeasured: vc.measured && !colourUngraded,
       colorResolvable: !!ourColors,
       vendorColorReason: vc.measured && !vc.colors ? vc.reason : null,
       ourColorReason: o.colorsReason || null,
       ourColorWithheldBy: o.colorsWithheldBy || null,
     })
+    // SUPPLY-ATTRIBUTED (see `attributableToSupply`): rules 1 and 2 here, rule 3 on the counterfactual run
+    const sa = opts.supplyAttribution || null
+    if (pv.verdict === 'DIVERGE' && sa && attributableToSupply({ lookback: o.lookback, divergent: r.steadyDivergent,
+      diffDays: sa.diffDays, dayOf: sa.dayOf })) {
+      const cf = typeof sa.counterfactual === 'function' ? sa.counterfactual() : null
+      const co = cf && cf.ok ? (cf.plots || []).find((x) => x && x.key === o.key && x.column) : null
+      const cr = co ? comparePlot({ times, vendor: vendorVals, ours: leadBy(drawnOnly ? Array.from(co.column, notDrawn) : co.column, treeShift),
+        vendorColors: null, ourColors: null, warmupBars, colorWarmupBars, tol,
+        oursUnreadAfter: unreadAfter.length ? Math.min(...unreadAfter) : null,
+        withheldBars: leadBy(co.withheldBars, treeShift) || null, floatOrderFloor: leadBy(co.floatOrderFloor, treeShift) || null }) : null
+      if (cr && cr.steady.divergent === 0 && cr.steady.compared > 0) {
+        const n = r.steady.divergent
+        pv = {
+          verdict: MATCH_SUBSTITUTED,
+          reason: `${n} steady-state bars differ, every one a value on a date where UCT's ${sa.record.symbol} `
+            + `(${sa.record.source}) differs from TradingView's (witness ${sa.record.witness.join(', ')}: `
+            + `${sa.record.datesDiffer} of ${sa.record.datesCompared} dates differ); on the witness's values every bar agrees`,
+          supplyAttributed: { ...sa.record, bars: n },
+        }
+      }
+    }
     base.plots.push({
       id: v.id, title: v.title ?? o.title, ours: o.key, rule: pair.rule, ...pv,
       warmupBars, warmupSource, derivedLookback: Number.isInteger(o.lookback) ? o.lookback : null,
@@ -1008,6 +1057,15 @@ export function compareCapture(capture, ours, opts = {}) {
   // relabelled too: the engine does not yet say which outputs a substitution reaches, so
   // every output is taken to (fail closed). The objects and paints sub-records keep their
   // own grades (other functions read them as inputs); the capture's verdict carries the tag.
+  // SUPPLY-ATTRIBUTED — a capture with an attributed plot never reads MATCH (as L7 below)
+  const attributed = base.plots.filter((p) => p.supplyAttributed)
+  if (attributed.length) {
+    out.supplyAttributed = { ...attributed[0].supplyAttributed, plots: attributed.map((p) => p.title ?? p.id) }
+    delete out.supplyAttributed.bars
+    out.verdict = asSubstituted(out.verdict)
+    if (out.verdictWithoutPaints) out.verdictWithoutPaints = asSubstituted(out.verdictWithoutPaints)
+    if (out.verdictWithoutColour) out.verdictWithoutColour = asSubstituted(out.verdictWithoutColour)
+  }
   if (substituted) {
     out.substituted = substituted
     out.verdict = asSubstituted(out.verdict)
