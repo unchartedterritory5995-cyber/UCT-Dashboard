@@ -73,8 +73,14 @@ export const LABEL_ANCHOR = Object.freeze({
   *  number, and two private copies is how they stop meaning one number. */
 import { POINT_SIZE_ANCHORS, pointSizeWord } from './objectPointSizes.js'
 
+/** ⭐⭐ A BOX's TEXT and a TABLE cell, MEASURED ON TRADINGVIEW (queue row Q-LB3, 2026-11-17): probe
+ *  `tools/visual_conformance/probes/vw-lb3-box-table-sizes.pine` on NYSE:RDDT 1D, TradingView's own
+ *  `fillText` traced read-only: tiny 8, small 10, normal 14, large 20, huge 36 px, the same for a box and a
+ *  cell, and the very numbers the Pine reference equates the words with (`POINT_SIZE_ANCHORS.boxTable`).
+ *  ⚰️ They were the engine's own 8 / 10 / 12 / 16 / 22. `auto` is not measured and keeps 12.
+ *  ⛔ A LABEL's font is its own (`LABEL_GEOMETRY`, Q-LB2), not this table. */
 export const TEXT_SIZE_PX = Object.freeze({
-  tiny: 8, small: 10, normal: 12, large: 16, huge: 22, auto: 12,
+  tiny: 8, small: 10, normal: 14, large: 20, huge: 36, auto: 12,
 })
 
 /** ⭐⭐ ENGINE 52 — a drawing's text size: a `size.*` word, or a v6 int in points that the

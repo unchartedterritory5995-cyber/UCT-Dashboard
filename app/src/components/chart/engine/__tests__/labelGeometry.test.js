@@ -9,7 +9,8 @@
 // the body (with its pointer), each line's top, a glyph's box. A box edge is held to 1 px and a text
 // top to 1.6 px (TradingView snaps both to its pixel grid; we do not).
 // ⛔ Boxes, lines and fills are not labels: every call the painter makes for them is byte-identical to
-// master's (`objectNonLabel.golden.json`, recorded before this change).
+// `objectNonLabel.golden.json` (recorded from master's painter before Q-LB2; re-recorded by Q-LB3, where exactly
+// the 192 box-text cases at the measured normal / large / huge sizes moved, and nothing else).
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -175,8 +176,8 @@ describe('⭐⭐ RS Rating\'s own pair, at TradingView\'s distance', () => {
   })
 })
 
-describe('⛔ NOT A LABEL, NOT MOVED: boxes, lines and fills are byte-identical to master\'s painter', () => {
-  it('every case of the matrix hashes to the golden recorded before this change', () => {
+describe('⛔ NOT A LABEL: boxes, lines and fills are byte-identical to their golden (box text moved only by Q-LB3)', () => {
+  it('every case of the matrix hashes to the golden', () => {
     const cases = nonLabelCases()
     expect(cases.length).toBe(NON_LABEL.cases)
     const moved = cases.filter((c) => shaOf(recordNonLabel(c.state)) !== NON_LABEL.hashes[c.key]).map((c) => c.key)
