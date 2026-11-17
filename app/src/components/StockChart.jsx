@@ -111,6 +111,7 @@ import { clampVolPct, resolveVolPanePct, latchOnDrag, volPanePctOfStack,
 // ⚠️ `INDICATOR_LABELS` USED TO BE IMPORTED FROM `chartRegion` ALONGSIDE THESE.
 // B4 retired that nine-row table into the catalogue; `labelFor` is the reader.
 import { catalogRows, labelFor, anyLabelFor, oscillatorIds } from './chart/indicatorCatalog'
+import { scanLink } from '../pages/screener/scanLink'
 import { createSessionShadingPrimitive, computeSessionBands } from './chart/sessionShadingPrimitive'
 import { createSwingLabelsPrimitive } from './chart/swingLabelsPrimitive'
 import { createLevelZonesPrimitive } from './chart/levelZonesPrimitive'
@@ -19649,6 +19650,9 @@ export default function StockChart({
           onPreset: (id, presetId) => { close(); handleChipPreset(id, presetId) },
           onModify: () => { close(); try { toolbarRef.current?.openCreateIndicator?.({ defId: c.defId }) } catch { /* noop */ } },
           onEditFormula: () => { close(); try { toolbarRef.current?.openFormulaEditor?.({ defId: c.defId }) } catch { /* noop */ } },
+          // ⭐ R1 — the Screener's existing run flow, opened on this indicator. `window.open(_, '_self')` is
+          // this file's navigation primitive (no router context here; see the desk-marker handler).
+          onRunOverList: () => { close(); const to = scanLink(c.defId); if (to) { try { window.open(to, '_self') } catch { /* noop */ } } },
           onScriptUpgrade: () => { close(); try { toolbarRef.current?.openScriptUpgrade?.({ defId: c.defId }) } catch { /* noop */ } },
           onCustomCopy: () => { close(); try { toolbarRef.current?.createCustomCopy?.({ def, inputs: (inst && inst.inputs) || {} }) } catch { /* noop */ } },
           onSettings: (id) => { close(); handleChipSettings(id) },
