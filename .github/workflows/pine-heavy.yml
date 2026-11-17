@@ -136,8 +136,11 @@ jobs:
           ref: ${{ inputs.ref }}
           # full history ONLY for the legs marked `history: full` (readout / legendFromDefinitions /
           # enumerationSites read StockChart.jsx at an older commit with `git show <sha>:...`, which a
-          # depth-1 checkout cannot answer); depth 1 for the rest (~62 s -> ~28 s of checkout per job)
-          fetch-depth: ${{ matrix.history == 'full' && 0 || 1 }}
+          # depth-1 checkout cannot answer); depth 1 for the rest (~62 s -> ~28 s of checkout per job).
+          # ⛔ WRITTEN AS `!= 'full' && 1 || 0`, NEVER `== 'full' && 0 || 1`: an expression's `&&`/`||` is not
+          # a ternary, 0 is falsy, so that second form is 1 for EVERY leg (run 43987501549: the three
+          # history legs checked out at depth 1 and their readers threw by name).
+          fetch-depth: ${{ matrix.history != 'full' && 1 || 0 }}
       - uses: actions/checkout@v4
         with:
           path: ${{ env.CI_TOOLS }}

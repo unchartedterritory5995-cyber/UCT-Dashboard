@@ -517,10 +517,27 @@ def _checkout_depth(job: dict):
     return (steps[0].get("with") or {}).get("fetch-depth", 1)
 
 
+def _gh_and_or(expr: str, history):
+    """What GitHub's expression engine gives for `${{ matrix.history <op> 'full' && A || B }}`. Its `&&` and
+    `||` return an OPERAND, and 0, '', false and null are falsy: `cond && 0 || 1` is 1 whatever `cond` is.
+    ⚰️ That trap shipped once (run 43987501549): the rail then compared the expression as TEXT, the three
+    history legs checked out at depth 1, and their readers threw by name. So the expression is EVALUATED."""
+    m = re.fullmatch(r"\$\{\{ matrix\.history (==|!=) 'full' && (\d+) \|\| (\d+) \}\}", expr)
+    assert m, f"an expression this rail cannot evaluate: {expr!r}"
+    cond = (history == "full") if m.group(1) == "==" else (history != "full")
+    a, b = int(m.group(2)), int(m.group(3))
+    left = a if cond else False            # `cond && a`
+    return left if left else b             # `left || b`: a falsy left (False, or the number 0) yields b
+
+
 def test_the_checkout_depths_are_the_ones_the_history_rail_assumes():
     jobs = _wf()["jobs"]
-    # the vitest legs: depth follows the leg's own `history` flag, and nothing else
-    assert _checkout_depth(jobs["vitest"]) == "${{ matrix.history == 'full' && 0 || 1 }}"
+    # the vitest legs: depth follows the leg's own `history` flag, and nothing else. EVALUATED for both values
+    expr = _checkout_depth(jobs["vitest"])
+    assert _gh_and_or(expr, "full") == 0, f"a `history: full` leg does not get the whole history: {expr}"
+    assert _gh_and_or(expr, None) == 1, f"a leg without the flag is not depth 1: {expr}"
+    # control: the evaluator sees the trap (the form that reads right and is 1 for every leg)
+    assert _gh_and_or("${{ matrix.history == 'full' && 0 || 1 }}", "full") == 1
     full = sorted(l["leg"] for l in jobs["vitest"]["strategy"]["matrix"]["include"] if l.get("history") == "full")
     assert full == ["engine-tests-1", "engine-tests-2", "engine-top-and-truth"], full
     # the mutant job may run ANY rail a manifest names, so it keeps the whole history
