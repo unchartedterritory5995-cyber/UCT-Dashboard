@@ -1923,6 +1923,32 @@ export const BUILTIN_TIMEFRAME_ALIAS = Object.freeze({
   'timeframe.isintraday': 'isintraday',
 })
 
+/** ⭐ 2026-11-17 — THE REGULAR SESSION, UNDER THE NAMES A MEMBER WRITES. The same repair as the
+ *  map above, one namespace over: the engine holds the two columns
+ *  (`closedTable.json::clock.regularfirst` / `.regularhours`, computed by `computeClock` from the
+ *  vendor calendar's regular hours, early closes included) and the door refused the dotted names
+ *  as `pine:builtin` ("names something the engine grammar does not hold").
+ *
+ *   · `session.isfirstbar_regular` — "true on the first regular session bar of the day … the same
+ *     whether extended session information is used or not" — is `regularfirst`.
+ *   · `session.ismarket` — "true if the current bar is a part of the regular trading hours (as
+ *     opposed to pre/postmarket)" — is `regularhours`.
+ *
+ *  ⚠️ ONE STATED DIFFERENCE, AND IT IS A BLANK, NEVER A WRONG ANSWER: on the oldest loaded bar,
+ *  when that bar opens later in a regular session, `regularfirst` is blank (the window was cut
+ *  mid-session and nothing before it can show whether it is the first), where TradingView, which
+ *  holds the whole history, answers false. Every other bar is the tape's own answer.
+ *  ⛔ `session.isfirstbar` / `islastbar` / `ispremarket` / `ispostmarket` are NOT here: each needs
+ *  the chart's own session setting (extended hours shown or not), which a translation does not
+ *  hold, and they stay refused by name.
+ *
+ *  ⛔ ENGINE NUMBER PENDING (assigned at merge by the coordinator): this changes what the
+ *  translator WRITES for an unchanged script (two names move from refused to translated). */
+export const BUILTIN_SESSION_ALIAS = Object.freeze({
+  'session.isfirstbar_regular': 'regularfirst',
+  'session.ismarket': 'regularhours',
+})
+
 /** ⭐⭐ `timeframe.multiplier` — A FIFTH KIND OF DOTTED NAME: a value the BARS
  *  THIS TRANSLATION IS FOR settle, which is neither a constant, a calendar fact,
  *  a column nor a symbol.
@@ -12405,6 +12431,10 @@ export class Resolver {
       // lane was swept when the clock landed and the dotted lane was not.
       if (own(BUILTIN_TIMEFRAME_ALIAS, name)) {
         return { type: 'series', name: BUILTIN_TIMEFRAME_ALIAS[name] }
+      }
+      // ⭐ 2026-11-17 — and the regular session's two (`BUILTIN_SESSION_ALIAS`), the same way
+      if (own(BUILTIN_SESSION_ALIAS, name)) {
+        return { type: 'series', name: BUILTIN_SESSION_ALIAS[name] }
       }
       // ⭐⭐ KIND 5 — SETTLED BY THE BARS THIS TRANSLATION IS FOR. A number, so it
       // folds here; see `BUILTIN_TIMEFRAME_SCALAR` for why `this.basePeriod` is
