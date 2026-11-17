@@ -11796,48 +11796,6 @@
       ]
     },
     {
-      "id": "chart.setSetting.theme",
-      "source": "Charts family 11-13: Shift+T's light/dark palette (StockChart toggle:theme → updateField('theme')), KNOWN → ELIGIBLE",
-      "capabilities": [
-        "chart.setSetting"
-      ],
-      "board": "ONE",
-      "needs": [
-        "chart.setSetting"
-      ],
-      "model": {
-        "ops": [
-          {
-            "action": "chart.setSetting",
-            "target": "$charts[0]",
-            "args": {
-              "setting": "theme",
-              "value": "light"
-            }
-          }
-        ]
-      },
-      "expect": {
-        "setting": {
-          "key": "theme",
-          "value": "light"
-        },
-        "receipt": true,
-        "refusal": false
-      },
-      "undo": {
-        "say": "undo",
-        "expect": {
-          "restored": true
-        }
-      },
-      "phrasings": [
-        "switch this chart to the light palette",
-        "make this chart light mode",
-        "put the chart on the light palette like shift+t"
-      ]
-    },
-    {
       "id": "chartSetup.stepBars",
       "source": "C1-032 (pl-exec4): the Time Navigator's one-bar step buttons",
       "capabilities": [

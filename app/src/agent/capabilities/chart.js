@@ -248,7 +248,7 @@ const SETTING_HINTS = (() => {
   }
   const nums = [...ranges.entries()].map(([r, ids]) => `${short(ids)}: ${r}`)
   // (kept under the manifest's 1000-char hints cap — agentContracts.test.js; the exact arg SHAPE is the capability's `shape`)
-  return 'value = true/false for on/off (crosshair.mode, header.legendMode, bgMode too); hex (#2962ff); a number in range. '
+  return 'value = true/false for on/off (crosshair.mode, header.legendMode, bgMode too); a hex color (#2962ff); a number in range. '
     + `Allowed — ${enums.join('; ')}; ${nums.join('; ')}. `
     + 'header.fields|barInfo: +/-field ("+Market Cap"). '
     + 'Anything else: no op — say where it lives in Chart Settings.'
@@ -266,8 +266,6 @@ function fastSetting(text) {
     if (!m) continue
     const d = SETTING_WORDS.get(m[wi])
     if (!d) continue
-    // an enum's words name the SETTING, not an on/off value ("turn on the light palette" is the model's to read)
-    if (d.type !== 'bool' && !d.boolMap) continue
     const on = ['on', 'show', 'enable'].includes(m[vi])
     return { setting: d.id, value: d.type === 'bool' ? on : d.boolMap[String(on)] }
   }
@@ -948,7 +946,7 @@ const CAPABILITIES = [
     // read back, and undoable like every other chart change. A UI prerequisite (thin bars only
     // on Bars/HLC) refuses exactly where the dialog hides the control.
     name: 'chart.setSetting',
-    summary: 'Change one chart setting from UCT\'s list (grid, crosshair, scale text/time, legend, watermark, labels, event/IPO/earnings markers, dark pool, swing labels, prev-day/pre-market lines, session breaks, countdown, title, color mode, candle parts, price line, thin bars, inverted scale, gradient, Volume, Heikin Ashi, Chart IQ, position calc, alerts, my trades, Info row/Bar info, light/dark palette).',
+    summary: 'Change one chart display setting from UCT\'s list (grid, crosshair, scale text/time, legend, watermark, labels, event/IPO/earnings markers, dark pool, swing labels, prev-day/pre-market lines, session breaks, countdown, title, color mode, candle parts, price line, thin bars, inverted scale, gradient, Volume look, Heikin Ashi, Chart IQ, position calculator, alerts, my trades, Info row/Bar info).',
     hints: SETTING_HINTS,
     args: { type: 'object', properties: {
       setting: { type: 'string', enum: [...ELIGIBLE_SETTINGS.map(d => d.id), ...LIST_SETTINGS.map(l => l.id)] },

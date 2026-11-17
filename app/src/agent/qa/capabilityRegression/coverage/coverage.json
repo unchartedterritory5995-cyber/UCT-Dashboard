@@ -1792,7 +1792,7 @@
     "multiStep": false,
     "phrasings": true
    },
-   "phrasings": 11,
+   "phrasings": 8,
    "evidence": {
     "nl": [
      "chart.setSetting.gradient: \"turn the gradient off on this chart\"",
@@ -1812,25 +1812,21 @@
     ],
     "args": [
      "corpus chart.setSetting.gradient",
-     "corpus chart.setSetting.grid",
-     "corpus chart.setSetting.theme"
+     "corpus chart.setSetting.grid"
     ],
     "execution": [
      "chart.setSetting.gradient (c)",
-     "chart.setSetting.grid (c)",
-     "chart.setSetting.theme (c)"
+     "chart.setSetting.grid (c)"
     ],
     "receipt": [
      "chart.setSetting.gradient (c)",
-     "chart.setSetting.grid (c)",
-     "chart.setSetting.theme (c)"
+     "chart.setSetting.grid (c)"
     ],
     "refusal": [],
     "permission": [],
     "undo": [
      "chart.setSetting.gradient: undo restores",
-     "chart.setSetting.grid: undo restores",
-     "chart.setSetting.theme: undo restores"
+     "chart.setSetting.grid: undo restores"
     ],
     "multiStep": [],
     "phrasings": []

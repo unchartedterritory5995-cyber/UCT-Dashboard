@@ -4724,26 +4724,6 @@
     }
    }
   },
-  "chart.setSetting.theme": {
-   "digest": "a9f32c4e1b025502",
-   "phrasings": {
-    "switch this chart to the light palette": {
-     "digest": "44136fa355b3678a",
-     "gaps": [],
-     "modes": {}
-    },
-    "make this chart light mode": {
-     "digest": "44136fa355b3678a",
-     "gaps": [],
-     "modes": {}
-    },
-    "put the chart on the light palette like shift+t": {
-     "digest": "44136fa355b3678a",
-     "gaps": [],
-     "modes": {}
-    }
-   }
-  },
   "chartSetup.stepBars": {
    "digest": "f1ef323ce91ffc4b",
    "phrasings": {
@@ -5548,7 +5528,7 @@
    "mode": null
   },
   "GW-19.daily-charts-each-with-50sma": {
-   "digest": "4f95da5faaa1a67a",
+   "digest": "ba9b16d24883f44c",
    "gap": false,
    "mode": null
   },

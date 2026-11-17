@@ -1,19 +1,20 @@
-// Charts family (2026-11-13): chartShare.export (marker: chartShare.export) and the Shift+T palette through chart.setSetting
-// ('theme', KNOWN → ELIGIBLE) — through the REAL panel on the fixture board, the model scripted (no paid call). One chart only:
+// Charts family (2026-11-13): chartShare.export (marker: chartShare.export) — and the light/dark palette (Shift+T), which stays
+// the member's own switch (never an Agent write: AUDIT hold) — through the REAL panel on the fixture board, the model scripted (no paid call). One chart only:
 // the chart the targeting rules name (the clicked one, a relation to it — #988: the clicked chart is the anchor, never the
 // target); every other chart untouched. The PNG counts only once the chart's own Share → Download PNG door made one; the Share
 // menu counts only once it is read back open; nothing ever reaches a clipboard (a browser lets only a click copy). No Undo for
-// the share (nothing on the chart changed); exact Undo for the palette. The widget half (StockChart's own doors through
+// the share (nothing on the chart changed). The widget half (StockChart's own doors through
 // ChartPane → ChartWidget) is components/StockChart.chartShareAgent.test.jsx.
 // Evidence: LOCAL / SIMULATED (BROWSER-MOCK-MODEL): jsdom, scripted plans through the real panel.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { cleanup, screen } from '@testing-library/react'
 import { registerBuiltins } from './builtins'
 import { setupPanel, bareSettings } from './testing/panelHarness'
-import { getCapability, manifestFor, MANIFEST_CONTRACT } from './capabilities'
+import { getCapability, manifestFor, MANIFEST_CONTRACT, shapeError } from './capabilities'
 import { wordsSelect, groupOfAction, GROUPS } from './routing'
 import { CHART_SHARE_ACTION, NO_SHARE, SHARE_NO_UNDO } from './capabilities/chartShare'
 import { settingDescriptor } from '../components/chart/chartSettingsDescriptors'
+import { fastDiscovery } from './discovery'
 import { lexiconFor, correctTypos } from './nl/lexicon'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
@@ -32,9 +33,9 @@ const IDS = ['c0', 'c1', 'c2', 'c3']
 
 // The Share popover doors of every chart, as StockChart exposes them (ChartPane → ChartWidget adapter → host.charts):
 // Download PNG resolves to the file name (null = no PNG made); the popover opened is read back as `shareOpen`.
-function mountOn(clicked, { doors = true, png = (sym, tf) => `${sym}-${tf}.png`, opens = true, canvasTheme = null } = {}) {
+function mountOn(clicked, { doors = true, png = (sym, tf) => `${sym}-${tf}.png`, opens = true } = {}) {
   const open = {}
-  const decorate = (s) => ({ ...s, label: `Chart (${s.ref})`, ...(canvasTheme ? { canvasTheme } : {}), ...(doors ? { canShare: true, shareOpen: !!open[s.ref] } : {}) })
+  const decorate = (s) => ({ ...s, label: `Chart (${s.ref})`, ...(doors ? { canShare: true, shareOpen: !!open[s.ref] } : {}) })
   const m = p.mount(WIDGETS, SYMS, { decorate })
   const downloads = [], opened = []
   m.h.charts.shareDownload = async (ref) => { const s = m.h.charts.read(ref); const f = png(s.symbol, s.tf); downloads.push({ ref, file: f, tf: s.tf }); return f }
@@ -186,38 +187,39 @@ describe('chartShare.export: targeting and additive requests', () => {
   }, 40000)
 })
 
-describe('the Shift+T palette: chart.setSetting theme (KNOWN → ELIGIBLE)', () => {
-  it.each(['switch this chart to the light palette', 'make this chart light mode', 'put the chart on the light palette like shift+t'])(
-    '"%s": the clicked chart\'s theme is Shift+T\'s write (light); the others untouched; Undo puts dark back exactly', async (t) => {
-      const { say, board: b } = mountOn('c2')
-      const before = others(b, 'c2'), was = JSON.stringify(settingsOf(b, 'c2'))
-      p.st.envelopes.push(plan(['c2', 'chart.setSetting', { setting: 'theme', value: 'light' }]))
-      const out = await say(t)
-      expect(out).toMatch(/Light\/dark palette \(Shift\+T\): light/)
-      expect(settingsOf(b, 'c2').theme).toBe('light')
-      expect(settingsOf(b, 'c2').preset).toBe('custom')       // Shift+T's updateField shape: { ...cs, theme, preset: 'custom' }
-      expect(others(b, 'c2')).toBe(before)
-      await say('undo')
-      expect(JSON.stringify(settingsOf(b, 'c2'))).toBe(was)
-    }, 40000)
-  it('on the Sunrise canvas (which ignores the palette): refused, nothing written', async () => {
-    const { say, board: b } = mountOn('c1', { canvasTheme: 'sunrise' })
+// ⛔ #1234 AUDIT hold: the light/dark palette (Shift+T) is NOT an Agent action — R2 and the owner keep `theme` read-only for the
+// Agent (a KNOWN descriptor). Asked or commanded, the Agent says it can't, and that Shift+T on the chart switches it.
+describe('the light/dark palette: never written by the Agent — the honest answer is Shift+T', () => {
+  const ASKS = ['switch this chart to the light palette', 'make this chart the light palette', 'put the chart on the dark palette', 'dark palette please',
+    'can you switch to the light palette?', 'turn on the dark palette', 'press shift+t for me', 'toggle the light palette on this chart', 'Light palette', 'go back to the DARK PALETTE', 'do Shift + T']
+  it.each(ASKS)('"%s": no model call, nothing written, says it can\'t and that Shift+T on the chart does it', async (t) => {
+    const { say, board: b } = mountOn('c2')
     const was = JSON.stringify(b.state.widgets)
-    p.st.envelopes.push(plan(['c1', 'chart.setSetting', { setting: 'theme', value: 'light' }]))
-    await say('switch this chart to the light palette')
-    expect(transcript()).toMatch(/Sunrise theme/)
+    await say(t)
+    expect(transcript()).toMatch(/light\/dark palette/i)
+    expect(transcript()).toMatch(/can’t change it for you/)
+    expect(transcript()).toMatch(/Shift\+T on the chart/)
+    expect(p.turns()).toBe(0)
     expect(JSON.stringify(b.state.widgets)).toBe(was)
+    expect(settingsOf(b, 'c2').theme).not.toBe('light')
   }, 40000)
-  it('a value that is not a palette is refused', async () => {
+  it('a model plan writing it is refused by the arguments (not an option), nothing written', async () => {
+    expect(shapeError('chart.setSetting', { setting: 'theme', value: 'light' }, { surface: 'charts' })).toMatch(/isn't an option/)
     const { say, board: b } = mountOn('c1')
     const was = JSON.stringify(b.state.widgets)
-    p.st.envelopes.push(plan(['c1', 'chart.setSetting', { setting: 'theme', value: 'sepia' }]))
-    await say('make this chart sepia')
-    expect(transcript()).toMatch(/Light\/dark palette \(Shift\+T\): .*dark, light/)
+    p.st.envelopes.push(plan(['c1', 'chart.setSetting', { setting: 'theme', value: 'light' }]))
+    await say('make the chart look brighter')
     expect(JSON.stringify(b.state.widgets)).toBe(was)
   }, 40000)
-  it('the descriptor: eligible, dark | light, fixed only by Sunrise', () => {
-    expect(settingDescriptor('theme')).toMatchObject({ agent: 'eligible', type: 'enum', options: ['dark', 'light'], fixedBy: ['sunrise'] })
+  it('the descriptor stays KNOWN (read-only), where it lives: Shift+T on the chart', () => {
+    expect(settingDescriptor('theme')).toMatchObject({ agent: 'known' })
+    expect(JSON.stringify(settingDescriptor('theme'))).toMatch(/Shift\+T on the chart/)
+    expect(getCapability('chart.setSetting').args.properties.setting.enum).not.toContain('theme')
+  })
+  it('a UCT chart THEME (chart.applyTheme) and the app\'s light / dark MODE (settings.appTheme) stay the Agent\'s: never the palette answer', () => {
+    // …and "light / dark mode" is the APP's theme (settings.appTheme), which the Agent does
+    for (const t of ['apply the midnight theme', 'change the chart theme', 'make the background dark', 'use a dark theme on every chart', 'switch to light mode', 'turn on dark mode', 'dark mode please'])
+      expect(fastDiscovery(t), t).toBe(null)
   })
 })
 
