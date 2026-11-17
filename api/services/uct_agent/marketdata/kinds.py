@@ -16,12 +16,16 @@ Wave 2 (W2-B1, agent-rs): `research.company` (RS-1 v1 — composed from the serv
 web search; api/services/uct_agent/research/rs1.py).
 Wave 2 (W2-B2, builder-b): `history.eventStudy` (Market Intelligence's existing event_study over technical series;
 history_event_study.py) and `bars.daily` gains `from`.
+Terminal data wave 1 (terminal-data): `analyst.actions`, `highsLows.session`, `sectors.performance`, `leaders.longRun`,
+`levels.darkpool` — the Agent half of the UPDG / HILO / SCTR / LEAD / LVL terminal panels. All default OFF.
 """
 from __future__ import annotations
 
 from api.services.uct_agent.marketdata import (asset_classes, bars_daily, breadth, commodity_quote, crypto_quote, earnings,
                                               index_quote, instruments, news_company, quotes, ratings, statements, themes)
 from api.services.uct_agent.marketdata import catalysts_board, cot, history_event_study, rs_leadership
+from api.services.uct_agent.marketdata import (analyst_actions, darkpool_levels, leaders_long_run, sectors_performance,
+                                              session_highs_lows)
 from api.services.uct_agent.research import rs1
 
 # Symbols one read may name. A request-shape bound per kind, not a toolkit cap: the cap numbers live only
@@ -178,6 +182,50 @@ def register(registry) -> None:
                     "speculators) and open interest for 1-6 futures markets, named by a member's word or COT code; "
                     "as_of is the Tuesday report date (published the following Friday), stale when a newer report is "
                     f"due. Unmapped words are listed as not covered. Params: {{symbols: [...], weeks (1-{cot.MAX_WEEKS})}}.",
+    ))
+    # Terminal data wave 1 (owner: terminal-data): the Agent half of five terminal panels, each a thin adapter over the
+    # service its member route already reads. Default OFF like every kind (UCT_AGENT_DATA_KINDS); the four isolated
+    # ones also need their own UCT_AGENT_ISOLATED_KINDS entry (ADR-005), and their capabilities are local-only.
+    registry.register(Kind(
+        name=analyst_actions.KIND, fn=analyst_actions.read_analyst_actions, validate=analyst_actions.validate,
+        freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL, model_isolated=True,
+        description="Analyst upgrades, downgrades and price-target changes from the last morning wire pushed to this "
+                    "server (market-wide; firm, action, ratings, target). as_of is the wire's own date; the list is "
+                    "served until the next wire, so it is never worded as today's. Shown to the member only. "
+                    f"Params: {{side: {'|'.join(analyst_actions.SIDES)}}}.",
+    ))
+    registry.register(Kind(
+        name=session_highs_lows.KIND, fn=session_highs_lows.read_session_highs_lows,
+        validate=session_highs_lows.validate, freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL,
+        model_isolated=True,
+        description="Stocks making new highs and new lows OF THE SESSION (pre-market, regular, after-hours; not "
+                    "52-week), each with how many times, from UCT's intraday scanner; as_of is null (only UCT's tick "
+                    "time is known), historical when the market is closed. Shown to the member only. "
+                    f"Params: {{limit (1-{session_highs_lows.MAX_LIMIT}), min_price?, min_count?}}.",
+    ))
+    registry.register(Kind(
+        name=sectors_performance.KIND, fn=sectors_performance.read_sectors_performance,
+        validate=sectors_performance.validate, freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL,
+        description="The 11 SPDR sector funds ranked by percent change from daily closes; as_of is null (the ranking "
+                    "carries no time). A cold read costs one daily-bars request per fund. "
+                    "Params: {period: Today|1W|1M|3M}.",
+    ))
+    registry.register(Kind(
+        name=leaders_long_run.KIND, fn=leaders_long_run.read_leaders_long_run, validate=leaders_long_run.validate,
+        freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL, model_isolated=True,
+        description="One of UCT's long-run leader lists: 30 / 60 / 90-session top gainers, 1-year or all-time volume "
+                    "highs, new listings. 'computing' while its reference builds; an empty list can also mean the "
+                    "market snapshot was missing. Shown to the member only. "
+                    f"Params: {{list: {'|'.join(leaders_long_run.LISTS)}, limit (1-{leaders_long_run.MAX_LIMIT})}}.",
+    ))
+    registry.register(Kind(
+        name=darkpool_levels.KIND, fn=darkpool_levels.read_darkpool_levels, validate=darkpool_levels.validate,
+        # declared `periodic` (levels are recomputed as the nightly print ledger grows); every read reports the LESS
+        # fresh `historical` (completed sessions only), which MD-1 §3 allows and the isolation rails' spies assume
+        freshness="periodic", owner="terminal-data", max_symbols=ONE_SYMBOL, model_isolated=True,
+        description="One stock's dark pool price levels: zones where confirmed dark pool prints bunched up, computed "
+                    "by UCT from the nightly-confirmed print ledger; as_of is the newest print date among them. A "
+                    "failed read is never 'no levels'. Shown to the member only. Params: {symbol}.",
     ))
     # W2-B1 (agent-rs, RS-1 v1): a COMPOSED kind. It reads the served kinds above (purpose "research", so a
     # model-isolated kind refuses before admission) and the turn's one web search; every fact's figures come from
