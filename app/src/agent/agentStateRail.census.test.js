@@ -13,7 +13,8 @@ import { registerBuiltins } from './builtins'
 import { stateFixture, drawingIds, SCAN } from './__fixtures__/stateBoard'
 import { allCapabilityNames, getCapability, getTargetKind } from './capabilities'
 import { planOps, collectTargets, prepareOps } from './executor'
-import { stateEffects, stateRailRefusal, stateRailDecision, STATE_KINDS } from './stateRail'
+import { stateEffects, stateRailRefusal, stateRailDecision, STATE_KINDS, widgetsNamedOn } from './stateRail'
+import { agentLabelsOf } from '../widgets/registry'
 import { RAIL_KINDS } from './chartRail'
 
 vi.stubEnv('VITE_INDICATOR_TEMPLATES_ENABLED', '1')
@@ -189,7 +190,16 @@ describe('STATE RAIL census — by tool, from the registry', () => {
         // (kind-matched: the explicit clause names each effect's own class)
         const eff = stateEffects(plan)
         const nouns = [...new Set(eff.map(e => NOUN[e.state]))].join(' and the ')
-        const explicit = eff.every(e => e.type === 'overwrite') ? `add AAPL, and change the ${nouns}` : eff.every(e => e.type === 'replace') ? `add AAPL, and replace the ${nouns}` : `add AAPL, and remove the ${nouns}`
+        let explicit = eff.every(e => e.type === 'overwrite') ? `add AAPL, and change the ${nouns}` : eff.every(e => e.type === 'replace') ? `add AAPL, and replace the ${nouns}` : `add AAPL, and remove the ${nouns}`
+        // ⛔ AUDIT T2 HOLD (#1304): a widget moved into another's tabs is licensed ONLY by words naming the one that moves and the
+        // one whose tabs it joins — a modify verb on the class ("change the widget") never; its explicit words name both
+        const into = eff.find(e => e.intoTabs)
+        if (into) {
+          expect(stateRailRefusal(plan, { words: explicit }), `${r.name} class verb "${explicit}"`).toBeTruthy()
+          const b = into.intoTabs.board
+          const np = (id) => { const w = b.find(x => x.id === id); return [w.type, ...Object.values(agentLabelsOf(w.type) || {}), w.name, w.position && w.position.replace('-', ' ')].filter(Boolean).map(x => `the ${String(x).toLowerCase()} widget`).find(t => { const h = widgetsNamedOn(t, b); return h.length === 1 && h[0] === id }) }
+          explicit = `add AAPL, and move ${np(into.intoTabs.src)} into the tabs of ${np(into.intoTabs.dst)}`
+        }
         // …and the same permit for ANOTHER class licenses nothing here
         for (const [st, noun] of Object.entries(NOUN)) if (!eff.some(e => (e.classes || [e.state]).includes(st))) expect(stateRailRefusal(plan, { words: `add AAPL, and remove the ${noun}` }), `${r.name} cross-kind ${noun}`).toBeTruthy()
         expect(stateRailRefusal(plan, { words: explicit }), `${r.name} explicit "${explicit}"`).toBe(null)

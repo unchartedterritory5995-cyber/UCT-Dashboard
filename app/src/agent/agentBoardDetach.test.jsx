@@ -173,13 +173,23 @@ describe('intoTabs — the SAME transform as the handler, always a card, exact U
     expect(widgetsJson(b)).toBe(was)
     expect(screen.queryAllByTestId('agent-proposal').filter(e => e.getAttribute('data-status') === 'pending')).toHaveLength(0)
   }, 40000)
-  it('"move the news widget into the chart’s tabs": still a card, as before', async () => {
+  // ⛔ AUDIT T2 HOLD (wrong target): a chart destination is named by the ticker it shows (or its position); on this board (two
+  // charts) "the chart’s tabs" names neither — refused, nothing written, no card (was: a card for whichever chart the plan chose)
+  it('"move the news widget into the SPY chart’s tabs": a card for the SPY chart', async () => {
     const { say, board: b } = mountOn()
     const was = widgetsJson(b)
     p.st.envelopes.push(propose([TABS, { widget: 'news', into: 'c0' }]))
-    await say('move the news widget into the chart’s tabs')
+    await say('move the news widget into the SPY chart’s tabs')
     expect(screen.getAllByTestId('agent-proposal').at(-1).textContent).toMatch(/Move the News .* into the Chart .*’s tabs/)
     expect(widgetsJson(b)).toBe(was)
+  }, 40000)
+  it('"move the news widget into the chart’s tabs" with two charts on the board: ambiguous — refused, nothing written, no card', async () => {
+    const { say, board: b } = mountOn()
+    const was = widgetsJson(b)
+    p.st.envelopes.push(propose([TABS, { widget: 'news', into: 'c0' }]))
+    expect(await say('move the news widget into the chart’s tabs')).toMatch(/I didn’t change anything/)
+    expect(widgetsJson(b)).toBe(was)
+    expect(screen.queryAllByTestId('agent-proposal').filter(e => e.getAttribute('data-status') === 'pending')).toHaveLength(0)
   }, 40000)
   it('the receipt sentence for own tabs is the AUDIT wording', () => {
     expect(OWN_TABS).toMatch(/its own tabs, and moving it into another widget’s tabs would lose them\. Move its tabs first, or dock it/)

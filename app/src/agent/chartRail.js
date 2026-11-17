@@ -477,7 +477,7 @@ const SPECIFIC_CHART = /\b(?:the|that|this|my|your|our)\s+(?:[^\s.,;:!?]+\s+){0,
 // one leaving the board — the chart named as the DESTINATION ("into … tabs", "into the tabs of …") stays. The removal-target read
 // sees the words without that destination phrase, so the moving chart is still checked against the plan: a plan moving any other
 // chart (the SPY one, the reverse) is refused as before.
-const INTO_TABS_DEST = /\binto\s+(?:the\s+tabs?\s+of\s+(?:the|my|your|our|this|that)\s+(?:[^\s.,;:!?]+\s+){0,3}?(?:chart|one|panel|graph|widget)\b|[^.;!?]*?\btabs?\b)/gi
+export const INTO_TABS_DEST = /\binto\s+(?:the\s+tabs?\s+of\s+(?:the|my|your|our|this|that)\s+(?:[^\s.,;:!?]+\s+){0,3}?(?:chart|one|panel|graph|widget)\b|[^.;!?]*?\btabs?\b)/gi
 const intoTabsSourceWords = (w) => String(w || '').replace(INTO_TABS_DEST, ' ')
 const SET_REMOVAL = /\b(?:all|every|everything|each|both|whole|entire|rest|others|remaining|except|excluding|other\s+than|apart\s+from|but\s+not)\b|\b(?:clear|close|wipe|empty|reset|clean(?:\s+up)?)\s+(?:out\s+)?(?:the|my)\s+(?:whole\s+|entire\s+)?(?:board|layout|screen)\b/i
 const BACK_REF = /\b(?:the|that)\s+(?:chart|one|graph|panel)\s+(?:(?:that|which)\s+)?(?:I|you|we)\b/i
