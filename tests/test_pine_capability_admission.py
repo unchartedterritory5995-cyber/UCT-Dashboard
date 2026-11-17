@@ -1554,13 +1554,39 @@ def _hold_gate(seconds: float) -> threading.Thread:
     return t
 
 
+def _hold_gate_until(release: threading.Event) -> threading.Thread:
+    """A thread that holds the process-wide detector gate until `release` is set (30 s at most, so a
+    failing test cannot hang the run). The busy state then lasts exactly as long as the test needs it,
+    whatever the runner's speed."""
+    held = threading.Event()
+
+    def hold():
+        assert rt._DETECTOR_GATE.acquire(timeout=5)
+        held.set()
+        release.wait(30)
+        rt._DETECTOR_GATE.release()
+    t = threading.Thread(target=hold)
+    t.start()
+    assert held.wait(5)
+    return t
+
+
 def test_F1_a_save_never_stores_an_unadmitted_row_while_the_check_is_busy(store, monkeypatch):
     """D6 holds: only a graded script is stored. A save waits at most `SAVE_WAIT_SECONDS` for the
-    detector; past that it is refused as busy (retryable, 503), and nothing is stored."""
+    detector; past that it is refused as busy (retryable, 503), and nothing is stored.
+
+    ⛔ The gate is held until the test RELEASES it, never for a fixed time. It was held for
+    `SAVE_WAIT_SECONDS + 1.0` (1.7 s): the direct save times out at 0.7 s and the HTTP save then waits its own
+    0.7 s, so the 503 needed the work between them (`svc.get`, building the FastAPI app and TestClient, the
+    request's own work before the gate) to finish within 0.3 s. On the pine-twins leg (1262 tests in one process
+    on a GitHub runner) it did not, the gate came free inside the HTTP save's wait, and the save stored: 200
+    (run 44029625436 on #1541's 8c7d1c2303; the same test is green 3/3 alone on master and on that head). A wall
+    clock in a test is a function of the runner's load (lesson_an_intermittent_red_can_be_a_population_not_a_test)."""
     monkeypatch.setenv(rt.SAVE_ENV, "1")
     monkeypatch.setenv(rt.STAGE_ENV, "admins")
     monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
-    holder = _hold_gate(rt.SAVE_WAIT_SECONDS + 1.0)
+    release = threading.Event()
+    holder = _hold_gate_until(release)
     try:
         t0 = time.perf_counter()
         with pytest.raises(rt.CapabilityCheckBusy, match="try again in a moment"):
@@ -1569,7 +1595,9 @@ def test_F1_a_save_never_stores_an_unadmitted_row_while_the_check_is_busy(store,
         assert svc.get(USER, ADX["id"]) is None                                # nothing stored
         r = _client().post("/api/user-definitions", json={"definition": member_doc()})
         assert r.status_code == 503 and r.headers.get("Retry-After") and r.json()["retryable"] is True
+        assert svc.get(USER, ADX["id"]) is None                                # nothing stored by HTTP either
     finally:
+        release.set()
         holder.join(10)
     with sqlite3.connect(svc._DB_PATH) as c:
         c.execute(rt._CAPS_DDL)
