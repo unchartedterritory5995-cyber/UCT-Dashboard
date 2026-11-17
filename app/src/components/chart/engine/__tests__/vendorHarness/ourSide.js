@@ -1420,8 +1420,8 @@ export function enterMemberDoor(source) {
  * (`registry.computeFor`, the binder's call): its strategy record (`runtimeStrategyOf`), its own drawings, and,
  * when it published no record, the refusal the columns carry by name (a run stopped at an unpinned or unsettled
  * rule, a window it cannot start from, a build the lane refused). Nothing is re-run or re-derived here.
- * `unixOf` maps the product's bar key (an ISO date on a daily chart, `toProductBars`) to the capture's own bar
- * time, row for row, so the grade reads every time on TradingView's clock.
+ * The record's times are the run's own (each bar's opening instant, `runtimeColumns.js::brokerBarTimes`): they
+ * are graded as recorded, never mapped onto the capture's clock (2026-11-17, strategy-epoch-bar-times).
  */
 export function strategyRunOf(cols, bars, rows) {
   const record = runtimeStrategyOf(cols)
@@ -1433,11 +1433,9 @@ export function strategyRunOf(cols, bars, rows) {
       ? { guard: String(first.guard), message: String(first.message || '') }
       : { guard: 'harness:no-record', message: 'the broker document ran and published no strategy record' }
   }
-  const unixOf = new Map()
-  bars.forEach((b, i) => { if (rows[i]) unixOf.set(String(b.t), rows[i][0]) })
   // `unixAt[x]`: the capture's time of run bar `x` (a drawing's `bar_index` x)
   const unixAt = bars.map((b, i) => (rows[i] ? rows[i][0] : null))
-  return { record, refusal, objects: runtimeObjectsOf(cols), objectsWithheld: runtimeObjectsWithheldOf(cols), unixOf, unixAt }
+  return { record, refusal, objects: runtimeObjectsOf(cols), objectsWithheld: runtimeObjectsWithheldOf(cols), unixAt }
 }
 
 /** ⭐⭐ THE PARITY CLOCK: one that never moves. A grade is a question about VALUES, so

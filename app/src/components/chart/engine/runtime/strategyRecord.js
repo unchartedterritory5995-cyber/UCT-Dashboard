@@ -176,7 +176,8 @@ const defaultQtyOf = (cfg) => {
  * @param {object} p.summary    the VM's `res.broker` (`broker.js::summary`): `record.trades`
  *                              keyed by bar time, `record.rulesUsed`
  * @param {object} p.decl       `program.broker`, the declaration the front end read
- * @param {number[]} p.barTimes the run's bar times, oldest first (the window, not the chart)
+ * @param {number[]} p.barTimes the run's bar times, oldest first (the window, not the chart): each bar's opening
+ *                              instant in unix seconds, the array the broker was handed (`runtimeColumns.js::brokerBarTimes`)
  * @param {number} p.historyWindowBars the window the run was handed (`ctx.historyWindowBars`)
  * @param {boolean} p.confirmed whether the run's newest bar is KNOWN closed
  */
