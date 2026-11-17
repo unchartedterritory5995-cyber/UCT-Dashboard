@@ -174,6 +174,9 @@ COMMITTED = {
     "capture-queue-2026-11-17-host-known-divergence": {
         __import__("host_divergence").queue_row_id(e["slug"]): "engine-gap"
         for e in __import__("host_divergence").derive_all().values()},
+    # 2026-11-17 (coordinator ruling on #1541): the SPX history our server serves (FMP ^GSPC) against TradingView's
+    # SP:SPX, found by the supply-attributed grade of RS Rating NVDA; a data-source decision
+    "capture-queue-2026-11-17-fmp-gspc-history": {"fmp-gspc-history": "ruling"},
 }
 
 
