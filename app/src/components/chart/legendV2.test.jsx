@@ -59,7 +59,8 @@ const stripComments = (src) => src
 /** The V2 render block — from the row inputs it derives through to the inline
  *  legend branch that follows it. */
 function v2Block() {
-  const start = STOCK_CHART.indexOf('const indChips = crosshairData.chips')
+  // The legend reads the chips through `legendRows` (one row per name, 2026-11-16).
+  const start = STOCK_CHART.indexOf('const indRows = legendRows(crosshairData.chips')
   if (start < 0) throw new Error('marker moved: the legend no longer reads `crosshairData.chips`')
   const end = STOCK_CHART.indexOf('<span className={styles.legendTime}', start)
   if (end < 0) throw new Error('marker moved: the inline legend branch is no longer after the V2 one')
@@ -350,7 +351,7 @@ describe('§3 — pane ownership, with no pane-0 assumption', () => {
   it('⭐ a pane readout is the same vertical row, grouped the same way', () => {
     const readout = between(STOCK_CHART, 'A PANE READOUT IS A STUDY STACK', 'controlLabel={paneReadoutLabel(')
     expect(readout).toContain('vertical')
-    expect(readout).toContain('secondary={ci > 0 && row.chips[ci - 1].instanceId === c.instanceId}')
+    expect(readout).toContain('secondary={ci > 0 && paneRows[ci - 1].chip.instanceId === c.instanceId}')
   })
 })
 

@@ -47,6 +47,7 @@
 import styles from './LegendRow.module.css'
 import { inkCssColour } from '../engine/objectColour'
 import UIcon from '../../ui/UIcon'
+import { LEGEND_ROW_VALUES_MAX } from './legendRows'
 
 /**
  * ⭐⭐ UCT SIGNATURE ROW CONTROLS (owner-approved lab "2 · Chart legend", L1 · Rows,
@@ -211,6 +212,11 @@ export default function LegendRow({
   /** ⭐ UCT SIGNATURE — this row's ⋯ menu (or one of its pages) is open: the row holds
    *  its hover card + strip (`.rowActive`) and the ⋯ reports `aria-expanded`. */
   menuOpen = false,
+  /** ⭐ ONE ROW PER NAME (owner, 2026-11-16) — the values of the indicator's OTHER drawn
+   *  plots that print this same name (`legendRows`): `[{key, text, color}]`, already
+   *  formatted. Each prints after the row's own value in its own line's colour. Absent or
+   *  empty, the row is exactly the row it was. */
+  moreValues = null,
   // ⚰️ `onHover` AND `hoverKey` ARE GONE. They drove the hover lift — a pixel
   // added to the drawn series while the pointer was on its label — retired by the
   // owner after production use: hovering a legend must not mutate the plot.
@@ -278,6 +284,13 @@ export default function LegendRow({
      The 3×13 colour bar carries the series identity; the name is the signature grey
      and a nine-line stack reads calmly instead of as a rainbow. Since 11-16 the flat strip
      (volume pane, grouped pane legends, Model Book) follows the same rule. */
+  // The sibling plots' values this row carries: blanks dropped, and past
+  // `LEGEND_ROW_VALUES_MAX` values on the row the rest fold into a `+N` count.
+  const moreAll = (Array.isArray(moreValues) ? moreValues : [])
+    .filter((m) => m && typeof m.text === 'string' && m.text)
+  const moreVals = moreAll.slice(0, Math.max(0, LEGEND_ROW_VALUES_MAX - (value ? 1 : 0)))
+  const moreOver = moreAll.length - moreVals.length
+  const moreInk = (m) => { const c = inkCssColour(m.color); return c ? { '--row-color': c } : undefined }
   const hasActs = interactive && (typeof onToggleHidden === 'function' || typeof onSettings === 'function')
   const actsCount = hasActs
     ? (hidden ? (typeof onToggleHidden === 'function' ? 1 : 0)
@@ -309,6 +322,10 @@ export default function LegendRow({
             `O`, `H`, `L` and `C` in the flat legend. See `.railFlat`. */}
         {color ? <i className={styles.railFlat} style={{ background: color }} aria-hidden="true" /> : null}
         {label}{value ? <strong className={styles.flatVal} style={valInk}>{value}</strong> : null}
+        {moreVals.map((m) => (
+          <strong key={m.key} className={styles.flatVal} data-more-value={m.key} style={moreInk(m)}>{m.text}</strong>
+        ))}
+        {moreOver > 0 ? <span className={styles.valsOver} data-more-over="">+{moreOver}</span> : null}
       </span>
     )
   }
@@ -366,6 +383,12 @@ export default function LegendRow({
           every hue. */}
       {/* Owner 11-16: the value wears the series colour via --row-color (clamped to the label's lightness); no colour → the shared ink. */}
       <span className={styles.vVal} style={valInk}>{value}</span>
+      {/* ⭐ ONE ROW PER NAME — each sibling plot's value, in its own line's colour. Inside
+          the row box, so the row stays one continuous hover target. */}
+      {moreVals.map((m) => (
+        <span key={m.key} className={styles.vVal} data-more-value={m.key} style={moreInk(m)}>{m.text}</span>
+      ))}
+      {moreOver > 0 ? <span className={styles.valsOver} data-more-over="">+{moreOver}</span> : null}
       {/* ⛔ THE THIRD CELL IS STILL EMITTED, EMPTY. `.legendVertical` is ONE grid
           for the whole legend and fills by ORDER, so a row that emitted two cells
           would let the next row's label fall into the third track and cascade the

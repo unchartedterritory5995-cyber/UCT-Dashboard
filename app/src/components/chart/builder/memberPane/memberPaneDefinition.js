@@ -1112,6 +1112,10 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     // TradingView means (`engine/otherSymbols.js`); absent for every script that
     // reads no other symbol, so no other document changes.
     ...(Array.isArray(t.otherSymbols) && t.otherSymbols.length ? { otherSymbols: t.otherSymbols } : {}),
+    // ⭐ SETTINGS PARITY (symbol) — an other symbol the trees read through ONE input
+    // (`translatePine`'s `symbolInputs`): the member's choice of it is a setting
+    // (`engine/symbolInputs.js`). Absent for every other script.
+    ...(Array.isArray(t.symbolInputs) && t.symbolInputs.length ? { symbolInputs: t.symbolInputs } : {}),
     // ⭐⭐ C41 — the lower timeframes the trees read (`translatePine`'s `lowerTf`,
     // one code per `ltf` node). A chart fetches this symbol's intraday bars for
     // them and the bind decides which are served (`engine/lowerTf.js`); absent

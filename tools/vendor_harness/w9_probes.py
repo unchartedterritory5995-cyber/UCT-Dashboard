@@ -279,6 +279,23 @@ if dn
         if v >= 5:
             ex.append(("X02_open_size_0", "strategy.opentrades > 0 ? strategy.opentrades.size(0) : na"))
         s.append(P(f"q-s1b-defaults-{nm}", "Q-S1b", f"{nm} capital, margin and pyramiding defaults; the reversal", two, decl="", ver=v, extras=ex))
+    # Q-S1b, ruling D12b (2026-11-17): the v4 margin default is served only for the declaration shape both v4 captures
+    # have (a title and overlay). One probe per OTHER v4 shape the armed census meets (stating no margin), each the same
+    # body as q-s1b-defaults-v4 with that declaration's argument set: its Properties read-back (Margin Long / Short)
+    # settles the v4 margin default for that shape.
+    for tag, decl, keys in (
+            ("a", 'shorttitle="W9_SHAPE_A"', "title, shorttitle, overlay"),
+            ("b", "commission_type=strategy.commission.cash_per_contract, commission_value=0.00003, default_qty_value=20000, "
+                  "initial_capital=1000", "title, overlay, commission_type, commission_value, default_qty_value, initial_capital"),
+            ("c", "pyramiding=5, commission_value=0.08", "title, overlay, pyramiding, commission_value"),
+            ("d", 'shorttitle="W9_SHAPE_D", pyramiding=1, currency=currency.NONE, initial_capital=100000, '
+                  "default_qty_type=strategy.percent_of_equity, default_qty_value=100",
+             "title, shorttitle, overlay, pyramiding, currency, initial_capital, default_qty_type, default_qty_value"),
+            ("e", 'shorttitle="W9_SHAPE_E", default_qty_type=strategy.percent_of_equity, default_qty_value=50',
+             "title, shorttitle, overlay, default_qty_type, default_qty_value")):
+        s.append(P(f"q-s1b-v4-shape-{tag}", "Q-S1b", f"the v4 margin default (Margin Long / Short read back) for the "
+                   f"declaration shape {keys} (ruling D12b)", two, decl=decl, ver=4,
+                   extras=[("X01_initial_capital", "strategy.initial_capital")]))
     # C. new rule pins
     s.append(P("d1-v6-defaults", "W9-D1", "v6 margin and leverage defaults (nothing declared)", LONGS, decl="", ver=6,
                extras=[("X01_margin_liquidation_price", "strategy.margin_liquidation_price"), ("X02_initial_capital", "strategy.initial_capital")]))

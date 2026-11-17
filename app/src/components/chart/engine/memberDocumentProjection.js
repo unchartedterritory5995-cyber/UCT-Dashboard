@@ -8,14 +8,16 @@
 // what the document already holds, never written back (`paramInputs.stripParamInputs` takes them
 // off any save), so they live in their own step after the migration:
 //   * `param<N>`: every folded length the translator recorded (`paramInputs.withParamInputs`);
+//   * a symbol the script reads through an input (`symbolInputs.withSymbolInputs`);
 //   * a run half's own settings: the inputs only its drawings read (`runHalfInputs.withRunHalfInputs`).
 // `nativeRegistry.validateUserDefinitions` installs `projectMemberDocument(def)`.
 
 import { migrateMemberDocument } from './memberDocumentMigration.js'
 import { withParamInputs } from './paramInputs.js'
 import { withRunHalfInputs } from './runHalfInputs.js'
+import { withSymbolInputs } from './symbolInputs.js'
 
 /** The stored document migrated to today's shape, with its load-time settings declared. */
 export function projectMemberDocument(def) {
-  return withRunHalfInputs(withParamInputs(migrateMemberDocument(def)))
+  return withRunHalfInputs(withSymbolInputs(withParamInputs(migrateMemberDocument(def))))
 }

@@ -27,7 +27,7 @@ import { storeConversation, attachConversation, armConversationAlerts } from '..
 import { stampSemantics } from '../../engine/definitionSemantics'
 import { OUTPUT_TYPES } from '../../engine/outputType'
 import { STUDIO_PREVIEW_DEF_ID } from '../studio/chartPreview'
-import { memberError, memberSaveError, memberRefusal } from './memberWords'
+import { memberError, memberSaveError, memberRefusal, chartRefusalWords } from './memberWords'
 import { logStudioAction, definitionKinds, clientFailureOf } from './studioTelemetry'
 import { outputNamer, slotWords } from './readback'
 import { soleCueName, memberCueNames } from './derivedName'
@@ -46,7 +46,7 @@ export const typeWord = (t) => TYPE_WORDS[t] || 'Output'
 function changeWords(c) {
   switch (c.kind) {
     case 'type-changed': return `${c.output} is now a ${typeWord(c.to).toLowerCase()} (was ${typeWord(c.from).toLowerCase()}).`
-    case 'refused-on-chart': return `${c.output} can't be drawn here: ${c.text}`
+    case 'refused-on-chart': return `${c.output} can't be drawn here: ${chartRefusalWords(c.guard, c.text) || c.text}`
     case 'requests-cleared': return `Requests on ${c.output} were cancelled with it.`
     case 'intent-cleared': return `The signal choice on ${c.output} was cleared with it.`
     case 'paint-removed': return c.text ? `${c.output}: ${c.text}` : null
