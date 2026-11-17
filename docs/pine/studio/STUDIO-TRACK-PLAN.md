@@ -589,6 +589,15 @@ The up/down volume ratio was built again and the assistant answered with a patch
 engine accepts; both outputs equal a plain calculation on every bar and it joins the set
 (#1507). The set is thirteen.
 
+**The follow-through day, fourth build (2026-11-17).** With #1506 served, the plain
+description built correctly on the first attempt and with no repair: `lowestbars(low, 50)`
+between 4 and 12. It equals a plain calculation on every bar and marks 3 of SPY's 700 daily
+bars and 16 of NVDA's. It joins the set (#1527); the set is fourteen. Adding it showed a gap
+in the value rail itself: on the default test bars the condition never occurs, so agreement
+would have been 0 equals 0 on every bar and would have passed the two builds that could not
+fire. The rail's own check that a condition must happen on the test bars refused it, and a
+rare condition now gets bars on which it occurs.
+
 **The set.** Eleven are in the UCT tab (#1496), and the flat base makes twelve (#1501): distribution day count; relative strength
 against SPY, and its new high before price; extension above the 50-day in ATRs; percent from
 the 10-week; volume against its 50-day average; tight weekly closes; gap up on volume; inside
@@ -671,11 +680,11 @@ the deploy gate.
 | R2, R3 | TradingView names on the reference page; the reference as one file for a member's own assistant | LIVE |
 | launch | library moderation (UCT takedown, a 20-listing cap per member, the licence line); spend that cannot be written still counts | merged (#1451, #1452) |
 | tool | a refused turn tells an admin why each attempt was refused | LIVE |
-| H | the house set: thirteen indicators in a UCT tab (window and phone sheet), each held to an independent calculation | value-checked on real bars (section 14b); #1496, #1501, #1507 |
+| H | the house set: fourteen indicators in a UCT tab (window and phone sheet), each held to an independent calculation | LIVE with thirteen (window at 1500 px, sheet at 390 and 820 px); the fourteenth is #1527 |
 | N2 | the dock keeps the assistant's name where the derived one is unreadable; "What the assistant says it built" under the engine's lines | LIVE (#1495) |
 | door | a one-colour colour-states patch is refused at the door, so the model gets its repair; so is a bars-back count compared across its sign, and the prompt states that convention | #1493, #1499, #1506 |
 | X1 | the plain-words box sends what the member typed: four actions on Charts (was five), two where a chart shows "Add to Chart" | LIVE (#1500) |
-| toast | the chart's "added" toast and Undo list name a member's indicator, not its id | #1518 |
+| toast | the chart's "added" toast and Undo list name a member's indicator, not its id | LIVE (#1518): "Flat Base added" |
 | spend | the picture door's prompt bound re-measured, so a reservation bounds the prompt again (a member's daily picture share now holds two worst-case reservations, not three; the owner may raise it). It turned the master deploy gate red for about 70 minutes: two Agent limit tests held the literal three. They derive the count now | #1509, #1522 |
 
 **The house set, second look (2026-11-16, production).** Of the five that did not draw on
@@ -724,6 +733,10 @@ Not started, and why:
   constant or a prompt size, search the tests for the constant and run the gate's own list
   (`tests/test_uct_agent*.py`), not only the door's file. #1509 passed its lanes and held
   production for every session.
+- A synthetic account's board can be changed by simply loading Charts. Since the 2026-11-16
+  layouts release, an account whose stored layout pointer is still "uct-default" opens a
+  blank board and saves it. The synthetic member is such an account: read its workspace
+  head before a check and restore it after (`POST /api/workspace/doc/restore`).
 - A worktree copy of a shared file can be behind master. Committing it as it stands undoes
   someone else's change. Compare with master and refresh the file before editing it.
 
@@ -733,7 +746,7 @@ then names and read-backs with the authoring owner, the house set a third time, 
 look.
 
 **Open for the owner:**
-1. Look at each of the thirteen house indicators on a chart (Indicators, UCT tab) and say which
+1. Look at each of the fourteen house indicators on a chart (Indicators, UCT tab) and say which
    stay. They were published on a value check, not on your look (D24).
 2. D23 to D28 in section 11 were taken as judgment calls. Reverse any by saying so.
 3. The 10 and 21 EMA trend indicator is held out of the house set by a false positive in the
