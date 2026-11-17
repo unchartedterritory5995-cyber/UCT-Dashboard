@@ -17,7 +17,7 @@ import { PORTAL_POPUP_ATTR } from '../ColorPicker'
 import ColorPanel from '../ColorPanel'
 import Switch from '../../ui/Switch'
 import { STAT_LABEL_MAX, cleanStatLabel } from '../headerStatCatalog'
-import { STAT_SIZES, STAT_SIZE_LABELS, STAT_WEIGHTS, STAT_WEIGHT_LABELS, STAT_WEIGHT_VALUE, DEFAULT_BOX_COLOR } from '../headerStatStyle'
+import { STAT_SIZES, STAT_SIZE_LABELS, STAT_WEIGHTS, STAT_WEIGHT_LABELS, STAT_WEIGHT_VALUE, DEFAULT_BOX_COLOR, pickedBoxColor } from '../headerStatStyle'
 import styles from './HeaderStatMenu.module.css'
 
 const W = 252
@@ -129,7 +129,7 @@ export default function HeaderStatMenu({ anchor, stat, look = {}, onRename, onVa
     )
   }
 
-  live.box = { title: 'Box color', value: look.boxColor || DEFAULT_BOX_COLOR, onChange: (c) => onStyle({ boxColor: c }) }
+  live.box = { title: 'Box color', value: look.boxColor || DEFAULT_BOX_COLOR, onChange: (c) => onStyle({ boxColor: pickedBoxColor(look.boxColor, c) }) }
   if (!anchor) return null
   const doc = anchor.ownerDocument
   const menu = createPortal(
@@ -189,12 +189,16 @@ export default function HeaderStatMenu({ anchor, stat, look = {}, onRename, onVa
         <div className={styles.row} data-stat-menu-row="weight">
           <span className={styles.rowName}>Thickness</span>
           <span className={styles.sizes} role="group" aria-label="Text thickness">
-            {STAT_WEIGHTS.map((w) => (
-              <button key={w} type="button" aria-pressed={weight === w} aria-label={`Thickness ${STAT_WEIGHT_LABELS[w]}`}
-                title={STAT_WEIGHT_LABELS[w]} style={{ fontWeight: STAT_WEIGHT_VALUE[w] }}
-                className={`${styles.size}${weight === w ? ' ' + styles.sizeOn : ''}`}
-                onClick={() => { if (w !== weight) onStyle({ weight: w }) }}>A</button>
-            ))}
+            {/* ⭐ owner 11-17 (live test): four identical "A"s did not read — a thinner / thicker stepper naming the
+                current weight, drawn AT that weight. */}
+            <button type="button" className={styles.size} aria-label="Thinner"
+              disabled={STAT_WEIGHTS.indexOf(weight) <= 0}
+              onClick={() => onStyle({ weight: STAT_WEIGHTS[STAT_WEIGHTS.indexOf(weight) - 1] })}>−</button>
+            <span className={styles.weightName} aria-live="polite" data-stat-weight-name=""
+              style={{ fontWeight: STAT_WEIGHT_VALUE[weight] }}>{STAT_WEIGHT_LABELS[weight]}</span>
+            <button type="button" className={styles.size} aria-label="Thicker"
+              disabled={STAT_WEIGHTS.indexOf(weight) >= STAT_WEIGHTS.length - 1}
+              onClick={() => onStyle({ weight: STAT_WEIGHTS[STAT_WEIGHTS.indexOf(weight) + 1] })}>+</button>
           </span>
         </div>
       </div>

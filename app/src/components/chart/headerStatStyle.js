@@ -24,6 +24,30 @@ export const DEFAULT_STAT_WEIGHT = 'regular'
 /** The shaded box when no box color is chosen: the Signature soft fill. */
 export const DEFAULT_BOX_COLOR = '#f8f7f314'   // #f8f7f3 at 8%: a swatch picked from here keeps that opacity
 
+/** Opacity a box takes when a member picks a new color off the faint default (owner 11-17: the Deep View pill). */
+export const PICKED_BOX_ALPHA = 'd9'   // 85%
+
+const hex8 = (c) => {
+  const s = typeof c === 'string' ? c.trim().toLowerCase() : ''
+  if (/^#[0-9a-f]{6}$/.test(s)) return s + 'ff'
+  if (/^#[0-9a-f]{8}$/.test(s)) return s
+  if (/^#[0-9a-f]{3}$/.test(s)) return '#' + s.slice(1).split('').map((d) => d + d).join('') + 'ff'
+  return null
+}
+
+/** The box color to store for a pick. The color panel keeps the CURRENT opacity, and the default box is 8%, so a
+ *  swatch picked from it came out a near-invisible tint (owner, live 11-17). A pick that changes the COLOR while
+ *  the opacity is still the faint default's becomes a visible pill; an opacity the member set themselves (or a
+ *  slider move that keeps the color) is kept as given. */
+export function pickedBoxColor(prev, next) {
+  const p = hex8(prev || DEFAULT_BOX_COLOR)
+  const n = hex8(next)
+  if (!p || !n) return next
+  const faint = p.slice(7) === DEFAULT_BOX_COLOR.slice(7)
+  if (faint && n.slice(7) === p.slice(7) && n.slice(1, 7) !== p.slice(1, 7)) return n.slice(0, 7) + PICKED_BOX_ALPHA
+  return next
+}
+
 const COLOR_RE = /^(#[0-9a-f]{3}|#[0-9a-f]{4}|#[0-9a-f]{6}|#[0-9a-f]{8}|rgba?\(\s*[\d.]+%?\s*,\s*[\d.]+%?\s*,\s*[\d.]+%?\s*(,\s*[\d.]+%?\s*)?\))$/i
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v)
 

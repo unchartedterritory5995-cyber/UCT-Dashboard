@@ -71,11 +71,22 @@ describe('HeaderStatMenu', () => {
 })
 
 describe('HeaderStatMenu thickness (owner 11-17)', () => {
-  it('shows the current thickness and writes a new one', () => {
+  it('a thinner / thicker stepper names the current weight and steps it', () => {
     const { fns } = setup({ look: { weight: 'bold' } })
-    expect(screen.getByRole('button', { name: 'Thickness Bold' }).getAttribute('aria-pressed')).toBe('true')
-    expect(screen.getByRole('button', { name: 'Thickness Regular' }).getAttribute('aria-pressed')).toBe('false')
-    fireEvent.click(screen.getByRole('button', { name: 'Thickness Light' }))
-    expect(fns.onStyle).toHaveBeenLastCalledWith({ weight: 'light' })
+    expect(document.querySelector('[data-stat-weight-name]').textContent).toBe('Bold')
+    fireEvent.click(screen.getByRole('button', { name: 'Thinner' }))
+    expect(fns.onStyle).toHaveBeenLastCalledWith({ weight: 'regular' })
+    fireEvent.click(screen.getByRole('button', { name: 'Thicker' }))
+    expect(fns.onStyle).toHaveBeenLastCalledWith({ weight: 'heavy' })
+  })
+  it('the stepper stops at the ends', () => {
+    setup({ look: {} })
+    expect(document.querySelector('[data-stat-weight-name]').textContent).toBe('Regular')
+    cleanup(); document.body.innerHTML = ''
+    setup({ look: { weight: 'heavy' } })
+    expect(screen.getByRole('button', { name: 'Thicker' }).disabled).toBe(true)
+    cleanup(); document.body.innerHTML = ''
+    setup({ look: { weight: 'light' } })
+    expect(screen.getByRole('button', { name: 'Thinner' }).disabled).toBe(true)
   })
 })
