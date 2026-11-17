@@ -6,7 +6,7 @@ Pinned per kind: an ok read (envelope conformance, the documented fields only, t
 note), `unavailable` kept apart from an empty answer, a malformed request refused before any read, a failing service
 answered `unavailable`, and a read never fresher than its kind declares. For all five: registered dark, isolated kinds
 dormant until armed one by one, and the two cross-file facts (the LEAD lens keys, the route's symbol rule) read from
-the other file rather than retyped.
+the other file rather than retyped. And the contract: MD-1 §4.10 quotes every note these adapters emit, verbatim.
 """
 from __future__ import annotations
 
@@ -449,3 +449,30 @@ def test_darkpool_levels_failing_service_and_bad_symbols(monkeypatch):
                 {"symbol": "ABCDEFGHIJK"}, {"symbols": ["AAA", "BBB"]}):
         assert _read(dp.KIND, bad)["status"] == "refused", bad
     assert ran == ["AAA"]
+
+
+# ── the contract (MD-1 v1.7 §4.10) ───────────────────────────────────────────────────────────────────────────────────
+def test_the_contract_doc_states_section_4_10_and_every_note_the_adapters_emit():
+    """MD-1 §4.10 quotes each note verbatim; QA pins fixtures to the doc, so the two must not drift. The two statements
+    v1.7 amended (the scanner "not exposed", dark pool deferred outright) no longer stand as they were written."""
+    doc = (REPO / "docs/agent/program/contracts/MD-1-market-data.md").read_text(encoding="utf-8")
+    head = ("### 4.10 Terminal data wave 1: `analyst.actions`, `highsLows.session`, `sectors.performance`, "
+            "`leaders.longRun`, `levels.darkpool` (v1.7, terminal-data)")
+    assert head in doc                                    # the section, not the file's title: later bumps add
+    section = doc[doc.index(head):doc.index("## 8. Changing this contract")]
+    for m in MODULES:
+        assert f"`{m.KIND}`" in section and f"`{m.SOURCE}`" in section, m.KIND
+        notes = {k: v for k, v in vars(m).items() if k.startswith("NOTE_")}
+        assert notes, m.KIND
+        for name, text in notes.items():
+            assert text in section, f"{m.KIND} {name}"
+    # default OFF, and the isolation switch of the four isolated kinds, are stated where the kinds are documented
+    for s in ("UCT_AGENT_DATA_KINDS", "UCT_AGENT_ISOLATED_KINDS", "turn.LOCAL_ONLY_ACTIONS", "turn.DATA_READ_ACTIONS",
+              "**Status: dark, not armed.**"):
+        assert s in section, s
+    for kind in sorted(ISOLATED):
+        assert f"| `{kind}` |" in section and f"- `{kind}`: " in section, kind        # its table row, and why it is isolated
+    assert "- `sectors.performance` is **not** isolated" in section
+    assert "and is **not exposed**" not in doc
+    assert "- **`darkpool`:** only once a trustworthy `as_of` source is identified.\n" not in doc
+    assert "- **v1.7 addition (2026-11-17, terminal-data, data wave 1):**" in doc

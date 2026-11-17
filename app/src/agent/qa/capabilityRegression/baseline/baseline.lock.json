@@ -5172,6 +5172,131 @@
      "modes": {}
     }
    }
+  },
+  "stock.analystActions": {
+   "digest": "cf94ff7fc84e454e",
+   "phrasings": {
+    "what got upgraded today": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "any analyst upgrades this morning": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "which stocks did analysts upgrade": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me the analyst upgrades from the morning wire": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.sessionHighsLows": {
+   "digest": "584aed351d5ea970",
+   "phrasings": {
+    "new highs today": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what is making new highs today": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "which stocks are hitting new highs of the day": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "stocks at session highs this morning": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.sectorPerformance": {
+   "digest": "66510ec9171d31eb",
+   "phrasings": {
+    "sector performance this month": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "how have the sector funds performed over the last month": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me sector fund returns for the past month": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "sector fund performance over 1 month": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.longRunLeaders": {
+   "digest": "34185c326c34c098",
+   "phrasings": {
+    "top gainers over 60 days": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "biggest gainers over the last 60 sessions": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "best performers over 60 days": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "top gainers in the past 60 trading days": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.darkPoolLevels": {
+   "digest": "4fa2b90d9b042aef",
+   "phrasings": {
+    "dark pool levels on NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "NVDA dark pool levels": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me the dark pool levels for NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "big dark pool prints in NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
   }
  },
  "refusals": {
@@ -5488,7 +5613,7 @@
    "mode": null
   },
   "GW-19.daily-charts-each-with-50sma": {
-   "digest": "4f95da5faaa1a67a",
+   "digest": "ba9b16d24883f44c",
    "gap": false,
    "mode": null
   },

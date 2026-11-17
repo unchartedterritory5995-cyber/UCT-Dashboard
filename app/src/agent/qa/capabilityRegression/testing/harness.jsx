@@ -165,6 +165,30 @@ const ASSET_ROUTES = { gold: { kind: 'commodity.quote', asset: 'gold', label: 'g
 // a made-up event-study answer (the study's own {lead, text, table, caveats} shape) — never a market value
 const SYNTH_STUDY = (sym) => ({ lead: `${sym} synthetic condition: 3 events (fixture)`, text: `${sym} synthetic condition: 3 events (fixture)\nSynthetic fixture study: no market value.`,
   table: { columns: [{ key: 'window', label: 'Window' }, { key: 'n', label: 'Events' }], rows: [{ window: '1 trading session', n: '3' }] }, caveats: ['Small sample (fixture).'] })
+// Terminal data wave 1 (dark kinds `analyst.actions`, `highsLows.session`, `sectors.performance`, `leaders.longRun`,
+// `levels.darkpool`): each kind's answer in the shape its adapter returns (api/services/uct_agent/marketdata/), with made-up
+// symbols and figures — never a market value. kind → (params) => the envelope fields that differ from a plain `periodic` ok.
+const TERMINAL_ANALYST = { upgrades: [{ ticker: 'AAA', action: 'Upgrade', firm: 'Example Securities', from_rating: 'Hold', to_rating: 'Buy', price_target: '$120' }],
+  downgrades: [{ ticker: 'CCC', action: 'Downgrade', firm: 'Sample Capital', from_rating: 'Buy', to_rating: 'Hold', price_target: null }],
+  pt_changes: [{ ticker: 'DDD', action: 'Raises PT', firm: 'Example Securities', from_rating: null, to_rating: 'Buy', price_target: 150 }] }
+const TERMINAL_DATA = {
+  'analyst.actions': (p) => {
+    const side = p.side || 'all'
+    const lists = Object.fromEntries(Object.entries(TERMINAL_ANALYST).map(([k, rows]) => [k, side === 'all' || side === k ? rows : []]))
+    return { as_of: '2026-11-03T05:00:00Z', data: { ...lists, summary: Object.fromEntries(Object.entries(lists).map(([k, rows]) => [k, rows.length])), side, wire_date: '2026-11-03', wire_status: 'fresh' } }
+  },
+  'highsLows.session': () => ({ data: { window: 'rth', active: true, date: '2026-11-03', asof: '2026-11-03T10:59:58-05:00', tick_at: '2026-11-03T15:59:58Z', group: null, value: null,
+    highs: [{ sym: 'AAA', price: 10.5, pct: 2.5, count: 12, ts: '2026-11-03T10:59:58-05:00', dir: 'high' }], lows: [{ sym: 'CCC', price: 20.25, pct: -4.1, count: 3, ts: '2026-11-03T10:59:58-05:00', dir: 'low' }],
+    highs_total: 40, lows_total: 2 } }),
+  'sectors.performance': (p) => ({ data: { period: p.period || 'Today', sessions: { Today: 1, '1W': 5, '1M': 21, '3M': 63 }[p.period || 'Today'],
+    sectors: [{ sector: 'Technology', ticker: 'XLK', change_pct: 2.1 }, { sector: 'Financials', ticker: 'XLF', change_pct: 1.4 }, { sector: 'Energy', ticker: 'XLE', change_pct: -0.9 }], missing: [] } }),
+  'leaders.longRun': (p) => ({ data: { list: p.list, family: 'gain', what: 'synthetic list (fixture)', status: 'ok',
+    results: [{ sym: 'AAA', price: 18, prev_close: 17.5, change_pct: 1.2, change_nd: 80, ref_close: 10 }, { sym: 'BBB', price: 9, prev_close: 9.1, change_pct: -1.1, change_nd: 50, ref_close: 6 }],
+    count: 2, as_of: '2026-11-03T10:59:30-05:00', computed_at: '2026-11-03T15:59:30Z' } }),
+  'levels.darkpool': (p) => ({ freshness: 'historical', as_of: '2026-11-02T21:00:00Z', data: { sym: String(p.symbol || '').toUpperCase(),
+    levels: [{ price: 98.5, notional: 12500000, printCount: 4, lastDate: '2026-11-02', lo: 98.4, hi: 98.6, rank: 2 }, { price: 101.25, notional: 25000000, printCount: 4, lastDate: '2026-10-29', lo: 101.15, hi: 101.35, rank: 1 }],
+    windowDays: 20, datesCovered: 14, version: 'fixture', asOf: 1793721600, computed_at: '2026-11-03T16:00:00Z', newest_print_date: '2026-11-02' } }),
+}
 // SG-1: T13–T18 sit FAR below their 52-week high (the Screener's sign: a distance from a high is NEGATIVE) and meet every
 // other condition of the owner's screen — so only a correctly signed "near the high" filter leaves them out
 const FAR_FROM_HIGH = [-12, -18, -25, -30, -35, -40]
@@ -353,6 +377,11 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     // the asset-class kinds (asset_quotes.py): no licensed source exists, so every read is the honest decline (`refused`)
     if (u === '/api/agent/data' && ['index.quote', 'commodity.quote', 'crypto.quote'].includes(body?.kind)) {
       return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'refused', freshness: 'unavailable', as_of: null, stale: false, notes: ['no licensed source'], data: null })
+    }
+    // terminal data wave 1 (dark): a SYNTHETIC answer in each kind's own data shape (TERMINAL_DATA above; no market value)
+    if (u === '/api/agent/data' && TERMINAL_DATA[body?.kind]) {
+      return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'ok', freshness: 'periodic', as_of: null, fetched_at: '2026-11-03T16:00:00Z', delay_s: null,
+        stale: false, source: 'fixture', coverage: null, notes: [], provider_calls: 0, ...TERMINAL_DATA[body.kind](body.params || {}) })
     }
     if (u === '/api/agent/data') return json({ contract: 'MD-1.0', kind: body?.kind, params_echo: body?.params, status: 'unavailable', notes: [], data: null })
     return base(url, init)

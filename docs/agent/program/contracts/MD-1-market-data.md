@@ -1,8 +1,8 @@
-# MD-1 — UCT market-data contract (v1.5)
+# MD-1 — UCT market-data contract (v1.7)
 
 - **Owner:** agent-md implements the kinds. agent-lead owns `gateway.py` and `envelope.py`, the framework every consumer relies on.
 - **Consumers:** agent-sc, agent-rs, agent-qa, and later the D and G workstreams.
-- **Status:** v1.5 (v1.1–v1.5 each additive or a scope reduction; v1.1–v1.4 acked by agent-lead 2026-11-01, v1.5 agreed for Sprint 2). See §9 for what changed. The envelope's wire field `contract` stays `"MD-1.0"`: v1.1 adds no envelope field.
+- **Status:** v1.7 (v1.1–v1.7 each additive or a scope reduction; v1.1–v1.4 acked by agent-lead 2026-11-01, v1.5 agreed for Sprint 2; v1.6 and v1.7 are additions whose new kinds are default OFF; v1.7 is written up after its kinds merged dark and has no agent-lead ack recorded yet, see §9). See §9 for what changed. The envelope's wire field `contract` stays `"MD-1.0"`: no version since v1.0 adds an envelope field.
 - **Changes:** see §8.
 
 ## 1. Purpose
@@ -67,7 +67,7 @@ Each kind wraps the canonical service listed. **No new upstream connection, WebS
 | `earnings` | `services/earnings_table.py` `get_earnings_table` (the layer over `earnings_estimates`) | periodic | `stale_quarters` ≥ 2 (its own `reported_staleness`) | Event-driven results stay class `periodic`. Reported rows carry only a fiscal label, so `as_of` is null with a note; `next_report` is a scheduled event, never `as_of`. See §4.2. |
 | `news.company` | `services/news/store.py` `feed` (UCT's own store; no provider call) | periodic | news **ingest** has not succeeded for 1 hour | Item `as_of` = `published_at`; the envelope `as_of` is the newest item. A quiet company is not stale. No body text. See §4.2. |
 | `breadth.current` | `services/breadth_current.py` `reading()` (breadth-owned; V2 store + live engine) | periodic (intraday) · historical (completed sessions) | not `current` (its own rule: intraday ≤ 300 s) | **MODEL-ISOLATED** (§4.4). US · NYSE · Nasdaq aggregates only; includes the NH/NL measures. |
-| `nhnl` | — **not a separate kind** (v1.3) | — | — | 52-week / 20-day new highs and lows are METRICS of `breadth.current` (`new_52w_highs`, `new_52w_lows`, `net_new_high_low`, `new_20d_highs`, `new_20d_lows`), tier `finalized_only`. `services/nhnl_live.py` is an intraday high-of-day / low-of-day EVENT COUNTER, a different metric with no vendor time, and is **not exposed**. |
+| `nhnl` | — **not a separate kind** (v1.3) | — | — | 52-week / 20-day new highs and lows are METRICS of `breadth.current` (`new_52w_highs`, `new_52w_lows`, `net_new_high_low`, `new_20d_highs`, `new_20d_lows`), tier `finalized_only`. `services/nhnl_live.py` is an intraday high-of-day / low-of-day EVENT COUNTER, a different metric with no vendor time. It is **not** an `nhnl` kind and never a `breadth.current` measure; since v1.7 it is read only by the separate, model-isolated kind `highsLows.session` (§4.10), which is default OFF and says in every answer that its counts are not 52-week highs and lows. (v1.3 to v1.6 said "not exposed".) |
 | `themes` | `services/theme_performance.py` overlay, read **without building** (§4.3) | periodic | the base predates the last completed session | Never spends provider calls: no complete overlay ⇒ `unavailable` (“theme data is warming”). See §4.3. |
 | `ratings` | `services/research/ratings.py` `get_ratings` (UCT-derived) | periodic | price data older than the last completed session | **MODEL-ISOLATED** (§4.4). Never a third-party analyst rating. |
 
@@ -162,7 +162,7 @@ The canonical services' own stale-while-revalidate refresh and the news store's 
 
 **Deferred until a verifying spike is done (agent-md, ADR-003):**
 - **`flow.summary`:** only through the existing flow proxy (`api/flow_proxy.py`), after verifying from `web` that the data is really available. Never by importing `flow_router` in-process: `flow.db` lives on flow-worker. Never a second Massive connection.
-- **`darkpool`:** only once a trustworthy `as_of` source is identified.
+- **`darkpool`:** only once a trustworthy `as_of` source is identified. **v1.7:** identified for dark pool price LEVELS only: `levels.darkpool` (§4.10) dates a read by the newest confirmed print date among the levels it returns, never by the build time. A dark pool PRINTS kind (the tape itself) is still deferred: no kind exposes it.
 
 ### 4.5 `stock.quote`: the answer contract over `quote` / `quotes` (v1.5)
 
@@ -514,6 +514,172 @@ the same read-only loader), on ANY session — UCT's data carries no past earnin
   never a return. The member sees the table. Every answer ends with *Descriptive, not predictive: …* and dates the
   stored closes it rests on. Default OFF (`UCT_AGENT_DATA_KINDS`), like every kind.
 
+### 4.10 Terminal data wave 1: `analyst.actions`, `highsLows.session`, `sectors.performance`, `leaders.longRun`, `levels.darkpool` (v1.7, terminal-data)
+
+Five thin kinds, the Agent half of five UCT Terminal panels (UPDG, HILO, SCTR, LEAD, LVL). Each is an adapter over the
+service its member route already reads (`api/services/uct_agent/marketdata/analyst_actions.py`,
+`session_highs_lows.py`, `sectors_performance.py`, `leaders_long_run.py`, `darkpool_levels.py`; registered in
+`kinds.py` with `owner="terminal-data"`). No new connection, job, database or write (§6).
+
+**Status: dark, not armed.** Like every kind, each is served only when it is listed in `UCT_AGENT_DATA_KINDS` (with
+`UCT_AGENT_DATA=1`). The four model-isolated kinds also need the master switch `UCT_AGENT_ISOLATED=1` and their own
+entry in `UCT_AGENT_ISOLATED_KINDS` (§4.4, ADR-005); until then they are refused for every purpose, and once armed
+they are served for purpose `answer` only. This section describes what the code does when a kind is switched on. It
+does not switch anything on. As written (2026-11-17), no kind of this section is in production's list.
+
+| Kind | Canonical service (member route) | Params | Declared freshness | `as_of` | `provider_calls` | Model-isolated |
+|---|---|---|---|---|---|---|
+| `analyst.actions` | `services/engine.py` `get_analyst_actions()` (`GET /api/analyst-actions`) | `{side}` | periodic | the morning wire's own date | 0 | **yes** |
+| `highsLows.session` | `services/nhnl_live.py` `get_live(...)` (`GET /api/nhnl/live`) | `{limit, min_price, min_count}` | periodic · historical (market closed) | null (only UCT's tick time is known) | 0 | **yes** |
+| `sectors.performance` | `services/sector_strength.py` `get_sector_strength(period)` (`GET /api/sector-strength`) | `{period}` | periodic | null (the ranking carries no time) | 0 warm, 11 cold | no |
+| `leaders.longRun` | `services/scan_gainers.py`, `scan_volume.py`, `scan_ipo.py` (`GET /api/scans/…`) | `{list, limit}` | periodic | null (only UCT's computation time is known) | at most 1 | **yes** |
+| `levels.darkpool` | `services/signature/darkpool_levels.py` `fetch_dp_levels(sym)` (`GET /api/signature/darkpool-levels`) | `{symbol}` | periodic (every read reports `historical`) | the newest confirmed print date among the levels | 0 | **yes** |
+
+**Rules all five share**
+- **A bad request is refused before any read.** Each kind's `validate` runs before admission (unknown `side`, `period`
+  or `list`, an out-of-range `limit`, a `symbol` that is not one ticker): the read is `refused` and spends no budget.
+- **A failed read is `unavailable`, never an empty answer.** A service that raises, is switched off, is still building,
+  or returns a malformed payload gives `unavailable` with one fixed note. "No upgrades", "nothing made a new high",
+  "no leaders" and "no levels" are said only when the service answered healthily with nothing in it, and that read is
+  `ok` with a note that says so.
+- **Never worded as live or now** (§3). Where the source carries only UCT's own polling or computation time, `as_of`
+  is null, that time rides in `data` under a name that says what it is, and a note says why `as_of` is not given (the
+  same rule as `themes`, §4.3).
+- **The member's answer is built from the read's `data` and `status`.** The browser capabilities template their text from
+  those; an envelope note is never echoed to the member as if it were data.
+
+**Why four are model-isolated, and one is not.** A value is isolated when the owner has not cleared it for the model
+(§4.4): UCT-derived output, or third-party text whose AI-processing right is unresolved.
+- `analyst.actions`: the rows are third-party analysts' calls (a broker's rating and price target) relayed by the
+  morning wire's vendors. Their AI-processing right is unresolved in the provider ledger, the same reason
+  `catalysts.board`'s stored headlines are isolated.
+- `highsLows.session`: the counts are UCT's own scanner output (its accumulator), a UCT-derived value.
+- `leaders.longRun`: which names make a list is UCT's own selection (the top 5% of UCT's liquid universe against a
+  reference close UCT verifies; UCT's volume records and listing set), a UCT-derived ranking.
+- `levels.darkpool`: the levels are computed by UCT (its own bin width, dollar floor and ranking) from vendor prints.
+- `sectors.performance` is **not** isolated: a fund's percent change between two daily closes is plain vendor price
+  arithmetic, the same class as `bars.daily` and `themes`. No UCT score, rating or selection rule is involved.
+
+Whether an isolated value may ever reach the model is an owner decision (§4.4). On the browser the four isolated kinds
+are read only by local-only capabilities (`stock.analystActions`, `stock.sessionHighsLows`, `stock.longRunLeaders`,
+`stock.darkPoolLevels` in `app/src/agent/capabilities/terminalDataLocal.js`, all in `turn.LOCAL_ONLY_ACTIONS`): the
+model plans the lookup and never sees what came back. `sectors.performance` is read by `stock.sectorPerformance`
+(`capabilities/terminalData.js`), an ordinary data read (`turn.DATA_READ_ACTIONS`). Each capability registers only
+while the server lists its own kind.
+
+**`analyst.actions`** (source `uct-morning-wire`)
+- What it returns: the analyst upgrades, downgrades and price-target changes of the last morning wire pushed to this
+  server, market-wide. The wire is pushed to the server and the service reads it: no provider call.
+- Params: `side` ∈ all · upgrades · downgrades · pt_changes (default all).
+- `as_of` = the wire's own date (`wire_date`), as the start of that Eastern day. It is a date, not a time of day. Notes:
+  `analyst actions from the {date} morning wire; the list is served unchanged until the next wire is pushed, so it may not be today's`;
+  `as_of is the morning wire's date (a date, not a time of day)`. The list is never worded as today's.
+- `stale` = the service's own verdict (`wire_status` is not `fresh`), with the note
+  `a newer morning wire is expected by now: this list is from {date}`.
+- A wire with rows but no date: `as_of` is null, the read is `stale`, and the note is
+  `the wire this list came from carries no date, so as_of is not given and the list cannot be called current`.
+- A dated wire with no rows of the side asked for is `ok`, with the note
+  `the {date} morning wire lists no analyst actions of this kind`.
+- `unavailable`: no dated wire and no rows (`no morning wire with analyst actions is held on this server yet`); the
+  service raising or answering with something that is not a payload (`the morning wire's analyst actions could not be read`).
+- Data fields: `upgrades, downgrades, pt_changes` (a list each; a bucket not asked for is empty), `summary` (the count
+  per bucket), `side, wire_date, wire_status` (fresh · stale · unknown). Row fields:
+  `ticker, action, firm, from_rating, to_rating, price_target`.
+
+**`highsLows.session`** (source `uct-nhnl-scanner`)
+- What it returns: one row per stock that has printed a new high (or a new low) of the CURRENT SESSION, with a running
+  `count` of how many times, busiest first, from UCT's intraday scanner (flag `NHNL_SCANNER_ENABLED`). Pre-market
+  (`pre`), the regular session (`rth`) and after-hours (`post`) are counted separately. Read-only against the
+  scanner's in-memory state: it never starts the scanner.
+- **Not 52-week highs and lows.** Those are `breadth.current` measures (§4.4). Every `ok` read carries the note
+  ``new highs and new lows of the SESSION (pre-market, regular and after-hours are counted separately), not 52-week highs and lows; `count` is how many times the stock has made one this session``.
+- Params: `limit` 1–50 rows a side (default 15), `min_price` ≥ 0 (default 0), `min_count` 1–1000 (default 1).
+- `as_of` is always null. The scanner's stamp is the time of UCT's own last tick (a polling time, like `fetched_at`);
+  the vendor's observation time is not carried. `data.tick_at` gives UCT's tick time, with the note
+  `counts as of the scanner's last tick at {at} (UCT's polling time; the vendor's observation time is not carried), so as_of is not given — not a live feed`.
+- While a session is open the read is `periodic`, and `stale` when the last tick is more than 60 seconds old, with the
+  note `the scanner's last tick is more than a minute old, so newer highs and lows may be missing`.
+- With the market closed the read is `historical`, with the note
+  `the market is closed: these are the counts of the last tracked session ({date}), not a current reading`.
+- `unavailable`: a session is open but the scanner is not active
+  (`the new highs and lows scanner is not running on this server, so no counts are available`); it has no tick time
+  (`the new highs and lows scanner has not produced a reading yet`); the market is closed and no counts are held
+  (`the market is closed and no session counts are held`); the service raising
+  (`the new highs and lows scanner could not be read`).
+- Data fields: `window` (pre · rth · post · closed), `active, date, asof, tick_at, group, value` (the last two always
+  null), `highs, lows, highs_total, lows_total`. Row fields: `sym, price, pct, count, ts, dir`. `coverage` counts the
+  rows the whole view holds against the rows returned.
+
+**`sectors.performance`** (source `uct-sector-strength`)
+- What it returns: the 11 SPDR Select Sector funds ranked by percent change, strongest first, from daily closes.
+- Params: `period` ∈ Today · 1W · 1M · 3M (the service's own: 1, 5, 21 and 63 sessions; default Today).
+- `as_of` is always null and `stale` is always false. The payload carries no time at all, and during a session the
+  latest bar is still forming. Note:
+  `the sector ranking carries no data time: each return is the fund's latest daily close against its close {n} session(s) back, cached for up to 15 minutes, and during a session the latest bar is still forming, so as_of is not given`.
+- A fund whose daily bars could not be read is dropped by the service: the read is `partial`, the fund is listed in
+  `data.missing`, and the note is `not ranked (its daily bars could not be read): {names}`. It is never ranked as 0.
+- `unavailable`: no fund could be ranked
+  (`the sector ranking is unavailable: no sector fund's daily bars could be read`); the service raising
+  (`the sector ranking could not be read`).
+- `provider_calls`: 0 when the service's cache for that period is warm; otherwise 11, one daily-bars request per
+  fund, the most a cold read can make. That is over half of a turn's provider budget (§5). "Warm" is read from the
+  service's own cache key (`sector_strength_<sessions>`); a rail fails if the service renames it.
+- Data fields: `period, sessions, sectors, missing`. Row fields: `sector, ticker, change_pct`.
+
+**`leaders.longRun`** (source `uct-scans`)
+- What it returns: ONE of UCT's long-run leader lists per read, the preset scans the Scanner widget and the LEAD panel
+  read.
+- Params: `list` (required) ∈ 30D · 60D · 90D (the top 5% of liquid US common stocks by 30 / 60 / 90-session change) ·
+  VOL1Y (trading more shares today than on any day in the last year) · VOLMAX (more than on any day on record) · IPO
+  (first traded within the last year); `limit` 1–50 (default 20). The `list` keys are the LEAD panel's own lens keys
+  (`app/src/pages/terminal/panels/longRunModel.js`); a rail reads both files.
+- `as_of` is always null and `stale` is always false. The service's stamp is when UCT worked the list out, from a
+  whole-market snapshot up to 30 seconds older; the vendor's observation time is not carried. `data.computed_at` gives
+  UCT's time, with the note
+  `worked out by UCT at {at} from a whole-market snapshot up to 30 seconds older (UCT's time; the vendor's observation time is not carried), so as_of is not given — not a live feed`
+  (or `the list carries no time, so as_of is not given`).
+- The service's two answers are kept apart:
+  - `status: "computing"` (the list's reference is still being built) is `unavailable`, with the note
+    `the reference for this list is still being built on the server; ask again in a few minutes`;
+  - `status: "ok"` with no rows is `ok`, with the note
+    `the list is empty: either nothing qualifies, or the market snapshot it is measured against was missing (before the open, or a feed miss) — the service cannot tell which`.
+    It is never worded as "no leaders".
+- Any other status, the service raising, or a malformed payload is `unavailable` (`the list could not be read`).
+- More rows than `limit`: the first `limit` are returned in the list's own order, `data.count` is the whole list, and
+  the note is `showing the first {n} of {total} names, in the list's own order`.
+- `provider_calls`: 1 for an answered read (one shared whole-market snapshot, cached about 30 seconds by the service,
+  which cannot say whether it was a hit). A reference build runs on the service's own background thread and is not
+  this turn's.
+- Data fields: `list, family` (gain · volume · ipo), `what, status, results, count, as_of` (the service's own stamp),
+  `computed_at`. Row fields: `sym, price, prev_close, change_pct`, plus `change_nd, ref_close` (gain),
+  `volume, ref_max, ratio` (volume) or `ipo_date` (ipo). `coverage` is the service's own receipt when it gives one.
+
+**`levels.darkpool`** (source `uct-darkpool-levels`)
+- What it returns: one stock's dark pool price levels. UCT clusters the stock's CONFIRMED dark pool prints over the
+  last `rules.DPL_WINDOW_DAYS` sessions into price zones and keeps the top `rules.DPL_TOP_K` by dollar value, each at
+  or above `rules.DPL_MIN_CLUSTER_NOTIONAL`. A local read of the nightly-confirmed print ledger: no provider call.
+  Every `ok` read carries the note
+  `price zones where confirmed dark pool prints bunched up over the last {days} sessions, the top {k} by dollar value, each ${floor:,.0f} or more; computed by UCT from the nightly-confirmed print ledger, never intraday`.
+- Params: `symbol`, one ticker by the member route's own rule (letters, dots and dashes, starting with a letter, at
+  most 10 characters).
+- **`as_of`** (the "trustworthy `as_of`" §4.4 deferred `darkpool` for) = the newest confirmed print date among the
+  returned levels, as that session's close, with the note
+  `as_of is the newest confirmed print date among these levels, as that session's close`. The payload's own `asOf` is
+  the time of the BUILD (a computation time), so it is never `as_of`; it rides as `data.computed_at`. When no level
+  carries a full date, `as_of` is null with the note `the levels carry no full print date, so as_of is not given`.
+- The kind is declared `periodic` (levels are recomputed as the nightly ledger grows), and every read reports the less
+  fresh `historical` (completed sessions only), which §3 allows. `stale` is always false: whether the print ledger
+  itself is up to date is not checked, and every `ok` read says so
+  (`whether the print ledger itself is up to date is not checked by this read`). A quiet stock is not a stale ledger.
+- No cluster reaching the floor is a healthy answer: `ok`, an empty `levels` list, and the note
+  `no dark pool cluster reached the floor for {sym} in this window; that is not a failed read`.
+- `unavailable`: the service raising, a payload with an `error`, or `levels` that is not a list
+  (`dark pool levels could not be read for {sym}`). A failed read is never "no levels".
+- Data fields: `sym, levels, windowDays, datesCovered, version, asOf` (the build's epoch seconds), `computed_at,
+  newest_print_date`. Level fields: `price, notional, printCount, lastDate, lo, hi, rank`.
+- **Not kinds:** the dark pool prints themselves (§4.4, still deferred) and gamma walls
+  (`GET /api/signature/gex-walls`) are not exposed to the Agent.
+
 ## 8. Changing this contract
 
 1. Open a PR that edits this file, with a version bump (v1.1 adds; v2.0 breaks). Message agent-lead.
@@ -523,6 +689,7 @@ the same read-only loader), on ANY session — UCT's data carries no past earnin
 
 ## 9. Changelog
 
+- **v1.7 addition (2026-11-17, terminal-data, data wave 1):** §4.10 documents five kinds that merged dark in #1584: `analyst.actions`, `highsLows.session`, `sectors.performance`, `leaders.longRun`, `levels.darkpool` (four model-isolated, ADR-005; `sectors.performance` is not). Two earlier statements are amended with them: the §4 `nhnl` row (v1.3 recorded `nhnl_live` as "not exposed"; it is now read only by the isolated `highsLows.session`, which is never a 52-week measure) and the §4.4 `darkpool` deferral (a trustworthy `as_of` is identified for price LEVELS only, the newest confirmed print date; a prints kind stays deferred). Additive: no existing kind changes and no envelope field changes, so the wire `contract` stays `"MD-1.0"` (§8.4). **Not armed:** every kind of §4.10 is default OFF, and switching one on is the owner's step, not this document's. §8.1 status: the version bump and this entry are in the PR that edits this file; agent-lead's acknowledgement is not recorded here yet.
 - **v1.6 addition (2026-11-03, builder-b, W2-B2):** `bars.daily` gains `from` (a window read); §4.6 `offHigh`, `pullbacks` and `range` with `from`; §4.9 `history.eventStudy` over Market Intelligence's event study (technical series only, local-only to the model). No envelope change.
 - **v1.6 addition (2026-11-03, agent-rs, W2-B1):** §4.8 `research.company`, a composed kind over the served kinds plus the turn's one web search (contract RS-1). No envelope change.
 - **v1.5 amendment (2026-11-02, agent-md, G2):** §4.7.5 L6. While the symbol index is older than 3 days (or undated), no lowercase word or lowercase cashtag is confirmed; it gets the #691 neutral ask with `basis` `index_stale`. Classes and reads unchanged.

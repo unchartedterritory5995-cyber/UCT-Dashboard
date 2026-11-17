@@ -12928,6 +12928,230 @@
         "show me the catalyst board",
         "what are today's catalysts"
       ]
+    },
+    {
+      "id": "stock.analystActions",
+      "source": "Terminal data wave 1 (11-17): the Agent half of the UPDG / HILO / SCTR / LEAD / LVL terminal panels (#1584), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.analystActions"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.analystActions"
+      ],
+      "ownWords": [
+        "data"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.analystActions",
+            "target": "$stockData",
+            "args": {
+              "side": "upgrades"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*analyst\\.actions.*\"params\":\\{\"side\":\"upgrades\"\\}"
+        ],
+        "says": [
+          "Analyst actions from the morning wire of",
+          "served unchanged until the next morning wire"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "what got upgraded today",
+        "any analyst upgrades this morning",
+        "which stocks did analysts upgrade",
+        "show me the analyst upgrades from the morning wire"
+      ]
+    },
+    {
+      "id": "stock.sessionHighsLows",
+      "source": "Terminal data wave 1 (11-17): the Agent half of the UPDG / HILO / SCTR / LEAD / LVL terminal panels (#1584), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.sessionHighsLows"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.sessionHighsLows"
+      ],
+      "ownWords": [
+        "data"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.sessionHighsLows",
+            "target": "$stockData",
+            "args": {
+              "side": "highs",
+              "limit": null,
+              "min_price": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*highsLows\\.session.*\"params\":\\{\"limit\":15\\}"
+        ],
+        "says": [
+          "New highs and new lows of the day",
+          "not 52-week highs and lows"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "new highs today",
+        "what is making new highs today",
+        "which stocks are hitting new highs of the day",
+        "stocks at session highs this morning"
+      ]
+    },
+    {
+      "id": "stock.sectorPerformance",
+      "source": "Terminal data wave 1 (11-17): the Agent half of the UPDG / HILO / SCTR / LEAD / LVL terminal panels (#1584), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.sectorPerformance"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.sectorPerformance"
+      ],
+      "ownWords": [
+        "data"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.sectorPerformance",
+            "target": "$stockData",
+            "args": {
+              "period": "1M"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*sectors\\.performance.*\"params\":\\{\"period\":\"1M\"\\}"
+        ],
+        "says": [
+          "Sector funds ranked by",
+          "carries no data time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "sector performance this month",
+        "how have the sector funds performed over the last month",
+        "show me sector fund returns for the past month",
+        "sector fund performance over 1 month"
+      ]
+    },
+    {
+      "id": "stock.longRunLeaders",
+      "source": "Terminal data wave 1 (11-17): the Agent half of the UPDG / HILO / SCTR / LEAD / LVL terminal panels (#1584), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.longRunLeaders"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.longRunLeaders"
+      ],
+      "ownWords": [
+        "data"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.longRunLeaders",
+            "target": "$stockData",
+            "args": {
+              "list": "60D",
+              "limit": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*leaders\\.longRun.*\"params\":\\{\"list\":\"60D\",\"limit\":20\\}"
+        ],
+        "says": [
+          "60-day gainers",
+          "Worked out by UCT at",
+          "Descriptive only"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "top gainers over 60 days",
+        "biggest gainers over the last 60 sessions",
+        "best performers over 60 days",
+        "top gainers in the past 60 trading days"
+      ]
+    },
+    {
+      "id": "stock.darkPoolLevels",
+      "source": "Terminal data wave 1 (11-17): the Agent half of the UPDG / HILO / SCTR / LEAD / LVL terminal panels (#1584), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.darkPoolLevels"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.darkPoolLevels"
+      ],
+      "ownWords": [
+        "data"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.darkPoolLevels",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*levels\\.darkpool.*\"params\":\\{\"symbol\":\"NVDA\"\\}"
+        ],
+        "says": [
+          "NVDA dark pool levels from confirmed prints",
+          "confirmed overnight"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "dark pool levels on NVDA",
+        "NVDA dark pool levels",
+        "show me the dark pool levels for NVDA",
+        "big dark pool prints in NVDA"
+      ]
     }
   ],
   "refusals": [

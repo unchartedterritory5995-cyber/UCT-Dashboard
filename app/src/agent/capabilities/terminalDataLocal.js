@@ -19,9 +19,12 @@
 //
 // Dark by construction: each is registered only while the server serves its own kind (UCT_AGENT_DATA_KINDS, fail
 // closed; an isolated kind also needs its own UCT_AGENT_ISOLATED_KINDS entry or every read is refused).
+// ROUTING: the four ride in the stock `data` group (by domain). Each one's own words (TERMINAL_ROUTE_WORDS) are added to that
+// group only while it is registered, so on a dark server routing is byte-identical to the base (as cot / rs / catalysts).
 import { registerCapability } from '../capabilities'
 import { readData } from '../marketdata/client'
 import { currentTurnId } from '../trace'
+import { GROUPS } from '../routing'
 import { stampET } from './marketDataFacts'
 import { LONG_RUN_LENSES, LONG_RUN_LENS_KEYS, longRunView } from '../../pages/terminal/panels/longRunModel'
 import { darkPoolRead, levelRows, LEVEL_KINDS } from '../../pages/terminal/panels/levelsModel'
@@ -286,6 +289,56 @@ export async function answerDarkPool(args = {}) {
   return answerFromDarkPool(envl, symbol)
 }
 
+// ── routing words (armed only while registered; routing.js's `data` group does not list them) ─────────────────────────
+// Routing v2 already reaches the four by their summaries. v1 (the kill-switch fallback, and the router the capability-regression
+// corpus runs) selects a group by its words, and none of these asks named the data group: "what got upgraded today" named
+// nothing (the budget fill then cut the data group), "new highs today" only breadth, "top gainers over 60 days" only the
+// workspace and the screener, "dark pool levels on NVDA" only drawings.
+// Routing only ADDS a group (the other groups a message names still ride along), and each pattern is kept off another
+// capability's own language:
+//   analyst    never the member's own plan ("upgrade my subscription");
+//   highsLows  needs a word for THIS session, and is never a 52-week / 20-day / net / how-many measure (breadth.show);
+//   leaders    "top gainers" needs a 30 / 60 / 90-session or 1-3 month window (today's movers and a member's own filter stay
+//              the Screener's); record volume; new listings named alone (never "recent IPOs that are …": a screen);
+//   darkPool   never the chart's dark-pool display setting (chart.setSetting), a screen, the options-flow widget or a page.
+// ⛔ no lookbehind (iOS 16 floor, src/noRegexLookbehind.test.js).
+const NOT_OWN_PLAN = '^(?!.*\\b(?:plans?|subscription|membership|account|tier|billing|pro|premium|app|version|browser)\\b)'
+const NOT_BREADTH = '^(?!.*\\b(?:52[\\s-]?w(?:ee)?ks?|52w|20[\\s-]?days?|year(?:ly)?|all[\\s-]time|net new|how many|number of|count of|percent|pct)\\b)(?!.*%)'
+const THIS_SESSION = '(?:today|of the (?:day|session)|on the day|for the day|this (?:morning|session|afternoon)|so far|intraday|right now|pre-?market|after[\\s-]?hours)'
+const LONG_WINDOW = '(?:\\b(?:30|60|90)[\\s-]?(?:d|days?|sessions?|trading days)\\b|\\b(?:last|past) (?:(?:1|one|2|two|3|three) )?(?:months?|quarter)\\b|\\b(?:1|one|2|two|3|three)[\\s-]months?\\b)'
+const NOT_CHART_SETTING = '^(?!.*\\b(?:widgets?|page|tab|panel|window|charts?|turn (?:on|off)|enable|disable|toggle|hide|colou?rs?|bars?|labels?|lines?|screens?|scans?|screener|filters?|(?:stocks|names|tickers) with|options flow)\\b)'
+export const TERMINAL_ROUTE_WORDS = Object.freeze({
+  analyst: [
+    new RegExp(`${NOT_OWN_PLAN}.*\\b(?:upgrades?|upgraded|downgrades?|downgraded)\\b`),
+    /\banalysts?(?:'s?|’s?)? (?:\w+ ){0,3}?(?:actions?|calls?|rating changes?|ratings?|price[\s-]targets?|targets?|coverage|initiations?)\b/,
+    /\bprice[\s-]targets? (?:changes?|raises?|raised|hikes?|hiked|cuts?|lowered|bumps?|increases?|moves?|updates?)\b|\b(?:raised|raises?|cut|cuts|lowered|hiked|changed) (?:\w+ ){0,2}?price[\s-]targets?\b/,
+    /\b(?:new|initiated|initiates?|started) coverage\b|\bcoverage initiations?\b/,
+  ],
+  highsLows: [
+    new RegExp(`${NOT_BREADTH}(?=.*\\b${THIS_SESSION}\\b).*\\bnew (?:highs?|lows?)\\b`),
+    new RegExp(`${NOT_BREADTH}.*\\b(?:highs?|lows?) of the (?:day|session)\\b|\\b(?:session|intraday) (?:highs?|lows?)\\b`),
+  ],
+  leaders: [
+    new RegExp(`\\b(?:top|biggest|best|largest|strongest) (?:\\w+ )?(?:gainers|winners|performers)\\b.*${LONG_WINDOW}|${LONG_WINDOW}.*\\b(?:gainers|winners|top performers)\\b`),
+    /\b(?:record|all[\s-]time(?: high)?|highest[\s-]ever) volume\b|\bvolume (?:records?|all[\s-]time highs?)\b|\b(?:highest|most|biggest|heaviest) volume (?:ever|on record|in (?:a|1|one|the (?:last|past)) year|of the (?:last |past )?year|in (?:its|their) history)\b/,
+    /\b(?:recent|new|latest|newest) (?:ipos?|listings)\b(?! (?:that|which|with|where|above|below|over|under|near|trading|acting|making|breaking|in an?)\b)|\bipos? (?:in|of|from|over|within) the (?:last|past) (?:year|12 months|twelve months)\b|\bnewly listed\b/,
+  ],
+  darkPool: [
+    new RegExp(`${NOT_CHART_SETTING}.*\\bdark[\\s-]?pools?\\b`),
+  ],
+})
+const dataGroup = () => GROUPS.find(g => g.id === 'data')
+/** Adds (or takes back) ONE capability's words on the data group; the group's own words are never touched. */
+function armRoutes(key, on) {
+  const g = dataGroup()
+  if (!g) return
+  for (const re of TERMINAL_ROUTE_WORDS[key]) {
+    const at = g.words.indexOf(re)
+    if (on && at < 0) g.words.push(re)
+    if (!on && at >= 0) g.words.splice(at, 1)
+  }
+}
+
 // ── registration: each capability only while the server serves ITS kind ───────────────────────────────────────────────
 const TARGET_HINT = 'target = the ref of the stockData entry.'
 const NO_FIGURES = 'reply: one short line, no figures.'
@@ -307,6 +360,7 @@ export function registerTerminalLocalCapabilities() {
       args: { type: 'object', properties: { side: { type: ['string', 'null'], enum: [...ANALYST_SIDES, null] } }, required: ['side'], additionalProperties: false },
       answer: (_snap, args) => answerAnalystActions(args || {}),
     })
+    armRoutes('analyst', true)
     added.push(CAPABILITIES.analyst)
   }
   if (!unregister.highsLows && kindServed(KINDS.highsLows)) {
@@ -326,6 +380,7 @@ export function registerTerminalLocalCapabilities() {
       },
       answer: (_snap, args) => answerHighsLows(args || {}),
     })
+    armRoutes('highsLows', true)
     added.push(CAPABILITIES.highsLows)
   }
   if (!unregister.leaders && kindServed(KINDS.leaders)) {
@@ -345,6 +400,7 @@ export function registerTerminalLocalCapabilities() {
       },
       answer: (_snap, args) => answerLeaders(args || {}),
     })
+    armRoutes('leaders', true)
     added.push(CAPABILITIES.leaders)
   }
   if (!unregister.darkPool && kindServed(KINDS.darkPool)) {
@@ -360,8 +416,12 @@ export function registerTerminalLocalCapabilities() {
       args: { type: 'object', properties: { symbol: { type: 'string' } }, required: ['symbol'], additionalProperties: false },
       answer: (_snap, args) => answerDarkPool(args || {}),
     })
+    armRoutes('darkPool', true)
     added.push(CAPABILITIES.darkPool)
   }
   return added
 }
-export const _resetTerminalLocalForTest = () => { for (const k of Object.keys(unregister)) { unregister[k]?.(); delete unregister[k] } }
+export const _resetTerminalLocalForTest = () => {
+  for (const k of Object.keys(unregister)) { unregister[k]?.(); delete unregister[k] }
+  for (const k of Object.keys(TERMINAL_ROUTE_WORDS)) armRoutes(k, false)
+}
