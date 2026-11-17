@@ -163,7 +163,7 @@ export const BUILT_IN_ROWS = Object.freeze([
     carvedOut: false,
     engineOwned: false,
     userDefined: false,
-    description: 'Shares traded per bar, coloured up or down, with a moving average.',
+    description: 'Shares traded per bar, colored up or down, with a moving average.',
     tags: Object.freeze(['volume', 'vol', 'shares', 'turnover']),
     repaint: null,
     measuredRepaint: null,

@@ -19,7 +19,8 @@ const handlers = () => ({
 })
 const RS = engineRegistry.getDefinition('rsLine')
 const rsChip = { defId: 'rsLine', plotKey: 'rsLine', instanceId: 'inst:rs', label: 'UCT RS(SPY)', hidden: false }
-const keys = (items) => items.filter((i) => !i.separator).map((i) => i.key)
+// rows only: separators and UCT Signature group labels are not rows
+const keys = (items) => items.filter((i) => !i.separator && i.groupLabel == null).map((i) => i.key)
 
 describe('the Preset row', () => {
   const presets = presetsOf(RS)
@@ -28,9 +29,10 @@ describe('the Preset row', () => {
     expect(presets.length).toBeGreaterThan(1)
     const items = chipMenuItems(rsChip, RS, handlers(), { presets, presetCurrent: 'classic' })
     expect(keys(items).slice(0, 4)).toEqual(['hidden', 'move', 'preset', 'settings'])
-    // the separator still sits between Display in / Preset and the editor
+    // the "Settings" group label (UCT Signature: it replaced the separator) sits between
+    // Display in / Preset and the editor
     const at = items.findIndex((i) => i.key === 'preset')
-    expect(items[at + 1].separator).toBe(true)
+    expect(items[at + 1].groupLabel).toBe('Settings')
   })
 
   it('the row carries the CURRENT preset name as its trailing label, `Custom` when none matches', () => {
@@ -84,8 +86,10 @@ describe('⛔ the control — RSI and MACD menus are exactly what they were', ()
       const chip = { defId: id, plotKey: id, instanceId: `i:${id}`, label, hidden: false }
       const items = chipMenuItems(chip, def, handlers(), { presets: presetsOf(def), presetCurrent: null })
       expect(keys(items)).toEqual(['hidden', 'move', 'settings', 'duplicate', 'alerts', 'about', 'remove'])
-      expect(items.map((i) => (i.separator ? '—' : i.key)))
-        .toEqual(['hidden', 'move', '—', 'settings', 'duplicate', 'alerts', 'about', '—', 'remove'])
+      // UCT Signature (owner 2026-11-15): grey group labels name the groups; Delete stays alone below the one rule
+      expect(items.map((i) => (i.separator ? '—' : (i.groupLabel ? `[${i.groupLabel}]` : i.key))))
+        .toEqual(['[This line]', 'hidden', 'move', '[Settings]', 'settings', '[Copies]', 'duplicate',
+          '[More]', 'alerts', 'about', '—', 'remove'])
     })
   }
 })

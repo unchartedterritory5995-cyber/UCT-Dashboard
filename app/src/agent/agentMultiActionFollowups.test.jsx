@@ -1366,7 +1366,7 @@ describe('NLM1-G2 · an indicator added on a chart THIS request created is the n
     // target identity (owner requirement): the instance THIS turn added — never the new chart's default SMA 50
     const { own, defaults } = turnInstance(amd())
     await say('make it orange')
-    await waitFor(() => expect(transcript()).toMatch(/Changed SMA 50's colour on Chart w-chart-1 to orange/), { timeout: 8000 })
+    await waitFor(() => expect(transcript()).toMatch(/Changed SMA 50's color on Chart w-chart-1 to orange/), { timeout: 8000 })
     const after = amd().opts.settings.indicatorInstances
     expect(after.filter(i => /#f59e0b/i.test(JSON.stringify(i))).map(i => i.instanceId)).toEqual([own.instanceId])
     for (const d of defaults) expect(JSON.stringify(after.find(i => i.instanceId === d.instanceId))).toBe(JSON.stringify(d))

@@ -22,6 +22,7 @@ import { adoptOverlayAverages } from './maAdoption'
 import { migrateLegacyCotGroups } from './legacyCotGroups'
 import { sanitizeUctIntelligence } from './uctIntelligence'
 import { sanitizeInfoValues, INFO_VALUES_KEY } from './engine/infoValues'
+import { sanitizeScaleTime } from './chartViewOptions'
 
 export const CHART_DEFAULTS = {
   chartType: 'candles', // candles | hollow | bars | line | area
@@ -749,6 +750,20 @@ function mergeChartSettingsRaw(userSettings) {
     // merged-blob digests). SANITISED here to scalars only; each value is validated
     // against its definition again where it is applied (`memberDefaultInputs`).
     ...(sanitizeIndicatorDefaults(parsed.indicatorDefaults) ? { indicatorDefaults: sanitizeIndicatorDefaults(parsed.indicatorDefaults) } : {}),
+    // Canvas → Margins / Scale & time (chartViewOptions.js): right margin, price decimals, 12/24-hour times.
+    // NO default and no key unless the member set one (sanitised to valid, non-default values), so an untouched
+    // blob merges byte-identically to before. An undeclared key would be dropped here, so it must stay listed.
+    ...(sanitizeScaleTime(parsed.scaleTime) ? { scaleTime: sanitizeScaleTime(parsed.scaleTime) } : {}),
+    // Canvas → Grid → Session breaks / Markers → Pre-market high & low (chartViewOptions.js): kept only while ON,
+    // so an untouched (or switched-off) blob merges byte-identically. Undeclared keys are dropped here — keep listed.
+    ...(parsed.sessionBreaks === true ? { sessionBreaks: true } : {}),
+    ...(parsed.preMarketLevels === true ? { preMarketLevels: true } : {}),
+    // Markers → Events → Next earnings date (chartViewOptions.js): same rule — kept only while ON, keep listed.
+    ...(parsed.nextEarningsMarker === true ? { nextEarningsMarker: true } : {}),
+    // Markers → Your activity → Price alerts (chartViewOptions.js): same rule — kept only while ON, keep listed.
+    ...(parsed.priceAlertLines === true ? { priceAlertLines: true } : {}),
+    // Markers → Your activity → My trades (chartViewOptions.js): same rule — kept only while ON, keep listed.
+    ...(parsed.myTradeMarkers === true ? { myTradeMarkers: true } : {}),
     showPriceLabels: parsed.showPriceLabels ?? CHART_DEFAULTS.showPriceLabels,
     showMaLabels: parsed.showMaLabels ?? CHART_DEFAULTS.showMaLabels,
     darkPool: { ...CHART_DEFAULTS.darkPool, ...(parsed.darkPool || {}) },

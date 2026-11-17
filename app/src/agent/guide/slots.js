@@ -131,7 +131,7 @@ function lengthIn(q, word) {
 // It never claims a type or a length that was not applied.
 function afterAdding(hit, q) {
   const f = hit.fresh
-  if (!f) return { addedSay: hit.say, addedRow: hit.say, addNext: ' Click it here to change its settings, colours and pane.' }
+  if (!f) return { addedSay: hit.say, addedRow: hit.say, addNext: ' Click it here to change its settings, colors and pane.' }
   const addedSay = `${f.stem} ${f.length}`
   const n = lengthIn(q, hit.word)
   const sets = [
@@ -140,7 +140,7 @@ function afterAdding(hit, q) {
   ]
   return { addedSay, addedRow: addedSay, addNext: sets.length
     ? ` That’s what a new one starts as. Click it here, then set ${sets.join(' and ')}.`
-    : ' Click it here to change its settings, colours and pane.' }
+    : ' Click it here to change its settings, colors and pane.' }
 }
 /** The one catalog indicator the words name → { id, name, say, label, labelName } | null. `say` is what to search for, and
  *  `label` is the one on the chart: "EMA 20" when the words give its length, so the EMA 9 above it is not taken for it. */
@@ -192,7 +192,7 @@ const SETTING_SPOT = {
   'darkPool.enabled': { where: 'Dark pool prints' },
   'crosshair.style': { where: 'Crosshair', note: ' Click the Line color swatch below it: the panel has the line style.' },
   'crosshair.width': { where: 'Crosshair', note: ' Click the Line color swatch below it: the panel has the thickness.' },
-  'header.colors.*': { where: 'Title color', note: ' Each stat’s colour is further down this tab, under Stats beside the ticker.' },
+  'header.colors.*': { where: 'Title color', note: ' Each stat’s color is further down this tab, under Stats beside the ticker.' },
   'markers.earnings': { where: 'Earnings' }, 'markers.splits': { where: 'Splits' }, 'markers.dividends': { where: 'Dividends' }, 'markers.news': { where: 'News' }, 'markers.desk': { where: 'Desk mentions' },
   'markers.ipo': { where: 'Events' }, 'markers.ipoColor': { where: 'Events' },
 }
