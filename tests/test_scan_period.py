@@ -173,3 +173,108 @@ def test_group_ranking_uses_robust_not_raw_mean(monkeypatch):
     })
     out = sp.get_period_change_groups(20260401, 20260601, "sector")
     assert [r["name"] for r in out["results"]] == ["Broad", "Outlierland"]  # raw mean would flip this
+
+
+# ── The build never runs on the request (2026-11-17) ─────────────────────────
+# Measured on production, mid-session: a range nobody had asked for yet did not answer
+# within 40 seconds, and three concurrent requests for it ran three builds. One background
+# build per range, a short wait, then "computing"; both readers already re-ask on that.
+
+def _slow_market(monkeypatch, gate, calls):
+    """A provider that blocks on `gate` and counts its whole-market reads."""
+    start = {"AAA": 100.0, "BBB": 50.0}
+    end = {"AAA": 150.0, "BBB": 40.0}
+
+    def _grouped(day_iso, adjusted=True):
+        calls.append(day_iso)
+        gate.wait(5)
+        return start if day_iso <= "2026-04-01" else end
+
+    class _Client:
+        def get_full_market_snapshot(self):
+            return {"AAA": {"last_price": 150.0}, "BBB": {"last_price": 40.0}}
+
+    monkeypatch.setattr(sp.massive, "get_grouped_daily_closes", _grouped)
+    monkeypatch.setattr(sp.massive, "_get_client", lambda: _Client())
+    monkeypatch.setattr(sp, "_common_stock_symbols", lambda: {"AAA", "BBB"})
+    monkeypatch.setattr(sp, "_etf_symbols", lambda: set())
+
+
+def _until(pred, seconds=5.0):
+    import time
+    end = time.time() + seconds
+    while time.time() < end:
+        if pred():
+            return True
+        time.sleep(0.01)
+    return False
+
+
+def test_a_slow_build_answers_computing_quickly_and_runs_once(monkeypatch):
+    import threading
+    import time
+    _reset()
+    gate, calls = threading.Event(), []
+    _slow_market(monkeypatch, gate, calls)
+    monkeypatch.setattr(sp, "_PERIOD_WAIT_S", 0.05)
+
+    t0 = time.time()
+    first = sp.get_period_change(20260401, 20260601)
+    assert time.time() - t0 < 2.0, "the request waited for the whole build"
+    assert first == {"status": "computing", "results": [], "count": 0, "as_of": None}
+    # more callers while it builds: still "computing", and still ONE build (two reads: start, end)
+    assert sp.get_period_change(20260401, 20260601)["status"] == "computing"
+    assert sp.get_period_change(20260401, 20260601)["status"] == "computing"
+    assert _until(lambda: len(calls) == 2)
+    time.sleep(0.1)
+    assert sorted(calls) == ["2026-04-01", "2026-06-01"], calls
+
+    gate.set()
+    assert _until(lambda: "scan_period_20260401_20260601" not in sp._period_inflight)
+    done = sp.get_period_change(20260401, 20260601)
+    assert done["status"] == "ok"
+    assert [r["sym"] for r in done["results"]] == ["AAA", "BBB"]
+    assert sorted(calls) == ["2026-04-01", "2026-06-01"], "a cached range built again"
+    _reset()
+
+
+def test_a_fast_build_still_answers_on_the_first_request(monkeypatch):
+    import threading
+    _reset()
+    gate, calls = threading.Event(), []
+    gate.set()                                   # the provider answers at once
+    _slow_market(monkeypatch, gate, calls)
+    out = sp.get_period_change(20260401, 20260601)
+    assert out["status"] == "ok" and out["count"] == 2
+    _reset()
+
+
+def test_a_failed_build_says_so_instead_of_computing_for_ever(monkeypatch):
+    _reset()
+    # _grouped_near swallows a provider error into "no data", so break the assembly itself
+    monkeypatch.setattr(sp.massive, "get_grouped_daily_closes", lambda day_iso, adjusted=True: {"AAA": 1.0})
+    monkeypatch.setattr(sp.massive, "_get_client", lambda: type("C", (), {"get_full_market_snapshot": lambda self: {}})())
+    monkeypatch.setattr(sp, "_assemble", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("assembly broke")))
+    out = sp.get_period_change(20260401, 20260601)
+    assert out["status"] == "error"
+    assert "Couldn't load" in out["error"]
+    assert "scan_period_20260401_20260601" not in sp._period_inflight
+    _reset()
+
+
+def test_no_second_build_while_the_deep_history_fallback_is_working(monkeypatch):
+    _reset()
+    calls = []
+    monkeypatch.setattr(sp.massive, "get_grouped_daily_closes", lambda day_iso, adjusted=True: calls.append(day_iso) or {})
+    ck = "scan_period_19950103_19960102"
+    with sp._partial_lock:
+        sp._partial_inflight.add(ck)
+    try:
+        out = sp.get_period_change(19950103, 19960102)
+        assert out["status"] == "computing"
+        assert calls == [], "the provider was read again while the fallback was already running"
+        assert ck not in sp._period_inflight
+    finally:
+        with sp._partial_lock:
+            sp._partial_inflight.discard(ck)
+    _reset()
