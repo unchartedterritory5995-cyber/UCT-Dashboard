@@ -58,7 +58,8 @@ still runs). `agent-ci-required` is unchanged and still reads the push run.
 
 **Self-protected PRs never pass on their own run (AUDIT F1).** A `pull_request` run executes the merge ref's workflow,
 record tool, test config and dependencies. A PR whose diff touches `.github/workflows/**`, `tools/agent_ci_*.py`,
-`tools/agent_suite_lock.py`, `app/package*.json`, `app/vite*.config.*`, `app/vitest*.config.*`, a vitest `setupFiles`
-entry (read from master's config), `pytest.ini`, any `conftest.py` or any `requirements*.txt` gets
+`tools/agent_suite_lock.py`, `tools/agent_vitest_shards.py`, `tools/agent_vitest_shard_timings.json`, `app/scripts/**`,
+`app/package*.json`, `app/vite*.config.*`, `app/vitest*.config.*`, a vitest `setupFiles` entry, every file the configs
+import by a relative path (followed transitively; all read from master's checkout, unreadable = FAIL), `pytest.ini`, any `conftest.py` or any `requirements*.txt` gets
 `FAIL self-protected-diff` (as does an unreadable or truncated diff); such a PR falls back to AUDIT's local evidence.
 The re-arm tool has no `--ref`: it always dispatches master's agent-ci.yml (AUDIT F2).

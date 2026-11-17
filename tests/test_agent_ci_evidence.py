@@ -194,6 +194,11 @@ SELF_PROTECTED_EXAMPLES = {
     "pytest.ini": ["pytest.ini"],
     "conftest": ["conftest.py", "tests/conftest.py", "api/services/uct_agent/conftest.py"],
     "requirements": ["requirements.txt", "requirements-dev.txt", "api/requirements.txt"],
+    # F4
+    "shard planner": ["tools/agent_vitest_shards.py"],
+    "shard timings": ["tools/agent_vitest_shard_timings.json"],
+    "app scripts": ["app/scripts/chartLibraryPatch.mjs", "app/scripts/new-helper.mjs"],
+    "config imports (derived)": ["app/src/lib/marketClock/calendarCompact.js", "app/src/components/chart/engine/ast/manifestProse.js"],
 }
 
 
@@ -207,7 +212,7 @@ def test_F1_each_self_protected_path_class_fails_closed(cls):
 
 
 def test_F1_ordinary_agent_paths_are_not_self_protected():
-    ok = ["app/src/agent/a.js", "tools/agent_vitest_shards.py", "tools/agent_ownership_check.py", "tests/test_uct_agent_x.py",
+    ok = ["app/src/agent/a.js", "tools/agent_ownership_check.py", "app/src/lib/marketClock/other.js", "tests/test_uct_agent_x.py",
           "app/src/pages/charts/ChartsWorkspace.jsx", "docs/agent/program/INTEGRATION.md", "app/src/agent/vite.config.js",
           "tests/fixtures/agent_ci_evidence/pass_run.json", "app/src/test-setup.test.js"]
     assert ev.self_protected_hits(ok, PROTECTED) == []
@@ -229,6 +234,35 @@ def test_F1_setup_files_are_read_from_the_config(tmp_path):
         ev.vitest_setup_files(tmp_path)
     with pytest.raises(ValueError):                                         # no setupFiles at all fails closed
         ev.vitest_setup_files(tmp_path / "nowhere")
+
+
+def test_F4_config_imports_are_derived_transitively_and_fail_closed(tmp_path):
+    real = ev.config_imports(ROOT)
+    assert "app/scripts/chartLibraryPatch.mjs" in real and "app/vite.config.js" in real   # vite.config.js -> ./scripts/...
+    assert "app/src/lib/marketClock/calendarCompact.js" in real                          # ... -> what that script imports
+    app = tmp_path / "app"
+    (app / "lib").mkdir(parents=True)
+    (app / "vite.config.js").write_text("/* lazy import(name) edges,\n   import x from './gone.js' */\n// import x from './commented.js'\n"
+                                        "import a from './lib/a'\nimport 'react'\n", encoding="utf-8")   # comments never count
+    (app / "lib" / "a.mjs").write_text("export { b } from './b.js'\nconst c = require('../c.cjs')\n", encoding="utf-8")
+    (app / "lib" / "b.js").write_text("export const b = 1 // see https://x.y/import(z)\n", encoding="utf-8")
+    (app / "c.cjs").write_text("module.exports = 1\n", encoding="utf-8")
+    assert ev.config_imports(tmp_path) == ["app/c.cjs", "app/lib/a.mjs", "app/lib/b.js"]
+    (app / "lib" / "b.js").write_text("import x from './missing.js'\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="resolves to no file"):                       # unresolvable: fail closed
+        ev.config_imports(tmp_path)
+    (app / "lib" / "b.js").write_text("const m = await import(name)\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="non-literal"):                               # computed import: fail closed
+        ev.config_imports(tmp_path)
+    (app / "lib" / "b.js").write_text("import x from '../../../outside.js'\n", encoding="utf-8")
+    (tmp_path.parent / "outside.js").write_text("", encoding="utf-8")
+    with pytest.raises(ValueError, match="leaves the repository"):
+        ev.config_imports(tmp_path)
+
+
+def test_F4_protected_patterns_include_the_derived_imports():
+    pats = ev.protected_patterns(ROOT)
+    assert "app/src/lib/marketClock/calendarCompact.js" in pats and "app/src/test-setup.js" in pats
 
 
 def test_F1_cli_fails_closed_when_the_protected_list_is_unreadable(tmp_path, capsys):

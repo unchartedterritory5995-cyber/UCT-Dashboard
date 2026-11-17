@@ -14,8 +14,9 @@ test names per suite. This tool turns those records into a PASS/FAIL for ONE PR 
 `gh api` GETs + `gh run download`), and prints PASS with the evidence, or FAIL with the reason. Exit 0 = PASS only.
 It FAILS CLOSED on every one of these (each is a named guard; tests/test_agent_ci_evidence.py drives each one):
   pr-not-open / pr-not-master / pr-not-agent-head   the PR is not an open same-repo agent/** PR into master
-  self-protected-diff the PR edits a file its own run executes (workflows, tools/agent_ci_*.py, the suite lock, vitest
-                      / vite config + setupFiles, app/package*.json, pytest.ini, conftest.py, requirements*.txt), or
+  self-protected-diff the PR edits a file its own run executes (workflows, tools/agent_ci_*.py, the suite lock, the
+                      shard planner + timings, vitest / vite config + setupFiles + the configs' relative imports,
+                      app/scripts/**, app/package*.json, pytest.ini, conftest.py, requirements*.txt), or
                       its diff is unreadable: its run could vouch for itself, so AUDIT's local evidence decides instead
   no-run              no pull_request (or, with --accept-dispatch, rearm) agent ci run for this PR
   run-in-progress     the newest such run (or any dispatch run, with --accept-dispatch) is not completed
@@ -176,6 +177,11 @@ def required_keys(doc: dict) -> dict[str, str]:
 SELF_PROTECTED = (
     ".github/workflows/**",
     "tools/agent_ci_*.py", "tools/agent_suite_lock.py",
+    # F4: the browser job executes the shard planner and reads its committed timings
+    "tools/agent_vitest_shards.py", "tools/agent_vitest_shard_timings.json",
+    # F4: code the configs import (vite.config.js imports ./scripts/chartLibraryPatch.mjs); config_imports() also
+    # derives every relative import of the configs, transitively, wherever it lives
+    "app/scripts/**",
     "app/package*.json", "app/vite*.config.*", "app/vitest*.config.*",
     "pytest.ini", "conftest.py", "**/conftest.py",
     "requirements*.txt", "**/requirements*.txt",
@@ -207,8 +213,49 @@ def vitest_setup_files(root: str | pathlib.Path = ".") -> list[str]:
     return sorted(set(out))
 
 
+_IMPORT_RE = re.compile(r"""(?:\bimport\s+(?:[^'"`;]*?\s+from\s+)?|\bexport\s+[^'"`;]*?\s+from\s+|\brequire\s*\(\s*|\bimport\s*\(\s*)(['"`])([^'"`]+)\1""")
+_DYNAMIC_RE = re.compile(r"""\b(?:require|import)\s*\(\s*(?!['"`])""")
+_EXTS = ("", ".js", ".mjs", ".cjs", ".ts", ".mts", ".cts", ".jsx", ".tsx", ".json", "/index.js", "/index.mjs", "/index.ts")
+
+
+def config_imports(root: str | pathlib.Path = ".") -> list[str]:
+    """F4: repo paths of every file the vite / vitest configs import by a RELATIVE specifier, followed transitively
+    through the imported files. Fail closed (raises): a relative import that resolves to no file, or a require() /
+    import() whose argument is not a string literal, in any file of that closure. Bare package imports are covered by
+    app/package*.json."""
+    root = pathlib.Path(root).resolve()
+    app = root / "app"
+    todo = sorted({*app.glob("vite*.config.*"), *app.glob("vitest*.config.*")})
+    seen: set[pathlib.Path] = set()
+    out: set[str] = set()
+    while todo:
+        f = todo.pop()
+        if f in seen:
+            continue
+        seen.add(f)
+        text = f.read_text(encoding="utf-8", errors="replace")
+        text = re.sub(r"/[*].*?[*]/", "", text, flags=re.S)           # block comments
+        text = re.sub(r"(?m)(^|\s)//.*$", r"\1", text)                 # line comments (not the // of a URL in a string)
+        if _DYNAMIC_RE.search(text):
+            raise ValueError(f"{f.relative_to(root).as_posix()}: a require()/import() of a non-literal: imports unreadable")
+        for _, spec in _IMPORT_RE.findall(text):
+            if not spec.startswith("."):
+                continue
+            base = (f.parent / spec)
+            hit = next((pathlib.Path(str(base) + e) for e in _EXTS if pathlib.Path(str(base) + e).is_file()), None)
+            if hit is None:
+                raise ValueError(f"{f.relative_to(root).as_posix()}: relative import {spec!r} resolves to no file")
+            hit = hit.resolve()
+            try:
+                out.add(hit.relative_to(root).as_posix())
+            except ValueError:
+                raise ValueError(f"{f.relative_to(root).as_posix()}: relative import {spec!r} leaves the repository") from None
+            todo.append(hit)
+    return sorted(out)
+
+
 def protected_patterns(root: str | pathlib.Path = ".") -> list[str]:
-    return [*SELF_PROTECTED, *vitest_setup_files(root)]
+    return [*SELF_PROTECTED, *vitest_setup_files(root), *config_imports(root)]
 
 
 def self_protected_hits(changed_paths, patterns) -> list[str] | None:
