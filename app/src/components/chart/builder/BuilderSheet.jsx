@@ -117,6 +117,9 @@ import FormulaField, { evaluateFormula, canSaveFormula, SHEET } from './FormulaF
 import { manifestFromPlacements } from './pineParamManifest'
 import { carryPriorParamIds, savedParamManifest, carryNotice, inputPlaces } from './paramCarry'
 import ParamControls from './ParamControls'
+import SettingsFields from './studio/SettingsFields'
+import { settingsOfTrees } from './authoring/derivedSettings'
+import { formulasWithSetting } from './authoring/settingsOnFormulas'
 import { applyParamEdit } from './paramEdit'
 // ⭐ W1a HAND-BACK — THE DRAFT, DRAWN WHILE IT IS BEING TYPED. The preview is
 // a VIEW: it installs the document this form would save under one fixed id and
@@ -2636,6 +2639,27 @@ export default function BuilderSheet({
     converseDirtyRef.current = converseDirty
   }, [converseDirty, view])
 
+  // ⛔ ABOVE THE EARLY RETURN: these are hooks, and a hook after `if (!open) return null` is a hook that
+  // runs on some renders and not others ("Rendered fewer hooks than expected", caught by the sheet's own suite).
+  // ⭐ 2026-11-17 — THE FORMULAS' OWN NUMBERS, AS SETTINGS (`authoring/derivedSettings.js`). An indicator
+  // built from a description opened here read "Inputs 0": its lengths, levels and multiples are
+  // literals in the formulas. They are derived from the formulas as parsed, stored nowhere, and a
+  // change rewrites the formula text through the same door a typed edit uses. A Pine import keeps
+  // its own parameters above (`paramManifest`); these are offered only when it has none.
+  const formTrees = useMemo(() => (paramManifest && Object.keys(paramManifest).length ? [] : allRows
+    .map((r, i) => ({ key: r.key || (i === 0 ? 'value' : `plot${i}`), tree: (i === 0 ? result : r.result)?.ast || null }))
+    .filter((o) => o.tree)), [allRows, result, paramManifest])
+  const formSettings = useMemo(() => settingsOfTrees(formTrees), [formTrees])
+  const setFormSetting = useCallback((setting, value) => {
+    const out = formulasWithSetting(formTrees, setting, value)
+    if (!out.ok) return out
+    for (const [key, text] of Object.entries(out.sources)) {
+      const i = formTrees.length ? allRows.findIndex((r, j) => (r.key || (j === 0 ? 'value' : `plot${j}`)) === key) : -1
+      if (i === 0) setSource(text)
+      else if (i > 0) patchPlot(i, { source: text })
+    }
+    return { ok: true }
+  }, [formTrees, allRows, patchPlot])
   if (!open) return null
 
   const isEditor = view === 'editor'
@@ -2643,7 +2667,12 @@ export default function BuilderSheet({
   const chip = origin === 'pine'
     ? scriptChip(scriptDialect, pineText, editing && editing.prior && editing.prior.meta ? editing.prior.meta.pineVersion : null)
     : (origin ? SOURCE_CHIP[origin] : null)
-  const inputCount = memberInputs.length + (paramManifest ? Object.keys(paramManifest).length : 0)
+  // ⭐ WHILE A CONVERSATION HOLDS THE INDICATOR (an unsaved description), ITS numbers are the inputs:
+  // the form is the older version it was opened at, or empty for a new one (the owner's "Inputs 0").
+  const converseNumbers = (converseCommit && converseCommit.dirty && Array.isArray(converseCommit.numbers)) ? converseCommit.numbers : null
+  const inputCount = converseNumbers
+    ? converseNumbers.length
+    : memberInputs.length + (paramManifest ? Object.keys(paramManifest).length : 0) + formSettings.length
   const addsToChart = !!(settings && onChange)
   const footHint = isEditor
     ? (editing ? null : (addsToChart ? (target === 'price' ? 'Adds to this chart over the price' : 'Adds to this chart as its own pane') : null))
@@ -3660,6 +3689,18 @@ export default function BuilderSheet({
                 setSource(applied.definition.compute.source)
               }}
             />
+          )}
+          {/* ⭐ THE FORMULAS' OWN NUMBERS (2026-11-17): every length, level and multiple, editable. */}
+          {converseNumbers ? (
+            <div data-testid="converse-settings">
+              <SettingsFields settings={converseNumbers} label="Numbers in this indicator"
+                onSet={(setting, value) => (converseCommitRef.current && typeof converseCommitRef.current.setNumber === 'function'
+                  ? converseCommitRef.current.setNumber(setting, value) : { ok: false })} />
+            </div>
+          ) : (
+            <div data-testid="form-settings" hidden={formSettings.length === 0}>
+              <SettingsFields settings={formSettings} onSet={setFormSetting} label="Numbers in this indicator" />
+            </div>
           )}
           {/* ── THE MEMBER'S OWN INPUTS ──────────────────────────────────────
               ⭐ WHAT MAKES AN AUTHORED INDICATOR TUNABLE RATHER THAN FROZEN.

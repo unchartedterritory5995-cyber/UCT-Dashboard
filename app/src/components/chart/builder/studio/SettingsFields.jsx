@@ -10,8 +10,9 @@
 // ⛔ PURE PROPS. The caller owns the change (`onSet(setting, value)` answers `{ok, message?,
 // stale?}`); this file holds only what is being typed and the last refusal's words.
 import { useState } from 'react'
+import styles from './SettingsFields.module.css'
 
-function Row({ setting, onSet, disabled, styles }) {
+function Row({ setting, onSet, disabled }) {
   const [draft, setDraft] = useState(null)
   const [problem, setProblem] = useState(null)
   const shown = draft === null ? String(setting.value) : draft
@@ -56,13 +57,13 @@ function Row({ setting, onSet, disabled, styles }) {
   )
 }
 
-export default function SettingsFields({ settings, onSet, disabled = false, styles }) {
+export default function SettingsFields({ settings, onSet, disabled = false, label = 'Settings' }) {
   if (!Array.isArray(settings) || settings.length === 0) return null
   return (
     <div className={styles.section} data-testid="studio-settings">
-      <span className={styles.sectionLabel}>Settings</span>
+      <span className={styles.sectionLabel}>{label}</span>
       {/* keyed on the places the number sits: stable while its value changes, new when the formula's shape does */}
-      {settings.map((s) => <Row key={s.id} setting={s} onSet={onSet} disabled={disabled} styles={styles} />)}
+      {settings.map((s) => <Row key={s.id} setting={s} onSet={onSet} disabled={disabled} />)}
       <span className={styles.settingNote}>Changing a number here changes this indicator everywhere it is used, once you save.</span>
     </div>
   )
