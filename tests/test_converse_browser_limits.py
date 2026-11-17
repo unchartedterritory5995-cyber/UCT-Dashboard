@@ -141,3 +141,50 @@ def test_the_instructions_say_both():
     assert "color the candles or the background once" in text
     assert "set_calculation_timeframe moves LINES only" in text
     assert "written with `tf` W / M nodes inside the tree" in text
+
+
+# ── C. a calculation timeframe on an indicator that reads another symbol ─────
+#
+# Found by replaying every recorded answer of the day against what the WINDOW showed: "Mansfield
+# relative strength versus SPY over 52 weeks" had been reported fixed from the door's answer (a
+# ratio against SPY with `set_calculation_timeframe W`), and the browser had refused it: "An
+# indicator that reads another symbol is calculated on the chart's own timeframe".
+
+SPY = lambda node: {"type": "sym", "value": "SPY", "args": [node]}  # noqa: E731
+RATIO = op("/", S("close"), SPY(S("close")))
+MANSFIELD = op("*", op("-", op("/", RATIO, call("sma", RATIO, num(52))), num(1)), num(100))
+CREATE_RS = {"op": "create", "name": "Mansfield RS", "placement": "pane", "outputs": [{"key": "rs", "tree": MANSFIELD}]}
+
+
+def test_the_measured_weekly_ratio_is_refused_with_the_way_out(conv):
+    detail = _refusal(conv, [CREATE_RS, WEEKLY])
+    assert "reads another symbol (rs)" in detail and "calculated on the chart's own timeframe" in detail
+    assert "52 weeks is 252 daily bars" in detail and "sym(SPY, tf(close, W))" in detail
+
+
+def test_the_repair_builds_mansfield_on_the_daily_count(conv, clean_env, model):
+    daily = op("*", op("-", op("/", RATIO, call("sma", RATIO, num(252))), num(1)), num(100))
+    good = env(0, [{"op": "create", "name": "Mansfield RS", "placement": "pane", "outputs": [{"key": "rs", "tree": daily}]}])
+    client = model([emits(env(0, [CREATE_RS, WEEKLY])), emits(good)])
+    r = conv.converse("Mansfield relative strength versus SPY over 52 weeks", user_id="u1", view=empty_view(0))
+    assert r["ok"] is True and r["attempts"] == 2 and len(client.calls) == 2
+    assert r["usage"]["repair_gate"] == GATE
+
+
+def test_another_symbol_without_a_calculation_timeframe_and_the_reverse_still_pass(conv):
+    assert _ok(conv, [CREATE_RS])                                            # the ratio on the chart's own bars
+    assert _ok(conv, [CREATE_RS, WEEKLY, {"op": "set_calculation_timeframe", "timeframe": "chart"}])
+    line = {"op": "create", "name": "Weekly average", "placement": "price",
+            "outputs": [{"key": "ma", "tree": call("sma", S("close"), num(10))}]}
+    assert _ok(conv, [line, WEEKLY])                                         # no other symbol: lines move
+    # an output of the VIEW that reads another symbol counts; one this answer removes does not
+    v = view(1, [out("rs", RATIO, label="RS"), out("ma", call("sma", S("close"), num(10)), label="MA")])
+    assert "reads another symbol (rs)" in _refusal(conv, [WEEKLY], v, revision=1)
+    assert _ok(conv, [{"op": "remove_output", "output": "rs"}, WEEKLY], v, revision=1)
+
+
+def test_the_instructions_say_an_other_symbol_indicator_takes_no_calculation_timeframe():
+    from api.services import definition_conversation as dcv
+    text = dcv.system_prompt()
+    assert "reads ANOTHER SYMBOL cannot take set_calculation_timeframe at all" in text
+    assert "a 52-week average of a ratio against SPY is its 252-bar average" in text
