@@ -453,8 +453,8 @@ describe('W9-T7 pin before serve (D1): nothing T7 adds serves without its own pi
       expect(err && err.rule, rule).toBe(rule)
     }
   })
-  it('the D7 scorecard stays derived: 32 of every named rule', () => {
+  it('the D7 scorecard stays derived: 34 of every named rule', () => {
     for (const r of T7_RULES) expect(BROKER_RULE_IDS).toContain(r)
-    expect(strategyScorecardWording()).toMatch(new RegExp(`^32 of ${BROKER_RULE_IDS.length} broker rules are pinned`))
+    expect(strategyScorecardWording()).toMatch(new RegExp(`^34 of ${BROKER_RULE_IDS.length} broker rules are pinned`))
   })
 })

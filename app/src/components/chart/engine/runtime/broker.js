@@ -556,7 +556,8 @@ export function makeBroker(cfg, data) {
     if (open.length === 0) exits = exits.filter((x) => !x.all && (x.trades.size > 0 || x.orders.size > 0 || x.awaits === true))
     else exits = exits.filter((x) => x.all || x.trades.size > 0 || x.orders.size > 0 || x.awaits === true)
   }
-  const marginCheck = (price) => {
+  /** `why` (B-MARGIN-CALL): why this position is not the shape whose margin call is witnessed, named in the stop */
+  const marginCheck = (price, why) => {
     if (open.length === 0) return
     rule('B-MARGIN')
     if (defaulted.margin) rule('B-DEFAULTS')
@@ -579,32 +580,158 @@ export function makeBroker(cfg, data) {
     const equity = costOn ? cfg.initialCapital + moneyOfClosed() + openPl * pointvalue - openFees()
       : cfg.initialCapital + (net + openPl) * pointvalue
     const mvs = size * price * pointvalue
-    // [B-MARGIN] Available Funds = Equity - MVS * Margin Ratio; below zero the emulator
-    // liquidates (a margin call) or refuses funds - neither is modelled here.
+    // [B-MARGIN] Available Funds = Equity - MVS * Margin Ratio; below zero the emulator liquidates (a margin call)
+    // or refuses funds. Served only on the witnessed shapes ([B-MARGIN-CALL] `marginTick`, [B-FUNDS] /
+    // [B-FUNDS-SHORT] `fundsShort`); here, every other shape stops by name.
     if (equity - mvs * ratio < 0) {
       throw new BrokerRefusal('the position would need more funds than the strategy holds (a margin call or a '
-        + 'rejected order in TradingView)', 'Q-S1i')
+        + `rejected order in TradingView${why ? `; a margin call is witnessed only on one short trade at margin 100, not ${why}` : ''})`, 'Q-S1i')
     }
   }
-  /** ⭐⭐ Q-S1i [B-FUNDS] the one shape w9-q-s1a-size-v6 witnesses: a long market `strategy.entry` sized by the
-   *  percent-of-equity default at 100, at a long margin of 100%, with no commission and no slippage (the caller
-   *  adds: no position before it, and not a reversal). */
-  const fundsRejectShape = (o) => o.kind === 'entry' && o.dir > 0 && o.type === 'market' && o.byDefault === true
-    && defaultQtyType() === 'percent_of_equity' && cfg.qtyValue === 100 && cfg.marginLong === 100
+  /** ⭐⭐ Q-S1i [B-FUNDS] / [B-FUNDS-SHORT] the shape the two report captures witness: a market `strategy.entry`
+   *  sized by the percent-of-equity default at 100, at a margin of 100% for its direction, with no commission and
+   *  no slippage (the caller adds: no position before it, and not a reversal). LONG: w9-q-s1a-size-v6 (B-FUNDS).
+   *  SHORT: w9-q-s1i-short-v6 (B-FUNDS-SHORT, 2026-11-17): of its 20 crossunder entries TradingView lists exactly
+   *  the 9 whose qty x fill open <= equity; the 11 others (sized on the signal close, filled at a higher open) are
+   *  absent from its 23 trades and 32 fills, and none of them fills at the open and is margin-called there. */
+  const fundsRejectShape = (o) => o.kind === 'entry' && o.type === 'market' && o.byDefault === true
+    && defaultQtyType() === 'percent_of_equity' && cfg.qtyValue === 100
+    && (o.dir > 0 ? cfg.marginLong === 100 : cfg.marginShort === 100)
     && !costOn && !slipTicks
-  /** ⭐⭐ Q-S1i [B-FUNDS] with no position open: does `o` at `price` need more than the equity? (Margin 100%: the
-   *  position's whole value; `marginCheck`'s Available Funds with no open trade.) Stamps the rules only when it
-   *  rejects; an entry within the funds is checked after its fill by `marginCheck`, as before. */
+  /** ⭐⭐ Q-S1i [B-FUNDS] / [B-FUNDS-SHORT] with no position open: does `o` at `price` need more than the equity?
+   *  (Margin 100%: the position's whole value; `marginCheck`'s Available Funds with no open trade.) Stamps the
+   *  rules only when it rejects; an entry within the funds is checked after its fill by `marginCheck`, as before. */
   const fundsShort = (o, price) => {
     needSymbol()
     let net = 0
     for (const t of closed) net += t.profit
     const equity = cfg.initialCapital + net * pointvalue
     if (!(finite(equity) && equity - o.qty * price * pointvalue < 0)) return false
-    rule('B-FUNDS')
+    rule(o.dir > 0 ? 'B-FUNDS' : 'B-FUNDS-SHORT')
     rule('B-MARGIN')
     if (defaulted.margin) rule('B-DEFAULTS')
     return true
+  }
+
+  // ─── ⭐⭐ Q-S1i [B-MARGIN-CALL]: TradingView's margin call, on the shape a capture witnesses ───────────────
+  /**
+   * The User Manual ("Strategies" page, section "Margin and leverage", fetched 2026-11-17) states the event and
+   * its size VERBATIM: "the broker emulator generates margin call events if a strategy's available funds fall below
+   * the required margin percentage. Each time that a margin call event occurs, the emulator immediately liquidates
+   * four times the number of contracts/shares/lots/units required to cover the loss". The algorithm, its steps:
+   *   Money Spent = Quantity * Entry Price;  MVS = Position Size * Current Price;
+   *   Open Profit = MVS - Money Spent (x -1 for a short);  Equity = Initial Capital + Net Profit + Open Profit;
+   *   Margin Ratio = Margin Percent / 100;  Margin = MVS * Margin Ratio;  Available Funds = Equity - Margin;
+   *   Loss = Available Funds / Margin Ratio;  Cover Amount = TRUNCATE(Loss / Current Price), "truncated to the same
+   *   decimal precision as the minimum position size";  Margin Call Size = Cover Amount * 4.
+   * And: "short trades in a strategy that uses any nonzero margin are subject to forced liquidation from margin call
+   * events, even if the margin_short argument is 100".
+   *
+   * What the manual does NOT state, and the capture w9-q-s1i-short-v6-rddt-1d-2026-11-16 (NYSE:RDDT 1D, report ok,
+   * the v6 default of 100% of equity at margin 100, held SHORT) WITNESSES, all 13 of its margin calls bar for bar,
+   * share for share and cent for cent (docs/pine/evidence/2026-11-17-strategy-margin-call/EVIDENCE.md):
+   *   - "Current Price" is each TICK of the bar's simulated path, in order ([B-PATH]): the open after its fills,
+   *     then the near extreme, the far extreme and the close; never a price between ticks (bar 84: liquidated at its
+   *     high 71.41, not where Available Funds crossed zero near 67.98). One bar can hold two events (bar 297: 60
+   *     units at its open 108.19, then 316 at its high 113.7999);
+   *   - the event FILLS at that tick's price rounded to the nearest tick (113.7999 -> 113.80, 104.9111 -> 104.91,
+   *     106.7068 -> 106.71, 233.7128 -> 233.71, 144.5499 -> 144.55), as a buy that closes part of the trade
+   *     (oldest trade, the trade keeps its entry); TradingView lists it as an order with no entry / exit command
+   *     (`e: null`), its trade's exit comment `Margin call` and exit id `Close position order` (the std set's
+   *     labels: `S>Close position order:Margin call`).
+   * ⛔ ONLY THAT SHAPE IS SERVED (`marginCallUnwitnessed`): one open SHORT trade at margin_short 100, no
+   * commission, no slippage, the default fill timing, no risk command, no exit bound to the trade, a whole-unit
+   * symbol at point value 1. Anything else past the funds still stops by name at the margin check (Q-S1i), as do:
+   * a cover that truncates to 0, a size above the trade, a tick that is an exact half-tick, a size that differs
+   * between the tick's price and its rounded fill, and an order filling on the same tick as a due margin call.
+   */
+  const MARGIN_CALL_COMMENT = 'Margin call'
+  /** why the open position is NOT the shape w9-q-s1i-short-v6 witnesses; null when it is */
+  const marginCallUnwitnessed = () => {
+    if (!(open.length === 1 && open[0].dir < 0)) return open.length > 1 ? 'more than one open trade' : 'a long position'
+    if (cfg.marginShort !== 100) return `a margin_short of ${cfg.marginShort} (witnessed at 100 only)`
+    if (costOn || slipTicks) return costOn ? 'a commission' : 'a slippage'
+    if (poc || coof) return poc ? 'process_orders_on_close' : 'calc_on_order_fills'
+    if (riskOn) return 'a strategy.risk.* command'
+    const t = open[0]
+    if (exits.some((x) => x.trades.has(t) || x.maybe.has(t))) return 'an exit bound to the trade'
+    if (minContract !== 1) return `a minimum contract of ${minContract === undefined ? 'unknown' : minContract} (witnessed at 1)`
+    if (pointvalue !== 1) return `a point value of ${pointvalue} (witnessed at 1)`
+    return null
+  }
+  /** The manual's algorithm for the one open short trade at `px`: `{ due, units, whole }`. `due`: Available Funds
+   *  below zero; `units`: Cover Amount x 4 (a positive count); `whole`: Loss / Current Price sits on a whole number,
+   *  where TRUNCATE depends on the last bit of a double. Pure: asks nothing, throws nothing. */
+  const marginCallOf = (px) => {
+    const t = open[0]
+    let net = 0
+    for (const c of closed) net += c.profit
+    const mvs = t.qty * px
+    const openProfit = -(mvs - t.qty * t.price)
+    const equity = cfg.initialCapital + net + openProfit
+    const ratio = cfg.marginShort / 100
+    const avail = equity - mvs * ratio
+    if (!(avail < 0)) return { due: false, units: 0, whole: false }
+    const k = (avail / ratio) / px
+    return { due: true, units: Math.abs(Math.trunc(k)) * 4, whole: Math.abs(k - Math.round(k)) < 1e-9 }
+  }
+  /** the open position is the witnessed shape, so its margin check is TradingView's margin call */
+  const marginCallServes = () => open.length > 0 && marginCallUnwitnessed() === null
+  /** is a margin call due at `px` on the position as it stands (pure: nothing asked, nothing thrown)? */
+  const marginCallDueAt = (px) => {
+    if (!marginCallServes() || !finite(mintick) || !finite(px)) return false
+    const k = px / mintick
+    return marginCallOf(px).due || (Math.abs(k - Math.round(k)) >= 1e-6 && marginCallOf(roundToTick(px)).due)
+  }
+  /** an order filled on this tick and a margin call is due on it: which comes first is not witnessed */
+  const marginCallBesideFill = (px) => {
+    throw new BrokerRefusal(`a margin call is due at ${px} on the same tick as an order's fill, and which of the two `
+      + 'TradingView makes first is not witnessed', 'Q-S1i')
+  }
+  /** ⭐⭐ [B-MARGIN] / [B-MARGIN-CALL] the margin check on ONE TICK of bar `bar` (its open after the open's fills,
+   *  then each path vertex). `besideFill`: an order filled on this very tick. The witnessed shape takes TradingView's
+   *  margin call; every other open position takes the check it always had (`marginCheck`: below zero, Q-S1i). */
+  const marginTick = (px, bar, besideFill) => {
+    if (!open.length) return
+    const why = marginCallUnwitnessed()
+    if (why !== null) { marginCheck(px, why); return }
+    // what `marginCheck` asks, in the order it asks it (the rules a short that is never called rests on)
+    rule('B-MARGIN')
+    if (defaulted.margin) rule('B-DEFAULTS')
+    askCommission()
+    needSymbol()
+    const fill = onTick(px) ? px : roundToTick(px)
+    const atPx = marginCallOf(px)
+    const atFill = fill === px ? atPx : marginCallOf(fill)
+    if (!atPx.due && !atFill.due) return
+    if (atPx.due !== atFill.due || atPx.units !== atFill.units) {
+      throw new BrokerRefusal(`a margin call at ${px} liquidates ${atPx.units} units at the bar's price and ${atFill.units} at `
+        + `its fill's tick ${fill}, and which of the two TradingView computes with is not witnessed`, 'Q-S1i')
+    }
+    if (besideFill) marginCallBesideFill(px)
+    const t = open[0]
+    if (!onTick(px) && Math.abs(Math.abs(px / mintick - Math.trunc(px / mintick)) - 0.5) < 1e-6) {
+      throw new BrokerRefusal(`a margin call is due at ${px}, exactly half a tick off the grid of ${mintick}, and which way `
+        + 'TradingView rounds a margin call\'s fill there is not witnessed', 'Q-S1i')
+    }
+    if (atPx.whole || atPx.units === 0 || atPx.units > t.qty) {
+      throw new BrokerRefusal(atPx.units === 0 ? `a margin call is due at ${px} and the loss covers less than one unit, so `
+        + 'the manual\'s size is 0, and what TradingView does then is not witnessed'
+        : atPx.whole ? `a margin call's Loss / Current Price at ${px} sits on a whole number, where its truncation turns on `
+          + 'floating-point rounding'
+          : `a margin call at ${px} would liquidate ${atPx.units} units of a trade of ${t.qty}, and whether TradingView then `
+            + 'closes the whole trade is not witnessed', 'Q-S1i')
+    }
+    rule('B-MARGIN-CALL')
+    const row = logRow({ kind: 'margin_call', id: null, side: 'buy', qty: atPx.units, qtyPercent: null, type: 'market',
+      limit: null, stop: null, from: null, oca: null, comment: MARGIN_CALL_COMMENT, commentRecorded: true })
+    const keep = fillRule
+    fillRule = 'B-MARGIN-CALL'
+    orderFees = 0
+    logFill(row, bar, fill, atPx.units)
+    closingWith(row, () => closePart(t, atPx.units, fill, bar, true))
+    fillRule = keep
+    afterPositionChange()
   }
   /** the rule the fill being made rests on - stamped on the trade (the record's `rule`) */
   let fillRule = 'B-FILL'
@@ -1078,8 +1205,15 @@ export function makeBroker(cfg, data) {
       return
     }
     // ── the open tick ([B-MARKET], [B-GAP], [B-IMMEDIATE]) ──
+    // [B-MARGIN-CALL] a margin call due at this open on the position BEFORE the open's fills, beside a fill there:
+    // which TradingView makes first is not witnessed (the capture's open fills all meet no due call)
+    const dueBeforeFills = marginCallDueAt(o)
     const opened = tickFill(o, bar, 'open')
-    marginCheckBar(bar)
+    if (dueBeforeFills && opened.filled) marginCallBesideFill(o)
+    // the witnessed shape takes the margin check on each tick of the path, as TradingView does; every other
+    // position keeps the check it always had, at the bar's worst price after the open's fills
+    if (marginCallServes()) marginTick(o, bar, false)
+    else marginCheckBar(bar)
     checkActivation(o, opened.fresh)
     ratchetTrails(o)
     if (coof && opened.filled) { tickPx = o; yield o; afterExtra(o) }
@@ -1101,6 +1235,9 @@ export function makeBroker(cfg, data) {
         throw new BrokerRefusal('the bar opened exactly half-way between its high and low, so the order in which '
           + 'TradingView assumes it reached them is not stated', 'Q-S1c')
       }
+      // [B-MARGIN-CALL] with no order to fill on the path, the order of the two extremes cannot move a short's margin
+      // call: it can fall due only at the high (Available Funds falls as the price rises), so either order gives it
+      for (const v of [h, l, c]) if (marginCallServes()) marginTick(v, bar, false)
       return
     }
     // [B-FILLS] a fill on the CLOSING tick under calc_on_order_fills: whether that is one execution or two is
@@ -1113,6 +1250,8 @@ export function makeBroker(cfg, data) {
     for (let si = 0; si < path.length; si += 1) {
       const target = path[si]
       const last = si === path.length - 1
+      // [B-MARGIN-CALL] an order filled AT this vertex (its level is the vertex's price)
+      let filledAtVertex = false
       for (let guard = 0; guard < 10000; guard += 1) {
         const up = target > p
         const lows = liveOrders().filter((lo) => lo.up === up && (up
@@ -1131,6 +1270,11 @@ export function makeBroker(cfg, data) {
             + 'and the order TradingView fills them in is not stated', 'Q-S1d')
         }
         p = best
+        if (best === target) {
+          // [B-MARGIN-CALL] a call due at this vertex on the position before the fill: the order is not witnessed
+          if (marginCallDueAt(target)) marginCallBesideFill(target)
+          filledAtVertex = true
+        }
         let made = null
         costTick = 'path'
         for (const x of hit) made = fire(x, best, bar, onTick(best)) || made
@@ -1144,6 +1288,8 @@ export function makeBroker(cfg, data) {
       p = target
       riskTick(target) // W9-T8: each vertex the path reaches (the bar's last is its close)
       ratchetTrails(target)
+      // [B-MARGIN-CALL] the margin check on this tick of the path (the witnessed shape only)
+      if (marginCallServes()) marginTick(target, bar, filledAtVertex)
       // [B-FILLS] a market order an extra execution placed fills on the next tick: this vertex
       if (coof && waiting()) {
         const r = tickFill(target, bar, 'vertex')
@@ -1232,7 +1378,8 @@ export function makeBroker(cfg, data) {
   /** [B-MARGIN] the bar's worst price for the position, after its fills. */
   const marginCheckBar = (bar) => {
     if (!open.length) return
-    marginCheck(open[0].dir > 0 ? L[bar] : H[bar])
+    // a short that is not the witnessed shape names why its margin call is not served ([B-MARGIN-CALL])
+    marginCheck(open[0].dir > 0 ? L[bar] : H[bar], open[0].dir < 0 ? marginCallUnwitnessed() : undefined)
   }
 
   // ─── the order commands (called while the script runs on `bar`) ───────────

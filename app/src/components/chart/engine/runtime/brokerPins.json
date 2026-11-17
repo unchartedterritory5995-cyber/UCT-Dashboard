@@ -103,6 +103,9 @@
   "B-FUNDS": [
    "w9-q-s1a-size-v6-rddt-1d-2026-11-15"
   ],
+  "B-FUNDS-SHORT": [
+   "w9-q-s1i-short-v6-rddt-1d-2026-11-16"
+  ],
   "B-GAP": [
    "w9-q-s1e-live-past-rddt-1d-2026-11-15",
    "w9-q-s1k-exit-levels-rddt-1d-2026-11-15",
@@ -124,6 +127,9 @@
    "w9-x3-oca-rddt-1d-2026-11-15",
    "w9-x4-order-rddt-1d-2026-11-15",
    "w9-x5-cancel-rddt-1d-2026-11-15"
+  ],
+  "B-MARGIN-CALL": [
+   "w9-q-s1i-short-v6-rddt-1d-2026-11-16"
   ],
   "B-MARKET": [
    "w9-k1-commission-pct-rddt-1d-2026-11-15",

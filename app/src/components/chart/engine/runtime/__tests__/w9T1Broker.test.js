@@ -37,7 +37,7 @@ describe('W9-T1 pinned(): the committed ledger holds the rules the captures witn
     expect(PINS_SRC.rules).toEqual(RESOLVED.rules)
     expect(Object.keys(RESOLVED.rules).sort()).toEqual([
       'B-CANCEL', 'B-CLOSE', 'B-COMM-CONTRACT', 'B-COMM-ORDER', 'B-COMM-PCT', 'B-DEFAULTS', 'B-DIR', 'B-EXIT-BIND',
-      'B-EXIT-LIFE', 'B-FIFO', 'B-FILL', 'B-FUNDS', 'B-GAP', 'B-MARGIN', 'B-MARKET', 'B-OCA', 'B-ORDER', 'B-PATH', 'B-QTY',
+      'B-EXIT-LIFE', 'B-FIFO', 'B-FILL', 'B-FUNDS', 'B-FUNDS-SHORT', 'B-GAP', 'B-MARGIN', 'B-MARGIN-CALL', 'B-MARKET', 'B-OCA', 'B-ORDER', 'B-PATH', 'B-QTY',
       'B-REVERSE', 'B-RISK-ALLOW', 'B-RISK-DDOWN', 'B-ROUND', 'B-SIG', 'B-SLIPPAGE', 'B-TICK-HIST',
       'B-TXT-CLOSE-ALL-ID', 'B-TXT-CLOSE-ID', 'B-TXT-ENTRY-CLOSE-ID', 'B-TXT-NO-COMMENT', 'B-VAL', 'B-WHEN',
     ])

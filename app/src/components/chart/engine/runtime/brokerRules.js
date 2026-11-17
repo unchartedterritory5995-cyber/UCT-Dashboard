@@ -40,7 +40,7 @@ export const BROKER_RULES = Object.freeze({
   'B-EXIT-LIFE': Object.freeze({ capture: 'Q-S1-core', what: 'how long an exit lives' }),
   'B-EXIT-NA': Object.freeze({ capture: 'Q-S1-core', what: 'an exit with every level na places nothing' }),
   'B-FIFO': Object.freeze({ capture: 'Q-S1-core', what: 'exits close the oldest trades first' }),
-  'B-MARGIN': Object.freeze({ capture: 'Q-S1i', what: 'the margin check (a margin call is never modelled)' }),
+  'B-MARGIN': Object.freeze({ capture: 'Q-S1i', what: 'the margin check (a margin call is served only on the shape B-MARGIN-CALL names; any other refuses)' }),
   // the order arguments and the declaration
   'B-SIG': Object.freeze({ capture: 'Q-S1-core', what: 'positional order arguments follow the Pine version\'s signature' }),
   'B-WHEN': Object.freeze({ capture: 'Q-S1p', what: 'the `when` argument (v4, and v5)' }),
@@ -104,6 +104,9 @@ export const BROKER_RULES = Object.freeze({
   'B-PYR-PRICE': Object.freeze({ capture: 'Q-S1g', what: 'a price (stop / limit) entry whose level is reached while the position is at the pyramiding limit does not execute, then or later: it is not kept waiting' }),
   // ── 2026-11-16, Q-S1i answered by a committed report capture (w9-q-s1a-size-v6). APPENDED, never inserted.
   'B-FUNDS': Object.freeze({ capture: 'Q-S1i', what: 'with no position open, a long market strategy.entry sized by the percent-of-equity default at 100, at a long margin of 100%, that would need more than the equity at its fill price is rejected: no trade, no smaller size, not kept waiting' }),
+  // ── 2026-11-17, Q-S1i's SHORT answered by a committed report capture (w9-q-s1i-short-v6). APPENDED, never inserted.
+  'B-FUNDS-SHORT': Object.freeze({ capture: 'Q-S1i', what: 'with no position open, a short market strategy.entry sized by the percent-of-equity default at 100, at a short margin of 100%, that would need more than the equity at its fill price is rejected: no trade, no smaller size, not kept waiting' }),
+  'B-MARGIN-CALL': Object.freeze({ capture: 'Q-S1i', what: 'one open short trade at a short margin of 100% whose Available Funds fall below zero on a tick of the bar (its open after the open\'s fills, then each path vertex) is margin-called there: the User Manual\'s size (TRUNCATE(Available Funds / Margin Ratio / price) x 4) is bought back at that tick rounded to the nearest tick, closing part of the trade; its exit id reads "Close position order" and its exit comment "Margin call"' }),
 })
 
 export const BROKER_RULE_IDS = Object.freeze(Object.keys(BROKER_RULES))

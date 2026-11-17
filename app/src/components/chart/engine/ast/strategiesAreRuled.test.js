@@ -175,9 +175,10 @@ plot(ta.crossover(close, ta.sma(close, 50)) ? 1 : 0)
 describe('D7: the strategy-backtest scorecard wording', () => {
   it('states the pinned count from the ledger, the refusal by name, and that it is not served', () => {
     // 32 since 2026-11-16: B-FUNDS (Q-S1i), pinned by w9-q-s1a-size-v6 grading MATCH
-    expect(pinnedBrokerRules()).toHaveLength(32)
+    // 34 since 2026-11-17: B-FUNDS-SHORT and B-MARGIN-CALL (Q-S1i), pinned by w9-q-s1i-short-v6 grading MATCH
+    expect(pinnedBrokerRules()).toHaveLength(34)
     expect(strategyScorecardWording()).toBe(
-      `32 of ${BROKER_RULE_IDS.length} broker rules are pinned, each verified against a TradingView capture. `
+      `34 of ${BROKER_RULE_IDS.length} broker rules are pinned, each verified against a TradingView capture. `
       + 'A backtest that reaches an unpinned rule stops and refuses by name (runtime:strategy-unpinned). '
       + 'Strategy backtests are not served to members yet.')
     // ⭐ THE ONE PLACE THE VOCABULARY'S SIZE IS PINNED (dated 2026-11-08): 22 S1/T1 rules + 6 W9-T6
@@ -201,7 +202,10 @@ describe('D7: the strategy-backtest scorecard wording', () => {
     // + 1 (dated 2026-11-16, Q-S1i answered): B-FUNDS, a flat long market entry at the v6 default size (100% of
     // equity) and margin 100% that needs more than the equity at its fill is rejected, witnessed by the committed
     // report capture w9-q-s1a-size-v6 (7 trades taken, 13 entries absent).
-    expect(BROKER_RULE_IDS.length).toBe(52)
+    // + 2 (dated 2026-11-17, Q-S1i's short answered): B-FUNDS-SHORT (the short twin of B-FUNDS) and B-MARGIN-CALL
+    // (TradingView's margin call on one short trade at margin 100), both witnessed by the committed report capture
+    // w9-q-s1i-short-v6 (9 entries taken, 11 absent; 13 margin calls, share for share).
+    expect(BROKER_RULE_IDS.length).toBe(54)
   })
 
   it('counts a pin only when the ledger holds it, and only for a rule the broker names', () => {
