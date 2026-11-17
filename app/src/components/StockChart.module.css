@@ -534,6 +534,19 @@
 .legendFlush {
   transform: translateY(-30px);
 }
+/* ⭐ AN OPEN STACK SITS ABOVE THE PANE DIVIDER (2026-11-17). A stack opened with `+N more` runs
+   down past the price pane by the member's own choice, so its last rows and its `Less` button can
+   land ON the divider between two panes. The chart library draws that divider's drag handle at
+   z-index 50 in this same stacking context (9px tall, full width), far above the legend's 3: the
+   handle took the pointer on the lower half of `Less` (measured: a click there did nothing) and a
+   row lying across it lost its hover. One above the handle, and only while the stack is open, so
+   the legend at rest stacks exactly as before. The divider stays draggable everywhere else along
+   its length: the legend box takes no pointer, only its rows do.
+   ⛔ 51 IS DERIVED FROM THE LIBRARY, NOT CHOSEN: `StockChart.studyDisclosure.test.js` reads the
+   handle's z-index out of lightweight-charts and fails if this stops being above it. */
+.legendStackOpen {
+  z-index: 51;
+}
 /* ⭐⭐ OWNER 11-16 — "make sure they're all the same contrast and brightness": the date, the O/H/L/C
    labels and their values share ONE ink (`--legend-ink-pair`, legendInk.js LEGEND_PAIR_ROLE); the
    value takes the label's weight too (500, owner 11-16 experiment). The signed change keeps its up/down hue. */

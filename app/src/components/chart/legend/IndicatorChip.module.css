@@ -629,9 +629,17 @@
    relative-colour syntax keep the plain series colour above. */
 /* ⭐ OWNER 11-16 — the band is the label ink's lightness ±0.03 (legendInk.js legendValueBand), chroma capped at
    0.14 so a saturated hue does not out-shine its grey label. Same rule as LegendRow.module.css. */
+/* ⭐ 2026-11-17 — A VALUE THAT CARRIES ITS OWN COLOUR IS CLAMPED TOO, whatever its row carries. A script's
+   second line prints on its first line's row with its own `--chip-color` (`data-more-value`). When the FIRST
+   line draws nothing (fully transparent, so the row has no colour) the row-keyed selectors did not match, and
+   the second value kept its raw colour, alpha included: Uncharted Clouds' slow average is white at 95%
+   transparency, and its value printed at 5% opacity (measured on production, invisible). The clamp ends in
+   `/ 1`, so a value it reaches is always opaque. */
 @supports (color: oklch(from red l c h)) {
   .chipGridRow[style*="--chip-color"]:not(.chipHidden) .chipGridVal,
-  .chip[style*="--chip-color"]:not(.chipHidden) .chipVal:not(.chipValStale) {
+  .chipGridRow:not(.chipHidden) .chipGridVal[style*="--chip-color"],
+  .chip[style*="--chip-color"]:not(.chipHidden) .chipVal:not(.chipValStale),
+  .chip:not(.chipHidden) .chipVal[style*="--chip-color"]:not(.chipValStale) {
     color: oklch(from var(--chip-color) clamp(var(--legend-val-lmin, 0), l, var(--legend-val-lmax, 1)) min(c, 0.14) h / 1);
   }
 }
