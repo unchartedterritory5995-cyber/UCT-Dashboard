@@ -15,10 +15,9 @@
 //     capture session's reading, in the header of the captured default-days-v4 source).
 //
 // ⛔ THE CAPTURES REACH `tests/fixtures/vendor/harness/` THROUGH THE CAPTURE SESSION'S DATA PRs, never
-// a copy committed here. `vw-w4-session-overnight-btcusd-60` landed with #1472 (run cq1): its block is
-// UNCONDITIONAL, so a missing capture is RED. The other four (runs ac2 / ac3) are not on master yet: their
-// blocks are SKIPPED by a title that says so, and this unit's PR does not merge while any skip stands;
-// when their data PR lands, `HELD` below is removed.
+// a copy committed here: `vw-w4-session-overnight-btcusd-60` with #1472 (run cq1), the other four with
+// #1494 (runs ac2 / ac3), each byte-identical to the copy this rail was graded against before it landed.
+// Every block is UNCONDITIONAL: a missing capture is RED.
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -31,7 +30,6 @@ import * as registry from '../nativeRegistry.js'
 const REPO = path.resolve(process.cwd(), '..')
 const HARNESS = path.join(REPO, 'tests', 'fixtures', 'vendor', 'harness')
 const capPath = (id) => path.join(HARNESS, `${id}.json`)
-const HELD = (id) => fs.existsSync(capPath(id))
 const V6 = '//@version=6\nindicator("p")\n'
 const V4 = '//@version=4\nstudy("p")\n'
 const V3 = '//@version=3\nstudy("p")\n'
@@ -89,10 +87,9 @@ const expectAllMatch = (res, min) => {
 }
 const isNa = (spec) => `na(time(timeframe.period, "${spec}", "GMT+0")) ? 1 : 0`
 const secs = (spec) => `na(time(timeframe.period, "${spec}", "GMT+0")) ? -1.0 : (time(timeframe.period, "${spec}", "GMT+0") - time) / 1000.0`
-const skipTitle = (id) => (HELD(id) ? '' : ' — SKIPPED: WAITS ON THE CAPTURE SESSION\'S DATA PR (capture not on this tree)')
 
 const OVERNIGHT = 'vw-w4-session-overnight-btcusd-60-2026-11-16'
-describe(`a wrapping session's membership: ${OVERNIGHT} O1-O4 (on the tree since #1472: unconditional)`, () => {
+describe(`a wrapping session's membership: ${OVERNIGHT} O1-O4`, () => {
   it('matches O1-O4 on every bar, and the capture discriminates', () => {
     const res = gradeCapture(OVERNIGHT, '60', {
       O1_na_wrap_all_days: isNa('1800-0200:1234567'),
@@ -123,7 +120,7 @@ const VALUE_ROWS = {
   V3_secs_whole_day_wrap: secs('1700-1700:1234567'),
   V4_secs_wrap_through_the_day: secs('2000-1630:1234567'),
 }
-describe.skipIf(!HELD(VALUE60))(`the VALUE inside a wrapping session, hourly: ${VALUE60}${skipTitle(VALUE60)}`, () => {
+describe(`the VALUE inside a wrapping session, hourly: ${VALUE60}`, () => {
   it('matches V1-V4 on every bar: the session grid continues across midnight (-1800 s at 00:00-02:00)', () => {
     const res = gradeCapture(VALUE60, '60', VALUE_ROWS)
     expectAllMatch(res, 20000)
@@ -137,7 +134,7 @@ describe.skipIf(!HELD(VALUE60))(`the VALUE inside a wrapping session, hourly: ${
     expect(new Set(after.map((r) => r[c('V1_secs_wrap_half_hour')]))).toEqual(new Set([-1800]))
   })
 })
-describe.skipIf(!HELD(VALUE1D))(`the VALUE inside a wrapping session, daily: ${VALUE1D}${skipTitle(VALUE1D)}`, () => {
+describe(`the VALUE inside a wrapping session, daily: ${VALUE1D}`, () => {
   it('matches V1-V4 on every bar: the session\'s start the evening before', () => {
     const res = gradeCapture(VALUE1D, 'D', VALUE_ROWS)
     expectAllMatch(res, 1000)
@@ -147,7 +144,7 @@ describe.skipIf(!HELD(VALUE1D))(`the VALUE inside a wrapping session, daily: ${V
 })
 
 const TO_MIDNIGHT = 'vw-bt-session-to-midnight-daymask-btcusd-60-2026-11-16'
-describe.skipIf(!HELD(TO_MIDNIGHT))(`"HHMM-0000" under a day list: ${TO_MIDNIGHT}${skipTitle(TO_MIDNIGHT)}`, () => {
+describe(`"HHMM-0000" under a day list: ${TO_MIDNIGHT}`, () => {
   it('matches M1/M2 on every bar: the hours before midnight are the bar\'s own day\'s session', () => {
     expectAllMatch(gradeCapture(TO_MIDNIGHT, '60', {
       M1_na_to_midnight_weekdays: isNa('2000-0000:23456'),
@@ -157,7 +154,7 @@ describe.skipIf(!HELD(TO_MIDNIGHT))(`"HHMM-0000" under a day list: ${TO_MIDNIGHT
 })
 
 const DAYS_V4 = 'vw-w4-session-default-days-v4-btcusd-60-2026-11-16'
-describe.skipIf(!HELD(DAYS_V4))(`a v4 session with no day list: ${DAYS_V4}${skipTitle(DAYS_V4)}`, () => {
+describe(`a v4 session with no day list: ${DAYS_V4}`, () => {
   it('the captured v4 source (`timeframe.period`) matches N1-N3 on every bar: Monday to Friday', () => {
     const d = JSON.parse(fs.readFileSync(capPath(DAYS_V4), 'utf8'))
     expect(d.source.text).toMatch(/^\/\/@version=4/)

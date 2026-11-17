@@ -6,13 +6,11 @@ bump: the history line is a `NUMBER PENDING` entry in `scriptEngineVersion.js`; 
 it. Queue rows: `docs/pine/capture-queue-2026-11-16-bt-builtins-time.md` (Q-BT1, Q-BT4, Q-BT5 captured and
 closed; Q-BT2 `"1440"` and Q-BT3 `math.toradians` open).
 
-⛔ **This PR waits on the capture session's data PRs.** Five BITSTAMP:BTCUSD captures witness what it
-serves; they reach `tests/fixtures/vendor/harness/` only through those PRs (never a copy committed here).
-`vw-w4-session-overnight-btcusd-60-2026-11-16` (run cq1) landed with #1472 (byte-identical to the copy
-graded here, sha256 `34854e40d950…`); master is merged in (`5465c83b64`) and its block is UNCONDITIONAL. The
-other four (runs ac2 / ac3) are NOT on master: `ast/btSessionClock.test.js` still skips their blocks by a
-title that says so, and the PR does not merge while a skip stands. Every block was run against the
-licence-store copies on this tree, lock hold, `353aa19c44`: 19 / 19 pass.
+All five BITSTAMP:BTCUSD captures that witness what this serves are on master, through the capture
+session's data PRs (never a copy committed here): `vw-w4-session-overnight-btcusd-60` with #1472 (run cq1),
+the other four with #1494 (runs ac2 / ac3). Each is byte-identical (sha256) to the licence-store copy the
+rail was graded against before it landed (19 / 19 on this PC, lock hold, `353aa19c44`). Master is merged in
+(`733e2fbb7d`) and every block of `ast/btSessionClock.test.js` is UNCONDITIONAL: a missing capture is red.
 
 | capture | probe | rows |
 |---|---|---|
