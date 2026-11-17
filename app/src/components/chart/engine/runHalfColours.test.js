@@ -48,12 +48,17 @@ describe('a plain input with a colour default is a colour setting', () => {
       .toMatchObject({ type: 'color', default: '#FF9800' })
   })
 
-  it('⛔ a see-through default is skipped by name (the picker sets an opaque colour)', () => {
-    for (const d of ['color.rgb(121, 213, 242, 62)', 'color.new(#b2b5be, 40)']) {
-      const r = specOf(`c = input(${d}, title = 'C')`)
-      expect(r.specs, d).toEqual([])
-      expect(r.skipped[0].reason, d).toMatch(/see-through/)
-    }
+  it('a see-through default is that colour at its opacity, `#RRGGBBAA` (the picker sets both, as TradingView\'s does)', () => {
+    // TradingView records `color.rgb(121, 213, 242, 62)` as rgba(121,213,242,0.38): alpha byte round(0.38 * 255) = 0x61
+    expect(specOf("c = input(color.rgb(121, 213, 242, 62), title = 'C')").specs[0]).toMatchObject({ type: 'color', default: '#79D5F261' })
+    expect(specOf("c = input(color.new(#b2b5be, 40), title = 'C')").specs[0]).toMatchObject({ type: 'color', default: '#B2B5BE99' })
+    expect(specOf("c = input(#2962FF80, title = 'C')").specs[0]).toMatchObject({ type: 'color', default: '#2962FF80' })
+  })
+
+  it('⛔ a transparency that is not a literal 0 to 100 is skipped by name', () => {
+    const r = specOf("c = input(color.rgb(121, 213, 242, 150), title = 'C')")
+    expect(r.specs).toEqual([])
+    expect(r.skipped[0].reason).toMatch(/transparency/)
   })
 
   it('CONTROL: a number and a switch are still a number and a switch', () => {

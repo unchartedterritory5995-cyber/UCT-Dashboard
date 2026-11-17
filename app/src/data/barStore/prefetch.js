@@ -63,6 +63,7 @@ import { keyOf, parseKey, normTf, isIntradayTf, isDateTf, PERIOD_SEC, STATUS, un
 import { DAILY_POLL_MS } from './network'
 import { legacyBars } from './adapter'
 import { fullBarsFor, firstPaintBarsFor } from '../../utils/barsBackfill'
+import { PREFETCH_WINDOWS, HISTORY_PREFETCH_TARGET_BARS } from '../../utils/historyPrepend'
 import { viewShowExtended } from '../../utils/viewSession'
 import { isNativeTf, fetchTf } from '../../components/chart/timeframes'
 import { isCacheCurrentForView } from '../../utils/marketSession'
@@ -70,7 +71,7 @@ import { BARSTORE } from '../../components/chart/barStoreSwitch'
 import { prefetchTickerMeta as _defaultTickerMeta } from '../../hooks/useTickerMeta'
 import {
   _packStillIngesting, URGENT_MAX_PER_CALL, GRID_WARM_TFS, listPrewarmDisabled, _typedCachePaints,
-  tellSymbolWarmers,
+  tellSymbolWarmers, TYPED_REASK_MS,
 } from '../../utils/prefetchBars'
 
 // Lane plumbing the chart imports from the same module — re-exported unchanged so one import
@@ -105,8 +106,14 @@ const SCAN_WARM_CAP = 100
 const DEEP_WARM_TFS = Object.freeze(['D', 'W', 'M'])
 const DEEP_WARM_CAP = 120
 const REPLAY_WARM_TFS = Object.freeze(['5', '15', '30', '60'])
-const TYPED_FRESH_MS = 60_000
+// The typed warm's re-ask window is the legacy module's TYPED_REASK_MS (imported above), never a
+// number of this module's: both warmers skip a re-ask on the same rule.
 const COOLDOWN_MAX_KEYS = 400
+/** TERM-033: what a FAILED device-cache hydrate resolves to (`_hydrate`). "Nothing was hydrated",
+ *  never an answer: the caller takes its verdict on the store as it stands, so the key is asked of
+ *  the server like any key the cache does not hold. */
+const NOTHING_HYDRATED = null
+const nothingHydrated = () => NOTHING_HYDRATED
 
 /** Re-ask cooldown of a key the server already answered (see header). */
 export function cooldownMs(tf) {
@@ -154,6 +161,19 @@ export const SHORT_FULL_TTL_MS = 6 * 3600 * 1000
 /** How long the symbol handoff waits for the cache read before it asks the server anyway (the
  *  legacy chart's `_IDB_TAIL_WAIT_MS`). */
 export const HYDRATE_WAIT_MS = 120
+/** How long a list selection must rest before the hold deepens the next rows (createNeighborHold
+ *  `deep`). Past the chart's own DEEP_ARM_MS (250) and its first window, so the visible chart's
+ *  deep history always goes first. */
+export const NEIGHBOR_DEEP_MS = 500
+/** The neighbor deepening's switch: on unless 'uct.deepNeighbors' (or the chart's whole intraday
+ *  deep history, 'uct.intradayDeepBackfill.enabled') is '0' in this browser. */
+export function deepNeighborsEnabled() {
+  try {
+    if (typeof localStorage === 'undefined') return true
+    return localStorage.getItem('uct.deepNeighbors') !== '0'
+      && localStorage.getItem('uct.intradayDeepBackfill.enabled') !== '0'
+  } catch { return true }
+}
 const LOCAL_PAINTS = Symbol('local copy paints')
 const SHORT_FULL_MAX = 4000
 
@@ -164,6 +184,8 @@ export function createPrefetch(o = {}) {
   const extended = o.extended ?? viewShowExtended
   const now = o.now ?? (() => Date.now())
   const setTimer = o.setTimer ?? ((fn, ms) => setTimeout(fn, ms))
+  const clearTimer = o.clearTimer ?? ((h) => clearTimeout(h))
+  const deepNeighbors = o.deepNeighbors ?? deepNeighborsEnabled
 
   /** key → {at, gen} of the last request this module caused (cooldown). */
   const asked = new Map()
@@ -214,7 +236,9 @@ export function createPrefetch(o = {}) {
     // Pinned while it reads, so a herd hydrating more keys than the LRU holds cannot evict
     // the entry between its cache read and the verdict taken on it.
     st.registry.acquire(key)
-    return st.persist.hydrate(key).catch(() => null)
+    // TERM-033: a FAILED device-cache read hydrates nothing (NOTHING_HYDRATED). It is never read as
+    // an answer: the verdict below is taken on what the store holds, so the warm asks the server.
+    return st.persist.hydrate(key).catch(nothingHydrated)
       .then(() => st.peek(key))
       .finally(() => st.registry.release(key))
   }
@@ -522,18 +546,68 @@ export function createPrefetch(o = {}) {
    * evicted) and hydrates them; `set` swaps the window, `clear` lets them go. One hold per list
    * (two lists on a board never release each other's rows); a dozen keys, a few thousand bars.
    */
+  //
+  // ⭐ AND THE NEXT ROWS ARRIVE DEEP (2026-11-17, `deep`). A flip painted the next row's first
+  // window (~470 bars) in ~30 ms, but its older history came only after the chart had rested
+  // DEEP_ARM_MS and asked two 2,000-bar windows in turn: 2,000+ bars at ~470 ms (production
+  // flip proof, 60m/15m/5m), where daily paints its whole history in the first frame. So while
+  // the member rests on a row, the hold asks the SAME windows the chart would (store scroll-back,
+  // PREFETCH_WINDOWS of them, up to HISTORY_PREFETCH_TARGET_BARS) for the rows named in `deep`
+  // (the next one or two): the flip then paints them deep. Bounded: only after the selection has
+  // rested NEIGHBOR_DEEP_MS (a held key or a fast scan never starts one), one request at a time,
+  // at `grid` rank (the chart's own deep windows' rank, behind the visible chart), a new `set`
+  // abandons the rest. Intraday, non-replay keys only (D/W/M come whole from the daily pack).
+  // Off: localStorage 'uct.deepNeighbors' = '0' (or the chart's 'uct.intradayDeepBackfill.enabled'
+  // = '0', which turns every intraday deep window off).
   function createNeighborHold() {
     let held = new Map()   // key → true
+    let deepTimer = null
+    let deepGen = 0
+    const stopDeep = () => {
+      deepGen++
+      if (deepTimer != null) { clearTimer(deepTimer); deepTimer = null }
+    }
+    async function deepen(keys, gen) {
+      for (const k of keys) {
+        for (let i = 0; i < PREFETCH_WINDOWS; i++) {
+          if (gen !== deepGen || !held.has(k)) return
+          let s = S().peek(k)
+          // A window prepends to a SERVER answer (the urgent warm's), never to a local copy alone.
+          if (!s?.restSeen) {
+            await prefetch([k], { priority: 'grid' })
+            if (gen !== deepGen || !held.has(k)) return
+            s = S().peek(k)
+          }
+          if (!s?.restSeen || !s.bars?.length || s.status === STATUS.UNAVAILABLE || s.depth >= HISTORY_PREFETCH_TARGET_BARS) break
+          const res = await Promise.resolve().then(() => S().scrollBack(k, { priority: 'grid' })).catch(() => null)
+          // Nothing older, refused at the seam, still filling or failed: this row is done for now
+          // (the chart's own loader retries a filling window when the member lands on it).
+          if (!res?.ok || !(res.added > 0) || res.filling) break
+        }
+      }
+    }
     return {
-      set(syms, tf, { showExtended } = {}) {
+      set(syms, tf, { showExtended, deep = null } = {}) {
         const st = S()
         const want = new Map()
         for (const sym of syms || []) { const k = keyFor(sym, tf, { showExtended }); if (k) want.set(k, true) }
         for (const k of want.keys()) if (!held.has(k)) { st.registry.acquire(k); _hydrate(k) }
         for (const k of held.keys()) if (!want.has(k)) st.registry.release(k)
         held = want
+        stopDeep()
+        if (!deep?.length || !deepNeighbors()) return
+        const next = []
+        for (const sym of deep) {
+          const k = keyFor(sym, tf, { showExtended })
+          const p = k ? parseKey(k) : null
+          if (p && !p.window && isIntradayTf(p.tf) && want.has(k) && !next.includes(k)) next.push(k)
+        }
+        if (!next.length) return
+        const gen = deepGen
+        deepTimer = setTimer(() => { deepTimer = null; deepen(next, gen).catch(() => {}) }, NEIGHBOR_DEEP_MS)
       },
       clear() {
+        stopDeep()
         const st = S()
         for (const k of held.keys()) st.registry.release(k)
         held = new Map()
@@ -604,7 +678,7 @@ export function createPrefetch(o = {}) {
     }
     const held = S().peek(key)
     const typedSym = String(sym).trim().toUpperCase()
-    if (held?.restSeen && held.status === STATUS.CURRENT && asked.has(key) && now() - asked.get(key).at < TYPED_FRESH_MS) {
+    if (held?.restSeen && held.status === STATUS.CURRENT && asked.has(key) && now() - asked.get(key).at < TYPED_REASK_MS) {
       tellSymbolWarmers([typedSym], tf, { priority: true })   // a known name, bars current: its companions may not be
       return null
     }

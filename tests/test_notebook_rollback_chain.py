@@ -189,6 +189,41 @@ def _have(rev: str) -> bool:
                           capture_output=True).returncode == 0
 
 
+# ⚰️ 2026-11-17 — 17 OF THIS FILE'S TESTS WERE RED ON EVERY CI RUN FOR ONE REASON THAT SAYS NOTHING
+# ABOUT THE CHAIN: `git commit-tree` needs an author, and a GitHub runner has no `user.name` /
+# `user.email` ("Author identity unknown ... empty ident name not allowed", nightly 43726736793).
+# Both this file's `synthetic_commit` and the tool's own chain build (`commit-tree` in
+# tools/notebook_rollback_chain.py) write commit OBJECTS; on the owner's box they borrowed his global
+# git identity, so they were green there and red on every fresh machine. The tool SHOULD take the
+# operator's identity (its revert chain is pushed by a person); the TEST must not depend on whose box
+# it runs on. So the test brings its own, through the environment every git call here inherits
+# (`os.environ` directly, or `dict(os.environ, GIT_INDEX_FILE=...)`). The objects stay unreferenced;
+# trees, not commit ids, are what this file compares, so the identity changes no assertion.
+TEST_GIT_IDENTITY = {
+    "GIT_AUTHOR_NAME": "UCT rollback-chain test",
+    "GIT_AUTHOR_EMAIL": "nb-rollback-chain-test@example.invalid",
+    "GIT_COMMITTER_NAME": "UCT rollback-chain test",
+    "GIT_COMMITTER_EMAIL": "nb-rollback-chain-test@example.invalid",
+}
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _a_git_identity_of_its_own():
+    with pytest.MonkeyPatch.context() as mp:
+        for k, v in TEST_GIT_IDENTITY.items():
+            mp.setenv(k, v)
+        yield
+
+
+def test_commits_this_file_writes_carry_its_own_identity_not_the_boxs():
+    """Non-vacuity for the fixture above: on a box WITH a global identity a missing fixture would
+    still be green here and red on CI, so ask git which identity a commit written now would carry."""
+    for var, (name, email) in (("GIT_AUTHOR_IDENT", ("GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL")),
+                               ("GIT_COMMITTER_IDENT", ("GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL"))):
+        ident = _git("var", var)
+        assert ident.startswith(f"{TEST_GIT_IDENTITY[name]} <{TEST_GIT_IDENTITY[email]}> "), ident
+
+
 @pytest.fixture(scope="module")
 def chain():
     mod = _load()

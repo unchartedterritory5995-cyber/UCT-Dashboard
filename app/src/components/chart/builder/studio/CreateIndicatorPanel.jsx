@@ -36,8 +36,21 @@ import { hasSomethingToSend } from './sendConversation'
 // ⭐ L8 — loaded on the press: most conversations are never sent
 const SendConversationDialog = lazy(() => import('./SendConversationDialog'))
 import { safeCssColour } from '../../engine/objectColour'
+import SettingsFields from './SettingsFields'
 
 const EXAMPLES = Object.freeze(['Add a 20 EMA', 'RSI overbought signal', 'Volume above its 50-day average'])
+/** The hint inside the message box, by what the member is doing.
+ *  ⛔ ONE SHORT LINE EACH. The box is one row tall until something is typed, so a hint that wraps is
+ *  cut off mid-word (seen on a phone, 2026-11-17: "Describe the indicator you want to" and a sliver
+ *  of the rest). The sentence above the box already says it in full; the stylesheet keeps whatever
+ *  is here on one line as the second guard. */
+export const BOX_HINT = Object.freeze({
+  fresh: 'Describe your indicator…',
+  working: 'Refine it — e.g. "make it 50"',
+  edit: 'Describe a change — e.g. "make it 21"',
+})
+/** The longest a hint may be and still fit the box on a 360 px phone at the touch text size. */
+export const BOX_HINT_MAX = 38
 const PANEL_W = 360
 const INSET = 8
 
@@ -597,6 +610,9 @@ export default function CreateIndicatorPanel({
               {[...rb.alerts, ...rb.infoValues].map((l) => <div key={l} className={styles.detail}>{l}</div>)}
             </div>
           )}
+          {/* ⭐ SETTINGS (2026-11-17) — every length, level and multiple of the indicator, as a field.
+              A change is the ordinary slot edit: the preview redraws and Undo takes it back. */}
+          <SettingsFields settings={conv.settings} onSet={conv.setNumber} disabled={busy || saving} />
           {conv.needsAck.length > 0 && (
             <label className={styles.ack}>
               <input type="checkbox" checked={conv.acked} onChange={(e) => conv.setAcked(e.target.checked)}
@@ -623,8 +639,7 @@ export default function CreateIndicatorPanel({
           rows={1}
           value={message}
           disabled={saving || blocked}
-          placeholder={editMode ? 'Describe a change — e.g. "make it 21" or "make the line gold"'
-            : (state.working ? 'Refine it — e.g. "make it 50"' : 'Describe the indicator you want to build…')}
+          placeholder={editMode ? BOX_HINT.edit : (state.working ? BOX_HINT.working : BOX_HINT.fresh)}
           aria-label="Message the UCT Agent"
           data-testid="create-indicator-input"
           onChange={(e) => setMessage(e.target.value)}

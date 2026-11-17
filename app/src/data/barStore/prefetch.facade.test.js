@@ -94,4 +94,28 @@ describe('prefetch facade — same names and signatures as utils/prefetchBars', 
     expect(typeof facade.peekDisplayable).toBe('function')
     expect(facade.peekDisplayable.length).toBe(handoff.peekDisplayable.length)
   })
+
+  // ⛔ ONE RE-ASK WINDOW FOR BOTH TYPED WARMS (2026-11-17). The facade used to declare its own
+  // `TYPED_FRESH_MS = 60_000` beside the legacy module's: two authorities over one rule, which
+  // agree only until one is edited. It now IMPORTS the legacy `TYPED_REASK_MS` and declares no
+  // number of its own; read off the AST, so a comment naming the constant is not a declaration.
+  it('the typed warm re-asks on the legacy module\'s window, never a number of its own', async () => {
+    const ast = parse(fs.readFileSync(path.join(SRC, 'data', 'barStore', 'prefetch.js'), 'utf8'))
+    const imported = ast.body.filter((n) => n.type === 'ImportDeclaration' && n.source.value === '../../utils/prefetchBars')
+      .flatMap((n) => n.specifiers.map((s) => s.imported?.name))
+    expect(imported).toContain('TYPED_REASK_MS')
+    const own = []
+    const visit = (n) => {
+      if (!n || typeof n.type !== 'string') return
+      if (n.type === 'VariableDeclarator' && /^TYPED_/.test(n.id?.name || '')) own.push(n.id.name)
+      for (const v of Object.values(n)) {
+        if (Array.isArray(v)) v.forEach(visit)
+        else if (v && typeof v.type === 'string') visit(v)
+      }
+    }
+    visit(ast)
+    expect(own, 'the facade declares its own typed-warm constant').toEqual([])
+    const legacy = await import('../../utils/prefetchBars')
+    expect(legacy.TYPED_REASK_MS).toBeGreaterThan(0)
+  })
 })

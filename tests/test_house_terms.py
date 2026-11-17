@@ -5,6 +5,7 @@ is 21. With the twin registry the assistant is handed the Screener's own formula
 """
 from __future__ import annotations
 
+from api.services import ast_table
 from api.services import chart_twins
 from api.services import definition_concierge as dc
 from api.services import definition_conversation as conv
@@ -88,6 +89,40 @@ def test_a_phrase_never_replaces_what_the_shared_lexicon_already_reads():
     """ADDED, NEVER REPLACED: every bucket the shared lexicon holds is the same bucket here unless a
     chart function word replaced it (that rule is older and has its own test)."""
     function_stems = {dc._stem_key(dc._form_tokens(p))[0] for p, _ in conv.EXPANSION_PHRASES}
+    converted = 0
     for stems, rows in dc.LEXICON["index"].items():
-        if stems not in function_stems:
-            assert conv.CHART_LEXICON["index"][stems] is rows, stems
+        if stems in function_stems:
+            continue
+        here = conv.CHART_LEXICON["index"][stems]
+        if here is rows:
+            continue
+        # the one other difference: a chart-only twin's own label, read as a term (backlog 47)
+        assert all(r["kind"] == dc.EXCLUDED_ENTRY and r["key"] in chart_twins.CHART_ONLY for r in rows), stems
+        assert [(r["key"], r["words"]) for r in here] == [(r["key"], r["words"]) for r in rows]
+        assert all(r["kind"] == dc.TABLE_ENTRY for r in here)
+        converted += 1
+    assert converted >= len(chart_twins.CHART_ONLY)
+
+
+def test_a_column_the_chart_computes_exactly_is_a_term_not_unavailable():
+    """ASKED on a chart: "show the EMA9 Distance". CLAIMED before: "not available". DID: a term with
+    the Screener's own formula. The Screener's planner still answers what is true for a screen."""
+    assert chart_twins.CHART_ONLY <= set(chart_twins.TWINS)
+    for message, column in (("show the EMA9 Distance", "pct_vs_ema9"),
+                            ("Plot Avg Volume (50d) in a pane", "avg_volume_50d"),
+                            ("Volume Trend (5d vs 20d) as a line", "vol_trend_pct")):
+        understanding = dc.plan(message, dc.INDICATOR_KIND, lexicon=conv.CHART_LEXICON)
+        assert not understanding["unavailable"], (message, understanding["unavailable"])
+        (term,) = [t for t in conv._language_notes(understanding)["matched_terms"] if t["entry"] == column]
+        assert term["chart_formula"] == dc.formula_for(chart_twins.TWINS[column])
+        screen = dc.plan(message, dc.INDICATOR_KIND)
+        assert [u["name"] for u in screen["unavailable"]] == [column]        # unchanged for a screen
+
+
+def test_CONTROL_a_column_with_no_exact_chart_form_is_still_unavailable_on_a_chart():
+    excluded = sorted(set(dc._excluded(ast_table.TABLE)) - set(chart_twins.TWINS))
+    assert excluded
+    left = [r for rows in conv.CHART_LEXICON["index"].values() for r in rows
+            if r["kind"] == dc.EXCLUDED_ENTRY]
+    assert {r["key"] for r in left} & set(excluded)
+    assert not ({r["key"] for r in left} & chart_twins.CHART_ONLY)

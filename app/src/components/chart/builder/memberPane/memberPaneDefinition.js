@@ -48,6 +48,7 @@ import { runtimeOwnObjectsOf, valueBuildDefersToDrawing } from './runtimeObjects
 import { pairRunRows } from './runRowPairing'
 import { runtimeInputSpecsOf, plotColourInputAt } from '../../engine/runtime/runtimeInputs'
 import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash } from '../../engine/runtimeKill'
+import { hostKnownDivergenceOf } from '../../engine/hostKnownDivergence'
 import { objectLossNote, RUN_HALF_DRAWING_SENTENCE } from '../../engine/ast/objectLoss'
 // ⭐ ENGINE 53 — the run half's door reads the store's cap as the save door counts it.
 import { DOCUMENT_BYTE_BUDGET } from '../../engine/ast/graphDocument'
@@ -297,6 +298,21 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   if (t && t.version === null) {
     const form = modernPineSyntaxIn(source)
     if (form) return no(noVersionSentence(form), NO_VERSION_GUARD, t)
+  }
+
+  // ⭐⭐ HOST KNOWN-DIVERGENCE (owner decision 2026-11-17) — A SCRIPT WITH A COMMITTED TRADINGVIEW
+  // CAPTURE THAT GRADES DIVERGE ON THE HOST LANE IS NOT DRAWN BY IT: refused by name
+  // (`pine:known-divergence`, `engine/hostKnownDivergence.js`), the host lane's twin of the runtime
+  // kill list. As for every host refusal, the runtime lane is offered it while that lane is on, and its
+  // own kill list, allowlist and admission decide; any decline leaves the member this sentence.
+  const hostListed = hostKnownDivergenceOf(source)
+  if (hostListed) {
+    if (runtimePaneEnabled()) {
+      return runtimeLaneDefinition({
+        source, id, name, t, hostReason: hostListed.reason, hostGuard: hostListed.guard, routed: false, no,
+      })
+    }
+    return no(hostListed.reason, hostListed.guard, t)
   }
 
   // ⭐ THE FLAG IS READ HERE, ONCE. `paneGate` is a pure decision and stays one;
@@ -591,6 +607,9 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
       // Clamped to the width input's own [1, 4], the Builder's Pine-import rule.
       ...(Number.isFinite(p.width) ? { width: pineLineWidth(p.width) } : {}),
       ...(p.marker && p.marker.shape ? { marker: p.marker } : {}),
+      // ⭐ ROW 42 — `plot.style_linebr` / `style_areabr` break at `na` (`pine.js`
+      // `PINE_BREAKING_STYLES`); every other style bridges, as TradingView draws it.
+      ...(p.sparse === true ? { sparse: true } : {}),
       ...(condKey ? { colorMode: `column:${condKey}`, colorUp: p.colorUp, colorDown: p.colorDown } : {}),
       ...(paletteKey ? { colorMode: `column:${paletteKey}`, colorPalette: p.colorPalette.slice() } : {}),
       ...(gradientKey ? {
@@ -674,7 +693,12 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
           const k = field && memberInputKey(field.name)
           if (!k) continue
           row.fill[side] = k
-          if (!fillColourSpecs.has(k)) fillColourSpecs.set(k, { key: k, type: 'color', label: field.title || k, default: field.hex })
+          if (field.own) row.fill[`${side}OwnAlpha`] = true
+          // ⭐ an input carrying its OWN transparency (`pine.js::fillColourInputsOf` `own`) is declared at that
+          // opacity, so the picker shows the author's 25% and a pick is the whole colour (`binder.bandColoursFor`)
+          if (!fillColourSpecs.has(k)) {
+            fillColourSpecs.set(k, { key: k, type: 'color', label: field.title || k, default: field.own && field.ownHex ? field.ownHex : field.hex })
+          }
         }
       } else if (Array.isArray(f.colorPalette) && f.colorPalette.length >= 2) {
         const palKey = conditionColumnFor(f.colorIndex)
@@ -2155,6 +2179,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       // `linewidth`, as the host lane's rows carry it (see that projection).
       ...(Number.isFinite(p.width) ? { width: pineLineWidth(p.width) } : {}),
       ...(p.marker && p.marker.shape ? { marker: p.marker } : {}),
+      // ⭐ ROW 42 — a "with breaks" style breaks at `na`, as the host lane's rows say.
+      ...(p && p.sparse === true ? { sparse: true } : {}),
       // ⭐ WS-E — a leftward `offset`, drawn by the binder as a host row's is.
       ...(Number.isInteger(displace) && displace < 0 ? { displace } : {}),
       // The host output this row draws — the vendor harness and the pane's

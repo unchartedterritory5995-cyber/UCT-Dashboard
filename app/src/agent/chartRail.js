@@ -27,7 +27,7 @@
 import { tickersIn } from './multiChart'
 import { matchPosition } from './fastPath'
 import { readCopyIntent } from './copyIntent'
-import { ordinalChart, thingWord, chartishWord } from './deixis'
+import { ordinalChart, thingWord, chartishWord, relativeChart, relationMatch } from './deixis'
 import { CLASS as STATE_CLASS } from './stateRail'
 import { excludedCharts, UNPLACED, LOWER_STOP } from './spatialCheck'
 import { widgetTabList } from '../pages/charts/widgetTabs'
@@ -116,7 +116,9 @@ const POS = /\b((?:top|bottom|upper|lower)[- ](?:left|right)(?:most|[- ]hand)?|(
 const normPos = (w) => w.toLowerCase().replace(/^far[- ]/, '').replace(/most$/, '').replace(/[- ]hand$/, '').replace(/^cent(?:er|re)$/, 'middle')
   .replace(/\s/, '-').replace('upper', 'top').replace('lower', 'bottom')
 const KEEP_LEAD = /\b(?:keep|keeping|kept|leave|leaving|retain|retaining|preserve|preserving|hold on to|holding on to|(?:do not|don['’]?t|never) (?:change|touch|replace|remove|move|lose|drop)|without (?:changing|touching|replacing|removing|losing|dropping)|(?:plus|with|alongside|besides|and|along with) (?:my|the|our) (?:existing|current|old|original))\s+/gi
-const KEEP_END = /(?=$|[.;!?]|,\s*(?:but|then|and then)\b|\s(?:but|then|while|so)\b|\sand (?:then |also )?(?:add|put|make|change|switch|replace|set|open|show|create)\b)/i
+// (D31: a kept phrase also ends where a REMOVAL clause starts — "don't remove SPY, close the IWM chart", "leave the left chart, remove
+//  the right one": the chart that clause names is no kept chart)
+const KEEP_END = /(?=$|[.;!?]|,\s*(?:but|then|and then)\b|,\s*(?:and\s+)?(?:close|remove|delete|drop|clear|get\s+rid\s+of|take)\b|\s(?:but|then|while|so)\b|\sand (?:then |also )?(?:add|put|make|change|switch|replace|set|open|show|create)\b)/i
 const STAY = /\b((?:[A-Z]{1,5}|\$[A-Za-z]{1,5})(?:\s*(?:,|and|&)\s*(?:[A-Z]{1,5}|\$[A-Za-z]{1,5}))*)\s+(?:stays?|remains?|should stay|stay(?:s)? put|in place)\b/g
 const ALL_KEPT = /^(?:(?:all|both|every|each)\b|(?:my|the|these|those|current|existing)\s+(?:current\s+|existing\s+)?(?:charts?|ones|panels?|layout|board)\b|everything\b|them\b)/i
 
@@ -474,6 +476,12 @@ const positionSaid = (w, e) => named(w, e)
 // everything except X", "close the charts") proceeds without a named target. Never depends on the position vocabulary.
 const SPECIFIC_CHART = /\b(?:the|that|this|my|your|our)\s+(?:[^\s.,;:!?]+\s+){0,3}?(?:chart|one|panel|graph|widget)\b(?!s)/i
 const SET_REMOVAL = /\b(?:all|every|everything|each|both|whole|entire|rest|others|remaining|except|excluding|other\s+than|apart\s+from|but\s+not)\b|\b(?:clear|close|wipe|empty|reset|clean(?:\s+up)?)\s+(?:out\s+)?(?:the|my)\s+(?:whole\s+|entire\s+)?(?:board|layout|screen)\b/i
+const QUALIFIED_SET = /\b(?:both|all|every|each)\s+(?:of\s+)?(?:(?:the|my|these|those|your)\s+)?((?:[a-z][\w-]*\s+){1,2}?)charts?\b/i
+// (NP_FILLER without its ticker-shaped catch-all: a qualifier word that is a determiner / position / ordinal / timeframe)
+let DET_FILLER_RE = null
+const DET_FILLER = () => (DET_FILLER_RE ||= new RegExp(NP_FILLER.source.replace(String.raw`|\$?[a-z]{1,5})$`, ')$')))
+const POS_ONE = new RegExp(String.raw`^(?:${POS.source})$`, 'i')
+const SET_FILLER = /^(?:open|current|other|remaining|existing|two|three|four|five|six|of)$/i
 const BACK_REF = /\b(?:the|that)\s+(?:chart|one|graph|panel)\s+(?:(?:that|which)\s+)?(?:I|you|we)\b/i
 const SEVERAL = /\b(?:charts|ones|panels|graphs|widgets|and)\b|[&,]/i
 const pluralOf = (sym) => new RegExp(String.raw`\b(?:both|all|every|each)\b[^.;!?]*?\$?${escRe(sym)}(?![A-Za-z0-9])|(?:^|[^A-Za-z0-9])\$?${escRe(sym)}\s+(?:charts|ones|panels|graphs)\b`, 'i')
@@ -621,6 +629,66 @@ function resolvePronoun(pr, all, { selected = null, subject = null } = {}) {
   if (new Set(all.map(key)).size === 1) return { refs: new Set(all.map(c => c.ref)) }
   return { ask: true }
 }
+// ⛔ REMOVAL TARGET TYPE (AUDIT H14 · D31 oracle masterGaps, 2026-11-16 — live wrong-target): the rules below read the OBJECT of each
+// removal verb — never a new vocabulary: the verbs are PRONOUN_VERB (+ the split "take <X> off"), the object is typed by the ONE
+// reader the pronoun path uses (pronounAntecedent: chartishWord / thingWord / stateRail CLASS), a chart named by symbolSaid / named.
+//   (1) TYPE: every removal object the words hold is a THING ("delete the trendline", "remove the RSI from the SPY chart" — a chart
+//       after from / on / off is the PLACE, cut before typing) → no chart is closed.
+//   (2) NEGATED: "don't close SPY" / "never remove the left chart" — the object of a negated removal verb is set aside.
+//   (3) RELATION: "the chart next to / right of / left of <anchor>" — the anchor is never the target (deixis relationMatch /
+//       relativeChart; the target is the relation's hit when it has one).
+//   (4) the words' own back-reference "the last chart I opened" is the conversation's chart, never an ordinal.
+const OBJ_STOP = String.raw`(?=\s+(?:from|off|on|onto|in|into|out\s+of|to|of|at|for|with|next|beside|alongside|near|above|below|under|over|left|right|except|but|and|then|please|now|too)\b|\s*[.,;:!?(—–]|$)`
+const REMOVAL_OBJECTS = [
+  // (a pronoun is skipped only when it IS the whole object — "close it", "take that off" — never "that horizontal line")
+  new RegExp(String.raw`\b${PRONOUN_VERB}\s+(?!(?:${PRONOUN_OBJ})(?:\s+(?:off|down|away|out))?${OBJ_STOP})((?:[^\s.,;:!?(—–]+\s*?){1,6}?)${OBJ_STOP}`, 'gi'),
+  new RegExp(String.raw`\btak(?:e|ing)\s+(?!(?:${PRONOUN_OBJ})\s+(?:off|out|away|down)\b)((?:[^\s.,;:!?]+\s+){1,5}?)(?:off|out|away|down)\b`, 'gi'),
+]
+/** The removal verbs' objects in the words, typed: [{ np, type: 'chart' | 'thing' | null }] (pronoun objects are the pronoun path's). */
+export function removalObjects(words, isSymbol = () => false) {
+  const w = String(words || '')
+  const out = []
+  for (const re of REMOVAL_OBJECTS) for (const m of w.matchAll(new RegExp(re.source, re.flags))) {
+    const np = String(m[1] || '').trim()
+    if (!np || NEG_LEAD.test(w.slice(Math.max(0, m.index - 12), m.index))) continue
+    out.push({ np, type: pronounAntecedent(np, isSymbol)?.type || null })
+  }
+  return out
+}
+const NEG_LEAD = /\b(?:do\s+not|don['’]?t|dont|never|not)\s+$/i
+// (2) the object of a NEGATED removal verb: "don't close SPY", "never remove the left chart", "do not drop the QQQ one"
+const NEG_REMOVAL = new RegExp(String.raw`\b(?:do\s+not|don['’]?t|dont|never|not)\s+${PRONOUN_VERB}\s+([^.;:!?,]{1,60})`, 'gi')
+function negatedRemovalCharts(w, all, host) {
+  const out = new Set()
+  for (const m of String(w || '').matchAll(NEG_REMOVAL)) {
+    const np = m[1].replace(/\s+(?:and|but|then)\b[\s\S]*$/i, '')
+    for (const c of all) if (symbolSaid(np, c.symbol) || named(np, { ref: c.ref, symbol: up(c.symbol), position: c.position || null }, host)) out.add(c.ref)
+  }
+  return out
+}
+// (4) "the last chart I opened" / "the newest one we added": the conversation's chart (made / changed by an earlier turn)
+const LAST_MADE = /\b(?:the\s+)?(?:last|latest|newest|most\s+recent)\s+(?:chart|one|graph|panel)\s+(?:(?:that|which)\s+)?(?:I|you|we)\s+(?:just\s+)?(?:opened|added|made|created|pulled\s+up|put\s+up|brought\s+up)\b/i
+// (3) the relation's anchor and target: { anchors: Set, hits: Set } — null when the words relate nothing
+// (the relation words of deixis RELATIVE, with a NAMED anchor after them — "next to the QQQ chart", "left of SPY": deixis reads only
+//  the click as an anchor, relationMatch)
+const REL_NAMED = /\b(?:(?:right|just|directly|immediately|exactly)\s+)?(?:above|over|below|under|underneath|beneath|(?:to\s+the\s+|on\s+the\s+)?(?:left|right)\s+of|next\s+(?:door\s+)?to|beside|alongside|adjacent\s+to|near|nearest(?:\s+to)?|closest\s+to)\s+([^.,;:!?]{1,40})/i
+function relationOf(w, all, selected, host) {
+  let m = null
+  try { m = relationMatch(w) } catch { m = null }
+  if (m) {
+    // the click is the anchor: the relation's hit is the target (deixis relativeChart)
+    let rel = null
+    try { rel = relativeChart(w, all, selected) } catch { rel = null }
+    const anchors = new Set(selected != null ? [selected] : [])
+    return { anchors, hits: new Set((rel?.hits || []).map(c => c.ref).filter(r => !anchors.has(r))), said: String(m[0] || '').trim() }
+  }
+  const n = REL_NAMED.exec(String(w || ''))
+  if (!n) return null
+  const anchors = new Set()
+  for (const c of all) if (symbolSaid(n[1], c.symbol) || named(n[1], { ref: c.ref, symbol: up(c.symbol), position: c.position || null }, host)) anchors.add(c.ref)
+  if (!anchors.size) return null
+  return { anchors, hits: new Set(), said: n[0].trim() }
+}
 export function removalTargets(w, host, { selected = null, subject = null, picked = null, previous = null, previousLabel = null } = {}) {
   const all = liveCharts(host)
   const ids = new Set()
@@ -633,6 +701,12 @@ export function removalTargets(w, host, { selected = null, subject = null, picke
   let wr = String(w || '')
   for (const p of [...prons].sort((a, b) => b.index - a.index)) wr = `${wr.slice(0, p.index)} ${wr.slice(p.index + p.length)}`
   wr = wr.replace(/\bit\b/gi, ' ')
+  // (4) "the last chart I opened" is no ordinal: read as the conversation's chart, below
+  const lastMade = LAST_MADE.test(wr)
+  if (lastMade) wr = wr.replace(LAST_MADE, ' the chart ')
+  // (3) the relation's anchor is named only as the anchor: out of the named read
+  const relation = relationOf(w, all, selected, host)
+  if (relation?.said) wr = wr.replace(relation.said, ' ')
   // (probe 62: "remove it from the chart" — the chart there is where the thing comes off, never the chart named for closing)
   if (prons.some(p => p.cont)) wr = wr.replace(new RegExp(FROM_CHART, 'gi'), ' ')
   let pronoun = null
@@ -684,15 +758,44 @@ export function removalTargets(w, host, { selected = null, subject = null, picke
     if (pluralOf(sym).test(w)) for (const c of mine) ids.add(c.ref)
     else ambiguous.push({ symbol: sym, charts: mine })
   }
+  if (lastMade) {
+    const prevChart = typeOfId(previous) === 'chart' ? String(previous).slice('chart:'.length) : null
+    const conv = [prevChart, subject].find(r0 => r0 != null && all.some(c => c.ref === r0))
+    ids.clear()
+    if (conv != null) ids.add(conv)
+    else if (!pronoun) pronoun = { phrase: 'the last chart you opened', ask: true }
+  }
+  if (relation) { for (const r of relation.anchors) ids.delete(r); for (const r of relation.hits) ids.add(r) }
   let excluded = new Set()
   try { excluded = new Set(excludedCharts(w, all, selected)) } catch { excluded = new Set() }
+  try { for (const r of negatedRemovalCharts(w, all, host)) excluded.add(r) } catch { /* no negated read */ }
   for (const r of excluded) ids.delete(r)
-  return { ids, ambiguous, excluded, all, pronoun }
+  return { ids, ambiguous, excluded, all, pronoun, anchors: relation?.anchors || new Set() }
 }
 function removalTargetRefusal(w, host, removed, { selected, subject, picked, known, previous, previousLabel }) {
   if (requestedPanels(w) != null || gridStated(w, known)) return null
-  const { ids, ambiguous, excluded, all, pronoun } = removalTargets(w, host, { selected, subject, picked, previous, previousLabel })
+  const { ids, ambiguous, excluded, all, pronoun, anchors } = removalTargets(w, host, { selected, subject, picked, previous, previousLabel })
   const where = (c) => (c.position ? `the ${c.position.replace('-', ' ')} one` : c.label || 'a chart')
+  const syms0 = new Set(all.map(c => String(c.symbol || '').toLowerCase()).filter(Boolean))
+  // ⛔ (1) TYPE: every removal object the words hold is a thing on a chart / in a list — no chart is closed
+  const objs = removalObjects(w, (x) => syms0.has(x))
+  if (objs.length && objs.every(o => o.type === 'thing')) {
+    const eg = removed.map(e => all.find(c => c.ref === e.ref)).find(c => c?.symbol) || all.find(c => c.symbol)
+    return `I didn’t close a chart: you asked to remove ${listOf([...new Set(objs.map(o => `“${o.np}”`))])}, which is not a chart, so nothing was changed. To close a chart, name it — for example “close ${eg?.symbol ? `the ${up(eg.symbol)} chart` : 'the left chart'}”.`
+  }
+  // ⛔ (3) RELATION: the anchor is never the target
+  const anchored = removed.filter(e => anchors.has(e.ref))
+  if (anchored.length) {
+    const c = all.find(x => x.ref === anchored[0].ref)
+    return `Which chart should I close? ${c?.symbol ? `The ${up(c.symbol)} chart` : 'That chart'} is where you pointed from, not the one to close, so nothing was changed — name the chart to close, for example “close ${listOf([...ids].map(r => all.find(x => x.ref === r)).filter(Boolean).map(x => (x.symbol ? `the ${up(x.symbol)} chart` : where(x))).slice(0, 1)) || 'the left chart'}”.`
+  }
+  // ⛔ (I4, AUDIT A1) a demonstrative on a NAMED chart ("close this IWM chart") while ANOTHER chart is clicked: which one is asked
+  const demo = /\b(?:this|that)\s+\$?([A-Za-z]{1,5})\s+(?:chart|one|panel|graph)\b/i.exec(w)
+  if (demo && selected != null) {
+    const mine = all.filter(c => up(c.symbol) === up(demo[1]))
+    const sel = all.find(c => c.ref === selected)
+    if (mine.length && sel && !mine.some(c => c.ref === selected)) return `Which chart do you mean — the ${up(sel.symbol)} chart you clicked, or the ${up(demo[1])} chart? Nothing was changed. Say “close the ${up(demo[1])} chart” or “close the ${up(sel.symbol)} chart”.`
+  }
   // ⛔ probe 62: the pronoun is no chart (a thing named before it, or words that go on past it) and no chart is named AS WHAT TO
   // REMOVE — none at all, or every removal verb the words hold takes such a pronoun ("put an RSI on the SPY chart, now delete it":
   // the SPY chart is where the RSI went) — refused
@@ -714,6 +817,11 @@ function removalTargetRefusal(w, host, removed, { selected, subject, picked, kno
   if (ambiguous.length) {
     const a = ambiguous[0]
     return `Which ${a.symbol} chart should I close? ${a.charts.length} charts show ${a.symbol} (${listOf(a.charts.map(where))}), so nothing was changed — say which one, for example “close the ${a.charts[0].position ? `${a.charts[0].position.replace('-', ' ')} ` : ''}${a.symbol} chart”, or “close both ${a.symbol} charts”.`
+  }
+  // ⛔ (AUDIT A12) a SET described by a qualifier no chart answers to ("both index charts", "all the tech charts") — never a guess
+  const qual = !ids.size ? QUALIFIED_SET.exec(w) : null
+  if (qual && qual[1].trim().split(/\s+/).some(x => !DET_FILLER().test(x.toLowerCase()) && !SET_FILLER.test(x) && !chartishWord(x) && !syms0.has(x.toLowerCase()) && !POS_ONE.test(x))) {
+    return `Which charts should I close? I can’t tell which charts “${qual[0].trim()}” are, so nothing was changed. Name them by their tickers or their places — for example “close the SPY and QQQ charts”.`
   }
   const specific = !ids.size && !SET_REMOVAL.test(w) ? SPECIFIC_CHART.exec(w) : null
   if (specific) {

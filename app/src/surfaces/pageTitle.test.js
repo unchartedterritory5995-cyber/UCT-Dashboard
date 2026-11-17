@@ -83,11 +83,13 @@ describe('S1 CP2 — the title is derived from the manifest + NAV_ITEMS, never g
   })
 
   it('is a PURE function — the same input always produces the identical output', () => {
-    const path = '/dashboard'
+    // `/charts`, the home and the first nav entry (a5ff5e1df3, 2026-11-11). This case read
+    // `/dashboard`, which is now hidden from the nav and redirects to /charts, so it has no title.
+    const path = '/charts'
     const a = titleForPath(path)
     const b = titleForPath(path)
     expect(a).toBe(b)
-    expect(a).toBe(`Dashboard — ${APP_BRAND}`)
+    expect(a).toBe(`Charts — ${APP_BRAND}`)
   })
 })
 

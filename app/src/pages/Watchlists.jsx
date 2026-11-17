@@ -1914,7 +1914,10 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     const dir = (prev.sym && prev.idx >= 0 && prev.idx === (idx + 1) % len) ? -1 : 1
     const tf = warmTf || 'D'
     const around = scanNeighbors(flat, idx, dir, { ahead: 6, behind: 6 })
-    _holdRef.current.set(around, tf)
+    const next = scanNeighbors(flat, idx, dir, { ahead: SCAN_URGENT_NEXT, behind: 0 })
+    // `deep`: once the member rests here, the next rows' older history loads too, so the flip
+    // paints them as deep as the chart would reach after its own wait (createNeighborHold).
+    _holdRef.current.set(around, tf, { deep: next })
     warmMemFromIDB(around, [tf])
     prefetchBarsToIDB(scanNeighbors(flat, idx, dir, { ahead: 6, behind: 2 }), tf, { priority: true })
     // ⭐ THE NEXT ROWS, URGENT (2026-11-17). The line above is a background warm, HELD while the
@@ -1925,7 +1928,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     // (useFocusSelection URGENT_NEXT); the watchlist now does the same for the rows the member
     // is about to reach. Only the latest urgent call stays urgent: a held arrow key aborts the
     // rows it has passed, so a fast scan costs at most SCAN_URGENT_NEXT requests in flight.
-    prefetchBars(scanNeighbors(flat, idx, dir, { ahead: SCAN_URGENT_NEXT, behind: 0 }), tf, { urgent: true })
+    prefetchBars(next, tf, { urgent: true })
   }, [selectedSym, visibleSymsFlat, warmTf])
 
   // Prefetch all timeframes for current ticker + adjacent flagged tickers

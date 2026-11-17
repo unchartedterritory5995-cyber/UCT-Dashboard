@@ -95,7 +95,25 @@ TWINS: Dict[str, Dict[str, Any]] = {
     # Extension above the 50-day simple average in ATR units: (close - SMA 50) / ATR 14.
     "atr_ext_sma50": _op("/", _op("-", _s("close"), _call("sma", _s("close"), _n(50))),
                          _call("atr", _s("high"), _s("low"), _s("close"), _n(14))),
+    # ⭐ 2026-11-17 (backlog 47) -- COLUMNS THE FORMULA TABLE LEAVES OUT AND A CHART COMPUTES EXACTLY.
+    # As nightly scalars they are not names a formula may read (`CHART_ONLY` below); as per-bar
+    # formulas they are ordinary maths, proved equal to the column like every other twin.
+    # How far the close is from its 9- and 10-day exponential averages, in percent.
+    "pct_vs_ema9": _pct_from(_call("ema", _s("close"), _n(9))),
+    "pct_vs_ema10": _pct_from(_call("ema", _s("close"), _n(10))),
+    # Average volume over 10 and 50 sessions (today included).
+    "avg_volume_10d": _call("sma", _s("volume"), _n(10)),
+    "avg_volume_50d": _call("sma", _s("volume"), _n(50)),
+    # Volume trend: the 5-session average volume against the 20-session one, in percent.
+    "vol_trend_pct": _pct_vs(_call("sma", _s("volume"), _n(5)), _call("sma", _s("volume"), _n(20))),
 }
+
+#: The twins of columns the formula table deliberately does not carry. On the chart door the
+#: Screener's own label for one of these ("Avg Volume (50d)", "EMA9 Distance") used to answer "not
+#: available", beside an indicator the chart could draw exactly. There it is a term with this
+#: formula (`definition_conversation._chart_lexicon`); the Screener's planner still says what is true
+#: for a SCREEN, where the column itself is not a formula name.
+CHART_ONLY = frozenset({"pct_vs_ema9", "pct_vs_ema10", "avg_volume_10d", "avg_volume_50d", "vol_trend_pct"})
 
 
 def _distance_phrases(leads, windows, edge):

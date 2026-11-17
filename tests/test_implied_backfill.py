@@ -301,7 +301,15 @@ class TestFiscalJoin:
         import tools.implied_backfill_run as run
         from api.services import earnings_estimates as ee_mod
 
-        def fake_fmp(path, params):
+        # ⚰️ 2026-11-17: these fakes took (path, params) only; d050f867f7 (G1, "every call site names its own
+        # timeout") made implied_backfill call `_fmp_get(..., timeout=10)`, and 15 tests in this file went red
+        # on a TypeError about the fake's signature, not on anything the code does (nightly 43726736793). The
+        # fakes now take and RECORD the keyword arguments, and test_the_fmp_call_names_its_own_timeout pins
+        # that the timeout is actually sent.
+        self.fmp_kwargs = []
+
+        def fake_fmp(path, params, **kw):
+            self.fmp_kwargs.append(kw)
             return [{"date": d} for d in self.FMP[params["symbol"]]]
 
         def fake_fh(path, params):
@@ -336,6 +344,15 @@ class TestFiscalJoin:
         assert got["2026-01-29"] == (2026, 1)
         assert got["2026-04-30"] == (2026, 2)
 
+    def test_the_fmp_call_names_its_own_timeout(self, providers):
+        """d050f867f7 (G1): every call site names its own timeout rather than inheriting a shared
+        default. The fakes accept the keyword; this proves the call actually sends a bounded one."""
+        ib.past_reports("AAPL", 4)
+        assert self.fmp_kwargs, "the FMP leg was never called -- this rail measured nothing"
+        for kw in self.fmp_kwargs:
+            t = kw.get("timeout")
+            assert isinstance(t, (int, float)) and 0 < t <= 60, kw
+
     def test_future_announcements_are_excluded(self, providers):
         """NVDA's 2026-08-26 row has not reported — there is no implied move
         to reconstruct and no realized move to pair it against."""
@@ -356,7 +373,7 @@ class TestFiscalJoin:
         import tools.implied_backfill_run as run
         from api.services import earnings_estimates as ee_mod
         # Both announcements sit inside the same quarter bucket.
-        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [
+        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q, **_kw: [
             {"date": "2025-11-19"}, {"date": "2025-11-25"},
         ])
         monkeypatch.setattr(ee_mod, "_fh_get", lambda p, q: [
@@ -380,7 +397,7 @@ class TestFiscalJoin:
         prevent. Refuse instead."""
         import tools.implied_backfill_run as run
         from api.services import earnings_estimates as ee_mod
-        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [{"date": "2025-11-19"}])
+        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q, **_kw: [{"date": "2025-11-19"}])
         monkeypatch.setattr(ee_mod, "_fh_get",
                             lambda p, q: [{"period": "2023-03-31", "year": 2023, "quarter": 1}])
         assert ib.past_reports("NVDA", 4) == []
@@ -454,7 +471,7 @@ class TestFmpIsThePrimaryFiscalSource:
         from api.services import earnings_estimates as ee_mod
         monkeypatch.setattr(ib, "fmp_beat_history", lambda s, limit=8: fmp_result)
         monkeypatch.setattr(ib, "_FH_PACE_SECONDS", 0.0)
-        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [{"date": "2025-11-19"}])
+        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q, **_kw: [{"date": "2025-11-19"}])
         monkeypatch.setattr(
             ee_mod, "_fh_get",
             lambda p, q: [{"period": "2025-12-31", "year": 2026, "quarter": 3}])
@@ -472,7 +489,7 @@ class TestFmpIsThePrimaryFiscalSource:
 
         monkeypatch.setattr(ib, "fmp_beat_history", boom)
         monkeypatch.setattr(ib, "_FH_PACE_SECONDS", 0.0)
-        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [{"date": "2025-11-19"}])
+        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q, **_kw: [{"date": "2025-11-19"}])
         monkeypatch.setattr(
             ee_mod, "_fh_get",
             lambda p, q: [{"period": "2025-12-31", "year": 2026, "quarter": 3}])
@@ -484,7 +501,7 @@ class TestFmpIsThePrimaryFiscalSource:
         pass silently."""
         from api.services import earnings_estimates as ee_mod
 
-        def fake_fmp(path, params):
+        def fake_fmp(path, params, **_kw):
             if "income-statement" in path:
                 return [{"date": "2026-06-30", "period": "Q2",
                          "fiscalYear": "2026", "acceptedDate": "2026-08-03 16:05:00"}]
@@ -570,7 +587,7 @@ class TestFinnhubPacing:
         from api.services import earnings_estimates as ee_mod
         monkeypatch.setattr(ib, "_FH_PACE_SECONDS", 0.0)
         monkeypatch.setattr(ib, "_FH_COOLDOWN_WAIT", 0.0)
-        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [{"date": "2025-11-19"}])
+        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q, **_kw: [{"date": "2025-11-19"}])
         calls = {"n": 0}
 
         def flaky(path, params):
@@ -590,7 +607,7 @@ class TestFinnhubPacing:
         from api.services import earnings_estimates as ee_mod
         monkeypatch.setattr(ib, "_FH_PACE_SECONDS", 0.0)
         monkeypatch.setattr(ib, "_FH_COOLDOWN_WAIT", 0.0)
-        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [{"date": "2025-11-19"}])
+        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q, **_kw: [{"date": "2025-11-19"}])
         calls = {"n": 0}
 
         def always_empty(path, params):
@@ -607,7 +624,7 @@ class TestFinnhubPacing:
         import tools.implied_backfill_run as run
         from api.services import earnings_estimates as ee_mod
         monkeypatch.setattr(run, "_FH_PACE_SECONDS", 0.0)
-        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [])
+        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q, **_kw: [])
         called = {"n": 0}
 
         def spy(path, params):
@@ -628,7 +645,7 @@ class TestFinnhubPacing:
         monkeypatch.setattr(ib, "_FH_PACE_SECONDS", 2.5)
         slept = []
         monkeypatch.setattr(ib.time, "sleep", lambda s: slept.append(s))
-        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q: [{"date": "2025-11-19"}])
+        monkeypatch.setattr(ee_mod, "_fmp_get", lambda p, q, **_kw: [{"date": "2025-11-19"}])
         monkeypatch.setattr(ee_mod, "_fh_get",
                             lambda p, q: [{"period": "2025-12-31", "year": 2026, "quarter": 3}])
         ib.past_reports("NVDA", 4)
