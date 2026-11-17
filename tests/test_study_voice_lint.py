@@ -59,3 +59,11 @@ def test_strict_exit_code(tmp_path):
     good = _unit({"key": "q01", "q": "Do you buy it?", "why": "Yes. We buy it as it trades through the high."})
     p.write_text(json.dumps(good), encoding="utf-8")
     assert vl.main(["--file", str(p), "--strict"]) == 0
+
+
+def test_walkthroughs_are_linted_too():
+    unit = {"unit": "T.01", "questions": [],
+            "walkthroughs": [{"key": "w1", "title": "Our card's example", "steps": ["Step one.", "Our rule? It lifts the grade."]}],
+            "verify": {"w1": {"status": "pass"}}}
+    r = vl.lint_unit(unit, SPEC)
+    assert r["hard"]["internal_card"] >= 1 and r["hard"]["textbook_phrase"] >= 1

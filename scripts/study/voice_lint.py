@@ -64,10 +64,18 @@ def lint_question(q: dict, spec: dict) -> dict:
     return out
 
 
+def live_walkthroughs(unit: dict) -> list[dict]:
+    """The lesson's walkthroughs a member reads (verify status "pass"), as question-shaped dicts: the title in `q`,
+    the steps in `why`, so the same tells apply (the 2026-11-17 setup rewrite left them untouched)."""
+    verify = unit.get("verify") or {}
+    return [{"key": w.get("key"), "q": str(w.get("title") or ""), "why": " ".join(str(s) for s in w.get("steps") or [])}
+            for w in unit.get("walkthroughs") or [] if (verify.get(w.get("key")) or {}).get("status") == "pass"]
+
+
 def lint_unit(unit: dict, spec: dict) -> dict:
     qs = live_questions(unit)
     per_q, hard, soft = {}, collections.Counter(), collections.Counter()
-    for q in qs:
+    for q in qs + live_walkthroughs(unit):
         r = lint_question(q, spec)
         if r["hard"] or r["soft"]:
             per_q[q.get("key")] = r
