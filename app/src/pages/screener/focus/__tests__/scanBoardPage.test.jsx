@@ -224,4 +224,10 @@ test('an admin is told on the Layout menu how many shared layouts wait for revie
   await waitFor(() => expect(galleryCalls()).toEqual([['GET', '/api/screener/layout-gallery', undefined]]))
   fireEvent.click(screen.getByRole('button', { name: 'Layout' }))
   await waitFor(() => expect(within(screen.getByRole('menu', { name: 'Layout' })).getByRole('menuitem', { name: /Community layouts/ }).textContent).toBe('Community layouts…2 to review'))
+  // found on the live site: the count is read again after the admin shares a layout themselves
+  fireEvent.click(within(screen.getByRole('menu', { name: 'Layout' })).getByRole('menuitem', { name: 'Share this layout…' }))
+  const ask = await screen.findByRole('dialog', { name: 'Share this layout' })
+  fireEvent.change(within(ask).getByLabelText('Layout name'), { target: { value: 'Mine' } })
+  fireEvent.click(within(ask).getByRole('button', { name: 'Share' }))
+  await waitFor(() => expect(galleryCalls().map(c => c[0])).toEqual(['GET', 'POST', 'GET']))
 })
