@@ -869,3 +869,32 @@ def test_rearm_takes_exactly_one_pr():
         calls = []
         assert rearm.main([*argv, "--repo", REPO], get=lambda p: calls.append(p), run=lambda a, **k: calls.append(a)) == rearm.REFUSED, argv
         assert calls == [], argv   # refused before a single read
+
+
+# --- GhApi.remote_ref: exact-ref filter on `git ls-remote` output (AUDIT T2 #1696 survivor 2) -----------------
+# ls-remote patterns match by trailing path components, so a foreign ref such as refs/x/refs/agent-ci-evidence/pr-7
+# also matches the pattern. remote_ref must return only the EXACT ref, and None when it is absent or ambiguous.
+
+def _ls_remote_returning(monkeypatch, stdout):
+    def fake_run(argv, **kw):
+        assert argv[:2] == ["git", "ls-remote"], argv
+        return types.SimpleNamespace(returncode=0, stdout=stdout, stderr="")
+    monkeypatch.setattr(ev.subprocess, "run", fake_run)
+
+
+def test_remote_ref_returns_the_exact_ref_not_a_suffix_matching_foreign_ref(monkeypatch):
+    ref = "refs/agent-ci-evidence/pr-7"
+    _ls_remote_returning(monkeypatch, f"{'b' * 40}\trefs/x/{ref}\n{'a' * 40}\t{ref}\n")
+    assert ev.GhApi("o/r").remote_ref(ref) == "a" * 40
+
+
+def test_remote_ref_ignores_a_foreign_ref_alone(monkeypatch):
+    ref = "refs/agent-ci-evidence/pr-7"
+    _ls_remote_returning(monkeypatch, f"{'b' * 40}\trefs/x/{ref}\n")
+    assert ev.GhApi("o/r").remote_ref(ref) is None
+
+
+def test_remote_ref_is_none_when_the_exact_ref_is_listed_twice(monkeypatch):
+    ref = "refs/agent-ci-evidence/pr-7"
+    _ls_remote_returning(monkeypatch, f"{'a' * 40}\t{ref}\n{'c' * 40}\t{ref}\n")
+    assert ev.GhApi("o/r").remote_ref(ref) is None
