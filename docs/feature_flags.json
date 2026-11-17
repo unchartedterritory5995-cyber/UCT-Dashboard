@@ -2517,10 +2517,10 @@
       "where": [
         "web"
       ],
-      "railway_value": "admins",
+      "railway_value": "all",
       "last_changed": "2026-11-12T23:30:15Z",
       "owner": "pine parity programme",
-      "owner_decision": "2026-10-02 ruling D1 (admins first, then everyone, kill list as the safety net); 2026-10-31 ruling R2 (Phase 3 plan section 4.6): a cohort stage between admins and all. The flip itself is not yet taken",
+      "owner_decision": "2026-10-02 ruling D1 (admins first, then everyone, kill list as the safety net); 2026-10-31 ruling R2 (Phase 3 plan section 4.6): a cohort stage between admins and all. READ LIVE 2026-11-17 ~20:40Z by the coordinator (`railway variables --service web --kv`): PINE_RUNTIME_STAGE=all, with VITE_PINE_RUNTIME_PANE_ENABLED=1 and VITE_PINE_MEMBER_PANE_ENABLED=1 on BOTH web and web-front (the members' bundle), and PINE_RUNTIME_CAPABILITY_ADMISSION=on. So MEMBERS are on the runtime lane. The move from admins to all was NOT recorded in this ledger; last_changed above is still the admins flip, because the all flip's time is unknown. This row said 'admins' and 'not yet taken' while production served all, and on 2026-11-17 two agents planned member work on that stale value (a compute-cap ruling and the route-by-cost PR #1711). ⛔ This ledger is a record, never the authority: read `railway variables` before any decision that depends on a stage.",
       "default": "off",
       "values": [
         "off",
