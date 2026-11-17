@@ -658,7 +658,10 @@ CONVERSE_SYSTEM_PROMPT = (
     "  A length the member gives in weeks, months or years is that much TIME, never that many "
     "bars of the chart: read it on that timeframe (\"over 52 weeks\" is 52 bars INSIDE a `tf` W "
     "read; a whole indicator in weeks is set_calculation_timeframe W), or, for a price extreme, "
-    "use the daily count (a 52-week high is the highest of 252 daily bars). Do not build it in "
+    "use the daily count (a 52-week high is the highest of 252 daily bars). An indicator that "
+    "reads ANOTHER SYMBOL cannot take set_calculation_timeframe at all: there, a length in weeks "
+    "is the daily count (a 52-week average of a ratio against SPY is its 252-bar average), and "
+    "you say so. Do not build it in "
     "the chart's own bars and ask the member to switch charts. \"Yesterday's\", \"the prior "
     "day's\" and \"today's\" values are DAILY values: set_calculation_timeframe D, so they hold "
     "on an intraday chart; `high[1]` alone is only the previous BAR.\n"
@@ -1485,6 +1488,22 @@ def _check_references(envelope: Mapping[str, Any], view: Any) -> None:
     for o in ops:
         if o.get("op") == "set_calculation_timeframe":
             calc = o.get("timeframe")
+    if isinstance(calc, str) and calc != "chart":
+        # ⭐ 2026-11-17 -- AND IT DOES NOT MOVE AN INDICATOR THAT READS ANOTHER SYMBOL
+        # (`calc-tf:other-symbol`). "Mansfield relative strength versus SPY over 52 weeks" came back
+        # as a ratio against SPY with `set_calculation_timeframe W`; the browser answered "An
+        # indicator that reads another symbol is calculated on the chart's own timeframe". ⚰️ I
+        # called that request fixed from the door's answer alone; the window showed the refusal.
+        readers = sorted(k for k, t in _authored_trees(envelope, view).items() if _reads_other_symbol(t))
+        if readers:
+            raise _Refused(
+                "envelope:reference",
+                f"set_calculation_timeframe {calc!r}: this indicator reads another symbol "
+                f"({', '.join(readers)}), and such an indicator is calculated on the chart's own "
+                "timeframe. Drop set_calculation_timeframe. For a weekly or monthly READ put the "
+                "`sym` outside a `tf` (SPY's weekly close is sym(SPY, tf(close, W))); for a length "
+                "in weeks over a ratio against another symbol use the daily count (52 weeks is 252 "
+                "daily bars) and say so.")
     if isinstance(calc, str) and calc != "chart" and marked:
         raise _Refused(
             "envelope:reference",
@@ -1839,6 +1858,20 @@ def _outputs_edited(ops: Any) -> set:
         elif name in ("set_output_tree", "add_clause", "remove_clause") and isinstance(o.get("output"), str):
             keys.add(o["output"])
     return keys
+
+
+def _reads_other_symbol(tree: Any) -> bool:
+    """Does this tree hold a `sym` node anywhere?"""
+    stack = [tree]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, Mapping):
+            if node.get("type") == "sym":
+                return True
+            stack.extend(node.get("args") or [])
+        elif isinstance(node, list):
+            stack.extend(node)
+    return False
 
 
 def check_output_renames(envelope: Mapping[str, Any], message: Any, view: Any,
