@@ -173,6 +173,9 @@ def patch_schema() -> Dict[str, Any]:
 
 #: ⭐ PER-TURN OP CAP, READ OFF THE CONTRACT so the two can never disagree.
 MAX_OPS: int = int(json.loads(_raw_schema_text())["x-uct-limits"]["maxOps"])
+#: How many columns one indicator holds, hidden colour-rule columns included (the browser's
+#: ``PATCH_LIMITS.maxOutputs``, read from the same contract file).
+MAX_OUTPUTS: int = int(json.loads(_raw_schema_text())["x-uct-limits"]["maxOutputs"])
 
 
 def chart_table() -> Dict[str, Any]:
@@ -592,6 +595,13 @@ CONVERSE_SYSTEM_PROMPT = (
     "an output drawn as markers cannot also take set_color_states. For dots that change color "
     "by state (a squeeze on the zero line), draw a thick line on that constant level with "
     "set_color_states, or use one yes/no output per color, each with its own set_marker color. "
+    f"An indicator holds {MAX_OUTPUTS} columns in all, and every output colored by state or by "
+    "rising/falling, and every conditional fill, uses one HIDDEN column of its own: for a ribbon "
+    "of many lines that share one state, color the candles or the background once "
+    "(set_color_states with `channel`) or color at most three of the lines, and never add an "
+    "output that only repeats a `when` tree. set_calculation_timeframe moves LINES only: an "
+    "indicator that draws a marker stays on the chart's timeframe, so a weekly or monthly "
+    "condition with a marker is written with `tf` W / M nodes inside the tree. "
     "A conditional cloud: set_fill with `when` (colorAbove where the first output is "
     "above the second, colorBelow where below). A header value: request_info_value. "
     "An alert: request_alert -- on a yes/no output with triggerPolicy is_true, "
@@ -1464,6 +1474,54 @@ def _check_references(envelope: Mapping[str, Any], view: Any) -> None:
     # had been built. The browser's rule (`tables.js::tableSpecProblem`) runs here, against the keys
     # this answer ENDS with (never stricter than the browser: the order of ops is not judged), so
     # the model gets its one repair with the way out in the diagnostic.
+    # ⭐ 2026-11-17 -- TWO MORE BROWSER RULES THIS DOOR PASSED, both measured on production in the
+    # second exploratory round, both ending in a red error for a request the assistant had built.
+    #
+    # 1. A CALCULATION TIMEFRAME MOVES LINES, NOT MARKERS (`calcTimeframeCapability`: "markers").
+    #    "Three weeks tight" came back as a daily-bar condition with `set_calculation_timeframe W`
+    #    and a marker; the browser answered "This indicator is always calculated on the chart's own
+    #    timeframe". Judged on what the answer ENDS with, as the browser does.
+    calc = None
+    for o in ops:
+        if o.get("op") == "set_calculation_timeframe":
+            calc = o.get("timeframe")
+    if isinstance(calc, str) and calc != "chart" and marked:
+        raise _Refused(
+            "envelope:reference",
+            f"set_calculation_timeframe {calc!r}: this indicator draws a marker "
+            f"({', '.join(sorted(marked))}), and a calculation timeframe moves lines only. Drop "
+            "set_calculation_timeframe and write the weekly or monthly read INSIDE the tree with "
+            "`tf` W / M nodes (three weekly closes: tf reads of highest and lowest close), then put "
+            "the marker on that condition.")
+    # 2. EVERY COLOUR RULE COSTS A HIDDEN COLUMN, AND THE LIMIT COUNTS THEM (`output:limit`). A
+    #    ribbon of five averages, each coloured by one state, is ten columns; the browser answered
+    #    "This indicator already has as many lines as it can hold". ⛔ Never stricter than the
+    #    browser: a target that already owns a hidden column in the view is not counted again, so a
+    #    rule being REPLACED costs nothing here.
+    owned = {str(o.get("of")) for o in view_outputs if o.get("of") is not None}
+    wanted: set = set()
+    for o in ops:
+        kind = o.get("op")
+        if kind == "set_color_states" and (o.get("states") or "otherwise" in o):
+            wanted.add(o.get("output") if isinstance(o.get("output"), str)
+                       else {"barcolor": "candles", "bgcolor": "background"}.get(o.get("channel")))
+        elif kind == "set_color_rule" and o.get("rule") == "rising" and isinstance(o.get("output"), str):
+            wanted.add(o["output"])
+        elif kind == "set_fill" and o.get("when") is not None and isinstance(o.get("output"), str):
+            wanted.add("fill:" + o["output"])
+    wanted.discard(None)
+    extra = sorted(t for t in wanted if t not in owned and (t.startswith("fill:") or t in keys
+                                                           or t in ("candles", "background")))
+    if len(keys) + len(extra) > MAX_OUTPUTS:
+        raise _Refused(
+            "envelope:reference",
+            f"this answer needs {len(keys) + len(extra)} columns and an indicator holds {MAX_OUTPUTS}: "
+            f"{len(keys)} outputs, plus one hidden column for each output colored by state or by "
+            f"rising/falling and each conditional fill ({len(extra)} here). For several lines that "
+            "share ONE state, color the candles or the background once (set_color_states with "
+            "`channel`) and leave the lines one color, or color fewer lines; and do not add an output "
+            "that only repeats a `when` tree.")
+
     if tables:
         settings = declared_inputs(envelope, view)
         for i, o in tables:
