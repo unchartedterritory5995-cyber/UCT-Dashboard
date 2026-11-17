@@ -19,6 +19,7 @@ import { HEADER_FIELDS, headerFieldKeys, resolveHeaderField, SIGN_POS, SIGN_NEG 
 import {
   COLUMN_GROUPS, LIVE_COLUMNS, FACT_COLUMNS, EXISTING_PLACEMENT, factFieldsFor, factValue, factText,
 } from '../../pages/watchlist/watchlistColumnCatalog'
+import { isCustomStatKey, customStatsOf, customStatKey, customStatFor, customStatsWithout } from './headerCustomStats'
 
 export const STAT_LABEL_MAX = 16
 
@@ -57,8 +58,10 @@ export function headerStatKeys(header) {
   if (!Array.isArray(header?.fields)) return headerFieldKeys(header)
   const seen = new Set()
   const out = []
+  // a custom stat's key (`cx:<id>`, headerCustomStats.js) is known while its entry is stored
+  const custom = new Set(customStatsOf(header).map((c) => customStatKey(c.id)))
   for (const k of header.fields) {
-    if (typeof k !== 'string' || !HEADER_STAT_BY_KEY[k] || seen.has(k)) continue
+    if (typeof k !== 'string' || (!HEADER_STAT_BY_KEY[k] && !custom.has(k)) || seen.has(k)) continue
     seen.add(k)
     out.push(k)
   }
@@ -76,8 +79,9 @@ export function statLabelsOf(header) {
   const raw = header?.statLabels
   const out = {}
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out
+  const custom = new Set(customStatsOf(header).map((c) => customStatKey(c.id)))
   for (const [k, v] of Object.entries(raw)) {
-    if (!HEADER_STAT_BY_KEY[k]) continue
+    if (!HEADER_STAT_BY_KEY[k] && !custom.has(k)) continue
     const l = cleanStatLabel(v)
     if (l) out[k] = l
   }
@@ -88,7 +92,7 @@ export function statLabelsOf(header) {
 export function withStatLabel(header, key, label) {
   const next = statLabelsOf(header)
   const l = cleanStatLabel(label)
-  const s = HEADER_STAT_BY_KEY[key]
+  const s = HEADER_STAT_BY_KEY[key] || (customStatFor(header, key) ? { label: customStatFor(header, key).name || '' } : null)
   if (!s) return next
   if (!l || l === s.label) delete next[key]
   else next[key] = l
@@ -97,6 +101,21 @@ export function withStatLabel(header, key, label) {
 
 /** The `header` patch for toggling one stat: a pick is appended, an unpick is removed (with its rename). */
 export function headerStatTogglePatch(header, key) {
+  if (isCustomStatKey(key)) {
+    // a custom stat is ADDED by the custom-stat builder (addCustomStatPatch); here it can only be removed, and it
+    // takes its stored entry, rename and color with it (a freed id may be reused by the next custom stat)
+    if (!customStatFor(header, key)) return {}
+    const labels = statLabelsOf(header)
+    delete labels[key]
+    const patch = { fields: headerStatKeys(header).filter((k) => k !== key), statLabels: labels, customStats: customStatsWithout(header, key) }
+    const colors = header?.colors && typeof header.colors === 'object' ? header.colors : null
+    if (colors && [key, `${key}:pos`, `${key}:neg`].some((k) => k in colors)) {
+      const c = { ...colors }
+      delete c[key]; delete c[`${key}:pos`]; delete c[`${key}:neg`]
+      patch.colors = c
+    }
+    return patch
+  }
   if (!HEADER_STAT_BY_KEY[key]) return {}
   const cur = headerStatKeys(header)
   if (!cur.includes(key)) return { fields: [...cur, key] }
@@ -171,6 +190,10 @@ export function headerStatItems(keys, labels, colors, ctx) {
   const ov = colors || {}
   const out = []
   for (const key of keys || []) {
+    if (isCustomStatKey(key)) {
+      out.push(customStatItem(key, own[key], ov, ctx))
+      continue
+    }
     const f = HEADER_STAT_BY_KEY[key]
     if (!f) continue
     const { value, color, sign } = resolveHeaderStat(key, ctx)
@@ -188,4 +211,37 @@ export function headerStatItems(keys, labels, colors, ctx) {
     })
   }
   return out
+}
+
+/** A custom stat's info-row item. The value is the compute's (`ctx.custom[key]`, engine/customStatCompute.js, run by
+ *  the chart over its own bars); until it answers, the stored name and '—'. A stat whose output sits around zero
+ *  (the indicator declares a 0 guide) is signed: green / red by sign, or the member's `<key>:pos|neg` override. */
+function customStatItem(key, rename, ov, ctx) {
+  const c = (ctx && ctx.custom && ctx.custom[key]) || null
+  const stored = c ? null : customStatFor(ctx?.header, key)
+  const label = (c && c.label) || (stored && stored.name) || 'Custom stat'
+  const short = (c && c.short) || label
+  const value = c && c.state === 'value' ? c.text : (c && c.state === 'refused' ? 'n/a' : null)
+  const signed = !!(c && c.signed)
+  const num = c && Number.isFinite(c.value) ? c.value : null
+  const sign = signed ? (num != null && num < 0 ? 'neg' : 'pos') : null
+  const color = signed
+    ? (ov[`${key}:${sign}`] || (num == null ? null : (sign === 'neg' ? SIGN_NEG : SIGN_POS)))
+    : (ov[key] || null)
+  const title = [rename ? label : (c && c.title) || label, c && c.reason].filter(Boolean).join(' · ')
+  return { key, label: rename || label, short: rename || short, title, value: value ?? null, color, sign, custom: true }
+}
+
+/** The settings window's description of one chosen stat: the catalog's own entry, or a custom stat's (its live
+ *  `meta` from customStatCompute when given, else the stored name). null = not a stat of this header. */
+export function headerStatMetaOf(header, key, customMeta) {
+  if (HEADER_STAT_BY_KEY[key]) return HEADER_STAT_BY_KEY[key]
+  const c = customStatFor(header, key)
+  if (!c) return null
+  const m = (customMeta && customMeta[key]) || null
+  const label = (m && m.label) || c.name || 'Custom stat'
+  return {
+    key, label, short: label, desc: (m && m.desc) || 'Custom stat: an indicator value on the newest bar',
+    source: 'custom', signed: !!(m && m.signed), colorKey: key, dflt: null, custom: true,
+  }
 }

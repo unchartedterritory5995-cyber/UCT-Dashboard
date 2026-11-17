@@ -32,7 +32,9 @@ import * as engineRegistry from './engine/nativeRegistry'
 import usePreferences, { parsePref } from '../../hooks/usePreferences'
 import UIcon from '../ui/UIcon'
 import { HEADER_FIELDS, SIGN_POS, SIGN_NEG } from './headerFields'
-import { headerStatKeys, statLabelsOf, withStatLabel, headerStatTogglePatch, movedHeaderStats } from './headerStatCatalog'
+import { headerStatKeys, statLabelsOf, withStatLabel, headerStatTogglePatch, movedHeaderStats, headerStatMetaOf } from './headerStatCatalog'
+import { customStatsOf, customStatKey, addCustomStatPatch, customStatAddRefusal } from './headerCustomStats'
+import { customStatLabel, customStatSigned, customStatOutputRefusal } from './engine/customStatCompute'
 import { HeaderStatList, HeaderStatPicker } from './HeaderStatPicker'
 import styles from './ChartSettingsModal.module.css'
 import useFocusTrap from '../mobile/useFocusTrap'
@@ -919,6 +921,26 @@ export default function ChartSettingsModal({
   const infoFields = headerStatKeys(header)
   const statLabels = statLabelsOf(header)
   const toggleInfoField = (key) => setHeader(headerStatTogglePatch(header, key))
+  // Custom stats (owner 11-16, headerCustomStats.js): each one's live name / sign from its definition (the stored
+  // name when the definition is not installed), so the list, the picker and the swatches name it like the chart does.
+  const customMeta = {}
+  for (const c of customStatsOf(header)) {
+    const def = engineRegistry.getDefinition(c.defId)
+    if (!def) continue
+    let names = null
+    try { names = customStatLabel(def, c) } catch { names = null }
+    const why = customStatOutputRefusal(def, c.plotKey, engineRegistry)
+    customMeta[customStatKey(c.id)] = {
+      label: (names && names.label) || c.name, signed: customStatSigned(def),
+      desc: why ? `Custom stat · ${why}` : `Custom stat · ${(names && names.title) || c.name || 'an indicator'}, its value on the newest bar`,
+    }
+  }
+  const infoStatMeta = (key) => headerStatMetaOf(header, key, customMeta)
+  const addCustomInfoField = (entry) => {
+    const patch = addCustomStatPatch(header, entry, infoFields)
+    if (patch.customStats) setHeader(patch)
+  }
+  const customInfoRefusal = (entry) => customStatAddRefusal(header, entry)
   const moveInfoField = (from, to) => setHeader({ fields: movedHeaderStats(header, from, to) })
   const renameInfoField = (key, label) => {
     const next = withStatLabel(header, key, label)
@@ -927,8 +949,12 @@ export default function ChartSettingsModal({
   }
   // "Reset to UCT default" in the picker: the stats go back to today's row (no `fields`, no renames).
   const resetInfoFields = () => {
-    const { fields: _f, statLabels: _l, ...rest } = header
-    if (!('fields' in header) && !('statLabels' in header)) return
+    const { fields: _f, statLabels: _l, customStats: _c, ...rest } = header
+    if (!('fields' in header) && !('statLabels' in header) && !('customStats' in header)) return
+    // a custom stat's color goes with it (its id can be reused by the next custom stat)
+    if (rest.colors && Object.keys(rest.colors).some((k) => k.startsWith('cx:'))) {
+      rest.colors = Object.fromEntries(Object.entries(rest.colors).filter(([k]) => !k.startsWith('cx:')))
+    }
     setSetting({ header: rest })
   }
   const hdrColors = header.colors || {}
@@ -1535,7 +1561,8 @@ export default function ChartSettingsModal({
           )}
 
           {activeTab === 'header' && statPickerOpen && (
-            <HeaderStatPicker styles={styles} keys={infoFields} onToggle={toggleInfoField} onReset={resetInfoFields} onDone={() => setStatPickerOpen(false)} />
+            <HeaderStatPicker styles={styles} keys={infoFields} onToggle={toggleInfoField} onReset={resetInfoFields} onDone={() => setStatPickerOpen(false)}
+              metaOf={infoStatMeta} onAddCustom={addCustomInfoField} customAddRefusal={customInfoRefusal} />
           )}
           {activeTab === 'header' && !statPickerOpen && (<>
           {/* TITLE — the ticker/company label + its color + the day-change readout that
@@ -1634,6 +1661,7 @@ export default function ChartSettingsModal({
               onRename={renameInfoField}
               onMove={moveInfoField}
               onRemove={toggleInfoField}
+              metaOf={infoStatMeta}
               renderColors={(f) => (f.signed ? (<>
                 {colorSwatch(`hdrf:${f.colorKey}:pos`, `${f.label} — positive`)}
                 {colorSwatch(`hdrf:${f.colorKey}:neg`, `${f.label} — negative`)}

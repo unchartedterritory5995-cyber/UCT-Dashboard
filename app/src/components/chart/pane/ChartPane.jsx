@@ -43,6 +43,7 @@ import {
 import {
   headerStatKeys, statLabelsOf, statNeedsQuote, statFactFields, headerStatItems,
 } from '../headerStatCatalog'
+import { customStatsOf, customStatKey } from '../headerCustomStats'
 import usePreferences from '../../../hooks/usePreferences'
 import useThemeIndexBars from '../../../hooks/useThemeIndexBars'
 import useBreadthSymbols from '../../../hooks/useBreadthSymbols'
@@ -609,11 +610,21 @@ function ChartPane({
   // while this header makes it (the delisted check: for every real ticker, on a pane whose
   // info row can show, as with the snapshot: a compact or mini pane asks for no row).
   useHeaderExtrasWarm({ perf: wantsPerf, theme: wantsTheme, meta: wantsMeta, curve: wantsCurve, delisted: infoGate && !(synthDailyOnly || exhibit) })
+  // Custom stats (owner 11-16, headerCustomStats.js): the chosen ones are handed to StockChart, which computes each
+  // over the chart's own bars (engine/customStatCompute.js) and reports the values back only when one changes.
+  const shownCustomStats = useMemo(() => {
+    if (!infoGate) return null
+    const on = new Set(infoFieldKeys)
+    const list = customStatsOf(hdr).filter((c) => on.has(customStatKey(c.id)))
+    return list.length ? list : null
+  }, [hdr, infoFieldKeys, infoGate])
+  const [customValues, setCustomValues] = useState(null)
+  const onHeaderCustomStats = useCallback((v) => setCustomValues(v && Object.keys(v).length ? v : null), [])
   const metaItems = useMemo(() => {
-    const ctx = { fund, quote: hdrPrices?.[sym], meta: hdrMeta?.[sym], perf: perfData?.[sym], theme: hdrTheme?.[sym], name: companyName, isFundLike, facts: factsRow, volCurve, sym }
+    const ctx = { fund, quote: hdrPrices?.[sym], meta: hdrMeta?.[sym], perf: perfData?.[sym], theme: hdrTheme?.[sym], name: companyName, isFundLike, facts: factsRow, custom: customValues, header: hdr, volCurve, sym }
     // one pure builder (headerStatCatalog.js): value, colour override / sign tint, and the member's rename
     return headerStatItems(infoFieldKeys, statLabels, hdrColors, ctx)
-  }, [infoFieldKeys, statLabels, hdrColors, fund, hdrPrices, hdrMeta, hdrTheme, perfData, factsRow, sym, companyName, isFundLike, volCurve])
+  }, [infoFieldKeys, statLabels, hdrColors, fund, hdrPrices, hdrMeta, hdrTheme, perfData, factsRow, sym, companyName, isFundLike, volCurve, customValues, hdr])
   // The SAME next-earnings date the header's "Next Earnings" field shows, handed to the chart's "E" marker so the two
   // always agree (owner test 11-16: the header read 12/9 while /api/chart/markers had no upcoming row → no E).
   const nextEarningsHint = (fund?.next_earnings || hdrMeta?.[sym]?.next_earnings || null)
@@ -1214,6 +1225,8 @@ function ChartPane({
         <StockChart
           sym={sym}
           nextEarningsHint={nextEarningsHintDate}
+          headerCustomStats={shownCustomStats}
+          onHeaderCustomStats={shownCustomStats ? onHeaderCustomStats : null}
           studioDockHost={studioDockHost}
           onStudioDockChange={setStudioOpen}
           tf={effectiveTf}

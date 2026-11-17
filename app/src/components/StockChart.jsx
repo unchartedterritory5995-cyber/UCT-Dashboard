@@ -230,6 +230,9 @@ import { kindOf as definitionKindOf, copyVerdict } from './chart/builder/definit
 // installed output, read from the binder's own latest value (`infoValueResolve`).
 import { addInfoValue, removeInfoValue, hasInfoValue, infoValueAddRefusal, infoValuesOf } from './chart/engine/infoValues'
 import { resolveInfoValues, infoValueOutputExists } from './chart/engine/infoValueResolve'
+// Custom header stats (owner 11-16): an indicator output's newest value in the host's info row, computed by the
+// registry's own `computeFor` over the same bars the binder draws from (`engine/customStatCompute.js`).
+import { computeCustomStats } from './chart/engine/customStatCompute'
 // ⭐ THE PER-PLOT REPAINT VERDICT — DERIVED BY THE LINTER, NEVER READ OFF A
 // BADGE. See `engine/repaintVerdict.js`'s header for why it is computed rather
 // than stored and how it relates to the definition's own `meta.repaint`.
@@ -3517,6 +3520,8 @@ export default function StockChart({
   // markers/price lines, which would "randomly" appear on any ticker the viewer
   // happens to have traded. Set true to suppress the personal journal overlay.
   hideJournalOverlay = false,
+  headerCustomStats = null,   // the host header's custom stats (headerCustomStats.js entries) — values reported below
+  onHeaderCustomStats = null, // ({ [cx:<id>]: result }) => void — called only when a shown value / state changes
   nextEarningsHint = null,    // 'YYYY-MM-DD' — the host header's next-earnings date; the "E" falls back to it (owner 11-16)
   // ── Extended-hours session preview (Charts workspace only) ──
   // null on every other surface (feature off). 'regular' | 'extended' from the
@@ -9233,6 +9238,31 @@ export default function StockChart({
   // current bars without re-publishing the API on every data poll.
   const filteredBarsRef = useRef(null)
   filteredBarsRef.current = filteredBars
+
+  // ── Custom header stats (owner 11-16) ──────────────────────────────────────────────────────────────────────────
+  // The host's info row asks for "EMA 21 / RSI 14 / my formula" on the newest bar. Answered here because this is where
+  // the chart's bars and the installed registry live: `computeCustomStats` runs `computeFor` over `filteredBars` (the
+  // bars the binder draws from, so replay / a framed range read the same bar as the drawn line) behind the shared
+  // info-value gate, memoised per bars array. The host is called only when a shown text / state changes, so a live
+  // tick that leaves every value the same re-renders nothing above.
+  const _hcsSigRef = useRef('')
+  useEffect(() => {
+    if (typeof onHeaderCustomStats !== 'function') return
+    const entries = Array.isArray(headerCustomStats) ? headerCustomStats : []
+    let res = {}
+    if (entries.length) {
+      try {
+        res = computeCustomStats(entries, filteredBars || [], {
+          sym, symbol: symbolMeta, tf: resolvedTf, newestBarIsForming: data?.newest_bar_is_forming ?? null,
+        }, engineRegistry)
+      } catch { res = {} }
+    }
+    const sig = JSON.stringify(Object.values(res).map((r) => [r.key, r.state, r.text, r.label, r.signed, r.reason || '']))
+    if (sig === _hcsSigRef.current) return
+    _hcsSigRef.current = sig
+    onHeaderCustomStats(res)
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `data` is read only for its newest-bar tri-state
+  }, [headerCustomStats, onHeaderCustomStats, filteredBars, sym, symbolMeta, resolvedTf, data?.newest_bar_is_forming, userDefsGeneration])
   // What THIS timeframe shows, for the next timeframe switch to complete its right edge from.
   if (isIntraday && !_isCustomTf && !_hasOverride && !replayCutoff && !replayMode && Array.isArray(filteredBars) && filteredBars.length
       && typeof filteredBars[filteredBars.length - 1]?.t === 'number') {
