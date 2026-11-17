@@ -7,6 +7,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
+import process from 'node:process'
 import { memberPaneDefinition } from '../builder/memberPane/memberPaneDefinition'
 import * as registry from './nativeRegistry'
 import { fieldsForInstance, fieldsFromDefinition } from '../indicatorRegistry'
