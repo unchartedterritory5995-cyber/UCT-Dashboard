@@ -189,6 +189,9 @@ SELF_PROTECTED = (
 WF_PATH = ".github/workflows/" + WORKFLOW_FILE
 
 
+_SF_LIT = r"\[[^\]]*\]|'[^']*'|\"[^\"]*\"|`[^`]*`"
+
+
 def vitest_setup_files(root: str | pathlib.Path = ".") -> list[str]:
     """Repo paths of every vitest `setupFiles` entry in app/vite*.config.* and app/vitest*.config.* under `root`
     (a MASTER checkout). A config that names setupFiles in a shape this cannot read, or no setupFiles anywhere, raises
@@ -198,16 +201,23 @@ def vitest_setup_files(root: str | pathlib.Path = ".") -> list[str]:
     out: list[str] = []
     for cfg in configs:
         text = cfg.read_text(encoding="utf-8", errors="replace")
-        for m in re.finditer(r"setupFiles\s*:\s*(\[[^\]]*\]|'[^']*'|\"[^\"]*\"|`[^`]*`)", text):
-            names = re.findall(r"'([^']+)'|\"([^\"]+)\"|`([^`]+)`", m.group(1))
-            rest = re.sub(r"'[^']*'|\"[^\"]*\"|`[^`]*`|[\s,\[\]]", "", m.group(1))
-            if not names or rest:   # an identifier / spread / call in the list: a file this cannot name
-                raise ValueError(f"{cfg.name}: unreadable setupFiles {m.group(1)[:60]!r}")
-            for groups in names:
-                rel = next(g for g in groups if g)
-                out.append(os.path.normpath(os.path.join("app", rel)).replace("\\", "/"))
-        if "setupFiles" in text and not re.search(r"setupFiles\s*:\s*[\['\"`]", text):
-            raise ValueError(f"{cfg.name}: setupFiles is not a literal this can read")
+        # Every `setupFiles:` occurrence must be a literal, or a conditional `<cond> ? <literal> : <literal>` whose
+        # condition holds no string / bracket; both branches are protected (a superset is the safe side).
+        for occ in re.finditer(r"setupFiles\s*:", text):
+            at = text[occ.end():]
+            t = re.match(r"\s*([^?'\"`\[\]{},;]+?)\s*\?\s*(" + _SF_LIT + r")\s*:\s*(" + _SF_LIT + r")(?=\s*[,}])", at)
+            m = re.match(r"\s*(" + _SF_LIT + r")(?=\s*[,}])", at)   # nothing may follow the literal (.concat(X), + X, ...)
+            lits = [t.group(2), t.group(3)] if t else [m.group(1)] if m else None
+            if lits is None:
+                raise ValueError(f"{cfg.name}: setupFiles is not a literal this can read")
+            for lit in lits:
+                names = re.findall(r"'([^']+)'|\"([^\"]+)\"|`([^`]+)`", lit)
+                rest = re.sub(r"'[^']*'|\"[^\"]*\"|`[^`]*`|[\s,\[\]]", "", lit)
+                if not names or rest:   # an identifier / spread / call in the list: a file this cannot name
+                    raise ValueError(f"{cfg.name}: unreadable setupFiles {lit[:60]!r}")
+                for groups in names:
+                    rel = next(g for g in groups if g)
+                    out.append(os.path.normpath(os.path.join("app", rel)).replace("\\", "/"))
     if not out:
         raise ValueError("no vitest setupFiles found in app/vite*.config.* / app/vitest*.config.*")
     return sorted(set(out))
