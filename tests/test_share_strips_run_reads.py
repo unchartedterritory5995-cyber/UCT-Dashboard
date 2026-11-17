@@ -260,7 +260,15 @@ def test_the_LIBRARY_lists_no_script():
     # have to be added here, on purpose
     entry = got.json()["entries"][0]
     assert set(entry) == {"token", "name", "shortName", "description", "repaint",
-                          "placement", "inputs", "published_at", "ast_hash", "licence"}
+                          "placement", "inputs", "published_at", "ast_hash", "licence",
+                          "headline", "engine_version"}
+    # 2026-11-17 (Studio R4, Indicators backlog 43): `headline` and `engine_version` were added on
+    # purpose. `headline` is the AUTHOR's own status-panel sentence for the pinned version, as their
+    # browser recorded it (`svc.record_status_headline`), or None; `engine_version` is the engine
+    # number that recorded it, or None. Neither is the script, the author or their id. A third,
+    # `headline_current`, rides only BESIDE a headline (tests/test_share_headline.py); this fixture
+    # records none, so both are None here.
+    assert entry["headline"] is None and entry["engine_version"] is None
     # 2026-11-16 (library moderation, f424543581): `licence` was added on purpose. It is the
     # licence NAME a pasted script's header declares (`svc.licence_of`: one regex capture of at
     # most 90 characters, header comments only), or None. It is a fact about the script, never
@@ -312,6 +320,9 @@ ROUTES = {
     ("GET", "/api/user-definitions/{def_id}"): "own",
     ("PUT", "/api/user-definitions/{def_id}"): "own",
     ("POST", "/api/user-definitions/{def_id}/engine-status"): "own",
+    # 2026-11-17 (Studio R4): the owner records their status headline for their OWN live version;
+    # it answers {def_id, version, engine, headline} and never returns a stored definition.
+    ("POST", "/api/user-definitions/{def_id}/status-headline"): "own",
     ("POST", "/api/user-definitions/{def_id}/fork"): "own",
     ("DELETE", "/api/user-definitions/{def_id}"): "own",
     ("POST", "/api/user-definitions/{def_id}/share"): "own",

@@ -791,6 +791,9 @@ def test_the_WRITE_routes_carry_BOTH_gates_and_the_router_declares_NEITHER():
         ("POST", "/api/user-definitions/{def_id}/fork"),
         ("POST", "/api/user-definitions/{def_id}/list"),
         ("POST", "/api/user-definitions/{def_id}/share"),
+        # 2026-11-17 (Studio R4): the owner's status headline for their LIVE version. Paid-gated;
+        # it appends NO definition (a row in its own table), so it is not in `appends`.
+        ("POST", "/api/user-definitions/{def_id}/status-headline"),
         ("PUT", "/api/user-definitions/{def_id}"),
     ], writes
 
