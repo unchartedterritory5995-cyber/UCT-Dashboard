@@ -20,6 +20,7 @@ import { describe, it, expect, afterEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { isModalOpen } from './modalOpen.js'
+import { stripComments } from '../components/chart/engine/__tests__/sourceScan'
 
 afterEach(() => { document.body.innerHTML = '' })
 
@@ -140,6 +141,68 @@ describe('🔴 every chart key handler actually CONSULTS it', () => {
       "the formula editor's own Escape, claimed only while its completion popup is open",
   }
 
+  /** Listeners that only READ A KEY'S TIMING to schedule work, and never change what
+   *  the key does. The rail exists to keep the chart from ACTING on a key typed at a
+   *  dialog; these do not act on keys at all, so `isModalOpen` would buy nothing there
+   *  and would change only WHEN their work leaves (a perf regression, not a guard).
+   *  ⛔ NOT TAKEN ON TRUST: each entry must pass `readsKeyTimingOnly` below, which reads
+   *  the code (never the prose) and fails a listener that is not passive (so it could
+   *  cancel the key), anything that stops or cancels an event, and a component (which
+   *  could draw, arm a tool or type into a box). (Classified 2026-11-17: serverCompute
+   *  arrived with 67ba803940 and this rail caught it.) */
+  const TIMING_OBSERVERS = {
+    'components/chart/engine/serverCompute.js':
+      "the RS lane's walk-key cadence: a held ArrowUp/ArrowDown's release sends the landing "
+      + "chart's held ask now, instead of when its hold (500 ms at most) would have sent it",
+  }
+
+  // Every key listener a file registers, on any target, whatever the handler's shape.
+  const ANY_KEY_LISTENER = /\.addEventListener\(\s*['"]key(?:down|up|press)['"]/g
+  // The one shape the observer check accepts: a named handler and an options object that
+  // says `passive: true`. A listener in any other shape (an inline arrow, no options, an
+  // options variable the probe cannot read) is counted above and not here, and fails.
+  const PASSIVE_KEY_LISTENER =
+    /\.addEventListener\(\s*['"]key(?:down|up|press)['"]\s*,\s*[\w$.]+\s*,\s*\{[^{}]*\bpassive\s*:\s*true\b[^{}]*\}\s*\)/g
+
+  /** Does this SOURCE only read key timing? Code, never prose: the comments are stripped. */
+  function readsKeyTimingOnly(src) {
+    const code = stripComments(src)
+    const all = (code.match(ANY_KEY_LISTENER) || []).length
+    if (!all) return { ok: false, why: 'registers no key listener' }
+    const passive = (code.match(PASSIVE_KEY_LISTENER) || []).length
+    if (passive !== all) return { ok: false, why: `${all - passive} of ${all} key listener(s) not provably passive` }
+    if (/\.(?:preventDefault|stopPropagation|stopImmediatePropagation)\s*\(/.test(code)) {
+      return { ok: false, why: 'cancels or stops an event' }
+    }
+    if (/\bfrom\s+['"]react(?:-dom)?(?:\/[\w-]+)?['"]/.test(code)) return { ok: false, why: 'is a component' }
+    return { ok: true, why: '' }
+  }
+
+  for (const [rel, what] of Object.entries(TIMING_OBSERVERS)) {
+    it(`${rel} only reads key timing — ${what}`, () => {
+      const v = readsKeyTimingOnly(read(rel))
+      expect(v.ok, `${rel}: ${v.why}`).toBe(true)
+      // A stale entry would wave through whatever the file grows next.
+      expect(chartFilesWithAGlobalKeydown(), `${rel} no longer registers a global keydown`).toContain(rel)
+    })
+  }
+
+  it('⛔ THE CONTROL — the observer check catches a real handler, clause by clause', () => {
+    // Real key handlers in this tree: each ACTS on keys, and the check must say so.
+    for (const rel of ['components/chart/ChartDrawingOverlay.jsx', 'components/StockChart.jsx']) {
+      expect(readsKeyTimingOnly(read(rel)).ok, `${rel} passed as a timing observer`).toBe(false)
+    }
+    // Each clause can fire on its own, and the prose cannot satisfy or trip it.
+    const ok = "const f = (e) => { last = e.key }\nwindow.addEventListener('keydown', f, { capture: true, passive: true })\n"
+    expect(readsKeyTimingOnly(ok).ok).toBe(true)
+    expect(readsKeyTimingOnly(ok + '// e.preventDefault() is never called here\n').ok).toBe(true)
+    expect(readsKeyTimingOnly(ok.replace('passive: true', 'passive: false')).ok).toBe(false)
+    expect(readsKeyTimingOnly(ok + "window.addEventListener('keyup', (e) => { last = e.key })\n").ok).toBe(false)
+    expect(readsKeyTimingOnly(ok.replace('last = e.key', 'e.stopPropagation()')).ok).toBe(false)
+    expect(readsKeyTimingOnly("import { useEffect } from 'react'\n" + ok).ok).toBe(false)
+    expect(readsKeyTimingOnly('const nothing = 1\n').ok).toBe(false)
+  })
+
   function chartFilesWithAGlobalKeydown() {
     const root = path.resolve(process.cwd(), 'src')
     const out = []
@@ -168,11 +231,12 @@ describe('🔴 every chart key handler actually CONSULTS it', () => {
     expect(found).toContain('components/StockChart.jsx')
   })
 
-  it('🔴 every chart file with a global keydown is either guarded or modal-owned', () => {
+  it('🔴 every chart file with a global keydown is guarded, modal-owned, or a timing observer', () => {
     const unclassified = chartFilesWithAGlobalKeydown()
-      .filter(rel => !(rel in SITES) && !(rel in MODAL_OWNED))
+      .filter(rel => !(rel in SITES) && !(rel in MODAL_OWNED) && !(rel in TIMING_OBSERVERS))
     expect(unclassified, 'a chart key handler nobody has classified — it either has to '
-      + 'consult isModalOpen (add it to SITES) or belong to the surface that renders it '
-      + '(add it to MODAL_OWNED, with the reason)').toEqual([])
+      + 'consult isModalOpen (add it to SITES), belong to the surface that renders it '
+      + '(add it to MODAL_OWNED, with the reason), or only read the key\'s timing (add it '
+      + 'to TIMING_OBSERVERS, with the reason; readsKeyTimingOnly must pass)').toEqual([])
   })
 })
