@@ -139,9 +139,13 @@ _task: Optional[asyncio.Task] = None
 _stop: Optional[asyncio.Event] = None
 
 
-def start_remote() -> "FeedClient":
+def start_remote(*, side_feeds: bool = True, client_id: Optional[str] = None) -> "FeedClient":
     """Remote mode, at app startup (on the running uvicorn loop): install the
-    RemoteBroadcaster as THE broadcaster and start the feed client task."""
+    RemoteBroadcaster as THE broadcaster and start the feed client task.
+
+    `side_feeds=False` and `client_id`: the stream gateway (api/stream_gateway_main.py), a
+    second client of the same ingest feed that serves only the bar stream, so it carries none
+    of web's NH/NL, volume-push or T&S consumers and names itself apart from web."""
     global _client, _task, _stop
     from api.services import bar_broadcaster, bar_stream
     from api.services.remote_broadcaster import RemoteBroadcaster
@@ -149,8 +153,11 @@ def start_remote() -> "FeedClient":
     rb = RemoteBroadcaster(on_first_subscribe=bar_stream.subscribe_symbols_one,
                            on_last_unsubscribe=bar_stream.unsubscribe_symbols_one)
     bar_broadcaster.install_broadcaster(rb)
-    from api.services.remote_side_feeds import RemoteSideFeeds
-    _client = FeedClient(rb, side=RemoteSideFeeds(), side_thread=True)
+    if side_feeds:
+        from api.services.remote_side_feeds import RemoteSideFeeds
+        _client = FeedClient(rb, side=RemoteSideFeeds(), side_thread=True, client_id=client_id)
+    else:
+        _client = FeedClient(rb, client_id=client_id)
     _stop = asyncio.Event()
     _task = asyncio.get_running_loop().create_task(_client.run(_stop))
     return _client

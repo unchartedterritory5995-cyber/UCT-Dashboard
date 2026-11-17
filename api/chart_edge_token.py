@@ -76,8 +76,14 @@ COOKIE_PATH = "/api/bars"
 #: (`tests/test_chart_edge_token.py` reads both).
 HIST_COOKIE_PATH = "/api/hist"
 
+#: The live bar stream (2026-11-17): the edge sends a request that carries a valid cookie here to the
+#: stream gateway (api/stream_gateway_main.py), which has no member database and checks only this
+#: cookie. A request without it keeps going to web, so a member whose cookie predates this path
+#: streams exactly as before until the cookie is next issued.
+STREAM_COOKIE_PATH = "/api/stream/bars"
+
 #: Every path the entitlement cookie is issued AND revoked on (auth.py `_set_chart_edge_cookie`).
-COOKIE_PATHS = (COOKIE_PATH, HIST_COOKIE_PATH)
+COOKIE_PATHS = (COOKIE_PATH, HIST_COOKIE_PATH, STREAM_COOKIE_PATH)
 
 #: Entitlement class — WHO the bearer is, not what they may read.
 #:

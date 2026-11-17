@@ -33,6 +33,7 @@
  */
 
 import { HIST_PREFIX, handleHistory } from "./history.js";
+import { STREAM_BARS_PATH, routeBarStream } from "./stream.js";
 
 const BARS_ORIGIN = "https://bars-api-production-1052.up.railway.app";
 const WEB_ORIGIN  = "https://web-production-05cb6.up.railway.app";
@@ -310,6 +311,14 @@ export default {
         const cls = await classifyRequest(req, env && env.CHART_EDGE_SECRET);
         return cls === VALID || cls === SERVICE_VALID;
       }, ctx);
+    }
+    // The live bar stream (stream.js): to the stream gateway when it is switched on and the request is
+    // entitled; anything else, and any gateway failure, to web as before.
+    if (url.pathname === STREAM_BARS_PATH) {
+      return routeBarStream(request, env, async (req) => {
+        const cls = await classifyRequest(req, env && env.CHART_EDGE_SECRET);
+        return cls === VALID || cls === SERVICE_VALID;
+      });
     }
     const m = url.pathname.match(/^\/api\/bars(?:-history)?\/([^\/?#]+)/);
     if (!m) return fetch(request);
