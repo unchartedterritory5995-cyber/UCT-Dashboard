@@ -1575,6 +1575,13 @@ def _chart_lexicon(base: Mapping[str, Any]) -> Dict[str, Any]:
     # `_matched_term` hands the assistant the Screener's own formula for it. ⛔ ADDED, NEVER REPLACED:
     # a phrase whose words already resolve to something in the shared lexicon is left alone.
     from api.services import ast_table
+    # ⭐ backlog 47 (2026-11-17) -- A COLUMN THE TABLE LEAVES OUT AND A CHART COMPUTES EXACTLY
+    # (`chart_twins.CHART_ONLY`) is a TERM here, with its house formula, not "unavailable": the
+    # Screener's own label for it was answered "not available" beside an indicator the chart could
+    # draw. Only a bucket that holds nothing else is converted, so no other reading is displaced.
+    for stems, rows in list(index.items()):
+        if rows and all(r.get("kind") == dc.EXCLUDED_ENTRY and r.get("key") in chart_twins.CHART_ONLY for r in rows):
+            index[stems] = [{**r, "kind": dc.TABLE_ENTRY, "section": ast_table.SCALARS_SECTION} for r in rows]
     for phrase, column in chart_twins.spoken_phrases():
         words = dc._form_tokens(phrase)
         stems, cost = dc._stem_key(words)
