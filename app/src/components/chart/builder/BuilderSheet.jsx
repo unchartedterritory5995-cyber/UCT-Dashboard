@@ -157,6 +157,7 @@ import { STATUS as GATE_STATUS } from '../engine/evaluability'
 import {
   NEW_LINE_FLAG, rowIsNewLine, withLocalLineIdentities, servedLineIdentities, withoutNewLineMarkers,
 } from '../engine/lineIdentity'
+import { fieldsForInstance } from '../indicatorRegistry'
 import styles from './BuilderSheet.module.css'
 
 /** The badge vocabulary, cased for display. ⛔ The definition's vocabulary is
@@ -1145,6 +1146,8 @@ export default function BuilderSheet({
    *  consistency."* Import was the one tab whose state was purely local, so it
    *  was the one tab that broke the rule the others follow. */
   const [pineText, setPineText] = useState('')
+  // ⭐ the document the member door installed for `pineText` (what "Add this script to my chart" adds)
+  const [scriptDoc, setScriptDoc] = useState(null)
 
   /** Every plot row in document order — plot 1 first. */
   const allRows = useMemo(() => [plot0, ...plotRows], [plot0, plotRows])
@@ -2670,9 +2673,18 @@ export default function BuilderSheet({
   // ⭐ WHILE A CONVERSATION HOLDS THE INDICATOR (an unsaved description), ITS numbers are the inputs:
   // the form is the older version it was opened at, or empty for a new one (the owner's "Inputs 0").
   const converseNumbers = (converseCommit && converseCommit.dirty && Array.isArray(converseCommit.numbers)) ? converseCommit.numbers : null
-  const inputCount = converseNumbers
+  // ⭐⭐ A PASTED SCRIPT IS COUNTED AS ITSELF until the sheet takes its formula (2026-11-17). Until
+  // "Use this formula", the sheet's own formula is EMPTY and what "Add this script to my chart" adds is the
+  // door's document, whose settings are changed on the chart after it is added. ⚰️ The tabs counted the
+  // empty formula, so RS Rating (39 settings, TradingView's Inputs tab) read "Inputs 0 · Plots 1" on
+  // production. Once the sheet holds a formula, its own counts and editors stand: those are edited here.
+  const doorDoc = origin === 'pine' && pineText && scriptDoc && !(source && source.trim()) ? scriptDoc : null
+  const doorInputs = doorDoc ? fieldsForInstance(doorDoc, null).inputs.length : 0
+  const doorPlots = doorDoc ? (doorDoc.plots || []).filter((pl) => pl && pl.hidden !== true).length : 0
+  const inputCount = doorDoc ? doorInputs : converseNumbers
     ? converseNumbers.length
     : memberInputs.length + (paramManifest ? Object.keys(paramManifest).length : 0) + formSettings.length
+  const plotCount = doorDoc ? doorPlots : allRows.length
   const addsToChart = !!(settings && onChange)
   const footHint = isEditor
     ? (editing ? null : (addsToChart ? (target === 'price' ? 'Adds to this chart over the price' : 'Adds to this chart as its own pane') : null))
@@ -2794,7 +2806,7 @@ export default function BuilderSheet({
               </button>
               <button type="button" role="tab" className={tabClass(buildMode === 'plots')}
                 aria-selected={buildMode === 'plots'} onClick={() => setBuildMode('plots')}>
-                Plots <span className={styles.tabCount}>{allRows.length}</span>
+                Plots <span className={styles.tabCount}>{plotCount}</span>
               </button>
               {/* ── EVIDENCE AND SHARE SHOW ONLY FOR A SAVED DEFINITION (W5a) ──────
                   Evidence is a fact about a definition the STORE holds — a receipt
@@ -3649,6 +3661,7 @@ export default function BuilderSheet({
             source={pineText}
             settings={settings}
             onAttach={attachPine}
+            onDocument={setScriptDoc}
             // ⭐ UIE PHASE 5 (M1) — editing a stored script: the save is its revision,
             // and saving it as a new indicator is offered beside it
             {...(editing && editing.runtime ? {
@@ -3660,6 +3673,14 @@ export default function BuilderSheet({
 
                 <div className={styles.panel} data-panel="Inputs" hidden={buildMode !== 'inputs'}
                   data-testid="panel-inputs">
+          {doorDoc && (
+            <p className={styles.pickerNote} role="note" data-testid="script-settings-note">
+              {`This script has ${doorInputs === 1 ? '1 setting' : `${doorInputs} settings`}. You change them on the chart, after you add it: open its settings from its name at the top of the chart.`}
+            </p>
+          )}
+          {/* ⛔ the sheet's own inputs editor describes ITS formula (empty until "Use this formula"),
+              not this script's settings: hidden, never unmounted, while the door's script stands */}
+          <div hidden={!!doorDoc} data-testid="builder-inputs">
           {/* ⭐⭐ TRACK F (DEC-006) — a Pine import's own adjustable parameters.
               `applyParamEdit` operates on `compute.ast`/`compute.paramManifest`
               directly (never on Pine, never on a second parser — see
@@ -3765,10 +3786,17 @@ export default function BuilderSheet({
               + Add an input
             </button>
           </section>
+          </div>
                 </div>
 
                 <div className={styles.panel} data-panel="Plots" hidden={buildMode !== 'plots'}
                   data-testid="panel-plots">
+          {doorDoc && (
+            <p className={styles.pickerNote} role="note" data-testid="script-plots-note">
+              {`This script draws ${doorPlots === 1 ? '1 plot' : `${doorPlots} plots`}. You change how they look on the chart, after you add it: open its settings from its name at the top of the chart.`}
+            </p>
+          )}
+          <div hidden={!!doorDoc} data-testid="builder-plots">
           {/* ── THE PLOTS (W1b.5) ────────────────────────────────────────────
               ⭐ WHERE A MULTI-PLOT INDICATOR IS ACTUALLY AUTHORED, and until now
               a member could only ever write ONE line: `buildDefinition` hard-coded
@@ -4110,6 +4138,7 @@ export default function BuilderSheet({
               <p className={styles.measured} role="status" data-testid="value-note">{valueNote}</p>
             )}
           </section>
+          </div>
                 </div>
               </>
             )}
