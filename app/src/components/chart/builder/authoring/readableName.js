@@ -31,9 +31,19 @@ const BRACKETED_NUMBER = /\(\d{1,4}\)/g
 const NOT_A_NAME = /[<>=+*^\\[\]{}()·−×÷$#@|;:!?"“”]|&&|\bhttps?\b|\b(?:when|where|if|that|which|above|below|crosses?|greater|less|than|times|minus|plus|divided)\b/i
 
 /** Can a person read this derived name as a name? ("EMA 20" yes; a formula or a long one, no.) */
+// ⭐ 2026-11-17 — ARITHMETIC SPELLED IN WORDS IS STILL A FORMULA. Measured on production over
+// multi-turn conversations: "relative strength line versus SPY" was named "Relative Strength vs
+// SPY" by the assistant and shown as "Close divided by SPY Close", because that derived name is
+// short and carries no symbol; MACD's main line read "EMA 12 minus EMA 26". The derived name
+// spells its operators as words, so the four arithmetic ones are read as what they are.
+// ⛔ COMPARISONS ARE LEFT READABLE ON PURPOSE: "Close above SMA 50" is a sentence a member
+// checks their request against, and it follows the maths after "make it 100", which a kept
+// name would not.
+const ARITHMETIC_WORDS = /\b(?:divided by|times|minus|plus)\b/i
+
 export function derivedIsReadable(name) {
   const n = typeof name === 'string' ? name.trim() : ''
-  return !!n && n.length <= DERIVED_READABLE_MAX && !FORMULA.test(n)
+  return !!n && n.length <= DERIVED_READABLE_MAX && !FORMULA.test(n) && !ARITHMETIC_WORDS.test(n)
 }
 
 /** `raw` as a name, or null when it is not one: 3 to 40 characters, at most six words, no
