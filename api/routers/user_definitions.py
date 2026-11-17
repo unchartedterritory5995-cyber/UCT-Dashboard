@@ -584,6 +584,11 @@ class ConverseIn(BaseModel):
     #: SLICE 2 — the chart the member is on: ``{sym, tf}`` only, for the
     #: deterministic pre-flight (another symbol / timeframe). Strings, bounded.
     chart: Optional[dict] = None
+    #: ⭐ 2026-11-17 — the browser refused the patch this door offered for this same turn:
+    #: ``{envelope, errors}``, the patch and the browser engine's own words. Untrusted and
+    #: optional; `definition_conversation.browser_refusal` decides whether it is used, and a
+    #: malformed one is ignored (an ordinary turn), never a 422.
+    browser_refusal: Optional[Any] = None
 
 
 def require_create_indicator_access(user: dict = Depends(require_paid)) -> dict:
@@ -639,7 +644,7 @@ def converse_definition(body: ConverseIn, user: dict = Depends(require_paid),
         body.message, user_id=user["id"], view=body.view,
         authoring=body.authoring, snippets=body.snippets, chart=chart,
         admin=(user.get("role") == "admin"), conversation_id=body.conversationId,
-        examples=body.examples is True)
+        examples=body.examples is True, browser_refusal=body.browser_refusal)
 
 
 @router.get("/library")

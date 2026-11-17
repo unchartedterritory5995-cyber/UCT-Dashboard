@@ -2145,6 +2145,72 @@ def _unwrap_input(value: Optional[dict]) -> Tuple[Optional[dict], Optional[str]]
     return value, None
 
 
+# --------------------------------------------------------------------------- #
+# ⭐ 2026-11-17 -- THE BROWSER'S OWN REFUSAL, SENT BACK FOR ONE REPAIR
+# --------------------------------------------------------------------------- #
+#
+# The door checks a patch's STRUCTURE; the browser's patch engine then applies it against the
+# indicator, and holds rules of its own (a candle colour reads a yes/no, a fill shades between two
+# numbers, a calculation timeframe is higher than the chart's, ...). Six times on 2026-11-17 a
+# request the assistant had built ended in "Nothing was changed" because the door accepted what the
+# browser then refused, and each was fixed by teaching the door that one rule. A sweep of small
+# patches through both halves then measured the class: about a third of schema-valid one-operation
+# patches are accepted here and refused there, across some forty browser rules. They cannot all be
+# restated in this file, and a restated rule is a second authority over the first.
+#
+# So the browser's refusal comes BACK, once: the browser re-sends the same turn with the patch it
+# refused and its engine's own words, and the model's repair is spent on that. The door's own rules
+# stay where a request is common enough to save the round trip.
+#
+# ⛔ What the client sends is untrusted. The patch is replayed to the model only if it is one THIS
+# door would itself have offered for the same view (`check_envelope`), the words are bounded and
+# flattened to one line, and a malformed block is ignored: the turn is then an ordinary one.
+BROWSER_REFUSAL_GATE = "browser:refused"
+BROWSER_REFUSAL_MAX_ERRORS = 4
+BROWSER_REFUSAL_MAX_CHARS = 300
+BROWSER_REFUSAL_TOOL_USE_ID = "browser_refused"
+
+
+def browser_refusal(raw: Any, revision: int, view: Any) -> Optional[Tuple[Dict[str, Any], str]]:
+    """``(the refused patch, the browser's words)``, or ``None`` when ``raw`` is not a refusal of a
+    patch this door would have offered. Never raises."""
+    if not isinstance(raw, Mapping):
+        return None
+    envelope, errors = raw.get("envelope"), raw.get("errors")
+    if not isinstance(envelope, Mapping) or not isinstance(errors, list):
+        return None
+    try:
+        if len(json.dumps(envelope)) > MAX_INPUT_CHARS // 4:
+            return None
+        checked = check_envelope(dict(envelope), revision, view)
+    except Exception:                              # noqa: BLE001 -- not ours: an ordinary turn
+        return None
+    if checked.get("disposition") != "change" or not checked.get("ops"):
+        return None
+    lines = []
+    for e in errors[:BROWSER_REFUSAL_MAX_ERRORS]:
+        if isinstance(e, str):
+            line = " ".join(e.split())[:BROWSER_REFUSAL_MAX_CHARS]
+            if line:
+                lines.append(line)
+    if not lines:
+        return None
+    return checked, "; ".join(lines)
+
+
+def _browser_repair_turns(messages: List[dict], envelope: Mapping[str, Any], words: str) -> List[dict]:
+    """The conversation as if this door had made the call and the app had answered it."""
+    verdict = (f"[{BROWSER_REFUSAL_GATE}] the app's own patch engine refused this patch and applied "
+               f"nothing -- {words}. Emit a corrected patch that does what was asked another way.")
+    return list(messages) + [
+        {"role": "assistant", "content": [
+            {"type": "tool_use", "id": BROWSER_REFUSAL_TOOL_USE_ID, "name": TOOL_NAME, "input": dict(envelope)}]},
+        {"role": "user", "content": [
+            {"type": "tool_result", "tool_use_id": BROWSER_REFUSAL_TOOL_USE_ID, "is_error": True,
+             "content": verdict}]},
+    ]
+
+
 def _repair_turns(messages: List[dict], msg: Any, tool_input: Optional[dict],
                   refused: _Refused) -> List[dict]:
     tool_use_id = None
@@ -2321,7 +2387,8 @@ def _account(user_id: Any, conversation_id: Any, calls: List[Dict[str, Any]], *,
 
 def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
              snippets: Any = None, chart: Any = None, admin: bool = False,
-             conversation_id: Any = None, examples: Any = False) -> Dict[str, Any]:
+             conversation_id: Any = None, examples: Any = False,
+             browser_refusal: Any = None) -> Dict[str, Any]:
     """One conversational turn. NEVER raises.
 
     ``{ok: True, disposition: 'change'|'answer'|'clarify'|'unsupported', reply,
@@ -2354,7 +2421,8 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
         if free:
             result = _converse_turn(message, user_id=user_id, view=view, authoring=authoring,
                                     snippets=snippets, chart=chart, cap_usd=cap_usd, calls=calls,
-                                    trace=trace, admin=admin, examples=examples is True)
+                                    trace=trace, admin=admin, examples=examples is True,
+                                    refused_by_browser=browser_refusal)
         else:
             result = {"ok": False, "gate": "rate:busy", "reason": dc.REFUSALS["rate:busy"]}
     latency_ms = int((time.monotonic() - started) * 1000)
@@ -2619,7 +2687,8 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
                    snippets: Any, chart: Any, cap_usd: float,
                    calls: List[Dict[str, Any]],
                    trace: Optional[Dict[str, Any]] = None,
-                   admin: bool = False, examples: bool = False) -> Dict[str, Any]:
+                   admin: bool = False, examples: bool = False,
+                   refused_by_browser: Any = None) -> Dict[str, Any]:
     trace = trace if trace is not None else {}
     try:
         message, view, state, turns = _bounded_inputs(message, view, authoring, snippets)
@@ -2658,6 +2727,12 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
 
     market_date = dc._market_date()
     messages: List[dict] = [{"role": "user", "content": content}]
+    # ⭐ the browser refused the patch this door offered for this same turn: the model answers THAT
+    replayed = browser_refusal(refused_by_browser, revision, view) if refused_by_browser is not None else None
+    if replayed:
+        messages = _browser_repair_turns(messages, replayed[0], replayed[1])
+        trace["repair_gate"] = BROWSER_REFUSAL_GATE
+        logger.info("[converse] repair after the browser refused the patch")
     tokens = {"input": 0, "output": 0}
     cost_usd = 0.0
     attempts = 0
@@ -2723,6 +2798,9 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         try:
             envelope = check_envelope(candidate, revision, view)
             check_output_renames(envelope, message, view, turns)
+            if replayed and envelope.get("ops") == replayed[0].get("ops"):
+                raise _Refused("envelope:reference",
+                               f"this is the patch the app already refused ({replayed[1]}); change it")
         except _Refused as refused:
             last = refused
             refusals.append({"attempt": attempts, "gate": refused.gate,
