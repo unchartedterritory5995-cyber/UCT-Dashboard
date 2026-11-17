@@ -236,6 +236,33 @@ def test_F1_setup_files_are_read_from_the_config(tmp_path):
         ev.vitest_setup_files(tmp_path / "nowhere")
 
 
+def test_F1_conditional_setup_files_protect_both_branches(tmp_path):
+    # #1690 made master's vite.config.js pick setupFiles with `cond ? [...] : '...'`: both branches are protected.
+    real = ev.vitest_setup_files(ROOT)
+    assert "app/src/test-setup.js" in real
+    if "UCT_READ_CAPTURE_DIR" in (ROOT / "app" / "vite.config.js").read_text(encoding="utf-8"):
+        assert "app/src/test-read-capture.js" in real
+    (tmp_path / "app").mkdir()
+    cfg = tmp_path / "app" / "vite.config.js"
+    cfg.write_text("export default {test: {setupFiles: process.env.X\n  ? ['./a.js', './b.js']\n  : './a.js',\n pool: 'forks'}}", encoding="utf-8")
+    assert ev.vitest_setup_files(tmp_path) == ["app/a.js", "app/b.js"]
+    cfg.write_text("export default {test: {setupFiles: !flag ? './c.js' : ['./d.js']}}", encoding="utf-8")
+    assert ev.vitest_setup_files(tmp_path) == ["app/c.js", "app/d.js"]
+    for bad in [
+        "export default {test: {setupFiles: f('x') ? ['./a.js'] : './b.js'}}",          # condition holds a string
+        "export default {test: {setupFiles: c ? ['./a.js'] : S}}",                     # a branch is an identifier
+        "export default {test: {setupFiles: c ? S : './b.js'}}",
+        "export default {test: {setupFiles: c1 ? './a.js' : c2 ? './b.js' : './c.js'}}",  # nested conditional
+        "export default {test: {setupFiles: c ? ['./a.js'] : ['./b.js'].concat(X)}}",  # something follows a branch
+        "export default {test: {setupFiles: ['./a.js'].concat(X)}}",                   # something follows a literal
+        "export default {test: {setupFiles: ['./a.js'] + X}}",
+        "export default {test: {setupFiles: ['./a.js'], other: 1}, x: {setupFiles: S}}",  # a second, unreadable one
+    ]:
+        cfg.write_text(bad, encoding="utf-8")
+        with pytest.raises(ValueError):
+            ev.vitest_setup_files(tmp_path)
+
+
 def test_F4_config_imports_are_derived_transitively_and_fail_closed(tmp_path):
     real = ev.config_imports(ROOT)
     assert "app/scripts/chartLibraryPatch.mjs" in real and "app/vite.config.js" in real   # vite.config.js -> ./scripts/...
@@ -589,30 +616,3 @@ def test_rearm_takes_exactly_one_pr():
         runs = []
         assert rearm.main([*argv, "--repo", REPO], get=get, run=lambda a, **k: runs.append(a)) == rearm.REFUSED, argv
         assert runs == [] and calls == [], argv   # refused before a single read
-
-
-def test_F1_conditional_setup_files_protect_both_branches(tmp_path):
-    # #1690 made master's vite.config.js pick setupFiles with `cond ? [...] : '...'`: both branches are protected.
-    real = ev.vitest_setup_files(ROOT)
-    assert "app/src/test-setup.js" in real
-    if "UCT_READ_CAPTURE_DIR" in (ROOT / "app" / "vite.config.js").read_text(encoding="utf-8"):
-        assert "app/src/test-read-capture.js" in real
-    (tmp_path / "app").mkdir()
-    cfg = tmp_path / "app" / "vite.config.js"
-    cfg.write_text("export default {test: {setupFiles: process.env.X\n  ? ['./a.js', './b.js']\n  : './a.js',\n pool: 'forks'}}", encoding="utf-8")
-    assert ev.vitest_setup_files(tmp_path) == ["app/a.js", "app/b.js"]
-    cfg.write_text("export default {test: {setupFiles: !flag ? './c.js' : ['./d.js']}}", encoding="utf-8")
-    assert ev.vitest_setup_files(tmp_path) == ["app/c.js", "app/d.js"]
-    for bad in [
-        "export default {test: {setupFiles: f('x') ? ['./a.js'] : './b.js'}}",          # condition holds a string
-        "export default {test: {setupFiles: c ? ['./a.js'] : S}}",                     # a branch is an identifier
-        "export default {test: {setupFiles: c ? S : './b.js'}}",
-        "export default {test: {setupFiles: c1 ? './a.js' : c2 ? './b.js' : './c.js'}}",  # nested conditional
-        "export default {test: {setupFiles: c ? ['./a.js'] : ['./b.js'].concat(X)}}",  # something follows a branch
-        "export default {test: {setupFiles: ['./a.js'].concat(X)}}",                   # something follows a literal
-        "export default {test: {setupFiles: ['./a.js'] + X}}",
-        "export default {test: {setupFiles: ['./a.js'], other: 1}, x: {setupFiles: S}}",  # a second, unreadable one
-    ]:
-        cfg.write_text(bad, encoding="utf-8")
-        with pytest.raises(ValueError):
-            ev.vitest_setup_files(tmp_path)
