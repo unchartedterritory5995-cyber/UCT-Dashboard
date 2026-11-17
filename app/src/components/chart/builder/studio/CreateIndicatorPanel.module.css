@@ -276,7 +276,11 @@
   outline: none;
   transition: border-color 120ms;
 }
-.input::placeholder { color: var(--menu-text-faint, #93939a); }
+/* The hint stays on ONE line. The box is one row tall, so a wrapped hint was cut off mid-word. */
+.input::placeholder {
+  color: var(--menu-text-faint, #93939a);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .input:focus { border-color: var(--menu-accent, #dcbb5e); }
 .input:disabled { opacity: 0.6; }
 
