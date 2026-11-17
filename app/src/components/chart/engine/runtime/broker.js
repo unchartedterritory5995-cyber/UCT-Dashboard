@@ -197,10 +197,18 @@ export function makeBroker(cfg, data) {
   // declaration shape, `strategy(title, overlay)`, so witnessed for that shape only). A run that would have to
   // assume it is not the run TradingView made: it stops here, at bind, by name, before any rule is asked. The
   // default is NOT changed to 0 on that evidence. A v4 script that states both margins is unaffected.
+  // ⭐⭐ RULING D12b (2026-11-17) — the capture wins where it witnesses the RUN: for EXACTLY the declaration shape both
+  // v4 captures have, `strategy(title, overlay)`, the margins are the 0 TradingView read back (`ast/strategyBroker.js`
+  // sets them, `v4MarginReadBack`), served behind B-V4-MARGIN0; both captures grade MATCH at it. Every other v4 shape
+  // that states no margin still stops here, as D12 rules.
   if (cfg.version === 4 && defaulted.margin === true) {
-    throw new BrokerRefusal('this Pine v4 strategy states no `margin_long` / `margin_short`, and the v4 default is not '
-      + 'settled: the v4 reference reads 100, and TradingView read 0 back on the two v4 captures taken (one declaration '
-      + 'shape); state both in strategy() to run it', 'Q-S1b', V4_MARGIN_DEFAULT_SETTING)
+    if (cfg.v4MarginReadBack !== true) {
+      throw new BrokerRefusal('this Pine v4 strategy states no `margin_long` / `margin_short`, and the v4 default is not '
+        + 'settled for its declaration: the v4 reference reads 100, and TradingView read 0 back only for a declaration of '
+        + 'exactly a title and `overlay` (the two v4 captures taken); state both margins in strategy() to run it', 'Q-S1b',
+      V4_MARGIN_DEFAULT_SETTING)
+    }
+    rule('B-V4-MARGIN0')
   }
   // ⭐⭐ (2026-11-17) [B-V3] a Pine v2 / v3 strategy runs on what the two committed v2 / v3 report captures witness:
   // their order calls (`ast/strategyBroker.js` V3_SIGNATURES) and the Properties TradingView read back for them (fixed 1,

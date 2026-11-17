@@ -174,6 +174,14 @@ export function readStrategyDeclaration(call, version) {
   cfg.marginUnread = v === 2 || v === 3
   // W9-T5: a commission whose TYPE is the default rests on B-DEFAULTS too (`brokerRules.js` commissionRulesOf)
   cfg.commission.typeDefaulted = !named.has('commission_type')
+  // ⭐⭐ RULING D12b (coordinator, owner-delegated, 2026-11-17; docs/pine/W9-DECISIONS-2026-11-07.md D12) — the capture
+  // wins where it witnesses the RUN. The v4 reference reads `margin_long` / `margin_short` "The default is 100"; both
+  // committed v4 report captures (w9-q-s1a-size-v4, w9-q-s1b-defaults-v4) declare exactly `strategy(title, overlay)`
+  // and TradingView read back Margin Long 0 and Margin Short 0, and graded MATCH run at 0. So for EXACTLY that argument
+  // set (title, by name or by position, and overlay; nothing else) the v4 margins are 0, served behind the rule
+  // B-V4-MARGIN0 (`runtime/broker.js`). Every other v4 shape that states no margin keeps D12's bind refusal (Q-S1b).
+  cfg.v4MarginReadBack = v === 4 && [...named.keys()].sort().join(',') === 'overlay,title'
+  if (cfg.v4MarginReadBack) { cfg.marginLong = 0; cfg.marginShort = 0 }
   if (cfg.commission.value > 0 && cfg.commission.type === null) {
     throw new StrategyOptionError('`commission_type` is not one of strategy.commission.percent / cash_per_contract / '
       + 'cash_per_order', named.get('commission_type') && named.get('commission_type').tok)
