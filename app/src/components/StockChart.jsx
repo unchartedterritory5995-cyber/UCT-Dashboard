@@ -110,7 +110,7 @@ import { clampVolPct, resolveVolPanePct, latchOnDrag, volPanePctOfStack,
          legacyPairOwnsStack } from './chart/volumePaneDrag'
 // ⚠️ `INDICATOR_LABELS` USED TO BE IMPORTED FROM `chartRegion` ALONGSIDE THESE.
 // B4 retired that nine-row table into the catalogue; `labelFor` is the reader.
-import { catalogRows, labelFor, oscillatorIds } from './chart/indicatorCatalog'
+import { catalogRows, labelFor, anyLabelFor, oscillatorIds } from './chart/indicatorCatalog'
 import { createSessionShadingPrimitive, computeSessionBands } from './chart/sessionShadingPrimitive'
 import { createSwingLabelsPrimitive } from './chart/swingLabelsPrimitive'
 import { createLevelZonesPrimitive } from './chart/levelZonesPrimitive'
@@ -6514,7 +6514,7 @@ export default function StockChart({
       try {
         recordIndicatorChange(historyKey, cs, newSettings, _named
           ? { userId: historyUserId, label: _named.historyLabel, kind: _named.historyKind || 'bulk', origin: chartId }
-          : { userId: historyUserId, labelOf: labelFor, origin: chartId })
+          : { userId: historyUserId, labelOf: anyLabelFor, origin: chartId })
       } catch { /* recording never blocks a write */ }
     }
     if (onSettingsPersist) { onSettingsPersist(newSettings); return }
