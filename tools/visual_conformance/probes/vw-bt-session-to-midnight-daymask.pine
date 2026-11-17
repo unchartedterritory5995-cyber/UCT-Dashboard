@@ -1,0 +1,22 @@
+//@version=6
+indicator("UCTPROBE_VW_BT_SESSION_TO_MIDNIGHT_DAYMASK", overlay = false)
+
+// bt unit (2026-11-16). A WINDOW THAT RUNS TO MIDNIGHT ("HHMM-0000") UNDER A WEEKDAY DAY LIST.
+//
+// `vw-w4-session-overnight-btcusd-60-2026-11-16` read "2000-0000:1234567" as 20:00-23:59 every day
+// (O3), and "1800-0200:23456" with the after-midnight part on the day the session ENDS (O2). Under
+// ":23456", is Monday 20:00-23:59 Monday's session (the window ends at 24:00 of its own day) or
+// Tuesday's (it ends at 00:00 of the next one)? Refused by name until this is read.
+//
+// Grade, per bar, from HOUR and DOW: M1 in on Monday-Friday evenings => "ends at 24:00 of its own
+// day"; in on Sunday-Thursday evenings => "ends at 00:00 of the next day".
+//
+// ⛔ CAPTURE: BITSTAMP:BTCUSD 60 (>= 400 bars, several whole weeks). Inputs at defaults.
+
+isNa(t) => na(t) ? 1 : 0
+
+plot(bar_index, "M0_bar_index_CONTROL")
+plot(hour, "HOUR")
+plot(dayofweek, "DOW_dayofweek")
+plot(na(time(timeframe.period, "2000-0000:23456")) ? 1 : 0, "M1_na_to_midnight_weekdays")
+plot(na(time(timeframe.period, "2000-0000:1234567")) ? 1 : 0, "M2_na_to_midnight_every_day_CONTROL")

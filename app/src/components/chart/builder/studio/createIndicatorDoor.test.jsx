@@ -57,7 +57,8 @@ describe('Create Indicator door', () => {
     fireEvent.change(box, { target: { value: '  colour the 21 EMA green while it rises  ' } })
     fireEvent.submit(box.closest('form'))
     expect(open).toHaveBeenCalledTimes(1)
-    expect(open).toHaveBeenLastCalledWith({ seed: 'colour the 21 EMA green while it rises' })
+    // 2026-11-16: the member submitted the box, so the words are SENT as the first turn
+    expect(open).toHaveBeenLastCalledWith({ seed: 'colour the 21 EMA green while it rises', send: true })
     expect(screen.getByTestId('describe-input').value).toBe('')
   })
 
@@ -69,7 +70,7 @@ describe('Create Indicator door', () => {
     const examples = screen.getAllByTestId('describe-example')
     expect(examples).toHaveLength(3)
     fireEvent.click(examples[1])
-    expect(open).toHaveBeenLastCalledWith({ seed: examples[1].textContent })
+    expect(open).toHaveBeenLastCalledWith({ seed: examples[1].textContent, send: true })
   })
 
   it('the other ways to start one are named in member words and open their own doors', () => {

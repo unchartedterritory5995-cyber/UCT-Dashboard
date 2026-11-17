@@ -91,7 +91,12 @@ beforeEach(() => {
   for (const k of Object.keys(idb)) delete idb[k]
   vi.stubGlobal('fetch', vi.fn((url) => {
     const m = String(url).match(/\/api\/bars\/([^?]+)/)
-    const body = m ? { ticker: m[1], tf: 'D', bars: barsBy[m[1]] || days(300) } : {}
+    // /api/bars-history answers the way production does (sealed, the same bars): the BarStore's
+    // D/W/M split asks it after the tail, and an unsealed answer sends it to its full-depth
+    // /api/bars fallback, a second request this file would count.
+    const h = String(url).match(/\/api\/bars-history\/([^?]+)/)
+    const body = m ? { ticker: m[1], tf: 'D', bars: barsBy[m[1]] || days(300) }
+      : h ? { ticker: h[1], tf: 'D', sealed: true, bars: barsBy[h[1]] || days(300) } : {}
     const res = { ok: true, status: 200, headers: { get: () => null }, json: () => Promise.resolve(body) }
     res.clone = () => res
     return Promise.resolve(res)

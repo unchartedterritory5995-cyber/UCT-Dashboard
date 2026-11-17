@@ -5,6 +5,7 @@ import useHistoryUserId from '../useHistoryUserId'
 import { recordIndicatorChange } from '../indicatorHistoryStore'
 import { labelFor as indicatorLabelFor } from '../indicatorCatalog'
 import StockChart from '../../StockChart'
+import { sendSeedFrom, agentOpenOpts } from '../builder/agentSeams'
 import isModalOpen from '../../../utils/modalOpen'
 import ChartMetaRow from './ChartMetaRow'
 import ChartIdentityRow from './ChartIdentityRow'
@@ -289,12 +290,13 @@ function ChartPane({
   // on its own blob), a popup passes neither (reads AND writes the user's global
   // chart_settings — "your chart, everywhere").
   const {
-    cs: chartCs, menuVars, write: writeActiveSettings, patchHeader, ownChartSource, theme: resolvedTheme } = useChartSurfaceSettings({
+    cs: chartCs, canvasCs, menuVars, write: writeActiveSettings, patchHeader, ownChartSource, theme: resolvedTheme } = useChartSurfaceSettings({
     stored,
     onStore,
     chartsTheme,
   })
-  const extHoursOn = resolveShowExtended(chartCs)
+  // the canvas's own rule on the canvas's own settings (useChartSurfaceSettings `canvasCs`)
+  const extHoursOn = resolveShowExtended(canvasCs)
 
   // ⭐⭐ T5b — THE BAR COUNT THE `window_dependent` BADGE NAMES.
   //
@@ -353,9 +355,11 @@ function ChartPane({
   // Backed by the shared `extendedHoursShading` chart setting (StockChart reads
   // the same pref, so they stay in lockstep). ON = pre/post bars show; OFF =
   // regular session only (9:30–4:00 ET) with overnight gaps.
+  // Written over what the canvas SHOWS (canvasCs), so flipping EXT changes nothing else the member sees
+  // (a partial blob would otherwise take the defaults for every key it lacked).
   const setExtHours = useCallback((on) => {
-    writeActiveSettings({ ...chartCs, extendedHoursShading: on, preset: 'custom' })
-  }, [chartCs, writeActiveSettings])
+    writeActiveSettings({ ...canvasCs, extendedHoursShading: on, preset: 'custom' })
+  }, [canvasCs, writeActiveSettings])
 
   // ── UCT breadth line-chart quick-toggle ──
   // Breadth pseudo-tickers (UCTA50 = % above 50-day MA, etc.) often read better as a
@@ -761,10 +765,12 @@ function ChartPane({
   const openCreateIndicator = useCallback((opts = null) => {
     setSettingsOpen(false)
     // The Indicators window's plain-words box hands over what was typed: it opens the studio
-    // with the request PREFILLED (the Agent's seeded door), never sent.
+    // with the request PREFILLED. ⭐ 2026-11-16: when the member submitted the box itself (Enter,
+    // or one of its examples) the words are SENT as the first turn; a search's words handed over
+    // by "Describe it instead" are only placed in the box.
     const seed = opts && typeof opts.seed === 'string' ? opts.seed : ''
     try {
-      if (seed) paneToolbarApi.current?.openCreateIndicatorFor?.({ seed })
+      if (seed) paneToolbarApi.current?.openCreateIndicatorFor?.(sendSeedFrom(opts) ? { seed, send: true } : { seed })
       else paneToolbarApi.current?.openCreateIndicator?.()
     } catch { /* noop */ }
   }, [])
@@ -988,7 +994,8 @@ function ChartPane({
     openCreateIndicatorFor: (opts = null) => {
       const no = { ok: false, reason: 'unavailable', prefilled: false, draft: false, editing: false }
       let res = no
-      try { res = paneToolbarApi.current?.openCreateIndicatorFor?.(opts) ?? no } catch { res = no }
+      // ⛔ UCT Agent's seed is never sent: `send` cannot pass this door (`agentOpenOpts`)
+      try { res = paneToolbarApi.current?.openCreateIndicatorFor?.(agentOpenOpts(opts)) ?? no } catch { res = no }
       // ⭐ only an open that HAPPENED closes Chart Settings (Agent team finding, 10-09):
       // a refused one ('access' / 'readonly' / 'unknown-definition') leaves the screen as it was
       if (res && res.ok) setSettingsOpen(false)

@@ -171,6 +171,9 @@ const YOUR_INDICATORS_TAB = Object.freeze({ key: 'formulas', label: 'Your indica
  *  page of its own (`IndicatorMembersTab`). Not a catalogue category: its rows are not in
  *  `results`, so a universal search does not list them; the tab filters by the same box. */
 export const MEMBERS_TAB = Object.freeze({ key: 'members', label: 'Members' })
+/** ⭐ UCT (2026-11-16) — the house set (`IndicatorHouseTab`): indicators UCT built and checked
+ *  bar by bar. Like Members, not a catalogue category; it sits just before Members. */
+export const HOUSE_TAB = Object.freeze({ key: 'uct', label: 'UCT' })
 import SourceField from './SourceField'
 // FT-070 / COV-11 — save / apply indicator templates (renders nothing unless
 // VITE_INDICATOR_TEMPLATES_ENABLED=1; see IndicatorTemplatesBar.jsx).
@@ -197,6 +200,7 @@ import { setInstancePlotStyle, setInstanceDisplayTarget, setInstanceDotSize, dot
 // sheet use, so the three surfaces cannot name different presets for one instance.
 import { applyPresetInputs, presetsOf, detectPreset, CUSTOM_PRESET } from './engine/instanceControls'
 import IndicatorMembersTab from './IndicatorMembersTab'
+import IndicatorHouseTab from './IndicatorHouseTab'
 // ⭐⭐ THE PANE MAP, AS A READ. `chartDataMap` asks `resolveDisplayTarget`,
 // `paneOwnerOf`, `paneOwnKeys` and `paneOwnersNeeded` — the same four answers
 // `StockChart` hands `computePaneLayout` — so this component never forms its own
@@ -383,10 +387,13 @@ export default function ChartSettingsIndicators({
   // PREFILLED request: the member still reads it and presses Send there. Nothing is asked of
   // the model from here.
   const [describeText, setDescribeText] = useState('')
-  const describeIt = (text) => {
+  // ⭐ 2026-11-16 — `send`: the member submitted the plain-words box itself (or pressed one of its
+  // examples), so the words go as the first turn and the preview is the next thing they see.
+  // A search's words ("Describe it instead") are still only placed in the box.
+  const describeIt = (text, { send = false } = {}) => {
     const seed = String(text == null ? '' : text).trim()
     setDescribeText('')
-    if (seed) onCreateIndicator({ seed })
+    if (seed) onCreateIndicator(send ? { seed, send: true } : { seed })
     else onCreateIndicator()
   }
   // 'active' — what the chart draws, plus the ways in.
@@ -1091,7 +1098,7 @@ export default function ChartSettingsIndicators({
   const libraryTabs = useMemo(() => {
     const base = libraryTabsFor({ economic: econAvailable, research: featureRows.length > 0 })
     // Members sits after the catalogue's own tabs, so the tab a member lands on is unchanged.
-    return ownFormulaCount > 0 ? [YOUR_INDICATORS_TAB, ...base, MEMBERS_TAB] : [...base, MEMBERS_TAB]
+    return ownFormulaCount > 0 ? [YOUR_INDICATORS_TAB, ...base, HOUSE_TAB, MEMBERS_TAB] : [...base, HOUSE_TAB, MEMBERS_TAB]
   }, [econAvailable, featureRows.length, ownFormulaCount])
   // ⚠️ A TAB ARRIVING LATE (`Economic`, once its catalogue answers) widens the strip's
   // CONTENT without resizing the strip, so the ResizeObserver never re-measures.
@@ -3938,7 +3945,7 @@ export default function ChartSettingsIndicators({
           <form
             className={`${styles.aiBar} ${styles.describeBar}`}
             data-guide="indicators.create"
-            onSubmit={(e) => { e.preventDefault(); describeIt(describeText) }}
+            onSubmit={(e) => { e.preventDefault(); describeIt(describeText, { send: true }) }}
           >
             <Icon name="spark" size={14} className={styles.spark} />
             <input
@@ -3952,14 +3959,14 @@ export default function ChartSettingsIndicators({
               maxLength={DESCRIBE_MAX}
             />
             <button type="submit" className={styles.iconBtn} data-testid="settings-create-indicator"
-              aria-label="Describe it" title="Opens UCT Intelligence with your words. It previews on this chart; nothing is saved until you say so">
+              aria-label="Describe it" title="Sends your words to UCT Intelligence. It previews on this chart; nothing is saved until you say so">
               <Icon name="send" size={14} />
             </button>
           </form>
           <div className={styles.describeChips} role="group" aria-label="Examples">
             {DESCRIBE_EXAMPLES.map((ex) => (
               <button key={ex} type="button" className={styles.pill} data-testid="describe-example"
-                onClick={() => describeIt(ex)}>{ex}</button>
+                onClick={() => describeIt(ex, { send: true })}>{ex}</button>
             ))}
           </div>
         </div>
@@ -4105,6 +4112,14 @@ export default function ChartSettingsIndicators({
             )}
           </div>
         )}
+        {activeTab === HOUSE_TAB.key && (
+          <IndicatorHouseTab
+            styles={styles}
+            query={query}
+            isOnOffer={(defId) => generation >= 0 && !!registry?.getDefinition?.(defId)}
+            onPutOnChart={putInstalledOnChart}
+          />
+        )}
         {activeTab === MEMBERS_TAB.key && (
           <IndicatorMembersTab
             styles={styles}
@@ -4113,7 +4128,7 @@ export default function ChartSettingsIndicators({
             onPutOnChart={putInstalledOnChart}
           />
         )}
-        {activeTab !== MEMBERS_TAB.key && (activeTab !== 'fundamentals' || fundAvailable) && tabResults.length === 0 && refusals.length === 0 && (
+        {activeTab !== MEMBERS_TAB.key && activeTab !== HOUSE_TAB.key && (activeTab !== 'fundamentals' || fundAvailable) && tabResults.length === 0 && refusals.length === 0 && (
           <div className={styles.indEmpty}>
             {/* ⚠️ "SEARCHING" IS NOT "NOTHING MATCHES", and the difference is a
                 network round trip. Telling a member their ticker does not exist
@@ -4184,7 +4199,7 @@ export default function ChartSettingsIndicators({
         {/* Saved, and not offered — with the gate's own reason, verbatim. Rendered
             only when something was actually refused, so a member whose formulas
             all install sees no heading about nothing. */}
-        {activeTab !== MEMBERS_TAB.key && refusals.length > 0 && (
+        {activeTab !== MEMBERS_TAB.key && activeTab !== HOUSE_TAB.key && refusals.length > 0 && (
           <section className={styles.insAddGroup} data-testid="user-definition-refusals">
             <div className={styles.insSectionLabel}>{REFUSED_CATEGORY}</div>
             <p className={styles.resRefusedLede}>

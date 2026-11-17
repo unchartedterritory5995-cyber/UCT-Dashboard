@@ -1849,6 +1849,14 @@ def bars_stream_status():
         out["websocket_channels"] = bar_stream.get_channel_counts()
     except Exception as e:  # noqa: BLE001
         out["websocket_channels_error"] = str(e)[:200]
+    try:
+        from api.services import feed_client
+        out["feed_source"] = feed_client.feed_source()
+        st = feed_client.status()
+        if st is not None:
+            out["feed_client"] = st
+    except Exception as e:  # noqa: BLE001
+        out["feed_client_error"] = str(e)[:200]
     return out
 
 
