@@ -50,6 +50,8 @@ const EXPORTS = [
   'referenceBars', 'referenceBenchmarkBars', 'referenceDigest', 'referenceOptions',
   'registerPineLibrary', 'resetRuntimeLedgers', 'resetRuntimeSessions',
   'runtimeStrategyOf', 'runtimeVersionRefusal', 'runtimeWarmupOf', 'strategyRecordShapeErrors',
+  // Studio R5 (backlog 44): a script's top-level names with lines, for "Inspect a bar" (runtime/topLevelNames.js).
+  'topLevelNames',
 ]
 
 let dir, built, text

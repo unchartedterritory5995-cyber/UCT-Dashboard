@@ -9,7 +9,10 @@
 //     speaker is shown because the index has none;
 //   * the two reads fail apart; the cut is said, and from which end;
 //   * rising or fading is shown with the two numbers it stands on;
-//   * a symbol loads into the linked panels; row numbers follow the rows on screen.
+//   * a symbol loads into the linked panels; row numbers follow the rows on screen;
+//   * saving the search as a call alert is offered on a result the index read and answered (above
+//     the quotes, or under "no call mentions it"), and nowhere else. The control's own states are
+//     in CallAlertSave.test.jsx.
 // The fixtures are the routes' real shapes (api/services/transcript_index.py), made-up tickers.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, within, waitFor } from '@testing-library/react'
@@ -22,6 +25,7 @@ vi.mock('../../../utils/jsonFetcher', () => ({ default: vi.fn() }))
 import jsonFetcher from '../../../utils/jsonFetcher'
 import { PanelFreshnessContext, PanelListContext, TerminalPanelContext } from '../../../components/terminal'
 import CallSearchPanel, { CALL_SEARCH_CODE, callSearchUrl, callTrendUrl, indexSpanSentence, trendRead, trendVerdict, verdictSentence } from './CallSearchPanel'
+import { CALL_ALERTS_URL } from './callAlertModel'
 import { colourLiteralsIn } from '../__tests__/themeScope'
 import { expectNoAxeViolations } from '../../journal-2-0/a11y/axeHarness'
 
@@ -42,14 +46,19 @@ const SEARCH = {
 const month = (m, calls, mentions) => ({ month: m, calls, mentions, pct: calls ? Math.round((mentions * 1000) / calls) / 10 : null })
 const TREND = { query: Q, match: '"tariff"', months: [month('2026-08', 400, 40), month('2026-09', 60, 9), month('2026-10', 500, 75), month('2026-11', 300, 90)], total: 214 }
 const EMPTY_INDEX = { query: Q, match: '"tariff"', months: [], total: 0 }
+/** The member's call alerts (GET /api/earnings/keyword-alerts): served to every test unless it says otherwise. */
+const ALERTS = { keywords: ['buyback'], max: 25, min_length: 3, enabled: true }
 
 const fail = (status) => Object.assign(new Error(`http ${status}`), { status })
 const PENDING = Symbol('pending')
-/** Serves each URL its body (an Error is thrown, PENDING never answers); anything else is a 500. */
-function serve(routes) {
-  jsonFetcher.mockImplementation((url) => {
-    if (!(url in routes)) return Promise.reject(fail(500))
-    const hit = routes[url]
+/** Serves each URL its body (an Error is thrown, PENDING never answers); anything else is a 500.
+ *  A write (a request with a method) is answered by `routes['POST <url>']`, else it is a 500. */
+function serve(given) {
+  const routes = { [CALL_ALERTS_URL]: ALERTS, ...given }
+  jsonFetcher.mockImplementation((url, init) => {
+    const key = init?.method ? `${init.method} ${url}` : url
+    if (!(key in routes)) return Promise.reject(fail(500))
+    const hit = routes[key]
     if (hit === PENDING) return new Promise(() => {})
     return hit instanceof Error ? Promise.reject(hit) : Promise.resolve(hit)
   })
@@ -92,7 +101,8 @@ describe('TSRC searching', () => {
     expect(asked()).toEqual([])
     fireEvent.click(screen.getByTestId('terminal-tsrc-submit'))
     await screen.findByTestId('terminal-tsrc-table')
-    expect(asked().sort()).toEqual([S_URL, T_URL].sort())
+    // the search, the month count, and (once there is a result) the member's call alerts
+    expect([...new Set(asked())].sort()).toEqual([CALL_ALERTS_URL, S_URL, T_URL].sort())
     expect(screen.getByTestId('terminal-tsrc').getAttribute('data-query')).toBe('tariff')
   })
 
@@ -317,6 +327,88 @@ describe('TSRC populated', () => {
   })
 })
 
+describe('TSRC call alerts', () => {
+  const writes = () => jsonFetcher.mock.calls.filter(([, init]) => init?.method)
+  const follows = (a, b) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+
+  it('on a result, the save control sits above the quotes and the small print below; a press saves the search', async () => {
+    serve({ [S_URL]: SEARCH, [T_URL]: TREND })
+    renderPanel({ q: Q })
+    await screen.findByTestId('terminal-tsrc-table')
+    const save = await screen.findByTestId('terminal-tsrc-alert-button')
+    expect(save.textContent).toBe('Save this search as a call alert: tariff')
+    expect(follows(save, screen.getByTestId('terminal-tsrc-table'))).toBe(true)
+    expect(follows(screen.getByTestId('terminal-tsrc-method'), screen.getByTestId('terminal-tsrc-alert-notes'))).toBe(true)
+    expect(screen.getByTestId('terminal-tsrc-alert-notes').textContent).toContain('6:30 PM ET, Monday to Friday')
+    // nothing was written by showing it
+    expect(writes()).toEqual([])
+    // the server takes the save, and holds the word from then on
+    const held = ['buyback', 'tariff']
+    serve({ [S_URL]: SEARCH, [T_URL]: TREND, [CALL_ALERTS_URL]: { ...ALERTS, keywords: held }, [`POST ${CALL_ALERTS_URL}`]: { ok: true, keyword: 'tariff', keywords: held } })
+    fireEvent.click(save)
+    await waitFor(() => expect(screen.getByTestId('terminal-tsrc-alert-status').textContent).toBe('Saved as a call alert: tariff.'))
+    expect(writes()).toHaveLength(1)
+    expect(writes()[0][0]).toBe(CALL_ALERTS_URL)
+    expect(writes()[0][1]).toMatchObject({ method: 'POST', body: JSON.stringify({ keyword: 'tariff' }) })
+    expect(screen.getByTestId('terminal-tsrc-alert-button').textContent).toBe('Remove the call alert: tariff')
+    // the quotes are still on screen
+    expect(rowsOf()).toHaveLength(3)
+  })
+
+  it('a search that is already a call alert shows as saved', async () => {
+    serve({ [S_URL]: SEARCH, [T_URL]: TREND, [CALL_ALERTS_URL]: { ...ALERTS, keywords: ['buyback', 'tariff'] } })
+    renderPanel({ q: Q })
+    await screen.findByTestId('terminal-tsrc-table')
+    expect((await screen.findByTestId('terminal-tsrc-alert')).getAttribute('data-state')).toBe('saved')
+    expect(screen.getByRole('button', { name: 'Remove the call alert: tariff' })).toBeTruthy()
+  })
+
+  it('no call says it yet: the search can still be saved, under the finding', async () => {
+    serve({ [S_URL]: { ...SEARCH, hits: [], total: 0 }, [T_URL]: { ...TREND, months: TREND.months.map((m) => ({ ...m, mentions: 0, pct: 0 })), total: 0 } })
+    renderPanel({ q: Q })
+    const empty = await screen.findByTestId('terminal-tsrc-empty')
+    const save = await screen.findByTestId('terminal-tsrc-alert-button')
+    expect(save.textContent).toBe('Save this search as a call alert: tariff')
+    expect(follows(empty, save)).toBe(true)
+    expect(screen.getAllByTestId('terminal-tsrc-alert')).toHaveLength(1)
+  })
+
+  it('is not offered before a search, on a failed search, on a query the index cannot read, or over an empty index', async () => {
+    serve({})
+    renderPanel()
+    expect(screen.getByTestId('terminal-tsrc-idle')).toBeTruthy()
+    expect(asked()).toEqual([])
+    for (const [routes, shown] of [
+      [{ [T_URL]: TREND }, 'terminal-tsrc-error'],
+      [{ [S_URL]: fail(402), [T_URL]: fail(402) }, 'terminal-tsrc-error'],
+      [{ [S_URL]: { query: Q, match: null, hits: [], total: 0, error: 'NEAR needs a word on each side.', query_error: true }, [T_URL]: TREND }, 'terminal-tsrc-bad-query'],
+      [{ [S_URL]: { ...SEARCH, hits: [], total: 0 }, [T_URL]: EMPTY_INDEX }, 'terminal-tsrc-index-empty'],
+    ]) {
+      cleanup()
+      jsonFetcher.mockReset()
+      serve(routes)
+      renderPanel({ q: Q })
+      await screen.findByTestId(shown)
+      expect(screen.queryByTestId('terminal-tsrc-alert'), shown).toBeNull()
+      expect(screen.queryByTestId('terminal-tsrc-alert-loading'), shown).toBeNull()
+      expect(screen.queryByTestId('terminal-tsrc-alert-error'), shown).toBeNull()
+      expect(screen.queryByTestId('terminal-tsrc-alert-notes'), shown).toBeNull()
+      expect(asked(), shown).not.toContain(CALL_ALERTS_URL)
+    }
+  })
+
+  it('a failed read of the call alerts leaves the quotes on screen and says what it cannot know', async () => {
+    serve({ [S_URL]: SEARCH, [T_URL]: TREND, [CALL_ALERTS_URL]: fail(500) })
+    renderPanel({ q: Q })
+    await screen.findByTestId('terminal-tsrc-table')
+    const err = await screen.findByTestId('terminal-tsrc-alert-error')
+    expect(err.textContent).toContain('The call alert list could not be read just now.')
+    expect(screen.queryByTestId('terminal-tsrc-alert-button')).toBeNull()
+    expect(rowsOf()).toHaveLength(3)
+    expect(await screen.findByTestId('terminal-tsrc-verdict')).toBeTruthy()
+  })
+})
+
 describe('TSRC sentences', () => {
   it('the verdict and the index span, as sentences', () => {
     const months = trendRead({ ...TREND, months: [month('2026-10', 200, 60), month('2026-11', 200, 20)] }).months
@@ -330,7 +422,7 @@ describe('TSRC sentences', () => {
 
 describe('TSRC follows the member\'s theme', () => {
   it('the panel, its model and its form styles hold no hard-coded color', () => {
-    for (const f of ['CallSearchPanel.jsx', 'callSearchModel.js', 'panelForm.module.css']) {
+    for (const f of ['CallSearchPanel.jsx', 'callSearchModel.js', 'panelForm.module.css', 'CallAlertSave.jsx', 'callAlertModel.js']) {
       const text = fs.readFileSync(path.join(HERE, f), 'utf8')
       expect(colourLiteralsIn(`pages/terminal/panels/${f}`, text).map((h) => h.lit), f).toEqual([])
     }

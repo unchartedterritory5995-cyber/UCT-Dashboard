@@ -65,6 +65,7 @@ export default function useScanBoard(enabled) {
     saveMine: name => apply(model.saveMine, name, `m-${Date.now().toString(36)}`),
     updateMine: id => apply(model.updateMine, id),
     deleteMine: id => apply(model.deleteMine, id),
+    adoptLayout: (name, widgets) => apply(model.adoptLayout, name, widgets, `m-${Date.now().toString(36)}`),
     setOption: (key, value) => apply(model.setOption, key, value),
     setEdit,
   }), [apply])

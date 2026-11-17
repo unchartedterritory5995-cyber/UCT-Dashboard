@@ -27,6 +27,23 @@
 //   unavailable { status: 'unavailable', results: [], error }: no market-wide data that far back.
 //   error       { status: 'error', error: 'start must be before end' }.
 //
+// THE SIBLING ROUTE (wave 5): `GET /api/scans/period-change-groups?start=&end=&group=theme|sector|
+// industry` (same file, get_period_change_groups; same paid gate, no flag). It ranks GROUPS from
+// the very same per-stock pass, so the dates snap the same way and `start`/`end`/`as_of`/`coverage`
+// are the stock route's own.
+//   ok          { status: 'ok', group, results: [{ name, period_change (PERCENT), count, members }],
+//                 count (how many groups), start, end, as_of, coverage? }
+//     a group   `count` is how many of its stocks were ranked and `members` their symbols (sectors
+//               and industries: best stock first; themes: in the theme's own order). The change is
+//               NOT a plain average: the best tenth of the stocks (at least one) is capped at the
+//               next best stock's change before averaging, so one runaway stock cannot carry a
+//               group (_robust_group_pct). The list is never cut by the server.
+//     sector / industry  come from the ticker details on file; a stock with none is in no group.
+//     theme     UCT themes; a theme with no ranked member is not sent.
+//     ⚠️ no `partial`: the groups answer does not say when the range came from our own bar history.
+//   computing / unavailable / error   as the stock route (no start, end or as_of); `error: 'bad
+//               group'` when `group` is not one of the three.
+//
 // ⛔ THE DATES ARE VALIDATED HERE, BEFORE ANY REQUEST. The service turns the ints into dates with
 // no check of its own: an impossible day (20260230) is a 500, and an end date more than 9 days
 // ahead answers "computing" for ever. `periodRequest` refuses both and says why.
@@ -68,6 +85,26 @@ export const PERIOD_SIDES = Object.freeze({
   losers: Object.freeze({ chip: 'Biggest losers', token: 'LOSERS' }),
 })
 
+/**
+ * What is ranked, in chip order. `group` is the `group=` value the groups route takes (null for the
+ * stock route); `token` is what a chip writes into the command (`PCHG SECTORS`).
+ */
+export const PERIOD_UNITS = Object.freeze({
+  stocks: Object.freeze({ chip: 'Stocks', token: null, group: null, head: 'Symbol', one: 'stock', many: 'stocks' }),
+  sector: Object.freeze({ chip: 'Sectors', token: 'SECTORS', group: 'sector', head: 'Sector', one: 'sector', many: 'sectors' }),
+  industry: Object.freeze({ chip: 'Industries', token: 'INDUSTRIES', group: 'industry', head: 'Industry', one: 'industry', many: 'industries' }),
+  theme: Object.freeze({ chip: 'Themes', token: 'THEMES', group: 'theme', head: 'Theme', one: 'theme', many: 'themes' }),
+})
+export const DEFAULT_PERIOD_UNIT = 'stocks'
+/** The words "what to rank" is typed as (`PCHG QTD SECTORS`). For an args.js kind. None of them is
+ *  a range word or a list-end word, so the three kinds share one command. */
+export const PERIOD_UNIT_ARG_WORDS = Object.freeze({
+  STOCKS: 'stocks', STOCK: 'stocks',
+  SECTORS: 'sector', SECTOR: 'sector',
+  INDUSTRIES: 'industry', INDUSTRY: 'industry',
+  THEMES: 'theme', THEME: 'theme',
+})
+
 const own = (map, key) => (Object.prototype.hasOwnProperty.call(map, key) ? map[key] : null)
 const word = (token) => String(token ?? '').trim().toUpperCase()
 
@@ -77,6 +114,10 @@ export const parsePeriodRange = (token) => own(PERIOD_RANGE_ARG_WORDS, word(toke
 export const parsePeriodSide = (token) => own(PERIOD_SIDE_ARG_WORDS, word(token))
 /** Pure: the list end a prop or a typed word names; anything unknown is the gainers. */
 export const normPeriodSide = (raw) => parsePeriodSide(raw) || 'gainers'
+/** Pure: a typed word as what is ranked ('stocks' | 'sector' | 'industry' | 'theme'), or null. */
+export const parsePeriodUnit = (token) => own(PERIOD_UNIT_ARG_WORDS, word(token))
+/** Pure: what a prop or a typed word says to rank. A unit key is taken as it is; anything unknown is the stocks. */
+export const normPeriodUnit = (raw) => parsePeriodUnit(raw) || (typeof raw === 'string' && own(PERIOD_UNITS, raw) ? raw : DEFAULT_PERIOD_UNIT)
 
 const pad2 = (n) => String(n).padStart(2, '0')
 const iso = (y, m, d) => `${y}-${pad2(m)}-${pad2(d)}`
@@ -147,6 +188,11 @@ export const dayOfYmd = (v) => parsePeriodDate(v === null || v === undefined ? '
 
 /** The route for two validated dates. */
 export const periodChangeUrl = (start, end) => `/api/scans/period-change?start=${ymd(start)}&end=${ymd(end)}`
+/** The groups route for two validated dates and a unit, or null when the unit is the stocks (or unknown). */
+export function periodGroupsUrl(start, end, unit) {
+  const group = own(PERIOD_UNITS, unit)?.group
+  return group ? `/api/scans/period-change-groups?start=${ymd(start)}&end=${ymd(end)}&group=${group}` : null
+}
 
 /**
  * Pure: what to ask the server for, or why not.
@@ -180,15 +226,15 @@ export function periodRequest({ range = null, start = null, end = null, today = 
 
 /**
  * Pure: the arguments a choice writes into the panel's command. Typed dates win over a range; the
- * default range and the gainers are the bare command.
+ * default range, the stocks and the gainers are the bare command.
  */
-export function periodChangeCommandArgs({ range = null, start = null, end = null, side = null } = {}) {
+export function periodChangeCommandArgs({ range = null, start = null, end = null, side = null, unit = null } = {}) {
   const s = parsePeriodDate(start)
   const e = parsePeriodDate(end)
   const key = parsePeriodRange(range) || (own(PERIOD_RANGES, range) ? range : null)
   const dates = s ? [s, e].filter(Boolean) : []
   const rangeTok = !dates.length && key && key !== DEFAULT_PERIOD_RANGE ? PERIOD_RANGES[key].token : null
-  return [...dates, rangeTok, PERIOD_SIDES[normPeriodSide(side)].token].filter(Boolean)
+  return [...dates, rangeTok, PERIOD_UNITS[normPeriodUnit(unit)].token, PERIOD_SIDES[normPeriodSide(side)].token].filter(Boolean)
 }
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v)
@@ -256,6 +302,86 @@ export function periodRead(body) {
     partial: body.partial === true,
     coverage: coverageOf(body.coverage),
     asOf: text(body.as_of) || null,
+  }
+}
+
+/** A range that starts before this may have been ranked from our own bar history (about 2003). */
+export const WHOLE_MARKET_HISTORY_FROM = '2004-01-01'
+
+/**
+ * Pure: the groups route's answer as the panel needs it. `unit` is what was asked for ('sector' |
+ * 'industry' | 'theme'); an answer for a different group is not this read's answer.
+ *   state     as `periodRead`: 'ok' | 'computing' | 'unavailable' | 'refused' | 'failed'
+ *   rows      { key, name, pct (percent), count (stocks ranked in it, null when not sent), members
+ *             (their symbols, upper-cased, each once) }, biggest gain first, one per name, a group
+ *             with no percent dropped (never drawn as 0)
+ *   startDay, endDay, sameDay, coverage, asOf   as `periodRead`
+ *   mayBePartial   the range starts before the whole-market history, where the stock route ranks
+ *             only stocks still in our bar store; the groups answer itself does not say
+ */
+export function periodGroupsRead(body, unit) {
+  const none = { state: 'failed', rows: [], startDay: null, endDay: null, sameDay: false, mayBePartial: false, coverage: null, asOf: null }
+  const group = own(PERIOD_UNITS, unit)?.group
+  if (!isObj(body) || !group) return none
+  const status = text(body.status).toLowerCase()
+  if (status === 'computing') return { ...none, state: 'computing' }
+  if (status === 'unavailable') return { ...none, state: 'unavailable' }
+  if (status === 'error') return { ...none, state: text(body.error).toLowerCase() === 'bad group' ? 'failed' : 'refused' }
+  if (status !== 'ok' || !Array.isArray(body.results) || text(body.group).toLowerCase() !== group) return none
+  const seen = new Set()
+  const rows = []
+  for (const it of body.results) {
+    const name = text(it?.name)
+    const pct = num(it?.period_change)
+    if (!name || pct === null || seen.has(name.toLowerCase())) continue
+    seen.add(name.toLowerCase())
+    const members = [...new Set((Array.isArray(it.members) ? it.members : []).map((m) => text(m).toUpperCase()).filter(Boolean))]
+    const sentCount = whole(it.count)
+    rows.push({
+      key: `pchg-${group}-${name}`,
+      name,
+      pct,
+      count: sentCount !== null && sentCount > 0 ? sentCount : members.length || null,
+      members,
+      sent: rows.length,
+    })
+  }
+  rows.sort((a, b) => b.pct - a.pct || a.sent - b.sent)
+  const startDay = dayOfYmd(body.start)
+  const endDay = dayOfYmd(body.end)
+  return {
+    state: 'ok',
+    rows: rows.map((r) => { const row = { ...r }; delete row.sent; return row }),
+    startDay,
+    endDay,
+    sameDay: !!startDay && startDay === endDay,
+    mayBePartial: !!startDay && startDay < WHOLE_MARKET_HISTORY_FROM,
+    coverage: coverageOf(body.coverage),
+    asOf: text(body.as_of) || null,
+  }
+}
+
+/**
+ * Pure: one group's stocks, each with its own change from the stock ranking (`periodRead(...).rows`).
+ * Biggest gain first (biggest fall first for the losers); a member the stock ranking does not hold
+ * keeps a row at the end with no percent (never a 0). Returns `{ rows, total, known }`: `known` is
+ * how many have a change.
+ */
+export function groupMemberRows(group, stockRows, side = 'gainers') {
+  const bySym = new Map((Array.isArray(stockRows) ? stockRows : []).map((r) => [r.sym, r]))
+  const members = Array.isArray(group?.members) ? group.members : []
+  const dir = normPeriodSide(side) === 'losers' ? -1 : 1
+  const rows = members.map((sym, i) => {
+    const hit = bySym.get(sym)
+    return hit
+      ? { ...hit, sent: i }
+      : { key: `pchg-${sym}`, sym, pct: null, dollars: null, startClose: null, endClose: null, price: null, industry: null, sector: null, sent: i }
+  })
+  rows.sort((a, b) => (a.pct === null) - (b.pct === null) || dir * ((b.pct ?? 0) - (a.pct ?? 0)) || a.sent - b.sent)
+  return {
+    rows: rows.map((r) => { const row = { ...r }; delete row.sent; return row }),
+    total: rows.length,
+    known: rows.filter((r) => r.pct !== null).length,
   }
 }
 

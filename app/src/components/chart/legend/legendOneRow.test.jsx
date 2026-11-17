@@ -177,11 +177,9 @@ describe('the study stack\'s rows meet: no gap for the pointer to fall through t
     expect(row).toMatch(/pointer-events:\s*auto/)
   })
 
-  it('the volume row sits 3px lower and reaches 3px further up, so its gap is covered too', () => {
-    const vol = /\.studyStack \[data-legend-row="volume"\]\s*\{([^}]*)\}/.exec(CHART_CSS)[1]
-    const margin = px(/margin-top:\s*(\d+)px/, vol, 'volume margin-top')
-    const top = px(/--row-hit-top:\s*(\d+)px/, vol, 'volume --row-hit-top')
-    const pad = px(/--row-hit-pad:\s*(\d+(?:\.\d+)?)px/, stack, '--row-hit-pad')
-    expect(top).toBe(pad + margin)
+  it('no stacked row gets its own margin — every row is spaced by the stack row-gap alone (owner 11-17)', () => {
+    // Volume used to sit 3px lower than the moving averages above it.
+    expect(CHART_CSS).not.toMatch(/\[data-legend-row[^\]]*\][^{]*\{[^}]*margin/)
+    expect(CHART_CSS).not.toMatch(/--row-hit-top:/)
   })
 })

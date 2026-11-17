@@ -613,25 +613,6 @@ const STUDY_STACK_MAX_FRAC = 0.42
  * dead instead of clicking a grey line repeatedly. `ContextPopover` renders the
  * label node as-is, so the reason rides along beside it.
  */
-function chipMenuRowToPopoverRow(it) {
-  // A separator or a UCT Signature group label is not a row: no icon, no reason.
-  if (it.separator || it.groupLabel != null) return it
-  const icon = it.icon ? <UIcon name={it.icon} size={13} gold={false} /> : undefined
-  if (!it.disabled) return { ...it, icon }
-  return {
-    ...it,
-    icon,
-    label: (
-      <>
-        <span>{it.label}</span>
-        {/* a11y 2026-11-08: the refusal reason is 11 px, not 10.5 — no shared text under 11 px. */}
-        <span style={{ display: 'block', fontSize: 11, opacity: 0.62, lineHeight: 1.35, marginTop: 1 }}>
-          {it.disabled}
-        </span>
-      </>
-    ),
-  }
-}
 
 /**
  * ⭐ UCT SIGNATURE (owner 11-16) — a chip-menu row in the chart right-click menu's look
@@ -19741,13 +19722,11 @@ export default function StockChart({
         const menuName = (surface && surface.name) || c.label
         const move = items.find((i) => i.key === 'move')
         const presetRow = items.find((i) => i.key === 'preset')
-        const page = (chipPage === 'move' && move && !move.disabled)
-          ? [
-              { key: '_back', label: menuName, icon: 'collapse', keepOpen: true,
-                onClick: () => setChipPage(null) },
-              { separator: true },
-              ...move.submenu.map((s) => ({ ...s, icon: s.checked ? 'check' : 'expand' })),
-            ]
+        // ⭐ UCT Signature on EVERY indicator's Display in page (owner 11-17: "all of them"),
+        // the same `displayPageSigRows` page Volume's uses.
+        const onMovePage = chipPage === 'move' && move && !move.disabled
+        const page = onMovePage
+          ? displayPageSigRows(menuName, move.submenu, () => setChipPage(null))
           : items.map((it) => {
               if (it.key === 'move' && !it.disabled) return { ...it, keepOpen: true, onClick: () => setChipPage('move') }
               // ⭐ A6 — `Preset   Classic (O'Neil) ›`: the current preset as a muted
@@ -19885,12 +19864,9 @@ export default function StockChart({
             /* ⛔ NO `title` — see the row branch above. On the Display-in PAGE the
                back row carries the label instead, which is why that page renders
                no header either. */
-            title={chipPage === 'move' ? menuName : undefined}
             width={menuWidth}
             dense
-            /* UCT Signature on the menu page (group labels, gold hover icon, gold ✓ on Value in
-               header). The Display in page keeps its own tick icons, unchanged. */
-            signature={chipPage !== 'move'}
+            signature  /* UCT Signature on the menu AND the Display in page (owner 11-17) */
             /* ⛔ NO HEADER ON THE DISPLAY-IN PAGE. That page already opens with a
                back row carrying the label, and a second copy of the name directly
                above it reads as a bug.
@@ -19923,8 +19899,8 @@ export default function StockChart({
                   button is its own control, and a row's button cannot hold one). */}
               {askCompass}
             </>)}
-            items={page.map(chipPage === 'move' ? chipMenuRowToPopoverRow : chipMenuSigRow)}
-            sheetClassName={sheetCls + (chipPage !== 'move' ? ' ' + popStyles.signature : '')} /* the touch sheet's UCT Signature look rides the Sheet's class (ContextPopover: Notebook bytes) */
+            items={onMovePage ? page : page.map(chipMenuSigRow)}
+            sheetClassName={sheetCls + ' ' + popStyles.signature} /* the touch sheet's UCT Signature look rides the Sheet's class (ContextPopover: Notebook bytes) */
           />
         )
       })()}

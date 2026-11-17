@@ -188,6 +188,28 @@ describe('FLWL pure shaping', () => {
     }
   })
 
+  // The route never computes on the request (measured 2026-11-17: a cold mid-session build did
+  // not answer in 120 s). It says it is building, or hands over the list it holds with when it
+  // was built and whether a rebuild is running.
+  it('creamRead: the server\'s "still building" answer is its own state, never a failed read or an empty day', () => {
+    const out = creamRead({ status: 'computing', date: '11/16/2026' })
+    expect(out.state).toBe('computing')
+    expect(out.date).toBe('2026-11-16')
+    expect(out.rows).toEqual([])
+    // a list beside the word is still a list: the status alone decides
+    expect(creamRead({ ...CREAM, status: 'ok' }).state).toBe('ok')
+  })
+
+  it('creamRead: when the list was built, and whether the server is rebuilding it', () => {
+    expect(creamRead(CREAM)).toMatchObject({ builtAt: null, stale: false })
+    const built = creamRead({ ...CREAM, built_at: 1794846600 })
+    expect(built.builtAt).toBe(new Date(1794846600 * 1000).toISOString())
+    expect(built.stale).toBe(false)
+    expect(creamRead({ ...CREAM, built_at: 1794846600, stale: true }).stale).toBe(true)
+    for (const odd of [0, -5, 'soon', null, true]) expect(creamRead({ ...CREAM, built_at: odd }).builtAt, String(odd)).toBeNull()
+    expect(creamRead({ ...CREAM, stale: 'yes' }).stale).toBe(false)
+  })
+
   it('boardRead: one row per stock, biggest net premium first in either direction, the share as the percent sent', () => {
     const out = boardRead(BOARD)
     expect(out.state).toBe('ok')
@@ -285,6 +307,36 @@ describe('FLWL Cream of the Crop states', () => {
     serve({ [CREAM_URL]: CREAM })
     fireEvent.click(screen.getByRole('button', { name: 'Check again' }))
     expect(await screen.findByTestId('terminal-flwl-cream')).toBeTruthy()
+  })
+
+  it('"computing" says the server is building the list: not empty, not an error, no time', async () => {
+    serve({ [CREAM_URL]: { status: 'computing', date: '11/16/2026' } })
+    const { setFreshness } = renderPanel()
+    const building = await screen.findByTestId('terminal-flwl-cream-building')
+    expect(building.getAttribute('data-kind')).toBe('empty')
+    expect(building.getAttribute('role')).toBe('status')
+    expect(building.textContent).toContain('Loading, the server is preparing this.')
+    expect(building.textContent).toContain('This panel asks again every 20 seconds and fills in on its own.')
+    expect(building.textContent).toContain('That is not the same as no positions.')
+    expect(screen.queryByTestId('terminal-flwl-empty')).toBeNull()
+    expect(screen.queryByTestId('terminal-flwl-error')).toBeNull()
+    expect(screen.queryByTestId('terminal-flwl-cream')).toBeNull()
+    expect(setFreshness.mock.calls.every(([report]) => report == null)).toBe(true)
+  })
+
+  it('a list the server is rebuilding is shown with a note, and the header carries when it was built', async () => {
+    serve({ [CREAM_URL]: { ...CREAM, built_at: 1794846600, stale: true } })
+    const { setFreshness } = renderPanel()
+    await screen.findByTestId('terminal-flwl-cream')
+    expect(screen.getByTestId('terminal-flwl-cream-stale').textContent).toContain('The server is rebuilding this list now.')
+    const reports = setFreshness.mock.calls.map(([report]) => report).filter(Boolean)
+    expect(JSON.stringify(reports[reports.length - 1])).toContain(new Date(1794846600 * 1000).toISOString())
+    cleanup()
+    // a fresh build carries no note
+    serve({ [CREAM_URL]: { ...CREAM, built_at: 1794846600 } })
+    renderPanel()
+    await screen.findByTestId('terminal-flwl-cream')
+    expect(screen.queryByTestId('terminal-flwl-cream-stale')).toBeNull()
   })
 })
 

@@ -12101,6 +12101,8 @@ from api.routers import screener_new_today as screener_new_today_router  # noqa:
 app.include_router(screener_new_today_router.router)
 from api.routers import screener_nl as screener_nl_router  # noqa: E402  (FT-024/030, dark)
 app.include_router(screener_nl_router.router)
+from api.routers import screener_layout_gallery as screener_layout_gallery_router  # noqa: E402  (community scan-board layouts, dark)
+app.include_router(screener_layout_gallery_router.router)
 from api.routers import uct_agent as uct_agent_router  # noqa: E402  (UCT Agent, admin-dark)
 app.include_router(uct_agent_router.router)
 app.include_router(expected_move_router.router)

@@ -57,9 +57,9 @@ beforeEach(() => {
 })
 afterEach(() => { heightSpy.mockRestore(); delete window.matchMedia })
 
-const draw = (flag = true) => render(
+const draw = (flag = true, more = {}) => render(
   <MemoryRouter><SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
-    <AuthContext.Provider value={{ screenerScanBoardEnabled: flag }}><FocusScreener /></AuthContext.Provider>
+    <AuthContext.Provider value={{ screenerScanBoardEnabled: flag, ...more }}><FocusScreener /></AuthContext.Provider>
   </SWRConfig></MemoryRouter>)
 const page = () => screen.getByTestId('focus-screener')
 const widgetsOnBoard = () => [...document.querySelectorAll('[data-testid="scan-board"] [data-widget]')].map(el => el.getAttribute('data-widget'))
@@ -83,12 +83,14 @@ test('with the flag, on a desktop: the page is the board on its first preset', a
   expect(screen.getByRole('button', { name: /Change screen/ })).toHaveTextContent('All screens')
 })
 
-test('owner ruling: the view switch offers List and Charts; Table and Map open from the More menu', async () => {
+test('owner ruling: no Table and no Map as views; the More menu offers the scan builder and nothing else of them', async () => {
   draw()
   await waitFor(() => expect(screen.getByTestId('focus-row-MU')).toBeInTheDocument())
   expect(within(screen.getByRole('group', { name: 'View' })).getAllByRole('button').map(b => b.textContent)).toEqual(['List', 'Charts'])
   fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
-  expect(within(screen.getByRole('menu', { name: 'More actions' })).getAllByRole('menuitem').slice(0, 2).map(i => i.textContent)).toEqual(['Table view', 'Map view'])
+  const items = within(screen.getByRole('menu', { name: 'More actions' })).getAllByRole('menuitem').map(i => i.textContent)
+  expect(items[0]).toBe('Scan builder')
+  expect(items.join(' ')).not.toMatch(/table|map/i)
 })
 
 test('without the flag, and with it on a phone or a tablet, the page is not the board', async () => {
@@ -149,12 +151,12 @@ test('a Table or Map view remembered from an earlier visit does not decide where
   }
 })
 
-test('Table view still opens from the More menu for that visit, and its switch offers no Map', async () => {
+test('the scan builder (the older page) still opens from the More menu for that visit, and its switch offers no Map', async () => {
   localStorage.setItem('uct.screener.layout', 'table')
   draw()
   await waitFor(() => expect(screen.getByTestId('focus-row-MU')).toBeInTheDocument())
   fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
-  fireEvent.click(within(screen.getByRole('menu', { name: 'More actions' })).getByRole('menuitem', { name: 'Table view' }))
+  fireEvent.click(within(screen.getByRole('menu', { name: 'More actions' })).getByRole('menuitem', { name: 'Scan builder' }))
   const table = await screen.findByTestId('table-mode')
   expect(within(table).getAllByRole('button').map(b => b.textContent)).toEqual(['List', 'Charts', 'Table'])
 })
@@ -164,4 +166,62 @@ test('without the flag a remembered Table view opens as it always did, with the 
   draw(false)
   const table = await screen.findByTestId('table-mode')
   expect(within(table).getAllByRole('button').map(b => b.textContent)).toEqual(['List', 'Charts', 'Map', 'Table'])
+})
+
+// Community layouts (SCREENER_LAYOUT_GALLERY_ENABLED), on the page.
+const galleryCalls = () => fetch.mock.calls.filter(([u]) => String(u).startsWith('/api/screener/layout-gallery')).map(([u, o]) => [o?.method || 'GET', String(u), o?.body ? JSON.parse(o.body) : undefined])
+
+test('without the community flag the Layout menu has no sharing entries and the server is never asked', async () => {
+  draw()
+  await waitFor(() => expect(screen.getByTestId('focus-row-MU')).toBeInTheDocument())
+  fireEvent.click(screen.getByRole('button', { name: 'Layout' }))
+  expect(within(screen.getByRole('menu', { name: 'Layout' })).queryByRole('menuitem', { name: /Community|Share/ })).toBeNull()
+  expect(galleryCalls()).toEqual([])
+})
+
+test('with it: Share sends the name and the arrangement only; Community layouts opens the window', async () => {
+  draw(true, { screenerLayoutGalleryEnabled: true })
+  await waitFor(() => expect(screen.getByTestId('focus-row-MU')).toBeInTheDocument())
+  await waitFor(() => expect(widgetsOnBoard()).toHaveLength(3))
+  fireEvent.click(screen.getByRole('button', { name: 'Layout' }))
+  fireEvent.click(within(screen.getByRole('menu', { name: 'Layout' })).getByRole('menuitem', { name: 'Share this layout…' }))
+  const ask = await screen.findByRole('dialog', { name: 'Share this layout' })
+  // the member is told what leaves and what does not, before anything is sent
+  expect(within(ask).getByTestId('name-dialog-info')).toHaveTextContent('Your screens and filters are not shared.')
+  expect(galleryCalls()).toEqual([])
+  fireEvent.change(within(ask).getByLabelText('Layout name'), { target: { value: '  My board  ' } })
+  fireEvent.click(within(ask).getByRole('button', { name: 'Share' }))
+  await waitFor(() => expect(galleryCalls()).toHaveLength(1))
+  expect(galleryCalls()[0]).toEqual(['POST', '/api/screener/layout-gallery', { name: 'My board', layout: { widgets: PRESETS[0].widgets } }])
+  fireEvent.click(screen.getByRole('button', { name: 'Layout' }))
+  fireEvent.click(within(screen.getByRole('menu', { name: 'Layout' })).getByRole('menuitem', { name: 'Community layouts…' }))
+  expect(await screen.findByRole('dialog', { name: 'Community layouts' })).toBeInTheDocument()
+  fireEvent.click(within(screen.getByRole('dialog', { name: 'Community layouts' })).getByRole('button', { name: 'Close' }))
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Community layouts' })).toBeNull())
+})
+
+test('the community flag alone, without the board, changes nothing', async () => {
+  draw(false, { screenerLayoutGalleryEnabled: true })
+  await waitFor(() => expect(screen.getByTestId('focus-row-MU')).toBeInTheDocument())
+  expect(screen.queryByRole('button', { name: 'Layout' })).toBeNull()
+  expect(galleryCalls()).toEqual([])
+})
+
+test('an admin is told on the Layout menu how many shared layouts wait for review; a member is never asked', async () => {
+  const base = globalThis.fetch
+  const waiting = { id: 'q1', name: 'New', author: 'Dana', layout: { widgets: PRESETS[0].widgets }, uses: 0, mine: false, status: 'pending', reported: false, hidden: false, reports: 0 }
+  globalThis.fetch = vi.fn(async (u, o) => (String(u) === '/api/screener/layout-gallery' && (!o?.method || o.method === 'GET')
+    ? { ok: true, json: async () => ({ items: [], mine: [], queue: [waiting, { ...waiting, id: 'q2', status: 'approved', reports: 1 }, { ...waiting, id: 'q3', status: 'approved', hidden: true }] }) }
+    : base(u, o)))
+  const member = draw(true, { screenerLayoutGalleryEnabled: true, user: { id: 'u1', role: 'member' } })
+  await waitFor(() => expect(screen.getByTestId('focus-row-MU')).toBeInTheDocument())
+  fireEvent.click(screen.getByRole('button', { name: 'Layout' }))
+  expect(within(screen.getByRole('menu', { name: 'Layout' })).getByRole('menuitem', { name: /Community layouts/ }).textContent).toBe('Community layouts…')
+  expect(galleryCalls()).toEqual([])
+  member.unmount()
+  draw(true, { screenerLayoutGalleryEnabled: true, user: { id: 'u0', role: 'admin' } })
+  await waitFor(() => expect(screen.getByTestId('focus-row-MU')).toBeInTheDocument())
+  await waitFor(() => expect(galleryCalls()).toEqual([['GET', '/api/screener/layout-gallery', undefined]]))
+  fireEvent.click(screen.getByRole('button', { name: 'Layout' }))
+  await waitFor(() => expect(within(screen.getByRole('menu', { name: 'Layout' })).getByRole('menuitem', { name: /Community layouts/ }).textContent).toBe('Community layouts…2 to review'))
 })
