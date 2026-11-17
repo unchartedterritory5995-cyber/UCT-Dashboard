@@ -7,10 +7,10 @@
     "get_bars_before",
     "get_bars_since"
   ],
-  "modules_scanned": 2302,
+  "modules_scanned": 2360,
   "summary": {
     "named_access_count": 2,
-    "positional_count": 53,
+    "positional_count": 54,
     "named_access": [
       "api/services/canonical/resolver.py",
       "api/services/ticker_returns.py"
@@ -44,6 +44,7 @@
       "api/services/journal_two/tech_fingerprint.py",
       "api/services/journal_two/trader_blocks.py",
       "api/services/journal_two/tweet_price.py",
+      "api/services/local_bars.py",
       "api/services/market_intel/price_reads.py",
       "api/services/pattern_engine/memory.py",
       "api/services/pattern_vision/modelbook_examples.py",
@@ -54,7 +55,6 @@
       "api/services/scan_ipo.py",
       "api/services/scan_volume.py",
       "api/services/screener/rs_history.py",
-      "api/services/screener/scan_evaluator.py",
       "api/services/screener/snapshot_builder.py",
       "api/services/screener/sparks.py",
       "api/services/setup_tags.py",
@@ -62,6 +62,7 @@
       "api/services/theme_engine/comovement.py",
       "api/services/theme_index.py",
       "api/services/uct_agent/marketdata/bars_daily.py",
+      "api/services/uct_agent/marketdata/rs_leadership.py",
       "api/services/voice_deep_data_tools.py",
       "api/services/wisdom/archive/levels.py",
       "api/services/wisdom/archive/setup_map.py",
@@ -77,23 +78,23 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 616
+          "line": 632
         },
         {
           "function": "get_bars",
-          "line": 905
+          "line": 921
         },
         {
           "function": "get_bars",
-          "line": 923
+          "line": 939
         },
         {
           "function": "get_bars",
-          "line": 6316
+          "line": 6519
         }
       ],
       "evidence": {
-        "line": 72,
+        "line": 87,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -145,11 +146,11 @@
       "calls": [
         {
           "function": "get_bars_before",
-          "line": 889
+          "line": 895
         }
       ],
       "evidence": {
-        "line": 566,
+        "line": 572,
         "pattern": "int-subscript",
         "index": 4
       }
@@ -173,19 +174,19 @@
       "calls": [
         {
           "function": "get_bars_before",
-          "line": 743
+          "line": 807
         },
         {
           "function": "get_bars_before",
-          "line": 776
+          "line": 859
         },
         {
           "function": "get_bars_before",
-          "line": 785
+          "line": 870
         }
       ],
       "evidence": {
-        "line": 746,
+        "line": 810,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -231,19 +232,19 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 243
+          "line": 256
         },
         {
           "function": "get_bars_since",
-          "line": 260
+          "line": 273
         },
         {
           "function": "get_bars_since",
-          "line": 333
+          "line": 346
         }
       ],
       "evidence": {
-        "line": 99,
+        "line": 112,
         "pattern": "int-subscript",
         "index": 1
       }
@@ -257,95 +258,95 @@
         },
         {
           "function": "get_bars_since",
-          "line": 931
+          "line": 991
         },
         {
           "function": "get_bars_since",
-          "line": 959
+          "line": 1044
         },
         {
           "function": "get_bars_since",
-          "line": 1009
+          "line": 1100
         },
         {
           "function": "get_bars",
-          "line": 1779
+          "line": 1969
         },
         {
           "function": "get_bars",
-          "line": 2322
+          "line": 2521
         },
         {
           "function": "get_bars",
-          "line": 2380
+          "line": 2579
         },
         {
           "function": "get_bars_since",
-          "line": 2729
+          "line": 2928
         },
         {
           "function": "get_bars_since",
-          "line": 2742
+          "line": 2941
         },
         {
           "function": "get_bars_since",
-          "line": 2897
+          "line": 3096
         },
         {
           "function": "get_bars",
-          "line": 3397
+          "line": 3596
         },
         {
           "function": "get_bars_before",
-          "line": 3531
+          "line": 3730
         },
         {
           "function": "get_bars_before",
-          "line": 3558
+          "line": 3757
         },
         {
           "function": "get_bars_before",
-          "line": 3675
+          "line": 3874
         },
         {
           "function": "get_bars_before",
-          "line": 3773
+          "line": 3972
         },
         {
           "function": "get_bars_since",
-          "line": 3905
+          "line": 4105
         },
         {
           "function": "get_bars",
-          "line": 3909
+          "line": 4109
         },
         {
           "function": "get_bars",
-          "line": 4740
+          "line": 4941
         },
         {
           "function": "get_bars",
-          "line": 4794
+          "line": 4997
         },
         {
           "function": "get_bars",
-          "line": 4804
+          "line": 5007
         },
         {
           "function": "get_bars",
-          "line": 4926
+          "line": 5132
         },
         {
           "function": "get_bars",
-          "line": 5013
+          "line": 5219
         },
         {
           "function": "get_bars",
-          "line": 5127
+          "line": 5333
         },
         {
           "function": "get_bars",
-          "line": 5261
+          "line": 5467
         }
       ],
       "evidence": {
@@ -404,11 +405,11 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 609
+          "line": 791
         }
       ],
       "evidence": {
-        "line": 496,
+        "line": 678,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -641,6 +642,20 @@
         "index": 0
       }
     },
+    "api/services/local_bars.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 31
+        }
+      ],
+      "evidence": {
+        "line": 35,
+        "pattern": "int-subscript",
+        "index": 0
+      }
+    },
     "api/services/market_intel/price_reads.py": {
       "classification": "positional",
       "calls": [
@@ -716,11 +731,11 @@
       "calls": [
         {
           "function": "get_bars_before",
-          "line": 133
+          "line": 135
         }
       ],
       "evidence": {
-        "line": 209,
+        "line": 211,
         "pattern": "for-unpack",
         "size": 6
       }
@@ -772,27 +787,13 @@
       "calls": [
         {
           "function": "get_bars_before",
-          "line": 714
+          "line": 765
         }
       ],
       "evidence": {
-        "line": 205,
+        "line": 216,
         "pattern": "int-subscript",
         "index": 1
-      }
-    },
-    "api/services/screener/scan_evaluator.py": {
-      "classification": "positional",
-      "calls": [
-        {
-          "function": "get_bars",
-          "line": 1063
-        }
-      ],
-      "evidence": {
-        "line": 708,
-        "pattern": "int-subscript",
-        "index": 0
       }
     },
     "api/services/screener/snapshot_builder.py": {
@@ -800,11 +801,11 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 826
+          "line": 1052
         }
       ],
       "evidence": {
-        "line": 830,
+        "line": 1056,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -901,11 +902,29 @@
       "calls": [
         {
           "function": "get_bars_before",
-          "line": 121
+          "line": 149
+        },
+        {
+          "function": "get_bars_before",
+          "line": 247
         }
       ],
       "evidence": {
-        "line": 123,
+        "line": 151,
+        "pattern": "known-positional-delegate",
+        "delegate": "_fmt_sqlite_bars"
+      }
+    },
+    "api/services/uct_agent/marketdata/rs_leadership.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars_before",
+          "line": 124
+        }
+      ],
+      "evidence": {
+        "line": 126,
         "pattern": "known-positional-delegate",
         "delegate": "_fmt_sqlite_bars"
       }
