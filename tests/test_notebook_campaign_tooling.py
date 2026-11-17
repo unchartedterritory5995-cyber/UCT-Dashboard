@@ -2785,10 +2785,17 @@ def test_i2_the_obscured_suppression_is_the_d005_geometry_only_and_is_recorded()
 
 
 def test_i3_the_moved_lines_are_pinned_to_the_served_tree():
-    # re-pinned 2026-11-04: template_gallery.py lost the retired library/example switches' lines above these
-    want = {"key_in_flight": 4221, "key_reused": 4220, "listing_moved": 3185, "helpful_days": 5121}
-    for k, line in want.items():
-        assert SPEC["sentences"][k]["source"].endswith(f":{line}"), (k, SPEC["sentences"][k]["source"])
+    # ⚰️ This pinned four hand-typed line numbers (re-pinned 2026-11-04, stale again 11-17 when template_gallery.py
+    # grew 35 lines above them): a second copy of the citation, beside the citation. It now DERIVES: each of these
+    # four is cited on the code line of the served tree that holds its fragment. g4 checks every sentence that way;
+    # these four keep their own case because template_gallery.py is the file that keeps moving under them.
+    read = rc.tree_reader(REPO)
+    for k in ("key_in_flight", "key_reused", "listing_moved", "helpful_days"):
+        s = SPEC["sentences"][k]
+        m = rc._SOURCE_RE.match(s["source"])
+        lines = read(m["path"]).splitlines()
+        frag = s.get("fragment") or s["text"]
+        assert rc.fragment_on_line(lines, int(m["line"]), frag), (k, s["source"])
 
 
 def test_i4_the_stranger_pages_forbid_the_private_note_its_body_tag_and_the_member_id(monkeypatch):
@@ -3164,3 +3171,14 @@ def test_r88_an_api_already_imported_from_another_tree_is_refused_not_served(tmp
     tool, app, p = _boot(tmp_path, preseed=True, preimport=True)
     assert p.returncode == 2 and "SERVED " not in p.stdout, p.stdout[-2000:]
     assert "REFUSED: `api` is already imported from" in p.stdout and str(tool) in p.stdout
+
+
+def test_a_sentence_cited_on_a_comment_line_is_refused():
+    """A retired sentence often survives in the comment that records its retirement; that is not the product showing
+    it (2026-11-17: 'Templates are coming soon.' and 'Make it yours' passed this way). Control: the same fragment on a
+    code line on the very next line counts."""
+    lines = ["// 'Templates are coming soon.' went with follow-up C", "  soon: 'Templates are coming soon.',"]
+    assert rc.fragment_on_line(lines, 1, "Templates are coming soon.") is False
+    assert rc.fragment_on_line(lines, 2, "Templates are coming soon.") is True
+    assert rc.fragment_on_line(["# a python note: Make it yours"], 1, "Make it yours") is False
+    assert rc.fragment_on_line([" * a doc comment: Make it yours"], 1, "Make it yours") is False
