@@ -26,6 +26,7 @@ import argparse
 import json
 import os
 import sys
+import time
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Optional
@@ -154,9 +155,14 @@ def explode(packs: Dict[tuple, Path], indexes: Dict[str, dict], out: Path) -> in
     return n
 
 
+#: Tries per index put (the first included) and the backoff base between them (0.5, 1, 2, 4 s).
+INDEX_RETRIES = 5
+INDEX_RETRY_BASE_S = 0.5
+
+
 def upload(packs: Dict[tuple, Path], indexes: Dict[str, dict], put_file: Callable, put_bytes: Callable, *,
            prefix: str = "", jobs: int = 16, log=print, exists: Optional[Callable] = None,
-           every: int = 10) -> dict:
+           every: int = 10, sleep: Callable[[float], None] = time.sleep) -> dict:
     """Packs first, indexes last (an index never names a pack the bucket does not have yet).
     `put_file(key, path, content_type)` / `put_bytes(key, data, content_type)` do the network.
 
@@ -188,13 +194,37 @@ def upload(packs: Dict[tuple, Path], indexes: Dict[str, dict], put_file: Callabl
                 log(f"packs {n}/{total}: {stats['packs']} sent ({stats['pack_bytes'] / 1e9:.1f} GB), "
                     f"{stats['skipped']} already there")
     log(f"uploaded {stats['packs']} packs, {stats['pack_bytes']:,} bytes ({stats['skipped']} already there)")
+
+    # ⚰️ 2026-11-17: ONE of 36,676 index puts failed with R2's "Reduce your concurrent request rate for
+    # the same object" (503, after botocore's own retries) and the whole run died on it, logging nothing
+    # after the packs line. Each index is now retried on its own with a backoff, the rest carry on, and a
+    # key that still fails is NAMED in the error (re-running sends every index again: they are small).
+    def _put_index(key: str, data: bytes) -> Optional[str]:
+        last: Optional[BaseException] = None
+        for attempt in range(INDEX_RETRIES):
+            try:
+                put_bytes(key, data, "application/json")
+                return None
+            except Exception as exc:          # noqa: BLE001 — retried, then reported by name
+                last = exc
+                if attempt + 1 < INDEX_RETRIES:
+                    sleep(INDEX_RETRY_BASE_S * (2 ** attempt))
+        return f"{key}: {type(last).__name__}: {last}"
+
+    failed: List[str] = []
     with ThreadPoolExecutor(max_workers=max(1, jobs)) as ex:
-        futs = [ex.submit(put_bytes, f"{prefix}{piece.index_relpath(sym)}", _json_bytes(doc), "application/json")
+        futs = [ex.submit(_put_index, f"{prefix}{piece.index_relpath(sym)}", _json_bytes(doc))
                 for sym, doc in indexes.items()]
         for f in futs:
-            f.result()
-            stats["indexes"] += 1
+            err = f.result()
+            if err:
+                failed.append(err)
+            else:
+                stats["indexes"] += 1
     log(f"uploaded {stats['indexes']} indexes")
+    if failed:
+        raise BuildError(f"{len(failed)} of {len(indexes)} indexes failed after {INDEX_RETRIES} tries "
+                         f"(re-run to send them again): {failed[:5]}")
     return stats
 
 

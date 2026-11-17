@@ -255,6 +255,49 @@ def test_upload_is_resumable_and_reports_progress(raw, tmp_path):
     assert any("1 already there" in m for m in logs)
 
 
+def test_an_index_put_that_fails_is_retried_on_its_own_and_the_rest_carry_on(raw, tmp_path):
+    """2026-11-17: one of 36,676 index puts got R2's 'reduce your concurrent request rate for the same
+    object' and the whole run died. A failing put is retried with a backoff; the others are not held up."""
+    a = tmp_path / "a"
+    BLD.Builder(raw, a, quality=5, packs=True, **QUIET).run(ALL)
+    packs = PUB.collect_packs([a])
+    idx = PUB.build_indexes(packs, log=lambda *_: None)
+    flaky = f"hist/{PUB.piece.index_relpath(sorted(idx)[0])}"
+    tries, sent, waits = {}, [], []
+
+    def put_bytes(k, data, ct):
+        tries[k] = tries.get(k, 0) + 1
+        if k == flaky and tries[k] <= 2:
+            raise RuntimeError("ServiceUnavailable: Reduce your concurrent request rate for the same object")
+        sent.append(k)
+
+    stats = PUB.upload(packs, idx, lambda *a: None, put_bytes, prefix="hist/", jobs=2,
+                       log=lambda *_: None, sleep=waits.append)
+    assert stats["indexes"] == len(idx) and flaky in sent
+    assert tries[flaky] == 3 and waits == [PUB.INDEX_RETRY_BASE_S, PUB.INDEX_RETRY_BASE_S * 2]
+    assert all(n == 1 for k, n in tries.items() if k != flaky)
+
+
+def test_an_index_that_never_lands_is_NAMED_and_the_others_still_land(raw, tmp_path):
+    a = tmp_path / "a"
+    BLD.Builder(raw, a, quality=5, packs=True, **QUIET).run(ALL)
+    packs = PUB.collect_packs([a])
+    idx = PUB.build_indexes(packs, log=lambda *_: None)
+    dead = f"hist/{PUB.piece.index_relpath(sorted(idx)[0])}"
+    sent = []
+
+    def put_bytes(k, data, ct):
+        if k == dead:
+            raise RuntimeError("ServiceUnavailable")
+        sent.append(k)
+
+    with pytest.raises(PUB.BuildError) as e:
+        PUB.upload(packs, idx, lambda *a: None, put_bytes, prefix="hist/", jobs=2, log=lambda *_: None,
+                   sleep=lambda _s: None)
+    assert dead in str(e.value) and "re-run" in str(e.value)
+    assert len(sent) == len(idx) - 1
+
+
 def test_scratch_rows_on_another_disk_change_nothing_and_stop_before_it_fills(raw, tmp_path, monkeypatch):
     here = tmp_path / "here"
     BLD.Builder(raw, here, quality=5, packs=True, **QUIET).run(ALL)
