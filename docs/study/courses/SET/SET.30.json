@@ -1919,7 +1919,7 @@
    "depends_on": [
     "D-118"
    ],
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "30.0 ATR",
     "120.0 ATR",
@@ -1930,6 +1930,28 @@
     "30.0 ATR": "Gave the gap in dollars, no divide.",
     "120.0 ATR": "Multiplied by the ATR instead of dividing.",
     "0.1 ATR": "Flipped it: divided the ATR by the gap."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "line",
+      "label": "50-day",
+      "price": 180.0
+     },
+     {
+      "key": "low",
+      "label": "Close before climax day",
+      "price": 150.0
+     }
+    ],
+    "find": {
+     "label": "Distance under the 50-day",
+     "as": "num",
+     "unit": "ATR"
+    },
+    "title": "The gap (ATR 4.00)"
    }
   },
   {
@@ -3062,7 +3084,42 @@
      "low": 48.7
     }
    },
-   "batch": "wave3"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "entry",
+      "label": "Bought at",
+      "price": 52.0
+     },
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 50.9
+     },
+     {
+      "key": "open",
+      "label": "Opens at",
+      "price": 49.5
+     },
+     {
+      "key": "price",
+      "label": "First 30-min low",
+      "price": 48.7
+     }
+    ],
+    "find": {
+     "label": "R lost at the low",
+     "as": "r_loss"
+    },
+    "r": {
+     "entry": 52.0,
+     "stop": 50.9
+    },
+    "title": "The gap down"
+   }
   },
   {
    "key": "q48",
@@ -4257,7 +4314,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "7.5 ok; 30.0 dollars, 120.0 multiply, 0.1 flipped. 120.0 is a little silly but a real slip; left."
+   "notes": "Roles, find label, slot format and ladder checked; ok."
   },
   "q20": {
    "status": "pass",
@@ -4426,7 +4483,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep; 3R only a yardstick/arithmetic; entries at reclaim, not close"
+   "notes": "Roles right (Bought at, Stop, Opens at, First 30-min low). Slot is R lost, labelled 'R lost at the low', so it is not read as the decision; slot reads 3R. r_loss ticks run DOWN from the entry: -1R 50.90, -2R 49.80, -3R 48.70 = the low. Correct."
   },
   "q48": {
    "status": "pass",

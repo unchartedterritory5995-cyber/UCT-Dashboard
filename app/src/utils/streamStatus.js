@@ -18,6 +18,22 @@ export const STREAM_RECONNECT_CAP_MS = 20000
 // poll stays the freshness floor beneath this. Raise to slow, lower to speed up.
 export const LIVE_UI_CADENCE_MS = 1000
 
+// How long a chart may hold a live candle update before painting it. Defaults keep today's
+// behaviour (the caller passes its own default). `localStorage['uct.liveCadenceMs']` overrides it
+// for THIS browser only (16 to 1000 ms), so a faster cadence can be measured on production
+// (uct-desktop scripts/proofs/tick-latency-proof.mjs --ls=uct.liveCadenceMs=50) before any default
+// changes. Measured 2026-11-16: receive-to-paint p90 518 ms, sitting on the 500 ms hold.
+export const LIVE_CADENCE_KEY = 'uct.liveCadenceMs'
+export function liveCandleCadenceMs(defaultMs) {
+  try {
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(LIVE_CADENCE_KEY) : null
+    if (raw == null || raw === '') return defaultMs
+    const n = Number(raw)
+    if (!Number.isFinite(n)) return defaultMs
+    return Math.min(1000, Math.max(16, Math.round(n)))
+  } catch { return defaultMs }
+}
+
 // Precedence: a dead connection outranks a server-stale symbol.
 export function streamStatus({ isStreaming, isStale }) {
   if (!isStreaming) return { state: 'reconnecting', label: 'RECONNECTING', tone: 'warn' }

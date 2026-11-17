@@ -3,16 +3,30 @@
 Without a probe column the generator cannot resolve `{a,b,c,d}.pine`, the four rows sit in
 rowsNeedingProbe, and the capture operator is never handed them (the r2 review, N1).
 """
+import functools
 import json
 import pathlib
+import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-QUEUE = ROOT / "docs/pine/vendor-harness/capture-queue.json"
+sys.path.insert(0, str(ROOT / "tools" / "vendor_harness"))
+sys.path.insert(0, str(ROOT / "tools"))
+
+import evidence_engine as ee  # noqa: E402
+
+
+@functools.lru_cache(maxsize=1)
+def _queue() -> dict:
+    """The queue as the docs derive it NOW. (It was read from a committed capture-queue.json until
+    2026-11-16; that snapshot is a local view now, see evidence_engine.QUEUE_OUT.)"""
+    return ee.build_queue()
+
+
 PROBES = [f"vw-w3n-draw-block-history-{k}.pine" for k in "abcd"]
 
 
 def test_d1_probes_exist_and_are_queued_on_both_symbols():
-    q = json.loads(QUEUE.read_text(encoding="utf-8"))
+    q = _queue()
     blob = [json.dumps(t) for t in q["targets"]]
     for p in PROBES:
         assert (ROOT / "tools/visual_conformance/probes" / p).is_file(), p
@@ -23,6 +37,6 @@ def test_d1_probes_exist_and_are_queued_on_both_symbols():
 
 
 def test_d1_rows_are_not_left_needing_a_probe():
-    q = json.loads(QUEUE.read_text(encoding="utf-8"))
+    q = _queue()
     stuck = [r for r in q["rowsNeedingProbe"] if "W3N-D1" in json.dumps(r)]
     assert stuck == [], stuck

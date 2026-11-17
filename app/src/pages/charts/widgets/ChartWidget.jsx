@@ -58,7 +58,7 @@ const ADD_WIDGET_LABELS = labelMap('menu')
 // the right-click menu and the workspace-only chrome (leverage picker, add-tab,
 // Share to the Floor).
 export default function ChartWidget({ color, opts, onOptsChange, chartId = null }) {
-  const { groupSyms, setGroupSym, setGroupTf, crosshairBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget, applyThemeToAllCharts, applyThemeToAllWidgets, canOpenCompare } = useWorkspace()
+  const { groupSyms, setGroupSym, setGroupTf, crosshairBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget, applyThemeToAllCharts, applyThemeToAllWidgets, countOtherCharts, applyAppearanceToOtherCharts, canOpenCompare } = useWorkspace()
   const navigate = useNavigate()
   // T3 integrated header: non-null only for a single chart on the /charts board grid.
   const widgetChrome = useContext(WidgetChromeContext)
@@ -282,19 +282,33 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // (master fec7c5e4). ChartWidget lost its own `chartCs` when settings
   // resolution moved into ChartPane, so it reads them back through the same hook
   // rather than reaching into the pane.
-  const { menuVars, cs: chartCs } = useChartSurfaceSettings({
+  const { menuVars, cs: chartCs, canvasCs } = useChartSurfaceSettings({
     stored: activeStoredSettings,
     onStore: persistActiveSettings,
     chartsTheme,
   })
-  // StockChart's own rule (utils/viewSession.resolveShowExtended — the one derivation) on the same settings.
-  paneExtRef.current = resolveShowExtended(chartCs)
+  // StockChart's own rule (utils/viewSession.resolveShowExtended — the one derivation) on the settings the
+  // canvas itself draws with (`canvasCs`: the widget's blob over the ACCOUNT's settings, not the defaults).
+  paneExtRef.current = resolveShowExtended(canvasCs)
 
   // Expose an imperative chart API for the Compare Symbols tool (read/write the
   // active chart's comparison overlays + the % price scale). Reads live settings
   // through a ref so the registered fns never go stale.
   const chartCsRef = useRef(chartCs)
   chartCsRef.current = chartCs
+
+  // Chart Settings → "Apply to all charts" (owner 11-16): this surface's address in the layout (the slot's group id +
+  // the open chart tab) and the workspace's two calls. The look copied is what THIS chart shows (`chartCs`, read at
+  // click time); the workspace writes the other charts in one layout change. null off the workspace ⇒ no door.
+  const appearanceTabId = isMainTab ? null : (activeExtra?.id || null)
+  const applyToAllCharts = useMemo(() => {
+    if (chartId == null || typeof countOtherCharts !== 'function' || typeof applyAppearanceToOtherCharts !== 'function') return null
+    const source = { chartId: String(chartId), tabId: appearanceTabId }
+    return {
+      count: () => countOtherCharts(source),
+      apply: () => applyAppearanceToOtherCharts(source, chartCsRef.current),
+    }
+  }, [chartId, appearanceTabId, countOtherCharts, applyAppearanceToOtherCharts])
 
   // ⭐ UCT AGENT ADAPTER (agent/host.js). The Agent never resolves a chart's
   // settings, tab or colour group itself — it reads them from HERE, as this
@@ -723,6 +737,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
         chartsTheme={chartsTheme}
         onApplyThemeAll={applyThemeToAllCharts}
         onApplyThemeAllWidgets={applyThemeToAllWidgets}
+        applyToAllCharts={applyToAllCharts}
         onActivate={markActive}
         onAdjustWatermark={startWatermarkAdjust}
         onResetWatermark={resetWatermark}
@@ -917,6 +932,15 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
               </>
             ) : (
               <>
+                {/* Reset view leads the menu (owner 11-15): the one action reached for most. */}
+                <button type="button" className={styles.chartCtxItem} data-menu-id="reset" onClick={() => {
+                  ctxMenu.resetView?.(); closeCtx()
+                  // Return focus to the chart so type-to-search works immediately (else
+                  // the first keypress hits a global drawing-tool hotkey, not the search).
+                  requestAnimationFrame(() => { try { paneRef.current?.focus?.() } catch { /* noop */ } })
+                }}>
+                  <UIcon name="refresh" size={14} className={styles.chartCtxIcon} />Reset view
+                </button>
                 {/* ── B9 · The indicator pane under the pointer ──
                     A right-click inside an indicator's own pane leads with that
                     indicator's rows: the legend chip's rows and handlers, built
@@ -990,40 +1014,32 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                 {/* ── Price action (at the clicked bar) ── */}
                 {Number.isFinite(ctxMenu.price) && (
                   <>
+                    <div className={styles.chartCtxLabel} aria-hidden="true">At this price</div>
                     <button type="button" className={styles.chartCtxItem} data-menu-id="set-alert" onClick={handleSetAlert}>
                       <UIcon name="bell" size={14} className={styles.chartCtxIcon} />
                       Set alert @ ${ctxMenu.price.toFixed(2)}
                     </button>
-                    <div className={styles.menuDivider} />
                   </>
                 )}
                 {/* ── Chart actions ── */}
+                <div className={styles.chartCtxLabel} aria-hidden="true">This chart</div>
                 <button type="button" className={styles.chartCtxItem} data-menu-id="journal" onClick={handleSendToJournal}>
                   <UIcon name="journal" size={14} className={styles.chartCtxIcon} />Send to Journal
                 </button>
                 <button type="button" className={styles.chartCtxItem} data-menu-id="journal-choose" onClick={handleSendToJournalChoose}>
                   <UIcon name="journal" size={14} className={styles.chartCtxIcon} />Send to Journal (choose where)…
                 </button>
-                <button type="button" className={styles.chartCtxItem} data-menu-id="reset" onClick={() => {
-                  ctxMenu.resetView?.(); closeCtx()
-                  // Return focus to the chart so type-to-search works immediately (else
-                  // the first keypress hits a global drawing-tool hotkey, not the search).
-                  requestAnimationFrame(() => { try { paneRef.current?.focus?.() } catch { /* noop */ } })
-                }}>
-                  <UIcon name="refresh" size={14} className={styles.chartCtxIcon} />Reset view
-                </button>
                 {/* ── Location-aware section — ONE item keyed to WHERE the user
                     right-clicked (watermark / price axis / moving average / candle /
                     blank canvas), opening Chart settings at the matching section. ── */}
+                <div className={styles.chartCtxLabel} aria-hidden="true">Settings</div>
                 {ctxLocItem && (
                   <>
-                    <div className={styles.menuDivider} />
                     <button type="button" className={styles.chartCtxItem} data-menu-id={`settings-${ctxLocItem.target}`} onClick={() => { paneRef.current?.openSettings(ctxLocItem.target); closeCtx() }}>
                       <UIcon name={ctxLocItem.icon} size={14} className={styles.chartCtxIcon} />{ctxLocItem.label}
                     </button>
                   </>
                 )}
-                <div className={styles.menuDivider} />
                 {/* ── Chart configuration ── */}
                 <button type="button" className={styles.chartCtxItem} data-menu-id="settings" onClick={() => { paneRef.current?.openSettings(); closeCtx() }}>
                   <UIcon name="gear" size={14} className={styles.chartCtxIcon} />Chart settings
@@ -1063,8 +1079,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                     </div>
                   )}
                 </div>
+                <div className={styles.chartCtxLabel} aria-hidden="true">Add</div>
                 <button type="button" className={styles.chartCtxItem} data-menu-id="add-widget" onClick={() => setCtxSub('add')}>
-                  <UIcon name="plus" size={14} className={styles.chartCtxIcon} />Add widget ▸
+                  <UIcon name="plus" size={14} className={styles.chartCtxIcon} />Add widget<span className={styles.chartCtxCaret} aria-hidden="true">▸</span>
                 </button>
                 {/* /charts integrated header has no New-chart-tab button (owner 11-11) — the
                     door lives here instead, so chart tabs stay creatable. Once a tab exists
@@ -1077,7 +1094,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                 {/* ── Drawings ── */}
                 {ctxMenu.hasDrawings && (
                   <>
-                    <div className={styles.menuDivider} />
+                    <div className={styles.chartCtxLabel} aria-hidden="true">Drawings</div>
                     <button type="button" className={styles.chartCtxItem} data-menu-id="clear-draw" onClick={() => { ctxMenu.clearDrawings?.(); setCtxToast('Drawings cleared'); closeCtx() }}>
                       <UIcon name="trash" size={14} className={styles.chartCtxIcon} />Clear all drawings
                     </button>
@@ -1085,7 +1102,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                 )}
                 {ctxMenu.bar && (
                   <button type="button" className={`${styles.chartCtxItem} ${styles.chartCtxAi}`} data-menu-id="ask-ai" onClick={handleAiSearch}>
-                    <UIcon name="compass" size={14} className={styles.chartCtxIcon} />Ask AI about {sym}
+                    <UIcon name="compass" size={14} className={styles.chartCtxIcon} />Ask the UCT Agent about {sym}
                   </button>
                 )}
               </>

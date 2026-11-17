@@ -1,0 +1,24 @@
+# Capture queue: 2026-11-16, `request.security` coverage unit (REQ)
+
+Branch `feat/pine-coverage-request-security`. For the live TradingView rig with
+`tools/vendor_harness/tv_capture.js` (procedure as `docs/pine/capture-queue-2026-09-28.md`).
+What this unit serves and on which witness is `docs/pine/evidence/2026-11-16-req-request-security/EVIDENCE.md`.
+The rows below are what it still refuses or withholds by name, and the capture that would settle each.
+
+| id | probe / script | chart | question | what the engine does today | what the capture changes |
+|---|---|---|---|---|---|
+| Q-REQ1 | `vw-req-lookahead-forming.pine`: `request.security(syminfo.tickerid, "W", close, lookahead = barmerge.lookahead_on)` and the same at `"M"`, plus `barstate.isrealtime` | AMEX:SPY 1D during regular hours, the newest bar FORMING (mid-week, mid-month) | what does a look-ahead weekly / monthly read answer on the forming daily bar: the forming period's current close, or something else? | the runtime lane serves look-ahead W / M on every historical bar (`vw-request-htf-alignment-spy-1d-2026-10-02`) and WITHHOLDS the newest bar while it may be forming, by name (`request:htf-lookahead-forming-unmeasured`) | lifts the newest-bar withhold, or names the reading |
+| Q-REQ2 | `vw-req-barmerge-slot.pine`: `plot(request.security(syminfo.tickerid, "W", close, lookahead = barmerge.gaps_on))`, the same with `barmerge.gaps_off`, and `plot(barmerge.gaps_on ? 1 : 0)` / `plot(barmerge.lookahead_on ? 1 : 0)` in v4 and v5 | NYSE:RDDT 1D | which look-ahead a `barmerge.gaps_*` constant passed in the `lookahead` slot reads as (previous-n-daysweeksmonths-high-low writes `lookahead = ilookaehad` with `ilookaehad = barmerge.gaps_on`). The v4 reference types all four `barmerge` constants `const bool` and states no value | see the EVIDENCE: graded against the script's own two committed captures; served only if exactly one reading MATCHes there (coordinator ruling 2026-11-16) | settles the reading directly, for every script that writes this |
+| Q-REQ4 | `vw-req-legacy-security-state.pine` (v4 and v3): `x = 0.0`, `x := nz(x[1]) + 1`, then `plot(security(tickerid, period, sma(x, 3)))`; and a function with its own running value (`a := hlc3 > hlc3[1] ? a + volume : a`) read as `plot(security(tickerid, period, sma(f(), 14)))`; each beside the same expression plotted bare | NYSE:RDDT 1D from the listing | does a v1-v4 bare `security` at the chart's own symbol and period answer the expression itself, its state included (as `request.security` is served)? | refused `runtime:request-with-state` by name | serves the identity for the bare spelling (would free money-flow-index-mtf-alerts, measured on the first push) |
+| Q-REQ-LTF | (none: a data question) | NYSE:RDDT / AMEX:SPY 15 | does our stored intraday series equal TradingView's? | a read below the chart's timeframe is refused `lower-tf:store-unmeasured` | see the disposition below |
+| Q-REQ-DATA | (none: data we do not hold) | any | breadth, sector, economic, crypto and FX symbols | refused by name (`other-symbol:*`) | see the disposition below |
+| Q-REQ3 | `vw-req-heikinashi.pine`: `request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, open / close)` and the v4 `heikinashi(tickerid)` | AMEX:SPY 1D from the listing | is the Heikin Ashi series TradingView hands a request the textbook recursion over the chart's bars (open = average of the previous HA open and close, seeded how?) | refused `pine:request` by name (a different series, not the chart's bars) | lets the engine build the HA series from the chart's own bars, witnessed (5 sample scripts) |
+
+## Not capture questions (queue dispositions)
+
+Read by `tools/vendor_harness/evidence_engine.py queue`: each row named here leaves `rowsNeedingProbe` and is listed, with this reason, in `rowsNotCaptureQuestions` (dispositions: `DISPOSITIONS` in the engine).
+
+| not a capture | disposition | reason |
+|---|---|---|
+| Q-REQ-LTF | ruling | A read below the chart's timeframe (`lower-tf:store-unmeasured`, 10 sample scripts touched): the RULE is captured (`vw-lower-tf-*`), the DATA is not ours to serve. Measured 2026-10-01 (`docs/pine/WAVE12-INTEGRATION-STATE.md`, R-LTF): our `/api/bars/RDDT?tf=15` against TradingView's `vw-bar-counters-rddt-15-2026-09-30`, 634 sessions: 77.06% of sessions price-equal on every bar (bar 99%), last-bar close equal on 96.99% (bar 99.5%), volume equal on 0.00% (our / TradingView's median 1.383). A data-source decision for the owner, not engine work. |
+| Q-REQ-DATA | ruling | Symbols we do not hold: USI: / INDEX: breadth (in scope, its own unit: `USI:ADVN.NY`, `USI:DECL.NY`, `USI:UNCH.NY`, `USI:UVOL`, `USI:DVOL`, `USI:ADD`, `UPVOL.*` / `DNVOL.*`, `INDEX:SLTW`), `SP:` sector indices (`SP:SPN`, `SP:S5MATR`, …), `ECONOMICS:*`, `QUANDL:*`, `ESD:*_EARNINGS`; crypto and FX (`BINANCE:*`, `BITMEX:*`, `INDEX:BTCUSD`, `EURUSD`) out of scope by owner ruling. Refused by name (`other-symbol:*`). |

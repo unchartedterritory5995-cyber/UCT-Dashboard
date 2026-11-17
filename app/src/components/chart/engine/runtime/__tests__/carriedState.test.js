@@ -125,7 +125,10 @@ describe('⭐⭐⭐ graph-vs-runtime differential — every declared member (§4
       // ⛔ THE WARM-UP IS PART OF THE COMPARISON. A recurrence's early bars are
       // where a seeding difference lives and the only place it is ever visible;
       // comparing from bar 20 is how this class of defect survives.
-      expect(want.slice(0, 5).every((v) => Number.isNaN(v)), 'the fixture must exercise a warm-up').toBe(true)
+      // ⭐ ENGINE 56 (probe 11) — `rising` / `falling` answer FALSE on their first `n` samples
+      // (witnessed, s17 v4 / v5): their warm-up is a definite 0, still compared below
+      if (fn === 'rising' || fn === 'falling') expect(want.slice(0, 5), 'the warm-up is false, never na').toEqual([0, 0, 0, 0, 0])
+      else expect(want.slice(0, 5).every((v) => Number.isNaN(v)), 'the fixture must exercise a warm-up').toBe(true)
       sameSeries(out, want, fn)
     })
   }
@@ -566,7 +569,7 @@ describe('⭐⭐ §49/§47 — the refactor, and the ONE semantic that intention
   /** The loop as it stood BEFORE 2F-2C, transcribed. ⛔ An independent longhand,
    *  not a call into the thing under test. It RESETS on a non-finite value, which
    *  is the behaviour the owner ruled wrong on 2026-09-08. */
-  function preCorrectionSmooth(series, n, k) {
+  function preCorrectionSmooth(series, n, k, wilder = false) {
     const out = new Float64Array(series.length).fill(NaN)
     let prev = NaN; let count = 0; let sum = 0
     for (let i = 0; i < series.length; i += 1) {
@@ -575,12 +578,12 @@ describe('⭐⭐ §49/§47 — the refactor, and the ONE semantic that intention
       if (Number.isNaN(prev)) {
         sum += v; count += 1
         if (count === n) { prev = sum / n; out[i] = prev }
-      } else { prev = prev * (1 - k) + v * k; out[i] = prev }
+      } else { prev = wilder ? (prev * (n - 1) + v) / n : prev * (1 - k) + v * k; out[i] = prev }
     }
     return out
   }
   /** The same loop with the ONE ruled change: a non-finite value HOLDS. */
-  function holdSmooth(series, n, k) {
+  function holdSmooth(series, n, k, wilder = false) {
     const out = new Float64Array(series.length).fill(NaN)
     let prev = NaN; let count = 0; let sum = 0
     for (let i = 0; i < series.length; i += 1) {
@@ -589,7 +592,7 @@ describe('⭐⭐ §49/§47 — the refactor, and the ONE semantic that intention
       if (Number.isNaN(prev)) {
         sum += v; count += 1
         if (count === n) { prev = sum / n; out[i] = prev }
-      } else { prev = prev * (1 - k) + v * k; out[i] = prev }
+      } else { prev = wilder ? (prev * (n - 1) + v) / n : prev * (1 - k) + v * k; out[i] = prev }
     }
     return out
   }
@@ -629,7 +632,9 @@ describe('⭐⭐ §49/§47 — the refactor, and the ONE semantic that intention
     for (const [label, data] of Object.entries(CLEAN)) {
       for (const n of [1, 4, 14]) {
         it(`⭐ ${fn} n=${n} — ${label}: UNCHANGED by the correction`, () => {
-          eq(viaTable(data, n, fn), preCorrectionSmooth(data, n, CARRIED[fn].alpha(n)), label)
+          // (landing train 1: `rma` steps in TradingView's own order, `(prev * (n - 1) + v) / n`; the hold
+          // correction this block records is about `na`, and is unchanged by that)
+          eq(viaTable(data, n, fn), preCorrectionSmooth(data, n, CARRIED[fn].alpha(n), fn === 'rma'), label)
         })
       }
     }
@@ -638,7 +643,7 @@ describe('⭐⭐ §49/§47 — the refactor, and the ONE semantic that intention
         it(`⚰️ ${fn} n=${n} — ${label}: MOVED, old → vendor-correct`, () => {
           // ⭐ THE SEMANTIC MIGRATION, AS AN EXECUTABLE RECORD (§47). The shipped
           // path must equal HOLD exactly...
-          eq(viaTable(data, n, fn), holdSmooth(data, n, CARRIED[fn].alpha(n)), `${label} hold`)
+          eq(viaTable(data, n, fn), holdSmooth(data, n, CARRIED[fn].alpha(n), fn === 'rma'), `${label} hold`)
         })
       }
     }

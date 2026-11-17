@@ -65,6 +65,7 @@ import { MAIN_PRICE_SCALE_ID } from './placement'
 import { presentedPlot } from './presentation'
 import { LINE_WIDTH_HARD_MAX } from './defSchema'
 import { inputsAsServed, hasServerGate } from './legacyInputs'
+import { isThemeColour, resolveThemeColour } from './objectTheme'
 
 /** The four LWC series constructors any v1 plot can need. */
 /**
@@ -1124,6 +1125,17 @@ function guidePlots(def) {
 // ⚠️ ONE-WAY: `presentation.js` imports nothing from here, so this is not a
 // cycle. The plan needs it because `poolKey` — which decides the SERIES TYPE —
 // must see the RESTYLED plot, not the definition's.
+/** ⭐⭐ ENGINE 58 — a plot whose colour is a THEME REFERENCE (`chart.fg_color@85`,
+ *  carried by the Pine translator: `pine.js::themePlotColourOf`) drawn in THIS
+ *  chart's colour (`objectTheme.resolveThemeColour`, the C37 rule the object lane
+ *  follows). ⛔ A reference this chart cannot answer (a gradient background, no
+ *  theme) draws in NO colour, never a guess. Any other plot is returned as is. */
+export function withThemeColour(plot, theme) {
+  if (!plot || !isThemeColour(plot.color)) return plot
+  const c = resolveThemeColour(plot.color, theme)
+  return { ...plot, color: typeof c === 'string' ? c : '#00000000' }
+}
+
 export function planBindings(instances, registry, prevBindings, opts) {
   const get = resolveGet(registry)
   const hasData = opts && typeof opts.hasData === 'function' ? opts.hasData : null
@@ -1144,6 +1156,9 @@ export function planBindings(instances, registry, prevBindings, opts) {
   // Asked only for a definition that marks something `requiresServer`, so every
   // other definition's guides are planned exactly as before. Absent ⇒ not known.
   const serverDeclares = opts && typeof opts.serverDeclares === 'function' ? opts.serverDeclares : null
+  // ⭐ ENGINE 58 — the chart's own two colours (`objectTheme.chartThemeOf`), for a
+  // Pine plot whose colour is `chart.fg_color` / `chart.bg_color`. Absent ⇒ none.
+  const theme = (opts && opts.theme && typeof opts.theme === 'object') ? opts.theme : null
 
   // ── 1. What the chart SHOULD hold ──
   const desired = []
@@ -1186,8 +1201,8 @@ export function planBindings(instances, registry, prevBindings, opts) {
       // cannot mean has to be clamped HERE too — otherwise the plan would create
       // a candlestick the binder then refuses to feed.
       const srcCap = sourceCapability ? sourceCapability(inst) : null
-      const plot = presentedPlot(resolvePlotForInstance(rawPlot, inst.inputs,
-        { pickReplacesOpacity: !!(def && def.meta && def.meta.recurrenceOrigin === 'pine') }), inst,
+      const plot = presentedPlot(withThemeColour(resolvePlotForInstance(rawPlot, inst.inputs,
+        { pickReplacesOpacity: !!(def && def.meta && def.meta.recurrenceOrigin === 'pine') }), theme), inst,
         { ohlcCapable: !!(ohlcCapable && ohlcCapable(inst)),
           candles,
           // ⛔ THE SOURCE ANSWER REACHES THE PLAN, NOT ONLY THE MENU. `poolKey` picks

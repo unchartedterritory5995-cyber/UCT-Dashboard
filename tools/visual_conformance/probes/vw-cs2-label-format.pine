@@ -1,0 +1,19 @@
+//@version=5
+indicator("UCTPROBE_VW_CS2_LABEL_FORMAT", overlay=true)
+
+// PROVENANCE: written 2026-11-15 for the Pine parity programme, capture session S17
+// (objects-lane PROBES-NEXT.md item 6, S1 finding). How a number is written into a label's text
+// with no format argument: str.tostring(close), close / 3 (a long repeating fraction), a
+// 16-significant-digit constant, a value that is a whole number, and a tiny one. One label per
+// value on the last bar, so objects.texts holds the exact strings TradingView prints.
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults.
+
+if barstate.islast
+    label.new(bar_index, close, str.tostring(close))
+    label.new(bar_index - 5, close, str.tostring(close / 3))
+    label.new(bar_index - 10, close, str.tostring(0.8175176096085278))
+    label.new(bar_index - 15, close, str.tostring(math.round(close)))
+    label.new(bar_index - 20, close, str.tostring(0.000012345678901234))
+    label.new(bar_index - 25, close, str.tostring(close, format.mintick))
+plot(close, "A00_close")
+plot(close / 3, "A01_close_over_3")

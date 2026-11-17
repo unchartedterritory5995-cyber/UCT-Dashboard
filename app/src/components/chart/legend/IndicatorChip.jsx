@@ -3,7 +3,10 @@ import UIcon from '../../ui/UIcon'
 import useLongPress from '../../mobile/useLongPress'
 import styles from './IndicatorChip.module.css'
 import { chipValueText as formatChipValue } from '../engine/readout'
-import { safeCssColour } from '../engine/objectColour'
+import { inkCssColour } from '../engine/objectColour'
+import { RowActs } from './LegendRow'
+import { LEGEND_ROW_VALUES_MAX } from './legendRows'
+import rowStyles from './LegendRow.module.css'
 
 /**
  * ONE legend chip. **The chip IS the control.**
@@ -168,6 +171,19 @@ export default function IndicatorChip({
   //   `fallbackValue` `{text, muted}` — A8: the last known value with its date,
   //                   muted, when the live value is missing. Never on a hidden chip.
   name = null, textChip = false, fallbackValue = null,
+  // ⭐ UCT SIGNATURE — the grid row's hover strip (hide · settings · more), the same
+  // `RowActs` `LegendRow` renders. `(instanceId) => void` each, optional, GRID ONLY:
+  // without either the row is exactly the one-door row it was. Each is the verb the
+  // popover's own row already calls (`handleChipHidden` / `handleChipSettings`).
+  onToggleHidden, onSettings,
+  // ⭐ UCT SIGNATURE — this chip's ⋯ menu (or one of its pages) is open: the grid row
+  // holds its hover card + strip (`rowStyles.rowActive`) and the ⋯ reports `aria-expanded`.
+  menuOpen = false,
+  // ⭐ ONE ROW PER NAME (owner, 2026-11-16) — the indicator's OTHER drawn plots that print
+  // this same name (`legendRows`). Each rides on this row as one more value in its own
+  // line's colour, so a script with two averages reads `Uncharted Clouds 433.92 451.49`
+  // on one row. Absent or empty, the chip is exactly the chip it was.
+  more = null,
 }) {
   const interactive = typeof onMenu === 'function'
   const label = typeof name === 'string' && name ? name : chip.label
@@ -214,6 +230,20 @@ export default function IndicatorChip({
   const valueText = (typeof chip.value === 'number' && Number.isFinite(chip.value))
     ? formatChipValue(chip)
     : ''
+
+  // ⭐ The sibling plots' values, formatted by the one formatter the chip's own value uses.
+  // A sibling with no value on this bar prints nothing; past `LEGEND_ROW_VALUES_MAX` values
+  // on the row the rest fold into a `+N` count.
+  const moreAll = (Array.isArray(more) ? more : [])
+    .map((m) => ({
+      key: m.plotKey,
+      text: (typeof m.value === 'number' && Number.isFinite(m.value)) ? formatChipValue(m) : '',
+      color: inkCssColour(m.color),
+    }))
+    .filter((m) => m.text)
+  const moreRoom = Math.max(0, LEGEND_ROW_VALUES_MAX - (valueText ? 1 : 0))
+  const moreVals = moreAll.slice(0, moreRoom)
+  const moreOver = moreAll.length - moreVals.length
 
   // One sentence, both layouts.
   const chipTitle = chip.computed === false
@@ -287,11 +317,15 @@ export default function IndicatorChip({
    * legend ink for a chip with no colour of its own; a coloured chip defeats it
    * with `inherit`, so the row has exactly one source of colour. */
   // ⛔ a colour reaches CSS only through `safeCssColour` (objectColour.js) — a stored or shared value may carry anything
-  const chipColor = safeCssColour(chip.color)
+  // ⭐ ENGINE 58 — through `inkCssColour`: a colour that draws nothing (a withheld rule
+  // row's `#00000000`) gives the chip the legend's own readable ink, never invisible text.
+  const chipColor = inkCssColour(chip.color)
   // ⭐ A5a — a HIDDEN text chip prints its name in the muted ink, not the line's
   // colour: the line is not drawn, so the colour would name nothing.
-  const ink = chipColor && !(textChip && chip.hidden) ? { color: chipColor } : undefined
-  const valInk = chipColor ? { color: 'inherit' } : undefined
+  // ⭐ Owner 11-16 — a plot chip's NAME takes the legend's shared label ink and its VALUE the line colour
+  // (`.chipVal` reads `--chip-color`, clamped in CSS to the label's lightness band), so both read at one
+  // brightness. A text chip has no line to key, so its name keeps the colour.
+  const ink = chipColor && textChip && !chip.hidden ? { color: chipColor } : undefined
 
   // ⭐ A8 — the last known value, muted, with its date, when the live one is
   // missing. Never on a hidden chip (a number there reads out an undrawn line).
@@ -313,7 +347,7 @@ export default function IndicatorChip({
       <>
         {nameNode}
         {valueText
-          ? <>{' '}<span className={styles.chipVal} style={valInk}>{valueText}</span></>
+          ? <>{' '}<span className={styles.chipVal}>{valueText}</span></>
           : (fallback
             ? <>{' '}<span className={`${styles.chipVal} ${styles.chipValStale}`} data-stale-value="">{fallback.text}</span></>
             : null)}
@@ -321,9 +355,21 @@ export default function IndicatorChip({
     )
   } else {
     body = valueText
-      ? <>{chip.label}{' '}<span className={styles.chipVal} style={valInk}>{valueText}</span></>
+      ? <>{chip.label}{' '}<span className={styles.chipVal}>{valueText}</span></>
       : chip.text
   }
+
+  // The inline chip's extra values. ⛔ Nothing is appended when there are none, so the
+  // chip's `textContent` stays `label + ' ' + value` to the byte for every single-plot chip.
+  const moreInline = moreVals.length ? (
+    <>
+      {moreVals.map((m) => (
+        <span key={m.key}>{' '}<span className={styles.chipVal} data-more-value={m.key}
+          style={m.color ? { '--chip-color': m.color } : undefined}>{m.text}</span></span>
+      ))}
+      {moreOver > 0 ? <>{' '}<span className={styles.chipValsOver} data-more-over="">+{moreOver}</span></> : null}
+    </>
+  ) : null
 
   if (grid) {
     // ⛔ THREE CELLS, LIKE EVERY OTHER ROW IN THAT GRID. A two-cell row would let
@@ -334,6 +380,11 @@ export default function IndicatorChip({
     // `data-instance-id`, `data-plot-key`, `data-hidden`, `data-computed`, the
     // long-press binding and the body click. Six files and three rails address a
     // chip by those, and splitting the layout must not split the identity.
+    const hasActs = interactive && typeof onBodyTap !== 'function'
+      && (typeof onToggleHidden === 'function' || typeof onSettings === 'function')
+    const actsCount = !hasActs ? 0 : chip.hidden
+      ? (typeof onToggleHidden === 'function' ? 1 : 0)
+      : (typeof onToggleHidden === 'function' ? 1 : 0) + (typeof onSettings === 'function' ? 1 : 0) + 1
     return (
       /* 🔴 ONE ROW BOX, NOT THREE SIBLING CELLS. `.legend` is
          `pointer-events: none`, so the COLUMN GAPS between sibling cells were not
@@ -343,8 +394,11 @@ export default function IndicatorChip({
          the alignment this variant exists for — while the row is one continuous
          hover box. */
       <span
-        className={`${styles.chipGridRow} ${secondary ? styles.chipGridSub : ''} ${interactive ? styles.rowLive : ''} ${chip.hidden ? styles.chipHidden : ''} ${className || ''}`}
-        style={{ '--chip-color': chipColor, ...ink }}
+        className={`${styles.chipGridRow} ${secondary ? styles.chipGridSub : ''} ${interactive ? styles.rowLive : ''} ${chip.hidden ? styles.chipHidden : ''} ${hasActs ? rowStyles.rowActs : ''} ${hasActs && chip.hidden ? rowStyles.rowActsHidden : ''} ${hasActs && menuOpen ? rowStyles.rowActive : ''} ${className || ''}`}
+        /* ⭐ UCT SIGNATURE — the grid row no longer inks its NAME in the plot colour
+           (the 3×13 bar does that job); `--chip-color` still rides along for the
+           phone's dot tier. */
+        style={{ '--chip-color': chipColor, ...(actsCount ? { '--row-acts-w': `${actsCount * 22 + 6}px` } : null) }}
         {...triggerProps}
         {...(interactive ? longPress : null)}
         onClick={onBody}
@@ -356,9 +410,6 @@ export default function IndicatorChip({
         <i className={styles.rail} style={chipColor ? { background: chipColor } : undefined} aria-hidden="true" />
         <span
           className={`${cls} ${styles.chipGridLabel}`}
-          /* ⛔ `inherit`, because `.chip` declares a colour on THIS element and a
-             declaration on the child beats the row's inherited one. */
-          style={valInk}
           data-instance-id={chip.instanceId}
           data-plot-key={chip.plotKey}
           data-hidden={chip.hidden ? 'true' : 'false'}
@@ -378,6 +429,14 @@ export default function IndicatorChip({
               every hue. */}
         <span className={styles.chipGridVal}>{valueText || (fallback
           ? <span className={styles.chipValStale} data-stale-value="">{fallback.text}</span> : null)}</span>
+        {/* ⭐ ONE ROW PER NAME — each sibling plot's value, in its own line's colour (its own
+            `--chip-color`, so the value's lightness clamp reads this plot's colour, not the
+            row's). Inside the row box, so the row stays one continuous hover target. */}
+        {moreVals.map((m) => (
+          <span key={m.key} className={styles.chipGridVal} data-more-value={m.key}
+            style={m.color ? { '--chip-color': m.color } : undefined}>{m.text}</span>
+        ))}
+        {moreOver > 0 ? <span className={styles.chipValsOver} data-more-over="">+{moreOver}</span> : null}
         {/* ⛔ THE THIRD CELL IS STILL EMITTED, EMPTY. `.legendVertical` is ONE grid
             for the whole legend and fills by ORDER, so a two-cell row would let
             the next row's label fall into the third track and cascade the legend
@@ -385,6 +444,14 @@ export default function IndicatorChip({
         {/* ⚰⚰ THE PERMANENT CHEVRON IS RETIRED — see `LegendRow.jsx`. The cell
             is still emitted and still measures zero; this grid fills by ORDER. */}
         <span className={styles.chipGridCtl} />
+        {hasActs ? (
+          <RowActs name={label} hidden={!!chip.hidden}
+            onToggleHidden={typeof onToggleHidden === 'function' ? () => onToggleHidden(chip.instanceId) : undefined}
+            onSettings={typeof onSettings === 'function' ? () => onSettings(chip.instanceId) : undefined}
+            onMore={openMenu}
+            menuOpen={!!menuOpen}
+            actsClass={rowStyles.acts} actClass={rowStyles.act} eyeClass={rowStyles.actEye} />
+        ) : null}
       </span>
     )
   }
@@ -410,6 +477,7 @@ export default function IndicatorChip({
       onClick={onBody}
     >
       {body}
+      {moreInline}
       {marks}
     </span>
   )

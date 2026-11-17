@@ -11278,6 +11278,260 @@
       ]
     },
     {
+      "id": "newsLibrary.save",
+      "source": "Charts family 11-15: the News row bookmark (lib/tradeExchangeNewsLibrary.save); a headline named by its tickers field",
+      "capabilities": [
+        "newsLibrary.save"
+      ],
+      "board": "NEWS_LIB",
+      "needs": [
+        "newsLibrary.save"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "newsLibrary.save",
+            "target": "$newsLibrary[0]",
+            "args": {
+              "headline": "NVDA",
+              "saved": true
+            }
+          }
+        ]
+      },
+      "expect": {
+        "newsLibrary": {
+          "saved": [
+            "h3"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "save the NVDA headline",
+        "bookmark the NVDA headline",
+        "save the NVDA story to my library"
+      ]
+    },
+    {
+      "id": "newsLibrary.setNote",
+      "source": "Charts family 11-15: the ⋯ menu note (setNote) — appended, never replaced unless asked",
+      "capabilities": [
+        "newsLibrary.setNote"
+      ],
+      "board": "NEWS_LIB",
+      "needs": [
+        "newsLibrary.setNote"
+      ],
+      "seed": {
+        "newsLibrary": {
+          "saved": [
+            "h3"
+          ],
+          "notes": {
+            "h3": "old"
+          }
+        }
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "newsLibrary.setNote",
+            "target": "$newsLibrary[0]",
+            "args": {
+              "headline": "NVDA",
+              "note": "watch guidance",
+              "mode": "append"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "newsLibrary": {
+          "notes": {
+            "h3": "old\nwatch guidance"
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "add a note to the NVDA headline: watch guidance",
+        "put a note on the NVDA headline: watch guidance",
+        "write a note on the NVDA headline: watch guidance"
+      ]
+    },
+    {
+      "id": "newsLibrary.collection",
+      "source": "Charts family 11-15: Manage collections — create (createCollection)",
+      "capabilities": [
+        "newsLibrary.collection"
+      ],
+      "board": "NEWS_LIB",
+      "needs": [
+        "newsLibrary.collection"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "newsLibrary.collection",
+            "target": "$newsLibrary[0]",
+            "args": {
+              "op": "create",
+              "collection": null,
+              "name": "Fed"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "newsLibrary": {
+          "collections": [
+            "Fed"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "create a collection called Fed",
+        "make a news collection named Fed",
+        "start a new collection called Fed"
+      ]
+    },
+    {
+      "id": "newsLibrary.deleteCollection",
+      "source": "Charts family 11-15: Manage collections — delete (its headlines stay saved); always a card, no Undo",
+      "capabilities": [
+        "newsLibrary.deleteCollection"
+      ],
+      "board": "NEWS_LIB",
+      "needs": [
+        "newsLibrary.deleteCollection"
+      ],
+      "seed": {
+        "newsLibrary": {
+          "saved": [
+            "h3"
+          ],
+          "collections": [
+            "Earnings"
+          ],
+          "member": {
+            "h3": [
+              "Earnings"
+            ]
+          }
+        }
+      },
+      "model": {
+        "disposition": "propose",
+        "ops": [
+          {
+            "action": "newsLibrary.deleteCollection",
+            "target": "$newsLibrary[0]",
+            "args": {
+              "collection": "Earnings"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "unchanged": true
+      },
+      "approve": true,
+      "afterApprove": {
+        "newsLibrary": {
+          "collections": [],
+          "saved": [
+            "h3"
+          ]
+        },
+        "receipt": true
+      },
+      "phrasings": [
+        "delete my Earnings collection",
+        "remove the Earnings collection",
+        "delete the Earnings collection"
+      ]
+    },
+    {
+      "id": "newsLibrary.place",
+      "source": "Charts family 11-15: the ⋯ menu Collection picker (setMembershipSaving)",
+      "capabilities": [
+        "newsLibrary.place"
+      ],
+      "board": "NEWS_LIB",
+      "needs": [
+        "newsLibrary.place"
+      ],
+      "seed": {
+        "newsLibrary": {
+          "saved": [
+            "h3"
+          ],
+          "collections": [
+            "Earnings"
+          ]
+        }
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "newsLibrary.place",
+            "target": "$newsLibrary[0]",
+            "args": {
+              "headline": "NVDA",
+              "collection": "Earnings",
+              "member": true
+            }
+          }
+        ]
+      },
+      "expect": {
+        "newsLibrary": {
+          "member": {
+            "h3": [
+              "Earnings"
+            ]
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "put the NVDA headline in my Earnings collection",
+        "add the NVDA headline to my Earnings collection",
+        "move the NVDA headline into the Earnings collection"
+      ]
+    },
+    {
       "id": "chartMenu.resetWatermark",
       "source": "C1-061 (family C, 11-11): Chart Settings → Watermark → Reset to center (opts.watermarkPos = null)",
       "capabilities": [
@@ -12022,7 +12276,18 @@
         "refusal": false
       },
       "phrasings": [
-        {"text": "how is that one set right now", "gaps": {"a": {"id": "GAP-WIDGET-READ-ROUTE", "router": "v1", "reason": "v1 ONLY (the kill-switch fallback): boardEdit has no v1 words in this message (workspace + agent only); the model can still ask for the group (need_groups). Routing v2 (production) reaches it since the budget-cut tie rule (routingV2.js TIE)", "owner": "agent-lead", "mode": "\"how is that one set right now\" → widget.readOptions"}}}
+        {
+          "text": "how is that one set right now",
+          "gaps": {
+            "a": {
+              "id": "GAP-WIDGET-READ-ROUTE",
+              "router": "v1",
+              "reason": "v1 ONLY (the kill-switch fallback): boardEdit has no v1 words in this message (workspace + agent only); the model can still ask for the group (need_groups). Routing v2 (production) reaches it since the budget-cut tie rule (routingV2.js TIE)",
+              "owner": "agent-lead",
+              "mode": "\"how is that one set right now\" → widget.readOptions"
+            }
+          }
+        }
       ]
     },
     {
@@ -12667,6 +12932,93 @@
         "what versions of my board are there",
         "list the saved versions of my layout",
         "show the layout history"
+      ]
+    },
+    {
+      "id": "rs.compare",
+      "source": "Phase 2 market intelligence (11-13): relative strength + sector / industry leadership, owner-style phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "rs.compare"
+      ],
+      "board": "ONE",
+      "needs": [
+        "rs.compare"
+      ],
+      "ownWords": [
+        "rs"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "rs.compare",
+            "target": "$stockData",
+            "args": {
+              "scope": "sectors",
+              "symbols": null,
+              "industry": null,
+              "period": "1M"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*rs\\.leadership.*\"scope\":\"sectors\",\"period\":\"1M\""
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "which sectors are leading this month",
+        "what are the strongest sectors over the last month",
+        "which sectors are lagging this month",
+        "show me sector leadership for the past month"
+      ]
+    },
+    {
+      "id": "news.movers",
+      "source": "Phase 2 market-moving news + catalysts (11-14): UCT's catalyst board, owner-style phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "news.movers"
+      ],
+      "board": "ONE",
+      "needs": [
+        "news.movers"
+      ],
+      "ownWords": [
+        "catalysts"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "news.movers",
+            "target": "$stockData",
+            "args": {
+              "symbols": null,
+              "watchlist": null,
+              "sector": null,
+              "date": null,
+              "days": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*catalysts\\.board.*\"params\":\\{\\}"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "what's moving the market today",
+        "what is driving stocks this morning",
+        "show me the catalyst board",
+        "what are today's catalysts"
       ]
     }
   ],

@@ -28,7 +28,7 @@
 // onReconnect gap-backfill is unchanged.
 
 import { registerRecoveryStream } from './recoveryRegistry'
-import { STREAM_RECONNECT_CAP_MS } from '../utils/streamStatus'
+import { STREAM_RECONNECT_CAP_MS, liveCandleCadenceMs } from '../utils/streamStatus'
 
 export const MAX_BARS_PAIRS = 50   // mirror of api/routers/stream.py MAX_BARS_PAIRS
 // Stream protocol opt-in. v2 = the server may send a `final: true` correction whose `t`
@@ -316,7 +316,7 @@ function _connectBucket(bucket) {
         return
       }
       _pendingBar.set(key, data)
-      if (!_barThrottleTimer) _barThrottleTimer = setTimeout(_flushPendingBars, BAR_THROTTLE_MS)
+      if (!_barThrottleTimer) _barThrottleTimer = setTimeout(_flushPendingBars, liveCandleCadenceMs(BAR_THROTTLE_MS))
       if (!wasDelivering) _notifyStatusForKey(key)  // first bar → status flip
     } catch { /* malformed frame */ }
   })

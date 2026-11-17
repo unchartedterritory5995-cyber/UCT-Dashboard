@@ -135,7 +135,7 @@ match wins; "Tight range" is a second tag that can sit beside any label.
 | Below its 50-day line | close under the 50-day |
 | Extended | 4+ ATR above the 50-day, or 3+ ATR above the 21-day, or more than 5% past a pivot |
 | At pivot | 3% below to 5% above a fresh pivot; the row prints the pivot price |
-| Pullback to the 8-day / 21-day | a 20-session high in the last 15 sessions, then the low within 0.5 ATR of a rising 8-day or 21-day EMA and the close no more than 0.5 ATR under it (D5) |
+| Pullback to the 8-day / 21-day | a 20-session high in the last 15 sessions, then the low within 0.5 ATR of a rising 8-day or 21-day EMA and the close no more than 0.5 ATR under it (D5); since 2026-11-15 also the close at least 0.5 ATR under that high (section 15) |
 | Uptrend, no setup | none of the above |
 
 "Near a buy point" = At pivot, Pullback, or Tight range without Extended. A "One-day move" flag (one
@@ -289,3 +289,42 @@ called a track record.
   starter's order (earnings, weekly, before price, market down day, flag, new).
 - Not done here: `scan_evaluator` and `rs_evidence` still read the bars store without the
   listing-break rule (section 2 fixed the rating job and the screener build).
+
+## 15. Rulings after the first live lists (2026-11-15)
+
+The five screens were released to members on 2026-11-15. The owner then delegated the three open
+questions from the first live review ("you do it all"). Each ruling below was made on the live UCT RS
+Leaders list of that day (50 names, ratings as of 2026-11-13).
+
+- **A pullback must have come off its high (changed).** 30 of the 50 leaders read "Pullback to the
+  8-day". Three of them had closed AT their 20-session closing high that day and nine sat less than
+  half an ATR under it: the rule in section 3 only asked that the day's low dip to a rising average.
+  Added: the close is at least 0.5 ATR under the 20-session closing high
+  (`rs_setup.PULLBACK_MIN_DEPTH_ATR`, the half-ATR unit the band already uses). Read off the same
+  bars in the browser that day, it moves about 9 of the 32 pullback names (8-day and 21-day) to
+  "Uptrend, no setup", AGL among them, which had shown
+  "Pullback to the 8-day" beside the base catalog's "Exhaustion run after a long advance". A house
+  threshold with no published test, like the band it sits beside. It reaches the stored label on the
+  first nightly build after the deploy.
+- **"One-day move" stays as it is.** 18 of the 50 carried it. Checked name by name against the bars:
+  every one had a single session of 17% to 178% that supplied more than half of its three-month
+  gain, and 15 of the 18 were inside the last 13 sessions (earnings season). The tag says what
+  happened and keeps those names out of "near a buy point"; the share of the list that carries it
+  will fall between earnings seasons.
+- **UCT RS Leaders stays a kept list of 50 to 65 names** (section 14). The first live list held 50
+  because no stock had yet been carried past 50th; the buffer only shows from the second session on.
+  A hard 50 would drop and re-add names ranked near 50th from one day to the next.
+- **The Leader score failed its test on development data, so the screens stay rating-ordered**
+  (section 8: "If it fails, the screens stay rating-ordered for good"). Full development run on the
+  server on 2026-11-15, `python -m api.services.rs_leader_test --from-date 2020-11-13`: 251 formation
+  dates (2020-11-13 to 2025-11-06), ratings computed from daily bars (99.6% of 5,851 stocks agree with
+  the stored rating on the cross-check session). Top minus bottom quintile at 21 sessions: +0.11
+  points, 90% interval -0.78 to +1.22 over 50 non-overlapping windows (the test needs the interval
+  above zero). Positive in 1 of the 4 most recent years: 2022 -0.30, 2023 -0.19, 2024 +1.52,
+  2025 -0.15 (needs 3). Quintile order: Spearman 0.30 (needs 0.8). The holdout year was not read;
+  a score that fails on development data has nothing to confirm there. The harness also noted that
+  removing the High part raised the spread by 0.25 points or more in 3 of 4 years; nothing was
+  changed, and a score without High would be a new score that needs its own test. The universe is
+  as held today (stocks that later delisted are missing), which flatters every number above. The
+  score stays unseen; the nightly record behind `RS_LEADER_SHADOW_ENABLED` costs little and can be
+  switched off with that one variable.

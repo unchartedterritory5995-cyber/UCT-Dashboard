@@ -736,7 +736,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "0.33R",
     "6R",
@@ -747,6 +747,28 @@
     "0.33R": "Flipped it: divided the risk by the gain.",
     "4.5R": "Used the dollar gain as the R-multiple.",
     "6R": "Added the gain and the risk."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The trade",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Risk per share",
+      "value": 1.5,
+      "fmt": "$"
+     },
+     {
+      "key": "r2",
+      "label": "Gain per share",
+      "value": 4.5,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "The R-multiple",
+     "as": "r"
+    }
    }
   },
   {
@@ -1228,7 +1250,29 @@
      "fixed before (why's promise wording)"
     ]
    },
-   "batch": "wave9"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The payoffs",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Average winner makes, in R",
+      "value": 2,
+      "fmt": "count"
+     },
+     {
+      "key": "r2",
+      "label": "Average loser costs, in R",
+      "value": 1,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Win rate for zero expectancy",
+     "as": "pct"
+    }
+   }
   },
   {
    "key": "q17",
@@ -1262,7 +1306,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$20,000",
     "$35",
@@ -1273,6 +1317,34 @@
     "$70": "Worked out one trade only, not 100.",
     "$20,000": "Ignored the expectancy and added up the risk.",
     "$35": "Forgot the $200 risk and multiplied 0.35 by 100 trades."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The edge",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Expectancy, R per trade",
+      "value": 0.35,
+      "fmt": "count"
+     },
+     {
+      "key": "r2",
+      "label": "Risk per trade",
+      "value": 200,
+      "fmt": "$"
+     },
+     {
+      "key": "r3",
+      "label": "Number of trades",
+      "value": 100,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Made over the 100 trades",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1307,7 +1379,7 @@
      "fixed before (source moved to the archived page)"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "28%",
     "3.3%",
@@ -1318,6 +1390,28 @@
     "3.3%": "Multiplied 0.55 by 6 instead of raising it to the sixth power.",
     "28%": "Decimal slip: moved the decimal one place.",
     "5.0%": "Multiplied only five times, not six."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The streak",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Trades that lose",
+      "value": 55,
+      "fmt": "%"
+     },
+     {
+      "key": "r2",
+      "label": "Trades in a row",
+      "value": 6,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Chance they all lose",
+     "as": "pct"
+    }
    }
   },
   {
@@ -1530,7 +1624,41 @@
      "computed key"
     ]
    },
-   "batch": "wave9"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The marble bag",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Winners",
+      "value": 45,
+      "fmt": "%"
+     },
+     {
+      "key": "r2",
+      "label": "Losers",
+      "value": 55,
+      "fmt": "%"
+     },
+     {
+      "key": "r3",
+      "label": "Draws",
+      "value": 20,
+      "fmt": "count"
+     },
+     {
+      "key": "r4",
+      "label": "Run of losers, at least",
+      "value": 6,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Chance of such a run",
+     "as": "pct"
+    }
+   }
   },
   {
    "key": "q24",
@@ -1579,7 +1707,41 @@
      "computed key"
     ]
    },
-   "batch": "wave9"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The 20 draws",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Winners",
+      "value": 9,
+      "fmt": "count"
+     },
+     {
+      "key": "r2",
+      "label": "Each winner makes, in R",
+      "value": 2,
+      "fmt": "count"
+     },
+     {
+      "key": "r3",
+      "label": "Losers",
+      "value": 11,
+      "fmt": "count"
+     },
+     {
+      "key": "r4",
+      "label": "Each loser costs, in R",
+      "value": 1,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "What the draws made",
+     "as": "r"
+    }
+   }
   },
   {
    "key": "q25",
@@ -1831,7 +1993,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed calc, answer matches, wrong choices distinct and real, no tell."
+   "notes": "Risk and gain per share clear; slot reads 3R like the key."
   },
   "q04": {
    "status": "pass",
@@ -1909,21 +2071,20 @@
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Facts change only (f15 added). Breakeven 1/3 recomputed; calc 100/3 rounds to 33.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "Losers are -1R but the tile shows plain '1', which reads as a win; word the labels as the size of each outcome."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "$70/$700/$7,000 were a pure decimal-shift family that points at the answer; replaced $700 with the real slip of forgetting the $200 risk ($35). Answer moved to slot 2."
+   "notes": "'Average made' is ambiguous (per trade? total?). The answer is the total over the 100 trades. Expectancy label gets its unit."
   },
   "q18": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
+   "notes": "Loss rate and run length clear; slot 2.8% matches key."
   },
   "q19": {
    "status": "pass",
@@ -1954,13 +2115,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "0.55^6 = 2.77%, which rounds to 2.8%; 2.8% and 19.5% both come from the question's own choices; the overlap point is correct."
+   "notes": "Bag mix, draws and run length labelled; slot 19.5%. Calc is a closed-form approximation but label names the same thing."
   },
   "q24": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Losers are -1R but tile shows '1'; label the sign as cost."
   },
   "q25": {
    "status": "pass",

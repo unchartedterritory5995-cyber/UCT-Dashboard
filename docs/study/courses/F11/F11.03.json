@@ -1070,7 +1070,7 @@
      "fixed before (stem reworded by the checker)"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "800 shares",
     "1,075 shares",
@@ -1081,6 +1081,40 @@
     "1,075 shares": "Filled the 40% account cap instead of sizing from the $200 risk.",
     "2,688 shares": "Spent the whole $50,000 account at the entry price instead of sizing from the risk.",
     "8,000 shares": "A decimal slip: ten times too big."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The day trade's size",
+    "rows": [
+     {
+      "key": "account",
+      "label": "Account",
+      "value": 50000,
+      "fmt": "$"
+     },
+     {
+      "key": "dollars_to_risk",
+      "label": "Dollars to risk",
+      "value": 200,
+      "fmt": "$"
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "value": 18.6,
+      "fmt": "$"
+     },
+     {
+      "key": "stop",
+      "label": "Stop",
+      "value": 18.35,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Shares",
+     "as": "shares"
+    }
    }
   },
   {
@@ -1333,7 +1367,7 @@
      "fixed before (stem and why reworded)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "20% of the portfolio",
     "10% of the portfolio",
@@ -1344,6 +1378,28 @@
     "20% of the portfolio": "That is the stop width, not the position size.",
     "2% of the portfolio": "That is the loss cap, not the position size.",
     "40% of the portfolio": "Multiplied the 2% cap by the 20% stop. Divide them."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The biggest position",
+    "rows": [
+     {
+      "key": "stop_distance",
+      "label": "Stop distance",
+      "value": 20,
+      "fmt": "%"
+     },
+     {
+      "key": "most_to_lose,_of_por",
+      "label": "Most to lose, of portfolio",
+      "value": 2,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Position, % of portfolio",
+     "as": "pct"
+    }
    }
   },
   {
@@ -1534,7 +1590,29 @@
      "fixed before (unsourced multiple removed)"
     ]
    },
-   "batch": "wave9"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "Bigger stops, same size",
+    "rows": [
+     {
+      "key": "position,_of_the_acc",
+      "label": "Position, of the account",
+      "value": 25,
+      "fmt": "%"
+     },
+     {
+      "key": "new_stop_under_entry",
+      "label": "New stop under entry",
+      "value": 10,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Risk on the account",
+     "as": "pct"
+    }
+   }
   },
   {
    "key": "q20",
@@ -1589,7 +1667,29 @@
      "fixed before (stem and choices reworded)"
     ]
    },
-   "batch": "wave9"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "A tight day-trade stop",
+    "rows": [
+     {
+      "key": "stop_under_entry",
+      "label": "Stop under entry",
+      "value": 0.25,
+      "fmt": "%"
+     },
+     {
+      "key": "risk,_of_the_account",
+      "label": "Risk, of the account",
+      "value": 1,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Full size that risks 1%",
+     "as": "pct"
+    }
+   }
   },
   {
    "key": "q21",
@@ -1746,7 +1846,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "notes": "account, risk dollars, entry, stop right; key '800 shares'"
   },
   "q10": {
    "status": "pass",
@@ -1783,7 +1883,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "2 / 20 x 100 = 10%. 20% stop width, 2% cap, 40% multiplied. Why shows the steps."
+   "notes": "stop distance and portfolio loss cap; key too long so slot '10%', label 'Position, % of portfolio' fits"
   },
   "q16": {
    "status": "cut",
@@ -1807,13 +1907,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calculated before the key: 25% x 10% = 2.5% of the account (calc), over the A1 2% ceiling (h10); h12 is the owner's size-times-stop line. All numbers come from the story or the calc. Distractors are real mix-ups: size alone is risk, a farther stop means less risk, and the stop's 10% read as account risk (h18). Key 34 chars, longest 35, no tell. The 25% is under the A7 40% cap, so no second problem competes with the key. House flag present. It does not answer q20 (no cap) or q09."
+   "notes": "position size and new stop; slot '2.5%' under 'Risk on the account'"
   },
   "q20": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right: 1 / 0.25 x 100 = 400% (calc); A7 caps any position at 40% (h20) and A5 makes the size the smaller of the two (h21). 'Widen the stop' breaks A3 and f48; 'on margin' still breaks A7 and B24's 200% book. Defects: (1) \"house\": true is missing, though the key rests on A7 and A5 and the why says 'Our max position' (the previous checker's notes say it was added; the file does not have it). (2) The margin note opens 'With borrowed money', but f13's quote never mentions borrowed money ('But this can also lead to bigger losses...'), and the Schwab page refused this session's fetch, so the con"
+   "notes": "Label 'Position, % of account' next to a slot of 400% reads as the recommended action, but the answer is to CAP the size (the choices call 400% the wrong buy). Name what the calc really computes: the full size that risks 1%."
   },
   "q21": {
    "status": "pass",

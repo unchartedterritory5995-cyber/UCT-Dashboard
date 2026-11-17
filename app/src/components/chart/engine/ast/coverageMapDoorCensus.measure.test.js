@@ -55,10 +55,30 @@ import {
   CENSUS_RUNTIME_ENV, LANE_PRODUCTION, LANE_RUNTIME_ON, requestedLane, assertLaneMeasured, isGateDecline,
 } from '../../../../../../tools/pine_coverage/runtime_lane.mjs'
 import { peelStatement } from '../../../../../../tools/pine_coverage/census_peel.mjs'
+import { paintsWithheldFromDocument, paintsWithheldByTranslation } from '../../../../../../tools/pine_coverage/paint_predicate.mjs'
+import { loadCapture } from '../__tests__/vendorHarness/harness.js'
+import { toProductBars } from '../__tests__/vendorHarness/ourSide.js'
+import { hostObjectRun, hostObjectReaderOpts } from '../runHalfObjectRail.js'
+import { OTHER_SYMBOL_REFUSAL, staticallyUnservable } from '../otherSymbols'
+import { foldNotesForOutput } from './parse'
+import { CALL_EXPANSIONS } from './callExpansions'
+import { supertrendTreesEngine56 } from './__fixtures__/supertrendTreesEngine56.js'
+import { loadPineLibraryStoreFromEnv } from './__tests__/pineLibraryStoreLoader.js'
+import {
+  armedStrategyVerdict, brokerFlagOf, historyWindowBarsOf, STRATEGY_DECLARATION,
+} from '../runtime/__tests__/strategyArmed.js'
+import { barsOfCapture } from '../__tests__/vendorHarness/strategyHarness.js'
 
 const INPUT = process.env.COVERAGE_INPUT
 const OUT = process.env.COVERAGE_OUT
 const RUN = !!(INPUT && OUT)
+// ⭐ LIBRARIES, OPT-IN AND MEASURE-ONLY (2026-11-16): `PINE_LIBRARY_STORE=<scratch store dir>`
+// loads that store into the registry for the whole run, so the census can be measured with the
+// store production will hold (the promotion allowlist's versions) instead of an empty one. Unset,
+// nothing is loaded and the census measures the registry as every process starts it: empty. A row
+// measured with a store says how many versions it had (`libraryStore`); a row without one is unchanged.
+// ⛔ The store is a scratch directory outside the repository (library code is never committed).
+const LIBRARIES_LOADED = RUN ? loadPineLibraryStoreFromEnv() : []
 // ⛔ read strictly: a typo throws at collection rather than measuring the other lane
 const LANE = requestedLane(process.env[CENSUS_RUNTIME_ENV], CENSUS_RUNTIME_ENV) || LANE_PRODUCTION
 const RT_ON = LANE === LANE_RUNTIME_ON
@@ -72,6 +92,8 @@ const GATE = (rel) => fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8')
 const flagOf = (src) => (src.match(/source\.(VITE_[A-Z0-9_]+)\s*===\s*'1'/) || [])[1]
 const OBJECTS_ONLY_FLAG = RUN ? flagOf(GATE('src/components/chart/engine/objectsOnlyPaneGate.js')) : null
 const RUNTIME_FLAG = RUN ? flagOf(GATE('src/components/chart/engine/runtimePaneGate.js')) : null
+// ⭐⭐ W9 ARMED — the broker gate's flag, read off its module (`import.meta.env.<NAME> === '1'`)
+const BROKER_FLAG = RUN ? brokerFlagOf(GATE('src/components/chart/engine/strategyBrokerGate.js')) : null
 
 function bindingNameOf(line) {
   const hash = line.indexOf('//')
@@ -138,15 +160,27 @@ export function dropHeads(diag) {
     const m = /^cell@([\d?]+): (\S+)/.exec(String(e))
     if (m) out.push(`cell:text@${m[1]}: ${m[2] === 'no' ? 'unrecorded' : m[2]}`)
   }
+  // ⭐ DRAW-1 — a `guard:partial` step (C33: carried, withheld on the bars its unread term
+  // decides) is named in `guardPartial` (`<op>@<line>: <guard>`); its head is keyed `partial`,
+  // the drop key's own kind, so the census can say which guard it was.
+  for (const e of d.guardPartial || []) {
+    const m = /^\w+@([\d?]+): (\S+)/.exec(String(e))
+    if (m) out.push(`partial@${m[1]}: ${m[2] === 'refused' ? 'unrecorded' : m[2]}`)
+  }
   return [...new Set(out)].slice(0, 60)
 }
 
-function oneDoor(source, { runtimeDetail = RT_ON } = {}) {
+function oneDoor(source, { runtimeDetail = RT_ON, bound = false } = {}) {
   let d
   try {
     d = memberPaneDefinition({ source, id: DEF_ID, name: 'coverage' })
   } catch (err) {
     return { threw: short((err && err.message) || err) }
+  }
+  // ⭐ ENGINE 55 — step 0 only (`census`): the bound check's blockers, before install.
+  let boundWhy = null
+  if (bound && d.ok) {
+    try { boundWhy = boundBlockers(d) } catch (err) { boundWhy = [`bound-threw:${short((err && err.message) || err, 80)}`] }
   }
   const t = d.translation || {}
   const refusals = (t.refusals || []).map((r) => ({
@@ -183,7 +217,10 @@ function oneDoor(source, { runtimeDetail = RT_ON } = {}) {
     drawsObjects: !!(d.definition && d.definition.objects),
     // an object program the translation built that the pane did NOT carry
     withheldObjects: !!(d.ok && t.objects && (t.objects.ops || []).length && !(d.definition && d.definition.objects)),
-    withheldPaints: (((t.presentation || {}).paints) || []).filter((p) => p && p.withheld).length,
+    // INSTRUMENT (2026-11-16): a paint counts as withheld only when the DOCUMENT does not draw it
+    // (`tools/pine_coverage/paint_predicate.mjs`); the translation's own count rides beside it.
+    withheldPaints: paintsWithheldFromDocument(t, d.ok ? d.definition : null),
+    withheldPaintsTranslated: paintsWithheldByTranslation(t),
     lane: d.lane || (d.ok ? 'host' : null),
     lossVerdict: loss ? loss.verdict : null,
     droppedOps: diag.droppedOps || 0,
@@ -195,6 +232,7 @@ function oneDoor(source, { runtimeDetail = RT_ON } = {}) {
     loopBlockedCalls: diag.loopBlockedCalls || [],
     notes: (d.notes || []).map((n) => (n && n.name) || null).filter(Boolean),
     refusals,
+    ...(boundWhy ? { boundWhy } : {}),
     ...(runtimeDetail ? {
       runtimeDeclined: d.runtimeDeclined ? { code: d.runtimeDeclined.code, why: short(d.runtimeDeclined.why, 300) } : null,
       rtProbe: d.runtimeDeclined ? runtimeProbeOf(source, d.runtimeDeclined) : null,
@@ -202,9 +240,157 @@ function oneDoor(source, { runtimeDetail = RT_ON } = {}) {
   }
 }
 
+// ─── ⭐⭐ ENGINE 55 — THE BOUND CHECK: "FULLY DRAWN" ASKED OF A BIND, NOT ONLY OF A DOOR ──
+// ⚰️ `isClean` (below) judges the DOOR's answer: attached, zero refusals, nothing dropped. It
+// never binds. Three silent shapes passed it: a plot that reads another symbol no bind can serve
+// (McClellan's bare `ADVN`, an all-`na` line), a table whose cells read a value the bind could
+// not compute (K-clustering, `withheldUnknown`), and a semantic-difference fold. `cleanBound`
+// asks ONE bind of the attached definition on a reference series — the RDDT 1D capture bars —
+// and requires: no column error, no object op withheld as unknown (and nothing named
+// not-computable), no other-symbol refusal the spelling alone decides, and no fold note.
+// ⭐ BOTH NUMBERS ARE KEPT: `clean` (static, comparable with every earlier map) and
+// `cleanBound`. ⛔ A refusal that depends on OUR STORE (a listing not held, no bars in hand) is
+// not counted: the census supplies no secondary bars, and a member's chart does.
+const BOUND_REFERENCE = path.resolve(process.cwd(), '..', 'tests/fixtures/vendor/harness/k-clustering-rddt-1d-2026-09-28.json')
+const BOUND_CTX = Object.freeze({
+  tf: 'D', symbol: Object.freeze({ ticker: 'RDDT', exchange: 'NYSE' }), newestBarIsForming: false, historyFromListing: true,
+})
+/** The other-symbol refusal codes a SPELLING decides (no store, no bars, no chart state). */
+const SPELLING_DECIDED = new Set([OTHER_SYMBOL_REFUSAL.UNSPELLED, OTHER_SYMBOL_REFUSAL.VENUE_UNREADABLE,
+  OTHER_SYMBOL_REFUSAL.VENUE_UNCONFIRMED])
+const STORE_DEPENDENT = new Set([OTHER_SYMBOL_REFUSAL.NOT_HELD, OTHER_SYMBOL_REFUSAL.NO_BARS,
+  OTHER_SYMBOL_REFUSAL.EXCHANGE_UNCONFIRMED, OTHER_SYMBOL_REFUSAL.VENUE_MISMATCH, OTHER_SYMBOL_REFUSAL.BARE,
+  OTHER_SYMBOL_REFUSAL.CHART_PREFIX, OTHER_SYMBOL_REFUSAL.FRAMED])
+let boundBars = null
+function referenceBars() {
+  if (!boundBars) boundBars = toProductBars(loadCapture(BOUND_REFERENCE).capture)
+  return boundBars
+}
+
+// ⭐⭐ W9 ARMED — the same reference capture, as the broker reads bars (epoch seconds, the strategy
+// harness's own reader), and the context a strategy run is handed: the window is the ONE authority,
+// `bars_window.HISTORY_WINDOW_BARS`, read off the Python module.
+let armedBars = null
+function strategyBars() {
+  if (!armedBars) armedBars = barsOfCapture(loadCapture(BOUND_REFERENCE).capture)
+  return armedBars
+}
+const ARMED_CTX = () => ({ ...BOUND_CTX, historyWindowBars: historyWindowBarsOf(path.resolve(process.cwd(), '..')) })
+/** The census's own door answer, in the shape `strategyArmed.js` reads, judged as the RUNTIME-ON lane judges it
+ *  (`coverage_map.py::runtimeClean`): `isClean`, or attached by the runtime lane (a runtime document keeps the
+ *  host translation's refusals beside it by design, so `isClean` cannot judge it, and the broker runs only there). */
+function armedDoor(source) {
+  const r = oneDoor(source, { runtimeDetail: false })
+  const attached = !!r.attached && r.installed !== false
+  return { attached, clean: isClean(r) || (attached && r.lane === 'runtime'), guard: r.guard || null, lane: r.lane || null,
+    refusals: (r.refusals || []).map((x) => x.guard).filter(Boolean), runtimeDeclined: r.runtimeDeclined || null }
+}
+
+/** ⭐⭐ ENGINE 55 (coordinator, s6-bugs-1114) — THE DARK-PLOT TEST. The reference bars start at
+ *  the listing (`history.startsAtBar0`), so the same definition is also bound OFF the listing
+ *  (`historyFromListing: false`, the replay a chart that does not reach the listing computes). A plot
+ *  is DARK — the script is not fully drawn — when, on the listing, it draws no bar at all, or draws
+ *  fewer of the bars the off-listing replay draws. ⚰️ The builtin Supertrend drew 0 bars from the
+ *  listing against 255 off it (a NaN seed latched in its ratchet) and the census counted it clean.
+ *  The engine bug is NOT fixed here (a later engine); the census is only made honest about it.
+ *  ⛔ A plot that draws NOTHING OFF the listing either is not dark BY THE LISTING, and is not
+ *  counted: measured on the first full run, 33 of 35 such demotions were plots empty by design on
+ *  a daily chart — an input left off (`show_5m ? x : na`, the builtin SMA's smoothing plots with
+ *  type "None"), an intraday-only session level — which TradingView draws as nothing too. Whether
+ *  a plot empty in BOTH replays should draw is a question this test has no witness for (the
+ *  harness has one, per capture); counting it would demote by the plot's design, not the engine. */
+function darkPlots(def, bars, ctx, listingCols) {
+  if (!ctx || ctx.historyFromListing !== true) return []
+  let off = null
+  try {
+    off = registry.computeFor(def, bars, undefined, { ...ctx, historyFromListing: false })
+  } catch { off = null }
+  if (!off || typeof off.then === 'function') return []
+  const errs = registry.columnErrors(listingCols) || {}
+  const out = []
+  for (const p of (def.plots || [])) {
+    if (!p || p.style === 'hlines' || typeof p.key !== 'string') continue
+    if (Object.prototype.hasOwnProperty.call(errs, p.key)) continue   // already a column error
+    const on = listingCols[p.key]
+    const of = off[p.key]
+    if (!on || typeof on.length !== 'number') continue
+    let onDrawn = 0
+    let offDrawn = 0
+    let onWhereOff = 0
+    for (let i = 0; i < on.length; i++) {
+      const a = Number.isFinite(on[i])
+      const b = of && Number.isFinite(of[i])
+      if (a) onDrawn += 1
+      if (b) { offDrawn += 1; if (a) onWhereOff += 1 }
+    }
+    if (offDrawn === 0) continue   // empty in both replays: no evidence the listing darkened it
+    if (onDrawn === 0) out.push(`dark-plot:${p.key}:listing 0 / off-listing ${offDrawn}`)
+    else if (onWhereOff < offDrawn) out.push(`dark-plot:${p.key}:listing ${onWhereOff} of the off-listing ${offDrawn}`)
+  }
+  return out
+}
+
+/** Why ONE bind of an attached member-door definition is not fully drawn: `[]` = it is.
+ *  Exported for the rail below (`cleanBound` can fail). */
+export function boundBlockers(d, bars = referenceBars(), ctx = BOUND_CTX) {
+  const out = []
+  if (!d || !d.ok || !d.definition) return ['not-attached']
+  const def = d.definition
+  const t = d.translation || {}
+  for (const o of t.outputs || []) {
+    // ⚠️ `baseTimeframeFolds` (a daily request read as the chart's own daily bars) is the
+    // identity on a DAILY bind — measured (C49) and withheld by name on any other chart —
+    // so on this daily reference it differs from nothing; every other fold note counts.
+    for (const n of foldNotesForOutput(o)) {
+      if (n.name === 'baseTimeframeFolds' && ctx.tf === 'D') continue
+      out.push(`fold:${n.name}`)
+    }
+  }
+  for (const r of (def.meta && def.meta.otherSymbols) || []) {
+    for (const v of r.spellings || []) {
+      const s = staticallyUnservable(r.ticker, v)
+      if (s) out.push(`other-symbol:${s.code}:${r.ticker}`)
+    }
+  }
+  let cols = null
+  try {
+    cols = registry.computeFor(def, bars, undefined, ctx)
+  } catch (err) {
+    out.push(`compute-threw:${short((err && err.message) || err, 80)}`)
+  }
+  if (cols && typeof cols.then !== 'function') {
+    for (const [key, e] of Object.entries(registry.columnErrors(cols) || {})) {
+      const guard = (e && (e.guard || e.status)) || 'error'
+      if (STORE_DEPENDENT.has(guard)) continue
+      out.push(`column-error:${key}:${guard}`)
+    }
+    const other = registry.otherSymbolReport(cols)
+    for (const r of (other && other.refused) || []) {
+      if (SPELLING_DECIDED.has(r.code)) out.push(`other-symbol:${r.code}:${r.ticker}`)
+    }
+    for (const w of darkPlots(def, bars, ctx, cols)) out.push(w)
+  } else if (cols) {
+    out.push('compute-async')
+  }
+  if (def.objects) {
+    try {
+      const host = hostObjectRun(def, bars, hostObjectReaderOpts(ctx, undefined))
+      const run = host && host.run
+      if (run) {
+        if (run.stats && run.stats.withheldUnknown) out.push(`objects:withheld-unknown:${run.stats.withheldUnknown}`)
+        if (run.withheldBy && run.withheldBy['objects:not-computable']) out.push('objects:not-computable')
+      }
+    } catch (err) {
+      out.push(`objects-threw:${short((err && err.message) || err, 80)}`)
+    }
+  }
+  return [...new Set(out)]
+}
+
 /** ⭐ "TRANSFERS FULLY" — the coverage map's headline predicate, in one place.
  *  Attached by the member door AND installed AND zero refusals AND the object
- *  program carried with nothing dropped or withheld AND no paint withheld. */
+ *  program carried with nothing dropped or withheld AND no paint withheld.
+ *  A paint is withheld when the DOCUMENT the member gets does not draw it (`paint_predicate.mjs`). */
 function isClean(r) {
   return !!r && !!r.attached && r.installed !== false
     && (r.refusals || []).length === 0
@@ -217,7 +403,7 @@ function census(source, cap, { rtOn = RT_ON } = {}) {
   const steps = []
   let stuck = null
   for (let step = 0; step < cap; step += 1) {
-    const r = oneDoor(work.join(LF), { runtimeDetail: rtOn })
+    const r = oneDoor(work.join(LF), { runtimeDetail: rtOn, bound: step === 0 })
     // the line text each refusal names, read off the CURRENT program
     for (const ref of r.refusals || []) {
       ref.text = ref.line && work[ref.line - 1] != null ? short(work[ref.line - 1].trim(), 200) : null
@@ -250,6 +436,11 @@ function census(source, cap, { rtOn = RT_ON } = {}) {
   return {
     attached: !!first.attached && first.installed !== false,
     clean: isClean(first),
+    // INSTRUMENT (2026-11-16): the same predicate under the paint rule it had before (every paint the
+    // TRANSLATION withheld counts), so one run states the headline under both definitions.
+    cleanTranslatedPaints: isClean({ ...first, withheldPaints: first.withheldPaintsTranslated }),
+    // ⭐ ENGINE 55 — the BOUND predicate (`boundBlockers`), beside the static one.
+    cleanBound: isClean(first) && Array.isArray(first.boundWhy) && first.boundWhy.length === 0,
     reachedAfterPeel: !!last.attached,
     peelSteps: steps.length - 1,
     stuck,
@@ -313,13 +504,32 @@ describe.skipIf(!RUN)('coverage-map door census (driven by run_census.py)', () =
       vi.stubEnv(RUNTIME_FLAG, '1')
       try {
         const rt = oneDoor(source)
-        row.runtime = { attached: !!rt.attached && rt.installed !== false, clean: isClean(rt), lane: rt.lane || null,
+        row.runtime = { attached: !!rt.attached && rt.installed !== false, clean: isClean(rt),
+          cleanTranslatedPaints: isClean({ ...rt, withheldPaints: rt.withheldPaintsTranslated }), lane: rt.lane || null,
           guard: rt.guard || null, threw: rt.threw || null, refusalGuards: [...new Set((rt.refusals || []).map((x) => x.guard))] }
       } catch (err) {
         row.runtime = { attached: false, clean: false, threw: short((err && err.message) || err) }
       }
       vi.unstubAllEnvs()
-      fs.appendFileSync(OUT, `${JSON.stringify({ key: it.key, lane: LANE, ms: Date.now() - t0, ...row })}\n`)
+      // ⭐⭐ W9 ARMED (coordinator ruling 2026-11-16) — THE BROKER COUNTERFACTUAL, step 0, a strategy only:
+      // the same door with the objects-only pane, the runtime pane AND the dark strategy broker switched on
+      // (`runtime/__tests__/strategyArmed.js`). A SEPARATE column (`strategyArmed`): it measures what arming
+      // the broker would serve and is never counted in the headline (`transfers_fully` is unchanged).
+      if (STRATEGY_DECLARATION.test(source)) {
+        vi.stubEnv(OBJECTS_ONLY_FLAG, '1')
+        vi.stubEnv(RUNTIME_FLAG, '1')
+        vi.stubEnv(BROKER_FLAG, '1')
+        __permitRuntimePaneForTests()
+        __allowEveryRuntimeScriptForTests()
+        try {
+          row.strategyArmed = armedStrategyVerdict({ source, door: armedDoor, bars: strategyBars(), ctx: ARMED_CTX() })
+        } catch (err) {
+          row.strategyArmed = { threw: short((err && err.message) || err) }
+        }
+        vi.unstubAllEnvs()
+      }
+      fs.appendFileSync(OUT, `${JSON.stringify({ key: it.key, lane: LANE, ms: Date.now() - t0,
+        ...(LIBRARIES_LOADED.length ? { libraryStore: LIBRARIES_LOADED.length } : {}), ...row })}\n`)
       n += 1
     }
     fs.writeFileSync(cur, '')
@@ -546,10 +756,12 @@ describe('W4 T0: the runtime probe asks the build the door asked (objects in the
   // explains it. Here the drawing build's own refusal is `runtime:conditional-history`
   // (a `ta.*` assigned in an `if`, read by `line.new`), and the host lane refused the
   // unknown function first so the runtime lane was consulted.
+  // ⭐ L4d (re-pinned): `ta.sma` / `ta.ema` / `ta.rma` in an `if` are now served to a drawing per
+  // call site (W3N-D1a/b/c), so the fixture uses `ta.wma`, which no drawing capture witnesses.
   const OBJECT_OP = [...FIXTURE_HEAD,
     'var float lo = na',
     'if close > open',
-    '    lo := ta.sma(close, 3)',
+    '    lo := ta.wma(close, 3)',
     'ln = line.new(bar_index, lo, bar_index + 1, lo)',
     'plot(math.nosuch(close))',
   ].join(LF)
@@ -607,5 +819,105 @@ describe('W3W4-T0: dropHeads', () => {
     // consistent: every head names a guard, and a drop with reasons has the counter behind it
     for (const h of r.dropHeads) expect(h).toMatch(/^[\w:.-]+@[\d?]+: \S+/)
     if (Object.keys(r.dropReasons).length) expect(r.droppedOps).toBeGreaterThan(0)
+  })
+})
+
+// ─── ⛔ ENGINE 55 — THE BOUND CHECK CAN FAIL (ordinary suite, a few door calls) ──────────
+// `cleanBound` adds ONE bind to "fully drawn". Each blocker it names has a script here that
+// trips it, a control that does not, and the store-dependent case it must NOT count.
+describe('⛔ engine 55 — the census bound check (`boundBlockers`) can fail', () => {
+  const head = ['//@version=5', "indicator('e55 bound', overlay=true)"]
+  const doorOf = (lines) => underLane(false, () => memberPaneDefinition({ source: [...head, ...lines].join(LF), id: DEF_ID, name: 'b' }))
+
+  // ⭐ ENGINE 57 moved this rail's subject: it was the builtin Supertrend, dark until engine 57
+  // fixed its tree. The subject is now THAT dark plot, rebuilt: the door translates the same
+  // script with engine 56's supertrend expansion swapped in (the verbatim fixture
+  // `__fixtures__/supertrendTreesEngine56.js`, restored in `finally`). The control below is
+  // today's tree on the same script: no dark-plot blocker.
+  const withEngine56Supertrend = (fn) => {
+    const st = CALL_EXPANSIONS.supertrend
+    const sd = CALL_EXPANSIONS.supertrendDirection
+    const was = [st.build, sd.build]
+    st.build = (a) => { const t = supertrendTreesEngine56(a[0], a[1]); return t ? t.value : null }
+    sd.build = (a) => { const t = supertrendTreesEngine56(a[0], a[1]); return t ? t.direction : null }
+    try { return fn() } finally { [st.build, sd.build] = was }
+  }
+
+  it('⛔ a DARK plot (engine 56\'s builtin Supertrend tree from the listing: fewer bars than the off-listing replay) is a blocker', () => {
+    const d = withEngine56Supertrend(() => doorOf(['[st, dir] = ta.supertrend(3, 10)', 'plot(st)']))
+    expect(d.ok).toBe(true)
+    const why = boundBlockers(d)
+    expect(why.some((w) => /^dark-plot:[^:]+:listing \d+ (\/ off-listing|of the off-listing) [1-9]\d*$/.test(w)), why.join(' | ')).toBe(true)
+  })
+
+  it('CONTROL (engine 57): today\'s builtin Supertrend on the same script is NOT dark', () => {
+    const d = doorOf(['[st, dir] = ta.supertrend(3, 10)', 'plot(st)'])
+    expect(d.ok).toBe(true)
+    const why = boundBlockers(d)
+    expect(why.filter((w) => w.startsWith('dark-plot:')), why.join(' | ')).toEqual([])
+  })
+
+  it('a plot empty in BOTH replays (an input left off) is NOT a dark plot (the control for the rule)', () => {
+    const d = doorOf(['showIt = input.bool(false, "Show")', 'plot(showIt ? close : na)', 'plot(close)'])
+    expect(d.ok).toBe(true)
+    expect(boundBlockers(d)).toEqual([])
+  })
+
+  it('a plain plot binds clean (the control)', () => {
+    const d = doorOf(['plot(ta.sma(close, 5))'])
+    expect(d.ok).toBe(true)
+    expect(boundBlockers(d)).toEqual([])
+  })
+
+  it('a venue TradingView was never measured answering (spelling-decided) is a blocker', () => {
+    const d = doorOf(['plot(request.security("NYSEARCA:SPY", timeframe.period, close))', 'plot(close)'])
+    expect(d.ok).toBe(true)
+    expect(boundBlockers(d).join(' ')).toMatch(/other-symbol:venue-unconfirmed/)
+  })
+
+  it('a listing our store may hold (store-dependent: no bars in the census) is NOT counted', () => {
+    const d = doorOf(['plot(request.security("AMEX:SPY", timeframe.period, close))'])
+    expect(d.ok).toBe(true)
+    expect(boundBlockers(d)).toEqual([])
+  })
+
+  it('a drawing step withheld as unknown (K-clustering\'s partly drawn table) is a blocker', () => {
+    const cap = JSON.parse(fs.readFileSync(BOUND_REFERENCE, 'utf8'))
+    const d = underLane(false, () => memberPaneDefinition({ source: cap.source.text, id: DEF_ID, name: 'kc' }))
+    expect(d.ok).toBe(true)
+    const why = boundBlockers(d)
+    expect(why.some((w) => w.startsWith('objects:withheld-unknown:'))).toBe(true)
+    expect(why).toContain('objects:not-computable')
+  })
+})
+
+// ─── ⛔ SELF-CHECK: THE PAINT RULE (instrument correction, 2026-11-16) ───────────────────
+// A paint counts as withheld only when the document the member gets does not draw it.
+describe('⛔ census paint rule: withheld means the document does not draw it', () => {
+  const t = { presentation: { paints: [
+    { kind: 'barcolor', line: 12, withheld: { code: 'paint:colour', reason: 'x' } },
+    { kind: 'bgcolor', line: 20, withheld: { code: 'paint:offset', reason: 'y' } },
+    { kind: 'bgcolor', line: 30, color: '#ff0000' },
+  ] } }
+  it('the translation count is every paint the translation withheld', () => {
+    expect(paintsWithheldByTranslation(t)).toBe(2)
+    expect(paintsWithheldByTranslation(null)).toBe(0)
+  })
+  it('a withheld paint the document draws (same kind, same line) is not counted', () => {
+    expect(paintsWithheldFromDocument(t, { paints: [{ kind: 'barcolor', line: 12 }, { kind: 'bgcolor', line: 30 }] })).toBe(1)
+  })
+  it('a document paint of another line or another kind lifts nothing', () => {
+    expect(paintsWithheldFromDocument(t, { paints: [{ kind: 'barcolor', line: 13 }, { kind: 'barcolor', line: 20 }] })).toBe(2)
+  })
+  it('no document (the door did not attach), or a document with no paints: every withheld paint counts', () => {
+    expect(paintsWithheldFromDocument(t, null)).toBe(2)
+    expect(paintsWithheldFromDocument(t, { paints: [] })).toBe(2)
+  })
+  it('one document paint lifts one withheld paint, never two on the same line', () => {
+    const two = { presentation: { paints: [
+      { kind: 'barcolor', line: 5, withheld: { code: 'paint:colour', reason: 'a' } },
+      { kind: 'barcolor', line: 5, withheld: { code: 'paint:colour', reason: 'b' } },
+    ] } }
+    expect(paintsWithheldFromDocument(two, { paints: [{ kind: 'barcolor', line: 5 }] })).toBe(1)
   })
 })

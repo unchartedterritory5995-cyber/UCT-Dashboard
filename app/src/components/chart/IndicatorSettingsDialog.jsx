@@ -670,10 +670,11 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
           {field.type === 'toggle' && (
             <button
               type="button" role="switch" {...aria}
-              aria-checked={value !== false}
-              className={`${styles.toggle} ${value !== false ? styles.toggleOn : ''}`}
+              aria-checked={field.numeric ? Number(value) === 1 : value !== false}
+              className={`${styles.toggle} ${(field.numeric ? Number(value) === 1 : value !== false) ? styles.toggleOn : ''}`}
               onClick={() => {
-                const val = value === false
+                // a numeric switch (a Pine `bool` held as 1 / 0) writes 1 / 0
+                const val = field.numeric ? (Number(value) === 1 ? 0 : 1) : value === false
                 setDraft((d) => ({ ...d, [field.key]: val }))
                 pendingRef.current.set(field.key, val)
                 flushNow()

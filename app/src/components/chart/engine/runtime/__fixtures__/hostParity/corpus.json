@@ -3,6 +3,7 @@
  "reportOnly": {
   "reason": "V8 Math.sin/Math.cos differ by 1 ulp between V8 13.6 (Node 24) and V8 14.5 (Chrome 145); measured 2026-11-04, see docs/pine/evidence/2026-11-04-w5-t4/EVIDENCE.md",
   "cases": [
+   "transcendental@calcbars",
    "transcendental@forming",
    "transcendental@listing"
   ]

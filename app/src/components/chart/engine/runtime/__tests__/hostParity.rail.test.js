@@ -283,9 +283,16 @@ describe('report-only cases (the V8 sin/cos 1-ulp finding): named, pinned, measu
   const A = { 'x@s': withCols('d1', [1, 2, 3]), 'y@s': withCols('d1', [1, 2, 3]) }
   const B = { 'x@s': withCols('d2', [1, next(2), 3]), 'y@s': withCols('d2', [1, next(2), 3]) }
 
-  it('the list is the two trig cases and nothing else (pinned), each a real corpus case', () => {
-    expect([...hp.reportOnlyOf(corpus).keys()].sort()).toEqual(['transcendental@forming', 'transcendental@listing'])
+  // landing train 1 (engine 59): CBC-FMT computes the `calcbars` set on the runtime lane (it was withheld
+  // `runtime:calc-bars-bar-index` before), so the trig script's third bar set carries sin / cos values too
+  it('the list is the three trig cases and nothing else (pinned), each a real corpus case', () => {
+    expect([...hp.reportOnlyOf(corpus).keys()].sort()).toEqual(['transcendental@calcbars', 'transcendental@forming', 'transcendental@listing'])
     expect(corpus.reportOnly.reason).toMatch(/Math\.sin/)
+    // ...and every listed case is a case of the ONE trig script (the only corpus script that calls
+    // math.sin / math.cos): a case of any other script can never be listed, whatever the pin says
+    const trig = corpus.scripts.filter((s) => s.file && /math\.(sin|cos)\(/.test(readFileSync(join(hp.FIXTURE_DIR, s.file), 'utf8')))
+    expect(trig.map((s) => s.name)).toEqual(['transcendental'])
+    for (const name of hp.reportOnlyOf(corpus).keys()) expect(name.split('@')[0], name).toBe('transcendental')
     expect(() => hp.reportOnlyOf({ ...corpus, reportOnly: { reason: 'r', cases: ['no_such@case'] } })).toThrow(/not a corpus case/)
   })
 

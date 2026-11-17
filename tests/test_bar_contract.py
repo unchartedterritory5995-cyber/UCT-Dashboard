@@ -730,10 +730,11 @@ def test_untimed_provider_writes_now_carry_their_check_instant(store, monkeypatc
 
 
 def test_alert_and_live_store_backfill_write_inside_provider_check():
-    """Source rail: the two out-of-module provider writers persist inside a
-    `provider_check(...)` block."""
+    """Source rail: the out-of-module provider writers (alert heal, live 5m backfill,
+    live 1m repair) persist inside a `provider_check(...)` block."""
     for rel, call in (("api/services/alert_bars_freshness.py", "rows = _sqlite.put_bars(sym_up"),
-                      ("api/services/bars_live_store.py", 'bars_sqlite.put_bars(sym, "5", closed)')):
+                      ("api/services/bars_live_store.py", 'bars_sqlite.put_bars(sym, "5", closed)'),
+                      ("api/services/bars_live_store.py", 'bars_sqlite.put_bars(sym, "1", closed)')):
         src = (ROOT / rel).read_text(encoding="utf-8")
         i = src.index(call)
         assert "provider_check" in src[max(0, i - 300):i], rel

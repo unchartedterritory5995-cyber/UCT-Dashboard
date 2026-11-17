@@ -112,7 +112,7 @@ export const FUNCTIONS = [
   { code: 'RES', label: 'Full research page', group: 'Security',
     ticker: { door: '/research/{sym}',
       why: 'the full research page is the same tabs already embedded here, plus the ones this build does not panel-ize yet; RES is the escape hatch to all of it at once', leavesTerminal: true } },
-  { code: 'ASK', label: 'Ask AI', group: 'Security',
+  { code: 'ASK', label: 'Ask the UCT Agent', group: 'Security',
     ticker: { panel: 'AskAi', section: 'ai' },
     market: { door: '/ai-search', leavesTerminal: true, why: 'the AI search page owns a streaming conversation and its own history rail' } },
   // ── wave 7 lane D: stock-lens codes (terminal-native panels over routes that already exist) ──

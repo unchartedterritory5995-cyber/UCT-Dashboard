@@ -28,6 +28,7 @@ import {
 } from '../../lib/memberTemplates'
 import { DAILY_TEMPLATE_PREF } from '../../lib/dailyNote'
 import usePreferences from '../../../../hooks/usePreferences'
+import { beginPrefsOp } from '../../../../lib/prefsSession'
 import UIcon from '../../../../components/ui/UIcon'
 import { templateGalleryEnabled } from '../../lib/templateGallery'
 import lazyChunk from '../../lib/lazyChunk'
@@ -118,6 +119,10 @@ function PlainRows({ templates, manage = false, asCards = true, onPick, onPrevie
 
   const doDelete = async (t) => {
     if (working) return
+    // The member this delete is for, taken BEFORE the round trip: the daily-preference write below runs after the
+    // await, and carrying the op makes a member switch during the delete drop it rather than clear the NEXT
+    // member's daily template (usePreferences.asyncBoundaries).
+    const op = beginPrefsOp()
     setWorking(true)
     say(null)
     try {
@@ -125,7 +130,7 @@ function PlainRows({ templates, manage = false, asCards = true, onPick, onPrevie
       setConfirmDelete(null)
       // Fix round 1 (2a): the daily preference named this template: clear it, so the control and the picker's line
       // agree with what the next daily note does (it starts blank).
-      if (dailyId && dailyId === t.id) writeDaily(setPref, '')
+      if (dailyId && dailyId === t.id) setPref(DAILY_TEMPLATE_PREF, '', op)
       say({ tone: 'ok', text: `Deleted “${t.name}”. Notes made from it are unchanged.` })
       onDeleted?.(t)
     } catch {

@@ -2655,7 +2655,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$50",
     "$10",
@@ -2666,6 +2666,28 @@
     "$10": "That is the cup's depth alone, not the target.",
     "$50": "Added the depth to the $40 cup low, not the breakout.",
     "$90": "Added the $40 cup low to the breakout instead of the depth."
+   },
+   "visual": {
+    "kind": "ladder",
+    "title": "The cup",
+    "side": "long",
+    "levels": [
+     {
+      "key": "low",
+      "label": "Cup low",
+      "price": 40
+     },
+     {
+      "key": "breakout",
+      "label": "Right lip, breakout",
+      "price": 50
+     }
+    ],
+    "find": {
+     "label": "The textbook target",
+     "as": "price",
+     "tag": "Target"
+    }
    }
   },
   {
@@ -2816,7 +2838,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$40",
     "$38",
@@ -2827,6 +2849,33 @@
     "$40": "Added the length to the pole top, not the breakout.",
     "$58": "Added the $30 pole top to the breakout instead of the length.",
     "$10": "That is the pole's length alone, not the target."
+   },
+   "visual": {
+    "kind": "ladder",
+    "title": "The flag",
+    "side": "long",
+    "levels": [
+     {
+      "key": "bottom",
+      "label": "Pole bottom",
+      "price": 20
+     },
+     {
+      "key": "top",
+      "label": "Pole top",
+      "price": 30
+     },
+     {
+      "key": "breakout",
+      "label": "Breakout",
+      "price": 28
+     }
+    ],
+    "find": {
+     "label": "The target",
+     "as": "price",
+     "tag": "Target"
+    }
    }
   },
   {
@@ -3356,7 +3405,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$40",
     "$30",
@@ -3367,6 +3416,28 @@
     "$10": "That is the head height alone, not the target.",
     "$30": "Took the head height off the neckline twice.",
     "$20": "Doubled the head height and used it as the target."
+   },
+   "visual": {
+    "kind": "ladder",
+    "title": "The head and shoulders",
+    "side": "short",
+    "levels": [
+     {
+      "key": "head",
+      "label": "Head",
+      "price": 60
+     },
+     {
+      "key": "neck",
+      "label": "Neckline",
+      "price": 50
+     }
+    ],
+    "find": {
+     "label": "The target",
+     "as": "price",
+     "tag": "Target"
+    }
    }
   },
   {
@@ -4403,8 +4474,8 @@
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Content passes; reordered only to vary the answer slot."
+   "fixed": false,
+   "notes": "Cup low and breakout on a price ruler; the method is already in the question; slot $60."
   },
   "q26": {
    "status": "pass",
@@ -4429,7 +4500,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "28 + (30-20) = 38 verified; wrongs real."
+   "notes": "Pole bottom/top and breakout on one ruler; slot $38."
   },
   "q30": {
    "status": "pass",
@@ -4514,7 +4585,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
+   "notes": "Head and neckline on one ruler; side short has no r so no R steps; slot $40."
   },
   "q44": {
    "status": "pass",

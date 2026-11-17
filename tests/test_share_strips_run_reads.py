@@ -258,8 +258,14 @@ def test_the_LIBRARY_lists_no_script():
     _assert_no_script(got.json(), src)
     # ⛔ the entry is a CLOSED projection of meta: a new field that carried the document would
     # have to be added here, on purpose
-    assert set(got.json()["entries"][0]) == {"token", "name", "shortName", "description", "repaint",
-                                             "placement", "inputs", "published_at", "ast_hash"}
+    entry = got.json()["entries"][0]
+    assert set(entry) == {"token", "name", "shortName", "description", "repaint",
+                          "placement", "inputs", "published_at", "ast_hash", "licence"}
+    # 2026-11-16 (library moderation, f424543581): `licence` was added on purpose. It is the
+    # licence NAME a pasted script's header declares (`svc.licence_of`: one regex capture of at
+    # most 90 characters, header comments only), or None. It is a fact about the script, never
+    # its text, and this fixture declares none.
+    assert entry["licence"] is None or (isinstance(entry["licence"], str) and len(entry["licence"]) <= 90)
 
 
 def test_a_runtime_document_share_carries_its_script_AND_says_so(monkeypatch):
@@ -292,6 +298,14 @@ ROUTES = {
     ("POST", "/api/user-definitions/propose"): "none",
     ("POST", "/api/user-definitions/converse"): "none",
     ("GET", "/api/user-definitions/library"): "cross",
+    # 2026-11-16 (library moderation, f424543581): UCT takes a library entry down or lifts that.
+    # Admin only in the body; `svc.take_down` answers {token, taken_down, reason} and never reads
+    # the definition store, so neither returns a stored definition.
+    ("POST", "/api/user-definitions/library/{token}/takedown"): "none",
+    ("DELETE", "/api/user-definitions/library/{token}/takedown"): "none",
+    # U5 (e3dd9976c9): the capability detector PROCESS's state for the operator (enabled, alive, pid,
+    # quarantine sizes, counters); admin only, and it reads the worker, never the definition store.
+    ("GET", "/api/user-definitions/capability-worker"): "none",
     ("GET", "/api/user-definitions/runtime-kill"): "none",
     # WS-I Part 2: a verdict about the script the CALLER sends; it reads and stores nothing.
     ("POST", "/api/user-definitions/runtime-admission"): "none",

@@ -19,11 +19,12 @@
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { createHash } from 'node:crypto'
 
 import { translatePine, Resolver } from './pine.js'
 
-const HERE = path.dirname(new URL(import.meta.url).pathname.replace(/^\//, ''))
+const HERE = path.dirname(fileURLToPath(import.meta.url))
 const REPO = path.resolve(HERE, '../../../../../..')
 
 /** `x_k = x_{k-1} > open ? high : low`: every level is a comparison whose
@@ -171,7 +172,9 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
         // resolved (the drawn cells unchanged and TradingView's) — 274 more Resolvers and steps in
         // each lane; plot outputs byte-identical (census `outputs` hash). Pre: plain
         // [644, 495146, '5013c426d180b036'] / manifest [644, 495154, '1dfc1e096e164f4f'].
-        plain: [918, 495420, '59ff1f72cf67d49f'], manifest: [918, 495428, '33cdbd16923ad35a'] },
+        // ⭐ ENGINE 58 COLOURS (landing train 1, bisected to the colour-reader merge): +2 steps, the same 918
+        // Resolvers. Pre-colours: plain [918, 495420, '59ff1f72cf67d49f'] / manifest [918, 495428, '33cdbd16923ad35a'].
+        plain: [918, 495422, '3c24ec306ce0a5a8'], manifest: [918, 495430, '0026f4b004a7fe78'] },
       // ⭐ C22 moved htf-liquidity (7fc4c8cc5 — its window reads now resolve
       // where they stand; drawing identical, no refusal moved). Re-pinned from
       // the C22 tree WITHOUT C24 (783ed6a50), which reads 5704 / 83d96de7…

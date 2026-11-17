@@ -754,7 +754,7 @@
      "the key is computed"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$1.55",
     "$4.44",
@@ -765,6 +765,28 @@
     "$1.55": "Subtracted the delta from the move instead of multiplying.",
     "$4.44": "Divided the move by the delta.",
     "$2.45": "Added the delta to the move instead of multiplying."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The call and the move",
+    "rows": [
+     {
+      "key": "call_delta",
+      "label": "Call delta",
+      "value": 0.45,
+      "fmt": "count"
+     },
+     {
+      "key": "stock_rises",
+      "label": "Stock rises",
+      "value": 2.0,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Call's gain",
+     "as": "per_share"
+    }
    }
   },
   {
@@ -810,7 +832,29 @@
      "the key is computed"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The put and the move",
+    "rows": [
+     {
+      "key": "put_delta,_a_negativ",
+      "label": "Put delta, a negative",
+      "value": 0.4,
+      "fmt": "count"
+     },
+     {
+      "key": "stock_rises",
+      "label": "Stock rises",
+      "value": 1.0,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "What the put does",
+     "as": "per_share"
+    }
+   }
   },
   {
    "key": "q11",
@@ -855,7 +899,29 @@
      "it was fixed before"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "One call contract",
+    "rows": [
+     {
+      "key": "call_delta",
+      "label": "Call delta",
+      "value": 0.4,
+      "fmt": "count"
+     },
+     {
+      "key": "shares_per_contract",
+      "label": "Shares per contract",
+      "value": 100.0,
+      "fmt": "shares"
+     }
+    ],
+    "find": {
+     "label": "It acts like",
+     "as": "shares"
+    }
+   }
   },
   {
    "key": "q12",
@@ -900,7 +966,29 @@
      "the key is computed"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The short call and the move",
+    "rows": [
+     {
+      "key": "short_call_delta",
+      "label": "Delta of the call we sold",
+      "value": 0.35,
+      "fmt": "count"
+     },
+     {
+      "key": "stock_rises",
+      "label": "Stock rises",
+      "value": 2.0,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Our short call",
+     "as": "per_share"
+    }
+   }
   },
   {
    "key": "q13",
@@ -999,7 +1087,7 @@
      "the key is computed"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$660",
     "$220",
@@ -1010,6 +1098,34 @@
     "$220": "Counted one contract instead of three.",
     "$1,200": "Treated the calls like shares, a delta of one.",
     "$6,600": "Slipped a decimal place."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The calls and the move",
+    "rows": [
+     {
+      "key": "calls",
+      "label": "Calls",
+      "value": 3.0,
+      "fmt": "count"
+     },
+     {
+      "key": "delta_each",
+      "label": "Delta each",
+      "value": 0.55,
+      "fmt": "count"
+     },
+     {
+      "key": "stock_rises",
+      "label": "Stock rises",
+      "value": 4.0,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Position's gain",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1345,7 +1461,35 @@
      "it was fixed before"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "Calls against shares",
+    "rows": [
+     {
+      "key": "shares_we'd_buy",
+      "label": "Shares we'd buy",
+      "value": 300.0,
+      "fmt": "shares"
+     },
+     {
+      "key": "calls_bought",
+      "label": "Calls bought",
+      "value": 3.0,
+      "fmt": "count"
+     },
+     {
+      "key": "delta_each",
+      "label": "Delta each",
+      "value": 0.5,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Exposure like",
+     "as": "shares"
+    }
+   }
   }
  ],
  "conflicts": [
@@ -1428,25 +1572,25 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 4."
+   "notes": "Title 'Delta times move' hands over the method the question tests"
   },
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "-0.40 x +$1 = -$0.40 (put loses). Distractors cover sign and 1-minus-delta errors. Calc expr gives the loss size, matches the key."
+   "fixed": true,
+   "notes": "Title 'Delta times move' leaks the method"
   },
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "0.40 x 100 = 40 shares, recomputed."
+   "fixed": true,
+   "notes": "Title 'Delta in shares' leaks the idea tested; neutral title"
   },
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Short call, +$2: lose 0.35 x 2 = $0.70, recomputed. Sign and size traps balanced."
+   "fixed": true,
+   "notes": "Title leaks the method; 'Short call delta' could read as the position's delta, but 0.35 is the call's own delta"
   },
   "q13": {
    "status": "pass",
@@ -1463,8 +1607,8 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
+   "fixed": true,
+   "notes": "Title 'Delta times move' leaks the method"
   },
   "q16": {
    "status": "pass",
@@ -1530,7 +1674,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "3 x 0.50 x 100 = 150, recomputed. Distractors map to specific errors."
+   "notes": "Roles, numbers, format and label checked against the question."
   }
  }
 }

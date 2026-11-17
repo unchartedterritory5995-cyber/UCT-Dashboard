@@ -995,7 +995,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "93",
     "270",
@@ -1006,6 +1006,28 @@
     "270": "You multiplied the price by the EPS instead of dividing.",
     "93": "You added the price and the EPS instead of dividing.",
     "0.03": "You flipped it and divided the EPS by the price."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The P/E",
+    "rows": [
+     {
+      "key": "price",
+      "label": "Price",
+      "value": 90,
+      "fmt": "$"
+     },
+     {
+      "key": "eps,_last_12_months",
+      "label": "EPS, last 12 months",
+      "value": 3,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "P/E",
+     "as": "times"
+    }
    }
   },
   {
@@ -1071,7 +1093,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "400",
     "50",
@@ -1082,6 +1104,34 @@
     "50": "You kept the old EPS of $2, so the P/E never changed.",
     "104": "You added the price and the new EPS instead of dividing.",
     "400": "You multiplied the price by the EPS instead of dividing."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The P/E a year later",
+    "rows": [
+     {
+      "key": "price",
+      "label": "Price",
+      "value": 100,
+      "fmt": "$"
+     },
+     {
+      "key": "eps_a_year_ago",
+      "label": "EPS a year ago",
+      "value": 2,
+      "fmt": "$"
+     },
+     {
+      "key": "eps_now",
+      "label": "EPS now",
+      "value": 4,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "P/E now",
+     "as": "times"
+    }
    }
   },
   {
@@ -1176,7 +1226,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "1.5",
     "0.15",
@@ -1187,6 +1237,28 @@
     "0.67": "You flipped it and divided the growth rate by the P/E.",
     "0.15": "A decimal slip: you moved the point one place.",
     "0.30": "You moved the P/E point two places instead of dividing by the growth rate."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The PEG ratio",
+    "rows": [
+     {
+      "key": "p/e",
+      "label": "P/E",
+      "value": 30,
+      "fmt": "count"
+     },
+     {
+      "key": "eps_growth,_a_year",
+      "label": "EPS growth, a year",
+      "value": 20,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "PEG ratio",
+     "as": "num"
+    }
    }
   },
   {
@@ -1230,13 +1302,47 @@
      "fixed before (checker 2026-11-09)"
     ]
    },
-   "batch": "review3",
+   "batch": "cards-2026-11-15",
    "calc": {
     "fn": "arith",
     "args": {
      "expr": "pe / growth",
      "pe": 15,
      "growth": 5
+    }
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Two PEG ratios",
+    "rows": [
+     {
+      "key": "zbrn,_p/e",
+      "label": "ZBRN, P/E",
+      "value": 15,
+      "fmt": "count"
+     },
+     {
+      "key": "zbrn,_eps_growth",
+      "label": "ZBRN, EPS growth",
+      "value": 5,
+      "fmt": "%"
+     },
+     {
+      "key": "zvlt,_p/e",
+      "label": "ZVLT, P/E",
+      "value": 45,
+      "fmt": "count"
+     },
+     {
+      "key": "zvlt,_eps_growth",
+      "label": "ZVLT, EPS growth",
+      "value": 45,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "ZBRN's PEG",
+     "as": "num"
     }
    }
   },
@@ -1752,7 +1858,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
+   "notes": "price and trailing EPS; slot '30' from key"
   },
   "q11": {
    "status": "pass",
@@ -1764,7 +1870,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
+   "notes": "price, EPS a year ago, EPS now; 'P/E now'; slot '25'"
   },
   "q13": {
    "status": "pass",
@@ -1782,13 +1888,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "notes": "P/E and EPS growth; PEG; slot '1.5'"
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Owner note (worded a lot better) is met: tickers ZBRN and ZVLT replace A and B, the stem asks about price against growth, PEG is defined in the why as price paid per point of growth, with the steps shown (15 over 5 is 3, 45 over 45 is 1). Solved cold: ZBRN is pricier against growth. Attempted a neutral-choices fix (no PEG numbers), but the validator requires the keyed answer to show the calc result 3, and the calc cannot be removed by an upgrade, so the writer's design stands: both stock choices carry their PEG (3 and 1), so the key is not the only choice with a number. Key is not longest. Wro"
+   "notes": "calc computes only ZBRN's PEG and the label names ZBRN; four rows right; key too long so slot '3'. Mild hint toward ZBRN accepted as the honest name"
   },
   "q17": {
    "status": "pass",

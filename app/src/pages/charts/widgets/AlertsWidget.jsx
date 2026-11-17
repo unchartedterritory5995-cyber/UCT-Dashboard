@@ -212,7 +212,7 @@ export default function AlertsWidget({
     <div ref={rootRef} className={styles.root} style={rootStyle}>
       {settingsOpen && (
         <NewsSettingsPanel
-          title="Alerts Settings"
+          title="Alerts settings"
           widgetType="alerts"
           showPerf={false}
           extraSections={[

@@ -41,7 +41,7 @@ def _armed() -> None:
 
 def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
     if not is_paid_user(user):
-        raise HTTPException(status_code=402, detail="The screener requires a paid plan")
+        raise HTTPException(status_code=402, detail="Screen alerts and Send to watchlist require a paid plan")
     return user
 
 

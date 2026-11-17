@@ -94,11 +94,12 @@ describe('⭐ 1. overloads: the receiver\'s type picks the declaration', () => {
     expect(run(src)[0]).toEqual([11, 22, 33, 44, 55, 66])
   })
   it('the name form of a built-in (`array.clear(f)`) is the built-in, whatever methods are declared', () => {
-    const src = 'method clear(array<string> id, int m) =>\n    0\nmethod clear(array<float> id, int m) =>\n    1\n'
+    // (UDT unit, ac6: each method reads its first argument, or TradingView does not compile it)
+    const src = 'method clear(array<string> id, int m) =>\n    array.size(id) * 0\nmethod clear(array<float> id, int m) =>\n    array.size(id) * 0 + 1\n'
       + 'var array<float> f = array.new<float>()\nf.push(1)\narray.clear(f)\nplot(f.size())\n'
     expect(run(src)[0]).toEqual(Array(N).fill(0))
     // and in value position, where the dotted head would otherwise be read as a receiver
-    const val = 'method size(array<string> id, int m) =>\n    0\nmethod size(array<float> id, int m) =>\n    1\n'
+    const val = 'method size(array<string> id, int m) =>\n    array.size(id) * 0\nmethod size(array<float> id, int m) =>\n    array.size(id) * 0 + 1\n'
       + 'var array<float> f = array.new<float>()\nf.push(1)\nplot(array.size(f))\n'
     expect(run(val)[0]).toEqual([1, 2, 3, 4, 5, 6])
   })
@@ -200,12 +201,12 @@ describe('⛔ 5. what still refuses, by name', () => {
     expect(r.message).toMatch(/cannot tell here/)
   })
   it('two overloads this lane cannot tell apart (`int` and `float` are one number type)', () => {
-    const r = refusal('method m(int x) =>\n    1\nmethod m(float x) =>\n    2\nplot(close.m())\n')
+    const r = refusal('method m(int x) =>\n    x * 0 + 1\nmethod m(float x) =>\n    x * 0 + 2\nplot(close.m())\n')
     expect(r.guard).toBe('runtime:udt-method')
     expect(r.message).toMatch(/cannot tell apart/)
   })
   it('an overload whose receiver type this lane does not read (a library type is W8)', () => {
-    const r = refusal('method m(lib.Thing x) =>\n    1\nmethod m(float x) =>\n    2\nplot(close.m())\n')
+    const r = refusal('method m(lib.Thing x) =>\n    na(x) ? 1 : 1\nmethod m(float x) =>\n    x * 0 + 2\nplot(close.m())\n')
     expect(r.guard).toBe('runtime:udt-method')
     expect(r.message).toMatch(/does not read/)
   })
@@ -214,19 +215,19 @@ describe('⛔ 5. what still refuses, by name', () => {
     expect(r.guard).toBe('runtime:udt-method')
   })
   it('W6-U1 — a script\'s overload beside a built-in member that takes the same call', () => {
-    const r = refusal('method clear(array<string> id) =>\n    0\nmethod clear(array<bool> id) =>\n    1\n'
+    const r = refusal('method clear(array<string> id) =>\n    array.size(id) * 0\nmethod clear(array<bool> id) =>\n    array.size(id) * 0 + 1\n'
       + 'var array<bool> f = array.new<bool>()\nf.push(true)\nf.clear()\nplot(f.size())\n')
     expect(r.guard).toBe('runtime:udt-method')
     expect(r.message).toMatch(/built-in member of a `array<bool>` that takes this call.*W6-U1/)
   })
   it('N2 — an overload whose receiver holds numbers: an `array<int>` never runs the `array<float>` one', () => {
-    const OV = 'method clr(array<string> id) =>\n    1\nmethod clr(array<float> id) =>\n    2\n'
+    const OV = 'method clr(array<string> id) =>\n    array.size(id) * 0 + 1\nmethod clr(array<float> id) =>\n    array.size(id) * 0 + 2\n'
     for (const decl of ['var array<int> a = array.new<int>()', 'var array<float> a = array.new<float>()']) {
       const r = refusal(`${OV}${decl}\nplot(a.clr())\n`)
       expect(r.guard, decl).toBe('runtime:udt-method')
       expect(r.message, decl).toMatch(/one number type \(W6-U1\)/)
     }
-    const r = refusal('method m(float x) =>\n    1\nmethod m(string x) =>\n    2\nx = 1.5\nplot(x.m())\n')
+    const r = refusal('method m(float x) =>\n    x * 0 + 1\nmethod m(string x) =>\n    str.length(x) * 0 + 2\nx = 1.5\nplot(x.m())\n')
     expect(r.message).toMatch(/one number type \(W6-U1\)/)
   })
   it('two declarations on the SAME receiver type say so (Pine then reads the other arguments)', () => {

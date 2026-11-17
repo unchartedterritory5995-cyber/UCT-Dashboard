@@ -1445,7 +1445,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "10%",
     "1%",
@@ -1456,6 +1456,28 @@
     "5%": "Subtracts 20 from 25. The rise is figured on a smaller base.",
     "20%": "Takes the 20% rise as the new gap to the record.",
     "1%": "Slips a decimal place."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Fall, then a bounce",
+    "rows": [
+     {
+      "key": "fall_from_the_record",
+      "label": "Fall from the record",
+      "value": 25,
+      "fmt": "%"
+     },
+     {
+      "key": "rise_off_the_low",
+      "label": "Rise off the low",
+      "value": 20,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Below the old record",
+     "as": "pct"
+    }
    }
   },
   {
@@ -1549,7 +1571,13 @@
      "fixed before (checker 2026-11-09)"
     ]
    },
-   "batch": "wave6"
+   "batch": "index-charts-2026-11-16",
+   "chart": {
+    "sym": "SPX",
+    "asof": "2025-04-08",
+    "window": 120,
+    "forward": 40
+   }
   },
   {
    "key": "q21",
@@ -1590,7 +1618,13 @@
     "score": 0,
     "reasons": []
    },
-   "batch": "wave6"
+   "batch": "history-charts-2026-11-15",
+   "chart": {
+    "sym": "SPY",
+    "asof": "2022-06-13",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q22",
@@ -1682,7 +1716,13 @@
      "fixed before (checker 2026-11-09)"
     ]
    },
-   "batch": "wave6"
+   "batch": "history-charts-2026-11-15",
+   "chart": {
+    "sym": "SPY",
+    "asof": "2025-04-03",
+    "window": 250,
+    "forward": 60
+   }
   },
   {
    "key": "q24",
@@ -2030,7 +2070,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
+   "notes": "fall from record and rise off the low; 'Below the old record'; key '10%'"
   },
   "q19": {
    "status": "pass",
@@ -2041,14 +2081,14 @@
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right: calc 6,144.15 to 4,982.77 = 18.9% (recomputed 18.902), and S&P DJI counts closes (f19, f31). Quotes f32, f39 re-read on the live CNBC pages 2026-11-12: verbatim. Defect: the why and the 'close enough' wrong note give the 20% line as 4,915.32, which is the exact key of q17 (numeric, same record close). In a challenge or review pool that draws q20 before q17, q20 hands q17 its answer. Fixed: both now say 'a close a full 20% below the record' without the number; f43 and f91 still ground 'never closed there'. Everything else unchanged."
+   "fixed": false,
+   "notes": "Cold check on IX/SPX.json. Window 2024-10-15..2025-04-08 (120 bars), replay 2025-04-09..2025-06-05 (40). Words agree: Feb 19, 2025 close 6,144.15 (highest close and highest high, 6,147.43, in the window); 20% line 4,915.32; Apr 7 low 4,835.04 (past the line), close 5,062.25; Apr 8 close 4,982.77, -1.570% on the day, 18.90% under the record. Apr 8 is the lowest close of the sell-off: the replay's lowest close is 5,158.20 (Apr 21), so 'never closed a full 20% below the record' holds. Note: the Apr 8 candle's own low, 4,910.42, is also a hair past the line; that only reinforces the 'intraday does"
   },
   "q21": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Changed note only: 'the low marks the end' is f22 (S&P DJI dates the end at the low). q16 plays earlier (rung 5), so it does not give away q16."
+   "notes": "cold re-read 2026-11-15 (session lead): the chart and the words agree; check_course_charts 0 problems; the outcome the words name confirmed in the closes"
   },
   "q22": {
    "status": "pass",
@@ -2060,7 +2100,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: only the S&P 500's own 20% close counts (f19). New Dow choice is a wrong condition in the key's form; note grounded in f19. No second defensible answer: no 20% definition makes the S&P 500 wait on the Dow."
+   "notes": "cold re-read 2026-11-15 (session lead): the chart and the words agree; check_course_charts 0 problems; the outcome the words name confirmed in the closes"
   },
   "q24": {
    "status": "pass",

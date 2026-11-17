@@ -886,7 +886,7 @@
      "computed key (+2)"
     ]
    },
-   "batch": "review2",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$15 billion",
     "$1.5 million",
@@ -897,6 +897,28 @@
     "$80 million": "You added the price and the shares instead of multiplying.",
     "$15 billion": "A decimal slip: 30 times 50 is 1,500 million, and you added a zero.",
     "$1.5 million": "A units slip: 1,500 million is $1.5 billion, not $1.5 million."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The market cap",
+    "rows": [
+     {
+      "key": "price",
+      "label": "Price",
+      "value": 30,
+      "fmt": "$"
+     },
+     {
+      "key": "shares,_in_millions",
+      "label": "Shares, in millions",
+      "value": 50,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Market cap",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -931,7 +953,7 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "30 million",
     "110 million",
@@ -942,6 +964,29 @@
     "110 million": "You added the insider shares to the shares outstanding.",
     "30 million": "You gave the insiders' shares, which are the part left out of the float.",
     "80 million": "You gave all shares outstanding and never took out the insiders' shares."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The float",
+    "rows": [
+     {
+      "key": "outstanding,_in_mill",
+      "label": "Outstanding, in millions",
+      "value": 80,
+      "fmt": "count"
+     },
+     {
+      "key": "held_by_insiders,_mi",
+      "label": "Held by insiders, millions",
+      "value": 30,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "The float",
+     "as": "num",
+     "unit": "million"
+    }
    }
   },
   {
@@ -1029,7 +1074,7 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "review2",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$2 billion",
     "$800 million",
@@ -1040,6 +1085,34 @@
     "$800 million": "You used only the shares that are not in the float.",
     "$2 billion": "You used all 100 million shares outstanding instead of the 60 million float.",
     "$1.2 million": "A units slip: 1,200 million is $1.2 billion, not $1.2 million."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Float-adjusted cap",
+    "rows": [
+     {
+      "key": "price",
+      "label": "Price",
+      "value": 20,
+      "fmt": "$"
+     },
+     {
+      "key": "outstanding,_in_mill",
+      "label": "Outstanding, in millions",
+      "value": 100,
+      "fmt": "count"
+     },
+     {
+      "key": "float,_in_millions",
+      "label": "Float, in millions",
+      "value": 60,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Float-adjusted cap",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1571,14 +1644,14 @@
   "q08": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Billions answer is right (30 x 50 = 1,500 million = $1.5 billion) and the why shows the steps (owner note: read in billions). Break: $1.5 billion was the ONLY choice with a decimal point among $15 billion, $150 million and $80 million, so the key stood out as the odd one. Swapped $150 million for a units slip, $1.5 million, so two choices carry a decimal and two read in billions. Every wrong note is a real distinct mistake."
+   "fixed": false,
+   "notes": "shares in millions matches '50 million'; key '$1.5 billion' fills slot"
   },
   "q09": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
+   "notes": "float question; num unit million matches key '50 million'"
   },
   "q10": {
    "status": "cut",
@@ -1589,8 +1662,8 @@
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Owner note applied: answer reads $1.2 billion with the step 20 x 60 = 1,200 million shown, and a billion defined. Recomputed by hand. Break: $1.2 billion was the only choice with a decimal point beside $2 billion, $800 million and $12 billion, a tell. Swapped $12 billion for a units slip, $1.2 million, so two choices carry a decimal. Wrong notes for the other two choices stay right (100 million shares at $20 = $2 billion; 40 million non-float shares at $20 = $800 million)."
+   "fixed": false,
+   "notes": "price, outstanding, float all as stated; key '$1.2 billion'"
   },
   "q12": {
    "status": "pass",

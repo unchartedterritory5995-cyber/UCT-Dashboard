@@ -29,7 +29,7 @@ from scripts.study import courses_lib as cl
 
 #: the fields a Writer or a checker's `fix` may set. Never `key`, `skill`, `rung`, `format`.
 FIELDS = ("simple", "why", "lesson_line", "deeper", "tier", "risk", "depends_on", "choices", "wrong", "q", "story",
-          "facts", "answer", "sentence", "bank", "prefix", "suffix", "order", "calc", "chart")
+          "facts", "answer", "sentence", "bank", "prefix", "suffix", "order", "calc", "chart", "visual")
 
 
 #: owner 2026-11-12 ("make it a multiple choice"; standing rule 4 in docs/study/REVIEW_LEARNINGS.md): a typed-number
@@ -111,6 +111,10 @@ def apply(doc: dict, upgrades: dict, batch: str, checks: dict | None = None, ext
                 if "chart" in fx and fx["chart"] is None:
                     fx.pop("chart")
                     q.pop("chart", None)
+                # and a picture card that misreads the question: `"visual": null` removes it (2026-11-15)
+                if "visual" in fx and fx["visual"] is None:
+                    fx.pop("visual")
+                    q.pop("visual", None)
                 _set_fields(q, fx)
             verify[key] = {"status": "pass", "by": "checker", "fixed": True, "notes": text}
         elif status == "pass":

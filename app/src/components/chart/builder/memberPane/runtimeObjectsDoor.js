@@ -44,8 +44,6 @@
 // script draws, and the vendor harness grades it.
 import { paneObjectsGate } from '../../engine/ast/paneGate'
 import { probeRuntimeProgram } from '../../engine/runtime/runtimeColumns'
-import { declaredCalcBarsOf } from '../../engine/runtime/objectStore'
-import { strippedForScan } from '../../engine/ast/pine'
 
 /** The value build's refusal that only the drawing build can answer. */
 export const VALUE_BUILD_DRAWING_GUARD = 'runtime:object-op'
@@ -58,6 +56,18 @@ export const VALUE_BUILD_DRAWING_GUARD = 'runtime:object-op'
  *  the census, so the two cannot drift. */
 export const VALUE_BUILD_NOTHING_GUARD = 'runtime:no-output'
 export const valueBuildDefersToDrawing = (guard) => guard === VALUE_BUILD_DRAWING_GUARD || guard === VALUE_BUILD_NOTHING_GUARD
+
+/** ⭐ DRAW-1 — did the host object program lose a CREATE (a `create` drop key of any family, or a
+ *  create dropped for its guard or for a strategy value), by the object pass's own counters? */
+export function hostLostCreates(t) {
+  const reasons = (t && t.objectDiagnostics && t.objectDiagnostics.dropReasons) || {}
+  // (a drop KEY, `<kind>:<op>`, never a guard code: split rather than spelled whole)
+  return Object.keys(reasons).some((k) => {
+    if (!(reasons[k] > 0)) return false
+    const [kind, op] = k.split(':')
+    return kind === 'create' || ((kind === 'guard' || kind === 'strategy') && op === 'create')
+  })
+}
 
 /**
  * @returns {{probe: object}|{probe: null, why: string|null, guard?: string, valueProbe?: object}}
@@ -80,7 +90,9 @@ export function runtimeOwnObjectsOf({ source, t }) {
     // nothing on the host side does, so a host program would draw over the WHOLE chart
     // beside plots drawn over the window. The run's own drawings (the same window) are
     // asked for, and a host program is never carried for such a document.
-    windowed = declaredCalcBarsOf(strippedForScan(String(source || ''))) !== null
+    // ⭐⭐ CBC-FMT — the declaration's own count, as the translation read it (`pine.js::
+    // declarationCalcBars`); a `request.security(calc_bars_count = …)` argument is not one.
+    windowed = Number.isInteger(t && t.calcBarsCount)
     if (!refusedForDrawing && !hostPartial && !windowed) return { probe: null, why: null, valueProbe }
     if (hostPartial && gate.loss) replaced = { dropped: gate.loss.dropped, attempted: gate.loss.attempted }
   }
@@ -88,11 +100,28 @@ export function runtimeOwnObjectsOf({ source, t }) {
   // `hostWithheld`: the caller must not carry the host program (a windowed document)
   const keepHost = { probe: null, why: null, ...(valueProbe ? { valueProbe } : {}), ...(windowed ? { hostWithheld: true } : {}) }
   if (!probe.ok) {
+    const r = probe.refusal || {}
     // ⛔ A partial host picture whose value build stands keeps that picture: the
     // run that would replace it cannot be built, and a decline would take away a
     // drawing the member has today.
+    // ⛔⛔ DRAW-1 (2026-11-16) — UNLESS THAT PICTURE LOST A CREATE. This door is the
+    // fallback for a script the HOST lane refused, so the member had no picture from it
+    // today; a host program that lost a `*.new` (and still carries the deletes and moves
+    // written around it) draws a different SET of objects, not a smaller one. Measured:
+    // trend-levels-chartprime (12 creates lost to `pine:window`) graded runtime-on
+    // DIVERGE on both committed captures once its `label(na)` casts let it reach here.
+    // Declined with the drawing build's own refusal, by name.
+    if (!refusedForDrawing && hostLostCreates(t)) {
+      return {
+        probe: null,
+        guard: r.guard || 'runtime',
+        why: `${r.guard || 'runtime'}${r.message ? ` — ${r.message}` : ''}; the host lane's drawing of this `
+          + 'script lost some of the drawings it makes, so it is not drawn in their place',
+        declineHostPartial: true,
+        ...(valueProbe ? { valueProbe } : {}),
+      }
+    }
     if (!refusedForDrawing) return keepHost
-    const r = probe.refusal || {}
     return {
       probe: null,
       guard: r.guard || 'runtime',

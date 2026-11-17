@@ -774,8 +774,18 @@
   "version": 1
  },
  {
+  "adjustment_basis": "index level",
   "answer_json": {
    "answer": "Into small caps"
+  },
+  "asof": "2024-07-11",
+  "bars": {
+   "asof": "2024-07-11",
+   "forward": 5,
+   "source": "index",
+   "sym": "RUT",
+   "tf": "D",
+   "window": 320
   },
   "difficulty": 3,
   "id": "si_ae37acbb1081",
@@ -783,6 +793,13 @@
   "lesson_text": "Into small caps. The Russell 2000 rose 3.6% while the S&P 500 fell 0.9% and the Nasdaq Composite fell 2%. CNBC tied it to the cooler inflation report, which sent rates lower and investors into small caps. Investors rotated out of the year's big tech winners, like Nvidia. Money moved between groups. It did not leave stocks altogether. When small caps and big tech split hard, look for money moving between groups. Read all three.",
   "module": "F1",
   "prompt_json": {
+   "chart": {
+    "forward_bars": 5,
+    "hide_ticker": true,
+    "tf": "D",
+    "visible_bars": 120,
+    "window_bars": 320
+   },
    "choices": [
     "Into bets on higher rates",
     "Out of stocks altogether",
@@ -884,6 +901,7 @@
   "skill_id": "basics.shares",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F1/F1.02.json#q13",
+  "sym": "RUT",
   "type": "scenario",
   "version": 1
  },
@@ -2950,7 +2968,35 @@
    ],
    "kind": "mcq",
    "q": "You buy at the $20.30 ask. The bid is $20.00. Your stop is $0.40 under your fill. What percent of that $0.40 is the spread?",
-   "subject": "F1.03#q21"
+   "subject": "F1.03#q21",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Spread as % of the stop"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "ask_(our_fill)",
+      "label": "Ask (our fill)",
+      "value": 20.3
+     },
+     {
+      "fmt": "$",
+      "key": "bid",
+      "label": "Bid",
+      "value": 20.0
+     },
+     {
+      "fmt": "$",
+      "key": "stop_under_our_fill",
+      "label": "Stop under our fill",
+      "value": 0.4
+     }
+    ],
+    "title": "The spread and the stop"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -4466,7 +4512,29 @@
    ],
    "kind": "mcq",
    "q": "A $40 stock averages 2,500,000 shares a day. What is its average daily dollar volume?",
-   "subject": "F1.04#q91"
+   "subject": "F1.04#q91",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Dollar volume a day"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "price",
+      "label": "Price",
+      "value": 40
+     },
+     {
+      "fmt": "shares",
+      "key": "shares_a_day",
+      "label": "Shares a day",
+      "value": 2500000
+     }
+    ],
+    "title": "Dollar volume"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -7246,7 +7314,29 @@
    ],
    "kind": "mcq",
    "q": "A stock trades at $30 with 50 million shares outstanding. What is its market cap?",
-   "subject": "F1.06#q08"
+   "subject": "F1.06#q08",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Market cap"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "price",
+      "label": "Price",
+      "value": 30
+     },
+     {
+      "fmt": "count",
+      "key": "shares,_in_millions",
+      "label": "Shares, in millions",
+      "value": 50
+     }
+    ],
+    "title": "The market cap"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -7318,7 +7408,30 @@
    ],
    "kind": "mcq",
    "q": "80 million shares are outstanding. Insiders hold 30 million, all restricted. The rest trade freely. What is the float?",
-   "subject": "F1.06#q09"
+   "subject": "F1.06#q09",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "The float",
+     "unit": "million"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "outstanding,_in_mill",
+      "label": "Outstanding, in millions",
+      "value": 80
+     },
+     {
+      "fmt": "count",
+      "key": "held_by_insiders,_mi",
+      "label": "Held by insiders, millions",
+      "value": 30
+     }
+    ],
+    "title": "The float"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -7395,7 +7508,35 @@
    ],
    "kind": "mcq",
    "q": "A $20 stock has 100 million shares outstanding and 60 million in the float. What is its float-adjusted market cap?",
-   "subject": "F1.06#q11"
+   "subject": "F1.06#q11",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Float-adjusted cap"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "price",
+      "label": "Price",
+      "value": 20
+     },
+     {
+      "fmt": "count",
+      "key": "outstanding,_in_mill",
+      "label": "Outstanding, in millions",
+      "value": 100
+     },
+     {
+      "fmt": "count",
+      "key": "float,_in_millions",
+      "label": "Float, in millions",
+      "value": 60
+     }
+    ],
+    "title": "Float-adjusted cap"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -8747,7 +8888,29 @@
    ],
    "kind": "mcq",
    "q": "The index falls 3% today. About how much should a 3x fund on that index lose today?",
-   "subject": "F1.07#q10"
+   "subject": "F1.07#q10",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The fund's loss"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "fund_leverage_(x)",
+      "label": "Fund leverage (x)",
+      "value": 3
+     },
+     {
+      "fmt": "%",
+      "key": "index_falls",
+      "label": "Index falls",
+      "value": 3
+     }
+    ],
+    "title": "The 3x fund's day"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -9101,7 +9264,41 @@
    ],
    "kind": "mcq",
    "q": "A 3x fund starts at $100. The index rises 10% one day and falls 10% the next. What is the fund worth, before fees?",
-   "subject": "F1.07#q14"
+   "subject": "F1.07#q14",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "What the fund is worth"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "fund_starts_at",
+      "label": "Fund starts at",
+      "value": 100
+     },
+     {
+      "fmt": "count",
+      "key": "fund_leverage_(x)",
+      "label": "Fund leverage (x)",
+      "value": 3
+     },
+     {
+      "fmt": "%",
+      "key": "index_rises,_day_one",
+      "label": "Index rises, day one",
+      "value": 10
+     },
+     {
+      "fmt": "%",
+      "key": "index_falls,_day_two",
+      "label": "Index falls, day two",
+      "value": 10
+     }
+    ],
+    "title": "Up 10%, then down 10%"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -9216,7 +9413,29 @@
    ],
    "kind": "mcq",
    "q": "You hold $9,000 of a plain index fund. How much of a 3x fund on the same index swings about as much in a day?",
-   "subject": "F1.07#q15"
+   "subject": "F1.07#q15",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Same swing in a 3x fund"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "held_in_a_plain_fund",
+      "label": "Held in a plain fund",
+      "value": 9000
+     },
+     {
+      "fmt": "count",
+      "key": "fund_leverage_(x)",
+      "label": "Fund leverage (x)",
+      "value": 3
+     }
+    ],
+    "title": "Matching the swing"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -9689,7 +9908,35 @@
    "kind": "mcq",
    "q": "About how much does the 3x fund gain over the five days, before fees?",
    "story": "The index rises 1% every day for five days straight, about 5.1% in total. You hold a 3x fund that hits its daily target each day.",
-   "subject": "F1.07#q21"
+   "subject": "F1.07#q21",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Fund's gain over five days"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "fund_leverage_(x)",
+      "label": "Fund leverage (x)",
+      "value": 3
+     },
+     {
+      "fmt": "%",
+      "key": "index_gain_a_day",
+      "label": "Index gain a day",
+      "value": 1
+     },
+     {
+      "fmt": "count",
+      "key": "days_in_a_row",
+      "label": "Days in a row",
+      "value": 5
+     }
+    ],
+    "title": "Five days of 1%"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -9770,7 +10017,35 @@
    ],
    "kind": "mcq",
    "q": "An inverse fund moves opposite the index each day. The index goes 100, 110, 100. What percent does the fund lose?",
-   "subject": "F1.07#q22"
+   "subject": "F1.07#q22",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "What the fund loses"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "index_at_the_start",
+      "label": "Index at the start",
+      "value": 100
+     },
+     {
+      "fmt": "count",
+      "key": "index_after_day_one",
+      "label": "Index after day one",
+      "value": 110
+     },
+     {
+      "fmt": "count",
+      "key": "index_after_day_two",
+      "label": "Index after day two",
+      "value": 100
+     }
+    ],
+    "title": "The inverse fund"
+   }
   },
   "reveal_json": {
    "deeper": {

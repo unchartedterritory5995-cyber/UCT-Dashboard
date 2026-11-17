@@ -245,7 +245,8 @@ def test_a_slow_day_also_reports_the_endpoints_of_its_slowest_hour(monkeypatch, 
     monkeypatch.setattr(rs, "fetch", fake)
     history = tmp_path / "h.jsonl"
     assert rs.main(["--hours", "2", "--history", str(history)]) == 0
-    assert len(asked) == 2 and 'datetime_geq:"2026-11-13T15:00:00Z", datetime_lt:"2026-11-13T16:00:00Z"' in asked[1]
+    assert len(asked) == 4 and 'datetime_geq:"2026-11-13T15:00:00Z", datetime_lt:"2026-11-13T16:00:00Z"' in asked[1]
+    assert "renderers:" in asked[2] and "userAgent_notlike" in asked[3], "renderers are found, then the members-only request"
     assert "/api/auth/preferences" in capsys.readouterr().out
     assert json.loads(history.read_text(encoding="utf-8"))["slowest_endpoints"] == ["/api/auth/preferences"]
 
@@ -257,4 +258,100 @@ def test_a_day_with_no_slow_minutes_asks_once(monkeypatch, capsys):
     quiet["slow"] = [row(m, 400, 200) for m in range(120)]
     asked = []
     monkeypatch.setattr(rs, "fetch", lambda q, t: asked.append(q) or quiet)
-    assert rs.main(["--hours", "2"]) == 0 and len(asked) == 1
+    assert rs.main(["--hours", "2"]) == 0
+    assert len(asked) == 3 and not any("endpoints:" in q for q in asked), "the day, the renderers and the members; no endpoint request"
+
+# ── members only ──────────────────────────────────────────────────────────────
+
+MEMBER_ROWS = {"all": [{"count": 300}], "errors": [{"count": 9}], "api": [{"count": 200}], "api_errors": [{"count": 8}],
+               "api_gave_up": [{"count": 4}], "timed": [{"count": 100}], "over_1s": [{"count": 21}], "over_3s": [{"count": 8}]}
+
+
+def test_our_own_clients_are_removed_from_the_members_numbers():
+    m = rs.member_summary(MEMBER_ROWS, 1000, ["192.0.2.1"])
+    assert (m["our_own_requests"], m["our_own_share_pct"], m["requests"]) == (700, 70.0, 300)
+    assert (m["success_pct"], m["api_success_pct"], m["api_server_errors"]) == (97.0, 96.0, 8)
+    assert (m["api_gave_up_pct"], m["api_over_1s_pct"], m["api_over_3s_pct"]) == (2.0, 21.0, 8.0)
+
+
+def test_a_window_with_no_member_requests_has_no_percentages():
+    m = rs.member_summary({}, 0, [])
+    assert m["requests"] == 0 and m["success_pct"] is None and m["api_over_1s_pct"] is None
+
+
+def test_service_clients_file_keeps_addresses_and_drops_everything_else(tmp_path):
+    f = tmp_path / "service_clients.txt"
+    f.write_text('# ours\n192.0.2.1  # renderer\n2001:db8::1\n"], x:[\nnot an address\n\n', encoding="utf-8")
+    assert rs.service_clients(str(f)) == ["192.0.2.1", "2001:db8::1"]
+    assert rs.service_clients(str(tmp_path / "missing.txt")) == []
+
+
+def test_the_member_query_excludes_addresses_and_self_named_clients_and_times_only_uncached_non_stream_api():
+    q = rs.build_member_query("zone-id", SINCE, UNTIL, ["192.0.2.1"])
+    assert q.count('clientIP_notin:["192.0.2.1"]') == 8 and q.count('userAgent_notlike:"uct-%"') == 8
+    assert 'over_1s: httpRequestsAdaptiveGroups' in q and 'originResponseDurationMs_gt:1000' in q
+    timed = q.split("timed:")[1].split("over_1s:")[0]
+    assert 'clientRequestPath_notlike:"/api/stream/%"' in timed and 'cacheStatus:"dynamic"' in timed
+    assert "clientIP_notin" not in rs.build_member_query("zone-id", SINCE, UNTIL, [])
+
+
+def test_the_report_shows_the_members_block_and_says_when_no_address_file_exists():
+    s = rs.summarize({}, SINCE, UNTIL)
+    s["requests"] = 1000
+    s["success_pct"], s["server_errors"], s["gateway_errors"] = 99.0, 10, 0
+    s["members"] = rs.member_summary(MEMBER_ROWS, 1000, [])
+    text = rs.render(s)
+    assert "MEMBERS ONLY" in text and "70.0% of all" in text and "succeeded 96.0%" in text
+    assert "no service_clients.txt" in text
+    s["members"] = rs.member_summary(MEMBER_ROWS, 1000, ["192.0.2.1"])
+    assert "no service_clients.txt" not in rs.render(s)
+
+
+def test_a_failed_member_request_leaves_the_report_standing(monkeypatch, capsys):
+    monkeypatch.setenv("CLOUDFLARE_ANALYTICS_TOKEN", "t")
+    monkeypatch.setenv("CLOUDFLARE_ZONE_ID", "z")
+    calls = []
+
+    def fake_fetch(query, token):
+        calls.append(query)
+        if "userAgent_notlike" in query:
+            raise rs.CouldNotMeasure("Cloudflare refused the query")
+        return {"all": [{"count": 500, "dimensions": {"datetimeMinute": "2026-11-13T15:00:00Z"}}]}
+
+    monkeypatch.setattr(rs, "fetch", fake_fetch)
+    assert rs.main([]) == 0
+    out = capsys.readouterr().out
+    assert "requests            500" in out and "MEMBERS ONLY: could not measure" in out
+
+
+def test_an_address_that_loads_the_render_page_often_is_a_renderer_and_a_passer_by_is_not():
+    rows = {"renderers": [{"count": 900, "dimensions": {"clientIP": "192.0.2.9"}},
+                          {"count": 10, "dimensions": {"clientIP": "2001:db8::7"}},
+                          {"count": 9, "dimensions": {"clientIP": "192.0.2.50"}},
+                          {"count": 500, "dimensions": {"clientIP": 'x"], y:['}}]}
+    assert rs.renderer_addresses(rows) == ["192.0.2.9", "2001:db8::7"]
+    assert rs.renderer_addresses({}) == []
+    q = rs.build_renderer_query("zone-id", SINCE, UNTIL)
+    assert 'clientRequestPath:"/r/chart"' in q and "renderers:" in q and 'zoneTag:"zone-id"' in q
+
+
+def test_found_renderers_are_excluded_together_with_the_listed_ones(monkeypatch, tmp_path, capsys):
+    listed = tmp_path / "service_clients.txt"
+    listed.write_text("192.0.2.1", encoding="utf-8")
+    monkeypatch.setenv("SCOREBOARD_SERVICE_CLIENTS", str(listed))
+    monkeypatch.setenv("CLOUDFLARE_ANALYTICS_TOKEN", "t")
+    monkeypatch.setenv("CLOUDFLARE_ZONE_ID", "z")
+    asked = []
+
+    def fake(query, token):
+        asked.append(query)
+        if "renderers:" in query:
+            return {"renderers": [{"count": 40, "dimensions": {"clientIP": "192.0.2.9"}}]}
+        if "userAgent_notlike" in query:
+            return MEMBER_ROWS
+        return {"all": [{"count": 1000, "dimensions": {"datetimeMinute": "2026-11-13T15:00:00Z"}}]}
+
+    monkeypatch.setattr(rs, "fetch", fake)
+    assert rs.main([]) == 0
+    assert 'clientIP_notin:["192.0.2.1", "192.0.2.9"]' in asked[-1]
+    assert "MEMBERS ONLY" in capsys.readouterr().out

@@ -60,6 +60,33 @@
    * and it is why the box is the ROW and not the whole legend. */
   pointer-events: auto;
   cursor: default;
+  /* For the hit strip below: it is placed against the row and painted behind its text. */
+  position: relative;
+  isolation: isolate;
+}
+/* ⭐⭐ THE ROW'S HIT AREA REACHES HALFWAY INTO THE GAP ON EACH SIDE (owner, 2026-11-16:
+ * the legend "glitches and flickers when I comb over it").
+ *
+ * ⚰️ MEASURED: the stack is 14px rows on a 22px pitch, and the 8px between two rows
+ * belonged to nobody. `.legend` is `pointer-events: none`, so there the pointer was on
+ * the CHART: the crosshair came back and every number in the legend, the bar-info strip
+ * included, flipped to the bar under the cursor, then flipped back to the latest bar on
+ * the next row. Combing down five rows was ten flips.
+ *
+ * ⛔ A HIT AREA ONLY. The strip is transparent and absolutely placed, so the row's box,
+ * the stack's pitch and every value's x are exactly what they were; `z-index: -1` inside
+ * the row's own stacking context keeps it behind the text, so a child's tooltip and the
+ * strip's buttons are still what the pointer meets first.
+ * ⛔ THE STACK SETS THE REACH (`--row-hit-pad`, half its own `row-gap`), never this file:
+ * a row in any other container gets 0 and is the row it always was. */
+.vRow::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(-1 * var(--row-hit-top, var(--row-hit-pad, 0px)));
+  bottom: calc(-1 * var(--row-hit-pad, 0px));
+  z-index: -1;
 }
 
 /* ⛔ THESE CARRY NO `font-size`. `.legendVertical` sets it once for the whole
@@ -93,14 +120,36 @@
      coloured row back when BOTH wore the hue; the value is bright neutral white
      now, so hue-versus-white is the separation and dimming the label only made a
      member's chosen series colour look wrong. */
-  color: var(--legend-ink-muted, var(--text-muted));
+  /* ⭐⭐ UCT SIGNATURE (owner-approved lab "2 · Chart legend", L1 · Rows, 2026-11-15) —
+     THE NAME IS GREY, NOT THE SERIES COLOUR. The 3×13 bar before it says which line;
+     the name is resting-nav grey #c9c6be at 600 and the value bright white, so the
+     stack reads calmly. It is the theme-aware muted ink (#cfcac0 on the dark theme, close
+     to the signature resting grey), so every theme/canvas keeps its contrast. */
+  /* ⭐⭐ OWNER 11-16 — ONE INK FOR THE LABEL AND THE VALUE ("make sure they're all the same contrast
+     and brightness"). `--legend-ink-pair` (legendInk.js LEGEND_PAIR_ROLE); the value shares the weight too (500). */
+  color: var(--legend-ink-pair, var(--text-muted));
+  font-weight: 500;
 }
 .vVal, .flatVal {
   /* ⭐⭐ §4 — THE NUMBER WINS THE ROW, and it wins on luminance rather than size.
      Bright neutral against a mid-luminance series colour, 600 against 500: the eye
      lands on `711.65` before `EMA 9` at every hue, including the pale ones, which
-     is exactly what a per-series coloured value could not promise. */
-  color: var(--legend-ink-bright, var(--text-bright));
+     is exactly what a per-series coloured value could not promise.
+     EXPERIMENT (owner 11-16): the vertical value takes its series colour (--row-color, set inline by
+     LegendRow); with none it stays the bright neutral. */
+  /* ⭐ OWNER 11-16 — no colour → the label's own ink (one brightness per row); a coloured value is
+     clamped to the label's lightness band in the @supports block at the end of this file. */
+  color: var(--row-color, var(--legend-ink-pair, var(--text-muted)));
+  /* Owner 11-16 (experiment): the value takes the LABEL's weight — label/value differ only by position + series colour. */
+  font-weight: 500;
+}
+/* ⭐ ONE ROW PER NAME — the `+N` after a row's last printed value: how many more of the
+   indicator's plots have a value on this bar. Muted, so it never reads as a value. */
+.valsOver {
+  color: var(--legend-ink-muted, var(--text-muted));
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0.8;
 }
 /* ⚰️ `.rail` STOOD HERE — a 2×9px bar of the line colour before every name.
    Retired with the chip's (owner, 2026-09-14): on a nine-row legend it read as
@@ -113,7 +162,7 @@
 .vVal {
   /* ⚰ `text-align: right` WENT WITH THE COLUMN. There is no column to align
      into; the value simply follows its own label. */
-  font-weight: 600;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -137,6 +186,9 @@
   align-items: center;
   gap: 4px;
   white-space: nowrap;
+  /* Owner 11-16: the flat row's name takes the shared label ink too (outside a chart: inherit, as before). */
+  color: var(--legend-ink-pair, inherit);
+  font-weight: 500;
   pointer-events: auto;
   cursor: default;
 }
@@ -215,6 +267,87 @@
    touch; taking its hover away would be a change to a surface nobody asked about. */
 .flat.rowLive:hover { background: rgba(255, 255, 255, 0.055); }
 .vRow.rowLive:hover { background: none; }
+/* ── UCT SIGNATURE: THE HOVER CARD + THE ROW'S CONTROLS ─────────────────────
+ * ⭐ A hovered row sits on a soft card (rgba(17,18,20,.85), inset 1px #26282c, radius
+ * 6) that reaches over the controls strip to its right, and the strip shows hide ·
+ * settings · more as 22px icon buttons: grey #a9a59b, GOLD on hover (§2b rule 6, the
+ * highlighted row of an action strip).
+ * ⛔ NONE OF IT MOVES THE ROW. The card is a `::before` with negative insets and no
+ * pointer events (a pseudo-element would otherwise widen the row's hit box into empty
+ * chart); the strip is absolutely positioned off the row's right edge and is
+ * `display: none` at rest, so it is not a hit target until it shows. The row's own box,
+ * the stack pitch and every value's x are identical hovered and at rest.
+ * ⛔ THE STRIP IS FLUSH WITH THE ROW (`left: 100%`, its gap is its own PADDING): a gap
+ * that belonged to neither box would drop the row's :hover on the way to a button. */
+.rowActs { position: relative; isolation: isolate; }
+.rowActs::before {
+  content: "";
+  position: absolute;
+  top: -5px;
+  bottom: -5px;
+  left: -6px;
+  right: calc(-1 * var(--row-acts-w, 0px) - 2px);
+  border-radius: 6px;
+  background: rgba(17, 18, 20, 0.85);
+  box-shadow: inset 0 0 0 1px #26282c;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0;
+}
+.rowActs:hover::before,
+.rowActs:focus-visible::before,
+.rowActive::before { opacity: 1; }
+.acts {
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  display: none;
+  align-items: center;
+  gap: 0;
+  padding-left: 6px;
+  pointer-events: auto;
+}
+.rowActs:hover .acts,
+.rowActs:focus-visible .acts,
+.rowActsHidden .acts { display: flex; }
+.rowActive .acts { display: flex; }
+.act {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #a9a59b;
+  cursor: pointer;
+}
+/* ⭐ `.rowActive` — the row's ⋯ menu (or one of its pages) is open: the row keeps its
+   hover card + strip so the floating menu still has a visible owner, and the ⋯ that
+   opened it reads as the chosen control. */
+.act:hover { background: rgba(248, 247, 243, 0.08); color: var(--ut-gold, #dcbb5e); }
+.act[aria-expanded="true"] { background: rgba(248, 247, 243, 0.08); color: var(--ut-gold, #dcbb5e); }
+.act:focus { outline: none; }
+.act:focus-visible { outline: 1px solid rgba(248, 247, 243, 0.5); outline-offset: -1px; }
+.act svg { display: block; }
+/* ⭐ A HIDDEN ROW STAYS LISTED, struck through in #6f6c66, with its eye always showing
+   so the way back is never invisible. Its rail dims with it. */
+.vRow.rowHidden { opacity: 1; }
+.vRow.rowHidden .vLabel,
+.vRow.rowHidden .vVal {
+  color: #6f6c66;
+  text-decoration: line-through;
+  text-decoration-color: rgba(147, 147, 154, 0.5);
+}
+.vRow.rowHidden .rail { opacity: 0.45; }
+/* ⛔ TOUCH HAS NO HOVER: the row is the door there and the popover/bottom sheet carries
+   every verb, so the strip never shows on a hover-less pointer. */
+@media (hover: none) {
+  .acts, .rowActsHidden .acts, .rowActive .acts { display: none; }
+  .rowActs::before { display: none; }
+}
 /* ⭐⭐ §16 — A BRIGHTNESS FILTER, NOT A COLOUR SWAP. Re-inking the label to white
    on hover would throw away the series identity for exactly as long as the pointer
    is on it — the one thing the label is FOR. `brightness` lifts a blue label, a
@@ -223,10 +356,9 @@
    background, no underline, no border, no movement — the row's rect and every
    value's right edge are identical hovered and at rest, and the CANVAS is
    byte-identical, which is the permanent invariant. */
-.vRow.rowLive:hover .vLabel,
-.vRow.rowLive:hover .vVal,
-.vRow.rowLive:focus-visible .vLabel,
-.vRow.rowLive:focus-visible .vVal { filter: brightness(1.16); }
+/* ⚰ THE BRIGHTNESS FILTER IS RETIRED WITH THE COLOURED NAME (UCT Signature): it existed
+   to lift a hue without losing it, and the name no longer wears one. The hover card
+   above is the whole hover treatment; the text keeps its resting ink. */
 .rowLive:focus { outline: none; }
 .rowLive:focus-visible {
   outline: 1px solid rgba(220, 187, 94, 0.9);
@@ -259,9 +391,11 @@
 .rail,
 .railFlat {
   flex: none;
-  width: 2px;
-  height: 10px;
-  border-radius: 1px;
+  /* ⭐ UCT SIGNATURE: 3×13, radius 2 — the bar now carries the series identity on its
+     own (the name is grey), so it is the legend's key and is drawn at key strength. */
+  width: 3px;
+  height: 13px;
+  border-radius: 2px;
   /* ⚰️⚰️ IT WAS BASELINE-ALIGNED, AND A 0.5px NUDGE CANNOT FIX THAT. The row
      is `align-items: baseline`, and an EMPTY element's baseline is its own bottom
      margin edge — so the rail's foot was planted on the text's baseline and all
@@ -288,3 +422,16 @@
    stack is a grid and every label has to start at one x. A horizontal strip has no
    column to hold, so an unpainted rule there is a 6px hole before every `O` and
    `H` in the flat legend. This one is emitted only when a colour exists. */
+
+/* Owner 11-16 — the contrast floor for a coloured value: clamp the series colour's OKLCH lightness into the band
+   StockChart publishes for its canvas (--legend-val-lmin/-lmax), keeping chroma and hue. Browsers without
+   relative-colour syntax keep the plain series colour above. */
+/* ⭐ OWNER 11-16 — THE BAND IS NARROW AND CENTRED ON THE LABEL'S INK (legendInk.js legendValueBand: label L ±0.03,
+   measured per canvas sample), so every hue reads as bright as its label. Chroma is capped at 0.14: a fully
+   saturated colour at the label's lightness still LOOKS brighter than grey (Helmholtz–Kohlrausch). */
+@supports (color: oklch(from red l c h)) {
+  .vRow:not(.rowHidden) .vVal[style*="--row-color"],
+  .flat:not(.rowHidden) .flatVal[style*="--row-color"] {
+    color: oklch(from var(--row-color) clamp(var(--legend-val-lmin, 0), l, var(--legend-val-lmax, 1)) min(c, 0.14) h / 1);
+  }
+}

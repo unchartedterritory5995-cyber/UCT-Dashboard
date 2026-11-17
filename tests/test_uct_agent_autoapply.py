@@ -44,7 +44,7 @@ def test_the_guarded_actions_are_a_deliberate_list():
                        "indicatorAlert.create", "indicatorAlert.delete", "indicatorTemplate.delete", "layout.create", "layout.delete",
                        "layout.duplicate", "layout.rename", "layout.saveAs", "layout.saveCurrent",
                        # Layouts -> Version history: a restore replaces the whole board (a server write), 2026-11-14 (tightening)
-                       "layoutHistory.restore", "screener.deleteSaved",
+                       "layoutHistory.restore", "newsLibrary.deleteCollection", "screener.deleteSaved",
                        "screener.duplicateSaved", "screener.renameSaved", "screener.saveAs", "watchlist.clear",
                        "watchlist.create", "watchlist.delete", "watchlist.keepOnly", "watchlist.rename", "widget.sendToJournal"]
 

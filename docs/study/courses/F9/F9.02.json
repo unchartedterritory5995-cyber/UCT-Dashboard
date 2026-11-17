@@ -681,7 +681,7 @@
      "the key is computed, so it rests on a calc"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "5%",
     "0.2%",
@@ -692,6 +692,28 @@
     "5%": "Used the stop percent as the position size.",
     "0.2%": "Divided but forgot to turn it back into a percent.",
     "4%": "Subtracted 1 from 5 instead of dividing."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The sizing",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Risk per trade",
+      "value": 1,
+      "fmt": "%"
+     },
+     {
+      "key": "r2",
+      "label": "Stop below entry",
+      "value": 5,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Share of account in the stock",
+     "as": "pct"
+    }
    }
   },
   {
@@ -725,7 +747,7 @@
      "the key is computed, so it rests on a calc"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "100%",
     "1%",
@@ -736,6 +758,28 @@
     "100%": "Multiplied 25 by 4 and forgot to divide by 100.",
     "6.25%": "Divided the position by the stop instead of multiplying.",
     "21%": "Subtracted the stop percent from the position percent."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The position",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Position, share of account",
+      "value": 25,
+      "fmt": "%"
+     },
+     {
+      "key": "r2",
+      "label": "Stop below entry",
+      "value": 4,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Account lost if stop fills",
+     "as": "pct"
+    }
    }
   },
   {
@@ -905,7 +949,35 @@
      "fixed before (verify notes)"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "Two trades",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Risk on each trade",
+      "value": 0.5,
+      "fmt": "%"
+     },
+     {
+      "key": "r2",
+      "label": "A's stop distance",
+      "value": 2,
+      "fmt": "%"
+     },
+     {
+      "key": "r3",
+      "label": "B's stop distance",
+      "value": 8,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "A's size compared with B's",
+     "as": "times"
+    }
+   }
   },
   {
    "key": "q16",
@@ -1079,7 +1151,29 @@
      "fixed before (verify notes)"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "His position",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Position, share of account",
+      "value": 30,
+      "fmt": "%"
+     },
+     {
+      "key": "r2",
+      "label": "Stop below entry",
+      "value": 8,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Account lost if stop fills",
+     "as": "pct"
+    }
+   }
   },
   {
    "key": "q20",
@@ -1208,7 +1302,41 @@
      "fixed before (verify notes)"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The sizing",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Account",
+      "value": 4000,
+      "fmt": "$"
+     },
+     {
+      "key": "r2",
+      "label": "Risk per trade",
+      "value": 0.5,
+      "fmt": "%"
+     },
+     {
+      "key": "r3",
+      "label": "Share price",
+      "value": 310,
+      "fmt": "$"
+     },
+     {
+      "key": "r4",
+      "label": "Stop under entry",
+      "value": 25,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Whole shares",
+     "as": "shares"
+    }
+   }
   },
   {
    "key": "q23",
@@ -1256,7 +1384,35 @@
      "the key is computed, so it rests on a calc"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The sizing",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Risk per trade",
+      "value": 1,
+      "fmt": "%"
+     },
+     {
+      "key": "r2",
+      "label": "Stop below entry",
+      "value": 6,
+      "fmt": "%"
+     },
+     {
+      "key": "r3",
+      "label": "Size you want",
+      "value": 40,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Right size, % of account",
+     "as": "pct"
+    }
+   }
   },
   {
    "key": "q24",
@@ -1356,7 +1512,7 @@
      "rests on the owner's rulebook (A5, A7)"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "0.08%",
     "0.4%",
@@ -1367,6 +1523,28 @@
     "1%": "Ignored the cap and assumed you still risk your plan.",
     "0.08%": "Decimal slip the other way.",
     "0.4%": "Applied the 40% cap to the 1% risk instead of the stop distance."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The cap",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Our cap on size",
+      "value": 40,
+      "fmt": "%"
+     },
+     {
+      "key": "r2",
+      "label": "Stop below entry",
+      "value": 2,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Account risked at the cap",
+     "as": "pct"
+    }
    }
   },
   {
@@ -1501,13 +1679,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed calc, answer matches, wrong choices distinct and real, no tell."
+   "notes": "Roles clear; slot 20% matches key."
   },
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Recomputed calc, answer matches, wrong choices distinct and real, no tell."
+   "fixed": true,
+   "notes": "Result is a percent of the ACCOUNT (key '1%'); label 'Loss if the stop fills' alone could read as percent of the position. Position size 25% also needs its base."
   },
   "q12": {
    "status": "pass",
@@ -1531,7 +1709,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Positions 25% vs 6.25%, ratio 4. Cap not binding. Distractors distinct."
+   "notes": "Both stops and the shared risk labelled; slot reads 4x."
   },
   "q16": {
    "status": "cut",
@@ -1555,8 +1733,8 @@
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "30% x 8% = 2.4%; distractors are 30/8, a decimal slip, and 1/8. f33 supports the 'two separate limits' line. Position under the 40% cap."
+   "fixed": true,
+   "notes": "Slot reads 2.4% (key too long to reuse) so label must say of the account; 30% needs its base. His 1% claim rightly omitted."
   },
   "q20": {
    "status": "pass",
@@ -1574,13 +1752,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "20/25 = 0.8, so 0 whole shares; 12 = floor(4000/310). The tighten-to-$20 choice is the trap and A3/A4 reject it. Stem says whole shares, so fractional shares cannot be argued. Choice forms are parallel."
+   "notes": "Account, risk percent, price and $25 stop distance clear; slot reads '0 shares'."
   },
   "q23": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "1 / 6 = 16.67%. Under the 40% cap. 40% at 2.5% is the back-fit trap (1% on paper). Only mild tell: the key is the one non-round number, unavoidable for a computed key."
+   "fixed": true,
+   "notes": "Slot reads 16.67% so label must say it is a share of the account; 40% lure is labelled 'Size you want' (fine)."
   },
   "q24": {
    "status": "cut",
@@ -1598,7 +1776,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
+   "notes": "Cap and stop labelled; slot 0.8% matches key. The 1% and 50% givens left off."
   },
   "q27": {
    "status": "pass",

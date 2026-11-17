@@ -138,6 +138,36 @@ COMMITTED = {
         "Q-S1a", "Q-S1b", "Q-S1c", "Q-S1f", "Q-S1i", "Q-S1l", "Q-S1m", "Q-S1o", "Q-S1p")},
     # the `varip` twins of W9-P1b / W9-P2 (rule 11 refuses `varip` in broker mode); the -nv probes replace them
     "capture-queue-2026-11-05-w9": {"W9-P1b varip": "superseded", "W9-P2 varip": "superseded"},
+    # CBC-FMT (fix/pine-engine-calcbars-format): the questions capture session S10 answered, closed with the capture
+    # that answered each (the doc's own `not a capture` table)
+    "capture-queue-2026-11-15-calc-bars": {r: "closed" for r in ("Q-CBC1", "Q-CBC3", "Q-CBC4", "Q-CBC5", "Q-FMT1")},
+    # door robustness (#1448) and the per-bar lane's mtf-key-levels defects (fix/pine-runtime-mtf-key-levels): the
+    # captures exist; Q-ROB5 was fixed and its capture witnesses it, Q-ROB6 / Q-ROB7 need builds (a 12M request)
+    "capture-queue-2026-11-16-door-robustness": {"Q-ROB5": "closed", "Q-ROB6": "engine-gap", "Q-ROB7": "engine-gap"},
+    # #1447 (REQ request.security, engine 64): a lower-timeframe read's data and symbols we do not hold are rulings
+    "capture-queue-2026-11-16-request-security": {"Q-REQ-LTF": "ruling", "Q-REQ-DATA": "ruling"},
+    # #1450 (runtime history, engine 64): three rows another queue row's capture already asks, three builds
+    "capture-queue-2026-11-16-runtime-history": {
+        "a ta. on the right of a v6 and / or (7 sample scripts)": "superseded",
+        "a window length that divides inexactly (len / 3, 6 sample sc": "superseded",
+        "history in a for / while body (ta.sma(x[i], 50) per pass)": "superseded",
+        "a branch of a function body decided by a parameter the call ": "engine-gap",
+        "a block local's or a drawing handle's [1] in the DRAWING bui": "engine-gap",
+        "a helper parameter that bounds an offset (for i = 1 to lengt": "engine-gap"},
+    # bt (feat/pine-coverage-builtins-time): Q-BT1/4/5 closed by the captures that answered them, the v4+ bare
+    # `period` closed by TradingView's compiler reading; the rest are the unit's still-refused shapes, each with
+    # its reason and what would settle it in the doc
+    "capture-queue-2026-11-16-bt-builtins-time": {
+        "Q-BT1": "closed", "Q-BT4": "closed", "Q-BT5": "closed", "bare period from v4 on": "closed",
+        "visible bar times": "by-design", "theme colours read as a value": "engine-gap",
+        "v1-v3 sessions with no day list": "engine-gap", "symbol fields not held": "engine-gap",
+        "sar, dmi, kc with a computed flag": "engine-gap", "legacy correlation over runtime state": "engine-gap"},
+    # 2026-11-16 (coordinator ruling on #1472): the `sar()` expansion's 200-bar window does not converge on
+    # vw-lower-tf-bars-rddt-15-2026-11-16; the capture is in the harness, the fix is a build that flips the KNOWN
+    # `it.fails` in sar.test.js (its control pins 43 bars / 5167-5246 / 17 by name)
+    # CLOSED the same day by fix/pine-sar-warmup (SAR_WARMUP 200 -> 400, measured; the it.fails is an it), which
+    # added the load-time rewrite of a formula document's stored 200-bar SAR tree as an engine gap
+    "capture-queue-2026-11-16-sar-window": {"sar() window": "closed", "sar() saved-tree upgrade": "engine-gap"},
 }
 
 
@@ -152,16 +182,47 @@ def test_the_committed_dispositions_are_exactly_the_reviewed_rows():
     assert got == COMMITTED
     # the real capture questions beside them stay queued as needing a probe (G-f / G-i are queued as captures
     # by PT-GAPS; L2 left this list in PR #937, its capture already queued as vw-pt-request-arm)
-    q = json.loads((REPO / "docs/pine/vendor-harness/capture-queue.json").read_text(encoding="utf-8"))
+    q = ee.build_queue()          # derived; the snapshot is a local view since 2026-11-16, never committed
     needing = {r["key"] for r in q["rowsNeedingProbe"]}
-    # the S1 shapes no W9 probe asks stay QUEUED (their table's chart, NYSE:RDDT 1D, is stated in the section lead)
+    # the S1 shapes no W9 probe asks (their table's chart, NYSE:RDDT 1D, is stated in the section lead) were
+    # CAPTURED 2026-11-16 (capture batch 1) as value witnesses, taken in session without the Strategy Tester
+    # report, so not pinnable; the after-close re-take with the report replaces them as pin evidence
     by = {t["id"]: t["status"] for t in q["targets"]}
     for stem in ("vw-s1-q-s1d-close-reverse", "vw-s1-q-s1d-two-entries", "vw-s1-q-s1d-two-stops",
                  "vw-s1-q-s1k-fractional-profit", "vw-s1-q-s1k-na-modify", "vw-s1-q-s1k-profit-and-limit",
                  "vw-s1-q-s1e-stop-past", "vw-s1-q-s1g-blocked-stop-entry", "vw-s1-q-s1h-fifo-exit", "vw-s1-q-s1j-stop-limit"):
-        assert by.get(f"{stem}@NYSE:RDDT@D") == "QUEUED", stem
+        assert by.get(f"{stem}@NYSE:RDDT@D") == "CAPTURED", stem
     assert not any(t.startswith(("vw-s1-q-s1a-", "vw-s1-q-s1b-", "vw-s1-core-")) for t in by)
-    assert by["w9-p1b-on-close-fills-nv@NYSE:RDDT@D"] == by["w9-p2-order-fills-nv@NYSE:RDDT@D"] == "QUEUED"
+    # both -nv probes were captured on 2026-11-15 (#1370, the U14 strategy captures): no longer QUEUED
+    assert by["w9-p1b-on-close-fills-nv@NYSE:RDDT@D"] == by["w9-p2-order-fills-nv@NYSE:RDDT@D"] == "CAPTURED"
     assert not any(t.startswith(("w9-p1b-on-close-fills@", "w9-p2-order-fills@")) for t in by)
     for rid in ("G-f", "G-i"):
         assert f"capture-queue-2026-10-31-prod-ternary#{rid}" in needing
+
+
+# ── the snapshot is a LOCAL VIEW (2026-11-16): derived on demand, never committed ─────────────
+# ⚰️ capture-queue.json was committed, and every PR that touched a queue input rewrote it: on 2026-11-16 it
+# was the conflicting file in 5 of the 5 open Pine PRs GitHub could not merge, each conflict costing a merge of
+# master, a regenerate commit and a full pine-heavy re-run. `queue --check` now refuses a tracked snapshot.
+
+def test_the_queue_snapshot_is_not_committed_and_git_ignores_it():
+    assert ee.snapshot_tracked(ee.QUEUE_OUT) is False, "capture-queue.json is tracked again: git rm --cached it"
+    # control: the same question about a file that IS committed answers yes (the helper cannot only say no)
+    assert ee.snapshot_tracked(ee.COVERAGE) is True
+    ignore = (REPO / ".gitignore").read_text(encoding="utf-8").splitlines()
+    assert ee.rel(ee.QUEUE_OUT) in [l.strip() for l in ignore]
+
+
+@pytest.mark.parametrize("tracked,code,word", [(False, 0, "PASS"), (True, 1, "FAIL"), (None, 2, "INCONCLUSIVE")])
+def test_queue_check_passes_only_when_no_snapshot_is_tracked(monkeypatch, capsys, tracked, code, word):
+    monkeypatch.setattr(ee, "snapshot_tracked", lambda _path: tracked)
+    assert ee.main(["queue", "--check"]) == code
+    assert f"VERDICT: {word}" in capsys.readouterr().out
+
+
+def test_queue_check_writes_nothing(monkeypatch, tmp_path):
+    out = tmp_path / "q.json"
+    monkeypatch.setattr(ee, "snapshot_tracked", lambda _path: False)
+    assert ee.main(["queue", "--check", "--out", str(out)]) == 0 and not out.exists()
+    assert ee.main(["queue", "--out", str(out)]) == 0
+    assert json.loads(out.read_text(encoding="utf-8"))["schema"] == ee.QUEUE_SCHEMA

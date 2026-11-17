@@ -1961,7 +1961,7 @@
      "tied to held decision D-029"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "0.08 ATR",
     "2.40 ATR",
@@ -1972,6 +1972,28 @@
     "1.25 ATR": "That flips the division. Put the dip on top.",
     "0.08 ATR": "That slips a decimal place.",
     "2.40 ATR": "That is the dollar dip read as ATR. Divide it by the ATR."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "high",
+      "label": "11-session high",
+      "price": 120.0
+     },
+     {
+      "key": "low",
+      "label": "Hold session's low",
+      "price": 117.6
+     }
+    ],
+    "find": {
+     "label": "Pullback depth",
+     "as": "num",
+     "unit": "ATR"
+    },
+    "title": "The pullback (ATR 3.00)"
    }
   },
   {
@@ -2008,7 +2030,7 @@
      "rests on the owner's rulebook F62 and A13"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "1.18%",
     "24.3%",
@@ -2019,6 +2041,27 @@
     "1.18%": "That is the dollar amount read as a percent. Divide it first.",
     "24.3%": "That slips a decimal place.",
     "97.6%": "That is the stop as a share of the fill, not the gap."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "fill",
+      "label": "Fill",
+      "price": 48.6
+     },
+     {
+      "key": "low",
+      "label": "Hold candle's low",
+      "price": 47.45
+     }
+    ],
+    "find": {
+     "label": "Stop distance below fill",
+     "as": "pct"
+    },
+    "title": "The hold candle"
    }
   },
   {
@@ -4130,14 +4173,14 @@
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The answer 0.8 had one decimal while the others had two; all now two decimals. Calc recomputed; the other wrong choices checked by hand."
+   "fixed": false,
+   "notes": "Roles, find label, slot format and ladder checked; ok."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
+   "notes": "Roles right. The stop (3c under the low) is not drawn because its price is not stated; the find label says the distance is to the stop. Keep."
   },
   "q27": {
    "status": "pass",

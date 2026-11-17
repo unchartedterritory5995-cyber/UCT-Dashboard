@@ -577,7 +577,7 @@ def explain_comparison(sym_a: str, sym_b: str, question: str) -> dict:
 
     if guard.over_budget(_COST_SURFACE, COST_CAP_ENV, DEFAULT_COST_CAP_USD):
         return _result(sym_a=sym_a, sym_b=sym_b, question=question, response_state="refuse",
-                       refusal_reason="The AI assistant has reached today's usage limit "
+                       refusal_reason="The UCT Agent has reached today's usage limit "
                                       "-- try again tomorrow.")
 
     try:
@@ -610,7 +610,7 @@ def explain_comparison(sym_a: str, sym_b: str, question: str) -> dict:
                         sym_a, sym_b, attempt, exc)
             return _result(sym_a=sym_a, sym_b=sym_b, question=question,
                            entity_a=entity_a, entity_b=entity_b, response_state="refuse",
-                           refusal_reason="The AI assistant is temporarily unavailable.")
+                           refusal_reason="The UCT Agent is temporarily unavailable.")
         if getattr(resp, "stop_reason", None) == "refusal":
             return _result(sym_a=sym_a, sym_b=sym_b, question=question,
                            entity_a=entity_a, entity_b=entity_b, response_state="refuse",

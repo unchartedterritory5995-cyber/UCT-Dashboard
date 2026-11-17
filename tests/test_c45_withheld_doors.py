@@ -120,7 +120,11 @@ def test_the_offset_node_this_file_writes_is_a_canonical_one():
     (WEEK, ("time-anchor:not-daily",), ("time-clock:unreadable",)),
     (WEEK_CHANGED, ("time-anchor:not-daily",), ("time-clock:unreadable",)),
     (WEEK_CLOSE, ("time-close:not-daily",), ("time-clock:unreadable",)),
-    (OWN_TIME, ("time-own:chart-unwitnessed",), ()),
+    # C49 (d90da574b1, 2026-10-01): `time(<period>)` reads the vendor's session calendar, so
+    # the bar's OWN time needs a readable clock like an anchor does; the probe bars give none,
+    # and `test_the_question_agrees_with_what_interpret_does_on_the_same_bars` holds the sweep
+    # withholding it to what interpret computes on those bars.
+    (OWN_TIME, ("time-own:chart-unwitnessed",), ("time-clock:unreadable",)),
     (ABOVE_AVERAGE, (), ()),
     (CLOSE, (), ()),
 ])
@@ -168,7 +172,15 @@ def test_the_question_is_not_vacuous_and_can_answer_no():
     sweep = [ai.whole_series_withheld(t, ai.DATE_KEYED_PROBE_BARS, opts={"tf": "D"}) for t in cases]
     alert = [ai.whole_series_withheld(t, []) for t in cases]
     assert sum(1 for c in sweep if c) >= 40 and sum(1 for c in sweep if not c) >= 5
-    assert all(alert), "with no tf every chart-clock tree is withheld whole"
+    # ⚠️ OVER THE TREES THAT READ A CLOCK. C49 (53e817beaf) added `request.security` cases to
+    # the shared fixture, and its rule is that a chart stating NO timeframe evaluates a request
+    # "as before" (the server's daily consumers): those are served, by design. Which trees read
+    # a clock is asked of the engine's own scan, never typed here.
+    clocked = [any(ai._scan_chart_clock(t)[:4]) for t in cases]
+    assert sum(clocked) >= 40, "the clock-reading cases vanished: the assertion below is vacuous"
+    assert all(a for a, c in zip(alert, clocked) if c), "with no tf every chart-clock tree is withheld whole"
+    assert not any(a for a, c in zip(alert, clocked) if not c), (
+        "a tree that reads no clock (a request on an unstated timeframe) was withheld with no tf")
 
 
 # ═══ 2. the sweep's door ═════════════════════════════════════════════════════

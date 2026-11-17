@@ -24,6 +24,8 @@ vi.mock('../../components/StockChart', () => ({
       data-price-lines={(props.priceLines || []).map((p) => `${p.title || '-'}@${p.price}`).join('|')}
       data-pad={String(props.frameRightPadFrac || 0)}
       data-tick-chars={String(props.tickLabelChars ?? '-')}
+      data-show-volume={String(props.showVolume)}
+      data-volume-removed={String(props.settingsOverride?.volume?.removed)}
     >
       <span>chart:{props.sym}</span>
       <span>bars:{(props.barsOverride || []).length}</span>
@@ -274,6 +276,43 @@ describe('DrillPlayer', () => {
     await screen.findByTestId('drill-replay-skip')
     expect(screen.getByTestId('stock-chart').getAttribute('data-markers')).toBe('DECISION DAY')
     expect(screen.queryByTestId('drill-key')).not.toBeInTheDocument()
+  })
+
+  it('calls an intraday course chart\'s decision point the decision BAR', async () => {
+    const set = tenSet()
+    const intraday = item('recall', 'si_c5', { question: 'What is a pivot?', kind: 'mcq', choices: ['The buy point', 'The stop', 'The target', 'The low'] }, true)
+    const t0 = 1789479000   // 2026-09-15 09:30 New York
+    intraday.bars = { symbol: 'si_c5', tf: '5', bars: Array.from({ length: 20 }, (_, i) => ({ t: t0 + i * 300, o: 100, h: 101, l: 99, c: 100.5, v: 1000 })) }
+    set.items[0] = intraday
+    render(<DrillPlayer open onClose={() => {}} fetcher={makeFetcher(set)} />)
+    await screen.findByTestId('stock-chart')
+    await answerChoice('The buy point')
+    fireEvent.click(screen.getByTestId('drill-takeover-go'))
+    await screen.findByTestId('drill-replay-skip')
+    expect(screen.getByTestId('stock-chart').getAttribute('data-markers')).toBe('DECISION BAR')
+    // on the decision bar itself, in the chart's own intraday time (New York wall clock as UTC), never the bar's raw
+    // unix time, which StockChart would draw four hours late (on the newest bar while the replay plays)
+    const decisionT = 1789479000 + 19 * 300
+    expect(screen.getByTestId('stock-chart').getAttribute('data-marker-days')).toBe(`DECISION BAR@${decisionT - 14400}`)
+    // its time labels get a five-character slot, so the times survive between the days on a phone (2026-11-16)
+    expect(screen.getByTestId('stock-chart').getAttribute('data-tick-chars')).toBe('5')
+    // its bars carry volume, so the volume pane is the member's own setting
+    expect(screen.getByTestId('stock-chart').getAttribute('data-show-volume')).toBe('undefined')
+    expect(screen.getByTestId('stock-chart').getAttribute('data-volume-removed')).toBe('undefined')
+  })
+
+  // the 2026-11-16 screen check: a Russell 2000 history chart (its source volume was another index's, stored as zeros)
+  // drew an empty "Volume 0" pane of flat stubs; a chart with no volume at all hides the pane
+  it('hides the volume pane on a chart whose bars carry no volume', async () => {
+    const set = tenSet()
+    const idx = item('recall', 'si_rut', { question: 'What is a pivot?', kind: 'mcq', choices: ['The buy point', 'The stop', 'The target', 'The low'] }, true)
+    idx.bars = { symbol: 'si_rut', tf: 'D', bars: Array.from({ length: 20 }, (_, i) => ({ t: 20240601 + i, o: 2000, h: 2010, l: 1990, c: 2005, v: 0 })) }
+    set.items[0] = idx
+    render(<DrillPlayer open onClose={() => {}} fetcher={makeFetcher(set)} />)
+    await screen.findByTestId('stock-chart')
+    expect(screen.getByTestId('stock-chart').getAttribute('data-show-volume')).toBe('false')
+    // removed, not hidden: a hidden volume keeps a "Vol 0" row in the desktop legend (the second screen check)
+    expect(screen.getByTestId('stock-chart').getAttribute('data-volume-removed')).toBe('true')
   })
 
   // the visuals plan, step 3 (2026-11-15): a computed question shows its picture card (prompt_json.visual) under the

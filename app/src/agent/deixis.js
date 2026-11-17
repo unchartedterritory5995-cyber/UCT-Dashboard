@@ -1113,9 +1113,11 @@ export function chartsNamedBySymbol(text, charts = []) {
   const bySym = new Map()
   for (const c of charts) { const k = String(c.symbol || '').toUpperCase(); if (k) bySym.set(k, [...(bySym.get(k) || []), c]) }
   for (const [sym, list] of bySym) {
-    if (list.length !== 1) continue
+    // ⛔ (AUDIT 53) a link group is ONE object: every chart showing the symbol following one link colour is named together
+    const objs = new Set(list.map(c => (typeof c.group === 'string' && c.group && !c.group.startsWith('N') ? `g:${c.group}` : `c:${c.ref}`)))
+    if (objs.size !== 1) continue
     const re = new RegExp(`(?:^|[^A-Za-z0-9.])${escapeRe(sym)}(?![A-Za-z0-9])`, sym.length <= 2 ? '' : 'i')
-    if (re.test(s)) named.add(list[0].ref)
+    if (re.test(s)) for (const c of list) named.add(c.ref)
   }
   return named
 }
@@ -1144,6 +1146,8 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
   const words = context ? `${text} ${context}` : String(text || '')
   const charts = host?.charts?.list?.() || []
   if (charts.length < 2) return null
+  // ⛔ D23 / probe 50e1: charts that all follow ONE link colour are one object (a change to one moves them all) — never asked which
+  if (new Set(charts.map(c => (typeof c.group === 'string' && c.group && !c.group.startsWith('N') ? `g:${c.group}` : `c:${c.ref}`))).size === 1) return null
   const aliases = new Set((ops || []).map(o => o?.args?.as).filter(a => typeof a === 'string' && a))
   const targets = new Map()                                  // chart ref → the op kind's snapshots
   for (const o of ops || []) {
@@ -1240,6 +1244,11 @@ function otherChartMeant(text, charts, dest, ops) {
  *  or after a preposition (the LOCATION: "add RSI to the other one"), or when nothing named before it is a thing the "one" can
  *  stand for. As the verb's object after such a thing ("I drew two lines, delete the other one") it is that thing, not a chart. */
 const ONE_IS_A_THING = /\b(?:drawings?|lines?|trend ?lines?|rays?|rectangles?|boxe?s?|circles?|arrows?|fibs?|fibonacci|channels?|notes?|labels?|indicators?|studies|study|alerts?|levels?|tabs?|layouts?|lists?|watchlists?|widgets?|templates?|panes?|colou?rs?)\b/i
+/** ⛔ AUDIT probe 62 (chartRail's removal-pronoun ANTECEDENT): is this one word a thing ON a chart — a chart-surface noun (PLACED), a
+ *  thing "one" stands for (ONE_IS_A_THING, less the containers a chart itself lives in: a tab, a widget, a layout), or an indicator
+ *  of the live catalog by its id (knownIndicator)? And is it a CHART word (CHARTISH)? The same readers as above, one word at a time. */
+export const thingWord = (w) => { const x = String(w || '').toLowerCase(); return !!x && (PLACED.test(x) || (ONE_IS_A_THING.test(x) && !/^(?:tabs?|widgets?|layouts?)$/.test(x)) || knownIndicator(x)) }
+export const chartishWord = (w) => CHARTISH.test(String(w || '').toLowerCase())
 function otherOneIsChart(text) {
   const s = String(text || '')
   const m = OTHER_CHART.exec(s)

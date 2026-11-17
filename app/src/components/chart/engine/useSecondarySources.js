@@ -22,6 +22,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { symbolsNeeded } from './sourceRef'
 import { fetchableOtherSymbols, isPineOriginDoc } from './otherSymbols'
+import { instanceDocumentForFetch } from './symbolInputs'
 import { ensureAll, ensureSecondaryBars, subscribe } from './secondaryBars'
 import { lowerTfWindowsNeeded } from './lowerTf'
 
@@ -127,7 +128,8 @@ export function useOtherSymbolExchanges(instances, defOf, revalidate) {
       // ⭐ P0 — only a Pine translation's spelling needs our store's exchange; a
       // formula document's `sym` names the store ticker itself (`otherSymbols.js`).
       if (!isPineOriginDoc(def)) continue
-      for (const t of fetchableOtherSymbols(def)) tickers.add(t)
+      // ⭐ SETTINGS PARITY (symbol): as THIS instance's symbol choice makes the document
+      for (const t of fetchableOtherSymbols(instanceDocumentForFetch(def, inst))) tickers.add(t)
     }
     for (const t of tickers) {
       if (!_exchanges.has(t)) _askExchange(t, () => { if (alive) setGen((g) => g + 1) })

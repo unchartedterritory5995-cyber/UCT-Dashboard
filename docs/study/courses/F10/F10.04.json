@@ -1218,7 +1218,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "0.26%",
     "0.40%",
@@ -1229,6 +1229,34 @@
     "0.40%": "Used the last price, $25.10, instead of the average of all three fills.",
     "0.60%": "Added the slippage of each fill instead of weighting by shares.",
     "2.60%": "A decimal slip: ten times too big."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "fill1",
+      "label": "400 shares",
+      "price": 25.0,
+      "shares": 400
+     },
+     {
+      "key": "fill2",
+      "label": "600 shares",
+      "price": 25.05,
+      "shares": 600
+     },
+     {
+      "key": "fill3",
+      "label": "1,000 shares",
+      "price": 25.1,
+      "shares": 1000
+     }
+    ],
+    "find": {
+     "label": "Slippage vs the first offer",
+     "as": "pct"
+    }
    }
   },
   {
@@ -1383,7 +1411,7 @@
     ]
    },
    "prefix": "$",
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$400",
     "$100",
@@ -1394,6 +1422,34 @@
     "$400": "Used the planned risk. The slippage adds to it.",
     "$100": "Counted only the $0.25 of slippage on 400 shares.",
     "$1.25": "That is the loss on one share. You hold 400 shares."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The stop fill",
+    "rows": [
+     {
+      "key": "shares",
+      "label": "Shares",
+      "value": 400,
+      "fmt": "shares"
+     },
+     {
+      "key": "stop_below_entry",
+      "label": "Stop below entry",
+      "value": 1.0,
+      "fmt": "$"
+     },
+     {
+      "key": "slips_lower_by",
+      "label": "Slips lower by",
+      "value": 0.25,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "What we lose",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1446,7 +1502,34 @@
      "rests on the owner's rulebook (A5 one price and one stop; C28 chasing costs size)"
     ]
    },
-   "batch": "wave6"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 39.0
+     },
+     {
+      "key": "fill1",
+      "label": "300 shares",
+      "price": 40.0,
+      "shares": 300
+     },
+     {
+      "key": "fill2",
+      "label": "700 shares",
+      "price": 41.2,
+      "shares": 700
+     }
+    ],
+    "find": {
+     "label": "Total risk to the stop",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q22",
@@ -1778,7 +1861,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "notes": "three offers by size and price; label says vs the first offer; key '0.26%'"
   },
   "q17": {
    "status": "pass",
@@ -1802,13 +1885,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "400 x 1.25 = 500. $400 planned risk, $100 slippage only, $1.25 per share. All real."
+   "notes": "shares, stop distance, slip all right; key '$500'"
   },
   "q21": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "stop below two fills; total risk label; key '$1,840'"
   },
   "q22": {
    "status": "pass",

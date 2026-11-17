@@ -58,7 +58,7 @@ export function clientFailureOf(gate) {
 /**
  * Fire-and-forget. Never throws, never awaits in the caller's path.
  * @param {string} lineage the conversation's opaque id (`authoringState.lineage`)
- * @param {'opened'|'preview'|'saved'|'save_failed'|'discarded'|'turn_failed'} action
+ * @param {'opened'|'preview'|'saved'|'save_failed'|'discarded'|'turn_failed'|'undone'} action
  * @param {{surface?: 'studio'|'sheet', kinds?: string, origin?: 'native'|'imported',
  *          created?: boolean, failure?: string, turns?: number}} [props]
  */

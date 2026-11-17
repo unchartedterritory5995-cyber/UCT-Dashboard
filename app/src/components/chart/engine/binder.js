@@ -854,6 +854,19 @@ export function __resetPaneHeightAlerts() {
  *   binders. `StockChart` passes a stable per-chart id; absent, it is `''`.
  * @returns {{sync: (ctx: object) => object, teardown: () => void}}
  */
+/** What the member's disclosure strip says about one indicator's PLOTS (and the paints
+ *  read from them), off the columns the decision was made for: the chart-clock report's
+ *  withheld list, then (⭐⭐ P0) a refused `sym` / `ltf` read. A registry without a
+ *  reader (a test double) contributes nothing. ONE reader: the binder publishes it, and
+ *  the vendor harness asks it which paints are withheld BY NAME (G5). */
+export function plotStripNoticesOf(registry, def, cols) {
+  return [
+    ...(registry && typeof registry.chartClockReport === 'function'
+      ? ((registry.chartClockReport(cols) || {}).withheld || []) : []),
+    ...(registry && typeof registry.externalReadNotices === 'function' ? registry.externalReadNotices(def, cols) : []),
+  ]
+}
+
 export function createBinder({ chart, LWC, scope = '' }) {
   const noticeScope = typeof scope === 'string' ? scope : ''
   /** Last pass's bindings, each carrying `series`, `guideHandles`, `paneIndex`. */
@@ -2085,12 +2098,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // columns the decision was made for; a registry without the report (a test
       // double) publishes nothing.
       clockSeen.add(inst.instanceId)
-      publishClock(inst.instanceId, 'plots', [
-        ...(typeof registry.chartClockReport === 'function'
-          ? ((registry.chartClockReport(cols) || {}).withheld || []) : []),
-        // ⭐⭐ P0 — a formula's refused `sym` / `ltf` read says so on the same strip.
-        ...(typeof registry.externalReadNotices === 'function' ? registry.externalReadNotices(def, cols) : []),
-      ])
+      publishClock(inst.instanceId, 'plots', plotStripNoticesOf(registry, def, cols))
       // ── THE CANDLE PAYLOAD, IF THIS OUTPUT ASKED FOR ONE AND MAY HAVE IT ───
       //
       // ⛔ IT ANSWERS `null` UNLESS EVERYTHING AGREES: the output's resolved
@@ -2247,6 +2255,9 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // Chart Theme is chosen, so a signed histogram that stores no colour of its
       // own follows the theme for free — one palette, not a second one.
       candles: (ctx.cs && ctx.cs.candles) || null,
+      // ⭐ ENGINE 58 — this chart's own colours, for a Pine plot coloured
+      // `chart.fg_color` / `chart.bg_color` (`pool.withThemeColour`).
+      theme: chartThemeOf(ctx.cs),
       // ⭐ UCT RS 3-14 — what the live server row declares, so a guide gated on a
       // value that row drops (a v4 Reading under a v3 server) is not drawn.
       serverDeclares,
@@ -2751,15 +2762,24 @@ export function createBinder({ chart, LWC, scope = '' }) {
             markerLayer.onPrice = markerHost !== series
           }
           const cc = columnColorsForPlot(b.plot)
+          const markCond = cc ? displacedColumn(columns.get(bindingKey(b.instanceId, cc.key)), markShift) : null
+          const unknownNone = unknownColourRule(b.def)
           attempt(() => markerLayer.set(markersFor({
             column: own,
             times: bars.map((bar) => adjustTime(bar.t)),
             marker: markerSpec,
             color: effectiveColor(b.plot, DEFAULT_MARKER_COLOR),
-            condColumn: cc ? displacedColumn(columns.get(bindingKey(b.instanceId, cc.key)), markShift) : null,
+            condColumn: markCond,
             colorUp: cc ? cc.up : null,
             colorDown: cc ? cc.down : null,
-            unknownNone: unknownColourRule(b.def),
+            unknownNone,
+            // ⭐ ENGINE 58 — a palette / gradient / run-computed colour picks each
+            // marker's colour by the ONE per-point rule (`pointColour`) a line uses;
+            // a bar it gives no colour falls back to the plot's own (none, for a Pine
+            // rule row). ⚰️ A palette-coloured `plotshape` drew every glyph in its
+            // series colour, the sheet's gold.
+            colourAt: cc && !cc.up && markCond
+              ? (i) => pointColour(cc, markCond, i, unknownNone) : null,
           })))
         }
       }

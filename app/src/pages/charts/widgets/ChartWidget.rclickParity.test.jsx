@@ -151,7 +151,7 @@ test('C1-178: chartMenu.askAi reaches the menu\'s own Ask AI opener: the same /r
   expect(host.charts.read('w1')).toMatchObject({ canAskAi: true, symbol: 'NVDA' })
   const plan = chartPlan(host, 'chartMenu.askAi')
   expect(plan.ok, JSON.stringify(plan.refusals)).toBe(true)
-  expect(plan.lines.join(' ')).toMatch(/Ask AI about NVDA/)
+  expect(plan.lines.join(' ')).toMatch(/Ask the UCT Agent about NVDA/)
   const res = await offAct(() => commitPlan(host, plan))
   expect(res.ok).toBe(true)
   expect(loc.current.pathname).toBe('/charts')                   // the receipt first: the page has not changed yet

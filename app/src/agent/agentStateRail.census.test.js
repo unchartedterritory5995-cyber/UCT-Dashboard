@@ -28,6 +28,8 @@ const BY_NAME = () => ({
   date: ['2026-01-05', '2026-03-02'], color: ['red', null], up: ['red'], down: ['blue'], name: ['New one', 'Swing', 'Tech'], text: ['Note'],
   // #1248 layoutHistory.restore: ONE of version / stepsBack / before — the fixture's version 4 by number first
   before: [null],
+  // newsLibrary.*: the fixture library's one saved headline and its collection
+  headline: ['ev1'], collection: ['Earnings'], note: ['new note'],
   symbol: ['SPY', 'AAPL'], key: ['period', 'scan', 'showLogos'], value: [SCAN, 'red'], chart: ['c1', 'c2'], defId: ['rsi', 'macd'], screen: ['Mine'],
 })
 const NUMS = { version: [4], stepsBack: [null], point: [1, 2], price: [105], level: [0.618], x: [0, 16], y: [0], w: [4, 8], h: [20, 10] }
@@ -203,7 +205,7 @@ describe('STATE RAIL census — by tool, from the registry', () => {
   })
 })
 
-const NOUN = { indicator: 'indicators', drawing: 'drawings', drawingBoard: 'drawing board', watchlist: 'watchlist', widget: 'widget', layout: 'layout', layoutBar: 'layout bar', template: 'template' }
+const NOUN = { newsLibrary: 'saved headline', indicator: 'indicators', drawing: 'drawings', drawingBoard: 'drawing board', watchlist: 'watchlist', widget: 'widget', layout: 'layout', layoutBar: 'layout bar', template: 'template' }
 const ADDITIVE_WORDS = ['add AAPL', 'ADD an RSI', 'Add a trendline', 'adding one', 'put a new one on', 'PUT ANOTHER LINE', 'include MSFT', 'another one', 'Another RSI',
   'one more please', 'also MSFT', 'AAPL as well', 'TSLA too', 'a new layout', 'Insert a widget', 'more indicators', 'extra line', 'additional watchlist',
   'add it, don’t remove anything', 'add AAPL without deleting anything', 'put AAPL on — never replace']
@@ -211,6 +213,13 @@ const ADDITIVE_WORDS = ['add AAPL', 'ADD an RSI', 'Add a trendline', 'adding one
 const EXPECTED = {
   // #1248: Layouts → Version history — the board as it is now overwritten by an earlier saved version (its own words only)
   'layoutHistory.restore': ['layout:overwrite'],
+  // newsLibrary.* (2026-11-15): a headline out of the library, a non-empty note replaced, a collection renamed / deleted,
+  // a headline out of a collection
+  'newsLibrary.collection': ['newsLibrary:overwrite'],
+  'newsLibrary.deleteCollection': ['newsLibrary:delete'],
+  'newsLibrary.place': ['newsLibrary:remove'],
+  'newsLibrary.save': ['newsLibrary:remove'],
+  'newsLibrary.setNote': ['newsLibrary:overwrite'],
   'chart.applyTemplate': ['indicator:replace'],
   'chartSetup.deleteTemplate': ['template:delete'],
   'chartSetup.saveTemplate': ['template:overwrite'],

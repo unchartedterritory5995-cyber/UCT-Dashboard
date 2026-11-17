@@ -31,6 +31,13 @@ function layoutHistoryStandIn() {
   return { read: () => ({ here: true }), list: async () => ({ ok: true, status: 200, body: { versions } }),
     readVersion: async (v) => ({ ok: true, status: 200, body: { doc: { prefs: prefsOf[v] || null } } }), restore: async () => ({ ok: false, status: 500 }) }
 }
+function newsLibraryStandIn() {
+  const st = { status: 'ready', ids: new Set(['ev1']), collections: [{ id: 'k1', name: 'Earnings', count: 1 }], notes: { ev1: 'old note' }, member: { ev1: ['k1'] } }
+  const ok = async () => ({ ok: true })
+  return { getSnapshot: () => st, load: async () => st, isSaved: (id) => st.ids.has(id), save: ok, remove: async () => ({ ok: true, removed: { event_id: 'ev1' } }), undoRemove: ok,
+    setNote: ok, createCollection: async () => ({ ok: true, body: { id: 'k2' } }), renameCollection: ok, deleteCollection: ok, setMembership: ok, setMembershipSaving: ok,
+    fetchBookmark: async () => ({ ok: true, bookmark: { note: st.notes.ev1, collection_ids: st.member.ev1 } }) }
+}
 export function stateFixture() {
   store._reset()
   // the store keeps its boards (and their drawings) across _reset: back to the first board, emptied
@@ -75,6 +82,9 @@ export function stateFixture() {
     persist: async () => ({ ok: true }),
     // #1248 Layouts → Version history: the panel's own routes as they answer — two saved versions of the board (5 current)
     layoutHistory: layoutHistoryStandIn(),
+    // newsLibrary.* (2026-11-15): the member's UCT News library as the library module's own API answers it — one saved
+    // headline with a note, in one collection (the kind reads `host.newsLibrary` in place of the page's module when present)
+    newsLibrary: newsLibraryStandIn(),
     prefs: { read: () => prefs, merge: async (p) => { prefs = { ...prefs, ...p }; return true }, write: async (k, v) => { prefs = { ...prefs, [k]: v }; return true } },
   }
   return { b, host, boards: { second }, prefs: () => prefs, flags: () => flags }
