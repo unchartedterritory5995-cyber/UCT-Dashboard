@@ -255,6 +255,17 @@ def synthetic_bars(n: int = 360) -> List[dict]:
 # the JS lane (node, the shipped modules)
 # --------------------------------------------------------------------------- #
 
+#: Every file type the app's source may import that is NOT code, each bundled as nothing: the lane
+#: computes, it draws no picture and loads no font.
+#: ⚰️ 2026-11-12 -> 2026-11-17: the compass mark became a `.webp`, this map had no entry for it, and
+#: the runner answered "LANE UNAVAILABLE -- nothing was graded" for five days while its own tests
+#: were skipped wherever `app/node_modules` is absent. `tests/test_converse_eval_runner.py` now
+#: reads the app's own imports and fails, with no bundler needed, on a type missing here.
+ASSET_LOADERS = {ext: "empty" for ext in (
+    ".css", ".png", ".svg", ".webp", ".jpg", ".jpeg", ".gif", ".avif", ".ico",
+    ".woff", ".woff2", ".ttf", ".otf", ".mp3", ".mp4", ".webm", ".wav")}
+CODE_LOADERS = {".js": "jsx", ".jsx": "jsx"}
+
 _BUILD = r"""
 import { pathToFileURL } from 'node:url'
 const [esbuildPath, entry, outfile, appDir] = process.argv.slice(2)
@@ -262,12 +273,13 @@ const esbuild = await import(pathToFileURL(esbuildPath).href)
 await esbuild.build({
   entryPoints: [entry], outfile, bundle: true, platform: 'node', format: 'esm', target: 'node20',
   absWorkingDir: appDir, logLevel: 'error',
-  loader: { '.js': 'jsx', '.jsx': 'jsx', '.css': 'empty', '.png': 'empty', '.svg': 'empty', '.woff2': 'empty' },
+  loader: __LOADERS__,
   jsx: 'automatic',
   define: { 'import.meta.env': JSON.stringify({ MODE: 'production', DEV: false, PROD: true, SSR: false, BASE_URL: '/' }) },
   banner: { js: "import { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);" },
 })
 """
+_BUILD = _BUILD.replace("__LOADERS__", json.dumps({**CODE_LOADERS, **ASSET_LOADERS}))
 
 
 def _node() -> str:
