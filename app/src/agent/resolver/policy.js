@@ -36,8 +36,9 @@ export const REASONS = Object.freeze([...CODES, ...SOURCES])
 export const EVIDENCE = Object.freeze(['named', 'ordinal-position', 'pointer', 'subject', 'none', 'sole', 'plural', 'previous-chart', 'previous-thing',
   'appositive-after', 'appositive-before', 'container-thing', 'container-chart', 'container-on-chart', 'continuation', 'negated', 'relation',
   'duplicate', 'offered', 'offered-stale', 'indicator-named', 'drawing-named', 'list-named', 'cross-type', 'filler', 'plan-only', 'description'])
-export const WORLDS = Object.freeze(['B3', 'B1', 'BDUP', 'ST', 'B3R', 'B3E', 'B4'])
+export const WORLDS = Object.freeze(['B3', 'B1', 'BDUP', 'ST', 'B3R', 'B3E', 'B4', 'B2'])
 //   (AUDIT rows) 'B3R' B3 with an RSI on SPY (c1) and IWM (c3) · 'B3E' B3 with c3 EMPTY (no symbol) · 'B4' SPY · QQQ · NVDA · AMD
+//   (PL rows, oracle-diff-1) 'B2' two independent charts SPY · QQQ (c1 left · c2 right)
 //   a plan with several targets joins them with '+' (e.g. 'chart:c1+chart:c2+chart:c3')
 export const INVARIANTS = Object.freeze(['I1', 'I2', 'I3', 'I4', 'I5', 'I6', 'I7', 'I8', 'I9', 'I10'])
 
@@ -298,6 +299,29 @@ audit('A10', 'close the last chart I opened', { previous: 'chart:c2' }, 'chart:c
 audit('A11', 'close chart 2', {}, 'chart:c3', 'refuse', 'plan-outside-words', 'ordinal-position', ['I1'])
 audit('A12', 'close both index charts', { world: 'B4' }, 'chart:c1+chart:c3', 'refuse', 'plan-outside-words', 'description', ['I1', 'I2'])
 
+// G25 · PL rows (oracle-diff-1 DRAFT, AUDIT sign-off required): the RELATION-WORD families the D31 P2 shadow report found master
+// APPLYING on a wrong target (complement "the other one / the others / the other N", "every other", "both of them", order "after /
+// before"). Source 'pl'; each is a masterGap on master (flags below). An ambiguous relation is asked (ambiguous-n), the anchor /
+// a chart outside is refused.
+const pl = (id, words, context, plan, expect, reason, evidence, inv) => rows.push({ id, family: FAMILY, words, context: ctx(context), plan, expect, reason, evidence, source: 'pl', inv })
+pl('rm-rel-pl-001', 'close the others', { selection: 'c1' }, 'chart:c1+chart:c2+chart:c3', 'refuse', 'anchor-as-target', 'relation', ['I6'])
+pl('rm-rel-pl-002', 'remove the other one', { world: 'B2', subject: 'c1' }, 'chart:c1', 'refuse', 'anchor-as-target', 'relation', ['I6'])
+pl('rm-rel-pl-003', 'close the other two', { world: 'B4', selection: 'c1' }, 'chart:c2+chart:c3', 'ask', 'ambiguous-n', 'relation', ['I2'])
+pl('rm-rel-pl-004', 'close the other one', { selection: 'c1' }, 'chart:c2', 'ask', 'ambiguous-n', 'relation', ['I2'])
+pl('rm-rel-pl-005', 'close both of them', {}, 'chart:c1+chart:c2', 'ask', 'ambiguous-n', 'plural', ['I2'])
+pl('rm-rel-pl-006', 'close both of them', { selection: 'c1', subject: 'c3' }, 'chart:c2', 'refuse', 'plan-outside-words', 'plural', ['I1'])
+pl('rm-rel-pl-007', 'close the chart after the SPY chart', {}, 'chart:c1', 'refuse', 'anchor-as-target', 'relation', ['I6'])
+pl('rm-rel-pl-008', 'close the chart before this one', { selection: 'c2' }, 'chart:c2', 'refuse', 'anchor-as-target', 'relation', ['I6'])
+pl('rm-rel-pl-009', 'close every other chart', { selection: 'c1' }, 'chart:c2+chart:c3', 'ask', 'ambiguous-n', 'relation', ['I2'])
+// RESOLVED controls, one per family (AUDIT 11-17): the oracle catches an over-ask as surely as a wrong apply
+pl('rm-rel-pl-010', 'close the others', { selection: 'c1' }, 'chart:c2+chart:c3', 'resolved:chart:c2+chart:c3', 'relation', 'relation', ['I6'])
+pl('rm-rel-pl-011', 'remove the other one', { world: 'B2', subject: 'c1' }, 'chart:c2', 'resolved:chart:c2', 'relation', 'relation', ['I6'])
+pl('rm-rel-pl-012', 'close both of them', { selection: 'c1', subject: 'c3' }, 'chart:c1+chart:c3', 'resolved:chart:c1+chart:c3', 'relation', 'plural', ['I2'])
+pl('rm-rel-pl-013', 'close the chart after the SPY chart', {}, 'chart:c2', 'resolved:chart:c2', 'relation', 'relation', ['I6'])
+pl('rm-rel-pl-014', 'close both charts', { world: 'B2' }, 'chart:c1+chart:c2', 'resolved:chart:c1+chart:c2', 'named', 'plural', ['I2'])
+// rm-cont-003's pair (AUDIT 11-17, Reading A): the continuation's complement IS what is asked to go — the drawing on the NVDA chart
+pl('rm-cont-pl-001', 'clear it of drawings', { world: 'ST', selection: 'c2' }, 'draw:dr-n', 'resolved:draw:dr-n', 'named', 'continuation', ['I1'])
+
 // ── per-row flags from the agreement run against master d4dd1cf16d (filled in BELOW the table, never by changing an expectation) ──
 // masterGap: master APPLIES a wrong target / misreads a type — the expectation stays the policy's
 // overAsk:  master blocks where the policy resolves — expected = master's block for now, `policy` = the policy's resolution
@@ -307,8 +331,10 @@ const over = (policy, why, reason = 'ambiguous-n', expect = 'ask') => ({ overAsk
 const FLAGS = {
   'rm-appB-011': { masterGap: true, why: 'I1/I3: "add an X, then delete it" = the X THIS turn creates; a plan removing the PRE-EXISTING RSI on c1 is refused. Master licenses it (stateRail permits prevInd: "an RSI" names the unique RSI on c1). Supersedes AUDIT\'s earlier #1247 allowance (11-16 ruling).' },
   'rm-neg-007': { masterGap: true, why: 'I5: "don’t close SPY" — NEGATOR before a removal verb is not a KEPT lead (KEEP_LEAD has don’t touch/change/remove, not close), and identifiesChart reads SPY as named → master CLOSES SPY (wrong target applied).' },
-  'rm-neg-010': over('resolved:chart:c3', 'master misreads KEPT: the KEEP_LEAD phrase "the left chart, remove the right one" runs to the end (KEEP_END needs but/then/and-verb), so "right" is read as kept → refuses the right chart the member asked to remove.', 'negated-target', 'refuse'),
-  'rm-rel-001': over('resolved:chart:c3', 'master: the removal path does not read RELATIVE ("to the right of this one"); SPECIFIC_CHART "the chart" fits 2 → ask.'),
+  // (the policy's source for "remove the right one" is the POSITION that names it)
+  'rm-neg-010': { reason: 'ordinal-position' },
+  // (oracle-diff-1: rm-neg-010 and rm-rel-001 lose their overAsk flag — #1490 ends KEEP_LEAD at a removal clause and reads the
+  //  relation in the removal path, so master resolves them; their expectation is the policy resolution, unflagged)
   'rm-rel-006': { masterGap: true, why: 'I6: "the chart next to the QQQ chart" — the removal path reads QQQ as the NAMED chart (no relation read), so a plan closing the ANCHOR (QQQ) is applied.' },
   'rm-offer-001': over('resolved:chart:c2', OFFER_OVERASK), 'rm-offer-003': over('resolved:chart:c3', OFFER_OVERASK), 'rm-offer-005': over('resolved:chart:c3', OFFER_OVERASK),
   'rm-offer-007': over('resolved:chart:c1', OFFER_OVERASK), 'rm-offer-012': over('resolved:chart:c3', OFFER_OVERASK),
@@ -326,6 +352,14 @@ const FLAGS = {
   A10: { masterGap: true, why: 'I1: "the last chart I opened" is the previous chart c2; master applies a plan closing c3 (the back-reference reads no "opened"; SPECIFIC_CHART is not reached because "last" names the 3rd chart by ordinal).' },
   A12: { masterGap: true, why: 'I1/I2: "both index charts" — SPY and QQQ are the index charts; master applies closing SPY + NVDA (no description read: "both … charts" is a set removal and passes untargeted).' },
   A2b: { overAsk: true, expect: 'refuse', reason: 'plan-outside-words', policy: 'resolved:chart:c2', why: 'AUDIT ruling 11-16: one overAsk rule, no exceptions — expected = master’s block (refuse); the policy resolution (close QQQ) is kept in `policy`. Master refuses: "the QQQ one" is not read as a chart name in the removal path ("QQQ alone doesn’t say to close a chart" — the bare-ticker guard).' },
+  'rm-cont-pl-001': over('resolved:draw:dr-n', 'master: the state rail refuses the drawing removal ("you didn’t ask for that") — the continuation "clear it of drawings" names no drawing it reads (namesObject needs the drawing type noun as the object).', 'plan-outside-words', 'refuse'),
+  'rm-rel-pl-001': { masterGap: true, why: 'I6: "the others" with SPY clicked — master reads it as a set removal (SET_REMOVAL "others") and applies the plan closing the CLICKED chart (the anchor) with the rest.' },
+  'rm-rel-pl-003': { masterGap: true, why: 'I2: "the other two" with three charts besides the click — master applies a pick of two (no count read).' },
+  'rm-rel-pl-005': { masterGap: true, why: 'I2: "both of them" on three charts with nothing pointed — master reads a set removal ("both") and applies a pick of two.' },
+  'rm-rel-pl-006': { masterGap: true, why: 'I1: "both of them" = the click + the conversation chart (SPY, IWM); master applies closing QQQ (a set removal passes untargeted).' },
+  'rm-rel-pl-007': { masterGap: true, why: 'I6: "the chart after the SPY chart" — master reads SPY as the NAMED chart (no order relation) and applies closing the anchor.' },
+  'rm-rel-pl-008': { masterGap: true, why: 'I6: "the chart before this one" with QQQ clicked — master reads "this one" as the click and applies closing the anchor.' },
+  'rm-rel-pl-009': { masterGap: true, why: 'I2 (AUDIT 11-17): "every other chart" is ambiguous (all the others vs alternating) — master applies a set removal.' },
   'rm-xtype-004': { masterGap: true, why: 'I3: "delete my Swing watchlist" — a plan closing chart c2 is applied (same: no chart named, no type check without a pronoun).' },
 }
 for (const r of rows) if (FLAGS[r.id]) Object.assign(r, FLAGS[r.id])
