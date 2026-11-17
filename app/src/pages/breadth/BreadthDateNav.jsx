@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import styles from './BreadthDateNav.module.css'
-import Input from '../../components/ui/Input'
-import UIcon from '../../components/ui/UIcon'
+import chartNav from '../charts/widgets/ChartDateNav.module.css'
+import { CalendarPopover as ChartCalendar } from '../charts/widgets/ChartDateNav'
 
 // Breadth Time Navigator — the Monitor header's date box (the same MarketSmith-
 // style control the /charts widget uses, adapted to the breadth sheet). Type a
@@ -154,6 +154,21 @@ export function CalendarPopover({ anchor, seedIso, minIso, maxIso, years, onPick
   )
 }
 
+// ISO 'YYYY-MM-DD' <-> UTC-midnight ms, for the chart widget's calendar (ms-based).
+const isoToMs = (iso) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '')
+  return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) : null
+}
+const msToIso = (ms) => {
+  const d = new Date(ms)
+  return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`
+}
+
+// ⭐ OWNER 2026-11-17: the Monitor's date control IS the /charts widget's one —
+// same "◀ 11/17/2026 ▶ ⌄" chrome (ChartDateNav.module.css) and the same calendar
+// (ChartDateNav's CalendarPopover, with its "Go to a date" field and year list).
+// Only the wiring is Breadth's: ◀/▶ step one trading day, a typed or picked date
+// moves the sheet's top row, a year jumps to that year's start.
 export default function BreadthDateNav({
   topDate, minDate, maxDate, canForward,
   onStep, onPickDate, onPickYear,
@@ -187,60 +202,58 @@ export default function BreadthDateNav({
   }
 
   return (
-    <div className={styles.nav}>
+    <div className={`${chartNav.nav} ${styles.host}`}>
       <button
         type="button"
-        className={styles.step}
+        className={`${chartNav.step} ${styles.hostStep}`}
         title="Step back one trading day"
         aria-label="Step back one trading day"
         onClick={() => onStep(-1)}
-      ><UIcon name="chevronRight" size={12} gold={false} aria-hidden="true" style={{ transform: 'rotate(180deg)' }} /></button>
-      {/* The date "dropdown": a soft button holding the typeable date and its chevron. */}
-      <span className={styles.pill}>
-        <Input
-          className={styles.field}
-          value={shown}
-          placeholder="M/D/YYYY"
-          spellCheck={false}
-          title="Go to a date — type and press Enter"
-          onFocus={(e) => { setEditing(true); setDraft(isoToDisplay(topDate)); requestAnimationFrame(() => e.target.select()) }}
-          onChange={(e) => setDraft(maskMDY(e.target.value))}
-          onBlur={() => setEditing(false)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') { e.preventDefault(); submit(); e.currentTarget.blur() }
-            else if (e.key === 'Escape') { setEditing(false); e.currentTarget.blur() }
-          }}
-        />
-        <button
-          ref={caretRef}
-          type="button"
-          className={styles.caret}
-          title="Pick a date or year"
-          aria-label="Pick a date or year"
-          aria-expanded={open}
-          onClick={() => (open ? setOpen(false) : openMenu())}
-        >
-          <svg width="9" height="6" viewBox="0 0 10 6" aria-hidden="true">
-            <path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
-      </span>
+      >◀</button>
+      <input
+        className={chartNav.field}
+        value={shown}
+        placeholder="M/D/YYYY"
+        spellCheck={false}
+        title="Go to a date — type and press Enter"
+        onFocus={(e) => { setEditing(true); setDraft(isoToDisplay(topDate)); requestAnimationFrame(() => e.target.select()) }}
+        onChange={(e) => setDraft(maskMDY(e.target.value))}
+        onBlur={() => setEditing(false)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') { e.preventDefault(); submit(); e.currentTarget.blur() }
+          else if (e.key === 'Escape') { setEditing(false); e.currentTarget.blur() }
+        }}
+      />
       <button
         type="button"
-        className={styles.step}
+        className={`${chartNav.step} ${styles.hostStep}`}
         title="Step forward one trading day"
         aria-label="Step forward one trading day"
         disabled={!canForward}
         onClick={() => canForward && onStep(1)}
-      ><UIcon name="chevronRight" size={12} gold={false} aria-hidden="true" /></button>
+      >▶</button>
+      <button
+        ref={caretRef}
+        type="button"
+        className={chartNav.caret}
+        title="Pick a date or year"
+        aria-label="Pick a date or year"
+        aria-expanded={open}
+        onClick={() => (open ? setOpen(false) : openMenu())}
+      >
+        <svg width="9" height="6" viewBox="0 0 10 6" aria-hidden="true">
+          <path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
       {open && (
-        <CalendarPopover
+        <ChartCalendar
           anchor={anchor}
-          seedIso={topDate}
-          minIso={minDate}
-          maxIso={maxDate}
+          seedMs={isoToMs(topDate)}
+          minMs={isoToMs(minDate)}
+          maxMs={isoToMs(maxDate)}
           years={years}
-          onPickDate={(iso) => { onPickDate(iso); setOpen(false) }}
+          loadingYears={false}
+          onPickDate={(ms) => { onPickDate(msToIso(ms)); setOpen(false) }}
           onPickYear={(y) => { onPickYear(y); setOpen(false) }}
           onClose={() => setOpen(false)}
         />

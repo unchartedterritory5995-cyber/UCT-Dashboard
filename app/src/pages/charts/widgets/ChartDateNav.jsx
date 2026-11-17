@@ -56,7 +56,8 @@ const maskMDY = (raw) => {
   return `${month}/${day}/${d.slice(i, i + 4)}`
 }
 
-function CalendarPopover({ anchor, seedMs, minMs, maxMs, years, loadingYears, onPickDate, onPickYear, onClose, themeVars }) {
+// Exported so the Breadth Monitor reuses this exact calendar (breadth/BreadthDateNav.jsx).
+export function CalendarPopover({ anchor, seedMs, minMs, maxMs, years, loadingYears, onPickDate, onPickYear, onClose, themeVars }) {
   const ref = useRef(null)
   const seed = Number.isFinite(seedMs) ? new Date(seedMs) : new Date()
   const [viewY, setViewY] = useState(seed.getUTCFullYear())

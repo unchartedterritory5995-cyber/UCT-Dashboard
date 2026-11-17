@@ -355,6 +355,11 @@ function cellClass(col, val, row = null) {
   return tierShadeClass(c)
 }
 
+// SPY / QQQ MA columns: the header shows just the symbol; the title says what the
+// four dots are (owner 2026-11-17).
+const maStackSym = (col) => col.label.split(' ')[0]
+const maStackTitle = (col) => `${maStackSym(col)} above its ${col.maLabels.slice(0, -1).join(', ')} and ${col.maLabels[col.maLabels.length - 1]}-day averages`
+
 // UCT Signature "Quiet ledger" (owner 2026-11-17): the SAME tiers as always decide
 // what is strong or weak; only the picture changed. A cell is shaded only when its
 // reading is unusually strong (g2 / g3) or weak (r2 / r3) — a low-alpha tint of the
@@ -1192,7 +1197,7 @@ export default function Breadth() {
               onPickYear={onYearPick}
             />
             <button
-              className={styles.hdrBtn}
+              className={`${styles.hdrBtn} ${styles.todayBtn}`}
               onClick={onJumpToday}
               title="Jump to the present day (top of the sheet)"
             >
@@ -1284,13 +1289,20 @@ export default function Breadth() {
                     <th
                       scope="col"
                       key={col.key}
-                      title={isColCollapsed ? `Click to expand ${col.label}` : `Click to collapse ${col.label}`}
-                      className={`${styles.th} ${styles.colLabel} ${styles.colLabelClickable} ${isColCollapsed ? styles.colLabelCollapsed : ''} ${groupStartKeys.has(col.key) ? styles.groupStart : ''} ${col.type === 'ma_stack' ? styles.thLeft : ''}`}
+                      title={col.type === 'ma_stack' && !isColCollapsed
+                        ? maStackTitle(col)
+                        : isColCollapsed ? `Click to expand ${col.label}` : `Click to collapse ${col.label}`}
+                      aria-label={col.type === 'ma_stack' && !isColCollapsed ? maStackTitle(col) : undefined}
+                      className={`${styles.th} ${styles.colLabel} ${styles.colLabelClickable} ${isColCollapsed ? styles.colLabelCollapsed : ''} ${groupStartKeys.has(col.key) ? styles.groupStart : ''} ${col.type === 'ma_stack' ? styles.thMa : ''}`}
                       onClick={() => toggleCol(col.key)}
                     >
                       {isColCollapsed
                         ? <span className={styles.colCollapsedLabel}>{col.label}</span>
-                        : col.subLabels
+                        : col.type === 'ma_stack'
+                          // Just the symbol: the dots' order (10 → 200) is in the legend
+                          // line, and the header's title / aria-label spells it out.
+                          ? maStackSym(col)
+                          : col.subLabels
                           ? <>{col.label}<span className={styles.colSubLabel}>{col.subLabels}</span></>
                           : col.label
                       }
@@ -1368,11 +1380,11 @@ export default function Breadth() {
                       // filled up colour = above that average, a hollow down-colour
                       // ring = below, a faint ring = no reading. The title and the
                       // label say which average is which.
-                      const sym = col.label.split(' ')[0]
+                      const sym = maStackSym(col)
                       const said = col.keys.map((k, i) => {
                         const v = row[k]
                         return `${col.maLabels[i]}-day: ${v === 1 ? 'above' : v === 0 ? 'below' : 'no reading'}`
-                      }).join(', ')
+                      }).join(' · ')
                       return (
                         <td key={col.key} className={`${styles.td} ${styles.maStackCell} ${groupStart}`}
                             title={`${sym} vs its moving averages — ${said}`}>

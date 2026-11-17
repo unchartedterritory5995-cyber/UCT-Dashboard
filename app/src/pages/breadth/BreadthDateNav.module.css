@@ -1,82 +1,14 @@
 /* Breadth Time Navigator date box — sits where the 30/60/90 pills used to, on the
    right of the Monitor header. Chrome matches the surrounding page tokens; the
    dropdown popover matches the app menus via the shared --menu-* palette. */
-.nav {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-/* ‹ / › one-day steppers — Signature icon buttons (28px, radius 7, no fill). */
-.step {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  background: transparent;
-  color: var(--br-rest, var(--text-muted));
-  border: 0;
-  border-radius: 7px;
-  padding: 0;
-  line-height: 1;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-.step:hover { color: var(--br-bright, var(--text-bright)); background: var(--br-soft, color-mix(in srgb, var(--text-bright) 7%, transparent)); }
-.step:disabled { opacity: 0.3; cursor: default; }
-.step:disabled:hover { color: var(--br-rest, var(--text-muted)); background: transparent; }
-.step:focus-visible { outline: 2px solid var(--br-ring, var(--text-muted)); outline-offset: 1px; }
-
-/* The soft "dropdown" button: the typeable date + its chevron on one soft fill. */
-.pill {
-  display: inline-flex;
-  align-items: center;
-  height: 28px;
-  border-radius: 7px;
-  background: var(--br-soft, color-mix(in srgb, var(--text-bright) 6%, transparent));
-  transition: background 0.12s;
-}
-.pill:hover, .pill:focus-within { background: var(--br-soft-hi, color-mix(in srgb, var(--text-bright) 11%, transparent)); }
-
-/* The date field — reads the current top row; type + Enter to jump */
-.field {
-  width: calc(5.4em + 12px);
-  height: 28px;
-  box-sizing: border-box;
-  background: transparent;
-  color: var(--br-text, var(--text));
-  border: 0;
-  border-radius: 7px;
-  padding: 0 0 0 10px;
-  margin: 0;
-  font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 600;
-  text-align: left;
-  font-variant-numeric: tabular-nums;
-  outline: none;
-}
-.field::placeholder { color: var(--br-faint, var(--text-muted)); font-weight: 500; }
-.field:focus { color: var(--br-bright, var(--text-bright)); }
-
-/* ⌄ dropdown trigger, inside the soft button */
-.caret {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 28px;
-  background: transparent;
-  color: var(--br-faint, var(--text-muted));
-  border: 0;
-  border-radius: 7px;
-  padding: 0 10px 0 4px;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-.caret:hover, .caret[aria-expanded='true'] { color: var(--br-bright, var(--text-bright)); }
-.caret:focus-visible { outline: 2px solid var(--br-ring, var(--text-muted)); outline-offset: -2px; }
+/* ⭐ The Monitor's date control now wears the /charts widget's own chrome
+   (ChartDateNav.module.css: .nav/.step/.field/.caret). These two classes only
+   adapt it to a page header: no widget-bar dividers, and a disabled ▶ reads as
+   disabled. The popover rules below still serve this file's own CalendarPopover,
+   which the drill window's JoinedDateNav uses. */
+div.host { border-left: 0; border-right: 0; margin: 0; padding: 0; gap: 2px; }
+button.hostStep:disabled { opacity: 0.3; cursor: default; }
+button.hostStep:disabled:hover { color: inherit; border-color: transparent; }
 
 /* ── Dropdown popover (portaled to body, positioned by anchor) ── */
 .pop {
@@ -169,9 +101,8 @@
    destroys the density the grid exists to provide. That is a per-surface
    design call, not something to sweep. Rail: app/src/styles/tapFloor.test.js. */
 @media (max-width: 1024px) {
-  .step,
-  .field,
-  .caret {
+  .host button,
+  .host input {
     min-height: var(--tap-min);
     min-width: var(--tap-min);
   }
