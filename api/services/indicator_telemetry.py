@@ -266,6 +266,7 @@ EVENT_SCHEMAS.update({
         "outcome": (str,), "failure_class": (str,), "unsupported_category": (str,),
         "attempts": _N, "calls": _N, "repair_gate": (str,), "input_wrapper": (str,),
         "examples": (int,),
+        "mended": (str,),
         "usd": _N, "input_tokens": _N, "output_tokens": _N,
         "cache_read_tokens": _N, "cache_write_tokens": _N, "latency_ms": _N,
         "op_kinds": (str,), "preflight": (bool,),
