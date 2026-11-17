@@ -168,11 +168,13 @@ describe('what a member can express', () => {
     expect(formulaOf(wrap('close > open ? true : false'))).toBe('close > open ? 1 : 0')
   })
 
-  it('hl2, hlc3, ohlc4 and hlcc4 expand to their Pine reference definitions', () => {
+  it('hl2, hlc3, ohlc4 expand to their Pine reference definitions; hlcc4 to TradingView\'s own arithmetic', () => {
     expect(formulaOf(wrap('hl2'))).toBe('(high + low) / 2')
     expect(formulaOf(wrap('hlc3'))).toBe('(high + low + close) / 3')
     expect(formulaOf(wrap('ohlc4'))).toBe('(open + high + low + close) / 4')
-    expect(formulaOf(wrap('hlcc4'))).toBe('(high + low + close + close) / 4')
+    // the reference writes `(high + low + close + close) / 4`; TradingView computes this, bit for bit
+    // (h3-vwap-source S08, `vendorHarness/hlcc4BitExact.test.js`)
+    expect(formulaOf(wrap('hlcc4'))).toBe('(high + low + 2 * close) / 4')
   })
 
   it('inputs fold to their defaults, and the fold is REPORTED', () => {

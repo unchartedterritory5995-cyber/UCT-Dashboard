@@ -154,8 +154,11 @@ test('P5: the selected fill outranks hover, and hover paints nothing in keyboard
   expect(css).toMatch(/\.row:not\(\.rowSel\):hover\s*\{/)
   expect(css).not.toMatch(/\.row:hover\s*\{/)
   expect(css).toMatch(/\.list\[data-kbd\] \.row:not\(\.rowSel\):hover\s*\{\s*background: transparent/)
-  // the selection paints the gold tint OVER the hover tone: strictly stronger than hover
-  expect(css).toMatch(/\.rowSel\s*\{[^}]*linear-gradient\(var\(--ut-gold-dim\), var\(--ut-gold-dim\)\), var\(--bg-hover\)/)
+  // UCT Signature (2026-11-16): hover is the card tone; the selection is the raised tone, one step
+  // stronger, with the gold "you are here" bar. Never a gold fill.
+  expect(css).toMatch(/\.row:not\(\.rowSel\):hover\s*\{\s*background: var\(--scr-card\)/)
+  expect(css).toMatch(/\.rowSel\s*\{\s*background: var\(--scr-raised\); box-shadow: inset 2px 0 0 var\(--ut-gold\)/)
+  expect(css).not.toMatch(/\.rowSel\s*\{[^}]*--ut-gold-dim/)
 })
 test('B2: a structure screen leads each row with the matched structure, with a tooltip', () => {
   const structures = { matched: [{ value: ',pocket-pivot,', label: 'Pocket Pivot', title: 'Pocket Pivot' }], labels: ['Pocket Pivot', 'Ugly Double Bottom'] }

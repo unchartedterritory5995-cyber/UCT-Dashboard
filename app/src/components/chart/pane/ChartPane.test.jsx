@@ -363,7 +363,8 @@ test('PANE_LOOK is exactly the reference look', () => {
     alwaysShowLegend: true,
     rightPadBars: 6,
     dailyDefaultBars: 126,
-    volumeSeparatePane: true,
+    // owner 11-16: own pane BY DEFAULT, the member may overlay it on price (Display in)
+    volumePaneByDefault: true,
     priceScaleTopMargin: 0.12,
     priceScaleBottomMargin: 0.10,
   })

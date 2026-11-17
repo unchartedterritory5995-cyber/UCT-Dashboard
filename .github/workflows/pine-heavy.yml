@@ -23,10 +23,21 @@
 # docs/pine/vendor-harness/capture-queue.json is DERIVED; `evidence_engine.py queue --check` went red on
 # master and nothing noticed, because no job ran it and this workflow did not trigger on docs/pine/**.
 # So `derived-evidence` runs `queue --check` and `pins --check`, and the paths they read trigger it.
+# ⚰️ SAME DAY, THE OTHER HALF: the queue snapshot was COMMITTED, so every PR that touched a queue input
+# rewrote it, and it was the conflicting file in 5 of the 5 open Pine PRs GitHub could not merge (each one a
+# merge of master, a regenerate commit and a full re-run of this workflow). It is derived on demand now and
+# git ignores it; `queue --check` proves the docs derive a queue and fails if a snapshot is committed again.
 # And a script that transferred could stop transferring with every check green (the census ran on the
 # dev PC only): `coverage-ratchet` runs the member-door census over corpus/committed, one leg per lane,
 # and fails when a script in docs/pine/coverage-ratchet.json stops transferring
 # (tools/pine_coverage/coverage_ratchet.py; how to update the snapshot: docs/pine/COVERAGE-MAP.md).
+#
+# ⚰️ WHAT A RUN COSTS (measured 2026-11-16, 20:06-23:06Z, the 40-job account cap saturated throughout):
+# this workflow was 50% of all runner minutes (47 runs, ~100 runner-minutes each), and 20% of every job was
+# `actions/checkout` fetching the FULL history (1.35 GB of git data, ~62 s against ~28 s at depth 1) for a
+# need only two test helpers have. So only the legs that run those helpers fetch history (`history: full`;
+# tests/test_ci_pine_heavy.py derives which files read history and fails if a leg that runs one is shallow).
+# And a dispatch that only wants the mutant job can skip the legs its PR already ran (`skip_legs`).
 #
 # No secrets, no pull_request_target, read-only token. tests/test_ci_pine_heavy.py rails this file.
 name: pine heavy (PR, parallel)
@@ -71,6 +82,11 @@ on:
         description: 'Repo path (in that ref) of a uct.ci-mutants/v1 manifest; empty = no mutant job (tools/ci_mutant_runner.py)'
         required: false
         default: ''
+      skip_legs:
+        description: 'true = run ONLY the mutant job (needs mutants_manifest). For when a PR run already ran the legs on this commit: a dispatch that repeats them costs ~100 runner-minutes'
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || format('{0}-{1}', github.sha, inputs.ref) }}
@@ -93,6 +109,7 @@ jobs:
   # ── 1 + 2a. vitest, sharded by folder (and the vendor harness, production lane) ─────────────
   vitest:
     name: vitest ${{ matrix.leg }}
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.skip_legs) }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -102,9 +119,12 @@ jobs:
           - { leg: engine-ast-1,          filter: 'src/components/chart/engine/ast/',        shard: '1/2' }
           - { leg: engine-ast-2,          filter: 'src/components/chart/engine/ast/',        shard: '2/2' }
           - { leg: engine-runtime,        filter: 'src/components/chart/engine/runtime/',    shard: '1/1' }
-          - { leg: engine-tests-1,        filter: 'src/components/chart/engine/__tests__/',  shard: '1/2', exclude: 'src/components/chart/engine/__tests__/vendorHarness/**' }
-          - { leg: engine-tests-2,        filter: 'src/components/chart/engine/__tests__/',  shard: '2/2', exclude: 'src/components/chart/engine/__tests__/vendorHarness/**' }
-          - { leg: engine-top-and-truth,  filter: '@top',                                    shard: '1/1' }
+          # `history: full` = this leg runs a file that reads an OLDER commit (`git show <sha>:...StockChart.jsx`:
+          # legendProbe.js and enumerationSites.test.js, which THROW BY NAME when git cannot answer). Every other
+          # leg checks out depth 1. The rail that keeps this honest: tests/test_ci_pine_heavy.py.
+          - { leg: engine-tests-1,        filter: 'src/components/chart/engine/__tests__/',  shard: '1/2', exclude: 'src/components/chart/engine/__tests__/vendorHarness/**', history: full }
+          - { leg: engine-tests-2,        filter: 'src/components/chart/engine/__tests__/',  shard: '2/2', exclude: 'src/components/chart/engine/__tests__/vendorHarness/**', history: full }
+          - { leg: engine-top-and-truth,  filter: '@top',                                    shard: '1/1', history: full }
           - { leg: builder-1,             filter: 'src/components/chart/builder/',           shard: '1/2' }
           - { leg: builder-2,             filter: 'src/components/chart/builder/',           shard: '2/2' }
           # the vendor harness folder, PRODUCTION lane, over tests/fixtures/vendor (VENDOR_HARNESS_DIR unset)
@@ -114,9 +134,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref }}
-          # full history: readout / legendFromDefinitions / enumerationSites read StockChart.jsx
-          # at an older commit with `git show <sha>:...`, which a depth-1 checkout cannot answer
-          fetch-depth: 0
+          # full history ONLY for the legs marked `history: full` (readout / legendFromDefinitions /
+          # enumerationSites read StockChart.jsx at an older commit with `git show <sha>:...`, which a
+          # depth-1 checkout cannot answer); depth 1 for the rest (~62 s -> ~28 s of checkout per job).
+          # ⛔ WRITTEN AS `!= 'full' && 1 || 0`, NEVER `== 'full' && 0 || 1`: an expression's `&&`/`||` is not
+          # a ternary, 0 is falsy, so that second form is 1 for EVERY leg (run 43987501549: the three
+          # history legs checked out at depth 1 and their readers threw by name).
+          fetch-depth: ${{ matrix.history != 'full' && 1 || 0 }}
       - uses: actions/checkout@v4
         with:
           path: ${{ env.CI_TOOLS }}
@@ -170,15 +194,15 @@ jobs:
   # name, never listed; the corpus test must be among them.
   harness-runtime-on:
     name: vendor harness, runtime-on lane
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.skip_legs) }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref }}
-          # full history: readout / legendFromDefinitions / enumerationSites read StockChart.jsx
-          # at an older commit with `git show <sha>:...`, which a depth-1 checkout cannot answer
-          fetch-depth: 0
+          # depth 1: nothing this job runs reads an older commit (the legs that do are `history: full`)
+          fetch-depth: 1
       - uses: actions/checkout@v4
         with:
           path: ${{ env.CI_TOOLS }}
@@ -213,6 +237,7 @@ jobs:
   # ── 3. the Pine Python twins (the section-8 list is a subset; tests/test_ci_pine_heavy.py proves it)
   pytest:
     name: pytest ${{ matrix.leg }}
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.skip_legs) }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -220,14 +245,15 @@ jobs:
       matrix:
         include:
           - { leg: ast-twins,  tests: 'tests/test_ast_*.py' }
-          - { leg: pine-twins, tests: 'tests/test_pine_*.py' }
+          # tests/test_w9_probes.py: the W9 queue doc's rows <-> the generated strategy probes (2026-11-17, #1554:
+          # W9-NB1 reached master red because no leg ran it)
+          - { leg: pine-twins, tests: 'tests/test_pine_*.py tests/test_w9_probes.py' }
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref }}
-          # full history: readout / legendFromDefinitions / enumerationSites read StockChart.jsx
-          # at an older commit with `git show <sha>:...`, which a depth-1 checkout cannot answer
-          fetch-depth: 0
+          # depth 1: nothing this job runs reads an older commit (the legs that do are `history: full`)
+          fetch-depth: 1
       - uses: actions/checkout@v4
         with:
           path: ${{ env.CI_TOOLS }}
@@ -263,16 +289,15 @@ jobs:
   union:
     name: legs cover every engine + builder test file once (equivalence rail)
     needs: [vitest, harness-runtime-on]
-    if: always()
+    if: ${{ always() && !(github.event_name == 'workflow_dispatch' && inputs.skip_legs) }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref }}
-          # full history: readout / legendFromDefinitions / enumerationSites read StockChart.jsx
-          # at an older commit with `git show <sha>:...`, which a depth-1 checkout cannot answer
-          fetch-depth: 0
+          # depth 1: nothing this job runs reads an older commit (the legs that do are `history: full`)
+          fetch-depth: 1
       - uses: actions/checkout@v4
         with:
           path: ${{ env.CI_TOOLS }}
@@ -331,15 +356,15 @@ jobs:
   # ── the rails that hold this file (cheap; they run whenever it changes) ─────────────────────
   rails:
     name: CI rails (cost, this workflow, the gate's Pine list)
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.skip_legs) }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref }}
-          # full history: readout / legendFromDefinitions / enumerationSites read StockChart.jsx
-          # at an older commit with `git show <sha>:...`, which a depth-1 checkout cannot answer
-          fetch-depth: 0
+          # depth 1: nothing this job runs reads an older commit (the legs that do are `history: full`)
+          fetch-depth: 1
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -357,6 +382,7 @@ jobs:
   # Both checks always run; the job fails when either does (each exit is kept, neither swallowed).
   derived-evidence:
     name: derived evidence is current (capture queue, broker pins)
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.skip_legs) }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -377,7 +403,7 @@ jobs:
           bash "$CI_TOOLS/tools/ci_offline.sh" python3 tools/vendor_harness/evidence_engine.py queue --check || q=$?
           bash "$CI_TOOLS/tools/ci_offline.sh" python3 tools/vendor_harness/evidence_engine.py pins --check || p=$?
           echo "derived evidence: queue --check exit $q, pins --check exit $p" | tee -a "$GITHUB_STEP_SUMMARY"
-          if [ "$q" -ne 0 ]; then echo "::error::docs/pine/vendor-harness/capture-queue.json is not what its tool derives: run 'python tools/vendor_harness/evidence_engine.py queue' and commit the file in this PR"; fi
+          if [ "$q" -ne 0 ]; then echo "::error::the capture queue does not derive from the docs, or docs/pine/vendor-harness/capture-queue.json is committed again (a local view since 2026-11-16: 'git rm --cached' it, never commit it). The log above says which; run 'python tools/vendor_harness/evidence_engine.py queue --check'"; fi
           if [ "$p" -ne 0 ]; then echo "::error::brokerPins.resolved.json is not the resolution of its sources: run 'python tools/vendor_harness/evidence_engine.py pins' and commit the file in this PR"; fi
           [ "$q" -eq 0 ] && [ "$p" -eq 0 ]
 
@@ -389,6 +415,7 @@ jobs:
   # union rail still sees each file once (from the engine-ast legs).
   coverage-ratchet:
     name: coverage ratchet, ${{ matrix.lane }} lane
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.skip_legs) }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -450,7 +477,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref }}
-          # full history: readout / legendFromDefinitions / enumerationSites read StockChart.jsx
+          # full history: a manifest may name ANY rail, including the ones that read StockChart.jsx
           # at an older commit with `git show <sha>:...`, which a depth-1 checkout cannot answer
           fetch-depth: 0
       - uses: actions/checkout@v4
@@ -489,10 +516,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Every leg passed (mutants may be skipped)
+      - name: Every leg passed (mutants may be skipped); or, with skip_legs, the mutant job alone ran and passed
+        env:
+          SKIP_LEGS: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_legs }}
+          MUTANTS: ${{ needs.mutants.result }}
         run: |
-          echo "vitest=${{ needs.vitest.result }} harness-runtime-on=${{ needs.harness-runtime-on.result }} pytest=${{ needs.pytest.result }} union=${{ needs.union.result }} rails=${{ needs.rails.result }} derived-evidence=${{ needs.derived-evidence.result }} coverage-ratchet=${{ needs.coverage-ratchet.result }} mutants=${{ needs.mutants.result }}"
+          echo "skip_legs=$SKIP_LEGS vitest=${{ needs.vitest.result }} harness-runtime-on=${{ needs.harness-runtime-on.result }} pytest=${{ needs.pytest.result }} union=${{ needs.union.result }} rails=${{ needs.rails.result }} derived-evidence=${{ needs.derived-evidence.result }} coverage-ratchet=${{ needs.coverage-ratchet.result }} mutants=$MUTANTS"
+          # ⛔ skip_legs is never a way to a green run with nothing run: the legs must then read `skipped` (not
+          # `failure`, not `cancelled`) AND the mutant job must have run and passed. Without it, every leg passes.
+          want=success
+          if [ "$SKIP_LEGS" = "true" ]; then want=skipped; fi
           for r in "${{ needs.vitest.result }}" "${{ needs.harness-runtime-on.result }}" "${{ needs.pytest.result }}" "${{ needs.union.result }}" "${{ needs.rails.result }}" "${{ needs.derived-evidence.result }}" "${{ needs.coverage-ratchet.result }}"; do
-            test "$r" = success || exit 1
+            test "$r" = "$want" || exit 1
           done
-          case "${{ needs.mutants.result }}" in success|skipped) ;; *) exit 1 ;; esac
+          if [ "$SKIP_LEGS" = "true" ]; then
+            test "$MUTANTS" = success || { echo "::error::skip_legs ran no leg, so the mutant job must run and pass (it read '$MUTANTS'): pass mutants_manifest"; exit 1; }
+          else
+            case "$MUTANTS" in success|skipped) ;; *) exit 1 ;; esac
+          fi

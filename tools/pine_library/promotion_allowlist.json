@@ -5,7 +5,8 @@
   "Each version is pinned by the sha256 of the source that was graded: promote exactly that code, never a re-fetch with another sha.",
   "Non-commercial (CC-BY-NC*) libraries are never promoted (the store refuses to serve them: pine:library-licence).",
   "Promotion is a separate, coordinator-authorised step after U15 Phase A merges. Nothing in this file enables anything: no store is written by it. Measured 2026-11-15 on the local store (docs/pine/evidence/2026-11-15-u15-library-pinning/EVIDENCE.md, P0 and the host-only re-grade).",
-  "tests/test_pine_library_pinning.py holds this file to its own rule (every promoted row: a sha256, a licence the store serves, not on the deny list, and every hostOnly capture MATCH)."
+  "tests/test_pine_library_pinning.py holds this file to its own rule (every promoted row: a sha256, a licence the store serves, not on the deny list, and every hostOnly capture MATCH).",
+  "Re-grade on engine 61 (2026-11-16, U15 Phase B, docs/pine/evidence/2026-11-16-u15b-libraries/EVIDENCE.md): TradingView/ta/11 and RelativeValue/3 join `promote` (Aroon oscillator now MATCH). Every row records what it `imports`; the rail requires every import of a promoted version to be promoted too. `notAttaching` lists importers refused by name, which draw nothing."
  ],
  "gradedWith": "member door + harness (f4Sweep.measure.test.js with PINE_LIBRARY_STORE), objects pane on. `hostOnly` = VITE_PINE_RUNTIME_PANE_ENABLED unset (the sweep's `on` state); `runtimeOn` = the same capture with the runtime pane on (the sweep's `runtime` state).",
  "promote": [
@@ -14,6 +15,9 @@
    "sha256": "3cbd09d934016a46d43c8097857bc3fae7af23111e22a414f671db740fc8551f",
    "licence": "MPL-2.0",
    "licenceBasis": "header",
+   "imports": [
+    "theEccentricTrader/PubLibCandleTrend/2"
+   ],
    "reason": "imported by All Chart Patterns [theEccentricTrader] (committed corpus), which grades MATCH on RDDT 1D and AMEX:SPY 1D with the store loaded",
    "hostOnly": {
     "all-chart-patterns-theeccentrictrader-rddt-1d-2026-11-15": "MATCH",
@@ -29,6 +33,10 @@
    "sha256": "9a75c2736c3911de262ef1dacc78fa82b5010177a3d31bbf2744f391ec177327",
    "licence": "MPL-2.0",
    "licenceBasis": "header",
+   "imports": [
+    "theEccentricTrader/PubLibSwing/3",
+    "theEccentricTrader/PubLibTrend/3"
+   ],
    "reason": "imported by All Chart Patterns [theEccentricTrader] (MATCH on RDDT and SPY)",
    "hostOnly": {
     "all-chart-patterns-theeccentrictrader-rddt-1d-2026-11-15": "MATCH",
@@ -44,6 +52,7 @@
    "sha256": "1d42daae07346debbf5b9b5a151a4862c0b173b3ea342e95a4db33271a2d5b52",
    "licence": "MPL-2.0",
    "licenceBasis": "header",
+   "imports": [],
    "reason": "imported by theEccentricTrader/PubLibPattern/4 (a dependency of All Chart Patterns, MATCH on RDDT and SPY)",
    "hostOnly": {
     "all-chart-patterns-theeccentrictrader-rddt-1d-2026-11-15": "MATCH",
@@ -59,6 +68,9 @@
    "sha256": "7f31c58b74ea16895550afcaa830a3ce96190b5fea34bab62275389c10688d1e",
    "licence": "MPL-2.0",
    "licenceBasis": "header",
+   "imports": [
+    "theEccentricTrader/PubLibSwing/3"
+   ],
    "reason": "imported by theEccentricTrader/PubLibPattern/4 (a dependency of All Chart Patterns, MATCH on RDDT and SPY)",
    "hostOnly": {
     "all-chart-patterns-theeccentrictrader-rddt-1d-2026-11-15": "MATCH",
@@ -68,6 +80,52 @@
     "all-chart-patterns-theeccentrictrader-rddt-1d-2026-11-15": "MATCH",
     "all-chart-patterns-theeccentrictrader-spy-1d-2026-10-03": "MATCH"
    }
+  },
+  {
+   "path": "TradingView/ta/11",
+   "sha256": "da37dca4bc18ce3b825d1d9c8b682f97859508cc5bb8bd3e51e1a28713edee80",
+   "licence": "MPL-2.0",
+   "licenceBasis": "header",
+   "imports": [
+    "TradingView/RelativeValue/3"
+   ],
+   "reason": "imported by Chandelier exit, Pring's special K, Ulcer index and Aroon oscillator (TradingView built-ins), every one MATCH host-only and with the runtime pane on, engine 61 (re-graded 2026-11-16: Aroon's bar-116 highestbars tie, the reason it was held out, now grades MATCH). KAMA and Price Momentum Oscillator also import it and do not attach (refused by name, pine:function-def), so nothing of theirs is drawn",
+   "hostOnly": {
+    "chandelier-exit-rddt-1d-2026-11-15": "MATCH",
+    "pring039s-special-k-spy-1d-2026-11-15": "MATCH",
+    "ulcer-index-rddt-1d-2026-11-15": "MATCH",
+    "aroon-oscillator-rddt-1d-2026-11-15": "MATCH"
+   },
+   "runtimeOn": {
+    "chandelier-exit-rddt-1d-2026-11-15": "MATCH",
+    "pring039s-special-k-spy-1d-2026-11-15": "MATCH",
+    "ulcer-index-rddt-1d-2026-11-15": "MATCH",
+    "aroon-oscillator-rddt-1d-2026-11-15": "MATCH"
+   },
+   "notAttaching": {
+    "kaufman039s-adaptive-moving-average-rddt-1d-2026-11-15": "refused by name (pine:function-def), so no picture is drawn",
+    "price-momentum-oscillator-rddt-1d-2026-11-15": "refused by name (pine:function-def), so no picture is drawn"
+   }
+  },
+  {
+   "path": "TradingView/RelativeValue/3",
+   "sha256": "44d71612a7596a11258e244e500c0ce56b563eceac2f07973b16b5dec4c7480d",
+   "licence": "MPL-2.0",
+   "licenceBasis": "header",
+   "imports": [],
+   "reason": "imported by TradingView/ta/11 (promoted with it); graded through ta/11's importers",
+   "hostOnly": {
+    "chandelier-exit-rddt-1d-2026-11-15": "MATCH",
+    "pring039s-special-k-spy-1d-2026-11-15": "MATCH",
+    "ulcer-index-rddt-1d-2026-11-15": "MATCH",
+    "aroon-oscillator-rddt-1d-2026-11-15": "MATCH"
+   },
+   "runtimeOn": {
+    "chandelier-exit-rddt-1d-2026-11-15": "MATCH",
+    "pring039s-special-k-spy-1d-2026-11-15": "MATCH",
+    "ulcer-index-rddt-1d-2026-11-15": "MATCH",
+    "aroon-oscillator-rddt-1d-2026-11-15": "MATCH"
+   }
   }
  ],
  "heldOut": [
@@ -76,73 +134,90 @@
    "sha256": "24f89264710a97c33672fe8d222858f94a5606580ccbeb1530649f39ee05e57c",
    "licence": "MPL-2.0",
    "licenceBasis": "header",
-   "reason": "imported by Rolling VWAP (committed corpus). With the runtime pane OFF the member door refuses the script (pine:block: a `while` reached through this library), so the host lane draws nothing and the captures grade INCONCLUSIVE, not MATCH. With the runtime pane on both captures grade MATCH. It was listed under `promote` on the pane-on grade alone; the host-only re-grade (2026-11-15) moved it here. It joins `promote` when its importing script grades MATCH in the lane members are served.",
+   "imports": [],
+   "reason": "imported by Rolling VWAP (committed corpus). With the runtime pane OFF the member door refuses the script (pine:block: a `while` reached through this library), so the host lane draws nothing and the captures grade INCONCLUSIVE, not MATCH. With the runtime pane on both captures grade MATCH. It was listed under `promote` on the pane-on grade alone; the host-only re-grade (2026-11-15) moved it here. It joins `promote` when its importing script grades MATCH in the lane members are served. Re-graded on engine 61 (2026-11-16): unchanged, still pine:block host-only (INCONCLUSIVE x3, incl. rolling-vwap-spy-5-2026-11-16), MATCH x3 with the runtime pane on.",
    "hostOnly": {
     "rolling-vwap-rddt-1d-2026-10-03": "INCONCLUSIVE",
-    "rolling-vwap-spy-1d-2026-10-03": "INCONCLUSIVE"
+    "rolling-vwap-spy-1d-2026-10-03": "INCONCLUSIVE",
+    "rolling-vwap-spy-5-2026-11-16": "INCONCLUSIVE"
    },
    "runtimeOn": {
     "rolling-vwap-rddt-1d-2026-10-03": "MATCH",
-    "rolling-vwap-spy-1d-2026-10-03": "MATCH"
+    "rolling-vwap-spy-1d-2026-10-03": "MATCH",
+    "rolling-vwap-spy-5-2026-11-16": "MATCH"
    }
-  },
-  {
-   "path": "TradingView/ta/11",
-   "sha256": "da37dca4bc18ce3b825d1d9c8b682f97859508cc5bb8bd3e51e1a28713edee80",
-   "reason": "also imported by Aroon oscillator, which DIVERGEs (bar 116: a tie in highestbars) with the runtime pane off and on, still on engine 57 (re-graded 2026-11-15). Chandelier exit, Pring's special K and Ulcer index grade MATCH on it in both states. It joins `promote` once the Aroon capture re-grades MATCH.",
-   "hostOnly": {
-    "chandelier-exit-rddt-1d-2026-11-15": "MATCH",
-    "pring039s-special-k-spy-1d-2026-11-15": "MATCH",
-    "ulcer-index-rddt-1d-2026-11-15": "MATCH",
-    "aroon-oscillator-rddt-1d-2026-11-15": "DIVERGE"
-   },
-   "runtimeOn": {
-    "chandelier-exit-rddt-1d-2026-11-15": "MATCH",
-    "pring039s-special-k-spy-1d-2026-11-15": "MATCH",
-    "ulcer-index-rddt-1d-2026-11-15": "MATCH",
-    "aroon-oscillator-rddt-1d-2026-11-15": "DIVERGE"
-   }
-  },
-  {
-   "path": "TradingView/RelativeValue/3",
-   "sha256": "44d71612a7596a11258e244e500c0ce56b563eceac2f07973b16b5dec4c7480d",
-   "reason": "a dependency of TradingView/ta/11 (held out with it)"
   },
   {
    "path": "Fontiramisu/fontilab/11",
    "sha256": "ee3343eb454a6e5f6fe3cfb4c0a898cfd2339b812369de9d63a032c8d8f5b3c3",
-   "reason": "imported by ATR Trend Bands [Misu] (DIVERGE: a colour on bar 0)",
+   "imports": [],
+   "reason": "imported by ATR Trend Bands [Misu] (DIVERGE: a colour on bar 0) Re-graded on engine 61 (2026-11-16) with the deny list emptied in the working tree only, restored byte-equal: ATR Trend Bands is refused by name host-only (pine:timeout) and DIVERGEs with the runtime pane on. Stays denied.",
    "denied": "on the deny list (app/src/components/chart/engine/ast/pineLibraryDeny.json): never served, whatever a store holds, until a re-grade to MATCH",
    "hostOnly": {
     "atr-trend-bands-misu-rddt-1d-2026-11-15": "refused by name (pine:library-denied), so no picture is drawn"
+   },
+   "engine61Undenied": {
+    "hostOnly": {
+     "atr-trend-bands-misu-rddt-1d-2026-11-15": "refused by name (pine:timeout), so no picture is drawn"
+    },
+    "runtimeOn": {
+     "atr-trend-bands-misu-rddt-1d-2026-11-15": "DIVERGE"
+    }
    }
   },
   {
    "path": "loxx/loxxexpandedsourcetypes/4",
    "sha256": "b3ffddf3442cc534a7a1904247b46ff623f690d89456073c22cb5c5959c3ba90",
-   "reason": "imported by Black-Scholes Option Pricing Model w/ Greeks [Loxx] (DIVERGE on 4 captures)",
+   "imports": [],
+   "reason": "imported by Black-Scholes Option Pricing Model w/ Greeks [Loxx] (DIVERGE on 4 captures) Re-graded on engine 61 (2026-11-16) the same way: Black-Scholes DIVERGEs on all four captures in both states (table cells 22 vs 8); Deviation-Scaled MA (pine:state) and STD-Filtered Hull MA (pine:block) are refused by name. Stays denied.",
    "denied": "on the deny list (app/src/components/chart/engine/ast/pineLibraryDeny.json): never served, whatever a store holds, until a re-grade to MATCH",
    "hostOnly": {
     "black-scholes-option-pricing-model-w-greeks-loxx-rddt-1d-2026-11-15": "refused by name (pine:library-denied), so no picture is drawn",
     "black-scholes-option-pricing-model-w-greeks-loxx-aapl-1d-2026-11-15": "refused by name (pine:library-denied), so no picture is drawn",
     "black-scholes-option-pricing-model-w-greeks-loxx-jpm-1d-2026-11-15": "refused by name (pine:library-denied), so no picture is drawn",
     "black-scholes-option-pricing-model-w-greeks-loxx-spy-1d-2026-10-03": "refused by name (pine:library-denied), so no picture is drawn"
+   },
+   "engine61Undenied": {
+    "hostOnly": {
+     "black-scholes-option-pricing-model-w-greeks-loxx-rddt-1d-2026-11-15": "DIVERGE",
+     "black-scholes-option-pricing-model-w-greeks-loxx-aapl-1d-2026-11-15": "DIVERGE",
+     "black-scholes-option-pricing-model-w-greeks-loxx-jpm-1d-2026-11-15": "DIVERGE",
+     "black-scholes-option-pricing-model-w-greeks-loxx-spy-1d-2026-10-03": "DIVERGE"
+    },
+    "runtimeOn": {
+     "black-scholes-option-pricing-model-w-greeks-loxx-rddt-1d-2026-11-15": "DIVERGE",
+     "black-scholes-option-pricing-model-w-greeks-loxx-aapl-1d-2026-11-15": "DIVERGE",
+     "black-scholes-option-pricing-model-w-greeks-loxx-jpm-1d-2026-11-15": "DIVERGE",
+     "black-scholes-option-pricing-model-w-greeks-loxx-spy-1d-2026-10-03": "DIVERGE"
+    }
    }
   },
   {
    "path": "TradingView/ValueAtTime/2",
    "sha256": "74c0a0943c6331fdd754391a68fb285feca6ea942dde35e0ec7d01bad8d58169",
-   "reason": "imported by Performance (DIVERGE on RDDT and SPY)",
+   "imports": [],
+   "reason": "imported by Performance (DIVERGE on RDDT and SPY) Re-graded on engine 61 (2026-11-16) the same way: Performance DIVERGEs on RDDT and SPY in both states (table cells 55 vs 0). Stays denied.",
    "denied": "on the deny list (app/src/components/chart/engine/ast/pineLibraryDeny.json): never served, whatever a store holds, until a re-grade to MATCH",
    "hostOnly": {
     "performance-rddt-1d-2026-11-15": "refused by name (pine:library-denied), so no picture is drawn",
     "performance-spy-1d-2026-11-15": "refused by name (pine:library-denied), so no picture is drawn"
+   },
+   "engine61Undenied": {
+    "hostOnly": {
+     "performance-rddt-1d-2026-11-15": "DIVERGE",
+     "performance-spy-1d-2026-11-15": "DIVERGE"
+    },
+    "runtimeOn": {
+     "performance-rddt-1d-2026-11-15": "DIVERGE",
+     "performance-spy-1d-2026-11-15": "DIVERGE"
+    }
    }
   },
   {
    "path": "PineCoders/VisibleChart/3",
    "sha256": "76b2ad4d7c813cfa97f7f5434154235fad488b5a9baf79db6ecff0806a68a60b",
-   "reason": "imported by Volume Profile Heatmap (INCONCLUSIVE)",
+   "imports": [],
+   "reason": "imported by Volume Profile Heatmap (INCONCLUSIVE) Re-graded on engine 61 (2026-11-16): unchanged, INCONCLUSIVE in both states.",
    "hostOnly": {
     "volume-profile-heatmap-rddt-1d-2026-11-15": "INCONCLUSIVE"
    },
@@ -172,5 +247,12 @@
   "base": "origin/master 771264afff merged into fix/pine-library-pinning",
   "probe": "F4_SWEEP_OUT=<json> F4_SWEEP_ONLY=<the importing scripts> F4_SWEEP_DIRS=<out-of-git capture store> PINE_LIBRARY_STORE=<scratch store> vitest run f4Sweep.measure.test.js",
   "result": "All Chart Patterns MATCH on both captures. Rolling VWAP does not attach in the host lane (pine:block: a `while` reached through ConditionalAverages), so it is INCONCLUSIVE host-only and MATCH only with the runtime pane on: PineCoders/ConditionalAverages/2 leaves `promote`. Chandelier exit, Pring's special K and Ulcer index MATCH; Aroon oscillator still DIVERGEs on engine 57, so TradingView/ta/11 stays held out. The three denied versions are refused by name in both states."
+ },
+ "engine61Regrade": {
+  "date": "2026-11-16",
+  "engine": 61,
+  "base": "feat/pine-coverage-libraries 2b20c5d2d7 (origin/master e9807547d0 + U15 Phase B, which changes only v5-in-v6 linking)",
+  "probe": "F4_SWEEP_OUT=<json> F4_SWEEP_ONLY=<the 92 importing capture ids> F4_SWEEP_DIRS=<runs/s11, s12, cq1 captures> PINE_LIBRARY_STORE=<scratch store> vitest run f4Sweep.measure.test.js",
+  "result": "All Chart Patterns MATCH x2; Chandelier exit, Pring's special K, Ulcer index and Aroon oscillator MATCH (Aroon was DIVERGE on engine 57); KAMA and PMO refused by name. Rolling VWAP still pine:block host-only; Volume Profile Heatmap still INCONCLUSIVE."
  }
 }

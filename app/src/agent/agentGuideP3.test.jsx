@@ -57,7 +57,7 @@ const boardJson = (board) => JSON.stringify(board.state.widgets)
 
 describe('Show me — the new walkthroughs point at one real control each and change nothing', () => {
   it.each([
-    ['how do I link my charts?', /This dot is the chart’s link colour/],
+    ['how do I link my charts?', /This dot is the chart’s link color/],
     ['how do i hide my drawings', /This eye hides all the drawings on this chart/],
     ['where do I change the chart background?', /Open this chart’s settings with the gear/],
   ])('"%s"', async (q, card) => {
@@ -82,8 +82,9 @@ describe('Show me — the new walkthroughs point at one real control each and ch
 
   it('the layouts walkthrough reaches the library\'s own menu (and says where save / rename / duplicate are)', () => {
     const f = GUIDE_FEATURES.find(x => x.id === 'layouts')
-    expect(f.steps.map(s => s.target)).toEqual(['workspace.layouts', 'workspace.layoutLibrary', 'workspace.layoutLibraryMenu'])
-    expect(f.steps[2].text).toMatch(/To save, rename or duplicate a layout, open its own menu on the bar/)
+    // the library is a row in the Layouts menu (owner 11-16), so the walkthrough opens that menu first
+    expect(f.steps.map(s => s.target)).toEqual(['workspace.layouts', 'workspace.layoutsMenuBtn', 'workspace.layoutLibrary', 'workspace.layoutLibraryMenu'])
+    expect(f.steps[3].text).toMatch(/To save, rename or duplicate a layout, open its own menu on the bar/)
   })
 
   it('more specific features win over the general ones whose words they share', () => {
@@ -102,7 +103,7 @@ describe('Do it for me — the link colour through widget.setLink (asked, receip
     const { board, say, click } = p.mount(...ONE())
     await say('how do I link my charts?')
     const q = await say('do it for me')
-    expect(q).toMatch(/Which link colour\? \(on Chart \(QQQ\)\)/)
+    expect(q).toMatch(/Which link color\? \(on Chart \(QQQ\)\)/)
     await click('Blue')
     await waitFor(() => expect(board.state.widgets[0].color).toBe('B'))
     await say('undo')

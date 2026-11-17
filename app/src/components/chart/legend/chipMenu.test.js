@@ -22,7 +22,7 @@
 // `ChartSettingsModal.displayIn.test.jsx` (orphan, self-exclusion, tombstones)
 // and `engine/__tests__/instanceHostedPanes.test.jsx`.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { chipMenuItems, displaySubmenu } from './chipMenu'
+import { chipMenuItems, displaySubmenu, displayDetailOf, CHIP_MENU_GROUPS } from './chipMenu'
 import * as engineRegistry from '../engine/nativeRegistry'
 import { mergeChartSettings } from '../chartDefaults'
 import { createDirectSeries, lastCreatedInstance } from '../discoveryCatalog'
@@ -51,7 +51,7 @@ describe('chipMenuItems — the approved V1 rows, from ONE source', () => {
     // ⚰️ `settings` USED TO BE FIRST AND IS NOW THIRD — it opens a MODAL, which
     // is the least frequent thing a member does to a plotted line, and it sat
     // above Hide for no reason other than spec order.
-    const items = rows(chip()).filter(i => !i.separator)
+    const items = rows(chip()).filter(i => !i.separator && i.groupLabel == null)
     expect(items.map(i => i.key))
       .toEqual(['hidden', 'move', 'settings', 'duplicate', 'alerts', 'about', 'remove'])
   })
@@ -347,5 +347,70 @@ describe('⛔⛔ a definition whose identity IS its source lends no noun to the 
     const macd = { id: 'macd', meta: { name: 'MACD' } }
     const sigLabels = rowsFor(macd, chipFor('macd', 'SIG')).filter(Boolean).map((r) => r.label || '')
     expect(sigLabels.some((l) => /^About MACD$/.test(l)), sigLabels.join(' | ')).toBe(true)
+  })
+})
+
+describe('⭐ UCT Signature (owner 2026-11-15) — group labels, Value in header ✓, Display in detail', () => {
+  const full = () => ({ ...handlers(), onInfoValue: vi.fn(), onModify: vi.fn(), onEditFormula: vi.fn(),
+    onCustomCopy: vi.fn(), onReportMismatch: vi.fn(), onResetPaneSize: vi.fn() })
+  const shape = (items) => items.map((i) => (i.separator ? '—' : (i.groupLabel ? `[${i.groupLabel}]` : i.key)))
+
+  it('every row the menu can hold sits under its approved group, Delete alone below the rule', () => {
+    const items = chipMenuItems(chip(), engineRegistry.getDefinition('rsi'), full(), {
+      paneSizeStored: true, definitionKind: 'user', canModify: true, reportMismatch: true,
+    })
+    expect(shape(items)).toEqual([
+      '[This line]', 'hidden', 'move', 'pane-size-reset',
+      '[Settings]', 'settings', 'info-value', 'modify', 'edit-formula',
+      '[Copies]', 'duplicate', 'custom-copy',
+      '[More]', 'report-mismatch', 'alerts', 'about',
+      '—', 'remove',
+    ])
+  })
+
+  it('a group with no rows gets no label (no Copies when nothing can be copied)', () => {
+    const items = chipMenuItems(chip(), engineRegistry.getDefinition('rsi'), handlers(), { canDuplicate: false })
+    expect(items.some((i) => i.groupLabel === CHIP_MENU_GROUPS.copies)).toBe(false)
+    // and no label is ever followed directly by another label or the rule
+    items.forEach((it, n) => {
+      if (it.groupLabel) expect(items[n + 1] && !items[n + 1].groupLabel && !items[n + 1].separator).toBe(true)
+    })
+  })
+
+  it('group labels are inert: no key, no handler, no icon — never a row', () => {
+    for (const g of rows(chip()).filter((i) => i.groupLabel != null)) {
+      expect(g.key).toBeUndefined()
+      expect(g.onClick).toBeUndefined()
+      expect(g.icon).toBeUndefined()
+      expect(g.groupLabel).toMatch(/^[A-Z][a-z ]+$/) // sentence case, no uppercase labels
+    }
+  })
+
+  it('Value in header is ONE row with the same key and a checked state', () => {
+    const h = full()
+    const off = chipMenuItems(chip(), engineRegistry.getDefinition('rsi'), h).find((i) => i.key === 'info-value')
+    const on = chipMenuItems(chip(), engineRegistry.getDefinition('rsi'), h, { infoValueOn: true }).find((i) => i.key === 'info-value')
+    expect([off.label, off.checked, on.label, on.checked]).toEqual(['Value in header', false, 'Value in header', true])
+  })
+
+  it('UCT Intelligence’s row carries the always-gold icon; no other row does', () => {
+    const items = chipMenuItems(chip(), engineRegistry.getDefinition('rsi'), full(), { definitionKind: 'user', canModify: true })
+    expect(items.filter((i) => i.goldIcon).map((i) => i.key)).toEqual(['modify'])
+  })
+
+  it('Display in shows where it draws now, dimmed, from the current target', () => {
+    expect(displayDetailOf([], 'pane')).toBe('Own pane')
+    expect(displayDetailOf([], 'price')).toBe('Price pane')
+    expect(displayDetailOf([], 'volume')).toBe('Volume pane')
+    expect(displayDetailOf([{ value: '@inst:qqq', label: 'QQQ', group: 'panes' }], '@inst:qqq')).toBe('QQQ pane')
+    expect(displayDetailOf([{ value: '@gone', label: 'Pane unavailable', group: 'missing', missing: true }], '@gone'))
+      .toBe('Pane unavailable')
+    expect(displayDetailOf([], null)).toBeUndefined()
+    expect(displayDetailOf([], '@unknown')).toBeUndefined()
+    const move = rows(chip(), 'rsi', handlers(), {
+      displayOptions: [{ value: 'price', label: 'Price', group: 'shared' }, { value: 'pane', label: 'Own pane', group: 'shared' }],
+      displayCurrent: 'pane',
+    }).find((i) => i.key === 'move')
+    expect(move.detail).toBe('Own pane')
   })
 })

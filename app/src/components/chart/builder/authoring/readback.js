@@ -206,6 +206,12 @@ export function vocabularyLines(def) {
     if (!p.hidden && LINE_STYLE_WORDS[p.lineStyle] && LINE_DRAWN.includes(p.style || 'line')) {
       out.push(`${label}: drawn ${LINE_STYLE_WORDS[p.lineStyle]}`)
     }
+    // ⭐ ROW 42 — the authored "break where it has no value" (`plots[].sparse`) is
+    // said, because it changes the picture: a line held for N bars after an event
+    // draws as separate pieces, never one level run across the chart.
+    if (!p.hidden && p.sparse === true && LINE_DRAWN.includes(p.style || 'line')) {
+      out.push(`${label}: breaks where it has no value`)
+    }
     if (p.fill && typeof p.fill.with === 'string') {
       const colour = typeof p.fillColor === 'string' ? `, colour ${colourWords(p.fillColor)}` : ''
       const opacity = Number.isFinite(p.fillOpacity) ? `, ${Math.round(p.fillOpacity * 100)}% opaque` : ''
@@ -320,7 +326,7 @@ export function readback(def, state = {}, gateCtx = {}) {
   const on = (key) => (key && outputs.length > 1 ? ` (on ${nameOf(key)})` : '')
   const assumptions = (state.assumptions || []).map((a) => (a.label !== undefined
     ? `Assumed ${slotWords(a.label)} ${a.value}${on(a.output)}`
-    : (a.source === 'engine' ? `Default: ${a.text}${on(a.output)}` : `UCT Intelligence assumed: "${a.text}"`)))
+    : (a.source === 'engine' ? `Default: ${a.text}${on(a.output)}` : `The UCT Agent assumed: "${a.text}"`)))
   const questions = (state.questions || []).map((q) => `Question: ${q.text}`)
   const needsAck = outputs.filter((o) => o.mode === 'preview-repaints').map((o) => o.key)
   // ⭐ PHASE 5 — a FORMING-period read repaints for a reason a member can name.

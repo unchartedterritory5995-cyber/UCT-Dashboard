@@ -77,6 +77,16 @@ def _walk(seed: int, n: int = 620, drift: float = 0.0004, vol: float = 0.02, gap
 BARS = _walk(7)
 SPY = _walk(11, vol=0.008, gaps=False)
 
+#: A RARE CONDITION NEEDS BARS ON WHICH IT OCCURS. The follow-through day is true on 0 of the default
+#: series' last 300 bars, so agreement there would be 0 == 0 on every bar and would have passed the two
+#: builds of it that could not fire at all (`test_the_conditions_actually_happen_on_these_bars` is what
+#: refused it). On this wider-ranging series it is true on 7 of the last 300.
+BARS_FOR = {"follow_through_day": _walk(41, vol=0.04)}
+
+
+def bars_for(which: str) -> list[dict]:
+    return BARS_FOR.get(which, BARS)
+
 
 # ---- independent helpers: plain lists, NaN until a full window ---------------------------------
 def sma(x, n):
@@ -182,11 +192,10 @@ def references(which: str, bars: list[dict], spy: list[dict]) -> dict:
             a3 = wc[k - 2:k + 1]
             out.append(flag((max(a3) - min(a3)) / min(a3) <= 0.015))
         R["tight"] = out
-    elif which == "gap_up_volume_marker":
+    elif which == "gap_up_on_volume":
         a = sma(v, 50)
-        gap = [ok(c1[i]) and ok(a[i]) and (o[i] - c1[i]) / c1[i] >= 0.04 and v[i] > a[i] for i in range(n)]
-        R["gapUp"] = [flag(gap[i], ok(a[i]) and ok(c1[i])) for i in range(n)]
-        R["gapLow"] = [next((l[i - k] for k in range(20) if i - k >= 0 and gap[i - k]), NAN) for i in range(n)]
+        R["gapUpVol"] = [flag(ok(c1[i]) and ok(a[i]) and (o[i] - c1[i]) / c1[i] * 100 >= 4 and v[i] > a[i],
+                              ok(a[i]) and ok(c1[i])) for i in range(n)]
     elif which == "inside_outside_bars":
         R["insideBar"] = [flag(i >= 1 and h[i] <= h1[i] and l[i] >= l1[i], i >= 1) for i in range(n)]
         R["outsideBar"] = [flag(i >= 1 and h[i] > h1[i] and l[i] < l1[i], i >= 1) for i in range(n)]
@@ -213,6 +222,16 @@ def references(which: str, bars: list[dict], spy: list[dict]) -> dict:
                for i in range(n)]
         R["udr"] = udr
         R["strong"] = [flag(ok(u) and u > 1.2, ok(u)) for u in udr]
+    elif which == "follow_through_day":
+        out = []
+        for i in range(n):
+            if i < 50:
+                out.append(NAN)
+                continue
+            lo = min(l[i - 49:i + 1])
+            ago = min(k for k in range(50) if l[i - k] == lo)          # bars back to the low, the newest of a tie
+            out.append(flag((c[i] - c[i - 1]) / c[i - 1] >= 0.017 and v[i] > v[i - 1] and 4 <= ago <= 12))
+        R["ftd"] = out
     elif which == "previous_week_high_low":
         weeks, idx = weekly(bars)
         R["pwh"] = [weeks[idx[i] - 1]["h"] if idx[i] >= 1 else NAN for i in range(n)]
@@ -241,7 +260,7 @@ CASES = [(item["slug"], out) for item in HOUSE["indicators"] for out in _trees(i
 
 def test_the_set_is_here_and_every_output_has_a_reference():
     assert len(HOUSE["indicators"]) >= 11
-    missing = [(k, o) for k, o in CASES if o not in references(k, BARS, SPY)]
+    missing = [(k, o) for k, o in CASES if o not in references(k, bars_for(k), SPY)]
     assert not missing, f"house outputs with no independent calculation: {missing}"
 
 
@@ -249,15 +268,16 @@ def test_the_set_is_here_and_every_output_has_a_reference():
 def test_every_bar_agrees_with_the_independent_calculation(which, output):
     item = next(i for i in HOUSE["indicators"] if i["slug"] == which)
     tree = _trees(item["definition"])[output]
-    got = [num(x) for x in ast_interpret.interpret(tree, BARS, {}, None, None, {"tf": "D", "symbols": {"SPY": SPY}})]
-    exp = references(which, BARS, SPY)[output]
-    tail = range(len(BARS) - 300, len(BARS))               # past every warm-up
+    bars = bars_for(which)
+    got = [num(x) for x in ast_interpret.interpret(tree, bars, {}, None, None, {"tf": "D", "symbols": {"SPY": SPY}})]
+    exp = references(which, bars, SPY)[output]
+    tail = range(len(bars) - 300, len(bars))               # past every warm-up
     both = [i for i in tail if ok(got[i]) and ok(exp[i])]
     assert len(both) >= 40, f"only {len(both)} comparable bars: the check would prove nothing"
     # where the reference has a value the engine must too, and the other way round
     assert not [i for i in tail if ok(got[i]) != ok(exp[i])][:3], "the two disagree about WHICH bars have a value"
     slack = 5e-4 if output in SMOOTHED else 0.0
-    bad = [(BARS[i]["t"], got[i], exp[i]) for i in both
+    bad = [(bars[i]["t"], got[i], exp[i]) for i in both
            if abs(got[i] - exp[i]) > 1e-6 * max(1.0, abs(exp[i])) + slack * max(1.0, abs(exp[i]))]
     assert not bad, bad[:3]
 
@@ -266,7 +286,7 @@ def test_the_conditions_actually_happen_on_these_bars():
     """A flag that is never true (or always true) would agree with anything: each condition
     output must be true on some bars and false on others."""
     for which, output in CASES:
-        exp = [x for x in references(which, BARS, SPY)[output][-300:] if ok(x)]
+        exp = [x for x in references(which, bars_for(which), SPY)[output][-300:] if ok(x)]
         if exp and set(exp) <= {0.0, 1.0}:
             assert 0 < sum(exp) < len(exp), f"{which}.{output} is constant on the test bars"
 

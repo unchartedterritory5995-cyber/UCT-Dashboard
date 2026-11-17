@@ -12,6 +12,7 @@ Covers:
 from __future__ import annotations
 
 import json
+import math
 import pathlib
 
 import pytest
@@ -1229,6 +1230,14 @@ def _load_alert_baseline() -> dict:
 # any small change; this admits exactly one, names its cause, and still fails on
 # a rounding change, a period change, a plumbing change — or on a silent revert
 # to the rolling lane, which would make the two halves swap and both fail.
+#
+# ⭐⭐ SMA-EXACT (NUMBER PENDING, docs/pine/evidence/2026-11-16-sma-exact-sum/EVIDENCE.md):
+# the CURRENT lane is now the EXACTLY ROUNDED window sum (``math.fsum``), the one
+# TradingView's ``ta.sma`` equals on every bar of every capture from 2026-11-14 on;
+# the full-window left-to-right re-sum this block called "surviving" is retired in
+# its turn. The recording half is unchanged (it still reproduces under the rolling
+# accumulator), the current half names the exact lane, and still zero of the 5,040
+# recorded ``triggered`` booleans change.
 
 _DRIFTED_ADDRESS = "price_vs_ma"
 
@@ -1251,20 +1260,18 @@ def _retired_rolling_sma(closes, period):
     return out
 
 
-def _surviving_resum_sma(closes, period):
-    """The full-window re-sum SMA that survived — written HERE, independently of
-    the product, so "the current value is the re-sum lane's" is a statement this
-    file can make on its own rather than one it borrows from the code under test.
+def _current_exact_sma(closes, period):
+    """The SMA the product computes now: the EXACTLY ROUNDED window sum over its
+    length (SMA-EXACT) — written HERE with ``math.fsum``, independently of the
+    product, so "the current value is the exact lane's" is a statement this file
+    can make on its own rather than one it borrows from the code under test.
     """
     n = len(closes)
     out = [None] * n
     if period <= 0 or n < period:
         return out
     for i in range(period - 1, n):
-        total = 0.0
-        for j in range(i - period + 1, i + 1):
-            total += closes[j]
-        out[i] = total / period
+        out[i] = math.fsum(closes[i - period + 1:i + 1]) / period
     return out
 
 
@@ -1292,7 +1299,7 @@ def _value_mismatch(row, value, fn, bars, params):
     is pinned to its CAUSE instead — see the block above. Both legs are exact:
 
       * the RECORDING must reproduce under the retired rolling-subtract SMA, and
-      * the CURRENT value must reproduce under the surviving full-window re-sum.
+      * the CURRENT value must reproduce under the exactly rounded sum (SMA-EXACT).
 
     The `type: ema` rows satisfy both trivially (neither SMA is consulted), which
     is why they are not special-cased: they never moved and they still must not.
@@ -1301,13 +1308,13 @@ def _value_mismatch(row, value, fn, bars, params):
         return None if value == row["value"] else (
             f"got {value!r} want {row['value']!r}")
     was = _value_under_sma(_retired_rolling_sma, fn, bars, params)
-    now = _value_under_sma(_surviving_resum_sma, fn, bars, params)
+    now = _value_under_sma(_current_exact_sma, fn, bars, params)
     if row["value"] != was:
         return (f"the RECORDING no longer reproduces under the retired "
                 f"rolling-subtract SMA: recorded {row['value']!r}, that lane "
                 f"gives {was!r} — the delta is NOT the accumulator swap")
     if value != now:
-        return (f"the current value {value!r} is not the full-window re-sum's "
+        return (f"the current value {value!r} is not the exactly rounded sum's "
                 f"{now!r} — compute_sma is neither lane this row knows about")
     return None
 

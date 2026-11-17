@@ -57,6 +57,8 @@ const servedRunHalfEvidence = scripts
     captures: caps.map((c) => ({
       capture: c.id, verdict: c.verdict, objectsV2: c.objectsV2 === 'MATCH', runtimeOn: c.runtimePane === 'on',
       ...('substituted' in c ? { substituted: c.substituted } : {}),
+      // ⭐ SETTINGS PARITY (2c): the settings a capture was taken at (the server serves them as given)
+      ...(c.inputs && typeof c.inputs === 'object' && Object.keys(c.inputs).length ? { inputs: { ...c.inputs } } : {}),
       ...(c.objectsV2 === 'MATCH_SUBSTITUTED' ? { objectsV2Substituted: c.objectsV2Substituted || [] } : {}),
     })),
   }))

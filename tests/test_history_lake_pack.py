@@ -229,6 +229,32 @@ def test_publish_checks_merges_stamps_and_uploads_in_order(raw, tmp_path):
     assert PUB.main(["--from", str(tmp_path / "raw")]) == 2                 # no packs there
 
 
+def test_upload_is_resumable_and_reports_progress(raw, tmp_path):
+    """A re-run after an interrupted upload (the real lake is ~65 GB) sends only the packs the
+    bucket does not hold at the same size; indexes still go last; progress is logged."""
+    a = tmp_path / "a"
+    BLD.Builder(raw, a, quality=5, packs=True, **QUIET).run(ALL)
+    packs = PUB.collect_packs([a])
+    idx = PUB.build_indexes(packs, log=lambda *_: None)
+    keys = sorted(f"hist/{PUB.pack.pack_relpath(s, p)}" for (s, p) in packs)
+    assert len(keys) >= 3
+    sizes = {f"hist/{PUB.pack.pack_relpath(s, p)}": path.stat().st_size for (s, p), path in packs.items()}
+    in_bucket = {keys[0]: sizes[keys[0]], keys[1]: sizes[keys[1]] - 1}   # one whole, one PARTIAL (wrong size)
+    sent, order, logs = [], [], []
+    stats = PUB.upload(packs, idx,
+                       lambda k, path, ct: (sent.append(k), order.append("pack")),
+                       lambda k, data, ct: order.append("index"),
+                       prefix="hist/", jobs=2, log=logs.append, every=1,
+                       exists=lambda k, size: in_bucket.get(k) == size)
+    assert keys[0] not in sent                        # already there at its size: not sent again
+    assert keys[1] in sent                            # a partial object is re-sent
+    assert sorted(sent) == sorted(set(keys) - {keys[0]})
+    assert stats["skipped"] == 1 and stats["packs"] == len(keys) - 1
+    assert order == ["pack"] * (len(keys) - 1) + ["index"] * len(idx)      # indexes still last
+    assert any(m.startswith(f"packs {len(keys)}/{len(keys)}") for m in logs)
+    assert any("1 already there" in m for m in logs)
+
+
 def test_scratch_rows_on_another_disk_change_nothing_and_stop_before_it_fills(raw, tmp_path, monkeypatch):
     here = tmp_path / "here"
     BLD.Builder(raw, here, quality=5, packs=True, **QUIET).run(ALL)

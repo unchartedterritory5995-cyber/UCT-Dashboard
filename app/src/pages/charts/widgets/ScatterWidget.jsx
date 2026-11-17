@@ -28,7 +28,7 @@ import { mergeNhnlSettings, nhnlDefaultsForTheme, nhnlWidgetStyleVars } from './
 import chrome from './NewHighsLowsWidget.module.css'
 import styles from './ScatterWidget.module.css'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
-import { prewarmVisibleList } from '../../../utils/prefetchBars'
+import { prewarmVisibleList } from '../../../utils/barsWarm'
 import { KIND, channelFor, useChannel } from '../../../lib/context/contextChannels'
 import Input from '../../../components/ui/Input'
 import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
@@ -521,7 +521,7 @@ export default function ScatterWidget({ color, opts, onOptsChange }) {
                 ? `Following the list shown in this group's watchlist`
                 : linkedUnplottable
                   ? `The linked list is a ${linked.source}, which the map cannot plot — showing ${cur.label || 'its own universe'} instead`
-                  : `Pick a list in a watchlist on this colour group to plot it here`}>
+                  : `Pick a list in a watchlist on this color group to plot it here`}>
               <UIcon name="link" size={10} gold={false} />
               <span className={styles.uniTabLabel}>
                 {showingLinked
@@ -536,7 +536,7 @@ export default function ScatterWidget({ color, opts, onOptsChange }) {
         </div>
         <button type="button" className={`${styles.uniAdd} ${following ? styles.uniFollowOn : ''}`}
           onClick={toggleFollow} aria-pressed={following}
-          title={following ? 'Stop following the linked list' : "Follow the list picked in this colour group's watchlist"}
+          title={following ? 'Stop following the linked list' : "Follow the list picked in this color group's watchlist"}
           aria-label="Follow the linked list">
           <UIcon name="link" size={12} gold={false} />
         </button>

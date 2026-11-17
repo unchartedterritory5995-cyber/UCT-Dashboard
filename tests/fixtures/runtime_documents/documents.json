@@ -1014,7 +1014,7 @@
       },
       {
        "name": "Settings",
-       "note": "Kept at the author's default: `lineColor` (its default is not a literal value)."
+       "note": "Kept at the author's default: `lineColor` (it colours nothing this pane draws from its own run, so a colour picked here would change nothing)."
       }
      ],
      "requirementTags": []

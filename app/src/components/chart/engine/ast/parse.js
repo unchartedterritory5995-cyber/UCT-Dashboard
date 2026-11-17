@@ -28,7 +28,7 @@
 
 import jsep from 'jsep'
 import TABLE_JSON from './closedTable.json'
-import { expandCalls, ExpansionRefusal, recogniseExpansion, CALL_EXPANSIONS } from './callExpansions.js'
+import { expandCalls, ExpansionRefusal, recogniseExpansion, CALL_EXPANSIONS, sarLegacyNote } from './callExpansions.js'
 // ⭐ engine-40 bytes: this re-export edge places the member-text guard-id rule (`guardIdText.js`, its ONE
 // authority) inside this module's chunk, which every chart-side wrap site already loads. Import it
 // from `./guardIdText.js`; this line exists for chunk placement (see that file's header).
@@ -589,7 +589,8 @@ export function vendorNotesForTree(ast, notes = VENDOR_NOTES) {
       const spec = hit && CALL_EXPANSIONS[hit.name]
       if (spec && typeof spec.vendorNote === 'string' && !taken.has(hit.name)) {
         taken.add(hit.name)
-        seen.push({ name: hit.name, note: spec.vendorNote })
+        // ⭐ 2026-11-16 — a tree saved with an earlier SAR window says so, not the current note
+        seen.push({ name: hit.name, note: hit.legacyWarmup ? sarLegacyNote(hit.legacyWarmup) : spec.vendorNote })
         continue // the note covers the whole expansion; its inner nodes are its own
       }
     }

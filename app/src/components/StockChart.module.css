@@ -27,7 +27,12 @@
   border: 1px solid var(--chart-panel-border-low, rgba(255, 255, 255, 0.06));
   backdrop-filter: blur(2px);
   pointer-events: auto;
+  /* Owner 11-16: pairs with the A/L pill — 5px radius, and resting at half strength until the chart is hovered. */
+  border-radius: 5px;
+  opacity: 0.5;
+  transition: opacity 0.15s ease;
 }
+.wrapper:hover .rangeBar { opacity: 1; }
 /* Hidden until the sampler has pinned it at the anchor it keeps (`data-placed`, written by
    StockChart once `lookbackPlacementSettled` says the separate Volume pane it sits above exists,
    or after `LOOKBACK_REVEAL_MAX_MS`). Without it the bar painted at the fallback above, then at
@@ -118,6 +123,10 @@
      the eye ran them together. §11's rule still holds — the air goes BETWEEN the
      rows and the container's own padding is unchanged. */
   row-gap: 8px;
+  /* ⭐ HALF THE `row-gap`, exactly as `.studyStack` sets it: a pane readout's rows (MACD and
+     its signal) meet, so the pointer never falls through to the chart between them and flips
+     every number. Railed with the stack's in `legendOneRow.test.jsx`. */
+  --row-hit-pad: 4px;
   align-content: start;
   /* ⭐ THE LEGEND'S TYPE, NOT THE VOLUME STRIP'S (owner: "for the indicator values
      can you use the same font, font thickness, and color, and boldness as the
@@ -148,7 +157,21 @@
      restyling it THERE would change the flat legend too, which nobody asked for. */
   font-weight: 500;
 }
-.paneLegend strong { font-weight: 600; }
+.paneLegend strong { font-weight: 500; } /* owner 11-16: the value takes the label's weight */
+/* ⭐ Owner 11-16 (Option C) — THE VOLUME STRIP IS A STUDY STACK TOO. Its rows are `vertical`
+   `LegendRow`s with the indicator hover strip, so it takes `.paneLegend`'s stack rules (column,
+   start-aligned, 8px row pitch, weight 500). ⛔ NOT `top` — this strip is pinned to the volume
+   pane's top by its own sampler (fallback `76%` above). ⛔ AND STILL ITS OWN CLASS NAME:
+   `ChartRender.jsx` re-shows `[class*="volLegend" i]` in the export (as `display:flex`, which
+   keeps this column). */
+.volLegend {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  row-gap: 8px;
+  font-weight: 500;
+}
+.volLegend strong { font-weight: 500; }
 /* ⭐ A PANE THAT IS ONE LOGICAL INDICATOR WEARS ITS NAME ONCE (2026-09-30) — the COT
    pane reads `NASDAQ-100 E-MINI · COT  Net Contracts` above its three participant
    rows, so the market is never repeated three times. It spans the whole grid, uses
@@ -218,6 +241,10 @@
   --legend-ink-bright: var(--legend-ink-bright-low, var(--text-bright));
   --legend-ink-text: var(--legend-ink-text-low, var(--text));
   --legend-ink-muted: var(--legend-ink-muted-low, var(--text-muted));
+  /* Owner 11-16 — the shared label/value ink and the coloured-value band, from the SAME low sample. */
+  --legend-ink-pair: var(--legend-ink-pair-low, var(--text-muted));
+  --legend-val-lmin: var(--legend-val-lmin-low);
+  --legend-val-lmax: var(--legend-val-lmax-low);
 }
 .volLegItem { display: inline-flex; gap: 5px; align-items: baseline; }
 /* ⚰️ A `.volLegend:hover span[data-legend-ctl]` REVEAL STOOD HERE. It existed
@@ -252,31 +279,47 @@
    from value by WEIGHT (500 vs 600) at full opacity; layering an opacity on top
    would make this strip the one place where a label is dimmer than every other
    label on the chart. */
-.volLegLabel { color: var(--legend-ink-text, var(--text)); font-weight: 500; }
-.volLegVal { color: var(--legend-ink-bright, var(--text-bright)); font-weight: 600; font-variant-numeric: tabular-nums; }
+.volLegLabel { color: var(--legend-ink-pair, var(--text-muted)); font-weight: 500; }
+.volLegVal { color: var(--legend-ink-pair, var(--text-muted)); font-weight: 500; font-variant-numeric: tabular-nums; }
 :global([data-charts-theme='sunrise']) .volLegend,
-:global([data-charts-theme='sunrise']) .paneLegend { background: rgba(255, 255, 255, 0.55); }
-:global([data-charts-theme='sunrise']) .volLegLabel { color: #3f4a57; }
-:global([data-charts-theme='sunrise']) .volLegVal { color: #12202c; }
+:global([data-charts-theme='sunrise']) .paneLegend { background: rgba(255, 255, 255, 0.5); /* = the sunrise `.studyStack` */ }
+/* ⭐⭐ OWNER 11-16 — A SUB-PANE'S LEGEND ROWS LINE UP WITH THE PRICE PANE'S. Both strips (the volume
+   pane's `.volLegend` and every other pane's `.paneLegend`) are stacks of the SAME `LegendRow`s the
+   price pane's `.studyStack` holds, but their BOX was still the old horizontal volume strip's: 2px 7px
+   of padding (names 5px right of the price pane's), a filled 3px-radius panel, and no line-height
+   (a `normal` ~17px line, so a looser pitch than the price stack's 14 + 8). They take the price
+   stack's row metrics now: the same padding (so the same left inset from the shared `left: 8px`),
+   the same 14px line under the shared 8px row gap, and the same whisper wash instead of a panel.
+   ⛔ COPIED VALUES, RAILED EQUAL: `legend/paneLegendMetrics.test.js` fails if `.studyStack`'s change
+   and these do not. (Not `composes`: `.studyStack [data-legend-row="volume"]`'s extra air above the
+   Volume row must not reach the volume pane, where Volume is the first row.) */
+.paneLegend,
+.volLegend {
+  line-height: 14px;
+  padding: 0 3px 0 2px;
+  border-radius: 0;
+  background: color-mix(in srgb, var(--chart-panel-bg, rgba(14, 15, 13, 0.88)) 12%, transparent);
+  backdrop-filter: blur(1.5px);
+  -webkit-backdrop-filter: blur(1.5px);
+}
+:global([data-charts-theme='sunrise']) .volLegLabel,
+:global([data-charts-theme='sunrise']) .volLegVal { color: var(--legend-ink-pair, #33404f); }
 .rangeBtn {
   background: transparent;
   border: none;
   cursor: pointer;
   /* Strong token + opacity (see .volLegLabel): the plain token is a dim #8a8578
      on a dark canvas, which is what made these buttons hard to pick out. */
-  color: var(--chart-panel-text-strong-low, #e2dfd6);
-  opacity: 0.82;
+  color: #c9c6be;  /* UCT Signature resting ink (owner 11-16) */
   font-family: var(--font-sans);
   font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
+  font-weight: 500;
   padding: 2px 7px;
   border-radius: var(--radius-sm);
   transition: color 0.12s, background 0.12s, opacity 0.12s;
 }
 .rangeBtn:hover {
-  color: var(--chart-panel-text-strong-low, #e2dfd6);
-  opacity: 1;
+  color: #f8f7f3;
   background: var(--chart-panel-hover-low, rgba(255, 255, 255, 0.07));
 }
 
@@ -491,25 +534,29 @@
 .legendFlush {
   transform: translateY(-30px);
 }
+/* ⭐⭐ OWNER 11-16 — "make sure they're all the same contrast and brightness": the date, the O/H/L/C
+   labels and their values share ONE ink (`--legend-ink-pair`, legendInk.js LEGEND_PAIR_ROLE); the
+   value takes the label's weight too (500, owner 11-16 experiment). The signed change keeps its up/down hue. */
 .legendTime {
-  color: var(--legend-ink-text, var(--text));
-  font-weight: 600;
+  color: var(--legend-ink-pair, var(--text-muted));
+  font-weight: 500;
 }
 .legendLabel {
-  color: var(--legend-ink-text, var(--text));
+  color: var(--legend-ink-pair, var(--text-muted));
   font-weight: 500;
 }
 .legendVal {
-  color: var(--legend-ink-bright, var(--text-bright));
-  font-weight: 600;
+  color: var(--legend-ink-pair, var(--text-muted));
+  /* Owner 11-16 (experiment): the value takes the LABEL's weight — label/value differ only by position + series colour. */
+  font-weight: 500;
 }
 .legendUp {
   color: var(--ut-green-bright);
-  font-weight: 600;
+  font-weight: 500;
 }
 .legendDown {
   color: var(--loss);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 /* ── TSDR — Sunrise: legend box + chart chrome on the bright canvas ─────────── */
@@ -519,8 +566,8 @@
   box-shadow: 0 1px 5px rgba(20, 35, 55, 0.14);
 }
 :global([data-charts-theme='sunrise']) .legendTime,
-:global([data-charts-theme='sunrise']) .legendLabel { color: #55606e; }
-:global([data-charts-theme='sunrise']) .legendVal { color: #1c2836; }
+:global([data-charts-theme='sunrise']) .legendLabel,
+:global([data-charts-theme='sunrise']) .legendVal { color: var(--legend-ink-pair, #33404f); }
 :global([data-charts-theme='sunrise']) .legendUp { color: #0a5c22; }
 :global([data-charts-theme='sunrise']) .legendDown { color: #7d1620; }
 :global([data-charts-theme='sunrise']) .wrapper { background: #eef4ea; }
@@ -656,10 +703,10 @@
    dark canvas that lands near the signature grey, and on every other theme/canvas the ink
    still clears 4.5:1 (chartThemes.legendInk.test.js). No tracking. */
 .barDate {
-  color: var(--legend-ink-muted, var(--text-muted));
-  font-weight: 600;
+  /* Owner 11-16: the date and the O/H/L/C keys read in the SAME bright pair ink as the indicator names. */
+  color: var(--legend-ink-pair, var(--text-muted));
+  font-weight: 500;
   font-size: 11px;
-  opacity: 0.72;
 }
 /* One `O 708.80` pair. The gap between key and value is deliberately TIGHTER
    than the gap between fields (4px against 13px) — that ratio is what makes the
@@ -688,10 +735,9 @@
    than indicator numbers; that half is fixed in the JSX. This is the first half:
    the key steps back and the value is left exactly as it was. */
 .barKey {
-  color: var(--legend-ink-muted, var(--text-muted));
-  font-weight: 600;
+  color: var(--legend-ink-pair, var(--text-muted));
+  font-weight: 500;
   font-size: 10.5px;
-  opacity: 0.72;
 }
 /* ⭐ The member's legend colour (header.colors.legend) tints the VALUES: it arrives as
    `--legend-ink-bright` (legendInk.js), so a member who chose one still sees it, on the
@@ -761,6 +807,11 @@
      the eye ran them together. §11's rule still holds — the air goes BETWEEN the
      rows and the container's own padding is unchanged. */
   row-gap: 8px;
+  /* ⭐ HALF THE `row-gap`: how far each row's hit area reaches into the gap above and
+     below it (`LegendRow.module.css` `.vRow::after`), so two neighbouring rows meet and
+     the pointer never falls through to the chart between them. ⛔ Keep it at exactly
+     half: `legendHoverContinuity.test.js` re-derives it from the `row-gap` above. */
+  --row-hit-pad: 4px;
   align-content: start;
   /* The `+N more` disclosure's height, declared HERE so the fold reads it off the stack it
      budgets (`studyDisclosureRows` in StockChart.jsx): a touch surface that raises it to
@@ -815,7 +866,7 @@
    would become a lie the moment pane semantics put Volume anywhere but last.
    ⛔ AND IT IS SCOPED TO THE STACK, so the volume STRIP on the volume pane (a
    different surface, deliberately left alone) is untouched. */
-.studyStack [data-legend-row="volume"] { margin-top: 3px; }
+.studyStack [data-legend-row="volume"] { margin-top: 3px; --row-hit-top: 7px; }
 
 .studyMore {
   grid-column: 1 / -1;
@@ -1054,7 +1105,9 @@
    so it changes with the chosen chart canvas instead of the old fixed slate. */
 .scaleToggle {
   position: absolute;
-  right: 12px;
+  /* Owner 11-16: centred in the price-axis column (StockChart publishes --price-axis-w on the wrapper). */
+  right: calc(var(--price-axis-w, 56px) / 2);
+  transform: translateX(50%);
   z-index: 45;
   display: flex;
   gap: 1px;
@@ -1826,6 +1879,27 @@
 .legPresetName { font-size: 12px; font-weight: 600; }
 .legPresetOrigin { font-size: 11px; font-weight: 500; line-height: 15px; color: var(--text-muted); overflow-wrap: anywhere; }
 
+/* ⭐ UCT SIGNATURE chip menu (owner 11-16) — the chart right-click menu's look (`.chartCtx*` in
+   ChartsWorkspace.module.css, M4). Header: name left 13px/600, live value right #c9c6be, padded
+   like the rows. Rows (`chipMenuSigRow`): a page row ends in its value (dimmed) + a quiet ▸; a
+   not-yet row is one greyed line with a small "Soon" chip (ChartSettingsModal `.soonTag`). */
+.legMenuHeadSig { padding: 6px 10px 7px; margin: 0 0 3px; border-bottom-color: #2a2c31; }
+.legMenuHeadSig .legMenuName { font-size: 13px; font-weight: 600; color: #ededed; }
+.legMenuHeadSig .legMenuVal { font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; color: #c9c6be; }
+.legMenuHeadSig .legMenuSub { margin-top: 2px; font-size: 11px; color: #93939a; }
+.sigRow { display: flex; align-items: center; min-width: 0; }
+.sigName { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sigTrail {
+  margin-left: auto; padding-left: 14px; max-width: 120px; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: #93939a;
+}
+.sigCaret { margin-left: auto; padding-left: 10px; font-size: 10px; color: #93939a; }
+.sigTrail + .sigCaret { margin-left: 0; padding-left: 6px; }
+.sigSoon {
+  margin-left: auto; padding: 1px 6px; border-radius: 4px; flex: none;
+  font-size: 10.5px; font-weight: 600; line-height: 1.35; color: #93939a; background: rgba(248, 247, 243, 0.06);
+}
+
 /* The Preset row in the menu: `Preset   Classic (O'Neil) ›`. */
 .legVerbRow { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .legVerbTrail { margin-left: auto; min-width: 0; color: var(--text-muted); font-weight: 500; white-space: nowrap; overflow: hidden; }
@@ -1998,3 +2072,11 @@
   .legTourBody { font-size: 14px; line-height: 21px; }
   .legTourSkip, .legTourBack, .legTourNext { font-size: 14px; padding: 6px 14px; }
 }
+/* The chip menu's one icon: the UCT Agent's ✦, flat gold (was ContextPopover `.iconGold`). */
+.sigGold { display: inline-flex; color: var(--ut-gold); }
+.sigGold svg, .sigGold svg * { stroke: currentColor; }
+.sigCheck { margin-left: auto; padding-left: 12px; color: #f8f7f3; font-weight: 600; }
+/* The Display in page (`displayPageSigRows`): a quiet grey ‹ on the back row; the current
+   destination stays readable while refused (a disabled row is greyed), bold with its white ✓. */
+.sigBack { flex: none; margin-right: 8px; font-size: 14px; line-height: 1; color: #93939a; }
+.sigChosen { color: #f8f7f3; font-weight: 600; }

@@ -255,7 +255,6 @@
 .swatch { flex: none; width: 9px; height: 9px; border-radius: 2px; border: 1px solid rgba(255, 255, 255, 0.18); }
 .refused { color: #e57373; }
 .ack { font-size: 11px; color: var(--menu-text-dim, #b3b3b9); display: flex; gap: 6px; align-items: flex-start; }
-
 /* ── COMPOSER + ACTIONS ───────────────────────────────────────────── */
 .composer {
   flex: none;

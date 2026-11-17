@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRe
 import { dropAverages } from '../../components/chart/maAdoption'
 import { Responsive, WidthProvider } from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
-import usePreferences, { parsePref, refreshPreferences } from '../../hooks/usePreferences'
+import usePreferences, { parsePref, refreshPreferences, mergeIntoPreferenceCache } from '../../hooks/usePreferences'
 import { beginPrefsOp, onPrefsUserChange, prefsUser } from '../../lib/prefsSession'
 import { onWorkspaceConflict, hasWorkspaceConflict } from '../../lib/workspaceConflict'
 import { markDeskHidden } from './deskKeyGate'
@@ -31,7 +31,8 @@ const AgentPanel = lazy(loadAgentPanel)
 // created once per mount, so mounting it cannot re-render anything (H14 / PERF-4).
 import { ContextChannelsProvider } from '../../lib/context/contextChannels'
 import LayoutDock from './LayoutDock'
-import { UCT_DEFAULT_ID, arrangementSig, layoutAutoSaves } from './layoutDockPins'
+import WorkspaceShotButton from './WorkspaceShotButton'
+import { UCT_DEFAULT_ID, UCT_DEFAULT_OFFERED, arrangementSig, layoutAutoSaves } from './layoutDockPins'
 import { observeActive, recentLayouts } from './layoutTrail'
 import { WATCHLIST_DEFAULTS, watchlistDefaultsForTheme } from '../watchlist/watchlistSettings'
 import { THEME_TRACKER_DEFAULTS, mergeThemeTrackerSettings, themeTrackerDefaultsForTheme } from '../theme-tracker/themeTrackerSettings'
@@ -39,6 +40,7 @@ import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings, fundamentalsDefaultsF
 import { BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings, breadthDefaultsForTheme } from './widgets/breadthWidgetSettings'
 import { BASIC_WIDGET_DEFAULTS, mergeBasicWidgetSettings, basicDefaultsForTheme } from './widgets/basicWidgetSettings'
 import { mergeChartSettings, CHART_DEFAULTS, chartDefaultsForTheme } from '../../components/chart/chartDefaults'
+import { applyAppearanceToOtherCharts, countOtherCharts } from './chartAppearanceAll'
 import { patchOptsWithTheme, themeAllChartWidgets, patchWidgetOptsWithTheme, mapThemeToWidgetSettings, WIDGET_GLOBAL_PREF_KEYS, CHART_THEME_BY_ID, appThemeToChartTheme, appThemeSurface, themeWithAppSurface, tagAppTheme, resolveGlobalPrefSettings } from '../../components/chart/chartThemes'
 import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
 import { widgetOwnChrome, chartTypeCanvasEntry } from './widgetChrome'
@@ -88,6 +90,8 @@ import Input from '../../components/ui/Input'
 import { isSuspendedGroup } from './colorGroups'
 import useExtraGroupsEnabled from './useExtraGroupsEnabled'
 import { planLayoutUndo, layoutUndoDecision } from './layoutUndo'
+// Owner 11-16: the "Switched to “X” · Undo" banner on a member's layout switch is OFF.
+const LAYOUT_SWITCH_BANNER = false
 
 const ResponsiveGridLayout = WidthProvider(Responsive)
 
@@ -831,6 +835,17 @@ export default function ChartsWorkspace({ hidden = false }) {
 // ⛔ Kept out of the hook call's default so the empty list is one stable identity.
 const NO_MAIN_BOARD_WIDGETS = []
 const BOARD_HIDDEN_STYLE = { display: 'none' }
+// Board chrome the workspace screenshot leaves out (resize handles, the merged-mode drag grip, the
+// resize placeholder): CSS-module names, handed to the lazy capture so it imports no stylesheet.
+const SHOT_EXCLUDE_CLASSES = [styles.rzHandle, styles.rzPlaceholder, styles.mergedGrip]
+// The save dot's tooltip (owner 11-16: the resting words left the row; the dot says them on hover).
+const SAVE_STATE_TIPS = {
+  auto: 'Saves automatically',
+  saved: 'Saved',
+  saving: 'Saving…',
+  dirty: 'Unsaved changes — this layout doesn’t save automatically',
+  failed: 'Couldn’t save the latest changes. Click retry.',
+}
 
 function ChartsWorkspaceBoard({ boardHidden = false }) {
   const isPhonePortrait = useMediaQuery('(max-width: 640px)')
@@ -1313,12 +1328,13 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   const floatNewWidgetRef = useRef(null)
   const applyThemeAllRef = useRef(null)
   const applyThemeAllWidgetsRef = useRef(null)
+  const applyAppearanceAllRef = useRef(null)
   // ⭐ `canOpenCompare` (UCT RS 3-09): this workspace mounts the Compare Symbols
   // panel and opens it on a `uct:compare-open` event, on desktop only (the phone
   // shell mounts no panel and ignores the event). A chart widget reads it and
   // offers a readout row's "Open the rotation map" only where it is true.
   const workspaceValue = useMemo(
-    () => ({ groupSyms, setGroupSym, groupTfs, setGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, chartApiById: chartApiByIdRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: handleReplayCutoffPicked, onReplayPickCancel: cancelReplayPick, floatNewWidget: (type, at) => floatNewWidgetRef.current?.(type, at), applyThemeToAllCharts: (theme) => applyThemeAllRef.current?.(theme), applyThemeToAllWidgets: (theme) => applyThemeAllWidgetsRef.current?.(theme), canOpenCompare: !isMobile }),
+    () => ({ groupSyms, setGroupSym, groupTfs, setGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, chartApiById: chartApiByIdRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: handleReplayCutoffPicked, onReplayPickCancel: cancelReplayPick, floatNewWidget: (type, at) => floatNewWidgetRef.current?.(type, at), applyThemeToAllCharts: (theme) => applyThemeAllRef.current?.(theme), applyThemeToAllWidgets: (theme) => applyThemeAllWidgetsRef.current?.(theme), countOtherCharts: (source) => countOtherCharts(layoutRef.current?.widgets, source), applyAppearanceToOtherCharts: (source, settings) => applyAppearanceAllRef.current?.(source, settings) ?? 0, canOpenCompare: !isMobile }),
     [groupSyms, setGroupSym, groupTfs, setGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, handleReplayCutoffPicked, cancelReplayPick, isMobile],
   )
 
@@ -1357,6 +1373,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // save waits. A save landing between the head read and the apply would move the head
   // and make the member's own board change answer 409.
   const boardCommitInFlightRef = useRef(false)
+  const boardCommitSeqRef = useRef(0)                      // the newest board change
+  const boardCommitChainRef = useRef(Promise.resolve())   // board writes land one at a time
 
   // Debounced layout persist (500ms).
   const saveTimerRef = useRef(null)
@@ -1749,6 +1767,28 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     })
   }, [scheduleSave, prefs.chart_settings])
   applyThemeAllRef.current = applyThemeToAllCharts
+
+  // Chart Settings → "Apply to all charts" (owner 11-16): THIS chart's look onto every other chart surface in the open
+  // layout (base widgets, their chart tabs, chart widget-tabs) — never another layout, never the global chart_settings.
+  // What "look" means is chartAppearance.js (symbol, timeframe, indicators, drawings, panes, compare symbols stay each
+  // chart's own). ONE setLayout + the normal scheduleSave, so the board is dirty / saved exactly like a manual change.
+  // Returns how many charts changed (the dialog says "Applied to N charts").
+  const applyAppearanceAll = useCallback((source, settings) => {
+    if (!source || !settings) return 0
+    const seed = mergeChartSettings(prefs.chart_settings)
+    const cur = layoutRef.current || layout
+    const { count } = applyAppearanceToOtherCharts(cur.widgets, source, settings, seed)
+    if (!count) return 0
+    setLayout(prev => {
+      const r = applyAppearanceToOtherCharts(prev.widgets, source, settings, seed)
+      if (!r.count) return prev
+      const next = { ...prev, widgets: r.widgets }
+      scheduleSave(next)
+      return next
+    })
+    return count
+  }, [scheduleSave, prefs.chart_settings, layout])
+  applyAppearanceAllRef.current = applyAppearanceAll
 
   // "All widgets": every widget in the layout — chart or not — adopts the theme.
   // Charts get the full chart skin; watchlist/scanner/theme-tracker/fundamentals/
@@ -2265,33 +2305,54 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     // A pending autosave belongs to the board being replaced, and landing now would
     // move the head under this write.
     if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null }
+    // ⭐ OWNER 11-17 — A LAYOUT SWITCH IS INSTANT. It used to wait for three round trips (head read,
+    // write, preferences re-read) before the board changed. Now the board and the preference cache
+    // the new widgets read switch AT ONCE (the cache only: nothing is posted from here), and the
+    // one document write follows. A write that fails puts back exactly what was on screen.
+    const keys = [...new Set(steps.filter(s => s.kind === 'pref').map(s => s.key))]
+    const beforePrefs = Object.fromEntries(keys.map(k => [k, prefsRef.current?.[k]]))
+    const beforeLayout = layoutRef.current
+    let beforeCols = null
+    try { beforeCols = localStorage.getItem('uct.watchlist.cols') } catch { /* storage off */ }
+    const putColsBack = () => { try { if (beforeCols == null) localStorage.removeItem('uct.watchlist.cols'); else localStorage.setItem('uct.watchlist.cols', beforeCols) } catch { /* storage off */ } }
+    const seq = ++boardCommitSeqRef.current
     boardCommitInFlightRef.current = true
+    for (const s of steps) if (s.kind === 'pref') mergeIntoPreferenceCache(s.key, s.serialized, op)
+    applyColumnsSteps(steps)
+    applyLocal()
+    loadedFromPrefsRef.current = true
+    // ⛔ ONE WRITE AT A TIME. Clicking through tabs queues writes; each reads the head only after
+    // the previous one landed, so quick switching can never answer 409 against itself.
+    const prior = boardCommitChainRef.current
     let r
-    try {
-      r = await commitBoardDocument(boardDocumentPatch(steps))
-    } finally {
-      boardCommitInFlightRef.current = false
-    }
-    if (op.stale()) return 'stale'
+    const run = prior.then(() => commitBoardDocument(boardDocumentPatch(steps))).then((x) => { r = x }, () => { r = { status: 'failed' } })
+    boardCommitChainRef.current = run
+    await run
+    const latest = seq === boardCommitSeqRef.current
+    if (latest) boardCommitInFlightRef.current = false
+    // another member signed in meanwhile: nothing of this write is theirs, so the board goes back
+    if (op.stale()) { if (latest) { putColsBack(); setLayout(beforeLayout) } return 'stale' }
     if (r.status === 'dark') { legacy(); return 'legacy' }
     if (r.status === 'applied') {
-      // Re-read BEFORE the board switches, so the widgets it mounts read the values the
-      // document now holds (the same fresh read a version restore makes).
-      const fresh = await refreshPreferences()
-      applyColumnsSteps(steps)
-      applyLocal()
-      loadedFromPrefsRef.current = true
       onCommitted?.()
-      if (!fresh) workspaceNoticeRef.current?.('The layout was saved, but the board could not be reloaded. Reload the page to see it.')
+      // the board is already on screen; this re-read only adopts the server's revision
+      if (latest) refreshPreferences()
       return 'applied'
     }
+    // A later switch already replaced this board: its own write decides what stays.
+    if (!latest) return r.status === 'conflict' ? 'conflict' : 'failed'
     if (r.status === 'conflict') {
       const fresh = await refreshPreferences()
       const current = fresh ? parseLayout(fresh.charts_workspace_layout) : null
-      if (current) { setLayout(current); loadedFromPrefsRef.current = true }
+      putColsBack()
+      setLayout(current || beforeLayout)
       workspaceNoticeRef.current?.('Your board changed in another tab or window before this could be applied, so nothing was changed. Try again.')
       return 'conflict'
     }
+    // failed: put back exactly what was on screen before the switch
+    for (const k of keys) mergeIntoPreferenceCache(k, beforePrefs[k] === undefined ? undefined : (typeof beforePrefs[k] === 'string' ? beforePrefs[k] : JSON.stringify(beforePrefs[k])), op)
+    putColsBack()
+    setLayout(beforeLayout)
     workspaceNoticeRef.current?.('That did not go through, and your board was not changed. Try again in a moment.')
     return 'failed'
   }, [setPref])
@@ -2326,7 +2387,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     // charts_workspace_layout arrangement blob.
     const { chartSettings, watchlistSettings, themeTrackerSettings, fundamentalsSettings, breadthSettings, watchlistColumns, ...boardLayout } = parseLayout(tpl.layout) || tpl.layout
     commitBoard({
-      applyLocal: () => setLayout(boardLayout),
+      applyLocal: () => { setLayout(boardLayout); setOpenMenuOpen(false) },
       onCommitted: () => { setOpenMenuOpen(false); flashSaved() },
       build: (setPref, setWatchlistColumns) => {
         setPref('charts_workspace_layout', serializeLayout(boardLayout))
@@ -2462,21 +2523,30 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // `quiet` (TERM-010 first run): the same apply, without closing a menu nobody opened or
   // flashing "Saved" at a member who has not done anything yet. A click passes the
   // event, whose `quiet` is undefined, so the menu path is unchanged.
-  const applyUctDefault = useCallback(({ quiet = false } = {}) => {
+  // `keepBoard` (first visit while UCT Default is hidden): write the starting LOOK only and leave
+  // the board as it is — it is already the blank DEFAULT_LAYOUT, or holds the one widget a
+  // legacy ?ensure= door just seeded, which a blank replace would wipe (the clobber the ensure
+  // effect's ⛔ note describes; UCT_DEFAULT_LAYOUT only hid it by containing those types).
+  const applyUctDefault = useCallback(({ quiet = false, keepBoard = false } = {}) => {
     flushNamedSaveRef.current?.()
     userRemovedRef.current = false
     suppressAutoSave()
-    const normalized = parseLayout(UCT_DEFAULT_LAYOUT) || UCT_DEFAULT_LAYOUT
+    // UCT Default HIDDEN (UCT_DEFAULT_OFFERED, owner 11-16): every path into it — first visit,
+    // a stored 'uct-default' pointer, deleting the open layout — opens a BLANK board instead,
+    // with the same styling reset, and names no layout (the 'null' New Layout writes).
+    const normalized = UCT_DEFAULT_OFFERED
+      ? (parseLayout(UCT_DEFAULT_LAYOUT) || UCT_DEFAULT_LAYOUT)
+      : { widgets: [], cols: GRID_COLS }
     // On the LIGHT app theme, UCT Default paints a WHITE chart (chartDefaultsForTheme
     // 'light') and light-theme widget appearances; on dark it keeps the frozen owner
     // capture + the dark defaults. Parsed fresh each apply so the constants are never
     // mutated.
     const appTheme = prefs.theme === 'light' ? 'light' : 'dark'
     commitBoard({
-      applyLocal: () => setLayout(normalized),
+      applyLocal: () => { if (!keepBoard) setLayout(normalized) },
       onCommitted: () => { if (!quiet) { setOpenMenuOpen(false); flashSaved() } },
       build: (setPref, setWatchlistColumns) => {
-        setPref('charts_workspace_layout', serializeLayout(normalized))
+        if (!keepBoard) setPref('charts_workspace_layout', serializeLayout(normalized))
         setPref('chart_settings', appTheme === 'light' ? JSON.stringify(chartDefaultsForTheme('light')) : uctDefaultChartSettings())
         // Watchlist / Theme Tracker / Fundamentals / Breadth appearance are part of the
         // default too → reset them to the theme-appropriate defaults (light = white canvas
@@ -2496,7 +2566,9 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
         // id names it without inventing a row. Safe for every existing reader:
         // handleSaveLayout's `list.some(t => t.id === active.id)` can never match it,
         // and handleDeleteTemplate compares against numeric row ids.
-        setPref('charts_active_template', JSON.stringify({ id: UCT_DEFAULT_ID, name: 'UCT Default', scope: 'global' }))
+        setPref('charts_active_template', UCT_DEFAULT_OFFERED
+          ? JSON.stringify({ id: UCT_DEFAULT_ID, name: 'UCT Default', scope: 'global' })
+          : 'null')
       },
     })
   }, [commitBoard, flashSaved, prefs.theme, suppressAutoSave])
@@ -2509,6 +2581,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     if (tpl?.layout?.widgets?.length) {
       return { layout: parseLayout(tpl.layout) || tpl.layout, groups: tpl.groups || null, fromTemplate: true }
     }
+    if (!UCT_DEFAULT_OFFERED) return { layout: DEFAULT_LAYOUT, groups: null, fromTemplate: false }
     return { layout: parseLayout(UCT_DEFAULT_LAYOUT) || UCT_DEFAULT_LAYOUT, groups: null, fromTemplate: false }
   }, [globalLayouts, myLayouts])
 
@@ -2518,7 +2591,17 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   useEffect(() => {
     if (appliedDefaultRef.current) return
     if (prefsLoading || templatesLoading) return
-    if (parseLayout(prefs?.charts_workspace_layout)) { appliedDefaultRef.current = true; return }
+    if (parseLayout(prefs?.charts_workspace_layout)) {
+      appliedDefaultRef.current = true
+      // UCT Default HIDDEN: a member whose open layout is still the 'uct-default' sentinel is
+      // moved ONCE to the blank board (applyUctDefault now writes a blank board + a 'null'
+      // pointer, so this cannot re-fire on the next load). Their stored board WAS the UCT
+      // Default arrangement — a frozen layout that never auto-saved into anything.
+      if (!UCT_DEFAULT_OFFERED && parsePref(prefs?.charts_active_template, null)?.id === UCT_DEFAULT_ID) {
+        applyUctDefault({ quiet: true })
+      }
+      return
+    }
     appliedDefaultRef.current = true
     const d = resolveDefaultLayout()
     // TERM-010 (owner ruling 2026-09-29: "UCT Default layout"): a member with NO board and NO
@@ -2532,12 +2615,13 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     // (live 2026-09-29 to 09-30). They get the default on screen and no write, below.
     const storedUnreadable = isUnreadableStoredLayout(prefs?.charts_workspace_layout)
     if (!d.fromTemplate && !prefs?.chart_settings && !storedUnreadable) {
-      applyUctDefault({ quiet: true })
+      applyUctDefault({ quiet: true, keepBoard: !UCT_DEFAULT_OFFERED })
       return
     }
-    setLayout(d.layout)
+    // UCT Default hidden: the board is already blank (or holds an ?ensure= seed) — leave it.
+    if (UCT_DEFAULT_OFFERED || d.fromTemplate) setLayout(d.layout)
     if (d.groups) setGroupSymsState({ A: null, B: null, C: null, D: null, ...d.groups })
-  }, [prefsLoading, templatesLoading, prefs?.charts_workspace_layout, prefs?.chart_settings, resolveDefaultLayout, applyUctDefault])
+  }, [prefsLoading, templatesLoading, prefs?.charts_workspace_layout, prefs?.chart_settings, prefs?.charts_active_template, resolveDefaultLayout, applyUctDefault])
 
   // New layout → wipe to a blank workspace (no widgets) so the user can build a
   // fresh board from scratch. Clears the color groups too. Persisted like any edit,
@@ -2986,7 +3070,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // board). Defined here, above the mobile return, only because wsGlobal/wsMy
   // are; the dock itself renders in the desktop branch alone.
   const dockEntries = useMemo(() => ([
-    { id: UCT_DEFAULT_ID, name: 'UCT Default', scope: 'global' },
+    ...(UCT_DEFAULT_OFFERED ? [{ id: UCT_DEFAULT_ID, name: 'UCT Default', scope: 'global' }] : []),
     ...wsGlobalLayouts.map(t => ({ id: t.id, name: t.name, scope: 'global' })),
     ...wsMyLayouts.map(t => ({ id: t.id, name: t.name, scope: 'user' })),
   ]), [wsGlobalLayouts, wsMyLayouts])
@@ -3030,12 +3114,10 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // `layoutAutoSaves` (layoutDockPins.js), not restated here: Settings publishes
   // which layouts save themselves by calling the same function (TERM-052).
   const dockAutoSaves = layoutAutoSaves(dockActiveTpl)
-  // null = say nothing (UCT Default is frozen; a board with no named layout has nothing to save into)
-  const saveState = gridMode ? null
-    : savedFlash ? 'saved'
-    : dockDirty ? 'dirty'
-    : (dockActiveEntry && dockActiveId !== UCT_DEFAULT_ID) ? (dockAutoSaves ? 'auto' : 'saved')
-    : null
+  // The auto-save's own progress, for the save dot beside the layout name (owner 11-16):
+  // in flight, and the arrangement whose save was refused (cleared by the next good save).
+  const [autoSaveInFlight, setAutoSaveInFlight] = useState(false)
+  const [autoSaveFailSig, setAutoSaveFailSig] = useState(null)
 
   // Refs assigned during render (the idiom this file already uses for layoutRef):
   // they let the switch paths above — defined earlier — reach the save without a
@@ -3066,6 +3148,20 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   const autoSaveReady = !prefsLoading && !templatesLoading && boardSeeded
   const shrinkBlocked = !!dockCompare?.shrunk && !userRemovedRef.current
   const autoSaveOk = autoSaveReady && dockAutoSaves && dockDirty && !shrinkBlocked
+
+  // The save dot beside the layout name (owner 11-16). null = say nothing (UCT Default is frozen;
+  // a board with no named layout has nothing to save into). Words show only for 'saving' and
+  // 'failed' (and a "Save" link on an unsaved layout that does not save itself); the resting
+  // states are the dot and its tooltip. A refused save stays 'failed' until the board moves
+  // (which schedules a fresh attempt) or a retry lands.
+  const autoSaveFailed = !!autoSaveFailSig && dockDirty && autoSaveFailSig === arrangementSig(layout)
+  const saveState = gridMode ? null
+    : autoSaveFailed ? 'failed'
+    : (autoSaveInFlight || autoSaveOk) ? 'saving'
+    : savedFlash ? 'saved'
+    : dockDirty ? 'dirty'
+    : (dockActiveEntry && dockActiveId !== UCT_DEFAULT_ID) ? (dockAutoSaves ? 'auto' : 'saved')
+    : null
 
   // ── Restoring a board a closed page left behind. ──
   // Offered, never docked by itself, and only once the board has loaded: a dock onto the default
@@ -3198,7 +3294,11 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   }, [deskRepopSettled, isMobile, storedLayoutUnreadable])
 
   const runNamedSave = useCallback(() => {
-    namedSaveRef.current?.()
+    const sig = arrangementSig(layoutRef.current)
+    setAutoSaveInFlight(true)
+    Promise.resolve(namedSaveRef.current?.())
+      .then((r) => setAutoSaveFailSig(r && r.ok === false ? sig : null), () => setAutoSaveFailSig(sig))
+      .finally(() => setAutoSaveInFlight(false))
     userRemovedRef.current = false
   }, [])
 
@@ -3300,6 +3400,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // can be a no-op (a layout with no widgets, a refused board size, an unknown entry), and the
   // toast must never say "Switched to “X”" when nothing switched (Agent review, 2026-10-13).
   const [layoutUndo, setLayoutUndo] = useState(null)   // { plan, note, shown, at }
+  // Owner 11-16: no "Switched to …" banner. The state above still runs (cheap, and the switch can come back).
   const rememberLayoutOpen = useCallback((to) => {
     if (!to || to.id == null || String(to.id) === String(dockActiveId)) return
     setLayoutUndo({ plan: planLayoutUndo(agentLayoutsRef.current, to), note: null, shown: false, at: Date.now() })
@@ -3487,6 +3588,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // C3-037..039: the Layout Dock's own door to its RAIL (pin, move, take off the bar) — set by
   // LayoutDock itself on every render (LayoutDock.jsx agentRef), read through host.layoutDock.
   const agentDockRef = useRef(null)
+  // { openLibrary } — the Layouts menu's "Layout library…" row (LayoutDock.jsx controlRef).
+  const dockCtlRef = useRef(null)
   // This tab's layout trail (layoutTrail.js): every change of the open-layout pointer, from the
   // Dock or the Agent alike, so "switch back to the previous layout" has an answer.
   const layoutTrailRef = useRef({ last: null, trail: [] })
@@ -3502,7 +3605,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     const known = active?.id != null && dockEntries.some(e => e.id === active.id)
     let unsaved
     if (dockAutoSaves && known) unsaved = false
-    else if (active?.id === UCT_DEFAULT_ID) unsaved = arrangementSig(layout) !== arrangementSig(parseLayout(UCT_DEFAULT_LAYOUT) || UCT_DEFAULT_LAYOUT)
+    else if (UCT_DEFAULT_OFFERED && active?.id === UCT_DEFAULT_ID) unsaved = arrangementSig(layout) !== arrangementSig(parseLayout(UCT_DEFAULT_LAYOUT) || UCT_DEFAULT_LAYOUT)
     else if (known) unsaved = dockDirty
     else unsaved = (layout.widgets?.length || 0) > 0
     agentLayoutsRef.current = {
@@ -3986,7 +4089,9 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
             Nothing is removed from an over-bound board; it simply cannot grow. */}
         {/* ⭐ A1.3b — a member's layout open, undoable under the Agent's rules. When the
             switch discarded unsaved board state, it says so and offers NO Undo. */}
-        {layoutUndo && layoutUndo.shown && layoutUndo.plan.to && (
+        {/* Owner 11-16: "We don't need anything saying you switched" — the banner is off
+            (LAYOUT_SWITCH_BANNER). Going back = click the previous tab, or ask the UCT Agent. */}
+        {LAYOUT_SWITCH_BANNER && layoutUndo && layoutUndo.shown && layoutUndo.plan.to && (
           <div className={styles.boardBoundStatus} role="status" data-testid="layout-undo-toast">
             <span>
               {layoutUndo.note || (layoutUndo.plan.discarded
@@ -4010,29 +4115,52 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
         {/* Top-bar menu rows (owner 11-14): the widgets' menu look — a gold glyph, the label,
             and on the right a ✓ for an active mode or a › for a submenu. */}
         <header className={styles.workspaceHeader}>
+          {/* PINNED LAYOUT TABS (owner 11-16): the Layout Dock moved up here from its rail under the
+              board — same tabs, ＋, ⋯ overflow, right-click menu and library. */}
+          <LayoutDock
+            entries={dockEntries}
+            activeId={dockActiveId}
+            loading={templatesLoading}
+            merged={merged}
+            isAdmin={isAdmin}
+            dirty={saveState === 'dirty' || saveState === 'failed'}
+            onOpen={memberDockOpen}
+            onCreate={handleDockCreate}
+            onSave={handleSaveLayout}
+            onDuplicate={handleDockDuplicate}
+            onDelete={handleDockDelete}
+            onRename={handleDockRename}
+            onRestored={handleDockRestored}
+            agentRef={agentDockRef}
+            controlRef={dockCtlRef}
+          />
           {/* LAYOUTS — the open layout's NAME is the button (owner 11-15, UCT Signature): it says
               where you are and opens new / open / save / Multi Chart / pop out. Shown in BOTH modes;
               grid mode surfaces only the layout-relevant actions (Open + Multi Chart). */}
           <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
             <button
               type="button"
-              className={styles.tbName}
+              className={gridMode ? styles.tbName : styles.tbTabList}
               data-guide="workspace.layoutsMenuBtn"
+              data-grid={gridMode ? '' : undefined}
               aria-haspopup="menu"
               aria-expanded={layoutsMenuOpen}
               aria-label={`Layouts — ${layoutTitle}`}
               title="Layouts: switch, save, Multi Chart, pop out"
               onClick={() => { const n = !layoutsMenuOpen; closeToolbarMenus(); setLayoutsMenuOpen(n) }}
-            ><span className={styles.tbNameText}>{layoutTitle}</span><UIcon name="chevronDown" size={13} gold={false} /></button>
+            >{/* Owner 11-16 (top-bar option A): a small ▾ after the browser-style tabs, like a browser's
+                 tab list — the open layout's name lives ONLY on its tab. Multi Chart keeps its name here. */}{gridMode && <span className={styles.tbNameText}>{layoutTitle}</span>}<UIcon name="chevronDown" size={15} gold={false} /></button>
             {layoutsMenuOpen && (
               <div className={`${styles.addMenu} ${styles.tbMenu}`} style={{ minWidth: 240 }} data-guide="workspace.layoutsMenu" onMouseLeave={() => { setLayoutsMenuOpen(false); setLayoutsSub(null); setConfirmDeleteId(null) }}>
                 {layoutsSub === 'open' ? (<>
                   <button type="button" className={`${styles.addMenuItem} ${styles.tbBack}`} onClick={() => setLayoutsSub(null)}><UIcon name="chevronLeft" size={12} gold={false} aria-hidden="true" /><span>Back</span></button>
                   <div className={styles.menuDivider} />
-                  <div className={styles.menuSection}>Prebuilt</div>
+                  {(UCT_DEFAULT_OFFERED || wsGlobalLayouts.length > 0) && <div className={styles.menuSection}>Prebuilt</div>}
+                  {UCT_DEFAULT_OFFERED && (
                   <div className={styles.menuRow}>
                     <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { rememberLayoutOpen({ id: UCT_DEFAULT_ID, name: 'UCT Default' }); applyUctDefault(); closeToolbarMenus() }}><span className={styles.tbLbl}>UCT Default</span>{dockActiveId === UCT_DEFAULT_ID && <span className={styles.tbCheck} aria-label="open now"><UIcon name="check" size={13} gold={false} /></span>}</button>
                   </div>
+                  )}
                   {wsGlobalLayouts.map(t => (
                     <div key={`g${t.id}`} className={styles.menuRow}>
                       <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { rememberLayoutOpen(t); applyTemplate(t); if (gridMode) mc.exitGrid(); closeToolbarMenus() }}><span className={styles.tbLbl}>{t.name}</span>{t.id === dockActiveId && <span className={styles.tbCheck} aria-label="open now"><UIcon name="check" size={13} gold={false} /></span>}</button>
@@ -4083,6 +4211,9 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
                 ) : (<>
                   {!gridMode && <button type="button" className={styles.addMenuItem} data-guide="workspace.newLayout" onClick={() => { handleNewLayout(); closeToolbarMenus() }}><TbItem icon="plus" label="New layout" /></button>}
                   <button type="button" className={styles.addMenuItem} data-guide="workspace.openLayout" onClick={() => setLayoutsSub('open')}><TbItem icon="board" label="Open layout" sub /></button>
+                  {/* The layout library (owner 11-16: its button left with the bottom rail). Opens the
+                      Layout Dock's own library popover, under the tabs. */}
+                  <button type="button" className={styles.addMenuItem} data-guide="workspace.layoutLibrary" onClick={() => { closeToolbarMenus(); dockCtlRef.current?.openLibrary() }}><TbItem icon="library" label="Layout library…" /></button>
                   {!gridMode && <button type="button" className={styles.addMenuItem} data-guide="workspace.saveLayout" onClick={() => setLayoutsSub('save')}><TbItem icon="save" label={savedFlash ? 'Saved' : 'Save layout'} on={savedFlash} sub={!savedFlash} /></button>}
                   {!gridMode && <VersionHistoryMenuItem className={styles.addMenuItem} glyphClass={styles.tbGlyph} labelClass={styles.tbLbl} onOpen={openVersionHistory} />}
                   <button
@@ -4100,9 +4231,23 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
               </div>
             )}
           </div>
-
-          {/* The save state lives on the layout bar at the bottom (owner 11-15): beside the name its text
-              changed length and pushed the buttons around. */}
+          {/* SAVE STATE (owner 11-16): after the tabs; at rest the open tab's own dot says it (option 2). Words only while saving or after a
+              failed save, so the row never shifts at rest; the dot's tooltip says the rest. */}
+          {saveState && saveState !== 'saved' && saveState !== 'auto' && (
+            <span
+              className={`${styles.tbState}${saveState === 'dirty' ? ' ' + styles.tbStateDirty : ''}${saveState === 'failed' ? ' ' + styles.tbStateFailed : ''}`}
+              data-testid="layout-save-state"
+              data-state={saveState}
+              title={SAVE_STATE_TIPS[saveState]}
+            >
+              <span className={styles.tbStateDot} aria-hidden="true" />
+              {saveState === 'saving' ? 'Saving…'
+                : saveState === 'failed' ? <button type="button" className={styles.tbStateSave} onClick={runNamedSave}>Couldn’t save — retry</button>
+                : (saveState === 'dirty' && canSaveActive) ? <button type="button" className={styles.tbStateSave} onClick={() => handleSaveLayout()}>Save</button>
+                : <span className="sr-only">{SAVE_STATE_TIPS[saveState]}</span>}
+            </span>
+          )}
+          {/* Owner 11-16: Add widget + Tools sit on the LEFT, right after the tabs' ▾. */}
           <span className={styles.tbSep} aria-hidden="true" />
           {/* WIDGETS — add a widget (opens the widget-type menu) or merge the board. */}
           {!gridMode && (
@@ -4114,7 +4259,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
               aria-haspopup="menu"
               aria-expanded={widgetsMenuOpen}
               onClick={() => { const n = !widgetsMenuOpen; closeToolbarMenus(); setWHover(null); setWidgetsMenuOpen(n) }}
-            ><UIcon name="plus" size={13} gold={false} />Add widget</button>
+            ><UIcon name="plus" size={13} gold />Add widget</button>
             {widgetsMenuOpen && (
               <div className={`${styles.addMenu} ${styles.wAddMenu} ${styles.tbMenu}`} data-guide="workspace.widgetsMenu" onMouseLeave={() => { setWidgetsMenuOpen(false); setWidgetsSub(null) }}>
                 {/* Grouped, iconified quick-add — a compact anchored menu (no modal), one
@@ -4222,6 +4367,9 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
             </button>
           )}
           <span className={styles.tbSpacer} aria-hidden="true" />
+          {/* Screenshot workspace (owner 11-16): captures ONLY <main> (bodyRef) — never the site rail,
+              or this top row (with its layout tabs). Capture code is loaded on the click (workspaceShot.js). */}
+          <WorkspaceShotButton getBoard={() => bodyRef.current} layoutName={layoutTitle} excludeClasses={SHOT_EXCLUDE_CLASSES} onBeforeCapture={closeToolbarMenus} />
           {/* Merge Widgets is a mode you switch, so it is a toggle here, not a buried menu row
               (owner 11-15). On = the gold 1D underline. */}
           {!gridMode && (
@@ -4247,15 +4395,27 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
             ><UIcon name="sparkle" size={13} gold={false} className={styles.tbSpark} />UCT Agent</button>
           )}
         </header>
-        {/* UCT Agent: <main> + the Layout Dock become one column so the Agent can
-            sit at the FAR RIGHT of the whole workspace; the ResizeObserver on
-            .workspaceBody re-tiles the grid into the narrower column on its own. */}
+        {/* UCT Agent: <main> sits in one column so the Agent can sit at the FAR RIGHT of
+            the whole workspace; the ResizeObserver on .workspaceBody re-tiles the grid into
+            the narrower column on its own. (The Layout Dock moved into the top row 11-16.) */}
         <div className={styles.workspaceRow}>
         <div className={styles.workspaceMainCol}>
         <main className={`${styles.workspaceBody} ${merged ? styles.workspaceBodyMerged : ''}`} ref={bodyRef}>
           {gridMode ? (
             <MultiChartGrid mc={mc} />
           ) : renderGrid(visibleWidgets, mainGridHandlers)}
+          {/* Owner 11-16: a blank workspace (new members start here) says what to do. */}
+          {!gridMode && layout.widgets.length === 0 && !pendingAdd && (
+            <div className={styles.emptyBoard} data-testid="empty-board">
+              <div className={styles.emptyBoardTitle}>This workspace is empty</div>
+              <button
+                type="button"
+                className={styles.emptyBoardBtn}
+                onClick={() => { closeToolbarMenus(); setWHover(null); setWidgetsMenuOpen(true) }}
+              ><UIcon name="plus" size={14} gold />Add widget</button>
+              <div className={styles.emptyBoardHint}>Start with a chart, a watchlist or a scanner.</div>
+            </div>
+          )}
           {/* Smart-placement ghost: preview where a newly added widget will land
               (and which existing widgets shrink) before committing. */}
           {!gridMode && pendingAdd && (
@@ -4296,29 +4456,6 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
             />
           )}
         </main>
-
-        {/* The Layout Dock closes the frame the header opens. It is a flex
-            sibling of <main>, so the ResizeObserver on .workspaceBody re-tiles
-            the grid for its 29px on its own — no layout math changes. Desktop
-            only by construction: the phone returns above this. */}
-        <LayoutDock
-          entries={dockEntries}
-          activeId={dockActiveId}
-          loading={templatesLoading}
-          merged={merged}
-          isAdmin={isAdmin}
-          dirty={saveState === 'dirty'}
-          saveState={saveState}
-          canSave={canSaveActive}
-          onOpen={memberDockOpen}
-          onCreate={handleDockCreate}
-          onSave={handleSaveLayout}
-          onDuplicate={handleDockDuplicate}
-          onDelete={handleDockDelete}
-          onRename={handleDockRename}
-          onRestored={handleDockRestored}
-          agentRef={agentDockRef}
-        />
         </div>
         {agentAllowed && (
           <AgentDock open={agentOpen}>

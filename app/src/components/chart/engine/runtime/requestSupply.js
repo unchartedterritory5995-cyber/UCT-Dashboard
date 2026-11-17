@@ -29,6 +29,11 @@ import { resolveOtherSymbols, otherSymbolPending } from '../otherSymbols.js'
 
 export const REQUEST_GUARD = 'runtime:request'
 
+/** ⭐ REQ — the one sentence for a look-ahead read the run does not serve (the door and the bind say it). */
+const LOOKAHEAD_UNSERVED = 'a `request.security` looks ahead (`barmerge.lookahead_on`) at a timeframe the run does not '
+  + 'read ahead on: look-ahead is served for a weekly or monthly period above the chart’s own, the reading '
+  + 'TradingView was captured giving (`vw-request-htf-alignment-spy-1d-2026-10-02`)'
+
 /** The chart's timeframe code as the ladder spells it (`'1D'` → `'D'`). */
 function ladderCode(tf) {
   const s = String(tf == null ? '' : tf).trim().toUpperCase()
@@ -90,8 +95,12 @@ export function requestTargetsUnservable(targets, count) {
         + 'so which bars it needs is unknown'
     }
     if (target.unread === true) return unreadOwnSentence(target, null)
-    if (target.live === true) return 'a `request.security` looks ahead (`barmerge.lookahead_on`), which the run does not serve'
     const code = target.code == null ? null : ladderCode(target.code)
+    // ⭐ REQ (coverage unit, 2026-11-16) — a look-ahead read of a WEEKLY / MONTHLY period is served
+    // (`requestAlignment`, `live`). Look-ahead at any other code (the quarter, which the object pass
+    // alone reads) keeps its refusal; look-ahead at the chart's own period never reaches here (the
+    // host's reader answers `live: false` for it, and the lowering folds it).
+    if (target.live === true && (code === null || !TF_RESAMPLABLE.includes(code))) return LOOKAHEAD_UNSERVED
     if (code !== null && !TF_RESAMPLABLE.includes(code)) {
       return `a \`request.security\` reads the \`${target.code}\` timeframe; the run reads another timeframe only `
         + 'as a weekly or monthly merge'
@@ -129,11 +138,16 @@ export function runtimeRequestSupply(requests, rows, ctx = {}) {
     }
     // ⭐ RS RATING L8 (4b) — the chart's own symbol at a timeframe the host does not read
     if (target.unread === true) return refuse(unreadOwnSentence(target, ctx && ctx.tf, at(site)))
-    if (target.live === true) {
-      return refuse(`a \`request.security\`${at(site)} looks ahead (\`barmerge.lookahead_on\`), and the realtime `
-        + 'half of that alignment is not measured yet, so nothing is drawn bar by bar')
-    }
     const code = target.code == null ? null : ladderCode(target.code)
+    // ⭐⭐ REQ (coverage unit, 2026-11-16) — LOOK-AHEAD ON IS SERVED FOR A WEEKLY / MONTHLY PERIOD, by the
+    // pick the host's `tf_live` column makes (`interpret.js::tfLiveReads`: the period the bar is INSIDE),
+    // witnessed bar for bar on `vw-request-htf-alignment-spy-1d-2026-10-02` (A01 / A04 / A06). ⚰️ It was
+    // refused whatever the code ("the realtime half of that alignment is not measured yet") while the host
+    // lane drew the same request as a column. Any other look-ahead read keeps the refusal, by name.
+    if (target.live === true && (code === null || !TF_RESAMPLABLE.includes(code))) {
+      return refuse(`a \`request.security\`${at(site)} ${LOOKAHEAD_UNSERVED.slice('a `request.security` '.length)}, `
+        + 'so nothing is drawn bar by bar')
+    }
     if (code !== null) {
       // ⭐ ONLY THE MERGE THE HOST SERVES: a weekly or monthly read ABOVE the chart's own
       // timeframe (`TF_RESAMPLABLE`, the host `tf_merge` codes).
@@ -174,11 +188,12 @@ export function runtimeRequestSupply(requests, rows, ctx = {}) {
     }
     const sink = new Map()
     const aligned = requestAlignment({
-      chartBars: rows, srcBars, code, other,
+      chartBars: rows, srcBars, code, other, live: target.live === true,
       opts: {
         tf: ctx && ctx.tf,
         newestBarIsForming: ctx ? ctx.newestBarIsForming : undefined,
         historyFromListing: !!(ctx && ctx.historyFromListing === true),
+        curtained: !!(ctx && ctx.curtained === true),
         chartClockSink: sink,
       },
     })

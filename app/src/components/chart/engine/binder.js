@@ -61,7 +61,9 @@ import {
   lineStyleValue,
   OHLC_POOL_KEYS,
   plotActiveFor,
+  markerIsEvent,
 } from './pool'
+import { outputTypeOf, OUTPUT_TYPES } from './outputType'
 import { paneMode, paneStretchPlan, paneHeightMismatch } from './paneLayout'
 import { createFillPrimitive, createFillLayerGroup } from './fillPrimitive'
 import { MAIN_PRICE_SCALE_ID, applyAxisTenancy } from './placement'
@@ -69,7 +71,7 @@ import { fillOpacityOf, fillPaint, staticFillOf } from './fillPaint'
 import { opaqueOf } from '../designTokens'
 import { createBackgroundPrimitive, isNaColour, staticPaintColour } from './paintPrimitive'
 import { markersFor, createMarkerLayer } from './markerPrimitive'
-import { semanticsOf, SEMANTICS_UNKNOWN_PROPAGATES } from './definitionSemantics'
+import { semanticsOf, SEMANTICS_UNKNOWN_PROPAGATES, isPineImport } from './definitionSemantics'
 // ⭐⭐ C3B — the object lifecycle, on the chart. Same injection discipline as the
 // marker layer above it: the capability is handed in, and a host that does not
 // provide one simply draws no objects.
@@ -620,6 +622,71 @@ function splitFor(points) {
   let sp = splitMemo.get(points)
   if (!sp) { sp = splitGapRuns(points); splitMemo.set(points, sp) }
   return sp
+}
+
+/** Is output `key` of `def` an AUTHORED yes/no (`outputType` CONDITION, in a
+ *  house / member definition)? Memoised per definition object: the binder asks on
+ *  every sync and the answer is a pure function of the document.
+ *
+ *  ⛔⛔ NEVER A PINE IMPORT (coordinator ruling on #1550, 2026-11-17). For a Pine
+ *  `plotshape` / `plotchar` the reference treats the series as boolean "for all
+ *  location values except location.absolute": at `location.absolute` (our `inBar`)
+ *  TradingView reads the value as the y, a yes/no included, so an imported glyph
+ *  keeps value-as-y on both lanes until a capture shows TradingView's own picture
+ *  (queue row Q-MK1, `vw-mk1-bool-absolute.pine`). `isPineImport` is the one
+ *  authority for "Pine-translated maths by any door". */
+const conditionMemo = new WeakMap()
+function isConditionOutput(def, key) {
+  if (!def || typeof def !== 'object') return false
+  if (isPineImport(def)) return false
+  let m = conditionMemo.get(def)
+  if (!m) { m = new Map(); conditionMemo.set(def, m) }
+  if (!m.has(key)) {
+    const t = attempt(() => outputTypeOf(def, key))
+    m.set(key, !!(t.ok && t.value && t.value.type === OUTPUT_TYPES.CONDITION))
+  }
+  return m.get(key)
+}
+
+/** The series kinds an event glyph may ride in a pane: each holds the value it
+ *  draws, so a glyph above / below / on it sits inside the pane's own range. */
+const GLYPH_HOST_POOLS = new Set(['line', 'area', 'baseline', 'histogram', 'columns'])
+
+/**
+ * ⭐⭐ 2026-11-17 (backlog row 41) — WHAT AN EVENT GLYPH RIDES, per binding.
+ *
+ * `pool.markerIsEvent` says which glyphs have no y of their own (an above / below
+ * glyph, or a glyph on a yes/no output). Such a glyph needs a HOST whose values
+ * are on the scale, and its own 0/1 series then leaves the autoscale walk
+ * (`pool.seriesOptionsForPlot`, `markerOnHost`):
+ *   - `'price'` on pane 0: the chart's own price series, as an above / below
+ *     glyph already did (BATCH 2), so "on the bar" is on the candle;
+ *   - an INDEX into `bind` in any other pane: the first visible line-family plot
+ *     of the SAME instance on the same pane and scale (the line the event is
+ *     about, e.g. a new high of the relative strength line);
+ *   - `null`: no host — a glyph with a y (`inBar` on a number), or a pane of
+ *     markers only, whose column is all that frames the pane. Unchanged.
+ *
+ * Pure over `bind` and the resolved placements, so it is decided BEFORE pass one
+ * builds any series option.
+ */
+export function eventGlyphHosts(bind, settled, { isCondition = isConditionOutput } = {}) {
+  return bind.map((b, i) => {
+    const pl = settled[i]
+    if (!b || !pl || !b.plot || b.plot.hidden === true) return null
+    if (!markerIsEvent(b.plot, isCondition(b.def, b.plot.key))) return null
+    if (pl.paneIndex === 0) return 'price'
+    for (let j = 0; j < bind.length; j++) {
+      const o = bind[j]
+      const op = settled[j]
+      if (j === i || !o || !op || o.instanceId !== b.instanceId) continue
+      if (!o.plot || o.plot.hidden === true || o.plot.style === 'markers') continue
+      if (!GLYPH_HOST_POOLS.has(o.poolKey)) continue
+      if (op.paneIndex !== pl.paneIndex || op.scaleId !== pl.scaleId) continue
+      return j
+    }
+    return null
+  })
 }
 
 /** `time -> 'Aug 2026'` for an economic column, one per (column, adjustTime). */
@@ -2372,6 +2439,9 @@ export function createBinder({ chart, LWC, scope = '' }) {
     const settled = (tenancy.ok && Array.isArray(tenancy.value) && tenancy.value.length === resolved.length)
       ? tenancy.value
       : resolved.map((r) => (r && r.ok ? r.value : null))
+    // ⭐ ROW 41 — every event glyph's host, decided before any series option is.
+    const glyphHosts = eventGlyphHosts(bind, settled)
+    const hasPriceHost = typeof ctx.priceSeries === 'function'
     for (let bi = 0; bi < bind.length; bi++) {
       const b = bind[bi]
       // ⭐ W1b — `plots[].hidden`: COMPUTED, NEVER DRAWN. The column still reaches
@@ -2402,6 +2472,8 @@ export function createBinder({ chart, LWC, scope = '' }) {
         // is a question about PLACEMENT, and `pool` has never been told where a
         // series landed.
         lastValue,
+        // ⭐ ROW 41 — an event glyph that rides a host leaves the autoscale walk.
+        markerOnHost: glyphHosts[bi] !== null && (glyphHosts[bi] !== 'price' || hasPriceHost),
         LineStyle: LWC.LineStyle,
         LineType: LWC.LineType,
         // The declutter toggle (Alt+Shift+I). `visible` is part of the complete
@@ -2508,8 +2580,11 @@ export function createBinder({ chart, LWC, scope = '' }) {
         attempt(() => series.applyOptions(options))
       }
 
-      prepared.push({ b, paneIndex, scaleId, scaleOptions, series, guideHandles, options })
+      prepared.push({ b, bi, paneIndex, scaleId, scaleOptions, series, guideHandles, options })
     }
+    // ⭐ ROW 41 — the series each binding landed on, by its index in `bind`, so an
+    // event glyph can find the sibling line it rides (`eventGlyphHosts`).
+    const seriesAt = new Map(prepared.map((p) => [p.bi, p.series]))
 
     // ⛔⛔ THE LEFT AXIS IS ASSERTED **BEFORE** ANY SCALE IS WRITTEN, and the order
     // is the whole of it. `series.priceScale().applyOptions({visible: true})` on a
@@ -2740,10 +2815,16 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // above/below glyph rides the chart's own price series (`ctx.priceSeries()`, the
       // host `syncPaints` already uses); in any other pane, and for `inBar` (the value
       // the author plotted), it stays on the plot's series exactly as before.
-      const anchored = !!markerSpec && (markerSpec.position === 'aboveBar' || markerSpec.position === 'belowBar')
-      const priceHost = anchored && paneIndex === 0 && typeof ctx.priceSeries === 'function'
+      // ⭐⭐ ROW 41 (2026-11-17) — THE HOST IS `eventGlyphHosts`'s ANSWER: the price
+      // series on pane 0 (unchanged for above / below; now also for a glyph ON a
+      // yes/no output, which sat at price ≈ 1), the pane's own line elsewhere (an
+      // event glyph in a pane rode its 0/1 series and stretched the pane to 0..1),
+      // and the plot's own series when there is no host.
+      const host = markerSpec ? glyphHosts[p.bi] : null
+      const priceHost = host === 'price' && hasPriceHost
         ? (attempt(() => ctx.priceSeries()).value || null) : null
-      const markerHost = priceHost || series
+      const siblingHost = Number.isInteger(host) ? (seriesAt.get(host) || null) : null
+      const markerHost = priceHost || siblingHost || series
       if (markerLayer && (b.source !== 'same' || !markerSpec || markerLayer.host !== markerHost)) {
         attempt(() => markerLayer.clear())
         markerLayer = null

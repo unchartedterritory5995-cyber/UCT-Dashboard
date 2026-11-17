@@ -116,7 +116,7 @@ export default function ImageBox({ bars, onAccept, fetchImpl, disabled = false }
             ? 'Reading an indicator from a picture requires a paid plan.'
             : status === 429
               ? 'That is a lot of pictures in one hour. Try again shortly.'
-              : 'The picture reader could not be reached just now.',
+              : "The UCT Agent couldn't be reached just now.",
         })
         return
       }
@@ -148,7 +148,7 @@ export default function ImageBox({ bars, onAccept, fetchImpl, disabled = false }
       setAnswer({ saw: body.saw || '', candidates: rows, refused: rejected })
     } catch (err) {
       setRefusal({ gate: 'network',
-                   reason: 'The picture reader could not be reached just now.' })
+                   reason: "The UCT Agent couldn't be reached just now." })
     } finally {
       setBusy(false)
     }
@@ -156,25 +156,49 @@ export default function ImageBox({ bars, onAccept, fetchImpl, disabled = false }
 
   const blocked = disabled || busy || !file
 
+  /** A new picture is a new attempt: the last answer and the last refusal go with it. */
+  const takeFile = useCallback((f) => {
+    setFile(f || null)
+    setAnswer(null)
+    setRefusal(null)
+  }, [])
+
   return (
-    <div className={styles.wrap} data-testid="image-box">
+    <div
+      className={styles.wrap}
+      data-testid="image-box"
+      // ⭐ A screenshot on the clipboard can be pasted straight in (Ctrl/Cmd+V anywhere in the box).
+      onPaste={(e) => {
+        if (disabled || busy) return
+        const items = Array.from((e.clipboardData && e.clipboardData.files) || [])
+        const pic = items.find((f) => f && typeof f.type === 'string' && f.type.startsWith('image/'))
+        if (pic) { e.preventDefault(); takeFile(pic) }
+      }}
+    >
       <p className={styles.head}>Recreate it from a screenshot</p>
       <p className={styles.disclaimer} data-testid="image-disclaimer">{DISCLAIMER}</p>
 
-      <label className={styles.label} htmlFor={fileId}>The picture</label>
-      <input
-        id={fileId}
-        type="file"
-        accept={ACCEPT}
-        className={styles.file}
-        data-testid="image-file"
-        disabled={disabled || busy}
-        onChange={(e) => {
-          setFile((e.target.files && e.target.files[0]) || null)
-          setAnswer(null)
-          setRefusal(null)
-        }}
-      />
+      {/* ⭐ UCT Signature — a soft "Choose a picture" button, not the browser's file
+          control. The real input sits inside the label, visually hidden but still
+          focusable, so Tab / Enter / Space reach it and a screen reader names it. */}
+      <div className={styles.row}>
+        <label className={`${styles.pick} ${disabled || busy ? styles.dimmed : ''}`}>
+          <input
+            id={fileId}
+            type="file"
+            accept={ACCEPT}
+            className={styles.file}
+            data-testid="image-file"
+            aria-label="The picture"
+            disabled={disabled || busy}
+            onChange={(e) => takeFile(e.target.files && e.target.files[0])}
+          />
+          {file ? 'Choose another picture' : 'Choose a picture'}
+        </label>
+        <span className={styles.meta} data-testid="image-file-name">
+          {file ? (file.name || 'Pasted picture') : 'or paste one here'}
+        </span>
+      </div>
 
       <label className={styles.label} htmlFor={noteId}>
         Anything you know about it (optional)
@@ -193,7 +217,7 @@ export default function ImageBox({ bars, onAccept, fetchImpl, disabled = false }
       <div className={styles.row}>
         <button
           type="button"
-          className={`${styles.button} ${dim(blocked) || ''}`}
+          className={`${styles.button} ${styles.primary} ${dim(blocked) || ''}`}
           disabled={blocked}
           onClick={submit}
         >
