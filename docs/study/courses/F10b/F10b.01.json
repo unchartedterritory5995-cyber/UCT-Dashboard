@@ -171,6 +171,14 @@
    "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hd001",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-17"
   }
  ],
  "facts": [
@@ -665,6 +673,12 @@
    "source": "s20",
    "quote": "Skip a short when the stock is hard to borrow or the borrow fee is high.",
    "claim": "D48, our rule: we skip a short that is hard to borrow or carries a high borrow fee."
+  },
+  {
+   "id": "d001",
+   "source": "hd001",
+   "quote": "Shorts may be taught, but every short lesson says shorting is recommended only for traders who have already made $1 million trading.",
+   "claim": "Shorting is recommended only for traders who have already made $1 million trading (D-001)."
   }
  ],
  "walkthroughs": [
@@ -692,6 +706,7 @@
    "key": "w2",
    "title": "The locate comes first",
    "steps": [
+    "Before you ever short: we only recommend it to traders who've already made $1 million trading.",
     "Shorting happens in a margin account. Before your short goes through, your broker must locate the shares.",
     "A locate means reasonable grounds the shares can be borrowed and delivered on time. An easy-to-borrow list generally counts.",
     "Hard-to-borrow names can cost more to borrow, and your order may be refused."
@@ -705,7 +720,8 @@
     "f17",
     "f39",
     "f73",
-    "f72"
+    "f72",
+    "d001"
    ]
   },
   {

@@ -67,3 +67,10 @@ def test_walkthroughs_are_linted_too():
             "verify": {"w1": {"status": "pass"}}}
     r = vl.lint_unit(unit, SPEC)
     assert r["hard"]["internal_card"] >= 1 and r["hard"]["textbook_phrase"] >= 1
+
+
+def test_plain_english_criteria_is_not_our_working_file():
+    ok = {"key": "q01", "q": "Grade the decision.", "why": "A trade made on all your criteria is an A, even if it lost."}
+    bad = {"key": "q02", "q": "Which one?", "why": "Our criteria say the base needs three taps."}
+    assert vl.lint_question(ok, SPEC)["hard"] == []
+    assert {t[0] for t in vl.lint_question(bad, SPEC)["hard"]} == {"internal_ids"}
