@@ -31,6 +31,7 @@ import { memberError, memberSaveError, memberRefusal, chartRefusalWords } from '
 import { logStudioAction, definitionKinds, clientFailureOf } from './studioTelemetry'
 import { outputNamer, slotWords } from './readback'
 import { soleCueName, memberCueNames } from './derivedName'
+import { settingPatch, settingRefusal } from './derivedSettings'
 import { renamePatch, withMemberName } from './memberNamePatch'
 import { validateUserDefinitions } from '../../engine/nativeRegistry'
 import { saveReceipt } from '../studio/saveOutcomeReceipt'
@@ -180,6 +181,34 @@ export function renameTurn(before, name, { gateCtx = {}, memberWords = null } = 
     ...(renamed ? { rename: { from: renamed.from ?? null, to: renamed.to } } : {}),
     entries: [{ role: 'uct', kind: 'patched', revision: out.state.revision, updated: true,
       lines: [`Renamed to “${out.readback.name || name}”.`] }] }
+}
+
+/**
+ * ⭐ ONE SETTING CHANGED BY HAND (2026-11-17, `derivedSettings.js`) — a number of the working
+ * indicator set from its own field, with no model call. The ordinary `set_slot` op through the
+ * same engine door as a conversation turn: one revision, one Undo step, the name follows the
+ * maths, the preview redraws.
+ * @returns `{ok, state: next|null, changed, entries, stale?: true, errors?}` — `stale` when the
+ *   setting no longer matches the working indicator (the caller re-derives and shows the new list)
+ */
+export function settingTurn(before, setting, value, { gateCtx = {} } = {}) {
+  const refusal = settingRefusal(setting, value)
+  if (refusal) {
+    return { ok: false, state: null, changed: false, entries: [], message: refusal }
+  }
+  const patch = settingPatch(before, setting, value)
+  if (!patch) return { ok: false, state: null, changed: false, entries: [], stale: true }
+  const out = applyTurn(before, patch, { gateCtx })
+  if (out.result.status !== 'applied') {
+    const errors = out.result.errors || []
+    return { ok: false, state: null, changed: false, entries: [], errors,
+      // a `schema:` refusal's sentence is about the assistant's patch; this one was typed by hand
+      message: errors.length && !String(errors[0].code || '').startsWith('schema:')
+        ? errorWords(errors[0], before.working) : 'That value could not be applied.' }
+  }
+  return { ok: true, state: out.state, changed: true, changes: (out.result.changes || []).map((c) => ({ ...c })),
+    entries: [{ role: 'uct', kind: 'patched', revision: out.state.revision, updated: true, bySetting: true,
+      lines: [`Set ${setting.caption} ${setting.role} from ${setting.value} to ${value}.`] }] }
 }
 
 /** The longest description of its own work the dock shows from the assistant. */

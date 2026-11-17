@@ -111,6 +111,7 @@ import { clampVolPct, resolveVolPanePct, latchOnDrag, volPanePctOfStack,
 // ⚠️ `INDICATOR_LABELS` USED TO BE IMPORTED FROM `chartRegion` ALONGSIDE THESE.
 // B4 retired that nine-row table into the catalogue; `labelFor` is the reader.
 import { catalogRows, labelFor, anyLabelFor, oscillatorIds } from './chart/indicatorCatalog'
+import { scanLink } from '../pages/screener/scanLink'
 import { createSessionShadingPrimitive, computeSessionBands } from './chart/sessionShadingPrimitive'
 import { createSwingLabelsPrimitive } from './chart/swingLabelsPrimitive'
 import { createLevelZonesPrimitive } from './chart/levelZonesPrimitive'
@@ -536,12 +537,43 @@ export function studyFoldRoom(total, budget, disclosureRows = 1) {
  * legend for the life of the chart, before the fold ever got to fold it (measured, WebKit, 20
  * studies, the hub at 390/834 AND a mouse desktop at 1200). Waiting one frame for the folded
  * legend to render is what lets the fold do its job.
+ *
+ * ⛔ AND NO DECISION WHILE THE MEMBER HAS THE STACK EXPANDED (`expanded`, owner 2026-11-16).
+ * The collapse answers "the legend the chart chose to draw does not fit". A stack opened with
+ * `+N more` is taller than the pane BY THE MEMBER'S OWN CHOICE, and deciding on it punished the
+ * click: measured on production, `+3 more` on a short pane made the whole legend hover-only
+ * (gone the moment the pointer left the chart) and shrank its type, and `Less` did not bring it
+ * back, because the full height is only remembered while not collapsed. `fullLegendMeasurable`
+ * below keeps the expanded height out of that memory for the same reason.
  */
-export function nextCompactLegend(cur, fullBottom, rbTop, foldSettled = true) {
+export function nextCompactLegend(cur, fullBottom, rbTop, foldSettled = true, expanded = false) {
+  if (expanded) return null
   if (!foldSettled || !(fullBottom > 0)) return null
   if (!cur && fullBottom > rbTop) return true
   if (cur && fullBottom < rbTop - 12) return false
   return null
+}
+
+/**
+ * May this frame's legend height be remembered as "the full legend" the collapse is decided on?
+ * Only a settled fold, drawn full (not collapsed), and FOLDED: an expanded stack's height is the
+ * member's choice, never the chart's (see `nextCompactLegend`).
+ */
+export function fullLegendMeasurable(foldSettled, compact, expanded) {
+  return !!foldSettled && !compact && !expanded
+}
+
+/**
+ * Does the range bar (3M / 6M / YTD ...) step aside for the legend?
+ *
+ * It always did while the legend is collapsed to hover-only. It also does while the member has
+ * the study stack EXPANDED: the fold's budget ends where this bar's band begins, so a stack opened
+ * with `+N more` runs down into the band by definition, and the bar sat ON TOP of the stack's last
+ * rows and its `Less` button (measured 2026-11-16: a click on `Less` pressed `3M`). `Less` brings
+ * the bar back.
+ */
+export function rangeBarYieldsToLegend(compactLegend, stackExpanded) {
+  return !!compactLegend || !!stackExpanded
 }
 
 /**
@@ -6010,6 +6042,9 @@ export default function StockChart({
   // The `+N` fold, expanded in place. False on every mount on purpose: a strip
   // that reopens itself is a strip the user closed for nothing.
   const [chipsExpanded, setChipsExpanded] = useState(false)
+  // Read by the rAF sampler (a `[]`-deps loop): the collapse is never decided on an expanded stack.
+  const chipsExpandedRef = useRef(false)
+  chipsExpandedRef.current = chipsExpanded
   const legendHoveringRef = useRef(false)
   /** ⭐⭐ THE HOVER-ONLY LEGEND HOLDS WHILE THE POINTER IS ON IT (owner, 2026-11-16: it
    *  "flickers when I hold my mouse over it"; measured, 132 mounts and unmounts in 181
@@ -17943,13 +17978,13 @@ export default function StockChart({
               if (moreRows !== null && moreRows !== studyMoreRowsRef.current) { setStudyMoreRows(moreRows); foldSettled = false }
             }
             const leg = legendRef.current
-            if (foldSettled && leg && !compactLegendRef.current) {
+            if (leg && fullLegendMeasurable(foldSettled, compactLegendRef.current, chipsExpandedRef.current)) {
               lastFullBottomRef.current = leg.getBoundingClientRect().bottom - container.getBoundingClientRect().top
             }
             // The PRICE pane's own bottom, in container coordinates — the legend
             // lives in Price, so "does it still fit" is a question about Price.
             const nextCompact = nextCompactLegend(compactLegendRef.current, lastFullBottomRef.current,
-              plan.collapseThresholdPx, foldSettled)
+              plan.collapseThresholdPx, foldSettled, chipsExpandedRef.current)
             if (nextCompact !== null) setCompactLegend(nextCompact)
             // A budget or compact state just changed: the next frames must measure the result.
             if (!foldSettled || nextCompact !== null) settled = false
@@ -19615,6 +19650,9 @@ export default function StockChart({
           onPreset: (id, presetId) => { close(); handleChipPreset(id, presetId) },
           onModify: () => { close(); try { toolbarRef.current?.openCreateIndicator?.({ defId: c.defId }) } catch { /* noop */ } },
           onEditFormula: () => { close(); try { toolbarRef.current?.openFormulaEditor?.({ defId: c.defId }) } catch { /* noop */ } },
+          // ⭐ R1 — the Screener's existing run flow, opened on this indicator. `window.open(_, '_self')` is
+          // this file's navigation primitive (no router context here; see the desk-marker handler).
+          onRunOverList: () => { close(); const to = scanLink(c.defId); if (to) { try { window.open(to, '_self') } catch { /* noop */ } } },
           onScriptUpgrade: () => { close(); try { toolbarRef.current?.openScriptUpgrade?.({ defId: c.defId }) } catch { /* noop */ } },
           onCustomCopy: () => { close(); try { toolbarRef.current?.createCustomCopy?.({ def, inputs: (inst && inst.inputs) || {} }) } catch { /* noop */ } },
           onSettings: (id) => { close(); handleChipSettings(id) },
@@ -21310,7 +21348,8 @@ export default function StockChart({
           </div>
         </div>
       )}
-      {showRangeSelector && chartReady && filteredBars?.length > 1 && !compactLegend && (
+      {showRangeSelector && chartReady && filteredBars?.length > 1
+        && !rangeBarYieldsToLegend(compactLegend, legendV2 && chipsExpanded) && (
         <div ref={rangeBarRef} data-guide="chart.range" className={styles.rangeBar}>
           {RANGE_OPTS.map(([label, val], i) => (
             <button

@@ -741,7 +741,9 @@ def _matched_term(t: Mapping[str, Any]) -> Dict[str, Any]:
     if twin is not None:
         out["chart_formula"] = dc.formula_for(twin)
         out["rule"] = ("the firm's meaning of this term on a chart: use this formula and "
-                       "disclose its numbers in `assumptions`")
+                       "disclose its numbers in `assumptions`. If the member gave their own "
+                       "number for it (a different length or window), keep this formula's shape "
+                       "with the member's number")
     return out
 
 
@@ -1568,6 +1570,18 @@ def _chart_lexicon(base: Mapping[str, Any]) -> Dict[str, Any]:
         stems, cost = dc._stem_key(words)
         index[stems] = [{"kind": dc.TABLE_ENTRY, "key": key, "section": "functions",
                          "words": words, "cost": cost}]
+    # ⭐ L4 (2026-11-17) -- THE WORDS MEMBERS USE FOR A HOUSE TERM (`chart_twins.SPOKEN`): "relative
+    # volume", "distance from the 52 week high". Each joins as a term of the column it names, so
+    # `_matched_term` hands the assistant the Screener's own formula for it. ⛔ ADDED, NEVER REPLACED:
+    # a phrase whose words already resolve to something in the shared lexicon is left alone.
+    from api.services import ast_table
+    for phrase, column in chart_twins.spoken_phrases():
+        words = dc._form_tokens(phrase)
+        stems, cost = dc._stem_key(words)
+        if stems in index:
+            continue
+        index[stems] = [{"kind": dc.TABLE_ENTRY, "key": column, "section": ast_table.SCALARS_SECTION,
+                         "words": words, "cost": cost}]
     return {"index": index, "max_words": max((len(k) for k in index), default=1),
             "collisions": {k: v for k, v in (base.get("collisions") or {}).items() if k in index
                            and index[k] is base["index"].get(k)}}
@@ -1876,7 +1890,11 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
             result["allowance_left"] = left
     except Exception:                              # noqa: BLE001
         logger.exception("[converse] allowance read failed")
-    if admin and not result.get("ok") and trace.get("refusals"):
+    # ⭐ 2026-11-17 -- AND ON A TURN THAT WAS REPAIRED INTO A CHANGE. Measured on production:
+    # about one built turn in four pays a second model call, nearly always at one gate
+    # (`envelope:reference`), and the gate code alone does not say which name. A repair doubles
+    # the member's wait, so its cause has to be readable to be fixed.
+    if admin and trace.get("refusals"):
         # WHY EACH ATTEMPT WAS REFUSED, FOR THE BUILDERS ONLY (2026-11-16). The house set
         # found requests that fail twice at a name or reference check, and nothing outside
         # a DEBUG log said WHICH name: the failure could be counted and never fixed. An
@@ -2157,6 +2175,10 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
     attempts = 0
     last: Optional[_Refused] = None
     refusals: List[Dict[str, Any]] = []
+    # what each attempt was refused for: the outer door decides who may read it. Set here, not at
+    # the refused exit alone, so a turn REPAIRED into a change carries its first attempt's reason.
+    if isinstance(trace, dict):
+        trace["refusals"] = refusals
     extra = {"not_understood": not_understood, "unavailable": unavailable}
 
     while attempts < MAX_MODEL_CALLS:

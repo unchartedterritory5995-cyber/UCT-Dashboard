@@ -11,13 +11,14 @@ vi.mock('../components/StockChart', () => ({ default: () => null }))
 vi.mock('../components/chart/SymbolSearch', () => ({ default: () => null }))
 vi.mock('../components/CompanyLogo', () => ({ default: () => null }))
 // Record every warm call's timeframe argument.
-const calls = { toIDB: [], all: [], mem: [] }
+const calls = { toIDB: [], all: [], mem: [], urgent: [] }
 vi.mock('../utils/prefetchBars', () => ({
   prefetchBarsToIDB: (syms, tf, opts) => { calls.toIDB.push({ syms: [...syms], tf, priority: !!opts?.priority }) },
   prefetchAllTimeframes: (sym) => { calls.all.push(sym) },
   prefetchListAllTimeframes: () => {},
   warmMemFromIDB: (syms, tfs) => { calls.mem.push({ syms: [...syms], tfs }) },
-  prefetchBars: () => {}, prefetchBarOnIntent: () => {}, prewarmVisibleList: () => {},
+  prefetchBars: (syms, tf, opts) => { if (opts?.urgent) calls.urgent.push({ syms: [...syms], tf }) },
+  prefetchBarOnIntent: () => {}, prewarmVisibleList: () => {},
 }))
 vi.mock('../lib/chartReadoutStore', () => ({
   subscribeChartReadouts: () => () => {}, getChartReadout: () => null, hasFreshReadouts: () => false,
@@ -99,7 +100,7 @@ const Watchlists = (await import('./Watchlists')).default
 
 beforeEach(() => {
   localStorage.clear()
-  calls.toIDB = []; calls.all = []; calls.mem = []
+  calls.toIDB = []; calls.all = []; calls.mem = []; calls.urgent = []
   hub.tf = '5'; hub.sym = null
   vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) })))
 })
@@ -119,6 +120,17 @@ test('selecting a row network-warms the next rows (scan direction, nearest first
   // The zero-network promote reads ONLY the chart's timeframe now (was D/5/60/30/15).
   const m = calls.mem.find(c => c.syms.includes('DDD'))
   expect(m.tfs).toEqual(['5'])
+})
+
+test('the next two rows are warmed URGENTLY (not held behind the daily pack ingest), on the chart timeframe', async () => {
+  hub.sym = 'CCC'
+  render(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
+  await screen.findByText('CCC')
+  await waitFor(() => expect(calls.urgent.length).toBeGreaterThan(0))
+  const u = calls.urgent.find(c => c.syms[0] === 'DDD')
+  expect(u).toBeTruthy()
+  expect(u.tf).toBe('5')
+  expect(u.syms).toEqual(['DDD', 'EEE'])
 })
 
 test("the selected row's other timeframes wait for the selection to REST (not every press)", async () => {

@@ -123,6 +123,10 @@
      the eye ran them together. §11's rule still holds — the air goes BETWEEN the
      rows and the container's own padding is unchanged. */
   row-gap: 8px;
+  /* ⭐ HALF THE `row-gap`, exactly as `.studyStack` sets it: a pane readout's rows (MACD and
+     its signal) meet, so the pointer never falls through to the chart between them and flips
+     every number. Railed with the stack's in `legendOneRow.test.jsx`. */
+  --row-hit-pad: 4px;
   align-content: start;
   /* ⭐ THE LEGEND'S TYPE, NOT THE VOLUME STRIP'S (owner: "for the indicator values
      can you use the same font, font thickness, and color, and boldness as the
