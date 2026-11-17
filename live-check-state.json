@@ -1,5 +1,5 @@
 {
-  "fingerprint": "",
-  "posted_at": "2026-11-17T20:35:16.335769+00:00",
-  "reason": "morning summary"
+  "fingerprint": "service:bars-api=running 85bf2a7f7b, which is NOT on master: a rollback or a hand deploy of other code|service:terminal-next-monitor=running 85bf2a7f7b, which is NOT on master: a rollback or a hand deploy of other code",
+  "posted_at": "2026-11-17T21:02:20.537253+00:00",
+  "reason": "new stuck item"
 }
