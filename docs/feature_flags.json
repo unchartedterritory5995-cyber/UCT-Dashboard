@@ -2747,6 +2747,18 @@
       ],
       "note": "DARK (unset = off for everyone). Sharing scan-board layouts with the community (owner direction 2026-11-17: \"i want people to be able to publish their scan layouts to the community\"). With it on, a member on the scan board can share the ARRANGEMENT of a layout (its widgets, their boxes and the results row style) under a name, browse the layouts other members shared, load one into their own layouts, and report one. A shared layout never carries a screen, a filter or a switch. REVIEW FIRST: a shared layout is pending and invisible to other members until an admin approves it; an admin can decline, hide or unhide, and hide is never a delete. Author shown by display name only. Server: api/routers/screener_layout_gallery.py (/api/screener/layout-gallery), tables screener_layout_gallery, screener_layout_gallery_reports and screener_layout_gallery_uses in auth.db, removed with the account. Limits per member: 10 listed or pending layouts, publish 10/hour and 10/day, report 30/hour, use 60/hour. Values: unset/0 off (every route answers 404), admin = owner preview (admins only; everyone else 404), 1 = everyone; read per request (api/routers/auth.py SCREENER_FLAGS), payload key screener_layout_gallery_enabled. Needs SCREENER_SCAN_BOARD_ENABLED (the menu lives on the board). Rollback: set 0; stored layouts are kept and not served."
     },
+    "SCREENER_LAYOUT_PUBLISH_DAILY_CAP": {
+      "status": "dark",
+      "since": "2026-11-17",
+      "where": [],
+      "exposure": "internal",
+      "default": "10",
+      "values": [
+        "unset (10)",
+        "a whole number, 0 or more"
+      ],
+      "note": "A KNOB, not a switch, declared here because its name carries PUBLISH and the visibility rail (tests/test_visibility_flag_ledger.py) asks every such variable to say what it does. It is the durable per-member daily cap on SHARING a scan-board layout to the community gallery: how many layouts one member may submit per day (api/routers/screener_layout_gallery.py::_daily_cap, read on each publish; counted in daily_usage_counters, scope screener_layout_publish; the day's charge is given back on any refusal). Unset, or a value that is not a whole number, is 10; 0 lets nobody share that day. It does NOT decide who can see anything: a shared layout is pending and invisible to other members until an admin approves it, and the whole feature is dark behind SCREENER_LAYOUT_GALLERY_ENABLED, which is unset. Set on no service. Added by the build session as the fix for the master deploy gate, which went red on 2026-11-17 because #1658 shipped this variable without a ledger row; the scan-board session owns the feature and may reword this."
+    },
     "SCREEN_BACKTEST_ENABLED": {
       "status": "armed",
       "where": [
