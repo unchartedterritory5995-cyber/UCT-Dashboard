@@ -233,10 +233,11 @@ def composed_schema() -> Dict[str, Any]:
         spec[2] for spec in call_expansions.CALL_EXPANSIONS.values())
         + ". Lengths are whole-number literals (supertrend's factor is any positive number). "
         "supertrend / supertrendDirection follow TradingView's published ta.supertrend "
-        "formula as bounded recurrences, shown after a ~400-bar warm-up; they carry a "
-        "disclosed difference (a band last reset long ago can differ from TradingView), "
-        "so never call them identical to TradingView. The others are exact closed forms "
-        "over the table.")
+        "formula and are shown after a ~400-bar warm-up; they carry a disclosed difference "
+        "(where the trend has not flipped for a long time the line can differ slightly from "
+        "TradingView), so never call them identical to TradingView. Tell the member that in "
+        "those plain words; never describe how it is computed. The others are exact closed "
+        "forms over the table.")
     # ⭐ SLICE 2 — THE MODEL MUST SAY WHAT ITS TURN IS. Optional in the shared
     # engine file (older envelopes and the engine's own tests carry none); required
     # of the model here, so mutation is never inferred from which fields happen to
@@ -561,7 +562,11 @@ CONVERSE_SYSTEM_PROMPT = (
     "  * Where it draws: a separate / own / new / lower pane, a sub-chart or \"below "
     "the chart\" is placement \"pane\"; on the price chart, an overlay or \"on the "
     "candles\" is placement \"price\". A ratio, percentage or difference that is not "
-    "in price units belongs in \"pane\" unless the member says otherwise.\n"
+    "in price units belongs in \"pane\" unless the member says otherwise. An indicator "
+    "draws in ONE place. When one request names outputs on two different scales (an "
+    "oscillator such as RSI together with moving averages of price), never put them in "
+    "one placement: build the part named first, where it belongs, and say in `reply` "
+    "that the rest is a second indicator the member can ask for next.\n"
     "  * Presentation: set_style (color, width, style, hidden, lineStyle "
     "solid/dashed/dotted/largeDashed, breaks true where a line has no value on some bars by "
     "design -- a level kept N bars after an event -- so it is not joined across them), "
@@ -578,7 +583,11 @@ CONVERSE_SYSTEM_PROMPT = (
     "a downtrend: set_color_states (`output` for a line / histogram, whose states may name a "
     "`relation` of that output; or `channel` barcolor / bgcolor for the candles / background, "
     "whose states are yes/no `when` trees). The first true state wins; re-send the WHOLE list "
-    "to change one state. A marker's size and color: set_marker `size` / `color`. "
+    "to change one state. \"The bars\" of an indicator that draws bars of its own (a volume or "
+    "other histogram) are THAT OUTPUT's bars: color them on that output (set_color_states with "
+    "an `otherwise`, or set_color_rule). `barcolor` paints the PRICE candles: only when the "
+    "member says candles or price bars, or the indicator draws no bars of its own. "
+    "A marker's size and color: set_marker `size` / `color`. "
     "A conditional cloud: set_fill with `when` (colorAbove where the first output is "
     "above the second, colorBelow where below). A header value: request_info_value. "
     "An alert: request_alert -- on a yes/no output with triggerPolicy is_true, "
@@ -587,7 +596,9 @@ CONVERSE_SYSTEM_PROMPT = (
     "another (higher) timeframe than the chart's: set_calculation_timeframe (\"a daily "
     "EMA on my 5-minute chart\"). A TABLE drawn on the chart: set_table (a position and cells; a "
     "cell is fixed text or the latest value of an output -- put values that belong only in the "
-    "table in HIDDEN outputs and point cells at them; a cell's text or background color may "
+    "table in HIDDEN outputs and point cells at them; a cell can NEVER point at a setting: to "
+    "show a setting's value add a hidden output whose tree is that setting's series and point "
+    "the cell at it; a cell's text or background color may "
     "follow a yes/no output -- colorWhen / backgroundWhen, e.g. green where bullish, red where "
     "not -- a yes/no cell may show its own `labels`, `size` sets text size and `span` merges a "
     "title across columns); remove_table removes it. Formula functions linreg, correlation, "
@@ -619,6 +630,29 @@ CONVERSE_SYSTEM_PROMPT = (
     "  A count of bars is never negative here: `highestbars`, `lowestbars` and `barssince` "
     "answer how many bars BACK (0 = this bar, 3 = three bars ago). This is not TradingView's "
     "sign: never negate one, and compare it with numbers of 0 or more.\n"
+    "  SuperTrend and Parabolic SAR are FUNCTIONS, called by name: `supertrend(factor, atrPeriod)` "
+    "with `supertrendDirection` (TradingView's sign: -1 while the trend is UP, 1 while it is "
+    "DOWN), and `sar(step, maxStep)` with `sarDirection` (1 while the dots are under price, -1 "
+    "while they are above). \"SuperTrend 10, 3\" is ATR period 10 and factor "
+    "3: supertrend(3, 10). Nothing else can read its own earlier value: there is no name for "
+    "that, and a window is always a literal whole number, never a computed one (\"since it was "
+    "last hit\" is not a window). A stop or level that ratchets -- it only moves one way until "
+    "price crosses it -- and is not one of those two cannot be written: set disposition "
+    "unsupported, say it needs a line that remembers its own earlier value, and offer what can "
+    "be built instead: SuperTrend, Parabolic SAR, or a line a fixed distance under the highest "
+    "close of a FIXED window.\n"
+    "  A length the member gives in weeks, months or years is that much TIME, never that many "
+    "bars of the chart: read it on that timeframe (\"over 52 weeks\" is 52 bars INSIDE a `tf` W "
+    "read; a whole indicator in weeks is set_calculation_timeframe W), or, for a price extreme, "
+    "use the daily count (a 52-week high is the highest of 252 daily bars). Do not build it in "
+    "the chart's own bars and ask the member to switch charts. \"Yesterday's\", \"the prior "
+    "day's\" and \"today's\" values are DAILY values: set_calculation_timeframe D, so they hold "
+    "on an intraday chart; `high[1]` alone is only the previous BAR.\n"
+    "  When this bar is COMPARED with \"the last N\", \"the previous N\" or \"the prior N\" bars "
+    "or days, the window is the N bars BEFORE this one: wrap it in an offset of 1 (volume above "
+    "the highest volume of the last 10 days is volume > offset 1 of highest(volume, 10)). A "
+    "window that includes this bar compares it with itself. Only \"is AT an N-bar high or low\" "
+    "includes this bar (close >= highest(close, N)).\n"
     "  A `sym` goes OUTSIDE a timeframe read, never under one: SPY's weekly close is "
     "sym(SPY, tf(close, W)). Wrap only what is read from the other symbol: "
     "\"close above SPY's 50 EMA\" compares the chart's close with "
@@ -1169,21 +1203,66 @@ def _inputs_as_constants(tree: Any, inputs: frozenset) -> Any:
     return root
 
 
+def _offered_calls_as_plain(tree: Any, declared: Any) -> Any:
+    """What the MODEL wrote, in a form the boundary gate can read: every call to a function the
+    door offers as an EXPANSION (`call_expansions.CALL_EXPANSIONS`, and not a name the table
+    declares) becomes a plain node over the same arguments. Its arguments are still checked; its
+    name, which the boundary's own name list does not carry, is not asked about twice
+    (`expand_calls` has already accepted or refused it by name).
+
+    ⚰️ WHY THE BOUNDARY READS THIS AND NOT THE EXPANDED TREE (found on production, 2026-11-17).
+    The vocabulary offers `supertrend`, `supertrendDirection`, `sar` and `sarDirection`, and
+    `call_expansions` writes each as bounded recurrences: `accum(seed, update, warmup)` whose
+    update reads its own previous value through the name the table declares for that ("self";
+    "state1".."state4" for the multi-state ones). The boundary gate polices the names the MODEL
+    may write, and those are the system's own names, not the model's. Handed the EXPANDED tree,
+    it refused the door's own expansion of a function the door had offered: "SuperTrend 10, 3"
+    cost two model calls and ended in "couldn't produce a valid change", every time.
+
+    ⛔ SO THE GATE LOOSENS NOWHERE. It reads the model's text, and a `self` or a `state1` the
+    model wrote itself (bare, in ordinary maths, or inside an `accum` it spelled out by hand) is
+    refused by name exactly as before. The expanded tree, which the system wrote, goes to the
+    gates that judge a tree about to be stored: canonical form, budget, the repaint lint, and
+    the engine's own interpreter, all of which already understand those names.
+    Iterative copy; the input is never mutated.
+    """
+    def plain(node: Any) -> Any:
+        if (isinstance(node, dict) and node.get("type") == "call"
+                and node.get("name") in call_expansions.CALL_EXPANSIONS
+                and not declared(node.get("name"))):
+            args = node.get("args")
+            return {"type": "op", "name": "+", "args": args if isinstance(args, list) else []}
+        return node
+
+    root = plain(copy.deepcopy(tree))
+    stack = [root]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, dict) and isinstance(node.get("args"), list):
+            node["args"] = [plain(a) for a in node["args"]]
+            stack.extend(node["args"])
+    return root
+
+
 def _check_tree(where: str, tree: Any, inputs: frozenset = frozenset()) -> None:
     """The concierge's own tree gates, minus evaluation (the engine probes)."""
     # ⭐ BATCH 2 -- a model's linreg / correlation / vwma / roc / mom / Keltner call is
     # checked as the tree the browser will STORE (``call_expansions``, mirrored from
     # ``callExpansions.js``), so budget, schema and lint judge only declared names.
     from api.services import ast_table
+    declared = lambda name: name in (ast_table.TABLE.get("functions") or {})  # noqa: E731
+    written = _inputs_as_constants(tree, inputs)          # what the MODEL wrote
     try:
-        tree = call_expansions.expand_calls(
-            tree, lambda name: name in (ast_table.TABLE.get("functions") or {}))
+        tree = call_expansions.expand_calls(tree, declared)
     except call_expansions.ExpansionRefused as exc:
         raise _Refused(exc.guard, f"{where}: {exc}", member=str(exc)) from exc
     tree = _inputs_as_constants(tree, inputs)
     _check_scopes(where, tree)
     try:
-        dc._assert_within_schema(_unscoped(tree))
+        # ⛔ the boundary reads the model's own text, never the door's expansion of it
+        # (`_offered_calls_as_plain`): strict about every name the model wrote, and silent about
+        # the names the system writes inside a function it offered
+        dc._assert_within_schema(_unscoped(_offered_calls_as_plain(written, declared)))
     except dc._Refused as exc:
         # the concierge's own gate; its located text is the model's diagnostic
         raise _Refused(exc.gate, f"{exc.reason} ({where})") from exc
@@ -1297,9 +1376,12 @@ def _check_references(envelope: Mapping[str, Any], view: Any) -> None:
                   for o in view_outputs if isinstance(o.get("key"), str) and "slots" in o}
     authored: Dict[str, Any] = {}
     reshaped: set = set()
+    tables: List[Tuple[int, Mapping[str, Any]]] = []
     ops = [o for o in (envelope.get("ops") or []) if isinstance(o, Mapping)]
     for i, o in enumerate(ops):
         name = o.get("op")
+        if name == "set_table":
+            tables.append((i, o))
         if name == "create":
             ck = _create_keys(o)
             if any(k is None for k in ck):
@@ -1346,6 +1428,39 @@ def _check_references(envelope: Mapping[str, Any], view: Any) -> None:
                     "for a line, add an `otherwise` colour.")
         if name in _RESHAPING_OPS and isinstance(o.get("output"), str):
             reshaped.add(o["output"])
+
+    # ⭐ 2026-11-17 -- A TABLE CELL POINTS AT AN OUTPUT, AND THE BROWSER SAYS SO AFTER THIS DOOR HAS
+    # ANSWERED `ok`. Measured on production: "a position size calculator table with account size,
+    # risk percent, entry and stop as settings" came back with cells pointing at the SETTINGS
+    # (`entry`, `stop`); this door passed it, the browser refused the whole patch ("There is no
+    # output "entry" for a table cell to show"), and the member read a red error for a request that
+    # had been built. The browser's rule (`tables.js::tableSpecProblem`) runs here, against the keys
+    # this answer ENDS with (never stricter than the browser: the order of ops is not judged), so
+    # the model gets its one repair with the way out in the diagnostic.
+    if tables:
+        settings = declared_inputs(envelope, view)
+        for i, o in tables:
+            for c in (o.get("cells") or []) if isinstance(o.get("cells"), list) else []:
+                if not isinstance(c, Mapping):
+                    continue
+                refs = [("cell", c.get("output"))] + [
+                    (field, (c.get(field) or {}).get("output")) for field in ("colorWhen", "backgroundWhen")
+                    if isinstance(c.get(field), Mapping)]
+                for what, ref in refs:
+                    if not isinstance(ref, str) or ref in keys:
+                        continue
+                    at = f"ops[{i}] set_table: the cell at row {c.get('row')}, column {c.get('col')}"
+                    if ref in settings:
+                        raise _Refused(
+                            "envelope:reference",
+                            f"{at} points at the setting {ref!r}. A cell shows an OUTPUT, never a "
+                            f"setting: add a hidden output whose tree is the series {ref!r} (a short "
+                            "key of its own) and point the cell at that output.")
+                    raise _Refused(
+                        "envelope:reference",
+                        f"{at} points at {ref!r}, which is not an output ({what}). The outputs are: "
+                        f"{', '.join(sorted(keys)) or 'none'}. Point it at one of them, or add the "
+                        "output it needs (hidden if it belongs only in the table).")
 
     for j, a in enumerate(envelope.get("assumptions") or []):
         if not isinstance(a, Mapping):
@@ -1612,6 +1727,35 @@ def _named_after_intent(label: str, text: str) -> bool:
     return False
 
 
+_NUMBER_IN_LABEL = re.compile(r"\d+(?:[.,]\d+)*")
+
+
+def _numbers_only_relabel(old: Any, new: Any) -> bool:
+    """``new`` is ``old`` with one or more of its numbers changed and nothing else (both folded
+    by ``_label_text``): "rsi 14" -> "rsi 21", "bb 20, 2" -> "bb 20, 2.5". False when the old
+    label has no number, when the words differ, or when a number was added or removed."""
+    if not (isinstance(old, str) and isinstance(new, str) and old and new and old != new):
+        return False
+    # two different labels that are equal once every number is masked differ ONLY in a number,
+    # so the old one necessarily carries one: no separate check for that
+    return _NUMBER_IN_LABEL.sub("#", old) == _NUMBER_IN_LABEL.sub("#", new)
+
+
+def _outputs_edited(ops: Any) -> set:
+    """The output keys whose MATHS this patch changes: a slot of theirs set (``key#n``), their
+    tree replaced, or a clause added to or removed from them."""
+    keys: set = set()
+    for o in ops or []:
+        if not isinstance(o, Mapping):
+            continue
+        name = o.get("op")
+        if name == "set_slot" and isinstance(o.get("slot"), str) and "#" in o["slot"]:
+            keys.add(o["slot"].split("#", 1)[0])
+        elif name in ("set_output_tree", "add_clause", "remove_clause") and isinstance(o.get("output"), str):
+            keys.add(o["output"])
+    return keys
+
+
 def check_output_renames(envelope: Mapping[str, Any], message: Any, view: Any,
                          turns: Any = ()) -> None:
     """⭐ 2026-11-02 -- OPEN-FINDINGS-2026-10 §3. A LINE IS RENAMED ONLY IN THE MEMBER'S
@@ -1633,7 +1777,16 @@ def check_output_renames(envelope: Mapping[str, Any], message: Any, view: Any,
     Refused like any envelope gate (never stripped -- ``check_envelope`` does not
     edit a patch), so the model gets its ONE bounded repair with the reason.
     Passes: a rename of a line this same patch creates or adds (it has no name the
-    member could have chosen yet), and a "rename" to the label it already has."""
+    member could have chosen yet), and a "rename" to the label it already has.
+
+    ⭐ 2026-11-17 -- AND A LABEL THAT ONLY FOLLOWS ITS OWN NUMBERS. Measured on production
+    over twenty multi-turn conversations: "make it 21" on a line labelled "RSI 14" came
+    back as the right ``set_slot`` plus ``rename_output`` to "RSI 21", was refused here, and
+    cost a second model call (twice the price and about six more seconds) on the commonest
+    edit there is. That relabel names nothing new: it is the same label with its numbers
+    updated, on a line whose maths this same patch changes. It passes
+    (``_numbers_only_relabel``). A label whose WORDS change is still refused, and so is a
+    number-only relabel of a line this patch does not touch."""
     if envelope.get("disposition") != "change":
         return
     ops = [o for o in (envelope.get("ops") or []) if isinstance(o, Mapping)]
@@ -1659,11 +1812,14 @@ def check_output_renames(envelope: Mapping[str, Any], message: Any, view: Any,
         cue_names.update(_label_text(n) for n in names)
         asked.append(_label_text(rest))
     one_line = len(current) <= 1
+    edited = _outputs_edited(ops)
     for i, o in enumerate(ops):
         if o.get("op") != "rename_output" or o.get("output") in new_keys:
             continue
         label = _label_text(o.get("label"))
         if not label or label == current.get(o.get("output")):
+            continue
+        if o.get("output") in edited and _numbers_only_relabel(current.get(o.get("output")), label):
             continue
         if (one_line and label in cue_names) or any(_named_after_intent(label, a) for a in asked):
             continue

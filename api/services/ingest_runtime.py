@@ -85,6 +85,8 @@ log = logging.getLogger("api.services.ingest_runtime")
 REMOTE_OWNER = "remote"
 SNAPSHOT_LOOKBACK_MIN = float(os.environ.get("INGEST_SNAPSHOT_LOOKBACK_MIN", "15"))
 SEED_WORKERS = max(1, int(os.environ.get("INGEST_SEED_WORKERS", "4")))
+# How long a NEW symbol's partial developing bars wait for its first seed (see _seed_hold).
+SEED_HOLD_S = float(os.environ.get("INGEST_SEED_HOLD_S", "3"))
 #: Seconds after boot before the first Massive connect (see DEPLOY HANDOFF).
 CONNECT_GRACE_S = float(os.environ.get("INGEST_CONNECT_GRACE_S", "45"))
 #: Ingest buffers hold a connect-time snapshot (~16 bars per 1m key) on top of the
@@ -157,6 +159,14 @@ class IngestRuntime:
         self._pool: Optional[ThreadPoolExecutor] = None
         self._seed_sem: Optional[asyncio.Semaphore] = None
         self._seed_tasks: set = set()
+        # sym -> monotonic s its FIRST seed was scheduled. Until that seed lands, the
+        # symbol's developing bars are partial (only the trades since the subscribe),
+        # and a client that takes a partial bucket as its first authoritative frame
+        # locks its open (liveBarMerge I2): the owner's wrong first candle. So its
+        # NON-final bars are held, and `_reoffer` sends the seeded bucket. Bounded by
+        # SEED_HOLD_S so a slow or failed seed never blanks the live candle.
+        self._seed_hold: dict = {}
+        self._first_seed: set = set()            # first seed scheduled, not finished
         self._reader: Optional[asyncio.Task] = None
         self._grace_until: Optional[float] = None
         self.counters = {"bars_routed": 0, "bars_unrouted": 0, "bars_superseded": 0,
@@ -164,7 +174,7 @@ class IngestRuntime:
                          "forgets": 0, "seeds_started": 0, "seeds_applied": 0,
                          "seed_errors": 0, "reseeds": 0, "upstream_changes": 0,
                          "bars_invalid": 0, "prices_invalid": 0, "keys_without_channels": 0,
-                         "seed_reoffers": 0}
+                         "seed_reoffers": 0, "bars_held_for_seed": 0, "seed_hold_expired": 0}
 
     def attach(self, server) -> None:
         self.server = server
@@ -207,7 +217,7 @@ class IngestRuntime:
                 self._interest.discard(sym)
                 self.bc.remove_interest([sym])
         for sym in sorted(new_syms):
-            self._schedule_seed(sym)
+            self._schedule_seed(sym, first=True)
         self.side.sync(union)        # lease expiry may have released seeds / volume symbols
 
     def _upstream(self, sym: str, want) -> None:
@@ -253,7 +263,10 @@ class IngestRuntime:
             self.counters["snapshots"] += 1
         for sym, key in added:
             tf, sess = fp.KEY_SPEC[key]
+            held = sym in self._seed_hold and self._holding(sym)
             for bar in self.bc.snapshot_bars(sym, tf, sess, lookback_ms=self.lookback_ms):
+                if held and not bar.get("final"):
+                    continue                  # partial: the seed's _reoffer sends it
                 if buf.offer_bar(sym, key, bar, bool(bar.get("final"))) is fp.Offer.STALLED:
                     return
                 self.counters["snapshot_bars"] += 1
@@ -305,6 +318,9 @@ class IngestRuntime:
             self.counters["bars_unrouted"] += 1
             return
         final = bool(bar.get("final"))
+        if not final and sym in self._seed_hold and self._holding(sym):
+            self.counters["bars_held_for_seed"] += 1
+            return
         for client in targets:
             try:
                 r = client.buffer.offer_bar(sym, key, bar, final)
@@ -348,7 +364,20 @@ class IngestRuntime:
 
     # ── seeds (D8) ────────────────────────────────────────────────────────────
 
-    def _schedule_seed(self, sym: str) -> None:
+    def _holding(self, sym: str) -> bool:
+        t = self._seed_hold.get(sym)
+        if t is None:
+            return False
+        if self._now() - t > SEED_HOLD_S:
+            self._seed_hold.pop(sym, None)
+            self.counters["seed_hold_expired"] += 1
+            return False
+        return True
+
+    def _now(self) -> float:
+        return self.server._mono() if self.server is not None else time.monotonic()
+
+    def _schedule_seed(self, sym: str, first: bool = False) -> None:
         if not self.seeding:
             return
         try:
@@ -358,6 +387,9 @@ class IngestRuntime:
         if self._pool is None:
             self._pool = ThreadPoolExecutor(max_workers=SEED_WORKERS, thread_name_prefix="ingest-seed")
             self._seed_sem = asyncio.Semaphore(SEED_WORKERS)
+        if first:
+            self._seed_hold.setdefault(sym, self._now())
+            self._first_seed.add(sym)
         task = loop.create_task(self._seed(sym))
         self._seed_tasks.add(task)
         task.add_done_callback(self._seed_tasks.discard)
@@ -365,6 +397,7 @@ class IngestRuntime:
     async def _seed(self, sym: str) -> None:
         async with self._seed_sem:
             if not self.bc.begin_seed(sym):
+                self._release_hold(sym)       # already seeded today: nothing partial to hide
                 return
             self.counters["seeds_started"] += 1
             try:
@@ -376,7 +409,19 @@ class IngestRuntime:
             # back on the loop: the apply (and the frames it emits) is ordered with the reader
             if self.bc.apply_seed(sym, bars):
                 self.counters["seeds_applied"] += 1
+                self._seed_hold.pop(sym, None)
+                self._first_seed.discard(sym)
                 self._reoffer(sym)
+            else:
+                self._release_hold(sym)       # a failed seed: the live bars are all there is
+
+    def _release_hold(self, sym: str) -> None:
+        # Re-offer even when the hold already EXPIRED: a bar dropped while held is marked
+        # sent by the broadcaster and would not come again until the bucket changes.
+        held = self._seed_hold.pop(sym, None) is not None
+        if held or sym in self._first_seed:
+            self._first_seed.discard(sym)
+            self._reoffer(sym)
 
     def _reoffer(self, sym: str) -> None:
         """After a seed corrected `sym`'s minute map: give every connected client the

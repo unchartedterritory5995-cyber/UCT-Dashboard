@@ -61,7 +61,7 @@ import tempfile
 import time
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "app"
@@ -249,6 +249,26 @@ def synthetic_bars(n: int = 360) -> List[dict]:
         day += _dt.timedelta(days=1)
         prev = close
     return bars
+
+
+#: How many synthetic bars a run has unless its cases file says otherwise, and the most it may ask for.
+DEFAULT_BARS = 360
+MAX_BARS = 5000
+
+
+def bar_count_of(cases_doc: Mapping[str, Any]) -> int:
+    """The length of the synthetic series for this cases file: its own top-level ``bars`` (a whole
+    number from ``DEFAULT_BARS`` to ``MAX_BARS``), else ``DEFAULT_BARS``.
+
+    A cases file asks for more when what it builds needs a long history before it has a value at
+    all: SuperTrend and Parabolic SAR are bounded recurrences shown after a warm-up of several
+    hundred bars, and on 360 bars their reference output is unknown on every bar, which this
+    runner refuses to grade. Anything else in that field is a mistake in the file and stops the run.
+    """
+    n = cases_doc.get("bars", DEFAULT_BARS) if isinstance(cases_doc, Mapping) else DEFAULT_BARS
+    if type(n) is not int or not (DEFAULT_BARS <= n <= MAX_BARS):
+        raise SystemExit(f"cases file: `bars` must be a whole number from {DEFAULT_BARS} to {MAX_BARS}, got {n!r}")
+    return n
 
 
 # --------------------------------------------------------------------------- #
@@ -557,7 +577,7 @@ class Run:
         self.cases_doc, self.script_doc, self.corpus_doc = cases_doc, script_doc, corpus_doc
         self.out_dir, self.lane, self.client, self.live = out_dir, lane, client, live
         self.chart = dict(cases_doc.get("chart") or {"sym": "TEST", "tf": "D"})
-        self.bars = synthetic_bars()
+        self.bars = synthetic_bars(bar_count_of(cases_doc))
         self.run_id = out_dir.name
         self.records_path = out_dir / "records.jsonl"
         self.turn_rows: List[dict] = []

@@ -167,3 +167,28 @@ test('what an admin still has to review: layouts waiting, and listed layouts wit
   expect(toReview(undefined)).toBe(0)
   expect(toReview('nope')).toBe(0)
 })
+
+// Found on the live site 2026-11-17: after "Stop sharing", Escape no longer closed the window.
+test('when the button that held the focus disappears, the focus comes back to the window and Escape still closes it', async () => {
+  answer.mine = [item('m1', 'My board', { mine: true, status: 'pending', uses: 0 })]
+  const p = draw()
+  await waitFor(() => expect(card('m1')).toBeInTheDocument())
+  const stop = within(card('m1')).getByRole('button', { name: 'Stop sharing' })
+  stop.focus()
+  answer.mine = []
+  fireEvent.click(stop)
+  await waitFor(() => expect(screen.queryByTestId('community-item-m1')).toBeNull())
+  const dialog = screen.getByRole('dialog', { name: 'Community layouts' })
+  await waitFor(() => expect(document.activeElement).toBe(dialog))
+  fireEvent.keyDown(document.activeElement, { key: 'Escape' })
+  expect(p.onClose).toHaveBeenCalledTimes(1)
+})
+
+test('a layout nobody has used yet says so, not "used 0 times"', async () => {
+  answer.items = [item('g1', 'Fresh', { uses: 0 })]
+  answer.mine = [item('m3', 'Mine', { mine: true, uses: 0 })]
+  draw()
+  await waitFor(() => expect(card('g1')).toBeInTheDocument())
+  expect(words(card('g1'))).toContain('by Dana K · not used yet')
+  expect(words(card('m3'))).toContain('Shared · not used yet')
+})

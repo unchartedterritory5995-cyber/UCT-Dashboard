@@ -435,3 +435,63 @@ def test_CONTROL_a_house_answer_with_one_number_wrong_fails_grading(tmp_path):
     proc, _work, out = _run(tmp_path, "--cases", str(HOUSE_CASES), "--script", str(bad), "--only", "house-distribution-day-count")
     assert proc.returncode == ce.EXIT_FAIL, proc.stdout[-2000:]
     assert any("neither by hash nor by value" in p for r in _records(out) for p in r["grade"].get("problems", []))
+
+# ═══ 2026-11-17 — indicators that carry a running state (SuperTrend, Parabolic SAR) ═════════════
+
+STATEFUL_CASES = ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_stateful_cases.json"
+STATEFUL_SCRIPT = ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_stateful_scripted.json"
+
+
+def test_a_cases_file_may_ask_for_a_longer_history_and_nothing_else():
+    assert ce.bar_count_of({}) == ce.DEFAULT_BARS == 360
+    assert ce.bar_count_of({"bars": 1500}) == 1500
+    assert ce.bar_count_of({"bars": ce.MAX_BARS}) == ce.MAX_BARS
+    for bad in (100, ce.MAX_BARS + 1, "1500", 1500.0, True, None):
+        with pytest.raises(SystemExit):
+            ce.bar_count_of({"bars": bad})
+    assert len(ce.synthetic_bars(1500)) == 1500
+    # the first 360 of a longer series are the default series: a longer run changes nothing earlier
+    assert ce.synthetic_bars(1500)[:360] == ce.synthetic_bars()
+
+
+def test_the_stateful_cases_are_the_four_functions_and_the_standard_controls():
+    """No bundler needed: what the fixture holds, and that it asks for enough history."""
+    doc = json.loads(io.open(STATEFUL_CASES, encoding="utf-8").read())
+    script = json.loads(io.open(STATEFUL_SCRIPT, encoding="utf-8").read())["turns"]
+    examples = [c for c in doc["cases"] if c["group"] == "example"]
+    called = set()
+    for case in examples:
+        (turn,) = case["turns"]
+        built = [o["tree"] for o in script[f"{case['id']}#0"][0]["ops"][0]["outputs"]]
+        assert [o["tree"] for o in turn["expect"]["outputs"]] == built      # the answer IS the function call
+        called |= {t["name"] for t in built}
+    assert called == {"supertrend", "supertrendDirection", "sar", "sarDirection"}
+    # shown only after their warm-up: the default series is too short for every one of them
+    from api.services import call_expansions
+    assert doc["bars"] > 2 * max(call_expansions.SUPERTREND_WARMUP, call_expansions.SAR_WARMUP) + 360 > ce.DEFAULT_BARS
+    base = {c["id"]: c for c in json.loads(io.open(ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_cases.json", encoding="utf-8").read())["cases"]}
+    assert {c["id"]: c for c in doc["cases"] if c["group"] == "control"} == {k: v for k, v in base.items() if v["group"] == "control"}
+
+
+@needs_node
+def test_supertrend_and_parabolic_sar_build_compute_and_grade_offline(tmp_path):
+    """The door, the browser's own patch engine and the grader, end to end. Before 2026-11-17 the
+    door refused its own expansion of these functions, so none of them could be built."""
+    proc, _work, out = _run(tmp_path, "--cases", str(STATEFUL_CASES), "--script", str(STATEFUL_SCRIPT))
+    assert proc.returncode == 0, proc.stdout[-3000:]
+    assert _last_line(proc.stdout).startswith("VERDICT: PASS"), proc.stdout[-1500:]
+    passed = {r["case"] for r in _records(out) if r.get("grade", {}).get("ok")}
+    assert {"stateful-supertrend", "stateful-supertrend-direction", "stateful-parabolic-sar", "stateful-sar-direction"} <= passed
+
+
+@needs_node
+def test_CONTROL_on_the_default_history_the_runner_refuses_to_grade_them(tmp_path):
+    """On 360 bars the reference is unknown on every bar. The runner says so and grades nothing,
+    rather than passing an all-empty line against an all-empty line."""
+    doc = json.loads(io.open(STATEFUL_CASES, encoding="utf-8").read())
+    del doc["bars"]
+    short = tmp_path / "short.json"
+    short.write_text(json.dumps(doc), encoding="utf-8")
+    proc, _work, _out = _run(tmp_path, "--cases", str(short), "--script", str(STATEFUL_SCRIPT), "--only", "stateful-supertrend")
+    assert proc.returncode != 0
+    assert "all-unknown on the synthetic bars" in proc.stdout + proc.stderr

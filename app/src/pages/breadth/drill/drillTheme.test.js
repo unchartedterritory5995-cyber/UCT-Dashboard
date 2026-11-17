@@ -1,10 +1,15 @@
 import { describe, it, expect } from 'vitest'
 import { followAppTheme, followOpts, appLook } from './drillTheme'
+import { CHART_DEFAULTS } from '../../../components/chart/chartDefaults'
 
+// A board with no `look` yet, still in the DEFAULT look, which is what follows.
+// ⚰️ This fixture used to carry made-up colours (#000000 canvas, #00ff00 candles)
+// and assert they were re-skinned: that is a member's own look being overwritten
+// on open. A legacy board in a member's look is kept (drillBoardFidelity.test.js).
 const board = () => ({
   widgets: [
     { id: 'drill-list', opts: { source: 'breadthDrill' } },
-    { id: 'drill-chart', opts: { settings: { background: '#000000', candles: { upColor: '#00ff00', downColor: '#ff0000' } } } },
+    { id: 'drill-chart', opts: { settings: { background: CHART_DEFAULTS.background, candles: { upColor: CHART_DEFAULTS.candles.upColor, downColor: CHART_DEFAULTS.candles.downColor } } } },
   ],
 })
 

@@ -28,7 +28,7 @@
 // onReconnect gap-backfill is unchanged.
 
 import { registerRecoveryStream } from './recoveryRegistry'
-import { STREAM_RECONNECT_CAP_MS, liveCandleCadenceMs } from '../utils/streamStatus'
+import { STREAM_RECONNECT_CAP_MS, LIVE_CANDLE_CADENCE_MS, liveCandleCadenceMs } from '../utils/streamStatus'
 
 export const MAX_BARS_PAIRS = 50   // mirror of api/routers/stream.py MAX_BARS_PAIRS
 // Stream protocol opt-in. v2 = the server may send a `final: true` correction whose `t`
@@ -63,12 +63,12 @@ let _lastResume = null          // the newest `event: resume` declaration, with 
 let _rebuildTimer = null
 let _watchdogTimer = null
 
-// Coalesce developing-bar dispatch to a ~2x/sec heartbeat (matches the price feed's
-// PUBLISH_THROTTLE_MS) so the candle + price label tick on the same calm cadence as
-// the quotes instead of repainting on every sub-second update — TC2000-style. A
-// bucket BOUNDARY (a new bar time for a key) flushes that key's prior-bucket final
-// bar IMMEDIATELY, so a bar's closing value is never coalesced away.
-const BAR_THROTTLE_MS = 500
+// Coalesce developing-bar dispatch to the live CANDLE cadence (LIVE_CANDLE_CADENCE_MS: 250 ms since
+// 2026-11-17, was 500), the same hold realtimeCandle uses, so the candle and its price label move
+// together instead of repainting on every sub-second update. A bucket BOUNDARY (a new bar time for a
+// key) flushes that key's prior-bucket final bar IMMEDIATELY, so a bar's closing value is never
+// coalesced away.
+const BAR_THROTTLE_MS = LIVE_CANDLE_CADENCE_MS
 const _pendingBar = new Map()   // key -> latest bar event awaiting the heartbeat flush
 let _barThrottleTimer = null
 
