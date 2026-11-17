@@ -20,6 +20,10 @@
 //               `tests/test_strategy_serve_arming.py::test_the_server_admits_no_strategy_today` holds that): NOTHING
 //               is served, every strategy is refused by name.
 //
+//   granted, a member's daily bars   the granted state again on the reference bars in the shape a member's DAILY chart
+//               hands the run (`ourSide.js::toProductBars`, `/api/bars`'s ISO date keys): the same answer, script by
+//               script, as on epoch seconds (2026-11-17, strategy-epoch-bar-times).
+//
 // ⛔ In neither state is there a third: a report showing a number an unpinned rule computed, a refusal with no sentence,
 // an empty cell, a guard id on screen, or a strategy whose backtest is silently absent.
 //
@@ -45,6 +49,7 @@ import {
 } from '../../runtimeKill'
 import { loadCapture } from '../../__tests__/vendorHarness/harness.js'
 import { barsOfCapture } from '../../__tests__/vendorHarness/strategyHarness.js'
+import { toProductBars } from '../../__tests__/vendorHarness/ourSide.js'
 import { historyWindowBarsOf, STRATEGY_DECLARATION } from './strategyArmed.js'
 import { strategyServeOutcome } from './strategyServe.js'
 import StrategyReportPanel from '../../../pane/StrategyReportPanel'
@@ -82,10 +87,11 @@ const scripts = fs.readdirSync(CORPUS).filter((f) => f.endsWith('.pine')).sort()
   .filter((s) => STRATEGY_DECLARATION.test(s.source))
 
 let bars
+let dailyBars
 let ctx
-const results = { granted: [], production: [] }
+const results = { granted: [], production: [], grantedDaily: [] }
 
-function runAll(mode) {
+function runAll(mode, onBars = bars) {
   const out = []
   for (const s of scripts) {
     for (const f of FLAGS) vi.stubEnv(f, '1')
@@ -99,7 +105,7 @@ function runAll(mode) {
       // the server's verdict for every committed strategy today (railed in Python): not admitted
       latchRuntimeAdmission(runtimeSourceHash(s.source), { admitted: false })
     }
-    out.push({ key: s.key, ...strategyServeOutcome({ source: s.source, bars, ctx, Panel: StrategyReportPanel }) })
+    out.push({ key: s.key, ...strategyServeOutcome({ source: s.source, bars: onBars, ctx, Panel: StrategyReportPanel }) })
     vi.unstubAllEnvs()
   }
   __allowEveryRuntimeScriptForTests()
@@ -109,10 +115,13 @@ function runAll(mode) {
 
 beforeAll(() => {
   vi.stubGlobal('fetch', () => Promise.reject(new Error('no network in this rail')))
-  bars = barsOfCapture(loadCapture(REFERENCE).capture)
+  const reference = loadCapture(REFERENCE).capture
+  bars = barsOfCapture(reference)
+  dailyBars = toProductBars(reference)
   ctx = { tf: 'D', symbol: SYMBOL, newestBarIsForming: false, historyFromListing: true, historyWindowBars: historyWindowBarsOf(ROOT) }
   results.granted = runAll('granted')
   results.production = runAll('production')
+  results.grantedDaily = runAll('granted', dailyBars)
 }, 600000)
 afterAll(() => { vi.unstubAllGlobals() })
 
@@ -155,5 +164,23 @@ describe('the serve census over corpus/committed, broker gate on', () => {
       expect(r.state, k).toBe('refused')
       expect(r.sentence, k).toBeTruthy()
     }
+  })
+
+  // ⭐⭐ (2026-11-17, strategy-epoch-bar-times) — THE MEMBER'S BAR SHAPE. A member's daily chart hands the run
+  // `/api/bars`'s ISO date keys, not the capture's epoch seconds above; until a broker run was handed each bar's
+  // opening instant (`runtimeColumns.js::brokerBarTimes`) every strategy that traded lost its report there (2 of these
+  // 25 served, both with no trade). The same census on that shape now answers exactly as on epoch seconds.
+  it('granted admission on a member\'s DAILY bars (ISO date keys): the same strategies served, with the same trades', () => {
+    expect(dailyBars.every((b) => typeof b.t === 'string')).toBe(true)
+    const rows = results.grantedDaily
+    expect(thirds(rows)).toEqual([])
+    expect(rows.filter((r) => r.state === 'served').map((r) => r.key).sort()).toEqual([...ARMED_COMMITTED])
+    for (const r of rows) {
+      const e = results.granted.find((x) => x.key === r.key)
+      expect([r.state, r.at, r.guard], r.key).toEqual([e.state, e.at, e.guard])
+      if (r.state === 'served') expect(r.served.trades, r.key).toBe(e.served.trades)
+    }
+    // non-vacuity: a served strategy on the member's bars traded
+    expect(rows.some((r) => r.state === 'served' && r.served.trades > 5)).toBe(true)
   })
 })

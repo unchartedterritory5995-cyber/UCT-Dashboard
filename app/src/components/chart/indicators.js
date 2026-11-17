@@ -1640,6 +1640,37 @@ export function barOpenInstant(t, tf) {
  *  the same dates by their offset (`bar_open_instant`). */
 const CLOCK_FIRST_STANDARD_DAY = 18831119
 
+/** ⭐⭐ EVERY BAR'S OPENING INSTANT, OR NONE — THE UNIT GATE AS ONE FUNCTION
+ *  (2026-11-17, strategy-epoch-bar-times).
+ *
+ *  Each bar's `t` through `barOpenInstant`, ALL OR NOTHING: one bar it cannot
+ *  read and the series has no instants (`null`), exactly as the gate in
+ *  `computeClock` always blanked the nine time-derived columns. It is the gate
+ *  itself, not a copy of it: `computeClock` reads its `time` column from this
+ *  function, and so does a strategy's broker (`runtimeColumns.js`: the times of
+ *  its fills, trades, orders and record window). So a strategy on a member's
+ *  DAILY chart, whose bars `/api/bars` keys by ISO date, records the same instant
+ *  for a bar that bare `time` reads there, and the same instant an epoch-second
+ *  run records for that bar. ⚰️ The broker was handed the raw keys: on a daily
+ *  chart every trade time was a date string, the report refused whole
+ *  (`runtime:strategy-report-record`) and `strategy.closedtrades.entry_time`
+ *  refused by name.
+ *
+ *  @param {Array} bars `[{t, …}]`, oldest first
+ *  @param {string} [tf] the chart's timeframe code (`barOpenInstant`'s)
+ *  @returns {Float64Array|null} unix seconds per bar, or null when one bar has none
+ */
+export function barOpenInstants(bars, tf) {
+  const length = bars && bars.length ? bars.length : 0
+  const opens = new Float64Array(length)
+  for (let i = 0; i < length; i++) {
+    const t = barOpenInstant(bars[i] ? bars[i].t : undefined, tf)
+    if (t === null) return null
+    opens[i] = t
+  }
+  return opens
+}
+
 /** The first `YYYYMMDD` from `start` on, within `span` calendar days, that the
  *  vendor's session trades (`tradingViewCloseMinute` not null), or null. */
 function firstVendorSession(start, span) {
@@ -1909,14 +1940,10 @@ export function computeClock(bars, tf, newestBarIsForming = null, opts = {}) {
   // ⭐ A DATE-KEYED DAILY BAR PASSES IT AS ITS OPENING INSTANT (`barOpenInstant`),
   // and every time-derived column below reads THAT instant, so bare `time`,
   // `hour`, `dayofweek` and the session clock built on them cannot disagree.
-  const opens = new Float64Array(length)
-  let instants = true
-  for (let i = 0; i < length; i++) {
-    const t = barOpenInstant(bars[i] ? bars[i].t : undefined, tf)
-    if (t === null) { instants = false; break }
-    opens[i] = t
-  }
-  if (!instants) {
+  // ⭐ The gate is `barOpenInstants` (all or nothing), which a strategy's broker
+  // reads too: one rule for a bar's time, never a second loop beside it.
+  const opens = barOpenInstants(bars, tf)
+  if (!opens) {
     for (const name of CLOCK_TIME_DERIVED) cols[name].fill(NA)
     // `lastbartime` and its calendar are read FROM `t`, exactly as the nine
     // above are, so a fetch that fails their unit gate fails this one too —
