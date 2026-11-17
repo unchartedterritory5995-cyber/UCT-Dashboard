@@ -73,6 +73,12 @@ _DIRECT_USER_TABLES = (
     "j2_thesis_evidence",
     # Wave O — the member's own record of when they reconsidered a thesis.
     "j2_thesis_reviews",
+    # Import a tweet (8cac747d65): each saved X post's card -- author, permalink, copied images,
+    # price at post. Its AFTER DELETE trigger on j2_note_documents (db.py) also empties it when the
+    # document goes, but the purge deletes every table that carries the member's id BY that id,
+    # never through a trigger alone (as with j2_note_excerpts, which has the same trigger): a card
+    # whose document row is already gone would otherwise outlive them.
+    "j2_note_tweet_captures",
     "j2_note_documents",
     "j2_note_document_pages",
     # Wave P1 — per-page OCR job state. Carries engine/version lineage about
@@ -480,6 +486,19 @@ def purge_user_data(user_id: str, conn: sqlite3.Connection, *,
         errors.append(f"alert stores: {type(e).__name__}: {e}")
         log.warning("alert store purge failed for %s: %s", user_id, e)
 
+    # Member tables in three more databases outside auth.db (the census, 2026-11-17):
+    # chart_iq_feedback.db, uct_agent.db and study.db, each through its own module's connection
+    # and lock (`member_store_erasure.STORES`). None of the three is backed up (store_backup.STORES),
+    # so no restore can bring these rows back and none replays them.
+    member_stores_report: dict[str, Any] = {}
+    try:
+        from api.services import member_store_erasure
+        member_stores_report = member_store_erasure.purge_user(user_id)
+        errors.extend(f"member stores: {e}" for e in member_stores_report.get("errors", []))
+    except Exception as e:  # noqa: BLE001 -- one store can never abort the rest; reported, not skipped
+        errors.append(f"member stores: {type(e).__name__}: {e}")
+        log.warning("member store purge failed for %s: %s", user_id, e)
+
     # The tombstone (R-9) was recorded before the first delete above: the live purge is
     # immediate, the BACKUPS still hold this member, and the tombstone -- a row here and
     # an object beside the backups -- is what makes every restore delete them again.
@@ -492,6 +511,7 @@ def purge_user_data(user_id: str, conn: sqlite3.Connection, *,
         "user_definitions": user_definitions_report,
         "alert_credentials": credentials,
         "alert_stores": alert_stores_report,
+        "member_stores": member_stores_report,
         "errors": errors,
         "tombstone": tomb,
     }

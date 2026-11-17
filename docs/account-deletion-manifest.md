@@ -49,7 +49,7 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 
 <!-- BEGIN GENERATED: python tools/account_deletion_manifest.py --write (derived from api/services/journal_two/account_purge.py) -- never hand-edit -->
 
-**152 tables in auth.db** (141 direct by `user_id`, 3 direct by another member key, 1 direct by a key derived from the member's id, 7 indirect).
+**153 tables in auth.db** (142 direct by `user_id`, 3 direct by another member key, 1 direct by a key derived from the member's id, 7 indirect).
 
 | Table | Owner key | Ownership | How the purge deletes it |
 |---|---|---|---|
@@ -96,6 +96,7 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 | `j2_note_fact_refs` | `user_id` | Direct | `DELETE FROM j2_note_fact_refs WHERE user_id = ?` |
 | `j2_thesis_evidence` | `user_id` | Direct | `DELETE FROM j2_thesis_evidence WHERE user_id = ?` |
 | `j2_thesis_reviews` | `user_id` | Direct | `DELETE FROM j2_thesis_reviews WHERE user_id = ?` |
+| `j2_note_tweet_captures` | `user_id` | Direct | `DELETE FROM j2_note_tweet_captures WHERE user_id = ?` |
 | `j2_note_documents` | `user_id` | Direct | `DELETE FROM j2_note_documents WHERE user_id = ?` |
 | `j2_note_document_pages` | `user_id` | Direct | `DELETE FROM j2_note_document_pages WHERE user_id = ?` |
 | `j2_note_document_ocr_pages` | `user_id` | Direct | `DELETE FROM j2_note_document_ocr_pages WHERE user_id = ?` |
@@ -270,6 +271,24 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 | `catalyst_alerts_fired` | `user_id` | Direct (catalysts.db) | `DELETE FROM catalyst_alerts_fired WHERE user_id = ?` |
 | `catalyst_feedback` | `user_id` | Direct (catalysts.db) | `DELETE FROM catalyst_feedback WHERE user_id = ?` |
 
+**chart_iq_feedback.db** -- a second database, which no statement on auth.db reaches: **1 tables**, deleted by `api/services/member_store_erasure.py` through `member_store_erasure.purge_user`.
+
+| Table | Owner key | Ownership | How the purge deletes it |
+|---|---|---|---|
+| `chart_iq_feedback` | `user_id` | Direct (chart_iq_feedback.db) | `DELETE FROM chart_iq_feedback WHERE user_id = ?` |
+
+**uct_agent.db** -- a second database, which no statement on auth.db reaches: **1 tables**, deleted by `api/services/member_store_erasure.py` through `member_store_erasure.purge_user`.
+
+| Table | Owner key | Ownership | How the purge deletes it |
+|---|---|---|---|
+| `agent_conversation_state` | `user_id` | Direct (uct_agent.db) | `DELETE FROM agent_conversation_state WHERE user_id = ?` |
+
+**study.db** -- a second database, which no statement on auth.db reaches: **1 tables**, deleted by `api/services/member_store_erasure.py` through `member_store_erasure.purge_user`.
+
+| Table | Owner key | Ownership | How the purge deletes it |
+|---|---|---|---|
+| `study_game_runs` | `user_id` | Direct (study.db) | `DELETE FROM study_game_runs WHERE user_id = ?` |
+
 **Deleted WITH the account row** -- 2 tables in auth.db, deleted by `auth._cascade_delete_user` in the same transaction as `DELETE FROM users` (`DELETED_WITH_THE_ACCOUNT_ROW`), so they go if and only if the account goes.
 
 | Table | Owner key | Ownership | How the purge deletes it |
@@ -385,6 +404,17 @@ delete them and that the code names them.
   indirect `indicator_alert_rev` joined the purge (no foreign key, so the cascade never saw
   them). The generator now lists a second database's tables in their own block. Rail:
   `tests/test_user_definitions_erasure.py`.
+- 2026-11-17: the census (`tests/test_alert_erasure.py`) found four member tables the deletion
+  neither purged nor named. Three lived in their own databases, so no statement on auth.db
+  reached them and a deleted member kept every row: `chart_iq_feedback` (chart_iq_feedback.db,
+  their Chart IQ votes and notes, since 1aae50c14e), `agent_conversation_state` (uct_agent.db,
+  the UCT Agent's last screen and coach consent per conversation, since 574afbfea6) and
+  `study_game_runs` (study.db, their Study game runs, since 09bd189b59).
+  `member_store_erasure.purge_user` now deletes them, each store through its own connection and
+  lock. The fourth, `j2_note_tweet_captures` (auth.db, imported tweets, since 8cac747d65), was
+  already emptied by its AFTER DELETE trigger on `j2_note_documents`; it is now deleted by the
+  member's id as well. The rest of uct_agent.db and study.db stays in `KNOWN_UNPURGED`, awaiting
+  an owner ruling. Rail: `tests/test_member_store_erasure.py`.
 
 ## Backups — no restore brings a deleted account back (wave 10, ruling R-9)
 

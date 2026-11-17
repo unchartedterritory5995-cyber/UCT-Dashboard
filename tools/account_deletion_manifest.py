@@ -50,6 +50,7 @@ END = "<!-- END GENERATED -->"
 #:  the `<module>.<function>` call account_purge.py makes to reach it,
 #:  the module's literal JOIN tuple of `(table, key column, parent member table)`, or None)
 _ALERTS = REPO / "api" / "services" / "alert_erasure.py"
+_MEMBER_STORES = REPO / "api" / "services" / "member_store_erasure.py"
 SECOND_DATABASES = (
     ("user_definitions.db", REPO / "api" / "services" / "user_definitions_erasure.py",
      "MEMBER_TABLES", ("user_definitions", "purge_user"), None),
@@ -59,6 +60,10 @@ SECOND_DATABASES = (
     ("calendar_alerts.db", _ALERTS, "CALENDAR_ALERTS_TABLES", ("alert_erasure", "purge_user"), None),
     ("transcript_alerts.db", _ALERTS, "TRANSCRIPT_ALERTS_TABLES", ("alert_erasure", "purge_user"), None),
     ("catalysts.db", _ALERTS, "CATALYSTS_TABLES", ("alert_erasure", "purge_user"), None),
+    # The member stores the 2026-11-17 census found: one call reaching three databases.
+    ("chart_iq_feedback.db", _MEMBER_STORES, "CHART_IQ_FEEDBACK_TABLES", ("member_store_erasure", "purge_user"), None),
+    ("uct_agent.db", _MEMBER_STORES, "UCT_AGENT_TABLES", ("member_store_erasure", "purge_user"), None),
+    ("study.db", _MEMBER_STORES, "STUDY_TABLES", ("member_store_erasure", "purge_user"), None),
 )
 
 _JOIN = re.compile(
