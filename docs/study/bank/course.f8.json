@@ -6,7 +6,7 @@
   "difficulty": 1,
   "id": "si_52eb55843035",
   "lesson_origin": "session",
-  "lesson_text": "False. A research review done for the SEC says investors fall into predictable patterns and make the same mistakes repeatedly. Tendler says your emotional reactions happen again and again for the same reason. In his words, there's no randomness in the mental game. That is why a mistake that keeps coming back can be written down, traced and mapped. Your mistakes repeat for a reason. What repeats can be mapped.",
+  "lesson_text": "False. Your mistakes repeat, and they repeat for a reason. Same trigger, same reaction, same mistake. That's good news, honestly. Anything that repeats can be written down, seen coming and stopped. Go back through your last month of trades. I'd bet the same mistake shows up again and again. That's the one you map first. Mistakes aren't random. Find the one that keeps showing up.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -14,10 +14,13 @@
     "False"
    ],
    "kind": "tf",
-   "q": "Your trading mistakes are mostly random, so there's no pattern worth mapping.",
+   "q": "Mistakes come at random, so there's no pattern in yours worth mapping.",
    "subject": "F8.01#q01"
   },
   "reveal_json": {
+   "deeper": {
+    "example": "A research review done for the SEC says investors fall into predictable patterns and make the same mistakes repeatedly. Jared Tendler, who wrote The Mental Game of Trading, says your emotional reactions happen again and again for the same reason."
+   },
    "depth": {
     "sources": [
      {
@@ -38,13 +41,13 @@
     "summary": "Investors tend to fall into predictable patterns and make the same mistakes over and over. Your emotional reactions repeat for the same reasons; they are not random."
    },
    "facts": {
-    "given": "Your trading mistakes are mostly random, so there's no pattern worth mapping."
+    "given": "Mistakes come at random, so there's no pattern in yours worth mapping."
    },
-   "lesson_line": "Your mistakes repeat for a reason. What repeats can be mapped.",
-   "simple": "False, because the same mistakes keep coming back for the same reasons, so there is a pattern to map.",
+   "lesson_line": "Mistakes aren't random. Find the one that keeps showing up.",
+   "simple": "False. The same mistakes keep coming back for the same reasons, so there's a pattern to find.",
    "tier": "core",
    "unit": "F8.01",
-   "why": "False. A research review done for the SEC says investors fall into predictable patterns and make the same mistakes repeatedly. Tendler says your emotional reactions happen again and again for the same reason. In his words, there's no randomness in the mental game. That is why a mistake that keeps coming back can be written down, traced and mapped."
+   "why": "False. Your mistakes repeat, and they repeat for a reason. Same trigger, same reaction, same mistake. That's good news, honestly. Anything that repeats can be written down, seen coming and stopped. Go back through your last month of trades. I'd bet the same mistake shows up again and again. That's the one you map first."
   },
   "review_status": "draft",
   "skill_id": "psych.pattern",
@@ -60,7 +63,7 @@
   "difficulty": 1,
   "id": "si_6458b0c51565",
   "lesson_origin": "session",
-  "lesson_text": "A log of when and why it happens. Tendler's first stage is Map Your Pattern: a fact-based account of when and how your emotions swing. Investopedia calls understanding your blind spots the first step to avoiding costly mistakes. Mapping is the first step, not the whole fix. Tendler's next stages find the root of the problem and then correct it, day after day. Map it first. Then fix it.",
+  "lesson_text": "Log it first. Every time you move that stop, write down what was going on. The trade, what you were thinking, what you felt. Willpower hasn't fixed it so far, and it won't next time either. After a few weeks the log shows you when it happens. Maybe after a red morning, maybe only on your biggest position. That's your pattern, and now you have something real to fix. Mapping is step one. Finding the root and correcting it come after. See the pattern first. Then you can fix it.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -70,10 +73,13 @@
     "More willpower in the moment"
    ],
    "kind": "mcq",
-   "q": "You keep making the same costly mistake, even though you know the rule. What do you need before you can fix it?",
+   "q": "You keep moving your stop lower so you don't get stopped out. You know the rule. What do you need before you can fix it?",
    "subject": "F8.01#q02"
   },
   "reveal_json": {
+   "deeper": {
+    "example": "Tendler works in three stages: map your pattern, find the roots of the problem, then correct it day to day. Investopedia calls understanding your blind spots the first step toward avoiding costly mistakes."
+   },
    "depth": {
     "sources": [
      {
@@ -108,17 +114,17 @@
     "summary": "Mapping is a fact-based record of when and how your emotions swing, so you can see the pattern and break it. Tendler's system has three stages, and the first is Map Your Pattern. Stage two digs for the hidden flaws and biases behind the problem. Stage three is correcting the problem, day after day. Go back over your past decisions and look for recurring mistakes and emotional triggers. Understanding your blind spots is the first step to avoiding costly mistakes. Fighting an emotion in the moment is a band-aid, not a fix. Sitting out the days your emotions run high is one of the work-arounds Tendler describes. Work-arounds help in the short term, but they are training wheels, not the fix. A mistake you repeat and can't stop yourself from making is driven by emotion."
    },
    "facts": {
-    "given": "You keep making the same costly mistake, even though you know the rule. What do you need before you can fix it? A log of when and why it happens More willpower in the moment A week away from the screens A new setup that suits you"
+    "given": "You keep moving your stop lower so you don't get stopped out. You know the rule. What do you need before you can fix it? A log of when and why it happens More willpower in the moment A week away from the screens A new setup that suits you"
    },
-   "lesson_line": "Map it first. Then fix it.",
-   "simple": "Keep a log of when and why it happens, because you have to see the pattern before you can fix it.",
+   "lesson_line": "See the pattern first. Then you can fix it.",
+   "simple": "A log of when and why it happens. You can't fix a pattern you haven't seen yet.",
    "tier": "core",
    "unit": "F8.01",
-   "why": "A log of when and why it happens. Tendler's first stage is Map Your Pattern: a fact-based account of when and how your emotions swing. Investopedia calls understanding your blind spots the first step to avoiding costly mistakes. Mapping is the first step, not the whole fix. Tendler's next stages find the root of the problem and then correct it, day after day.",
+   "why": "Log it first. Every time you move that stop, write down what was going on. The trade, what you were thinking, what you felt. Willpower hasn't fixed it so far, and it won't next time either. After a few weeks the log shows you when it happens. Maybe after a red morning, maybe only on your biggest position. That's your pattern, and now you have something real to fix. Mapping is step one. Finding the root and correcting it come after.",
    "wrong": {
-    "A new setup that suits you": "The setup isn't the problem. You know the rule and break it anyway, so the habit follows you to the next setup.",
-    "A week away from the screens": "A break stops the damage for a while. Tendler calls work-arounds like that training wheels. You come back with the same blind spot.",
-    "More willpower in the moment": "Fighting the urge in the moment is what Tendler calls a band-aid on the problem. It covers the habit without fixing it."
+    "A new setup that suits you": "The setup isn't the problem. You know the rule and break it anyway, so the habit comes with you to the next setup.",
+    "A week away from the screens": "A break stops the bleeding for a bit. Then you come back with the same habit and still no idea what sets it off.",
+    "More willpower in the moment": "You've tried that. Gritting your teeth in the moment is a band-aid. It covers the habit without showing you why it keeps happening."
    }
   },
   "review_status": "draft",
@@ -135,7 +141,7 @@
   "difficulty": 1,
   "id": "si_b0cf88035143",
   "lesson_origin": "session",
-  "lesson_text": "Same day, while it's fresh. Coach Brett Steenbarger notes that accomplished traders record their journal after the close. Our own rule says the same: ideally, journal every trade the same day and review the week every weekend. A note written that day keeps your first reasons. Investopedia says a journal helps you remember your initial assumptions. Write it down today, while you still remember why you clicked.",
+  "lesson_text": "Same day, after the close. Right now you still know what you saw, what you thought and why you clicked. That's the stuff that shows you the pattern, and it fades fast. Leave it for month-end and you're guessing. We journal every trade the same day and review the week every weekend. Keep it short. What you planned, what you did, and what pulled you off the plan. Write it up today, while you still remember why you clicked.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -145,10 +151,13 @@
     "Same day, while it's fresh"
    ],
    "kind": "mcq",
-   "q": "When should you write down a trading mistake?",
+   "q": "You broke your plan on a trade this morning, and the day's been busy. When do you write it up?",
    "subject": "F8.01#q03"
   },
   "reveal_json": {
+   "deeper": {
+    "example": "Brett Steenbarger notes that accomplished traders he's worked with record their journals after the close. Investopedia adds that a journal helps you remember your initial assumptions."
+   },
    "depth": {
     "sources": [
      {
@@ -183,17 +192,17 @@
     "summary": "Accomplished traders Steenbarger has worked with record their journal after the close. Write the clues down and build a detailed map of your reactions. Forgetting a mistake and moving on throws away the clues that could prevent the next one. A journal keeps your original reasons, which guards against hindsight bias. Mapping starts with a record of what happens before, during and after each mistake. Our rule B27: journal every trade the same day and review the week every weekend."
    },
    "facts": {
-    "given": "When should you write down a trading mistake? Same day, while it's fresh At month-end, in one go Only when it costs a lot Never, just move on"
+    "given": "You broke your plan on a trade this morning, and the day's been busy. When do you write it up? Same day, while it's fresh At month-end, in one go Only when it costs a lot Never, just move on"
    },
-   "lesson_line": "Write it down today, while you still remember why you clicked.",
-   "simple": "Write it the same day, while it's fresh, because a note made then still holds what you really thought.",
+   "lesson_line": "Write it up today, while you still remember why you clicked.",
+   "simple": "Same day, while it's fresh. That's when you still remember what you really thought.",
    "tier": "core",
    "unit": "F8.01",
-   "why": "Same day, while it's fresh. Coach Brett Steenbarger notes that accomplished traders record their journal after the close. Our own rule says the same: ideally, journal every trade the same day and review the week every weekend. A note written that day keeps your first reasons. Investopedia says a journal helps you remember your initial assumptions.",
+   "why": "Same day, after the close. Right now you still know what you saw, what you thought and why you clicked. That's the stuff that shows you the pattern, and it fades fast. Leave it for month-end and you're guessing. We journal every trade the same day and review the week every weekend. Keep it short. What you planned, what you did, and what pulled you off the plan.",
    "wrong": {
-    "At month-end, in one go": "That's too late to hold your first reasons. Investopedia says a journal helps you remember your initial assumptions.",
-    "Never, just move on": "Tendler says forgetting and moving on deletes the clues that could stop the next one.",
-    "Only when it costs a lot": "Our rule is to journal every trade the same day, not only the costly ones. Tendler says to record what happens before, during and after your trading mistakes."
+    "At month-end, in one go": "By then the details are gone. You'll remember the P&L and not much else.",
+    "Never, just move on": "Moving on throws away the clues. Next time it happens, you're starting from zero.",
+    "Only when it costs a lot": "A small break is the same habit, just cheaper this time. We journal every trade the same day, not only the big losers."
    }
   },
   "review_status": "draft",
@@ -210,7 +219,7 @@
   "difficulty": 1,
   "id": "si_78a07486379b",
   "lesson_origin": "session",
-  "lesson_text": "True. That's hindsight bias, the 'knew it all along' feeling. Once an event is known, it seems more predictable than it was before. Kahneman's work lists hindsight among the biases of judgment that lead to poor decisions. It does not mean a result teaches nothing. A journal written at the time shows what you really expected, so you review the decision, not the memory. Write down why you took the trade before you know how it ends.",
+  "lesson_text": "True. That's hindsight bias, the 'knew it all along' feeling. Once you know the ending, it looks more obvious than it ever was in real time. It cuts both ways. A stop-out feels like something you should've seen, so you beat yourself up. A winner feels like pure skill. The fix is boring, and it works. Write down why you took the trade when you take it. Then review that note, not your memory. Write down why you took it before you know how it ends.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -218,10 +227,13 @@
     "False"
    ],
    "kind": "tf",
-   "q": "Once you know how a trade ended, it's easy to believe you saw it coming.",
+   "q": "After a trade plays out, it's easy to think you saw the ending coming all along.",
    "subject": "F8.01#q04"
   },
   "reveal_json": {
+   "deeper": {
+    "example": "Roese and Vohs define hindsight bias as feeling you knew it all along: once an event is known, it seems more predictable than it was. Kahneman lists hindsight among the biases of judgment that lead to poor decisions."
+   },
    "depth": {
     "sources": [
      {
@@ -249,13 +261,13 @@
     "summary": "Hindsight bias is the 'knew it all along' feeling: once an event is known, it seems more predictable than it was before. Hindsight bias: after the fact, events seem easier to predict than they were. Kahneman's work lists hindsight among investors' biases of judgment. Those biases lead to poor investment decisions. A journal keeps your original reasons, which guards against hindsight bias. Reviewing your decisions shows what went right and what went wrong."
    },
    "facts": {
-    "given": "Once you know how a trade ended, it's easy to believe you saw it coming."
+    "given": "After a trade plays out, it's easy to think you saw the ending coming all along."
    },
-   "lesson_line": "Write down why you took the trade before you know how it ends.",
-   "simple": "True. That's hindsight bias: once you know the ending, it seems easier to predict than it really was.",
+   "lesson_line": "Write down why you took it before you know how it ends.",
+   "simple": "True. Once you know the ending, it seems easier to have predicted than it really was.",
    "tier": "core",
    "unit": "F8.01",
-   "why": "True. That's hindsight bias, the 'knew it all along' feeling. Once an event is known, it seems more predictable than it was before. Kahneman's work lists hindsight among the biases of judgment that lead to poor decisions. It does not mean a result teaches nothing. A journal written at the time shows what you really expected, so you review the decision, not the memory."
+   "why": "True. That's hindsight bias, the 'knew it all along' feeling. Once you know the ending, it looks more obvious than it ever was in real time. It cuts both ways. A stop-out feels like something you should've seen, so you beat yourself up. A winner feels like pure skill. The fix is boring, and it works. Write down why you took the trade when you take it. Then review that note, not your memory."
   },
   "review_status": "draft",
   "skill_id": "psych.pattern",
@@ -271,7 +283,7 @@
   "difficulty": 1,
   "id": "si_0c02f5b98cd5",
   "lesson_origin": "session",
-  "lesson_text": "True. Steenbarger's daily journal logs what you did well and what you didn't. He warns that reviewing only what you do wrong makes a negative environment for your growth. Investopedia agrees that reviewing your decisions shows what went right and what went wrong. 'Did well' means you followed your plan well, not just that a trade made money. Log what you did well too. That's what you want to repeat on purpose.",
+  "lesson_text": "True. Review only what went wrong and the review turns into a beating. You start dreading it, and you never learn what you do right. And 'did well' doesn't mean it made money. It means you followed your plan. You bought at your level, set the stop, sized it right and sold by your rules. That's what you want to repeat on purpose. I'd keep it simple: what I did well, what I didn't, and what I'm changing. Log what you did right too. That's what you want to repeat on purpose.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -279,10 +291,13 @@
     "False"
    ],
    "kind": "tf",
-   "q": "A good review looks at what you did well, not only at your mistakes.",
+   "q": "Your weekly review should cover what you did well, not just your mistakes.",
    "subject": "F8.01#q06"
   },
   "reveal_json": {
+   "deeper": {
+    "example": "Steenbarger's daily journal logs what you did well and what you didn't. He warns that reviewing only the things you do wrong makes a negative environment for your development."
+   },
    "depth": {
     "sources": [
      {
@@ -317,13 +332,13 @@
     "summary": "Your daily journal should log what you did well and what you didn't. Reviewing only your mistakes makes a negative environment for growth. Reviewing your decisions shows what went right and what went wrong. Review whether you followed your plan, not how the market did."
    },
    "facts": {
-    "given": "A good review looks at what you did well, not only at your mistakes."
+    "given": "Your weekly review should cover what you did well, not just your mistakes."
    },
-   "lesson_line": "Log what you did well too. That's what you want to repeat on purpose.",
-   "simple": "True, because what you did well is what you want to repeat, and only looking at mistakes drags you down.",
+   "lesson_line": "Log what you did right too. That's what you want to repeat on purpose.",
+   "simple": "True. What you did well is what you want to repeat, and only reviewing mistakes wears you down.",
    "tier": "core",
    "unit": "F8.01",
-   "why": "True. Steenbarger's daily journal logs what you did well and what you didn't. He warns that reviewing only what you do wrong makes a negative environment for your growth. Investopedia agrees that reviewing your decisions shows what went right and what went wrong. 'Did well' means you followed your plan well, not just that a trade made money."
+   "why": "True. Review only what went wrong and the review turns into a beating. You start dreading it, and you never learn what you do right. And 'did well' doesn't mean it made money. It means you followed your plan. You bought at your level, set the stop, sized it right and sold by your rules. That's what you want to repeat on purpose. I'd keep it simple: what I did well, what I didn't, and what I'm changing."
   },
   "review_status": "draft",
   "skill_id": "psych.pattern",
@@ -339,7 +354,7 @@
   "difficulty": 1,
   "id": "si_cb45226f7b56",
   "lesson_origin": "session",
-  "lesson_text": "False. Tendler says beating yourself up only makes you feel bad and makes the situation worse. Steenbarger agrees: getting down on yourself pulls effort away from improving. That does not mean shrugging it off. Investopedia says to take responsibility for your mistakes and learn from them. Own it, then study it like a detective, not a critic. Be a detective, not a critic. Curious beats harsh.",
+  "lesson_text": "False. Beating yourself up feels like taking it seriously. Really it just makes you feel bad, and that makes things worse. The frustration eats the focus you need to fix the thing. That doesn't mean shrug it off, either. Own it. Then look at it like a detective, not a critic. Write down what happened right before and what you were thinking. That's where the fix is. High standards, yes. Tearing yourself down, no. Own it, then study it. Be a detective, not a critic.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -347,10 +362,13 @@
     "False"
    ],
    "kind": "tf",
-   "q": "Being hard on yourself after a mistake helps you stop repeating it.",
+   "q": "Getting angry at yourself after a mistake is what keeps you from repeating it.",
    "subject": "F8.01#q07"
   },
   "reveal_json": {
+   "deeper": {
+    "example": "Tendler: if all you do is beat yourself up, you just feel bad and make the situation worse. Steenbarger: getting down on yourself distracts you from improving."
+   },
    "depth": {
     "sources": [
      {
@@ -378,13 +396,13 @@
     "summary": "Beating yourself up over a mistake only makes things worse. The emotions, thoughts, actions and decisions around a mistake are the data that explain it. Getting down on yourself pulls your effort away from improving. After a loss, sort what was out of your hands from the mistakes that were yours to learn from."
    },
    "facts": {
-    "given": "Being hard on yourself after a mistake helps you stop repeating it."
+    "given": "Getting angry at yourself after a mistake is what keeps you from repeating it."
    },
-   "lesson_line": "Be a detective, not a critic. Curious beats harsh.",
-   "simple": "False, because beating yourself up drains the effort you need to fix it, so own the mistake and study it.",
+   "lesson_line": "Own it, then study it. Be a detective, not a critic.",
+   "simple": "False. Beating yourself up drains the focus you need, so own it and study it.",
    "tier": "core",
    "unit": "F8.01",
-   "why": "False. Tendler says beating yourself up only makes you feel bad and makes the situation worse. Steenbarger agrees: getting down on yourself pulls effort away from improving. That does not mean shrugging it off. Investopedia says to take responsibility for your mistakes and learn from them. Own it, then study it like a detective, not a critic."
+   "why": "False. Beating yourself up feels like taking it seriously. Really it just makes you feel bad, and that makes things worse. The frustration eats the focus you need to fix the thing. That doesn't mean shrug it off, either. Own it. Then look at it like a detective, not a critic. Write down what happened right before and what you were thinking. That's where the fix is. High standards, yes. Tearing yourself down, no."
   },
   "review_status": "draft",
   "skill_id": "psych.pattern",
@@ -400,7 +418,7 @@
   "difficulty": 2,
   "id": "si_cc3160e1d830",
   "lesson_origin": "session",
-  "lesson_text": "Your thoughts and feelings then. Tendler maps the emotions, thoughts, actions and decisions around a mistake, because they are the data that explain it. Steenbarger says naming how you feel is the first step. The dollar figure tells you what happened, not why. Add what came before, during and after the trade, and the pattern can show. The P&L says what happened. Your thoughts and feelings say why.",
+  "lesson_text": "What you were thinking and feeling. 'Down $400' tells you what happened. It says nothing about why. So write the before, the during and the after. Maybe you were itching to get in after missing a move. Maybe you stared at the P&L all morning, or just wanted it back. That's the data. The dollar amount changes every time. The thoughts and feelings around it repeat, and that's how you spot the pattern. The P&L says what happened. Your head says why.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -410,8 +428,8 @@
     "A promise to do better"
    ],
    "kind": "mcq",
-   "q": "What would make this note useful for finding your pattern?",
-   "story": "Your journal note on a losing trade reads: 'Down $400. Bad day.'",
+   "q": "What's missing that would help you find your pattern?",
+   "story": "You lost on a trade today. Your whole journal note reads: 'Down $400. Bad day.'",
    "subject": "F8.01#q08"
   },
   "reveal_json": {
@@ -449,17 +467,17 @@
     "summary": "Mapping starts with a record of what happens before, during and after each mistake. The emotions, thoughts, actions and decisions around a mistake are the data that explain it. Your emotional reactions repeat for the same reasons; they are not random. Naming how you feel is the first step to changing your state. Notice your emotional reactions when the market moves. After a big loss, people often blame someone or something else instead of owning their decisions. A vague goal isn't enough; spell out exactly how you'll improve."
    },
    "facts": {
-    "given": "What would make this note useful for finding your pattern? Your journal note on a losing trade reads: 'Down $400. Bad day.' Your thoughts and feelings then Who or what is to blame The exact loss to the cent A promise to do better"
+    "given": "What's missing that would help you find your pattern? You lost on a trade today. Your whole journal note reads: 'Down $400. Bad day.' Your thoughts and feelings then Who or what is to blame The exact loss to the cent A promise to do better"
    },
-   "lesson_line": "The P&L says what happened. Your thoughts and feelings say why.",
-   "simple": "Write down what you thought and felt, because that part repeats, while the dollar loss only says what happened.",
+   "lesson_line": "The P&L says what happened. Your head says why.",
+   "simple": "Your thoughts and feelings then. The loss says what happened, and what you thought and felt says why.",
    "tier": "core",
    "unit": "F8.01",
-   "why": "Your thoughts and feelings then. Tendler maps the emotions, thoughts, actions and decisions around a mistake, because they are the data that explain it. Steenbarger says naming how you feel is the first step. The dollar figure tells you what happened, not why. Add what came before, during and after the trade, and the pattern can show.",
+   "why": "What you were thinking and feeling. 'Down $400' tells you what happened. It says nothing about why. So write the before, the during and the after. Maybe you were itching to get in after missing a move. Maybe you stared at the P&L all morning, or just wanted it back. That's the data. The dollar amount changes every time. The thoughts and feelings around it repeat, and that's how you spot the pattern.",
    "wrong": {
-    "A promise to do better": "Steenbarger says a vague goal isn't enough. Spell out how you'll do it.",
+    "A promise to do better": "A vague promise changes nothing tomorrow. Spell out what you'll do differently.",
     "The exact loss to the cent": "You already have the number. What's missing is the why.",
-    "Who or what is to blame": "Blaming someone or something else skips your own decisions. Investopedia notes that people facing a big loss often do this instead of owning it."
+    "Who or what is to blame": "Blame points away from the one thing you control, your own decisions. Nothing to learn there."
    }
   },
   "review_status": "draft",
@@ -476,7 +494,7 @@
   "difficulty": 2,
   "id": "si_5ea313037716",
   "lesson_origin": "session",
-  "lesson_text": "75%. Divide the same-mistake breaks by all breaks: 6 out of 8, times 100, gives 75%. That one mistake is your pattern, and it is where your map starts. Investopedia says to look back for recurring mistakes and emotional triggers. Look back for the mistake that repeats. That one is your pattern.",
+  "lesson_text": "75%. Divide the chases by all your breaks. 6 divided by 8 is 0.75, and times 100 that's 75%. So most of the time you broke your plan, it was the chase. That's your pattern. Don't spread your attention over everything. Start the map right there, with what happened just before each of those 6 chases. Fix that one and most of your plan breaks go with it. Find the mistake that repeats. Start there.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -486,7 +504,7 @@
     "300%"
    ],
    "kind": "mcq",
-   "q": "Of your 8 plan breaks this month, 6 were the same mistake. What percent of your breaks was that one mistake?",
+   "q": "8 plan breaks this month. 6 were the same one: chasing entries. What percent of your breaks was the chase?",
    "subject": "F8.01#q09",
    "visual": {
     "find": {
@@ -547,17 +565,17 @@
       "step2": 0.75
      }
     },
-    "given": "Of your 8 plan breaks this month, 6 were the same mistake. What percent of your breaks was that one mistake? 133% 175% 300% 75%"
+    "given": "8 plan breaks this month. 6 were the same one: chasing entries. What percent of your breaks was the chase? 133% 175% 300% 75%"
    },
-   "lesson_line": "Look back for the mistake that repeats. That one is your pattern.",
-   "simple": "75%, because 6 of your 8 breaks were the same mistake, and that repeat is the pattern to map first.",
+   "lesson_line": "Find the mistake that repeats. Start there.",
+   "simple": "75%. 6 of your 8 breaks were the same mistake, and that repeat is where your map starts.",
    "tier": "core",
    "unit": "F8.01",
-   "why": "75%. Divide the same-mistake breaks by all breaks: 6 out of 8, times 100, gives 75%. That one mistake is your pattern, and it is where your map starts. Investopedia says to look back for recurring mistakes and emotional triggers.",
+   "why": "75%. Divide the chases by all your breaks. 6 divided by 8 is 0.75, and times 100 that's 75%. So most of the time you broke your plan, it was the chase. That's your pattern. Don't spread your attention over everything. Start the map right there, with what happened just before each of those 6 chases. Fix that one and most of your plan breaks go with it.",
    "wrong": {
-    "133%": "Divided the 8 breaks by the 6.",
-    "175%": "Added the 6 to the 8 before dividing by 8.",
-    "300%": "Divided the 6 by the breaks that were not that mistake."
+    "133%": "You flipped it and divided the 8 by the 6. A share of your breaks can't be over 100%.",
+    "175%": "You added the 6 to the 8 before dividing by 8.",
+    "300%": "You divided the 6 by the breaks that weren't chases, not by all of them."
    }
   },
   "review_status": "draft",
@@ -574,7 +592,7 @@
   "difficulty": 2,
   "id": "si_a7aa38193445",
   "lesson_origin": "session",
-  "lesson_text": "FOMO, a trade outside your plan. Tendler names this mistake: jumping into positions other traders are in, even though they're outside your system. FINRA says that when social media stirs up excitement or fear of missing out, pause and evaluate. Our rule is no setup, no trade: never force a trade just to have something on. Cash is a position. Not on your list, not your trade. Tag it FOMO and note what pulled you in.",
+  "lesson_text": "FOMO. It wasn't on your list, it wasn't your setup, and you bought it because everyone else was excited. That's fear of missing out, and it's a trade outside your plan. When the feed is buzzing and you feel the pull, that's the moment to pause. No setup, no trade. Cash is a position, and a day with nothing to do isn't a wasted day. When you log it, write what pulled you in. The feed, the 12%, the itch to have something on. Not on your list, not your trade.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -584,11 +602,14 @@
     "Hesitation, waiting too long to act"
    ],
    "kind": "mcq",
-   "q": "Which tag fits this trade?",
-   "story": "You have no setup on your list today. A stock you don't follow is up 12%, and everyone online is talking about it. You buy it.",
+   "q": "How do you tag this one in your journal?",
+   "story": "Nothing on your list triggered today. A stock you've never followed is up 12% and all over your feed. You buy it.",
    "subject": "F8.01#q10"
   },
   "reveal_json": {
+   "deeper": {
+    "example": "Tendler names this mistake: jumping into positions other traders are in, even though they're outside your system. FINRA says that when social media gets you swept up in excitement or FOMO, pause and evaluate."
+   },
    "depth": {
     "sources": [
      {
@@ -623,17 +644,17 @@
     "summary": "Two named mistakes: re-entering losers out of anger, and FOMO into trades outside your system. When excitement or FOMO from what everyone is posting pulls at you, pause and evaluate. Fear of missing out (FOMO) pulls people into buying near the top. Our rule D44: no setup, no trade; cash is a position."
    },
    "facts": {
-    "given": "Which tag fits this trade? You have no setup on your list today. A stock you don't follow is up 12%, and everyone online is talking about it. You buy it. FOMO, a trade outside your plan Revenge, trying to win back a loss Hesitation, waiting too long to act Early exit, cutting a winner short"
+    "given": "How do you tag this one in your journal? Nothing on your list triggered today. A stock you've never followed is up 12% and all over your feed. You buy it. FOMO, a trade outside your plan Revenge, trying to win back a loss Hesitation, waiting too long to act Early exit, cutting a winner short"
    },
-   "lesson_line": "Not on your list, not your trade. Tag it FOMO and note what pulled you in.",
-   "simple": "It's FOMO, because you bought a stock that was not on your list just because everyone else was excited about it.",
+   "lesson_line": "Not on your list, not your trade.",
+   "simple": "FOMO. You bought a stock that wasn't on your list just because everyone else was excited about it.",
    "tier": "extended",
    "unit": "F8.01",
-   "why": "FOMO, a trade outside your plan. Tendler names this mistake: jumping into positions other traders are in, even though they're outside your system. FINRA says that when social media stirs up excitement or fear of missing out, pause and evaluate. Our rule is no setup, no trade: never force a trade just to have something on. Cash is a position.",
+   "why": "FOMO. It wasn't on your list, it wasn't your setup, and you bought it because everyone else was excited. That's fear of missing out, and it's a trade outside your plan. When the feed is buzzing and you feel the pull, that's the moment to pause. No setup, no trade. Cash is a position, and a day with nothing to do isn't a wasted day. When you log it, write what pulled you in. The feed, the 12%, the itch to have something on.",
    "wrong": {
     "Early exit, cutting a winner short": "That's an exit mistake. This one happened at the entry.",
     "Hesitation, waiting too long to act": "The opposite. You jumped in fast, on a stock you don't even follow.",
-    "Revenge, trying to win back a loss": "Nothing in the story is about winning back a loss. Revenge comes after a loss, when you want the money back."
+    "Revenge, trying to win back a loss": "Nothing here is about a loss. Revenge comes after one, when you want the money back."
    }
   },
   "review_status": "draft",
@@ -650,7 +671,7 @@
   "difficulty": 2,
   "id": "si_0264c9edc816",
   "lesson_origin": "session",
-  "lesson_text": "Check how you feel at set times. Tendler suggests an alarm every 15, 30 or 60 minutes. Steenbarger suggests taking your emotional temperature every hour. Either works, and no one interval is the rule. Each check names the feeling early, so you can spot it in real time and limit the damage. If a check finds you angry or distracted, our rule is no new trades that day. Check in on a timer, so you catch the build-up before it costs you.",
+  "lesson_text": "Check in with yourself at set times. Set an alarm every 15, 30 or 60 minutes, whatever doesn't wreck your focus. When it goes off, name how you feel right now. Calm, bored, frustrated, wound up. Frustration builds a little at a time, and you don't notice until it's already costing you. A timer catches it while it's still small. If a check finds you angry or distracted, no new trades that day. Walk away and come back tomorrow. Check in on a timer. Catch it before it costs you.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -660,10 +681,13 @@
     "Push the feelings aside and focus"
    ],
    "kind": "mcq",
-   "q": "You only notice your frustration after the damage is done. What helps you catch it sooner?",
+   "q": "By the time you notice you're frustrated, you've already made 3 bad trades. How do you catch it sooner?",
    "subject": "F8.01#q12"
   },
   "reveal_json": {
+   "deeper": {
+    "example": "Tendler suggests an alarm every 15, 30 or 60 minutes to take stock. Steenbarger suggests taking your emotional temperature every hour. No one interval is the rule. Pick one and stick with it."
+   },
    "depth": {
     "sources": [
      {
@@ -705,17 +729,17 @@
     "summary": "Tendler suggests an alarm every 15, 30 or 60 minutes to check where you are emotionally. Check your emotional temperature every hour while you trade. Naming how you feel is the first step to changing your state. A detailed map lets you spot the reaction in real time and limit the damage. In Tendler's sample map, the behavior is fixating on one position and the P&L. Ignoring an emotion or calling it a one-off manages the problem; it doesn't solve it. Our rule F67: on a day you are tired, sick, angry or distracted, take no new trades. Our rule B15: no daily loss limit."
    },
    "facts": {
-    "given": "You only notice your frustration after the damage is done. What helps you catch it sooner? Check how you feel at set times Watch your P&L more closely Set a daily loss limit to stop you Push the feelings aside and focus"
+    "given": "By the time you notice you're frustrated, you've already made 3 bad trades. How do you catch it sooner? Check how you feel at set times Watch your P&L more closely Set a daily loss limit to stop you Push the feelings aside and focus"
    },
-   "lesson_line": "Check in on a timer, so you catch the build-up before it costs you.",
-   "simple": "Check in on how you feel at set times during the day, so you notice frustration building before it costs you.",
+   "lesson_line": "Check in on a timer. Catch it before it costs you.",
+   "simple": "Check how you feel at set times through the day, so you catch frustration while it's still small.",
    "tier": "extended",
    "unit": "F8.01",
-   "why": "Check how you feel at set times. Tendler suggests an alarm every 15, 30 or 60 minutes. Steenbarger suggests taking your emotional temperature every hour. Either works, and no one interval is the rule. Each check names the feeling early, so you can spot it in real time and limit the damage. If a check finds you angry or distracted, our rule is no new trades that day.",
+   "why": "Check in with yourself at set times. Set an alarm every 15, 30 or 60 minutes, whatever doesn't wreck your focus. When it goes off, name how you feel right now. Calm, bored, frustrated, wound up. Frustration builds a little at a time, and you don't notice until it's already costing you. A timer catches it while it's still small. If a check finds you angry or distracted, no new trades that day. Walk away and come back tomorrow.",
    "wrong": {
-    "Push the feelings aside and focus": "That hides the build-up you're trying to catch. Steenbarger says naming how you feel is the first step.",
-    "Set a daily loss limit to stop you": "Our rules set no daily loss limit. A limit also acts only after money is lost. Tendler's map is meant to spot the reaction in real time.",
-    "Watch your P&L more closely": "In Tendler's sample map, staring at the P&L is part of the problem, not the cure."
+    "Push the feelings aside and focus": "Pushing it down hides the exact thing you're trying to catch. Name it instead.",
+    "Set a daily loss limit to stop you": "We don't use a daily loss limit. And a limit only kicks in after the money's gone. You want to catch the feeling before that.",
+    "Watch your P&L more closely": "Staring at the P&L is part of the spiral, not the cure. It feeds the frustration."
    }
   },
   "review_status": "draft",
@@ -732,7 +756,7 @@
   "difficulty": 2,
   "id": "si_fc294248931f",
   "lesson_origin": "session",
-  "lesson_text": "Chasing, $1,200 over the month. The five chases add up to $1,200. The two stop moves were the biggest single losses, at $450 and $500, but together they still cost less. So count each mistake by name and add it up. One big hit draws your eye, and the total shows where the money went. Both are still mistakes: our rule says the stop only moves up. Add up each mistake by name. The totals show where the money really went.",
+  "lesson_text": "Chasing. Add up the five chases: 240 plus 180 plus 300 plus 220 plus 260 is $1,200. The stop moves were $450 and $500. Each one hurt more than any single chase, and that's why they grab your attention. But added up, the chases took more money. So total every mistake by name, every month. The one that stings isn't always the one that costs the most. Both still need fixing. We don't chase, and the stop only moves up. Add up each mistake by name. The total shows where the money really went.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -742,7 +766,7 @@
     "Chasing, $1,200 over the month"
    ],
    "kind": "mcq",
-   "q": "Which mistake cost you more this month?",
+   "q": "Which one cost you more this month?",
    "story": "This month's log: five chased entries lost $240, $180, $300, $220 and $260. Two stops you moved lower lost $450 and $500.",
    "subject": "F8.01#q13"
   },
@@ -809,17 +833,17 @@
       "step4": 420.0
      }
     },
-    "given": "Which mistake cost you more this month? This month's log: five chased entries lost $240, $180, $300, $220 and $260. Two stops you moved lower lost $450 and $500. Chasing, $1,200 over the month Moving the stop, $500 on one hit Neither, losses come with trading Too few trades this month to tell"
+    "given": "Which one cost you more this month? This month's log: five chased entries lost $240, $180, $300, $220 and $260. Two stops you moved lower lost $450 and $500. Chasing, $1,200 over the month Moving the stop, $500 on one hit Neither, losses come with trading Too few trades this month to tell"
    },
-   "lesson_line": "Add up each mistake by name. The totals show where the money really went.",
-   "simple": "Chasing cost more, because the five small chases add up to $1,200, more than the two big stop moves together.",
+   "lesson_line": "Add up each mistake by name. The total shows where the money really went.",
+   "simple": "Chasing. The five small chases add up to $1,200, more than the two big stop moves together.",
    "tier": "extended",
    "unit": "F8.01",
-   "why": "Chasing, $1,200 over the month. The five chases add up to $1,200. The two stop moves were the biggest single losses, at $450 and $500, but together they still cost less. So count each mistake by name and add it up. One big hit draws your eye, and the total shows where the money went. Both are still mistakes: our rule says the stop only moves up.",
+   "why": "Chasing. Add up the five chases: 240 plus 180 plus 300 plus 220 plus 260 is $1,200. The stop moves were $450 and $500. Each one hurt more than any single chase, and that's why they grab your attention. But added up, the chases took more money. So total every mistake by name, every month. The one that stings isn't always the one that costs the most. Both still need fixing. We don't chase, and the stop only moves up.",
    "wrong": {
-    "Moving the stop, $500 on one hit": "Each stop move hurt more, at $450 and $500. Added up, the five chases still cost more.",
-    "Neither, losses come with trading": "A planned stop-out is a loss. Our rules say no chasing, and the stop only moves up, never down. Both broke the plan.",
-    "Too few trades this month to tell": "The question is what this month cost, and the money is already counted. You don't need more trades to add up these totals."
+    "Moving the stop, $500 on one hit": "Each stop move hurt more on its own, at $450 and $500. Add them up, though, and the five chases still cost more.",
+    "Neither, losses come with trading": "A planned stop-out is a loss. These broke the plan. We don't chase, and the stop only moves up, never down.",
+    "Too few trades this month to tell": "The money's already counted. You don't need more trades to add up what this month cost."
    }
   },
   "review_status": "draft",
@@ -836,7 +860,7 @@
   "difficulty": 2,
   "id": "si_a2be004d16d7",
   "lesson_origin": "session",
-  "lesson_text": "False. Investopedia gives Kahneman's view that awareness alone usually isn't enough to overcome a bias. Steenbarger passes on a point from a reader he calls wise: journaling may be necessary, but it is not sufficient. Knowing the bias is the start, not the fix. Once you know your tendencies, Investopedia says, work on a concrete plan to deal with them. The map shows you the problem. Fixing it takes a concrete plan.",
+  "lesson_text": "False. Knowing is the start, not the fix. You can know you chase and still chase tomorrow. Awareness alone rarely beats a habit. What works is a plan for the exact moment it shows up. Here's mine. If I miss the breakout, I don't buy it more than 4% above the buy point. I set an alert for the next pullback instead. The map shows you the problem. The plan is how you fix it. The map shows you the problem. A plan fixes it.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -844,10 +868,13 @@
     "False"
    ],
    "kind": "tf",
-   "q": "Once you know which bias trips you up, that alone usually stops it.",
+   "q": "Once you've spotted the bias that trips you up, knowing about it is enough to stop it.",
    "subject": "F8.01#q14"
   },
   "reveal_json": {
+   "deeper": {
+    "example": "Investopedia gives Kahneman's view that awareness alone usually isn't enough to overcome a bias. Steenbarger passes on a reader's point he calls wise: journaling may be necessary, but it is not sufficient."
+   },
    "depth": {
     "sources": [
      {
@@ -870,18 +897,25 @@
       "quote": "Once you’re aware of your tendencies, you’ll want to work on a concrete plan.",
       "tier": 2,
       "url": "https://www.investopedia.com/articles/basics/10/how-to-avoid-emotional-investing.asp"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "Our trading rules",
+      "quote": "No chasing: never buy more than 4% above the buy point.",
+      "tier": 3,
+      "url": null
      }
     ],
-    "summary": "Knowing about a bias usually isn't enough to overcome it. Journaling alone is not enough (a reader's point that Steenbarger calls wise and builds on). Once you know your tendencies, make a concrete plan to deal with them."
+    "summary": "Knowing about a bias usually isn't enough to overcome it. Journaling alone is not enough (a reader's point that Steenbarger calls wise and builds on). Once you know your tendencies, make a concrete plan to deal with them. Our rule C28: never buy more than 4% above the buy point."
    },
    "facts": {
-    "given": "Once you know which bias trips you up, that alone usually stops it."
+    "given": "Once you've spotted the bias that trips you up, knowing about it is enough to stop it."
    },
-   "lesson_line": "The map shows you the problem. Fixing it takes a concrete plan.",
-   "simple": "False, because knowing a bias rarely stops it by itself, so you also need a clear plan for what to do differently.",
+   "lesson_line": "The map shows you the problem. A plan fixes it.",
+   "simple": "False. Knowing a bias rarely stops it, so you also need a clear plan for what you'll do instead.",
    "tier": "extended",
    "unit": "F8.01",
-   "why": "False. Investopedia gives Kahneman's view that awareness alone usually isn't enough to overcome a bias. Steenbarger passes on a point from a reader he calls wise: journaling may be necessary, but it is not sufficient. Knowing the bias is the start, not the fix. Once you know your tendencies, Investopedia says, work on a concrete plan to deal with them."
+   "why": "False. Knowing is the start, not the fix. You can know you chase and still chase tomorrow. Awareness alone rarely beats a habit. What works is a plan for the exact moment it shows up. Here's mine. If I miss the breakout, I don't buy it more than 4% above the buy point. I set an alert for the next pullback instead. The map shows you the problem. The plan is how you fix it."
   },
   "review_status": "draft",
   "skill_id": "psych.pattern",
@@ -897,7 +931,7 @@
   "difficulty": 3,
   "id": "si_00bc94aa9330",
   "lesson_origin": "session",
-  "lesson_text": "A mistake, logged as a rule break. Your plan says buy only on a pullback, and you chased. Judge the decision, not the result. Judging by the outcome is outcome bias, and it leads people to repeat risky choices. Tendler warns that getting rewarded for bad behavior makes it feel right, for a while. Our rule is to follow the rules. Change the plan only when you have found a better way, not after one win. A broken rule that pays still goes in the log as a mistake.",
+  "lesson_text": "A rule break. Your plan said pullbacks only, and you chased a stock up 6% at the open. It closed up 10%, and that's the dangerous part. Getting paid for breaking a rule makes the break feel right, so you do it again. Judge the decision, not the result. Log it as a mistake and write down what pulled you in. If the pullback rule really keeps missing good trades, change it on purpose, after a review. Not because of one green day. A broken rule that pays is still a broken rule. Log it.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -907,7 +941,7 @@
     "A new setup worth repeating"
    ],
    "kind": "mcq",
-   "q": "How do you log this trade?",
+   "q": "It worked. What goes in your journal?",
    "story": "Your plan says buy only on a pullback. Instead you chase a stock up 6% at the open. It closes up 10%, and you're green.",
    "subject": "F8.01#q16"
   },
@@ -949,17 +983,17 @@
     "summary": "Getting paid for bad behavior makes it feel right, for a while. Outcome bias is judging a decision by how it turned out instead of by its reasoning. Judging by outcomes leads people to repeat risky choices and overlook good ones. Change the plan only when you have found a better way. A trading plan is written down and followed; you change it only when it doesn't work or you find a better way. Our rule C36: follow the rules; breaking one is not recommended. Our rule B27: journal every trade the same day and review the week every weekend."
    },
    "facts": {
-    "given": "How do you log this trade? Your plan says buy only on a pullback. Instead you chase a stock up 6% at the open. It closes up 10%, and you're green. A mistake, logged as a rule break A good trade, it made money A new setup worth repeating No log entry, it's a winner"
+    "given": "It worked. What goes in your journal? Your plan says buy only on a pullback. Instead you chase a stock up 6% at the open. It closes up 10%, and you're green. A mistake, logged as a rule break A good trade, it made money A new setup worth repeating No log entry, it's a winner"
    },
-   "lesson_line": "A broken rule that pays still goes in the log as a mistake.",
-   "simple": "Log it as a mistake, because you broke your plan, and a win can teach you to break it again.",
+   "lesson_line": "A broken rule that pays is still a broken rule. Log it.",
+   "simple": "A mistake. You broke your plan, and a win teaches you to break it again.",
    "tier": "extended",
    "unit": "F8.01",
-   "why": "A mistake, logged as a rule break. Your plan says buy only on a pullback, and you chased. Judge the decision, not the result. Judging by the outcome is outcome bias, and it leads people to repeat risky choices. Tendler warns that getting rewarded for bad behavior makes it feel right, for a while. Our rule is to follow the rules. Change the plan only when you have found a better way, not after one win.",
+   "why": "A rule break. Your plan said pullbacks only, and you chased a stock up 6% at the open. It closed up 10%, and that's the dangerous part. Getting paid for breaking a rule makes the break feel right, so you do it again. Judge the decision, not the result. Log it as a mistake and write down what pulled you in. If the pullback rule really keeps missing good trades, change it on purpose, after a review. Not because of one green day.",
    "wrong": {
-    "A good trade, it made money": "Judging a trade by its result is outcome bias. It leads you to repeat risky choices.",
-    "A new setup worth repeating": "One win off a broken rule proves nothing. Change the plan only when you've found a better way.",
-    "No log entry, it's a winner": "Our rule is to journal every trade the same day. Winners go in the log too, and so do the rules you broke."
+    "A good trade, it made money": "Judging a trade by how it turned out is outcome bias. It's how risky habits get repeated.",
+    "A new setup worth repeating": "One win off a broken rule proves nothing. You change the plan after a review, not after a lucky day.",
+    "No log entry, it's a winner": "Every trade goes in the journal the same day. Winners too, and the rules you broke to get them."
    }
   },
   "review_status": "draft",
@@ -976,7 +1010,7 @@
   "difficulty": 3,
   "id": "si_12510c0bab60",
   "lesson_origin": "session",
-  "lesson_text": "Taking the same trade again. In Tendler's map, the trading mistake is taking the same trade over and over, until it's clear you're wrong and getting nowhere. The decision underneath is revenge: getting the money back. The thought and the fixation on one position and its P&L come first. Learn those, and you can spot them in real time and limit the damage. The mistake comes last. Learn the thoughts that come first, and you can catch it sooner.",
+  "lesson_text": "Takes the same trade again. And again. That's where Tendler's map ends: the same trade over and over. Look at what comes first, though. The thought, 'I'm not letting the market stop me.' Then eyes glued to one position and its P&L. Then the decision to get the money back. That's revenge. After a stop-out we only get back in if the setup triggers again, as a new trade. Wanting the money back isn't a trigger. Learn those early signs in yourself and you catch it before the re-entries pile up. The mistake comes last. Learn what comes first, and you catch it sooner.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -986,13 +1020,13 @@
     "Taking the same trade again"
    ],
    "kind": "mcq",
-   "q": "What trading mistake does this map lead to?",
-   "story": "Tendler gives a sample map. Thought: 'I'm not letting the market stop me.' Behavior: glued to one position and the P&L. Decision: get the money back.",
+   "q": "So what does this trader do next?",
+   "story": "Here's a sample map from trading coach Jared Tendler. Thought: 'I'm not letting the market stop me.' Behavior: glued to one position and the P&L. Decision: get the money back.",
    "subject": "F8.01#q17"
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The trap is a re-entry that looks like a plan. Our rule: after a stop-out, buy again only if the setup triggers again, as a new trade with its own stop. Wanting the money back is not a trigger. If the only reason to get back in is the last loss, it's revenge."
+    "trap": "The trap is a re-entry that looks like a plan. After a stop-out, we buy again only if the setup triggers again, as a new trade with its own stop. Wanting the money back is not a trigger. If the only reason to get back in is the last loss, it's revenge."
    },
    "depth": {
     "sources": [
@@ -1028,13 +1062,13 @@
     "summary": "In the same map, the thought is: I'm not letting the market stop me. In Tendler's sample map, the behavior is fixating on one position and the P&L. In the same map, the trader's decisions turn to revenge and getting the money back. In the same map, the trading mistake is taking the same trade over and over. A detailed map lets you spot the reaction in real time and limit the damage. Know your own mistakes well enough to catch them in real time. Our rule B21: after a stop-out, re-enter only if the setup triggers again, as a new trade."
    },
    "facts": {
-    "given": "What trading mistake does this map lead to? Tendler gives a sample map. Thought: 'I'm not letting the market stop me.' Behavior: glued to one position and the P&L. Decision: get the money back. Taking the same trade again Hesitating on a good entry Selling a winner too early Buying a stock everyone's chasing"
+    "given": "So what does this trader do next? Here's a sample map from trading coach Jared Tendler. Thought: 'I'm not letting the market stop me.' Behavior: glued to one position and the P&L. Decision: get the money back. Taking the same trade again Hesitating on a good entry Selling a winner too early Buying a stock everyone's chasing"
    },
-   "lesson_line": "The mistake comes last. Learn the thoughts that come first, and you can catch it sooner.",
-   "simple": "It leads to taking the same losing trade again and again, because the trader wants revenge and the money back.",
+   "lesson_line": "The mistake comes last. Learn what comes first, and you catch it sooner.",
+   "simple": "Takes the same losing trade again and again, because the goal has become getting the money back.",
    "tier": "extended",
    "unit": "F8.01",
-   "why": "Taking the same trade again. In Tendler's map, the trading mistake is taking the same trade over and over, until it's clear you're wrong and getting nowhere. The decision underneath is revenge: getting the money back. The thought and the fixation on one position and its P&L come first. Learn those, and you can spot them in real time and limit the damage.",
+   "why": "Takes the same trade again. And again. That's where Tendler's map ends: the same trade over and over. Look at what comes first, though. The thought, 'I'm not letting the market stop me.' Then eyes glued to one position and its P&L. Then the decision to get the money back. That's revenge. After a stop-out we only get back in if the setup triggers again, as a new trade. Wanting the money back isn't a trigger. Learn those early signs in yourself and you catch it before the re-entries pile up.",
    "wrong": {
     "Buying a stock everyone's chasing": "The focus is one position the trader already lost on, not a new hot name.",
     "Hesitating on a good entry": "This trader is pushing to get the money back, not holding back on an entry.",
@@ -1055,7 +1089,7 @@
   "difficulty": 3,
   "id": "si_ae8351491af6",
   "lesson_origin": "session",
-  "lesson_text": "Write a rule for when you buy. Tendler calls tightening your rules the correct first step. Investopedia says a plan should set exactly when you enter. Our own rule is one example: never buy more than 4% above the buy point. You can't break a rule you don't have. Write the rule first. You can't break a rule you don't have.",
+  "lesson_text": "Write an entry rule. Your plan says what to watch and nothing about when to buy. So every entry is a gut call, and your gut likes stocks that already ran. Before you go digging into FOMO, close that gap. Write down exactly when you buy. One of ours is never to buy more than 4% above the buy point. Past that, you wait for the next setup. You can't break a rule you don't have. Write the rule first. You can't break a rule you don't have.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -1071,7 +1105,7 @@
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The trap is jumping to psychology. Buying after big run-ups looks like FOMO, and it may be. But with no written entry rule, there is nothing to break yet. Write the rule first, then trade it."
+    "trap": "The trap is jumping to psychology. Buying after big run-ups looks like FOMO, and it may be. But with no written entry rule, there's nothing to break yet. Tendler calls tightening your rules the correct first step. Write the rule first, then trade it."
    },
    "depth": {
     "sources": [
@@ -1103,14 +1137,14 @@
     "given": "What do you fix first? You keep buying stocks after big run-ups, and most of those trades lose. Your written plan lists stocks to watch, and nothing more. Write a rule for when you buy Work on your fear of missing out Cut your size in half for now Take a month off from trading"
    },
    "lesson_line": "Write the rule first. You can't break a rule you don't have.",
-   "simple": "Write an entry rule first, because you can't break a rule you don't have, so the gap in the plan comes first.",
+   "simple": "Write an entry rule first. You can't break a rule you don't have, so the gap in the plan comes first.",
    "tier": "expert",
    "unit": "F8.01",
-   "why": "Write a rule for when you buy. Tendler calls tightening your rules the correct first step. Investopedia says a plan should set exactly when you enter. Our own rule is one example: never buy more than 4% above the buy point. You can't break a rule you don't have.",
+   "why": "Write an entry rule. Your plan says what to watch and nothing about when to buy. So every entry is a gut call, and your gut likes stocks that already ran. Before you go digging into FOMO, close that gap. Write down exactly when you buy. One of ours is never to buy more than 4% above the buy point. Past that, you wait for the next setup. You can't break a rule you don't have.",
    "wrong": {
-    "Cut your size in half for now": "Smaller size can limit the damage, but it fixes nothing. The gap in your plan is still there.",
+    "Cut your size in half for now": "Smaller size limits the damage, but it fixes nothing. The gap in your plan is still there.",
     "Take a month off from trading": "You'd come back with the same gap in your plan.",
-    "Work on your fear of missing out": "Maybe later. Tendler says tightening your rules is the correct first step, and you don't have an entry rule yet."
+    "Work on your fear of missing out": "Maybe later. Tightening your rules comes first, and you don't even have an entry rule yet."
    }
   },
   "review_status": "draft",
@@ -1127,7 +1161,7 @@
   "difficulty": 3,
   "id": "si_bf43ccec0c06",
   "lesson_origin": "session",
-  "lesson_text": "It's an emotional pattern, and the next step is to map it. You know the rule and still break it, about once a week. Tendler: when a mistake repeats and you can't stop yourself, emotions are the reason. Here the trigger shows up after missed moves. Map what you think and feel right before the chase. The rule doesn't need changing. You aren't following it yet. Knowing the rule and breaking it anyway is the signal. Map what comes right before it.",
+  "lesson_text": "It's emotional, and it's time to map it. The rule isn't the problem. You know it cold and still break it, about once a week. When a mistake repeats like that and you can't stop yourself, emotions are driving. Look at when it happens: after you've missed a few big moves. That's the trigger. So map that moment. Write what you thought when the move ran without you, and what you felt as the next one took off. Don't touch the rule. Start following it. Knowing the rule and breaking it anyway is the signal. Map what comes right before it.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -1137,7 +1171,7 @@
     "The rule needs to be stricter"
    ],
    "kind": "mcq",
-   "q": "What does that tell you?",
+   "q": "What's that telling you?",
    "story": "Your entry rule is written down and you know it cold. Still, about once a week you buy far above your entry point, usually after missing a few big moves.",
    "subject": "F8.01#q19"
   },
@@ -1179,17 +1213,17 @@
     "summary": "A mistake you repeat and can't stop yourself from making is driven by emotion. If the mistakes keep costing you after that, the answer isn't technical. Go back over your past decisions and look for recurring mistakes and emotional triggers. Your emotional reactions repeat for the same reasons; they are not random. A trading plan is written down and followed; you change it only when it doesn't work or you find a better way."
    },
    "facts": {
-    "given": "What does that tell you? Your entry rule is written down and you know it cold. Still, about once a week you buy far above your entry point, usually after missing a few big moves. It's an emotional pattern The rule needs to be stricter The entry rule doesn't work It's bad luck, it will pass"
+    "given": "What's that telling you? Your entry rule is written down and you know it cold. Still, about once a week you buy far above your entry point, usually after missing a few big moves. It's an emotional pattern The rule needs to be stricter The entry rule doesn't work It's bad luck, it will pass"
    },
    "lesson_line": "Knowing the rule and breaking it anyway is the signal. Map what comes right before it.",
-   "simple": "It's an emotional pattern, because you know the rule and break it anyway after missing moves, so map what comes first.",
+   "simple": "It's an emotional pattern. You know the rule and break it anyway after missed moves, so map what comes right before.",
    "tier": "expert",
    "unit": "F8.01",
-   "why": "It's an emotional pattern, and the next step is to map it. You know the rule and still break it, about once a week. Tendler: when a mistake repeats and you can't stop yourself, emotions are the reason. Here the trigger shows up after missed moves. Map what you think and feel right before the chase. The rule doesn't need changing. You aren't following it yet.",
+   "why": "It's emotional, and it's time to map it. The rule isn't the problem. You know it cold and still break it, about once a week. When a mistake repeats like that and you can't stop yourself, emotions are driving. Look at when it happens: after you've missed a few big moves. That's the trigger. So map that moment. Write what you thought when the move ran without you, and what you felt as the next one took off. Don't touch the rule. Start following it.",
    "wrong": {
-    "It's bad luck, it will pass": "Tendler: there's no randomness in the mental game. This one shows up after missed moves, so it has a trigger.",
-    "The entry rule doesn't work": "You can't judge a rule you aren't following. Change the plan only when it's found not to work.",
-    "The rule needs to be stricter": "You already break a clear rule. Tendler: when the bleeding continues, the answer won't come from the technical side."
+    "It's bad luck, it will pass": "Luck doesn't show up on a schedule. This comes after missed moves, so it has a trigger.",
+    "The entry rule doesn't work": "You can't judge a rule you aren't following. Trade it as written first.",
+    "The rule needs to be stricter": "You already break a clear rule. A stricter one gets broken the same way."
    }
   },
   "review_status": "draft",
@@ -1206,7 +1240,7 @@
   "difficulty": 3,
   "id": "si_769ec8aac2f3",
   "lesson_origin": "session",
-  "lesson_text": "True. Tendler: emotions are not the problem. They are signals pointing to where the real problem lies. His second stage digs for the hidden flaws and biases behind them. Steenbarger agrees that fear and greed are not the issues. That does not mean you ignore them. Tendler says pretending an emotion isn't there only manages the problem. So read what they point to, and fix that. An emotion is a messenger. Read the message instead of just trying to silence it.",
+  "lesson_text": "True. The feeling is the messenger. Say fear gets you out of every winner early. The fear isn't the root. Maybe you've never really learned what your setups do when you hold them, so every pullback feels like the end. Fix that and the fear quiets down. So don't just shove the feeling down. Pretending it isn't there only manages the problem. Ask what it's pointing at, and fix that. An emotion is a messenger. Read the message.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -1214,7 +1248,7 @@
     "False"
    ],
    "kind": "tf",
-   "q": "Fear, greed and anger are signals that point to a deeper problem.",
+   "q": "Fear, greed and anger aren't the real problem. They're signals pointing at it.",
    "subject": "F8.01#q20"
   },
   "reveal_json": {
@@ -1236,18 +1270,25 @@
       "quote": "But fear and greed are not the issues. The issue is attempting to short circuit the process of mastering markets.",
       "tier": 2,
       "url": "https://traderfeed.blogspot.com/2026/09/how-to-become-your-own-trading.html"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Jared Tendler (author's blog): Emotions Signal a Problem: They're Not the Problem (2021-03-09)",
+      "quote": "Fear is why you get out of a trade too early, greed is why you jump in too soon, anger is why you revenge trade.",
+      "tier": 2,
+      "url": "https://www.goodreads.com/author_blog_posts/21190725-emotions-signal-a-problem-they-re-not-the-problem"
      }
     ],
-    "summary": "Emotions are signals that point to the real problem; they are not the problem. Stage two digs for the hidden flaws and biases behind the problem. Fear and greed are not the root issue; skipping the work of mastering markets is. Ignoring an emotion or calling it a one-off manages the problem; it doesn't solve it."
+    "summary": "Emotions are signals that point to the real problem; they are not the problem. Stage two digs for the hidden flaws and biases behind the problem. Fear and greed are not the root issue; skipping the work of mastering markets is. Ignoring an emotion or calling it a one-off manages the problem; it doesn't solve it. Fear drives early exits, greed drives early entries, and anger drives revenge trades."
    },
    "facts": {
-    "given": "Fear, greed and anger are signals that point to a deeper problem."
+    "given": "Fear, greed and anger aren't the real problem. They're signals pointing at it."
    },
-   "lesson_line": "An emotion is a messenger. Read the message instead of just trying to silence it.",
-   "simple": "True, because fear, greed and anger point to a deeper flaw, so fix what they point to, not just the feeling.",
+   "lesson_line": "An emotion is a messenger. Read the message.",
+   "simple": "True. They point to a deeper flaw, so fix what they point to, not just the feeling.",
    "tier": "expert",
    "unit": "F8.01",
-   "why": "True. Tendler: emotions are not the problem. They are signals pointing to where the real problem lies. His second stage digs for the hidden flaws and biases behind them. Steenbarger agrees that fear and greed are not the issues. That does not mean you ignore them. Tendler says pretending an emotion isn't there only manages the problem. So read what they point to, and fix that."
+   "why": "True. The feeling is the messenger. Say fear gets you out of every winner early. The fear isn't the root. Maybe you've never really learned what your setups do when you hold them, so every pullback feels like the end. Fix that and the fear quiets down. So don't just shove the feeling down. Pretending it isn't there only manages the problem. Ask what it's pointing at, and fix that."
   },
   "review_status": "draft",
   "skill_id": "psych.pattern",
@@ -1426,22 +1467,22 @@
  },
  {
   "answer_json": {
-   "answer": "Fear of being left out of a move"
+   "answer": "Being left out of the move"
   },
   "difficulty": 1,
   "id": "si_84c6ec2452d3",
   "lesson_origin": "session",
-  "lesson_text": "Fear of being left out of a move. FOMO stands for the fear of missing out. In trading it is the fear of missing out on potential market moves. It feels like something exciting is happening while you sit on the sidelines. Its urgency drives rushed, impulsive decisions. It is not the fear of a loss: FOMO is about a gain you are not in. FOMO wants you in now, on somebody else's move.",
+  "lesson_text": "Being left out. FOMO is the fear of missing out, and in trading it's the fear of missing a move. Something exciting is happening, you're on the sidelines, and you feel like you have to be in it right now. Notice it's not fear of losing. It's fear of a gain you don't have. That's what makes it dangerous. It pushes you to buy fast, with no plan, often after the move. FOMO wants you in right now, on somebody else's move.",
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Fear of holding overnight",
-    "Fear of losing money",
-    "Fear of buying at a high",
-    "Fear of being left out of a move"
+    "Holding it over the weekend",
+    "Losing money on the trade",
+    "Buying right at the high",
+    "Being left out of the move"
    ],
    "kind": "mcq",
-   "q": "In trading, what is FOMO?",
+   "q": "Your buddy texts you \"major FOMO on this one\" while a stock rips. What's he actually afraid of?",
    "subject": "FOMO"
   },
   "reveal_json": {
@@ -1472,17 +1513,17 @@
     "summary": "Steenbarger: FOMO is the fear of missing out on potential market moves. FOMO is the fear of missing out, and everyone feels it. FOMO is the feeling of being on the sidelines of something exciting, and its urgency drives impulsive decisions."
    },
    "facts": {
-    "given": "In trading, what is FOMO? Fear of being left out of a move Fear of losing money Fear of buying at a high Fear of holding overnight"
+    "given": "Your buddy texts you \"major FOMO on this one\" while a stock rips. What's he actually afraid of? Being left out of the move Losing money on the trade Buying right at the high Holding it over the weekend"
    },
-   "lesson_line": "FOMO wants you in now, on somebody else's move.",
-   "simple": "FOMO is the fear of being left out of a move others are making, and that urge pushes you into rushed trades.",
+   "lesson_line": "FOMO wants you in right now, on somebody else's move.",
+   "simple": "FOMO is the fear of being left out of a move, and that itch pushes you into rushed buys.",
    "tier": "core",
    "unit": "F8.02",
-   "why": "Fear of being left out of a move. FOMO stands for the fear of missing out. In trading it is the fear of missing out on potential market moves. It feels like something exciting is happening while you sit on the sidelines. Its urgency drives rushed, impulsive decisions. It is not the fear of a loss: FOMO is about a gain you are not in.",
+   "why": "Being left out. FOMO is the fear of missing out, and in trading it's the fear of missing a move. Something exciting is happening, you're on the sidelines, and you feel like you have to be in it right now. Notice it's not fear of losing. It's fear of a gain you don't have. That's what makes it dangerous. It pushes you to buy fast, with no plan, often after the move.",
    "wrong": {
-    "Fear of buying at a high": "That's closer to the opposite. FOMO pulls you into buying high, not away from it.",
-    "Fear of holding overnight": "That's worry about a gap in a trade you own. FOMO is about a move you're not in.",
-    "Fear of losing money": "That's the fear of loss. FOMO is the fear of being left out of a gain."
+    "Buying right at the high": "Close to the opposite. FOMO is what gets you buying the high.",
+    "Holding it over the weekend": "That's gap worry on a stock you own. FOMO is about one you don't.",
+    "Losing money on the trade": "That's fear of loss. FOMO is about a gain you're not in."
    }
   },
   "review_status": "draft",
@@ -1499,7 +1540,7 @@
   "difficulty": 1,
   "id": "si_8105e97066fd",
   "lesson_origin": "session",
-  "lesson_text": "True. Chasing means coming into a position too late to properly benefit. Schwab describes it as jumping on a move after it has already happened, perhaps just when it is ready to reverse. Investopedia ties chasing to herd instinct and buying at a high price. Steenbarger saw a client chase moves that ran from his ideal entry, which often led to small paper-cut losses. If the move already ran without you, paying up for it is a chase.",
+  "lesson_text": "True, that's a chase. You came in late, after the move already happened, and paid up for it. Here's what it costs you. Your stop's still down where the idea is wrong, so you're further from it. More risk on every share. And you're often buying from the people who got in early, sometimes right as it's ready to turn. Come in that late and there's not much left for you. If the move already ran without you, paying up for it is a chase.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -1507,10 +1548,13 @@
     "False"
    ],
    "kind": "tf",
-   "q": "Chasing is jumping into a move after it has already happened.",
+   "q": "It ran well past your planned entry, and you bought it anyway, way up there. That's a chase.",
    "subject": "F8.02#q02"
   },
   "reveal_json": {
+   "deeper": {
+    "example": "Schwab describes chasing as jumping on a move after it has already happened, perhaps right when it is ready to reverse. Investopedia ties chasing to herd instinct and buying at a high price. Brett Steenbarger coached a trader who chased moves that ran from his ideal entry, and all too often it led to paper-cut losses."
+   },
    "depth": {
     "sources": [
      {
@@ -1533,18 +1577,25 @@
       "quote": "he would see the market moving away from his ideal entry point and, fearful of missing out on the opportunity, he would chase the short term movement.  All too often that led to paper cut losses",
       "tier": 2,
       "url": "https://traderfeed.blogspot.com/2019/11/how-fomo-can-help-your-trading.html"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Investopedia: Avoiding FOMO: How to Shield Your Finances from Hype (Daniel Liberto, updated 2026-08-31)",
+      "quote": "Plus, it could be about to be abandoned by earlier investors who've decided to take profits.",
+      "tier": 2,
+      "url": "https://www.investopedia.com/fomo-investing-protect-your-money-11757950"
      }
     ],
-    "summary": "A chase is a position taken too late to benefit properly. Missing a move tempts traders to jump in late, sometimes right before it reverses. Chasing means following the herd, usually buying at a high price. Steenbarger's client chased moves that ran from his entry and took repeated small losses."
+    "summary": "A chase is a position taken too late to benefit properly. Missing a move tempts traders to jump in late, sometimes right before it reverses. Chasing means following the herd, usually buying at a high price. Steenbarger's client chased moves that ran from his entry and took repeated small losses. Early buyers may be getting ready to sell to the late ones."
    },
    "facts": {
-    "given": "Chasing is jumping into a move after it has already happened."
+    "given": "It ran well past your planned entry, and you bought it anyway, way up there. That's a chase."
    },
    "lesson_line": "If the move already ran without you, paying up for it is a chase.",
-   "simple": "True, chasing means buying into a move after it already ran, often too late to make much from it.",
+   "simple": "True. Buying after the move already ran is a chase, and it leaves you far from your stop.",
    "tier": "core",
    "unit": "F8.02",
-   "why": "True. Chasing means coming into a position too late to properly benefit. Schwab describes it as jumping on a move after it has already happened, perhaps just when it is ready to reverse. Investopedia ties chasing to herd instinct and buying at a high price. Steenbarger saw a client chase moves that ran from his ideal entry, which often led to small paper-cut losses."
+   "why": "True, that's a chase. You came in late, after the move already happened, and paid up for it. Here's what it costs you. Your stop's still down where the idea is wrong, so you're further from it. More risk on every share. And you're often buying from the people who got in early, sometimes right as it's ready to turn. Come in that late and there's not much left for you."
   },
   "review_status": "draft",
   "skill_id": "psych.fomo",
@@ -1560,7 +1611,7 @@
   "difficulty": 1,
   "id": "si_34205dfc1f50",
   "lesson_origin": "session",
-  "lesson_text": "True. FOMO shows up early as well as late. Steenbarger describes a trader who front-ran his setups, getting into trades before the proper signal. Investopedia's breakout advice: finding a good candidate is no reason to trade early, so wait for the price to make its move. Getting in before your own signal is FOMO too. Let the trigger pull you in.",
+  "lesson_text": "True. FOMO cuts both ways. Late is the chase. Early is buying before the trigger because you're scared it'll leave without you. Problem is, a setup that hasn't triggered hasn't proven anything yet. Set an alert at your trigger and wait for price to trade through it. If it never gets there, you never needed to own it. Getting in before your own signal is FOMO too. Let the trigger pull you in.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -1568,10 +1619,13 @@
     "False"
    ],
    "kind": "tf",
-   "q": "FOMO can also make you buy too early, before your setup gives its signal.",
+   "q": "FOMO can also get you in too early, before your setup has even triggered.",
    "subject": "F8.02#q03"
   },
   "reveal_json": {
+   "deeper": {
+    "example": "Brett Steenbarger describes a trader who front-ran his setups, getting into trades before proper signals. Investopedia's breakout advice says the same: a good candidate is no reason to take the trade early, so wait for the price to make its move."
+   },
    "depth": {
     "sources": [
      {
@@ -1592,13 +1646,13 @@
     "summary": "FOMO can also mean buying before the setup gives its signal. A good setup is not a reason to buy before it triggers."
    },
    "facts": {
-    "given": "FOMO can also make you buy too early, before your setup gives its signal."
+    "given": "FOMO can also get you in too early, before your setup has even triggered."
    },
    "lesson_line": "Getting in before your own signal is FOMO too. Let the trigger pull you in.",
-   "simple": "True, fear of missing out can push you to buy before your setup has given its signal.",
+   "simple": "True. Buying before your trigger is FOMO too, just early instead of late.",
    "tier": "core",
    "unit": "F8.02",
-   "why": "True. FOMO shows up early as well as late. Steenbarger describes a trader who front-ran his setups, getting into trades before the proper signal. Investopedia's breakout advice: finding a good candidate is no reason to trade early, so wait for the price to make its move."
+   "why": "True. FOMO cuts both ways. Late is the chase. Early is buying before the trigger because you're scared it'll leave without you. Problem is, a setup that hasn't triggered hasn't proven anything yet. Set an alert at your trigger and wait for price to trade through it. If it never gets there, you never needed to own it."
   },
   "review_status": "draft",
   "skill_id": "psych.fomo",
@@ -1609,22 +1663,22 @@
  },
  {
   "answer_json": {
-   "answer": "Your risk per share gets bigger"
+   "answer": "Your risk per share got bigger"
   },
   "difficulty": 1,
   "id": "si_4758a3007d5f",
   "lesson_origin": "session",
-  "lesson_text": "Your risk per share gets bigger. Risk per share is the dollar gap from your entry down to your stop. Same stop, higher entry: a wider gap and more lost per share if the stop is hit. Keep the same size and you take on more risk than you intended. Our rule keeps the dollar risk, so the shares shrink. And it never buys more than 4% above the buy point. Every dollar you chase gets added to your risk per share.",
+  "lesson_text": "Your risk per share got bigger. Risk per share is your entry minus your stop. The stop didn't move, your entry did, so the gap between them grew. Keep your normal share count and you're now risking more dollars than you planned. That's how a chase quietly blows up your risk. The fix: keep the dollar risk the same and buy fewer shares. And past 4% above the buy point, we don't buy it at all. Every dollar you chase gets added to your risk per share.",
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Your risk per share gets bigger",
-    "Nothing, the stop still caps the loss",
-    "Your upside to the target grows",
-    "The stop gets more room, so it's safer"
+    "Your risk per share got bigger",
+    "Nothing, the stop still caps it",
+    "More upside to your target",
+    "More room, so it's safer now"
    ],
    "kind": "mcq",
-   "q": "You buy well above your planned entry but keep the same stop. What changes?",
+   "q": "Late to the trigger, you fill well above your planned entry and leave the stop where it was. What just changed?",
    "subject": "F8.02#q05"
   },
   "reveal_json": {
@@ -1655,17 +1709,17 @@
     "summary": "Risk per share is the distance from your entry down to your stop. Buying more because prices are rising means taking more risk than you planned. Our rule C28: a chase keeps the dollar risk; the stop stays under the buy point, so the shares shrink. Our rule C28: never buy more than 4% above the buy point."
    },
    "facts": {
-    "given": "You buy well above your planned entry but keep the same stop. What changes? Your risk per share gets bigger Nothing, the stop still caps the loss The stop gets more room, so it's safer Your upside to the target grows"
+    "given": "Late to the trigger, you fill well above your planned entry and leave the stop where it was. What just changed? Your risk per share got bigger Nothing, the stop still caps it More room, so it's safer now More upside to your target"
    },
    "lesson_line": "Every dollar you chase gets added to your risk per share.",
-   "simple": "Your risk per share gets bigger, because the gap between what you paid and your stop is now wider.",
+   "simple": "Your risk per share got bigger, because the gap between what you paid and your stop is wider now.",
    "tier": "core",
    "unit": "F8.02",
-   "why": "Your risk per share gets bigger. Risk per share is the dollar gap from your entry down to your stop. Same stop, higher entry: a wider gap and more lost per share if the stop is hit. Keep the same size and you take on more risk than you intended. Our rule keeps the dollar risk, so the shares shrink. And it never buys more than 4% above the buy point.",
+   "why": "Your risk per share got bigger. Risk per share is your entry minus your stop. The stop didn't move, your entry did, so the gap between them grew. Keep your normal share count and you're now risking more dollars than you planned. That's how a chase quietly blows up your risk. The fix: keep the dollar risk the same and buy fewer shares. And past 4% above the buy point, we don't buy it at all.",
    "wrong": {
-    "Nothing, the stop still caps the loss": "The stop sets your exit price, not your loss per share. A higher entry adds to the distance down to it.",
-    "The stop gets more room, so it's safer": "More room is more loss per share. The stop sits where it always did; you just paid more.",
-    "Your upside to the target grows": "The other way round. A higher entry leaves less room to the same target."
+    "More room, so it's safer now": "More room is more you lose per share. The stop's where it always was, you just paid more.",
+    "More upside to your target": "The other way round. A higher entry leaves less room up to the same target.",
+    "Nothing, the stop still caps it": "The stop sets your exit price, not your loss per share. Buy higher and the drop to it gets longer."
    }
   },
   "review_status": "draft",
@@ -1682,7 +1736,7 @@
   "difficulty": 1,
   "id": "si_e8c85af86a2e",
   "lesson_origin": "session",
-  "lesson_text": "False. Rhodes' rule is to buy what is showing strength. A chase is coming into a position too late to properly benefit. What separates them is how far past the buy point you get in. The further past, the greater the risk of a shakeout. Our rule draws the line: never buy more than 4% above the buy point. Buying strength at your trigger is a plan. Buying it far past the trigger is a chase.",
+  "lesson_text": "False. That's the plan working. Buying strength right at your trigger is exactly what we're after. A chase is something else: buying late, way past the buy point, because you're scared to miss more. Our line is 4%. We never buy more than 4% above the buy point. Inside it, you're buying strength. Past it, the stop's too far away and the shares get small. Buying strength at your trigger is a plan. Buying it far past the trigger is a chase.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -1690,10 +1744,13 @@
     "False"
    ],
    "kind": "tf",
-   "q": "Buying strength is the same thing as chasing.",
+   "q": "A stock trades through your trigger on a strong day, and you buy it right there. That's chasing.",
    "subject": "F8.02#q06"
   },
   "reveal_json": {
+   "deeper": {
+    "example": "Richard Rhodes' trading rules on ChartSchool say buy what is showing strength. IBD makes the other half of the point: the further past the buy point you get in, the greater the risk of getting shaken out."
+   },
    "depth": {
     "sources": [
      {
@@ -1728,13 +1785,13 @@
     "summary": "Rhodes' rule: buy what is showing strength. A chase is a position taken too late to benefit properly. The further past the buy point you buy, the greater the risk of getting shaken out. Our rule C28: never buy more than 4% above the buy point."
    },
    "facts": {
-    "given": "Buying strength is the same thing as chasing."
+    "given": "A stock trades through your trigger on a strong day, and you buy it right there. That's chasing."
    },
    "lesson_line": "Buying strength at your trigger is a plan. Buying it far past the trigger is a chase.",
-   "simple": "False, buying strength at your planned trigger is a plan, while chasing is buying too late, far past it.",
+   "simple": "False. Buying at your trigger is the plan, and chasing is buying late, far past it.",
    "tier": "core",
    "unit": "F8.02",
-   "why": "False. Rhodes' rule is to buy what is showing strength. A chase is coming into a position too late to properly benefit. What separates them is how far past the buy point you get in. The further past, the greater the risk of a shakeout. Our rule draws the line: never buy more than 4% above the buy point."
+   "why": "False. That's the plan working. Buying strength right at your trigger is exactly what we're after. A chase is something else: buying late, way past the buy point, because you're scared to miss more. Our line is 4%. We never buy more than 4% above the buy point. Inside it, you're buying strength. Past it, the stop's too far away and the shares get small."
   },
   "review_status": "draft",
   "skill_id": "psych.fomo",
@@ -1745,22 +1802,22 @@
  },
  {
   "answer_json": {
-   "answer": "So you decide before emotions kick in"
+   "answer": "Deciding while you're still calm"
   },
   "difficulty": 1,
   "id": "si_e61e1e759042",
   "lesson_origin": "session",
-  "lesson_text": "So you decide before emotions kick in. Fidelity: set your process in advance so you aren't making spur-of-the-moment choices at temporary peaks or valleys. A plan removes some of the emotion and guesswork. It does not stop losses or catch every move. Our rule: every planned buy has its entry, stop and size written down before the market opens. Make the decision while you're calm. Then just follow it.",
+  "lesson_text": "Deciding while you're calm. Once the bell rings and something's ripping, nobody thinks straight. The plan you wrote the night before is the calm version of you making the call. Then you just follow it. It won't stop losses, and you'll still miss moves. What it stops is the spur-of-the-moment buy near a high. That's why every buy we make has its entry, stop and size written down before the open. Make the call while you're calm. Then just follow it.",
   "module": "F8",
   "prompt_json": {
    "choices": [
     "So you never take a losing trade",
-    "So you decide before emotions kick in",
-    "So a fast move can't leave you behind",
-    "So you know where the stock will go next"
+    "Deciding while you're still calm",
+    "So a fast move can't leave you",
+    "So you know where it goes next"
    ],
    "kind": "mcq",
-   "q": "Why write your entry and stop down before the market opens?",
+   "q": "Sunday night you write down the entry, stop and size for every name on your list. What's that really for?",
    "subject": "F8.02#q07"
   },
   "reveal_json": {
@@ -1805,17 +1862,17 @@
     "summary": "Set your entries and exits in advance so you don't decide on the spur of the moment. A trading plan takes some of the emotion out of decisions. A plan with rules leaves less room for emotional decisions. Stick to your plan and take small losses quickly. Stick to your plan and don't let the fear of missing out make the decision. Our rule D39: entry, stop and size are written down before the open."
    },
    "facts": {
-    "given": "Why write your entry and stop down before the market opens? So you decide before emotions kick in So you never take a losing trade So a fast move can't leave you behind So you know where the stock will go next"
+    "given": "Sunday night you write down the entry, stop and size for every name on your list. What's that really for? Deciding while you're still calm So you never take a losing trade So a fast move can't leave you So you know where it goes next"
    },
-   "lesson_line": "Make the decision while you're calm. Then just follow it.",
-   "simple": "Writing it down first lets you decide while calm, so you aren't choosing on the spur of the moment.",
+   "lesson_line": "Make the call while you're calm. Then just follow it.",
+   "simple": "Writing it down first means you decide while calm, not in the middle of a fast move.",
    "tier": "core",
    "unit": "F8.02",
-   "why": "So you decide before emotions kick in. Fidelity: set your process in advance so you aren't making spur-of-the-moment choices at temporary peaks or valleys. A plan removes some of the emotion and guesswork. It does not stop losses or catch every move. Our rule: every planned buy has its entry, stop and size written down before the market opens.",
+   "why": "Deciding while you're calm. Once the bell rings and something's ripping, nobody thinks straight. The plan you wrote the night before is the calm version of you making the call. Then you just follow it. It won't stop losses, and you'll still miss moves. What it stops is the spur-of-the-moment buy near a high. That's why every buy we make has its entry, stop and size written down before the open.",
    "wrong": {
-    "So a fast move can't leave you behind": "You'll still miss moves. A plan set in advance keeps you from a spur-of-the-moment chase.",
-    "So you know where the stock will go next": "A plan fixes your own choices in advance, so you don't decide on the spur of the moment. It doesn't say where the stock goes.",
-    "So you never take a losing trade": "A plan still has losses. Stick to it and take small losses quickly."
+    "So a fast move can't leave you": "You'll still miss moves. The plan just keeps you from chasing one on the spur of the moment.",
+    "So you know where it goes next": "A plan decides what you'll do. It can't tell you where the stock goes.",
+    "So you never take a losing trade": "A plan still has losers. Stick to it and you take them small and quick."
    }
   },
   "review_status": "draft",
@@ -1832,7 +1889,7 @@
   "difficulty": 2,
   "id": "si_e16270ca2d2d",
   "lesson_origin": "session",
-  "lesson_text": "4 times. Risk per share is entry minus stop. The plan risked $30 minus $29 a share. The chase risks $33 minus $29 a share. Same stop, four times the risk per share. Our rule keeps the dollar risk, so the shares shrink. And $33 is more than 4% above $30, so our rule skips it. Chasing doesn't move your stop. It widens your risk per share. Past 4% above the buy point, we don't buy.",
+  "lesson_text": "4 times. The plan risked $30 minus $29, so $1 a share. The chase risks $33 minus $29, so $4 a share. 4 over 1 is 4. Same stop, four times the risk on every share. Keep your size and a normal loss turns into a big one. Keep your dollar risk and you get a quarter of the shares. Either way the chase costs you. And $33 is well past 4% above $30, so I'd let this one go. Chasing doesn't move your stop. It just stretches your risk per share.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -1842,7 +1899,7 @@
     "0.25 times"
    ],
    "kind": "mcq",
-   "q": "Plan: buy at $30, stop at $29. You chase it to $33, same stop. Your risk per share is how many times the plan's?",
+   "q": "Plan: buy $30, stop $29. FOMO kicks in and you chase it to $33, same stop. Your risk per share is how many times the plan's?",
    "subject": "F8.02#q08",
    "visual": {
     "find": {
@@ -1913,17 +1970,17 @@
       "step3": 1.0
      }
     },
-    "given": "Plan: buy at $30, stop at $29. You chase it to $33, same stop. Your risk per share is how many times the plan's? 3 times 0.25 times 1.1 times 4 times"
+    "given": "Plan: buy $30, stop $29. FOMO kicks in and you chase it to $33, same stop. Your risk per share is how many times the plan's? 3 times 0.25 times 1.1 times 4 times"
    },
-   "lesson_line": "Chasing doesn't move your stop. It widens your risk per share. Past 4% above the buy point, we don't buy.",
-   "simple": "4 times, because your stop sat a dollar under the plan price but four dollars under where you bought.",
+   "lesson_line": "Chasing doesn't move your stop. It just stretches your risk per share.",
+   "simple": "4 times. Your stop sat $1 under the plan price, but $4 under where you actually bought.",
    "tier": "core",
    "unit": "F8.02",
-   "why": "4 times. Risk per share is entry minus stop. The plan risked $30 minus $29 a share. The chase risks $33 minus $29 a share. Same stop, four times the risk per share. Our rule keeps the dollar risk, so the shares shrink. And $33 is more than 4% above $30, so our rule skips it.",
+   "why": "4 times. The plan risked $30 minus $29, so $1 a share. The chase risks $33 minus $29, so $4 a share. 4 over 1 is 4. Same stop, four times the risk on every share. Keep your size and a normal loss turns into a big one. Keep your dollar risk and you get a quarter of the shares. Either way the chase costs you. And $33 is well past 4% above $30, so I'd let this one go.",
    "wrong": {
-    "0.25 times": "Flipped the ratio.",
-    "1.1 times": "Divided one price by the other.",
-    "3 times": "Compared the two prices, 33 less 30, not the two risks."
+    "0.25 times": "Flipped it. The chase is the bigger risk, not the smaller one.",
+    "1.1 times": "That's one price over the other, not the two risks.",
+    "3 times": "That's 33 less 30, the two prices. Compare the two risks instead."
    }
   },
   "review_status": "draft",
@@ -1940,7 +1997,7 @@
   "difficulty": 2,
   "id": "si_bee582b568b4",
   "lesson_origin": "session",
-  "lesson_text": "False. Others buying doesn't mean you have to. The SEC warns that following the crowd may lead to significant investment losses. The words 'that alone' matter: a crowd is not a setup. Stick with your plan and don't let the fear of missing out make the decision. The crowd buying is a feeling, not a setup.",
+  "lesson_text": "False. Their buying gives you no entry and no stop. It's a feeling, not a setup. Following a crowd into a stock is how a lot of people end up holding the top. If it's a real setup, it'll be on your list with a trigger and a stop. If it isn't, let them have it. Nobody's making you buy just because they did. The crowd buying is a feeling, not a setup.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -1948,10 +2005,13 @@
     "False"
    ],
    "kind": "tf",
-   "q": "Everyone around you is buying a stock. That alone is a good reason for you to buy it.",
+   "q": "Half your group chat just bought the same stock. That alone is reason enough for you to buy it too.",
    "subject": "F8.02#q09"
   },
   "reveal_json": {
+   "deeper": {
+    "example": "The SEC's investor alerts say it plainly: others buying doesn't mean you have to, and following the crowd may lead to significant investment losses."
+   },
    "depth": {
     "sources": [
      {
@@ -1972,13 +2032,13 @@
     "summary": "Other people buying is not a reason for you to buy. Following the crowd into a hot stock can lead to big losses. Stick to your plan and don't let the fear of missing out make the decision."
    },
    "facts": {
-    "given": "Everyone around you is buying a stock. That alone is a good reason for you to buy it."
+    "given": "Half your group chat just bought the same stock. That alone is reason enough for you to buy it too."
    },
    "lesson_line": "The crowd buying is a feeling, not a setup.",
-   "simple": "False, other people buying is pressure, not a reason, and following the crowd can lead to big losses.",
+   "simple": "False. Other people buying is pressure, not a setup, and following the crowd can lead to big losses.",
    "tier": "core",
    "unit": "F8.02",
-   "why": "False. Others buying doesn't mean you have to. The SEC warns that following the crowd may lead to significant investment losses. The words 'that alone' matter: a crowd is not a setup. Stick with your plan and don't let the fear of missing out make the decision."
+   "why": "False. Their buying gives you no entry and no stop. It's a feeling, not a setup. Following a crowd into a stock is how a lot of people end up holding the top. If it's a real setup, it'll be on your list with a trigger and a stop. If it isn't, let them have it. Nobody's making you buy just because they did."
   },
   "review_status": "draft",
   "skill_id": "psych.fomo",
@@ -1989,23 +2049,23 @@
  },
  {
   "answer_json": {
-   "answer": "Buy once it clears $25.40"
+   "answer": "Only once it clears $25.40"
   },
   "difficulty": 2,
   "id": "si_16bb2aa522e2",
   "lesson_origin": "session",
-  "lesson_text": "Buy once it clears $25.40. Buying before the signal is FOMO too. Finding a good candidate is no reason to trade early: wait for the price to make its move. If it never clears, you never owned a stock that failed to trigger. Let the trigger pull you in. If it never triggers, you never needed it.",
+  "lesson_text": "Only once it clears $25.40. Buying at $25.10 is FOMO, just early. The level's there for a reason: the break over it is what you're buying. Until it trades through, there's no setup yet. If it never clears, you never owned a stock that failed to trigger. If it does, you're in at your price with the stop you planned. Market order as it goes through, full size, one stop. Let the trigger pull you in. If it never triggers, you never needed it.",
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Buy once it clears $25.40",
-    "Buy half now, half at $25.40",
-    "Buy now, $25.10 is close enough",
-    "Buy now before it gets away"
+    "Only once it clears $25.40",
+    "Half now, half at $25.40",
+    "Right now, $25.10 is close",
+    "Right now, before it runs"
    ],
    "kind": "mcq",
-   "q": "What do you do?",
-   "story": "Your plan is to buy a break over $25.40. The stock is at $25.10 and climbing fast. You're scared it'll go without you.",
+   "q": "Where do you get in?",
+   "story": "Your plan is to buy a break over $25.40. It's at $25.10 and climbing fast, and you're scared it leaves without you.",
    "subject": "F8.02#q10"
   },
   "reveal_json": {
@@ -2028,25 +2088,25 @@
      {
       "accessed": "2026-11-12",
       "name": "Our trading rules",
-      "quote": "The full size at one price with one stop; no adding.",
+      "quote": "The full size at one price with one stop; no adding. … Entries are market orders.",
       "tier": 3,
       "url": null
      }
     ],
-    "summary": "A good setup is not a reason to buy before it triggers. FOMO can also mean buying before the setup gives its signal. Our rule A5: the full size goes on at one price with one stop, with no adding."
+    "summary": "A good setup is not a reason to buy before it triggers. FOMO can also mean buying before the setup gives its signal. Our rule A5: the full size goes on at one price with one stop, with no adding. Our rule E57: we enter with market orders."
    },
    "facts": {
-    "given": "What do you do? Your plan is to buy a break over $25.40. The stock is at $25.10 and climbing fast. You're scared it'll go without you. Buy once it clears $25.40 Buy now before it gets away Buy now, $25.10 is close enough Buy half now, half at $25.40"
+    "given": "Where do you get in? Your plan is to buy a break over $25.40. It's at $25.10 and climbing fast, and you're scared it leaves without you. Only once it clears $25.40 Right now, before it runs Right now, $25.10 is close Half now, half at $25.40"
    },
    "lesson_line": "Let the trigger pull you in. If it never triggers, you never needed it.",
-   "simple": "Buy only once it clears $25.40, because buying before the signal is fear talking, not your plan.",
+   "simple": "Wait for $25.40. Buying before the trigger is fear talking, not the plan.",
    "tier": "extended",
    "unit": "F8.02",
-   "why": "Buy once it clears $25.40. Buying before the signal is FOMO too. Finding a good candidate is no reason to trade early: wait for the price to make its move. If it never clears, you never owned a stock that failed to trigger.",
+   "why": "Only once it clears $25.40. Buying at $25.10 is FOMO, just early. The level's there for a reason: the break over it is what you're buying. Until it trades through, there's no setup yet. If it never clears, you never owned a stock that failed to trigger. If it does, you're in at your price with the stop you planned. Market order as it goes through, full size, one stop.",
    "wrong": {
-    "Buy half now, half at $25.40": "Half bought early is still in before the signal. Our rule puts the full size on at one price with one stop.",
-    "Buy now before it gets away": "That's jumping ahead of the setup: in before the signal, on fear. If the break fails, you own a stock that never triggered.",
-    "Buy now, $25.10 is close enough": "Close isn't the signal. The level is there because the break over it is the setup."
+    "Half now, half at $25.40": "Half early is still in before the signal. We put the full size on at one price, with one stop.",
+    "Right now, $25.10 is close": "Close isn't the signal. The break over $25.40 is the whole setup.",
+    "Right now, before it runs": "That's getting in ahead of the setup, on fear. If the break fails, you own a stock that never triggered."
    }
   },
   "review_status": "draft",
@@ -2063,7 +2123,7 @@
   "difficulty": 2,
   "id": "si_16f8092eeeb9",
   "lesson_origin": "session",
-  "lesson_text": "$1,000. Risk is shares times entry minus stop: 200 shares from $43 down to $38. That is more than double the $400 you planned. Buying higher with the same size raised the risk on every share. Our rule sizes from the stop, so the shares would shrink. And $43 is more than 4% above $40, so our rule skips it. Keep the size on a chase and the risk grows. Past 4% above the buy point, our rule doesn't buy.",
+  "lesson_text": "$1,000. $43 minus $38 is $5 a share. 200 shares times $5 is $1,000. That's two and a half times the $400 you signed up for, and nothing about the setup got better. You just paid more. Since the size comes from the stop, the right move was fewer shares. Better yet, pass. At $43 you're well past 4% above the $40 buy point, and we don't buy up there. Keep the size on a chase and the risk grows. Past 4% above the buy point, we don't buy.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -2073,8 +2133,8 @@
     "$8,600"
    ],
    "kind": "mcq",
-   "q": "Same stop. What is really at risk now?",
-   "story": "You planned 200 shares at $40 with a stop at $38. That's $400 at risk. The stock opens at $43, and you buy the 200 shares anyway.",
+   "q": "Same stop. How much are you really risking now?",
+   "story": "You planned 200 shares at $40, stop $38. That's $400 at risk. It opens at $43 and you buy the 200 shares anyway.",
    "subject": "F8.02#q11",
    "visual": {
     "find": {
@@ -2152,16 +2212,16 @@
       "step2": 5.0
      }
     },
-    "given": "Same stop. What is really at risk now? You planned 200 shares at $40 with a stop at $38. That's $400 at risk. The stock opens at $43, and you buy the 200 shares anyway. $1,000 $400 $600 $8,600"
+    "given": "Same stop. How much are you really risking now? You planned 200 shares at $40, stop $38. That's $400 at risk. It opens at $43 and you buy the 200 shares anyway. $1,000 $400 $600 $8,600"
    },
-   "lesson_line": "Keep the size on a chase and the risk grows. Past 4% above the buy point, our rule doesn't buy.",
-   "simple": "$1,000, because each of the 200 shares now sits further above the same $38 stop than you planned.",
+   "lesson_line": "Keep the size on a chase and the risk grows. Past 4% above the buy point, we don't buy.",
+   "simple": "$1,000, because every one of the 200 shares now sits $5 above the $38 stop.",
    "tier": "extended",
    "unit": "F8.02",
-   "why": "$1,000. Risk is shares times entry minus stop: 200 shares from $43 down to $38. That is more than double the $400 you planned. Buying higher with the same size raised the risk on every share. Our rule sizes from the stop, so the shares would shrink. And $43 is more than 4% above $40, so our rule skips it.",
+   "why": "$1,000. $43 minus $38 is $5 a share. 200 shares times $5 is $1,000. That's two and a half times the $400 you signed up for, and nothing about the setup got better. You just paid more. Since the size comes from the stop, the right move was fewer shares. Better yet, pass. At $43 you're well past 4% above the $40 buy point, and we don't buy up there.",
    "wrong": {
     "$400": "That was the plan at $40. Buying higher with the same stop raised the risk on every share.",
-    "$600": "That's only the extra you paid above $40. The stop is still at $38, below your old entry too.",
+    "$600": "That's only the extra you paid over $40. The stop's still at $38, under your old entry too.",
     "$8,600": "That's the whole position. You'd only lose all of it if the stock went to zero."
    }
   },
@@ -2179,7 +2239,7 @@
   "difficulty": 2,
   "id": "si_1ea6d35b8aa7",
   "lesson_origin": "session",
-  "lesson_text": "False. Urgency is the tool. The SEC warns that promoters may say an opportunity won't last long to pressure you into investing right away. Its advice: never feel pressured to invest right away. Our rule: never take a trade from an alert or a post without your own entry, stop and size. Urgency is someone else's plan for your money. Slow down.",
+  "lesson_text": "False. Urgency is the sales pitch. \"It won't last\" is the oldest pressure line there is. Pump-and-dump crews use it to whip up a buying frenzy, then sell their shares into it. Nothing good in this business needs you in within the minute. We never take a trade off an alert or a post without our own entry, stop and size. So slow down and run it through your plan, or pass. Urgency is someone else's plan for your money. Slow down.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -2187,10 +2247,13 @@
     "False"
    ],
    "kind": "tf",
-   "q": "A chat room says \"get in now, this won't last.\" That urgency is a good reason to act fast.",
+   "q": "A chat room post says \"get in NOW, this won't last.\" That kind of urgency is a good reason to move fast.",
    "subject": "F8.02#q12"
   },
   "reveal_json": {
+   "deeper": {
+    "example": "The SEC warns that people pushing a stock may tell you the opportunity won't last long, to pressure you into investing right away. Its advice: never feel pressured to invest right away."
+   },
    "depth": {
     "sources": [
      {
@@ -2218,13 +2281,13 @@
     "summary": "\"It won't last\" is a pressure tactic used to rush you. Never let pressure rush you into buying. In a pump and dump, promoters whip up a buying frenzy and sell into it. Our rule F66: never take a trade from an alert or a post without your own entry, stop and size."
    },
    "facts": {
-    "given": "A chat room says \"get in now, this won't last.\" That urgency is a good reason to act fast."
+    "given": "A chat room post says \"get in NOW, this won't last.\" That kind of urgency is a good reason to move fast."
    },
    "lesson_line": "Urgency is someone else's plan for your money. Slow down.",
-   "simple": "False, a rush to get in now is a pressure tactic, so slow down and use your own plan.",
+   "simple": "False. A rush to get in now is a pressure tactic, so slow down and use your own plan.",
    "tier": "extended",
    "unit": "F8.02",
-   "why": "False. Urgency is the tool. The SEC warns that promoters may say an opportunity won't last long to pressure you into investing right away. Its advice: never feel pressured to invest right away. Our rule: never take a trade from an alert or a post without your own entry, stop and size."
+   "why": "False. Urgency is the sales pitch. \"It won't last\" is the oldest pressure line there is. Pump-and-dump crews use it to whip up a buying frenzy, then sell their shares into it. Nothing good in this business needs you in within the minute. We never take a trade off an alert or a post without our own entry, stop and size. So slow down and run it through your plan, or pass."
   },
   "review_status": "draft",
   "skill_id": "psych.fomo",
@@ -2240,7 +2303,7 @@
   "difficulty": 2,
   "id": "si_7306a8cc46f5",
   "lesson_origin": "session",
-  "lesson_text": "9%. That's $43.60 minus $40, divided by $40. Our rule: never buy more than 4% above the buy point, so we don't buy this one. The further past the buy point you buy, the greater the risk of being shaken out. The stop stays under the buy point, so the distance grows and the shares shrink. Measure how far past the buy point you are before you buy. Past 4%, let it go.",
+  "lesson_text": "9.0%. $43.60 minus $40 is $3.60. $3.60 over $40 is 9.0%. That's more than twice our 4% line, so I'm out on this one. The reason is the stop. It still lives under the $40 buy point, so the drop to it is long and your shares get small. And the further past the buy point you buy, the easier you get shaken out. Let it go, or wait for it to set up again. Measure how far past the buy point you are before you buy. Past 4%, let it go.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -2250,7 +2313,7 @@
     "9.0%"
    ],
    "kind": "mcq",
-   "q": "The buy point was $40. You missed it, and the stock now trades at $43.60. How far past the buy point is it?",
+   "q": "The buy point was $40. You missed it, and it's trading at $43.60 now. How far past the buy point would you be paying?",
    "subject": "F8.02#q14",
    "visual": {
     "find": {
@@ -2270,7 +2333,7 @@
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The trap is feeling that a 9% run proves the stock is strong, so buying it must be safe. It may be strong. But your stop still sits under the $40 buy point, so the gap down to it is wide. Our rule draws the line first: past 4% above the buy point, we don't buy. Rhodes' rule for a missed trade is to wait for a correction."
+    "trap": "The trap is thinking a 9% run proves the stock is strong, so buying it must be safe. It may be strong. But your stop still sits under the $40 buy point, so the drop to it is long. Past 4% above the buy point, we don't buy. Richard Rhodes' rule for a missed trade: wait for a correction before putting it on."
    },
    "depth": {
     "sources": [
@@ -2310,17 +2373,17 @@
       "change": 3.6
      }
     },
-    "given": "The buy point was $40. You missed it, and the stock now trades at $43.60. How far past the buy point is it? 8.3% 9.0% 3.6% 0.9%"
+    "given": "The buy point was $40. You missed it, and it's trading at $43.60 now. How far past the buy point would you be paying? 8.3% 9.0% 3.6% 0.9%"
    },
    "lesson_line": "Measure how far past the buy point you are before you buy. Past 4%, let it go.",
-   "simple": "9%, because $43.60 is well above the $40 buy point, far past our 4% limit for a buy.",
+   "simple": "9.0%. $43.60 is way past our 4% line over the $40 buy point, so it's a pass.",
    "tier": "extended",
    "unit": "F8.02",
-   "why": "9%. That's $43.60 minus $40, divided by $40. Our rule: never buy more than 4% above the buy point, so we don't buy this one. The further past the buy point you buy, the greater the risk of being shaken out. The stop stays under the buy point, so the distance grows and the shares shrink.",
+   "why": "9.0%. $43.60 minus $40 is $3.60. $3.60 over $40 is 9.0%. That's more than twice our 4% line, so I'm out on this one. The reason is the stop. It still lives under the $40 buy point, so the drop to it is long and your shares get small. And the further past the buy point you buy, the easier you get shaken out. Let it go, or wait for it to set up again.",
    "wrong": {
-    "0.9%": "Decimal slip.",
-    "3.6%": "Used the dollar gap as a percent.",
-    "8.3%": "Divided the gain by the current price, not the buy point."
+    "0.9%": "Decimal slip. 3.60 over 40 is 9.0%, not 0.9%.",
+    "3.6%": "That's the dollar gap, $3.60, read as a percent.",
+    "8.3%": "Divided the gain by today's price. Measure from the buy point."
    }
   },
   "review_status": "draft",
@@ -2337,21 +2400,24 @@
   "difficulty": 2,
   "id": "si_41fc40743c8f",
   "lesson_origin": "session",
-  "lesson_text": "Wait for a pullback and a higher low. Rhodes' rule: if a trade is missed, wait for a correction before putting it on. At $44 the stock is well over 4% past the $40 breakout, past our limit for a buy. A regret buy after a missed move often lands near a peak. Missed the break: let it go, or wait for the pullback. Don't buy your regret.",
+  "lesson_text": "Wait for the pullback. At $44 you're way past 4% over the $40 buy point, so buying here is a chase. Do it off the old $39 stop and your risk per share is several times what you planned. Regret buys like this often land near a peak. So let it come back to you. If it pulls back and holds a higher low, that low is a fresh spot to risk against, with a tight stop. Missed the break: let it go, or wait for the pullback. Don't buy your regret.",
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Buy now with the old stop at $39",
+    "Buy now, keep the old $39 stop",
     "Wait for a new high, then buy",
     "Buy double size to catch up",
     "Wait for a pullback, higher low"
    ],
    "kind": "mcq",
-   "q": "What do you do?",
-   "story": "You planned to buy the breakout over $40, stop $39. You got busy and missed it. It now trades at $44, and you're kicking yourself.",
+   "q": "What's your move now?",
+   "story": "You planned to buy the breakout over $40, stop $39. You got busy and missed it. Now it's $44, and you're kicking yourself.",
    "subject": "F8.02#q15"
   },
   "reveal_json": {
+   "deeper": {
+    "example": "Richard Rhodes' trading rules on ChartSchool: be patient, and if a trade is missed, wait for a correction to occur before putting the trade on. Investopedia's trading psychology page notes that a regret entry after a missed move often loses as prices fall from their highs."
+   },
    "depth": {
     "sources": [
      {
@@ -2400,17 +2466,17 @@
     "summary": "Rhodes' rule: if you miss a trade, wait for a pullback before putting it on. The fear of missing makes you chase instead of buying pullbacks. After missing a fast move, regret pulls traders into it late. That late entry breaks discipline and often buys near a peak. The further past the buy point you buy, the greater the risk of getting shaken out. Our rule C28: never buy more than 4% above the buy point. Risk per share is the distance from your entry down to your stop."
    },
    "facts": {
-    "given": "What do you do? You planned to buy the breakout over $40, stop $39. You got busy and missed it. It now trades at $44, and you're kicking yourself. Wait for a pullback, higher low Buy now with the old stop at $39 Wait for a new high, then buy Buy double size to catch up"
+    "given": "What's your move now? You planned to buy the breakout over $40, stop $39. You got busy and missed it. Now it's $44, and you're kicking yourself. Wait for a pullback, higher low Buy now, keep the old $39 stop Wait for a new high, then buy Buy double size to catch up"
    },
    "lesson_line": "Missed the break: let it go, or wait for the pullback. Don't buy your regret.",
-   "simple": "Wait for a pullback that holds a higher low, because a regret buy after a missed move often lands near a peak.",
+   "simple": "Wait for a pullback that holds a higher low. A regret buy after a missed move often lands near a peak.",
    "tier": "extended",
    "unit": "F8.02",
-   "why": "Wait for a pullback and a higher low. Rhodes' rule: if a trade is missed, wait for a correction before putting it on. At $44 the stock is well over 4% past the $40 breakout, past our limit for a buy. A regret buy after a missed move often lands near a peak.",
+   "why": "Wait for the pullback. At $44 you're way past 4% over the $40 buy point, so buying here is a chase. Do it off the old $39 stop and your risk per share is several times what you planned. Regret buys like this often land near a peak. So let it come back to you. If it pulls back and holds a higher low, that low is a fresh spot to risk against, with a tight stop.",
    "wrong": {
     "Buy double size to catch up": "Size can't fix a late entry. It just makes the chase bigger.",
-    "Buy now with the old stop at $39": "That's the old stop with a much higher entry. The risk per share is now several times what you planned.",
-    "Wait for a new high, then buy": "A new high is even further past the $40 buy point, beyond our 4% line. The further past, the greater the shakeout risk."
+    "Buy now, keep the old $39 stop": "Old stop, much higher entry. Your risk per share is several times the plan.",
+    "Wait for a new high, then buy": "A new high is even further past the $40 buy point. That's more chase, not less."
    }
   },
   "review_status": "draft",
@@ -2427,20 +2493,23 @@
   "difficulty": 2,
   "id": "si_b785db114ef5",
   "lesson_origin": "session",
-  "lesson_text": "The extra trades are FOMO trades. Steenbarger sees win rates fall as the number of trades rises, often because the added trades come from a FOMO mindset. The fear of missing leads to marginal trades. Investopedia adds that a regret entry after a missed move often loses as prices fall from their highs. When your trade count jumps, check how many came from FOMO.",
+  "lesson_text": "The extra trades are FOMO trades. Steenbarger calls it a common pattern. Win rate drops as the trade count climbs. Often it's because the added trades come from the fear of missing out. Those are the marginal ones, the so-so ideas you'd skip on a calm day. Check your own journal for it. Tag every trade that wasn't in your plan and compare its results with the rest. When your trade count jumps, check how many came from FOMO.",
   "module": "F8",
   "prompt_json": {
    "choices": [
     "Busy days are just harder markets",
     "The extra trades are FOMO trades",
-    "His position size was too small",
-    "He needs a faster trading platform"
+    "Your position size was too small",
+    "You need a faster trading platform"
    ],
    "kind": "mcq",
-   "q": "A trader's win rate drops on the days he trades most. What does coach Brett Steenbarger often find behind it?",
+   "q": "Your journal shows your win rate drops on the days you trade the most. What does trading coach Brett Steenbarger find behind that?",
    "subject": "F8.02#q16"
   },
   "reveal_json": {
+   "deeper": {
+    "example": "Investopedia's trading psychology page adds the other side: regret pulls traders into a move they missed, and that late entry often loses as prices fall from their highs."
+   },
    "depth": {
     "sources": [
      {
@@ -2461,17 +2530,17 @@
     "summary": "Steenbarger sees win rates fall as trade counts rise, often because the extra trades come from FOMO. Steenbarger: FOMO leads to overtrading in marginal trades. After missing a fast move, regret pulls traders into it late. That late entry breaks discipline and often buys near a peak."
    },
    "facts": {
-    "given": "A trader's win rate drops on the days he trades most. What does coach Brett Steenbarger often find behind it? The extra trades are FOMO trades Busy days are just harder markets He needs a faster trading platform His position size was too small"
+    "given": "Your journal shows your win rate drops on the days you trade the most. What does trading coach Brett Steenbarger find behind that? The extra trades are FOMO trades Busy days are just harder markets You need a faster trading platform Your position size was too small"
    },
    "lesson_line": "When your trade count jumps, check how many came from FOMO.",
-   "simple": "The extra trades usually come from fear of missing out, and those added trades tend to be the weak ones.",
+   "simple": "The extra trades come from fear of missing out, and those added trades are the weak ones.",
    "tier": "extended",
    "unit": "F8.02",
-   "why": "The extra trades are FOMO trades. Steenbarger sees win rates fall as the number of trades rises, often because the added trades come from a FOMO mindset. The fear of missing leads to marginal trades. Investopedia adds that a regret entry after a missed move often loses as prices fall from their highs.",
+   "why": "The extra trades are FOMO trades. Steenbarger calls it a common pattern. Win rate drops as the trade count climbs. Often it's because the added trades come from the fear of missing out. Those are the marginal ones, the so-so ideas you'd skip on a calm day. Check your own journal for it. Tag every trade that wasn't in your plan and compare its results with the rest.",
    "wrong": {
-    "Busy days are just harder markets": "Some may be, but the pattern he finds is in the trader: the added trades are the marginal ones.",
-    "He needs a faster trading platform": "Speed doesn't fix the choice to take a marginal trade.",
-    "His position size was too small": "Size doesn't change how often trades win. The extra trades were the weak ones."
+    "Busy days are just harder markets": "Some may be, but the pattern he finds is in the trader. The added trades are the marginal ones.",
+    "You need a faster trading platform": "Speed doesn't fix the choice to take a marginal trade.",
+    "Your position size was too small": "Size doesn't change how often trades win. The extra trades were the weak ones."
    }
   },
   "review_status": "draft",
@@ -2488,7 +2557,7 @@
   "difficulty": 3,
   "id": "si_ef29719f29e6",
   "lesson_origin": "session",
-  "lesson_text": "91%. That's $120.75 minus $10.97, divided by $120.75, rounded. The run came on social media hype, from around $5 to about $120 in under three weeks. Many who arrived late endured significant pain. This measures how far down a buyer at the top was a few weeks later, not a final result. When the hype is everywhere, you're probably late. Many who came late here endured significant pain.",
+  "lesson_text": "About 91%. $120.75 minus $10.97 is $109.78. $109.78 over $120.75 is about 90.9%, call it 91%. That's what showing up last to a mania looks like. It ran from around $5 on social media hype. The people who bought the top because everyone was talking about it took the pain. Once a stock is all over your feeds, it's likely already run. You're not early. When the hype is everywhere, you're probably late.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -2498,7 +2567,7 @@
     "1,001%"
    ],
    "kind": "mcq",
-   "q": "Investopedia's GameStop case: it topped at $120.75, then traded at $10.97 a few weeks later. How far down was a buyer at the top?",
+   "q": "GameStop, early 2021. The hype topped it at $120.75. A few weeks later it traded at $10.97. How far down was a buyer at the top?",
    "subject": "F8.02#q18",
    "visual": {
     "find": {
@@ -2518,7 +2587,7 @@
   },
   "reveal_json": {
    "deeper": {
-    "example": "Investopedia's GameStop case ran on social media hype. In January 2021 the stock went from around $5 to about $120 in under three weeks. It topped at $120.75 and traded at $10.97 a few weeks later. Many who arrived late to the party endured significant pain. Once everyone is talking about a stock, it has likely already run."
+    "example": "Investopedia's GameStop case: on social media hype in January 2021, the stock went from around $5 to about $120 in under three weeks. It topped at $120.75 and traded at $10.97 a few weeks later. Many who arrived late to the party endured significant pain."
    },
    "depth": {
     "sources": [
@@ -2547,17 +2616,17 @@
       "step3": 109.78
      }
     },
-    "given": "Investopedia's GameStop case: it topped at $120.75, then traded at $10.97 a few weeks later. How far down was a buyer at the top? 9% 1,001% 110% 91%"
+    "given": "GameStop, early 2021. The hype topped it at $120.75. A few weeks later it traded at $10.97. How far down was a buyer at the top? 9% 1,001% 110% 91%"
    },
-   "lesson_line": "When the hype is everywhere, you're probably late. Many who came late here endured significant pain.",
-   "simple": "About 91%, because the stock fell from $120.75 to $10.97 within a few weeks of its top.",
+   "lesson_line": "When the hype is everywhere, you're probably late.",
+   "simple": "About 91%. It fell from $120.75 to $10.97 within a few weeks of the top.",
    "tier": "extended",
    "unit": "F8.02",
-   "why": "91%. That's $120.75 minus $10.97, divided by $120.75, rounded. The run came on social media hype, from around $5 to about $120 in under three weeks. Many who arrived late endured significant pain. This measures how far down a buyer at the top was a few weeks later, not a final result.",
+   "why": "About 91%. $120.75 minus $10.97 is $109.78. $109.78 over $120.75 is about 90.9%, call it 91%. That's what showing up last to a mania looks like. It ran from around $5 on social media hype. The people who bought the top because everyone was talking about it took the pain. Once a stock is all over your feeds, it's likely already run. You're not early.",
    "wrong": {
-    "1,001%": "Divided the drop by the later price, not the top.",
-    "110%": "Used the dollar drop as a percent.",
-    "9%": "Gave what was left, not the fall."
+    "1,001%": "Divided the drop by the later price. Divide by the top.",
+    "110%": "That's the $109.78 dollar drop read as a percent.",
+    "9%": "That's what was left, not the fall."
    }
   },
   "review_status": "draft",
@@ -2569,28 +2638,28 @@
  },
  {
   "answer_json": {
-   "answer": "I'm late; wait for a real setup"
+   "answer": "I'm late, wait for a real setup"
   },
   "difficulty": 3,
   "id": "si_2d191e25f331",
   "lesson_origin": "session",
-  "lesson_text": "You're late. Once everyone is talking about a stock, it has likely already run and grown more expensive. Early buyers may be getting ready to take profits. If you feel FOMO, others likely do too, and the obvious trade is often not the high-percentage one. Wait for a real setup with a stop. If the whole internet knows, you're not early.",
+  "lesson_text": "You're late. When everyone's talking about a stock, it has likely already run and gotten expensive. The early buyers are the ones posting gains, and they may be getting ready to sell to someone. Don't let that someone be you. If you're feeling the FOMO, so is everybody else, and the obvious trade is often not the good one. Put it on your list and wait for a real setup with a stop. If the whole internet knows about it, you're not early.",
   "module": "F8",
   "prompt_json": {
    "choices": [
     "Short it, it has to fall now",
-    "Buy now, add more as it rises",
-    "I'm late; wait for a real setup",
-    "The buzz proves it will go higher"
+    "Buy now, add as it rises",
+    "I'm late, wait for a real setup",
+    "The buzz says it goes higher"
    ],
    "kind": "mcq",
-   "q": "What's the honest read?",
-   "story": "A stock is all over your feeds. It's up 40% in five days, and friends are posting their gains. You don't own any.",
+   "q": "How do you read this one?",
+   "story": "A stock is all over your feeds. Up 40% in five days, friends posting their gains, and you don't own a share.",
    "subject": "F8.02#q19"
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The trap is that friends' gains feel like proof. They prove the stock already moved, not that it will keep moving. Feeds and buzz can push you into an impulsive buy. The SEC warns that following the crowd can lead to significant losses. Up 40% in five days, the honest read is that you are late. Wait for a setup with a stop."
+    "trap": "The trap is that friends' gains feel like proof. They prove the stock already moved, not that it'll keep moving. Up 40% in five days, the honest read is that you're late. Brett Steenbarger's line: if you're feeling FOMO, others likely are too, and the obvious trade is often not the high-percentage one."
    },
    "depth": {
     "sources": [
@@ -2626,17 +2695,17 @@
     "summary": "By the time everyone is talking about a stock, it has likely already run. Early buyers may be getting ready to sell to the late ones. Following the crowd into a hot stock can lead to big losses. Social media buzz can push you into emotional, impulsive buys. Steenbarger: if you feel FOMO, others likely do too, and the obvious trade is often not the high-percentage one. Our rule A5: the full size goes on at one price with one stop, with no adding."
    },
    "facts": {
-    "given": "What's the honest read? A stock is all over your feeds. It's up 40% in five days, and friends are posting their gains. You don't own any. I'm late; wait for a real setup The buzz proves it will go higher Buy now, add more as it rises Short it, it has to fall now"
+    "given": "How do you read this one? A stock is all over your feeds. Up 40% in five days, friends posting their gains, and you don't own a share. I'm late, wait for a real setup The buzz says it goes higher Buy now, add as it rises Short it, it has to fall now"
    },
-   "lesson_line": "If the whole internet knows, you're not early.",
-   "simple": "You're late, because once everyone is talking about a stock it has likely already run, so wait for a real setup.",
+   "lesson_line": "If the whole internet knows about it, you're not early.",
+   "simple": "You're late. Once everyone is talking about a stock it has likely already run, so wait for a real setup.",
    "tier": "extended",
    "unit": "F8.02",
-   "why": "You're late. Once everyone is talking about a stock, it has likely already run and grown more expensive. Early buyers may be getting ready to take profits. If you feel FOMO, others likely do too, and the obvious trade is often not the high-percentage one. Wait for a real setup with a stop.",
+   "why": "You're late. When everyone's talking about a stock, it has likely already run and gotten expensive. The early buyers are the ones posting gains, and they may be getting ready to sell to someone. Don't let that someone be you. If you're feeling the FOMO, so is everybody else, and the obvious trade is often not the good one. Put it on your list and wait for a real setup with a stop.",
    "wrong": {
-    "Buy now, add more as it rises": "That's chasing twice. Our rule buys the full size once, at one price, with no adding.",
-    "Short it, it has to fall now": "A fast run can keep running. Shorting it with no setup is a guess, not a plan.",
-    "The buzz proves it will go higher": "Buzz is the crowd, not a signal. The SEC warns following the crowd can lead to significant losses."
+    "Buy now, add as it rises": "That's chasing twice. We put the full size on once, at one price, no adding.",
+    "Short it, it has to fall now": "A fast run can keep running. Shorting it with no setup is a guess.",
+    "The buzz says it goes higher": "Buzz is the crowd, not a signal. Following the crowd can lead to big losses."
    }
   },
   "review_status": "draft",
@@ -2653,7 +2722,7 @@
   "difficulty": 3,
   "id": "si_c830708c6520",
   "lesson_origin": "session",
-  "lesson_text": "10.3%. That's $54 minus $48.45, divided by $54. Our default stop sits a few cents under the day's low or the prior day's low. After a big gap up, the prior day's low is far away. The size comes from the stop, so the same dollar risk buys far fewer shares. If the honest stop does not fit the risk, skip the trade. After a gap, measure the stop before you buy. A wide stop means a small position.",
+  "lesson_text": "10.3%. $54 minus $48.45 is $5.55 a share. $5.55 over $54 is about 10.3%. Way too wide. We like a stop 1% to 3% away, and we'll take up to 5%. Past 5% we mostly wait for a tighter trigger. The size comes from the stop, so a 10.3% stop means a tiny position. That's FOMO's trap after a gap. Don't squeeze the stop to make it fit. Skip it, or wait for a tighter spot. After a gap, measure the stop before you buy. A wide stop means a small position, or no trade.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -2663,7 +2732,7 @@
     "89.7%"
    ],
    "kind": "mcq",
-   "q": "Yesterday's low was $48.50. Today it opens up 8% at $54. Your stop is $48.45, a few cents under that low. How far below $54 is it?",
+   "q": "Yesterday's low was $48.50. Today it gaps up 8% and you want in at $54, stop $48.45 under that low. How wide is that stop?",
    "subject": "F8.02#q20",
    "visual": {
     "find": {
@@ -2683,14 +2752,14 @@
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The trap is tightening the stop to make the gap trade fit. Our stop sits a few cents under the day's low or the prior day's low, not where it feels small. With the stop 10.3% away, keep the dollar risk the same and buy fewer shares. If the honest stop does not fit the risk, skip the trade."
+    "trap": "The trap is tightening the stop to make the gap trade fit. The stop goes a few cents under the day's low or the prior day's low, not where it feels small. If the honest stop doesn't fit your risk, you skip the trade. The gap was exciting. That's not a reason."
    },
    "depth": {
     "sources": [
      {
       "accessed": "2026-11-12",
       "name": "Our trading rules",
-      "quote": "by default a few cents under the day's low or the prior day's low … the size comes from the stop; if the honest stop does not fit the risk, skip the trade.",
+      "quote": "by default a few cents under the day's low or the prior day's low … the size comes from the stop; if the honest stop does not fit the risk, skip the trade. … Stop distance: 1-3% is preferred, 3.5% is good, and up to 5% is acceptable; past 5%, we mostly wait for a tighter trigger.",
       "tier": 3,
       "url": null
      },
@@ -2702,7 +2771,7 @@
       "url": "https://www.investopedia.com/terms/p/positionsizing.asp"
      }
     ],
-    "summary": "Our rule A3: the default stop sits a few cents under the day's low or the prior day's low. Risk per share is the distance from your entry down to your stop. Shares to buy are your dollars at risk divided by the risk per share. Our rule A3: size comes from the stop, and if the honest stop does not fit the risk, skip the trade."
+    "summary": "Our rule A3: the default stop sits a few cents under the day's low or the prior day's low. Risk per share is the distance from your entry down to your stop. Shares to buy are your dollars at risk divided by the risk per share. Our rule A3: size comes from the stop, and if the honest stop does not fit the risk, skip the trade. We prefer a stop 1-3% away, accept up to 5%, and past 5% mostly wait for a tighter trigger."
    },
    "facts": {
     "calc": {
@@ -2719,17 +2788,17 @@
       "step3": 5.55
      }
     },
-    "given": "Yesterday's low was $48.50. Today it opens up 8% at $54. Your stop is $48.45, a few cents under that low. How far below $54 is it? 11.5% 89.7% 18.3% 10.3%"
+    "given": "Yesterday's low was $48.50. Today it gaps up 8% and you want in at $54, stop $48.45 under that low. How wide is that stop? 11.5% 89.7% 18.3% 10.3%"
    },
-   "lesson_line": "After a gap, measure the stop before you buy. A wide stop means a small position.",
-   "simple": "About 10.3%, because a stop a few cents under yesterday's $48.50 low sits far below today's $54 open.",
+   "lesson_line": "After a gap, measure the stop before you buy. A wide stop means a small position, or no trade.",
+   "simple": "About 10.3%, way too wide. Don't squeeze the stop to fit, skip it or wait for a tighter spot.",
    "tier": "expert",
    "unit": "F8.02",
-   "why": "10.3%. That's $54 minus $48.45, divided by $54. Our default stop sits a few cents under the day's low or the prior day's low. After a big gap up, the prior day's low is far away. The size comes from the stop, so the same dollar risk buys far fewer shares. If the honest stop does not fit the risk, skip the trade.",
+   "why": "10.3%. $54 minus $48.45 is $5.55 a share. $5.55 over $54 is about 10.3%. Way too wide. We like a stop 1% to 3% away, and we'll take up to 5%. Past 5% we mostly wait for a tighter trigger. The size comes from the stop, so a 10.3% stop means a tiny position. That's FOMO's trap after a gap. Don't squeeze the stop to make it fit. Skip it, or wait for a tighter spot.",
    "wrong": {
-    "11.5%": "Divided by the stop price, not the entry.",
-    "18.3%": "Added the 8% gap up to the stop distance.",
-    "89.7%": "Gave the stop as a share of the entry."
+    "11.5%": "Divided by the stop price. Measure from your entry, $54.",
+    "18.3%": "Added the 8% gap on top. The stop distance is just entry to stop.",
+    "89.7%": "That's the stop as a share of the entry, not the distance to it."
    }
   },
   "review_status": "draft",
@@ -2746,7 +2815,7 @@
   "difficulty": 3,
   "id": "si_cd44dfd2372e",
   "lesson_origin": "session",
-  "lesson_text": "Grade each day on your process. Steenbarger's client saw the market move away from his ideal entry and chased it. All too often that led to paper-cut losses. The fix: he graded himself each day purely on process, not on profit and loss. Stick with your plan, and don't let the fear of missing out make the decision. Score your day on the process, not the P&L.",
+  "lesson_text": "Grade each day on your process. You chase because a missed entry feels like a loss, so you go get it back. Score the day on whether you followed the plan, not on P&L. Now letting a missed trade go counts as a good day, and the chase counts as a bad one, even when it works. Change what counts as a win and the habit loses its fuel. Score your day on the process, not the P&L.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -2756,13 +2825,14 @@
     "Grade each day on your process"
    ],
    "kind": "mcq",
-   "q": "What fix goes at the root?",
-   "story": "Your journal shows a pattern. You miss your planned entry, then chase the move. Most of those trades end as small stop-outs.",
+   "q": "What fixes it at the root?",
+   "story": "Your journal shows a pattern. You miss the planned entry, chase the move, and most of those end as small stop-outs.",
    "subject": "F8.02#q21"
   },
   "reveal_json": {
    "deeper": {
-    "counter": "Wider stops and more names look like fixes but feed the same habit. Our size comes from the stop, so a wider stop just buys fewer shares on a worse entry. More names means more moves to chase. Grading the process changes what counts as a win. A day you followed the plan is a good day, even with no trade."
+    "counter": "Wider stops and more names look like fixes but feed the same habit. The size comes from the stop, so a wider stop just buys fewer shares on a worse entry. More names means more moves to chase. Grading the process changes what counts as a win. A day you followed the plan is a good day, even with no trade.",
+    "example": "Brett Steenbarger coached a portfolio manager who watched the market move away from his ideal entry and chased it. All too often that led to paper-cut losses. The fix: he graded himself at the end of each day purely on process."
    },
    "depth": {
     "sources": [
@@ -2805,17 +2875,17 @@
     "summary": "Steenbarger's client chased moves that ran from his entry and took repeated small losses. The fix: he graded each day on his process, not on profit and loss. A plan with rules leaves less room for emotional decisions. Stick to your plan and take small losses quickly. Stick to your plan and don't let the fear of missing out make the decision. Our rule A3: size comes from the stop, and if the honest stop does not fit the risk, skip the trade. Our rule C28: a chase keeps the dollar risk; the stop stays under the buy point, so the shares shrink. Our rule D44: no setup, no trade; cash is a position."
    },
    "facts": {
-    "given": "What fix goes at the root? Your journal shows a pattern. You miss your planned entry, then chase the move. Most of those trades end as small stop-outs. Grade each day on your process Trade more names so you miss less Use wider stops on the chases Buy before the signal to beat it"
+    "given": "What fixes it at the root? Your journal shows a pattern. You miss the planned entry, chase the move, and most of those end as small stop-outs. Grade each day on your process Trade more names so you miss less Use wider stops on the chases Buy before the signal to beat it"
    },
    "lesson_line": "Score your day on the process, not the P&L.",
    "simple": "Grade each day on whether you followed your plan, not on the money you made.",
    "tier": "expert",
    "unit": "F8.02",
-   "why": "Grade each day on your process. Steenbarger's client saw the market move away from his ideal entry and chased it. All too often that led to paper-cut losses. The fix: he graded himself each day purely on process, not on profit and loss. Stick with your plan, and don't let the fear of missing out make the decision.",
+   "why": "Grade each day on your process. You chase because a missed entry feels like a loss, so you go get it back. Score the day on whether you followed the plan, not on P&L. Now letting a missed trade go counts as a good day, and the chase counts as a bad one, even when it works. Change what counts as a win and the habit loses its fuel.",
    "wrong": {
-    "Buy before the signal to beat it": "That's FOMO's other face: in before the signal, on fear.",
-    "Trade more names so you miss less": "More names means more chances to chase. You'll always miss moves; the job is the best ones.",
-    "Use wider stops on the chases": "Our size comes from the stop, so a wider stop just buys fewer shares. It leaves the chasing habit in place."
+    "Buy before the signal to beat it": "That's FOMO's other face, in before the signal on fear.",
+    "Trade more names so you miss less": "More names means more moves to chase. You'll always miss some. The job is the best ones.",
+    "Use wider stops on the chases": "The size comes from the stop, so a wider one just buys fewer shares. The chasing stays."
    }
   },
   "review_status": "draft",
@@ -2832,7 +2902,7 @@
   "difficulty": 3,
   "id": "si_4c0c6e10e676",
   "lesson_origin": "session",
-  "lesson_text": "True. A missed trade takes nothing out of your account; you only give up a possible gain. Steenbarger: the danger in missing trades is not financial risk but the self-criticism after. Rhodes: not having a position is a position. Our rule says the same: no setup, no trade, and cash is a position. A missed trade leaves your account whole. A chased trade can cost plenty.",
+  "lesson_text": "True. Your account's right where it was. You gave up a gain you might've had, that's all. The real damage from a miss happens in your head. Count it as a loss and you'll chase the next one to win it back. That's how a miss turns into a real loss. Not having a position is a position. No setup, no trade. Another one will come along. A missed trade leaves your account whole. A chased one can cost plenty.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -2840,12 +2910,13 @@
     "False"
    ],
    "kind": "tf",
-   "q": "Missing a trade takes no money out of your account.",
+   "q": "You missed a breakout and watched it run without you. That miss cost your account nothing.",
    "subject": "F8.02#q22"
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The trap is counting a missed gain as a loss. Once you do, every move you missed feels like money owed, and the urge to chase grows. Treat the miss for what it is. Your account is whole, and other trades keep appearing later in the day or the next day."
+    "example": "Brett Steenbarger: the danger in missing trades isn't financial risk, it's the self-criticism after. Richard Rhodes: not having a position is a position.",
+    "trap": "The trap is counting a missed gain as a loss. Do that and every move you missed feels like money owed, and the urge to chase grows. Your account is whole, and other trades keep showing up later in the day or the next day."
    },
    "depth": {
     "sources": [
@@ -2881,13 +2952,13 @@
     "summary": "Steenbarger: missing a trade is not a financial risk; the danger is the self-criticism after. Rhodes: being flat is a position too. Steenbarger: however many trades you miss, new ones keep coming. Our rule D44: no setup, no trade; cash is a position."
    },
    "facts": {
-    "given": "Missing a trade takes no money out of your account."
+    "given": "You missed a breakout and watched it run without you. That miss cost your account nothing."
    },
-   "lesson_line": "A missed trade leaves your account whole. A chased trade can cost plenty.",
-   "simple": "True, a missed trade takes no money from your account, though you give up a gain you might have had.",
+   "lesson_line": "A missed trade leaves your account whole. A chased one can cost plenty.",
+   "simple": "True. A miss takes nothing from your account, you just give up a gain you might have had.",
    "tier": "expert",
    "unit": "F8.02",
-   "why": "True. A missed trade takes nothing out of your account; you only give up a possible gain. Steenbarger: the danger in missing trades is not financial risk but the self-criticism after. Rhodes: not having a position is a position. Our rule says the same: no setup, no trade, and cash is a position."
+   "why": "True. Your account's right where it was. You gave up a gain you might've had, that's all. The real damage from a miss happens in your head. Count it as a loss and you'll chase the next one to win it back. That's how a miss turns into a real loss. Not having a position is a position. No setup, no trade. Another one will come along."
   },
   "review_status": "draft",
   "skill_id": "psych.fomo",
@@ -2903,7 +2974,7 @@
   "difficulty": 3,
   "id": "si_7d9271a3b28e",
   "lesson_origin": "session",
-  "lesson_text": "No. Broken resistance usually turns into support on later pullbacks, and the best place to buy is near support. The pullback held a higher low, and your stop sits just under it. And $41 is within 4% of the $40 buy point, inside our line. Rhodes' rule for a missed trade is the same: wait for a correction, then put the trade on. Miss the break, wait for the pullback that holds. That's your second chance.",
+  "lesson_text": "Not a chase. That's your second chance. It broke out over $40, ran to $45, and came back without breaking its last low. A higher low, sitting right on top of the old breakout level. The old ceiling around $40 is acting as support now. Your stop goes just under that pullback low, so the risk is small. And $41 is still inside 4% of the $40 buy point. Miss the break, wait for the pullback that holds. That's your second chance.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -2913,13 +2984,14 @@
     "No, any dip after a breakout is a buy"
    ],
    "kind": "mcq",
-   "q": "You buy the turn near $41, stop just under the pullback low. Is it a chase?",
-   "story": "You missed the breakout over $40. It ran to $45, then pulled back to $41, above its last low, and turned up.",
+   "q": "You buy the turn near $41, stop just under the pullback low. Is that a chase?",
+   "story": "You missed the breakout over $40. It ran to $45, then pulled back to $41, held above its last low, and turned up.",
    "subject": "F8.02#q23"
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The trap is thinking a missed breakout is gone for good. Here the stock broke out over $40, ran to $45 and came back to $41, above its last low. That is a second chance near support, with a stop close by. It stops being this setup if the dip breaks its last low, because an uptrend needs higher lows."
+    "example": "John Murphy's laws on ChartSchool: the best place to buy is near support, and a broken resistance peak will often act as support on later pullbacks. Richard Rhodes: if a trade is missed, wait for a correction before putting it on.",
+    "trap": "The trap is thinking a missed breakout is gone for good. Here it broke out over $40, ran to $45 and came back to $41, above its last low. That's a second chance near support, with a stop close by. It stops being this setup if the dip breaks its last low, because an uptrend needs higher lows."
    },
    "depth": {
     "sources": [
@@ -2962,17 +3034,17 @@
     "summary": "Murphy: a broken resistance level usually acts as support on later pullbacks. Murphy: the best place to buy is near support, usually a prior reaction low. Rhodes' rule: if you miss a trade, wait for a pullback before putting it on. An uptrend is a series of higher highs and higher lows. The fear of missing makes you chase instead of buying pullbacks. Our rule C28: never buy more than 4% above the buy point."
    },
    "facts": {
-    "given": "You buy the turn near $41, stop just under the pullback low. Is it a chase? You missed the breakout over $40. It ran to $45, then pulled back to $41, above its last low, and turned up. No, it's a pullback near support Yes, it already broke out at $40 Yes, only new highs are safe No, any dip after a breakout is a buy"
+    "given": "You buy the turn near $41, stop just under the pullback low. Is that a chase? You missed the breakout over $40. It ran to $45, then pulled back to $41, held above its last low, and turned up. No, it's a pullback near support Yes, it already broke out at $40 Yes, only new highs are safe No, any dip after a breakout is a buy"
    },
    "lesson_line": "Miss the break, wait for the pullback that holds. That's your second chance.",
-   "simple": "It's not a chase, because you bought a pullback that held above its last low near the old breakout level.",
+   "simple": "Not a chase. You bought a pullback that held above its last low, right near the old breakout.",
    "tier": "expert",
    "unit": "F8.02",
-   "why": "No. Broken resistance usually turns into support on later pullbacks, and the best place to buy is near support. The pullback held a higher low, and your stop sits just under it. And $41 is within 4% of the $40 buy point, inside our line. Rhodes' rule for a missed trade is the same: wait for a correction, then put the trade on.",
+   "why": "Not a chase. That's your second chance. It broke out over $40, ran to $45, and came back without breaking its last low. A higher low, sitting right on top of the old breakout level. The old ceiling around $40 is acting as support now. Your stop goes just under that pullback low, so the risk is small. And $41 is still inside 4% of the $40 buy point.",
    "wrong": {
-    "No, any dip after a breakout is a buy": "Not any dip. This one counts because it held above its last low, near support. An uptrend needs higher lows.",
-    "Yes, it already broke out at $40": "A breakout you missed isn't gone. Rhodes: if a trade is missed, wait for a correction, then put it on. That's this.",
-    "Yes, only new highs are safe": "Buying near support with a close stop is the spot Murphy calls best. A new high far from support means a wider stop."
+    "No, any dip after a breakout is a buy": "Not any dip. This one counts because it held above its last low. An uptrend needs higher lows.",
+    "Yes, it already broke out at $40": "A missed breakout isn't gone. Waiting for the pullback and buying it is exactly the fix.",
+    "Yes, only new highs are safe": "Buying near support with a close stop is the better spot. A new high far from support means a wider stop."
    }
   },
   "review_status": "draft",
@@ -2984,28 +3056,29 @@
  },
  {
   "answer_json": {
-   "answer": "Step back; no new trades today"
+   "answer": "Done for today, no new trades"
   },
   "difficulty": 3,
   "id": "si_bc4a959ff0a9",
   "lesson_origin": "session",
-  "lesson_text": "Step back; no new trades today. Our rule: tired, sick, angry or distracted means no new trades that day. Bob Farrell's rule: when emotions run high, take a breather and step back. Schwab says slow down or take a break. Our rule goes further: no new trades until tomorrow. Chasing to win losses back is the urge Rhodes says not to give in to. Angry after a run of losses means no new trades today. Step away from the screen.",
+  "lesson_text": "Done for today. Angry means no new trades, and we hold tired, sick and distracted to the same line. After three stop-outs that pull isn't a setup. It's the urge to win the money back. That urge is how a bad week turns into a bad month. Shut the screen, journal the three trades, and come back tomorrow with a written plan. The setups will still be there. Angry after a run of losses means you're done for the day. Step away from the screen.",
   "module": "F8",
   "prompt_json": {
    "choices": [
     "Take a short break, then trade it",
-    "Buy, this one will make it back",
-    "Step back; no new trades today",
+    "Buy it, this one makes it back",
+    "Done for today, no new trades",
     "Enter, but with a very tight stop"
    ],
    "kind": "mcq",
-   "q": "By our rules, what do you do right now?",
-   "story": "You've chased three moves this week and been stopped out of all three. You're angry. Another stock is ripping, and you feel the pull.",
+   "q": "What's our call for the rest of today?",
+   "story": "You've chased three moves this week and been stopped out of all three. You're angry. Another stock is ripping and you feel the pull.",
    "subject": "F8.02#q24"
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The trap is the tight stop. It feels like it caps the damage, so the chase seems safe. But traders who chase out of FOMO frequently get whipsawed and stopped out. One more stop-out feeds the urge to win it back. The fix is not a better order. It is no new trades today."
+    "example": "Bob Farrell's rules on ChartSchool: when emotions run high, take a breather and step back. Richard Rhodes: the urge to get the money back is extreme and should not be given in to. Our line goes further than a breather.",
+    "trap": "The trap is the tight stop. It feels like it caps the damage, so the chase seems safe. But traders who chase out of FOMO get whipsawed and stopped out a lot. One more stop-out feeds the urge to win it back. The fix isn't a better order. It's no new trades today."
    },
    "depth": {
     "sources": [
@@ -3048,17 +3121,17 @@
     "summary": "When emotions run high, step back before acting. When emotions are driving, slow down or take a break. Rhodes' rule: don't give in to the urge to win back losses. Steenbarger: traders who chase a trend out of FOMO often get whipsawed and stopped out. Our rule F67: tired, sick, angry or distracted means no new trades that day."
    },
    "facts": {
-    "given": "By our rules, what do you do right now? You've chased three moves this week and been stopped out of all three. You're angry. Another stock is ripping, and you feel the pull. Step back; no new trades today Buy, this one will make it back Take a short break, then trade it Enter, but with a very tight stop"
+    "given": "What's our call for the rest of today? You've chased three moves this week and been stopped out of all three. You're angry. Another stock is ripping and you feel the pull. Done for today, no new trades Buy it, this one makes it back Take a short break, then trade it Enter, but with a very tight stop"
    },
-   "lesson_line": "Angry after a run of losses means no new trades today. Step away from the screen.",
-   "simple": "Take no new trades today, because you're angry after three chased losses and the pull is emotion, not a setup.",
+   "lesson_line": "Angry after a run of losses means you're done for the day. Step away from the screen.",
+   "simple": "No new trades today. You're angry after three chased losses, and the pull is emotion, not a setup.",
    "tier": "expert",
    "unit": "F8.02",
-   "why": "Step back; no new trades today. Our rule: tired, sick, angry or distracted means no new trades that day. Bob Farrell's rule: when emotions run high, take a breather and step back. Schwab says slow down or take a break. Our rule goes further: no new trades until tomorrow. Chasing to win losses back is the urge Rhodes says not to give in to.",
+   "why": "Done for today. Angry means no new trades, and we hold tired, sick and distracted to the same line. After three stop-outs that pull isn't a setup. It's the urge to win the money back. That urge is how a bad week turns into a bad month. Shut the screen, journal the three trades, and come back tomorrow with a written plan. The setups will still be there.",
    "wrong": {
-    "Buy, this one will make it back": "That's trading to win money back, not trading a setup. Rhodes says don't give in to that urge.",
-    "Enter, but with a very tight stop": "Angry means no new trades, stop or no stop. And chasers frequently get whipsawed and stopped out.",
-    "Take a short break, then trade it": "Our rule is stricter than a breather. Angry means no new trades that day, not a pause and back in."
+    "Buy it, this one makes it back": "That's trading to win money back, not trading a setup.",
+    "Enter, but with a very tight stop": "Angry means no new trades, stop or no stop. And chasers get whipsawed and stopped out a lot.",
+    "Take a short break, then trade it": "A breather isn't enough. Angry means no new trades for the rest of the day."
    }
   },
   "review_status": "draft",
@@ -3075,7 +3148,7 @@
   "difficulty": 3,
   "id": "si_5495c67f9d36",
   "lesson_origin": "session",
-  "lesson_text": "False. Nobody takes every opportunity, and the goal is not to try. The job is limiting your risk while taking the best opportunities, and trading those as well as possible. ChartSchool: being consistently profitable matters more than chasing movers. Our rule: no setup, no trade, and cash is a position. You'll miss plenty of moves. Your job is the best few, done well.",
+  "lesson_text": "False. You'll miss big moves all the time. I do too. Chase every one and you end up buying late, far from your stop, over and over. The job is to limit your risk and take the best setups, then trade those as well as you can. A few clean trades beat a pile of late ones. Steady profits matter more than being in every mover. No setup, no trade. Cash is a position too. You'll miss plenty of moves. Your job is the best few, done well.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -3083,12 +3156,13 @@
     "False"
    ],
    "kind": "tf",
-   "q": "The goal is to catch as many of the big moves as you can.",
+   "q": "Your job as a trader is to be in as many of the big moves as you can.",
    "subject": "F8.02#q25"
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The trap is grading yourself on the moves you missed. That turns every big move into a target, and chasing movers costs you consistency. Nobody takes every opportunity. Pick the best few, limit the risk on each, and let the rest go."
+    "example": "Brett Steenbarger: the goal isn't to trade every possible opportunity, but to find the best ones and trade those as well as possible. ChartSchool's gap-trading page: it's more important to be consistently profitable than to chase movers.",
+    "trap": "The trap is grading yourself on the moves you missed. That turns every big move into a target, and chasing movers costs you consistency. Pick the best few, limit the risk on each, and let the rest go."
    },
    "depth": {
     "sources": [
@@ -3124,13 +3198,13 @@
     "summary": "Nobody takes every opportunity; the job is limiting risk and taking the best ones. The goal is the best opportunities, traded well, not every opportunity. Consistent profits matter more than chasing movers or following the crowd in. Our rule D44: no setup, no trade; cash is a position."
    },
    "facts": {
-    "given": "The goal is to catch as many of the big moves as you can."
+    "given": "Your job as a trader is to be in as many of the big moves as you can."
    },
    "lesson_line": "You'll miss plenty of moves. Your job is the best few, done well.",
-   "simple": "False, nobody catches every move, so the job is to limit risk and take the best few trades well.",
+   "simple": "False. Nobody catches every move, so your job is to limit risk and trade the best few well.",
    "tier": "expert",
    "unit": "F8.02",
-   "why": "False. Nobody takes every opportunity, and the goal is not to try. The job is limiting your risk while taking the best opportunities, and trading those as well as possible. ChartSchool: being consistently profitable matters more than chasing movers. Our rule: no setup, no trade, and cash is a position."
+   "why": "False. You'll miss big moves all the time. I do too. Chase every one and you end up buying late, far from your stop, over and over. The job is to limit your risk and take the best setups, then trade those as well as you can. A few clean trades beat a pile of late ones. Steady profits matter more than being in every mover. No setup, no trade. Cash is a position too."
   },
   "review_status": "draft",
   "skill_id": "psych.fomo",
@@ -3141,25 +3215,28 @@
  },
  {
   "answer_json": {
-   "answer": "Up to 4% above the buy point"
+   "answer": "Up to 4% over the buy point"
   },
   "difficulty": 1,
   "id": "si_6c8c748d1f36",
   "lesson_origin": "session",
-  "lesson_text": "Up to 4% above the buy point. Our rule: never buy more than 4% above the buy point. Inside that line, the stop stays under the buy point, so the distance grows and the shares shrink. IBD talks of a 5% buy zone; our line is 4%. Our chase line is 4% above the buy point. Past it, we don't buy.",
+  "lesson_text": "4%, and not a penny more. We never buy more than 4% above the buy point. Inside that, you can still buy, but the stop stays under the buy point. So the higher you pay, the wider your risk per share and the fewer shares you get. Past 4%, the trade's gotten too expensive for what it gives you. Let it go or wait for the next setup. Our chase line is 4% above the buy point. Past it, we don't buy.",
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Up to 10% above buy point",
-    "Up to 4% above the buy point",
-    "Up to 5% above buy point",
-    "Any, if the shares shrink"
+    "Up to 10% over the buy point",
+    "Up to 4% over the buy point",
+    "Up to 5% over the buy point",
+    "Any price, if I cut my shares"
    ],
    "kind": "mcq",
-   "q": "By our rule, how far above the buy point can you still buy?",
+   "q": "You're late to a breakout. How far over the buy point will we still pay up for it?",
    "subject": "F8.02#q26"
   },
   "reveal_json": {
+   "deeper": {
+    "example": "IBD talks about a 5% buy zone after a breakout, and says the further past the buy point you get in, the greater the risk of getting shaken out. Our line is tighter, at 4%."
+   },
    "depth": {
     "sources": [
      {
@@ -3180,17 +3257,17 @@
     "summary": "Our rule C28: never buy more than 4% above the buy point. Our rule C28: a chase keeps the dollar risk; the stop stays under the buy point, so the shares shrink. IBD's buy zone runs 5% past the buy point after a breakout. The further past the buy point you buy, the greater the risk of getting shaken out. We skip a long that is more than 10% above its 9 EMA: too stretched to buy. Our rule: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
    },
    "facts": {
-    "given": "By our rule, how far above the buy point can you still buy? Up to 4% above the buy point Up to 5% above buy point Up to 10% above buy point Any, if the shares shrink"
+    "given": "You're late to a breakout. How far over the buy point will we still pay up for it? Up to 4% over the buy point Up to 5% over the buy point Up to 10% over the buy point Any price, if I cut my shares"
    },
    "lesson_line": "Our chase line is 4% above the buy point. Past it, we don't buy.",
-   "simple": "Up to 4%, because our rule never buys more than 4% above the buy point.",
+   "simple": "Up to 4%. Past that we don't buy, because the stop is too far below and the shares get too small.",
    "tier": "core",
    "unit": "F8.02",
-   "why": "Up to 4% above the buy point. Our rule: never buy more than 4% above the buy point. Inside that line, the stop stays under the buy point, so the distance grows and the shares shrink. IBD talks of a 5% buy zone; our line is 4%.",
+   "why": "4%, and not a penny more. We never buy more than 4% above the buy point. Inside that, you can still buy, but the stop stays under the buy point. So the higher you pay, the wider your risk per share and the fewer shares you get. Past 4%, the trade's gotten too expensive for what it gives you. Let it go or wait for the next setup.",
    "wrong": {
-    "Any, if the shares shrink": "Fewer shares is the cost of buying above the buy point, not a pass. Past 4%, we don't buy at all.",
-    "Up to 10% above buy point": "That's a different rule: we skip a long more than 10% above its 9 EMA. The buy-point line is 4%.",
-    "Up to 5% above buy point": "That's IBD's buy zone. Our rule draws the line tighter: never more than 4% above the buy point."
+    "Any price, if I cut my shares": "Fewer shares is the cost of paying up inside 4%. Past 4%, we don't buy at all.",
+    "Up to 10% over the buy point": "That's a different check, how stretched it is over the 9 EMA. The buy-point line is 4%.",
+    "Up to 5% over the buy point": "That's IBD's buy zone. Ours is tighter, 4%."
    }
   },
   "review_status": "draft",
@@ -3202,23 +3279,23 @@
  },
  {
   "answer_json": {
-   "answer": "Buy now with a market order"
+   "answer": "Yes, buy now at market"
   },
   "difficulty": 2,
   "id": "si_37f79f4d4c38",
   "lesson_origin": "session",
-  "lesson_text": "Buy now with a market order. The plan was written before the open, the stock cleared $50, and $50.60 is well within 4% of it. Our entries are market orders. Buying strength at your trigger is the plan, not a chase. The size comes from the stop: risk per share is now bigger than planned, so you buy fewer shares. When your written trigger hits inside 4%, buy it. Buying at the trigger is the plan, not a chase.",
+  "lesson_text": "Yes, buy it now at market. This isn't a chase. It's your plan triggering. You wrote it last night, it cleared $50, and $50.60 is well inside our 4% line. We use market orders for entries. One thing changes: the stop's still $49.20, so your risk per share is bigger than planned. Rework the size off your real fill. Fewer shares, same dollar risk. Your written trigger hits inside 4%: buy it. That's the plan, not a chase.",
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Buy now with a market order",
-    "Buy half now, half on a dip",
-    "Wait for a pullback to buy",
-    "Buy with a limit order at $50"
+    "Yes, buy now at market",
+    "Half now, half on a dip",
+    "No, wait for a pullback",
+    "Limit order back at $50"
    ],
    "kind": "mcq",
-   "q": "By our rules, what do you do?",
-   "story": "Last night you wrote your plan: buy over $50, stop $49.20, size set. Today it clears $50 and trades at $50.60. You worry it's already a chase.",
+   "q": "Do you take it?",
+   "story": "Last night you wrote the plan: buy over $50, stop $49.20, size set. This morning it clears $50 and trades at $50.60. You worry it's already a chase.",
    "subject": "F8.02#q27"
   },
   "reveal_json": {
@@ -3259,17 +3336,17 @@
     "summary": "Our rule D39: entry, stop and size are written down before the open. Our rule C28: never buy more than 4% above the buy point. Our rule E57: we enter with market orders. Our rule A5: the full size goes on at one price with one stop, with no adding. Our rule A3: size comes from the stop, and if the honest stop does not fit the risk, skip the trade. Our rule C28: a chase keeps the dollar risk; the stop stays under the buy point, so the shares shrink. Rhodes' rule: buy what is showing strength. A chase is a position taken too late to benefit properly. The further past the buy point you buy, the greater the risk of getting shaken out."
    },
    "facts": {
-    "given": "By our rules, what do you do? Last night you wrote your plan: buy over $50, stop $49.20, size set. Today it clears $50 and trades at $50.60. You worry it's already a chase. Buy now with a market order Wait for a pullback to buy Buy half now, half on a dip Buy with a limit order at $50"
+    "given": "Do you take it? Last night you wrote the plan: buy over $50, stop $49.20, size set. This morning it clears $50 and trades at $50.60. You worry it's already a chase. Yes, buy now at market No, wait for a pullback Half now, half on a dip Limit order back at $50"
    },
-   "lesson_line": "When your written trigger hits inside 4%, buy it. Buying at the trigger is the plan, not a chase.",
-   "simple": "Buy now, because the trigger hit, the price is still inside our 4% line, and the plan was set last night.",
+   "lesson_line": "Your written trigger hits inside 4%: buy it. That's the plan, not a chase.",
+   "simple": "Yes, buy it. The trigger hit, the price is still inside our 4% line, and the plan was set last night.",
    "tier": "extended",
    "unit": "F8.02",
-   "why": "Buy now with a market order. The plan was written before the open, the stock cleared $50, and $50.60 is well within 4% of it. Our entries are market orders. Buying strength at your trigger is the plan, not a chase. The size comes from the stop: risk per share is now bigger than planned, so you buy fewer shares.",
+   "why": "Yes, buy it now at market. This isn't a chase. It's your plan triggering. You wrote it last night, it cleared $50, and $50.60 is well inside our 4% line. We use market orders for entries. One thing changes: the stop's still $49.20, so your risk per share is bigger than planned. Rework the size off your real fill. Fewer shares, same dollar risk.",
    "wrong": {
-    "Buy half now, half on a dip": "Our rule puts the full size on at one price with one stop. No adding later.",
-    "Buy with a limit order at $50": "Our entries are market orders, not limits. The plan says buy once it clears $50, and it has.",
-    "Wait for a pullback to buy": "Nothing was missed: $50.60 is well within 4% of $50, so this is no chase. Rhodes' rule: buy what is showing strength."
+    "Half now, half on a dip": "We put the full size on at one price with one stop. No adding later.",
+    "Limit order back at $50": "We use market orders for entries. A limit at $50 can leave you out of the trade you planned.",
+    "No, wait for a pullback": "Nothing was missed. $50.60 is right at your trigger, well inside 4%. Buying strength here is the plan."
    }
   },
   "review_status": "draft",
@@ -3286,7 +3363,7 @@
   "difficulty": 3,
   "id": "si_bd16da72d71c",
   "lesson_origin": "session",
-  "lesson_text": "Skip today and plan it tonight. Our rule: every planned buy has its entry, stop and size written down before the market opens. This one has none. Without a stop you can't know your risk or size the trade. Never feel pressured to invest right away. Steenbarger: however many trades you miss, new ones keep coming. No written plan before the open, no buy. Plan it tonight if it still looks good.",
+  "lesson_text": "Skip it today. Write the plan tonight. Every buy we make has its entry, stop and size on paper before the open, and this one has none. With no stop you don't know your risk, so you can't size it. You'd be buying on adrenaline. The fear says it's now or never. It isn't. If it still looks good tonight, plan it for tomorrow. New setups keep coming. No written plan before the open, no buy. Plan it tonight if it still looks good.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -3296,13 +3373,13 @@
     "Skip today and plan it tonight"
    ],
    "kind": "mcq",
-   "q": "What does our rule say to do?",
+   "q": "What's the play?",
    "story": "A stock you've watched gaps up 8% at the open on news. It's 9:32 and still running. You have no entry or stop planned.",
    "subject": "F8.02#q28"
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The trap is reading a fast open as a reason to act now. Our rule writes every buy's entry, stop and size before the market opens. A stock you never planned has none of those, so you can't size it. Let it go today. If it still looks good tonight, write the plan for tomorrow."
+    "trap": "The trap is reading a fast open as a reason to act now. We write every buy's entry, stop and size before the open. A stock you never planned has none of those, so you can't size it. Let it go today. If it still looks good tonight, write the plan for tomorrow."
    },
    "depth": {
     "sources": [
@@ -3338,17 +3415,17 @@
     "summary": "Our rule D39: entry, stop and size are written down before the open. Never let pressure rush you into buying. Our rule E57: we enter with market orders. Our rule A3: size comes from the stop, and if the honest stop does not fit the risk, skip the trade. Our rule D44: no setup, no trade; cash is a position. Steenbarger: however many trades you miss, new ones keep coming. Risk per share is the distance from your entry down to your stop."
    },
    "facts": {
-    "given": "What does our rule say to do? A stock you've watched gaps up 8% at the open on news. It's 9:32 and still running. You have no entry or stop planned. Skip today and plan it tonight Buy at market before it runs Buy now, set a stop later Short it, the gap is too big"
+    "given": "What's the play? A stock you've watched gaps up 8% at the open on news. It's 9:32 and still running. You have no entry or stop planned. Skip today and plan it tonight Buy at market before it runs Buy now, set a stop later Short it, the gap is too big"
    },
    "lesson_line": "No written plan before the open, no buy. Plan it tonight if it still looks good.",
-   "simple": "Skip it today, because our rule needs the entry, stop and size written down before the market opens.",
+   "simple": "Skip it today. With no entry, stop or size written before the open, you can't know your risk.",
    "tier": "extended",
    "unit": "F8.02",
-   "why": "Skip today and plan it tonight. Our rule: every planned buy has its entry, stop and size written down before the market opens. This one has none. Without a stop you can't know your risk or size the trade. Never feel pressured to invest right away. Steenbarger: however many trades you miss, new ones keep coming.",
+   "why": "Skip it today. Write the plan tonight. Every buy we make has its entry, stop and size on paper before the open, and this one has none. With no stop you don't know your risk, so you can't size it. You'd be buying on adrenaline. The fear says it's now or never. It isn't. If it still looks good tonight, plan it for tomorrow. New setups keep coming.",
    "wrong": {
-    "Buy at market before it runs": "The order type isn't the fault; our entries are market orders too. Buying on urgency with no plan is.",
-    "Buy now, set a stop later": "Our size comes from the stop. With no stop you can't know your risk or size the trade.",
-    "Short it, the gap is too big": "A big gap is no reason to fight it. No setup, no trade, on either side."
+    "Buy at market before it runs": "Market orders are fine, we use them. Buying on urgency with no plan is the mistake.",
+    "Buy now, set a stop later": "The size comes from the stop. With no stop you can't know your risk or size it.",
+    "Short it, the gap is too big": "A big gap is no reason to fight it. No setup, no trade, either side."
    }
   },
   "review_status": "draft",
