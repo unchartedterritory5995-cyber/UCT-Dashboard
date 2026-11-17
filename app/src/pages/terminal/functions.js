@@ -380,6 +380,17 @@ export const FUNCTIONS = [
   // LRN is a real ticker (Stride), so the code is the word.
   { code: 'LEARN', label: 'Lessons on this stock (Desk articles, videos, Model Book)', group: 'Security',
     ticker: { panel: 'Learn' } },
+
+  // ── data wave 3 (2026-11-17) ──
+  // PERF: the member's OWN trading stats, read from the Journal's own routes (the session's user
+  // only): headline numbers, results by setup with the sample size, the closed-trade equity curve.
+  // `PERF 2` picks the second Journal account, `PERF ALL` every account.
+  { code: 'PERF', label: 'My trading stats (from your Journal)', group: 'Market',
+    market: { panel: 'Performance', args: [{ kind: 'journalAccount', prop: 'account' }] } },
+  // FLWL: two curated options-flow lists that had no place in the app's menus: Cream of the Crop
+  // (until now only a Discord card) and the open flow board (the /open-flow page).
+  { code: 'FLWL', label: 'Options flow lists (Cream of the Crop, open flow board)', group: 'Options',
+    market: { panel: 'FlowLists', args: [{ kind: 'flowList', prop: 'list' }] } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -636,6 +647,8 @@ const FUNCTION_WORDS = {
   RSS: { example: 'RSS NHBP', keywords: ['rs screens', 'rs new highs', 'rs exit warnings', 'top rs rating'],
     note: 'Says so if the RS screens are switched off.' },
   LEARN: { example: 'NVDA LEARN', keywords: ['lessons', 'desk articles', 'desk videos', 'learn about this stock'] },
+  PERF: { example: 'PERF ALL', keywords: ['my stats', 'trading stats', 'win rate', 'expectancy', 'equity curve', 'my performance'] },
+  FLWL: { example: 'FLWL OPEN', keywords: ['cream of the crop', 'open flow board', 'flow lists', 'open flow'] },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]
