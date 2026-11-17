@@ -56,6 +56,44 @@ describe('createBarStore + history lake', () => {
     }
   })
 
+  it('a lake window is as big as a piece: LAKE_WINDOW_BARS, never the server window size', async () => {
+    const { LAKE_WINDOW_BARS, HISTORY_WINDOW_BARS } = await import('../../utils/historyPrepend')
+    expect(LAKE_WINDOW_BARS).toBeGreaterThan(HISTORY_WINDOW_BARS)
+    const olderBars = vi.fn(async (key, beforeT) => ({ bars: [{ t: beforeT - 60, o: 100, h: 101, l: 99, c: 100.4, v: 1 }] }))
+    const store = makeStore({ history: { olderBars } })
+    const key = keyOf({ sym: 'SIM', tf: '1' })
+    const off = store.subscribe(key, () => {})
+    await vi.advanceTimersByTimeAsync(100)
+    expect(olderBars.mock.calls[0][2].bars).toBe(LAKE_WINDOW_BARS)          // depth without a scroll
+    await store.scrollBack(key, { bars: HISTORY_WINDOW_BARS })                 // a scroll asking the server size
+    expect(olderBars.mock.calls.at(-1)[2].bars).toBe(LAKE_WINDOW_BARS)
+    off()
+    store.dispose?.()
+  })
+
+  it('lakeCarries: intraday keys while the lake is on; never D, a replay window, or with no lake', async () => {
+    const olderBars = vi.fn(async () => ({ bars: [], exhausted: true }))
+    const on = makeStore({ history: { olderBars } })
+    expect(on.lakeCarries(keyOf({ sym: 'SIM', tf: '5' }))).toBe(true)
+    expect(on.lakeCarries(keyOf({ sym: 'SIM', tf: 'D' }))).toBe(false)
+    expect(on.lakeCarries(keyOf({ sym: 'SIM', tf: '5', window: { to: OPEN } }))).toBe(false)
+    const off = makeStore({ history: null })
+    expect(off.lakeCarries(keyOf({ sym: 'SIM', tf: '5' }))).toBe(false)
+    on.dispose?.(); off.dispose?.()
+  })
+
+  it('a key whose lake history ran out (exhausted) is no longer carried: the server depth target applies', async () => {
+    const olderBars = vi.fn(async () => ({ bars: [], exhausted: true }))
+    const store = makeStore({ history: { olderBars } })
+    const key = keyOf({ sym: 'SIM', tf: '1' })
+    const off = store.subscribe(key, () => {})
+    await vi.advanceTimersByTimeAsync(100)
+    expect(olderBars).toHaveBeenCalled()
+    expect(store.lakeCarries(key)).toBe(false)
+    off()
+    store.dispose?.()
+  })
+
   it('an explicit history: null wins over the switch', async () => {
     localStorage.setItem(HISTORY_LAKE_KEY, '1')
     const asked = []

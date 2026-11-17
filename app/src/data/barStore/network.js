@@ -38,7 +38,7 @@
 // owner). No other barStore file spells the endpoint.
 
 import { barsLaneRequest, barsBeforeUrl, promoteLaneRequest } from '../../utils/prefetchBars'
-import { historyWindowUrl, prependOlder, etDateOf, HISTORY_WINDOW_BARS } from '../../utils/historyPrepend'
+import { historyWindowUrl, prependOlder, etDateOf, HISTORY_WINDOW_BARS, LAKE_WINDOW_BARS } from '../../utils/historyPrepend'
 import {
   nextTailPollMs, createTailPollState, intradayDedupMs, INTRADAY_POLL_MS, REPAIR_DEDUP_MS,
   tailRetriesExhausted,
@@ -313,7 +313,8 @@ export function createNetwork({
     const oldest = s.bars.length ? s.bars[0].t : s.developing?.t
     if (!finite(oldest)) return Promise.resolve({ empty: true })
     const gen = s.gen
-    const want = opts.bars ?? HISTORY_WINDOW_BARS
+    // A lake window is as big as a piece (historyPrepend LAKE_WINDOW_BARS), never smaller than asked.
+    const want = Math.max(opts.bars ?? HISTORY_WINDOW_BARS, LAKE_WINDOW_BARS)
     return _send(r, 'scroll', `lake:${r.key}<${oldest}`, opts.priority || 'urgent', async (got) => {
       if (!got || !Array.isArray(got.bars) || !got.bars.length) return { fallback: true, exhausted: got?.exhausted === true }
       // (an answer from before a reset is dropped by the reducer: it carries the gen it was asked at)
@@ -514,6 +515,13 @@ export function createNetwork({
       _noteBudget(key, spent, false)
     },
     setPriority(key, priority) { const r = keys.get(key); if (r) r.priority = priority },
+    /** Would a scroll-back of `key` ask the history lake (intraday, not a replay window, the lake on
+     *  and not found exhausted for this key)? Sets the background depth target (historyPrepend). */
+    lakeCarries(key) {
+      if (!history) return false
+      const p = parseKey(key)
+      return !!p && !p.window && isIntradayTf(p.tf) && !keys.get(key)?.lakeDone
+    },
     /** Poll `key` now. `abort`: drop the request in flight first (invalidate). */
     kick(key, { abort = false } = {}) {
       const r = keys.get(key)

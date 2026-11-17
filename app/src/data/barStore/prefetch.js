@@ -63,7 +63,7 @@ import { keyOf, parseKey, normTf, isIntradayTf, isDateTf, PERIOD_SEC, STATUS, un
 import { DAILY_POLL_MS } from './network'
 import { legacyBars } from './adapter'
 import { fullBarsFor, firstPaintBarsFor } from '../../utils/barsBackfill'
-import { PREFETCH_WINDOWS, HISTORY_PREFETCH_TARGET_BARS } from '../../utils/historyPrepend'
+import { PREFETCH_WINDOWS, prefetchTargetBars } from '../../utils/historyPrepend'
 import { viewShowExtended } from '../../utils/viewSession'
 import { isNativeTf, fetchTf } from '../../components/chart/timeframes'
 import { isCacheCurrentForView } from '../../utils/marketSession'
@@ -579,7 +579,8 @@ export function createPrefetch(o = {}) {
             if (gen !== deepGen || !held.has(k)) return
             s = S().peek(k)
           }
-          if (!s?.restSeen || !s.bars?.length || s.status === STATUS.UNAVAILABLE || s.depth >= HISTORY_PREFETCH_TARGET_BARS) break
+          // the chart's own target: deeper where the lake carries the key (historyPrepend)
+          if (!s?.restSeen || !s.bars?.length || s.status === STATUS.UNAVAILABLE || s.depth >= prefetchTargetBars(!!S().lakeCarries?.(k))) break
           const res = await Promise.resolve().then(() => S().scrollBack(k, { priority: 'grid' })).catch(() => null)
           // Nothing older, refused at the seam, still filling or failed: this row is done for now
           // (the chart's own loader retries a filling window when the member lands on it).
