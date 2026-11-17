@@ -161,8 +161,13 @@ describe('PRONOUN · controls', () => {
       else expect(got, words).toMatch(REFUSED)
     }
   })
-  it.each(['close all my charts', 'clear the board', 'close all of them', 'remove both of them', 'close them all', 'close everything'])('whole board: "%s" → applies', (words) => {
+  it.each(['close all my charts', 'clear the board', 'close all of them', 'close them all', 'close everything'])('whole board: "%s" → applies', (words) => {
     for (const j of [0, 1, 2]) expect(rail(boardOf(SYMS.slice(0, 3)), `c${j + 1}`, words), words).toBeNull()
+  })
+  // (D31 P2 safety, 11-17: "both of them" on THREE charts with nothing pointed names no two — asked, never a pick; on two: applies)
+  it('"remove both of them": three charts, nothing pointed → asked; two charts → applies', () => {
+    for (const j of [0, 1, 2]) expect(rail(boardOf(SYMS.slice(0, 3)), `c${j + 1}`, 'remove both of them')).toMatch(/^Which chart should I close\?/)
+    for (const j of [0, 1]) expect(rail(boardOf(SYMS.slice(0, 2)), `c${j + 1}`, 'remove both of them')).toBeNull()
   })
   it('a pronoun with no removal plan changes nothing: "make it weekly" is no removal', () => {
     expect(rail(boardOf(SYMS.slice(0, 3)), 'c1', 'make it weekly')).toMatch(/you didn’t ask to remove a chart/)
