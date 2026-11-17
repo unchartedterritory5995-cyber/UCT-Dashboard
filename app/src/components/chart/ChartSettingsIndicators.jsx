@@ -212,6 +212,7 @@ import { movePane, movePaneTo } from './engine/paneOrder'
 import { moveSeriesWithinPane, moveSeriesTo, canMoveSeries } from './engine/paneSeriesOrder'
 import { safeCssColour } from './engine/objectColour'
 import { tagRestatesName } from './shortTag'
+import YourIndicatorActions from './YourIndicatorActions'
 
 /**
  * Is this row a chart FIXTURE — an MA overlay or the volume pane — rather than an
@@ -3781,20 +3782,10 @@ export default function ChartSettingsIndicators({
           {row.userDefined && definitionDoors && (() => {
             const d = registry?.getDefinition?.(row.id) || null
             if (!d || definitionKindOf(d) !== 'user') return null
-            const stop = (fn) => (e) => { e.stopPropagation(); fn() }
-            return (
-              <span className={styles.resActions} data-testid="your-indicator-actions" data-guide="indicators.yours">
-                {definitionDoors.canModify() && (
-                  <button type="button" className={styles.resAction} data-testid="your-indicator-modify"
-                    onClick={stop(() => definitionDoors.modify(d.id))}>Modify</button>
-                )}
-                <button type="button" className={styles.resAction} data-testid="your-indicator-edit"
-                  onClick={stop(() => definitionDoors.editFormula(d.id))}>Edit formula</button>
-                <button type="button" className={styles.resAction} data-testid="your-indicator-copy"
-                  title="A new, independent indicator of your own — this one stays as it is"
-                  onClick={stop(() => definitionDoors.customCopy(d, {}))}>Custom copy</button>
-              </span>
-            )
+            // ⭐ R1 (2026-11-17) — the doors are `YourIndicatorActions` (its own tested file), which adds
+            // "Run over a list": the Screener's existing run flow, opened on this indicator.
+            return <YourIndicatorActions def={d} doors={definitionDoors}
+              className={styles.resActions} actionClassName={styles.resAction} />
           })()}
           {/* ⚠️⚠️ EXCEPT FOR A SECURITY, WHERE THE "DESCRIPTION" IS THE INSTRUMENT'S
               NAME. `securityResults` builds a ticker row as `name: QQQ`,
