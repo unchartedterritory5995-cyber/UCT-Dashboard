@@ -161,6 +161,8 @@ export const SHORT_FULL_TTL_MS = 6 * 3600 * 1000
 /** How long the symbol handoff waits for the cache read before it asks the server anyway (the
  *  legacy chart's `_IDB_TAIL_WAIT_MS`). */
 export const HYDRATE_WAIT_MS = 120
+/** How long the typed warm waits on a cache read before it asks anyway (see _warmTypedIntraday). */
+export const INTENT_HYDRATE_RACE_MS = 60
 /** How long a list selection must rest before the hold deepens the next rows (createNeighborHold
  *  `deep`). Past the chart's own DEEP_ARM_MS (250) and its first window, so the visible chart's
  *  deep history always goes first. */
@@ -227,6 +229,9 @@ export function createPrefetch(o = {}) {
   const peek = (key) => S().peek(key)
   const _satisfied = (s, until, depth = 0) => !!s && until.includes(s.status)
     && (!depth || s.depth >= depth || s.status === STATUS.UNAVAILABLE)
+
+  /** `p`, or undefined when it has not settled within `ms` (the read goes on; nothing waits on it). */
+  const _raced = (p, ms) => Promise.race([p, new Promise((resolve) => setTimer(() => resolve(undefined), ms))])
 
   /** Hydrate a key nothing has loaded yet (mem part synchronous, IDB part async). */
   function _hydrate(key) {
@@ -693,10 +698,17 @@ export function createPrefetch(o = {}) {
     const mine = { key, ctl, kept: false }
     typed = mine
     return (async () => {
-      const d = await _hydrate(keyFor(T, 'D'))
-      if (typed !== mine) return 'superseded'
-      if (!d?.depth && !packIngesting()) return 'unknown'
-      const s0 = await _hydrate(key)
+      // ⛔ NEVER WAIT ON THE CACHE HERE (production 2026-11-17, a profile ingesting the daily pack, its
+      // IndexedDB busy): the daily and intraday reads outlasted the member's pause, the warm never
+      // left before Enter, and NAGE / RIOT painted 229-237 ms after it. Each read gets
+      // INTENT_HYDRATE_RACE_MS; one that has not answered by then does not hold the request up.
+      // While the pack ingests it cannot vouch either way, so its read is skipped.
+      if (!packIngesting()) {
+        const d = await _raced(_hydrate(keyFor(T, 'D')), INTENT_HYDRATE_RACE_MS)
+        if (typed !== mine) return 'superseded'
+        if (d !== undefined && !d?.depth) return 'unknown'   // read in time, and the pack has no such symbol
+      }
+      const s0 = (await _raced(_hydrate(key), INTENT_HYDRATE_RACE_MS)) ?? S().peek(key)
       if (typed !== mine) return 'superseded'
       tellSymbolWarmers([T], tf, { priority: true })
       if (_localPaints(s0, fetchTf(String(tf)))) return 'cache'
