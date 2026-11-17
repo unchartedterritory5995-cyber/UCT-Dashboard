@@ -183,3 +183,36 @@ def test_the_instructions_say_a_period_in_weeks_is_time_and_yesterday_is_daily()
     assert "DAILY values: set_calculation_timeframe D" in text
     assert "`high[1]` alone is only the previous BAR" in text
 
+
+
+# Two more from the same round (Indicators backlog 55 and 56).
+#
+# A request for an oscillator together with moving averages of price was built as ONE indicator on
+# the price chart, so a 0-to-100 line was drawn on the price scale. And a signal comparing today
+# with the highest value of "the last 10 days" was built over a window that included today, which
+# compares today with nine earlier days.
+
+def test_the_instructions_say_an_indicator_draws_in_one_place():
+    from api.services import definition_conversation as dcv
+    text = dcv.system_prompt()
+    assert "An indicator draws in ONE place" in text
+    assert "never put them in one placement" in text
+    assert "build the part named first, where it belongs" in text
+    assert "the rest is a second indicator the member can ask for next" in text
+
+
+def test_the_instructions_say_the_last_n_bars_are_the_n_before_this_one():
+    from api.services import definition_conversation as dcv
+    text = dcv.system_prompt()
+    assert "the window is the N bars BEFORE this one" in text
+    assert "wrap it in an offset of 1" in text
+    assert "A window that includes this bar compares it with itself" in text
+    assert "includes this bar (close >= highest(close, N))" in text
+
+
+def test_the_tree_those_instructions_describe_passes_the_door(conv, model, clean_env):
+    """`volume > offset 1 of highest(volume, 10)` is a tree the door accepts on the first attempt."""
+    tree = op(">", ser("volume"), {"type": "offset", "value": 1, "args": [call("highest", ser("volume"), num(10))]})
+    model([emits(create(tree))])
+    r = conv.converse("x", user_id="u1", view=EMPTY())
+    assert r["ok"] is True and r["attempts"] == 1, r.get("gate")

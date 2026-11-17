@@ -305,10 +305,14 @@ def _fetch_yf_daily(yahoo_sym: str, divisor: float) -> List[Dict[str, Any]]:
     return [b for b in _fetch_yf(yahoo_sym, "1d", PERIOD_MAP["1d"], divisor) if b["t"] >= start]
 
 
-def _fetch_full_series(sym: str, tf: str) -> List[Dict[str, Any]]:
+def _fetch_full_series(sym: str, tf: str, info: Optional[dict] = None) -> List[Dict[str, Any]]:
     """Fetch the full available index series for (sym, tf): daily from FMP first
     (owner ruling 2026-11-14), everything else and every FMP miss from yfinance, with
-    the intraday ETF-proxy fallback (ratio cached)."""
+    the intraday ETF-proxy fallback (ratio cached). `info`, when given, is told whether
+    the answer is that proxy (`info["proxy"]`): an ETF scaled to the index's level, not
+    the index's own bars (`todays_index_daily_bar` never builds from one)."""
+    if info is not None:
+        info["proxy"] = False
     yahoo_sym, divisor = INDEX_MAP[sym]
     interval = TF_MAP.get(tf)
     if not interval:
@@ -328,6 +332,8 @@ def _fetch_full_series(sym: str, tf: str) -> List[Dict[str, Any]]:
             proxy_out = _fetch_yf(etf_sym, interval, period, divisor / ratio)
             if len(proxy_out) > len(out):
                 out = proxy_out
+                if info is not None:
+                    info["proxy"] = True
     return out
 
 
@@ -347,25 +353,32 @@ def _load_disk(sym: str, tf: str) -> Optional[dict]:
         return None
 
 
-def _save_disk(sym: str, tf: str, series: list) -> None:
+def _save_disk(sym: str, tf: str, series: list, proxy: Optional[bool] = None) -> None:
     try:
         os.makedirs(_DISK_DIR, exist_ok=True)
         tmp = _disk_path(sym, tf) + ".tmp"
+        entry = {"saved_at": time.time(), "series": series}
+        if proxy is not None:
+            entry["proxy"] = proxy
         with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump({"saved_at": time.time(), "series": series}, fh, separators=(",", ":"))
+            json.dump(entry, fh, separators=(",", ":"))
         os.replace(tmp, _disk_path(sym, tf))
     except Exception as e:
         logger.warning(f"[index_bars] disk save failed {sym} {tf}: {e}")
 
 
 def _refresh(sym: str, tf: str) -> list:
-    """Cold/background fetch → write mem + disk. Returns the fresh series ([] on fail)."""
+    """Cold/background fetch → write mem + disk. Returns the fresh series ([] on fail).
+    The entry records whether the series is the ETF proxy (`proxy`), so a reader can
+    tell the index's own bars from a scaled ETF's."""
     from api.services.cache import cache
-    series = _fetch_full_series(sym, tf)
+    info: dict = {}
+    series = _fetch_full_series(sym, tf, info)
     if series:
-        cache.set(f"idxbars_{sym}_{tf}", {"saved_at": time.time(), "series": series},
+        proxy = bool(info.get("proxy"))
+        cache.set(f"idxbars_{sym}_{tf}", {"saved_at": time.time(), "series": series, "proxy": proxy},
                   ttl=max(_TTL.get(tf, 300), 60))
-        _save_disk(sym, tf, series)
+        _save_disk(sym, tf, series, proxy)
     return series
 
 
@@ -448,6 +461,132 @@ def fetch_index_bars(ticker: str, tf: str = "D", bars: int = 600,
     if len(out) > bars:
         out = out[-bars:]
     return {"ticker": ticker, "tf": tf, "bars": out}
+
+
+# ── ⭐ RS RATING L10 — TODAY'S SESSION AS A DAILY BAR ────────────────────────────
+# ⚰️ 2026-11-17, production, in session: RS Rating's label and dots were withheld on every
+# chart (`runtime:request`): the chart's own daily series carries today's forming bar, SPX's
+# ended at yesterday, so the run could not know what `request.security("SP:SPX", "D", close)`
+# reads on the newest bar. Pre-market both end at yesterday and the label drew. The daily
+# store (FMP, 6 h TTL) holds today only as a snapshot from whenever it last refreshed, or not
+# at all — measured the same afternoon, 18:04 UTC: SPX's daily tail 11-16, NDX's an 11-17 row
+# from an earlier refresh, and both answered `developing: null`.
+
+#: The series an index's daily bar for TODAY is built from: the index's own 5-minute bars,
+#: which this module already serves to a 5m index chart and the warm loop keeps hot. ONE
+#: authority for today's index value — the daily bar and the intraday chart cannot disagree —
+#: and no new provider call (Massive's index snapshot answers 403 for this key:
+#: `uct_agent/marketdata/index_quote.py`).
+DEVELOPING_SOURCE_TF = "5"
+#: The newest 5-minute bar must start within this of the moment the bar describes (now, or the
+#: session's close once it has ended). Older ⇒ the 5m series stopped refreshing, and a day bar
+#: frozen at an earlier minute is not today's value: none is built.
+DEVELOPING_MAX_LAG_S = 30 * 60
+#: A daily row for today that the store read at least this long after the close is the
+#: session's settled bar (the vendor's end of day) and stands; one read earlier is a snapshot
+#: of an unfinished session, and today's bar built from the 5m series replaces it.
+SETTLED_AFTER_CLOSE_S = 30 * 60
+
+_ET = "America/New_York"
+
+
+def _peek_entry(sym: str, tf: str, now: float) -> Optional[dict]:
+    """The cached entry for (sym, tf), memory then the disk snapshot, WITHOUT a provider call
+    on this thread. A missing or stale entry kicks the same bounded background refresh
+    `_cached_series` does (the warm loop normally keeps it fresh)."""
+    from api.services.cache import cache
+    ttl = _TTL.get(tf, 300)
+    mkey = f"idxbars_{sym}_{tf}"
+    entry = cache.get(mkey)
+    if not (entry and entry.get("series")):
+        entry = _load_disk(sym, tf)
+        if not (entry and entry.get("series")):
+            _kick_bg_refresh(sym, tf)
+            return None
+        cache.set(mkey, entry, ttl=max(ttl, 60))
+    if now - float(entry.get("saved_at") or 0) > ttl:
+        _kick_bg_refresh(sym, tf)
+    return entry
+
+
+def _session_of(now: float):
+    """(today's ET date, regular-session open ts, close ts) for the instant `now`; half-day
+    aware (`bars_fetch._session_window`)."""
+    import datetime as _dt
+    from zoneinfo import ZoneInfo
+    from api.services.bars_fetch import _session_window
+    today = _dt.datetime.fromtimestamp(now, ZoneInfo(_ET)).date()
+    open_ts, close_ts = _session_window(today, "rth")
+    return today, open_ts, close_ts
+
+
+def todays_index_daily_bar(ticker: str, now: Optional[float] = None) -> Optional[dict]:
+    """TODAY's daily bar for a cash index, `{t, o, h, l, c, v}`, `t` the UTC midnight of
+    today's ET session date (the key every daily index row carries, `_utc_midnight`), built
+    from the index's own 5-minute bars of today's regular session: the first bar's open, the
+    highest high, the lowest low, the newest bar's close, the summed volume. None when:
+      - no 5m bar of today's session exists (before the open, a weekend, a holiday: the bars
+        themselves are the gate, so no calendar is restated here);
+      - the 5m series is not cached (never a provider call on this thread);
+      - the 5m series is the ETF proxy, or was stored before the proxy flag existed;
+      - its newest bar starts more than `DEVELOPING_MAX_LAG_S` before now (or the close)."""
+    sym = (ticker or "").upper().strip()
+    if sym not in INDEX_MAP:
+        return None
+    now = float(now if now is not None else time.time())
+    today, open_ts, close_ts = _session_of(now)
+    entry = _peek_entry(sym, DEVELOPING_SOURCE_TF, now)
+    if not entry or entry.get("proxy") is not False:
+        return None
+    rows = []
+    for b in entry.get("series") or []:
+        try:
+            t = int(b["t"])
+            o, h, l, c = (float(b[k]) for k in ("o", "h", "l", "c"))
+        except (KeyError, TypeError, ValueError):
+            continue
+        if open_ts <= t < min(close_ts, now + 1) and all(x == x for x in (o, h, l, c)):
+            rows.append((t, o, h, l, c, int(b.get("v") or 0)))
+    if not rows:
+        return None
+    rows.sort()
+    newest = rows[-1][0]
+    if newest < min(now, close_ts) - DEVELOPING_MAX_LAG_S:
+        logger.info(f"[index_bars] {sym}: today's 5m series ends {int(min(now, close_ts) - newest)}s "
+                    f"behind; no daily bar for today is built from it")
+        return None
+    return {"t": _utc_midnight(today), "o": rows[0][1], "h": max(r[2] for r in rows),
+            "l": min(r[3] for r in rows), "c": rows[-1][4], "v": sum(r[5] for r in rows)}
+
+
+def with_todays_session(ticker: str, bars: list, now: Optional[float] = None) -> Optional[list]:
+    """The served daily `bars` with TODAY's session bar as their tail, or None to leave them
+    as they are. The equity serve's rule (`bars._augment_daily_with_today`), for an index:
+      - no bar for today can be built (`todays_index_daily_bar`) → unchanged;
+      - the tail is newer than today → unchanged (never reorder);
+      - the tail IS today: it stands when the store read it at least `SETTLED_AFTER_CLOSE_S`
+        after the close (the settled bar); otherwise it is a snapshot of an unfinished
+        session and the bar built from the 5m series replaces it;
+      - otherwise (yesterday's tail, or an empty `since` delta) → today's bar is appended."""
+    if not isinstance(bars, list):
+        return None
+    now = float(now if now is not None else time.time())
+    built = todays_index_daily_bar(ticker, now)
+    if not built:
+        return None
+    tail = bars[-1] if bars else None
+    tail_t = tail.get("t") if isinstance(tail, dict) else None
+    if tail is not None and (not isinstance(tail_t, (int, float)) or isinstance(tail_t, bool)):
+        return None                      # a tail this module did not write: never touch it
+    if tail_t is not None and tail_t > built["t"]:
+        return None
+    if tail_t == built["t"]:
+        _today, _open, close_ts = _session_of(now)
+        daily = _peek_entry((ticker or "").upper().strip(), "D", now)
+        if daily and float(daily.get("saved_at") or 0) >= close_ts + SETTLED_AFTER_CLOSE_S:
+            return None
+        return bars[:-1] + [built]
+    return bars + [built]
 
 
 # ── Web-side warm loop (keeps all 7 indices hot in the disk store) ────────────
