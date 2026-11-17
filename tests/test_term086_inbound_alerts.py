@@ -30,6 +30,7 @@ from __future__ import annotations
 import io
 import json
 import logging
+import re
 import sqlite3
 import threading
 import time
@@ -148,7 +149,13 @@ def _receipts(env):
 
 
 def _shape(r):
-    return r.status_code, r.content, sorted(r.headers.items())
+    # ⛔ `server-timing: app;dur=<ms>` is the app's request-timing middleware MEASURING this one
+    # request: two identical answers carry two durations. Compared byte for byte it decided this
+    # rail on the clock (red alone on a runner, 2026-11-17 run 44123847528: `app;dur=2.8` vs
+    # `app;dur=3.8`). Its presence and its name are still compared; only the number is not.
+    headers = sorted((k, re.sub(r"dur=[0-9.]+", "dur=<ms>", v) if k.lower() == "server-timing" else v)
+                     for k, v in r.headers.items())
+    return r.status_code, r.content, headers
 
 
 # ── 1. DARK ──────────────────────────────────────────────────────────────────
