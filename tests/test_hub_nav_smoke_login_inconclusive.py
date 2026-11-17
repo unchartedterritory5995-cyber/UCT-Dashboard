@@ -85,8 +85,15 @@ def test_the_other_two_answers_are_unchanged(monkeypatch, capsys):
 
 
 def test_main_maps_an_incomplete_login_to_exit_2(monkeypatch):
-    """End to end through main(): with login() answering None, the run exits 2 and clicks nothing."""
-    import playwright.sync_api as pw_api
+    """End to end through main(): with login() answering None, the run exits 2 and clicks nothing.
+
+    Playwright is stubbed AT THE IMPORT BOUNDARY (`sys.modules`), not by patching the real package:
+    main() does a function-local `from playwright.sync_api import sync_playwright`, and the GitHub
+    runner has no playwright installed, so importing the real module first made this test red there
+    for a reason that has nothing to do with the exit code it pins. The stub is the whole surface
+    main() touches before the sign-in answer (launch, new_context, new_page, close)."""
+    import sys
+    import types
 
     closed = []
 
@@ -111,7 +118,12 @@ def test_main_maps_an_incomplete_login_to_exit_2(monkeypatch):
         def __exit__(self, *a):
             return False
 
-    monkeypatch.setattr(pw_api, "sync_playwright", lambda: _PW())
+    pw_pkg = types.ModuleType("playwright")
+    pw_api = types.ModuleType("playwright.sync_api")
+    pw_api.sync_playwright = lambda: _PW()
+    pw_pkg.sync_api = pw_api
+    monkeypatch.setitem(sys.modules, "playwright", pw_pkg)
+    monkeypatch.setitem(sys.modules, "playwright.sync_api", pw_api)
     monkeypatch.setattr(H, "pod_age_seconds", lambda base: 10_000)
     monkeypatch.setattr(H, "login", lambda page, base: None)
 
