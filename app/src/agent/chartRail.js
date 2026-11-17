@@ -473,6 +473,12 @@ const positionSaid = (w, e) => named(w, e)
 // resolve to NO chart never close one: asked. Only a whole-board or set removal ("close all my charts", "clear the board", "close
 // everything except X", "close the charts") proceeds without a named target. Never depends on the position vocabulary.
 const SPECIFIC_CHART = /\b(?:the|that|this|my|your|our)\s+(?:[^\s.,;:!?]+\s+){0,3}?(?:chart|one|panel|graph|widget)\b(?!s)/i
+// boardDetach.intoTabs (#1304 re-merge): "move the NVDA chart into the SPY chart’s tabs" names TWO charts, but only the first is the
+// one leaving the board — the chart named as the DESTINATION ("into … tabs", "into the tabs of …") stays. The removal-target read
+// sees the words without that destination phrase, so the moving chart is still checked against the plan: a plan moving any other
+// chart (the SPY one, the reverse) is refused as before.
+const INTO_TABS_DEST = /\binto\s+(?:the\s+tabs?\s+of\s+(?:the|my|your|our|this|that)\s+(?:[^\s.,;:!?]+\s+){0,3}?(?:chart|one|panel|graph|widget)\b|[^.;!?]*?\btabs?\b)/gi
+const intoTabsSourceWords = (w) => String(w || '').replace(INTO_TABS_DEST, ' ')
 const SET_REMOVAL = /\b(?:all|every|everything|each|both|whole|entire|rest|others|remaining|except|excluding|other\s+than|apart\s+from|but\s+not)\b|\b(?:clear|close|wipe|empty|reset|clean(?:\s+up)?)\s+(?:out\s+)?(?:the|my)\s+(?:whole\s+|entire\s+)?(?:board|layout|screen)\b/i
 const BACK_REF = /\b(?:the|that)\s+(?:chart|one|graph|panel)\s+(?:(?:that|which)\s+)?(?:I|you|we)\b/i
 const SEVERAL = /\b(?:charts|ones|panels|graphs|widgets|and)\b|[&,]/i
@@ -846,7 +852,7 @@ export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply'
         if (inList.length) return `Do you mean ${up(e.symbol)} in your ${listOf(inList.map(l => `“${l.name}”`))} list, or the ${up(e.symbol)} chart? Nothing was changed — say “remove ${up(e.symbol)} from ${inList[0].name}”, or “close the ${up(e.symbol)} chart”.`
         return `I didn’t change anything: “${up(e.symbol)}” alone doesn’t say to close a chart. Say “close the ${up(e.symbol)} chart” if that is what you want.`
       }
-      const wrong = removalTargetRefusal(w, host, removed, { selected, subject, picked, known, previous, previousLabel })
+      const wrong = removalTargetRefusal(intoTabsSourceWords(w), host, removed, { selected, subject, picked, known, previous, previousLabel })
       if (wrong) return wrong
     }
     if (removed.length && mode === 'apply' && !removalAskedFor(w)) {

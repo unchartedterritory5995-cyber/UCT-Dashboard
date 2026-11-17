@@ -123,6 +123,19 @@ describe('intoTabs — the SAME transform as the handler, always a card, exact U
     expect(b.state.widgets.some(w => w.id === 'c1')).toBe(false)
     expect(JSON.stringify(host.wtabs.at(-1).opts)).toBe(settings)
   }, 40000)
+  // ⛔ the chart rail's removal target (master's typed removal read) still holds: the destination named in "into … tabs" is no
+  // license to take THAT chart off the board — a plan moving the SPY chart when the words move the NVDA one is refused
+  it.each([
+    ['move the NVDA chart into the SPY chart’s tabs', { widget: 'c0', into: 'c1' }],
+    ['move the NVDA chart into the tabs of the SPY chart', { widget: 'c0', into: 'c1' }],
+  ])('"%s" with a plan moving the OTHER chart: refused, nothing written', async (t, args) => {
+    const { say, board: b } = mountOn()
+    const was = widgetsJson(b)
+    p.st.envelopes.push(plan([TABS, args]))
+    expect(await say(t)).toMatch(/Which chart should I close\?|nothing was changed/i)
+    expect(widgetsJson(b)).toBe(was)
+    expect(screen.queryAllByRole('button', { name: 'Apply' })).toHaveLength(0)
+  }, 40000)
   it('a FLOATING source is docked first (as the handler clears its float) and Undo floats it back', async () => {
     const m = mountOn({ floating: ['news'] }); const { say, board: b } = m
     p.st.envelopes.push(plan([TABS, { widget: 'news', into: 'wl' }]))

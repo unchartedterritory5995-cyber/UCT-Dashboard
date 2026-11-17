@@ -121,9 +121,12 @@ test('"float the news widget": the workspace\'s own float flag flips (the stub i
 
 test('EQUALITY RAIL: the Agent\'s "move into tabs" saves EXACTLY the board the member\'s own click saves (tab id aside)', async () => {
   // the member's own click: float the news widget, then "Move into tabs of" the watchlist on its floating panel
+  // (owner 11-14: the widget header's Float button is switched off — FLOAT_BUTTON_ON — so the widget is floated through the
+  //  workspace's own handleFloatWidget via the Agent's float; the floating panel's "Move into tabs of" click is the member's own)
   const first = mount()
-  fireEvent.click(await screen.findByTestId('float-news-1'))
-  await waitFor(() => expect(floatingOf('news-1')).toBe(true))
+  await screen.findByTestId('body-news-1')
+  await say('float the news widget')
+  await waitFor(() => expect(floatingOf('news-1')).toBe(true), { timeout: 15000 })
   fireEvent.click(screen.getByTestId('totab-news-1-watchlist-1'))
   await waitFor(() => expect(savedLayout().widgets.some(w => w.id === 'news-1')).toBe(false))
   const byHand = savedLayout().widgets
