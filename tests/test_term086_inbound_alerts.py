@@ -476,11 +476,13 @@ def test_the_REAL_delivery_never_reaches_the_admin_discord(env):
 
     mp = pytest.MonkeyPatch()
     try:
-        # The PATH, which every importer's `get_connection` reads -- watchlist_alert_service's
-        # owner-email lookup included. (It needed a patch of its own while the fixture patched the
-        # function: it had bound whichever `get_connection` stood when it was first imported, so
-        # the result depended on which suite ran first. That was the capture, not a quirk of it.)
+        # The PATH, which every importer's `get_connection` reads -- including the owner-email
+        # lookup in watchlist_alert_service, which binds `get_connection` at IMPORT: if another
+        # file's patch was standing when it was first imported, it holds that file's function
+        # (measured: `[] == ['a@example.test']` behind tests/test_calendar_ics_token_v2.py's old
+        # fixture, run 44128429459). So it is pointed back at auth_db's own function too.
         mp.setattr(adb, "_DB_PATH", str(db))
+        mp.setattr(was, "get_connection", adb.get_connection)
         mp.setattr(ia, "_clock", lambda: T0)
         mp.setattr(iar, "_dispatch", lambda fn, *a: fn(*a))
         mp.setattr(durable, "should_persist", lambda alert: False)
