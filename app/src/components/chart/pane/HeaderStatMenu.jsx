@@ -9,9 +9,12 @@
 //   · Label color, shaded box (+ its color), size — `header.statStyle[key]` (headerStatStyle.js)
 //   · Remove from header, "+ Add a stat…" and "Header settings…" (Chart Settings on Header & legend).
 // Lazy-loaded by ChartPane on the first click, so none of it ships with the header.
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import ColorPicker, { PORTAL_POPUP_ATTR } from '../ColorPicker'
+import { PORTAL_POPUP_ATTR } from '../ColorPicker'
+// The UCT color picker Chart Settings uses for every indicator / legend / header color (palette, saved colors,
+// custom, opacity) — the same panel, so both surfaces pick colors, and box opacity, the same way.
+import ColorPanel from '../ColorPanel'
 import Switch from '../../ui/Switch'
 import { STAT_LABEL_MAX, cleanStatLabel } from '../headerStatCatalog'
 import { STAT_SIZES, STAT_SIZE_LABELS, DEFAULT_BOX_COLOR } from '../headerStatStyle'
@@ -27,24 +30,52 @@ const DEFAULT_LABEL_INK = '#cfcac0'
  * @param {object}  props.stat         { key, label (its own name), rename, value, signed, colorKey, valueColor, valueColors }
  * @param {object}  props.look         the stat's stored style ({labelColor, box, boxColor, size})
  */
-export default function HeaderStatMenu({ anchor, stat, look = {}, onRename, onValueColor, onStyle, onRemove, onAddStat, onOpenSettings, onClose }) {
+export default function HeaderStatMenu({ anchor, stat, look = {}, onRename, onValueColor, onStyle, onRemove, onAddStat, onOpenSettings, onClose,
+  savedColors = [], onSaveColor, onDeleteColor }) {
   const ref = useRef(null)
   const nameRef = useRef(null)
   const [pos, setPos] = useState(null)
+  const [picking, setPicking] = useState(null)   // { id, title, value, onChange } — the open color panel
+  const [panelPos, setPanelPos] = useState(null)
+  const panelRef = useRef(null)
   const name = stat.rename || stat.label
   const size = look.size || 'm'
 
-  useLayoutEffect(() => {
-    if (!anchor) return
+  // Placement: under the stat (above it when there is no room), and AGAIN whenever the stat changes size — a size /
+  // box / rename pick re-lays the header, so the menu follows its stat instead of floating where it was.
+  const place = useCallback(() => {
+    if (!anchor || !anchor.isConnected) return
     const r = anchor.getBoundingClientRect()
     const win = anchor.ownerDocument.defaultView || window
     const h = ref.current ? ref.current.offsetHeight : 320
     const left = Math.max(8, Math.min(r.left, win.innerWidth - W - 8))
     const below = r.bottom + 6
     const top = below + h > win.innerHeight - 8 ? Math.max(8, r.top - 6 - h) : below
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- placement needs the measured menu, before paint
-    setPos({ left: Math.round(left), top: Math.round(top), target: anchor.ownerDocument.body })
+    setPos((p) => (p && p.left === Math.round(left) && p.top === Math.round(top) ? p
+      : { left: Math.round(left), top: Math.round(top), target: anchor.ownerDocument.body }))
   }, [anchor])
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- placement needs the measured menu, before paint
+  useLayoutEffect(() => { place() }, [place, look.size, look.box, name, stat.value])
+  useEffect(() => {
+    if (!anchor) return undefined
+    const win = anchor.ownerDocument.defaultView || window
+    let ro = null
+    if (typeof win.ResizeObserver === 'function') { ro = new win.ResizeObserver(() => place()); ro.observe(anchor) }
+    win.addEventListener('resize', place)
+    return () => { if (ro) ro.disconnect(); win.removeEventListener('resize', place) }
+  }, [anchor, place])
+
+  // The color panel sits beside the menu (right, or left when there is no room), top-aligned and kept on screen.
+  useLayoutEffect(() => {
+    if (!picking || !pos) { setPanelPos(null); return }   // eslint-disable-line react-hooks/set-state-in-effect
+    const win = anchor?.ownerDocument?.defaultView || window
+    const pw = panelRef.current ? panelRef.current.offsetWidth : 260
+    const ph = panelRef.current ? panelRef.current.offsetHeight : 420
+    const right = pos.left + W + 8
+    const left = right + pw <= win.innerWidth - 8 ? right : Math.max(8, pos.left - pw - 8)
+    const top = Math.max(8, Math.min(pos.top, win.innerHeight - ph - 8))
+    setPanelPos({ left: Math.round(left), top: Math.round(top) })   // eslint-disable-line react-hooks/set-state-in-effect
+  }, [picking, pos, anchor])
 
   useEffect(() => { if (pos && nameRef.current) nameRef.current.focus({ preventScroll: true }) }, [!!pos]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -60,6 +91,7 @@ export default function HeaderStatMenu({ anchor, stat, look = {}, onRename, onVa
     const onKey = (e) => {
       if (e.key !== 'Escape') return
       e.stopPropagation()
+      if (panelRef.current) { setPicking(null); return }   // Escape closes the color panel first
       onClose()
       try { anchor?.focus?.({ preventScroll: true }) } catch { /* detached */ }
     }
@@ -75,18 +107,31 @@ export default function HeaderStatMenu({ anchor, stat, look = {}, onRename, onVa
     if (!v) el.value = stat.label
   }
 
-  const colorRow = (label, value, fallback, onPick, onReset, testId) => (
-    <div className={styles.row} data-stat-menu-row={testId}>
-      <span className={styles.rowName}>{label}</span>
-      <span className={styles.rowCtl}>
-        {value ? <button type="button" className={styles.reset} onClick={onReset} aria-label={`${label}: back to default`}>Default</button> : null}
-        <ColorPicker value={value || fallback} onChange={onPick} title={label} />
-      </span>
-    </div>
-  )
+  // One color row: a swatch that opens the shared color panel; "Default" when the member set one.
+  // the open panel reads its color LIVE from this render (`live[id]`), so it follows every write it makes
+  const live = {}
+  const colorRow = (label, value, fallback, onPick, onReset, testId) => {
+    const shown = value || fallback
+    live[testId] = { title: label, value: shown, onChange: onPick }
+    const open = picking && picking.id === testId
+    return (
+      <div className={styles.row} data-stat-menu-row={testId}>
+        <span className={styles.rowName}>{label}</span>
+        <span className={styles.rowCtl}>
+          {value ? <button type="button" className={styles.reset} onClick={onReset} aria-label={`${label}: back to default`}>Default</button> : null}
+          <button type="button" className={`${styles.swatch}${open ? ' ' + styles.swatchOn : ''}`} aria-label={label} aria-expanded={!!open}
+            data-color-swatch="" onClick={() => setPicking(open ? null : { id: testId })}>
+            <span className={styles.swatchInk} style={{ background: shown }} />
+          </button>
+        </span>
+      </div>
+    )
+  }
 
+  live.box = { title: 'Box color', value: look.boxColor || DEFAULT_BOX_COLOR, onChange: (c) => onStyle({ boxColor: c }) }
   if (!anchor) return null
-  return createPortal(
+  const doc = anchor.ownerDocument
+  const menu = createPortal(
     <div ref={ref} className={styles.menu} role="dialog" aria-label={`${name} options`} data-header-stat-menu={stat.key}
       style={pos ? { left: pos.left, top: pos.top } : { left: -9999, top: -9999, visibility: 'hidden' }}>
       <div className={styles.head}>
@@ -119,7 +164,13 @@ export default function HeaderStatMenu({ anchor, stat, look = {}, onRename, onVa
         <div className={styles.row} data-stat-menu-row="box">
           <span className={styles.rowName}>Shaded box</span>
           <span className={styles.rowCtl}>
-            {look.box ? <ColorPicker value={look.boxColor || DEFAULT_BOX_COLOR} onChange={(c) => onStyle({ boxColor: c })} title="Box color" withOpacity /> : null}
+            {look.box ? (
+              <button type="button" className={`${styles.swatch}${picking?.id === 'box' ? ' ' + styles.swatchOn : ''}`} aria-label="Box color"
+                aria-expanded={picking?.id === 'box'} data-color-swatch=""
+                onClick={() => setPicking(picking?.id === 'box' ? null : { id: 'box' })}>
+                <span className={styles.swatchInk} style={{ background: look.boxColor || DEFAULT_BOX_COLOR }} />
+              </button>
+            ) : null}
             <Switch checked={!!look.box} aria-label="Shaded box" className={styles.switch} checkedClassName={styles.switchOn}
               knobClassName={styles.knob} onClick={() => onStyle({ box: !look.box })} />
           </span>
@@ -143,6 +194,18 @@ export default function HeaderStatMenu({ anchor, stat, look = {}, onRename, onVa
       <button type="button" className={styles.item} onClick={() => { onClose(); onOpenSettings() }}>Header settings…</button>
       <button type="button" className={styles.item} onClick={() => { onClose(); onRemove() }}>Remove from header</button>
     </div>,
-    pos?.target || anchor.ownerDocument.body,
+    pos?.target || doc.body,
   )
+  const cur = picking ? live[picking.id] : null
+  return (<>
+    {menu}
+    {cur && createPortal(
+      <div ref={panelRef} {...{ [PORTAL_POPUP_ATTR]: 'header-stat-color' }} data-color-panel=""
+        style={{ position: 'fixed', zIndex: 6010, ...(panelPos ? { left: panelPos.left, top: panelPos.top } : { left: -9999, top: -9999, visibility: 'hidden' }) }}>
+        <ColorPanel title={`${name} · ${cur.title}`} value={cur.value} onChange={cur.onChange} onClose={() => setPicking(null)}
+          savedColors={savedColors} onSaveColor={onSaveColor} onDeleteColor={onDeleteColor} />
+      </div>,
+      doc.body,
+    )}
+  </>)
 }

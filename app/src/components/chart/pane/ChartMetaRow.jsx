@@ -19,9 +19,11 @@ function itemLook(st) {
   if (!st) return undefined
   const out = {}
   if (st.box) {
+    // a pill that hugs the text at every size: padding and radius in em (they grow with the stat's size), and the
+    // text inside keeps its full line box (ChartsWorkspace.module.css `[data-stat-box]`) so descenders stay inside
     out.background = safeCssColour(st.boxColor) || DEFAULT_BOX_COLOR
-    out.padding = '2px 7px'
-    out.borderRadius = 5
+    out.padding = '0.22em 0.62em'
+    out.borderRadius = '0.5em'
   }
   const k = st.size ? STAT_SIZE_SCALE[st.size] : null
   if (k && k !== 1) out.zoom = k

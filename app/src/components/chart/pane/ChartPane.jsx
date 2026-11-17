@@ -45,6 +45,7 @@ import {
   HEADER_STAT_BY_KEY, withStatLabel, headerStatTogglePatch, statStylesFor, withHeaderStatStyle,
 } from '../headerStatCatalog'
 import { customStatsOf, customStatKey, customStatFor, isCustomStatKey } from '../headerCustomStats'
+import { withDevStatFill } from './devStatFill'
 // The header stat quick-edit menu (owner 11-17) loads on the first click of a stat.
 const HeaderStatMenu = lazy(() => import('./HeaderStatMenu'))
 import usePreferences from '../../../hooks/usePreferences'
@@ -626,7 +627,16 @@ function ChartPane({
   const metaItems = useMemo(() => {
     const ctx = { fund, quote: hdrPrices?.[sym], meta: hdrMeta?.[sym], perf: perfData?.[sym], theme: hdrTheme?.[sym], name: companyName, isFundLike, facts: factsRow, custom: customValues, header: hdr, volCurve, sym }
     // one pure builder (headerStatCatalog.js): value, colour override / sign tint, and the member's rename
-    return headerStatItems(infoFieldKeys, statLabels, hdrColors, ctx)
+    const items = headerStatItems(infoFieldKeys, statLabels, hdrColors, ctx)
+    // ⛔ DEV ONLY (owner 11-17): placeholder values for empty stats on localhost, so a stat's look can be judged.
+    // `import.meta.env.DEV` is false in a build, so Vite drops this branch AND devStatFill.js; `?realstats` turns it off.
+    if (import.meta.env.DEV && import.meta.env.MODE !== 'test') {
+      return withDevStatFill(items, sym, {
+        colors: hdrColors,
+        isSigned: (it) => (isCustomStatKey(it.key) ? !!customValues?.[it.key]?.signed : !!HEADER_STAT_BY_KEY[it.key]?.signed),
+      })
+    }
+    return items
   }, [infoFieldKeys, statLabels, hdrColors, fund, hdrPrices, hdrMeta, hdrTheme, perfData, factsRow, sym, companyName, isFundLike, volCurve, customValues, hdr])
   // The SAME next-earnings date the header's "Next Earnings" field shows, handed to the chart's "E" marker so the two
   // always agree (owner test 11-16: the header read 12/9 while /api/chart/markers had no upcoming row → no E).
@@ -1448,6 +1458,9 @@ function ChartPane({
             onAddStat={(what) => openSettings(what === 'custom' ? 'header:custom' : 'header:add')}
             onOpenSettings={() => openSettings('header')}
             onClose={closeStatMenu}
+            savedColors={savedColors}
+            onSaveColor={saveColor}
+            onDeleteColor={deleteColor}
           />
         </Suspense>
       )}

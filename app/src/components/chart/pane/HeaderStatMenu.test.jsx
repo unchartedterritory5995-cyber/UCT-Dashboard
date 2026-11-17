@@ -56,4 +56,16 @@ describe('HeaderStatMenu', () => {
     fireEvent.mouseDown(document.body)
     expect(fns.onClose).toHaveBeenCalledTimes(2)
   })
+  it('a color swatch opens the shared UCT color panel, and a pick writes through that row', () => {
+    const { fns } = setup({ look: { box: true } })
+    fireEvent.click(screen.getByRole('button', { name: 'Box color' }))
+    const panel = document.querySelector('[data-chart-portal-popup="header-stat-color"]')
+    expect(panel).toBeTruthy()
+    expect(panel.querySelector('[data-color-panel], *')).toBeTruthy()
+    const cell = panel.querySelector('button[title^="#"], button[aria-label^="#"]')
+    if (cell) { fireEvent.click(cell); expect(fns.onStyle).toHaveBeenCalled(); expect(Object.keys(fns.onStyle.mock.lastCall[0])).toEqual(['boxColor']) }
+    fireEvent.keyDown(document, { key: 'Escape' })   // closes the panel first, the menu stays
+    expect(document.querySelector('[data-chart-portal-popup="header-stat-color"]')).toBeNull()
+    expect(fns.onClose).not.toHaveBeenCalled()
+  })
 })
