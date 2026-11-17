@@ -305,3 +305,80 @@ def test_one_failing_part_does_not_lose_the_others(monkeypatch):
                         nhnl={"ZZA": {"hod": 10.5, "lod": 9.0, "nh": 3, "nl": 1, "last": 10.5,
                                       "hi_ms": T0, "lo_ms": None, "sk": sk}}))
     assert nl._print_counts["ZZA"]["nh"] == 3 and side.counters["errors"] == 1
+
+
+def test_a_scanner_holding_its_lock_never_stalls_the_feed_or_the_loop():
+    """Owner 2026-11-17, 1-6 s all-symbol price freezes: the side feeds take threading locks
+    (volume_live._lock, nhnl_live._print_lock) that the scanners hold across a universe
+    walk. Applied on the uvicorn loop, every batch waited and every SSE stream froze. In
+    production they run on the SideWorker thread: the bars/prices mirror and the loop keep
+    going while a scanner holds its lock, and the side feeds catch up in order after."""
+    import asyncio
+    import threading
+
+    from api.services import feed_client as fc
+    from tests.test_stream_feed_remote import _ScriptedConn, _until, batch, make_rb
+
+    scanner_lock = threading.Lock()
+
+    class Side:
+        def __init__(self):
+            self.seen = []
+
+        def on_connect(self):
+            pass
+
+        def desired_extras(self):
+            return {}, frozenset()
+
+        def apply(self, b):
+            with scanner_lock:                       # what volume_live.on_aggregate does
+                self.seen.append(("apply", b.epoch, b.seq))
+
+        def new_epoch(self):
+            self.seen.append(("epoch",))
+
+        def status(self):
+            return {}
+
+    def side_batch(seq, epoch=1):
+        b = batch(seq, epoch=epoch)
+        return fp.Batch(epoch=b.epoch, seq=b.seq, bars=b.bars, prices=b.prices,
+                        agg={"ZZV": (1.0, 1.0, 1_000)})
+
+    scripts = [[side_batch(1), side_batch(2), side_batch(1, epoch=2)]]
+
+    def connect(url, **kw):
+        return _ScriptedConn(scripts.pop(0) if scripts else [], [])
+
+    async def go():
+        rb, _, _ = make_rb()
+        side = Side()
+        client = fc.FeedClient(rb, url="ws://x/internal/feed", secret="s", client_id="w",
+                               owners_fn=lambda: {}, connect=connect, side=side, side_thread=True)
+        stop = asyncio.Event()
+        scanner_lock.acquire()                       # a scanner mid-walk
+        try:
+            task = asyncio.create_task(client.run(stop))
+            loop = asyncio.get_running_loop()
+            t0 = loop.time()
+            await _until(lambda: client.counters["batches"] == 3)
+            await asyncio.sleep(0.05)                # the loop still runs freely
+            assert loop.time() - t0 < 1.0
+            assert not [x for x in side.seen if x[0] == "apply"], "nothing applied while the scanner holds its lock"
+        finally:
+            scanner_lock.release()
+        await _until(lambda: len(side.seen) == 5)
+        assert side.seen == [("epoch",), ("apply", 1, 1), ("apply", 1, 2), ("epoch",), ("apply", 2, 1)]
+        assert client.status()["side_worker"]["dropped"] == 0
+        stop.set()
+        await asyncio.wait_for(task, 2)
+        client.side_worker.close()
+    asyncio.run(go())
+
+
+def test_production_runs_the_side_feeds_off_the_loop():
+    import inspect
+
+    from api.services import feed_client as fc
+    assert "side_thread=True" in inspect.getsource(fc.start_remote)
