@@ -47,7 +47,7 @@ import { outputNamer } from './authoring/readback'
 import { nameFromAssistant, settingTurn } from './authoring/authoringSession'
 import { settingsOf } from './authoring/derivedSettings'
 import SettingsFields from './studio/SettingsFields'
-import { keepAssistantName } from './authoring/readableName'
+import { keepAssistantName, keepAssistantLabel } from './authoring/readableName'
 import { renamePatch } from './authoring/memberNamePatch'
 import { ackCheckboxText } from './authoring/repaintWarning'
 
@@ -285,7 +285,7 @@ export default function ConverseBox({
       // name field, where the member can change it before saving.
       const creating = turn.outcome === OUTCOMES.CHANGE && !stateRef.current.working
       const envelope = creating
-        ? nameFromAssistant(stateRef.current, turn.envelope, words, gateCtx, keepAssistantName)
+        ? nameFromAssistant(stateRef.current, turn.envelope, words, gateCtx, keepAssistantName, keepAssistantLabel)
         : turn.envelope
       applyEnvelope(envelope, turn.outcome === OUTCOMES.CHANGE ? { updated: true } : { reply: turn.reply })
     } finally {

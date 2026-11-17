@@ -53,3 +53,43 @@ export function humanName(raw) {
 export function keepAssistantName(name, { derivedName = null } = {}) {
   return !!humanName(name) && !derivedIsReadable(derivedName)
 }
+
+// ─── THE SAME QUESTION FOR EACH LINE OF A NEW INDICATOR ──────────────────────
+//
+// Measured on production 2026-11-17 (fifty requests through the window): the assistant labelled
+// its lines well ("Signal", "Histogram", "+DI", "Upper Band", "RS at 52-week high") and the
+// window, the chart's legend and the Plots tab showed "EMA 9 (MACD 12,26)",
+// "MACD 12,26 minus EMA 9 (MACD 12,26)", "PLUSDI 14 (High, Low)" and
+// "Close divided by SPY Close at or above HIGHEST 252 (Close d…". The rule is the name's rule:
+// a short derived label follows the maths and is kept ("EMA 21", "SMA 50"); only where the
+// derived one is not readable is the assistant's kept, and only when it IS a label. A kept label
+// is CUSTOM (an appended `rename_output`): the member's to rename, and a later maths edit does
+// not rewrite it, with the same two-number bound against going stale.
+//
+// ⚠️ A LABEL IS NOT A NAME IN THREE WAYS, each from the assistant's own labels in that run:
+// two characters are enough ("%K", "R1"); a leading plus sign is part of it ("+DI"); and
+// "above" / "below" are position words in a label ("% Below 52W High"), where in a NAME they
+// mark a sentence.
+const NOT_A_LABEL = /[<>=+*^\\[\]{}()·−×÷$#@|;:!?"“”]|&&|\bhttps?\b|\b(?:when|where|if|that|which|crosses?|greater|less|than|times|minus|plus|divided)\b/i
+
+/** A line's label longer than this is not kept. */
+export const LABEL_MAX = 32
+
+/** `raw` as a line's label, or null when it is not one. */
+export function humanLabel(raw) {
+  const n = String(raw || '').replace(/\s+/g, ' ').trim().replace(/[.]+$/, '')
+  if (n.length < 2 || n.length > LABEL_MAX) return null
+  const body = n.replace(BRACKETED_NUMBER, '').replace(/^\+(?=[A-Za-z])/, '')   // "+DI": the sign is part of the label
+  if (NOT_A_LABEL.test(body)) return null
+  const words = n.split(' ')
+  if (words.length > 6 || !/[A-Za-z]/.test(n) || words.filter((w) => /\d/.test(w)).length > 2) return null
+  return n
+}
+
+/**
+ * The dock's answer to `keepCreateLabel(label, { derivedLabel })`: keep the assistant's label
+ * for a line of a new indicator only when it is a label and the derived one is not readable.
+ */
+export function keepAssistantLabel(label, { derivedLabel = null } = {}) {
+  return !!humanLabel(label) && !derivedIsReadable(derivedLabel)
+}
