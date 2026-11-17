@@ -4496,6 +4496,204 @@
      }
     ]
    }
+  },
+  {
+   "slug": "follow_through_day",
+   "name": "Follow-Through Day",
+   "summary": "Marks a follow-through day: up 1.7% or more on higher volume, 4 to 12 bars after the 50-session low.",
+   "definition": {
+    "schemaVersion": 1,
+    "id": "house_follow_through_day",
+    "version": 1,
+    "compute": {
+     "kind": "ast",
+     "fn": "sha256:0d15ac7c0d35186076747e7d5d3171c125ea38451280090bfd17524f40cbb41e",
+     "rev": 1,
+     "ast": {
+      "type": "op",
+      "name": "&&",
+      "args": [
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         {
+          "type": "op",
+          "name": ">=",
+          "args": [
+           {
+            "type": "op",
+            "name": "/",
+            "args": [
+             {
+              "type": "op",
+              "name": "-",
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               },
+               {
+                "type": "offset",
+                "value": 1,
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "close"
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "type": "offset",
+              "value": 1,
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "type": "num",
+            "value": 0.017
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": ">",
+          "args": [
+           {
+            "type": "series",
+            "name": "volume"
+           },
+           {
+            "type": "offset",
+            "value": 1,
+            "args": [
+             {
+              "type": "series",
+              "name": "volume"
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         {
+          "type": "op",
+          "name": ">=",
+          "args": [
+           {
+            "type": "call",
+            "name": "lowestbars",
+            "args": [
+             {
+              "type": "series",
+              "name": "low"
+             },
+             {
+              "type": "num",
+              "value": 50
+             }
+            ]
+           },
+           {
+            "type": "num",
+            "value": 4
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": "<=",
+          "args": [
+           {
+            "type": "call",
+            "name": "lowestbars",
+            "args": [
+             {
+              "type": "series",
+              "name": "low"
+             },
+             {
+              "type": "num",
+              "value": 50
+             }
+            ]
+           },
+           {
+            "type": "num",
+            "value": 12
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "source": "(close - close[1]) / close[1] >= 0.017 && volume > volume[1] && (lowestbars(low, 50) >= 4 && lowestbars(low, 50) <= 12)"
+    },
+    "meta": {
+     "name": "Follow-Through Day",
+     "shortName": "Follow-Throu",
+     "category": "Custom",
+     "description": "((1 when ((close minus (close 1 bar ago)) divided by (close 1 bar ago)) is greater than or equal to 0.017 and 0 otherwise) and (1 when volume is greater than (volume 1 bar ago) and 0 otherwise)) and ((1 when (the number of bars back to the bar holding the lowest low of the last 50 bars, the newest of a tie over a bar price and withheld on a tie over anything else) is greater than or equal to 4 and 0 otherwise) and (1 when (the number of bars back to the bar holding the lowest low of the last 50 bars, the newest of a tie over a bar price and withheld on a tie over anything else) is less than or equal to 12 and 0 otherwise))",
+     "tags": [
+      "custom"
+     ],
+     "tier": "premium",
+     "repaint": "non-repainting",
+     "freshness": "live"
+    },
+    "placement": {
+     "target": "price"
+    },
+    "inputs": [
+     {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#089981"
+     },
+     {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     }
+    ],
+    "plots": [
+     {
+      "key": "ftd",
+      "label": "Follow-Throu",
+      "style": "markers",
+      "color": "$color",
+      "width": "$lineWidth",
+      "role": "primary",
+      "legend": {
+       "decimals": 2
+      },
+      "marker": {
+       "shape": "arrowUp",
+       "position": "belowBar",
+       "text": "FTD"
+      }
+     }
+    ]
+   }
   }
  ]
 }
