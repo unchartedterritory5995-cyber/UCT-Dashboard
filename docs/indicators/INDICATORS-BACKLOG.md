@@ -61,6 +61,8 @@ item names its evidence; re-read the code before acting on a line number.
 | 40 | **The 10 and 21 EMA trend indicator is verified and held out of the house set.** Its engine-generated input key `ema21_csWidth` reads as a credential to the secret scanner (`generic-api-key`, a field named `key`). The scanner's config is the owner's | House set, 2026-11-16 | XS | owner, then Indicators (house set) | Rebuild it with row 37 and see whether the engine's names still trip the scanner; otherwise the owner adds one exact-literal allow entry |
 | 38 | **From a chart to a first preview is four actions on the Charts page** (settings, Indicators, add, then type and Enter); it was five before the plain-words box sent what was typed (#1500). The plan's target is two. The Charts header has no "Add to Chart" button (owner, 2026-11-11), so the window is two presses away | Counted on production, 2026-11-17, 1500 px | S | owner, then Indicators | Options for the owner: the settings gear opens on the add view when the chart holds no member indicator; or count the command palette path as the two-action door and say so in the first-run card |
 | 39 | **The allowance-used message appears twice in the dock** (in the conversation and again above the box) | Seen on production, 2026-11-16 | XS | Indicators | Keep the one above the box |
+| 41 | **A 0 or 1 marker output in a pane takes part in that pane's scale.** A relative strength line of about 0.15 sat flat at the bottom of a pane scaled 0 to 1 by the new-high flag beside it | Seen on production, 2026-11-17 (Studio plan section 14b); the house indicator was rebuilt without the flag (#1534) | S | chart engine | A markers-style output should not widen its pane's scale, or should sit at its host line's value |
+| 42 | **A line or step line with bars that have no value is drawn joined across them.** `valuewhen(cond, low, 20)` is empty on most bars; the chart ran one level across the whole chart and then jumped to the next | Seen on production, 2026-11-17 (and as "stray full-height dashed lines" on 2026-11-15); the house indicator was rebuilt as a marker only (#1534) | S to M | chart engine | Emit a gap for a bar with no value, so the line breaks there |
 
 ## Programme items (not defects)
 
@@ -70,6 +72,7 @@ item names its evidence; re-read the code before acting on a line number.
 
 ## Done
 
+- **One press adds a house indicator, and an unchanged copy is reused**; **two house indicators that drew poorly rebuilt**. #1532, #1534, 2026-11-17.
 - **The follow-through day in the house set** (fourteen); **the "added" toast names a member's indicator**; **the gate's VISION limit tests derive their count**. #1527, #1518, #1522, 2026-11-17.
 - **The picture door's prompt bound re-measured** (its spend test was red on master). #1509, 2026-11-17.
 - **The up/down volume ratio in the house set**; **the bars-back rule sees a negated count and the prompt states the convention**. #1507, #1506, 2026-11-16.
