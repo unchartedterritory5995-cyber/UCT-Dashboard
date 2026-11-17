@@ -178696,6 +178696,34 @@
    }
   },
   {
+   "file": "tests/fixtures/vendor/harness/rs-rating-fred6724-sete2-alab-1d-2026-11-16.json",
+   "format": "harness-v1",
+   "id": "rs-rating-fred6724-sete2-alab-1d-2026-11-16",
+   "script": "RS Rating",
+   "symbol": "NASDAQ:ALAB",
+   "timeframe": "1D",
+   "plots": [],
+   "notCompared": [],
+   "notMeasured": [],
+   "verdict": "INCONCLUSIVE",
+   "reason": "the vendor study ran with non-default inputs (Type=\"Historical RS New Highs\" vs default \"RS New Highs\", Color=\"rgba(255,152,0,0.5)\" vs default \"rgba(121,213,242,0.38)\", Plot RS New Lows=true vs default false, Color=\"rgba(156,39,176,0.6)\" vs default \"rgba(255,82,82,0.38)\"); v1 compares at default inputs only — re-capture at defaults",
+   "ourNotes": []
+  },
+  {
+   "file": "tests/fixtures/vendor/harness/rs-rating-fred6724-sete2-rddt-1d-2026-11-16.json",
+   "format": "harness-v1",
+   "id": "rs-rating-fred6724-sete2-rddt-1d-2026-11-16",
+   "script": "RS Rating",
+   "symbol": "NYSE:RDDT",
+   "timeframe": "1D",
+   "plots": [],
+   "notCompared": [],
+   "notMeasured": [],
+   "verdict": "INCONCLUSIVE",
+   "reason": "the vendor study ran with non-default inputs (Type=\"Historical RS New Highs\" vs default \"RS New Highs\", Color=\"rgba(255,152,0,0.5)\" vs default \"rgba(121,213,242,0.38)\", Plot RS New Lows=true vs default false, Color=\"rgba(156,39,176,0.6)\" vs default \"rgba(255,82,82,0.38)\"); v1 compares at default inputs only — re-capture at defaults",
+   "ourNotes": []
+  },
+  {
    "file": "tests/fixtures/vendor/harness/rs-seed-rsrating-pm-alab-1d-2026-11-16.json",
    "format": "harness-v1",
    "id": "rs-seed-rsrating-pm-alab-1d-2026-11-16",
