@@ -270,9 +270,18 @@ def test_a_census_path_pointing_at_the_shared_root_is_refused():
     """After the pins are applied, any census path still inside C:\\data refuses the run."""
     good = str(ROOT / "nowhere" / "auth.db")
     ce.verify_pins({"AUTH_DB_PATH": good}, None)            # control: a sandbox path passes
-    for bad in (r"C:\data\auth.db", "C:/data/catalysts.db", "/data/auth.db", ""):
+    # EACH OS IS ASKED ABOUT ITS OWN SPELLINGS OF THE ROOT. The guard canonicalises per OS, so on
+    # Linux a drive-letter string is a file name in the working directory, not the shared root:
+    # asking Linux to refuse it failed this case on every Linux lane. The `/data/...` spelling and
+    # an empty pin are refused everywhere.
+    drive = (r"C:\data\auth.db", "C:/data/catalysts.db") if os.name == "nt" else ()
+    for bad in (*drive, "/data/auth.db", ""):
         with pytest.raises(ce.Refused):
             ce.verify_pins({"AUTH_DB_PATH": good, "X_DB_PATH": bad}, None)
+    if os.name != "nt":
+        # CONTROL: a drive-letter name really is outside the root here, so leaving the two drive
+        # spellings out above is a fact about this OS and not a refusal that stopped working
+        ce.verify_pins({"AUTH_DB_PATH": good, "X_DB_PATH": "C:/data/catalysts.db"}, None)
 
 
 def test_entering_the_sandbox_after_api_was_imported_is_refused(tmp_path):
