@@ -418,6 +418,10 @@ class ScriptedClient:
 # grading helpers
 # --------------------------------------------------------------------------- #
 
+#: The door answered `ok` with a change and the browser refused it (Indicators backlog 59).
+ACCEPT_THEN_REFUSE = "ACCEPT-THEN-REFUSE"
+
+
 def columns_equal(a: List[Any], b: List[Any]) -> bool:
     if len(a) != len(b) or not a:
         return False
@@ -660,8 +664,15 @@ class Run:
             elif server.get("disposition") != "change":
                 problems.append(f"disposition {server.get('disposition')!r}, expected 'change'")
         if not client.get("changed"):
-            problems.append("the engine applied no change: "
-                            + "; ".join(" ".join(e.get("lines") or []) for e in client.get("entries") or [])[:300])
+            said = "; ".join(" ".join(e.get("lines") or []) for e in client.get("entries") or [])[:300]
+            # ⭐ 2026-11-17 (Indicators backlog 59) -- THE CLASS HAS A NAME. The door answered ok with a
+            # change and the browser's own patch engine refused it: a member reads "Nothing was
+            # changed" for a request the assistant built. Six of these were found by hand on
+            # production in one day; this is the line that finds the next one here instead.
+            if t["path"] == "model" and server.get("ok") and server.get("disposition") == "change":
+                problems.append(ACCEPT_THEN_REFUSE + ": the door accepted a patch the browser refused: " + said)
+            else:
+                problems.append("the engine applied no change: " + said)
         working = client.get("working")
         match_detail: List[dict] = []
         ev = None
