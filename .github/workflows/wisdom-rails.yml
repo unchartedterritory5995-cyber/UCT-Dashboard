@@ -50,7 +50,23 @@ jobs:
   rails:
     runs-on: ubuntu-latest
     steps:
+      # A PULL REQUEST LEAVES OUT OLD FILE CONTENTS (2026-11-17): `filter: blob:none` keeps the WHOLE commit graph
+      # and the WHOLE working tree, and skips the 1.3 GB of historical file contents. The off-limits rail asks git
+      # for a merge base and two `diff --name-only --no-renames` lists; neither reads a file's contents from
+      # history, and this is not a shallow clone, so the merge base is there. 71 s became 37 s on a real runner
+      # (probe run 44004258840), on a check that runs on every push to every PR.
+      # ⛔ NEVER a sparse checkout here: the ban rails walk the whole tree (measured under strace: 7,365 files in
+      #   2,224 folders), and a folder that is not on disk is a folder they silently do not scan.
+      # ⛔ Every other event keeps the full checkout, the second step below, exactly as it was: promotion reads
+      #   the master run. tests/test_ci_cost_rails.py evaluates the two conditions for every event.
       - uses: actions/checkout@v4
+        if: github.event_name == 'pull_request'
+        with:
+          fetch-depth: 0
+          filter: blob:none
+
+      - uses: actions/checkout@v4
+        if: github.event_name != 'pull_request'
         with:
           fetch-depth: 0
 
