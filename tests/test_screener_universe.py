@@ -31,6 +31,40 @@ def test_symbols_reads_the_override_file_first(tmp_path, monkeypatch):
     assert su.symbols() == ["AAPL", "MSFT", "NVDA"]
 
 
+def test_a_class_share_is_listed_under_one_spelling(tmp_path, monkeypatch):
+    """The vendor writes BRK.B, the app writes BRK-B: a file holding both is the same
+    stock twice (the live Screener carried eleven such pairs on 2026-11-15). The hyphen
+    spelling stays. A dot name with no hyphen twin is the only spelling held: kept."""
+    f = tmp_path / "u.json"
+    f.write_text(json.dumps(["BRK.B", "BRK-B", "BRK-A", "BF.A", "BF-A", "LEN.B", "NVDA", "brk.b"]))
+    monkeypatch.setenv("SCREENER_UNIVERSE_PATH", str(f))
+    assert su.symbols() == ["BF-A", "BRK-A", "BRK-B", "LEN.B", "NVDA"]
+    assert su.second_spelling_of("BRK.B", {"BRK-B"}) == "BRK-B"
+    assert su.second_spelling_of("brk.b", {"BRK-B"}) == "BRK-B"
+    assert su.second_spelling_of("LEN.B", {"LEN", "BRK-B"}) is None
+    assert su.second_spelling_of("BRK-B", {"BRK-B", "BRK.B"}) is None    # the kept spelling
+    assert su.second_spelling_of("NVDA", {"NVDA"}) is None
+    assert su.second_spelling_of(None, {"NVDA"}) is None
+    assert su.drop_second_spellings(["B.A", "B-A", "B.A"]) == ["B-A"]
+
+
+def test_build_writes_one_spelling_when_both_sources_name_a_class_share(tmp_path, monkeypatch):
+    """The reference list says BRK.B (and LEN.B), the curated universe says BRK-B: the
+    file gets BRK-B once and keeps LEN.B, which has no hyphen twin."""
+    out = tmp_path / "data" / "screener_universe.json"
+    monkeypatch.setattr("api.services.massive.list_reference_tickers", _fake_ref([
+        {"ticker": "BRK.B", "type": "CS"}, {"ticker": "LEN.B", "type": "CS"},
+        {"ticker": "NVDA", "type": "CS"}]))
+    monkeypatch.setattr("api.services.massive.get_grouped_daily_ohlcv",
+                        lambda d: {"BRK.B": {"v": 5e6}, "LEN.B": {"v": 5e5}, "NVDA": {"v": 5e7}})
+    monkeypatch.setattr("api.services.cap_universe.symbols", lambda: frozenset({"BRK-B"}))
+    monkeypatch.setattr("api.services.cap_universe.etf_symbols", lambda: frozenset())
+    monkeypatch.setattr(su, "buyout_excludes", lambda: frozenset())
+    res = su.build_and_save(write_path=str(out))
+    assert json.loads(out.read_text()) == ["BRK-B", "LEN.B", "NVDA"]
+    assert res.get("final") == 3
+
+
 def test_symbols_falls_back_to_cap_universe_when_no_file(monkeypatch):
     # No screener file anywhere → the app-wide cap universe (== old behaviour).
     monkeypatch.setattr("api.services.cap_universe.symbols",

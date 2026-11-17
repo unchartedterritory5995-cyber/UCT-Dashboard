@@ -17,29 +17,18 @@ import Input from '../ui/Input'
 import Select from '../ui/Select'
 import styles from '../../pages/Settings.module.css'
 import { useStudyProfile, putStudyProfile } from '../../pages/study/useStudy'
+import { SOUND_KEY, setSoundPref, soundOn } from '../../pages/study/studySound'
 import LoadFailed from '../../pages/journal-2-0/components/LoadFailed'
 
 export const GOALS = [20, 50, 100]
 export const DEFAULT_GOAL = 50
 export const DEFAULT_REMINDER = '07:00'
-export const SOUND_KEY = 'uct.study.sound'
 export const REMINDER_COPY = "Today's Study is ready — 10 questions, about 4 minutes."
 
-const isIOS = () =>
-  typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent || '')
-
-export function readSoundPref() {
-  try {
-    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(SOUND_KEY) : null
-    if (raw === '1') return true
-    if (raw === '0') return false
-  } catch { /* storage blocked — fall through to the device default */ }
-  return !isIOS()
-}
-
-function writeSoundPref(on) {
-  try { localStorage.setItem(SOUND_KEY, on ? '1' : '0') } catch { /* storage blocked */ }
-}
+// the one switch, shared with every Study reveal (studySound.js): it used to write a key nothing read
+export { SOUND_KEY }
+export const readSoundPref = soundOn
+const writeSoundPref = setSoundPref
 
 export default function StudySettingsCard() {
   const { studyEnabled } = useAuth() || {}

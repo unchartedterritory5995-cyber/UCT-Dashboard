@@ -29,6 +29,7 @@ const setPref = vi.fn()
 const setPrefMerged = vi.fn()
 let mockPrefs = {}
 const refreshPreferences = vi.fn()
+const mergeIntoPreferenceCache = vi.fn()
 vi.mock('../../hooks/usePreferences', () => ({
   default: () => ({ prefs: mockPrefs, setPref, setPrefMerged, loading: false }),
   parsePref: (raw, fallback) => {
@@ -37,6 +38,7 @@ vi.mock('../../hooks/usePreferences', () => ({
     try { return JSON.parse(raw) } catch { return fallback }
   },
   refreshPreferences: (...a) => refreshPreferences(...a),
+  mergeIntoPreferenceCache: (...a) => mergeIntoPreferenceCache(...a),
 }))
 vi.mock('../../hooks/useMediaQuery', () => ({ default: () => false }))
 vi.mock('../../context/AuthContext', () => ({ useAuth: () => ({ user: { id: 1, role: 'user' } }) }))
@@ -56,6 +58,7 @@ vi.mock('../../hooks/useChartLayouts', () => ({
 }))
 
 import ChartsWorkspace, { serializeLayout, uctDefaultChartSettings } from './ChartsWorkspace'
+import { UCT_DEFAULT_OFFERED } from './layoutDockPins'
 import { WORKSPACE_DOC_URL } from './VersionHistory'
 import { BOARD_APPLY_URL } from './boardDocument'
 import { __setWorkspaceDocStampForTests } from '../../lib/workspaceDoc'
@@ -85,7 +88,7 @@ function renderWS(search = '') {
 }
 function openLayoutsMenu() {
   const header = document.querySelector('header')
-  const trigger = within(header).getAllByRole('button').find(b => /^Layouts/.test(b.textContent))
+  const trigger = within(header).getAllByRole('button').find(b => b.dataset.guide === 'workspace.layoutsMenuBtn')  // the layout NAME is the Layouts button (owner 11-15)
   act(() => { fireEvent.click(trigger) })
 }
 function armedServer({ apply = () => res(200, { version: 4, appended: true, complete: true, prefs_failed: [] }) } = {}) {
@@ -102,6 +105,7 @@ beforeEach(() => {
   setPref.mockReset()
   setPrefMerged.mockReset()
   refreshPreferences.mockReset()
+  mergeIntoPreferenceCache.mockReset()
   mockPrefs = { charts_workspace_layout: CHART_BOARD }
   localStorage.clear()
   __setWorkspaceDocStampForTests(null)
@@ -154,7 +158,7 @@ describe('DARK (no X-Workspace-Doc on the preferences read): the per-key writes,
     global.fetch = vi.fn(async () => res(404, {}))
     renderWS()
     openLayoutsMenu()
-    act(() => { fireEvent.click(screen.getByRole('button', { name: 'New Layout' })) })
+    act(() => { fireEvent.click(document.querySelector('header [data-guide="workspace.newLayout"]')) })
     expect(boardWrites().map(([k]) => k)).toEqual([
       'charts_workspace_layout', 'charts_workspace_groups', 'chart_settings', 'watchlist_settings',
       'theme_tracker_settings', 'fundamentals_settings', 'breadth_widget_settings', 'charts_theme',
@@ -163,11 +167,12 @@ describe('DARK (no X-Workspace-Doc on the preferences read): the per-key writes,
     expect(boardWrites()[8][1]).toBe('null')
   })
 
-  test('UCT Default: the same writes as before', () => {
+  // Runs only while UCT Default is offered (layoutDockPins UCT_DEFAULT_OFFERED; hidden 11-16).
+  test.runIf(UCT_DEFAULT_OFFERED)('UCT Default: the same writes as before', () => {
     global.fetch = vi.fn(async () => res(404, {}))
     renderWS()
     openLayoutsMenu()
-    act(() => { fireEvent.click(screen.getByRole('button', { name: /^Open Layout/ })) })
+    act(() => { fireEvent.click(screen.getByRole('button', { name: /^Open layout/ })) })
     // The Layouts menu's entry, not the Layout Dock's pill of the same name.
     const entry = screen.getAllByRole('button', { name: 'UCT Default' }).find(b => /addMenuItem/.test(b.className))
     act(() => { fireEvent.click(entry) })
@@ -181,14 +186,17 @@ describe('DARK (no X-Workspace-Doc on the preferences read): the per-key writes,
 
 // ── ARMED: one document write ─────────────────────────────────────────────────
 describe('ARMED: a board change is ONE compare-and-set document write', () => {
-  test('a prebuilt template: ONE apply POST carrying every key, NO per-key writes; the board switches after it lands', async () => {
+  test('a prebuilt template: ONE apply POST carrying every key, NO per-key writes; the board switches AT ONCE (owner 11-17)', async () => {
     __setWorkspaceDocStampForTests('document; v=3')
     global.fetch = armedServer()
     refreshPreferences.mockResolvedValue({ charts_workspace_layout: serializeLayout(SCANNER_LAYOUT) })
     localStorage.setItem('uct.watchlist.cols', JSON.stringify(COLS))
     renderWS('?openLayout=7')
-    // Nothing moves until the server has it.
-    expect(screen.getByTestId('body-chart')).toBeInTheDocument()
+    // Owner 11-17: the switch is instant. The board and the preference CACHE (never a POST) move now;
+    // the one document write follows.
+    expect(screen.getByTestId('body-scanner')).toBeInTheDocument()
+    expect(mergeIntoPreferenceCache.mock.calls.map(([k]) => k)).toContain('charts_active_template')
+    expect(localStorage.getItem('uct.watchlist.cols')).toBeNull()
     await flush()
     expect(applyPosts()).toHaveLength(1)
     const body = JSON.parse(applyPosts()[0][1].body)
@@ -208,7 +216,7 @@ describe('ARMED: a board change is ONE compare-and-set document write', () => {
     expect(boardWrites()).toEqual([])                         // not one per-key write
     expect(refreshPreferences).toHaveBeenCalledTimes(1)
     expect(screen.getByTestId('body-scanner')).toBeInTheDocument()
-    expect(localStorage.getItem('uct.watchlist.cols')).toBeNull()   // the localStorage half follows the commit
+    expect(localStorage.getItem('uct.watchlist.cols')).toBeNull()
   })
 
   test('a personal template carries its columns INTO the document, and they reach localStorage after the commit', async () => {
@@ -223,7 +231,7 @@ describe('ARMED: a board change is ONE compare-and-set document write', () => {
     expect(JSON.parse(localStorage.getItem('uct.watchlist.cols'))).toEqual(COLS)
   })
 
-  test('409 (stale base): nothing applied, nothing retried, no per-key fallback — the board re-reads and the member is told', async () => {
+  test('409 (stale base): nothing retried, no per-key fallback — the board goes back to what the server holds and the member is told', async () => {
     __setWorkspaceDocStampForTests('document; v=3')
     global.fetch = armedServer({ apply: () => res(409, { detail: { error: 'version_conflict', base_version: 3, head_version: 4 } }) })
     refreshPreferences.mockResolvedValue({ charts_workspace_layout: CHART_BOARD })
@@ -240,7 +248,7 @@ describe('ARMED: a board change is ONE compare-and-set document write', () => {
       'Your board changed in another tab or window before this could be applied, so nothing was changed. Try again.')
   })
 
-  test('a failed apply (network) half-applies NOTHING: no per-key write, no board switch, localStorage untouched', async () => {
+  test('a failed apply (network) leaves NOTHING behind: no per-key write, the board and localStorage are put back, the cache restored', async () => {
     __setWorkspaceDocStampForTests('document; v=3')
     global.fetch = armedServer({ apply: () => { throw new TypeError('network down mid-apply') } })
     localStorage.setItem('uct.watchlist.cols', JSON.stringify(COLS))
@@ -250,6 +258,9 @@ describe('ARMED: a board change is ONE compare-and-set document write', () => {
     expect(screen.getByTestId('body-chart')).toBeInTheDocument()
     expect(JSON.parse(localStorage.getItem('uct.watchlist.cols'))).toEqual(COLS)
     expect(screen.getByTestId('workspace-notice').textContent).toContain('your board was not changed')
+    // the cache is restored to what it held before the switch (the layout key last written = the old board)
+    const restored = mergeIntoPreferenceCache.mock.calls.filter(([k]) => k === 'charts_workspace_layout').at(-1)
+    expect(restored[1]).toBe(CHART_BOARD)
   })
 
   test('the store went dark mid-session (404): the per-key path, which is correct dark', async () => {
@@ -315,12 +326,48 @@ describe('ARMED: a board change is ONE compare-and-set document write', () => {
     refreshPreferences.mockResolvedValue({})
     renderWS()
     openLayoutsMenu()
-    act(() => { fireEvent.click(screen.getByRole('button', { name: 'New Layout' })) })
+    act(() => { fireEvent.click(document.querySelector('header [data-guide="workspace.newLayout"]')) })
     await flush()
     const prefs = JSON.parse(applyPosts()[0][1].body).prefs
     expect(prefs.charts_workspace_groups).toBe(JSON.stringify({ A: null, B: null, C: null, D: null }))
     expect(prefs.charts_active_template).toBe('null')
     expect(boardWrites()).toEqual([])
+  })
+
+  test('owner 11-17: two quick switches write ONE AT A TIME (the second reads the head after the first landed), and the board shows the newest at once', async () => {
+    __setWorkspaceDocStampForTests('document; v=3')
+    const order = []
+    let release
+    const gate = new Promise(r => { release = r })
+    let head = 3
+    global.fetch = vi.fn(async (url, init) => {
+      const u = String(url)
+      const method = (init?.method || 'GET').toUpperCase()
+      if (method === 'GET' && u === `${WORKSPACE_DOC_URL}?board=charts`) { order.push(`head v${head}`); return res(200, { board: 'charts', version: head, doc: {} }) }
+      if (method === 'POST' && u === BOARD_APPLY_URL) {
+        const base = JSON.parse(init.body).base_version
+        order.push(`apply base ${base}`)
+        if (base === 3) await gate
+        if (base !== head) return res(409, { detail: { error: 'version_conflict' } })
+        head += 1
+        return res(200, { version: head, appended: true, complete: true, prefs_failed: [] })
+      }
+      return res(404, {})
+    })
+    refreshPreferences.mockResolvedValue({})
+    renderWS('?openLayout=7')
+    await flush()
+    expect(screen.getByTestId('body-scanner')).toBeInTheDocument()
+    openLayoutsMenu()
+    act(() => { fireEvent.click(document.querySelector('header [data-guide="workspace.newLayout"]')) })
+    // the second switch is on screen while the first write is still out
+    expect(screen.queryByTestId('body-scanner')).toBeNull()
+    expect(applyPosts()).toHaveLength(1)
+    release()
+    await flush()
+    await flush()
+    expect(order).toEqual(['head v3', 'apply base 3', 'head v4', 'apply base 4'])
+    expect(screen.queryByTestId('workspace-notice')).toBeNull()
   })
 
   test('the automatic save waits while a one-write change is in flight (it would move the head under it)', async () => {

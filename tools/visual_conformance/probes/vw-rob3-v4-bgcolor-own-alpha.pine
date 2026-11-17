@@ -1,0 +1,20 @@
+// DOOR-ROBUSTNESS (2026-11-16) - probe Q-ROB3 for the capture lane. Queue: docs/pine/capture-queue-2026-11-16-door-robustness.md
+// Chart: NYSE:RDDT 1D from the listing, after the close. The capture's `styleState[plot_k].transparency` for each
+// bgcolor row and the per-bar colour of each row ARE the readings; no pixels needed.
+// Not compiled on TradingView yet: if a row does not compile, the error names the line; split it out.
+//
+// A v3/v4 `bgcolor` with no `transp` takes 90 over a PLAIN colour (vw-bgcolor-v4-default T1/T3, witnessed).
+// Over a colour that carries its OWN alpha (`color.new(c, 50)`) no capture says which wins, so the door
+// withholds the paint (`paint:v4-default-transp`). Written by relative-strength-index-divergences-libertus.
+//
+//   A1  bgcolor(color.new(color.red, 50))                         no transp: 50, 90, or both?
+//   A2  bgcolor(close > open ? color.new(color.green, 50) : na)    conditional, no transp
+//   A3  bgcolor(color.new(color.blue, 50), offset = -1)            no transp, with an offset
+//   A4  bgcolor(color.new(color.red, 50), transp = 0)              control: an explicit transp
+//@version=4
+study("vw-rob3-v4-bgcolor-own-alpha", overlay = true)
+bgcolor(color.new(color.red, 50), title = "A1")
+bgcolor(close > open ? color.new(color.green, 50) : na, title = "A2")
+bgcolor(color.new(color.blue, 50), offset = -1, title = "A3")
+bgcolor(color.new(color.red, 50), transp = 0, title = "A4")
+plot(close, "control")

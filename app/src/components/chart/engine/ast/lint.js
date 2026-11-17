@@ -228,6 +228,7 @@ function argYieldsBool(node, table) {
     case 'sym':
     case 'ltf':
     case 'tf_live':
+    case 'tf_merge':
     case 'tf': {
       const args = Array.isArray(node.args) ? node.args : []
       return args.length === 1 ? argYieldsBool(args[0], table) : false
@@ -389,8 +390,17 @@ function ownWindow(spec, argNodes) {
   if (lookback === UNKNOWN || declaredForward === UNKNOWN) {
     return { back: UNKNOWN, forward: UNKNOWN }
   }
-  if (declaredForward === UNBOUNDED || lookback === UNBOUNDED) {
+  if (lookback === UNBOUNDED) {
     return { back: UNKNOWN, forward: UNBOUNDED }
+  }
+  // ⭐ NUMBER PENDING (bt) — AN UNBOUNDED FORWARD REACH SAYS NOTHING ABOUT HOW FAR BACK. The two halves
+  // are one declaration, but they are two numbers: `lastbaryear` (`lookback: 0`, `forward: "unbounded"`)
+  // reads no earlier bar at all. Answering `back: UNKNOWN` here made this reader disagree with
+  // `interpret.js::maxLookback`, which reads the lookback alone, on the first corpus tree that holds such
+  // a leaf: chart-champions' "Sun-2DVWAP" (251 against "unanalysable", `lookbackAgreement.test.js`),
+  // reachable once its sessions translated. The repaint verdict is untouched: forward stays UNBOUNDED.
+  if (declaredForward === UNBOUNDED) {
+    return { back: lookback >= 0 ? lookback : 0, forward: UNBOUNDED }
   }
 
   // A NEGATIVE lookback is a window that runs the other way: `[i, i+|n|]`.
@@ -678,6 +688,31 @@ export function astReach(ast, opts = {}) {
           back: typeof child.back === 'number' ? (child.back + 1) * span : scale(child.back),
           forward: (typeof child.forward === 'number' && child.forward !== 0)
             ? child.forward * span : child.forward,
+        })
+        break
+      }
+      case 'tf_merge': {
+        // ⭐⭐ ENGINE 55 — PINE'S MERGED HIGHER-TIMEFRAME READ (`interpret.js`'s `tf_merge`
+        // arm). Back: `tf`'s window (it reads at most the last closed period). Forward:
+        // AT LEAST ONE BAR, and this is the badge. Whether bar `i` shows the period's
+        // value or the previous one is decided by bar `i + 1`'s date, so on a FORMING
+        // newest bar the value is the forming period's and, once that bar closes
+        // mid-period, the previous period's: a past value moves, exactly as it does on
+        // TradingView's realtime bar. `modeFromReach` reads that as `preview-repaints`.
+        // Mirrors `ast_lint.ast_reach`'s `tf_merge` arm.
+        const args = Array.isArray(node.args) ? node.args : []
+        const span = TF_BASE_BARS[String(node.value)]
+        if (args.length !== 1 || span === undefined) {
+          reachOf.set(node, noteUnknown(
+            'a higher-timeframe node carries one child and a timeframe this engine '
+            + `resamples (${Object.keys(TF_BASE_BARS).sort().join(', ')}), got `
+            + `${JSON.stringify(node.value)} over ${args.length}`))
+          break
+        }
+        const child = reachOf.get(args[0]) || { back: UNKNOWN, forward: UNKNOWN }
+        reachOf.set(node, {
+          back: typeof child.back === 'number' ? (child.back + 1) * span : child.back,
+          forward: typeof child.forward === 'number' ? Math.max(1, child.forward * span) : child.forward,
         })
         break
       }

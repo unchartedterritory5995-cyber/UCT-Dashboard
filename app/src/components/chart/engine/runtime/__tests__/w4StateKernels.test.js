@@ -69,12 +69,12 @@ const refusalOf = (version, body) => {
 const state = (name, expr) => `var float ${name} = 0.0\n${name} := ${expr}\n`
 
 /** The columnar lane's answer to a PURE Pine expression. */
-function pureLane(version, expr) {
+function pureLane(version, expr, opts) {
   const t = translatePine(`${heads[version]}plot(${expr})\n`)
   expect(t.ok, JSON.stringify(t.refusal || {})).toBe(true)
   const parsed = parseFormula(t.outputs[0].formula)
   expect(parsed.ok).toBe(true)
-  const col = interpret(parsed.ast, BARS, {})
+  const col = interpret(parsed.ast, BARS, {}, undefined, undefined, opts)
   return Array.from({ length: N }, (_, i) => (typeof col === 'number' ? col : col[i]))
 }
 /** A house-formula column (`cum(...)`), which Pine's own spelling refuses. */
@@ -245,30 +245,103 @@ describe('⭐⭐ W4 T10 — ta.stoch over values the run computes', () => {
     expect(new Set(fin.map((v) => v.toFixed(6))).size).toBeGreaterThan(10)
   })
 
-  it('a source computed by the run that is na for a leading run starts after it (StochRSI shape)', () => {
+  // ⭐⭐ ENGINE 57 — REWRITTEN: this railed the WRONG start. The kernel restarted its window on
+  // the leading `na` run and needed a full `length` bars after it (first value on bar 14); Pine's
+  // `ta.stoch` reads `highest` / `lowest` of the finite values from `bar_index >= length - 1`
+  // (the S6 Stochastic RSI capture: K from bar 17, where the restart drew from bar 27). So the
+  // first bar is the first one AFTER the run starts whose window holds two different values.
+  it('a source computed by the run that is na for a leading run answers from its first bars (StochRSI shape, Pine\'s gate)', () => {
     const C = '(bar_index < 9 ? na : close + 1)'
     const [out] = run(5, `${state('c', C)}plot(ta.stoch(c, c, c, 6))\n`)
-    const want = pureLane(5, `ta.stoch(${C}, ${C}, ${C}, 6)`)
+    // the VM runs from these bars' first bar, so the columnar answer it is held to is the one FROM
+    // THE LISTING; off it the columnar lane withholds these first bars by name (`stoch:left-edge`)
+    const want = pureLane(5, `ta.stoch(${C}, ${C}, ${C}, 6)`, { historyFromListing: true })
     same(out, want, 'stoch prefix')
-    // first value is 9 + 6 - 1 = bar 14
-    expect(out.findIndex((v) => !Number.isNaN(v))).toBe(14)
+    // by hand: the first bar from 9 on whose run (capped at 6 bars) holds a nonzero range
+    let first = -1
+    for (let i = 9; i < N && first < 0; i += 1) {
+      const run6 = BARS.slice(Math.max(9, i - 5), i + 1).map((b) => b.c + 1)
+      if (Math.max(...run6) > Math.min(...run6)) first = i
+    }
+    expect(first).toBeLessThan(14)            // the restart rule's first bar was 9 + 6 - 1 = 14
+    expect(out.findIndex((v) => !Number.isNaN(v))).toBe(first)
   })
 
-  it('a zero range is 50, as computeStochastic answers', () => {
+  // ⭐⭐ ENGINE 57 — REWRITTEN: this railed the WRONG answer. `computeStochastic` answers 50 on a
+  // flat window; Pine's `ta.stoch` keeps its previous answer there (S1 probe P2), and a series
+  // that is flat from its first bar has none.
+  it('a flat window with no answer before it is na, never the house 50', () => {
     const [out] = run(5, `${state('c', '5.0')}plot(ta.stoch(c, c, c, 4))\n`)
-    expect(out.slice(3, 8)).toEqual([50, 50, 50, 50, 50])
+    // a flat window keeps the previous answer, and here there is none: `na` on every bar (the
+    // columnar `stochPineCol` answers the same, `engine57Builtins.test.js`)
+    expect(out.every(Number.isNaN)).toBe(true)
   })
 
-  it('an interior hole RESTARTS the window: na there and for the next length - 1 bars', () => {
+  // ⭐⭐ ENGINE 57 — REWRITTEN: this railed the WRONG window. An `na` SOURCE bar has no formula,
+  // and TradingView KEEPS the previous value there (S1 probe P2: bars 30, 80, … repeat bar 29's,
+  // 79's); the high and low windows it does not touch are drawn (the restart rule blanked 30..34).
+  it('an na source bar holds the previous value; the high/low windows it does not touch are drawn', () => {
     const C = '(bar_index == 30 ? na : close)'
     const [out] = run(5, `${state('c', C)}plot(ta.stoch(c, high, low, 5))\n`)
-    for (let t = 30; t <= 34; t += 1) expect(Number.isNaN(out[t]), `bar ${t}`).toBe(true)
-    expect(Number.isNaN(out[35])).toBe(false)
-    expect(Number.isNaN(out[29])).toBe(false)
-    // and from the restart on it equals the columnar column of the tail it can see
-    const tail = pureLane(5, 'ta.stoch(close, high, low, 5)')
-    // bars >= 35 see 5 clean bars, exactly the columnar window
-    for (let t = 35; t < N; t += 1) expect(out[t]).toBeCloseTo(tail[t], 9)
+    const whole = pureLane(5, 'ta.stoch(close, high, low, 5)')
+    for (let t = 4; t < N; t += 1) {
+      if (t === 30) expect(out[t]).toBe(out[29])
+      else expect(out[t], `bar ${t}`).toBeCloseTo(whole[t], 9)
+    }
+    same(out, pureLane(5, `ta.stoch(${C}, high, low, 5)`), 'columnar')
+  })
+
+  // ⭐⭐ ENGINE 57 — an `na` in the high (or low) window is SKIPPED: the window is the last `n`
+  // FINITE values, across the hole (probe P2, and its `ta.highest(x, 10)` beside it).
+  it('an na in the high window is skipped: the window is the last n finite highs, equal to the columnar lane', () => {
+    const H = '(bar_index == 30 ? na : high)'
+    const [out] = run(5, `${state('h', H)}plot(ta.stoch(close, h, low, 5))\n`)
+    expect(same(out, pureLane(5, `ta.stoch(close, ${H}, low, 5)`), 'stoch high hole')).toBeGreaterThan(50)
+  })
+
+  // ⭐⭐ ENGINE 57 — a flat window the captures do not pin (here the source is off the flat
+  // level) is a bar no capture answers: the columnar lane withholds it by name and this lane
+  // stops by that name.
+  it('an unpinned flat window stops the run by name (`stoch:flat-window`)', () => {
+    const Y = '(bar_index >= 30 and bar_index < 45 ? 1000.0 : close)'
+    let err = null
+    // bar 33 reads 100 (the source at the window's high); the flat windows from bar 34 keep it with
+    // the source off the level, so only the level tells them from the S10 run
+    const S = '(bar_index == 33 ? 1000.0 : close)'
+    try { run(5, `${state('y', Y)}${state('s', S)}plot(ta.stoch(s, y, y, 5))\n`) } catch (e) { err = e }
+    expect(err && err.guard).toBe('stoch:flat-window')
+    const t = translatePine(`${heads[5]}plot(ta.stoch(${S}, ${Y}, ${Y}, 5))\n`)
+    const parsed = parseFormula(t.outputs[0].formula)
+    const clock = new Map()
+    const col = interpret(parsed.ast, BARS, {}, undefined, undefined, { chartClockSink: clock })
+    expect([...clock.keys()]).toEqual(['stoch:flat-window'])
+    expect(col[33]).toBe(100)
+    for (let i = 34; i <= 44; i += 1) expect(Number.isNaN(col[i]), `bar ${i}`).toBe(true)
+    // the S10 shape: the run at its own high keeps the 100 TradingView was measured keeping
+    const [kept] = run(5, `${state('y', Y)}plot(ta.stoch(y, y, y, 5))\n`)
+    for (let i = 30; i <= 44; i += 1) expect(kept[i], `bar ${i}`).toBe(100)
+    // control: the same run below every price before it holds the 0 TradingView was measured holding
+    const Z = '(bar_index >= 30 and bar_index < 45 ? 1.0 : close)'
+    const [held] = run(5, `${state('y', Z)}plot(ta.stoch(y, y, y, 5))\n`)
+    for (let i = 34; i <= 44; i += 1) expect(held[i], `bar ${i}`).toBe(0)
+  })
+
+  // ⭐⭐ ENGINE 57 (review N2) — a kept 100 is pinned by where it came from, not by its last bit
+  it('a kept 100 that is not the double 100 is pinned by provenance: the run keeps it', () => {
+    let pair = null
+    for (let t = 0; t < 5000 && !pair; t += 1) {
+      const lo = 1 + t * 0.37
+      const hi = lo + 3.3 + t * 0.011
+      if ((100 * (hi - lo)) / (hi - lo) !== 100) pair = { lo, hi }
+    }
+    expect(pair).not.toBe(null)
+    const { lo, hi } = pair
+    const L = `(bar_index < 3 ? ${lo} : ${hi})`
+    const [out] = run(5, `${state('h', String(hi))}${state('l', L)}${state('c', String(hi))}plot(ta.stoch(c, h, l, 3))\n`)
+    expect(out[4]).not.toBe(100)
+    expect(Math.abs(out[4] - 100)).toBeLessThan(1e-12)
+    expect(out[5]).toBe(out[4])
+    expect(out[9]).toBe(out[4])
   })
 
   it('two call sites of one function keep two states', () => {

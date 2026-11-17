@@ -123,7 +123,9 @@ export const FAMILIES = Object.freeze([
   {
     id: 'fault',
     exact: ['import:internal-error', 'runtime:failed', 'runtime:build', 'runtime:unnamed-refusal',
-      'runtime:not-from-listing', 'runtime:output-map', 'runtime:document'],
+      'runtime:not-from-listing', 'runtime:output-map', 'runtime:document',
+      // door robustness: the host document the door built did not pass the install door's own check
+      'pine:install'],
     prefix: ['runtime:worker-'],
     label: 'Engine fault',
     why: 'Our engine could not finish this script. That is on us, not your script.',
@@ -167,7 +169,9 @@ export const FAMILIES = Object.freeze([
   {
     id: 'function',
     exact: ['pine:function-def', 'runtime:function', 'runtime:recursion', 'runtime:unbound',
-      'runtime:discarded-value'],
+      'runtime:discarded-value',
+      // legacy semantics B3 (landing train 1): a script function's history read inside a block, v1-v3
+      'pine:fn-history-in-block'],
     label: 'Your own functions',
     why: 'This function is written in a way we cannot run exactly yet.',
   },
@@ -185,7 +189,12 @@ export const FAMILIES = Object.freeze([
   },
   {
     id: 'library',
-    exact: ['pine:module', 'pine:declaration-library', 'runtime:library'],
+    // U15: the four ways a library the store HOLDS is still not compiled (no verified sha256,
+    // other code than the document was saved against, a non-commercial licence, the deny list).
+    exact: ['pine:module', 'pine:declaration-library', 'runtime:library',
+      'pine:library-no-sha', 'pine:library-changed', 'pine:library-licence', 'pine:library-denied',
+      // U15 Phase B: a v5 library in a v6 script whose code changed meaning in v6
+      'pine:library-version'],
     label: 'Imported libraries',
     why: 'This script imports a library we cannot load yet.',
   },
@@ -198,8 +207,10 @@ export const FAMILIES = Object.freeze([
   {
     id: 'presentation',
     exact: ['pine:colour-value', 'pine:text-value', 'pine:plot-offset', 'pine:alert-message',
-      'pine:paint-pane', 'runtime:colour', 'runtime:presentation', 'runtime:plot-id'],
-    prefix: ['pine:offset-negative', 'paint:', 'runtime:fill-'],
+      'pine:paint-pane', 'runtime:colour', 'runtime:presentation', 'runtime:plot-id',
+      // engine 58 colours (landing train 1): a colour withheld by name, never drawn in a made-up one
+      'pine:colour-unread', 'pine:colour-default-unwitnessed'],
+    prefix: ['pine:offset-negative', 'paint:', 'runtime:fill-', 'format:'],
     label: 'How it is drawn',
     why: 'The value is computed, but this way of drawing it is not supported yet, so it is not drawn '
       + 'rather than drawn differently.',
@@ -208,8 +219,10 @@ export const FAMILIES = Object.freeze([
     id: 'limits',
     exact: ['pine:window', 'pine:window-dependent', 'pine:budget', 'pine:timeout', 'runtime:limit',
       'runtime:time-budget', 'runtime:history-start', 'runtime:warmup-never-converges',
-      'chart:scalar-current-only'],
-    prefix: ['runtime:calc-bars-'],
+      'chart:scalar-current-only',
+      // door robustness: a plot past a host-lane compute budget, refused by the member door by name
+      'budget:lookback', 'budget:series', 'budget:nodes'],
+    prefix: ['runtime:calc-bars-', 'pine:calc-bars-'],
     label: 'History and compute limits',
     why: 'This needs more history or more computing than a chart here allows, so it is withheld.',
   },
@@ -219,7 +232,9 @@ export const FAMILIES = Object.freeze([
       'pine:role-order', 'pine:empty', 'pine:declaration', 'pine:offset-literal', 'pine:chart-only',
       'runtime:statement', 'runtime:expression-statement', 'runtime:switch', 'runtime:block-value',
       'runtime:operator', 'runtime:directive', 'runtime:declaration', 'runtime:version',
-      'runtime:lower', 'runtime:empty', 'runtime:udt-method', 'runtime:call-text-state', 'runtime:enum'],
+      'runtime:lower', 'runtime:empty', 'runtime:udt-method', 'runtime:call-text-state', 'runtime:enum',
+      // engine 58 review (landing train 1): no `//@version` header with v4+ syntax (TradingView reads it as v1)
+      'pine:version-missing'],
     prefix: ['runtime:loop'],
     label: 'A Pine construct we do not run yet',
     why: 'This line uses a part of the Pine language we cannot run exactly yet.',

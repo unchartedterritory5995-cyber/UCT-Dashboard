@@ -152,12 +152,17 @@ describe('W9-T7-F1 an exit bracket: its legs, the leg that filled, its comment, 
 describe('W9-T7-F1 exits TradingView names itself: no stated id, refused by name when read', () => {
   const CLOSE = `${V5}if bar_index == 1\n    strategy.entry("L", strategy.long, qty = 1)\nif bar_index == 4\n    strategy.close("L", comment = "bye")\n`
 
-  it('strategy.close: exitId null in the record; its comment is served; its exit_id refuses W9-V1', () => {
+  it('strategy.close: exitId null in the record; its comment is served; its exit_id is the WITNESSED text behind its own rule', () => {
     const { rec, cols } = served(`${CLOSE}plot(strategy.closedtrades > 0 ? (strategy.closedtrades.exit_comment(0) == "bye" ? 1 : 0) : -1)\n`)
     expect(rec.trades[0].exitId).toBe(null)
     expect(cols[0].slice(4, 7)).toEqual([-1, 1, 1])
-    const err = refusedAt(`${CLOSE}plot(strategy.closedtrades > 0 ? (strategy.closedtrades.exit_id(0) == "" ? 1 : 0) : -1)\n`, 'W9-V1')
-    expect(err.message).toMatch(/strategy\.close.*TradingView generates itself/)
+    // ⭐ value read-backs (2026-11-15): the committed captures' labels show the id TradingView generates,
+    // `Close entry(s) order <id>` (B-TXT-CLOSE-ID). ⚰️ It refused W9-V1 until then. Unpinned it stops by name.
+    const READ = `${CLOSE}plot(strategy.closedtrades > 0 ? (strategy.closedtrades.exit_id(0) == "Close entry(s) order L" ? 1 : 0) : -1)\n`
+    expect(served(READ).cols[0].slice(4, 7)).toEqual([-1, 1, 1])
+    const un = attempt(READ, { pins: (id) => id !== 'B-TXT-CLOSE-ID' })
+    expect(un.err && un.err.guard).toBe('runtime:strategy-unpinned')
+    expect(un.err.rule).toBe('B-TXT-CLOSE-ID')
   })
 
   it('strategy.close_all and `immediately`: the same (the row is close_all, id null)', () => {
@@ -179,6 +184,8 @@ describe('W9-T7-F1 exits TradingView names itself: no stated id, refused by name
       [2, 'entry', 'S', 'filled', null, [2], [1]],
     ])
     expect(rec.trades.map((t) => t.exitId)).toEqual([null, null])
+    // the reversing entry CARRIES A COMMENT ("flip"): the captures witness only an entry placed without one
+    // (value read-backs 2026-11-15), so both reads still stop by name, on the row that would settle it (W9-V1)
     refusedAt(`${SRC}plot(strategy.closedtrades > 0 ? (strategy.closedtrades.exit_id(0) == "" ? 1 : 0) : -1)\n`, 'W9-V1')
     const err = refusedAt(`${SRC}plot(strategy.closedtrades > 0 ? (strategy.closedtrades.exit_comment(0) == "" ? 1 : 0) : -1)\n`, 'W9-V1')
     expect(err.message).toMatch(/reversing entry/)

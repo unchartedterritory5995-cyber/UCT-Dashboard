@@ -84,6 +84,9 @@ _TABLE: dict[tuple[str, str], LicensingClassEntry] = {
     ("fmp", "economic"): LicensingClassEntry(
         "R", "Economic calendar releases — no DDLA assumed, same A3 posture as this vendor's other data classes.", "T-37",
     ),
+    ("fmp", "indices"): LicensingClassEntry(
+        "R", "Daily cash-index history (/stable/historical-price-eod/full, ^GSPC/^NDX/^DJI/^RUT/^VIX) — no DDLA assumed, same A3 posture as this vendor's other data classes. The PRIMARY source for daily index bars by owner ruling 2026-11-14 (top FMP plan; docs/pine/RS-RATING-TRANSFER.md).", "A3",
+    ),
     ("fmp", "news"): LicensingClassEntry(
         "R", "Company news / press releases — no DDLA assumed (R without a data redistribution license agreement; LA with one).", "T-38",
     ),
@@ -106,7 +109,7 @@ _TABLE: dict[tuple[str, str], LicensingClassEntry] = {
         "U", "Massive crypto snapshots — no register row, no plan, nothing in the stack reads it. Unknown, not licensed.", "T-72",
     ),
     ("yahoo", "indices"): LicensingClassEntry(
-        "X", "Index/futures snapshots via yfinance (^GSPC, ^NDX, ^DJI, ^RUT, ^VIX) — Yahoo ToS §2.4(ix)/§2.5/§2.8: no licence exists to buy at any price (T-71/T-72). Never a member path.", "T-72",
+        "X", "Index/futures snapshots via yfinance (^GSPC, ^NDX, ^DJI, ^RUT, ^VIX) — Yahoo ToS §2.4(ix)/§2.5/§2.8: no licence exists to buy at any price (T-71/T-72). Never a member path for QUOTES. Owner ruling 2026-11-14: index BARS (api/index_bars.py) may fall back to yfinance when FMP cannot answer ('I am fine using Yahoo'); the class stays X because it states the licence fact, not the ruling.", "T-72",
     ),
     ("yahoo", "crypto"): LicensingClassEntry(
         "X", "BTC-USD via yfinance (massive._yfinance_snapshot) — the same Yahoo ToS bar as T-71/T-72: no licence exists. Never a member path.", "T-72",

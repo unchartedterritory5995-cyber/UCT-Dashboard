@@ -403,12 +403,17 @@ describe('ta.tsi — REFERENCE: ema(ema(pc, long), short) / ema(ema(|pc|, long),
   })
 })
 
-describe('ta.rci — REFERENCE: Spearman of time order (newest = 1) against price order (highest = 1)', () => {
-  /** ranks by SORTING, ties averaged — a different construction from the engine's counting. */
+// ⭐⭐ ENGINE 57 — REWRITTEN TO THE MEASURED RULE. This reference was the no-ties Spearman
+// shortcut, first value on bar n-1, an `na` anywhere in the window answering `na`: the engine's
+// own reading before a capture existed, so it railed the wrong number on every tied window, a
+// bar early, and blank where TradingView draws. Captured (S6 `rank-correlation-index` /
+// `rci-ribbon`, S1 probe P1): the Pearson correlation of time ranks with AVERAGE price ranks, the
+// first value on bar n, an `na` ranked LOWEST (tied with other `na`s), a flat window `na`. Still
+// built by SORTING, a different construction from the engine's counting.
+describe('ta.rci — REFERENCE: Pearson of time order (newest = 1) against average price ranks (highest = 1)', () => {
   const refRci = (xs, n) => xs.map((_, i) => {
-    if (i < n - 1) return NaN
-    const w = xs.slice(i - n + 1, i + 1).reverse()        // w[0] is the newest
-    if (w.some((v) => !Number.isFinite(v))) return NaN
+    if (i < n) return NaN
+    const w = xs.slice(i - n + 1, i + 1).reverse().map((v) => (Number.isFinite(v) ? v : -Infinity))  // w[0] newest
     const order = w.map((v, k) => ({ v, k })).sort((a, b) => b.v - a.v)
     const rank = new Array(n)
     for (let p = 0; p < n;) {
@@ -417,21 +422,29 @@ describe('ta.rci — REFERENCE: Spearman of time order (newest = 1) against pric
       for (let r = p; r <= q; r++) rank[order[r].k] = (p + q) / 2 + 1
       p = q + 1
     }
-    let d2 = 0
-    for (let k = 0; k < n; k++) d2 += ((k + 1) - rank[k]) ** 2
-    return (1 - (6 * d2) / (n * (n * n - 1))) * 100
+    const mean = (n + 1) / 2
+    let cov = 0
+    let vt = 0
+    let vp = 0
+    for (let k = 0; k < n; k++) {
+      cov += (k + 1 - mean) * (rank[k] - mean)
+      vt += (k + 1 - mean) ** 2
+      vp += (rank[k] - mean) ** 2
+    }
+    return vp > 0 ? (100 * cov) / Math.sqrt(vt * vp) : NaN
   })
   it('every bar, holes included', () => {
     const ours = interpret(treeOf(V6('plot(ta.rci(close, 10))')).tree, holedBars)
-    expect(same(ours, refRci(holedBars.map((b) => b.c), 10), 1e-12)).toBeGreaterThan(1300)
+    expect(same(ours, refRci(holedBars.map((b) => b.c), 10), 1e-9)).toBeGreaterThan(1300)
   })
-  it('a rising window reads +100, a falling one −100, ties average their ranks', () => {
+  it('a rising window reads +100, a falling one −100, ties average their ranks, a flat window is na', () => {
     const bars = (cs) => cs.map((c, i) => ({ t: i, o: c, h: c, l: c, c, v: 1 }))
     const run = (cs) => asNull(interpret(treeOf(V6('plot(ta.rci(close, 5))')).tree, bars(cs)))
-    expect(run([1, 2, 3, 4, 5])[4]).toBe(100)
-    expect(run([5, 4, 3, 2, 1])[4]).toBe(-100)
-    expect(run([1, 2, 3, 4, 5]).slice(0, 4)).toEqual([null, null, null, null])
-    expect(run([1, 1, 2, 2, 3])[4]).toBeCloseTo(refRci([1, 1, 2, 2, 3], 5)[4], 12)
+    expect(run([0, 1, 2, 3, 4, 5])[5]).toBeCloseTo(100, 12)
+    expect(run([9, 5, 4, 3, 2, 1])[5]).toBeCloseTo(-100, 12)
+    expect(run([0, 1, 2, 3, 4, 5]).slice(0, 5)).toEqual([null, null, null, null, null])   // first value on bar n
+    expect(run([0, 1, 1, 2, 2, 3])[5]).toBeCloseTo(refRci([0, 1, 1, 2, 2, 3], 5)[5], 12)
+    expect(run([3, 3, 3, 3, 3, 3])[5]).toBe(null)
   })
 })
 
@@ -530,11 +543,12 @@ describe('robustness — what used to translate and then fail, or refuse before 
     ].join('\n'))
     const ours = throughTheDoor(src, SPY)
     // TradingView's own formula, by hand: 100 * (14 - bars since the 15-bar high) / 14,
-    // a tie read at the OLDEST bar holding the high (`_functions_arg_extreme`)
+    // a tie read at the NEWEST bar holding the high: over a bar price the newest tied bar wins
+    // (engine 56, `_functions_arg_extreme`; the builtin Aroon's RDDT capture, bar 116)
     const h = SPY.bars.rows.map((r) => r[2])
     for (let i = 14; i < 600; i++) {
       let best = i - 14
-      for (let k = i - 14; k <= i; k++) if (h[k] > h[best]) best = k
+      for (let k = i - 14; k <= i; k++) if (h[k] >= h[best]) best = k
       const want = (100 * (14 - (i - best))) / 14
       expect(ours['Aroon Up'][i], `bar ${i}`).toBeCloseTo(want, 9)
     }

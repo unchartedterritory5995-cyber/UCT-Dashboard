@@ -195,6 +195,11 @@
   "calendar.day": "calendar",
   "periodSort.run": "periodSort",
   "periodSort.dock": "periodSort",
+  "newsLibrary.save": "newsLibrary",
+  "newsLibrary.setNote": "newsLibrary",
+  "newsLibrary.collection": "newsLibrary",
+  "newsLibrary.deleteCollection": "newsLibrary",
+  "newsLibrary.place": "newsLibrary",
   "compare.openView": "comparePanel",
   "multiChart.set": "multiChart",
   "multiChart.cell": "multiChart"
@@ -202,7 +207,7 @@
  "groups": [
   {
    "id": "charts",
-   "title": "Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume"
+   "title": "Chart symbol, timeframe, type, scale, session, theme, colors, display settings, volume"
   },
   {
    "id": "chartSetup",
@@ -213,8 +218,12 @@
    "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
   },
   {
+   "id": "newsLibrary",
+   "title": "Your UCT News library: save or unsave a headline, its note, collections"
+  },
+  {
    "id": "chartMenu",
-   "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+   "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
   },
   {
    "id": "chartFeatures",
@@ -254,7 +263,7 @@
   },
   {
    "id": "indicatorSetup",
-   "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+   "title": "Indicator look and placement: colors, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
   },
   {
    "id": "indicatorCalc",
@@ -266,7 +275,7 @@
   },
   {
    "id": "volumeProfile",
-   "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+   "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
   },
   {
    "id": "drawingOps",
@@ -409,7 +418,7 @@
     "groups": [
      {
       "id": "charts",
-      "title": "Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume"
+      "title": "Chart symbol, timeframe, type, scale, session, theme, colors, display settings, volume"
      },
      {
       "id": "chartSetup",
@@ -420,8 +429,12 @@
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
      },
      {
+      "id": "newsLibrary",
+      "title": "Your UCT News library: save or unsave a headline, its note, collections"
+     },
+     {
       "id": "chartMenu",
-      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+      "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
       "id": "chartFeatures",
@@ -461,7 +474,7 @@
      },
      {
       "id": "indicatorSetup",
-      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+      "title": "Indicator look and placement: colors, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
       "id": "indicatorCalc",
@@ -473,7 +486,7 @@
      },
      {
       "id": "volumeProfile",
-      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
      },
      {
       "id": "drawingOps",
@@ -634,7 +647,7 @@
     "groups": [
      {
       "id": "charts",
-      "title": "Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume"
+      "title": "Chart symbol, timeframe, type, scale, session, theme, colors, display settings, volume"
      },
      {
       "id": "chartSetup",
@@ -645,8 +658,12 @@
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
      },
      {
+      "id": "newsLibrary",
+      "title": "Your UCT News library: save or unsave a headline, its note, collections"
+     },
+     {
       "id": "chartMenu",
-      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+      "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
       "id": "chartFeatures",
@@ -686,7 +703,7 @@
      },
      {
       "id": "indicatorSetup",
-      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+      "title": "Indicator look and placement: colors, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
       "id": "indicatorCalc",
@@ -698,7 +715,7 @@
      },
      {
       "id": "volumeProfile",
-      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
      },
      {
       "id": "drawingOps",
@@ -873,7 +890,7 @@
     "groups": [
      {
       "id": "charts",
-      "title": "Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume"
+      "title": "Chart symbol, timeframe, type, scale, session, theme, colors, display settings, volume"
      },
      {
       "id": "chartSetup",
@@ -884,8 +901,12 @@
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
      },
      {
+      "id": "newsLibrary",
+      "title": "Your UCT News library: save or unsave a headline, its note, collections"
+     },
+     {
       "id": "chartMenu",
-      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+      "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
       "id": "chartFeatures",
@@ -925,7 +946,7 @@
      },
      {
       "id": "indicatorSetup",
-      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+      "title": "Indicator look and placement: colors, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
       "id": "indicatorCalc",
@@ -937,7 +958,7 @@
      },
      {
       "id": "volumeProfile",
-      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
      },
      {
       "id": "drawingOps",
@@ -1122,7 +1143,7 @@
     "groups": [
      {
       "id": "charts",
-      "title": "Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume"
+      "title": "Chart symbol, timeframe, type, scale, session, theme, colors, display settings, volume"
      },
      {
       "id": "chartSetup",
@@ -1133,8 +1154,12 @@
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
      },
      {
+      "id": "newsLibrary",
+      "title": "Your UCT News library: save or unsave a headline, its note, collections"
+     },
+     {
       "id": "chartMenu",
-      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+      "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
       "id": "chartFeatures",
@@ -1174,7 +1199,7 @@
      },
      {
       "id": "indicatorSetup",
-      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+      "title": "Indicator look and placement: colors, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
       "id": "indicatorCalc",
@@ -1186,7 +1211,7 @@
      },
      {
       "id": "volumeProfile",
-      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
      },
      {
       "id": "drawingOps",
@@ -1343,7 +1368,7 @@
     "groups": [
      {
       "id": "charts",
-      "title": "Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume"
+      "title": "Chart symbol, timeframe, type, scale, session, theme, colors, display settings, volume"
      },
      {
       "id": "chartSetup",
@@ -1354,8 +1379,12 @@
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
      },
      {
+      "id": "newsLibrary",
+      "title": "Your UCT News library: save or unsave a headline, its note, collections"
+     },
+     {
       "id": "chartMenu",
-      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+      "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
       "id": "chartFeatures",
@@ -1395,7 +1424,7 @@
      },
      {
       "id": "indicatorSetup",
-      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+      "title": "Indicator look and placement: colors, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
       "id": "indicatorCalc",
@@ -1407,7 +1436,7 @@
      },
      {
       "id": "volumeProfile",
-      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
      },
      {
       "id": "drawingOps",
@@ -1513,6 +1542,7 @@
     "charts",
     "chartSetup",
     "compareGroups",
+    "newsLibrary",
     "chartMenu",
     "chartFeatures",
     "chartShare",
@@ -1739,6 +1769,11 @@
     "calendar.day",
     "periodSort.run",
     "periodSort.dock",
+    "newsLibrary.save",
+    "newsLibrary.setNote",
+    "newsLibrary.collection",
+    "newsLibrary.deleteCollection",
+    "newsLibrary.place",
     "compare.openView",
     "multiChart.set",
     "multiChart.cell"

@@ -66,6 +66,12 @@ const FALLBACK = {
   // Apply a theme to EVERY widget in the layout — chart or not (watchlist, theme
   // tracker, fundamentals, breadth, …). null-safe no-op off the workspace.
   applyThemeToAllWidgets: () => {},
+  // Chart Settings → "Apply to all charts" (owner 11-16): `countOtherCharts(source)` = how many OTHER chart surfaces
+  // the open layout holds (null when `source` is not one of them), `applyAppearanceToOtherCharts(source, settings)`
+  // copies that chart's LOOK onto them in one layout write and returns how many changed (chartAppearanceAll.js).
+  // `source` = `{ chartId, tabId }`. null off the workspace ⇒ ChartWidget offers no such door.
+  countOtherCharts: null,
+  applyAppearanceToOtherCharts: null,
   // UCT RS 3-09: this host mounts the Compare Symbols panel and opens it on a
   // `uct:compare-open` event (the desktop Charts workspace alone), so a chart's
   // readout may offer "Open the rotation map". Off everywhere else.

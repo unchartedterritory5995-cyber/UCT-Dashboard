@@ -72,7 +72,11 @@ function opening(place, row) {
       { target: OPEN_LIST, name: '‹ Lists', text: 'Click ‹ Lists to open the list picker.', waitFor: PICKER, optional: true },
     ]
   }
-  if (place === 'library') return [{ target: 'workspace.layoutLibrary', name: 'the layout library', text: 'Open the layout library.', waitFor: 'workspace.layoutLibraryMenu' }]
+  // the library is a row in the Layouts menu (owner 11-16: its button left the bar with the bottom rail)
+  if (place === 'library') return [
+    { target: 'workspace.layoutsMenuBtn', name: 'the Layouts menu', text: 'Click the layout name (top left).', waitFor: 'workspace.layoutsMenu' },
+    { target: 'workspace.layoutLibrary', name: 'the layout library', text: 'Click Layout library… to open the library.', waitFor: 'workspace.layoutLibraryMenu' },
+  ]
   if (place === 'bar') return [{ target: LAYOUT_TAB, name: 'a layout on the bar', text: 'Right-click one of your layouts on the bar.', waitFor: { within: 'workspace.layoutMenu', lead: '← Move left' } }]
   if (place === 'drawing') return [{ target: 'chart.plot', name: 'the chart', text: `Right-click ${row.on || 'a drawing'} on the chart. If this chart has none yet, draw one first.`, waitFor: row.target }]
   if (place.startsWith('settings:')) {
@@ -108,7 +112,7 @@ const ROWS = [
 
   // ── tabs (pages/charts/widgets/ChartTabStrip.jsx; a widget's own tabs in WidgetHeader) ──
   { id: 'tab.renameChart', place: 'chart', need: 'rename chart tab', target: ['chart.tabs', 'chart.addTab'], name: 'the chart’s tabs', say: 'Double-click a tab’s name, type the new one and press Enter.', alt: 'This chart has one tab. This + adds another; then double-click its name to rename it.', label: 'Renaming a chart tab' },
-  { id: 'tab.linkChart', place: 'chart', need: 'chart tab', any: ['colour', '~group', '~link', 'follow'], target: [{ within: 'chart.tabs', aria: "Change tab's linked color group" }, 'chart.addTab'], name: 'the tab’s dot', say: 'Click the dot on a tab to change the colour group it follows.', alt: 'This chart has one tab. This + adds another, and each tab gets its own dot.', label: 'A chart tab’s link colour' },
+  { id: 'tab.linkChart', place: 'chart', need: 'chart tab', any: ['colour', '~group', '~link', 'follow'], target: [{ within: 'chart.tabs', aria: "Change tab's linked color group" }, 'chart.addTab'], name: 'the tab’s dot', say: 'Click the dot on a tab to change the color group it follows.', alt: 'This chart has one tab. This + adds another, and each tab gets its own dot.', label: 'A chart tab’s link color' },
   { id: 'tab.renameWidget', place: 'chart', need: 'rename widget tab', target: ['workspace.widgetTabs', 'widget.addTab'], name: 'the widget’s tabs', say: 'Double-click a tab’s name, type the new one and press Enter.', alt: 'This widget has one tab. This + adds another; then double-click its name to rename it.', label: 'Renaming a widget tab' },
 
   // ── the chart's toolbar and the panels it opens (components/chart/ChartToolbar.jsx, ScreenshotPopover, TracingsPanel) ──
@@ -139,7 +143,7 @@ const ROWS = [
   { id: 'settings.wmAlign', place: 'settings:canvas', tabLabel: 'Canvas', need: 'watermark', any: ['left', '~right', 'center', '~align', '~alignment'], target: { within: 'chartSettings', label: 'Alignment' }, alt: 'The watermark is off on this chart: turn on Watermark on this tab first, and its settings show below it.', fallback: [{ within: 'chartSettings', label: 'Watermark' }, 'chartSettings.tab.canvas'], name: 'Alignment', say: 'Alignment sets the watermark to the left, the centre or the right. It shows while the watermark is on.', label: 'Aligning the watermark' },
   { id: 'settings.wmMove', place: 'settings:canvas', tabLabel: 'Canvas', need: 'watermark move', target: { within: 'chartSettings', label: 'Move watermark' }, alt: 'The watermark is off on this chart: turn on Watermark on this tab first, and its settings show below it.', fallback: [{ within: 'chartSettings', label: 'Watermark' }, 'chartSettings.tab.canvas'], name: 'Move watermark', say: 'Click Move watermark, then drag it on the chart. Reset to center beside it puts it back.', label: 'Moving the watermark' },
   { id: 'settings.wmReset', place: 'settings:canvas', tabLabel: 'Canvas', need: 'watermark', any: ['reset', 'center'], target: { within: 'chartSettings', label: 'Reset to center' }, alt: 'Reset to center shows here once you have moved this chart’s watermark: it is where it started now. Move watermark places it.', fallback: [{ within: 'chartSettings', label: 'Move watermark' }, 'chartSettings.tab.canvas'], name: 'Reset to center', say: 'Click Reset to center to put the watermark back in the middle.', label: 'Centring the watermark' },
-  { id: 'settings.barInfo', place: 'settings:header', tabLabel: 'Header', need: 'legend', any: ['~bar', '~value', '~field', '~ohlc', '~volume', 'choose'], target: { within: 'chartSettings', label: 'Bar info' }, name: 'Bar info', say: 'Bar info chooses which of the bar’s values the legend shows.', label: 'The legend’s bar values' },
+  { id: 'settings.barInfo', place: 'settings:header', tabLabel: 'Header & legend', need: 'legend', any: ['~bar', '~value', '~field', '~ohlc', '~volume', 'choose'], target: { within: 'chartSettings', label: 'Bar info' }, name: 'Bar info', say: 'Bar info chooses which of the bar’s values the legend shows.', label: 'The legend’s bar values' },
 
   // ── widgets' own controls ──
   ...[
@@ -175,7 +179,7 @@ const ROWS = [
   w('optionsflow', '', { guide: 'flow.filter.type' }, 'Sweep / Block', 'Any, Sweep or Block: which kind of print shows.', { id: 'flow.type', any: ['~sweep', '~block'], label: 'Options Flow: sweeps or blocks', open: [{ target: { widgetType: 'optionsflow', guide: 'flow.filters' }, name: 'the funnel', text: 'Click the funnel to open the filters.', waitFor: { widgetType: 'optionsflow', guide: 'flow.filterStrip' } }] }),
   w('optionsflow', '', { guide: 'flow.filter.dir' }, 'Bull / Bear', 'All, Bull or Bear: which direction shows.', { id: 'flow.dir', any: ['~bull', '~bear', '~bullish', '~bearish'], label: 'Options Flow: bullish or bearish', open: [{ target: { widgetType: 'optionsflow', guide: 'flow.filters' }, name: 'the funnel', text: 'Click the funnel to open the filters.', waitFor: { widgetType: 'optionsflow', guide: 'flow.filterStrip' } }] }),
   // ── cov-5: the background's own control on the Canvas tab (ChartSettingsModal: Background, Solid / Gradient and its swatch) ──
-  { id: 'settings.background', place: 'settings:canvas', tabLabel: 'Canvas', need: 'background', not: ['~gradient', '~swing', '~label', '~text', '~note', '~font', '~logo', '~logos', '~widget', '~watchlist', '~signal', '~palette', '~intensity'], target: { within: 'chartSettings', label: 'Background' }, name: 'Background', say: 'Background sets the chart’s colour: Solid and its swatch for one colour, or Gradient for two.', label: 'The chart’s background' },
+  { id: 'settings.background', place: 'settings:canvas', tabLabel: 'Canvas', need: 'background', not: ['~gradient', '~swing', '~label', '~text', '~note', '~font', '~logo', '~logos', '~widget', '~watchlist', '~signal', '~palette', '~intensity'], target: { within: 'chartSettings', label: 'Background' }, name: 'Background', say: 'Background sets the chart’s color: Solid and its swatch for one color, or Gradient for two.', label: 'The chart’s background' },
   // ── round 3: a list's columns, the Scanner's picker, nudging a drawing, Volume Surge logos, a headline on the chart ──
   { id: 'list.colResize', place: 'list', need: 'column', also: 'ticker', any: ['~resize', '~wider', '~widen', '~narrow', '~narrower', '~stretch', '~width', 'size'], target: { widgetType: WL, attr: 'title', value: 'Drag to resize column' }, name: 'the column’s edge', say: 'Drag this edge between two column titles to make the column wider or narrower.', label: 'Resizing a list’s column' },
   { id: 'list.colReset', place: 'list', need: 'reset column', also: 'ticker', open: [{ target: { widgetType: WL, nameRe: '^Sort by ' }, name: 'the column titles', text: 'Right-click any column title.', waitFor: 'watchlist.colMenu' }], target: { within: 'watchlist.colMenu', label: 'Reset columns' }, name: 'Reset columns', say: 'Click Reset columns to go back to the default columns.', label: 'Resetting a list’s columns' },
@@ -313,7 +317,7 @@ export function askWhich(rows) {
 /** The catalog as one guide feature (registry.js puts it ahead of the broad features whose words it would otherwise lose). */
 export const CONTROL_FEATURE = {
   id: 'control', slots: ['ctrl'], terms: [], words: [], control: 'that control', title: '{ctrl.label}', titleAny: 'Finding a control', topic: 'charts', caps: [],
-  explain: 'That control is on its widget, its panel or the chart. Add the widget from Widgets ▾ if it isn’t on your board.',
+  explain: 'That control is on its widget, its panel or the chart. Add the widget from + Add widget if it isn’t on your board.',
   // a drawing without the control ("say") is only said when no other walkthrough took the words (capabilities/guide.js)
   match: (q) => { const r = readControl(q); return !!(r?.row || r?.ask) },
   steps: [{ each: 'ctrl' }],

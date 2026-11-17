@@ -115,3 +115,13 @@ describe('a bare chart (overlays: false): the member\'s own averages go too', ()
     expect(instancesOff(MEMBER).map((t) => t.instanceId)).toContain('ma:custom')
   })
 })
+
+// 2026-11-16: an index history chart whose source volume was another index's stores zeros; the drill passes noVolume and
+// the volume is REMOVED (no pane, no legend row), not hidden (a hidden volume keeps a "Vol 0" legend row)
+describe('memberSettingsOverride: a chart with no volume', () => {
+  it('removes the volume only when asked', () => {
+    expect(memberSettingsOverride({}, { noVolume: true }).volume).toMatchObject({ removed: true })
+    expect(memberSettingsOverride({}, null).volume).toBeUndefined()
+    expect(memberSettingsOverride({}, { noVolume: false }).volume).toBeUndefined()
+  })
+})

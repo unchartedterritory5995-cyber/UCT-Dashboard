@@ -279,9 +279,21 @@ describe('styleUpdate.checkAgain', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Apply' }))
     await within(dialog).findByText('This note changed since you opened it. Nothing was added.')
     expect(applyStyleUpdate).toHaveBeenLastCalledWith('n3', { baseUpdatedAt: '2026-01-01T00:00:00Z' })
+    const plansBefore = planStyleUpdate.mock.calls.length
     fireEvent.click(within(dialog).getByRole('button', { name: 'Check again' }))
     await waitFor(() => expect(within(dialog).queryByText('This note changed since you opened it. Nothing was added.')).toBeNull())
-    fireEvent.click(await within(dialog).findByRole('button', { name: 'Apply' }))
+    // 2026-11-17 (fix/master-nb-screener-reds): wait for Check again to FINISH (it re-plans only after the re-read
+    // moved the base), then find Apply and click it in one synchronous step. The test used to `await findByRole`
+    // the Apply that was still drawn while the re-read was on the wire; the re-plan's loading state then took that
+    // button out of the DOM before the click landed, so the click reached a detached node and nothing was sent
+    // (red on master at 22cc0680b1: a diagnostic run logged the found button `isConnected: false`, the dialog
+    // still connected, and no second apply()).
+    await waitFor(() => expect(planStyleUpdate.mock.calls.length).toBe(plansBefore + 1))
+    await waitFor(() => {
+      expect(within(dialog).queryByText('Checking what this would change…')).toBeNull()
+      expect(within(dialog).getByRole('button', { name: 'Apply' })).toBeEnabled()
+    })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Apply' }))
     await waitFor(() => expect(applyStyleUpdate).toHaveBeenCalledTimes(2))
     expect(applyStyleUpdate).toHaveBeenLastCalledWith('n3', { baseUpdatedAt: '2026-01-09T00:00:00Z' })
   })

@@ -36,10 +36,11 @@ _INJECTION = re.compile(
     # chartFeatures (Company Info panel + Earnings Strip): chartFeatures.companyPanel / earningsStrip as bare names; stricter only
     r"|drawing|widget|board|settings|definition|pane|volume|app|guide|stock|news|breadth|playbook|research|multiChart|periodSort|chartMenu"
     # chartShare (the chart's Share popover): chartShare.export as a bare name (its verb "export" is already withheld); stricter only
+    # Phase 2 market intelligence: the rs domain (rs.compare as a bare name; verb "compare" is already withheld); stricter only
     # chartReplay (the bar replay's playback): chartReplay.playback as a bare name; stricter only
     # Phase 2 COT research: the cot domain (cot.positioning as a bare name; verb "position" is already withheld); stricter only
     # Phase 2 history: the history domain (history.afterEvent as a bare name; verb "after"); stricter only
-    r"|chartFeatures|chartShare|chartReplay|cot|history)"
+    r"|chartFeatures|chartShare|chartReplay|cot|history|rs)"
     r"\.(add|remove|delete|create|clear|rename|open|set|run|save|apply|show|hide|update|move|resize|toggle|swap|duplicate"
     # #1030 ratchet: master actions added by #1077/#1073/#1027 (chartSetup.stepBars/autoScale/compareGroup,
     # watchlist.arrangeColumns/exportList): their verbs join the withheld set (stricter only)
@@ -60,6 +61,9 @@ _INJECTION = re.compile(
     # Charts family (2026-11-12): the UCT Intelligence chart indicator (uctIntelligence.set as a bare name), on its own line; stricter only
     # (never the site's own domain: "uctintelligence.com" is prose)
     r"|\buctIntelligence\.(?!(?:com|net|org|io|co|ai|app|dev|us)\b)[a-z][A-Za-z]*\b"
+    # Charts family (2026-11-15): the newsLibrary domain (newsLibrary.save / setNote / collection / deleteCollection / place as
+    # bare names), on its own line; stricter only. Prose ("save the headline", "my news library") has no dotted name and passes.
+    r"|\bnewsLibrary\.[a-z][A-Za-z]*\b"
     # Charts family (2026-11-12): the volumeProfile domain (volumeProfile.set as a bare name — any volumeProfile.<verb>); its
     # own branch, so the domain list above is untouched; stricter only. Prose "volume profile" has no dot and passes.
     r"|\bvolumeProfile\.[a-z][A-Za-z]*\b"

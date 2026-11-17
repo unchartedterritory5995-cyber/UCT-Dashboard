@@ -106,7 +106,19 @@ export const CONVERSATION_ID_RE = /^[A-Za-z0-9_-]{8,64}$/
  * @returns {Promise<{ok: true, disposition: string, reply: string, turn: string, envelope: object, notUnderstood: object[], unavailable: object[]}
  *                 | {ok: false, gate: string, reason: string, disposition?: string, preflight?: boolean, notUnderstood: object[], unavailable: object[]}>}
  */
-export async function converseTurn({ message, state, gateCtx = {}, snippets = [], fetchImpl = null }) {
+/** The gate of a turn the MEMBER stopped waiting for (`signal` aborted). Not a failure. */
+export const STOPPED_GATE = 'client:stopped'
+
+/** `Retry-After` as whole seconds, or null when the header is absent or not a count. */
+function retryAfterOf(r) {
+  try {
+    const raw = r && r.headers && typeof r.headers.get === 'function' ? r.headers.get('Retry-After') : null
+    const n = raw == null || raw === '' ? NaN : Number(raw)
+    return Number.isFinite(n) && n > 0 ? Math.ceil(n) : null
+  } catch { return null }
+}
+
+export async function converseTurn({ message, state, gateCtx = {}, snippets = [], fetchImpl = null, signal = null }) {
   const doFetch = fetchImpl || globalThis.fetch
   let r
   try {
@@ -115,8 +127,12 @@ export async function converseTurn({ message, state, gateCtx = {}, snippets = []
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(converseBody({ message, state, gateCtx, snippets })),
+      ...(signal ? { signal } : {}),
     })
   } catch {
+    // The member pressed Stop: the browser gave up the request. The server may still
+    // finish the turn; nothing it returns is read.
+    if (signal && signal.aborted) return { ok: false, gate: STOPPED_GATE, reason: '', notUnderstood: [], unavailable: [] }
     return { ok: false, gate: 'network', reason: NETWORK, notUnderstood: [], unavailable: [] }
   }
   if (!r || !r.ok) {
@@ -127,8 +143,10 @@ export async function converseTurn({ message, state, gateCtx = {}, snippets = []
       if (typeof body?.detail === 'string') detail = body.detail
     } catch { /* not JSON */ }
     const reason = status === 402 ? 'Custom indicators require a paid plan.'
-      : (detail || `The assistant could not answer (${status}).`)
-    return { ok: false, gate: `http:${status}`, reason, notUnderstood: [], unavailable: [] }
+      : (detail || `The UCT Agent could not answer (${status}).`)
+    const retryAfterS = status === 429 ? retryAfterOf(r) : null
+    return { ok: false, gate: `http:${status}`, reason, notUnderstood: [], unavailable: [],
+      ...(retryAfterS ? { retryAfterS } : {}) }
   }
   let body
   try { body = await r.json() } catch { body = null }
@@ -138,20 +156,28 @@ export async function converseTurn({ message, state, gateCtx = {}, snippets = []
     return {
       ok: false,
       gate: (body && body.gate) || 'converse:unreadable',
-      reason: (body && typeof body.reason === 'string' && body.reason) || 'The assistant gave no usable answer.',
+      reason: (body && typeof body.reason === 'string' && body.reason) || 'The UCT Agent gave no usable answer.',
       ...(body && body.disposition === 'unsupported' ? { disposition: 'unsupported' } : {}),
       ...(body && body.preflight === true ? { preflight: true } : {}),
       notUnderstood, unavailable,
+      ...allowanceOf(body),
     }
   }
   if (!body.envelope || typeof body.envelope !== 'object') {
-    return { ok: false, gate: 'converse:no-envelope', reason: 'The assistant gave no change to apply.', notUnderstood, unavailable }
+    return { ok: false, gate: 'converse:no-envelope', reason: 'The UCT Agent gave no change to apply.', notUnderstood, unavailable }
   }
   if (!DISPOSITIONS.includes(body.disposition)) {
-    return { ok: false, gate: 'converse:no-disposition', reason: 'The assistant did not say what kind of answer this was, so nothing was changed.', notUnderstood, unavailable }
+    return { ok: false, gate: 'converse:no-disposition', reason: 'The UCT Agent did not say what kind of answer this was, so nothing was changed.', notUnderstood, unavailable }
   }
   return {
     ok: true, disposition: body.disposition, reply: typeof body.reply === 'string' ? body.reply : '',
     turn: body.turn || null, envelope: body.envelope, notUnderstood, unavailable,
+    ...allowanceOf(body),
   }
+}
+
+/** ⭐ F1: the share of today's allowance left (0 to 1) when the server sent one. */
+export function allowanceOf(body) {
+  const v = body && body.allowance_left
+  return typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1 ? { allowanceLeft: v } : {}
 }

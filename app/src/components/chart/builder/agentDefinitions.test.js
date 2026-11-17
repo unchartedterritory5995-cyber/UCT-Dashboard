@@ -233,7 +233,7 @@ describe('I-13 — a colour input takes only a colour the chart can draw', () =>
     for (const bad of ['green-ish', '#12345', 'token:nope', 'token:info@soft', ' #fff', '', 7, null]) expect(isValidColorValue(bad), String(bad)).toBe(false)
     const rsi = registry.getDefinition('rsi')
     expect(checkInstanceInput(rsi, 'color', '#22c55e')).toEqual({ ok: true, value: '#22c55e' })
-    expect(checkInstanceInput(rsi, 'color', 'green-ish')).toMatchObject({ ok: false, why: expect.stringMatching(/colour/) })
+    expect(checkInstanceInput(rsi, 'color', 'green-ish')).toMatchObject({ ok: false, why: expect.stringMatching(/color/) })
   })
   it('the definition\'s own declared default is always admitted, whatever its spelling', () => {
     const def = { id: 'x', meta: { name: 'X' }, inputs: [{ key: 'color', type: 'color', default: 'orange' }] }

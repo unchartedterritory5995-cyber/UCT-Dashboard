@@ -19,6 +19,9 @@
  */
 
 export const SLINGSHOT_SKILL_ID = 'setup.family4.slingshot'
+// The course lesson's questions (docs/study/courses/SET/SET.27.json) carry the course skill `setup.slingshot`. Their
+// charts name the "4-day line" in the words, so they carry the line too (2026-11-14: they went without it).
+export const SLINGSHOT_COURSE_SKILL_ID = 'setup.slingshot'
 export const SLINGSHOT_SETUP_NAME = 'Slingshot'
 export const E4H_INSTANCE_ID = 'study:slingshot-e4h'
 export const E4H_PERIOD = 4
@@ -31,7 +34,7 @@ const GOLD = 'rgba(220, 187, 94, 0.6)'
 /** Is this study item a Slingshot example? Reads the skill first, the setup name second. */
 export function isSlingshotItem(item) {
   if (!item) return false
-  if (item.skill_id === SLINGSHOT_SKILL_ID) return true
+  if (item.skill_id === SLINGSHOT_SKILL_ID || item.skill_id === SLINGSHOT_COURSE_SKILL_ID) return true
   const name = item.reveal_json?.facts?.setup || item.reveal_json?.setup || item.prompt_json?.setup
   return typeof name === 'string' && name.trim().toLowerCase() === SLINGSHOT_SETUP_NAME.toLowerCase()
 }

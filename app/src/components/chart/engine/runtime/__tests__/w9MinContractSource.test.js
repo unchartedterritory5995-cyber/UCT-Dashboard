@@ -4,8 +4,8 @@
 // and nothing else:
 //   - `symbolScope.json::min_contract` gains SYNTHETIC rows: `NYSE` = 1 and `NYSE Arca` = 0.001 (a
 //     made-up fractional answer on an exchange whose tick and listing rows ARE witnessed, so the run
-//     reaches the sizing). `NASDAQ` keeps no row and is the unknown case. The committed table serves
-//     NO row (no capture exists); `symbolScopeMinContract.test.js` rails that;
+//     reaches the sizing). `NASDAQ`'s committed row is LEFT OUT here, so it is the unknown case. The committed
+//     table serves NYSE, NYSE Arca and NASDAQ since 2026-11-16; `symbolScopeMinContract.test.js` rails that;
 //   - `brokerPins.js::pinned` answers true for every rule (the test pin; the committed ledger pins none).
 // Everything between — the door, `runtimeColumns.js`, the front end's fold, `vm.js`, `broker.js` — is the
 // product's own code, unchanged.
@@ -14,12 +14,14 @@ import { describe, it, expect, afterEach, vi } from 'vitest'
 vi.mock('../../ast/symbolScope.json', async (importOriginal) => {
   const orig = await importOriginal()
   const base = orig.default || orig
+  const withoutNasdaq = (table) => Object.fromEntries(Object.entries(table).filter(([k]) => k !== 'NASDAQ'))
   const row = (value, witness) => ({ value, witnesses: [witness], captured: 'TEST', how: 'synthetic test row',
     captures: ['(synthetic)'] })
   return {
     default: {
       ...base,
-      min_contract: { ...base.min_contract, NYSE: row(1, 'NYSE:RDDT'), 'NYSE Arca': row(0.001, 'AMEX:SPY') },
+      // NASDAQ's real row (2026-11-16) is left out: this file's NASDAQ:AAPL is the UNKNOWN case
+      min_contract: { ...withoutNasdaq(base.min_contract), NYSE: row(1, 'NYSE:RDDT'), 'NYSE Arca': row(0.001, 'AMEX:SPY') },
     },
   }
 })

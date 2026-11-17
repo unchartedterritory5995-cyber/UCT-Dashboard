@@ -234,34 +234,38 @@ REFUSALS: Mapping[str, str] = {
     "prompt:empty": (
         "there is nothing to turn into a formula yet"),
     "cost:global": (
-        "the formula assistant has reached its spending limit for today"),
+        "the UCT Agent has reached its spending limit for today"),
     "cost:user": (
-        "you have used up today's allowance of the formula assistant"),
+        "you have used up today's allowance of the UCT Agent"),
     "rate:busy": (
-        "the formula assistant is still working on your previous request -- "
+        "the UCT Agent is still working on your previous request -- "
         "wait for it to finish, then try again"),
     "model:transport": (
-        "the formula assistant could not be reached"),
+        "the UCT Agent could not be reached"),
+    # ⭐ O7 (2026-11-17): the provider answered and REFUSED OUR ACCOUNT (a key, a permission, credit).
+    # Its own gate so monitoring can tell that from an outage; the member is told neither detail.
+    "model:unavailable": (
+        "the UCT Agent is not available right now"),
     "model:no-tool": (
-        "the assistant replied without emitting a formula"),
+        "the UCT Agent replied without emitting a formula"),
     "schema:node": (
-        "the assistant emitted something that is not a formula tree"),
+        "the UCT Agent emitted something that is not a formula tree"),
     "schema:name": (
-        "the assistant used a name that is not in the formula vocabulary"),
+        "the UCT Agent used a name that is not in the formula vocabulary"),
     "schema:number": (
-        "the assistant wrote a number this formula language cannot spell"),
+        "the UCT Agent wrote a number this formula language cannot spell"),
     "lint:repaint": (
-        "the assistant's formula would repaint, so it was not accepted"),
+        "the UCT Agent's formula would repaint, so it was not accepted"),
     "compute:empty": (
-        "the assistant's formula produces no value on the bars in view"),
+        "the UCT Agent's formula produces no value on the bars in view"),
     "compute:wiring": (
-        "the assistant's formula collides with a name this chart already declares"),
+        "the UCT Agent's formula collides with a name this chart already declares"),
     "kind:unknown": (
-        "the assistant was asked for a kind of formula it does not draft"),
+        "the UCT Agent was asked for a kind of formula it does not draft"),
     "scan:not-a-condition": (
         "a screen needs a yes-or-no condition and this expression produces a number"),
     "model:unresolved": (
-        "the assistant could not confidently express part of this request in "
+        "the UCT Agent could not confidently express part of this request in "
         "the supported vocabulary"),
     # ⭐ P0 (2026-10-05). The schema offers `sym`, `tf` and `textop`, but this
     # door cannot finish a tree holding one: it evaluates on the chart's own bars
@@ -269,11 +273,11 @@ REFUSALS: Mapping[str, str] = {
     # read-back has no English for them. Refused BY NAME and terminally — a
     # repair turn would invite the model to answer a DIFFERENT question.
     "unsupported:node": (
-        "this request needs something the formula assistant cannot draft yet"),
+        "this request needs something the UCT Agent cannot draft yet"),
     # ⭐ P0 (2026-10-05). Any unexpected failure after the model call. Logged
     # with its traceback; the member gets a controlled answer, never a 500.
     "internal:error": (
-        "the formula assistant hit an internal problem and drafted nothing"),
+        "the UCT Agent hit an internal problem and drafted nothing"),
 }
 
 #: ⭐ P0 (2026-10-05) — node types this door CANNOT FINISH, each with the honest
@@ -418,6 +422,12 @@ CONCIERGE_OMITS: Mapping[str, str] = MappingProxyType({
         "Pine's `request.security(syminfo.tickerid, \"60\", …)` on a daily chart and "
         "is evaluated on a symbol's intraday bars, which only a chart supplies — a "
         "saved screen holds none and refuses it — so it is translated-only."
+    ),
+    "tf_merge": (
+        "Pine's look-ahead-off higher-timeframe read as TradingView merges it (ENGINE 55). "
+        "It exists to translate `request.security(…, \"W\"|\"M\")` exactly; a screen and an "
+        "alert read the newest finished bar, which it withholds, and refuse it — a member "
+        "asking in English gets `tf` (the last closed week or month), so it is translated-only."
     ),
 })
 
@@ -1778,6 +1788,34 @@ def _tool_input(msg: Any) -> Optional[dict]:
     return parsed if isinstance(parsed, dict) else None
 
 
+#: HTTP statuses with which a provider refuses the ACCOUNT rather than the request: the key, the
+#: permission, the payment. Retrying cannot help and a person has to act.
+_ACCOUNT_STATUSES = frozenset({401, 402, 403})
+_ACCOUNT_WORDS = re.compile(r"credit balance|billing|payment|api[ _-]?key|authentication", re.I)
+
+
+def model_failure_gate(exc: Optional[BaseException]) -> str:
+    """Which gate a failed model call is: ``model:unavailable`` when the provider REFUSED OUR ACCOUNT,
+    ``model:transport`` for everything else (a timeout, a dropped connection, a 5xx, an overload).
+
+    ⭐ O7 -- both used to read ``model:transport``, so an empty credit balance looked like a network
+    blip in every report, and the fix (a person tops up or rotates a key) was nobody's alert.
+    ⛔ Only an HTTP error RESPONSE can be an account refusal. A 400 counts only when its text names
+    billing or the key (a 400 is otherwise our request's fault). Never raises.
+    """
+    try:
+        import anthropic
+        if isinstance(exc, anthropic.APIStatusError):
+            status = int(getattr(exc, "status_code", 0) or 0)
+            if status in _ACCOUNT_STATUSES:
+                return "model:unavailable"
+            if status == 400 and _ACCOUNT_WORDS.search(str(exc) or ""):
+                return "model:unavailable"
+    except Exception:                               # noqa: BLE001
+        pass
+    return "model:transport"
+
+
 def charge_unreported(exc: Optional[BaseException], user_id: Any, market_date: str, model: str,
                       max_tokens: int, request: Dict[str, Any]) -> float:
     """A call that reports no usage is charged its WORST CASE on the shared ledger and the member's allowance.
@@ -2757,6 +2795,26 @@ def user_turn(understanding: Mapping[str, Any]) -> str:
     ])
 
 
+def _name_key(text: Any) -> str:
+    """A screen name's comparison key: lower case, every run of non-alphanumerics one space."""
+    return " ".join("".join(ch if ch.isalnum() else " " for ch in str(text or "").lower()).split())
+
+
+def _starter_named(text: Any) -> Optional[Mapping[str, Any]]:
+    """The shipped starter screen whose WHOLE name ``text`` is, or None. Never raises."""
+    key = _name_key(text)
+    if not key:
+        return None
+    try:
+        from api.services.screener import saved_screens  # noqa: PLC0415
+        for screen in saved_screens.starters():
+            if _name_key(screen.get("name")) == key:
+                return screen
+    except Exception:  # noqa: BLE001 -- no screen list: nothing named, the old outcome
+        return None
+    return None
+
+
 def plan(prompt: str, kind: str = INDICATOR_KIND, *,
          vocab: Optional[Mapping[str, Any]] = None,
          table: Optional[Mapping[str, Any]] = None,
@@ -2909,6 +2967,27 @@ def plan(prompt: str, kind: str = INDICATOR_KIND, *,
         if not survivor_spans or any(a <= num["start"] and num["end"] <= b
                                      for a, b in survivor_spans)
     ]
+
+    # ⭐ A SHIPPED SCREEN'S OWN NAME, SAID ON ITS OWN, IS NAMED RATHER THAN PASSED THROUGH BLIND
+    # (2026-11-15). The 2026-09-20 screener rebuild renamed the firm's starters, and five of the
+    # new names ("Pocket pivots", "Three weeks tight", "Stage-2 breakouts", "Anticipation",
+    # "UCT 50") anchored NOTHING here: a member who typed the firm's own screen name reached the
+    # model as bare English, free to invent a definition of a screen the firm already ships.
+    # ⛔ ONLY WHEN NOTHING ELSE ANCHORED, AND ONLY ON THE WHOLE NAME: an anchored request keeps
+    # exactly the outcome it had, and a name inside a longer sentence is ordinary English. The
+    # entry is `unavailable` (named, not excised): the screen's rule lives in the screener --
+    # structure matches, ranks -- which no tree in this grammar spells.
+    if not (concepts or terms or not_understood or unavailable):
+        starter = _starter_named(text)
+        if starter is not None:
+            unavailable.append({
+                "phrase": text.strip(),
+                "name": f"starter_screen:{starter.get('id')}",
+                "reason": (
+                    f'"{starter.get("name")}" is the firm\'s own screen of that name'
+                    + (f' ({starter.get("description")})' if starter.get("description") else "")
+                    + ". Its rule lives in the screener, not in this formula language: open "
+                    "that screen to run it, or describe the parts you want.")})
 
     briefing = _KIND_BRIEF.get(kind, "")
     if concepts:
@@ -3192,10 +3271,14 @@ def propose(prompt: str, *, user_id: Any, bars: Optional[List[dict]] = None,
         try:
             msg, in_tokens, out_tokens = _call_model(messages, kind)
         except Exception as exc:                   # noqa: BLE001 -- never raises out
-            logger.warning("[concierge] model call failed: %s", exc)
+            gate = model_failure_gate(exc)
+            if gate == "model:unavailable":
+                # ERROR, not WARNING: this does not heal by itself (O7)
+                logger.error("[concierge] the provider refused the account: %s", type(exc).__name__)
+            else:
+                logger.warning("[concierge] model call failed: %s", exc)
             charge_unreported(exc, user_id, market_date, MODEL, MAX_TOKENS, _request_for(messages, kind))
-            return {"ok": False, "gate": "model:transport",
-                    "reason": REFUSALS["model:transport"]}
+            return {"ok": False, "gate": gate, "reason": REFUSALS[gate]}
 
         tokens["input"] += in_tokens
         tokens["output"] += out_tokens

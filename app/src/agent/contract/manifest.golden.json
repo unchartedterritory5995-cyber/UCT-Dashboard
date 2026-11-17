@@ -358,8 +358,8 @@
    "name": "chart.setSetting",
    "domain": "chart",
    "target": "chart",
-   "summary": "Change one chart display setting from UCT's approved list (grid, crosshair, scale text, legend, watermark, labels, event/IPO markers, dark-pool levels, swing labels, prev-day lines, countdown, title, color mode, thin bars, inverted scale, gradient background, Volume pane look, Heikin Ashi, Chart IQ, position calculator, Info row / Bar info fields, light/dark palette).",
-   "hints": "value = true/false for on/off settings (crosshair.mode, header.legendMode and bgMode too); hex (#2962ff) for colors; a number in range. Allowed — crosshair.mode, header.legendMode: always|hold|off; textSize: 8|10|11|12|14|16|18|20|22|24|28|32|40; header.titleMode: ticker|company|both; candleColorMode: onecolor|netchange|openclose; swingLabels.sensitivity: low|medium|high; crosshair.width, prevDayLevels.high|low|close.width, volume.maLineWidth: 1|2|3|4; crosshair.style, prevDayLevels.high|low|close.style, volume.maLineStyle: solid|dashed|dotted; watermark.sizeScale: 0.5|0.75|1|1.25|1.5|2|2.5|3|4; watermark.weight: 300|400|500|600|700|800; bgMode: solid|gradient; volume.barStyle: columns|histogram; theme: dark|light; volume.paneHeightPct: 8–45 (whole); volume.maPeriod: 0–500 (whole); watermark.opacity|x|y: 0–1; positionCalc.accountSize: 0–1000000000; positionCalc.riskPct: 0–100. header.fields|barInfo: +/-field (\"+Market Cap\"). Anything else: no op — say where it lives in Chart Settings.",
+   "summary": "Change one chart setting from UCT's list (grid, crosshair, scale text/time, legend, watermark, labels, event/IPO/earnings markers, dark pool, swing labels, prev-day/pre-market lines, session breaks, countdown, title, color mode, candle parts, price line, thin bars, inverted scale, gradient, Volume, Heikin Ashi, Chart IQ, position calc, alerts, my trades, Info row/Bar info, light/dark palette).",
+   "hints": "value = true/false for on/off (crosshair.mode, header.legendMode, bgMode too); hex (#2962ff); a number in range. Allowed — crosshair.mode, header.legendMode: always|hold|off; textSize: 8|10|11|12|14|16|18|20|22|24|28|32|40; header.titleMode: ticker|company|both; candleColorMode: onecolor|netchange|openclose; swingLabels.sensitivity: low|medium|high; crosshair.width, prevDayLevels.high|low|close.width, volume.maLineWidth: 1|2|3|4; crosshair.style, prevDayLevels.high|low|close.style, volume.maLineStyle, candles.priceLineStyle: solid|dashed|dotted; watermark.sizeScale: 0.5|0.75|1|1.25|1.5|2|2.5|3|4; watermark.weight: 300|400|500|600|700|800; bgMode: solid|gradient; volume.barStyle: columns|histogram; theme: dark|light; volume.paneHeightPct: 8–45 (whole); volume.maPeriod: 0–500 (whole); watermark.opacity|x|y: 0–1; positionCalc.accountSize: 0–1000000000; positionCalc.riskPct: 0–100. header.fields|barInfo: +/-field (\"+Market Cap\"). Anything else: no op — say where it lives in Chart Settings.",
    "args": {
     "type": "object",
     "properties": {
@@ -450,6 +450,22 @@
        "positionCalc.accountSize",
        "positionCalc.riskPct",
        "theme",
+       "candles.showBody",
+       "candles.showBorders",
+       "candles.showWick",
+       "candles.priceLine",
+       "candles.priceLineStyle",
+       "grid.lines",
+       "scaleTime.rightMargin",
+       "scaleTime.priceDecimals",
+       "scaleTime.timeFormat",
+       "scaleTime.timeZone",
+       "sessionBreaks",
+       "preMarketLevels",
+       "nextEarningsMarker",
+       "priceAlertLines",
+       "myTradeMarkers",
+       "header.statLabels",
        "header.fields",
        "header.barInfo"
       ]
@@ -487,13 +503,13 @@
    "coerce": null,
    "defaults": null,
    "defaultsWhen": null,
-   "shape": "args {\"setting\": <one id from the list>, \"value\": …} — \"turn the gradient off\" = {\"setting\":\"bgMode\",\"value\":\"solid\"}, \"gradient on\" = {\"setting\":\"bgMode\",\"value\":\"gradient\"}, \"hide the grid\" = {\"setting\":\"grid.visible\",\"value\":false}. Never invent a setting id (no \"bgGradient.enabled\", no \"background.gradient\"): an on/off wish for a setting not listed is unsupported."
+   "shape": "args {\"setting\": <one id from the list>, \"value\": …} — \"turn the gradient off\" = {\"setting\":\"bgMode\",\"value\":\"solid\"}, \"gradient on\" = {\"setting\":\"bgMode\",\"value\":\"gradient\"}, \"hide the grid\" = {\"setting\":\"grid.visible\",\"value\":false}. Never invent a setting id (no \"bgGradient.enabled\", no \"background.gradient\"): an on/off wish for a setting not listed is unsupported. grid.lines off|horizontal|vertical|both; scaleTime.{rightMargin 0–30,priceDecimals auto|0–4,timeFormat 12|24,timeZone exchange|local|utc|chicago|los_angeles|london|frankfurt|tokyo|hong_kong|sydney}; header.statLabels \"stat=name\""
   },
   {
    "name": "chart.applyTemplate",
    "domain": "chart",
    "target": "chart",
-   "summary": "Apply one of the member's saved chart templates to ONE chart, exactly as clicking it does (Chart Settings → Templates, or right-click → Chart template): the chart takes the template's whole saved setup, its indicators included.",
+   "summary": "Apply one of the member's saved chart templates to ONE chart, exactly as clicking it does (Chart Settings → Chart templates, or right-click → Chart template): the chart takes the template's whole saved setup, its indicators included.",
    "hints": "template = a name from chartTemplates, exactly. For several charts (\"all my charts\"), one op per chart.",
    "args": {
     "type": "object",
@@ -521,7 +537,7 @@
    "name": "chart.resetDefaults",
    "domain": "chart",
    "target": "chart",
-   "summary": "Restore ONE chart's look to UCT's defaults (Chart Settings → Restore defaults): colours, markers, header, watermark and display settings. The chart's indicators are kept exactly as they are.",
+   "summary": "Restore ONE chart's look to UCT's defaults (Chart Settings → Restore defaults): colors, markers, header, watermark and display settings. The chart's indicators are kept exactly as they are.",
    "hints": "target = the chart. Always shown as a proposal first.",
    "args": {
     "type": "object",
@@ -1201,7 +1217,7 @@
    "name": "layout.pinToBar",
    "domain": "layout",
    "target": "layoutDock",
-   "summary": "Pin one of the member's layouts to the layout bar along the bottom of Charts (the library's \"add to bar\"). The slot goes on the end. Does NOT open the layout and does not change the board.",
+   "summary": "Pin one of the member's layouts to the layout bar along the top of Charts (the library's \"add to bar\"). The slot goes on the end. Does NOT open the layout and does not change the board.",
    "hints": "target = the ref of the layoutDock entry; layout = the layout's id from the layouts list, or the member's own words for it (UCT matches them; several matches are asked about). To also switch to it, that is layout.open, a separate step.",
    "args": {
     "type": "object",
@@ -1229,7 +1245,7 @@
    "name": "layout.unpinFromBar",
    "domain": "layout",
    "target": "layoutDock",
-   "summary": "Take one layout off the layout bar along the bottom of Charts (the slot menu's \"Close\"). The layout stays in the library: this NEVER deletes a layout (that is layout.delete).",
+   "summary": "Take one layout off the layout bar along the top of Charts (the slot menu's \"Close\"). The layout stays in the library: this NEVER deletes a layout (that is layout.delete).",
    "hints": "target = the ref of the layoutDock entry; layout = the layout's id, or the member's words for it. If they did not name one, or it sits on the bar twice, clarify with the real names.",
    "args": {
     "type": "object",
@@ -1257,7 +1273,7 @@
    "name": "layout.moveOnBar",
    "domain": "layout",
    "target": "layoutDock",
-   "summary": "Reorder the layout bar along the bottom of Charts: move one layout left or right one spot (the slot menu's Move left / Move right), to the first or last spot, or to a numbered spot.",
+   "summary": "Reorder the layout bar along the top of Charts: move one layout left or right one spot (the slot menu's Move left / Move right), to the first or last spot, or to a numbered spot.",
    "hints": "target = the ref of the layoutDock entry; layout = the layout's id, or the member's words for it; to = \"left\" or \"right\" (one spot), \"first\" or \"last\", or a spot number counted from 1 on the left (the `spot` in the bar list).",
    "args": {
     "type": "object",
@@ -2879,7 +2895,7 @@
    "name": "settings.setAppTheme",
    "domain": "settings",
    "target": "settings",
-   "summary": "Change the WHOLE APP's colour theme (sidebar, panels, pages) — e.g. \"switch to dark mode / light mode\". Not a chart's colours: for one chart use chart.applyTheme.",
+   "summary": "Change the WHOLE APP's color theme (sidebar, panels, pages) — e.g. \"switch to dark mode / light mode\". Not a chart's colors: for one chart use chart.applyTheme.",
    "hints": "target = the ref of the settings entry. theme: dark = Graphite (the default dark), oled = OLED Black, light = Light; or one of UCT's themes: slate (Slate, dark), graphite (Graphite, dark), carbon (Carbon, dark), navy (Midnight Navy, dark), forest (Deep Forest, dark), espresso (Espresso, dark), plum (Plum, dark), nord (Nord, dark), gunmetal (Gunmetal, dark), bordeaux (Bordeaux, dark), storm (Storm, dark), umber (Umber, dark), paper (Paper, light), cream (Cream, light), coolgray (Cool Gray, light), softblue (Soft Blue, light), sand (Sand, light), mint (Mint, light). \"Dark mode\" = dark; \"light mode\" = light.",
    "args": {
     "type": "object",
@@ -3309,7 +3325,7 @@
    "name": "widget.remove",
    "domain": "widget",
    "target": "board",
-   "summary": "Remove a widget from the board (any type). Undo puts it back exactly — same place, size, link colour and settings. The space it leaves stays empty unless widget.arrange fills it.",
+   "summary": "Remove a widget from the board (any type). Undo puts it back exactly — same place, size, link color and settings. The space it leaves stays empty unless widget.arrange fills it.",
    "hints": "target = the ref of the board entry; widget = the id of the widget from the board entry's widgets. If several could be meant, clarify — never guess.",
    "args": {
     "type": "object",
@@ -3549,8 +3565,8 @@
    "name": "widget.setLink",
    "domain": "widget",
    "target": "board",
-   "summary": "Set a widget's link colour: widgets with the same colour follow the same symbol; N = not linked.",
-   "hints": "target = the ref of the board entry; widget = its id; color = A (gold), B (blue), C (green), D (purple), E (red), F (teal), G (orange), H (pink), N (not linked) — E–H only when the board entry says extraLinkColors: true. \"Link these two charts\" = give both the same colour (use one already on one of them).",
+   "summary": "Set a widget's link color: widgets with the same color follow the same symbol; N = not linked.",
+   "hints": "target = the ref of the board entry; widget = its id; color = A (gold), B (blue), C (green), D (purple), E (red), F (teal), G (orange), H (pink), N (not linked) — E–H only when the board entry says extraLinkColors: true. \"Link these two charts\" = give both the same color (use one already on one of them).",
    "args": {
     "type": "object",
     "properties": {
@@ -3762,7 +3778,7 @@
    "domain": "watchlist",
    "target": "board",
    "summary": "Make ONE Watchlist widget show a list exactly as its picker does: one of the member's lists, a UCT prebuilt or community list, Flagged — or go back to its list picker. Undo puts back what it showed.",
-   "hints": "target = the board entry; widget = the Watchlist widget's id, or null when only one; source = mine | prebuilt | community | flagged | picker (tag = a colour tag: refused); name = the list's name as said, null for flagged / picker.",
+   "hints": "target = the board entry; widget = the Watchlist widget's id, or null when only one; source = mine | prebuilt | community | flagged | picker (tag = a color tag: refused); name = the list's name as said, null for flagged / picker.",
    "args": {
     "type": "object",
     "properties": {
@@ -4204,8 +4220,8 @@
    "name": "chart.addTab",
    "domain": "chart",
    "target": "board",
-   "summary": "Add a new chart TAB to a chart widget (the tab strip's \"+\"), on the same link colour as the tab showing now, and switch to it.",
-   "hints": "target = the ref of the board entry; widget = the chart widget's id; timeframe = 1|5|15|30|60|D|W|M or null (daily); name = a label for the tab or null. The new tab follows the same symbol until its link colour is changed (chart.linkTab). Only when the member asks for a TAB: several CHARTS (\"on four charts\", \"N charts for …\") are chartGrid.set or widget.addCharts, never tabs of one chart.",
+   "summary": "Add a new chart TAB to a chart widget (the tab strip's \"+\"), on the same link color as the tab showing now, and switch to it.",
+   "hints": "target = the ref of the board entry; widget = the chart widget's id; timeframe = 1|5|15|30|60|D|W|M or null (daily); name = a label for the tab or null. The new tab follows the same symbol until its link color is changed (chart.linkTab). Only when the member asks for a TAB: several CHARTS (\"on four charts\", \"N charts for …\") are chartGrid.set or widget.addCharts, never tabs of one chart.",
    "args": {
     "type": "object",
     "properties": {
@@ -4357,8 +4373,8 @@
    "name": "chart.linkTab",
    "domain": "chart",
    "target": "board",
-   "summary": "Set the link colour of one chart TAB (the tab's colour dot): tabs and widgets with the same colour follow the same symbol.",
-   "hints": "target = the ref of the board entry; widget = the chart widget's id; tab = \"main\" (the widget's own chart), the extra tab's position \"1\", \"2\"… or its label, from the board entry's chartTabs. color = A (gold), B (blue), C (green), D (purple), E (red), F (teal), G (orange), H (pink) (E–H only when the board entry says extraLinkColors: true) — a tab is always linked to a colour. \"Two tabs with linked symbols\" = give both the same colour.",
+   "summary": "Set the link color of one chart TAB (the tab's color dot): tabs and widgets with the same color follow the same symbol.",
+   "hints": "target = the ref of the board entry; widget = the chart widget's id; tab = \"main\" (the widget's own chart), the extra tab's position \"1\", \"2\"… or its label, from the board entry's chartTabs. color = A (gold), B (blue), C (green), D (purple), E (red), F (teal), G (orange), H (pink) (E–H only when the board entry says extraLinkColors: true) — a tab is always linked to a color. \"Two tabs with linked symbols\" = give both the same color.",
    "args": {
     "type": "object",
     "properties": {
@@ -4404,7 +4420,7 @@
    "domain": "drawing",
    "target": "drawing",
    "summary": "Draw a TRENDLINE between two points (date + price each) on a chart's symbol — the toolbar's own trendline tool. Every chart on that symbol shows it; Undo removes it.",
-   "hints": "target = the drawings entry for the chart's symbol; from / to = {date, price}: the two anchors in time order (\"from the Oct 15 low at 180 to last Friday at 195\"). A point the member describes without a date AND a price (\"the recent low\") has no anchor — clarify, never guess. a date is YYYY-MM-DD or the member's words (today, yesterday, last friday, oct 15, 10/15); price = the number the member said — never invented; color = a colour name or #hex, null = the member's drawing default; style = solid | dashed | dotted, null = solid.",
+   "hints": "target = the drawings entry for the chart's symbol; from / to = {date, price}: the two anchors in time order (\"from the Oct 15 low at 180 to last Friday at 195\"). A point the member describes without a date AND a price (\"the recent low\") has no anchor — clarify, never guess. a date is YYYY-MM-DD or the member's words (today, yesterday, last friday, oct 15, 10/15); price = the number the member said — never invented; color = a color name or #hex, null = the member's drawing default; style = solid | dashed | dotted, null = solid.",
    "args": {
     "type": "object",
     "properties": {
@@ -4482,7 +4498,7 @@
    "domain": "drawing",
    "target": "drawing",
    "summary": "Draw a RAY from one point (date + price) through a second, extended to the right — the toolbar's own ray tool. Every chart on that symbol shows it; Undo removes it.",
-   "hints": "target = the drawings entry for the chart's symbol; from = the start {date, price}; to = a second point it passes through {date, price}, after the first. a date is YYYY-MM-DD or the member's words (today, yesterday, last friday, oct 15, 10/15); price = the number the member said — never invented; color = a colour name or #hex, null = the member's drawing default; style = solid | dashed | dotted, null = solid.",
+   "hints": "target = the drawings entry for the chart's symbol; from = the start {date, price}; to = a second point it passes through {date, price}, after the first. a date is YYYY-MM-DD or the member's words (today, yesterday, last friday, oct 15, 10/15); price = the number the member said — never invented; color = a color name or #hex, null = the member's drawing default; style = solid | dashed | dotted, null = solid.",
    "args": {
     "type": "object",
     "properties": {
@@ -4560,7 +4576,7 @@
    "domain": "drawing",
    "target": "drawing",
    "summary": "Draw a RECTANGLE between two opposite corners (date + price each) on a chart's symbol — the toolbar's own rectangle. Undo removes it.",
-   "hints": "target = the drawings entry for the chart's symbol; from / to = {date, price}: opposite corners (\"a box from Oct 1 at 170 to Oct 20 at 185\"). a date is YYYY-MM-DD or the member's words (today, yesterday, last friday, oct 15, 10/15); price = the number the member said — never invented; color = a colour name or #hex, null = the member's drawing default; style = solid | dashed | dotted, null = solid.",
+   "hints": "target = the drawings entry for the chart's symbol; from / to = {date, price}: opposite corners (\"a box from Oct 1 at 170 to Oct 20 at 185\"). a date is YYYY-MM-DD or the member's words (today, yesterday, last friday, oct 15, 10/15); price = the number the member said — never invented; color = a color name or #hex, null = the member's drawing default; style = solid | dashed | dotted, null = solid.",
    "args": {
     "type": "object",
     "properties": {
@@ -4638,7 +4654,7 @@
    "domain": "drawing",
    "target": "drawing",
    "summary": "Draw a FIBONACCI RETRACEMENT between two points (date + price each) on a chart's symbol — the toolbar's own tool with its standard levels. Undo removes it.",
-   "hints": "target = the drawings entry for the chart's symbol; from = the swing start {date, price} (the low for an up move); to = the swing end {date, price}. \"Fib from the Oct 7 low at 150 to the Oct 28 high at 190\". a date is YYYY-MM-DD or the member's words (today, yesterday, last friday, oct 15, 10/15); price = the number the member said — never invented; color = a colour name or #hex, null = the member's drawing default; style = solid | dashed | dotted, null = solid.",
+   "hints": "target = the drawings entry for the chart's symbol; from = the swing start {date, price} (the low for an up move); to = the swing end {date, price}. \"Fib from the Oct 7 low at 150 to the Oct 28 high at 190\". a date is YYYY-MM-DD or the member's words (today, yesterday, last friday, oct 15, 10/15); price = the number the member said — never invented; color = a color name or #hex, null = the member's drawing default; style = solid | dashed | dotted, null = solid.",
    "args": {
     "type": "object",
     "properties": {
@@ -4768,7 +4784,7 @@
    "domain": "drawing",
    "target": "drawing",
    "summary": "Place a TEXT NOTE on a chart's symbol at a date and price — the toolbar's own text tool, with the member's exact words. Undo removes it.",
-   "hints": "target = the drawings entry for the chart's symbol; text = the note exactly as the member said it (never reworded, up to 200 characters); date / price = where it sits; a date is YYYY-MM-DD or the member's words (today, yesterday, last friday, oct 15, 10/15); price = the number the member said — never invented; color = a colour name or #hex, null = the member's default.",
+   "hints": "target = the drawings entry for the chart's symbol; text = the note exactly as the member said it (never reworded, up to 200 characters); date / price = where it sits; a date is YYYY-MM-DD or the member's words (today, yesterday, last friday, oct 15, 10/15); price = the number the member said — never invented; color = a color name or #hex, null = the member's default.",
    "args": {
     "type": "object",
     "properties": {
@@ -4872,7 +4888,7 @@
    "domain": "drawing",
    "target": "drawing",
    "summary": "Draw a HORIZONTAL LINE at a price on a chart's symbol — the price axis's own \"Draw horizontal line at $X\". Every chart on that symbol shows it; Undo removes it. A level that starts on a date is drawing.addHorizontalRay; every other tool has its own capability or drawing.add.",
-   "hints": "target = the drawings entry for the chart's symbol; price = the level (a number, as the member said it — never invented); color = a colour name or #hex, null = the member's drawing default; style = solid | dashed | dotted, null = solid. One op per level. A level the member describes without a number (\"the recent high\", \"support\") has no price — clarify, never guess.",
+   "hints": "target = the drawings entry for the chart's symbol; price = the level (a number, as the member said it — never invented); color = a color name or #hex, null = the member's drawing default; style = solid | dashed | dotted, null = solid. One op per level. A level the member describes without a number (\"the recent high\", \"support\") has no price — clarify, never guess.",
    "args": {
     "type": "object",
     "properties": {
@@ -4919,7 +4935,7 @@
    "name": "drawing.style",
    "domain": "drawing",
    "target": "drawing",
-   "summary": "Change ONE drawing's colour, line style or width (what its settings do). Undo puts the old style back.",
+   "summary": "Change ONE drawing's color, line style or width (what its settings do). Undo puts the old style back.",
    "hints": "target = the drawings entry; drawing = its id from that entry's drawings (the most recent one the member drew is last; the one marked recent is the one I last drew or changed); color / style / width null = leave as is. \"Make that line pink and dashed\" / \"make it red\" = the recent one (else the line just drawn).",
    "args": {
     "type": "object",
@@ -5298,8 +5314,8 @@
    "name": "drawing.setProps",
    "domain": "drawing",
    "target": "drawing",
-   "summary": "Change settings on ONE drawing, as its right-click menu does: fill, price label, percent label, arrow size, Measure label fields and position, a note's words, font, size, bold, italic, background, border. Each tool has only its own settings; one it lacks is refused and its real ones named. Colour, width and line style are drawing.style. Undo puts them back.",
-   "hints": "target = the drawings entry; drawing = its id; set = [{prop, value, opacity}]. prop by tool: rectangle fillColor, showPercentChange; horizontal line / ray showPriceLabel; arrow arrowSize (small | medium | large); Measure / Price Range showDollar, showPercent, showBars, showTime, labelPos (top | center | bottom); Bars & Time showBars, showTime, labelPos; Price Move showDollar, showPercent; note text, fontFamily, fontSize (8-64), bold, italic, bgEnabled, bgColor, borderEnabled, borderColor. value = true / false for a switch, a colour, null = back to default. opacity = 0-100 for a colour, null = default.",
+   "summary": "Change settings on ONE drawing, as its right-click menu does: fill, price label, percent label, arrow size, Measure label fields and position, a note's words, font, size, bold, italic, background, border. Each tool has only its own settings; one it lacks is refused and its real ones named. Color, width and line style are drawing.style. Undo puts them back.",
+   "hints": "target = the drawings entry; drawing = its id; set = [{prop, value, opacity}]. prop by tool: rectangle fillColor, showPercentChange; horizontal line / ray showPriceLabel; arrow arrowSize (small | medium | large); Measure / Price Range showDollar, showPercent, showBars, showTime, labelPos (top | center | bottom); Bars & Time showBars, showTime, labelPos; Price Move showDollar, showPercent; note text, fontFamily, fontSize (8-64), bold, italic, bgEnabled, bgColor, borderEnabled, borderColor. value = true / false for a switch, a color, null = back to default. opacity = 0-100 for a color, null = default.",
    "args": {
     "type": "object",
     "properties": {
@@ -5378,7 +5394,7 @@
    "name": "drawing.setFibLevels",
    "domain": "drawing",
    "target": "drawing",
-   "summary": "Edit a Fibonacci retracement or extension's Levels… menu: show or hide a level, colour a level, turn the fill between two neighbouring levels on or off and colour it, or reset them all to defaults. The anchors and any level alerts are not touched. Undo puts them back.",
+   "summary": "Edit a Fibonacci retracement or extension's Levels… menu: show or hide a level, color a level, turn the fill between two neighbouring levels on or off and color it, or reset them all to defaults. The anchors and any level alerts are not touched. Undo puts them back.",
    "hints": "target = the drawings entry; drawing = the Fibonacci's id. levels = [{level, visible, color}], level as the member says it (0.786 or 78.6), visible false = \"remove the 78.6\"; null = leave. bands = [{from, to, enabled, color, opacity}] between two neighbouring levels, color null = its default, opacity = 0-100 or null. reset = true for \"reset the fib levels\" (levels and bands then both []). Levels are the tool's own table: there are no custom levels.",
    "args": {
     "type": "object",
@@ -6125,7 +6141,7 @@
    "name": "chartSetup.copyLook",
    "domain": "chartSetup",
    "target": "chart",
-   "summary": "Make ONE chart look like another chart on the board: it takes the other chart's colours, theme, chart type, scale and display settings. Its own indicators, comparisons and timeframe menu stay exactly as they are. Shown as a proposal first; Undo puts the old look back.",
+   "summary": "Make ONE chart look like another chart on the board: it takes the other chart's colors, theme, chart type, scale and display settings. Its own indicators, comparisons and timeframe menu stay exactly as they are. Shown as a proposal first; Undo puts the old look back.",
    "hints": "target = the chart that CHANGES; from = the ref of the chart to copy the look FROM. \"Make the left chart look like the right one\" → target = left, from = right.",
    "args": {
     "type": "object",
@@ -6492,7 +6508,7 @@
    "name": "chartSetup.saveTemplate",
    "domain": "chartSetup",
    "target": "chartTemplates",
-   "summary": "Save ONE chart's current settings as one of the member's chart templates (Chart Settings → Templates → Save as Template) — its look and its indicators, exactly what the button saves. A template with the same name is replaced (then it is shown first). Undo puts the old list back.",
+   "summary": "Save ONE chart's current settings as one of the member's chart templates (Chart Settings → Save as chart template) — its look and its indicators, exactly what the button saves. A template with the same name is replaced (then it is shown first). Undo puts the old list back.",
    "hints": "target = the ref of the chartTemplateLibrary entry; chart = the ref of the chart to save from; name = exactly as the member said it (at most 40 characters).",
    "args": {
     "type": "object",
@@ -6524,7 +6540,7 @@
    "name": "chartSetup.deleteTemplate",
    "domain": "chartSetup",
    "target": "chartTemplates",
-   "summary": "Delete one of the member's saved chart templates (a template's ✕ in Chart Settings → Templates). Charts that used it keep their settings. Shown first; Undo puts it back.",
+   "summary": "Delete one of the member's saved chart templates (a template's ✕ in Chart Settings → Chart templates). Charts that used it keep their settings. Shown first; Undo puts it back.",
    "hints": "target = the ref of the chartTemplateLibrary entry; name = a template name from that entry, exactly.",
    "args": {
     "type": "object",
@@ -6611,8 +6627,8 @@
    "name": "chartMenu.askAi",
    "domain": "chartMenu",
    "target": "chart",
-   "summary": "Open Ask AI about ONE chart's stock, as its right-click \"Ask AI about {symbol}\" does (Research, AI section). Leaves Charts; changes nothing; no Undo.",
-   "hints": "target = the chart. Only when they ask to OPEN Ask AI about it; answer data questions here.",
+   "summary": "Open Ask the UCT Agent about ONE chart's stock, as its right-click \"Ask the UCT Agent about {symbol}\" does (Research, UCT Agent section). Leaves Charts; changes nothing; no Undo.",
+   "hints": "target = the chart. Only when they ask to OPEN Ask the UCT Agent (or \"Ask AI\") about it; answer data questions here.",
    "args": {
     "type": "object",
     "properties": {},
@@ -6898,7 +6914,7 @@
    "name": "drawing.saveDefaults",
    "domain": "drawing",
    "target": "chart",
-   "summary": "Make ONE drawing's style the default for new drawings on ONE chart (the drawing menu's \"Save as default\"): its colour, width, line style, text size and that tool's own settings become the chart's drawing defaults. Drawings already on the chart do not change. Undo puts the previous defaults back.",
+   "summary": "Make ONE drawing's style the default for new drawings on ONE chart (the drawing menu's \"Save as default\"): its color, width, line style, text size and that tool's own settings become the chart's drawing defaults. Drawings already on the chart do not change. Undo puts the previous defaults back.",
    "hints": "target = the chart the member means (the one showing the drawing); drawing = the id from that symbol's drawings entry (the recent one for \"this line\"). To restyle a drawing itself use drawing.style; to change the defaults by name use chart.setSetting.",
    "args": {
     "type": "object",
@@ -6979,8 +6995,8 @@
    "name": "indicatorStyle.set",
    "domain": "indicatorStyle",
    "target": "indicatorEdits",
-   "summary": "Change how ONE indicator on ONE chart looks — its colour (or a histogram's up / down colours), line width, line style, plot style, dot size (on an indicator that draws dots), or which chart timeframes it shows on — exactly what its settings / Inspector offer. One change per op; Undo puts it back.",
-   "hints": "target = the ref of that chart's indicatorEdits entry; instance = the indicator's id from that chart's indicators list (or \"#20\" for the one of length 20, \"#20:ema\"). property = color | upColor | downColor | lineWidth (1–4, or \"thicker\" / \"thinner\") | lineStyle (solid | dashed | dotted) | plotStyle (line, histogram, area… as offered) | overlap | showOn (which chart timeframes it draws on: value = \"daily\", \"weekly\", \"daily and weekly\", \"intraday\", \"daily and above\" or \"all\" — \"only show it on the daily\" = showOn daily) | dotSize (small | medium | large — \"medium\" is the default; only an indicator that draws dots, e.g. \"make the RS dots large\" = dotSize large). value = the member's value (a colour name or #hex for colours). output = which line, colour or dot output when the indicator has several (its label), else null. \"Make the 9 green and the 20 red and dashed\" = three ops.",
+   "summary": "Change how ONE indicator on ONE chart looks — its color (or a histogram's up / down colors), line width, line style, plot style, dot size (on an indicator that draws dots), or which chart timeframes it shows on — exactly what its settings / Inspector offer. One change per op; Undo puts it back.",
+   "hints": "target = the ref of that chart's indicatorEdits entry; instance = the indicator's id from that chart's indicators list (or \"#20\" for the one of length 20, \"#20:ema\"). property = color | upColor | downColor | lineWidth (1–4, or \"thicker\" / \"thinner\") | lineStyle (solid | dashed | dotted) | plotStyle (line, histogram, area… as offered) | overlap | showOn (which chart timeframes it draws on: value = \"daily\", \"weekly\", \"daily and weekly\", \"intraday\", \"daily and above\" or \"all\" — \"only show it on the daily\" = showOn daily) | dotSize (small | medium | large — \"medium\" is the default; only an indicator that draws dots, e.g. \"make the RS dots large\" = dotSize large). value = the member's value (a color name or #hex for colors). output = which line, color or dot output when the indicator has several (its label), else null. \"Make the 9 green and the 20 red and dashed\" = three ops.",
    "args": {
     "type": "object",
     "properties": {
@@ -7211,7 +7227,7 @@
    "name": "indicatorCopy.copyTo",
    "domain": "indicatorCopy",
    "target": "indicatorEdits",
-   "summary": "Copy indicators from one chart onto ANOTHER chart, exactly as configured (colours, settings, panes and links between them — the Indicator templates copy). One op per destination chart; an indicator already there is skipped and said. Undo removes what was added.",
+   "summary": "Copy indicators from one chart onto ANOTHER chart, exactly as configured (colors, settings, panes and links between them — the Indicator templates copy). One op per destination chart; an indicator already there is skipped and said. Undo removes what was added.",
    "hints": "target = the DESTINATION chart's indicatorEdits entry; from = the ref of the chart to copy FROM; instances = the indicators to copy (ids or names from that chart), or [] for all of them. \"Copy these indicators to all my charts\" = one op per other chart.",
    "args": {
     "type": "object",
@@ -7296,7 +7312,7 @@
    "name": "indicatorTemplate.save",
    "domain": "indicatorTemplate",
    "target": "indicatorTemplates",
-   "summary": "Save the indicators on ONE chart as a named INDICATOR template (settings, colours, panes; no alerts). A template with that name is replaced only after the member approves it. Undo puts the list back. A chart's whole look is chartSetup.saveTemplate instead.",
+   "summary": "Save the indicators on ONE chart as a named INDICATOR template (settings, colors, panes; no alerts). A template with that name is replaced only after the member approves it. Undo puts the list back. A chart's whole look is chartSetup.saveTemplate instead.",
    "hints": "target = the ref of the indicatorTemplateLibrary entry; chart = the ref of the chart to save from; name = exactly as the member said it (at most 40 characters). It saves every indicator on that chart.",
    "args": {
     "type": "object",
@@ -7356,7 +7372,7 @@
    "name": "volumeProfile.set",
    "domain": "volumeProfile",
    "target": "chart",
-   "summary": "Turn ONE chart's Volume Profile overlay (volume-by-price bins, point of control) on or off, or set its bins / colours, as Chart Settings → Indicators does. Undo restores it exactly.",
+   "summary": "Turn ONE chart's Volume Profile overlay (volume-by-price bins, point of control) on or off, or set its bins / colors, as Chart Settings → Indicators does. Undo restores it exactly.",
    "hints": "target = the chart. Pass only what was asked; null for the rest. enabled true/false; bins 8-50 whole; color / pocColor = hex. Volume Profile / VPVR = this (never indicator.add). Volume pane = volume.setState; VWAP = indicator.add.",
    "args": {
     "type": "object",
@@ -7973,6 +7989,185 @@
     "type": "object",
     "properties": {},
     "required": [],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "newsLibrary.save",
+   "domain": "newsLibrary",
+   "target": "newsLibrary",
+   "summary": "Save ONE UCT News headline to the member's library, or take it out (saved false; its note and collections go with it — Undo puts them back).",
+   "hints": "headline = \"selected\" (the one open in their News widget), \"previous\" (the one your previous turn named), a TICKER (\"NVDA\"), or ≥3 words of its text — never an id you chose. saved = true to save, false to remove from the library. One headline per request.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "headline": {
+      "type": "string"
+     },
+     "saved": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "headline",
+     "saved"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "newsLibrary.setNote",
+   "domain": "newsLibrary",
+   "target": "newsLibrary",
+   "summary": "Add to (mode append) or replace (mode replace) the note on ONE saved UCT News headline. Undo puts the old note back.",
+   "hints": "headline = \"selected\" (the one open in their News widget), \"previous\" (the one your previous turn named), a TICKER (\"NVDA\"), or ≥3 words of its text — never an id you chose. note = the text. mode = append (\"add / also note …\") or replace (only when they say replace / change / rewrite the note). An empty note with replace clears it.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "headline": {
+      "type": "string"
+     },
+     "note": {
+      "type": "string"
+     },
+     "mode": {
+      "type": "string",
+      "enum": [
+       "append",
+       "replace"
+      ]
+     }
+    },
+    "required": [
+     "headline",
+     "note",
+     "mode"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "newsLibrary.collection",
+   "domain": "newsLibrary",
+   "target": "newsLibrary",
+   "summary": "Create a collection in the member's UCT News library, or rename one. Undo removes the new one / renames it back.",
+   "hints": "op = create (name = the new name, collection null) or rename (collection = its current name, name = the new one).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "op": {
+      "type": "string",
+      "enum": [
+       "create",
+       "rename"
+      ]
+     },
+     "collection": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "name": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "op",
+     "collection",
+     "name"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "newsLibrary.deleteCollection",
+   "domain": "newsLibrary",
+   "target": "newsLibrary",
+   "summary": "Delete ONE collection from the member's UCT News library — its headlines stay saved. Shown first; no Undo.",
+   "hints": "collection = its name. Only when they say delete / remove it.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "collection": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "collection"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "newsLibrary.place",
+   "domain": "newsLibrary",
+   "target": "newsLibrary",
+   "summary": "Put ONE UCT News headline in one of the member's collections (saving it first if needed), or take it out. Undo reverses it.",
+   "hints": "headline = \"selected\" (the one open in their News widget), \"previous\" (the one your previous turn named), a TICKER (\"NVDA\"), or ≥3 words of its text — never an id you chose. collection = its name; member = true to put it in, false to take it out.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "headline": {
+      "type": "string"
+     },
+     "collection": {
+      "type": "string"
+     },
+     "member": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "headline",
+     "collection",
+     "member"
+    ],
     "additionalProperties": false
    },
    "risk": "local",

@@ -171,7 +171,8 @@ describe('⛔ the control — RSI and MACD chips are byte-identical without the 
       expect(el.textContent).toBe(c.text)
       expect(el.className).not.toContain(styles.chipText)
       expect(el.querySelector('[data-stale-value]')).toBeNull()
-      expect(el.innerHTML).toBe(`${c.label} <span class="${styles.chipVal}" style="color: inherit;">${c.text.slice(c.label.length + 1)}</span>`)
+      // owner 11-16: the value reads the box's --chip-color in CSS — no inline colour on it
+      expect(el.innerHTML).toBe(`${c.label} <span class="${styles.chipVal}">${c.text.slice(c.label.length + 1)}</span>`)
     })
   }
 })

@@ -14,6 +14,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 import { loadCapture, REPO } from './harness'
+import { fixturePath, itNeedsHeld } from '../../ast/__tests__/licenceHeld'
 import { __permitRuntimePaneForTests, runtimePaneEnabled } from '../../runtimePaneGate'
 import {
   __allowEveryRuntimeScriptForTests, __resetRuntimeAllowList, __resetRuntimeAdmission,
@@ -33,8 +34,10 @@ const evidence = [...new Set(Object.values(registry)
   .filter((r) => r && r.admitted === true)
   .flatMap((r) => r.evidence.map((e) => e.capture)))].sort()
 
+// ⛔ A licence-held capture (docs/pine/vendor-harness/licence-held.json) is read from the local
+// capture store when it is on this machine, and its case is SKIPPED BY NAME when it is not.
 function sourceOfCapture(id) {
-  return loadCapture(path.join(REPO, fileOf[id])).capture.source.text
+  return loadCapture(fixturePath(fileOf[id]) || path.join(REPO, fileOf[id])).capture.source.text
 }
 
 function laneOf(id) {
@@ -54,10 +57,12 @@ describe('WS-I Part 2 — every admitted capability\'s evidence was drawn by the
     expect(runtimePaneEnabled()).toBe(true)
   })
 
-  it.each(evidence)('%s takes the runtime lane', (id) => {
-    expect(fileOf[id], id).toBeTruthy()
-    expect(laneOf(id)).toBe('runtime')
-  })
+  for (const id of evidence) {
+    itNeedsHeld(fileOf[id] ? [fileOf[id]] : [], `${id} takes the runtime lane`, () => {
+      expect(fileOf[id], id).toBeTruthy()
+      expect(laneOf(id)).toBe('runtime')
+    })
+  }
 
   it('CONTROL: a capture the host draws reads host (the probe can say no)', () => {
     expect(laneOf('atr-bands-spy-1d-2026-10-03')).toBe('host')
@@ -71,7 +76,14 @@ describe('WS-I Part 2 — every admitted capability\'s evidence was drawn by the
 // is asked again here as the reach run asked it: the allowlist EMPTY, capability
 // admission ON, the server's verdict (admitted) latched.
 const report = JSON.parse(fs.readFileSync(path.join(REPO,
-  'docs/pine/evidence/2026-11-13-capability-admission/runs/report.json'), 'utf8'))
+  'docs/pine/evidence/2026-11-16-draw1-drawing-objects/runs/report.json'), 'utf8'))
+// ⭐ HIST (NUMBER PENDING, feat/pine-coverage-runtime-history) re-pinned one row of that report, lane
+// `null` -> `runtime`: `kernel-channel-backquant-rddt-1d-2026-11-14` (a helper with history in a `?:` arm,
+// now drawn while the arm runs every bar; runtime-on MATCH). `momentum-based-zigzag-rddt-1d-2026-11-14`
+// left the report: the runtime lane reaches it too, its runtime-on grade is DIVERGE, so it is on the
+// committed kill list and no longer admitted (docs/pine/evidence/2026-11-16-runtime-history/EVIDENCE.md).
+// ⭐ DRAW-1 (engine 66, feat/pine-coverage-drawings): the reach run is RE-DERIVED on the engine-65 train
+// tree (input, CAPADMIT_MODE=admission, report), so it carries HIST's rows above as the tool answers them.
 
 describe('WS-I Part 2 — the reach run records the lanes the door itself answers', () => {
   beforeAll(() => {
@@ -86,10 +98,12 @@ describe('WS-I Part 2 — the reach run records the lanes the door itself answer
     expect(report.captures.filter((c) => c.lane === 'runtime').length).toBeGreaterThanOrEqual(10)
   })
 
-  it.each(report.captures.map((c) => [c.capture, c.lane]))('%s: %s', (id, lane) => {
-    const source = sourceOfCapture(id)
-    latchRuntimeAdmission(runtimeSourceHash(source), { admitted: true })
-    const d = memberPaneDefinition({ source, id: 'u_capreach', name: 'reach lane' })
-    expect(d.ok ? (d.lane || 'host') : null).toBe(lane)
-  })
+  for (const { capture: id, lane } of report.captures) {
+    itNeedsHeld(fileOf[id] ? [fileOf[id]] : [], `${id}: ${lane}`, () => {
+      const source = sourceOfCapture(id)
+      latchRuntimeAdmission(runtimeSourceHash(source), { admitted: true })
+      const d = memberPaneDefinition({ source, id: 'u_capreach', name: 'reach lane' })
+      expect(d.ok ? (d.lane || 'host') : null).toBe(lane)
+    })
+  }
 })

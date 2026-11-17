@@ -1,0 +1,28 @@
+//@version=6
+indicator("UCTPROBE_VW_IMP_CHANGE_BEFORE_REASSIGN", overlay = false)
+
+// PROVENANCE: written 2026-11-16 for the Pine parity programme, capture queue row Q-IMP-H
+// (docs/pine/capture-queue-2026-11-16-imp.md). NEVER COMPILED ON TRADINGVIEW.
+// QUESTION: `ta.change(x)` called BEFORE `x` is reassigned later on the same bar. What is the "previous"
+// value it subtracts: the value `x` had at THIS call on the previous bar (the call's own history), or
+// `x[1]`, the previous bar's FINAL value? On every bar here `x` reaches the call holding the previous
+// bar's final value, then the bar adds `up` (1 on an up bar, else 0):
+//   D01 ta.change(x) at the call      call-site history: up of the PREVIOUS bar (0 / 1)
+//                                     x[1] reading:      0 on every bar
+//   E01 x - x[1] at the same place    the explicit `[1]`: 0 on every bar (the control for D01)
+//   X01 x at the end of the bar       the running count of up bars
+// The runtime lane lowers D01 as `x - x[1]` (pineRuntimeFrontend.js, the `changeTarget` branch), so
+// it prints 0 everywhere. The sample script market-structure-break-order-block (its `ta.change(market)`
+// read before `market := …`) draws 25 MSB labels on the runtime lane where its capture holds 7.
+// CHART: NYSE:RDDT 1D from the listing, inputs at defaults (none), after the close.
+
+var float x = 0.0
+d = ta.change(x)
+e = x - x[1]
+x := x + (close > open ? 1.0 : 0.0)
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(close > open ? 1 : 0, "A01_up_CONTROL")
+plot(d, "D01_change_before_reassign")
+plot(e, "E01_explicit_history_control")
+plot(x, "X01_final_value")

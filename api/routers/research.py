@@ -152,7 +152,7 @@ def research_explain(sym: str = Depends(sym_path), body: dict = Body(...), _user
                 "summary": "", "key_facts": [], "interpretation": "", "caveat": "",
                 "clarification_question": "", "citations": [],
                 "insufficient_evidence": True,
-                "insufficient_evidence_reason": "The AI assistant is temporarily unavailable.",
+                "insufficient_evidence_reason": "The UCT Agent is temporarily unavailable.",
                 "model": None, "error": "internal error",
                 "turn_state": {"sym": (sym or "").upper(), "question": question,
                               "response_state": "refuse", "domains": [], "summary": ""}}
@@ -440,7 +440,7 @@ def research_compare_explain(sym: str = Depends(sym_path), comparator: str = Dep
                 "summary": "", "key_facts": [], "interpretation": "", "caveat": "",
                 "clarification_question": "", "citations": [],
                 "insufficient_evidence": True,
-                "insufficient_evidence_reason": "The AI assistant is temporarily unavailable.",
+                "insufficient_evidence_reason": "The UCT Agent is temporarily unavailable.",
                 "model": None, "error": "internal error"}
 
 

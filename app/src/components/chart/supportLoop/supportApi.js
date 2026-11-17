@@ -4,7 +4,9 @@
 //
 // Spec: `docs/pine/support-loop/PHASE-A.md`.
 //
-//   logImportGaps(payload) A2 — which Pine built-ins a paste lost, by name and kind.
+//   logImportGaps(payload) A2 — which Pine built-ins a paste lost, by name and kind, and
+//                          (U4) the refusal guard codes it carried.
+//   logRefusalCodes(codes) U4 — the member pane's refusal codes (guard, runtime decline).
 //                          ⛔ ONLY `gapLogPayload`'s output is sent: allowlisted names,
 //                          their kind, and a COUNT of unnamed gaps. Never the script.
 //   reportsConfig()        whether A3 storage is switched on (server flag), cached
@@ -30,9 +32,10 @@ export function _resetForTests() {
  *  imports nothing from the translator so the chart chunk can load it cheaply. */
 export function logImportGaps(payload) {
   if (!payload || !Array.isArray(payload.gaps)) return false
-  if (!payload.gaps.length && !payload.unlisted) return false
+  const guards = refusalCodesOf(payload.guards)
+  if (!payload.gaps.length && !payload.unlisted && !guards.length) return false
   const key = JSON.stringify([
-    payload.gaps.map((g) => `${g.name}:${g.kind}`).sort(), payload.unlisted,
+    payload.gaps.map((g) => `${g.name}:${g.kind}`).sort(), payload.unlisted, guards,
   ])
   if (sentGapSets.has(key)) return false
   sentGapSets.add(key)
@@ -45,10 +48,38 @@ export function logImportGaps(payload) {
         dialect: 'pine',
         gaps: payload.gaps.map((g) => ({ name: g.name, kind: g.kind })),
         unlisted: Number(payload.unlisted) || 0,
+        ...(guards.length ? { guards } : {}),
       }),
     }).catch(() => {})
   } catch { /* best-effort */ }
   return true
+}
+
+/** ⭐ U4 — the shape a refusal GUARD CODE has (`<namespace>:<id>`, no spaces, no
+ *  free text). ⛔ The server keeps only codes on its closed list
+ *  (`refusalCodes.json`) and counts anything else as unlisted; this shape check
+ *  is what keeps anything that is not a code out of the request body at all. */
+export const REFUSAL_CODE_RE = /^[a-z][a-z-]{0,23}:[A-Za-z0-9](?:[A-Za-z0-9._:-]{0,62}[A-Za-z0-9])?$/
+export const MAX_REFUSAL_CODES = 32
+/** The longest code either side accepts (`indicator_support.REFUSAL_CODE_MAX`, pinned by the
+ *  server rail): a longer one never leaves the page. */
+export const REFUSAL_CODE_MAX = 80
+
+/** The distinct, sorted refusal codes in `list` (anything else dropped). */
+export function refusalCodesOf(list) {
+  const out = new Set()
+  for (const c of (Array.isArray(list) ? list : [])) {
+    if (typeof c === 'string' && c.length <= REFUSAL_CODE_MAX && REFUSAL_CODE_RE.test(c)) out.add(c)
+    if (out.size >= MAX_REFUSAL_CODES) break
+  }
+  return [...out].sort()
+}
+
+/** ⭐ U4 — log the refusal codes a member's pane answered with (the member pane's
+ *  guard and its runtime decline code). Once per distinct set per page, like A2.
+ *  Fire-and-forget; never throws. */
+export function logRefusalCodes(codes) {
+  return logImportGaps({ gaps: [], unlisted: 0, guards: codes })
 }
 
 let configPromise = null

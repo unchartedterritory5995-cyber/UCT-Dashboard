@@ -382,7 +382,7 @@ export default function OptionsFlowWidget({ color, opts, onOptsChange }) {
     <div ref={rootRef} className={styles.root} style={rootStyle}>
       {settingsOpen && (
         <NewsSettingsPanel
-          title="Options Flow Settings"
+          title="Options flow settings"
           widgetType="optionsflow"
           showPerf={false}
           extraSections={[

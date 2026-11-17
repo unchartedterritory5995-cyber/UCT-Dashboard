@@ -58,6 +58,52 @@ master push is a full deploy gate and a deploy, and wasted runs still cost wall-
 - If runs fail with "The job was not started because ... spending limit": that is the budget, not the code.
   Tell the owner; do not re-push to retry.
 
+### The queue is the cost now: 40 jobs at once, for every session (measured 2026-11-16)
+
+The account runs **40 jobs at a time** (GitHub Pro) and every session shares them, first come first served:
+a deploy-gate job waits behind whatever PR jobs were queued before it. On 2026-11-16, 20:06-23:06Z, the 40
+slots were full the whole three hours with 50-130 jobs waiting; the deploy gate (12-13 minutes of work)
+finished 28-68 minutes after its push; a Pine PR took a median 64 minutes from open to merge (a quarter took
+over 4 hours) against 23 minutes for everything else. `pine heavy` alone was 50% of all runner minutes, and
+24% of all runner minutes went to runs a newer push then cancelled. Measure it again with
+`python tools/ci_queue_report.py --hours 3` before believing a number here.
+
+- **One push carries the whole unit: code, tests, evidence docs, runbooks.** A one-file docs commit pushed
+  minutes after the code re-runs every job of every workflow the PR triggers (`pine heavy`: 19 jobs,
+  ~100 runner-minutes; a PR's `paths:` filter reads the WHOLE PR, never the new commit). 6 of 41 `pine heavy`
+  PR runs in that window were docs-only pushes.
+- **One check per commit.** Never dispatch a workflow by hand on a commit whose PR run already ran it. For a
+  mutant proof on a PR branch: `gh workflow run pine-heavy.yml --ref <branch> -f mutants_manifest=<path> -f
+  skip_legs=true` runs the mutant job alone (three such doubled runs in that window, ~100 runner-minutes each).
+- **`docs/pine/vendor-harness/capture-queue.json` is NOT committed** (since 2026-11-16; git ignores it). It
+  was the conflicting file in 5 of the 5 open Pine PRs GitHub could not merge that day, and every conflict
+  cost a merge of master, a regenerate commit and a full `pine heavy` re-run. Anything that wants the queue
+  derives it (`evidence_engine.build_queue()`, ~6 s); `python tools/vendor_harness/evidence_engine.py queue`
+  writes a local copy to read. **A branch cut before that change conflicts on it ONCE when it merges master:
+  resolve with `git rm docs/pine/vendor-harness/capture-queue.json`.** Never `git add -f` it back.
+- **Merge master into a PR only when GitHub reports a conflict or the PR needs something master has.** A
+  catch-up merge re-runs everything: 15 of those 41 runs were triggered by one.
+- **Batch small related PRs into a train** (the `train/eNN` precedent): one check and one deploy instead of N.
+
+## ⭐ Heavy tests run on GitHub, not on this PC (2026-11-16, GitHub Pro: 40 concurrent jobs)
+
+The dev PC runs ONE heavy test job at a time (`heavy_lock`, RAM limits) and every session queues behind it.
+Commit, then send the run to GitHub runners instead:
+
+```sh
+python tools/remote_tests.py --pytest tests/test_a.py tests/test_b.py::test_x
+python tools/remote_tests.py --vitest src/pages/charts src/agent/nl --shards 4
+```
+
+It tests the COMMITTED HEAD (uncommitted edits are not included), pushes it to `refs/remote-tests/<id>` (no
+workflow triggers on that ref, nothing deploys; the repo is public, so it is readable like any push), runs the
+`remote tests` workflow from MASTER, prints the failing test ids, and deletes the ref. Exit 0 green / 1 red /
+2 the lane could not run. Paths: pytest under `tests/`, vitest app-relative under `src/`. Keep tiny local checks
+local; send anything heavier than a few files here. Rails: `tests/test_remote_tests_lane.py`.
+⛔ **Never delete a `refs/remote-tests/*` ref you did not create.** Other sessions' runs are using them (one was
+deleted mid-run on 2026-11-16 by a "leftover ref" cleanup that counted every session's refs); the tool deletes
+its own ref when it finishes.
+
 ## ⛔⛔ flow-worker DEPLOYS ARE MANUAL (owner decision 2026-11-12) — read before touching options-flow code
 
 Railway **auto deploy is DISABLED for `flow-worker`** (the live options tape, Live Flow, Options Flow,
@@ -321,6 +367,9 @@ infrastructure, declared vite entry points, or partner-owned files awaiting ack.
 The standing rail is `app/src/components/screener/reachable.test.js`, which now
 sweeps **all of `app/src`** and fails by name on the next one — so this table
 should never again be assembled by hand.
+
+## ⭐ UCT Signature style — the house look for menus, settings, pickers and widgets (owner, 2026-11-15)
+When the owner says **"UCT Signature style"** (or "make it look like the new menus"), read **`docs/uct-signature-style.md`** first and build to it: graphite `#111214` panels, `#1a1b1f` cards with hairline rows, `#ededed`/`#a9a59b` text, **a touch of UCT gold (`var(--ut-gold)`) ONLY on what is current or chosen — "the mix", spec section 2b**, sentence case, dropdowns instead of segmented controls, soft-square on/offs left of the label, hover-revealed row actions. It supersedes `docs/brand-design-system.md` for those surfaces.
 
 ## UI Icons — `UIcon` (NO emoji)
 

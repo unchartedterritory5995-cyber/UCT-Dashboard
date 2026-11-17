@@ -120,7 +120,9 @@ export const SITES = [
   ['components/chart/IndicatorAlertPopover.jsx', ['preflight.reason']],
   ['components/chart/IndicatorLibraryDialog.jsx', ['n.sentence']],
   ['pages/charts/widgets/ScanObjectCard.jsx', ['item.reason', 'view.reason']],
-  ['pages/formulas/FormulaReference.jsx', ['item.sentence', 'item.reason']],
+  // `referenceSentence(item)` since 05e4b02643 (2026-11-14): the page prints the entry's sentence with
+  // its `{n}` placeholders named, and never `item.sentence` itself
+  ['pages/formulas/FormulaReference.jsx', ['referenceSentence(item)', 'item.reason']],
   ['agent/capabilities/indicatorAlerts.js', ['gate.reason']],
   ['components/StockChart.jsx', ['n.sentence']],
 ]
@@ -183,6 +185,8 @@ describe('r3 — withoutGuardIds: the review probe table (NO-GUARD-IDS.md)', () 
     ['the `pcf:read-back` guard refused it', 'the guard refused it'],
     ['an (other-symbol:x-y) note', 'an note'],
     ['(pine:x) stops here', 'stops here'],
+    // G6 (13af4ef782): `runtimeKill.js::RUNTIME_FORMING_GUARD`, as `runtimeRunStopOf` composes it
+    ['not drawn on this chart (pane:forming-ungraded): this script reads', 'not drawn on this chart: this script reads'],
   ])('%s', (input, want) => { expect(withoutGuardIds(input)).toBe(want) })
 
   it.each([

@@ -16,8 +16,9 @@
 //     against a calendar written out by hand.
 //
 // And what is NOT fixed keeps its refusal BY NAME: a text written per bar, a join with one, a
-// rebound `period`, another timezone, a session with no day list before Pine v5, an overnight
-// window. The object door (C18) builds exactly what master builds: `objectDoorGate.test.js`.
+// rebound `period`, another timezone, a session with no day list before Pine v4, the VALUE of an
+// overnight window (bt: its membership is served, `btRuntimeClock.test.js`). The object door (C18)
+// builds exactly what master builds: `objectDoorGate.test.js`.
 //
 // Every expectation is written out by hand from the bars' own calendar, never from the code
 // under test.
@@ -76,12 +77,15 @@ describe('the chart own timeframe is fixed for the call site', () => {
     const [o] = run5(`${HEAD5}${STATE}inS(r, s) => not na(time(r, s))\nplot(inS(timeframe.period, "0930-1000:23456") ${FLAG})\n`)
     expect(head(o)).toEqual(WANT)
   })
-  it('v4: `timeinrange(res, sess) => time(res, sess) != 0` called with `period` (the corpus idiom)', () => {
-    const [o] = run5(`${HEAD4}${STATE}timeinrange(res, sess) => time(res, sess) != 0\nplot(timeinrange(period, "0930-1000:23456") ${FLAG})\n`)
+  // ⚰️ (bt, NUMBER PENDING) these v4 rails wrote the bare `period`, which TradingView's v4 compiler
+  // refuses ("Undeclared identifier 'period'"); v4 spells it `timeframe.period`
+  // (`pine.js::legacyPeriodUndeclared`, railed below under "what stays refused").
+  it('v4: `timeinrange(res, sess) => time(res, sess) != 0` called with `timeframe.period` (the corpus idiom)', () => {
+    const [o] = run5(`${HEAD4}${STATE}timeinrange(res, sess) => time(res, sess) != 0\nplot(timeinrange(timeframe.period, "0930-1000:23456") ${FLAG})\n`)
     expect(head(o)).toEqual(WANT)
   })
-  it('v4: `BarInSession(sess) => time(period, sess) != 0` (period read in the body)', () => {
-    const [o] = run5(`${HEAD4}${STATE}BarInSession(sess) => time(period, sess) != 0\nplot(BarInSession("0930-1000:23456") ${FLAG})\n`)
+  it('v4: `BarInSession(sess) => time(timeframe.period, sess) != 0` (the timeframe read in the body)', () => {
+    const [o] = run5(`${HEAD4}${STATE}BarInSession(sess) => time(timeframe.period, sess) != 0\nplot(BarInSession("0930-1000:23456") ${FLAG})\n`)
     expect(head(o)).toEqual(WANT)
   })
   it('a name bound to the chart timeframe is the chart timeframe, directly and through a parameter', () => {
@@ -137,9 +141,9 @@ describe('an input is its text at the value in force', () => {
     expect(head(run5(src)[0])).toEqual(WANT)
     expect(head(run5(src, { inputs: { sess: '0945-1000:23456' } })[0])).toEqual(LATE)
   })
-  it('v3/v4 `input(type=session)` through `timeinrange(period, sess)`', () => {
+  it('v3/v4 `input(type=session)` through `timeinrange(timeframe.period, sess)`', () => {
     const [o] = run5(`${HEAD4}${STATE}IB = input(title="IB", type=session, defval="0930-1000:23456")\n`
-      + `timeinrange(res, sess) => time(res, sess) != 0\nplot(timeinrange(period, IB) ${FLAG})\n`)
+      + `timeinrange(res, sess) => time(res, sess) != 0\nplot(timeinrange(timeframe.period, IB) ${FLAG})\n`)
     expect(head(o)).toEqual(WANT)
   })
   it('v3/v4 `input(type=resolution)` and `input(type=string)`, named or as the third argument', () => {
@@ -150,7 +154,7 @@ describe('an input is its text at the value in force', () => {
       + `timeinrange(res, sess) => time(res, sess) != 0
 plot(timeinrange(tfin, ses) ${FLAG})
 `
-      + `plot(timeinrange(period, input(title="S2", type=string, defval="0945-1000:23456")) ${FLAG})
+      + `plot(timeinrange(timeframe.period, input(title="S2", type=string, defval="0945-1000:23456")) ${FLAG})
 `)
     expect(head(a)).toEqual(WANT)
     expect(head(b)).toEqual(LATE)
@@ -322,15 +326,25 @@ describe('what stays refused BY NAME', () => {
     expect(r.guard).toBe('pine:function')
     expect(r.message).toMatch(/Asia\/Tokyo/)
   })
-  it('a session with no day list before Pine v5 (the default days were never measured)', () => {
-    const r = refuse5(`${HEAD4}${STATE}timeinrange(res, sess) => time(res, sess) != 0\nplot(timeinrange(period, "0930-1000") ? 1 : 0)\n`)
+  // ⚰️ (bt, NUMBER PENDING) was `HEAD4`: a v4 session with no day list is Monday to Friday (the v4
+  // reference and the v4->v5 migration guide, `pine.js::sessionClockOf`); v1-v3 keep the refusal.
+  it('a session with no day list before Pine v4 (no reference text states the default days)', () => {
+    // (v3 has no `var`: the state is a plain mutable name)
+    const r = refuse5(`//@version=3\nstudy("t")\nx = 0.0\nx := close\ntimeinrange(res, sess) => time(res, sess) != 0\nplot(timeinrange(period, "0930-1000") ? 1 : 0)\n`)
     expect(r.guard).toBe('pine:function')
     expect(r.message).toMatch(/has no day list/)
   })
-  it('an overnight window', () => {
-    const r = refuse5(`${HEAD5}${STATE}inS(r, s) => not na(time(r, s))\nplot(inS(timeframe.period, "1800-0200:1234567") ? 1 : 0)\n`)
-    expect(r.guard).toBe('pine:function')
-    expect(r.message).toMatch(/wraps past midnight/)
+  it('bare `period` in v4 (TradingView: "Undeclared identifier"), by name', () => {
+    const r = refuse5(`${HEAD4}${STATE}timeinrange(res, sess) => time(res, sess) != 0\nplot(timeinrange(period, "0930-1000:23456") ? 1 : 0)\n`)
+    expect(r.guard).toBe('pine:builtin')
+    expect(r.message).toMatch(/Undeclared identifier 'period'/)
+  })
+  it('⭐ (bt) an overnight window is SERVED (BTCUSD captures): Tue 18:00 through Wed 01:55', () => {
+    // BARS5 opens Tue 09:30 New York, every 5 minutes: bar i opens at 570 + 5i minutes. In
+    // "1800-0200:1234567" from 18:00 (i = 102) to 02:00 the next day (i = 198), out after.
+    const [o] = run5(`${HEAD5}${STATE}inS(r, s) => not na(time(r, s))\nplot(inS(timeframe.period, "1800-0200:1234567") ${FLAG})\n`)
+    const want = BARS5.map((_, i) => (i >= 102 && i < 198 ? 1 : 0))
+    expect(o).toEqual(want)
   })
   it('a timeframe that is not the chart (a 15-minute literal on a 5-minute chart)', () => {
     const r = refuse5(`${HEAD5}${STATE}inS(r, s) => not na(time(r, s))\nplot(inS("15", "0930-1000:23456") ? 1 : 0)\n`)

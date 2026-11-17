@@ -50,17 +50,18 @@ const liveIds = (cs, defId) => ((cs && cs.indicatorInstances) || [])
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
 describe('Chart Settings → Indicators: focus after an add', () => {
-  it('lands on the NEW row in the structure list, never on <body>', () => {
+  // ⭐ UCT Signature (one column): after an add the NEW row's editor IS the view (the list is
+  // hidden behind it), so focus lands on that editor's first control.
+  it('lands IN the new row\'s editor, never on <body>', () => {
     const seen = show()
     addByKeyboard('rsi', 'rsi')
     const [id] = liveIds(seen.cs, 'rsi')
     expect(id, 'RSI was not added').toBeTruthy()
     const active = document.activeElement
     expect(active, 'focus fell to <body> after the add').not.toBe(document.body)
-    expect(active.getAttribute('data-row-primary'), 'focus is not on the new row').toBe(id)
-    // …and that row is the selected one, so its Inspector is on screen
-    expect(active.getAttribute('aria-current')).toBe('true')
-    expect(document.body.querySelector(`[data-inspector-for="${id}"]`), 'the new row has no Inspector').toBeTruthy()
+    const panel = document.body.querySelector(`[data-inspector-for="${id}"]`)
+    expect(panel, 'the new row has no editor').toBeTruthy()
+    expect(panel.contains(active), 'focus is not inside the new row\'s editor').toBe(true)
   })
 
   it('a second add moves focus to the second new row', () => {
@@ -69,7 +70,7 @@ describe('Chart Settings → Indicators: focus after an add', () => {
     addByKeyboard('macd', 'macd')
     const [id] = liveIds(seen.cs, 'macd')
     expect(id).toBeTruthy()
-    expect(document.activeElement.getAttribute('data-row-primary')).toBe(id)
+    expect(document.body.querySelector(`[data-inspector-for="${id}"]`).contains(document.activeElement)).toBe(true)
   })
 
   it('CONTROL: focus the member put somewhere else is not taken', () => {

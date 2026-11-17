@@ -65,7 +65,11 @@ export function startSentenceOf(startTime) {
 
 // ─── ⭐⭐ W9-T7-F1: THE ORDER LOG ─────────────────────────────────────────────────
 /** The kinds of order the broker logs (`broker.js`, "THE ORDER LOG"). */
-export const ORDER_KINDS = Object.freeze(['entry', 'order', 'exit', 'close', 'close_all'])
+// 'margin_call' (2026-11-17, [B-MARGIN-CALL], Q-S1i): the order TradingView's emulator places itself when a margin
+// call falls due (w9-q-s1i-short-v6); no script command places it, so its `id` is null like a close's
+export const ORDER_KINDS = Object.freeze(['entry', 'order', 'exit', 'close', 'close_all', 'margin_call'])
+/** the kinds of order whose id TradingView generates (the row's `id` is null) */
+const GENERATED_ID_KINDS = Object.freeze(['close', 'close_all', 'margin_call'])
 export const ORDER_STATUSES = Object.freeze(['placed', 'filled', 'cancelled', 'rejected'])
 /** Why an order ended without a fill. `cancelled`: `strategy.cancel` / `cancel_all`, its OCA group (cancel, or
  *  reduced to 0), the trade its bracket covered closed by another order, or a market close that met no
@@ -75,7 +79,8 @@ export const ORDER_STATUSES = Object.freeze(['placed', 'filled', 'cancelled', 'r
 export const ORDER_END_REASONS = Object.freeze({
   cancelled: Object.freeze(['strategy.cancel', 'strategy.cancel_all', 'oca-cancel', 'oca-reduce', 'trade-closed',
     'nothing-to-close']),
-  rejected: Object.freeze(['pyramiding', 'risk-allow-entry-in']),
+  // 'funds' (2026-11-16, [B-FUNDS], Q-S1i): an entry the equity cannot carry at its fill price (w9-q-s1a-size-v6)
+  rejected: Object.freeze(['pyramiding', 'risk-allow-entry-in', 'funds']),
 })
 /** ⭐⭐ ONE AUTHORITY: the id a trade's exit carries, from the order (row) that closed it. R6 states it for an
  *  exit command (`strategy.exit` `id`: "corresponds to an exit ID in the strategy's trades after an order
@@ -85,6 +90,41 @@ export const ORDER_END_REASONS = Object.freeze({
  *  `broker.js` (`strategy.closedtrades.exit_id`) and this record both ask it. */
 export function exitIdOf(row) {
   return row && (row.kind === 'exit' || row.kind === 'order') && typeof row.id === 'string' ? row.id : null
+}
+/** ⭐⭐ value read-backs — ONE AUTHORITY over the exit ids NO TEXT STATES and the committed captures WITNESS
+ *  (`strategy.closedtrades.exit_id`, read back through the std set's label `entry_id > exit_id : exit_comment`,
+ *  `tools/vendor_harness/w9_probes.py`; every text below was read off `objects.records.labels` of the named
+ *  captures, `tests/fixtures/vendor/harness/<id>-rddt-1d-2026-11-15.json`):
+ *   - a trade `strategy.close(id)` closed: `Close entry(s) order <id>` (11 captures, among them w9-q-s1p-when,
+ *     w9-k1-commission-pct, w9-p3-every-tick-history, w9-q-s1a-size-v5cash);
+ *   - a trade `strategy.close_all()` closed: `Close position order` (8 captures, among them s1-broker-core,
+ *     w9-x3-oca, w9-x5-cancel, w9-q-s1j-stop-limit);
+ *   - a trade a `strategy.entry` fill closed (a reversal, or an allow_entry_in close): that entry's id
+ *     (5 captures: s1-broker-core, w9-q-s1b-defaults-v5 and -v6, w9-r1-risk-allow, w9-r1-risk-ddown). ⛔ Every
+ *     witnessing entry was placed WITHOUT a comment; one that carries a comment is not witnessed and stays
+ *     refused (capture row W9-V1, `EXIT_LABEL_ROW`: one row for the report, the markers and the read).
+ *  Each is served by `broker.js` behind the rule named here, which is pinned only by its own MATCHing captures.
+ *   - ⭐ (2026-11-17) a trade a MARGIN CALL closed (`broker.js` [B-MARGIN-CALL]): `Close position order`, the
+ *     close-all's id, with the exit COMMENT `Margin call` (the order row's own comment): 13 labels
+ *     `S>Close position order:Margin call` on w9-q-s1i-short-v6-rddt-1d-2026-11-16, pinned with the event itself.
+ *  ⛔ NOT here, because no capture this broker can run shows it: the exit of a risk halt (`Close Position
+ *  (Max number of filled orders in one day)`, seen on w9-r1-risk-intraday-range; a halt is never modelled,
+ *  W9-R1i). ⛔ The record's own `exitId` (`exitIdOf`) is unchanged: it stays `null` where R6 states no id. */
+export const WITNESSED_EXIT_ID_RULES = Object.freeze({
+  close: 'B-TXT-CLOSE-ID',
+  close_all: 'B-TXT-CLOSE-ALL-ID',
+  entry: 'B-TXT-ENTRY-CLOSE-ID',
+  margin_call: 'B-MARGIN-CALL',
+})
+export function witnessedExitIdOf(row) {
+  if (!row) return null
+  if (row.kind === 'close' && typeof row.from === 'string') return { text: `Close entry(s) order ${row.from}`, rule: WITNESSED_EXIT_ID_RULES.close }
+  if (row.kind === 'close_all') return { text: 'Close position order', rule: WITNESSED_EXIT_ID_RULES.close_all }
+  if (row.kind === 'margin_call') return { text: 'Close position order', rule: WITNESSED_EXIT_ID_RULES.margin_call }
+  if (row.kind === 'entry' && typeof row.id === 'string' && row.comment === null && row.commentRecorded === true) {
+    return { text: row.id, rule: WITNESSED_EXIT_ID_RULES.entry }
+  }
+  return null
 }
 /** ⭐⭐ W9-T7-F1 r1 (review N1, one fact two answers) — ONE AUTHORITY: the exit of a REVERSED trade is the
  *  reversing ENTRY's fill, and whether that entry's comment (or id) is what the closed trade's exit shows is not
@@ -285,7 +325,7 @@ export function strategyRecordShapeErrors(rec) {
       if (!o || typeof o !== 'object') { need(false, at); continue }
       need(o.n === i + 1, `${at}.n`)
       need(ORDER_KINDS.includes(o.kind), `${at}.kind`)
-      need(o.kind === 'close' || o.kind === 'close_all' ? o.id === null : typeof o.id === 'string', `${at}.id`)
+      need(GENERATED_ID_KINDS.includes(o.kind) ? o.id === null : typeof o.id === 'string', `${at}.id`)
       need(o.side === 'buy' || o.side === 'sell' || (o.side === null && o.kind.startsWith('close')), `${at}.side`)
       need(isTime(o.placedTime), `${at}.placedTime`)
       need(ORDER_STATUSES.includes(o.status), `${at}.status`)

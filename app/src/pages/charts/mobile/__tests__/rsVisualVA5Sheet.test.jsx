@@ -128,9 +128,20 @@ describe('A5c — swatches: the current colour, always present, always marked', 
   test('on a fresh Classic instance every colour row is stacked and marks exactly one swatch, the drawn colour', async () => {
     const user = userEvent.setup()
     mount(rsCs(), rsEditing)
-    // VA2: the colour rows live in the plan's five folded groups
-    for (const g of ['Line', 'New highs', 'Stress test', 'Method']) await user.click(headNamed(g))
-    const colours = rsDef().inputs.filter((i) => i.type === 'color')
+    // VA2: the colour rows live in folded groups. ⭐ 2026-11-17: the groups are DERIVED from the colour inputs
+    // themselves, never typed: UCT Signature Release 2 (9f8d8ff1fa) moved the averages' colours into a new
+    // `Average` group, and a hand-typed list of four groups left those rows folded (rowFor -> null).
+    // ...and a `legacy: true` input is declared only so a stored instance still validates: no surface renders it
+    // (engine/legacyInputs.js). Release 2 retired `ma2Color` that way, so it has no row to find.
+    const colours = rsDef().inputs.filter((i) => i.type === 'color' && !i.legacy)
+    expect(rsDef().inputs.some((i) => i.type === 'color' && i.legacy)).toBe(true) // the case this guards is real
+    const groups = [...new Set(colours.map((i) => i.group).filter(Boolean))]
+    expect(groups.length).toBeGreaterThan(1) // non-vacuity: the colours really are spread over groups
+    for (const g of groups) {
+      const head = headNamed(g)
+      expect(head, `group header "${g}"`).toBeTruthy()
+      if (head.getAttribute('aria-expanded') !== 'true') await user.click(head)
+    }
     expect(colours.length).toBeGreaterThan(5)
     for (const input of colours) {
       const row = rowFor(input.key)
@@ -150,7 +161,7 @@ describe('A5c — swatches: the current colour, always present, always marked', 
     const onWrite = mount(rsCs(), rsEditing)
     await user.click(headNamed('Line'))
     const row = () => rowFor('maColor')
-    await user.click(within(row()).getByRole('button', { name: 'Average colour #f472b6' }))
+    await user.click(within(row()).getByRole('button', { name: 'Average color #f472b6' }))
     expect(onWrite).toHaveBeenCalledTimes(1)
     const inst = onWrite.mock.calls[0][0].indicatorInstances.find((i) => i.instanceId === 'rs-1')
     expect(inst.inputs.maColor).toBe('#f472b6')

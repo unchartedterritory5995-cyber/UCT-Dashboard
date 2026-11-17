@@ -138,8 +138,15 @@ def strategy_row(stamp=codec.STRATEGY_WINDOW_HISTORY):
                                                      "outputs": {"p": 0}}}}
 
 
+#: Twelve real NYSE sessions from 2024-01-02 (no weekends; 2024-01-15 is Martin Luther King Day).
+#: `bars_fetch._fmt_sqlite_bars` drops a daily bar dated on a non-session, so a calendar-day run
+#: (20240102 + i) served 9 of 12 and the window assertions read 9 == 12.
+_SESSIONS = (20240102, 20240103, 20240104, 20240105, 20240108, 20240109, 20240110, 20240111,
+             20240112, 20240116, 20240117, 20240118)
+
+
 def _store_rows(n=12):
-    return [(20240102 + i, 10.0 + i, 11.0 + i, 9.0 + i, 10.5 + i, 1000.0) for i in range(n)]
+    return [(_SESSIONS[i], 10.0 + i, 11.0 + i, 9.0 + i, 10.5 + i, 1000.0) for i in range(n)]
 
 
 class StubClient:

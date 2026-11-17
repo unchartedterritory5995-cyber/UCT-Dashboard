@@ -23,6 +23,12 @@
         "at": "components/StockChart.jsx:9309"
       }
     },
+    "components/chart/engine/binder.js": {
+      "${ctx.sym || ''}:${frame || ctx.tf || ''}": {
+        "n": 1,
+        "at": "components/chart/engine/binder.js:1995"
+      }
+    },
     "components/chart/engine/liveTail.js": {
       "${String(sym).toUpperCase()}:${String(tf == null ? 'D' : tf)}": {
         "n": 1,
@@ -120,10 +126,6 @@
       }
     },
     "components/chart/useLegacyChartBars.js": {
-      "/api/bars-history/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars": {
-        "n": 1,
-        "at": "components/chart/useLegacyChartBars.js:521"
-      },
       "/api/bars/${encodeURIComponent(sym || ": {
         "n": 1,
         "at": "components/chart/useLegacyChartBars.js:539"
@@ -146,6 +148,10 @@
       }
     },
     "data/barStore/network.js": {
+      "/api/bars-history/${encodeURIComponent(sym)}?tf=${tf}&bars=${fullB": {
+        "n": 1,
+        "at": "data/barStore/network.js:144"
+      },
       "/api/bars/${encodeURIComponent(p.sym)}?tf=${p.tf}&bars=${b": {
         "n": 1,
         "at": "data/barStore/network.js:98"

@@ -1,0 +1,19 @@
+//@version=4
+study("UCTPROBE_VW_CS2_RISING_FALLING_NA_V4", overlay=false)
+
+// PROVENANCE: written 2026-11-15 for the Pine parity programme, capture session S17
+// (objects-lane PROBES-NEXT.md item 11). The v5 probe's rows at //@version=4 (rising / falling):
+// s = sma(close, 20) is na on bars 0..18. Encoded na -> -1, true -> 1, false -> 0.
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults.
+
+s = sma(close, 20)
+enc(v) => na(v) ? -1 : v ? 1 : 0
+
+plot(bar_index, title="A00_bar_index_CONTROL")
+plot(na(s) ? 1 : 0, title="A01_s_is_na")
+plot(enc(rising(s, 1)), title="R01_rising_1")
+plot(enc(falling(s, 1)), title="F01_falling_1")
+plot(enc(rising(s, 2)), title="R02_rising_2")
+plot(enc(falling(s, 2)), title="F02_falling_2")
+plot(enc(rising(s, 5)), title="R05_rising_5")
+plot(enc(falling(s, 5)), title="F05_falling_5")

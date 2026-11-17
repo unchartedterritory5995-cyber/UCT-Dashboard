@@ -1,0 +1,1069 @@
+{
+ "_": "RS RATING L9: the run half's object-evidence rule, pinned ONCE for both sides. `api/services/runtime_definitions.py::run_half_entry_admits` (the server serves only entries it admits) and `app/src/components/chart/engine/runHalfRailSeam.js::runHalfEvidenceAdmits` (the client admits only what this rule admits) both read every case here; a case either side answers differently fails both suites. `entry` is the shape `GET /api/user-definitions/runtime-kill` serves under `run_half_evidence`. The rule: a record WITHOUT `admission` counts a capture only when it is graded MATCH; a record with `admission: \"substituted\"` and `substituted: [names]` counts a capture only when it is graded MATCH_SUBSTITUTED and its OWN `substituted` names are exactly the record's; every counted capture also has objectsV2 MATCH with the runtime pane on, except that ON THE SUBSTITUTED PATH ONLY its objects-v2 grade may instead be MATCH_SUBSTITUTED when that grade's own names (`objectsV2Substituted`) are exactly the record's (coordinator ruling 2026-11-15, after owner ruling (a)); admission needs at least 2 DISTINCT counted captures.",
+ "min_captures": 2,
+ "cases": [
+  {
+   "name": "control: two MATCH captures on the plain path admit",
+   "entry": {
+    "sha256": "aa",
+    "captures": [
+     {
+      "capture": "rddt",
+      "verdict": "MATCH",
+      "objectsV2": true,
+      "runtimeOn": true
+     },
+     {
+      "capture": "nvda",
+      "verdict": "MATCH",
+      "objectsV2": true,
+      "runtimeOn": true
+     }
+    ]
+   },
+   "admits": true
+  },
+  {
+   "name": "control: two substituted captures naming exactly the record's inputs admit",
+   "entry": {
+    "sha256": "aa",
+    "admission": "substituted",
+    "substituted": [
+     "syminfo.industry"
+    ],
+    "captures": [
+     {
+      "capture": "rddt",
+      "verdict": "MATCH_SUBSTITUTED",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "substituted": [
+       "syminfo.industry"
+      ]
+     },
+     {
+      "capture": "nvda",
+      "verdict": "MATCH_SUBSTITUTED",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "substituted": [
+       "syminfo.industry"
+      ]
+     }
+    ]
+   },
+   "admits": true
+  },
+  {
+   "name": "names compare as sets (order does not matter)",
+   "entry": {
+    "sha256": "aa",
+    "admission": "substituted",
+    "substituted": [
+     "syminfo.industry",
+     "syminfo.sector"
+    ],
+    "captures": [
+     {
+      "capture": "rddt",
+      "verdict": "MATCH_SUBSTITUTED",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "substituted": [
+       "syminfo.sector",
+       "syminfo.industry"
+      ]
+     },
+     {
+      "capture": "nvda",
+      "verdict": "MATCH_SUBSTITUTED",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "substituted": [
+       "syminfo.industry",
+       "syminfo.sector"
+      ]
+     }
+    ]
+   },
+   "admits": true
+  },
+  {
+   "name": "substituted captures on a record WITHOUT admission do not admit",
+   "entry": {
+    "sha256": "aa",
+    "captures": [
+     {
+      "capture": "rddt",
+      "verdict": "MATCH_SUBSTITUTED",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "substituted": [
+       "syminfo.industry"
+      ]
+     },
+     {
+      "capture": "nvda",
+      "verdict": "MATCH_SUBSTITUTED",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "substituted": [
+       "syminfo.industry"
+      ]
+     }
+    ]
+   },
+   "admits": false
+  },
+  {
+   "name": "plain MATCH captures on a substituted record do not admit (they contradict the declaration)",
+   "entry": {
+    "sha256": "aa",
+    "admission": "substituted",
+    "substituted": [
+     "syminfo.industry"
+    ],
+    "captures": [
+     {
+      "capture": "rddt",
+      "verdict": "MATCH",
+      "objectsV2": true,
+      "runtimeOn": true
+     },
+     {
+      "capture": "nvda",
+      "verdict": "MATCH",
+      "objectsV2": true,
+      "runtimeOn": true
+     }
+    ]
+   },
+   "admits": false
+  },
+  {
+   "name": "a capture substituting a DIFFERENT input does not count",
+   "entry": {
+    "sha256": "aa",
+    "admission": "substituted",
+    "substituted": [
+     "syminfo.industry"
+    ],
+    "captures": [
+     {
+      "capture": "rddt",
+      "verdict": "MATCH_SUBSTITUTED",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "substituted": [
+       "syminfo.industry"
+      ]
+     },
+     {
+      "capture": "nvda",
+      "verdict": "MATCH_SUBSTITUTED",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "substituted": [
+       "syminfo.sector"
+      ]
+     }
+    ]
+   },
+   "admits": false
+  },
+  {
+   "name": "a capture substituting MORE than the record names does not count",
+   "entry": {
+    "sha256": "aa",
+    "admission": "substituted",
+    "substituted": [
+     "syminfo.industry"
+    ],
+    "captures": [
+     {
+      "capture": "rddt",
+      "verdict": "MATCH_SUBSTITUTED",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "substituted": [
+       "syminfo.industry"
+      ]
+     },
+     {
+      "capture": "nvda",
+      "verdict": "MATCH_SUBSTITUTED",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "substituted": [
+       "syminfo.industry",
+       "syminfo.sector"
+      ]
+     }
+    ]
+   },
+   "admits": false
+  },
+  {
+   "name": "a capture naming no substituted inputs does not count on the substituted path",
+   "entry": {
+    "sha256": "aa",
+    "admission": "substituted",
+    "substituted": [
+     "syminfo.industry"
+    ],
+    "captures": [
+     {
+      "capture": "rddt",
+      "verdict": "MATCH_SUBSTITUTED",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "substituted": [
+       "syminfo.industry"
+      ]
+     },
+     {
+      "capture": "nvda",
+      "verdict": "MATCH_SUBSTITUTED",
+      "objectsV2": true,
+      "runtimeOn": true
+     }
+    ]
+   },
+   "admits": false
+  },
+  {
+   "name": "a substituted record naming no inputs admits nothing",
+   "entry": {
+    "sha256": "aa",
+    "admission": "substituted",
+    "substituted": [],
+    "captures": [
+     {
+      "capture": "rddt",
+      "verdict": "MATCH_SUBSTITUTED",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "substituted": []
+     },
+     {
+      "capture": "nvda",
+      "verdict": "MATCH_SUBSTITUTED",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "substituted": []
+     }
+    ]
+   },
+   "admits": false
+  },
+  {
+   "name": "a record repeating a name is malformed and admits nothing",
+   "entry": {
+    "sha256": "aa",
+    "admission": "substituted",
+    "substituted": [
+     "syminfo.industry",
+     "syminfo.industry"
+    ],
+    "captures": [
+     {
+      "capture": "rddt",
+      "verdict": "MATCH_SUBSTITUTED",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "substituted": [
+       "syminfo.industry",
+       "syminfo.industry"
+      ]
+     },
+     {
+      "capture": "nvda",
+      "verdict": "MATCH_SUBSTITUTED",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "substituted": [
+       "syminfo.industry",
+       "syminfo.industry"
+      ]
+     }
+    ]
+   },
+   "admits": false
+  },
+  {
+   "name": "an unknown admission path admits nothing",
+   "entry": {
+    "sha256": "aa",
+    "admission": "loose",
+    "captures": [
+     {
+      "capture": "rddt",
+      "verdict": "MATCH",
+      "objectsV2": true,
+      "runtimeOn": true
+     },
+     {
+      "capture": "nvda",
+      "verdict": "MATCH",
+      "objectsV2": true,
+      "runtimeOn": true
+     }
+    ]
+   },
+   "admits": false
+  },
+  {
+   "name": "fewer than 2 distinct substituted captures do not admit (one)",
+   "entry": {
+    "sha256": "aa",
+    "admission": "substituted",
+    "substituted": [
+     "syminfo.industry"
+    ],
+    "captures": [
+     {
+      "capture": "rddt",
+      "verdict": "MATCH_SUBSTITUTED",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "substituted": [
+       "syminfo.industry"
+      ]
+     }
+    ]
+   },
+   "admits": false
+  },
+  {
+   "name": "fewer than 2 distinct substituted captures do not admit (the same one twice)",
+   "entry": {
+    "sha256": "aa",
+    "admission": "substituted",
+    "substituted": [
+     "syminfo.industry"
+    ],
+    "captures": [
+     {
+      "capture": "rddt",
+      "verdict": "MATCH_SUBSTITUTED",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "substituted": [
+       "syminfo.industry"
+      ]
+     },
+     {
+      "capture": "rddt",
+      "verdict": "MATCH_SUBSTITUTED",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "substituted": [
+       "syminfo.industry"
+      ]
+     }
+    ]
+   },
+   "admits": false
+  },
+  {
+   "name": "fewer than 2 distinct MATCH captures do not admit (one)",
+   "entry": {
+    "sha256": "aa",
+    "captures": [
+     {
+      "capture": "rddt",
+      "verdict": "MATCH",
+      "objectsV2": true,
+      "runtimeOn": true
+     }
+    ]
+   },
+   "admits": false
+  },
+  {
+   "name": "objects-v2 not MATCH does not count",
+   "entry": {
+    "sha256": "aa",
+    "admission": "substituted",
+    "substituted": [
+     "syminfo.industry"
+    ],
+    "captures": [
+     {
+      "capture": "rddt",
+      "verdict": "MATCH_SUBSTITUTED",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "substituted": [
+       "syminfo.industry"
+      ]
+     },
+     {
+      "capture": "nvda",
+      "verdict": "MATCH_SUBSTITUTED",
+      "objectsV2": false,
+      "runtimeOn": true,
+      "substituted": [
+       "syminfo.industry"
+      ]
+     }
+    ]
+   },
+   "admits": false
+  },
+  {
+   "name": "the runtime pane off does not count",
+   "entry": {
+    "sha256": "aa",
+    "admission": "substituted",
+    "substituted": [
+     "syminfo.industry"
+    ],
+    "captures": [
+     {
+      "capture": "rddt",
+      "verdict": "MATCH_SUBSTITUTED",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "substituted": [
+       "syminfo.industry"
+      ]
+     },
+     {
+      "capture": "nvda",
+      "verdict": "MATCH_SUBSTITUTED",
+      "objectsV2": true,
+      "runtimeOn": false,
+      "substituted": [
+       "syminfo.industry"
+      ]
+     }
+    ]
+   },
+   "admits": false
+  },
+  {
+   "name": "a DIVERGE capture never counts",
+   "entry": {
+    "sha256": "aa",
+    "captures": [
+     {
+      "capture": "rddt",
+      "verdict": "MATCH",
+      "objectsV2": true,
+      "runtimeOn": true
+     },
+     {
+      "capture": "nvda",
+      "verdict": "DIVERGE",
+      "objectsV2": true,
+      "runtimeOn": true
+     }
+    ]
+   },
+   "admits": false
+  },
+  {
+   "name": "a capture with no id does not count",
+   "entry": {
+    "sha256": "aa",
+    "captures": [
+     {
+      "capture": "rddt",
+      "verdict": "MATCH",
+      "objectsV2": true,
+      "runtimeOn": true
+     },
+     {
+      "capture": "",
+      "verdict": "MATCH",
+      "objectsV2": true,
+      "runtimeOn": true
+     }
+    ]
+   },
+   "admits": false
+  },
+  {
+   "name": "L9b: objects-v2 MATCH_SUBSTITUTED naming exactly the record's inputs counts on the substituted path",
+   "entry": {
+    "sha256": "aa",
+    "admission": "substituted",
+    "substituted": [
+     "syminfo.industry"
+    ],
+    "captures": [
+     {
+      "capture": "rddt",
+      "verdict": "MATCH_SUBSTITUTED",
+      "objectsV2": false,
+      "runtimeOn": true,
+      "substituted": [
+       "syminfo.industry"
+      ],
+      "objectsV2Substituted": [
+       "syminfo.industry"
+      ]
+     },
+     {
+      "capture": "nvda",
+      "verdict": "MATCH_SUBSTITUTED",
+      "objectsV2": false,
+      "runtimeOn": true,
+      "substituted": [
+       "syminfo.industry"
+      ],
+      "objectsV2Substituted": [
+       "syminfo.industry"
+      ]
+     }
+    ]
+   },
+   "admits": true
+  },
+  {
+   "name": "L9b: objects-v2 MATCH_SUBSTITUTED does NOT count on a plain record",
+   "entry": {
+    "sha256": "aa",
+    "captures": [
+     {
+      "capture": "rddt",
+      "verdict": "MATCH",
+      "objectsV2": false,
+      "runtimeOn": true,
+      "objectsV2Substituted": [
+       "syminfo.industry"
+      ]
+     },
+     {
+      "capture": "nvda",
+      "verdict": "MATCH",
+      "objectsV2": false,
+      "runtimeOn": true,
+      "objectsV2Substituted": [
+       "syminfo.industry"
+      ]
+     }
+    ]
+   },
+   "admits": false
+  },
+  {
+   "name": "L9b: objects-v2 MATCH_SUBSTITUTED naming other inputs does not count",
+   "entry": {
+    "sha256": "aa",
+    "admission": "substituted",
+    "substituted": [
+     "syminfo.industry"
+    ],
+    "captures": [
+     {
+      "capture": "rddt",
+      "verdict": "MATCH_SUBSTITUTED",
+      "objectsV2": false,
+      "runtimeOn": true,
+      "substituted": [
+       "syminfo.industry"
+      ],
+      "objectsV2Substituted": [
+       "syminfo.industry"
+      ]
+     },
+     {
+      "capture": "nvda",
+      "verdict": "MATCH_SUBSTITUTED",
+      "objectsV2": false,
+      "runtimeOn": true,
+      "substituted": [
+       "syminfo.industry"
+      ],
+      "objectsV2Substituted": [
+       "syminfo.sector"
+      ]
+     }
+    ]
+   },
+   "admits": false
+  },
+  {
+   "name": "L9b: objects-v2 MATCH_SUBSTITUTED naming no inputs does not count",
+   "entry": {
+    "sha256": "aa",
+    "admission": "substituted",
+    "substituted": [
+     "syminfo.industry"
+    ],
+    "captures": [
+     {
+      "capture": "rddt",
+      "verdict": "MATCH_SUBSTITUTED",
+      "objectsV2": false,
+      "runtimeOn": true,
+      "substituted": [
+       "syminfo.industry"
+      ],
+      "objectsV2Substituted": [
+       "syminfo.industry"
+      ]
+     },
+     {
+      "capture": "nvda",
+      "verdict": "MATCH_SUBSTITUTED",
+      "objectsV2": false,
+      "runtimeOn": true,
+      "substituted": [
+       "syminfo.industry"
+      ],
+      "objectsV2Substituted": []
+     }
+    ]
+   },
+   "admits": false
+  },
+  {
+   "name": "L9b: an objects-v2 substituted grade does not rescue a capture whose own verdict names other inputs",
+   "entry": {
+    "sha256": "aa",
+    "admission": "substituted",
+    "substituted": [
+     "syminfo.industry"
+    ],
+    "captures": [
+     {
+      "capture": "rddt",
+      "verdict": "MATCH_SUBSTITUTED",
+      "objectsV2": false,
+      "runtimeOn": true,
+      "substituted": [
+       "syminfo.industry"
+      ],
+      "objectsV2Substituted": [
+       "syminfo.industry"
+      ]
+     },
+     {
+      "capture": "nvda",
+      "verdict": "MATCH_SUBSTITUTED",
+      "objectsV2": false,
+      "runtimeOn": true,
+      "substituted": [
+       "syminfo.sector"
+      ],
+      "objectsV2Substituted": [
+       "syminfo.industry"
+      ]
+     }
+    ]
+   },
+   "admits": false
+  },
+  {
+   "name": "no entry admits nothing",
+   "entry": null,
+   "admits": false
+  },
+  {
+   "name": "settings parity 2c: captures taken at moved settings never count for the defaults",
+   "entry": {
+    "sha256": "aa",
+    "captures": [
+     {
+      "capture": "a",
+      "verdict": "MATCH",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "inputs": {
+       "hideRSRat": true
+      }
+     },
+     {
+      "capture": "b",
+      "verdict": "MATCH",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "inputs": {
+       "lookback": 100
+      }
+     }
+    ]
+   },
+   "admits": false
+  },
+  {
+   "name": "settings parity 2c CONTROL: two default captures still admit beside settings captures",
+   "entry": {
+    "sha256": "aa",
+    "captures": [
+     {
+      "capture": "a",
+      "verdict": "MATCH",
+      "objectsV2": true,
+      "runtimeOn": true
+     },
+     {
+      "capture": "b",
+      "verdict": "MATCH",
+      "objectsV2": true,
+      "runtimeOn": true
+     },
+     {
+      "capture": "c",
+      "verdict": "MATCH",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "inputs": {
+       "hideRSRat": true
+      }
+     }
+    ]
+   },
+   "admits": true
+  }
+ ],
+ "settings_cases": [
+  {
+   "name": "nothing moved: admitted with no evidence",
+   "entry": {
+    "sha256": "aa",
+    "captures": []
+   },
+   "moved": [],
+   "ok": true,
+   "missing": []
+  },
+  {
+   "name": "a moved setting with two counted captures that moved it: admitted",
+   "entry": {
+    "sha256": "aa",
+    "captures": [
+     {
+      "capture": "a",
+      "verdict": "MATCH",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "inputs": {
+       "hideRSRat": true,
+       "lookback": 100
+      }
+     },
+     {
+      "capture": "b",
+      "verdict": "MATCH",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "inputs": {
+       "hideRSRat": true
+      }
+     }
+    ]
+   },
+   "moved": [
+    "hideRSRat"
+   ],
+   "ok": true,
+   "missing": []
+  },
+  {
+   "name": "a setting moved in only one counted capture: missing, by name",
+   "entry": {
+    "sha256": "aa",
+    "captures": [
+     {
+      "capture": "a",
+      "verdict": "MATCH",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "inputs": {
+       "hideRSRat": true,
+       "lookback": 100
+      }
+     },
+     {
+      "capture": "b",
+      "verdict": "MATCH",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "inputs": {
+       "hideRSRat": true
+      }
+     }
+    ]
+   },
+   "moved": [
+    "hideRSRat",
+    "lookback"
+   ],
+   "ok": false,
+   "missing": [
+    "lookback"
+   ]
+  },
+  {
+   "name": "default captures never stand for a moved setting",
+   "entry": {
+    "sha256": "aa",
+    "captures": [
+     {
+      "capture": "a",
+      "verdict": "MATCH",
+      "objectsV2": true,
+      "runtimeOn": true
+     },
+     {
+      "capture": "b",
+      "verdict": "MATCH",
+      "objectsV2": true,
+      "runtimeOn": true
+     }
+    ]
+   },
+   "moved": [
+    "lookback"
+   ],
+   "ok": false,
+   "missing": [
+    "lookback"
+   ]
+  },
+  {
+   "name": "a capture that does not count on the path (DIVERGE) is not evidence",
+   "entry": {
+    "sha256": "aa",
+    "captures": [
+     {
+      "capture": "a",
+      "verdict": "MATCH",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "inputs": {
+       "lookback": 100
+      }
+     },
+     {
+      "capture": "b",
+      "verdict": "DIVERGE",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "inputs": {
+       "lookback": 100
+      }
+     }
+    ]
+   },
+   "moved": [
+    "lookback"
+   ],
+   "ok": false,
+   "missing": [
+    "lookback"
+   ]
+  },
+  {
+   "name": "the same capture id twice is one capture",
+   "entry": {
+    "sha256": "aa",
+    "captures": [
+     {
+      "capture": "a",
+      "verdict": "MATCH",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "inputs": {
+       "lookback": 100
+      }
+     },
+     {
+      "capture": "a",
+      "verdict": "MATCH",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "inputs": {
+       "lookback": 120
+      }
+     }
+    ]
+   },
+   "moved": [
+    "lookback"
+   ],
+   "ok": false,
+   "missing": [
+    "lookback"
+   ]
+  },
+  {
+   "name": "the runtime pane off is not evidence",
+   "entry": {
+    "sha256": "aa",
+    "captures": [
+     {
+      "capture": "a",
+      "verdict": "MATCH",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "inputs": {
+       "lookback": 100
+      }
+     },
+     {
+      "capture": "b",
+      "verdict": "MATCH",
+      "objectsV2": true,
+      "runtimeOn": false,
+      "inputs": {
+       "lookback": 100
+      }
+     }
+    ]
+   },
+   "moved": [
+    "lookback"
+   ],
+   "ok": false,
+   "missing": [
+    "lookback"
+   ]
+  },
+  {
+   "name": "substituted path: MATCH_SUBSTITUTED captures naming the record's inputs admit the setting",
+   "entry": {
+    "sha256": "bb",
+    "admission": "substituted",
+    "substituted": [
+     "syminfo.industry"
+    ],
+    "captures": [
+     {
+      "capture": "a",
+      "verdict": "MATCH_SUBSTITUTED",
+      "objectsV2": false,
+      "objectsV2Substituted": [
+       "syminfo.industry"
+      ],
+      "runtimeOn": true,
+      "substituted": [
+       "syminfo.industry"
+      ],
+      "inputs": {
+       "hideRSRat": true
+      }
+     },
+     {
+      "capture": "b",
+      "verdict": "MATCH_SUBSTITUTED",
+      "objectsV2": false,
+      "objectsV2Substituted": [
+       "syminfo.industry"
+      ],
+      "runtimeOn": true,
+      "substituted": [
+       "syminfo.industry"
+      ],
+      "inputs": {
+       "hideRSRat": true
+      }
+     }
+    ]
+   },
+   "moved": [
+    "hideRSRat"
+   ],
+   "ok": true,
+   "missing": []
+  },
+  {
+   "name": "substituted path: a plain MATCH capture does not count",
+   "entry": {
+    "sha256": "bb",
+    "admission": "substituted",
+    "substituted": [
+     "syminfo.industry"
+    ],
+    "captures": [
+     {
+      "capture": "a",
+      "verdict": "MATCH_SUBSTITUTED",
+      "objectsV2": false,
+      "objectsV2Substituted": [
+       "syminfo.industry"
+      ],
+      "runtimeOn": true,
+      "substituted": [
+       "syminfo.industry"
+      ],
+      "inputs": {
+       "hideRSRat": true
+      }
+     },
+     {
+      "capture": "b",
+      "verdict": "MATCH",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "inputs": {
+       "hideRSRat": true
+      }
+     }
+    ]
+   },
+   "moved": [
+    "hideRSRat"
+   ],
+   "ok": false,
+   "missing": [
+    "hideRSRat"
+   ]
+  },
+  {
+   "name": "an unknown admission counts nothing",
+   "entry": {
+    "sha256": "aa",
+    "admission": "other",
+    "captures": [
+     {
+      "capture": "a",
+      "verdict": "MATCH",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "inputs": {
+       "x": 1
+      }
+     },
+     {
+      "capture": "b",
+      "verdict": "MATCH",
+      "objectsV2": true,
+      "runtimeOn": true,
+      "inputs": {
+       "x": 1
+      }
+     }
+    ]
+   },
+   "moved": [
+    "x"
+   ],
+   "ok": false,
+   "missing": [
+    "x"
+   ]
+  },
+  {
+   "name": "missing settings are named sorted and once",
+   "entry": {
+    "sha256": "aa",
+    "captures": []
+   },
+   "moved": [
+    "b",
+    "a",
+    "b"
+   ],
+   "ok": false,
+   "missing": [
+    "a",
+    "b"
+   ]
+  }
+ ]
+}

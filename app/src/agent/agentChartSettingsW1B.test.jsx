@@ -34,7 +34,7 @@ describe('KNOWN → ELIGIBLE rows (W1-B)', () => {
     // chartShare family (11-13): 'theme' left the not-an-option list — Shift+T's palette is a chart.setSetting option now (dark | light)
     expect(ids).toContain('theme')
     expect(settingDescriptor('theme')).toMatchObject({ agent: 'eligible', options: ['dark', 'light'], fixedBy: ['sunrise'] })
-    expect(ELIGIBLE_SETTINGS.filter(d => d.type === 'number').map(d => d.id).sort()).toEqual(['positionCalc.accountSize', 'positionCalc.riskPct', 'volume.maPeriod', 'volume.paneHeightPct', 'watermark.opacity', 'watermark.x', 'watermark.y'])
+    expect(ELIGIBLE_SETTINGS.filter(d => d.type === 'number').map(d => d.id).sort()).toEqual(['positionCalc.accountSize', 'positionCalc.riskPct', 'scaleTime.rightMargin', 'volume.maPeriod', 'volume.paneHeightPct', 'watermark.opacity', 'watermark.x', 'watermark.y'])
   })
 
   it('the Shift+T palette through the real panel (scripted): light then dark, each Undo restores the stored blob byte for byte (Sunrise: agentBatch4)', async () => {

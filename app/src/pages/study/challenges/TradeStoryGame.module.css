@@ -1,0 +1,81 @@
+/* TRADE STORY: the pieces the kit has no part for (docs/study/GAMES.md §1 rule 1). The replay's stop is the kit's
+   (study.module.css .replayPause, the card Hard mode's replay stops on), the levels are the chart key's rows
+   (chartKey.module.css), the working is the coach card's numbered steps. Only these are new: three calls in one row
+   instead of two, the position line under the chart, the trade's calls listed at its end, and the neutral look of a call
+   the plan leaves to the member. On the kit's tokens
+   (study.module.css .kit: --k-gold-bright, --k-ink, --k-ink-soft, --k-ink-dim, --k-line, --k-plate, --k-glass, --k-up,
+   --k-down) and the colours the takeover and the end screen already wear. */
+
+/* ── the replay's stop: Hold, Take some off, Sell the rest in one row (a phone stacks them) ───────────────────────── */
+.stop { scroll-margin-top: 12px; }
+.stop .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.where { margin: 2px 0 0; font-size: 14px; line-height: 1.4; color: var(--k-ink-dim); }
+
+/* the working after a miss: the coach card's numbered steps on a quiet plate */
+.working { display: grid; gap: 10px; padding: 14px 16px; border-radius: 14px; border: 1px solid var(--k-line);
+  background: var(--k-glass), var(--k-plate); scroll-margin-top: 12px; }
+.working li { font-variant-numeric: tabular-nums; }
+.source { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--k-ink-dim); }
+
+/* ── the position line: where you stand, the price in R, the stop or the trail in force ───────────────────────────── */
+.pos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.chip { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 10px 14px; border-radius: 14px;
+  border: 1px solid var(--k-line); background: var(--k-glass), var(--k-plate); }
+.chip small { font-size: 11px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--k-ink-dim); }
+.chip b { font-size: 22px; line-height: 1.15; font-weight: 900; font-variant-numeric: tabular-nums; color: var(--k-ink); overflow-wrap: anywhere; }
+.chip.up b { color: var(--k-up); }
+.chip.down b { color: #ff9d9d; }
+.chip.trail b { color: var(--k-gold-bright); }
+.chip.out { border-color: rgba(223, 70, 70, .35); }
+
+/* the plan's levels: the chart key's rows, standing on their own under the position line */
+.planKey { margin-top: 0; border-top: 1px solid var(--k-line); border-radius: 16px; }
+/* the post-gap high is drawn dotted on the chart, so its swatch is too */
+.planKey .dot > i { border-top-style: dotted !important; }
+
+/* a call the plan leaves to the member (the first return to the high-volume close, until the owner rules): the gold the
+   key's entry row wears, never the green or red of a verdict */
+.yours { background: rgba(220, 187, 94, .08); border: 1px solid rgba(220, 187, 94, .4); }
+.yours b { color: #e9cd77; }
+
+/* ── the trade, start to finish: each stop with the plan's call, its R, and what was said on a miss ──────────────── */
+.result { scroll-margin-top: 12px; }
+.calls { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.call { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 14px;
+  border-radius: 12px; border: 1px solid var(--k-line); }
+.call.ok { border-color: rgba(47, 175, 104, .4); background: rgba(47, 175, 104, .08); }
+.call.miss { border-color: rgba(223, 70, 70, .4); background: rgba(223, 70, 70, .08); }
+.callMark { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; color: #0c0c0e; }
+.call.ok .callMark { background: var(--k-up); }
+.call.miss .callMark { background: var(--k-down); color: #fff; }
+.call.free { border-color: rgba(220, 187, 94, .4); background: rgba(220, 187, 94, .06); }
+.call.free .callMark { background: var(--k-gold-bright); }
+.callText { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 15px; line-height: 1.35; color: var(--k-ink); }
+.callText small { font-size: 13px; color: var(--k-ink-dim); }
+.callR { font-size: 17px; font-weight: 900; font-variant-numeric: tabular-nums; color: var(--k-ink); white-space: nowrap; }
+.callR.up { color: var(--k-up); }
+.callR.down { color: #ff9d9d; }
+.exits { margin: 0; font-size: 16px; line-height: 1.5; color: var(--k-ink); }
+.note { margin: 0; font-size: 14px; line-height: 1.45; color: var(--k-ink-dim); }
+.nothing { margin: 0; font-size: 15px; line-height: 1.45; color: var(--k-ink-soft); }
+
+/* ── the end screen ─────────────────────────────────────────────────────────────────────────────────────────────── */
+/* the kit's spinning rays are wider than a phone's column; clip that axis only (Size It's fix) */
+.end { overflow-x: clip; }
+.endLine { display: block; }
+.endLine + .endLine { margin-top: 4px; }
+.saved { display: block; margin-top: 8px; font-size: 13px; color: var(--k-ink-dim); }
+.way { display: inline-flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.skipLine { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 0; font-size: 15px; line-height: 1.45; color: var(--k-ink-soft); }
+
+@media (max-width: 640px) {
+  .stop .tiles { grid-template-columns: minmax(0, 1fr); }
+  .pos { gap: 6px; }
+  .chip { padding: 8px 10px; border-radius: 12px; }
+  .chip small { font-size: 10px; letter-spacing: .12em; }
+  .chip b { font-size: 17px; }
+  .call { grid-template-columns: 24px minmax(0, 1fr) auto; gap: 10px; padding: 9px 10px; }
+  .callMark { width: 24px; height: 24px; }
+  .callText { font-size: 14px; }
+  .callR { font-size: 15px; }
+}

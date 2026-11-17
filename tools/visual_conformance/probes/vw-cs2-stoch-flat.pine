@@ -1,0 +1,23 @@
+//@version=5
+indicator("UCTPROBE_VW_CS2_STOCH_FLAT", overlay=false)
+
+// PROVENANCE: written 2026-11-15 for the Pine parity programme, capture session S17
+// (objects-lane PROBES-NEXT.md item 1, engine 57 F3/F4; settles stoch:flat-window).
+// What ta.stoch answers when the whole window is flat (highest == lowest): x is 5000 on bars
+// 200..214. X2 reaches the flat level from a clearly NON-ZERO %K (a rising ramp on bars 190..199).
+// Y holes one bar of x (bar 215 is na). Also the EMA of the stoch, which carries whatever the
+// flat window answered into later bars.
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults.
+
+x = bar_index >= 200 and bar_index < 215 ? 5000.0 : close
+x2 = bar_index >= 200 and bar_index < 215 ? 5000.0 : bar_index >= 190 and bar_index < 200 ? 4000.0 + (bar_index - 190) * 100.0 : close
+y = bar_index == 215 ? na : x
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(x, "A01_x")
+plot(ta.stoch(x, x, x, 10), "S00_stoch_x")
+plot(ta.ema(ta.stoch(x, x, x, 10), 3), "S01_ema_stoch_x")
+plot(ta.stoch(x2, x2, x2, 10), "S02_stoch_x2_ramp")
+plot(ta.ema(ta.stoch(x2, x2, x2, 10), 3), "S03_ema_stoch_x2")
+plot(ta.stoch(y, y, y, 10), "S04_stoch_y_holed")
+plot(na(ta.stoch(x, x, x, 10)) ? 1 : 0, "S05_stoch_x_is_na")

@@ -51,6 +51,31 @@ not (`/api/bars-` is not `/api/bars/`), so history never reaches this Worker.
 Widening the route would silently activate that branch and put the edge in front
 of the cached historical surfaces. Don't.
 
+## Deep intraday history: `/api/hist/*` (history.js, not live until its route and bucket exist)
+
+`history.js` answers two paths straight from the `HISTORY` R2 bucket (the history lake,
+`tools/history_lake/`); no origin is asked:
+
+* `/api/hist/v1/index/<s-SYMBOL>.json` — the symbol's index: every piece it has, with each piece's
+  CRC and its place (`off`, `bytes`) in its pack, plus the symbol's split table.
+* `/api/hist/v1/<series>/<s-SYMBOL>/<period>.ubh?c=<crc>&o=<off>&n=<bytes>` — one piece, read as ONE
+  ranged read of `packs/<series>/<period>.pack`. The bytes must be a whole piece whose own header
+  names this symbol, series, period and CRC, or the answer is 409 (the client re-reads the index).
+  Sent with `Content-Encoding: br` and the piece header in `X-Ubh-Header`, so the browser inflates
+  it natively; `immutable` for a year (the URL names one exact content). The header comment in
+  `history.js` has the details.
+
+**Entitlement is enforced on this surface** (valid member cookie or valid service header,
+otherwise 401). `/api/bars/*` below is unchanged and still shadow-only. `HISTORY_PREFIX` (optional
+variable) is prepended to every object key if the lake shares a bucket.
+
+To turn it on: (1) build the packs and run `tools/history_lake/publish.py --upload` (packs first,
+then indexes), (2) bind the bucket to this Worker as `HISTORY`, (3) add the Worker Route
+`uctintelligence.com/api/hist/*`, (4) deploy `worker.js` and `history.js` together (Wrangler, or both
+files in the dashboard editor). Until step 3 the path never reaches this Worker; until step 2 it
+answers 503. Then a browser opts in with `localStorage['uct.historyLake']='1'`
+(`app/src/data/barStore/historyFeed.js`) until the default changes.
+
 ## Phase 1 — shadow entitlement (current)
 
 The Worker reads the `uct_chart_edge` cookie, verifies it with

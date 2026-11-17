@@ -1,4 +1,5 @@
-import { useMemo, useCallback, useEffect, useId, useLayoutEffect, useRef, useState, lazy } from 'react'
+import { useMemo, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, lazy } from 'react'
+import { AuthContext } from '../../../context/AuthContext'
 import Watchlists from '../../Watchlists'
 import WatchlistPicker from './WatchlistPicker'
 import { ChartsSymContext } from '../ChartsSymContext'
@@ -66,6 +67,7 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
   const listSubscribeEnabled = useListSubscribeEnabled()
   // UCT frame (/charts board): the open list's name gets a ▾ list switcher (owner 11-13, option A).
   const uctFrame = useUctControlsSlot() != null
+  const ownerId = useContext(AuthContext)?.user?.id ?? null   // per-account last list (owner 11-15)
   // Library rail (owner 11-13): beside the open list on a wide widget (shown unless the member
   // hid it — opts.libraryRail === false), sliding over the list on a narrow one (closed until
   // asked, and closing again after a pick).
@@ -145,10 +147,11 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
   // saved-screen offer moved into the library's My Lists tab (mineFooter below).
   useEffect(() => {
     if (!uctFrame || watchKey || opts?.browse || opts?.source || listSub || offered) return
-    const last = readLastList()
-    const sel = last || flaggedPick(lib.flaggedLabel)
+    const last = readLastList(undefined, ownerId)
+    // Flagged is always THIS person's (its label carries their name, never a stored one)
+    const sel = (!last || last.key === 'flagged') ? flaggedPick(lib.flaggedLabel) : last
     onOptsChange?.({ ...(opts || {}), watchKey: sel.key, watchName: sel.name, watchTab: sel.tab, libraryRail: true, libraryFresh: true })
-  }, [uctFrame, watchKey, opts, listSub, offered, lib.flaggedLabel, onOptsChange])
+  }, [uctFrame, watchKey, opts, listSub, offered, lib.flaggedLabel, onOptsChange, ownerId])
   const subscribe = useCallback((sub) => {
     // a subscription replaces the open list (the library's My Lists offer subscribes with one open)
     onOptsChange?.({ ...(opts || {}), listSub: sub, watchKey: null, watchName: null, libraryFresh: null })
@@ -162,9 +165,9 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
     // the picker tab it came from, so leaving reopens on it + we know if it's prebuilt.
     const next = { ...(opts || {}), watchKey: sel?.key || null, watchName: sel?.name || null, watchTab: sel?.tab || null, browse: null, libraryFresh: null }
     if (sel?.settings) next.settings = sel.settings
-    rememberList(sel)
+    rememberList(sel, undefined, ownerId)
     onOptsChange?.(next)
-  }, [opts, onOptsChange])
+  }, [opts, onOptsChange, ownerId])
   const exitPick = useCallback(() => {
     // Keep watchTab so the picker reopens on the section the user was in. `browse` marks the
     // trip as intentional, so the widget does not auto-open a list over the picker.
@@ -271,7 +274,13 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
   // The library's tab: Prebuilt for a brand-new widget, then whichever tab the member last used
   // in THIS widget (opts.libraryTab), falling back to the open list's own library.
   const railTab = freshOpen ? 'prebuilt' : (opts?.libraryTab || opts?.watchTab || 'prebuilt')
-  const setRailTab = (t) => { if (t !== railTab || freshOpen) onOptsChange?.({ ...(opts || {}), libraryTab: t, libraryFresh: null }) }
+  // Owner 11-15: on a NARROW widget the just-added library is shown only by `libraryFresh`; a tab click
+  // clears that flag, which used to close the library on the very first click. Keep it open instead.
+  const setRailTab = (t) => {
+    if (t === railTab && !freshOpen) return
+    if (narrow && freshOpen) setOverlayOpen(true)
+    onOptsChange?.({ ...(opts || {}), libraryTab: t, libraryFresh: null })
+  }
   const listCount = (() => {
     if (!uctFrame) return null
     if (watchKey === 'flagged') return lib.flagged?.length ?? null
@@ -295,7 +304,8 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
       <Watchlists
         embedded
         pickList={watchKey}
-        pickName={opts?.watchName || null}
+        // Flagged's title is the signed-in person's own label (owner 11-15), never a saved name
+        pickName={watchKey === 'flagged' && uctFrame ? lib.flaggedLabel : (opts?.watchName || null)}
         onExitPick={exitPick}
         pickTitleBefore={railToggle}
         pickTitleAfter={uctFrame && listCount != null ? <span className={railStyles.count} data-list-count="">{listCount}</span> : null}
