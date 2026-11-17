@@ -29,13 +29,25 @@ describe('the Layout menu', () => {
     render(<BoardMenu board={boardOf()} api={a} onSaveAs={vi.fn()} />)
     const menu = openLayout()
     expect(itemNames(menu)).toEqual([
-      'Board ✓ (current)', 'Three columns',
+      'Board ✓ (current)', 'Three columns', 'List first',
       'Customize layout', 'Save layout as…',
       'One line ✓ (current)', 'Compact', 'Two lines', 'Cards', 'Chips',
       'Pinned screens as tabson', 'Company logosoff', 'Mini charts in rowsoff', 'Group by setupoff', 'Dim stocks I have looked atoff', 'Keyboard hintsoff', 'Roomier rowsoff',
     ])
     // owner ruling 2026-11-17: neither is offered anywhere on the menu
     expect(menu.textContent).not.toMatch(/table|heat ?map/i)
+  })
+  test('the sharing entries are there only when the page hands them in (community layouts are behind their own flag)', () => {
+    const onCommunity = vi.fn(), onShare = vi.fn()
+    const first = render(<BoardMenu board={boardOf()} api={api()} onSaveAs={vi.fn()} />)
+    expect(itemNames(openLayout()).some(n => /Community|Share/.test(n))).toBe(false)
+    first.unmount()
+    render(<BoardMenu board={boardOf()} api={api()} onSaveAs={vi.fn()} onCommunity={onCommunity} onShare={onShare} />)
+    const names = itemNames(openLayout())
+    expect(names.slice(names.indexOf('Save layout as…') + 1, names.indexOf('One line ✓ (current)'))).toEqual(['Community layouts…', 'Share this layout…'])
+    fireEvent.click(within(screen.getByRole('menu', { name: 'Layout' })).getByRole('menuitem', { name: 'Community layouts…' }))
+    fireEvent.click(within(openLayout()).getByRole('menuitem', { name: 'Share this layout…' }))
+    expect([onCommunity.mock.calls.length, onShare.mock.calls.length]).toEqual([1, 1])
   })
   test('each item calls the board with what it names', () => {
     const a = api()
@@ -54,7 +66,7 @@ describe('the Layout menu', () => {
     const mine = { ...saveMine(setRows(sanitize(null), 'compact'), 'My swing board', 'm-a') }
     const { rerender } = render(<BoardMenu board={{ ...mine, edit: false }} api={a} onSaveAs={vi.fn()} />)
     let names = itemNames(openLayout())
-    expect(names.slice(0, 3)).toEqual(['Board', 'Three columns', 'My swing board ✓ (current)'])
+    expect(names.slice(0, 4)).toEqual(['Board', 'Three columns', 'List first', 'My swing board ✓ (current)'])
     expect(names).toContain('Delete “My swing board”')
     expect(names.some(n => n.startsWith('Save changes'))).toBe(false) // nothing changed yet
     fireEvent.click(within(screen.getByRole('menu', { name: 'Layout' })).getByRole('menuitem', { name: 'Delete “My swing board”' }))

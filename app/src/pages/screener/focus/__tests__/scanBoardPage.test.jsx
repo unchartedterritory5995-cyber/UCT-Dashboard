@@ -57,9 +57,9 @@ beforeEach(() => {
 })
 afterEach(() => { heightSpy.mockRestore(); delete window.matchMedia })
 
-const draw = (flag = true) => render(
+const draw = (flag = true, more = {}) => render(
   <MemoryRouter><SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
-    <AuthContext.Provider value={{ screenerScanBoardEnabled: flag }}><FocusScreener /></AuthContext.Provider>
+    <AuthContext.Provider value={{ screenerScanBoardEnabled: flag, ...more }}><FocusScreener /></AuthContext.Provider>
   </SWRConfig></MemoryRouter>)
 const page = () => screen.getByTestId('focus-screener')
 const widgetsOnBoard = () => [...document.querySelectorAll('[data-testid="scan-board"] [data-widget]')].map(el => el.getAttribute('data-widget'))
@@ -164,4 +164,43 @@ test('without the flag a remembered Table view opens as it always did, with the 
   draw(false)
   const table = await screen.findByTestId('table-mode')
   expect(within(table).getAllByRole('button').map(b => b.textContent)).toEqual(['List', 'Charts', 'Map', 'Table'])
+})
+
+// Community layouts (SCREENER_LAYOUT_GALLERY_ENABLED), on the page.
+const galleryCalls = () => fetch.mock.calls.filter(([u]) => String(u).startsWith('/api/screener/layout-gallery')).map(([u, o]) => [o?.method || 'GET', String(u), o?.body ? JSON.parse(o.body) : undefined])
+
+test('without the community flag the Layout menu has no sharing entries and the server is never asked', async () => {
+  draw()
+  await waitFor(() => expect(screen.getByTestId('focus-row-MU')).toBeInTheDocument())
+  fireEvent.click(screen.getByRole('button', { name: 'Layout' }))
+  expect(within(screen.getByRole('menu', { name: 'Layout' })).queryByRole('menuitem', { name: /Community|Share/ })).toBeNull()
+  expect(galleryCalls()).toEqual([])
+})
+
+test('with it: Share sends the name and the arrangement only; Community layouts opens the window', async () => {
+  draw(true, { screenerLayoutGalleryEnabled: true })
+  await waitFor(() => expect(screen.getByTestId('focus-row-MU')).toBeInTheDocument())
+  await waitFor(() => expect(widgetsOnBoard()).toHaveLength(3))
+  fireEvent.click(screen.getByRole('button', { name: 'Layout' }))
+  fireEvent.click(within(screen.getByRole('menu', { name: 'Layout' })).getByRole('menuitem', { name: 'Share this layout…' }))
+  const ask = await screen.findByRole('dialog', { name: 'Share this layout' })
+  // the member is told what leaves and what does not, before anything is sent
+  expect(within(ask).getByTestId('name-dialog-info')).toHaveTextContent('Your screens and filters are not shared.')
+  expect(galleryCalls()).toEqual([])
+  fireEvent.change(within(ask).getByLabelText('Layout name'), { target: { value: '  My board  ' } })
+  fireEvent.click(within(ask).getByRole('button', { name: 'Share' }))
+  await waitFor(() => expect(galleryCalls()).toHaveLength(1))
+  expect(galleryCalls()[0]).toEqual(['POST', '/api/screener/layout-gallery', { name: 'My board', layout: { widgets: PRESETS[0].widgets } }])
+  fireEvent.click(screen.getByRole('button', { name: 'Layout' }))
+  fireEvent.click(within(screen.getByRole('menu', { name: 'Layout' })).getByRole('menuitem', { name: 'Community layouts…' }))
+  expect(await screen.findByRole('dialog', { name: 'Community layouts' })).toBeInTheDocument()
+  fireEvent.click(within(screen.getByRole('dialog', { name: 'Community layouts' })).getByRole('button', { name: 'Close' }))
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Community layouts' })).toBeNull())
+})
+
+test('the community flag alone, without the board, changes nothing', async () => {
+  draw(false, { screenerLayoutGalleryEnabled: true })
+  await waitFor(() => expect(screen.getByTestId('focus-row-MU')).toBeInTheDocument())
+  expect(screen.queryByRole('button', { name: 'Layout' })).toBeNull()
+  expect(galleryCalls()).toEqual([])
 })

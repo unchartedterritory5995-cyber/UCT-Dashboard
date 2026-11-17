@@ -49,7 +49,7 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 
 <!-- BEGIN GENERATED: python tools/account_deletion_manifest.py --write (derived from api/services/journal_two/account_purge.py) -- never hand-edit -->
 
-**153 tables in auth.db** (142 direct by `user_id`, 3 direct by another member key, 1 direct by a key derived from the member's id, 7 indirect).
+**158 tables in auth.db** (145 direct by `user_id`, 3 direct by another member key, 1 direct by a key derived from the member's id, 9 indirect).
 
 | Table | Owner key | Ownership | How the purge deletes it |
 |---|---|---|---|
@@ -60,6 +60,8 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 | `j2_template_gallery_uses` | `gallery_id` → `j2_template_gallery.user_id` | **Indirect** | join delete through `j2_template_gallery`, run before the direct deletes |
 | `j2_gallery_watches` | `gallery_id` → `j2_template_gallery.user_id` | **Indirect** | join delete through `j2_template_gallery`, run before the direct deletes |
 | `j2_gallery_helpful` | `item_id` → `j2_template_gallery.user_id` | **Indirect** | join delete through `j2_template_gallery`, run before the direct deletes |
+| `screener_layout_gallery_reports` | `gallery_id` → `screener_layout_gallery.user_id` | **Indirect** | join delete through `screener_layout_gallery`, run before the direct deletes |
+| `screener_layout_gallery_uses` | `gallery_id` → `screener_layout_gallery.user_id` | **Indirect** | join delete through `screener_layout_gallery`, run before the direct deletes |
 | `j2_settings` | `user_id` | Direct | `DELETE FROM j2_settings WHERE user_id = ?` |
 | `txn_bookmarks` | `user_id` | Direct | `DELETE FROM txn_bookmarks WHERE user_id = ?` |
 | `txn_collections` | `user_id` | Direct | `DELETE FROM txn_collections WHERE user_id = ?` |
@@ -187,6 +189,9 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 | `user_alerts` | `user_id` | Direct | `DELETE FROM user_alerts WHERE user_id = ?` |
 | `web_push_subscriptions` | `user_id` | Direct | `DELETE FROM web_push_subscriptions WHERE user_id = ?` |
 | `screener_saved_screens` | `user_id` | Direct | `DELETE FROM screener_saved_screens WHERE user_id = ?` |
+| `screener_layout_gallery` | `user_id` | Direct | `DELETE FROM screener_layout_gallery WHERE user_id = ?` |
+| `screener_layout_gallery_reports` | `user_id` | Direct | `DELETE FROM screener_layout_gallery_reports WHERE user_id = ?` |
+| `screener_layout_gallery_uses` | `user_id` | Direct | `DELETE FROM screener_layout_gallery_uses WHERE user_id = ?` |
 | `ics_export_token_state` | `user_id` | Direct | `DELETE FROM ics_export_token_state WHERE user_id = ?` |
 | `calendar_seen` | `user_id` | Direct | `DELETE FROM calendar_seen WHERE user_id = ?` |
 | `terminal_aliases` | `user_id` | Direct | `DELETE FROM terminal_aliases WHERE user_id = ?` |

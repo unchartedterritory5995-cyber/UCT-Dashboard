@@ -685,6 +685,7 @@ SCREENER_FLAGS = {
     "SCREENER_PREMARKET_ENABLED": False,      # enablement: pre-market sweep + columns + starters
     "SCREENER_FOCUS_PHONE_ENABLED": False,    # enablement: Focus layout on phones (spec 2026-10-16 s3)
     "SCREENER_SCAN_BOARD_ENABLED": False,     # enablement: the Screener as a customizable widget board (desktop)
+    "SCREENER_LAYOUT_GALLERY_ENABLED": False,  # enablement: sharing scan-board layouts with the community
 }
 
 

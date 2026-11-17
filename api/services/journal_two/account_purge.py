@@ -290,6 +290,13 @@ _DIRECT_USER_TABLES = (
     # no foreign key (owner-approved 2026-10-30, the census in tests/test_alert_erasure.py):
     # each is the member's own saved state, keyed by their user_id, self-ensured by its module.
     "screener_saved_screens",          # screener/saved_screens.py -- their saved screens
+    # Community scan-board layouts (screener_layout_gallery.py, auth.db): the layouts the member
+    # shared, the reports they filed and the record of which layouts they loaded. What OTHER
+    # members recorded about a leaving author's layouts goes in the join pass below. A layout
+    # another member already loaded is in that member's own preferences and stays theirs.
+    "screener_layout_gallery",
+    "screener_layout_gallery_reports",
+    "screener_layout_gallery_uses",
     "ics_export_token_state",          # ics_export_token.py -- their calendar-feed token state
     "calendar_seen",                   # calendar_seen.py -- which calendar items they have seen
     "terminal_aliases",                # terminal_grammar.py -- their command aliases
@@ -608,10 +615,29 @@ def purge_user_rows(user_id: str, conn: sqlite3.Connection, *,
         ),
     }
 
+    # Community scan-board layouts -- the same shape as the gallery rows above: the reports and
+    # use records OTHER members hold about this member's shared layouts carry the other member's
+    # user_id, so the direct loop never matches them. Run while the layouts still exist.
+    about_their_layouts = {
+        "screener_layout_gallery_reports": _run(
+            "screener_layout_gallery_reports",
+            "DELETE FROM screener_layout_gallery_reports WHERE gallery_id IN "
+            "(SELECT id FROM screener_layout_gallery WHERE user_id = ?)",
+            (user_id,),
+        ),
+        "screener_layout_gallery_uses": _run(
+            "screener_layout_gallery_uses",
+            "DELETE FROM screener_layout_gallery_uses WHERE gallery_id IN "
+            "(SELECT id FROM screener_layout_gallery WHERE user_id = ?)",
+            (user_id,),
+        ),
+    }
+
     for table in _DIRECT_USER_TABLES:
         deleted[table] = _run(table, f"DELETE FROM {table} WHERE user_id = ?", (user_id,))
-    for table, count in about_their_templates.items():
-        deleted[table] = deleted.get(table, 0) + count      # one count per table (the manifest's keys)
+    for about in (about_their_templates, about_their_layouts):
+        for table, count in about.items():
+            deleted[table] = deleted.get(table, 0) + count      # one count per table (the manifest's keys)
 
     # P3a Task 6 -- `j2_gallery_follows` is keyed by TWO member ids and has no `user_id`: the member's own
     # follows (`follower_id`) and the follows OTHER members hold on them as an author (`author_id`). Both are

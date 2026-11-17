@@ -1,6 +1,7 @@
 // The scan board's controls (boardModel.js), in the page's own menu parts.
 //   BoardMenu     "Layout" in the top bar: presets, the member's layouts, Customize, Save, and how
-//                 results are shown.
+//                 results are shown. `onCommunity` / `onShare` (community layouts, behind their own
+//                 flag) add the two sharing entries; without them the menu is as it was.
 //   BoardEditBar  the slim line shown while Customize is on: Add widget, Reset, Done.
 import Menu, { MenuItem, MenuDivider, MenuHeading } from '../Menu'
 import { PRESETS, ROW_STYLES, SWITCHES, WIDGETS, MAX_MINE, currentLayout, hasWidget, missingWidgets, rowsOf } from './boardModel'
@@ -11,7 +12,7 @@ import s from './Board.module.css'
 // The chosen option carries the tick (UCT Signature 2b, mark 3); everything else is plain.
 const Tick = () => <span className={menuStyles.smTick} aria-hidden="true"> ✓</span>
 
-export function BoardMenu({ board, api, onSaveAs }) {
+export function BoardMenu({ board, api, onSaveAs, onCommunity = null, onShare = null }) {
   const cur = currentLayout(board)
   const mineCur = board.mine.find(m => m.id === board.layoutId) || null
   const rows = rowsOf(board)
@@ -35,6 +36,9 @@ export function BoardMenu({ board, api, onSaveAs }) {
       {board.mine.length < MAX_MINE && <MenuItem onSelect={onSaveAs}>Save layout as…</MenuItem>}
       {mineCur && <MenuItem danger onSelect={() => api.deleteMine(mineCur.id)}>Delete “{mineCur.name}”</MenuItem>}
       {!cur && <MenuItem onSelect={() => api.pickLayout(PRESETS[0].id)}>Back to the {PRESETS[0].name} preset</MenuItem>}
+      {(onCommunity || onShare) && <MenuDivider />}
+      {onCommunity && <MenuItem onSelect={onCommunity}>Community layouts…</MenuItem>}
+      {onShare && <MenuItem onSelect={onShare}>Share this layout…</MenuItem>}
       {hasWidget(board, 'results') && (
         <>
           <MenuDivider />

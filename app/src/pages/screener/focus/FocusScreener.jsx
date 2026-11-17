@@ -71,7 +71,8 @@ import QuickControls from './QuickControls'
 import { RS_CONTROLS_PREF, RS_NOTE_PREF, RS_LEADERS_ID, RS_SCREENS_COLUMNS, controlsOf, applyOption, specWithChoices, choicesFor, withChoice, withoutChoices, controlStarterFor, placeOverride, offeredChoices, sortLabelOf, steadyOf } from './rsScreens'
 import { rowConfigOf, rowColumns, ratingsAsOf, sectorShare, rowFacts, setupWords } from './rsRows'
 import useScanBoard from './board/useScanBoard'
-import { hasWidget, rowsOf } from './board/boardModel'
+import { hasWidget, rowsOf, shareable, MAX_NAME } from './board/boardModel'
+import { publishLayout } from './board/communityApi'
 import { BoardMenu, BoardEditBar } from './board/BoardMenu'
 import { ScreenTabs, ScreenSidebar } from './board/ScreenNav'
 import DetailsCard from './board/DetailsCard'
@@ -79,6 +80,7 @@ import boardStyles from './board/Board.module.css'
 
 // The scan board's grid (react-grid-layout) loads only for a member who has the board.
 const ScanBoard = lazy(() => import('./board/ScanBoard'))
+const CommunityLayouts = lazy(() => import('./board/CommunityLayouts'))
 // The scan board keeps List and Charts on the view switch (owner, 2026-11-17: no table and no
 // heat map as options); Table and Map still open from the More menu.
 const BOARD_MODES = ['list', 'grid']
@@ -200,6 +202,10 @@ function FocusList({ mode, onMode, modeTabs = null }) {
   // then nothing below changes.
   const boardOn = useContext(AuthContext)?.screenerScanBoardEnabled === true && isDesktopNow()
   const [board, boardApi] = useScanBoard(boardOn)
+  // Community layouts (SCREENER_LAYOUT_GALLERY_ENABLED): share a layout, use one another member shared.
+  const galleryOn = useContext(AuthContext)?.screenerLayoutGalleryEnabled === true && boardOn
+  const isAdmin = useContext(AuthContext)?.user?.role === 'admin'
+  const [community, setCommunity] = useState({ open: false, reload: 0 })
   const [newsEl, setNewsEl] = useState(null)
   const navigate = useNavigate()
   const { meta, error: metaError, retry: retryMeta } = useScreenerMeta()
@@ -873,6 +879,16 @@ function FocusList({ mode, onMode, modeTabs = null }) {
     if (!name) return
     say(boardApi.saveMine(name) ? `Saved the layout "${name.trim()}"` : 'That layout could not be saved')
   }
+  const shareBoardLayout = async () => {
+    const mine = board.mine.find(m => m.id === board.layoutId)
+    const name = await askName({ title: 'Share this layout', label: 'Layout name', initial: mine?.name || '', submitLabel: 'Share', maxLength: MAX_NAME,
+      info: 'Shares how your widgets are arranged and the row style, under your display name. Your screens and filters are not shared. It is listed for other members once it has been reviewed.' })
+    if (!name) return
+    const out = await publishLayout(name, shareable(board))
+    if (!out.ok) { say(out.error); return }
+    say(`Shared “${name.trim()}”. It is listed once it has been reviewed.`)
+    setCommunity(c => ({ ...c, reload: c.reload + 1 }))
+  }
   const frozenList = async () => {
     const name = await askName({ title: "Save today's list", label: 'Watchlist name', initial: current?.name || 'Screen results' })
     if (!name) return
@@ -1180,7 +1196,7 @@ function FocusList({ mode, onMode, modeTabs = null }) {
       </SkipLinkPortal>
       <FocusTopBar
         modesOnly={board ? [...new Set([...BOARD_MODES, mode])] : null}
-        layoutMenu={board && mode === 'list' ? <BoardMenu board={board} api={boardApi} onSaveAs={saveBoardLayout} /> : null}
+        layoutMenu={board && mode === 'list' ? <BoardMenu board={board} api={boardApi} onSaveAs={saveBoardLayout} onCommunity={galleryOn ? () => setCommunity(c => ({ ...c, open: true })) : null} onShare={galleryOn ? shareBoardLayout : null} /> : null}
         optionsTab={modeTabs}
         screenMenu={<>
           {board && board.screens === 'tabs' && landed && (
@@ -1260,6 +1276,12 @@ function FocusList({ mode, onMode, modeTabs = null }) {
         {sheet === 'library' && <StructureProvenance />}
       </Sheet>
       {hubMount}
+      {galleryOn && board && community.open && (
+        <Suspense fallback={null}>
+          <CommunityLayouts board={board} api={boardApi} isAdmin={isAdmin} reloadKey={community.reload} say={say}
+            onShare={shareBoardLayout} onClose={() => setCommunity(c => ({ ...c, open: false }))} />
+        </Suspense>
+      )}
       {nameDialog}
       {shortcuts.sheet}
       {toast && (

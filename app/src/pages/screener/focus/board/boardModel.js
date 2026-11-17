@@ -42,7 +42,9 @@ export const PRESETS = [
   { id: 'board', name: 'Board', blurb: 'Big chart on the left; results and the reasons on the right.',
     widgets: [W('chart', 0, 0, 17, 20), W('results', 17, 0, 7, 12, { rows: 'line' }), W('details', 17, 12, 7, 8)] },
   { id: 'three', name: 'Three columns', blurb: 'Screens always visible, then results, then the chart with news under it.',
-    widgets: [W('screens', 0, 0, 4, 20), W('results', 4, 0, 7, 20, { rows: 'line' }), W('chart', 11, 0, 13, 14), W('news', 11, 14, 13, 6)] },
+    widgets: [W('screens', 0, 0, 4, 20), W('results', 4, 0, 7, 20, { rows: 'line' }), W('chart', 11, 0, 13, 15), W('news', 11, 15, 13, 5)] },
+  { id: 'list', name: 'List first', blurb: 'A wide list to read down, two lines a stock; the chart and the reasons beside it.',
+    widgets: [W('results', 0, 0, 9, 20, { rows: 'two' }), W('chart', 9, 0, 15, 13), W('details', 9, 13, 15, 7)] },
 ]
 export const DEFAULT_PRESET = PRESETS[0]
 
@@ -207,6 +209,32 @@ export function deleteMine(state, id) {
   if (!state.mine.some(m => m.id === id)) return state
   return { ...state, mine: state.mine.filter(m => m.id !== id), ...(state.layoutId === id ? { layoutId: null, changed: true } : {}) }
 }
+// ── sharing (community layouts) ──
+// What leaves the member's board when a layout is shared: the arrangement and the result rows'
+// style. Never the screens, the filters or the Show switches (those are the member's own).
+export const shareable = state => ({ widgets: cleanWidgets(state?.widgets) || copyWidgets(DEFAULT_PRESET.widgets) })
+// A name no layout on the menu already has: "Swing" then "Swing (2)", "Swing (3)".
+export function freeName(state, name) {
+  const base = cleanName(name)
+  const taken = new Set(layoutsOf(state).map(l => l.name.toLowerCase()))
+  if (!base || !taken.has(base.toLowerCase())) return base
+  for (let n = 2; n < 100; n++) {
+    const tail = ` (${n})`
+    const next = base.slice(0, MAX_NAME - tail.length) + tail
+    if (!taken.has(next.toLowerCase())) return next
+  }
+  return base
+}
+// A layout someone else shared, taken as one of the member's own: a copy, so later changes to (or
+// the removal of) the shared one change nothing here. Anything that is not a drawable layout, and
+// a full list, leave the board as it was.
+export function adoptLayout(state, name, widgets, id) {
+  const ws = cleanWidgets(widgets)
+  const n = freeName(state, name)
+  if (!ws || !n || state.mine.length >= MAX_MINE) return state
+  return { ...state, mine: [...state.mine, { id, name: n, widgets: ws }], layoutId: id, widgets: copyWidgets(ws), changed: false }
+}
+
 export const setOption = (state, key, value) => {
   if (key === 'screens') return SCREEN_NAV.some(n => n[0] === value) ? { ...state, screens: value } : state
   return SWITCHES.some(sw => sw[0] === key) ? { ...state, [key]: value === true } : state

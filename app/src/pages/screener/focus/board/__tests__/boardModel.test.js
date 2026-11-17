@@ -4,7 +4,7 @@ import { describe, expect, test } from 'vitest'
 import {
   COLS, ROWS, WIDGETS, PRESETS, ROW_STYLES, MAX_MINE, DEFAULT_STATE,
   sanitize, serialize, cleanWidgets, pickLayout, addWidget, removeWidget, acceptArrangement, saveMine, updateMine, deleteMine,
-  setRows, rowsOf, setOption, missingWidgets, currentLayout, fillGaps, settleDrop,
+  setRows, rowsOf, setOption, missingWidgets, currentLayout, fillGaps, settleDrop, shareable, freeName, adoptLayout, MAX_NAME,
 } from '../boardModel'
 
 const area = ws => ws.reduce((n, w) => n + w.w * w.h, 0)
@@ -241,5 +241,44 @@ describe('layouts of your own', () => {
     expect(setOption(s0, 'screens', 'sideways')).toBe(s0)
     expect(setOption(s0, 'widgets', [])).toBe(s0)
     expect(setRows(s0, 'wide')).toBe(s0)
+  })
+})
+
+describe('sharing a layout, and taking one another member shared', () => {
+  test('what is shared is the arrangement and the row style, and nothing else the board holds', () => {
+    const s = { ...setRows(saveMine(fresh(), 'Private name', 'm-a'), 'cards'), logos: true, group: true, screens: 'menu' }
+    const out = shareable(s)
+    expect(Object.keys(out)).toEqual(['widgets'])
+    expect(out.widgets).toEqual(s.widgets)
+    expect(out.widgets.find(w => w.type === 'results').opts).toEqual({ rows: 'cards' })
+    expect(JSON.stringify(out)).not.toMatch(/Private name|logos|group|screens"|mine|layoutId/)
+    // a board that somehow cannot be drawn shares the first preset, never garbage
+    expect(shareable({ widgets: 'nope' })).toEqual({ widgets: PRESETS[0].widgets })
+  })
+  test('a taken layout becomes one of your own, picked, as a copy', () => {
+    const theirs = [{ id: 'chart', type: 'chart', x: 0, y: 0, w: 24, h: 12 }, { id: 'results', type: 'results', x: 0, y: 12, w: 24, h: 8, opts: { rows: 'chips' } }]
+    const s = adoptLayout(fresh(), '  Chart over chips  ', theirs, 'm-z')
+    expect(s.mine).toEqual([{ id: 'm-z', name: 'Chart over chips', widgets: theirs }])
+    expect([s.layoutId, s.changed, rowsOf(s)]).toEqual(['m-z', false, 'chips'])
+    expect(s.widgets).toEqual(theirs)
+    expect(s.widgets).not.toBe(s.mine[0].widgets) // editing the board never edits the saved copy
+    expect(sanitize(serialize(s)).mine).toEqual(s.mine) // and it survives the preferences
+  })
+  test('a name already on the menu gets a number; a layout that cannot be drawn, a blank name and a full list change nothing', () => {
+    let s = adoptLayout(fresh(), 'Board', PRESETS[1].widgets, 'm-1')
+    expect(s.mine[0].name).toBe('Board (2)')
+    s = adoptLayout(s, 'board', PRESETS[1].widgets, 'm-2')
+    expect(s.mine[1].name).toBe('board (3)')
+    expect(freeName(fresh(), 'x'.repeat(60))).toHaveLength(MAX_NAME)
+    const long = adoptLayout(fresh(), 'y'.repeat(MAX_NAME), PRESETS[0].widgets, 'm-a')
+    expect(freeName(long, 'y'.repeat(MAX_NAME))).toBe(`${'y'.repeat(MAX_NAME - 4)} (2)`)
+    const s0 = fresh()
+    const pile = [{ type: 'chart', x: 0, y: 0, w: 12, h: 12 }, { type: 'results', x: 4, y: 4, w: 8, h: 8 }]
+    expect(adoptLayout(s0, 'Overlapping', pile, 'm-a')).toBe(s0)
+    expect(adoptLayout(s0, 'Unknown widgets', [{ type: 'heatmap', x: 0, y: 0, w: 24, h: 20 }], 'm-a')).toBe(s0)
+    expect(adoptLayout(s0, '   ', PRESETS[0].widgets, 'm-a')).toBe(s0)
+    let full = s0
+    for (let i = 0; i < MAX_MINE; i++) full = saveMine(full, `L${i}`, `m-${i}`)
+    expect(adoptLayout(full, 'One more', PRESETS[0].widgets, 'm-x')).toBe(full)
   })
 })

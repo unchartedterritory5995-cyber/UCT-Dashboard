@@ -2735,6 +2735,18 @@
       ],
       "note": "DARK (unset = off for everyone). The Screener as a customizable widget board on a desktop (owner direction 2026-11-17: \"a full customizable widget area just like our charts page but specifically for scanning\", 1-3 presets first). With it on, the Focus layout's list view becomes a board of widgets (Results, Chart, Why it's here, News, Screens) on the Charts board's 24x20 grid: two presets (Board, Three columns), the member's own saved layouts, Customize (drag, resize, add, remove), row styles and switches, all stored in the member's preference screener_scan_board. Pinned screens become tabs; the view switch keeps List and Charts, and Table and Map open from the More menu (owner 2026-11-17: no table and no heat map as options). Phones and tablets keep today's page. Values: unset/0 off, admin = owner preview, 1 = everyone; read per request (api/routers/auth.py SCREENER_FLAGS), payload key screener_scan_board_enabled. Needs SCREENER_FOCUS_LAYOUT_ENABLED (the board lives in the Focus layout). Rollback: set 0; a stored layout is kept and ignored. Publishing layouts to the community is a later release and is not in this flag."
     },
+    "SCREENER_LAYOUT_GALLERY_ENABLED": {
+      "member_facing": {
+        "label": "Community scan layouts",
+        "where": "Screener"
+      },
+      "status": "dark",
+      "since": "2026-11-17",
+      "where": [
+        "web"
+      ],
+      "note": "DARK (unset = off for everyone). Sharing scan-board layouts with the community (owner direction 2026-11-17: \"i want people to be able to publish their scan layouts to the community\"). With it on, a member on the scan board can share the ARRANGEMENT of a layout (its widgets, their boxes and the results row style) under a name, browse the layouts other members shared, load one into their own layouts, and report one. A shared layout never carries a screen, a filter or a switch. REVIEW FIRST: a shared layout is pending and invisible to other members until an admin approves it; an admin can decline, hide or unhide, and hide is never a delete. Author shown by display name only. Server: api/routers/screener_layout_gallery.py (/api/screener/layout-gallery), tables screener_layout_gallery, screener_layout_gallery_reports and screener_layout_gallery_uses in auth.db, removed with the account. Limits per member: 10 listed or pending layouts, publish 10/hour and 10/day, report 30/hour, use 60/hour. Values: unset/0 off (every route answers 404), admin = owner preview (admins only; everyone else 404), 1 = everyone; read per request (api/routers/auth.py SCREENER_FLAGS), payload key screener_layout_gallery_enabled. Needs SCREENER_SCAN_BOARD_ENABLED (the menu lives on the board). Rollback: set 0; stored layouts are kept and not served."
+    },
     "SCREEN_BACKTEST_ENABLED": {
       "status": "armed",
       "where": [
