@@ -166,6 +166,7 @@ session-highs-dst-safe is admitted with no capture behind it until Q-BT6 is take
 | `builder/` (all), session/runtime clock, budget, param ids, `vendorHarness/` (all), `memberPaneTables` + pytest budget / session-window / admission / dispositions | GitHub runners, run 43965028640 | `353aa19c44` | pytest green; vitest 4 red, all four rails of this unit's own making: the knob fixture and the session-hilo rail named knobs that are folded away unread (only the first toggle is listed), and two `b1Paints` pins that moved with the served sessions. Corrected and re-pinned after it |
 | `btSessionClock.test.js` with the five licence-store captures present (untracked, placed only for this run, removed after, absence checked) | this PC, lock hold | `353aa19c44` + the `dc4f4333b7` rail | 19 passed (19) |
 | census, both lanes | this PC, lock hold | `353aa19c44` | 139 / 139 rows each lane |
+| `engine/ast/` (all), `runtimeRepaint` + pytest `test_ast_lookback_agreement`, `test_ast_lint`, `test_ast_budget` | GitHub runners, run 43980824801 | `c7eb129062` | GREEN: vitest 6,324 passed, 17 skipped; pytest 90 passed |
 | the touched rails again (knob, session clock, `b1Paints`, runtime clock, dispositions) | GitHub runners, run 43971319991 | `76de8c4068` | GREEN: vitest 161 passed, 4 skipped (the four ac2/ac3 capture blocks); pytest 10 passed |
 | harness over the moved captures, both lanes | this PC, lock hold | `353aa19c44` | the table above |
 | `evidence_engine.py queue --check`, `pins --check`, `refusal_codes.py --check`, `check_repo_hygiene.py`, `test_queue_dispositions.py` | this PC | after each master merge (last `5465c83b64`) | pass |
@@ -186,6 +187,8 @@ session-highs-dst-safe is admitted with no capture behind it until Q-BT6 is take
 | M10-membership-tree | a membership read builds the value tree again | btSessionClock | `353aa19c44` | 1 failed (the membership-tree rail), red |
 | M11-knob-budget | the member door stops giving knobs back | btSessionClock, knobInstallBudget | `353aa19c44` | red: the session-hilo install rail (green unmutated in the same hold) |
 | M12-budget-reason | a knob given back loses the budget's reason | knobInstallBudget | `76de8c4068`, GitHub runners run 43971377446, a scratch commit (the worktree never edited; its ref deleted after) | 1 failed of 3: the reason assertion (the row read "the formula never reads useO", not the budget's sentence), red; the same file unmutated is green in run 43971319991. The lock hold's run on `353aa19c44` was no proof: that fixture's set assertion was itself wrong on that tree |
+| M13-lint-back | the linter answers an unknown back again when the forward reach is unbounded (JS) | lintUnboundedForwardBack | `c7eb129062`, GitHub runners run 43981061437, scratch commit | 1 failed of 2 ("both readers give one number"), red; unmutated green in run 43980824801 |
+| M14-lint-back-py | the same in the Python twin (`ast_lint._own_window`) | test_ast_lookback_agreement | `c7eb129062`, GitHub runners run 43981131550, scratch commit | 1 failed of 6 (`(20, None)`: interpreter 20, linter unanalysable), red; unmutated green in run 43980824801 |
 
 ## What stays refused, by name
 
