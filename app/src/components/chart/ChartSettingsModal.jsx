@@ -33,7 +33,7 @@ import usePreferences, { parsePref } from '../../hooks/usePreferences'
 import UIcon from '../ui/UIcon'
 import { HEADER_FIELDS, SIGN_POS, SIGN_NEG } from './headerFields'
 import { headerStatKeys, statLabelsOf, withStatLabel, headerStatTogglePatch, movedHeaderStats, headerStatMetaOf, statStylesFor, withHeaderStatStyle } from './headerStatCatalog'
-import { STAT_SIZES, STAT_SIZE_LABELS, DEFAULT_BOX_COLOR } from './headerStatStyle'
+import { STAT_SIZES, STAT_SIZE_LABELS, STAT_WEIGHTS, STAT_WEIGHT_LABELS, STAT_WEIGHT_VALUE, DEFAULT_BOX_COLOR } from './headerStatStyle'
 import { customStatsOf, customStatKey, addCustomStatPatch, customStatAddRefusal } from './headerCustomStats'
 import { customStatLabel, customStatSigned, customStatOutputRefusal } from './engine/customStatCompute'
 import { HeaderStatList, HeaderStatPicker } from './HeaderStatPicker'
@@ -1706,6 +1706,16 @@ export default function ChartSettingsModal({
                         <button key={z} type="button" aria-pressed={size === z} aria-label={`${f.label} size ${STAT_SIZE_LABELS[z]}`}
                           className={`${styles.statSize} ${size === z ? styles.statSizeOn : ''}`}
                           onClick={() => { if (z !== size) setLook({ size: z }) }}>{STAT_SIZE_LABELS[z]}</button>
+                      ))}
+                    </span>
+                  </span>
+                  <span className={styles.statStyleItem}>Thickness
+                    <span className={styles.statSizes} role="group" aria-label={`${f.label} text thickness`}>
+                      {STAT_WEIGHTS.map((w) => (
+                        <button key={w} type="button" aria-pressed={(look.weight || 'regular') === w} aria-label={`${f.label} thickness ${STAT_WEIGHT_LABELS[w]}`}
+                          title={STAT_WEIGHT_LABELS[w]} style={{ fontWeight: STAT_WEIGHT_VALUE[w] }}
+                          className={`${styles.statSize} ${(look.weight || 'regular') === w ? styles.statSizeOn : ''}`}
+                          onClick={() => { if (w !== (look.weight || 'regular')) setLook({ weight: w }) }}>A</button>
                       ))}
                     </span>
                   </span>

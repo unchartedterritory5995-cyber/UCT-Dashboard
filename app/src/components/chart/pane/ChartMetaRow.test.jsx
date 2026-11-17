@@ -36,3 +36,17 @@ describe('ChartMetaRow', () => {
     expect(onItemClick.mock.calls.map((c) => c[0])).toEqual(['mcap', 'earn', 'earn'])
   })
 })
+
+describe('ChartMetaRow thickness (owner 11-17)', () => {
+  it('a stored weight paints label and value; none leaves no inline weight', () => {
+    const { container } = render(<ChartMetaRow styles={styles} items={[
+      { key: 'mcap', label: 'Market Cap', value: '1.00B', style: { weight: 'heavy' } },
+      { key: 'earn', label: 'Next Earnings', value: '1/1/2030' },
+    ]} />)
+    const [heavyLabel, heavyVal, plainLabel, plainVal] = container.querySelectorAll('span > span')
+    expect(heavyLabel.style.fontWeight).toBe('700')
+    expect(heavyVal.style.fontWeight).toBe('700')
+    expect(plainLabel.getAttribute('style')).toBeNull()
+    expect(plainVal.getAttribute('style')).toBeNull()
+  })
+})

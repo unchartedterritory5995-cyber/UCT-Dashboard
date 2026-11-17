@@ -16,6 +16,11 @@ export const STAT_SIZE_LABELS = Object.freeze({ s: 'S', m: 'M', l: 'L', xl: 'XL'
 /** The scale each size applies to the stat (label, value and box together). `m` = today's size, no style at all. */
 export const STAT_SIZE_SCALE = Object.freeze({ s: 0.88, m: 1, l: 1.15, xl: 1.3 })
 export const DEFAULT_STAT_SIZE = 'm'
+/** Text thickness (owner 11-17: "thicker/thinner should be an option too"). `regular` = today's 500, never stored. */
+export const STAT_WEIGHTS = Object.freeze(['light', 'regular', 'bold', 'heavy'])
+export const STAT_WEIGHT_LABELS = Object.freeze({ light: 'Light', regular: 'Regular', bold: 'Bold', heavy: 'Heavy' })
+export const STAT_WEIGHT_VALUE = Object.freeze({ light: 400, regular: 500, bold: 600, heavy: 700 })
+export const DEFAULT_STAT_WEIGHT = 'regular'
 /** The shaded box when no box color is chosen: the Signature soft fill. */
 export const DEFAULT_BOX_COLOR = '#f8f7f314'   // #f8f7f3 at 8%: a swatch picked from here keeps that opacity
 
@@ -32,8 +37,8 @@ export function cleanStatColor(v) {
 /** ONE stat's style, rebuilt from the allow-list; null when it holds nothing but defaults. */
 export function cleanStatStyle(raw) {
   if (!isObj(raw)) return null
-  let labelColor, box, boxColor, size
-  try { ({ labelColor, box, boxColor, size } = raw) } catch { return null }
+  let labelColor, box, boxColor, size, weight
+  try { ({ labelColor, box, boxColor, size, weight } = raw) } catch { return null }
   const out = {}
   const lc = cleanStatColor(labelColor)
   if (lc) out.labelColor = lc
@@ -41,6 +46,7 @@ export function cleanStatStyle(raw) {
   const bc = cleanStatColor(boxColor)
   if (bc) out.boxColor = bc
   if (typeof size === 'string' && STAT_SIZES.includes(size) && size !== DEFAULT_STAT_SIZE) out.size = size
+  if (typeof weight === 'string' && STAT_WEIGHTS.includes(weight) && weight !== DEFAULT_STAT_WEIGHT) out.weight = weight
   return Object.keys(out).length ? out : null
 }
 
@@ -64,7 +70,7 @@ export function withStatStyle(header, key, patch, isKnown) {
   const next = statStylesOf(header, isKnown)
   if (typeof key !== 'string' || !key || (typeof isKnown === 'function' && !isKnown(key))) return next
   const merged = { ...(next[key] || {}) }
-  for (const f of ['labelColor', 'box', 'boxColor', 'size']) {
+  for (const f of ['labelColor', 'box', 'boxColor', 'size', 'weight']) {
     if (!isObj(patch) || !Object.prototype.hasOwnProperty.call(patch, f)) continue
     const v = patch[f]
     if (v == null || v === '' || v === false) delete merged[f]

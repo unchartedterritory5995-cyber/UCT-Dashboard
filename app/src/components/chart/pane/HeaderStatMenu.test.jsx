@@ -69,3 +69,13 @@ describe('HeaderStatMenu', () => {
     expect(fns.onClose).not.toHaveBeenCalled()
   })
 })
+
+describe('HeaderStatMenu thickness (owner 11-17)', () => {
+  it('shows the current thickness and writes a new one', () => {
+    const { fns } = setup({ look: { weight: 'bold' } })
+    expect(screen.getByRole('button', { name: 'Thickness Bold' }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByRole('button', { name: 'Thickness Regular' }).getAttribute('aria-pressed')).toBe('false')
+    fireEvent.click(screen.getByRole('button', { name: 'Thickness Light' }))
+    expect(fns.onStyle).toHaveBeenLastCalledWith({ weight: 'light' })
+  })
+})

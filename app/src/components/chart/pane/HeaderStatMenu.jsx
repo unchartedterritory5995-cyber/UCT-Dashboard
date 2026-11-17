@@ -17,7 +17,7 @@ import { PORTAL_POPUP_ATTR } from '../ColorPicker'
 import ColorPanel from '../ColorPanel'
 import Switch from '../../ui/Switch'
 import { STAT_LABEL_MAX, cleanStatLabel } from '../headerStatCatalog'
-import { STAT_SIZES, STAT_SIZE_LABELS, DEFAULT_BOX_COLOR } from '../headerStatStyle'
+import { STAT_SIZES, STAT_SIZE_LABELS, STAT_WEIGHTS, STAT_WEIGHT_LABELS, STAT_WEIGHT_VALUE, DEFAULT_BOX_COLOR } from '../headerStatStyle'
 import styles from './HeaderStatMenu.module.css'
 
 const W = 252
@@ -40,6 +40,7 @@ export default function HeaderStatMenu({ anchor, stat, look = {}, onRename, onVa
   const panelRef = useRef(null)
   const name = stat.rename || stat.label
   const size = look.size || 'm'
+  const weight = look.weight || 'regular'
 
   // Placement: under the stat (above it when there is no room), and AGAIN whenever the stat changes size — a size /
   // box / rename pick re-lays the header, so the menu follows its stat instead of floating where it was.
@@ -55,7 +56,7 @@ export default function HeaderStatMenu({ anchor, stat, look = {}, onRename, onVa
       : { left: Math.round(left), top: Math.round(top), target: anchor.ownerDocument.body }))
   }, [anchor])
   // eslint-disable-next-line react-hooks/set-state-in-effect -- placement needs the measured menu, before paint
-  useLayoutEffect(() => { place() }, [place, look.size, look.box, name, stat.value])
+  useLayoutEffect(() => { place() }, [place, look.size, look.weight, look.box, name, stat.value])
   useEffect(() => {
     if (!anchor) return undefined
     const win = anchor.ownerDocument.defaultView || window
@@ -182,6 +183,17 @@ export default function HeaderStatMenu({ anchor, stat, look = {}, onRename, onVa
               <button key={s} type="button" aria-pressed={size === s} aria-label={`Size ${STAT_SIZE_LABELS[s]}`}
                 className={`${styles.size}${size === s ? ' ' + styles.sizeOn : ''}`}
                 onClick={() => { if (s !== size) onStyle({ size: s }) }}>{STAT_SIZE_LABELS[s]}</button>
+            ))}
+          </span>
+        </div>
+        <div className={styles.row} data-stat-menu-row="weight">
+          <span className={styles.rowName}>Thickness</span>
+          <span className={styles.sizes} role="group" aria-label="Text thickness">
+            {STAT_WEIGHTS.map((w) => (
+              <button key={w} type="button" aria-pressed={weight === w} aria-label={`Thickness ${STAT_WEIGHT_LABELS[w]}`}
+                title={STAT_WEIGHT_LABELS[w]} style={{ fontWeight: STAT_WEIGHT_VALUE[w] }}
+                className={`${styles.size}${weight === w ? ' ' + styles.sizeOn : ''}`}
+                onClick={() => { if (w !== weight) onStyle({ weight: w }) }}>A</button>
             ))}
           </span>
         </div>

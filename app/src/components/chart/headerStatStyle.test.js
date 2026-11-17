@@ -50,3 +50,15 @@ describe('the stat look on the header', () => {
     expect(withHeaderStatStyle(header, 'zzz', { size: 'l' })).toEqual(header.statStyle)   // not a stat: no write
   })
 })
+
+describe('text thickness (owner 11-17)', () => {
+  it('keeps a known weight, drops the default and junk', () => {
+    expect(cleanStatStyle({ weight: 'bold' })).toEqual({ weight: 'bold' })
+    expect(cleanStatStyle({ weight: 'regular' })).toBeNull()
+    expect(cleanStatStyle({ weight: '900' })).toBeNull()
+    let h = { statStyle: withStatStyle({}, 'mcap', { weight: 'heavy' }) }
+    expect(h.statStyle).toEqual({ mcap: { weight: 'heavy' } })
+    h = { statStyle: withStatStyle(h, 'mcap', { weight: 'regular' }) }
+    expect(h.statStyle).toEqual({})
+  })
+})
