@@ -578,7 +578,16 @@ built, read back plausibly, and **could not fire on any bar**: the assistant com
 `lowestbars` with negative numbers, TradingView's convention, and here that count is 0 or
 more. Only the comparison with an independent calculation showed it (0 marks against 1 and
 8). The door now refuses a bars-back count compared with a negative number and says why
-(#1499); the indicator is rebuilt once that is served.
+(#1499). Asked a third time in the door's own terms ("made 3 to 11 bars ago"), the
+assistant wrote `-lowestbars(low, 50) >= 3`: the same belief, negated, and dead again. The
+rule is now the sign rather than the minus, and the prompt states the convention up front
+(#1506). The indicator is rebuilt once that is served. The lesson is general: **a built
+indicator with a plausible read-back can be wrong in a way only a second calculation
+shows**, so nothing joins the house set without one.
+
+The up/down volume ratio was built again and the assistant answered with a patch the
+engine accepts; both outputs equal a plain calculation on every bar and it joins the set
+(#1507). The set is thirteen.
 
 **The set.** Eleven are in the UCT tab (#1496), and the flat base makes twelve (#1501): distribution day count; relative strength
 against SPY, and its new high before price; extension above the 50-day in ATRs; percent from
@@ -649,10 +658,11 @@ the deploy gate.
 | R2, R3 | TradingView names on the reference page; the reference as one file for a member's own assistant | LIVE |
 | launch | library moderation (UCT takedown, a 20-listing cap per member, the licence line); spend that cannot be written still counts | merged (#1451, #1452) |
 | tool | a refused turn tells an admin why each attempt was refused | LIVE |
-| H | the house set: twelve indicators in a UCT tab (window and phone sheet), each held to an independent calculation | value-checked on real bars (section 14b); #1496, #1501 |
+| H | the house set: thirteen indicators in a UCT tab (window and phone sheet), each held to an independent calculation | value-checked on real bars (section 14b); #1496, #1501, #1507 |
 | N2 | the dock keeps the assistant's name where the derived one is unreadable; "What the assistant says it built" under the engine's lines | #1495 |
-| door | a one-colour colour-states patch is refused at the door, so the model gets its repair; so is a bars-back count compared with a negative number | #1493, #1499 |
+| door | a one-colour colour-states patch is refused at the door, so the model gets its repair; so is a bars-back count compared across its sign, and the prompt states that convention | #1493, #1499, #1506 |
 | X1 | the plain-words box sends what the member typed: a chart to a preview in two actions | #1500 |
+| spend | the picture door's prompt bound re-measured, so a reservation bounds the prompt again (a member's daily picture share now holds two worst-case reservations, not three; the owner may raise it) | #1509 |
 
 **The house set, second look (2026-11-16, production).** Of the five that did not draw on
 the first run: both relative-strength requests draw (the marker fix); volume bars coloured
@@ -703,7 +713,7 @@ then names and read-backs with the authoring owner, the house set a third time, 
 look.
 
 **Open for the owner:**
-1. Look at each of the twelve house indicators on a chart (Indicators, UCT tab) and say which
+1. Look at each of the thirteen house indicators on a chart (Indicators, UCT tab) and say which
    stay. They were published on a value check, not on your look (D24).
 2. D23 to D28 in section 11 were taken as judgment calls. Reverse any by saying so.
 3. The 10 and 21 EMA trend indicator is held out of the house set by a false positive in the
