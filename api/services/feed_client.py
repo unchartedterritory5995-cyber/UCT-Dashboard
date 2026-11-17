@@ -116,9 +116,9 @@ def feed_source() -> str:
     return "remote" if v == "remote" else "local"
 
 
-def default_client_id() -> str:
-    rid = os.environ.get("RAILWAY_REPLICA_ID") or socket.gethostname() or "web"
-    return f"web-{rid}"[: fp.MAX_ID_LEN]
+def default_client_id(prefix: str = "web") -> str:
+    rid = os.environ.get("RAILWAY_REPLICA_ID") or socket.gethostname() or prefix
+    return f"{prefix}-{rid}"[: fp.MAX_ID_LEN]
 
 
 def bar_stream_owners() -> dict:
@@ -139,9 +139,12 @@ _task: Optional[asyncio.Task] = None
 _stop: Optional[asyncio.Event] = None
 
 
-def start_remote() -> "FeedClient":
+def start_remote(side_feeds: bool = True, client_prefix: str = "web") -> "FeedClient":
     """Remote mode, at app startup (on the running uvicorn loop): install the
-    RemoteBroadcaster as THE broadcaster and start the feed client task."""
+    RemoteBroadcaster as THE broadcaster and start the feed client task.
+
+    `side_feeds=False`: stream-edge, which serves bars only; NH/NL, volume push and
+    T&S stay on web (they feed web-side features and take web-side locks)."""
     global _client, _task, _stop
     from api.services import bar_broadcaster, bar_stream
     from api.services.remote_broadcaster import RemoteBroadcaster
@@ -149,8 +152,12 @@ def start_remote() -> "FeedClient":
     rb = RemoteBroadcaster(on_first_subscribe=bar_stream.subscribe_symbols_one,
                            on_last_unsubscribe=bar_stream.unsubscribe_symbols_one)
     bar_broadcaster.install_broadcaster(rb)
-    from api.services.remote_side_feeds import RemoteSideFeeds
-    _client = FeedClient(rb, side=RemoteSideFeeds(), side_thread=True)
+    side = None
+    if side_feeds:
+        from api.services.remote_side_feeds import RemoteSideFeeds
+        side = RemoteSideFeeds()
+    _client = FeedClient(rb, side=side, side_thread=True,
+                         client_id=default_client_id(client_prefix))
     _stop = asyncio.Event()
     _task = asyncio.get_running_loop().create_task(_client.run(_stop))
     return _client

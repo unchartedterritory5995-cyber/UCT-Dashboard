@@ -1,0 +1,28 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "NIXPACKS",
+    "buildCommand": "pip install -r requirements.txt",
+    "watchPatterns": [
+      "api/stream_edge_main.py",
+      "api/routers/stream.py",
+      "api/chart_edge_token.py",
+      "api/bars_auth.py",
+      "api/services/feed_client.py",
+      "api/services/remote_broadcaster.py",
+      "api/services/feed_protocol.py",
+      "api/services/bar_broadcaster.py",
+      "api/services/bar_contract.py",
+      "api/services/realtime_stream.py",
+      "requirements.txt",
+      "railway.edge.json"
+    ]
+  },
+  "deploy": {
+    "startCommand": "python -m api.stream_edge_main",
+    "drainingSeconds": 10,
+    "healthcheckPath": "/healthz",
+    "healthcheckTimeout": 60,
+    "restartPolicyType": "ALWAYS"
+  }
+}

@@ -33,6 +33,7 @@
  */
 
 import { HIST_PREFIX, handleHistory } from "./history.js";
+import { STREAM_BARS_PATH, handleStream } from "./stream.js";
 
 const BARS_ORIGIN = "https://bars-api-production-1052.up.railway.app";
 const WEB_ORIGIN  = "https://web-production-05cb6.up.railway.app";
@@ -311,6 +312,8 @@ export default {
         return cls === VALID || cls === SERVICE_VALID;
       }, ctx);
     }
+    // The live chart stream (stream.js): to stream-edge for the canary, otherwise untouched to web.
+    if (url.pathname === STREAM_BARS_PATH) return handleStream(request, env);
     const m = url.pathname.match(/^\/api\/bars(?:-history)?\/([^\/?#]+)/);
     if (!m) return fetch(request);
 
