@@ -123,7 +123,7 @@ def test_a_setting_the_tool_cannot_store_is_refused(config):
 
 def test_the_three_services_built_from_a_file_are_listed():
     assert rss.SERVICES == {"web": "railway.web.json", "worker": "railway.json", "flow-worker": "railway.json",
-                            "stream-ingest": "railway.ingest.json"}
+                            "stream-ingest": "railway.ingest.json", "stream-edge": "railway.edge.json"}
 
 
 @pytest.mark.parametrize("service,name", sorted(rss.SERVICES.items()))
