@@ -47,6 +47,10 @@ RUN_EVENTS = ("push", "pull_request")
 #: NOT_AFFECTED_STEP step ran (success) with a non-empty reason AND the PR touches no SELF_PROTECTED file and no Agent path
 #: besides the `app/**` catch-all (re-checked HERE, on the default branch's copy: a PR edits its own agent-ci.yml).
 DECISION_JOB = "agent ci affected decision"
+#: The always-run job that executes the decision's own rails (tests/test_ci_agent_affected.py, this tool's tests, the
+#: dependency + cost rails) on every agent ci run. Never skippable: a not-affected run is accepted only with it green.
+RAILS_JOB = "agent ci rails"
+ALWAYS_REQUIRED = (DECISION_JOB, RAILS_JOB)
 NOT_AFFECTED_STEP = "decision: not affected - "
 AFFECTED_CATCH_ALL = "app/**"
 #: Files that decide the decision. A PR touching one is always affected (here AND in tools/agent_ci_affected.py).
@@ -156,9 +160,12 @@ def decide_with_reason(changed_paths, patterns, run, jobs_required) -> tuple[str
         by_name.setdefault(j.get("name"), []).append(j.get("conclusion"))
     reason = not_affected_reason(changed_paths, patterns, run)
     if reason is not None:
-        if DECISION_JOB not in jobs_required:
-            return FAILURE, "agent-ci.yml has no affected decision job"
-        heavy = [n for n in jobs_required if n != DECISION_JOB]
+        for n in ALWAYS_REQUIRED:
+            if n not in jobs_required:
+                return FAILURE, f"agent-ci.yml has no {n!r} job"
+            if by_name.get(n) != [SUCCESS]:
+                return FAILURE, f"{n} is {by_name.get(n) or 'missing'}, not success"[:140]
+        heavy = [n for n in jobs_required if n not in ALWAYS_REQUIRED]
         bad = [n for n in heavy if any(c not in (SUCCESS, "skipped") for c in by_name.get(n, []))]
         if bad:
             return FAILURE, f"{len(bad)} Agent job(s) neither success nor skipped: {bad[0]}"[:140]
