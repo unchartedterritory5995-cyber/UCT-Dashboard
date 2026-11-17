@@ -2793,7 +2793,7 @@ export const RUN_HALF_OBJECT_RAIL = 'run-half:object-rail'
 /** Two column values agree: both `na`, or equal to 1e-9 of their size (the runtime lane's
  *  own rule, `runtimeColumns.js::sameValue`, restated as a value comparison: this module
  *  must not import the lane). */
-function sameColumnValue(x, y) {
+export function sameColumnValue(x, y) {
   if (x === y) return true
   const xn = typeof x !== 'number' || Number.isNaN(x)
   const yn = typeof y !== 'number' || Number.isNaN(y)
