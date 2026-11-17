@@ -110,7 +110,7 @@ export default function KeywordAlerts({ suggestion = '' }) {
         {/* State the delivery, always. A subscription whose destination is
             invisible is one nobody can reason about. */}
         <span className={styles.channel}>
-          {state.enabled ? 'email + Discord, after the close'
+          {state.enabled ? 'alert bell + email, after the close'
                          : 'paused — not currently sending'}
         </span>
       </div>
