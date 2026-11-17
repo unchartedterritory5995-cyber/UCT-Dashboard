@@ -46,22 +46,28 @@ import { logStudioAction, definitionKinds, clientFailureOf } from './authoring/s
 import { outputNamer } from './authoring/readback'
 import { ackCheckboxText } from './authoring/repaintWarning'
 
+// ⭐ UCT Signature (Direction A, owner 2026-11-16): sentence-case labels, an input well,
+// soft buttons — the primary one step brighter, never gold. Gold is only the ✦ mark.
 const S = {
-  box: { display: 'flex', flexDirection: 'column', gap: 8, padding: 10, border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', background: 'var(--bg-surface)' },
-  head: { fontSize: 12, color: 'var(--text-muted)', letterSpacing: 0.4 },
-  identity: { fontSize: 13, color: 'var(--text-heading)', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'baseline' },
-  muted: { fontSize: 11, color: 'var(--text-muted)' },
-  list: { margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 2, fontSize: 12, color: 'var(--text)' },
+  box: { display: 'flex', flexDirection: 'column', gap: 8 },
+  head: { fontSize: 11.5, fontWeight: 600, color: '#c9c6be' },
+  identity: { fontSize: 13, color: '#f8f7f3', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'baseline' },
+  muted: { fontSize: 11.5, color: '#93939a' },
+  list: { margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 2, fontSize: 12, color: '#c9c6be' },
   transcript: { listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 280, overflowY: 'auto' },
-  member: { alignSelf: 'flex-end', fontSize: 13, color: 'var(--text-bright)', background: 'var(--bg-elevated)', padding: '6px 10px', borderRadius: 'var(--radius-md)' },
-  uct: { fontSize: 12, color: 'var(--text)', padding: '6px 10px', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' },
-  /** ⭐ P3: the assistant's own words beside the readback — clearly SECONDARY. */
-  assistantReply: { margin: '4px 0 0', fontSize: 11, fontStyle: 'italic', color: 'var(--text-muted)' },
-  refusal: { fontSize: 12, color: 'var(--text-bright)', padding: '6px 10px', border: '1px solid var(--loss-border)', background: 'var(--loss-bg)', borderRadius: 'var(--radius-md)' },
-  input: { width: '100%', minHeight: 48, padding: '8px 10px', resize: 'vertical', background: 'var(--bg-surface)', color: 'var(--text-bright)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', fontSize: 13 },
+  member: { alignSelf: 'flex-end', fontSize: 13, color: '#f8f7f3', background: '#222327', padding: '6px 10px', borderRadius: 9 },
+  uct: { fontSize: 12, color: '#c9c6be', padding: '8px 10px', background: '#1a1b1f', borderRadius: 9 },
+  /** ⭐ P3: the agent's own words beside the readback — clearly SECONDARY. */
+  assistantReply: { margin: '4px 0 0', fontSize: 11.5, fontStyle: 'italic', color: '#93939a' },
+  refusal: { fontSize: 12, color: '#ededed', padding: '8px 10px', border: '1px solid var(--loss-border)', background: 'var(--loss-bg)', borderRadius: 9 },
+  well: { display: 'flex', flexDirection: 'column', gap: 10, padding: '12px 12px 10px', background: '#0f1012', border: '1px solid #26282c', borderRadius: 9 },
+  input: { width: '100%', minHeight: 44, padding: 0, resize: 'none', background: 'transparent', color: '#ededed', border: 0, outline: 'none', font: '500 13.5px/1.45 var(--font-sans, inherit)' },
+  wellRow: { display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' },
+  hint: { display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: '#93939a' },
+  spark: { color: 'var(--ut-gold, #dcbb5e)' },
   row: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' },
-  button: { minHeight: 'var(--tap-min)', padding: '0 12px', background: 'var(--bg-elevated)', color: 'var(--text-bright)', border: '1px solid var(--border-accent)', borderRadius: 'var(--radius-md)', fontSize: 13, cursor: 'pointer' },
-  primary: { minHeight: 'var(--tap-min)', padding: '0 12px', background: 'var(--ut-gold-dim)', color: 'var(--text-heading)', border: '1px solid var(--ut-gold)', borderRadius: 'var(--radius-md)', fontSize: 13, cursor: 'pointer' },
+  button: { minHeight: 28, padding: '0 12px', background: 'rgba(248,247,243,.06)', color: '#ededed', border: 0, borderRadius: 7, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' },
+  primary: { minHeight: 28, padding: '0 12px', background: 'rgba(248,247,243,.08)', color: '#f8f7f3', border: 0, borderRadius: 7, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' },
 }
 const dim = (style, disabled) => (disabled ? { ...style, opacity: 0.45, cursor: 'not-allowed' } : style)
 
@@ -85,8 +91,8 @@ const OP_WORDS = Object.freeze({
   remove_output: 'remove a line', rename_output: 'rename a line', set_output_tree: 'change the formula',
   set_slot: 'change a number', add_clause: 'add a condition', remove_clause: 'remove a condition',
   set_intent: 'set what it is for', set_placement: 'move it', set_style: 'change the style',
-  set_marker: 'add a marker', remove_marker: 'remove a marker', set_paint: 'add a colour',
-  remove_paint: 'remove a colour', request_info_value: 'header value request',
+  set_marker: 'add a marker', remove_marker: 'remove a marker', set_paint: 'add a color',
+  remove_paint: 'remove a color', request_info_value: 'header value request',
   request_alert: 'alert request', cancel_request: 'cancel a request',
 })
 const opWords = (op) => `${OP_WORDS[op.op] || 'a change'}${op.output ? ` on ${op.output}` : ''}`
@@ -113,11 +119,17 @@ function errorLine(e, ops, working = null) {
  * @param {Function|null} props.onCommitState SLICE 2 — the host footer owns the ONE save button:
  *                                       `({dirty, canSave, saving, label})` on every change
  * @param {{current: object|null}|null} props.commitRef SLICE 2 — `{save}` for that button
+ * @param {{text: string}|null} props.prefill UCT Signature R2 — words to PUT in the input (a fresh
+ *                                       object per opening); never sent, the member presses Send
  */
 export default function ConverseBox({
   settings = null, onChange = null, sym = null, tf = null, editing = null, disabled = false,
   converse = converseTurn, onSaved = null, sessionKey = null, onCommitState = null, commitRef = null,
+  variant = 'ask', prefill = null,
 }) {
+  /** ⭐ DIRECTION A — 'start' is the start view's "Describe it" well (nothing to undo,
+   *  no identity line until there is an indicator); 'ask' is the editor's Ask tab. */
+  const startWell = variant === 'start'
   const [initial] = useState(() => readSession(sessionKey))
   /** The key this conversation is kept under. A NEW definition's conversation
    *  moves to its `edit:<id>` key once saved, so "New formula" later starts clean
@@ -128,7 +140,10 @@ export default function ConverseBox({
   const commit = useCallback((next) => { stateRef.current = next; setState(next) }, [])
   const [savedVersion, setSavedVersion] = useState(() => (initial ? initial.savedVersion : null))
   const [transcript, setTranscript] = useState(() => (initial && initial.transcript) || [])
-  const [message, setMessage] = useState('')
+  const [message, setMessage] = useState(() => (prefill && typeof prefill.text === 'string' ? prefill.text : ''))
+  // ⭐ UCT SIGNATURE R2 — a new prefill (each opening hands a fresh object) replaces what is in the
+  // box. It is only TYPED: no request is made until the member presses Send.
+  useEffect(() => { if (prefill && typeof prefill.text === 'string') setMessage(prefill.text) }, [prefill])
   const [busy, setBusy] = useState(false)
   const [saving, setSaving] = useState(false)
   const [acked, setAcked] = useState(false)
@@ -350,9 +365,7 @@ export default function ConverseBox({
 
   return (
     <section style={S.box} aria-label="Build it by conversation" data-guide="builder.conversation" data-testid="converse">
-      <div style={S.head}>Describe the indicator, then refine it — UCT shows exactly what will run</div>
-
-      <div style={S.identity} data-testid="converse-identity"
+      <div style={startWell && !state.working ? { ...S.identity, display: 'none' } : S.identity} data-testid="converse-identity" hidden={startWell && !state.working}
         data-def-id={state.defId || ''} data-lineage={state.lineage} data-revision={state.revision}
         data-saved={unsaved ? 'unsaved' : (state.defId ? 'saved' : 'none')}>
         <strong>{name || 'No indicator yet'}</strong>
@@ -380,7 +393,7 @@ export default function ConverseBox({
               <>
                 <ul style={S.list}>{(t.lines || []).map((l, i) => <li key={i}>{l}</li>)}</ul>
                 {t.reply && t.kind !== 'answer' && (
-                  <p style={S.assistantReply} data-testid="converse-assistant-reply">Assistant: {t.reply}</p>
+                  <p style={S.assistantReply} data-testid="converse-assistant-reply">UCT Agent: {t.reply}</p>
                 )}
               </>
             )}
@@ -410,23 +423,28 @@ export default function ConverseBox({
         </div>
       )}
 
-      <label style={S.head} htmlFor="converse-input">{state.working ? 'Change it' : 'Describe the indicator'}</label>
+      <label style={S.head} htmlFor="converse-input">{state.working ? 'Change it' : 'Describe it'}</label>
       {/* ⭐ SLICE 2 — NOT disabled while a turn runs (only Send is): a disabled
           field drops focus, and the member's next keystrokes then fall through
           to whatever is underneath (measured: the drill board's list moved).
           `send` already refuses a second turn while one is in flight. */}
-      <textarea id="converse-input" style={S.input} value={message} disabled={disabled}
-        placeholder={state.working ? 'e.g. make it 80 · paint the candles gold · alert me when it becomes true' : 'e.g. RSI overbought'}
-        onChange={(e) => setMessage(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(message) } }} />
-      <div style={S.row}>
-        <button type="button" style={dim(S.primary, busy || !message.trim())} data-testid="converse-send"
-          disabled={busy || disabled || !message.trim()} onClick={() => send(message)}>
-          {busy ? 'Working…' : 'Send'}
-        </button>
-        <button type="button" style={dim(S.button, !canUndo)} data-testid="converse-undo" data-guide="builder.undo" disabled={!canUndo} onClick={undoLast}>
-          Undo last change
-        </button>
+      <div style={S.well}>
+        <textarea id="converse-input" style={S.input} value={message} disabled={disabled} rows={2}
+          placeholder={state.working ? 'e.g. make it 80 · paint the candles gold · alert me when it becomes true' : 'e.g. RSI under 30 while price is above its 200-day average'}
+          onChange={(e) => setMessage(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(message) } }} />
+        <div style={S.wellRow}>
+          <span style={S.hint}><span style={S.spark} aria-hidden="true">✦</span>The UCT Agent writes it — you check the plain-English read-back</span>
+          <span style={S.row}>
+            <button type="button" style={dim(S.button, !canUndo)} data-testid="converse-undo" data-guide="builder.undo" disabled={!canUndo} onClick={undoLast}>
+              Undo last change
+            </button>
+            <button type="button" style={dim(S.primary, busy || !message.trim())} data-testid="converse-send"
+              disabled={busy || disabled || !message.trim()} onClick={() => send(message)}>
+              {busy ? 'Working…' : (state.working ? 'Send' : 'Write it')}
+            </button>
+          </span>
+        </div>
       </div>
 
       {state.working && (

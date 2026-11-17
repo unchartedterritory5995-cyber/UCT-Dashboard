@@ -82,27 +82,21 @@ plot(math.ceil(close))
   // dedicated test file already names. This corpus script still does not
   // move the real host_ok count — what moved is that `math.ceil` is no
   // longer the reason it refuses.
-  it('the real corpus script no longer refuses on math.ceil (a permanent, unrelated blocker now surfaces)', () => {
+  it('the real corpus script no longer refuses on math.ceil — and now translates whole', () => {
     const src = fs.readFileSync(
       path.join(CORPUS, 'chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2.pine'), 'utf8')
     const t = translatePine(src, { strict: true })
-    expect(t.ok).toBe(false)
-    // ⚠️ The guard is `pine:function` AGAIN since 2026-09-28 — for `time(<tf>)`,
-    // not for `math.ceil` — so the claim is carried by the MESSAGE, not the guard.
-    expect(t.refusal.message).not.toMatch(/math\.ceil/)
-    // ⚰️ WAS pine:builtin naming `syminfo.mintick`. 2026-09-28: the host lane now
-    // serves `syminfo.mintick` (per witnessed exchange, symbolScope.json::tick_size)
-    // and the script meets its next wall, `time(<timeframe>)` at line 84 — a
-    // pine:function refusal that is NOT about `math.ceil`, which is this case's claim.
-    expect(t.refusal.message).not.toMatch(/syminfo\.mintick/)
-    // ⚰️ …AND MOVED AGAIN 2026-10-04 (G16, the wave-16 gate). Line 84's anchor is
-    // `newday(res) => time(res)` called as `newday('D')`: H5 (0df971ee42) reads a
-    // request timeframe that is a FUNCTION PARAMETER on the plot lane too, so it is
-    // `time("D")`, which translates. The script walks on to line 140, the session
-    // clock `time(timeframe.period, '0000-0000:7')`, whose window wraps past midnight
-    // and is refused by name. Still pine:function, still not about `math.ceil`.
-    expect(t.refusal.message).toMatch(/time\(<timeframe>, <session>\)/)
-    expect(t.refusal.message).toMatch(/wraps past midnight/)
+    // ⚰️ WAS pine:builtin naming `syminfo.mintick`, then (2026-09-28) the `time(<timeframe>)`
+    // anchor at line 84, then (2026-10-04, G16) line 140's session clock
+    // `time(timeframe.period, '0000-0000:7')`, refused as "wraps past midnight".
+    // ⚰️ …AND TRANSLATES (bt, NUMBER PENDING): "0000-0000:<day>" is the bar's own date
+    // (vw-w4-session-overnight-btcusd-60 O4; the user manual's "0000-0000:23456"), the last
+    // wall this script met on the host lane. `math.ceil` is served in it, which is this
+    // case's claim: no output refuses on it.
+    expect(t.ok, JSON.stringify(t.refusal)).toBe(true)
+    for (const o of t.outputs || []) {
+      if (o.refusal) expect(o.refusal.message).not.toMatch(/math\.ceil/)
+    }
   })
 
   // ⛔⛔ THE OTHER SIX REAL SCRIPTS NAMING `math.ceil`, MEASURED HONESTLY:

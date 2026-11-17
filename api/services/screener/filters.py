@@ -1617,7 +1617,7 @@ def _my_lists_entry(user_id):
              "complement": bool(o.get("complement"))}
             for o in options],
         "desc": "Screen only the symbols on one of your own lists — a "
-                "watchlist, your flagged names, or a colour tag. "
+                "watchlist, your flagged names, or a color tag. "
                 "“Unflagged” is the complement: everything you have "
                 "NOT flagged, so you stop re-reviewing names you already "
                 "triaged. Two list filters intersect; several selections "

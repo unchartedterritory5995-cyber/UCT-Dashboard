@@ -400,7 +400,11 @@ describe('⭐ r5/r6 (N-g) — a `var` array of lines pushed past the cap: the li
     expect(runtimeLane(true).withheld.line).toMatch(/held in an array or a user type/)
   })
 
-  it('⭐ r6 — BOXES in a `var` array are WITNESSED collected (sonarlab-order-blocks-spy-1d): neither lane withholds, the host lane draws them', () => {
+  // ⭐ DRAW-1 (2026-11-16, coordinator ruling) — the runtime lane now withholds a box family whose collector
+  // ran, whatever holds it (`objects:count-at-cap`, `objectPool.js` COUNT_AT_CAP_FAMILIES): sonarlab-order-
+  // blocks is withheld pending vw-draw-count-at-cap. The ARRAY is still not the reason: the sentence is the
+  // count's, never the array holder's. The host lane is unchanged and draws them.
+  it('⭐ r6 — BOXES in a `var` array are WITNESSED collected (sonarlab-order-blocks-spy-1d): the host lane draws them; the runtime lane withholds them for the count, never for the array', () => {
     const boxSrc = ['//@version=6', 'indicator("t", overlay = true, max_boxes_count = 5)', 'var bxs = array.new_box()',
       'if close > open', '    bxs.push(box.new(bar_index, high, bar_index + 1, low))', ''].join(LF)
     const t = translatePine(boxSrc)
@@ -413,7 +417,8 @@ describe('⭐ r5/r6 (N-g) — a `var` array of lines pushed past the cap: the li
     if (!b.ok) throw new Error(`refused: ${b.refusal.guard} — ${b.refusal.message}`)
     const p2 = lowerIrProgram(b.ir)
     const fin = execute(p2, { bars: NB, series: SERIES, columns: p2.columns, confirmed: true, barTimes: RT_BARS.map((x) => x.t) }).objects.finish()
-    expect(fin.withheld.box).toBeUndefined()
+    expect(String(fin.withheld.box || '')).toMatch(/^The script held more boxes than its maximum count \(5\)/)
+    expect(String(fin.withheld.box)).not.toMatch(/held in an array or a user type/)
   })
 
   it('⛔ CONTROL: the same lines held by nothing — the collector is measured, both lanes draw and name nothing', () => {

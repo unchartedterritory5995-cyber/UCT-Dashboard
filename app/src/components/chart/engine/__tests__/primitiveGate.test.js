@@ -54,6 +54,8 @@ const CHART_CHROME = {
   splitBadgeRef: 'Split badge — the same badge primitive with an S glyph.',
   divBadgeRef: 'Dividend badge — the same badge primitive with a D glyph.',
   ipoBadgeRef: 'IPO badge — the same badge primitive with an IPO glyph.',
+  sessionBreaksRef: 'Session breaks — vertical lines at each new trading day. Chart context, not indicator output.',
+  nextEarnRef: 'Next earnings date "E" chip in the future area. Chart context from product data, not indicator output.',
 }
 
 /** Strip line and block comments so a commented-out example is not a call site. */

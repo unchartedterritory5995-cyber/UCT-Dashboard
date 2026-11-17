@@ -55,6 +55,7 @@ metallic gradient/glow, never a gold fill, gold border, gold text block or gold 
 **Stays grey/white:** soft squares (even when ticked), counts, icons, primary buttons (white),
 hover states, focus rings, headings. **Rule of thumb:** one or two gold marks per surface; if a
 menu shows three, drop one. A long list never turns gold (that is why ticks stay grey).
+Chart header (owner 11-16): with no saved colour the ticker title is white (`#ededed`) and the day change uses the chart's own candle up/down colours — never gold (`pane/headerDefaultColors.js`).
 Approval board with the five recipes we compared: https://claude.ai/artifact/QfJN6erpTCMEzdubY5H42W
 
 ## 2. Tokens (dark — the default; exact values)
@@ -140,6 +141,13 @@ picker and the watchlist column menu offer the same list
 ### Inline "describe it" bar (UCT Intelligence)
 A 36px well on the card colour with a ✦ spark, placeholder "Change it in plain words, e.g. …",
 and a send arrow. Replaces "Modify with AI" buttons.
+
+### On-chart marks of the member's own activity (Chart Settings → Markers → Your activity)
+Quiet, read-only, default off, and never gold. **Price alerts:** a 1px dashed line in muted
+steel-blue `#6ba3be`, axis label "Alert". **My trades** (owner 11-16): a small up-arrow under the
+bar for a buy and a small down-arrow over it for a sell, in the chart's **own** up / down candle
+colours at 60% strength (no fixed green/red, no permanent text on the chart); hovering one shows
+"Bought 100 @ 12.34 · Mar 2, 2026, 10:31 AM", or "3 fills · net +200" for a bar with several fills.
 
 ## 4. Don'ts
 - No gold beyond §2b: no gold fills, borders, buttons, text blocks, counts or decorative icons; no metallic gold icons.

@@ -75,7 +75,8 @@ export const ORDER_STATUSES = Object.freeze(['placed', 'filled', 'cancelled', 'r
 export const ORDER_END_REASONS = Object.freeze({
   cancelled: Object.freeze(['strategy.cancel', 'strategy.cancel_all', 'oca-cancel', 'oca-reduce', 'trade-closed',
     'nothing-to-close']),
-  rejected: Object.freeze(['pyramiding', 'risk-allow-entry-in']),
+  // 'funds' (2026-11-16, [B-FUNDS], Q-S1i): an entry the equity cannot carry at its fill price (w9-q-s1a-size-v6)
+  rejected: Object.freeze(['pyramiding', 'risk-allow-entry-in', 'funds']),
 })
 /** ⭐⭐ ONE AUTHORITY: the id a trade's exit carries, from the order (row) that closed it. R6 states it for an
  *  exit command (`strategy.exit` `id`: "corresponds to an exit ID in the strategy's trades after an order

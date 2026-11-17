@@ -4,7 +4,7 @@
     "a row) when a writer / cache / gate is removed; never raise one. How to update: rails/README.md."
   ],
   "totals": {
-    "setData": 25,
+    "setData": 26,
     "seriesUpdate": 37,
     "candleWrites": 20,
     "liveRefAssign": 23,
@@ -22,6 +22,9 @@
     },
     "components/chart/ChartSettingsIndicators.jsx": {
       "setData": 2
+    },
+    "components/chart/HeaderStatPicker.jsx": {
+      "setData": 1
     },
     "components/chart/engine/binder.js": {
       "setData": 3

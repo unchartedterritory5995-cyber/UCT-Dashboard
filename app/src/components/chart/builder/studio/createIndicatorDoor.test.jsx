@@ -24,91 +24,56 @@ const openAdd = () => {
 
 afterEach(() => { cleanup(); try { localStorage.removeItem(CREATE_INDICATOR_FLAG_KEY) } catch { /* */ } })
 
+// ⭐ UCT SIGNATURE R2 (owner Option 1, 2026-11-16): the Indicators window has ONE way to make an
+// indicator — "✦ Create indicator" — and it opens the New formula window's START view (Describe it +
+// the start cards) through `onCreateFormula`, for every account. ⚰️ "Describe one" (the separate
+// Create Indicator door, flag-gated, "Soon" when off) and "+ New formula" are gone from this window.
 describe('Create Indicator door', () => {
-  it('flag OFF (default): members see exactly the old "+ New Formula", no Create Indicator', () => {
-    expect(resolveCreateIndicatorFlag()).toBe(false)
-    render(<Host onCreateFormula={() => {}} onCreateIndicator={() => {}} />)
-    openAdd()
-    expect(screen.queryByTestId('settings-create-indicator')).toBeNull()
-    expect(screen.getByTestId('settings-new-formula').textContent.replace(/\s+/g, ' ').trim()).toBe('New formula')   // UCT Signature soft pill
-  })
-
-  it('flag ON: "Describe one" (Create Indicator) sits beside New formula and calls its door', () => {
-    const open = vi.fn()
-    act(() => { setCreateIndicatorFlag(true) })
-    render(<Host onCreateFormula={() => {}} onCreateIndicator={open} />)
-    openAdd()
-    // ⭐ DESCRIBE FIRST (owner pick 2026-11-15): the plain-words box stands where the "Describe one"
-    // pill stood. Its send button is the same door; with nothing typed it opens the studio blank.
-    const btn = screen.getByTestId('settings-create-indicator')
-    expect(screen.getByTestId('describe-input')).toBeTruthy()
-    expect(screen.getByTestId('settings-new-formula')).toBeTruthy()
+  const createBtn = () => screen.getByTestId('settings-create-indicator')
+  const assertOneDoor = (formula, create) => {
+    const btn = createBtn()
+    expect(btn.textContent.replace(/\s+/g, ' ').trim()).toBe('✦Create indicator')
+    expect(btn.className).toMatch(/addPrim/)          // the soft-bright primary
+    expect(btn.getAttribute('data-guide')).toBe('indicators.create')
+    expect(screen.queryByText(/Describe one/)).toBeNull()
+    expect(screen.queryByText(/^New formula$/)).toBeNull()
+    expect(screen.queryByTestId('settings-new-formula')).toBeNull()   // only under a search now
     fireEvent.click(btn)
-    expect(open).toHaveBeenCalledTimes(1)
-    expect(open).toHaveBeenLastCalledWith()
-  })
+    expect(formula).toHaveBeenCalledTimes(1)
+    expect(formula.mock.calls[0]).toEqual([])          // the bare start view: nothing pre-filled
+    expect(create).not.toHaveBeenCalled()
+  }
 
-  it('what is typed is handed to the door as a prefilled request, trimmed; the box clears', () => {
-    const open = vi.fn()
-    act(() => { setCreateIndicatorFlag(true) })
-    render(<Host onCreateFormula={() => {}} onCreateIndicator={open} />)
+  it('flag OFF (default): one "Create indicator" that opens the New formula start view', () => {
+    expect(resolveCreateIndicatorFlag()).toBe(false)
+    const formula = vi.fn(); const create = vi.fn()
+    render(<Host onCreateFormula={formula} onCreateIndicator={create} />)
     openAdd()
-    const box = screen.getByTestId('describe-input')
-    fireEvent.change(box, { target: { value: '  colour the 21 EMA green while it rises  ' } })
-    fireEvent.submit(box.closest('form'))
-    expect(open).toHaveBeenCalledTimes(1)
-    // 2026-11-16: the member submitted the box, so the words are SENT as the first turn
-    expect(open).toHaveBeenLastCalledWith({ seed: 'colour the 21 EMA green while it rises', send: true })
-    expect(screen.getByTestId('describe-input').value).toBe('')
+    assertOneDoor(formula, create)
   })
 
-  it('an example is one press: it hands its own words to the door', () => {
-    const open = vi.fn()
+  it('flag ON (admin): the same one button, still the New formula start view', () => {
     act(() => { setCreateIndicatorFlag(true) })
-    render(<Host onCreateFormula={() => {}} onCreateIndicator={open} />)
+    const formula = vi.fn(); const create = vi.fn()
+    render(<Host onCreateFormula={formula} onCreateIndicator={create} />)
     openAdd()
-    const examples = screen.getAllByTestId('describe-example')
-    expect(examples).toHaveLength(3)
-    fireEvent.click(examples[1])
-    expect(open).toHaveBeenLastCalledWith({ seed: examples[1].textContent, send: true })
+    assertOneDoor(formula, create)
   })
 
-  it('the other ways to start one are named in member words and open their own doors', () => {
-    const door = vi.fn(); const formula = vi.fn()
+  it('a MEMBER account: the same one button', () => {
     act(() => { setCreateIndicatorFlag(true) })
-    render(<Host onCreateFormula={formula} onCreateIndicator={() => {}} onOpenBuilderDoor={door} />)
+    const formula = vi.fn(); const create = vi.fn()
+    render(<Host role="user" onCreateFormula={formula} onCreateIndicator={create} />)
     openAdd()
-    expect(screen.getByTestId('describe-alt').textContent.replace(/\s+/g, ' ').trim())
-      .toBe('Or paste a TradingView script, start from a picture, or write a formula.')
-    fireEvent.click(screen.getByTestId('door-pine')); expect(door).toHaveBeenLastCalledWith('pine')
-    fireEvent.click(screen.getByTestId('door-image')); expect(door).toHaveBeenLastCalledWith('image')
-    fireEvent.click(screen.getByTestId('settings-new-formula')); expect(formula).toHaveBeenCalledTimes(1)
-    expect(door).toHaveBeenCalledTimes(2)       // the formula entry is its OWN door, not a third builder door
+    assertOneDoor(formula, create)
   })
 
-  it('without access the box is absent, and the other ways to start one are still offered', () => {
-    const door = vi.fn()
-    render(<Host onCreateFormula={() => {}} onCreateIndicator={() => {}} onOpenBuilderDoor={door} />)
-    openAdd()
-    expect(screen.queryByTestId('describe-block')).toBeNull()
-    expect(screen.getByTestId('describe-alt').textContent.replace(/\s+/g, ' ').trim())
-      .toBe('Start one: paste a TradingView script, start from a picture, or write a formula.')
-  })
-
-  it('flag ON but a MEMBER account (server role): still exactly the old "+ New Formula"', () => {
+  it('no builder door from the host: no button (absent prop ⇒ absent door)', () => {
     act(() => { setCreateIndicatorFlag(true) })
-    render(<Host role="user" onCreateFormula={() => {}} onCreateIndicator={() => {}} />)
+    render(<Host onCreateIndicator={() => {}} />)
     openAdd()
     expect(screen.queryByTestId('settings-create-indicator')).toBeNull()
-    expect(screen.getByTestId('settings-new-formula')).toBeTruthy()
-  })
-
-  it('flag ON but no door from the host: no button (absent prop ⇒ absent door)', () => {
-    act(() => { setCreateIndicatorFlag(true) })
-    render(<Host onCreateFormula={() => {}} />)
-    openAdd()
-    expect(screen.queryByTestId('settings-create-indicator')).toBeNull()
-    expect(screen.getByTestId('settings-new-formula')).toBeTruthy()
+    expect(screen.queryByText(/Describe one/)).toBeNull()
   })
 })
 

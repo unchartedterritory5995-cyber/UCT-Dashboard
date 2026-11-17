@@ -250,8 +250,13 @@ describe('Manage templates: the Plain templates group', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Delete Morning plan' }))
     fireEvent.click(within(screen.getByRole('group', { name: 'Delete Morning plan?' })).getByRole('button', { name: 'Delete' }))
     // the list re-read empty: the row is gone, the empty line shows, and the line and focus are still here
-    expect(await screen.findByText("No plain templates yet. Open a note's More menu and choose Save as template.")).toBeInTheDocument()
-    expect(screen.getByText('Deleted “Morning plan”. Notes made from it are unchanged.')).toBeInTheDocument()
+    // 2026-11-17 (fix/master-nb-screener-reds): wait for the LINE, the delete's last step, not the empty list.
+    // `deleteMemberTemplate` re-reads the list (`refreshList`) BEFORE it returns, so the empty line is drawn a turn
+    // before `doDelete` says "Deleted" and moves focus; awaiting the empty line raced that turn and lost on the
+    // GitHub runners (red on master at 22cc0680b1; the same run waiting 100 ms more showed the line present).
+    // The end state is what is pinned: all three hold together once the delete has finished.
+    expect(await screen.findByText('Deleted “Morning plan”. Notes made from it are unchanged.')).toBeInTheDocument()
+    expect(screen.getByText("No plain templates yet. Open a note's More menu and choose Save as template.")).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Plain templates', level: 3 })).toHaveFocus()
     await swrMutate(() => true, undefined, { revalidate: false })
   })

@@ -559,8 +559,14 @@ def _own_window(spec: Any, arg_nodes: List[Any]) -> Tuple[Reach, Reach]:
 
     if lookback == UNKNOWN or declared_forward == UNKNOWN:
         return UNKNOWN, UNKNOWN
-    if lookback == UNBOUNDED or declared_forward == UNBOUNDED:
+    if lookback == UNBOUNDED:
         return UNKNOWN, UNBOUNDED
+    # NUMBER PENDING (bt) -- an unbounded FORWARD reach says nothing about how far BACK: the
+    # twin of `lint.js::ownWindow`. `lastbaryear` (lookback 0, forward "unbounded") reads no
+    # earlier bar; answering UNKNOWN made this reader disagree with `max_lookback` in
+    # `ast_interpret`, which reads the lookback alone. The repaint verdict is untouched.
+    if declared_forward == UNBOUNDED:
+        return (lookback if lookback >= 0 else 0), UNBOUNDED
 
     back = lookback if lookback >= 0 else 0
     from_sign = 0 if lookback >= 0 else -lookback
