@@ -2155,7 +2155,7 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       ...(Number.isFinite(p.width) ? { width: pineLineWidth(p.width) } : {}),
       ...(p.marker && p.marker.shape ? { marker: p.marker } : {}),
       // ⭐ ROW 42 — a "with breaks" style breaks at `na`, as the host lane's rows say.
-      ...(p.sparse === true ? { sparse: true } : {}),
+      ...(p && p.sparse === true ? { sparse: true } : {}),
       // ⭐ WS-E — a leftward `offset`, drawn by the binder as a host row's is.
       ...(Number.isInteger(displace) && displace < 0 ? { displace } : {}),
       // The host output this row draws — the vendor harness and the pane's

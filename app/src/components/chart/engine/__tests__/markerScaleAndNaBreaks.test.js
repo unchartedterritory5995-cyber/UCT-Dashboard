@@ -26,6 +26,7 @@ import { createFakeChart } from './fakeChart'
 import { seriesOptionsForPlot, markerIsEvent, AUTOSCALE_EXCLUDE, AUTOSCALE_DEFAULT } from '../pool'
 import { translatePine } from '../ast/pine'
 import { applyPatch } from '../../builder/authoring/applyPatch'
+import { memberPaneDefinition } from '../../builder/memberPane/memberPaneDefinition'
 
 // ─── jsdom needs a 2D context and a non-zero layout (as autoscaleOnARealScale) ──
 beforeAll(() => {
@@ -216,6 +217,21 @@ describe('row 42 — each Pine plot style bridges or breaks at na as TradingView
       expect(pres.sparse === true).toBe(breaks)
     })
   }
+})
+
+describe('row 42 — the member door carries the break into the saved document', () => {
+  const doc = (style) => {
+    const r = memberPaneDefinition({ id: 'u_test_linebr', name: 'x',
+      source: `//@version=5\nindicator("x")\nv = close > open ? close : na\nplot(v, "v", style = ${style})\n` })
+    expect(r.ok, r.reason).toBe(true)
+    return r.definition.plots.find((p) => p.style !== 'hlines')
+  }
+  it('⭐ plot.style_linebr -> plots[].sparse true on the installed document', () => {
+    expect(doc('plot.style_linebr').sparse).toBe(true)
+  })
+  it('plot.style_line -> no sparse (bridges, as TradingView draws it)', () => {
+    expect(doc('plot.style_line').sparse).toBeUndefined()
+  })
 })
 
 // ─── C. A definition's authored break, end to end through the binder ──────────
