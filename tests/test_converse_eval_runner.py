@@ -356,3 +356,73 @@ def test_CONTROL_the_asset_scan_would_catch_a_missing_loader(monkeypatch):
     monkeypatch.setattr(ce, "ASSET_LOADERS", {k: v for k, v in ce.ASSET_LOADERS.items() if k != ".webp"})
     with pytest.raises(AssertionError, match=r"\.webp"):
         test_every_asset_type_the_app_imports_has_a_loader_in_the_lane()
+
+
+# ═══ 2026-11-17 — the UCT house indicators as cases (Studio plan C1 / L2) ════════════════════
+
+HOUSE_CASES = ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_house_cases.json"
+HOUSE_SCRIPT = ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_house_scripted.json"
+
+
+def _trees_read_elsewhere(ops) -> bool:
+    def walk(n):
+        if isinstance(n, dict):
+            yield n
+            for a in n.get("args") or []:
+                yield from walk(a)
+    for o in ops:
+        for out in (o.get("outputs") or []) + ([o] if "tree" in o else []):
+            if any(n.get("type") in ("sym", "tf", "tf_live") for n in walk(out.get("tree") or {})):
+                return True
+    return False
+
+
+def test_the_house_cases_are_the_house_set_and_nothing_else():
+    """No bundler needed: the fixture is IN STEP with `api/data/worked_examples.json`. Every house
+    indicator is a case with its own request and its own trees, or is named as left out because
+    it reads another symbol or timeframe (the runner has one synthetic symbol on one timeframe)."""
+    examples = {e["id"]: e for e in json.loads(io.open(ROOT / "api" / "data" / "worked_examples.json", encoding="utf-8").read())["examples"]}
+    doc = json.loads(io.open(HOUSE_CASES, encoding="utf-8").read())
+    script = json.loads(io.open(HOUSE_SCRIPT, encoding="utf-8").read())["turns"]
+    house = {c["id"]: c for c in doc["cases"] if c["id"].startswith("house-")}
+    left_out = set(doc["left_out"])
+    assert left_out == {i for i, e in examples.items() if _trees_read_elsewhere(e["ops"])}
+    assert {i.replace("house-", "").replace("-", "_") for i in house} == set(examples) - left_out
+    assert len(house) >= 9
+    for cid, case in house.items():
+        ex = examples[cid.replace("house-", "").replace("-", "_")]
+        (turn,) = case["turns"]
+        assert turn["words"] == ex["request"]
+        built = [out["tree"] for o in ex["ops"] if o.get("op") == "create" for out in o["outputs"]]
+        built += [o["tree"] for o in ex["ops"] if o.get("op") == "add_output"]
+        assert [o["tree"] for o in turn["expect"]["outputs"]] == built
+        assert script[f"{cid}#0"][0]["ops"] == ex["ops"]               # the scripted answer IS the house patch
+    # the runner's verdict needs its negative controls beside any examples: carried over unchanged
+    base = {c["id"]: c for c in json.loads(io.open(ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_cases.json", encoding="utf-8").read())["cases"]}
+    assert {c["id"]: c for c in doc["cases"] if c["group"] == "control"} == {k: v for k, v in base.items() if v["group"] == "control"}
+
+
+@needs_node
+def test_every_house_case_builds_computes_and_grades_offline(tmp_path):
+    """The door, the engine and the grader, end to end, for nine real indicators: a change to any of
+    them that breaks a house indicator fails here."""
+    proc, _work, out = _run(tmp_path, "--cases", str(HOUSE_CASES), "--script", str(HOUSE_SCRIPT))
+    assert proc.returncode == 0, proc.stdout[-3000:]
+    assert _last_line(proc.stdout).startswith("VERDICT: PASS"), proc.stdout[-1500:]
+    passed = {r["case"] for r in _records(out) if r.get("grade", {}).get("ok")}
+    doc = json.loads(io.open(HOUSE_CASES, encoding="utf-8").read())
+    assert {c["id"] for c in doc["cases"] if c["id"].startswith("house-")} <= passed
+
+
+@needs_node
+def test_CONTROL_a_house_answer_with_one_number_wrong_fails_grading(tmp_path):
+    """The house cases can fail: 25 sessions answered as 26."""
+    script = json.loads(io.open(HOUSE_SCRIPT, encoding="utf-8").read())
+    text = json.dumps(script["turns"]["house-distribution-day-count#0"])
+    assert text.count('"value": 25') == 1
+    script["turns"]["house-distribution-day-count#0"] = json.loads(text.replace('"value": 25', '"value": 26'))
+    bad = tmp_path / "bad_house.json"
+    bad.write_text(json.dumps(script), encoding="utf-8")
+    proc, _work, out = _run(tmp_path, "--cases", str(HOUSE_CASES), "--script", str(bad), "--only", "house-distribution-day-count")
+    assert proc.returncode == ce.EXIT_FAIL, proc.stdout[-2000:]
+    assert any("neither by hash nor by value" in p for r in _records(out) for p in r["grade"].get("problems", []))
