@@ -39,7 +39,7 @@
 // The host program is evaluated here exactly as the binder draws it (`hostObjectRun`, which
 // the binder now calls too: one evaluation path, never two).
 import { OBJECT_STATUS } from './objectRuntime'
-import { hostObjectRun } from './hostObjects.js'
+import { hostObjectRun, hostObjectReaderOpts } from './hostObjects.js'
 import { toRenderState, RENDER_COLOUR_SLOTS } from './objectRenderState'
 import { registerRunHalfObjectRail, runHalfEvidenceAdmits } from './runHalfRailSeam.js'
 import { runtimeSourceHash } from './runtimeKill'
