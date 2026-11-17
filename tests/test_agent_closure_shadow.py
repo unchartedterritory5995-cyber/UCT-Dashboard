@@ -291,7 +291,7 @@ def test_log_record_report_roundtrip(tmp_path):
     assert row["full_carry_result"] is None
     assert cs.record(log, t1[:10], 1, 0, "new fail", ["app/src/agent/x.test.js"]) == 1
     dd = cs.disagreements(cs.read_log(log))
-    assert len(dd) == 1 and dd[0]["verdict"] == "carry"
+    assert sorted(d["which"] for d in dd) == ["relaxed", "strict"] and {d["verdict"] for d in dd} == {"carry"}
     assert cs.record(log, t1[:10], 0, 0, "again", []) == 0  # already recorded
 
 
@@ -394,3 +394,91 @@ def test_cli_evaluate_record_report(tmp_path, capsys):
     capsys.readouterr()
     assert cs.main(["--log", str(log), "report"]) == 0
     assert "0 disagreement(s)" in capsys.readouterr().out
+
+
+# ---- AUDIT ruling 2026-11-17: every line carries BOTH verdicts (strict + relaxed) ---------------------------------
+LOADER = {
+    "api/services/plugins.py": (
+        "import importlib\n\ndef load(name):\n    return importlib.import_module(name)\n"),
+    "tests/test_uct_agent_plugins.py": (
+        "from api.services import plugins\n\ndef test_load():\n    assert plugins.load('json')\n"),
+}
+DUAL_FIELDS = ("verdict", "verdict_strict", "verdict_relaxed", "relaxed_deciding_items", "delta_range",
+               "related_count_strict", "related_count_relaxed", "runtime_s", "full_carry_result", "source")
+
+
+def test_dual_verdict_line_when_a_relaxed_item_decides(tmp_path):
+    """A product module's computed import_module is a relaxed item: strict -> full, relaxed -> carry, and the line
+    names the site that decided the relaxed verdict."""
+    repo, t0 = make_repo(tmp_path, LOADER)
+    t1 = move_master(repo, {"api/other.py": "X = 3\n"})
+    log = tmp_path / "shadow.log"
+    cs.append_log(verdict(repo, t0, t1), log)
+    row = json.loads(log.read_text(encoding="utf-8").splitlines()[0])
+    for k in DUAL_FIELDS:
+        assert k in row, k
+    assert row["verdict_strict"] == "full" and row["verdict_relaxed"] == "carry" and row["verdict"] == "carry"
+    assert row["delta_range"] == f"{t0[:10]}..{t1[:10]}"
+    assert row["related_count_strict"] == 0 and row["related_count_relaxed"] == 0
+    assert row["relaxed_deciding_items"]["count"] == 1
+    assert row["relaxed_deciding_items"]["sites"][0].startswith("api/services/plugins.py:4: import_module()")
+    assert isinstance(row["runtime_s"], float)
+
+
+def test_dual_verdict_line_when_no_relaxed_item_matters(tmp_path):
+    repo, t0 = make_repo(tmp_path, {})
+    t1 = move_master(repo, {"app/src/lib/used.js": "export const used = 4\n"})
+    rec = verdict(repo, t0, t1)
+    assert rec["verdict_strict"] == rec["verdict_relaxed"] == rec["verdict"]
+    assert rec["related_count_strict"] == rec["related_count_relaxed"] == 2
+    assert rec["relaxed_deciding_items"] == {"count": 0, "seeds": 0, "sites": []}
+
+
+def test_strict_env_makes_the_headline_verdict_strict(tmp_path, monkeypatch):
+    repo, t0 = make_repo(tmp_path, LOADER)
+    t1 = move_master(repo, {"api/other.py": "X = 4\n"})
+    monkeypatch.setenv("AGENT_CLOSURE_STRICT_PRODUCT", "1")
+    rec = verdict(repo, t0, t1)
+    assert rec["verdict"] == rec["verdict_strict"] == "full" and rec["verdict_relaxed"] == "carry"
+
+
+def test_report_checks_strict_and_relaxed_separately():
+    rows = [{"verdict": "carry", "verdict_relaxed": "carry", "verdict_strict": "full",
+             "relaxed_deciding_items": {"count": 1},
+             "full_carry_result": {"vitest_new_fails": 0, "pytest_new_fails": 1, "failed_files": ["tests/x.py"]}}]
+    dd = cs.disagreements(rows)
+    assert [d["which"] for d in dd] == ["relaxed"] and dd[0]["relaxed_deciding_items"] == 1
+
+
+def test_watch_evaluates_each_new_tip_against_the_last_and_writes_only_the_log(tmp_path):
+    repo, c0 = make_repo(tmp_path / "w", {})
+    c1 = move_master(repo, {"app/src/lib/used.js": "export const used = 5\n"})
+    _git(repo, "update-ref", "refs/remotes/origin/master", c1)
+    out = tmp_path / "out"
+    out.mkdir()
+    log = out / "shadow.log"
+    before = _git(repo, "status", "--porcelain")
+    r1 = cs.watch_once(repo, log, fetch=False)
+    assert r1["source"] == "watch" and (r1["t0"], r1["t1"]) == (c0, c1)      # first run: tip^1..tip
+    assert cs.watch_once(repo, log, fetch=False) is None                     # tip unchanged: nothing
+    c2 = move_master(repo, {"docs/other.md": "z\n"})
+    c3 = move_master(repo, {"api/other.py": "X = 9\n"})
+    _git(repo, "update-ref", "refs/remotes/origin/master", c3)
+    r2 = cs.watch_once(repo, log, fetch=False)
+    assert (r2["t0"], r2["t1"]) == (c1, c3) and r2["delta"] == ["api/other.py", "docs/other.md"]
+    assert r2["verdict_strict"] == r2["verdict_relaxed"] == "carry"
+    rows = [json.loads(x) for x in log.read_text(encoding="utf-8").splitlines()]
+    assert [r["delta_range"] for r in rows] == [f"{c0[:10]}..{c1[:10]}", f"{c1[:10]}..{c3[:10]}"]
+    assert sorted(p.name for p in out.iterdir()) == ["shadow.log"]           # no other files
+    assert _git(repo, "status", "--porcelain") == before                     # the repo is untouched
+    assert c2  # (intermediate tip, folded into the range)
+
+
+def test_watch_once_cli(tmp_path, capsys):
+    repo, c0 = make_repo(tmp_path, {})
+    c1 = move_master(repo, {"docs/other.md": "w\n"})
+    _git(repo, "update-ref", "refs/remotes/origin/master", c1)
+    log = tmp_path / "shadow.log"
+    # no remote named origin in the fixture: the fetch fails quietly and the tick still evaluates the local ref
+    assert cs.main(["--repo", str(repo), "--log", str(log), "watch", "--once"]) == 0
+    assert json.loads(log.read_text(encoding="utf-8"))["source"] == "watch"

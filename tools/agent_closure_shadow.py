@@ -10,6 +10,7 @@ Agent's test evidence?
     python tools/agent_closure_shadow.py evaluate --pr N --t0 SHA --t1 SHA [--tree DIR] [--log PATH]
     python tools/agent_closure_shadow.py record   --t1 SHA --vitest-fails N --pytest-fails N [--failed-files ...] --notes ...
     python tools/agent_closure_shadow.py report   [--log PATH]
+    python tools/agent_closure_shadow.py watch    [--interval 300] [--once]   # the unattended shadow loop
 
 CLOSURE = everything the Agent tests can observe, transitively:
   seeds    AGENT_VITEST_PATHS (read from .github/workflows/agent-ci.yml — the one authority), tests/test_uct_agent*.py,
@@ -55,7 +56,9 @@ TMP = "\u0003TMP"
 UNSET = "\u0004UNSET"
 R = "/R"
 
-# AGENT_CLOSURE_STRICT_PRODUCT=1: product code's computed importlib / sys.path / @vite-ignore imports are fatal too.
+# The graph always records the product-code relaxations (runtime_io / runtime_dynamic sites); every evaluation
+# reports BOTH verdicts: strict (those sites are fatal) and relaxed (they are recorded only).
+# AGENT_CLOSURE_STRICT_PRODUCT=1 makes the headline `verdict` field the strict one.
 STRICT_PRODUCT = os.environ.get("AGENT_CLOSURE_STRICT_PRODUCT") == "1"
 DOTTED_RE = re.compile(r"^([a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)+)(?::[A-Za-z_]\w*)?$")
 
@@ -1441,7 +1444,7 @@ def build_graph(repo: Path, sha: str) -> Graph:
                 for u in res["uncertain"]:
                     if "glob" in dis and "import.meta.glob" in u["why"]:
                         continue
-                    if u.get("viteIgnore") and not VITEST_TEST_RE.search(f) and not STRICT_PRODUCT:
+                    if u.get("viteIgnore") and not VITEST_TEST_RE.search(f):
                         # `import(/* @vite-ignore */ url)` in product code: a runtime URL import vite does not
                         # bundle (e.g. the chunk-retry of an already-built chunk) — recorded, not fatal
                         g.runtime_dynamic.append(f"{f}:{u['line']}: {u['why']} (@vite-ignore)")
@@ -1497,7 +1500,7 @@ def build_graph(repo: Path, sha: str) -> Graph:
                 print(f"[closure] py {f}", file=sys.stderr, flush=True)
             refs, unc = analyze_py(f, loader, dis, harvest=not test_side(f))
             for u in unc:
-                if not test_side(f) and not STRICT_PRODUCT and (
+                if not test_side(f) and (
                         u["why"].startswith(("import_module()", "__import__()", "sys.path entry", "runpy.run_module",
                                              "subprocess runs", "exec:"))):
                     # product code's runtime plugin loading (module names from registries / config): recorded, not
@@ -1558,13 +1561,19 @@ def _cache_key(sha: str) -> str:
     src = (HERE / "agent_closure_shadow.py").read_text(encoding="utf-8")
     h.update(src.split("\ndef _cache_key(", 1)[0].encode("utf-8"))  # only the graph-building half
     h.update((HERE / "agent_closure_graph.mjs").read_bytes())
-    h.update(json.dumps([sorted(_disabled()), STRICT_PRODUCT]).encode())
+    h.update(json.dumps([sorted(_disabled())]).encode())
     return f"{sha}-{h.hexdigest()[:16]}.json"
 
 
 def build_graph_cached(repo: Path, sha: str, cache_dir: "Path | None") -> Graph:
     """build_graph, memoised on disk by (commit, tool source hash, switches) when a cache dir is given."""
     full = _git(repo, "rev-parse", sha).strip()
+    if cache_dir is None and _MEM_GRAPHS is not None:
+        if full not in _MEM_GRAPHS:
+            while len(_MEM_GRAPHS) >= 3:
+                _MEM_GRAPHS.pop(next(iter(_MEM_GRAPHS)))
+            _MEM_GRAPHS[full] = build_graph(repo, full)
+        return _MEM_GRAPHS[full]
     if cache_dir is None:
         return build_graph(repo, full)
     p = Path(cache_dir) / _cache_key(full)
@@ -1587,8 +1596,16 @@ def build_graph_cached(repo: Path, sha: str, cache_dir: "Path | None") -> Graph:
 LEAF_KINDS = {"read", "url", "manifest", "path"}
 
 
-def seed_closures(g: Graph) -> tuple[dict[str, dict[str, str | None]], dict[str, list]]:
-    """-> ({seed: {node: parent}}, {seed: [uncertain (node, why)]})."""
+def _site_file(site: str) -> str:
+    return site.split(":", 1)[0]
+
+
+def seed_closures(g: Graph, soft_out: "dict | None" = None) -> tuple[dict[str, dict[str, str | None]], dict[str, list]]:
+    """-> ({seed: {node: parent}}, {seed: [uncertain (node, why)]}). With soft_out, also fills
+    {seed: [relaxed site]} — the runtime_io / runtime_dynamic sites in files the seed EXECUTES (strict-fatal)."""
+    soft_by_file: dict[str, list[str]] = {}
+    for site in list(g.runtime_io) + list(g.runtime_dynamic):
+        soft_by_file.setdefault(_site_file(site), []).append(site)
     seeds = list(g.js_seeds) + list(g.py_seeds)
     common = sorted(g.setup_files) + sorted(f for f in g.edges if f.endswith("conftest.py"))
     res: dict[str, dict[str, str | None]] = {}
@@ -1616,6 +1633,10 @@ def seed_closures(g: Graph) -> tuple[dict[str, dict[str, str | None]], dict[str,
         u = [(n, x["why"]) for n in expanded for x in g.uncertain.get(n, [])]
         if u:
             unc[s] = u
+        if soft_out is not None:
+            sites = [x for n in expanded for x in soft_by_file.get(n, [])]
+            if sites:
+                soft_out[s] = sites
     return res, unc
 
 
@@ -1702,12 +1723,15 @@ def evaluate(repo: Path, t0: str, t1: str, pr: int | None, pr_files: list[str] |
     repo = Path(repo)
     t0f = _git(repo, "rev-parse", t0).strip()
     t1f = _git(repo, "rev-parse", t1).strip()
+    import time as _time
+    started = _time.monotonic()
     rec: dict = {"time": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"), "tool": TOOL_VERSION,
                  "pr": pr, "t0": t0f, "t1": t1f, "pr_head": None, "delta": [], "verdict": None, "reasons": {},
                  "global_reasons": [], "related_graph": [], "related_vitest": None, "vitest_disagreement": None,
-                 "stats": {}, "disabled_features": sorted(dis), "full_carry_result": None}
+                 "stats": {}, "disabled_features": sorted(dis), "full_carry_result": None, "source": "evaluate"}
     delta = delta_files(repo, t0f, t1f)
     rec["delta"] = delta
+    rec["delta_range"] = f"{t0f[:10]}..{t1f[:10]}"
     if pr is not None and pr_files is None and use_gh:
         pr_files, pr_head, err = pr_info(repo, pr)
         if err:
@@ -1724,10 +1748,14 @@ def evaluate(repo: Path, t0: str, t1: str, pr: int | None, pr_files: list[str] |
         rec["global_reasons"].append(f"fail-closed: graph build failed: {e}")
     reached: dict[str, list] = {}
     uncertain_seeds: dict[str, list] = {}
+    soft_seeds: dict[str, list] = {}
     setup_files: set[str] = set()
     stats = {}
     for label, g in graphs:
-        clos, unc = seed_closures(g)
+        soft: dict = {}
+        clos, unc = seed_closures(g, soft)
+        for sd, sites in soft.items():
+            soft_seeds.setdefault(sd, []).extend(f"{label}:{x}" for x in sites)
         setup_files |= g.setup_files
         members = set()
         for s, par in clos.items():
@@ -1747,6 +1775,7 @@ def evaluate(repo: Path, t0: str, t1: str, pr: int | None, pr_files: list[str] |
             rec["global_reasons"].append(f"{label}: {n}")
     rec["stats"] = stats
     full = bool([r for r in rec["global_reasons"] if r.startswith("fail-closed")])
+    strict_extra = sorted(set(soft_seeds) - set(uncertain_seeds))  # seeds uncertain ONLY under strict
     if uncertain_seeds:
         full = True
         sample = sorted(uncertain_seeds)[:5]
@@ -1789,15 +1818,37 @@ def evaluate(repo: Path, t0: str, t1: str, pr: int | None, pr_files: list[str] |
             if v != g_js:
                 rec["vitest_disagreement"] = {"vitest_only": sorted(v - g_js), "graph_only": sorted(g_js - v)}
             related |= v
-    if not delta and not [r for r in rec["global_reasons"] if r.startswith("fail-closed: graph")]:
-        rec["verdict"] = "carry"  # nothing moved
+    def decide(is_full: bool) -> str:
+        if not delta and not [r for r in rec["global_reasons"] if r.startswith("fail-closed: graph")]:
+            return "carry"  # nothing moved
+        if is_full:
+            return "full"
+        return "related:" + ",".join(sorted(related)) if related else "carry"
+
+    relaxed = decide(full)
+    strict = decide(full or bool(strict_extra))
+    if not delta:
         rec["global_reasons"].append("empty delta")
-    elif full:
-        rec["verdict"] = "full"
-    elif related:
-        rec["verdict"] = "related:" + ",".join(sorted(related))
-    else:
-        rec["verdict"] = "carry"
+    rec["verdict_relaxed"] = relaxed
+    rec["verdict_strict"] = strict
+    rec["verdict"] = strict if os.environ.get("AGENT_CLOSURE_STRICT_PRODUCT") == "1" else relaxed
+    count = lambda v: len(v.split(":", 1)[1].split(",")) if v.startswith("related:") else 0  # noqa: E731
+    rec["related_count_relaxed"] = count(relaxed)
+    rec["related_count_strict"] = count(strict)
+    # the relaxed items that DECIDED the relaxed verdict: the runtime sites executed by seeds that are uncertain
+    # only under strict — present exactly when the two verdicts differ
+    deciding: list[str] = []
+    if strict != relaxed:
+        seen: set[str] = set()
+        for sd in strict_extra:
+            for x in soft_seeds[sd]:
+                site = x.split(":", 1)[1]
+                if site not in seen:
+                    seen.add(site)
+                    deciding.append(site)
+    rec["relaxed_deciding_items"] = {"count": len(deciding), "seeds": len(strict_extra) if deciding else 0,
+                                     "sites": sorted(deciding)[:50]}
+    rec["runtime_s"] = round(_time.monotonic() - started, 1)
     return rec
 
 
@@ -1839,23 +1890,85 @@ def record(log: Path, t1: str, vitest_fails: int, pytest_fails: int, notes: str,
 
 
 def disagreements(rows: list[dict]) -> list[dict]:
+    """Rows whose carry/related verdict a full carry contradicted — checked for the strict AND the relaxed verdict."""
     out = []
     for r in rows:
         fc = r.get("full_carry_result")
-        v = r.get("verdict") or ""
-        if not fc or v == "full":
+        if not fc:
             continue
         fails = int(fc.get("vitest_new_fails") or 0) + int(fc.get("pytest_new_fails") or 0)
         if not fails:
             continue
-        related = set(v.split(":", 1)[1].split(",")) if v.startswith("related:") else set()
-        ff = fc.get("failed_files") or []
-        outside = [f for f in ff if f not in related]
-        if not ff or outside:
-            out.append({"pr": r.get("pr"), "t0": r.get("t0"), "t1": r.get("t1"), "verdict": v[:200],
-                        "new_fails": fails, "failed_outside_related": outside or "(failed files not recorded)",
-                        "notes": fc.get("notes")})
+        kinds = [("strict", r.get("verdict_strict")), ("relaxed", r.get("verdict_relaxed"))]
+        if not any(v for _, v in kinds):
+            kinds = [("verdict", r.get("verdict"))]  # a line from before the dual verdict
+        for kind, v in kinds:
+            v = v or ""
+            if not v or v == "full":
+                continue
+            related = set(v.split(":", 1)[1].split(",")) if v.startswith("related:") else set()
+            ff = fc.get("failed_files") or []
+            outside = [f for f in ff if f not in related]
+            if not ff or outside:
+                out.append({"which": kind, "pr": r.get("pr"), "t0": r.get("t0"), "t1": r.get("t1"),
+                            "verdict": v[:200], "new_fails": fails,
+                            "failed_outside_related": outside or "(failed files not recorded)",
+                            "relaxed_deciding_items": (r.get("relaxed_deciding_items") or {}).get("count"),
+                            "notes": fc.get("notes")})
     return out
+
+
+# ---- watch: the unattended shadow loop -------------------------------------------------------------------------
+_MEM_GRAPHS: "dict | None" = None  # watch keeps the last few graphs in memory (no disk writes)
+
+
+def last_watched_tip(log: Path) -> "str | None":
+    for r in reversed(read_log(log)):
+        if r.get("source") == "watch" and not r.get("error") and r.get("t1"):
+            return r["t1"]
+    return None
+
+
+def watch_once(repo: Path, log: Path, remote: str = "origin", branch: str = "master",
+               cache_dir: "Path | None" = None, fetch: bool = True) -> "dict | None":
+    """Evaluate the NEW master tip against the last evaluated one (T0 = last watched T1; first run: the tip's first
+    parent). Git is read-only apart from `git fetch <remote> <branch>`. Appends one line to `log`; nothing else."""
+    if fetch:
+        subprocess.run(["git", "-C", str(repo), "fetch", "--quiet", "--no-tags", remote, branch],
+                       capture_output=True, timeout=300)
+    tip = _git(repo, "rev-parse", f"refs/remotes/{remote}/{branch}").strip()
+    last = last_watched_tip(log)
+    if last == tip:
+        return None
+    t0 = last or _git(repo, "rev-parse", tip + "^1").strip()
+    try:
+        rec = evaluate(repo, t0, tip, pr=None, pr_files=[], use_gh=False, cache_dir=cache_dir)
+    except Exception as e:  # noqa: BLE001 — logged, the loop goes on; T0 does not advance
+        rec = {"time": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"), "tool": TOOL_VERSION,
+               "t0": t0, "t1": tip, "error": f"{type(e).__name__}: {e}"[:500]}
+    rec["source"] = "watch"
+    append_log(rec, log)
+    return rec
+
+
+def watch(repo: Path, log: Path, interval: int, once: bool = False, cache_dir: "Path | None" = None,
+          remote: str = "origin", branch: str = "master") -> int:
+    global _MEM_GRAPHS
+    import time as _time
+    if cache_dir is None:
+        _MEM_GRAPHS = {}
+    while True:
+        try:
+            rec = watch_once(repo, log, remote, branch, cache_dir)
+            if rec is not None:
+                print(json.dumps({k: rec.get(k) for k in ("time", "delta_range", "verdict_strict", "verdict_relaxed",
+                                                          "related_count_strict", "related_count_relaxed",
+                                                          "runtime_s", "error")})[:600], flush=True)
+        except Exception as e:  # noqa: BLE001 — e.g. a fetch that timed out; try again next tick
+            print(f"watch: {type(e).__name__}: {e}", file=sys.stderr, flush=True)
+        if once:
+            return 0
+        _time.sleep(max(30, interval))
 
 
 def main(argv=None) -> int:
@@ -1878,6 +1991,12 @@ def main(argv=None) -> int:
     r.add_argument("--failed-files", nargs="*", default=[])
     r.add_argument("--notes", default="")
     sub.add_parser("report")
+    w = sub.add_parser("watch", help="evaluate each NEW master tip against the last evaluated one, forever")
+    w.add_argument("--interval", type=int, default=300, help="seconds between fetches (min 30)")
+    w.add_argument("--once", action="store_true", help="one tick and exit (for an external loop / scheduler)")
+    w.add_argument("--cache", help="optional on-disk graph cache; default keeps graphs in memory only")
+    w.add_argument("--remote", default="origin")
+    w.add_argument("--branch", default="master")
     a = ap.parse_args(argv)
     log = Path(a.log)
     if a.cmd == "evaluate":
@@ -1886,9 +2005,12 @@ def main(argv=None) -> int:
                        tree_dir=Path(a.tree) if a.tree else None, cache_dir=Path(a.cache) if a.cache else None)
         if not a.no_log:
             append_log(rec, log)
-        print(json.dumps({"verdict": rec["verdict"], "delta": len(rec["delta"]), "global": rec["global_reasons"],
-                          "stats": rec["stats"]}, indent=1))
+        print(json.dumps({"verdict_strict": rec["verdict_strict"][:300], "verdict_relaxed": rec["verdict_relaxed"][:300],
+                          "delta_range": rec["delta_range"], "runtime_s": rec["runtime_s"],
+                          "global": rec["global_reasons"], "stats": rec["stats"]}, indent=1))
         return 0
+    if a.cmd == "watch":
+        return watch(Path(a.repo), log, a.interval, a.once, Path(a.cache) if a.cache else None, a.remote, a.branch)
     if a.cmd == "record":
         n = record(log, a.t1, a.vitest_fails, a.pytest_fails, a.notes, a.failed_files, a.pr)
         print(f"recorded {n} evaluation(s)")
