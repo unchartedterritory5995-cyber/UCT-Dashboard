@@ -84,6 +84,12 @@ const report = JSON.parse(fs.readFileSync(path.join(REPO,
 // committed kill list and no longer admitted (docs/pine/evidence/2026-11-16-runtime-history/EVIDENCE.md).
 // ⭐ DRAW-1 (engine 66, feat/pine-coverage-drawings): the reach run is RE-DERIVED on the engine-65 train
 // tree (input, CAPADMIT_MODE=admission, report), so it carries HIST's rows above as the tool answers them.
+// ⭐ ROUTE BY COST (NUMBER PENDING, feat/route-by-cost) re-pinned 14 rows, lane `host` -> `runtime`: the
+// door now moves a host document whose recurrences hold the main thread to the runtime lane when that lane
+// draws the same picture (docs/pine/evidence/2026-11-17-host-lane-cost/EVIDENCE.md), and these 7 scripts'
+// captures are the ones it moves (btc-charlie, pivot-point-supertrend, qqe-signals, trend-duration-forecast,
+// trendlines, twin-range-filter, vw-ratchet-stops; RDDT and SPY each). Each was graded on the runtime lane
+// after the change: 14 of 14 MATCH, every plot and object (and `runtimeOn` was MATCH in this report already).
 
 describe('WS-I Part 2 — the reach run records the lanes the door itself answers', () => {
   beforeAll(() => {

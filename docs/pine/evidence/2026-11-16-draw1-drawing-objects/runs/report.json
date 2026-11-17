@@ -324,7 +324,7 @@
   },
   {
    "capture": "btc-charlie-trader-xo-macro-trend-scanner-rddt-1d-2026-09-30",
-   "lane": "host",
+   "lane": "runtime",
    "runtimeOn": "MATCH",
    "production": "MATCH",
    "caps": [
@@ -339,7 +339,7 @@
   },
   {
    "capture": "btc-charlie-trader-xo-macro-trend-scanner-spy-1d-2026-10-03",
-   "lane": "host",
+   "lane": "runtime",
    "runtimeOn": "MATCH",
    "production": "MATCH",
    "caps": [
@@ -1782,7 +1782,7 @@
   },
   {
    "capture": "pivot-point-supertrend-rddt-1d-2026-09-27",
-   "lane": "host",
+   "lane": "runtime",
    "runtimeOn": "MATCH",
    "production": "MATCH",
    "caps": [
@@ -1795,7 +1795,7 @@
   },
   {
    "capture": "pivot-point-supertrend-spy-1d-2026-10-03",
-   "lane": "host",
+   "lane": "runtime",
    "runtimeOn": "MATCH",
    "production": "MATCH",
    "caps": [
@@ -1901,7 +1901,7 @@
   },
   {
    "capture": "qqe-signals-rddt-1d-2026-09-27",
-   "lane": "host",
+   "lane": "runtime",
    "runtimeOn": "MATCH",
    "production": "MATCH",
    "caps": [
@@ -1912,7 +1912,7 @@
   },
   {
    "capture": "qqe-signals-spy-1d-2026-10-03",
-   "lane": "host",
+   "lane": "runtime",
    "runtimeOn": "MATCH",
    "production": "MATCH",
    "caps": [
@@ -2883,7 +2883,7 @@
   },
   {
    "capture": "trend-duration-forecast-chartprime-rddt-1d-2026-09-28",
-   "lane": "host",
+   "lane": "runtime",
    "runtimeOn": "MATCH",
    "production": "MATCH",
    "caps": [
@@ -2908,7 +2908,7 @@
   },
   {
    "capture": "trend-duration-forecast-chartprime-spy-1d-2026-10-03",
-   "lane": "host",
+   "lane": "runtime",
    "runtimeOn": "MATCH",
    "production": "MATCH",
    "caps": [
@@ -3020,7 +3020,7 @@
   },
   {
    "capture": "trendlines-rddt-1d-2026-09-27",
-   "lane": "host",
+   "lane": "runtime",
    "runtimeOn": "MATCH",
    "production": "MATCH",
    "caps": [
@@ -3035,7 +3035,7 @@
   },
   {
    "capture": "trendlines-spy-1d-2026-10-03",
-   "lane": "host",
+   "lane": "runtime",
    "runtimeOn": "MATCH",
    "production": "MATCH",
    "caps": [
@@ -3067,7 +3067,7 @@
   },
   {
    "capture": "twin-range-filter-rddt-1d-2026-10-02",
-   "lane": "host",
+   "lane": "runtime",
    "runtimeOn": "MATCH",
    "production": "MATCH",
    "caps": [
@@ -3081,7 +3081,7 @@
   },
   {
    "capture": "twin-range-filter-spy-1d-2026-10-02",
-   "lane": "host",
+   "lane": "runtime",
    "runtimeOn": "MATCH",
    "production": "MATCH",
    "caps": [
@@ -4857,7 +4857,7 @@
   },
   {
    "capture": "vw-ratchet-stops-rddt-1d-2026-10-02",
-   "lane": "host",
+   "lane": "runtime",
    "runtimeOn": "MATCH",
    "production": "MATCH",
    "caps": [
@@ -4871,7 +4871,7 @@
   },
   {
    "capture": "vw-ratchet-stops-spy-1d-2026-10-02",
-   "lane": "host",
+   "lane": "runtime",
    "runtimeOn": "MATCH",
    "production": "MATCH",
    "caps": [

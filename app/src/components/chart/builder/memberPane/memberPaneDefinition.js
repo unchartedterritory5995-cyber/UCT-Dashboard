@@ -1302,24 +1302,22 @@ function routeByCost({ host, source, id, name, t, no }) {
   if (!runtimePaneEnabled()) return host
   const cost = hostLaneCostOf(host.definition)
   if (!cost.over) return host
+  // ⛔ The refusal `runtimeLaneDefinition` builds on a decline is never read (the host answer stands),
+  // so it carries no guard of its own: a code nobody can be shown is not minted.
   const run = runtimeLaneDefinition({
-    source, id, name, t, no, routed: false, hostGuard: HOST_COST_GUARD,
+    source, id, name, t, no, routed: false, hostGuard: null,
     hostReason: `its formula lane would hold the chart for about ${cost.stepsPerBar} steps a bar`,
   })
   const doc = run && run.ok ? run.definition : null
   if (!doc || !doc.compute || doc.compute.kind !== 'runtime') {
     const declined = run && run.runtimeDeclined
-    return { ...host, costRoute: { moved: false, cost, code: (declined && declined.code) || 'runtime:declined',
+    return { ...host, costRoute: { moved: false, cost, code: (declined && declined.code) || null,
       why: (declined && declined.why) || null } }
   }
   const same = sameDrawnSurface(host, run)
   if (!same.ok) return { ...host, costRoute: { moved: false, cost, code: same.code, why: same.why } }
   return { ...run, costRoute: { moved: true, cost } }
 }
-
-/** The guard a cost route names when the runtime lane declines it (never read by a member: the host
- *  answer stands). */
-export const HOST_COST_GUARD = 'pine:host-cost'
 
 /** The guard an install refusal that is NOT a budget cap is named by: the document this door
  *  built does not pass the install door's own validation (a schema rule, a repaint badge the
