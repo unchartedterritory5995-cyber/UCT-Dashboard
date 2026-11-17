@@ -4,17 +4,18 @@ A PR's pull_request run proves refs/pull/N/merge AS IT WAS when the run started.
 longer what a merge would land, and nothing re-runs it (a base move fires no pull_request event). This tool starts
 ONE fresh evidence run of the same jobs, for exactly the PR you name, on its CURRENT merge commit:
 
-    python tools/agent_ci_rearm.py --pr <n> [--ref master] [--dry-run]
+    python tools/agent_ci_rearm.py --pr <n> [--dry-run]
 
 MECHANISM (documented GitHub behaviour, no commit is made and the PR is not touched):
   1. GET pulls/<n> until GitHub has (re)computed the test merge (`mergeable` is no longer null; a GET is what makes
      GitHub compute it) AND merge_commit_sha's parents are exactly [current base tip, current PR head]. A conflict
      (`mergeable: false`) or a merge ref that is still stale after --timeout seconds: refuse, dispatch nothing.
-  2. `gh workflow run agent-ci.yml --ref <ref> -f pr=<n> -f merge_sha=<that merge commit>` ONCE. agent-ci.yml's
+  2. `gh workflow run agent-ci.yml --ref master -f pr=<n> -f merge_sha=<that merge commit>` ONCE. agent-ci.yml's
      workflow_dispatch trigger checks out that exact commit in every job (one commit for the whole run, even if master
      moves mid-run) and uploads the same evidence records a pull_request run does, named for PR <n>.
-  The run uses agent-ci.yml AS IT IS ON --ref (default master, i.e. the reviewed copy; workflow_dispatch exists only
-  once this change is on that ref). Its concurrency group is the PR's own (`agent-ci-pr-<n>`), so it supersedes an
+  The run ALWAYS uses agent-ci.yml as it is on MASTER (the reviewed copy): there is no --ref option (AUDIT F2), and
+  verify --accept-dispatch refuses a dispatch run whose workflow came from anywhere else. workflow_dispatch exists on
+  master only once this change is merged. Its concurrency group is the PR's own (`agent-ci-pr-<n>`), so it supersedes an
   older evidence run of the same PR and never touches another PR's run.
   Verify afterwards with: python tools/agent_ci_evidence.py verify --pr <n> --tree <tree> --accept-dispatch
 
@@ -51,8 +52,11 @@ def check(pr: dict, repo: str, base_tip: str | None, merge_parents: list[str] | 
     return True, f"merge ref {pr['merge_commit_sha']} = {base.get('ref')}@{base_tip} + head {head.get('sha')}"
 
 
-def dispatch_argv(repo: str, ref: str, number: int, merge_sha: str) -> list[str]:
-    return ["gh", "workflow", "run", "agent-ci.yml", "-R", repo, "--ref", ref, "-f", f"pr={number}", "-f", f"merge_sha={merge_sha}"]
+WORKFLOW_REF = "master"   # F2: never configurable
+
+
+def dispatch_argv(repo: str, number: int, merge_sha: str) -> list[str]:
+    return ["gh", "workflow", "run", "agent-ci.yml", "-R", repo, "--ref", WORKFLOW_REF, "-f", f"pr={number}", "-f", f"merge_sha={merge_sha}"]
 
 
 def _get(path: str):
@@ -65,7 +69,6 @@ def _get(path: str):
 def main(argv=None, get=_get, run=subprocess.run, sleep=time.sleep, now=time.monotonic) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--pr", type=int, action="append", required=True, help="the ONE PR to re-arm (given once)")
-    ap.add_argument("--ref", default="master", help="the ref whose agent-ci.yml runs (default master)")
     ap.add_argument("--repo", default=os.environ.get("GITHUB_REPOSITORY", "unchartedterritory5995-cyber/UCT-Dashboard"))
     ap.add_argument("--timeout", type=int, default=120, help="seconds to wait for GitHub to refresh the merge ref")
     ap.add_argument("--dry-run", action="store_true")
@@ -94,7 +97,10 @@ def main(argv=None, get=_get, run=subprocess.run, sleep=time.sleep, now=time.mon
     if not ok:
         print(f"REFUSED PR #{a.pr}: {why}")
         return REFUSED
-    argv_ = dispatch_argv(a.repo, a.ref, a.pr, pr["merge_commit_sha"])
+    argv_ = dispatch_argv(a.repo, a.pr, pr["merge_commit_sha"])
+    if argv_[argv_.index("--ref") + 1] != "master":   # F2: hard refuse, whatever produced the argv
+        print("REFUSED: the re-arm workflow ref must be master")
+        return REFUSED
     print(f"OK PR #{a.pr}: {why}")
     print(("DRY-RUN would run: " if a.dry_run else "dispatch: ") + " ".join(argv_))
     if a.dry_run:

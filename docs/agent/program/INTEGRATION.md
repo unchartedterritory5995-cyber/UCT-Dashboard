@@ -46,11 +46,19 @@ Push runs are unchanged (every added step is skipped on push; rails: `tests/test
    agent-ci.yml ONCE (`workflow_dispatch`, inputs `pr` + `merge_sha`) for that PR only. No commit is made; the PR is
    not touched. Every job checks out that one merge commit.
 3. **Verify** from a master checkout: `python tools/agent_ci_evidence.py verify --pr <N> --tree <expected tree>`
-   (add `--accept-dispatch` to accept a re-arm run). PASS only when the newest evidence run for the PR is completed,
+   (add `--accept-dispatch` to accept a re-arm run, and only one whose workflow is master's
+   `.github/workflows/agent-ci.yml`). PASS only when the newest evidence run for the PR is completed,
    every required job (read from master's agent-ci.yml) is success, all 13 records are present and agree, the merge
    commit's parents are the CURRENT master tip and PR head, and its tree is the expected tree. Everything else is a
-   named FAIL (no run, run in progress, non-PR event, missing job, job not success, missing artifact, record
+   named FAIL (self-protected diff, dispatch ref, no run, run in progress, non-PR event, missing job, job not success, missing artifact, record
    mismatch, stale merge ref, tree mismatch, API error).
 
 Cost: an `agent/**` PR into master that touches an Agent path pays one more full Agent run per PR push (the push run
 still runs). `agent-ci-required` is unchanged and still reads the push run.
+
+**Self-protected PRs never pass on their own run (AUDIT F1).** A `pull_request` run executes the merge ref's workflow,
+record tool, test config and dependencies. A PR whose diff touches `.github/workflows/**`, `tools/agent_ci_*.py`,
+`tools/agent_suite_lock.py`, `app/package*.json`, `app/vite*.config.*`, `app/vitest*.config.*`, a vitest `setupFiles`
+entry (read from master's config), `pytest.ini`, any `conftest.py` or any `requirements*.txt` gets
+`FAIL self-protected-diff` (as does an unreadable or truncated diff); such a PR falls back to AUDIT's local evidence.
+The re-arm tool has no `--ref`: it always dispatches master's agent-ci.yml (AUDIT F2).

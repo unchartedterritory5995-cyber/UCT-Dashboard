@@ -21,6 +21,7 @@ FIXTURE = json.loads((ROOT / "tests" / "fixtures" / "agent_ci_evidence" / "pass_
 DOC = acr.load_agent_ci(ROOT)
 KEYS = ev.required_keys(DOC)
 BOTH = (ev.PR_EVENT, ev.DISPATCH_EVENT)
+PROTECTED = ev.protected_patterns(ROOT)
 
 
 def _fx():
@@ -28,7 +29,8 @@ def _fx():
 
 
 def _decide(fx, accept=(ev.PR_EVENT,), busy=False, keys=None):
-    return ev.decide(fx["pr"], fx["base_tip"], fx["runs"], KEYS if keys is None else keys, fx["expected_tree"], accept, busy)
+    return ev.decide(fx["pr"], fx["base_tip"], fx["runs"], KEYS if keys is None else keys, fx["expected_tree"], accept, busy,
+                     fx["changed_paths"], PROTECTED)
 
 
 def _code(result):
@@ -120,6 +122,8 @@ CASES = {
     "stale-head": (lambda f: f["pr"].update(head_sha="a" * 40), "stale-merge-ref"),
     # the tree
     "tree-mismatch": (lambda f: f.update(expected_tree="a" * 40), "tree-mismatch"),
+    # F1: the PR's own diff
+    "diff-unknown": (lambda f: f.update(changed_paths=None), "self-protected-diff"),
 }
 
 
@@ -147,6 +151,7 @@ def test_a_run_whose_api_event_is_not_a_pr_event_fails_even_if_accepted():
 def _dispatch_fx():
     fx = _fx()
     _run(fx)["event"] = "workflow_dispatch"
+    _run(fx).update(head_branch="master", path=".github/workflows/agent-ci.yml")
     for r in _recs(fx).values():
         r["event"], r["ref"] = "workflow_dispatch", "refs/heads/master"
     return fx
@@ -160,6 +165,78 @@ def test_a_rearm_run_passes_only_when_opted_in():
 def test_a_busy_dispatch_fails_closed_when_rearm_runs_are_accepted():
     assert _code(_decide(_dispatch_fx(), accept=BOTH, busy=True)) == "run-in-progress"
     assert _code(_decide(_fx(), accept=(ev.PR_EVENT,), busy=True)) == "PASS"   # ignored when dispatch is not accepted
+
+
+@pytest.mark.parametrize("over", [{"head_branch": "agent/pl/x"}, {"head_branch": None}, {"head_branch": "Master"},
+                                  {"path": ".github/workflows/agent-ci-benchmark.yml"}, {"path": None},
+                                  {"path": ".github/workflows/agent-ci.yml@refs/heads/agent/pl/x"}])
+def test_F2_a_rearm_run_counts_only_from_masters_agent_ci_yml(over):
+    fx = _dispatch_fx()
+    _run(fx).update(over)
+    assert _code(_decide(fx, accept=BOTH)) == "dispatch-ref", over
+
+
+def test_F2_the_dispatch_ref_guard_does_not_touch_pull_request_runs():
+    fx = _fx()
+    _run(fx).update(head_branch="agent/pl/x", path=None)   # a PR run's head_branch is the PR branch
+    assert _code(_decide(fx, accept=BOTH)) == "PASS"
+
+
+# ---- F1: a PR that edits what its own run executes never passes on its own run ----------------------------------
+SELF_PROTECTED_EXAMPLES = {
+    "workflow": [".github/workflows/agent-ci.yml", ".github/workflows/agent-ci-required.yml", ".github/workflows/new.yml"],
+    "ci tools": ["tools/agent_ci_evidence.py", "tools/agent_ci_required.py", "tools/agent_ci_rearm.py", "tools/agent_ci_new.py"],
+    "suite lock": ["tools/agent_suite_lock.py"],
+    "app package": ["app/package.json", "app/package-lock.json"],
+    "vite config": ["app/vite.config.js", "app/vite.device.config.mjs", "app/vite.config.lab.mjs"],
+    "vitest config": ["app/vitest.config.ts", "app/vitest.workspace.config.js"],
+    "vitest setupFiles": ["app/src/test-setup.js"],
+    "pytest.ini": ["pytest.ini"],
+    "conftest": ["conftest.py", "tests/conftest.py", "api/services/uct_agent/conftest.py"],
+    "requirements": ["requirements.txt", "requirements-dev.txt", "api/requirements.txt"],
+}
+
+
+@pytest.mark.parametrize("cls", sorted(SELF_PROTECTED_EXAMPLES))
+def test_F1_each_self_protected_path_class_fails_closed(cls):
+    for path in SELF_PROTECTED_EXAMPLES[cls]:
+        fx = _fx()
+        fx["changed_paths"] = fx["changed_paths"] + [path]
+        verdict, reason, _ = _decide(fx)
+        assert _code((verdict, reason, None)) == "self-protected-diff" and path in reason, (cls, path, reason)
+
+
+def test_F1_ordinary_agent_paths_are_not_self_protected():
+    ok = ["app/src/agent/a.js", "tools/agent_vitest_shards.py", "tools/agent_ownership_check.py", "tests/test_uct_agent_x.py",
+          "app/src/pages/charts/ChartsWorkspace.jsx", "docs/agent/program/INTEGRATION.md", "app/src/agent/vite.config.js",
+          "tests/fixtures/agent_ci_evidence/pass_run.json", "app/src/test-setup.test.js"]
+    assert ev.self_protected_hits(ok, PROTECTED) == []
+
+
+def test_F1_setup_files_are_read_from_the_config(tmp_path):
+    assert "app/src/test-setup.js" in ev.vitest_setup_files(ROOT)          # the real config's setupFiles
+    (tmp_path / "app").mkdir()
+    (tmp_path / "app" / "vitest.config.ts").write_text("export default {test: {setupFiles: ['./a/s1.js', \"./b/s2.ts\"]}}", encoding="utf-8")
+    assert ev.vitest_setup_files(tmp_path) == ["app/a/s1.js", "app/b/s2.ts"]
+    (tmp_path / "app" / "vite.config.js").write_text("const S = ['x']; export default {test: {setupFiles: S}}", encoding="utf-8")
+    with pytest.raises(ValueError):                                         # a shape it cannot read fails closed
+        ev.vitest_setup_files(tmp_path)
+    (tmp_path / "app" / "vite.config.js").write_text("export default {test: {setupFiles: [SETUP_A, './ok.js']}}", encoding="utf-8")
+    with pytest.raises(ValueError):                                         # an identifier inside the list fails closed
+        ev.vitest_setup_files(tmp_path)
+    (tmp_path / "app" / "vite.config.js").write_text("export default {test: {setupFiles: [SETUP_A]}}", encoding="utf-8")
+    with pytest.raises(ValueError):                                         # a list with no literal at all fails closed
+        ev.vitest_setup_files(tmp_path)
+    with pytest.raises(ValueError):                                         # no setupFiles at all fails closed
+        ev.vitest_setup_files(tmp_path / "nowhere")
+
+
+def test_F1_cli_fails_closed_when_the_protected_list_is_unreadable(tmp_path, capsys):
+    wf = tmp_path / ".github" / "workflows"
+    wf.mkdir(parents=True)
+    (wf / "agent-ci.yml").write_text((ROOT / ".github/workflows/agent-ci.yml").read_text(encoding="utf-8"), encoding="utf-8")
+    assert ev.main(["verify", "--pr", "1700", "--tree", "e" * 40, "--root", str(tmp_path)]) == 1   # no app/ config
+    assert "self-protected-diff" in capsys.readouterr().out
 
 
 def test_a_rearm_record_under_a_pr_run_is_refused():
@@ -190,6 +267,10 @@ class FakeGh:
             return {"workflow_runs": [dict(run, head_branch=pr["head_ref"], pull_requests=[{"number": pr["number"]}])] + self.extra}
         if "runs?event=workflow_dispatch" in path:
             return {"workflow_runs": self.dispatch}
+        if "/files?" in path:
+            page = int(path.rsplit("page=", 1)[1])
+            files = self.fx["changed_paths"] or []
+            return [{"filename": f} for f in files[(page - 1) * 100: page * 100]]
         if path.endswith("/artifacts?per_page=100"):
             rid = int(path.split("/")[2])
             names = self.artifacts if self.artifacts is not None else [f"{ev.ARTIFACT_PREFIX}{pr['number']}-{k}" for k in _recs(self.fx)]
@@ -206,8 +287,8 @@ class FakeGh:
 
 def _gather_decide(api, accept_dispatch=False):
     fx = api.fx
-    pr, tip, runs, busy = ev.gather(api, fx["pr"]["number"], KEYS, accept_dispatch)
-    return ev.decide(pr, tip, runs, KEYS, fx["expected_tree"], BOTH if accept_dispatch else (ev.PR_EVENT,), busy)
+    pr, tip, runs, busy, changed = ev.gather(api, fx["pr"]["number"], KEYS, accept_dispatch)
+    return ev.decide(pr, tip, runs, KEYS, fx["expected_tree"], BOTH if accept_dispatch else (ev.PR_EVENT,), busy, changed, PROTECTED)
 
 
 def test_gather_reads_the_run_and_its_records_and_passes():
@@ -233,6 +314,14 @@ def test_gather_any_in_progress_dispatch_is_busy():
     assert _code(_gather_decide(FakeGh(_fx(), dispatch_runs=[busy]), accept_dispatch=True)) == "run-in-progress"
 
 
+def test_gather_reads_the_pr_diff_and_a_workflow_edit_fails_closed():
+    fx = _fx()
+    fx["changed_paths"] = fx["changed_paths"] + [".github/workflows/agent-ci.yml"]
+    assert _code(_gather_decide(FakeGh(fx))) == "self-protected-diff"
+    fx["changed_paths"] = [f"docs/{i}.md" for i in range(3000)]           # truncated list: unknown, never assumed clean
+    assert _code(_gather_decide(FakeGh(fx))) == "self-protected-diff"
+
+
 def test_gather_api_error_propagates_as_api_error():
     with pytest.raises(ev.ApiError):
         _gather_decide(FakeGh(_fx(), fail="/jobs?"))
@@ -242,6 +331,28 @@ def test_verify_cli_turns_an_api_error_into_fail(monkeypatch, capsys):
     monkeypatch.setattr(ev, "GhApi", lambda repo: FakeGh(_fx(), fail="git/ref"))
     assert ev.main(["verify", "--pr", "1700", "--tree", "e" * 40, "--root", str(ROOT)]) == 1
     assert capsys.readouterr().out.startswith("FAIL PR #1700: api-error")
+
+
+def _stub_gather(monkeypatch, fx):
+    monkeypatch.setattr(ev, "GhApi", lambda repo: None)
+    monkeypatch.setattr(ev, "gather", lambda api, n, keys, accept_dispatch: (fx["pr"], fx["base_tip"], fx["runs"], False, fx["changed_paths"]))
+
+
+def test_F3_cli_refuses_a_dispatch_only_run_without_the_flag(monkeypatch, capsys):
+    """E4: the CLI default must accept pull_request runs ONLY; a re-arm needs --accept-dispatch."""
+    _stub_gather(monkeypatch, _dispatch_fx())
+    assert ev.main(["verify", "--pr", "1700", "--tree", "e" * 40, "--root", str(ROOT)]) == 1
+    assert capsys.readouterr().out.startswith("FAIL PR #1700: no-run")
+    assert ev.main(["verify", "--pr", "1700", "--tree", "e" * 40, "--root", str(ROOT), "--accept-dispatch"]) == 0
+    assert capsys.readouterr().out.startswith("PASS PR #1700")
+
+
+def test_F3_cli_passes_the_diff_and_protected_list_to_decide(monkeypatch, capsys):
+    fx = _fx()
+    fx["changed_paths"] = fx["changed_paths"] + ["app/src/test-setup.js"]
+    _stub_gather(monkeypatch, fx)
+    assert ev.main(["verify", "--pr", "1700", "--tree", "e" * 40, "--root", str(ROOT)]) == 1
+    assert "self-protected-diff" in capsys.readouterr().out
 
 
 def test_verify_cli_pass_and_bad_tree_argument(monkeypatch, capsys):
@@ -391,7 +502,7 @@ def test_rearm_dispatches_exactly_once_for_the_named_pr_only(capsys):
     runs, clock = [], _Clock()
     rc = rearm.main(["--pr", "1700", "--repo", REPO], get=get, run=lambda argv, **k: runs.append(argv) or types.SimpleNamespace(returncode=0, stdout="", stderr=""),
                     sleep=clock.sleep, now=clock.now)
-    assert rc == 0 and runs == [rearm.dispatch_argv(REPO, "master", 1700, M)]
+    assert rc == 0 and runs == [rearm.dispatch_argv(REPO, 1700, M)]
     assert runs[0] == ["gh", "workflow", "run", "agent-ci.yml", "-R", REPO, "--ref", "master", "-f", "pr=1700", "-f", f"merge_sha={M}"]
 
 
@@ -418,6 +529,22 @@ def test_rearm_dry_run_and_a_failed_dispatch_is_not_retried():
     calls = []
     fail = lambda a, **k: calls.append(a) or types.SimpleNamespace(returncode=1, stdout="", stderr="HTTP 422")
     assert rearm.main(["--pr", "1700", "--repo", REPO], get=get, run=fail) == rearm.FAILED and len(calls) == 1
+
+
+def test_F2_rearm_has_no_ref_option_and_always_dispatches_master():
+    get, _ = _fake_gh([_pr_json()])
+    for argv in (["--ref", "agent/pl/x"], ["--ref", "master"], ["--ref=agent/pl/x"]):
+        with pytest.raises(SystemExit):
+            rearm.main(["--pr", "1700", "--repo", REPO, *argv], get=get, run=lambda a, **k: pytest.fail("dispatched"))
+    argv = rearm.dispatch_argv(REPO, 1700, M)
+    assert argv[argv.index("--ref") + 1] == "master" and argv.count("--ref") == 1
+
+
+def test_F2_rearm_hard_refuses_a_non_master_workflow_ref(monkeypatch):
+    get, _ = _fake_gh([_pr_json()])
+    monkeypatch.setattr(rearm, "WORKFLOW_REF", "agent/pl/x")
+    runs = []
+    assert rearm.main(["--pr", "1700", "--repo", REPO], get=get, run=lambda a, **k: runs.append(a)) == rearm.REFUSED and runs == []
 
 
 def test_rearm_takes_exactly_one_pr():

@@ -378,7 +378,14 @@
      "reports_unreadable": [],
      "errors": []
     }
-   }
+   },
+   "head_branch": "agent/pl/x",
+   "path": ".github/workflows/agent-ci.yml"
   }
+ ],
+ "changed_paths": [
+  "app/src/agent/nl/router.js",
+  "tests/test_uct_agent_x.py",
+  "docs/agent/program/x.md"
  ]
 }

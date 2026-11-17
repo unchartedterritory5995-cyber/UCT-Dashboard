@@ -14,9 +14,13 @@ test names per suite. This tool turns those records into a PASS/FAIL for ONE PR 
 `gh api` GETs + `gh run download`), and prints PASS with the evidence, or FAIL with the reason. Exit 0 = PASS only.
 It FAILS CLOSED on every one of these (each is a named guard; tests/test_agent_ci_evidence.py drives each one):
   pr-not-open / pr-not-master / pr-not-agent-head   the PR is not an open same-repo agent/** PR into master
+  self-protected-diff the PR edits a file its own run executes (workflows, tools/agent_ci_*.py, the suite lock, vitest
+                      / vite config + setupFiles, app/package*.json, pytest.ini, conftest.py, requirements*.txt), or
+                      its diff is unreadable: its run could vouch for itself, so AUDIT's local evidence decides instead
   no-run              no pull_request (or, with --accept-dispatch, rearm) agent ci run for this PR
   run-in-progress     the newest such run (or any dispatch run, with --accept-dispatch) is not completed
   non-pr-event        the chosen run, or any record in it, is not a pull_request (/ rearm) run of THIS PR
+  dispatch-ref        a re-arm run whose workflow did not come from master's .github/workflows/agent-ci.yml
   missing-job         a required job (agent-ci.yml, matrix-expanded) is absent from the run
   job-not-success     a required job, or the run, did not conclude success
   missing-artifact    a required job's evidence record is absent or unreadable
@@ -165,17 +169,68 @@ def required_keys(doc: dict) -> dict[str, str]:
     return out
 
 
+# ============================================================================================ self-protected paths
+#: F1 (AUDIT T2 of #1644): a pull_request run executes the MERGE REF's workflow, record tool, test config and
+#: dependencies. A PR that edits any of them could manufacture its own PASS, so its evidence is never accepted here
+#: (`self-protected-diff`); such a PR falls back to AUDIT's local evidence. Glob semantics: tools/agent_ci_required.matches.
+SELF_PROTECTED = (
+    ".github/workflows/**",
+    "tools/agent_ci_*.py", "tools/agent_suite_lock.py",
+    "app/package*.json", "app/vite*.config.*", "app/vitest*.config.*",
+    "pytest.ini", "conftest.py", "**/conftest.py",
+    "requirements*.txt", "**/requirements*.txt",
+)
+WF_PATH = ".github/workflows/" + WORKFLOW_FILE
+
+
+def vitest_setup_files(root: str | pathlib.Path = ".") -> list[str]:
+    """Repo paths of every vitest `setupFiles` entry in app/vite*.config.* and app/vitest*.config.* under `root`
+    (a MASTER checkout). A config that names setupFiles in a shape this cannot read, or no setupFiles anywhere, raises
+    (verify turns that into a FAIL): an unread setup file is an unprotected one."""
+    app = pathlib.Path(root) / "app"
+    configs = sorted({*app.glob("vite*.config.*"), *app.glob("vitest*.config.*")})
+    out: list[str] = []
+    for cfg in configs:
+        text = cfg.read_text(encoding="utf-8", errors="replace")
+        for m in re.finditer(r"setupFiles\s*:\s*(\[[^\]]*\]|'[^']*'|\"[^\"]*\"|`[^`]*`)", text):
+            names = re.findall(r"'([^']+)'|\"([^\"]+)\"|`([^`]+)`", m.group(1))
+            rest = re.sub(r"'[^']*'|\"[^\"]*\"|`[^`]*`|[\s,\[\]]", "", m.group(1))
+            if not names or rest:   # an identifier / spread / call in the list: a file this cannot name
+                raise ValueError(f"{cfg.name}: unreadable setupFiles {m.group(1)[:60]!r}")
+            for groups in names:
+                rel = next(g for g in groups if g)
+                out.append(os.path.normpath(os.path.join("app", rel)).replace("\\", "/"))
+        if "setupFiles" in text and not re.search(r"setupFiles\s*:\s*[\['\"`]", text):
+            raise ValueError(f"{cfg.name}: setupFiles is not a literal this can read")
+    if not out:
+        raise ValueError("no vitest setupFiles found in app/vite*.config.* / app/vitest*.config.*")
+    return sorted(set(out))
+
+
+def protected_patterns(root: str | pathlib.Path = ".") -> list[str]:
+    return [*SELF_PROTECTED, *vitest_setup_files(root)]
+
+
+def self_protected_hits(changed_paths, patterns) -> list[str] | None:
+    """The PR's changed paths that are self-protected; None when the diff is unknown (unreadable / truncated)."""
+    if changed_paths is None:
+        return None
+    from tools import agent_ci_required as acr
+    return [f for f in changed_paths if acr.matches(f, list(patterns))]
+
+
 # ============================================================================================ verify (pure)
 def _fail(code: str, why: str) -> tuple[str, str, dict]:
     return "FAIL", f"{code}: {why}", {}
 
 
 def decide(pr: dict, base_tip: str, runs: list[dict], keys: dict[str, str], expected_tree: str,
-           accept_events=(PR_EVENT,), dispatch_busy: bool = False):
+           accept_events=(PR_EVENT,), dispatch_busy: bool = False, changed_paths=None, protected=SELF_PROTECTED):
     """pr: {number, state, head_sha, head_ref, head_repo, repo, base_ref}. base_tip: the base branch tip now.
     runs: candidate agent ci runs for THIS PR (pull_request runs of the PR, + rearm dispatch runs naming it), each
       {id, event, status, conclusion, created_at, html_url, jobs: [{name, conclusion}], records: {key: record|None}}.
-    keys: required job name -> evidence key. Returns (PASS|FAIL, reason, evidence)."""
+    keys: required job name -> evidence key. changed_paths: the PR's files vs its merge base (None = unknown).
+    protected: protected_patterns(master root). Returns (PASS|FAIL, reason, evidence)."""
     n = pr.get("number")
     if pr.get("state") != "open":  # guard: pr-not-open
         return _fail("pr-not-open", f"PR #{n} is {pr.get('state')}")
@@ -183,6 +238,12 @@ def decide(pr: dict, base_tip: str, runs: list[dict], keys: dict[str, str], expe
         return _fail("pr-not-master", f"PR #{n} targets {pr.get('base_ref')!r}, not master")
     if pr.get("head_repo") != pr.get("repo") or not str(pr.get("head_ref") or "").startswith("agent/"):  # guard: pr-not-agent-head
         return _fail("pr-not-agent-head", f"PR #{n} head {pr.get('head_repo')}:{pr.get('head_ref')} is not a same-repo agent/** branch")
+    hits = self_protected_hits(changed_paths, protected)
+    if hits is None:  # guard: diff-unknown
+        return _fail("self-protected-diff", f"PR #{n}'s changed-file list is unreadable or truncated: use AUDIT's local evidence")
+    if hits:  # guard: self-protected-diff
+        return _fail("self-protected-diff", f"PR #{n} edits {len(hits)} self-protected path(s) ({hits[0]}): its own run "
+                     "could vouch for itself; use AUDIT's local evidence")
     if not keys:  # guard: no-required-jobs
         return _fail("missing-job", "no required jobs could be read from agent-ci.yml")
     cands = [r for r in runs if r.get("event") in accept_events]
@@ -195,6 +256,10 @@ def decide(pr: dict, base_tip: str, runs: list[dict], keys: dict[str, str], expe
         return _fail("run-in-progress", "a workflow_dispatch agent ci run is still in progress (it may be a rearm of this PR)")
     if run.get("event") not in (PR_EVENT, DISPATCH_EVENT):  # guard: non-pr-event-run
         return _fail("non-pr-event", f"run {run.get('id')} is a {run.get('event')} run")
+    if run.get("event") == DISPATCH_EVENT and run.get("head_branch") != "master":  # guard: dispatch-not-master
+        return _fail("dispatch-ref", f"re-arm run {run.get('id')} ran the workflow from {run.get('head_branch')!r}, not master")
+    if run.get("event") == DISPATCH_EVENT and run.get("path") != WF_PATH:  # guard: dispatch-wrong-workflow
+        return _fail("dispatch-ref", f"re-arm run {run.get('id')} ran {run.get('path')!r}, not {WF_PATH}")
     by_name: dict[str, list] = {}
     for j in run.get("jobs") or []:
         by_name.setdefault(j.get("name"), []).append(j.get("conclusion"))
@@ -325,25 +390,32 @@ def gather(api, n: int, keys: dict[str, str], accept_dispatch: bool):
     newest = max(runs, key=lambda r: (r.get("created_at") or "", r.get("id") or 0)) if runs else None
     out = []
     for r in runs:
-        item = {k: r.get(k) for k in ("id", "event", "status", "conclusion", "created_at", "html_url")}
+        item = {k: r.get(k) for k in ("id", "event", "status", "conclusion", "created_at", "html_url", "head_branch", "path")}
         if r is newest and r.get("status") == "completed":   # only the run decide() will judge is read in full
             item["jobs"] = _jobs(api, r["id"])
             item["records"] = _records(api, r["id"], n, keys)
         out.append(item)
-    return pr, base_tip, out, dispatch_busy
+    from tools import agent_ci_required as acr
+    changed = acr.pr_changed_paths(api, n)   # pulls/N/files: the diff vs the merge base; None when truncated
+    return pr, base_tip, out, dispatch_busy, changed
 
 
 def cmd_verify(a) -> int:
     import yaml
     doc = yaml.safe_load((pathlib.Path(a.root) / ".github" / "workflows" / WORKFLOW_FILE).read_text(encoding="utf-8"))
     keys = required_keys(doc)
+    try:
+        protected = protected_patterns(a.root)
+    except (OSError, ValueError) as e:
+        print(f"FAIL PR #{a.pr}: self-protected-diff: cannot read the protected path list: {e}"[:300])
+        return 1
     accept = (PR_EVENT, DISPATCH_EVENT) if a.accept_dispatch else (PR_EVENT,)
     if not SHA_RE.match(a.tree):
         print(f"FAIL usage: --tree must be a full 40-hex tree sha, got {a.tree!r}")
         return 1
     try:
-        pr, base_tip, runs, busy = gather(GhApi(a.repo), a.pr, keys, a.accept_dispatch)
-        verdict, reason, evidence = decide(pr, base_tip, runs, keys, a.tree, accept, busy)
+        pr, base_tip, runs, busy, changed = gather(GhApi(a.repo), a.pr, keys, a.accept_dispatch)
+        verdict, reason, evidence = decide(pr, base_tip, runs, keys, a.tree, accept, busy, changed, protected)
     except (ApiError, OSError, ValueError, KeyError, TypeError) as e:
         verdict, reason, evidence = "FAIL", f"api-error: {e}"[:300], {}
     print(f"{verdict} PR #{a.pr}: {reason}")

@@ -21,6 +21,8 @@
 # only on the branch head's push run (the head on its OLD base). PRs into agent/int keep skipping (push evidence only).
 # Each required job uploads `agent-ci-evidence-pr<N>-<job key>` (merge commit, its tree, base + head parents, the failed
 # test names per suite); tools/agent_ci_evidence.py verify turns them into PASS/FAIL for one PR + one expected tree.
+# A PR that edits what its own run executes (this file, tools/agent_ci_*.py, test config, deps) never passes on it:
+# verify answers `self-protected-diff` and AUDIT's local evidence decides (AUDIT F1).
 # workflow_dispatch (pr + merge_sha) is the RE-ARM for one named PR after master moved: tools/agent_ci_rearm.py waits
 # for GitHub's merge ref to be current, then dispatches once; every job checks out that exact merge commit.
 # Push runs are unchanged: every added step is `github.event_name != 'push'`, the checkout `ref:` is empty on push,
