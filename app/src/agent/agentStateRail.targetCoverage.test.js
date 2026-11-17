@@ -39,7 +39,9 @@ const IND = [['ovl:0', 'ema', '9', 'EMA 9'], ['ovl:1', 'ema', '20', 'EMA 20'], [
 const CHARTS = [['c1', 'spy'], ['c2', 'nvda']]
 const indCands = CHARTS.flatMap(([c, sym]) => IND.map(([inst, ind, len, card]) => ({ id: `${c}/${inst}`, ref: `ixe:${c}`, inst, facets: { ind, len, sym, cls: 'indicator' }, card: [card, `Chart ${c}`] })))
 const indObjs = ['the RSI', 'the 20 EMA', 'the EMA 20', 'the 9 ema', 'the 50 SMA', 'the 200 SMA', 'the 200', 'the 50', 'the EMA', 'the SMA', 'the moving average',
-  'the MACD', 'the 100 SMA', 'the indicator', 'the RSI on NVDA', 'the 20 EMA on NVDA', 'the 50 SMA on SPY', 'the RSI on AAPL', 'the ATR']
+  'the MACD', 'the 100 SMA', 'the indicator', 'the RSI on NVDA', 'the 20 EMA on NVDA', 'the 50 SMA on SPY', 'the RSI on AAPL', 'the ATR',
+  // (AUDIT synonyms: "graph" for chart, $-tickers)
+  'the RSI on the NVDA graph', 'the RSI on $NVDA', 'the 20 EMA on the $NVDA chart', 'the 50 SMA on the SPY graph']
 const indLex = [...lex('ind', { ema: ['ema', 'exponential'], sma: ['sma', 'simple'], rsi: ['rsi'], 'ema|sma': ['moving average', 'average', 'ma'], macd: ['macd'], atr: ['atr'] }),
   ...lex('len', { 9: ['9'], 20: ['20'], 50: ['50'], 200: ['200'], 14: ['14'], 100: ['100'] }), ...lex('sym', { spy: ['spy'], nvda: ['nvda'], aapl: ['aapl'] }), ...ALL('indicator', ['indicator', 'study'])]
 
@@ -47,7 +49,8 @@ const DRAW = [['dr-h', 'SPY', 'horizontal', null, 'Horizontal'], ['dr-t', 'SPY',
   ['dr-x', 'SPY', 'text', 'note', 'Note'], ['dr-n', 'NVDA', 'horizontal', null, 'Horizontal']]
 const drawCands = DRAW.map(([id, sym, dtype, label, card]) => ({ id, ref: sym, facets: { dtype, sym: sym.toLowerCase(), label, cls: 'drawing' }, card: [card, sym] }))
 const drawObjs = ['the trendline', 'the horizontal line', 'the fib', 'the position', 'the long position', 'the Note text', 'the text', 'the line', 'the drawing', 'the box',
-  'the horizontal line on NVDA', 'the horizontal line on SPY', 'the trendline on NVDA', 'the fib on NVDA', 'the ray']
+  'the horizontal line on NVDA', 'the horizontal line on SPY', 'the trendline on NVDA', 'the fib on NVDA', 'the ray',
+  'the horizontal line on $NVDA', 'the trendline on the SPY graph', 'the horizontal line on the NVDA graph']
 const drawLex = [...lex('dtype', { horizontal: ['horizontal line', 'horizontal', 'hline'], trendline: ['trendline', 'trend line'], fib: ['fib', 'fibonacci'], position: ['position', 'long position'],
   text: ['text', 'label'], 'horizontal|trendline': ['line'], rect: ['box', 'rectangle'], ray: ['ray'] }), ...lex('label', { note: ['note'] }), ...lex('sym', { spy: ['spy'], nvda: ['nvda'], aapl: ['aapl'] }), ...ALL('drawing', ['drawing'])]
 
@@ -64,20 +67,24 @@ const listObjs = ['my Swing watchlist', 'the Value list', 'the Tech list', 'my G
 const SYMS = ['SPY', 'NVDA', 'AMD', 'TSLA', 'META', 'CRWD', 'NET', 'KO', 'PG', 'AAPL', 'MSFT']
 const symLex = lex('sym', Object.fromEntries(SYMS.map(s => [s.toLowerCase(), [s.toLowerCase()]])))
 const rowCands = LISTS.flatMap(l => l.symbols.map(s => ({ id: `${l.id}/${s}`, ref: l.id, sym: s, facets: { list: l.name.toLowerCase(), sym: s.toLowerCase(), cls: 'list' }, card: [s, l.name] })))
-const rowWords = [...SYMS.filter(s => s !== 'MSFT').flatMap(s => [`remove ${s}`, `remove ${s} from my list`, ...LISTS.map(l => `remove ${s} from ${l.name}`)]), 'take AMD off Tech', 'drop NET from Growth', 'take KO off my Value list', 'remove MSFT from Tech']
+const rowWords = [...SYMS.filter(s => s !== 'MSFT').flatMap(s => [`remove ${s}`, `remove ${s} from my list`, ...LISTS.map(l => `remove ${s} from ${l.name}`)]), 'take AMD off Tech', 'drop NET from Growth', 'take KO off my Value list', 'remove MSFT from Tech',
+  // (AUDIT synonyms: $-tickers; the fixture's lists have no nicknames)
+  'remove $AMD from Tech', 'remove $TSLA from my Swing list', 'take $NET off Growth', 'remove $AAPL from Tech', 'remove $SPY from Swing']
 const noteCands = rowCands.filter(r => LISTS.find(l => l.id === r.ref).notes?.[r.sym])
 const noteWords = ['change the note on SPY to hold', 'change my TSLA note to hold', 'set the note on SPY in Tech to hold', 'replace the TSLA note in Swing with hold', 'change my note to hold', 'change the note on NVDA to hold', 'change the AMD note to hold']
 const flagCands = ['SPY', 'AMD'].map(s => ({ id: s, ref: 'flagged', facets: { sym: s.toLowerCase(), cls: 'flag' }, card: [s] }))
-const flagWords = ['unflag SPY', 'unflag AMD', 'remove the flag from AMD', 'remove SPY from my flagged list', 'unflag NVDA', 'unflag it', 'clear the flag on AMD']
+const flagWords = ['unflag SPY', 'unflag AMD', 'remove the flag from AMD', 'remove SPY from my flagged list', 'unflag NVDA', 'unflag it', 'clear the flag on AMD', 'unflag $AMD', 'unflag $NVDA']
 
 const W = [['wl', 'watchlist', 'tech', 'Watchlist'], ['sc', 'scanner', 'hv', 'Scanner'], ['wg', 'watchlist', 'growth', 'Watchlist']]
 const widCands = W.map(([id, wtype, shows, card]) => ({ id, ref: 'board', facets: { wtype, shows, cls: 'widget' }, card: [card] }))
-const widLex = [...lex('wtype', { watchlist: ['watchlist widget', 'watchlist'], scanner: ['scanner', 'scan'], news: ['news widget', 'news'], chart: ['chart'] }),
+const widLex = [...lex('wtype', { watchlist: ['watchlist widget', 'watchlist'], scanner: ['scanner', 'scan'], news: ['news widget', 'news'], chart: ['chart', 'graph'] }),
   ...lex('shows', { tech: ['tech'], growth: ['growth'], hv: ['highest volume'] }), ...ALL('widget', ['widget', 'panel'])]
-const widObjs = ['the scanner', 'the scanner widget', 'the Growth watchlist', 'the Tech watchlist widget', 'the watchlist widget', 'the widget', 'the news widget', 'the highest volume scanner']
+const widObjs = ['the scanner', 'the scanner widget', 'the Growth watchlist', 'the Tech watchlist widget', 'the watchlist widget', 'the widget', 'the news widget', 'the highest volume scanner',
+  // (AUDIT synonyms: "panel" for widget, "graph" for chart)
+  'the scanner panel', 'the Growth watchlist panel', 'the watchlist panel', 'the panel', 'the graph']
 const tabCands = [{ id: '1', ref: 'board', facets: { tab: 'news', cls: 'tab' }, card: ['News'] }, { id: '2', ref: 'board', facets: { tab: 'calendar', cls: 'tab' }, card: ['Calendar'] }]
 const tabLex = [...lex('tab', { news: ['news'], calendar: ['calendar'], screener: ['screener'] }), ...ALL('tab', ['tab'])]
-const tabObjs = ['the news tab', 'the calendar tab', 'the tab', 'the screener tab', 'the News tab on the Tech watchlist']
+const tabObjs = ['the news tab', 'the calendar tab', 'the tab', 'the screener tab', 'the News tab on the Tech watchlist', 'the news tab on the Tech watchlist panel']
 const showCands = widCands.filter(c => c.facets.wtype === 'watchlist')
 
 const layCands = [[11, 'Mine'], [12, 'Swing'], [13, 'Day']].map(([id, name]) => ({ id: String(id), ref: 'layouts', facets: { name: name.toLowerCase(), cls: 'layout' }, card: [name] }))
@@ -104,7 +111,7 @@ const SPECS = [
   { kind: 'indicatorEdits', cap: 'indicatorStyle.set', cands: indCands, args: c => ({ instance: c.inst, property: 'color', value: 'red' }), lexicon: indLex, defaults: { sym: 'spy' }, words: v(['make {o} red', 'change {o} color to red', 'color {o} red'], indObjs) },
   { kind: 'drawing', cap: 'drawing.remove', cands: drawCands, args: c => ({ drawing: c.id }), lexicon: drawLex, defaults: { sym: 'spy' }, words: v(REMOVE, drawObjs) },
   { kind: 'drawing', cap: 'drawing.style', cands: drawCands, args: c => ({ drawing: c.id, color: 'red' }), lexicon: drawLex, defaults: { sym: 'spy' }, words: v(['make {o} red', 'change {o} to red', 'recolor {o} red'], drawObjs) },
-  { kind: 'drawing', cap: 'drawing.clear', cands: clearCands, args: () => ({}), lexicon: clearLex, defaults: { sym: 'spy' }, words: v(['clear {o}', 'remove {o}', 'delete {o}'], ['all drawings on SPY', 'all the drawings on NVDA', 'all drawings', 'all drawings on AAPL']) },
+  { kind: 'drawing', cap: 'drawing.clear', cands: clearCands, args: () => ({}), lexicon: clearLex, defaults: { sym: 'spy' }, words: v(['clear {o}', 'remove {o}', 'delete {o}'], ['all drawings on SPY', 'all the drawings on NVDA', 'all drawings', 'all drawings on AAPL', 'all drawings on $NVDA', 'all drawings on the NVDA graph']) },
   { kind: 'drawingBoards', cap: 'drawing.deleteBoard', cands: boardCands, args: c => ({ board: c.id }), lexicon: boardLex, words: v(REMOVE, boardObjs) },
   { kind: 'drawingBoards', cap: 'drawing.renameBoard', cands: boardCands, args: c => ({ board: c.id, to: 'Zeta' }), lexicon: boardLex, words: v(['rename {o} to Zeta', 'call {o} Zeta'], boardObjs) },
   { kind: 'watchlist', cap: 'watchlist.delete', cands: listCands, args: () => ({}), lexicon: listLex, words: v(REMOVE, listObjs) },
@@ -165,16 +172,20 @@ const isCaps = (base, words) => words === base.toUpperCase() && words !== base
 // overRefusal (reported, never locked): the words pick X and the plan at X is refused.
 export const LOCKED_CLASSES = ['wrongTarget', 'ambiguity', 'allCapsOnly']
 
-export function runCoverage() {
+
+export function runCoverage(specs = SPECS) {
   const rows = []
-  for (const spec of SPECS) {
+  for (const spec of specs) {
     const plans = plansFor(spec)
-    const r = { kind: spec.kind, state: RAIL_STATE[spec.kind], cap: spec.cap, plans: plans.length, cases: 0, otherPlans: 0, findings: [], overRefusal: [], defaultOnly: 0 }
+    const r = { kind: spec.kind, state: RAIL_STATE[spec.kind], cap: spec.cap, plans: plans.length, cases: 0, otherPlans: 0, caseIds: new Set(), findings: [], overRefusal: [], defaultOnly: 0 }
     for (const base of spec.words) for (const words of VARIANTS(base)) {
       const o = oracle(words, spec.cands, spec.lexicon, spec.defaults || {})
       const raw = spec.defaults ? oracle(words, spec.cands, spec.lexicon, {}) : o
       for (const p of plans) {
         r.cases++
+        // EVERY generated case has an id (finding or not): the case set is locked too, so a finding can only leave the lock
+        // when its case is still generated and now passes — never because its case stopped being generated
+        r.caseIds.add(caseId(spec.cap, words, p.cand.id))
         const ok = licensed(p, words)
         const isPick = o.result === 'pick' && o.id === p.cand.id
         if (!isPick) r.otherPlans++
@@ -194,44 +205,73 @@ export function runCoverage() {
   return rows
 }
 
-// ── THE RATCHET (lock: qa/testing/targetCoverage.lock.json) — today's findings, by capability and class, may only SHRINK ──
+// ── THE RATCHET (lock: qa/testing/targetCoverage.lock.json) — today's findings, by capability and class, may only SHRINK, and
+// only by being FIXED (the case still generated, now passing). The CASE SET is locked per capability (count + hash of every
+// case id), so editing the generator / lexicon / fixture is visible: a finding whose case VANISHED fails (`vanished-case`)
+// unless `decisions` names it ──
 const LOCK_PATH = resolve(globalThis.process.cwd(), 'src/agent/qa/testing/targetCoverage.lock.json')
 const readLock = () => { try { return JSON.parse(readFileSync(LOCK_PATH, 'utf8')) } catch { return null } }
 const idsOf = (r, cls) => [...new Set(r.findings.filter(f => f.cls === cls).map(f => f.id))].sort()
-/** The lock a fresh run supports: every locked class's ids (sorted), counts, and the over-refusals (reported only). */
+export const caseSetOf = (r) => { const ids = [...r.caseIds].sort(); return { count: ids.length, hash: fnv64(ids.join(',')) } }
+/** The lock a fresh run supports: every locked class's ids (sorted), counts, the over-refusals (reported only), the case set. */
 export function lockOf(rows, decisions = {}) {
-  const capabilities = {}
+  const capabilities = {}, caseSet = {}
   for (const r of rows) {
     const e = { kind: r.kind, counts: {} }
     for (const c of LOCKED_CLASSES) { e[c] = idsOf(r, c); e.counts[c] = e[c].length }
     e.counts.overRefusal = new Set(r.overRefusal).size
     capabilities[r.cap] = e
+    caseSet[r.cap] = caseSetOf(r)
   }
-  return { version: 1, board: BOARD, note: 'Target-coverage ratchet (agentStateRail.targetCoverage.test.js). Ids may only be REMOVED: a PR that fixes findings deletes their ids (UPDATE_TARGET_LOCK=1 rewrites the lock and refuses to add any). overRefusal is reported, never locked. `decisions`: { id: reason } for a locked id that no longer reproduces but is kept on purpose.', capabilities, decisions }
+  return { version: 2, board: BOARD, note: 'Target-coverage ratchet (agentStateRail.targetCoverage.test.js). Finding ids may only be REMOVED, and only when FIXED (their case is still generated and now passes): UPDATE_TARGET_LOCK=1 rewrites the lock, refuses to add an id, and refuses when a case that held a finding is no longer generated. caseSet locks each capability\'s generated cases (count + hash of every case id). overRefusal is reported, never locked. `decisions`: { id: reason } keeps a locked id whose case vanished or that no longer reproduces, on purpose.', capabilities, caseSet, decisions }
 }
-/** New ids (not in the lock) per capability / class, count rises, and locked ids a fresh run no longer finds. */
+/** Against the lock: NEW ids, count rises, FIXED ids (case generated, now passing), VANISHED ids (case no longer generated,
+ *  no decision), and case-set changes. */
 export function compareLock(rows, lock) {
-  const added = [], rises = [], gone = []
+  const added = [], rises = [], fixed = [], vanished = [], caseSet = []
+  const decided = lock?.decisions || {}
   for (const r of rows) {
     const l = lock?.capabilities?.[r.cap]
+    const found = new Set(r.findings.map(f => f.id))
     for (const c of LOCKED_CLASSES) {
       const fresh = idsOf(r, c), had = new Set(l?.[c] || [])
       for (const id of fresh) if (!had.has(id)) { const f = r.findings.find(x => x.id === id); added.push(`${r.cap} [${c}] ${id} "${f.words}" → oracle ${f.oracle}, licensed at ${f.plannedAt}${f.card ? '' : ' (auto-applies)'}`) }
       if (fresh.length > (l?.counts?.[c] ?? 0)) rises.push(`${r.cap} [${c}] ${l?.counts?.[c] ?? 0} → ${fresh.length}`)
       const now = new Set(fresh)
-      for (const id of had) if (!now.has(id)) gone.push({ cap: r.cap, cls: c, id })
+      for (const id of had) {
+        if (now.has(id) || found.has(id)) continue                     // still found (another class: that is an ADD there)
+        if (r.caseIds.has(id)) fixed.push({ cap: r.cap, cls: c, id })
+        else if (!decided[id]) vanished.push({ cap: r.cap, cls: c, id })
+      }
     }
+    const want = lock?.caseSet?.[r.cap], got = caseSetOf(r)
+    if (!want || want.count !== got.count || want.hash !== got.hash) caseSet.push(`${r.cap}: lock ${want ? `${want.count}/${want.hash}` : 'none'} → fresh ${got.count}/${got.hash}`)
   }
-  // a capability the lock lists that the suite no longer runs: all its ids are gone
-  for (const [cap, l] of Object.entries(lock?.capabilities || {})) if (!rows.some(r => r.cap === cap)) for (const c of LOCKED_CLASSES) for (const id of l[c] || []) gone.push({ cap, cls: c, id })
-  return { added, rises, gone }
+  // a capability the lock lists that the suite no longer runs: every case vanished
+  for (const [cap, l] of Object.entries(lock?.capabilities || {})) {
+    if (rows.some(r => r.cap === cap)) continue
+    for (const c of LOCKED_CLASSES) for (const id of l[c] || []) if (!decided[id]) vanished.push({ cap, cls: c, id })
+    caseSet.push(`${cap}: no longer generated`)
+  }
+  return { added, rises, fixed, vanished, caseSet }
+}
+/** UPDATE_TARGET_LOCK=1: the shrunk lock, or { error } — never adds an id, never drops one whose case vanished. */
+export function updatedLock(rows, lock) {
+  if (!lock) return { error: 'UPDATE_TARGET_LOCK=1: no lock to update' }
+  const { added, vanished } = compareLock(rows, lock)
+  if (added.length) return { error: `UPDATE_TARGET_LOCK=1 refuses to ADD ids (${added.length}):\n${added.slice(0, 20).join('\n')}` }
+  if (vanished.length) return { error: `UPDATE_TARGET_LOCK=1 refuses: vanished-case — ${vanished.length} locked finding(s) whose case is no longer generated (restore the case, or name it in decisions):\n${vanished.slice(0, 20).map(v => `${v.cap} [${v.cls}] ${v.id}`).join('\n')}` }
+  const fresh = lockOf(rows, lock.decisions || {})
+  // (an id an explicit decision keeps stays in the lock)
+  for (const id of Object.keys(lock.decisions || {})) for (const [cap, l] of Object.entries(lock.capabilities)) for (const c of LOCKED_CLASSES) if ((l[c] || []).includes(id) && fresh.capabilities[cap] && !fresh.capabilities[cap][c].includes(id)) { fresh.capabilities[cap][c] = [...fresh.capabilities[cap][c], id].sort(); fresh.capabilities[cap].counts[c]++ }
+  return { lock: fresh }
 }
 
 let ROWS = []
 beforeAll(() => {
   ROWS = runCoverage()
-  // UPDATE_TARGET_LOCK=1: rewrite the lock from a fresh run — REFUSED when the run has any id the lock does not (the lock only
-  // shrinks). UPDATE_TARGET_LOCK=bootstrap: write the first lock, only when none exists.
+  // UPDATE_TARGET_LOCK=1: rewrite the lock from a fresh run (updatedLock's rules). UPDATE_TARGET_LOCK=bootstrap: write the
+  // first lock, only when none exists (a baseline PR — the lock grows only there, its counts in the PR body).
   const mode = globalThis.process.env.UPDATE_TARGET_LOCK
   if (!mode) return
   const lock = readLock()
@@ -240,13 +280,9 @@ beforeAll(() => {
     writeFileSync(LOCK_PATH, `${JSON.stringify(lockOf(ROWS), null, 1)}\n`)
     return
   }
-  if (!lock) throw new Error('UPDATE_TARGET_LOCK=1: no lock to update')
-  const { added } = compareLock(ROWS, lock)
-  if (added.length) throw new Error(`UPDATE_TARGET_LOCK=1 refuses to ADD ids (${added.length}):\n${added.slice(0, 20).join('\n')}`)
-  const fresh = lockOf(ROWS, lock.decisions || {})
-  // (an id kept by an explicit decision stays in the lock)
-  for (const [id] of Object.entries(lock.decisions || {})) for (const [cap, l] of Object.entries(lock.capabilities)) for (const c of LOCKED_CLASSES) if ((l[c] || []).includes(id) && fresh.capabilities[cap] && !fresh.capabilities[cap][c].includes(id)) { fresh.capabilities[cap][c] = [...fresh.capabilities[cap][c], id].sort(); fresh.capabilities[cap].counts[c]++ }
-  writeFileSync(LOCK_PATH, `${JSON.stringify(fresh, null, 1)}\n`)
+  const u = updatedLock(ROWS, lock)
+  if (u.error) throw new Error(u.error)
+  writeFileSync(LOCK_PATH, `${JSON.stringify(u.lock, null, 1)}\n`)
 }, 300000)
 
 describe('STATE RAIL target coverage — the words must pick out THE object the plan acts on (ratchet)', () => {
@@ -259,7 +295,7 @@ describe('STATE RAIL target coverage — the words must pick out THE object the 
       return `  ${r.cap.padEnd(30)} [${r.kind}] plans ${r.plans} · cases ${r.cases} · other-object ${r.otherPlans} · wrongTarget ${n('wrongTarget')} · ambiguity ${n('ambiguity')} · allCapsOnly ${n('allCapsOnly')} · overRefusal ${new Set(r.overRefusal).size} · default-scope only ${r.defaultOnly} · (auto-apply ${auto} · card names target ${named} · card unnamed ${r.findings.length - auto - named})${ex.length ? `\n${ex.join('\n')}` : ''}`
     })
     console.log(`TARGET COVERAGE: ${ROWS.reduce((n, r) => n + r.cases, 0)} cases, ${ROWS.reduce((n, r) => n + r.findings.length, 0)} findings\n${lines.join('\n')}`)
-    for (const r of ROWS) { expect(r.plans, `${r.cap}: no plan could be built`).toBeGreaterThan(1); expect(r.otherPlans, `${r.cap}: no different-object plan`).toBeGreaterThan(0) }
+    for (const r of ROWS) { expect(r.plans, `${r.cap}: no plan could be built`).toBeGreaterThan(1); expect(r.otherPlans, `${r.cap}: no different-object plan`).toBeGreaterThan(0); expect(r.caseIds.size, `${r.cap}: case ids collide`).toBe(r.cases) }
   })
   it('every target-bearing reader kind (stateRail.STATE_KINDS, read at runtime) is covered or exempt with a reason — a NEW kind fails here', () => {
     const covered = new Set(ROWS.filter(r => r.cases > 0 && r.otherPlans > 0).map(r => r.kind))
@@ -272,20 +308,84 @@ describe('STATE RAIL target coverage — the words must pick out THE object the 
     const lock = readLock()
     expect(lock, 'no lock — UPDATE_TARGET_LOCK=bootstrap writes the first one').toBeTruthy()
     expect(lock.board).toBe(BOARD)
-    expect(ROWS.map(r => r.cap).filter(c => !lock.capabilities[c])).toEqual([])
+    expect(ROWS.map(r => r.cap).filter(c => !lock.capabilities[c] || !lock.caseSet?.[c])).toEqual([])
   })
   for (const spec of SPECS) {
-    it(`${spec.cap}: no finding beyond the lock (a plan at an object the words do not pick out is never NEWLY licensed)`, () => {
+    it(`${spec.cap}: no finding beyond the lock, no vanished case, the case set as locked`, () => {
       const r = ROWS.find(x => x.cap === spec.cap)
-      const { added, rises, gone } = compareLock([r], { ...readLock(), capabilities: { [spec.cap]: readLock()?.capabilities?.[spec.cap] } })
-      if (gone.length) console.log(`lock can shrink: ${spec.cap} ${gone.map(g => `${g.cls}:${g.id}`).join(' ')}`)
+      const lock = readLock() || {}
+      const { added, rises, fixed, vanished, caseSet } = compareLock([r], { ...lock, capabilities: { [spec.cap]: lock.capabilities?.[spec.cap] } })
+      if (fixed.length) console.log(`lock can shrink: ${spec.cap} ${fixed.map(g => `${g.cls}:${g.id}`).join(' ')}`)
       expect(added.slice(0, 20), `${added.length} NEW findings`).toEqual([])
       expect(rises).toEqual([])
+      expect(vanished.map(v => `vanished-case ${v.cls}:${v.id}`).slice(0, 20), `${vanished.length} locked findings whose case is no longer generated`).toEqual([])
+      expect(caseSet, 'the generated case set changed — update lock.caseSet in the same diff (UPDATE_TARGET_LOCK=1)').toEqual([])
     })
   }
-  it('the committed lock holds no id a fresh run no longer finds, unless an explicit decision keeps it (fixing PRs remove their ids)', () => {
+  it('the committed lock holds no FIXED id (its case generated, now passing), unless an explicit decision keeps it (fixing PRs remove their ids)', () => {
     const lock = readLock() || {}
-    const stale = compareLock(ROWS, lock).gone.filter(g => !(lock.decisions || {})[g.id])
-    expect(stale.map(g => `${g.cap} [${g.cls}] ${g.id}`).slice(0, 40), `${stale.length} stale ids — run UPDATE_TARGET_LOCK=1 to remove them`).toEqual([])
+    const stale = compareLock(ROWS, lock).fixed.filter(g => !(lock.decisions || {})[g.id])
+    expect(stale.map(g => `${g.cap} [${g.cls}] ${g.id}`).slice(0, 40), `${stale.length} fixed ids — run UPDATE_TARGET_LOCK=1 to remove them`).toEqual([])
+  })
+})
+
+// ── the ratchet's own mutants (AUDIT hold on #1671): a fix shrinks the lock; a vanished case, an added phrasing never do ──
+describe('target-coverage ratchet — mutants', () => {
+  // every case id one phrasing generates (all its variants, at every object the capability's plans are aimed at)
+  const allIdsOf = (r, base) => { const spec = SPECS.find(s => s.cap === r.cap); return new Set(VARIANTS(base).flatMap(w => spec.cands.map(c => caseId(r.cap, w, c.id))).filter(id => r.caseIds.has(id))) }
+  // the row as if that phrasing were deleted from the generator: its cases (and so its findings) are no longer generated
+  const drop = (r, base) => {
+    const ids = allIdsOf(r, base)
+    return { gone: new Set(r.findings.filter(f => ids.has(f.id)).map(f => f.id)), row: { ...r, caseIds: new Set([...r.caseIds].filter(id => !ids.has(id))), findings: r.findings.filter(f => !ids.has(f.id)) } }
+  }
+  const withFinding = () => ROWS.find(r => r.cap === 'widget.closeTab')
+  it('deleting ONE phrasing from the generator → RED (vanished-case, the case set changed), never "lock can shrink"; UPDATE refuses', () => {
+    const r = withFinding()
+    const base = r.findings[0].base
+    const { gone, row } = drop(r, base)
+    expect(gone.size).toBeGreaterThan(0)
+    const lock = readLock()
+    const cmp = compareLock([row], { ...lock, capabilities: { [r.cap]: lock.capabilities[r.cap] } })
+    expect(cmp.vanished.map(v => v.id).sort()).toEqual([...gone].sort())
+    expect(cmp.fixed).toEqual([])
+    expect(cmp.caseSet.length).toBe(1)
+    expect(updatedLock([row], { ...lock, capabilities: { [r.cap]: lock.capabilities[r.cap] } }).error).toMatch(/vanished-case/)
+    // …unless decisions names every one of them
+    const decided = { ...lock, capabilities: { [r.cap]: lock.capabilities[r.cap] }, decisions: Object.fromEntries([...gone].map(id => [id, 'mutant'])) }
+    expect(compareLock([row], decided).vanished).toEqual([])
+  })
+  it('a FIX (the case still generated, now passing) → "lock can shrink", and UPDATE removes exactly that id', () => {
+    const r = withFinding()
+    const f = r.findings[0]
+    const row = { ...r, findings: r.findings.filter(x => x.id !== f.id) }
+    const lock = readLock()
+    const one = { ...lock, capabilities: { [r.cap]: lock.capabilities[r.cap] } }
+    const cmp = compareLock([row], one)
+    expect(cmp.fixed.map(x => x.id)).toEqual([f.id])
+    expect([cmp.added, cmp.rises, cmp.vanished, cmp.caseSet]).toEqual([[], [], [], []])
+    const u = updatedLock([row], one)
+    expect(u.lock.capabilities[r.cap][f.cls]).toEqual(lock.capabilities[r.cap][f.cls].filter(id => id !== f.id))
+    expect(u.lock.caseSet[r.cap]).toEqual(lock.caseSet[r.cap])
+  })
+  it('ADDING a phrasing → the case set changes (RED until the lock is updated), and its new findings are NEW ids → RED; UPDATE refuses', () => {
+    const spec = SPECS.find(s => s.cap === 'widget.closeTab')
+    const [row] = runCoverage([{ ...spec, words: [...spec.words, 'close the news tab right now'] }])
+    const lock = readLock()
+    const one = { ...lock, capabilities: { [spec.cap]: lock.capabilities[spec.cap] } }
+    const cmp = compareLock([row], one)
+    expect(cmp.caseSet.length).toBe(1)
+    expect(cmp.added.length).toBeGreaterThan(0)
+    expect(updatedLock([row], one).error).toMatch(/refuses to ADD/)
+  })
+  it('ADDING a phrasing with no finding → only the case set changes; UPDATE may record it (no id vanished, none added)', () => {
+    const spec = SPECS.find(s => s.cap === 'watchlist.delete')
+    const [row] = runCoverage([{ ...spec, words: [...spec.words, 'delete my Value watchlist right now'] }])
+    const lock = readLock()
+    const one = { ...lock, capabilities: { [spec.cap]: lock.capabilities[spec.cap] } }
+    const cmp = compareLock([row], one)
+    expect([cmp.added, cmp.vanished, cmp.caseSet.length]).toEqual([[], [], 1])
+    const u = updatedLock([row], one)
+    expect(u.error).toBeUndefined()
+    expect(u.lock.caseSet[spec.cap]).toEqual(caseSetOf(row))
   })
 })
