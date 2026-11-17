@@ -252,7 +252,8 @@ from bar 0 (a young listing, or SPY `12M`) is what settles them.
 ## The evidence engine (2026-11-02) — the capture queues, batched
 
 `tools/vendor_harness/evidence_engine.py` turns every `docs/pine/capture-queue-*.md` row into one
-machine-readable queue (`docs/pine/vendor-harness/capture-queue.json`, priority = sample scripts
+machine-readable queue (`docs/pine/vendor-harness/capture-queue.json`, derived on demand and not committed
+since 2026-11-16, priority = sample scripts
 unblocked, derived from `coverage-map.json`), writes a manifest the unattended batch below runs
 with each target's OWN symbol and timeframe, grades the run under the heavy lock, and stops at a
 promotion packet a person reads before `promote --packet-sha` copies licence-clear captures into

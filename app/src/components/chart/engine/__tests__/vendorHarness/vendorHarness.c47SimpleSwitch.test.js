@@ -199,13 +199,16 @@ describe('C47 — the arm is the CALL SITE\'s', () => {
     expect(ema.filter((v, i) => Math.abs(v - sma[i]) > 1e-6).length).toBeGreaterThan(500)
   }, 60000)
 
-  it('⛔ an arm this lane cannot lower refuses ONLY the call site that selects it (`"TMA"`: a window over a window)', () => {
+  // ⚰️ WAS refused (`runtime:history-expression`: "`ta.sma` over an expression"). ⭐ HIST-S2 — a `skip`
+  // window keeps its own ring of what it is handed, so the inner `ta.sma` is handed to the outer one in
+  // place; the arm a fixed text selects runs on every bar, so it is the root's window over a window
+  it('the `"TMA"` arm (a window over a window) is served at the call site that selects it (HIST-S2)', () => {
     const cap = load()
     const rows = toProductBars(cap)
-    const tma = run(script(cap.source.text, 'plot(smooth(close, 5, "TMA"))'), rows)
-    expect(tma.refusal && tma.refusal.guard).toBe('runtime:history-expression')
-    expect(String(tma.refusal.message)).toContain('`ta.sma` over an expression')
-    // …and every other call site is untouched by that arm's being there (the five above)
+    same(each(cap, rows, 'TMA'), direct(rows, 'ta.sma(ta.sma(close, 5), 5)'))
+    // control: it is not one of the other arms
+    const sma = each(cap, rows, 'SMA')
+    expect(each(cap, rows, 'TMA').filter((v, i) => Math.abs(v - sma[i]) > 1e-6).length).toBeGreaterThan(500)
   }, 60000)
 
   it('two call sites with different texts run two arms, each with its own state', () => {

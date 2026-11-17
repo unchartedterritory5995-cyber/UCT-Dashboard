@@ -8,7 +8,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, act, within } from '@testing-library/react'
 import HOUSE from './house/houseIndicators.json'
 import * as registry from './engine/nativeRegistry'
-import IndicatorHouseTab, { freshDefId, houseMatches } from './IndicatorHouseTab'
+import IndicatorHouseTab, { mintDefId, houseMatches } from './IndicatorHouseTab'
 
 const styles = new Proxy({}, { get: (_t, k) => String(k) })
 const ITEMS = HOUSE.indicators
@@ -25,7 +25,7 @@ describe('the set', () => {
   })
 
   it.each(ITEMS.map((i) => [i.name, i]))('%s passes the registry\'s own validation and installs', (_n, item) => {
-    const doc = { ...item.definition, id: freshDefId() }
+    const doc = { ...item.definition, id: mintDefId() }
     const { defs, errors } = registry.validateUserDefinitions([doc])
     expect(errors).toEqual([])
     expect(defs).toHaveLength(1)
@@ -118,8 +118,8 @@ describe('the tab', () => {
 })
 
 describe('the pieces', () => {
-  it('freshDefId is the store\'s shape and differs each time', () => {
-    const a = freshDefId(); const b = freshDefId()
+  it('mintDefId is the store\'s shape and differs each time', () => {
+    const a = mintDefId(); const b = mintDefId()
     expect(a).toMatch(/^u_[0-9a-f]{12}$/)
     expect(a).not.toBe(b)
   })

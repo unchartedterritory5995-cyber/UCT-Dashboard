@@ -27,10 +27,25 @@ weights it by what real scripts use, and ranks the work.
    state production runs (objects-only pane **armed**, runtime pane **dark**); and
 2. it **attaches and installs**, with **zero refusals** in its translation; and
 3. its drawing-object program is carried with **nothing dropped and nothing withheld**
-   (`assessObjectLoss` verdict `clean`), and no per-bar paint is withheld; and
+   (`assessObjectLoss` verdict `clean`), and no per-bar paint is withheld (from 2026-11-16 a
+   paint counts as withheld only when the document the member gets does not draw it,
+   `tools/pine_coverage/paint_predicate.mjs`; every count on this page was measured under the
+   earlier rule, which counted every paint the translation withheld, and a census row carries
+   both as `withheldPaints` / `withheldPaintsTranslated`); and
 4. it is **not a strategy that places orders** (`strategy.entry/order/exit/close/close_all`).
    The door draws a strategy's plots (ruling C50), but its trades, markers and tester
    report are its output and nothing simulates the broker, so it does not count.
+
+   ⭐ **A separate column, `wouldTransferIfArmed`** (per script, and `strategyOn.wouldTransferIfArmed`
+   / `armedWalls`; coordinator ruling 2026-11-16). The strategy broker exists and is dark
+   (`VITE_PINE_STRATEGY_BROKER_ENABLED`); arming it is the owner's act. The census measures, for
+   each order-placing strategy, what arming would serve: the same door with the objects-only
+   pane, the runtime pane and the broker stubbed on attaches it clean, its document runs the
+   broker, the run on the reference bars (NYSE:RDDT 1D from the listing, the window
+   `bars_window.HISTORY_WINDOW_BARS`) finishes with every broker rule it exercised pinned by
+   the committed ledger, and its trades are drawn or refused by name
+   (`runtime/__tests__/strategyArmed.js`). It never moves the headline above; a census row
+   written before the counterfactual reads `null` (unmeasured), never `false`.
 
 ⚠️ This is a **door verdict, not a parity verdict**. It says the whole script is accepted
 and drawn; it does not say every number equals TradingView's. Parity is graded only where a
@@ -553,9 +568,12 @@ the same PR. `--rows` refuses rows measured on other script texts (`inputs.json`
 without the census's lane proof (`lane.jsonl`). A write under the lane's floor (`FLOORS` in
 `coverage_ratchet.py`) is refused: lowering a floor is a code change, by name, in the PR that needs
 it. The same legs' sibling, **derived evidence is current**, runs
-`python tools/vendor_harness/evidence_engine.py queue --check` and `pins --check`: a PR that changes
-`coverage-map.json` (or a queue doc, a probe, the corpus, a fixture) re-runs
-`python tools/vendor_harness/evidence_engine.py queue` and commits `capture-queue.json` with it.
+`python tools/vendor_harness/evidence_engine.py queue --check` and `pins --check`. Since 2026-11-16 the
+queue is derived on demand and `capture-queue.json` is NOT committed (git ignores it; `queue --check` fails
+if it is tracked again): a PR that changes `coverage-map.json` (or a queue doc, a probe, the corpus, a
+fixture) commits nothing for the queue. Committed, that file conflicted in 5 of the 5 open Pine PRs GitHub
+could not merge on 2026-11-16. A branch cut before the change resolves its one conflict with
+`git rm docs/pine/vendor-harness/capture-queue.json`.
 
 Files: `tools/pine_coverage/fetch_sample.py`, `tools/pine_coverage/run_census.py`,
 `tools/pine_coverage/coverage_map.py`, `tools/pine_coverage/coverage_ratchet.py`,

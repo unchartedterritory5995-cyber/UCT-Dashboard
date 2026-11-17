@@ -29,6 +29,15 @@ Door verdicts, not parity verdicts.
   - L7: `MATCH_SUBSTITUTED` as its own parity bucket; the evidence ledger and licence-held
     captures in the parity join;
   - W6 T1 / W3W4-D2: wall labels on the runtime lane (attribution only).
+- ⚠️ **The paint rule changed AFTER this measurement** (instrument correction, branch
+  `fix/pine-coverage-door-robustness`, coordinator ruling C): a paint (`bgcolor` / `barcolor`) now
+  counts as withheld only when the document the member gets does not draw it
+  (`tools/pine_coverage/paint_predicate.mjs`, imported by both measuring tests). Every number on this
+  page is under the EARLIER rule (every paint the translation marked withheld counts, including a
+  `barcolor` the runtime-on door draws from the per-bar run). A census run after the correction
+  carries both on every row (`withheldPaints` / `withheldPaintsTranslated`, `clean` /
+  `cleanTranslatedPaints`); a headline compared with this page must be stated under the earlier
+  rule, or the difference is the instrument, not the engine.
 
 ## 2. Before and after
 

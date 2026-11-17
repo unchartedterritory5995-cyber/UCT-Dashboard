@@ -97,7 +97,7 @@ import time
 from collections import OrderedDict
 from typing import Any, Optional
 
-from api.services import runtime_repaint
+from api.services import pine_runtime_codec, runtime_repaint
 
 log = logging.getLogger(__name__)
 
@@ -1316,7 +1316,12 @@ def validate(definition: dict) -> None:
         raise ValueError("compute.objects: when present, true (the run draws the document's "
                          f"objects), got {own_objects!r}")
     outputs = compute.get("outputs")
-    if not isinstance(outputs, dict) or (not outputs and own_objects is not True):
+    # ⭐⭐ W9 ARMED ROUTE (2026-11-16) — a document that runs the strategy broker (`meta.runtimeHistory` is the
+    # strategy window, stamped by the member door only with the dark broker gate on) may map no plot either: a
+    # tester-only strategy's output is its trades, not a row (`defSchema.js::validateRuntimeCompute`, the same rule).
+    meta_in = definition.get("meta") if isinstance(definition.get("meta"), dict) else {}
+    broker_doc = meta_in.get("runtimeHistory") == pine_runtime_codec.STRATEGY_WINDOW_HISTORY
+    if not isinstance(outputs, dict) or (not outputs and own_objects is not True and not broker_doc):
         raise ValueError('compute.outputs: a "runtime" definition maps each plot key to a '
                          "runtime output index — required non-empty object")
     for key, index in outputs.items():

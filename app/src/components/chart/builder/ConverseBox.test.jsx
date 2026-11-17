@@ -102,7 +102,7 @@ function stubConverse() {
 
 const flush = async () => { await act(async () => { for (let i = 0; i < 6; i += 1) await Promise.resolve() }) }
 async function say(text) {
-  fireEvent.change(screen.getByLabelText(/Describe the indicator|Change it/), { target: { value: text } })
+  fireEvent.change(screen.getByLabelText(/^Describe it$|^Change it$/), { target: { value: text } })
   fireEvent.click(screen.getByTestId('converse-send'))
   await flush()
 }

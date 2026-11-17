@@ -150,7 +150,7 @@ describe('A5c — swatches: the current colour, always present, always marked', 
     const onWrite = mount(rsCs(), rsEditing)
     await user.click(headNamed('Line'))
     const row = () => rowFor('maColor')
-    await user.click(within(row()).getByRole('button', { name: 'Average colour #f472b6' }))
+    await user.click(within(row()).getByRole('button', { name: 'Average color #f472b6' }))
     expect(onWrite).toHaveBeenCalledTimes(1)
     const inst = onWrite.mock.calls[0][0].indicatorInstances.find((i) => i.instanceId === 'rs-1')
     expect(inst.inputs.maColor).toBe('#f472b6')

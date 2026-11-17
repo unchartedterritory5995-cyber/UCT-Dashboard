@@ -20,6 +20,7 @@ still asserts 0.
 | id | probe | symbol / tf | refusal kept | unblocks | owner |
 |---|---|---|---|---|---|
 | sar() window | none: engine fix (the capture `vw-lower-tf-bars-rddt-15-2026-11-16` is in the harness) | `NYSE:RDDT 15` | none: the expansion publishes a value that is not the full-history SAR on 43 bars | `sar.test.js` KNOWN `it.fails` flips to `it` | the builder assigned the SAR window fix (2026-11-16) |
+| sar() saved-tree upgrade | none: engine gap (load-time rewrite of a stored tree) | any | a formula document saved before 2026-11-16 keeps its stored 200-bar SAR tree, evaluated as stored by every lane (chart, alerts, scans): read back as `sar(step, maxStep)` with a note naming the 200-bar start, and re-expanded at 400 on its next save | a load-time rewrite of stored 200-bar SAR trees to the current window: formula documents have no engine stamp, so `savedScriptUpgrade.js` (Pine script documents, re-translated from source) does not reach them | engine |
 
 ## Not capture questions (queue dispositions)
 
@@ -27,4 +28,5 @@ Read by `tools/vendor_harness/evidence_engine.py queue`: each row named here lea
 
 | not a capture | disposition | reason |
 |---|---|---|
-| sar() window | engine-gap | the `sar()` expansion's 200-bar window does not converge on vw-lower-tf-bars-rddt-15-2026-11-16 (43 bars, 17 value and direction); native SAR is correct, the capture is already in the harness, and what closes it is a build that flips the `it.fails` in `sar.test.js`, not a TradingView reading |
+| sar() window | closed | the `sar()` expansion's 200-bar window does not converge on vw-lower-tf-bars-rddt-15-2026-11-16 (43 bars, 17 value and direction); native SAR is correct, the capture is already in the harness, and what closes it is a build that flips the `it.fails` in `sar.test.js`, not a TradingView reading. ⭐ CLOSED 2026-11-16 by `fix/pine-sar-warmup`: `SAR_WARMUP` 200 -> 400, measured (docs/pine/evidence/2026-11-16-sar-window/EVIDENCE.md); the `it.fails` is an `it` |
+| sar() saved-tree upgrade | engine-gap | a stored formula tree is not re-expanded on load, and formula documents carry no engine stamp for `savedScriptUpgrade.js` to act on; what closes it is a load-time rewrite of the stored 200-bar SAR tree (and a rail that a saved alert does not fire twice on one bar across it), not a TradingView reading |

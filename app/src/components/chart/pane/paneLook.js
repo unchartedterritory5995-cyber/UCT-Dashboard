@@ -32,7 +32,10 @@ export const PANE_LOOK = Object.freeze({
   alwaysShowLegend: true,
   rightPadBars: 6,
   dailyDefaultBars: 126,
-  volumeSeparatePane: true,
+  // Volume DEFAULTS to its own pane here, but the member may overlay it on price
+  // (⋯ → Display in, saved as `cs.volume.displayIn`). Not `volumeSeparatePane`:
+  // that prop FIXES the pane and disables the choice (owner 11-16).
+  volumePaneByDefault: true,
   priceScaleTopMargin: 0.12,
   priceScaleBottomMargin: 0.10,
 })

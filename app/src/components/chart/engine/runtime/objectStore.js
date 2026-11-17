@@ -25,7 +25,7 @@
 //
 // ⛔ A WITHHELD FAMILY IS NOT DRAWN AT ALL, and the reason rides out with the run.
 // Correctness over coverage: a drawing that may be wrong is worse than none.
-import { POOL_LIMITS, resolveCapacity, collectsAbove } from '../objectPool.js'
+import { POOL_LIMITS, resolveCapacity, collectsAbove, countAtCapReason, COUNT_AT_CAP_FAMILIES } from '../objectPool.js'
 import { packedToObjectHex } from './colours.js'
 import { objectHandle, isDrawingHandle } from './handles.js'
 import { ENUM_NA_SENTENCE, ENUM_DROPS } from '../enumNaRule.js'
@@ -432,6 +432,13 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
       reap(inst)
       stats.collected += 1
     }
+    // ⭐⭐ DRAW-1 — a BOX collector ran: which of the oldest boxes TradingView still shows from here
+    // on is not settled (the reference: "The count is approximate"; inside-bar-boxes holds 52 where
+    // the rule holds 50), so the family is withheld by name (`objectPool.js` COUNT_AT_CAP_FAMILIES:
+    // boxes only, each other family's collector is witnessed). Said AFTER the walk, so a box held in a
+    // user type keeps that sentence; the objects were still reaped, so a later count, a getter or a
+    // delete reads the same store as before.
+    if (COUNT_AT_CAP_FAMILIES.includes(fam)) withhold(fam, countAtCapReason(fam, cap))
   }
 
   function tablePos(props) {

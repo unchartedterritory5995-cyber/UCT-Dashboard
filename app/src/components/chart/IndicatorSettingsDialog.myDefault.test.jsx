@@ -109,7 +109,7 @@ describe('the rating inputs render where the plan puts them', () => {
     const headline = screen.getByRole('combobox', { name: 'Headline rating' })
     expect(headline.disabled).toBe(true)
     expect([...headline.options].map((o) => o.textContent)).toEqual(['IBD-style', 'UCT fast', 'Both'])
-    expect(screen.getByRole('switch', { name: 'Rating colours' }).getAttribute('aria-disabled')).toBe('true')
+    expect(screen.getByRole('switch', { name: 'Rating colors' }).getAttribute('aria-disabled')).toBe('true')
   })
   it('the five folded groups, Simple open', () => {
     mount(rsCs())

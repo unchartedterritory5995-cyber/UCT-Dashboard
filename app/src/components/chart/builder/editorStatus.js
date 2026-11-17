@@ -123,7 +123,9 @@ export const FAMILIES = Object.freeze([
   {
     id: 'fault',
     exact: ['import:internal-error', 'runtime:failed', 'runtime:build', 'runtime:unnamed-refusal',
-      'runtime:not-from-listing', 'runtime:output-map', 'runtime:document'],
+      'runtime:not-from-listing', 'runtime:output-map', 'runtime:document',
+      // door robustness: the host document the door built did not pass the install door's own check
+      'pine:install'],
     prefix: ['runtime:worker-'],
     label: 'Engine fault',
     why: 'Our engine could not finish this script. That is on us, not your script.',
@@ -190,7 +192,9 @@ export const FAMILIES = Object.freeze([
     // U15: the four ways a library the store HOLDS is still not compiled (no verified sha256,
     // other code than the document was saved against, a non-commercial licence, the deny list).
     exact: ['pine:module', 'pine:declaration-library', 'runtime:library',
-      'pine:library-no-sha', 'pine:library-changed', 'pine:library-licence', 'pine:library-denied'],
+      'pine:library-no-sha', 'pine:library-changed', 'pine:library-licence', 'pine:library-denied',
+      // U15 Phase B: a v5 library in a v6 script whose code changed meaning in v6
+      'pine:library-version'],
     label: 'Imported libraries',
     why: 'This script imports a library we cannot load yet.',
   },
@@ -215,7 +219,9 @@ export const FAMILIES = Object.freeze([
     id: 'limits',
     exact: ['pine:window', 'pine:window-dependent', 'pine:budget', 'pine:timeout', 'runtime:limit',
       'runtime:time-budget', 'runtime:history-start', 'runtime:warmup-never-converges',
-      'chart:scalar-current-only'],
+      'chart:scalar-current-only',
+      // door robustness: a plot past a host-lane compute budget, refused by the member door by name
+      'budget:lookback', 'budget:series', 'budget:nodes'],
     prefix: ['runtime:calc-bars-', 'pine:calc-bars-'],
     label: 'History and compute limits',
     why: 'This needs more history or more computing than a chart here allows, so it is withheld.',

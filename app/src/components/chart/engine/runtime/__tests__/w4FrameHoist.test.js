@@ -112,9 +112,14 @@ describe('W4-T7 an expression\'s own series inside a function body', () => {
 })
 
 describe('W4-T7 what STILL refuses by name', () => {
-  it('a nested list (an `if` body) inside the function refuses - T5 / H9', () => {
-    const r = refusalOf('f(v) =>\n    r = 0.0\n    if v > 0\n        r := ta.sma(v + 1, 3)\n    r\nplot(f(close))\n')
-    expect(r.guard).toBe('runtime:history-expression')
+  // ⚰️ WAS refused (`runtime:history-expression`): no statement list to hoist into. ⭐ HIST-S2 — `ta.sma`
+  // keeps its OWN ring of the values it is handed (`skip`), so the expression is handed in place; and
+  // `ta.sma` per call site is the witnessed rule (C48 C03 / H03), so the branch is served for any run
+  // pattern. These bars' close is always positive: the branch runs every bar, the root's sma.
+  it('a nested list (an `if` body) inside the function: `ta.sma` over an expression is served (HIST-S2)', () => {
+    const fn = run('f(v) =>\n    r = 0.0\n    if v > 0\n        r := ta.sma(v + 1, 3)\n    r\nplot(f(close))\n')
+    const root = run(`${bind('u', 'close + 1')}plot(ta.sma(u, 3))\n`)
+    same(fn.out, root.out, 'nested list')
   })
 
   it('a GLOBAL\'s history through a function stays `runtime:function-global-state`', () => {
@@ -130,13 +135,17 @@ describe('W4-T7 what STILL refuses by name', () => {
 })
 
 describe('W4-T7 a block VALUE inside a function body is a nested list (H9)', () => {
-  it('an `if` expression arm over an expression refuses - the hoist would run every bar', () => {
-    const r = refusalOf('f(v) =>\n    x = if v > 0\n        ta.sma(v * 2, 5)\n    else\n        v\n    x\nplot(f(close))\n')
-    expect(r.guard).toBe('runtime:history-expression')
+  // ⚰️ both WERE refused (`runtime:history-expression`): a hoist would run every bar. ⭐ HIST-S2 hands the
+  // expression to the window in place, which runs only when the arm does (no hoist at all)
+  it('an `if` expression arm over an expression: served in place, never hoisted (HIST-S2)', () => {
+    const fn = run('f(v) =>\n    x = if v > 0\n        ta.sma(v * 2, 5)\n    else\n        v\n    x\nplot(f(close))\n')
+    const root = run(`${bind('u', 'close * 2')}plot(ta.sma(u, 5))\n`)
+    same(fn.out, root.out, 'if expression arm')
   })
-  it('a `switch` arm over an expression refuses too', () => {
-    const r = refusalOf('f(v, simple string m) =>\n    switch m\n        "a" => ta.sma(v * 2, 5)\n        => v\nplot(f(close, "a"))\n')
-    expect(r.guard).toBe('runtime:history-expression')
+  it('a `switch` arm over an expression: served in place too (HIST-S2)', () => {
+    const fn = run('f(v, simple string m) =>\n    switch m\n        "a" => ta.sma(v * 2, 5)\n        => v\nplot(f(close, "a"))\n')
+    const root = run(`${bind('u', 'close * 2')}plot(ta.sma(u, 5))\n`)
+    same(fn.out, root.out, 'switch arm')
   })
 })
 

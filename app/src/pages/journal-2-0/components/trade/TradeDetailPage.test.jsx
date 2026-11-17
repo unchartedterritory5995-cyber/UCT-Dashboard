@@ -316,7 +316,7 @@ describe('TradeDetailPage — Research trigger (Full Research / Ask AI / Compare
     expect(screen.getByRole('button', { name: /research/i })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /^research$/i }))
     expect(screen.getByRole('button', { name: 'Full Research' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /ask ai about nvda/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /ask the uct agent about nvda/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /compare nvda with/i })).toBeInTheDocument()
     // The pre-existing CTA elements are untouched (ShareToFloor renders null
     // under this file's SWR stub — /api/community/status resolves to null —
@@ -337,7 +337,7 @@ describe('TradeDetailPage — Research trigger (Full Research / Ask AI / Compare
   it('Ask AI navigates to the same route with ?section=ai, tagged with a return-context marker (Seam 12)', () => {
     renderPage()
     fireEvent.click(screen.getByRole('button', { name: /^research$/i }))
-    fireEvent.click(screen.getByRole('button', { name: /ask ai about nvda/i }))
+    fireEvent.click(screen.getByRole('button', { name: /ask the uct agent about nvda/i }))
     expect(navigateSpy).toHaveBeenCalledWith('/research/NVDA?section=ai&from=trade%3At1')
   })
 

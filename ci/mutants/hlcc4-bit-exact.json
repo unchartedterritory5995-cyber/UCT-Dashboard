@@ -1,0 +1,22 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "M12",
+   "mutant": "hlcc4 expands to the reference's four-term sum (high + low + close + close) / 4 again",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "  if (name === 'hlcc4') {",
+   "to": "  if (name === 'hlcc4 (mutant M12)') {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/hlcc4BitExact.test.js",
+   "expectRed": "S08 on every bar"
+  },
+  {
+   "id": "M13",
+   "mutant": "the Python twin no longer recognises hlcc4's (high + low + 2 * close) / 4 as a bar price",
+   "file": "api/services/ast_interpret.py",
+   "from": "    if _is_hlcc4_tree(total, k):",
+   "to": "    if False and _is_hlcc4_tree(total, k):",
+   "rail": "python -m pytest tests/test_engine56_values.py -q -p no:cacheprovider -k is_bar_price_tree"
+  }
+ ]
+}

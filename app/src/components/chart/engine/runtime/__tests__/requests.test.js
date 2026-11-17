@@ -136,7 +136,7 @@ describe('request.security', () => {
     expect(out[1]).toBe(OTHER[1].c * 100000 + OTHER[1].v)
   })
 
-  it('⛔ lookahead_on is refused BY NAME — its half of M1 is unmeasured', () => {
+  it('⛔ lookahead_on at W/M is served (witnessed); a look-ahead the host cannot read is refused BY NAME', () => {
     // ⚠️ The vendor packet's M1 measured the HISTORICAL half only; the realtime
     // half needs an open market. Serving lookahead on a guess would put a
     // number on screen that nobody could have traded on, which is the most
@@ -145,8 +145,15 @@ describe('request.security', () => {
     // chart's own timeframe. The host reads `lookahead_on` at the chart's own period as the
     // same read as `lookahead_off` (`pine.js::requestTargetOf`: "nothing to model"), so the
     // daily spelling this rail used is now that ordinary read, and builds.
+    // ⭐⭐ REQ (coverage unit, 2026-11-16) — a WEEKLY look-ahead read now builds: its pick is witnessed
+    // (`vw-request-htf-alignment-spy-1d-2026-10-02` A01 / A04 / A06, `vendorHarness.reqLookaheadAlignment`),
+    // and the supply serves it (`requestSupply.js`). A look-ahead spelling the host cannot read still refuses.
+    const weekly = buildRuntimeIr(`${head}x = request.security(syminfo.tickerid, "W", close, lookahead = barmerge.lookahead_on)\nplot(x)\n`,
+      { bars: BARS, inputs: {} })
+    expect(weekly.ok, weekly.ok ? '' : weekly.refusal.message).toBe(true)
+    expect(weekly.ir.requests[0].target).toMatchObject({ own: true, code: 'W', live: true })
     const r = refusalOf(
-      'x = request.security(syminfo.tickerid, "W", close, lookahead = barmerge.lookahead_on)\nplot(x)\n')
+      'la = input.bool(true)\nx = request.security(syminfo.tickerid, "W", close, lookahead = la)\nplot(x)\n')
     expect(r.message).toMatch(/lookahead/i)
     const sameTf = buildRuntimeIr(`${head}x = request.security("OTHER", "D", close, lookahead = barmerge.lookahead_on)\nplot(x)\n`,
       { bars: BARS, inputs: {} })

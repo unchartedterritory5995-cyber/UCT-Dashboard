@@ -511,7 +511,7 @@ describe('multiChartPlan — several charts in one sentence', () => {
     for (const t of ['NVDA on the left and AMD on the right', 'show NVDA and AMD side by side']) {
       const r = multiChartPlan(t, { host })
       expect(r.kind, t).toBe('say')
-      expect(r.text).toMatch(/linked to the same colour group/)
+      expect(r.text).toMatch(/linked to the same color group/)
     }
   })
   it('side by side — 2 charts: both reused (a chart already on one of them keeps it), applied', () => {
