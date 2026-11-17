@@ -1128,7 +1128,7 @@ function FocusList({ mode, onMode }) {
       {rsControls.length > 0 && <QuickControls controls={rsControls} filters={s.filters} sort={s.sort} rank={s.rank} onChoose={chooseOption} onReset={resetControls} />}
       {rsHeadOn && <RsHeaderLine newLine={newLine} showNewLine={newLineShows} asOf={rsAsOf} share={rsShare} pending={pending} alerts={alertToggle} />}
       {rsMarketOn && <RsMarketLine text={marketLine.text} state={marketLine.state} onHide={hideMarketLine} />}
-      {rsNoteOn && <RsFirstVisit onHow={openRsHelp} onDismiss={() => setPref(RS_NOTE_PREF, '1')} />}
+      {rsNoteOn && <RsFirstVisit onHow={openRsHelp} onDismiss={() => setPref('screener_rs_note_seen', '1')} />}
       {metaError && !meta && (
         // The list still renders with the current screen; only the filter registry is missing.
         <div className={styles.metaNote} role="alert">
