@@ -125,26 +125,44 @@ def _vision_ledger(world):
                          " WHERE ticker = 'indicator-vision:racer'").fetchone()
 
 
+def _vision_fit() -> tuple[int, float]:
+    """How many worst-case picture reads fit one member's daily share, and that share.
+
+    ⛔ DERIVED, NEVER A LITERAL. These tests said "three" until 2026-11-17: the picture door's prompt bound was
+    re-measured (it had stopped covering the prompt), the worst case went from about 33 to about 34 cents, three no
+    longer fit in $1, and the master deploy gate went red on a number nobody had changed on purpose. The count is
+    whatever the two constants make it; the cap is the owner's lever, the measurement is not.
+    """
+    from api.services import indicator_from_image as vision
+    share = vision.MEMBER_VISION_USD
+    fit = int(share / vision.worst_case_usd())
+    assert fit >= 2, "the share must hold at least two worst-case reads for these tests to distinguish anything"
+    return fit, share
+
+
 def test_VISION_threads_in_two_processes_hold_one_members_share(world):
-    """Eight threads in each process, one member, every call billed: three fit in $1, whoever gets there."""
+    """Eight threads in each process, one member, every call billed: as many as fit the share, whoever gets there."""
+    fit, share = _vision_fit()
     a, b = world.start("vision", world.go, "racer", "8"), world.start("vision", world.go, "racer", "8")
     world.race(a, b)
     ra, rb = world.line(a), world.line(b)
-    assert ra["calls"] + rb["calls"] == 3
+    assert ra["calls"] + rb["calls"] == fit
     rows, usd = _vision_ledger(world)
-    assert rows == 3 and usd <= 1.0
-    assert sum(g == "vision:member-share" for g in ra["gates"] + rb["gates"]) == 13
+    assert rows == fit and usd <= share
+    assert sum(g == "vision:member-share" for g in ra["gates"] + rb["gates"]) == 16 - fit
 
 
 def test_VISION_a_second_process_sees_what_the_first_already_spent(world):
-    a = world.start("vision", world.go, "racer", "2")
+    """The first process takes all but one of what fits; the second, with four tries, gets exactly the one left."""
+    fit, share = _vision_fit()
+    a = world.start("vision", world.go, "racer", str(fit - 1))
     world.race(a)
-    assert world.line(a)["calls"] == 2
+    assert world.line(a)["calls"] == fit - 1
     pathlib.Path(world.go).unlink()
     b = world.start("vision", world.go, "racer", "4")
     world.race(b)
     assert world.line(b)["calls"] == 1
-    assert _vision_ledger(world)[1] <= 1.0
+    assert _vision_ledger(world)[1] <= share
 
 
 # ═══ one web replica: the supported scope, docs/agent/budget/SINGLE-REPLICA-SCOPE.md ═════════════
