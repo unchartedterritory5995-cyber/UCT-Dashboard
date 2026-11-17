@@ -163,3 +163,13 @@
 /* a narrow, tall box (the Screens rail) reads its label up the side */
 .thumbBox[data-tall] .thumbLabel { writing-mode: vertical-rl; transform: rotate(180deg); }
 .thumbLabel { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; justify-content: center; background: var(--scr-selected); border-radius: 4px; color: var(--scr-rest); font-size: 10.5px; font-weight: 600; white-space: nowrap; overflow: hidden; }
+
+/* A tablet's board (SCREENER_SCAN_BOARD_TABLET_ENABLED): Customize is done with a finger, so the
+   bar, its Remove button and the corner handles are finger-sized. */
+@media (max-width: 1024px) {
+  .board[data-edit] .bwBody { padding-top: 48px; }
+  .bwBar { height: 44px; font-size: 13px; touch-action: none; }
+  .bwClose { width: 44px; height: 44px; font-size: 20px; }
+  .board[data-edit] :global(.react-resizable-handle) { width: 36px; height: 36px; }
+  .board[data-edit] :global(.react-resizable-handle)::after { width: 12px; height: 12px; }
+}

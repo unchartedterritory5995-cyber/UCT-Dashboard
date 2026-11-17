@@ -686,6 +686,7 @@ SCREENER_FLAGS = {
     "SCREENER_FOCUS_PHONE_ENABLED": False,    # enablement: Focus layout on phones (spec 2026-10-16 s3)
     "SCREENER_SCAN_BOARD_ENABLED": False,     # enablement: the Screener as a customizable widget board (desktop)
     "SCREENER_LAYOUT_GALLERY_ENABLED": False,  # enablement: sharing scan-board layouts with the community
+    "SCREENER_SCAN_BOARD_TABLET_ENABLED": False,  # enablement: the scan board on tablets (needs the board flag too)
 }
 
 
@@ -3073,6 +3074,7 @@ _PREFERENCE_KEYS = {
     # `useScanBoard`). Widget ids and grid boxes only; the client cleans it on every read. Added in
     # the same change as its writer, so a saved layout never answers 400.
     "screener_scan_board": _PREF_OPAQUE,
+    "screener_scan_board_tablet": _PREF_OPAQUE,
     # Written server-side by `ticker_tag_service.set_shared_tag_colors`, not
     # through this endpoint — listed so a client that ever writes it directly
     # is not refused for a key the product already owns.

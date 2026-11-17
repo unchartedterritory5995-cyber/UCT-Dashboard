@@ -53,6 +53,9 @@ function world({ lake = null, server = null } = {}) {
   return { registry, net, request, history, calls, max: () => maxLive }
 }
 const lakeRows = (beforeT, n = 3) => Array.from({ length: n }, (_, i) => ({ t: beforeT - 300 * (n - i), o: 100, h: 101, l: 99, c: 100.4, v: 5 }))
+/** What the real feed returns when the lake COVERS the join: the rows before it plus the bar AT it
+ *  (historyFeed.olderBars "plus the bar AT beforeT when the lake has it"). */
+const lakeMeets = (beforeT, n = 3) => [...lakeRows(beforeT, n), { t: beforeT, o: 100, h: 101, l: 99, c: 100.5, v: 5 }]
 const serverWindows = (w) => w.calls.filter((c) => /to=/.test(c))
 const lakeAsks = (w) => w.calls.filter((c) => c.startsWith('lake:'))
 /** scroll-back with the fake clock running (the fakes answer after 5 ms timers) */
@@ -60,7 +63,7 @@ const scroll = async (w, key) => { const p = w.net.scrollBack(key); await vi.adv
 
 describe('BarStore scroll-back from the history lake', () => {
   it('a lake answer is prepended and the server window is never asked', async () => {
-    const w = world({ lake: (key, beforeT) => ({ bars: lakeRows(beforeT, 3), exhausted: false }) })
+    const w = world({ lake: (key, beforeT) => ({ bars: lakeMeets(beforeT, 3), exhausted: false }) })
     const key = keyOf({ sym: 'SIM', tf: '5' })
     w.net.fetchOnce(key)                          // answered without a subscriber: no automatic depth
     await vi.advanceTimersByTimeAsync(20)
@@ -145,8 +148,36 @@ describe('BarStore scroll-back from the history lake', () => {
     expect(w.max()).toBe(1)
   })
 
+  it('⛔ a lake that ENDS BEFORE the chart is never joined across the hole: the server window answers, and once the chart reaches back into the lake the lake is used again', async () => {
+    // production 2026-11-17: the lake ended Fri 19:59 ET, a 1m chart's bars started Mon ~12:30 ET;
+    // joining the two left Monday morning in neither
+    const LAKE_END = OPEN - 3 * 3600                 // the lake stops 3 h before the chart's first bar
+    const lake = (key, beforeT) => {
+      const top = Math.min(beforeT, LAKE_END)
+      const rows = lakeRows(top + 300, 3).filter((b) => b.t <= LAKE_END && b.t < beforeT)
+      if (beforeT <= LAKE_END) rows.push({ t: beforeT, o: 100, h: 101, l: 99, c: 100.5, v: 5 })
+      return { bars: rows, exhausted: false }
+    }
+    const bridge = { t: LAKE_END, o: 100, h: 101, l: 99, c: 100.5, v: 1 }       // the server window reaches the lake
+    const w = world({ lake, server: (url) => (/to=/.test(url) ? { bars: [bridge], series_rev: 1, history_rev: 1, cache_key: 'b1:SIM:5:eth-clock' } : answer('SIM_5')) })
+    const key = keyOf({ sym: 'SIM', tf: '5' })
+    w.net.fetchOnce(key)
+    await vi.advanceTimersByTimeAsync(20)
+    const first = await scroll(w, key)
+    expect(first.source).toBeUndefined()            // NOT the lake: it does not reach the chart's first bar
+    expect(serverWindows(w).length).toBe(1)
+    let bars = w.registry.getSnapshot(key).bars
+    expect(bars[0].t).toBe(LAKE_END)                 // the server filled the hole down to the lake
+    expect(bars.some((b) => b.t < LAKE_END)).toBe(false)
+    const second = await scroll(w, key)              // now the chart's first bar IS in the lake
+    expect(second).toMatchObject({ ok: true, source: 'lake' })
+    bars = w.registry.getSnapshot(key).bars
+    expect(bars[0].t).toBeLessThan(LAKE_END)
+    for (let i = 1; i < bars.length; i++) expect(bars[i].t).toBeGreaterThan(bars[i - 1].t)
+  })
+
   it('a subscribed chart gets one window of depth from the lake as soon as it is answered', async () => {
-    const w = world({ lake: (key, beforeT) => ({ bars: lakeRows(beforeT, 4) }) })
+    const w = world({ lake: (key, beforeT) => ({ bars: lakeMeets(beforeT, 4) }) })
     const key = keyOf({ sym: 'SIM', tf: '5' })
     w.net.start(key)
     await vi.advanceTimersByTimeAsync(50)

@@ -49,6 +49,8 @@ import { pairRunRows } from './runRowPairing'
 import { runtimeInputSpecsOf, plotColourInputAt } from '../../engine/runtime/runtimeInputs'
 import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash } from '../../engine/runtimeKill'
 import { hostKnownDivergenceOf } from '../../engine/hostKnownDivergence'
+import { hostLaneCostOf } from '../../engine/hostLaneCost'
+import { sameDrawnSurface } from './costRoute'
 import { objectLossNote, RUN_HALF_DRAWING_SENTENCE } from '../../engine/ast/objectLoss'
 // ⭐ ENGINE 53 — the run half's door reads the store's cap as the save door counts it.
 import { DOCUMENT_BYTE_BUDGET } from '../../engine/ast/graphDocument'
@@ -1262,7 +1264,7 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     }
     return no(installWhy.reason, installWhy.guard, t)
   }
-  return {
+  return routeByCost({ source, id, name, t, no, host: {
     ok: true,
     definition: docOut,
     reason: null,
@@ -1281,7 +1283,41 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     // declined (by code, for the census); absent for a script whose drawings are complete.
     ...(runHalfOut && runHalfOut.runtimeObjects ? { runHalf: { minted: true, columns: Object.keys(runHalfOut.runtimeObjects.outputs).length } } : {}),
     ...(runHalfOut && runHalfOut.declined ? { runHalfDeclined: runHalfOut.declined } : {}),
+  } })
+}
+
+/** ⭐⭐ ROUTE BY COST (NUMBER PENDING, docs/pine/evidence/2026-11-17-host-lane-cost/EVIDENCE.md) —
+ *  THE HOST LANE'S ANSWER, OR THE SAME SCRIPT DRAWN BY THE RUNTIME LANE WHEN THE HOST ONE IS TOO DEAR.
+ *
+ *  The host lane computes on the member's main thread, inside the chart's paint, for every new bars
+ *  array; the runtime lane computes in a worker. A host document whose recurrences cost more than a
+ *  long task over 5,000 bars (`hostLaneCost.js`: no clock, a count off its own trees) is offered to
+ *  the runtime lane exactly as a host refusal is (`routed: false`), and MOVED only when that lane
+ *  builds it, admits it (its kill list, allowlist and capability verdict) and draws the same picture
+ *  (`costRoute.js::sameDrawnSurface`). Anything else keeps the host answer a member has today,
+ *  carrying `costRoute` (why it stayed) for the census; nothing a member reads changes.
+ *  ⛔ Only while the runtime pane is on for THIS viewer (`runtimePaneEnabled`): with it off nothing is
+ *  asked and the answer is byte-identical to before. */
+function routeByCost({ host, source, id, name, t, no }) {
+  if (!runtimePaneEnabled()) return host
+  const cost = hostLaneCostOf(host.definition)
+  if (!cost.over) return host
+  // ⛔ The refusal `runtimeLaneDefinition` builds on a decline is never read (the host answer stands),
+  // so it carries no guard of its own: a code nobody can be shown is not minted.
+  const run = runtimeLaneDefinition({
+    source, id, name, t, no, routed: false, hostGuard: null,
+    hostReason: `its formula lane would hold the chart for about ${cost.stepsPerBar} steps a bar`,
+    drawnBecause: 'because drawn as formulas it would hold the chart for a noticeable time on every update',
+  })
+  const doc = run && run.ok ? run.definition : null
+  if (!doc || !doc.compute || doc.compute.kind !== 'runtime') {
+    const declined = run && run.runtimeDeclined
+    return { ...host, costRoute: { moved: false, cost, code: (declined && declined.code) || null,
+      why: (declined && declined.why) || null } }
   }
+  const same = sameDrawnSurface(host, run)
+  if (!same.ok) return { ...host, costRoute: { moved: false, cost, code: same.code, why: same.why } }
+  return { ...run, costRoute: { moved: true, cost } }
 }
 
 /** The guard an install refusal that is NOT a budget cap is named by: the document this door
@@ -1999,7 +2035,7 @@ function runtimeShiftContext(source, version, specs) {
  * of the one is the n-th of the other — and when the counts differ the mapping
  * is unknown, which is a refusal, never a guess.
  */
-function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = null, routed = true, no }) {
+function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = null, routed = true, no, drawnBecause = null }) {
   const decline = (code, why) => {
     const refusal = routed
       ? no(`${hostReason} — and the per-bar lane that could draw it declined: ${why}`, 'pine:state', t)
@@ -2412,8 +2448,10 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   }
   const notes = [{
     name: 'Drawn bar by bar',
+    // ⭐ ROUTE BY COST (NUMBER PENDING) — a script moved for its cost says so (`drawnBecause`); every
+    // other caller keeps the sentence it always had.
     note: 'This script is drawn by running it bar by bar, the way TradingView does, '
-      + 'because a single formula per line cannot hold it. Its settings can be changed '
+      + `${drawnBecause || 'because a single formula per line cannot hold it'}. Its settings can be changed `
       + 'like any indicator\'s; a value outside the script author\'s own bounds or options '
       + 'is refused by name, never stretched to fit.',
   }]

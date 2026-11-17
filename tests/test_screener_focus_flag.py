@@ -6,6 +6,7 @@ FLAG = "SCREENER_FOCUS_LAYOUT_ENABLED"
 PHONE = "SCREENER_FOCUS_PHONE_ENABLED"
 BOARD = "SCREENER_SCAN_BOARD_ENABLED"
 GALLERY = "SCREENER_LAYOUT_GALLERY_ENABLED"
+TABLET = "SCREENER_SCAN_BOARD_TABLET_ENABLED"
 
 
 @pytest.fixture
@@ -26,7 +27,8 @@ def test_unset_is_off_for_everyone(auth):
                                                    "screener_premarket_enabled": False,
                                                    "screener_focus_phone_enabled": False,
                                                    "screener_scan_board_enabled": False,
-                                                   "screener_layout_gallery_enabled": False}
+                                                   "screener_layout_gallery_enabled": False,
+                                                   "screener_scan_board_tablet_enabled": False}
 
 
 @pytest.mark.parametrize("raw", ["1", "true", "yes", "on"])
@@ -124,3 +126,26 @@ def test_layout_gallery_does_not_ride_on_the_scan_board_flag(auth, monkeypatch):
     out = auth._screener_flags(is_admin=False)
     assert out["screener_scan_board_enabled"] is True
     assert out["screener_layout_gallery_enabled"] is False
+
+
+# -- the scan board on tablets (owner 2026-11-17: "yeah do all of that"): its own key, the same grammar --
+def test_tablet_board_is_off_until_armed(auth):
+    assert auth._screener_flags(is_admin=True)["screener_scan_board_tablet_enabled"] is False
+
+
+def test_tablet_board_on_is_on_for_members(auth, monkeypatch):
+    monkeypatch.setenv(TABLET, "1")
+    assert auth._screener_flags(is_admin=False)["screener_scan_board_tablet_enabled"] is True
+
+
+def test_tablet_board_admin_is_the_owner_preview(auth, monkeypatch):
+    monkeypatch.setenv(TABLET, "admin")
+    assert auth._screener_flags(is_admin=True)["screener_scan_board_tablet_enabled"] is True
+    assert auth._screener_flags(is_admin=False)["screener_scan_board_tablet_enabled"] is False
+
+
+def test_tablet_board_does_not_ride_on_the_scan_board_flag(auth, monkeypatch):
+    monkeypatch.setenv(BOARD, "1")
+    out = auth._screener_flags(is_admin=False)
+    assert out["screener_scan_board_enabled"] is True
+    assert out["screener_scan_board_tablet_enabled"] is False
