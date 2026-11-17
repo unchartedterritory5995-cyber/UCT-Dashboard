@@ -37,6 +37,7 @@ import { hasSomethingToSend } from './sendConversation'
 const SendConversationDialog = lazy(() => import('./SendConversationDialog'))
 import { safeCssColour } from '../../engine/objectColour'
 import SettingsFields from './SettingsFields'
+import { restoreNote } from '../authoring/restoreVersion'
 
 const EXAMPLES = Object.freeze(['Add a 20 EMA', 'RSI overbought signal', 'Volume above its 50-day average'])
 /** The hint inside the message box, by what the member is doing.
@@ -210,6 +211,14 @@ export function spentJustSaid(transcript, left) {
   return !!(last && last.kind === 'refusal' && last.gate === 'cost:user')
 }
 
+/** When a saved version was stored, as a short date; '' when the store gave none. */
+export function versionWhen(at) {
+  if (!Number.isFinite(at) || at <= 0) return ''
+  try {
+    return new Date(at * 1000).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+  } catch { return '' }
+}
+
 export function allowanceLine(left) {
   if (typeof left !== 'number' || !(left < ALLOWANCE_NOTE_BELOW)) return null
   if (left <= 0) return "Today's UCT Agent allowance is used up. It renews each day."
@@ -220,7 +229,7 @@ export default function CreateIndicatorPanel({
   onClose, settings = null, onChange = null, sym = null, tf = null, anchorRef = null,
   onPreview, onOpenBuilder = null, onOpenLibrary = null, converse = converseTurn,
   dockHost = null, onDocked = null, sessionKey = null, editRow = null, onEditFormula = null,
-  seed = null, sendSeed = false, previewChartRef = null,
+  seed = null, sendSeed = false, previewChartRef = null, readHistory = undefined,
 }) {
   // ⭐ PHASE 4 — held once: the row this studio was opened on (a later list refresh
   // must not re-open it under the member's feet).
@@ -230,7 +239,8 @@ export default function CreateIndicatorPanel({
   const editMode = !!open
   const editability = useMemo(() => (open ? conversationEditability(open.def) : null), [open])
   const blocked = !!(editability && !editability.editable)
-  const conv = useIndicatorConversation({ sym, tf, converse, sessionKey, open })
+  const conv = useIndicatorConversation({ sym, tf, converse, sessionKey, open,
+    ...(readHistory ? { readHistory } : {}) })
   const { state, transcript, rb, busy, saving, previewDefinition } = conv
   const previewCalcTf = (state && state.requests && state.requests.calculationTimeframe) || null
   const previewBase = (state && state.base) || null
@@ -378,7 +388,14 @@ export default function CreateIndicatorPanel({
   // by its own button, and whenever there is no longer more than one step to offer.
   const [historyOpen, setHistoryOpen] = useState(false)
   const stepCount = conv.steps.length
-  useEffect(() => { if (stepCount < 2) setHistoryOpen(false) }, [stepCount])
+  // ⭐ SAVED VERSIONS (backlog 30) — an indicator saved more than once has earlier versions to go
+  // back to, so History is offered on an edit even before the draft has a step of its own. The
+  // list is read when History is opened, never when the dock opens.
+  const hasSavedVersions = editMode && open.version > 1
+  const historyAvailable = stepCount >= 2 || hasSavedVersions
+  useEffect(() => { if (!historyAvailable) setHistoryOpen(false) }, [historyAvailable])
+  const loadVersions = conv.loadVersions
+  useEffect(() => { if (historyOpen && hasSavedVersions) loadVersions() }, [historyOpen, hasSavedVersions, loadVersions])
   const askOrClose = useCallback(() => { if (editMode && conv.dirty) setConfirmLeave('close'); else close() }, [editMode, conv.dirty, close])
   const askOrCancel = useCallback(() => { if (editMode && conv.dirty) setConfirmLeave('discard'); else cancel() }, [editMode, conv.dirty, cancel])
 
@@ -655,15 +672,17 @@ export default function CreateIndicatorPanel({
           What a step WAS is the read-back's own sentence for that step. Nothing here saves:
           going back is a preview change like any other, and Undo-able in the sense that the
           steps before it are still listed. */}
-      {historyOpen && stepCount >= 2 && (
-        <div className={styles.history} role="region" aria-label="Earlier steps of this draft"
+      {historyOpen && historyAvailable && (
+        <div className={styles.history} role="region"
+          aria-label={hasSavedVersions ? 'Earlier steps of this draft and saved versions' : 'Earlier steps of this draft'}
           data-testid="create-indicator-history"
           onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setHistoryOpen(false) } }}>
           <div className={styles.historyHead}>
-            <span>Earlier steps</span>
+            <span>{stepCount >= 2 ? 'Earlier steps' : 'Saved versions'}</span>
             <button type="button" className={styles.historyClose} aria-label="Close history"
               data-testid="create-indicator-history-close" onClick={() => setHistoryOpen(false)}>Close</button>
           </div>
+          {stepCount >= 2 && (
           <ol className={styles.historyList} reversed>
             {[...conv.steps].reverse().map((st) => (
               <li key={st.index} className={styles.historyRow} data-testid="create-indicator-history-step"
@@ -681,15 +700,50 @@ export default function CreateIndicatorPanel({
               </li>
             ))}
           </ol>
+          )}
+          {/* ⭐ SAVED VERSIONS — what the store kept at each save, newest first. Using one makes it
+              the draft again as ONE step (Undo takes it back); nothing is saved until Save changes.
+              A version that cannot come back says why. */}
+          {hasSavedVersions && (
+            <div className={styles.historyVersions} data-testid="create-indicator-versions">
+              {stepCount >= 2 && <div className={styles.historySub}>Saved versions</div>}
+              {conv.savedVersionsError ? (
+                <p className={styles.historyNote} role="alert" data-testid="create-indicator-versions-error">{conv.savedVersionsError}</p>
+              ) : !conv.savedVersions ? (
+                <p className={styles.historyNote} data-testid="create-indicator-versions-loading">Reading the saved versions…</p>
+              ) : (
+                <ul className={styles.historyList}>
+                  {conv.savedVersions.map((v) => (
+                    <li key={v.version} className={styles.historyRow} data-testid="create-indicator-version"
+                      data-version={v.version} data-usable={v.usable ? 'yes' : 'no'}>
+                      <div className={styles.historyWhat}>
+                        <span className={styles.historyStep}>Version {v.version}{versionWhen(v.at) ? `, ${versionWhen(v.at)}` : ''}</span>
+                        <span className={styles.historyLine}>{v.name}</span>
+                        {(v.usable ? restoreNote(v.lines) : v.text) ? (
+                          <span className={`${styles.historyLine} ${styles.historyWrap}`} data-testid="create-indicator-version-note">
+                            {v.usable ? restoreNote(v.lines) : v.text}</span>
+                        ) : null}
+                      </div>
+                      {v.usable && (
+                        <button type="button" className={styles.ghost} disabled={busy || saving}
+                          data-testid="create-indicator-version-use"
+                          onClick={() => { if (conv.restoreVersion(v.version).ok) setHistoryOpen(false) }}>Use this version</button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
         </div>
       )}
 
       <div className={styles.foot}>
         <button type="button" className={styles.ghost} data-testid="create-indicator-undo"
           disabled={!conv.canUndo} onClick={conv.undo}>Undo</button>
-        {stepCount >= 2 && (
+        {historyAvailable && (
           <button type="button" className={styles.ghost} data-testid="create-indicator-history-toggle"
-            aria-expanded={historyOpen} disabled={!conv.canUndo}
+            aria-expanded={historyOpen} disabled={busy || saving || (!conv.canUndo && !hasSavedVersions)}
             onClick={() => setHistoryOpen((v) => !v)}>History</button>
         )}
         <span className={styles.footSpacer} />
