@@ -794,3 +794,57 @@ def test_golden_tape_through_ingest_and_the_wire_equals_the_in_web_frames(name):
             if a != b:
                 pytest.fail(f"{name}: first difference at frame {i + 1}\n got: {a}\nwant: {b}")
         pytest.fail(f"{name}: {len(got)} frames via ingest, golden has {len(want)}")
+
+
+def test_a_new_symbols_partial_bucket_waits_for_its_first_seed():
+    """Owner 2026-11-17: the first candle after opening a chart had the wrong body until the
+    next minute. Before its first seed a NEW symbol's developing bar holds only the trades
+    since the subscribe; a client that takes it as the bucket's first authoritative frame
+    locks that open (liveBarMerge I2). So it is held until the seed lands."""
+    gate = threading.Event()
+
+    def fetcher(sym):
+        gate.wait(2)
+        return [{"t": T0, "o": 5.0, "h": 9.0, "l": 4.0, "c": 6.0, "v": 900}]
+
+    rig = Rig(seeding=True, fetcher=fetcher)
+    rig.now[0] = T0 + 30_000
+
+    async def go():
+        c = FakeConn([hello(), desired(1, OWN, frozenset({("ZZA", "1")}))])
+        t = await run_until(c, rig.srv, lambda: ("ZZA", "1") in rig.rt._key_routes)
+        rig.trade("ZZA", T0 + 31_000, 6.0, 10)             # mid-bucket: NOT the open
+        await asyncio.sleep(0.05)
+        assert not [u for u in bars_in(c, ("ZZA", "1")) if u.bar["t"] == T0], "partial bucket leaked"
+        assert rig.rt.counters["bars_held_for_seed"] >= 1
+        gate.set()
+        await until(lambda: rig.rt.counters["seeds_applied"] == 1)
+        await until(lambda: [u for u in bars_in(c, ("ZZA", "1")) if u.bar["t"] == T0])
+        first = [u for u in bars_in(c, ("ZZA", "1")) if u.bar["t"] == T0][0]
+        assert first.bar["o"] == 5.0, "the first frame the client sees carries the true open"
+        rig.trade("ZZA", T0 + 32_000, 6.1, 10)             # after the seed: live again
+        await until(lambda: any(u.bar["c"] == 6.1 and u.bar["o"] == 5.0 for u in bars_in(c, ("ZZA", "1"))))
+        await c.close()
+        await asyncio.wait_for(t, 2)
+        await rig.rt.stop_reader()
+    asyncio.run(go())
+
+
+def test_a_slow_seed_never_blanks_the_live_candle_past_the_hold():
+    gate = threading.Event()
+    rig = Rig(seeding=True, fetcher=lambda s: gate.wait(2) and [])
+    rig.now[0] = T0 + 30_000
+
+    async def go():
+        c = FakeConn([hello(), desired(1, OWN, frozenset({("ZZA", "1")}))])
+        t = await run_until(c, rig.srv, lambda: ("ZZA", "1") in rig.rt._key_routes)
+        rig.trade("ZZA", T0 + 31_000, 6.0, 10)
+        rig.now[0] = T0 + 31_000 + int(ir.SEED_HOLD_S * 1000) + 1000
+        rig.trade("ZZA", T0 + 32_000, 6.1, 10)             # past the hold: sent
+        await until(lambda: [u for u in bars_in(c, ("ZZA", "1")) if u.bar["t"] == T0])
+        assert rig.rt.counters["seed_hold_expired"] == 1
+        gate.set()
+        await c.close()
+        await asyncio.wait_for(t, 2)
+        await rig.rt.stop_reader()
+    asyncio.run(go())
