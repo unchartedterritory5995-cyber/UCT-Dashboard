@@ -157,7 +157,7 @@ export function railRelationCases(seed = 7) {
   }
   // ── CONTROLS (AUDIT 11-17): "both charts" (an explicit chart noun) stays a chart reading with a THING as the previous target; "both
   // of them" with a CHART as the previous target still resolves — no over-ask ──
-  for (let rep = 0; rep < 4; rep++) {
+  for (let rep = 0; rep < 6; rep++) {
     const s2 = [...POOL].sort(() => rnd() - 0.5).slice(0, 2)
     for (const both of ['both charts', 'both the charts', 'both of the charts']) {
       out.push({ id: `rr-ctl-${String(++k).padStart(4, '0')}`, fam: 'thingControl', words: `${pick(VERBS)} ${both}`, w: { syms: s2, refs: ['c1', 'c2'], link: null, selection: null, subject: null, previous: pick(THING_PREV) }, plan: ['c1', 'c2'], expect: 'resolved', col: 'pair', shape: 'two', anchorKind: 'previousThing' })
@@ -167,7 +167,7 @@ export function railRelationCases(seed = 7) {
       out.push({ id: `rr-ctl-${String(++k).padStart(4, '0')}`, fam: 'thingControl', words: `${pick(VERBS)} ${p}`, w: { syms: s2, refs: ['c1', 'c2'], link: null, selection: null, subject: null, previous: `chart:c${1 + (rep % 2)}` }, plan: ['c1', 'c2'], expect: 'resolved', col: 'pair', shape: 'two', anchorKind: 'previousChart' })
       // three charts: the click + the previous chart
       const s3 = [...POOL].sort(() => rnd() - 0.5).slice(0, 3)
-      const [a, b] = [['c1', 'c3'], ['c2', 'c3'], ['c1', 'c2'], ['c3', 'c1']][rep]
+      const [a, b] = [['c1', 'c3'], ['c2', 'c3'], ['c1', 'c2'], ['c3', 'c1']][rep % 4]
       out.push({ id: `rr-ctl-${String(++k).padStart(4, '0')}`, fam: 'thingControl', words: `${pick(VERBS)} ${p}`, w: { syms: s3, refs: ['c1', 'c2', 'c3'], link: null, selection: a, subject: null, previous: `chart:${b}` }, plan: [a, b], expect: 'resolved', col: 'pair', shape: 'three', anchorKind: 'previousChart' })
     }
   }

@@ -788,7 +788,7 @@ const REL_COMPLEMENT = /\b(?:(?:the|that)\s+other\s+(?:(two|three|four|five|[2-9
 const REL_EVERY_OTHER = /\bevery\s+other\s+(?:one|chart|panel|graph)s?\b/i
 const REL_BOTH_PRON = /\bboth\s+(?:of\s+)?(?:them|those|these)\b/i
 const REL_BOTH_CHARTS = /\bboth\s+(?:(?:the|my|your|these|those)\s+)?(?:charts|ones|panels|graphs)\b/i
-const REL_ORDER = /\b(?:the|that)\s+(?:chart|one|panel|graph)\s+(?:(?:right|just|immediately|directly)\s+)?(after|before|following|preceding)\s+((?:the|my)\s+[^,.;:!?—–]{1,30}?\b(?:chart|one|panel|graph)\b|\$?[A-Za-z]{1,5}\b|(?:this|that)(?:\s+(?:chart|one|panel|graph))?\b|it\b)/i
+const REL_ORDER = /\b(?:the|that)\s+(?:chart|one|panel|graph)\s+(?:(?:right|just|immediately|directly)\s+)?(after|before|following|preceding)\s+((?:the|my)\s+[^,.;:!?—–]{1,30}?\b(?:chart|one|panel|graph)\b|(?:this|that)(?:\s+(?:chart|one|panel|graph))?\b|it\b|\$?[A-Za-z]{1,5}\b)/i
 const REL_N = { two: 2, three: 3, four: 4, five: 5 }
 const OK = Object.freeze({ ok: true })
 /** → a refusal / ask sentence, OK (the relation resolves to exactly this plan), or null (no relation word read). */
