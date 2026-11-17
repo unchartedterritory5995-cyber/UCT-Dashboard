@@ -583,7 +583,11 @@ CONVERSE_SYSTEM_PROMPT = (
     "a downtrend: set_color_states (`output` for a line / histogram, whose states may name a "
     "`relation` of that output; or `channel` barcolor / bgcolor for the candles / background, "
     "whose states are yes/no `when` trees). The first true state wins; re-send the WHOLE list "
-    "to change one state. A marker's size and color: set_marker `size` / `color`. "
+    "to change one state. \"The bars\" of an indicator that draws bars of its own (a volume or "
+    "other histogram) are THAT OUTPUT's bars: color them on that output (set_color_states with "
+    "an `otherwise`, or set_color_rule). `barcolor` paints the PRICE candles: only when the "
+    "member says candles or price bars, or the indicator draws no bars of its own. "
+    "A marker's size and color: set_marker `size` / `color`. "
     "A conditional cloud: set_fill with `when` (colorAbove where the first output is "
     "above the second, colorBelow where below). A header value: request_info_value. "
     "An alert: request_alert -- on a yes/no output with triggerPolicy is_true, "
@@ -592,7 +596,9 @@ CONVERSE_SYSTEM_PROMPT = (
     "another (higher) timeframe than the chart's: set_calculation_timeframe (\"a daily "
     "EMA on my 5-minute chart\"). A TABLE drawn on the chart: set_table (a position and cells; a "
     "cell is fixed text or the latest value of an output -- put values that belong only in the "
-    "table in HIDDEN outputs and point cells at them; a cell's text or background color may "
+    "table in HIDDEN outputs and point cells at them; a cell can NEVER point at a setting: to "
+    "show a setting's value add a hidden output whose tree is that setting's series and point "
+    "the cell at it; a cell's text or background color may "
     "follow a yes/no output -- colorWhen / backgroundWhen, e.g. green where bullish, red where "
     "not -- a yes/no cell may show its own `labels`, `size` sets text size and `span` merges a "
     "title across columns); remove_table removes it. Formula functions linreg, correlation, "
@@ -1370,9 +1376,12 @@ def _check_references(envelope: Mapping[str, Any], view: Any) -> None:
                   for o in view_outputs if isinstance(o.get("key"), str) and "slots" in o}
     authored: Dict[str, Any] = {}
     reshaped: set = set()
+    tables: List[Tuple[int, Mapping[str, Any]]] = []
     ops = [o for o in (envelope.get("ops") or []) if isinstance(o, Mapping)]
     for i, o in enumerate(ops):
         name = o.get("op")
+        if name == "set_table":
+            tables.append((i, o))
         if name == "create":
             ck = _create_keys(o)
             if any(k is None for k in ck):
@@ -1419,6 +1428,39 @@ def _check_references(envelope: Mapping[str, Any], view: Any) -> None:
                     "for a line, add an `otherwise` colour.")
         if name in _RESHAPING_OPS and isinstance(o.get("output"), str):
             reshaped.add(o["output"])
+
+    # ⭐ 2026-11-17 -- A TABLE CELL POINTS AT AN OUTPUT, AND THE BROWSER SAYS SO AFTER THIS DOOR HAS
+    # ANSWERED `ok`. Measured on production: "a position size calculator table with account size,
+    # risk percent, entry and stop as settings" came back with cells pointing at the SETTINGS
+    # (`entry`, `stop`); this door passed it, the browser refused the whole patch ("There is no
+    # output "entry" for a table cell to show"), and the member read a red error for a request that
+    # had been built. The browser's rule (`tables.js::tableSpecProblem`) runs here, against the keys
+    # this answer ENDS with (never stricter than the browser: the order of ops is not judged), so
+    # the model gets its one repair with the way out in the diagnostic.
+    if tables:
+        settings = declared_inputs(envelope, view)
+        for i, o in tables:
+            for c in (o.get("cells") or []) if isinstance(o.get("cells"), list) else []:
+                if not isinstance(c, Mapping):
+                    continue
+                refs = [("cell", c.get("output"))] + [
+                    (field, (c.get(field) or {}).get("output")) for field in ("colorWhen", "backgroundWhen")
+                    if isinstance(c.get(field), Mapping)]
+                for what, ref in refs:
+                    if not isinstance(ref, str) or ref in keys:
+                        continue
+                    at = f"ops[{i}] set_table: the cell at row {c.get('row')}, column {c.get('col')}"
+                    if ref in settings:
+                        raise _Refused(
+                            "envelope:reference",
+                            f"{at} points at the setting {ref!r}. A cell shows an OUTPUT, never a "
+                            f"setting: add a hidden output whose tree is the series {ref!r} (a short "
+                            "key of its own) and point the cell at that output.")
+                    raise _Refused(
+                        "envelope:reference",
+                        f"{at} points at {ref!r}, which is not an output ({what}). The outputs are: "
+                        f"{', '.join(sorted(keys)) or 'none'}. Point it at one of them, or add the "
+                        "output it needs (hidden if it belongs only in the table).")
 
     for j, a in enumerate(envelope.get("assumptions") or []):
         if not isinstance(a, Mapping):
