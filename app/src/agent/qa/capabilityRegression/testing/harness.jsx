@@ -43,6 +43,9 @@ export const BOARDS = {
   // a chart with the PRODUCT DEFAULTS (EMA 9/20, SMA 50/200 overlays on), as a member's untouched chart is
   ONE_TSLA_DEFAULT: () => [[{ id: 'c1', type: 'chart', x: 0, y: 0, w: 24, h: 20, color: 'N', opts: {} }], { 'N:c1': 'TSLA' }],
   ONE_SPY: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'SPY' }],
+  // widget.moveTab: a chart beside a Watchlist widget holding two extra tabs (its strip: Momentum · Calendar · Breadth)
+  TABS: () => [[chart('c1', 0, 0, 12, 20), { id: 'wl1', type: 'watchlist', x: 12, y: 0, w: 12, h: 20, color: 'A', opts: { watchName: 'Momentum' },
+    wtabs: [{ id: 't1', type: 'calendar', color: 'A', opts: {} }, { id: 't2', type: 'breadth', color: 'A', opts: {} }], activeWtab: 0 }], { 'N:c1': 'NVDA' }],
   HALF: () => [[chart('c1', 0, 0, 12, 20)], { 'N:c1': 'NVDA' }],
   TWO: () => [[chart('c1', 0, 0, 12, 20), chart('c2', 12, 0, 12, 20)], { 'N:c1': 'NVDA', 'N:c2': 'AMD' }],
   // a saved-layout library (the Layout Dock's semantics: __fixtures__/board.js) — Swing open, Momentum a 2-chart board

@@ -102,6 +102,7 @@
   "widget.selectTab": "workspace",
   "widget.renameTab": "workspace",
   "widget.closeTab": "workspace",
+  "widget.moveTab": "tabOrder",
   "widget.addTab": "workspace",
   "chart.addTab": "workspace",
   "chart.selectTab": "workspace",
@@ -287,6 +288,10 @@
   {
    "id": "drawingExtras",
    "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+  },
+  {
+   "id": "tabOrder",
+   "title": "Move a widget tab left, right, first, last or to a position in its tab strip"
   },
   {
    "id": "drawingBoards",
@@ -494,6 +499,10 @@
      {
       "id": "drawingExtras",
       "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "tabOrder",
+      "title": "Move a widget tab left, right, first, last or to a position in its tab strip"
      },
      {
       "id": "drawingBoards",
@@ -719,6 +728,10 @@
      {
       "id": "drawingExtras",
       "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "tabOrder",
+      "title": "Move a widget tab left, right, first, last or to a position in its tab strip"
      },
      {
       "id": "drawingBoards",
@@ -958,6 +971,10 @@
      {
       "id": "drawingExtras",
       "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "tabOrder",
+      "title": "Move a widget tab left, right, first, last or to a position in its tab strip"
      },
      {
       "id": "drawingBoards",
@@ -1209,6 +1226,10 @@
       "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
      },
      {
+      "id": "tabOrder",
+      "title": "Move a widget tab left, right, first, last or to a position in its tab strip"
+     },
+     {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
@@ -1430,6 +1451,10 @@
       "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
      },
      {
+      "id": "tabOrder",
+      "title": "Move a widget tab left, right, first, last or to a position in its tab strip"
+     },
+     {
       "id": "drawingBoards",
       "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
      },
@@ -1535,6 +1560,7 @@
     "drawingTools",
     "drawings",
     "drawingExtras",
+    "tabOrder",
     "drawingBoards",
     "uctIntelligence",
     "lists",
@@ -1650,6 +1676,7 @@
     "widget.selectTab",
     "widget.renameTab",
     "widget.closeTab",
+    "widget.moveTab",
     "widget.addTab",
     "chart.addTab",
     "chart.selectTab",

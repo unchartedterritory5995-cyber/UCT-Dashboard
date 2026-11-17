@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 217,
-  "withProductionKinds": 205,
+  "all": 218,
+  "withProductionKinds": 206,
   "darkGated": 12
  },
  "totals": {
-  "capabilities": 217,
-  "withAnyRegressionCase": 165,
+  "capabilities": 218,
+  "withAnyRegressionCase": 166,
   "perProtection": {
    "nl": {
-    "covered": 162,
-    "applicable": 217
+    "covered": 163,
+    "applicable": 218
    },
    "routing": {
-    "covered": 159,
-    "applicable": 217
+    "covered": 160,
+    "applicable": 218
    },
    "args": {
-    "covered": 165,
-    "applicable": 217
+    "covered": 166,
+    "applicable": 218
    },
    "execution": {
-    "covered": 162,
-    "applicable": 217
+    "covered": 163,
+    "applicable": 218
    },
    "receipt": {
-    "covered": 134,
-    "applicable": 217
+    "covered": 135,
+    "applicable": 218
    },
    "refusal": {
     "covered": 35,
-    "applicable": 217
+    "applicable": 218
    },
    "permission": {
-    "covered": 210,
-    "applicable": 217
+    "covered": 211,
+    "applicable": 218
    },
    "undo": {
-    "covered": 84,
-    "applicable": 143
+    "covered": 85,
+    "applicable": 144
    },
    "multiStep": {
     "covered": 40,
-    "applicable": 217
+    "applicable": 218
    },
    "phrasings": {
-    "covered": 158,
-    "applicable": 217
+    "covered": 159,
+    "applicable": 218
    }
   }
  },
@@ -11232,6 +11232,70 @@
     "refusal": [],
     "permission": [],
     "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "widget.moveTab": {
+   "domain": "widget",
+   "group": "tabOrder",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 6,
+   "evidence": {
+    "nl": [
+     "widget.moveTab.first: \"make breadth the first tab in the watchlist\"",
+     "widget.moveTab.first: \"move the breadth tab to the front of the watchlist\"",
+     "widget.moveTab.first: \"put the watchlist’s breadth tab first\"",
+     "widget.moveTab.left: \"move the breadth tab in the watchlist left\"",
+     "widget.moveTab.left: \"shift the watchlist’s breadth tab one to the left\"",
+     "widget.moveTab.left: \"move breadth one tab left in the watchlist\""
+    ],
+    "routing": [
+     "widget.moveTab.first: \"make breadth the first tab in the watchlist\"",
+     "widget.moveTab.first: \"move the breadth tab to the front of the watchlist\"",
+     "widget.moveTab.first: \"put the watchlist’s breadth tab first\"",
+     "widget.moveTab.left: \"move the breadth tab in the watchlist left\"",
+     "widget.moveTab.left: \"shift the watchlist’s breadth tab one to the left\"",
+     "widget.moveTab.left: \"move breadth one tab left in the watchlist\""
+    ],
+    "args": [
+     "corpus widget.moveTab.first",
+     "corpus widget.moveTab.left"
+    ],
+    "execution": [
+     "widget.moveTab.first (c)",
+     "widget.moveTab.left (c)"
+    ],
+    "receipt": [
+     "widget.moveTab.first (c)",
+     "widget.moveTab.left (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "widget.moveTab.first: undo restores",
+     "widget.moveTab.left: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
