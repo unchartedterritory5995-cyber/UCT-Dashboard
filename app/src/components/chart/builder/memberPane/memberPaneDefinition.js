@@ -324,6 +324,19 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     }
     return no(gate.reason, gate.guard, t)
   }
+  // ⭐⭐ W9 ARMED ROUTE (coordinator ruling 2026-11-16) — WITH THE DARK BROKER ON, A STRATEGY THAT PLACES ORDERS
+  // IS RUN BY THE BROKER, though the host lane can draw its plots: its trades are its output. The runtime lane
+  // builds it (`pineRuntimeFrontend.js::buildRuntimeIr`, every order-placing strategy) and stamps the strategy
+  // window. Asked of every `strategy()` declaration (an order call nested in a block leaves no host note), and the
+  // run decides: only one whose build skipped an order call is built by the broker. ⛔ Only a document that HOLDS
+  // the broker replaces the host's: any decline (the kill list, the starter allowlist, a broker build refusal, a
+  // pairing, a strategy that places no order) keeps the host document a member has today. Off (either gate),
+  // nothing here is asked and the document is exactly what it was.
+  if (strategyBrokerEnabled() && runtimePaneEnabled() && t && t.declaration === 'strategy') {
+    const viaBroker = runtimeLaneDefinition({ source, id, name, t, hostReason: gate.reason, hostGuard: gate.guard, routed: false, no })
+    const d = viaBroker && viaBroker.ok ? viaBroker.definition : null
+    if (d && d.compute && d.compute.kind === 'runtime' && d.meta && d.meta.runtimeHistory === STRATEGY_WINDOW_HISTORY) return viaBroker
+  }
   // ⭐⭐ 2026-09-27 (owner ruling, option b) — WHAT THE OBJECT PROGRAM LOST.
   // `paneGate` has already refused a drawing-only script that lost a removal. A
   // script that ALSO plots reaches here with the same loss, and its plots are
@@ -2201,7 +2214,9 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // while the run computed exactly the colour TradingView paints. A carried paint
   // is drawn by the renderer the host lane's paints use (`binder.paintRenderColours`),
   // under the hidden anchor row an objects-only document already carries (below).
-  if (!carried.length && !ownObjects && !docPaints.length) {
+  // ⭐⭐ W9 ARMED ROUTE — a document that holds the broker draws its trades (the record, the markers, the report),
+  // so a strategy with no other output is NOT "nothing drawn".
+  if (!carried.length && !ownObjects && !docPaints.length && probe.broker !== true) {
     const why = [...withheld.map((w) => `\`${w.label}\`: ${w.why}`),
       ...paintWithheld.map(({ p, why: w }) => `\`${p.kind}\`: ${w}`)]
     return decline(why.length ? 'runtime:withheld-all' : 'runtime:nothing-drawn', why.length
@@ -2215,6 +2230,9 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   const drawsObjects = !ownObjects && !own.hostWithheld && hostWouldDraw
   // ⭐ RT5 — a document whose only output is its drawings carries the hidden
   // anchor row an objects-only document carries (never offered, never drawn).
+  // ⭐⭐ W9 ARMED ROUTE — a broker document with no row of its own (a tester-only strategy) sits on the PRICE
+  // pane, where TradingView marks a strategy's trades; a pane of its own would hold nothing.
+  const brokerOnly = probe.broker === true && !rows.length
   if (!rows.length) {
     rows.push({
       key: 'value', label: '', source: '0', ast: { type: 'num', value: 0 }, mode: repaint.mode,
@@ -2270,7 +2288,7 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       readback: '',
       inputs: runtimeDocInputs(withObjectInputs(memberInputSpecs([]), drawsObjects ? t : null), runtimeInputs.specs),
       plots: [...rows, ...colourRows],
-      placement: (t.presentation && t.presentation.overlay === true)
+      placement: (t.presentation && t.presentation.overlay === true) || brokerOnly
         ? { target: 'price', ...(joinsPriceScale(t) ? { joinPriceScale: true } : {}) }
         : { target: 'pane', pane: { height: MEMBER_PANE_HEIGHT } },
       paramManifest: null,

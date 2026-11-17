@@ -44,7 +44,7 @@ import { setRuntimeDoorClock } from '../../runtime/runtimeColumns'
 import { paneObjectsGate } from '../../ast/paneGate'
 import { otherSymbolRequestsOf, storeTickerOf, witnessRowOf } from '../../otherSymbols'
 import { lowerTfCodesOf, LOWER_TF_SOURCE } from '../../lowerTf'
-import SYMBOL_SCOPE from '../../ast/symbolScope.json'
+import { storeExchangeOfCapture } from './storeExchange.js'
 import { createFakeChart } from '../fakeChart'
 import { isThemeColour } from '../../objectTheme'
 import { normalizeColor, COLOUR_WITHHELD_POINT, substitutionProblems, vendorValueOf } from '../../../../../../../tools/vendor_harness/compare.mjs'
@@ -138,24 +138,8 @@ function otherCaptureIndex() {
   return otherIndex
 }
 
-/** OUR STORE's exchange spelling for a captured listing — the key
- *  `symbolScope.json::confirmed` is written in. A capture carries TradingView's
- *  spelling (`AMEX` for SPY), and the store's (`NYSE Arca`) is linked to it only
- *  by a confirmed row's WITNESS: the row whose witness IS this listing answers.
- *  Failing that, a store key that is its own Pine spelling (`NYSE`, `NASDAQ`,
- *  `OTC`) is the same string in both worlds. `AMEX` without a witness is
- *  ambiguous (`NYSE Arca` and `NYSE American` both answer it): null. */
-function storeExchangeOfCapture(cap, tvExchange) {
-  const pro = String((cap.symbol && (cap.symbol.pro_name || cap.symbol.full_name)) || '').toUpperCase()
-  const confirmed = (SYMBOL_SCOPE && SYMBOL_SCOPE.confirmed) || {}
-  for (const [store, row] of Object.entries(confirmed)) {
-    if (store.startsWith('_') || !row || typeof row !== 'object') continue
-    if (String(row.witness || '').toUpperCase() === pro) return store
-  }
-  const tv = typeof tvExchange === 'string' ? tvExchange : ''
-  const own = confirmed[tv]
-  return own && typeof own === 'object' && own.pine === tv ? tv : null
-}
+// OUR STORE's exchange spelling for a captured listing: `storeExchange.js` (one authority, shared with the
+// strategy harness since 2026-11-16).
 
 /** ⭐⭐ C41 — the lower-timeframe supply a capture's script asks for
  *  (`ctx.lowerTf`), and the notes naming what was and was not supplied. Per code:

@@ -155,7 +155,40 @@
   "min_contract": {
     "_": "⭐⭐ `syminfo.mincontract`, SERVED PER EXCHANGE AND ONLY WHERE A CAPTURE SAYS SO (W9-T4-F1, 2026-11-08). The Pine v6 reference entry for `syminfo.mincontract` (type `simple float`): \"The smallest amount of the current symbol that can be traded. This limit is set by the exchange. For cryptocurrencies, it is often less than 1 token. For most other types of asset, it is often 1.\" ⭐ \"SET BY THE EXCHANGE\" is why the key is OUR STORE's exchange spelling — the key space of `confirmed`, `tick_size` and `listing_fields` — and \"OFTEN 1\" is why there is no default: the reference itself declines to say ALWAYS. ONE AUTHORITY, TWO READERS: `bind.js::symbolConstantsWith` settles `syminfo.mincontract` for a script from this table, and the runtime run hands the SAME value to the strategy broker as `ctx.minContract` (`runtimeColumns.js`, derived from `symbolConstants(symbol)`, never from anything a caller passes), where cash and percent-of-equity sizing floors to whole units only when it is exactly 1 (W9-T4 Q-S1a). ⛔ A ROW NEEDS `value`, `witnesses`, `captured`, `how` AND `captures` — the capture files whose `M01_mincontract` plot equals `value` on every bar for that witness; `symbolScopeMinContract.test.js` re-reads every one, so a value the vendor did not print fails by name. An exchange with no row leaves `syminfo.mincontract` unsettled: a script reading it refuses by name, and a cash / percent-sized order refuses Q-S1a by name. ⛔ NOT FROM THE ASSET TYPE. Massive's reference `type` (`ticker_types`: CS / ETF / ADRC …) states WHAT the instrument is, authoritatively — it does not state what TradingView answers for its minimum contract, and the reference's own \"often\" is the gap between the two. A type-derived 1 would be an inference served as a measurement.",
     "_the_probe_that_settles_it": "⭐ COMMITTED: `tools/visual_conformance/probes/syminfo-mincontract.pine` (a VALUE capture: `M01_mincontract` plus the `str.length(syminfo.ticker)` non-vacuity control), one capture per witnessed exchange — NYSE:RDDT (the Q-S1a capture symbol), NASDAQ:AAPL and AMEX:SPY are the natural three, the same witnesses `tick_size` and `listing_fields` hold. Each capture becomes a row here with all five fields; no code changes.",
-    "_not_served": "⛔ NO ROW IS SERVED YET: no TradingView capture of `syminfo.mincontract` exists in this repo (`tests/fixtures/vendor` searched 2026-11-08: no capture plots it, and the captures' `symbol` blocks carry `minmov`/`pricescale`/`type` but no minimum contract). Every symbol therefore refuses `syminfo.mincontract` by name, and cash / percent-of-equity sizing refuses Q-S1a by name, until the probe above is captured."
+    "_served": "⭐ SERVED SINCE 2026-11-16 (the strategy coverage unit): NYSE, NYSE Arca and NASDAQ, each by one TradingView capture of the committed probe on its witness (NYSE:RDDT, AMEX:SPY, NASDAQ:AAPL), every bar 1. Every other exchange has no row: `syminfo.mincontract` refuses by name there, and a cash / percent-of-equity size refuses Q-S1a by name.",
+    "NYSE": {
+      "value": 1,
+      "witnesses": [
+        "NYSE:RDDT"
+      ],
+      "captured": "2026-11-16",
+      "how": "tests/fixtures/vendor/harness/syminfo-mincontract-rddt-1d-2026-11-16.json (capture id syminfo-mincontract-rddt-1d-2026-11-16, run cb1-2026-11-16, tv_capture.js v2): the committed probe tools/visual_conformance/probes/syminfo-mincontract.pine on NYSE:RDDT 1D; plot M01_mincontract (`syminfo.mincontract`) is 1 on every bar, M02_inverse 1, and the non-vacuity control M03_len_ticker_CONTROL is 4 (`str.length(\"RDDT\")`) on every bar.",
+      "captures": [
+        "tests/fixtures/vendor/harness/syminfo-mincontract-rddt-1d-2026-11-16.json"
+      ]
+    },
+    "NYSE Arca": {
+      "value": 1,
+      "witnesses": [
+        "AMEX:SPY"
+      ],
+      "captured": "2026-11-16",
+      "how": "tests/fixtures/vendor/harness/syminfo-mincontract-spy-1d-2026-11-16.json (capture id syminfo-mincontract-spy-1d-2026-11-16, run cb1-2026-11-16, tv_capture.js v2): the committed probe tools/visual_conformance/probes/syminfo-mincontract.pine on AMEX:SPY 1D; plot M01_mincontract (`syminfo.mincontract`) is 1 on every bar, M02_inverse 1, and the non-vacuity control M03_len_ticker_CONTROL is 3 (`str.length(\"SPY\")`) on every bar.",
+      "captures": [
+        "tests/fixtures/vendor/harness/syminfo-mincontract-spy-1d-2026-11-16.json"
+      ]
+    },
+    "NASDAQ": {
+      "value": 1,
+      "witnesses": [
+        "NASDAQ:AAPL"
+      ],
+      "captured": "2026-11-16",
+      "how": "tests/fixtures/vendor/harness/syminfo-mincontract-aapl-1d-2026-11-16.json (capture id syminfo-mincontract-aapl-1d-2026-11-16, run cb1-2026-11-16, tv_capture.js v2): the committed probe tools/visual_conformance/probes/syminfo-mincontract.pine on NASDAQ:AAPL 1D; plot M01_mincontract (`syminfo.mincontract`) is 1 on every bar, M02_inverse 1, and the non-vacuity control M03_len_ticker_CONTROL is 4 (`str.length(\"AAPL\")`) on every bar.",
+      "captures": [
+        "tests/fixtures/vendor/harness/syminfo-mincontract-aapl-1d-2026-11-16.json"
+      ]
+    }
   },
   "classification": {
     "_": "⭐⭐ `syminfo.industry` AND `syminfo.sector` (RS Rating transfer, lane L3, 2026-11-15). TradingView's strings are its own classification (FactSet), not ours: our store mixes yfinance, FMP and Finnhub taxonomies. So a symbol settles each field in ONE of three ways, decided by `bind.js::classificationWith` (mirrored by `ast_bind.py::classification_with`): (1) a WITNESSED row below (by instrument class first, then by our own string) serves TradingView's string, untagged; (2) no witnessed row but our store has a string: OUR string is served, TAGGED SUBSTITUTED (`{name, source: 'uct:ticker_meta', vendorValueFrom: 'capture.symbol.<field>'}`), the tag reaches the vendor harness's `substituted` list and the member door says so by name; (3) no string at all: the field stays unsettled and refuses by name (`pending_measurement`), never a default. ⛔ A ROW NEEDS `value` (TradingView's text, non-empty), `witnesses`, `captures`, `captured` AND `how`, like `min_contract`; a row missing any of them serves nothing.",
