@@ -93,6 +93,9 @@ export const MANIFEST = [
   { path: "notebook", pathKind: "literal", element: "NotebookSurface", kind: "child", order: null },
   { path: "notebook/research/:symbol", pathKind: "literal", element: "TickerResearchSurface", kind: "child", order: null },
   { path: "notebook/setups", pathKind: "literal", element: "SetupsBoard", kind: "child", order: null },
+  // S13 (44699ced87): My Playbook inside the Journal shell, the Notebook sidebar's door to it; the
+  // standalone /journal-2-0/playbook surface below stays for Insights and every existing link.
+  { path: "notebook/playbook", pathKind: "literal", element: "J2MyPlaybook", kind: "child", order: null },
   { path: "journal", pathKind: "literal", element: "JournalSurface", kind: "child", order: null },
   { path: "insights", pathKind: "literal", element: "InsightsSurface", kind: "child", order: null },
   { path: "compass", pathKind: "literal", element: "CompassSurface", kind: "child", order: null },
@@ -115,7 +118,9 @@ export const MANIFEST = [
   { path: "/admin/chart-health", pathKind: "literal", element: "ChartHealth", kind: "admin", order: null },
   { path: "/admin/patterns", pathKind: "literal", element: "PatternAdmin", kind: "admin", order: null },
   { path: "/admin/pattern-review", pathKind: "literal", element: "PatternReview", kind: "admin", order: null },
+  { path: "/admin/rare-preview", pathKind: "literal", element: "RarePreview", kind: "admin", order: null },
   { path: "/admin/landing-analytics", pathKind: "literal", element: "LandingAnalytics", kind: "admin", order: null },
+  { path: "/admin/ai-spend", pathKind: "literal", element: "AiSpend", kind: "admin", order: null },
   { path: "/admin/wisdom", pathKind: "literal", element: "WisdomAdmin", kind: "admin", order: null },
 ];
 
