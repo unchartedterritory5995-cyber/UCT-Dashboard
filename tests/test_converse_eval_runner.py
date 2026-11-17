@@ -511,7 +511,7 @@ def test_CONTROL_on_the_default_history_the_runner_refuses_to_grade_them(tmp_pat
 DOOR_BROWSER_CASES = ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_door_browser_cases.json"
 DOOR_BROWSER_SCRIPT = ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_door_browser_scripted.json"
 DOOR_BROWSER_IDS = {"door-marker-colour-states", "door-calc-timeframe-marker", "door-column-limit",
-                    "door-table-cell-setting"}
+                    "door-table-cell-setting", "door-calc-timeframe-other-symbol"}
 
 
 def test_the_door_browser_cases_are_two_answers_each_and_the_standard_controls():
@@ -541,6 +541,7 @@ def test_what_the_door_refuses_is_repaired_and_the_browser_applies_the_repair(tm
         assert r.get("grade", {}).get("ok") is True, (r["case"], r.get("grade", {}).get("problems"))
         # the production answer was refused AT THE DOOR (attempt 1) and the repair accepted (attempt 2)
         assert (r.get("server") or {}).get("attempts") == 2, r["case"]
+        assert (r.get("client") or {}).get("changed") is True, r["case"]   # and the BROWSER applied the repair
     # ⚠️ THE VERDICT LINE IS "FAIL" HERE, FOR ONE STATED REASON, AND THAT IS ASSERTED RATHER THAN
     # IGNORED: every example needs its repair by design, so the first-pass gate (which measures how
     # often the assistant is right first time on the STANDARD set) is below its line on this set.
@@ -550,3 +551,31 @@ def test_what_the_door_refuses_is_repaired_and_the_browser_applies_the_repair(tm
     assert last.split("failed gates: ")[-1].strip() == "['first-pass rate (no repair, >= 70%)']", last
     done, of = last.split(" -- ")[1].split(" case runs passed")[0].split("/")
     assert done == of and int(of) >= len(DOOR_BROWSER_IDS), last          # every case run passed
+
+
+def test_the_runner_names_the_class_on_any_model_turn_and_only_then():
+    refused = {"changed": False, "entries": [{"lines": ["Nothing was changed.", "Change 2 ..."]}]}
+    accepted = {"ok": True, "disposition": "change"}
+    said = ce.accept_then_refuse({"path": "model", "server": accepted, "client": refused})
+    assert said.startswith(ce.ACCEPT_THEN_REFUSE) and "Nothing was changed. Change 2" in said
+    # not the class: the browser applied it; the door refused it; the door asked; no model was reached
+    assert ce.accept_then_refuse({"path": "model", "server": accepted, "client": {"changed": True}}) is None
+    assert ce.accept_then_refuse({"path": "model", "server": {"ok": False, "gate": "envelope:reference"}, "client": refused}) is None
+    assert ce.accept_then_refuse({"path": "model", "server": {"ok": True, "disposition": "clarify"}, "client": refused}) is None
+    assert ce.accept_then_refuse({"path": "local", "server": None, "client": refused}) is None
+
+
+def test_a_case_that_expects_no_particular_change_still_fails_on_the_class():
+    """The controls and the other-symbol case are not graded as a change. They are asked too."""
+    t = {"path": "model", "unexpected_calls": 0, "model_calls": 1,
+         "server": {"ok": True, "disposition": "change"},
+         "client": {"changed": False, "entries": [{"lines": ["Nothing was changed."]}]}}
+    for kind in ("safe-change-allowed", "none", "clarify", "refused"):
+        grade = ce.Run.grade_turn(None, {"id": "x"}, {"expect": {"kind": kind}}, t, None)
+        assert grade["ok"] is False and any(p.startswith(ce.ACCEPT_THEN_REFUSE) for p in grade["problems"]), kind
+    applied = dict(t, client={"changed": True, "working": {}})
+    quiet = dict(t, server={"ok": False, "gate": "envelope:reference"})
+    assert ce.Run.grade_turn(None, {"id": "x"}, {"expect": {"kind": "none"}}, quiet, None)["ok"] is True
+    import types
+    safe = types.SimpleNamespace(unsafe=lambda *_a: None)                   # the one thing an applied change asks of the run
+    assert ce.Run.grade_turn(safe, {"id": "x"}, {"expect": {"kind": "safe-change-allowed", "named_symbols": ["SPY"]}}, applied, None) == {"ok": True, "problems": []}

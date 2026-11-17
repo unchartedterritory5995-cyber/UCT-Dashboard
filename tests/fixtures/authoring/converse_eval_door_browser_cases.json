@@ -1,6 +1,6 @@
 {
  "contract": "uct.converse-eval.cases/1",
- "_": "THE DOOR ACCEPTS WHAT THE BROWSER REFUSES, as cases (Studio, 2026-11-17, Indicators backlog 59). Each case is one request with TWO scripted answers: first the answer the assistant really gave on production, which the door used to accept and the browser then refused whole (a member read \"Nothing was changed\"); then the repaired answer. With the door's rule in place the first is refused at the door, the repair is accepted, the browser applies it and the outputs compute: two model calls, a built indicator. With the rule gone the door accepts the first, the browser refuses it, and the runner fails the case as ACCEPT-THEN-REFUSE. The four rules: colour states on an output drawn as markers; a calculation timeframe on an indicator that draws a marker; the column limit with hidden colour columns counted; a table cell pointing at a setting. Controls are the standard ones.",
+ "_": "THE DOOR ACCEPTS WHAT THE BROWSER REFUSES, as cases (Studio, 2026-11-17, Indicators backlog 59). Each case is one request with TWO scripted answers: first the answer the assistant really gave on production, which the door used to accept and the browser then refused whole (a member read \"Nothing was changed\"); then the repaired answer. With the door's rule in place the first is refused at the door, the repair is accepted, the browser applies it and the outputs compute: two model calls, a built indicator. With the rule gone the door accepts the first, the browser refuses it, and the runner fails the case as ACCEPT-THEN-REFUSE. The five rules: colour states on an output drawn as markers; a calculation timeframe on an indicator that draws a marker; the column limit with hidden colour columns counted; a table cell pointing at a setting; a calculation timeframe on an indicator that reads another symbol (graded on the door and the browser's apply alone: there are no second symbol's bars to compute on). Controls are the standard ones.",
  "chart": {
   "sym": "TEST",
   "tf": "D"
@@ -291,6 +291,22 @@
          ]
         }
        }
+      ],
+      "max_model_calls": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "door-calc-timeframe-other-symbol",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Mansfield relative strength versus SPY over 52 weeks",
+     "expect": {
+      "kind": "safe-change-allowed",
+      "named_symbols": [
+       "SPY"
       ],
       "max_model_calls": 2
      }

@@ -422,6 +422,23 @@ class ScriptedClient:
 ACCEPT_THEN_REFUSE = "ACCEPT-THEN-REFUSE"
 
 
+def _said(client: Mapping[str, Any]) -> str:
+    return "; ".join(" ".join(e.get("lines") or []) for e in client.get("entries") or [])[:300]
+
+
+def accept_then_refuse(t: Mapping[str, Any]) -> Optional[str]:
+    """⭐ 2026-11-17 (Indicators backlog 59) -- THE CLASS HAS A NAME. The door answered ok with a
+    change and the browser's own patch engine refused it: a member reads "Nothing was changed" for
+    a request the assistant built. Six of these were found by hand on production in one day; this
+    is what finds the next one here instead. Asked of EVERY model turn, whatever the case expects."""
+    server, client = t.get("server") or {}, t.get("client") or {}
+    if t.get("path") != "model" or client.get("changed"):
+        return None
+    if not (server.get("ok") and server.get("disposition") == "change"):
+        return None
+    return ACCEPT_THEN_REFUSE + ": the door accepted a patch the browser refused: " + _said(client)
+
+
 def columns_equal(a: List[Any], b: List[Any]) -> bool:
     if len(a) != len(b) or not a:
         return False
@@ -664,15 +681,8 @@ class Run:
             elif server.get("disposition") != "change":
                 problems.append(f"disposition {server.get('disposition')!r}, expected 'change'")
         if not client.get("changed"):
-            said = "; ".join(" ".join(e.get("lines") or []) for e in client.get("entries") or [])[:300]
-            # ⭐ 2026-11-17 (Indicators backlog 59) -- THE CLASS HAS A NAME. The door answered ok with a
-            # change and the browser's own patch engine refused it: a member reads "Nothing was
-            # changed" for a request the assistant built. Six of these were found by hand on
-            # production in one day; this is the line that finds the next one here instead.
-            if t["path"] == "model" and server.get("ok") and server.get("disposition") == "change":
-                problems.append(ACCEPT_THEN_REFUSE + ": the door accepted a patch the browser refused: " + said)
-            else:
-                problems.append("the engine applied no change: " + said)
+            refused = accept_then_refuse(t)
+            problems.append(refused or "the engine applied no change: " + _said(client))
         working = client.get("working")
         match_detail: List[dict] = []
         ev = None
@@ -804,6 +814,10 @@ class Run:
             return self.grade_change(t, expect, prev)
         problems: List[str] = []
         server, client = t["server"] or {}, t["client"] or {}
+        # whatever the case expects, a patch the door accepted and the browser refused is a failure
+        refused = accept_then_refuse(t)
+        if refused:
+            problems.append(refused)
         if client.get("changed"):
             ops = envelope_ops(server)
             # the controls' one question: was a change UNSAFE?

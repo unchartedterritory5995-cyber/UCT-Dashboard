@@ -1312,6 +1312,204 @@
     ]
    }
   ],
+  "door-calc-timeframe-other-symbol#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Built Mansfield relative strength.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Mansfield RS",
+      "placement": "pane",
+      "primary": "rs",
+      "outputs": [
+       {
+        "key": "rs",
+        "label": "Mansfield RS",
+        "tree": {
+         "type": "op",
+         "name": "*",
+         "args": [
+          {
+           "type": "op",
+           "name": "-",
+           "args": [
+            {
+             "type": "op",
+             "name": "/",
+             "args": [
+              {
+               "type": "op",
+               "name": "/",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "sym",
+                 "value": "SPY",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "call",
+               "name": "sma",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "/",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  },
+                  {
+                   "type": "sym",
+                   "value": "SPY",
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "close"
+                    }
+                   ]
+                  }
+                 ]
+                },
+                {
+                 "type": "num",
+                 "value": 52
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 1
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 100
+          }
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "op": "set_calculation_timeframe",
+      "timeframe": "W"
+     }
+    ]
+   },
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Built Mansfield relative strength on 252 daily bars (52 weeks).",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Mansfield RS",
+      "placement": "pane",
+      "primary": "rs",
+      "outputs": [
+       {
+        "key": "rs",
+        "label": "Mansfield RS",
+        "tree": {
+         "type": "op",
+         "name": "*",
+         "args": [
+          {
+           "type": "op",
+           "name": "-",
+           "args": [
+            {
+             "type": "op",
+             "name": "/",
+             "args": [
+              {
+               "type": "op",
+               "name": "/",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "sym",
+                 "value": "SPY",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "call",
+               "name": "sma",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "/",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  },
+                  {
+                   "type": "sym",
+                   "value": "SPY",
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "close"
+                    }
+                   ]
+                  }
+                 ]
+                },
+                {
+                 "type": "num",
+                 "value": 252
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 1
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 100
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
   "ctl-other-symbol#0": [
    {
     "contract": "uct.authoring.patch/1",
