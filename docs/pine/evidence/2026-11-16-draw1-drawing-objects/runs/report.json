@@ -1,27 +1,27 @@
 {
  "populations": {
   "capture": {
-   "scripts": 749,
-   "admitted": 383,
+   "scripts": 761,
+   "admitted": 385,
    "runtimeLane": 53,
-   "hostLane": 221,
-   "refused": 109,
+   "hostLane": 226,
+   "refused": 106,
    "coreOnly": 35
   },
   "committed": {
    "scripts": 266,
    "admitted": 100,
-   "runtimeLane": 24,
-   "hostLane": 45,
-   "refused": 31,
+   "runtimeLane": 25,
+   "hostLane": 47,
+   "refused": 28,
    "coreOnly": 4
   },
   "reference": {
    "scripts": 271,
    "admitted": 154,
-   "runtimeLane": 22,
-   "hostLane": 90,
-   "refused": 42,
+   "runtimeLane": 23,
+   "hostLane": 91,
+   "refused": 40,
    "coreOnly": 7
   },
   "builtin": {
@@ -5301,6 +5301,32 @@
    ]
   },
   {
+   "capture": "rs-syminfo-industry-pm-alab-1d-2026-11-16",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-pm-rddt-1d-2026-11-16",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
    "capture": "rs-syminfo-industry-rddt-1d-2026-11-16",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
@@ -5651,9 +5677,9 @@
   },
   {
    "key": "committed:session-highs-and-lows-indicator-smc-sessions-dst-safe__c0ca8cf749",
-   "lane": null,
-   "guard": "pine:function",
-   "declined": "pine:function",
+   "lane": "runtime",
+   "guard": null,
+   "declined": null,
    "caps": [
     "core",
     "fn-multi",
@@ -7041,9 +7067,9 @@
   },
   {
    "key": "reference:nylondonasian-sessions-ict-swings__14bce3660b",
-   "lane": null,
-   "guard": "pine:function",
-   "declined": "pine:function",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
    "caps": [
     "core",
     "fn-multi",
@@ -7412,7 +7438,7 @@
    "key": "reference:session-liquidity__96d8d1599c",
    "lane": null,
    "guard": "pine:no-output",
-   "declined": "pine:function",
+   "declined": "runtime:conditional-history",
    "caps": [
     "conditional-ta",
     "core",
@@ -7679,9 +7705,9 @@
   },
   {
    "key": "reference:tradingviews-technical-analysis__oZFVfrvzZI",
-   "lane": null,
-   "guard": "budget:nodes",
-   "declined": "runtime:call-undeclared-builtin-state",
+   "lane": "runtime",
+   "guard": null,
+   "declined": null,
    "caps": [
     "conditional-ta",
     "core",
