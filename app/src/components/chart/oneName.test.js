@@ -24,6 +24,7 @@ const SURFACES = [
   './ChartSettingsIndicators.jsx',
   './IndicatorLibraryDialog.jsx',
   './IndicatorMembersTab.jsx',
+  './IndicatorHouseTab.jsx',
   './indicatorCatalog.js',
   '../../pages/formulas/FormulaLibrary.jsx',
   // the formula builder: its own list of saved work (slice 2). "New formula" and "Edit

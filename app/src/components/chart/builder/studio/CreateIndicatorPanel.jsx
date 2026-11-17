@@ -199,7 +199,7 @@ export default function CreateIndicatorPanel({
   onClose, settings = null, onChange = null, sym = null, tf = null, anchorRef = null,
   onPreview, onOpenBuilder = null, onOpenLibrary = null, converse = converseTurn,
   dockHost = null, onDocked = null, sessionKey = null, editRow = null, onEditFormula = null,
-  seed = null, previewChartRef = null,
+  seed = null, sendSeed = false, previewChartRef = null,
 }) {
   // ⭐ PHASE 4 — held once: the row this studio was opened on (a later list refresh
   // must not re-open it under the member's feet).
@@ -323,6 +323,19 @@ export default function CreateIndicatorPanel({
     setMessage('')
     await conv.send(words)
   }, [message, busy, saving, conv])
+
+  // ⭐ 2026-11-16 — THE MEMBER'S OWN WORDS, SENT ONCE. The Indicators window's plain-words box
+  // was submitted by the member (`sendSeed`), so the seed goes as the first turn instead of
+  // waiting in the box. ⛔ Once per opening, never over a restored draft, never on an indicator
+  // that cannot be changed here, and never for UCT Agent's seed (its door cannot set the flag).
+  const seedSentRef = useRef(false)
+  useEffect(() => {
+    if (!sendSeed || seedSentRef.current) return
+    if (conv.restored || blocked || typeof seed !== 'string' || !seed.trim()) return
+    seedSentRef.current = true
+    submit(seed)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, at the opening that carried it
+  }, [])
 
   // ⭐ SLICE 2 — TWO WAYS OUT, AND THEY MEAN DIFFERENT THINGS.
   //   ✕       closes the dock and KEEPS the draft: reopening Create Indicator on
@@ -485,6 +498,14 @@ export default function CreateIndicatorPanel({
                   {(t.lines || []).map((l, i) => (
                     <span key={i} className={i === 0 ? styles.lead : undefined}>{l}</span>
                   ))}
+                  {/* ⭐ What the assistant says it built: below the engine's words, and labelled as
+                      the assistant's, never mixed into them (Studio plan, section 5). Plain text. */}
+                  {typeof t.said === 'string' && t.said && (
+                    <span className={styles.said} data-testid="create-indicator-said">
+                      <span className={styles.saidLabel}>What the assistant says it built</span>
+                      {t.said}
+                    </span>
+                  )}
                   {/* P3 UX — the engine's code, for support, behind the member sentence */}
                   {Array.isArray(t.details) && t.details.length > 0 && (
                     <details data-testid="create-indicator-error-detail">

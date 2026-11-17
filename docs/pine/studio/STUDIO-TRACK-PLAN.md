@@ -421,6 +421,12 @@ a stamped before and after. This is the lane with no end.
 | D20 | One verdict from two authorities: the editor's status for text, the served row for anything saved |
 | D21 | This track may write changes to non-engine surfaces as reviewed pull requests; engine paths stay read-only |
 | D22 | Gating numbers are derived from a measured run, never chosen in advance |
+| D23 | **Taken by this track on 2026-11-16 under the owner's "yes to everything, make the judgment calls"; each of D23 to D28 is reversed by saying so.** Names: the assistant's name is used when the derived one is unreadable (section 14b); the 2026-10-06 derived-name rule still governs short names |
+| D24 | The house set is published on the value check of section 14b, before the owner's look. The owner's look still decides what stays: the set is one file and removing one is one line |
+| D25 | On a tablet the open dock may cover the joystick's edge tab. Accepted: the dock is closed with one press and the tab is back |
+| D26 | Authors on the library: a published indicator shows its author only if the publisher chooses to at publish time; the default stays no author. Not built |
+| D27 | An indicator may read fundamentals columns the app already has, named "UCT data" in the dock and the reference. A lane of its own (Phase 4); not built |
+| D28 | A paid evaluation run may be made inside the existing admin daily cap, once, to set the regression gate's baseline. Its figures stay outside this repository |
 
 **Rule P1, census before design.** No lane is designed until what already does that job has
 been read in code, across `docs/indicators/`, `docs/pine/`, `app/src` and `api`, under more
@@ -536,6 +542,87 @@ indicator is published only after the owner has looked at it on a chart.
 allowance was raised (the numbers are environment values, not recorded here). On a phone
 the indicator library offered "New formula" and no way to Create Indicator at all.
 
+## 14b. The house set, value check and the UCT tab (2026-11-16, production and real bars)
+
+The twenty descriptions a third time, through the door as the synthetic admin, and then every
+output checked against an independent calculation.
+
+| outcome | count |
+|---|---|
+| builds | 15 |
+| refused honestly, with the nearest thing that can be built | 4 |
+| fails after its one repair | 1 (a marker on the highest-volume day of the year with a line at its close; backlog) |
+
+**Values.** Each of the fifteen was evaluated by the server's own evaluator over real SPY and
+NVDA daily bars (300 each) and compared, bar by bar, with a calculation written in plain
+Python from the description, using no engine code. All 57 output series agreed on every bar.
+The one disagreement in the first pass was in the reference, not the engine: "bars since" a
+condition answers its window when the condition has not been true that recently, as its own
+declared sentence says.
+
+**Correct values are not a correct definition.** Two of the fifteen compute exactly what
+their formula says and are still not what a trader means:
+
+- a follow-through day with no upper bound on the days since the low marks every strong up
+  day on higher volume once no low is in the window (14% of NVDA's bars);
+- a flat base as "a range under 15% over five weeks" is true on 99% of SPY's bars.
+
+Both were left out of the first set. A value check cannot find this; reading the hit rate
+against what the pattern should be did.
+
+**Rebuilt from tighter descriptions the same evening.** The flat base (a 25-session range
+under 15%, within 15% of the 52-week high, after a 20% advance) equals a plain calculation
+on every bar and is true on 6% of SPY's and 12% of NVDA's last 300 bars; it joins the set
+(#1501). The follow-through day ("from day 4 through day 12 after the 50-session low")
+built, read back plausibly, and **could not fire on any bar**: the assistant compared
+`lowestbars` with negative numbers, TradingView's convention, and here that count is 0 or
+more. Only the comparison with an independent calculation showed it (0 marks against 1 and
+8). The door now refuses a bars-back count compared with a negative number and says why
+(#1499); the indicator is rebuilt once that is served.
+
+**The set.** Eleven are in the UCT tab (#1496), and the flat base makes twelve (#1501): distribution day count; relative strength
+against SPY, and its new high before price; extension above the 50-day in ATRs; percent from
+the 10-week; volume against its 50-day average; tight weekly closes; gap up on volume; inside
+and outside bars; average daily range; the previous week's high and low. A twelfth, the 10
+and 21 EMA trend, is verified and held back: the engine named one of its inputs
+`ema21_csWidth`, and the repository's secret scanner reads that, in a field named `key`, as
+a credential. The scanner's allow-list is the owner's to change (an attempt by this track to
+add an entry was refused, rightly), so the indicator waits to be rebuilt or allowed. A
+thirteenth (the up/down volume ratio) built through the door and was refused by the
+browser's engine: the assistant answered "green shading above 1.2" with one colour state and
+no other colour, which the engine refuses and the door had accepted, so the model never got
+its repair. The door now applies the same rule (#1493); the indicator joins the set when it
+has been rebuilt and checked.
+
+**How a house indicator is held.** The definitions are produced by the shipped authoring
+engine from the assistant's patches, never written by hand. `tests/test_house_indicators_values.py`
+evaluates every output over deterministic bars against a plain calculation, requires each
+condition to be true on some bars and false on others, and fails on an output that has no
+reference, so nothing joins the set unchecked. Its first version failed for a real reason
+worth keeping: bars that traded on market holidays put the weekly outputs a week behind,
+because the engine knows the exchange calendar.
+
+**Installing** saves the member's own copy through the ordinary save door under a fresh id.
+It is theirs to rename, change in Create Indicator, or delete; there is no second kind of
+indicator.
+
+**Names and read-backs (#1495).** The dock keeps the assistant's name when the derived one is
+longer than 28 characters or reads like a formula; a short derived name ("EMA 20", "RSI 14
+above 70") stays and keeps following the maths. Under the engine's lines the dock shows
+"What the assistant says it built", labelled as the assistant's; it is not sent back to the
+model.
+
+**Experience, first numbers (the synthetic member, 1500 px).** From a chart to a previewed
+"Add a 20 EMA": five presses by way of Chart Settings (settings, Indicators, add, Create
+Indicator, send), the dock open in 1.7 to 2.9 seconds, the preview 4.2 seconds after send.
+Through the door alone, the house-set requests answered in a median of about 10 seconds; a
+request that needed its repair took up to 26. X1's target for this job is two actions. The
+Indicators window's plain-words box now sends what was typed (#1500), which makes it two:
+"Add to Chart" on the chart header, then type and press Enter. UCT Agent's seeded door
+still never sends. Not yet counted on a phone.
+Only one request was timed in the dock: the synthetic member's daily allowance was spent by
+the day's other checks.
+
 ## 15. Resume here
 
 **State at the end of 2026-11-16.** "LIVE" means used on production as a member (the synthetic
@@ -562,7 +649,10 @@ the deploy gate.
 | R2, R3 | TradingView names on the reference page; the reference as one file for a member's own assistant | LIVE |
 | launch | library moderation (UCT takedown, a 20-listing cap per member, the licence line); spend that cannot be written still counts | merged (#1451, #1452) |
 | tool | a refused turn tells an admin why each attempt was refused | LIVE |
-| H | the house set | second look below; nothing published yet |
+| H | the house set: twelve indicators in a UCT tab (window and phone sheet), each held to an independent calculation | value-checked on real bars (section 14b); #1496, #1501 |
+| N2 | the dock keeps the assistant's name where the derived one is unreadable; "What the assistant says it built" under the engine's lines | #1495 |
+| door | a one-colour colour-states patch is refused at the door, so the model gets its repair; so is a bars-back count compared with a negative number | #1493, #1499 |
+| X1 | the plain-words box sends what the member typed: a chart to a preview in two actions | #1500 |
 
 **The house set, second look (2026-11-16, production).** Of the five that did not draw on
 the first run: both relative-strength requests draw (the marker fix); volume bars coloured
@@ -578,7 +668,6 @@ read-backs (section 14a, findings 2 and 3), and the owner's look.
 
 Not started, and why:
 
-- **The UCT tab**: waits for the owner to approve house indicators (names and read-backs first).
 - **L5, worked examples**: an example is admitted only once the owner has approved it, and the
   proof is a paid evaluation run, which needs the owner's spend approval.
 - **R1, run over a list from the chart**: waits for the Screener owner's answer to R13.
@@ -614,12 +703,11 @@ then names and read-backs with the authoring owner, the house set a third time, 
 look.
 
 **Open for the owner:**
-1. Look at the house-set pictures and say which, if any, are right.
-2. Names: may the assistant's own name be used when the formula-derived one is too long to
-   read (section 14a, finding 2)?
-3. On a tablet the open dock covers the joystick's edge tab. Acceptable?
-4. Authors on the library (section 12).
-5. May an indicator read fundamentals columns the app already has, as "UCT data"?
+1. Look at each of the twelve house indicators on a chart (Indicators, UCT tab) and say which
+   stay. They were published on a value check, not on your look (D24).
+2. D23 to D28 in section 11 were taken as judgment calls. Reverse any by saying so.
+3. The 10 and 21 EMA trend indicator is held out of the house set by a false positive in the
+   secret scanner (section 14b). Say whether to add an allow entry for that one identifier.
 
 **Kept outside this repository:** the competitor review, prompt sets and results, the
 hidden set, screenshots, the house-set pictures, and anything with cost figures.
