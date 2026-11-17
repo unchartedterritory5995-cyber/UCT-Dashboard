@@ -33,6 +33,8 @@ import {
 import { reduceIfOversized, hydrateGraphDocument } from '../components/chart/engine/ast/graphDocument'
 import { META_KEY } from '../pages/screener/hooks/useScreenerMeta'
 import { withServedRowIdentities } from '../components/chart/engine/lineIdentity'
+// ⭐ SETTINGS PARITY (2a): the per-chart parameter settings are a load-time projection, never stored.
+import { stripParamInputs } from '../components/chart/engine/paramInputs'
 import {
   SCRIPT_ENGINE_VERSION, withoutEngineStamp, withinPineSourceCap,
 } from '../components/chart/engine/scriptEngineVersion'
@@ -131,11 +133,21 @@ export function useUserDefinitions() {
   // throw only added a crash where there was already a correct reading.
   const ctx = useContext(AuthContext)
   const user = ctx ? ctx.user : null
+  // ⛔ THE POLL IS HANDED TO SWR AS A NUMBER, NEVER AS THE FUNCTION (2026-11-16). SWR 2.4.0 reads a
+  // function-form `refreshInterval` once, when its polling effect starts (mount, or a key change),
+  // against the cache as it stands THEN. On a cold load that is `undefined`, the function answered 0,
+  // no timer was set, and a row that was "still being checked" was never read again until a reload.
+  // The interval is derived from the rows this render holds and passed as a number, which SWR's
+  // polling effect lists as a dependency: 0 -> 15000 starts the poll, 15000 -> 0 stops it.
+  // Rail: useUserDefinitions.pendingPoll.test.jsx (a cold mount whose rows are pending reads again).
+  const [pollMs, setPollMs] = useState(0)
   const { data, error, isLoading } = useSWR(user ? USER_DEFINITIONS_KEY : null, fetcher, {
     revalidateOnFocus: false,
     dedupingInterval: 10000,
-    refreshInterval: pendingRefreshInterval,
+    refreshInterval: pollMs,
   })
+  const wantPollMs = pendingRefreshInterval(data)
+  useEffect(() => { setPollMs(wantPollMs) }, [wantPollMs])
   return {
     rows: Array.isArray(data) ? data : NO_ROWS,
     // A signed-out user is LOADING, not an error: SWR is handed a null key then
@@ -250,6 +262,10 @@ export async function saveUserDefinition(definition, defId = null, telemetry = n
       definition = { ...definition, meta: { ...definition.meta, scriptEdited: true } }
     }
   }
+  // ⛔ SETTINGS PARITY (2a): a document that came off the registry carries its folded parameters
+  // as `param<N>` settings (`memberDocumentMigration`); they are a projection of its own manifest,
+  // so they are never written back.
+  definition = stripParamInputs(definition)
   const url = defId ? `${USER_DEFINITIONS_KEY}/${encodeURIComponent(defId)}` : USER_DEFINITIONS_KEY
   let r
   try {

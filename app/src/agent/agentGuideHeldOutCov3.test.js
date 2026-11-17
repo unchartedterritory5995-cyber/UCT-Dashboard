@@ -29,8 +29,8 @@ export const COV3_HELD_OUT = [
   ['how do I throw away my indicator draft', 'Discarding a draft'],
   ['how do I undo the last change on my draft', 'Undoing a draft step'],
   ['how do I give my draft a name', 'Naming a formula'],
-  ['how do I show a dot under the bar when my condition is true', 'Signal markers and colours'],
-  ['how do I paint the candles when the signal is true', 'Signal markers and colours'],
+  ['how do I show a dot under the bar when my condition is true', 'Signal markers and colors'],
+  ['how do I paint the candles when the signal is true', 'Signal markers and colors'],
   // widget controls named by what they do
   ['how do I sort the themes from worst to best', 'Ranking themes by period'],
   ['how do I measure the themes from the open', 'The today basis'],

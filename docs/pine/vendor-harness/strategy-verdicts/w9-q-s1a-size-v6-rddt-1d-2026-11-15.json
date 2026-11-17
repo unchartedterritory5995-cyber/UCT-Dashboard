@@ -8,20 +8,83 @@
  "symbol": "NYSE:RDDT",
  "timeframe": "1D",
  "gradeMethod": "a",
- "verdict": "DIVERGE",
- "step": 1,
- "reason": "our run refused (runtime:strategy-unsettled) against a TradingView value",
+ "verdict": "MATCH",
+ "step": 8,
+ "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
  "first": null,
  "graded": {
-  "trades": false,
-  "fills": false,
-  "slots": 0,
-  "values": 0,
-  "texts": 0
+  "trades": true,
+  "fills": true,
+  "slots": 9,
+  "values": 38,
+  "texts": 7
  },
  "referenceTrades": 7,
- "rulesExercised": [],
- "ungradedSlots": [],
+ "rulesExercised": [
+  "B-CLOSE",
+  "B-DEFAULTS",
+  "B-DIR",
+  "B-FIFO",
+  "B-FILL",
+  "B-FUNDS",
+  "B-MARGIN",
+  "B-MARKET",
+  "B-QTY",
+  "B-SIG",
+  "B-TXT-CLOSE-ID",
+  "B-TXT-NO-COMMENT",
+  "B-VAL"
+ ],
+ "ungradedSlots": [
+  {
+   "slot": "maxDrawdown",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "maxRunup",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "buyAndHoldReturn",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "percentProfitable",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgWinningTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgLosingTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "largestWinningTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "largestLosingTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgBarsInTrades",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "sharpeRatio",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "sortinoRatio",
+   "why": "ours runtime:strategy-report-unstated"
+  }
+ ],
  "ungradedTexts": [],
  "firstDifference": null,
  "prefixExact": null,

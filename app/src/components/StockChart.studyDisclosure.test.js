@@ -14,7 +14,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { cssLengthPx, nextCompactLegend, studyDisclosureRows, studyFoldRoom } from './StockChart'
+import { cssLengthPx, fullLegendMeasurable, nextCompactLegend, rangeBarYieldsToLegend, studyDisclosureRows, studyFoldRoom } from './StockChart'
 
 const SRC = join(process.cwd(), 'src')
 const read = (p) => readFileSync(join(SRC, p), 'utf8')
@@ -123,11 +123,38 @@ describe('the legend fold pays for the disclosure button it renders', () => {
     expect(nextCompactLegend(false, 0, 150)).toBeNull()       // nothing measured yet
   })
 
+  it('an EXPANDED stack never trips the collapse, and its height is never remembered as the full legend', () => {
+    // Measured on production 2026-11-16: `+3 more` on a short pane made the whole legend
+    // hover-only and small, and `Less` did not bring it back.
+    expect(nextCompactLegend(false, 400, 150, true, true)).toBeNull()   // would collapse if folded
+    expect(nextCompactLegend(true, 100, 150, true, true)).toBeNull()    // and no un-collapse either
+    // the control: the same numbers DO decide once the stack is folded again
+    expect(nextCompactLegend(false, 400, 150, true, false)).toBe(true)
+    expect(nextCompactLegend(true, 100, 150, true, false)).toBe(false)
+    // the memory: only a settled, full, FOLDED legend is measured
+    expect(fullLegendMeasurable(true, false, false)).toBe(true)
+    expect(fullLegendMeasurable(true, false, true)).toBe(false)
+    expect(fullLegendMeasurable(true, true, false)).toBe(false)
+    expect(fullLegendMeasurable(false, false, false)).toBe(false)
+  })
+
+  it('the range bar steps aside for an expanded stack, so it never covers the Less button', () => {
+    // Measured 2026-11-16 on the fixed fold: the bar sat on the expanded stack's last row and a
+    // click on `Less` pressed `3M`.
+    expect(rangeBarYieldsToLegend(false, true)).toBe(true)
+    expect(rangeBarYieldsToLegend(true, false)).toBe(true)    // the collapse always hid it
+    expect(rangeBarYieldsToLegend(false, false)).toBe(false)  // the control: at rest the bar is drawn
+    // the wire: the bar's own render gate asks, with the V2 stack's expand
+    expect(JSX).toMatch(/&& !rangeBarYieldsToLegend\(compactLegend, legendV2 && chipsExpanded\) && \(\s*<div ref=\{rangeBarRef\}/)
+  })
+
   it('the sampler marks the fold unsettled whenever it sets a new budget or cost, and gates on it (the wire)', () => {
     expect(JSX).toMatch(/if \(fit !== studyRowBudgetRef\.current\) \{ setStudyRowBudget\(fit\); foldSettled = false \}/)
     expect(JSX).toMatch(/if \(moreRows !== null && moreRows !== studyMoreRowsRef\.current\) \{ setStudyMoreRows\(moreRows\); foldSettled = false \}/)
-    expect(JSX).toMatch(/if \(foldSettled && leg && !compactLegendRef\.current\) \{/)
-    expect(JSX).toMatch(/nextCompactLegend\(compactLegendRef\.current, lastFullBottomRef\.current,\s*plan\.collapseThresholdPx, foldSettled\)/)
+    expect(JSX).toMatch(/if \(leg && fullLegendMeasurable\(foldSettled, compactLegendRef\.current, chipsExpandedRef\.current\)\) \{/)
+    expect(JSX).toMatch(/nextCompactLegend\(compactLegendRef\.current, lastFullBottomRef\.current,\s*plan\.collapseThresholdPx, foldSettled, chipsExpandedRef\.current\)/)
+    // the sampler reads the member's expand through a ref kept in step with the state
+    expect(JSX).toMatch(/chipsExpandedRef\.current = chipsExpanded\r?\n/)
     // and no second, ungated writer of the collapse is left in the sampler
     expect(JSX.match(/setCompactLegend\(true\)/g) || []).toEqual([])
   })

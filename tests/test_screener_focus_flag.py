@@ -4,6 +4,7 @@ import pytest
 
 FLAG = "SCREENER_FOCUS_LAYOUT_ENABLED"
 PHONE = "SCREENER_FOCUS_PHONE_ENABLED"
+BOARD = "SCREENER_SCAN_BOARD_ENABLED"
 
 
 @pytest.fixture
@@ -12,6 +13,7 @@ def auth(monkeypatch):
     monkeypatch.delenv("SCREENER_NEW_TODAY_ENABLED", raising=False)
     monkeypatch.delenv("SCREENER_PREMARKET_ENABLED", raising=False)
     monkeypatch.delenv(PHONE, raising=False)
+    monkeypatch.delenv(BOARD, raising=False)
     import api.routers.auth as mod
     return importlib.reload(mod)
 
@@ -20,7 +22,8 @@ def test_unset_is_off_for_everyone(auth):
     assert auth._screener_flags(is_admin=True) == {"screener_focus_layout_enabled": False,
                                                    "screener_new_today_enabled": False,
                                                    "screener_premarket_enabled": False,
-                                                   "screener_focus_phone_enabled": False}
+                                                   "screener_focus_phone_enabled": False,
+                                                   "screener_scan_board_enabled": False}
 
 
 @pytest.mark.parametrize("raw", ["1", "true", "yes", "on"])
@@ -74,3 +77,24 @@ def test_phone_flag_is_independent_of_the_layout_flag(auth, monkeypatch):
     out = auth._screener_flags(is_admin=True)
     assert out["screener_focus_phone_enabled"] is True
     assert out["screener_focus_layout_enabled"] is False
+
+
+# -- the scan board (owner direction 2026-11-17): the same three-value grammar as its siblings --
+def test_scan_board_is_off_until_armed(auth):
+    assert auth._screener_flags(is_admin=True)["screener_scan_board_enabled"] is False
+
+
+def test_scan_board_on_is_on_for_members(auth, monkeypatch):
+    monkeypatch.setenv(BOARD, "1")
+    assert auth._screener_flags(is_admin=False)["screener_scan_board_enabled"] is True
+
+
+def test_scan_board_admin_is_the_owner_preview(auth, monkeypatch):
+    monkeypatch.setenv(BOARD, "admin")
+    assert auth._screener_flags(is_admin=True)["screener_scan_board_enabled"] is True
+    assert auth._screener_flags(is_admin=False)["screener_scan_board_enabled"] is False
+
+
+def test_scan_board_does_not_ride_on_the_focus_layout_flag(auth, monkeypatch):
+    monkeypatch.setenv(FLAG, "1")
+    assert auth._screener_flags(is_admin=False)["screener_scan_board_enabled"] is False

@@ -33,6 +33,7 @@ import { readback, isDirty } from '../authoring'
 import { converseTurn, transcriptSnippets } from '../authoring/converseClient'
 import { writeSession, clearSession, holdInDock, releaseDock } from '../authoring/conversationSessions'
 import { logStudioAction } from '../authoring/studioTelemetry'
+import { keepAssistantName } from '../authoring/readableName'
 // ⭐ M3 S1 — the turn / Undo / Save / restore steps live in `authoring/authoringSession.js`
 // (moved verbatim) so the dock and UCT Agent run ONE pipeline. This hook is the React
 // wrapper: it holds the state, numbers the transcript entries and keeps the session.
@@ -44,6 +45,8 @@ import {
 
 // Re-exported for existing importers (the functions moved with the pipeline).
 export { typeWord, replyLines } from '../authoring/authoringSession'
+import { settingTurn } from '../authoring/authoringSession'
+import { settingsOf } from '../authoring/derivedSettings'
 
 /**
  * @param {object} p
@@ -150,7 +153,8 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
     setBusy(true)
     try {
       return take(await modelTurn(before, () => stateRef.current, words,
-        { snippets, gateCtx, converse: converseTracked, signal: ctl ? ctl.signal : null }))
+        // ⭐ a new indicator keeps the assistant's name only where the derived one is unreadable
+        { snippets, gateCtx, converse: converseTracked, signal: ctl ? ctl.signal : null, keepCreateName: keepAssistantName }))
     } finally {
       if (abortRef.current === ctl) abortRef.current = null
       setBusy(false)
@@ -195,6 +199,18 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
     say(out.entry)
     return true
   }, [busy, saving, commit, gateCtx, say])
+
+  /** ⭐ SETTINGS (2026-11-17) — the tunable numbers of the working indicator, re-derived from its
+   *  own formula on every change and stored nowhere (`authoring/derivedSettings.js`). */
+  const settings = useMemo(() => settingsOf(state.working), [state.working])
+  /** One number set from its field: the ordinary slot edit, no model call, one Undo step. */
+  const setNumber = useCallback((setting, value) => {
+    const cur = stateRef.current
+    if (busy || saving || !cur.working) return { ok: false }
+    const out = settingTurn(cur, setting, value, { gateCtx })
+    if (out.ok) take(out)
+    return out
+  }, [busy, saving, gateCtx, take])
 
   /** The earlier steps, oldest first (`historySteps`). */
   const steps = useMemo(() => historySteps(state, gateCtx), [state, gateCtx])
@@ -260,7 +276,7 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
   return {
     state, transcript, rb, busy, saving, acked, setAcked, needsAck, questions, changeSeq,
     previewDefinition, send, stop, undo, goBackTo, steps, save, discard, dirty, restored, recovered, dropped, editing,
-    allowanceLeft,
+    allowanceLeft, settings, setNumber,
     canUndo: state.history.length > 0 && !busy && !saving,
     canSave: dirty && !busy && !saving && (!needsAck.length || acked),
   }

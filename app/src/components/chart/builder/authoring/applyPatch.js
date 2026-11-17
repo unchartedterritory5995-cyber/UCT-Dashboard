@@ -521,7 +521,13 @@ const OPS = {
       st.changes.push({ op: i, kind: 'paint-removed', output: row.key, text: `Its own candle/background colours went with it.` })
     }
     m.paints = kept.length ? kept : null
-    if (m.scanKey === row.key) m.scanKey = m.rows[0].key
+    // ⭐ 2026-11-17 (backlog 7) — THE SCANNED LINE MOVES, AND IT SAYS SO. Removing the line a
+    // run over a list reads used to hand the scan to the first remaining line in silence: the
+    // next run answered a different question and nothing on screen had said it would.
+    if (m.scanKey === row.key) {
+      m.scanKey = m.rows[0].key
+      st.changes.push({ op: i, kind: 'scan-moved', output: m.rows[0].key, from: row.key })
+    }
     if (st.intent && st.intent.output === row.key) {
       st.intent = null
       st.changes.push({ op: i, kind: 'intent-cleared', output: row.key })
@@ -1069,7 +1075,7 @@ function finalChecks(st, input, gateCtx) {
       const c = g.conflicts[0]
       const what = c.output ? `"${c.output}"` : 'This indicator'
       throw err('authoring:opaque-conflict',
-        `${what} carries ${c.fields[0] === 'legend' ? 'legend settings' : `${c.fields.join('/')} settings`} imported in a form UCT Intelligence can't change yet, so that change was not made. You can still edit it manually.`,
+        `${what} carries ${c.fields[0] === 'legend' ? 'legend settings' : `${c.fields.join('/')} settings`} imported in a form the UCT Agent can't change yet, so that change was not made. You can still edit it manually.`,
         { output: c.output || undefined, paths: g.conflicts.map((x) => x.path) })
     }
     def = orderLike(input, g.doc)

@@ -320,7 +320,7 @@ export function readback(def, state = {}, gateCtx = {}) {
   const on = (key) => (key && outputs.length > 1 ? ` (on ${nameOf(key)})` : '')
   const assumptions = (state.assumptions || []).map((a) => (a.label !== undefined
     ? `Assumed ${slotWords(a.label)} ${a.value}${on(a.output)}`
-    : (a.source === 'engine' ? `Default: ${a.text}${on(a.output)}` : `UCT Intelligence assumed: "${a.text}"`)))
+    : (a.source === 'engine' ? `Default: ${a.text}${on(a.output)}` : `The UCT Agent assumed: "${a.text}"`)))
   const questions = (state.questions || []).map((q) => `Question: ${q.text}`)
   const needsAck = outputs.filter((o) => o.mode === 'preview-repaints').map((o) => o.key)
   // ⭐ PHASE 5 — a FORMING-period read repaints for a reason a member can name.

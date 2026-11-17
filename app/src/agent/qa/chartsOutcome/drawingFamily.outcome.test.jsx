@@ -336,7 +336,7 @@ describe('slice 3: Fibonacci levels', () => {
   it.each([
     ['a level the tool does not have', { levels: [{ level: 0.3, visible: false, color: null }] }, /isn't a level/],
     ['levels that are not neighbours', { bands: [{ from: 0, to: 0.5, enabled: true, color: null, opacity: null }] }, /neighbouring/],
-    ['a colour that is not one', { levels: [{ level: 0.5, visible: null, color: 'sparkly' }] }, /isn't a colour/],
+    ['a colour that is not one', { levels: [{ level: 0.5, visible: null, color: 'sparkly' }] }, /isn't a color/],
     ['nothing at all', {}, /Say which levels/],
     ['a level with no change', { levels: [{ level: 0.5, visible: null, color: null }] }, /Say what to change/],
   ])('refused: %s', async (_n, a, why) => {

@@ -59,7 +59,8 @@ const stripComments = (src) => src
 /** The V2 render block — from the row inputs it derives through to the inline
  *  legend branch that follows it. */
 function v2Block() {
-  const start = STOCK_CHART.indexOf('const indChips = crosshairData.chips')
+  // The legend reads the chips through `legendRows` (one row per name, 2026-11-16).
+  const start = STOCK_CHART.indexOf('const indRows = legendRows(crosshairData.chips')
   if (start < 0) throw new Error('marker moved: the legend no longer reads `crosshairData.chips`')
   const end = STOCK_CHART.indexOf('<span className={styles.legendTime}', start)
   if (end < 0) throw new Error('marker moved: the inline legend branch is no longer after the V2 one')
@@ -128,13 +129,13 @@ describe('⚰ THE PERMANENT CHEVRON IS RETIRED — and stays retired', () => {
   })
 
   it('⛔ …and a row with NO series colour leaves both to the stylesheet', () => {
-    render(<LegendRow rowId="volume" label="Vol" value="31.7M" vertical onOpen={vi.fn()} />)
+    render(<LegendRow rowId="volume" label="Volume" value="31.7M" vertical onOpen={vi.fn()} />)
     const row = document.querySelector('[data-legend-row="volume"]')
     expect(row.style.color).toBe('')
     expect(row.children[0].style.color).toBe('')
   })
 
-  it('⛔ THE VALUE IS THE BRIGHT INK AND THE LABEL IS NOT — in the stylesheet', () => {
+  it('⭐ LABEL AND VALUE SHARE ONE INK AND ONE WEIGHT; a coloured value wears its series colour — in the stylesheet', () => {
     for (const [name, css, lab, val] of [
       ['LegendRow', ROW_CSS, /(?:^|\n)\.vLabel\s*\{([^}]*)\}/, /(?:^|\n)\.vVal,\s*\.flatVal\s*\{([^}]*)\}/],
       ['IndicatorChip', CHIP_CSS, /(?:^|\n)\.chipGridLabel\s*\{([^}]*)\}/, /(?:^|\n)\.chipGridVal\s*\{([^}]*)\}/],
@@ -145,8 +146,14 @@ describe('⚰ THE PERMANENT CHEVRON IS RETIRED — and stays retired', () => {
       // On a chart each reads its ROLE's ink (chart/legendInk.js, published by StockChart): the
       // app token where it reads on the canvas, the canvas ink where it would not. Outside a
       // chart (a portaled row) neither variable exists and the old neutral pair is the fallback.
-      expect(L[1], `${name}'s label is not the muted neutral`).toMatch(/color:\s*var\(--legend-ink-muted, var\(--text-muted\)\)/)
-      expect(V[1], `${name}'s value is not the bright neutral`).toMatch(/color:\s*var\(--legend-ink-bright, var\(--text-bright\)\)/)
+      // Owner 11-16: "make sure they're all the same contrast and brightness" — the label reads the
+      // shared pair ink (legendInk.js LEGEND_PAIR_ROLE) and a neutral value reads THE SAME ink.
+      expect(L[1], `${name}'s label is not the shared pair ink`).toMatch(/color:\s*var\(--legend-ink-pair, var\(--text-muted\)\)/)
+      expect(V[1], `${name}'s value is not series colour → the label's own ink`).toMatch(/color:\s*var\(--(?:row|chip)-color, var\(--legend-ink-pair, var\(--text-muted\)\)\)/)
+      // …and the same weight (owner 11-16 experiment): label and value are both 500.
+      expect(L[1], `${name}'s label weight`).toMatch(/font-weight:\s*500/)
+      expect(V[1], `${name}'s value weight`).toMatch(/font-weight:\s*500/)
+      expect(V[1], `${name}'s value is heavier than its label`).not.toMatch(/font-weight:\s*[6-9]00/)
       // ⛔ AND NO RESTING OPACITY ON THE LABEL. It existed to separate label from
       // value back when both wore the hue; dimming a member's chosen series colour
       // only made it look wrong.
@@ -164,13 +171,24 @@ describe('⭐ THE MICRO-RAIL — series identity, subordinate by construction', 
   })
 
   it('⛔ A ROW WITH NO COLOUR STILL EMITS IT, UNPAINTED — that is what aligns the labels', () => {
-    // The owner's target prints `Vol` with its label on the same x as `EMA 9`'s,
-    // not hanging two pixels to its left. An unpainted rail is invisible and costs
-    // exactly the width it reserves.
-    render(<LegendRow rowId="volume" label="Vol" value="31.7M" vertical onOpen={vi.fn()} />)
+    // The owner's target prints an uncoloured row with its label on the same x as
+    // `EMA 9`'s, not hanging two pixels to its left. An unpainted rail is invisible
+    // and costs exactly the width it reserves. (On the chart Volume now passes its
+    // series colour — see the case below; this is the component's no-colour contract.)
+    render(<LegendRow rowId="volume" label="Volume" value="31.7M" vertical onOpen={vi.fn()} />)
     const rail = document.querySelector('[data-legend-row="volume"] i')
     expect(rail, 'the indent disappeared with the colour').toBeTruthy()
     expect(rail.style.background, 'volume was given a fabricated colour').toBe('')
+  })
+
+  it('⭐ Owner 11-16 (Option C) — the price stack names it "Volume" and inks its value in the volume colour', () => {
+    const at = STOCK_CHART.indexOf("if (it.kind === 'vol') {")
+    expect(at, 'the price stack lost its volume row').toBeGreaterThan(0)
+    const block = STOCK_CHART.slice(at, at + 1600)
+    expect(block).toContain('label="Volume"')
+    expect(block, 'the price stack still abbreviates Volume').not.toContain('label="Vol"')
+    expect(block).toContain('color={opaqueColor(cs.volume?.upColor)}')
+    expect(block).toContain('{...legendRowHandlers}')
   })
 
   it('⛔ IT IS NOT A CONTROL, AND NOT A SECOND TARGET', () => {
@@ -333,7 +351,7 @@ describe('§3 — pane ownership, with no pane-0 assumption', () => {
   it('⭐ a pane readout is the same vertical row, grouped the same way', () => {
     const readout = between(STOCK_CHART, 'A PANE READOUT IS A STUDY STACK', 'controlLabel={paneReadoutLabel(')
     expect(readout).toContain('vertical')
-    expect(readout).toContain('secondary={ci > 0 && row.chips[ci - 1].instanceId === c.instanceId}')
+    expect(readout).toContain('secondary={ci > 0 && paneRows[ci - 1].chip.instanceId === c.instanceId}')
   })
 })
 
@@ -413,37 +431,28 @@ describe('§8 — the geometric fold', () => {
     expect(pred).toContain('a.c.instanceId === b.c.instanceId')
   })
 
-  it('⭐⭐ VOLUME PRINTS WHERE ITS PANE IS, AND THE PANE IS ASKED — never an index', () => {
+  it('⭐⭐ VOLUME IN THE PRICE STACK PRINTS LAST — overlaid, its bars sit at the bottom of Price', () => {
     // §13/§14. Volume used to head the stack, inherited from the old legend where
-    // it sat under the O/H/L/C rows. The stack is PLOTS now, so it reads in pane
-    // order: the things drawn on Price, then the thing drawn beneath it.
-    // ⛔ AND THE TWO PANE INDICES ARE ONLY EVER COMPARED WITH EACH OTHER. Price is
-    // not pane 0 and Volume is not pane 1; both are asked of their own series by
-    // identity, which is the only form of the question that survives a reorder.
-    const pred = between(STOCK_CHART, 'const volumeBelowPrice = useCallback(', '}, [])')
-    expect(pred).toContain('candleSeriesRef.current?.getPane?.()?.paneIndex?.()')
-    expect(pred).toContain('volumeSeriesRef.current?.getPane?.()?.paneIndex?.()')
-    expect(pred, 'the predicate compares against a literal pane index')
-      .toMatch(/return v > p/)
-    expect(pred, 'a hard-coded pane number crept in').not.toMatch(/[=<>]\s*[01]\b/)
-    // ⭐⭐ AND SINCE 2026-09-16 THE QUESTION IS ASKED ONE STEP EARLIER (owner §15).
-    // Volume in a pane of its own has its readout in THAT pane — `volPaneRows` —
-    // so it is not in the price stack at all, and `Vol 9.1M` is printed once
-    // rather than once here and once six pixels below. `volRowInPriceStack` is the
-    // gate; it is `volLegendRowVisible && !volumeOwnsItsPane`, so a BANDED volume
-    // (drawn INSIDE Price) still keeps the head position it always had.
+    // it sat under the O/H/L/C rows. The stack is PLOTS now.
+    // ⭐⭐ SINCE 2026-09-16 (owner §15) Volume in a pane of its own has its readout in
+    // THAT pane — `volPaneRows` — so it is not in the price stack at all, and `Vol 9.1M`
+    // is printed once. `volRowInPriceStack` is the gate; it is
+    // `volLegendRowVisible && !volumeOwnsItsPane`.
     // ⚠️ AGAINST THE FILE, NOT `block()`: the gate is derived with the rest of the
     // row inputs, ABOVE the `indChips` line this block starts at.
     expect(STOCK_CHART).toContain('const volRowInPriceStack = volLegendRowVisible && !volumeOwnsItsPane')
-    expect(block()).toContain('const studyVolLast = volRowInPriceStack && volumeBelowPrice()')
-    // ⚰️ IT WAS `const studyHeadN = (volRowInPriceStack && !studyVolLast) ? 1 : 0`,
-    // a row COUNT used as an offset into two concatenated blocks. The stack is one
-    // array now (`studyItems`), so the same decision is the ternary that puts the
-    // volume entry at its head or its tail — same predicate, same two positions,
-    // no arithmetic for anything downstream to get wrong.
-    expect(block()).toContain(
-      "...(volRowInPriceStack && !studyVolLast ? [{ kind: 'vol', id: 'volume' }] : []),")
+    // ⭐⭐ OWNER 11-16 — so a Volume in this stack is OVERLAID on Price, and it is listed
+    // below every price-pane study, AFTER the member's row order is applied.
+    // ⚰️ IT WAS `volRowInPriceStack && volumeBelowPrice()` — the renderer's two pane
+    // indices compared — which in this stack always answered false (one shared pane), so
+    // Volume headed it. Behaviour is pinned in `StockChart.volumeOverlay.test.jsx`.
+    expect(block()).toContain('const studyVolLast = volRowInPriceStack')
+    expect(stripComments(block()), 'the retired pane-index question is asked again').not.toContain('volumeBelowPrice')
+    expect(block(), 'volume can still head the stack')
+      .not.toContain("...(volRowInPriceStack && !studyVolLast ? [{ kind: 'vol', id: 'volume' }] : []),")
     expect(block()).toContain("...(studyVolLast ? [{ kind: 'vol', id: 'volume' }] : []),")
+    expect(block(), 'the member order can lift volume off the bottom again')
+      .toContain("[...studyRows.filter((it) => it.kind !== 'vol'), ...studyRows.filter((it) => it.kind === 'vol')]")
   })
 
   it('⛔ AND THE BUDGET IS BOTH A ROOM TEST AND A SHARE OF THE PANE', () => {

@@ -55,11 +55,12 @@ function hostLabels(capture, source) {
   return toRenderState(r.live, { bars, tf: 'D' }).labels.map((l) => l.text)
 }
 /** the runtime lane's drawings: their texts, or the name it withheld them by */
-function runLabels(capture, source) {
+function runLabels(capture, source, symbol = undefined) {
   const bars = capture.bars.rows.map(([t, o, h, l, c, v]) => ({ t, o, h, l, c, v }))
   const doc = { id: 'cbclit', meta: { runtimeHistory: 'listing' },
     compute: { kind: 'runtime', fn: 'runtime:cbclit', outputs: { a: 0 }, objects: true, source } }
-  const cols = computeRuntimeColumns(doc, bars, { tf: 'D', newestBarIsForming: false, historyFromListing: true })
+  const cols = computeRuntimeColumns(doc, bars, { tf: 'D', newestBarIsForming: false, historyFromListing: true,
+    ...(symbol ? { symbol } : {}) })
   const o = runtimeObjectsOf(cols)
   return o ? { texts: o.live.map((x) => (x.props ? x.props.text : x.text)) } : { withheld: runtimeObjectsWithheldOf(cols) }
 }
@@ -94,9 +95,28 @@ describe('⭐⭐ the S17 witness: a numeric literal is printed IN FULL (v5, dire
   })
 })
 
+describe('⭐⭐ TC — the runtime lane prints the sixth label too: `format.mintick` at the tick of the binding', () => {
+  // ⚰️ CBC-FMT left `str.tostring(close, format.mintick)` refused on this lane (`runtime:call-text-state`).
+  // TC serves it with the chart symbol's witnessed tick TEXT (`bind.js::SYMBOL_TICK_SIZE`, NYSE 0.01)
+  // through the host lane's one tick formatter (`pineTextFormat.js::tickNumberText`), so the run is
+  // asked of all SIX labels on S17's own bars and symbol, and prints TradingView's six texts.
+  const RDDT = { ticker: 'RDDT', exchange: 'NYSE' }
+  it('⭐⭐ v5 direct, all six texts, the sixth the "98.45" TradingView prints', () => {
+    expect(runLabels(cap(S17), PROBE, RDDT)).toEqual({ texts: cap(S17).objects.texts.labels })
+  })
+  it('⭐ v6 direct (s21), all six texts', () => {
+    const c = cap('vw-cs2-label-format-v6-direct-rddt-1d-2026-11-15.json')
+    expect(runLabels(c, c.source.text, RDDT)).toEqual({ texts: c.objects.texts.labels })
+  })
+  it('⛔ with no symbol the run has no tick: its drawings are withheld BY NAME, never a guessed 0.01', () => {
+    const r = runLabels(cap(S17), PROBE)
+    expect(r.withheld && r.withheld.guard, JSON.stringify(r)).toBe('format:tick-unsettled')
+  })
+})
+
 describe('⭐⭐ the runtime lane asks the same rule', () => {
-  // ⛔ the probe's sixth label (`format.mintick`) is not one this lane prints (`runtime:call-text-state`,
-  // CBC-FMT's standing refusal), so the run is asked of the first five
+  // the probe's sixth label (`format.mintick`) needs the chart's symbol (the TC block above);
+  // these runs carry none, so the run is asked of the first five
   const FIVE = PROBE.replace(/^.*format\.mintick.*$/m, '')
   it('⭐ v5 direct: the five texts, the two literals in full', () => {
     expect(runLabels(cap(S17), FIVE)).toEqual({ texts: cap(S17).objects.texts.labels.slice(0, 5) })

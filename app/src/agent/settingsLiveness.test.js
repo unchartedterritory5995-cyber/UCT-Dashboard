@@ -26,6 +26,9 @@ const CHART_RENDER_PATH = [
   'components/StockChart.jsx', 'components/chart/pane/ChartPane.jsx', 'components/chart/pane/ChartIdentityRow.jsx',
   'components/chart/swingLabelsPrimitive.js', 'components/chart/prevDayLevelsPrimitive.js', 'components/chart/crosshairMode.js', 'components/chart/legendMode.js',
   'components/chart/watermarkPrimitive.js',
+  // R2 (owner 11-16): the readers StockChart / ChartPane draw the promoted view options through (candlePartsOf,
+  // priceLineOf, gridLinesOf, rightMarginOf, priceDecimalsOf, timeFormatOf, sessionBreaksOf, nextEarningsMarkerOf, …)
+  'components/chart/chartViewOptions.js', 'components/chart/headerStatCatalog.js',
 ].map(read).join('\n')
 const leafOf = (id) => id.split('.').at(-1)
 const readsLeaf = (src, leaf) => new RegExp(`(?:\\.|\\?\\.)${leaf}\\b|\\[['"]${leaf}['"]\\]|\\b${leaf}\\s*[,:}=]`).test(src)

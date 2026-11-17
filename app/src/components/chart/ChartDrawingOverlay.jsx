@@ -619,6 +619,9 @@ export default function ChartDrawingOverlay({
     if (vs) {
       const vIdx = paneIdxOf(vs)
       if (vIdx >= 0 && vIdx !== candlePaneIndex) volumePaneIndex = vIdx
+      // TradingView overlay (StockChart `dimVolumeSeries`): the bars sit BEHIND the
+      // candles, which keep the whole pane — there is no volume zone to carve out.
+      else if (vs.__uctDimmed) { /* price owns the plot */ }
       else {
         try {
           // Band layout: the overlay price scale's own top margin IS the divider.
@@ -3937,7 +3940,7 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
                       <path d="M6.7 12.6a1.4 1.4 0 0 0 2.6 0" />
                     </svg>
                   </button>
-                  {swatch(lv.color, () => setColorPanel({ id: `fib:${lv.key}`, label: `Level ${num(lv.level)}`, line: false, fibLevel: lv.level, value: lv.color }), `Colour of level ${num(lv.level)}`)}
+                  {swatch(lv.color, () => setColorPanel({ id: `fib:${lv.key}`, label: `Level ${num(lv.level)}`, line: false, fibLevel: lv.level, value: lv.color }), `Color of level ${num(lv.level)}`)}
                 </div>
               ))}
 
@@ -3966,7 +3969,7 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
                     <span style={{ marginLeft: 'auto', display: 'flex' }}>
                       {swatch(st.enabled ? st.color : 'transparent',
                         () => setColorPanel({ id: `fill:${key}`, label: `Fill ${num(a)} → ${num(b)}`, line: false, fibBand: [a, b], value: st.color || defaultBandColor(drawing, a) }),
-                        `Colour of the ${num(a)} to ${num(b)} band`)}
+                        `Color of the ${num(a)} to ${num(b)} band`)}
                     </span>
                   </div>
                 )

@@ -24,6 +24,7 @@ const SURFACES = [
   './ChartSettingsIndicators.jsx',
   './IndicatorLibraryDialog.jsx',
   './IndicatorMembersTab.jsx',
+  './IndicatorHouseTab.jsx',
   './indicatorCatalog.js',
   '../../pages/formulas/FormulaLibrary.jsx',
   // the formula builder: its own list of saved work (slice 2). "New formula" and "Edit
@@ -48,7 +49,7 @@ describe('a saved indicator is called an indicator', () => {
   })
 
   it('"formula" is still the name of the typed way in', () => {
-    expect(code(read('./ChartSettingsIndicators.jsx'))).toMatch(/>write a formula</)
+    expect(code(read('./ChartSettingsIndicators.jsx'))).toMatch(/>[Ww]rite a formula</)   // UCT Signature R2: a sentence-case link ("Write a formula")
     expect(code(read('./IndicatorLibraryDialog.jsx'))).toMatch(/New formula/)
   })
 

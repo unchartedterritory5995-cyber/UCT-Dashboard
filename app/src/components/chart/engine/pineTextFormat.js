@@ -592,6 +592,17 @@ export function tickNumberText(n, tickText) {
   return (k * tick).toFixed(Math.min(decimals, 20))
 }
 
+/** ⭐ TC — WHY `tickNumberText` withheld (`null` when it prints): no tick this binding settles
+ *  (`format:tick-unsettled`: the symbol's exchange has no witnessed tick), or a tie no capture
+ *  shows (`format:tick-tie-uncaptured`: a NEGATIVE exact tie, any tie at a tick that is not a
+ *  power of ten). Read by the runtime lane, which stops a run BY THIS NAME rather than print. */
+export function tickNumberWhy(n, tickText) {
+  if (tickNumberText(n, tickText) !== null) return null
+  if (typeof tickText !== 'string' || !/^\d+(\.\d+)?$/.test(tickText) || !(Number(tickText) > 0)) return 'format:tick-unsettled'
+  if (typeof n !== 'number') return 'format:not-a-number'
+  return 'format:tick-tie-uncaptured'
+}
+
 /**
  * ⭐⭐ H5 (step 84) — `str.tostring(n, format.volume)`, ONLY where captures pin it,
  * else `null` (WITHHELD). `na` prints `NaN`, as every other `str.tostring` does.

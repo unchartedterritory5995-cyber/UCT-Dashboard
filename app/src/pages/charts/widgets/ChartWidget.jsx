@@ -22,7 +22,7 @@ import { normalizeDock } from './chartDock'
 import { chartFeaturesOf, addFeature, removeFeature, setFeatureOpen } from './chartFeatures'
 import styles from '../ChartsWorkspace.module.css'
 import ChartTabStrip from './ChartTabStrip'
-import { prefetchReplayTimeframes } from '../../../utils/prefetchBars'
+import { prefetchReplayTimeframes } from '../../../utils/barsWarm'
 import { viewCacheTf, resolveShowExtended } from '../../../utils/viewSession'
 import { fetchTf } from '../../../components/chart/timeframes'
 import useSymbolHandoff from '../../../hooks/useSymbolHandoff'
@@ -58,7 +58,7 @@ const ADD_WIDGET_LABELS = labelMap('menu')
 // the right-click menu and the workspace-only chrome (leverage picker, add-tab,
 // Share to the Floor).
 export default function ChartWidget({ color, opts, onOptsChange, chartId = null }) {
-  const { groupSyms, setGroupSym, setGroupTf, crosshairBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget, applyThemeToAllCharts, applyThemeToAllWidgets, canOpenCompare } = useWorkspace()
+  const { groupSyms, setGroupSym, setGroupTf, crosshairBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget, applyThemeToAllCharts, applyThemeToAllWidgets, countOtherCharts, applyAppearanceToOtherCharts, canOpenCompare } = useWorkspace()
   const navigate = useNavigate()
   // T3 integrated header: non-null only for a single chart on the /charts board grid.
   const widgetChrome = useContext(WidgetChromeContext)
@@ -282,19 +282,33 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // (master fec7c5e4). ChartWidget lost its own `chartCs` when settings
   // resolution moved into ChartPane, so it reads them back through the same hook
   // rather than reaching into the pane.
-  const { menuVars, cs: chartCs } = useChartSurfaceSettings({
+  const { menuVars, cs: chartCs, canvasCs } = useChartSurfaceSettings({
     stored: activeStoredSettings,
     onStore: persistActiveSettings,
     chartsTheme,
   })
-  // StockChart's own rule (utils/viewSession.resolveShowExtended — the one derivation) on the same settings.
-  paneExtRef.current = resolveShowExtended(chartCs)
+  // StockChart's own rule (utils/viewSession.resolveShowExtended — the one derivation) on the settings the
+  // canvas itself draws with (`canvasCs`: the widget's blob over the ACCOUNT's settings, not the defaults).
+  paneExtRef.current = resolveShowExtended(canvasCs)
 
   // Expose an imperative chart API for the Compare Symbols tool (read/write the
   // active chart's comparison overlays + the % price scale). Reads live settings
   // through a ref so the registered fns never go stale.
   const chartCsRef = useRef(chartCs)
   chartCsRef.current = chartCs
+
+  // Chart Settings → "Apply to all charts" (owner 11-16): this surface's address in the layout (the slot's group id +
+  // the open chart tab) and the workspace's two calls. The look copied is what THIS chart shows (`chartCs`, read at
+  // click time); the workspace writes the other charts in one layout change. null off the workspace ⇒ no door.
+  const appearanceTabId = isMainTab ? null : (activeExtra?.id || null)
+  const applyToAllCharts = useMemo(() => {
+    if (chartId == null || typeof countOtherCharts !== 'function' || typeof applyAppearanceToOtherCharts !== 'function') return null
+    const source = { chartId: String(chartId), tabId: appearanceTabId }
+    return {
+      count: () => countOtherCharts(source),
+      apply: () => applyAppearanceToOtherCharts(source, chartCsRef.current),
+    }
+  }, [chartId, appearanceTabId, countOtherCharts, applyAppearanceToOtherCharts])
 
   // ⭐ UCT AGENT ADAPTER (agent/host.js). The Agent never resolves a chart's
   // settings, tab or colour group itself — it reads them from HERE, as this
@@ -723,6 +737,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
         chartsTheme={chartsTheme}
         onApplyThemeAll={applyThemeToAllCharts}
         onApplyThemeAllWidgets={applyThemeToAllWidgets}
+        applyToAllCharts={applyToAllCharts}
         onActivate={markActive}
         onAdjustWatermark={startWatermarkAdjust}
         onResetWatermark={resetWatermark}
@@ -1087,7 +1102,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                 )}
                 {ctxMenu.bar && (
                   <button type="button" className={`${styles.chartCtxItem} ${styles.chartCtxAi}`} data-menu-id="ask-ai" onClick={handleAiSearch}>
-                    <UIcon name="compass" size={14} className={styles.chartCtxIcon} />Ask AI about {sym}
+                    <UIcon name="compass" size={14} className={styles.chartCtxIcon} />Ask the UCT Agent about {sym}
                   </button>
                 )}
               </>

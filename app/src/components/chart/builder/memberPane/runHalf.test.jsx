@@ -393,12 +393,66 @@ describe('⭐⭐ the bind draws the run\'s drawings only where every gate passes
     expect(runHalfOf(bind(def))).toEqual({ state: 'refused', code: 'pane:not-built' })
   })
 
-  it('⛔ the member moved a setting: refused (the run computes the script as written)', () => {
+  // ⭐⭐ SETTINGS PARITY (2c) — the run half at the chart's own settings. It used to be refused the
+  // moment ANY setting moved; now the run is handed the chart's values, and only a moved setting a
+  // DRAWING reads needs evidence of its own (`runHalfSettingsAdmitted`).
+  it('a moved plot width never reaches the run: served (the drawings are the same at any width)', () => {
     const def = install(door().definition)
     const k = (def.inputs || []).find((i) => i.key === 'lineWidth')
     expect(k, 'a declared input').toBeTruthy()
-    expect(runHalfOf(bind(def, { lineWidth: k.default + 2 }))).toEqual({ state: 'refused', code: 'runtime:member-inputs' })
-    expect(runHalfOf(bind(def, { lineWidth: k.default })).state, 'CONTROL: the default').toBe('served')
+    expect(runHalfOf(bind(def, { lineWidth: k.default + 2 })).state).toBe('served')
+  })
+
+  it('a moved length no drawing reads: the run is handed it, the column rail holds, served on the defaults\' evidence', () => {
+    const def = install(door().definition)
+    const len = (def.inputs || []).find((i) => i.fromParam || i.key === 'len')
+    expect(len, 'the length is a setting (a folded param or an input)').toBeTruthy()
+    const cols = bind(def, { [len.key]: 9 })
+    expect(runHalfOf(cols)).toEqual({ state: 'served', code: null })
+    // the host column moved with the setting, and the run's (held by the column rail) with it
+    expect(Array.from(cols.value)).not.toEqual(Array.from(bind(def).value))
+  })
+
+  describe('a setting only the drawings read', () => {
+    const SRC_N = ['//@version=5', 'indicator("run half n", overlay = true)', 'len = input.int(5, "len")',
+      'n = input.int(5, "How many", minval = 1, maxval = 5)',
+      'm = ta.sma(close, len)', 'plot(m, "m")', 'plot(m * 2, "m2")', 'if barstate.islast',
+      '    line.new(bar_index - 1, low, bar_index, high)', '    for i = 0 to n - 1',
+      '        if close[i] > open[i]', '            label.new(bar_index - i, high[i], "up")'].join(LF)
+    const ev = (extra = []) => setRunHalfObjectEvidence([{ sha256: runtimeSourceHash(SRC_N), captures: [
+      { capture: 'a', verdict: 'MATCH', objectsV2: true, runtimeOn: true },
+      { capture: 'b', verdict: 'MATCH', objectsV2: true, runtimeOn: true }, ...extra] }])
+
+    it('is declared on load (`fromRunHalf`), keyed by its Pine name, with the author\'s bounds', () => {
+      ev()
+      const def = install(door(SRC_N).definition)
+      expect(def.inputs.find((i) => i.key === 'n')).toMatchObject({ type: 'int', default: 5, min: 1, max: 5, fromRunHalf: true })
+    })
+
+    it('⛔ moved without evidence for it: refused by name, and the host program draws nothing it folded', () => {
+      ev()
+      const def = install(door(SRC_N).definition)
+      expect(runHalfOf(bind(def, { n: 2 }))).toEqual({ state: 'refused', code: 'runtime:member-inputs' })
+      expect(runHalfOf(bind(def)).state, 'CONTROL: at the default').toBe('served')
+    })
+
+    it('⭐ moved with two counted captures taken at it moved: served, and the run draws what the setting says', () => {
+      ev([{ capture: 'c', verdict: 'MATCH', objectsV2: true, runtimeOn: true, inputs: { n: 2 } },
+        { capture: 'd', verdict: 'MATCH', objectsV2: true, runtimeOn: true, inputs: { n: 3 } }])
+      const def = install(door(SRC_N).definition)
+      const all = runtimeObjectsOf(bind(def)).live.filter((o) => o.family === 'label').length
+      const cols = bind(def, { n: 2 })
+      expect(runHalfOf(cols)).toEqual({ state: 'served', code: null })
+      const two = runtimeObjectsOf(cols).live.filter((o) => o.family === 'label').length
+      expect(two).toBeLessThanOrEqual(2)
+      expect(two).toBeLessThan(all)
+    })
+
+    it('⛔ one counted capture is not evidence', () => {
+      ev([{ capture: 'c', verdict: 'MATCH', objectsV2: true, runtimeOn: true, inputs: { n: 2 } }])
+      const def = install(door(SRC_N).definition)
+      expect(runHalfOf(bind(def, { n: 2 })).code).toBe('runtime:member-inputs')
+    })
   })
 
   it('⛔⛔ THE COLUMN RAIL: a run column that is not the host\'s column refuses the drawings', () => {

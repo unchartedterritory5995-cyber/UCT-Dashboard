@@ -160,6 +160,33 @@ def test_a_runtime_lane_attach_transfers_on_the_runtime_on_lane_only(small):
     assert R.transfers(RT, row, src) == CM.runtime_on_transfers(row, False)
 
 
+def test_a_KILL_LISTED_runtime_attach_is_not_a_transfer_and_the_wall_says_why(small, monkeypatch):
+    """2026-11-17: the census runs the door WITHOUT the runtime kill list, so it counted
+    momentum-based-zigzag (killed, refused by name at every door) as transferring on runtime-on."""
+    import hashlib
+    src = small.scripts()[K("a")]["src"]
+    row = _row(K("a"), RT, clean=False, rt_lane="runtime")
+    monkeypatch.setattr(R, "_KILLED", {hashlib.sha256(src.encode("utf-8")).hexdigest()})
+    assert R.transfers(RT, row, src) is False
+    assert "runtime kill list" in R.wall_of(RT, row, src)
+    # the map's predicate agrees, and the CRLF form of the same text is the same script
+    assert CM.runtime_on_transfers(row, False, CM.is_runtime_killed(src.replace("\n", "\r\n"), R._KILLED)) is False
+    # control: a killed script CLEAN on the host lane still transfers (the list never touches the host lane)
+    assert R.transfers(RT, _row(K("a"), RT, clean=True, rt_lane="runtime"), src) is True
+    # control: the same attach, not killed, transfers
+    monkeypatch.setattr(R, "_KILLED", set())
+    assert R.transfers(RT, row, src) is True
+
+
+def test_the_committed_kill_list_is_read_and_an_unreadable_one_fails_loud(tmp_path):
+    killed = CM.runtime_killed_hashes()
+    assert len(killed) >= 1 and all(len(h) == 64 for h in killed)        # non-vacuous: it read entries
+    mbz = ROOT / "corpus" / "committed" / "momentum-based-zigzag__38d39d2d6c.pine"
+    assert CM.is_runtime_killed(mbz.read_bytes().decode("utf-8"), killed)  # the measured case, by its text
+    with pytest.raises(OSError):
+        CM.runtime_killed_hashes(str(tmp_path / "missing.json"))
+
+
 # ── refusals: a comparison that would prove nothing ──────────────────────────
 
 def test_a_vacuous_snapshot_is_refused(small, monkeypatch):

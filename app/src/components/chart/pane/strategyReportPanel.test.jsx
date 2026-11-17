@@ -63,14 +63,15 @@ const A = recordOf([
   tr('L4', 'long', 1, [13, 30], null),
 ])
 const ZERO = recordOf([])
-// the same trades from a run that also reached B-PYR, a rule the committed ledger does not pin
+// the same trades from a run that also reached B-PYR-PRICE, a rule the committed ledger does not pin (⚰️ this was
+// B-PYR until w9-q-s1b-defaults-v6 pinned it, 2026-11-17)
 const A_UNPINNED_RULE = recordOf([
   tr('L1', 'long', 2, [1, 10], [3, 13]),
   tr('S1', 'short', 1, [4, 20], [6, 25]),
   tr('L2', 'long', 3, [7, 5], [9, 5]),
   tr('L3', 'long', 1, [10, 50], [12, 54]),
   tr('L4', 'long', 1, [13, 30], null),
-], { rulesUsed: [...USED, 'B-PYR'] })
+], { rulesUsed: [...USED, 'B-PYR-PRICE'] })
 const RUN_REFUSED = {
   ...A,
   refusals: [{ rule: 'B-PATH', guard: UNPINNED_GUARD, time: at(5),
@@ -111,9 +112,9 @@ describe('W9-T13b the fixtures are what they say', () => {
     expect(FIXTURES.badRecord.status).toBe('refused')
     expect(FIXTURES.badRecord.window).toBe(null)
     expect(servedKeys.every((k) => FIXTURES.nothingPinned.metrics[k].status === 'refused')).toBe(true)
-    // the committed ledger (engine 60) pins the rules this record used and B-VAL, and not B-PYR
+    // the committed ledger (engine 60) pins the rules this record used and B-VAL, and not B-PYR-PRICE
     for (const id of [...USED, 'B-VAL']) expect(Object.keys(RESOLVED.rules)).toContain(id)
-    expect(Object.keys(RESOLVED.rules)).not.toContain('B-PYR')
+    expect(Object.keys(RESOLVED.rules)).not.toContain('B-PYR-PRICE')
     for (const k of servedKeys) expect(FIXTURES.productDefault.metrics[k]).toEqual(FIXTURES.allServed.metrics[k])
     expect(servedKeys.map((k) => FIXTURES.productDefaultUnpinnedRule.metrics[k].status)).toContain('refused')
     expect(FIXTURES.allServed.window.sentence).toBe(START_SENTENCE)
@@ -247,7 +248,7 @@ describe('W9-T13b the panel renders the report exactly', () => {
     }
   })
 
-  it('the product default, a record that used a rule the ledger does not pin (B-PYR): what depends on it refuses by its sentence', () => {
+  it('the product default, a record that used a rule the ledger does not pin (B-PYR-PRICE): what depends on it refuses by its sentence', () => {
     render(<StrategyReportPanel report={FIXTURES.productDefaultUnpinnedRule} />)
     clickTab('Performance summary')
     const refused = Object.keys(SERVED_METRICS).filter((k) => FIXTURES.productDefaultUnpinnedRule.metrics[k].status === 'refused')

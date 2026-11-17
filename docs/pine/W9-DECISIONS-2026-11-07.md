@@ -211,3 +211,24 @@ the 33 strategy captures first graded MATCH through every step.
    (`runtime:strategy-option`). The one other default that differs in spelling is pyramiding (TradingView reads
    the v2 to v4 default back as 1, our table holds 0): 0 and 1 both allow one entry per direction, so it is the
    same setting (`strategy_reference.mjs::effectiveSettingsDisagreements`).
+
+#### D12b (2026-11-17, coordinator, owner-delegated): the capture wins where it witnesses the RUN
+
+Refines D12 points 2 to 5; points 1 and 6 stand.
+
+1. **For exactly the witnessed declaration shape, the v4 margin default is the read-back 0.** Both v4 captures declare
+   `strategy(title="...", overlay=false)` and nothing else; TradingView read back Margin Long 0 and Margin Short 0.
+   For a v4 `strategy()` whose argument set is exactly a title (by name or by position: the same parameter) and
+   `overlay` (any value: a presentation argument), with no margin, size, capital, pyramiding, cost or any other
+   argument, the run uses margin_long = margin_short = 0, behind the broker rule **B-V4-MARGIN0** (capture row Q-S1b),
+   pinned by both captures. `ast/strategyBroker.js::readStrategyDeclaration` (`v4MarginReadBack`), `runtime/broker.js`.
+2. **The text the capture overrules, kept on the record.** The v4 Language Reference, `strategy()` `margin_long` /
+   `margin_short`: "The default is 100." The capture overrules it for that shape only; our table
+   (`DECLARATION_DEFAULTS[4]`) still holds 100.
+3. **The condition was met.** Served ONLY IF both v4 captures grade MATCH at it: both do (2026-11-17), `MATCH` at
+   step 7 (trades, fills, 9 report slots, 10 value series). Step 7 is the last step they hold: neither probe draws a
+   label, so step 8 (drawn texts) has nothing to grade. Had either not matched, D12 would have stood unchanged.
+4. **Every other v4 shape that states no margin keeps D12's bind refusal** (`runtime:strategy-unsettled`, naming the
+   v4 margin default and Q-S1b). One probe per distinct shape the armed census meets is queued under row Q-S1b
+   (`w9-q-s1b-v4-shape-a` to `-e`, `docs/pine/capture-queue-2026-11-05-w9.md`): its Properties read-back settles
+   that shape. Evidence: `docs/pine/evidence/2026-11-17-strategy-v4-margin-d12b/EVIDENCE.md`.

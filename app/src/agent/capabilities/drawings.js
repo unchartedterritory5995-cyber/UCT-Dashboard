@@ -235,14 +235,14 @@ export function registerDrawingCapabilities() {
     ...common,
     name: 'drawing.addLevel',
     summary: 'Draw a HORIZONTAL LINE at a price on a chart\'s symbol — the price axis\'s own "Draw horizontal line at $X". Every chart on that symbol shows it; Undo removes it. A level that starts on a date is drawing.addHorizontalRay; every other tool has its own capability or drawing.add.',
-    hints: 'target = the drawings entry for the chart\'s symbol; price = the level (a number, as the member said it — never invented); color = a colour name or #hex, null = the member\'s drawing default; style = solid | dashed | dotted, null = solid. One op per level. '
+    hints: 'target = the drawings entry for the chart\'s symbol; price = the level (a number, as the member said it — never invented); color = a color name or #hex, null = the member\'s drawing default; style = solid | dashed | dotted, null = solid. One op per level. '
       + 'A level the member describes without a number ("the recent high", "support") has no price — clarify, never guess.',
     args: { type: 'object', properties: {
       price: { type: 'number' }, color: { type: ['string', 'null'] }, style: { type: ['string', 'null'], enum: [...STYLES, null] },
     }, required: ['price', 'color', 'style'], additionalProperties: false },
     check(st, { price, color, style }) {
       if (!Number.isFinite(price) || price <= 0) return 'Say the price for the line (a positive number).'
-      if (color != null && !normalizeColor(color)) return `“${color}” isn't a colour I know — use a name like blue or a #hex.`
+      if (color != null && !normalizeColor(color)) return `“${color}” isn't a color I know — use a name like blue or a #hex.`
       if (style != null && !STYLES.includes(style)) return `Line styles are ${STYLES.join(', ')}.`
       if (st.drawings.some(d => d.type === 'horizontal' && !d.hidden && d.points?.[0]?.price === price)) return `There is already a horizontal line at ${money(price)} on ${st.symbol}.`
       if (!validateDrawing('horizontal', [{ price }]).ok) return 'Say the price for the line (a positive number).'
@@ -269,7 +269,7 @@ export function registerDrawingCapabilities() {
   registerCapability({
     ...common,
     name: 'drawing.style',
-    summary: 'Change ONE drawing\'s colour, line style or width (what its settings do). Undo puts the old style back.',
+    summary: 'Change ONE drawing\'s color, line style or width (what its settings do). Undo puts the old style back.',
     hints: 'target = the drawings entry; drawing = its id from that entry\'s drawings (the most recent one the member drew is last; the one marked recent is the one I last drew or changed); color / style / width null = leave as is. "Make that line pink and dashed" / "make it red" = the recent one (else the line just drawn).',
     args: { type: 'object', properties: {
       drawing: drawingArg, color: { type: ['string', 'null'] }, style: { type: ['string', 'null'], enum: [...STYLES, null] }, width: { type: ['integer', 'null'], enum: [...WIDTHS, null] },
@@ -278,10 +278,10 @@ export function registerDrawingCapabilities() {
       const d = byId(st, drawing)
       if (!d) return notFound(drawing)
       if (d.locked) return `That ${objectTypeName(d.type)} is locked — unlock it on the chart first.`
-      if (color == null && style == null && width == null) return 'Say what to change: colour, line style or width.'
+      if (color == null && style == null && width == null) return 'Say what to change: color, line style or width.'
       // the drawing's own colour row says whether it has a line (a note has none): a receipt must not claim one
-      if ((style != null || width != null) && !hasLineStyle(d.type)) return `That ${objectTypeName(d.type)} has no line to style — it takes a colour, and drawing.setProps has its text settings.`
-      if (color != null && !normalizeColor(color)) return `“${color}” isn't a colour I know — use a name like blue or a #hex.`
+      if ((style != null || width != null) && !hasLineStyle(d.type)) return `That ${objectTypeName(d.type)} has no line to style — it takes a color, and drawing.setProps has its text settings.`
+      if (color != null && !normalizeColor(color)) return `“${color}” isn't a color I know — use a name like blue or a #hex.`
       if (style != null && !STYLES.includes(style)) return `Line styles are ${STYLES.join(', ')}.`
       if (width != null && !WIDTHS.includes(width)) return `Line widths are ${WIDTHS.join(', ')}.`
       return null
@@ -299,7 +299,7 @@ export function registerDrawingCapabilities() {
       if (!o || !n || same(o, n)) return null
       const what = []
       const ck = colorKeyOf(o)
-      if (o[ck] !== n[ck]) what.push(`colour ${colorName(n[ck])}`)
+      if (o[ck] !== n[ck]) what.push(`color ${colorName(n[ck])}`)
       if ((o.lineStyle || 'solid') !== (n.lineStyle || 'solid')) what.push(n.lineStyle)
       if ((o.lineWidth || 1) !== (n.lineWidth || 1)) what.push(`${n.lineWidth}px`)
       return `Restyled the ${nameOf(o)} on ${a.symbol}: ${what.join(', ')}`
@@ -519,7 +519,7 @@ const anchorsFor = (st, pts, opts) => {
   for (const p of pts) { const a = anchorFor(st, p, opts); if (a.why) return a; out.push(a) }
   return { points: out }
 }
-const styleWhy = ({ color, style }) => (color != null && !normalizeColor(color) ? `“${color}” isn't a colour I know — use a name like blue or a #hex.`
+const styleWhy = ({ color, style }) => (color != null && !normalizeColor(color) ? `“${color}” isn't a color I know — use a name like blue or a #hex.`
   : style != null && !STYLES.includes(style) ? `Line styles are ${STYLES.join(', ')}.` : null)
 /** The drawing exactly as the toolbar would store it for this symbol's chart. */
 function newDrawing(st, type, points, { color, style, extra = {} }) {
@@ -559,7 +559,7 @@ function registerAnchoredDrawingCapabilities(common) {
       ...common,
       name,
       summary,
-      hints: `target = the drawings entry for the chart's symbol; ${hint} ${DATE_HINT}; color = a colour name or #hex, null = the member's drawing default; style = solid | dashed | dotted, null = solid.`,
+      hints: `target = the drawings entry for the chart's symbol; ${hint} ${DATE_HINT}; color = a color name or #hex, null = the member's drawing default; style = solid | dashed | dotted, null = solid.`,
       args: { type: 'object', properties: { from: ANCHOR_ARG, to: ANCHOR_ARG, ...STYLE_ARGS }, required: ['from', 'to', 'color', 'style'], additionalProperties: false },
       check(st, { from, to, color, style }) {
         const s = styleWhy({ color, style })
@@ -619,7 +619,7 @@ function registerAnchoredDrawingCapabilities(common) {
     ...common,
     name: 'drawing.addText',
     summary: 'Place a TEXT NOTE on a chart\'s symbol at a date and price — the toolbar\'s own text tool, with the member\'s exact words. Undo removes it.',
-    hints: `target = the drawings entry for the chart's symbol; text = the note exactly as the member said it (never reworded, up to ${TEXT_MAX} characters); date / price = where it sits; ${DATE_HINT}; color = a colour name or #hex, null = the member's default.`,
+    hints: `target = the drawings entry for the chart's symbol; text = the note exactly as the member said it (never reworded, up to ${TEXT_MAX} characters); date / price = where it sits; ${DATE_HINT}; color = a color name or #hex, null = the member's default.`,
     args: { type: 'object', properties: { text: { type: 'string' }, date: { type: 'string' }, price: { type: 'number' }, color: { type: ['string', 'null'] } }, required: ['text', 'date', 'price', 'color'], additionalProperties: false },
     check(st, { text, date, price, color }) {
       const t = String(text || '').trim()

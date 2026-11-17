@@ -27,10 +27,11 @@ import { storeConversation, attachConversation, armConversationAlerts } from '..
 import { stampSemantics } from '../../engine/definitionSemantics'
 import { OUTPUT_TYPES } from '../../engine/outputType'
 import { STUDIO_PREVIEW_DEF_ID } from '../studio/chartPreview'
-import { memberError, memberSaveError, memberRefusal } from './memberWords'
+import { memberError, memberSaveError, memberRefusal, chartRefusalWords } from './memberWords'
 import { logStudioAction, definitionKinds, clientFailureOf } from './studioTelemetry'
 import { outputNamer, slotWords } from './readback'
 import { soleCueName, memberCueNames } from './derivedName'
+import { settingPatch, settingRefusal } from './derivedSettings'
 import { renamePatch, withMemberName } from './memberNamePatch'
 import { validateUserDefinitions } from '../../engine/nativeRegistry'
 import { saveReceipt } from '../studio/saveOutcomeReceipt'
@@ -46,10 +47,11 @@ export const typeWord = (t) => TYPE_WORDS[t] || 'Output'
 function changeWords(c) {
   switch (c.kind) {
     case 'type-changed': return `${c.output} is now a ${typeWord(c.to).toLowerCase()} (was ${typeWord(c.from).toLowerCase()}).`
-    case 'refused-on-chart': return `${c.output} can't be drawn here: ${c.text}`
+    case 'refused-on-chart': return `${c.output} can't be drawn here: ${chartRefusalWords(c.guard, c.text) || c.text}`
     case 'requests-cleared': return `Requests on ${c.output} were cancelled with it.`
     case 'intent-cleared': return `The signal choice on ${c.output} was cleared with it.`
     case 'paint-removed': return c.text ? `${c.output}: ${c.text}` : null
+    case 'scan-moved': return `Running this over a list now reads ${c.output}: the line it read (${c.from}) was removed.`
     default: return null
   }
 }
@@ -181,6 +183,43 @@ export function renameTurn(before, name, { gateCtx = {}, memberWords = null } = 
       lines: [`Renamed to “${out.readback.name || name}”.`] }] }
 }
 
+/**
+ * ⭐ ONE SETTING CHANGED BY HAND (2026-11-17, `derivedSettings.js`) — a number of the working
+ * indicator set from its own field, with no model call. The ordinary `set_slot` op through the
+ * same engine door as a conversation turn: one revision, one Undo step, the name follows the
+ * maths, the preview redraws.
+ * @returns `{ok, state: next|null, changed, entries, stale?: true, errors?}` — `stale` when the
+ *   setting no longer matches the working indicator (the caller re-derives and shows the new list)
+ */
+export function settingTurn(before, setting, value, { gateCtx = {} } = {}) {
+  const refusal = settingRefusal(setting, value)
+  if (refusal) {
+    return { ok: false, state: null, changed: false, entries: [], message: refusal }
+  }
+  const patch = settingPatch(before, setting, value)
+  if (!patch) return { ok: false, state: null, changed: false, entries: [], stale: true }
+  const out = applyTurn(before, patch, { gateCtx })
+  if (out.result.status !== 'applied') {
+    const errors = out.result.errors || []
+    return { ok: false, state: null, changed: false, entries: [], errors,
+      // a `schema:` refusal's sentence is about the assistant's patch; this one was typed by hand
+      message: errors.length && !String(errors[0].code || '').startsWith('schema:')
+        ? errorWords(errors[0], before.working) : 'That value could not be applied.' }
+  }
+  return { ok: true, state: out.state, changed: true, changes: (out.result.changes || []).map((c) => ({ ...c })),
+    entries: [{ role: 'uct', kind: 'patched', revision: out.state.revision, updated: true, bySetting: true,
+      lines: [`Set ${setting.caption} ${setting.role} from ${setting.value} to ${value}.`] }] }
+}
+
+/** The longest description of its own work the dock shows from the assistant. */
+export const SAID_MAX = 400
+
+/** The assistant's description of a change, as plain bounded text; '' when there is none. */
+export function saidOf(reply) {
+  const t = typeof reply === 'string' ? reply.replace(/\s+/g, ' ').trim() : ''
+  return t.length > SAID_MAX ? `${t.slice(0, SAID_MAX - 1).trimEnd()}…` : t
+}
+
 /** PACKAGE 3: `envelope` with its `create` name kept as a custom name (see modelTurn), else the SAME envelope. */
 function withCreateName(envelope, words, accept) {
   if (!envelope || !Array.isArray(envelope.ops)) return envelope
@@ -191,6 +230,24 @@ function withCreateName(envelope, words, accept) {
   let ok = false
   try { ok = !!name && accept(name) === true } catch { ok = false }
   return ok ? { ...envelope, ops: [...envelope.ops, { op: 'rename_definition', name }] } : envelope
+}
+
+/**
+ * The envelope a NEW indicator is applied with, once the question "whose name?" is answered.
+ * `keep(name, { derivedName })` is asked with the name the engine WOULD derive (a dry run of the same
+ * patch against the same state; `applyTurn` writes nothing). Used by the dock (`modelTurn`) and by the
+ * New formula window's Describe box (`ConverseBox`), so the two cannot answer differently.
+ * ⛔ The caller decides WHETHER this turn creates the indicator; this only decides the name.
+ */
+export function nameFromAssistant(state, envelope, words, gateCtx, keep) {
+  if (typeof keep !== 'function') return envelope
+  let ctx = { derivedName: null }
+  try {
+    const dry = applyTurn(state, envelope, { gateCtx, memberWords: words })
+    const w = dry && dry.state && dry.state.working
+    ctx = { derivedName: (w && w.meta && typeof w.meta.name === 'string') ? w.meta.name : null }
+  } catch { ctx = { derivedName: null } }
+  return withCreateName(envelope, words, (n) => keep(n, ctx))
 }
 
 /**
@@ -236,7 +293,11 @@ export async function modelTurn(before, current, words, { snippets = [], gateCtx
   // patch (an appended `rename_definition`: one revision, one Undo step). Only for the turn that CREATES the definition,
   // only when the member named nothing, and only for a name the predicate accepts. The dock never passes it: there,
   // `create` still takes the derived name (derivedName.js).
-  const envelope = typeof keepCreateName === 'function' && !before.working ? withCreateName(named, words, keepCreateName) : named
+  // ⭐ 2026-11-16 — the predicate is also told the name the engine WOULD derive (a dry run of
+  // the same patch against the same state; `applyTurn` writes nothing), so a caller can keep
+  // the assistant's name only where the derived one is unreadable (`readableName.js`, the dock).
+  const wantsName = typeof keepCreateName === 'function' && !before.working
+  const envelope = wantsName ? nameFromAssistant(current(), named, words, gateCtx, keepCreateName) : named
   const now = current()
   const out = applyTurn(now, envelope, { gateCtx, memberWords: words })
   const { result } = out
@@ -254,7 +315,14 @@ export async function modelTurn(before, current, words, { snippets = [], gateCtx
   // ⛔ P3S: a CHANGE shows the deterministic readback of the RESULT and nothing the model wrote.
   return { ok: true, state: out.state, changed: true, outcome: turn.outcome, changes: result.changes || [],
     entries: [{ role: 'uct', kind: before.working ? 'patched' : 'created', revision: out.state.revision, updated: true,
-      lines: [...replyLines(out.readback, out.state, result.changes), ...unclear] }] }
+      lines: [...replyLines(out.readback, out.state, result.changes), ...unclear],
+      // ⭐ 2026-11-16 (Studio plan, section 5) — WHAT THE ASSISTANT SAYS IT BUILT, kept apart from
+      // the engine's words above and labelled as the assistant's by the dock. The engine's lines
+      // stay the authority; this is the plain sentence a member checks their request against
+      // (a read-back like "1 when (the 10-bar exponential average ...) and 0 otherwise" is true
+      // and hard to read). ⛔ Its own field, NOT `reply`: `snippetOf` reads `reply`, and what is
+      // sent back to the model as context must not change.
+      ...(saidOf(turn.reply) ? { said: saidOf(turn.reply) } : {}) }] }
 }
 
 /**

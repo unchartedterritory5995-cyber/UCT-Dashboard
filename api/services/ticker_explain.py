@@ -2210,7 +2210,7 @@ def explain_recent_activity(sym: str, question: str, history: Optional[list] = N
 
     if guard.over_budget(_COST_SURFACE, COST_CAP_ENV, DEFAULT_COST_CAP_USD):
         return _result(sym=sym, question=question, response_state="refuse",
-                       refusal_reason="The AI assistant has reached today's usage limit "
+                       refusal_reason="The UCT Agent has reached today's usage limit "
                                       "-- try again tomorrow.")
 
     try:
@@ -2239,7 +2239,7 @@ def explain_recent_activity(sym: str, question: str, history: Optional[list] = N
                         sym, attempt, exc)
             return _result(sym=sym, question=question, entity=entity, domains=domains,
                            response_state="refuse",
-                           refusal_reason="The AI assistant is temporarily unavailable.")
+                           refusal_reason="The UCT Agent is temporarily unavailable.")
         if getattr(resp, "stop_reason", None) == "refusal":
             return _result(sym=sym, question=question, entity=entity, domains=domains,
                            response_state="refuse",

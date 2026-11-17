@@ -203,6 +203,9 @@ const EXPECTED_UNEXERCISED = [
   'pine:library-denied',
   'pine:library-licence',
   'pine:library-no-sha',
+  // ⭐ ARRIVED 2026-11-16 (U15 Phase B) AS A NEW GUARD, for the same reason: a v5 library in a v6
+  // script whose reached code changed meaning in v6. Pinned in `pineLibraryVersion.test.js`.
+  'pine:library-version',
   'pine:live-bar-state',
   // ⭐⭐ ARRIVED 2026-09-21, NEWLY DECLARED — and it arrived the same way
   // `pine:objects-only` did, by splitting a sentence that was answering the

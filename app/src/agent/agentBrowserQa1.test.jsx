@@ -205,7 +205,7 @@ describe('BROWSER-QA-1 #4 · receipts name the colour', () => {
     const { board, say } = mount(...FOUR())
     const raw0 = raw(board)
     await say('make the 20 ema on the NVDA chart red')
-    await waitFor(() => expect(transcript()).toMatch(/Changed EMA 20's colour on .* to red\./), { timeout: 8000 })
+    await waitFor(() => expect(transcript()).toMatch(/Changed EMA 20's color on .* to red\./), { timeout: 8000 })
     expect(transcript()).not.toMatch(/#df4646/i)
     expect(inst(board, 'c3', 20, 'ema').inputs.color).toBe('#df4646')
     await say('undo')

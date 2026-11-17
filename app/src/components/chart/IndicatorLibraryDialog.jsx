@@ -77,6 +77,7 @@ import {
 } from './indicatorCatalog'
 import { isIndicatorEnabled, setIndicatorEnabled, addInstance, definitionVisibility } from './engine/instanceControls'
 import IndicatorMembersTab from './IndicatorMembersTab'
+import IndicatorHouseTab from './IndicatorHouseTab'
 // The blob-shape readers for the two BUILT-IN rows. They are not instances and
 // not settings slices, so `instanceControls` cannot answer for them — see
 // `isRowOn` below, and `chartDefaults`'s tombstone header for why removal is a
@@ -282,7 +283,9 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
   // this sheet is (measured on production at 820 and 390: no Chart Settings control is
   // visible). So the sheet opens the same list itself.
   const [membersOpen, setMembersOpen] = useState(false)
-  useEffect(() => { if (!open) setMembersOpen(false) }, [open])
+  // ⭐ UCT, the house set, the same way (2026-11-16)
+  const [houseOpen, setHouseOpen] = useState(false)
+  useEffect(() => { if (!open) { setMembersOpen(false); setHouseOpen(false) } }, [open])
   const { seen: tourSeen } = useIndicatorTours(typeof onFirstAdd === 'function')
   const searchRef = useRef(null)
   const bodyRef = useRef(null)
@@ -742,6 +745,41 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
 
   if (!open) return null
 
+  if (houseOpen) {
+    return (
+      <Sheet open={open} onClose={onClose} variant="auto" title="UCT indicators" ariaLabel="UCT indicators" maxWidth={640} className={sheetClassName}>
+        <div className={styles.body} data-testid="library-house-view" {...{ [PORTAL_POPUP_ATTR]: 'indicator-library' }}>
+          <button type="button" className={styles.backRow} data-testid="library-house-back"
+            onClick={() => { setHouseOpen(false); setQuery('') }}>
+            <span aria-hidden="true">←</span> All indicators
+          </button>
+          <input
+            type="search"
+            role="searchbox"
+            className={styles.search}
+            placeholder="Search UCT indicators"
+            aria-label="Search UCT indicators"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <IndicatorHouseTab
+            query={query}
+            listOwn={() => (generation >= 0 && registry?.listUserDefinitions?.()) || []}
+            isOnOffer={(defId) => generation >= 0 && !!registry?.getDefinition?.(defId)}
+            onPutOnChart={(defId) => {
+              if (!defId || !registry?.getDefinition?.(defId)) return false
+              const next = addInstance(settings, defId, registry)
+              if (next === settings) return false
+              onChange?.({ ...next, preset: 'custom' })
+              onClose?.()
+              return true
+            }}
+          />
+        </div>
+      </Sheet>
+    )
+  }
+
   if (membersOpen) {
     return (
       <Sheet open={open} onClose={onClose} variant="auto" title="Members' indicators" ariaLabel="Members' indicators" maxWidth={640} className={sheetClassName}>
@@ -826,6 +864,22 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
         {/* ⭐ MEMBERS' INDICATORS, from the library. Like the two rows around it, not filtered
             by `query`. The typed text is cleared on the way in: it was a search of the
             catalogue, and the list it opens has its own box. */}
+        {/* ⭐ UCT INDICATORS, the house set: built by UCT and checked bar by bar. */}
+        <button
+          type="button"
+          className={styles.createRow}
+          data-testid="library-house"
+          onClick={() => { setQuery(''); setHouseOpen(true) }}
+        >
+          <span className={`${styles.createPlus} ${styles.createSpark}`} aria-hidden="true">◆</span>
+          <span className={styles.createMain}>
+            <span className={styles.createName}>UCT indicators</span>
+            <span className={styles.createBlurb}>
+              The ones traders build first, already built and checked. Install one to make your own copy.
+            </span>
+          </span>
+          <span className={styles.createArrow} aria-hidden="true">→</span>
+        </button>
         <button
           type="button"
           className={styles.createRow}

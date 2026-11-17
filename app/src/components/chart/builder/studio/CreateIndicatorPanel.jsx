@@ -36,6 +36,7 @@ import { hasSomethingToSend } from './sendConversation'
 // ⭐ L8 — loaded on the press: most conversations are never sent
 const SendConversationDialog = lazy(() => import('./SendConversationDialog'))
 import { safeCssColour } from '../../engine/objectColour'
+import SettingsFields from './SettingsFields'
 
 const EXAMPLES = Object.freeze(['Add a 20 EMA', 'RSI overbought signal', 'Volume above its 50-day average'])
 const PANEL_W = 360
@@ -173,7 +174,7 @@ function Working({ onStop }) {
   return (
     <div className={styles.workingRow}>
       <div className={styles.workingText}>
-        <div className={styles.working} data-testid="create-indicator-working">UCT Intelligence is thinking</div>
+        <div className={styles.working} data-testid="create-indicator-working">The UCT Agent is thinking</div>
         <div className={styles.workingNote} data-testid="create-indicator-working-note" aria-live="off">
           {secs >= LONG_WAIT_S ? `${secs}s. This one is taking longer than usual` : `${secs}s. ${USUAL_WAIT}`}
         </div>
@@ -189,17 +190,25 @@ export const ALLOWANCE_NOTE_BELOW = 0.5
 
 /** The sentence for a share left, or null while there is plenty. No times: the allowance
  *  renews with the market day, which this line does not try to pin to a clock. */
+/** True while the conversation's LAST entry is the spent-allowance refusal: the line above the box
+ *  would say the same thing twice. */
+export function spentJustSaid(transcript, left) {
+  if (!(typeof left === 'number' && left <= 0)) return false
+  const last = Array.isArray(transcript) && transcript.length ? transcript[transcript.length - 1] : null
+  return !!(last && last.kind === 'refusal' && last.gate === 'cost:user')
+}
+
 export function allowanceLine(left) {
   if (typeof left !== 'number' || !(left < ALLOWANCE_NOTE_BELOW)) return null
-  if (left <= 0) return "Today's UCT Intelligence allowance is used up. It renews each day."
-  return `About ${Math.max(5, Math.round(left * 100))}% of today's UCT Intelligence allowance is left.`
+  if (left <= 0) return "Today's UCT Agent allowance is used up. It renews each day."
+  return `About ${Math.max(5, Math.round(left * 100))}% of today's UCT Agent allowance is left.`
 }
 
 export default function CreateIndicatorPanel({
   onClose, settings = null, onChange = null, sym = null, tf = null, anchorRef = null,
   onPreview, onOpenBuilder = null, onOpenLibrary = null, converse = converseTurn,
   dockHost = null, onDocked = null, sessionKey = null, editRow = null, onEditFormula = null,
-  seed = null, previewChartRef = null,
+  seed = null, sendSeed = false, previewChartRef = null,
 }) {
   // ⭐ PHASE 4 — held once: the row this studio was opened on (a later list refresh
   // must not re-open it under the member's feet).
@@ -324,6 +333,19 @@ export default function CreateIndicatorPanel({
     await conv.send(words)
   }, [message, busy, saving, conv])
 
+  // ⭐ 2026-11-16 — THE MEMBER'S OWN WORDS, SENT ONCE. The Indicators window's plain-words box
+  // was submitted by the member (`sendSeed`), so the seed goes as the first turn instead of
+  // waiting in the box. ⛔ Once per opening, never over a restored draft, never on an indicator
+  // that cannot be changed here, and never for UCT Agent's seed (its door cannot set the flag).
+  const seedSentRef = useRef(false)
+  useEffect(() => {
+    if (!sendSeed || seedSentRef.current) return
+    if (conv.restored || blocked || typeof seed !== 'string' || !seed.trim()) return
+    seedSentRef.current = true
+    submit(seed)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, at the opening that carried it
+  }, [])
+
   // ⭐ SLICE 2 — TWO WAYS OUT, AND THEY MEAN DIFFERENT THINGS.
   //   ✕       closes the dock and KEEPS the draft: reopening Create Indicator on
   //           this chart restores the conversation and its preview.
@@ -385,7 +407,7 @@ export default function CreateIndicatorPanel({
           <span className={styles.title}>{panelTitle}</span>
           <span className={styles.identity}>
             <UIcon name="ind-formula" size={11} gold={false} />
-            UCT Intelligence
+            UCT Agent
           </span>
         </div>
         <button type="button" className={styles.close} onClick={askOrClose} aria-label={`Close ${panelTitle} (your draft is kept)`}
@@ -485,6 +507,14 @@ export default function CreateIndicatorPanel({
                   {(t.lines || []).map((l, i) => (
                     <span key={i} className={i === 0 ? styles.lead : undefined}>{l}</span>
                   ))}
+                  {/* ⭐ What the assistant says it built: below the engine's words, and labelled as
+                      the assistant's, never mixed into them (Studio plan, section 5). Plain text. */}
+                  {typeof t.said === 'string' && t.said && (
+                    <span className={styles.said} data-testid="create-indicator-said">
+                      <span className={styles.saidLabel}>What the assistant says it built</span>
+                      {t.said}
+                    </span>
+                  )}
                   {/* P3 UX — the engine's code, for support, behind the member sentence */}
                   {Array.isArray(t.details) && t.details.length > 0 && (
                     <details data-testid="create-indicator-error-detail">
@@ -568,6 +598,9 @@ export default function CreateIndicatorPanel({
               {[...rb.alerts, ...rb.infoValues].map((l) => <div key={l} className={styles.detail}>{l}</div>)}
             </div>
           )}
+          {/* ⭐ SETTINGS (2026-11-17) — every length, level and multiple of the indicator, as a field.
+              A change is the ordinary slot edit: the preview redraws and Undo takes it back. */}
+          <SettingsFields settings={conv.settings} onSet={conv.setNumber} disabled={busy || saving} styles={styles} />
           {conv.needsAck.length > 0 && (
             <label className={styles.ack}>
               <input type="checkbox" checked={conv.acked} onChange={(e) => conv.setAcked(e.target.checked)}
@@ -579,7 +612,10 @@ export default function CreateIndicatorPanel({
         </section>
       )}
 
-      {allowanceLine(conv.allowanceLeft) && (
+      {/* ⭐ SAID ONCE (2026-11-17). When the last thing in the conversation is the spent-allowance
+          answer itself, this line would repeat it directly underneath; it returns as soon as that
+          answer is no longer the last thing said. */}
+      {allowanceLine(conv.allowanceLeft) && !spentJustSaid(transcript, conv.allowanceLeft) && (
         <p className={styles.allowance} data-testid="create-indicator-allowance" role="status">
           {allowanceLine(conv.allowanceLeft)}
         </p>
@@ -593,7 +629,7 @@ export default function CreateIndicatorPanel({
           disabled={saving || blocked}
           placeholder={editMode ? 'Describe a change — e.g. "make it 21" or "make the line gold"'
             : (state.working ? 'Refine it — e.g. "make it 50"' : 'Describe the indicator you want to build…')}
-          aria-label="Message UCT Intelligence"
+          aria-label="Message the UCT Agent"
           data-testid="create-indicator-input"
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={(e) => {

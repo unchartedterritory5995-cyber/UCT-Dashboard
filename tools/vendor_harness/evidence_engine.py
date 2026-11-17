@@ -70,6 +70,11 @@ CORPUS = REPO / "corpus"
 FIXTURE_ROOT = REPO / "tests" / "fixtures" / "vendor"
 FIXTURES = FIXTURE_ROOT / "harness"          # where `promote` files a new capture
 COVERAGE = DOCS / "coverage-map.json"
+#: ⚰️ A LOCAL VIEW SINCE 2026-11-16, NEVER COMMITTED (.gitignore names it; `queue --check` refuses a tracked one).
+#: It was committed until then, and every PR that touched a queue input rewrote it: 39 master commits in three
+#: days, and on 2026-11-16 it was the conflicting file in 5 of the 5 open Pine PRs GitHub could not merge. Each
+#: conflict meant a merge of master, a regenerate commit and a full pine-heavy re-run (~100 runner-minutes),
+#: for a file EVIDENCE-ENGINE-DESIGN.md already called "the authority for nothing". Every reader derives it.
 QUEUE_OUT = DOCS / "vendor-harness" / "capture-queue.json"
 LEDGER = el.LEDGER
 DOOR_FLAG = "VITE_PINE_OBJECTS_ONLY_PANE_ENABLED"
@@ -1591,6 +1596,15 @@ def resolve_pins(pins: dict, ledger_rows: list, sources: dict | None = None) -> 
     exercised_by = {}   # rule -> [verdict of every row that exercised it]
     table = None
     for r in ledger_rows:
+        # ⭐ 2026-11-17 (Q-S1i, B-MARGIN-CALL) — the evidence ledger's own row (LEDGER_SCHEMA) is the INDICATOR
+        # harness's grade of a capture, one verdict per lane (`verdicts: {production, runtime-on}`), and states no
+        # broker verdict at all (no top-level `verdict`). A strategy capture promoted through that harness (the
+        # 2026-11-16 night's captures) carries one beside its strategy verdict file. ⚰️ Read as a broker row, its
+        # missing `verdict` was a non-MATCH, so such a capture could never pin a rule, whatever its broker grade.
+        # The strategy verdict file is the broker's grade; a capture with only a ledger row is still "no committed
+        # verdict" (an ERROR below, never a silent un-pin).
+        if r.get("schema") == LEDGER_SCHEMA and "verdict" not in r:
+            continue
         cid = r.get("captureId")
         if cid:
             v = r.get("verdict")
@@ -1667,6 +1681,18 @@ def print_counts(q: dict) -> None:
 
 def queue_text(q: dict) -> str:
     return dump(q)
+
+
+def snapshot_tracked(path: pathlib.Path):
+    """Is `path` a file git tracks? True / False, or None when git could not answer (never guessed)."""
+    try:
+        proc = subprocess.run(["git", "ls-files", "--error-unmatch", "--", rel(path)], cwd=str(REPO),
+                              capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if proc.returncode == 0:
+        return True
+    return False if proc.returncode == 1 else None
 
 
 def heavy_lock_tool():
@@ -1817,7 +1843,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="The evidence engine (docs/pine/EVIDENCE-ENGINE-DESIGN.md).")
     sub = ap.add_subparsers(dest="cmd")
     q = sub.add_parser("queue")
-    q.add_argument("--check", action="store_true", help="compare with the committed snapshot, write nothing")
+    q.add_argument("--check", action="store_true", help="derive, write nothing; fails if a snapshot is committed")
     q.add_argument("--out", default=str(QUEUE_OUT))
 
     def sel(p):
@@ -1867,18 +1893,29 @@ def main(argv=None) -> int:
         return cmd_regrade(args.store, args.ledger, lanes, args.locked, exclude_runs=args.exclude_run)
 
     if args.cmd == "queue":
+        # build_queue REFUSES by name (a malformed doc, a disposition naming no row): that refusal is the check
         qd = build_queue(World())
         text = queue_text(qd)
         out = pathlib.Path(args.out)
         if args.check:
-            old = out.read_text(encoding="utf-8") if out.exists() else ""
-            same = json.loads(old or "{}").get("targets") == qd["targets"] if old else False
+            # ⚰️ Until 2026-11-16 this compared a COMMITTED snapshot with the derivation (see QUEUE_OUT). The
+            # queue is derived on demand now, so the check is: the docs derive a queue (above), and nobody has
+            # committed a snapshot again (a merge that kept the file would bring every conflict back).
+            tracked = snapshot_tracked(QUEUE_OUT)
             print_counts(qd)
-            print(f"VERDICT: {'PASS' if same else 'FAIL'} ({rel(out)} {'matches' if same else 'differs from'} the docs)")
-            return 0 if same else 1
+            if tracked is None:
+                print(f"VERDICT: INCONCLUSIVE (git could not say whether {rel(QUEUE_OUT)} is tracked)")
+                return 2
+            if tracked:
+                print(f"VERDICT: FAIL ({rel(QUEUE_OUT)} is committed. It is a local view, derived on demand: "
+                      f"run 'git rm --cached {rel(QUEUE_OUT)}' and commit that)")
+                return 1
+            print(f"VERDICT: PASS (the docs derive a queue of {qd['counts']['targets']} targets; "
+                  f"{rel(QUEUE_OUT)} is a local view, not committed)")
+            return 0
         write_atomic(out, text)
         print_counts(qd)
-        print(f"[queue] wrote {rel(out)}")
+        print(f"[queue] wrote {rel(out)} (a local view: git ignores it, never commit it)")
         return 0
 
     if args.cmd in ("manifest", "batch"):

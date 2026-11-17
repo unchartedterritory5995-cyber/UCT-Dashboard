@@ -10,6 +10,7 @@ import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 
 import BuilderSheet from '../BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../builderStart.testkit.js'
 import { PINE_DEBOUNCE_MS } from '../PineBox'
 import { memberPaneDefinition } from './memberPaneDefinition'
 import { AuthContext } from '../../../../context/AuthContext'
@@ -31,16 +32,18 @@ const flush = async () => {
   await act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve() })
 }
 function mount() {
-  return render(
+  const view = render(
     <AuthContext.Provider value={{ user: { id: 7 }, isPaid: true, loading: false }}>
       <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, revalidateOnFocus: false }}>
         <BuilderSheet open onClose={() => {}} onSaved={() => {}} settings={null} onChange={() => {}} sym="SPY" tf="D" />
       </SWRConfig>
     </AuthContext.Provider>,
   )
+  writeMyself()
+  return view
 }
 async function paste(script) {
-  fireEvent.click(screen.getByRole('tab', { name: /^import$/i }))
+  openSource('pine')
   fireEvent.change(screen.getByTestId('pine-box').querySelector('textarea'), { target: { value: script } })
   await act(async () => { vi.advanceTimersByTime(PINE_DEBOUNCE_MS + 1) })
   await flush()

@@ -61,7 +61,7 @@ async function draft(fetchImpl, props = {}) {
   render(<ConciergeBox fetchImpl={fetchImpl} {...props} />)
   fireEvent.change(screen.getByRole('textbox'), { target: { value: 'average the close' } })
   await act(async () => {
-    fireEvent.click(screen.getByRole('button', { name: /draft a formula/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^write it$/i }))
   })
 }
 
@@ -173,12 +173,12 @@ describe('ConciergeBox', () => {
     // cheapest place for a second read-back to appear.
     const fetchImpl = vi.fn(async () => jsonResponse(proposal()))
     render(<ConciergeBox fetchImpl={fetchImpl} kind="scan" />)
-    expect(screen.getByLabelText(/plain English/i)).toBeTruthy()
+    expect(screen.getByLabelText('Describe it')).toBeTruthy()
     expect(screen.getByTestId('concierge-box')).toHaveAttribute('data-kind', 'scan')
 
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'trending stocks' } })
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /draft a formula/i }))
+      fireEvent.click(screen.getByRole('button', { name: /^write it$/i }))
     })
     expect(await screen.findByTestId('concierge-sentence')).toHaveTextContent(sentenceFor(TREE))
     expect(screen.queryByText(LIE)).toBeNull()
@@ -243,13 +243,13 @@ describe('ConciergeBox', () => {
     await draft(vi.fn(async () => { throw new Error('offline') }))
     expect(await screen.findByTestId('concierge-refusal')).toBeTruthy()
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /draft a formula/i })).not.toBeDisabled())
+      expect(screen.getByRole('button', { name: /^write it$/i })).not.toBeDisabled())
   })
 
   it('will not fire on an empty prompt', () => {
     const fetchImpl = vi.fn()
     render(<ConciergeBox fetchImpl={fetchImpl} />)
-    expect(screen.getByRole('button', { name: /draft a formula/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /^write it$/i })).toBeDisabled()
     expect(fetchImpl).not.toHaveBeenCalled()
   })
 
@@ -371,7 +371,7 @@ describe('ConciergeBox', () => {
 describe('🔴 the draft button shows that it is off, and says why', () => {
   it('is disabled AND visibly dimmed on an empty description', () => {
     render(<ConciergeBox fetchImpl={async () => ({ ok: true, json: async () => ({}) })} />)
-    const btn = screen.getByRole('button', { name: /draft a formula/i })
+    const btn = screen.getByRole('button', { name: /^write it$/i })
     expect(btn).toBeDisabled()
     // ⛔ The look, not just the gate — this is the half that shipped missing.
     expect(btn.style.opacity, 'a disabled button rendered at full strength').toBe('0.45')
@@ -390,7 +390,7 @@ describe('🔴 the draft button shows that it is off, and says why', () => {
     fireEvent.change(screen.getByRole('textbox'), {
       target: { value: 'stocks above the 50 day average' },
     })
-    const btn = screen.getByRole('button', { name: /draft a formula/i })
+    const btn = screen.getByRole('button', { name: /^write it$/i })
     expect(btn).not.toBeDisabled()
     expect(btn.style.opacity).not.toBe('0.45')
     expect(btn.style.cursor).toBe('pointer')

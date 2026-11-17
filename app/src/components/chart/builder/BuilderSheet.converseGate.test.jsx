@@ -3,7 +3,7 @@
 // (rolled back). Two keys, like Create Indicator: the per-browser opt-in AND the
 // server's admin role. ASKED / CLAIMED / DID per case.
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, cleanup } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import { setCreateIndicatorFlag } from './studio/createIndicatorFlag'
 import BuilderSheet from './BuilderSheet'
@@ -44,14 +44,24 @@ describe('the New Formula sheet — conversation is admin + opt-in only', () => 
 // conversation ON → the conversation instead; the Conditions scan box always stays.
 // No normal member loses the AI drafting path they have today.
 describe('the one-shot fallback rule', () => {
+  // ⭐ DIRECTION A — the one-shot box is the START view's "Describe it" (and the
+  // editor's Ask tab) while the conversation is dark.
   it('a MEMBER (conversation dark) keeps the one-shot INDICATOR box', () => {
     setCreateIndicatorFlag(true)
-    mount('user', 'formula')
+    mount('user')
     expect(screen.queryByTestId('converse')).toBeNull()
     expect(screen.getByTestId('concierge-box').dataset.kind).toBe('indicator')
   })
   it('an ADMIN without the opt-in keeps the one-shot INDICATOR box', () => {
+    mount('admin')
+    expect(screen.getByTestId('concierge-box').dataset.kind).toBe('indicator')
+  })
+  it('…and in the editor it is the Ask tab, still an INDICATOR box', () => {
     mount('admin', 'formula')
+    // kept (one box for both views), but off screen until its tab is open
+    expect(screen.getByTestId('concierge-box').closest('[hidden]')).not.toBeNull()
+    fireEvent.click(screen.getByRole('tab', { name: /Ask the UCT Agent/ }))
+    expect(screen.getByTestId('concierge-box').closest('[hidden]')).toBeNull()
     expect(screen.getByTestId('concierge-box').dataset.kind).toBe('indicator')
   })
   it('conversation ON: the one-shot indicator box is hidden; the conversation replaces it', () => {
