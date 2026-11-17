@@ -90,7 +90,8 @@ import {
 // which is a fact `__tests__/enumerationSites.test.js` asserts by walking
 // IMPORTS rather than by grepping for a name (a plain substring search for these
 // on this branch returned ten matches and every one was prose in a comment).
-import { migrateMemberDocument } from './memberDocumentMigration.js'
+// ⭐ SETTINGS PARITY (2a / 2c): the migration, then the load-time settings (`memberDocumentProjection.js`)
+import { projectMemberDocument } from './memberDocumentProjection.js'
 import { inputsAsRead } from './legacyInputs.js'
 import { interpret, listingSeedIsUnpinned } from './ast/interpret'
 import { ENGINE_ERROR, isRefusal } from './ast/parse'
@@ -171,7 +172,10 @@ import { definitionHasLiveTail, liveTailSignature } from './liveTail'
 import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash, runtimeFormingRefusalOf, RUNTIME_FORMING_GUARD } from './runtimeKill'
 // ⭐⭐ ENGINE 54 — the run half's program binding, object rail (registered) and refusal telemetry
 import { runHalfProgramBound, runHalfProgramStamped } from './runHalfProgram.js'
-import { registeredRunHalfObjectRail } from './runHalfRailSeam.js'
+import { registeredRunHalfObjectRail, runHalfSettingsAdmitted } from './runHalfRailSeam.js'
+// ⭐ SETTINGS PARITY (2c): the run half is handed the chart's own values (`runHalfInputs.js`)
+import { runHalfRunInputs, runHalfOnlySettingMoved } from './runHalfInputs.js'
+import { runtimeInputSpecsOf } from './runtime/runtimeInputs.js'
 import { noteRunHalfAnswer } from './runHalfTelemetry.js'
 import { runtimePaneEnabled, runtimePaneBuilt, runtimePanePermitted } from './runtimePaneGate'
 // ⭐ W5-T2 — the lower-timeframe gate is registered at this door (`lowerTfServing.js`),
@@ -181,6 +185,8 @@ import { runtimeWarmupOf, RUNTIME_OBJECTS_KEY, withRunHalfState, carriesRunHalf 
 import { LIMIT_NAMES } from './runtime/limits'
 import { registeredObjectRuntimeValues, inputsAtDefaults } from './objectRuntimeSeam.js'
 import { manifestAtDefaults } from './paramLiteral.js'
+// ⭐ SETTINGS PARITY (2a): one instance's parameter settings, written into its literals.
+import { specializeParams } from './paramInputs.js'
 import { noteRuntimeLoadFailed } from './runtimeRunTelemetry.js'
 // ⭐⭐ CBC-FMT — `calc_bars_count`: the window both lanes take (pure, imports nothing).
 import { calcBarsWindowOf, windowContext, widenToChart, withCalcBarsRecord, calcBarsWindowReport,
@@ -3526,6 +3532,10 @@ function runHalfDefOf(def, ro) {
         kind: 'runtime', fn: `runtime:${def.id}~run`, rev: 1,
         source: ro.source, outputs: Object.freeze({ ...(ro.outputs || {}) }), objects: true,
       }),
+      // ⭐ SETTINGS PARITY (2c) — the script's own literal settings, keyed by Pine name (the runtime
+      // pane's reader), so `runtimeColumnsFor` hands the run the values it is given: at every default
+      // it is handed nothing and builds the author's program, exactly as before
+      inputs: Object.freeze(runtimeInputSpecsOf(ro.source).specs.map((x) => Object.freeze({ ...x }))),
       meta: Object.freeze(meta),
     })
     _runHalfDefs.set(ro, rt)
@@ -3600,8 +3610,11 @@ function withRunHalf(def, out, bars, inputs, ctx) {
   // ⛔⛔ ENGINE 54 — AND BESIDE THE PROGRAM IT WAS MINTED FOR: the door's digest of the trees, the
   // object program, the output map and the site map, re-derived from this document
   // (`runHalfProgram.js`). An edited tree or object program, kept under the old stamp, is refused.
-  if (!runHalfProgramStamped(def)) return refused(RUN_HALF_PROGRAM_UNSTAMPED)
-  if (!runHalfProgramBound(def)) return refused(RUN_HALF_PROGRAM_UNBOUND)
+  // ⭐ SETTINGS PARITY (2a) — the stamp digests the STORED trees: a copy specialised to a member's
+  // length (`paramInputs.specializeParams`) is checked as the document it was specialised from
+  const stamped = def.specializedFrom || def
+  if (!runHalfProgramStamped(stamped)) return refused(RUN_HALF_PROGRAM_UNSTAMPED)
+  if (!runHalfProgramBound(stamped)) return refused(RUN_HALF_PROGRAM_UNBOUND)
   const stamp = servedRunStamp(def)
   if (!runtimePaneBuilt()) return refused('pane:not-built')
   if (!runtimePanePermitted()) return refused('pane:not-permitted')
@@ -3612,7 +3625,21 @@ function withRunHalf(def, out, bars, inputs, ctx) {
   }
   const stop = runtimeErrorStopOf(out)
   if (stop && stop.reached) return refused('runtime:runtime.error')
-  if (!runtimeColoursAtDefaults(def, inputs)) return refused('runtime:member-inputs')
+  // ⭐⭐ SETTINGS PARITY (2c) — THE RUN HALF AT THE CHART'S OWN SETTINGS. It was refused the moment
+  // any setting moved (the run built the author's program, `inputs: {}`). Now the run is handed
+  // the instance's values in its own names (`runHalfRunInputs`: a host input by its Pine name, a
+  // folded length by its `sourceName`, a drawing-only setting by its key), and the column rail
+  // below still holds every mapped run column to the host's at those same settings. A moved
+  // setting is served only on recorded evidence (`runHalfSettingsAdmitted`: two captures that
+  // count, taken with that setting moved, graded against TradingView); a moved setting the run
+  // cannot be handed (a plot colour) or one without evidence is refused by name, as before.
+  const runIn = runHalfRunInputs(def, inputs)
+  if (!runIn.ok) return refused('runtime:member-inputs')
+  // only a moved setting a DRAWING can read needs evidence of its own (`drawingReadNames`): one no
+  // drawing reads (an average's length) leaves the drawings the defaults' evidence already graded
+  if (runIn.needsEvidence.length && !runHalfSettingsAdmitted(runHalfSourceHashOf(ro), runIn.needsEvidence).ok) {
+    return refused('runtime:member-inputs')
+  }
   if (!_runtimeLane) {
     if (_runtimeLoadFailed !== null) return refused(RUNTIME_LOAD_FAILED_GUARD)
     if (loadRuntimeLane()) return answered('pending', 'runtime:not-loaded')
@@ -3620,7 +3647,7 @@ function withRunHalf(def, out, bars, inputs, ctx) {
   }
   let cols
   try {
-    cols = _runtimeLane(runHalfDefOf(def, ro), bars, {}, ctx)
+    cols = _runtimeLane(runHalfDefOf(def, ro), bars, runIn.values, ctx)
   } catch (err) {
     // ONE WITHHOLDING, ONE REASON (2026-11-16). A run waiting for another symbol's bars is a
     // run in flight, not a refusal: seen on production, the note under a chart read "the script
@@ -3657,6 +3684,15 @@ function withRunHalf(def, out, bars, inputs, ctx) {
   // create site the host draws must BE the host's, object for object, on these bars. With no
   // plot mapped the column rail above compared nothing; this one never compares nothing (no
   // comparable object is its own refusal, `run-half:no-comparable-objects`).
+  // ⭐ SETTINGS PARITY (2c) — A SETTING ONLY THE DRAWINGS READ HAS BEEN MOVED: the host object program
+  // folded it at the author's default, so it is no picture of this chart (`objectReaderFor` reads
+  // nothing) and nothing here can be compared with it. The drawings are served on the evidence the
+  // gate above required for every such setting a drawing reads (captures of THIS run at it moved,
+  // graded against TradingView), beside the column rail, which still held.
+  if (runHalfOnlySettingMoved(def, inputs)) {
+    Object.defineProperty(res, RUNTIME_OBJECTS_KEY, { value: payload, enumerable: false, configurable: true })
+    return answered('served', null)
+  }
   const rail = registeredRunHalfObjectRail()
   if (!rail) return refused(RUN_HALF_RAIL_NOT_LOADED)
   let verdict
@@ -3681,6 +3717,9 @@ function runHalfGateSignature(def) {
     + `${runtimeKillOf({ defId: def.id, source }) ? 'k' : ''}${runtimeNotGradedOf({ source }) ? 'g' : ''}`
 }
 
+/** The guard a parameter setting the door would refuse carries (`paramInputs.js`). */
+export const PARAM_SETTING_GUARD = 'setting:param-refused'
+
 export function computeFor(def, bars, inputs, ctx) {
   if (def?.compute?.kind === 'runtime') {
     return runtimeColumnsOrReasons(def, Array.isArray(bars) ? bars : [], inputs, ctx)
@@ -3699,6 +3738,16 @@ export function computeFor(def, bars, inputs, ctx) {
   // had one.
   if (def?.compute?.kind === 'ast') {
     const rows = Array.isArray(bars) ? bars : []
+    // ⭐ SETTINGS PARITY (2a): the instance's parameter settings (`param<N>` inputs) are
+    // written into the literals they stand for (`paramInputs.specializeParams`), memoised per
+    // value set, so this pane computes the tree its member chose. A value the door would refuse
+    // is refused by name on every column, never computed.
+    const special = specializeParams(def, inputs)
+    if (special && special.refused) {
+      const message = `${special.refused}: the chart does not compute a setting the indicator's own bounds refuse`
+      return withColumnErrors({}, Object.fromEntries(astPlotKey(def).map((k) => [k, { guard: PARAM_SETTING_GUARD, message }])))
+    }
+    def = special
     // ⭐⭐ CBC-FMT — `calc_bars_count`: THE ONE SEAM where the host lane takes its window
     // (`engine/calcBarsWindow.js`). Every caller of `computeFor` (the binder, the object
     // lane, the vendor harness) inherits it; a chart of N bars or fewer, and every document
@@ -4327,7 +4376,7 @@ export function validateUserDefinitions(rawDefs) {
   // idempotent (`memberDocumentMigration.js`): a condition column its parameter
   // manifest never placed, and a handle an old parameter edit left stale. Never a
   // server-side write: the stored row is untouched; only what this tab installs moves.
-  const base = registerDefinitions(Array.isArray(rawDefs) ? rawDefs.map(migrateMemberDocument) : rawDefs)
+  const base = registerDefinitions(Array.isArray(rawDefs) ? rawDefs.map(projectMemberDocument) : rawDefs)
   const errors = [...base.errors]
   const defs = []
   // ⭐ RF — the ids refused because the server lists them (`runtimeKilled` or

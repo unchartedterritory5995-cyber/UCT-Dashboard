@@ -12,6 +12,7 @@ import path from 'node:path'
 import { latchRuntimeLists, runtimeSourceHash, runtimeKillList } from './runtimeKill'
 import {
   runHalfEvidenceAdmits, runHalfEntryAdmits, setRunHalfObjectEvidence, RUN_HALF_EVIDENCE_MIN_CAPTURES,
+  runHalfSettingsEntryAdmits, runHalfSettingsAdmitted,
 } from './runHalfRailSeam'
 
 const SRC = '//@version=5\nindicator("rs")\nplot(close)\n'
@@ -114,6 +115,24 @@ describe('L9 — run-half evidence on the substituted path', () => {
       return runHalfEvidenceAdmits(h) !== c.admits
     }).map((c) => c.name)
     expect(viaLatch).toEqual([])
+  })
+
+  it('⭐ SETTINGS PARITY (2c) — the client settings rule answers every settings case (the server reads the same file)', () => {
+    const cases = PARITY.settings_cases
+    const wrong = cases.filter((c) => {
+      const r = runHalfSettingsEntryAdmits(c.entry, c.moved)
+      return r.ok !== c.ok || JSON.stringify(r.missing) !== JSON.stringify(c.missing)
+    }).map((c) => c.name)
+    expect(wrong).toEqual([])
+    // and through the latch: the kill read carries each capture's `inputs` to the member's chart
+    const h = runtimeSourceHash(SRC)
+    const viaLatch = cases.filter((c) => c.entry && c.entry.sha256).filter((c) => {
+      latchRuntimeLists(read([{ ...c.entry, sha256: h }]))
+      const r = runHalfSettingsAdmitted(h, c.moved)
+      return r.ok !== c.ok || JSON.stringify(r.missing) !== JSON.stringify(c.missing)
+    }).map((c) => c.name)
+    expect(viaLatch).toEqual([])
+    expect(cases.some((c) => c.ok) && cases.some((c) => !c.ok)).toBe(true)
   })
 })
 

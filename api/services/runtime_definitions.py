@@ -562,6 +562,10 @@ def run_half_evidence() -> list:
                     "objectsV2": c.get("objectsV2") == "MATCH", "runtimeOn": c.get("runtimePane") == "on"}
             if "substituted" in c:
                 fact["substituted"] = c.get("substituted")
+            # SETTINGS PARITY (2c): the settings a capture was taken at, moved off the author's
+            # defaults ({Pine name: value}); such a capture is evidence for those settings only
+            if isinstance(c.get("inputs"), dict) and c.get("inputs"):
+                fact["inputs"] = dict(c["inputs"])
             if c.get("objectsV2") == rollout_gate.PINE_CAPTURE_MATCH_SUBSTITUTED:
                 # the objects-v2 grade's own substituted names (`objectsV2Substituted` on the record's
                 # capture); absent names are served as none, which counts nothing
@@ -606,20 +610,69 @@ def run_half_entry_admits(entry) -> bool:
         return False
     seen = set()
     for c in entry.get("captures") if isinstance(entry.get("captures"), list) else []:
-        if not isinstance(c, dict) or not isinstance(c.get("capture"), str) or not c.get("capture"):
+        # SETTINGS PARITY (2c): a capture at moved settings is evidence for those settings only
+        if _captured_at_settings(c):
             continue
-        if c.get("verdict") != want or c.get("runtimeOn") is not True:
-            continue
-        if names is not None and rg._pine_substituted_names(c.get("substituted")) != names:
-            continue
-        # objects-v2 MATCH; or, ON THE SUBSTITUTED PATH ONLY, objects-v2 MATCH_SUBSTITUTED naming exactly
-        # the record's inputs (coordinator ruling 2026-11-15, after owner ruling (a))
-        objects_ok = c.get("objectsV2") is True or (
-            names is not None and rg._pine_substituted_names(c.get("objectsV2Substituted")) == names)
-        if not objects_ok:
-            continue
-        seen.add(c["capture"])
+        if _capture_counts(c, want, names):
+            seen.add(c["capture"])
     return len(seen) >= RUN_HALF_EVIDENCE_MIN_CAPTURES
+
+
+def _entry_path(entry):
+    """``(want, names)`` for the record's path, or None when nothing on it can count."""
+    from api.services import rollout_gate as rg
+    if not isinstance(entry, dict):
+        return None
+    admission = entry.get("admission")
+    if admission is None:
+        return rg.PINE_CAPTURE_MATCH, None
+    if admission == rg.PINE_ADMISSION_SUBSTITUTED:
+        names = rg._pine_substituted_names(entry.get("substituted"))
+        return None if names is None else (rg.PINE_CAPTURE_MATCH_SUBSTITUTED, names)
+    return None
+
+
+def _capture_counts(c, want, names) -> bool:
+    """One capture counts on the record's path (the rule ``run_half_entry_admits`` states)."""
+    from api.services import rollout_gate as rg
+    if not isinstance(c, dict) or not isinstance(c.get("capture"), str) or not c.get("capture"):
+        return False
+    if c.get("verdict") != want or c.get("runtimeOn") is not True:
+        return False
+    if names is not None and rg._pine_substituted_names(c.get("substituted")) != names:
+        return False
+    # objects-v2 MATCH; or, ON THE SUBSTITUTED PATH ONLY, objects-v2 MATCH_SUBSTITUTED naming exactly
+    # the record's inputs (coordinator ruling 2026-11-15, after owner ruling (a))
+    return c.get("objectsV2") is True or (
+        names is not None and rg._pine_substituted_names(c.get("objectsV2Substituted")) == names)
+
+
+def _captured_at_settings(c) -> bool:
+    return isinstance(c, dict) and isinstance(c.get("inputs"), dict) and bool(c.get("inputs"))
+
+
+def run_half_settings_admits(entry, moved) -> tuple:
+    """SETTINGS PARITY (2c) -- THE RULE FOR A RUN HALF AT A MEMBER'S SETTINGS (mirrored by
+    `runHalfRailSeam.js::runHalfSettingsEntryAdmits`, both pinned by the ``settings`` cases of
+    ``tests/fixtures/ast/run_half_evidence_parity.json``). A moved setting (a Pine name) is admitted
+    when at least `RUN_HALF_EVIDENCE_MIN_CAPTURES` distinct captures that count on the record's path
+    were taken with that setting moved (their ``inputs`` name it). Returns ``(ok, missing)``."""
+    keys = sorted({k for k in (moved or []) if isinstance(k, str) and k})
+    if not keys:
+        return True, []
+    path = _entry_path(entry)
+    if path is None:
+        return False, keys
+    want, names = path
+    by_key = {k: set() for k in keys}
+    for c in entry.get("captures") if isinstance(entry.get("captures"), list) else []:
+        if not _captured_at_settings(c) or not _capture_counts(c, want, names):
+            continue
+        for k in c["inputs"]:
+            if k in by_key:
+                by_key[k].add(c["capture"])
+    missing = [k for k in keys if len(by_key[k]) < RUN_HALF_EVIDENCE_MIN_CAPTURES]
+    return not missing, missing
 
 
 def allow_list() -> list[str]:

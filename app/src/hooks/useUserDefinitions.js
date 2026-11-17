@@ -33,6 +33,8 @@ import {
 import { reduceIfOversized, hydrateGraphDocument } from '../components/chart/engine/ast/graphDocument'
 import { META_KEY } from '../pages/screener/hooks/useScreenerMeta'
 import { withServedRowIdentities } from '../components/chart/engine/lineIdentity'
+// ⭐ SETTINGS PARITY (2a): the per-chart parameter settings are a load-time projection, never stored.
+import { stripParamInputs } from '../components/chart/engine/paramInputs'
 import {
   SCRIPT_ENGINE_VERSION, withoutEngineStamp, withinPineSourceCap,
 } from '../components/chart/engine/scriptEngineVersion'
@@ -260,6 +262,10 @@ export async function saveUserDefinition(definition, defId = null, telemetry = n
       definition = { ...definition, meta: { ...definition.meta, scriptEdited: true } }
     }
   }
+  // ⛔ SETTINGS PARITY (2a): a document that came off the registry carries its folded parameters
+  // as `param<N>` settings (`memberDocumentMigration`); they are a projection of its own manifest,
+  // so they are never written back.
+  definition = stripParamInputs(definition)
   const url = defId ? `${USER_DEFINITIONS_KEY}/${encodeURIComponent(defId)}` : USER_DEFINITIONS_KEY
   let r
   try {
