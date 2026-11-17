@@ -359,6 +359,17 @@
   font-size: 11.5px; color: var(--menu-text-dim, #b3b3b9);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+/* The saved versions, under the draft's own steps (backlog 30). A reason or a note about lines
+   is a sentence, so it wraps; a step's read-back line stays on one line as before. */
+.historyVersions { display: flex; flex-direction: column; min-height: 0; flex: 0 1 auto; }
+.historySub {
+  flex: none; padding: 8px 10px 6px;
+  font-size: 11px; font-weight: 600; color: var(--menu-text, #ededed);
+  border-top: 1px solid var(--menu-border, #2c2c30);
+  border-bottom: 1px solid var(--menu-border, #2c2c30);
+}
+.historyNote { margin: 0; padding: 8px 10px; font-size: 11.5px; color: var(--menu-text-dim, #b3b3b9); }
+.historyWrap { white-space: normal; overflow: visible; text-overflow: clip; }
 @media (max-width: 1024px) {
   .historyRow .ghost { height: 44px; }
   .historyClose { min-height: 44px; padding: 0 8px; }
