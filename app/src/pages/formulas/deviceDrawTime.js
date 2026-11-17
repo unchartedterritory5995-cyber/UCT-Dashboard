@@ -1,4 +1,5 @@
 // app/src/pages/formulas/deviceDrawTime.js
+// (scratch: a CI trigger probe for the whole-app engine rails; never merged)
 //
 // HOW LONG A SHARED INDICATOR TAKES TO COMPUTE ON THIS DEVICE (Studio lane R6).
 //
