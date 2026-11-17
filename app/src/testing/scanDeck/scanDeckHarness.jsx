@@ -14,6 +14,11 @@ import { MemoryRouter } from 'react-router-dom'
 import { AuthProvider } from '../../context/AuthContext'
 import BreadthDrillModal from '../../pages/breadth/drill/BreadthDrillModal'
 import { REAL_UNIVERSE } from './realUniverse'
+import { formatCompact } from '../../lib/presentation/presentationPrimitives'
+
+// The bulk-meta `market_cap` STRING the fake server answers with ("$2.41B", "$640M"), on the one
+// K/M/B/T decider (TERM-066): B at two decimals, whole M below it.
+const SERVER_CAP_TIERS = [{ at: 1e9, suffix: 'B', decimals: 2 }, { at: 1e6, suffix: 'M', decimals: 'round' }]
 
 // Real company logos: the app asks its own backend (/api/ticker-logo/SYM), which
 // this page does not run, so logo images are pointed at the public UCT logo
@@ -153,7 +158,7 @@ window.fetch = async (input, init) => {
       const r = mul(hash(t + 'meta'))
       const cap = Math.pow(10, 8 + r() * 3.3)
       res[t] = { name: u.n, sector: u.sector, industry: u.industry, composite: Math.round(20 + r() * 79),
-        market_cap: cap >= 1e9 ? `$${(cap / 1e9).toFixed(2)}B` : `$${Math.round(cap / 1e6)}M`,
+        market_cap: formatCompact(cap, { tiers: SERVER_CAP_TIERS, prefix: '$', fixedUnit: true }),
         next_earnings: r() < 0.2 ? '2026-11-10' : '2027-02-01' }
     }
     return json(url.includes('bulk-meta') ? { results: res, missing: [] } : res)
