@@ -2255,7 +2255,33 @@
    ],
    "fast": false
   },
+  "stock.callSearch": {
+   "domain": "stock",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "stock.compare": {
+   "domain": "stock",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.confluenceBoard": {
    "domain": "stock",
    "group": "data",
    "target": "market",
@@ -2295,6 +2321,19 @@
    "fast": false
   },
   "stock.earnings": {
+   "domain": "stock",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.expectedMove": {
    "domain": "stock",
    "group": "data",
    "target": "market",
@@ -2372,7 +2411,33 @@
    ],
    "fast": false
   },
+  "stock.themeRotation": {
+   "domain": "stock",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "stock.themes": {
+   "domain": "stock",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.yearlyHighsLows": {
    "domain": "stock",
    "group": "data",
    "target": "market",

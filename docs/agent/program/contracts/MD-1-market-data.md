@@ -1,8 +1,8 @@
-# MD-1 — UCT market-data contract (v1.7)
+# MD-1 — UCT market-data contract (v1.8)
 
 - **Owner:** agent-md implements the kinds. agent-lead owns `gateway.py` and `envelope.py`, the framework every consumer relies on.
 - **Consumers:** agent-sc, agent-rs, agent-qa, and later the D and G workstreams.
-- **Status:** v1.7 (v1.1–v1.7 each additive or a scope reduction; v1.1–v1.4 acked by agent-lead 2026-11-01, v1.5 agreed for Sprint 2; v1.6 and v1.7 are additions whose new kinds are default OFF; v1.7 is written up after its kinds merged dark and has no agent-lead ack recorded yet, see §9). See §9 for what changed. The envelope's wire field `contract` stays `"MD-1.0"`: no version since v1.0 adds an envelope field.
+- **Status:** v1.8 (v1.1–v1.8 each additive or a scope reduction; v1.1–v1.4 acked by agent-lead 2026-11-01, v1.5 agreed for Sprint 2; v1.6, v1.7 and v1.8 are additions whose new kinds are default OFF; v1.7 is written up after its kinds merged dark and v1.8 with its kinds, and neither has an agent-lead ack recorded yet, see §9). See §9 for what changed. The envelope's wire field `contract` stays `"MD-1.0"`: no version since v1.0 adds an envelope field.
 - **Changes:** see §8.
 
 ## 1. Purpose
@@ -67,7 +67,7 @@ Each kind wraps the canonical service listed. **No new upstream connection, WebS
 | `earnings` | `services/earnings_table.py` `get_earnings_table` (the layer over `earnings_estimates`) | periodic | `stale_quarters` ≥ 2 (its own `reported_staleness`) | Event-driven results stay class `periodic`. Reported rows carry only a fiscal label, so `as_of` is null with a note; `next_report` is a scheduled event, never `as_of`. See §4.2. |
 | `news.company` | `services/news/store.py` `feed` (UCT's own store; no provider call) | periodic | news **ingest** has not succeeded for 1 hour | Item `as_of` = `published_at`; the envelope `as_of` is the newest item. A quiet company is not stale. No body text. See §4.2. |
 | `breadth.current` | `services/breadth_current.py` `reading()` (breadth-owned; V2 store + live engine) | periodic (intraday) · historical (completed sessions) | not `current` (its own rule: intraday ≤ 300 s) | **MODEL-ISOLATED** (§4.4). US · NYSE · Nasdaq aggregates only; includes the NH/NL measures. |
-| `nhnl` | — **not a separate kind** (v1.3) | — | — | 52-week / 20-day new highs and lows are METRICS of `breadth.current` (`new_52w_highs`, `new_52w_lows`, `net_new_high_low`, `new_20d_highs`, `new_20d_lows`), tier `finalized_only`. `services/nhnl_live.py` is an intraday high-of-day / low-of-day EVENT COUNTER, a different metric with no vendor time. It is **not** an `nhnl` kind and never a `breadth.current` measure; since v1.7 it is read only by the separate, model-isolated kind `highsLows.session` (§4.10), which is default OFF and says in every answer that its counts are not 52-week highs and lows. (v1.3 to v1.6 said "not exposed".) |
+| `nhnl` | — **not a separate kind** (v1.3) | — | — | 52-week / 20-day new highs and lows are METRICS of `breadth.current` (`new_52w_highs`, `new_52w_lows`, `net_new_high_low`, `new_20d_highs`, `new_20d_lows`), tier `finalized_only`. `services/nhnl_live.py` is an intraday high-of-day / low-of-day EVENT COUNTER, a different metric with no vendor time. It is **not** an `nhnl` kind and never a `breadth.current` measure; since v1.7 it is read only by the separate, model-isolated kind `highsLows.session` (§4.10), which is default OFF and says in every answer that its counts are not 52-week highs and lows. (v1.3 to v1.6 said "not exposed".) Since v1.8 the NAMES behind `new_52w_highs` and `new_52w_lows` are read by the separate, model-isolated kind `highsLows.yearly` (§4.11), default OFF; the counts stay `breadth.current` measures. |
 | `themes` | `services/theme_performance.py` overlay, read **without building** (§4.3) | periodic | the base predates the last completed session | Never spends provider calls: no complete overlay ⇒ `unavailable` (“theme data is warming”). See §4.3. |
 | `ratings` | `services/research/ratings.py` `get_ratings` (UCT-derived) | periodic | price data older than the last completed session | **MODEL-ISOLATED** (§4.4). Never a third-party analyst rating. |
 
@@ -680,6 +680,253 @@ while the server lists its own kind.
 - **Not kinds:** the dark pool prints themselves (§4.4, still deferred) and gamma walls
   (`GET /api/signature/gex-walls`) are not exposed to the Agent.
 
+### 4.11 Terminal data wave 2: `highsLows.yearly`, `themes.rotation`, `confluence.board`, `earnings.expectedMove`, `earnings.callSearch` (v1.8, terminal-data)
+
+Five more thin kinds, the Agent half of five more UCT Terminal panels (H52, TROT, CONFL, EXMV, TSRC). Each is an adapter
+over the service its member route already reads (`api/services/uct_agent/marketdata/yearly_highs_lows.py`,
+`themes_rotation.py`, `confluence_board.py`, `earnings_expected_move.py`, `earnings_call_search.py`; registered in
+`kinds.py` with `owner="terminal-data"`). No new connection, job, database or write (§6).
+
+**Status: dark, not armed.** Like every kind, each is served only when it is listed in `UCT_AGENT_DATA_KINDS` (with
+`UCT_AGENT_DATA=1`). All five are model-isolated, so each also needs the master switch `UCT_AGENT_ISOLATED=1` and its own
+entry in `UCT_AGENT_ISOLATED_KINDS` (§4.4, ADR-005); until then it is refused for every purpose, and once armed it is
+served for purpose `answer` only. This section describes what the code does when a kind is switched on. It does not
+switch anything on. As written (2026-11-17), no kind of this section is in production's list.
+
+| Kind | Canonical service (member route) | Params | Declared freshness | `as_of` | `provider_calls` | Model-isolated |
+|---|---|---|---|---|---|---|
+| `highsLows.yearly` | `services/breadth_live.py` `live_drill(list)` and `services/breadth_monitor.py` `get_drill_list(date, list)` (`GET /api/breadth-monitor/live/drill/{list}`, `GET /api/breadth-monitor/{date}/drill/{list}`) | `{side, limit}` | periodic · historical (a finished session) | the market snapshot's observation time, or that session's close | 0 | **yes** |
+| `themes.rotation` | `services/theme_performance.py` `compute_rotation_signals()`, read from its own cache (`GET /api/theme-rotation`) | `{side, limit}` | periodic | null (only UCT's computation time is known) | 0 | **yes** |
+| `confluence.board` | `api/confluence_screen.py` `get_board(days)` (`GET /api/confluence?days=30`) | `{direction, limit}` | periodic | null (the board carries no data time) | 0 | **yes** |
+| `earnings.expectedMove` | `services/implied_move.py`'s cached straddle and `services/implied_store.py` `get_implied_history(sym)` (`GET /api/research/expected-move/{sym}`) | `{symbol, report_date?}` | periodic | null (only UCT's read and capture times are known) | 0 | **yes** |
+| `earnings.callSearch` | `services/transcript_index.py` `search(...)` and `stats()` (`GET /api/earnings/transcript-search`) | `{q, limit, symbol?, since?}` | periodic | the newest indexed call's date | 0 | **yes** |
+
+**No read of this section starts a build.** (§5: a turn has 20 provider requests and a member waiting.) Each of these
+member routes can start work that does not fit a turn, so each adapter reads only what its service already holds and
+answers `unavailable`, with the reason, when it holds nothing:
+
+| Kind | What the member route can start | What the adapter reads instead |
+|---|---|---|
+| `highsLows.yearly` | `GET /api/breadth-monitor/live` builds the breadth read when its cache is cold: one whole-market snapshot scored against the universe, 12 to 16 seconds | `breadth_live.compute_live(cached_only=True)`, the service's own non-building read (a warm read or a not-ok answer), then the stored lists |
+| `themes.rotation` | `compute_rotation_signals()` on a cache miss calls `get_theme_performance()`, which builds the live theme overlay synchronously when that is cold: about 22 Massive requests (§4.3) | the service's 15-minute cache entry (`cache[theme_performance._ROTATION_CACHE_KEY]`) and nothing else |
+| `confluence.board` | a board build is about four minutes (two options-flow legs from the flow-worker); a window other than the default starts a multi-week scan on the pod that runs the live tape | `get_board(confluence_screen.DAYS)`: the cached board of the one window the scheduler keeps warm, or "warming". The kind takes no `days` |
+| `earnings.expectedMove` | `get_expected_move` builds synchronously when it holds nothing for the key: up to 21 Massive requests (an expirations walk of up to 12, a chain read of up to 8, a spot hint) | the service's 15-minute cache (`_MOVE_CACHE`), else its 2-hour last-good slot (`_MOVE_STALE`), for the member route's own key; otherwise no current straddle |
+| `earnings.callSearch` | nothing: the search is a local SQLite full-text read | `transcript_index.stats()` then `search(...)` |
+
+When `confluence.board` finds the cached board past its TTL, `get_board` itself starts the service's own background
+rebuild of the default window (the one the scheduler runs, single-flight). That is the service's behaviour on its own
+thread, not this turn's work, the same as a `leaders.longRun` reference build (§4.10). Each cache read is one coupling to
+a private name of its service; a rail fills that cache through the service's own function and reads it back, so a rename
+fails by name.
+
+**Rules all five share**
+- **A bad request is refused before any read.** Each kind's `validate` runs before admission (an unknown `side` or
+  `direction`, an out-of-range `limit`, a `symbol` that is not one ticker, a `days` on `confluence.board`, a query
+  shorter than 2 characters or with no letter or number): the read is `refused` and spends no budget.
+- **A failed read is `unavailable`, never an empty answer.** "No new highs", "no theme is rotating", "nothing on the
+  board", "no move is priced" and "no call mentions it" are said only when the service answered healthily with nothing
+  in it, and that read is `ok` with a note that says so. A list that could not be read, a ranking that is not cached, a
+  board still building, a straddle that is not held and an empty index are each `unavailable` (or `partial`, when part
+  of the answer was read), with their own note.
+- **Never worded as live or now** (§3). Where the source carries only UCT's own computation, build, read or capture
+  time, `as_of` is null, that time rides in `data` under a name that says what it is, and a note says why `as_of` is not
+  given (the same rule as `themes`, §4.3).
+- **The server says when it cut a list.** Each list-shaped kind returns at most `limit` rows, the whole count beside
+  them, and a note naming both.
+- **The member's answer is built from the read's `data` and `status`.** The browser capabilities template their text
+  from those; an envelope note is never echoed to the member as if it were data.
+
+**Why all five are model-isolated.** A value is isolated when the owner has not cleared it for the model (§4.4):
+UCT-derived output, or third-party text whose AI-processing right is unresolved. When in doubt, a kind is isolated.
+- `highsLows.yearly`: which names are on a list is UCT-derived breadth output over UCT's own universe, the same class
+  as `breadth.current` (breadth contract rule 8). The counts were already isolated; the names behind them are too.
+- `themes.rotation`: "rotating in" and "rotating out" are UCT's own selection (its percentile ranks and its 20-point
+  rule over its own curated themes), a UCT-derived ranking like `leaders.longRun`. The plain theme returns stay the
+  non-isolated `themes` kind (§4.3).
+- `confluence.board`: which names are on the board, each one's status and its rank are UCT's own gate, thresholds and
+  score, a UCT-derived selection.
+- `earnings.expectedMove`: the number is computed by UCT from a vendor option chain under UCT's own refusal bounds, and
+  the history is a series only UCT holds (its nightly capture archive). UCT-derived, like `levels.darkpool`, and derived
+  from options data the owner has not cleared for the model.
+- `earnings.callSearch`: the excerpts are third-party transcript text whose AI-processing right is unresolved, the same
+  reason `catalysts.board`'s stored headlines and `analyst.actions` are isolated.
+
+Whether an isolated value may ever reach the model is an owner decision (§4.4). On the browser the five kinds are read
+only by local-only capabilities (`stock.yearlyHighsLows`, `stock.themeRotation`, `stock.confluenceBoard`,
+`stock.expectedMove`, `stock.callSearch` in `app/src/agent/capabilities/terminalDataWave2.js`, all in
+`turn.LOCAL_ONLY_ACTIONS`): the model plans the lookup and never sees what came back. Each capability registers only
+while the server lists its own kind.
+
+**`highsLows.yearly`** (source `uct-breadth-monitor`)
+- What it returns: the stocks at new 52-WEEK highs and new 52-week lows, the names behind the Breadth Monitor's
+  `new_52w_highs` and `new_52w_lows` counts. `list` is the Monitor's own drill key (`new_52w_highs_list`,
+  `new_52w_lows_list`), the H52 panel's own; a rail reads both files. Every `ok` read carries the note
+  `the names behind the Breadth Monitor's new 52-week high and new 52-week low counts, from UCT's own stock universe (not every listed stock); 52-week highs and lows, not highs and lows of the day`.
+- **Not highs and lows of the day.** Those are `highsLows.session` (§4.10), a different measure.
+- Params: `side` ∈ both · highs · lows (default both); `limit` 1–50 names a side (default 25).
+- **Which lists** (the H52 panel's own rule, from the three words the Monitor's live row is gated on):
+  - a session under way (`session_live`, not `superseded`, not `degraded`): the lists of that session, `data.mode`
+    `live`, freshness `periodic`;
+  - otherwise: the stored lists of the newest finished session, `data.mode` `settled`, freshness `historical`, with
+    `data.why` and its note: `finished` (`today's session has finished and its lists are stored`), `thin`
+    (`the breadth read of the session under way covers too few stocks to trust, so the last finished session is given instead`), `closed` (`the market is not in session, so the last finished session is given`) or `no_read`
+    (`no current breadth read is held in the server's cache (this read never starts one), so the last finished session is given instead; a session may be under way`).
+- `as_of`, session under way: the market snapshot's own observation time (`data_as_of`), with the note
+  `lists of the session under way ({date}), from the breadth read UCT computed at {at}; as_of is the market snapshot's own observation time. Recomputed about once a minute: not a live feed`.
+  UCT's computation time is never `as_of`; it rides as `data.computed_at`. When the vendor did not stamp the snapshot,
+  `as_of` is null with the note
+  `lists of the session under way ({date}), from the breadth read UCT computed at {at} (UCT's time; the market snapshot's observation time is not carried), so as_of is not given: not a live feed`.
+  `stale` when that time is more than 300 seconds old (breadth's own intraday rule, §4), with the note
+  `the breadth read behind these lists is more than five minutes old, so newer highs and lows may be missing`.
+  When the session's counts use the exchange convention the read adds
+  `the session's counts use the exchange convention: a trade above the prior 52-week high (or below the prior 52-week low), not only a close` (`data.basis` is `intraday`).
+- `as_of`, finished session: that session's close, with the note `the stored lists of the finished session {date}; as_of is that session's close`.
+  `stale` when the stored session is older than the last completed session, with the note
+  `the newest stored session is {date}, older than the last completed session ({session}), so these are not the latest lists`.
+- A list the service cannot give (the live read withholds it, the stored session lacks it, the read raises) is "not
+  given" for that side: `data.<side>.state` is `unavailable`, the read is `partial`, and the note is
+  `the new 52-week {side} list could not be read for this session; that is not the same as an empty list`. An empty list from a healthy read is `ok` with the note
+  `no stock is on the new 52-week {side} list for this session; that is a healthy answer, not a failed read`.
+- More names than `limit`: the first `limit` in the list's own order, `data.<side>.count` is the whole list, and the
+  note is `showing the first {n} of {total} names on the new 52-week {side} list, in the list's own order`.
+- `unavailable`: no warm breadth read and no stored session (`no 52-week list is available: no current breadth read is held in the server's cache and no finished session is stored`); no list
+  asked for can be given (`the 52-week lists asked for could not be read for the session {date}; that is not the same as no new highs or lows`); the services could not be loaded
+  (`the 52-week high and low lists could not be read`).
+- Data fields: `mode` (live · settled), `why`, `session_date`, `side`, `highs`, `lows` (each `{state, items, count}`, or
+  null when not asked for), `basis`, `computed_at`, `missing`. Item fields, by the drill routes' own names:
+  `t, c, pct, vr, v, n` (ticker, price, change against the prior close in percent, volume against its 20-day average,
+  shares, company name). `coverage` counts the names the lists hold against the names returned.
+
+**`themes.rotation`** (source `uct-theme-rotation`)
+- What it returns: which of UCT's themes are rotating in and which are rotating out. Every `ok` read carries the note
+  `each theme's 1-week and 1-month return is ranked as a percentile among all of UCT's themes; a theme is rotating in when its 1-week rank is 20 or more points above its 1-month rank, and rotating out when it is 20 or more points below. UCT's own ranking of its own themes, not a forecast`.
+  The 20 points are the service's own threshold (`data.threshold`); a rail computes through the service and fails when
+  it changes.
+- Params: `side` ∈ both · in · out (default both); `limit` 1–50 themes a side (default 20).
+- `as_of` is always null. `generated_at` is when UCT worked the ranking out (a computation time), from theme returns
+  that are re-priced from snapshots while a session can print. `data.computed_at` gives UCT's time, with the note
+  `worked out by UCT at {at} from its theme returns, which are re-priced while a session is open (UCT's time; the vendor's observation time is not carried), and kept for up to 15 minutes, so as_of is not given: not a live feed`
+  (or `the ranking carries no time, so as_of is not given`).
+- `stale` is always false: the cache entry is at most 15 minutes old by the service's own TTL, and every `ok` read
+  says what it did not check (`whether the theme returns behind the ranking are a session behind is not checked by this read`).
+- No theme on a side is a healthy answer: `ok`, with the note `no theme is rotating {side} by 20 points or more among the {ranked} ranked; that is a healthy answer`.
+- More themes than `limit`: the first `limit`, `data.in_count` / `data.out_count` are the whole lists, and the note is
+  `showing the first {n} of {total} themes rotating {side}, biggest rank change first`.
+- `unavailable`: the ranking is not in the service's cache
+  (`the theme rotation ranking is not held in the server's cache at the moment (it is kept 15 minutes after it is worked out), and this read never starts that computation; ask again shortly`);
+  the service's cold answer, both lists empty and no theme ranked (`theme returns are still being computed on the server, so no theme is ranked yet`), which is "not ready",
+  never "nothing is rotating"; a malformed entry or a failing cache (`the theme rotation ranking could not be read`).
+- Data fields: `side`, `rotating_in`, `rotating_out`, `in_count`, `out_count`, `ranked` (how many themes the service
+  ranked), `threshold`, `generated_at` (the service's own stamp), `computed_at`. Entry fields, by the route's own names:
+  `name, ticker` (the theme's key), `1w_return, 1m_return, 3m_return` (percent), `1w_rank, 1m_rank, 3m_rank`
+  (percentiles, 0 weakest to 100 strongest), `momentum_delta` (the 1-week rank less the 1-month rank).
+
+**`confluence.board`** (source `uct-confluence`)
+- What it returns: UCT's confluence board for the one window the server keeps warm. Every `ok` read carries the notes
+  `stocks where a large dark pool dollar size and aligned long-dated options flow line up over the last {days} trading days, ranked by UCT inside each size band and direction; UCT's own screen, not a recommendation`
+  and `the dark pool prices on the board (average, range, last) are from dark pool sessions, never a current quote`.
+- Params: `direction` ∈ all · bull · bear (default all); `limit` 1–50 (default 20). There is no `days`
+  parameter: a request that carries one is refused.
+- **Licensing.** The options-flow leg is UCT's own Massive options tape (the flow-worker) and the dark pool leg is the
+  dark pool print store. No Schwab option chain is read by this board.
+- `as_of` is always null: the board carries no data time, only a window as text (`data.window`). `data.built_at` gives
+  the time the service built it (a computation time), with the note
+  `built by UCT at {at} and rebuilt about every {minutes} minutes (UCT's build time; the board carries no data time), so as_of is not given: not a live feed`.
+  When the build time cannot be read the note is `the board carries no build time, so its age is unknown and as_of is not given`
+  and the read is `stale`.
+- `stale` = the service's own rule (the board is older than its TTL), with the note
+  `the board is older than its {minutes}-minute refresh, so it may be behind the latest options flow`.
+- A board built with an options-flow leg missing is `partial`, `data.incomplete` is true, and the note is
+  `an options-flow leg could not be read when this board was built, so some names may be missing`. The build's own
+  warning text is internal and is never returned.
+- The accumulation / distribution call (`acc`) is not returned: a single unsigned dark pool print names a price, not a
+  buyer (owner decision 2026-09-12), so the member surfaces do not show it either.
+- Nothing on the board is a healthy answer: `ok`, with the note `no stock passes the board's gate in this window; that is a healthy answer, not a failed read`.
+  A board with names but none on the side asked for: `the board holds {total} names, none of them on the side asked for`.
+- More names than `limit`: the first `limit`, `data.count` is every name on the side asked for, and the note is
+  `showing the first {n} of {total} names, in the board's own order (best ranked first)`.
+- `unavailable`: no board is cached yet, or the service could not build one
+  (`the confluence board is being built on the server; ask again in a few minutes`); the service raising or a malformed
+  payload (`the confluence board could not be read`). Never an empty board.
+- Data fields: `days`, `window`, `direction`, `rows`, `count`, `counts` (`total, bull, bear, building`, counted from
+  the rows the board holds), `band_meta`, `incomplete`, `built_at`, `refresh_minutes`. Row fields, by the route's own
+  names: `sym, band` (L · M · S), `dir` (BULL · BEAR), `status` (BUILDING · STEADY · ESTABLISHED), `sector, dpn` (dark
+  pool dollars over the window), `dpAvg, dpLo, dpHi, dpLast, bigPrint, bigPrice, bigDate, net, net5, bull, bear,
+  bullPct` (already a percent), `leapPrem, leapShare` (a fraction, 0 to 1), `freshRatio, top` (`cp, strike, exp, dte,
+  prem`), `score`.
+
+**`earnings.expectedMove`** (source `uct-implied-move`)
+- What it returns: what the options market prices for one stock's earnings report, and what it priced before each past
+  and coming report. Every `ok` or `partial` read carries the note
+  `the expected move is the price of the at-the-money straddle (the call plus the put at the strike nearest the stock price) as a percent of the stock price, through the option expiry given; what the options market prices, not a forecast`.
+  The route's Setup Grade is not part of this kind.
+- **Licensing, verified in code.** The straddle is computed from UCT's own Massive option chain
+  (`implied_move.compute_expected_move_result` over `services/polygon_options`, payload `source: "massive-chain"`); the
+  capture store's rows are `massive-chain` or `massive-backfill`. No Schwab chain is read. A rail reads both source
+  files, and a current straddle whose `source` is not `massive-chain` is dropped with the note
+  `a current straddle from an option chain this kind does not show was left out`.
+- Params: `symbol` (one ticker); `report_date` (optional, `YYYY-MM-DD`). The service picks the first expiry on or after
+  the report date, so the adapter looks the straddle up for `report_date` when given, else for the coming report the
+  capture store holds a row for, else with no date. `data.report_date` says which; with none the note is
+  `no report date was given or stored for {sym}, so the straddle is for the nearest expiry, which spans the next report only if that report falls before it`.
+- The current straddle (`data.live`, `data.live_state`):
+  - `fresh`: the service's 15-minute cache holds it;
+  - `last_good`: only its last-good slot does. The read is `stale`, with the note
+    `the current straddle is the last good read, older than the 15 minutes it is normally kept, so it may be behind the option market`;
+  - `not_cached`: neither does. `data.live` and `data.live_outcome` are null (the route's own word for "the read was
+    never attempted"), the read is `partial`, and the notes are
+    `no current straddle is held in the server's cache for {sym}, and this read never starts an option chain read; only what was stored before each report is given`
+    and `the stored rows carry UCT's own capture dates, not a market time, so as_of is not given`.
+- `as_of` is always null. A straddle's `asof` is when UCT read the chain; `data.read_at` gives it, with the note
+  `the current straddle was read by UCT from its option chain at {at} (UCT's read time; the vendor's quote time is not carried), so as_of is not given: not a live feed`
+  (or `the current straddle carries no read time, so as_of is not given`).
+- The stored captures (`data.history`, at most 8 rows, newest report first, the member route's own count) carry the
+  note
+  ``each stored row is what the straddle priced before that report, captured once by UCT on the `captured_at` date; a row whose report date is still ahead is the coming report's capture``.
+  None held: `no stored capture is held for {sym}: the capture store began recently and many stocks have none`.
+  A store that could not be read is said, never read as "none": `data.store_read` is false, the read is `partial`, and
+  the note is `the stored captures could not be read for {sym}; that is not the same as none being held`.
+- `unavailable`: no current straddle is held and no capture is stored
+  (`no expected move is held for {sym}: no current straddle is in the server's cache and no capture is stored. That is not the same as no move being priced`);
+  neither could be read (`the expected move could not be read for {sym}`).
+- Data fields: `symbol`, `report_date`, `live`, `live_state` (fresh · last_good · not_cached), `live_outcome`, `read_at`,
+  `history`, `history_since`, `store_read`. `live` fields, by the route's own names: `pct` (percent of the stock price),
+  `dollar, strike, spot, call_mid, put_mid, iv_atm, expiry, horizon, asof, source`. History row fields:
+  `sym, report_date, captured_at, pct, dollar, expiry, fiscal_year, fiscal_quarter`.
+
+**`earnings.callSearch`** (source `uct-transcript-index`)
+- What it returns: the indexed earnings calls that match a word or a phrase. Every `ok` read carries the note
+  `each hit is one company's earnings call for one fiscal quarter, best match first, with the index's own short excerpt around the match; third-party transcript text, quoted exactly as indexed. The index stores a call as one text, so who said it is not known`.
+- **Third-party text, and no more of it than the member route gives.** A hit's `snippet` is the index's own excerpt
+  (about 28 words around the match, with `<mark>` around the matched words), returned exactly as the service cut it. The
+  transcript itself is never returned.
+- Params: `q` (2 to 120 characters, with at least one letter or number); `limit` 1–40 calls (default 10; the member
+  panel's own count, the route allows more); `symbol` (optional, one ticker); `since` (optional, `YYYY-MM-DD`).
+- `as_of` = the newest indexed call's date, as the start of that Eastern day, with the note
+  `the index holds {calls} earnings calls dated {oldest} to {newest}; as_of is the newest indexed call's date (a date, not a time of day)`.
+  When no indexed call carries a usable date, `as_of` is null with the note
+  `the index holds {calls} earnings calls and none carries a usable date, so as_of is not given`.
+- `stale` is always false, and every `ok` read says what it did not check
+  (`whether the most recent calls have been indexed yet is not checked by this read`).
+- No hit is a finding only when the index holds calls, so the index is read first. A healthy search with no hit is `ok`,
+  with the note
+  `no indexed call matches; that is a finding about the calls the index holds, not about calls it does not hold`.
+- More calls than `limit`: the best `limit` matches, `data.total` is every call that matches, and the note is
+  `showing the {n} best matches of {total} calls that match`. When the service checked exact words and quoted phrases
+  on the hits it kept, the total is wider than the hits (`data.total_wider`), with the note
+  `{total} calls match the words in any form; exact words and quoted phrases were checked only for the hits shown, so the total is wider than the hits`.
+  A search the service widened to related words adds `the search was widened to related words by the search service`
+  (`data.expanded`).
+- `unavailable`: the index holds no calls
+  (`no earnings calls are indexed on this server yet, so nothing can be searched; that is not the same as no call mentioning it`);
+  a query the service could not run as typed (`the search could not be run as typed: the search service did not understand the query`);
+  nothing searchable left of the query (`nothing searchable was left of the query, so no search was run`); the index or
+  the search failing (`the earnings call search could not be read`). The service's own error sentence is never passed on.
+- Data fields: `query`, `symbol`, `since`, `total`, `total_wider`, `hits`, `expanded`, `index` (`calls, oldest, newest`).
+  Hit fields, by the route's own names: `symbol, year, quarter, date, snippet, score`. There is no speaker field.
+- **Not kinds:** the month-by-month trend of a word (`GET /api/earnings/transcript-trend`), a whole transcript, and
+  `flow.summary` (§4.4, still deferred: `confluence.board` is UCT's joined board, not the options-flow tape).
+
 ## 8. Changing this contract
 
 1. Open a PR that edits this file, with a version bump (v1.1 adds; v2.0 breaks). Message agent-lead.
@@ -689,6 +936,7 @@ while the server lists its own kind.
 
 ## 9. Changelog
 
+- **v1.8 addition (2026-11-17, terminal-data, data wave 2):** §4.11 documents five kinds added dark with this version: `highsLows.yearly`, `themes.rotation`, `confluence.board`, `earnings.expectedMove`, `earnings.callSearch`. All five are model-isolated (ADR-005: UCT-derived lists, selections and option-chain arithmetic, and third-party transcript excerpts), and none starts a build inside a turn: each reads what its service already holds and is `unavailable`, with the reason, otherwise (§5). One earlier statement gains a pointer: the §4 `nhnl` row (the names behind the two 52-week counts are read by `highsLows.yearly`; the counts stay `breadth.current` measures). `flow.summary` stays deferred (§4.4). Additive: no existing kind changes and no envelope field changes, so the wire `contract` stays `"MD-1.0"` (§8.4). **Not armed:** every kind of §4.11 is default OFF, and switching one on is the owner's step, not this document's. §8.1 status: the version bump and this entry are in the PR that adds the kinds; agent-lead's acknowledgement is not recorded here yet.
 - **v1.7 addition (2026-11-17, terminal-data, data wave 1):** §4.10 documents five kinds that merged dark in #1584: `analyst.actions`, `highsLows.session`, `sectors.performance`, `leaders.longRun`, `levels.darkpool` (four model-isolated, ADR-005; `sectors.performance` is not). Two earlier statements are amended with them: the §4 `nhnl` row (v1.3 recorded `nhnl_live` as "not exposed"; it is now read only by the isolated `highsLows.session`, which is never a 52-week measure) and the §4.4 `darkpool` deferral (a trustworthy `as_of` is identified for price LEVELS only, the newest confirmed print date; a prints kind stays deferred). Additive: no existing kind changes and no envelope field changes, so the wire `contract` stays `"MD-1.0"` (§8.4). **Not armed:** every kind of §4.10 is default OFF, and switching one on is the owner's step, not this document's. §8.1 status: the version bump and this entry are in the PR that edits this file; agent-lead's acknowledgement is not recorded here yet.
 - **v1.6 addition (2026-11-03, builder-b, W2-B2):** `bars.daily` gains `from` (a window read); §4.6 `offHigh`, `pullbacks` and `range` with `from`; §4.9 `history.eventStudy` over Market Intelligence's event study (technical series only, local-only to the model). No envelope change.
 - **v1.6 addition (2026-11-03, agent-rs, W2-B1):** §4.8 `research.company`, a composed kind over the served kinds plus the turn's one web search (contract RS-1). No envelope change.

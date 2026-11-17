@@ -4,11 +4,16 @@
     "analyst.actions",
     "breadth.current",
     "catalysts.board",
+    "confluence.board",
+    "earnings.callSearch",
+    "earnings.expectedMove",
     "highsLows.session",
+    "highsLows.yearly",
     "leaders.longRun",
     "levels.darkpool",
     "ratings",
-    "rs.leadership"
+    "rs.leadership",
+    "themes.rotation"
   ],
   "local_only_actions": [
     "breadth.history",
@@ -18,8 +23,13 @@
     "news.movers",
     "rs.compare",
     "stock.analystActions",
+    "stock.callSearch",
+    "stock.confluenceBoard",
     "stock.darkPoolLevels",
+    "stock.expectedMove",
     "stock.longRunLeaders",
-    "stock.sessionHighsLows"
+    "stock.sessionHighsLows",
+    "stock.themeRotation",
+    "stock.yearlyHighsLows"
   ]
 }

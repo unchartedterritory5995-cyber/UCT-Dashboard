@@ -18,6 +18,9 @@ Wave 2 (W2-B2, builder-b): `history.eventStudy` (Market Intelligence's existing 
 history_event_study.py) and `bars.daily` gains `from`.
 Terminal data wave 1 (terminal-data): `analyst.actions`, `highsLows.session`, `sectors.performance`, `leaders.longRun`,
 `levels.darkpool` — the Agent half of the UPDG / HILO / SCTR / LEAD / LVL terminal panels. All default OFF.
+Terminal data wave 2 (terminal-data): `highsLows.yearly`, `themes.rotation`, `confluence.board`, `earnings.expectedMove`,
+`earnings.callSearch` — the Agent half of the H52 / TROT / CONFL / EXMV / TSRC terminal panels. All default OFF, all
+MODEL-ISOLATED, and none ever starts a build: each reads what its service already holds (MD-1 §4.11).
 """
 from __future__ import annotations
 
@@ -26,6 +29,8 @@ from api.services.uct_agent.marketdata import (asset_classes, bars_daily, breadt
 from api.services.uct_agent.marketdata import catalysts_board, cot, history_event_study, rs_leadership
 from api.services.uct_agent.marketdata import (analyst_actions, darkpool_levels, leaders_long_run, sectors_performance,
                                               session_highs_lows)
+from api.services.uct_agent.marketdata import (confluence_board, earnings_call_search, earnings_expected_move,
+                                              themes_rotation, yearly_highs_lows)
 from api.services.uct_agent.research import rs1
 
 # Symbols one read may name. A request-shape bound per kind, not a toolkit cap: the cap numbers live only
@@ -226,6 +231,53 @@ def register(registry) -> None:
         description="One stock's dark pool price levels: zones where confirmed dark pool prints bunched up, computed "
                     "by UCT from the nightly-confirmed print ledger; as_of is the newest print date among them. A "
                     "failed read is never 'no levels'. Shown to the member only. Params: {symbol}.",
+    ))
+    # Terminal data wave 2 (owner: terminal-data): the Agent half of five more terminal panels. Default OFF like every kind
+    # (UCT_AGENT_DATA_KINDS); ALL FIVE are model-isolated, so each also needs its own UCT_AGENT_ISOLATED_KINDS entry
+    # (ADR-005) and its capability is local-only. None starts a build inside a turn: each reads what its service already
+    # holds (a warm cache, a stored list, a local index) and answers `unavailable` with the reason otherwise.
+    registry.register(Kind(
+        name=yearly_highs_lows.KIND, fn=yearly_highs_lows.read_yearly_highs_lows, validate=yearly_highs_lows.validate,
+        # declared `periodic` (the lists of a session under way); a finished session's stored lists read `historical`
+        freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL, model_isolated=True,
+        description="The stocks at new 52-WEEK highs and new 52-week lows (the names behind the Breadth Monitor's counts, "
+                    "UCT's own universe): the lists of the session under way from the last warm breadth read, else the "
+                    "stored lists of the newest finished session. Never computes a breadth read. Shown to the member only. "
+                    f"Params: {{side: {'|'.join(yearly_highs_lows.SIDES)}, limit (1-{yearly_highs_lows.MAX_LIMIT})}}.",
+    ))
+    registry.register(Kind(
+        name=themes_rotation.KIND, fn=themes_rotation.read_themes_rotation, validate=themes_rotation.validate,
+        freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL, model_isolated=True,
+        description="Which of UCT's themes are rotating in and out: each theme's 1-week percentile rank against its "
+                    f"1-month rank ({themes_rotation.THRESHOLD} points or more apart), read from the service's 15-minute "
+                    "cache and never computed here ('not cached' otherwise); as_of is null (only UCT's time is known). "
+                    "Shown to the member only. "
+                    f"Params: {{side: {'|'.join(themes_rotation.SIDES)}, limit (1-{themes_rotation.MAX_LIMIT})}}.",
+    ))
+    registry.register(Kind(
+        name=confluence_board.KIND, fn=confluence_board.read_confluence_board, validate=confluence_board.validate,
+        freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL, model_isolated=True,
+        description="UCT's confluence board: stocks where a large dark pool dollar size and aligned long-dated options "
+                    "flow line up, for the one window the server keeps warm. The cached board or 'warming', never a "
+                    "build; as_of is null (the board carries no data time). Shown to the member only. "
+                    f"Params: {{direction: {'|'.join(confluence_board.DIRECTIONS)}, limit (1-{confluence_board.MAX_LIMIT})}}.",
+    ))
+    registry.register(Kind(
+        name=earnings_expected_move.KIND, fn=earnings_expected_move.read_expected_move,
+        validate=earnings_expected_move.validate, freshness="periodic", owner="terminal-data", max_symbols=ONE_SYMBOL,
+        model_isolated=True,
+        description="One stock's expected move around earnings: the at-the-money straddle from UCT's own Massive option "
+                    "chain when the server already holds it (never read here), and what the straddle priced before each "
+                    "past and coming report from UCT's capture store. No Setup Grade. Shown to the member only. "
+                    "Params: {symbol, report_date? (YYYY-MM-DD)}.",
+    ))
+    registry.register(Kind(
+        name=earnings_call_search.KIND, fn=earnings_call_search.read_call_search, validate=earnings_call_search.validate,
+        freshness="periodic", owner="terminal-data", max_symbols=ONE_SYMBOL, model_isolated=True,
+        description="Search UCT's index of recent earnings-call transcripts for a word or a phrase: one hit per call, best "
+                    "match first, with the index's own short excerpt (third-party text, never lengthened). An empty index "
+                    "is 'unavailable', never 'no mention'. Shown to the member only. "
+                    f"Params: {{q, limit (1-{earnings_call_search.MAX_LIMIT}), symbol?, since? (YYYY-MM-DD)}}.",
     ))
     # W2-B1 (agent-rs, RS-1 v1): a COMPOSED kind. It reads the served kinds above (purpose "research", so a
     # model-isolated kind refuses before admission) and the turn's one web search; every fact's figures come from

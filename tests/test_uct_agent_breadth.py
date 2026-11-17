@@ -205,9 +205,13 @@ def test_MIRROR_the_servers_local_only_set_is_every_localOnly_capability():
     # Phase 2 catalysts: news.movers (UCT's catalyst board: stored headlines + engine write-ups; catalysts.board is model-isolated)
     # Phase 2: rs.compare (relative strength + leadership; rs.leadership is model-isolated)
     # Terminal data wave 1: the four capabilities over the isolated kinds analyst.actions / highsLows.session / leaders.longRun / levels.darkpool
+    # Terminal data wave 2: the five capabilities over the isolated kinds highsLows.yearly / themes.rotation / confluence.board /
+    # earnings.expectedMove / earnings.callSearch
     assert found == set(turn.LOCAL_ONLY_ACTIONS) == {"breadth.show", "breadth.history", "history.afterEvent", "journal.reviewTrades",
                                                      "news.movers", "rs.compare", "stock.analystActions", "stock.sessionHighsLows",
-                                                     "stock.longRunLeaders", "stock.darkPoolLevels"}
+                                                     "stock.longRunLeaders", "stock.darkPoolLevels", "stock.yearlyHighsLows",
+                                                     "stock.themeRotation", "stock.confluenceBoard", "stock.expectedMove",
+                                                     "stock.callSearch"}
 
 
 # ═══ 3. the one door: what a stored row may say to a model ══════════════════════════════════════════
