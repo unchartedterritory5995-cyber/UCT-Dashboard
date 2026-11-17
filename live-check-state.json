@@ -1,5 +1,5 @@
 {
-  "fingerprint": "",
-  "posted_at": "2026-11-17T02:13:04.667670+00:00",
-  "reason": "recovered"
+  "fingerprint": "service:bars-api=running 65798b5a4c, which is NOT on master: a rollback or a hand deploy of other code",
+  "posted_at": "2026-11-17T02:35:01.780471+00:00",
+  "reason": "new stuck item"
 }
