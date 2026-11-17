@@ -22,7 +22,9 @@ describe('lake depth', () => {
   })
   it('the landed chart\'s own background loop uses the lake-aware target (read from the source: one wiring)', async () => {
     const { readFileSync } = await import('node:fs')
-    const src = readFileSync(new URL('../components/chart/useBarSnapshotBars.js', import.meta.url), 'utf8')
+    const { join } = await import('node:path')
+    // (vitest runs from app/; this environment's import.meta.url is not a file: URL)
+    const src = readFileSync(join(process.cwd(), 'src', 'components', 'chart', 'useBarSnapshotBars.js'), 'utf8')
     expect(src).toMatch(/>=\s*prefetchTargetBars\(!!store\.lakeCarries\?\.\(key\)\)\)\s*break/)
     expect(src).not.toMatch(/HISTORY_PREFETCH_TARGET_BARS/)
   })
