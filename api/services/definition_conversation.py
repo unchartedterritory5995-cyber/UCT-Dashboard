@@ -1366,19 +1366,171 @@ def _check_references(envelope: Mapping[str, Any], view: Any) -> None:
                     continue
                 valid = [(sid, "") for sid in sorted(s for s in view_slots[key] if s)]
             listed = ", ".join(f"{sid} = {v}" if v != "" else sid for sid, v in valid[:16]) or "none"
-            raise _Refused(
+            refused = _Refused(
                 "envelope:reference",
                 f"{where}.slot {a['slot']!r} names no parameter of the result. A slot id is "
                 "`<output key>#<path>`: the `args` indices from that output's root tree "
                 "(`root` for the root, `n` for an offset's bar count). "
                 f"The slots of {key!r} are: {listed}. Use one of those ids, or give the "
                 "assumption `text` alone with no `slot`.")
+            refused.assumption = (j, "slot")          # which pointer dangles (`_mend_assumptions`)
+            raise refused
         elif a.get("output") is not None and a["output"] not in keys:
-            raise _Refused(
+            refused = _Refused(
                 "envelope:reference",
                 f"{where}.output {a['output']!r} is not an output key of the result "
                 f"({', '.join(sorted(keys)) or 'none'}); use one of those keys, or give the "
                 "assumption `text` alone.")
+            refused.assumption = (j, "output")
+            raise refused
+
+
+# --------------------------------------------------------------------------- #
+# mends -- two deterministic corrections made BEFORE the check (2026-11-17)
+# --------------------------------------------------------------------------- #
+#
+# ⚰️ MEASURED THROUGH THE PRODUCTION DOOR, 2026-11-17: about one built turn in four paid a second
+# model call, and the patch's MATHS was right every time. Two of the causes are mechanical:
+#
+#   1. AN OUTPUT READ BY ITS KEY. `atrDist` is built, and a colour state says `atrDist > 5`. An
+#      output's key is not a name a formula can read (`schema:name`), so the model was sent back to
+#      write the same expression out again. The key names exactly one tree in the same answer, so
+#      the reference is replaced by that tree: the same value on every bar, by construction.
+#   2. AN ASSUMPTION POINTED AT A SLOT THAT IS NOT THERE. A slot id is a path of argument indices
+#      (`ftd#0.0.0.0.0.1.n`); the model gets the path wrong on a deep tree and the whole answer was
+#      refused (`envelope:reference`) for a footnote. The assumption's TEXT is kept and its pointer
+#      is dropped. An assumption carries no op, so nothing can ride in on one.
+#
+# ⛔ `check_envelope` STILL NEVER REPAIRS AND NEVER STRIPS. These run before it, as the argument
+# unwrap does, and what they produce meets the same strict check. Each is recorded by NAME only
+# (`usage.mended`), so how often the model needs them is measured rather than hidden.
+# ⛔ NEITHER TOUCHES AN OP'S MEANING: no op is added, removed or reordered, no number changes.
+
+MEND_OUTPUT_REF = "output-ref"
+MEND_ASSUMPTION = "assumption-link"
+_MEND_MAX_PASSES = 8
+
+
+def _formula_names() -> frozenset:
+    """Every name a formula may already read or call: an output key that is also one of these is
+    left alone (the table's meaning wins, as it does everywhere else)."""
+    from api.services import ast_table
+    t = ast_table.TABLE
+    return frozenset(ast_table.declared_names(t)) | frozenset((t.get("functions") or {}).keys())
+
+
+def _authored_trees(envelope: Mapping[str, Any], view: Any) -> Dict[str, Any]:
+    """Output key -> the tree that key names after this answer: the view's own outputs, overlaid
+    by what this answer creates, adds or re-trees. A key removed by this answer names nothing."""
+    trees: Dict[str, Any] = {}
+    d = (view or {}).get("definition") if isinstance(view, Mapping) else None
+    for o in ((d or {}).get("outputs") or []):
+        if isinstance(o, Mapping) and isinstance(o.get("key"), str) and isinstance(o.get("tree"), Mapping):
+            trees[o["key"]] = o["tree"]
+    for o in envelope.get("ops") or []:
+        if not isinstance(o, Mapping):
+            continue
+        name = o.get("op")
+        if name == "create":
+            for k, out in zip(_create_keys(o), o.get("outputs") or []):
+                if k and isinstance(out, Mapping) and isinstance(out.get("tree"), Mapping):
+                    trees[k] = out["tree"]
+        elif name == "add_output" and isinstance(o.get("key"), str) and isinstance(o.get("tree"), Mapping):
+            trees[o["key"]] = o["tree"]
+        elif name == "set_output_tree" and isinstance(o.get("output"), str) and isinstance(o.get("tree"), Mapping):
+            trees[o["output"]] = o["tree"]
+        elif name == "remove_output" and isinstance(o.get("output"), str):
+            trees.pop(o["output"], None)
+    return trees
+
+
+def _inline_refs(tree: Any, own: Optional[str], trees: Mapping[str, Any], skip: frozenset,
+                 seen: Tuple[str, ...], count: List[int]) -> Any:
+    """``tree`` with every read of another output's key replaced by that output's tree.
+    A key that reads itself, directly or round a loop, is left as it is (and is then refused by
+    the ordinary name check, which is the right answer for it)."""
+    if isinstance(tree, list):
+        return [_inline_refs(x, own, trees, skip, seen, count) for x in tree]
+    if not isinstance(tree, Mapping):
+        return tree
+    name = tree.get("name")
+    if (tree.get("type") == "series" and isinstance(name, str) and name in trees
+            and name not in skip and name != own and name not in seen
+            and len(seen) < _MEND_MAX_PASSES):
+        count[0] += 1
+        return _inline_refs(copy.deepcopy(dict(trees[name])), name, trees, skip, seen + (name,), count)
+    out = dict(tree)
+    if isinstance(tree.get("args"), list):
+        out["args"] = [_inline_refs(a, own, trees, skip, seen, count) for a in tree["args"]]
+    return out
+
+
+def _mend_output_refs(envelope: Dict[str, Any], view: Any) -> int:
+    """Replace reads of an output's key, in place on ``envelope`` (already a private copy).
+    Returns how many reads were replaced."""
+    trees = _authored_trees(envelope, view)
+    if not trees:
+        return 0
+    skip = _formula_names() | declared_inputs(envelope, view)
+    count = [0]
+    for o in envelope.get("ops") or []:
+        if not isinstance(o, dict):
+            continue
+        name = o.get("op")
+        if name == "create":
+            for k, out in zip(_create_keys(o), o.get("outputs") or []):
+                if isinstance(out, dict) and isinstance(out.get("tree"), Mapping):
+                    out["tree"] = _inline_refs(out["tree"], k, trees, skip, (), count)
+        elif name in ("add_output", "set_output_tree", "add_clause") and isinstance(o.get("tree"), Mapping):
+            own = o.get("key") if name == "add_output" else o.get("output")
+            o["tree"] = _inline_refs(o["tree"], own if isinstance(own, str) else None, trees, skip, (), count)
+        for s in (o.get("states") or []) if isinstance(o.get("states"), list) else []:
+            if isinstance(s, dict) and isinstance(s.get("when"), Mapping):
+                s["when"] = _inline_refs(s["when"], None, trees, skip, (), count)
+    return count[0]
+
+
+def _mend_assumptions(envelope: Dict[str, Any], view: Any) -> int:
+    """Drop the pointer of an assumption that points at nothing, keeping its text. The verdict is
+    the reference check's OWN (`_check_references` raises it and names the assumption), so there
+    is one rule, not two. An assumption with no text is left for the check to refuse."""
+    dropped = 0
+    for _ in range(_MEND_MAX_PASSES):
+        try:
+            _check_references(envelope, view)
+            return dropped
+        except _Refused as refused:
+            at = getattr(refused, "assumption", None)
+            items = envelope.get("assumptions")
+            if at is None or not isinstance(items, list) or not (0 <= at[0] < len(items)):
+                return dropped
+            a = items[at[0]]
+            if not (isinstance(a, dict) and isinstance(a.get("text"), str) and a["text"].strip()) or at[1] not in a:
+                return dropped
+            del a[at[1]]
+            dropped += 1
+    return dropped
+
+
+def mend(candidate: Any, view: Any) -> Tuple[Any, List[str]]:
+    """``(envelope, names)``: the answer with the two mends applied, and which were needed.
+    Anything that is not a schema-valid change is returned untouched for the check to judge."""
+    if not isinstance(candidate, Mapping) or not isinstance(candidate.get("ops"), list):
+        return candidate, []
+    try:
+        if _schema_errors(candidate):
+            return candidate, []
+        work = copy.deepcopy(dict(candidate))
+        names: List[str] = []
+        if _mend_output_refs(work, view):
+            names.append(MEND_OUTPUT_REF)
+        if _mend_assumptions(work, view):
+            names.append(MEND_ASSUMPTION)
+        return (work, names) if names else (candidate, [])
+    except Exception:                              # noqa: BLE001 -- a mend never costs the turn
+        logger.exception("[converse] mend failed; the answer is checked as it came")
+        return candidate, []
+
 
 
 def _label_text(value: Any) -> str:
@@ -1788,7 +1940,7 @@ def _account(user_id: Any, conversation_id: Any, calls: List[Dict[str, Any]], *,
              outcome: str, admin: bool, cap_usd: float,
              repair_gate: Optional[str] = None,
              input_wrapper: Optional[str] = None,
-             examples: Optional[int] = None) -> Dict[str, Any]:
+             examples: Optional[int] = None, mended: Optional[str] = None) -> Dict[str, Any]:
     """The turn's cost record: returned to the caller as ``usage`` and logged.
 
     ⛔ SHAPE ONLY. Model id, token counts, call count, dollars, the outcome code
@@ -1810,6 +1962,9 @@ def _account(user_id: Any, conversation_id: Any, calls: List[Dict[str, Any]], *,
         "input_wrapper": input_wrapper,
         # ⭐ L5: how many worked examples rode along (None = the turn carried none)
         "examples": examples,
+        # ⭐ 2026-11-17 -- WHICH deterministic mends the answer needed ("output-ref,assumption-link"),
+        # or None. Names only: a count of how often the model needs them, never what they touched.
+        "mended": mended,
         "conversation": None,
     }
     key = conversation_key(conversation_id)
@@ -1877,7 +2032,7 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
                                    admin=admin, cap_usd=cap_usd,
                                    repair_gate=trace.get("repair_gate"),
                                    input_wrapper=trace.get("input_wrapper"),
-                                   examples=trace.get("examples"))
+                                   examples=trace.get("examples"), mended=trace.get("mended"))
     except Exception:                              # noqa: BLE001 -- telemetry never breaks a turn
         logger.exception("[converse] usage accounting failed")
     _record_turn(user_id, conversation_id, result, admin=admin, message=message,
@@ -2040,6 +2195,7 @@ def _record_turn(user_id: Any, conversation_id: Any, result: Mapping[str, Any], 
             repair_gate=usage.get("repair_gate"),
             input_wrapper=usage.get("input_wrapper"),
             examples=usage.get("examples"),
+            mended=usage.get("mended"),
             usd=usage.get("usd"),
             input_tokens=usage.get("input_tokens"),
             output_tokens=usage.get("output_tokens"),
@@ -2227,6 +2383,11 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             # shape only: the wrapper NAME and the attempt, never its content
             logger.info("[converse] unwrapped %r on attempt=%d", wrapper, attempts)
             trace.setdefault("input_wrapper", wrapper)
+        candidate, mended = mend(candidate, view)
+        if mended:
+            # shape only: WHICH mends, never what they touched
+            logger.info("[converse] mended %s on attempt=%d", ",".join(mended), attempts)
+            trace.setdefault("mended", ",".join(mended))
         try:
             envelope = check_envelope(candidate, revision, view)
             check_output_renames(envelope, message, view, turns)
