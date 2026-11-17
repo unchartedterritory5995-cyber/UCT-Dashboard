@@ -614,6 +614,8 @@ the chart as soon as the chart knows it (it was Install, a wait, then Put it on 
 A member who already holds an unchanged copy gets that copy, recognised by its maths, so a
 second press no longer leaves two identical indicators.
 
+**Checked on production, 2026-11-17 03:45Z (served f2a0d35916).** One press: 0.7 seconds from "Add to chart" to the indicator on the chart, with the toast naming it; on a second visit the row said the member has it, and a second press added that same copy (one definition, not two). The two rebuilt indicators were photographed on a chart again: the relative strength line has its shape, and the gap-up shows its marker with no line across the chart. Every copy made by these checks was deleted.
+
 **The set.** Eleven are in the UCT tab (#1496), and the flat base makes twelve (#1501): distribution day count; relative strength
 against SPY, and its new high before price; extension above the 50-day in ATRs; percent from
 the 10-week; volume against its 50-day average; tight weekly closes; gap up on volume; inside
