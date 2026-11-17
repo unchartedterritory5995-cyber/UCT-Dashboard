@@ -296,7 +296,7 @@ def test_price_reads_uses_the_read_only_history_path(monkeypatch):
     """The real `_load_bars`: a pure bars_sqlite read + _fmt_sqlite_bars under suppress_meta_warm."""
     from api.services import bars_fetch, bars_sanitize, bars_sqlite
     seen = {}
-    monkeypatch.setattr(bars_sqlite, "get_bars", lambda t, tf, n: seen.setdefault("get", (t, tf, n)) and
+    monkeypatch.setattr(bars_sqlite, "get_bars_table_order", lambda t, tf, n, stop_at=None: seen.setdefault("get", (t, tf, n)) and
                         [(20240102, 1, 1, 1, 10.0, 5)])
     real_fmt = bars_fetch._fmt_sqlite_bars
 
