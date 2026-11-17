@@ -428,3 +428,9 @@ budgets. The honest version needs a cap ruling (coordinator, with the compute co
 A of the door-robustness unit made it a separate unit). Then the freed scripts need captures grading
 MATCH, because a deeper look-back changes which bars a value reads during warm-up. **Size: small**
 engine change (`budget.js` and its Python twin), **medium** with the measurement and captures.
+- ⭐ **Ruled the same day, on measurement: no cap is raised**
+  (`docs/pine/evidence/2026-11-17-compute-caps/EVIDENCE.md`). On 5,000 daily bars the scripts a raise
+  frees cost 1.19 s to 441 s per compute on the host lane, the four the runtime lane serves today cost
+  6.7 to 110 ms there (and the door asks the host lane first, so a raise would move them), and the two
+  committed scripts a raise would newly serve grade DIVERGE against their captures. Sections 6 and 7 of
+  that record name the costs found at today's caps and what would let a cap move.

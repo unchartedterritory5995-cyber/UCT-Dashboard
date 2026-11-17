@@ -60,6 +60,13 @@ import os from 'node:os'
 import path from 'node:path'
 import crypto from 'node:crypto'
 import { instanceDocumentForFetch } from '../../symbolInputs.js'
+// ⭐⭐ THE STRATEGY ON THE RUNTIME LANE (2026-11-17, strategy-decl admission evidence): a broker document the
+// member door minted (`strategyWindow.js`, possible only with the strategy broker gate on) is handed the
+// server's history window exactly as the binder hands it (`binder.js`, W9-T11-F1), and its run's record is
+// read back off the columns (`strategyRecord.js::runtimeStrategyOf`), never re-run here.
+import { isStrategyWindowDefinition } from '../../strategyWindow'
+import { runtimeStrategyOf } from '../../runtime/strategyRecord.js'
+import { historyWindowBarsOf } from '../../runtime/__tests__/strategyArmed.js'
 
 // ─── ⭐⭐ C26 — ANOTHER SYMBOL'S BARS, FROM COMMITTED CAPTURES ONLY ─────────────
 //
@@ -1070,6 +1077,9 @@ function drawnColours(def, bars, ctx, inputs = undefined) {
     secondary: ctx.secondary || null,
     exchangeOf: ctx.exchangeOf,
     lowerTf: ctx.lowerTf || null,
+    // ⭐⭐ (2026-11-17) — a broker document's window, as StockChart hands the binder `strategyHistoryWindow`
+    // (absent for every other document, whose ctx carries none)
+    ...(ctx.historyWindowBars != null ? { historyWindowBars: ctx.historyWindowBars } : {}),
     adjustTime: (t) => t,
     applyData: (series, data) => series.setData(data),
     plan: { fresh: true },
@@ -1405,6 +1415,31 @@ export function enterMemberDoor(source) {
   return { built, def: installed[0], stage: null, refusal: null }
 }
 
+/**
+ * ⭐⭐ (2026-11-17) — WHAT A BROKER DOCUMENT'S RUN PUBLISHED, read back off the columns the product computed
+ * (`registry.computeFor`, the binder's call): its strategy record (`runtimeStrategyOf`), its own drawings, and,
+ * when it published no record, the refusal the columns carry by name (a run stopped at an unpinned or unsettled
+ * rule, a window it cannot start from, a build the lane refused). Nothing is re-run or re-derived here.
+ * `unixOf` maps the product's bar key (an ISO date on a daily chart, `toProductBars`) to the capture's own bar
+ * time, row for row, so the grade reads every time on TradingView's clock.
+ */
+export function strategyRunOf(cols, bars, rows) {
+  const record = runtimeStrategyOf(cols)
+  let refusal = null
+  if (!record) {
+    const errs = (typeof registry.columnErrors === 'function' ? registry.columnErrors(cols) : null) || {}
+    const first = Object.values(errs).find((e) => e && e.guard) || null
+    refusal = first
+      ? { guard: String(first.guard), message: String(first.message || '') }
+      : { guard: 'harness:no-record', message: 'the broker document ran and published no strategy record' }
+  }
+  const unixOf = new Map()
+  bars.forEach((b, i) => { if (rows[i]) unixOf.set(String(b.t), rows[i][0]) })
+  // `unixAt[x]`: the capture's time of run bar `x` (a drawing's `bar_index` x)
+  const unixAt = bars.map((b, i) => (rows[i] ? rows[i][0] : null))
+  return { record, refusal, objects: runtimeObjectsOf(cols), objectsWithheld: runtimeObjectsWithheldOf(cols), unixOf, unixAt }
+}
+
 /** ⭐⭐ THE PARITY CLOCK: one that never moves. A grade is a question about VALUES, so
  *  the runtime pane's wall-clock stop (`RUNTIME_PANE_TIME_BUDGET_MS`) must not answer it:
  *  on a busy box delta-rsi's cold run passed 1,000 ms and graded INCONCLUSIVE ("no
@@ -1548,6 +1583,11 @@ function runOurSideOnTheParityClock(capture) {
       // exactly as the member's chart withholds it.
       barIndexFromFirstBar: barIndexStartsAtZero(capture),
     }
+    // ⭐⭐ THE STRATEGY WINDOW, AS THE BINDER HANDS IT (`binder.js` W9-T11-F1): a broker document is handed the
+    // server's `bars_window.HISTORY_WINDOW_BARS` (what `GET /api/pine/history-window` answers a member's tab);
+    // every other document is handed nothing, so an indicator's ctx is unchanged.
+    const strategyDoc = isStrategyWindowDefinition(def)
+    if (strategyDoc) ctx.historyWindowBars = historyWindowBarsOf(path.resolve(process.cwd(), '..'))
     // ⭐ C26 — another symbol's bars, from committed captures only.
     // ⭐ SETTINGS PARITY (symbol): the supply the capture's own symbol choice asks for (the chart fetches
     // the instance's chosen comparison symbol, `symbolInputs.instanceDocumentForFetch`)
@@ -1611,6 +1651,10 @@ function runOurSideOnTheParityClock(capture) {
     notes.push(`plots/objects: ${decision.kind}: ${decision.why}`)
     const calcCols = registry.computeFor(def, calcBars, instanceInputs, calcCtx)
     const cols = replay ? columnsInWindow(calcCols, replayPre) : calcCols
+    // ⭐⭐ THE STRATEGY'S OWN OUTPUT (2026-11-17): what the broker document's run published beside its columns
+    const strategy = strategyDoc
+      ? strategyRunOf(calcCols, calcBars, replay ? replaySupply.rows.concat(capture.bars.rows) : capture.bars.rows)
+      : null
     // ⭐ B1 — each carried paint's colour on every bar, through the binder's own
     // `paintColoursFor` (the function the chart draws with), keyed as the binder keys.
     // ⭐⭐ RC1 — over [prehistory + window] when a proved supplier exists
@@ -1776,6 +1820,8 @@ function runOurSideOnTheParityClock(capture) {
       const themeRelative = !wholeWithheld && isThemeColour(rawColour)
       plots.push({
         title: o ? o.title : null,
+        // the call that made it (`plot`, `plotshape`, ...): the strategy grade pairs `plot()` outputs only
+        kind: o && typeof o.kind === 'string' ? o.kind : null,
         formula: o ? o.formula : null,
         key: row ? row.key : null,
         withheldBy: heldBy || null,
@@ -1872,6 +1918,9 @@ function runOurSideOnTheParityClock(capture) {
       // (`substitutedInputsOf`); `[]` until a lane feeds one.
       // ⭐ RS RATING L3 — `syminfo.industry` / `sector`, fed the capture's value (`symbolOf`).
       substituted: substitutedInputsOf(capture, classificationSubstitutions(source, ctx.symbol, capture)),
+      // ⭐⭐ (2026-11-17) — a broker document's run: its record, or why it published none (`strategyRunOf`);
+      // null for every other document. Graded by `strategyLane.js`.
+      strategy,
     }
   } finally {
     registry.uninstallUserDefinition(HARNESS_DEF_ID)

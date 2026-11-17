@@ -675,7 +675,11 @@ PINE_CAPABILITY_MIN_COMMUNITY_SCRIPTS = 1
 #: capture is a community script. Re-verify of #1204 (2026-11-13): `probe-` (probe-default-colour-v3/
 #: v4/v6, probe-sparse-rows) and `uct-` (the legacy uct-dmi / rsi-atr / sma-ema / hma-macd / rma-wma /
 #: stoch-parity-v1 captures) are ours too, and `uctprobe` also matches `UCTPROBE <name>` (a space).
-PINE_PROBE_PREFIXES = ("uctprobe", "vw-", "probe-", "uct-")
+#: ⭐ 2026-11-17 (strategy-decl evidence): `w9_` / `w9-` are ours too. The W9 strategy probes
+#: (`tools/vendor_harness/w9_probes.py` writes every `tools/visual_conformance/probes/w9-*.pine`) are titled
+#: `W9_<ROW>` and captured as `w9-<row>-...`; without these the classifier counted 35 of the 60 W9 Strategy
+#: Tester captures as COMMUNITY scripts, so a strategy capability could have been admitted on our probes alone.
+PINE_PROBE_PREFIXES = ("uctprobe", "vw-", "probe-", "uct-", "w9_", "w9-")
 #: A probe's own variants: a `v<n>` version and a NEG / POS / ALT suffix, after `_`, `-` or a space.
 _PINE_PROBE_VARIANT_RX = re.compile(r"[_\- ](?:v\d+|neg|pos|alt)$", re.I)
 

@@ -153,6 +153,19 @@ export function valueText(v) {
   return s.includes('.') ? s.replace(/0+$/, '').replace(/\.$/, '') : s
 }
 
+/**
+ * Why a whole script is not computed in this panel, in a member's words. The engine names the
+ * reason by a code; its own sentence is written for engineers and is not shown.
+ * @param {{code?: string|null, reason?: string}|null} run  the compute door's answer for the script itself
+ */
+export function notComputedWords(run) {
+  const code = run && typeof run.code === 'string' ? run.code : ''
+  const only = "Inspect a bar reads this chart's own bars only, so it cannot show this script's values yet."
+  if (code.startsWith('other-symbol:')) return `This script reads another symbol. ${only}`
+  if (code.startsWith('request:') || code.startsWith('lower-tf')) return `This script reads another timeframe. ${only}`
+  return 'This script is not computed here, so there is nothing to read.'
+}
+
 /** The most names one inspection reads. A script with more says so and reads the first ones. */
 export const INSPECT_MAX_NAMES = 96
 
@@ -176,6 +189,10 @@ export async function inspectScript({ source, bars, names, build, compute }) {
   const own = build(source)
   if (!own || !own.ok) return none((own && own.reason) || 'This script is not drawn, so there is nothing to read.')
   const ownRun = await compute(own.definition, bars)
+  // ⛔ the script ITSELF is not computed here (it reads another symbol, or a weekly value this
+  // panel is not handed): said once, for the whole script. Without this every variable was listed
+  // as "not a number on each bar", which is not why (seen on production, 2026-11-17).
+  if (!ownRun || !Array.isArray(ownRun.outputs)) return none(notComputedWords(ownRun))
   const lane = ownRun && typeof ownRun.lane === 'string' ? ownRun.lane : null
 
   const all = (names(source) || [])

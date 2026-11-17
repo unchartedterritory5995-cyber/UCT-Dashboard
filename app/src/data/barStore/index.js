@@ -167,6 +167,8 @@ export function createBarStore(o = {}) {
       return n
     },
     scrollBack: (key, opts) => network.scrollBack(key, opts),
+    /** Prime the history lake for `key` ahead of its open (network.primeLake). */
+    primeLake: (key) => network.primeLake?.(key),
     /** Does the history lake carry `key`'s scroll-back (network.lakeCarries)? */
     lakeCarries: (key) => !!network.lakeCarries?.(key),
     applyLive: (key, frame) => live.applyFrame(key, frame),
