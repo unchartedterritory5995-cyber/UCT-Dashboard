@@ -41,7 +41,7 @@ export {
 
 /** Board rows drawn until the member asks for all of them; the rest are counted, never dropped. */
 export const MAX_ROWS = 100
-/** The server caches the current day's Cream of the Crop for a minute; the list moves slowly. */
+/** The server rebuilds the current day's Cream of the Crop about every 15 minutes; the list moves slowly. */
 const CREAM_POLL_MS = 5 * 60 * 1000
 /** The board is cached for two minutes on the server (the pace /open-flow reads it at). */
 const BOARD_POLL_MS = 2 * 60 * 1000
@@ -83,14 +83,28 @@ const CLICK_LINE = 'Click a symbol to load it into the linked panels; type a row
 const STUDY_LINE = 'A list says which stocks to study; it is not a forecast or a recommendation.'
 
 function CreamList({ code }) {
-  const read = useMarketRead(CREAM_URL, { refreshInterval: CREAM_POLL_MS })
+  // The pace follows the server's own word that it is still building (as the open board does).
+  const [building, setBuilding] = useState(false)
+  const read = useMarketRead(CREAM_URL, { refreshInterval: building ? BUILD_POLL_MS : CREAM_POLL_MS })
   const view = useMemo(() => creamRead(read.body), [read.body])
+  if ((view.state === 'computing') !== building) setBuilding(view.state === 'computing')
   const what = FLOW_LISTS.cream.what
-  usePanelFreshness(view.state === 'ok' && view.rows.length ? panelAsOf(SOURCE, view.date) : null)
+  // The time the server built this list when it says so; an older server only names the day.
+  usePanelFreshness(view.state === 'ok' && view.rows.length ? panelAsOf(SOURCE, view.builtAt || view.date) : null)
   usePanelSymbolRows(view.rows.map((r) => r.sym), 'Cream of the Crop', { total: view.rows.length })
 
   if (read.loading) return <PanelSkeleton label="Loading Cream of the Crop" testId="terminal-flwl-loading" />
-  if ((read.error && !read.body) || view.state !== 'ok') return <FailedRead read={read.body ? { ...read, error: null } : read} what={what} code={code} />
+  if (read.error && !read.body) return <FailedRead read={read} what={what} code={code} />
+  if (view.state === 'computing') {
+    return (
+      <PanelState kind="empty" role="status" title={WARMING_TITLE} testId="terminal-flwl-cream-building">
+        The server is building Cream of the Crop now. During the trading session that can take several minutes, because
+        it reads the whole day of options trades. This panel asks again every 20 seconds and fills in on its own. That
+        is not the same as no positions.
+      </PanelState>
+    )
+  }
+  if (view.state !== 'ok') return <FailedRead read={{ ...read, error: null }} what={what} code={code} />
 
   const day = view.date
   if (!view.rows.length) {
@@ -108,6 +122,11 @@ function CreamList({ code }) {
   return (
     <>
       {read.error && <p className={styles.note} role="status">{failureText(read.error, what)} Showing the last read.</p>}
+      {view.stale && (
+        <p className={styles.note} role="status" data-testid="terminal-flwl-cream-stale">
+          The server is rebuilding this list now. Until it lands you are reading the list it built earlier.
+        </p>
+      )}
       <div className={styles.head}>
         <span className={styles.lede} data-testid="terminal-flwl-totals">
           {count(view.counts.bullish)} bullish and {count(view.counts.bearish)} bearish{' '}
