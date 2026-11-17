@@ -54,10 +54,11 @@ describe('useNeighborWarm', () => {
     const sets = []
     let cleared = 0
     globalThis.__uctStoreWarmers = { warmMemFromIDB, prefetchBarsToIDB, prefetchBars,
-      createNeighborHold: () => ({ set: (syms, tf) => sets.push([[...syms].sort(), tf]), clear: () => { cleared++ } }) }
+      createNeighborHold: () => ({ set: (syms, tf, opts) => sets.push([[...syms].sort(), tf, [...(opts?.deep || [])].sort()]), clear: () => { cleared++ } }) }
     try {
       const { unmount } = renderHook(() => useNeighborWarm(LIST, 'D', '5', { radius: 2 }))
-      expect(sets).toEqual([[['B', 'C', 'E', 'F'], '5']])
+      // held: the ±2 rows; deepened once the member rests: the row on either side
+      expect(sets).toEqual([[['B', 'C', 'E', 'F'], '5', ['C', 'E']]])
       unmount()
       expect(cleared).toBe(1)
     } finally {

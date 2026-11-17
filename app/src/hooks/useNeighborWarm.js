@@ -57,7 +57,9 @@ export function useNeighborWarm(orderedSymbols, selectedSym, tf, { radius = 6 } 
   useEffect(() => {
     if (!neighbors.length) return
     const onTf = tf || 'D'
-    holdRef.current.set(neighbors, onTf)                  // pinned in the store's memory
+    // Pinned in the store's memory; the row on either side also loads its older history once the
+    // member rests here (`deep`, createNeighborHold), so a flip paints it deep.
+    holdRef.current.set(neighbors, onTf, { deep: neighbors.slice(0, 2) })
     warmMemFromIDB(neighbors, [onTf])                      // durable → sync mem (no network)
     prefetchBarsToIDB(neighbors, onTf, { priority: true }) // cold → IDB + mem, jump the queue
     // ⭐ The row on either side, URGENT (2026-11-17): the line above is held while the daily
