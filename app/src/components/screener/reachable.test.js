@@ -756,6 +756,13 @@ const AWAITING_A_DECISION = {
   'app/src/components/chart/engine/runtime/columnDigest.js':
     'Reached ONLY through serverEntry.js (the W5 T3 column codec, JS half; the Python half is '
     + 'api/services/pine_runtime_codec.py). Leaves this register with serverEntry.js.',
+  // Studio R5 (Indicators backlog 44), 2026-11-17: an engine export the Studio page's "Inspect a
+  // bar" is built against. ⏳ The decision owed: that page imports it (the entry goes in that
+  // commit), or it leaves this register with serverEntry.js.
+  'app/src/components/chart/engine/runtime/topLevelNames.js':
+    'Reached ONLY through serverEntry.js (Studio R5: a script\'s top-level names with their lines, '
+    + 'read by the engine\'s own lexer and statement splitter; rail __tests__/topLevelNames.test.js). '
+    + 'Its consumer is the Studio "Inspect a bar" page, not built yet.',
   'app/src/components/chart/engine/runtime/brokerPinsLock.js':
     'W9-T2 pin-ledger lock: a pure check its own header says is NOT imported by the bundle; '
     + 'its consumer is the rail __tests__/brokerPinsLock.test.js (docs/pine/W9-STRATEGY-DESIGN.md).',
