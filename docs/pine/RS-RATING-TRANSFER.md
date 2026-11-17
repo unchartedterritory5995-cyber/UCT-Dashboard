@@ -565,8 +565,8 @@ under the 2026-11-15 ruling, by manifest in the probe's record) and the seed as 
 
 | capture | runtime-on | production |
 |---|---|---|
-| `rs-rating-fred6724-w-rddt-1w-2026-11-17` | DIVERGE: RS line 139/140 (every settled week exact, maxRel 0 on them); the ONE difference is the forming week (37.8408 vs 36.7341); the three averages MATCH_SUBSTITUTED 140/140; objects MATCH (both labels, texts equal) | the same plots; objects DIVERGE (the run half is dark: `pine:object-removal-lost`, as on daily) |
-| `rs-rating-fred6724-w-nvda-1w-2026-11-17` | DIVERGE: RS line 1186/1453; 266 settled weeks differ, every one before 2023-12-05 (first 1999-02-22, last 2023-12-04, the accepted S&P 500 history, Q-RS9), plus the forming week; averages MATCH_SUBSTITUTED; objects MATCH | the same plots; objects DIVERGE (run half dark) |
+| `rs-rating-fred6724-w-rddt-1w-2026-11-17` | DIVERGE: RS line 139/140 (every settled week exact, maxRel 0 on them); the ONE difference is the forming week (37.8408 vs 36.7341); the three averages MATCH_SUBSTITUTED 140/140; objects v1 MATCH (both labels, texts equal); objects v2 DIVERGE only on the labels' `y` (the RS value of the forming week, the same difference), x 2 of 2 exact | the same plots; objects DIVERGE (the run half is dark: `pine:object-removal-lost`, as on daily) |
+| `rs-rating-fred6724-w-nvda-1w-2026-11-17` | DIVERGE: RS line 1186/1453; 266 settled weeks differ, every one before 2023-12-05 (first 1999-02-22, last 2023-12-04, the accepted S&P 500 history, Q-RS9), plus the forming week; averages MATCH_SUBSTITUTED; objects v1 MATCH; objects v2 DIVERGE only on the labels' `y` (the forming week), x 2 of 2 exact | the same plots; objects DIVERGE (run half dark) |
 | `rs-spx-daily-w-rddt-1w-2026-11-17` | DIVERGE: X05 (R1) 139/140, the forming week the one difference (7340.53 vs 7561.67); X01..X04 INCONCLUSIVE by name (host lane: `request:other-timeframe`) | the same |
 | `rs-seed-rsrating-w-rddt-1w-2026-11-17` | INCONCLUSIVE: S01..S05 withheld by name in the host lane (`request:other-timeframe`); S06 control MATCH | the same |
 
