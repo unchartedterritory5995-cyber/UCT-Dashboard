@@ -23,6 +23,7 @@ op = lambda name, *a: {"type": "op", "name": name, "args": list(a)}  # noqa: E73
 
 LB = call("lowestbars", LOW, num(50))
 PINE_WAY = op("&&", op(">=", LB, neg(11)), op("<=", LB, neg(3)))
+NEG_LB = op("u-", LB)
 OUR_WAY = op("&&", op(">=", LB, num(3)), op("<=", LB, num(11)))
 create = lambda tree: env(0, [{"op": "create", "name": "FTD window", "outputs": [{"key": "ftd", "tree": tree}]}])  # noqa: E731
 EMPTY = lambda: empty_view(0)  # noqa: E731
@@ -48,6 +49,9 @@ def test_each_shape_of_the_mistake_is_seen(conv, clean_env, model):
         op("<=", LB, num(-3)),                                           # a plain negative literal
         op(">", neg(5), call("highestbars", {"type": "series", "name": "high"}, num(20))),   # the call on the right
         op("==", call("barssince", op(">", CLOSE, num(1)), num(30)), neg(1)),
+        # the same belief, negated: what the model wrote when told "3 to 11 bars ago"
+        op("&&", op(">=", NEG_LB, num(3)), op("<=", NEG_LB, num(11))),
+        op("<", num(2), NEG_LB),
     ]
     for tree in shapes:
         model([emits(create(tree)), emits(create(tree))])
@@ -59,6 +63,8 @@ def test_CONTROL_the_positive_form_and_other_negatives_pass_first_time(conv, cle
     fine = [
         OUR_WAY,
         op(">=", LB, num(0)),                                            # zero is a real answer: this bar
+        op("<=", NEG_LB, neg(3)),                                        # consistent: a pasted script's form
+        op(">=", NEG_LB, num(0)),                                        # zero has no sign
         op("<", op("-", CLOSE, call("sma", CLOSE, num(50))), neg(2)),    # a negative beside something else
         op(">", call("rsi", CLOSE, num(14)), neg(5)),
     ]
@@ -66,3 +72,11 @@ def test_CONTROL_the_positive_form_and_other_negatives_pass_first_time(conv, cle
         model([emits(create(tree))])
         r = conv.converse("x", user_id="u1", view=EMPTY())
         assert r["ok"] is True and r["attempts"] == 1, (tree, r.get("gate"))
+
+
+def test_the_prompt_states_the_convention_up_front():
+    from api.services import definition_conversation as dcv
+    text = dcv.system_prompt()
+    assert "A count of bars is never negative here" in text
+    for name in ("highestbars", "lowestbars", "barssince"):
+        assert f"`{name}`" in text
