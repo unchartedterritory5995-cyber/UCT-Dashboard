@@ -80,6 +80,7 @@ function changeLine(c) {
     case 'requests-cleared': return `Requests on ${c.output} were cancelled with it.`
     case 'intent-cleared': return `The signal choice on ${c.output} was cleared with it.`
     case 'paint-removed': return c.text ? `${c.output}: ${withoutGuardIds(c.text)}` : null
+    case 'scan-moved': return `Running this over a list now reads ${c.output}: the line it read (${c.from}) was removed.`
     default: return null
   }
 }
