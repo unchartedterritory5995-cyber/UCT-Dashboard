@@ -807,6 +807,11 @@ def tail_verified_through(ticker: str, tf: str):
                 vt = lv
         except Exception:                  # noqa: BLE001
             pass
+    # A 15m/30m/60m series rebuilt up to the live 5m tail carries the 5m's proof.
+    elif tf in _LIVE_DERIVED_TFS:
+        lv = _live_derived_proof(ticker.upper(), tf)
+        if lv is not None and (vt is None or lv > vt):
+            vt = lv
     return vt
 
 
@@ -854,7 +859,7 @@ def _heal_intraday_tail(ticker_up: str, tf: str, last_ts: int, tail_only: bool =
     ⭐ LOCAL FIRST for a DERIVED tf (30m / 60m, see `_local_tail_repair`): on the
     request path the missing buckets are rebuilt from the stored finer series and the
     provider is asked only when that series does not reach the frontier."""
-    if tail_only and last_ts and tf in _DERIVED_TFS:
+    if tail_only and last_ts and _derived_base_tf(ticker_up, tf) is not None:
         _lt = _local_tail_repair(ticker_up, tf, int(last_ts))
         if _lt is not None:
             if _lt[1]:
@@ -912,6 +917,59 @@ _DERIVED_BASE_TF = "15"
 _DERIVED_TFS = ("30", "60")
 _LOCAL_DERIVE_ENABLED = _os.environ.get("BARS_LOCAL_DERIVE_TAIL", "1") == "1"
 
+# ── 15m FROM THE LIVE 5m (2026-11-17) ──────────────────────────────────────────
+# ⭐ On the bars tier a covered ticker's 5m series is current BY CONSTRUCTION: the
+# universe stream writes every bucket (`bars_live_store`). 15m is the resample of those
+# rows, and 30m/60m are resamples of 15m (above). So while the stream PROVES the 5m
+# series (`bars_live_store.proven_through_s(ticker, "5")`), 15m takes the live 5m as
+# its base and the whole 15m/30m/60m tail is rebuilt locally on the READ path
+# (`_live_derive_on_read`): no provider call, no stale-while-revalidate, and no wait at
+# a bucket boundary. Measured before this (2026-11-16, production Server-Timing): the
+# slow intraday reads were 15m/30m/60m tails fetched from the provider while the 5m
+# rows they are built from were already current in the same store.
+# Without the proof (web pod, coverage flag off, stream silent, ticker not covered) the
+# base is None for 15m and every path below behaves exactly as before.
+# Guards, on top of the derived-tf guards above (overlap, complete buckets only, never a
+# thinner bucket): the target's newest stored bucket must lie inside the window the live
+# tier keeps complete (`bars_live_store.BACKFILL_DAYS` of 5m), and only rows that DIFFER
+# from the stored ones are written. Kill switch: BARS_LIVE_DERIVE_15=0.
+_LIVE_DERIVE_15_ENABLED = _os.environ.get("BARS_LIVE_DERIVE_15", "1") == "1"
+_LIVE_BASE_TF = "5"
+_LIVE_DERIVED_TFS = ("15", "30", "60")
+
+
+def _live_base_proof(ticker_up: str):
+    """The universe stream's proof (unix s) for `ticker_up`'s 5m series, or None."""
+    if not (_LIVE_DERIVE_15_ENABLED and _LOCAL_DERIVE_ENABLED):
+        return None
+    try:
+        from api.services import bars_live_store as _bls
+        return _bls.proven_through_s(ticker_up, _LIVE_BASE_TF)
+    except Exception:                      # noqa: BLE001 — no proof, the old paths run
+        return None
+
+
+def _live_window_floor(now: float | None = None) -> int:
+    """Oldest instant whose 5m the live tier vouches for: it backfills BACKFILL_DAYS of
+    5m for every ticker it covers and keeps the series contiguous from there."""
+    try:
+        from api.services import bars_live_store as _bls
+        days = int(_bls.BACKFILL_DAYS)
+    except Exception:                      # noqa: BLE001
+        days = 14
+    t = float(now if now is not None else _time.time())
+    return int(t) - max(1, days - 1) * 86400
+
+
+def _derived_base_tf(ticker_up: str, tf: str):
+    """The stored base a derived `tf` is rebuilt from: 15m for 30m/60m; for 15m the live
+    5m while the stream proves it; None = a provider series."""
+    if tf in _DERIVED_TFS:
+        return _DERIVED_BASE_TF
+    if tf == "15" and _live_base_proof(ticker_up) is not None:
+        return _LIVE_BASE_TF
+    return None
+
 
 def _derived_bucket_start(tf: str, t: int) -> int:
     if tf == "60":
@@ -922,30 +980,56 @@ def _derived_bucket_start(tf: str, t: int) -> int:
 
 def _resample_derived(tf: str, base_rows: list[dict]) -> list[dict]:
     """THE derivation of a derived tf from its base rows (60 = TradingView session
-    grid `SIXTY_MIN_GRID`, 30 = ET clock floor, which is TradingView's 30m grid)."""
-    return _session_resample_hourly(base_rows) if tf == "60" else _resample_minutes(base_rows, 30)
+    grid `SIXTY_MIN_GRID`; 15 and 30 = the ET clock floor, which is TradingView's grid)."""
+    return _session_resample_hourly(base_rows) if tf == "60" else _resample_minutes(base_rows, int(tf))
 
 
-def _derive_from_stored_base(ticker_up: str, tf: str, from_bucket: int) -> list[dict]:
+def _derive_from_stored_base(ticker_up: str, tf: str, from_bucket: int,
+                             base: str = _DERIVED_BASE_TF) -> list[dict]:
     """Derived `tf` buckets from `from_bucket` onward, built from the STORED base."""
     rows = [{"t": int(ts), "o": o, "h": h, "l": l, "c": c, "v": v}
-            for ts, o, h, l, c, v in _sqlite.get_bars_since(ticker_up, _DERIVED_BASE_TF,
+            for ts, o, h, l, c, v in _sqlite.get_bars_since(ticker_up, base,
                                                             int(from_bucket) - 1)
             if o is not None and h is not None and l is not None and c is not None]
     return [b for b in _resample_derived(tf, rows) if b["t"] >= int(from_bucket)]
 
 
-def _local_derived_tail(ticker_up: str, tf: str, last_ts: int):
+def _same_row(b: dict, r) -> bool:
+    """A derived bucket equals the stored row `r` (ts, o, h, l, c, v)."""
+    if r is None:
+        return False
+    try:
+        return (int(b.get("v") or 0) == int(r[5] or 0)
+                and all(abs(float(b[k]) - float(x)) <= 1e-9
+                        for k, x in (("o", r[1]), ("h", r[2]), ("l", r[3]), ("c", r[4]))))
+    except Exception:                      # noqa: BLE001 — unreadable: rewrite it
+        return False
+
+
+def _local_derived_tail(ticker_up: str, tf: str, last_ts: int, base: str | None = None):
     """READ-ONLY: the target `tf` buckets from `last_ts`'s bucket onward, derived from
     the stored base. Returns {"rows", "src"} or None when the base cannot extend the
-    target (see the block above)."""
-    if tf not in _DERIVED_TFS or not last_ts or not _LOCAL_DERIVE_ENABLED:
+    target (see the block above).
+
+    Live chain (15m from the stream's 5m, and 30m/60m from such a 15m): the target's
+    newest bucket is re-derived too while it is still forming (the base moves inside
+    it), and only changed rows are returned — None when the stored tail already equals
+    the derivation."""
+    if not last_ts or not _LOCAL_DERIVE_ENABLED:
         return None
-    base_last = _sqlite.get_last_ts(ticker_up, _DERIVED_BASE_TF)
-    if base_last is None or int(base_last) <= int(last_ts):
+    if base is None:
+        base = _derived_base_tf(ticker_up, tf)
+    if base is None:
+        return None
+    live = base == _LIVE_BASE_TF or _derived_base_tf(ticker_up, base) == _LIVE_BASE_TF
+    base_last = _sqlite.get_last_ts(ticker_up, base)
+    if base_last is None or int(base_last) < int(last_ts) or (
+            not live and int(base_last) == int(last_ts)):
         return None                       # the base holds nothing newer than the target
     b0 = _derived_bucket_start(tf, last_ts)
-    derived = _derive_from_stored_base(ticker_up, tf, b0)
+    if base == _LIVE_BASE_TF and b0 < _live_window_floor():
+        return None                       # older than the 5m the live tier vouches for
+    derived = _derive_from_stored_base(ticker_up, tf, b0, base)
     if not derived or derived[0]["t"] != b0:
         return None                       # no overlap with the target's newest bucket
     # ⛔ COMPLETE BUCKETS ONLY (review #1090 F4). A derived bucket is built only when
@@ -953,17 +1037,22 @@ def _local_derived_tail(ticker_up: str, tf: str, last_ts: int):
     # is stored; derivation stops at the first missing base slot and the provider is
     # asked from there. A hole in the base can never become a "current" derived bar.
     missing = _first_missing_base_slot(
-        ticker_up, b0, int(_time.time()))
+        ticker_up, b0, int(_time.time()), base)
     if missing is not None:
         step = int(tf) * 60 if tf != "60" else 3600
         derived = [b for b in derived if _bucket_end(tf, b["t"], step) <= missing]
-    stored_v = {int(r[0]): int(r[5] or 0) for r in _sqlite.get_bars_since(ticker_up, tf, b0 - 1)}
+    stored = {int(r[0]): r for r in _sqlite.get_bars_since(ticker_up, tf, b0 - 1)}
     keep = [b for b in derived
             if b["t"] > int(last_ts)
-            or (b["t"] in stored_v and int(b.get("v") or 0) >= stored_v[b["t"]])]
+            or (b["t"] in stored and int(b.get("v") or 0) >= int(stored[b["t"]][5] or 0))]
+    if live:
+        keep = [b for b in keep if not _same_row(b, stored.get(b["t"]))]
+        if not keep:
+            return None                   # the stored tail already is the derivation
+        return {"rows": keep, "src": base, "complete": missing is None}
     if not keep or keep[-1]["t"] <= int(last_ts):
         return None                       # nothing newer: leave it to the provider
-    return {"rows": keep, "src": _DERIVED_BASE_TF, "complete": missing is None}
+    return {"rows": keep, "src": base, "complete": missing is None}
 
 
 def _base_contiguous_window(ticker_up: str, from_date: str) -> tuple[str, bool]:
@@ -997,18 +1086,19 @@ def _base_slot_in_session(s: int) -> bool:
         return True
 
 
-def _first_missing_base_slot(ticker_up: str, lo: int, now: int):
-    """First CLOSED in-session 15m slot at/after `lo` with no stored base row, else None.
+def _first_missing_base_slot(ticker_up: str, lo: int, now: int, base: str = _DERIVED_BASE_TF):
+    """First CLOSED in-session `base` slot at/after `lo` with no stored base row, else None.
 
     * Only CLOSED slots are required (slot end <= now): the still-forming slot may not
       have printed or landed yet — requiring it would block every rebuild at the open
       and at each 15m boundary (review #1090 N3).
     * A slot the provider has already ANSWERED for (`tail_verified_through` of the base
       at/after the slot's end) and that is still absent is a legitimate no-trade slot,
-      not a hole — so thin names rebuild locally too."""
-    step = int(_DERIVED_BASE_TF) * 60
-    have = {int(r[0]) for r in _sqlite.get_bars_since(ticker_up, _DERIVED_BASE_TF, int(lo) - 1)}
-    vt = tail_verified_through(ticker_up, _DERIVED_BASE_TF)
+      not a hole — so thin names rebuild locally too. (A live 5m base's proof is the
+      stream's: it delivered every minute up to it, so an absent slot printed nothing.)"""
+    step = int(base) * 60
+    have = {int(r[0]) for r in _sqlite.get_bars_since(ticker_up, base, int(lo) - 1)}
+    vt = tail_verified_through(ticker_up, base)
     s = int(lo) // step * step
     while s + step <= int(now):
         if (s not in have and _base_slot_in_session(s)
@@ -1025,15 +1115,25 @@ def _local_tail_repair(ticker_up: str, tf: str, last_ts: int):
     `current` = the rebuilt tail needs no provider top-up (`_needs_fresh` False and not
     `unverified`). The target inherits the source's `verified_through` — derived rows
     are exactly as proven as the rows they were built from — and only after the write
-    reached SQLite (a failed write verifies nothing)."""
+    reached SQLite (a failed write verifies nothing).
+
+    30m/60m while 15m is live-derivable: 15m is brought up to the live 5m FIRST, so the
+    30m/60m are built from a current 15m (one hop, never recursive beyond it)."""
     try:
+        base = _derived_base_tf(ticker_up, tf)
+        if base is None:
+            return None
+        if tf in _DERIVED_TFS and _derived_base_tf(ticker_up, _DERIVED_BASE_TF) == _LIVE_BASE_TF:
+            _l15 = _sqlite.get_last_ts(ticker_up, _DERIVED_BASE_TF)
+            if _l15:
+                _local_tail_repair(ticker_up, _DERIVED_BASE_TF, int(_l15))
         # Bar contract (review #1098 F4): the base's seal is read BEFORE the derived rows
         # are built from the base, so the rows can only be as final as (or more than) it.
         try:
-            _bm = _sqlite.series_meta(ticker_up, _DERIVED_BASE_TF)
+            _bm = _sqlite.series_meta(ticker_up, base)
         except Exception:                 # noqa: BLE001
             _bm = {}
-        d = _local_derived_tail(ticker_up, tf, last_ts)
+        d = _local_derived_tail(ticker_up, tf, last_ts, base)
         if not d:
             return None
         if not _sqlite.put_bars(ticker_up, tf, d["rows"], date_tf=False):
@@ -1050,7 +1150,7 @@ def _local_tail_repair(ticker_up: str, tf: str, last_ts: int):
             # target's stored tail — not at the first row it kept; its check instant is
             # the base seal's own (`record_sealed` contiguity + check-instant rules).
             _base_seal = _bm.get("sealed_through")
-            if _base_seal is not None and d.get("src") == _DERIVED_BASE_TF:
+            if _base_seal is not None and d.get("src") == base:
                 _sqlite.record_sealed(ticker_up, tf, _base_seal,
                                       _derived_bucket_start(tf, int(last_ts)),
                                       _bm.get("sealed_checked_at") or _time.time())
@@ -1063,6 +1163,71 @@ def _local_tail_repair(ticker_up: str, tf: str, last_ts: int):
         _log_ld.getLogger(__name__).warning(
             "[bars] local derive %s tf=%s: %s", ticker_up, tf, type(_e).__name__)
         return None
+
+
+def _live_derive_on_read(ticker_up: str, tf: str) -> None:
+    """READ PATH, before the store is read: bring a live-derivable 15m/30m/60m tail up to
+    the live 5m (`_local_tail_repair`, which for 30m/60m refreshes 15m first). Its own
+    small deduped thread, waited on at most `_LOCAL_DERIVE_DEADLINE_SECONDS` (the write
+    never runs on the request thread; a held write lock costs the read that ceiling, and
+    the read then serves what the store holds). A no-op without the stream's proof."""
+    if tf not in _LIVE_DERIVED_TFS or _live_base_proof(ticker_up) is None:
+        return
+    try:
+        last = _sqlite.get_last_ts(ticker_up, tf)
+    except Exception:                      # noqa: BLE001
+        return
+    if not last:
+        return                            # nothing stored: the cold path fetches depth
+    _bounded_job(f"lderive_live_{ticker_up}_{tf}",
+                 lambda: _local_tail_repair(ticker_up, tf, int(last)),
+                 _LOCAL_DERIVE_DEADLINE_SECONDS)
+
+
+def _live_derived_reached(ticker_up: str, tf: str, last_ts) -> bool:
+    """The stored `tf` tail reaches the bucket of the live 5m tail (for 30m/60m: through
+    a 15m tail that reaches it too) — i.e. the derivation has caught up with the base."""
+    if last_ts is None:
+        return False
+    b5 = _sqlite.get_last_ts(ticker_up, _LIVE_BASE_TF)
+    if b5 is None:
+        return False
+    if tf == _DERIVED_BASE_TF:
+        return int(last_ts) >= _derived_bucket_start(_DERIVED_BASE_TF, int(b5))
+    l15 = _sqlite.get_last_ts(ticker_up, _DERIVED_BASE_TF)
+    if l15 is None or int(l15) < _derived_bucket_start(_DERIVED_BASE_TF, int(b5)):
+        return False
+    return int(last_ts) >= _derived_bucket_start(tf, int(l15))
+
+
+def _live_derived_proof(ticker_up: str, tf: str):
+    """The stream's 5m proof, carried by a 15m/30m/60m series derived up to the live 5m
+    tail; None when the base is not live or the derivation has not caught up."""
+    if tf not in _LIVE_DERIVED_TFS:
+        return None
+    proof = _live_base_proof(ticker_up)
+    if proof is None:
+        return None
+    try:
+        return proof if _live_derived_reached(ticker_up, tf, _sqlite.get_last_ts(ticker_up, tf)) else None
+    except Exception:                      # noqa: BLE001
+        return None
+
+
+def _live_derived_fresh(ticker_up: str, tf: str, last_ts) -> bool:
+    """`_needs_fresh`'s covered rule for 15m/30m/60m: fresh when the series has caught up
+    with the live 5m and the 5m itself is fresh by ITS covered rule (stream proof, incl.
+    the boundary grace). At a bucket boundary this is what spares the read a provider
+    wait for a bucket that has not printed yet."""
+    if _live_base_proof(ticker_up) is None:
+        return False
+    try:
+        if not _live_derived_reached(ticker_up, tf, last_ts):
+            return False
+        b5 = _sqlite.get_last_ts(ticker_up, _LIVE_BASE_TF)
+        return b5 is not None and not _needs_fresh(int(b5), _LIVE_BASE_TF, ticker_up)
+    except Exception:                      # noqa: BLE001 — abstain: the normal rules run
+        return False
 
 
 def expected_completed_bucket(tf: str, now: float | None = None):
@@ -1282,6 +1447,10 @@ def _needs_fresh(last_ts: int | None, tf: str, ticker: str | None = None) -> boo
                     return False
         except Exception:
             pass
+    # 15m/30m/60m rebuilt from the live 5m (see `_live_derive_on_read`): fresh exactly
+    # when the 5m they are built from is, once the derivation has caught up with it.
+    if ticker and tf in _LIVE_DERIVED_TFS and _live_derived_fresh(ticker.upper(), tf, last_ts):
+        return False
     if tf == "W":
         # ⛔⛔ A WEEKLY BAR IS KEYED BY ITS WEEK'S FRIDAY, WHICH IS AHEAD OF THE LATEST SESSION
         # FROM MONDAY TO THURSDAY. The D/W/M rule below (`last_ts <= latest session`) therefore
@@ -3855,6 +4024,7 @@ def _get_bars_since_response(ticker: str, tf: str, bars: int, since_str: str) ->
     since_val = _normalize_since_param(since_str, date_tf)
 
     # Refresh SQLite if stale (same logic as _get_bars_inner)
+    _live_derive_on_read(ticker_up, tf)   # 15m/30m/60m from the live 5m (no-op without it)
     last_ts = _sqlite.get_last_ts(ticker_up, tf)
     if _needs_fresh(last_ts, tf, ticker_up):
         if _since_async_heal():
@@ -4127,7 +4297,8 @@ def _start_bounded_delta(ticker_up: str, tf: str, last_ts: int, date_tf: bool):
     # taking a provider slot — so neither a full heal pool nor a slow provider can
     # keep a tail the store already holds off the first answer. Its own small thread
     # (the write never runs on the request thread), deduped, waited on briefly.
-    if (not date_tf) and last_ts and tf in _DERIVED_TFS and _LOCAL_DERIVE_ENABLED:
+    if ((not date_tf) and last_ts and _LOCAL_DERIVE_ENABLED
+            and _derived_base_tf(ticker_up, tf) is not None):
         _bounded_job(f"lderive_{ticker_up}_{tf}",
                      lambda: _local_tail_repair(ticker_up, tf, int(last_ts)),
                      _LOCAL_DERIVE_DEADLINE_SECONDS)
@@ -4800,6 +4971,8 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
 
     # ── Layer 2: SQLite persistent store (<5 ms) ──────────────────────────────
     _time_ck("pre_sqlite")
+    _live_derive_on_read(ticker_up, tf)   # 15m/30m/60m from the live 5m (no-op without it)
+    _time_ck("live_drv")
     last_ts     = _sqlite.get_last_ts(ticker_up, tf)
     _time_ck("last_ts")
     stored_rows = _sqlite.get_bars(ticker_up, tf, bars) if last_ts is not None else []
@@ -4829,6 +5002,9 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         _live = _bls.covered(ticker_up, tf)
     except Exception:
         _bls, _live = None, False
+    # A 15m/30m/60m rebuilt from the live 5m changes every few seconds too: cache it as
+    # briefly as a covered series (never pinned for the normal intraday TTL).
+    _live_ttl = _live or (_bls is not None and _live_derived_proof(ticker_up, tf) is not None)
     _time_ck("live_cov")
     _fresh_needed = _needs_fresh(last_ts, tf, ticker_up) if stored_rows else True
     if stored_rows and not _fresh_needed and (
@@ -4844,7 +5020,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         _time_ck("fmt")
         # A live-fed series changes every few seconds: never pin it in memory for the
         # normal 300 s daily TTL, or the developing candle would freeze for minutes.
-        _ttl = _bls.covered_cache_ttl(tf, _CACHE_TTL.get(tf, 300)) if _live else _CACHE_TTL.get(tf, 300)
+        _ttl = _bls.covered_cache_ttl(tf, _CACHE_TTL.get(tf, 300)) if _live_ttl else _CACHE_TTL.get(tf, 300)
         cache.set(cache_key, payload, ttl=_ttl)
         return JSONResponse(
             content=payload,
