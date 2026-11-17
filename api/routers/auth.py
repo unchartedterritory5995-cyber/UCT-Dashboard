@@ -684,6 +684,7 @@ SCREENER_FLAGS = {
     "SCREENER_NEW_TODAY_ENABLED": False,      # enablement: "New today" markers (spec 2026-10-16 s1)
     "SCREENER_PREMARKET_ENABLED": False,      # enablement: pre-market sweep + columns + starters
     "SCREENER_FOCUS_PHONE_ENABLED": False,    # enablement: Focus layout on phones (spec 2026-10-16 s3)
+    "SCREENER_SCAN_BOARD_ENABLED": False,     # enablement: the Screener as a customizable widget board (desktop)
 }
 
 

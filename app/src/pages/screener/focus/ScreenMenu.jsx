@@ -42,7 +42,7 @@ function Item({ item, pinned, count, current, onApply, onTogglePin, reason = nul
 
 // `landing`: the page is still choosing which screen to land on, so the button shows a
 // placeholder instead of naming a "Custom screen" that is about to be replaced (B12).
-export default function ScreenMenu({ currentName, currentId, isEdited, count, countPending = false, landing = false, pool = null, starters = [], saved = [], pinned = [], onTogglePin, onApply, onSaveChanges, onSaveAsNew, onRename, onNewScreen, myScans = [], onUseScan, apiRef, meta = null }) {
+export default function ScreenMenu({ currentName, currentId, isEdited, count, countPending = false, landing = false, pool = null, starters = [], saved = [], pinned = [], onTogglePin, onApply, onSaveChanges, onSaveAsNew, onRename, onNewScreen, myScans = [], onUseScan, apiRef, meta = null, triggerLabel = null }) {
   const [open, setOpen] = useState(false)
   const [asSheet, setAsSheet] = useState(false)
   const [q, setQ] = useState('')
@@ -112,9 +112,12 @@ export default function ScreenMenu({ currentName, currentId, isEdited, count, co
     <span className={styles.menuWrap} ref={box} onBlur={onBlur}>
       <button ref={btn} type="button" className={styles.screenBtn} data-guide="screener.screens" aria-haspopup="dialog" aria-expanded={open}
         aria-label={landing ? `${label} Change screen` : countPending ? `${label}, updating. Change screen` : Number.isFinite(count) ? `${label}, ${count} matches. Change screen` : `${label}. Change screen`} onClick={() => { if (open) setOpen(false); else openMenu() }}>
+        {/* `triggerLabel` (the scan board): the button reads "All screens" when the open screen is named by a tab. */}
+        {triggerLabel ? <span className={styles.screenNameLab}>{triggerLabel}</span> : <>
         <UIcon name="screener" size={18} gold={false} className={styles.screenIcon} />
         <span className={`${styles.screenName}${landing ? ` ${menuStyles.landing}` : ''}`}>{label}</span>
         <span className={styles.screenCount} data-testid="screen-count">{landing ? '' : countPending ? '…' : Number.isFinite(count) ? count.toLocaleString('en-US') : ''}</span>
+        </>}
         <svg className={styles.screenChevron} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
       </button>
       {open && !asSheet && (
