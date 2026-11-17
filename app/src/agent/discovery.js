@@ -228,6 +228,8 @@ const registeredSet = () => new Set(allCapabilityNames())
 // ⛔ DISCOVERY HONESTY (agentDiscoveryHonesty.test.js): every "not yet" item a topic lists names the capability (or
 // capabilities) it would take. The test fails when any of them is REGISTERED — so a feature the Agent starts doing can't
 // stay listed as "not yet" — and when an item has no entry here. Keyed by the item's exact text.
+// RULE: each name here must be the capability's EVENTUAL registered id (check the open PR that will add it). The PR that
+// registers it must update or remove the item — this rail then forces it.
 export const NOT_YET = {
   'breadth for UCT’s own universe (it is on the Breadth page) or other indexes': ['breadth.showUniverse'],
   'live new highs / new lows (finalized closes only for now)': ['breadth.liveHighsLows'],
@@ -236,7 +238,7 @@ export const NOT_YET = {
   'weekly-close searches (daily finalized sessions for now)': ['breadth.weeklySearch'],
   'floating, popping out or merging widgets (moving one widget into another’s tabs)': ['boardDetach.float', 'boardDetach.intoTabs', 'boardDetach.setMerged', 'widget.popOut'],
   'a widget’s look (colors, fonts), and controls that live only on the Watchlists page': ['widget.setLook'],
-  'layout version history': ['layout.restoreVersion'],
+  'layout version history': ['layoutHistory.list', 'layoutHistory.restore'],
   'sharing a layout': ['layout.share'],
   'sharing an indicator or restoring an older version of it': ['definition.share', 'definition.restoreVersion'],
   'alerts on a new indicator (set them in Create Indicator)': ['indicator.draftAlert'],
