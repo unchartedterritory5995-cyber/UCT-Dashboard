@@ -87,6 +87,7 @@ import {
   computeCCI, computeWilliamsR, computeMFI, computeDonchian, computeIchimoku,
   computeClock, computeVWAP, computeAVWAP, computeOBV, computePVT, AVWAP_MIN_INSTANT,
   CLOCK_PERIOD_SECONDS, computePeriodCalendar,
+  computeSessionRegular, openingRangeRefusal, OPENING_RANGE_BARS_LONGER, OPENING_RANGE_BARS_DO_NOT_DIVIDE,
 } from '../../indicators.js'
 
 // --------------------------------------------------------------------------- //
@@ -4213,9 +4214,22 @@ function barCumFrom(bars, args) {
  *  `groupb-round-max-vwap-spy-1d-2026-09-10` (N14 + N12). */
 const barVwapOf = (bars, args) => computeVWAP(bars, args[0] || [])
 
+/** ⭐ 2026-11-17 — `sessionOpen()` .. `openingRangeLow(minutes)`: the regular session's own values
+ *  (`indicators.js::computeSessionRegular`, where the rules are written once). They resolve a
+ *  date-keyed daily bar and the bar length through the clock, so they read the chart's timeframe
+ *  (`opts.tf`) as well as its bars. */
+const sessionReader = (kind, ranged) => (bars, args, opts) => computeSessionRegular(
+  bars, opts ? opts.tf : undefined, kind, ranged ? args[0] : null).map((value) => ({ value }))
+
+/** The opening-range calls: the two whose answer depends on the chart's bar length. */
+export const OPENING_RANGE_CALLS = Object.freeze(['openingRangeHigh', 'openingRangeLow'])
+
 export const BAR_FN = Object.freeze({
   vwap: barVwap, vwapOf: barVwapOf, avwap: barAvwap, obvN: barObvN, pvtN: barPvtN, cumFrom: barCumFrom,
   aroonUp: barAroonUp, aroonDown: barAroonDown, bop: barBop,
+  sessionOpen: sessionReader('open', false), sessionHigh: sessionReader('high', false),
+  sessionLow: sessionReader('low', false),
+  openingRangeHigh: sessionReader('high', true), openingRangeLow: sessionReader('low', true),
 })
 
 // ⛔ A DECLARED-BUT-UNBOUND ENTRY IS A FORMULA THE BUILDER OFFERS AND THIS LANE
@@ -4283,7 +4297,7 @@ function barColumn(name, bars, args, length, opts) {
   const out = nan(length)
   const daily = (name === 'vwap' || name === 'vwapOf') ? dailySessionVwap(name, bars, args, length, opts) : null
   if (daily) return daily
-  const points = BAR_FN[name](bars, args)
+  const points = BAR_FN[name](bars, args, opts)
   if (!Array.isArray(points) || points.length !== length) return out
   for (let i = 0; i < length; i++) {
     const v = points[i] ? points[i].value : undefined
@@ -6026,6 +6040,19 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
     + 'with a `bool` whose `na` bars this engine cannot follow (a value carried from another series this way, '
     + 'or a recurrence it does not track), so what it draws from that comparison is withheld rather than '
     + 'guessed. What would settle it: a capture of this indicator on TradingView.',
+  // ⭐ 2026-11-17 — an opening range on bars it cannot be read from. A formula has no other way to
+  // refuse a call for a timeframe, and answering a daily bar's high as "the first 30 minutes" is the
+  // confident wrong number this channel exists to prevent.
+  [OPENING_RANGE_BARS_LONGER]: (tf) => 'An opening range is the high or low of the first minutes of the '
+    + `regular session, so it is read on bars no longer than the range itself. This chart's bars (${tfSpelled(tf)}) `
+    + 'are longer than the opening range this indicator asks for, so what it draws from it is withheld on this '
+    + 'chart rather than answered with a whole bar\'s high or low. What would settle it here: a chart '
+    + 'timeframe whose bars are no longer than the range (a shorter one).',
+  [OPENING_RANGE_BARS_DO_NOT_DIVIDE]: (tf) => 'An opening range is the high or low of the first minutes of the '
+    + `regular session, read from whole bars. This chart's bars (${tfSpelled(tf)}) do not divide the opening `
+    + 'range this indicator asks for evenly (a 45-minute range on 30-minute bars), so what it draws from it is '
+    + 'withheld on this chart rather than rounded to a longer or shorter range. What would settle it here: '
+    + 'a chart timeframe that divides the range into whole bars.',
   // ⭐⭐ ENGINE 56 (S4-2) — a tie in a `highestbars` / `lowestbars` window over a computed source.
   [TIE_UNWITNESSED]: () => 'When two bars of a `highestbars` / `lowestbars` window hold the same extreme, '
     + 'TradingView names the NEWEST of them, over any source and at every Pine version measured (v4, v5 and '
@@ -6038,7 +6065,8 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
 export const CHART_CLOCK_WHOLE = Object.freeze(['time-anchor:other-bars', 'time-clock:unreadable',
   'time-anchor:not-daily', 'time-anchor:weekend-bars', 'time-own:chart-unwitnessed', 'time-close:not-daily',
   'time-close:weekend-bars', 'time-clock:outside-session', 'request:other-timeframe', 'bar-index:window',
-  'time-clock:weekend-session', 'running-total:window', 'var-origin:window'])
+  'time-clock:weekend-session', 'running-total:window', 'var-origin:window',
+  OPENING_RANGE_BARS_LONGER, OPENING_RANGE_BARS_DO_NOT_DIVIDE])
 
 /** ⭐⭐ 2026-10-31 — THE CLOCK LEAVES THAT READ THE TIME OF DAY, not the date:
  *  the ones a 09:30 New York stamp answers differently from a 17:00 one. On a
@@ -6051,7 +6079,9 @@ export const CHART_CLOCK_WHOLE = Object.freeze(['time-anchor:other-bars', 'time-
  *  opens an FX week on its Sunday 17:00 bar and a month by the trading day, where
  *  this engine's ISO week and calendar date put both a bar later or earlier. */
 export const SESSION_CLOCK_LEAVES = Object.freeze(['time', 'hour', 'minute', 'timeclose',
-  'dayopentime', 'dayclosetime', 'weekfirst', 'monthfirst', 'lastbartime', 'lastbarhour', 'lastbarminute'])
+  'dayopentime', 'dayclosetime', 'weekfirst', 'monthfirst', 'lastbartime', 'lastbarhour', 'lastbarminute',
+  // ⭐ 2026-11-17 — the regular session is a time of day: a 17:00 FX open is not inside it
+  'regularhours', 'regularfirst'])
 
 /** Every chart-clock node of a tree: the anchors, the period closes, the own-time
  *  nodes (`time(timeframe.period)`) and the `time("60")` nodes, whether any sits
@@ -6065,6 +6095,7 @@ function scanChartClock(tree) {
   const sixties = []
   const folds = []
   const leaves = []
+  const ranges = []
   let nested = false
   const stack = [[tree, false]]
   const seen = new Set()
@@ -6097,6 +6128,11 @@ function scanChartClock(tree) {
       closes.push(node)
       continue
     }
+    // an opening-range call: its `minutes`, whatever it sits under (the range is this chart's)
+    if (node.type === 'call' && OPENING_RANGE_CALLS.includes(node.name)) {
+      const m = node.args && node.args[0]
+      if (m && m.type === 'num' && typeof m.value === 'number' && !ranges.includes(m.value)) ranges.push(m.value)
+    }
     const base = requestBaseOf(node)
     if (base !== null && !folds.includes(base)) folds.push(base)
     // C41: an `ltf` child runs on the symbol's INTRADAY series, another clock, so a
@@ -6104,7 +6140,7 @@ function scanChartClock(tree) {
     const into = under || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live' || node.type === TF_MERGE || node.type === LTF
     if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into])
   }
-  return { anchors, closes, owns, sixties, folds, nested, leaves }
+  return { anchors, closes, owns, sixties, folds, nested, leaves, ranges }
 }
 
 /** One clock leaf (or small clock tree) over the chart's own bars, as a column. */
@@ -6208,9 +6244,18 @@ function chartClockWhole(tree, bars, inputs, budget, scalars, opts) {
   // is not FX (a Monday stamped 00:00 UTC is Sunday 20:00 New York — measured on
   // `objectDoorDraws.test.js`'s SPY bars), so it is never asked.
   const dayLeaves = scan.leaves.length > 0 && tf === 'D' && dateKeyed(bars)
-  if (!clocked && !scan.folds.length && !dayLeaves) return null
+  // ⭐ 2026-11-17 — an opening range is asked about on a chart that STATES its timeframe. An
+  // unstated one is the server's daily consumers: the reader itself answers nothing there.
+  const ranged = scan.ranges.length > 0 && typeof tf === 'string' && tf !== ''
+  if (!clocked && !scan.folds.length && !dayLeaves && !ranged) return null
   const why = []
   const add = (code) => { if (!why.includes(code)) why.push(code) }
+  if (ranged) {
+    for (const minutes of scan.ranges) {
+      const refusal = openingRangeRefusal(CLOCK_PERIOD_SECONDS[tf], minutes)
+      if (refusal) add(refusal)
+    }
+  }
   // ⭐ C49 — a request translated for one base period, on a chart that STATES
   // another timeframe: those are not the bars it asked for (`requestBaseNode`). An
   // unstated timeframe is the server's daily consumers, and is served as it always was.
