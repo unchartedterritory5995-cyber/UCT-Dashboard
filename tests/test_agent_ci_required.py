@@ -16,7 +16,10 @@ JOBS = acr.required_jobs(DOC)
 
 #: C3: the exact job set, verified against agent-ci.yml. A change here is a deliberate, reviewed change.
 #: 2026-11-16: the browser shards went 4 -> 8 (GitHub Pro, 40 concurrent jobs), so nine jobs became thirteen.
+#: 2026-11-17 (AUDIT design A): + the affected decision job and the always-run rails job, fifteen.
 EXPECTED_JOBS = {
+    "agent ci affected decision",
+    "agent ci rails",
     "UCT Agent server tests (production dependency set)",
     *(f"UCT Agent browser tests (shard {i}/8)" for i in range(1, 9)),
     "UCT Agent capability regression (deterministic, no model) @ post",
@@ -43,8 +46,8 @@ def test_paths_are_agent_ci_push_paths_read_at_run_time():
     assert PATHS == (raw.get("on") or raw[True])["push"]["paths"]
 
 
-def test_required_jobs_are_exactly_the_thirteen_agent_jobs():
-    assert len(JOBS) == 13 and set(JOBS) == EXPECTED_JOBS, JOBS
+def test_required_jobs_are_exactly_the_fifteen_agent_jobs():
+    assert len(JOBS) == 15 and set(JOBS) == EXPECTED_JOBS, JOBS
 
 
 def test_the_workflow_runs_the_tool_and_watches_the_right_workflow():
@@ -62,7 +65,7 @@ def test_the_workflow_runs_the_tool_and_watches_the_right_workflow():
     ("app/src/agent/x/y.js", True), ("app/src/components/chart/builder/agentMutations.js", True),
     ("api/routers/uct_agent_x.py", True), ("api/routers/sub/uct_agent.py", False), ("tools/agent_ci_required.py", True),
     (".github/workflows/agent-ci.yml", True), ("app/src/pages/charts/grid/a/b.jsx", True),
-    ("app/src/components/StockChart.jsx", True), ("app/src/components/StockChartX.jsx", False), (OTHER_FILE, False),
+    ("app/src/components/StockChart.jsx", True), ("app/src/components/StockChartX.jsx", True), (OTHER_FILE, False),   # True: the app/** catch-all (design A)
 ])
 def test_matches(path, hit):
     assert acr.matches(path, PATHS) is hit
@@ -212,6 +215,137 @@ def test_agent_ci_jobs_run_on_pull_request_for_non_agent_heads():
     assert on["push"]["branches"] == ["agent/**"]
     conds = {name: str(job.get("if", "")) for name, job in doc["jobs"].items()}
     gated = {n: c for n, c in conds.items() if "github.event.pull_request.head.repo.full_name" in c}
-    assert len(gated) == 5, gated
+    assert len(gated) == 7, gated
     for n, c in gated.items():
         assert "!startsWith(github.head_ref, 'agent/')" in c, n
+
+
+# ── (2026-11-17, AUDIT design A) a run whose heavy jobs SKIPPED because the decision job said affected=false ────────────
+FRONTEND_FILE = "app/src/pages/Admin.jsx"          # app/** catch-all only
+HEAVY = [n for n in JOBS if n not in acr.ALWAYS_REQUIRED]
+RAILS_OK = {"name": acr.RAILS_JOB, "conclusion": "success"}
+
+
+def _decision(conclusion="success", affected=False, reason="1 app/ file(s) changed, none in the 2282-file closure"):
+    tag = acr.NOT_AFFECTED_STEP if not affected else "decision: affected - "
+    return {"name": acr.DECISION_JOB, "conclusion": conclusion,
+            "steps": [{"name": "Decide (merge-base code on the PR's import graph)", "conclusion": "success"},
+                      {"name": tag + reason, "conclusion": "success"}]}
+
+
+def _skipped_run(decision=None, heavy="skipped", conclusion="success"):
+    jobs = [decision or _decision(), RAILS_OK] + [{"name": n, "conclusion": heavy} for n in HEAVY]
+    return _run(conclusion=conclusion, jobs=jobs)
+
+
+def test_not_affected_skip_is_success_only_from_a_successful_decision_with_a_reason():
+    state, reason = acr.decide_with_reason([FRONTEND_FILE], PATHS, _skipped_run(), JOBS)
+    assert state == "success" and reason.startswith("not affected:"), reason
+    # heavy jobs missing entirely (a skipped matrix job may not expand) is the same skip
+    assert _decide([FRONTEND_FILE], _run(jobs=[_decision(), RAILS_OK])) == "success"
+
+
+@pytest.mark.parametrize("decision", [
+    _decision(conclusion="failure"), _decision(conclusion="cancelled"), _decision(conclusion="skipped"),
+    _decision(conclusion=None), _decision(reason=""), _decision(affected=True),
+    _decision(reason="${{ steps.decide.outputs.reason }}"),
+    {"name": acr.DECISION_JOB, "conclusion": "success", "steps": []},
+])
+def test_missing_failed_or_reasonless_decision_never_accepts_the_skip(decision):
+    assert _decide([FRONTEND_FILE], _skipped_run(decision=decision)) == "failure"
+
+
+def test_no_decision_job_never_accepts_the_skip():
+    jobs = [{"name": n, "conclusion": "skipped"} for n in HEAVY]
+    assert _decide([FRONTEND_FILE], _run(jobs=jobs)) == "failure"
+
+
+def test_a_failed_heavy_job_or_red_run_is_failure_even_when_not_affected():
+    assert _decide([FRONTEND_FILE], _skipped_run(heavy="failure")) == "failure"
+    assert _decide([FRONTEND_FILE], _skipped_run(conclusion="failure")) == "failure"
+
+
+@pytest.mark.parametrize("protected", list(acr.SELF_PROTECTED))
+def test_a_self_protected_change_never_accepts_the_skip(protected):
+    """Re-checked on the default branch's copy: a PR can rewrite its own agent-ci.yml decision step."""
+    assert _decide([FRONTEND_FILE, protected], _skipped_run()) == "failure"
+
+
+def test_an_agent_path_besides_the_catch_all_never_accepts_the_skip():
+    for p in (AGENT_FILE, "api/main.py", "tests/test_uct_agent_x.py"):
+        assert _decide([FRONTEND_FILE, p], _skipped_run()) == "failure", p
+
+
+def test_unknown_diff_never_accepts_the_skip():
+    assert _decide(None, _skipped_run()) == "failure"
+
+
+def test_the_catch_all_is_an_agent_ci_path():
+    assert acr.AFFECTED_CATCH_ALL in PATHS and acr.matches(FRONTEND_FILE, PATHS)
+
+
+def test_the_decision_code_and_workflows_are_self_protected_here():
+    """Named, not parametrized over SELF_PROTECTED: emptying the list must go red, not collect zero cases."""
+    for p in (".github/workflows/agent-ci.yml", ".github/workflows/agent-ci-required.yml", "tools/agent_ci_affected.py",
+              "tools/agent_vitest_deps.mjs", "tools/agent_ci_required.py"):
+        assert _decide([FRONTEND_FILE, p], _skipped_run()) == "failure", p
+
+
+def test_a_decision_that_also_said_affected_never_accepts_the_skip():
+    """AUDIT mutant Q4: BOTH a successful `decision: affected` and a successful `decision: not affected` step is
+    contradictory, never a skip."""
+    both = _decision()
+    both["steps"].append({"name": "decision: affected - 1 changed file(s) in the closure", "conclusion": "success"})
+    assert acr.not_affected_reason([FRONTEND_FILE], PATHS, _run(jobs=[both, RAILS_OK])) is None
+    assert _decide([FRONTEND_FILE], _skipped_run(decision=both)) == "failure"
+
+
+@pytest.mark.parametrize("rails", [None, "failure", "skipped", "cancelled", "neutral", "missing"])
+def test_the_rails_job_is_required_on_every_run(rails):
+    """`agent ci rails` must be present and green: on a not-affected run AND on a full run."""
+    def with_rails(jobs):
+        jobs = [j for j in jobs if j["name"] != acr.RAILS_JOB]
+        return jobs if rails == "missing" else jobs + [{"name": acr.RAILS_JOB, "conclusion": rails}]
+    skipped = _skipped_run()
+    assert _decide([FRONTEND_FILE], _run(jobs=with_rails(skipped["jobs"]))) == "failure"
+    full = [{"name": n, "conclusion": "success"} for n in JOBS]
+    assert _decide([AGENT_FILE], _run(jobs=with_rails(full))) == "failure"
+
+
+def test_the_rails_job_runs_every_time_and_runs_the_rails():
+    doc = yaml.safe_load((ROOT / ".github" / "workflows" / "agent-ci.yml").read_text(encoding="utf-8"))
+    job = doc["jobs"]["rails"]
+    assert job["name"] == acr.RAILS_JOB and job["needs"] == "affected"
+    assert "needs.affected.outputs" not in str(job["if"]) and "!cancelled()" in str(job["if"]), job["if"]
+    run = " ".join(s.get("run") or "" for s in job["steps"])
+    for t in ("tests/test_ci_agent_affected.py", "tests/test_agent_ci_required.py", "tests/test_ci_agent_dep_paths.py",
+              "tests/test_ci_cost_rails.py"):
+        assert t in run, t
+
+
+# ── not_affected_reason directly (AUDIT 11-17 surviving mutants Q3 / Q6): the skip's reason is read from EXACTLY ONE successful
+#    decision job with EXACTLY ONE "not affected" step — anything else is None (no skip), whatever decide() would add on top ──
+def _reason(run):
+    return acr.not_affected_reason([FRONTEND_FILE], PATHS, run)
+
+
+def test_not_affected_reason_control_one_successful_decision_one_step():
+    assert _reason(_skipped_run()) == "1 app/ file(s) changed, none in the 2282-file closure"
+
+
+@pytest.mark.parametrize("conclusion", ["failure", "cancelled", "skipped", "timed_out", "neutral", None])
+def test_not_affected_reason_none_for_a_decision_job_that_did_not_succeed(conclusion):
+    assert _reason(_skipped_run(decision=_decision(conclusion=conclusion))) is None
+
+
+@pytest.mark.parametrize("second", ["success", "failure", "cancelled"])
+def test_not_affected_reason_none_for_two_decision_jobs(second):
+    jobs = [_decision(), _decision(conclusion=second, reason="0 app/ file(s) changed"), RAILS_OK] + [{"name": n, "conclusion": "skipped"} for n in HEAVY]
+    assert _reason(_run(jobs=jobs)) is None
+
+
+@pytest.mark.parametrize("reasons", [("a", "a"), ("1 app/ file(s) changed, none in the closure", "2 app/ file(s) changed, none in the closure")])
+def test_not_affected_reason_none_for_two_not_affected_steps(reasons):
+    d = _decision()
+    d["steps"] = [d["steps"][0]] + [{"name": acr.NOT_AFFECTED_STEP + r, "conclusion": "success"} for r in reasons]
+    assert _reason(_skipped_run(decision=d)) is None

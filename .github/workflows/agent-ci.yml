@@ -31,6 +31,9 @@ on:
     paths:
       - 'app/src/agent/**'
       - 'app/src/components/chart/builder/agent*'
+      # AFFECTED CATCH-ALL (11-17, AUDIT design A): any frontend change starts agent ci; its `affected` job (below) decides
+      # from the Agent browser tests' import closure whether the heavy jobs run (tools/agent_ci_affected.py)
+      - 'app/**'
       # DUP-RECEIPT (11-05, owner): the page tests that DRIVE the Agent (AgentPanel / useAgent on the real workspace) and
       # the page code they exercise — a regression there was invisible to Agent CI (only the nightly report-only suite ran it)
       - 'app/src/pages/charts/ChartsWorkspace.jsx'
@@ -152,6 +155,9 @@ on:
     paths:
       - 'app/src/agent/**'
       - 'app/src/components/chart/builder/agent*'
+      # AFFECTED CATCH-ALL (11-17, AUDIT design A): any frontend change starts agent ci; its `affected` job (below) decides
+      # from the Agent browser tests' import closure whether the heavy jobs run (tools/agent_ci_affected.py)
+      - 'app/**'
       # DUP-RECEIPT (11-05, owner): the page tests that DRIVE the Agent (AgentPanel / useAgent on the real workspace) and
       # the page code they exercise — a regression there was invisible to Agent CI (only the nightly report-only suite ran it)
       - 'app/src/pages/charts/ChartsWorkspace.jsx'
@@ -283,11 +289,116 @@ env:
 
 # A PR from a branch in this repo already ran on its push; running it again on the
 # pull_request event only doubles the queue. Fork PRs have no push run here, so they keep it.
-# (All three jobs carry the same condition; `union` needs `browser`.)
+# (Every job carries the same condition; the heavy ones also need `affected` == 'true'; `union` needs `browser`.)
 jobs:
+  # AFFECTED DECISION (2026-11-17, AUDIT design A). The PR filter above takes `app/**`; this job decides in seconds whether the
+  # PR's changed files reach the Agent browser tests (AGENT_VITEST_PATHS, transitively) and every heavy job below runs only
+  # on affected == 'true'. The decision code (tools/agent_ci_affected.py, tools/agent_ci_required.py,
+  # tools/agent_vitest_deps.mjs) and AGENT_VITEST_PATHS come from the MERGE-BASE (`git show <merge-base>:<path>`), never the
+  # PR; only the import graph is read from the PR's tree. Fail closed: no decision code on the base, a walker error, a
+  # parse failure, a closure below the floor, an unreadable diff or a timeout = affected=true. Push runs are always
+  # affected (agent/** push behaviour unchanged). agent-ci-required accepts the skip only from a SUCCESSFUL decision job
+  # whose "decision: not affected - <reason>" step ran, and re-checks the self-protected files itself.
+  affected:
+    name: agent ci affected decision
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    outputs:
+      affected: ${{ steps.decide.outputs.affected }}
+      reason: ${{ steps.decide.outputs.reason }}
+    steps:
+      - uses: actions/checkout@v4
+        if: github.event_name == 'pull_request'
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        if: github.event_name == 'pull_request'
+        with:
+          python-version: '3.12'
+      - name: Decide (merge-base code on the PR's import graph)
+        id: decide
+        timeout-minutes: 6
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -u
+          PY="${PYTHON:-python3}"
+          OUT="${RUNNER_TEMP}/decision.out"; : > "$OUT"
+          if [ "$EVENT" != "pull_request" ]; then
+            printf 'affected=true\nreason=%s\n' "push run: always the full Agent suite (unchanged)" > "$OUT"
+          else
+            CODE="${RUNNER_TEMP}/base-code"; rm -rf "$CODE"; mkdir -p "$CODE/tools"; : > "$CODE/tools/__init__.py"
+            MB="$(git merge-base "$BASE_SHA" "$HEAD_SHA" 2>/dev/null)" || MB=""
+            got=1
+            for f in tools/agent_ci_affected.py tools/agent_ci_required.py tools/agent_vitest_deps.mjs; do
+              [ -n "$MB" ] && git show "$MB:$f" > "$CODE/$f" 2>/dev/null || got=0
+            done
+            if [ "$got" = 1 ]; then
+              if [ -z "${AFFECTED_DEPS_READY:-}" ]; then
+                MODULES="${RUNNER_TEMP}/acorn"
+                npm install --silent --prefix "$MODULES" --no-save --no-package-lock --ignore-scripts acorn@8.16.0 acorn-jsx@5.3.2 || true
+                "$PY" -m pip install --quiet pyyaml==6.0.2 || true
+              else
+                MODULES="$AFFECTED_MODULES"
+              fi
+              timeout 300 "$PY" "$CODE/tools/agent_ci_affected.py" --repo . --base "$MB" --head "$HEAD_SHA" --modules "$MODULES" --out "$OUT" || true
+            else
+              printf 'affected=true\nreason=%s\n' "fail closed: the merge-base has no decision code" > "$OUT"
+            fi
+          fi
+          # exactly one well-formed decision, or affected=true: unknown is never "not affected"
+          if [ "$(grep -c '^affected=\(true\|false\)$' "$OUT")" = 1 ] && [ "$(grep -c '^reason=..*$' "$OUT")" = 1 ]; then
+            cat "$OUT" >> "$GITHUB_OUTPUT"
+          else
+            printf 'affected=true\nreason=fail closed: the decision gave no well-formed answer\n' >> "$GITHUB_OUTPUT"
+          fi
+          cat "$GITHUB_OUTPUT"
+      - name: "decision: not affected - ${{ steps.decide.outputs.reason }}"
+        if: steps.decide.outputs.affected == 'false'
+        env:
+          REASON: ${{ steps.decide.outputs.reason }}
+        run: |
+          echo "::notice title=agent ci not affected::$REASON"
+      - name: "decision: affected - ${{ steps.decide.outputs.reason }}"
+        if: steps.decide.outputs.affected != 'false'
+        env:
+          REASON: ${{ steps.decide.outputs.reason }}
+        run: |
+          echo "affected - $REASON"
+
+  # THE DECISION'S OWN RAILS (2026-11-17, AUDIT on #1525): every agent ci run, affected or not, re-runs the rails that hold
+  # the decision honest (tests/test_ci_agent_affected.py incl. end-to-end runs of the Decide step, tools/agent_ci_required.py's
+  # tests, the dependency and cost rails). NEVER skipped: no affected condition, and agent-ci-required requires it green on
+  # every run (RAILS_JOB). ~30 s: stdlib + pinned pytest/PyYAML + acorn via NODE_PATH; no npm ci, no requirements.txt.
+  rails:
+    name: agent ci rails
+    needs: affected
+    if: ${{ !cancelled() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pinned rail dependencies
+        run: |
+          python -m pip install --quiet pytest==8.3.4 pyyaml==6.0.2
+          npm install --silent --prefix "$RUNNER_TEMP/acorn" --no-save --no-package-lock --ignore-scripts acorn@8.16.0 acorn-jsx@5.3.2
+      - name: pytest the agent ci rails
+        env:
+          NODE_PATH: ${{ runner.temp }}/acorn/node_modules
+        run: |
+          : > "$RUNNER_TEMP/empty.ini"
+          python -m pytest tests/test_ci_agent_affected.py tests/test_agent_ci_required.py tests/test_ci_agent_dep_paths.py tests/test_ci_cost_rails.py             -q --noconftest -c "$RUNNER_TEMP/empty.ini" --rootdir . -p no:cacheprovider
+
   server:
     name: UCT Agent server tests (production dependency set)
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/')
+    needs: affected
+    if: (github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/')) && needs.affected.outputs.affected == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -312,7 +423,8 @@ jobs:
 
   browser:
     name: UCT Agent browser tests (shard ${{ matrix.shard }}/8)
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/')
+    needs: affected
+    if: (github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/')) && needs.affected.outputs.affected == 'true'
     runs-on: ubuntu-latest
     # 25 -> 40 (2026-11-11): shard 4/4 hit the 25-min limit and was CANCELLED on #1101 (25m18s) and #1107 (25m12s)
     # while shards 1-3 ran 10-17 min; shard 4 ran 17-22 min on earlier runs the same day. Headroom only, not a redesign:
@@ -388,8 +500,9 @@ jobs:
   # (2026-11-04): `post` = after the close (the default, which the master deploy gate's `vitest run src/agent` uses)
   # and `rth` = the regular session. The baseline (Python) rail runs once, on the `post` leg.
   capability-regression-clock:
+    needs: affected
     name: UCT Agent capability regression (deterministic, no model) @ ${{ matrix.clock }}
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/')
+    if: (github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/')) && needs.affected.outputs.affected == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -439,8 +552,8 @@ jobs:
   # one named result for both clock legs (the check to watch / require)
   capability-regression:
     name: UCT Agent capability regression (deterministic, no model)
-    needs: capability-regression-clock
-    if: always() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/'))
+    needs: [affected, capability-regression-clock]
+    if: always() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/')) && needs.affected.outputs.affected == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -451,8 +564,8 @@ jobs:
 
   union:
     name: Shards cover every Agent test file (equivalence rail)
-    needs: browser
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/')
+    needs: [affected, browser]
+    if: (github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/')) && needs.affected.outputs.affected == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

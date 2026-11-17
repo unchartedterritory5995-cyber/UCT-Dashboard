@@ -41,6 +41,31 @@ MAX_PR_FILES = 3000
 RUN_EVENTS = ("push", "pull_request")
 
 
+#: (2026-11-17, AUDIT design A) agent-ci's PR filter takes `app/**`; its first job, DECISION_JOB, decides whether the PR's
+#: changed files reach the Agent browser tests (tools/agent_ci_affected.py, run from the BASE side) and the heavy jobs run
+#: only when it says affected=true. A run whose heavy jobs SKIPPED is accepted ONLY when the decision job succeeded AND its
+#: NOT_AFFECTED_STEP step ran (success) with a non-empty reason AND the PR touches no SELF_PROTECTED file and no Agent path
+#: besides the `app/**` catch-all (re-checked HERE, on the default branch's copy: a PR edits its own agent-ci.yml).
+DECISION_JOB = "agent ci affected decision"
+#: The always-run job that executes the decision's own rails (tests/test_ci_agent_affected.py, this tool's tests, the
+#: dependency + cost rails) on every agent ci run. Never skippable: a not-affected run is accepted only with it green.
+RAILS_JOB = "agent ci rails"
+ALWAYS_REQUIRED = (DECISION_JOB, RAILS_JOB)
+NOT_AFFECTED_STEP = "decision: not affected - "
+AFFECTED_CATCH_ALL = "app/**"
+#: Files that decide the decision. A PR touching one is always affected (here AND in tools/agent_ci_affected.py).
+SELF_PROTECTED = (
+    "tools/agent_vitest_deps.mjs",
+    "tools/agent_ci_affected.py",
+    "tools/agent_ci_required.py",
+    ".github/workflows/agent-ci.yml",               # holds AGENT_VITEST_PATHS, the filter and the decision job
+    ".github/workflows/agent-ci-required.yml",
+    "app/vite.config.js",                           # test.setupFiles / alias / environment: every browser test
+    "app/package.json",
+    "app/package-lock.json",
+)
+
+
 class ApiError(RuntimeError):
     pass
 
@@ -133,6 +158,20 @@ def decide_with_reason(changed_paths, patterns, run, jobs_required) -> tuple[str
     by_name: dict[str, list] = {}
     for j in run.get("jobs") or []:
         by_name.setdefault(j.get("name"), []).append(j.get("conclusion"))
+    reason = not_affected_reason(changed_paths, patterns, run)
+    if reason is not None:
+        for n in ALWAYS_REQUIRED:
+            if n not in jobs_required:
+                return FAILURE, f"agent-ci.yml has no {n!r} job"
+            if by_name.get(n) != [SUCCESS]:
+                return FAILURE, f"{n} is {by_name.get(n) or 'missing'}, not success"[:140]
+        heavy = [n for n in jobs_required if n not in ALWAYS_REQUIRED]
+        bad = [n for n in heavy if any(c not in (SUCCESS, "skipped") for c in by_name.get(n, []))]
+        if bad:
+            return FAILURE, f"{len(bad)} Agent job(s) neither success nor skipped: {bad[0]}"[:140]
+        if run.get("conclusion") != SUCCESS:
+            return FAILURE, f"agent ci run concluded {run.get('conclusion')}"
+        return SUCCESS, f"not affected: {reason}"[:140]
     missing = [n for n in jobs_required if n not in by_name]
     bad = [n for n in jobs_required if n in by_name and any(c != SUCCESS for c in by_name[n])]
     if not jobs_required:
@@ -144,6 +183,25 @@ def decide_with_reason(changed_paths, patterns, run, jobs_required) -> tuple[str
     if run.get("conclusion") != SUCCESS:
         return FAILURE, f"agent ci run concluded {run.get('conclusion')}"
     return SUCCESS, f"agent ci run passed all {len(jobs_required)} required jobs"
+
+
+def not_affected_reason(changed_paths, patterns, run) -> str | None:
+    """The decision job's reason when this run may skip the heavy jobs; None = it may not (fail closed)."""
+    if changed_paths is None or not changed_paths:
+        return None
+    if any(matches(p, list(SELF_PROTECTED)) for p in changed_paths):
+        return None
+    if touches_agent(changed_paths, [p for p in patterns if p != AFFECTED_CATCH_ALL]):
+        return None                                       # an Agent path besides the catch-all: always the full suite
+    decision = [j for j in run.get("jobs") or [] if j.get("name") == DECISION_JOB]
+    if len(decision) != 1 or decision[0].get("conclusion") != SUCCESS:
+        return None
+    steps = decision[0].get("steps") or []
+    if any(str(s.get("name", "")).startswith("decision: affected") and s.get("conclusion") == SUCCESS for s in steps):
+        return None
+    ok = [str(s["name"])[len(NOT_AFFECTED_STEP):].strip() for s in steps
+          if str(s.get("name", "")).startswith(NOT_AFFECTED_STEP) and s.get("conclusion") == SUCCESS]
+    return ok[0] if len(ok) == 1 and ok[0] and "${{" not in ok[0] else None
 
 
 def decide(changed_paths, patterns, run, jobs_required) -> str:
@@ -222,7 +280,9 @@ def run_for(api: Api, sha: str, event: str):
     jobs, page = [], 1
     while True:
         got = api.get(f"actions/runs/{run['id']}/jobs?filter=latest&per_page=100&page={page}").get("jobs", [])
-        jobs += [{"name": j.get("name"), "conclusion": j.get("conclusion")} for j in got]
+        jobs += [{"name": j.get("name"), "conclusion": j.get("conclusion"),
+                  "steps": [{"name": st.get("name"), "conclusion": st.get("conclusion")} for st in j.get("steps") or []]}
+                 for j in got]
         if len(got) < 100:
             break
         page += 1
