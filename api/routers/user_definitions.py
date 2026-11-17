@@ -998,7 +998,10 @@ def definition_history(def_id: str, user: dict = Depends(require_paid),
 #: and for the same shape of reason: the request conflicts with what the thing IS.
 _SHARE_STATUS = {"not-found": 404, "revoked": 410, "gone": 410,
                  "table-version": 409, "requirements": 409,
-                 "taken-down": 403, "listing-limit": 409}
+                 "taken-down": 403, "listing-limit": 409,
+                 # ⭐ STUDIO R6: over the library's load budget (`load_budget`), measured
+                 # by the server at listing. A conflict the owner resolves by simplifying.
+                 "load-budget": 409}
 
 
 def _share_http(exc: "svc.ShareRefused") -> HTTPException:

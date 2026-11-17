@@ -57,6 +57,9 @@ MEMBER_TABLES = (
     "definition_listings",
     # UCT's takedowns of the member's listings, keyed by the owner (no admin id is stored).
     "definition_listing_takedowns",
+    # How heavy each version the member listed is to draw, as the server measured it
+    # (Studio R6, `load_budget`): counts about their definitions, keyed by their user_id.
+    "definition_load_measurements",
     # The re-lint pass's audit trail (`user_definition_relint.py`, self-ensured there): which of
     # the member's definitions it healed. Keyed by their user_id, so it leaves with them.
     "user_definition_relint_log",

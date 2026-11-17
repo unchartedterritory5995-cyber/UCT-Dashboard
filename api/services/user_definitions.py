@@ -316,6 +316,30 @@ CREATE TABLE IF NOT EXISTS definition_listing_takedowns (
 );
 CREATE INDEX IF NOT EXISTS idx_definition_listing_takedowns_owner
   ON definition_listing_takedowns(user_id, def_id, id DESC);
+
+-- ⭐ STUDIO R6: how heavy one stored VERSION is to draw, as the server measured it when its
+-- owner listed it (`load_budget.measure`: a deterministic work count over the engine's reference
+-- series, never a clock). APPEND-ONLY; the newest row for a version is its measurement. Keyed
+-- by version, not by listing: a re-share moves the pinned version without a new listing row,
+-- and a measurement describes the version it was made on and no other. `state` names what was
+-- measured or why nothing was (`load_budget.STATES`); `work` and `ceiling` are counts in
+-- `lane`'s own unit, NULL unless a count was made. Read by the library feed and the share
+-- preview (`share_loads`). A version with no row has no `load` at all.
+CREATE TABLE IF NOT EXISTS definition_load_measurements (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id    TEXT    NOT NULL,
+  def_id     TEXT    NOT NULL,
+  version    INTEGER NOT NULL,
+  state      TEXT    NOT NULL,
+  lane       TEXT,
+  work       INTEGER,
+  ceiling    INTEGER,
+  code       TEXT,
+  reference  TEXT,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_definition_load_measurements_owner
+  ON definition_load_measurements(user_id, def_id, version, id DESC);
 """
 
 
@@ -4341,6 +4365,11 @@ def resolve_share(token: str, *, _with_author: bool = False) -> dict:
         # a sentence about the indicator and an engine number, never the author or the script.
         **share_headline(row["user_id"], row["def_id"], row["version"]),
     }
+    # ⭐ STUDIO R6 — how heavy the PINNED version is to draw, when the server measured it at
+    # listing (`share_load`). Absent for a version nobody listed: no key, never a guess.
+    load = share_load(row["user_id"], row["def_id"], row["version"])
+    if load is not None:
+        out["load"] = load
     if _with_author:
         out["author_id"] = row["user_id"]
     return out
@@ -4523,20 +4552,73 @@ def publish(user_id: Any, def_id: str, *, role: Any = None) -> Optional[dict]:
             mine = _listed_def_ids(c, user_id)
             if def_id not in mine and len(mine) >= LISTINGS_PER_MEMBER_MAX:
                 raise ShareRefused("listing-limit", LISTING_LIMIT_MESSAGE)
+    # ⭐ STUDIO R6 — THE LOAD BUDGET, measured by the server before anything is written
+    # (`load_budget.measure_row`: the document AS SERVED, one short-lived subprocess, a count and
+    # never a clock). An indicator over the budget is refused BY NAME (`load-budget`), admins
+    # included: the library's bar is the same for a house indicator. Only a NUMBER refuses; a
+    # measurement that could not be made lists with no class.
+    measured = None
+    if row is not None and row.get("deleted_at") is None:
+        from api.services import load_budget                       # noqa: PLC0415
+        measured = load_budget.measure_row(row)
+        if load_budget.over_budget(measured):
+            raise ShareRefused("load-budget", load_budget.refusal_message(measured))
     shared = share(user_id, def_id)
     if shared is None:
         return None
+    # the measurement is about the version it was made on: recorded only when that is the
+    # version the link now pins (a save between the two reads leaves this listing unmeasured)
+    record = measured if (measured is not None and row.get("version") == shared["version"]) else None
     with contextlib.closing(_connect()) as c:
         _ensure(c)
         with c:
+            now = int(time.time())
             c.execute(
                 "INSERT INTO definition_listings (user_id, def_id, listed, created_at)"
                 " VALUES (?,?,1,?)",
-                (str(user_id), def_id, int(time.time())),
+                (str(user_id), def_id, now),
             )
-    return {"def_id": def_id, "listed": True, "token": shared["token"],
-            "version": shared["version"], "table_version": shared["table_version"],
-            "includesSource": shared["includesSource"]}
+            if record is not None:
+                c.execute(
+                    "INSERT INTO definition_load_measurements (user_id, def_id, version, state,"
+                    " lane, work, ceiling, code, reference, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                    (str(user_id), def_id, int(shared["version"]), record["state"], record["lane"],
+                     record["work"], record["ceiling"], record["code"], record["reference"], now),
+                )
+    out = {"def_id": def_id, "listed": True, "token": shared["token"],
+           "version": shared["version"], "table_version": shared["table_version"],
+           "includesSource": shared["includesSource"]}
+    if record is not None:
+        from api.services import load_budget                       # noqa: PLC0415
+        out["load"] = load_budget.served(record)
+    return out
+
+
+def share_loads(keys: Any) -> dict:
+    """The `load` each of these stored versions carries on a share answer (Studio R6):
+    ``{(owner, def_id, version): load_budget.served(...) or None}``, the NEWEST measurement of
+    exactly that version. None means no measurement was ever made of it (the answer then carries
+    no `load` key at all). The owner id is only the read's key."""
+    from api.services import load_budget                           # noqa: PLC0415
+    wanted = [(str(u), d, int(v)) for u, d, v in keys]
+    out: dict = {}
+    if not wanted:
+        return out
+    with contextlib.closing(_connect()) as c:
+        _ensure(c)
+        for key in wanted:
+            row = c.execute(
+                "SELECT state, lane, work, ceiling FROM definition_load_measurements "
+                "WHERE user_id=? AND def_id=? AND version=? ORDER BY id DESC LIMIT 1", key,
+            ).fetchone()
+            out[key] = load_budget.served(dict(row)) if row is not None else None
+    return out
+
+
+def share_load(owner: Any, def_id: str, version: int) -> Optional[dict]:
+    """`share_loads` for one stored version."""
+    key = (str(owner), def_id, int(version))
+    return share_loads([key])[key]
 
 
 # ═══ moderation ═══════════════════════════════════════════════════════════
@@ -4803,8 +4885,13 @@ def public_library(limit: int = 24, after: Optional[int] = None) -> dict:
     # pins, the same fields the share preview carries (`share_headlines`, one connection for the
     # page). The owner id is only the read's key: it never enters an entry.
     found = share_headlines(headline_keys)
+    # ⭐ STUDIO R6 — and its load, for the same pinned version (`share_loads`); no key when
+    # that version was never measured.
+    loads = share_loads(headline_keys)
     for entry, key in zip(entries, headline_keys):
         entry.update(found[key])
+        if loads[key] is not None:
+            entry["load"] = loads[key]
     # ⛔ THE CURSOR IS THE LAST ROW *EXAMINED*, not the last one returned. Rows
     # drop out for four reasons above, and paging from the last SURVIVOR would
     # re-walk every one of the skipped rows on the next page — forever, if a
