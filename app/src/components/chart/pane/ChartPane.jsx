@@ -3,7 +3,7 @@ import {
 } from 'react'
 import useHistoryUserId from '../useHistoryUserId'
 import { recordIndicatorChange } from '../indicatorHistoryStore'
-import { labelFor as indicatorLabelFor } from '../indicatorCatalog'
+import { anyLabelFor as indicatorLabelFor } from '../indicatorCatalog'
 import StockChart from '../../StockChart'
 import { sendSeedFrom, agentOpenOpts } from '../builder/agentSeams'
 import isModalOpen from '../../../utils/modalOpen'
