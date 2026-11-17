@@ -649,8 +649,15 @@ const OPS = {
         throw err('style:line-style-inert', `"${row.key}" is drawn as ${drawn === 'markers' ? 'markers' : `a ${drawn}`}, which has no line to make ${op.lineStyle}.`, { output: row.key })
       }
     }
+    // ⭐ ROW 42 — `breaks` is a LINE's choice: a histogram or markers have no join.
+    if (op.breaks !== undefined) {
+      const drawn = op.style !== undefined ? op.style : row.style
+      if (!LINE_DRAWN_STYLES.includes(drawn)) {
+        throw err('style:breaks-inert', `"${row.key}" is drawn as ${drawn === 'markers' ? 'markers' : `a ${drawn}`}, which has no line to break.`, { output: row.key })
+      }
+    }
     const look = () => ({ color: row.color, width: row.width, style: row.style, hidden: row.hidden,
-      lineStyle: row.lineStyle || 'solid' })
+      lineStyle: row.lineStyle || 'solid', ...(row.sparse === true ? { breaks: true } : {}) })
     const from = look()
     for (const f of ['color', 'width', 'style', 'hidden']) if (op[f] !== undefined) row[f] = op[f]
     if (op.hidden !== undefined) st.hiddenSet.add(row.key)
@@ -658,6 +665,10 @@ const OPS = {
     // plot stays byte-identical to one that never had a line style.
     if (op.lineStyle === 'solid') delete row.lineStyle
     else if (op.lineStyle !== undefined) row.lineStyle = op.lineStyle
+    // ⭐ ROW 42 — joined is the default and is written as NO field (`plots[].sparse`
+    // absent), the same rule: a line that never asked for breaks stays byte-identical.
+    if (op.breaks === true) row.sparse = true
+    else if (op.breaks === false) delete row.sparse
     st.touched.add(row.key)
     st.changes.push({ op: i, kind: 'style-set', output: row.key, from, to: look() })
   },

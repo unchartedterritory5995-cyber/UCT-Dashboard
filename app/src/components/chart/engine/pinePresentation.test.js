@@ -18,13 +18,15 @@ import { __allowEveryRuntimeScriptForTests, setRuntimeKillList } from './runtime
 const REPO = path.resolve(process.cwd(), '..')
 const RS = fs.readFileSync(path.join(REPO, 'docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine'), 'utf8')
 
-// TradingView's Inputs tab for RS Rating, as its capture records it (study.inputs in order), minus the four
-// see-through colours (the dots' and the area's) this document does not offer yet. 'Comparative Symbol for
-// Line' (source line 22) is on TradingView's tab and joined ours with engine 68 (#1545, the comparison symbol
-// as a run-half setting); this list was written before that and left it out.
+// TradingView's Inputs tab for RS Rating, as its capture records it (study.inputs in order), minus the two
+// see-through AREA colours ('Positive Area' / 'Negative Area', source lines 42-43) this document does not offer
+// yet (#1574, engine 70). 'Comparative Symbol for Line' (source line 22) is on TradingView's tab and joined ours
+// with engine 68 (#1545, the comparison symbol as a run-half setting). The two see-through DOT colours (the
+// 'Color' after each 'Type' in the New Highs / New Lows groups, source lines 27 and 32) joined with engine 69
+// (#1565, see-through colours as settings), at TradingView's positions.
 const TV_INPUTS = ['Hide Rating', 'Rating Only', 'Color', 'Comparative Symbol for Line',
   'Approximate Value of Comparative Symbol', 'Offset (%)',
-  'Plot RS New Highs', 'Type', 'Look-back', 'Size', 'Plot RS New Lows', 'Type', 'Look-back', 'Size',
+  'Plot RS New Highs', 'Type', 'Color', 'Look-back', 'Size', 'Plot RS New Lows', 'Type', 'Color', 'Look-back', 'Size',
   'Display MA 1 on RS Line', 'Lenght Da', 'Color', 'Type Da', 'Lenght We', 'Type We', 'Area Color',
   'Display MA 2 on RS Line', 'Lenght Da', 'Color', 'Type Da', 'Lenght We', 'Type We',
   'Use fix values for replay mode', 'For 99 stocks', 'For 90+ stocks', 'For 70+ stocks', 'For 50+ stocks',
