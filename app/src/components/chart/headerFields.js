@@ -31,7 +31,8 @@ export const HEADER_FIELDS = [
   // gold is only for "current or chosen"); a colour the member picks in Chart Settings still wins.
   { key: 'mcap', label: 'Market Cap', short: 'MC', colorKey: 'marketCap', dflt: null },
   { key: 'earn', label: 'Next Earnings', short: 'NE', colorKey: 'nextEarnings', dflt: null },
-  { key: 'rating', label: 'UCT Rating', short: 'UCT', colorKey: 'uctRating', dflt: null },
+  // ⚰ 'rating' (UCT Rating) RETIRED as a header stat (owner 11-17). A stored 'rating' key is
+  // dropped by `headerFieldKeys`' HEADER_FIELD_BY_KEY filter, so old layouts just stop showing it.
   { key: 'dchg', label: '$ Change', short: '$CHG', colorKey: 'dchg', dflt: null, signed: true },
   { key: 'fromopen', label: '% from Open', short: '%OPEN', colorKey: 'fromopen', dflt: null, signed: true },
   { key: 'fromhigh', label: '% from High', short: '%HIGH', colorKey: 'fromhigh', dflt: null, signed: true },
@@ -65,7 +66,7 @@ export const CURVE_HEADER_KEYS = new Set(['rvol'])
 export const THEME_HEADER_KEYS = new Set(['theme'])
 
 // What the old three toggles showed — the default before any pick.
-export const DEFAULT_HEADER_FIELDS = ['mcap', 'earn', 'rating']
+export const DEFAULT_HEADER_FIELDS = ['mcap', 'earn']
 
 /** The selected field keys for a header blob — migrating a legacy show* blob once. */
 export function headerFieldKeys(header) {
@@ -73,7 +74,6 @@ export function headerFieldKeys(header) {
   const f = []
   if (header?.showMarketCap !== false) f.push('mcap')
   if (header?.showNextEarnings !== false) f.push('earn')
-  if (header?.showUctRating !== false) f.push('rating')
   return f
 }
 
@@ -128,7 +128,6 @@ export function resolveHeaderField(key, ctx) {
     // Funds/indexes/breadth have no meaningful market cap → dash (like Next Earnings).
     case 'mcap': return { value: isFundLike ? null : (fund?.metrics?.market_cap || null) }
     case 'earn': return { value: fmtEarn(fund?.next_earnings) }
-    case 'rating': return { value: num(fund?.composite) ? String(fund.composite) : null }
     case 'sector': return { value: fund?.sector || null }
     case 'industry': return { value: fund?.industry || null }
     case 'theme': return { value: theme || null }
