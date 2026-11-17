@@ -272,6 +272,24 @@ CREATE TABLE IF NOT EXISTS definition_engine_status (
 CREATE INDEX IF NOT EXISTS idx_definition_engine_status_owner
   ON definition_engine_status(user_id, def_id, version, id DESC);
 
+-- ⭐ STUDIO R4 (Indicators backlog 43): the AUTHOR's status-panel headline for one stored
+-- version (`editorStatus(...).headline`, as their own browser's panel showed it), and the
+-- script engine that computed it. APPEND-ONLY; the newest row for a version is its headline.
+-- Written only by the owner (`record_status_headline`), only about their LIVE version; read
+-- by the share preview, the install answer and the library entry (`share_headlines`), never
+-- recomputed for a viewer. A version with no row has no headline (null).
+CREATE TABLE IF NOT EXISTS definition_status_headlines (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id    TEXT    NOT NULL,
+  def_id     TEXT    NOT NULL,
+  version    INTEGER NOT NULL,
+  engine     INTEGER NOT NULL,
+  headline   TEXT    NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_definition_status_headlines_owner
+  ON definition_status_headlines(user_id, def_id, version, id DESC);
+
 CREATE TABLE IF NOT EXISTS definition_listings (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id    TEXT    NOT NULL,
@@ -2685,6 +2703,113 @@ def record_engine_status(user_id: Any, def_id: str, *, version: int, engine: int
             "status": status, "reason": text}
 
 
+# ─── ⭐ STUDIO R4: the author's status headline on a shared indicator ──────────
+#
+# Indicators backlog 43. The share preview, the install answer and each library entry carry
+# the sentence the AUTHOR's status panel showed for the version the link pins
+# (`editorStatus(...).headline`, `app/src/components/chart/builder/editorStatus.js`) and the
+# script engine that computed it, so an installer reads the verdict its author saw.
+#
+# ⛔ NOTHING ON THE SERVER COMPUTES THE SENTENCE. It is the browser's (the translator and the
+# chart door run there), so the owner's browser RECORDS it about its own live version
+# (`record_status_headline`, `POST /{def_id}/status-headline`), the way it records an engine
+# verdict (`record_engine_status`). A version with no record answers null: a formula or an
+# assistant-built indicator, and every version saved before something records one.
+#
+# ⚠️ THE AUTHOR'S BROWSER IS TRUSTED FOR THE TEXT, exactly as for the indicator's name and
+# description: the page renders it as text, never markup, and it is bounded here.
+
+#: The longest headline a browser may record (the longest the panel writes is a family label or
+#: the chart door's own sentence after "Runs …; the chart cannot draw it yet: ").
+MAX_STATUS_HEADLINE_CHARS = 500
+
+#: Trailing blanks and full stops: the served headline carries none (the page adds its own).
+_HEADLINE_TAIL_RE = re.compile(r"[\s.]+$")
+
+#: The fields a share answer carries (`share_headlines`); the last is present only beside a headline.
+SHARE_HEADLINE_KEYS = ("headline", "engine_version", "headline_current")
+
+
+def served_headline(text: Any) -> Optional[str]:
+    """A recorded headline as the share answers serve it: trimmed, WITHOUT a trailing full stop
+    (the page adds punctuation), or None when nothing is left. A full stop inside the sentence
+    stays ("Our engine could not finish this script. That is on us, not your script")."""
+    if not isinstance(text, str):
+        return None
+    return _HEADLINE_TAIL_RE.sub("", text.strip()) or None
+
+
+def record_status_headline(user_id: Any, def_id: str, *, version: int, engine: int,
+                           headline: str) -> dict:
+    """Record the owner's status-panel headline for their LIVE version. APPEND-ONLY.
+
+    ⛔ The caller's own definition only (404 otherwise, `ForkRefused`), only the version live now
+    (a stale tab's sentence about an older version is a 409, `SaveConflict`), a headline that is
+    not blank once served (`served_headline`) and at most `MAX_STATUS_HEADLINE_CHARS`."""
+    _check_def_id(def_id)
+    for name, v in (("version", version), ("engine", engine)):
+        if isinstance(v, bool) or not isinstance(v, int) or v < 1:
+            raise ValueError(f"{name}: expected an integer >= 1, got {v!r}")
+    text = headline.strip() if isinstance(headline, str) else ""
+    if served_headline(text) is None:
+        raise ValueError("headline: the status panel's sentence, not blank")
+    if len(text) > MAX_STATUS_HEADLINE_CHARS:
+        raise ValueError(f"headline: at most {MAX_STATUS_HEADLINE_CHARS} characters")
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        _ensure(c)
+        prev = _newest(c, user_id, def_id)
+        if prev is None or prev["deleted_at"] is not None:
+            raise ForkRefused("Not found")
+        if prev["version"] != version:
+            raise SaveConflict(def_id, version, prev["version"])
+        c.execute(
+            "INSERT INTO definition_status_headlines "
+            "(user_id, def_id, version, engine, headline, created_at) VALUES (?,?,?,?,?,?)",
+            (str(user_id), def_id, version, engine, text, int(time.time())))
+        c.commit()
+    return {"def_id": def_id, "version": version, "engine": engine, "headline": text}
+
+
+def share_headlines(keys: Any, *, current: Any = "default") -> dict:
+    """``{(owner, def_id, version): fields}`` for each stored version in ``keys``, read on ONE
+    connection. ``fields`` is what a share answer carries:
+
+      * ``headline``: the newest recorded headline of THAT version (`served_headline`), or None;
+      * ``engine_version``: the engine that recorded it, as a string; None with a None headline;
+      * ``headline_current``: present only beside a headline, and only when the server knows the
+        engine it serves today (`SCRIPT_ENGINE_VERSION`, read from `scriptEngineVersion.js`, the
+        one authority every server lane reads): False exactly when the two numbers differ.
+    """
+    cur = SCRIPT_ENGINE_VERSION if current == "default" else current
+    known = isinstance(cur, int) and not isinstance(cur, bool)
+    wanted = [(str(u), d, int(v)) for u, d, v in keys]
+    out: dict = {}
+    if not wanted:
+        return out
+    with contextlib.closing(_connect()) as c:
+        _ensure(c)
+        for key in wanted:
+            row = c.execute(
+                "SELECT engine, headline FROM definition_status_headlines "
+                "WHERE user_id=? AND def_id=? AND version=? ORDER BY id DESC LIMIT 1",
+                key).fetchone()
+            headline = served_headline(row["headline"]) if row is not None else None
+            if headline is None:
+                out[key] = {"headline": None, "engine_version": None}
+                continue
+            fields = {"headline": headline, "engine_version": str(row["engine"])}
+            if known:
+                fields["headline_current"] = row["engine"] == cur
+            out[key] = fields
+    return out
+
+
+def share_headline(owner: Any, def_id: str, version: int, *, current: Any = "default") -> dict:
+    """`share_headlines` for one stored version."""
+    key = (str(owner), def_id, int(version))
+    return share_headlines([key], current=current)[key]
+
+
 def _maths_identity(ast_hash: Any, definition: Any) -> str:
     """The store's own identity of a version's MATHS: the scan tree's hash (the
     `ast_hash` column) plus `trees_identity` of the materialised document — the same
@@ -4211,6 +4336,10 @@ def resolve_share(token: str, *, _with_author: bool = False) -> dict:
         "origin_ast_hash": row["ast_hash"],
         "table_version": int(row["table_version"]),
         "includesSource": shares_source(definition),
+        # ⭐ STUDIO R4 — the author's status headline for the PINNED version (`share_headline`):
+        # `headline`, `engine_version`, and `headline_current` beside a headline. Nothing private:
+        # a sentence about the indicator and an engine number, never the author or the script.
+        **share_headline(row["user_id"], row["def_id"], row["version"]),
     }
     if _with_author:
         out["author_id"] = row["user_id"]
@@ -4267,6 +4396,12 @@ def install_share(user_id: Any, token: str, limits: Any = None, *, role: Any = N
                             resolved["origin_version"]),
                _origin_author=resolved["author_id"])
     out["origin"] = served_definition(doc)["origin"]
+    # ⭐ STUDIO R4 — the install answer carries the verdict the AUTHOR saw for the version the
+    # link pinned (read by `resolve_share` above), for the confirmation toast. It describes the
+    # shared version, so it is not recorded against the installer's copy.
+    for key in SHARE_HEADLINE_KEYS:
+        if key in resolved:
+            out[key] = resolved[key]
     return out
 
 
@@ -4629,6 +4764,7 @@ def public_library(limit: int = 24, after: Optional[int] = None) -> dict:
 
     now_version = _current_table_version()
     entries: list[dict] = []
+    headline_keys: list[tuple] = []
     last_id = None
     for row in rows:
         if len(entries) >= n:
@@ -4662,6 +4798,13 @@ def public_library(limit: int = 24, after: Optional[int] = None) -> dict:
             # the licence its author declared, when it was pasted as a script (None otherwise)
             "licence": licence_of(pinned.get("pine_source")),
         })
+        headline_keys.append((str(row["user_id"]), row["def_id"], int(live["version"])))
+    # ⭐ STUDIO R4 — each entry carries its author's status headline for the version its link
+    # pins, the same fields the share preview carries (`share_headlines`, one connection for the
+    # page). The owner id is only the read's key: it never enters an entry.
+    found = share_headlines(headline_keys)
+    for entry, key in zip(entries, headline_keys):
+        entry.update(found[key])
     # ⛔ THE CURSOR IS THE LAST ROW *EXAMINED*, not the last one returned. Rows
     # drop out for four reasons above, and paging from the last SURVIVOR would
     # re-walk every one of the skipped rows on the next page — forever, if a

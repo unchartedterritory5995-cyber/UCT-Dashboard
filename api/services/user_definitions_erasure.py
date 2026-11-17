@@ -64,6 +64,10 @@ MEMBER_TABLES = (
     # stored versions (`user_definitions.record_engine_status`). Keyed by their user_id and
     # meaningless without the definitions it describes, so it leaves with them.
     "definition_engine_status",
+    # ⭐ STUDIO R4 — the member's own status-panel headlines about their stored versions
+    # (`user_definitions.record_status_headline`), served on their share links. Keyed by their
+    # user_id and meaningless without the definitions it describes, so it leaves with them.
+    "definition_status_headlines",
 )
 
 # ⚠️ NOT IN THIS DATABASE, AND CORRECTLY NOT PURGED: `definition_evaluations` and the
