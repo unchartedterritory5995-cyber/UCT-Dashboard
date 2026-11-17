@@ -701,6 +701,11 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
       // conversational row model does, so a dashed plot is representable there.
       // Last, where `preservePresentation` has always appended it.
       ...(PLOT_LINE_STYLES.includes(r.lineStyle) ? { lineStyle: r.lineStyle } : {}),
+      // ⭐ ROW 42 (2026-11-17) — "BREAKS WHERE IT HAS NO VALUE" (`plots[].sparse`), an
+      // AUTHORED choice: a Pine "with breaks" style, or the conversation's
+      // `set_style.breaks`. Only a row that carries `true` writes it, so every
+      // document whose rows do not stays byte-identical and keeps drawing joined.
+      ...(r.sparse === true ? { sparse: true } : {}),
       // ⭐⭐ LINE IDENTITY (owner decision 2026-11-02) — a row ADDED in this edit (or
       // re-keyed) tells the store it is a NEW line, so a key removed and typed again
       // before one save does not inherit the removed line's references or alerts
