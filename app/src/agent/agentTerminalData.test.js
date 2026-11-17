@@ -4,15 +4,20 @@
 // rows shaped by the terminal panels' own pure helpers, served vs dark (each registers only while the server lists ITS
 // kind), local-only on both sides for the four isolated kinds, the manifest text limits, one read per answer, and the
 // cross-file facts read from the other file (never retyped).
+// Routing: the four local-only capabilities' own words are on the data group only while each is registered (a dark server's
+// routing is routing.js's own), every plain ask reaches its capability under v1 and v2, and the words stay off other
+// capabilities' language (the member's plan, breadth's measures, the Screener, the chart's dark-pool setting).
 // No model, no provider: /api/agent/config and /api/agent/data are stubbed with synthetic shapes (never market data).
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
-import { getCapability, allCapabilityNames, MANIFEST_CONTRACT } from './capabilities'
+import { getCapability, allCapabilityNames, manifestFor, MANIFEST_CONTRACT } from './capabilities'
 import { registerBuiltins, registerServerGatedBuiltins } from './builtins'
 import { loadAgentConfig, _resetAgentConfig } from './agentClient'
 import { turnStart, turnEnd, _resetTurns } from './trace'
-import { groupOfAction } from './routing'
+import { GROUPS, groupOfAction, routeManifest, selectGroups, wordsSelect } from './routing'
+import { routeManifestV2 } from './nlm1/routingV2'
+import collisions from './qa/capabilityRegression/baseline/routingCollisions.json'
 import handshake from './__fixtures__/program/isolation.json'
 import { LONG_RUN_LENS_KEYS } from '../pages/terminal/panels/longRunModel'
 import { LIVE_WORDS } from './capabilities/terminalDataFormat'
@@ -21,7 +26,7 @@ import {
 } from './capabilities/terminalData'
 import {
   KINDS, CAPABILITIES, ANALYST_SIDES, NOT_52_WEEK, answerFromAnalystActions, answerFromHighsLows, answerFromLeaders, answerFromDarkPool,
-  registerTerminalLocalCapabilities, _resetTerminalLocalForTest,
+  registerTerminalLocalCapabilities, _resetTerminalLocalForTest, TERMINAL_ROUTE_WORDS,
 } from './capabilities/terminalDataLocal'
 
 registerBuiltins()
@@ -302,7 +307,7 @@ describe('served vs dark', () => {
       const cap = getCapability(name)
       expect(cap, name).toBeTruthy()
       expect(cap.query, name).toBe(true)
-      expect(groupOfAction(name), name).toBe('data')                 // routed with the stock data group (routing.js is unchanged)
+      expect(groupOfAction(name), name).toBe('data')                 // routed with the stock data group (by domain)
       expect(cap.summary.length, name).toBeLessThanOrEqual(MANIFEST_CONTRACT.limits.maxSummary)
       expect(cap.hints.length, name).toBeLessThanOrEqual(MANIFEST_CONTRACT.limits.maxHints)
       const isolated = handshake.isolated_kinds.includes(kind)
@@ -349,5 +354,92 @@ describe('served vs dark', () => {
     const a = await inTurn(() => getCapability(CAPABILITIES.leaders).answer(null, { list: 'IPO', limit: 5 }, null))   // the stub refuses
     expect(a.text).toMatch(/^I couldn't read UCT's list of new listings: that request wasn't allowed for this question/)
     expect(reads()).toHaveLength(1)
+  })
+})
+
+// ── routing: each capability's own words, on the data group only while it is registered ────────────────────────────────
+const dataGroup = () => GROUPS.find(g => g.id === 'data')
+const DATA_BASE = [...dataGroup().words]                 // read before anything is served: routing.js's own list
+const ROUTE_OPTS = () => ({ enabled: true, limit: MANIFEST_CONTRACT.limits.maxCapabilities, budget: MANIFEST_CONTRACT.routingThreshold })
+const wordKeys = (text) => Object.keys(TERMINAL_ROUTE_WORDS).filter(k => TERMINAL_ROUTE_WORDS[k].some(re => re.test(String(text).toLowerCase())))
+/** plain member asks, by the capability whose words must name them */
+const ASKS = {
+  analyst: ['what got upgraded today', 'any analyst upgrades this morning', 'who got downgraded', 'analyst price target changes', 'which stocks got new coverage', 'show me the analyst calls from the morning wire'],
+  highsLows: ['new highs today', 'what is making new highs today', 'stocks hitting new lows of the day', 'which stocks are at session highs', 'new highs and lows this morning'],
+  leaders: ['top gainers over 60 days', 'top gainers over the last 3 months', 'biggest gainers in the last 30 sessions', 'best performers over 90 days', 'stocks trading record volume', 'recent IPOs'],
+  darkPool: ['dark pool levels on NVDA', 'NVDA dark pool levels', 'show me the dark pool levels for TSLA', 'big dark pool prints in AAPL'],
+}
+/** another capability's language: none of the four's words may name these */
+const NOT_OURS = [
+  'upgrade my plan', 'how do i upgrade to pro', 'upgrade my subscription',                                          // the member's own plan
+  'how many new highs today', 'new 52-week highs today', 'net new highs today', 'stocks making new highs',           // breadth's measures
+  'what % of stocks made new highs today', 'new 20-day lows today',
+  'top gainers today', 'show me the leaders', 'recent ipos that are acting well', 'new listings above their 50 day', // the Screener's
+  'turn on dark pool', 'show dark pool levels on this chart', 'make the dark pool bars gold',                        // chart.setSetting
+  'find stocks with dark pool prints over 10m', 'only dark pool prints in the options flow', 'add a dark pool widget', 'open the dark pool page',
+  'switch to weekly', 'add the 50 day moving average', 'any news on TSLA', 'when does NVDA report earnings',
+]
+
+describe('routing words', () => {
+  const realFetch = globalThis.fetch
+  beforeEach(() => { reset(); vi.restoreAllMocks() })
+  afterEach(() => { reset(); globalThis.fetch = realFetch })
+
+  it.each([[null, 'data off'], [[], 'nothing activated'], [['quote', 'themes', SECTOR_KIND], 'other kinds only']])('dark (%j, %s): the data group keeps exactly routing.js\'s words', async (kinds) => {
+    wire(kinds)
+    await loadAgentConfig()
+    registerServerGatedBuiltins()
+    expect(dataGroup().words).toEqual(DATA_BASE)
+    for (const res of Object.values(TERMINAL_ROUTE_WORDS)) for (const re of res) expect(dataGroup().words).not.toContain(re)
+    for (const q of [ASKS.analyst[0], ASKS.darkPool[0]]) expect(wordsSelect('data', q), q).toBe(false)
+  })
+
+  it.each(Object.keys(KINDS))('served %s alone: only its own words are added, after routing.js\'s, and they are taken back', async (key) => {
+    wire([KINDS[key]])
+    await loadAgentConfig()
+    registerServerGatedBuiltins()
+    expect(dataGroup().words).toEqual([...DATA_BASE, ...TERMINAL_ROUTE_WORDS[key]])
+    registerTerminalLocalCapabilities()                                // idempotent: never armed twice
+    expect(dataGroup().words).toHaveLength(DATA_BASE.length + TERMINAL_ROUTE_WORDS[key].length)
+    reset()
+    expect(dataGroup().words).toEqual(DATA_BASE)
+  })
+
+  it('every capability has words, and each ask is named by its own capability\'s words', () => {
+    expect(Object.keys(TERMINAL_ROUTE_WORDS).sort()).toEqual(Object.keys(KINDS).sort())
+    for (const [key, asks] of Object.entries(ASKS)) for (const q of asks) expect(wordKeys(q), q).toContain(key)
+  })
+
+  it('served: each ask routes its capability under v1 and v2, and the budget never cuts the data group', async () => {
+    wire(PAIRS.map(p => p[0]))
+    await loadAgentConfig()
+    registerServerGatedBuiltins()
+    const full = manifestFor({ surface: 'charts', createIndicator: true, manageIndicators: true })
+    for (const [key, asks] of Object.entries(ASKS)) {
+      for (const q of asks) {
+        expect(wordsSelect('data', q), q).toBe(true)
+        expect(selectGroups(q).selected, q).toContain('data')
+        for (const route of [routeManifest, routeManifestV2]) {
+          const r = route(full, q, ROUTE_OPTS())
+          expect(r.manifest.map(c => c.name), `${route.name}: ${q}`).toContain(CAPABILITIES[key])
+          expect(r.overBudget || [], `${route.name}: ${q}`).not.toContain('data')
+        }
+      }
+    }
+    // the sector answer needs no words of its own: routing.js's `sectors?` already names the data group
+    for (const q of ['sector performance this month', 'how have the sector funds performed over the last month']) {
+      expect(wordKeys(q), q).toEqual([])
+      for (const route of [routeManifest, routeManifestV2]) expect(route(full, q, ROUTE_OPTS()).manifest.map(c => c.name), `${route.name}: ${q}`).toContain(SECTOR_CAPABILITY)
+    }
+  })
+
+  it('the words never name another capability\'s language', () => {
+    for (const q of NOT_OURS) expect(wordKeys(q), q).toEqual([])
+  })
+
+  it('no row of the routing-collision table that another group owns is named by these words', () => {
+    // baseline/routingCollisions.json is asserted under production's kinds, where these words are not armed: this holds it armed
+    const stolen = collisions.rows.filter(r => r.owner !== 'data' && !(r.also || []).includes('data') && wordKeys(r.text).length).map(r => `${r.text} (${r.owner})`)
+    expect(stolen).toEqual([])
   })
 })
