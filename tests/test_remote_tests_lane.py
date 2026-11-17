@@ -198,3 +198,19 @@ def test_both_test_steps_keep_their_exit_code_through_tee():
     for job in ("pytest", "vitest"):
         run = [s for s in _wf()["jobs"][job]["steps"] if s.get("name") == job][0]["run"]
         assert "set -o pipefail" in run and "| tee" in run, job
+
+
+def test_the_vitest_job_installs_the_python_its_rails_spawn():
+    """2026-11-17: seven Notebook bridge rails spawn `python` (conftest -> pytest, the exporter -> anyio, and lazily,
+    inside functions, markdown_it and more) and were red on this lane alone, because this job installed no Python
+    (run 44066213548). A hand-picked "minimal" list left two of them red (run 44085508213), so the job installs
+    requirements.txt -- the same install the nightly's vitest job and this lane's pytest job do -- after the ref
+    under test is checked out (its own requirements) and before vitest runs."""
+    steps = _wf()["jobs"]["vitest"]["steps"]
+    labels = [s.get("name") or s.get("uses") for s in steps]
+    setup = [i for i, s in enumerate(steps) if (s.get("uses") or "").startswith("actions/setup-python@")]
+    assert len(setup) == 1 and str(steps[setup[0]]["with"]["python-version"]) == "3.12", steps
+    install = [i for i, s in enumerate(steps) if "-r requirements.txt" in (s.get("run") or "")]
+    assert len(install) == 1, labels
+    assert "pip install" in steps[install[0]]["run"], steps[install[0]]
+    assert labels.index("Check out the commit under test") < setup[0] < install[0] < labels.index("vitest"), labels

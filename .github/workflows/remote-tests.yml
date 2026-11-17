@@ -173,6 +173,23 @@ jobs:
           git fetch --no-tags --quiet origin "+$RT_REF:refs/rt/under-test"
           git checkout --quiet --detach refs/rt/under-test
           git log -1 --format='testing %H %s'
+      # ⚰️ 2026-11-17 — SEVEN NOTEBOOK BRIDGE RAILS WERE RED HERE AND NOWHERE ELSE. They spawn `python` to run
+      # the real exporter (tools/*_bridge.py, roundtrip_export_fixture.py), which imports the repo-root conftest
+      # (pytest) and anyio; this job installed no Python, so every one died on ModuleNotFoundError before its
+      # own assertions ran (run 44066213548). It now installs requirements.txt, exactly as the nightly's vitest
+      # job does for the same rails.
+      # ⚰️ NOT A "MINIMAL" LIST, AND THAT WAS MEASURED. A list of what the bridges import (pytest, anyio,
+      # sniffio, tzdata, read off an import-time probe) turned 5 of the 7 green and left 2 red on
+      # `No module named 'markdown_it'` (run 44085508213): notes_export_formats imports it INSIDE a function,
+      # so no import-time probe sees it, and the static closure of the bridges is the whole app (1,808 modules,
+      # ~50 distributions). requirements.txt is the only list that cannot drift from what they run. Cost,
+      # measured on this lane's pytest job with the pip cache: ~30 s, once per shard.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install the Python the bridge rails spawn
+        run: python -m pip install --quiet -r requirements.txt
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
