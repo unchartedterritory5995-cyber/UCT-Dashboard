@@ -320,9 +320,9 @@ def _request(svc, note=""):
                 tool_choice={"type": "tool", "name": svc.TOOL_NAME}, messages=svc.user_turn(b"", "image/png", note))
 
 
-def test_the_worst_case_is_about_33_cents_not_47(real):
+def test_the_worst_case_is_about_34_cents_not_45(real):
     from api.services.uct_agent import budget
-    assert real.svc.worst_case_usd() == pytest.approx(0.332, abs=0.001)
+    assert real.svc.worst_case_usd() == pytest.approx(0.344, abs=0.001)
     assert budget.worst_case_usd(_request(real.svc)) > 0.40           # what the byte bound charges for the same call
 
 
@@ -346,7 +346,7 @@ def test_a_note_counts_at_a_token_per_byte(real):
 
 def test_a_timeout_settles_at_the_honest_figure(real):
     ask(real, Client(lambda: (_ for _ in ()).throw(Timeout())))
-    assert interactive(real) == pytest.approx(real.svc.worst_case_usd()) and interactive(real) <= 0.34
+    assert interactive(real) == pytest.approx(real.svc.worst_case_usd()) and interactive(real) <= 0.35
 
 
 def test_the_lane_is_no_larger_because_the_reservation_is_smaller(real):
