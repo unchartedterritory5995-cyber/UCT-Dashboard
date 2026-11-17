@@ -225,6 +225,12 @@ function argYieldsBool(node, table) {
       const functions = (table && table.functions) || {}
       return own(functions, node.name) ? functions[node.name].yields === 'bool' : false
     }
+    // ⭐ 2026-11-17 — AN OFFSET CHANGES *WHEN*, NEVER *WHAT*: `(high >= highest(high, 252))[1]` is
+    // the yes/no it was a bar ago. ⚰️ `offset` was not listed here, so `barssince(newHigh[1], 30)`
+    // ("a new high for the first time in 30 days") was called unanalysable and therefore
+    // "repaints", while `sentence.js::yieldsOf` accepted the same tree (Indicators backlog 63;
+    // the server twin is `ast_lint._arg_yields_bool`).
+    case 'offset':
     case 'sym':
     case 'ltf':
     case 'tf_live':

@@ -384,7 +384,14 @@ def _arg_yields_bool(node: Any, table: Mapping[str, Any]) -> bool:
     if kind == "call":
         functions = table.get("functions") or {}
         return functions.get(node.get("name"), {}).get("yields") == "bool"
-    if kind in ("sym", "ltf", "tf_live", "tf_merge", "tf"):
+    # ⭐ 2026-11-17 -- AN OFFSET CHANGES *WHEN*, NEVER *WHAT* (`scan_definition.is_boolean_tree`'s own
+    # words for the same node). `(high >= highest(high, 252))[1]` is the yes/no it was a bar ago.
+    # ⚰️ This arm did not list `offset`, so "a new 52-week high for the first time in at least 30
+    # days" -- spelled the natural way, `barssince(newHigh[1], 30) >= 30` -- was called
+    # UNANALYSABLE here and therefore "repaints", while the interpreter's resolver accepted the
+    # same tree. The door refused it twice as `lint:repaint` and a member read "the formula would
+    # repaint" about a formula that reads only earlier bars (Indicators backlog 63).
+    if kind in ("sym", "ltf", "tf_live", "tf_merge", "tf", "offset"):
         args = node.get("args") or []
         return len(args) == 1 and _arg_yields_bool(args[0], table)
     return False
