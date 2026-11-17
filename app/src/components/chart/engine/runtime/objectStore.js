@@ -280,6 +280,8 @@ const isNa = (v) => v === undefined || (typeof v === 'number' && Number.isNaN(v)
  * @param {number} [o.fillCap]      house envelope for linefills (no Pine rule)
  */
 export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fillCap = 500 } = {}) {
+  // ⭐ DRAW-1 GC — the families whose handle the script reads at a past offset (`historyHeldOf`)
+  const historyHeld = new Set(Array.isArray(caps && caps.historyHeld) ? caps.historyHeld : [])
   const limits = {}
   for (const fam of Object.keys(POOL_LIMITS)) {
     if (pineVersion < POOL_LIMITS[fam].since) continue
@@ -432,13 +434,13 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
       reap(inst)
       stats.collected += 1
     }
-    // ⭐⭐ DRAW-1 — a BOX collector ran: which of the oldest boxes TradingView still shows from here
-    // on is not settled (the reference: "The count is approximate"; inside-bar-boxes holds 52 where
-    // the rule holds 50), so the family is withheld by name (`objectPool.js` COUNT_AT_CAP_FAMILIES:
-    // boxes only, each other family's collector is witnessed). Said AFTER the walk, so a box held in a
-    // user type keeps that sentence; the objects were still reaped, so a later count, a getter or a
-    // delete reads the same store as before.
-    if (COUNT_AT_CAP_FAMILIES.includes(fam)) withhold(fam, countAtCapReason(fam, cap))
+    // ⭐⭐ DRAW-1 GC — a BOX collector ran in a script that reads a past value of the variable holding
+    // its boxes (`objectPool.js::historyHeldOf`, inside-bar-boxes' shape): which of the oldest TradingView
+    // still shows is not what C7 says there (inside-bar-boxes 52 where C7 holds 50; vw-draw-count-at-cap
+    // 20 / 23 where it holds 22 / 25), so that family is withheld by name. Every other box family keeps
+    // C7 above, the newest kept (rs-arm-label-last-bar-spy 503 / 503, sonarlab-order-blocks 24 / 24).
+    // Said AFTER the walk, so a box held in a user type keeps that sentence.
+    if (COUNT_AT_CAP_FAMILIES.includes(fam) && historyHeld.has(fam)) withhold(fam, countAtCapReason(fam, cap))
   }
 
   function tablePos(props) {

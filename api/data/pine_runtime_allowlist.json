@@ -67,6 +67,10 @@
     "may be displayed.\"), while sonarlab-order-blocks holds what C7 predicts. So on the runtime lane a BOX family whose collector",
     "ran is withheld by name (runtime/objectStore.js collect, objectPool.js COUNT_AT_CAP_FAMILIES), and inside-bar-boxes' boxes",
     "are withheld, never drawn at the wrong count. Labels and lines are not: every committed capture whose label or line",
+    "DRAW-1 GC (2026-11-17, coordinator ruling after the engine-66 regression): the carve-out is NARROWED to the shape no capture",
+    "witnesses: a box family is withheld only when its collector runs AND the script reads a past value of a variable holding a",
+    "box (objectPool.js historyHeldOf; inside-bar-boxes, vw-draw-count-at-cap). Every other box family keeps C7, the newest kept",
+    "(rs-arm-label-last-bar-spy 503 / 503 at cap 500, sonarlab-order-blocks 24 / 24).",
     "collector ran agrees with C7 (parabolic-sar-rddt-1d-2026-11-15: 52 labels, every one paired, runtime-on MATCH).",
     "Capture queue Q-DRAW-CAP-1/2 (tools/visual_conformance/probes/vw-draw-count-at-cap.pine) measures the rule there.",
     "",
@@ -659,7 +663,7 @@
         {"capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15", "script": "MQLSoftware - Signal Follow-Through Ledger", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 8, "objectsX": "MATCH"},
         {"capture": "long_tail__09-signal-follow-through-ledger-spy-1d-2026-11-15", "script": "MQLSoftware - Signal Follow-Through Ledger", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 20, "objectsX": "MATCH"}
       ],
-      "note": "box.* drawings (DRAW-1, 2026-11-16, coordinator ruling): objectsPaired is the capture's paired BOX records. Each entry: objects v2 MATCH (x graded) with the run drawing, objectsPaired records paired and objectsX the capture's own x verdict. Carve-out: on the runtime lane a box family whose collector ran is withheld by name (objects:count-at-cap; see the readme). Evidence: the committed runtime-on snapshot (docs/pine/vendor-harness/runtime-on/verdicts.json), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes, and the harness's own objects lane, on feat/pine-coverage-drawings); docs/pine/evidence/2026-11-16-draw1-drawing-objects."
+      "note": "box.* drawings (DRAW-1, 2026-11-16, coordinator ruling): objectsPaired is the capture's paired BOX records. Each entry: objects v2 MATCH (x graded) with the run drawing, objectsPaired records paired and objectsX the capture's own x verdict. Carve-out: on the runtime lane a box family whose collector ran in a script that reads a past value of a variable holding a box is withheld by name (objects:count-at-cap; see the readme). Evidence: the committed runtime-on snapshot (docs/pine/vendor-harness/runtime-on/verdicts.json), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes, and the harness's own objects lane, on feat/pine-coverage-drawings); docs/pine/evidence/2026-11-16-draw1-drawing-objects."
     },
     "conditional-ta": {
       "status": "conformant",
