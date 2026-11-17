@@ -55,7 +55,7 @@ export default function useScanBoard(enabled) {
 
   const api = useMemo(() => ({
     pickLayout: id => apply(model.pickLayout, id),
-    acceptArrangement: widgets => apply(model.acceptArrangement, widgets),
+    acceptArrangement: (widgets, movedId, wasMove) => apply(model.acceptArrangement, widgets, movedId, wasMove),
     setRows: rows => apply(model.setRows, rows),
     addWidget: type => apply(model.addWidget, type),
     removeWidget: id => apply(model.removeWidget, id),

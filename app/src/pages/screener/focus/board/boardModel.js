@@ -130,10 +130,30 @@ export function setRows(state, rows) {
 export const rowsOf = state => state?.widgets?.find(w => w.type === 'results')?.opts?.rows || 'line'
 export const hasWidget = (state, type) => !!state?.widgets?.some(w => w.type === type)
 export const missingWidgets = state => WIDGET_TYPES.filter(t => !hasWidget(state, t))
+// The board is locked to the window, so empty space on it is wasted. After a move, a resize or a
+// removal, every widget but `exceptId` (the one the member just placed: its box is theirs) grows a
+// row or a column at a time into whatever free space touches it, until nothing can grow. A hole
+// that only the placed widget touches is left alone.
+export function fillGaps(widgets, exceptId = null) {
+  const ws = widgets.map(w => ({ ...w }))
+  const free = (x, y, w, h, self) => x >= 0 && y >= 0 && x + w <= COLS && y + h <= ROWS && !ws.some(o => o !== self && overlaps(o, { x, y, w, h }))
+  for (let pass = 0; pass < COLS + ROWS; pass++) {
+    let grew = false
+    for (const w of ws) {
+      if (w.id === exceptId) continue
+      if (free(w.x, w.y - 1, w.w, 1, w)) { w.y -= 1; w.h += 1; grew = true }
+      if (free(w.x, w.y + w.h, w.w, 1, w)) { w.h += 1; grew = true }
+      if (free(w.x - 1, w.y, 1, w.h, w)) { w.x -= 1; w.w += 1; grew = true }
+      if (free(w.x + w.w, w.y, 1, w.h, w)) { w.w += 1; grew = true }
+    }
+    if (!grew) break
+  }
+  return ws
+}
 // The last widget is never removed: an empty board has nothing to drag and nothing to read.
 export function removeWidget(state, id) {
-  if (state.widgets.length <= 1) return state
-  return withWidgets(state, state.widgets.filter(w => w.id !== id))
+  if (state.widgets.length <= 1 || !state.widgets.some(w => w.id === id)) return state
+  return withWidgets(state, fillGaps(state.widgets.filter(w => w.id !== id)))
 }
 // A new widget takes its room from the biggest widget on the board (its right side when that one
 // is wide, its bottom when it is tall), so nothing else moves and nothing is squeezed. When the
@@ -159,15 +179,20 @@ export function addWidget(state, type) {
 }
 // After a drag or a resize: the arrangement the grid proposes is taken only when every widget is
 // still a real widget (inside the grid, at least its minimum, overlapping nothing). Otherwise the
-// board stays as it was, so a drop can never squeeze a widget to a sliver or hide one.
-export function acceptArrangement(state, proposed) {
+// board stays as it was, so a drop can never squeeze a widget to a sliver or hide one. The other
+// widgets then grow into any space left empty. After a MOVE (`wasMove`) the moved widget takes what
+// is still empty, so a widget dropped a little short of an edge reaches it; after a RESIZE it keeps
+// exactly the size it was given (a widget made smaller must not spring back).
+export function acceptArrangement(state, proposed, movedId = null, wasMove = false) {
   if (!Array.isArray(proposed) || proposed.length !== state.widgets.length) return state
   for (const p of proposed) {
     const def = WIDGETS[p?.type]
     if (!def || p.w < def.minW || p.h < def.minH || p.x < 0 || p.y < 0 || p.x + p.w > COLS || p.y + p.h > ROWS) return state
   }
   const cleaned = cleanWidgets(proposed)
-  return cleaned && cleaned.length === state.widgets.length ? withWidgets(state, cleaned) : state
+  if (!cleaned || cleaned.length !== state.widgets.length) return state
+  const others = fillGaps(cleaned, movedId)
+  return withWidgets(state, wasMove ? fillGaps(others) : others)
 }
 export function saveMine(state, name, id) {
   const n = cleanName(name)
@@ -196,8 +221,8 @@ const sameBox = (a, b) => a.length === b.length && a.every(w => { const o = b.fi
 // the box the widget was let go in, `repack` the Charts board's drop rule, `accept` the board's own
 // check (acceptArrangement, through the page's state). 'same': nothing moved. 'accepted': the
 // board changed. 'refused': the arrangement would break a widget, and the board is left as it was.
-export function settleDrop(base, item, repack, accept) {
+export function settleDrop(base, item, repack, accept, wasMove = false) {
   const proposed = repack(base, item.i, { x: item.x, y: item.y, w: item.w, h: item.h }, COLS, ROWS)
   if (sameBox(proposed, base)) return 'same'
-  return accept(proposed) ? 'accepted' : 'refused'
+  return accept(proposed, item.i, wasMove) ? 'accepted' : 'refused'
 }

@@ -43,11 +43,11 @@ export default function ScanBoard({ board, api, renderWidget, onRefused, loadRep
   const snapRef = useRef(null)
   const onStart = () => { snapRef.current = widgets.map(w => ({ ...w })) }
   // A move and a resize end the same way: the widget keeps the box it was given, the rest re-tile.
-  const onStop = (_l, _old, item) => {
+  const onStop = wasMove => (_l, _old, item) => {
     const base = snapRef.current || widgets
     snapRef.current = null
     if (!item || !repack) return
-    const out = settleDrop(base, item, repack, api.acceptArrangement)
+    const out = settleDrop(base, item, repack, api.acceptArrangement, wasMove)
     // The grid keeps the dragged widget where it was dropped until it is handed a layout that
     // differs by value: when the board did not change, the nonce is that difference.
     if (out !== 'accepted') setNonce(n => n + 1)
@@ -59,7 +59,7 @@ export default function ScanBoard({ board, api, renderWidget, onRefused, loadRep
         <Grid className={s.boardGrid} layout={layout} cols={COLS} rowHeight={rowHeightFor(height)} maxRows={ROWS} margin={[GAP, GAP]} containerPadding={[0, 0]}
           isDraggable={canEdit} isResizable={canEdit} isBounded={false} compactType={null} preventCollision={false} allowOverlap
           useCSSTransforms={false} draggableHandle={`.${s.bwBar}`} draggableCancel="button" resizeHandles={['se', 'sw', 'ne', 'nw']}
-          onDragStart={onStart} onDragStop={onStop} onResizeStart={onStart} onResizeStop={onStop}>
+          onDragStart={onStart} onDragStop={onStop(true)} onResizeStart={onStart} onResizeStop={onStop(false)}>
           {widgets.map(w => (
             <div key={w.id} className={s.bw} data-widget={w.type}>
               {board.edit && (

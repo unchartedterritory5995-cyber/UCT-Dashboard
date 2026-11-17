@@ -4,7 +4,7 @@ import { describe, expect, test } from 'vitest'
 import {
   COLS, ROWS, WIDGETS, PRESETS, ROW_STYLES, MAX_MINE, DEFAULT_STATE,
   sanitize, serialize, cleanWidgets, pickLayout, addWidget, removeWidget, acceptArrangement, saveMine, updateMine, deleteMine,
-  setRows, rowsOf, setOption, missingWidgets, currentLayout,
+  setRows, rowsOf, setOption, missingWidgets, currentLayout, fillGaps, settleDrop,
 } from '../boardModel'
 
 const area = ws => ws.reduce((n, w) => n + w.w * w.h, 0)
@@ -122,6 +122,13 @@ describe('adding and removing a widget', () => {
     s = removeWidget(s, 'results')
     expect(s.widgets.map(w => w.type)).toEqual(['chart'])
     expect(removeWidget(s, 'chart')).toBe(s)
+    expect(removeWidget(fresh(), 'nope')).toEqual(fresh())
+  })
+  test('removing a widget leaves no hole: its neighbours grow into the room', () => {
+    let s = removeWidget(fresh(), 'details')
+    expect(s.widgets).toEqual([{ id: 'chart', type: 'chart', x: 0, y: 0, w: 17, h: 20 }, { id: 'results', type: 'results', x: 17, y: 0, w: 7, h: 20, opts: { rows: 'line' } }])
+    s = removeWidget(s, 'results')
+    expect(s.widgets).toEqual([{ id: 'chart', type: 'chart', x: 0, y: 0, w: 24, h: 20 }])
   })
 })
 
@@ -149,6 +156,50 @@ describe('a drop is taken only when every widget is still a real widget', () => 
     ['not a list', null],
   ])('refused: %s', (_why, proposed) => {
     expect(acceptArrangement(base, proposed)).toBe(base)
+  })
+})
+
+describe('empty space is filled, except by the widget you just placed', () => {
+  const chart = { id: 'chart', type: 'chart', x: 7, y: 0, w: 17, h: 20 }
+  const results = { id: 'results', type: 'results', x: 0, y: 12, w: 7, h: 8, opts: { rows: 'line' } }
+  const details = { id: 'details', type: 'details', x: 0, y: 4, w: 7, h: 8 }
+  test('after a RESIZE the widget keeps exactly its size, even beside a hole only it touches', () => {
+    const next = acceptArrangement(fresh(), [chart, results, details], 'details')
+    expect(next.widgets.find(w => w.id === 'details')).toEqual(details)
+    expect(area(next.widgets)).toBe(COLS * ROWS - 7 * 4)
+  })
+  test('after a MOVE the widget takes what nothing else could: dropped short of an edge, it reaches it', () => {
+    const next = acceptArrangement(fresh(), [chart, results, details], 'details', true)
+    expect(next.widgets.find(w => w.id === 'details')).toEqual({ ...details, y: 0, h: 12 })
+    expect(area(next.widgets)).toBe(COLS * ROWS)
+    expect(sound(next.widgets)).toBe(true)
+  })
+  test('the others grow first: a moved widget only takes what is left', () => {
+    // chart moved to the right half; results (left, top) can take the hole under it before the chart could
+    const c = { id: 'chart', type: 'chart', x: 12, y: 0, w: 12, h: 20 }
+    const r = { id: 'results', type: 'results', x: 0, y: 0, w: 12, h: 8, opts: { rows: 'line' } }
+    const next = acceptArrangement({ ...fresh(), widgets: [c, r] }, [c, r], 'chart', true)
+    expect(next.widgets).toEqual([c, { ...r, h: 20 }])
+  })
+  test('a hole another widget touches is taken by that widget, a row or a column at a time', () => {
+    // results was moved to the bottom; the hole above details (rows 0-3) is details' to take
+    const next = acceptArrangement(fresh(), [chart, results, details], 'results')
+    expect(next.widgets.find(w => w.id === 'details')).toEqual({ ...details, y: 0, h: 12 })
+    expect(next.widgets.find(w => w.id === 'results')).toEqual(results)
+    expect(area(next.widgets)).toBe(COLS * ROWS)
+    expect(sound(next.widgets)).toBe(true)
+  })
+  test('growing never overlaps, never leaves the grid, and a full board is left exactly as it is', () => {
+    for (const p of PRESETS) expect(fillGaps(p.widgets)).toEqual(p.widgets)
+    const lone = fillGaps([{ id: 'results', type: 'results', x: 9, y: 7, w: 5, h: 5, opts: { rows: 'line' } }, { id: 'chart', type: 'chart', x: 0, y: 0, w: 8, h: 8 }])
+    expect(sound(lone)).toBe(true)
+    expect(area(lone)).toBeGreaterThan(5 * 5 + 8 * 8)
+    expect(fillGaps([{ id: 'chart', type: 'chart', x: 3, y: 3, w: 8, h: 8 }])).toEqual([{ id: 'chart', type: 'chart', x: 0, y: 0, w: 24, h: 20 }])
+  })
+  test('the drop decision hands the board the widget that was moved', () => {
+    const seen = []
+    const run = wasMove => settleDrop(fresh().widgets, { i: 'details', x: 0, y: 4, w: 7, h: 8 }, () => [chart, results, details], (ws, id, moved) => { seen.push([id, moved]); return true }, wasMove)
+    expect([run(true), run(false), seen]).toEqual(['accepted', 'accepted', [['details', true], ['details', false]]])
   })
 })
 
