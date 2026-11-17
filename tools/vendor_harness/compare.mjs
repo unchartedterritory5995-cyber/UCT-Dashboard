@@ -458,7 +458,7 @@ export function mapPlots(vendorValuePlots, ourPlots) {
  *                                   See `colourWarmupOf`.
  * @param {object} a.tol             from `tolerancePolicy`
  */
-export function comparePlot({ times, vendor, ours, vendorColors = null, ourColors = null, warmupBars = 0, colorWarmupBars = warmupBars, tol, oursUnreadAfter = null, withheldBars = null, floatOrderFloor = null }) {
+export function comparePlot({ times, vendor, ours, vendorColors = null, ourColors = null, warmupBars = 0, colorWarmupBars = warmupBars, tol, oursUnreadAfter = null, withheldBars = null, floatOrderFloor = null, unsettledBars = null }) {
   const n = times.length
   const res = {
     bars: n,
@@ -509,6 +509,9 @@ export function comparePlot({ times, vendor, ours, vendorColors = null, ourColor
     }
     firstRowSeen = true
     if (Number.isInteger(oursUnreadAfter) && i >= oursUnreadAfter) { res.oursUnread += 1; continue }
+    // OTHER-SYMBOL UNSETTLED (coordinator ruling on #1541): a bar TradingView's own captures disagree about
+    // is not compared; it is named on the plot (`otherSymbolUnsettled`) and counted here, never a gap
+    if (unsettledBars && unsettledBars[i]) { res.unsettledBars = (res.unsettledBars || 0) + 1; continue }
     if (withheldBars && withheldBars[i]) {
       res.withheldBars += 1
       // only a steady-state bar weighs on the verdict; a warm-up bar is reported, as a warm-up
@@ -584,6 +587,24 @@ export function comparePlot({ times, vendor, ours, vendorColors = null, ourColor
 //      `vendorHarness/supplyAttribution.js`), agrees with TradingView on every bar of that plot.
 // The record names the UCT source, the witness and N of M dates (`supplyAttributed`). The grade a member
 // reads stays on OUR supply; the counterfactual only proves which side of the difference is the data.
+
+// ── OTHER-SYMBOL UNSETTLED (coordinator ruling on #1541, 2026-11-17) ───────────────────────
+//
+// When committed TradingView evidence disagrees with ITSELF about another symbol's value on a bar, that bar
+// is UNSETTLED, not a divergence. This capture's own read is implied by our side: run again with that
+// symbol read as a candidate value on that bar (`supplyAttribution.js::otherSymbolUnsettledOf`), it
+// reproduces the capture's value there. If at least one OTHER committed TradingView witness of that symbol
+// and date reads a different value, the bar grades INCONCLUSIVE by name and the plot's verdict follows from
+// the remaining bars. A single uncontradicted source never unsettles a bar.
+export const UNSETTLED_MAX_BARS = 3
+
+/** The `otherSymbolUnsettled` record for one bar, or null when no committed witness contradicts this
+ *  capture's implied read (no witness of that date, or every witness reads the same value). */
+export function unsettledRecord({ symbol, date, implied, capture, witnesses }) {
+  const ws = Array.isArray(witnesses) ? witnesses.filter((w) => w && typeof w.value === 'number') : []
+  if (!ws.length || !Number.isFinite(implied) || ws.every((w) => w.value === implied)) return null
+  return { symbol, date, readBy: [{ ...capture, value: implied }, ...ws.map((w) => ({ id: w.id, capturedAtUTC: w.capturedAtUTC || null, value: w.value }))] }
+}
 
 /** Is every steady divergence of a zero-lookback plot a value difference on a supply-differing date?
  *  @param {{lookback: number|null, divergent: {time: number, kind: string}[], diffDays: Set<string>,
@@ -971,15 +992,50 @@ export function compareCapture(capture, ours, opts = {}) {
     // is not: our side drew nothing there, and drew it on purpose. Every other bar is.
     const unreadAfter = [treeShift ? times.length - treeShift : null, o.withheldNewest === true ? times.length - 1 : null]
       .filter((x) => x !== null)
-    const r = comparePlot({ times, vendor: vendorVals, ours: oursCol, vendorColors: colourUngraded ? null : gradedVendorColors, ourColors: colourUngraded ? null : gradedOurColors, warmupBars, colorWarmupBars, tol, oursUnreadAfter: unreadAfter.length ? Math.min(...unreadAfter) : null,
-      withheldBars: leadBy(o.withheldBars, treeShift) || null, floatOrderFloor: leadBy(o.floatOrderFloor, treeShift) || null })
-    let pv = plotVerdict(r, {
+    const plotArgs = { times, vendor: vendorVals, ours: oursCol, vendorColors: colourUngraded ? null : gradedVendorColors, ourColors: colourUngraded ? null : gradedOurColors, warmupBars, colorWarmupBars, tol, oursUnreadAfter: unreadAfter.length ? Math.min(...unreadAfter) : null,
+      withheldBars: leadBy(o.withheldBars, treeShift) || null, floatOrderFloor: leadBy(o.floatOrderFloor, treeShift) || null }
+    let r = comparePlot(plotArgs)
+    const verdictOpts = {
       colorMeasured: vc.measured && !colourUngraded,
       colorResolvable: !!ourColors,
       vendorColorReason: vc.measured && !vc.colors ? vc.reason : null,
       ourColorReason: o.colorsReason || null,
       ourColorWithheldBy: o.colorsWithheldBy || null,
-    })
+    }
+    let pv = plotVerdict(r, verdictOpts)
+    // OTHER-SYMBOL UNSETTLED (see `unsettledRecord`): a zero-lookback plot whose ONLY steady divergences
+    // (at most UNSETTLED_MAX_BARS, values) are bars where this capture's own read of another symbol is
+    // contradicted by another committed TradingView witness of that symbol and date
+    const ou = opts.otherSymbolUnsettled || null
+    if (pv.verdict === 'DIVERGE' && ou && o.lookback === 0 && Array.isArray(r.steadyDivergent)
+      && r.steadyDivergent.length && r.steadyDivergent.length <= UNSETTLED_MAX_BARS
+      && r.steadyDivergent.every((d) => d.kind === 'value')) {
+      const recs = []
+      for (const d of r.steadyDivergent) {
+        let rec = null
+        for (const cand of ou.candidatesFor(d.time)) {
+          const cf = cand.run()
+          const co = cf && cf.ok ? (cf.plots || []).find((x) => x && x.key === o.key && x.column) : null
+          const col = co ? leadBy(drawnOnly ? Array.from(co.column, notDrawn) : co.column, treeShift) : null
+          if (col && !isNa(col[d.bar]) && !isNa(vendorVals[d.bar]) && valuesAgree(col[d.bar], vendorVals[d.bar], tol)) {
+            rec = unsettledRecord({ symbol: ou.symbol, date: ou.dayOf(d.time), implied: cand.read,
+              capture: { id: capture.id, capturedAtUTC: capture.capturedAtUTC || null }, witnesses: ou.witnessesFor(d.time) })
+            break
+          }
+        }
+        if (!rec) break
+        recs.push({ bar: d.bar, time: d.time, ...rec })
+      }
+      if (recs.length === r.steadyDivergent.length) {
+        const mask = times.map(() => false)
+        for (const x of recs) mask[x.bar] = true
+        r = comparePlot({ ...plotArgs, unsettledBars: mask })
+        pv = plotVerdict(r, verdictOpts)
+        pv = { ...pv,
+          reason: `${pv.reason}; ${recs.length} bar(s) INCONCLUSIVE by name: TradingView's own captures disagree on ${ou.symbol} there (otherSymbolUnsettled)`,
+          otherSymbolUnsettled: recs.map((x) => ({ verdict: 'INCONCLUSIVE', ...x })) }
+      }
+    }
     // SUPPLY-ATTRIBUTED (see `attributableToSupply`): rules 1 and 2 here, rule 3 on the counterfactual run
     const sa = opts.supplyAttribution || null
     if (pv.verdict === 'DIVERGE' && sa && attributableToSupply({ lookback: o.lookback, divergent: r.steadyDivergent,

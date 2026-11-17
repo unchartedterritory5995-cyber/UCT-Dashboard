@@ -14,7 +14,7 @@ import { validateCapture } from '../../../../../../../tools/vendor_harness/schem
 import { compareCapture, renderSummary, compareObjectsV2, MATCH_SUBSTITUTED } from '../../../../../../../tools/vendor_harness/compare.mjs'
 import { detectFormat, fromObservation, fromProbeRows } from '../../../../../../../tools/vendor_harness/adapters.mjs'
 import { runOurSide } from './ourSide'
-import { supplyAttributionOf } from './supplyAttribution'
+import { supplyAttributionOf, otherSymbolUnsettledOf } from './supplyAttribution'
 import { pairObjects } from './objectColours'
 import { pairRecords, attachXSidecar } from './objectRecords'
 import { gradePaints } from './paintColours'
@@ -110,7 +110,8 @@ export function gradeCapture(capture, opts = {}) {
   const paints = paintsGraded(opts) && ours && ours.ok ? gradePaints(capture, ours) : null
   // SUPPLY-ATTRIBUTED (coordinator ruling on #1541): only where the supply symbol has a committed witness
   const supplyAttribution = integrity.ok && ours && ours.ok ? supplyAttributionOf(capture) : null
-  const verdict = compareCapture(capture, ours, { integrity, objectColours, paints, supplyAttribution })
+  const otherSymbolUnsettled = integrity.ok && ours && ours.ok ? otherSymbolUnsettledOf(capture) : null
+  const verdict = compareCapture(capture, ours, { integrity, objectColours, paints, supplyAttribution, otherSymbolUnsettled })
   const objectsV2 = objectsV2Of(capture, ours, verdict)
   // ⭐ L7 — a run with substituted inputs never reads MATCH, the v2 objects report included
   // (capability admission reads `objectsV2: MATCH` for an `obj:*` family).
