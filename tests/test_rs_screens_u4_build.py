@@ -154,8 +154,11 @@ def test_the_label_is_rs_setups_answer_over_the_rows_own_values(on):
                           "tight_consolidation": row["tight_consolidation"],
                           "closes": [b["c"] for b in AAA[-64:]]})
     assert (row["rs_setup"], row["rs_tight"], row["rs_flag"]) == (res["setup"], res["tight"], res["flag"])
-    # hand-read: a steady riser sitting on its rising 8-day average, in a tight range
-    assert (row["rs_setup"], row["rs_tight"], row["rs_flag"], row["rs_near_buy"]) == ("pullback_8", 1, None, 1)
+    # hand-read: a steady riser that closes at its 20-session high every day, in a tight
+    # range. Since 2026-11-15 that is not a pullback (it has not come off its high); it is
+    # near a buy point only because the range is tight.
+    assert inp["high20_age"] == 0 and inp["high20"] == inp["close"]
+    assert (row["rs_setup"], row["rs_tight"], row["rs_flag"], row["rs_near_buy"]) == ("uptrend", 1, None, 1)
     assert row["atr_ext_ema21"] == inp["atr_ext_ema21"] == 1.0
     assert row["pct_vs_ema8"] == round((inp["close"] - inp["ema8"]) / inp["ema8"] * 100, 2) == 0.35
     assert row["pct_vs_ema21"] == round((inp["close"] - inp["ema21"]) / inp["ema21"] * 100, 2) == 1.0
@@ -202,17 +205,47 @@ def test_the_pivot_and_the_tightness_are_the_rows_own(on, monkeypatch):
     _with_pivot(None)
     monkeypatch.setattr(candles, "multi_candle",
                         lambda bars: {**real_multi(bars), "tight_consolidation": False})
+    # A pullback is near a buy point without being tight. AAA closes at its high, so the
+    # "has come off its high" test is waived here to reach the pullback branch on this
+    # series (`test_a_riser_at_its_high_is_not_a_pullback_and_one_that_dipped_is` reaches
+    # it for real).
+    monkeypatch.setattr(rs_setup, "PULLBACK_MIN_DEPTH_ATR", 0.0)
     row, _ = _row(AAA)
     assert (row["rs_setup"], row["rs_tight"], row["rs_near_buy"]) == ("pullback_8", 0, 1)
-    # tight alone is what makes "Uptrend, no setup" near a buy point: a riser held off its
-    # averages (no pullback) reads uptrend, and near only while the range is tight
-    monkeypatch.setattr(rs_setup, "PULLBACK_ATR_BAND", -100.0)
+    # tight alone is what makes "Uptrend, no setup" near a buy point: with the real rule
+    # the riser at its high reads uptrend, and near only while the range is tight
+    monkeypatch.setattr(rs_setup, "PULLBACK_MIN_DEPTH_ATR", 0.5)
     row, _ = _row(AAA)
     assert (row["rs_setup"], row["rs_tight"], row["rs_near_buy"]) == ("uptrend", 0, 0)
     monkeypatch.setattr(candles, "multi_candle",
                         lambda bars: {**real_multi(bars), "tight_consolidation": True})
     row, _ = _row(AAA)
     assert (row["rs_setup"], row["rs_tight"], row["rs_near_buy"]) == ("uptrend", 1, 1)
+
+
+def _dipped(bars, atrs):
+    """``bars`` with the newest session moved down by ``atrs`` ATR(14)s, the range kept."""
+    atr = technicals.setup_inputs(technicals.usable_bars(bars[-400:]))["atr14"]
+    out = [dict(b) for b in bars]
+    for k in ("o", "h", "l", "c"):
+        out[-1][k] -= atrs * atr
+    return out
+
+
+def test_a_riser_at_its_high_is_not_a_pullback_and_one_that_dipped_is(on, monkeypatch):
+    """The 2026-11-15 ruling, through the build. AAA closes at its 20-session high: its
+    low is inside the 8-day band, and the row still reads "Uptrend, no setup". The same
+    series with the last session one ATR lower has come off that high by more than half
+    an ATR and sits on the rising 8-day: a pullback. A third of an ATR lower has not."""
+    real_multi = candles.multi_candle
+    monkeypatch.setattr(candles, "multi_candle",
+                        lambda bars: {**real_multi(bars), "tight_consolidation": False})
+    row, _ = _row(AAA)
+    assert (row["rs_setup"], row["rs_near_buy"]) == ("uptrend", 0)
+    row, _ = _row(_dipped(AAA, 1.0))
+    assert (row["rs_setup"], row["rs_near_buy"]) == ("pullback_8", 1)
+    row, _ = _row(_dipped(AAA, 0.3))
+    assert (row["rs_setup"], row["rs_near_buy"]) == ("uptrend", 0)
 
 
 def test_no_setup_means_no_near_answer_rather_than_a_zero(on):
@@ -227,7 +260,7 @@ def test_the_setup_label_needs_no_benchmark_but_the_six_do(on):
     failures = {}
     row = sb.build_row("AAA", AAA, None, None, failures=failures)      # no SPY this build
     assert [row[c] for c in SCREEN] == [None] * 6
-    assert row["rs_setup"] == "pullback_8" and row["pct_vs_ema8"] == 0.35
+    assert row["rs_setup"] == "uptrend" and row["pct_vs_ema8"] == 0.35
     assert "bars_rs" not in failures
 
 
@@ -256,7 +289,7 @@ def test_a_raising_step_costs_its_own_columns_only(on, monkeypatch):
     row, failures = _row(AAA)
     assert [row[c] for c in SCREEN] == [None] * 6
     assert failures["bars_rs_screens"] == {"RuntimeError": 1}
-    assert row["rs_nh_bars_ago"] == 9 and row["rs_setup"] == "pullback_8"
+    assert row["rs_nh_bars_ago"] == 9 and row["rs_setup"] == "uptrend"
     monkeypatch.undo()
     _arm_rs_v2(monkeypatch)
     monkeypatch.setenv("RS_SCREENS_ENABLED", "1")
@@ -320,7 +353,7 @@ def test_run_build_stores_the_columns_and_times_the_new_work(on, tmp_path, monke
                                 "WHERE ticker = 'AAA'").fetchone())
     assert got == {"rs_nh_count_20": 11, "rs_nh_quiet": 1, "rs_nh_red_bars_ago": 9,
                    "px_below_high_pct": 0.0, "rs_nhbp_age": None, "rs_nh_span": None,
-                   "rs_setup": "pullback_8", "rs_tight": 1, "rs_flag": None, "rs_near_buy": 1,
+                   "rs_setup": "uptrend", "rs_tight": 1, "rs_flag": None, "rs_near_buy": 1,
                    "atr_ext_ema21": 1.0, "pct_vs_ema8": 0.35, "pct_vs_ema21": 1.0}
     assert sdb.last_build_run()["bars_rs"]["screens_rows"] == 2, "the receipt is stored"
 

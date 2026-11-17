@@ -18,6 +18,7 @@ import styles from './AiSearchWidget.module.css'
 import Provenance from '../../../components/provenance/Provenance'
 import { resolveCashtags } from '../../../lib/tickerResolver'
 import { failureDetail, readSuccessBody } from '../../../lib/responseBody'
+import UctCtrlPortal from '../UctCtrlPortal'  // owner 11-14: the ⚙ goes top-right on the board
 
 // TERM-087: the editable-object card (and, behind it, the builder) load only when
 // an answer actually carries a `scan_object`.
@@ -1066,7 +1067,7 @@ export default function AiSearchWidget({
     >
       {chrome && settingsOpen && (
         <NewsSettingsPanel
-          title="AI Search Settings"
+          title="AI Search settings"
           widgetType="aisearch"
           showPerf={false}
           settings={aisSettings}
@@ -1116,14 +1117,14 @@ export default function AiSearchWidget({
       })()}
       <JournalToast msg={journalMsg} style={{ top: 26, right: 6 }} />
       {chrome && (
-        <button
+        <UctCtrlPortal><button
           ref={gearRef}
           type="button"
           className={styles.gearBtn}
           onClick={() => setSettingsOpen(o => !o)}
           data-guide="widget.settings" title="AI Search settings"
           aria-label="AI Search settings"
-        ><UIcon name="gear" size={13} /></button>
+        ><UIcon name="gear" size={13} /></button></UctCtrlPortal>
       )}
       {/* Saved answers used to vanish the moment a thread existed (empty-state
           only) — exactly when a member wants to pull one up for comparison. */}
@@ -1155,7 +1156,7 @@ export default function AiSearchWidget({
           <div className={styles.empty}>
             <span className={styles.emptySpark}><Spark size={34} /></span>
             <div className={styles.emptyTitle}>
-              {scopeSym ? `Ask AI about ${scopeSym}` : 'Ask the markets anything'}
+              {scopeSym ? `Ask the UCT Agent about ${scopeSym}` : 'Ask the markets anything'}
             </div>
             <div className={styles.emptySub}>
               {scopeSym

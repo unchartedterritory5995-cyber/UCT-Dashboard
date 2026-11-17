@@ -119,7 +119,7 @@ export default function ScreenerHeatMap({ rows, themeData, livePrices, onOpen })
     <div className={styles.gridView} data-testid="focus-heat-map">
       <div className={styles.gridBar}>
         <span className={styles.gridCount}>
-          {shown ? `${shown.toLocaleString('en-US')} stocks, sized by market cap, coloured by today's change` : 'No results'}
+          {shown ? `${shown.toLocaleString('en-US')} stocks, sized by market cap, colored by today's change` : 'No results'}
           {model.missingCap > 0 && ` · ${model.missingCap} without a market cap drawn at the smallest size`}
         </span>
         <span className={styles.spacer} />

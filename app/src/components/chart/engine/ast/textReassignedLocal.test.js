@@ -133,11 +133,14 @@ describe('⭐⭐ the value a `:=` writes is the one the cell reads', () => {
     const got = measure(wrap(`    string s = ''
     if close > open
         s := close`))
-    expect(got.cells).toBe(1)
-    expect(got.shape).toBe('<if> + num + ""')
-    // ⛔ AND THE NUMBER CARRIES NO FORMAT, which is the tell a reader can use:
-    // every deliberately-formatted slot in this file reads `num:<format>`.
-    expect(got.shape).not.toContain('num:')
+    // ⚰️ Until CBC-FMT (landing train 1, bisected to the hl-cbc merge) this drew one cell shaped
+    // `<if> + num + ""`: the bare number carried into the text slot with no format. The number text is
+    // now ONE core (`pineTextFormat.js`), and a number that reaches a text slot with no `str.tostring`
+    // is not carried: the cell's text is dropped BY NAME (`cell:text`) and the cell is not drawn. That is
+    // closer to Pine, which does not compile this script; it is still not a refusal of the script.
+    expect(got.cells).toBe(0)
+    expect(got.cellText).toBe(1)
+    expect(got.shape).toBeNull()
   })
 
   it('⛔ CONTROL — a name reassigned in a block is NOT leaked as a block local', () => {

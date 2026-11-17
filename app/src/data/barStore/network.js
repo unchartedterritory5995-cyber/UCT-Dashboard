@@ -46,7 +46,8 @@ import {
 import { classifyIntradayTail } from '../../utils/marketSession'
 import { firstPaintBarsFor, fullBarsFor, FIRST_PAINT_BARS } from '../../utils/barsBackfill'
 import { barsSessionQuery } from '../../components/chart/barTime'
-import { ACTION, parseKey, isIntradayTf, PERIOD_SEC } from './types'
+import { ACTION, parseKey, isIntradayTf, isDateTf, PERIOD_SEC, unixToDateLabel, dateLabelToUnix } from './types'
+import { barsHistorySplitEnabled, lastSealedDate } from '../../utils/barsHistorySplit'
 
 /** The D/W/M refresh cadence (StockChart's daily `refreshInterval`). */
 export const DAILY_POLL_MS = 300_000
@@ -133,6 +134,16 @@ export function barsUrl(key, { bars, since = null, to = null, session = 'rth' } 
   return u
 }
 
+/**
+ * THE /api/bars-history URL: deep SEALED D/W/M history, cached at the edge (utils/barsHistorySplit.js
+ * has the why). It must be byte-identical for every client and the pre-warm sweep: the full sealed
+ * depth (`fullBarsFor`, fixed per tf) and `d`, the newest held bar before the current period. The
+ * legacy chart (useLegacyChartBars) builds its history URL here too: one builder.
+ */
+export function barsHistoryUrl(sym, tf, sealedDate = '') {
+  return `/api/bars-history/${encodeURIComponent(sym)}?tf=${tf}&bars=${fullBarsFor(tf)}${sealedDate ? `&d=${sealedDate}` : ''}`
+}
+
 /** The left (older) window ending at the ET date of `oldestT` (#1116's builder). */
 export function historyUrl(key, oldestT, { bars = HISTORY_WINDOW_BARS, session = 'rth' } = {}) {
   const p = parseKey(key)
@@ -160,6 +171,9 @@ export function createNetwork({
   setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (h) => clearTimeout(h),
   now = () => Date.now(), isHidden = _defaultHidden, onVisible = _defaultOnVisible,
   dailyPollMs = DAILY_POLL_MS,
+  // historyFeed.js: older intraday bars from the history lake at the edge, asked before the
+  // server's window on every scroll-back (null: the server only, as before).
+  history = null,
 } = {}) {
   /** key → per-key slot + loop state */
   const keys = new Map()
@@ -178,6 +192,13 @@ export function createNetwork({
   function _noteAnswered(r) {
     if (r.answered || keys.get(r.key) !== r) return
     r.answered = true
+    // ⭐ DEPTH WITHOUT A SCROLL: a chart that subscribes gets one window of older bars from the
+    // lake as soon as its first answer lands, so zooming out finds them already there. Charts
+    // only (a warm or a one-shot ask has no refs), and only where the lake can answer.
+    if (history && r.refs > 0 && _lakeCarries(r)) {
+      const s = registry.getSnapshot(r.key)
+      if (s.bars.length) api.scrollBack(r.key, { priority: 'background' }).catch(() => {})
+    }
     for (const cb of [...(answerSubs.get(r.key) || [])]) { try { cb() } catch { /* ignore */ } }
   }
 
@@ -199,12 +220,21 @@ export function createNetwork({
   const _session = (r) => ([...r.sessions.keys()].includes('eth') ? 'eth' : 'rth')
 
   // ── one request ───────────────────────────────────────────────────────────
+  // ⭐ D/W/M SPLIT (the legacy chart's Phase 5, utils/barsHistorySplit.js): the origin answers only
+  // the recent tail (first-paint depth); everything older comes from the edge-cached sealed history,
+  // asked once per key life right after the tail answer. A history answer that fails, is not sealed,
+  // or disagrees at the join turns the split off for the key and the full depth is asked from
+  // /api/bars, as before the split.
+  const _splitFor = (r, p) => !!p && isDateTf(p.tf) && !p.window && !r.splitOff && barsHistorySplitEnabled()
+
   function _tailJob(r, priority, { warm = false, front = false } = {}) {
     const s = registry.getSnapshot(r.key)
     const p = parseKey(r.key)
     const gen = s.gen
     const session = _session(r)
-    const bars = barsCountFor(r.key, { depth: Math.max(r.depth, s.depthFloor || 0), session })
+    const wanted = barsCountFor(r.key, { depth: Math.max(r.depth, s.depthFloor || 0), session })
+    const split = _splitFor(r, p)
+    const bars = split ? Math.min(wanted, FIRST_PAINT_BARS) : wanted
     const from = deltaStartFor(s, p)
     const delta = from != null && deltaWithinBudget(p.tf, from, now(), bars)
     // `&warm=1` (a best-effort warm the server may skip / shed under load) exactly where the
@@ -220,12 +250,82 @@ export function createNetwork({
         return { error: true, retryAfterSec: json?.retry_after ?? null }
       }
       const type = delta ? ACTION.REST_DELTA : ACTION.REST_FULL
-      registry.dispatch(r.key, { type, key: r.key, gen, payload: delta ? { ...json, since: from } : json })
+      const after = registry.dispatch(r.key, { type, key: r.key, gen, payload: delta ? { ...json, since: from } : json })
+      // only when more was wanted than the capped tail asked for (today's bar is the developing one,
+      // never a row, so `depth` alone would read a full first-paint answer as one bar short)
+      if (split && !r.histAsked && wanted > bars && wanted > (after?.depth ?? 0)) {
+        r.histAsked = true
+        r.queue.push({ run: () => _historyJob(r), resolve: () => {} })
+      }
       return { ok: true, delta, retryAfterSec: json.retry_after ?? null }
     }, { front })
   }
 
+  /** The deep sealed history of a D/W/M key from the edge (see `_splitFor`). */
+  function _historyJob(r) {
+    const s = registry.getSnapshot(r.key)
+    const p = parseKey(r.key)
+    const gen = s.gen
+    const sealed = lastSealedDate(s.bars.map((b) => unixToDateLabel(b.t)), p.tf, now())
+    const url = barsHistoryUrl(p.sym, p.tf, sealed)
+    return _send(r, 'scroll', url, r.refs > 0 ? 'urgent' : 'background', async (json) => {
+      if (!json?.sealed || !Array.isArray(json.bars)) return { error: true }
+      if (json.ticker && String(json.ticker).toUpperCase() !== p.sym) return { error: true }
+      const rows = json.bars.map((b) => (typeof b?.t === 'string' ? { ...b, t: dateLabelToUnix(b.t) } : b))
+      const before = registry.getSnapshot(r.key)
+      if (rows.length && prependOlder(before.bars, rows) === before.bars) {
+        // nothing older, or another price basis at the join: refused whole (#1116's seam rule)
+        return rows.some((b) => before.bars.length && b.t < before.bars[0].t) ? { error: true } : { ok: true, added: 0 }
+      }
+      if (!rows.length) return { ok: true, added: 0 }
+      const after = registry.dispatch(r.key, { type: ACTION.SCROLL_BACK, key: r.key, gen, payload: { bars: rows, ticker: p.sym } })
+      return { ok: true, added: (after?.depth ?? 0) - before.depth, source: 'history' }
+    }).then((res) => {
+      if (res?.error && keys.get(r.key) === r) {
+        // the edge could not give it: the full depth from /api/bars, as before the split
+        r.splitOff = true
+        _queueTail(r, r.priority)
+        _drain(r)
+      }
+      return res
+    })
+  }
+
+  const _lakeCarries = (r) => {
+    const p = parseKey(r.key)
+    return !!p && !p.window && isIntradayTf(p.tf) && !r.lakeDone
+  }
+
+  /** Scroll-back: the lake first where it carries the key, then the server's window. A lake that
+   *  has nothing older, fails, or disagrees at the join hands over to the server window, queued
+   *  behind whatever took the slot meanwhile (≤1 request per key still holds). */
   function _scrollJob(r, opts) {
+    if (!history || !_lakeCarries(r)) return _serverScrollJob(r, opts)
+    return _lakeScrollJob(r, opts).then((res) => {
+      if (res?.aborted || res?.ok) return res
+      if (res?.exhausted) r.lakeDone = true            // nothing older in the lake: stop asking it
+      return new Promise((resolve) => { r.queue.push({ run: () => _serverScrollJob(r, opts), resolve }); _drain(r) })
+    })
+  }
+
+  function _lakeScrollJob(r, opts) {
+    const s = registry.getSnapshot(r.key)
+    const oldest = s.bars.length ? s.bars[0].t : s.developing?.t
+    if (!finite(oldest)) return Promise.resolve({ empty: true })
+    const gen = s.gen
+    const want = opts.bars ?? HISTORY_WINDOW_BARS
+    return _send(r, 'scroll', `lake:${r.key}<${oldest}`, opts.priority || 'urgent', async (got) => {
+      if (!got || !Array.isArray(got.bars) || !got.bars.length) return { fallback: true, exhausted: got?.exhausted === true }
+      // (an answer from before a reset is dropped by the reducer: it carries the gen it was asked at)
+      const before = registry.getSnapshot(r.key)
+      // the same seam rule as the server's window: another price basis at the join is refused whole
+      if (prependOlder(before.bars, got.bars) === before.bars) return { fallback: true }
+      const after = registry.dispatch(r.key, { type: ACTION.SCROLL_BACK, key: r.key, gen, payload: { bars: got.bars } })
+      return { ok: true, added: after.depth - before.depth, source: 'lake' }
+    }, { fetch: (signal) => history.olderBars(r.key, oldest, { bars: want, signal }) })
+  }
+
+  function _serverScrollJob(r, opts) {
     const s = registry.getSnapshot(r.key)
     const oldest = s.bars.length ? s.bars[0].t : s.developing?.t
     if (!finite(oldest)) return Promise.resolve({ empty: true })
@@ -235,14 +335,22 @@ export function createNetwork({
     return _send(r, 'scroll', url, opts.priority || 'urgent', async (json) => {
       if (!json || !Array.isArray(json.bars)) return { error: true }
       const before = registry.getSnapshot(r.key)
+      // ⛔ `filling` IS NOT "NOTHING OLDER". The server answers a window it is still fetching
+      // with the rows it holds, `filling: true` and Retry-After 3 (bars_fetch `to-filling`).
+      // Read as refused/exhausted it ended the chart's deep history for good: production
+      // 2026-11-15, 4 of 10 60m charts stayed at ~470-510 bars. It is reported as such and the
+      // caller asks again (the legacy loader's rule, utils/historyPrepend.js).
+      const filling = json.filling === true
       // #1116's seam rule: nothing older, or a window on another basis ⇒ refused whole.
-      if (prependOlder(before.bars, json.bars) === before.bars) return { ok: true, added: 0, refused: true }
+      if (prependOlder(before.bars, json.bars) === before.bars) {
+        return filling ? { ok: true, added: 0, filling: true, retryAfterMs: 3000 } : { ok: true, added: 0, refused: true }
+      }
       const after = registry.dispatch(r.key, { type: ACTION.SCROLL_BACK, key: r.key, gen, payload: json })
-      return { ok: true, added: after.depth - before.depth }
+      return { ok: true, added: after.depth - before.depth, ...(filling ? { filling: true, retryAfterMs: 3000 } : {}) }
     })
   }
 
-  function _send(r, kind, url, priority, onJson, { front = false } = {}) {
+  function _send(r, kind, url, priority, onJson, { front = false, fetch: fetchFn = null } = {}) {
     const ac = typeof AbortController !== 'undefined' ? new AbortController() : null
     r.lastStart = now()
     requests++
@@ -255,7 +363,9 @@ export function createNetwork({
     const promise = (async () => {
       let json
       try {
-        json = await request(url, { priority, signal: ac?.signal ?? null, ...(front ? { front: true } : {}) })
+        json = fetchFn
+          ? await fetchFn(ac?.signal ?? null)
+          : await request(url, { priority, signal: ac?.signal ?? null, ...(front ? { front: true } : {}) })
       } catch (e) {
         if (_isAbort(e) || ac?.signal.aborted) return { aborted: true }
         if (quiet()) return { error: true, warmShed: true, retryAfterMs: e?.retryAfterMs ?? null }

@@ -1,0 +1,1503 @@
+{
+ "unit": "F10.01",
+ "track": "F10",
+ "title": "Market and limit orders",
+ "teaches": "A market order trades now at the best price available, so the fill is close to certain and the price is not; a limit order trades only at your price or better, so the price is protected and the fill is not. Then when each one is right: a pullback, a breakout, a fast exit, a thin stock at the open.",
+ "skills": [
+  {
+   "id": "orders.market_limit",
+   "title": "Market and limit orders"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Understanding Order Types: Investor Bulletin (July 12, 2017, updated August 18, 2026)",
+   "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-14",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Order Types",
+   "url": "https://www.finra.org/investors/investing/investment-products/stocks/order-types",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Market Order (glossary)",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/market-order",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "SEC rule text, eCFR (17 CFR 242.600)",
+   "title": "Rule 600 of Regulation NMS, definitions: (b)(56) Marketable limit order",
+   "url": "https://www.ecfr.gov/current/title-17/chapter-II/part-242/subject-group-ECFR3dd95cf4d3f6730/section-242.600",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 1,
+   "publisher": "CFTC and SEC staffs",
+   "title": "Findings Regarding the Market Events of May 6, 2010 (report to the Joint Advisory Committee, September 30, 2010)",
+   "url": "https://www.cftc.gov/sites/default/files/idc/groups/public/@otherif/documents/ifdocs/staff-findings050610.pdf",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Stock Market Circuit Breakers (glossary)",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/stock-market-circuit-breakers",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "3 Order Types: Market, Limit, and Stop Orders (June 11, 2024)",
+   "url": "https://www.schwab.com/learn/story/3-order-types-market-limit-and-stop-orders",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Trade execution glossary",
+   "url": "https://www.schwab.com/execution-quality/glossary",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s9",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Trading FAQs: Placing Orders",
+   "url": "https://www.fidelity.com/trading/faqs-placing-orders",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s10",
+   "tier": 2,
+   "publisher": "Interactive Brokers",
+   "title": "Order Types and Algos",
+   "url": "https://www.interactivebrokers.com/en/trading/ordertypes.php",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-12"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f01",
+   "source": "s1",
+   "quote": "A market order is an order to buy or sell a stock at the best available price.",
+   "claim": "A market order buys or sells at the best price available right now."
+  },
+  {
+   "id": "f02",
+   "source": "s1",
+   "quote": "Generally, a market order will be executed immediately. However, the price at which a market order will be executed is not guaranteed.",
+   "claim": "A market order usually fills right away, but its price is not promised."
+  },
+  {
+   "id": "f03",
+   "source": "s1",
+   "quote": "The price at which a market order will execute often deviates from the last-traded price or “real time” quote due to the demand for a stock and the prices of available liquidity at the time of execution.",
+   "claim": "A market order often fills away from the last trade or the quote you saw, depending on demand and what is on offer when it executes."
+  },
+  {
+   "id": "f04",
+   "source": "s1",
+   "quote": "A limit order is an order to buy or sell a stock at a specific price or better.",
+   "claim": "A limit order trades only at your price or a better one."
+  },
+  {
+   "id": "f05",
+   "source": "s1",
+   "quote": "A buy limit order can only be executed at the limit price or lower, and a sell limit order can only be executed at the limit price or higher.",
+   "claim": "A buy limit fills at your limit or lower; a sell limit fills at your limit or higher."
+  },
+  {
+   "id": "f06",
+   "source": "s1",
+   "quote": "A limit order is not guaranteed to execute. A limit order can only be filled if the stock’s market price reaches the limit price.",
+   "claim": "A limit order may never fill, and it can only fill once the stock reaches your price."
+  },
+  {
+   "id": "f07",
+   "source": "s1",
+   "quote": "A GTC order is an order to buy or sell a stock that lasts until it is executed in full or it is canceled.",
+   "claim": "A good-'til-canceled (GTC) order stays open until it fills in full or is canceled."
+  },
+  {
+   "id": "f08",
+   "source": "s1",
+   "quote": "Day orders, if not executed, generally cancel at the end of regular trading hours of the trading day that they are entered",
+   "claim": "A day order that has not filled generally cancels at the end of that day's regular session."
+  },
+  {
+   "id": "f09",
+   "source": "s1",
+   "quote": "the time limit that an investor can leave a GTC order open may vary based on the brokerage firm.",
+   "claim": "How long a GTC order can stay open depends on the broker."
+  },
+  {
+   "id": "f10",
+   "source": "s1",
+   "quote": "When the stop price is reached, a stop order becomes a market order. A buy stop order is entered at a stop price above the current market price.",
+   "claim": "A buy stop sits above the current price and turns into a market order when that price is reached."
+  },
+  {
+   "id": "f11",
+   "source": "s2",
+   "quote": "This type of order provides the most certainty that your order will be executed because it's not tied to any restrictions.",
+   "claim": "A market order is the surest way to get filled, because it carries no price restriction."
+  },
+  {
+   "id": "f12",
+   "source": "s2",
+   "quote": "On the downside, you might not get the price you saw or were originally quoted, especially in fast-moving markets.",
+   "claim": "In a fast market, a market order can fill away from the price you saw."
+  },
+  {
+   "id": "f13",
+   "source": "s2",
+   "quote": "Also, if you place your order before or after normal trading hours, consider the possibility that news events or other factors might significantly impact the price of the security when the market opens again.",
+   "claim": "An order placed outside regular hours is exposed to news that can move the price a lot by the time the market opens."
+  },
+  {
+   "id": "f14",
+   "source": "s2",
+   "quote": "Limit orders are for investors who know the price they want for a particular securities transaction and want to manage market risk, and they are often used when obtaining the right price is more important than quick execution.",
+   "claim": "Use a limit order when getting the right price matters more than getting filled fast."
+  },
+  {
+   "id": "f15",
+   "source": "s2",
+   "quote": "This means you're guaranteed to get your limit price or a better price if your order is executed. However, there's a chance your order doesn't get executed at all.",
+   "claim": "If a limit order fills, you get your limit price or better; it may not fill at all."
+  },
+  {
+   "id": "f16",
+   "source": "s2",
+   "quote": "good ‘til canceled orders, which remain in effect until they’re executed by the brokerage firm or canceled by the customer",
+   "claim": "A GTC order stays in effect until it fills or you cancel it."
+  },
+  {
+   "id": "f17",
+   "source": "s2",
+   "quote": "day orders, which expire at the end of the trading day if they aren’t executed",
+   "claim": "A day order expires at the end of the trading day if it has not filled."
+  },
+  {
+   "id": "f18",
+   "source": "s2",
+   "quote": "A market order generally will execute at or near the current bid or ask prices in the marketplace during normal trading hours, 9:30 a.m. to 4 p.m. Eastern Time.",
+   "claim": "In regular hours, a market order generally fills at or near the current bid (selling) or ask (buying)."
+  },
+  {
+   "id": "f19",
+   "source": "s3",
+   "quote": "The advantage of a market order is that as long as there are willing buyers and sellers, you are almost always guaranteed your order will be executed.",
+   "claim": "A market order almost always fills, as long as there are willing buyers and sellers."
+  },
+  {
+   "id": "f20",
+   "source": "s3",
+   "quote": "The disadvantage is the price you pay when your order is executed may not be the price you expected.",
+   "claim": "The catch with a market order: the price may not be the one you expected."
+  },
+  {
+   "id": "f21",
+   "source": "s4",
+   "quote": "any buy order with a limit price equal to or greater than the national best offer at the time of order receipt, or any sell order with a limit price equal to or less than the national best bid",
+   "claim": "Under the SEC's rule, a buy limit at or above the best ask, or a sell limit at or below the best bid, is a marketable limit order."
+  },
+  {
+   "id": "f22",
+   "source": "s5",
+   "quote": "A market order submitted to an exchange immediately seeks the best available liquidity, regardless of price. If the only liquidity available is a stub quote, the market order will execute against that price.",
+   "claim": "A market order takes the best price available, whatever it is; if the only bid left is a far-off stub quote, it fills there."
+  },
+  {
+   "id": "f23",
+   "source": "s5",
+   "quote": "Stub quotes are quotes at unrealistically low or high prices that fulfill a market maker’s obligation to provide continuous bids and offers",
+   "claim": "A stub quote is a placeholder bid or offer at an unrealistic price."
+  },
+  {
+   "id": "f24",
+   "source": "s5",
+   "quote": "share prices of Accenture fell from nearly $40 to one cent and recovered all of their value within a matter of seconds.",
+   "claim": "On May 6, 2010, Accenture traded from nearly $40 down to one cent and back within seconds."
+  },
+  {
+   "id": "f25",
+   "source": "s5",
+   "quote": "The bids for ACN rapidly declined in seven seconds from about $30 at 2:47:47 p.m. to $0.01 by 2:47:54 p.m.",
+   "claim": "Accenture's bids fell from about $30 to $0.01 in seven seconds."
+  },
+  {
+   "id": "f26",
+   "source": "s5",
+   "quote": "When available liquidity for an ETF or stock was exhausted, marketable orders executed against stub quotes",
+   "claim": "When real buyers and sellers ran out, orders that could trade at once filled against stub quotes."
+  },
+  {
+   "id": "f27",
+   "source": "s5",
+   "quote": "ACN had 112 broken trades, all of which occurred between 2:47:51 p.m. and 2:48:01 p.m.",
+   "claim": "Accenture's trades in those ten seconds were broken (canceled) afterwards."
+  },
+  {
+   "id": "f28",
+   "source": "s5",
+   "quote": "These trades were subsequently broken by the exchanges and FINRA under their clearly erroneous rules because they were executed at clearly unrealistic prices under severe market conditions.",
+   "claim": "The exchanges and FINRA canceled the trades done at clearly unrealistic prices that day."
+  },
+  {
+   "id": "f29",
+   "source": "s6",
+   "quote": "The Limit Up-Limit Down circuit breaker (“LULD”) is a market volatility moderator designed to prevent large, sudden price moves in a stock. In particular, it prevents trades in individual securities from occurring outside of a specified price band.",
+   "claim": "Today the Limit Up-Limit Down rule stops a stock from trading outside a price band, to prevent large, sudden moves."
+  },
+  {
+   "id": "f30",
+   "source": "s7",
+   "quote": "When the primary goal is to execute the trade immediately, a market order is optimal.",
+   "claim": "When getting the trade done right now is the goal, a market order is the right tool."
+  },
+  {
+   "id": "f31",
+   "source": "s7",
+   "quote": "A market order placed when markets are closed would be executed at the next market open, which could be significantly higher or lower from its prior close.",
+   "claim": "A market order entered while the market is closed fills at the next open, which can be far from the last close."
+  },
+  {
+   "id": "f32",
+   "source": "s7",
+   "quote": "A trader who wanted to buy the stock only if it dropped to $144 could place a buy limit order with a limit price of $144",
+   "claim": "To buy only on a dip to a level, you rest a buy limit at that level."
+  },
+  {
+   "id": "f33",
+   "source": "s7",
+   "quote": "Note, even if the stock reached the specified limit price, the order may not fill because there may be orders ahead of yours.",
+   "claim": "Even when the stock trades at your limit, orders ahead of yours can take the shares first."
+  },
+  {
+   "id": "f34",
+   "source": "s7",
+   "quote": "Limit orders are generally executed on a first-come, first-served basis.",
+   "claim": "At the same price, limit orders generally fill first come, first served."
+  },
+  {
+   "id": "f35",
+   "source": "s7",
+   "quote": "For example, a buy order could execute below a limit price, and a sell order could execute for more than a limit price.",
+   "claim": "A buy limit can fill below your limit, and a sell limit can fill above it."
+  },
+  {
+   "id": "f36",
+   "source": "s7",
+   "quote": "In the next example, a limit order to sell is placed at a limit price of $105. The stock's prior closing price was $104.",
+   "claim": "Schwab's example: a sell limit at $105, with the prior close at $104."
+  },
+  {
+   "id": "f37",
+   "source": "s7",
+   "quote": "If the stock opened at $110 due to positive news released after the prior market's close, the trade would be executed at the market's open at that price",
+   "claim": "If good news opens that stock at $110, the $105 sell limit fills at the open at $110."
+  },
+  {
+   "id": "f38",
+   "source": "s7",
+   "quote": "For example, an earnings report or other news event might trigger a sharp drop in the stock and fill a buy limit order, only to see the stock continue to move lower against the trader.",
+   "claim": "Bad news can drop a stock through a resting buy limit, fill it, and keep falling."
+  },
+  {
+   "id": "f39",
+   "source": "s7",
+   "quote": "First, only limit orders are accepted in extended orders; market and stop orders are not.",
+   "claim": "At Schwab, extended-hours sessions take only limit orders, not market or stop orders."
+  },
+  {
+   "id": "f40",
+   "source": "s8",
+   "quote": "A marketable limit order is an order to buy (or sell) in which the limit price is at or above (or below) the current market.",
+   "claim": "A marketable limit is a buy limit at or above the market, or a sell limit at or below it."
+  },
+  {
+   "id": "f41",
+   "source": "s8",
+   "quote": "A non-marketable limit order is a buy or sell order that can't be executed immediately, either because the limit price is outside the current market",
+   "claim": "A limit priced away from the market can't trade right away; it waits."
+  },
+  {
+   "id": "f42",
+   "source": "s9",
+   "quote": "Please use caution when placing orders while the market is closed. Securities may open sharply below or above where they closed the previous day.",
+   "claim": "A stock can open far above or below its last close."
+  },
+  {
+   "id": "f43",
+   "source": "s9",
+   "quote": "Alternatively, if you enter an order to buy at a limit of $50.02 and the order executes at $49.97, you have received price improvement of $9.00, based on the ask price of $50.00.",
+   "claim": "Fidelity's example: with the ask at $50.00, a buy limit at $50.02 filled at $49.97, below both the ask and the limit."
+  },
+  {
+   "id": "f44",
+   "source": "s9",
+   "quote": "It is associated with trades that are immediately marketable (limit orders that can immediately execute based on current market prices, as well as market orders).",
+   "claim": "A limit order that can trade right away at current prices is immediately marketable, like a market order."
+  },
+  {
+   "id": "f45",
+   "source": "s9",
+   "quote": "Fidelity will accept limit orders in the extended-hours trading sessions; all other order types are ineligible for trading during extended-hours.",
+   "claim": "At Fidelity, premarket and after-hours sessions take only limit orders."
+  },
+  {
+   "id": "f46",
+   "source": "s9",
+   "quote": "The best bid price is the best indication of the price at which a sell order will be filled.",
+   "claim": "A market sell is most likely to fill at the best bid."
+  },
+  {
+   "id": "f47",
+   "source": "s9",
+   "quote": "However, if the size of your buy order is larger than the size available at the ask, you should expect that some of your order might execute at a price higher than the ask.",
+   "claim": "An order bigger than the size showing at the ask should expect part of it to fill at worse prices."
+  },
+  {
+   "id": "f48",
+   "source": "s10",
+   "quote": "a Market order provides no price protection and may fill at a price far lower/higher than the current displayed bid/ask.",
+   "claim": "A market order has no price protection and can fill far from the bid or ask on your screen."
+  },
+  {
+   "id": "f49",
+   "source": "s10",
+   "quote": "The Limit order ensures that if the order fills, it will not fill at a price less favorable than your limit price, but it does not guarantee a fill.",
+   "claim": "A limit order never fills worse than your limit, but it may not fill."
+  },
+  {
+   "id": "f50",
+   "source": "s7",
+   "quote": "When you want to buy a stock should it break above a certain level because you think that could signal the start of a continued rise.",
+   "claim": "Schwab lists buying a stock as it breaks above a level as one use of a buy stop."
+  },
+  {
+   "id": "f51",
+   "source": "s11",
+   "quote": "Entries are market orders. (\"57, No i market order everything.\") The stop still sits with the broker (D41).",
+   "claim": "Our rule E57: we enter every trade with a market order, and the stop stays with the broker."
+  },
+  {
+   "id": "f52",
+   "source": "s11",
+   "quote": "No new buys outside regular trading hours.",
+   "claim": "Our rule E58: no new buys outside regular trading hours."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "Two orders, two promises",
+   "steps": [
+    "A market order says: fill me now at the best price there. You almost always get filled. The price isn't promised.",
+    "A limit order says: my price or better. A buy limit fills at your price or lower.",
+    "A sell limit fills at your price or higher. The price is protected. The fill is not.",
+    "Pick what you need more: the fill or the price."
+   ],
+   "facts": [
+    "f01",
+    "f02",
+    "f19",
+    "f04",
+    "f05",
+    "f06",
+    "f11",
+    "f14"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "Where you put the limit matters",
+   "steps": [
+    "Put a buy limit below the market and it waits. It only fills if the stock comes down to it.",
+    "At or above the ask, it can fill right away. That's a marketable limit: a market order with a ceiling.",
+    "It fills at the best price there, which can be better than your limit. Your limit is only the most you'll pay."
+   ],
+   "facts": [
+    "f41",
+    "f32",
+    "f06",
+    "f21",
+    "f40",
+    "f44",
+    "f43",
+    "f05"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "Picking the order",
+   "steps": [
+    "For a pullback, rest a buy limit at your level. Let the stock come to you.",
+    "On a breakout, a buy limit below won't catch the move. Once it clears, send one at the most you'll pay.",
+    "Need out of a liquid stock right now: use a market order. The fill matters more than the last penny.",
+    "Thin stock or a wild open: name your price. I'd rather miss it than chase it."
+   ],
+   "facts": [
+    "f32",
+    "f21",
+    "f05",
+    "f30",
+    "f11",
+    "f14",
+    "f42",
+    "f48"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "orders.market_limit",
+   "rung": 1,
+   "format": "mcq",
+   "term": "market order",
+   "q": "What does a market order tell your broker to do?",
+   "choices": [
+    "Trade now at the best price available",
+    "Trade only at a price you set",
+    "Trade at today's closing price",
+    "Trade once a set price is hit"
+   ],
+   "answer": "Trade now at the best price available",
+   "why": "Trade now at the best price available. A market order generally fills right away, and FINRA calls it the most certain way to get filled. What it does not promise is the price. The fill can land away from the quote you saw.",
+   "lesson_line": "A market order buys you speed. It doesn't buy you a price.",
+   "facts": [
+    "f01",
+    "f02",
+    "f11",
+    "f19",
+    "f12",
+    "f04",
+    "f06",
+    "f10"
+   ],
+   "wrong": {
+    "Trade only at a price you set": "That's a limit order. It trades at your price or better, or not at all.",
+    "Trade at today's closing price": "A plain market order doesn't wait for the close. It trades at the best price available as soon as it can be filled.",
+    "Trade once a set price is hit": "A market order doesn't wait for any price. Stop orders and resting limit orders are the ones that wait."
+   },
+   "simple": "A market order tells your broker to trade now at the best price available, without waiting for a price you name.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (wrong note on the set-price choice, 2026-11-09)"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q02",
+   "skill": "orders.market_limit",
+   "rung": 1,
+   "format": "mcq",
+   "term": "limit order",
+   "q": "What does a limit order tell your broker to do?",
+   "choices": [
+    "Trade only at your price or better",
+    "Trade now at whatever price is there",
+    "Sell if the stock drops to a set price",
+    "Trade at your price, with a sure fill"
+   ],
+   "answer": "Trade only at your price or better",
+   "why": "Trade only at your price or better. A buy limit can only fill at the limit or lower. A sell limit can only fill at the limit or higher. The price is protected. The fill is not: if the stock never reaches your price, it never fills.",
+   "lesson_line": "A limit order names the worst price you'll accept.",
+   "facts": [
+    "f04",
+    "f05",
+    "f06",
+    "f15",
+    "f49",
+    "f10",
+    "f33"
+   ],
+   "wrong": {
+    "Trade now at whatever price is there": "That's a market order. Fast, but you get no say over the price.",
+    "Sell if the stock drops to a set price": "That's a sell stop. When the stock reaches the stop price, it turns into a market order.",
+    "Trade at your price, with a sure fill": "A limit order is not guaranteed to fill. It can only fill if the stock reaches your price, and maybe not even then."
+   },
+   "simple": "A limit order trades only at your price or better, so you control the price but the fill is not sure.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition: SEC, FINRA and IBKR agree"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q03",
+   "skill": "orders.market_limit",
+   "rung": 2,
+   "format": "tf",
+   "q": "A buy limit order at $25.00 can fill at $24.90.",
+   "answer": "True",
+   "why": "True. A buy limit can only fill at the limit price or lower. $24.90 is below $25.00, so it is a better price for a buyer. Schwab notes a buy order can execute below its limit price.",
+   "lesson_line": "Your limit is the worst price you'll get, not the only one.",
+   "facts": [
+    "f05",
+    "f35"
+   ],
+   "simple": "True, because a buy limit fills at your price or lower, and $24.90 is lower than $25.00.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable rule: SEC and Schwab agree"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q04",
+   "skill": "orders.market_limit",
+   "rung": 2,
+   "format": "fill",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "A sell limit order fills only at your limit price or ___.",
+   "bank": [
+    "higher",
+    "lower",
+    "the bid",
+    "the close",
+    "the last"
+   ],
+   "answer": "higher",
+   "why": "Higher. A sell limit can only fill at the limit price or higher. It is a floor: you get your price or more, never less. It does not promise a fill.",
+   "lesson_line": "Buy limits are ceilings. Sell limits are floors.",
+   "facts": [
+    "f05",
+    "f15"
+   ],
+   "simple": "Higher, because a sell limit is a floor: you get your price or more, never less.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable rule: SEC and FINRA agree"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q05",
+   "skill": "orders.market_limit",
+   "rung": 2,
+   "format": "mcq",
+   "q": "What's the catch with a market order?",
+   "choices": [
+    "Your price isn't promised",
+    "It might never fill at all",
+    "It fills at the last trade price",
+    "It waits until the price is right"
+   ],
+   "answer": "Your price isn't promised",
+   "why": "Your price isn't promised. A market order fills at the best price there when it executes. That often differs from the last trade or the quote you saw, most of all in a fast market. The fill itself is close to certain while there are buyers and sellers.",
+   "lesson_line": "A market order gives up control of the price to get the fill.",
+   "facts": [
+    "f02",
+    "f20",
+    "f12",
+    "f03",
+    "f19"
+   ],
+   "wrong": {
+    "It fills at the last trade price": "The last trade already happened. Your fill often lands away from it.",
+    "It waits until the price is right": "A market order doesn't wait. A limit order is the one that waits for a price.",
+    "It might never fill at all": "That's the catch with a limit order. A market order almost always fills while there are buyers and sellers."
+   },
+   "simple": "The catch is the price: a market order almost always fills, but you may pay more or get less than you saw.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable rule: SEC, FINRA and Investor.gov agree"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q06",
+   "skill": "orders.market_limit",
+   "rung": 3,
+   "format": "tf",
+   "q": "A limit order fills once the stock trades at your limit price.",
+   "answer": "False",
+   "why": "False. A trade at your limit only makes a fill possible. Limit orders at one price generally fill first come, first served. Orders ahead of yours can take the shares there first. If the stock then moves away, yours waits unfilled.",
+   "lesson_line": "Touching your price isn't the same as getting filled.",
+   "facts": [
+    "f06",
+    "f33",
+    "f34"
+   ],
+   "simple": "False, because other orders at your price may be ahead of yours and take the shares first.",
+   "deeper": {
+    "trap": "Read your fills, not the chart. A print at your limit price may have been someone else's order, one that sat ahead of yours in line. Schwab says the order may not fill even when the stock reaches the limit, because orders can be ahead of yours."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable rule: SEC and Schwab agree"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q07",
+   "skill": "orders.market_limit",
+   "rung": 3,
+   "format": "fill",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "A buy limit priced at or above the best ask is called a ___ limit order.",
+   "bank": [
+    "marketable",
+    "resting",
+    "stop",
+    "hidden",
+    "day"
+   ],
+   "answer": "marketable",
+   "why": "Marketable. Under the SEC's definition, a buy limit at or above the national best offer, the ask, is a marketable limit order. It can trade right away against the sellers there. The limit still caps the price you pay.",
+   "lesson_line": "Marketable means it can trade now. Your limit only caps the price.",
+   "facts": [
+    "f21",
+    "f40",
+    "f44"
+   ],
+   "simple": "Marketable, because a buy limit at or above the ask can trade right away against the sellers there.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "SEC rule text; Schwab and Fidelity agree"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q08",
+   "skill": "orders.market_limit",
+   "rung": 3,
+   "format": "tf",
+   "q": "A good-'til-canceled order expires at the end of the trading day.",
+   "answer": "False",
+   "why": "False. That describes a day order, which generally cancels at the end of the regular session if it has not filled. A good-'til-canceled order stays open until it fills in full or you cancel it. How long a broker lets it stay open varies by broker.",
+   "lesson_line": "Day orders end at the close. GTC orders stay until filled or canceled.",
+   "facts": [
+    "f07",
+    "f16",
+    "f08",
+    "f17",
+    "f09"
+   ],
+   "simple": "False, because a GTC order stays open until it fills or you cancel it, and a day order ends at the close.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition: SEC and FINRA agree; broker time limits are not asked"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q09",
+   "skill": "orders.market_limit",
+   "rung": 4,
+   "format": "mcq",
+   "q": "Which job fits a limit order best?",
+   "choices": [
+    "Selling at a target above the price",
+    "Getting out at any price, right now",
+    "Buying only once it breaks out higher",
+    "Getting a sure fill at your exact price"
+   ],
+   "answer": "Selling at a target above the price",
+   "why": "Selling at a target above the price. A sell limit placed above the market rests there. It can only fill at your target or higher. It is the tool when the price matters more than speed. It may never fill if the stock does not get there.",
+   "lesson_line": "Limits are for prices you name ahead of time. Market orders are for right now.",
+   "facts": [
+    "f05",
+    "f14",
+    "f30",
+    "f11",
+    "f06",
+    "f10",
+    "f21",
+    "f49",
+    "f35"
+   ],
+   "wrong": {
+    "Getting out at any price, right now": "Any price, right now, is a market order's job. A limit puts a floor under your price, so it may not fill.",
+    "Buying only once it breaks out higher": "A buy limit above the price can fill right away. A buy stop is the order that waits above the price.",
+    "Getting a sure fill at your exact price": "A limit protects the price, not the fill. It may never fill, and when it does it can fill at a better price than yours."
+   },
+   "simple": "Selling at a set target above the price, because a sell limit waits there and fills only at your price or higher.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable rule: SEC, FINRA and Schwab agree"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q10",
+   "skill": "orders.market_limit",
+   "rung": 4,
+   "format": "scenario",
+   "story": "A stock you like trades at $62. Support sits near $58.",
+   "q": "Which order can fill only if the stock dips to $58 or lower?",
+   "choices": [
+    "A buy limit at $58",
+    "A market buy now",
+    "A $58 buy stop",
+    "A $62 buy limit"
+   ],
+   "answer": "A buy limit at $58",
+   "why": "A buy limit at $58. It rests below the market and can only fill at $58 or lower, so it fills only if the dip comes. A market buy fills now, near $62. A buy stop is entered above the current price, not below it.",
+   "lesson_line": "A buy limit below the market waits. It fills only if the stock comes down to it.",
+   "facts": [
+    "f05",
+    "f32",
+    "f06",
+    "f01",
+    "f02",
+    "f10",
+    "f21",
+    "f41"
+   ],
+   "wrong": {
+    "A market buy now": "That fills now, at about $62. It doesn't wait for the stock to dip to $58.",
+    "A $58 buy stop": "A buy stop is entered above the current price and turns into a market order there. It isn't the order that waits below.",
+    "A $62 buy limit": "That is where the stock trades now. A buy limit there can fill near $62 right away, before any dip."
+   },
+   "simple": "A buy limit at $58, because it waits below the price and can only fill at $58 or lower.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "fixed before (buy-stop wrong note, 2026-11-09)",
+     "reframed 2026-11-12 as order mechanics after an E57 conflict"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q11",
+   "skill": "orders.market_limit",
+   "rung": 4,
+   "format": "mcq",
+   "q": "A stock just cleared its $40.00 breakout level. You'll pay at most 1% above it. What limit price caps your buy?",
+   "answer": "$40.40",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "level * (1 + cap_pct / 100)",
+     "level": 40,
+     "cap_pct": 1
+    }
+   },
+   "prefix": "$",
+   "why": "Take 1% of the $40.00 level and add it on. That gives $40.40. A buy limit at $40.40 can only fill at $40.40 or lower. It may not fill if the price runs past $40.40 first.",
+   "lesson_line": "A buy limit turns the most you'll pay into a hard cap.",
+   "facts": [
+    "f05",
+    "f15"
+   ],
+   "simple": "$40.40, because 1% above $40.00 is $40.40, and a buy limit there can't fill any higher.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "touches owner rule E57 (entries are market orders): flagged"
+    ]
+   },
+   "batch": "rank",
+   "choices": [
+    "$40.40",
+    "$41.00",
+    "$44.00",
+    "$40.80"
+   ],
+   "wrong": {
+    "$41.00": "Added a flat $1.00 instead of 1% of $40.00.",
+    "$44.00": "A decimal slip: that adds ten times the 1% you meant.",
+    "$40.80": "Added the 1% twice. The cap needs it once."
+   }
+  },
+  {
+   "key": "q12",
+   "skill": "orders.market_limit",
+   "rung": 5,
+   "format": "scenario",
+   "story": "A stock is quoted $49.69 bid, $49.71 ask, just under its $50 breakout level. To catch the breakout, you enter a buy limit at $50.00.",
+   "q": "What happens to your order?",
+   "choices": [
+    "It can fill right away, under $50",
+    "It waits until it hits $50",
+    "It fills only at $50.00",
+    "It can't fill above the ask"
+   ],
+   "answer": "It can fill right away, under $50",
+   "why": "It can fill right away, under $50. Your $50.00 limit is above the $49.71 ask, so under the SEC's definition it is marketable. It fills at the best prices there, up to your limit. It does not wait for the breakout. A buy stop is the order that waits above the price.",
+   "lesson_line": "A buy limit above the ask can fill now. It doesn't wait for the breakout.",
+   "facts": [
+    "f21",
+    "f40",
+    "f05",
+    "f43",
+    "f10",
+    "f47"
+   ],
+   "wrong": {
+    "It waits until it hits $50": "That's what a buy stop does. It sits above the price and turns into a market order when the price gets there.",
+    "It fills only at $50.00": "A limit is your price or better. With sellers under $50 right now, you get their price.",
+    "It can't fill above the ask": "The ask can move, and your order can be bigger than the size showing there. Your cap is your $50.00 limit, not the quote."
+   },
+   "simple": "It can fill right away, because a buy limit at or above the ask can trade now against the sellers there.",
+   "deeper": {
+    "trap": "The trap: you meant to buy the breakout, but a buy limit above the ask buys now, before $50 trades. If the stock then stalls under $50, you own it early. To buy only once it clears, wait for the move, then send the order."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (story now states the quote, 2026-11-09)"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q13",
+   "skill": "orders.market_limit",
+   "rung": 5,
+   "format": "scenario",
+   "story": "You hold a stock that closed at $104. You leave a good-'til-canceled sell limit at $105. Good news comes out overnight, and it opens at $110.",
+   "q": "Where does your sell limit most likely fill?",
+   "choices": [
+    "Around $110, at the open",
+    "At $105, your limit",
+    "No fill, gap skipped it",
+    "At $104, prior close"
+   ],
+   "answer": "Around $110, at the open",
+   "why": "Around $110, at the open. A sell limit can only fill at the limit or higher. The stock opened above your $105 limit, so the order fills at the open at about that price. This is Schwab's own example. Your limit is a floor, not a target.",
+   "lesson_line": "A gap through your limit fills you at the better price. Your limit is a floor, not a target.",
+   "facts": [
+    "f05",
+    "f36",
+    "f37",
+    "f35",
+    "f06"
+   ],
+   "wrong": {
+    "At $105, your limit": "Your limit is the least you'll take. When the market offers more, you get more.",
+    "No fill, gap skipped it": "A gap doesn't skip a limit order. The price went past it in your favor, so it fills.",
+    "At $104, prior close": "A sell limit can't fill below your $105 limit. The close is old news once the stock opens at $110."
+   },
+   "simple": "Around $110, because a sell limit fills at your price or higher, and the open at $110 is higher.",
+   "deeper": {
+    "trap": "The trap is treating your limit as a target. Had the stock opened at $104, the prior close, your $105 sell limit could not fill there. It would wait, and it might never fill."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "Schwab's worked example plus the SEC rule"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q14",
+   "skill": "orders.market_limit",
+   "rung": 6,
+   "format": "scenario",
+   "story": "A stock clears its $50 breakout level on heavy volume. It's moving fast, quoted $50.04 bid, $50.08 ask. You weigh a market buy against a buy limit at $50.30.",
+   "q": "What risk does the buy limit carry that the market buy does not?",
+   "choices": [
+    "A missed fill if it runs past $50.30",
+    "A fill far above the quote",
+    "A wait until it trades $50.30",
+    "A fill at $50.30, no better"
+   ],
+   "answer": "A missed fill if it runs past $50.30",
+   "why": "A missed fill if it runs past $50.30. A buy limit can never fill worse than its limit, so in a fast move it can be left behind. A market buy almost always fills, but it has no price protection. It can fill away from the quote, especially in a fast market.",
+   "lesson_line": "A limit risks a missed fill. A market order risks a worse price.",
+   "facts": [
+    "f05",
+    "f49",
+    "f06",
+    "f15",
+    "f19",
+    "f48",
+    "f12",
+    "f21",
+    "f40",
+    "f35",
+    "f41",
+    "f51"
+   ],
+   "wrong": {
+    "A fill far above the quote": "That's the market buy's risk: no price protection. A buy limit at $50.30 can never fill above $50.30.",
+    "A wait until it trades $50.30": "$50.30 is above the $50.08 ask, so the limit is marketable. It can fill right away, at $50.30 or lower.",
+    "A fill at $50.30, no better": "A buy limit fills at your limit or lower. With sellers at $50.08, it can fill below $50.30."
+   },
+   "simple": "A missed fill, because a buy limit can't fill above $50.30, so a fast run past it leaves you out.",
+   "deeper": {
+    "trap": "The trap is reading $50.30 as a promise. If the ask jumps past $50.30 before your order arrives, nothing fills. The limit then waits away from the market. It fills later only if sellers come back at $50.30 or lower. Our rule takes the other side of this trade-off: entries are market orders."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "fixed before (wrong note and lesson line, 2026-11-09)",
+     "reframed 2026-11-12 as order mechanics after an E57 conflict"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q15",
+   "skill": "orders.market_limit",
+   "rung": 6,
+   "format": "tf",
+   "q": "A sell limit priced below the current bid acts like a market sell with a floor.",
+   "answer": "True",
+   "why": "True. A sell limit at or below the best bid is a marketable limit order under the SEC's definition, so it can sell right away. It still cannot fill under your limit. If the bid drops below your limit before it fills, it waits.",
+   "lesson_line": "Need out fast but want a floor: a sell limit just under the bid.",
+   "facts": [
+    "f21",
+    "f40",
+    "f44",
+    "f05",
+    "f41"
+   ],
+   "simple": "True, because a sell limit under the bid can sell now, but it will never sell below your limit.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "SEC rule text; Schwab and Fidelity agree"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q16",
+   "skill": "orders.market_limit",
+   "rung": 7,
+   "format": "scenario",
+   "story": "A small stock closed at $12.00. Big news comes out overnight. At 8:00 a.m. you place a market order to buy 1,000 shares.",
+   "q": "When and where should you expect it to fill?",
+   "choices": [
+    "At the open, wherever it opens",
+    "Right away, near the 8:00 a.m. quote",
+    "At the open, at about $12.00",
+    "After the open, once prices settle"
+   ],
+   "answer": "At the open, wherever it opens",
+   "why": "At the open, wherever it opens. A market order placed while the market is closed fills at the next open. Schwab and Fidelity take only limit orders in extended hours, so it waits for the regular session. Some brokers differ. News can move that open far from the $12.00 close.",
+   "lesson_line": "A market order overnight agrees to the opening price, whatever it turns out to be.",
+   "facts": [
+    "f31",
+    "f13",
+    "f42",
+    "f39",
+    "f45",
+    "f47"
+   ],
+   "wrong": {
+    "Right away, near the 8:00 a.m. quote": "Extended-hours sessions generally take limit orders only. Your market order waits for the regular open.",
+    "At the open, at about $12.00": "The close is old news. After big news overnight, the open can be far from $12.00.",
+    "After the open, once prices settle": "A market order doesn't wait for a calm market. Placed while the market is closed, it executes at the next open."
+   },
+   "simple": "At the open, at whatever price it opens, because a market order sent while the market is closed waits for the next open.",
+   "deeper": {
+    "trap": "The trap is size in a small stock after big news. Your 1,000 shares take whatever prices are there at the open. Fidelity notes that when your buy is bigger than the size showing at the ask, part of it can fill higher than the ask. A limit names the most you'll pay, at the cost of maybe no fill."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "broker extended-hours rules vary and can change"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q17",
+   "skill": "orders.market_limit",
+   "rung": 7,
+   "format": "mcq",
+   "q": "A stock closed at $25.00. After overnight news, it opened at $27.25. How far above the close did it open, in percent?",
+   "answer": "9.0%",
+   "calc": {
+    "fn": "pct_change",
+    "args": {
+     "start": 25,
+     "end": 27.25
+    }
+   },
+   "suffix": "%",
+   "why": "Divide the rise from $25.00 to $27.25 by the $25.00 close, and write it as a percent. That is 9%. A market buy sent while the market is closed fills at the next open, so it pays that gap. A stock can open far above or below its last close.",
+   "lesson_line": "A market buy at the open pays whatever the gap is. Know that before you send it.",
+   "facts": [
+    "f31",
+    "f42"
+   ],
+   "simple": "9%, because you divide the rise from $25.00 to $27.25 by the $25.00 close, where the move started.",
+   "deeper": {
+    "trap": "Measure from the close, the price the move started from. Dividing by $27.25 instead gives a smaller number and understates the gap."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "rank",
+   "choices": [
+    "9.0%",
+    "8.3%",
+    "90%",
+    "109%"
+   ],
+   "wrong": {
+    "8.3%": "Divided the rise by the $27.25 open. The move started at the close, so divide by $25.00.",
+    "109%": "Gave the ratio 27.25 / 25.00 as a percent and forgot to take off the start.",
+    "90%": "A decimal slip: the point moved one place the wrong way."
+   }
+  },
+  {
+   "key": "q18",
+   "skill": "orders.market_limit",
+   "rung": 7,
+   "format": "scenario",
+   "story": "You hold 300 shares of a big, liquid stock. The spread is a penny, with thousands of shares on each side. It breaks hard through your exit level.",
+   "q": "You want out now. Which order?",
+   "choices": [
+    "A market order to sell",
+    "A sell limit at your exit",
+    "Wait for a bounce, then sell",
+    "A sell limit at the ask"
+   ],
+   "answer": "A market order to sell",
+   "why": "A market order to sell. When getting out now is the goal, a market order is the right tool and the surest fill. With a penny spread and thousands of shares on each side, 300 shares should fill at or near the bid. The price is not promised, but here it should sit close to the quote.",
+   "lesson_line": "In a liquid stock, when it's time to go, go. Don't haggle over pennies on the way out.",
+   "facts": [
+    "f30",
+    "f11",
+    "f18",
+    "f46",
+    "f47",
+    "f05",
+    "f06",
+    "f41"
+   ],
+   "wrong": {
+    "Wait for a bounce, then sell": "That's hoping, not a plan. Your exit level already broke.",
+    "A sell limit at your exit": "The stock is already below your exit. A sell limit only fills at your price or higher, so it sits there while the stock falls.",
+    "A sell limit at the ask": "Sellers get the bid. A sell limit at the ask can't trade right away; it waits for a buyer to pay up, and in a hard break one may not come."
+   },
+   "simple": "A market sell, because you need out now and a big, liquid stock will fill you near the bid.",
+   "deeper": {
+    "trap": "Liquidity is what makes this right. In a thin stock, or with an order bigger than the size at the bid, a market sell can fill well below the quote you saw. Fidelity notes an order bigger than the size showing can fill at worse prices. Check the size on the bid before you lean on a market order."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "Schwab, FINRA and Fidelity agree"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q19",
+   "skill": "orders.market_limit",
+   "rung": 8,
+   "format": "scenario",
+   "story": "May 6, 2010, the Flash Crash. In seven seconds, Accenture's bids fell from about $30 to $0.01. Some sell orders filled at a penny.",
+   "q": "How could a market sell order fill at a penny?",
+   "choices": [
+    "It takes any bid, however low",
+    "Its seller set a one-cent limit",
+    "It filled at the last trade price",
+    "A data error printed a fake price"
+   ],
+   "answer": "It takes any bid, however low",
+   "why": "It takes any bid, however low. A market sell seeks the best available bid regardless of price. When real buyers ran out, the only bids left were stub quotes, placeholder bids at absurd prices, and market orders filled against them. Those trades were later broken. Today Limit Up-Limit Down bands stop trades outside a price band.",
+   "lesson_line": "A market order has no floor. In a panic, it can fill far below the price you saw.",
+   "facts": [
+    "f22",
+    "f23",
+    "f24",
+    "f25",
+    "f26",
+    "f27",
+    "f28",
+    "f29",
+    "f48"
+   ],
+   "wrong": {
+    "Its seller set a one-cent limit": "Nobody had to ask for a penny. A market order accepts whatever bid is there.",
+    "It filled at the last trade price": "The last trade isn't a promise. A market sell hits the bid in front of it at that moment.",
+    "A data error printed a fake price": "The fills were real. Orders that could trade at once executed against stub quotes, and the exchanges broke them afterwards."
+   },
+   "simple": "It takes any bid, however low, because a market sell has no floor, and the only bids left were a penny.",
+   "deeper": {
+    "trap": "The trap is thinking today's rules make a market order safe. Limit Up-Limit Down stops trades outside a price band, but inside the band a market order still has no price protection. Interactive Brokers warns it may fill far lower than the bid on your screen. The band limits the damage; it does not name your price."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "fixed before (lesson line and conflicts note, 2026-11-09)",
+     "today's price-band rule (LULD) can change"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q20",
+   "skill": "orders.market_limit",
+   "rung": 8,
+   "format": "scenario",
+   "story": "Weeks ago you left a good-'til-canceled buy limit at $40 on a stock then at $46. You forgot it. It reports earnings tonight. Tomorrow it opens at $34 on bad news.",
+   "q": "Looking back, what should you have done before tonight?",
+   "choices": [
+    "Canceled the old buy limit",
+    "Switched it to a market order",
+    "Nothing, a limit order is safe",
+    "Lowered the limit to $38"
+   ],
+   "answer": "Canceled the old buy limit",
+   "why": "Canceled the old buy limit. A GTC order stays open until it fills or you cancel it, so an old idea was still live into earnings. A buy limit fills at $40 or lower, so a gap open at $34 fills it near $34. A stock can keep falling after news like this.",
+   "lesson_line": "Before earnings, check every open order. Keep only the ones you'd place today.",
+   "facts": [
+    "f07",
+    "f09",
+    "f05",
+    "f38"
+   ],
+   "wrong": {
+    "Switched it to a market order": "That buys anyway, at whatever price is there. The order type wasn't the problem. The old order was.",
+    "Nothing, a limit order is safe": "A limit protects your price, not your idea. It filled exactly as built, and a stock can keep falling after news like this.",
+    "Lowered the limit to $38": "A gap down to $34 fills any buy limit above $34. A lower limit still buys straight into the bad news."
+   },
+   "simple": "Cancel the old buy limit, because a forgotten order stays open, and a gap down on bad news fills it.",
+   "deeper": {
+    "trap": "The trap is reading a limit as a good price. Your $40 limit got you about $34, better than you asked, into news that may have broken the reason you wanted the stock. Schwab warns news can drop a stock through a resting buy limit, fill it, and keep falling. A good price on a broken idea is not a good trade."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (market-order wrong note, 2026-11-09)"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q21",
+   "skill": "orders.market_limit",
+   "rung": 9,
+   "format": "scenario",
+   "story": "A stock gaps up on news. You set a buy limit at $18.75, the most you'd pay. It opens at $19.60, never trades below $19.40, and runs to $23.",
+   "q": "Your order never filled. Judged only as an order, how did it do?",
+   "choices": [
+    "It worked: price capped, no fill",
+    "It failed: you missed the run to $23",
+    "It worked: it fills at $18.75 later",
+    "It failed: a gap up should fill it"
+   ],
+   "answer": "It worked: price capped, no fill",
+   "why": "It worked: price capped, no fill. A limit is for when the right price matters more than a quick fill. The stock never traded at $18.75 or lower, so there was nothing to fill. Whether a capped entry suited this trade is a separate call from whether the order worked.",
+   "lesson_line": "Grade the order by what it was built to do. A limit that never fills kept your price cap.",
+   "facts": [
+    "f14",
+    "f06",
+    "f05",
+    "f48",
+    "f37",
+    "f38",
+    "f51"
+   ],
+   "wrong": {
+    "It failed: you missed the run to $23": "That grades the outcome, not the order. A limit is for when the right price matters more than a quick fill, so a missed run is the cost it accepts.",
+    "It worked: it fills at $18.75 later": "Nothing promises a later fill. A buy limit fills only if the stock trades at $18.75 or lower, and it may never.",
+    "It failed: a gap up should fill it": "A gap can fill a resting buy limit only by opening at or below the limit. This gap went up, above $18.75."
+   },
+   "simple": "It worked, because a limit's job is to cap your price, and it bought nothing above $18.75.",
+   "deeper": {
+    "trap": "The trap is grading by outcome. The stock ran to $23, so a fill looks like it would have paid. A market order would have filled, but with no price protection. A missed trade and a worse fill are different risks. Our rule takes the worse-fill risk: entries are market orders."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "reframed 2026-11-12: thin-stock story and market-order distractor removed (E57, D42, B23)"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q22",
+   "skill": "orders.market_limit",
+   "rung": 3,
+   "format": "tf",
+   "house": true,
+   "q": "Under our rules, you enter a new trade with a market order, even when the stock is moving fast.",
+   "answer": "True",
+   "why": "True. Our rule is that entries are market orders, every one of them. The stop still sits with the broker. A market order almost always fills while there are willing buyers and sellers.",
+   "simple": "True, because we enter every trade with a market order, fast stock or not.",
+   "lesson_line": "We enter with market orders, and the stop sits with the broker.",
+   "facts": [
+    "f51",
+    "f19"
+   ],
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "house rule E57 (owner, 2026-11-09)"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q23",
+   "skill": "orders.market_limit",
+   "rung": 5,
+   "format": "tf",
+   "house": true,
+   "q": "Big news hits a stock you watch after the close. Under our rules, you can buy it in the premarket session.",
+   "answer": "False",
+   "why": "False. Our rule says no new buys outside regular trading hours. Regular hours run 9:30 a.m. to 4 p.m. Eastern Time, so the premarket session is outside them.",
+   "simple": "False, because our rule allows no new buys outside regular trading hours, and premarket is outside them.",
+   "lesson_line": "We open new buys only in the regular session, 9:30 a.m. to 4 p.m. Eastern Time.",
+   "facts": [
+    "f52",
+    "f18"
+   ],
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "house rule E58 (owner, 2026-11-09)"
+    ]
+   },
+   "batch": "wave6"
+  }
+ ],
+ "conflicts": [
+  "How sure is a market order's fill? Investor.gov 'Types of Orders' says a market order 'guarantees that the order will be executed'; the SEC's own bulletin (s1) says it 'Generally ... will be executed immediately'; the Investor.gov glossary (s3) says 'almost always guaranteed ... as long as there are willing buyers and sellers'; FINRA (s2) says 'the most certainty'. The file never says 'guaranteed': it says a market order almost always fills, or is the surest fill.",
+  "FINRA (s2) and the Investor.gov glossary (s3) both say brokers enter an order as a market order unless you say otherwise. Order-ticket defaults differ by platform today, so no question asks what the default is.",
+  "Breakout entries: many traders use a buy stop or a buy stop-limit to enter a breakout (Schwab s7 lists buying 'should it break above a certain level' as a stop-order use). This unit teaches market and limit orders only, so q14 keys a marketable limit sent once the stock clears the level, and q09, q12 only name the buy stop as the order that waits above the price (s1 f10). Stop and stop-limit entries are F10.02.",
+  "q20: Schwab's line about news filling a buy limit and the stock continuing lower (f38) is written about GTC orders in extended hours. q20's fill happens at the regular open; its key rests on the SEC's rule that a buy limit fills at the limit or lower (f05) and that a GTC order stays open until filled or canceled (f07), with f38 used only for the risk that the stock keeps falling.",
+  "q19: the same report says almost 90% of the broken trades on May 6, 2010 were sales with a limit price, because internalizers often turned retail market orders into marketable limit orders before routing them. q19 asks only how a market order CAN fill at a penny, which is the report's own sentence (f22), and does not say what share of the penny fills were market orders. The trades over 60% away were broken (f27, f28), and the Limit Up-Limit Down bands (f29, Investor.gov) now exist; q19's why says both.",
+  "GTC time limits vary by broker (s1 f09; Schwab's article gives 180 calendar days for its own GTC orders). No question states a number of days.",
+  "Extended hours: Schwab (f39) and Fidelity (f45) take only limit orders outside regular hours; some brokers' overnight sessions differ. q16's wrong note says 'generally'.",
+  "Checker, 2026-11-09: q16's key (a premarket market order waits for the regular open) also matches Robinhood's US support page ('Extended-hours trading': market orders placed during an extended-hours session 'will be queued for the opening of regular market hours'). Not cited, since Robinhood is not a listed Tier 2 publisher; Schwab (f39) and Fidelity (f45) carry the fact."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "Fresh fetches of the SEC bulletin (s1, updated Aug 18, 2026), FINRA (s2) and the Investor.gov glossary (s3): f01, f02, f04-f06, f11, f14, f19 read in context. Step 4 said 'a sure fill', but the sources say 'almost always' and 'the most certainty', so it now says 'Pick what you need more: the fill or the price.'",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "f05, f06, f21 (eCFR Rule 600(b)(56), current to 11/05/2026), f32, f40, f41, f43, f44 confirmed in context. Step 3 said a marketable limit fills 'not at your limit'; it can fill at the limit (ask at the limit, or a sweep up to it). Now 'which can be better than your limit' (f43, f35).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "f11, f14, f21, f30, f32, f42, f48 confirmed. Steps match the facts and the trading sense is right (liquid exit at market, thin name or wild open at a named price). Step 2's 'a limit ... at your max' was vague; now 'a buy limit below ... send one at the most you'll pay'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Derived independently: trade now at the best price available (f01, f02, f11). Key and 'set price' choice tie at 37 characters, so length gives nothing away. The closing-price choice is hedged by 'plain' in its wrong note (MOC orders exist). The why and lesson line state that the price is not promised, which is q05's key, but only after answering; that is teaching before a rung-2 test, not a giveaway in a stem or choice. Every claim maps to f01/f02/f11/f12/f04/f06/f10.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+  },
+  "q02": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key from f04/f05 (SEC). f33 now covers 'maybe not even then'. Key is the shortest choice; every wrong note grounded (f10 for the sell stop, f02/f48 for the market order, f06/f15 for the sure fill)."
+  },
+  "q03": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "True by f05 (SEC); f35 (Schwab) sentence is the quote's meaning. Numbers from the stem. Schwab unreachable 2026-11-12 but f05 alone carries the key."
+  },
+  "q04": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q05": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
+  },
+  "q06": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "False by f06, f33, f34: a trade at your limit is necessary, not sufficient. No lone absolute left in the stem. Deeper trap is grounded in f33/f34. No second defensible reading found."
+  },
+  "q07": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q08": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
+  },
+  "q09": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
+  },
+  "q10": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Re-derived: buy limit at $58 (f05, f06, f32). Buy stop wrong by f10 (entered above the price); limit at $62 can fill now; market buy fills now (f01/f02). Pure mechanics ask, so no E57 conflict. Minor: choices converge on 'limit' and '$58', but each wrong choice is a real confusion; accepted.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+  },
+  "q11": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+  },
+  "q12": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Deeper no longer recommends a buy stop for a breakout entry (the Schwab f50 web view E57 replaced). 'buys now' is slightly firmer than the key's 'can fill', but a $50.00 limit against a $49.71 ask is marketable (f21/f40/f44); accepted. Side note for the integrator: conflicts entry 3 still says 'q14 keys a marketable limit sent once the stock clears the level', which is stale after q14's reframe.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+  },
+  "q13": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Derived: a sell limit fills at the limit or higher (f05), so a $110 open fills it at about $110 (f37). 'Around' hedges the opening print. No second defensible answer. Choice lengths balanced (24/27/27/24). Deeper is a grounded counter-example (f05, f06) using only the stem's numbers. Schwab (s7) returned an authorization error on 2026-11-12, so f36/f37 could not be re-read; f05 (SEC) carries the floor logic and the open fill follows from it. Does not hand over q20's key (cancel the old order).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+  },
+  "q14": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Derived: the extra risk of the marketable $50.30 limit is a missed fill if the ask runs past it (f49, f06, f15); the market buy almost always fills (f19). 'Fill far above the quote' is excluded because the market buy carries that risk (f48, f12); 'wait until $50.30' is wrong because $50.30 is above the $50.08 ask (f21); 'exactly $50.30' is wrong by f05. One answer only, choices parallel 36/34/36/35. The deeper's closing line (entries are market orders, f51) agrees with E57. Integrator side note, outside these questions: conflicts entry 3 still says 'q14 keys a marketable limit sent once the st",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+  },
+  "q15": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "True by f21 (SEC rule text) with f40/f44; f41 now supports 'it waits'. No tell; does not repeat q07 (buy side, naming) or q12."
+  },
+  "q16": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
+  },
+  "q17": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+  },
+  "q18": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
+  },
+  "q19": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
+  },
+  "q20": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
+  },
+  "q21": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key is right if the order is judged as an order (f14, f05, f06). Two defects. (1) A second defensible answer: the stem 'How do you grade it?' asks for a trade grade. Under the owner's E57 ('No i market order everything') a member can fairly grade the entry as failed because it missed the run to $23. That makes 'It failed: you missed the run to $23' defensible. q10 and q14 were already reframed as order mechanics for the same E57 conflict. Fix: the stem now asks how the order did, judged only as an order, and the deeper names our market-order rule (f51 added). (2) The wrong note for 'a gap up s"
+  },
+  "q22": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "True by f51, word for word from sizing_rule.md line 217 (E57, 'market order everything'), so 'even when the stock is moving fast' is covered. The why's 'every one of them' matches 'everything'. The stop with the broker is D41, which f51 quotes. 'Almost always fills' keeps f19's hedge. The stem uses a question form, not a statement of the rule. q14's deeper also states the rule, but only after answering. No code like 'E57' is shown to members. No conflict with E58."
+  },
+  "q23": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "False by f52 (sizing_rule.md line 218, verbatim) with regular hours from f18 (FINRA). Stem asks about buying in the premarket itself, so the queued-order question (owner flag 2, q16) does not touch it. No tell."
+  }
+ }
+}

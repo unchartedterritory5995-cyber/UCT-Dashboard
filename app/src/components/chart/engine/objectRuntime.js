@@ -46,14 +46,15 @@ const BAR_COORDS = new Set(BAR_COORD_PROPS)
 // passed. This is the seam it was built for.
 import { POOL_LIMITS, resolveCapacity, collectsAbove } from './objectPool'
 import { writeCell, spanned, MERGED_HEAD_REWRITE, MERGED_HEAD_REWRITE_SENTENCE } from './objectCells.js'
-import { NOT_SHOWN, notShownSentence, stoppedRunSentence, STOPPED_KEY } from './ast/objectLoss.js'
+import { NOT_SHOWN, notShownSentence, partlyNotComputableSentence, stoppedRunSentence, STOPPED_KEY, RUNTIME_UNKNOWN_KEY } from './ast/objectLoss.js'
 // ⭐ A GUARD THAT READS OBJECT STATE (`{v:'bool'|'cmp'|'cross'|'get'|'size'}`, see
 // `LIVE_GUARD_KINDS`) is combined with `interpret`'s OWN operator table and its
 // OWN carried crossing step — never a second copy of either.
 import { BINARY, UNARY, CARRIED2, POINTWISE_FOR_PARITY as PW, historyBackOf, historyReadable } from './ast/interpret'
 // ⭐ `str.format`'s number rendering — the SAME module whose grammar the
 // translator compiled the pattern with (C15, objects-triage step 13).
-import { formatMessageNumber, formatPlainNumber, formatPatternedNumber, isPlainNumberPattern, tickNumberText, volumeNumberText } from './pineTextFormat'
+import { formatMessageNumber, formatPlainNumber, formatPatternedNumber, isPlainNumberPattern, tickNumberText, volumeNumberText,
+  tostringNumberText, tostringNumberWhy, plainNumberWhy, patternedNumberWhy, TOSTRING_DEFAULT_BOUNDS } from './pineTextFormat'
 
 /** Own-property test — a family name must not reach `POOL_LIMITS` through the
  *  prototype chain (`constructor`, `toString`) and read as a declared pool. */
@@ -76,13 +77,23 @@ const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 
 /** ⭐⭐ C43 — `str.tostring(x)` with NO format: ten decimals, trailing zeros
  *  trimmed (see `formatNumber`). Exported for the rails that replay a vendor
- *  text, so they ask the formatter instead of restating it. */
+ *  text, so they ask the formatter instead of restating it.
+ *  ⭐⭐ CBC-FMT — the one core (`pineTextFormat.js::tostringNumberText` at {0, 10}): `null`
+ *  (WITHHELD, named by `formatNumberWhy`) where it was "-0" or "1e+21" — texts no capture shows
+ *  TradingView printing — or where the two tie readings part. ⚰️ `toFixed(10)` rounded a
+ *  decimal tie DOWN (F6) and printed `-1e-12` as "-0". */
 export function defaultNumberText(n) {
-  if (!Number.isFinite(n)) return 'NaN'
-  const s = n.toFixed(10)
-  // `toFixed` answers in exponent form from 1e21 up; the plain number is all there is
-  if (!/^-?\d+\.\d{10}$/.test(s)) return String(n)
-  return s.replace(/0+$/, '').replace(/\.$/, '')
+  return tostringNumberText(n, TOSTRING_DEFAULT_BOUNDS)
+}
+
+/** ⭐⭐ CBC-FMT — why `formatNumber(n, fmt)` withholds `n`, BY NAME (`format:*`), or null.
+ *  The same dispatch `formatNumber` takes, asking each branch's own authority. */
+export function formatNumberWhy(n, fmt) {
+  if (typeof n !== 'number') return 'format:not-a-number'
+  if (!Number.isFinite(n)) return null
+  if (typeof fmt !== 'string' || !fmt) return tostringNumberWhy(n, TOSTRING_DEFAULT_BOUNDS)
+  if (isPlainNumberPattern(fmt)) return plainNumberWhy(n, fmt)
+  return patternedNumberWhy(n, fmt)
 }
 
 /** ⭐ RT5 — lifted to module level, unchanged, so the runtime lane's
@@ -263,6 +274,10 @@ export function beginObjects(program, ctx) {
     return false
   }
   let withheldUnknown = 0
+  /** ⭐⭐ ENGINE 55 — the table cells a WITHHELD write marked (`taintOutputs`): `<id>|<col>,<row>`.
+   *  A cell held for another, already-named reason (a colour this run could not carry, C45,
+   *  marks the cell on a write that RAN) is not one of these. */
+  const cellWriteWithheld = new Set()
   /** ⭐ C45 — of those, ops held because a bar index reached them as a value. */
   let withheldBarIndex = 0
   /** ⭐ C22 — properties marked because their value read an unmeasured reduction. */
@@ -525,6 +540,13 @@ export function beginObjects(program, ctx) {
    *  capture pins a rendering for (`formatMessageNumber` → `null`). The object's
    *  text is then `null` and the render state does not draw it. */
   let textsWithheld = 0
+  /** ⭐⭐ CBC-FMT — the withheld number texts BY NAME (`formatNumberWhy`), for diagnostics. */
+  const textsWithheldWhy = {}
+  const numberWithheld = (n, fmt) => {
+    textsWithheld += 1
+    const why = formatNumberWhy(n, fmt) || 'format:withheld'
+    textsWithheldWhy[why] = (textsWithheldWhy[why] || 0) + 1
+  }
   // ⭐ C29 — history reads past the measured automatic buffer, withheld (not read).
   let atBeyondAuto = 0
   /** ⭐ CELLS REMOVED BY `table.clear`, counted separately from `deleted` —
@@ -916,7 +938,7 @@ export function beginObjects(program, ctx) {
             return s
           }
           const s = formatNumber(n, t.fmt)
-          if (s === null) textsWithheld += 1
+          if (s === null) numberWithheld(n, t.fmt)
           return s
         }
         // ⭐⭐ A VALUE THAT IS ALREADY TEXT. ⛔ A non-string answers the EMPTY
@@ -948,7 +970,7 @@ export function beginObjects(program, ctx) {
           const n = value(t.v)
           if (typeof n !== 'number') { textsWithheld += 1; return null }
           const s = formatNumber(n, t.fmt)
-          if (s === null) textsWithheld += 1
+          if (s === null) numberWithheld(n, t.fmt)
           return s
         }
         default: return ''
@@ -1458,7 +1480,15 @@ export function beginObjects(program, ctx) {
           const c = known ? Number(value(op.col)) : NaN
           const r = known ? Number(value(op.row)) : NaN
           const key = Number.isInteger(c) && Number.isInteger(r) ? `${c},${r}` : '*'
-          for (const id of targetsOf(op.target)) taintCell(id, key)
+          // ⭐ ENGINE 55 — booked for the partly-drawn note only when the write CERTAINLY ran
+          // (no guard, or a guard known true on this bar): its cell then exists on TradingView
+          // with a value this run could not compute. A write whose guard is itself unknown may
+          // not have run there at all — the cell's existence is the unknown, as for a create.
+          const ran = op.when == null || (!valueUnknown(op.when) && truthy(value(op.when)))
+          for (const id of targetsOf(op.target)) {
+            taintCell(id, key)
+            if (key !== '*' && ran) cellWriteWithheld.add(`${id}|${key}`)
+          }
           break
         }
         case 'mergecells':
@@ -2330,12 +2360,54 @@ export function beginObjects(program, ctx) {
       else if (famUnknownOther.has(fam) || taintFams.has(fam)) notShown[NOT_SHOWN.NOT_COMPUTABLE].push(fam)
     }
   }
+  // ⭐⭐ ENGINE 55 — A FAMILY PARTLY DRAWN, SOME OF WHOSE OPS THIS RUN WITHHELD FOR A VALUE
+  // IT COULD NOT COMPUTE, IS NAMED TOO, with how many. ⚰️ OZ named a not-computable
+  // family only when NOTHING of it was drawn, so K-clustering's table drew its header
+  // cells and silently left out the 51 ops whose values were unknown: the member read a
+  // short table as the script's whole table, and the harness graded it DIVERGE.
+  // ⛔ Not for a stopped run (it draws nothing and says why), not for a family already
+  // withheld or named above, and never for a clock-only withholding (C36 names those).
+  const partNotComputable = {}
+  // ⭐ ENGINE 55 — why the run half's values are unknown, in plain words, when the caller
+  // knows (`runtimeUnknownSentence`: e.g. the last-bar calculation is too heavy to run yet).
+  const unknownBecause = ctx && typeof ctx.unknownBecause === 'string' && ctx.unknownBecause ? ctx.unknownBecause : null
+  if (!stopped) {
+    // ⭐ ONLY WHAT REACHES THE FINAL PICTURE: a drawn table's cells whose LATEST write was
+    // withheld (`cellTaint`: a later clean `table.cell` clears the mark, so a warm-up write
+    // that was overwritten is not counted). Such a cell EXISTS on TradingView, holding a
+    // value this run could not compute.
+    // ⛔ NOT a withheld CREATE of a partly drawn family: whether that object exists on
+    // TradingView at all is the unknown (its guard may have been false there), and the
+    // collector rulings (W-C22-DEL) already count those. Measured on the engine-55 suite:
+    // naming them took captures where TradingView drew exactly what this run drew
+    // (ict-killzones, vdubus) off MATCH.
+    const missing = new Map()
+    // (a table marked only by the chart clock is the clock note's to name: `taintOtherSeen`)
+    for (const o of (taintOtherSeen ? ordered : [])) {
+      if (o.family !== 'table') continue
+      const ct = cellTaint.get(o.id)
+      // only cells whose LATEST write was WITHHELD (a C45 held colour is named on its own)
+      const n = ct && ct !== '*' ? [...ct].filter((k) => cellWriteWithheld.has(`${o.id}|${k}`)).length : 0
+      if (n) missing.set('table', (missing.get('table') || 0) + n)
+    }
+    for (const [fam, n] of missing) {
+      if (!drawnFams.has(fam) || withheldFams.has(fam) || notShown[NOT_SHOWN.NOT_COMPUTABLE].includes(fam)
+          || notShown[NOT_SHOWN.NOT_CARRIED].includes(fam)) continue
+      partNotComputable[fam] = n
+      notShown[NOT_SHOWN.NOT_COMPUTABLE].push(fam)
+    }
+  }
   const notShownBy = Object.fromEntries(Object.entries(notShown).filter(([, fs]) => fs.length))
   const notShownWhy = {}
   for (const [guard, fs] of Object.entries(notShownBy)) {
-    const t = notShownSentence(fs, guard)
-    for (const f of fs) notShownWhy[f] = t
+    const whole = fs.filter((f) => !Object.prototype.hasOwnProperty.call(partNotComputable, f))
+    const t = whole.length ? notShownSentence(whole, guard) : null
+    for (const f of whole) notShownWhy[f] = t
   }
+  for (const [fam, n] of Object.entries(partNotComputable)) notShownWhy[fam] = partlyNotComputableSentence(fam, n)
+  // ⭐ ENGINE 55 — the run half's reason, said ONCE beside the not-computable sentences
+  // (its own key in the note's `why`, like the stop reason), only when one was given.
+  const runtimeWhy = unknownBecause && (notShown[NOT_SHOWN.NOT_COMPUTABLE] || []).length ? unknownBecause : null
   // ⭐⭐ OZ r1 — A STOPPED RUN DRAWS NOTHING (C9 / C40 above), AND SAYS WHY: its
   // reason, which until now reached only the layer's meta, in the member's note.
   const stoppedWhy = stopped ? stoppedRunSentence(reason,
@@ -2343,6 +2415,7 @@ export function beginObjects(program, ctx) {
   const whyOut = {
     ...(stoppedWhy ? { [STOPPED_KEY]: stoppedWhy } : {}),
     ...notShownWhy,
+    ...(runtimeWhy ? { [RUNTIME_UNKNOWN_KEY]: runtimeWhy } : {}),
     ...(cellGuards.has(MERGED_HEAD_REWRITE) && !stopped ? { table: MERGED_HEAD_REWRITE_SENTENCE } : {}),
   }
 
@@ -2384,8 +2457,10 @@ export function beginObjects(program, ctx) {
       ...(fillsReplaced ? { fillsReplaced } : {}),
       ...(fillsWithoutLines ? { fillsWithoutLines } : {}),
       ...(textsWithheld ? { textsWithheld } : {}),
+      ...(Object.keys(textsWithheldWhy).length ? { textsWithheldWhy: { ...textsWithheldWhy } } : {}),
       ...(atBeyondAuto ? { atBeyondAutoBuffer: atBeyondAuto } : {}),
       ...(withheldUnknown ? { withheldUnknown } : {}),
+      ...(Object.keys(partNotComputable).length ? { withheldUnknownPartial: { ...partNotComputable } } : {}),
       ...(withheldBarIndex ? { withheldBarIndex } : {}),
       ...(propsUnmeasured ? { propsUnmeasured } : {}),
       ...(propsUnsaid ? { propsUnsaid } : {}),

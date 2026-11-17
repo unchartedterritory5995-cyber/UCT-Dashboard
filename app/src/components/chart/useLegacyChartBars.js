@@ -30,6 +30,7 @@ import { classifyIntradayTail, isCacheCurrentForView, expectedFormingBar, isDail
 import { createTailPollState, nextTailPollMs, tailRetriesExhausted, intradayDedupMs } from '../../utils/intradayTailPoll'
 import { resample, resampleForSpec } from '../../utils/resampleBars'
 import { FIRST_PAINT_BARS, firstPaintBarsFor, spliceDeepLeftOfFresh } from '../../utils/barsBackfill'
+import { barsHistoryUrl } from '../../data/barStore/network'
 
 // Cold-start first-paint safety valve: the longest the FIRST chart paint may wait on
 // the local IndexedDB read before falling through to a full server fetch. A fresh
@@ -612,7 +613,7 @@ export function useLegacyChartBars({
     }
   }
   const histUrl = _histFire
-    ? `/api/bars-history/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${_fullTarget}${_histSealedDate ? `&d=${_histSealedDate}` : ''}`
+    ? barsHistoryUrl(sym, resolvedTf, _histSealedDate)   // THE history URL (data/barStore/network.js; = bars=_fullTarget)
     : null
   // ── THE INTRADAY TAIL KEY (2026-11-10) ─────────────────────────────────────────
   // ⛔⛔ `since` IS NOT PART OF THE KEY ANY MORE. With `&since=<tail>` in the URL, every
@@ -939,7 +940,8 @@ export function useLegacyChartBars({
     // Belt-and-suspenders: only merge if idbBars is known to belong to this sym+tf.
     // Without this, a delta response could merge with leftover bars from another
     // ticker still sitting in idbBars state (the cross-ticker race).
-    const sameSymTf = idbReadyForRef.current === `${sym}_${_barsTf}`
+    const _dataKey = `${sym}_${_barsTf}`   // this effect's one key (the one-key census counts sites)
+    const sameSymTf = idbReadyForRef.current === _dataKey
     // TEMP DIAGNOSTIC (enable in DevTools: window.__uctBarsDebug = true) — traces
     // the delta-sync path to find the "missing candles until ~10s later" stall on
     // a stale-cache revisit. Logs the since sent, the delta response, the cached
@@ -953,7 +955,7 @@ export function useLegacyChartBars({
     // merge it onto the base it was asked from, and make that the IDB state for this key
     // (the late IDB read folds UNDER it — see the IDB effect).
     const _sb = _sinceBaseRef.current
-    if (data.delta && !(idbBars?.length && sameSymTf) && _sb?.key === `${sym}_${_barsTf}`
+    if (data.delta && !(idbBars?.length && sameSymTf) && _sb?.key === _dataKey
         && _sb.seq === _loadSeqRef.current && _sb.bars?.length) {
       const merged = (_deltaMergedRef.current?.data === data) ? _deltaMergedRef.current.bars : mergeDelta(_sb.bars, data.bars)
       idbBarsRef.current = merged
@@ -961,7 +963,7 @@ export function useLegacyChartBars({
       idbSinceRef.current = merged[merged.length - 1]?.t ?? idbSinceRef.current
       idbSavedAtRef.current = Date.now()
       idbRepairFromRef.current = null
-      idbReadyForRef.current = `${sym}_${_barsTf}`
+      idbReadyForRef.current = _dataKey
       setIdbLoaded(true)
       idbPut(sym, _barsTf, merged)
       memPut(sym, _barsTf, merged)
@@ -1027,11 +1029,11 @@ export function useLegacyChartBars({
       setIdbBars(next)
       idbSinceRef.current = next[next.length - 1]?.t ?? null
       idbSavedAtRef.current = Date.now()        // healed from the server — see above
-      if (_idbPendingRef.current === `${sym}_${_barsTf}`) {
+      if (_idbPendingRef.current === _dataKey) {
         // ⚡ The device read for this key is still out (the request did not wait for it:
         // IDB_DWM_GRACE_MS). What it holds may be DEEPER than this answer, so nothing is
         // written yet: the IDB effect folds the entry under these bars and writes then.
-        _netHeldRef.current = { key: `${sym}_${_barsTf}`, bars: next }
+        _netHeldRef.current = { key: _dataKey, bars: next }
       } else {
         idbPut(sym, _barsTf, next)
         memPut(sym, _barsTf, next)

@@ -39,6 +39,7 @@
 // The host program is evaluated here exactly as the binder draws it (`hostObjectRun`, which
 // the binder now calls too: one evaluation path, never two).
 import { objectReaderFor } from './objectColumns'
+import { runtimeUnknownSentence } from './ast/objectLoss.js'
 import { evaluateObjects, OBJECT_STATUS } from './objectRuntime'
 import { toRenderState, RENDER_COLOUR_SLOTS } from './objectRenderState'
 import { registerRunHalfObjectRail, runHalfEvidenceAdmits } from './runHalfRailSeam.js'
@@ -85,6 +86,8 @@ export function hostObjectRun(def, bars, readerOpts) {
     readUnknown: reader.readUnknown,
     readUnknownOther: reader.readUnknownOther,
     offListing: reader.historyFromListing !== true,
+    // ⭐ ENGINE 55 — why the run half's values are unknown, said in the drawing note.
+    unknownBecause: runtimeUnknownSentence(reader.runtime),
   })
   return { reader, run }
 }

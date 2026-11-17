@@ -286,3 +286,43 @@
   .searchInput { font-size: 16px; } /* avoid iOS zoom on focus */
   .dialogFoot { display: none; }
 }
+
+/* ═══ Symbol search in UCT Signature — option A "Clean list" (owner 11-15, docs/uct-signature-style.md) ═══
+   The graphite window, a search well, the categories as plain tabs with the gold 1D-style underline,
+   quiet grey type words instead of boxed badges, a grey highlight with a ↵ hint, round company logos,
+   and the gold ✓ on the symbol already on this chart. No gold tints, no gold match highlights. */
+.dialog { background: #111214 !important; border: 1px solid #383b41 !important; border-radius: 12px !important; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6) !important; color-scheme: dark; }
+.dialogTitle { color: #f8f7f3; letter-spacing: 0; }
+.dialogClose { width: 26px; height: 26px; border-radius: 7px; background: rgba(248, 247, 243, 0.06); color: #a9a59b; display: inline-grid; place-items: center; }
+.dialogClose:hover { background: rgba(248, 247, 243, 0.11); color: #ededed; }
+.searchRow { background: #0f1012 !important; border: 1px solid rgba(248, 247, 243, 0.08) !important; border-radius: 9px !important; }
+.searchRow:focus-within { border-color: rgba(248, 247, 243, 0.28) !important; box-shadow: none !important; }
+.searchInput { color: #f8f7f3; }
+.searchInput::placeholder { color: #6f6c66; }
+/* categories: plain tabs, gold underline on the open one */
+.chipRow { gap: 2px !important; padding-bottom: 0 !important; border-bottom: 1px solid #26282c; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; flex: 0 0 auto; }
+.chip { position: relative; border: 0 !important; background: none !important; border-radius: 0 !important; padding: 8px 9px 11px !important; color: #a9a59b !important; font-weight: 600 !important; font-size: 12.5px !important; text-transform: none !important; letter-spacing: 0 !important; white-space: nowrap; }
+.chip:hover { color: #ededed !important; }
+.chipActive { color: #f8f7f3 !important; background: none !important; box-shadow: none !important; }
+.chipActive::after { content: ""; position: absolute; left: 9px; right: 9px; bottom: 0; height: 2px; border-radius: 2px; background: var(--ut-gold); }
+/* rows */
+.resultRow { border-radius: 7px; }
+.resultRow:hover, .resultActive { background: #1a1b1f !important; }
+.resultCurrent { background: none; }
+.resultCurrent.resultActive, .resultCurrent:hover { background: #1a1b1f !important; }
+.resultSym { color: #f8f7f3; }
+.resultName { color: #a9a59b; }
+.resultExch { color: #93939a; }
+.hit { color: #f8f7f3; font-weight: 800; text-decoration: underline; text-decoration-color: rgba(248, 247, 243, 0.35); text-underline-offset: 2px; }
+.resultTyped strong { color: #f8f7f3; }
+.typeBadge, .badge_stock, .badge_etf, .badge_index, .badgeBreadth, .badgeDelisted {
+  border: 0 !important; background: none !important; padding: 0 !important; color: #93939a !important;
+  font-size: 11.5px !important; font-weight: 500 !important; letter-spacing: 0 !important; text-transform: none !important; min-width: 44px; text-align: right;
+}
+.badgeDelisted { color: #e8665a !important; }
+.resultCheck { color: var(--ut-gold); font-size: 12px; margin-left: 2px; }
+.resultEnter { color: #93939a; font-size: 12px; opacity: 0; margin-left: 2px; }
+.resultActive .resultEnter { opacity: 1; }
+.dialogFoot { border-top: 1px solid #26282c !important; color: #93939a !important; }
+.dialogFoot kbd { background: #1a1b1f !important; border: 0 !important; color: #a9a59b !important; border-radius: 4px !important; }
+.resultList { scrollbar-width: thin; scrollbar-color: #383b41 transparent; }

@@ -18,6 +18,9 @@ export function ModeSwitch({ mode, onMode }) {
   )
 }
 
+// The page's ONE bar. Left: what you are looking at (the Stocks | Options switch when the member
+// has Options, the screen, its filters). Right: the data's age, how you look at it (the view),
+// then Save, More and Help.
 export default function FocusTopBar({ screenMenu, filterCount, onOpenFilters, dataReceipt, mode, onMode, saveMenu, moreMenu, helpMenu, optionsTab }) {
   return (
     <header className={styles.topBar}>

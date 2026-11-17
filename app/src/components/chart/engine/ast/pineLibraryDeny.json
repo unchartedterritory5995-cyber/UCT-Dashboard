@@ -1,0 +1,36 @@
+{
+  "_": [
+    "U15 LIBRARY DENY LIST (coordinator ruling 2026-11-15). A library version named here is NEVER served, whatever a library store holds: the store's read door answers 409 `library:denied`, a server run is refused, and both chart lanes refuse the import line as `pine:library-denied` with the sentence below.",
+    "ONE file, read by every door: the browser and server bundles (app/src/components/chart/engine/ast/pineLibraryStore.js) and the Python store (api/services/pine_library_store.py).",
+    "A version is listed when a TradingView capture of a script that imports it grades DIVERGE with it linked, and the divergence is not already an engine bug fixed elsewhere (TradingView/ta/11 is NOT here: three scripts MATCH on it, and Aroon oscillator's DIVERGE is the highestbars tie, engine values-v2). INCONCLUSIVE is not wrong and is not a reason to list a version.",
+    "⛔ AN ENTRY IS REMOVED ONLY BY A RE-GRADE TO MATCH: the capture(s) named in its `evidence`, graded again with the library linked on the engine of the day, every one MATCH. Name the re-grade in the commit that removes it."
+  ],
+  "memberSentence": "this library version is withheld until its drawing is verified against TradingView",
+  "deny": [
+    {
+      "path": "Fontiramisu/fontilab/11",
+      "reason": "ATR Trend Bands [Misu] imports it and DIVERGEs with it linked: the Upper Band's colour on bar 0",
+      "evidence": [
+        "atr-trend-bands-misu-rddt-1d-2026-11-15"
+      ]
+    },
+    {
+      "path": "loxx/loxxexpandedsourcetypes/4",
+      "reason": "Black-Scholes Option Pricing Model w/ Greeks [Loxx] imports it and DIVERGEs with it linked, on all four captures",
+      "evidence": [
+        "black-scholes-option-pricing-model-w-greeks-loxx-rddt-1d-2026-11-15",
+        "black-scholes-option-pricing-model-w-greeks-loxx-aapl-1d-2026-11-15",
+        "black-scholes-option-pricing-model-w-greeks-loxx-jpm-1d-2026-11-15",
+        "black-scholes-option-pricing-model-w-greeks-loxx-spy-1d-2026-10-03"
+      ]
+    },
+    {
+      "path": "TradingView/ValueAtTime/2",
+      "reason": "Performance (TradingView built-in) imports it and DIVERGEs with it linked, on RDDT and SPY",
+      "evidence": [
+        "performance-rddt-1d-2026-11-15",
+        "performance-spy-1d-2026-11-15"
+      ]
+    }
+  ]
+}

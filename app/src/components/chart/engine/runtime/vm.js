@@ -22,7 +22,7 @@
 // forever, and the budget lives on the call rather than the module so that a
 // screener pass over 5,000 symbols cannot let symbol 4,000 inherit 3,999's spend.
 
-import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, CARRIED2 } from '../ast/interpret.js'
+import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, CARRIED2, requestAlignment } from '../ast/interpret.js'
 import { OP, OP_NAME, IMPLEMENTED, SERIES_NAMES, CLOCK_FIELDS } from './program.js'
 import { TEXT_IMPL as TEXT_FNS } from './text.js'
 import { COLOUR_FNS, colourArgKind } from './colours.js'
@@ -118,46 +118,51 @@ export function makeContext({ bars, series, columns, confirmed = true }) {
  * Execute `program` over `ctx`, one bar at a time.
  * @returns {{outputs: Float64Array[], budget: Budget}}
  */
-/** Run one request's expression over ANOTHER symbol's bars, then line the result
- *  up with the chart's.
+/** Run one request's expression over ANOTHER series' bars, then line the result up with
+ *  the chart's.
  *
- *  ⛔⛔ THE ALIGNMENT IS A MEASURED VENDOR FACT. Taken on a real TradingView
- *  chart, 2026-09-19 (vendor packet M1): on a HISTORICAL bar a `"D"` request
- *  returns the PREVIOUS COMPLETED daily bar — a 5-minute bar at 09-18 12:35 ET
- *  saw 09-17's close, not the forming day's. So a chart bar sees the last
- *  requested bar that had already CLOSED when it opened, and a requested bar
- *  stamped at or after the chart bar's time is still forming.
- *
- *  ⭐ STRICTLY BEFORE, which is what makes this free of lookahead: no chart bar
- *  can ever read a value that did not exist while it was open. A `<=` here would
- *  hand a backtest a number nobody could have traded on — the most
- *  valuable-looking wrong answer this engine could produce.
- */
+ *  ⭐⭐ RS RATING L5 — THE ALIGNMENT IS THE HOST LANE'S, NOT THIS FILE'S. The supply
+ *  (`requestSupply.js::runtimeRequestSupply`, `ctx.requestSupply[site]`) hands the bars to
+ *  run over AND, per chart bar, the index of the requested bar it reads (`index`, -1 for
+ *  none), both decided by `interpret.js::requestAlignment`: Pine's look-ahead-off merge for
+ *  a weekly / monthly read (`tf_merge`: the bar that closes its period reads that period,
+ *  every other bar the last closed one), and the same session date for another symbol at
+ *  the chart's own timeframe. A plain array (the discovery path, `ctx.requestBars`, no
+ *  supplier) is aligned by the same function as a same-timeframe series, exact `t`.
+ *  ⚰️ This used to align STRICTLY BEFORE (`otherTimes[j+1] < tNow`) on every request, from
+ *  vendor packet M1 (a `"D"` read on a 5-minute bar sees the previous day, which IS the
+ *  merge's answer mid-session): on a same-timeframe other symbol it handed each daily bar
+ *  YESTERDAY's value, where Pine's look-ahead-off answers the same day's bar, and on a
+ *  weekly read it lagged the bar that closes the week.
+ *  ⛔ A nested request is handed no supply: it is recorded in `requested` and answers `na`,
+ *  and the caller refuses a run that recorded one (`runtimeColumns.js`). */
 function runRequest(program, site, otherBars, ctx, budget, requested, requestCache, results, requestDepth = 1, now) {
-  const n = otherBars.length
-  const pick = (k) => Float64Array.from(otherBars.map((b) => b[k]))
+  const plain = Array.isArray(otherBars)
+  const supply = plain
+    ? (() => {
+      const a = requestAlignment({ chartBars: (ctx.barTimes || []).map((t) => ({ t })), srcBars: otherBars, other: '?' })
+      return { runBars: otherBars, index: a.index.map((j, i) => (a.withheld[i] ? -1 : j)) }
+    })()
+    : otherBars
+  const bars = supply.runBars
+  const n = bars.length
+  const pick = (k) => Float64Array.from(bars.map((b) => b[k]))
   const sub = execute(program, {
     bars: n,
     series: [pick('o'), pick('h'), pick('l'), pick('c'), pick('v')],
     columns: ctx.columns,
     confirmed: true,
-    barTimes: otherBars.map((b) => b.t),
-    requestBars: ctx.requestBars,
+    barTimes: bars.map((b) => b.t),
+    requestBars: plain ? ctx.requestBars : undefined,
   }, undefined, {
     entry: site.entry, budget, requested, requestCache, requestDepth, now,
   })
 
-  const chartTimes = ctx.barTimes || []
-  const otherTimes = otherBars.map((b) => b.t)
   const aligned = []
   for (let k = 0; k < results; k += 1) aligned.push(new Float64Array(ctx.bars).fill(NaN))
-  let j = -1
   for (let i = 0; i < ctx.bars; i += 1) {
-    const tNow = chartTimes[i]
-    // ⭐ ONE FORWARD WALK, not a search per bar: both series are in time order,
-    // so the pointer only ever moves forward across the whole alignment.
-    while (j + 1 < n && otherTimes[j + 1] < tNow) j += 1
-    if (j >= 0) for (let k = 0; k < results; k += 1) aligned[k][i] = sub.outputs[k][j]
+    const j = supply.index[i]
+    if (j >= 0 && j < n) for (let k = 0; k < results; k += 1) aligned[k][i] = sub.outputs[k][j]
   }
   return aligned
 }
@@ -467,13 +472,21 @@ export function execute(program, ctx, limits, opts) {
   // (each bar's own value, or the last finite one before it), right-aligned; its
   // newest cell IS the carry, so no state beyond the ring (resume / rollback copy it
   // already). `winObsN` counts its FINITE observations (capped at `w.span`): the warm-up.
+  // ⭐⭐ ENGINE HL — `finite` (`highest` / `lowest` / `highestbars` / `lowestbars`) keeps the same
+  // right-aligned ring of the last `w.span` finite values as a dynamic `skip`; `winObsN` counts them
+  // (capped at `w.span`). An `arg` member (`highestbars` / `lowestbars`, S17) counts its offset in
+  // BARS, so its ring is twice as long: cells `[w.span, 2 * w.span)` hold each kept value's bar,
+  // right-aligned beside it. One array, so resume / rollback / the state encoder carry both halves.
   const winObs = winPlan.map((w) => (FINITE_WINDOW[w.fn].na === 'skip' ? new Float64Array(w.span)
-    : FINITE_WINDOW[w.fn].na === 'ffill' ? new Float64Array(w.span).fill(NaN) : null))
+    : FINITE_WINDOW[w.fn].na === 'finite' ? new Float64Array(FINITE_WINDOW[w.fn].arg === true ? 2 * w.span : w.span)
+      : FINITE_WINDOW[w.fn].na === 'ffill' ? new Float64Array(w.span).fill(NaN) : null))
+  const winArg = winPlan.map((w) => FINITE_WINDOW[w.fn].arg === true)
   const winObsN = new Int32Array(winPlan.length)
   const winReduce = winPlan.map((w) => {
     const spec = FINITE_WINDOW[w.fn]
     if (!spec) throw new VmError(`no finite-window reducer for \`${w.fn}\``)
-    return spec.reduce
+    // ⭐ ENGINE 56 (S4-2) — over a bar price the newest tied bar wins (`interpret.js`)
+    return w.newest === true && spec.reduceNewest ? spec.reduceNewest : spec.reduce
   })
   // ⚰️⚰️ THERE WAS A `histPresent` FLAG ARRAY HERE, AND MEASURING IT KILLED IT.
   //
@@ -1226,6 +1239,28 @@ export function execute(program, ctx, limits, opts) {
             break
           }
 
+          if (policy === 'finite') {
+            // ⭐⭐ ENGINE HL — `interpret.js::rollingFinite`, a bar at a time: the last `span` FINITE
+            // values (fewer while fewer exist), `na` before bar `span - 1` and before the first finite
+            // value, an answer on the `na` bar itself. WITNESSED by S10 (`vw-cs2-holed-highest-*`).
+            const obs = winObs[wi]
+            const arg = winArg[wi]
+            if (Number.isFinite(live)) {
+              obs.copyWithin(0, 1, w.span)
+              obs[w.span - 1] = live
+              if (arg) { obs.copyWithin(w.span, w.span + 1); obs[2 * w.span - 1] = committed }
+              if (winObsN[wi] < w.span) winObsN[wi] += 1
+            }
+            if ((cWin += span) > capWin) { bc.WINDOW_CELLS = cWin - span; budget.charge('WINDOW_CELLS', span) }
+            const have = Math.min(winObsN[wi], span)
+            if (committed < span - 1 || have === 0) { stack[sp++] = NaN; break }
+            const r = winReduce[wi](obs, w.span - have, w.span - 1)
+            // ⭐⭐ S17 — an `arg` member's answer is a distance back in the DENSE ring (`hi - j`);
+            // TradingView counts it in BARS: this bar minus the bar the named value arrived on.
+            stack[sp++] = !arg ? r : Number.isFinite(r) ? committed - obs[2 * w.span - 1 - r] : NaN
+            break
+          }
+
           if (policy === 'ffill') {
             // ⭐⭐ LANE B0 (2026-11-09) — `ta.wma`, THE COLUMNAR LANE'S RULE
             // (`interpret.js::rolling`): an `na` in the lookback is the last finite
@@ -1246,9 +1281,9 @@ export function execute(program, ctx, limits, opts) {
             break
           }
 
-          // ⛔ `propagate` AND `restart` BOTH READ THE COMMITTED RING, so they
-          // keep 2F-2B's warm-up rule: `rolling` starts at bar n-1 and so does
-          // this. What differs is only WHERE the window begins.
+          // ⛔ `propagate` READS THE COMMITTED RING, so it keeps 2F-2B's warm-up
+          // rule: `rolling` starts at bar n-1 and so does this. ⚰️ `restart` read it
+          // too until S17 (no member keeps that policy now).
           if (committed < span - 1) { stack[sp++] = NaN; break }
           const buf = winBuf[wi]
           buf[span - 1] = live
@@ -1262,16 +1297,6 @@ export function execute(program, ctx, limits, opts) {
             }
           }
           if ((cWin += span) > capWin) { bc.WINDOW_CELLS = cWin - span; budget.charge('WINDOW_CELLS', span) }
-          if (policy === 'restart') {
-            // ⭐ THE WINDOW BEGINS AGAIN AFTER A HOLE. The current bar must be
-            // finite (the vendor blanks ON the hole); the run then reaches back
-            // only as far as the last non-finite value.
-            if (!Number.isFinite(live)) { stack[sp++] = NaN; break }
-            let lo = span - 1
-            while (lo > 0 && Number.isFinite(buf[lo - 1])) lo -= 1
-            stack[sp++] = winReduce[wi](buf, lo, span - 1)
-            break
-          }
           stack[sp++] = winReduce[wi](buf, 0, span - 1)
           break
         }
@@ -1449,8 +1474,11 @@ export function execute(program, ctx, limits, opts) {
           const key = `${symbol}|${site.timeframe}`
           let series2 = requestCache.get(`${a}::${key}`)
           if (series2 === undefined) {
-            const other = ctx.requestBars && ctx.requestBars[key]
-            if (!other || !other.length) {
+            // ⭐ RS RATING L5 — a prepared supply for THIS site (`requestSupply.js`) wins; the
+            // keyed `requestBars` is the discovery path a supplier-less caller uses
+            const prepared = ctx.requestSupply ? ctx.requestSupply[a] : undefined
+            const other = prepared || (ctx.requestBars && ctx.requestBars[key])
+            if (!other || !(prepared ? prepared.runBars.length : other.length)) {
               // ⛔ NOT AN ERROR AND NOT A GUESS — a symbol this run has no bars
               // for is RECORDED and answers `na`. The script's symbols come out
               // of a pasted watchlist, so the only way to know what to fetch is

@@ -456,7 +456,11 @@ _ALPHA = r"(?:,\s*(?:0|1|0?\.\d+|1\.0+)\s*)?"
 #: ⛔ THE COLOUR GRAMMAR OF A DEFINITION'S PRESENTATION (plots, paints, colour settings) --
 #: byte-equal to ``objectColour.js::PRESENTATION_COLOUR`` (a test compares the sources).
 #: Everything UCT writes and every format measured in the repo: hex 3/4/6/8, numeric
-#: rgb/rgba/hsl/hsla, a plain colour word, ``token:<role>[@step]``. Nothing admits ``(``
+#: rgb/rgba/hsl/hsla, a plain colour word, ``token:<role>[@step]``, and (engine 58) the
+#: chart-theme reference ``chart.fg_color`` / ``chart.bg_color`` with an optional
+#: ``@<transparency>`` -- a Pine plot coloured by the chart's own colours, resolved where it
+#: is drawn (``objectTheme.js``); a document carrying one was refused at save before (422).
+#: Nothing admits ``(``
 #: except the numeric functions, ``:`` except ``token:``, or ``;`` -- so ``url()``,
 #: ``var()`` and declaration smuggling cannot be stored. The 2026-10-08 inventory found
 #: these fields reaching inline CSS (legend chips/rows, settings swatches) unvalidated,
@@ -464,7 +468,8 @@ _ALPHA = r"(?:,\s*(?:0|1|0?\.\d+|1\.0+)\s*)?"
 PRESENTATION_COLOUR = re.compile(
     r"^(?:#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})"
     + rf"|rgba?\({_NUM_CHANNELS}{_ALPHA}\)|hsla?\({_HSL_CHANNELS}{_ALPHA}\)"
-    + r"|[a-z]{3,20}|token:[a-z][a-z0-9_.-]{0,40}(?:@[a-z0-9_.-]{1,20})?)$", re.IGNORECASE)
+    + r"|[a-z]{3,20}|token:[a-z][a-z0-9_.-]{0,40}(?:@[a-z0-9_.-]{1,20})?|chart\.(?:fg|bg)_color(?:@\d{1,3})?)$",
+    re.IGNORECASE)
 
 
 def is_presentation_colour(value: Any) -> bool:

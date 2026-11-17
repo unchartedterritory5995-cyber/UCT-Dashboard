@@ -124,8 +124,28 @@ MUTATION_NOISY = 1200      # above this it is REPORTED, and it is not a failure
 # nav-freeze signature, for a click that had nowhere to go. An instrument that
 # cannot tell "did not move" from "was already there" invents the defect it was
 # built to find.
-NAV_START = "/dashboard"
-NAV_START_ALT = "/breadth"
+#
+# ⚰️ 2026-11-16, THE SAME DEFECT BY ANOTHER DOOR. `/dashboard` became a redirect to
+# `/charts` (App.jsx), so the "known start" silently BECAME the first nav entry and
+# `/charts` reported "URL never changed within 6000ms" + "H4: roll back first" on a
+# healthy production build. Comparing the entry with the NAME of the start cannot see
+# that: the start has to be judged by where the browser actually LANDED
+# (`landed_on_target`), and the starts are now two real pages that redirect nowhere.
+NAV_START = "/breadth"
+NAV_START_ALT = "/screener"
+
+
+def landed_on_target(current_url: str, target: str) -> bool:
+    """Is the browser ALREADY on the page this click is meant to reach?
+
+    Judged from the address the browser reports, never from the address it was sent to:
+    a start page that redirects lands somewhere else. Query and trailing slash ignored."""
+    try:
+        path = "/" + (current_url or "").split("://", 1)[-1].split("/", 1)[1]
+    except IndexError:
+        path = "/"
+    path = path.split("?", 1)[0].split("#", 1)[0].rstrip("/") or "/"
+    return path == ((target or "").rstrip("/") or "/")
 
 # ⛔ Routes R-27 names that are NOT nav entries, so `nav_items()` cannot find
 # them. Stated explicitly rather than silently skipped. "Scanner" has no route of
@@ -276,6 +296,20 @@ def spawn_rig_or_reason(spawn=None):
         return None, (str(e) or "the rig refused to start").strip()
 
 
+def _app_source() -> str:
+    """app/src/App.jsx, where a route that only redirects is declared."""
+    try:
+        return (pathlib.Path(__file__).resolve().parent.parent / "app" / "src" / "App.jsx").read_text(encoding="utf-8")
+    except OSError:
+        return ""
+
+
+def redirects_elsewhere(route: str, app_source: str) -> bool:
+    """Does App.jsx declare `route` as nothing but a `<Navigate>` to another page?"""
+    import re
+    return bool(re.search(r'path="%s"\s+element=\{<Navigate\b' % re.escape(route), app_source or ""))
+
+
 def self_check() -> int:
     """Rule 14: prove the verdicts can FAIL, without a browser."""
     bad = 0
@@ -312,6 +346,21 @@ def self_check() -> int:
          len(hns.nav_items()) > 5)
     case("⛔ the extra routes name only what the nav cannot supply",
          all(r not in [e["to"] for e in hns.nav_items()] for r, _ in EXTRA_ROUTES))
+    case("⛔ a start page that REDIRECTED onto the entry is seen by where the browser landed",
+         landed_on_target("https://uctintelligence.com/charts", "/charts")
+         and landed_on_target("https://uctintelligence.com/charts/?x=1#top", "/charts")
+         and landed_on_target("https://uctintelligence.com/desk?section=posts", "/desk"))
+    case("⭐ CONTROL — a different page, a deeper page and a look-alike are NOT the entry",
+         not landed_on_target("https://uctintelligence.com/breadth", "/charts")
+         and not landed_on_target("https://uctintelligence.com/charts/popout", "/charts")
+         and not landed_on_target("https://uctintelligence.com/chartsx", "/charts")
+         and not landed_on_target("", "/charts"))
+    case("⛔ neither start is a route that App.jsx redirects elsewhere",
+         _app_source() != "" and not any(redirects_elsewhere(s, _app_source()) for s in (NAV_START, NAV_START_ALT)))
+    case("⭐ CONTROL — that check CAN see a redirect, and does not see one in an ordinary route",
+         redirects_elsewhere("/old", '<Route path="/old" element={<Navigate to="/new" replace />} />')
+         and not redirects_elsewhere("/new", '<Route path="/new" element={<Page />} />')
+         and not redirects_elsewhere("/old", '<Route path="/older" element={<Navigate to="/new" replace />} />'))
     refused = spawn_rig_or_reason(spawn=lambda: (_ for _ in ()).throw(SystemExit("STOP: no rig profile at X")))
     case("⛔ a rig that REFUSES to start is a reason, not a measurement (→ exit 2, never 1)",
          refused[0] is None and "no rig profile" in refused[1])
@@ -437,6 +486,12 @@ def main(argv=None) -> int:
                 # so ABSENT means absent FOR THIS ACCOUNT and nothing else.
                 start = NAV_START if e["to"] != NAV_START else NAV_START_ALT
                 if page.url.rstrip("/") != wc.PROD + start:
+                    page.goto(wc.PROD + start, wait_until="domcontentloaded")
+                    page.wait_for_timeout(2500)
+                # ⛔ Where it LANDED, not where it was sent: a start that redirects onto the
+                # entry leaves the click with nowhere to go (see NAV_START).
+                if landed_on_target(page.url, e["to"]):
+                    start = NAV_START_ALT if start != NAV_START_ALT else NAV_START
                     page.goto(wc.PROD + start, wait_until="domcontentloaded")
                     page.wait_for_timeout(2500)
                 status, detail = click_nav(page, e)

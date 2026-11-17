@@ -22,7 +22,7 @@ import pytest
 from api.services.screener import technicals
 
 KEYS = ("ema8", "ema21", "ema8_rising", "ema21_rising", "atr14", "atr_ext_ema21",
-        "atr_ext_sma50", "high20_age", "sma50", "low", "close", "bars")
+        "atr_ext_sma50", "high20_age", "high20", "sma50", "low", "close", "bars")
 
 
 def _bars(closes, spread=1.0):
@@ -58,6 +58,7 @@ def test_a_steady_riser_hand_derived():
     assert got["ema8_rising"] is True
     assert got["ema21_rising"] is True
     assert got["high20_age"] == 0                               # today is the highest close
+    assert got["high20"] == 159.0                               # ... and it is that close
 
 
 def test_a_steady_faller_hand_derived():
@@ -70,6 +71,7 @@ def test_a_steady_faller_hand_derived():
     assert got["ema8_rising"] is False
     assert got["ema21_rising"] is False
     assert got["high20_age"] == 19          # the oldest of the last 20 closes is the highest
+    assert got["high20"] == 160.0           # closes 160 .. 141: the oldest of the 20
 
 
 def test_rising_compares_with_five_sessions_ago_not_yesterday():
@@ -99,6 +101,7 @@ def test_high20_age_counts_sessions_since_the_highest_close_of_the_last_20():
     # 150, 150, 150. The highest (156) is three sessions back.
     closes = _rise(57) + [150.0] * 3
     assert technicals.setup_inputs(_bars(closes))["high20_age"] == 3
+    assert technicals.setup_inputs(_bars(closes))["high20"] == 156.0
     # Riser to index 44 (close 144), then fifteen closes of 140: the last 20 are
     # 140..144 then 140 x 15. The highest is 15 sessions back.
     closes = _rise(45) + [140.0] * 15
@@ -107,6 +110,7 @@ def test_high20_age_counts_sessions_since_the_highest_close_of_the_last_20():
     # the last 20 closes are all 140, and a tie reads as the newest session.
     closes = [100.0] * 39 + [500.0] + [140.0] * 20
     assert technicals.setup_inputs(_bars(closes))["high20_age"] == 0
+    assert technicals.setup_inputs(_bars(closes))["high20"] == 140.0     # never the 500
     closes = [100.0] * 40 + [500.0] + [140.0] * 19
     assert technicals.setup_inputs(_bars(closes))["high20_age"] == 19
 
@@ -137,6 +141,7 @@ def test_empty_and_unusable_bars():
     ("ema8_rising", 13),      # 8, and a value five sessions earlier
     ("atr14", 15),            # 14 true ranges, each needing a prior close
     ("high20_age", 20),
+    ("high20", 20),
     ("ema21", 21),
     ("atr_ext_ema21", 21),
     ("ema21_rising", 26),
@@ -171,7 +176,7 @@ def test_compute_technicals_output_is_untouched_and_the_shared_value_agrees():
         assert got["atr_ext_sma50"] == tech["atr_ext_sma50"]
         assert got["close"] == tech["price"]
         for k in ("ema8", "ema21", "ema8_rising", "ema21_rising", "atr14",
-                  "atr_ext_ema21", "high20_age", "sma50", "low", "close", "bars"):
+                  "atr_ext_ema21", "high20_age", "high20", "sma50", "low", "close", "bars"):
             assert k not in tech, k
 
 

@@ -38,6 +38,7 @@ import { instancesOf } from '../components/chart/builder/agentSeams'
 import * as nativeRegistry from '../components/chart/engine/nativeRegistry'
 import { tickersIn } from './multiChart'
 import { matchPosition } from './fastPath'
+import { pronounReferent } from './chartRail'
 
 export const STATE_RAIL_MARK = 'state-rail'
 
@@ -61,8 +62,10 @@ function indicatorOfRequest(req, rows, chartRef = null) {
   const what = row ? { defId: row.defId, inputs: row.inputs } : {}
   // id: the exact instance (a pointer at the conversation's subject may restyle only that one)
   const oid = chartRef && id ? `ind:${chartRef}:${id}` : null
-  if (op === 'remove') return [{ state: 'indicator', type: 'remove', name, label: name, id: oid, ...what }]
-  if (OVERWRITE_OPS.has(op)) return [{ state: 'indicator', type: 'overwrite', name, label: name, id: oid, ...what }]
+  // (H14) the chart's instances before the change: the scope a class noun ("the moving average") is counted in
+  const peers = (rows || []).map(r => ({ id: r.instanceId, defId: r.defId, inputs: r.inputs, name: r.name }))
+  if (op === 'remove') return [{ state: 'indicator', type: 'remove', name, label: name, id: oid, instanceId: id, peers, ...what }]
+  if (OVERWRITE_OPS.has(op)) return [{ state: 'indicator', type: 'overwrite', name, label: name, id: oid, instanceId: id, peers, ...what }]
   // add / duplicate / copyFrom (a template's indicators) add; setVisible / movePane / setPaneSize / setDisplayTarget /
   // setVisibility / setCalculationTimeframe arrange, show, or pick the bars it computes on — its settings are kept
   if (['add', 'duplicate', 'copyFrom', 'setVisible', 'movePane', 'setPaneSize', 'setDisplayTarget', 'setVisibility', 'setCalculationTimeframe'].includes(op)) return []
@@ -118,12 +121,12 @@ const READERS = {
     const removed = pt.remove || []
     const out = []
     if (removed.length && removed.length >= all.length && all.length > 1) out.push({ state: 'drawing', type: 'clear', name: `all ${all.length} drawings on ${nm(p.before?.symbol || p.ref)}` })
-    else for (const x of removed) out.push({ state: 'drawing', type: 'remove', name: dname(all.find(d => d.id === x.id) || x), id: `draw:${p.ref}:${x.id}`, dtype: (all.find(d => d.id === x.id) || x).type })
+    else for (const x of removed) out.push({ state: 'drawing', type: 'remove', name: dname(all.find(d => d.id === x.id) || x), id: `draw:${p.ref}:${x.id}`, dtype: (all.find(d => d.id === x.id) || x).type, sameType: all.filter(d => d.type === (all.find(y => y.id === x.id) || x).type).length, inScope: all.length, hidden: !!(all.find(d => d.id === x.id) || x).hidden, hiddenInScope: all.filter(d => d.hidden).length })
     for (const u of pt.update || []) {
       const keys = Object.keys(u.set || {}).filter(k => !HARMLESS_DRAWING_KEYS.has(k))
       const d = all.find(x => x.id === u.id) || {}
       // its own target: which settings / levels of WHICH drawing (a fib level value binds only to that fib)
-      if (keys.length) out.push({ state: 'drawing', type: 'overwrite', name: dname(d), id: `draw:${p.ref}:${u.id}`, dtype: d.type, sameType: all.filter(x => x.type === d.type).length, keys, levels: [...Object.keys(u.set.levels || {}), ...Object.keys(u.set.fills || {}).flatMap(f => f.split('>'))] })
+      if (keys.length) out.push({ state: 'drawing', type: 'overwrite', name: dname(d), id: `draw:${p.ref}:${u.id}`, dtype: d.type, sameType: all.filter(x => x.type === d.type).length, inScope: all.length, hidden: !!d.hidden, hiddenInScope: all.filter(x => x.hidden).length, keys, levels: [...Object.keys(u.set.levels || {}), ...Object.keys(u.set.fills || {}).flatMap(f => f.split('>'))] })
     }
     return out
   },
@@ -145,8 +148,8 @@ const READERS = {
     const had = (p.before?.items || pt.beforeItems || []).length
     // its own target: the symbols it removes, and the symbols the list holds (a ticker said counts only if it is IN the list)
     const own = { syms: rm.map(x => String(x.sym).toUpperCase()), listSyms: (p.before?.items || pt.beforeItems || []).map(x => String(x.sym).toUpperCase()) }
-    if (rm.length && had && rm.length >= had) out.push({ state: 'watchlist', type: 'clear', name: `every symbol in ${list}`, ...own })
-    else if (rm.length) out.push({ state: 'watchlist', type: 'remove', name: `${rm.map(x => x.sym).join(', ')} from ${list}`, ...own })
+    if (rm.length && had && rm.length >= had) out.push({ state: 'watchlist', type: 'clear', name: `every symbol in ${list}`, id: lid, listName: nm(p.before?.name || pt.name), ...own })
+    else if (rm.length) out.push({ state: 'watchlist', type: 'remove', name: `${rm.map(x => x.sym).join(', ')} from ${list}`, id: lid, listName: nm(p.before?.name || pt.name), ...own })
     if (pt.rename) out.push({ state: 'watchlist', type: 'overwrite', name: `the name of ${list}` })
     for (const n of pt.notes || []) if (nm(n.from).trim()) out.push({ state: 'watchlist', type: 'overwrite', name: `your note on ${n.sym}` })
     return out.map(e => ({ ...e, id: lid }))
@@ -232,6 +235,22 @@ const READERS = {
     if (ch.drop && ch.put) return [{ state: 'template', type: 'overwrite', via: 'save', name: `your indicator template “${nm(ch.drop.name)}”` }]
     return []
   },
+  // newsLibrary.* (2026-11-15): the member's UCT News library — a headline taken out (its note and collection places go
+  // with it), a NON-EMPTY note replaced, a collection renamed or deleted, a headline taken out of a collection. A save, a
+  // first note, an appended note, a new collection and putting a headline in one only add.
+  newsLibrary(p) {
+    const out = []
+    for (const o of p.patch?.ops || []) {
+      const hl = o.text ? `the saved headline “${nm(o.text).slice(0, 80)}”` : 'a saved headline'
+      const pointed = o.pointed === true
+      if (o.op === 'unsave') out.push({ state: 'newsLibrary', type: 'remove', name: `${hl} from your library`, id: o.id ? `news:${o.id}` : null, pointed })
+      else if (o.op === 'note' && nm(o.prev).trim() && !(o.mode === 'append' && nm(o.note).startsWith(nm(o.prev)))) out.push({ state: 'newsLibrary', type: 'overwrite', name: `your note on ${hl}`, pointed })
+      else if (o.op === 'rename') out.push({ state: 'newsLibrary', type: 'overwrite', name: `the name of your collection “${nm(o.prev)}”`, label: nm(o.prev) })
+      else if (o.op === 'delete') out.push({ state: 'newsLibrary', type: 'delete', name: `your collection “${nm(o.name)}”`, label: nm(o.name) })
+      else if (o.op === 'place' && o.member === false) out.push({ state: 'newsLibrary', type: 'remove', name: `${hl} from your collection “${nm(o.cname)}”`, label: nm(o.cname), pointed })
+    }
+    return out
+  },
 }
 function templateDiff(prev, write, what) {
   const now = new Map((write || []).map(t => [nm(t.name).toLowerCase(), t]))
@@ -247,12 +266,12 @@ export const STATE_KINDS = Object.keys(READERS)
 
 /** Every destroying effect a planned change has on existing state: [{ state, type, name, kind, via? }]. A reader that
  *  throws yields an 'unreadable' effect (refused when the words are additive). */
-export function stateEffects(plan) {
+export function stateEffects(plan, scope = null) {
   const out = []
   for (const p of plan?.plans || []) {
     const f = READERS[p.kind]
     if (!f) continue
-    try { for (const e of f(p)) out.push({ ...e, kind: p.kind }) } catch { out.push({ state: p.kind, type: 'unreadable', name: 'a change I could not read', kind: p.kind }) }
+    try { for (const e of f(p)) out.push({ ...e, kind: p.kind, ...(e.state === 'watchlist' && scope?.watchlists != null ? { inScope: scope.watchlists } : {}), ...(e.state === 'watchlist' && e.syms && Array.isArray(scope?.lists) ? { holders: scope.lists.filter(l => (l.symbols || []).some(x => e.syms.includes(String(x).toUpperCase()))).map(l => ({ ref: l.ref, name: l.name })) } : {}) }) } catch { out.push({ state: p.kind, type: 'unreadable', name: 'a change I could not read', kind: p.kind }) }
   }
   return out
 }
@@ -264,7 +283,7 @@ export const STATE_ADDITIVE = /\b(?:add|adds|added|adding|include|includes|inclu
 // anything", "without deleting", "never replace") — a permission said later in that clause is lost too (fail closed)
 const NEGATED = /\b(?:do not|don['’]?t|dont|never|without|no need to|not)\b[^.;,!?]*/gi
 const strip = (w) => String(w || '').replace(NEGATED, ' ')
-function DESTROY_SRC() { return '(?:replac\\w*|instead|swap\\w*|remov\\w*|delet\\w*|clear\\w*|eras\\w*|wip(?:e|es|ed|ing)\\b|get rid|gets rid|getting rid|overwrit\\w*|keep only|only keep|keep just|just keep|reset\\w*|trash\\w*|discard\\w*|unpin\\w*|take (?:off|out|away))' }
+function DESTROY_SRC() { return '(?:replac\\w*|instead|swap\\w*|remov\\w*|delet\\w*|clear\\w*|eras\\w*|wip(?:e|es|ed|ing)\\b|get rid|gets rid|getting rid|overwrit\\w*|keep only|only keep|keep just|just keep|reset\\w*|trash\\w*|discard\\w*|unpin\\w*|unsav\\w*|unbookmark\\w*|take (?:off|out|away))' }
 function MODIFY_SRC() { return '(?:chang\\w*|set|sets|setting|make|makes|making|made|turn\\w*|switch\\w*|updat\\w*|edit\\w*|modif\\w*|renam\\w*|adjust\\w*|bump\\w*|increas\\w*|decreas\\w*|tweak\\w*|recolou?r\\w*|colou?r(?:s|ed|ing)?|paint\\w*|restyl\\w*|move|moves|moved|moving|shift\\w*)' }
 const DESTROY = new RegExp(`\\b${DESTROY_SRC()}`, 'i')
 const MODIFY = new RegExp(`\\b${MODIFY_SRC()}\\b`, 'i')
@@ -286,15 +305,75 @@ export const CLASS = {
   layout: /\b(?:layouts?(?! bar)|arrangements?|workspaces?)\b/i,
   layoutBar: /\b(?:layout bar|the bar|bar)\b/i,
   template: /\btemplates?\b/i,
+  // newsLibrary.* (2026-11-15): the member's saved UCT News headlines and their collections. A bare "collection" is NOT
+  // this class (a watchlist is a collection too: "retire the Momentum collection") — a collection is named by its own name
+  newsLibrary: /\b(?:headlines?|stor(?:y|ies)|articles?|bookmarks?|(?:news|headline) collections?|(?:news )?library)\b/i,
 }
 const classesOf = (e) => e.classes || [e.state]
 const phrase = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
 const has = (clause, label) => { const p = phrase(label); return !!p && ` ${phrase(clause)} `.includes(` ${p} `) }
 // the member's own name for the thing (a list "Tech", a layout "Swing", "RSI (14)") — quoted in the effect, or its label
 const labelOf = (e) => e.label || (/“([^”]+)”/.exec(e.name || '') || [])[1] || null
+// ⛔ UNIQUE IDENTIFICATION (H14 hotfix 2026-11-14, AUDIT probe 48): an indicator CLASS noun ("the moving average", "the ema",
+// "the 50", "the line") licenses a change to an existing indicator ONLY when it describes exactly ONE instance on that chart
+// (or the words make it plural: "the moving averages", "all the emas" — every instance it describes). Several → asked, with
+// the chart's instances as the choices (kind 'demo'); never a guess. Read from the chart's own rows before the change.
+const IND_TYPE = [
+  [/\bemas?\b|\bexponential\b/i, (r) => r.defId === 'movingAverage' && String(r.inputs?.maType || '').toLowerCase() === 'ema'],
+  [/\bsmas?\b|\bsimple\b/i, (r) => r.defId === 'movingAverage' && String(r.inputs?.maType || '').toLowerCase() === 'sma'],
+  [/\bwmas?\b|\bweighted\b/i, (r) => r.defId === 'movingAverage' && String(r.inputs?.maType || '').toLowerCase() === 'wma'],
+  [/\b(?:moving averages?|averages?|mas)\b|\bma\b/i, (r) => r.defId === 'movingAverage'],
+  [/\brsi\b/i, (r) => r.defId === 'rsi'], [/\bmacd\b/i, (r) => r.defId === 'macd'], [/\bvwap\b/i, (r) => /vwap/i.test(r.defId)],
+  [/\batr\b/i, (r) => r.defId === 'atr'], [/\badx\b/i, (r) => r.defId === 'adx'], [/\bbollinger\w*\b|\bbb\b/i, (r) => r.defId === 'bb'],
+  [/\bstoch\w*\b/i, (r) => /^stoch/i.test(r.defId)], [/\bobv\b/i, (r) => r.defId === 'obv'], [/\bcci\b/i, (r) => r.defId === 'cci'],
+]
+const IND_GENERIC = /\b(?:indicators?|lines?|plots?|studies|study)\b/i
+const IND_PLURAL = /\b(?:all|both|every|each)\b|\b(?:moving averages|averages|emas|smas|wmas|mas|indicators|lines|plots|studies)\b/i
+/** The instances a clause's indicator words describe on this chart → { ids, plural } — or null when it names no indicator. */
+export function indicatorsNamed(clause, peers) {
+  const c = String(clause || '')
+  const rows = Array.isArray(peers) ? peers : []
+  const types = IND_TYPE.filter(([re]) => re.test(c))
+  const nums = [...c.matchAll(/(?:^|[^#\w.])(\d{1,3})(?![\w.%])/g)].map(m => Number(m[1]))
+  const generic = IND_GENERIC.test(c)
+  if (!types.length && !generic && !nums.length) return null
+  if (!types.length && !generic && !rows.some(r => nums.includes(Number(r.inputs?.period)))) return null
+  let hit = types.length ? rows.filter(r => types.some(([, ok]) => ok(r))) : rows
+  // each LENGTH said names the instance(s) of that length: "the 9 green and the 20 yellow" names EMA 9 and EMA 20 one by one
+  const unique = new Set()
+  const byNum = hit.filter(r => nums.includes(Number(r.inputs?.period)))
+  if (nums.length && byNum.length) {
+    for (const n of new Set(nums)) { const at = byNum.filter(r => Number(r.inputs?.period) === n); if (at.length === 1) unique.add(at[0].id) }
+    hit = byNum
+  } else if (hit.length === 1) unique.add(hit[0].id)
+  return { ids: hit.map(r => r.id), unique, plural: IND_PLURAL.test(c) }
+}
+// (H14) a drawing's TYPE noun names it when it is the only one of that type in scope ("the trendline" beside a horizontal and a fib)
+const DTYPE_NOUN = { trendline: /\btrend ?lines?\b/i, horizontal: /\bhorizontal(?: lines?)?\b|\bh-?lines?\b/i, vertical: /\bvertical(?: lines?)?\b/i,
+  fib: /\bfib\w*\b/i, ray: /\brays?\b/i, rect: /\b(?:box|boxes|rectangles?|rect)\b/i, circle: /\bcircles?\b/i, channel: /\bchannels?\b/i,
+  arrow: /\barrows?\b/i, text: /\b(?:notes?|texts?|labels?)\b/i, avwap: /\bavwaps?\b/i, pitchfork: /\bpitchforks?\b/i }
 /** Does this clause name the effect's object — its class, or (when it names no OTHER class) its own name? */
 export function namesObject(e, clause, why = null) {
+  // ⛔ H14: an indicator is named only UNIQUELY (its own words, or a class with one instance / said as plural)
+  if (e.state === 'indicator' && e.instanceId && Array.isArray(e.peers)) {
+    const n = indicatorsNamed(clause, e.peers)
+    if (n) {
+      if (n.unique.has(e.instanceId) || (n.plural && n.ids.includes(e.instanceId))) return true
+      if (e.subjectNow && n.ids.includes(e.instanceId)) return true
+      if (n.ids.includes(e.instanceId) && why) why.demo = true
+      if (n.ids.length) return false
+    }
+  }
   const mine = classesOf(e)
+  if ((e.state === 'drawing' || e.state === 'watchlist') && e.inScope > 1 && mine.some(c => CLASS[c]?.test(clause))) {
+    // ⛔ H14: "the line" / "my list" with several in scope names none of them — its own name (below) still does
+    const label = labelOf(e)
+    if (label && has(clause, label)) return true
+    // (a state the words give narrows the class: "the hidden line" is the one hidden drawing)
+    if (e.state === 'drawing' && e.hidden && e.hiddenInScope === 1 && /\bhidden\b/i.test(clause)) return true
+    if (e.state === 'drawing' && e.sameType === 1 && (typeNamed(e, clause) || (DTYPE_NOUN[e.dtype] && DTYPE_NOUN[e.dtype].test(clause)))) return true
+    return /\b(?:all|both|every|each|them|those|these)\b|\b(?:lines|drawings|lists|watchlists|trend ?lines|fibs|rays|levels)\b/i.test(clause)
+  }
   if (mine.some(c => CLASS[c]?.test(clause))) return true
   if (Object.keys(CLASS).some(c => !mine.includes(c) && CLASS[c].test(clause))) {
     // its OWN name beside another class ("delete the Paper watchlist look"): which is meant is asked, with both as choices
@@ -404,8 +483,15 @@ const TYPE_NOUNS = { rect: /\b(?:box|boxes|rectangles?|rect)\b/i, circle: /\bcir
 const typeNamed = (e, obj) => !!(e.dtype && TYPE_NOUNS[e.dtype] && TYPE_NOUNS[e.dtype].test(obj) && e.sameType === 1)
 // a widget's content named by the very list / scan it is to show ("open Software Over $10")
 const toNamed = (e, obj) => !!(e.to && has(obj, e.to))
-const namesOwn = (e, obj) => (e.state === 'widget' && e.type === 'replace' ? displayNamed(e, obj) || toNamed(e, obj)
-  : namesObject(e, obj) || (e.state === 'drawing' && (levelNamed(e, obj) || settingNamed(e, obj) || typeNamed(e, obj))) || symbolsNamed(e, obj))
+// ⛔ H14 (AUDIT condition 4): "remove AAPL" with AAPL on two lists names neither — asked, the lists as the choices
+const listUnclear = (e, obj, why) => {
+  if (e.state !== 'watchlist' || !['remove', 'clear'].includes(e.type) || !Array.isArray(e.holders) || e.holders.length < 2) return false
+  if (e.listName && has(obj, e.listName)) return false
+  if (why) why.listMany = { syms: e.syms, lists: e.holders }
+  return true
+}
+const namesOwn = (e, obj, why = null) => (listUnclear(e, obj, why) ? false : e.state === 'widget' && e.type === 'replace' ? displayNamed(e, obj) || toNamed(e, obj)
+  : namesObject(e, obj, why) || (e.state === 'drawing' && (levelNamed(e, obj) || settingNamed(e, obj) || typeNamed(e, obj))) || symbolsNamed(e, obj))
 
 /** Do this turn's words COMMAND that kind of change on THAT existing object? (per clause, kind-matched, never negated).
  *  `subjects`: the conversation's current subject (exact object ids) — what a pointer at the start of a message means. */
@@ -428,13 +514,19 @@ const viewOfList = (views, listSyms) => (views || []).find(v => Array.isArray(v.
 // "do the same on the other charts": the previous turn's ONE indicator change, repeated on another chart's matching instance
 const SAME_OTHER = /\b(?:do|make|apply)?\s*(?:the\s+)?same(?:\s+thing)?\b[^.;!?]*\b(?:other|rest)\b/i
 const chartOfId = (id) => String(id || '').split(':')[1] || null
-export function permits(e, words, subjects = null, previous = null, previousSet = null, made = null, extra = null) {
+export function permits(e0, words, subjects = null, previous = null, previousSet = null, made = null, extra = null) {
+  // (H14) the conversation's subject — the indicator this conversation just added or changed — is what a class noun said
+  // right after means ("…add the 21 EMA and RSI, and make the EMA orange"): it narrows the class to that one instance
+  const e = e0 && e0.state === 'indicator' && e0.id && subjects?.has?.(e0.id) ? { ...e0, subjectNow: true } : e0
   const why = extra?.why || {}
   // a PICK the member made from the choices this rail asked with: exactly that object
   if (e.id && extra?.picked && extra.picked.has(e.id)) return true
   // before / prev: the classes and the clause the latest earlier clause NAMED; spoke: an earlier clause said anything of
   // substance (named a thing, or asked for something) — then a pointer speaks of THAT, never of the conversation before
   let before = [], prev = '', spoke = false
+  let ref0 = null
+  // (a ticker here is no chart: "add AAPL to Tech, then remove it" is the list row — only a chart WORD types the pronoun a chart)
+  const referent = () => (ref0 ||= (() => { try { return pronounReferent(words) } catch { return { kind: 'none' } } })())
   const isSubject = () => !!e.id && !!subjects && subjects.has(e.id)
   for (const c of clausesOf(words)) {
     const named = Object.keys(CLASS).filter(k => CLASS[k].test(c))
@@ -498,12 +590,24 @@ export function permits(e, words, subjects = null, previous = null, previousSet 
         // (D19) "that indicator" / "this line" / "those emas": a demonstrative + class noun POINTS at the conversation's subject
         const demo = /^(?:that|this|these|those)\s+/i.test(obj) && Object.keys(CLASS).some(k => CLASS[k].test(obj.split(/\s+/).slice(0, 3).join(' ')))
         if (demo || POINTS.test(obj)) {
+          // ⛔ REFERENT TYPE (owner 11-16, AUDIT probe 62 — chartRail pronounReferent, the ONE reader both rails share): a destroying
+          // pronoun the words go on past ("take this down a timeframe", "clear it of drawings") destroys nothing; one whose
+          // antecedent is a CHART ("the SPY chart — close it") or a thing of another class ("draw a trendline and delete it")
+          // never licenses destroying THIS object
+          if (e.type !== 'overwrite' && !saving) {
+            const ref = referent()
+            if (ref.kind === 'cont' || ref.kind === 'chart') continue
+            if (ref.kind === 'thing' && ref.word) { const ks = Object.keys(CLASS).filter(k => CLASS[k].test(ref.word)); if (ks.length && !classesOf(e).some(k => ks.includes(k))) continue }
+          }
           const rest = demo ? obj.replace(/^(?:that|this|these|those)\s+/i, '') : obj.replace(POINTS, '')
           // "make it orange on the QQQ chart": a pointer narrowed by a class named after it must be that class
           if (named.length && !classesOf(e).some(k => named.includes(k)) && Object.keys(CLASS).some(k => CLASS[k].test(rest))) continue
           if (demo && !classesOf(e).some(k => CLASS[k]?.test(rest))) continue
           // a save names its container after the pointer ("save it to my layout")
           if (saving && namesObject(e, rest)) return true
+          // newsLibrary.* (2026-11-15): a headline the member has OPEN (their click) or the one the previous turn named — the
+          // library resolved the pointer to exactly that headline, so "unsave that headline" means it (never another)
+          if (e.pointed && e.state === 'newsLibrary') return true
           if (!spoke) {
             // the message's first words point at the conversation's CURRENT subject ("make it thicker"): an overwrite of
             // EXACTLY that object (never another of its class); a destroy, a replace or a save-over is asked, never assumed
@@ -522,11 +626,13 @@ export function permits(e, words, subjects = null, previous = null, previousSet 
           // after words of its own: an overwrite takes the class they named; a destroy / replace only the very object they
           // named or made ("add a 20 EMA, then remove it"); a widget's content, the list those words made ("make me a
           // watchlist … and open it")
+          const prevInd = e.state === 'indicator' && e.instanceId && Array.isArray(e.peers) ? indicatorsNamed(prev, e.peers) : null
+          if (prevInd) { if (prevInd.unique.has(e.instanceId) || (prevInd.plural && prevInd.ids.includes(e.instanceId))) return true; if (prevInd.ids.includes(e.instanceId)) why.demo = true; continue }
           if (classesOf(e).some(k => before.includes(k)) && (e.type === 'overwrite' || namesThatObject(e, prev))) return true
           if (e.type === 'replace' && e.state === 'widget' && before.includes('watchlist') && /\b(?:make|makes|made|create\w*|build\w*|new)\b/i.test(prev)) return true
           continue
         }
-        if (namesOwn(e, obj)) return true
+        if (namesOwn(e, obj, why)) return true
         if (e.type !== 'overwrite') namesObject(e, obj, why)
       }
     }
@@ -582,7 +688,7 @@ export function stateRailDecision(plan, ctx = {}) {
   const { mode = 'apply' } = ctx
   if (!plan?.ok || mode === 'approved') return null
   let effects
-  try { effects = stateEffects(plan) } catch { return { text: 'I didn’t change anything: I couldn’t check what this would remove or change. Ask again, or say exactly what to replace or remove.' } }
+  try { effects = stateEffects(plan, ctx.scope) } catch { return { text: 'I didn’t change anything: I couldn’t check what this would remove or change. Ask again, or say exactly what to replace or remove.' } }
   if (!effects.length) return null
   const text = stateRailRefusal(plan, ctx)
   // a save-over the words do not ask for in so many words goes to its CARD (as before the state rail)
@@ -594,18 +700,22 @@ export function stateRailDecision(plan, ctx = {}) {
   const why = {}
   for (const e of effects) if (e.via !== 'save') permits(e, String(ctx.words || ''), ctx.subjects, ctx.previous, ctx.previousSet, ctx.made, { ...ctx, why })
   const first = effects.find(e => e.via !== 'save' && !permits(e, String(ctx.words || ''), ctx.subjects, ctx.previous, ctx.previousSet, ctx.made, ctx)) || effects[0]
+  if (why.listMany) {
+    const names = why.listMany.lists.map(l => `“${l.name}”`)
+    return { text: `${listOf(why.listMany.syms)} ${why.listMany.syms.length === 1 ? 'is' : 'are'} on ${listOf(names)} — which list should I remove ${why.listMany.syms.length === 1 ? 'it' : 'them'} from? Nothing was changed.`, ask: { kind: 'lists', lists: why.listMany.lists } }
+  }
   const ask = why.previousMany ? { kind: 'previous' } : why.demo ? { kind: 'demo', effect: first } : why.labelOther ? { kind: 'label', effect: first, ...why.labelOther } : why.rows ? { kind: 'rows', rows: why.rows } : null
   if (ask?.kind === 'rows') return { text: `I didn’t change anything: your list has changed since I showed it, so I can’t be sure which ones you mean. The top ones it showed were ${listOf(ask.rows)} — say them by name (for example “remove ${listOf(ask.rows)}”).`, ask }
   return { text, ask }
 }
-export function stateRailRefusal(plan, { words = '', mode = 'apply', subjects = null, previous = null, previousSet = null, made = null, views = null, picked = null } = {}) {
+export function stateRailRefusal(plan, { words = '', mode = 'apply', subjects = null, previous = null, previousSet = null, made = null, views = null, picked = null, scope = null } = {}) {
   if (!plan?.ok) return null
   // an APPROVED card was shown, naming what it removes or changes, to the member who approved it (and its binding is checked
   // before it runs): the card is the permit. Every other path — instant, model, proposal, composed, deferred — needs the words.
   if (mode === 'approved') return null
   const w = String(words || '')
   try {
-    const effects = stateEffects(plan)
+    const effects = stateEffects(plan, scope)
     if (!effects.length) return null
     const amb = effects.map(e => homograph(e, w)).find(Boolean)
     if (amb) return `Do you mean your “${amb}” list, or the ticker ${String(amb).toUpperCase()}? Nothing was changed — say “show my ${amb} list” to switch the widget to it, or “add ${String(amb).toUpperCase()} to my watchlist” to add the symbol.${notDoneLine(notDoneAdds(plan))}`

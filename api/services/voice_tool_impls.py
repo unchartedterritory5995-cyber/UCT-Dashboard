@@ -2106,12 +2106,21 @@ def _explain_rs(*, term: str = "") -> dict:
 # api/services/rs_screens_service.py: each list is the screen's own starter spec run
 # through the scan, so an answer cannot differ from the screen. These are the Compass
 # voice wrappers; chat reaches them through `_voice_delegate`.
-# TWO GATES, both read PER CALL: RS_COMPASS_TOOLS_ENABLED (the RS Compass tools) AND the
-# RS screens being on. A registry gate is asked with no user, so it answers as for a
-# member; the per-user answer is the service's own, inside every call (`wants_user`),
-# which says "not available" to a user the screens are not on for.
+# THREE GATES, all read PER CALL: RS_COMPASS_TOOLS_ENABLED (the RS Compass tools),
+# RS_SCREEN_TOOLS_ENABLED (these two tools' OWN switch, only the literal 1 arms it) AND
+# the RS screens being on. The own switch exists because RS_COMPASS_TOOLS_ENABLED was
+# already armed in production for the two RS reading tools when the screens merged
+# (read live 2026-11-14): without it, releasing the screens to members would have
+# released these two answers with them, ahead of the report-card run that has to pass
+# first. A registry gate is asked with no user, so it answers as for a member; the
+# per-user answer is the service's own, inside every call (`wants_user`), which says
+# "not available" to a user the screens are not on for.
+def _rs_screen_tools_gate() -> bool:
+    return os.environ.get("RS_SCREEN_TOOLS_ENABLED", "0") == "1"
+
+
 def _rs_screens_gate() -> bool:
-    if not _rs_tools_gate():
+    if not _rs_tools_gate() or not _rs_screen_tools_gate():
         return False
     from api.services import rs_screens_service
     return rs_screens_service.available(None)

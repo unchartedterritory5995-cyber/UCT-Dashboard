@@ -55,6 +55,10 @@ _pending_unsubscribe: dict[str, set[str]] = {}
 # "volume") share the one connection without one's release narrowing another's feed.
 _sub_owners: dict[str, dict[str, frozenset[str]]] = {}
 _state_lock = threading.Lock()
+#: STREAM_FEED_SOURCE=remote: this pod has no socket; owner holds are only RECORDED
+#: (feed_client sends them to stream-ingest), so nothing is queued for a drain that
+#: never runs. Set once at startup by feed_client.start_remote.
+_record_only = False
 
 # ── Owner-scoped channels (STREAM_SCOPED_CHANNELS) ───────────────────────────
 # Wire order of the channels for one symbol. Fixed so the messages stay
@@ -268,10 +272,38 @@ def _build_auth_message(api_key: str) -> str:
     return json.dumps({"action": "auth", "params": api_key})
 
 
-async def _run_websocket(on_bar: OnBarCallback) -> None:
-    """Main reconnect loop. Returns only when the process exits."""
+class _DefaultReconnectPolicy:
+    """The web pod's waits, exactly as they always were: 60 s after a failed auth,
+    the reader's own exponential backoff (1, 2, 4 ... 60 s) after a disconnect, and
+    NO wait after a clean close (the socket's `async for` simply ends). The
+    stream-ingest service passes `massive_reconnect.MaxConnLadder` instead."""
+
+    #: No status hook: the frame loop is built exactly as before.
+    note_status = None
+
+    def connected(self) -> None:
+        pass
+
+    def auth_failed_delay(self, status) -> float:
+        return 60.0
+
+    def disconnect_delay(self, err, backoff) -> float:
+        return backoff
+
+    def normal_close_delay(self) -> float:
+        return 0
+
+
+async def _run_websocket(on_bar: OnBarCallback, policy=None) -> None:
+    """Main reconnect loop. Returns only when the process exits.
+
+    `policy` decides the waits between connections (and hears each successful
+    connect); None = `_DefaultReconnectPolicy`, the web pod's historic behaviour."""
     global _ws_connection, _running, _feed_bytes, _feed_frames
     import websockets
+
+    if policy is None:
+        policy = _DefaultReconnectPolicy()
 
     if not _API_KEY:
         _logger.warning("[bar_stream] MASSIVE_API_KEY not set — bar stream disabled")
@@ -318,10 +350,11 @@ async def _run_websocket(on_bar: OnBarCallback) -> None:
                             raise RuntimeError(f"Auth rejected: status={status_str!r}")
                     _logger.info("[bar_stream] auth_success")
                 except (asyncio.TimeoutError, json.JSONDecodeError, RuntimeError) as auth_err:
-                    _logger.error("[bar_stream] auth handshake failed: %s — backing off 60s", auth_err)
+                    wait = policy.auth_failed_delay(auth_err)
+                    _logger.error("[bar_stream] auth handshake failed: %s — backing off %ds", auth_err, wait)
                     _running = False
                     _ws_connection = None
-                    await asyncio.sleep(60)
+                    await asyncio.sleep(wait)
                     continue  # back to outer while True; async with closes ws cleanly
 
                 # Resubscribe whatever was active before the disconnect, channel by
@@ -344,6 +377,10 @@ async def _run_websocket(on_bar: OnBarCallback) -> None:
 
                 _running = True
                 backoff = 1
+                try:
+                    policy.connected()
+                except Exception as e:  # noqa: BLE001 - a hook must never break the reader
+                    _logger.warning("[bar_stream] reconnect policy hook failed: %s", e)
 
                 # One frame -> the same calls, through the code the stream-ingest
                 # service shares (ingest_core; golden tapes pin its output).
@@ -351,7 +388,8 @@ async def _run_websocket(on_bar: OnBarCallback) -> None:
                     on_bar=on_bar, active=_active, trade_listeners=_trade_listeners,
                     universe=universe,
                     on_universe_am=(bars_live_ingest.on_am if universe else None),
-                    count_event=_count_event, note_am_lag=_note_am_lag, logger=_logger)
+                    count_event=_count_event, note_am_lag=_note_am_lag,
+                    on_status=policy.note_status, logger=_logger)
 
                 # Concurrent tasks: drain pending sub/unsub queue + read messages
                 drain_task = asyncio.create_task(_drain_pending_queue(ws))
@@ -370,11 +408,20 @@ async def _run_websocket(on_bar: OnBarCallback) -> None:
                     drain_task.cancel()
                     live_task.cancel()
         except Exception as e:
-            _logger.warning("[bar_stream] disconnected: %s — reconnect in %ds", e, backoff)
+            wait = policy.disconnect_delay(e, backoff)
+            _logger.warning("[bar_stream] disconnected: %s — reconnect in %ds", e, wait)
             _running = False
             _ws_connection = None
-            await asyncio.sleep(backoff)
+            await asyncio.sleep(wait)
             backoff = min(backoff * 2, 60)
+        else:
+            # The peer closed cleanly: `async for` ended without an exception. The
+            # web pod reconnects at once, as it always has (delay 0); stream-ingest's
+            # policy waits (Massive still counts a just-closed session).
+            wait = policy.normal_close_delay()
+            if wait:
+                _logger.warning("[bar_stream] socket closed by the server — reconnect in %ds", wait)
+                await asyncio.sleep(wait)
 
 
 def _count_event(ec, ev) -> None:
@@ -715,6 +762,8 @@ def _reconcile_locked(sym: str) -> None:
     have = _active_channels.get(sym, set())
     added = want - have
     removed = have - want
+    if _record_only:
+        added = removed = set()      # no socket to send to: just record (see _record_only)
     if added:
         _pending_subscribe.setdefault(sym, set()).update(added)
         left = _pending_unsubscribe.get(sym)
@@ -883,6 +932,12 @@ def start_stream(on_bar: OnBarCallback) -> None:
     # point, not in the reconnect loop — see realtime_stream.start_stream.
     from api.services import vendor_socket_guard
     if vendor_socket_guard.refuse_if_local("massive-bars"):
+        return
+    # Invariant 11 (stream-ingest): in remote mode the stream-ingest service holds the
+    # ONE Massive stocks socket. This pod must never open a second one.
+    if os.environ.get("STREAM_FEED_SOURCE", "local").strip().lower() == "remote":
+        _logger.warning("[bar_stream] STREAM_FEED_SOURCE=remote: NOT opening the Massive socket "
+                        "(stream-ingest holds it)")
         return
 
     def _thread_target():

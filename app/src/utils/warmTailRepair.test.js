@@ -44,7 +44,9 @@ const unix = (hhmm) => {
   const [h, m] = hhmm.split(':').map(Number)
   return Math.floor(new Date(`2026-09-16T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00-04:00`).getTime() / 1000)
 }
-const barsEnding = (tSec, n = 50) =>
+// (700 bars: a normal-depth store. A store shorter than half the chart's window is warmed with the
+// full window instead of a tail since 2026-11-15: prefetchBars.shortIntraday.test.js.)
+const barsEnding = (tSec, n = 700) =>
   Array.from({ length: n }, (_, i) => ({ t: tSec - (n - 1 - i) * 300, o: 1, h: 2, l: 0, c: 1, v: 9 }))
 
 const urls = () => preloadMock.mock.calls.map(c => c[0])

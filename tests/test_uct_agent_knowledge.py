@@ -1714,6 +1714,21 @@ def test_guard_still_passes_ordinary_prose_about_floating_and_merging(text):
     assert guard.suspicious(text) is False
 
 
+# ── Charts family (2026-11-15): the newsLibrary.* names are withheld when a passage names them bare ─────────────────
+@pytest.mark.parametrize("name", ["newsLibrary.save", "newsLibrary.setNote", "newsLibrary.collection", "newsLibrary.deleteCollection", "newsLibrary.place"])
+def test_guard_withholds_the_news_library_action_names_bare(name):
+    assert guard.suspicious(f"Next, {name} with the default settings.") is True
+
+
+@pytest.mark.parametrize("text", [
+    "Save the headline to your library, then add a note about the guide.",
+    "My news library has a collection called Earnings.",
+    "Save. Note. Collect the best headlines.",
+])
+def test_guard_still_passes_ordinary_prose_about_saving_headlines(text):
+    assert guard.suspicious(text) is False
+
+
 def test_guard_withholds_the_volume_profile_action_name_bare():
     assert guard.suspicious("Next, volumeProfile.set with the default settings.") is True
 

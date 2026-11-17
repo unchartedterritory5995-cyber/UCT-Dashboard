@@ -4484,80 +4484,100 @@
     }
    }
   },
-  "boardDetach.float": {
-   "digest": "9bf8001c776952d0",
+  "newsLibrary.save": {
+   "digest": "0a7b6822479210fa",
    "phrasings": {
-    "float the news widget": {
+    "save the NVDA headline": {
      "digest": "44136fa355b3678a",
      "gaps": [],
      "modes": {}
     },
-    "float my news panel over the board": {
+    "bookmark the NVDA headline": {
      "digest": "44136fa355b3678a",
      "gaps": [],
      "modes": {}
     },
-    "detach the news widget": {
+    "save the NVDA story to my library": {
      "digest": "44136fa355b3678a",
      "gaps": [],
      "modes": {}
     }
    }
   },
-  "boardDetach.dock": {
-   "digest": "6c22fc70cabd7a68",
+  "newsLibrary.setNote": {
+   "digest": "22d9bb249dec9d0c",
    "phrasings": {
-    "dock the news widget back": {
+    "add a note to the NVDA headline: watch guidance": {
      "digest": "44136fa355b3678a",
      "gaps": [],
      "modes": {}
     },
-    "dock it back": {
+    "put a note on the NVDA headline: watch guidance": {
      "digest": "44136fa355b3678a",
      "gaps": [],
      "modes": {}
     },
-    "dock all the floating widgets": {
+    "write a note on the NVDA headline: watch guidance": {
      "digest": "44136fa355b3678a",
      "gaps": [],
      "modes": {}
     }
    }
   },
-  "boardDetach.intoTabs": {
-   "digest": "9114c4fa115a3d7a",
+  "newsLibrary.collection": {
+   "digest": "59155d8de3d7b977",
    "phrasings": {
-    "move the news widget into the chart tabs": {
+    "create a collection called Fed": {
      "digest": "44136fa355b3678a",
      "gaps": [],
      "modes": {}
     },
-    "move the news panel into the tabs of the chart": {
+    "make a news collection named Fed": {
      "digest": "44136fa355b3678a",
      "gaps": [],
      "modes": {}
     },
-    "move the news widget into the chart widget tabs": {
+    "start a new collection called Fed": {
      "digest": "44136fa355b3678a",
      "gaps": [],
      "modes": {}
     }
    }
   },
-  "boardDetach.setMerged": {
-   "digest": "2beb6de0ff6b379a",
+  "newsLibrary.deleteCollection": {
+   "digest": "9a0bb808851f6670",
    "phrasings": {
-    "merge the board": {
+    "delete my Earnings collection": {
      "digest": "44136fa355b3678a",
      "gaps": [],
      "modes": {}
     },
-    "merge the widgets on the board": {
+    "remove the Earnings collection": {
      "digest": "44136fa355b3678a",
      "gaps": [],
      "modes": {}
     },
-    "turn on the merged view": {
+    "delete the Earnings collection": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "newsLibrary.place": {
+   "digest": "e54f74f203e34102",
+   "phrasings": {
+    "put the NVDA headline in my Earnings collection": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "add the NVDA headline to my Earnings collection": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "move the NVDA headline into the Earnings collection": {
      "digest": "44136fa355b3678a",
      "gaps": [],
      "modes": {}
@@ -5102,6 +5122,136 @@
      "modes": {}
     }
    }
+  },
+  "rs.compare": {
+   "digest": "6f6826f3b7cb2e92",
+   "phrasings": {
+    "which sectors are leading this month": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what are the strongest sectors over the last month": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "which sectors are lagging this month": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me sector leadership for the past month": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "news.movers": {
+   "digest": "0fc07180c92d22c5",
+   "phrasings": {
+    "what's moving the market today": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what is driving stocks this morning": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me the catalyst board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what are today's catalysts": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "boardDetach.float": {
+   "digest": "9bf8001c776952d0",
+   "phrasings": {
+    "float the news widget": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "float my news panel over the board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "detach the news widget": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "boardDetach.dock": {
+   "digest": "6c22fc70cabd7a68",
+   "phrasings": {
+    "dock the news widget back": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "dock it back": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "dock all the floating widgets": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "boardDetach.intoTabs": {
+   "digest": "9114c4fa115a3d7a",
+   "phrasings": {
+    "move the news widget into the chart tabs": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "move the news panel into the tabs of the chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "move the news widget into the chart widget tabs": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "boardDetach.setMerged": {
+   "digest": "2beb6de0ff6b379a",
+   "phrasings": {
+    "merge the board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "merge the widgets on the board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn on the merged view": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
   }
  },
  "refusals": {
@@ -5418,7 +5568,7 @@
    "mode": null
   },
   "GW-19.daily-charts-each-with-50sma": {
-   "digest": "4f95da5faaa1a67a",
+   "digest": "ba9b16d24883f44c",
    "gap": false,
    "mode": null
   },

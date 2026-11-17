@@ -1,0 +1,2018 @@
+{
+ "unit": "F6.17",
+ "track": "F6",
+ "title": "Managing an options position",
+ "teaches": "You get out of an option with the opposite trade; set the target, the stop (on the stock's chart or the option's price) and a re-check date before you buy; take profits in full or in part; treat a roll as a close plus a new trade that costs or pays real money; and deal with short options before expiry, because only a buy-to-close ends assignment risk.",
+ "skills": [
+  {
+   "id": "options.manage",
+   "title": "Managing an options position"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Long Call (strategy page)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/long-call",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "The Options Clearing Corporation and the US options exchanges",
+   "title": "Characteristics and Risks of Standardized Options (June 2024 edition)",
+   "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf",
+   "accessed": "2026-11-09",
+   "why_reliable": "The official options disclosure document every options customer must receive (June 2024 edition, the version Cboe Regulatory Circular RC24-009 says replaces all prior ones). theocc.com refuses plain clients (403), so this cites the copy Robinhood distributes to its customers (cover: June 2024; copyright the exchanges and OCC), as F6.03 does."
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "FAQ: Strategies",
+   "url": "https://www.optionseducation.org/referencelibrary/faq/strategies",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "FAQ: Trade Entry & Execution",
+   "url": "https://www.optionseducation.org/referencelibrary/faq/trade-entry-execution",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "FAQ: Options Assignment",
+   "url": "https://www.optionseducation.org/referencelibrary/faq/options-assignment",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Glossary (R): Rolling",
+   "url": "https://www.optionseducation.org/referencelibrary/optionsglossary?filter=R",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Glossary (C): Close / Closing transaction",
+   "url": "https://www.optionseducation.org/referencelibrary/optionsglossary?filter=C",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s9",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "April Office Hours FAQs: Options Strategy, Time Decay, and Market Mechanics (April 2026)",
+   "url": "https://www.optionseducation.org/news/april-office-hours-faqs-options-strategy-time-decay-and-market-mechanics",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s10",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Theta",
+   "url": "https://www.optionseducation.org/advancedconcepts/theta",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "May Key Takeaways: The Rule of 16 and the 0DTE Risk Profile (OIC instructor Mat Cashman)",
+   "url": "https://www.optionseducation.org/news/may-keytakeaways",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Bull Put Spread (Credit Put Spread)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/bull-put-spread-credit-put-spread",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s14",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Pricing",
+   "url": "https://www.optionseducation.org/optionsoverview/options-pricing",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s15",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Options (Investment Products)",
+   "url": "https://www.finra.org/investors/investing/investment-products/options",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "Fidelity",
+   "title": "Exit Strategies (Learning Center)",
+   "url": "https://www.fidelity.com/learning-center/trading-investing/trading/exit-strategies",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s17",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Options Expiration: Definitions, Checklist, & More (April 2, 2026)",
+   "url": "https://www.schwab.com/learn/story/options-expiration-definitions-checklist-more",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s18",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "How Stop Orders Can Help Protect a Position",
+   "url": "https://www.schwab.com/learn/story/help-protect-your-position-using-stop-orders",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s19",
+   "tier": 2,
+   "publisher": "E*TRADE from Morgan Stanley",
+   "title": "Call Option Exit Strategy: Automating a Closure (Knowledge Library)",
+   "url": "https://us.etrade.com/knowledge/library/options/automating-exit-strategies-for-options-trades",
+   "accessed": "2026-11-09",
+   "why_reliable": "The education library of E*TRADE, the retail brokerage of Morgan Stanley (a FINRA member broker-dealer); a broker education centre of the kind the contract's Tier 2 list names. Cited for its worked examples of exit orders, and only beside an OIC or second-publisher fact for any key."
+  },
+  {
+   "id": "s20",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "What Is a Roll Forward? Extending Your Options Contract (James Chen, CMT; updated March 7, 2026)",
+   "url": "https://www.investopedia.com/terms/r/rollforward.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s21",
+   "tier": 2,
+   "publisher": "tastylive",
+   "title": "Managing Winning Options Positions",
+   "url": "https://www.tastylive.com/concepts-strategies/managing-winners",
+   "accessed": "2026-11-09",
+   "why_reliable": "tastylive, Inc., the options education network whose affiliate tastytrade, Inc. is a FINRA-member broker-dealer; its published trade-management research is the source of the widely repeated profit-target and days-to-expiry management rules. Cited only for what it says it does, never as a rule for UCT."
+  },
+  {
+   "id": "s22",
+   "tier": 2,
+   "publisher": "tastylive",
+   "title": "How To Defend An Option Position",
+   "url": "https://www.tastylive.com/concepts-strategies/defending-positions",
+   "accessed": "2026-11-09",
+   "why_reliable": "Same publisher as s21 (tastylive, Inc.). Cited for its own stated practice (when it rolls, where it stops a short option) and for its own warning that a roll locks in the loss."
+  },
+  {
+   "id": "s23",
+   "tier": 2,
+   "publisher": "tastylive",
+   "title": "How to Roll an Options Position (Jim Schultz)",
+   "url": "https://www.tastylive.com/news-insights/how-to-roll-options-position",
+   "accessed": "2026-11-09",
+   "why_reliable": "Same publisher as s21 (tastylive, Inc.); the author is named on the page as a finance Ph.D. who hosts its daily programme. Cited only for the plain meaning of rolling out, up and down, which Investopedia (s20) states the same way."
+  },
+  {
+   "id": "s24",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-12"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f02",
+   "source": "s1",
+   "quote": "Some investors set price targets or re-evaluation dates; others 'play it by ear.' Either way, timing is everything for this strategy, because all value must be realized before the option expires.",
+   "claim": "Some buyers set price targets or dates to re-check the trade; either way, the value has to be taken before expiry."
+  },
+  {
+   "id": "f05",
+   "source": "s1",
+   "quote": "By the same logic, a decline in volatility has a tendency to lower the long call strategy's value, regardless of the overall stock price trend.",
+   "claim": "Falling implied volatility tends to lower an option's value."
+  },
+  {
+   "id": "f06",
+   "source": "s1",
+   "quote": "An option holder cannot lose more than the initial price paid for the option.",
+   "claim": "A buyer can't lose more than the premium paid."
+  },
+  {
+   "id": "f07",
+   "source": "s2",
+   "quote": "Although most option holders and writers close out their options positions by an offsetting closing transaction, investors should nonetheless be familiar with the rules and procedures applicable to exercise.",
+   "claim": "Most option buyers and sellers get out with an offsetting trade, not by exercise."
+  },
+  {
+   "id": "f10",
+   "source": "s2",
+   "quote": "closing transactions may provide an opportunity for an option holder to realize the remaining time value (described below) of the option that would be lost in an exercise.",
+   "claim": "Selling the option keeps its time value; exercising throws the time value away."
+  },
+  {
+   "id": "f13",
+   "source": "s2",
+   "quote": "If the investor liquidates his option position at, say, $19, in an offsetting closing purchase transaction, he will incur a loss of $1,500 (the $1,900 paid in the offsetting purchase transaction less the $400 option premium",
+   "claim": "A call writer who buys the call back at a much higher price locks in the difference as a loss."
+  },
+  {
+   "id": "f15",
+   "source": "s3",
+   "quote": "If you think that the stock has experienced most or its entire anticipated move, you might want to close out your position and take the profit.",
+   "claim": "If the stock has made most or all of the move you expected, close and take the profit."
+  },
+  {
+   "id": "f16",
+   "source": "s3",
+   "quote": "If you think the underlying stock has a lot further to go, for even more profit, you might want to let your profits ride (and take the risk of a reversal in stock direction).",
+   "claim": "Letting a winner ride means taking the risk of a reversal."
+  },
+  {
+   "id": "f17",
+   "source": "s3",
+   "quote": "Moreover, if you think the stock has further to go but want to reduce the amount of your investment, you might want to sell your options, or a portion of the position.",
+   "claim": "To keep some upside but cut what's invested, sell some of the options."
+  },
+  {
+   "id": "f18",
+   "source": "s3",
+   "quote": "You might even consider then buying options with a more distant strike, thereby earning a credit on the spread.",
+   "claim": "Selling a winning option and buying a further strike brings in a credit."
+  },
+  {
+   "id": "f19",
+   "source": "s4",
+   "quote": "Is the stock price or the option price used as the trigger to set a stop-loss order on an option position? It is a matter of personal preference. Most exchanges allow stop-loss orders in options.",
+   "claim": "A stop on an option can be triggered by the stock's price or the option's price; it's your choice."
+  },
+  {
+   "id": "f20",
+   "source": "s4",
+   "quote": "Check with your broker to see if they accept these types of orders. Once triggered, the stop order can be of two different types: a market order or a limit order.",
+   "claim": "Check that your broker accepts option stops; once triggered, the stop becomes a market or a limit order."
+  },
+  {
+   "id": "f21",
+   "source": "s4",
+   "quote": "If you enter a market sell order, you will be filled at the best available bid price.",
+   "claim": "A market sell order fills at the best bid."
+  },
+  {
+   "id": "f22",
+   "source": "s4",
+   "quote": "If you're worried about the price you will receive upon entering a market order, consider using a limit order, where the limit is the lowest price you will accept.",
+   "claim": "A limit order sets the lowest price you will accept."
+  },
+  {
+   "id": "f23",
+   "source": "s4",
+   "quote": "Furthermore, investors should use extreme caution when entering market orders prior to the opening or closing of the markets.",
+   "claim": "Be very careful with market orders near the open and the close."
+  },
+  {
+   "id": "f24",
+   "source": "s5",
+   "quote": "Therefore, if you bought back your short call, you no longer have a short position at the end of the day and no possibility of assignment.",
+   "claim": "A short call you bought back can't be assigned that night."
+  },
+  {
+   "id": "f25",
+   "source": "s5",
+   "quote": "Because OCC processes closing buy transactions before exercises, there is no possibility of being assigned on positions that were closed during that day's trading hours.",
+   "claim": "Closing buys are processed before exercises, so a position closed during the day can't be assigned."
+  },
+  {
+   "id": "f26",
+   "source": "s5",
+   "quote": "You will want to first check with your broker to ensure that an assignment has not already occurred.",
+   "claim": "Check with your broker that you weren't already assigned."
+  },
+  {
+   "id": "f27",
+   "source": "s5",
+   "quote": "Some investors use the saying, “when in doubt, close them out.” This means that if they buy back any short contracts, they are no longer at risk of assignment.",
+   "claim": "Buying back a short option ends its assignment risk."
+  },
+  {
+   "id": "f28",
+   "source": "s5",
+   "quote": "As long as you keep a short option position open, you are at risk of assignment. Assignment risk increases as the option becomes deeper in-the-money and as expiration approaches",
+   "claim": "An open short option can be assigned, more so deeper in the money and nearer expiry."
+  },
+  {
+   "id": "f90",
+   "source": "s5",
+   "quote": "No, it is not possible. Assignments are determined based on net positions after the close of the market each day.",
+   "claim": "Assignment goes by your net position after each day's close."
+  },
+  {
+   "id": "f30",
+   "source": "s7",
+   "quote": "A trading action in which the trader simultaneously closes an open option position and creates a new option position at a different strike price, different expiration, or both.",
+   "claim": "Rolling closes your option and opens a new one at another strike, another expiry, or both."
+  },
+  {
+   "id": "f31",
+   "source": "s8",
+   "quote": "A selling transaction closes an existing long option position. A purchase transaction closes an existing short option position.",
+   "claim": "You close an option you bought by selling it, and one you sold by buying it."
+  },
+  {
+   "id": "f32",
+   "source": "s9",
+   "quote": "First, the spread can be bought back outright to close the position entirely.",
+   "claim": "A short spread that has gone against you can be bought back to close it."
+  },
+  {
+   "id": "f33",
+   "source": "s9",
+   "quote": "The only way to fully eliminate assignment risk on short options is to buy them back; rolling reduces but does not entirely remove that risk for American-style options.",
+   "claim": "Only buying back a short option removes assignment risk; rolling just reduces it."
+  },
+  {
+   "id": "f34",
+   "source": "s9",
+   "quote": "Traders who are short options benefit from stillness but risk sharp, sudden directional risk.",
+   "claim": "Short options gain when the stock sits still and are at risk on sharp moves."
+  },
+  {
+   "id": "f35",
+   "source": "s9",
+   "quote": "As the option moves to three weeks, two weeks, and one week remaining, time decay accelerates more rapidly.",
+   "claim": "Time decay speeds up in the last three weeks."
+  },
+  {
+   "id": "f36",
+   "source": "s10",
+   "quote": "Thus, the amount of decay indicated by Theta tends to be gradual at first and accelerates as expiration approaches.",
+   "claim": "Time decay is slow at first and speeds up near expiry."
+  },
+  {
+   "id": "f37",
+   "source": "s11",
+   "quote": "Gamma rises sharply in at-the-money options as time is removed.",
+   "claim": "Gamma jumps for at-the-money options as expiry gets close."
+  },
+  {
+   "id": "f41",
+   "source": "s13",
+   "quote": "This strategy generates net up-front premium income, which represents the most the investor can make on the strategy.",
+   "claim": "On a credit spread, the credit you take in is the most you can make."
+  },
+  {
+   "id": "f42",
+   "source": "s14",
+   "quote": "The longer the amount of time available for market conditions to work to an investor's benefit, the greater the time value.",
+   "claim": "More time to expiry means more time value, so a later expiry costs more."
+  },
+  {
+   "id": "f43",
+   "source": "s15",
+   "quote": "To get out of a trade, an investor must do the reverse. An investor who previously purchased an option can exit the trade with a closing sale of the same contract series.",
+   "claim": "You exit an option you bought by selling the same contract."
+  },
+  {
+   "id": "f44",
+   "source": "s15",
+   "quote": "An investor who previously sold an option can exit the trade with a closing purchase.",
+   "claim": "You exit an option you sold by buying it back."
+  },
+  {
+   "id": "f45",
+   "source": "s15",
+   "quote": "Options investors can have a paper profit one day and a paper loss the next. Any potential profits aren't guaranteed until a closing transaction is completed or the contract reaches expiration.",
+   "claim": "An open profit is only on paper until you close the trade."
+  },
+  {
+   "id": "f46",
+   "source": "s15",
+   "quote": "If you exercise an equity option, you buy or sell shares of that underlying stock or ETF depending on whether you purchased a call or a put.",
+   "claim": "Exercising a call buys the shares."
+  },
+  {
+   "id": "f47",
+   "source": "s15",
+   "quote": "In-the-money options contracts are generally automatically exercised at expiration. But to exercise a call option, the owner of the contract should have the funds to do so.",
+   "claim": "In-the-money options are generally exercised at expiry, and a call owner needs the cash for the shares."
+  },
+  {
+   "id": "f50",
+   "source": "s16",
+   "quote": "Even before you enter a trade, it can be helpful to have a plan for how you might exit the trade.",
+   "claim": "Plan the exit before you enter."
+  },
+  {
+   "id": "f51",
+   "source": "s16",
+   "quote": "Often, emotions and loss aversion can get in the way of making good trading decisions.",
+   "claim": "Emotions and loss aversion get in the way of good decisions."
+  },
+  {
+   "id": "f52",
+   "source": "s17",
+   "quote": "To arrive at the total cost of an options contract, the premium is typically multiplied by 100 (exceptions may exist with some nonstandard options contracts).",
+   "claim": "A standard contract's dollar value is the premium times 100."
+  },
+  {
+   "id": "f53",
+   "source": "s17",
+   "quote": "As it gets closer to 3 p.m. CT on expiration day, liquidity can often dry up and bid/ask spreads may widen. So for traders considering liquidating, or even rolling to another expiration date, sooner may be better.",
+   "claim": "Near the close on expiry day, liquidity thins and spreads widen, so exit or roll sooner."
+  },
+  {
+   "id": "f57",
+   "source": "s18",
+   "quote": "However, you must remember that a stop order becomes a market order.",
+   "claim": "A triggered stop order becomes a market order."
+  },
+  {
+   "id": "f58",
+   "source": "s18",
+   "quote": "your execution price could be significantly lower than your stop price.",
+   "claim": "A stop can fill well below the stop price."
+  },
+  {
+   "id": "f59",
+   "source": "s18",
+   "quote": "Because the order is now a limit order, execution cannot occur unless the position can be sold at the limit price specified (or better).",
+   "claim": "A triggered stop-limit sells only at the limit or better, so it may not fill."
+  },
+  {
+   "id": "f60",
+   "source": "s19",
+   "quote": "In an options trade, a well-thought-out plan can make all the difference, and a key part of that plan to consider should be your exit strategy.",
+   "claim": "The exit strategy is a key part of an options trade plan."
+  },
+  {
+   "id": "f61",
+   "source": "s19",
+   "quote": "When you consider building a trading plan in advance, your trading is less likely to be influenced by emotion",
+   "claim": "A plan made in advance keeps emotion out of the trade."
+  },
+  {
+   "id": "f62",
+   "source": "s19",
+   "quote": "A contingent order lets you place a closing options order automatically when a condition you set for the price of a stock, option, or index is met.",
+   "claim": "A contingent order can close an option when the stock reaches a price you set."
+  },
+  {
+   "id": "f65",
+   "source": "s19",
+   "quote": "Some options traders may take a similar approach where they will close out a position if they double their money or if they have suffered a loss of 50%.",
+   "claim": "Some option traders exit at double their money or at a 50% loss."
+  },
+  {
+   "id": "f66",
+   "source": "s20",
+   "quote": "It requires that the gain or loss on the original contract be settled.",
+   "claim": "Rolling settles the gain or loss on the first contract."
+  },
+  {
+   "id": "f67",
+   "source": "s20",
+   "quote": "This \"roll up\" to a higher strike price will reduce the premium paid for the second option (compared to buying a new $10 strike call), thereby protecting part of the profits from the first trade.",
+   "claim": "Rolling a winning call up to a higher strike takes part of the profit off the table."
+  },
+  {
+   "id": "f68",
+   "source": "s20",
+   "quote": "Roll forward refers to extending the expiration or maturity of an option, futures contract, or forward by closing the initial contract and opening a new longer-term contract",
+   "claim": "Rolling forward closes the first contract and opens a longer-dated one."
+  },
+  {
+   "id": "f69",
+   "source": "s21",
+   "quote": "The term managing winners refers to closing a trade prior to expiration and prior to max profit.",
+   "claim": "Managing a winner means closing it before expiry and before max profit."
+  },
+  {
+   "id": "f70",
+   "source": "s21",
+   "quote": "In the current position, we can only make $0.50 more, while still holding all the risk of the position.",
+   "claim": "Near max profit, a short option has little left to make but keeps all its risk."
+  },
+  {
+   "id": "f71",
+   "source": "s22",
+   "quote": "It’s important to remember that when rolling a trade, we are locking in a losing trade, and opening up a new low probability trade.",
+   "claim": "Rolling a loser locks in the loss and opens a new trade."
+  },
+  {
+   "id": "f72",
+   "source": "s22",
+   "quote": "We usually roll our trades 7-21 days prior to expiration to avoid gamma risk & assignment risk that grows as expiration nears.",
+   "claim": "When tastylive rolls, it usually does so 7 to 21 days before expiry, to avoid gamma and assignment risk."
+  },
+  {
+   "id": "f73",
+   "source": "s1",
+   "quote": "Assignment Risk None. The investor is in control.",
+   "claim": "A long option can't be assigned; the holder decides whether to exercise."
+  },
+  {
+   "id": "f74",
+   "source": "s2",
+   "quote": "but there is no guarantee that such a market will at all times exist for every option.",
+   "claim": "There's no guarantee of a market to close in, for every option, at all times."
+  },
+  {
+   "id": "f75",
+   "source": "s2",
+   "quote": "there may be times when options prices will not maintain their customary or anticipated relationships to the prices of the underlying interests and related interests",
+   "claim": "At times, option prices can stop tracking the stock the way you'd expect."
+  },
+  {
+   "id": "f76",
+   "source": "s17",
+   "quote": "Just remember, there's no guarantee of a liquid market.",
+   "claim": "A liquid market to exit in is not guaranteed."
+  },
+  {
+   "id": "f77",
+   "source": "s16",
+   "quote": "Defines the maximum amount of time you plan on being exposed to a particular investment. Most traders use their time exit signal as an indicator that they should, at the very least, re-evaluate their investment.",
+   "claim": "A time exit caps how long you stay in a trade; when it hits, at the least, re-check the trade."
+  },
+  {
+   "id": "f78",
+   "source": "s19",
+   "quote": "If the price were to rise to $7, the stop price would trail accordingly to $5, $2 below the new high.",
+   "claim": "A trailing stop on an option follows the new high by the trail amount."
+  },
+  {
+   "id": "f79",
+   "source": "s19",
+   "quote": "Only when the market changes direction and falls through your stop price will the market order be triggered and entered into the system.",
+   "claim": "A trailing stop fires only when the price turns down through it, and then it is a market order."
+  },
+  {
+   "id": "f80",
+   "source": "s18",
+   "quote": "In other words, the stop price can move higher indefinitely, but it can never move lower.",
+   "claim": "A sell trailing stop only ratchets up; it never moves down."
+  },
+  {
+   "id": "f81",
+   "source": "s18",
+   "quote": "Since a trailing-stop order becomes a market order when triggered, it behaves very similar to a standard stop order.",
+   "claim": "A triggered trailing stop is a market order, like a plain stop."
+  },
+  {
+   "id": "f82",
+   "source": "s20",
+   "quote": "First, the initial contract is exited. Then, a new position with a later expiry is initiated. These two steps are usually executed simultaneously",
+   "claim": "A roll's close and new open are usually done at the same time."
+  },
+  {
+   "id": "f83",
+   "source": "s20",
+   "quote": "These two steps are usually executed simultaneously in order to reduce slippage or profit erosion due to a change in the price of the underlying asset.",
+   "claim": "Doing both legs at once reduces slippage and the risk of losing ground if the stock moves in between."
+  },
+  {
+   "id": "f84",
+   "source": "s20",
+   "quote": "If the new contract has a higher strike price than the initial contract, the strategy is called a \"roll up,\" but if the new contract has a lower strike price, it is called a \"roll down.\"",
+   "claim": "Rolling to a higher strike is a roll up; to a lower strike, a roll down."
+  },
+  {
+   "id": "f85",
+   "source": "s23",
+   "quote": "It simply refers to moving the position from the current expiration cycle to some later expiration cycle.",
+   "claim": "Rolling out moves the position to a later expiry."
+  },
+  {
+   "id": "f86",
+   "source": "s23",
+   "quote": "The added time could be days, weeks, months, or even longer, but rolling out is always adding time. Sometimes, you might also hear rolling out referred to as “rolling forward.”",
+   "claim": "Rolling out always adds time; it is also called rolling forward."
+  },
+  {
+   "id": "f87",
+   "source": "s23",
+   "quote": "Simply put, rolling up is moving up the option chain to some higher strike price, and rolling down is moving down the option chain to some lower strike price.",
+   "claim": "Rolling up moves to a higher strike; rolling down moves to a lower one."
+  },
+  {
+   "id": "f88",
+   "source": "s22",
+   "quote": "We found that closing our trade for a net loss of 2x credit received can be optimal.",
+   "claim": "tastylive closes a losing short option at a net loss of twice the credit."
+  },
+  {
+   "id": "f89",
+   "source": "s22",
+   "quote": "This means that if we collect $1.00, we would close the trade when the value of the option reached $3.00. This would be a $2.00 net loss.",
+   "claim": "Collect $1.00 and that rule buys the option back at $3.00, a $2.00 loss."
+  },
+  {
+   "id": "h01",
+   "source": "s24",
+   "quote": "Options occasionally; no further rules. The premium paid is the stop.",
+   "claim": "We use options only now and then, with no extra rules: the premium paid is the stop."
+  },
+  {
+   "id": "h02",
+   "source": "s24",
+   "quote": "Trade shares; options are only a defined-risk alternative.",
+   "claim": "We trade shares; options are only a defined-risk alternative."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "Getting out is a trade",
+   "steps": [
+    "You get out of an option the way you got in: with a trade, this time on the other side.",
+    "If you bought it, sell to close. If you sold it, buy to close.",
+    "Most option positions end that way, not by exercise.",
+    "Until you close, a profit is only on paper."
+   ],
+   "facts": [
+    "f43",
+    "f44",
+    "f31",
+    "f07",
+    "f45"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "Write the exit before the entry",
+   "steps": [
+    "Before you buy, set two exits: the target where you take profit and the stop where you're wrong.",
+    "Your stop can sit on the stock's chart or on the option's price. The Options Industry Council calls that your choice.",
+    "Add a date to re-check the trade. Time decay is gradual at first and speeds up near expiry."
+   ],
+   "facts": [
+    "f50",
+    "f60",
+    "f19",
+    "f02",
+    "f36"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "A roll is two trades",
+   "steps": [
+    "A roll closes your option and opens a new one at another strike, another expiry, or both.",
+    "The old option's gain or loss is settled when it closes. The roll doesn't erase it.",
+    "The new option is a fresh trade. It needs a reason of its own."
+   ],
+   "facts": [
+    "f30",
+    "f66",
+    "f71"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "options.manage",
+   "rung": 1,
+   "format": "mcq",
+   "q": "You own a call and want to be fully out of the trade, with no shares. Which order does that?",
+   "choices": [
+    "Sell to close",
+    "Buy to close",
+    "Exercise the call",
+    "Buy a matching put"
+   ],
+   "answer": "Sell to close",
+   "why": "Sell to close. You opened by buying, so you exit with a closing sale of the same contract. FINRA calls this doing the reverse. Exercising would buy the shares instead. A put is a different contract, so buying one closes nothing.",
+   "lesson_line": "Bought to open, sell to close. To get out, you make the opposite trade.",
+   "facts": [
+    "f43",
+    "f31",
+    "f46"
+   ],
+   "wrong": {
+    "Buy to close": "You bought this call, so a buy is the wrong side. The closing trade for it is a sale.",
+    "Exercise the call": "Exercising a call buys the shares. That's the opposite of having no shares.",
+    "Buy a matching put": "A put is a different contract, so it closes nothing. You would hold the call and a put, not be out."
+   },
+   "simple": "Sell to close, because you bought the call to open, and the opposite trade ends it with no shares left.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition from FINRA and the Options Industry Council, both Tier 1"
+    ]
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q02",
+   "skill": "options.manage",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Rolling",
+   "q": "In options, what does it mean to roll a position?",
+   "choices": [
+    "Close it and open a new one",
+    "Exercise it early",
+    "Add contracts as it drops",
+    "Widen your stop"
+   ],
+   "answer": "Close it and open a new one",
+   "why": "Close it and open a new one. The Options Industry Council defines a roll as closing an open option and opening a new one. The new one has a different strike, a different expiry, or both. The two legs are usually done at the same time. It is not exercise, adding size or moving a stop.",
+   "lesson_line": "A roll is two trades in one ticket: a close and a new open.",
+   "facts": [
+    "f30",
+    "f68",
+    "f82"
+   ],
+   "wrong": {
+    "Exercise it early": "Exercise turns the option into stock. A roll trades out of one option and into another.",
+    "Add contracts as it drops": "That's averaging down on the same option. A roll replaces the option.",
+    "Widen your stop": "That's widening your stop. A roll changes the contract itself: strike, expiry or both."
+   },
+   "simple": "Rolling means you close the option you hold and open a new one, at another strike, another expiry, or both.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition, Tier 1 glossary plus an agreeing Tier 2 source"
+    ]
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q03",
+   "skill": "options.manage",
+   "rung": 1,
+   "format": "tf",
+   "q": "On an option trade, a date can be an exit trigger, not just a price.",
+   "answer": "True",
+   "why": "True. The Options Industry Council says some buyers set price targets or re-evaluation dates. Fidelity calls this a time exit: it caps how long you stay in. When it hits, you at least re-check the trade. It does not mean you must sell on that date.",
+   "lesson_line": "Options run on a clock. Give every trade a date to re-check, as well as a stop.",
+   "facts": [
+    "f02",
+    "f77"
+   ],
+   "simple": "True, because some option buyers set a date to check the trade again, not just a price target.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "key is only that a date CAN be a trigger; Tier 1 and Tier 2 agree"
+    ]
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q04",
+   "skill": "options.manage",
+   "rung": 2,
+   "format": "fill",
+   "q": "Fill in the blank.",
+   "sentence": "You sold a put. To get out of it, you ___ to close.",
+   "bank": [
+    "buy",
+    "sell",
+    "exercise",
+    "roll"
+   ],
+   "answer": "buy",
+   "why": "Buy. FINRA says an investor who sold an option exits with a closing purchase. The Options Industry Council's glossary agrees: a purchase closes a short option, and a sale closes a long one. So selling would not close this put. A roll closes it but opens a new one, so you'd still be in.",
+   "lesson_line": "Sold to open, buy to close. Bought to open, sell to close.",
+   "facts": [
+    "f44",
+    "f31",
+    "f30"
+   ],
+   "simple": "Buy, because a put you sold is closed by buying the same contract back.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition from FINRA and the Options Industry Council"
+    ]
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q05",
+   "skill": "options.manage",
+   "rung": 2,
+   "format": "mcq",
+   "q": "You own a call and want a stop-loss order on it. Which is true?",
+   "choices": [
+    "You pick its trigger: stock or option",
+    "Most exchanges don't accept option stops",
+    "Only the option's price can trigger it",
+    "Once hit, it must become a limit order"
+   ],
+   "answer": "You pick its trigger: stock or option",
+   "why": "You pick its trigger: the stock or the option. The Options Industry Council calls that a matter of personal preference. Most exchanges allow stop-loss orders on options, but check that your broker accepts them. Once triggered, the stop becomes a market or a limit order. For us, the premium paid is the stop.",
+   "lesson_line": "A stop on an option can key off the stock or the option. Check that your broker takes it.",
+   "facts": [
+    "f19",
+    "f20",
+    "f62",
+    "h01"
+   ],
+   "wrong": {
+    "Most exchanges don't accept option stops": "It's the reverse. The Options Industry Council says most exchanges allow stop-loss orders on options. Check that your broker accepts them.",
+    "Only the option's price can trigger it": "The stock can be the trigger too. E*TRADE's contingent order closes an option when the stock hits a price you set.",
+    "Once hit, it must become a limit order": "It can be either. Once triggered, a stop on an option becomes a market order or a limit order."
+   },
+   "simple": "You choose, because the trigger can be the stock's price or the option's price, as you prefer.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "touches the owner's rulebook B25 (options: the premium paid is the stop)",
+     "question re-asked 2026-11-12 to remove a both-of-the-above tell"
+    ]
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q06",
+   "skill": "options.manage",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Rolling out",
+   "q": "In options, what does rolling out mean?",
+   "choices": [
+    "Moving to a later expiry",
+    "Moving to a higher strike",
+    "Closing the trade for good",
+    "Adding more contracts"
+   ],
+   "answer": "Moving to a later expiry",
+   "why": "Moving to a later expiry. Rolling out closes the option and opens the same position in a later expiration cycle. tastylive says rolling out always adds time; it is also called rolling forward. Moving to a higher strike is rolling up. Moving to a lower strike is rolling down.",
+   "lesson_line": "Out means later. Up and down mean the strike.",
+   "facts": [
+    "f85",
+    "f86",
+    "f68",
+    "f84",
+    "f87",
+    "f30"
+   ],
+   "wrong": {
+    "Moving to a higher strike": "That's rolling up. Rolling out changes the expiry.",
+    "Closing the trade for good": "A roll closes one option and opens another, so you're still in the trade.",
+    "Adding more contracts": "That's adding size. A roll swaps the contract, not the count."
+   },
+   "simple": "Rolling out means moving to a later expiry, because out is about time, while up and down are about the strike.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition, two Tier 2 publishers agree plus the Tier 1 glossary"
+    ]
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q07",
+   "skill": "options.manage",
+   "rung": 3,
+   "format": "mcq",
+   "q": "When should you decide where you'll take profit and where you'll cut the loss?",
+   "choices": [
+    "Before you buy the option",
+    "Once it shows a profit",
+    "When expiry gets close",
+    "After it moves against you"
+   ],
+   "answer": "Before you buy the option",
+   "why": "Before you buy the option. Fidelity says it can help to have an exit plan even before you enter. E*TRADE adds that a plan made in advance is less likely to be swayed by emotion. Once a trade is open, emotions and loss aversion get in the way. You can still re-check the plan later, but you write it first.",
+   "lesson_line": "Write the target and the stop before the order. Then follow them.",
+   "facts": [
+    "f50",
+    "f60",
+    "f61",
+    "f51",
+    "f36"
+   ],
+   "wrong": {
+    "Once it shows a profit": "Then you're deciding with a profit in front of you. Emotions and loss aversion get in the way.",
+    "When expiry gets close": "By then time decay is speeding up against you. Plan the exit before you enter, not near the end.",
+    "After it moves against you": "That's when loss aversion makes it hardest to act. Set the stop while you're calm."
+   },
+   "simple": "Before you buy the option, because a plan made while you are calm is less likely to be swayed by emotion.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (2026-11-09 checker)"
+    ]
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q08",
+   "skill": "options.manage",
+   "rung": 3,
+   "format": "tf",
+   "q": "Rolling a losing option out to a later expiry erases the loss on the first one.",
+   "answer": "False",
+   "why": "False. A roll closes the first option and opens a new one. Investopedia says the gain or loss on the original contract is settled. tastylive says rolling a loser locks in the losing trade. The new option is a separate trade with its own risk.",
+   "lesson_line": "A roll books the loss. It doesn't hide it.",
+   "facts": [
+    "f30",
+    "f66",
+    "f71"
+   ],
+   "simple": "False, because the roll closes the first option, so its loss is booked there. The new option is a separate trade.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "Tier 1 glossary plus two agreeing Tier 2 publishers"
+    ]
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q09",
+   "skill": "options.manage",
+   "rung": 4,
+   "format": "mcq",
+   "q": "You bought 6 calls at $1.80. They double to $3.60, and you sell 3. How much cash comes back?",
+   "answer": "$1,080",
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "sold * price * 100",
+     "sold": 3,
+     "price": 3.6
+    }
+   },
+   "why": "$1,080. Three contracts at $3.60, times 100 shares, is $1,080. That matches what all 6 cost at $1.80, since half as many at twice the price is the same money. So if the 3 you kept go to zero, the trade breaks even, fees aside. An option buyer can't lose more than the premium paid.",
+   "lesson_line": "Sell half at a double and your cost is back. The worst case on the rest is zero.",
+   "facts": [
+    "f17",
+    "f52",
+    "f06"
+   ],
+   "simple": "$1,080 comes back, because 3 contracts at $3.60 times 100 equals what all 6 cost you at the start.",
+   "deeper": {
+    "example": "Say the stock reverses and the 3 calls you kept fall to zero. You took in $1,080 on the 3 you sold, which is what all 6 cost. The trade ends at break-even before fees. Had you held all 6 and they fell to zero, you would have lost everything you paid."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key",
+     "fixed before (lesson line, 2026-11-09)"
+    ]
+   },
+   "batch": "cards-2026-11-15",
+   "choices": [
+    "$10.80",
+    "$540",
+    "$2,160",
+    "$1,080"
+   ],
+   "wrong": {
+    "$540": "Sells the 3 at the old $1.80 price.",
+    "$2,160": "Counts all 6 contracts. You sold only 3.",
+    "$10.80": "Forgets that one contract covers 100 shares."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Selling half",
+    "rows": [
+     {
+      "key": "calls_bought",
+      "label": "Calls bought",
+      "value": 6.0,
+      "fmt": "count"
+     },
+     {
+      "key": "bought_at",
+      "label": "Bought at",
+      "value": 1.8,
+      "fmt": "$"
+     },
+     {
+      "key": "price_now",
+      "label": "Price now",
+      "value": 3.6,
+      "fmt": "$"
+     },
+     {
+      "key": "calls_sold",
+      "label": "Calls sold",
+      "value": 3.0,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Cash that comes back",
+     "as": "dollars"
+    }
+   }
+  },
+  {
+   "key": "q10",
+   "skill": "options.manage",
+   "rung": 4,
+   "format": "scenario",
+   "story": "Your call is bid $4.00. You set a sell trailing stop $1.50 under the bid. The bid climbs to $6.20, then starts to fall.",
+   "q": "At what price does your trailing stop trigger?",
+   "choices": [
+    "$4.70",
+    "$2.50",
+    "$4.00",
+    "$6.20"
+   ],
+   "answer": "$4.70",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "high - trail",
+     "high": 6.2,
+     "trail": 1.5
+    }
+   },
+   "why": "$4.70. A sell trailing stop sits $1.50 under the highest bid. It started at $2.50 and rose as the bid climbed. From the $6.20 high it sits at $4.70, and it never moves lower. When the bid falls through it, it becomes a market order.",
+   "lesson_line": "A trailing stop follows a winner up and never steps back down.",
+   "facts": [
+    "f78",
+    "f79",
+    "f80",
+    "f81"
+   ],
+   "wrong": {
+    "$2.50": "That was the starting stop. It moved up as the bid rose.",
+    "$4.00": "That's where the bid was when you set it. The stop trails the high, not your start.",
+    "$6.20": "That's the high. The stop sits the trail amount under it."
+   },
+   "simple": "$4.70, because the stop trails the $6.20 high by $1.50 and never moves back down.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q11",
+   "skill": "options.manage",
+   "rung": 4,
+   "format": "mcq",
+   "q": "E*TRADE says some traders close an option at a 50% loss. On a call bought for $3.20, at what option price do they exit?",
+   "answer": "$1.60",
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "premium * 0.5",
+     "premium": 3.2
+    }
+   },
+   "why": "$1.60, half of $3.20. E*TRADE says some traders close if they double their money or lose 50%. That is a plan some traders use, not our rule. For us, the premium paid is the stop.",
+   "lesson_line": "Cutting at half is a plan some traders use. Our rule for options: the premium paid is the stop.",
+   "facts": [
+    "f65",
+    "h01"
+   ],
+   "simple": "$1.60, because a 50% loss on a $3.20 call leaves it worth half that price.",
+   "tier": "core",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "computed key",
+     "touches the owner's rulebook B25 (options: the premium paid is the stop); reveal now states the house rule",
+     "fixed before (question text, 2026-11-09)"
+    ]
+   },
+   "batch": "cards-2026-11-15",
+   "choices": [
+    "$4.80",
+    "$6.40",
+    "$2.70",
+    "$1.60"
+   ],
+   "wrong": {
+    "$4.80": "Adds 50 percent instead of taking it off.",
+    "$6.40": "That is the double-your-money exit, not the 50% loss exit.",
+    "$2.70": "Takes 50 cents off instead of 50 percent."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The 50% stop",
+    "rows": [
+     {
+      "key": "paid_for_the_call",
+      "label": "Paid for the call",
+      "value": 3.2,
+      "fmt": "$"
+     },
+     {
+      "key": "loss_we_accept",
+      "label": "Loss we accept",
+      "value": 50.0,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Exit price",
+     "as": "price"
+    }
+   }
+  },
+  {
+   "key": "q12",
+   "skill": "options.manage",
+   "rung": 5,
+   "format": "scenario",
+   "story": "You own 4 calls you bought at $2.50. They're $4.10 now, with a month left. You think the stock has more room, but you want to lock in part of the gain.",
+   "q": "Which move fits that view?",
+   "choices": [
+    "Sell 2 and let 2 ride",
+    "Hold all 4 for now",
+    "Buy 4 more now",
+    "Exercise 2, keep 2"
+   ],
+   "answer": "Sell 2 and let 2 ride",
+   "why": "Sell 2 and let 2 ride. The Options Industry Council covers this exact view. If the stock has further to go but you want less invested, sell a portion. The calls you keep still carry the risk of a reversal. Exercising would throw away time value and need cash for the shares.",
+   "lesson_line": "Sell some into strength, keep some for the run.",
+   "facts": [
+    "f17",
+    "f16",
+    "f10",
+    "f47",
+    "f46"
+   ],
+   "wrong": {
+    "Hold all 4 for now": "That lets the whole gain ride, with the full risk of a reversal. It locks in nothing.",
+    "Buy 4 more now": "That doubles your contracts at a higher price. It adds risk instead of locking in the gain.",
+    "Exercise 2, keep 2": "Exercising throws away the time value left and needs cash for the shares. The gain then rides in the stock."
+   },
+   "simple": "Sell 2 and let 2 ride, because selling part locks in some gain while the rest stays in for more upside.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook A11 (sell some into strength), consistent with it",
+     "fixed before (2026-11-09 checker)"
+    ]
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q13",
+   "skill": "options.manage",
+   "rung": 5,
+   "format": "mcq",
+   "q": "Your 50 call is worth $7.00. You sell it and buy the 55 call for $3.50. How much cash comes back, per contract?",
+   "answer": "$350",
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(sold - bought) * 100",
+     "sold": 7,
+     "bought": 3.5
+    }
+   },
+   "why": "$350. You sell the 50 call for $7.00 and buy the 55 call for $3.50. The difference, times 100 shares, is cash back in your account. The Options Industry Council calls this buying a more distant strike for a credit. You stay in the move with less money on the table, but the premium on the new call can still be lost.",
+   "lesson_line": "Rolling a winner up takes cash off the table and keeps you in the move.",
+   "facts": [
+    "f18",
+    "f67",
+    "f52",
+    "f06"
+   ],
+   "simple": "$350 comes back, because you take in $7.00 and pay $3.50 for the higher strike, times 100 shares.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "cards-2026-11-15",
+   "choices": [
+    "$3.50",
+    "$1,050",
+    "$350",
+    "$700"
+   ],
+   "wrong": {
+    "$3.50": "Forgets that one contract covers 100 shares.",
+    "$1,050": "Adds the two prices instead of taking the difference.",
+    "$700": "Counts only the cash from selling the 50 call."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Rolling up",
+    "rows": [
+     {
+      "key": "50_call_sold_at",
+      "label": "50 call sold at",
+      "value": 7.0,
+      "fmt": "$"
+     },
+     {
+      "key": "55_call_bought_at",
+      "label": "55 call bought at",
+      "value": 3.5,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Cash back, per contract",
+     "as": "dollars"
+    }
+   }
+  },
+  {
+   "key": "q14",
+   "skill": "options.manage",
+   "rung": 5,
+   "format": "tf",
+   "q": "If you buy back a short call during the day, it can't be assigned to you that night.",
+   "answer": "True",
+   "why": "True. OCC processes closing buys before exercises, and assignment goes by your net position after each day's close. A short call you bought back is gone by then, so it can't be assigned. One caveat: check with your broker that it wasn't assigned already.",
+   "lesson_line": "When in doubt, close them out. A short option you've bought back can't be assigned.",
+   "facts": [
+    "f24",
+    "f90",
+    "f25",
+    "f26",
+    "f27"
+   ],
+   "simple": "True, because a short call you bought back during the day is no longer open, and only open positions can be assigned.",
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (2026-11-09 checker added f90)"
+    ]
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q15",
+   "skill": "options.manage",
+   "rung": 6,
+   "format": "scenario",
+   "story": "You sold a call spread. The stock rallied through your short strike, so you roll the spread up to higher strikes and out a month.",
+   "q": "What did the roll do to your assignment risk?",
+   "choices": [
+    "Reduced it, but didn't remove it",
+    "Removed it, the strike is higher now",
+    "Raised it somewhat, as it runs longer",
+    "Moved it onto your long call instead"
+   ],
+   "answer": "Reduced it, but didn't remove it",
+   "why": "Reduced it, but didn't remove it. The Options Industry Council says rolling reduces assignment risk on American-style options but does not entirely remove it. The new short call has a higher strike and more time, so assignment is less likely. Only buying back the short call ends the risk.",
+   "lesson_line": "A roll moves a short option's risk. Only a buy-to-close ends it.",
+   "facts": [
+    "f33",
+    "f32",
+    "f28",
+    "f73"
+   ],
+   "wrong": {
+    "Removed it, the strike is higher now": "You're still short a call after the roll. As long as a short option stays open, it can be assigned.",
+    "Raised it somewhat, as it runs longer": "Assignment risk grows deeper in the money and as expiry nears. A higher strike and more time cut it.",
+    "Moved it onto your long call instead": "A long option can't be assigned. You decide whether to exercise it."
+   },
+   "simple": "Reduced but not removed, because you are still short a call after the roll, and an open short option can be assigned.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "Tier 1 source states this exact case (OIC April 2026 FAQ)"
+    ]
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q16",
+   "skill": "options.manage",
+   "rung": 6,
+   "format": "mcq",
+   "q": "Your call expiring Friday is bid $0.90. The same strike two months out costs $3.10. What does rolling out cost, per contract?",
+   "answer": "$220",
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(new_ask - old_bid) * 100",
+     "new_ask": 3.1,
+     "old_bid": 0.9
+    }
+   },
+   "why": "$220. You sell the expiring call at the $0.90 bid and buy the later one for $3.10. The difference, times 100 shares, is $220 you pay. More time means more time value, so the later expiry costs more. That $220 is new money at risk, and it can be lost.",
+   "lesson_line": "Rolling a long option out isn't free. Every month you add is paid for, and it can be lost.",
+   "facts": [
+    "f42",
+    "f30",
+    "f85",
+    "f52",
+    "f36",
+    "f06"
+   ],
+   "simple": "$220, because you get $0.90 for the old call and pay $3.10 for the new one, times 100 shares.",
+   "deeper": {
+    "counter": "A roll out can feel like keeping the same trade alive. It is not. You booked $0.90 on the old call and paid $3.10 for a new one. If the stock still does not move, time decay works on the new call too. It starts slowly, then speeds up near expiry, and the premium you paid is what you can lose."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "cards-2026-11-15",
+   "choices": [
+    "$400",
+    "$220",
+    "$310",
+    "$2.20"
+   ],
+   "wrong": {
+    "$400": "Adds the two prices. You sell one call and buy the other.",
+    "$310": "Counts only the new call and forgets the $0.90 you get back.",
+    "$2.20": "Forgets that one contract covers 100 shares."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Rolling out",
+    "rows": [
+     {
+      "key": "old_call,_bid",
+      "label": "Old call, bid",
+      "value": 0.9,
+      "fmt": "$"
+     },
+     {
+      "key": "new_call,_two_months",
+      "label": "New call, price to buy",
+      "value": 3.1,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Cost of rolling out",
+     "as": "dollars"
+    }
+   }
+  },
+  {
+   "key": "q17",
+   "skill": "options.manage",
+   "rung": 6,
+   "format": "mcq",
+   "q": "You sold a put spread for $1.20. It costs $0.25 to close now. Hold to expiry instead: what's the most extra you can make per spread?",
+   "answer": "$25",
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "cost * 100",
+     "cost": 0.25
+    }
+   },
+   "why": "$25. On a credit spread, the $1.20 credit is the most you can make. Closing now costs $0.25, so holding can add at most that $0.25 a share, times 100. For that $25, you keep the spread's full risk until expiry. tastylive makes the same point about a short option near max profit.",
+   "lesson_line": "Near max profit, a short spread pays little to hold and keeps all its risk.",
+   "facts": [
+    "f41",
+    "f70",
+    "f69",
+    "f52"
+   ],
+   "simple": "$25 is the most extra, because only the $0.25 it costs to close is left to earn, times 100.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "cards-2026-11-15",
+   "choices": [
+    "$25",
+    "$120",
+    "$95",
+    "$145"
+   ],
+   "wrong": {
+    "$120": "Thinks you can still make the whole credit. Most of it is already made.",
+    "$95": "Gives what closing now already earns, not what is left to make.",
+    "$145": "Adds the 0.25 closing cost to the 1.20 credit."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Close or hold",
+    "rows": [
+     {
+      "key": "credit_received",
+      "label": "Credit received",
+      "value": 1.2,
+      "fmt": "$"
+     },
+     {
+      "key": "cost_to_close_now",
+      "label": "Cost to close now",
+      "value": 0.25,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Most extra by holding",
+     "as": "dollars"
+    }
+   }
+  },
+  {
+   "key": "q18",
+   "skill": "options.manage",
+   "rung": 7,
+   "format": "scenario",
+   "story": "It's expiry day. Your short put is in the money, and you'd rather roll it out a month than take the shares.",
+   "q": "How do you work the roll?",
+   "choices": [
+    "Well before the close, as one order",
+    "Close now, sell the new put later",
+    "Wait for the final minutes to roll",
+    "Let it expire, then sell a new put"
+   ],
+   "answer": "Well before the close, as one order",
+   "why": "Well before the close, as one order. A roll's close and new open are usually done together, to cut slippage if the stock moves in between. Schwab says liquidity can dry up near the close on expiry day, and spreads may widen. So for a roll, sooner may be better.",
+   "lesson_line": "Roll well before the close on expiry day, in one order. Don't leave it to the bell.",
+   "facts": [
+    "f30",
+    "f82",
+    "f83",
+    "f53",
+    "f47",
+    "f28"
+   ],
+   "wrong": {
+    "Close now, sell the new put later": "That splits the roll into two trades, and the stock can move in between. A roll is usually done in one step.",
+    "Let it expire, then sell a new put": "In the money, it will most likely be assigned, and you get the shares you wanted to avoid.",
+    "Wait for the final minutes to roll": "That's when liquidity can dry up and spreads may widen. Schwab says sooner may be better."
+   },
+   "simple": "Roll well before the close in one order, because liquidity can thin and spreads widen late on expiry day.",
+   "deeper": {
+    "trap": "The trap is waiting to see if the put finishes out of the money. In the final minutes, liquidity can dry up and spreads may widen. An in-the-money option is generally exercised at expiry. So the short put is likely assigned, and you get the shares you meant to avoid."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "touches the owner's rulebook E57 (market orders: the limit was dropped from the key) and A6 (options only as a defined-risk alternative)",
+     "fixed before (2026-11-09 checker)"
+    ]
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q19",
+   "skill": "options.manage",
+   "rung": 7,
+   "format": "scenario",
+   "story": "Your call is down 60% with a week left. The stock broke the level your plan was built on. A friend says roll it out three months.",
+   "q": "What would that roll really be?",
+   "choices": [
+    "Taking the loss, then a new bet",
+    "A patient way to wait out the dip",
+    "A free extension of the call",
+    "Just more time on the same trade"
+   ],
+   "answer": "Taking the loss, then a new bet",
+   "why": "Taking the loss, then a new bet. The roll closes the old call, so its loss is settled right there. tastylive says rolling a loser locks in the losing trade and opens a new one. The later call also costs more, because more time means more time value. Here the setup already broke, so the new bet starts on a failed idea.",
+   "lesson_line": "If the setup broke, I close it. Rolling a broken idea is just buying it again.",
+   "facts": [
+    "f71",
+    "f66",
+    "f30",
+    "f42"
+   ],
+   "wrong": {
+    "A free extension of the call": "The later call has more time value, so it costs more. You pay for those extra months.",
+    "Just more time on the same trade": "The old call is closed and its loss booked. The new call is a separate trade at today's price.",
+    "A patient way to wait out the dip": "The level your plan was built on broke. tastylive calls a rolled loser a new low probability trade."
+   },
+   "simple": "Taking the loss and a new bet, because the roll closes the old call before it opens a new one.",
+   "deeper": {
+    "trap": "Rolling out feels like patience. But the old call is closed at a loss, and the money for the new call is fresh risk. The new call is a fresh trade and needs a reason of its own. Your plan's reason, the level the stock broke, is gone. Without a new reason, closing beats rolling."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (distractor replaced 2026-11-09)"
+    ]
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q20",
+   "skill": "options.manage",
+   "rung": 7,
+   "format": "tf",
+   "q": "Being listed on an exchange means an option has a market to close in.",
+   "answer": "False",
+   "why": "False. The options disclosure document says there is no guarantee a market will exist for every option at all times. Schwab adds that a liquid market is not guaranteed. Option prices can also stop tracking the stock the way you expect. So check the bid and the spread before you buy.",
+   "lesson_line": "Check the bid and the spread before you buy. An exit you can't fill isn't an exit.",
+   "facts": [
+    "f74",
+    "f75",
+    "f76",
+    "f45"
+   ],
+   "simple": "False, because there is no promise that a market to sell in will exist for every option at all times.",
+   "deeper": {
+    "trap": "An option can look profitable on paper and still be hard to sell. FINRA says profits aren't guaranteed until a closing trade is done. The disclosure document says a market may not exist for every option at all times. So the time to check the bid and the spread is before you buy, not when you need out."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (why split, 2026-11-09)"
+    ]
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q21",
+   "skill": "options.manage",
+   "rung": 8,
+   "format": "scenario",
+   "story": "The options network tastylive sells options for a credit. It says it usually rolls a short option 7 to 21 days before expiry.",
+   "q": "What is it trying to avoid?",
+   "choices": [
+    "Gamma and assignment risk",
+    "A drop in implied volatility",
+    "Time decay slowing down",
+    "The stock sitting still"
+   ],
+   "answer": "Gamma and assignment risk",
+   "why": "Gamma and assignment risk. tastylive names both as its reason for rolling early. The Options Industry Council backs each one. Gamma rises sharply in at-the-money options as time is removed. Assignment risk grows as expiration approaches. Faster time decay near expiry helps a seller, so it is not the threat.",
+   "lesson_line": "Near expiry, a short option near the money can swing fast. Decide early whether to close or roll.",
+   "facts": [
+    "f72",
+    "f37",
+    "f28",
+    "f34",
+    "f05",
+    "f35",
+    "f88"
+   ],
+   "wrong": {
+    "A drop in implied volatility": "Falling volatility tends to lower option prices. That helps a seller, so it isn't what they're running from.",
+    "Time decay slowing down": "Decay speeds up near expiry, which helps a seller. The danger is how fast the price can swing.",
+    "The stock sitting still": "Short options gain when the stock sits still. Their risk is a sharp, sudden move."
+   },
+   "simple": "Gamma and assignment risk, because near expiry a short option near the money can swing fast and is likelier to be assigned.",
+   "deeper": {
+    "trap": "Fast decay in the last weeks looks like free money for a seller. The same weeks bring a sharp rise in gamma for at-the-money options, so a small stock move can swing the option hard. tastylive's 7 to 21 days is its own practice, not a rule. The point is to decide early whether to close or roll."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "story carries tastylive's own 7 to 21 day practice, which can change",
+     "fixed before (2026-11-09 checker)"
+    ]
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q22",
+   "skill": "options.manage",
+   "rung": 8,
+   "format": "tf",
+   "q": "Holding a big winner to expiry is free, since a call can't lose more than its premium.",
+   "answer": "False",
+   "why": "False. An option holder can't lose more than the premium paid, but that cap is on your cost, not your gain. FINRA says profits aren't guaranteed until you close the trade. Letting a winner ride means taking the risk of a reversal. A big open gain can shrink all the way back.",
+   "lesson_line": "The premium caps the loss. Nothing caps how much open profit you can give back.",
+   "facts": [
+    "f45",
+    "f16",
+    "f06"
+   ],
+   "simple": "False, because the premium caps your loss on what you paid, not the open profit you can give back.",
+   "deeper": {
+    "trap": "Traders mix up two caps. The premium caps what you can lose of your own money. Nothing caps how much open profit you can hand back. A call that is well up is a paper gain until you sell it, and a reversal can take all of it. Holding to expiry risks the gain, not just the cost."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "Tier 1 sources (OIC, FINRA) agree"
+    ]
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q23",
+   "skill": "options.manage",
+   "rung": 8,
+   "format": "scenario",
+   "story": "You own calls with a stop-loss order on the option at $2.00. Bad news hits, and the bid drops straight to $1.40.",
+   "q": "Your stop turns into a market order. Where does it most likely sell?",
+   "choices": [
+    "Near $1.40, at the bid",
+    "At $2.00, your stop price",
+    "Not until $2.00 trades again",
+    "At the ask, just above $1.40"
+   ],
+   "answer": "Near $1.40, at the bid",
+   "why": "Near $1.40, at the bid. Once triggered, the stop is a market sell order, and a market sell fills at the best bid. Schwab warns the fill can be well under the stop price. A stop-limit would avoid that, but it might not fill at all. A stop sets when you get out, not the price.",
+   "lesson_line": "A stop picks when you get out, not the price. In a fast market, expect the bid.",
+   "facts": [
+    "f20",
+    "f21",
+    "f57",
+    "f58",
+    "f59"
+   ],
+   "wrong": {
+    "At $2.00, your stop price": "The stop is a trigger, not a promised price. Once it fires, it takes the bid.",
+    "Not until $2.00 trades again": "That's how a stop-limit behaves. It can leave you holding while the price keeps falling.",
+    "At the ask, just above $1.40": "A market sell order fills at the best bid, not the ask. The Options Industry Council says so directly."
+   },
+   "simple": "Near $1.40, because a triggered stop is a market sell order, and that sells at the best bid there is.",
+   "deeper": {
+    "trap": "Many traders think a stop guarantees its price. It doesn't. Here the bid dropped straight from above $2.00 to $1.40, so the market order took about $1.40. A stop-limit at $2.00 would not fill until $2.00 traded again, which may not happen while the price keeps falling."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "touches the owner's rulebook B25 (premium paid is the stop) and D41 (real stop orders)"
+    ]
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q24",
+   "skill": "options.manage",
+   "rung": 9,
+   "format": "scenario",
+   "story": "Your calls are up 150% with three weeks left. The stock just hit the target your plan set for its whole move.",
+   "q": "What do you do?",
+   "choices": [
+    "Take the profit, close it",
+    "Hold for more, it's working",
+    "Roll up and add contracts",
+    "Exercise and keep the shares"
+   ],
+   "answer": "Take the profit, close it",
+   "why": "Take the profit, close it. The Options Industry Council covers this case. If the stock made most or all of its expected move, you might close and take the profit. Your plan set that target when you were calm. Holding for more is a new plan made on the fly, with the risk of a reversal. With three weeks left, time decay is also speeding up.",
+   "lesson_line": "When the stock hits the target you set, take it. You made that call when you were calm.",
+   "facts": [
+    "f15",
+    "f16",
+    "f10",
+    "f47",
+    "f35"
+   ],
+   "wrong": {
+    "Hold for more, it's working": "That's a new plan made on the fly. Letting it ride means taking the risk of a reversal.",
+    "Roll up and add contracts": "Adding contracts adds risk just as your plan says the move is done.",
+    "Exercise and keep the shares": "Exercising throws away the time value left, and it needs cash for the shares."
+   },
+   "simple": "Take the profit and close, because the stock already made the move your plan expected, so the reason to hold is gone.",
+   "deeper": {
+    "trap": "A 150% gain makes it feel like the trade is still working, so why stop? But the reason you bought is used up: the stock hit the target for its whole move. Anything more is a new bet with your profit at stake. It is made in the rush of a win, not with the calm plan."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "touches the owner's rulebook A11 and E51 (trims and a trail, for shares)",
+     "fixed before (question text, 2026-11-09)"
+    ]
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q25",
+   "skill": "options.manage",
+   "rung": 9,
+   "format": "scenario",
+   "story": "You sold a put for $0.80. tastylive says it closes a losing short option at a net loss of twice the credit.",
+   "q": "Under that rule, at what price do you buy the put back?",
+   "choices": [
+    "$2.40",
+    "$1.60",
+    "$0.80",
+    "$0.40"
+   ],
+   "answer": "$2.40",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "credit * 3",
+     "credit": 0.8
+    }
+   },
+   "why": "$2.40. On a short option, your loss is the buy-back price minus the credit you took in. A loss of twice the $0.80 credit is $1.60. So you buy back at $0.80 plus $1.60, which is three times the credit. tastylive's own example works the same way: collect $1.00, close at $3.00.",
+   "lesson_line": "On a short option, the loss is buy-back minus credit. Do that math before you sell.",
+   "facts": [
+    "f88",
+    "f89",
+    "f44",
+    "f13"
+   ],
+   "wrong": {
+    "$1.60": "That's twice the credit as a price. Buying back there loses only one times the credit.",
+    "$0.80": "That's where you sold it. Buying back there is break-even, not a stop.",
+    "$0.40": "Cuts the credit in half instead of tripling it."
+   },
+   "simple": "$2.40, because a loss of twice the $0.80 credit means paying back the credit plus twice it, three times $0.80.",
+   "deeper": {
+    "trap": "The common slip is to buy back at twice the credit, $1.60. That price loses only one times the credit. The rule counts the net loss, not the option's price. It is tastylive's practice, and tastylive says only that it found this can be optimal. It is not a UCT rule."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key on tastylive's own rule, a practice that can change",
+     "touches the owner's rulebook A6 and B25 (options only as a defined-risk alternative)"
+    ]
+   },
+   "batch": "rank"
+  },
+  {
+   "key": "q26",
+   "skill": "options.manage",
+   "rung": 3,
+   "format": "mcq",
+   "house": true,
+   "q": "For UCT, what is the stop on an option you buy?",
+   "choices": [
+    "The premium you paid for it",
+    "Half of the premium you paid",
+    "A level on the stock's chart",
+    "No stop, options need no rules"
+   ],
+   "answer": "The premium you paid for it",
+   "why": "The premium you paid. Our rulebook sets no further rules for options: the premium paid is the stop. A buyer can't lose more than the premium paid. So that premium is the most the trade can cost.",
+   "lesson_line": "For us, an option's stop is the premium paid. A buyer can't lose more than that.",
+   "facts": [
+    "h01",
+    "f06",
+    "f65",
+    "f19"
+   ],
+   "wrong": {
+    "Half of the premium you paid": "Some traders cut at a 50% loss, E*TRADE says. Our rule doesn't: the premium paid is the stop.",
+    "A level on the stock's chart": "The Options Industry Council leaves the trigger to you. Our rulebook has chosen: the premium paid is the stop.",
+    "No stop, options need no rules": "Our rulebook sets no further rules, but it does name the stop: the premium paid."
+   },
+   "simple": "The premium you paid, because our rule says the premium paid is the stop on an option.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "house rule B25, quoted from the owner's rulebook (sizing_rule.md section 9)"
+    ]
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q27",
+   "skill": "options.manage",
+   "rung": 2,
+   "format": "tf",
+   "house": true,
+   "q": "In our rulebook, options are a defined-risk alternative to shares, used only occasionally.",
+   "answer": "True",
+   "why": "True. Our rulebook says to trade shares, and that options are only a defined-risk alternative. It adds that we use options occasionally, with no further rules.",
+   "lesson_line": "We trade shares. Options are an occasional, defined-risk alternative.",
+   "facts": [
+    "h02",
+    "h01"
+   ],
+   "simple": "True, because our rulebook says we trade shares and use options only now and then, with set risk.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "house rules A6 and B25, quoted from the owner's rulebook (sizing_rule.md section 9)"
+    ]
+   },
+   "batch": "wave7"
+  }
+ ],
+ "conflicts": [
+  "The '21-day rule' in the unit plan: the version usually repeated ('manage short options at 21 days to expiry') is credited to tastytrade's research, but the tastylive page that could be fetched (s22) says it rolls '7-21 days prior to expiration'. No day count is keyed as a rule: q21 gives tastylive's own 7-21 practice as a given and keys only the reason, which OIC (Tier 1) states on its own (gamma rises sharply as time is removed, f37; assignment risk grows as expiration approaches, f28; decay accelerates in the last three weeks, f35).",
+  "Profit and loss percentages and multiples: E*TRADE's example exits at double or at a 50% loss (f65); tastylive closes short-premium winners at 50% of max profit (s21, not quoted as a fact) and says closing a loser at a net loss of 2x the credit 'can be optimal' (f88). Per the unit plan, no percentage or multiple is keyed as UCT's rule or as best practice. q11 states the member's own plan ('out if it loses half its value') and names E*TRADE's example only in the reveal; q25 gives tastylive's 2x rule in the story as tastylive's and keys only the arithmetic (a loss of twice the credit means buying back at three times it), which tastylive's own $1.00 / $3.00 example states (f89); q17 computes from given prices and cites tastylive only for the risk/reward point (f70). tastylive's 'optimal' claim rests on its own back-tests and is not repeated.",
+  "OIC's long call page says some buyers set price targets or re-evaluation dates while 'others play it by ear' (f02). q07 ('decide the exit before you buy') is keyed on Fidelity (f50) and E*TRADE (f60, f61), two Tier 2 publishers that agree; OIC is not cited as saying a plan is required, and q03 keys only that a date CAN be an exit trigger (OIC f02 plus Fidelity's time exit, f77).",
+  "Trailing stops on options: E*TRADE's example trails the option's bid by a fixed dollar amount (f78); Schwab's trailing-stop page (f80, f81) is written for stocks. Both say a sell trailing stop only moves up and becomes a market order when triggered. q10 keys only that mechanic (calc: high minus trail); whether a given broker trails the bid, the last trade or the mark is not keyed.",
+  "What triggers a stop order on an option (a trade, or the bid or offer) has differed by exchange and over time in Cboe's rule filings. The file never keys the trigger mechanics; q23 says only that a stop that has turned into a market sell order fills at the best bid (OIC, f21) and can fill well under the stop (Schwab, f58).",
+  "Investopedia's roll-up example (s20) reads 'either selling the June call option or by simultaneously buying' a September call; the roll it then describes is a sell and a buy together. q13's key rests on OIC's FAQ (f18, Tier 1: sell the options, then buy a more distant strike for a credit); the Investopedia line (f67) is cited only for 'protecting part of the profits'.",
+  "Schwab's 'When Should I Roll My Options Trades?' (November 25, 2025) is a video with no page text and is not cited. Fidelity's 'Rolling covered calls' (written by The Options Institute at Cboe) was read but is about covered calls (F6.13's ground) and is not cited.",
+  "Expiry-day times (Schwab's 3 p.m. CT trading cut-off, OCC's exercise thresholds and deadlines) change with products and rules and belong to F6.16. f53 is quoted for its point that liquidity thins near the close; no question asks for a time.",
+  "Every dollar figure ignores commissions and fees, as OIC's own examples do ('less commission, of course')."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "All 21 cited pages re-fetched by the checker's own client 2026-11-09 (quote check 71/71 found) and each quote read in its surrounding text; OIC FAQ pages also opened with WebFetch. f43, f44 (FINRA), f31 (OIC glossary), f07 (ODD), f45 (FINRA) say this. Step 3 said 'Exercise is the exception', which skips options that expire; now 'not by exercise', as the ODD says it.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "All 21 cited pages re-fetched by the checker's own client 2026-11-09 (quote check 71/71 found) and each quote read in its surrounding text; OIC FAQ pages also opened with WebFetch. f50 (Fidelity), f60 (E*TRADE): plan the exit first; f19 (OIC): stock or option price as the stop trigger is 'a matter of personal preference'; f02 (OIC) re-evaluation dates; f36 (OIC) decay gradual then accelerating. Track audit 2026-11-09: step 2 names the Options Industry Council instead of 'OIC'. Its first sentence now reads \"Your stop can sit on the stock's chart or on the option's price\" (same meaning, OIC FAQ f19) to keep the step under 22 words.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "All 21 cited pages re-fetched by the checker's own client 2026-11-09 (quote check 71/71 found) and each quote read in its surrounding text; OIC FAQ pages also opened with WebFetch. f30 (OIC glossary: a roll closes one position and opens another), f66 (Investopedia: gain or loss on the original is settled), f71 (tastylive: rolling locks in the losing trade). 'Needs a reason of its own' is mentor judgment, consistent with f71.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cold answer Sell to close, matches key (f43 FINRA, f31 OIC glossary). 'with no shares' rules out exercise (f46). Put note rests on f43 'same contract series'. Choices 13-18 chars, key not longest, no lone absolute. Reveal does not give q04's key in its stem; q04's own reveal echoes q01 only after answering."
+  },
+  "q02": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave7; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+  },
+  "q03": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave7; awaiting cold re-read"
+  },
+  "q04": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Keep. Buy to close a put you sold is the exact action at the screen; the bank holds real wrong moves (sell, exercise, roll). Why is a plain account of closing orders."
+  },
+  "q05": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cold answer: trigger is your choice, matches key. OIC FAQ re-fetched 2026-11-12: 'It is a matter of personal preference. Most exchanges allow stop-loss orders in options.' and the market/limit line are on the page (f19, f20). Each distractor false on f19/f20; f62 backs the stock trigger. Tried breaking 'Only the option's price' (an exchange stop keys off the option; a stock trigger is a broker contingent order) but OIC Tier 1 answers this exact question as personal preference. Mild tell: two distractors carry 'Only'/'must', key is the lone permissive choice; 'Most exchanges don't accept' still"
+  },
+  "q06": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Simple is 21 words, matches f85/f87; no overreach on the strike."
+  },
+  "q07": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Before you buy is right (f50, f60, f61). Notes rest on f51 and f36. 'Get in the way' drops f51's 'often ... can' hedge, but f51's own claim reads the same; tolerable. No tell (key not longest, no lone absolute)."
+  },
+  "q08": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Simple now two sentences under 22 words; f30/f66/f71 support False."
+  },
+  "q09": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Roles, numbers, format and label checked against the question."
+  },
+  "q10": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave7; awaiting cold re-read"
+  },
+  "q11": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Roles, numbers, format and label checked against the question."
+  },
+  "q12": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Sell 2, let 2 ride is right (f17). 'Exercise 2, keep 2' removes the lone-partial tell and is wrong on f10/f46/f47 (it does not lock in a gain). Choices 18-20 chars, no tell. Consistent with A11.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+  },
+  "q13": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Roles, numbers, format and label checked against the question."
+  },
+  "q14": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave7; awaiting cold re-read"
+  },
+  "q15": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reduced but not removed is right (f33, OIC Tier 1, this exact case). 'Raised it somewhat' now qualified too, so the key is not the lone hedged choice; its note rests on f28. Long-call note on f73."
+  },
+  "q16": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "New call is bought at its ask; say what the 3.10 is"
+  },
+  "q17": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Roles, numbers, format and label checked against the question."
+  },
+  "q18": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cold answer: roll well before the close in one order, matches key. f53 (Schwab: liquidity can dry up near the close on expiry day, 'sooner may be better' even for rolling) plus f30 (OIC: a roll simultaneously closes and opens) and f82/f83 (done together to cut slippage). Choices form a clean 2x2 (early/late x one order/split) plus let-it-expire, which f47 rebuts; no lone absolute, key 35 chars vs 33-34. Number-free. Premise is an uncovered short put, which sits against A6 (options only as a defined-risk alternative); the key itself does not contradict the rulebook, and the owner flag already r"
+  },
+  "q19": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Taking the loss, then a new bet is right (f71, f66). New distractor is a real misread, rebutted on f71. Overlap with q08 is a rung-3 idea applied at rung 7, not a stem giving a key away. Simple under 22 words."
+  },
+  "q20": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "False is right on f74 (no guarantee a market exists for every option at all times) and f76. Absolute removed; 'means' still carries the guarantee, so True is not a sound reading. Mildly arguable in practice, acceptable."
+  },
+  "q21": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key right: tastylive page re-fetched 2026-11-12, 'We usually roll our trades 7-21 days prior to expiration to avoid gamma risk & assignment risk that grows as expiration nears', in its short premium section (f72); f37, f28 back each half; each distractor is something that helps a seller (f05, f35/f36, f34). Defect: the story is one sentence; the contract (README section 2) requires a scenario story of 2 to 4 short sentences. Added a grounded first sentence (tastylive sells options for a credit: f88 'credit received') and cited f88. Key, choices and reveal unchanged. Mild residual: only the key"
+  },
+  "q22": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave7; awaiting cold re-read"
+  },
+  "q23": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave7; awaiting cold re-read"
+  },
+  "q24": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave7; awaiting cold re-read"
+  },
+  "q25": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
+  },
+  "q26": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "House question. h01 quote checked verbatim in sizing_rule.md section 9 (B25, line 154). Key 'The premium you paid for it' is the rule; each wrong note rebuts on h01 (+ f65, f19). f06 supports 'a buyer can't lose more than the premium paid'. Choices 27-30 chars, key not longest, no lone absolute. Does not give away q27."
+  },
+  "q27": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "House true/false. h02 quote checked verbatim (A6, line 109) and h01 (B25). True is right. Keeps the T/F split at 3 True, 3 False. Note: this teaches A6 while q14, q18 and q25 put the member in short options; that conflict is already an owner flag."
+  }
+ }
+}

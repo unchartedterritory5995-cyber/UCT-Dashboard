@@ -7,11 +7,12 @@ from the function. The base case is a stock at 100 with:
 
     50-day line 95, 8-day EMA 99 (rising), 21-day EMA 97 (rising), ATR 2,
     1.5 ATR above the 21-day, 2.5 ATR above the 50-day, a 20-session closing
-    high 3 sessions ago, today's low 99.5, no pivot, 400 bars, a flat 64 closes.
+    high of 101 made 3 sessions ago, today's low 99.5, no pivot, 400 bars, a
+    flat 64 closes.
 
-Its low (99.5) is within half an ATR (1.0) of the rising 8-day (99 + 1 = 100)
-and its close (100) is no more than half an ATR under it (99 - 1 = 98): a
-pullback to the 8-day.
+Its close (100) is half an ATR (1.0) under that high (101), its low (99.5) is
+within half an ATR of the rising 8-day (99 + 1 = 100) and its close is no more
+than half an ATR under it (99 - 1 = 98): a pullback to the 8-day.
 """
 from __future__ import annotations
 
@@ -26,7 +27,7 @@ def _inp(**changes):
     base = {
         "ema8": 99.0, "ema21": 97.0, "ema8_rising": True, "ema21_rising": True,
         "atr14": 2.0, "atr_ext_ema21": 1.5, "atr_ext_sma50": 2.5, "high20_age": 3,
-        "sma50": 95.0, "low": 99.5, "close": 100.0, "bars": 400,
+        "high20": 101.0, "sma50": 95.0, "low": 99.5, "close": 100.0, "bars": 400,
         "pivot": None, "tight_consolidation": 0, "closes": list(FLAT64),
     }
     base.update(changes)
@@ -75,6 +76,7 @@ def test_the_thresholds_are_the_published_ones():
     assert rs_setup.IBD_BUY_ZONE is base_catalog.IBD_BUY_ZONE == 0.05
     assert rs_setup.PULLBACK_HIGH_MAX_AGE == 15
     assert rs_setup.PULLBACK_ATR_BAND == 0.5
+    assert rs_setup.PULLBACK_MIN_DEPTH_ATR == 0.5                 # added 2026-11-15
     assert (rs_setup.BUYOUT_JUMP_PCT, rs_setup.BUYOUT_WINDOW, rs_setup.BUYOUT_MIN_SESSIONS,
             rs_setup.BUYOUT_BAND_PCT) == (15.0, 60, 5, 1.5)   # tightened 2026-11-14 (unit U4)
     assert (rs_setup.ONE_DAY_WINDOW, rs_setup.ONE_DAY_SHARE, rs_setup.ONE_DAY_MIN_PCT) == (63, 0.5, 15.0)
@@ -133,7 +135,24 @@ def test_pullback_to_the_8_day_band_edges():
 def test_pullback_needs_a_20_session_high_within_15_sessions():
     assert _setup(high20_age=15) == "pullback_8"
     assert _setup(high20_age=16) == "uptrend"
-    assert _setup(high20_age=0) == "pullback_8"
+
+
+def test_a_pullback_has_come_off_its_high_by_half_an_atr():
+    # ATR 2: the close (100) must be at least 1.0 under the 20-session closing high.
+    assert _setup(high20=101.0) == "pullback_8"                 # exactly half an ATR under
+    assert _setup(high20=100.99) == "uptrend"                   # a cent short of it
+    assert _setup(high20=110.0) == "pullback_8"
+    # A close AT the high (the high is today's) is never a pullback, although the
+    # day's low dipped to the 8-day: the live case this rule was added for.
+    assert _setup(high20_age=0, high20=100.0) == "uptrend"
+    # The same test stands in front of the 21-day: price on the 21-day band but
+    # a cent short of half an ATR off the high (close 98, high 98.99).
+    assert _setup(ema8_rising=False, close=98.0, low=97.9, high20=99.0) == "pullback_21"
+    assert _setup(ema8_rising=False, close=98.0, low=97.9, high20=98.99) == "uptrend"
+    # It is measured in the stock's own ATR: with an ATR of 1 the same 101 high is a
+    # full ATR above the close.
+    assert _setup(atr14=1.0, high20=100.5, low=99.4) == "pullback_8"
+    assert _setup(atr14=1.0, high20=100.49, low=99.4) == "uptrend"
 
 
 def test_pullback_needs_the_average_to_be_rising():
@@ -186,7 +205,7 @@ def test_missing_inputs_give_no_label_rather_than_a_guess():
     # ... but "below the 50-day" needs neither.
     assert _setup(close=94.0, atr_ext_sma50=None, atr_ext_ema21=None) == "below_50"
     # A pullback that cannot be judged is not called "Uptrend, no setup".
-    for key in ("ema8", "ema21", "ema8_rising", "ema21_rising", "high20_age", "low"):
+    for key in ("ema8", "ema21", "ema8_rising", "ema21_rising", "high20_age", "high20", "low"):
         assert _setup(**{key: None}) is None, key
     # ... and an at-pivot reading does not need them.
     assert _setup(pivot=100.0, ema8=None, low=None) == "at_pivot"

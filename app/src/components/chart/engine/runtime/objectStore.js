@@ -25,7 +25,7 @@
 //
 // ⛔ A WITHHELD FAMILY IS NOT DRAWN AT ALL, and the reason rides out with the run.
 // Correctness over coverage: a drawing that may be wrong is worse than none.
-import { POOL_LIMITS, resolveCapacity, collectsAbove } from '../objectPool.js'
+import { POOL_LIMITS, resolveCapacity, collectsAbove, countAtCapReason, COUNT_AT_CAP_FAMILIES } from '../objectPool.js'
 import { packedToObjectHex } from './colours.js'
 import { objectHandle, isDrawingHandle } from './handles.js'
 import { ENUM_NA_SENTENCE, ENUM_DROPS } from '../enumNaRule.js'
@@ -263,12 +263,6 @@ export function declaredCapsOf(stripped) {
   return caps
 }
 
-/** The declared `calc_bars_count` of a source (same stripped scan), or null. */
-export function declaredCalcBarsOf(stripped) {
-  const m = /calc_bars_count\s*=\s*(\d+)/.exec(String(stripped || ''))
-  return m ? Number(m[1]) : null
-}
-
 export class ObjectRunError extends Error {
   constructor(message) { super(message); this.name = 'ObjectRunError' }
 }
@@ -286,6 +280,8 @@ const isNa = (v) => v === undefined || (typeof v === 'number' && Number.isNaN(v)
  * @param {number} [o.fillCap]      house envelope for linefills (no Pine rule)
  */
 export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fillCap = 500 } = {}) {
+  // ⭐ DRAW-1 GC — the families whose handle the script reads at a past offset (`historyHeldOf`)
+  const historyHeld = new Set(Array.isArray(caps && caps.historyHeld) ? caps.historyHeld : [])
   const limits = {}
   for (const fam of Object.keys(POOL_LIMITS)) {
     if (pineVersion < POOL_LIMITS[fam].since) continue
@@ -438,6 +434,13 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
       reap(inst)
       stats.collected += 1
     }
+    // ⭐⭐ DRAW-1 GC — a BOX collector ran in a script that reads a past value of the variable holding
+    // its boxes (`objectPool.js::historyHeldOf`, inside-bar-boxes' shape): which of the oldest TradingView
+    // still shows is not what C7 says there (inside-bar-boxes 52 where C7 holds 50; vw-draw-count-at-cap
+    // 20 / 23 where it holds 22 / 25), so that family is withheld by name. Every other box family keeps
+    // C7 above, the newest kept (rs-arm-label-last-bar-spy 503 / 503, sonarlab-order-blocks 24 / 24).
+    // Said AFTER the walk, so a box held in a user type keeps that sentence.
+    if (COUNT_AT_CAP_FAMILIES.includes(fam) && historyHeld.has(fam)) withhold(fam, countAtCapReason(fam, cap))
   }
 
   function tablePos(props) {

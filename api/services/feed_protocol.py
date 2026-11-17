@@ -934,6 +934,47 @@ class DesiredUnion:
         return {cid: {"gen": c.gen, "connected": c.connected, "lease_until": c.lease_until}
                 for cid, c in self._clients.items()}
 
+    def client_keys(self, client_id: str) -> frozenset:
+        """One client's (sym, key) bar keys (empty for an unknown client)."""
+        c = self._clients.get(client_id)
+        return frozenset(c.keys) if c is not None else frozenset()
+
+    def client_syms(self, client_id: str) -> frozenset:
+        """The symbols one client holds on at least one channel, any owner."""
+        c = self._clients.get(client_id)
+        if c is None:
+            return frozenset()
+        return frozenset(s for syms in c.owners.values() for s, ch in syms.items() if ch)
+
+    def client_owner_syms(self, client_id: str, owner: str) -> frozenset:
+        """The symbols one client holds under one owner (e.g. "volume")."""
+        c = self._clients.get(client_id)
+        if c is None:
+            return frozenset()
+        return frozenset(s for s, ch in c.owners.get(owner, {}).items() if ch)
+
+    def client_tas(self, client_id: str) -> frozenset:
+        c = self._clients.get(client_id)
+        return frozenset(c.tas) if c is not None else frozenset()
+
+    def client_nhnl_syms(self, client_id: str) -> frozenset:
+        c = self._clients.get(client_id)
+        return frozenset(c.seeds) if c is not None else frozenset()
+
+    def nhnl_seed_candidates(self) -> dict:
+        """{sym: [seed, ...]}: every client's seed for each symbol (not merged), in
+        client_id order, for a consumer that resolves conflicts itself."""
+        out: dict = {}
+        for cid in sorted(self._clients):
+            for sym, seed in self._clients[cid].seeds.items():
+                out.setdefault(sym, []).append(seed)
+        return out
+
+    def owner_syms(self, owner: str) -> frozenset:
+        """The symbols any client holds under `owner`."""
+        return frozenset(s for c in self._clients.values()
+                         for s, ch in c.owners.get(owner, {}).items() if ch)
+
     def channels(self) -> dict:
         """{sym: frozenset[channel]} over every client and owner."""
         acc: dict[str, set] = {}

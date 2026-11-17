@@ -4,7 +4,7 @@
 // beforeunload and pagehide on the opener, then a remount.
 //
 // Same mock shape as ChartsWorkspace.memberSwitch.test.jsx.
-import { render, screen, act, fireEvent } from '@testing-library/react'
+import { render, screen, act, fireEvent, within } from '@testing-library/react'
 import { vi, describe, test, expect, beforeEach, afterEach } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 
@@ -55,6 +55,7 @@ vi.mock('../../hooks/useChartLayouts', () => ({
 }))
 
 import ChartsWorkspace from './ChartsWorkspace'
+import { UCT_DEFAULT_OFFERED } from './layoutDockPins'
 import { publishPrefsUser, __resetPrefsSessionForTests } from '../../lib/prefsSession'
 import { markAppClosing, __resetAppClosingForTests } from '../../lib/appClosing'
 import { requestDeskLaunch, withdrawDeskLaunch, isDeskLaunchPending, isDeskLaunchBlocked, hasOpenPopouts } from '../../lib/popoutRegistry'
@@ -129,8 +130,8 @@ async function renderWS() {
   return view
 }
 function popOut() {
-  act(() => { fireEvent.click(screen.getByText('Layouts ▾')) })
-  act(() => { fireEvent.click(screen.getByText('⧉ Pop Out Layout')) })
+  act(() => { fireEvent.click(document.querySelector('[data-guide="workspace.layoutsMenuBtn"]')) })
+  act(() => { fireEvent.click(screen.getByRole('button', { name: 'Pop out layout' })) })
 }
 const restoreButton = () => screen.queryByTestId('workspace-notice-action')
 const noticeText = () => screen.queryByTestId('workspace-notice')?.textContent ?? ''
@@ -346,9 +347,16 @@ describe('closing the window yourself', () => {
 
     test('dock, refused save, board replaced, later confirmed save: the record stays', async () => {
       await dockWithRefusedSave()
-      act(() => { fireEvent.click(screen.getByText('Layouts ▾')) })
-      act(() => { fireEvent.click(screen.getByText('Open Layout ▸')) })
-      act(() => { fireEvent.click(screen.getAllByText('UCT Default')[0]) })
+      act(() => { fireEvent.click(document.querySelector('[data-guide="workspace.layoutsMenuBtn"]')) })
+      if (UCT_DEFAULT_OFFERED) {
+        act(() => { fireEvent.click(screen.getByRole('button', { name: 'Open layout' })) })
+        act(() => { fireEvent.click(screen.getAllByText('UCT Default')[0]) })
+      } else {
+        // UCT Default is hidden (owner 11-16): New layout replaces the board just the same.
+        const newLayout = within(document.querySelector('header')).getAllByRole('button', { name: 'New layout' })
+          .find((b) => !b.closest('[role="toolbar"][aria-label="Saved layouts"]'))
+        act(() => { fireEvent.click(newLayout) })
+      }
       await flush()
       act(() => { vi.advanceTimersByTime(3000) })
       await flush()

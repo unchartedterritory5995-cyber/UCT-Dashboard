@@ -57,8 +57,12 @@ ARMING RUNBOOK (dark -> observe -> arm)
 from __future__ import annotations
 
 import asyncio
+import json
 import math
 import os
+import queue
+import re
+import sys
 import threading
 import time
 
@@ -172,6 +176,8 @@ def _fresh_state() -> dict:
         "observe_only": False,
         "check_sec": DEFAULT_CHECK_SEC,
         "wedge_sec": DEFAULT_WEDGE_SEC,
+        "capture_ms": None,        # set at start (WATCHDOG_CAPTURE_MS, default _STALL_CAPTURE_MS)
+        "loop_thread_id": None,    # learned from the probe, which runs ON the loop
     }
 
 
@@ -179,32 +185,185 @@ _state = _fresh_state()
 
 # Ring buffer of thread-stack snapshots captured DURING a stall (observe mode).
 # Populated by the measuring thread the first time a probe is late by more than
-# _STALL_CAPTURE_MS within a single stall, so the blocking frame is still live.
+# the capture threshold within a single stall, so the blocking frame is still live.
 _stall_stacks: list = []
-_STALL_CAPTURE_MS = 3000.0   # capture once a stall passes ~3s of unresponsiveness
+_STALL_CAPTURE_MS = 3000.0   # default capture threshold (WATCHDOG_CAPTURE_MS overrides)
 _STALL_CAPTURE_MAX = 12      # keep the newest N captures
 _captured_this_stall = False # reset when the loop recovers
+
+# ---------------------------------------------------------------------------
+# Stored captures (2026-11-16). The ring buffer above lives in memory, and `web`
+# restarts many times a day, so on 2026-11-16 every capture of the morning's
+# freezes (42 s at 07:03Z, 16 s at a 10:00Z boot) was gone before anyone read
+# it. Each capture is ALSO written, compactly, as one JSON line to
+# WATCHDOG_CAPTURE_DIR (default <DATA_DIR>/loop_stalls/YYYY-MM-DD.jsonl), kept
+# CAPTURE_RETENTION_DAYS, by its own writer thread: the watchdog thread never
+# waits on a disk, and a full queue drops a capture rather than block.
+# WATCHDOG_CAPTURE_PERSIST=0 turns the writing off. Read back with
+# GET /api/watchdog/stacks?stored_hours=N (admin).
+#
+# Compact form: the event loop's thread in full (innermost 60 frames), every
+# other thread as its innermost 12 frames, threads with the same frames grouped
+# with a count (a pool of idle workers is one row). Frames are
+# "path:line function" from the code objects: no source lines are read.
+# ---------------------------------------------------------------------------
+CAPTURE_RETENTION_DAYS = 7
+_DAY_FILE = re.compile(r"^\d{4}-\d{2}-\d{2}\.jsonl$")
+_disk_q: "queue.Queue[dict]" = queue.Queue(maxsize=64)
+_disk_writer_started = False
+
+
+def _capture_ms() -> float:
+    return _env_float("WATCHDOG_CAPTURE_MS", _STALL_CAPTURE_MS)
+
+
+def _persist_enabled() -> bool:
+    return os.environ.get("WATCHDOG_CAPTURE_PERSIST", "1").strip().lower() not in ("0", "false", "no", "off")
+
+
+def capture_dir() -> str:
+    return os.environ.get("WATCHDOG_CAPTURE_DIR") or os.path.join(
+        os.environ.get("DATA_DIR") or "/data", "loop_stalls")
+
+
+def _short_path(path: str) -> str:
+    p = path.replace("\\", "/")
+    for marker in ("/site-packages/", "/app/"):
+        i = p.rfind(marker)
+        if i >= 0:
+            return p[i + len(marker):]
+    i = p.rfind("/lib/python")
+    if i >= 0:
+        return p[i + len("/lib/python"):].split("/", 1)[-1]
+    return p.rsplit("/", 1)[-1]
+
+
+def _compact(frame, limit: int) -> list:
+    """The innermost `limit` frames, outermost first, as "path:line function"."""
+    out = []
+    while frame is not None and len(out) < limit:
+        code = frame.f_code
+        out.append("%s:%s %s" % (_short_path(code.co_filename), frame.f_lineno, code.co_name))
+        frame = frame.f_back
+    out.reverse()
+    return out
+
+
+def compact_capture(frames: dict, names: dict, loop_tid, skip_tid, lag_ms: float, at: float) -> dict:
+    """One stored capture line. Pure: the frames and names are handed in."""
+    loop = {"thread_id": loop_tid, "name": names.get(loop_tid), "stack": None}
+    groups: dict = {}
+    for tid, frame in frames.items():
+        if tid == skip_tid:
+            continue  # the watchdog thread itself, mid-capture
+        if tid == loop_tid:
+            loop["stack"] = _compact(frame, 60)
+            continue
+        key = tuple(_compact(frame, 12))
+        g = groups.setdefault(key, {"count": 0, "names": []})
+        g["count"] += 1
+        if len(g["names"]) < 5:
+            g["names"].append(names.get(tid) or str(tid))
+    threads = [{"count": g["count"], "names": g["names"], "stack": list(k)}
+               for k, g in sorted(groups.items(), key=lambda kv: -kv[1]["count"])]
+    return {"at": round(at, 3), "lag_ms": round(lag_ms, 1), "pid": os.getpid(), "loop": loop, "threads": threads}
+
+
+def write_capture(rec: dict) -> None:
+    """Append one capture; drop day files older than CAPTURE_RETENTION_DAYS when a new day starts."""
+    d = capture_dir()
+    os.makedirs(d, exist_ok=True)
+    day = time.strftime("%Y-%m-%d", time.gmtime(rec["at"]))
+    path = os.path.join(d, day + ".jsonl")
+    fresh = not os.path.exists(path)
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(rec, separators=(",", ":")) + "\n")
+    if fresh:
+        keep_from = time.strftime("%Y-%m-%d", time.gmtime(rec["at"] - CAPTURE_RETENTION_DAYS * 86400))
+        for name in os.listdir(d):
+            if _DAY_FILE.match(name) and name[:10] < keep_from:
+                try:
+                    os.remove(os.path.join(d, name))
+                except OSError:
+                    pass
+
+
+def _disk_writer() -> None:
+    while True:
+        rec = _disk_q.get()
+        try:
+            write_capture(rec)
+        except Exception:  # noqa: BLE001 - diagnostics must never raise
+            pass
+
+
+def _enqueue_capture(rec: dict) -> None:
+    global _disk_writer_started
+    try:
+        if not _disk_writer_started:
+            _disk_writer_started = True
+            threading.Thread(target=_disk_writer, name="loop-stall-writer", daemon=True).start()
+        _disk_q.put_nowait(rec)
+    except Exception:  # noqa: BLE001 - a full queue drops a capture; it never blocks the watchdog
+        pass
+
+
+def stored_captures(hours: float, limit: int = 200, now: float | None = None) -> list:
+    """Stored captures from the last `hours`, newest first, at most `limit`. Never raises."""
+    try:
+        now = time.time() if now is None else now
+        since = now - hours * 3600
+        first_day = time.strftime("%Y-%m-%d", time.gmtime(since))
+        d = capture_dir()
+        names = sorted((n for n in os.listdir(d) if _DAY_FILE.match(n) and n[:10] >= first_day), reverse=True)
+    except Exception:  # noqa: BLE001 - no directory yet
+        return []
+    out: list = []
+    for name in names:
+        try:
+            with open(os.path.join(d, name), encoding="utf-8") as f:
+                lines = f.read().splitlines()
+        except OSError:
+            continue
+        for line in reversed(lines):
+            try:
+                rec = json.loads(line)
+            except ValueError:
+                continue  # a line cut short by a restart
+            if rec.get("at", 0) >= since:
+                out.append(rec)
+                if len(out) >= limit:
+                    return out
+    return out
 
 
 def _capture_stall_stacks(lag_ms: float) -> None:
     """Snapshot every thread's stack (called from the watchdog thread while the
-    loop is mid-stall) and push it onto the ring buffer. Never raises."""
+    loop is mid-stall), push it onto the ring buffer and hand a compact copy to
+    the disk writer. Never raises."""
     try:
-        import sys as _sys
         import traceback as _tb
-        frames = _sys._current_frames()
+        frames = sys._current_frames()
+        names = {t.ident: t.name for t in threading.enumerate()}
+        with _lock:
+            loop_tid = _state.get("loop_thread_id")
+        at = time.time()
         dumped = []
         for tid, frame in frames.items():
             stack = "".join(_tb.format_stack(frame))
-            dumped.append({"thread_id": tid, "stack": stack[-4000:]})
+            dumped.append({"thread_id": tid, "name": names.get(tid), "loop": tid == loop_tid,
+                           "stack": stack[-4000:]})
         entry = {
-            "at": time.time(),
+            "at": at,
             "lag_ms": round(lag_ms, 1),
+            "loop_thread_id": loop_tid,
             "threads": dumped,
         }
         with _lock:
             _stall_stacks.insert(0, entry)
             del _stall_stacks[_STALL_CAPTURE_MAX:]
+        if _persist_enabled():
+            _enqueue_capture(compact_capture(frames, names, loop_tid, threading.get_ident(), lag_ms, at))
     except Exception:  # noqa: BLE001 - diagnostics must never break the watchdog
         pass
 
@@ -235,7 +394,7 @@ def get_status() -> dict:
 
 
 try:  # keep the core importable even where FastAPI is absent (pure-logic tests)
-    from fastapi import APIRouter, Depends
+    from fastapi import APIRouter, Depends, Query
 
     from api.middleware.auth_middleware import require_admin
 
@@ -254,7 +413,8 @@ try:  # keep the core importable even where FastAPI is absent (pure-logic tests)
         return get_status()
 
     @router.get("/stacks")
-    def watchdog_stacks(_admin: dict = Depends(require_admin)):
+    def watchdog_stacks(stored_hours: int = Query(default=0, ge=0, le=CAPTURE_RETENTION_DAYS * 24),
+                        _admin: dict = Depends(require_admin)):
         """Thread stacks captured DURING recent event-loop stalls (observe mode).
 
         Each entry is a snapshot taken by the watchdog thread while the loop was
@@ -269,7 +429,11 @@ try:  # keep the core importable even where FastAPI is absent (pure-logic tests)
         `tests/test_health_routes_admin_gated.py`.
         """
         with _lock:
-            return {"captures": list(_stall_stacks)}
+            out = {"captures": list(_stall_stacks)}
+        if stored_hours:
+            # The compact copies written to disk, which survive a restart (newest first).
+            out["stored"] = stored_captures(stored_hours)
+        return out
 except Exception:  # pragma: no cover - fastapi always present in the app
     router = None
 
@@ -348,6 +512,7 @@ def _probe_ran(sched_monotonic: float, evt: threading.Event) -> None:
     run_monotonic = time.monotonic()
     lag_ms = (run_monotonic - sched_monotonic) * 1000.0
     with _lock:
+        _state["loop_thread_id"] = threading.get_ident()
         _state["last_lag_ms"] = lag_ms
         if lag_ms > _state["max_lag_ms"]:
             _state["max_lag_ms"] = lag_ms
@@ -362,6 +527,10 @@ def _probe_ran(sched_monotonic: float, evt: threading.Event) -> None:
 def _run(check_sec: float, wedge_sec: float, enabled: bool, observe: bool,
          webhook: str | None) -> None:
     global _captured_this_stall
+    # The capture threshold is read from the state start_watchdog set, not passed in: the
+    # thread's positional args are pinned by tests/test_alert_destination.py (webhook last).
+    with _lock:
+        capture_s = (_state.get("capture_ms") or _STALL_CAPTURE_MS) / 1000.0
     loop = _loop
     if loop is None:
         return
@@ -380,8 +549,21 @@ def _run(check_sec: float, wedge_sec: float, enabled: bool, observe: bool,
                 break
             outstanding = True
 
-        # Wait up to one interval for the probe to be serviced.
-        if evt is not None and evt.wait(timeout=check_sec):
+        # Wait up to one interval for the probe to be serviced. When the capture
+        # threshold is shorter than the interval, look once at the threshold first,
+        # so a stall shorter than the interval is still caught in the act. The miss
+        # accounting below is unchanged: this iteration still waits check_sec in all.
+        serviced = False
+        if evt is not None:
+            wait_start = time.monotonic()
+            if not _captured_this_stall and capture_s < check_sec:
+                serviced = evt.wait(timeout=max(0.0, capture_s - (wait_start - sched_monotonic)))
+                if not serviced:
+                    _capture_stall_stacks((time.monotonic() - sched_monotonic) * 1000.0)
+                    _captured_this_stall = True
+            if not serviced:
+                serviced = evt.wait(timeout=max(0.0, check_sec - (time.monotonic() - wait_start)))
+        if serviced:
             # Serviced — a healthy check. missed_streak already reset in probe.
             _captured_this_stall = False   # loop recovered — arm capture for the next stall
             outstanding = False
@@ -405,7 +587,7 @@ def _run(check_sec: float, wedge_sec: float, enabled: bool, observe: bool,
 
         # Capture the live thread stacks ONCE per stall, while the loop is still
         # blocked, so the blocking frame is caught in the act. Diagnostic only.
-        if not _captured_this_stall and current_lag_ms >= _STALL_CAPTURE_MS:
+        if not _captured_this_stall and current_lag_ms >= capture_s * 1000.0:
             _capture_stall_stacks(current_lag_ms)
             _captured_this_stall = True
 
@@ -435,12 +617,14 @@ def start_watchdog(loop: asyncio.AbstractEventLoop | None = None) -> bool:
         observe = _env_flag("WATCHDOG_OBSERVE")
         check_sec = _env_float("WATCHDOG_CHECK_SEC", DEFAULT_CHECK_SEC)
         wedge_sec = _env_float("WATCHDOG_WEDGE_SEC", DEFAULT_WEDGE_SEC)
+        capture_ms = _capture_ms()
 
         with _lock:
             _state["enabled"] = enabled
             _state["observe_only"] = observe
             _state["check_sec"] = check_sec
             _state["wedge_sec"] = wedge_sec
+            _state["capture_ms"] = capture_ms
 
         if not (enabled or observe):
             print("[watchdog] dark — WATCHDOG_ENABLED and WATCHDOG_OBSERVE both "
@@ -486,7 +670,8 @@ def start_watchdog(loop: asyncio.AbstractEventLoop | None = None) -> bool:
         mode = "ARMED (will os._exit on wedge)" if (enabled and not observe) \
             else "observe-only (no kill)"
         print(f"[watchdog] started — {mode}; check={check_sec:.1f}s "
-              f"wedge={wedge_sec:.1f}s", flush=True)
+              f"wedge={wedge_sec:.1f}s capture={capture_ms:.0f}ms "
+              f"stored={'on' if _persist_enabled() else 'off'}", flush=True)
         return True
     except Exception as e:  # noqa: BLE001 — never break boot
         print(f"[watchdog] start failed (non-fatal): {type(e).__name__}: {e}",
@@ -513,9 +698,11 @@ def stop_watchdog(timeout: float = 2.0) -> None:
 
 def _reset_for_tests() -> None:
     """Test hook: stop the thread and reset all module state."""
-    global _loop
+    global _loop, _captured_this_stall
     stop_watchdog(timeout=2.0)
     _loop = None
+    _captured_this_stall = False
     with _lock:
         _state.clear()
         _state.update(_fresh_state())
+        _stall_stacks.clear()

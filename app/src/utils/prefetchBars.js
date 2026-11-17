@@ -16,6 +16,7 @@ import { idbGet as _idbGetRaw, idbPutMonotonic as _idbPutMono } from './barsIDB'
 import { memHas as _memHasRaw, memPutMonotonic as _memPutMono, memPeek as _memPeekRaw, memPeekSavedAt as _memPeekSavedAtRaw } from './barsMemCache'
 import { seriesCacheTf, barsSessionQuery, barsGridQuery } from '../components/chart/barTime'
 import { setViewShowExtended } from './viewSession'
+import { isBarsSymbol } from './barsSymbol'
 import { FIRST_PAINT_BARS, firstPaintBarsFor, fullBarsFor } from './barsBackfill'
 import { isDailyTailStale, isDailyTodayCloseProvisionalForPaint, dailyCachePaintVerdict, classifyIntradayTail, isCacheCurrentForView } from './marketSession'
 import { getTodayBar, todayPackUsable } from '../lib/todayPackClient'
@@ -234,6 +235,37 @@ function _barsFor(tf) {
   if (_INTRADAY_COUNT_TFS.has(String(tf))) return firstPaintBarsFor(String(tf), _prefetchShowExtended)
   return ({ D: FIRST_PAINT_BARS, W: FIRST_PAINT_BARS, M: FIRST_PAINT_BARS })[tf] ?? 5000
 }
+// ⚡ A SHORT STORED INTRADAY SERIES IS NOT "ALREADY WARM" (2026-11-15).
+// ⚰️ MEASURED ON PRODUCTION (hourly charts, Nasdaq 100, 40 charts at 0.7 s): 34 of 40 first drew
+// with fewer than 200 bars, so a 200-bar average landed 233 ms (median) to 649 ms after the
+// candles. The intraday pack seeds a short series for every name; the warmers below counted any
+// CURRENT series as warm, however short, so the rows ahead were never deepened and every chart
+// had to fetch its window after it was already on screen (useLegacyChartBars
+// `askFullForShortStore` does that, one round trip late). A series shorter than half the chart's
+// first-paint window is warmed like a cold one: the full window, merged under what is stored
+// (`_land` is monotonic, so nothing gets shallower). Once deep, it is current and skipped again.
+// ⛔ ONCE PER KEY: a full answer that is still short is all the server holds (a recent listing,
+// a timeframe kept shallow), so asking again would download the whole window on every warm. After
+// a full answer lands, the rule stands down for that key for SHORT_FULL_TTL_MS (the chart's
+// `askFullForShortStore` has the same guard, `fullDone`). The cost is then exactly an empty
+// store's: one full window per key, the load these warmers were built for.
+// ✅ PORTED to the BarStore facade (`data/barStore/prefetch.js`, SHORT_FULL_TTL_MS) on 2026-11-16,
+// pinned against this file by `data/barStore/prefetch.shortIntraday.test.js`.
+const SHORT_FULL_TTL_MS = 6 * 3600 * 1000
+const SHORT_FULL_MAX = 4000
+const _shortFullAt = new Map()   // `${sym}_${k}` -> when a full intraday answer landed
+function _noteFullAnswer(sym, k) {
+  const key = `${sym}_${k}`
+  _shortFullAt.delete(key)
+  _shortFullAt.set(key, Date.now())
+  if (_shortFullAt.size > SHORT_FULL_MAX) _shortFullAt.delete(_shortFullAt.keys().next().value)
+}
+function _shortIntraday(sym, k, tf, bars) {
+  if (!_INTRADAY_TFS.has(String(tf)) || !Array.isArray(bars) || !bars.length) return false
+  if (bars.length >= _barsFor(tf) / 2) return false
+  const at = _shortFullAt.get(`${sym}_${k}`)
+  return !(at != null && Date.now() - at < SHORT_FULL_TTL_MS)
+}
 // Common TFs first (Daily, 5min) so those switches warm first; 5min was last-ish
 // before, making "click 5min" a cold fetch while other TFs were already warm.
 const ALL_TFS = ['D', '5', '60', '30', '15', 'W', 'M', '1']
@@ -274,12 +306,15 @@ async function _fillUrgent(url, sym, tf) {
   if (_memUsable(sym, tf)) return
   let have = null
   try { have = await _idbGetRaw(sym, k) } catch { /* IDB unavailable: fetch instead */ }
-  if (have?.bars?.length && _memPromoteFresh(tf, have.lastT, have.savedAt, have.bars)) { _promote(sym, k, have.bars, have.savedAt); return }
+  if (have?.bars?.length && _memPromoteFresh(tf, have.lastT, have.savedAt, have.bars) && !_shortIntraday(sym, k, tf, have.bars)) { _promote(sym, k, have.bars, have.savedAt); return }
   const startedAt = Date.now()
   const json = _noteWarmResult(await _warmLoad(url))
   // Merged into what is stored now — which also keeps a deeper daily history (the
   // stale-daily heal used to special-case that).
-  if (json?.bars?.length && !json.delta && _gridOk(k, json)) await _land(sym, k, json.bars, { startedAt })
+  if (json?.bars?.length && !json.delta && _gridOk(k, json)) {
+    _noteFullAnswer(sym, k)
+    await _land(sym, k, json.bars, { startedAt })
+  }
 }
 function _drainUrgentWhileHeld() {
   if (Date.now() < _warmBackoffUntil) return // server shedding: nobody goes
@@ -405,7 +440,8 @@ function _repairCooldownOk(sym, tf) {
 }
 
 /** @internal test seam — a fresh cooldown table per case. */
-export function _resetRepairCooldown() { _repairAt.clear() }
+// Test reset for the warmers' per-key memory: the repair cooldown and the short-store guard.
+export function _resetRepairCooldown() { _repairAt.clear(); _shortFullAt.clear() }
 
 // The TAIL-REPAIR url: every row past the cache's newest bar, nothing before it.
 // `warm=1` keeps it shed-able under load exactly like the full warm — a repair is
@@ -738,7 +774,7 @@ function _keepTypedWarm(url) { if (_typedLatest && _typedLatest.url === url) _ty
 export function __resetTypedWarm() { _typedLatest = null }
 
 export function warmTypedSymbol(sym, tf = 'D') {
-  if (!sym || !tf || !['D', 'W', 'M'].includes(String(tf))) return null
+  if (!isBarsSymbol(sym) || !tf || !['D', 'W', 'M'].includes(String(tf))) return null
   const S = String(sym).trim().toUpperCase()
   if (!/^[A-Z0-9][A-Z0-9.^-]{0,11}$/.test(S)) return null
   const url = _url(S, tf, false)
@@ -835,7 +871,7 @@ export function _isAuthoritativeAnswer(json, sym, tf) {
 // two rows a user is about to reach by keyboard — never for list-wide warming.
 export function prefetchBars(tickers, tf = 'D', { priority = false, urgent = false } = {}) {
   if (!tickers?.length) return
-  const syms = tickers.filter(Boolean)
+  const syms = tickers.filter(isBarsSymbol)
   tellSymbolWarmers(syms, tf, { priority: priority || urgent })
   const nUrgent = urgent ? Math.min(URGENT_MAX_PER_CALL, syms.length) : 0
   if (urgent) {
@@ -860,7 +896,7 @@ export function prefetchBars(tickers, tf = 'D', { priority = false, urgent = fal
 
 // Prefetch a single ticker for one timeframe (hover). ONE request, not eight.
 export function prefetchBar(sym, tf = 'D') {
-  if (!sym) return
+  if (!isBarsSymbol(sym)) return
   tellSymbolWarmers([sym], tf, { priority: true })
   _enqueue(_url(sym, tf))
   prefetchTickerMeta(sym)
@@ -876,7 +912,7 @@ export function prefetchBar(sym, tf = 'D') {
 // the chart's key, skips a (sym, tf) that is already durable and current, and repairs a
 // behind one with a `since=` tail.
 export function prefetchAllTimeframes(sym) {
-  if (!sym) return
+  if (!isBarsSymbol(sym)) return
   prefetchTickerMeta(sym)
   for (const tf of ALL_TFS) prefetchBarsToIDB([sym], tf)
 }
@@ -898,7 +934,7 @@ export function barsBeforeUrl(sym, tf, bars, toIso, q = '') {
   return `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bars}${q}&to=${encodeURIComponent(toIso)}`
 }
 export function prefetchReplayTimeframes(sym, cutoffIso, { bars = 4000 } = {}) {
-  if (!sym || !cutoffIso) return
+  if (!isBarsSymbol(sym) || !cutoffIso) return
   for (const tf of REPLAY_WARM_TFS) {
     _enqueue(`${barsBeforeUrl(sym, tf, bars, cutoffIso, barsGridQuery(tf, _prefetchShowExtended))}&warm=1`, false)
   }
@@ -967,6 +1003,7 @@ async function _idbWarmOne({ sym, tf, visible = false }) {
       && typeof have.lastT === 'number'
       && classifyIntradayTail(have.lastT, tf) !== 'gapped'
       && !_paintCurrent(have.lastT, tf, have.bars)
+      && !_shortIntraday(sym, k, tf, have.bars)     // a short series gets the window, below
     if (behindIntraday) {
       if (_holdJob({ visible })) return
       if (!_repairCooldownOk(sym, tf)) return
@@ -980,7 +1017,7 @@ async function _idbWarmOne({ sym, tf, visible = false }) {
       if (tail.bars.length && _gridOk(k, tail)) await _land(sym, k, tail.bars, { delta: true, startedAt })
       return
     }
-    if (have?.bars?.length && !staleDaily) return  // already durable + fresh — no fetch
+    if (have?.bars?.length && !staleDaily && !_shortIntraday(sym, k, tf, have.bars)) return  // already durable + fresh — no fetch
     // Don't race the pack to origin, and don't pile onto a shedding server (see
     // _holdBackgroundWarm). The pack is writing these tickers into IDB; a click
     // meanwhile fetches its ONE chart via SWR. Warming resumes when the hold lifts.
@@ -995,7 +1032,10 @@ async function _idbWarmOne({ sym, tf, visible = false }) {
     // Merged into what is stored NOW (monotonic): a deeper history already in IDB is
     // kept and only the recent tail heals — a bare shallow put would truncate a
     // deep-warmed series back to ~600 bars, or roll back a newer chart write.
-    if (json?.bars?.length && !json.delta && _gridOk(k, json)) await _land(sym, k, json.bars, { startedAt })
+    if (json?.bars?.length && !json.delta && _gridOk(k, json)) {
+      _noteFullAnswer(sym, k)
+      await _land(sym, k, json.bars, { startedAt })
+    }
   } catch { /* best-effort; the chart's own fetch remains the source of truth */ }
 }
 
@@ -1021,7 +1061,7 @@ const SCAN_WARM_TFS = ['D', '5', '60', '30', '15']
 const SCAN_WARM_CAP = 100
 export function prefetchListAllTimeframes(tickers, { tfs = SCAN_WARM_TFS, cap = SCAN_WARM_CAP } = {}) {
   if (!tickers?.length) return
-  const list = [...new Set(tickers.filter(Boolean))].slice(0, cap)
+  const list = [...new Set(tickers.filter(isBarsSymbol))].slice(0, cap)
   if (!list.length) return
   for (const tf of tfs) prefetchBarsToIDB(list, tf)
 }
@@ -1051,7 +1091,8 @@ export function prefetchBarsToIDB(tickers, tf = 'D', { priority = false, immedia
   if (!tickers?.length) return
   // Told BEFORE the already-warm skips below: bars a member warmed yesterday are durable,
   // the companion lanes' data is per page load and may still be missing for these symbols.
-  tellSymbolWarmers(tickers.filter(Boolean), tf, { priority, visible })
+  tickers = tickers.filter(isBarsSymbol)
+  tellSymbolWarmers(tickers, tf, { priority, visible })
   const front = []
   for (const sym of tickers) {
     if (!sym) continue
@@ -1091,7 +1132,7 @@ function _memUsable(sym, tf) {
   // most needed repair, so the click then waited on the chart's own fetch.
   if (_INTRADAY_TFS.has(String(tf))) {
     const bars = memPeek(sym, tf)
-    return _memPromoteFresh(tf, bars?.[bars.length - 1]?.t, null, bars)
+    return _memPromoteFresh(tf, bars?.[bars.length - 1]?.t, null, bars) && !_shortIntraday(sym, _ck(tf), tf, bars)
   }
   if (String(tf) !== 'D') return true
   const bars = memPeek(sym, tf)
@@ -1126,7 +1167,7 @@ function _memPromoteFresh(tf, lastT, savedAt = null, bars = null) {
 
 export function warmMemFromIDB(tickers, tfs = SCAN_WARM_TFS) {
   if (!tickers?.length) return
-  for (const sym of tickers) {
+  for (const sym of tickers.filter(isBarsSymbol)) {
     if (!sym) continue
     for (const tf of tfs) {
       const k = _ck(tf)                    // pinned: read and write the SAME key
@@ -1165,7 +1206,7 @@ export function listPrewarmDisabled() {
 
 export function prewarmVisibleList(tickers, { chartTf = 'D', memTop = 24, cap = 500 } = {}) {
   if (listPrewarmDisabled()) return
-  const list = [...new Set((tickers || []).filter(Boolean))].slice(0, cap)
+  const list = [...new Set((tickers || []).filter(isBarsSymbol))].slice(0, cap)
   if (!list.length) return
   // Warm ONLY the on-screen timeframe(s) for the whole list — that's what's scrolled.
   //
@@ -1256,7 +1297,7 @@ const DEEP_WARM_TFS = ['D', 'W', 'M']
 const DEEP_WARM_CAP = 120
 export function prefetchListDeep(tickers, { tfs = DEEP_WARM_TFS, cap = DEEP_WARM_CAP, priority = false } = {}) {
   if (!tickers?.length) return
-  const list = [...new Set(tickers.filter(Boolean))].slice(0, cap)
+  const list = [...new Set(tickers.filter(isBarsSymbol))].slice(0, cap)
   if (!list.length) return
   // Build the batch in TF-outer order (Daily first). `priority` (on-screen rows) pulls
   // it — and any of these already queued behind the background trickle — to the FRONT,
@@ -1295,14 +1336,17 @@ async function _warmIntentNow(sym, tf) {
     // stale-intraday miss pays the fetch.
     const k = _ck(tf)   // pinned for this job (see _gridOk)
     const have = await _idbGetRaw(sym, k)
-    if (have?.bars?.length && _memPromoteFresh(tf, have.lastT, have.savedAt, have.bars)) {
+    if (have?.bars?.length && _memPromoteFresh(tf, have.lastT, have.savedAt, have.bars) && !_shortIntraday(sym, k, tf, have.bars)) {
       _promote(sym, k, have.bars, have.savedAt)
       return
     }
     const startedAt = Date.now()
     const json = await _warmLoad(_url(sym, tf, false), fetcher) // intent warm: not shed, matches the chart's SWR key
     // Monotonic: deeper history kept, a newer chart write never rolled back.
-    if (json?.bars?.length && !json.delta && _gridOk(k, json)) await _land(sym, k, json.bars, { startedAt })
+    if (json?.bars?.length && !json.delta && _gridOk(k, json)) {
+      _noteFullAnswer(sym, k)
+      await _land(sym, k, json.bars, { startedAt })
+    }
   } catch { /* best-effort; the chart's own fetch remains source of truth */ }
 }
 

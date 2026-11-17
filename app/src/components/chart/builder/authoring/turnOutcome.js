@@ -20,7 +20,7 @@ export const OUTCOMES = Object.freeze({
   CHANGE: 'change', ANSWER: 'answer', CLARIFY: 'clarify', UNSUPPORTED: 'unsupported', REFUSED: 'refused',
 })
 
-const MISMATCH = 'The assistant’s answer did not match what it said it was doing, so nothing was changed.'
+const MISMATCH = 'The UCT Agent’s answer did not match what it said it was doing, so nothing was changed.'
 
 /**
  * @param {object} res a `converseTurn` result
@@ -31,7 +31,7 @@ export function classifyTurn(res) {
     const unsupported = !!res && res.disposition === OUTCOMES.UNSUPPORTED
     return {
       outcome: unsupported ? OUTCOMES.UNSUPPORTED : OUTCOMES.REFUSED,
-      reason: (res && res.reason) || 'UCT Intelligence could not answer that.',
+      reason: (res && res.reason) || 'The UCT Agent could not answer that.',
       gate: (res && res.gate) || null,
       preflight: !!(res && res.preflight),
     }

@@ -4,7 +4,7 @@
     "a row) when a writer / cache / gate is removed; never raise one. How to update: rails/README.md."
   ],
   "totals": {
-    "setData": 25,
+    "setData": 26,
     "seriesUpdate": 37,
     "candleWrites": 20,
     "liveRefAssign": 23,
@@ -22,6 +22,9 @@
     },
     "components/chart/ChartSettingsIndicators.jsx": {
       "setData": 2
+    },
+    "components/chart/HeaderStatPicker.jsx": {
+      "setData": 1
     },
     "components/chart/engine/binder.js": {
       "setData": 3
@@ -84,7 +87,7 @@
   },
   "pctConstants": [
     "components/StockChart.jsx:BARS_HISTORY_FIRST_PAINT_PCT",
-    "components/StockChart.jsx:BARS_HISTORY_SPLIT_ROLLOUT_PCT",
+    "utils/barsHistorySplit.js:BARS_HISTORY_SPLIT_ROLLOUT_PCT",
     "components/StockChart.jsx:BARS_PUSH_ROLLOUT_PCT",
     "components/StockChart.jsx:INTRADAY_FIRST_PAINT_PCT",
     "components/StockChart.jsx:INTRADAY_LOAD_ANCHOR_PCT",

@@ -226,6 +226,57 @@ class BarBroadcaster:
                 _logger.warning("[bar_broadcaster] on_first_subscribe(%s) failed: %s", sym, e)
         return q
 
+    def subscribe_sink(self, sym: str, tf: str, sink, session: str = "rth") -> None:
+        """stream-ingest (PR4b): register `sink` as a v2 subscriber of (sym, tf).
+
+        Like subscribe(), but no queue and no event loop: every frame for the key,
+        older-t corrections included (v2), goes to the PUBLISHER as
+        `publisher(sink, None, msg)`, which needs a publisher that knows sinks (the
+        default cross-thread one does not). No subscribe-time snapshot is put: the
+        ingest feed snapshots per client connection (`snapshot_bars`). Release with
+        unsubscribe(sym, tf, sink, session)."""
+        sym = sym.upper()
+        k = _key_for(tf, session)
+        with self._lock:
+            had_any = self._symbol_wanted(sym)
+            self._subscribers.setdefault((sym, k), set()).add((sink, None, True))
+            self._sym_keys.setdefault(sym, set()).add(k)
+        if not had_any:
+            try:
+                self._on_first_subscribe(sym)
+            except Exception as e:
+                _logger.warning("[bar_broadcaster] on_first_subscribe(%s) failed: %s", sym, e)
+
+    def snapshot_bars(self, sym: str, tf: str, session: str = "rth",
+                      lookback_ms: int = 15 * _MINUTE_MS) -> list:
+        """stream-ingest (PR4b): what a (re)connecting feed client must get for (sym, tf).
+
+        Every bucket the minute map can derive whose END is within `lookback_ms` of
+        the symbol's trade-time high-water mark, plus the developing bucket, in
+        ascending t, each exactly as `_derive` builds it (closed buckets carry
+        final=True). A stalled client lost its pending frames, late-AM corrections
+        of closed buckets among them, so the developing bucket alone is not enough
+        (PR3 review): a correction lands within seconds of its minute, and a client
+        reconnects within seconds, so 15 minutes covers it many times over."""
+        su = sym.upper()
+        k = _key_for(tf, session)
+        tfx, sess = _KEY_SPEC[k]
+        with self._lock:
+            hwm = self._hwm.get(su)
+            mins = self._minutes.get(su)
+            if hwm is None or not mins:
+                return []
+            floor = hwm - lookback_ms
+            starts = sorted({tv_bucket_bounds(m, tfx, sess)[0] for m in mins})
+            out = []
+            for st in starts:
+                if tv_bucket_bounds(st, tfx, sess)[1] <= floor:
+                    continue
+                b = self._derive(su, k, st)
+                if b is not None:
+                    out.append(b)
+            return out
+
     def unsubscribe(self, sym: str, tf: str, q: asyncio.Queue, session: str = "rth") -> None:
         sym = sym.upper()
         k = _key_for(tf, session)
@@ -422,7 +473,20 @@ class BarBroadcaster:
         Completed minutes become authoritative (like AM); the still-developing
         minute is merged with the live T accumulation. Returns True when a seed
         was applied."""
-        global _seed_total, _seed_fail_total
+        su = sym.upper()
+        if not self.begin_seed(su):
+            return False
+        try:
+            bars = self._seed_fetcher(su) or []
+        except Exception as e:
+            bars = []
+            _logger.warning("[bar_broadcaster] seed(%s) failed: %s", su, type(e).__name__)
+        return self.apply_seed(su, bars)
+
+    def begin_seed(self, sym: str) -> bool:
+        """D8 step 1 (ensure_seeded = begin_seed, fetch, apply_seed): True when `sym`
+        needs a seed now, and marks it seeded for this session so a concurrent caller
+        does not fetch it twice. Non-blocking."""
         su = sym.upper()
         with self._lock:
             day = self._session_day()
@@ -432,11 +496,23 @@ class BarBroadcaster:
             if failed is not None and self._clock_ms() - failed < self._seed_retry_ms:
                 return False   # a thin/pre-market name: don't re-fetch on every chart switch
             self._seeded[su] = day
-        try:
-            bars = self._seed_fetcher(su) or []
-        except Exception as e:
-            bars = []
-            _logger.warning("[bar_broadcaster] seed(%s) failed: %s", su, type(e).__name__)
+        return True
+
+    def reset_seed(self, sym: str) -> None:
+        """Forget that `sym` was seeded (and any failed attempt), so the next
+        begin_seed fetches again. stream-ingest calls it for every chart symbol after
+        a Massive RECONNECT: the minutes the socket missed come back from REST (D8)."""
+        su = sym.upper()
+        with self._lock:
+            self._seeded.pop(su, None)
+            self._seed_failed_at.pop(su, None)
+
+    def apply_seed(self, sym: str, bars) -> bool:
+        """D8 step 3: fold fetched 1-min bars into the minute map (see ensure_seeded).
+        Empty `bars` = a failed seed (retried after _seed_retry_ms). Non-blocking."""
+        global _seed_total, _seed_fail_total
+        su = sym.upper()
+        bars = bars or []
         if not bars:
             _seed_fail_total += 1
             with self._lock:
@@ -768,6 +844,16 @@ def init_broadcaster(*, on_first_subscribe=None, on_last_unsubscribe=None) -> Ba
         on_last_unsubscribe=on_last_unsubscribe,
     )
     return _singleton
+
+
+def install_broadcaster(obj) -> None:
+    """STREAM_FEED_SOURCE=remote: make `obj` (a remote_broadcaster.RemoteBroadcaster, the
+    same interface) THE broadcaster every caller of get_broadcaster() gets. Once, at
+    startup, instead of init_broadcaster."""
+    global _singleton
+    if _singleton is not None:
+        raise RuntimeError("BarBroadcaster already initialized — call once at app startup")
+    _singleton = obj
 
 
 def reset_broadcaster_for_tests() -> None:

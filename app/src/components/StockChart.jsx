@@ -32,6 +32,24 @@ import {
 import { legendModeOf, LEGEND_MODES } from './chart/legendMode'
 import { barInfoFieldsOf } from './chart/barInfoFields'
 import { crosshairModeOf } from './chart/crosshairMode'
+import {
+  candlePartsOf, priceLineOf, gridOptionsFor, rightMarginOf, priceDecimalsOf, priceFormatForDecimals, timeFormatOf,
+  AUTO_PRICE_FORMAT, LINE_STYLE_NUM, sessionBreaksOf, preMarketLevelsOf, nextEarningsMarkerOf, timeZoneOf,
+  priceAlertLinesOf, myTradeMarkersOf,
+} from './chart/chartViewOptions'
+import {
+  usePriceAlertRows, activeAlertLevels, alertPriceLines, syncAlertPriceLines,
+} from './chart/priceAlertLines'
+import {
+  useMyTradeFills, buildMyTradeMarkers, sameMyTrades, withMyTradeMarkers, EMPTY_MY_TRADES,
+} from './chart/myTradeMarkers'
+import { ianaZoneFor, chartTimeInZone } from './chart/chartTimeZone'
+import {
+  createNextEarningsPrimitive, nextEarningsMark, earningsBadgeRows,
+} from './chart/nextEarningsMark'
+import {
+  createSessionBreaksPrimitive, sessionBreakTimes, sessionBreakColor, preMarketRange, preMarketPriceLines,
+} from './chart/sessionMarks'
 
 // Menu labels for the three legend modes. Keyed BY the enumeration, so a mode
 // added to `LEGEND_MODES` without a label here renders as `undefined` in the
@@ -46,7 +64,7 @@ import { historyFromListingOf, listingReferenceDate } from './chart/engine/listi
 import { definitionWithholdsOffListing, wantsListingDeepen, listingDeepenGate } from './chart/engine/listingDeepen'
 import useWatermarkDrag from '../hooks/useWatermarkDrag'
 import { panelFor, toolbarFor, commandBarFor, sampleGradient, parseColor, luminance, menuThemeVars } from '../utils/dividerColor'
-import { legendInkVars, readLegendContext, legibleInk } from './chart/legendInk'
+import { legendInkVars, readLegendContext, legibleInk, legendValueBandVars } from './chart/legendInk'
 import { useThemeVersion } from '../lib/theme/useThemeInk'
 // ⛔⭐ THIS FILE IMPORTS **ZERO** `compute*` FUNCTIONS — B5 TASK 8, AND THAT IS
 // THE WHOLE STATEMENT. All fourteen series-expressible natives are FLIPPED, so
@@ -92,7 +110,7 @@ import { clampVolPct, resolveVolPanePct, latchOnDrag, volPanePctOfStack,
          legacyPairOwnsStack } from './chart/volumePaneDrag'
 // ⚠️ `INDICATOR_LABELS` USED TO BE IMPORTED FROM `chartRegion` ALONGSIDE THESE.
 // B4 retired that nine-row table into the catalogue; `labelFor` is the reader.
-import { catalogRows, labelFor, oscillatorIds } from './chart/indicatorCatalog'
+import { catalogRows, labelFor, anyLabelFor, oscillatorIds } from './chart/indicatorCatalog'
 import { createSessionShadingPrimitive, computeSessionBands } from './chart/sessionShadingPrimitive'
 import { createSwingLabelsPrimitive } from './chart/swingLabelsPrimitive'
 import { createLevelZonesPrimitive } from './chart/levelZonesPrimitive'
@@ -121,7 +139,7 @@ import {
 import { resolvePaneOrder, PRICE_PANE, VOLUME_PANE } from './chart/engine/paneOrder'
 import { orderPaneRows } from './chart/engine/paneSeriesOrder'
 import { storedPaneSizes, setPaneSizes, sizesFromStretch, clearPaneSize } from './chart/engine/paneSizes'
-import { nativeVolumeOwnsPane, volumePaneRequired, volumeResidentKeys } from './chart/engine/volumePresentation'
+import { nativeVolumeOwnsPane, volumePaneRequired, volumeResidentKeys, volumeHasOverlay } from './chart/engine/volumePresentation'
 import { prepareArrangement, settleArrangement } from './chart/engine/paneRealization'
 // ⭐ chart-UX-walls TASK 4 — `setInstanceHidden` / `removeInstance` join the two
 // readers already here. They are DOOR EIGHT (the per-INSTANCE door), and the chip
@@ -169,6 +187,7 @@ import { serverDeclares, subscribeServerDefinitions } from './chart/engine/serve
 // Compare panel (unit 3-12) by this window event; one spelling, the panel's own.
 import { COMPARE_OPEN_EVENT } from '../pages/charts/compareGroups'
 import { cardEvidenceText } from './chart/engine/readoutSchema'
+import { chartThemeOf } from './chart/engine/objectTheme'
 import { RS_LEARN_VIDEOS, learnHref } from '../lib/deskVideoHref'
 // ⭐ VA2 — the plan's §13 counts (on since the server lists the six events; `VITE_RS_TELEMETRY_ENABLED=0` turns them off; see the module).
 import { createRsInstanceTracker, noteRsCard, noteRsLearn } from '../lib/rsTelemetry'
@@ -186,6 +205,8 @@ import IndicatorChip from './chart/legend/IndicatorChip'
 // overlays and the volume pane. They became removable with `chartDefaults`'s
 // overlay tombstone, so they get the eye / gear / ✕ the chips have always had.
 import LegendRow from './chart/legend/LegendRow'
+import { legendRows } from './chart/legend/legendRows'
+import { createLegendPointerHold } from './chart/legend/legendPointerHold'
 // ⭐ UCT RS design round (2026-11-08) — a pane's corner table (`meta.paneTable`).
 import PaneRanksTable from './chart/pane/PaneRanksTable'
 import { paneTableFits, paneTableOwners } from './chart/engine/paneTable'
@@ -195,7 +216,10 @@ import PlotEndLabel from './chart/pane/PlotEndLabel'
 import { lastFinitePoint, endLabelText, endLabelPlacement } from './chart/engine/endLabel'
 import { plotWindowDisabled, plotWindowRows, plotWindowStart, plotWindowTooNarrow } from './chart/engine/plotWindow'
 import chipStyles from './chart/legend/IndicatorChip.module.css'
-import { chipMenuItems, paneMenuItems, presetLabelOf } from './chart/legend/chipMenu'
+import { chipMenuItems, paneMenuItems, presetLabelOf, CHIP_MENU_GROUPS } from './chart/legend/chipMenu'
+// ⭐ Owner 11-16 (Option C) — Volume's legend row is managed like an indicator's: its menu is
+// `chipMenuItems` for a synthetic Volume chip, through this adapter (kept out of chipMenu.js).
+import { volumeMenuItems, volumeMenuCaps, withVolumeDisplay, withVolumePaneHeightReset, VOLUME_ABOUT } from './chart/legend/volumeChip'
 // ⭐ UCT RS Phase 4 (unit 4-05) — the teaching surfaces on the chip menu: the
 // first-add Tour page, the About page's Glossary link and "Ask Compass about this".
 import useIndicatorTours from './chart/useIndicatorTours'
@@ -213,6 +237,7 @@ import { resolveInfoValues, infoValueOutputExists } from './chart/engine/infoVal
 // than stored and how it relates to the definition's own `meta.repaint`.
 import { plotRepaintNotice, repaintNotices } from './chart/engine/repaintVerdict'
 import ContextPopover from './mobile/ContextPopover'
+import popStyles from './mobile/ContextPopover.module.css'
 // ⭐ SUPPORT LOOP A3 (`docs/pine/support-loop/PHASE-A.md`) — the chip menu's
 // "Doesn't match TradingView?" row. The dialog itself is lazy (`reportDoor.jsx`).
 import useReportsConfig from './chart/supportLoop/useReportsConfig'
@@ -241,6 +266,8 @@ import { getSnapshot as getLivePriceStoreSnapshot } from '../hooks/livePriceStor
 import { _packStillIngesting, setPrefetchShowExtended, barsBeforeUrl, registerSymbolWarmer } from '../utils/prefetchBars'
 import { resolveShowExtended } from '../utils/viewSession'
 import * as realtimeCandle from '../lib/realtimeCandle'
+import { newestSeriesBar } from './chart/newestSeriesBar'
+import { barsHistorySplitEnabled } from '../utils/barsHistorySplit'
 import { LIVE_PERIOD_SECONDS } from '../lib/liveBarMerge'
 import { publishChartReadout } from '../lib/chartReadoutStore'
 import { shouldApplyRange, rangeFitsBars, rangeBarsEnd, viewMostlyBars } from '../pages/charts/grid/rangeGuard'
@@ -553,7 +580,8 @@ const STUDY_STACK_MAX_FRAC = 0.42
  * label node as-is, so the reason rides along beside it.
  */
 function chipMenuRowToPopoverRow(it) {
-  if (it.separator) return it
+  // A separator or a UCT Signature group label is not a row: no icon, no reason.
+  if (it.separator || it.groupLabel != null) return it
   const icon = it.icon ? <UIcon name={it.icon} size={13} gold={false} /> : undefined
   if (!it.disabled) return { ...it, icon }
   return {
@@ -569,6 +597,70 @@ function chipMenuRowToPopoverRow(it) {
       </>
     ),
   }
+}
+
+/**
+ * ⭐ UCT SIGNATURE (owner 11-16) — a chip-menu row in the chart right-click menu's look
+ * (`.chartCtxMenu`, M4; docs/uct-signature-style.md "Floating menu"): NO ICONS (only the UCT
+ * Agent's gold ✦, §2b.5); a row that opens a page ends in its current value, dimmed, and a quiet
+ * grey ▸; a refused row is ONE greyed line whose reason is its tooltip, with a small "Soon" chip
+ * when the row is not built yet (`soon`). Keys, handlers and order are unchanged.
+ */
+function chipMenuSigRow(it) {
+  if (it.separator || it.groupLabel != null) return it
+  // The UCT Agent's ✦ is the one icon, flat gold (drawn here, not by ContextPopover: Notebook bytes).
+  const icon = it.goldIcon && it.icon ? <span className={styles.sigGold}><UIcon name={it.icon} size={13} gold={false} /></span> : undefined
+  const opens = !!it.submenu && !it.disabled
+  const trail = opens ? (it.trailing ?? it.detail) : null
+  const label = (opens || it.disabled) ? (
+    <span className={styles.sigRow}>
+      <span className={styles.sigName}>{it.label}</span>
+      {trail ? <span className={styles.sigTrail} data-preset-current={it.key === 'preset' ? '' : undefined}>{trail}</span> : null}
+      {opens ? <span className={styles.sigCaret} aria-hidden="true">▸</span> : null}
+      {!opens && it.soon ? <span className={styles.sigSoon}>Soon</span> : null}
+    </span>
+  ) : it.checked === true ? (
+    // A checked toggle row ("Value in header"): a white ✓ at the right. Drawn here, not by
+    // ContextPopover (Notebook first-open bytes); the popover still sets menuitemcheckbox + aria-checked.
+    <span className={styles.sigRow}>
+      <span className={styles.sigName}>{it.label}</span>
+      <span className={styles.sigCheck} aria-hidden="true">✓</span>
+    </span>
+  ) : it.label
+  return { ...it, icon, detail: undefined, label,
+    hint: it.hint || (typeof it.disabled === 'string' ? it.disabled : undefined) }
+}
+
+/**
+ * ⭐ UCT SIGNATURE (owner 11-16) — the Volume chip's **Display in** page in the same look as
+ * its menu page (`chipMenuSigRow`): a back row (quiet grey ‹ + the menu's name), a grey group
+ * label, then one row per destination. The current one is bold with a white ✓ at the right and
+ * stays readable (it is still refused — `displaySubmenu` gives it no handler — so its reason is
+ * its tooltip, not a second line); an orphan target is one greyed line with its reason as the
+ * tooltip. No icons. Keys, handlers and order are `displaySubmenu`'s, unchanged.
+ */
+function displayPageSigRows(backLabel, options, onBack) {
+  return [
+    { key: '_back', keepOpen: true, onClick: onBack, hint: 'Back to the menu',
+      label: (
+        <span className={styles.sigRow}>
+          <span className={styles.sigBack} aria-hidden="true">‹</span>
+          <span className={styles.sigName}>{backLabel}</span>
+        </span>
+      ) },
+    { groupLabel: 'Display in' },
+    ...options.map((s) => ({
+      ...s,
+      icon: undefined,
+      hint: s.hint || (typeof s.disabled === 'string' ? s.disabled : undefined),
+      label: s.checked === true ? (
+        <span className={`${styles.sigRow} ${styles.sigChosen}`}>
+          <span className={styles.sigName}>{s.label}</span>
+          <span className={styles.sigCheck} aria-hidden="true">✓</span>
+        </span>
+      ) : s.label,
+    })),
+  ]
 }
 
 /**
@@ -743,7 +835,7 @@ function chipFocusTarget(scope, instanceId) {
 }
 
 function LegendMenuHeader({ label, value, valueMuted = false, hidden, sub, rows, onCard, readout = false, rowAction = null,
-  focusRowKey = null, onRowFocused = null }) {
+  focusRowKey = null, onRowFocused = null, sig = false }) {
   // ⭐ a11y — back from a card: focus returns to the row that opened it.
   const headRef = useRef(null)
   useEffect(() => {
@@ -761,7 +853,7 @@ function LegendMenuHeader({ label, value, valueMuted = false, hidden, sub, rows,
   // and the fixed-dark menu inks were near-white on white there. ⛔ Every other
   // chip's header keeps its classes exactly, so no other indicator moves a pixel.
   return (
-    <div ref={headRef} className={readout ? `${styles.legMenuHead} ${styles.legMenuHeadRs}` : styles.legMenuHead}
+    <div ref={headRef} className={readout ? `${styles.legMenuHead} ${styles.legMenuHeadRs}` : styles.legMenuHead + (sig ? ' ' + styles.legMenuHeadSig : '')}
       data-legend-head={readout ? 'readout' : undefined}>
       <div className={styles.legMenuTop}>
         <span className={styles.legMenuName} data-legend-name="">{label}</span>
@@ -1125,6 +1217,14 @@ function LegendPresetPage({ rows, onBack, onPick }) {
  * `missing` option and reads "Pane unavailable", which is the truth and is never
  * silently healed.
  */
+function sigSubtitle(def, name, hasPresets) {
+  // UCT Signature (owner 11-16): the catalogue noun only, and only when the header's name is not
+  // already it; a preset chip and a source-named one (`QQQ`) have nothing to add.
+  if (hasPresets || !def || !def.meta || def.meta.labelFrom === 'source') return null
+  const noun = def.meta.name
+  return typeof noun === 'string' && noun && noun !== name ? noun : null
+}
+
 function legendMenuSubtitle(def, options, current, presetName) {
   const parts = []
   // ⭐ Phase 2a (A1) — A DEFINITION WITH PRESETS NAMES THE MATCHED ONE INSTEAD OF
@@ -1605,6 +1705,7 @@ import { withPrimaryEconomic, stripPrimaryEconomic, keepOnEconomicPrimary } from
 import { sourceCapabilityOf } from './chart/engine/sourceCapability'
 import { observationReadout, economicStatusLine } from './chart/economic/econUi'
 import { runtimePaneEnabled } from './chart/engine/runtimePaneGate'
+import { armRuntimeLaneWarm, whenIdle } from './chart/engine/runtimeLaneWarm'
 import { readSuccessBody } from '../lib/responseBody'
 import { archiveHref } from '../utils/traderArchive'
 import { createAdaptiveFrameLoop } from './chart/adaptiveFrameLoop'
@@ -1639,6 +1740,13 @@ const useChartBars = BARSTORE ? useBarSnapshotBars : useLegacyChartBars
 engineRegistry.registerRuntimeLaneLoader(() => (runtimePaneEnabled()
   ? import('./chart/engine/runtime/runtimeAsync.js').then((m) => m.ensureRuntimeLane())
   : Promise.reject(new Error('the runtime pane is switched off'))))
+
+// ⚡ PRELOAD (perf/pine-runtime-chunk-preload) — the same lane, WARMED: its loader chunk imported
+// and its worker spawned (`runtimeAsync.warmRuntimeLane`), so a saved per-bar script is drawn without
+// paying the ~1.3 MB worker chunk on its first run. ⛔ The import stays here, in the chart's module,
+// for the reason above, and it is reached only through `armRuntimeLaneWarm` (after the first chart
+// paint, in idle time, for a permitted member with a definition on that lane: `runtimeLaneWarm.js`).
+const warmRuntimeLaneNow = () => import('./chart/engine/runtime/runtimeAsync.js').then((m) => m.warmRuntimeLane())
 
 // ⚡ THE SERVER LANE'S COLUMNS ARE ASKED FOR AHEAD OF THE MEMBER (2026-11-12). The bars
 // prefetch already knows which symbols are next; this registers the lane's warmer with it
@@ -1926,6 +2034,10 @@ function _fmt12(d) {
   h = h % 12 || 12
   return m === 0 ? `${h} ${ap}` : `${h}:${String(m).padStart(2, '0')} ${ap}`
 }
+// Chart Settings → Canvas → Time format → 24-hour: the same ET wall-clock, as "09:30" / "14:00".
+function _fmt24(d) {
+  return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`
+}
 
 // Parse a daily+ time (string or business-day object) → a UTC Date, or null.
 function _dayDate(time) {
@@ -1939,10 +2051,10 @@ function _dayDate(time) {
 
 // Bottom-axis TICK labels: 12-hour time on intraday, dates otherwise.
 // tickMarkType (LWC): 0=Year 1=Month 2=DayOfMonth 3=Time 4=TimeWithSeconds.
-function chartTickMarkFormatter(time, tickMarkType) {
+function chartTickMarkFormatter(time, tickMarkType, _locale, h24 = false) {
   if (typeof time === 'number') {
     const d = new Date(time * 1000)
-    if (tickMarkType >= 3) return _fmt12(d)                       // time tick → 12-hour
+    if (tickMarkType >= 3) return h24 ? _fmt24(d) : _fmt12(d)    // time tick → 12-hour (24-hour when the member picks it)
     return `${_MO[d.getUTCMonth()]} ${d.getUTCDate()}`           // intraday day-boundary
   }
   const d = _dayDate(time)
@@ -1952,18 +2064,75 @@ function chartTickMarkFormatter(time, tickMarkType) {
   return String(d.getUTCDate())                                  // DayOfMonth
 }
 
+// THE STUDY CHART'S DATE AXIS (studyMode only; the Study screen check, 2026-11-14: a finished replay read
+// "Feb 4 Apr May"). The library places tick marks greedily, heaviest first, each at least one label width from the
+// last: a short month (Feb 2025 has 19 sessions) can fall inside that width and lose its month mark, and then a DAY
+// mark a session or two later fits, so a bare "4" stood where "Mar" belongs. On a daily study chart such a day mark is
+// always within a few sessions of the month it stands in for, so a day mark in a month's first week names its month
+// ("Mar 4"); later days stay bare numbers, the usual axis. Intraday and the year and month marks read as everywhere.
+// An intraday study chart (2026-11-16) gives its labels a five-character slot (the drill's INTRADAY_TICK_CHARS), so a
+// half-hour mark reads "10:30", not "10:30 AM": in the regular session (09:30 to 16:00) the hour says morning or
+// afternoon, and the eight-character form crowded every time mark off a phone's axis after a replay. The hour marks keep
+// "10 AM" and "12 PM", as on every chart. A 24-hour chart (h24) keeps its own clock.
+export function studyTickMarkFormatter(time, tickMarkType, _locale, h24 = false) {
+  if (typeof time !== 'number' && tickMarkType === 2) {
+    const d = _dayDate(time)
+    if (d && d.getUTCDate() <= 7) return `${_MO[d.getUTCMonth()]} ${d.getUTCDate()}`
+  }
+  if (!h24 && typeof time === 'number' && tickMarkType >= 3) {
+    const d = new Date(time * 1000)
+    if (d.getUTCMinutes() !== 0) return `${d.getUTCHours() % 12 || 12}:${String(d.getUTCMinutes()).padStart(2, '0')}`
+  }
+  return chartTickMarkFormatter(time, tickMarkType, _locale, h24)
+}
+
 // CROSSHAIR time label (the hover box on the axis): weekday + date [+ 12-hour].
 // e.g. "Tue 14 Jul '26 12:00 AM"  (daily: "Tue 14 Jul '26").
-function chartCrosshairTimeFormatter(time) {
+function chartCrosshairTimeFormatter(time, h24 = false) {
   if (typeof time === 'number') {
     const d = new Date(time * 1000)
     const yy = String(d.getUTCFullYear()).slice(2)
-    return `${_WD[d.getUTCDay()]} ${d.getUTCDate()} ${_MO[d.getUTCMonth()]} '${yy} ${_fmt12(d)}`
+    return `${_WD[d.getUTCDay()]} ${d.getUTCDate()} ${_MO[d.getUTCMonth()]} '${yy} ${h24 === true ? _fmt24(d) : _fmt12(d)}`
   }
   const d = _dayDate(time)
   if (!d) return String(time)
   const yy = String(d.getUTCFullYear()).slice(2)
   return `${_WD[d.getUTCDay()]} ${d.getUTCDate()} ${_MO[d.getUTCMonth()]} '${yy}`
+}
+
+// The 24-hour twins of the three time formatters (Chart Settings → Canvas → Time format). Module-level, so each
+// is ONE stable reference like the 12-hour originals. Exported, with the originals, for the mapping test.
+export const chartTickMarkFormatter24 = (time, tickMarkType, locale) => chartTickMarkFormatter(time, tickMarkType, locale, true)
+export const studyTickMarkFormatter24 = (time, tickMarkType, locale) => studyTickMarkFormatter(time, tickMarkType, locale, true)
+export const chartCrosshairTimeFormatter24 = (time) => chartCrosshairTimeFormatter(time, true)
+export { chartTickMarkFormatter, chartCrosshairTimeFormatter }
+
+// Chart Settings → Canvas → Scale & time → Time zone (owner 11-16, was Soon; chartTimeZone.js). The time-axis tick
+// formatter + the crosshair time formatter for one 12/24-hour × zone × study choice. The exchange zone (absent, or a
+// browser that IS New York) returns the original module-level formatters, so today's chart gets the same references;
+// any other zone gets ONE cached pair per combination (stable across renders). Only a NUMERIC (intraday) time is
+// re-read in the zone; daily+ labels are dates and pass through untouched.
+const _zonedTimeFormatters = new Map()
+export function timeAxisFormattersFor(h24, zoneId, study = false) {
+  const tz = ianaZoneFor(zoneId)
+  if (!tz || tz === 'America/New_York') {
+    return {
+      tick: study ? (h24 ? studyTickMarkFormatter24 : studyTickMarkFormatter) : (h24 ? chartTickMarkFormatter24 : chartTickMarkFormatter),
+      crosshair: h24 ? chartCrosshairTimeFormatter24 : chartCrosshairTimeFormatter,
+    }
+  }
+  const key = `${study ? 's' : 'c'}|${h24 ? 24 : 12}|${tz}`
+  let f = _zonedTimeFormatters.get(key)
+  if (!f) {
+    const base = study ? studyTickMarkFormatter : chartTickMarkFormatter
+    const z = (time) => (typeof time === 'number' ? chartTimeInZone(time, tz) : time)
+    f = {
+      tick: (time, tickMarkType, locale) => base(z(time), tickMarkType, locale, !!h24),
+      crosshair: (time) => chartCrosshairTimeFormatter(z(time), !!h24),
+    }
+    _zonedTimeFormatters.set(key, f)
+  }
+  return f
 }
 
 // TERM-066: the ladder this grammar already had (M one decimal, K none), passed to the one formatter.
@@ -2252,34 +2421,10 @@ if (typeof window !== 'undefined') window.__uctBarsPush = setBarsPushEnabled
 // Ramped 25 → 100 on 2026-09-03 after the 25% canary held clean (no blank-chart /
 // stops-at-2024 reports). Instant revert: set this to 0 + redeploy, or per-browser
 // window.__uctBarsHistory(false). Spec: docs/superpowers/specs/2026-08-31-edge-deep-history.
-export const BARS_HISTORY_SPLIT_ROLLOUT_PCT = 100
-
-function _barsHistoryBucket() {
-  try {
-    let b = localStorage.getItem('uct.barsHistory.bucket')
-    if (b == null) { b = String(Math.floor(Math.random() * 100)); localStorage.setItem('uct.barsHistory.bucket', b) }
-    const n = parseInt(b, 10)
-    return Number.isFinite(n) ? n : 100
-  } catch { return 100 }  // no storage → out of rollout (safe default-off)
-}
-
-export function _barsHistorySplitEnabled() {
-  try {
-    const ls = typeof localStorage !== 'undefined' ? localStorage.getItem('uct.barsHistory.enabled') : null
-    if (ls === '1') return true     // explicit opt-in (canary)
-    if (ls === '0') return false    // explicit opt-out
-    return _barsHistoryBucket() < BARS_HISTORY_SPLIT_ROLLOUT_PCT
-  } catch { return false }
-}
-
-export function setBarsHistorySplitEnabled(on) {
-  try {
-    if (on) localStorage.setItem('uct.barsHistory.enabled', '1')
-    else localStorage.removeItem('uct.barsHistory.enabled')
-    window.dispatchEvent(new Event('uct-barshistory-change'))
-  } catch { /* ignore */ }
-}
-if (typeof window !== 'undefined') window.__uctBarsHistory = setBarsHistorySplitEnabled
+// ⭐ MOVED to utils/barsHistorySplit.js (2026-11-16) so the BarStore reads the SAME switch and builds the
+// SAME history URL; re-exported here under the names the legacy hook and its tests use.
+export { BARS_HISTORY_SPLIT_ROLLOUT_PCT, setBarsHistorySplitEnabled } from '../utils/barsHistorySplit'
+export const _barsHistorySplitEnabled = barsHistorySplitEnabled
 
 // ── Fix 2: edge deep-history on FIRST PAINT (instant full history for a new ticker) ──
 // The split-fetch above only pulls deep sealed history from the edge AFTER the user pans
@@ -2901,6 +3046,29 @@ function colorWithAlpha(color, a) {
   if (m) { const p = m[1].split(',').map(s => s.trim()); return `rgba(${p[0]},${p[1]},${p[2]},${a})` }
   return color
 }
+// ⭐ TRADINGVIEW VOLUME OVERLAY (owner 11-16, `volumePaneByDefault` + Overlay on price):
+// the bars fill the bottom ~22% of the price pane, behind the candles, at this opacity.
+export const TV_VOLUME_OVERLAY_MARGINS = Object.freeze({ top: 0.78, bottom: 0 })
+export const TV_VOLUME_OVERLAY_ALPHA = 0.5
+const _dimVolColor = (c) => {
+  if (typeof c !== 'string') return c
+  if (/^#[0-9a-f]{8}$/i.test(c)) return colorMulAlpha(c.slice(0, 7), (parseInt(c.slice(7), 16) / 255) * TV_VOLUME_OVERLAY_ALPHA)
+  return colorMulAlpha(c, TV_VOLUME_OVERLAY_ALPHA)
+}
+const _dimVolPoint = (p) => (p && typeof p === 'object' && p.color ? { ...p, color: _dimVolColor(p.color) } : p)
+/** Dim every bar written to an overlay volume series — `setData` and every live `update()`
+ *  — on the series object itself, so no writer (legacy live, BARSTORE, frame fade) can
+ *  paint a full-strength bar over the candles. The series is recreated on a mode switch,
+ *  so an own-pane series is never wrapped. */
+export function dimVolumeSeries(series) {
+  if (!series || series.__uctDimmed) return series
+  const setData = series.setData && series.setData.bind(series)
+  const update = series.update && series.update.bind(series)
+  if (setData) series.setData = (data) => setData(Array.isArray(data) ? data.map(_dimVolPoint) : data)
+  if (update) series.update = (p, ...rest) => update(_dimVolPoint(p), ...rest)
+  try { Object.defineProperty(series, '__uctDimmed', { value: true }) } catch { /* frozen mock */ }
+  return series
+}
 // Like colorWithAlpha but MULTIPLIES the existing alpha (volume bars already
 // carry a dimmed alpha — the fade scales it rather than replacing it).
 function colorMulAlpha(color, mul) {
@@ -3196,7 +3364,7 @@ export default function StockChart({
   watermarkCenterX = null,   // px from the pane's left edge — when set, pins the watermark's horizontal CENTER here on every chart (no edge clamp) so it stays tucked in the top-left corner and never drifts by name width or pane width (Setup Library)
   watermarkPadTop = null,    // px top inset, independent of the side gutter (watermarkPad). Charts workspace uses this to drop the mark below the floating drawing toolbar. Falls back to watermarkPad when null.
   watermarkBrandMark = false, // UCT pseudo-tickers (breadth / theme indexes): the watermark "Logo" field uses the UCT compass brand mark, not a company-logo lookup on the synthetic symbol.
-  showBrandMark = true,      // the small compass mark pinned bottom-left over the date axis. The Discord render (ChartRender) turns it off: its header already carries the mark, and on a weekly chart this one sat on top of the first date label.
+  showBrandMark = false,     // OFF by default (owner 11-16: "get rid of the little UCT compass"). The small compass mark pinned bottom-left over the date axis. The Discord render (ChartRender) turns it off: its header already carries the mark, and on a weekly chart this one sat on top of the first date label.
   onWatermarkCommit = null,  // (pos:{x,y}) => void — when set, a watermark drag persists HERE (per-example) instead of writing the global chart_settings (Setup Library)
   watermarkName = null,      // Model Book: curated company name for the watermark. For a REUSED ticker (e.g. WTW = Weight Watchers in 2017, now Willis Towers Watson) the live ticker meta is the wrong company — this overrides the name (and drops the then-wrong sector/industry).
   watermarkSector = null,    // Model Book: curated historical sector — used when the live ticker meta is the wrong/absent company (renamed/delisted), so the watermark still shows sector below the name like every other stock.
@@ -3204,6 +3372,7 @@ export default function StockChart({
   className = '',
   showDrawingTools: showDrawingToolsProp = true,
   studyMode = false,        // Study drills (spec §13.2 T1): the chart shows an ITEM, not a ticker. Nulls useTickerMeta/useTickerIpo/useChartDrawings (no provider lookups or localStorage under the item id), turns every marker/news/desk feed off, prints no symbol in the loading/error copy, and defaults the drawing tools OFF. Additive: a caller that never passes it is byte-identical.
+  tickLabelChars = null,    // opt-in: the date axis sizes its label slot for this many characters (the library's default is 8). The Study drill passes 5 on a wide screen, where its daily labels are "Sep" / "2025" / "Mar 4" and the 8-character slot skipped a short month's mark. Unset = byte-identical.
   onSymbolChange = null,
   onBarContextMenu = null,  // Journal 2.0: right-click a bar → callback({bar, clientX, clientY})
   entryDate = null,         // ISO date string — zoom centers on trade holding period
@@ -3217,7 +3386,7 @@ export default function StockChart({
   viewLockKey = null,       // localStorage key. When set (Charts workspace), the user's pan/zoom/price-scale view is PERSISTED here so it survives a page refresh — restored on load, cleared by "Reset view".
   keepPresentOnSymbolChange = false, // on a symbol switch, keep the zoom LEVEL but re-anchor the newest candle to the right so a newly-typed ticker always loads at present day (never inherits the prior symbol's scrolled-back/past view). Charts workspace opts in.
   centerWatermarkOnPlot = false, // center the watermark on the CANDLE PLOT AREA (chart.timeScale().width()/2), not 0.5×pane-width — the pane width includes the right price axis, so a plain 0.5 reads right-of-center. Exact at any widget width.
-  rightPadBars = 3,          // bars of empty space between the last candle and the right price scale (rightOffset + default-zoom right pad). Charts workspace uses more for breathing room.
+  rightPadBars: rightPadBarsProp = 3,          // bars of empty space between the last candle and the right price scale (rightOffset + default-zoom right pad). Charts workspace uses more for breathing room.
   exactDateRange = false,   // zoom to exactly [entryDate, exitDate] with no padding
   frameRightPadFrac = 0,    // exactDateRange only: leave this fraction of the window as blank space to the RIGHT of the last framed candle (replay-style room to annotate)
   keepBarsAfterExit = false, // exactDateRange only: DON'T slice bars past exitDate — keep real price history rendering into the right-pad space instead of cutting off (Setup Library "Result" view: exitDate stays framed in place, the ensuing candles fill the screen)
@@ -3235,6 +3404,11 @@ export default function StockChart({
   hideLastValue = false,    // hide the last-price axis tag on the price series
   volumeLastValue = false,  // show the current-volume axis tag on the volume pane's right scale (like the price tag on the main chart). Opt-in so Model Book (which deliberately hides it) is unaffected.
   volumeSeparatePane = false, // force volume into its own draggable bottom pane
+  // Volume DEFAULTS to its own pane, but the member may overlay it on price (⋯ → Display
+  // in, saved as `cs.volume.displayIn`). The /charts pane look (paneLook.js) — owner 11-16.
+  // Overlay here is TradingView's: bars in the bottom ~22% of the price pane, behind the
+  // candles, on an invisible scale, at reduced opacity. See engine/volumePresentation.js.
+  volumePaneByDefault = false,
   breadthSeries = false,      // a breadth pseudo-ticker / market-indicator series (ChartPane): daily-only, no live tick, no today-seed
   blankVolume = false,        // reserve an EMPTY, labeled volume pane (TC2000-style). For symbols with no volume (UCT breadth indicators): the pane still occupies its space + shows a "Volume" label, but renders no bars/line and no axis values (the vol series is fed whitespace, so the price scale has nothing to label). Implies a separate volume pane.
   breadthLine = false,        // UCT breadth line-chart mode: paint the price LINE a single canvas-contrasting ink (black on a light canvas, white on a dark one), ignoring the user's candle/net-change colors. The 'line' chart TYPE itself is forced by the surface via settingsOverride={{chartType:'line'}}; this flag only governs that one auto-color. No-op unless the chart type is already 'line'.
@@ -3377,6 +3551,7 @@ export default function StockChart({
   // markers/price lines, which would "randomly" appear on any ticker the viewer
   // happens to have traded. Set true to suppress the personal journal overlay.
   hideJournalOverlay = false,
+  nextEarningsHint = null,    // 'YYYY-MM-DD' — the host header's next-earnings date; the "E" falls back to it (owner 11-16)
   // ── Extended-hours session preview (Charts workspace only) ──
   // null on every other surface (feature off). 'regular' | 'extended' from the
   // workspace's "Regular Hours / Include pre-market" toggle. Drives the synthetic
@@ -3484,10 +3659,9 @@ export default function StockChart({
   const backgroundWarm = backgroundWarmProp && !_econId
   const deepWarm = deepWarmProp && !_econId
   const disablePatterns = disablePatternsProp || _econId
-  const priceFormat = (_econId && econPrimary.priceFormat) ? econPrimary.priceFormat : priceFormatProp
-  // Read by the series-creation block, whose callback does not list priceFormat as a dependency.
-  const priceFormatRef = useRef(priceFormat)
-  priceFormatRef.current = priceFormat
+  // The HOST's format (an economic series, an integer-only page). The member's "Price decimals" joins it below,
+  // once `cs` exists — a host format wins (it states what the numbers ARE), else the member's, else none (auto).
+  const hostPriceFormat = (_econId && econPrimary.priceFormat) ? econPrimary.priceFormat : priceFormatProp
   const sessionView = _econId ? null : sessionViewProp
   // The row each host time sits on (D rows are 'YYYY-MM-DD'; W/M bucket keys too).
   const _econRowIndex = useMemo(() => {
@@ -3620,6 +3794,23 @@ export default function StockChart({
     // away removes them with no cleanup. Same discipline as the clamp above.
     return withPrimaryProduct(typed, _primaryProduct)
   }, [csMerged, sym, miReady, _econId, econPrimary.symbol, econPrimary.meta])
+
+  // ── Chart Settings → Canvas → Margins / Scale & time (chartViewOptions.js; absent = today's look) ──
+  // Price decimals: a member's 0–4 is a plain lightweight-charts priceFormat; Auto (absent) is no format at all,
+  // exactly as before. A host's own format still wins.
+  const _memberDecimals = priceDecimalsOf(cs)
+  const memberPriceFormat = useMemo(() => (_memberDecimals == null ? null : priceFormatForDecimals(_memberDecimals)), [_memberDecimals])
+  const priceFormat = hostPriceFormat || memberPriceFormat
+  // Read by the series-creation block, whose callback does not list priceFormat as a dependency.
+  const priceFormatRef = useRef(priceFormat)
+  priceFormatRef.current = priceFormat
+  // Right margin: the member's bars override the host's `rightPadBars` (Auto = the host's, as before). It is the
+  // timeScale `rightOffset` AND the default-zoom right pad, so a reset view keeps the same gap.
+  const rightPadBars = rightMarginOf(cs) ?? rightPadBarsProp
+  // Time format: 12-hour (absent, as before) or 24-hour, on the time axis and the crosshair label.
+  const _h24 = timeFormatOf(cs) === '24'
+  // Time zone: the exchange's (absent, as before) or the member's — display only, intraday labels only.
+  const _tzId = timeZoneOf(cs)
 
   // ⛔⭐ B5 TASK 12 — `csPanes` STOOD HERE AND IS GONE, WITH ITS SUBJECT.
   //
@@ -3819,6 +4010,8 @@ export default function StockChart({
         '--chart-cmd-surface-active': cb.surfaceActive,
         '--chart-cmd-surface-pressed': cb.surfacePressed,
         '--chart-cmd-edge-active': cb.edgeActive,
+        '--chart-cmd-disabled-opacity': cb.disabledOpacity,
+        '--chart-cmd-divider': cb.divider,
       } : {}),
       '--chart-panel-bg': p.bg,
       '--chart-panel-bg-soft': p.bgSoft,
@@ -3843,6 +4036,11 @@ export default function StockChart({
   // them), so it is a layout effect, re-run when the canvas, the legend colour or the app theme
   // changes. Before it runs (and in jsdom) the rules fall back to their tokens, as before.
   const [legendInks, setLegendInks] = useState(undefined)
+  // Owner 11-16: legend VALUES wear their line's colour, at their LABEL's brightness. The legend CSS clamps that
+  // colour's OKLCH lightness into a narrow band centred on the label ink (legendInkVars measures it per canvas
+  // sample and publishes --legend-val-lmin/-lmax[-low]); this is only the band before that measurement lands.
+  // See legendInk.js `LEGEND_PAIR_ROLE` and LegendRow/IndicatorChip .module.css.
+  const legendValueBounds = useMemo(() => legendValueBandVars(topCanvasIsLight), [topCanvasIsLight])
   // The app's ONE theme observer (lib/theme/useThemeInk.js: data-theme plus the catalog's inline
   // tokens on <html>, deduped by token signature), not a second one per chart.
   const appThemeTick = useThemeVersion()
@@ -4099,7 +4297,8 @@ export default function StockChart({
   }, [chartReady, darkPoolBarsLayout])
 
   // ── Chart event markers (earnings + splits + dividends) — /api/chart/markers ──
-  const markersEnabled = cs.markers?.earnings || cs.markers?.splits || cs.markers?.dividends
+  // (owner 11-16) Markers → Next earnings date reads the same payload's upcoming (`estimate`) row — same key, no new fetch.
+  const markersEnabled = cs.markers?.earnings || cs.markers?.splits || cs.markers?.dividends || nextEarningsMarkerOf(cs)
   // ── Rapid ticker-scan fetch cancellation (see _switchAbortEnabled) ──────────
   // Per-instance in-flight registry for the bars-family SWRs below. `instFetcher`
   // wraps the shared `fetcher`, tags each fetch by the symbol active at dispatch, and
@@ -4155,6 +4354,34 @@ export default function StockChart({
       revalidateOnFocus: false,
     }
   )
+  // Chart Settings → Next earnings date: the payload's earnings rows while it is ON, else null (so an OFF chart's
+  // updateChart never re-runs for it). The chip is placed from the loaded bars inside updateChart.
+  const _nextEarnOn = nextEarningsMarkerOf(cs)
+  // The markers payload's upcoming (estimate: true) row wins; when it has none, the host's header date (the same one
+  // the "Next Earnings" field shows) stands in, so the chip and the header never disagree (owner test 11-16).
+  const nextEarnRows = useMemo(() => {
+    if (!_nextEarnOn) return null
+    const rows = Array.isArray(markersData?.earnings) ? markersData.earnings : []
+    const hint = typeof nextEarningsHint === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(nextEarningsHint) ? nextEarningsHint : null
+    if (hint && !rows.some((e) => e && e.estimate === true)) return [...rows, { date: hint, estimate: true }]
+    return rows.length ? rows : null
+  }, [_nextEarnOn, markersData, nextEarningsHint])
+  // Chart Settings → Markers → Your activity → Price alerts (owner 11-16; priceAlertLines.js). Default OFF (absent key):
+  // an OFF chart fetches nothing and draws nothing. ON: the member's ACTIVE alerts on this symbol, from the existing
+  // `/api/watchlist-alerts` list (one SWR key shared with the bound-alert sync), as dashed "Alert" price lines.
+  const _alertLinesOn = priceAlertLinesOf(cs)
+  const _alertRows = usePriceAlertRows(_alertLinesOn)
+  const alertLineOpts = useMemo(
+    () => (_alertLinesOn ? alertPriceLines(activeAlertLevels(_alertRows, sym)) : []),
+    [_alertLinesOn, _alertRows, sym],
+  )
+  // Chart Settings → Markers → Your activity → My trades (owner 11-16; myTradeMarkers.js). Default OFF (absent key): an
+  // OFF chart fetches nothing and draws nothing. ON: the member's own Journal fills on this symbol (GET /api/j2/trades
+  // + /api/j2/positions), placed on the loaded bars further down (after `ohlcData`) and handed to the ONE markers
+  // controller. Only where the legacy Journal overlay is hidden (every /charts chart): a surface that still draws
+  // that overlay (useJ2ChartMarkers) already shows the trades, and a date-framed curated chart is never "yours".
+  const _myTradesOn = myTradeMarkersOf(cs) && !!hideJournalOverlay && !exactDateRange
+  const _myFills = useMyTradeFills(_myTradesOn, sym)
 
   // ── News markers — /api/chart-news ──
   const showNews = !!cs.markers?.news
@@ -4297,6 +4524,14 @@ export default function StockChart({
   // row). A second PAGE of one popover rather than a second popover: the text is
   // `def.meta.description`, which every definition already declares.
   const [chipAbout, setChipAbout] = useState(null)
+  // ⭐ UCT SIGNATURE — WHICH LEGEND ROW OWNS THE OPEN MENU (or its About page), so that
+  // row holds its hover card + Hide/Settings/⋯ strip while the pointer is on the menu.
+  // A chip matches by `instanceId::plotKey`; Volume / legacy-MA rows by `rowId`.
+  const legendMenuOwner = chipMenu || chipAbout
+  const legendMenuRowId = legendMenuOwner
+    ? (legendMenuOwner.rowId || (legendMenuOwner.volume ? 'volume' : null)) : null
+  const legendMenuChipKey = legendMenuOwner && !legendMenuOwner.volume && legendMenuOwner.chip
+    ? `${legendMenuOwner.chip.instanceId}::${legendMenuOwner.chip.plotKey}` : null
   // ⭐ SUPPORT LOOP A3 — the imported Pine definition a member is reporting, and
   // the server's report flag, asked for only once a chip menu has opened.
   const [reportFor, setReportFor] = useState(null)
@@ -4396,6 +4631,17 @@ export default function StockChart({
   // behaviour is to draw nothing for it), and a toast on a render path would fire
   // on every chart.
   const { generation: userDefsGeneration } = useInstalledUserDefinitions()
+  // ⚡ PRELOAD — re-asked whenever the installed definitions change (a later install can make the
+  // answer yes); `armRuntimeLaneWarm` warms at most once per page, after the first paint, in idle time.
+  useEffect(() => {
+    armRuntimeLaneWarm({
+      afterPaint: afterFirstChartPaint,
+      idle: whenIdle,
+      permitted: runtimePaneEnabled,
+      usesLane: engineRegistry.anyInstalledRuntimeDefinition,
+      load: warmRuntimeLaneNow,
+    })
+  }, [userDefsGeneration])
 
   const mergedMarkers = useMemo(
     () => {
@@ -4475,7 +4721,7 @@ export default function StockChart({
   const _volPresenceInstances = (engineInstancesRef.current && engineInstancesRef.current.length)
     ? engineInstancesRef.current : cs.indicatorInstances
   const _volPresenceOpts = {
-    cs, instances: _volPresenceInstances, shown: showVolume, blankVolume, volumeSeparatePane,
+    cs, instances: _volPresenceInstances, shown: showVolume, blankVolume, volumeSeparatePane, volumePaneByDefault,
   }
   const volumePaneExists = volumePaneRequired(_volPresenceOpts)
   // Will a NATIVE volume series (and so its own pane) exist? Narrower than `volumePaneExists`, which
@@ -4491,7 +4737,7 @@ export default function StockChart({
   // separator), so tell the settings panel to render those two controls inert rather
   // than leaving them looking live. DERIVED from the props that do the forcing, so it
   // can never drift from the actual behavior.
-  const volumePaneFixed = (volumeSeparatePane || volumePaneHeightPct != null)
+  const volumePaneFixed = (volumeSeparatePane || (volumePaneHeightPct != null && !volumePaneByDefault))
     ? VOLUME_PANE_SURFACE_FIXED
     : null
   const resolvedOverlays = useMemo(
@@ -4590,6 +4836,18 @@ export default function StockChart({
   const lastDpZonesRef = useRef(undefined) // identity guard — see the setZones call
   const pdlCtlRef = useRef(null)          // previous-day H/L/C lines series primitive controller
   const pdlAttachedRef = useRef(false)    // guard: re-attach on candle-series swap
+  const sessionBreaksRef = useRef(null)   // Chart Settings → Session breaks: pane primitive controller (sessionMarks.js)
+  const sessionBreaksAttachedRef = useRef(false)  // guard: re-attach on chart recreate
+  const nextEarnRef = useRef(null)        // Chart Settings → Next earnings date: series primitive controller (nextEarningsMark.js)
+  const nextEarnSeriesRef = useRef(null)  // the candle series it is attached to (re-attach on a series swap / chart recreate)
+  const pmLineRefs = useRef([])           // Chart Settings → Pre-market high & low: the two createPriceLine handles
+  const pmLinesKeyRef = useRef('')        // what they show — rebuilt only when the prices / colour change
+  const alertLinesRef = useRef({ series: null, handles: [], key: '' })  // Chart Settings → Price alerts: createPriceLine handles + the series they live on
+  const alertLineOptsRef = useRef(alertLineOpts)  // the lines wanted now (read by updateChart after a series swap)
+  alertLineOptsRef.current = alertLineOpts
+  const myTradeMarkersRef = useRef(EMPTY_MY_TRADES.markers)  // Chart Settings → My trades: the markers wanted now (updateChart merges them)
+  const lastMyTradesSrcRef = useRef(undefined)               // …and the array the markers controller was last handed
+  const myTradeTipsRef = useRef(EMPTY_MY_TRADES.tips)        // marker id → its hover text
   const earnBadgeRef = useRef(null)       // earnings "E" badge series primitive controller
   const earnBadgeAttachedRef = useRef(false)  // guard: re-attach on candle-series swap
   const splitBadgeRef = useRef(null)      // splits "S" badge primitive controller
@@ -4620,8 +4878,21 @@ export default function StockChart({
   // ⭐ The exchange is our STORE's friendly spelling ("NYSE Arca"), which is
   // exactly what the witness table is keyed on — `ticker_meta.py` already
   // produces it, and the rig confirmed the pairing independently on SPY.
+  // ⭐⭐ RS RATING L3 (2026-11-15) — AND THE CLASSIFICATION FIELDS, from the SAME `tickerMeta`
+  // (nothing new is fetched): `industry` / `sector` are our store's strings and `securityType` its
+  // instrument class (`ticker_meta.security_type`, the screener universe's `Stock` / `ADR` / `ETF`).
+  // The fold (`bind.js::classificationWith`) serves TradingView's string where a capture witnessed
+  // one for that class or string, else OURS, tagged substituted; a missing field settles nothing.
+  // ⛔ The live meta only: Model Book's curated watermark industry is a display fact, not the
+  // symbol's classification.
   const symbolMeta = useMemo(() => (
-    sym ? { ticker: sym, exchange: (tickerMeta && tickerMeta.exchange) || null } : null
+    sym ? {
+      ticker: sym,
+      exchange: (tickerMeta && tickerMeta.exchange) || null,
+      industry: (tickerMeta && tickerMeta.industry) || null,
+      sector: (tickerMeta && tickerMeta.sector) || null,
+      securityType: (tickerMeta && tickerMeta.security_type) || null,
+    } : null
   ), [sym, tickerMeta])
   const ipoInfo = useTickerIpo(_econId || _study ? null : sym)       // { list_date } — official first-listing day
   const [ipoPopup, setIpoPopup] = useState(null)  // { date, x, y } first-trade tag
@@ -4954,6 +5225,7 @@ export default function StockChart({
   const indexScaleRef = useRef({ range: null, pin: false })  // fixed price range for the index pane's autoscaleInfoProvider (pins it steady across ticker switches; pin=false in Percent mode)
   const lastIndexSigRef = useRef(null)  // signature of the last-drawn index line/MA so we SKIP setData+relayout when flipping tickers in the same year (the index line is identical → no millisecond glitch)
   const volumeSeparatePaneRef = useRef(false)  // tracks current volume render mode so a toggle recreates the series in the right pane
+  const volTagOffRef = useRef(false)  // TradingView overlay volume (volumePaneByDefault + Overlay on price): no last-value tag on the price axis
   // ⛔ `indScaleRef` STOOD HERE AND WENT WITH `ensureIndTarget` (B5 Task 8). It
   // remembered each indicator's last price-scale id so the volume-overlay toggle
   // could DESTROY and recreate its series in the right pane — the exact
@@ -5739,6 +6011,22 @@ export default function StockChart({
   // that reopens itself is a strip the user closed for nothing.
   const [chipsExpanded, setChipsExpanded] = useState(false)
   const legendHoveringRef = useRef(false)
+  /** ⭐⭐ THE HOVER-ONLY LEGEND HOLDS WHILE THE POINTER IS ON IT (owner, 2026-11-16: it
+   *  "flickers when I hold my mouse over it"; measured, 132 mounts and unmounts in 181
+   *  frames). The whole rule is `chart/legend/legendPointerHold.js`; this component tells
+   *  it four things (pointer entered / left the legend, the crosshair cleared, the
+   *  crosshair took the readout) and supplies what only it knows through this ref, which
+   *  is rewritten every render so the hold never reads a stale closure. */
+  const legendHoldEnvRef = useRef(null)
+  const legendHoldRef = useRef(null)
+  if (legendHoldRef.current === null) {
+    legendHoldRef.current = createLegendPointerHold({
+      isHoverOnly: () => !!(legendHoldEnvRef.current && legendHoldEnvRef.current.isHoverOnly()),
+      clearReadout: () => { if (legendHoldEnvRef.current) legendHoldEnvRef.current.clearReadout() },
+      crosshairPending: () => !!(legendHoldEnvRef.current && legendHoldEnvRef.current.crosshairPending()),
+      legendHovered: () => !!(legendHoldEnvRef.current && legendHoldEnvRef.current.legendHovered()),
+    })
+  }
   // True while a SYNCED (external) crosshair is applied to this chart. The
   // always-show-legend refreshers below must stand down for it exactly as they
   // do for a local hover — otherwise they'd overwrite the synced bar's readout
@@ -5778,6 +6066,9 @@ export default function StockChart({
    */
   const readoutChipOpts = {
     scalarsOf: (def, inputs) => scalarsFor(def, inputs, { sym: symRef.current, tf: resolvedTfRef.current }),
+    // ⭐ ENGINE 58 — the chart's own two colours, so a chip whose plot is coloured by a
+    // theme reference (`chart.fg_color@85`) wears what the line wears (`readout.js`).
+    theme: chartThemeOf(cs),
   }
   /**
    * ⭐ Phase 2a visual round (VA3) — what a READOUT definition's chip prints, for
@@ -6071,6 +6362,25 @@ export default function StockChart({
   const offHoverCrosshair = () => (
     (alwaysShowLegend && !compactLegendRef.current) ? computeLatestCrosshair() : null
   )
+  // What the legend's pointer hold needs from this render (see `legendHoldRef`).
+  legendHoldEnvRef.current = {
+    // Hover-only = the off-cursor readout is nothing at all (the same test as above).
+    isHoverOnly: () => !(alwaysShowLegend && !compactLegendRef.current),
+    // The pointer left the legend for somewhere that is not the chart.
+    clearReadout: () => {
+      legendHoveringRef.current = false
+      setCrosshairData(offHoverCrosshair())
+      refreshOffHoverEndTags(alwaysShowLegend && !compactLegendRef.current)
+    },
+    crosshairPending: () => crosshairRafRef.current != null,
+    // The browser's own answer: `:hover` matches the legend box while the pointer is on
+    // any of its rows (the box itself takes no pointer; its rows do).
+    legendHovered: () => {
+      const el = legendRef.current
+      try { return !!(el && el.isConnected && el.matches(':hover')) } catch { return false }
+    },
+  }
+  useEffect(() => () => { legendHoldRef.current.dispose() }, [])
   /**
    * ⭐ F3 — the end-tag chips the price-pane host reads while `crosshairData` is
    * `null` (see the state's own note). Empty while the legend is persistent: the
@@ -6103,6 +6413,9 @@ export default function StockChart({
   const readoutIsOwned = () => (
     legendHoveringRef.current
     || externalCrosshairAppliedRef.current
+    // ⭐ …or it is being kept for a pointer resting on the hover-only legend: an
+    // off-cursor refresh there would unmount the legend under the pointer.
+    || legendHoldRef.current.isHolding()
   )
   const crosshairSubRef = useRef(null)
   const crosshairRafRef = useRef(null)
@@ -6273,7 +6586,7 @@ export default function StockChart({
       try {
         recordIndicatorChange(historyKey, cs, newSettings, _named
           ? { userId: historyUserId, label: _named.historyLabel, kind: _named.historyKind || 'bulk', origin: chartId }
-          : { userId: historyUserId, labelOf: labelFor, origin: chartId })
+          : { userId: historyUserId, labelOf: anyLabelFor, origin: chartId })
       } catch { /* recording never blocks a write */ }
     }
     if (onSettingsPersist) { onSettingsPersist(newSettings); return }
@@ -6604,8 +6917,8 @@ export default function StockChart({
       // Settings → Indicators → "New Formula" travels down: the modal is a sibling
       // of this chart, not a child of its toolbar, so it cannot reach the sheet
       // any other way. Returns `false` on a read-only chart, like its neighbour.
-      openFormulaBuilder: () => {
-        try { return toolbarRef.current?.openFormulaBuilder?.() ?? false } catch { return false }
+      openFormulaBuilder: (opts = null) => {
+        try { return toolbarRef.current?.openFormulaBuilder?.(opts) ?? false } catch { return false }
       },
       // ⭐ P2 Track B — Chart Settings → Indicators → "+ Create Indicator", the
       // same CALL-not-mount route; the studio is mounted inside the toolbar.
@@ -6835,6 +7148,21 @@ export default function StockChart({
     try { toolbarRef.current?.openSettings() } catch { /* noop */ }
   }, [onOpenSettings])
 
+  // ⭐ Owner 11-16 (Option C) — VOLUME'S TWO PLACEMENT VERBS, the rows an indicator's
+  // menu has and the old Volume menu did not: Display in (own pane / overlay on price)
+  // and Reset pane height. They write the same `cs.volume` keys Chart Settings →
+  // Indicators → Volume writes (`separatePane`, `paneHeightPct`) plus the shared
+  // `paneSizes.volume`; a write that changes nothing comes back by identity and
+  // persists nothing. See `legend/volumeChip.js`.
+  const volumeRowMove = useCallback((_rowId, target) => {
+    const next = withVolumeDisplay(cs, target)
+    if (next !== cs) handleUpdateChartSettings(next)
+  }, [cs, handleUpdateChartSettings])
+  const volumeRowResetPaneSize = useCallback(() => {
+    const next = withVolumePaneHeightReset(cs, { heightFixed: volumePaneHeightPct != null })
+    if (next !== cs) handleUpdateChartSettings(next)
+  }, [cs, handleUpdateChartSettings, volumePaneHeightPct])
+
   /**
    * 🔴 THE LEGEND'S MA ROWS, RECONCILED AGAINST THE **LIVE** SETTINGS.
    *
@@ -6874,9 +7202,14 @@ export default function StockChart({
   // export route) passes no `showDrawingTools` and gets inert rows, so the export
   // keeps a legend with no controls in it and the pixel-parity baselines do not
   // move.
+  // ⭐ UCT SIGNATURE (2026-11-15) — the vertical row's hover strip (hide · settings · more)
+  // calls the SAME two writers the popover's Hide / Edit rows call. The one door is still
+  // `onOpen`; a flat row ignores the other two.
   const legendRowHandlers = useMemo(() => (showDrawingTools ? {
     onOpen: handleRowMenu,
-  } : null), [showDrawingTools, handleRowMenu])
+    onToggleHidden: legendRowHidden,
+    onSettings: legendRowSettings,
+  } : null), [showDrawingTools, handleRowMenu, legendRowHidden, legendRowSettings])
 
   /** The volume PANE STRIP's door.
    *
@@ -6969,13 +7302,17 @@ export default function StockChart({
     // rows of the popover `onMenu` opens, closed over in the render block below —
     // but the chip no longer needs three props to render three targets.
     onMenu: handleChipMenu,
+    // ⭐ UCT SIGNATURE — the grid row's hover strip; the same writers the popover's
+    // Hide / Settings rows call (`IndicatorChip` renders it in the grid variant only).
+    onToggleHidden: handleChipHidden,
+    onSettings: handleChipSettings,
     // Additive, phone-shell-only (prop null everywhere else): a tap on the chip
     // BODY opens the study's mobile editor. Spread at all three legend branches
     // through this one object, so the parity-pinned JSX stays untouched.
     onBodyTap: onLegendStudyTap
       ? (chip) => onLegendStudyTap({ kind: 'study', defId: chip.defId, instanceId: chip.instanceId })
       : undefined,
-  } : null), [showDrawingTools, handleChipMenu, onLegendStudyTap])
+  } : null), [showDrawingTools, handleChipMenu, handleChipHidden, handleChipSettings, onLegendStudyTap])
   // ⭐ Decision C5 (2026-11-07) — on the phone shell a tap on a chip whose
   // definition DECLARES A READOUT (UCT RS) opens the chip menu sheet, the same
   // sheet a long-press opens: the readout is the at-a-glance read, and Edit is one
@@ -7337,7 +7674,14 @@ export default function StockChart({
       if (showVolumeProp === undefined) {
         items.push({ id: 'v-show', label: 'Show volume', kind: 'toggle', checked: !!cs.volume.visible, onSelect: () => setCs('volume.visible', !cs.volume.visible) })
       }
-      items.push({ id: 'v-sep', label: 'Separate pane', kind: 'toggle', checked: !!cs.volume.separatePane, onSelect: () => setCs('volume.separatePane', !cs.volume.separatePane) })
+      // On a host that defaults volume to its own pane the toggle is the Display in
+      // choice (`withVolumeDisplay`, both keys) and shows where the bars ARE.
+      if (volumePaneByDefault) {
+        const _own = nativeVolumeOwnsPane(_volPresenceOpts)
+        items.push({ id: 'v-sep', label: 'Separate pane', kind: 'toggle', checked: _own, onSelect: () => volumeRowMove('volume', _own ? 'price' : 'pane') })
+      } else {
+        items.push({ id: 'v-sep', label: 'Separate pane', kind: 'toggle', checked: !!cs.volume.separatePane, onSelect: () => setCs('volume.separatePane', !cs.volume.separatePane) })
+      }
       items.push({ id: 'v-hvc', label: 'HVC highlight', kind: 'toggle', checked: !!cs.volume.hvcEnabled, onSelect: () => setCs('volume.hvcEnabled', !cs.volume.hvcEnabled) })
       if (volumeOverlayItem) items.push(volumeOverlayItem)
       items.push(...settingsLink('v-set', 'Volume settings…'))
@@ -7527,7 +7871,7 @@ export default function StockChart({
     secs.push({ id: 'view', items: viewItems })
 
     return secs
-  }, [cs, handleUpdateChartSettings, showDrawingTools, showVolumeProp, resolvedOverlays, resolvedTf, onTfChange, onOpenSettings, effectiveScale, setScale])
+  }, [cs, handleUpdateChartSettings, showDrawingTools, showVolumeProp, resolvedOverlays, resolvedTf, onTfChange, onOpenSettings, effectiveScale, setScale, volumePaneByDefault, volumeRowMove])
 
   // ── Pattern overlay state (Phase 5 Tasks 1, 3, 4) ──
   // Toggle persists via chart_settings (usePreferences). Local UI state mirrors
@@ -8233,32 +8577,6 @@ export default function StockChart({
   // host it follows. `resolveDisplayTarget` is the same authority the layout and
   // the placement resolver both consume, so the legend cannot disagree with where
   // the series actually drew — which is the failure mode that reads as correct.
-  /**
-   * Is the VOLUME pane below the PRICE pane, right now?
-   *
-   * ⭐⭐ ASKED OF THE RENDERER, BY IDENTITY — never of a pane index. Each series is
-   * asked which pane it is in and the two answers are compared with EACH OTHER, so
-   * the question survives any arrangement: Price is not pane 0 and has not been
-   * since panes became movable, and "volume is pane 1" was never true either.
-   *
-   * ⛔ FALSE IS THE RIGHT ANSWER FOR A BANDED VOLUME. With no separate pane both
-   * lookups return the same index, so this answers false and the Volume row keeps
-   * the head position it has always had — which is correct, because a banded volume
-   * is drawn INSIDE Price rather than beneath it.
-   *
-   * ⚠ IT IS A FUNCTION, NOT A MEMO. The pane a series lives in is renderer state
-   * that changes without a React render (a drag, a reorder), and a memo keyed on
-   * `cs` would answer from the wrong frame.
-   */
-  const volumeBelowPrice = useCallback(() => {
-    try {
-      const p = candleSeriesRef.current?.getPane?.()?.paneIndex?.()
-      const v = volumeSeriesRef.current?.getPane?.()?.paneIndex?.()
-      if (!Number.isInteger(p) || !Number.isInteger(v)) return false
-      return v > p
-    } catch { return false }
-  }, [])
-
   const chipPaneHost = useCallback((chip) => {
     const id = chip && chip.instanceId
     if (typeof id !== 'string' || !id) return null
@@ -9060,8 +9378,10 @@ export default function StockChart({
     for (const b of filteredBars) barByBucket.set(bucket(b.t), b)
     const out = []
     const seen = new Set()
-    for (const e of markersData.earnings) {
-      if (!e.date) continue
+    // Next earnings "E" ON → it REPLACES the upcoming (estimate) badge on every timeframe (owner 11-16): the
+    // old path keeps only the reported beat / miss rows. OFF → the rows unchanged (the grey estimate badge as before).
+    for (const e of earningsBadgeRows(markersData.earnings, _nextEarnOn)) {
+      if (!e?.date) continue
       if (e.estimate) {
         // Upcoming report — a FUTURE date past the last candle. Key it to the timeframe's
         // slot (bucketSlot) so it lines up with a future-whitespace point and the badge
@@ -9080,7 +9400,7 @@ export default function StockChart({
       out.push({ date: bar.t, low, beat: e.beat, data: e })
     }
     return out
-  }, [markersData, cs.markers?.earnings, resolvedTf, filteredBars])
+  }, [markersData, cs.markers?.earnings, resolvedTf, filteredBars, _nextEarnOn])
 
   // Future-axis extension: a hidden whitespace series pushes the time scale past the
   // newest candle on EVERY timeframe, so upcoming dates label the axis (shown by
@@ -9716,7 +10036,7 @@ export default function StockChart({
     if (!chart || !cSeries || !chartReady) return undefined
     const ts = chart.timeScale()
     let raf = 0
-    const defaultVolTag = () => (volumeLastValue || (!boldCandles && !hidePriceLine))
+    const defaultVolTag = () => (volumeLastValue || (!boldCandles && !hidePriceLine)) && !volTagOffRef.current
     // The CANDLE last-value tag is owned by the dedicated effect below (keyed on
     // lastBarOff), which also carries the session-tag suppression — so we must NOT
     // toggle it here or the off→on restore double-shows it beside the 'rth' chip.
@@ -9749,7 +10069,7 @@ export default function StockChart({
       if (lastBarOffRef.current) {
         lastBarOffRef.current = false
         setLastBarOff(false)   // candle-tag effect restores the price tag
-        try { volumeSeriesRef.current?.applyOptions?.({ lastValueVisible: volumeLastValue || (!boldCandles && !hidePriceLine) }) } catch { /* */ }
+        try { volumeSeriesRef.current?.applyOptions?.({ lastValueVisible: (volumeLastValue || (!boldCandles && !hidePriceLine)) && !volTagOffRef.current }) } catch { /* */ }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -9953,10 +10273,23 @@ export default function StockChart({
     // exists to prevent. It is read, never captured.
     [displayBars, adjustTime, sym, _inExtWindow, sessionPreviewLastBar, canvasTheme, boldCandles, modelBookLook, mbUp, mbDown, userCandleColors, cs.candles.upColor, cs.candles.downColor, cs.candles.upBorder, cs.candles.downBorder, cs.candles.upWick, cs.candles.downWick, resolvedTf, exactDateRange, entryDate, replayCutoff, _econId]
   )
+  _big.ohlcData = ohlcData
+  // Chart Settings → My trades (myTradeMarkers.js): the member's fills placed on the candle series' OWN bar times (so a
+  // fill outside the loaded bars is skipped, never snapped), in the chart's up / down candle colours at reduced strength.
+  // `sameMyTrades` keeps the previous array while the drawn set is unchanged, so a bars refresh re-hands nothing.
+  const myTradesPrevRef = useRef(EMPTY_MY_TRADES)
+  const myTrades = useMemo(() => {
+    if (!_myTradesOn || !_myFills?.length || !_big.ohlcData?.length) return (myTradesPrevRef.current = EMPTY_MY_TRADES)
+    const up = boldCandles ? mbUp : modelBookLook ? BOLD_UP : cs.candles.upColor
+    const down = boldCandles ? mbDown : modelBookLook ? BOLD_DOWN : cs.candles.downColor
+    const next = buildMyTradeMarkers(_myFills, _big.ohlcData, resolvedTf, { upColor: up, downColor: down, extended: showExtended })
+    return (myTradesPrevRef.current = sameMyTrades(myTradesPrevRef.current, next))
+  }, [_myTradesOn, _myFills, ohlcData, resolvedTf, showExtended, boldCandles, modelBookLook, mbUp, mbDown, cs.candles.upColor, cs.candles.downColor])
+  myTradeMarkersRef.current = myTrades.markers
+  myTradeTipsRef.current = myTrades.tips
   // Auto Structures: the candle series' own times (anchors snap onto these — timeToCoordinate
   // answers only for a time the series holds) and the latest close (nearest key levels).
-  // Computed only while the overlay is active, so a member's chart pays nothing.
-  _big.ohlcData = ohlcData
+  // Computed only while the overlay is active, so a member's chart pays nothing. (`_big.ohlcData` is set above.)
   const patternBarTimes = useMemo(
     () => (patternsActive ? _big.ohlcData.map((d) => d.time) : null),
     [patternsActive, ohlcData],
@@ -10896,7 +11229,7 @@ export default function StockChart({
     let _plotFrom = null
     {
       const _pw = plotWindowRef.current
-      const _pwKey = `${sym}_${resolvedTf}`
+      const _pwKey = _exKey   // this render's symbol+timeframe key (the one-key census counts sites)
       if (_pw.key !== _pwKey) {
         let _span = 0
         try {
@@ -11143,10 +11476,8 @@ export default function StockChart({
       // Computed here (re-runs on data polls) so a poll can't unlock mid-measure.
       handleScroll: (frozen || measureLockRef.current) ? false : true,
       handleScale: frozen || measureLockRef.current ? false : true,
-      grid: {
-        vertLines: { color: cs.grid.visible ? themeColors.gridColor : 'transparent' },
-        horzLines: { color: cs.grid.visible ? themeColors.gridColor : 'transparent' },
-      },
+      // Chart Settings → Canvas → Grid → Lines: `grid.visible` is the master, `grid.lines` says which (absent = both).
+      grid: gridOptionsFor(cs, themeColors.gridColor),
       // Crosshair lines + tracking axis labels. Visibility comes from the resolved
       // three-way mode (always / hold / off) via `crosshairVisibleRef` — a ref so
       // this (inside updateChart, which does NOT depend on the hold state) always
@@ -11178,11 +11509,16 @@ export default function StockChart({
         // default headroom. vertMarginsRef is captured in fractions of the pane, so the
         // candles land in the same relative spot regardless of the stock's price.
         scaleMargins: vertMarginsRef.current || _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volumePaneExists ? priceScaleBottomMargin : null),
+        // A Study chart prints a top or bottom price label only when the whole label fits (the screen check,
+        // 2026-11-14: "140.00" cut in half at the top and "52.00" sliced by the volume pane). Every other chart keeps
+        // the library default.
+        ...(_study ? { entireTextOnly: true } : {}),
       },
       localization: {
         // Crosshair time label (the hover box on the axis): weekday + date +
         // 12-hour time, e.g. "Tue 14 Jul '26 12:00 AM".
-        timeFormatter: chartCrosshairTimeFormatter,
+        // Chart Settings → Time format / Time zone pick the pair (timeAxisFormattersFor).
+        timeFormatter: timeAxisFormattersFor(_h24, _tzId, _study).crosshair,
       },
       timeScale: {
         borderColor: themeColors.borderColor,
@@ -11192,8 +11528,12 @@ export default function StockChart({
         borderVisible: false,
         timeVisible: true,
         secondsVisible: false,
-        // Bottom-axis tick labels: 12-hour on intraday (default is 24-hour).
-        tickMarkFormatter: chartTickMarkFormatter,
+        // Bottom-axis tick labels: 12-hour on intraday (default is 24-hour). A Study chart names the month on a
+        // first-week day mark (studyTickMarkFormatter).
+        tickMarkFormatter: timeAxisFormattersFor(_h24, _tzId, _study).tick,
+        // A host that knows its labels are short sizes the library's label slot to them (`tickLabelChars`, opt-in; the
+        // Study drill on a wide screen). Unset, the library's own eight-character slot, as on every other chart.
+        ...(tickLabelChars > 0 ? { tickMarkMaxCharacterLength: tickLabelChars } : {}),
         // Exact-range (Model Book) locks to a historical window, so don't pin the
         // latest bar to the right edge — that re-expands the view to "now".
         rightOffset: exactDateRange ? 0 : rightPadBars,
@@ -11241,14 +11581,11 @@ export default function StockChart({
           // What the last paint decided for the indicator window (`plotWindow.js`): the rows
           // it holds, the first row drawn (0: every row) and that row's time.
           plotWindow: () => ({ ...plotWindowRef.current }),
-          newestBar: () => {
-            try {
-              const d = candleSeriesRef.current?.data?.()
-              const last = d && d.length ? d[d.length - 1] : null
-              if (!last) return null
-              return { time: last.time ?? null, close: Number.isFinite(last.close) ? last.close : (Number.isFinite(last.value) ? last.value : null), count: d.length }
-            } catch { return null }
-          },
+          // ⛔ O(log n), NOT a copy: the tick-latency proof reads this on every animation frame for
+          // every chart, and `series.data()` rebuilds the whole series each call (2026-11-16: 4.4 s
+          // of main thread per 90 s with 4 charts, a quarter of the page's measured work). The newest
+          // bar is one by-index lookup; `count` (rarely read) still walks the series, on demand.
+          newestBar: () => { try { return newestSeriesBar(candleSeriesRef.current) } catch { return null } },
           // Read-only: what each ENGINE series actually handed the renderer
           // (the fundamentals acceptance harness reads plotted values from here).
           engineSeries: () => {
@@ -11511,6 +11848,9 @@ export default function StockChart({
         hollow: (canvasTheme === 'sunrise' || cs.chartType === 'hollow')
           && (cs.chartType === 'candles' || cs.chartType === 'hollow'),
         insideBlack: canvasTheme === 'sunrise',
+        // Chart Settings → Price style → Colors → Body off (candles / hollow only): every body transparent, so
+        // the borders and wicks (each with its own on/off) are what draws. Absent = on, as before.
+        noBody: (cs.chartType === 'candles' || cs.chartType === 'hollow') && !candlePartsOf(cs).body,
       }
     }
     // Only a change of the underlying LWC SERIES TYPE (+ theme) recreates the series.
@@ -11539,6 +11879,8 @@ export default function StockChart({
       ipoBadgeAttachedRef.current = false        // IPO-badge primitive must re-attach
       zonesAttachedRef.current = false           // level-zones primitive must re-attach to the new series
       pdlAttachedRef.current = false             // prev-day-levels primitive must re-attach to the new series
+      pmLineRefs.current = []                    // the PM high/low price lines died with the old series
+      pmLinesKeyRef.current = ''
     }
 
     if (!candleSeriesRef.current) {
@@ -11689,13 +12031,13 @@ export default function StockChart({
           // above its open is a HOLLOW black outline, below = filled black.
           if (NC.insideBlack && _isInside(bar, prevBar)) {
             const openUpIn = bar.open != null ? bar.close >= bar.open : true
-            return { ...bar, color: (NC.hollow && openUpIn) ? 'rgba(0,0,0,0)' : '#000000', borderColor: '#000000', wickColor: '#000000' }
+            return { ...bar, color: (NC.noBody || (NC.hollow && openUpIn)) ? 'rgba(0,0,0,0)' : '#000000', borderColor: '#000000', wickColor: '#000000' }
           }
-          if (NC.mode === 'openclose') return bar   // native close-vs-open coloring
+          if (NC.mode === 'openclose') return bar   // native close-vs-open coloring (Body off rides the series colours)
           // One color: every bar the same body/border/wick (shape still hollow on up).
           if (NC.mode === 'onecolor') {
             const up = bar.open != null ? bar.close >= bar.open : true
-            const body = (NC.hollow && up) ? _hollowFill(NC.one) : NC.one
+            const body = NC.noBody ? 'rgba(0,0,0,0)' : (NC.hollow && up) ? _hollowFill(NC.one) : NC.one
             return { ...bar, color: body, borderColor: NC.one, wickColor: NC.one }
           }
           // TC2000 hollow-candle semantics: COLOR and FILL are independent axes.
@@ -11712,7 +12054,7 @@ export default function StockChart({
             up = bar.open != null ? bar.close >= bar.open : true
           }
           const openUp = bar.open != null ? bar.close >= bar.open : up
-          const body = (NC.hollow && openUp) ? _hollowFill(up ? NC.up : NC.down) : (up ? NC.up : NC.down)
+          const body = NC.noBody ? 'rgba(0,0,0,0)' : (NC.hollow && openUp) ? _hollowFill(up ? NC.up : NC.down) : (up ? NC.up : NC.down)
           return { ...bar, color: body, borderColor: (up ? NC.borUp : NC.borDown), wickColor: (up ? NC.wickUp : NC.wickDown) }
         }
         const _realSet = priceSeries.setData.bind(priceSeries)
@@ -11776,11 +12118,17 @@ export default function StockChart({
         // would clobber that with a solid NC.up in OPEN-CLOSE mode (where the
         // per-bar wrapper passes through) — so the transparent up body must be
         // kept for Sunrise here too, not just for the explicit 'hollow' type.
+        // Chart Settings → Price style → Colors → Body / Borders / Wick on/off (chartViewOptions; absent = on,
+        // which reproduces exactly the options this block applied before). Body off = transparent bodies here
+        // AND in the per-bar painter (NC.noBody); Borders off / Wick off = the library's own borderVisible /
+        // wickVisible, over whatever this surface would otherwise show.
+        const _parts = candlePartsOf(cs)
         candleSeriesRef.current.applyOptions({
-          upColor: (_ct === 'hollow' || canvasTheme === 'sunrise') ? _hollowFill(NC.up) : NC.up,
-          downColor: NC.down,
-          borderVisible: (_ct === 'hollow') ? true : (canvasTheme === 'sunrise' ? true : !!userCandleColors),
+          upColor: NC.noBody ? 'rgba(0,0,0,0)' : (_ct === 'hollow' || canvasTheme === 'sunrise') ? _hollowFill(NC.up) : NC.up,
+          downColor: NC.noBody ? 'rgba(0,0,0,0)' : NC.down,
+          borderVisible: _parts.borders && ((_ct === 'hollow') ? true : (canvasTheme === 'sunrise' ? true : !!userCandleColors)),
           borderUpColor: NC.borUp, borderDownColor: NC.borDown,
+          wickVisible: _parts.wick,
           wickUpColor: NC.wickUp, wickDownColor: NC.wickDown,
         })
       } else if (_ct === 'bars' || _ct === 'hlc') {
@@ -11795,6 +12143,15 @@ export default function StockChart({
       } else if (_ct === 'area') {
         candleSeriesRef.current.applyOptions({ lineColor: NC.mode === 'onecolor' ? NC.one : NC.up })
       }
+      // Chart Settings → Price style → Price line: the last-price line on/off and its style, every chart type.
+      // The host's own rule (exact-range / hidePriceLine surfaces never draw it) still wins; absent = on + dashed,
+      // the library default, so an untouched chart gets exactly the options the creation block gave it.
+      // hidePriceLine is the host's DEFAULT only: a member who switched the line on gets it (owner 11-16).
+      const _pl = priceLineOf(cs, !hidePriceLine)
+      candleSeriesRef.current.applyOptions({
+        priceLineVisible: !exactDateRange && _pl.visible,
+        priceLineStyle: LINE_STYLE_NUM[_pl.style],
+      })
     } catch { /* series may be mid-swap */ }
 
     // Set price data. The separate gold-recolor effect below re-applies the
@@ -12208,7 +12565,7 @@ export default function StockChart({
     // on the value handed to the binder below, so that guest did not just lose
     // its rectangle: it bound nothing and disappeared from the chart.
     const _volPresence = {
-      cs, instances: engineInstances, shown: showVolume, blankVolume, volumeSeparatePane,
+      cs, instances: engineInstances, shown: showVolume, blankVolume, volumeSeparatePane, volumePaneByDefault,
     }
     const nativeVolSeparate = nativeVolumeOwnsPane(_volPresence)
     const volumePaneLive = volumePaneRequired(_volPresence)
@@ -12248,7 +12605,15 @@ export default function StockChart({
       } catch { /* pane API unavailable */ }
       return null
     }
-    const hasVolumeBand = showVolume && _big.volData.length > 0 && !nativeVolSeparate
+    // ⭐ TRADINGVIEW OVERLAY (owner 11-16). On a host that defaults volume to its own pane
+    // (`volumePaneByDefault`), "Overlay on price" is NOT the legacy band (a strip the candles
+    // stop above): the bars sit BEHIND the candles in the bottom ~22% of the price pane, on
+    // the invisible overlay scale, and the candles keep the whole pane. So the layout is told
+    // there is no band — the candles' margins are the no-volume ones — and the volume scale
+    // takes `TV_VOLUME_OVERLAY_MARGINS` below.
+    const _tvVolOverlay = volumePaneByDefault && showVolume && _big.volData.length > 0 && !nativeVolSeparate
+    volTagOffRef.current = _tvVolOverlay
+    const hasVolumeBand = showVolume && _big.volData.length > 0 && !nativeVolSeparate && !_tvVolOverlay
 
     // ── FLIP C, APPLIED: THE SAME STACK, AS REAL PANES ───────────────────────
     //
@@ -12456,7 +12821,7 @@ export default function StockChart({
       // priceScaleId / paneIndex / series TYPE are fixed at creation, so recreate
       // when the target scale OR the bar style changes. The ref stores a composite
       // key (was just the scale id) — only ever compared for equality.
-      const volSeriesKey = `${volScaleId}|${volBarStyle}`
+      const volSeriesKey = `${volScaleId}|${volBarStyle}|${_tvVolOverlay ? 'tv' : ''}`
       if (volumeSeriesRef.current && volumeSeparatePaneRef.current !== volSeriesKey) {
         try { chart.removeSeries(volumeSeriesRef.current) } catch {}
         volumeSeriesRef.current = null
@@ -12496,11 +12861,15 @@ export default function StockChart({
           priceLineVisible: !boldCandles && !hidePriceLine,
           // volumeLastValue opt-in shows the current-volume tag on the right scale
           // (mirrors the main chart's price tag) even in the bold/charts-workspace look.
-          lastValueVisible: (volumeLastValue || (!boldCandles && !hidePriceLine)) && !lastBarOffRef.current,
+          lastValueVisible: (volumeLastValue || (!boldCandles && !hidePriceLine)) && !lastBarOffRef.current && !_tvVolOverlay,
+          ...(_tvVolOverlay ? { priceLineVisible: false } : {}),
         }
         const vs = volBarStyle === 'histogram'
           ? chart.addCustomSeries(new ThinVolumeSeries(), volOpts, _volCreateIndex)
           : chart.addSeries(HistogramSeries, volOpts, _volCreateIndex)
+        // Overlay bars are drawn at reduced opacity. ONE place for every writer — the full
+        // setData here and every live writer's `update()` go through this series object.
+        if (_tvVolOverlay) dimVolumeSeries(vs)
         volumeSeriesRef.current = vs
         volumeSeparatePaneRef.current = volSeriesKey
         lastAppliedVolPctRef.current = null  // fresh pane → force the height (re)apply below
@@ -12588,8 +12957,10 @@ export default function StockChart({
         // indicator instance and gets no pane of its own), but pane 0 is shorter,
         // so its fractions are the layout's — the same re-expression the candles'
         // own margins get above.
-        const volMargins = (paneMode() === 'panes' ? paneLayout.pane0.volumeMargins : null)
-          || paneMargins.volume || { top: 0.82, bottom: 0 }
+        const volMargins = _tvVolOverlay
+          ? TV_VOLUME_OVERLAY_MARGINS
+          : ((paneMode() === 'panes' ? paneLayout.pane0.volumeMargins : null)
+            || paneMargins.volume || { top: 0.82, bottom: 0 })
         volumeSeriesRef.current.priceScale().applyOptions({ autoScale: true, scaleMargins: volMargins })
       }
       _applyData(volumeSeriesRef.current, _big.volData)
@@ -13407,6 +13778,10 @@ export default function StockChart({
             axisLabelVisible: pl.axisLabelVisible ?? true,
             lineVisible: pl.lineVisible ?? true,   // session ext tag = chip only (no line)
             title: pl.title || '',
+            // An axis tag drawn in its own chip colours, only when the line asks (the Study trade levels' dark chips,
+            // tradeMarks.tradeLevelLines); every other line keeps the library's colour-filled tag.
+            ...(pl.axisLabelColor ? { axisLabelColor: pl.axisLabelColor } : {}),
+            ...(pl.axisLabelTextColor ? { axisLabelTextColor: pl.axisLabelTextColor } : {}),
           })
           priceLineRefs.current.push(ref)
         }
@@ -13425,12 +13800,17 @@ export default function StockChart({
     // which is what covers the two cases the identity check can't see: the series
     // was swapped (the swap nulls the controller, since it was bound to the old
     // series) and a fresh chart. Never skip on either, or markers silently vanish.
+    // Chart Settings → My trades (myTradeMarkers.js) rides the SAME controller: its markers join the list here, and
+    // their own effect below re-hands the list when only they changed (never a second createSeriesMarkers).
+    const _myTradeMarkers = myTradeMarkersRef.current
     const _markersDirty = lastMarkersSrcRef.current !== mergedMarkers
+      || lastMyTradesSrcRef.current !== _myTradeMarkers
       || !markersControllerRef.current
       || _freshChart
     if (candleSeriesRef.current && _markersDirty) {
       lastMarkersSrcRef.current = mergedMarkers
-      const allMarkers = [...(mergedMarkers || [])]
+      lastMyTradesSrcRef.current = _myTradeMarkers
+      const allMarkers = [...(mergedMarkers || []), ...(_myTradeMarkers || [])]
         .sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0))
       import('lightweight-charts').then(({ createSeriesMarkers }) => {
         if (!createSeriesMarkers || !candleSeriesRef.current) return
@@ -13510,6 +13890,62 @@ export default function StockChart({
         pdlCtlRef.current.setLines(buildPrevDayLines(lv, pdl), lv?.endTime)
       } else {
         pdlCtlRef.current.setLines([], null)
+      }
+    }
+
+    // ── Session breaks + Pre-market high & low (Chart Settings, owner 11-15; sessionMarks.js) ──
+    // INTRADAY only (any minute timeframe — parseTf, not a hand-typed list). Both default OFF (absent key), so a chart
+    // that never set them draws exactly what it drew before. Computed from the LOADED bars (`_big.ohlcData`, ET chart
+    // times): no pre-market bars loaded (extended hours off) → no PM lines, no error.
+    {
+      const _smIntraday = parseTf(resolvedTf).minutes != null
+      if (!sessionBreaksRef.current) sessionBreaksRef.current = createSessionBreaksPrimitive()
+      if (!sessionBreaksAttachedRef.current) {
+        try {
+          ;(candleSeriesRef.current?.getPane?.() || chart.panes()[0]).attachPrimitive(sessionBreaksRef.current.primitive)
+          sessionBreaksAttachedRef.current = true
+        } catch { /* older pane API — primitive optional */ }
+      }
+      const _sbOn = _smIntraday && sessionBreaksOf(cs)
+      sessionBreaksRef.current.set(
+        _sbOn ? sessionBreakTimes(_big.ohlcData) : [],
+        sessionBreakColor(themeColors.textColor || cs.textColor, themeColors.borderColor),
+      )
+      const _pmSeries = candleSeriesRef.current
+      if (_pmSeries) {
+        const _pmColor = themeColors.textColor || cs.textColor || '#93939a'
+        const _pmLines = (_smIntraday && preMarketLevelsOf(cs)) ? preMarketPriceLines(preMarketRange(_big.ohlcData), _pmColor) : []
+        const _pmKey = _pmLines.map((l) => `${l.price}|${l.color}`).join(',')
+        if (_pmKey !== pmLinesKeyRef.current) {
+          for (const pl of pmLineRefs.current) { try { _pmSeries.removePriceLine(pl) } catch { /* series gone */ } }
+          pmLineRefs.current = []
+          for (const o of _pmLines) {
+            try { pmLineRefs.current.push(_pmSeries.createPriceLine(o)) } catch { /* series gone */ }
+          }
+          pmLinesKeyRef.current = _pmKey
+        }
+      }
+    }
+    // ── Price alerts (Chart Settings → Markers → Your activity; priceAlertLines.js) ── re-applied here so a chart-type
+    // swap or a recreated chart (a new candle series) gets its alert lines back; alert changes apply in their own effect.
+    syncAlertPriceLines(alertLinesRef.current, candleSeriesRef.current, alertLineOptsRef.current)
+
+    // ── Next earnings date (Chart Settings → Markers, owner 11-16; nextEarningsMark.js) ──
+    // Default OFF (absent key). Every timeframe. A muted grey "E" chip on the bar slot where the next report falls:
+    // `{ ahead }` bars past the last LOADED bar (logical index, counted on the trading calendar) or a loaded bar
+    // `{ time }` when it reports in the last session. It REPLACES the Earnings badges' grey upcoming (estimate)
+    // badge: while it is ON, earningsEvents drops the estimate row (earningsBadgeRows), so it always draws here.
+    {
+      const _neSeries = candleSeriesRef.current
+      if (_neSeries) {
+        if (!nextEarnRef.current) nextEarnRef.current = createNextEarningsPrimitive()
+        if (nextEarnSeriesRef.current !== _neSeries) {
+          try { _neSeries.attachPrimitive(nextEarnRef.current.primitive); nextEarnSeriesRef.current = _neSeries } catch { /* primitive optional */ }
+        }
+        const _neBars = _big.ohlcData
+        let _neSet = null
+        if (nextEarnRows) _neSet = nextEarningsMark(_neBars, resolvedTf, nextEarnRows, { extended: !!showExtendedRef.current })
+        nextEarnRef.current.set(_neSet)
       }
     }
 
@@ -14117,7 +14553,7 @@ export default function StockChart({
     // (mutation M3 SURVIVED): something else in this list is already unstable per
     // render. Kept as the one declaration that names this dependency; the full
     // reasoning is at the `useInstalledUserDefinitions` call site above.
-  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, strategyHistoryWindow, strategyWindowPending, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, compactAxes, _plotWindowFullKey, _pinnedFull, _overlayActive, _hasOverride])
+  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, strategyHistoryWindow, strategyWindowPending, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, compactAxes, _plotWindowFullKey, _pinnedFull, _overlayActive, _hasOverride, _study, tickLabelChars, nextEarnRows])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
@@ -14210,10 +14646,29 @@ export default function StockChart({
   // the pending render. The series-creation block applies priceFormat once, at creation, so
   // a late one never reached the axis ("825000.00" under a header reading "810,197").
   // Placed after the effect above so a series created in this same commit exists by now.
+  // ⭐ …and the member's "Price decimals" changes it live. Going back to Auto puts the library's own default back on
+  // the scale (no host format to fall back on) — once, on that change; a chart that never set one is never touched.
+  const _hadPriceFormatRef = useRef(priceFormat)
   useEffect(() => {
-    if (!priceFormat) return
+    const had = _hadPriceFormatRef.current
+    _hadPriceFormatRef.current = priceFormat
+    if (!priceFormat) {
+      if (had) { try { applyPriceFormatToScale(candleSeriesRef.current, AUTO_PRICE_FORMAT) } catch { /* older LWC */ } }
+      return
+    }
     try { applyPriceFormatToScale(candleSeriesRef.current, priceFormat) } catch { /* older LWC */ }
   }, [priceFormat])
+
+  // Chart Settings → Canvas → Margins → Right margin, live. `rightOffset` is a creation-only option on purpose
+  // (re-applying it on every paint re-scrolls the chart — see the timeScale block in updateChart), so a CHANGE of
+  // the member's margin is applied here, once, when it changes. A first mount applies nothing (creation already did).
+  const _rightPadPrevRef = useRef(rightPadBars)
+  useEffect(() => {
+    const prev = _rightPadPrevRef.current
+    _rightPadPrevRef.current = rightPadBars
+    if (prev === rightPadBars || exactDateRange || !chartReady) return
+    try { chartRef.current?.timeScale().applyOptions({ rightOffset: rightPadBars }) } catch { /* chart mid-teardown */ }
+  }, [rightPadBars, exactDateRange, chartReady])
 
   // ⛔⛔ ON A SYMBOL SWITCH, APPLY BEFORE THE BROWSER PAINTS. The effect above is
   // PASSIVE, so it runs AFTER the frame is composited. On a symbol change that
@@ -15517,6 +15972,8 @@ export default function StockChart({
       // hovered ROW does — the strip reads the observation for `param.time`.
       if (!priceData && econHoverRef.current && param && param.time !== undefined) priceData = { value: NaN }
       if (!priceData) {
+        // ⭐ …unless the pointer is resting on the hover-only legend (`legendPointerHold`).
+        if (legendHoldRef.current.keepsReadout()) return
         legendHoveringRef.current = false
         setCrosshairData(offHoverCrosshair())
         refreshOffHoverEndTags(alwaysShowLegend && !compactLegendRef.current)
@@ -15657,6 +16114,8 @@ export default function StockChart({
       // this: it's cleared on rAF, a frame before this flush runs.) The legend
       // still fills in below either way, so a synced chart shows the values.
       if (pointerOverRef.current) legendHoveringRef.current = true
+      // The crosshair owns the readout again: a hold kept for the legend is settled.
+      legendHoldRef.current.settle()
       setCrosshairData({
         time: param.time,
         open: o, high: h, low: l, close: c,
@@ -15693,9 +16152,13 @@ export default function StockChart({
       if (!param.point || !param.time) {
         if (crosshairRafRef.current != null) { cancelAnimationFrame(crosshairRafRef.current); crosshairRafRef.current = null }
         crosshairParamRef.current = null
-        legendHoveringRef.current = false
-        setCrosshairData(offHoverCrosshair())
-        refreshOffHoverEndTags(alwaysShowLegend && !compactLegendRef.current)
+        // ⭐ The pointer moved onto the hover-only legend: keep the readout it is reading
+        // (`legendPointerHold`). The sync bus is still told the chart was left.
+        if (!legendHoldRef.current.keepsReadout()) {
+          legendHoveringRef.current = false
+          setCrosshairData(offHoverCrosshair())
+          refreshOffHoverEndTags(alwaysShowLegend && !compactLegendRef.current)
+        }
         // Tell the sync bus the local user left the chart — but not when this
         // empty event was self-induced by applying an external crosshair.
         if (!applyingExternalRef.current && typeof onCrosshairMoveRef.current === 'function') {
@@ -16930,7 +17393,11 @@ export default function StockChart({
         value: volHidden ? '' : formatVolume(crosshairData.volume),
         color: opaqueColor(cs.volume?.upColor),
         hidden: volHidden,
-        onOpen: legendRowHandlers ? openVolumeMenu : null,
+        onOpen: legendRowHandlers ? (_id, anchor) => handleRowMenu('volume', anchor) : null,  // LegendRow calls onOpen(rowId, {x, y}), not with an event
+        // ⭐ Owner 11-16 (Option C) — the same hover strip (Hide · Settings · ⋯) as every
+        // indicator row, through the same two doors the price stack's Volume row uses.
+        onToggleHidden: legendRowHandlers ? legendRowHandlers.onToggleHidden : null,
+        onSettings: legendRowHandlers ? legendRowHandlers.onSettings : null,
       })
     }
     // ⚠️ THE PERIOD IS READ FROM `cs`, NOT FROM THE PAYLOAD, AND THAT IS A FIX.
@@ -16966,7 +17433,12 @@ export default function StockChart({
         value: formatVolume(crosshairData.volAvg),
         color: opaqueColor(cs.volume?.maColor),
         hidden: false,
-        onOpen: legendRowHandlers ? openVolumeMenu : null,
+        // ⭐ VOLUME'S SIBLING OUTPUT, read like MACD's `SIG`: indented under Volume, and
+        // its hover strip acts on Volume (it has no identity of its own).
+        secondary: true,
+        onOpen: legendRowHandlers ? (_id, anchor) => handleRowMenu('volume', anchor) : null,  // LegendRow calls onOpen(rowId, {x, y}), not with an event
+        onToggleHidden: legendRowHandlers ? legendRowHandlers.onToggleHidden : null,
+        onSettings: legendRowHandlers ? legendRowHandlers.onSettings : null,
       })
     }
     // ⭐⭐ AND THE GUESTS. `chipPaneHost` is the one authority on where a chip's
@@ -17015,6 +17487,9 @@ export default function StockChart({
         color: c.color,
         hidden: !!c.hidden,
         onOpen: chipHandlers ? (_id, anchor) => chipHandlers.onMenu(shown, anchor) : null,
+        // ⭐ the same hover strip a pane readout's row has, keyed by the guest's instance id
+        onToggleHidden: chipHandlers ? () => chipHandlers.onToggleHidden(c.instanceId) : null,
+        onSettings: chipHandlers ? () => chipHandlers.onSettings(c.instanceId) : null,
       })
     }
     // ⭐⭐ AND THE VOLUME PANE READS IN THE MEMBER'S ORDER TOO. It is the THIRD
@@ -17029,7 +17504,7 @@ export default function StockChart({
     // Volume's row and opens Volume's menu — so the grouping `orderPaneRows`
     // already does by id is exactly right for it, with nothing special-cased.
     return orderPaneRows(cs, VOLUME_PANE, rows, (r) => r.rowId)
-  }, [crosshairData, cs, chipPaneHost, chipHandlers, legendRowHandlers, openVolumeMenu])
+  }, [crosshairData, cs, chipPaneHost, chipHandlers, legendRowHandlers, openVolumeMenu, handleRowMenu])
   /** ⚰️ `legBaseVol` STOOD HERE — one memoised `{color}` shared by the six hand
    *  written spans the volume strip used to emit. The strip renders `LegendRow`s
    *  now (one component, one ink rule, the same `baseColor` prop every other row
@@ -17938,6 +18413,70 @@ export default function StockChart({
     return () => { try { chart.unsubscribeClick(handler) } catch {} }
   }, [earningsEvents])
 
+  // Chart Settings → Price alerts: an alert set, deleted or gone off (the list revalidates), a symbol switch, or the
+  // switch itself redraws the lines on the current candle series — without re-running updateChart.
+  useEffect(() => {
+    syncAlertPriceLines(alertLinesRef.current, candleSeriesRef.current, alertLineOpts)
+  }, [alertLineOpts, chartReady])
+
+  // Chart Settings → My trades: new fills, a new bar range, a symbol switch or the switch itself re-hands the ONE markers
+  // controller the whole list (the chart's markers + these) — without re-running updateChart. No controller yet: the
+  // next updateChart creates it with these already in (it reads myTradeMarkersRef).
+  useEffect(() => {
+    const ctl = markersControllerRef.current
+    if (!ctl || typeof ctl.setMarkers !== 'function' || !candleSeriesRef.current) return
+    if (lastMyTradesSrcRef.current === myTrades.markers) return
+    lastMyTradesSrcRef.current = myTrades.markers
+    lastMarkersSrcRef.current = mergedMarkers
+    try { ctl.setMarkers(withMyTradeMarkers(mergedMarkers, myTrades.markers)) } catch { /* series gone */ }
+  }, [myTrades, mergedMarkers, chartReady])
+
+  // Chart Settings → My trades: hovering one of its markers shows "Bought 100 @ 12.34 · <date time>" (or "3 fills · net
+  // +200") as the chart's tooltip — lightweight-charts reports the hovered marker's `id`. Subscribed only while ON.
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart || !_myTradesOn) return
+    let shown = false
+    const clear = () => {
+      if (!shown) return
+      shown = false
+      try { containerRef.current?.removeAttribute('title') } catch { /* unmounted */ }
+    }
+    const sub = (param) => {
+      const id = param?.hoveredObjectId
+      const tip = typeof id === 'string' ? myTradeTipsRef.current[id] : null
+      const el = containerRef.current
+      if (!el) return
+      if (tip) { if (el.getAttribute('title') !== tip) el.setAttribute('title', tip); shown = true }
+      else clear()
+    }
+    chart.subscribeCrosshairMove(sub)
+    return () => { try { chart.unsubscribeCrosshairMove(sub) } catch { /* chart gone */ } clear() }
+  }, [chartReady, _myTradesOn])
+
+  // Chart Settings → Next earnings date: hovering the chip shows "Next earnings · <date>" as the chart's tooltip
+  // (the primitive hit-tests the rect it drew last frame). Subscribed only while the setting is ON.
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart || !_nextEarnOn) return
+    let shown = false
+    const clear = () => {
+      if (!shown) return
+      shown = false
+      try { containerRef.current?.removeAttribute('title') } catch { /* unmounted */ }
+    }
+    const sub = (param) => {
+      const p = param?.point
+      const tip = (p && (param.paneIndex == null || param.paneIndex === 0)) ? nextEarnRef.current?.hitTest?.(p.x, p.y) : null
+      const el = containerRef.current
+      if (!el) return
+      if (tip) { if (el.getAttribute('title') !== tip) el.setAttribute('title', tip); shown = true }
+      else clear()
+    }
+    chart.subscribeCrosshairMove(sub)
+    return () => { try { chart.unsubscribeCrosshairMove(sub) } catch { /* chart gone */ } clear() }
+  }, [chartReady, _nextEarnOn])
+
   // Close the earnings popover when the symbol or timeframe changes out from under it.
   useEffect(() => { setEarningsPopup(null) }, [sym, resolvedTf])
 
@@ -18139,7 +18678,7 @@ export default function StockChart({
   useEffect(() => {
     const chart = chartRef.current
     if (!chart) return undefined
-    const key = `${sym}_${resolvedTf}`
+    const key = _exKey   // the same key `_pwKey` compares against (built once per render)
     if (_plotWindowFullKey === key) return undefined
     let raf = null
     const check = () => {
@@ -18335,6 +18874,9 @@ export default function StockChart({
         wmAttachedRef.current = false
         sessionShadeAttachedRef.current = false
         sessionShadeVolAttachedRef.current = false
+        sessionBreaksAttachedRef.current = false  // the session-breaks primitive goes with the chart
+        pmLineRefs.current = []                   // …and so do the PM high/low price lines
+        pmLinesKeyRef.current = ''
         lastShadeBandsVolRef.current = null
         zonesAttachedRef.current = false        // primitive goes with the chart; must re-attach
         lastDpZonesRef.current = undefined      // …and the zones must re-apply to the new one
@@ -18815,7 +19357,7 @@ export default function StockChart({
   const _rangeVolPct = Math.min(45, Math.max(8, volumePaneHeightPct ?? cs.volume?.paneHeightPct ?? 22))
 
   return (
-    <div ref={wrapperRef} className={`${styles.wrapper} ${className}`} style={{ height, ...panelVars, ...legendInks }}
+    <div ref={wrapperRef} className={`${styles.wrapper} ${className}`} style={{ height, ...panelVars, ...legendValueBounds, ...legendInks }}
       data-bar-currentness={barCurrentness ?? undefined}
       data-bar-tail={typeof _renderedTailT === 'number' ? _renderedTailT : undefined}
       data-live-badge={liveBadge}>
@@ -18907,6 +19449,57 @@ export default function StockChart({
         // writes the `enabled` flag / `cs.volume.visible`, `legendRowRemove`
         // writes the tombstone, `legendRowSettings` rides the one `scrollTo`
         // channel. No new writer, no new persistence, no new semantics for Volume.
+        // ⭐⭐ VOLUME IS MANAGED LIKE AN INDICATOR (owner 11-16, Option C). Its rows are
+        // `chipMenuItems`' own rows for a synthetic Volume chip (`legend/volumeChip.js`):
+        // Hide · Display in ▸ · (Reset pane height) · Edit in Indicators… · Value in header
+        // (not yet) · Add alert… (not yet) · About Volume · ——— · Delete. Hide, Edit and
+        // Delete are still the three doors below (`legendRowHidden` / `legendRowSettings` /
+        // `legendRowRemove`); Display in and Reset write `cs.volume` like Chart Settings.
+        if (chipMenu.rowId === 'volume') {
+          const volCaps = volumeMenuCaps(cs, {
+            ownsPane: nativeVolumeOwnsPane(_volPresenceOpts),
+            displayFixed: (volumeSeparatePane || blankVolume) ? VOLUME_PANE_SURFACE_FIXED : undefined,
+            guestForcesPane: (() => { try { return volumeHasOverlay(cs, _volPresenceInstances) } catch { return false } })(),
+            paneExists: volumePaneExists,
+            heightFixed: volumePaneHeightPct != null,
+          })
+          const volItems = volumeMenuItems(cs, {
+            onToggleHidden: (id) => { close(); legendRowHidden(id) },
+            onSettings: (id) => { close(); legendRowSettings(id) },
+            onMove: (id, t) => { close(); volumeRowMove(id, t) },
+            onResetPaneSize: (id) => { close(); volumeRowResetPaneSize(id) },
+            onAbout: () => { close(); setChipAbout({ volume: true, chip: { defId: 'volume', instanceId: 'volume' }, anchor: chipMenu.anchor }) },
+            onRemove: (id) => { close(); legendRowRemove(id) },
+          }, volCaps)
+          const volHiddenNow = cs.volume?.visible === false
+          const volMove = volItems.find((i) => i.key === 'move')
+          const onMovePage = chipPage === 'move' && volMove && !volMove.disabled
+          // UCT Signature on BOTH pages (owner 11-16): the Display in page is `displayPageSigRows`.
+          const volPage = onMovePage
+            ? displayPageSigRows('Volume', volMove.submenu, () => setChipPage(null))
+            : volItems.map((it) => chipMenuSigRow(it.key === 'move' && !it.disabled
+              ? { ...it, keepOpen: true, onClick: () => setChipPage('move') }
+              : it))
+          const volValue = crosshairData && crosshairData.volume != null ? formatVolume(crosshairData.volume) : ''
+          return (
+            <ContextPopover
+              guide="chart.chipMenu"
+              open
+              onClose={close}
+              anchor={chipMenu.anchor}
+              /* ⛔ NO `title` on the Display in page either: its back row already names Volume. */
+              width={214}  // the chart right-click menu's width (UCT Signature, owner 11-16)
+              dense
+              signature
+              /* UCT Signature: no sub-line — "Display in" already names the placement. */
+              header={onMovePage ? null : (
+                <LegendMenuHeader label="Volume" hidden={volHiddenNow} value={volValue} sig />
+              )}
+              items={volPage}
+              sheetClassName={sheetCls + ' ' + popStyles.signature} /* the touch sheet's UCT Signature look rides the Sheet's class (ContextPopover: Notebook bytes) */
+            />
+          )
+        }
         if (chipMenu.rowId) {
           const rid = chipMenu.rowId
           const isVol = rid === 'volume'
@@ -18914,10 +19507,12 @@ export default function StockChart({
           const ov = Number.isInteger(ovIdx) ? (cs.overlays || [])[ovIdx] : null
           const rowLabel = isVol ? 'Volume' : (ov ? `${ov.type} ${ov.period}` : 'Indicator')
           const rowHidden = isVol ? cs.volume?.visible === false : ov?.enabled === false
+          // UCT Signature: the same group labels as an engine chip's menu (`chipMenu.CHIP_MENU_GROUPS`).
           const rows = [
+            { groupLabel: CHIP_MENU_GROUPS.line },
             { key: 'hidden', label: rowHidden ? 'Show' : 'Hide', icon: 'eye',
               onClick: () => { close(); legendRowHidden(rid) } },
-            { separator: true },
+            { groupLabel: CHIP_MENU_GROUPS.settings },
             { key: 'settings', label: 'Edit in Indicators…', icon: 'sliders',
               onClick: () => { close(); legendRowSettings(rid) } },
             { separator: true },
@@ -18938,11 +19533,12 @@ export default function StockChart({
                  passing both printed the name twice, three pixels apart. The
                  header says more: the rail ties the menu to the line, and the
                  value answers "what is this?" before a verb is offered. */
-              width={190}
+              width={214}
               dense
-              header={<LegendMenuHeader label={rowLabel} hidden={rowHidden} />}
-              items={rows.map(chipMenuRowToPopoverRow)}
-              sheetClassName={sheetCls}
+              signature
+              header={<LegendMenuHeader label={rowLabel} hidden={rowHidden} sig />}
+              items={rows.map(chipMenuSigRow)}
+              sheetClassName={sheetCls + (true ? ' ' + popStyles.signature : '')} /* the touch sheet's UCT Signature look rides the Sheet's class (ContextPopover: Notebook bytes) */
             />
           )
         }
@@ -18981,7 +19577,7 @@ export default function StockChart({
         // popover (menu, card, Display in, Preset): 296 px, capped to the viewport
         // by `.legMenuHeadRs`'s host rule. A chip with no readout keeps 204.
         const readoutMenu = declaresReadout(def)
-        const menuWidth = readoutMenu ? 296 : 204
+        const menuWidth = readoutMenu ? 296 : 214
         // ⭐ 4-05 — THE TOUR PAGE (`tour:<n>`), opened by the chart on a first add.
         // Done and Skip mark the tour seen; closing the popover any other way does
         // not (the page-session claim still keeps it from reopening on this page).
@@ -19074,20 +19670,8 @@ export default function StockChart({
               if (it.key === 'move' && !it.disabled) return { ...it, keepOpen: true, onClick: () => setChipPage('move') }
               // ⭐ A6 — `Preset   Classic (O'Neil) ›`: the current preset as a muted
               // trailing label and a chevron; the row opens the Preset page.
-              if (it.key === 'preset') {
-                return {
-                  ...it,
-                  keepOpen: true,
-                  onClick: () => setChipPage('preset'),
-                  label: (
-                    <span className={styles.legVerbRow}>
-                      <span>{it.label}</span>
-                      <span className={styles.legVerbTrail} data-preset-current="">{it.trailing}</span>
-                      <span className={styles.legVerbChev} aria-hidden="true"><UIcon name="chevronRight" size={11} gold={false} /></span>
-                    </span>
-                  ),
-                }
-              }
+              // (`chipMenuSigRow` draws the value and the caret.)
+              if (it.key === 'preset') return { ...it, keepOpen: true, onClick: () => setChipPage('preset') }
               return it
             })
         if (chipPage === 'preset' && presetRow) {
@@ -19222,6 +19806,9 @@ export default function StockChart({
             title={chipPage === 'move' ? menuName : undefined}
             width={menuWidth}
             dense
+            /* UCT Signature on the menu page (group labels, gold hover icon, gold ✓ on Value in
+               header). The Display in page keeps its own tick icons, unchanged. */
+            signature={chipPage !== 'move'}
             /* ⛔ NO HEADER ON THE DISPLAY-IN PAGE. That page already opens with a
                back row carrying the label, and a second copy of the name directly
                above it reads as a bug.
@@ -19237,8 +19824,12 @@ export default function StockChart({
                 hidden={!!c.hidden}
                 value={headValue}
                 valueMuted={!liveValue && !!headValue}
-                sub={legendMenuSubtitle(def, displayOptions, displayCurrent,
-                  menuPresets.length ? presetLabelOf(menuPresets, currentPreset ? currentPreset.id : null) : undefined)}
+                /* UCT Signature: a non-readout chip's sub-line only says what it adds — its
+                   placement and preset are the Display in / Preset rows' values right below. */
+                sub={readoutMenu ? legendMenuSubtitle(def, displayOptions, displayCurrent,
+                  menuPresets.length ? presetLabelOf(menuPresets, currentPreset ? currentPreset.id : null) : undefined)
+                  : sigSubtitle(def, menuName, menuPresets.length > 0)}
+                sig={!readoutMenu}
                 rows={glanceRows}
                 readout={readoutMenu}
                 rowAction={rowAction}
@@ -19250,8 +19841,8 @@ export default function StockChart({
                   button is its own control, and a row's button cannot hold one). */}
               {askCompass}
             </>)}
-            items={page.map(chipMenuRowToPopoverRow)}
-            sheetClassName={sheetCls}
+            items={page.map(chipPage === 'move' ? chipMenuRowToPopoverRow : chipMenuSigRow)}
+            sheetClassName={sheetCls + (chipPage !== 'move' ? ' ' + popStyles.signature : '')} /* the touch sheet's UCT Signature look rides the Sheet's class (ContextPopover: Notebook bytes) */
           />
         )
       })()}
@@ -19301,7 +19892,22 @@ export default function StockChart({
           />
         )
       })()}
-      {chipAbout && (() => {
+      {chipAbout && chipAbout.volume && (
+        <ContextPopover
+          open
+          onClose={() => setChipAbout(null)}
+          anchor={chipAbout.anchor}
+          title={VOLUME_ABOUT.title}
+          width={280}
+          sheetClassName={canvasTheme === 'sunrise' ? 'uctSunSheet' : ''}
+        >
+          <div data-volume-about="" style={{ padding: '4px 10px 10px', fontSize: 12, lineHeight: 1.55, color: 'var(--text-secondary, #b8b3a5)' }}>
+            {VOLUME_ABOUT.text}
+            <div style={{ marginTop: 8, fontSize: 11, opacity: 0.75 }}>{VOLUME_ABOUT.category}</div>
+          </div>
+        </ContextPopover>
+      )}
+      {chipAbout && !chipAbout.volume && (() => {
         const def = engineRegistry.getDefinition(chipAbout.chip.defId)
         const meta = (def && def.meta) || {}
         const notices = repaintNotices(def)
@@ -19785,7 +20391,7 @@ export default function StockChart({
              own. The toggle no longer tracks the sub-pane stack at all, so the
              helper went with it. */
           style={{ bottom: '3px' }}
-          title="Price scale: Arithmetic / Logarithmic / Percent"
+          title="Price scale: Arithmetic / Logarithmic"
           /* ⛔ A GROUP WITH A NAME, AND CHIPS THAT SAY WHICH ONE IS ON. `title` is not
              an accessible name a screen reader reliably speaks, and three buttons
              that only differ by colour told a VoiceOver member nothing about the
@@ -19810,14 +20416,8 @@ export default function StockChart({
             title="Logarithmic scale"
             aria-label="Logarithmic price scale"
           >L</button>
-          <button
-            type="button"
-            className={`${styles.scaleToggleBtn} ${effectiveScale === 'pct' ? styles.scaleToggleActive : ''}`}
-            aria-pressed={effectiveScale === 'pct'}
-            onClick={() => setScale('pct')}
-            title="Percentage scale"
-            aria-label="Percentage price scale"
-          >%</button>
+          {/* Owner 11-16: the % chip is gone — A and L only, centred under the price axis. A chart saved in
+              percent mode keeps drawing that way until A or L is clicked. */}
         </div>
       )}
       {/* ⛔ THREE INDEPENDENT VETOES, AND THEY ARE NOT THE SAME QUESTION.
@@ -19938,7 +20538,16 @@ export default function StockChart({
         // layout that sits over a real pane structure, so it is the one where
         // "which pane owns this row" is a question with an answer.
         const volRowInPriceStack = volLegendRowVisible && !volumeOwnsItsPane
-        const indChips = crosshairData.chips || EMPTY_CHIPS
+        // ⭐⭐ ONE ROW PER NAME (owner, 2026-11-16: a 23-plot script printed 22 rows that
+        // all read "Uncharted Clouds"). `legendRows` folds an indicator's same-name plots
+        // into one row led by its first drawn plot; the other drawn plots ride on it as
+        // extra values (`indMore`), and its hidden scaffolding plots get no row at all.
+        // ⛔ `crosshairData.chips` ITSELF IS UNTOUCHED: the line-end tags, the info values
+        // and the row-count signature above still read one chip per plot. Everything in
+        // this block reads `indChips`, so both layouts fold, count and order ROWS.
+        const indRows = legendRows(crosshairData.chips || EMPTY_CHIPS)
+        const indChips = indRows.map((r) => r.chip)
+        const indMore = new Map(indRows.map((r) => [r.chip, r.more]))
         // ── THE INLINE (NON-WORKSPACE) LEGEND'S FOLD — unchanged ────────────
         // Model Book, a pop-up, a gallery cell: one wrapping row of chips with a
         // fixed threshold. Legend V2 does not touch that surface; its own fold is
@@ -19991,22 +20600,23 @@ export default function StockChart({
         // the two could differ (the strip abbreviates, the pane spells out).
         const priceChips = indChips.filter((c) => chipPaneHost(c) == null)
         const studyOverlays = liveLegendOverlays(crosshairData.overlays)
-        // ⭐⭐ §13/§14 — VOLUME PRINTS LAST, BECAUSE ITS PANE IS LAST.
+        // ⭐⭐ §13/§14 — VOLUME PRINTS LAST.
         //
         // ⚰ IT USED TO HEAD THE STACK, inherited from the old vertical legend where
         // it sat directly under the O/H/L/C rows and belonged to them. In V2 the
-        // OHLC readings live in the bar-info strip and the stack is PLOTS — so the
-        // stack should read in the order the panes do: the things drawn on Price,
-        // then the thing drawn beneath it.
+        // OHLC readings live in the bar-info strip and the stack is PLOTS.
         //
-        // ⛔ THIS IS NOT "VOLUME IS ALWAYS LAST" HARD-CODED. `volumeBelowPrice` asks
-        // the RENDERER which pane each series is in, by identity, the same way
-        // `chromePlan` resolves every other piece of price-owned chrome — so a
-        // member who arranges Volume ABOVE Price gets its row above the price
-        // studies, and a banded volume (no pane of its own) keeps the head position
-        // it has always had. No pane INDEX is assumed anywhere; the two indices are
-        // only ever compared with each other.
-        const studyVolLast = volRowInPriceStack && volumeBelowPrice()
+        // ⭐⭐ OWNER 11-16 — AN OVERLAID VOLUME IS LISTED BELOW THE PRICE STUDIES. Volume is in
+        // this stack only when it has no pane of its own (`volRowInPriceStack`), i.e. it is
+        // overlaid on Price, where its bars sit along the BOTTOM of the pane — so its row goes
+        // under EMA 9 / SMA 50 / every price-pane indicator, the way the chart reads. It is
+        // put last AFTER the member's row order too (`orderPaneRows`): its place is where its
+        // bars are drawn, not a slot in a list.
+        // ⚰️ `volumeBelowPrice()` (the renderer's pane indices compared) decided this and is
+        // retired: in this stack Volume and the candles share one pane, so it always answered
+        // false and kept Volume at the head — the position the owner asked to change.
+        // A volume in its own pane is not in this stack at all (`volPaneRows`): unchanged.
+        const studyVolLast = volRowInPriceStack
         // ⭐⭐ ONE STACK, IN THE MEMBER'S OWN ORDER (owner §11, 2026-09-17).
         //
         // ⚰️ IT WAS THREE CONCATENATED BLOCKS — volume, then every legacy moving
@@ -20031,19 +20641,20 @@ export default function StockChart({
         // sorts to the end with the other unidentifiable rows, which is where it
         // already sat.
         //
-        // ⚠️ VOLUME PARTICIPATES ONLY WHEN IT IS REALLY IN THIS STACK. A banded
-        // volume IS a member of the price pane and the settings list files it
-        // there too, so it can be ordered among the averages; a volume with its
-        // own pane is not in this stack at all and its `studyVolLast` placement
-        // rule — which asks the RENDERER which pane is below which — is untouched.
-        const studyItems = orderPaneRows(cs, PRICE_PANE, [
-          ...(volRowInPriceStack && !studyVolLast ? [{ kind: 'vol', id: 'volume' }] : []),
+        // ⚠️ VOLUME IS IN THIS STACK ONLY WHEN IT IS OVERLAID ON PRICE, and then it is
+        // moved to the end AFTER the member's order is applied (`studyVolLast`, above):
+        // the averages and indicators keep the member's order among themselves. A volume
+        // with its own pane is not in this stack at all.
+        const studyRows = orderPaneRows(cs, PRICE_PANE, [
           ...studyOverlays.map((ov, i) => ({
             kind: 'ma', ov, i, id: ov.csIndex >= 0 ? overlayRowId(ov.csIndex) : null,
           })),
           ...priceChips.map((c) => ({ kind: 'chip', c, id: c.instanceId })),
           ...(studyVolLast ? [{ kind: 'vol', id: 'volume' }] : []),
         ], (it) => it.id)
+        const studyItems = studyVolLast
+          ? [...studyRows.filter((it) => it.kind !== 'vol'), ...studyRows.filter((it) => it.kind === 'vol')]
+          : studyRows
         const studyTotal = studyItems.length
         // ⭐⭐ THE FOLD IS GEOMETRIC, NOT A CONSTANT. `studyRowBudget` is how many
         // rows fit between the stack's own top and the PRICE PANE'S bottom, in
@@ -20090,6 +20701,10 @@ export default function StockChart({
         return (
         <div
           ref={legendRef}
+          /* ⭐ The legend box is `pointer-events: none`, but enter/leave are about the
+             SUBTREE: they fire as the pointer moves onto and off its rows. */
+          onPointerEnter={(e) => legendHoldRef.current.enter(e)}
+          onPointerLeave={() => legendHoldRef.current.leave()}
           className={`${styles.legend}${legendV2 ? ' ' + styles.legendV2 : ''}${compactLegend && legendV2 ? ' ' + styles.legendCompact : ''}${legendFlush ? ' ' + styles.legendFlush : toolbarCollapsed ? ' ' + styles.legendToolbarHidden : ''}`}
           /* Drop below the index pane so the legend never covers it; reserve the
              right price-axis width so the BAR INFO strip wraps before it. */
@@ -20131,7 +20746,7 @@ export default function StockChart({
                   <>
                     <div className={styles.barInfo} data-testid="econ-bar-info">
                       {barShows('date') && (
-                        <span className={styles.barDate} style={legBase}>{formatBarInfoDate(crosshairData.time)}</span>
+                        <span className={styles.barDate}>{formatBarInfoDate(crosshairData.time)}</span>
                       )}
                       {_ro ? (
                         <>
@@ -20170,7 +20785,7 @@ export default function StockChart({
               })() : (
               <div className={styles.barInfo}>
                 {barShows('date') && (
-                  <span className={styles.barDate} style={legBase}>{formatBarInfoDate(crosshairData.time)}</span>
+                  <span className={styles.barDate}>{formatBarInfoDate(crosshairData.time)}</span>
                 )}
                 {barShows('open') && (
                   <span className={styles.barField} style={legBase}>
@@ -20268,8 +20883,8 @@ export default function StockChart({
                   `parityGateBlindness.test.js`, which is also why this JSX is
                   inline and not hoisted into a helper. */}
               <div className={styles.studyStack} ref={studyStackRef}>
-                {/* ⭐ VOLUME IS A STUDY ROW — first, above the moving averages,
-                    exactly where the old vertical legend printed it.
+                {/* ⭐ VOLUME IS A STUDY ROW — last, below the moving averages and every
+                    price-pane indicator, where its overlaid bars sit (owner 11-16).
                     ⛔ ITS PANE OWNERSHIP, SIZING AND RENDERING ARE UNTOUCHED. This
                     row only REPORTS the state: a hidden volume pane keeps a
                     dimmed, value-less row (the way back), and a REMOVED one takes
@@ -20296,16 +20911,18 @@ export default function StockChart({
                         key="vol"
                         vertical
                         rowId="volume"
-                        label="Vol"
-                        /* ⛔ THE ROW IS NAMED IN FULL FOR THE MENU IT OPENS — the
-                           legend abbreviates to `Vol` for width, and a trigger
-                           called "Vol options" names nothing the popover's own
-                           title says. */
+                        /* ⭐ Owner 11-16 (Option C) — "Volume", like the pane strip and the
+                           Indicators list, and its value wears the volume series' color
+                           (clamped like every indicator value), so the row reads as an
+                           indicator row. */
+                        label="Volume"
                         controlLabel="Volume"
+                        color={opaqueColor(cs.volume?.upColor)}
                         value={volHidden ? '' : formatVolume(crosshairData.volume)}
                         baseColor={legendColor || undefined}
                         hidden={volHidden}
                         folded={folded}
+                        menuOpen={legendMenuRowId === 'volume'}
                         {...legendRowHandlers}
                       />
                     ) : (cs.volume?.visible === false ? null : (   // a hidden volume pane prints no volume (round 18: Hard mode's candles-only chart showed one)
@@ -20325,6 +20942,7 @@ export default function StockChart({
                         baseColor={legendColor || undefined}
                         hidden={!!ov.hidden}
                         folded={folded}
+                        menuOpen={ov.csIndex >= 0 && legendMenuRowId === `ma:${ov.csIndex}`}
                         /* ⛔ THE SYNTHETIC SMA 5 GETS NO CONTROLS — it is not in
                            `cs.overlays` (`csIndex: -1`), so every verb would write
                            nowhere. It also gets no chevron, which is the point of
@@ -20345,6 +20963,7 @@ export default function StockChart({
                          so adjacency alone still identifies the group, with no
                          second grouping pass and no new identity. */
                       secondary={sameInstanceAsPrev(i)}
+                      more={indMore.get(c)}
                       className={folded ? chipStyles.chipFolded : undefined}
                       /* Per (instance, plot) — a definition with one repainting
                          column marks that column and leaves its siblings alone. */
@@ -20352,6 +20971,7 @@ export default function StockChart({
                       /* ⭐ A9 / A8 — a readout definition's short name and its
                          muted last-known value; nothing for any other chip. */
                       {...(() => { const s = readoutSurfaceOf(c); return s ? { name: s.name, fallbackValue: s.fallback } : null })()}
+                      menuOpen={legendMenuChipKey === `${c.instanceId}::${c.plotKey}`}
                       {...chipHandlersFor(c)}
                     />
                   )
@@ -20446,6 +21066,7 @@ export default function StockChart({
             <IndicatorChip
               key={`${c.instanceId}::${c.plotKey}`}
               chip={c}
+              more={indMore.get(c)}
               className={foldRank[i] >= foldedFrom ? chipStyles.chipFolded : undefined}
               {...(chipText[i] ? (readoutChipProps(c) || PANE_TEXT_CHIP) : null)}
               {...chipHandlersFor(c)}
@@ -20793,9 +21414,15 @@ export default function StockChart({
       {!blankVolume && showVolLegend && cs.volume?.labelVisible !== false && chartReady
         && crosshairData && volPaneRows.length > 0 && (
         <div ref={volLegendRef} className={styles.volLegend}>
-          {volPaneRows.map((r) => (
+          {volPaneRows.map((r, ri) => (
+            /* ⭐ Owner 11-16 (Option C) — A STUDY STACK, LIKE EVERY PANE READOUT: `vertical`
+               rows with the indicator hover strip (Hide · Settings · ⋯) on an editable
+               mount. Volume's own moving average reads as its sibling output (indented,
+               like MACD's `SIG`) only directly under Volume. */
             <LegendRow
               key={r.key}
+              vertical
+              secondary={!!r.secondary && ri > 0 && volPaneRows[ri - 1].rowId === r.rowId}
               rowId={r.rowId}
               label={r.label}
               controlLabel={r.controlLabel}
@@ -20803,7 +21430,12 @@ export default function StockChart({
               color={r.color}
               baseColor={legendColor || undefined}
               hidden={r.hidden}
-              {...(r.onOpen ? { onOpen: r.onOpen } : null)}
+              menuOpen={r.rowId === 'volume' ? legendMenuRowId === 'volume' : r.key === legendMenuChipKey}
+              {...(r.onOpen ? {
+                onOpen: r.onOpen,
+                ...(r.onToggleHidden ? { onToggleHidden: r.onToggleHidden } : null),
+                ...(r.onSettings ? { onSettings: r.onSettings } : null),
+              } : null)}
             />
           ))}
         </div>
@@ -20918,7 +21550,9 @@ export default function StockChart({
               {group.note ? <span className={styles.paneLegendNote}>{group.note}</span> : null}
             </div>
           ) : null}
-          {row.chips.map((c, ci) => (
+          {/* ⭐ ONE ROW PER NAME, HERE TOO (`legendRows`): a script drawn in its own pane
+              prints one readout row carrying each drawn plot's value, not a row per plot. */}
+          {legendRows(row.chips).map(({ chip: c, more }, ci, paneRows) => (
             <LegendRow
               key={`${c.instanceId}::${c.plotKey}`}
               vertical={!group}
@@ -20926,7 +21560,9 @@ export default function StockChart({
                  and SIG stack with the second indented, rather than as two
                  unrelated studies that happen to share a pane. Adjacency is the
                  grouping, because `legendChips` walks the INSTANCE list. */
-              secondary={ci > 0 && row.chips[ci - 1].instanceId === c.instanceId}
+              secondary={ci > 0 && paneRows[ci - 1].chip.instanceId === c.instanceId}
+              moreValues={more.length
+                ? more.map((m) => ({ key: m.plotKey, text: chipValueText(m), color: m.color })) : undefined}
               /* ⭐⭐ THE ROW ID IS THE INSTANCE ID, and that is what wires the door
                  with no adapter: `LegendRow` calls `onOpen(rowId, anchor)` and the
                  pane readout hands it straight to `handlePaneRowMenu`, which looks
@@ -20977,6 +21613,7 @@ export default function StockChart({
                 engineRegistry.getDefinition(paneRowPrimary(row.chips, c).defId),
                 paneLongName(paneRowPrimary(row.chips, c)))}
               hidden={!!c.hidden}
+              menuOpen={legendMenuChipKey === `${c.instanceId}::${c.plotKey}`}
               {...(chipHandlers ? {
                 /* ⛔⛔ THE PRIMARY CHIP, NOT THE HOVERED ONE — the same ruling
                    `controlLabel` above already carries, now applied to the whole
@@ -20986,6 +21623,9 @@ export default function StockChart({
                    INSTANCE-oriented even though the values are plot-oriented,
                    which is exactly what the approved V1 asks for. */
                 onOpen: (_id, anchor) => chipHandlers.onMenu(paneRowPrimary(row.chips, c), anchor),
+                // ⭐ UCT SIGNATURE — the hover strip acts on the same PRIMARY instance.
+                onToggleHidden: () => chipHandlers.onToggleHidden(paneRowPrimary(row.chips, c).instanceId),
+                onSettings: () => chipHandlers.onSettings(paneRowPrimary(row.chips, c).instanceId),
               } : null)}
             />
           ))}

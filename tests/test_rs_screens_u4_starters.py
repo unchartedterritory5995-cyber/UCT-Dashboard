@@ -718,6 +718,50 @@ def test_buyout_names_are_left_out_of_the_four_lists_and_a_blank_flag_stays(tabl
     assert "DEAL" in [r["ticker"] for r in query.run_scan(table["starter_rs_exit_warning_5"]["spec"])["rows"]]
 
 
+def test_the_receipt_never_calls_a_listed_stock_unchecked(table):
+    """2026-11-15, the first morning with rows on the live site: Top RS Rating listed 1,845
+    stocks while its receipt said 67 were answered and 10,881 "could not be checked". The
+    exclude on `rs_flag` keeps a blank flag (the test above), and the receipt counted every
+    blank flag as a column with no value. A row the scan lists is a row it answered."""
+    for sid in [*LIST_SCREENS, "starter_rs_exit_warning_5"]:
+        spec = table[sid]["spec"]
+        listed = query.run_scan(spec)["total"]
+        c = query.coverage_for(spec)
+        assert c["evaluated"] == c["answered"] + c["dropped"] + c["not_computable"], sid
+        assert c["answered"] >= listed > 0, (sid, c["answered"], listed)
+        assert not {"rs_flag", "security_type"} & set(c["missing_keys"]), (sid, c["missing_keys"])
+        # a place or an event age left blank is the pass's answer "no", not a missing value
+        assert not query._BLANK_IS_AN_ANSWER & set(c["missing_keys"]), (sid, c["missing_keys"])
+        labels = {query.filters.FILTERS[k]["label"]
+                  for k in ("rs_flag", "security_type", *query._BLANK_IS_AN_ANSWER)}
+        for d in c["dropped_symbols"]:
+            if d["reason"] == "not-computable":
+                assert not labels & set(d["detail"].removeprefix("no value for ").split(", ")), (sid, d)
+
+
+def test_a_blank_place_or_event_age_is_an_answer_and_a_blank_rating_is_not(table):
+    """Top RS Rating tests presence (`rs_rating_pos >= 1`): a stock with no place is not on
+    the board, which is the screen's answer about it. A stock with no RS Rating at all is
+    still counted on a screen that reads the rating."""
+    from api.services.screener import rs_post_pass
+    assert {"rs_rating_pos", *(c for c, _v in rs_post_pass.PERIOD_PLACES)} <= query._BLANK_IS_AN_ANSWER
+    for key in query._BLANK_IS_AN_ANSWER:
+        assert key in query.filters.FILTERS and key in snapshot_db.COLUMNS, key
+    assert "rs_rank" not in query._BLANK_IS_AN_ANSWER
+    with snapshot_db.connect() as conn:
+        unplaced = conn.execute(
+            "SELECT COUNT(*) FROM screener_rows WHERE rs_rating_pos IS NULL").fetchone()[0]
+        unrated = conn.execute(
+            "SELECT COUNT(*) FROM screener_rows WHERE rs_rank IS NULL").fetchone()[0]
+    assert unplaced > 0, "the table needs a row with no place for this to prove anything"
+    c = query.coverage_for({"filters": [{"key": "rs_rating_pos", "op": "gte", "min": 1}]})
+    assert c["not_computable"] == 0 and c["missing_keys"] == {}
+    c = query.coverage_for({"filters": [{"key": "rs_rating_pos", "op": "gte", "min": 1},
+                                        {"key": "rs_rank", "op": "gte", "min": 80}]})
+    assert c["missing_keys"] == ({"rs_rank": unrated} if unrated else {})
+    assert c["not_computable"] == unrated
+
+
 def test_the_leaders_list_is_the_stored_members_ordered_by_the_score(table):
     """Pin moved 2026-11-14 (unit U12): this ran the screen's own rank and cut it at 2.
     The cut is the pass's now (`rs_leaders_list`, tests/test_rs_screens_u12_leaders.py);
@@ -911,8 +955,8 @@ def test_the_method_page_states_each_rule_from_the_constants_that_apply_it(on):
 
 def test_a_pullback_label_is_said_in_plain_words_and_as_a_place_not_an_instruction(on, monkeypatch):
     """Unit U7. "Pullback to the 8-day" and "Pullback to the 21-day" open with the plain
-    sentence (a 20-session high within the last 15 sessions, now trading at its rising
-    average) and end with "It marks where the stock is, not what to do." The numbers still
+    sentence (a 20-session high within the last 15 sessions, come off it, now trading at
+    its rising average) and end with "It marks where the stock is, not what to do." The numbers still
     come from the code that applies them, and the Setup column's own method (the other
     place the words are explained) says the same."""
     from api.services.screener import methodology as M
@@ -921,10 +965,11 @@ def test_a_pullback_label_is_said_in_plain_words_and_as_a_place_not_an_instructi
     labels = {x["key"]: x["rule"] for x in M.rs_screens_section()["setup"]["labels"]}
     for n in (8, 21):
         rule = labels[f"pullback_{n}"]
-        assert rule.startswith(f"The stock made a 20-session high within the last 15 sessions and is "
-                               f"now trading at its rising {n}-day average. "), rule
+        assert rule.startswith(f"The stock made a 20-session high within the last 15 sessions, has come "
+                               f"off it, and is now trading at its rising {n}-day average. "), rule
         assert rule.endswith(note) and rule.count(note) == 1, rule
-        assert f"the high is a closing high, and today its low came within 0.5 ATR of a rising {n}-day EMA" in rule
+        assert (f"the high is a closing high, the close is at least 0.5 ATR under that high, and today "
+                f"its low came within 0.5 ATR of a rising {n}-day EMA") in rule
     assert labels["pullback_8"].endswith("Named ahead of the 21-day when both hold. " + note)
     assert [k for k, rule in labels.items() if note in rule] == ["pullback_8", "pullback_21"]
     how = next(m for m in M._rs_screens_methods() if m["column"] == "rs_setup")["how"]
@@ -933,9 +978,11 @@ def test_a_pullback_label_is_said_in_plain_words_and_as_a_place_not_an_instructi
     # read, not typed: move the two windows and the plain sentence moves with them
     monkeypatch.setattr(rs_setup, "PULLBACK_HIGH_MAX_AGE", 10)
     monkeypatch.setattr(technicals, "HIGH20_WINDOW", 30)
+    monkeypatch.setattr(rs_setup, "PULLBACK_MIN_DEPTH_ATR", 0.75)
     moved = {x["key"]: x["rule"] for x in M.rs_screens_section()["setup"]["labels"]}
-    assert moved["pullback_21"].startswith("The stock made a 30-session high within the last 10 sessions and is "
-                                           "now trading at its rising 21-day average. ")
+    assert moved["pullback_21"].startswith("The stock made a 30-session high within the last 10 sessions, has "
+                                           "come off it, and is now trading at its rising 21-day average. ")
+    assert "the close is at least 0.75 ATR under that high" in moved["pullback_21"]
 
 
 def test_the_method_page_follows_a_changed_threshold(on, monkeypatch):

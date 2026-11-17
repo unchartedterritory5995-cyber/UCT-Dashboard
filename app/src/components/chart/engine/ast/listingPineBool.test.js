@@ -16,7 +16,9 @@ const N = 120
 const CLOSE = Array.from({ length: N }, (_, i) => 100 + 8 * Math.sin(i / 5) + i * 0.05)
 const BARS = CLOSE.map((c, i) => ({ t: 1700000000 + i * 86400, o: c, h: c + 1, l: c - 1, c, v: 1000 }))
 const columnOf = (lines, opts) => {
-  const t = translatePine(['//@version=5', 'indicator("h1-bool")', ...lines].join('\n'))
+  // ⭐ COND-TA (engine 58): `ta.crossunder` stands in a `?:` arm, which the screener lane now refuses by
+  // name. This file is about the listing pass over the TREE, so it reads the host lane's (`strict`).
+  const t = translatePine(['//@version=5', 'indicator("h1-bool")', ...lines].join('\n'), { strict: true })
   if (!t.ok) throw new Error(`refused: ${JSON.stringify(t.refusal).slice(0, 300)}`)
   return Array.from(interpret(t.outputs.find((o) => o.ast).ast, BARS, {}, undefined, undefined, opts))
 }

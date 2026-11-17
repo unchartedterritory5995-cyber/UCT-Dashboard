@@ -25,6 +25,7 @@
 // An entry is either a definition id (`u_` + 12 hex) or the sha256 of the Pine
 // source (64 hex; a prefix of at least 12 hex is accepted, as git accepts one).
 import { sha256Hex } from './ast/parse.js'
+import { setRunHalfObjectEvidence } from './runHalfRailSeam.js'
 
 /** The server's read of the list (`api/routers/user_definitions.py::runtime_kill`). */
 export const RUNTIME_KILL_PATH = '/api/user-definitions/runtime-kill'
@@ -62,16 +63,28 @@ function maybeRefreshRuntimeLists() {
       .then((r) => (r && r.ok ? r.json() : null))
       .then((d) => {
         if (!d) return
-        setRuntimeKillList(d.kill)
-        setRuntimeAllowList(d.allow)
         // WS-I Part 2 -- a switch-off of capability admission reaches the open tab here too
-        setRuntimeCapabilityAdmission(d.capability_admission)
+        latchRuntimeLists(d)
       })
       .catch(() => { /* the lists stay as they were */ })
       .finally(() => { _listsInFlight = false })
   } catch {
     _listsInFlight = false
   }
+}
+
+/** ⭐⭐ RS RATING L8 — LATCH EVERYTHING THE KILL READ CARRIES, ONE FUNCTION FOR BOTH READERS
+ *  (`MemberPane`'s mount read and the recheck above), so a key the server adds reaches both or
+ *  neither: the kill list, the allowlist, the capability-admission switch, and the run half's
+ *  object evidence (`run_half_evidence`, from the same committed allowlist records:
+ *  `api/services/runtime_definitions.py::run_half_evidence`). ⛔ An absent key latches EMPTY
+ *  (nothing admitted), never "as it was". */
+export function latchRuntimeLists(d) {
+  if (!d || typeof d !== 'object') return
+  setRuntimeKillList(d.kill)
+  setRuntimeAllowList(d.allow)
+  setRuntimeCapabilityAdmission(d.capability_admission)
+  setRunHalfObjectEvidence(d.run_half_evidence)
 }
 
 /** Diagnostics and rails. */
@@ -188,12 +201,13 @@ export function runtimeCapabilityAdmissionOn() {
   return _capabilityAdmission
 }
 
-/** Latch one verdict. Only a 64-hex hash and a boolean `admitted` are kept. */
+/** Latch one verdict. Only a 64-hex hash, a boolean `admitted` and a boolean `historyOnly`
+ *  (G6: admitted for CLOSED-BAR HISTORY only, `runtimeFormingRefusalOf`) are kept. */
 export function latchRuntimeAdmission(hash, verdict) {
   const h = typeof hash === 'string' ? hash.toLowerCase() : ''
   if (!/^[0-9a-f]{64}$/.test(h) || !verdict || typeof verdict.admitted !== 'boolean') return
   _verdicts.delete(h)
-  _verdicts.set(h, { admitted: verdict.admitted, at: Date.now() })
+  _verdicts.set(h, { admitted: verdict.admitted, historyOnly: verdict.historyOnly === true, at: Date.now() })
   while (_verdicts.size > RUNTIME_ADMISSION_MAX) _verdicts.delete(_verdicts.keys().next().value)
 }
 
@@ -242,7 +256,11 @@ export function requestRuntimeAdmission(source, _attempt = 0) {
           if (_attempt + 1 >= RUNTIME_ADMISSION_PENDING_RETRIES) return null
           return { retry: true }
         }
-        latchRuntimeAdmission(h, { admitted: d.admitted === true })
+        // ⭐ G6 — `historyOnly` (the ids admitted for closed-bar history only) latches as ONE boolean.
+        // ⛔ FAIL CLOSED: anything present that is not an empty list reads as history-only.
+        const historyOnly = d.historyOnly !== undefined
+          && !(Array.isArray(d.historyOnly) && d.historyOnly.length === 0)
+        latchRuntimeAdmission(h, { admitted: d.admitted === true, historyOnly })
         return _verdicts.get(h) || null
       })
       .catch(() => null)
@@ -316,6 +334,37 @@ export function runtimeNotGradedOf({ source, hash } = {}) {
   }
   return `this script (sha256 ${h ? h.slice(0, 12) : '?'}…) has not yet been graded against `
     + 'TradingView, so it is not drawn bar by bar'
+}
+
+// ─── ⭐⭐ G6 (coordinator ruling 2026-11-15) — CLOSED-BAR HISTORY ONLY ───────────────
+// `realtime-state` (barstate.*, timenow, ...) is admitted by capability on CLOSED-BAR
+// evidence only: no capture grades what a script does on a FORMING bar. A script the
+// server admitted with `historyOnly` is therefore drawn bar by bar only while this chart's
+// newest bar is KNOWN to be closed (`newestBarIsForming === false`); on a forming bar, or
+// when nobody has said, every run door refuses it BY NAME with the sentence below.
+// ⛔ Admission by capability only: a script on the graded allowlist (its OWN capture) and
+// the test grant are not asked. The kill list and "not graded" are asked first, elsewhere.
+
+/** The guard a refused forming-bar run carries (runtime documents, run halves, run colours). */
+export const RUNTIME_FORMING_GUARD = 'pane:forming-ungraded'
+
+/** Why this script is NOT drawn bar by bar on THIS chart's newest bar (G6), or null.
+ *  @param {{source?: string, hash?: string, newestBarIsForming?: boolean|null}} arg */
+export function runtimeFormingRefusalOf({ source, hash, newestBarIsForming } = {}) {
+  if (_allow === ALLOW_ANY || !_capabilityAdmission) return null
+  const h = typeof hash === 'string' && hash ? hash.toLowerCase()
+    : (typeof source === 'string' ? runtimeSourceHash(source) : '')
+  if (!h || _allow.some((e) => h.startsWith(e))) return null
+  const v = _verdicts.get(h)
+  if (!v || !v.admitted || !v.historyOnly) return null
+  if (newestBarIsForming === false) return null
+  return newestBarIsForming === true
+    ? 'this script reads the state of the bar as it forms (barstate or the clock), and that has only '
+      + 'been checked against TradingView on finished bars, so it is not drawn bar by bar while this '
+      + "chart's newest bar is still forming"
+    : 'this script reads the state of the bar as it forms (barstate or the clock), and that has only '
+      + "been checked against TradingView on finished bars; this chart cannot say yet whether its newest "
+      + 'bar has finished, so the script is not drawn bar by bar'
 }
 
 /** The script's identity: the sha256 of its Pine source, UTF-8, as written. */

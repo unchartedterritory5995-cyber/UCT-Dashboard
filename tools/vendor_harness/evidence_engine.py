@@ -70,6 +70,11 @@ CORPUS = REPO / "corpus"
 FIXTURE_ROOT = REPO / "tests" / "fixtures" / "vendor"
 FIXTURES = FIXTURE_ROOT / "harness"          # where `promote` files a new capture
 COVERAGE = DOCS / "coverage-map.json"
+#: ⚰️ A LOCAL VIEW SINCE 2026-11-16, NEVER COMMITTED (.gitignore names it; `queue --check` refuses a tracked one).
+#: It was committed until then, and every PR that touched a queue input rewrote it: 39 master commits in three
+#: days, and on 2026-11-16 it was the conflicting file in 5 of the 5 open Pine PRs GitHub could not merge. Each
+#: conflict meant a merge of master, a regenerate commit and a full pine-heavy re-run (~100 runner-minutes),
+#: for a file EVIDENCE-ENGINE-DESIGN.md already called "the authority for nothing". Every reader derives it.
 QUEUE_OUT = DOCS / "vendor-harness" / "capture-queue.json"
 LEDGER = el.LEDGER
 DOOR_FLAG = "VITE_PINE_OBJECTS_ONLY_PANE_ENABLED"
@@ -404,7 +409,9 @@ class Census:
         return bool((self.scripts.get(k) or {}).get("clean"))
 
     def matched(self, k) -> bool:
-        return (self.scripts.get(k) or {}).get("vendorVerdict") == "MATCH"
+        # ⛔ L7: PROVEN-exact only. A MATCH_SUBSTITUTED script is not "matched" here: its substituted
+        # inputs are unproven, so a census that ranks what MATCH would unblock never counts it.
+        return el.is_match((self.scripts.get(k) or {}).get("vendorVerdict"))
 
     def unblocks(self, guards: set, named: set, direct: set) -> dict:
         guards = set(guards)
@@ -1132,6 +1139,8 @@ def build_packet(run_dir: pathlib.Path, world: World | None = None, verifier=Non
             "symbol": (cap.get("symbol") or {}).get("pro_name"), "timeframe": cap.get("timeframe"),
             "bars": (cap.get("bars") or {}).get("count"), "startsAtBar0": (cap.get("history") or {}).get("startsAtBar0"),
             "verdict": (v or {}).get("verdict"), "reason": (v or {}).get("reason"),
+            # ⭐ L7 — the substituted inputs the grade ran with (filed on the ledger lane)
+            "substituted": (v or {}).get("substituted"),
             "firstDivergence": first_divergence(v),
             "licence": g["licence"], "queueTargetId": man.get("queueTargetId"), "rows": man.get("rows") or [],
             # was this chart ASKED (by a row, a section, a preamble, the census pool) or a guess? None: the
@@ -1268,7 +1277,9 @@ def promote(run_dir: pathlib.Path, packet_sha: str, world: World | None = None, 
         # ⛔ the row is the VERDICT and what re-checks it: never the source, never the provenance/account
         ledger_rows.append(el.make_row(
             capture=json.loads(cap_bytes.decode("utf-8")), capture_bytes=cap_bytes,
-            verdicts={lane: {"verdict": i["verdict"], "reason": i["reason"]}}, filed_by="promote",
+            verdicts={lane: {"verdict": i["verdict"], "reason": i["reason"],
+                             **({"substituted": i["substituted"]} if i.get("substituted") else {})}},
+            filed_by="promote",
             licence=i["licence"], engine=gs["scriptEngineVersion"], grader=gs["graderVersion"],
             stamp=gs.get("gradedAtUTC") or stamp, packetSha256=sha, firstDivergence=i["firstDivergence"],
             promoted=i["action"] == "PROMOTE",
@@ -1286,6 +1297,16 @@ PINS_SRC = RT_DIR / "brokerPins.json"
 PINS_OUT = RT_DIR / "brokerPins.resolved.json"
 PINS_SCHEMA = "uct.broker-pins/v1"
 PINS_RESOLVED_SCHEMA = "uct.broker-pins.resolved/v1"
+#: U14: one verdict file per graded strategy capture, written by the strategy harness
+#: (`__tests__/vendorHarness/strategyHarness.js`) and kept current by its rail
+#: (`strategyGrading.test.js` re-grades every one at today's engine and compares).
+STRATEGY_VERDICTS_DIR = DOCS / "vendor-harness" / "strategy-verdicts"
+STRATEGY_VERDICT_SCHEMA = "uct.strategy-verdict/v1"
+FILLS_REFUSED = "MATCH-WITHOUT-FILLS"
+#: value read-backs (2026-11-15): a strategy MATCH that compared no value series (the script's own plots, bar
+#: by bar) is a fill match only. It pins nothing: a rule's values are what a member's script reads.
+VALUES_REFUSED = "MATCH-WITHOUT-VALUES"
+NOT_EXERCISED = "MATCH-WITHOUT-EXERCISING-THE-RULE"
 
 
 class PinResolveError(Exception):
@@ -1333,11 +1354,19 @@ def settings_property_table(path: pathlib.Path = STRATEGY_CAPTURE_MJS) -> dict:
     text = pathlib.Path(path).read_text(encoding="utf-8")
     out = {}
     for key in SETTINGS_DEFAULTS:
-        m = re.search(r"\{ key: '" + re.escape(key) + r"', name: (['\"])(.*?)\1, param: (null|'(\w+)'), kind: '(\w+)'", text)
+        m = re.search(r"\{ key: '" + re.escape(key) + r"', name: (['\"])(.*?)\1, param: (null|'(\w+)'), kind: '(\w+)'([^\n]*)", text)
         if not m:
             raise PinResolveError(f"strategy_capture.mjs PROPERTY_TABLE names no `{key}` (name, param, kind)")
-        out[key] = {"name": m.group(2), "param": m.group(4), "kind": m.group(5)}
+        since = re.search(r"sinceVersion: (\d+)", m.group(6))
+        out[key] = {"name": m.group(2), "param": m.group(4), "kind": m.group(5),
+                    "sinceVersion": int(since.group(1)) if since else None}
     return out
+
+
+def _pine_version(source: str):
+    """The `//@version=N` of a source (strategy_capture.mjs::pineVersionOf's rule), or None."""
+    m = re.search(r"^[ \t]*//[ \t]*@version[ \t]*=[ \t]*(\d+)", str(source or ""), re.M)
+    return int(m.group(1)) if m else None
 
 
 def _strategy_call_args(source: str):
@@ -1459,7 +1488,14 @@ def settings_readback_ok(row: dict, source: str, table: dict) -> bool:
     if not isinstance(props, list):
         return False
     by_name = {" ".join(str(p.get("name", "")).split()).lower(): p for p in props if isinstance(p, dict)}
+    version = _pine_version(source)
     for key, want in expected.items():
+        since = table[key].get("sinceVersion")
+        if since is not None and version is not None and version < since:
+            # U14: the input does not exist below `sinceVersion` (PROPERTY_TABLE, measured on s25 / s26), so the
+            # run takes the R6 default and there is nothing to read back. A source with no //@version is still
+            # held to every input (fail closed).
+            continue
         p = by_name.get(" ".join(table[key]["name"].split()).lower())
         if p is None or "value" not in p or not _same(p["value"], want):
             return False
@@ -1481,29 +1517,119 @@ def committed_sources_by_sha() -> dict:
     return out
 
 
+def read_strategy_verdicts(directory: pathlib.Path = STRATEGY_VERDICTS_DIR) -> list:
+    """Every committed strategy verdict file, as a pin row. A file that is not a verdict of this
+    schema, or whose name is not its own capture id, is an ERROR (never skipped: a verdict the
+    resolve step cannot read could be the one that un-pins a rule)."""
+    rows = []
+    directory = pathlib.Path(directory)
+    if not directory.exists():
+        return rows
+    for f in sorted(directory.glob("*.json")):
+        try:
+            d = json.loads(f.read_text(encoding="utf-8"))
+        except ValueError as e:
+            raise PinResolveError(f"{f.name}: not JSON ({e})") from e
+        if not isinstance(d, dict) or d.get("schema") != STRATEGY_VERDICT_SCHEMA:
+            raise PinResolveError(f"{f.name}: not a {STRATEGY_VERDICT_SCHEMA} verdict")
+        if d.get("captureId") != f.stem:
+            raise PinResolveError(f"{f.name}: names capture {d.get('captureId')!r}, not its own file name")
+        if not isinstance(d.get("rulesExercised"), list):
+            raise PinResolveError(f"{f.name}: rulesExercised must be a list")
+        rows.append(d)
+    return rows
+
+
+def pin_rows(ledger: pathlib.Path = LEDGER, verdicts_dir: pathlib.Path = STRATEGY_VERDICTS_DIR) -> list:
+    """What the resolve step reads: the evidence ledger's rows and the strategy verdict files."""
+    return read_ledger_rows(ledger) + read_strategy_verdicts(verdicts_dir)
+
+
+def culprit_scope(row: dict):
+    """Ruling D11 (docs/pine/W9-DECISIONS-2026-11-07.md): the rules a DIVERGE strategy verdict un-pins, or None
+    for the STRICT rule (everything it exercised). The exception needs EVERY recorded field, and fails closed:
+      * `prefixExact` is exactly True (every graded step equal on the bars strictly before the first difference);
+      * `firstDifference` is `{bar, step}`, both integers;
+      * `culprit` is a NON-EMPTY list of rules, `afterDifference` a list, both inside `rulesExercised` and disjoint.
+    Then only `culprit` (the rules first exercised AT the differing event) and `afterDifference` (first exercised
+    after it) are un-pinned; a rule exercised only before the event is neither un-pinned nor pinned by the row."""
+    if row.get("schema") != STRATEGY_VERDICT_SCHEMA or row.get("verdict") != "DIVERGE":
+        return None
+    if row.get("prefixExact") is not True:
+        return None
+    fd = row.get("firstDifference")
+    is_int = lambda x: isinstance(x, int) and not isinstance(x, bool)  # noqa: E731
+    if not (isinstance(fd, dict) and is_int(fd.get("bar")) and is_int(fd.get("step"))):
+        return None
+    ex, culprit, after = row.get("rulesExercised"), row.get("culprit"), row.get("afterDifference")
+    names = lambda xs: isinstance(xs, list) and all(isinstance(x, str) and x for x in xs)  # noqa: E731
+    if not (names(ex) and names(culprit) and names(after)) or not culprit:
+        return None
+    if not set(culprit) <= set(ex) or not set(after) <= set(ex) or set(culprit) & set(after):
+        return None
+    return set(culprit) | set(after)
+
+
 def resolve_pins(pins: dict, ledger_rows: list, sources: dict | None = None) -> dict:
     """A rule is kept with its fixtures ONLY when every committed verdict for every one of those
     fixtures is MATCH. A DIVERGE or INCONCLUSIVE verdict (or any non-MATCH) un-pins the rule; a
     fixture with NO committed verdict, an empty fixture list or a malformed source is an ERROR (a
     missing fixture fails, it never silently un-pins). A MATCH row also needs its settings read-back
     to show what its own source asks for (`settings_readback_ok`); without it the row is not MATCH.
-    `sources` ({sha256: text}) defaults to the committed probes and corpus."""
+    `sources` ({sha256: text}) defaults to the committed probes and corpus.
+
+    U14 (D1, pin before serve: "a rule is pinned only when every capture that exercises it MATCHes"):
+      * a fixture pins a rule only when its row says it EXERCISED that rule (`rulesExercised`, what
+        our broker reached on the capture); a row that states nothing it exercised pins nothing;
+      * a strategy verdict pins only when it graded the fills (`graded.fills`), not the trade list alone;
+      * and only when it graded at least one value series (`graded.values`: the capture's plots against
+        ours, bar by bar), not the fills alone (value read-backs, 2026-11-15);
+      * ANY committed row that exercised the rule and is not MATCH un-pins it, whether or not
+        `brokerPins.json` lists that capture;
+      * ruling D11, the one exception: a DIVERGE row that records a proven first difference un-pins only its
+        culprit set (`culprit_scope`); the rules it exercised only before that event are not un-pinned by it
+        (and it is never MATCH evidence for them: a listed capture must still MATCH)."""
     if not isinstance(pins, dict) or pins.get("schema") != PINS_SCHEMA or not isinstance(pins.get("rules"), dict):
         raise PinResolveError(f"brokerPins.json must be {{schema: {PINS_SCHEMA!r}, rules: {{...}}}}")
     pinned_ids = {i for ids in pins["rules"].values() if isinstance(ids, list) for i in ids}
     verdicts = {}
+    exercised_by = {}   # rule -> [verdict of every row that exercised it]
     table = None
     for r in ledger_rows:
+        # ⭐ 2026-11-17 (Q-S1i, B-MARGIN-CALL) — the evidence ledger's own row (LEDGER_SCHEMA) is the INDICATOR
+        # harness's grade of a capture, one verdict per lane (`verdicts: {production, runtime-on}`), and states no
+        # broker verdict at all (no top-level `verdict`). A strategy capture promoted through that harness (the
+        # 2026-11-16 night's captures) carries one beside its strategy verdict file. ⚰️ Read as a broker row, its
+        # missing `verdict` was a non-MATCH, so such a capture could never pin a rule, whatever its broker grade.
+        # The strategy verdict file is the broker's grade; a capture with only a ledger row is still "no committed
+        # verdict" (an ERROR below, never a silent un-pin).
+        if r.get("schema") == LEDGER_SCHEMA and "verdict" not in r:
+            continue
         cid = r.get("captureId")
         if cid:
             v = r.get("verdict")
-            if v == "MATCH" and cid in pinned_ids:
+            if el.is_match(v) and r.get("schema") == STRATEGY_VERDICT_SCHEMA:
+                g = r.get("graded") if isinstance(r.get("graded"), dict) else {}
+                n_values = g.get("values")
+                if g.get("fills") is not True:
+                    v = FILLS_REFUSED   # a trade-list match is not a fill-by-fill match
+                elif not (isinstance(n_values, int) and not isinstance(n_values, bool) and n_values > 0):
+                    v = VALUES_REFUSED  # a fill match that compared no value series
+            # ⛔ L7: only a PROVEN-exact MATCH pins a broker rule; MATCH_SUBSTITUTED un-pins it, like any
+            # non-MATCH (`el.is_match`)
+            if el.is_match(v) and cid in pinned_ids:
                 table = table or settings_property_table()
                 if sources is None:
                     sources = committed_sources_by_sha()
                 if not settings_readback_ok(r, sources.get(r.get("sourceSha256")), table):
                     v = SETTINGS_REFUSED   # design 5.1: the precondition failed, so not MATCH
-            verdicts.setdefault(cid, []).append(v)
+            ex = r.get("rulesExercised")
+            verdicts.setdefault(cid, []).append((v, set(ex) if isinstance(ex, list) else None))
+            scope = culprit_scope(r)   # D11: None = strict
+            for rule in (ex if isinstance(ex, list) else []):
+                if scope is not None and rule not in scope:
+                    continue           # exercised only before the first difference: this row says nothing of it
+                exercised_by.setdefault(rule, []).append(v)
     kept = {}
     for rule in sorted(pins["rules"]):
         ids = pins["rules"][rule]
@@ -1512,7 +1638,9 @@ def resolve_pins(pins: dict, ledger_rows: list, sources: dict | None = None) -> 
         missing = [i for i in ids if i not in verdicts]
         if missing:
             raise PinResolveError(f"rule {rule!r}: no committed verdict for fixture(s) {sorted(missing)}")
-        if all(v == "MATCH" for i in ids for v in verdicts[i]):
+        listed_ok = all(el.is_match(v) and ex is not None and rule in ex for i in ids for v, ex in verdicts[i])
+        every_exerciser_ok = all(el.is_match(v) for v in exercised_by.get(rule, []))
+        if listed_ok and every_exerciser_ok:
             kept[rule] = sorted(set(ids))
     return {"schema": PINS_RESOLVED_SCHEMA, "rules": kept}
 
@@ -1523,9 +1651,9 @@ def canonical_pins_text(doc: dict) -> str:
     return json.dumps(doc, sort_keys=True, separators=(",", ":"), ensure_ascii=True) + "\n"
 
 
-def cmd_pins(check: bool = False, src=PINS_SRC, out=PINS_OUT, ledger=LEDGER) -> int:
+def cmd_pins(check: bool = False, src=PINS_SRC, out=PINS_OUT, ledger=LEDGER, verdicts_dir=STRATEGY_VERDICTS_DIR) -> int:
     text = canonical_pins_text(resolve_pins(json.loads(pathlib.Path(src).read_text(encoding="utf-8")),
-                                            read_ledger_rows(ledger)))
+                                            pin_rows(ledger, verdicts_dir)))
     out = pathlib.Path(out)
     if check:
         have = out.read_bytes().decode("utf-8").replace("\r\n", "\n") if out.exists() else ""  # autocrlf checkouts
@@ -1553,6 +1681,18 @@ def print_counts(q: dict) -> None:
 
 def queue_text(q: dict) -> str:
     return dump(q)
+
+
+def snapshot_tracked(path: pathlib.Path):
+    """Is `path` a file git tracks? True / False, or None when git could not answer (never guessed)."""
+    try:
+        proc = subprocess.run(["git", "ls-files", "--error-unmatch", "--", rel(path)], cwd=str(REPO),
+                              capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if proc.returncode == 0:
+        return True
+    return False if proc.returncode == 1 else None
 
 
 def heavy_lock_tool():
@@ -1703,7 +1843,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="The evidence engine (docs/pine/EVIDENCE-ENGINE-DESIGN.md).")
     sub = ap.add_subparsers(dest="cmd")
     q = sub.add_parser("queue")
-    q.add_argument("--check", action="store_true", help="compare with the committed snapshot, write nothing")
+    q.add_argument("--check", action="store_true", help="derive, write nothing; fails if a snapshot is committed")
     q.add_argument("--out", default=str(QUEUE_OUT))
 
     def sel(p):
@@ -1753,18 +1893,29 @@ def main(argv=None) -> int:
         return cmd_regrade(args.store, args.ledger, lanes, args.locked, exclude_runs=args.exclude_run)
 
     if args.cmd == "queue":
+        # build_queue REFUSES by name (a malformed doc, a disposition naming no row): that refusal is the check
         qd = build_queue(World())
         text = queue_text(qd)
         out = pathlib.Path(args.out)
         if args.check:
-            old = out.read_text(encoding="utf-8") if out.exists() else ""
-            same = json.loads(old or "{}").get("targets") == qd["targets"] if old else False
+            # ⚰️ Until 2026-11-16 this compared a COMMITTED snapshot with the derivation (see QUEUE_OUT). The
+            # queue is derived on demand now, so the check is: the docs derive a queue (above), and nobody has
+            # committed a snapshot again (a merge that kept the file would bring every conflict back).
+            tracked = snapshot_tracked(QUEUE_OUT)
             print_counts(qd)
-            print(f"VERDICT: {'PASS' if same else 'FAIL'} ({rel(out)} {'matches' if same else 'differs from'} the docs)")
-            return 0 if same else 1
+            if tracked is None:
+                print(f"VERDICT: INCONCLUSIVE (git could not say whether {rel(QUEUE_OUT)} is tracked)")
+                return 2
+            if tracked:
+                print(f"VERDICT: FAIL ({rel(QUEUE_OUT)} is committed. It is a local view, derived on demand: "
+                      f"run 'git rm --cached {rel(QUEUE_OUT)}' and commit that)")
+                return 1
+            print(f"VERDICT: PASS (the docs derive a queue of {qd['counts']['targets']} targets; "
+                  f"{rel(QUEUE_OUT)} is a local view, not committed)")
+            return 0
         write_atomic(out, text)
         print_counts(qd)
-        print(f"[queue] wrote {rel(out)}")
+        print(f"[queue] wrote {rel(out)} (a local view: git ignores it, never commit it)")
         return 0
 
     if args.cmd in ("manifest", "batch"):

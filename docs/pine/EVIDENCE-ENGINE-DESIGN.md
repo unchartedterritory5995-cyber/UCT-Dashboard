@@ -45,7 +45,8 @@ Branch `feat/pine-evidence-engine`, 2026-11-02. Programme plan:
 ```
  capture-queue-*.md  +  probes/*.pine  +  coverage-map.json  +  tests/fixtures/vendor/harness
             |
-   [Q] evidence_engine.py queue      -> docs/pine/vendor-harness/capture-queue.json   (offline)
+   [Q] evidence_engine.py queue      -> docs/pine/vendor-harness/capture-queue.json   (offline; a LOCAL
+            |                                                       view, git ignores it, never committed)
             |
    [M] evidence_engine.py manifest   -> <run>/manifest.json (uct.vendor-batch-manifest/v1,
             |                             per-script symbol / tf / listing date)      (offline)
@@ -74,9 +75,15 @@ agent.
 
 `python tools/vendor_harness/evidence_engine.py queue` reads every
 `docs/pine/capture-queue-*.md` and writes `docs/pine/vendor-harness/capture-queue.json`
-(`schema: uct.capture-queue/v1`). `--check` compares without writing. The file is a derived
-snapshot (the `batch-manifest.json` precedent): regenerate, never hand-edit. The docs stay
-the authority for what a row asks; the JSON is the authority for nothing.
+(`schema: uct.capture-queue/v1`). The file is a derived view: regenerate, never hand-edit. The docs
+stay the authority for what a row asks; the JSON is the authority for nothing.
+
+**It is not committed (2026-11-16).** It was, and because every PR that touched a queue input rewrote
+it, it was the conflicting file in 5 of the 5 open Pine PRs GitHub could not merge that day (39 master
+commits in three days); each conflict cost a merge of master, a regenerate commit and a full
+`pine heavy` re-run. Now git ignores it, every reader calls `build_queue()` (the manifest and the batch
+always did; the three tests that read the file do too), and `--check` derives without writing and fails
+when a snapshot is tracked again (exit 2, INCONCLUSIVE, when git cannot say).
 
 ### 2.1 Rows
 

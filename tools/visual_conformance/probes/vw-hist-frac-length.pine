@@ -1,0 +1,51 @@
+//@version=6
+indicator("UCTPROBE_VW_HIST_FRAC_LENGTH", overlay = false)
+
+// PROVENANCE: written 2026-11-16 for the Pine parity programme, coverage unit "runtime history"
+// (docs/pine/evidence/2026-11-16-runtime-history/EVIDENCE.md, queue row HIST-F1). NEVER COMPILED ON
+// TRADINGVIEW: a line that does not compile IS a reading - record its text, delete only that line.
+//
+// QUESTION: a window LENGTH that is an inexact division of an input (`len / 2`, `len / 3`), in the
+// functions the sample scripts write it in. vw-w4-int-div-window asks `ta.wma(close, 9 / 2)`; this
+// adds THIRDS (13.33 and 6.67 separate truncate, round and ceil) and the other functions:
+// `ta.ema` (whose alpha could take the fraction itself), `ta.sma`, `ta.rma`, `ta.highest`.
+// Each R row sits beside the integer windows it could mean (C rows). A row equal to NO control is a
+// third rule (record it); `na` on every bar = rejected at run time.
+// Sample scripts waiting: triangular-hull (40 / 3), luxy (ta.ema(src, length / 2)), range-filter-x-hull.
+// CAPTURE: AMEX:SPY 1D, then NYSE:RDDT 1D, inputs at defaults (len = 40, hlen = 9, tlen = 20).
+
+len  = input.int(40, "len")
+hlen = input.int(9,  "hlen")
+tlen = input.int(20, "tlen")
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(len / 3,  "A01_len_div3_value")
+plot(hlen / 2, "A02_hlen_div2_value")
+
+// thirds: 40 / 3 = 13.33 (truncate 13, round 13, ceil 14) and 20 / 3 = 6.67 (truncate 6, round 7)
+plot(ta.wma(close, 13), "C01_wma_13")
+plot(ta.wma(close, 14), "C02_wma_14")
+plot(ta.wma(close, 6),  "C03_wma_6")
+plot(ta.wma(close, 7),  "C04_wma_7")
+plot(ta.wma(close, len / 3),  "R01_wma_len_div3")
+plot(ta.wma(close, tlen / 3), "R02_wma_tlen_div3")
+
+// halves in the other functions: 9 / 2 = 4.5
+plot(ta.ema(close, 4), "C05_ema_4")
+plot(ta.ema(close, 5), "C06_ema_5")
+plot(ta.sma(close, 4), "C07_sma_4")
+plot(ta.sma(close, 5), "C08_sma_5")
+plot(ta.rma(close, 4), "C09_rma_4")
+plot(ta.rma(close, 5), "C10_rma_5")
+plot(ta.highest(high, 4), "C11_highest_4")
+plot(ta.highest(high, 5), "C12_highest_5")
+plot(ta.ema(close, hlen / 2),    "R03_ema_hlen_div2")
+plot(ta.sma(close, hlen / 2),    "R04_sma_hlen_div2")
+plot(ta.rma(close, hlen / 2),    "R05_rma_hlen_div2")
+plot(ta.highest(high, hlen / 2), "R06_highest_hlen_div2")
+
+// the same division passed through a helper parameter (the THMA shape of the sample)
+thma(src, n) => ta.wma(ta.wma(src, n / 3) * 3 - ta.wma(src, n / 2) - ta.wma(src, n), n)
+plot(thma(close, len), "R07_thma_len_40")
+plot(ta.wma(ta.wma(close, 13) * 3 - ta.wma(close, 20) - ta.wma(close, 40), 40), "C13_thma_truncate_13")
+plot(ta.wma(ta.wma(close, 14) * 3 - ta.wma(close, 20) - ta.wma(close, 40), 40), "C14_thma_ceil_14")

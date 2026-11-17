@@ -154,8 +154,11 @@ test('P5: the selected fill outranks hover, and hover paints nothing in keyboard
   expect(css).toMatch(/\.row:not\(\.rowSel\):hover\s*\{/)
   expect(css).not.toMatch(/\.row:hover\s*\{/)
   expect(css).toMatch(/\.list\[data-kbd\] \.row:not\(\.rowSel\):hover\s*\{\s*background: transparent/)
-  // the selection paints the gold tint OVER the hover tone: strictly stronger than hover
-  expect(css).toMatch(/\.rowSel\s*\{[^}]*linear-gradient\(var\(--ut-gold-dim\), var\(--ut-gold-dim\)\), var\(--bg-hover\)/)
+  // UCT Signature (2026-11-16): hover is the card tone; the selection is the raised tone, one step
+  // stronger, with the gold "you are here" bar. Never a gold fill.
+  expect(css).toMatch(/\.row:not\(\.rowSel\):hover\s*\{\s*background: var\(--scr-card\)/)
+  expect(css).toMatch(/\.rowSel\s*\{\s*background: var\(--scr-raised\); box-shadow: inset 2px 0 0 var\(--ut-gold\)/)
+  expect(css).not.toMatch(/\.rowSel\s*\{[^}]*--ut-gold-dim/)
 })
 test('B2: a structure screen leads each row with the matched structure, with a tooltip', () => {
   const structures = { matched: [{ value: ',pocket-pivot,', label: 'Pocket Pivot', title: 'Pocket Pivot' }], labels: ['Pocket Pivot', 'Ugly Double Bottom'] }
@@ -210,5 +213,102 @@ describe('load-more latch', () => {
     rerender(<ResultList {...base} onLoadMore={fn} isLoading />)
     rerender(<ResultList {...base} onLoadMore={fn} isLoading={false} />)
     expect(fn).not.toHaveBeenCalled()
+  })
+})
+
+// Phones, RS screens: the PAGE scrolls, not the list (`data-phone-scroll`, FocusScreener.module.css).
+// Seen on the live site on 2026-11-15 at 390 x 778: with the list as its own scroller under the RS
+// strips it was a 152px window, about one stock. The page box here is 0..700 with a 40px sort line
+// stuck at its top; the rows are laid out against the page's own scrollTop.
+describe('on a phone, on a page that scrolls as one', () => {
+  const realMatchMedia = window.matchMedia
+  const phone = on => { window.matchMedia = q => ({ matches: on && /max-width:\s*640px/.test(q), media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} }) }
+  afterEach(() => { window.matchMedia = realMatchMedia })
+  const FIRST = 500 // the first row starts 500px down the page: the RS strips are above it
+  function mountInPage(props = {}, attr = true) {
+    const ref = createRef()
+    const view = render(<div data-testid="page" {...(attr ? { 'data-phone-scroll': '' } : {})}><ResultList {...base} rows={many} ref={ref} {...props} /></div>)
+    const page = screen.getByTestId('page')
+    const list = screen.getByRole('listbox')
+    page.scrollTop = 0
+    page.getBoundingClientRect = () => ({ top: 0, bottom: 700 })
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 700 })
+    list.parentElement.firstElementChild.getBoundingClientRect = () => ({ top: 0, bottom: 40, height: 40 })
+    list.getBoundingClientRect = () => ({ top: FIRST - page.scrollTop, bottom: FIRST + 800 - page.scrollTop })
+    Object.defineProperty(list, 'clientHeight', { configurable: true, value: 800 })
+    for (let i = 0; i < 20; i++) {
+      const el = list.querySelector(`[data-index="${i}"]`)
+      el.getBoundingClientRect = () => ({ top: FIRST + i * 40 - page.scrollTop, bottom: FIRST + 40 + i * 40 - page.scrollTop })
+    }
+    return { ref, page, list, view }
+  }
+
+  test('mounting the list moves nothing', () => {
+    phone(true)
+    // no layout is laid on the nodes here: with every box at zero, a first call that acted would
+    // read the first row as under the floor and push the page down
+    render(<div data-testid="page" data-phone-scroll=""><ResultList {...base} rows={many} /></div>)
+    expect(screen.getByTestId('page').scrollTop).toBe(0)
+  })
+
+  test('a new list does not pull the page down from the screen header', () => {
+    phone(true)
+    const { ref, page, list } = mountInPage()
+    // the mount's own call, and a jump to a far row (a new answer, a tap), move nothing
+    ref.current.scrollToIndex(0)
+    ref.current.scrollToIndex(12)
+    expect(page.scrollTop).toBe(0)
+    expect(list.scrollTop).toBe(0)
+  })
+
+  test('a step to a stock under the floating buttons scrolls the page, never the list', () => {
+    phone(true)
+    const { ref, page, list } = mountInPage()
+    ref.current.scrollToIndex(0)
+    ref.current.scrollToIndex(1) // 540..580 on screen: its foot is past the floor at 700 - 152 = 548
+    expect(page.scrollTop).toBe(580 - 548)
+    ref.current.scrollToIndex(2)
+    expect(page.scrollTop).toBe(620 - 548)
+    expect(list.scrollTop).toBe(0)
+  })
+
+  test('a step up to a stock under the stuck sort line brings it just below that line', () => {
+    phone(true)
+    const { ref, page } = mountInPage()
+    page.scrollTop = 700 // row 5 (700..740) is at the very top, row 4 is above the page
+    ref.current.scrollToIndex(6)
+    ref.current.scrollToIndex(5) // 0..40 on screen, under the 40px sort line
+    expect(page.scrollTop).toBe(660)
+    ref.current.scrollToIndex(4)
+    expect(page.scrollTop).toBe(620)
+  })
+
+  test('a step to a stock already in view moves nothing', () => {
+    phone(true)
+    const { ref, page } = mountInPage()
+    page.scrollTop = 400 // rows from 100 on screen
+    ref.current.scrollToIndex(3)
+    ref.current.scrollToIndex(4) // 260..300
+    expect(page.scrollTop).toBe(400)
+  })
+
+  test('wider than a phone, the same page keeps the list as the scroller', () => {
+    phone(false)
+    const { ref, page, list } = mountInPage()
+    layout(list, 20, 0)
+    ref.current.scrollToIndex(11)
+    ref.current.scrollToIndex(12)
+    expect(page.scrollTop).toBe(0)
+    expect(list.scrollTop).toBeGreaterThan(0)
+  })
+
+  test('on a phone, a page without the mark keeps the list as the scroller', () => {
+    phone(true)
+    const { ref, page, list } = mountInPage({}, false)
+    layout(list, 20, 0)
+    ref.current.scrollToIndex(11)
+    ref.current.scrollToIndex(12)
+    expect(page.scrollTop).toBe(0)
+    expect(list.scrollTop).toBeGreaterThan(0)
   })
 })

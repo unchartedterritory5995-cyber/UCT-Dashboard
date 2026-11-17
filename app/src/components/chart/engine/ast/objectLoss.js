@@ -34,6 +34,7 @@
 
 import { ENUM_NA_SENTENCE } from '../enumNaRule.js'
 import { MERGED_HEAD_REWRITE_SENTENCE } from '../objectCells.js'
+import { COUNT_AT_CAP_GUARD, COUNT_AT_CAP_PREFIX } from '../objectPool.js'
 
 /** The five answers a lost operation can have. */
 export const LOSS = Object.freeze({
@@ -619,6 +620,8 @@ export const NOT_SHOWN = Object.freeze({
   // C22 merge — a BOX in an array IS collected (witnessed, sonarlab-order-blocks-spy-1d,
   // `objectPool.js` C7); only a map, a matrix or a field of the script's own type is not
   COLLECTOR_HELD_BOX: 'objects:collector-held-box',
+  // DRAW-1 — the family's collector ran (`objectPool.js` COUNT_AT_CAP_GUARD)
+  COUNT_AT_CAP: COUNT_AT_CAP_GUARD,
 })
 
 const NOT_SHOWN_BECAUSE = Object.freeze({
@@ -633,6 +636,9 @@ const NOT_SHOWN_BECAUSE = Object.freeze({
   [NOT_SHOWN.COLLECTOR_HELD]: 'TradingView removes the oldest ones once the script holds more than its limit, '
     + 'and which ones it spares when the script keeps them in an array, a map, a matrix or a field of its own '
     + 'type has not been measured yet, so none are drawn rather than a guess.',
+  [NOT_SHOWN.COUNT_AT_CAP]: 'the script holds more of them than its maximum count, and TradingView describes that '
+    + 'count as approximate (more drawings than the specified count may be displayed), so which of the oldest '
+    + 'ones TradingView still shows is not known here; none are drawn rather than a guess.',
   [NOT_SHOWN.COLLECTOR_HELD_BOX]: 'TradingView removes the oldest ones once the script holds more than its limit, '
     + 'and which ones it spares when the script keeps them in a map, a matrix or a field of its own type has '
     + 'not been measured yet, so none are drawn rather than a guess.',
@@ -645,6 +651,32 @@ export function notShownSentence(families, cause) {
   const fs = families.map((f) => (f === 'linefill' ? 'fill between lines' : f))
   const list = fs.length === 1 ? fs[0] : `${fs.slice(0, -1).join(', ')} or ${fs[fs.length - 1]}`
   return `No ${list} is shown on this chart: ${because}`
+}
+
+/** ⭐⭐ ENGINE 55 — A FAMILY PARTLY DRAWN, `n` OF WHOSE OPS WERE WITHHELD for a value the
+ *  chart could not compute (`objectRuntime.js`, `objects:not-computable`): the sentence
+ *  says some are missing and how many, never "none is shown". */
+export function partlyNotComputableSentence(family, n) {
+  const noun = { line: 'lines', label: 'labels', box: 'boxes', table: 'table cells', linefill: 'fills between lines',
+    polyline: 'polylines' }[family] || 'drawings'
+  const count = Number.isInteger(n) && n > 0 ? n : 0
+  const what = family === 'table' ? `${count} table ${count === 1 ? 'cell' : 'cells'}`
+    : `${count} ${count === 1 ? 'drawing' : 'drawings'}`
+  return `Some ${noun} are not shown on this chart: ${what} depend on values this chart can’t work out here, `
+    + 'so they are left out rather than guessed.'
+}
+
+/** ⭐ ENGINE 55 — why a document’s run half was not served, in plain words, or null when
+ *  it was (or there is none). Carried into the drawing note beside the not-computable
+ *  sentence, so the member reads the cause and not only the gap. */
+export function runtimeUnknownSentence(runtime) {
+  if (!runtime || runtime.served !== false) return null
+  const r = String(runtime.reason || '')
+  if (r === 'runtime:INSTRUCTIONS_PER_BAR') {
+    return 'This script’s last-bar calculation is too heavy to run yet.'
+  }
+  if (r === 'runtime:not-loaded') return 'This script’s last-bar calculation has not loaded yet.'
+  return `This script’s last-bar calculation could not be run here yet${r ? ` (${r})` : ''}.`
 }
 
 /** ⭐⭐ OZ — THE RUNTIME LANE'S WITHHELD FAMILIES, AS THE MEMBER'S SENTENCES. The run
@@ -679,6 +711,7 @@ export function runtimeWithheldWhy(withheld) {
 export function runtimeWithheldCause(why, fam = null) {
   if (why === MERGED_HEAD_REWRITE_SENTENCE) return 'table:merged-head-rewrite'
   if (why === ENUM_NA_SENTENCE) return NOT_SHOWN.ENUM_NA
+  if (typeof why === 'string' && why.startsWith(COUNT_AT_CAP_PREFIX)) return NOT_SHOWN.COUNT_AT_CAP
   // ⭐ C22 merge — the store withholds a box only for a map / matrix / UDT holder
   // (`runtime/objectStore.js::collect`): its sentence never says "an array"
   if (typeof why === 'string' && COLLECTOR_HELD_RE.test(why)) {
@@ -697,6 +730,11 @@ export const COLLECTOR_HELD_RE = /^TradingView's collector deletes the oldest /
  *  said to the member, with the code marks taken out. `kind`: `error` | `unmeasured`
  *  | `withheld`. Keyed `*` in the binder's `why` (every family). */
 export const STOPPED_KEY = '*'
+
+/** ⭐ ENGINE 55 — the key the run half's not-served reason rides under in the note's
+ *  `why` (`objectRuntime.js`, `runtimeUnknownSentence`): said once, beside the
+ *  not-computable sentences it explains. */
+export const RUNTIME_UNKNOWN_KEY = '~run-half-unknown'
 
 /** ⭐ OZ r2 (N-e) — a stop reason in the member's words: no code marks, no em dash, no
  *  "captured" (said as "measured"), and a bar NUMBER only on a chart that starts at the
@@ -746,6 +784,9 @@ const RUN_HALF_WHY = Object.freeze({
   'pane:not-permitted': 'running scripts bar by bar is switched off for your account right now',
   'pane:killed': 'this script is switched off for running bar by bar',
   'pane:not-graded': "this script hasn't been checked against TradingView for running bar by bar yet",
+  // ⭐ G6 — `runtimeKill.js::RUNTIME_FORMING_GUARD`
+  'pane:forming-ungraded': "the script reads the state of the bar as it forms, which has only been checked "
+    + "against TradingView on finished bars, and this chart's newest bar is not known to be finished",
   'runtime:member-inputs': "a setting has been changed from the script's default, and the complete drawings "
     + "are only worked out at the script's own settings",
   'runtime:runtime.error': 'the script stops itself with its own error message on this chart',

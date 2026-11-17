@@ -69,8 +69,11 @@ describe('C42 — the default number text is ten decimals', () => {
       '    label.new(bar_index, low, "S01 volume|" + str.tostring(volume[5]))',
       // ⭐ F1 — FLOAT literals: before v6 `4 / 3` of two `const int` is 1
       // (`vw-int-div-assign` D03), so the fraction is asked of `4.0 / 3`.
-      '    label.new(bar_index, low, "third|" + str.tostring(4.0 / 3))',
-      '    label.new(bar_index, low, "two thirds|" + str.tostring(5.0 / 3))',
+      // ⭐ CBC-FMT (S17) — and through a SERIES (`close * 0`): a CONSTANT `4.0 / 3` concatenated under
+      // //@version=5 is a shape no capture prints (S17 printed a v5 literal IN FULL), so it is withheld
+      // by name (`pineTextFormat.js::literalTostringText`); a computed value is ten decimals everywhere.
+      '    label.new(bar_index, low, "third|" + str.tostring(close * 0 + 4.0 / 3))',
+      '    label.new(bar_index, low, "two thirds|" + str.tostring(close * 0 + 5.0 / 3))',
     ].join('\n')
     const ours = labelsOf(c, src)
     const vendor = c.objects.texts.labels

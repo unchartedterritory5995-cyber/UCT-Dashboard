@@ -11278,30 +11278,31 @@
       ]
     },
     {
-      "id": "boardDetach.float",
-      "source": "Charts family 11-15: the widget header float (ChartsWorkspace handleFloatWidget); floating until reload",
+      "id": "newsLibrary.save",
+      "source": "Charts family 11-15: the News row bookmark (lib/tradeExchangeNewsLibrary.save); a headline named by its tickers field",
       "capabilities": [
-        "boardDetach.float"
+        "newsLibrary.save"
       ],
-      "board": "DETACH",
+      "board": "NEWS_LIB",
       "needs": [
-        "boardDetach.float"
+        "newsLibrary.save"
       ],
       "model": {
         "ops": [
           {
-            "action": "boardDetach.float",
-            "target": "$board",
+            "action": "newsLibrary.save",
+            "target": "$newsLibrary[0]",
             "args": {
-              "widget": "news1"
+              "headline": "NVDA",
+              "saved": true
             }
           }
         ]
       },
       "expect": {
-        "detach": {
-          "floating": [
-            "news1"
+        "newsLibrary": {
+          "saved": [
+            "h3"
           ]
         },
         "receipt": true,
@@ -11314,35 +11315,49 @@
         }
       },
       "phrasings": [
-        "float the news widget",
-        "float my news panel over the board",
-        "detach the news widget"
+        "save the NVDA headline",
+        "bookmark the NVDA headline",
+        "save the NVDA story to my library"
       ]
     },
     {
-      "id": "boardDetach.dock",
-      "source": "Charts family 11-15: the floating panel Dock (handleDockFloatWidget)",
+      "id": "newsLibrary.setNote",
+      "source": "Charts family 11-15: the ⋯ menu note (setNote) — appended, never replaced unless asked",
       "capabilities": [
-        "boardDetach.dock"
+        "newsLibrary.setNote"
       ],
-      "board": "DETACH_FLOATING",
+      "board": "NEWS_LIB",
       "needs": [
-        "boardDetach.dock"
+        "newsLibrary.setNote"
       ],
+      "seed": {
+        "newsLibrary": {
+          "saved": [
+            "h3"
+          ],
+          "notes": {
+            "h3": "old"
+          }
+        }
+      },
       "model": {
         "ops": [
           {
-            "action": "boardDetach.dock",
-            "target": "$board",
+            "action": "newsLibrary.setNote",
+            "target": "$newsLibrary[0]",
             "args": {
-              "widget": "news1"
+              "headline": "NVDA",
+              "note": "watch guidance",
+              "mode": "append"
             }
           }
         ]
       },
       "expect": {
-        "detach": {
-          "floating": []
+        "newsLibrary": {
+          "notes": {
+            "h3": "old\nwatch guidance"
+          }
         },
         "receipt": true,
         "refusal": false
@@ -11354,30 +11369,88 @@
         }
       },
       "phrasings": [
-        "dock the news widget back",
-        "dock it back",
-        "dock all the floating widgets"
+        "add a note to the NVDA headline: watch guidance",
+        "put a note on the NVDA headline: watch guidance",
+        "write a note on the NVDA headline: watch guidance"
       ]
     },
     {
-      "id": "boardDetach.intoTabs",
-      "source": "Charts family 11-15: the floating panel Move into tabs (handleFloatWidgetToTab -> widgetTabs.moveIntoTabs); a card",
+      "id": "newsLibrary.collection",
+      "source": "Charts family 11-15: Manage collections — create (createCollection)",
       "capabilities": [
-        "boardDetach.intoTabs"
+        "newsLibrary.collection"
       ],
-      "board": "DETACH",
+      "board": "NEWS_LIB",
       "needs": [
-        "boardDetach.intoTabs"
+        "newsLibrary.collection"
       ],
+      "model": {
+        "ops": [
+          {
+            "action": "newsLibrary.collection",
+            "target": "$newsLibrary[0]",
+            "args": {
+              "op": "create",
+              "collection": null,
+              "name": "Fed"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "newsLibrary": {
+          "collections": [
+            "Fed"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "create a collection called Fed",
+        "make a news collection named Fed",
+        "start a new collection called Fed"
+      ]
+    },
+    {
+      "id": "newsLibrary.deleteCollection",
+      "source": "Charts family 11-15: Manage collections — delete (its headlines stay saved); always a card, no Undo",
+      "capabilities": [
+        "newsLibrary.deleteCollection"
+      ],
+      "board": "NEWS_LIB",
+      "needs": [
+        "newsLibrary.deleteCollection"
+      ],
+      "seed": {
+        "newsLibrary": {
+          "saved": [
+            "h3"
+          ],
+          "collections": [
+            "Earnings"
+          ],
+          "member": {
+            "h3": [
+              "Earnings"
+            ]
+          }
+        }
+      },
       "model": {
         "disposition": "propose",
         "ops": [
           {
-            "action": "boardDetach.intoTabs",
-            "target": "$board",
+            "action": "newsLibrary.deleteCollection",
+            "target": "$newsLibrary[0]",
             "args": {
-              "widget": "news1",
-              "into": "c1"
+              "collection": "Earnings"
             }
           }
         ]
@@ -11388,43 +11461,60 @@
       },
       "approve": true,
       "afterApprove": {
-        "detach": {
-          "widgets": [
-            "c1"
+        "newsLibrary": {
+          "collections": [],
+          "saved": [
+            "h3"
           ]
         },
         "receipt": true
       },
       "phrasings": [
-        "move the news widget into the chart tabs",
-        "move the news panel into the tabs of the chart",
-        "move the news widget into the chart widget tabs"
+        "delete my Earnings collection",
+        "remove the Earnings collection",
+        "delete the Earnings collection"
       ]
     },
     {
-      "id": "boardDetach.setMerged",
-      "source": "Charts family 11-15: the Merge widgets toggle (toggleMerged, charts_merged); on every layout",
+      "id": "newsLibrary.place",
+      "source": "Charts family 11-15: the ⋯ menu Collection picker (setMembershipSaving)",
       "capabilities": [
-        "boardDetach.setMerged"
+        "newsLibrary.place"
       ],
-      "board": "DETACH",
+      "board": "NEWS_LIB",
       "needs": [
-        "boardDetach.setMerged"
+        "newsLibrary.place"
       ],
+      "seed": {
+        "newsLibrary": {
+          "saved": [
+            "h3"
+          ],
+          "collections": [
+            "Earnings"
+          ]
+        }
+      },
       "model": {
         "ops": [
           {
-            "action": "boardDetach.setMerged",
-            "target": "$board",
+            "action": "newsLibrary.place",
+            "target": "$newsLibrary[0]",
             "args": {
-              "merged": true
+              "headline": "NVDA",
+              "collection": "Earnings",
+              "member": true
             }
           }
         ]
       },
       "expect": {
-        "detach": {
-          "merged": true
+        "newsLibrary": {
+          "member": {
+            "h3": [
+              "Earnings"
+            ]
+          }
         },
         "receipt": true,
         "refusal": false
@@ -11436,9 +11526,9 @@
         }
       },
       "phrasings": [
-        "merge the board",
-        "merge the widgets on the board",
-        "turn on the merged view"
+        "put the NVDA headline in my Earnings collection",
+        "add the NVDA headline to my Earnings collection",
+        "move the NVDA headline into the Earnings collection"
       ]
     },
     {
@@ -12186,7 +12276,18 @@
         "refusal": false
       },
       "phrasings": [
-        {"text": "how is that one set right now", "gaps": {"a": {"id": "GAP-WIDGET-READ-ROUTE", "router": "v1", "reason": "v1 ONLY (the kill-switch fallback): boardEdit has no v1 words in this message (workspace + agent only); the model can still ask for the group (need_groups). Routing v2 (production) reaches it since the budget-cut tie rule (routingV2.js TIE)", "owner": "agent-lead", "mode": "\"how is that one set right now\" → widget.readOptions"}}}
+        {
+          "text": "how is that one set right now",
+          "gaps": {
+            "a": {
+              "id": "GAP-WIDGET-READ-ROUTE",
+              "router": "v1",
+              "reason": "v1 ONLY (the kill-switch fallback): boardEdit has no v1 words in this message (workspace + agent only); the model can still ask for the group (need_groups). Routing v2 (production) reaches it since the budget-cut tie rule (routingV2.js TIE)",
+              "owner": "agent-lead",
+              "mode": "\"how is that one set right now\" → widget.readOptions"
+            }
+          }
+        }
       ]
     },
     {
@@ -12739,6 +12840,257 @@
         "add the fib tool to my favourites",
         "star the fibonacci retracement tool",
         "put the fib tool on my favorites toolbar"
+      ]
+    },
+    {
+      "id": "rs.compare",
+      "source": "Phase 2 market intelligence (11-13): relative strength + sector / industry leadership, owner-style phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "rs.compare"
+      ],
+      "board": "ONE",
+      "needs": [
+        "rs.compare"
+      ],
+      "ownWords": [
+        "rs"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "rs.compare",
+            "target": "$stockData",
+            "args": {
+              "scope": "sectors",
+              "symbols": null,
+              "industry": null,
+              "period": "1M"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*rs\\.leadership.*\"scope\":\"sectors\",\"period\":\"1M\""
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "which sectors are leading this month",
+        "what are the strongest sectors over the last month",
+        "which sectors are lagging this month",
+        "show me sector leadership for the past month"
+      ]
+    },
+    {
+      "id": "news.movers",
+      "source": "Phase 2 market-moving news + catalysts (11-14): UCT's catalyst board, owner-style phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "news.movers"
+      ],
+      "board": "ONE",
+      "needs": [
+        "news.movers"
+      ],
+      "ownWords": [
+        "catalysts"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "news.movers",
+            "target": "$stockData",
+            "args": {
+              "symbols": null,
+              "watchlist": null,
+              "sector": null,
+              "date": null,
+              "days": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*catalysts\\.board.*\"params\":\\{\\}"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "what's moving the market today",
+        "what is driving stocks this morning",
+        "show me the catalyst board",
+        "what are today's catalysts"
+      ]
+    },
+    {
+      "id": "boardDetach.float",
+      "source": "Charts family 11-15: the widget header float (ChartsWorkspace handleFloatWidget); floating until reload",
+      "capabilities": [
+        "boardDetach.float"
+      ],
+      "board": "DETACH",
+      "needs": [
+        "boardDetach.float"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "boardDetach.float",
+            "target": "$board",
+            "args": {
+              "widget": "news1"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "detach": {
+          "floating": [
+            "news1"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "float the news widget",
+        "float my news panel over the board",
+        "detach the news widget"
+      ]
+    },
+    {
+      "id": "boardDetach.dock",
+      "source": "Charts family 11-15: the floating panel Dock (handleDockFloatWidget)",
+      "capabilities": [
+        "boardDetach.dock"
+      ],
+      "board": "DETACH_FLOATING",
+      "needs": [
+        "boardDetach.dock"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "boardDetach.dock",
+            "target": "$board",
+            "args": {
+              "widget": "news1"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "detach": {
+          "floating": []
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "dock the news widget back",
+        "dock it back",
+        "dock all the floating widgets"
+      ]
+    },
+    {
+      "id": "boardDetach.intoTabs",
+      "source": "Charts family 11-15: the floating panel Move into tabs (handleFloatWidgetToTab -> widgetTabs.moveIntoTabs); a card",
+      "capabilities": [
+        "boardDetach.intoTabs"
+      ],
+      "board": "DETACH",
+      "needs": [
+        "boardDetach.intoTabs"
+      ],
+      "model": {
+        "disposition": "propose",
+        "ops": [
+          {
+            "action": "boardDetach.intoTabs",
+            "target": "$board",
+            "args": {
+              "widget": "news1",
+              "into": "c1"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "unchanged": true
+      },
+      "approve": true,
+      "afterApprove": {
+        "detach": {
+          "widgets": [
+            "c1"
+          ]
+        },
+        "receipt": true
+      },
+      "phrasings": [
+        "move the news widget into the chart tabs",
+        "move the news panel into the tabs of the chart",
+        "move the news widget into the chart widget tabs"
+      ]
+    },
+    {
+      "id": "boardDetach.setMerged",
+      "source": "Charts family 11-15: the Merge widgets toggle (toggleMerged, charts_merged); on every layout",
+      "capabilities": [
+        "boardDetach.setMerged"
+      ],
+      "board": "DETACH",
+      "needs": [
+        "boardDetach.setMerged"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "boardDetach.setMerged",
+            "target": "$board",
+            "args": {
+              "merged": true
+            }
+          }
+        ]
+      },
+      "expect": {
+        "detach": {
+          "merged": true
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "merge the board",
+        "merge the widgets on the board",
+        "turn on the merged view"
       ]
     }
   ],
