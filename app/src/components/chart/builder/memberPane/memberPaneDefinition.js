@@ -674,7 +674,12 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
           const k = field && memberInputKey(field.name)
           if (!k) continue
           row.fill[side] = k
-          if (!fillColourSpecs.has(k)) fillColourSpecs.set(k, { key: k, type: 'color', label: field.title || k, default: field.hex })
+          if (field.own) row.fill[`${side}OwnAlpha`] = true
+          // ⭐ an input carrying its OWN transparency (`pine.js::fillColourInputsOf` `own`) is declared at that
+          // opacity, so the picker shows the author's 25% and a pick is the whole colour (`binder.bandColoursFor`)
+          if (!fillColourSpecs.has(k)) {
+            fillColourSpecs.set(k, { key: k, type: 'color', label: field.title || k, default: field.own && field.ownHex ? field.ownHex : field.hex })
+          }
         }
       } else if (Array.isArray(f.colorPalette) && f.colorPalette.length >= 2) {
         const palKey = conditionColumnFor(f.colorIndex)

@@ -562,15 +562,24 @@ export function bandColoursFor(plot, instanceId, columns, n, unknownNone = false
   // its own alpha is dropped (TradingView set E5: a 70%-opaque bull colour still
   // paints band 0 at alpha 13). Without one, the pick is used as it is.
   const opacityDeclared = fillOpacityOf(plot) !== null
+  const opacity = fillOpacityOf(plot)
+  // ⭐⭐ SETTINGS PARITY (area colours, 2026-11-17) — A SIDE WHOSE INPUT CARRIES ITS OWN TRANSPARENCY
+  // (`colorUpInputOwnAlpha`: the script's colour is the bare input, `input(color.rgb(0, 230, 119, 75))`, not
+  // `color.new(input, t)`): the member's pick is the WHOLE colour, alpha included, as TradingView paints it (set
+  // F: RS Rating's areas picked at 0.5 / 0.6 paint at 0.5 / 0.6). Then every colour of the band carries its own
+  // paint — the other side and an untouched default baked at the band's opacity — and nothing is applied twice.
+  const own = { colorUp: spec.colorUpInputOwnAlpha === true, colorDown: spec.colorDownInputOwnAlpha === true }
+  const anyOwn = own.colorUp || own.colorDown
   for (const [field, ref] of [['colorUp', spec.colorUpInput], ['colorDown', spec.colorDownInput]]) {
     const v = typeof ref === 'string' && inputs ? inputs[ref] : undefined
-    if (typeof v !== 'string' || !v) continue
-    rule[field] = opacityDeclared ? (opaqueOf(v) || v) : v
+    const picked = typeof v === 'string' && !!v
+    if (own[field] && picked) { rule[field] = v; continue }
+    if (picked) rule[field] = opacityDeclared ? (opaqueOf(v) || v) : v
+    if (anyOwn && typeof rule[field] === 'string') rule[field] = fillPaint(rule[field], opacity)
   }
   const colours = fillColours(rule, instanceId, columns, n, unknownNone)
   if (!colours) return null
-  const opacity = fillOpacityOf(plot)
-  if (opacity === null) return colours
+  if (opacity === null || anyOwn) return colours
   for (let i = 0; i < colours.length; i += 1) colours[i] = fillPaint(colours[i], opacity)
   return colours
 }

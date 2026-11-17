@@ -31587,18 +31587,48 @@ function colourInputNameOf(node, env, depth = 0, ctx = null) {
   return null
 }
 
+/** Is a colour branch the INPUT itself (through names), not `color.new(<input>, t)` or any other wrapper? */
+function colourBranchIsBareInput(node, env, depth = 0) {
+  if (!node || depth > 6) return false
+  if (node.type === 'name') {
+    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+    return !!(bound && bound.kind === 'expr') && colourBranchIsBareInput(bound.node, bound.env || env, depth + 1)
+  }
+  return node.type === 'call' && (node.name === 'input.color' || node.name === 'input')
+}
+
 /** For a fill's colour argument: which `input.color` each of its two colours
  *  (`colorUp` / `colorDown`) comes from, matched by the colour each branch folds
  *  to. Null where a branch reads no input, or the match is ambiguous. */
 function fillColourInputsOf(args, env, colorUp, colorDown, ctx = null) {
   const a = (args || []).find((x) => x && x.name === 'color')
     || (args || []).filter((x) => x && !x.name)[2]
-  const node = a && a.value
+  let node = a && a.value
+  // ⭐ SETTINGS PARITY (area colours, 2026-11-17) — a fill colour written through a NAME is that name's
+  // ternary: RS Rating writes `fillCol = rs > rsMA ? posCol : negCol` then `fill(…, color = fillCol)`, and its
+  // two area colours were never the member's knob
+  for (let d = 0; node && node.type === 'name' && d < 4; d += 1) {
+    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (!bound || bound.kind !== 'expr') break
+    env = bound.env || env
+    node = bound.node
+  }
   if (!node || node.type !== 'ternary') return null
   const yesHex = staticColourOf(node.yes, env, 0, ctx)
   const noHex = staticColourOf(node.no, env, 0, ctx)
-  const yesIn = colourInputNameOf(node.yes, env, 0, ctx)
-  const noIn = colourInputNameOf(node.no, env, 0, ctx)
+  const withOwn = (branch, info) => {
+    if (!info) return info
+    // ⭐ OWN TRANSPARENCY: the branch IS the input (no `color.new(input, t)` around it), so the input's own
+    // default carries the band's alpha and a member's pick is the WHOLE colour, alpha included (TradingView
+    // set F: positive / negative area picked at 0.5 / 0.6 paint at 0.5 / 0.6, not the default's 0.25)
+    if (!colourBranchIsBareInput(branch, env)) return info
+    const t = colourHelperTransparency(branch, env, ctx)
+    const alpha = Number.isFinite(t) && t > 0 && t <= 100 ? Math.round((1 - t / 100) * 255) : null
+    return { ...info, own: true, ...(alpha !== null && /^#[0-9a-f]{6}$/i.test(info.hex)
+      ? { ownHex: `${info.hex.toUpperCase()}${alpha.toString(16).padStart(2, '0').toUpperCase()}` } : {}) }
+  }
+  const yesIn = withOwn(node.yes, colourInputNameOf(node.yes, env, 0, ctx))
+  const noIn = withOwn(node.no, colourInputNameOf(node.no, env, 0, ctx))
   const pick = (hex) => {
     const fromYes = yesHex && yesHex === hex ? yesIn : undefined
     const fromNo = noHex && noHex === hex ? noIn : undefined
