@@ -17,6 +17,7 @@ import ArtifactHistory, { useArtifactVersionsAvailable } from '../../components/
 import RecentlyDeleted from '../../components/artifactHistory/RecentlyDeleted'
 import { GROUPS, FALLBACK_GROUP, offeredStarters } from './focus/screenGroups'
 import { usePhonePanel } from './shell/phonePanel'
+import { scanIdFromSearch, withoutScanParam, resolveScanHint } from './scanLink'
 
 // ⭐ THE ONE BUILDER, LAZY. `ChartToolbar` mounts `BuilderSheet` statically;
 // this is its SECOND opener (spec §5.5 "`/screener` authoring door") and it
@@ -340,6 +341,23 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
   // `SavedScreensPanel`'s single selected-screen + single session state.
   const [detailId, setDetailId] = useState(null)
   const [session, setSession] = useState(defaultSession)
+  // ⭐ R1 / R13 (2026-11-17, Studio track; this file is the Screener's) — A CHART CAN HAND OVER ONE OF THE
+  // MEMBER'S INDICATORS: `/screener?scan=<def_id>` opens THIS menu on that indicator's existing detail.
+  // Read ONCE, after the member's own rows have loaded, then removed from the address so a refresh or a
+  // later visit does not reopen it. ⛔ The id is a hint: one that is malformed, unknown or not this
+  // member's opens nothing and says nothing (`scanLink.resolveScanHint`).
+  const scanHintRef = useRef(typeof window !== 'undefined' ? scanIdFromSearch(window.location.search) : null)
+  useEffect(() => {
+    const id = scanHintRef.current
+    if (!id || !Array.isArray(defRows)) return
+    scanHintRef.current = null
+    const hint = resolveScanHint(id, scans, unscannable)
+    if (hint.open) { setOpen(true); if (hint.detailId) setDetailId(hint.detailId) }
+    try {
+      const { pathname, search, hash } = window.location
+      window.history.replaceState(window.history.state, '', `${pathname}${withoutScanParam(search)}${hash}`)
+    } catch { /* the address is cosmetic */ }
+  }, [defRows, scans, unscannable])
   // The on-demand run currently on screen: `{defId, session, payload}`. Matched,
   // never assumed — see the header note.
   const [run, setRun] = useState(null)
