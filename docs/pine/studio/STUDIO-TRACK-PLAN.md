@@ -752,6 +752,15 @@ the deploy gate.
 | L4 (third part) | a Screener column the chart computes exactly is a term on the chart door, not "unavailable"; twenty-four twins | merged (#1588) |
 | L2, C1 | `tools/converse_eval.py` builds again (an image type had no loader since 2026-11-12 and the runner graded nothing), with a rail that needs no bundler; and nine house indicators are regression cases beside the three examples, each run through the door, the engine and the grader (17 of 17 with the controls). **The rule:** a change to the door, the instructions or the vocabulary runs both offline commands first (`python tools/converse_eval.py --offline`, and the same with `--cases tests/fixtures/authoring/converse_eval_house_cases.json --script tests/fixtures/authoring/converse_eval_house_scripted.json`) and says so in its pull request; a change to the instructions or the model also needs the live run, which needs the owner's approval of the spend | merged (#1591, #1603); the live baseline waits for the owner; the tests run in no lane yet (Indicators backlog 51) |
 | X1, X9, X6 | the New formula window opens with the cursor in "Describe it" on a desktop (#1594); "Create indicator" is the first row of the phone's Indicators sheet (#1596); a saved indicator's name keeps its line in the window's list (#1602); the formula reference speaks to a member in a member's words and no longer prints the engine's notes (#1605) | merged |
+| V1 (second part) | an indicator saved more than once lists its saved versions in the dock's History; "Use this version" makes one the draft again as one undoable step, with a line that was deleted since coming back as a new line | merged (#1633) |
+| S1 (second part) | the same number in several places is never merged; changing one offers to move the others of its kind that still hold the old value | merged (#1633) |
+| share | Share on each row of "Your indicators" (the builder's own panel in a window of its own); the row keeps its name with five doors (they sit on a second line); the panel says "indicator" for one | #1628 LIVE; the row and the words #1642 |
+| X6 | the builder window is titled by where it opens: "Create indicator" / "Edit indicator" from a chart, "New formula" / "Edit formula" from the Screener (owner decision 2026-11-17) | #1642 |
+| H2 (remainder) | phone and tablet: one "Showing" control in the indicator library, every list with its count (the owner picked mock-up B) | #1642 |
+| O5 | the kill switch rehearsed on production: about 80 seconds to close, about 6 minutes to restore | DONE 2026-11-17 |
+| tool | the evaluation runner's own tests run on pull requests with node present, and a skip fails | merged (#1634) |
+| R4 | page side built to backlog 43 (one line under the name on the share preview, on library and Members cards, in the install note); it draws nothing until the server sends `headline` | built; merges after the engine's fields |
+| R5 | "Inspect a bar": the probe copy, the per-bar reader and the panel are built and tested against stand-ins for the engine's two exports | built; wired when the exports land |
 
 **The house set, second look (2026-11-16, production).** Of the five that did not draw on
 the first run: both relative-strength requests draw (the marker fix); volume bars coloured
@@ -765,13 +774,16 @@ ups from the first run are still suspect, and no value has been checked against 
 independent calculation. What blocks publishing is unchanged: names and
 read-backs (section 14a, findings 2 and 3), and the owner's look.
 
-Not started, and why:
+Not finished, and why (as of the afternoon of 2026-11-17):
 
-- **L5, worked examples**: an example is admitted only once the owner has approved it, and the
-  proof is a paid evaluation run, which needs the owner's spend approval.
-- **R1, run over a list from the chart**: waits for the Screener owner's answer to R13.
-- **R4 and R5**: requests to the Pine engine owner (a verdict on a shared indicator; two exports
-  for the inspector).
+- **L5, worked examples**: built, measured on and off through the production door, and left
+  off: no gain (see the L5 row above).
+- **R1, run over a list from the chart**: done (see the R1 row above).
+- **R4 and R5**: the page sides are built (rows above); the engine's fields and its two exports
+  are being built on 2026-11-17 and each page side is wired when its piece is on master.
+- **The live baseline run** of the evaluation runner: the owner approved it on 2026-11-17 with a
+  hard stop; it needs a dedicated model key set on the machine by the owner
+  (`docs/indicators/E2E-EVAL-CREDENTIALS.md`), which is the one step still open.
 - **R6, a load budget on library cards**: designed with the engine's owner on 2026-11-17, and
   waiting for one engine export. The verdict (refuse to publish) is a deterministic work count
   over one seeded 5,000-bar reference series, never a clock, with the budget a fraction of the
