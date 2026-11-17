@@ -1,4 +1,4 @@
-// app/src/components/chart/builder/builderStart.testkit.js
+// app/src/testing/builder/builderStart.testkit.js
 //
 // ⭐ DIRECTION A (owner 2026-11-16) — how a test walks the formula window the way a
 // member does. A new formula with no door opens on the START VIEW (describe it, or

@@ -814,9 +814,6 @@ const AWAITING_A_DECISION = {
   // ── TEST HELPERS OUTSIDE A TEST-INFRA PATH (2026-11-17) ─────────────────────
   // Same shape as outcomeHarness.jsx above: their only importers are tests. The honest fix is moving
   // each under a testing/ path in the owning session's next change, never widening TEST_INFRA.
-  'app/src/components/chart/builder/builderStart.testkit.js':
-    'Shared start-state kit for the BuilderSheet.*.test.jsx files (UCT Signature Release 2, '
-    + '9f8d8ff1fa). Move under a testing/ path.',
   'app/src/components/chart/rails/railScan.js':
     'Source scanner for the chart-data P0 census rails (193c79dcb5); read only by '
     + 'oneKey.census.test.js and writerCensus.census.test.js. Move under a testing/ path.',

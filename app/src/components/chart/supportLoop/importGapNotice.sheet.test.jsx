@@ -7,7 +7,7 @@ import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/re
 import { SWRConfig } from 'swr'
 
 import BuilderSheet from '../builder/BuilderSheet'
-import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../builder/builderStart.testkit.js'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { AuthContext } from '../../../context/AuthContext'
 import { _resetForTests } from './supportApi'
 

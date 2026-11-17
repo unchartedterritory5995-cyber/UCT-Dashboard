@@ -8,7 +8,7 @@ import { render, screen, cleanup, fireEvent, act, within } from '@testing-librar
 import { SWRConfig } from 'swr'
 import { setCreateIndicatorFlag } from './studio/createIndicatorFlag'
 import BuilderSheet from './BuilderSheet'
-import { openInputs } from './builderStart.testkit.js'
+import { openInputs } from '../../../testing/builder/builderStart.testkit.js'
 import { AuthContext } from '../../../context/AuthContext'
 import { clearUserDefinitions } from '../engine/nativeRegistry'
 import { parseFormula } from '../engine/ast/parse'

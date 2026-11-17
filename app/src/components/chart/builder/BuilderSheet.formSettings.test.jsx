@@ -8,7 +8,7 @@ import { render, screen, cleanup, fireEvent, act, within } from '@testing-librar
 import { SWRConfig } from 'swr'
 
 import BuilderSheet from './BuilderSheet'
-import { writeMyself, formulaBox, openInputs } from './builderStart.testkit.js'
+import { writeMyself, formulaBox, openInputs } from '../../../testing/builder/builderStart.testkit.js'
 import { FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { AuthContext } from '../../../context/AuthContext'
 
