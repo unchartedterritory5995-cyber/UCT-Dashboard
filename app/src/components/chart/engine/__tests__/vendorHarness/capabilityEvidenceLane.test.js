@@ -76,7 +76,7 @@ describe('WS-I Part 2 — every admitted capability\'s evidence was drawn by the
 // is asked again here as the reach run asked it: the allowlist EMPTY, capability
 // admission ON, the server's verdict (admitted) latched.
 const report = JSON.parse(fs.readFileSync(path.join(REPO,
-  'docs/pine/evidence/2026-11-13-capability-admission/runs/report.json'), 'utf8'))
+  'docs/pine/evidence/2026-11-15-cond-ta/runs/report.json'), 'utf8'))
 
 describe('WS-I Part 2 — the reach run records the lanes the door itself answers', () => {
   beforeAll(() => {

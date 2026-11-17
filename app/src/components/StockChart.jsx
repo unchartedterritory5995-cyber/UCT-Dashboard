@@ -170,6 +170,7 @@ import { serverDeclares, subscribeServerDefinitions } from './chart/engine/serve
 // Compare panel (unit 3-12) by this window event; one spelling, the panel's own.
 import { COMPARE_OPEN_EVENT } from '../pages/charts/compareGroups'
 import { cardEvidenceText } from './chart/engine/readoutSchema'
+import { chartThemeOf } from './chart/engine/objectTheme'
 import { RS_LEARN_VIDEOS, learnHref } from '../lib/deskVideoHref'
 // ⭐ VA2 — the plan's §13 counts (on since the server lists the six events; `VITE_RS_TELEMETRY_ENABLED=0` turns them off; see the module).
 import { createRsInstanceTracker, noteRsCard, noteRsLearn } from '../lib/rsTelemetry'
@@ -242,6 +243,8 @@ import { getSnapshot as getLivePriceStoreSnapshot } from '../hooks/livePriceStor
 import { _packStillIngesting, setPrefetchShowExtended, barsBeforeUrl, registerSymbolWarmer } from '../utils/prefetchBars'
 import { resolveShowExtended } from '../utils/viewSession'
 import * as realtimeCandle from '../lib/realtimeCandle'
+import { newestSeriesBar } from './chart/newestSeriesBar'
+import { barsHistorySplitEnabled } from '../utils/barsHistorySplit'
 import { LIVE_PERIOD_SECONDS } from '../lib/liveBarMerge'
 import { publishChartReadout } from '../lib/chartReadoutStore'
 import { shouldApplyRange, rangeFitsBars, rangeBarsEnd, viewMostlyBars } from '../pages/charts/grid/rangeGuard'
@@ -1606,6 +1609,7 @@ import { withPrimaryEconomic, stripPrimaryEconomic, keepOnEconomicPrimary } from
 import { sourceCapabilityOf } from './chart/engine/sourceCapability'
 import { observationReadout, economicStatusLine } from './chart/economic/econUi'
 import { runtimePaneEnabled } from './chart/engine/runtimePaneGate'
+import { armRuntimeLaneWarm, whenIdle } from './chart/engine/runtimeLaneWarm'
 import { readSuccessBody } from '../lib/responseBody'
 import { archiveHref } from '../utils/traderArchive'
 import { createAdaptiveFrameLoop } from './chart/adaptiveFrameLoop'
@@ -1640,6 +1644,13 @@ const useChartBars = BARSTORE ? useBarSnapshotBars : useLegacyChartBars
 engineRegistry.registerRuntimeLaneLoader(() => (runtimePaneEnabled()
   ? import('./chart/engine/runtime/runtimeAsync.js').then((m) => m.ensureRuntimeLane())
   : Promise.reject(new Error('the runtime pane is switched off'))))
+
+// ⚡ PRELOAD (perf/pine-runtime-chunk-preload) — the same lane, WARMED: its loader chunk imported
+// and its worker spawned (`runtimeAsync.warmRuntimeLane`), so a saved per-bar script is drawn without
+// paying the ~1.3 MB worker chunk on its first run. ⛔ The import stays here, in the chart's module,
+// for the reason above, and it is reached only through `armRuntimeLaneWarm` (after the first chart
+// paint, in idle time, for a permitted member with a definition on that lane: `runtimeLaneWarm.js`).
+const warmRuntimeLaneNow = () => import('./chart/engine/runtime/runtimeAsync.js').then((m) => m.warmRuntimeLane())
 
 // ⚡ THE SERVER LANE'S COLUMNS ARE ASKED FOR AHEAD OF THE MEMBER (2026-11-12). The bars
 // prefetch already knows which symbols are next; this registers the lane's warmer with it
@@ -1959,10 +1970,18 @@ function chartTickMarkFormatter(time, tickMarkType) {
 // mark a session or two later fits, so a bare "4" stood where "Mar" belongs. On a daily study chart such a day mark is
 // always within a few sessions of the month it stands in for, so a day mark in a month's first week names its month
 // ("Mar 4"); later days stay bare numbers, the usual axis. Intraday and the year and month marks read as everywhere.
+// An intraday study chart (2026-11-16) gives its labels a five-character slot (the drill's INTRADAY_TICK_CHARS), so a
+// half-hour mark reads "10:30", not "10:30 AM": in the regular session (09:30 to 16:00) the hour says morning or
+// afternoon, and the eight-character form crowded every time mark off a phone's axis after a replay. The hour marks keep
+// "10 AM" and "12 PM", as on every chart.
 export function studyTickMarkFormatter(time, tickMarkType) {
   if (typeof time !== 'number' && tickMarkType === 2) {
     const d = _dayDate(time)
     if (d && d.getUTCDate() <= 7) return `${_MO[d.getUTCMonth()]} ${d.getUTCDate()}`
+  }
+  if (typeof time === 'number' && tickMarkType >= 3) {
+    const d = new Date(time * 1000)
+    if (d.getUTCMinutes() !== 0) return `${d.getUTCHours() % 12 || 12}:${String(d.getUTCMinutes()).padStart(2, '0')}`
   }
   return chartTickMarkFormatter(time, tickMarkType)
 }
@@ -2267,34 +2286,10 @@ if (typeof window !== 'undefined') window.__uctBarsPush = setBarsPushEnabled
 // Ramped 25 → 100 on 2026-09-03 after the 25% canary held clean (no blank-chart /
 // stops-at-2024 reports). Instant revert: set this to 0 + redeploy, or per-browser
 // window.__uctBarsHistory(false). Spec: docs/superpowers/specs/2026-08-31-edge-deep-history.
-export const BARS_HISTORY_SPLIT_ROLLOUT_PCT = 100
-
-function _barsHistoryBucket() {
-  try {
-    let b = localStorage.getItem('uct.barsHistory.bucket')
-    if (b == null) { b = String(Math.floor(Math.random() * 100)); localStorage.setItem('uct.barsHistory.bucket', b) }
-    const n = parseInt(b, 10)
-    return Number.isFinite(n) ? n : 100
-  } catch { return 100 }  // no storage → out of rollout (safe default-off)
-}
-
-export function _barsHistorySplitEnabled() {
-  try {
-    const ls = typeof localStorage !== 'undefined' ? localStorage.getItem('uct.barsHistory.enabled') : null
-    if (ls === '1') return true     // explicit opt-in (canary)
-    if (ls === '0') return false    // explicit opt-out
-    return _barsHistoryBucket() < BARS_HISTORY_SPLIT_ROLLOUT_PCT
-  } catch { return false }
-}
-
-export function setBarsHistorySplitEnabled(on) {
-  try {
-    if (on) localStorage.setItem('uct.barsHistory.enabled', '1')
-    else localStorage.removeItem('uct.barsHistory.enabled')
-    window.dispatchEvent(new Event('uct-barshistory-change'))
-  } catch { /* ignore */ }
-}
-if (typeof window !== 'undefined') window.__uctBarsHistory = setBarsHistorySplitEnabled
+// ⭐ MOVED to utils/barsHistorySplit.js (2026-11-16) so the BarStore reads the SAME switch and builds the
+// SAME history URL; re-exported here under the names the legacy hook and its tests use.
+export { BARS_HISTORY_SPLIT_ROLLOUT_PCT, setBarsHistorySplitEnabled } from '../utils/barsHistorySplit'
+export const _barsHistorySplitEnabled = barsHistorySplitEnabled
 
 // ── Fix 2: edge deep-history on FIRST PAINT (instant full history for a new ticker) ──
 // The split-fetch above only pulls deep sealed history from the edge AFTER the user pans
@@ -4415,6 +4410,17 @@ export default function StockChart({
   // behaviour is to draw nothing for it), and a toast on a render path would fire
   // on every chart.
   const { generation: userDefsGeneration } = useInstalledUserDefinitions()
+  // ⚡ PRELOAD — re-asked whenever the installed definitions change (a later install can make the
+  // answer yes); `armRuntimeLaneWarm` warms at most once per page, after the first paint, in idle time.
+  useEffect(() => {
+    armRuntimeLaneWarm({
+      afterPaint: afterFirstChartPaint,
+      idle: whenIdle,
+      permitted: runtimePaneEnabled,
+      usesLane: engineRegistry.anyInstalledRuntimeDefinition,
+      load: warmRuntimeLaneNow,
+    })
+  }, [userDefsGeneration])
 
   const mergedMarkers = useMemo(
     () => {
@@ -5810,6 +5816,9 @@ export default function StockChart({
    */
   const readoutChipOpts = {
     scalarsOf: (def, inputs) => scalarsFor(def, inputs, { sym: symRef.current, tf: resolvedTfRef.current }),
+    // ⭐ ENGINE 58 — the chart's own two colours, so a chip whose plot is coloured by a
+    // theme reference (`chart.fg_color@85`) wears what the line wears (`readout.js`).
+    theme: chartThemeOf(cs),
   }
   /**
    * ⭐ Phase 2a visual round (VA3) — what a READOUT definition's chip prints, for
@@ -6906,9 +6915,14 @@ export default function StockChart({
   // export route) passes no `showDrawingTools` and gets inert rows, so the export
   // keeps a legend with no controls in it and the pixel-parity baselines do not
   // move.
+  // ⭐ UCT SIGNATURE (2026-11-15) — the vertical row's hover strip (hide · settings · more)
+  // calls the SAME two writers the popover's Hide / Edit rows call. The one door is still
+  // `onOpen`; a flat row ignores the other two.
   const legendRowHandlers = useMemo(() => (showDrawingTools ? {
     onOpen: handleRowMenu,
-  } : null), [showDrawingTools, handleRowMenu])
+    onToggleHidden: legendRowHidden,
+    onSettings: legendRowSettings,
+  } : null), [showDrawingTools, handleRowMenu, legendRowHidden, legendRowSettings])
 
   /** The volume PANE STRIP's door.
    *
@@ -7001,13 +7015,17 @@ export default function StockChart({
     // rows of the popover `onMenu` opens, closed over in the render block below —
     // but the chip no longer needs three props to render three targets.
     onMenu: handleChipMenu,
+    // ⭐ UCT SIGNATURE — the grid row's hover strip; the same writers the popover's
+    // Hide / Settings rows call (`IndicatorChip` renders it in the grid variant only).
+    onToggleHidden: handleChipHidden,
+    onSettings: handleChipSettings,
     // Additive, phone-shell-only (prop null everywhere else): a tap on the chip
     // BODY opens the study's mobile editor. Spread at all three legend branches
     // through this one object, so the parity-pinned JSX stays untouched.
     onBodyTap: onLegendStudyTap
       ? (chip) => onLegendStudyTap({ kind: 'study', defId: chip.defId, instanceId: chip.instanceId })
       : undefined,
-  } : null), [showDrawingTools, handleChipMenu, onLegendStudyTap])
+  } : null), [showDrawingTools, handleChipMenu, handleChipHidden, handleChipSettings, onLegendStudyTap])
   // ⭐ Decision C5 (2026-11-07) — on the phone shell a tap on a chip whose
   // definition DECLARES A READOUT (UCT RS) opens the chip menu sheet, the same
   // sheet a long-press opens: the readout is the at-a-glance read, and Edit is one
@@ -11279,14 +11297,11 @@ export default function StockChart({
           // What the last paint decided for the indicator window (`plotWindow.js`): the rows
           // it holds, the first row drawn (0: every row) and that row's time.
           plotWindow: () => ({ ...plotWindowRef.current }),
-          newestBar: () => {
-            try {
-              const d = candleSeriesRef.current?.data?.()
-              const last = d && d.length ? d[d.length - 1] : null
-              if (!last) return null
-              return { time: last.time ?? null, close: Number.isFinite(last.close) ? last.close : (Number.isFinite(last.value) ? last.value : null), count: d.length }
-            } catch { return null }
-          },
+          // ⛔ O(log n), NOT a copy: the tick-latency proof reads this on every animation frame for
+          // every chart, and `series.data()` rebuilds the whole series each call (2026-11-16: 4.4 s
+          // of main thread per 90 s with 4 charts, a quarter of the page's measured work). The newest
+          // bar is one by-index lookup; `count` (rarely read) still walks the series, on demand.
+          newestBar: () => { try { return newestSeriesBar(candleSeriesRef.current) } catch { return null } },
           // Read-only: what each ENGINE series actually handed the renderer
           // (the fundamentals acceptance harness reads plotted values from here).
           engineSeries: () => {
@@ -20194,7 +20209,7 @@ export default function StockChart({
                   <>
                     <div className={styles.barInfo} data-testid="econ-bar-info">
                       {barShows('date') && (
-                        <span className={styles.barDate} style={legBase}>{formatBarInfoDate(crosshairData.time)}</span>
+                        <span className={styles.barDate}>{formatBarInfoDate(crosshairData.time)}</span>
                       )}
                       {_ro ? (
                         <>
@@ -20233,7 +20248,7 @@ export default function StockChart({
               })() : (
               <div className={styles.barInfo}>
                 {barShows('date') && (
-                  <span className={styles.barDate} style={legBase}>{formatBarInfoDate(crosshairData.time)}</span>
+                  <span className={styles.barDate}>{formatBarInfoDate(crosshairData.time)}</span>
                 )}
                 {barShows('open') && (
                   <span className={styles.barField} style={legBase}>
@@ -21049,6 +21064,9 @@ export default function StockChart({
                    INSTANCE-oriented even though the values are plot-oriented,
                    which is exactly what the approved V1 asks for. */
                 onOpen: (_id, anchor) => chipHandlers.onMenu(paneRowPrimary(row.chips, c), anchor),
+                // ⭐ UCT SIGNATURE — the hover strip acts on the same PRIMARY instance.
+                onToggleHidden: () => chipHandlers.onToggleHidden(paneRowPrimary(row.chips, c).instanceId),
+                onSettings: () => chipHandlers.onSettings(paneRowPrimary(row.chips, c).instanceId),
               } : null)}
             />
           ))}

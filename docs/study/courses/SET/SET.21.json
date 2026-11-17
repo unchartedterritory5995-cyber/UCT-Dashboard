@@ -1955,7 +1955,7 @@
      "+2 rests on the card's proposed $100 million cue"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$30,000,000",
     "$300,000,000",
@@ -1966,6 +1966,28 @@
     "$300,000,000": "Added a zero.",
     "$360,000,000": "Multiplied by the price twice.",
     "$3,000,000,000": "Added two zeros."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Dollar volume",
+    "rows": [
+     {
+      "key": "shares",
+      "label": "Shares a day",
+      "value": 2500000,
+      "fmt": "shares"
+     },
+     {
+      "key": "price",
+      "label": "Price",
+      "value": 12,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Dollars traded a day",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -3868,7 +3890,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
+   "notes": "Roles, find label, slot format and ladder checked; ok."
   },
   "q29": {
    "status": "pass",

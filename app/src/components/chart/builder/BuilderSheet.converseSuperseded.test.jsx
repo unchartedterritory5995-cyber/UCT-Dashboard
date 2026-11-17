@@ -99,7 +99,7 @@ describe('P2 — the sheet cannot silently revert a conversational save', () => 
     expect(JSON.parse(writes[0].body).definition.compute.source).toBe('sma(close, 50)')
     // the sheet's form still says 20 — and it can no longer save it over version 2
     expect(sheetSave().disabled).toBe(true)
-    expect(screen.getByText(/The conversation above saved this formula as version 2/)).toBeTruthy()
+    expect(screen.getByText(/The conversation above saved this indicator as version 2/)).toBeTruthy()
   })
 })
 
@@ -129,7 +129,7 @@ describe('P3S — after the conversation saves, closing does not ask to discard'
     await flush()
     fireEvent.click(screen.getByTestId('sheet-save'))
     await flush()
-    expect(screen.getByText(/The conversation above saved this formula as version 2/)).toBeTruthy()
+    expect(screen.getByText(/The conversation above saved this indicator as version 2/)).toBeTruthy()
   }
   const cancel = () => fireEvent.click(screen.getByRole('button', { name: /^Cancel$/ }))
 

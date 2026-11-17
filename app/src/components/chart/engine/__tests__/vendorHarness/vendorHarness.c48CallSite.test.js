@@ -49,7 +49,7 @@ import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefi
 import { objectReaderFor } from '../../objectColumns'
 import { evaluateObjects } from '../../objectRuntime'
 import { toRenderState } from '../../objectRenderState'
-import { translatePine } from '../../ast/pine'
+import { translatePine, SCREEN_GATE_SENTENCE } from '../../ast/pine'
 import { ONE_EXECUTION_TA, CHART_SERIES_WITNESSED } from '../../ast/objectFnInline'
 
 const DIR = path.resolve(process.cwd(), '..', 'tests/fixtures/vendor/harness')
@@ -552,11 +552,22 @@ describe('C48 — MANY executions: a chart\'s plot is refused where its block sk
       // so nothing the translator folds can renumber them - the property this pin guards.
       ['__uct_param_1001', 'Cond length'], ['__uct_param_1002', 'Mult'], ['__uct_param_1003', 'Other length']])
     expect((t.notes || []).filter((n) => n.code === 'pine:block')).toEqual([])
-    // ⛔ the screener lane binds no chart: no stamp, and the tree it always had
+    // ⭐⭐ COND-TA (engine 58) — THIS PIN IS FLIPPED, DELIBERATELY. It said "the screener
+    // lane binds no chart: no stamp, and the tree it always had", and that tree is the
+    // EVERY-BAR number: `close > open ? sma(close, 3) : na` against this file's own capture
+    // (`vw-call-site-history-rddt-1d-2026-10-01`, row C03) is wrong on 242 of 635 bars (the
+    // ⚰️ test above). Nothing binds a chart on that lane to stop it (the Import tab's Apply
+    // saves the formula; the server evaluates it column-wise), so the row is REFUSED BY
+    // NAME, with the gate's own sentence and the screener's reason. The every-bar plot
+    // ("every bar") is untouched, and no parameter id moves (the mint runs as before).
     const screen = translatePine(source, { paramManifest: true })
     expect(screen.mode).toBe('screener')
     expect(screen.blockRuns).toBeUndefined()
-    expect(screen.outputs[0].formula).toBe(t.outputs[0].formula)
+    expect(screen.outputs.map((o) => (o.refusal ? o.refusal.guard : 'ok'))).toEqual(['pine:block', 'ok'])
+    expect(screen.outputs[0].refusal.message).toMatch(/`v` calls `ta\.sma` inside a block that does not run on every bar/)
+    expect(screen.outputs[0].refusal.message).toContain(SCREEN_GATE_SENTENCE)
+    expect(screen.outputs[1].formula).toBe(t.outputs[1].formula)
+    expect(screen.inputParams.map((p) => p.id)).toEqual(t.inputParams.map((p) => p.id))
   })
 
   it('⭐ a tuple part is gated only when ITS OWN expression reads the call\'s history (H06)', () => {

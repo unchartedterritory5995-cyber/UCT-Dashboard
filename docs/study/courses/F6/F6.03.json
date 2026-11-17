@@ -1134,7 +1134,35 @@
      "it was fixed before"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The call at expiry",
+    "rows": [
+     {
+      "key": "call_strike",
+      "label": "Call strike",
+      "value": 50.0,
+      "fmt": "$"
+     },
+     {
+      "key": "premium_paid",
+      "label": "Premium paid",
+      "value": 5.0,
+      "fmt": "$"
+     },
+     {
+      "key": "stock_at_expiry",
+      "label": "Stock at expiry",
+      "value": 54.0,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Made or lost",
+     "as": "per_share"
+    }
+   }
   },
   {
    "key": "q22",
@@ -1582,9 +1610,9 @@
   },
   "q21": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q22": {
    "status": "pass",

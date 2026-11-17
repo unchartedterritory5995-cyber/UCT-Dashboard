@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from api.services.uct_agent.marketdata import (asset_classes, bars_daily, breadth, commodity_quote, crypto_quote, earnings,
                                               index_quote, instruments, news_company, quotes, ratings, statements, themes)
-from api.services.uct_agent.marketdata import cot, history_event_study
+from api.services.uct_agent.marketdata import catalysts_board, cot, history_event_study, rs_leadership
 from api.services.uct_agent.research import rs1
 
 # Symbols one read may name. A request-shape bound per kind, not a toolkit cap: the cap numbers live only
@@ -143,6 +143,31 @@ def register(registry) -> None:
         owner="agent-md", max_symbols=ONE_SYMBOL, model_isolated=True,
         description="UCT Ratings: UCT's own composite 0-99 and component scores (not an analyst rating); "
                     "as_of is the price data's last session. Shown to the member only. Params: {symbol}.",
+    ))
+    # Phase 2 (market intelligence): relative strength + group leadership from UCT's stored RS Rating table, the bars
+    # store and the industry map (no provider call). MODEL-ISOLATED like `ratings`: the RS Rating is UCT-derived.
+    registry.register(Kind(
+        name=rs_leadership.KIND, fn=rs_leadership.read_rs_leadership, validate=rs_leadership.validate,
+        freshness="periodic", owner="agent-md", max_symbols=rs_leadership.MAX_SYMBOLS, model_isolated=True,
+        description="Relative strength and leadership from UCT's stored data: the nightly UCT RS Rating (1-99) with its "
+                    "5/20-session change, period returns vs SPY over the identical window, a stock's rank in its "
+                    "industry, the 11 SPDR sector ETFs ranked, one industry's rating distribution, or the index + "
+                    "sector backdrop. Historical, never a forecast. Shown to the member only. Params: {scope: "
+                    f"{'|'.join(rs_leadership.SCOPES)}, symbols?, industry?, period: {'|'.join(rs_leadership.PERIODS)}}}.",
+    ))
+    # Phase 2 (market-moving news + catalysts): UCT's catalyst board from the catalyst engine's own store, opened
+    # READ-ONLY (no _init_db, no WAL pragma, no self-heal refresh, no provider). MODEL-ISOLATED: stored headlines are
+    # third-party text and the grade / write-up are UCT-derived AI output; the reading capability (news.movers) is
+    # local-only (turn.LOCAL_ONLY_ACTIONS), so a co-occurring headline never becomes a model's stated cause.
+    registry.register(Kind(
+        name=catalysts_board.KIND, fn=catalysts_board.read_catalysts_board, validate=catalysts_board.validate,
+        freshness="periodic", owner="agent-md", max_symbols=catalysts_board.MAX_SYMBOLS, model_isolated=True,
+        description="UCT's catalyst board: the stocks UCT's catalyst engine flagged on a market date (type, tag, grade, "
+                    "gap, new vs continuing, first-news time, the engine's write-up, stored headlines with source and "
+                    "time), optionally only some symbols or one stored sector, over the last 1-"
+                    f"{catalysts_board.MAX_DAYS} stored boards; as_of is the newest board's last refresh. Co-occurring "
+                    "headlines, never established causes. Shown to the member only. "
+                    f"Params: {{date?, days?, symbols?, sector?, limit (1-{catalysts_board.MAX_LIMIT})}}.",
     ))
     # Phase 2 (COT research): CFTC Commitments of Traders weekly rows from the COT tab's own store (no provider call).
     # The positioning statistics are computed in the browser by the COT tab's single authority (cotRead.js), not here.

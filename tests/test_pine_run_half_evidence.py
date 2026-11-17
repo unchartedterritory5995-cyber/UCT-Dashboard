@@ -49,12 +49,71 @@ def _kill_read():
 
 # ── E1 ───────────────────────────────────────────────────────────────────────────────
 
-def test_E1_by_default_nothing_is_served_and_the_kill_read_keeps_its_keys(monkeypatch):
+def test_E1_by_default_nothing_is_served_and_the_kill_read_keeps_its_keys(tmp_path, monkeypatch):
+    """A list whose records carry no objects-v2 capture serves no evidence, and the key is ABSENT."""
     monkeypatch.delenv("PINE_RUNTIME_CAPABILITY_ADMISSION", raising=False)
+    _allowlist(tmp_path, monkeypatch, [{"slug": "plain", "sha256": "d" * 64, "capabilities": ["a"], "captures": [
+        _cap("p-rddt", v2=None), _cap("p-spy", v2=None)]}])
     assert rt.run_half_evidence() == []
     got = _kill_read()
     assert "run_half_evidence" not in got
     assert set(got) <= {"kill", "allow", "save_enabled", "capability_admission", "substituted"}
+
+
+RS_SHA = "caa94fe31a8788c0f52ca571dbb1b3f8a7499dae913ed5e710720fc8662c5af0"
+RS_RECAPTURES = [f"rs-rating-fred6724-{s}-1d-2026-11-16" for s in ("rddt", "alab", "crwv")]
+
+
+def test_E1b_the_committed_list_serves_RS_Ratings_run_half_evidence_and_only_that():
+    """Q-RS8 (2026-11-16). ⚰️ History: #1410 merged RS Rating's record claiming objects v2
+    MATCH_SUBSTITUTED on three captures that record no x table; master's harness graded them
+    INCONCLUSIVE and #1413 withdrew the claim. The three captures were then RE-TAKEN with the tool
+    that records the x table and graded on master b7cd7a0e63: objects v2 MATCH_SUBSTITUTED with x
+    witnessed (2 of 2, exact bar) on each. So the committed list now serves evidence for exactly
+    that script and exactly those three captures, and the rule admits its run half.
+    ⛔ A record's capture fields are copied only from a grade taken on the tree being merged
+    (E4 checks every claim against the committed runtime-on verdicts)."""
+    doc = json.loads(pathlib.Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))
+    rs = next(s for s in doc["scripts"] if s["slug"] == "rs-rating-fred6724")
+    assert rs["sha256"] == RS_SHA
+    assert [c["id"] for c in rs["captures"]] == RS_RECAPTURES
+    assert [c["objectsV2"] for c in rs["captures"]] == ["MATCH_SUBSTITUTED"] * 3
+    assert all(c["objectsV2Substituted"] == ["syminfo.industry"] == c["substituted"] for c in rs["captures"])
+    ev = rt.run_half_evidence()
+    assert [e["sha256"] for e in ev] == [RS_SHA], "exactly this script, and no other record"
+    assert [c["capture"] for c in ev[0]["captures"]] == RS_RECAPTURES
+    assert rt.run_half_entry_admits(ev[0]) is True
+    assert _kill_read()["run_half_evidence"] == ev
+    # every one of the three is a real runtime-on grade with x witnessed
+    rows = {r["id"]: r for r in json.loads(VERDICTS.read_text(encoding="utf-8"))["results"]}
+    for cid in RS_RECAPTURES:
+        v2 = rows[cid]["objectsV2"]
+        assert rows[cid]["verdict"] == "MATCH_SUBSTITUTED" and v2["verdict"] == "MATCH_SUBSTITUTED", cid
+        assert v2["x"]["graded"] == 2 and v2["x"]["agreeing"] == 2 and v2["x"]["differing"] == 0, cid
+
+
+def test_E1c_a_capture_without_an_x_table_still_admits_nothing(tmp_path, monkeypatch):
+    """CONTROL, on one of the 2026-11-15 captures (still committed, as history): it records no x
+    table, master grades its objects v2 INCONCLUSIVE, and a record built on such captures serves
+    nothing and admits nothing. This is the state #1413 restored; it must stay refusable."""
+    rows = {r["id"]: r for r in json.loads(VERDICTS.read_text(encoding="utf-8"))["results"]}
+    old = [f"rs-rating-fred6724-{s}-1d-2026-11-15" for s in ("rddt", "alab", "crwv")]
+    for cid in old:
+        assert rows[cid]["verdict"] == "MATCH_SUBSTITUTED", cid
+        assert rows[cid]["objectsV2"]["verdict"] == "INCONCLUSIVE", cid
+    doc = json.loads(pathlib.Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))
+    rs = json.loads(json.dumps(next(s for s in doc["scripts"] if s["slug"] == "rs-rating-fred6724")))
+    rs["captures"] = [{"id": cid, "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
+                       "substituted": ["syminfo.industry"], "objectsV2": "INCONCLUSIVE"} for cid in old]
+    f = tmp_path / "allow.json"
+    f.write_text(json.dumps({**doc, "scripts": [rs]}), encoding="utf-8")
+    monkeypatch.setattr(rt, "ALLOWLIST_PATH", str(f))
+    assert rt.run_half_evidence() == []
+    assert "run_half_evidence" not in _kill_read()
+    # and a record that CLAIMED the grade for them is caught by E4's check, by name
+    rs["captures"] = [{**c, "objectsV2": "MATCH_SUBSTITUTED", "objectsV2Substituted": ["syminfo.industry"]}
+                      for c in rs["captures"]]
+    assert _false_claims([rs], list(rows.values())), "an objects-v2 claim on a capture graded INCONCLUSIVE is a false claim"
 
 
 # ── E2 ───────────────────────────────────────────────────────────────────────────────

@@ -57,7 +57,8 @@ describe('ChartToolbar — the inline panel\'s marker checkboxes', () => {
     // and not the other, which is the defect the review found.
     render(<ChartSettingsModal open settings={mergeChartSettings(JSON.stringify({}))} onChange={vi.fn()} />)
     fireEvent.click(screen.getByRole('tab', { name: 'Markers' }))
-    const section = screen.getByText('Event markers').parentElement
+    // owner 11-15: the modal's section is titled "Events" now
+    const section = screen.getByText('Events').parentElement
     const modalLabels = within(section).getAllByRole('switch').map(s => s.getAttribute('aria-label'))
     expect(modalLabels.length).toBeGreaterThanOrEqual(5)   // the extraction found rows
     expect(modalLabels).toContain('Desk mentions')         // …including the new one

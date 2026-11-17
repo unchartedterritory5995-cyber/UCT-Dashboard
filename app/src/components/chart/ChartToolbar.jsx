@@ -799,10 +799,16 @@ function ChartSettingsPanel({
   )
 }
 
-// Dropdown to show/hide + favorite drawing tools. Styled to match the info-row
-// "add a field" menu (dark, search on top, checkmark on shown rows, star on right).
+// Dropdown to show/hide + favorite drawing tools — UCT Signature style (owner 11-15,
+// docs/uct-signature-style.md): the graphite menu panel, a search well, a soft square on the
+// left (on = the tool shows on the toolbar), the tool's grey icon and plain name, and a star on
+// the right (a favourite's filled star always shows; an empty one appears on hover). A tool's
+// "— click the …" instruction moves out of the name into the hint strip at the bottom. No gold.
+const toolName = (label) => label.replace(/\s*\([^)]*\)\s*$/, '').replace(/\s+[—–-]\s+.*$/, '')
+const toolHint = (label) => { const m = label.match(/\s+[—–-]\s+(.*)$/); return m ? m[1] : '' }
 function FavoriteDrawingsMenu({ tools, hidden, favorites, onToggleHidden, onToggleFavorite, anchorRect, onClose }) {
   const [q, setQ] = useState('')
+  const [hover, setHover] = useState(null)
   const ref = useRef(null)
   useEffect(() => {
     const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose() }
@@ -812,34 +818,42 @@ function FavoriteDrawingsMenu({ tools, hidden, favorites, onToggleHidden, onTogg
   const filtered = tools.filter(t => t.label.toLowerCase().includes(q.toLowerCase()))
   const left = Math.min(anchorRect?.left ?? 100, window.innerWidth - 272)
   const top = (anchorRect?.bottom ?? 40) + 4
+  const h = hover && tools.find(t => t.id === hover)
   return createPortal(
-    <div ref={ref} className={styles.menuScroll} style={{ position: 'fixed', left: Math.max(8, left), top, width: 260, maxHeight: '68vh',
-        overflowY: 'auto', zIndex: 1000, background: 'var(--menu-bg,#14171c)',
-        border: '1px solid var(--menu-border,#232932)', borderRadius: 8, boxShadow: '0 8px 28px rgba(0,0,0,0.5)',
-        padding: 6, fontFamily: "'Instrument Sans', sans-serif" }}>
-      <Input aria-label="Search drawing tools" autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Search tools…"
-        style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', marginBottom: 4,
-          background: 'var(--menu-bg-2,#1b1f26)', border: '1px solid var(--menu-border,#232932)', borderRadius: 6,
-          color: 'var(--menu-text,#e8eaed)', fontSize: 13, outline: 'none' }} />
-      {filtered.map(t => {
-        const visible = !hidden.includes(t.id)
-        const fav = favorites.includes(t.id)
-        return (
-          <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 8px', borderRadius: 6 }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'var(--menu-accent-bg,rgba(201,168,76,0.1))' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
-            <span onClick={() => onToggleHidden(t.id)} style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0, cursor: 'pointer' }}>
-              <span style={{ width: 14, height: 14, color: '#c9a84c', flexShrink: 0, display: 'flex' }}>{visible ? ICONS.check : null}</span>
-              <span style={{ width: 16, color: 'var(--menu-text,#e8eaed)', opacity: visible ? 1 : 0.6, flexShrink: 0, display: 'flex' }}>{ICONS[t.id]}</span>
-              <span style={{ color: 'var(--menu-text,#e8eaed)', opacity: visible ? 1 : 0.6, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.label.replace(/\s*\([^)]*\)\s*$/, '')}</span>
-            </span>
-            <span onClick={() => onToggleFavorite(t.id)} title={fav ? 'Remove from favorites toolbar' : 'Add to favorites toolbar'}
-              style={{ flexShrink: 0, color: fav ? '#c9a84c' : 'var(--menu-text-muted,#6b7280)', display: 'flex', cursor: 'pointer' }}>
-              {fav ? ICONS.favorites : ICONS.starOutline}
-            </span>
-          </div>
-        )
-      })}
+    <div ref={ref} className={styles.dtMenu} style={{ left: Math.max(8, left), top }} role="dialog" aria-label="Drawing tools">
+      <label className={styles.dtFind}>
+        <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.2" fill="none" stroke="currentColor" strokeWidth="1.5" /><path d="M10.2 10.2 13.5 13.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+        <Input aria-label="Search drawing tools" autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Find a tool…" className={styles.dtFindInput} />
+      </label>
+      <div className={`${styles.dtScroll} ${styles.menuScroll}`}>
+        {filtered.length ? filtered.map(t => {
+          const visible = !hidden.includes(t.id)
+          const fav = favorites.includes(t.id)
+          const name = toolName(t.label)
+          return (
+            <div key={t.id} className={`${styles.dtRow}${visible ? '' : ' ' + styles.dtRowOff}`} onMouseEnter={() => setHover(t.id)}>
+              <button type="button" className={styles.dtMain} role="checkbox" aria-checked={visible}
+                aria-label={`Show ${name} on the toolbar`} onClick={() => onToggleHidden(t.id)}>
+                <span className={`${styles.dtSoft}${visible ? ' ' + styles.dtSoftOn : ''}`} aria-hidden="true">
+                  {visible && <svg width="11" height="11" viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                </span>
+                <span className={styles.dtIcon} aria-hidden="true">{ICONS[t.id]}</span>
+                <span className={styles.dtName}>{name}</span>
+              </button>
+              <button type="button" className={`${styles.dtStar}${fav ? ' ' + styles.dtStarOn : ''}`} aria-pressed={fav}
+                title={fav ? 'Remove from favorites toolbar' : 'Add to favorites toolbar'}
+                aria-label={fav ? `Remove ${name} from the favorites toolbar` : `Add ${name} to the favorites toolbar`}
+                onClick={() => onToggleFavorite(t.id)}>
+                <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.8l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.6l-3.8 2 .7-4.3-3.1-3 4.3-.6z" fill={fav ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /></svg>
+              </button>
+            </div>
+          )
+        }) : <div className={styles.dtEmpty}>No tool matches “{q.trim()}”.</div>}
+      </div>
+      <div className={styles.dtHint} aria-live="polite">
+        {h ? <><b>{toolName(h.label)}</b>{toolHint(h.label) ? <><br />{toolHint(h.label).replace(/^./, c => c.toUpperCase())}</> : null}</>
+          : <>Tick a tool to show it on the toolbar · <span className={styles.dtHintStar}>★</span> adds it to your favorites bar</>}
+      </div>
     </div>, document.body)
 }
 
@@ -1002,6 +1016,13 @@ function formatReplayDate(t) {
   if (!t) return ''
   if (typeof t === 'string') return t
   return formatETDate(t * 1000)
+}
+
+/** The words a member typed into the library's search before choosing "Describe it
+ *  instead": they go into Create Indicator's box, not sent. Anything else: no seed. */
+export function libraryDescribeSeed(opts) {
+  const s = opts && typeof opts.seed === 'string' ? opts.seed.trim() : ''
+  return s ? s.slice(0, 400) : null
 }
 
 function ChartToolbar({
@@ -1941,6 +1962,12 @@ function ChartToolbar({
             sheetClassName={sheetClassName}
             extraRows={libraryExtraRows}
             onFirstAdd={typeof onIndicatorFirstAdd === 'function' ? handleLibraryFirstAdd : null}
+            /* Create Indicator from the library: the door a phone has (it has no Chart Settings
+               window to reach it through). The same opening the pane's own button makes: the
+               library and the builder close, a fresh studio opens. */
+            onCreateIndicator={canModifyWithIntelligence && typeof onStudioPreview === 'function'
+              ? (opts) => { setLibraryOpen(false); setBuilderOpen(false); setCreateSeed(libraryDescribeSeed(opts)); setCreateEditRow(null); setCreateOpen(true) }
+              : null}
             /* 🔴 THE BUILDER'S DOOR ON `/charts` — its SECOND opener, and on the
                charts workspace its ONLY one.
                `ChartSettingsPanel` (below) has held the builder's single entry

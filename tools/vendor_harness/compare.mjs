@@ -177,10 +177,12 @@ export function tolerancePolicy(capture) {
 
 const isNa = (v) => v === null || v === undefined || (typeof v === 'number' && !Number.isFinite(v))
 
-export function valuesAgree(ours, vendor, tol) {
+export function valuesAgree(ours, vendor, tol, floor = 0) {
   if (isNa(ours) || isNa(vendor)) return isNa(ours) && isNa(vendor)
   const d = Math.abs(ours - vendor)
-  return d <= tol.abs || d <= tol.rel * Math.abs(vendor)
+  // ⭐ ENGINE 56 (S4-4) — `floor`: the float-order floor of a plot a running total feeds
+  // (`ourSide.js::floatOrderFloorOf`, 8 ulps of the total's magnitude so far), 0 elsewhere
+  return d <= tol.abs || d <= tol.rel * Math.abs(vendor) || (floor > 0 && d <= floor)
 }
 
 /** A colour to `#rrggbbaa`, lowercase, or null when it cannot be read.
@@ -210,6 +212,27 @@ export function normalizeColor(c) {
  *  fully transparent colour is the SAME drawing — nothing — so it canonicalises
  *  to one spelling before two readings are compared. */
 export const NO_COLOUR = '#00000000'
+
+/** ⭐⭐ ENGINE 58 — OUR SIDE'S COLOUR FOR A BAR WHERE IT WITHHELD THE COLOUR BY
+ *  NAME (`plots[].colorWithheld.points`: a colour rule with no colour on that bar,
+ *  drawn in none). Not a colour: such a bar is not compared, it is COUNTED, and a
+ *  plot with any (on a bar TradingView coloured) is INCONCLUSIVE with the count —
+ *  never MATCH having compared nothing there, never DIVERGE against a colour our
+ *  side never claimed. `ourSide.js` writes it. */
+export const COLOUR_WITHHELD_POINT = 'withheld'
+/** ⭐⭐ ENGINE 58 — A THEME REFERENCE IS GRADED ON ITS ALPHA BYTE ALONE. Its hue is
+ *  the chart's (`chart.fg_color` is our chart's text colour, TradingView's is its own
+ *  theme's — the C37 rule, theme-relative), but its TRANSPARENCY is the script's
+ *  (`color.new(chart.fg_color, 85)` is alpha `26` on every chart). So both sides are
+ *  reduced to `#000000<alpha>` and compared as colours: the alpha has to agree, the
+ *  hue is not asked. A non-colour (`null`, `undefined`, `COLOUR_WITHHELD_POINT`) is
+ *  passed through unchanged. */
+export function alphaOnlyColour(c) {
+  if (typeof c !== 'string' || c === COLOUR_WITHHELD_POINT) return c
+  const n = normalizeColor(c)
+  return n ? `#000000${n.slice(7)}` : c
+}
+
 export function canonicalColour(c) {
   return typeof c === 'string' && /^#[0-9a-f]{6}00$/.test(c) ? NO_COLOUR : c
 }
@@ -435,19 +458,28 @@ export function mapPlots(vendorValuePlots, ourPlots) {
  *                                   See `colourWarmupOf`.
  * @param {object} a.tol             from `tolerancePolicy`
  */
-export function comparePlot({ times, vendor, ours, vendorColors = null, ourColors = null, warmupBars = 0, colorWarmupBars = warmupBars, tol, oursUnreadAfter = null }) {
+export function comparePlot({ times, vendor, ours, vendorColors = null, ourColors = null, warmupBars = 0, colorWarmupBars = warmupBars, tol, oursUnreadAfter = null, withheldBars = null, floatOrderFloor = null }) {
   const n = times.length
   const res = {
     bars: n,
     compared: 0,
     // Bars our side cannot report the vendor's quantity for (see `leadBy`).
     oursUnread: 0,
+    // ⭐ ENGINE 56 — bars our side withheld BY NAME on this plot (a per-bar witness code):
+    // not compared, and counted with how many of them TradingView drew a value on
+    withheldBars: 0,
+    withheldVendorValued: 0,
+    withheldWarmupVendorValued: 0,
+    floatOrderFloorUsed: 0,
     matching: 0,
     vendorRowsMissing: 0,
     naMismatches: 0,
     valueMismatches: 0,
     colorMismatches: 0,
     colorCompared: 0,
+    // ⭐ ENGINE 58 — bars TradingView coloured where our side withheld the colour
+    // by name (`COLOUR_WITHHELD_POINT`).
+    colorWithheld: 0,
     // Bars where the VENDOR drew a value in a known colour — the bars a colour
     // claim is about. Counted whether or not our side's colour resolved, so a
     // plot that never draws anything is told apart from one we could not read.
@@ -474,6 +506,13 @@ export function comparePlot({ times, vendor, ours, vendorColors = null, ourColor
     }
     firstRowSeen = true
     if (Number.isInteger(oursUnreadAfter) && i >= oursUnreadAfter) { res.oursUnread += 1; continue }
+    if (withheldBars && withheldBars[i]) {
+      res.withheldBars += 1
+      // only a steady-state bar weighs on the verdict; a warm-up bar is reported, as a warm-up
+      // divergence is (`warmup.divergent`)
+      if (!isNa(v)) { if (i >= warmupBars) res.withheldVendorValued += 1; else res.withheldWarmupVendorValued += 1 }
+      continue
+    }
     const o = ours[i]
     res.compared += 1
     if (!isNa(v)) res.valued += 1
@@ -486,13 +525,19 @@ export function comparePlot({ times, vendor, ours, vendorColors = null, ourColor
       const rel = d / Math.max(Math.abs(v), Number.MIN_VALUE)
       if (d > res.maxAbs) res.maxAbs = d
       if (Math.abs(v) > 0 && rel > res.maxRel) res.maxRel = rel
-      if (!valuesAgree(o, v, tol)) { kind = 'value'; res.valueMismatches += 1 }
+      const floor = floatOrderFloor && Number.isFinite(floatOrderFloor[i]) ? floatOrderFloor[i] : 0
+      if (!valuesAgree(o, v, tol)) {
+        if (floor > 0 && valuesAgree(o, v, tol, floor)) res.floatOrderFloorUsed += 1
+        else { kind = 'value'; res.valueMismatches += 1 }
+      }
     }
     if (vendorColors && !isNa(v) && vendorColors[i] !== undefined && vendorColors[i] !== null) res.colorComparable += 1
     if (!kind && vendorColors && ourColors && !isNa(v) && i >= colorWarmupBars) {
       const vc = vendorColors[i]
       const oc = ourColors[i]
-      if (vc !== undefined && vc !== null && oc !== undefined) {
+      if (oc === COLOUR_WITHHELD_POINT) {
+        if (vc !== undefined && vc !== null) res.colorWithheld += 1
+      } else if (vc !== undefined && vc !== null && oc !== undefined) {
         res.colorCompared += 1
         if (!coloursAgree(vc, oc)) { kind = 'color'; res.colorMismatches += 1 }
       }
@@ -581,7 +626,7 @@ export function colourWarmupOf({ bar0, capture, warmupBars, colorLookback, repla
 }
 
 /** One plot's verdict from its comparison, with the reason written out. */
-export function plotVerdict(r, { colorMeasured, colorResolvable, vendorColorReason = null, ourColorReason = null }) {
+export function plotVerdict(r, { colorMeasured, colorResolvable, vendorColorReason = null, ourColorReason = null, ourColorWithheldBy = null }) {
   if (r.vendorRowGapsAfterStart > 0) {
     return { verdict: 'INCONCLUSIVE', reason: `${r.vendorRowGapsAfterStart} bars have no vendor row after the study had started — a hole in what was read, not an answer` }
   }
@@ -595,6 +640,11 @@ export function plotVerdict(r, { colorMeasured, colorResolvable, vendorColorReas
   }
   if (r.steady.compared === 0) {
     return { verdict: 'INCONCLUSIVE', reason: r.compared === 0 ? 'no bar was compared' : 'every compared bar is inside the warm-up region — nothing in steady state to judge' }
+  }
+  // ⭐ ENGINE 56 — a bar our side withheld BY NAME where TradingView drew a value is not a
+  // wrong value and not a match: the plot is INCONCLUSIVE, with the count, until it is served
+  if (r.withheldVendorValued > 0) {
+    return { verdict: 'INCONCLUSIVE', reason: `${r.steady.compared} compared bars agree; ${r.withheldVendorValued} bar(s) where TradingView draws a value are withheld by name on our side (not compared)` }
   }
   // ⛔ A COLOUR THE CAPTURE HOLDS BUT THE HARNESS COULD NOT DECODE IS NOT A MATCH.
   // ⚰️ It was: a palette-less colorer read `colors: null`, our side had colours,
@@ -612,7 +662,14 @@ export function plotVerdict(r, { colorMeasured, colorResolvable, vendorColorReas
   if (colorMeasured && !colorResolvable && (r.colorComparable === undefined || r.colorComparable > 0)) {
     return { verdict: 'INCONCLUSIVE', reason: `values agree, but the capture records per-bar colour and our side's colour could not be resolved${ourColorReason ? ` (${ourColorReason})` : ''}` }
   }
-  return { verdict: 'MATCH', reason: `${r.steady.compared} steady-state bars agree` + (r.warmup.divergent ? ` (${r.warmup.divergent} warm-up bars differ, reported separately)` : '') }
+  // ⭐ ENGINE 58 — a colour our side withheld by name on some bars TradingView
+  // coloured: the bars it did colour agree, and the rest are not an answer.
+  if (colorMeasured && r.colorWithheld > 0) {
+    return { verdict: 'INCONCLUSIVE', reason: `values agree, and the colour agrees on ${r.colorCompared} bars; on ${r.colorWithheld} bars our side withheld it by name${ourColorWithheldBy ? ` (${ourColorWithheldBy})` : ''} — nothing is drawn there rather than a colour the script does not choose` }
+  }
+  return { verdict: 'MATCH', reason: `${r.steady.compared} steady-state bars agree`
+    + (r.floatOrderFloorUsed ? ` (${r.floatOrderFloorUsed} of them within the float-order floor of the running total the plot is a linear combination of)` : '')
+    + (r.warmup.divergent ? ` (${r.warmup.divergent} warm-up bars differ, reported separately)` : '') }
 }
 
 const fmt = (x) => (x === null || x === undefined ? 'na' : typeof x === 'number' ? String(x) : JSON.stringify(x))
@@ -863,19 +920,29 @@ export function compareCapture(capture, ours, opts = {}) {
     // colour `#2962FF` on 632 bars of a glyph nobody can see).
     const metaStyle = (capture.study && capture.study.styles && capture.study.styles[v.id]) || null
     const emptyGlyph = v.type === 'chars' && !!metaStyle && metaStyle.char === '' && !metaStyle.text
+    // ⭐ ENGINE 58 — a plot coloured `chart.fg_color` / `chart.bg_color` is drawn in
+    // OUR chart's colour, not TradingView's theme: THEME-RELATIVE, the C37 rule the
+    // object colours already follow (`objectTheme.js`; `themeRelative` agrees).
+    // ⭐ …graded on its ALPHA byte alone (`alphaOnlyColour`): the transparency is the
+    // script's, only the hue is the chart's.
+    const themeRelative = o.colorsThemeRelative === true
     const colourUngraded = hiddenOnVendor || emptyGlyph
+    const gradedVendorColors = themeRelative && vc.colors ? vc.colors.map(alphaOnlyColour) : vc.colors
+    const gradedOurColors = themeRelative && ourColors ? ourColors.map(alphaOnlyColour) : ourColors
     // ⭐⭐ ENGINE 55 — the NEWEST bar our side withheld BY NAME (`withheldNewest`: the
     // `request:htf-newest-unconfirmed` code, a finished newest bar whose period end is
     // the next session's date) is not compared, exactly as a whole-series withholding
     // is not: our side drew nothing there, and drew it on purpose. Every other bar is.
     const unreadAfter = [treeShift ? times.length - treeShift : null, o.withheldNewest === true ? times.length - 1 : null]
       .filter((x) => x !== null)
-    const r = comparePlot({ times, vendor: vendorVals, ours: oursCol, vendorColors: colourUngraded ? null : vc.colors, ourColors: colourUngraded ? null : ourColors, warmupBars, colorWarmupBars, tol, oursUnreadAfter: unreadAfter.length ? Math.min(...unreadAfter) : null })
+    const r = comparePlot({ times, vendor: vendorVals, ours: oursCol, vendorColors: colourUngraded ? null : gradedVendorColors, ourColors: colourUngraded ? null : gradedOurColors, warmupBars, colorWarmupBars, tol, oursUnreadAfter: unreadAfter.length ? Math.min(...unreadAfter) : null,
+      withheldBars: leadBy(o.withheldBars, treeShift) || null, floatOrderFloor: leadBy(o.floatOrderFloor, treeShift) || null })
     const pv = plotVerdict(r, {
       colorMeasured: vc.measured && !colourUngraded,
       colorResolvable: !!ourColors,
       vendorColorReason: vc.measured && !vc.colors ? vc.reason : null,
       ourColorReason: o.colorsReason || null,
+      ourColorWithheldBy: o.colorsWithheldBy || null,
     })
     base.plots.push({
       id: v.id, title: v.title ?? o.title, ours: o.key, rule: pair.rule, ...pv,
@@ -887,7 +954,7 @@ export function compareCapture(capture, ours, opts = {}) {
         : colourUngraded ? (emptyGlyph ? 'not graded — an empty plotchar glyph draws nothing' : 'not graded — hidden on TradingView (display none)')
           : !vc.colors ? 'undecodable in the capture'
             : r.colorComparable === 0 ? 'nothing drawn on any bar — no colour to compare'
-              : ourColors ? 'compared' : 'unresolvable on our side',
+              : ourColors ? (themeRelative ? 'compared on alpha only — a theme reference (chart.fg_color / chart.bg_color) takes its hue from the chart (C37)' : 'compared') : 'unresolvable on our side',
       stats: r,
     })
   }
@@ -1572,7 +1639,9 @@ export function comparePaints(grade) {
     if (PAINT_AGREES.has(s)) agreeing += 1
     else if (PAINT_DIFFERS.has(s)) differing.push(r)
     else if (s === 'withheld') {
-      if (r.displayed === false) { undrawn += 1; undrawnIds.push(r.id) }
+      // ⭐ ENGINE 58 (S11) — …and one TradingView paints on NO bar is undrawn on both
+      // sides too, by the same rule as `notDrawn` below (dot-dynamics).
+      if (r.displayed === false || r.vendorPainted === 0) { undrawn += 1; undrawnIds.push(r.id) }
       else if (typeof r.reason === 'string' && r.reason.trim()) withheldByName.push(r)
       else differing.push(r)
     } else if (s === 'notDrawn') {
@@ -1693,6 +1762,26 @@ export function renderSummary(results) {
 //      time and its `rule`. Equal counts: JOINED ON BAR TIME, NEVER BAR INDEX (on
 //      method (b) the indexes differ by a constant). Prices to the tick, quantities
 //      exactly, currency to REL_TOL. All equal: MATCH; else DIVERGE naming the rule.
+//   5. FILLS (U14), when the reference carries TradingView's fill list. Fill BY FILL,
+//      grouped by bar time: the same bars, and on each bar the same fills by side,
+//      role (the order COMMAND: entry, exit / close, or strategy.order) and price to the tick, quantities summed exactly (TradingView logs
+//      a bracket's exit once per trade it closes and a close-all once; a sum per key
+//      makes the two loggings one fact), and every entry / exit id ours names among
+//      TradingView's. Fills that cannot be placed in time are INCONCLUSIVE, never skipped.
+//   6. REPORT SLOTS (U14), when given: every slot BOTH sides state is compared (counts
+//      exactly, everything else to REL_TOL); a slot either side does not state is listed
+//      as ungraded with its reason, never compared against a default.
+//   7. VALUE SERIES, when given: every plot of the capture against our output of the same plot,
+//      bar by bar, joined on time (`na` only equals `na`; numbers to REL_TOL). The caller pairs the
+//      plots and refuses a pairing it cannot prove (INCONCLUSIVE, never paired anyway). A differing
+//      bar is DIVERGE naming the plot, the bar and both values.
+//   8. DRAWN TEXTS, when given: the label texts per bar, as multisets. Texts the caller could not
+//      draw are listed in `ungradedTexts` with the reason, never dropped and never compared.
+//   ⭐ `graded` says what the MATCH covered. A MATCH with `graded.fills === false` is a
+//      trade-list match only, and `evidence_engine.resolve_pins` never pins from one.
+//   ⛔ Step 2 also blocks on the run's EFFECTIVE settings disagreeing with the read-back
+//      (`settings.effectiveDisagreements`) and on an unread Properties input the run
+//      depends on (`settings.unreadDependedOn`, strategy_reference.mjs).
 
 export const STRATEGY_FLOOR = 5
 export const STRATEGY_VERDICTS = Object.freeze(['MATCH', 'DIVERGE', 'INCONCLUSIVE', 'UNGRADABLE', 'EXPECTED-REFUSAL'])
@@ -1757,13 +1846,18 @@ function compareTrades(refTrades, ourTrades, tick) {
 /**
  * @param {{reference:{trades:object[]}, ours:object, method?:'a'|'b', span?:{from?:number,to?:number},
  *          graded?:{from?:number,to?:number}, tick?:number, settings?:object, refBars?:object[], ourBars?:object[],
- *          refSignals?:object, ourSignals?:object}} g
+ *          refSignals?:object, ourSignals?:object, slots?:object}} g
+ *   `reference.fills` (U14: strategy_reference.mjs, with `fillsTimed` / `fillsReason`) and
+ *   `ours.fills` (`{time, side, role, price, qty, id, labelled, rule}`) add step 5; `slots` step 6.
  */
 export function gradeStrategy(g) {
-  const { reference, ours, method = 'a', span, graded, tick = 0.01, settings, refBars, ourBars, refSignals, ourSignals } = g
+  const { reference, ours, method = 'a', span, graded, tick = 0.01, settings, refBars, ourBars, refSignals, ourSignals, slots, values, texts } = g
   // 0. the reference floor: the TradingView capture alone.
-  const refTrades = (reference && reference.trades) || null
-  if (!Array.isArray(refTrades)) return { verdict: 'INCONCLUSIVE', step: 0, reason: 'the capture carries no trade list' }
+  const listed = (reference && reference.trades) || null
+  if (!Array.isArray(listed)) return { verdict: 'INCONCLUSIVE', step: 0, reason: 'the capture carries no trade list' }
+  // U14: a reference lists its open trades too (`open: true`, strategy_reference.mjs); the floor and the
+  // trade grade read CLOSED trades only (an open trade's entry is graded with the fills)
+  const refTrades = listed.filter((t) => t.open !== true)
   const inGraded = (t) => inSpan(t.exitTime !== undefined ? t.exitTime : t.entryTime, graded || span)
   const refCount = refTrades.filter(inGraded).length
   if (refCount < STRATEGY_FLOOR) {
@@ -1783,15 +1877,241 @@ export function gradeStrategy(g) {
     if (hasDisagreement || noDeclaration) {
       return { verdict: 'INCONCLUSIVE', step: 2, reason: hasDisagreement ? 'the data settings differ' : 'no strategy() declaration to read the settings from' }
     }
+    const eff = Array.isArray(settings.effectiveDisagreements) ? settings.effectiveDisagreements : []
+    if (eff.length) {
+      return { verdict: 'INCONCLUSIVE', step: 2, reason: `the run's settings differ from the read-back: ${eff.map((d) => d.key).join(', ')}` }
+    }
+    const unread = Array.isArray(settings.unreadDependedOn) ? settings.unreadDependedOn : []
+    if (unread.length) {
+      return { verdict: 'INCONCLUSIVE', step: 2, reason: `the read-back lacks input(s) the run depends on: ${unread.join(', ')}` }
+    }
   }
   const bd = barsDiffer(refBars, ourBars, span, tick)
   if (bd) return { verdict: 'INCONCLUSIVE', step: 2, reason: `bars differ: ${bd}` }
   // 3. signal identity, method (b) only.
   if (method === 'b') {
-    const sd = signalsDiffer(refSignals, ourSignals, graded, { rel: REL_TOL, abs: ABS_FLOOR_UNKNOWN_SCALE })
+    // `ourSignals` may be a function (U14), so a caller's run is read only here
+    const sd = signalsDiffer(typeof refSignals === 'function' ? refSignals() : refSignals, typeof ourSignals === 'function' ? ourSignals() : ourSignals, graded, { rel: REL_TOL, abs: ABS_FLOOR_UNKNOWN_SCALE })
     if (sd) return { verdict: 'INCONCLUSIVE', step: 3, reason: `the warm-up has not converged: ${sd}` }
   }
   // 4. trades and values (our trade list is read for the first time here).
   const r = compareTrades(refTrades.filter(inGraded), (ours.trades || []).filter(inGraded), tick)
-  return { ...r, step: 4 }
+  const covered = { trades: true, fills: false, slots: 0, values: 0, texts: 0 }
+  if (r.verdict !== 'MATCH') return { ...r, step: 4, graded: covered }
+  // 5. fills, fill by fill (U14).
+  const refFills = reference.fills
+  if (Array.isArray(refFills)) {
+    if (reference.fillsTimed !== true) {
+      return { verdict: 'INCONCLUSIVE', step: 5, reason: `the reference fills cannot be placed in time: ${reference.fillsReason || 'untimed'}`, first: null, graded: covered }
+    }
+    const inFills = (f) => inSpan(f.time, graded || span)
+    const f = compareFills(refFills.filter(inFills), (Array.isArray(ours.fills) ? ours.fills : []).filter(inFills), tick)
+    if (f.verdict !== 'MATCH') return { ...f, step: 5, graded: covered }
+    covered.fills = true
+  }
+  // 6. the report slots (U14). `slots` may be a function, so a caller's run is read only here.
+  let done = { ...r, step: covered.fills ? 5 : 4 }
+  let ungradedSlots
+  const slotsNow = typeof slots === 'function' ? slots() : slots
+  if (slotsNow) {
+    const s = compareSlots(slotsNow)
+    covered.slots = s.compared.length
+    ungradedSlots = s.ungraded
+    if (s.verdict !== 'MATCH') return { verdict: s.verdict, reason: s.reason, first: null, step: 6, graded: covered, ungradedSlots }
+    done = { verdict: 'MATCH', step: 6, reason: 'every trade, fill and stated report slot equal', first: null }
+  }
+  const extra = ungradedSlots ? { ungradedSlots } : {}
+  // 7. the value series (the script's own plots, bar by bar). A function, read only here.
+  const valuesNow = typeof values === 'function' ? values() : values
+  if (valuesNow) {
+    if (valuesNow.status !== 'ok') {
+      return { verdict: 'INCONCLUSIVE', step: 7, reason: `the value series cannot be paired: ${valuesNow.reason || 'unpaired'}`, first: null, graded: covered, ...extra }
+    }
+    const v = compareValueSeries(valuesNow.series, graded || span)
+    if (v.verdict !== 'MATCH') return { ...v, step: 7, graded: covered, ...extra }
+    covered.values = valuesNow.series.length
+    done = { verdict: 'MATCH', step: 7, reason: `${done.reason}; every value series equal bar by bar`, first: null }
+  }
+  // 8. the texts the script draws (label texts, by bar). Ungraded texts are LISTED, never dropped.
+  const textsNow = typeof texts === 'function' ? texts() : texts
+  if (textsNow) {
+    if (textsNow.status === 'ungraded') extra.ungradedTexts = [{ what: textsNow.what || 'labels', why: textsNow.reason || 'ungraded' }]
+    else if (textsNow.status !== 'ok') {
+      return { verdict: 'INCONCLUSIVE', step: 8, reason: `the drawn texts cannot be read: ${textsNow.reason || 'unread'}`, first: null, graded: covered, ...extra }
+    } else {
+      const t = compareTexts(textsNow.reference, textsNow.ours, graded || span)
+      if (t.verdict !== 'MATCH') return { ...t, step: 8, graded: covered, ...extra }
+      covered.texts = t.compared
+      done = { verdict: 'MATCH', step: 8, reason: `${done.reason}; every drawn text equal`, first: null }
+    }
+  }
+  return { ...done, graded: covered, ...extra }
+}
+
+// ── step 7: the value series ──────────────────────────────────────────────────
+/** A value's tolerance: the corpus harness's (`REL_TOL`, the unknown-scale floor); `na` only equals `na`. */
+const VALUE_TOL = Object.freeze({ rel: REL_TOL, abs: ABS_FLOOR_UNKNOWN_SCALE })
+/**
+ * `series`: `[{ title, reference: [{time, value}], ours: [{time, value}], rule? }]`, one per plot of the
+ * capture, ALREADY PAIRED by the caller (which refuses a pairing it cannot prove). Every bar of the
+ * reference inside `span` must have a bar of ours at that time with an agreeing value.
+ */
+function compareValueSeries(series, span) {
+  for (const s of series) {
+    const ref = (s.reference || []).filter((p) => inSpan(p.time, span))
+    const our = new Map((s.ours || []).filter((p) => inSpan(p.time, span)).map((p) => [p.time, p.value]))
+    const rule = s.rule || 'B-VAL'
+    if (our.size !== ref.length) {
+      return { verdict: 'DIVERGE', reason: `value series ${s.title} has ${our.size} bars of ours against ${ref.length}`, first: { time: ref.length ? ref[0].time : null, rule } }
+    }
+    for (const p of ref) {
+      if (!our.has(p.time) || !valuesAgree(our.get(p.time), p.value, VALUE_TOL)) {
+        const o = our.has(p.time) ? our.get(p.time) : undefined
+        return { verdict: 'DIVERGE', reason: `value series ${s.title} differs at ${p.time} (reference ${isNa(p.value) ? 'na' : p.value}, ours ${o === undefined ? 'no bar' : isNa(o) ? 'na' : o})`, first: { time: p.time, rule } }
+      }
+    }
+  }
+  return { verdict: 'MATCH', reason: 'every value series equal', first: null }
+}
+
+// ── ruling D11: THE FIRST DIFFERENCE of a run that diverges, found mechanically ─────────────────
+/**
+ * The earliest bar on which our run and TradingView's differ, over everything the grade places on a bar: the
+ * fills (step 5), the value series (step 7) and the drawn texts (step 8). Trades are checked through their
+ * fills; a report slot has no bar and never sets it.
+ *
+ * `prefixExact` is the proof ruling D11 asks for: restricted to the bars STRICTLY BEFORE that bar, the closed
+ * trades, the fills, every value series and every text are equal. It is computed here, never asserted, and it
+ * FAILS CLOSED: plots that could not be paired, texts that could not be read, or reference fills that could
+ * not be placed in time make it false.
+ *
+ * @returns {{bar:number, step:5|7|8, prefixExact:boolean} | null}  null when no fill, value or text differs
+ *   (a difference in a profit or a report slot alone): there is then no event to scope a culprit to.
+ */
+export function strategyFirstDifference({ reference, ours, tick = 0.01, span, graded, values, texts }) {
+  const within = graded || span
+  const inS = (t) => inSpan(t, within)
+  const refFills = reference && Array.isArray(reference.fills) ? reference.fills : null
+  if (!refFills || reference.fillsTimed !== true) return null
+  const ourFills = Array.isArray(ours && ours.fills) ? ours.fills : []
+  const valuesOk = !!values && values.status === 'ok'
+  const textsOk = !!texts && texts.status === 'ok'
+  const textsGraded = !texts || texts.status === 'ungraded' || textsOk // absent / ungraded texts are not a graded step
+  const f = compareFills(refFills.filter((x) => inS(x.time)), ourFills.filter((x) => inS(x.time)), tick)
+  const fillAt = f.verdict === 'MATCH' ? null : f.first.time
+  let valueAt = null
+  if (valuesOk) {
+    for (const s of values.series) {
+      const our = new Map((s.ours || []).map((p) => [p.time, p.value]))
+      for (const p of s.reference || []) {
+        if (!inS(p.time) || (valueAt !== null && p.time >= valueAt)) continue
+        if (!our.has(p.time) || !valuesAgree(our.get(p.time), p.value, VALUE_TOL)) valueAt = p.time
+      }
+    }
+  }
+  let textAt = null
+  if (textsOk) {
+    const t = compareTexts(texts.reference, texts.ours, within)
+    if (t.verdict !== 'MATCH') textAt = t.first.time
+  }
+  const at = [fillAt, valueAt, textAt].filter((x) => x !== null)
+  if (!at.length) return null
+  const bar = Math.min(...at)
+  const step = fillAt === bar ? 5 : valueAt === bar ? 7 : 8
+  const before = { from: within && within.from, to: within && within.to !== undefined ? Math.min(within.to, bar) : bar }
+  const inB = (t) => inSpan(t, before)
+  const closedBefore = (list) => (list || []).filter((t) => t.open !== true && t.exitTime !== null && t.exitTime !== undefined && inB(t.exitTime))
+  const tradesExact = compareTrades(closedBefore(reference.trades), closedBefore(ours && ours.trades), tick).verdict === 'MATCH'
+  const fillsExact = compareFills(refFills.filter((x) => inB(x.time)), ourFills.filter((x) => inB(x.time)), tick).verdict === 'MATCH'
+  const valuesExact = valuesOk && compareValueSeries(values.series, before).verdict === 'MATCH'
+  const textsExact = textsGraded && (!textsOk || compareTexts(texts.reference, texts.ours, before).verdict === 'MATCH')
+  return { bar, step, prefixExact: tradesExact && fillsExact && valuesExact && textsExact }
+}
+
+// ── step 8: the drawn texts ───────────────────────────────────────────────────
+/** `reference` / `ours`: `[{ time, text }]`. The same texts on the same bars, as multisets per bar. */
+function compareTexts(reference, ours, span) {
+  const bag = (rows) => {
+    const m = new Map()
+    for (const r of rows || []) {
+      if (!inSpan(r.time, span)) continue
+      if (!m.has(r.time)) m.set(r.time, [])
+      m.get(r.time).push(String(r.text))
+    }
+    for (const v of m.values()) v.sort()
+    return m
+  }
+  const a = bag(reference)
+  const b = bag(ours)
+  let compared = 0
+  for (const t of [...new Set([...a.keys(), ...b.keys()])].sort((x, y) => x - y)) {
+    const x = a.get(t) || []
+    const y = b.get(t) || []
+    if (x.length !== y.length || x.some((v, i) => v !== y[i])) {
+      return { verdict: 'DIVERGE', reason: `the drawn texts at ${t} differ (reference ${JSON.stringify(x)}, ours ${JSON.stringify(y)})`, first: { time: t, rule: 'B-VAL' } }
+    }
+    compared += x.length
+  }
+  return { verdict: 'MATCH', compared }
+}
+
+// ── U14 step 5: fills ─────────────────────────────────────────────────────────
+const fillKey = (f, tick) => `${f.side}|${f.role}|${Math.round(f.price / tick)}`
+function fillGroups(fills, tick) {
+  const byTime = new Map()
+  for (const f of fills) {
+    if (!byTime.has(f.time)) byTime.set(f.time, new Map())
+    const g = byTime.get(f.time)
+    const k = fillKey(f, tick)
+    if (!g.has(k)) g.set(k, { qty: 0, ids: new Set(), fills: [] })
+    const e = g.get(k)
+    e.qty += f.qty
+    if (typeof f.id === 'string') e.ids.add(f.id)
+    e.fills.push(f)
+  }
+  return byTime
+}
+function compareFills(refFills, ourFills, tick) {
+  const a = fillGroups(refFills, tick)
+  const b = fillGroups(ourFills, tick)
+  const times = [...new Set([...a.keys(), ...b.keys()])].sort((x, y) => x - y)
+  for (const t of times) {
+    const ra = a.get(t)
+    const ob = b.get(t)
+    const ourRule = ob ? ruleOf([...ob.values()][0].fills[0]) : 'unattributed'
+    if (!ra) return { verdict: 'DIVERGE', reason: `a fill of ours at ${t} that TradingView does not have`, first: { time: t, rule: ourRule } }
+    if (!ob) return { verdict: 'DIVERGE', reason: `no fill of ours at ${t}`, first: { time: t, rule: 'unattributed' } }
+    for (const k of new Set([...ra.keys(), ...ob.keys()])) {
+      const x = ra.get(k)
+      const y = ob.get(k)
+      const rule = y ? ruleOf(y.fills[0]) : ourRule
+      if (!x || !y) return { verdict: 'DIVERGE', reason: `the fills at ${t} differ (${k} on ${x ? "TradingView's" : 'our'} side only)`, first: { time: t, rule } }
+      if (Math.abs(x.qty - y.qty) > 1e-9 * Math.max(1, Math.abs(x.qty))) {
+        return { verdict: 'DIVERGE', reason: `the ${k} quantity at ${t} differs (reference ${x.qty}, ours ${y.qty})`, first: { time: t, rule } }
+      }
+      for (const of of y.fills) {
+        if (of.labelled === true && typeof of.id === 'string' && !x.ids.has(of.id)) {
+          return { verdict: 'DIVERGE', reason: `the ${k} fill at ${t} is ${of.id} on our side and ${[...x.ids].join(' / ') || 'unnamed'} on TradingView's`, first: { time: t, rule: ruleOf(of) } }
+        }
+      }
+    }
+  }
+  return { verdict: 'MATCH', reason: 'every fill equal', first: null }
+}
+
+// ── U14 step 6: the report slots ──────────────────────────────────────────────
+/** `slots`: `{ slot: { kind: 'count'|'value', reference: {status, value?}, ours: {status, value?, guard?} } }`. */
+function compareSlots(slots) {
+  const compared = []
+  const ungraded = []
+  for (const [slot, s] of Object.entries(slots)) {
+    const ref = s && s.reference
+    const our = s && s.ours
+    if (!ref || ref.status !== 'ok') { ungraded.push({ slot, why: `reference ${ref ? ref.status : 'absent'}` }); continue }
+    if (!our || our.status !== 'served') { ungraded.push({ slot, why: `ours ${our ? (our.guard || our.status) : 'absent'}` }); continue }
+    compared.push(slot)
+    const same = s.kind === 'count' ? our.value === ref.value : sameCurrency(our.value, ref.value)
+    if (!same) return { verdict: 'DIVERGE', reason: `report slot ${slot} differs (reference ${ref.value}, ours ${our.value})`, compared, ungraded }
+  }
+  return { verdict: 'MATCH', compared, ungraded }
 }

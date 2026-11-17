@@ -806,7 +806,41 @@
      "computed key"
     ]
    },
-   "batch": "wave9"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "Two trades",
+    "rows": [
+     {
+      "key": "trade_a_risked",
+      "label": "Trade A risked",
+      "value": 200,
+      "fmt": "$"
+     },
+     {
+      "key": "trade_a_made",
+      "label": "Trade A made",
+      "value": 500,
+      "fmt": "$"
+     },
+     {
+      "key": "trade_b_risked",
+      "label": "Trade B risked",
+      "value": 1000,
+      "fmt": "$"
+     },
+     {
+      "key": "trade_b_made",
+      "label": "Trade B made",
+      "value": 1500,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Trade A, times its risk",
+     "as": "times"
+    }
+   }
   },
   {
    "key": "q04",
@@ -1183,7 +1217,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "+16R",
     "+2R",
@@ -1194,6 +1228,40 @@
     "+16R": "You added the 7R as if the rule breaks made money.",
     "+9R": "You counted only the 14 clean trades and left out the 6 rule breaks.",
     "-2R": "You took the 9R away from the 7R, the wrong way round."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Twenty trades",
+    "rows": [
+     {
+      "key": "rule-breakers",
+      "label": "Rule-breakers",
+      "value": 6,
+      "fmt": "count"
+     },
+     {
+      "key": "r_lost_on_them",
+      "label": "R lost on them",
+      "value": 7,
+      "fmt": "count"
+     },
+     {
+      "key": "other_trades",
+      "label": "Other trades",
+      "value": 14,
+      "fmt": "count"
+     },
+     {
+      "key": "r_won_on_them",
+      "label": "R won on them",
+      "value": 9,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "All 20 trades, in R",
+     "as": "r"
+    }
    }
   },
   {
@@ -1728,7 +1796,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Rederived before the key: A = 500/200 = 2.5R (calc), B = 1500/1000 = 1.5R, so A paid more per dollar risked. Key matches. f52 (Tharp: P&L as a ratio of initial risk) and f54 ('per dollar you risk') back the why; f55 backs the win-rate wrong note. Choices 30/30/34/31, no lone absolute, no silly choice; B's 1.5R is never stated as a number, so nothing ungrounded. Simple stays inside the why. Does not answer q09/q10 (those are win rate and average R over a list)."
+   "notes": "calc computes only trade A's ratio and the label says so plainly ('Trade A, times its risk'); key too long so slot '2.5×'. Mild hint toward A, accepted since it is the honest name for the part computed"
   },
   "q04": {
    "status": "cut",
@@ -1791,7 +1859,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
+   "notes": "count, R lost 7, other 14, R won 9 as stated; slot '+2R' from key"
   },
   "q14": {
    "status": "pass",

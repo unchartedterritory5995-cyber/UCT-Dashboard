@@ -2471,7 +2471,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "66.7%",
     "28.6%",
@@ -2482,6 +2482,24 @@
     "66.7%": "Divided winners by losers, so the losers were left out of the bottom number.",
     "28.6%": "Counted the winners twice in the bottom number.",
     "60%": "Used the losers, not the winners, on top."
+   },
+   "visual": {
+    "kind": "share",
+    "title": "Your record",
+    "whole": {
+     "label": "All trades",
+     "value": 25,
+     "fmt": "count"
+    },
+    "part": {
+     "label": "Winners",
+     "value": 10,
+     "fmt": "count"
+    },
+    "find": {
+     "label": "Win rate",
+     "as": "pct"
+    }
    }
   },
   {
@@ -2586,7 +2604,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$1,200",
     "$500",
@@ -2597,6 +2615,34 @@
     "$1,200": "Added the three wins and forgot to divide.",
     "$600": "Divided the total by two instead of three.",
     "$500": "Picked the biggest win instead of averaging."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Your winners",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "First win",
+      "value": 300,
+      "fmt": "$"
+     },
+     {
+      "key": "r2",
+      "label": "Second win",
+      "value": 500,
+      "fmt": "$"
+     },
+     {
+      "key": "r3",
+      "label": "Third win",
+      "value": 400,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Average win",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -2668,7 +2714,7 @@
      "fixed before (definition sources)"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "0.33",
     "0.75",
@@ -2679,6 +2725,29 @@
     "0.33": "Flipped it: loss divided by win.",
     "0.75": "Divided the win by the win plus the loss.",
     "2.00": "Divided the gap between win and loss by the loss."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Your record",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Average win",
+      "value": 6,
+      "fmt": "%"
+     },
+     {
+      "key": "r2",
+      "label": "Average loss",
+      "value": 2,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Payoff ratio",
+     "as": "num",
+     "unit": "ratio"
+    }
    }
   },
   {
@@ -2746,7 +2815,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "2.50",
     "0.67",
@@ -2757,6 +2826,29 @@
     "0.67": "Flipped it: gross loss divided by gross profit.",
     "2.50": "Divided the gross total of both sides by the loss.",
     "0.60": "Divided profit by the combined total of wins and losses."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Your record",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Winners made, total",
+      "value": 9000,
+      "fmt": "$"
+     },
+     {
+      "key": "r2",
+      "label": "Losers lost, total",
+      "value": 6000,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Profit factor",
+     "as": "num",
+     "unit": "ratio"
+    }
    }
   },
   {
@@ -3748,7 +3840,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "10/25=40 confirmed. 66.7=10/15, 28.6=10/35, 60=15/25 are all real slips. Why walks steps."
+   "notes": "Share suits winners as a part of all trades; the 15 losers are not needed; slot 40% matches key."
   },
   "q40": {
    "status": "pass",
@@ -3766,7 +3858,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "400 smallest of 400/500/600/1200. 500 biggest win, 600 = total/2, 1200 = no divide. Real slips."
+   "notes": "Three wins labelled; slot $400 matches key."
   },
   "q43": {
    "status": "pass",
@@ -3778,7 +3870,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "3.00 largest. 0.33 flipped; 0.75 = win/(win+loss); 2.00 = (win-loss)/loss. Real slips."
+   "notes": "Average win and loss in percent; slot 3.00 matches key."
   },
   "q45": {
    "status": "pass",
@@ -3790,7 +3882,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "9000/6000=1.5. 0.67 flipped, 2.50=15000/6000, 0.60=9000/15000; all real. Why shows steps."
+   "notes": "Total won and total lost in dollars; slot 1.50 matches key."
   },
   "q47": {
    "status": "pass",

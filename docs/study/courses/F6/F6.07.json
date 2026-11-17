@@ -923,7 +923,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "0.40",
     "0.95",
@@ -934,6 +934,35 @@
     "0.40": "Subtracted the gamma instead of adding it.",
     "0.95": "Slipped a decimal place on the gamma.",
     "0.45": "Kept the old delta and ignored the gamma."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Gamma's step",
+    "rows": [
+     {
+      "key": "call_delta",
+      "label": "Call delta",
+      "value": 0.45,
+      "fmt": "count"
+     },
+     {
+      "key": "gamma",
+      "label": "Gamma",
+      "value": 0.05,
+      "fmt": "count"
+     },
+     {
+      "key": "stock_rises",
+      "label": "Stock rises",
+      "value": 1.0,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "New delta",
+     "as": "num",
+     "unit": "delta"
+    }
    }
   },
   {
@@ -979,7 +1008,36 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "Gamma's step",
+    "rows": [
+     {
+      "key": "put_delta,_a_negativ",
+      "label": "Put delta, a negative",
+      "value": 0.3,
+      "fmt": "count"
+     },
+     {
+      "key": "gamma",
+      "label": "Gamma",
+      "value": 0.05,
+      "fmt": "count"
+     },
+     {
+      "key": "stock_drops",
+      "label": "Stock drops",
+      "value": 1.0,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Put's new delta",
+     "as": "num",
+     "unit": "delta"
+    }
+   }
   },
   {
    "key": "q10",
@@ -1058,7 +1116,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "39 shares",
     "35 shares",
@@ -1069,6 +1127,34 @@
     "35 shares": "Used the old delta and ignored the gamma.",
     "390 shares": "Slipped a decimal place.",
     "43 shares": "Added the gamma twice."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Gamma's step",
+    "rows": [
+     {
+      "key": "call_delta",
+      "label": "Call delta",
+      "value": 0.35,
+      "fmt": "count"
+     },
+     {
+      "key": "gamma",
+      "label": "Gamma",
+      "value": 0.04,
+      "fmt": "count"
+     },
+     {
+      "key": "stock_rises",
+      "label": "Stock rises",
+      "value": 1.0,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "One contract acts like",
+     "as": "shares"
+    }
    }
   },
   {
@@ -1463,7 +1549,13 @@
      "lesson line touches the owner's rulebook (C32: no news-day rule)"
     ]
    },
-   "batch": "wave7"
+   "batch": "index-charts-2026-11-16",
+   "chart": {
+    "sym": "SPX",
+    "asof": "2024-12-17",
+    "window": 120,
+    "forward": 5
+   }
   },
   {
    "key": "q22",
@@ -1607,14 +1699,14 @@
   "q08": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 3."
+   "fixed": false,
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q09": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc checked: -0.30 + 0.05 x (-1) = -0.35. Each wrong value is a real slip: the wrong sign, no change, or the change alone. The notes rest on f7 and f23."
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q10": {
    "status": "pass",
@@ -1626,7 +1718,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q12": {
    "status": "pass",
@@ -1686,7 +1778,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "My own answer is short gamma, from f11, f7 and f13 plus f70 and f73. The dated facts are all quoted (f39, f58, f59, f75, f60). The lesson line states the f61 risk with no house judgment, so it does not conflict with C32. The seller's seat is already covered by the owner flag."
+   "notes": "Words agree with the data: SPX 2024-12-17 close 6050.61 -> 2024-12-18 close 5872.16 = -2.949% ('closed down 2.9%'); the day's low 5867.79 = -3.02% and the open 6047.65, high 6070.67 (+0.33%), so the candle opens flat, pops, and closes a few points off the low: 'quickly lost almost 3%' fits within the source's rounding. Dec 18 is the second-worst 2024 close after 2024-08-05 (-3.00%), matching f75 'just shy of its biggest loss for the year'. The 2 p.m. timing is intraday and not drawn. No give-away: the window (2024-06-28 to 12-17, top close 6090.27 on 12-06) shows a calm market near its record "
   },
   "q22": {
    "status": "pass",

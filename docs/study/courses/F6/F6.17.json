@@ -980,7 +980,7 @@
      "fixed before (lesson line, 2026-11-09)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$10.80",
     "$540",
@@ -991,6 +991,40 @@
     "$540": "Sells the 3 at the old $1.80 price.",
     "$2,160": "Counts all 6 contracts. You sold only 3.",
     "$10.80": "Forgets that one contract covers 100 shares."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Selling half",
+    "rows": [
+     {
+      "key": "calls_bought",
+      "label": "Calls bought",
+      "value": 6.0,
+      "fmt": "count"
+     },
+     {
+      "key": "bought_at",
+      "label": "Bought at",
+      "value": 1.8,
+      "fmt": "$"
+     },
+     {
+      "key": "price_now",
+      "label": "Price now",
+      "value": 3.6,
+      "fmt": "$"
+     },
+     {
+      "key": "calls_sold",
+      "label": "Calls sold",
+      "value": 3.0,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Cash that comes back",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1069,7 +1103,7 @@
      "fixed before (question text, 2026-11-09)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$4.80",
     "$6.40",
@@ -1080,6 +1114,28 @@
     "$4.80": "Adds 50 percent instead of taking it off.",
     "$6.40": "That is the double-your-money exit, not the 50% loss exit.",
     "$2.70": "Takes 50 cents off instead of 50 percent."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The 50% stop",
+    "rows": [
+     {
+      "key": "paid_for_the_call",
+      "label": "Paid for the call",
+      "value": 3.2,
+      "fmt": "$"
+     },
+     {
+      "key": "loss_we_accept",
+      "label": "Loss we accept",
+      "value": 50.0,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Exit price",
+     "as": "price"
+    }
    }
   },
   {
@@ -1153,7 +1209,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$3.50",
     "$1,050",
@@ -1164,6 +1220,28 @@
     "$3.50": "Forgets that one contract covers 100 shares.",
     "$1,050": "Adds the two prices instead of taking the difference.",
     "$700": "Counts only the cash from selling the 50 call."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Rolling up",
+    "rows": [
+     {
+      "key": "50_call_sold_at",
+      "label": "50 call sold at",
+      "value": 7.0,
+      "fmt": "$"
+     },
+     {
+      "key": "55_call_bought_at",
+      "label": "55 call bought at",
+      "value": 3.5,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Cash back, per contract",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1266,7 +1344,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$400",
     "$220",
@@ -1277,6 +1355,28 @@
     "$400": "Adds the two prices. You sell one call and buy the other.",
     "$310": "Counts only the new call and forgets the $0.90 you get back.",
     "$2.20": "Forgets that one contract covers 100 shares."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Rolling out",
+    "rows": [
+     {
+      "key": "old_call,_bid",
+      "label": "Old call, bid",
+      "value": 0.9,
+      "fmt": "$"
+     },
+     {
+      "key": "new_call,_two_months",
+      "label": "New call, price to buy",
+      "value": 3.1,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Cost of rolling out",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1310,7 +1410,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$25",
     "$120",
@@ -1321,6 +1421,28 @@
     "$120": "Thinks you can still make the whole credit. Most of it is already made.",
     "$95": "Gives what closing now already earns, not what is left to make.",
     "$145": "Adds the 0.25 closing cost to the 1.20 credit."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Close or hold",
+    "rows": [
+     {
+      "key": "credit_received",
+      "label": "Credit received",
+      "value": 1.2,
+      "fmt": "$"
+     },
+     {
+      "key": "cost_to_close_now",
+      "label": "Cost to close now",
+      "value": 0.25,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Most extra by holding",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1780,8 +1902,8 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 1."
+   "fixed": false,
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q10": {
    "status": "pass",
@@ -1792,8 +1914,8 @@
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 4."
+   "fixed": false,
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q12": {
    "status": "pass",
@@ -1805,8 +1927,8 @@
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 3."
+   "fixed": false,
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q14": {
    "status": "pass",
@@ -1824,13 +1946,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 2."
+   "notes": "New call is bought at its ask; say what the 3.10 is"
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q18": {
    "status": "pass",

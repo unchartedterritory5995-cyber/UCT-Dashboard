@@ -176,7 +176,7 @@ def _label_key(tf: str, sess: str) -> str:
     return "60e" if (tf == "60" and sess == "eth") else tf
 
 
-def run_tape_via_ingest(name: str) -> list[str]:
+def run_tape_via_ingest(name: str, web: str = "relay") -> list[str]:
     """Replay one tape through the stream-ingest path; return its FRAME lines.
 
         tape --real bar_stream._run_websocket (fake socket)--> IngestRuntime.on_bar
@@ -187,13 +187,19 @@ def run_tape_via_ingest(name: str) -> list[str]:
     The client wants exactly the harness SUBSCRIBERS' keys for the tape's symbols
     and holds the tape's active set on every channel. The buffer is drained at each
     point where run_tape drains its queues, at the same tape clock, so the relay's
-    rev clock sees the same `now` the in-web dispatch saw."""
+    rev clock sees the same `now` the in-web dispatch saw.
+
+    web="remote" (PR5a): instead of the bare relay helpers, the decoded batches go into
+    the web pod's real RemoteBroadcaster, and the lines are what its SSE subscriber
+    queues (one per SUBSCRIBERS label) receive: the full web-side path."""
+    if web not in ("relay", "remote"):
+        raise ValueError(web)
     tape = load_tape(name)
     with _pinned_condition_rules():
-        return asyncio.run(_run_ingest(tape))
+        return asyncio.run(_run_ingest(tape, web))
 
 
-async def _run_ingest(tape: dict) -> list[str]:
+async def _run_ingest(tape: dict, web: str = "relay") -> list[str]:
     import copy
 
     from api.services import bar_stream as bs
@@ -238,6 +244,13 @@ async def _run_ingest(tape: dict) -> list[str]:
         labels = [(f"{sym}/{tf}/{sess}/{'v2' if v2 else 'legacy'}", sym, _label_key(tf, sess), v2)
                   for sym in header["symbols"] for tf, sess, v2 in SUBSCRIBERS]
         legacy, revs = fp.LegacyFilter(), fp.RevClock()
+        rb = queues = None
+        if web == "remote":
+            from api.services.remote_broadcaster import RemoteBroadcaster
+            rb = RemoteBroadcaster(clock_ms=lambda: now[0], monotonic=lambda: now[0] / 1000.0)
+            queues = [(label, rb.subscribe(sym, tf, sess, v2=v2))
+                      for sym in header["symbols"] for tf, sess, v2 in SUBSCRIBERS
+                      for label in [f"{sym}/{tf}/{sess}/{'v2' if v2 else 'legacy'}"]]
 
         async def drain() -> None:
             runtime.before_flush()
@@ -246,6 +259,12 @@ async def _run_ingest(tape: dict) -> list[str]:
                 return
             batch = fp.decode(fp.encode(batch))          # through the wire codec
             assert batch.epoch == srv.epoch
+            if rb is not None:
+                rb.apply_batch(batch)
+                for label, q in queues:
+                    while not q.empty():
+                        out.append(_dumps({"at": now[0], "frame": label, "msg": q.get_nowait()}))
+                return
             frames_out = fp.relay_bars(batch.bars, legacy, revs, now[0])
             for label, sym, key, v2 in labels:
                 for f in frames_out:

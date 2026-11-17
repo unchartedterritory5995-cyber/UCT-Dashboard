@@ -126,41 +126,76 @@ def main():
             p = os.path.join(ROOT, p)
         items.append({"key": r["key"], "path": os.path.abspath(p), "cap": 8})
     items += build_examples(a.ref, os.path.join(cache, "examples"))
+    print("census lane requested: %s" % lane, flush=True)
+    print("census inputs: %d (%d sample, %d examples)" % (
+        len(items), sum(1 for i in items if not i["key"].startswith("example:")),
+        sum(1 for i in items if i["key"].startswith("example:"))), flush=True)
+    drive(items, cache, lane, census_test=a.census_test, max_restarts=a.max_restarts)
+
+
+class CensusRunError(SystemExit):
+    """A census run that did not answer every input, or did not measure the lane it was asked for.
+    A SystemExit, so `run_census.py`'s own exits are what they were (the message, exit 1); the coverage
+    ratchet (`coverage_ratchet.py`) drives the same loop and lets it end the run the same way."""
+
+
+def done_keys(out):
+    """The keys a census.jsonl answers (a torn tail line is skipped)."""
+    ks = set()
+    if os.path.exists(out):
+        for l in open(out, encoding="utf-8"):
+            try:
+                ks.add(json.loads(l)["key"])
+            except Exception:  # noqa: BLE001
+                pass
+    return ks
+
+
+def assert_lane_measured(cache, lane):
+    """⛔ The census's own per-pass record (`lane.jsonl`) and every row must say the lane that was asked
+    for (the census asserts it from what the door did; this catches a census file from an older test).
+    Returns the row count of that lane."""
+    out = os.path.join(cache, "census.jsonl")
+    lane_log = os.path.join(cache, "lane.jsonl")
+    passes = [json.loads(l) for l in open(lane_log, encoding="utf-8") if l.strip()] if os.path.exists(lane_log) else []
+    bad = [p for p in passes if not p.get("ok") or p.get("requested") != lane]
+    if bad or not passes:
+        raise CensusRunError("LANE NOT MEASURED: %s" % (
+            bad[0].get("line") if bad else "no pass recorded its lane (lane.jsonl)"))
+    got = lanes_in(out)
+    if set(got) != {lane}:
+        raise CensusRunError("LANE MISMATCH: requested %s, census rows say %s" % (lane, dict(got)))
+    return got[lane]
+
+
+def drive(items, cache, lane, census_test=CENSUS, max_restarts=40):
+    """THE CENSUS LOOP, in one place (run_census.py's sample census and the coverage ratchet over the
+    committed corpus both call it): write `items` ([{key, path, cap}]) as the census input, run the
+    census test until every item has a row in <cache>/census.jsonl, restarting past a process death
+    (the script named in current.txt is recorded `killed`), then prove the lane.
+    ⛔ vitest exits 0 when it selects nothing, so success is the ROW COUNT, never the exit code.
+    Raises CensusRunError when a row is missing or the lane is not the one asked for."""
+    os.makedirs(cache, exist_ok=True)
     inp = os.path.join(cache, "census_input.json")
     write_json(inp, items)
     out = os.path.join(cache, "census.jsonl")
     cur = os.path.join(cache, "current.txt")
-    print("census lane requested: %s" % lane, flush=True)
     # ⛔ never resume one lane's census on top of the other's rows
     other = {k: v for k, v in lanes_in(out).items() if k != lane}
     if other:
-        sys.exit("%s already holds rows of another lane %s - use a separate --cache per lane" % (out, other))
-    print("census inputs: %d (%d sample, %d examples)" % (
-        len(items), sum(1 for i in items if not i["key"].startswith("example:")),
-        sum(1 for i in items if i["key"].startswith("example:"))), flush=True)
-
-    def done_keys():
-        ks = set()
-        if os.path.exists(out):
-            for l in open(out, encoding="utf-8"):
-                try:
-                    ks.add(json.loads(l)["key"])
-                except Exception:  # noqa: BLE001
-                    pass
-        return ks
-
+        raise CensusRunError("%s already holds rows of another lane %s - use a separate --cache per lane" % (out, other))
     env = dict(os.environ, COVERAGE_INPUT=inp, COVERAGE_OUT=out,
                COVERAGE_RUNTIME_ON="1" if lane == LANE_RUNTIME_ON else "0",
                NODE_OPTIONS="--max-old-space-size=6144")
-    for attempt in range(a.max_restarts):
-        before = done_keys()
+    for attempt in range(max_restarts):
+        before = done_keys(out)
         if len(before) >= len(items):
             break
         if os.path.exists(cur):
             os.remove(cur)
-        rc = subprocess.call(["node", "node_modules/vitest/vitest.mjs", "run", a.census_test],
+        rc = subprocess.call(["node", "node_modules/vitest/vitest.mjs", "run", census_test],
                              cwd=APP, env=env)
-        after = done_keys()
+        after = done_keys(out)
         print("attempt %d rc=%s rows %d -> %d / %d" % (attempt, rc, len(before), len(after), len(items)), flush=True)
         if len(after) >= len(items):
             break
@@ -171,22 +206,14 @@ def main():
                                     "stuck": "killed", "steps": [{"threw": "process died (rc=%s)" % rc}]}) + "\n")
             print("  recorded killer:", killer, flush=True)
         elif len(after) == len(before):
-            sys.exit("no progress and no named killer - stopping rather than looping")
-    n = len(done_keys())
+            raise CensusRunError("no progress and no named killer - stopping rather than looping")
+    n = len(done_keys(out))
     print("census rows: %d / %d" % (n, len(items)))
     if n < len(items):
-        sys.exit(1)
-    # ⛔ the rows must say the lane that was asked for (the census also asserts it
-    # from what the door did; this catches a census file from an older test)
-    lane_log = os.path.join(cache, "lane.jsonl")
-    passes = [json.loads(l) for l in open(lane_log, encoding="utf-8") if l.strip()] if os.path.exists(lane_log) else []
-    bad = [p for p in passes if not p.get("ok") or p.get("requested") != lane]
-    if bad or not passes:
-        sys.exit("LANE NOT MEASURED: %s" % (bad[0].get("line") if bad else "no pass recorded its lane (lane.jsonl)"))
-    got = lanes_in(out)
-    if set(got) != {lane}:
-        sys.exit("LANE MISMATCH: requested %s, census rows say %s" % (lane, dict(got)))
-    print("LANE MEASURED: %s (%d rows)" % (lane, got[lane]))
+        raise CensusRunError("census rows: %d / %d - the census did not answer every input" % (n, len(items)))
+    rows = assert_lane_measured(cache, lane)
+    print("LANE MEASURED: %s (%d rows)" % (lane, rows))
+    return rows
 
 
 if __name__ == "__main__":

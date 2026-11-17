@@ -3609,3 +3609,254 @@
   .indTplDangerBtn { min-height: var(--tap-min, 44px); }
   .indTplPanel .tplDelete { min-width: var(--tap-min, 44px); }
 }
+
+/* ═══ The board-menu look (owner 11-15) — Chart Settings in the widget settings menus' style
+   (Theme Tracker Settings, design B): the #111214 panel, sections as #1a1b1f cards with
+   hairline rows, sentence-case section titles, neutral selected tiles (not gold), soft pill
+   buttons and the monochrome switch. Dark only — the light theme keeps its own block above.
+   `!important` on the tokens because ChartPane hands the dialog its palette INLINE. Look only:
+   every control, tab and handler is unchanged. ═══ */
+:global(:root:not([data-theme='light'])) .panel,
+:global(:root:not([data-theme='light'])) .fieldMenu {
+  --menu-bg: #111214 !important;
+  --menu-bg-top: #1a1b1f !important;
+  --menu-input-bg: #0f1012 !important;
+  --menu-border: #383b41 !important;
+  --menu-divider: #26282c !important;
+  --menu-text: #ededed !important;
+  --menu-text-dim: #a9a59b !important;
+  --menu-text-faint: #93939a !important;
+  --menu-hover: rgba(248, 247, 243, 0.05) !important;
+  --menu-shadow: rgba(0, 0, 0, 0.5) !important;
+}
+:global(:root:not([data-theme='light'])) .panel { background: #111214; border-color: #383b41; border-radius: 12px; }
+:global(:root:not([data-theme='light'])) .panel .title { font-size: 15px; font-weight: 700; letter-spacing: 0; text-transform: none; }
+:global(:root:not([data-theme='light'])) .panel .resetBtn,
+:global(:root:not([data-theme='light'])) .panel .tplBtn,
+:global(:root:not([data-theme='light'])) .panel .themesBarBtn {
+  border: none; border-radius: 7px; background: rgba(248, 247, 243, 0.06); color: #ededed;
+  font-weight: 600; text-transform: none; letter-spacing: 0;
+}
+:global(:root:not([data-theme='light'])) .panel .resetBtn:hover,
+:global(:root:not([data-theme='light'])) .panel .tplBtn:hover,
+:global(:root:not([data-theme='light'])) .panel .themesBarBtn:hover { background: rgba(248, 247, 243, 0.11); color: #f8f7f3; }
+:global(:root:not([data-theme='light'])) .panel .close { border-radius: 7px; background: rgba(248, 247, 243, 0.06); }
+:global(:root:not([data-theme='light'])) .panel .sectionLabel {
+  text-transform: none; letter-spacing: 0; font-size: 11.5px; font-weight: 600; color: #c9c6be; margin: 0 4px 6px;
+}
+:global(:root:not([data-theme='light'])) .panel .card { border: none; border-radius: 9px; }
+:global(:root:not([data-theme='light'])) .panel .field { min-height: 42px; }
+:global(:root:not([data-theme='light'])) .panel .fieldLabel { font-size: 12.5px; color: #ededed; }
+/* tiles: a quiet card, the chosen one lifted in a neutral shade (gold stays for the tab line) */
+:global(:root:not([data-theme='light'])) .panel .typeCard,
+:global(:root:not([data-theme='light'])) .panel .modeCard { background: #1a1b1f; border-color: transparent; }
+:global(:root:not([data-theme='light'])) .panel .typeCard:hover,
+:global(:root:not([data-theme='light'])) .panel .modeCard:hover { background: #222327; border-color: transparent; transform: none; }
+:global(:root:not([data-theme='light'])) .panel .typeCardActive,
+:global(:root:not([data-theme='light'])) .panel .typeCardActive:hover,
+:global(:root:not([data-theme='light'])) .panel .modeCardActive,
+:global(:root:not([data-theme='light'])) .panel .modeCardActive:hover {
+  background: #2c2e33; border-color: rgba(248, 247, 243, 0.22); color: #f8f7f3;
+}
+:global(:root:not([data-theme='light'])) .panel .modeCardActive .modeName { color: #f8f7f3; }
+/* segmented controls */
+:global(:root:not([data-theme='light'])) .panel .seg { border: none; border-radius: 7px; padding: 2px; gap: 2px; background: #0f1012; }
+:global(:root:not([data-theme='light'])) .panel .segBtn { border: none !important; border-radius: 5px; text-transform: none; letter-spacing: 0; }
+:global(:root:not([data-theme='light'])) .panel .segBtnActive { background: #2c2e33 !important; color: #f8f7f3 !important; }
+/* the monochrome switch (white when on), as in every widget settings menu */
+:global(:root:not([data-theme='light'])) .panel .toggle { width: 32px; height: 18px; border: none; background: rgba(248, 247, 243, 0.16); }
+:global(:root:not([data-theme='light'])) .panel .toggle .toggleKnob { top: 2px; left: 2px; width: 14px; height: 14px; background: #d8d6d0; box-shadow: none; }
+:global(:root:not([data-theme='light'])) .panel .toggleOn { background: #f8f7f3; }
+:global(:root:not([data-theme='light'])) .panel .toggleOn .toggleKnob { transform: translateX(14px); background: #111214; box-shadow: none; }
+/* colour swatches: the rounded squares of the widget menus */
+:global(:root:not([data-theme='light'])) .panel .cSwatch { border-radius: 6px; }
+:global(:root:not([data-theme='light'])) .panel .cGroupLabel { text-transform: none; letter-spacing: 0; font-weight: 600; color: #c9c6be; }
+:global(:root:not([data-theme='light'])) .panel .body { scrollbar-width: thin; scrollbar-color: rgba(248, 247, 243, 0.22) transparent; }
+:global(:root:not([data-theme='light'])) .panel { color-scheme: dark; }
+
+/* ═══ S2 · sidebar sections (owner 11-15) ═══ The window is a row: a 172px rail (title, the five
+   sections with grey icons — the open one brighter with a thin light bar — and, at its foot,
+   Templates · Save as template · Chart themes · Restore defaults) beside the content column.
+   The window grows by the rail's width so every tab keeps its full content width. */
+.panel { width: min(860px, 96vw); }
+.shell { flex: 1 1 auto; min-height: 0; display: flex; }
+.side {
+  flex: 0 0 172px; display: flex; flex-direction: column; min-height: 0;
+  border-right: 1px solid var(--menu-divider, #26282c); padding-bottom: 10px;
+}
+.side .header { border-bottom: none; background: none; padding: 16px 16px 12px; }
+.side .tabs { flex-direction: column; gap: 2px; padding: 0; border-bottom: none; }
+.side .tab {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 14px; text-align: left;
+  font-size: 12.5px; font-weight: 500; color: var(--menu-text-dim, #a9a59b);
+}
+.side .tab:hover { color: var(--menu-text, #ededed); background: var(--menu-hover, rgba(248, 247, 243, 0.04)); }
+.side .tabActive { color: var(--menu-text, #ededed); font-weight: 600; background: rgba(248, 247, 243, 0.04); box-shadow: inset 2px 0 0 var(--ut-gold); } /* gold mix: the open section's bar */
+.side .tabActive::after { display: none; }
+.side .tab svg, .side .tab svg * { stroke: currentColor !important; color: inherit !important; filter: none !important; }
+.sideFoot {
+  margin-top: auto; display: flex; flex-direction: column; align-items: stretch; gap: 2px;
+  padding: 10px 8px 0; border-top: 1px solid var(--menu-divider, #26282c); margin-left: 8px; margin-right: 8px;
+}
+.sideFoot .tplMenuWrap { position: relative; }
+.sideFoot .tplBtn, .sideFoot .resetBtn {
+  width: 100%; justify-content: flex-start; text-align: left; background: none !important; border: none !important;
+  padding: 6px 6px; font-size: 12px; font-weight: 500; color: var(--menu-text-dim, #a9a59b) !important; text-transform: none; letter-spacing: 0;
+}
+.sideFoot .tplBtn:hover, .sideFoot .resetBtn:hover { color: var(--menu-text, #ededed) !important; background: var(--menu-hover, rgba(248, 247, 243, 0.05)) !important; }
+.sideFoot .resetBtnConfirm { color: var(--danger-ink, #f0525a) !important; }
+.sideFoot .tplMenu { top: auto; bottom: calc(100% + 4px); left: 0; }
+.sideFoot .tplSaveRow { display: flex; flex-wrap: wrap; gap: 4px; }
+.sideFoot .tplInput { width: 100%; }
+.main { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.mainHead { display: flex; align-items: center; gap: 4px; padding: 14px 12px 6px 22px; cursor: move; min-height: 26px; }
+.mainHead .close { margin-left: auto; }
+.main .body { padding-top: 6px; }
+
+/* ═══ Option A · soft-square on/off, LEFT of the label (owner 11-15) ═══ Every row that carries
+   an on/off switch shows it first: a soft square — a faint outline when off, the selected grey
+   with a white ✓ when on (our own look, not TradingView's white box). The switch keeps its role,
+   label and handler; only its drawing and place change. The whole row toggles (JSX). */
+:global(:root:not([data-theme='light'])) .panel .field:has(> .toggle),
+:global(:root:not([data-theme='light'])) .panel .field:has(> .hdrRowCtl > .toggle) { position: relative; padding-left: 30px; cursor: pointer; }
+:global(:root:not([data-theme='light'])) .panel .field:has(> .toggle):hover,
+:global(:root:not([data-theme='light'])) .panel .field:has(> .hdrRowCtl > .toggle):hover { background: rgba(248, 247, 243, 0.02); }
+:global(:root:not([data-theme='light'])) .panel .field > .toggle,
+:global(:root:not([data-theme='light'])) .panel .field > .hdrRowCtl > .toggle {
+  position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  width: 18px; height: 18px; border-radius: 5px; border: none; padding: 0;
+  background: none; box-shadow: inset 0 0 0 1.5px rgba(248, 247, 243, 0.22);
+}
+:global(:root:not([data-theme='light'])) .panel .field > .toggle .toggleKnob,
+:global(:root:not([data-theme='light'])) .panel .field > .hdrRowCtl > .toggle .toggleKnob { display: none; }
+:global(:root:not([data-theme='light'])) .panel .field > .toggle:hover,
+:global(:root:not([data-theme='light'])) .panel .field > .hdrRowCtl > .toggle:hover { box-shadow: inset 0 0 0 1.5px rgba(248, 247, 243, 0.5); }
+:global(:root:not([data-theme='light'])) .panel .field > .toggleOn,
+:global(:root:not([data-theme='light'])) .panel .field > .hdrRowCtl > .toggleOn {
+  background: #2c2e33 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2l2.3 2.3 4.7-5' fill='none' stroke='%23f8f7f3' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 11px no-repeat;
+  box-shadow: inset 0 0 0 1px rgba(248, 247, 243, 0.28);
+}
+:global(:root:not([data-theme='light'])) .panel .field > .toggle:focus-visible,
+:global(:root:not([data-theme='light'])) .panel .field > .hdrRowCtl > .toggle:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: 2px; }
+/* rows are label-left / controls-right; a toggle row keeps its other controls (swatches, menus) on the right */
+:global(:root:not([data-theme='light'])) .panel .field:has(> .toggle) { justify-content: flex-start; }
+
+/* ═══ Chart Settings redesign · pass 1 (owner 11-15, the Chart Settings Lab) ═══ The open section's
+   title + a quiet "Reset this section" icon in the main header; the window's one ✕ at the far right;
+   soft-square checklists for multi-picks (watermark lines, bar info); the stat picker in UCT Signature. */
+.mainTitle { margin: 0; font-size: 15px; font-weight: 700; color: var(--menu-text, #f8f7f3); letter-spacing: 0; text-transform: none; }
+:global(:root:not([data-theme='light'])) .panel .mainTitle { color: #f8f7f3; }
+.sectionReset {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px; height: 26px; min-width: 26px; padding: 0 6px;
+  margin-left: 2px; border: 0; border-radius: 7px; background: none; cursor: pointer;
+  color: var(--menu-text-faint, #93939a); font: inherit; font-size: 12px; font-weight: 600; justify-content: center;
+}
+.sectionReset:hover { background: rgba(248, 247, 243, 0.07); color: var(--menu-text, #ededed); }
+.sectionReset:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: 1px; }
+.sectionResetConfirm, .sectionResetConfirm:hover { color: var(--menu-text, #ededed); background: rgba(248, 247, 243, 0.07); }
+/* the rail foot: an icon + a plain label per action */
+.sideFoot .tplBtn, .sideFoot .resetBtn { display: flex; align-items: center; gap: 9px; }
+.sideFoot .tplBtn svg, .sideFoot .resetBtn svg { flex: 0 0 auto; }
+/* hints beside a label / a section title (sentence case, faint) */
+.fieldHint, .sectionHint { margin-left: 6px; font-size: 11px; font-weight: 500; color: var(--menu-text-faint, #93939a); }
+/* soft-square checklists: 2 columns (watermark lines) or 4 (bar info) */
+.softGrid { display: grid; gap: 2px 12px; }
+.softGrid2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.softGrid4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 520px) { .softGrid4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.softItem {
+  display: flex; align-items: center; gap: 9px; min-width: 0; padding: 6px 2px; border: 0; border-radius: 6px;
+  background: none; cursor: pointer; text-align: left; font: inherit; font-size: 12.5px; font-weight: 500;
+  color: var(--menu-text, #ededed); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.softItem:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: 1px; }
+.softBox {
+  flex: 0 0 18px; width: 18px; height: 18px; border-radius: 5px;
+  box-shadow: inset 0 0 0 1.5px rgba(248, 247, 243, 0.22); transition: box-shadow 120ms, background-color 120ms;
+}
+.softItem:hover .softBox { box-shadow: inset 0 0 0 1.5px rgba(248, 247, 243, 0.5); }
+.softBoxOn, .softItem:hover .softBoxOn {
+  background: #2c2e33 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2l2.3 2.3 4.7-5' fill='none' stroke='%23f8f7f3' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 11px no-repeat;
+  box-shadow: inset 0 0 0 1px rgba(248, 247, 243, 0.28);
+}
+:global([data-theme='light']) .softBox { box-shadow: inset 0 0 0 1.5px rgba(0, 0, 0, 0.3); }
+:global([data-theme='light']) .softBoxOn { background-color: #e4e2dc; }
+/* "+ Add a stat": the section's one primary — a soft button, one step brighter (no gold) */
+:global(:root:not([data-theme='light'])) .panel .addFieldBtn {
+  gap: 5px; height: 26px; padding: 0 10px; border: 0; border-radius: 7px; background: rgba(248, 247, 243, 0.08);
+  color: #f8f7f3; font-size: 12px; font-weight: 600;
+}
+:global(:root:not([data-theme='light'])) .panel .addFieldBtn:hover { background: rgba(248, 247, 243, 0.13); color: #f8f7f3; border: 0; }
+/* the stat picker (portalled beside the window): the UCT Signature floating menu */
+.fieldFind {
+  display: flex; align-items: center; gap: 8px; margin: 6px; padding: 0 10px; height: 32px; border-radius: 7px;
+  background: var(--menu-input-bg, #0f1012); color: var(--menu-text-dim, #a9a59b);
+}
+.fieldFind .fieldSearch { flex: 1; min-width: 0; padding: 0; border: 0; background: none; height: 100%; font-size: 13px; }
+.fieldItemLabel { flex: 1; min-width: 0; }
+.fieldItemOn { font-weight: 600; }
+:global(:root:not([data-theme='light'])) .fieldMenu {
+  width: 290px; background: #111214; border: 1px solid #383b41; border-radius: 10px; box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55);
+}
+:global(:root:not([data-theme='light'])) .fieldMenu .fieldList { padding: 0 5px 5px; }
+:global(:root:not([data-theme='light'])) .fieldMenu .fieldItem { gap: 10px; padding: 7px 10px; border-radius: 6px; font-size: 13px; font-weight: 500; color: #ededed; }
+:global(:root:not([data-theme='light'])) .fieldMenu .fieldItem:hover { background: #1a1b1f; color: #f8f7f3; }
+:global(:root:not([data-theme='light'])) .fieldMenu .fieldItemOn { font-weight: 600; color: #f8f7f3; }
+/* gold mix §2b-3: the ✓ on a chosen option */
+.fieldMenu .fieldCheck { width: auto; margin-left: auto; font-size: 12px; color: var(--ut-gold, #dcbb5e); }
+
+/* ═══ Compact, like the approved Chart Settings Lab (owner 11-15) ═══ The window is the lab's size —
+   700 × 620 (was 860 × 660) — so the content fills it instead of floating in a wide frame; rows are
+   40px with regular-weight 13px labels; the sidebar is 168px. One size for every section. */
+.panel { width: min(700px, 96vw) !important; height: min(620px, 88vh) !important; }
+.side { flex-basis: 168px !important; }
+:global(:root:not([data-theme='light'])) .panel .field { min-height: 40px; }
+:global(:root:not([data-theme='light'])) .panel .fieldLabel { font-size: 13px; font-weight: 500; }
+
+/* Sidebar sections and foot buttons one step brighter (owner 11-15: "really dim and hard to see"):
+   resting #c9c6be — the left nav's resting shade — hover/active stay #ededed / #f8f7f3. */
+.side .tab { color: #c9c6be !important; }
+.side .tab:hover { color: #f8f7f3 !important; }
+.side .tabActive { color: #f8f7f3 !important; }
+.side .sideFoot .tplBtn, .side .sideFoot .resetBtn { color: #c9c6be !important; }
+.side .sideFoot .tplBtn:hover, .side .sideFoot .resetBtn:hover { color: #f8f7f3 !important; }
+.side .sideFoot .resetBtnConfirm { color: var(--danger-ink, #f0525a) !important; }
+
+/* ═══ "Soon" rows (owner 11-15, the approved Chart Settings Lab) ═══ Approved settings the chart cannot do
+   yet: visible, disabled, a small "Soon" tag after the label. The row reads at 0.55 and never looks
+   clickable; its controls are disabled and write nothing (see the JSX helper `soonRow`). */
+.soonTag {
+  display: inline-block; margin-left: 7px; padding: 1px 6px; border-radius: 4px; vertical-align: 1px;
+  font-size: 10.5px; font-weight: 600; line-height: 1.35; letter-spacing: 0; text-transform: none;
+  color: #93939a; background: rgba(248, 247, 243, 0.06);
+}
+.soonRow { opacity: 0.55; cursor: default !important; }
+.soonRow:hover { background: none !important; }
+.soonRow :disabled { opacity: 1 !important; cursor: default !important; }
+.soonCtl, .soonCtl:hover { cursor: default !important; }
+:global(:root:not([data-theme='light'])) .panel .field > .soonCtl:hover,
+:global(:root:not([data-theme='light'])) .panel .field > .hdrRowCtl > .soonCtl:hover { box-shadow: inset 0 0 0 1.5px rgba(248, 247, 243, 0.22); }
+:global(:root:not([data-theme='light'])) .panel .field > .toggleOn.soonCtl:hover,
+:global(:root:not([data-theme='light'])) .panel .field > .hdrRowCtl > .toggleOn.soonCtl:hover { box-shadow: inset 0 0 0 1px rgba(248, 247, 243, 0.28); }
+/* Body / Borders / Wick: the swatches stay live, only the square is Soon — dim just the square */
+.soonPart { cursor: default !important; }
+.soonPart:hover { background: none !important; }
+.soonPart .soonCtl { opacity: 0.55; }
+.soonSwatch, .soonSwatch:hover { cursor: default; border-color: var(--menu-border, #2b2b2d); }
+.soonRange { width: 120px; margin: 0; accent-color: #93939a; }
+.soonValue { min-width: 44px; font-size: 12px; font-weight: 500; color: var(--menu-text-dim, #a9a59b); text-align: right; }
+/* Sidebar foot · "Apply to all charts": an 18px soft square + one line, never stretched */
+.scopeTg {
+  display: flex; align-items: center; gap: 10px; min-width: 0; padding: 6px 6px 9px; margin-bottom: 4px;
+  border-bottom: 1px solid var(--menu-divider, #26282c); font-size: 12px; font-weight: 500; color: #c9c6be;
+}
+.scopeTg .scopeBox { flex: 0 0 18px; width: 18px; height: 18px; min-width: 18px; padding: 0; margin: 0; border: 0; background: none; }
+.scopeTg .scopeLbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scopeTg .soonTag { margin-left: -4px; flex: 0 0 auto; }
+
+/* Sidebar section icons turn gold on hover (owner 11-15) — the action-list hover rule (§2b-6) applied to the rail. */
+.side .tab:hover svg, .side .tab:focus-visible svg { color: var(--ut-gold) !important; }
+/* Sidebar-foot buttons' icons turn gold on hover too (owner 11-15), like the sections above them. */
+.side .sideFoot .tplBtn:hover svg, .side .sideFoot .resetBtn:not(.resetBtnConfirm):hover svg,
+.side .sideFoot .tplBtn:focus-visible svg { color: var(--ut-gold) !important; }
+.side .sideFoot .tplBtn:hover svg *, .side .sideFoot .resetBtn:not(.resetBtnConfirm):hover svg * { stroke: currentColor !important; }

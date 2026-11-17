@@ -174,7 +174,7 @@ function writeSetting(st, d, v) {
   return { ...st, cs: withSetting(st.cs, d, v) }
 }
 // ── Execution family L (pl-exec): a chart's LIST settings — which fields a strip prints — one member at a time ──
-// Chart Settings → Header → Info row (`header.fields`, ChartSettingsModal toggleInfoField: a pick is appended, an unpick
+// Chart Settings → Header & legend → Stats beside the ticker (`header.fields`, ChartSettingsModal toggleInfoField: a pick is appended, an unpick
 // removed) and the Bar info strip (`header.barInfo`, toggleBarField → withBarInfoField: the complete set in canonical
 // order). Each row is DATA: its members (the product's own catalog), how the chart reads it, and the product's own writer.
 // value = "+member" or "-member", by key or by the label Chart Settings shows. Read back through the same resolver.
@@ -987,7 +987,7 @@ const CAPABILITIES = [
   },
   {
     // ── chart.applyTemplate: EXACTLY what clicking a saved template does ──
-    // (Chart Settings → Templates, and right-click → Chart template). All three doors call the
+    // (Chart Settings → Chart templates, and right-click → Chart template). All three doors call the
     // ONE shared apply, `chartTemplateSettings` (chartTemplateApply.js): the template's whole
     // saved settings, its indicators included. Integrator ruling 2026-10-11 (owner delegated):
     // one behaviour, the one members already know from clicking; parity is asserted in
@@ -1009,7 +1009,7 @@ const CAPABILITIES = [
       return { ask: { arg: 'template', text: names.length === 1 ? `Did you mean your template “${names[0]}”?` : `Which template — ${names.map(n => `“${n}”`).join(' or ')}?`, choices: names.map(n => ({ ref: n, label: n })) } }
     },
     check: (st, { template }) => (findTemplate(template) ? null
-      : templatesNow().length ? `You have no chart template named “${template}” (you have: ${templatesNow().map(t => t.name).slice(0, 8).join(', ')}).` : 'You have no saved chart templates yet — save one in Chart Settings → Templates.'),
+      : templatesNow().length ? `You have no chart template named “${template}” (you have: ${templatesNow().map(t => t.name).slice(0, 8).join(', ')}).` : 'You have no saved chart templates yet — save one in Chart Settings → Save as chart template.'),
     apply: (st, { template }) => ({ ...st, cs: chartTemplateSettings(findTemplate(template)) }),
     describe: (b, a, { template }) => (sameJson(b.cs, a.cs) ? null : `Applied your chart template “${findTemplate(template)?.name || template}” — its look and its indicators, as clicking it does: the indicators on this chart now are replaced by the template’s`),
     noop: () => 'The chart already looks exactly like that template',

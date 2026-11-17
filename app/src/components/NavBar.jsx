@@ -40,9 +40,9 @@ export const NAV_ITEMS = [
   { to: '/breadth',      label: 'Breadth',       icon: 'breadth' },
   { to: '/screener',     label: 'Screener',      icon: 'screener' },
   { to: '/options-flow', label: 'Options Flow',  icon: 'flow' },
-  { to: '/flow-scoreboard', label: 'Flow Record',  icon: 'star' },
+  { to: '/flow-scoreboard', label: 'Flow Record',  icon: 'flag' },
   { to: '/live-massive', label: 'Live Flow',     icon: 'bolt' },
-  { to: '/catalysts/history', label: 'Catalysts History', icon: 'star' },
+  { to: '/catalysts/history', label: 'Catalysts History', icon: 'clock' },
   // CHARTS
   { to: '/model-book',   label: 'Model Book',    icon: 'book' },
   { to: '/formulas/reference', label: 'Formula Reference', icon: 'chart' },
@@ -148,9 +148,9 @@ export default function NavBar({ onOpenPalette }) {
           className={`${styles.item} ${styles.locked}`}
           aria-label={`${item.label} — unlock with Pro`}
         >
-          <span className={styles.icon} aria-hidden="true"><UIcon name={item.icon} gold /></span>
+          <span className={styles.icon} aria-hidden="true"><UIcon name={item.icon} gold={false} /></span>
           <span className={styles.label}>{item.label}</span>
-          <span className={styles.lock} aria-hidden="true"><UIcon name="lock" size={11} gold /></span>
+          <span className={styles.lock} aria-hidden="true"><UIcon name="lock" size={11} gold={false} /></span>
         </Link>
       )
     }
@@ -164,7 +164,7 @@ export default function NavBar({ onOpenPalette }) {
         }
         aria-label={item.label}
       >
-        <span className={styles.icon} aria-hidden="true"><UIcon name={item.icon} gold /></span>
+        <span className={styles.icon} aria-hidden="true"><UIcon name={item.icon} gold={false} /></span>
         <span className={styles.label}>{item.label}</span>
         {item.to === '/journal' && compassUnread > 0 && (
           <span className={styles.compassBadge}
@@ -202,7 +202,7 @@ export default function NavBar({ onOpenPalette }) {
         onClick={() => onOpenPalette?.()}
         aria-label="Search — Ctrl+K"
       >
-        <span className={styles.icon} aria-hidden="true"><UIcon name="search" gold /></span>
+        <span className={styles.icon} aria-hidden="true"><UIcon name="search" gold={false} /></span>
         <span className={styles.label}>Search</span>
         <kbd className={styles.shortcutHint} aria-hidden="true">⌘K</kbd>
       </button>
@@ -260,7 +260,7 @@ export default function NavBar({ onOpenPalette }) {
             title="Admin"
             aria-label="Admin"
           >
-            <span className={styles.icon} aria-hidden="true"><UIcon name="shield" gold /></span>
+            <span className={styles.icon} aria-hidden="true"><UIcon name="shield" gold={false} /></span>
             <span className={styles.label}>Admin</span>
           </NavLink>
         )}
@@ -273,7 +273,7 @@ export default function NavBar({ onOpenPalette }) {
             title="Settings"
             aria-label="Settings"
           >
-            <span className={styles.icon} aria-hidden="true"><UIcon name="gear" gold /></span>
+            <span className={styles.icon} aria-hidden="true"><UIcon name="gear" gold={false} /></span>
             <span className={styles.label}>Settings</span>
           </NavLink>
         ) : (
@@ -283,9 +283,9 @@ export default function NavBar({ onOpenPalette }) {
             title="Settings — unlock with Pro"
             aria-label="Settings — unlock with Pro"
           >
-            <span className={styles.icon} aria-hidden="true"><UIcon name="gear" gold /></span>
+            <span className={styles.icon} aria-hidden="true"><UIcon name="gear" gold={false} /></span>
             <span className={styles.label}>Settings</span>
-            <span className={styles.lock} aria-hidden="true"><UIcon name="lock" size={11} gold /></span>
+            <span className={styles.lock} aria-hidden="true"><UIcon name="lock" size={11} gold={false} /></span>
           </Link>
         )}
         {renderItem(NAV_ITEMS.find((i) => i.to === '/support'))}
@@ -297,7 +297,7 @@ export default function NavBar({ onOpenPalette }) {
           title="UCT Website"
           aria-label="UCT Website"
         >
-          <span className={styles.icon} aria-hidden="true"><UIcon name="globe" gold /></span>
+          <span className={styles.icon} aria-hidden="true"><UIcon name="globe" gold={false} /></span>
           <span className={styles.label}>Website</span>
         </a>
       </div>

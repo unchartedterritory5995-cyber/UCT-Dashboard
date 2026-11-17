@@ -744,7 +744,29 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The premium",
+    "rows": [
+     {
+      "key": "call_quote,_per_shar",
+      "label": "Call quote, per share",
+      "value": 1.5,
+      "fmt": "$"
+     },
+     {
+      "key": "contracts",
+      "label": "Contracts",
+      "value": 1.0,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "One contract costs",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q05",
@@ -944,7 +966,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$7,200",
     "$240",
@@ -955,6 +977,28 @@
     "$240": "Forgot to multiply by the 3 contracts.",
     "$7.20": "Forgot each contract covers 100 shares.",
     "$7,200": "Slipped a decimal place."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The premium",
+    "rows": [
+     {
+      "key": "contracts",
+      "label": "Contracts",
+      "value": 3.0,
+      "fmt": "count"
+     },
+     {
+      "key": "call_quote,_per_shar",
+      "label": "Call quote, per share",
+      "value": 2.4,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Total premium paid",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1024,7 +1068,35 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The spread order",
+    "rows": [
+     {
+      "key": "calls_bought_at",
+      "label": "Calls bought at",
+      "value": 3.1,
+      "fmt": "$"
+     },
+     {
+      "key": "calls_sold_at",
+      "label": "Calls sold at",
+      "value": 1.25,
+      "fmt": "$"
+     },
+     {
+      "key": "contracts_each_leg",
+      "label": "Contracts each leg",
+      "value": 2.0,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Net when it fills",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q13",
@@ -1060,7 +1132,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$385",
     "$280",
@@ -1071,6 +1143,34 @@
     "$385": "Added the two premiums instead of subtracting.",
     "$280": "Counted only the put you sold and ignored the one you bought.",
     "$1.75": "Forgot each contract covers 100 shares."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The put spread",
+    "rows": [
+     {
+      "key": "put_sold_at",
+      "label": "Put sold at",
+      "value": 2.8,
+      "fmt": "$"
+     },
+     {
+      "key": "lower_put_bought_at",
+      "label": "Lower put bought at",
+      "value": 1.05,
+      "fmt": "$"
+     },
+     {
+      "key": "contracts",
+      "label": "Contracts",
+      "value": 1.0,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Credit we collect",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1121,7 +1221,29 @@
      "fixed before"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The closing sale",
+    "rows": [
+     {
+      "key": "paid_in_total",
+      "label": "Paid in total",
+      "value": 500.0,
+      "fmt": "$"
+     },
+     {
+      "key": "market_price_now",
+      "label": "Market price now",
+      "value": 300.0,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Our loss",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q15",
@@ -1201,7 +1323,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$85",
     "$340",
@@ -1212,6 +1334,34 @@
     "$85": "Forgot to multiply by the 4 contracts.",
     "$820": "Used the sale proceeds and ignored what you paid.",
     "$480": "Gave the cost you paid, not the profit."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The round trip",
+    "rows": [
+     {
+      "key": "calls",
+      "label": "Calls",
+      "value": 4.0,
+      "fmt": "count"
+     },
+     {
+      "key": "bought_at",
+      "label": "Bought at",
+      "value": 1.2,
+      "fmt": "$"
+     },
+     {
+      "key": "sold_at",
+      "label": "Sold at",
+      "value": 2.05,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Our profit",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1259,7 +1409,17 @@
      "fixed before"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "quote",
+    "bid": 7.9,
+    "ask": 8.0,
+    "title": "Buy at ask, sell at bid",
+    "find": {
+     "label": "What we lose",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q19",
@@ -1334,7 +1494,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "1.2%",
     "12%",
@@ -1345,6 +1505,34 @@
     "12%": "Slipped a decimal place.",
     "6%": "Multiplied contracts by premium and read 6 as a percent.",
     "120%": "Multiplied by 100 twice."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The premium at risk",
+    "rows": [
+     {
+      "key": "account",
+      "label": "Account",
+      "value": 50000.0,
+      "fmt": "$"
+     },
+     {
+      "key": "calls_bought",
+      "label": "Calls bought",
+      "value": 4.0,
+      "fmt": "count"
+     },
+     {
+      "key": "price_each",
+      "label": "Call quote, per share",
+      "value": 1.5,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Percent of account lost",
+     "as": "pct"
+    }
    }
   },
   {
@@ -1395,7 +1583,29 @@
      "fixed before"
     ]
    },
-   "batch": "rank"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The short call",
+    "rows": [
+     {
+      "key": "sold_the_call_at",
+      "label": "Sold the call at",
+      "value": 4.0,
+      "fmt": "$"
+     },
+     {
+      "key": "buy_it_back_at",
+      "label": "Buy it back at",
+      "value": 19.0,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Our loss",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q22",
@@ -1445,7 +1655,35 @@
      "fixed before"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "Exercised call",
+    "rows": [
+     {
+      "key": "call_strike",
+      "label": "Call strike",
+      "value": 100.0,
+      "fmt": "$"
+     },
+     {
+      "key": "call_cost,_per_share",
+      "label": "Call cost, per share",
+      "value": 2.5,
+      "fmt": "$"
+     },
+     {
+      "key": "shares_bought",
+      "label": "Shares bought",
+      "value": 100.0,
+      "fmt": "shares"
+     }
+    ],
+    "find": {
+     "label": "Cash put in",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q23",
@@ -1495,7 +1733,20 @@
      "fixed before"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "payoff",
+    "title": "The short put at zero",
+    "option": "put",
+    "side": "short",
+    "strike": 50.0,
+    "premium": 3.0,
+    "underlying": 0.0,
+    "find": {
+     "label": "What we lose",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q24",
@@ -1703,9 +1954,9 @@
   },
   "q04": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q05": {
    "status": "pass",
@@ -1741,8 +1992,8 @@
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 1."
+   "fixed": false,
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q11": {
    "status": "pass",
@@ -1752,21 +2003,21 @@
   },
   "q12": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 3. Why rewritten to show the steps."
+   "fixed": false,
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key $200 right (calc 500-300; ODD f35/f36 re-read verbatim from the June 2024 PDF). Two defects: (1) the '$300' wrong note ('That's what you get back, not what you lose.') is a near copy of q18's '$790' note ('That's what you'd get back, not what you'd lose.'); (2) the deeper trap repeats the 'Nothing until it expires' wrong note almost word for word ('Selling to close ... today ... $300 of the $500'). Fix: new '$300' note; trap moved to a distinct grounded point, commissions on the closing trade (f46, added to facts). Key, choices, why and simple unchanged."
+   "fixed": false,
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q15": {
    "status": "pass",
@@ -1783,14 +2034,14 @@
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 2. Why rewritten to show the steps."
+   "fixed": false,
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q18": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q19": {
    "status": "cut",
@@ -1807,26 +2058,26 @@
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
+   "fixed": true,
+   "notes": "'Price each' reads as per contract; it is the call's quote per share"
   },
   "q21": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q22": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from f63 + calc: $10,250; matches. The $10,000 in the why is in the f51 quote; '$250' removed. Choices tie for longest with $10,000, no tell."
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q23": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q24": {
    "status": "pass",

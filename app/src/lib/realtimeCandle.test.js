@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import * as rc from './realtimeCandle'
 
 const T = 1_800_000_000            // some minute boundary
@@ -115,5 +115,33 @@ describe('getLastTrade — the last APPLIED trade at its own trade time (BarStor
     expect(rc.getLastTrade('SIM')).toMatchObject({ price: 10.5, tradeMs: 1_700_000_130_000 })
     rc._reset()
     expect(rc.getLastTrade('SIM')).toBe(null)
+  })
+})
+
+describe('tick repaint hold: 1000 ms by default, the per-browser override when set', () => {
+  const KEY = 'uct.liveCadenceMs'
+  beforeEach(() => { rc._reset(); vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers(); localStorage.removeItem(KEY); rc._reset() })
+  const run = () => {
+    let paints = 0
+    const off = rc.subscribe('SOXL', () => { paints++ })
+    rc.applyTick('SOXL', 105.0, 1_000, inMinute(1))     // leading edge paints at once
+    rc.applyTick('SOXL', 105.1, 2_000, inMinute(2))     // held for the window
+    return { paints: () => paints, off }
+  }
+  it('default', () => {
+    const r = run()
+    expect(r.paints()).toBe(1)
+    vi.advanceTimersByTime(999); expect(r.paints()).toBe(1)
+    vi.advanceTimersByTime(1); expect(r.paints()).toBe(2)
+    r.off()
+  })
+  it('override 50', () => {
+    localStorage.setItem(KEY, '50')
+    const r = run()
+    expect(r.paints()).toBe(1)
+    vi.advanceTimersByTime(49); expect(r.paints()).toBe(1)
+    vi.advanceTimersByTime(1); expect(r.paints()).toBe(2)
+    r.off()
   })
 })

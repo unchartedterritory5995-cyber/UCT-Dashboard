@@ -3822,7 +3822,7 @@
      "+1 fixed before"
     ]
    },
-   "batch": "sweep-2026-11-14",
+   "batch": "cards-2026-11-15",
    "choices": [
     "300 shares",
     "100 shares",
@@ -3833,6 +3833,34 @@
     "100 shares": "That is a third of the 300 left, not the shares left.",
     "200 shares": "That is a third of what was left after one sale.",
     "150 shares": "That divides 900 by six. The question gives two sales of 300."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The position",
+    "rows": [
+     {
+      "key": "bought",
+      "label": "Bought",
+      "value": 900,
+      "fmt": "shares"
+     },
+     {
+      "key": "s1",
+      "label": "First sell",
+      "value": 300,
+      "fmt": "shares"
+     },
+     {
+      "key": "s2",
+      "label": "Later sell",
+      "value": 300,
+      "fmt": "shares"
+     }
+    ],
+    "find": {
+     "label": "Left to trail",
+     "as": "shares"
+    }
    }
   },
   {
@@ -4571,8 +4599,8 @@
   "q78": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Still keys \"a third, then another third\", language the ruling replaces; re-keyed to two sales of 300 (answer unchanged)."
+   "fixed": false,
+   "notes": "Roles, find label, slot format and ladder checked; ok."
   },
   "q79": {
    "status": "pass",

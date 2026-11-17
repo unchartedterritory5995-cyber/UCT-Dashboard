@@ -1019,7 +1019,7 @@
      "computed key (calc margin_equity_pct)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "50%",
     "80%",
@@ -1030,6 +1030,28 @@
     "80%": "Gave the loan share of the value, not the equity.",
     "12.5%": "Divided the equity by the original $20,000.",
     "50%": "Used the equity share you started with."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The margin loan",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Stock now worth",
+      "value": 12500,
+      "fmt": "$"
+     },
+     {
+      "key": "r2",
+      "label": "Margin loan",
+      "value": 10000,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Equity as a % of value",
+     "as": "pct"
+    }
    }
   },
   {
@@ -1136,7 +1158,7 @@
      "computed key (calc arith)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$6,000",
     "$4,000",
@@ -1147,6 +1169,34 @@
     "$6,000": "Gave the equity you need, and never subtracted what you have.",
     "$4,000": "Gave the equity you have, not the gap.",
     "$10,000": "Took 25% of the old $40,000 value."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The margin loan",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Stock now worth",
+      "value": 24000,
+      "fmt": "$"
+     },
+     {
+      "key": "r2",
+      "label": "Margin loan",
+      "value": 20000,
+      "fmt": "$"
+     },
+     {
+      "key": "r3",
+      "label": "FINRA minimum equity",
+      "value": 25,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "The margin call, in dollars",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1182,7 +1232,7 @@
      "computed key (calc arith)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "30%",
     "60%",
@@ -1193,6 +1243,34 @@
     "30%": "Forgot the loan and used the stock's drop.",
     "15%": "Halved the loss because you borrowed half.",
     "6%": "Decimal slip: moved the decimal one place."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The margin loan",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Your money",
+      "value": 10000,
+      "fmt": "$"
+     },
+     {
+      "key": "r2",
+      "label": "Borrowed",
+      "value": 10000,
+      "fmt": "$"
+     },
+     {
+      "key": "r3",
+      "label": "Fall in the stock",
+      "value": 30,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Percent of your money lost",
+     "as": "pct"
+    }
    }
   },
   {
@@ -1493,7 +1571,7 @@
      "computed key (calc arith)"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "25%",
     "30%",
@@ -1504,6 +1582,34 @@
     "55%": "Gave the equity share you start with.",
     "25%": "Used the floor as the size of the fall.",
     "30%": "Took the 25% floor off the 55% starting equity."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The margin loan",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Stock bought",
+      "value": 20000,
+      "fmt": "$"
+     },
+     {
+      "key": "r2",
+      "label": "Margin loan",
+      "value": 9000,
+      "fmt": "$"
+     },
+     {
+      "key": "r3",
+      "label": "FINRA minimum equity",
+      "value": 25,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Fall before the floor is hit",
+     "as": "pct"
+    }
    }
   },
   {
@@ -1717,7 +1823,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed calc, answer matches, wrong choices real and distinct, no tell; why walks the steps with the givens (the grader bars derived intermediates)."
+   "notes": "Current value and loan clear; slot 20% matches key."
   },
   "q10": {
    "status": "pass",
@@ -1734,14 +1840,14 @@
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Recomputed calc, answer matches, wrong choices distinct and real, no tell."
+   "fixed": true,
+   "notes": "'FINRA floor' 25% is ambiguous (floor of what?); name it the minimum equity."
   },
   "q13": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed calc, answer matches, wrong choices real and distinct, no tell; why walks the steps with the givens (the grader bars derived intermediates)."
+   "notes": "Own money, borrowed and the 30% fall labelled; slot 60% matches key."
   },
   "q14": {
    "status": "pass",
@@ -1790,8 +1896,8 @@
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
+   "fixed": true,
+   "notes": "'FINRA floor' ambiguous and 'How far it can fall' does not say 'before the floor is hit'."
   },
   "q22": {
    "status": "pass",

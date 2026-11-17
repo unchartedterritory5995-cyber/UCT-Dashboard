@@ -85,7 +85,7 @@ function renderWS(search = '') {
 }
 function openLayoutsMenu() {
   const header = document.querySelector('header')
-  const trigger = within(header).getAllByRole('button').find(b => /^Layouts/.test(b.textContent))
+  const trigger = within(header).getAllByRole('button').find(b => b.dataset.guide === 'workspace.layoutsMenuBtn')  // the layout NAME is the Layouts button (owner 11-15)
   act(() => { fireEvent.click(trigger) })
 }
 function armedServer({ apply = () => res(200, { version: 4, appended: true, complete: true, prefs_failed: [] }) } = {}) {
@@ -154,7 +154,7 @@ describe('DARK (no X-Workspace-Doc on the preferences read): the per-key writes,
     global.fetch = vi.fn(async () => res(404, {}))
     renderWS()
     openLayoutsMenu()
-    act(() => { fireEvent.click(screen.getByRole('button', { name: 'New Layout' })) })
+    act(() => { fireEvent.click(within(document.querySelector('header')).getByRole('button', { name: 'New layout' })) })
     expect(boardWrites().map(([k]) => k)).toEqual([
       'charts_workspace_layout', 'charts_workspace_groups', 'chart_settings', 'watchlist_settings',
       'theme_tracker_settings', 'fundamentals_settings', 'breadth_widget_settings', 'charts_theme',
@@ -167,7 +167,7 @@ describe('DARK (no X-Workspace-Doc on the preferences read): the per-key writes,
     global.fetch = vi.fn(async () => res(404, {}))
     renderWS()
     openLayoutsMenu()
-    act(() => { fireEvent.click(screen.getByRole('button', { name: /^Open Layout/ })) })
+    act(() => { fireEvent.click(screen.getByRole('button', { name: /^Open layout/ })) })
     // The Layouts menu's entry, not the Layout Dock's pill of the same name.
     const entry = screen.getAllByRole('button', { name: 'UCT Default' }).find(b => /addMenuItem/.test(b.className))
     act(() => { fireEvent.click(entry) })
@@ -315,7 +315,7 @@ describe('ARMED: a board change is ONE compare-and-set document write', () => {
     refreshPreferences.mockResolvedValue({})
     renderWS()
     openLayoutsMenu()
-    act(() => { fireEvent.click(screen.getByRole('button', { name: 'New Layout' })) })
+    act(() => { fireEvent.click(within(document.querySelector('header')).getByRole('button', { name: 'New layout' })) })
     await flush()
     const prefs = JSON.parse(applyPosts()[0][1].body).prefs
     expect(prefs.charts_workspace_groups).toBe(JSON.stringify({ A: null, B: null, C: null, D: null }))

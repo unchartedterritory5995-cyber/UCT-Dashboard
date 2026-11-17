@@ -31,14 +31,19 @@
 //
 // ⚠️ WHAT IS NOT MEASURED, AND WHAT IS DONE ABOUT IT:
 //
-//   · A script with NO `//@version=` annotation (the lexer reports `null`), and
-//     `//@version=1` / `=2`. The vendor was not probed at those. The presentation
-//     spec (C202) says an absent annotation means v1, and v1's palette is itself
-//     unmeasured — so choosing any table would be a guess wearing a citation.
-//     These keep the engine's PRE-EXISTING behaviour: the v5 table, which is what
-//     every script resolved to before this file existed. `UNMEASURED_FALLBACK`
-//     names that choice so it is findable, and `isMeasuredVersion` lets a caller
-//     say so. Corpus at the time of writing: zero unannotated, zero v1/v2 scripts.
+//   · ⭐⭐ ENGINE 58 — `//@version=1`, `=2` AND NO ANNOTATION ARE NOW MEASURED: the
+//     v3 table. 409 TradingView captures of v1 / v2 / unannotated scripts
+//     (sessions S2-S6, 2026-11-13/14, licence-held; their verdicts are in the
+//     evidence ledger) resolved every named colour they drew to the plain web
+//     colour of the v3 table, with 0 contradictions — e.g. a v2 Bollinger band's
+//     `teal` reads `#008080`, never v5's `#00897B`. A script with no annotation
+//     compiles as v1 (the presentation spec, C202, and the captures agree), so
+//     `null` resolves through v1. ⚰️ Until engine 58 these three routed to the v5
+//     table (`UNMEASURED_FALLBACK = 5`, "the engine's pre-existing behaviour"),
+//     and every v1/v2 script drew v5's material palette where TradingView drew
+//     the web palette.
+//   · A version outside 1..6 (a future `//@version=7`) is still unmeasured and
+//     keeps the v5 table — `UNMEASURED_FALLBACK` names that choice.
 //   · SPELLING ACROSS DIALECTS. Real Pine v3 has no `color.` namespace, and the
 //     modern dialects spell colours `color.x`. Our parser accepts BOTH spellings
 //     in EVERY version (it did before this file, and still does). The palette is
@@ -78,6 +83,10 @@ const V3 = Object.freeze({
 })
 
 export const PALETTE_BY_VERSION = Object.freeze({
+  // ⭐ ENGINE 58 — v1 and v2 draw the v3 table (409 captures, 0 contradictions;
+  // see the header). The same frozen object, so the three cannot drift apart.
+  1: V3,
+  2: V3,
   3: V3,
   4: Object.freeze({ ...V5, blue: '#2196F3' }),
   5: V5,
@@ -96,16 +105,14 @@ export const PALETTE_BY_VERSION = Object.freeze({
  *  row gold, which is a colour the author never saw. */
 export const DEFAULT_SERIES_COLOUR = '#2962FF'
 
-/** ⭐ v3 draws that default at 35% transparency (styleState `transparency: 35`
- *  in the v3 probe; v4 and v6 read 0). Measured ONLY for the no-colour case —
- *  an explicit v3 colour without `transp=` was not probed, so nothing here
- *  claims what it does. */
-export const V3_DEFAULT_SERIES_OPACITY = 0.65
-
 /** The versions the vendor was actually probed at. */
 export const MEASURED_VERSIONS = Object.freeze(Object.keys(PALETTE_BY_VERSION).map(Number))
 
-/** What an unmeasured version (no annotation, v1, v2) resolves to: the engine's
+/** What a script with NO `//@version=` annotation resolves to: v1, which is what
+ *  TradingView compiles it as (engine 58; see the header). */
+export const NO_PRAGMA_VERSION = 1
+
+/** What an unmeasured version (one outside 1..6) resolves to: the engine's
  *  pre-existing behaviour, NOT a claim about the vendor. See the header. */
 export const UNMEASURED_FALLBACK = 5
 
@@ -119,7 +126,10 @@ export const isMeasuredVersion = (version) => Object.hasOwn(PALETTE_BY_VERSION, 
 
 /** The palette a script of this version draws with. */
 export function paletteFor(version) {
-  return isMeasuredVersion(version) ? PALETTE_BY_VERSION[version] : PALETTE_BY_VERSION[UNMEASURED_FALLBACK]
+  // ⛔ `null` (no annotation) is v1; `undefined` is a forgotten version, not a
+  // script that declares none, and keeps the unmeasured fallback.
+  const v = version === null ? NO_PRAGMA_VERSION : version
+  return isMeasuredVersion(v) ? PALETTE_BY_VERSION[v] : PALETTE_BY_VERSION[UNMEASURED_FALLBACK]
 }
 
 /** `'red'`, `'grey'` → `'red'`, `'gray'`; anything else → null. Exact spelling:

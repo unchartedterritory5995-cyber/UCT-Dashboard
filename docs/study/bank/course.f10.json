@@ -2982,7 +2982,35 @@
    ],
    "kind": "mcq",
    "q": "You bought at $40 with a 10% trailing stop. It peaks at $60, then falls and fills right at your stop. What's your gain?",
-   "subject": "F10.02#q12"
+   "subject": "F10.02#q12",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Gain at the stop"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "bought_at",
+      "label": "Bought at",
+      "value": 40
+     },
+     {
+      "fmt": "$",
+      "key": "peak",
+      "label": "Peak",
+      "value": 60
+     },
+     {
+      "fmt": "%",
+      "key": "trail_below_the_peak",
+      "label": "Trail below the peak",
+      "value": 10
+     }
+    ],
+    "title": "The trailing stop"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -5289,7 +5317,31 @@
    ],
    "kind": "mcq",
    "q": "Entry $40, stop $38. What price is 3R, three times your risk above the entry?",
-   "subject": "F10.03#q11"
+   "subject": "F10.03#q11",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "3R"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 38.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 40.0
+     }
+    ],
+    "r": {
+     "entry": 40.0,
+     "stop": 38.0
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -5514,7 +5566,38 @@
    "kind": "mcq",
    "q": "If each order fills at its price, what is your net result?",
    "story": "You buy 200 shares at $40 with a $38 stop. You split the exits into two OCO pairs of 100 shares: targets $44 and $46, both stops $38. It hits $44, then falls to $38.",
-   "subject": "F10.03#q15"
+   "subject": "F10.03#q15",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Net result"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop (both pairs)",
+      "price": 38.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 40.0
+     },
+     {
+      "key": "t1",
+      "label": "First target",
+      "price": 44.0
+     },
+     {
+      "key": "t2",
+      "label": "Second target",
+      "price": 46.0
+     }
+    ],
+    "shares": 200,
+    "side": "long"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -7558,7 +7641,35 @@
    ],
    "kind": "mcq",
    "q": "Offers: 400 at $25.00, 600 at $25.05, 1,000 at $25.10. Your 2,000-share market buy takes all three. Slippage vs $25.00, in percent?",
-   "subject": "F10.04#q16"
+   "subject": "F10.04#q16",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Slippage vs the first offer"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "fill1",
+      "label": "400 shares",
+      "price": 25.0,
+      "shares": 400
+     },
+     {
+      "key": "fill2",
+      "label": "600 shares",
+      "price": 25.05,
+      "shares": 600
+     },
+     {
+      "key": "fill3",
+      "label": "1,000 shares",
+      "price": 25.1,
+      "shares": 1000
+     }
+    ],
+    "side": "long"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -7906,7 +8017,35 @@
    ],
    "kind": "mcq",
    "q": "You risk $400 with a stop $1.00 below entry, so you buy 400 shares. A fast drop fills your stop $0.25 lower. What do you lose?",
-   "subject": "F10.04#q20"
+   "subject": "F10.04#q20",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "What we lose"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "shares",
+      "key": "shares",
+      "label": "Shares",
+      "value": 400
+     },
+     {
+      "fmt": "$",
+      "key": "stop_below_entry",
+      "label": "Stop below entry",
+      "value": 1.0
+     },
+     {
+      "fmt": "$",
+      "key": "slips_lower_by",
+      "label": "Slips lower by",
+      "value": 0.25
+     }
+    ],
+    "title": "The stop fill"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -8009,7 +8148,34 @@
    "kind": "mcq",
    "q": "What is your total risk to the $39.00 stop now?",
    "story": "You plan 1,000 shares at a $40.00 limit, stop $39.00. Only 300 fill. The stock jumps, and you buy the other 700 at market for $41.20.",
-   "subject": "F10.04#q21"
+   "subject": "F10.04#q21",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Total risk to the stop"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 39.0
+     },
+     {
+      "key": "fill1",
+      "label": "300 shares",
+      "price": 40.0,
+      "shares": 300
+     },
+     {
+      "key": "fill2",
+      "label": "700 shares",
+      "price": 41.2,
+      "shares": 700
+     }
+    ],
+    "side": "long"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -9708,7 +9874,28 @@
    ],
    "kind": "mcq",
    "q": "You bought 100 shares at $30. It doubles to $60. How many shares do you sell to get your whole cost back?",
-   "subject": "F10.05#q15"
+   "subject": "F10.05#q15",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "Shares to sell"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "entry",
+      "label": "Bought",
+      "price": 30.0
+     },
+     {
+      "key": "price",
+      "label": "Now",
+      "price": 60.0
+     }
+    ],
+    "shares": 100,
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -9844,7 +10031,32 @@
    "kind": "mcq",
    "q": "Leaving out commissions, who made more?",
    "story": "You buy 200 shares at $10, then sell 100 at $12.50 and 100 at $15. A friend buys 200 at $10 and sells all 200 at $15.",
-   "subject": "F10.05#q19"
+   "subject": "F10.05#q19",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Friend's profit minus ours"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "entry",
+      "label": "Both bought 200",
+      "price": 10.0
+     },
+     {
+      "key": "part",
+      "label": "You sold 100",
+      "price": 12.5
+     },
+     {
+      "key": "top",
+      "label": "You sold 100, friend 200",
+      "price": 15.0
+     }
+    ],
+    "side": "long"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -9928,7 +10140,27 @@
    "kind": "mcq",
    "q": "Leaving out commissions, what did the partial do against holding all 200 to that stop?",
    "story": "You buy 200 shares at $10. It rallies to $12.50, where you sell 100. Then it falls back and your breakeven stop sells the rest at $10.",
-   "subject": "F10.05#q22"
+   "subject": "F10.05#q22",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Partial vs holding all"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "entry",
+      "label": "Bought 200, stop here too",
+      "price": 10.0
+     },
+     {
+      "key": "part",
+      "label": "Sold 100",
+      "price": 12.5
+     }
+    ],
+    "side": "long"
+   }
   },
   "reveal_json": {
    "deeper": {

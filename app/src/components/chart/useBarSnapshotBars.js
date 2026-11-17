@@ -41,6 +41,10 @@ import { cutoffFetchDay } from './replayCutoff'
 const INTRADAY = new Set(['1', '5', '15', '30', '60'])
 const PRIOR_SESSION_S = 8 * 3600
 const PAINTS = new Set([STATUS.CONTEXT, STATUS.CURRENT, STATUS.UPDATING])
+/** How long a chart must rest on (symbol, timeframe) before its older history starts loading. */
+export const DEEP_ARM_MS = 250
+/** How often one older-history window is asked again after an error / a `filling` answer. */
+export const DEEP_RETRIES = 3
 
 /** The store key a chart reads, or null when it reads none (override, economic, no symbol).
  *  The key itself is the facade's ONE view-key function (prefetch.viewKeyFor), so a handoff
@@ -365,20 +369,34 @@ export function useBarSnapshotBars({
     && !_hasOverride && !replayCutoff && !_pinnedFull && !_overlayActive && !!sym
   const _histRef = useRef(null)
   _histRef.current = { on: _histPrependOn, key }
-  const _loadOlder = useCallback((background) => {
+  // `dwell`: a window for the chart the member is RESTING on (the armed loop below). It goes at
+  // `grid` rank: ahead of every list warm, and never behind the bars-pack ingest hold that
+  // `background` waits on (a fresh profile ingests for a minute or more, and the chart on screen
+  // stayed shallow all that time). A scroll-driven window stays `urgent`.
+  const _loadOlder = useCallback((background, { dwell = false, bars } = {}) => {
     const r = _histRef.current
     if (!r?.on || !r.key) return Promise.resolve(null)
-    return store.scrollBack(r.key, { priority: background ? 'background' : 'urgent' }).then((res) => {
+    const priority = dwell ? 'grid' : (background ? 'background' : 'urgent')
+    return store.scrollBack(r.key, { priority, ...(bars ? { bars } : {}) }).then((res) => {
       if (!res || _histRef.current?.key !== r.key) return null
       const added = (res.added || 0) > 0
-      return { ...res, added, exhausted: !!(res.empty || res.refused || (res.ok && !added)), retryAfterMs: null }
+      // A `filling` answer is the server still fetching that window: not exhausted, ask again.
+      const filling = !!res.filling
+      return {
+        ...res, added, filling,
+        exhausted: !filling && !!(res.empty || res.refused || (res.ok && !added)),
+        retryAfterMs: filling ? (res.retryAfterMs || 3000) : (res.retryAfterMs ?? null),
+      }
     }, () => null)
   }, [store])
   useEffect(() => {
     if (!_intradayDeepBackfillEnabled()) return undefined
     if (!isIntraday || !sym || _isCustomTf) return undefined
     if (_intradayDeepArmed) return undefined
-    const id = setTimeout(() => _setIntradayDeepArmed(true), 900)
+    // ⭐ 250 ms (was 900): the wait exists so a held key or a fast scan never starts a window per
+    // row. A held key steps every ~40 ms and a deliberate tap-scan every ~700 ms; 250 ms still
+    // skips the first and lets the chart a member stops on fill 650 ms sooner.
+    const id = setTimeout(() => _setIntradayDeepArmed(true), DEEP_ARM_MS)
     return () => clearTimeout(id)
   }, [sym, resolvedTf, isIntraday, _isCustomTf, _intradayDeepArmed])  // eslint-disable-line react-hooks/exhaustive-deps
   const _histHasBase = !!snap && (snap.bars.length > 0 || !!snap.developing)
@@ -387,14 +405,27 @@ export function useBarSnapshotBars({
     // Grid cells (backgroundWarm=false) load windows only when SCROLLED (the 2026-05-24 herd).
     if (!backgroundWarm && !deepWarm) return undefined
     let cancelled = false
+    let waitId = null
+    const wait = (ms) => new Promise((resolve) => { waitId = setTimeout(resolve, ms) })
     ;(async () => {
-      for (let i = 0; i < PREFETCH_WINDOWS && !cancelled; i++) {
+      let tries = 0
+      for (let i = 0; i < PREFETCH_WINDOWS && !cancelled;) {
         if ((store.peek(key)?.depth || 0) >= HISTORY_PREFETCH_TARGET_BARS) break
-        const res = await _loadOlder(true)
-        if (!res || !res.added || res.exhausted) break
+        const res = await _loadOlder(true, { dwell: true })
+        if (cancelled) break
+        // A failed or still-filling window is asked again (at most DEEP_RETRIES times per
+        // window, the legacy loader's count), never taken as "this symbol has no more history".
+        if (!res || res.error || res.filling) {
+          if (++tries > DEEP_RETRIES) break
+          await wait(Math.min(Math.max(res?.retryAfterMs || 1500, 500), 5000))
+          if (res?.added) { i++; tries = 0 }   // a filling window that DID add rows counts
+          continue
+        }
+        if (!res.added || res.exhausted) break
+        i++; tries = 0
       }
     })()
-    return () => { cancelled = true }
+    return () => { cancelled = true; if (waitId != null) clearTimeout(waitId) }
   }, [_histPrependOn, _intradayDeepArmed, _histHasBase, key, _loadOlder, backgroundWarm, deepWarm])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── background warm of the other timeframes: store prefetches at background rank ──

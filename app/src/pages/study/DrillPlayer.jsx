@@ -40,6 +40,7 @@ import { studySettingsOverride } from './studyChartLook'
 import { slingshotInstances } from './slingshotOverlay'
 import { isRsPairItem, primeRsColumns, rsInstances, rsMarkMarkers, rsPairKey, rsRevealPrimed } from './studyRsOverlay'
 import { studyOpenMarkers } from './studyOverlays'
+import { toChartTime } from '../../components/chart/patternTime'
 import { drillFor, isUnscoredDrill } from './drills'
 import { brandWords, itemHasChart, questionOf } from './drills/types'
 import RevealCard from './RevealCard'
@@ -58,7 +59,7 @@ import { alignTicks, developing, fetchIntraday } from './challenges/replayTicks'
 import { useRunOnTicks } from '../../lab/fx'   // pure motion (bars running on, tick by tick); no styling rides in
 import ReplayClock from './ui/ReplayClock'
 import { markerGapBars, tradeAnnotations, tradeLevelLines, tradeMarkers } from './challenges/tradeMarks'
-import { plotWidthPx, revealRightPad, tickLabelCharsFor } from './studyChartFrame'
+import { INTRADAY_TICK_CHARS, plotWidthPx, revealRightPad, tickLabelCharsFor } from './studyChartFrame'
 import { HudCombo } from './ui/HudLooks'
 import StudyButton from './ui/StudyButton'
 import sa from './ui/answerLooks.module.css'
@@ -205,10 +206,14 @@ export default function DrillPlayer({
   const rsKey = useMemo(() => rsPairKey(rsPrimed), [rsPrimed])
   // A Slingshot item carries the E4H (4-EMA of highs) beside the house averages,
   // before and after the reveal: the line the trigger is judged against.
+  // a chart whose bars carry no volume at all (an index history chart whose source volume was another index's, stored as
+  // zeros: the 2026-11-16 screen check drew an empty "Volume 0" pane of flat stubs) shows no volume, neither the pane nor
+  // a legend row; any other chart keeps the member's own volume setting
+  const noVolume = useMemo(() => Array.isArray(chartBars) && chartBars.length > 0 && chartBars.every((b) => !Number(b?.v)), [chartBars])
   const studyOverride = useMemo(() => {
     const own = [...(slingshotInstances(chartItem) || []), ...(rsInstances(rsPrimed) || [])]
-    return memberSettingsOverride(chartOpts, { instances: own.length ? own : null })
-  }, [chartOpts, chartItem, rsPrimed])
+    return memberSettingsOverride(chartOpts, { instances: own.length ? own : null, noVolume })
+  }, [chartOpts, chartItem, rsPrimed, noVolume])
   // ⭐ Policy A (2026-11-02): an exhibit has no stored settings of its own, so an
   // edit made on it (a legend hide, a scale toggle) stays on THIS chart for the
   // session instead of falling through to the member's global chart_settings.
@@ -347,19 +352,27 @@ export default function DrillPlayer({
   // the frame the chart shows now: the question's window, the days landed after it, and the blank room once answered
   const framePad = phase === 'reveal' && forwardCount > 0 ? revealRightPad(phone) : 0
   const frameSlots = ((visibleN || baseLen) + Math.max(0, landed - baseLen)) * (1 + framePad)
-  const tickChars = String(chartTf).toUpperCase() === 'D' ? tickLabelCharsFor(phone, frameSlots) : null
+  const tickChars = String(chartTf).toUpperCase() === 'D' ? tickLabelCharsFor(phone, frameSlots) : INTRADAY_TICK_CHARS
   const chartMarkers = useMemo(() => {
     const rs = chartVisible ? rsMarkMarkers(item, chartBars) : null
     const upTo = chartBars ? chartBars.slice(0, landed) : null
     const scored = phase === 'reveal' && !!result
     const trade = scored && keyTrade ? (tradeMarkers(keyTrade, upTo, baseLen, { near: markGap }) || []) : []
     // a course chart with no trade still says where the question stood once the bars after it play: the decision day
+    // (a decision BAR on an intraday chart: the opening-range and pivot lessons decide inside the day, 2026-11-15)
     const decided = scored && !keyTrade && item?.type !== 'spot' && chartVisible && forwardCount > 0 && baseLen >= 1
-      ? [{ time: chartBars[baseLen - 1].t, position: 'belowBar', shape: 'arrowUp', color: '#dcbb5e', size: 1.2, text: 'DECISION DAY' }]
+      ? [{ time: chartBars[baseLen - 1].t, position: 'belowBar', shape: 'arrowUp', color: '#dcbb5e', size: 1.2,
+          text: String(chartTf).toUpperCase() === 'D' ? 'DECISION DAY' : 'DECISION BAR' }]
       : []
-    const all = [...(openMarkers || []), ...(rs || []), ...trade, ...decided]
+    // StockChart draws an intraday bar at its New York wall-clock time read as UTC (barTime.toChartTime), so a mark
+    // built from a bar's own unix time lands four or five hours late: on the newest bar while a replay plays (the
+    // 2026-11-15 screen check of an intraday course chart). The open and RS marks already convert; these must too.
+    const intradayChart = String(chartTf).toUpperCase() !== 'D'
+    const own = intradayChart ? [...trade, ...decided].map((m) => ({ ...m, time: toChartTime(m.time, chartTf) })) : [...trade, ...decided]
+    const all = [...(openMarkers || []), ...(rs || []), ...own]
+    if (intradayChart) return all.length ? all.sort((a, b) => Number(a.time) - Number(b.time)) : null
     return all.length ? all.sort((a, b) => String(a.time).localeCompare(String(b.time))) : null
-  }, [chartVisible, item, chartBars, openMarkers, phase, result, keyTrade, baseLen, landed, forwardCount, markGap])
+  }, [chartVisible, item, chartBars, openMarkers, phase, result, keyTrade, baseLen, landed, forwardCount, markGap, chartTf])
   const modAnnotations = useMemo(
     () => (chartVisible && mod.annotationsFor ? mod.annotationsFor(state, item, reveal, chartBars) : null),
     [chartVisible, mod, state, item, reveal, chartBars],
@@ -574,6 +587,7 @@ export default function DrillPlayer({
               hideJournalOverlay
               hideCompare
               hideLegend={phone}
+              showVolume={noVolume ? false : undefined}
               showDrawingTools={false}
               entryDate={entryDate}
               exitDate={exitDate}

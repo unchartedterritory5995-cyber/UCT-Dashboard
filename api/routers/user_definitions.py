@@ -29,6 +29,7 @@ sixth route that rides in uncovered.
 
 from __future__ import annotations
 
+import logging
 import os
 import threading
 import time
@@ -39,6 +40,9 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user, require_admin
+
+#: who took a library entry down, and when (the takedown table stores no admin id)
+_log = logging.getLogger("user_definitions.router")
 from api.services import indicator_telemetry as telemetry
 from api.services import runtime_definitions
 from api.services import scan_definition
@@ -640,6 +644,37 @@ def public_library(limit: int = 24, after: Optional[int] = None,
     return svc.public_library(limit=limit, after=after)
 
 
+class _TakedownBody(BaseModel):
+    reason: str
+
+
+@router.post("/library/{token}/takedown")
+def take_down_listing(token: str, body: _TakedownBody, user: dict = Depends(require_paid)):
+    """ADMIN ONLY. Take a library entry down; its owner cannot list it again until it is
+    lifted. Their copy, their link and every installed copy are untouched. Declared
+    before `/{def_id}` for the same reason `/library` is."""
+    require_admin(user)
+    try:
+        out = svc.take_down(token, body.reason, down=True)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if out is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    _log.info("[library] takedown token=%s reason=%s by=%s", token[:12], body.reason, user.get("id"))
+    return out
+
+
+@router.delete("/library/{token}/takedown")
+def lift_listing_takedown(token: str, user: dict = Depends(require_paid)):
+    """ADMIN ONLY. Lift a takedown: the entry shows again if its owner still has it listed."""
+    require_admin(user)
+    out = svc.take_down(token, "other", down=False)
+    if out is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    _log.info("[library] takedown lifted token=%s by=%s", token[:12], user.get("id"))
+    return out
+
+
 @router.get("/capability-worker")
 def capability_worker(user: dict = Depends(require_paid)):
     """U5 (review L6): the capability detector process, for the operator before and after
@@ -671,15 +706,15 @@ def runtime_kill(user: dict = Depends(require_paid)):
     if runtime_definitions.capability_admission_on():
         out["capability_admission"] = True
     # ⭐ L7 -- the served scripts answered from UCT data, by source sha256 -> the Pine names, for the
-    # member door to disclose ("uses UCT data for: ..."). ABSENT while none is served (today), so this
-    # read is byte for byte what it was before L7.
+    # member door to disclose ("uses UCT data for: ..."). ABSENT while none is served, so that read is
+    # byte for byte what it was before L7. (Served since 2026-11-16: RS Rating, `syminfo.industry`.)
     substituted = runtime_definitions.substituted_inputs()
     if substituted:
         out["substituted"] = substituted
     # ⭐ RS RATING L8 -- the run half's object evidence (`runtime_definitions.run_half_evidence`, from the
     # same committed allowlist records), latched by the member door into `runHalfRailSeam.js`. ABSENT
-    # while no served record carries an objects-v2 capture (today), so this read is byte for byte what
-    # it was before L8.
+    # while no served record carries an objects-v2 capture, so that read is byte for byte what it was
+    # before L8. (Served since 2026-11-16: RS Rating's three captures.)
     evidence = runtime_definitions.run_half_evidence()
     if evidence:
         out["run_half_evidence"] = evidence
@@ -930,7 +965,8 @@ def definition_history(def_id: str, user: dict = Depends(require_paid),
 #: plan upgrade that would not help. 409 is the same answer `table-version` gets
 #: and for the same shape of reason: the request conflicts with what the thing IS.
 _SHARE_STATUS = {"not-found": 404, "revoked": 410, "gone": 410,
-                 "table-version": 409, "requirements": 409}
+                 "table-version": 409, "requirements": 409,
+                 "taken-down": 403, "listing-limit": 409}
 
 
 def _share_http(exc: "svc.ShareRefused") -> HTTPException:
@@ -961,7 +997,7 @@ def publish_definition(def_id: str, user: dict = Depends(require_paid)):
     names the token that now serves it, so nothing about that is hidden.
     """
     try:
-        out = svc.publish(user["id"], def_id)
+        out = svc.publish(user["id"], def_id, role=user.get("role"))
     except svc.ShareRefused as exc:
         raise _share_http(exc) from exc
     except ValueError as exc:

@@ -1783,7 +1783,7 @@
      "computed key (+2)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "16.2 ATR",
     "9.0 ATR",
@@ -1794,6 +1794,28 @@
     "9.0 ATR": "Never divided the fall by the ATR.",
     "0.2 ATR": "Flipped the division: ATR over the fall.",
     "16.2 ATR": "Multiplied by the ATR instead of dividing."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "high",
+      "label": "Anchor high",
+      "price": 60.0
+     },
+     {
+      "key": "low",
+      "label": "Lowest low after it",
+      "price": 51.0
+     }
+    ],
+    "find": {
+     "label": "Fall in ATR",
+     "as": "num",
+     "unit": "ATR"
+    },
+    "title": "The fall (ATR 1.80)"
    }
   },
   {
@@ -1831,7 +1853,7 @@
      "the verdict rests on a proposed card line, av.reclaim_day_close (+2)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "1.35 ATR",
     "0.81 ATR",
@@ -1842,6 +1864,28 @@
     "1.35 ATR": "Never divided the gap by the ATR.",
     "0.81 ATR": "Flipped the division: ATR over the gap.",
     "0.03 ATR": "Divided the gap by the line price instead of the ATR."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "close",
+      "label": "Reclaim day close",
+      "price": 46.55
+     },
+     {
+      "key": "line",
+      "label": "AVWAP",
+      "price": 45.2
+     }
+    ],
+    "find": {
+     "label": "Distance over the line",
+     "as": "num",
+     "unit": "ATR"
+    },
+    "title": "Over the line (ATR 1.10)"
    }
   },
   {
@@ -3673,13 +3717,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
+   "notes": "Roles, find label, slot format and ladder checked; ok."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
+   "notes": "Roles, find label, slot format and ladder checked; ok."
   },
   "q27": {
    "status": "pass",

@@ -435,6 +435,37 @@ def _econ_refusal(ticker: str) -> JSONResponse:
     return resp
 
 
+#: How long a browser may keep "this is not a bars symbol". The answer is a property of the
+#: NAME, so it cannot go stale; an hour bounds any future change of heart.
+_THEME_INDEX_REFUSAL_MAX_AGE_S = 3600
+
+
+def is_theme_index_symbol(ticker) -> bool:
+    """Is this a THEME-INDEX identity (`$IDX:<THEME>`, any case)?
+
+    A theme index is a synthetic equal-weight series built from a theme's holdings
+    (api/services/theme_index.py) and read through `/api/theme-index/{slug}`. It has no
+    rows in bars.db and no provider carries it, so on this lane it could only ever answer
+    "warming": measured on production 2026-11-16, one pass through the app's pages made
+    123 requests of `/api/bars/$IDX:<theme>`, every one answered 503 `error: warming` with
+    `Retry-After: 3` (or an empty 200), and the "warming" answer invites the page to ask
+    again. It also kicked a background provider fetch for a symbol that cannot exist.
+
+    A SHAPE TEST, like `is_econ_symbol`: the whole `$IDX:` namespace belongs to theme
+    indexes, so an unknown theme is answered the same way."""
+    return isinstance(ticker, str) and ticker.strip().upper().startswith("$IDX:")
+
+
+def _theme_index_refusal(ticker: str, tf: str = "D") -> JSONResponse:
+    """200, an empty series, and why: the shape the page already reads as "stop asking"
+    (`no_data`), never the retryable "warming". Kept by the member's own browser for an hour
+    (`private`: no shared or edge cache), so a warm list that names a theme index costs one
+    request, once."""
+    resp = _no_data_response((ticker or "").strip(), tf if isinstance(tf, str) else "D", "not_a_bars_symbol")
+    resp.headers["Cache-Control"] = "private, max-age=%d" % _THEME_INDEX_REFUSAL_MAX_AGE_S
+    return resp
+
+
 def _breadth_etag(body: bytes) -> str:
     """Strong validator for a Breadth (or breadth-derived indicator) history body: payload hash +
     the authority token."""
@@ -597,6 +628,8 @@ async def get_bars(
     directly — they must never hit the proxy path."""
     if is_econ_symbol(ticker):          # ⛔ before proxy, provider, add-ons -- see is_econ_symbol
         return _econ_refusal(ticker)
+    if is_theme_index_symbol(ticker):   # ⛔ same place, same reason -- see is_theme_index_symbol
+        return _theme_index_refusal(ticker, tf)
     if not isinstance(session, str):    # called in-process: the Query() default object
         session = ""
     origin = os.environ.get("BARS_ORIGIN_URL", "").rstrip("/")
@@ -949,6 +982,8 @@ def serve_bars(
     anyio worker thread is reused by the next request."""
     if is_econ_symbol(ticker):          # the tier + in-process callers enter here, not via get_bars
         return _econ_refusal(ticker)
+    if is_theme_index_symbol(ticker):   # the Worker sends /api/bars/* straight to the tier: it enters here
+        return _theme_index_refusal(ticker, tf)
     _bars_fetch.set_request_interactive(not warm)
     try:
         sess = _bars_fetch.normalize_session(session) if tf in _INTRADAY_TFS else None
@@ -1814,6 +1849,14 @@ def bars_stream_status():
         out["websocket_channels"] = bar_stream.get_channel_counts()
     except Exception as e:  # noqa: BLE001
         out["websocket_channels_error"] = str(e)[:200]
+    try:
+        from api.services import feed_client
+        out["feed_source"] = feed_client.feed_source()
+        st = feed_client.status()
+        if st is not None:
+            out["feed_client"] = st
+    except Exception as e:  # noqa: BLE001
+        out["feed_client_error"] = str(e)[:200]
     return out
 
 

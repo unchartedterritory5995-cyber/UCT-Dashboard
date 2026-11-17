@@ -749,7 +749,29 @@
    ],
    "kind": "mcq",
    "q": "You short $20,000 of stock at a 12% yearly borrow fee. The price stays flat for a quarter of a year. What's the borrow cost?",
-   "subject": "F10b.01#q11"
+   "subject": "F10b.01#q11",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Borrow cost"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "short_position",
+      "label": "Short position",
+      "value": 20000
+     },
+     {
+      "fmt": "%",
+      "key": "borrow_fee,_per_year",
+      "label": "Borrow fee, per year",
+      "value": 12
+     }
+    ],
+    "title": "A quarter year's borrow"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -1108,7 +1130,29 @@
    ],
    "kind": "mcq",
    "q": "You're short 400 shares through the ex-dividend date. The stock pays a $0.75 dividend. What do you owe the lender?",
-   "subject": "F10b.01#q15"
+   "subject": "F10b.01#q15",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "We owe the lender"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "shares",
+      "key": "shares_short",
+      "label": "Shares short",
+      "value": 400
+     },
+     {
+      "fmt": "$",
+      "key": "dividend_per_share",
+      "label": "Dividend per share",
+      "value": 0.75
+     }
+    ],
+    "title": "The dividend we owe"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -1193,7 +1237,41 @@
    "kind": "mcq",
    "q": "What is FINRA's minimum maintenance margin on this short?",
    "story": "You're short 1,000 shares of a $10.00 stock. FINRA's minimum for a short at $5 or more is $5.00 a share or 30% of its value, whichever is greater.",
-   "subject": "F10b.01#q16"
+   "subject": "F10b.01#q16",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "FINRA minimum"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "shares",
+      "key": "shares_short",
+      "label": "Shares short",
+      "value": 1000
+     },
+     {
+      "fmt": "$",
+      "key": "stock_price",
+      "label": "Stock price",
+      "value": 10
+     },
+     {
+      "fmt": "$",
+      "key": "minimum_a_share",
+      "label": "Minimum a share",
+      "value": 5.0
+     },
+     {
+      "fmt": "%",
+      "key": "or_this_share_of_val",
+      "label": "Or this share of value",
+      "value": 30
+     }
+    ],
+    "title": "Maintenance margin"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -1566,7 +1644,35 @@
    "kind": "mcq",
    "q": "If the price and the fee hold, what will two months of borrowing cost?",
    "story": "You want to short $30,000 of a hard-to-borrow stock. The borrow fee is 40% a year. You aim to make $3,000 over two months.",
-   "subject": "F10b.01#q20"
+   "subject": "F10b.01#q20",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Two months' borrow cost"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "short_position",
+      "label": "Short position",
+      "value": 30000
+     },
+     {
+      "fmt": "%",
+      "key": "borrow_fee,_per_year",
+      "label": "Borrow fee, per year",
+      "value": 40
+     },
+     {
+      "fmt": "count",
+      "key": "months_short",
+      "label": "Months short",
+      "value": 2
+     }
+    ],
+    "title": "Two months of borrow"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -1876,7 +1982,53 @@
    "kind": "mcq",
    "q": "What did you net, before commissions?",
    "story": "You short 1,000 shares at $40.00 and cover at $36.00 three months later. The borrow fee ran 8% a year on $40,000. You were short through the ex-dividend date of a $0.50 dividend.",
-   "subject": "F10b.01#q23"
+   "subject": "F10b.01#q23",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Net result"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "shares",
+      "key": "shares_short",
+      "label": "Shares short",
+      "value": 1000
+     },
+     {
+      "fmt": "$",
+      "key": "short_at",
+      "label": "Short at",
+      "value": 40.0
+     },
+     {
+      "fmt": "$",
+      "key": "covered_at",
+      "label": "Covered at",
+      "value": 36.0
+     },
+     {
+      "fmt": "%",
+      "key": "borrow_fee,_per_year",
+      "label": "Borrow fee, per year",
+      "value": 8
+     },
+     {
+      "fmt": "count",
+      "key": "months_short",
+      "label": "Months short",
+      "value": 3
+     },
+     {
+      "fmt": "$",
+      "key": "dividend_per_share",
+      "label": "Dividend per share",
+      "value": 0.5
+     }
+    ],
+    "title": "The short trade"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -2925,7 +3077,30 @@
    ],
    "kind": "mcq",
    "q": "Short interest is 6,000,000 shares. Average daily volume is 750,000 shares. What is days to cover?",
-   "subject": "F10b.02#q09"
+   "subject": "F10b.02#q09",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Days to cover",
+     "unit": "days"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "shares",
+      "key": "short_interest",
+      "label": "Short interest",
+      "value": 6000000
+     },
+     {
+      "fmt": "shares",
+      "key": "average_daily_volume",
+      "label": "Average daily volume",
+      "value": 750000
+     }
+    ],
+    "title": "Days to cover"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -3527,7 +3702,47 @@
    ],
    "kind": "mcq",
    "q": "Short 1,000 shares. FINRA minimum: 30% of value or $5 a share, whichever is more. It goes $20 to $40. How much does the minimum rise?",
-   "subject": "F10b.02#q15"
+   "subject": "F10b.02#q15",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Rise in the minimum"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "shares",
+      "key": "shares_short",
+      "label": "Shares short",
+      "value": 1000
+     },
+     {
+      "fmt": "$",
+      "key": "price_before",
+      "label": "Price before",
+      "value": 20
+     },
+     {
+      "fmt": "$",
+      "key": "price_after",
+      "label": "Price after",
+      "value": 40
+     },
+     {
+      "fmt": "%",
+      "key": "minimum:_share_of_va",
+      "label": "Minimum: share of value",
+      "value": 30
+     },
+     {
+      "fmt": "$",
+      "key": "minimum:_per_share",
+      "label": "Minimum: per share",
+      "value": 5
+     }
+    ],
+    "title": "The minimum margin"
+   }
   },
   "reveal_json": {
    "deeper": {

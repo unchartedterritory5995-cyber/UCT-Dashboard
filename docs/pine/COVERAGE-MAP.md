@@ -3,6 +3,11 @@
 Measured 2026-10-30 on `origin/master` @ `dadccbc98d`. Machine-readable twin:
 [`coverage-map.json`](coverage-map.json). Re-run: [How to re-run](#how-to-re-run).
 
+> **Newest measurement: [`COVERAGE-MAP-2026-11-16.md`](COVERAGE-MAP-2026-11-16.md)**: 215 of 679
+> (31.7%) transfer fully on `origin/master` @ `890b6d165c`, engine 60. `coverage-map.json` holds
+> that measurement. The numbers on this page below are the 2026-10-30 ones (185 of 679); the
+> definitions and the re-run procedure here still apply.
+
 Owner goal: paste any open-source Pine script and get the same result as TradingView.
 This page measures the distance to that goal against the **whole** Pine v6 language,
 weights it by what real scripts use, and ranks the work.
@@ -508,8 +513,52 @@ A daily job diffs `headline`, `blockers`, `capabilities.greedyRoadmap` and per-i
 `status` in `coverage-map.json`. Per-script rows (`scripts[]`) carry each script's
 transfer verdict, first guards and walls, so any number walks back to a script.
 
+### The coverage ratchet (CI): a committed script that transfers keeps transferring
+
+`docs/pine/coverage-ratchet.json` lists, per lane, the **committed** corpus scripts
+(`corpus/committed/`, 266 on 2026-11-16) that transfer by this page's predicate (production:
+`transfers_fully`, the headline above; runtime-on: `runtime_on_transfers`; both in
+`coverage_map.py`, imported, never restated), by key and text sha only. The pine-heavy legs
+**coverage ratchet, production lane** and **coverage ratchet, runtime-on lane**
+(`tools/pine_coverage/coverage_ratchet.py`) run the same census (`run_census.drive`, cap 1,
+offline) over the committed corpus on every pine-heavy PR and compare. ⛔ Never the
+reference-only sample: it is not ours to publish and is not in CI.
+
+| what the leg finds | exit | what the builder does |
+|---|---|---|
+| a listed script no longer transfers | 1, red (named, with what stops it) | fix it; or, when the refusal is the honest answer, remove it with `--write` in the same PR and give the reason in the PR body |
+| a script newly transfers | 0, green, reported | add it with `--write` in the same PR |
+| refused: the snapshot is under the lane's floor, names a script not in the corpus or whose text changed, or the run measured fewer scripts than the corpus holds | 2, red | what the message says; never by hand-editing the snapshot |
+
+**Update the snapshot in the PR that moves it**, from that PR's own CI run (no local census; the
+leg's step summary prints these two lines with the run id filled in):
+
+```sh
+gh run download <run id> --repo unchartedterritory5995-cyber/UCT-Dashboard \
+  -n pine-coverage-ratchet-production -D $SCR/ratchet-production
+python tools/pine_coverage/coverage_ratchet.py --lane production \
+  --rows $SCR/ratchet-production/census.jsonl --write
+# then the same two lines with runtime-on
+```
+
+or measure on the dev PC (one lane at a time, under the lock):
+
+```sh
+python C:/Users/Patrick/uct-clips/tools/heavy_lock.py run --label ratchet-production -- \
+  python tools/pine_coverage/coverage_ratchet.py --lane production --write
+```
+
+`--write` prints every script it adds and removes; commit `docs/pine/coverage-ratchet.json` in
+the same PR. `--rows` refuses rows measured on other script texts (`inputs.json` beside them) or
+without the census's lane proof (`lane.jsonl`). A write under the lane's floor (`FLOORS` in
+`coverage_ratchet.py`) is refused: lowering a floor is a code change, by name, in the PR that needs
+it. The same legs' sibling, **derived evidence is current**, runs
+`python tools/vendor_harness/evidence_engine.py queue --check` and `pins --check`: a PR that changes
+`coverage-map.json` (or a queue doc, a probe, the corpus, a fixture) re-runs
+`python tools/vendor_harness/evidence_engine.py queue` and commits `capture-queue.json` with it.
+
 Files: `tools/pine_coverage/fetch_sample.py`, `tools/pine_coverage/run_census.py`,
-`tools/pine_coverage/coverage_map.py`,
+`tools/pine_coverage/coverage_map.py`, `tools/pine_coverage/coverage_ratchet.py`,
 `app/src/components/chart/engine/ast/coverageMapDoorCensus.measure.test.js` (opt-in; skipped
 unless `COVERAGE_INPUT`/`COVERAGE_OUT` or `COVERAGE_DOOR_OUT` is set; it lives under `app/`
 because vitest only serves files inside the app root).

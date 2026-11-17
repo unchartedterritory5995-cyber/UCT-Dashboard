@@ -59,7 +59,7 @@
   background: transparent; border: none; color: var(--text-muted, #6b7280);
   cursor: pointer; padding: 0 4px; font-size: 12px; line-height: 1;
 }
-.popOutBtn:hover { color: var(--ut-gold, #dcbb5e); }
+.popOutBtn:hover { color: var(--ut-gold); }
 
 /* Fills a popped-out window: the grid inside is viewport-locked the same way the
    main board is, so it needs a definite height to divide into rows rather than
@@ -86,7 +86,7 @@
   position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
   z-index: 9000; display: flex; align-items: center; gap: 10px;
   background: var(--bg-elevated, #0f141b);
-  border: 1px solid var(--ut-gold, #dcbb5e);
+  border: 1px solid var(--ut-gold);
   color: var(--text, #e5e7eb);
   border-radius: var(--radius-sm); padding: 8px 12px; font-size: 12px;
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
@@ -377,7 +377,7 @@
   line-height: 1;
   border-radius: 3px;
 }
-.wtabScroll:hover:not(:disabled) { color: var(--ut-gold, #dcbb5e); background: var(--widget-row-hover, rgba(255, 255, 255, 0.06)); }
+.wtabScroll:hover:not(:disabled) { color: var(--ut-gold); background: var(--widget-row-hover, rgba(255, 255, 255, 0.06)); }
 .wtabScroll:disabled { opacity: 0.28; cursor: default; }
 .wtabChip {
   display: inline-flex;
@@ -406,7 +406,7 @@
   letter-spacing: 0.2px;
   color: var(--widget-text-strong, var(--text, #e5e7eb));
   background: var(--widget-canvas, rgba(0, 0, 0, 0.25));
-  border: 1px solid var(--ut-gold, #dcbb5e);
+  border: 1px solid var(--ut-gold);
   border-radius: 3px;
   padding: 0 3px;
   outline: none;
@@ -446,7 +446,7 @@
   line-height: 1;
   font-weight: 600;
 }
-.wtabAdd:hover { color: var(--ut-gold, #dcbb5e); }
+.wtabAdd:hover { color: var(--ut-gold); }
 /* Portaled to document.body + positioned `fixed` (inline top/left) so it escapes
    the widget's overflow:hidden and never clips on a short widget. */
 .wtabAddMenu {
@@ -530,6 +530,31 @@
   display: flex;
 }
 .studioDock:empty { display: none; }
+/* PHONE (the touch tier, and only the OVERLAY case: a pane too narrow to give the dock a
+   column). Measured on production at 390px, 2026-11-16: the dock overlaid the chart's right
+   edge at 360px, leaving a 30px sliver of chart, and the joystick's edge tab sat over its Send
+   button. Here it is a sheet across the bottom of the SCREEN instead, so the chart being
+   previewed stays in view above it (354px at 390x844). Fixed, and above the joystick tab, so
+   nothing covers its controls. A pane wide enough to dock (a tablet) is untouched. */
+@media (max-width: 1024px) {
+  .studioDock[data-studio-dock="overlay"] {
+    position: fixed;
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: min(58dvh, 560px);
+    z-index: 8500;
+  }
+  /* TABLET, the docked column. Measured on production at 820x1180, 2026-11-16: the joystick's
+     edge tab (fixed, z-index 360) sat over the dock's Send button and took its taps. The dock
+     owns the right edge while it is open, as the phone sheet above does, so it sits just above
+     the tab. Tried on the live page first: the element under Send became Send. */
+  .studioDock[data-studio-dock="dock"] {
+    z-index: 370;
+  }
+}
 
 .chartFill {
   flex: 1; min-height: 0; min-width: 0; position: relative;
@@ -1827,10 +1852,10 @@
 .chartCtxAi {
   margin-top: 4px; padding-top: 11px;
   border-top: 1px solid var(--menu-divider, var(--border, #232b36));
-  color: var(--menu-accent, var(--ut-gold, #dcbb5e)); font-weight: 600;
+  color: var(--menu-accent, var(--ut-gold)); font-weight: 600;
 }
 /* the AI row keeps its gold accent — its icon matches the gold text, full strength */
-.chartCtxAi .chartCtxIcon { color: var(--menu-accent, var(--ut-gold, #dcbb5e)); opacity: 1; }
+.chartCtxAi .chartCtxIcon { color: var(--menu-accent, var(--ut-gold)); opacity: 1; }
 
 /* "Chart template" side flyout — a second menu that opens to the RIGHT of the
    parent row (left:100%), listing the user's saved chart-settings templates. */
@@ -2823,3 +2848,160 @@
 /* The open tab's gold line sits just under its word (owner 11-14), like RTH / EXT — not at the
    bottom edge of the header, where it read as part of the row below. */
 .uctHeader .wtabChipActive::after { bottom: 7px; }
+
+/* ═══ The chart right-click menu in the board-menu look (owner 11-15): always the #111214 panel,
+   #ededed rows, the #1a1b1f card shade on hover, grey icons, hairline dividers — the Theme
+   Tracker "…" menu and the widget settings menus. The gold Ask AI row keeps its accent. ═══ */
+.chartCtxMenu, .chartCtxFlyout {
+  background: #111214; border-color: #383b41; border-radius: 10px; padding: 5px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5); font-family: var(--font-sans); color-scheme: dark;
+}
+.chartCtxMenu .chartCtxItem, .chartCtxFlyout .chartCtxItem {
+  color: #ededed; font-family: var(--font-sans); font-size: 13px; padding: 7px 10px; border-radius: 6px;
+}
+.chartCtxMenu .chartCtxItem:hover:not(:disabled), .chartCtxFlyout .chartCtxItem:hover:not(:disabled),
+.chartCtxMenu .chartCtxItemOpen { background: #1a1b1f; color: #f8f7f3; }
+.chartCtxMenu .chartCtxIcon, .chartCtxFlyout .chartCtxIcon { color: #a9a59b; opacity: 1; }
+.chartCtxMenu .menuDivider, .chartCtxFlyout .menuDivider { background: #2a2c31; margin: 4px 6px; }
+.chartCtxMenu .chartCtxAi { border-top-color: #2a2c31; color: var(--accent, #dcbb5e); }
+.chartCtxMenu .chartCtxAi .chartCtxIcon { color: var(--accent, #dcbb5e); }
+.chartCtxMenu .chartCtxAi:hover { color: var(--accent, #dcbb5e); }
+
+/* Owner 11-15: NO gold in the chart right-click menu — every icon (they paint their own gold
+   stroke) and the Ask AI row are the menus' grey. */
+.chartCtxMenu .chartCtxIcon svg, .chartCtxMenu .chartCtxIcon svg *, .chartCtxFlyout .chartCtxIcon svg, .chartCtxFlyout .chartCtxIcon svg * { stroke: currentColor !important; color: inherit !important; filter: none !important; }
+.chartCtxMenu .chartCtxAi, .chartCtxMenu .chartCtxAi:hover { color: #ededed; font-weight: 500; }
+.chartCtxMenu .chartCtxAi .chartCtxIcon { color: #a9a59b; }
+
+/* M4 · "Labelled, no icons" (owner 11-15): the chart right-click menu shows no icons; small grey
+   group labels (At this price · This chart · Settings · Add · Drawings) replace the dividers,
+   and a submenu row ends in a quiet chevron. Every row, its order and its handler are unchanged. */
+.chartCtxMenu .chartCtxIcon, .chartCtxFlyout .chartCtxIcon { display: none; }
+.chartCtxLabel { padding: 8px 10px 3px; font: 600 10.5px var(--font-sans); color: #93939a; letter-spacing: 0; }
+.chartCtxMenu .chartCtxLabel:first-child { padding-top: 5px; }
+.chartCtxMenu .chartCtxItem { gap: 0; padding: 6px 10px; }
+.chartCtxMenu .chartCtxCaret { color: #93939a; opacity: 1; font-size: 10px; }
+.chartCtxMenu .chartCtxAi { margin-top: 4px; padding-top: 9px; }
+
+/* Chart-type button centred between its two hairlines (owner 11-15): this header's 8px item gap
+   would otherwise sit between the button and the date box's line (the left line is the button's
+   own, inside the gap), leaving the right side 8px wider. */
+.widgetIntegrated .tfBar [data-guide='chart.typeMenu'] { margin-right: -8px; }
+/* UCT Signature gold "mix" (owner 11-15): gold marks only what is current or chosen — see docs/uct-signature-style.md §2b. */
+/* the right-click menu: the chosen template's ✓, and UCT Intelligence's mark on "Ask AI" (its one icon) */
+.chartCtxMenu .chartCtxCheck, .chartCtxFlyout .chartCtxCheck { color: var(--ut-gold); }
+.chartCtxMenu .chartCtxAi .chartCtxIcon { display: inline-flex; color: var(--ut-gold); margin-right: 8px; }
+
+/* ═══ The /charts top row in UCT Signature (owner 11-15, docs/uct-signature-style.md) ═══
+   Left: the open layout's NAME (it is the Layouts button) + its save state. Then "+ Add widget"
+   (the one white button) and "Tools" (a soft button). Right: Merge widgets as an icon toggle and
+   the UCT Agent. Gold only on what is current or on: the ✓ on the open layout / running tool, the
+   1D-style underline on a toggle or a running mode, the dot for unsaved changes. */
+.workspaceHeader { gap: 6px; padding: 10px 14px 10px 12px; }
+.tbName {
+  display: inline-flex; align-items: center; gap: 8px; height: 34px; max-width: 320px; padding: 0 10px 0 8px;
+  border: 0; border-radius: 8px; background: none; cursor: pointer;
+  color: var(--text-bright, #f8f7f3); font: 700 16px var(--font-sans); letter-spacing: 0;
+}
+.tbNameText { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tbName svg, .tbName svg * { stroke: currentColor !important; filter: none !important; }
+.tbName > svg { color: #a9a59b; flex: 0 0 auto; }
+.tbName:hover, .tbName[aria-expanded='true'] { background: rgba(248, 247, 243, 0.06); }
+.tbName:focus-visible, .tbPrim:focus-visible, .tbSoft:focus-visible, .tbIcon:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: 1px; }
+.tbState { display: inline-flex; align-items: center; gap: 6px; margin: 0 6px 0 2px; font: 500 12px var(--font-sans); color: #93939a; white-space: nowrap; }
+.tbStateDot { width: 6px; height: 6px; border-radius: 50%; background: #6f6c66; flex: 0 0 auto; }
+.tbStateDirty { color: #ededed; }
+.tbStateDirty .tbStateDot { background: var(--ut-gold); }
+.tbStateSave {
+  border: 0; background: none; padding: 0 2px; cursor: pointer; color: #f8f7f3; font: 600 12px var(--font-sans);
+  text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(248, 247, 243, 0.35);
+}
+.tbStateSave:hover { text-decoration-color: #f8f7f3; }
+.tbSep { width: 1px; height: 18px; background: #26282c; margin: 0 6px; flex: 0 0 auto; }
+.tbSpacer { flex: 1 1 auto; }
+.tbPrim {
+  display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border: 0; border-radius: 7px;
+  background: #f8f7f3; color: #111214; font: 700 12.5px var(--font-sans); cursor: pointer; white-space: nowrap;
+}
+.tbPrim:hover { background: #ffffff; }
+.tbPrim svg, .tbPrim svg * { stroke: currentColor !important; color: inherit !important; filter: none !important; }
+.tbSoft {
+  position: relative; display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 10px; border: 0; border-radius: 7px;
+  background: rgba(248, 247, 243, 0.06); color: #ededed; font: 600 12.5px var(--font-sans); cursor: pointer; white-space: nowrap;
+}
+.tbSoft:hover, .tbSoft[aria-expanded='true'] { background: rgba(248, 247, 243, 0.11); color: #f8f7f3; }
+.tbSoft svg, .tbSoft svg * { stroke: currentColor !important; filter: none !important; }
+.tbSoft > svg { color: #a9a59b; }
+.tbModeOn { box-shadow: inset 0 -2px 0 var(--ut-gold); }
+.tbSoft .tbSpark { color: var(--ut-gold) !important; }
+.tbIcon {
+  position: relative; display: inline-grid; place-items: center; width: 32px; height: 30px; border: 0; border-radius: 7px;
+  background: none; color: #a9a59b; cursor: pointer;
+}
+.tbIcon svg, .tbIcon svg * { stroke: currentColor !important; color: inherit !important; filter: none !important; }
+.tbIcon:hover { background: rgba(248, 247, 243, 0.07); color: #f8f7f3; }
+.tbIcon[aria-pressed='true'] { color: #f8f7f3; }
+.tbIcon[aria-pressed='true']::after { content: ""; position: absolute; left: 9px; right: 9px; bottom: 2px; height: 2px; border-radius: 2px; background: var(--ut-gold); }
+
+/* the menus: grey glyphs, the gold ✓ (the old menus painted every glyph gold) */
+.tbMenu .tbGlyph { color: #a9a59b; }
+.tbMenu .tbGlyph svg, .tbMenu .tbGlyph svg * { stroke: currentColor !important; color: inherit !important; filter: none !important; }
+.tbMenu .tbCheck { color: var(--ut-gold); }
+.tbMenu .tbCheck svg, .tbMenu .tbCheck svg * { stroke: currentColor !important; color: inherit !important; }
+.tbMenu .addMenuItem .tbLbl { display: flex; flex-direction: column; }
+.tbHint { font-size: 11.5px; font-weight: 500; color: #93939a; white-space: normal; line-height: 1.3; margin-top: 1px; }
+.tbMenu { background: #111214; border-color: #383b41; }
+
+/* the Add-widget picker: search well, one-column list, the hovered widget's blurb at the foot */
+.tbMenu.wAddMenu.wAddMenu { min-width: 300px; width: 300px; padding: 0; display: flex; flex-direction: column; max-height: min(520px, 76vh); overflow: hidden; }
+.wFind { display: flex; align-items: center; gap: 8px; margin: 6px; padding: 0 10px; height: 32px; border-radius: 7px; background: #1a1b1f; color: #93939a; flex: 0 0 auto; }
+.wFind:focus-within { box-shadow: inset 0 0 0 1px rgba(248, 247, 243, 0.25); }
+.wFind svg, .wFind svg * { stroke: currentColor !important; filter: none !important; }
+.wFindInput, .wFindInput:focus { flex: 1; min-width: 0; height: 30px; border: none !important; background: none !important; box-shadow: none !important; outline: none; color: #ededed; font: 500 13px var(--font-sans); padding: 0; }
+.wFindInput::placeholder { color: #6f6c66; }
+.wPickScroll { flex: 1 1 auto; overflow-y: auto; padding: 0 5px 5px; scrollbar-width: thin; scrollbar-color: #383b41 transparent; }
+.tbMenu .wPickScroll .wAddGroup + .wAddGroup { border-top: 0; margin-top: 0; padding-top: 0; }
+.tbMenu .wPickScroll .wAddGrid { grid-template-columns: 1fr; }
+/* the icon keeps its OWN colour (grey; gold when hovered) — only its parts inherit it */
+.tbMenu .wAddChip svg { stroke: currentColor !important; filter: none !important; }
+.tbMenu .wAddChip svg * { stroke: currentColor !important; color: inherit !important; filter: none !important; }
+.tbMenu .wAddChip > svg { color: #a9a59b; }
+.tbMenu .wAddChip:hover:not(:disabled) > svg { color: #ededed; }
+.wPickEmpty { padding: 16px 10px; color: #93939a; font-size: 12px; text-align: center; }
+.wPickDesc { flex: 0 0 auto; border-top: 1px solid #26282c; padding: 9px 12px; min-height: 52px; font: 500 12px/1.4 var(--font-sans); color: #a9a59b; }
+.wPickDesc b { color: #ededed; font-weight: 600; }
+
+/* Owner 11-15, round 2: the row is 44px (was 60) — the rhythm of the chart widget's own 40px header
+   under it — and "+ Add widget" is a soft button like Tools with a brighter label, not the loud
+   white pill. */
+.workspaceHeader { min-height: 44px; padding: 6px 14px 6px 10px; }
+.tbName { height: 30px; font-size: 15px; }
+.tbPrim { background: rgba(248, 247, 243, 0.08); color: #f8f7f3; font-weight: 600; }
+.tbPrim:hover, .tbPrim[aria-expanded='true'] { background: rgba(248, 247, 243, 0.13); color: #ffffff; }
+.tbPrim > svg { color: #f8f7f3; }
+/* no search well in the Add-widget menu (owner 11-15): the list starts at the top */
+.tbMenu.wAddMenu .wPickScroll { padding-top: 5px; }
+
+/* Gold in ACTION menus (owner 11-15, style guide §2b rules 6-7): an action menu has nothing "chosen",
+   so the mix adds (6) the highlighted row's icon turns gold — "you are here" while you point or
+   arrow — and (7) widgets already on the board carry a small gold dot (and a count when >1). */
+.tbMenu .addMenuItem:hover:not(:disabled) .tbGlyph,
+.tbMenu .addMenuItem:focus-visible .tbGlyph,
+.tbMenu .wAddChip:hover:not(:disabled) > svg,
+.tbMenu .wAddChip:focus-visible > svg { color: var(--ut-gold); }
+.wOnBoard { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; flex: 0 0 auto; }
+.wOnBoardDot { width: 6px; height: 6px; border-radius: 50%; background: var(--ut-gold); }
+.wOnBoardN { font: 600 11px var(--font-sans); color: #93939a; font-variant-numeric: tabular-nums; }
+.tbMenu .wAddChip { display: flex; align-items: center; }
+
+/* Info row in UCT Signature (owner 11-15): grey 12px labels, bright 13px values (even-width digits);
+   signed fields keep their green / red and a member's own colour (inline) still wins. */
+.widgetIntegrated .chartMetaLabel { font-size: 12px; font-weight: 500; color: #c9c6be; } /* owner 11-15: as bright as the row's other text, a notch under the values */
+.widgetIntegrated .chartMetaVal { font-size: 13px; font-weight: 600; color: #f8f7f3; }
+/* Info-row dividers (owner 11-15): the header's own divider (1px, --widget-divider, as around the chart-type
+   button and the date box) centred in the gap between stats. */
+.widgetIntegrated .chartMetaItem { position: relative; }
+.widgetIntegrated .chartMetaItem + .chartMetaItem::before {
+  content: ''; position: absolute; left: -9px; top: 50%; height: 16px; margin-top: -8px; width: 1px;
+  background: var(--widget-divider, #2a2c31); pointer-events: none;
+}

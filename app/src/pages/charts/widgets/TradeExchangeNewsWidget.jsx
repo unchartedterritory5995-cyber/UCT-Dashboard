@@ -78,6 +78,9 @@ const NO_REST = Object.freeze([])
 //: Fetch the next step of the day this far (px) before the reader reaches an end.
 const NEAR_END_PX = 900
 
+// UCT Agent newsLibrary.* door (AUDIT D13): a row's text reaches the Agent at most this long
+const AGENT_DOOR_TEXT_MAX = 80
+
 export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, defaultView = 'feed' }) {
   const { groupSyms, setGroupSym } = useWorkspace()
   const linkedSym = groupSyms?.[color] || null
@@ -441,7 +444,18 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
   // UCT Agent: the watchlist choices, and the search box (read back as typed; written through its own setter, as typing does)
   useWidgetDoor(() => ({
     options: () => ({ watchlist: listOptions.map(o => ({ value: o.value || null, label: o.label })) }),
-    read: () => ({ search: queryRaw }),
+    // ⭐ UCT Agent newsLibrary.* (read-only, 2026-11-15): the rows THIS widget renders (`rows`, as drawn — nothing is
+    // computed for the Agent) and the one the member has open (its ⋯ menu or Explain, else the single expanded row), so a
+    // headline is named by its id from what the member sees or clicked. The door writes nothing here.
+    read: () => {
+      const open = actions?.item?.id ?? (explain?.view === 'feed' ? explain.id : null)
+      const one = !open && expanded.size === 1 ? rows.find(r => expanded.has(r.seq))?.id ?? null : null
+      return {
+        search: queryRaw,
+        visible: rows.slice(0, 20).map(r => ({ id: r.id, time: r.received_at_ms ?? null, tickers: r.tickers || [], text: String(r.content || '').slice(0, AGENT_DOOR_TEXT_MAX) })),
+        selected: open ?? one,
+      }
+    },
     write: (key, v) => { if (key === 'search') setQueryRaw(String(v ?? '').slice(0, 80)) },
   }))
 
@@ -449,7 +463,7 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
     <div ref={rootRef} className={`${styles.root} ${settings.density === 'compact' ? styles.compact : styles.comfortable}`} style={rootStyle}>
       {settingsOpen && (
         <NewsSettingsPanel
-          title="News Settings"
+          title="News settings"
           widgetType="tradeExchangeNews"
           textHint="headlines"
           showPerf={false}

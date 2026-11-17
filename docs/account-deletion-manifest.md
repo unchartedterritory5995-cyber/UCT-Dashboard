@@ -206,13 +206,14 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 | `j2_gallery_follows` | `author_id` (the member's id) | Direct | `DELETE FROM j2_gallery_follows WHERE author_id = ?` |
 | `indicator_gap_hits` | `member_key` (`_gap_member_key(user_id)`, a keyed hash of the member's id) | Direct | `DELETE FROM indicator_gap_hits WHERE member_key = ?` with `_gap_member_key(user_id)` |
 
-**user_definitions.db** -- a second database, which no statement on auth.db reaches: **5 tables**, deleted by `api/services/user_definitions_erasure.py` through `user_definitions.purge_user`.
+**user_definitions.db** -- a second database, which no statement on auth.db reaches: **6 tables**, deleted by `api/services/user_definitions_erasure.py` through `user_definitions.purge_user`.
 
 | Table | Owner key | Ownership | How the purge deletes it |
 |---|---|---|---|
 | `user_definitions` | `user_id` | Direct (user_definitions.db) | `DELETE FROM user_definitions WHERE user_id = ?` |
 | `definition_shares` | `user_id` | Direct (user_definitions.db) | `DELETE FROM definition_shares WHERE user_id = ?` |
 | `definition_listings` | `user_id` | Direct (user_definitions.db) | `DELETE FROM definition_listings WHERE user_id = ?` |
+| `definition_listing_takedowns` | `user_id` | Direct (user_definitions.db) | `DELETE FROM definition_listing_takedowns WHERE user_id = ?` |
 | `user_definition_relint_log` | `user_id` | Direct (user_definitions.db) | `DELETE FROM user_definition_relint_log WHERE user_id = ?` |
 | `definition_engine_status` | `user_id` | Direct (user_definitions.db) | `DELETE FROM definition_engine_status WHERE user_id = ?` |
 

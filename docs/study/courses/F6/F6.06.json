@@ -993,7 +993,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$0.03",
     "$4.12",
@@ -1004,6 +1004,28 @@
     "$0.03": "Divided vega by the IV change instead of multiplying.",
     "$4.12": "Added vega to the IV change instead of multiplying.",
     "$48.00": "Gave the loss per contract, not per share."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The call and the IV move",
+    "rows": [
+     {
+      "key": "call_vega",
+      "label": "Call vega",
+      "value": 0.12,
+      "fmt": "count"
+     },
+     {
+      "key": "iv_rises,_points",
+      "label": "IV rises, points",
+      "value": 4.0,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Call's gain",
+     "as": "per_share"
+    }
    }
   },
   {
@@ -1055,7 +1077,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$1.20",
     "$120",
@@ -1066,6 +1088,34 @@
     "$1.20": "Forgot each contract covers 100 shares.",
     "$8": "Multiplied vega by 100 and skipped the IV drop.",
     "$1,500": "Multiplied the IV drop by 100 and skipped vega."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The call and the IV move",
+    "rows": [
+     {
+      "key": "call_vega",
+      "label": "Call vega",
+      "value": 0.08,
+      "fmt": "count"
+     },
+     {
+      "key": "iv_drops,_points",
+      "label": "IV drops, points",
+      "value": 15.0,
+      "fmt": "count"
+     },
+     {
+      "key": "calls_held",
+      "label": "Calls held",
+      "value": 1.0,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Cost per contract",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1272,7 +1322,53 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "Delta and vega at the open",
+    "rows": [
+     {
+      "key": "call_price",
+      "label": "Call price",
+      "value": 4.4,
+      "fmt": "$"
+     },
+     {
+      "key": "delta",
+      "label": "Delta",
+      "value": 0.5,
+      "fmt": "count"
+     },
+     {
+      "key": "stock_rises",
+      "label": "Stock rises",
+      "value": 3.0,
+      "fmt": "$"
+     },
+     {
+      "key": "vega",
+      "label": "Vega",
+      "value": 0.05,
+      "fmt": "count"
+     },
+     {
+      "key": "iv_before",
+      "label": "IV before",
+      "value": 80.0,
+      "fmt": "%"
+     },
+     {
+      "key": "iv_after",
+      "label": "IV after",
+      "value": 40.0,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Worth at the open",
+     "as": "per_share"
+    }
+   }
   },
   {
    "key": "q18",
@@ -1401,7 +1497,35 @@
      "fixed before (checker edit 2026-11-09 or 2026-11-11)"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The IV drop",
+    "rows": [
+     {
+      "key": "iv_before",
+      "label": "IV before",
+      "value": 94.38,
+      "fmt": "%"
+     },
+     {
+      "key": "iv_after",
+      "label": "IV after",
+      "value": 33.23,
+      "fmt": "%"
+     },
+     {
+      "key": "vega",
+      "label": "Vega",
+      "value": 0.0193,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Value the drop took",
+     "as": "per_share"
+    }
+   }
   },
   {
    "key": "q21",
@@ -1645,7 +1769,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 4."
+   "notes": "Title 'Vega times IV change' leaks the method"
   },
   "q11": {
    "status": "cut",
@@ -1663,7 +1787,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 1. Why rewritten to show the steps."
+   "notes": "Title 'Vega times IV change' leaks the method"
   },
   "q13": {
    "status": "pass",
@@ -1693,7 +1817,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided cold: 4.40 + 0.50*3 - 0.05*40 = 3.90, down 0.50. Every number is in the story; calc matches. Inputs realistic (a Black-Scholes check of an ATM weekly at 80% IV gives about 4.4 and vega about 0.055; after the gap and drop to 40% it gives about 3.88). f17 re-read today on OIC; f75 'theoretical guidepost' present on OIC's Greeks page. Each distractor is a real half-done calc. Third-person, no endorsement of buying into a report."
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q18": {
    "status": "pass",
@@ -1709,9 +1833,9 @@
   },
   "q20": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q21": {
    "status": "pass",

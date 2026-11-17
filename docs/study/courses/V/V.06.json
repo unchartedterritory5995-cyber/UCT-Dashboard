@@ -2235,7 +2235,35 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "Over 100 trades",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Losing trades",
+      "value": 99,
+      "fmt": "count"
+     },
+     {
+      "key": "r2",
+      "label": "Each loss",
+      "value": 1,
+      "fmt": "$"
+     },
+     {
+      "key": "r3",
+      "label": "The one winner",
+      "value": 500,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "The net result",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q19",
@@ -2574,7 +2602,33 @@
      "touches the owner's gap rule (B20), flagged"
     ]
    },
-   "batch": "wave8"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "ladder",
+    "title": "The gap",
+    "side": "long",
+    "levels": [
+     {
+      "key": "price",
+      "label": "Gap open",
+      "price": 140
+     },
+     {
+      "key": "stop",
+      "label": "Stop order",
+      "price": 155
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 170
+     }
+    ],
+    "find": {
+     "label": "Account lost, at 1% risk",
+     "as": "pct"
+    }
+   }
   },
   {
    "key": "q27",
@@ -3231,7 +3285,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "1.5%",
     "6%",
@@ -3242,6 +3296,28 @@
     "1.5%": "Counted one trade's risk and skipped the other three.",
     "5.5%": "Added the 4 trades to the 1.5% instead of multiplying.",
     "4%": "Gave the number of trades as the percent."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Your heat",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Open trades",
+      "value": 4,
+      "fmt": "count"
+     },
+     {
+      "key": "r2",
+      "label": "Risk on each",
+      "value": 1.5,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Portfolio heat",
+     "as": "pct"
+    }
    }
   },
   {
@@ -3326,7 +3402,29 @@
      "risk_each": 1
     }
    },
-   "batch": "wave8"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The chip stocks",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Chip stocks held",
+      "value": 5,
+      "fmt": "count"
+     },
+     {
+      "key": "r2",
+      "label": "Risk on each",
+      "value": 1,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Account at risk, all stops hit",
+     "as": "pct"
+    }
+   }
   },
   {
    "key": "q47",
@@ -3684,7 +3782,33 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "ladder",
+    "title": "The trailing stop",
+    "side": "long",
+    "levels": [
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 30
+     },
+     {
+      "key": "high",
+      "label": "High of the run",
+      "price": 60
+     },
+     {
+      "key": "stop",
+      "label": "Trailing stop",
+      "price": 45
+     }
+    ],
+    "find": {
+     "label": "Locked in per share",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q56",
@@ -3841,7 +3965,41 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "Two stocks",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "A's price",
+      "value": 300,
+      "fmt": "$"
+     },
+     {
+      "key": "r2",
+      "label": "A's ATR",
+      "value": 6,
+      "fmt": "$"
+     },
+     {
+      "key": "r3",
+      "label": "B's price",
+      "value": 20,
+      "fmt": "$"
+     },
+     {
+      "key": "r4",
+      "label": "B's ATR",
+      "value": 1.5,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Bigger mover, daily move in %",
+     "as": "pct"
+    }
+   }
   },
   {
    "key": "q61",
@@ -3926,7 +4084,33 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "ladder",
+    "title": "The gap up",
+    "side": "long",
+    "levels": [
+     {
+      "key": "high",
+      "label": "High",
+      "price": 54
+     },
+     {
+      "key": "low",
+      "label": "Low",
+      "price": 52.5
+     },
+     {
+      "key": "prev",
+      "label": "Yesterday's close",
+      "price": 50
+     }
+    ],
+    "find": {
+     "label": "Today's true range",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q63",
@@ -3999,7 +4183,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$72.50",
     "$70.00",
@@ -4010,6 +4194,34 @@
     "$7.50": "Gave the three ATRs and never took them off the high.",
     "$70.00": "Went down four ATRs instead of three.",
     "$25.00": "Used 22 ATRs, the lookback, not three."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The Chandelier Exit",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "22-day high",
+      "value": 80,
+      "fmt": "$"
+     },
+     {
+      "key": "r2",
+      "label": "22-day ATR",
+      "value": 2.5,
+      "fmt": "$"
+     },
+     {
+      "key": "r3",
+      "label": "ATRs down",
+      "value": 3,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "The long exit",
+     "as": "price"
+    }
    }
   },
   {
@@ -4408,10 +4620,9 @@
   },
   "q18": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "99 losers at $1 and the one $500 winner clear; slot 'A $401 profit' matches key."
   },
   "q19": {
    "status": "pass",
@@ -4459,8 +4670,8 @@
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc (170-140)/(170-155)*1 = 2 matches; story gives a resting broker stop (D41, h4d41 really in sizing_rule.md), so mechanics (f02, f05, f102) decide. Loss at the open is about 2R either way, so B20 does not flip the key; the owner flag on B20 vs a resting stop stands. 'About 18%' is 30/170 = 17.6%, a distractor only."
+   "fixed": true,
+   "notes": "The 2% answer depends on the 1% planned risk, which the ladder cannot carry; say it in the label. No r drawn, correct, since the gap runs past the stop."
   },
   "q27": {
    "status": "cut",
@@ -4568,8 +4779,8 @@
   "q44": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 6.0 matches. 6% was the only whole number among 1.5%, 5.5%, 0.4%: a tell. Swapped 0.4% for 4% (trade count read as a percent) and added the multiply step to the why."
+   "fixed": false,
+   "notes": "Count of trades and risk each, % of account; slot 6% matches key."
   },
   "q45": {
    "status": "pass",
@@ -4580,9 +4791,8 @@
   "q46": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key 5% right (calc 5x1, f65, f46; FINRA f12 correlation confirmed on finra.org). Choices 31-34 chars, key not longest. Overlaps q44's heat sum and touches q47's correlation idea, but the test here is whether correlated stops hit together; not a giveaway of q47's tech-fund point.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "Slot reads 5% (key too long); the 5% only holds if every stop hits, so the label must say it."
   },
   "q47": {
    "status": "pass",
@@ -4635,8 +4845,8 @@
   "q55": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc 45-30=15 is f37 verbatim. Silly choice replaced; '$45 a share, the stop price' is a real price-vs-profit slip. The $22.50 note is arithmetic on the choice's own number."
+   "fixed": true,
+   "notes": "Slot would read '15.00 a share' with no dollar sign; use dollars so it reads $15. 'The run' is vague: it is the run's high."
   },
   "q56": {
    "status": "pass",
@@ -4666,9 +4876,8 @@
   "q60": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc 1.5/20*100=7.5 matches; 'daily ATR' in the story grounds 'a day' (f87). A's percent kept in words, no ungrounded number.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "Label 'B's ATR as a % of price' names B (the answer) and hands over the method (ATR / price) before the answer. Neutral label with the unit only."
   },
   "q61": {
    "status": "pass",
@@ -4679,8 +4888,8 @@
   "q62": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Replaced weak distractor(s) and/or filled missing upgrade so the right answer sits at the target rank."
+   "fixed": false,
+   "notes": "High, low and yesterday's close on one ruler; slot $4.00 matches key."
   },
   "q63": {
    "status": "pass",
@@ -4692,7 +4901,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
+   "notes": "22-day high, ATR and multiple labelled; multiple 3 is stated; slot $72.50 matches key."
   },
   "q65": {
    "status": "pass",

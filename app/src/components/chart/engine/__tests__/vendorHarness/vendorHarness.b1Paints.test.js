@@ -110,6 +110,7 @@ describe('B1 — paints graded against the captures that record them', () => {
     'mcclellan-indicators-spy-1d-2026-10-03.json': ['supply warm vw-object-gc-b-spy-1d-2026-09-28.json 6677 notReplayed', 'plot_4 naBoth 1800/1800 painted=0', 'plot_15 naBoth 1800/1800 painted=0'],
     'renko-candles-overlay-rddt-1d-2026-10-03.json': ['refused pine:collection'],
     'renko-candles-overlay-spy-1d-2026-10-03.json': ['refused pine:collection'],
+    'renko-candles-overlay-crwv-1d-2026-11-16.json': ['refused pine:collection'],
     'supertrend-strategy-rddt-1d-2026-10-02.json': ['supply bar0 warmup=0', 'plot_9 withheld'],
     'supertrend-strategy-spy-1d-2026-10-02.json': ['supply warm vw-object-gc-b-spy-1d-2026-09-28.json 6677 notReplayed', 'plot_9 withheld'],
     'trend-targets-algoalpha-rddt-1d-2026-10-02.json': ['refused pine:state'],
@@ -125,11 +126,15 @@ describe('B1 — paints graded against the captures that record them', () => {
     'wyckoff-accumulation-distribution-spy-1d-2026-10-02.json': ['refused pine:state'],
     // 2026-11-15 (S12, coordinator-authorised): the paints of every capture added by the S9-S12 capture
     // sessions, pinned as the grader reads them from each fixture (generated, not hand-written).
-    'advanced-custom-multi-ma-signals-emasmavwmavwap-rddt-1d-2026-11-15.json': ['refused pine:block'],
-    'advanced-custom-multi-ma-signals-emasmavwmavwap-spy-1d-2026-11-15.json': ['refused pine:block'],
+    'advanced-custom-multi-ma-signals-emasmavwmavwap-rddt-1d-2026-11-15.json': ['refused pine:request'],   // COND-TA (engine 58): its guards over named-argument inputs read as constant now, so the door reaches its request refusal
+    'advanced-custom-multi-ma-signals-emasmavwmavwap-spy-1d-2026-11-15.json': ['refused pine:request'],
     'atr-god-strategy-by-tradesmart-rddt-1d-2026-11-15.json': ['refused pine:block'],
     'atr-god-strategy-by-tradesmart-spy-1d-2026-11-15.json': ['refused pine:block'],
-    'atr-trend-bands-misu-rddt-1d-2026-11-15.json': ['refused pine:module'],
+    // U15 (2026-11-15): these five import a version on the deny list (fontilab/11,
+    // loxxexpandedsourcetypes/4). With the registry empty the door named them `pine:module`;
+    // it now names the deny list, which answers before the store is asked. Nothing was drawn
+    // before and nothing is drawn now.
+    'atr-trend-bands-misu-rddt-1d-2026-11-15.json': ['refused pine:library-denied'],
     'bolingger-bands-inside-bar-boxes-rddt-1d-2026-11-14.json': ['refused pine:reassign'],
     'bollinger-band-width-percentile-rddt-1d-2026-11-14.json': ['refused pine:collection'],
     'camarilla-rddt-1d-2026-11-14.json': ['refused pine:window'],
@@ -142,8 +147,8 @@ describe('B1 — paints graded against the captures that record them', () => {
     'delta-imbalance-map-joat-spy-1d-2026-11-15.json': ['refused pine:reassign'],
     'delta-volume-candles-lucf-rddt-1d-2026-11-15.json': ['refused pine:module'],
     'delta-volume-candles-lucf-spy-1d-2026-11-15.json': ['refused pine:module'],
-    'deviation-scaled-moving-average-w-dsl-loxx-rddt-1d-2026-11-15.json': ['refused pine:module'],
-    'deviation-scaled-moving-average-w-dsl-loxx-spy-1d-2026-11-15.json': ['refused pine:module'],
+    'deviation-scaled-moving-average-w-dsl-loxx-rddt-1d-2026-11-15.json': ['refused pine:library-denied'],
+    'deviation-scaled-moving-average-w-dsl-loxx-spy-1d-2026-11-15.json': ['refused pine:library-denied'],
     'ema-92150-vwap-macd-rsi-pro-v6-rddt-1d-2026-11-14.json': ['refused pine:state'],
     'fx-market-sessions-rddt-1d-2026-11-15.json': ['refused pine:module'],
     'heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor-rddt-1d-2026-11-14.json': ['refused pine:cycle'],
@@ -176,8 +181,8 @@ describe('B1 — paints graded against the captures that record them', () => {
     'smoothed-gaussian-trend-filter-algoalpha-spy-1d-2026-11-15.json': ['refused pine:state'],
     'smt-divergence-ict-killzones-rddt-1d-2026-11-15.json': ['refused pine:reassign'],
     'smt-divergence-ict-killzones-spy-1d-2026-11-15.json': ['refused pine:reassign'],
-    'std-filtered-adaptive-exponential-hull-moving-average-loxx-rddt-1d-2026-11-15.json': ['refused pine:module'],
-    'std-filtered-adaptive-exponential-hull-moving-average-loxx-spy-1d-2026-11-15.json': ['refused pine:module'],
+    'std-filtered-adaptive-exponential-hull-moving-average-loxx-rddt-1d-2026-11-15.json': ['refused pine:library-denied'],
+    'std-filtered-adaptive-exponential-hull-moving-average-loxx-spy-1d-2026-11-15.json': ['refused pine:library-denied'],
     'supertrend-relative-volume-kernel-optimized-flux-charts-rddt-1d-2026-11-15.json': ['refused pine:module'],
     'trailing-take-profit-trailing-stop-loss-rddt-1d-2026-11-15.json': ['refused pine:module'],
     'visualizing-displacement-tfo-rddt-1d-2026-11-14.json': ['refused member door refused: this script declares nothing a chart can draw'],
@@ -191,15 +196,22 @@ describe('B1 — paints graded against the captures that record them', () => {
     'volume-spikes-growing-volume-signals-with-alerts-scanner-spy-1d-2026-11-14.json': ['refused install door refused: u_member-pane-vendorharness: compute.budget: exceeds the lookback budget — this formula measures 1000 and the cap is 960 (guard "budget:lookback"). Measured {"maxNodes":19,"maxLookback":1000} against caps {"maxNodes":128,"maxLookback":960,"maxSeriesRefs":8}. The tree measured is compute.trees.value.'],
     'volume-suite-by-leviathan-rddt-1d-2026-11-15.json': ['refused pine:tuple'],
     'volume-suite-by-leviathan-spy-1d-2026-11-15.json': ['refused pine:tuple'],
-    'vw-cs1-transp-v1-rddt-1d-2026-11-14.json': ['supply bar0 warmup=0', 'plot_2 withheld'],
-    'vw-cs1-transp-v2-rddt-1d-2026-11-14.json': ['supply bar0 warmup=0', 'plot_2 withheld'],
-    'vw-cs1-transp-v3-rddt-1d-2026-11-14.json': ['supply bar0 warmup=0', 'plot_2 withheld'],
+    // ⭐ ENGINE 58 COLOURS (landing train 1): a v1-v3 `bgcolor` with no `transp` draws at 90 (S1), so the three
+    // transparency probes' paint is drawn and agrees on all 666 bars (was withheld).
+    'vw-cs1-transp-v1-rddt-1d-2026-11-14.json': ['supply bar0 warmup=0', 'plot_2 agree 666/666 painted=666'],
+    'vw-cs1-transp-v2-rddt-1d-2026-11-14.json': ['supply bar0 warmup=0', 'plot_2 agree 666/666 painted=666'],
+    'vw-cs1-transp-v3-rddt-1d-2026-11-14.json': ['supply bar0 warmup=0', 'plot_2 agree 666/666 painted=666'],
     // 2026-11-15 (S13-S20): the paints of the captures this PR adds, generated by the rail's own code.
     'artemis-oscillator-pro-rddt-1d-2026-11-15.json': ['supply bar0 warmup=0', 'plot_32 naBoth 666/666 painted=0'],
     'artemis-oscillator-pro-spy-1d-2026-11-15.json': ['supply bar0 warmup=0', 'plot_32 naBoth 8507/8507 painted=0'],
     'mid_engagement__20-mann-kendall-trend-significance-rddt-1d-2026-11-15.json': ['refused pine:reassign'],
     'mid_engagement__20-mann-kendall-trend-significance-spy-1d-2026-11-15.json': ['refused pine:reassign'],
     'vw-deadband-ticks-brk-a-1d-2026-11-15.json': ['refused pine:state'],
+    // S28 x re-captures (#1373): the same four scripts as their 2026-09-28 / 10-02 / 10-03 pins above
+    'inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-11-15.json': ['refused pine:state'],
+    'inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-11-15.json': ['refused pine:state'],
+    'trend-targets-algoalpha-rddt-1d-2026-11-15.json': ['refused pine:state'],
+    'trend-targets-algoalpha-spy-1d-2026-11-15.json': ['refused pine:state'],
   }
   const supplyLine = (s) => (s.kind === 'warm'
     ? (s.replayed ? `supply warm ${s.file} ${s.bars} listing=${s.historyFromListing ? 'on' : 'off'}`

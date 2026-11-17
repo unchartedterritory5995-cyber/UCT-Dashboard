@@ -2474,7 +2474,7 @@
      "computed key; a proposed card criterion"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "0.5 ATR",
     "2.0 ATR",
@@ -2485,6 +2485,28 @@
     "0.5 ATR": "Flipped it: divided the ATR by the drop.",
     "1.8 ATR": "Read the dollar drop as ATRs and never divided.",
     "26.7 ATR": "Divided the post-gap high by the ATR, not the drop."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "high",
+      "label": "Post-gap high",
+      "price": 24.0
+     },
+     {
+      "key": "low",
+      "label": "Close before the test",
+      "price": 22.2
+     }
+    ],
+    "find": {
+     "label": "Pullback depth",
+     "as": "num",
+     "unit": "ATR"
+    },
+    "title": "The pullback (ATR 0.90)"
    }
   },
   {
@@ -4394,7 +4416,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
+   "notes": "Roles, find label, slot format and ladder checked; ok."
   },
   "q45": {
    "status": "pass",
