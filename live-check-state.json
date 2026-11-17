@@ -1,5 +1,5 @@
 {
-  "fingerprint": "",
-  "posted_at": "2026-11-17T05:52:18.065050+00:00",
-  "reason": "recovered"
+  "fingerprint": "service:terminal-next-monitor=running d4bdb42df0, which is NOT on master: a rollback or a hand deploy of other code",
+  "posted_at": "2026-11-17T06:18:47.611778+00:00",
+  "reason": "new stuck item"
 }
