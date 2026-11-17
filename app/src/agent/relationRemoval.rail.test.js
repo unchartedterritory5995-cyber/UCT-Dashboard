@@ -124,6 +124,45 @@ export function railRelationCases(seed = 7) {
       }
     }
   }
+  // ── THING-ABOUT (AUDIT 11-17 mutant: thingAbout pinned false): a generic "the other one / the others / both of them" said about a
+  // THING — the previous target was a thing, or the words name a thing noun — is no chart: every chart close is blocked ──
+  const THING_PREV = ['ind:c1:rsi', 'draw:SPY:dr-1', 'list:wl1', 'alert:a1']
+  const THING_NOUN = ['RSI', 'trendline', 'MACD', 'fib', 'alert', 'moving average', 'horizontal line']
+  // ("both of them" about a thing is NOT covered here: the rail skips its relation read instead of asking — reported to the PL, 11-17)
+  const generic = [...PARA.complementOne.filter(p => !/chart|panel/.test(p)), ...PARA.complementSet.filter(p => !/charts/.test(p))]
+  for (const sh of SHAPES.filter(s => !s.link)) {
+    const syms = [...POOL].sort(() => rnd() - 0.5).slice(0, sh.n)
+    const refs = syms.map((_, i) => `c${i + 1}`)
+    const pushAll = (words, w, kind) => {
+      for (const [col, plan] of [...refs.map(r => ['chart', [r]]), ['allCharts', [...refs]]]) out.push({ id: `rr-thing-${String(++k).padStart(4, '0')}`, fam: 'thingAbout', words, w, plan, expect: 'blocked', col, shape: sh.shape, anchorKind: kind })
+    }
+    for (let i = 0; i < sh.n; i++) {
+      for (const p of generic) {
+        // (a1) the previous target was a thing; the click / the conversation chart would otherwise anchor the relation
+        pushAll(`${pick(VERBS)} ${p}`, { syms, refs, link: null, selection: refs[i], subject: refs[(i + 1) % sh.n], previous: pick(THING_PREV) }, 'previousThing')
+        // (a2) the words name a thing noun before the generic relation
+        pushAll(`the ${pick(THING_NOUN)} is wrong, ${pick(VERBS)} ${p}`, { syms, refs, link: null, selection: refs[i], subject: refs[(i + 1) % sh.n], previous: null }, 'thingWords')
+      }
+    }
+  }
+  // ── BOTH + EXCEPTION (AUDIT 11-17 mutant: the excluded guard dropped from `relWord === OK && …`): "both" resolved to a pair with
+  // one chart of it excepted — the excepted chart is never removed ──
+  const EXCEPT = [(s) => `except the ${s} chart`, (s) => `except ${s}`, (s) => `but not the ${s} one`, (s) => `other than ${s}`, (s) => `excluding the ${s} chart`]
+  const pushX = (words, w, x, pair, shape) => {
+    for (const [col, plan] of [['excepted', [x]], ['pairWithExcepted', pair]]) out.push({ id: `rr-bothx-${String(++k).padStart(4, '0')}`, fam: 'bothExcept', words, w, plan, expect: 'blocked', col, shape, anchorKind: 'except' })
+  }
+  for (let rep = 0; rep < 3; rep++) {
+    // a two-chart board: "both charts" / "both of them" = the board
+    const s2 = [...POOL].sort(() => rnd() - 0.5).slice(0, 2)
+    for (const x of [0, 1]) for (const ex of EXCEPT) for (const both of ['both charts', 'both of them', 'both the charts']) {
+      pushX(`${pick(VERBS)} ${both} ${ex(s2[x])}`, { syms: s2, refs: ['c1', 'c2'], link: null, selection: null, subject: null, previous: null }, `c${x + 1}`, ['c1', 'c2'], 'two')
+    }
+    // a three-chart board: "both of them" = the click + the conversation chart
+    const s3 = [...POOL].sort(() => rnd() - 0.5).slice(0, 3)
+    for (const [a, b] of [['c1', 'c3'], ['c2', 'c3'], ['c1', 'c2']]) for (const x of [a, b]) for (const ex of EXCEPT) {
+      pushX(`${pick(VERBS)} both of them ${ex(s3[Number(x.slice(1)) - 1])}`, { syms: s3, refs: ['c1', 'c2', 'c3'], link: null, selection: a, subject: b, previous: null }, x, [a, b], 'three')
+    }
+  }
   return out
 }
 
@@ -146,7 +185,7 @@ describe(`RELATION-WORD REMOVALS · the chart rail over generated families (${CA
     }
     expect(T.cases).toBeGreaterThan(1000)
   }, 300000)
-  for (const fam of ['complement', 'everyOther', 'both', 'order']) {
+  for (const fam of ['complement', 'everyOther', 'both', 'order', 'thingAbout', 'bothExcept']) {
     it(`${fam}: the rail never applies what the model blocks (anchor · a pick · outside)`, () => {
       expect(T.byFam[fam]?.cases).toBeGreaterThan(40)
       expect(T.wrongApply.filter(x => x.includes(`[${fam}/`))).toEqual([])
