@@ -148,6 +148,9 @@ const PLAIN_CALL_WORDS = Object.freeze({
   supertrend: 'Supertrend', supertrendDirection: 'Supertrend direction',
   // 2026-10-30 — Parabolic SAR (#523): "Parabolic SAR 0.02,0.2", not "SAR 0.02,0.2".
   sar: 'Parabolic SAR', sarDirection: 'Parabolic SAR trend',
+  // 2026-11-17 — the regular session's own values: "Opening range high 30", not "OPENINGRANGEHIGH 30".
+  sessionOpen: 'Session open', sessionHigh: 'Session high', sessionLow: 'Session low',
+  openingRangeHigh: 'Opening range high', openingRangeLow: 'Opening range low',
 })
 const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s)
 
