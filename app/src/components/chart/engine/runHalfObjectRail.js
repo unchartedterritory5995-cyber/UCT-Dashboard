@@ -38,9 +38,8 @@
 //
 // The host program is evaluated here exactly as the binder draws it (`hostObjectRun`, which
 // the binder now calls too: one evaluation path, never two).
-import { objectReaderFor } from './objectColumns'
-import { runtimeUnknownSentence } from './ast/objectLoss.js'
-import { evaluateObjects, OBJECT_STATUS } from './objectRuntime'
+import { OBJECT_STATUS } from './objectRuntime'
+import { hostObjectRun } from './hostObjects.js'
 import { toRenderState, RENDER_COLOUR_SLOTS } from './objectRenderState'
 import { registerRunHalfObjectRail, runHalfEvidenceAdmits } from './runHalfRailSeam.js'
 import { runtimeSourceHash } from './runtimeKill'
@@ -57,40 +56,10 @@ export const RUN_HALF_UNCOMPARED_SITE = 'run-half:uncompared-site'
 const REL = 1e-9
 const ABS = 1e-12
 
-/** The object reader's options for a chart binding, from the bind's `ctx` and the instance's
- *  inputs — exactly what the binder hands it. */
-export function hostObjectReaderOpts(ctx, inputs) {
-  const c = ctx || {}
-  return {
-    inputs,
-    tf: c.tf,
-    symbol: c.symbol,
-    newestBarIsForming: c.newestBarIsForming ?? null,
-    secondary: c.secondary && typeof c.secondary.get === 'function' ? c.secondary : null,
-    exchangeOf: c.exchangeOf,
-    lowerTf: c.lowerTf && typeof c.lowerTf.get === 'function' ? c.lowerTf : null,
-    ...(c.historyFromListing === true ? { historyFromListing: true } : {}),
-    ...(c.barIndexFromFirstBar === true ? { barIndexFromFirstBar: true } : {}),
-  }
-}
-
-/** ⭐ THE host object program over these bars: `{reader, run}`, or null when there is nothing
- *  to read. The binder draws `run.live`; the object rail compares it. */
-export function hostObjectRun(def, bars, readerOpts) {
-  const reader = objectReaderFor(def, bars, readerOpts)
-  if (!reader) return null
-  const run = evaluateObjects(reader.program, {
-    barCount: bars.length,
-    readNode: reader.readNode,
-    readTime: reader.readTime,
-    readUnknown: reader.readUnknown,
-    readUnknownOther: reader.readUnknownOther,
-    offListing: reader.historyFromListing !== true,
-    // ⭐ ENGINE 55 — why the run half's values are unknown, said in the drawing note.
-    unknownBecause: runtimeUnknownSentence(reader.runtime),
-  })
-  return { reader, run }
-}
+// ⭐ HOST WORKER — `hostObjectReaderOpts` and `hostObjectRun` moved, unchanged, to the host-neutral leaf
+// `hostObjects.js` (so the host lane's worker evaluates the same program the same way), and are
+// re-exported from here, so no importer moved.
+export { hostObjectReaderOpts, hostObjectRun } from './hostObjects.js'
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 

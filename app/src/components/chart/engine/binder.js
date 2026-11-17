@@ -90,6 +90,10 @@ import { toRenderState } from './objectRenderState'
 // publishes a scaled table (`paneFitNotice.js`).
 import { runtimeErrorStopOf, runtimeObjectsWithheld, runtimeRunStopOf, runtimeColourStopOf, columnErrors, resolveInputs } from './nativeRegistry'
 import { setRuntimeErrorNotice } from './runtimeErrorNotice'
+// ⭐⭐ HOST WORKER — a host document computed off the main thread answers PENDING while its values
+// are in the worker (with the pane's last picture re-aligned on bar time), and a worker that held a
+// job past its watchdog says so on the strip (`hostLaneAsync.js`).
+import { isHostLanePending, hostLaneStopOf, hostObjectsOffThread } from './hostLaneAsync.js'
 // W9-T13b: a strategy run's record, published for the (dark) report panel
 import { setStrategyRecord } from './strategyReportNotice'
 import { runtimeStrategyOf } from './runtime/strategyRecord.js'
@@ -1255,7 +1259,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
    *  object program that refuses, exceeds its envelope, or throws must never
    *  take the columns, the legend or the scan down with it. That is the C2A
    *  failure-containment rule applied to the newest surface. */
-  const syncObjects = (ctx, instances, bars, runCols = null) => {
+  const syncObjects = (ctx, instances, bars, runCols = null, heldIds = null) => {
     const make = ctx.createObjectLayer
     const alive = new Set()
     if (typeof make === 'function') ensureObjectRangeSubscription()
@@ -1265,6 +1269,14 @@ export function createBinder({ chart, LWC, scope = '' }) {
     const markOutcomes = new Map()
     for (const inst of instances) {
       if (!inst || typeof inst.instanceId !== 'string' || inst.hidden === true) continue
+      // ⭐⭐ HOST WORKER — AN INSTANCE WHOSE VALUES ARE IN THE WORKER KEEPS ITS DRAWINGS AS THEY STAND
+      // (stale-while-revalidate): its layer, its notes and its markers are left exactly as the last
+      // sync drew them (a drawing is placed by bar TIME, so it stays where it was), and redrawn with
+      // the values when they land. Nothing is evaluated for it this pass.
+      if (heldIds && heldIds.has(inst.instanceId)) {
+        if (objectLayers.has(inst.instanceId)) alive.add(inst.instanceId)
+        continue
+      }
       const def = ctx.registry && attempt(() => ctx.registry.getDefinition(inst.defId)).value
       // ⭐⭐ RT5 — THE RUN'S OWN DRAWINGS: read off the column record step 1
       // already computed (one run, both answers), drawn by the same render state.
@@ -1375,11 +1387,36 @@ export function createBinder({ chart, LWC, scope = '' }) {
         attempt(() => layer.set(null, ''))
         continue
       }
+      // ⭐⭐ HOST WORKER — A CHART'S HOST OBJECT PROGRAM IS EVALUATED OFF THE MAIN THREAD, memoised per
+      // bars array (`hostLaneAsync.hostObjectsOffThread`, the same `hostObjectRun` in the worker): a
+      // repaint with the same bars evaluates nothing. While a new bars array's evaluation is in the
+      // worker, this pane's own last picture stays (drawings are placed by bar time) and another
+      // pane signature's (a symbol or timeframe switch) is taken down: never the old symbol's
+      // drawings. A program the worker cannot take is evaluated here, as before (`null`).
+      const readerOpts = hostObjectReaderOpts(ctx, inst.inputs)
+      const off = attempt(() => hostObjectsOffThread(def, bars, readerOpts, `${noticeScope}\u0001${inst.instanceId}`))
+      const offHost = off.ok ? off.value : null
+      if (offHost && offHost.pending) {
+        if (!offHost.keep) {
+          markersCleared()
+          publishClock(inst.instanceId, 'objects', [])
+          publishDrops(inst.instanceId, null)
+          attempt(() => layer.set(null, ''))
+        }
+        continue
+      }
+      if (offHost && offHost.refused) {
+        markersCleared()
+        publishClock(inst.instanceId, 'objects', [])
+        publishDrops(inst.instanceId, null, { why: { 'host-lane': offHost.refused } })
+        attempt(() => layer.set(null, ''))
+        continue
+      }
       // ⛔⛔ BOTH DOCUMENT FORMS. A small script stays V1 and its program stays
       // UNBOUND; only a document over the byte budget carries a graph. Reading
       // one form and not the other is what made the first live run paint
       // nothing while every unit test stayed green — see `objectReaderFor`.
-      const built = attempt(() => {
+      const built = !off.ok ? off : attempt(() => {
         // ⭐⭐ THE INSTANCE'S OWN INPUTS AND THE CHART'S TIMEFRAME, exactly as
         // step 1 below hands them to `registry.computeFor`. Passing neither is
         // what made a member input invisible to an object coordinate while the
@@ -1398,7 +1435,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
         // (C26) and intraday (C41) supplies, the listing (C12w) and `bar_index` (C45)
         // statements; the evaluator withholds a `var` read before its warm-up (C12), keeps the
         // chart clock's channel apart (OZ r1) and withholds a `var` list off the listing (F1).
-        const host = hostObjectRun(def, bars, hostObjectReaderOpts(ctx, inst.inputs))
+        const host = offHost && offHost.done ? offHost.host : hostObjectRun(def, bars, readerOpts)
         if (!host) return null
         const { reader, run } = host
         return {
@@ -1651,6 +1688,12 @@ export function createBinder({ chart, LWC, scope = '' }) {
       const paint = runtimeColourStopOf(def, cols)
       if (paint) sentence = paint.sentence
     }
+    // ⭐ HOST WORKER — a host document whose worker held its job past the watchdog: refused by
+    // name on every column, and said here, never an empty pane alone (`hostLaneAsync.js`).
+    if (!sentence && cols) {
+      const hw = hostLaneStopOf(cols)
+      if (hw) sentence = hw.sentence
+    }
     if (sentence) stoppedIds.add(instanceId)
     else if (!stoppedIds.has(instanceId)) return
     else stoppedIds.delete(instanceId)
@@ -1827,6 +1870,9 @@ export function createBinder({ chart, LWC, scope = '' }) {
     const runCols = new Map()
     // ⭐ C36 — the instances whose columns were in hand this pass (`publishClock`).
     const clockSeen = new Set()
+    // ⭐⭐ HOST WORKER — the instances whose values are in the host lane's worker this pass: drawn
+    // from the pane's last picture (the pending answer's columns), their notices and drawings held.
+    const heldIds = new Set()
 
     // ⭐⭐ BARS FOR ANY CANONICAL SYMBOL AN INSTANCE NAMES, AS DATA. The binder
     // never fetches — `sync` runs inside a paint — so this arrives already
@@ -2150,7 +2196,11 @@ export function createBinder({ chart, LWC, scope = '' }) {
             // ⭐⭐ C41 — this symbol's intraday bars per store timeframe, for a Pine
             // document that reads BELOW the chart (`lowerTf.js` decides what is
             // served; a framed instance is served none).
-            lowerTf }))
+            lowerTf,
+            // ⭐⭐ HOST WORKER — THE PANE ASKING: this chart's binder and this instance. A costly
+            // host document is computed off the main thread for a chart's request only, and a
+            // newer request of the same pane supersedes an older one (`hostLaneAsync.js`).
+            hostPane: `${noticeScope}\u0001${inst.instanceId}` }))
         if (!r.ok || !r.value) { computeMemo.delete(inst.instanceId); noteRuntimeErrorStop(inst.instanceId, null); runCols.set(inst.instanceId, null); continue }
         cols = r.value
         // ⛔ AN EMPTY COLUMN SET IS NOT MEMOIZED. Every native returns at least
@@ -2164,21 +2214,30 @@ export function createBinder({ chart, LWC, scope = '' }) {
         // remembering it would pin the empty object layer until the bars changed, and the run's
         // landing (`notifyColumnsLanded`) would repaint the same pending answer.
         const halfPending = (runHalfOf(cols) || {}).state === 'pending'
-        if ((Object.keys(cols).length || runtimeObjectsOf(cols)) && !halfPending) {
+        // ⛔ HOST WORKER — and a PENDING host answer is never memoised either: its columns are the
+        // pane's last picture, and the landing (`notifyColumnsLanded`) must find no memo to repaint.
+        if ((Object.keys(cols).length || runtimeObjectsOf(cols)) && !halfPending && !isHostLanePending(cols)) {
           computeMemo.set(inst.instanceId, { registry, def, bars: calcBars, sig, cols })
         } else {
           computeMemo.delete(inst.instanceId)
         }
       }
       runCols.set(inst.instanceId, cols)
-      // ⭐ C43 — reached on this chart at these settings, or no longer reached
-      noteRuntimeErrorStop(inst.instanceId, cols, def)
-      // ⭐ C36 — a plot whose `time(<timeframe>)` is withheld on this chart says
-      // so on the member's disclosure strip (`chartClockNotice.js`). Read off the
-      // columns the decision was made for; a registry without the report (a test
-      // double) publishes nothing.
       clockSeen.add(inst.instanceId)
-      publishClock(inst.instanceId, 'plots', plotStripNoticesOf(registry, def, cols))
+      if (isHostLanePending(cols)) {
+        // ⭐⭐ HOST WORKER — STALE-WHILE-REVALIDATE: the values are in the worker. The columns below
+        // are the pane's last picture (or none, the first time: the pane's loading state), and every
+        // notice this instance published stays as it stands until the values land.
+        heldIds.add(inst.instanceId)
+      } else {
+        // ⭐ C43 — reached on this chart at these settings, or no longer reached
+        noteRuntimeErrorStop(inst.instanceId, cols, def)
+        // ⭐ C36 — a plot whose `time(<timeframe>)` is withheld on this chart says
+        // so on the member's disclosure strip (`chartClockNotice.js`). Read off the
+        // columns the decision was made for; a registry without the report (a test
+        // double) publishes nothing.
+        publishClock(inst.instanceId, 'plots', plotStripNoticesOf(registry, def, cols))
+      }
       // ── THE CANDLE PAYLOAD, IF THIS OUTPUT ASKED FOR ONE AND MAY HAVE IT ───
       //
       // ⛔ IT ANSWERS `null` UNLESS EVERYTHING AGREES: the output's resolved
@@ -2273,7 +2332,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
     // AFTER the columns and BEFORE the pool, because a drawing must never be
     // able to change which series get bound: an object program that refuses has
     // to cost its own pictures and nothing else.
-    attempt(() => syncObjects(ctx, instances, bars, runCols))
+    attempt(() => syncObjects(ctx, instances, bars, runCols, heldIds))
     lastColumnErrors = new Map()
     for (const [id, c] of runCols) lastColumnErrors.set(id, c ? columnErrors(c) : null)
 
