@@ -749,6 +749,27 @@ export function collectEnums(stmts, version = null) {
       members.set(mt[0].value, title)
     }
     if (!members.size) bad = bad || 'it declares no fields'
+    // ⭐⭐ UDT UNIT (2026-11-16) — A FIELD'S NAME OR TITLE MAY NOT BE ANOTHER FIELD'S NAME OR TITLE.
+    // TradingView does not compile it, in its own words: "The name or title of the "E" enum's "c"
+    // field cannot match the name or title of the "d" field. Choose unique names and titles for all
+    // the enum's fields." (Compilation error, reading of probe `vw-w6-enum`, capture queue run
+    // cq1-2026-11-16: fields `c = "Same"` and `d = "Same"`.) ⚰️ W6-T10 served two fields sharing a
+    // title as two members; a script TradingView refuses is refused here too.
+    if (!bad) {
+      const holder = new Map()
+      for (const [field, title] of members) {
+        for (const s of new Set([field, title])) {
+          const other = holder.get(s)
+          if (other !== undefined && other !== field) {
+            bad = `the fields \`${other}\` and \`${field}\` share the name or title "${s}", and TradingView does not `
+              + 'compile that ("Choose unique names and titles for all the enum\'s fields")'
+            break
+          }
+          holder.set(s, field)
+        }
+        if (bad) break
+      }
+    }
     if (reserved.has(name)) {
       bad = `its name is a Pine built-in type or namespace, which Pine's manual says an enum may not take`
     }
@@ -767,9 +788,9 @@ export function enumDeclarationHead(toks) {
 }
 
 /** ⭐ W6-T10 — THE RUNTIME VALUE OF `E.member`: a text constant keyed by the enum
- *  and the FIELD NAME, never by the title. Two fields may share a title and are
- *  still two members (Pine: each field is a unique member), so equality of these
- *  keys is equality of members. The leading control character keeps the key from
+ *  and the FIELD NAME, never by the title (Pine: each field is a unique member), so
+ *  equality of these keys is equality of members. (Two fields sharing a title do not
+ *  compile on TradingView, and `collectEnums` refuses them.) The leading control character keeps the key from
  *  ever equalling text a script writes. ⛔ No reader outside this lane's enum
  *  comparisons ever sees it: every other use of an enum value refuses by name
  *  (`runtime:enum`). */
@@ -5777,6 +5798,25 @@ function buildRuntimeIrLinked(source, opts, holder) {
       throw new RuntimeRefusal('runtime:statement',
         `\`${node.name}\` returns nothing, so it cannot be used as a value`,
         locate(node.tok))
+    }
+    // ⭐⭐ UDT UNIT (2026-11-16) — `array.every` / `array.some` TAKE `array<bool>`, AND NOTHING ELSE
+    // COMPILES. The v6 reference types `id` as `array<bool>` for both, and TradingView refuses the
+    // call over a numeric array: "Cannot call "{funId}" with argument … An argument of
+    // "{argumentType}" type was used but a "{currentTypeDocStr}" … is expected" (Compilation error,
+    // reading of probe `vw-w6-array-members`, capture queue run cq1-2026-11-16, whose only calls off
+    // their reference types were `array.every` / `array.some` over `array<float>`). ⛔ FAIL CLOSED:
+    // served only over an array this lane can PROVE holds `bool` (no sample script calls either).
+    if ((node.name === 'array.every' || node.name === 'array.some') && given.length) {
+      const ty = exprType(given[0], scope)
+      const el = ty && ty.kind === 'array' ? ty.elem : null
+      if (!(el && el.kind === 'bool')) {
+        note('runtime:array')
+        const over = el ? `an \`array<${el.kind === 'num' ? 'float' : el.kind}>\``
+          : 'an array whose element type this lane cannot prove is `bool` (written as `array<bool> name = …`, it can)'
+        throw new RuntimeRefusal('runtime:array',
+          `\`${node.name}\` over ${over} — it takes \`array<bool>\` (Pine v6 reference), and TradingView does not `
+            + 'compile it over any other element type', locate(node.tok))
+      }
     }
     const typeArg = mapTypeArg(node, asStatement)
       ?? (node.tok && Array.isArray(node.tok.typeArgs) ? node.tok.typeArgs[0] : null)
@@ -12717,6 +12757,16 @@ function buildRuntimeIrLinked(source, opts, holder) {
         }
       }
     }
+    // ⭐⭐ UDT UNIT (2026-11-16) — ASSIGNING `for x in a`'s ELEMENT VARIABLE DOES NOT COMPILE: TradingView
+    // answers "Variable "{variableName}" cannot be mutable" (Compilation error, reading of probe
+    // `vw-w6-forin-loopvar-write`, capture queue run cq1-2026-11-16: `for x in a` / `x := x * 10`). So that
+    // write is refused as what it is, a script TradingView refuses; the same refusal stands, its reason
+    // changes. ⛔ Only the shape read (the one-variable form's element); the index of `for [i, x] in a`
+    // and a write THROUGH the element (a field) keep the W6-F1 sentence.
+    if (idx === null && elem !== null && forInWrites(st.sub, elem, true)) {
+      refuse(`the body assigns the loop variable \`${elem}\`, and TradingView does not compile that ("Variable `
+        + `"${elem}" cannot be mutable")`)
+    }
     // ⛔ W6-F1 — a write to the loop variable, or through it (a field of the element).
     for (const v of [elem, idx]) {
       if (v !== null && forInWrites(st.sub, v)) refuse(`the body writes the loop variable \`${v}\` or through it, not yet captured (W6-F1)`)
@@ -12812,14 +12862,42 @@ function buildRuntimeIrLinked(source, opts, holder) {
   }
   /** Does a statement write `name` (`name := …`, `name += …`, `[…, name] := …`) or a field
    *  through it (`name.f := …`)? */
-  const forInWrites = (list, name) => (list || []).some((s2) => {
+  /** ⭐ UDT unit (ac6) — the name of a `method`'s first parameter when its body never reads it, else null.
+   *  `toks` is the declaration from the method's name on (`name ( <type> <param> [= …], … ) => …`); the body
+   *  is what follows `=>` on that line plus every statement under it. A dotted name (`id.size`) is a read of
+   *  `id`. ⛔ Anything this cannot read (no `(`, no `=>`, no parameter name) answers null: no refusal. */
+  const methodReceiverUnused = (toks, st) => {
+    if (!toks || !isPunct(toks[1], '(')) return null
+    let depth = 0
+    let end = -1
+    for (let i = 1; i < toks.length; i += 1) {
+      const t = toks[i]
+      // `<` / `>` before the first parameter's end are a type's arguments (`map<string, float> m`)
+      if (isPunct(t, '(') || isPunct(t, '[') || isPunct(t, '<')) depth += 1
+      else if (isPunct(t, ')') || isPunct(t, ']') || isPunct(t, '>')) { depth -= 1; if (depth === 0) { end = i; break } }
+      else if (depth === 1 && (isPunct(t, ',') || isPunct(t, '='))) { end = i; break }
+    }
+    if (end < 0) return null
+    const pTok = toks[end - 1]
+    if (!pTok || pTok.kind !== 'ident') return null
+    const name = String(pTok.value)
+    const arrow = toks.findIndex((t) => isPunct(t, '=>'))
+    if (arrow < 0) return null
+    const reads = (ts) => (ts || []).some((t) => t && t.kind === 'ident'
+      && (String(t.value) === name || String(t.value).startsWith(`${name}.`)))
+    const inSub = (list) => (list || []).some((s2) => reads(s2.header) || reads(s2.body) || inSub(s2.sub))
+    return reads(toks.slice(arrow + 1)) || reads(st && st.body) || inSub(st && st.sub) ? null : name
+  }
+  /** ⭐ `plain`: only an assignment to the name itself (`x := …`, `x += …`, a tuple `[x, …] := …`),
+   *  never one through it (`x.f := …`). */
+  const forInWrites = (list, name, plain = false) => (list || []).some((s2) => {
     const ts = s2.header || []
     const hit = ts.some((tk, i) => tk && tk.kind === 'ident'
-      && (String(tk.value) === name || String(tk.value).startsWith(`${name}.`))
+      && (String(tk.value) === name || (!plain && String(tk.value).startsWith(`${name}.`)))
       && ts[i + 1] && ts[i + 1].kind === 'punct' && REASSIGN_OPS.has(ts[i + 1].value))
     const tuple = isPunct(ts[0], '[') && findTop(ts, (x) => isPunct(x, ':=')) > 0
       && ts.some((tk) => tk && tk.kind === 'ident' && String(tk.value) === name)
-    return hit || tuple || forInWrites(s2.sub, name)
+    return hit || tuple || forInWrites(s2.sub, name, plain)
   })
   /** ⛔ (review N1b r2) Does a value of type `ty` hold a list (a collection field of its record
    *  type, at any depth, or one this lane cannot type)? Off for numbers, text and drawings: their
@@ -13129,6 +13207,19 @@ function buildRuntimeIrLinked(source, opts, holder) {
         && pineVersion !== null && pineVersion < 5
       if (word === 'method' && !methodIsName) {
         const mName = toks[1] && toks[1].kind === 'ident' ? String(toks[1].value) : null
+        // ⭐⭐ UDT UNIT (ac6 readings, 2026-11-16) — A METHOD MUST USE ITS FIRST ARGUMENT. TradingView does
+        // not compile one that does not: "The "{argName}" argument is not used. The first method argument
+        // should be used." (Compilation error, reading of probes `vw-w6-receivers`, `-get-float`, `-get-int` and
+        // `-pick-int`, capture queue run ac6, whose methods never read their receiver.) Refused at the
+        // declaration, as TradingView refuses the whole script whether or not anything calls it.
+        {
+          const unused = mName ? methodReceiverUnused(toks.slice(1), st) : null
+          if (unused) {
+            note('runtime:udt-method')
+            throw new RuntimeRefusal('runtime:udt-method', `\`${mName}\` never uses its first argument \`${unused}\`, `
+              + 'and TradingView does not compile that ("The first method argument should be used")', locate(first))
+          }
+        }
         // ⭐⭐ W6-T9 — AN OVERLOAD IS SERVED, under its own name (`methodDefName`: the method
         // name and its receiver type), when every declaration's receiver type is read and no
         // two are one type here. A call reaches it through `resolveMethod`, by receiver type.

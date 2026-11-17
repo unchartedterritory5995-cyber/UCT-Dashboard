@@ -142,6 +142,22 @@ const at = (arr, i, what, budget) => {
   return i
 }
 
+/** ⭐⭐ UDT UNIT (2026-11-16) — `array.get` AT AN `na` INDEX READS `na` AND DOES NOT STOP, in a v4 or v6
+ *  script: WITNESSED, not read.
+ *   · v4: `vw-uie3-na-index-v4-spy-1d-2026-11-16` (probe `vw-uie3-na-index-v4.pine`, Q-UIE3a) reads
+ *     `array.get(array.from(10, 20), round(max(sign(na), 0)))` as `na` on all 8,508 AMEX:SPY bars, its
+ *     `bar_index` control plotting on every one.
+ *   · v6: `bollinger-band-width-percentile-rddt-1d-2026-11-14` calls `array.get(colorMap, math.round(bbwp))`
+ *     on its first bars, where `bbwp` is still `na`; TradingView draws on, and with this answer every plotted
+ *     value of that capture grades MATCH. ⚠️ There the value it reads colours an `na` point, so that capture
+ *     proves "no stop" more than it proves the value; `vw-udt-na-index-v6.pine` (queue row UDT-N1) asks the
+ *     v6 value directly.
+ *  ⛔ Only `array.get`, only an `na` index (a fraction or an index out of range keeps the stop), only v4 and v6
+ *  (v5 is not witnessed), and never at the live C18 object door, which keeps master's stop (`doorKeepsMaster`). */
+const NA_INDEX_VERSIONS = Object.freeze(new Set([4, 6]))
+const naIndexReadsNa = (i, budget) => typeof i === 'number' && Number.isNaN(i) && !!budget
+  && NA_INDEX_VERSIONS.has(budget.pineVersion) && !doorKeepsMaster(budget)
+
 /** The per-element default for `array.new<T>(size)` with no initial value.
  *
  *  ⛔⛔ ONLY `float` AND `int` ARE SERVED, AND THAT IS A MEASUREMENT BOUNDARY
@@ -476,6 +492,14 @@ const W19R2_MEMBERS = {
       const from = a.length > 2 ? a[2] : 0
       // `index_to` defaults to `na` — the end of the array.
       const to = a.length > 3 && !(typeof a[3] === 'number' && Number.isNaN(a[3])) ? a[3] : n
+      // ⭐ UDT unit (ac6 readings) — an end past the array and a negative start are TradingView's own stop:
+      // "In 'array.{funcName}()' function. Index {index} is out of bounds, array size is {size}." (Runtime error,
+      // probes `vw-w19r2a-fill-past-end` and `vw-w19r2a-fill-negative-from`, run ac6). A reversed range and a
+      // non-whole index are still unasked.
+      if (Number.isInteger(from) && Number.isInteger(to) && from <= to && (from < 0 || to > n)) {
+        throw new CollectionError(`array.fill: the range [${from}, ${to}) over an array of ${n} — TradingView stops the `
+          + 'script here too ("Index … is out of bounds, array size is …", Q-W19R2a, run ac6)')
+      }
       if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to > n || from > to) {
         throw new CollectionError(`array.fill: the range [${from}, ${to}) over an array of ${n} — ${W19_UNSETTLED}`)
       }
@@ -488,12 +512,116 @@ const W19R2_MEMBERS = {
     fn: (a, budget) => {
       const arr = guardSliceWrite(a[0], 'array.insert')
       const i = a[1]
-      if (!Number.isInteger(i) || i < 0 || i >= arr.length) {
+      // ⭐⭐ UDT UNIT (2026-11-16) — AN INSERT AT `size` APPENDS, an empty array's index 0
+      // included. WITNESSED, not read: the reference lists 0..size-1 and -size..-1 as valid
+      // and is silent on `size`. `bollinger-band-width-percentile-rddt-1d-2026-11-14` inserts
+      // every new value at `array.binary_search_rightmost(a, v)`, which is `size` whenever
+      // `v` is the largest yet (the reference's own words) and on its first computed bar (an
+      // empty array). TradingView ran it through those bars, and with this rule every one of
+      // its plotted values grades MATCH on the runtime lane (`udtBinarySearch.test.js`). A
+      // negative index and one past `size` keep their stop (Q-W19R2a).
+      if (!Number.isInteger(i) || i < 0 || i > arr.length) {
         throw new CollectionError(`array.insert: index ${i} into an array of ${arr.length} — ${W19_UNSETTLED}`)
       }
       budget.charge('ARRAY_OPERATIONS', 1)
       budget.peak('ARRAY_ELEMENTS', arr.length + 1)
       arr.splice(i, 0, a[2])
+    },
+  },
+}
+
+/** ⭐⭐ UDT UNIT (2026-11-16) — THE THREE BINARY SEARCHES, served from the v6 reference
+ *  entries (read through `tools/pine_survey/pine_reference_extract.js`; each rail in
+ *  `runtime/__tests__/udtBinarySearch.test.js` cites its sentence):
+ *   · `array.binary_search`: "returns an element's index if the value from that element
+ *     equals the target value. Otherwise, it returns -1."
+ *   · `array.binary_search_leftmost`: "returns the index of the first element whose
+ *     retrieved value equals that value. Otherwise, it returns the index of the last element
+ *     whose retrieved value is less than the target value, or 0 if the target value is less
+ *     than the value from the first element."
+ *   · `array.binary_search_rightmost`: "returns the index of the last element whose retrieved
+ *     value equals that value. Otherwise, it returns the index of the first element whose
+ *     retrieved value is greater than the target value, or the array's last index plus one if
+ *     the target value is greater than the value from the last element."
+ *  Each entry also says the elements "must be sorted in ascending order by numeric value for
+ *  correct results", and describes the search as halving a range: so what one answers over an
+ *  array that is NOT sorted depends on the search's own steps, which the entry does not give.
+ *  ⛔ WHAT THE ENTRIES DO NOT SETTLE STOPS THE RUN BY NAME (Q-W19R2b, the split probes
+ *  `vw-w19r2b-*.pine`): an array not sorted ascending, an `na` element or target, a non-numeric
+ *  element (text order, a UDT `sort_field`), `binary_search` of a value present more than once
+ *  (the entry: "does not necessarily correspond to the first or last occurrence"), and
+ *  `binary_search_leftmost` of an EMPTY array (neither clause has an element to name).
+ *  ⭐ `binary_search` of an empty array is -1: no element equals the target ("Otherwise").
+ *  ⭐⭐ `binary_search_rightmost` of an EMPTY array is 0 — "the last index plus one" with no last
+ *  index — WITNESSED, not read: `bollinger-band-width-percentile-rddt-1d-2026-11-14` inserts at
+ *  that index into its empty array on its first computed bar, TradingView ran on, and every
+ *  plotted value grades MATCH with this answer (see `array.insert` above). */
+const W19R2B = 'the Pine v6 reference does not settle it, so the run stops here rather than guessing (Q-W19R2b)'
+/** The array's elements, checked to be what the entries settle: real numbers, sorted ascending. */
+const searchable = (arr, val, what, budget) => {
+  if (typeof val !== 'number') {
+    throw new CollectionError(`${what} of a non-numeric target — this runtime searches numbers only`)
+  }
+  if (Number.isNaN(val)) throw new CollectionError(`${what} of an \`na\` target — ${W19R2B}`)
+  budget.charge('ARRAY_OPERATIONS', Math.max(1, arr.length))
+  for (let i = 0; i < arr.length; i += 1) {
+    const v = arr[i]
+    if (typeof v !== 'number') {
+      throw new CollectionError(`${what} over a non-numeric element (text order, or a user type's \`sort_field\`) — ${W19R2B}`)
+    }
+    if (Number.isNaN(v)) throw new CollectionError(`${what} over an \`na\` element — ${W19R2B}`)
+    if (i > 0 && v < arr[i - 1]) {
+      throw new CollectionError(`${what} over an array that is not sorted ascending (element ${i} is below element `
+        + `${i - 1}): the reference answers only for a sorted array — ${W19R2B}`)
+    }
+  }
+  return arr
+}
+/** The first index whose element is >= `val`, and the first whose element is > `val`. */
+const lowerBound = (arr, val) => {
+  let lo = 0
+  let hi = arr.length
+  while (lo < hi) { const m = (lo + hi) >>> 1; if (arr[m] < val) lo = m + 1; else hi = m }
+  return lo
+}
+const upperBound = (arr, val) => {
+  let lo = 0
+  let hi = arr.length
+  while (lo < hi) { const m = (lo + hi) >>> 1; if (arr[m] <= val) lo = m + 1; else hi = m }
+  return lo
+}
+const W19R2B_MEMBERS = {
+  'array.binary_search': {
+    args: ['array', 'number'], returns: 'number',
+    fn: (a, budget) => {
+      const arr = searchable(a[0], a[1], 'array.binary_search', budget)
+      const lo = lowerBound(arr, a[1])
+      const hi = upperBound(arr, a[1])
+      if (hi === lo) return -1
+      if (hi - lo > 1) {
+        throw new CollectionError(`array.binary_search of a value held by ${hi - lo} elements — the reference: the `
+          + `index "does not necessarily correspond to the first or last occurrence" — ${W19R2B}`)
+      }
+      return lo
+    },
+  },
+  'array.binary_search_leftmost': {
+    args: ['array', 'number'], returns: 'number',
+    fn: (a, budget) => {
+      const arr = searchable(a[0], a[1], 'array.binary_search_leftmost', budget)
+      if (!arr.length) throw new CollectionError(`array.binary_search_leftmost of an empty array — ${W19R2B}`)
+      const lo = lowerBound(arr, a[1])
+      if (lo < arr.length && arr[lo] === a[1]) return lo // the first element equal to the target
+      return lo === 0 ? 0 : lo - 1 // the last element below it, or 0 below the first
+    },
+  },
+  'array.binary_search_rightmost': {
+    args: ['array', 'number'], returns: 'number',
+    fn: (a, budget) => {
+      const arr = searchable(a[0], a[1], 'array.binary_search_rightmost', budget)
+      const hi = upperBound(arr, a[1])
+      if (hi > 0 && arr[hi - 1] === a[1]) return hi - 1 // the last element equal to the target
+      return hi // the first element above it, or the last index plus one (0 for an empty array)
     },
   },
 }
@@ -524,8 +652,9 @@ const MAP_FNS = buildMapFns({ CollectionError })
  *     an array the run cannot prove is float (`provablyFloat`).
  *  ⛔ Kept out of the table altogether, so the front end refuses them `runtime:array`
  *  at build: `percentile_linear_interpolation` (which interpolation), `standardize`
- *  (biased or unbiased stdev), `percentrank` (`<` or `<=` in practice), `mode` (ties),
- *  and the three binary searches (Q-W19R2b). */
+ *  (biased or unbiased stdev), `percentrank` (`<` or `<=` in practice), `mode` (ties).
+ *  (The three binary searches were here too until the UDT unit served them from their own
+ *  entries: `W19R2B_MEMBERS`.) */
 const W6A1 = 'the Pine v6 reference does not settle it, so the run stops here rather than '
   + 'serving a guessed convention (W6-A1)'
 const unpinned = (what) => new CollectionError(`${what} — ${W6A1}`)
@@ -694,7 +823,10 @@ const W6T5_MEMBERS = {
       const ys = realsNoNa(a[1], 'array.covariance')
       if (!xs.length && !ys.length) return NaN // the entry: `na` if both arrays are empty
       if (xs.length !== ys.length) {
-        throw unpinned(`array.covariance of arrays of ${xs.length} and ${ys.length} elements`)
+        // ⭐ UDT unit (ac6 readings) — TradingView's own stop: "The sizes of the `id1` and `id2` arrays must be
+        // equal." (Runtime error, probe `vw-w6-array-members` row V02, run ac6.)
+        throw new CollectionError(`array.covariance of arrays of ${xs.length} and ${ys.length} elements — TradingView `
+          + 'stops the script here too ("The sizes of the `id1` and `id2` arrays must be equal.", run ac6)')
       }
       const biased = biasedArg(a, 2, 'array.covariance')
       const mx = meanOf(xs)
@@ -774,6 +906,8 @@ export const DOOR_GATED_ARRAY = Object.freeze(new Set([
   // ⭐ W6-T8 — every `map.*` member: master refused the whole family at the door
   ...Object.keys(MAP_FNS),
   ...Object.keys(W19R2_MEMBERS),
+  // ⭐ UDT unit — the binary searches: master refused them at the door
+  ...Object.keys(W19R2B_MEMBERS),
   // ⭐ W6-T7 — every `matrix.*` member: master refused the whole family at the door
   ...Object.keys(MATRIX_FNS),
   ...Object.keys(W6T5_MEMBERS).filter((n) => !Object.prototype.hasOwnProperty.call(MASTER_AT_DOOR, n)),
@@ -950,7 +1084,7 @@ const ARRAY_FNS_RAW = Object.freeze({
   'array.size': { args: ['array'], returns: 'number', fn: (a) => a[0].length },
   'array.get': {
     args: ['array', 'number'], returns: 'any',
-    fn: (a, budget) => a[0][at(a[0], a[1], 'array.get', budget)],
+    fn: (a, budget) => (naIndexReadsNa(a[1], budget) ? NaN : a[0][at(a[0], a[1], 'array.get', budget)]),
   },
   'array.set': {
     args: ['array', 'number', 'any'], returns: 'void',
@@ -1002,6 +1136,8 @@ const ARRAY_FNS_RAW = Object.freeze({
   // the reference formula, and the object door keeps master's answer (`MASTER_AT_DOOR`).
   ...W19R2_MEMBERS,
   ...W6T5_MEMBERS,
+  // ⭐⭐ UDT unit — see `W19R2B_MEMBERS`
+  ...W19R2B_MEMBERS,
   // ⭐⭐ W6-T7 — `matrix.*`, see `matrices.js`
   ...MATRIX_FNS,
   // ⭐ C35 — not a collection member: a void call the VM dispatches through this
@@ -1056,7 +1192,9 @@ const READS_ALL = new Set(['array.indexof', 'array.includes', 'array.sort_indice
   'array.sum', 'array.avg', 'array.median', 'array.stdev',
   // ⭐ W6-T5 — every new member that compares, reduces or formats the elements
   'array.lastindexof', 'array.range', 'array.abs', 'array.join', 'array.variance', 'array.covariance',
-  'array.percentile_nearest_rank', 'array.sort', 'array.every', 'array.some'])
+  'array.percentile_nearest_rank', 'array.sort', 'array.every', 'array.some',
+  // ⭐ UDT unit — the binary searches compare every element
+  'array.binary_search', 'array.binary_search_leftmost', 'array.binary_search_rightmost'])
 // ⭐ UIE PHASE 4 (M3) — only the members that READ are wrapped (profiled: wrapping every
 // member cost ~3% of a call-heavy script, `array.set` / `size` / `push` included)
 const HANDS_BACK = new Set(['array.get', 'array.first', 'array.last', 'array.pop', 'array.shift', 'array.remove'])
@@ -1087,6 +1225,8 @@ const ARRAY_WRITES = Object.freeze({
   'array.lastindexof': 'none', 'array.range': 'none', 'array.abs': 'none', 'array.join': 'none',
   'array.variance': 'none', 'array.covariance': 'none', 'array.percentile_nearest_rank': 'none',
   'array.every': 'none', 'array.some': 'none',
+  // ⭐ UDT unit
+  'array.binary_search': 'none', 'array.binary_search_leftmost': 'none', 'array.binary_search_rightmost': 'none',
   // ⭐ W6-T7
   ...MATRIX_WRITES,
 })

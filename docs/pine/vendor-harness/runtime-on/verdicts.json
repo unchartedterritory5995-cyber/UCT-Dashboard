@@ -8,9 +8,9 @@
   "requested": "runtime-on",
   "objectsOnlyPane": true,
   "gateOpen": true,
-  "declined": 294,
+  "declined": 293,
   "gated": 0,
-  "runtimeDrawn": 68,
+  "runtimeDrawn": 69,
   "hostRefused": 386,
   "reachedRuntime": 362,
   "declines": {
@@ -44,7 +44,6 @@
    "runtime:call-windowed-state": 2,
    "runtime:colour": 2,
    "runtime:directive": 2,
-   "runtime:array": 1,
    "runtime:expression-statement": 1
   }
  },
@@ -14898,12 +14897,280 @@
    "script": "BBWP",
    "symbol": "NYSE:RDDT",
    "timeframe": "1D",
-   "plots": [],
-   "notCompared": [],
+   "plots": [
+    {
+     "id": "plot_1",
+     "title": "BBWP",
+     "ours": "value",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": null,
+     "color": "compared",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 658,
+      "colorWithheld": 0,
+      "colorComparable": 658,
+      "valued": 658,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_3",
+     "title": "MA",
+     "ours": "out2",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": null,
+     "color": "compared",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 654,
+      "colorWithheld": 0,
+      "colorComparable": 654,
+      "valued": 654,
+      "maxAbs": 1.4210854715202004e-14,
+      "maxRel": 2.5178699176667455e-16,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_5",
+     "title": "Extreme High Alert Level",
+     "ours": "out3",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "compared",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 666,
+      "colorWithheld": 0,
+      "colorComparable": 666,
+      "valued": 666,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_7",
+     "title": "Extreme Low Alert Level",
+     "ours": "out4",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "compared",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 666,
+      "colorWithheld": 0,
+      "colorComparable": 666,
+      "valued": 666,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [
+    {
+     "id": "plot_0",
+     "title": "Background Color",
+     "type": "bg_colorer",
+     "why": "plot type bg_colorer is not compared by v1"
+    }
+   ],
    "notMeasured": [],
-   "verdict": "INCONCLUSIVE",
-   "reason": "refused on our side: member door refused (pine:collection) [runtime declined: runtime:array]: an array, a matrix or a map is outside the expression grammar this engine runs — `array.binary_search_rightmost`",
-   "ourNotes": []
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "MATCH",
+    "reason": "neither side draws an object"
+   },
+   "paints": {
+    "verdict": "MATCH",
+    "reason": "1 paint agree bar for bar",
+    "agreeing": 1,
+    "differing": 0,
+    "withheld": 0,
+    "undrawn": 0,
+    "undecodable": 0,
+    "unpaired": [],
+    "rows": [
+     {
+      "id": "plot_0",
+      "kind": "bgcolor",
+      "state": "agree"
+     }
+    ]
+   },
+   "verdict": "MATCH",
+   "reason": "all 6 items agree",
+   "verdictWithoutPaints": "MATCH",
+   "ourNotes": [
+    "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0",
+    "paints: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
+   ],
+   "objectsV2": {
+    "verdict": "MATCH",
+    "verdictWithoutX": "MATCH",
+    "v1": "MATCH",
+    "pairedNothing": true,
+    "x": null,
+    "reason": "no record was paired; v1: neither side draws an object",
+    "families": [],
+    "ungraded": {
+     "lines": [
+      "xloc",
+      "force_overlay"
+     ],
+     "labels": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "boxes": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "tables": [
+      "force_overlay"
+     ],
+     "tableCells": [
+      "width",
+      "height",
+      "text_formatting",
+      "colspan",
+      "rowspan"
+     ],
+     "linefills": []
+    }
+   }
   },
   {
    "file": "tests/fixtures/vendor/harness/boom-hunter-entry-point-screener-alerts-rddt-1d-2026-11-15.json",

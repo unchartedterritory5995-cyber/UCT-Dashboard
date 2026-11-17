@@ -1,0 +1,19 @@
+//@version=6
+indicator("vw-udt-legacy-array-param", overlay = false)
+
+// PROVENANCE: written 2026-11-16 by the UDT coverage unit for queue row UDT-T1
+// (docs/pine/capture-queue-2026-11-16-udt.md). No licence-held text. Never compiled on TradingView: a line
+// that does not compile IS the reading (record its text).
+// QUESTION: a user function parameter typed with the legacy `T[]` spelling (`float[] a`, `int[] a`). Our runtime
+// lane refuses it (`runtime:function`, "a parameter this front end cannot read (`[`)"). Does v6 compile it, and
+// is it the same parameter as `array<T> a` (T01 = the size, 3; T02 = the element, 5)?
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults (none), AFTER THE CLOSE. A00 is the control.
+plot(bar_index, "A00_bar_index_CONTROL")
+
+f(float[] a) =>
+    array.size(a)
+plot(f(array.from(1.0, 2.0, close)), "T01_size_through_float_legacy_param")
+
+g(int[] a, int i) =>
+    array.get(a, i)
+plot(g(array.from(4, 5, 6), 1), "T02_get_through_int_legacy_param")

@@ -2,7 +2,7 @@
 
 Directories: `tests/fixtures/vendor`
 
-Lane: **runtime-on**. LANE MEASURED: runtime-on (gate OPEN, runtime lane reached 362, host refusals 386) · objects-only pane ARMED · runtime drew 68, declined 294
+Lane: **runtime-on**. LANE MEASURED: runtime-on (gate OPEN, runtime lane reached 362, host refusals 386) · objects-only pane ARMED · runtime drew 69, declined 293
 
 ```
 capture                                      symbol/tf        plots  verdict           first divergence / reason
@@ -226,7 +226,13 @@ black-scholes-option-pricing-model-w-greeks- AMEX:SPY 1D      0      INCONCLUSIV
 blackflag-fts-rddt-1d-2026-11-14             NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:function-def) [runtime declined: pine:arity]: a Pine function definition introduces a name this engine has nowhere to keep — `Wild_ma` ends in no value this engine can read (reached through `Wild_ma`)
 blackflag-fts-spy-1d-2026-11-14              AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:function-def) [runtime declined: pine:arity]: a Pine function definition introduces a name this engine has nowhere to keep — `Wild_ma` ends in no value this engine can read (reached through `Wild_ma`)
 bolingger-bands-inside-bar-boxes-rddt-1d-202 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:function-global-state]: a name that is reassigned later cannot be folded into one expression — `IBStatus` — and the fold stopped before it, at line 98: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `IBStatus`
-bollinger-band-width-percentile-rddt-1d-2026 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:collection) [runtime declined: runtime:array]: an array, a matrix or a map is outside the expression grammar this engine runs — `array.binary_search_rightmost`
+bollinger-band-width-percentile-rddt-1d-2026 NYSE:RDDT 1D     4      MATCH             all 6 items agree
+    BBWP                                     MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    MA                                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.52e-16
+    Extreme High Alert Level                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Extreme Low Alert Level                  MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+    paints                                   MATCH         1 paint agree bar for bar
 boom-hunter-entry-point-screener-alerts-rddt NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:function-def) [runtime declined: runtime:request-with-state]: a Pine function definition introduces a name this engine has nowhere to keep — `eot_func` ends in no value this engine can read (reached through `eot_func`)
 boom-hunter-entry-point-screener-alerts-spy- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:function-def) [runtime declined: runtime:request-with-state]: a Pine function definition introduces a name this engine has nowhere to keep — `eot_func` ends in no value this engine can read (reached through `eot_func`)
 breaks-and-retests-hg-rddt-1d-2026-11-14     NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:expression-statement]: a name that is reassigned later cannot be folded into one expression — sBreak

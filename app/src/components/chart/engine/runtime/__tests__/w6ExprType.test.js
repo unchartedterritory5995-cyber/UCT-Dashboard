@@ -162,7 +162,8 @@ describe('⭐ 4. `?:`, `if` and `switch` as values: the arms\' common type', () 
 })
 
 describe('⭐ 5. method-call results', () => {
-  const methods = 'method twice(Foo this) => Foo.new(this.x * 2)\nmethod label(Foo this) => "f"'
+  // (UDT unit, ac6: a method must read its first argument, or TradingView does not compile it)
+  const methods = 'method twice(Foo this) => Foo.new(this.x * 2)\nmethod label(Foo this) => this.x > 0 ? "f" : "f"'
   it('a user method\'s result, by inference; a built-in member\'s declared result', () => {
     const t = typer(methods)
     expect(t('f.twice()')).toEqual(foo)

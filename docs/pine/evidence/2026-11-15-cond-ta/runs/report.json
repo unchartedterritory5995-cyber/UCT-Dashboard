@@ -3,17 +3,17 @@
   "capture": {
    "scripts": 749,
    "admitted": 335,
-   "runtimeLane": 43,
+   "runtimeLane": 44,
    "hostLane": 200,
-   "refused": 92,
+   "refused": 91,
    "coreOnly": 35
   },
   "committed": {
    "scripts": 266,
    "admitted": 72,
-   "runtimeLane": 20,
+   "runtimeLane": 21,
    "hostLane": 35,
-   "refused": 17,
+   "refused": 16,
    "coreOnly": 4
   },
   "reference": {
@@ -205,8 +205,8 @@
   },
   {
    "capture": "bollinger-band-width-percentile-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
     "collections:array",
