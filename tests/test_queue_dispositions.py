@@ -141,10 +141,33 @@ COMMITTED = {
     # CBC-FMT (fix/pine-engine-calcbars-format): the questions capture session S10 answered, closed with the capture
     # that answered each (the doc's own `not a capture` table)
     "capture-queue-2026-11-15-calc-bars": {r: "closed" for r in ("Q-CBC1", "Q-CBC3", "Q-CBC4", "Q-CBC5", "Q-FMT1")},
+    # door robustness (#1448) and the per-bar lane's mtf-key-levels defects (fix/pine-runtime-mtf-key-levels): the
+    # captures exist; Q-ROB5 was fixed and its capture witnesses it, Q-ROB6 / Q-ROB7 need builds (a 12M request)
+    "capture-queue-2026-11-16-door-robustness": {"Q-ROB5": "closed", "Q-ROB6": "engine-gap", "Q-ROB7": "engine-gap"},
+    # #1447 (REQ request.security, engine 64): a lower-timeframe read's data and symbols we do not hold are rulings
+    "capture-queue-2026-11-16-request-security": {"Q-REQ-LTF": "ruling", "Q-REQ-DATA": "ruling"},
+    # #1450 (runtime history, engine 64): three rows another queue row's capture already asks, three builds
+    "capture-queue-2026-11-16-runtime-history": {
+        "a ta. on the right of a v6 and / or (7 sample scripts)": "superseded",
+        "a window length that divides inexactly (len / 3, 6 sample sc": "superseded",
+        "history in a for / while body (ta.sma(x[i], 50) per pass)": "superseded",
+        "a branch of a function body decided by a parameter the call ": "engine-gap",
+        "a block local's or a drawing handle's [1] in the DRAWING bui": "engine-gap",
+        "a helper parameter that bounds an offset (for i = 1 to lengt": "engine-gap"},
+    # bt (feat/pine-coverage-builtins-time): Q-BT1/4/5 closed by the captures that answered them, the v4+ bare
+    # `period` closed by TradingView's compiler reading; the rest are the unit's still-refused shapes, each with
+    # its reason and what would settle it in the doc
+    "capture-queue-2026-11-16-bt-builtins-time": {
+        "Q-BT1": "closed", "Q-BT4": "closed", "Q-BT5": "closed", "bare period from v4 on": "closed",
+        "visible bar times": "by-design", "theme colours read as a value": "engine-gap",
+        "v1-v3 sessions with no day list": "engine-gap", "symbol fields not held": "engine-gap",
+        "sar, dmi, kc with a computed flag": "engine-gap", "legacy correlation over runtime state": "engine-gap"},
     # 2026-11-16 (coordinator ruling on #1472): the `sar()` expansion's 200-bar window does not converge on
     # vw-lower-tf-bars-rddt-15-2026-11-16; the capture is in the harness, the fix is a build that flips the KNOWN
     # `it.fails` in sar.test.js (its control pins 43 bars / 5167-5246 / 17 by name)
-    "capture-queue-2026-11-16-sar-window": {"sar() window": "engine-gap"},
+    # CLOSED the same day by fix/pine-sar-warmup (SAR_WARMUP 200 -> 400, measured; the it.fails is an it), which
+    # added the load-time rewrite of a formula document's stored 200-bar SAR tree as an engine gap
+    "capture-queue-2026-11-16-sar-window": {"sar() window": "closed", "sar() saved-tree upgrade": "engine-gap"},
 }
 
 

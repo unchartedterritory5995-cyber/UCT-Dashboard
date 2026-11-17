@@ -1,0 +1,18 @@
+//@version=6
+indicator("vw-w6-receivers-pick-int", overlay = false)
+
+// PROVENANCE: written 2026-11-16 by the UDT coverage unit, split out of tools/visual_conformance/probes/vw-w6-receivers.pine after capture queue
+// run cq1-2026-11-16 (PR #1472) read that file as one compile error ("Could not find {kind} '{fullName}'") whose text names no line or value. One question
+// per file, so an error here IS this file's reading: record its text and the bar it names. No licence-held text.
+// QUESTION: overloads `pick(array<float>)` and `pick(array<string>)` called on an `array<int>`: does it compile, and which one (U08 1 = float)?
+// ac6 READING (run ac6, 2026-11-16): this file did not compile: "The {argName} argument is not used. The first
+// method argument should be used." Its methods never read their receiver. Each now reads it at no cost to the
+// value (`array.size(<receiver>) * 0`), so the question asked is the one in the QUESTION line again.
+// CAPTURE: AMEX:SPY 1D, inputs at defaults, AFTER THE CLOSE. A00 is the control (it must plot on every bar).
+plot(bar_index, "A00_bar_index_CONTROL")
+method pick(array<float> id) =>
+    array.size(id) * 0 + 1
+method pick(array<string> id) =>
+    array.size(id) * 0 + 2
+ai = array.from(1, 2)
+plot(ai.pick(), "U08_pick_on_array_int")

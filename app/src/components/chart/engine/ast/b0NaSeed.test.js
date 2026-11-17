@@ -217,7 +217,7 @@ describe('⭐⭐ engine 48 — `x = na(x[k]) ? na : U` refuses `pine:cycle` BY N
     expect(door.guard).toBe('pine:cycle')
   })
 
-  it('a warm-up update, STATED seed: v1/v2 compile it (host draws; the runtime lane refuses `runtime:conditional-history`, a wall of its own); v3+ refuses `pine:cycle` at every door', () => {
+  it('a warm-up update, STATED seed: v1/v2 compile it (host and runtime lanes draw it: a v1/v2 `?:` runs both arms, HIST-S1); v3+ refuses `pine:cycle` at every door', () => {
     // ⚠️ honestly pinned: in v1/v2 the doors still differ here (the screen, the pane and the member
     // door draw it; `buildRuntimeIr` refuses by its own conditional-history wall). Nothing is
     // over-refused: the spelling compiles in v1/v2 and the runtime lane only declines to draw it.
@@ -226,7 +226,9 @@ describe('⭐⭐ engine 48 — `x = na(x[k]) ? na : U` refuses `pine:cycle` BY N
       const src = pineAt(v, lines('sma'))
       expect(hostRefusal(src)).toBe(null)
       expect(hostRefusal(src, { strict: true })).toBe(null)
-      expect(runtimeRefusal(src).guard).toBe('runtime:conditional-history')
+      // ⚰️ WAS `runtime:conditional-history`. Before v4 a `?:` runs both arms on every bar
+      // (vw-ternary-arm-legacy-v1 / -v2, HIST-S1), so the arm's `sma` is the every-bar one: built
+      expect(runtimeRefusal(src)).toBe(null)
       expect(memberPaneDefinition({ source: src, id: 'u_eng48', name: 'eng48' }).ok).toBe(true)
     }
     for (const v of [5]) {

@@ -34,6 +34,7 @@ import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import { runtimeClockOpts } from '../../ast/pineRuntimeClock'
 import { lowerIrProgram } from '../lowerIr.js'
 import { execute } from '../vm.js'
+import { runRefusalOf } from './condHistoryOutcome.js'
 
 const DIR = path.resolve(process.cwd(), '..', 'tests/fixtures/vendor/harness')
 const load = (f) => JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'))
@@ -55,6 +56,8 @@ function run(src, extra) {
   return r.outputs.map((o) => Array.from(o))
 }
 const refusalOf = (src, extra) => { const b = buildRuntimeIr(src, opts(extra)); return b.ok ? null : b.refusal }
+// ⭐ HIST-S3 — the build's refusal, else the run's stop at the first skip (`callSiteRuns`), else null
+const notDrawnOf = (src, extra) => runRefusalOf(src, { bars: BARS, extra })
 const same = (a, b) => (Number.isNaN(a) && Number.isNaN(b)) || Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(b))
 const v6 = (body) => `//@version=6\nindicator("t")\n${body}`
 const UP = BARS.map((b) => b.c > b.o)
@@ -76,7 +79,9 @@ describe('1 — a `ta.*` in one arm of `?:` keeps that arm\'s runs: refused by n
     expect(diffT).toBeGreaterThan(150)
     expect(diffK).toBeGreaterThan(250)
   })
-  it('the probe\'s own rows in Pine v5 (not captured, Q-PT1) are refused by name, on the column route and the slot route', () => {
+  // ⭐ HIST-S3 — refused at build, or (now) drawn only while the arm has run on every bar and STOPPED by
+  // name at the first skip: never the per-run number Q-PT1 has not witnessed, never the every-bar one
+  it('the probe\'s own rows in Pine v5 (not captured, Q-PT1) are never drawn per run: refused or stopped by name, on the column route and the slot route', () => {
     const v5 = (body) => `//@version=5\nindicator("t")\n${body}`
     for (const body of [
       'plot(close > open ? ta.sma(close, 5) : close)\n',                       // T03, a column
@@ -85,7 +90,7 @@ describe('1 — a `ta.*` in one arm of `?:` keeps that arm\'s runs: refused by n
       'var float s = 0.0\ns := s + 1\nplot(s > 3 ? ta.sma(close, 5) : close)\n', // the test reads a slot
       'var float s = 0.0\ns := close > open ? ta.ema(close, 5) : s\nplot(s)\n',  // the arm reads a slot
     ]) {
-      const r = refusalOf(v5(body))
+      const r = notDrawnOf(v5(body))
       expect(r && r.guard, body).toBe(R4)
       expect(r.message).toMatch(/one arm of `\?:`/)
     }
@@ -117,7 +122,7 @@ describe('1 — a `ta.*` in one arm of `?:` keeps that arm\'s runs: refused by n
     const [every] = run(v6('plot(ta.wma(close, 5))\n'))
     y.forEach((v, i) => expect(same(v, every[i]), `bar ${i}`).toBe(true))
     // ⛔ the same switch on a PER-BAR text stays refused
-    const r = refusalOf(v6('m = close > open ? "WMA" : "SMA"\nv = switch m\n    \'SMA\' => ta.sma(close, 5)\n    \'WMA\' => ta.wma(close, 5)\nplot(v)\n'))
+    const r = notDrawnOf(v6('m = close > open ? "WMA" : "SMA"\nv = switch m\n    \'SMA\' => ta.sma(close, 5)\n    \'WMA\' => ta.wma(close, 5)\nplot(v)\n'))
     expect(r && r.guard).toBe(R4)
   })
   it('SERVED: a NAME in an arm is its own line\'s value, and chart history in an arm is the chart\'s', () => {
@@ -127,9 +132,9 @@ describe('1 — a `ta.*` in one arm of `?:` keeps that arm\'s runs: refused by n
 })
 
 describe('2 — a `ta.*` head that rewrites to offsets is the call site\'s too', () => {
-  it('`ta.mom` / `ta.roc` / `ta.swma` in a block are refused by name (they were every-bar columns)', () => {
+  it('`ta.mom` / `ta.roc` / `ta.swma` in a block are never drawn per run: refused or stopped by name (they were every-bar columns)', () => {
     for (const c of ['ta.mom(close, 2)', 'ta.roc(close, 2)', 'ta.swma(close)']) {
-      const r = refusalOf(v6(`float y = na\nif close > open\n    y := ${c}\nplot(y)\n`))
+      const r = notDrawnOf(v6(`float y = na\nif close > open\n    y := ${c}\nplot(y)\n`))
       expect(r && r.guard, c).toBe(R4)
       expect(r.message).toContain(c.slice(0, c.indexOf('(')))
     }
@@ -192,8 +197,9 @@ describe('4 — a branch on a PARAMETER is the call site\'s', () => {
     expect(r && r.guard).toBe(R4)
     expect(r.message).toMatch(/`on` decides a branch of `fv`/)
   })
-  it('a branch on a body LOCAL stays refused (no call site can fix it)', () => {
-    const r = refusalOf(v6('g(x) =>\n    float y = na\n    k = x > 0\n    if k\n        y := ta.atr(3)\n    y\nplot(g(close - open))\n'))
+  // ⭐ HIST-S3 — no call site can fix a body LOCAL, so the branch is checked at run: it stops by name
+  it('a branch on a body LOCAL is never drawn per run: stopped by name where it skips (no call site can fix it)', () => {
+    const r = notDrawnOf(v6('g(x) =>\n    float y = na\n    k = x > 0\n    if k\n        y := ta.atr(3)\n    y\nplot(g(close - open))\n'))
     expect(r && r.guard).toBe(R4)
   })
 })

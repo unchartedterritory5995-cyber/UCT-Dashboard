@@ -27,10 +27,25 @@ weights it by what real scripts use, and ranks the work.
    state production runs (objects-only pane **armed**, runtime pane **dark**); and
 2. it **attaches and installs**, with **zero refusals** in its translation; and
 3. its drawing-object program is carried with **nothing dropped and nothing withheld**
-   (`assessObjectLoss` verdict `clean`), and no per-bar paint is withheld; and
+   (`assessObjectLoss` verdict `clean`), and no per-bar paint is withheld (from 2026-11-16 a
+   paint counts as withheld only when the document the member gets does not draw it,
+   `tools/pine_coverage/paint_predicate.mjs`; every count on this page was measured under the
+   earlier rule, which counted every paint the translation withheld, and a census row carries
+   both as `withheldPaints` / `withheldPaintsTranslated`); and
 4. it is **not a strategy that places orders** (`strategy.entry/order/exit/close/close_all`).
    The door draws a strategy's plots (ruling C50), but its trades, markers and tester
    report are its output and nothing simulates the broker, so it does not count.
+
+   ⭐ **A separate column, `wouldTransferIfArmed`** (per script, and `strategyOn.wouldTransferIfArmed`
+   / `armedWalls`; coordinator ruling 2026-11-16). The strategy broker exists and is dark
+   (`VITE_PINE_STRATEGY_BROKER_ENABLED`); arming it is the owner's act. The census measures, for
+   each order-placing strategy, what arming would serve: the same door with the objects-only
+   pane, the runtime pane and the broker stubbed on attaches it clean, its document runs the
+   broker, the run on the reference bars (NYSE:RDDT 1D from the listing, the window
+   `bars_window.HISTORY_WINDOW_BARS`) finishes with every broker rule it exercised pinned by
+   the committed ledger, and its trades are drawn or refused by name
+   (`runtime/__tests__/strategyArmed.js`). It never moves the headline above; a census row
+   written before the counterfactual reads `null` (unmeasured), never `false`.
 
 ⚠️ This is a **door verdict, not a parity verdict**. It says the whole script is accepted
 and drawn; it does not say every number equals TradingView's. Parity is graded only where a

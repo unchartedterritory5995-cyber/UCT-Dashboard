@@ -33,7 +33,7 @@ Rules for every row below:
 | Q-S1-core | `s1-broker-core.pine` | NYSE:RDDT 1D | 1 | N02 to N14 | market, bracket, reversal, pyramid, close rules | T1 | no |
 | Q-S1-core-b | `s1-broker-core-range.pine` | AMEX:SPY 1D | 1 | std, joined on time | the same rules, and method (b) itself | T1 | no |
 | Q-S1-core-2x | `w9-q-s1core-two-exits.pine` | NYSE:RDDT 1D | 1 | exit id and comment by label; last exit price | two full exits on one trade, the second-called reached first: S1's B-EXIT-BIND (each fills if reached first; served while B-EXIT-QTY is unpinned) against the reference's reservation (B-EXIT-QTY: the first reserves the whole trade). Added 2026-11-08, integration review N2; joins Q-S1-core's fixtures for B-EXIT-BIND | T1, T7 | no |
-| Q-S1a | `w9-q-s1a-size-v4.pine`, `w9-q-s1a-size-v6.pine`, `w9-q-s1a-size-v5pct.pine`, `w9-q-s1a-size-v5cash.pine`, `w9-q-s1a-size-v2.pine` | NYSE:RDDT 1D | 5 | position size at the fill; equity and close at the signal | default sizing per version | T4 | no |
+| Q-S1a | `w9-q-s1a-size-v4.pine`, `w9-q-s1a-size-v6.pine`, `w9-q-s1a-size-v5pct.pine`, `w9-q-s1a-size-v5cash.pine`, `w9-q-s1a-size-v2.pine`, `w9-q-s1a-size-stop-v6.pine` | NYSE:RDDT 1D | 6 | position size at the fill; equity and close at the signal; the stop level (stop run) | default sizing per version; which price sizes a percent-of-equity STOP entry (added 2026-11-16: six built-in strategies stop there by name) | T4 | no |
 | Q-S1b | `w9-q-s1b-defaults-v4.pine`, `w9-q-s1b-defaults-v5.pine`, `w9-q-s1b-defaults-v6.pine` | NYSE:RDDT 1D | 3 | initial capital; open trades per entry | capital, margin and pyramiding defaults; reversal | T4, T1 | no |
 | Q-S1c | `w9-q-s1c-tie.pine` | NYSE:RDDT 1D | 1 | trade-0 times | the path on a tie | T1 | no |
 | Q-S1d | `w9-q-s1d-same-tick.pine` | NYSE:RDDT 1D | 1 | ids by label | two orders on one bar | T1, T7 | no |
@@ -41,7 +41,7 @@ Rules for every row below:
 | Q-S1f | `w9-q-s1f-reversal-exit.pine` | NYSE:RDDT 1D | 1 | exit id by label | reversal against an exit with no from_entry | T7 | no |
 | Q-S1g | `w9-q-s1g-pyr-limit.pine` | NYSE:RDDT 1D | 1 | open trades | a price entry at the limit | T7 | no |
 | Q-S1h | `w9-q-s1h-fifo.pine` | NYSE:RDDT 1D | 1 | closed trade sizes; entry bar | the FIFO split | T7 | no |
-| Q-S1i | `w9-q-s1i-funds.pine` | NYSE:RDDT 1D | 1 | exit comment by label | margin call (deferred) | deferred | no |
+| Q-S1i | `w9-q-s1i-funds.pine`, `w9-q-s1i-short-v6.pine` | NYSE:RDDT 1D | 2 | exit comment by label; the short run WITH the Strategy Tester report (its exit rows: a "Margin call" exit, units and price), X03 the bar high | margin call (deferred); the v6 default (100% of equity, margin 100%) held SHORT, the short twin of w9-q-s1a-size-v6 (added 2026-11-16: seven built-in strategies stop at its margin check on RDDT 1D) | deferred | no |
 | Q-S1j | `w9-q-s1j-stop-limit.pine` | NYSE:RDDT 1D | 1 | std | stop-limit | T7 | no |
 | Q-S1k | `w9-q-s1k-exit-levels.pine`, `w9-q-s1k-exit-levels-v6.pine` | NYSE:RDDT 1D | 2 | std | exit levels, v5 and v6 | T7 | no |
 | Q-S1l | `w9-q-s1l-off-grid.pine` | NYSE:RDDT 1D | 1 | exit price as a full double, and in mintick units | off-grid rounding | T1 | no |

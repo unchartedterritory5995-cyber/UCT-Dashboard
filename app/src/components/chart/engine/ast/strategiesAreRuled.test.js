@@ -174,9 +174,10 @@ plot(ta.crossover(close, ta.sma(close, 50)) ? 1 : 0)
 // Counts come from the committed ledger, so the row cannot claim a pin that is not there.
 describe('D7: the strategy-backtest scorecard wording', () => {
   it('states the pinned count from the ledger, the refusal by name, and that it is not served', () => {
-    expect(pinnedBrokerRules()).toHaveLength(31)
+    // 32 since 2026-11-16: B-FUNDS (Q-S1i), pinned by w9-q-s1a-size-v6 grading MATCH
+    expect(pinnedBrokerRules()).toHaveLength(32)
     expect(strategyScorecardWording()).toBe(
-      `31 of ${BROKER_RULE_IDS.length} broker rules are pinned, each verified against a TradingView capture. `
+      `32 of ${BROKER_RULE_IDS.length} broker rules are pinned, each verified against a TradingView capture. `
       + 'A backtest that reaches an unpinned rule stops and refuses by name (runtime:strategy-unpinned). '
       + 'Strategy backtests are not served to members yet.')
     // ⭐ THE ONE PLACE THE VOCABULARY'S SIZE IS PINNED (dated 2026-11-08): 22 S1/T1 rules + 6 W9-T6
@@ -194,7 +195,13 @@ describe('D7: the strategy-backtest scorecard wording', () => {
     // text: B-ROUND (a fill on an off-grid open), B-ROUND-MARK (the mark of open trades on an off-grid close),
     // B-TXT-CLOSE-ID, B-TXT-CLOSE-ALL-ID, B-TXT-ENTRY-CLOSE-ID (the exit ids TradingView generates) and
     // B-TXT-NO-COMMENT (an exit comment with no comment reads the exit id).
-    expect(BROKER_RULE_IDS.length).toBe(50)
+    // + 1 (dated 2026-11-16, the strategy coverage unit): B-PYR-PRICE (Q-S1g), a price entry reached at the
+    // pyramiding limit is not kept waiting, witnessed by the VALUES of vw-s1-q-s1g-blocked-stop-entry and
+    // pinned only by a re-take with the Strategy Tester report.
+    // + 1 (dated 2026-11-16, Q-S1i answered): B-FUNDS, a flat long market entry at the v6 default size (100% of
+    // equity) and margin 100% that needs more than the equity at its fill is rejected, witnessed by the committed
+    // report capture w9-q-s1a-size-v6 (7 trades taken, 13 entries absent).
+    expect(BROKER_RULE_IDS.length).toBe(52)
   })
 
   it('counts a pin only when the ledger holds it, and only for a rule the broker names', () => {
