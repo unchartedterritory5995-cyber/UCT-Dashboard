@@ -84,6 +84,14 @@ describe('the window posts it at the two moments it should (source rail; comment
     expect(sheet).toMatch(/postStatusHeadline\(row\.def_id, row\.version, pineText, statusHeadline\)/)
   })
 
+  it('after a form save that carried the script ("Use this formula", then Save), for exactly that script', () => {
+    expect(sheet).toMatch(/if \(keepScript && res\.row\) postStatusHeadline\(res\.row\.def_id, res\.row\.version, applyScriptRef\.current, statusHeadline\)/)
+    // it reads the script BEFORE the save clears it
+    const at = sheet.indexOf('if (keepScript && res.row) postStatusHeadline(')
+    expect(at).toBeGreaterThan(-1)
+    expect(sheet.indexOf('applyScriptRef.current = null; applyMathsRef.current = null', at)).toBeGreaterThan(at)
+  })
+
   it('and once on reopening a saved script whose text is unchanged', () => {
     expect(sheet).toMatch(/if \(editing\.script !== pineText\) return\s+postStatusHeadline\(editing\.defId, editing\.version, pineText, statusHeadline\)/)
   })

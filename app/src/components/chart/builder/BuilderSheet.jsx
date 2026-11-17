@@ -2321,6 +2321,10 @@ export default function BuilderSheet({
     // manual tweak with no new paste) must not carry a stale `import_id`
     // forward and misattribute itself to an import that already landed.
     importTelemetryRef.current = null
+    // ⭐ STUDIO R4 — a script saved through the form ("Use this formula", then Save) is the same
+    // saved document as one saved through the script door, so its author's sentence goes on record
+    // the same way: only when the script rode this save, and only for exactly that text.
+    if (keepScript && res.row) postStatusHeadline(res.row.def_id, res.row.version, applyScriptRef.current, statusHeadline)
     applyProvenanceRef.current = null; pineDoorStampRef.current = null
     applyScriptRef.current = null; applyMathsRef.current = null
     const row = res.row || { def_id: doc.id, version: doc.version, rev: 1 }
@@ -2410,7 +2414,7 @@ export default function BuilderSheet({
     }
     onSaved?.(res.row)
   }, [canSave, result, allRows, name, onSaved, settings, onChange, editing,
-    documentFor, lookToApply, intent, intentRead])
+    documentFor, lookToApply, intent, intentRead, statusHeadline, postStatusHeadline])
 
   // ⭐⭐ DELETE ASKS FIRST.
   //
