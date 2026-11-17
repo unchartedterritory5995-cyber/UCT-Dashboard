@@ -101,6 +101,10 @@ export const PANEL_IMPORTERS = {
   LongRun: () => import('./panels/LongRunPanel'),
   EarningsScoreboard: () => import('./panels/EarningsReactionsPanel'),
   Levels: () => import('./panels/LevelsPanel'),
+  // data wave 2 (2026-11-17)
+  Highs52: () => import('./panels/Highs52Panel'),
+  RsScreens: () => import('./panels/RsScreensPanel'),
+  Learn: () => import('./panels/LearnPanel'),
   ThemeBoard: () => import('./panels/ThemeBoardPanel'),
   // wave 8, lane E: market reads (SENT)
   Sentiment: () => import('./panels/SentimentPanel'),
