@@ -2821,6 +2821,17 @@
       ],
       "note": "ARMED ON web 2026-11-15 -- owner decision 2026-11-15: Create Indicator is open to every paid account (the product has not launched; the staged pilot in docs/indicators/CONVERSE-ROLLOUT-PROPOSAL-2026-11-02.md is not followed before launch). Every account is in the cohort: new signups by rollout_gate.enroll_in_create_indicator (api/routers/auth.py), existing accounts once per volume by rollout_gate.seed_existing_members_into_create_indicator (api/main.py lifespan, marker .create_indicator_seed_v1). The browser door now accepts the cohort for admins too (createIndicatorFlag.js::createIndicatorAccess). Rollback is still this flag: unset it and new conversations stop on the next request; no tag is touched. Plan: docs/pine/studio/STUDIO-TRACK-PLAN.md section 8. HISTORY (pending 2026-10-07 to 2026-11-15): the controlled member rollout of Create Indicator (UCT Intelligence conversational authoring). ENABLEMENT gate, default OFF, read per call FIRST in api/services/rollout_gate.py::create_indicator_cohort_enabled (cohort 'create-indicator', a rollout: user_tags row written only by tools/rollout_cohort.py). /converse (api/routers/user_definitions.py::require_create_indicator_access) admits an admin OR a member this flag + cohort release; the dock and BuilderSheet read the EFFECTIVE cohorts list off _access_payload (createIndicatorFlag.js). Admins keep their dark-review access regardless of this flag. Set on NO service and the cohort is empty: nobody outside the admins can reach it. Owner decision left: set CREATE_INDICATOR_COHORT_ENABLED=1 on web and tag the cohort. Rollback: unset the flag (new conversations stop on the next request / auth refresh; saved indicators are untouched ordinary user definitions), or remove one member's tag with tools/rollout_cohort.py (no redeploy)."
     },
+    "DEFINITION_LOAD_BUDGET_ENABLED": {
+      "status": "pending",
+      "since": "2026-11-17",
+      "where": [],
+      "default": "0",
+      "values": [
+        "0",
+        "1"
+      ],
+      "note": "Studio lane R6: the library's load budget. ENABLEMENT gate, default OFF, read on every call and never cached in api/services/load_budget.py::enabled(). ON: when a member lists an indicator (POST /api/user-definitions/{id}/list), the web process measures a FORMULA with the engine's headless export in one short-lived node subprocess (tools/headless_work.mjs over the engine's 5,000-bar reference series; a deterministic work count, never a clock; 10 s kill, no retry, 2 at once, an environment holding only the search path), files it as light / moderate / heavy by fractions of the lane's ceiling (0.10 / 0.25 / 0.50), REFUSES a listing over half the ceiling (409, reason load-budget, admins included), and records the measurement per version in definition_load_measurements. Library cards, the Members tab and the share page then say the class; the share page adds the time a fresh run took on the viewer's device. A pasted script (runtime lane) is never run on web: it lists as 'not measured yet' until the isolated script service measures it. OFF or unset: nothing is measured, recorded or served, and the listing door is exactly what it was. PENDING because it is armed only after the build that carries it is live and the driver has answered on the pod. REVERSAL: `railway variable delete DEFINITION_LOAD_BUDGET_ENABLED --service web` then `railway redeploy --service web --yes`; recorded measurements stay and keep being served for the versions they describe."
+    },
     "TERMINAL_NEXT_ENABLED": {
       "status": "armed",
       "where": [
@@ -3679,16 +3690,19 @@
       "note": "Unset; useFlowWebSocket falls back to window.location.host, which is correct in production. An override is a local-dev affordance."
     },
     "VITE_PINE_EDITOR_STATUS": {
-      "status": "dark",
-      "where": [],
+      "status": "armed",
+      "where": [
+        "web",
+        "web-front"
+      ],
       "owner": "pine parity programme",
-      "owner_decision": "not yet taken: built dark on branch feat/pine-editor-status (2026-11-02), EDITOR workstream of the Pine full-parity plan",
-      "railway_value": "UNSET on every service",
-      "baked_value": "undefined (never set)",
-      "baked_measured_on": "2026-11-02, from Dockerfile.web's ARG list (declared in the same commit that added the read)",
-      "last_changed": "2026-11-02T00:00:00Z",
-      "note": "The Pine editor status panel on the Builder's Pine tab: where the script runs (chart, alerts, screener, scans), which engine lane, every withheld value on its source line in plain English, and per-line editor marks. Read in ONE place, app/src/components/chart/builder/editorStatusGate.js::editorStatusEnabled, as `=== '1'`; a build with no import.meta.env fails CLOSED. Off, PasteBox and CodeEditor render exactly what they did before. Spec: docs/pine/EDITOR-STATUS-PANEL-SPEC.md.",
-      "flip_precondition": "ON CHANGES FOR A MEMBER: a status panel appears under the Pine editor and withheld lines get gutter marks. VERIFY BEFORE FLIPPING: the owner looks at the panel on the three mockup scripts (one that runs fully, one with a request.security line, one strategy) on a desktop and a phone (Sheet on touch), and confirms every sentence reads plainly. It is a build constant: flipping it is a web REBUILD, not a variable change."
+      "owner_decision": "owner, 2026-11-14: the Studio plan (docs/pine/studio/STUDIO-TRACK-PLAN.md section 8, step O4) opens the status panel to every member, with no admin-only stage; owner, 2026-11-17, on switching things on production: do anything like that at any time while there are no users. HISTORY: built dark on branch feat/pine-editor-status (2026-11-02).",
+      "railway_value": "1 on web AND web-front, both set 2026-11-17 (web 15:12Z, web-front 15:32Z)",
+      "baked_value": "'1', confirmed by live behaviour on uctintelligence.com 2026-11-17 15:38Z as the synthetic admin: the panel rendered under the script box for three pasted scripts ('Runs on the chart and in alerts; screens and scans need a threshold' / '..., with 1 note' / '..., 1 value withheld (not guessed)'). Before web-front was set, the same check found no panel: setting it on web alone changed nothing a member loads.",
+      "baked_measured_on": "2026-11-17, web-front deployment 7de605a6 (front build assets/index-WRqXY4tt.js)",
+      "last_changed": "2026-11-17T15:32:19Z",
+      "note": "The Pine editor status panel on the Builder's Pine tab: where the script runs (chart, alerts, screener, scans), which engine lane, every withheld value on its source line in plain English, and per-line editor marks. Read in ONE place, app/src/components/chart/builder/editorStatusGate.js::editorStatusEnabled, as `=== '1'`; a build with no import.meta.env fails CLOSED. Off, PasteBox and CodeEditor render exactly what they did before. Spec: docs/pine/EDITOR-STATUS-PANEL-SPEC.md. ARMED 2026-11-17 (Studio plan O4). THE MEMBERS' BUNDLE IS BUILT BY web-front, which keeps ITS OWN copy of every VITE_ variable: a VITE_ flag set on web alone does not reach a member. Set both, so the two origins stay identical (tools/front_parity.py). Since PR #1654 a save of a pasted script also puts the panel's sentence on record for the saved version (POST /api/user-definitions/{id}/status-headline), which a share link and a library entry then show; with this flag off nothing is recorded.",
+      "flip_precondition": "DONE 2026-11-17 by the build session on the live site (three scripts, desktop). Reversal: `railway variable delete VITE_PINE_EDITOR_STATUS --service web-front` and the same for web, then `railway redeploy --service web-front --yes` (a delete does not rebuild by itself); it is a build constant, so the panel leaves with the next build."
     },
     "VITE_PINE_LOWER_TF_ENABLED": {
       "status": "dark",
