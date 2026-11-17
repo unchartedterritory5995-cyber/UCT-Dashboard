@@ -178,9 +178,10 @@ describe('D7: the strategy-backtest scorecard wording', () => {
     // 34 since 2026-11-17: B-FUNDS-SHORT and B-MARGIN-CALL (Q-S1i), pinned by w9-q-s1i-short-v6 grading MATCH
     // 39 since 2026-11-17 (the reversal slice): B-QTY-REVERSE, B-FUNDS-REVERSE, B-MARGIN-CALL-ALL, B-ENTRY-ORDER and
     // B-PYR, pinned by w9-q-s1b-defaults-v6 grading MATCH (B-PYR with w9-d11-late-first-use-rpt too)
-    expect(pinnedBrokerRules()).toHaveLength(39)
+    // 40 since 2026-11-17 (Pine v2 / v3): B-V3, pinned by w9-q-s1a-size-v2 and w9-g1-v3-properties grading MATCH
+    expect(pinnedBrokerRules()).toHaveLength(40)
     expect(strategyScorecardWording()).toBe(
-      `39 of ${BROKER_RULE_IDS.length} broker rules are pinned, each verified against a TradingView capture. `
+      `40 of ${BROKER_RULE_IDS.length} broker rules are pinned, each verified against a TradingView capture. `
       + 'A backtest that reaches an unpinned rule stops and refuses by name (runtime:strategy-unpinned). '
       + 'Strategy backtests are not served to members yet.')
     // ⭐ THE ONE PLACE THE VOCABULARY'S SIZE IS PINNED (dated 2026-11-08): 22 S1/T1 rules + 6 W9-T6
@@ -210,7 +211,9 @@ describe('D7: the strategy-backtest scorecard wording', () => {
     // + 4 (dated 2026-11-17, the reversal at the v6 default answered): B-QTY-REVERSE (the reversal's size), B-FUNDS-REVERSE
     // (rejected past the equity it was sized from), B-MARGIN-CALL-ALL (a margin call above the trade closes it all),
     // B-ENTRY-ORDER (market entries on one opening tick in the order placed), witnessed by w9-q-s1b-defaults-v6.
-    expect(BROKER_RULE_IDS.length).toBe(58)
+    // + 1 (dated 2026-11-17, Pine v2 / v3): B-V3, the order calls and the Properties read back on the two committed
+    // v2 / v3 report captures (w9-q-s1a-size-v2, w9-g1-v3-properties).
+    expect(BROKER_RULE_IDS.length).toBe(59)
   })
 
   it('counts a pin only when the ledger holds it, and only for a rule the broker names', () => {

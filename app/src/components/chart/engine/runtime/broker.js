@@ -202,6 +202,10 @@ export function makeBroker(cfg, data) {
       + 'settled: the v4 reference reads 100, and TradingView read 0 back on the two v4 captures taken (one declaration '
       + 'shape); state both in strategy() to run it', 'Q-S1b', V4_MARGIN_DEFAULT_SETTING)
   }
+  // ⭐⭐ (2026-11-17) [B-V3] a Pine v2 / v3 strategy runs on what the two committed v2 / v3 report captures witness:
+  // their order calls (`ast/strategyBroker.js` V3_SIGNATURES) and the Properties TradingView read back for them (fixed 1,
+  // capital 100,000, pyramiding 1, no cost, NO margin input). Asked once, before the first bar: it is the whole run's model.
+  if (cfg.version === 2 || cfg.version === 3) rule('B-V3')
   const maxEntries = Math.max(1, Math.floor(Number(cfg.pyramiding) || 0)) // [B-PYR]
   // ⭐⭐ W9-T6 — FILL TIMING, read from the declaration (`ast/strategyBroker.js`). Each setting off its
   // default asks its own rule when a run REACHES it, so a run that never does is unchanged.
@@ -559,6 +563,27 @@ export function makeBroker(cfg, data) {
   /** `why` (B-MARGIN-CALL): why this position is not the shape whose margin call is witnessed, named in the stop */
   const marginCheck = (price, why) => {
     if (open.length === 0) return
+    // ⭐⭐ [B-V3] Pine v2 / v3 read back NO margin setting, so whether TradingView limits a position by its funds there
+    // is not witnessed. Served only where it cannot matter: the position fits the equity (as at a margin of 100,
+    // and so at any margin); otherwise the run stops by name (W9-G1).
+    if (cfg.marginUnread === true) {
+      rule('B-MARGIN')
+      askCommission()
+      needSymbol()
+      let net = 0
+      for (const t of closed) net += t.profit
+      let openPl = 0
+      let size = 0
+      for (const t of open) { openPl += (price - t.price) * t.dir * t.qty; size += t.qty }
+      const equity = costOn ? cfg.initialCapital + moneyOfClosed() + openPl * pointvalue - openFees()
+        : cfg.initialCapital + (net + openPl) * pointvalue
+      if (!finite(cfg.initialCapital)) throw new BrokerRefusal('the initial capital this strategy runs with is not settled')
+      if (equity - size * price * pointvalue < 0) {
+        throw new BrokerRefusal('this Pine v2 / v3 position is worth more than the equity, and these versions read back no '
+          + 'margin setting, so whether TradingView margin-calls or refuses it is not witnessed', 'W9-G1')
+      }
+      return
+    }
     rule('B-MARGIN')
     if (defaulted.margin) rule('B-DEFAULTS')
     // ⭐ W9-T13a N7 — the check below reads EQUITY, which is net of every closed trade's commission, so

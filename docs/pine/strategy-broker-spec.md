@@ -108,6 +108,7 @@ Every rule above serves only when `pinned(rule)` is true, asked when a run REACH
 | B-FUNDS-REVERSE | Q-S1i | (2026-11-17) such a reversal whose new size x fill price exceeds the equity it was sized from is rejected whole (w9-q-s1b-defaults-v6) |
 | B-MARGIN-CALL-ALL | Q-S1i | (2026-11-17) a margin call whose size exceeds the trade closes the whole trade (w9-q-s1b-defaults-v6, bar 154) |
 | B-ENTRY-ORDER | Q-S1d | (2026-11-17) several market strategy.entry orders on one opening tick are taken in placement order, served while every one before the last fills nothing (w9-q-s1b-defaults-v5 / -v6) |
+| B-V3 | W9-G1 | (2026-11-17) a Pine v2 / v3 strategy: entry(id, direction) / close(id) by position with a named `when`, at the Properties read back for those versions (fixed 1, capital 100,000, pyramiding 1, no cost, no margin input: a position past the equity refuses) (w9-q-s1a-size-v2, w9-g1-v3-properties) |
 | B-SIG | Q-S1-core | positional order arguments follow the Pine version's signature |
 | B-WHEN | Q-S1p | the `when` argument (v4, and v5) |
 | B-DIR | Q-S1-core | strategy.long / strategy.short (v4 `long`) as directions |

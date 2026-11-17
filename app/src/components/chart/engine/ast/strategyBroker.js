@@ -41,6 +41,12 @@ export class StrategyOptionError extends Error {
  *  strategy.percent_of_equity"; `default_qty_value`: "The default is 100"); how a percent or cash
  *  default is turned into a size is `broker.js` `defaultSize` [B-QTY]. */
 export const DECLARATION_DEFAULTS = Object.freeze({
+  // ⭐⭐ (2026-11-17) Pine v2 / v3: no reference was read; these are the Properties TradingView READ BACK on the two
+  // committed v2 / v3 report captures (w9-q-s1a-size-v2, w9-g1-v3-properties: "Default entry/order Qty Type" fixed,
+  // "Qty Value" 1, "Initial Capital" 100000, "pyramiding" 1, commission percent 0, slippage 0), served behind the rule
+  // B-V3 (`runtime/brokerRules.js`). Neither version has a margin input at all (`margin: null`, `marginUnread`).
+  2: Object.freeze({ qtyType: 'fixed', qtyValue: 1, initialCapital: 100000, margin: null }),
+  3: Object.freeze({ qtyType: 'fixed', qtyValue: 1, initialCapital: 100000, margin: null }),
   4: Object.freeze({ qtyType: 'fixed', qtyValue: 1, initialCapital: 100000, margin: 100 }),
   5: Object.freeze({ qtyType: 'fixed', qtyValue: 1, initialCapital: 1000000, margin: 0 }),
   6: Object.freeze({ qtyType: 'percent_of_equity', qtyValue: 100, initialCapital: 100000, margin: 100 }),
@@ -112,8 +118,8 @@ export function readStrategyDeclaration(call, version) {
       }
       case 'default_qty_value': need(key, Number.isFinite(n) && n > 0, 'is not a positive literal'); qtyValue = n; break
       case 'initial_capital': need(key, Number.isFinite(n) && n > 0, 'is not a positive literal'); cfg.initialCapital = n; break
-      case 'margin_long': need(key, Number.isFinite(n) && n >= 0, 'is not a non-negative literal'); cfg.marginLong = n; break
-      case 'margin_short': need(key, Number.isFinite(n) && n >= 0, 'is not a non-negative literal'); cfg.marginShort = n; break
+      case 'margin_long': need(key, v >= 4, 'is not a Properties input of Pine v2 / v3 (none is read back)'); need(key, Number.isFinite(n) && n >= 0, 'is not a non-negative literal'); cfg.marginLong = n; break
+      case 'margin_short': need(key, v >= 4, 'is not a Properties input of Pine v2 / v3 (none is read back)'); need(key, Number.isFinite(n) && n >= 0, 'is not a non-negative literal'); cfg.marginShort = n; break
       case 'calc_on_every_tick': need(key, n === 0 || n === 1, 'is not a true / false literal'); cfg.calcOnEveryTick = n === 1; break
       // ⭐⭐ W9-T6 — fill timing is READ, and the broker asks its rule (B-POC*, B-FILLS)
       // when a run reaches it: unpinned, the run stops `runtime:strategy-unpinned` by name.
@@ -159,9 +165,13 @@ export function readStrategyDeclaration(call, version) {
   cfg.defaulted = {
     pyramiding: !named.has('pyramiding'),
     initialCapital: !named.has('initial_capital'),
-    margin: !named.has('margin_long') || !named.has('margin_short'),
+    // v2 / v3: no margin input exists, so no margin default is leaned on (`marginUnread`, the broker's own branch)
+    margin: v >= 4 && (!named.has('margin_long') || !named.has('margin_short')),
     qty: !named.has('default_qty_type') || !named.has('default_qty_value'),
   }
+  // ⭐⭐ (2026-11-17) Pine v2 / v3 read back no margin setting: the broker serves a run only where a margin could not
+  // change it (`broker.js` marginCheck, B-V3)
+  cfg.marginUnread = v === 2 || v === 3
   // W9-T5: a commission whose TYPE is the default rests on B-DEFAULTS too (`brokerRules.js` commissionRulesOf)
   cfg.commission.typeDefaulted = !named.has('commission_type')
   if (cfg.commission.value > 0 && cfg.commission.type === null) {
@@ -291,8 +301,17 @@ const SIGNATURES = Object.freeze({
       'disable_alert'],
   }),
 })
+/** ⭐⭐ (2026-11-17) Pine v2 / v3: no reference was read. Served: exactly the calls the two committed report captures
+ *  make (w9-q-s1a-size-v2: `strategy.entry("L", strategy.long, when = up)`, `strategy.close("L", when = dn)`;
+ *  w9-g1-v3-properties: `strategy.entry("L", strategy.long)`, `strategy.close("L")` inside `if`), by position, plus a
+ *  named `when` (`orderArgsOf`). Anything else (another command, another argument) refuses by name. Rule B-V3. */
+const V3_SIGNATURES = Object.freeze({
+  'strategy.entry': Object.freeze(['id', 'long']),
+  'strategy.close': Object.freeze(['id']),
+})
 const signatureOf = (version, fn) => {
   const v = Number(version)
+  if (v === 2 || v === 3) return V3_SIGNATURES[fn] || null
   const table = v === 4 ? SIGNATURES[4] : (v === 5 || v === 6 ? SIGNATURES[5] : null)
   return table ? table[fn] || null : null
 }
@@ -322,9 +341,14 @@ export function orderArgsOf(fn, call, version) {
   const got = new Map()
   ;(call.args || []).forEach((a, i) => {
     const key = a.name || sig[i]
-    if (!key) throw new StrategyOptionError(`\`${fn}\` argument ${i + 1}: more arguments than its parameters`, a.value && a.value.tok)
-    // [B-WHEN] v5 still compiles the v4 `when`; v6 removed it
-    if (a.name && !sig.includes(key) && !(key === 'when' && Number(version) === 5)) {
+    const v3 = Number(version) === 2 || Number(version) === 3
+    if (!key) {
+      throw new StrategyOptionError(v3 ? `\`${fn}\` argument ${i + 1} by position in Pine version ${version} (only the id and the `
+        + 'direction the committed v2 / v3 captures pass are served)' : `\`${fn}\` argument ${i + 1}: more arguments than its parameters`, a.value && a.value.tok)
+    }
+    // [B-WHEN] v5 still compiles the v4 `when`; v6 removed it. ⭐ v2 / v3: `when` is the one named argument the
+    // committed v2 capture passes (B-V3)
+    if (a.name && !sig.includes(key) && !(key === 'when' && (Number(version) === 5 || v3))) {
       throw new StrategyOptionError(`\`${fn}\` has no parameter \`${key}\` in Pine version ${version}`, a.value && a.value.tok)
     }
     got.set(key, a.value)

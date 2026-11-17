@@ -89,7 +89,7 @@ Rules for every row below:
 | W9-S1 | `s1-broker-core.pine` | NYSE:RDDT 1D | 0 | the report object (rides on Q-S1-core, after W9-C0) | summary formulas | T13a | no |
 | W9-S2 | `w9-s2-sharpe.pine`, `w9-s2-sharpe-rf0.pine` | NYSE:RDDT 1D | 2 | the report object | Sharpe and Sortino at the default and at zero risk free rate | T13a | no |
 | W9-J1 | `s1-broker-core.pine` | NYSE:RDDT 1D | 0 | July-2026 defaults, from the settings read-back of Q-S1-core | the defaults | T6 | no |
-| W9-G1 | `w9-g1-v3-properties.pine` | NYSE:RDDT 1D | 1 | the Properties read-back only | which Strategy Properties inputs a //@version=3 strategy has (U14 G1: v2 and v3 lack process_orders_on_close, close_entries_rule and both margins) | T3a | no |
+| W9-G1 | `w9-g1-v3-properties.pine` | NYSE:RDDT 1D | 1 | the Properties read-back only | which Strategy Properties inputs a //@version=3 strategy has (U14 G1: v2 and v3 lack process_orders_on_close, close_entries_rule and both margins). 2026-11-17: with w9-q-s1a-size-v2 it pins B-V3 (both MATCH: the v2 / v3 entry / close calls and the read-back defaults), docs/pine/evidence/2026-11-17-strategy-v2-v3/EVIDENCE.md; still open, NEEDS_LIVE with the report: a v2 / v3 strategy.exit / close_all / cancel / order or any other argument, and a v2 / v3 position past the equity | T3a | no |
 
 ## D. Live (deferred)
 

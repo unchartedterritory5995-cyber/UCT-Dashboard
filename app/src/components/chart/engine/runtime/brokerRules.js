@@ -112,6 +112,9 @@ export const BROKER_RULES = Object.freeze({
   'B-FUNDS-REVERSE': Object.freeze({ capture: 'Q-S1i', what: 'such a reversal whose new size x fill price exceeds the equity it was sized from (the signal close\'s) is rejected whole: nothing closes, nothing opens, not kept waiting' }),
   'B-MARGIN-CALL-ALL': Object.freeze({ capture: 'Q-S1i', what: 'a margin call whose manual size exceeds the trade closes the whole trade' }),
   'B-ENTRY-ORDER': Object.freeze({ capture: 'Q-S1d', what: 'several market strategy.entry orders (and nothing else) on one opening tick are taken in the order the script placed them, each against the position the one before left; served while every one before the last fills nothing' }),
+  // ── 2026-11-17, Pine v2 / v3 strategies from the two committed v2 / v3 report captures (w9-q-s1a-size-v2,
+  // w9-g1-v3-properties). APPENDED, never inserted.
+  'B-V3': Object.freeze({ capture: 'W9-G1', what: 'a Pine v2 / v3 strategy: strategy.entry(id, direction) and strategy.close(id), by position, with a named `when`, and the Properties read back for those versions (fixed size 1, initial capital 100,000, pyramiding 1, no commission or slippage, no margin input: a position worth more than the equity refuses)' }),
 })
 
 export const BROKER_RULE_IDS = Object.freeze(Object.keys(BROKER_RULES))

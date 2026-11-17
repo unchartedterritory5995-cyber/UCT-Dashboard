@@ -40,7 +40,7 @@ describe('W9-T1 pinned(): the committed ledger holds the rules the captures witn
       'B-EXIT-LIFE', 'B-FIFO', 'B-FILL', 'B-FUNDS', 'B-FUNDS-REVERSE', 'B-FUNDS-SHORT', 'B-GAP', 'B-MARGIN', 'B-MARGIN-CALL',
       'B-MARGIN-CALL-ALL', 'B-MARKET', 'B-OCA', 'B-ORDER', 'B-PATH', 'B-PYR', 'B-QTY', 'B-QTY-REVERSE',
       'B-REVERSE', 'B-RISK-ALLOW', 'B-RISK-DDOWN', 'B-ROUND', 'B-SIG', 'B-SLIPPAGE', 'B-TICK-HIST',
-      'B-TXT-CLOSE-ALL-ID', 'B-TXT-CLOSE-ID', 'B-TXT-ENTRY-CLOSE-ID', 'B-TXT-NO-COMMENT', 'B-VAL', 'B-WHEN',
+      'B-TXT-CLOSE-ALL-ID', 'B-TXT-CLOSE-ID', 'B-TXT-ENTRY-CLOSE-ID', 'B-TXT-NO-COMMENT', 'B-V3', 'B-VAL', 'B-WHEN',
     ])
   })
   it('with the real ledger a run that exercises only pinned rules completes; an unpinned rule stops it by name', () => {
