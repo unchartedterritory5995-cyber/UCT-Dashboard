@@ -61,7 +61,7 @@ Measured on production 2026-11-17 ~02:58Z by `tools/pine_library/promotion_check
 - **"Held" is the allowlist's `heldOut` list** (`tools/pine_library/promotion_allowlist.json`). The row says:
   INCONCLUSIVE ×3 host-only (Rolling VWAP is `pine:block`), MATCH ×3 only with the runtime pane on.
 - **The store's deny rule reads a different file:** `pineLibraryDeny.json` (`DENY_FILE`, `denied()`,
-  `pine_library_store.py:62-91`). That file lists a version only for a DIVERGE: *"INCONCLUSIVE is not wrong and
+  `pine_library_store.py:62-91` at `66dd41b3e8`). That file lists a version only for a DIVERGE: *"INCONCLUSIVE is not wrong and
   is not a reason to list a version"* (`pineLibraryDeny.json` `_`[2]).
 - **Before this change nothing that serves read the allowlist.** Its readers were `promotion_check.py` (the
   owner's tool) and `tests/test_pine_library_pinning.py`. So held out meant "not to be copied in", never "not
@@ -129,13 +129,28 @@ Two expectations changed to the new truth:
 
 ## Mutants
 
-Each one was copied aside, mutated, run against both store files, restored from the copy, and checked
-byte-equal to HEAD (`git hash-object`). They ran on the tree at `fbc5d7e016`; the log is in the PR body.
+How each one ran:
+- the file was copied aside (outside the repository) and mutated;
+- `tests/test_pine_library_pinning.py` and `tests/test_pine_library_store.py` were run with `-x`, no bytecode;
+- the file was restored from the copy and checked byte-equal to HEAD (`git hash-object` = `HEAD:<file>`).
 
-M1 the gate never refuses · M2 the pinned sha is not compared · M3 an unreadable allowlist serves everything ·
-M4 held out not told apart · M5 a row without a sha256 is read · M6 the read door lets held/unpromoted through ·
-M7 the server run's pins ignore them · M8 the fetch tool reads the served set · M9 `promotion_check` prints
-the stored status.
+M1-M4 ran on `fbc5d7e016`; M5-M9 on `0222195af6`, whose code files are identical to it.
+**9 of 9 killed:**
+
+| mutant | killed by |
+|---|---|
+| M1 the gate never refuses (`if True:`) | `test_a_held_out_version_is_refused_by_name` |
+| M2 the pinned sha is not compared (`path in promoted`) | `test_a_promoted_version_is_served_only_at_its_pinned_sha` |
+| M3 an unreadable allowlist serves everything (`promoted is None or ...`) | `test_an_unreadable_allowlist_serves_nothing[missing]` |
+| M4 held out not told apart (always `unpromoted`) | `test_a_held_out_version_is_refused_by_name` |
+| M5 a row without a sha256 is read | `test_an_unreadable_allowlist_serves_nothing[row-without-sha]` |
+| M6 the read door lets held / unpromoted through | `test_a_held_out_version_is_refused_by_name` |
+| M7 the server run's pins ignore held / unpromoted | `test_a_held_out_version_is_refused_by_name` |
+| M8 the fetch tool reads the served set (re-fetches a held version) | `test_the_owner_tools_still_see_what_the_store_holds` |
+| M9 `promotion_check` prints the stored status | `test_the_owner_tools_still_see_what_the_store_holds` |
+
+M8's first run saved its copy inside the repository, and the library-declaration scan went red on that copy
+first. It was re-run with the copy outside the repository and killed by its own rail, as above.
 
 ## Member-facing cost: who imports each version that is now refused
 
