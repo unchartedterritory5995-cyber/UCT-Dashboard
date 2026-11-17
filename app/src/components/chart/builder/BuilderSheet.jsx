@@ -2566,7 +2566,12 @@ export default function BuilderSheet({
   }, [formPrint])
   useEffect(() => { if (!editing) setOpenPrint(null) }, [editing])
   const untouchedSinceOpen = !!(editing && openPrint !== null && openPrint === formPrint)
-  const dirty = (pineText.trim() !== '' || source.trim() !== '' || name.trim() !== ''
+  // ⭐ 2026-11-17 — A NAME THE SHEET FILLED IN IS NOT THE MEMBER'S UNSAVED FORMULA. Since the name field
+  // follows the conversation (`autoNameRef`), a described indicator put a name in the form, and closing
+  // asked "Discard this formula?" about a form nobody touched, and asked again after the conversation
+  // was saved. Only a name the MEMBER typed counts; the conversation's own unsaved state asks for itself.
+  const nameIsMembers = name.trim() !== '' && name !== autoNameRef.current
+  const dirty = (pineText.trim() !== '' || source.trim() !== '' || nameIsMembers
       || plotRows.some((r) => String(r.source || '').trim() !== '')
       || !isUntouchedRow(plot0) || target !== 'pane' || levelsText.trim() !== '')
     && !(savedRow && savedRow.source === source)
