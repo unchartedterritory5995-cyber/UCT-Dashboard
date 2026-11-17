@@ -48,3 +48,13 @@ export { registerPineLibrary, clearPineLibraries, libraryEntryProblem } from '..
 // ⭐ STUDIO R5 (Indicators backlog 44): a script's top-level names with their lines, read by the
 // engine's own lexer and statement splitter ("Inspect a bar" builds its probe copy from them).
 export { topLevelNames } from './topLevelNames.js'
+// ⭐⭐ HEADLESS (Studio R6): a saved definition computed with no chart, and the seeded reference series
+// its `work` is measured over, so the service computes a definition's work itself and never trusts a
+// client's number (`../headlessCompute.js`, `../referenceSeries.js`). The lane router is the chart's own.
+export { computeHeadless } from '../headlessCompute.js'
+export { computeLaneOf, COMPUTE_LANE } from '../computeLane.js'
+export {
+  referenceBars, referenceBenchmarkBars, referenceDigest, referenceOptions,
+  REFERENCE_SEED, REFERENCE_BENCHMARK_SEED, REFERENCE_START, REFERENCE_BAR_COUNT, REFERENCE_TIMEFRAME,
+  REFERENCE_SYMBOL, REFERENCE_BARS_SHA256, REFERENCE_BENCHMARK_SHA256,
+} from '../referenceSeries.js'

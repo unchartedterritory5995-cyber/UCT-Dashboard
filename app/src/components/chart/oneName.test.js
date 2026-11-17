@@ -12,6 +12,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { USER_CATEGORY, REFUSED_CATEGORY } from './indicatorCatalog'
+import { windowTitle, startOverLabel } from './builder/windowTitle'
 
 const read = (p) => fs.readFileSync(path.resolve(__dirname, p), 'utf8')
 /** Source without block, JSX-block and line comments. */
@@ -50,7 +51,30 @@ describe('a saved indicator is called an indicator', () => {
 
   it('"formula" is still the name of the typed way in', () => {
     expect(code(read('./ChartSettingsIndicators.jsx'))).toMatch(/>[Ww]rite a formula</)   // UCT Signature R2: a sentence-case link ("Write a formula")
-    expect(code(read('./IndicatorLibraryDialog.jsx'))).toMatch(/New formula/)
+  })
+
+  // ⭐ Owner decision 2026-11-17 (backlog 49): the window is named by where it opens. From a chart
+  // the member pressed "Create indicator" and the window says so; from the Screener the same
+  // window builds a scan's formula and keeps "New formula". The chart's launchers use the same words.
+  it('the builder window is titled by where it opens, and the launchers on a chart say what it is titled', () => {
+    expect([windowTitle('indicator', false), windowTitle('indicator', true)]).toEqual(['Create indicator', 'Edit indicator'])
+    expect([windowTitle('formula', false), windowTitle('formula', true)]).toEqual(['New formula', 'Edit formula'])
+    expect(windowTitle(undefined, false)).toBe('New formula')              // a mount that says nothing is the Screener's
+    expect([startOverLabel('indicator'), startOverLabel('formula')]).toEqual(['New indicator', 'New formula'])
+    const toolbar = code(read('./ChartToolbar.jsx'))
+    expect(toolbar).toMatch(/noun="indicator"/)                             // the chart's ONE mount of the window
+    expect(toolbar).not.toMatch(/>New formula</)
+    expect(code(read('./IndicatorLibraryDialog.jsx'))).toMatch(/createName\}>Create indicator</)
+    expect(code(read('./IndicatorLibraryDialog.jsx'))).not.toMatch(/>New formula</)
+    // the Screener's mounts do not name a noun, so they keep "formula"
+    for (const p of ['../../pages/screener/ScreensManager.jsx', '../../pages/charts/widgets/ScanObjectCard.jsx']) {
+      if (!fs.existsSync(path.resolve(__dirname, p))) continue
+      const mount = /<BuilderSheet\b[\s\S]*?\/>/.exec(code(read(p)))
+      expect(mount, `${p} mounts the window`).not.toBeNull()
+      expect(mount[0], p).not.toMatch(/\bnoun=/)
+    }
+    // CONTROL: the same reader finds the noun on the chart's mount, so the check above can fail
+    expect(/<BuilderSheet\b[\s\S]*?\/>/.exec(toolbar)[0]).toMatch(/\bnoun="indicator"/)
   })
 
   it('⛔ CONTROL: the sweep sees the old wording in code and ignores it in a comment', () => {

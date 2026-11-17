@@ -30,6 +30,7 @@ import HighsLowsPanel, {
   isAnswerFor, normGroup, normSide,
 } from './HighsLowsPanel'
 import { stampedKey } from './marketRead'
+import { NHNL_SERIES_URL, PULSE_MIN_POINTS } from './highsLowsPulseModel'
 import { colourLiteralsIn } from '../__tests__/themeScope'
 import { expectNoAxeViolations } from '../../journal-2-0/a11y/axeHarness'
 
@@ -442,6 +443,167 @@ describe('HILO accessibility', () => {
     await expectNoAxeViolations(document.body.firstElementChild)
     fireEvent.click(screen.getByTestId('terminal-hilo-group-sector'))
     await screen.findByRole('table', { name: 'Sectors with stocks at new highs (2)' })
+    await expectNoAxeViolations(document.body.firstElementChild)
+  }, 20_000)
+})
+
+// ── data wave 4: the small chart above the lists (HighsLowsPulse.jsx over GET /api/nhnl/series) ──
+// The series is a RATE (new highs and new lows set per second), one point every couple of seconds;
+// the fixture is the route's real shape (api/services/nhnl_live.py get_series).
+const pt = (hms, hi, lo) => ({ t: `2026-11-16T${hms}.123456-05:00`, hi, lo })
+const SERIES = {
+  window: 'rth', asof: ASOF, date: '2026-11-16', active: true, sample_secs: 2.0, highs_total: 124, lows_total: 76,
+  series: [pt('09:45:00', 0.4, 1.2), pt('10:00:00', 1.1, 0.9), pt('10:15:00', 2.4, 0.5), pt('10:31:00', 1.8, 0.35)],
+}
+const withSeries = (map, series = SERIES) => byUrl({ ...map, [NHNL_SERIES_URL]: series })
+
+describe('HILO chart of highs against lows through the session', () => {
+  it('draws both lines above the lists, each ending in its own label, with the numbers in its text alternative', async () => {
+    jsonFetcher.mockImplementation(withSeries({ [URL_STOCKS]: LIVE }))
+    renderPanel()
+    const svg = await screen.findByTestId('terminal-hilo-pulse-svg')
+    expect(jsonFetcher.mock.calls.map((c) => c[0]).sort()).toEqual([URL_STOCKS, NHNL_SERIES_URL].sort())
+    // an inline SVG image whose name states the span, the latest rates and the session's counts
+    expect(svg.tagName.toLowerCase()).toBe('svg')
+    expect(svg.getAttribute('role')).toBe('img')
+    const alt = svg.getAttribute('aria-label')
+    expect(alt).toBe('New highs and new lows being set each second across the market, 9:45 AM to 10:31 AM Eastern. '
+      + 'Latest reading: 1.8 new highs a second and 0.35 new lows a second. '
+      + 'So far this session 124 stocks have made a new high and 76 stocks have made a new low.')
+    expect(svg.querySelector('title').textContent).toBe(alt)
+    // two lines, oldest reading at the left edge and the latest at the right
+    for (const side of ['highs', 'lows']) {
+      const d = screen.getByTestId(`terminal-hilo-pulse-${side}`).getAttribute('d')
+      expect(d.startsWith('M0 '), side).toBe(true)
+      expect(d.split('L')).toHaveLength(4)
+      expect(d.split('L').pop().startsWith('600 '), side).toBe(true)
+    }
+    expect(screen.getByTestId('terminal-hilo-pulse-highs').getAttribute('d')).not.toBe(screen.getByTestId('terminal-hilo-pulse-lows').getAttribute('d'))
+    // told apart by more than color: a text label at the end of each line, and the caption names the dashed one
+    expect(screen.getByTestId('terminal-hilo-pulse-label-highs').textContent).toBe('Highs 1.8/s')
+    expect(screen.getByTestId('terminal-hilo-pulse-label-lows').textContent).toBe('Lows 0.35/s')
+    const caption = screen.getByTestId('terminal-hilo-pulse-caption').textContent
+    expect(caption).toContain('New highs (solid line) and new lows (dashed line)')
+    expect(caption).toContain('from 9:45 AM to 10:31 AM ET')
+    expect(caption).toContain('The scale runs from 0 to 5 a second.')
+    expect(caption).not.toContain('not only the view below')
+    // above the lists, and the lists are as before
+    const pulse = screen.getByTestId('terminal-hilo-pulse')
+    const highs = screen.getByTestId('terminal-hilo-highs')
+    expect(pulse.compareDocumentPosition(highs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(symsOf('highs')).toEqual(['AAA', 'BBB', 'CCC'])
+    expect(symsOf('lows')).toEqual(['DDD', 'EEE'])
+  })
+
+  it('its own read failing never fails the lists: one line says so, and Retry asks for the chart alone', async () => {
+    let seriesCalls = 0
+    jsonFetcher.mockImplementation(async (url) => {
+      if (url === URL_STOCKS) return LIVE
+      seriesCalls += 1
+      if (seriesCalls === 1) throw fail(500)
+      return SERIES
+    })
+    renderPanel()
+    const note = await screen.findByTestId('terminal-hilo-pulse-error')
+    expect(note.textContent).toContain('The highs and lows chart could not be read just now. The lists below are not affected.')
+    expect(screen.queryByTestId('terminal-hilo-pulse-svg')).toBeNull()
+    expect(screen.queryByTestId('terminal-hilo-error')).toBeNull()
+    expect(symsOf('highs')).toEqual(['AAA', 'BBB', 'CCC'])
+    expect(screen.getByTestId('terminal-hilo-totals').textContent).toContain('124 stocks at a new high')
+    const liveCalls = jsonFetcher.mock.calls.filter((c) => c[0] === URL_STOCKS).length
+    fireEvent.click(within(note).getByRole('button', { name: 'Retry the chart' }))
+    await screen.findByTestId('terminal-hilo-pulse-svg')
+    expect(jsonFetcher.mock.calls.filter((c) => c[0] === URL_STOCKS)).toHaveLength(liveCalls)
+  })
+
+  it('a paywalled or unreadable chart says so with the lists intact, and never draws a flat line', async () => {
+    jsonFetcher.mockImplementation(async (url) => { if (url === URL_STOCKS) return LIVE; throw fail(402) })
+    renderPanel()
+    const locked = await screen.findByTestId('terminal-hilo-pulse-error')
+    expect(locked.textContent).toContain('needs a paid plan')
+    expect(within(locked).queryByRole('button')).toBeNull()
+    expect(symsOf('lows')).toEqual(['DDD', 'EEE'])
+    cleanup()
+    jsonFetcher.mockImplementation(withSeries({ [URL_STOCKS]: LIVE }, { detail: 'unexpected' }))
+    renderPanel()
+    const odd = await screen.findByTestId('terminal-hilo-pulse-error')
+    expect(odd.textContent).toContain('came back in a form this panel cannot read')
+    expect(screen.queryByTestId('terminal-hilo-pulse-svg')).toBeNull()
+  })
+
+  it('too few readings says so instead of drawing', async () => {
+    const few = { ...SERIES, series: SERIES.series.slice(0, PULSE_MIN_POINTS - 1) }
+    jsonFetcher.mockImplementation(withSeries({ [URL_STOCKS]: LIVE }, few))
+    renderPanel()
+    const note = await screen.findByTestId('terminal-hilo-pulse-few')
+    expect(note.textContent).toContain(`Too few readings to draw the highs and lows chart yet (${PULSE_MIN_POINTS - 1} so far, and it needs ${PULSE_MIN_POINTS}).`)
+    expect(screen.queryByTestId('terminal-hilo-pulse-svg')).toBeNull()
+    cleanup()
+    jsonFetcher.mockImplementation(withSeries({ [URL_STOCKS]: LIVE }, { ...SERIES, series: [] }))
+    renderPanel()
+    expect((await screen.findByTestId('terminal-hilo-pulse-few')).textContent).toContain('(0 so far')
+  })
+
+  it('outside market hours and with the scanner off the chart is not mounted and its route is never asked', async () => {
+    const closedSeries = { ...SERIES, window: 'closed', active: false }
+    for (const [body, state] of [[CLOSED, 'terminal-hilo-closed'], [OFF, 'terminal-hilo-off']]) {
+      jsonFetcher.mockReset()
+      jsonFetcher.mockImplementation(withSeries({ [URL_STOCKS]: body }, closedSeries))
+      renderPanel()
+      await screen.findByTestId(state)
+      expect(screen.queryByTestId('terminal-hilo-pulse')).toBeNull()
+      expect(jsonFetcher.mock.calls.map((c) => c[0])).toEqual([URL_STOCKS])
+      cleanup()
+    }
+  })
+
+  it('a series the server marks as not running is never drawn as a live line', async () => {
+    jsonFetcher.mockImplementation(withSeries({ [URL_STOCKS]: LIVE }, { ...SERIES, window: 'closed', active: false }))
+    renderPanel()
+    expect((await screen.findByTestId('terminal-hilo-pulse-idle')).textContent).toContain('The scanner is not running right now')
+    expect(screen.queryByTestId('terminal-hilo-pulse-svg')).toBeNull()
+  })
+
+  it('even a fault while drawing the chart leaves the lists standing', async () => {
+    // No JSON answer can do this; the getter stands in for any bug inside the chart.
+    const bomb = { ...SERIES, series: [{ get t() { throw new Error('boom') }, hi: 1, lo: 1 }] }
+    jsonFetcher.mockImplementation(withSeries({ [URL_STOCKS]: LIVE }, bomb))
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      renderPanel()
+      const note = await screen.findByTestId('terminal-hilo-pulse-crashed')
+      expect(note.textContent).toContain('The highs and lows chart could not be drawn. The lists below are not affected.')
+      expect(symsOf('highs')).toEqual(['AAA', 'BBB', 'CCC'])
+      expect(symsOf('lows')).toEqual(['DDD', 'EEE'])
+      expect(screen.getByTestId('terminal-hilo-totals').textContent).toContain('124 stocks at a new high')
+    } finally {
+      quiet.mockRestore()
+    }
+  })
+
+  it('under a sector view the chart says it is still the whole market', async () => {
+    jsonFetcher.mockImplementation(withSeries({ [URL_STOCKS]: LIVE, [URL_SECTORS]: SECTORS }))
+    renderPanel({ group: 'sector' })
+    await screen.findByTestId('terminal-hilo-pulse-svg')
+    expect(screen.getByTestId('terminal-hilo-pulse-caption').textContent).toContain('The chart is every stock the scanner watches, not only the view below.')
+  })
+
+  it('the chart, its model and its stylesheet hold no hard-coded color, and the lines use the theme tokens', () => {
+    for (const f of ['HighsLowsPulse.jsx', 'highsLowsPulseModel.js', 'highsLowsPulse.module.css']) {
+      const text = fs.readFileSync(path.join(HERE, f), 'utf8')
+      expect(colourLiteralsIn(`pages/terminal/panels/${f}`, text).map((h) => h.lit), f).toEqual([])
+    }
+    const css = fs.readFileSync(path.join(HERE, 'highsLowsPulse.module.css'), 'utf8')
+    expect(css).toMatch(/\.highs\s*\{[^}]*stroke:\s*var\(--ut-green-bright\)/)
+    expect(css).toMatch(/\.lows\s*\{[^}]*stroke:\s*var\(--ut-red-bright\)[^}]*stroke-dasharray/)
+    expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
+  })
+
+  it('the panel with the chart drawn passes axe (WCAG A and AA)', async () => {
+    jsonFetcher.mockImplementation(withSeries({ [URL_STOCKS]: LIVE }))
+    renderPanel()
+    await screen.findByTestId('terminal-hilo-pulse-svg')
+    await screen.findByTestId('terminal-hilo-highs-row-AAA')
     await expectNoAxeViolations(document.body.firstElementChild)
   }, 20_000)
 })

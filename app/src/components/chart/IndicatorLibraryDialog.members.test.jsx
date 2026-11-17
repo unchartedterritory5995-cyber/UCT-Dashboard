@@ -2,7 +2,8 @@
 //
 // Measured on production 2026-11-16 at 820 and 390 px: the Indicators window (where the
 // Members tab lives) is not offered at those sizes. This sheet is the indicators surface
-// there, so it opens the same list itself.
+// there, so it shows the same list itself: since 2026-11-17 as one of the choices of the sheet's
+// "Showing" control (`libraryShelves.js`), where it used to be a door row with its own view.
 
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act, waitFor, within } from '@testing-library/react'
@@ -39,33 +40,40 @@ function mount(props = {}) {
 
 afterEach(() => { cleanup(); registry.clearUserDefinitions(); H.library = null; H.install = null })
 
-describe('the library sheet opens the members list', () => {
-  it('offers "Members\' indicators" whatever is typed, and fetches nothing until it is pressed', () => {
+/** Choose a list in the sheet's one "Showing" control (owner decision 2026-11-17, mock-up B). */
+const show = async (value) => { await act(async () => { fireEvent.change(screen.getByTestId('library-shelf'), { target: { value } }) }) }
+const shelf = () => screen.getByTestId('library-shelf')
+
+describe('the library sheet shows the members list', () => {
+  it('offers "Members\' indicators" in Showing whatever is typed, and fetches nothing until it is chosen', () => {
     H.library = vi.fn(async () => ({ ok: true, entries: ENTRIES, next: null }))
     mount()
-    const row = screen.getByTestId('library-members')
-    expect(row).toHaveTextContent("Members' indicators")
-    expect(row).toHaveTextContent(/other members chose to publish/i)
+    const option = within(shelf()).getByRole('option', { name: "Members' indicators" })
+    expect(option.value).toBe('members')
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'zzzz no such indicator' } })
-    expect(screen.getByTestId('library-members')).toBeInTheDocument()
+    expect(within(shelf()).getByRole('option', { name: "Members' indicators" })).toBeInTheDocument()
     expect(H.library).not.toHaveBeenCalled()
+    // the two door rows this control replaced are gone: one way to a list, not two
+    expect(screen.queryByTestId('library-members')).toBeNull()
+    expect(screen.queryByTestId('library-house')).toBeNull()
   })
 
-  it('a press swaps the sheet to the list, with its own empty search box and a way back', async () => {
+  it('choosing it shows the list in the SAME sheet, with an empty search box of its own; choosing another list leaves', async () => {
     H.library = async () => ({ ok: true, entries: ENTRIES, next: null })
     mount()
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'rsi' } })
-    await act(async () => { fireEvent.click(screen.getByTestId('library-members')) })
+    await show('members')
     expect(screen.getByTestId('library-members-view')).toBeInTheDocument()
-    expect(screen.queryByTestId('library-members')).toBeNull()                 // the catalogue is not under it
     expect(screen.getByRole('searchbox').value).toBe('')                       // "rsi" was a catalogue search
+    expect(screen.getByRole('searchbox')).toHaveAccessibleName("Search members' indicators")
+    expect(shelf().value).toBe('members')                                      // the control says where you are
     await waitFor(() => expect(screen.getAllByTestId('members-entry')).toHaveLength(2))
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'volume' } })
     expect(screen.getAllByTestId('members-entry').map((r) => r.dataset.token)).toEqual(['sh_two'])
-    await act(async () => { fireEvent.click(screen.getByTestId('library-members-back')) })
+    await show('all')                                                          // no "back" first: one choice to any list
     expect(screen.queryByTestId('library-members-view')).toBeNull()
-    expect(screen.getByTestId('library-members')).toBeInTheDocument()
     expect(screen.getByRole('searchbox').value).toBe('')
+    expect(screen.getByRole('searchbox')).toHaveAccessibleName('Search indicators')
   })
 
   it('install, then "Put it on this chart": one settings write with the copy on it, and the sheet closes', async () => {
@@ -75,7 +83,7 @@ describe('the library sheet opens the members list', () => {
     H.library = async () => ({ ok: true, entries: ENTRIES, next: null })
     H.install = async () => { registry.installUserDefinitions([def]); return { ok: true, row: { def_id: def.id, version: 1 } } }
     const { writes, onClose } = mount()
-    await act(async () => { fireEvent.click(screen.getByTestId('library-members')) })
+    await show('members')
     await waitFor(() => expect(screen.getAllByTestId('members-entry')).toHaveLength(2))
     const first = () => screen.getAllByTestId('members-entry')[0]
     await act(async () => { fireEvent.click(within(first()).getByTestId('members-install')) })
@@ -87,15 +95,15 @@ describe('the library sheet opens the members list', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
-  it('closed and reopened, the sheet is back on the catalogue', async () => {
+  it('closed and reopened, the sheet is back on everything', async () => {
     H.library = async () => ({ ok: true, entries: [], next: null })
     const { rerender } = render(<IndicatorLibraryDialog open onClose={() => {}} settings={settings} onChange={() => {}} registry={registry} />)
-    await act(async () => { fireEvent.click(screen.getByTestId('library-members')) })
+    await show('members')
     expect(screen.getByTestId('library-members-view')).toBeInTheDocument()
     rerender(<IndicatorLibraryDialog open={false} onClose={() => {}} settings={settings} onChange={() => {}} registry={registry} />)
     rerender(<IndicatorLibraryDialog open onClose={() => {}} settings={settings} onChange={() => {}} registry={registry} />)
     expect(screen.queryByTestId('library-members-view')).toBeNull()
-    expect(screen.getByTestId('library-members')).toBeInTheDocument()
+    expect(shelf().value).toBe('all')
   })
 })
 

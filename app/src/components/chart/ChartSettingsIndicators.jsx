@@ -3741,7 +3741,9 @@ export default function ChartSettingsIndicators({
            be. `title` on the row rather than on the name, so the whole row is the
            hover target for it. */
         title={row.description || undefined}
-        className={`${styles.resRow} ${on ? styles.resRowOn : ''} ${refused ? styles.resRefused : ''}`}
+        /* ⭐ A MEMBER'S OWN ROW PUTS ITS DOORS ON A SECOND LINE (`resRowOwn`): five of them on the
+           name's line left the name no room (seen on production, 2026-11-17). */
+        className={`${styles.resRow} ${on ? styles.resRowOn : ''} ${refused ? styles.resRefused : ''} ${row.userDefined && definitionDoors ? styles.resRowOwn : ''}`}
         onClick={() => { if (canAct) addRow(row) }}
       >
         {/* ⭐⭐ THE FAMILY MARK. ⛔ IT IS NOT A DECORATION AND IT IS NOT THE SERIES'

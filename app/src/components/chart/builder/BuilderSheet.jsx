@@ -111,7 +111,7 @@ import * as engineRegistry from '../engine/nativeRegistry'
 import { validateUserDefinitions, installUserDefinitions } from '../engine/nativeRegistry'
 import { addInstance } from '../engine/instanceControls'
 import {
-  useUserDefinitions, saveUserDefinition, deleteUserDefinition,
+  useUserDefinitions, saveUserDefinition, deleteUserDefinition, recordStatusHeadline,
 } from '../../../hooks/useUserDefinitions'
 import FormulaField, { evaluateFormula, canSaveFormula, SHEET } from './FormulaField'
 import { manifestFromPlacements } from './pineParamManifest'
@@ -158,6 +158,9 @@ import {
   NEW_LINE_FLAG, rowIsNewLine, withLocalLineIdentities, servedLineIdentities, withoutNewLineMarkers,
 } from '../engine/lineIdentity'
 import { fieldsForInstance } from '../indicatorRegistry'
+import { windowTitle, startOverLabel } from './windowTitle'
+import { headlineToRecord, headlineKey } from './statusHeadlineRecord'
+import { editorStatusEnabled } from './editorStatusGate'
 import styles from './BuilderSheet.module.css'
 
 /** The badge vocabulary, cased for display. ⛔ The definition's vocabulary is
@@ -1057,6 +1060,11 @@ export default function BuilderSheet({
   /* W1a hand-back: the chart the sheet was opened over — the live preview draws on it */
   sym = null, tf = null,
   initialMode = null, editRow = null, initialDraft = null, initialDescription = null,
+  /* ⭐ WHAT THIS WINDOW IS CALLED, BY WHERE IT OPENS (owner decision 2026-11-17, backlog 49). From a
+     chart the member pressed "Create indicator", so the window says so; from the Screener the same
+     window builds a scan's formula and keeps "New formula". Only the title and the footer's
+     start-over button read it. */
+  noun = 'formula',
 }) {
   /** ⛔⛔ CONVERSATIONAL AUTHORING IS DARK (release gate 2026-10-06). It shipped
    *  UNGATED here once and reached every paid member's New Formula sheet; it is
@@ -1146,6 +1154,23 @@ export default function BuilderSheet({
    *  consistency."* Import was the one tab whose state was purely local, so it
    *  was the one tab that broke the rule the others follow. */
   const [pineText, setPineText] = useState('')
+  // ⭐ STUDIO R4 — the status panel's sentence for the text in the script box (`PineBox` reports
+  // it), and the versions it has already been put on record for in this window.
+  const [statusHeadline, setStatusHeadline] = useState(null)
+  const headlinesSent = useRef(new Set())
+  /** Put the panel's sentence on record for a saved version of THIS text. Never awaited. */
+  const postStatusHeadline = useCallback((defId, version, savedText, said) => {
+    const send = headlineToRecord({ enabled: editorStatusEnabled(), defId, version, savedText, said, engine: SCRIPT_ENGINE_VERSION })
+    if (!send) return false
+    const key = headlineKey(send)
+    if (headlinesSent.current.has(key)) return false
+    headlinesSent.current.add(key)
+    recordStatusHeadline(send.defId, send).then((r) => {
+      // a transport failure may be tried again on the next save or open; a refusal is an answer
+      if (!r.ok && r.status === null) headlinesSent.current.delete(key)
+    })
+    return true
+  }, [])
   // ⭐ the document the member door installed for `pineText` (what "Add this script to my chart" adds)
   const [scriptDoc, setScriptDoc] = useState(null)
 
@@ -1563,10 +1588,10 @@ export default function BuilderSheet({
     // the source is exactly what this document never stored. Nothing is written
     // until the member pastes and saves; closing leaves it as it was.
     if (row && row.upgradeScript === true && compute.kind === 'ast') {
-      setEditing({ defId: row.def_id, version: Number(row.version) || 1, prior: def || null, runtime: true })
-      setName(String(def?.meta?.name || ''))
       // the script, when it is stored (a remembered failed write-back); else an empty box
       const stored = typeof row.pine_source === 'string' && row.pine_source.trim() ? row.pine_source : ''
+      setEditing({ defId: row.def_id, version: Number(row.version) || 1, prior: def || null, runtime: true, script: stored || null })
+      setName(String(def?.meta?.name || ''))
       setPineText(stored)
       setBuildMode('pine')
       setView('editor'); setOrigin('pine'); setScriptDialect(null)
@@ -1588,7 +1613,7 @@ export default function BuilderSheet({
         setStoreError('This script was stored without its source, so it cannot be edited here. It is unchanged.')
         return
       }
-      setEditing({ defId: row.def_id, version: Number(row.version) || 1, prior: def || null, runtime: true })
+      setEditing({ defId: row.def_id, version: Number(row.version) || 1, prior: def || null, runtime: true, script: compute.source })
       setName(String(def?.meta?.name || ''))
       setPineText(compute.source)
       setBuildMode('pine')
@@ -2296,6 +2321,10 @@ export default function BuilderSheet({
     // manual tweak with no new paste) must not carry a stale `import_id`
     // forward and misattribute itself to an import that already landed.
     importTelemetryRef.current = null
+    // ⭐ STUDIO R4 — a script saved through the form ("Use this formula", then Save) is the same
+    // saved document as one saved through the script door, so its author's sentence goes on record
+    // the same way: only when the script rode this save, and only for exactly that text.
+    if (keepScript && res.row) postStatusHeadline(res.row.def_id, res.row.version, applyScriptRef.current, statusHeadline)
     applyProvenanceRef.current = null; pineDoorStampRef.current = null
     applyScriptRef.current = null; applyMathsRef.current = null
     const row = res.row || { def_id: doc.id, version: doc.version, rev: 1 }
@@ -2385,7 +2414,7 @@ export default function BuilderSheet({
     }
     onSaved?.(res.row)
   }, [canSave, result, allRows, name, onSaved, settings, onChange, editing,
-    documentFor, lookToApply, intent, intentRead])
+    documentFor, lookToApply, intent, intentRead, statusHeadline, postStatusHeadline])
 
   // ⭐⭐ DELETE ASKS FIRST.
   //
@@ -2462,6 +2491,9 @@ export default function BuilderSheet({
     if (!res.ok) return res
     importTelemetryRef.current = null
     const row = res.row || {}
+    // ⭐ STUDIO R4 — the sentence the author was just shown goes on record for THIS version, so a
+    // share of it can say so. Not awaited: it never delays the save or its receipt.
+    postStatusHeadline(row.def_id, row.version, pineText, statusHeadline)
     // ⭐ LINE IDENTITY — as `save` (a create has no prior: every line pending).
     const storedDoc = withLocalLineIdentities({
       ...doc,
@@ -2504,9 +2536,17 @@ export default function BuilderSheet({
     // still renders for a host that stays open (a preview mount passes none).
     onSaved?.(row)
     return { ok: true }
-  }, [settings, onChange, onSaved, editing])
+  }, [settings, onChange, onSaved, editing, pineText, statusHeadline, postStatusHeadline])
   const attachPine = useCallback((definition, options = null) => attachPineAs(definition, options, true), [attachPineAs])
   const attachPineCopy = useCallback((definition, options = null) => attachPineAs(definition, options, false), [attachPineAs])
+  // ⭐ STUDIO R4 — a script saved before the sentence was recorded gets it when its author opens it
+  // again, as long as the box still holds exactly what was saved (an edited box is about a
+  // version that does not exist yet).
+  useEffect(() => {
+    if (!open || !editing || !editing.runtime || typeof editing.script !== 'string') return
+    if (editing.script !== pineText) return
+    postStatusHeadline(editing.defId, editing.version, pineText, statusHeadline)
+  }, [open, editing, pineText, statusHeadline, postStatusHeadline])
 
   const badge = useMemo(() => (mode ? (REPAINT_LABEL[mode] || mode) : null), [mode])
 
@@ -2666,7 +2706,7 @@ export default function BuilderSheet({
   if (!open) return null
 
   const isEditor = view === 'editor'
-  const sheetTitle = editing ? 'Edit formula' : 'New formula'
+  const sheetTitle = windowTitle(noun, !!editing)
   const chip = origin === 'pine'
     ? scriptChip(scriptDialect, pineText, editing && editing.prior && editing.prior.meta ? editing.prior.meta.pineVersion : null)
     : (origin ? SOURCE_CHIP[origin] : null)
@@ -3115,6 +3155,8 @@ export default function BuilderSheet({
               key={editing && editing.runtime ? `edit:${editing.defId}` : 'new'}
               dialect="auto"
               disabled={saving}
+              // ⭐ STUDIO R4 — the status panel's sentence and the text it is about
+              onStatusHeadline={setStatusHeadline}
               // ⚠️ AN INITIAL VALUE, NOT A CONTROLLED ONE. `initialSource` seeds
               // `PasteBox`'s own state on mount — and seeds `report`,
               // `authorKnobs` and `lastTextRef` with it, which is why restoring
@@ -3630,6 +3672,7 @@ export default function BuilderSheet({
               defId={editing.defId}
               defName={(editing.row && editing.row.definition
                 && editing.row.definition.meta && editing.row.definition.meta.name) || null}
+              noun={noun === 'indicator' ? 'indicator' : 'formula'}
             />
           )}
 
@@ -4258,7 +4301,7 @@ export default function BuilderSheet({
                 type="button"
                 className={styles.ghostBtn}
                 onClick={cancelEdit}
-              >New formula</button>
+              >{startOverLabel(noun)}</button>
             )}
             {/* Cancel goes through the SAME door as Escape and the × — one place
                 decides whether unsaved work needs a prompt. */}

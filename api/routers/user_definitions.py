@@ -107,6 +107,14 @@ class EngineStatusIn(BaseModel):
     reason: str = Field(..., min_length=1, max_length=2000)
 
 
+class StatusHeadlineIn(BaseModel):
+    """⭐ STUDIO R4 — the owner's status-panel headline for their live version, and the script
+    engine that computed it (`svc.record_status_headline`). Bounded on every field."""
+    version: int = Field(..., ge=1)
+    engine: int = Field(..., ge=1)
+    headline: str = Field(..., min_length=1, max_length=svc.MAX_STATUS_HEADLINE_CHARS)
+
+
 # ── WS-I Part 2: the runtime-admission door's INVOCATION bound (review B1c, 2026-11-13) ──────
 # The same shape as `_charge_propose` below it in spirit: one sliding window per member, charged
 # BEFORE any work, per process (exact while web is one uvicorn process; per instance after a
@@ -829,6 +837,26 @@ def record_engine_status(def_id: str, body: EngineStatusIn,
         return svc.record_engine_status(user["id"], def_id, version=body.version,
                                         engine=body.engine, status=body.status,
                                         reason=body.reason)
+    except svc.SaveConflict as exc:
+        return JSONResponse(status_code=409,
+                            content={"detail": str(exc), "conflict": exc.as_dict()})
+    except svc.ForkRefused as exc:
+        raise HTTPException(status_code=404, detail="Not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/{def_id}/status-headline")
+def record_status_headline(def_id: str, body: StatusHeadlineIn,
+                           user: dict = Depends(require_paid)):
+    """⭐ STUDIO R4 (Indicators backlog 43) — the owner's browser records the headline its status
+    panel shows for the LIVE version of the caller's own definition, with the engine that computed
+    it. The share preview, the install answer and the library entry then carry it for the version a
+    link pins (`svc.share_headlines`). Append-only; the document is never touched. 404 for a
+    definition that is not the caller's or not live, 409 for a version that is no longer live."""
+    try:
+        return svc.record_status_headline(user["id"], def_id, version=body.version,
+                                          engine=body.engine, headline=body.headline)
     except svc.SaveConflict as exc:
         return JSONResponse(status_code=409,
                             content={"detail": str(exc), "conflict": exc.as_dict()})
