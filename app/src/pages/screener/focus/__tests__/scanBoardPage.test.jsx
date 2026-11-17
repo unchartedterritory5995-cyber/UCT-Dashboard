@@ -19,7 +19,7 @@ import FocusScreener from '../FocusScreener'
 import { AuthContext } from '../../../../context/AuthContext'
 
 import { MQ } from '../../../../styles/breakpoints'
-import { BOARD_PREF, PRESETS, sanitize, serialize, pickLayout } from '../board/boardModel'
+import { BOARD_PREF, BOARD_PREF_TABLET, PRESETS, TABLET_PRESETS, sanitize, serialize, pickLayout } from '../board/boardModel'
 import { PLAIN_STARTERS } from './rsScreensFixture'
 
 const META = { filters: [{ key: 'rs_rank', label: 'RS Rank', category: 'technical', type: 'range', presets: [{ label: 'Any' }] }],
@@ -30,6 +30,7 @@ const ROWS = [
 ]
 let stored
 let wide
+let tabletSize
 let heightSpy
 const prefWrites = () => fetch.mock.calls.filter(([u, o]) => String(u).startsWith('/api/auth/preferences') && o?.method === 'POST').map(([, o]) => JSON.parse(o.body))
 
@@ -40,7 +41,8 @@ beforeEach(() => {
 
   stored = {}
   wide = true
-  window.matchMedia = q => ({ matches: q === MQ.desktop ? wide : false, media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} })
+  tabletSize = false
+  window.matchMedia = q => ({ matches: q === MQ.desktop ? wide : q === MQ.tablet ? tabletSize : false, media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} })
   heightSpy = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(640)
   globalThis.fetch = vi.fn(async (u, o) => {
     const url = String(u)
@@ -230,4 +232,65 @@ test('an admin is told on the Layout menu how many shared layouts wait for revie
   fireEvent.change(within(ask).getByLabelText('Layout name'), { target: { value: 'Mine' } })
   fireEvent.click(within(ask).getByRole('button', { name: 'Share' }))
   await waitFor(() => expect(galleryCalls().map(c => c[0])).toEqual(['GET', 'POST', 'GET']))
+})
+
+// The scan board on a tablet (SCREENER_SCAN_BOARD_TABLET_ENABLED, on top of the board's own flag).
+const onTablet = (w = 1024, h = 768) => { wide = false; tabletSize = true; window.innerWidth = w; window.innerHeight = h }
+
+test('a tablet without the tablet flag keeps the older page; with only the tablet flag (no board flag) too', async () => {
+  onTablet()
+  const first = draw(true)
+  await waitFor(() => expect(screen.getByTestId('focus-row-MU')).toBeInTheDocument())
+  expect(page()).not.toHaveAttribute('data-board')
+  first.unmount()
+  draw(false, { screenerScanBoardTabletEnabled: true })
+  await waitFor(() => expect(screen.getByTestId('focus-row-MU')).toBeInTheDocument())
+  expect(page()).not.toHaveAttribute('data-board')
+  expect(screen.queryByRole('button', { name: 'Layout' })).toBeNull()
+})
+
+test('a tablet with both flags gets the board on a tablet preset that suits how it is held, with tablet presets on the menu', async () => {
+  onTablet(1024, 768)
+  const first = draw(true, { screenerScanBoardTabletEnabled: true, screenerLayoutGalleryEnabled: true })
+  await waitFor(() => expect(screen.getByTestId('focus-row-MU')).toBeInTheDocument())
+  expect(page()).toHaveAttribute('data-board', '')
+  await waitFor(() => expect(widgetsOnBoard()).toEqual(TABLET_PRESETS.find(p => p.id === 'side').widgets.map(w => w.type)))
+  // no room for tabs on a tablet's top bar: the screens are the dropdown, and the switch for tabs is not offered
+  expect(screen.queryByRole('tablist', { name: 'Pinned screens' })).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'Layout' }))
+  const names = within(screen.getByRole('menu', { name: 'Layout' })).getAllByRole('menuitem').map(i => i.textContent.replace(/\s+/g, ' ').trim())
+  expect(names.slice(0, 3)).toEqual(['Side by side ✓ (current)', 'Stacked', 'Chart on top'])
+  expect(names.some(n => /Pinned screens as tabs|Community|Share this layout|Board|Three columns|List first/.test(n))).toBe(false)
+  // opening the board on its starting preset writes nothing
+  expect(prefWrites().some(w => /screener_scan_board/.test(JSON.stringify(w)))).toBe(false)
+  first.unmount()
+  onTablet(820, 1180)
+  draw(true, { screenerScanBoardTabletEnabled: true })
+  await waitFor(() => expect(screen.getByTestId('focus-row-MU')).toBeInTheDocument())
+  await waitFor(() => expect(widgetsOnBoard()).toEqual(['chart', 'results']))
+})
+
+test('a tablet stores its layout under its own key and never touches the desktop one; a stored tablet layout is what it opens on', async () => {
+  onTablet()
+  stored = { [BOARD_PREF]: serialize(pickLayout(sanitize(null), 'three')), [BOARD_PREF_TABLET]: serialize(pickLayout(sanitize(null, 'tablet'), 'top')) }
+  draw(true, { screenerScanBoardTabletEnabled: true })
+  await waitFor(() => expect(screen.getByTestId('focus-row-MU')).toBeInTheDocument())
+  await waitFor(() => expect(widgetsOnBoard()).toEqual(['chart', 'results', 'details'])) // 'Chart on top', not the desktop's Three columns
+  fireEvent.click(screen.getByRole('button', { name: 'Layout' }))
+  fireEvent.click(within(screen.getByRole('menu', { name: 'Layout' })).getByRole('menuitem', { name: 'Stacked' }))
+  await waitFor(() => expect(widgetsOnBoard()).toEqual(['chart', 'results']))
+  await waitFor(() => expect(prefWrites().some(w => JSON.stringify(w).includes(BOARD_PREF_TABLET))).toBe(true), { timeout: 4000 })
+  const writes = prefWrites().filter(w => /screener_scan_board/.test(JSON.stringify(w)))
+  expect(writes.every(w => w.key === BOARD_PREF_TABLET)).toBe(true)
+  expect(JSON.stringify(writes.at(-1))).toContain('\\"layoutId\\":\\"stack\\"')
+})
+
+test('the desktop is exactly as it was with the tablet flag on: desktop presets, its own key', async () => {
+  draw(true, { screenerScanBoardTabletEnabled: true })
+  await waitFor(() => expect(screen.getByTestId('focus-row-MU')).toBeInTheDocument())
+  await waitFor(() => expect(widgetsOnBoard()).toEqual(PRESETS[0].widgets.map(w => w.type)))
+  fireEvent.click(screen.getByRole('button', { name: 'Layout' }))
+  fireEvent.click(within(screen.getByRole('menu', { name: 'Layout' })).getByRole('menuitem', { name: 'Three columns' }))
+  await waitFor(() => expect(prefWrites().some(w => JSON.stringify(w).includes(BOARD_PREF))).toBe(true), { timeout: 4000 })
+  expect(prefWrites().filter(w => /screener_scan_board/.test(JSON.stringify(w))).every(w => w.key === BOARD_PREF)).toBe(true)
 })
