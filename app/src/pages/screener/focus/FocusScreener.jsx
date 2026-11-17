@@ -1143,7 +1143,7 @@ function FocusList({ mode, onMode, modeTabs = null }) {
       {(rsMarketOn || rsNoteOn || (metaError && !meta) || drops.length > 0) && (
         <div className={styles.notices} data-testid="focus-notices">
           {rsMarketOn && <RsMarketLine text={marketLine.text} state={marketLine.state} onHide={hideMarketLine} />}
-          {rsNoteOn && <RsFirstVisit onHow={openRsHelp} onDismiss={() => setPref(RS_NOTE_PREF, '1')} />}
+          {rsNoteOn && <RsFirstVisit onHow={openRsHelp} onDismiss={() => setPref('screener_rs_note_seen', '1')} />}
           {metaError && !meta && (
             // The list still renders with the current screen; only the filter registry is missing.
             <div className={styles.metaNote} role="alert">

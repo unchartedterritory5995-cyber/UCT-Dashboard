@@ -659,7 +659,7 @@ describe('STATE RAIL · D19: contextual follow-ups through the real panel — ac
     return ema21(fx)
   }
   for (const [w, mk, done] of [
-    ['make it blue', (id) => op('indicatorStyle.set', 'ixe:c1', { instance: id, property: 'color', value: 'blue', output: null }), /colour .* to blue/],
+    ['make it blue', (id) => op('indicatorStyle.set', 'ixe:c1', { instance: id, property: 'color', value: 'blue', output: null }), /color .* to blue/],
     ['change that indicator to 50', (id) => op('indicator.update', 'ixe:c1', { instance: id, inputs: [{ key: 'period', value: 50 }] }), /21 → 50/],
   ]) {
     it(`"${w}" with a conversation subject (the EMA 21 just added) → ACTS on exactly it`, async () => {

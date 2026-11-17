@@ -1384,11 +1384,85 @@ function windowOperands(series, n, i, policy) {
   return { lo: 0, hi: n - 1, buf }
 }
 
+function allFinite(series) {
+  for (let i = 0; i < series.length; i++) if (!Number.isFinite(series[i])) return false
+  return true
+}
+
+/** ⭐ SMA-EXACT, THE SLIDING FORM — the same exactly rounded window sums `exactSum` answers bar by bar
+ *  (`ta.sma` divides by `n`), for a series with no `na` (where `skip` and `propagate` read the same plain
+ *  window), in O(1) per bar instead of O(n). It is the server's case: a screener scan over the universe
+ *  ran 3,742 tickers x sma(50) + sma(200) x 1,500 bars in 58.5 s with `exactSum` per window against
+ *  44-47 s before SMA-EXACT; this form brings it back (EVIDENCE.md, "Server side").
+ *
+ *  Every add (the entering value) and every subtract (the leaving one) is a TwoSum, so `s + (the sum of
+ *  the errors e_k)` is the window's sum EXACTLY, after any number of steps. `c` accumulates the errors
+ *  in floating point, off by at most `K u sum|e_k|` after K steps; the certificate is `exactSum`'s
+ *  (what rounding `s + c` lost, plus that bound, strictly inside half a gap around `r`). Where it
+ *  cannot be given, the bar answers `exactSum` over its window and the state restarts from that window,
+ *  so errors carried from a different price scale never outlive one fallback. Railed bar for bar
+ *  against `exactSum` (`smaExactSum.test.js`). */
+function rollingExactSum(series, n, mean) {
+  const out = nan(series.length)
+  if (!(n >= 1) || series.length < n) return out
+  let s = 0
+  let c = 0
+  let e = 0
+  let K = 0
+  const restart = (lo, hi) => {
+    s = 0; c = 0; e = 0; K = 0
+    for (let k = lo; k <= hi; k += 1) {
+      const x = series[k]
+      const t = s + x
+      const bp = t - s
+      const ek = (s - (t - bp)) + (x - bp)
+      c += ek
+      e += ek < 0 ? -ek : ek
+      s = t
+      K += 1
+    }
+  }
+  restart(0, n - 2)
+  for (let i = n - 1; i < series.length; i += 1) {
+    let x = series[i]
+    let t = s + x
+    let bp = t - s
+    let ek = (s - (t - bp)) + (x - bp)
+    c += ek; e += ek < 0 ? -ek : ek; s = t
+    if (i >= n) {
+      x = -series[i - n]
+      t = s + x
+      bp = t - s
+      ek = (s - (t - bp)) + (x - bp)
+      c += ek; e += ek < 0 ? -ek : ek; s = t
+      K += 2
+    } else K += 1
+    const r = s + c
+    let exact = false
+    if (Number.isFinite(r) && r !== 0) {
+      const bq = r - s
+      const lost = (s - (r - bq)) + (c - bq)
+      const bound = 4 * (K + 3) * 2 ** -53 * e
+      if (Number.isFinite(bound)) {
+        exact = (lost < 0 ? -lost : lost) + bound < halfGap(r) * (1 - 1e-9)
+      }
+    }
+    if (exact) { out[i] = mean ? r / n : r; continue }
+    const v = exactSum(series, i - n + 1, i)
+    out[i] = mean ? v / n : v
+    restart(i - n + 1, i)
+  }
+  return out
+}
+
 /** ⚰️ `naCurrent` (the answer on an `na` bar, 0, for `highestbars` / `lowestbars`) WAS A
  *  PARAMETER HERE until S17 measured -1 on the hole bar where it answered 0. They are
  *  `NA.FINITE` now, and `arg` is what `rollingFinite` needs to count bars. */
 function rolling(series, n, reduce, policy = NA.PROPAGATE, arg = false) {
   if (policy === NA.FINITE) return rollingFinite(series, n, reduce, arg)
+  if ((reduce === windowMean || reduce === windowSum) && policy !== NA.FFILL && allFinite(series)) {
+    return rollingExactSum(series, n, reduce === windowMean)
+  }
   const out = nan(series.length)
   // ⭐ FORWARD-FILL IS A SERIES TRANSFORM, DONE ONCE. `ta.wma` replaces an `na`
   // in its lookback with the last finite value and keeps that bar's WEIGHT —
@@ -1473,7 +1547,116 @@ export function finiteWindowCount(series, n) {
   return out
 }
 
+// The partials of `exactSumShewchuk`, reused (grown on demand) so a window allocates nothing.
+let exactPartials = new Float64Array(64)
+/** Shewchuk's non-overlapping partials with `math.fsum`'s final half-even rounding: the exactly
+ *  rounded sum, whatever the data. The fallback of `exactSum`. */
+function exactSumShewchuk(series, lo, hi) {
+  let P = exactPartials
+  let np = 0
+  for (let k = lo; k <= hi; k += 1) {
+    let x = series[k]
+    let i = 0
+    for (let j = 0; j < np; j += 1) {
+      let y = P[j]
+      if ((x < 0 ? -x : x) < (y < 0 ? -y : y)) { const t = x; x = y; y = t }
+      const hiS = x + y
+      const loS = y - (hiS - x)
+      if (loS !== 0) P[i++] = loS
+      x = hiS
+    }
+    if (i >= P.length) { const q = new Float64Array(P.length * 2); q.set(P); P = q; exactPartials = q }
+    P[i] = x
+    np = i + 1
+  }
+  let n = np
+  if (n === 0) return 0
+  let hiS = P[--n]
+  let loS = 0
+  while (n > 0) {
+    const x = hiS
+    const y = P[--n]
+    hiS = x + y
+    loS = y - (hiS - x)
+    if (loS !== 0) break
+  }
+  if (n > 0 && ((loS < 0 && P[n - 1] < 0) || (loS > 0 && P[n - 1] > 0))) {
+    const y = loS * 2
+    const x = hiS + y
+    if (y === x - hiS) hiS = x
+  }
+  return hiS
+}
+/** Half the SMALLER of the two gaps around a finite non-zero double `r`: the distance from `r` within
+ *  which every real number rounds to `r` whichever side it lies on. Pure arithmetic (this module reads no
+ *  typed-array bit views): with `2^e <= |r| < 2^(e+1)` the gap above is `2^(e-52)`, and the gap below is
+ *  half that when `|r|` is exactly `2^e`; subnormals have the fixed gap `2^-1074`. */
+function halfGap(r) {
+  const a = r < 0 ? -r : r
+  let e = Math.floor(Math.log2(a))
+  if (2 ** e > a) e -= 1
+  else if (2 ** (e + 1) <= a) e += 1
+  if (e < -1022) return 2 ** -1075
+  const gap = a === 2 ** e && e > -1022 ? 2 ** (e - 53) : 2 ** (e - 52)
+  return gap / 2
+}
+/** ⭐⭐ SMA-EXACT (NUMBER PENDING) — THE EXACTLY ROUNDED SUM of `series[lo..hi]`: the true sum of the
+ *  doubles rounded ONCE, identical to Python's `math.fsum` (the twin `ast_interpret._window_mean` /
+ *  `_window_sum` call it; 23,000 / 23,000 random windows, adversarial magnitudes included).
+ *
+ *  WITNESSED: TradingView's `ta.sma` and `math.sum` equal it on every bar of every capture taken from
+ *  2026-11-14 on (31 sma plots, 129,726 bars; 2 math.sum plots, 9,165 bars; `vw-cs2-sma-exact-tie-*`
+ *  T02 / T05 and `vw-pt-na-guard-and-spy` A02 among them), where the left-to-right sum this replaces
+ *  missed the last bit on 29,305 and 2,041 of them and made `ta.change(ta.sma(...)) > 0` true on a
+ *  flat window (E02, bars 488 and 3009). A compensated (Neumaier) sum ties with it on every capture;
+ *  the exactly rounded one is the reading that can be stated. ⛔ NOT `ta.wma`: its left-to-right
+ *  weighted sum matches TradingView on 238,222 / 238,222 bars and the exact one misses 48,723
+ *  (`windowWeightedMean`, unchanged). Table: docs/pine/evidence/2026-11-16-sma-exact-sum/EVIDENCE.md.
+ *
+ *  ⭐ PERFORMANCE WITHOUT GIVING UP EXACTNESS. A compensated sum `s + c` carries the exact error of
+ *  every addition (TwoSum); its only inexact step is summing those errors, off by at most
+ *  `(m - 1) u sum|e_k|`. Where that bound, plus what rounding `s + c` lost, stays strictly inside half
+ *  a gap around the rounded result, the result IS the exactly rounded sum; anywhere else (a tie, a
+ *  cancellation) Shewchuk's partials answer. sma(200) over 5,000 SPY bars: 0.5 ms left-to-right,
+ *  ~4 ms here, 13 ms Shewchuk alone; it fell back on 0.7% of real SPY windows.
+ *
+ *  A window holding an infinity, or one whose sum overflows, answers the left-to-right sum `s`, as
+ *  before (the Python twin falls back the same way: `math.fsum` raises on an overflow). */
+export function exactSum(series, lo, hi) {
+  let s = 0
+  let c = 0
+  let e = 0
+  for (let k = lo; k <= hi; k += 1) {
+    const x = series[k]
+    const t = s + x
+    const bp = t - s
+    const ek = (s - (t - bp)) + (x - bp)
+    c += ek
+    e += ek < 0 ? -ek : ek
+    s = t
+  }
+  const r = s + c
+  const bq = r - s
+  const lost = (s - (r - bq)) + (c - bq)
+  if (!Number.isFinite(r)) return s
+  const bound = 4 * (hi - lo + 3) * 2 ** -53 * e
+  if (Number.isFinite(bound) && r !== 0) {
+    if ((lost < 0 ? -lost : lost) + bound < halfGap(r) * (1 - 1e-9)) return r
+  }
+  return exactSumShewchuk(series, lo, hi)
+}
+
+/** `ta.sma`: the exactly rounded window sum over its length (`exactSum`). A NaN in the window
+ *  answers NaN, as the left-to-right sum did (`skip` windows never hand one in). */
 function windowMean(series, lo, hi) {
+  for (let i = lo; i <= hi; i++) if (Number.isNaN(series[i])) return NaN
+  return exactSum(series, lo, hi) / (hi - lo + 1)
+}
+
+/** The left-to-right mean `ta.dev` and `ta.stdev` centre on, UNCHANGED by SMA-EXACT: neither has a
+ *  capture that separates the two sums yet (`ta.stdev`'s one probe misses for both, its own formula
+ *  is the open question), so each keeps the number it drew. */
+function windowMeanNaive(series, lo, hi) {
   let sum = 0
   for (let i = lo; i <= hi; i++) sum += series[i]
   return sum / (hi - lo + 1)
@@ -1616,10 +1799,11 @@ function pivotCol(series, left, right, beats) {
   return out
 }
 
+/** `math.sum` (and v4 `sum`): the exactly rounded window sum (`exactSum`; witnessed by
+ *  `vw-cs2-sma-exact-tie-{rddt,spy}` T05, 0 misses on 9,165 bars, left-to-right 2,041). */
 function windowSum(series, lo, hi) {
-  let total = 0
-  for (let i = lo; i <= hi; i++) total += series[i]
-  return total
+  for (let i = lo; i <= hi; i++) if (Number.isNaN(series[i])) return NaN
+  return exactSum(series, lo, hi)
 }
 
 // --------------------------------------------------------------------------- //
@@ -1779,7 +1963,7 @@ function barsAgo(src, back, limit) {
  *  plausible CCI that is wrong on every bar, which is precisely the look-alike
  *  failure the PCF refusal table exists to prevent. */
 function windowMeanAbsDev(series, lo, hi) {
-  const avg = windowMean(series, lo, hi)
+  const avg = windowMeanNaive(series, lo, hi)
   let total = 0
   for (let i = lo; i <= hi; i++) total += Math.abs(series[i] - avg)
   return total / (hi - lo + 1)
@@ -1800,7 +1984,7 @@ function windowMeanAbsDev(series, lo, hi) {
  *  user's `sma(close,20) + 2*stdev(close,20)` draws the same band the native
  *  Bollinger definition draws. The Python lane must use the same divisor. */
 function windowStdev(series, lo, hi) {
-  const avg = windowMean(series, lo, hi)
+  const avg = windowMeanNaive(series, lo, hi)
   let sq = 0
   for (let i = lo; i <= hi; i++) sq += (series[i] - avg) ** 2
   return Math.sqrt(sq / (hi - lo + 1))
@@ -2817,14 +3001,28 @@ export const FN_BAR_PRICE_NEWEST = Object.freeze({
 
 /** ⭐⭐ ENGINE 56 (S4-2) — IS THIS CANONICAL SOURCE A PRICE THE BAR ITSELF HOLDS? `open`,
  *  `high`, `low`, `close`, or one of Pine's means of them exactly as `pine.js`'s
- *  `derivedSeriesTree` builds them (`hl2`, `hlc3`, `ohlc4`, `hlcc4`: a left-nested `+`
- *  of the fields over their count). Structural, so an `input.source(close)` reads as
+ *  `derivedSeriesTree` builds them (`hl2`, `hlc3`, `ohlc4`: a left-nested `+` of the
+ *  fields over their count; `hlcc4`: `(high + low + 2 * close) / 4`, and a hand-written
+ *  four-term sum is one too). Structural, so an `input.source(close)` reads as
  *  `close`. `volume` is not on it (a bar may carry none). The arg-extreme tie rule reads
  *  it: newest wins over such a source (witnessed), a tie over anything else is withheld.
  *  Python twin: `ast_interpret.py::is_bar_price_tree`. */
 const BAR_PRICE_FIELDS = ['open', 'high', 'low', 'close']
 const BAR_PRICE_MEANS = [['high', 'low'], ['high', 'low', 'close'], ['open', 'high', 'low', 'close'],
   ['high', 'low', 'close', 'close']]
+/** `hlcc4` as `derivedSeriesTree` builds it since it took TradingView's arithmetic:
+ *  `(high + low + 2 * close) / 4`. (The four-term sum above stays: a hand-written one is still a
+ *  price the bar holds.) Python twin: `ast_interpret.py::_is_hlcc4_tree`. */
+const isSeries = (t, name) => !!t && t.type === 'series' && t.name === name
+function isHlcc4Tree(sum, k) {
+  if (!k || k.type !== 'num' || k.value !== 4) return false
+  if (!sum || sum.type !== 'op' || sum.name !== '+' || !Array.isArray(sum.args) || sum.args.length !== 2) return false
+  const [hl, twoC] = sum.args
+  return !!hl && hl.type === 'op' && hl.name === '+' && Array.isArray(hl.args) && hl.args.length === 2
+    && isSeries(hl.args[0], 'high') && isSeries(hl.args[1], 'low')
+    && !!twoC && twoC.type === 'op' && twoC.name === '*' && Array.isArray(twoC.args) && twoC.args.length === 2
+    && !!twoC.args[0] && twoC.args[0].type === 'num' && twoC.args[0].value === 2 && isSeries(twoC.args[1], 'close')
+}
 export function isBarPriceTree(t) {
   if (!t || typeof t !== 'object') return false
   // ⭐ ENGINE 56 (S1) — a source the translator marked `tieNewest` (Pine v4 / v5: TradingView
@@ -2835,6 +3033,7 @@ export function isBarPriceTree(t) {
   if (t.type !== 'op' || t.name !== '/' || !Array.isArray(t.args) || t.args.length !== 2) return false
   const [sum, k] = t.args
   if (!k || k.type !== 'num') return false
+  if (isHlcc4Tree(sum, k)) return true
   const names = []
   let at = sum
   while (at && at.type === 'op' && at.name === '+' && Array.isArray(at.args) && at.args.length === 2) {
@@ -4016,8 +4215,9 @@ export const BAR_FN = Object.freeze({
 }
 
 /** ⭐⭐ F1 — `ta.vwap` / `ta.vwap(source)` ON A DAILY CHART: every daily bar is its
- *  own session, so the value is the bar's own price — the source, or the typical
- *  price `(h + l + c) / 3` for the bare form — wherever the bar has volume.
+ *  own session, so the value is that one-bar session's `(price * volume) / volume`
+ *  — the source, or the typical price `(h + l + c) / 3` for the bare form, to within
+ *  one rounding (Q-ROB5 below) — wherever the bar has volume.
  *  WITNESSED: `h3-vwap-source-spy-1d-2026-10-02` (CAP2 Q-H3a, AMEX:SPY 1D): S01 bare
  *  = hlc3 and S02..S08 (close, open, high, low, hl2, ohlc4, hlcc4) = that price, on
  *  every bar. `computeVWAP` refuses a daily store key (no instant to bucket by), so
@@ -4042,7 +4242,15 @@ function dailySessionVwap(name, bars, args, length, opts) {
     const b = bars[i]
     if (!(b.v > 0)) continue
     const v = src ? src[i] : (b.h + b.l + b.c) / 3
-    out[i] = typeof v === 'number' && !Number.isNaN(v) ? v : NaN
+    // ⭐⭐ Q-ROB5 (2026-11-16) — THE SESSION'S OWN ARITHMETIC, `(price * volume) / volume`, NOT THE
+    // PRICE. A one-bar session's sums are `price * volume` and `volume`, and their quotient is not
+    // always the price bit for bit (one unit in the last place, either way). MEASURED: on
+    // `h3-vwap-source-spy-1d-2026-10-02` the quotient is TradingView's value on 1800 of 1800 bars for
+    // S01..S07 against 1626-1674 for the bare price; on `mtf-key-levels-support-and-resistance-rddt-1d-
+    // 2026-11-14` the script's `ceil(vwap * 100) / 100` (round up to the tick) reads TradingView's
+    // D-VWAP on every bar with the quotient and misses 5 with the price. ⚰️ Returning the price drew
+    // that D-VWAP 0.01 low on those bars (57.29 for 57.3): a tolerance hid the unit, `ceil` did not.
+    out[i] = typeof v === 'number' && !Number.isNaN(v) ? (v * b.v) / b.v : NaN
   }
   return out
 }
@@ -6965,6 +7173,69 @@ function firstPeriodPartialMask(bars, found, opts) {
   return out
 }
 
+/** ⭐⭐ REQ (coverage unit, 2026-11-16) — THE FIRST PERIOD OF A LOOK-AHEAD READ, OFF THE LISTING, for the
+ *  runtime lane's request (`requestAlignment`, `live: true`): the bars inside the chart's FIRST week / month
+ *  when the chart does not begin at the listing and its first bar does not certainly open that period, as a
+ *  0/1 column; null when there are none. The period's bar is then built from only part of the period (its
+ *  open, high, low and volume are not the period's), which is `firstPeriodPartialMask`'s reason, one period
+ *  earlier: a look-ahead read hands the first period to its OWN bars, a merge to the next period's.
+ *  ⛔ The host's `tf_live` COLUMN is not masked by this (its behaviour is unchanged here); a run carries
+ *  state from bar to bar, so the run refuses by name where a column would draw that period. */
+export const TF_LIVE_FIRST_CODE = 'request:htf-lookahead-first-period-partial'
+/** The sentence for `TF_LIVE_FIRST_CODE`. ⛔ Not a `CHART_CLOCK_WITHHELD` row: that table is the host
+ *  column's (mirrored in `ast_interpret.py`), and only the run's request names this. */
+export const TF_LIVE_FIRST_SENTENCE = 'This indicator reads a weekly or monthly value with `request.security` '
+  + '(look-ahead on). The history of this chart does not begin at the listing of its symbol, and its first bar is '
+  + 'not certainly the first session of its week or month, so the bar of the first period would be built from only '
+  + 'part of that period. What would settle it: a chart whose history begins at the first session of a period, or '
+  + 'at the listing.'
+function tfLiveFirstPeriodMask(bars, code, opts) {
+  if (opts && opts.historyFromListing === true) return null
+  const n = bars.length
+  if (!n || typeof code !== 'string') return null
+  const days = bars.map((b) => isoDay(b && b.t))
+  const name = () => {
+    const sink = opts && opts.chartClockSink
+    if (sink && typeof sink.set === 'function') sink.set(TF_LIVE_FIRST_CODE, TF_LIVE_FIRST_SENTENCE)
+  }
+  if (days.some((d) => !d)) {
+    name()
+    return new Float64Array(n).fill(1)
+  }
+  const daily = !!opts && (opts.tf === 'D' || opts.tf === '1D') && days.every((d) => isoWeekday(d) <= 5)
+  if (daily) {
+    const first = days[0]
+    const dow = isoWeekday(first)
+    const [y, m, d] = first.split('-').map(Number)
+    const [py, pm, pd] = civilFromDays(daysFromCivil(y, m, d) - (dow === 1 ? 3 : 1))
+    const prev = `${String(py).padStart(4, '0')}-${String(pm).padStart(2, '0')}-${String(pd).padStart(2, '0')}`
+    if (tfBucket(prev, code) !== tfBucket(first, code)) return null      // the first bar opens its period
+  }
+  const out = new Float64Array(n)
+  const firstBucket = tfBucket(days[0], code)
+  for (let i = 0; i < n && tfBucket(days[i], code) === firstBucket; i++) out[i] = 1
+  name()
+  return out
+}
+
+/** ⭐ REQ — THE NEWEST BAR OF A LOOK-AHEAD READ, UNLESS IT IS KNOWN FINISHED: a forming daily bar reads the
+ *  forming week / month, a reading no capture shows (`vw-request-htf-alignment-spy-1d-2026-10-02`'s newest bar
+ *  is finished). Withheld by name (`TF_LIVE_FORMING_CODE`) where `newestBarIsForming` is not `false`;
+ *  Q-REQ1 is the capture that settles it. The host's `tf_live` column is unchanged. */
+export const TF_LIVE_FORMING_CODE = 'request:htf-lookahead-forming-unmeasured'
+export const TF_LIVE_FORMING_SENTENCE = 'This indicator reads a weekly or monthly value with `request.security` '
+  + '(look-ahead on). On the bar still forming, that reads the week or month still forming, and what TradingView '
+  + 'shows there has not been captured; that bar is withheld rather than guessed. Every finished bar is drawn.'
+function tfLiveFormingMask(bars, opts) {
+  const n = bars.length
+  if (!n || (opts && opts.newestBarIsForming === false)) return null
+  const out = new Float64Array(n)
+  out[n - 1] = 1
+  const sink = opts && opts.chartClockSink
+  if (sink && typeof sink.set === 'function') sink.set(TF_LIVE_FORMING_CODE, TF_LIVE_FORMING_SENTENCE)
+  return out
+}
+
 /** ⭐ REVIEW L3 — the weekday of an ISO day, Mon = 1 … Sun = 7, from the day count alone. */
 function isoWeekday(iso) {
   const [y, m, d] = iso.split('-').map(Number)
@@ -7357,6 +7628,25 @@ export function tfMergeReads(isos, code, at) {
   return out
 }
 
+/** ⭐⭐ REQ (coverage unit, 2026-11-16) — THE LOOK-AHEAD PICK, ONE AUTHORITY: for each bar of an
+ *  ISO-dated series, the index of the higher-timeframe bar a `tf_live` read hands it (the period the
+ *  bar is INSIDE — Pine's `barmerge.lookahead_on` on historical bars), or -1 for a bar with no
+ *  readable day. The evaluator's `tf_live` arm and the runtime lane's look-ahead request
+ *  (`requestAlignment`, `live: true`) both read this.
+ *  ⭐ WITNESSED on `vw-request-htf-alignment-spy-1d-2026-10-02` (A01 weekly, A04 monthly, A06 the
+ *  previous week through `close[1]`): `vendorHarness.reqLookaheadAlignment.test.js`. */
+export function tfLiveReads(isos, code, at) {
+  const length = isos.length
+  const out = new Array(length).fill(-1)
+  for (let i = 0; i < length; i++) {
+    const iso = isos[i]
+    if (!iso) continue
+    const b = at.get(tfBucket(iso, code))
+    if (b !== undefined) out[i] = b
+  }
+  return out
+}
+
 /** ⭐⭐ RS RATING L5 — WHICH REQUESTED BAR EACH CHART BAR READS, AND WHICH CHART BARS ARE
  *  WITHHELD, for the runtime lane's `request.security`: the host lane's own answer.
  *
@@ -7379,7 +7669,7 @@ export function tfMergeReads(isos, code, at) {
  *  draws with. `opts`: `tf`, `newestBarIsForming`, `historyFromListing`, `chartClockSink`
  *  (receives each withheld code and its sentence).
  *  @returns {{runBars: object[], index: number[], withheld: Float64Array}} */
-export function requestAlignment({ chartBars, srcBars, code = null, other = null, opts = {} }) {
+export function requestAlignment({ chartBars, srcBars, code = null, other = null, live = false, opts = {} }) {
   const n = Array.isArray(chartBars) ? chartBars.length : 0
   const src = Array.isArray(srcBars) ? srcBars : []
   let runBars = src
@@ -7388,7 +7678,7 @@ export function requestAlignment({ chartBars, srcBars, code = null, other = null
     const isos = src.map((b) => isoDay(b && b.t))
     const { htf, at } = resampleTo(src, isos, code)
     runBars = htf
-    srcRead = tfMergeReads(isos, code, at)
+    srcRead = live === true ? tfLiveReads(isos, code, at) : tfMergeReads(isos, code, at)
   }
   const index = new Array(n).fill(-1)
   const sym = other === null ? null : String(other).trim().toUpperCase()
@@ -7407,11 +7697,19 @@ export function requestAlignment({ chartBars, srcBars, code = null, other = null
     }
   }
   const leaf = { type: 'num', value: 0 }
-  let tree = code !== null ? { type: TF_MERGE, value: code, args: [leaf] } : leaf
+  // ⭐ REQ — a look-ahead read is the `tf_live` tree: no merge, so no merge mask. Withheld, by name:
+  // `tfLiveFirstPeriodMask`, the first period of a chart that does not begin at the listing (built from only
+  // part of itself; inside the off-listing warm-up runs, `curtained`, the curtain judges it instead), and
+  // `tfLiveFormingMask`, the newest bar unless it is known finished (the capture's newest bar is finished;
+  // a forming one is Q-REQ1's question).
+  const liveRead = live === true && code !== null
+  let tree = code !== null ? { type: liveRead ? 'tf_live' : TF_MERGE, value: code, args: [leaf] } : leaf
   if (sym !== null) tree = { type: 'sym', value: sym, args: [tree] }
   const o = { ...(opts || {}), symbols: sym !== null ? { [sym]: src } : undefined }
   const masks = [
-    code !== null ? tfMergeMask(tree, chartBars, o) : null,
+    code !== null && !liveRead ? tfMergeMask(tree, chartBars, o) : null,
+    liveRead && o.curtained !== true ? tfLiveFirstPeriodMask(chartBars, code, o) : null,
+    liveRead ? tfLiveFormingMask(chartBars, o) : null,
     sym !== null ? symAlignmentMask(tree, chartBars, o) : null,
   ].filter(Boolean)
   const withheld = new Float64Array(n)
@@ -7914,13 +8212,14 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         // ⭐⭐ RS RATING L5 — the merge pick is `tfMergeReads`, the ONE authority the runtime
         // lane's `request.security` reads too (`requestAlignment`).
         const reads = merge ? tfMergeReads(isos, code, at) : null
+        // ⭐ REQ — and the look-ahead pick is `tfLiveReads`, the one the run's look-ahead request reads
+        const liveReads = live ? tfLiveReads(isos, code, at) : null
         const out = nan(length)
         for (let i = 0; i < length; i++) {
           const iso = isos[i]
           if (!iso) continue
           const b = at.get(tfBucket(iso, code))
-          if (live) out[i] = child[b]
-          else if (merge) {
+          if (live) { if (liveReads[i] >= 0) out[i] = child[liveReads[i]] } else if (merge) {
             if (reads[i] >= 0) out[i] = child[reads[i]]
           } else if (b > 0) out[i] = child[b - 1]
         }

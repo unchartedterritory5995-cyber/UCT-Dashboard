@@ -578,7 +578,25 @@ built, read back plausibly, and **could not fire on any bar**: the assistant com
 `lowestbars` with negative numbers, TradingView's convention, and here that count is 0 or
 more. Only the comparison with an independent calculation showed it (0 marks against 1 and
 8). The door now refuses a bars-back count compared with a negative number and says why
-(#1499); the indicator is rebuilt once that is served.
+(#1499). Asked a third time in the door's own terms ("made 3 to 11 bars ago"), the
+assistant wrote `-lowestbars(low, 50) >= 3`: the same belief, negated, and dead again. The
+rule is now the sign rather than the minus, and the prompt states the convention up front
+(#1506). The indicator is rebuilt once that is served. The lesson is general: **a built
+indicator with a plausible read-back can be wrong in a way only a second calculation
+shows**, so nothing joins the house set without one.
+
+The up/down volume ratio was built again and the assistant answered with a patch the
+engine accepts; both outputs equal a plain calculation on every bar and it joins the set
+(#1507). The set is thirteen.
+
+**The follow-through day, fourth build (2026-11-17).** With #1506 served, the plain
+description built correctly on the first attempt and with no repair: `lowestbars(low, 50)`
+between 4 and 12. It equals a plain calculation on every bar and marks 3 of SPY's 700 daily
+bars and 16 of NVDA's. It joins the set (#1527); the set is fourteen. Adding it showed a gap
+in the value rail itself: on the default test bars the condition never occurs, so agreement
+would have been 0 equals 0 on every bar and would have passed the two builds that could not
+fire. The rail's own check that a condition must happen on the test bars refused it, and a
+rare condition now gets bars on which it occurs.
 
 **The set.** Eleven are in the UCT tab (#1496), and the flat base makes twelve (#1501): distribution day count; relative strength
 against SPY, and its new high before price; extension above the 50-day in ATRs; percent from
@@ -617,9 +635,22 @@ model.
 Indicator, send), the dock open in 1.7 to 2.9 seconds, the preview 4.2 seconds after send.
 Through the door alone, the house-set requests answered in a median of about 10 seconds; a
 request that needed its repair took up to 26. X1's target for this job is two actions. The
-Indicators window's plain-words box now sends what was typed (#1500), which makes it two:
-"Add to Chart" on the chart header, then type and press Enter. UCT Agent's seeded door
-still never sends. Not yet counted on a phone.
+Indicators window's plain-words box now sends what was typed (#1500). **Counted again on
+production on 2026-11-17: four actions on the Charts page, not two** (settings, Indicators,
+add, then type and Enter), because the Charts header has had no "Add to Chart" button since
+the owner's header decision of 2026-11-11; where a chart shows that button it is two. An
+earlier version of this paragraph claimed two without counting it on Charts. UCT Agent's
+seeded door still never sends. Not yet counted on a phone.
+
+**Checked on production, 2026-11-17 (synthetic accounts, nothing left behind).** The UCT tab
+lists the set at 1500 px, and the UCT indicators sheet lists it at 390 and 820 px with 44 px
+buttons and no sideways scroll. Install saved the member's own copy under a fresh id with
+its name; "Put it on this chart" drew it; the copy was then deleted through the product's
+own door. In the dock, Enter in the plain-words box sent the words; "Distribution Day
+Count" kept the assistant's name while "EMA 20" stayed derived; "What the assistant says
+it built" showed under the engine's lines. From Enter to the read-back: 10.3 seconds for the
+distribution day count, 5.0 for a 20 EMA. One flaw seen: the "added" toast named the copy by
+its id; fixed in #1518 (every member-made indicator had this, not only house ones).
 Only one request was timed in the dock: the synthetic member's daily allowance was spent by
 the day's other checks.
 
@@ -649,10 +680,12 @@ the deploy gate.
 | R2, R3 | TradingView names on the reference page; the reference as one file for a member's own assistant | LIVE |
 | launch | library moderation (UCT takedown, a 20-listing cap per member, the licence line); spend that cannot be written still counts | merged (#1451, #1452) |
 | tool | a refused turn tells an admin why each attempt was refused | LIVE |
-| H | the house set: twelve indicators in a UCT tab (window and phone sheet), each held to an independent calculation | value-checked on real bars (section 14b); #1496, #1501 |
-| N2 | the dock keeps the assistant's name where the derived one is unreadable; "What the assistant says it built" under the engine's lines | #1495 |
-| door | a one-colour colour-states patch is refused at the door, so the model gets its repair; so is a bars-back count compared with a negative number | #1493, #1499 |
-| X1 | the plain-words box sends what the member typed: a chart to a preview in two actions | #1500 |
+| H | the house set: fourteen indicators in a UCT tab (window and phone sheet), each held to an independent calculation | LIVE with thirteen (window at 1500 px, sheet at 390 and 820 px); the fourteenth is #1527 |
+| N2 | the dock keeps the assistant's name where the derived one is unreadable; "What the assistant says it built" under the engine's lines | LIVE (#1495) |
+| door | a one-colour colour-states patch is refused at the door, so the model gets its repair; so is a bars-back count compared across its sign, and the prompt states that convention | #1493, #1499, #1506 |
+| X1 | the plain-words box sends what the member typed: four actions on Charts (was five), two where a chart shows "Add to Chart" | LIVE (#1500) |
+| toast | the chart's "added" toast and Undo list name a member's indicator, not its id | LIVE (#1518): "Flat Base added" |
+| spend | the picture door's prompt bound re-measured, so a reservation bounds the prompt again (a member's daily picture share now holds two worst-case reservations, not three; the owner may raise it). It turned the master deploy gate red for about 70 minutes: two Agent limit tests held the literal three. They derive the count now | #1509, #1522 |
 
 **The house set, second look (2026-11-16, production).** Of the five that did not draw on
 the first run: both relative-strength requests draw (the marker fix); volume bars coloured
@@ -696,6 +729,16 @@ Not started, and why:
   push once per pull request. (An earlier version of this section said every merge cancels
   the running gate. That was wrong.)
 - Parse-check every file before queueing its test.
+- A pull request's green lanes are not the deploy gate. Before merging a change to a cost
+  constant or a prompt size, search the tests for the constant and run the gate's own list
+  (`tests/test_uct_agent*.py`), not only the door's file. #1509 passed its lanes and held
+  production for every session.
+- A synthetic account's board can be changed by simply loading Charts. Since the 2026-11-16
+  layouts release, an account whose stored layout pointer is still "uct-default" opens a
+  blank board and saves it. The synthetic member is such an account: read its workspace
+  head before a check and restore it after (`POST /api/workspace/doc/restore`).
+- A worktree copy of a shared file can be behind master. Committing it as it stands undoes
+  someone else's change. Compare with master and refresh the file before editing it.
 
 **Next, in order:** check each merged change on production once its deploy gate has run (the
 evening's: L4, L6, L7, L8, the allowance line, moderation, Describe it instead, one name slice 2);
@@ -703,7 +746,7 @@ then names and read-backs with the authoring owner, the house set a third time, 
 look.
 
 **Open for the owner:**
-1. Look at each of the twelve house indicators on a chart (Indicators, UCT tab) and say which
+1. Look at each of the fourteen house indicators on a chart (Indicators, UCT tab) and say which
    stay. They were published on a value check, not on your look (D24).
 2. D23 to D28 in section 11 were taken as judgment calls. Reverse any by saying so.
 3. The 10 and 21 EMA trend indicator is held out of the house set by a false positive in the

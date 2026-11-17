@@ -217,10 +217,34 @@ export function supertrendTrees(factorNode, periodNode, warmup = SUPERTREND_WARM
 // indicator, which runs from the first bar, as the alternative.
 // ⛔ The value is withheld until the window's seed bar has a previous close
 // (`close[W + 1]` known), so no published bar reads a seed that does not exist.
-export const SAR_WARMUP = 200
+//
+// ⚰️ W WAS 200 UNTIL 2026-11-16, AND 200 WAS NOT ENOUGH. `vw-lower-tf-bars-rddt-15-2026-11-16`
+// (NYSE:RDDT 15m, 20,886 bars) put 43 published bars (5167-5246) off the full-history SAR, 17 of
+// them in value AND direction: a SAR seeded at bar 4967 needs 280 bars to rejoin the full history.
+// ⭐ W = 400, CHOSEN BY MEASUREMENT (docs/pine/evidence/2026-11-16-sar-window/EVIDENCE.md). The
+// "merge distance" (how many bars a SAR seeded at bar s needs to equal the full-history state) was
+// measured on 342 series: the 62 distinct captured series plus 280 sampled from the local bars
+// store, 40 per timeframe at 1m, 5m, 15m, 30m, 60m, D and W. That is 1.1M bars at step 0.02,
+// max 0.2.
+//   · The worst distances: 280 (RDDT 15m), 265 (META 15m), 253 (BCBP D), 250 (SPY 1m).
+//   · W = 200: 312 published bars wrong. W = 300, 400 and 600: 0 of 1,039,563 at 400.
+//   · 400 is 1.43x the worst measured, and its lookback (402) fits the 550-bar budget.
+//   · The compute is unchanged: the merged windows step about 25.6 states per bar at both 200 and
+//     400. What it costs is 200 more leading bars before the first value, and a deeper fetch.
+// ⛔ NO FINITE WINDOW IS A PROOF. Where price sets no new high or low and the SAR never flips,
+// two starting points can stay apart indefinitely (a series of identical bars does). That is
+// SAR_NOTE's caveat. Two windows that agree prove nothing either: every seed inside such a
+// stretch agrees with every other while the full history differs.
+// ⭐ A DOCUMENT SAVED BEFORE THIS CHANGE carries the 200-bar tree (a stored tree is not
+// re-expanded on load). `recogniseExpansion` reads that legacy tree back as the
+// `sar(step, maxStep)` the member wrote, so the next save re-expands it at 400.
+// `SAR_LEGACY_WARMUPS` names the windows earlier engines saved. A load-time rewrite is an
+// engine-gap row (`docs/pine/capture-queue-2026-11-16-sar-window.md`).
+export const SAR_WARMUP = 400
+export const SAR_LEGACY_WARMUPS = Object.freeze([200])
 export const SAR_MIN_STEP = 0.02
 export const SAR_MIN_MAX_STEP = 0.2
-export const SAR_NOTE = `Parabolic SAR here uses the chart's own Parabolic SAR rules and starts each value ${SAR_WARMUP} bars back instead of at the first bar of history. With a step of at least ${SAR_MIN_STEP} and a maximum of at least ${SAR_MIN_MAX_STEP} it matched the chart's full-history SAR on every bar we measured; it is not TradingView's ta.sar, whose first bars and reversal details differ.`
+export const SAR_NOTE = `Parabolic SAR here uses the chart's own Parabolic SAR rules and starts each value ${SAR_WARMUP} bars back instead of at the first bar of history. With a step of at least ${SAR_MIN_STEP} and a maximum of at least ${SAR_MIN_MAX_STEP} it matched the chart's full-history SAR on every bar we measured, across 342 price series. During a long stretch where price sets no new high or low and the SAR never flips, it can still differ from a chart that started further back. It is not TradingView's ta.sar, whose first bars and reversal details differ.`
 
 /** A finite number literal in (0, 1], or NaN. */
 function accelOf(node) {
@@ -459,7 +483,7 @@ export function expansionProblem(call) {
   }
   if (call.name === 'sar' || call.name === 'sarDirection') {
     return `${call.name} needs a step of at least ${SAR_MIN_STEP} and a maximum of at least ${SAR_MIN_MAX_STEP} (and no more than 1), both written as numbers, the maximum at least the step — ${spec.signature}. `
-      + `Slower settings are not offered because a value computed from the last ${SAR_WARMUP} bars was measured to drift from the full-history SAR there; the chart's Parabolic SAR indicator runs from the first bar and takes any setting`
+      + `Slower settings are not offered because a value computed from a bounded window of recent bars was measured to drift from the full-history SAR there; the chart's Parabolic SAR indicator runs from the first bar and takes any setting`
   }
   return `${call.name} needs a whole-number length${call.name === 'linreg' || call.name === 'correlation' ? ' of at least 2' : ''} written as a number — ${spec.signature}`
 }
@@ -684,8 +708,22 @@ export function recogniseExpansion(tree, { allowBareEma = false, allowBareSma = 
     if (name === 'mom' && !allowMom) continue
     const built = expandCall({ type: 'call', name, args })
     if (built && same(built, tree)) return { name, args }
+    // ⭐ 2026-11-16 — a document saved before the SAR window moved to SAR_WARMUP carries the
+    // older window's tree: read it back as the call the member wrote (re-expanded at the
+    // current window on the next save), and say which window it was saved with.
+    if (name === 'sar' || name === 'sarDirection') {
+      for (const w of SAR_LEGACY_WARMUPS) {
+        const legacy = sarTrees(args[0], args[1], w)
+        if (legacy && same(name === 'sar' ? legacy.value : legacy.direction, tree)) return { name, args, legacyWarmup: w }
+      }
+    }
   }
   return null
+}
+
+/** ⭐ 2026-11-16 — the note a SAR tree saved with an earlier window carries instead of SAR_NOTE. */
+export function sarLegacyNote(warmup) {
+  return `This Parabolic SAR was saved when it started each value ${warmup} bars back. On a few bars of some charts that start differs from the chart's full-history SAR (measured: 312 of about 1.1 million bars). Save the formula again to use the current ${SAR_WARMUP}-bar start.`
 }
 
 /** `tree` with every recognised expansion collapsed back to its call (the readable

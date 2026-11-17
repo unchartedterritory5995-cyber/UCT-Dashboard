@@ -233,6 +233,16 @@ strategy.close("L", when = dn)''', decl=FIXED1, ver=5))
     s.append(P("q-s1a-size-v6", "Q-S1a", "v6 default size with none declared", sz, decl="", ver=6,
                extras=[("X01_open_size_0", "strategy.opentrades > 0 ? strategy.opentrades.size(0) : na"),
                        ("X02_close", "close")]))
+    # 2026-11-16 (B-FUNDS, #1485): the SHORT twin of q-s1a-size-v6 - the same crossover, short on the crossunder and
+    # closed on the crossover, v6 defaults (100% of equity, margin 100%). Seven built-in strategies stop at Q-S1i on
+    # NYSE:RDDT 1D holding such a short: at margin 100% a short of the whole equity fails the margin check on the first
+    # bar whose high passes (equity + qty x entry) / (2 x qty). The report's exits say what TradingView does there
+    # (a "Margin call" exit: how many units, at which price); X03 is the high the check reads.
+    s.append(P("q-s1i-short-v6", "Q-S1i", "v6 default size (100% of equity, margin 100%) held SHORT: the margin call",
+               "{SC}\nif dn\n    strategy.entry(\"S\", strategy.short)\nif up\n    strategy.close(\"S\")", decl="", ver=6,
+               extras=[("X01_open_size_0", "strategy.opentrades > 0 ? strategy.opentrades.size(0) : na"),
+                       ("X02_close", "close"),
+                       ("X03_high", "high")]))
     s.append(P("q-s1a-size-v5pct", "Q-S1a", "v5 percent_of_equity 10", sz, decl="default_qty_type = strategy.percent_of_equity, default_qty_value = 10", ver=5,
                extras=[("X01_open_size_0", "strategy.opentrades > 0 ? strategy.opentrades.size(0) : na"),
                        ("X02_close", "close")]))
@@ -246,6 +256,16 @@ strategy.entry("L", strategy.long, when = up)
 strategy.close("L", when = dn)'''
     s.append(P("q-s1a-size-v2", "Q-S1a", "v2 default size with none declared (v2 has no `if`: `when` only)", v2body, decl="", ver=2,
                extras=[("X02_close", "close")]))
+    # 2026-11-16 (the strategy coverage unit): a STOP entry under v6's percent-of-equity default. `broker.js` refuses
+    # it by name (Q-S1a: "whether its level or the signal bar's close sizes it is not stated"); six built-in
+    # strategies stop there on NYSE:RDDT 1D. The size at each fill against the equity, the signal bar's close and the
+    # stop level (X03) says which price sizes it.
+    stop_sz = ("{SC}\nstop_level = high + 1\nif up and strategy.position_size == 0\n"
+               "    strategy.entry(\"L\", strategy.long, stop = stop_level)\nif dn\n    strategy.close(\"L\")")
+    s.append(P("q-s1a-size-stop-v6", "Q-S1a", "v6 default size with none declared, a STOP entry: which price sizes it", stop_sz,
+               decl="", ver=6,
+               extras=[("X01_open_size_0", "strategy.opentrades > 0 ? strategy.opentrades.size(0) : na"),
+                       ("X02_close", "close"), ("X03_stop_level", "stop_level")]))
     # Q-S1b: capital and pyramiding defaults, per version
     two = '''{SC}
 if up

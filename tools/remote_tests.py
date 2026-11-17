@@ -241,4 +241,13 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
+    # ⛔ A failing test's NAME can hold any character (an em dash, a "⛔"). On a Windows console the
+    # stream is cp1252, and on 2026-11-16 printing one raised UnicodeEncodeError half way through the
+    # verdict: the rest of the failing ids were never printed and the exit code was the traceback's,
+    # not the verdict's. Replace what the console cannot show; the run's own artifacts keep the text.
+    for _stream in (sys.stdout, sys.stderr):
+        try:
+            _stream.reconfigure(errors="replace")
+        except (AttributeError, ValueError):
+            pass
     sys.exit(main())

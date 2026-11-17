@@ -33,7 +33,8 @@ import { strategyBrokerEnabled } from '../../engine/strategyBrokerGate'
 import { registerStrategyBrokerGate } from '../../engine/strategyBrokerGateRegistry'
 // W9-T1: the broker's build flag is read here (outside the server compute closure) and handed to the front end.
 registerStrategyBrokerGate(strategyBrokerEnabled)
-import { PINE_RECURRENCE_ORIGIN } from '../../engine/nativeRegistry'
+import { PINE_RECURRENCE_ORIGIN, validateUserDefinitions } from '../../engine/nativeRegistry'
+import { checkBudget } from '../../engine/ast/budget'
 import { pineNaConditionIsFalse } from '../../engine/ast/interpret'
 import { probeRuntimeProgram, probeObjectRuntime, runtimeVersionStamp, colourInputsTheRunReads, libraryPinsOf } from '../../engine/runtime/runtimeColumns'
 import { requestTargetsUnservable } from '../../engine/runtime/requestSupply'
@@ -322,6 +323,19 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
       }
     }
     return no(gate.reason, gate.guard, t)
+  }
+  // ⭐⭐ W9 ARMED ROUTE (coordinator ruling 2026-11-16) — WITH THE DARK BROKER ON, A STRATEGY THAT PLACES ORDERS
+  // IS RUN BY THE BROKER, though the host lane can draw its plots: its trades are its output. The runtime lane
+  // builds it (`pineRuntimeFrontend.js::buildRuntimeIr`, every order-placing strategy) and stamps the strategy
+  // window. Asked of every `strategy()` declaration (an order call nested in a block leaves no host note), and the
+  // run decides: only one whose build skipped an order call is built by the broker. ⛔ Only a document that HOLDS
+  // the broker replaces the host's: any decline (the kill list, the starter allowlist, a broker build refusal, a
+  // pairing, a strategy that places no order) keeps the host document a member has today. Off (either gate),
+  // nothing here is asked and the document is exactly what it was.
+  if (strategyBrokerEnabled() && runtimePaneEnabled() && t && t.declaration === 'strategy') {
+    const viaBroker = runtimeLaneDefinition({ source, id, name, t, hostReason: gate.reason, hostGuard: gate.guard, routed: false, no })
+    const d = viaBroker && viaBroker.ok ? viaBroker.definition : null
+    if (d && d.compute && d.compute.kind === 'runtime' && d.meta && d.meta.runtimeHistory === STRATEGY_WINDOW_HISTORY) return viaBroker
   }
   // ⭐⭐ 2026-09-27 (owner ruling, option b) — WHAT THE OBJECT PROGRAM LOST.
   // `paneGate` has already refused a drawing-only script that lost a removal. A
@@ -1149,6 +1163,24 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
         + `the store counts it, past its ${DOCUMENT_BYTE_BUDGET}-byte cap` } }
     }
   }
+  // ⛔⛔ DOOR-ROBUSTNESS — A DOCUMENT THE INSTALL DOOR WILL REFUSE IS REFUSED HERE, BY NAME.
+  // ⚰️ Measured on the engine-60 census: 11 of 679 sample scripts came back `ok: true` from this
+  // door and were then refused by `installUserDefinitions` (every one a `compute.budget` cap:
+  // lookback, distinct series, formula size). `MemberPane` installs nothing for such a document
+  // and says nothing, so the member read an empty pane with no reason; and because the host lane
+  // had "attached", the per-bar lane (the door's general fallback, RT1) was never asked.
+  // Now the SAME validation the install door runs is asked here (`hostInstallRefusalOf`): a
+  // refused document is a host refusal with the guard that decided it, offered to the runtime
+  // lane exactly as any other host refusal is, and read verbatim when that lane declines.
+  const installWhy = hostInstallRefusalOf(docOut, rows)
+  if (installWhy) {
+    if (runtimePaneEnabled()) {
+      return runtimeLaneDefinition({
+        source, id, name, t, hostReason: installWhy.reason, hostGuard: installWhy.guard, routed: false, no,
+      })
+    }
+    return no(installWhy.reason, installWhy.guard, t)
+  }
   return {
     ok: true,
     definition: docOut,
@@ -1168,6 +1200,64 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     // declined (by code, for the census); absent for a script whose drawings are complete.
     ...(runHalfOut && runHalfOut.runtimeObjects ? { runHalf: { minted: true, columns: Object.keys(runHalfOut.runtimeObjects.outputs).length } } : {}),
     ...(runHalfOut && runHalfOut.declined ? { runHalfDeclined: runHalfOut.declined } : {}),
+  }
+}
+
+/** The guard an install refusal that is NOT a budget cap is named by: the document this door
+ *  built does not pass the install door's own validation (a schema rule, a repaint badge the
+ *  linter measures differently). A defect of this door, said as one. */
+export const HOST_INSTALL_GUARD = 'pine:install'
+
+/** What each `compute.budget` cap means, in a member's words. Keyed by the budget's own guard
+ *  (`budget.js::CAP_GUARD`); the numbers are the ones the budget measured. */
+const BUDGET_PLAIN = Object.freeze({
+  'budget:lookback': (m, cap) => `needs ${m} bars of history behind every bar, and one plot may reach back at most ${cap} here`,
+  'budget:series': (m, cap) => `reads ${m} different data series, and one plot may read at most ${cap} here`,
+  'budget:nodes': (m, cap) => `is a formula of ${m} steps, and one plot may hold at most ${cap} here`,
+})
+const BUDGET_CAP_OF = Object.freeze({
+  'budget:lookback': 'maxLookback', 'budget:series': 'maxSeriesRefs', 'budget:nodes': 'maxNodes',
+})
+
+/**
+ * ⭐⭐ WHY THE INSTALL DOOR WOULD REFUSE THIS HOST DOCUMENT, or null when it installs.
+ *
+ * ⛔ ONE AUTHORITY: the verdict is `validateUserDefinitions`' (what `installUserDefinitions`
+ * runs first), never a second copy of its rules. Only the SENTENCE is made here: for a budget
+ * cap, which plot and which number, in plain words (`checkBudget` over the document's own
+ * trees, to name the tree the validation stopped at); for anything else, the validation's own
+ * sentence under `HOST_INSTALL_GUARD`.
+ */
+export function hostInstallRefusalOf(doc, rows = []) {
+  if (!doc || !doc.compute || doc.compute.kind !== 'ast') return null
+  let verdict
+  try {
+    verdict = validateUserDefinitions([doc])
+  } catch (err) {
+    return { guard: HOST_INSTALL_GUARD, reason: `this script is not drawn: its document could not be checked (${String((err && err.message) || err)})` }
+  }
+  if ((verdict.defs || []).length > 0) return null
+  const trees = doc.compute.trees && typeof doc.compute.trees === 'object' && !Array.isArray(doc.compute.trees)
+    ? Object.entries(doc.compute.trees) : [[null, doc.compute.ast]]
+  for (const [key, ast] of trees) {
+    let b = null
+    try { b = checkBudget(ast, doc.compute.budget) } catch { b = null }
+    if (!b || b.ok || !BUDGET_PLAIN[b.guard]) continue
+    const capKey = BUDGET_CAP_OF[b.guard]
+    const row = (rows || []).find((r) => r && r.key === key) || (key === null ? (rows || [])[0] : null)
+    const title = row && typeof row.label === 'string' && row.label.trim() ? row.label.trim() : null
+    const which = title ? `its plot \`${title}\`` : (row && !row.hidden ? 'one of its plots' : 'one of the values it draws from')
+    // the budget's own explanation of a session-anchored reach, when it gave one
+    const tail = String(b.error || '').split(`the cap is ${b.caps[capKey]}`)[1] || ''
+    return {
+      guard: b.guard,
+      reason: `this script is not drawn: ${which} ${BUDGET_PLAIN[b.guard](b.measured[capKey], b.caps[capKey])}${tail}`,
+    }
+  }
+  const first = String((verdict.errors || [])[0] || 'the install door refused it without a reason')
+  return {
+    guard: HOST_INSTALL_GUARD,
+    reason: `this script is not drawn: the document built for it did not pass this engine's own check (${first})`,
   }
 }
 
@@ -1858,6 +1948,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // ⭐⭐ RT5 — when the host object program would draw nothing here and the run
   // builds WITH its drawings, the document's objects come from its own run.
   const own = runtimeOwnObjectsOf({ source, t })
+  // ⛔ DRAW-1 — a host picture that lost a create is not drawn in the run's place (`runtimeObjectsDoor.js`)
+  if (own.declineHostPartial) return decline(own.guard, own.why)
   const ownObjects = !!own.probe
   const probe = own.probe || own.valueProbe || probeRuntimeProgram(source)
   if (!probe.ok) {
@@ -2122,7 +2214,9 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // while the run computed exactly the colour TradingView paints. A carried paint
   // is drawn by the renderer the host lane's paints use (`binder.paintRenderColours`),
   // under the hidden anchor row an objects-only document already carries (below).
-  if (!carried.length && !ownObjects && !docPaints.length) {
+  // ⭐⭐ W9 ARMED ROUTE — a document that holds the broker draws its trades (the record, the markers, the report),
+  // so a strategy with no other output is NOT "nothing drawn".
+  if (!carried.length && !ownObjects && !docPaints.length && probe.broker !== true) {
     const why = [...withheld.map((w) => `\`${w.label}\`: ${w.why}`),
       ...paintWithheld.map(({ p, why: w }) => `\`${p.kind}\`: ${w}`)]
     return decline(why.length ? 'runtime:withheld-all' : 'runtime:nothing-drawn', why.length
@@ -2136,6 +2230,9 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   const drawsObjects = !ownObjects && !own.hostWithheld && hostWouldDraw
   // ⭐ RT5 — a document whose only output is its drawings carries the hidden
   // anchor row an objects-only document carries (never offered, never drawn).
+  // ⭐⭐ W9 ARMED ROUTE — a broker document with no row of its own (a tester-only strategy) sits on the PRICE
+  // pane, where TradingView marks a strategy's trades; a pane of its own would hold nothing.
+  const brokerOnly = probe.broker === true && !rows.length
   if (!rows.length) {
     rows.push({
       key: 'value', label: '', source: '0', ast: { type: 'num', value: 0 }, mode: repaint.mode,
@@ -2191,7 +2288,7 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       readback: '',
       inputs: runtimeDocInputs(withObjectInputs(memberInputSpecs([]), drawsObjects ? t : null), runtimeInputs.specs),
       plots: [...rows, ...colourRows],
-      placement: (t.presentation && t.presentation.overlay === true)
+      placement: (t.presentation && t.presentation.overlay === true) || brokerOnly
         ? { target: 'price', ...(joinsPriceScale(t) ? { joinPriceScale: true } : {}) }
         : { target: 'pane', pane: { height: MEMBER_PANE_HEIGHT } },
       paramManifest: null,

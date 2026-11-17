@@ -586,6 +586,26 @@ export function makeBroker(cfg, data) {
         + 'rejected order in TradingView)', 'Q-S1i')
     }
   }
+  /** ⭐⭐ Q-S1i [B-FUNDS] the one shape w9-q-s1a-size-v6 witnesses: a long market `strategy.entry` sized by the
+   *  percent-of-equity default at 100, at a long margin of 100%, with no commission and no slippage (the caller
+   *  adds: no position before it, and not a reversal). */
+  const fundsRejectShape = (o) => o.kind === 'entry' && o.dir > 0 && o.type === 'market' && o.byDefault === true
+    && defaultQtyType() === 'percent_of_equity' && cfg.qtyValue === 100 && cfg.marginLong === 100
+    && !costOn && !slipTicks
+  /** ⭐⭐ Q-S1i [B-FUNDS] with no position open: does `o` at `price` need more than the equity? (Margin 100%: the
+   *  position's whole value; `marginCheck`'s Available Funds with no open trade.) Stamps the rules only when it
+   *  rejects; an entry within the funds is checked after its fill by `marginCheck`, as before. */
+  const fundsShort = (o, price) => {
+    needSymbol()
+    let net = 0
+    for (const t of closed) net += t.profit
+    const equity = cfg.initialCapital + net * pointvalue
+    if (!(finite(equity) && equity - o.qty * price * pointvalue < 0)) return false
+    rule('B-FUNDS')
+    rule('B-MARGIN')
+    if (defaulted.margin) rule('B-DEFAULTS')
+    return true
+  }
   /** the rule the fill being made rests on - stamped on the trade (the record's `rule`) */
   let fillRule = 'B-FILL'
   /** ⭐ W9-T7 [B-OCA] after `o` filled `q` units: the other unfilled orders of its group are cancelled
@@ -689,10 +709,28 @@ export function makeBroker(cfg, data) {
       rule('B-PYR')
       if (defaulted.pyramiding) rule('B-DEFAULTS')
       if (o.type === 'market') { endRow(o.row, 'rejected', 'pyramiding'); return null }
-      throw new BrokerRefusal(`a price entry \`${o.id}\` triggered at the pyramiding limit, and whether it is `
-        + 'cancelled or kept waiting is not stated', 'Q-S1g')
+      // ⭐ Q-S1g [B-PYR-PRICE] — a price entry whose level is reached at the pyramiding limit does not execute
+      // and is NOT kept waiting. Witnessed by VALUES (vw-s1-q-s1g-blocked-stop-entry, NYSE:RDDT 1D, 2026-11-16,
+      // pyramiding 1): `L2`'s stop is reached on bars 53-70 while long and again on every bar from 71 after the
+      // position closes, and `strategy.position_size` stays 0 from bar 71 to the last bar. Its own rule, unpinned
+      // until a capture with the Strategy Tester report grades it MATCH (which also says whether TradingView lists
+      // the order at all): until then the run stops here by name, as before, under the rule that will pin it.
+      rule('B-PYR-PRICE')
+      endRow(o.row, 'rejected', 'pyramiding')
+      return null
     }
     if (!reversed) price = entryFillPx(o, price0)
+    // ⭐⭐ Q-S1i [B-FUNDS] (2026-11-16) — an entry the strategy's funds cannot carry is REJECTED: no trade, no smaller
+    // size, no margin call, and it is not kept waiting. Witnessed by w9-q-s1a-size-v6 (NYSE:RDDT 1D, report ok, the
+    // v6 default of 100% of equity, margin 100%, capital 100,000): of its 20 crossover entries TradingView lists
+    // exactly the 7 whose qty x fill open <= equity, bar for bar and share for share; the 13 others (sized on the
+    // signal close and filled at a higher open, short of the equity by $6.59 to $6,907.05) are absent, and 10 of them
+    // would have filled at a later open had the order been kept. ONLY that shape is served (`fundsRejectShape`): any
+    // other entry past the funds still stops at the margin check below, by name (Q-S1i).
+    if (!reversed && !open.length && fundsRejectShape(o) && fundsShort(o, price)) {
+      endRow(o.row, 'rejected', 'funds')
+      return null
+    }
     if (open.length && maxEntries > 1) { rule('B-PYR'); if (defaulted.pyramiding) rule('B-DEFAULTS') }
     const t = openTrade(o, price, bar, exact, reversed)
     logFill(o.row, bar, price, o.qty)
@@ -1279,7 +1317,9 @@ export function makeBroker(cfg, data) {
     const immediate = type === 'limit' ? (dir > 0 ? level >= cl : level <= cl)
       : type === 'stop' ? (dir > 0 ? level <= cl : level >= cl) : false
     const oca = ocaOf(ocaN, ocaT, fn)
-    const o = { id, kind, dir, qty, type, level, limit: type === 'stoplimit' ? limV : NaN, placedBar: bar, immediate, oca }
+    // `byDefault`: the size is the declaration's default order size ([B-QTY], `defaultSize`), read by [B-FUNDS]
+    const o = { id, kind, dir, qty, type, level, limit: type === 'stoplimit' ? limV : NaN, placedBar: bar, immediate, oca,
+      byDefault: !finite(qtyV) }
     // [B-MODIFY] an unfilled order with the same id is modified, not duplicated
     const prev = entries.find((e) => e.id === id)
     if (prev) {
@@ -1740,8 +1780,11 @@ export function makeBroker(cfg, data) {
    * open ("available" equity may exclude what they hold); a percent value above 100; a size below one
    * whole unit.
    */
+  /** the declared-or-defaulted `default_qty_type` ('fixed' / 'cash' / 'percent_of_equity', or null): ONE reading,
+   *  shared by `defaultSize` and [B-FUNDS] */
+  const defaultQtyType = () => (cfg.qtyType === undefined ? (finite(cfg.defaultQty) ? 'fixed' : null) : cfg.qtyType)
   const defaultSize = (type, id, bar) => {
-    const qtyType = cfg.qtyType === undefined ? (finite(cfg.defaultQty) ? 'fixed' : null) : cfg.qtyType
+    const qtyType = defaultQtyType()
     if (qtyType === 'fixed') {
       if (!finite(cfg.defaultQty)) {
         throw new BrokerRefusal('this order takes the default order size, and this strategy\'s Pine version '

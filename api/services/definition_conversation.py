@@ -562,21 +562,21 @@ CONVERSE_SYSTEM_PROMPT = (
     "the chart\" is placement \"pane\"; on the price chart, an overlay or \"on the "
     "candles\" is placement \"price\". A ratio, percentage or difference that is not "
     "in price units belongs in \"pane\" unless the member says otherwise.\n"
-    "  * Presentation: set_style (colour, width, style, hidden, lineStyle "
+    "  * Presentation: set_style (color, width, style, hidden, lineStyle "
     "solid/dashed/dotted/largeDashed), set_marker / remove_marker, set_paint / "
     "remove_paint (markers, paints and alerts need a yes/no output, type \"condition\"), "
     "set_levels (horizontal lines at fixed values; [] removes them), set_fill / "
     "remove_fill (shade between two NUMBER outputs), "
-    "set_placement. Per-bar colour of a line or histogram: set_color_rule (rule "
-    "sign = up colour at or above zero, down below; rising = up when higher than the "
-    "bar before; condition = up when a yes/no output is true; none = one colour). "
-    "SEVERAL colours by state (up to four, counting `otherwise`) -- a histogram bright green "
+    "set_placement. Per-bar color of a line or histogram: set_color_rule (rule "
+    "sign = up color at or above zero, down below; rising = up when higher than the "
+    "bar before; condition = up when a yes/no output is true; none = one color). "
+    "SEVERAL colors by state (up to four, counting `otherwise`) -- a histogram bright green "
     "above zero and rising, dark green above zero and falling, red below zero and falling, "
     "orange below zero and rising; candles green in an uptrend, yellow in consolidation, red in "
     "a downtrend: set_color_states (`output` for a line / histogram, whose states may name a "
     "`relation` of that output; or `channel` barcolor / bgcolor for the candles / background, "
     "whose states are yes/no `when` trees). The first true state wins; re-send the WHOLE list "
-    "to change one state. A marker's size and colour: set_marker `size` / `color`. "
+    "to change one state. A marker's size and color: set_marker `size` / `color`. "
     "A conditional cloud: set_fill with `when` (colorAbove where the first output is "
     "above the second, colorBelow where below). A header value: request_info_value. "
     "An alert: request_alert -- on a yes/no output with triggerPolicy is_true, "
@@ -585,7 +585,7 @@ CONVERSE_SYSTEM_PROMPT = (
     "another (higher) timeframe than the chart's: set_calculation_timeframe (\"a daily "
     "EMA on my 5-minute chart\"). A TABLE drawn on the chart: set_table (a position and cells; a "
     "cell is fixed text or the latest value of an output -- put values that belong only in the "
-    "table in HIDDEN outputs and point cells at them; a cell's text or background colour may "
+    "table in HIDDEN outputs and point cells at them; a cell's text or background color may "
     "follow a yes/no output -- colorWhen / backgroundWhen, e.g. green where bullish, red where "
     "not -- a yes/no cell may show its own `labels`, `size` sets text size and `span` merges a "
     "title across columns); remove_table removes it. Formula functions linreg, correlation, "
@@ -614,6 +614,9 @@ CONVERSE_SYSTEM_PROMPT = (
     "or month\n"
     "  Windows are plain whole-number nodes; negation is the unary-minus operator; a "
     "condition is a 0/1 column; never read a later bar.\n"
+    "  A count of bars is never negative here: `highestbars`, `lowestbars` and `barssince` "
+    "answer how many bars BACK (0 = this bar, 3 = three bars ago). This is not TradingView's "
+    "sign: never negate one, and compare it with numbers of 0 or more.\n"
     "  A `sym` goes OUTSIDE a timeframe read, never under one: SPY's weekly close is "
     "sym(SPY, tf(close, W)). Wrap only what is read from the other symbol: "
     "\"close above SPY's 50 EMA\" compares the chart's close with "
@@ -909,30 +912,54 @@ _BARS_BACK_CALLS = frozenset({"highestbars", "lowestbars", "barssince"})
 _COMPARISONS = frozenset({"<", "<=", ">", ">=", "==", "!="})
 
 
-def _negative_literal(node: Any) -> bool:
+def _literal_sign(node: Any) -> int:
+    """+1 / -1 for a non-zero number literal (a plain one, or unary minus over one); 0 otherwise."""
     if not isinstance(node, Mapping):
-        return False
-    if node.get("type") == "num":
-        v = node.get("value")
-        return isinstance(v, (int, float)) and not isinstance(v, bool) and v < 0
+        return 0
+    flip = 1
     if node.get("type") == "op" and node.get("name") == "u-":
         args = node.get("args")
-        if (isinstance(args, list) and len(args) == 1 and isinstance(args[0], Mapping)
-                and args[0].get("type") == "num"):
-            v = args[0].get("value")
-            return isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0
-    return False
+        if not (isinstance(args, list) and len(args) == 1 and isinstance(args[0], Mapping)):
+            return 0
+        node, flip = args[0], -1
+    if node.get("type") != "num":
+        return 0
+    v = node.get("value")
+    if not isinstance(v, (int, float)) or isinstance(v, bool) or v == 0:
+        return 0
+    return flip * (1 if v > 0 else -1)
+
+
+def _bars_back_sign(node: Any) -> Tuple[int, Optional[str]]:
+    """(+1, name) for a bars-back count, (-1, name) for one under unary minus, (0, None) otherwise."""
+    if not isinstance(node, Mapping):
+        return 0, None
+    if node.get("type") == "call" and node.get("name") in _BARS_BACK_CALLS:
+        return 1, node.get("name")
+    if node.get("type") == "op" and node.get("name") == "u-":
+        args = node.get("args")
+        if isinstance(args, list) and len(args) == 1:
+            sign, name = _bars_back_sign(args[0])
+            if sign == 1:
+                return -1, name
+    return 0, None
 
 
 def _refuse_negative_bars_back(trees: List[Tuple[str, Any]]) -> None:
-    """2026-11-16 -- A BARS-BACK COUNT COMPARED WITH A NEGATIVE NUMBER.
+    """2026-11-16 -- A BARS-BACK COUNT COMPARED ACROSS ITS SIGN.
 
-    Found by the house set's value check: asked for a follow-through day "from day 4
-    through day 12 after the lowest low of the last 50 sessions", the model wrote
-    ``lowestbars(low, 50) >= -11 && lowestbars(low, 50) <= -3``, TradingView's convention.
-    Here the count is 0 or more, so the condition was never true: the indicator built, read
-    back plausibly, and could not fire on any bar (0 of 700 on two symbols). The door now
-    names the convention and the model gets its repair.
+    Found by the house set's value check, twice in one evening. Asked for a follow-through
+    day "from day 4 through day 12 after the lowest low of the last 50 sessions", the model
+    wrote ``lowestbars(low, 50) >= -11 && lowestbars(low, 50) <= -3`` (TradingView's
+    convention). Asked again with "made 3 to 11 bars ago", it wrote
+    ``-lowestbars(low, 50) >= 3 && -lowestbars(low, 50) <= 11``: the same belief, negated.
+    Here the count is 0 or more, so both built, read back plausibly, and could not fire on
+    any bar (0 of 700 on two symbols, where a plain calculation marks 1 and 8).
+
+    The rule is the SIGN, not the minus: a count (0 or more) against a negative number, or a
+    negated count (0 or less) against a positive one, is a comparison that never changes its
+    answer. ``-lowestbars(...) <= -3`` is consistent (it is what a pasted TradingView script
+    translates to) and passes.
     """
     for where, tree in trees:
         for node in _walk(tree):
@@ -941,16 +968,18 @@ def _refuse_negative_bars_back(trees: List[Tuple[str, Any]]) -> None:
             args = node.get("args")
             if not isinstance(args, list) or len(args) != 2:
                 continue
-            for call, other in ((args[0], args[1]), (args[1], args[0])):
-                if (isinstance(call, Mapping) and call.get("type") == "call"
-                        and call.get("name") in _BARS_BACK_CALLS and _negative_literal(other)):
-                    name = call.get("name")
+            for count, other in ((args[0], args[1]), (args[1], args[0])):
+                sign, name = _bars_back_sign(count)
+                lit = _literal_sign(other)
+                if sign and lit and sign != lit:
+                    how = ("is compared with a negative number" if sign > 0
+                           else "is negated and compared with a positive number")
                     raise _Refused(
                         "envelope:reference",
-                        f"{where}: `{name}` is compared with a negative number. Here `{name}` "
-                        "answers a count of bars BACK: 0 on this bar, 1 one bar ago, never negative "
-                        "(unlike TradingView's `ta.highestbars` / `ta.lowestbars`). Compare it with "
-                        "numbers of 0 or more: \"3 to 11 bars ago\" is `>= 3` and `<= 11`.")
+                        f"{where}: `{name}` {how}. Here `{name}` answers a count of bars BACK: "
+                        "0 on this bar, 1 one bar ago, never negative (unlike TradingView's "
+                        "`ta.highestbars` / `ta.lowestbars`). Use the count itself, not negated, "
+                        "with numbers of 0 or more: \"3 to 11 bars ago\" is `>= 3` and `<= 11`.")
 
 
 def _refuse_scalars(trees: List[Tuple[str, Any]]) -> None:

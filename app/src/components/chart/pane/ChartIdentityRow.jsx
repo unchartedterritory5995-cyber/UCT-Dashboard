@@ -55,6 +55,7 @@ export default function ChartIdentityRow({
   sym,
   displayLabel,
   labelColor = null,
+  defaultLabelColor = null,   // the built-in title ink when no colour is saved; never marks the label "custom"
   logoSym = null,
   brandLogo = false,
   boundsRef = null,
@@ -145,7 +146,7 @@ export default function ChartIdentityRow({
             logoSym={logoSym}
             brandLogo={brandLogo}
             displayLabel={displayLabel}
-            labelColor={labelColor}
+            labelColor={labelColor || defaultLabelColor /* SymbolSearch only paints it (Notebook first-open bytes: no second prop there) */}
             boundsRef={boundsRef}
             themeVars={themeVars}
             economic={economic}
@@ -156,7 +157,7 @@ export default function ChartIdentityRow({
           <span
             data-testid="sym-label"
             className={styles.symbolStatic}
-            style={labelColor ? { color: labelColor } : undefined}
+            style={(labelColor || defaultLabelColor) ? { color: labelColor || defaultLabelColor } : undefined}
           >
             {displayLabel}
           </span>

@@ -32,6 +32,13 @@ the member door (memberPaneDefinition -> installUserDefinitions, production flag
 state) attaches it with zero refusals, nothing dropped or withheld from its object
 program, and no paint withheld. It is a door verdict, NOT a numeric-parity verdict:
 parity is graded only where a vendor capture exists, reported separately.
+
+THE PAINT RULE (instrument correction, 2026-11-16; `tools/pine_coverage/paint_predicate.mjs`): a paint
+(`bgcolor` / `barcolor`) counts as withheld only when the DOCUMENT the member gets does not draw it. A
+row's `withheldPaints` is that count; `withheldPaintsTranslated` is the count before the correction (every
+paint the translation marked withheld, including one the door then draws from the per-bar run), and
+`cleanTranslatedPaints` is `clean` under that earlier rule, so one census states the headline both ways.
+A row written before the correction has only `withheldPaints`, under the earlier rule.
 """
 import argparse
 import collections
@@ -55,6 +62,7 @@ GUARD_BUCKET = {
     "pine:collection": "collections",
     "pine:tuple": "tuples",
     "pine:module": "imports-libraries", "pine:declaration-library": "imports-libraries",
+    "pine:library-version": "imports-libraries",
     "pine:declaration-strategy": "strategy", "pine:strategy-call": "strategy",
     "pine:request": "request-security",
     "pine:text-value": "text-colour-values", "pine:colour-value": "text-colour-values",
@@ -67,6 +75,8 @@ GUARD_BUCKET = {
     "pine:arity": "call-mapping", "pine:named-argument": "call-mapping", "pine:role-order": "call-mapping",
     "pine:input-kind": "call-mapping", "pine:operator": "call-mapping",
     "pine:drawing": "drawing-objects",
+    # DRAW-1: a drawing step's condition the object reader could not read, named (`pine.js`, OBJECT_CONDITION_WHY)
+    "pine:object-condition": "drawing-objects",
     # objects-only in the STRICT lane = an object-only script whose object program is not clean
     "pine:no-output": "output-contract", "pine:objects-only": "drawing-objects",
     "pine:presentation-only": "output-contract", "pine:constant-only": "output-contract",
@@ -74,7 +84,13 @@ GUARD_BUCKET = {
     "pine:timeout": "translator-robustness", "pine:roundtrip": "translator-robustness",
     "pine:budget": "translator-robustness", "pine:character": "translator-robustness",
     "pine:empty": "translator-robustness", "threw": "translator-robustness", "killed": "translator-robustness",
+    # DOOR-ROBUSTNESS (2026-11-16): a refusal the DOOR makes over a clean translation, named on the step
+    # (`guard`) with no refusal row: a plot past a host-lane compute budget, or a document its own check refuses
+    "budget:lookback": "compute-budget", "budget:series": "compute-budget", "budget:nodes": "compute-budget",
+    "pine:install": "translator-robustness",
 }
+# the guards the member door itself refuses by, over a clean translation (no refusal row carries them)
+DOOR_GUARDS = frozenset({"budget:lookback", "budget:series", "budget:nodes", "pine:install"})
 BUCKET_LABEL = {
     "imperative": "Imperative execution: if/for/while blocks, := reassignment, var state carried across bars",
     "user-functions": "User-defined functions with multi-line bodies",
@@ -96,6 +112,7 @@ BUCKET_LABEL = {
     "paint-withheld": "A per-bar paint the door withheld (colour typing), with the object program clean",
     "output-contract": "Script offers nothing the pane carries (no plot, hidden-only, constant-only)",
     "translator-robustness": "Translator timeout / crash / round-trip failure",
+    "compute-budget": "A plot past a host-lane compute budget (bars of history, distinct series, formula size)",
 }
 ITEM_GUARDS = {"pine:function", "pine:builtin", "pine:arity", "pine:named-argument", "pine:role-order",
                "pine:input-kind", "pine:request", "pine:strategy-call", "pine:drawing", "pine:text-value",
@@ -230,6 +247,33 @@ def places_orders(u):
     return declaration_of(u) == "strategy" and bool(u["orders"])
 
 
+ARMED_SCHEMA = "uct.strategy-armed/v1"
+
+
+def would_transfer_if_armed(census_row, u):
+    """⭐⭐ W9 ARMED (coordinator ruling 2026-11-16) - A SEPARATE COLUMN, NEVER THE HEADLINE.
+
+    The census's broker counterfactual (`coverageMapDoorCensus.measure.test.js`, step 0, a strategy only;
+    `runtime/__tests__/strategyArmed.js`): the member door with the objects-only pane, the runtime pane and the
+    DARK strategy broker switched on attaches the script clean, its document runs the broker, that run finishes
+    on the reference bars with every broker rule it exercised pinned by the committed ledger, and its trades are
+    drawn or disclosed by name. Arming is the owner's act (W9 ruling D6); nothing here arms anything.
+    `True` / `False` for an order-placing strategy whose row carries the verdict; `None` for any other script,
+    or a census row written before the counterfactual existed (an old cache is never read as "no")."""
+    if not places_orders(u):
+        return None
+    v = (census_row or {}).get("strategyArmed")
+    if not isinstance(v, dict) or v.get("schema") != ARMED_SCHEMA:
+        return None
+    return v.get("transfers") is True
+
+
+def armed_wall(census_row):
+    """The first thing that stops an armed strategy (`strategyArmed.wall`), or None."""
+    v = (census_row or {}).get("strategyArmed")
+    return v.get("wall") if isinstance(v, dict) and v.get("schema") == ARMED_SCHEMA else None
+
+
 def strategy_on_block(scripts):
     """⭐ W9 T0 - what the census knows about strategies, read from each script's text.
     `orderSet` is the engine's own set; `byCall` counts the scripts calling each name; `doorCleanPlacingOrders`
@@ -243,6 +287,12 @@ def strategy_on_block(scripts):
         "byCall": dict(sorted(by_call.items())),
         "doorCleanPlacingOrders": sum(1 for s in placing if s["doorClean"]),
         "transferringPlacingOrders": sum(1 for s in placing if s["clean"]),
+        # ⭐⭐ W9 ARMED - what arming the broker would serve (a separate column; `transfers_fully` unchanged).
+        # `armedMeasured` counts the rows that carry the counterfactual: 0 means an older census, not "none".
+        "armedMeasured": sum(1 for s in placing if s.get("wouldTransferIfArmed") is not None),
+        "wouldTransferIfArmed": sum(1 for s in placing if s.get("wouldTransferIfArmed") is True),
+        "armedWalls": dict(collections.Counter(s["armedWall"] for s in placing
+                                               if s.get("wouldTransferIfArmed") is False and s.get("armedWall")).most_common()),
         "wave": "W9",
     }
 
@@ -412,6 +462,9 @@ def walls_of(row, inv, version, items=frozenset(), decl="indicator"):
     detail = []
     steps = row.get("steps") or []
     step0_guards = {r.get("guard") for r in ((steps[0] if steps else {}).get("refusals") or [])}
+    # DRAW-1: an output-contract refusal on an ATTACHED step (`pine:constant-only` beside a drawn object
+    # program) is about the plots, not an object program that was lost (the relabel at the end).
+    contract_attached = False
     for si, st in enumerate(steps):
         if st.get("threw"):
             keys.add(("bucket", "translator-robustness"))
@@ -426,9 +479,20 @@ def walls_of(row, inv, version, items=frozenset(), decl="indicator"):
                             for g in step0_guards if g)):
             own_program = refused_program_walls(st, inv, items)
             keys |= own_program
+        # ⭐⭐ DRAW-1 (2026-11-16, instrument correction) - AN ATTACHED STEP'S `pine:objects-only` IS
+        # THE CONSEQUENCE OF ITS DROPPED OPS, NOT A WALL OF ITS OWN. The host lane refuses a DIRTY
+        # objects-only program by that name (a clean one is `ok`), and the door still attaches it,
+        # so the step's walls are the ops its object program names (`object_program_walls`). Counted
+        # as a wall it was the bucket `drawing-objects`, which the wall analysis read as "a loss with
+        # nothing named" for 29 sample scripts, 27 of which name every drop. Only when the program
+        # names nothing does the refusal stay the step's (drawing-objects) wall.
+        attached_named = bool(st.get("attached")) and object_program_walls(st, inv)[1]
         for r in st.get("refusals") or []:
             g = r.get("guard") or "unnamed"
             if own_program and g in OBJECT_PROGRAM_GUARDS:
+                detail.append((g, None))
+                continue
+            if attached_named and g in OBJECT_PROGRAM_GUARDS:
                 detail.append((g, None))
                 continue
             # ⛔ PEEL ARTIFACTS ARE NOT WALLS. After step 0 the program has been edited:
@@ -454,7 +518,13 @@ def walls_of(row, inv, version, items=frozenset(), decl="indicator"):
                 keys.add(("bucket", "user-functions"))
             else:
                 keys.add(("bucket", GUARD_BUCKET.get(g, "translator-robustness")))
+                if st.get("attached") and GUARD_BUCKET.get(g) == "output-contract":
+                    contract_attached = True
             detail.append((g, tok))
+        if si == 0 and not st.get("attached") and not (st.get("refusals") or []) and st.get("guard") in DOOR_GUARDS:
+            # DOOR-ROBUSTNESS - the door refused a script whose translation is clean: the step names the guard
+            keys.add(("bucket", GUARD_BUCKET[st["guard"]]))
+            detail.append((st["guard"], None))
         if st.get("attached"):
             if st.get("installed") is False:
                 keys.add(("bucket", "translator-robustness"))
@@ -476,7 +546,7 @@ def walls_of(row, inv, version, items=frozenset(), decl="indicator"):
         if decl == "strategy":
             keys.discard(("bucket", "output-contract"))
             keys.add(("bucket", "strategy"))
-        elif items & DRAWING_CTORS:
+        elif items & DRAWING_CTORS and not contract_attached:
             keys.discard(("bucket", "output-contract"))
             keys.add(("bucket", "drawing-objects"))
     return keys, detail
@@ -951,6 +1021,9 @@ def main():
             # translation's refusals stay on that result by design, so `isClean` cannot
             # judge it; nothing here proves the runtime lane drew every output.
             "placesOrders": places_orders(u),
+            # ⭐⭐ W9 ARMED - the broker counterfactual, a SEPARATE column (see `would_transfer_if_armed`)
+            "wouldTransferIfArmed": would_transfer_if_armed(c, u),
+            "armedWall": armed_wall(c) if places_orders(u) else None,
             "runtimeClean": not places_orders(u) and (
                 bool((c.get("runtime") or {}).get("clean")) or (
                     bool((c.get("runtime") or {}).get("attached")) and (c.get("runtime") or {}).get("lane") == "runtime")),

@@ -115,9 +115,9 @@ describe('Phase 3 integration — the workstreams together, asserted on the work
     const { say, click, board } = p.mount(...ONE('BRCB'))
     const before = shape(board)
     expect(await say('how do I link my charts?')).toMatch(/I’ve highlighted it .* Nothing on your board has changed/)
-    await waitFor(() => expect(cardText()).toMatch(/This dot is the chart’s link colour/))
+    await waitFor(() => expect(cardText()).toMatch(/This dot is the chart’s link color/))
     expect(shape(board)).toBe(before)                                           // Show me never changes the workspace
-    expect(await say('do it for me')).toMatch(/Which link colour\?/)
+    expect(await say('do it for me')).toMatch(/Which link color\?/)
     await click('Purple')
     await waitFor(() => expect(board.state.widgets[0].color).toBe('D'))
     expect(p.summaries().join(' ')).toMatch(/Linked the Chart.* to the purple group \(D\)/)

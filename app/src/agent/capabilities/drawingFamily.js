@@ -142,7 +142,7 @@ const opacityOf = (raw) => {
 /** A colour value, with its alpha where one applies → {value, says} or {why}. */
 function colorValue(raw, opacity, { defaultAlpha = null } = {}) {
   const hex = normalizeColor(raw)
-  if (!hex) return { why: `“${raw}” isn't a colour I know — use a name like blue or a #hex.` }
+  if (!hex) return { why: `“${raw}” isn't a color I know — use a name like blue or a #hex.` }
   const o = opacityOf(opacity)
   if (Number.isNaN(o)) return { why: `“${opacity}” isn't an opacity — say a percent from 0 to 100.` }
   const alpha = o ?? defaultAlpha
@@ -246,7 +246,7 @@ function fibPlan(d, { levels, bands, reset }) {
       if (c.why) return c
       patch.color = c.value
     }
-    if (!Object.keys(patch).length) return { why: `Say what to change on the ${lv} level: show, hide or a colour.` }
+    if (!Object.keys(patch).length) return { why: `Say what to change on the ${lv} level: show, hide or a color.` }
     cur = { ...cur, levels: withLevel(cur, lv, patch) }
     says.push(`${lv}${patch.visible != null ? (patch.visible ? ' shown' : ' hidden') : ''}${patch.color ? ` ${colorName(patch.color)}` : ''}`)
   }
@@ -422,8 +422,8 @@ export function registerDrawingFamily(common, h) {
   registerCapability({
     ...common,
     name: 'drawing.setProps',
-    summary: 'Change settings on ONE drawing, as its right-click menu does: fill, price label, percent label, arrow size, Measure label fields and position, a note\'s words, font, size, bold, italic, background, border. Each tool has only its own settings; one it lacks is refused and its real ones named. Colour, width and line style are drawing.style. Undo puts them back.',
-    hints: 'target = the drawings entry; drawing = its id; set = [{prop, value, opacity}]. prop by tool: rectangle fillColor, showPercentChange; horizontal line / ray showPriceLabel; arrow arrowSize (small | medium | large); Measure / Price Range showDollar, showPercent, showBars, showTime, labelPos (top | center | bottom); Bars & Time showBars, showTime, labelPos; Price Move showDollar, showPercent; note text, fontFamily, fontSize (8-64), bold, italic, bgEnabled, bgColor, borderEnabled, borderColor. value = true / false for a switch, a colour, null = back to default. opacity = 0-100 for a colour, null = default.',
+    summary: 'Change settings on ONE drawing, as its right-click menu does: fill, price label, percent label, arrow size, Measure label fields and position, a note\'s words, font, size, bold, italic, background, border. Each tool has only its own settings; one it lacks is refused and its real ones named. Color, width and line style are drawing.style. Undo puts them back.',
+    hints: 'target = the drawings entry; drawing = its id; set = [{prop, value, opacity}]. prop by tool: rectangle fillColor, showPercentChange; horizontal line / ray showPriceLabel; arrow arrowSize (small | medium | large); Measure / Price Range showDollar, showPercent, showBars, showTime, labelPos (top | center | bottom); Bars & Time showBars, showTime, labelPos; Price Move showDollar, showPercent; note text, fontFamily, fontSize (8-64), bold, italic, bgEnabled, bgColor, borderEnabled, borderColor. value = true / false for a switch, a color, null = back to default. opacity = 0-100 for a color, null = default.',
     args: { type: 'object', properties: {
       drawing: { type: 'string' },
       set: { type: 'array', items: { type: 'object', properties: { prop: { type: 'string', enum: [...ALL_PROPS] }, value: { type: ['string', 'number', 'boolean', 'null'] }, opacity: { type: ['number', 'null'] } }, required: ['prop', 'value', 'opacity'], additionalProperties: false } },
@@ -450,7 +450,7 @@ export function registerDrawingFamily(common, h) {
   registerCapability({
     ...common,
     name: 'drawing.setFibLevels',
-    summary: 'Edit a Fibonacci retracement or extension\'s Levels… menu: show or hide a level, colour a level, turn the fill between two neighbouring levels on or off and colour it, or reset them all to defaults. The anchors and any level alerts are not touched. Undo puts them back.',
+    summary: 'Edit a Fibonacci retracement or extension\'s Levels… menu: show or hide a level, color a level, turn the fill between two neighbouring levels on or off and color it, or reset them all to defaults. The anchors and any level alerts are not touched. Undo puts them back.',
     hints: 'target = the drawings entry; drawing = the Fibonacci\'s id. levels = [{level, visible, color}], level as the member says it (0.786 or 78.6), visible false = "remove the 78.6"; null = leave. bands = [{from, to, enabled, color, opacity}] between two neighbouring levels, color null = its default, opacity = 0-100 or null. reset = true for "reset the fib levels" (levels and bands then both []). Levels are the tool\'s own table: there are no custom levels.',
     args: { type: 'object', properties: {
       drawing: { type: 'string' },

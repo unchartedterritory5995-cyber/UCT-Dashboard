@@ -126,6 +126,50 @@ def test_strategy_on_block_counts_from_the_rows():
     assert b["orderSet"] == sorted(cm.STRATEGY_ORDERS) and b["wave"] == "W9"
 
 
+# ---- W9 ARMED: what arming the broker would serve, a SEPARATE column (coordinator ruling 2026-11-16) ----
+
+_ORDER_SRC = "//@version=5\nstrategy('x')\nstrategy.entry('l', strategy.long)\nplot(close)\n"
+
+
+def _armed(transfers, wall=None, schema=cm.ARMED_SCHEMA):
+    return {"clean": True, "strategyArmed": {"schema": schema, "transfers": transfers, "wall": wall}}
+
+
+def test_armed_column_reads_the_census_verdict_for_an_order_strategy_only():
+    u = cm.usage_of(_ORDER_SRC, _bare_inventory())
+    assert cm.would_transfer_if_armed(_armed(True), u) is True
+    assert cm.would_transfer_if_armed(_armed(False, "run:runtime:strategy-unpinned:B-PYR"), u) is False
+    assert cm.armed_wall(_armed(False, "run:runtime:strategy-unpinned:B-PYR")) == "run:runtime:strategy-unpinned:B-PYR"
+    # an indicator, and a strategy that places no orders, have no armed verdict at all
+    ind = cm.usage_of("//@version=5\nindicator('x')\nplot(close)\n", _bare_inventory())
+    assert cm.would_transfer_if_armed(_armed(True), ind) is None
+    none = cm.usage_of("//@version=5\nstrategy('x')\nplot(close)\n", _bare_inventory())
+    assert cm.would_transfer_if_armed(_armed(True), none) is None
+
+
+def test_an_older_census_row_is_unmeasured_never_no():
+    u = cm.usage_of(_ORDER_SRC, _bare_inventory())
+    assert cm.would_transfer_if_armed({"clean": True}, u) is None
+    assert cm.would_transfer_if_armed(_armed(True, schema="uct.strategy-armed/v0"), u) is None
+    assert cm.would_transfer_if_armed({"strategyArmed": {"threw": "x"}}, u) is None
+
+
+def test_the_headline_ignores_the_armed_column():
+    u = cm.usage_of(_ORDER_SRC, _bare_inventory())
+    assert cm.would_transfer_if_armed(_armed(True), u) is True
+    assert cm.transfers_fully(_armed(True), u) is False   # an order-placing strategy never transfers, armed or not
+
+
+def test_strategy_on_block_counts_the_armed_column():
+    def row(armed, wall=None):
+        return {"declaration": "strategy", "placesOrders": True, "_orders": {"strategy.entry"}, "doorClean": True,
+                "clean": False, "wouldTransferIfArmed": armed, "armedWall": wall}
+    b = cm.strategy_on_block([row(True), row(False, "strategy:no-broker-run"), row(False, "strategy:no-broker-run"),
+                              row(False, "run:runtime:strategy-unpinned:B-PYR"), row(None)])
+    assert (b["armedMeasured"], b["wouldTransferIfArmed"], b["transferringPlacingOrders"]) == (4, 1, 0)
+    assert b["armedWalls"] == {"strategy:no-broker-run": 2, "run:runtime:strategy-unpinned:B-PYR": 1}
+
+
 # ---- the walls tool ----------------------------------------------------------------------------------
 
 def _walls(src):

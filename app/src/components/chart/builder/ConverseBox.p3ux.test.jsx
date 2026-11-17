@@ -33,7 +33,7 @@ function stub(make) {
 const createTurn = (s) => ({ contract: C, baseRevision: s.revision, ops: [{ op: 'create', name: 'n', outputs: [{ tree: P('close > open') }] }], assumptions: [] })
 const flush = async () => { await act(async () => { for (let i = 0; i < 6; i += 1) await Promise.resolve() }) }
 async function say(text) {
-  fireEvent.change(screen.getByLabelText(/Describe the indicator|Change it/), { target: { value: text } })
+  fireEvent.change(screen.getByLabelText(/^Describe it$|^Change it$/), { target: { value: text } })
   fireEvent.click(screen.getByTestId('converse-send'))
   await flush()
 }
@@ -46,7 +46,7 @@ describe('P3 UX — the up-front kind check', () => {
     const prior = { id: 'u_nnnnnnnnnnnn', version: 2, meta: { name: 'My RSI' }, compute: { kind: 'native', fn: 'rsi' }, plots: [{ key: 'rsi' }] }
     render(<ConverseBox sym="SPY" tf="D" converse={stub(createTurn)} editing={{ defId: prior.id, version: 2, prior }} />)
     const note = screen.getByTestId('converse-not-editable')
-    expect(note.textContent).toBe('This indicator is built in a form UCT Intelligence cannot edit yet. You can still edit it manually. Anything you describe here starts a new indicator.')
+    expect(note.textContent).toBe('This indicator is built in a form the UCT Agent cannot edit yet. You can still edit it manually. Anything you describe here starts a new indicator.')
     expect(note.dataset.code).toBe('authoring:kind')
     expect(screen.queryByTestId('converse-open-editing')).toBeNull()
     await say('anything')
@@ -61,7 +61,7 @@ describe('P3 UX — the up-front kind check', () => {
       compute: { ...d.compute, importedStage: { kind: 'foreign' } } }
     render(<ConverseBox sym="SPY" tf="D" converse={stub(createTurn)} editing={{ defId: prior.id, version: 1, prior }} />)
     const note = screen.getByTestId('converse-not-editable')
-    expect(note.textContent).toMatch(/^This indicator was imported in a form UCT Intelligence cannot edit yet\. You can still edit it manually\./)
+    expect(note.textContent).toMatch(/^This indicator was imported in a form the UCT Agent cannot edit yet\. You can still edit it manually\./)
     expect(note.textContent).not.toMatch(/plots\[|compute|importedStage|authoring:/)
   })
 
@@ -86,7 +86,7 @@ describe('P3 UX — refusals and unsaved work', () => {
     const refusal = entries.filter((e) => e.dataset.kind === 'refusal').pop()
     const lines = [...refusal.querySelectorAll('li')].map((li) => li.textContent)
     expect(lines[0]).toBe('Nothing was changed.')
-    expect(lines[1]).toMatch(/^Change 1 \(change a number\): UCT Intelligence proposed a change that does not fit this indicator/)
+    expect(lines[1]).toMatch(/^Change 1 \(change a number\): The UCT Agent proposed a change that does not fit this indicator/)
     expect(lines.join(' ')).not.toMatch(/nope|output:unknown|\[/)
     expect(within(refusal).getByTestId('converse-error-detail').textContent).toMatch(/output:unknown: .*nope/)
   })

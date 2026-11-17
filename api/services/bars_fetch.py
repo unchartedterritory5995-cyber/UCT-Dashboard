@@ -797,11 +797,12 @@ def tail_verified_through(ticker: str, tf: str):
     # ⭐ A 5m series the universe live stream covers is VERIFIED by the stream itself
     # through its newest delivered minute (review #1051 F1): a thin covered name never
     # takes the provider-heal path that writes `_tail_verified`, so without this its
-    # off-hours tail would read `unverified` forever.
-    if tf == "5":
+    # off-hours tail would read `unverified` forever. A 1m series the stream covers
+    # (BARS_LIVE_1M_ENABLED) is verified the same way, through its written minutes.
+    if tf in ("1", "5"):
         try:
             from api.services import bars_live_store as _bls
-            lv = _bls.proven_through_s(ticker)
+            lv = _bls.proven_through_s(ticker, tf)
             if lv is not None and (vt is None or lv > vt):
                 vt = lv
         except Exception:                  # noqa: BLE001
@@ -1209,6 +1210,10 @@ def _ext_completeness_heal_allowed(ticker: str, tf: str, last_ts: int) -> bool:
 #: Seconds after a 5m boundary during which the live stream's proof may trail the new
 #: frontier by its final minute without a request-path provider heal (#1051 note).
 _LIVE_PROOF_BOUNDARY_GRACE_S = 60
+#: The same grace for a covered 1m series, whose bucket IS the minute: every minute
+#: boundary the proof trails by that minute for the AM delivery + flush (~2-8 s). A
+#: minute's grace would excuse a stalled feed for the whole minute; half of it does not.
+_LIVE_PROOF_BOUNDARY_GRACE_1M_S = 30
 
 
 def _live_proof_in_boundary_grace(ticker: str, tf: str, now: float | None = None) -> bool:
@@ -1226,20 +1231,25 @@ def _live_proof_in_boundary_grace(ticker: str, tf: str, now: float | None = None
     has no newer data for it). After the grace, a proof that still trails means the
     stream really is lagging, and the fall-through repairs as before. This only skips
     the heal: the wire still reports `unverified` (no currentness is claimed), so the
-    client's catch-up poll re-asks and reads the minute the stream has by then written."""
-    if tf != "5":
+    client's catch-up poll re-asks and reads the minute the stream has by then written.
+
+    tf="1" (a 1m-covered series): the bucket is the minute, so the proof may trail the
+    newest closed minute by that minute, for `_LIVE_PROOF_BOUNDARY_GRACE_1M_S`."""
+    if tf not in ("1", "5"):
         return False
     try:
         from api.services import bars_live_store as _bls
-        proven = _bls.proven_through_s(ticker)
+        proven = _bls.proven_through_s(ticker, tf)
         if proven is None:
             return False
         now_ts = float(now if now is not None else _time.time())
         frontier = expected_completed_ext_bucket(tf, now_ts)
         if frontier is None:
             return False
-        end = int(frontier) + 300
-        return proven >= end - 60 and now_ts < end + _LIVE_PROOF_BOUNDARY_GRACE_S
+        step, grace = ((60, _LIVE_PROOF_BOUNDARY_GRACE_1M_S) if tf == "1"
+                       else (300, _LIVE_PROOF_BOUNDARY_GRACE_S))
+        end = int(frontier) + step
+        return proven >= end - 60 and now_ts < end + grace
     except Exception:                      # noqa: BLE001 — abstain: the normal rules run
         return False
 
@@ -1256,12 +1266,13 @@ def _needs_fresh(last_ts: int | None, tf: str, ticker: str | None = None) -> boo
     # A series the universe live feed keeps current (bars_live_store, bars-api only,
     # BARS_LIVE_COVERAGE_ENABLED) is fresh by construction: the stream or the
     # whole-market snapshot has already written its newest bar. False everywhere the
-    # flag is off or the feed is not alive, so this is a no-op until armed.
-    if ticker and tf in ("5", "D"):
+    # flag is off or the feed is not alive, so this is a no-op until armed. tf=1 is the
+    # same rule for a ticker the stream covers on demand (BARS_LIVE_1M_ENABLED).
+    if ticker and tf in ("1", "5", "D"):
         try:
             from api.services import bars_live_store as _bls
             if _bls.covered(ticker, tf):
-                # ⛔ 5m: "covered" is not proof by itself (review #1051 F1). Fresh only
+                # ⛔ 1m/5m: "covered" is not proof by itself (review #1051 F1). Fresh only
                 # while the stream's proof makes the tail current/verified; otherwise
                 # fall through so the normal rules (incl. the extended re-ask, which
                 # marks verified) can repair it — e.g. a new epoch with no minute yet.

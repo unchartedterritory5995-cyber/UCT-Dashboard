@@ -209,14 +209,23 @@ test('6. Escape closes the sheet', async () => {
 test('6b. the browser Back closes the sheet and stays on the screener', async () => {
   // A bubble-phase popstate listener registered first (as the router's and useScreenSpec's are):
   // the Back that only closes the sheet must not reach it, or the screen is re-read and paging resets.
+  //
+  // 2026-11-17 (fix/master-nb-screener-reds): the spy asks about THIS test's Back only. Test 6's
+  // Escape closes its sheet with a real `history.back()`, and jsdom delivers that popstate two
+  // `setTimeout(0)` hops later (SessionHistory.traverseByDelta), after test 6 has unmounted. It can
+  // land inside this test's `await ready()`, while `other` is already listening and before this
+  // mount has pushed an entry of its own, so nothing swallows it: `other` saw test 6's event, never
+  // this one (red on master at 22cc0680b1, "called 1 time with a PopStateEvent"). Counting every
+  // popstate made the rail a function of the previous test's timing.
   const other = vi.fn()
   window.addEventListener('popstate', other)
   mount(); await ready()
   fireEvent.click(screen.getByTestId('focus-row-ECO'))
   expect(sheet()).not.toBeNull()
-  act(() => { window.dispatchEvent(new PopStateEvent('popstate', { state: null })) })
+  const back = new PopStateEvent('popstate', { state: null })
+  act(() => { window.dispatchEvent(back) })
   window.removeEventListener('popstate', other)
-  expect(other).not.toHaveBeenCalled()
+  expect(other.mock.calls.filter(([e]) => e === back)).toEqual([])
   expect(sheet()).toBeNull()
   expect(screen.getByTestId('focus-screener')).toBeInTheDocument()
   expect(screen.getByTestId('focus-row-ECO')).toHaveAttribute('aria-selected', 'true')
