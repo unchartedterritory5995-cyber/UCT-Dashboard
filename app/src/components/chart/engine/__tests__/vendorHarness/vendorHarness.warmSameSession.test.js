@@ -52,20 +52,50 @@ describe('warm supply — the supplier is the window\'s own session', () => {
     expect(s.bars).toBeGreaterThan(0)
   })
 
+  // The fixture set is ~600 MB, mostly daily. A capture's `timeframe` sits in its first few hundred bytes
+  // (schema, id, capturedAtUTC, tool, page, symbol, timeframe, ...), so the census reads that much to skip
+  // the daily, weekly and monthly ones, and parses in full any file whose header does not say (fails closed).
+  const INTRADAY_TF = /^\d+S?$/
+  const headerTimeframeOf = (f) => {
+    const fd = fs.openSync(path.join(DIR, f), 'r')
+    try {
+      const buf = Buffer.alloc(4096)
+      const n = fs.readSync(fd, buf, 0, buf.length, 0)
+      const m = /"timeframe"\s*:\s*"([^"]+)"/.exec(buf.toString('utf8', 0, n))
+      return m ? m[1] : null
+    } finally { fs.closeSync(fd) }
+  }
+
+  it('the census header read: an intraday timeframe is kept, a daily or weekly one skipped', () => {
+    expect(headerTimeframeOf(ETH_WINDOW)).toBe('5')
+    expect(INTRADAY_TF.test(headerTimeframeOf(ETH_WINDOW))).toBe(true)
+    expect(INTRADAY_TF.test('D')).toBe(false)
+    expect(INTRADAY_TF.test('1W')).toBe(false)
+    expect(INTRADAY_TF.test('15S')).toBe(true)
+  })
+
   it('every committed intraday fixture with a warm supplier has one of its own session', () => {
     const mixed = []
+    const sessionOf = new Map()
+    const supplierSession = (file) => {
+      if (!sessionOf.has(file)) sessionOf.set(file, read(file).symbol.session)
+      return sessionOf.get(file)
+    }
     let warm = 0
     for (const f of fs.readdirSync(DIR).filter((x) => x.endsWith('.json'))) {
+      const tf = headerTimeframeOf(f)
+      if (tf !== null && !INTRADAY_TF.test(tf)) continue
       let cap
       try { cap = read(f) } catch { continue }
-      if (!cap || !cap.bars || cap.bars.timeUnit !== 'unix-s' || !Array.isArray(cap.bars.rows) || !cap.bars.rows.length) continue
+      if (!cap || !INTRADAY_TF.test(String(cap.timeframe)) || !cap.bars || cap.bars.timeUnit !== 'unix-s'
+        || !Array.isArray(cap.bars.rows) || !cap.bars.rows.length) continue
       const s = warmBarsSupply(cap)
       if (s.kind !== 'warm') continue
       warm += 1
-      const theirs = read(s.file).symbol.session
+      const theirs = supplierSession(s.file)
       if (theirs !== cap.symbol.session) mixed.push(`${f} (${cap.symbol.session}) <- ${s.file} (${theirs})`)
     }
     expect(warm).toBeGreaterThan(5) // the census saw warm suppliers at all
     expect(mixed).toEqual([])
-  })
+  }, 120_000)
 })
