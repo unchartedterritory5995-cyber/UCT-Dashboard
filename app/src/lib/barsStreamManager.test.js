@@ -304,7 +304,7 @@ describe('recovery: reconnectNow and isConnected', () => {
   })
 })
 
-describe('developing-bar hold: 500 ms by default, the per-browser override when set', () => {
+describe('developing-bar hold: 250 ms by default (LIVE_CANDLE_CADENCE_MS), the per-browser override when set', () => {
   const KEY = 'uct.liveCadenceMs'
   const run = (stored) => {
     if (stored == null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, stored)
@@ -323,9 +323,14 @@ describe('developing-bar hold: 500 ms by default, the per-browser override when 
   }
   afterEach(() => { vi.useRealTimers(); localStorage.removeItem(KEY) })
 
-  it('default: nothing before 500 ms, the newest value at 500 ms', () => {
+  it('default: nothing before 250 ms, the newest value at 250 ms', () => {
     const r = run(null)
-    expect(r.at(499)).toEqual([])
+    expect(r.at(249)).toEqual([])
+    expect(r.at(1)).toEqual([1.2])
+  })
+  it('override 1000 (slower than the default) holds this browser to 1 s', () => {
+    const r = run('1000')
+    expect(r.at(999)).toEqual([])
     expect(r.at(1)).toEqual([1.2])
   })
   it('override 50: nothing at 49 ms, the newest value at 50 ms', () => {
@@ -335,7 +340,7 @@ describe('developing-bar hold: 500 ms by default, the per-browser override when 
   })
   it('an unusable override changes nothing', () => {
     const r = run('soon')
-    expect(r.at(499)).toEqual([])
+    expect(r.at(249)).toEqual([])
     expect(r.at(1)).toEqual([1.2])
   })
 })
