@@ -958,15 +958,15 @@
    "skill": "options.delta",
    "rung": 5,
    "format": "scenario",
-   "story": "You sold a call against shares you own. The call shows a 0.35 delta. The stock rises $2. Nothing else changes.",
+   "story": "A friend sold a call against shares he owns. The call shows a 0.35 delta. The stock rises $2. Nothing else changes.",
    "q": "Looking at the call alone, what happens to it, per share?",
    "choices": [
-    "You lose about $0.70 on the call",
-    "You gain about $0.70 on the call",
-    "You lose about $0.35 on the call",
-    "You gain about $0.35 on the call"
+    "He loses about $0.70 on the call",
+    "He gains about $0.70 on the call",
+    "He loses about $0.35 on the call",
+    "He gains about $0.35 on the call"
    ],
-   "answer": "You lose about $0.70 on the call",
+   "answer": "He loses about $0.70 on the call",
    "calc": {
     "fn": "arith",
     "args": {
@@ -975,20 +975,21 @@
      "move": 2
     }
    },
-   "why": "You lose about $0.70 a share on the call. Selling flips the sign, so the short call carries negative delta and a rally costs you. 0.35 times the $2 rise is about $0.70. Your shares made $2 a share on the same move, so you're still ahead overall. That's the deal when you sell a call. You give up part of the upside.",
-   "lesson_line": "Sell a call and every dollar up costs you about the delta.",
+   "why": "He loses about $0.70 a share on the call. Selling flips the sign, so his short call carries negative delta and a rally costs him. 0.35 times the $2 rise is about $0.70. His shares made $2 a share on the same move, so he's still ahead overall. That's the deal on a covered call. He gives up part of the upside. Covered calls aren't our thing, though. We just hold the stock.",
+   "lesson_line": "On a short call, every dollar up costs about the delta.",
    "facts": [
     "f4",
     "f5",
     "f1",
-    "f28"
+    "f28",
+    "h02"
    ],
    "wrong": {
-    "You gain about $0.70 on the call": "That's the buyer's side. You sold it, so the sign flips.",
-    "You lose about $0.35 on the call": "That's one dollar's worth. The stock moved $2, so double it.",
-    "You gain about $0.35 on the call": "Wrong sign and only one dollar's worth. You sold the call, and the stock moved $2."
+    "He gains about $0.70 on the call": "That's the buyer's side. He sold it, so the sign flips.",
+    "He loses about $0.35 on the call": "That's one dollar's worth. The stock moved $2, so double it.",
+    "He gains about $0.35 on the call": "Wrong sign and only one dollar's worth. He sold the call, and the stock moved $2."
    },
-   "simple": "You sold the call, so a rally costs you. 0.35 times $2 is about $0.70 a share.",
+   "simple": "He sold the call, so a rally costs him. 0.35 times $2 is about $0.70 a share.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -996,14 +997,14 @@
      "the key is computed"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "voice-8-seller-2026-11-17",
    "visual": {
     "kind": "size",
     "title": "The short call and the move",
     "rows": [
      {
       "key": "short_call_delta",
-      "label": "Delta of the call we sold",
+      "label": "Delta of the call he sold",
       "value": 0.35,
       "fmt": "count"
      },
@@ -1015,7 +1016,7 @@
      }
     ],
     "find": {
-     "label": "Our short call",
+     "label": "His short call",
      "as": "per_share"
     }
    }
@@ -1624,7 +1625,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Covered call, call alone: 0.35 x 2 = 0.70 loss (f4, f28). Shares up $2 so net ahead is right. Wrong notes right."
+   "notes": "seller framing reframed; answer unchanged"
   },
   "q13": {
    "status": "pass",

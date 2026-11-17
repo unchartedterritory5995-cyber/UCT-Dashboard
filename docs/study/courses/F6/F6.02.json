@@ -781,14 +781,15 @@
     "You pay the strike"
    ],
    "answer": "Cash comes in, a credit",
-   "why": "Cash comes in. You sold, so the buyer pays you the premium the moment it fills. That's a credit. Buying is the reverse, the premium leaves and you start with a debit. The strike only matters if you get assigned. Then, as the put seller, you have to buy the shares at the strike. That's the part that can hurt, and it's why selling is never free money.",
+   "why": "Cash comes in. You sold, so the buyer pays you the premium the moment it fills. That's a credit. Buying is the reverse, the premium leaves and you start with a debit. The strike only matters if you get assigned. Then, as the put seller, you have to buy the shares at the strike. That's the part that can hurt, and it's why selling is never free money. Selling to open isn't something we do. On the rare option we use, we're the buyer, so we start with the debit.",
    "lesson_line": "Sell to open and cash comes in. Buy to open and it goes out.",
    "facts": [
     "f6",
     "f1",
     "f30",
     "f4",
-    "f41"
+    "f41",
+    "h02"
    ],
    "wrong": {
     "Nothing until expiry": "You collect the premium when the sale fills, not at expiry.",
@@ -803,7 +804,7 @@
      "fixed before"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "voice-8-seller-2026-11-17"
   },
   {
    "key": "q06",
@@ -835,27 +836,29 @@
    "skill": "options.premium",
    "rung": 3,
    "format": "mcq",
-   "q": "You sell to open one call and collect the premium. Then the stock falls hard. What's the most you can make on that call?",
+   "q": "A buddy sells to open one call and collects the premium. Then the stock falls hard. What's the most he can make on that call?",
    "choices": [
-    "The premium you collected",
+    "The premium he collected",
     "Unlimited, if the stock falls",
     "The strike price times 100",
     "The rise above the strike"
    ],
-   "answer": "The premium you collected",
-   "why": "The premium you collected. The best thing that can happen to a call seller is the call expiring worthless. You keep the premium and that's it, however far the stock drops. Now flip it. If the stock rips and you don't own the shares, your loss has no ceiling. A small, capped gain against an open-ended loss. Know which side of that you're on before you sell.",
-   "lesson_line": "Sell an option and the premium is your best case. Know your worst case first.",
+   "answer": "The premium he collected",
+   "why": "The premium he collected. The best thing that can happen to a call seller is the call expiring worthless. He keeps the premium and that's it, however far the stock drops. Now flip it. If the stock rips and he doesn't own the shares, his loss has no ceiling. A small, capped gain against an open-ended loss. We leave that trade to others. When we buy an option, it's the other way around. The premium is the most we can lose.",
+   "lesson_line": "A call seller's best case is the premium. Without the shares, his worst case has no ceiling.",
    "facts": [
     "f48",
     "f6",
     "f17",
     "f65",
-    "f49"
+    "f49",
+    "h01",
+    "h02"
    ],
    "wrong": {
-    "Unlimited, if the stock falls": "A falling stock just makes the call worthless. You keep the premium, and that's your ceiling.",
-    "The strike price times 100": "That's what you'd be paid for the shares if you're assigned. It's not profit on the option.",
-    "The rise above the strike": "A rise above the strike is your loss as the seller, not your gain."
+    "Unlimited, if the stock falls": "A falling stock just makes the call worthless. He keeps the premium, and that's his ceiling.",
+    "The strike price times 100": "That's what he'd be paid for the shares if he's assigned. It's not profit on the option.",
+    "The rise above the strike": "A rise above the strike is his loss as the seller, not his gain."
    },
    "simple": "A call seller makes at most the premium collected, however far the stock falls.",
    "tier": "core",
@@ -863,7 +866,7 @@
     "score": 0,
     "reasons": []
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "voice-8-seller-2026-11-17"
   },
   {
    "key": "q08",
@@ -1046,14 +1049,15 @@
      "multiplier": 100
     }
    },
-   "why": "A $370 debit, so cash goes out. Net the legs first. You pay 3.10 and collect 1.25, and 3.10 minus 1.25 is 1.85 a share. Times 100 shares is $185 a spread. You did 2, so $370 leaves your account. The call you sell pays for part of the one you buy, never all of it. The higher strike is always the cheaper call, so a bull call spread always costs money to open.",
+   "why": "A $370 debit, so cash goes out. Net the legs first. You pay 3.10 and collect 1.25, and 3.10 minus 1.25 is 1.85 a share. Times 100 shares is $185 a spread. You did 2, so $370 leaves your account. The call you sell pays for part of the one you buy, never all of it. The higher strike is always the cheaper call, so a bull call spread always costs money to open. We'd skip the leg you sell. We keep options simple, a plain buy once in a while.",
    "lesson_line": "Net the legs first. Pay more than you collect and it's a debit.",
    "facts": [
     "f24",
     "f25",
     "f53",
     "f58",
-    "f59"
+    "f59",
+    "h02"
    ],
    "wrong": {
     "$370 credit": "Wrong direction. You paid more than you collected, so cash went out.",
@@ -1068,7 +1072,7 @@
      "computed key"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "voice-8-seller-2026-11-17",
    "visual": {
     "kind": "size",
     "title": "The spread order",
@@ -1103,7 +1107,7 @@
    "skill": "options.premium",
    "rung": 5,
    "format": "mcq",
-   "q": "You sell 1 put at 2.80 and buy 1 lower-strike put at 1.05, same expiry. What credit lands in your account, before commissions?",
+   "q": "A friend sells 1 put at 2.80 and buys 1 lower-strike put at 1.05, same expiry. What credit lands in his account, before commissions?",
    "answer": "$175",
    "prefix": "$",
    "calc": {
@@ -1116,15 +1120,16 @@
      "multiplier": 100
     }
    },
-   "why": "$175. You take in 2.80 on the put you sell and pay 1.05 for the one you buy. 2.80 minus 1.05 is 1.75 a share. Times 100 shares, that's $175 in. The put you sell has the higher strike, so it's worth more, and a bull put spread always opens as a credit. Just remember that credit is your best case. The risk sits in the gap between the strikes.",
-   "lesson_line": "Collect more than you pay and it opens as a credit. That credit is your ceiling.",
+   "why": "$175. He takes in 2.80 on the put he sells and pays 1.05 for the one he buys. 2.80 minus 1.05 is 1.75 a share. Times 100 shares, that's $175 in. The put he sells has the higher strike, so it's worth more, and a bull put spread always opens as a credit. That credit is his best case. The risk sits in the gap between the strikes. We don't put on credit spreads, but you should be able to read one.",
+   "lesson_line": "More in than out and it opens as a credit. That credit is the ceiling.",
    "facts": [
     "f26",
     "f53",
     "f60",
-    "f61"
+    "f61",
+    "h02"
    ],
-   "simple": "$175. You take in 2.80, pay 1.05, and one contract covers 100 shares.",
+   "simple": "$175. He takes in 2.80, pays 1.05, and one contract covers 100 shares.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -1132,7 +1137,7 @@
      "computed key"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "voice-8-seller-2026-11-17",
    "choices": [
     "$385",
     "$280",
@@ -1140,8 +1145,8 @@
     "$1.75"
    ],
    "wrong": {
-    "$385": "That adds the premiums. You paid 1.05 for the lower put, so it comes off.",
-    "$280": "That's only the put you sold. The one you bought costs 1.05.",
+    "$385": "That adds the premiums. He paid 1.05 for the lower put, so it comes off.",
+    "$280": "That's only the put he sold. The one he bought costs 1.05.",
     "$1.75": "That's per share. One contract is 100 shares."
    },
    "visual": {
@@ -1168,7 +1173,7 @@
      }
     ],
     "find": {
-     "label": "Credit we collect",
+     "label": "Credit he collects",
      "as": "dollars"
     }
    }
@@ -1707,14 +1712,15 @@
      "multiplier": 100
     }
    },
-   "why": "$4,700. You get assigned, so you buy 100 shares at the 50 strike. That's $5,000 for stock that's now worth nothing. The 3.00 you collected, $300, takes a little off. 50 minus 3, times 100, is $4,700. That's the floor, because a stock can't go below zero. But look at the trade. You risked $4,700 to make $300. Selling puts looks like easy income until the one that doesn't come back.",
+   "why": "$4,700. You get assigned, so you buy 100 shares at the 50 strike. That's $5,000 for stock that's now worth nothing. The 3.00 you collected, $300, takes a little off. 50 minus 3, times 100, is $4,700. That's the floor, because a stock can't go below zero. But look at the trade. You risked $4,700 to make $300. Selling puts looks like easy income until the one that doesn't come back. You won't catch us on that side of it.",
    "lesson_line": "A put seller's risk runs to zero. The premium only trims it.",
    "facts": [
     "f40",
     "f41",
     "f18",
     "f11",
-    "f47"
+    "f47",
+    "h02"
    ],
    "wrong": {
     "$300": "That's the premium, the buyer's worst case. The seller's risk runs all the way to zero.",
@@ -1733,7 +1739,7 @@
      "fixed before"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "voice-8-seller-2026-11-17",
    "visual": {
     "kind": "payoff",
     "title": "The short put at zero",
@@ -1743,7 +1749,7 @@
     "premium": 3.0,
     "underlying": 0.0,
     "find": {
-     "label": "What we lose",
+     "label": "What you lose",
      "as": "dollars"
     }
    }
@@ -1753,19 +1759,20 @@
    "skill": "options.premium",
    "rung": 8,
    "format": "tf",
-   "q": "You sell a put spread for a credit. The credit you collected is the most you can lose on it.",
+   "q": "A friend sold a put spread for a credit. The credit he collected is the most he can lose on it.",
    "answer": "False",
-   "why": "False. The credit is the most you can make. Your worst case is the gap between the two strikes, minus that credit. It's flipped from buying. Cash comes in now, and a bill can come later. The good news is you know both numbers the moment you open it. So check the worst case before you sell, and size off that, never the credit.",
-   "lesson_line": "On a credit, the cash you collect is your best case. Size off the worst.",
+   "why": "False. The credit is the most he can make. His worst case is the gap between the two strikes, minus that credit. It's flipped from buying. Cash comes in now, and a bill can come later. He knows both numbers the moment he opens it. He should size off the worst case, never the credit. We stay out of these. Still, know the math, so a credit never looks like safe money to you.",
+   "lesson_line": "On a credit spread, the cash in is the best case. Size off the worst.",
    "facts": [
     "f27",
     "f28",
     "f29",
-    "f62"
+    "f62",
+    "h02"
    ],
-   "simple": "False. The credit is your best case, and the worst is the gap between the strikes less the credit.",
+   "simple": "False. The credit is his best case, and the worst is the gap between the strikes less the credit.",
    "deeper": {
-    "trap": "Trap: reading a credit as safe money. A credit spread takes cash in now in exchange for a possible outlay later. At worst you lose the strike gap less the credit, so know that number before you sell."
+    "trap": "Trap: reading a credit as safe money. A credit spread takes cash in now in exchange for a possible outlay later. At worst the seller loses the strike gap less the credit, so that number comes first."
    },
    "tier": "expert",
    "risk": {
@@ -1774,7 +1781,7 @@
      "fixed before"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "voice-8-seller-2026-11-17"
   },
   {
    "key": "q25",
@@ -1962,7 +1969,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Credit on sell to open (f6); strike only on assignment (f41). Choices plain, no 'No;' clauses, key not longest."
+   "notes": "seller framing reframed; answer unchanged"
   },
   "q06": {
    "status": "pass",
@@ -1974,7 +1981,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Premium is the seller's max gain (f48); unlimited loss limited to the uncovered case ('you don't own the shares'), matching f49. 'Stock falls hard' in the stem tempts the 'Unlimited, if the stock falls' distractor without giving the answer away."
+   "notes": "seller framing reframed; answer unchanged"
   },
   "q08": {
    "status": "pass",
@@ -2004,13 +2011,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Story unchanged. 3.10 - 1.25 = 1.85, x 100 = 185, x 2 = 370 debit, recomputed. Higher strike cheaper, so always a debit (f24, f25)."
+   "notes": "seller framing reframed; answer unchanged"
   },
   "q13": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "2.80 - 1.05 = 1.75, x 100 = 175 credit, recomputed. $385 = 2.80 + 1.05 added, $280 = sold leg only. Always a credit (f26)."
+   "notes": "seller framing reframed; answer unchanged"
   },
   "q14": {
    "status": "pass",
@@ -2076,13 +2083,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(50 - 3) x 100 = 4,700 (f41, f18); floor at zero right. Risk vs reward line is real trade-review talk."
+   "notes": "seller framing reframed; answer unchanged"
   },
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "False is right (f27, f28). Truth catch: 'small cash in now, a bigger possible bill later' is not always true; when the credit is more than half the strike gap, the worst case is smaller than the credit. Rewrote to f29's plain version."
+   "fixed": false,
+   "notes": "seller framing reframed; answer unchanged"
   },
   "q25": {
    "status": "pass",

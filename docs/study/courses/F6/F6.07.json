@@ -874,13 +874,14 @@
     "It turns positive"
    ],
    "answer": "It gets more negative",
-   "why": "It gets more negative. A short call has negative gamma. As the stock rises, your delta goes further below zero, so you get shorter right as the stock runs at you. Each dollar up costs you more than the one before. A short call's delta stays between 0 and -1.00, so it never flips positive. That's the risk you sign up for when you sell a call.",
+   "why": "It gets more negative. A short call has negative gamma. As the stock rises, your delta goes further below zero, so you get shorter right as the stock runs at you. Each dollar up costs you more than the one before. A short call's delta stays between 0 and -1.00, so it never flips positive. That's what a call seller signs up for, and it's a seat we don't take. Own the option instead and gamma is on your side.",
    "lesson_line": "A short option gets bigger against you when the stock runs. That's negative gamma.",
    "facts": [
     "f8",
     "f20",
     "f4",
-    "f21"
+    "f21",
+    "f77"
    ],
    "wrong": {
     "It gets less negative": "That's what a drop does. A rise pushes your short call's delta further below zero.",
@@ -893,7 +894,7 @@
     "score": 0,
     "reasons": []
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "voice-8-seller-2026-11-17"
   },
   {
    "key": "q08",
@@ -1515,17 +1516,17 @@
    "skill": "options.gamma",
    "rung": 9,
    "format": "scenario",
-   "story": "Dec 18, 2024. You sold same-day S&P 500 index puts near the money that morning. The Fed statement came out at 2 p.m. ET.",
-   "q": "The index quickly lost almost 3%. Why did your losses pile up so fast?",
+   "story": "Dec 18, 2024. A trader sold same-day S&P 500 index puts near the money that morning. The Fed statement came out at 2 p.m. ET.",
+   "q": "The index quickly lost almost 3%. Why did his losses pile up so fast?",
    "choices": [
     "Short gamma kept adding exposure",
-    "Time decay turned against you",
+    "Time decay turned against him",
     "Gamma is near zero on expiry day",
     "The puts' deltas shrank as it fell"
    ],
    "answer": "Short gamma kept adding exposure",
-   "why": "Short gamma. Near the money on expiry day, gamma is at its peak. Every leg down pushed your puts' deltas toward -1.00, so each point cost you more than the last. Time decay was still on your side, but it couldn't keep up. The statement hit at 2 p.m. Eastern, about two hours before the close. The index quickly lost almost 3% and closed down 2.9%. Same-day put sellers likely took big losses. Selling same-day options into a scheduled event can hurt an account in one afternoon.",
-   "lesson_line": "Short same-day options into a scheduled event can unravel in hours. Know that before you sell.",
+   "why": "Short gamma. Near the money on expiry day, gamma is at its peak. Every leg down pushed his puts' deltas toward -1.00, so each point cost him more than the last. Time decay was still on his side, but it couldn't keep up. The statement hit at 2 p.m. Eastern, about two hours before the close. The index quickly lost almost 3% and closed down 2.9%. Same-day put sellers likely took big losses. Selling same-day options into a scheduled event can hurt an account in one afternoon. We'd never be in that spot. When we touch options at all, we're buying.",
+   "lesson_line": "Short same-day options into a scheduled event can unravel in hours.",
    "facts": [
     "f58",
     "f59",
@@ -1537,12 +1538,13 @@
     "f60",
     "f61",
     "f29",
-    "f13"
+    "f13",
+    "f77"
    ],
    "wrong": {
-    "Time decay turned against you": "Decay still worked for you as a seller. It just couldn't keep up with a move that size.",
     "Gamma is near zero on expiry day": "Not near the money. At the strike on expiry day, gamma is at its highest.",
-    "The puts' deltas shrank as it fell": "The opposite. A falling market pushes a put's delta toward -1.00, so your short exposure grew."
+    "The puts' deltas shrank as it fell": "The opposite. A falling market pushes a put's delta toward -1.00, so his short exposure grew.",
+    "Time decay turned against him": "Decay still worked for him as a seller. It just couldn't keep up with a move that size."
    },
    "simple": "Short gamma, because near the money on expiry day each drop pushed the puts' deltas toward -1.00, so losses grew faster.",
    "deeper": {
@@ -1556,7 +1558,7 @@
      "lesson line touches the owner's rulebook (C32: no news-day rule)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "voice-8-seller-2026-11-17",
    "chart": {
     "sym": "SPX",
     "asof": "2024-12-17",
@@ -1700,7 +1702,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "More negative is right (f8). 0 to -1.00 range from f20/f21. Good."
+   "notes": "seller framing reframed; answer unchanged"
   },
   "q08": {
    "status": "pass",
@@ -1784,7 +1786,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Short gamma right (f11, f7, f28). Dates and numbers checked against f39, f58, f59, f75 and the verify note (close -2.95%). Reads like a trade review."
+   "notes": "seller framing reframed; answer unchanged"
   },
   "q22": {
    "status": "pass",

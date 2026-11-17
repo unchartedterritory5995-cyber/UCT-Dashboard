@@ -91,6 +91,14 @@
    "title": "S&P 500 Index Options (SPX)",
    "url": "https://www.cboe.com/tradable_products/sp_500/spx_options/",
    "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The house sizing rule, section 9: The account rulebook (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-17"
   }
  ],
  "facts": [
@@ -519,6 +527,18 @@
    "source": "s8",
    "quote": "In-the-money is a term used to describe when the market price of the underlying security is above the strike price of a call option or below the strike price of a put, giving the contract intrinsic value.",
    "claim": "A call is in the money when the stock is above its strike; a put when the stock is below its strike."
+  },
+  {
+   "id": "h01",
+   "source": "s11",
+   "quote": "Options occasionally; no further rules. The premium paid is the stop.",
+   "claim": "Rule B25: we use options occasionally, and on an option we buy the premium paid is the stop."
+  },
+  {
+   "id": "h02",
+   "source": "s11",
+   "quote": "Trade shares; options are only a defined-risk alternative.",
+   "claim": "Rule A6: we trade shares, and we use options only as a defined-risk alternative."
   }
  ],
  "walkthroughs": [
@@ -561,7 +581,7 @@
    "title": "One contract, 100 shares",
    "steps": [
     "A standard stock option contract covers 100 shares.",
-    "So the XYZ 40 call is the right to buy 100 shares at $40 each, $4,000 in all.",
+    "So the ZQRT 40 call is the right to buy 100 shares at $40 each, $4,000 in all.",
     "Standard monthly options expire on the third Friday. After that, the contract no longer exists."
    ],
    "facts": [
@@ -1062,8 +1082,8 @@
    "skill": "options.calls_puts",
    "rung": 5,
    "format": "scenario",
-   "story": "You sold one ZQRT 45 call to open. A month before expiry, ZQRT trades at 52.",
-   "q": "Could you get assigned today, weeks before expiry?",
+   "story": "A friend sold one ZQRT 45 call to open. A month before expiry, ZQRT trades at 52.",
+   "q": "Could he get assigned today, weeks before expiry?",
    "choices": [
     "Yes, on any day before expiry",
     "No, only on the expiry day",
@@ -1071,8 +1091,8 @@
     "Yes, but only in the last week"
    ],
    "answer": "Yes, on any day before expiry",
-   "why": "Yes, any day. Stock options are American-style, so the holder can exercise any time before expiry. With ZQRT at 52, the 45 call you sold is in the money. The holder can buy at 45 today, and you don't get a vote on when. If you're assigned, you sell 100 shares at 45 and keep the premium you collected. Write a call expecting that notice could come any day.",
-   "lesson_line": "Write a stock option and assignment can come any day until expiry. Plan for it.",
+   "why": "Yes, any day. Stock options are American-style, so the holder can exercise any time before expiry. ZQRT at 52 puts his 45 call in the money. The holder can buy at 45 today, and your friend gets no say on when. If he's assigned, he sells 100 shares at 45 and keeps the premium. That's his trade, not ours. When we use a call, we're the holder, and the timing is ours.",
+   "lesson_line": "A stock option's writer can be assigned any day until expiry, not just at the end.",
    "facts": [
     "f42",
     "f38",
@@ -1083,23 +1103,24 @@
     "f6",
     "f3",
     "f71",
-    "f48"
+    "f48",
+    "h02"
    ],
    "wrong": {
     "No, the writer picks the day": "The writer has no say. The holder decides when to exercise.",
     "No, only on the expiry day": "That's European-style, like most index options. Stock options are American-style.",
     "Yes, but only in the last week": "Assignment isn't saved for the last days. It can come any time in the option's life."
    },
-   "simple": "Yes. A stock option can be used any day before expiry, so you can be assigned any day.",
+   "simple": "Yes. A stock option can be used any day before expiry, so he can be assigned any day.",
    "deeper": {
-    "counter": "The stock at 52 is above your 45 strike, so the holder could buy at 45 today. OIC calls assignment before expiration a distinct possibility. Being assigned does not take back the premium you collected. You keep it, and you sell the shares at 45."
+    "counter": "The stock at 52 is above his 45 strike, so the holder could buy at 45 today. OIC calls assignment before expiration a distinct possibility. Being assigned does not take back the premium he collected. He keeps it, and he sells the shares at 45."
    },
    "tier": "extended",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "voice-8-seller-2026-11-17"
   },
   {
    "key": "q16",
@@ -1137,7 +1158,7 @@
     "You sell 100 shares at 30"
    ],
    "answer": "You buy 100 shares at 30",
-   "why": "You buy 100 shares at 30. That's the deal you signed up for when you wrote the put. The stock at 24 doesn't lower your price. You're paying 30 for a stock that trades at 24. The premium you collected is yours to keep, and it takes a little off that hit. And once you're assigned, it's too late to buy the put back.",
+   "why": "You buy 100 shares at 30. That's the deal you signed up for when you wrote the put. The stock at 24 doesn't lower your price. You're paying 30 for a stock that trades at 24. The premium you collected is yours to keep, and it takes a little off that hit. And once you're assigned, it's too late to buy the put back. We don't write puts. If I want ZQRT, I buy the shares myself, at a price I pick.",
    "lesson_line": "A short put can make you buy at the strike, even with the stock far below it.",
    "facts": [
     "f7",
@@ -1147,7 +1168,8 @@
     "f43",
     "f24",
     "f10",
-    "f48"
+    "f48",
+    "h02"
    ],
    "wrong": {
     "You buy 100 shares at 24": "The market price doesn't set your cost. You pay the 30 strike, wherever the stock trades.",
@@ -1160,7 +1182,7 @@
     "score": 0,
     "reasons": []
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "voice-8-seller-2026-11-17"
   },
   {
    "key": "q18",
@@ -1482,15 +1504,15 @@
    "skill": "options.calls_puts",
    "rung": 4,
    "format": "mcq",
-   "q": "You wrote a ZQRT call and collected the premium. Now the buyer exercises it. What happens to that premium?",
+   "q": "A trader you know wrote a ZQRT call and collected the premium. Now the buyer exercises it. What happens to that premium?",
    "choices": [
-    "You keep it and still deliver shares",
-    "You return it, since the option was used",
-    "You keep it only if it expires unused",
+    "He keeps it and still delivers shares",
+    "He refunds it, since it was used",
+    "He keeps it only if it expires unused",
     "It lowers the buyer's share price"
    ],
-   "answer": "You keep it and still deliver shares",
-   "why": "You keep it, and you still deliver the shares. The premium was paid up front, and it's never refunded. Exercise doesn't change that. It just means you now sell 100 shares at the strike. Here's what people miss. That premium is the most a seller can make on the trade. It's not a limit on what you can lose.",
+   "answer": "He keeps it and still delivers shares",
+   "why": "He keeps it, and he still delivers the shares. The premium was paid up front, and it's never refunded. Exercise doesn't change that. It just means he sells 100 shares at the strike. Here's what people miss. That premium is the most a seller can make on the trade. It's not a limit on what he can lose. We sit on the other side. We buy an option now and then, and the premium we pay is the stop.",
    "lesson_line": "The seller keeps the premium, exercised or not. It doesn't cap what the seller can lose.",
    "facts": [
     "f19",
@@ -1498,14 +1520,16 @@
     "f10",
     "f30",
     "f49",
-    "f48"
+    "f48",
+    "h01",
+    "h02"
    ],
    "wrong": {
-    "You return it, since the option was used": "The premium is paid up front and never refunded, used or not.",
-    "You keep it only if it expires unused": "You keep it either way. Exercise just adds the duty to deliver the shares.",
-    "It lowers the buyer's share price": "The strike sets what the buyer pays. The premium was paid earlier and stays with you."
+    "It lowers the buyer's share price": "The strike sets what the buyer pays. The premium was paid earlier and stays with him.",
+    "He refunds it, since it was used": "The premium is paid up front and never refunded, used or not.",
+    "He keeps it only if it expires unused": "He keeps it either way. Exercise just adds the duty to deliver the shares."
    },
-   "simple": "You keep the premium and still deliver the shares. It was paid up front and is never refunded.",
+   "simple": "He keeps the premium and still delivers the shares. It was paid up front and is never refunded.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -1513,7 +1537,7 @@
      "stable rule: FINRA and OIC agree"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "voice-8-seller-2026-11-17"
   }
  ],
  "conflicts": [
@@ -1642,8 +1666,8 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'your 45 call' read as if you owned it; you sold it. Now 'the 45 call you sold'. f26, f38, f42, f10."
+   "fixed": false,
+   "notes": "seller framing reframed; answer unchanged"
   },
   "q16": {
    "status": "pass",
@@ -1655,7 +1679,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. f58, f59, f10."
+   "notes": "seller framing reframed; answer unchanged"
   },
   "q18": {
    "status": "pass",
@@ -1709,7 +1733,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. f9, f10, f19, f49."
+   "notes": "seller framing reframed; answer unchanged"
   }
  }
 }

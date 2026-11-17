@@ -1074,7 +1074,7 @@
    ],
    "simple": "False. B was bought with A's sale money, which hasn't settled, so selling B today is a violation.",
    "deeper": {
-    "trap": "Starting the day with settled cash protects only the buys that cash paid for. In Fidelity's example, Trudy sold ABC before Monday's sale of XYZ settled, and that was a violation. Each time you reuse cash from a same-day sale, hold what it buys until that cash settles."
+    "trap": "Starting the day with settled cash protects only the buys that cash paid for. In Fidelity's example, Trudy sold ABC before Monday's sale of ZQRT settled, and that was a violation. Each time you reuse cash from a same-day sale, hold what it buys until that cash settles."
    },
    "tier": "core",
    "risk": {
@@ -1283,16 +1283,16 @@
    "skill": "risk.account_rules",
    "rung": 5,
    "format": "scenario",
-   "story": "Cash account, no settled cash. Monday morning you sell XYZ. That afternoon you buy ABC with the money.",
+   "story": "Cash account, no settled cash. Monday morning you sell ZQRT. That afternoon you buy ABC with the money.",
    "q": "When's the earliest you can sell ABC without a good faith violation?",
    "choices": [
-    "Tuesday, once XYZ settles",
-    "Right away, XYZ is already sold",
+    "Tuesday, once ZQRT settles",
+    "Right away, ZQRT is already sold",
     "Only after you add new cash",
     "Anytime after Monday's close"
    ],
-   "answer": "Tuesday, once XYZ settles",
-   "why": "Tuesday, once XYZ settles. You paid for ABC with XYZ's sale money, and that money settles the next business day. Sell ABC before then and you've sold a stock bought with cash you didn't have yet. That's a good faith violation. Here's where it really hurts. Say ABC breaks down Monday afternoon. Now you're choosing between the violation and your stop. Keep settled cash on hand for your buys and you never face that choice.",
+   "answer": "Tuesday, once ZQRT settles",
+   "why": "Tuesday, once ZQRT settles. You paid for ABC with ZQRT's sale money, and that money settles the next business day. Sell ABC before then and you've sold a stock bought with cash you didn't have yet. That's a good faith violation. Here's where it really hurts. Say ABC breaks down Monday afternoon. Now you're choosing between the violation and your stop. Keep settled cash on hand for your buys and you never face that choice.",
    "lesson_line": "Bought with unsettled cash means you hold it until that cash settles.",
    "facts": [
     "f15",
@@ -1301,11 +1301,11 @@
     "f39"
    ],
    "wrong": {
-    "Right away, XYZ is already sold": "Sold isn't settled. XYZ's cash settles the next business day.",
-    "Only after you add new cash": "No new money needed. XYZ's proceeds pay for ABC once they settle.",
-    "Anytime after Monday's close": "The close isn't settlement. XYZ's sale settles the next business day, Tuesday."
+    "Right away, ZQRT is already sold": "Sold isn't settled. ZQRT's cash settles the next business day.",
+    "Only after you add new cash": "No new money needed. ZQRT's proceeds pay for ABC once they settle.",
+    "Anytime after Monday's close": "The close isn't settlement. ZQRT's sale settles the next business day, Tuesday."
    },
-   "simple": "Tuesday, once XYZ's sale settles. ABC was paid for with that money.",
+   "simple": "Tuesday, once ZQRT's sale settles. ABC was paid for with that money.",
    "tier": "extended",
    "risk": {
     "score": 2,
