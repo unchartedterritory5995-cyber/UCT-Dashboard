@@ -1,5 +1,5 @@
 {
-  "fingerprint": "pipeline:master -> production=12 master commits not promoted yet (oldest landed 77 min ago): more than 60 min outside any hold and checks are still running",
-  "posted_at": "2026-11-17T09:33:21.003380+00:00",
+  "fingerprint": "pipeline:master -> production=14 master commits not promoted yet (oldest landed 91 min ago): more than 60 min outside any hold and checks are still running",
+  "posted_at": "2026-11-17T09:47:22.469534+00:00",
   "reason": "new stuck item"
 }
