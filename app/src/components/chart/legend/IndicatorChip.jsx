@@ -5,6 +5,7 @@ import styles from './IndicatorChip.module.css'
 import { chipValueText as formatChipValue } from '../engine/readout'
 import { inkCssColour } from '../engine/objectColour'
 import { RowActs } from './LegendRow'
+import { LEGEND_ROW_VALUES_MAX } from './legendRows'
 import rowStyles from './LegendRow.module.css'
 
 /**
@@ -178,6 +179,11 @@ export default function IndicatorChip({
   // ⭐ UCT SIGNATURE — this chip's ⋯ menu (or one of its pages) is open: the grid row
   // holds its hover card + strip (`rowStyles.rowActive`) and the ⋯ reports `aria-expanded`.
   menuOpen = false,
+  // ⭐ ONE ROW PER NAME (owner, 2026-11-16) — the indicator's OTHER drawn plots that print
+  // this same name (`legendRows`). Each rides on this row as one more value in its own
+  // line's colour, so a script with two averages reads `Uncharted Clouds 433.92 451.49`
+  // on one row. Absent or empty, the chip is exactly the chip it was.
+  more = null,
 }) {
   const interactive = typeof onMenu === 'function'
   const label = typeof name === 'string' && name ? name : chip.label
@@ -224,6 +230,20 @@ export default function IndicatorChip({
   const valueText = (typeof chip.value === 'number' && Number.isFinite(chip.value))
     ? formatChipValue(chip)
     : ''
+
+  // ⭐ The sibling plots' values, formatted by the one formatter the chip's own value uses.
+  // A sibling with no value on this bar prints nothing; past `LEGEND_ROW_VALUES_MAX` values
+  // on the row the rest fold into a `+N` count.
+  const moreAll = (Array.isArray(more) ? more : [])
+    .map((m) => ({
+      key: m.plotKey,
+      text: (typeof m.value === 'number' && Number.isFinite(m.value)) ? formatChipValue(m) : '',
+      color: inkCssColour(m.color),
+    }))
+    .filter((m) => m.text)
+  const moreRoom = Math.max(0, LEGEND_ROW_VALUES_MAX - (valueText ? 1 : 0))
+  const moreVals = moreAll.slice(0, moreRoom)
+  const moreOver = moreAll.length - moreVals.length
 
   // One sentence, both layouts.
   const chipTitle = chip.computed === false
@@ -339,6 +359,18 @@ export default function IndicatorChip({
       : chip.text
   }
 
+  // The inline chip's extra values. ⛔ Nothing is appended when there are none, so the
+  // chip's `textContent` stays `label + ' ' + value` to the byte for every single-plot chip.
+  const moreInline = moreVals.length ? (
+    <>
+      {moreVals.map((m) => (
+        <span key={m.key}>{' '}<span className={styles.chipVal} data-more-value={m.key}
+          style={m.color ? { '--chip-color': m.color } : undefined}>{m.text}</span></span>
+      ))}
+      {moreOver > 0 ? <>{' '}<span className={styles.chipValsOver} data-more-over="">+{moreOver}</span></> : null}
+    </>
+  ) : null
+
   if (grid) {
     // ⛔ THREE CELLS, LIKE EVERY OTHER ROW IN THAT GRID. A two-cell row would let
     // the next row's label fall into the control gutter — see
@@ -397,6 +429,14 @@ export default function IndicatorChip({
               every hue. */}
         <span className={styles.chipGridVal}>{valueText || (fallback
           ? <span className={styles.chipValStale} data-stale-value="">{fallback.text}</span> : null)}</span>
+        {/* ⭐ ONE ROW PER NAME — each sibling plot's value, in its own line's colour (its own
+            `--chip-color`, so the value's lightness clamp reads this plot's colour, not the
+            row's). Inside the row box, so the row stays one continuous hover target. */}
+        {moreVals.map((m) => (
+          <span key={m.key} className={styles.chipGridVal} data-more-value={m.key}
+            style={m.color ? { '--chip-color': m.color } : undefined}>{m.text}</span>
+        ))}
+        {moreOver > 0 ? <span className={styles.chipValsOver} data-more-over="">+{moreOver}</span> : null}
         {/* ⛔ THE THIRD CELL IS STILL EMITTED, EMPTY. `.legendVertical` is ONE grid
             for the whole legend and fills by ORDER, so a two-cell row would let
             the next row's label fall into the third track and cascade the legend
@@ -437,6 +477,7 @@ export default function IndicatorChip({
       onClick={onBody}
     >
       {body}
+      {moreInline}
       {marks}
     </span>
   )

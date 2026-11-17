@@ -205,6 +205,8 @@ import IndicatorChip from './chart/legend/IndicatorChip'
 // overlays and the volume pane. They became removable with `chartDefaults`'s
 // overlay tombstone, so they get the eye / gear / ✕ the chips have always had.
 import LegendRow from './chart/legend/LegendRow'
+import { legendRows } from './chart/legend/legendRows'
+import { createLegendPointerHold } from './chart/legend/legendPointerHold'
 // ⭐ UCT RS design round (2026-11-08) — a pane's corner table (`meta.paneTable`).
 import PaneRanksTable from './chart/pane/PaneRanksTable'
 import { paneTableFits, paneTableOwners } from './chart/engine/paneTable'
@@ -5977,6 +5979,22 @@ export default function StockChart({
   // that reopens itself is a strip the user closed for nothing.
   const [chipsExpanded, setChipsExpanded] = useState(false)
   const legendHoveringRef = useRef(false)
+  /** ⭐⭐ THE HOVER-ONLY LEGEND HOLDS WHILE THE POINTER IS ON IT (owner, 2026-11-16: it
+   *  "flickers when I hold my mouse over it"; measured, 132 mounts and unmounts in 181
+   *  frames). The whole rule is `chart/legend/legendPointerHold.js`; this component tells
+   *  it four things (pointer entered / left the legend, the crosshair cleared, the
+   *  crosshair took the readout) and supplies what only it knows through this ref, which
+   *  is rewritten every render so the hold never reads a stale closure. */
+  const legendHoldEnvRef = useRef(null)
+  const legendHoldRef = useRef(null)
+  if (legendHoldRef.current === null) {
+    legendHoldRef.current = createLegendPointerHold({
+      isHoverOnly: () => !!(legendHoldEnvRef.current && legendHoldEnvRef.current.isHoverOnly()),
+      clearReadout: () => { if (legendHoldEnvRef.current) legendHoldEnvRef.current.clearReadout() },
+      crosshairPending: () => !!(legendHoldEnvRef.current && legendHoldEnvRef.current.crosshairPending()),
+      legendHovered: () => !!(legendHoldEnvRef.current && legendHoldEnvRef.current.legendHovered()),
+    })
+  }
   // True while a SYNCED (external) crosshair is applied to this chart. The
   // always-show-legend refreshers below must stand down for it exactly as they
   // do for a local hover — otherwise they'd overwrite the synced bar's readout
@@ -6312,6 +6330,25 @@ export default function StockChart({
   const offHoverCrosshair = () => (
     (alwaysShowLegend && !compactLegendRef.current) ? computeLatestCrosshair() : null
   )
+  // What the legend's pointer hold needs from this render (see `legendHoldRef`).
+  legendHoldEnvRef.current = {
+    // Hover-only = the off-cursor readout is nothing at all (the same test as above).
+    isHoverOnly: () => !(alwaysShowLegend && !compactLegendRef.current),
+    // The pointer left the legend for somewhere that is not the chart.
+    clearReadout: () => {
+      legendHoveringRef.current = false
+      setCrosshairData(offHoverCrosshair())
+      refreshOffHoverEndTags(alwaysShowLegend && !compactLegendRef.current)
+    },
+    crosshairPending: () => crosshairRafRef.current != null,
+    // The browser's own answer: `:hover` matches the legend box while the pointer is on
+    // any of its rows (the box itself takes no pointer; its rows do).
+    legendHovered: () => {
+      const el = legendRef.current
+      try { return !!(el && el.isConnected && el.matches(':hover')) } catch { return false }
+    },
+  }
+  useEffect(() => () => { legendHoldRef.current.dispose() }, [])
   /**
    * ⭐ F3 — the end-tag chips the price-pane host reads while `crosshairData` is
    * `null` (see the state's own note). Empty while the legend is persistent: the
@@ -6344,6 +6381,9 @@ export default function StockChart({
   const readoutIsOwned = () => (
     legendHoveringRef.current
     || externalCrosshairAppliedRef.current
+    // ⭐ …or it is being kept for a pointer resting on the hover-only legend: an
+    // off-cursor refresh there would unmount the legend under the pointer.
+    || legendHoldRef.current.isHolding()
   )
   const crosshairSubRef = useRef(null)
   const crosshairRafRef = useRef(null)
@@ -15926,6 +15966,8 @@ export default function StockChart({
       // hovered ROW does — the strip reads the observation for `param.time`.
       if (!priceData && econHoverRef.current && param && param.time !== undefined) priceData = { value: NaN }
       if (!priceData) {
+        // ⭐ …unless the pointer is resting on the hover-only legend (`legendPointerHold`).
+        if (legendHoldRef.current.keepsReadout()) return
         legendHoveringRef.current = false
         setCrosshairData(offHoverCrosshair())
         refreshOffHoverEndTags(alwaysShowLegend && !compactLegendRef.current)
@@ -16066,6 +16108,8 @@ export default function StockChart({
       // this: it's cleared on rAF, a frame before this flush runs.) The legend
       // still fills in below either way, so a synced chart shows the values.
       if (pointerOverRef.current) legendHoveringRef.current = true
+      // The crosshair owns the readout again: a hold kept for the legend is settled.
+      legendHoldRef.current.settle()
       setCrosshairData({
         time: param.time,
         open: o, high: h, low: l, close: c,
@@ -16102,9 +16146,13 @@ export default function StockChart({
       if (!param.point || !param.time) {
         if (crosshairRafRef.current != null) { cancelAnimationFrame(crosshairRafRef.current); crosshairRafRef.current = null }
         crosshairParamRef.current = null
-        legendHoveringRef.current = false
-        setCrosshairData(offHoverCrosshair())
-        refreshOffHoverEndTags(alwaysShowLegend && !compactLegendRef.current)
+        // ⭐ The pointer moved onto the hover-only legend: keep the readout it is reading
+        // (`legendPointerHold`). The sync bus is still told the chart was left.
+        if (!legendHoldRef.current.keepsReadout()) {
+          legendHoveringRef.current = false
+          setCrosshairData(offHoverCrosshair())
+          refreshOffHoverEndTags(alwaysShowLegend && !compactLegendRef.current)
+        }
         // Tell the sync bus the local user left the chart — but not when this
         // empty event was self-induced by applying an external crosshair.
         if (!applyingExternalRef.current && typeof onCrosshairMoveRef.current === 'function') {
@@ -20488,7 +20536,16 @@ export default function StockChart({
         // layout that sits over a real pane structure, so it is the one where
         // "which pane owns this row" is a question with an answer.
         const volRowInPriceStack = volLegendRowVisible && !volumeOwnsItsPane
-        const indChips = crosshairData.chips || EMPTY_CHIPS
+        // ⭐⭐ ONE ROW PER NAME (owner, 2026-11-16: a 23-plot script printed 22 rows that
+        // all read "Uncharted Clouds"). `legendRows` folds an indicator's same-name plots
+        // into one row led by its first drawn plot; the other drawn plots ride on it as
+        // extra values (`indMore`), and its hidden scaffolding plots get no row at all.
+        // ⛔ `crosshairData.chips` ITSELF IS UNTOUCHED: the line-end tags, the info values
+        // and the row-count signature above still read one chip per plot. Everything in
+        // this block reads `indChips`, so both layouts fold, count and order ROWS.
+        const indRows = legendRows(crosshairData.chips || EMPTY_CHIPS)
+        const indChips = indRows.map((r) => r.chip)
+        const indMore = new Map(indRows.map((r) => [r.chip, r.more]))
         // ── THE INLINE (NON-WORKSPACE) LEGEND'S FOLD — unchanged ────────────
         // Model Book, a pop-up, a gallery cell: one wrapping row of chips with a
         // fixed threshold. Legend V2 does not touch that surface; its own fold is
@@ -20640,6 +20697,10 @@ export default function StockChart({
         return (
         <div
           ref={legendRef}
+          /* ⭐ The legend box is `pointer-events: none`, but enter/leave are about the
+             SUBTREE: they fire as the pointer moves onto and off its rows. */
+          onPointerEnter={(e) => legendHoldRef.current.enter(e)}
+          onPointerLeave={() => legendHoldRef.current.leave()}
           className={`${styles.legend}${legendV2 ? ' ' + styles.legendV2 : ''}${compactLegend && legendV2 ? ' ' + styles.legendCompact : ''}${legendFlush ? ' ' + styles.legendFlush : toolbarCollapsed ? ' ' + styles.legendToolbarHidden : ''}`}
           /* Drop below the index pane so the legend never covers it; reserve the
              right price-axis width so the BAR INFO strip wraps before it. */
@@ -20898,6 +20959,7 @@ export default function StockChart({
                          so adjacency alone still identifies the group, with no
                          second grouping pass and no new identity. */
                       secondary={sameInstanceAsPrev(i)}
+                      more={indMore.get(c)}
                       className={folded ? chipStyles.chipFolded : undefined}
                       /* Per (instance, plot) — a definition with one repainting
                          column marks that column and leaves its siblings alone. */
@@ -21000,6 +21062,7 @@ export default function StockChart({
             <IndicatorChip
               key={`${c.instanceId}::${c.plotKey}`}
               chip={c}
+              more={indMore.get(c)}
               className={foldRank[i] >= foldedFrom ? chipStyles.chipFolded : undefined}
               {...(chipText[i] ? (readoutChipProps(c) || PANE_TEXT_CHIP) : null)}
               {...chipHandlersFor(c)}
@@ -21483,7 +21546,9 @@ export default function StockChart({
               {group.note ? <span className={styles.paneLegendNote}>{group.note}</span> : null}
             </div>
           ) : null}
-          {row.chips.map((c, ci) => (
+          {/* ⭐ ONE ROW PER NAME, HERE TOO (`legendRows`): a script drawn in its own pane
+              prints one readout row carrying each drawn plot's value, not a row per plot. */}
+          {legendRows(row.chips).map(({ chip: c, more }, ci, paneRows) => (
             <LegendRow
               key={`${c.instanceId}::${c.plotKey}`}
               vertical={!group}
@@ -21491,7 +21556,9 @@ export default function StockChart({
                  and SIG stack with the second indented, rather than as two
                  unrelated studies that happen to share a pane. Adjacency is the
                  grouping, because `legendChips` walks the INSTANCE list. */
-              secondary={ci > 0 && row.chips[ci - 1].instanceId === c.instanceId}
+              secondary={ci > 0 && paneRows[ci - 1].chip.instanceId === c.instanceId}
+              moreValues={more.length
+                ? more.map((m) => ({ key: m.plotKey, text: chipValueText(m), color: m.color })) : undefined}
               /* ⭐⭐ THE ROW ID IS THE INSTANCE ID, and that is what wires the door
                  with no adapter: `LegendRow` calls `onOpen(rowId, anchor)` and the
                  pane readout hands it straight to `handlePaneRowMenu`, which looks
