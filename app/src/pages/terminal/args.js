@@ -44,6 +44,26 @@ function isRealIsoDate(iso) {
 /** The comparison windows `lookback` accepts (REL, CORR). Each panel draws every one of them, and
  *  says so out loud for anything else (panels/RelPanel.jsx, panels/CorrPanel.jsx; railed). */
 export const LOOKBACK_WINDOWS = Object.freeze(['1M', '3M', '6M', '1Y', '2Y', 'YTD'])
+/** The words the data-wave-1 lenses accept (see the kinds at the foot of ARG_KINDS). Exported for
+ *  args.dataWave1.test.js, which checks each against the panel that owns the vocabulary. */
+export const LONG_RUN_WORDS = Object.freeze({
+  '30D': '30D', 30: '30D', '60D': '60D', 60: '60D', '90D': '90D', 90: '90D',
+  VOL1Y: 'VOL1Y', VOLUME1Y: 'VOL1Y', '1YVOL': 'VOL1Y',
+  VOLMAX: 'VOLMAX', VOLEVER: 'VOLMAX', MAXVOL: 'VOLMAX', ALLTIME: 'VOLMAX',
+  IPO: 'IPO', IPOS: 'IPO', LISTINGS: 'IPO',
+})
+export const ANALYST_KIND_WORDS = Object.freeze({
+  UP: 'upgrades', UPGRADE: 'upgrades', UPGRADES: 'upgrades',
+  DOWN: 'downgrades', DN: 'downgrades', DOWNGRADE: 'downgrades', DOWNGRADES: 'downgrades',
+  PT: 'targets', TARGET: 'targets', TARGETS: 'targets',
+})
+export const HILO_SIDE_WORDS = Object.freeze({
+  HIGHS: 'highs', HIGH: 'highs', HI: 'highs', NH: 'highs',
+  LOWS: 'lows', LOW: 'lows', LO: 'lows', NL: 'lows',
+})
+export const HILO_GROUP_WORDS = Object.freeze({
+  SECTOR: 'sector', SECTORS: 'sector', INDUSTRY: 'industry', INDUSTRIES: 'industry', THEME: 'theme', THEMES: 'theme',
+})
 /** The cadences `cadence` accepts (RRG's daily or weekly closes; panels/RrgPanel.jsx RRG_CADENCES). */
 export const CADENCES = Object.freeze(['D', 'W'])
 
@@ -215,6 +235,35 @@ export const ARG_KINDS = {
     takes: 'two metrics, Y then X (RS_RANK DIST_52W_HIGH)',
     parse: (tok) => parseScatMetric(tok),
     describe: (v) => `X axis ${scatMetricLabel(v)}`,
+  },
+  // ── data wave 1 (2026-11-17): the lenses of the new market panels. The accepted words are each
+  // panel's own (panels/longRunModel.js LENS_WORDS, UpgradesPanel KIND_WORDS, HighsLowsPanel
+  // SIDE_WORDS / GROUP_WORDS); args.dataWave1.test.js pins every word here to the value that
+  // panel's own reader gives, so the two cannot drift. Typed here as plain maps so the panels'
+  // code stays out of the shell's first-open bytes.
+  /** LEAD's list: gainers over 30, 60 or 90 sessions, volume records, new listings. */
+  longRunLens: {
+    takes: '30D, 60D, 90D, VOL1Y, VOLMAX or IPO',
+    parse: (tok) => LONG_RUN_WORDS[String(tok).toUpperCase()] ?? null,
+    describe: (v) => `list ${v}`,
+  },
+  /** UPDG's cut: upgrades, downgrades or target changes. */
+  analystKind: {
+    takes: 'UP, DOWN or PT',
+    parse: (tok) => ANALYST_KIND_WORDS[String(tok).toUpperCase()] ?? null,
+    describe: (v) => ({ upgrades: 'upgrades', downgrades: 'downgrades', targets: 'target changes' })[v],
+  },
+  /** HILO's side: the highs list or the lows list (both is the bare command). */
+  hiloSide: {
+    takes: 'HIGHS or LOWS',
+    parse: (tok) => HILO_SIDE_WORDS[String(tok).toUpperCase()] ?? null,
+    describe: (v) => `new ${v}`,
+  },
+  /** HILO's grouping: rank sectors, industries or themes instead of stocks. */
+  hiloGroup: {
+    takes: 'SECTOR, INDUSTRY or THEME',
+    parse: (tok) => HILO_GROUP_WORDS[String(tok).toUpperCase()] ?? null,
+    describe: (v) => `by ${v}`,
   },
 }
 

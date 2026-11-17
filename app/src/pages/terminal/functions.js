@@ -339,6 +339,32 @@ export const FUNCTIONS = [
   // route answers `available: false` and the panel says "Grade not available yet" (never a verdict).
   { code: 'GRADE', label: 'Compass grade (buy / hold / skip verdict)', group: 'Security',
     ticker: { panel: 'Grade' } },
+
+  // ── data wave 1 (2026-11-17): data the app already served but the Terminal could not reach. Each
+  // is a terminal-native panel over an existing member route; no new route. A ticker in a row
+  // loads into the linked group like every other list.
+  // UPDG: the analyst actions in the latest morning wire (GET /api/analyst-actions), which no
+  // screen showed. The list is dated by its wire, never worded as the current day's on its own.
+  { code: 'UPDG', label: 'Analyst upgrades, downgrades and target changes (latest morning wire)', group: 'Market',
+    market: { panel: 'Upgrades', args: [{ kind: 'analystKind', prop: 'kind' }] } },
+  // HILO: new highs and lows OF THE DAY, per session, from the live scanner (GET /api/nhnl/live).
+  // Not the 52-week lists: those are the drill lists of the Breadth Monitor.
+  { code: 'HILO', label: 'New highs and lows of the day (live scanner)', group: 'Market',
+    market: { panel: 'HighsLows', args: [{ kind: 'hiloSide', prop: 'side' }, { kind: 'hiloGroup', prop: 'group' }] } },
+  // SCTR: the 11 sector funds ranked (GET /api/sector-strength). SECT is a real ETF, so not that.
+  { code: 'SCTR', label: 'Sector funds ranked by performance', group: 'Market',
+    market: { panel: 'Sectors', args: [{ kind: 'contribWindow', prop: 'period' }] } },
+  // LEAD: the long-window lists only the /charts Scanner widget showed (GET /api/scans/*).
+  { code: 'LEAD', label: 'Long-run leaders (gainers, volume records, new listings)', group: 'Market',
+    market: { panel: 'LongRun', args: [{ kind: 'longRunLens', prop: 'lens' }] } },
+  // EMOV: one day of earnings reporters and how each stock moved (GET /api/calendar/reactions with
+  // the calendar week). ERX is ONE stock and its past reactions; this is the whole day.
+  { code: 'EMOV', label: 'Earnings movers (how each reporter moved, by day)', group: 'Calendar',
+    market: { panel: 'EarningsScoreboard', args: [{ kind: 'etDate', prop: 'date' }] } },
+  // LVL: the gamma walls and dark pool levels of one stock (GET /api/signature/gex-walls and
+  // /darkpool-levels), until now only drawable as chart indicators.
+  { code: 'LVL', label: 'Key levels (call wall, put wall, zero gamma, dark pool)', group: 'Options',
+    ticker: { panel: 'Levels' } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -584,6 +610,13 @@ const FUNCTION_WORDS = {
   PLAN: { example: 'NVDA PLAN 203 195', keywords: ['plan', 'trade plan', 'buy point', 'stop', 'entry'] },
   MON: { keywords: ['watchlist', 'watchlists', 'monitor'] },
   GRADE: { keywords: ['grade', 'compass', 'verdict', 'buy or skip'], note: 'Says so if grades are not available yet.' },
+  UPDG: { example: 'UPDG DOWN', keywords: ['analyst actions', 'rating changes', 'target changes', 'upgrades and downgrades'] },
+  HILO: { example: 'HILO LOWS', keywords: ['new highs', 'new lows', 'highs and lows'],
+    note: 'Says so if the live scanner is switched off or the market is closed.' },
+  SCTR: { example: 'SCTR 1M', keywords: ['sector performance', 'sector funds', 'sector ranking'] },
+  LEAD: { example: 'LEAD 60D', keywords: ['30 day gainers', 'long run leaders', 'volume record', 'new listings', 'recent ipos'] },
+  EMOV: { example: 'EMOV 11/12', keywords: ['earnings reactions', 'earnings movers', 'earnings scoreboard', 'who reported'] },
+  LVL: { keywords: ['key levels', 'call wall', 'put wall', 'zero gamma', 'dark pool levels'] },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]
