@@ -133,6 +133,7 @@ const ARG_SAMPLE = {
   journalAccount: 'ALL', flowList: 'OPEN',
   confluenceLean: 'BEAR', repeatOrder: 'LATEST', periodRange: 'QTD', periodDate: '2026-01-02', periodSide: 'LOSERS', callQuery: 'margins',
   rotationSide: 'OUT', periodUnit: 'SECTORS',
+  topFlowStatus: 'EXPIRED', topFlowDirection: 'BEAR', topFlowSort: 'PEAK',
 }
 
 afterEach(cleanup)
