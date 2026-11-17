@@ -542,3 +542,54 @@
 @media (max-width: 1024px) {
   .presetBtn, .presetCustom { min-height: var(--tap-min); }
 }
+
+/* ── UCT Signature skin (docs/uct-signature-style.md): the rail inside the Focus layout's Filters
+   drawer (FilterRail `skin="signature"`). Reached ONLY through that attribute, so Table mode's own
+   rail and its phone sheet are untouched. The --scr-* values are set in focus/FocusMenus.module.css.
+   Sentence-case labels, soft chips (the chosen one holds the selected tone), wells for typed
+   values, grey counts. No gold: a filter that is set is said by its chip and by the pill row above. */
+.railSheet[data-skin='signature'] { font-family: var(--font-sans); color: var(--scr-text); }
+.railSheet[data-skin='signature'] .railSearchRow { background: var(--scr-menu); border-bottom: 0; padding: 6px 8px 8px; }
+/* the search glyph: grey, not the app's metallic gold icon (its colour and glow are inline styles) */
+.railSheet[data-skin='signature'] .railSearchRow svg { stroke: var(--scr-faint); filter: none !important; }
+.railSheet[data-skin='signature'] .railSearch { background: var(--scr-well); border: 1px solid transparent; border-radius: 7px; padding: 0 10px; min-height: 34px; color: var(--scr-text); font-size: 13px; }
+.railSheet[data-skin='signature'] .railSearch::placeholder { color: var(--scr-faint); }
+.railSheet[data-skin='signature'] .railSearch:focus-visible { outline: none; border-color: var(--scr-outline); }
+.railSheet[data-skin='signature'] .railGroup { border-bottom: 1px solid var(--scr-line); }
+.railSheet[data-skin='signature'] .railGroup:last-child { border-bottom: 0; }
+.railSheet[data-skin='signature'] .railHead { color: var(--scr-rest); font-size: 13px; font-weight: 600; text-transform: none; letter-spacing: 0; padding: 10px 10px; border-radius: 6px; gap: 8px; }
+.railSheet[data-skin='signature'] .railHead:hover { color: var(--scr-bright); background: var(--scr-card); }
+.railSheet[data-skin='signature'] .railHead[aria-expanded='true'] { color: var(--scr-bright); }
+.railSheet[data-skin='signature'] .railHeadIcon,
+.railSheet[data-skin='signature'] .railHead:hover .railHeadIcon,
+.railSheet[data-skin='signature'] .railHead[aria-expanded='true'] .railHeadIcon { color: var(--scr-dim); }
+.railSheet[data-skin='signature'] .railChev,
+.railSheet[data-skin='signature'] .railHead:hover .railChev,
+.railSheet[data-skin='signature'] .railHead[aria-expanded='true'] .railChev { color: var(--scr-faint); }
+.railSheet[data-skin='signature'] .railPip { background: var(--scr-soft-hi); color: var(--scr-bright); border-radius: 5px; padding: 2px 6px; font-size: 11px; }
+.railSheet[data-skin='signature'] .railFilterActive { background: var(--scr-card); box-shadow: inset 2px 0 0 var(--scr-rest); border-radius: 6px; }
+.railSheet[data-skin='signature'] .filterRow { padding: 6px 10px; gap: 5px; }
+.railSheet[data-skin='signature'] .filterLabel { color: var(--scr-rest); font-size: 11.5px; font-weight: 600; text-transform: none; letter-spacing: 0; }
+.railSheet[data-skin='signature'] .presetGroup { padding: 8px 10px; gap: 7px; }
+.railSheet[data-skin='signature'] .presetRow { gap: 4px; }
+.railSheet[data-skin='signature'] .presetBtn { background: var(--scr-soft); border: 0; border-radius: 7px; color: var(--scr-text); font-size: 12px; font-weight: 600; min-height: 30px; padding: 0 11px; }
+.railSheet[data-skin='signature'] .presetBtn:hover { background: var(--scr-soft-hi); color: var(--scr-bright); }
+.railSheet[data-skin='signature'] .presetBtn[aria-pressed='true'] { background: var(--scr-selected); color: var(--scr-bright); box-shadow: inset 0 0 0 1px rgba(248, 247, 243, 0.28); }
+.railSheet[data-skin='signature'] .presetCustom { color: var(--scr-rest); font-weight: 600; }
+.railSheet[data-skin='signature'] .presetCustom:hover { color: var(--scr-bright); }
+.railSheet[data-skin='signature'] .customRange { gap: 6px; }
+.railSheet[data-skin='signature'] .filterSelect,
+.railSheet[data-skin='signature'] .customRange input { background: var(--scr-well); border: 1px solid transparent; border-radius: 7px; color: var(--scr-text); font-size: 13px; min-height: 34px; padding: 0 10px; }
+.railSheet[data-skin='signature'] .filterSelect:focus-visible,
+.railSheet[data-skin='signature'] .customRange input:focus-visible { outline: none; border-color: var(--scr-outline); }
+.railSheet[data-skin='signature'] .filterSelectActive { border-color: transparent; color: var(--scr-bright); font-weight: 600; }
+.railSheet[data-skin='signature'] .presetBtn:focus-visible,
+.railSheet[data-skin='signature'] .presetCustom:focus-visible,
+.railSheet[data-skin='signature'] .railHead:focus-visible { outline: 2px solid var(--scr-ring); outline-offset: 1px; }
+.railSheet[data-skin='signature'] .typeOpt:hover { background: var(--scr-card); }
+.railSheet[data-skin='signature'] .typeOpt input { accent-color: var(--scr-rest); }
+@media (max-width: 1024px) {
+  .railSheet[data-skin='signature'] .presetBtn,
+  .railSheet[data-skin='signature'] .filterSelect,
+  .railSheet[data-skin='signature'] .customRange input { min-height: var(--tap-min, 44px); }
+}
