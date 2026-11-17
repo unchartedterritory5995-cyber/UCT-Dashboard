@@ -21,7 +21,7 @@
 import { createRegistry } from './registry'
 import { createPersist } from './persist'
 import { createNetwork } from './network'
-import { createHistoryFeed, historyLakeEnabled } from './historyFeed'
+import { createHistoryFeed, historyLakeEnabled, appHistoryFeed } from './historyFeed'
 import { createLiveFeed } from './liveFeed'
 import { STATUS } from './types'
 
@@ -186,7 +186,8 @@ export function createBarStore(o = {}) {
 let _default = null
 /** The app's one store (created on first use). */
 export function getBarStore() {
-  if (!_default) _default = createBarStore()
+  // The history lake is ON for the app's store unless this browser says '0' (historyFeed.js).
+  if (!_default) _default = createBarStore({ history: appHistoryFeed() })
   return _default
 }
 /** Test hook. */
