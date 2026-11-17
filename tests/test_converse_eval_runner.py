@@ -270,9 +270,18 @@ def test_a_census_path_pointing_at_the_shared_root_is_refused():
     """After the pins are applied, any census path still inside C:\\data refuses the run."""
     good = str(ROOT / "nowhere" / "auth.db")
     ce.verify_pins({"AUTH_DB_PATH": good}, None)            # control: a sandbox path passes
-    for bad in (r"C:\data\auth.db", "C:/data/catalysts.db", "/data/auth.db", ""):
+    # EACH OS IS ASKED ABOUT ITS OWN SPELLINGS OF THE ROOT. The guard canonicalises per OS, so on
+    # Linux a drive-letter string is a file name in the working directory, not the shared root:
+    # asking Linux to refuse it failed this case on every Linux lane. The `/data/...` spelling and
+    # an empty pin are refused everywhere.
+    drive = (r"C:\data\auth.db", "C:/data/catalysts.db") if os.name == "nt" else ()
+    for bad in (*drive, "/data/auth.db", ""):
         with pytest.raises(ce.Refused):
             ce.verify_pins({"AUTH_DB_PATH": good, "X_DB_PATH": bad}, None)
+    if os.name != "nt":
+        # CONTROL: a drive-letter name really is outside the root here, so leaving the two drive
+        # spellings out above is a fact about this OS and not a refusal that stopped working
+        ce.verify_pins({"AUTH_DB_PATH": good, "X_DB_PATH": "C:/data/catalysts.db"}, None)
 
 
 def test_entering_the_sandbox_after_api_was_imported_is_refused(tmp_path):
@@ -315,3 +324,174 @@ def test_the_cases_file_holds_the_owner_examples_and_five_controls():
     for c in doc["cases"]:
         if c["group"] == "example":
             assert [t["expect"]["kind"] for t in c["turns"]] == ["change", "change"], c["id"]
+
+
+# ═══ 2026-11-17 — the lane must be able to BUILD, and that is checked without a bundler ════════
+
+def test_every_asset_type_the_app_imports_has_a_loader_in_the_lane():
+    """⚰️ The compass mark became a `.webp` on 2026-11-12. The lane's loader map had no entry for it,
+    the bundle failed, and the runner answered "LANE UNAVAILABLE -- nothing was graded" for five
+    days, while every test above was skipped wherever `app/node_modules` is absent.
+
+    This reads the app's own import statements (no node, no bundler) and fails on a file type the
+    lane cannot swallow."""
+    import re
+    from pathlib import Path
+    import tools.converse_eval as ce
+
+    src = Path(ce.APP) / "src"
+    assert src.is_dir()
+    # a dotted module name (`./b1Core.steps`) is code, not a file type: only a NON-CODE type counts
+    non_code = {".css", ".scss", ".less", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".svg", ".ico",
+                ".bmp", ".apng", ".cur", ".tiff", ".woff", ".woff2", ".ttf", ".otf", ".eot", ".mp3", ".mp4",
+                ".webm", ".wav", ".ogg", ".flac", ".aac", ".m4a", ".mov", ".pdf", ".wasm", ".txt", ".md",
+                ".csv", ".tsv", ".xml", ".yaml", ".yml", ".glsl", ".frag", ".vert", ".html"}
+    known = set(ce.ASSET_LOADERS)
+    pattern = re.compile(r"""(?:from|import)\s*\(?\s*['"][^'"\n]+?(\.[A-Za-z0-9]{2,5})['"]""")
+    seen: dict = {}
+    for path in src.rglob("*.js*"):
+        if ".test." in path.name or "node_modules" in path.parts:
+            continue                                   # tests are not in the lane's bundle
+        for ext in pattern.findall(path.read_text("utf-8", errors="ignore")):
+            seen.setdefault(ext.lower(), path)
+    assert ".webp" in seen and ".css" in seen, "the scan read no asset imports at all"
+    missing = {ext: str(p.relative_to(src)) for ext, p in seen.items() if ext in non_code and ext not in known}
+    assert not missing, f"the lane has no loader for: {missing}"
+
+
+def test_CONTROL_the_asset_scan_would_catch_a_missing_loader(monkeypatch):
+    """The rail above can fail: take `.webp` out of the map and it names it."""
+    import tools.converse_eval as ce
+    monkeypatch.setattr(ce, "ASSET_LOADERS", {k: v for k, v in ce.ASSET_LOADERS.items() if k != ".webp"})
+    with pytest.raises(AssertionError, match=r"\.webp"):
+        test_every_asset_type_the_app_imports_has_a_loader_in_the_lane()
+
+
+# ═══ 2026-11-17 — the UCT house indicators as cases (Studio plan C1 / L2) ════════════════════
+
+HOUSE_CASES = ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_house_cases.json"
+HOUSE_SCRIPT = ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_house_scripted.json"
+
+
+def _trees_read_elsewhere(ops) -> bool:
+    def walk(n):
+        if isinstance(n, dict):
+            yield n
+            for a in n.get("args") or []:
+                yield from walk(a)
+    for o in ops:
+        for out in (o.get("outputs") or []) + ([o] if "tree" in o else []):
+            if any(n.get("type") in ("sym", "tf", "tf_live") for n in walk(out.get("tree") or {})):
+                return True
+    return False
+
+
+def test_the_house_cases_are_the_house_set_and_nothing_else():
+    """No bundler needed: the fixture is IN STEP with `api/data/worked_examples.json`. Every house
+    indicator is a case with its own request and its own trees, or is named as left out because
+    it reads another symbol or timeframe (the runner has one synthetic symbol on one timeframe)."""
+    examples = {e["id"]: e for e in json.loads(io.open(ROOT / "api" / "data" / "worked_examples.json", encoding="utf-8").read())["examples"]}
+    doc = json.loads(io.open(HOUSE_CASES, encoding="utf-8").read())
+    script = json.loads(io.open(HOUSE_SCRIPT, encoding="utf-8").read())["turns"]
+    house = {c["id"]: c for c in doc["cases"] if c["id"].startswith("house-")}
+    left_out = set(doc["left_out"])
+    assert left_out == {i for i, e in examples.items() if _trees_read_elsewhere(e["ops"])}
+    assert {i.replace("house-", "").replace("-", "_") for i in house} == set(examples) - left_out
+    assert len(house) >= 9
+    for cid, case in house.items():
+        ex = examples[cid.replace("house-", "").replace("-", "_")]
+        (turn,) = case["turns"]
+        assert turn["words"] == ex["request"]
+        built = [out["tree"] for o in ex["ops"] if o.get("op") == "create" for out in o["outputs"]]
+        built += [o["tree"] for o in ex["ops"] if o.get("op") == "add_output"]
+        assert [o["tree"] for o in turn["expect"]["outputs"]] == built
+        assert script[f"{cid}#0"][0]["ops"] == ex["ops"]               # the scripted answer IS the house patch
+    # the runner's verdict needs its negative controls beside any examples: carried over unchanged
+    base = {c["id"]: c for c in json.loads(io.open(ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_cases.json", encoding="utf-8").read())["cases"]}
+    assert {c["id"]: c for c in doc["cases"] if c["group"] == "control"} == {k: v for k, v in base.items() if v["group"] == "control"}
+
+
+@needs_node
+def test_every_house_case_builds_computes_and_grades_offline(tmp_path):
+    """The door, the engine and the grader, end to end, for nine real indicators: a change to any of
+    them that breaks a house indicator fails here."""
+    proc, _work, out = _run(tmp_path, "--cases", str(HOUSE_CASES), "--script", str(HOUSE_SCRIPT))
+    assert proc.returncode == 0, proc.stdout[-3000:]
+    assert _last_line(proc.stdout).startswith("VERDICT: PASS"), proc.stdout[-1500:]
+    passed = {r["case"] for r in _records(out) if r.get("grade", {}).get("ok")}
+    doc = json.loads(io.open(HOUSE_CASES, encoding="utf-8").read())
+    assert {c["id"] for c in doc["cases"] if c["id"].startswith("house-")} <= passed
+
+
+@needs_node
+def test_CONTROL_a_house_answer_with_one_number_wrong_fails_grading(tmp_path):
+    """The house cases can fail: 25 sessions answered as 26."""
+    script = json.loads(io.open(HOUSE_SCRIPT, encoding="utf-8").read())
+    text = json.dumps(script["turns"]["house-distribution-day-count#0"])
+    assert text.count('"value": 25') == 1
+    script["turns"]["house-distribution-day-count#0"] = json.loads(text.replace('"value": 25', '"value": 26'))
+    bad = tmp_path / "bad_house.json"
+    bad.write_text(json.dumps(script), encoding="utf-8")
+    proc, _work, out = _run(tmp_path, "--cases", str(HOUSE_CASES), "--script", str(bad), "--only", "house-distribution-day-count")
+    assert proc.returncode == ce.EXIT_FAIL, proc.stdout[-2000:]
+    assert any("neither by hash nor by value" in p for r in _records(out) for p in r["grade"].get("problems", []))
+
+# ═══ 2026-11-17 — indicators that carry a running state (SuperTrend, Parabolic SAR) ═════════════
+
+STATEFUL_CASES = ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_stateful_cases.json"
+STATEFUL_SCRIPT = ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_stateful_scripted.json"
+
+
+def test_a_cases_file_may_ask_for_a_longer_history_and_nothing_else():
+    assert ce.bar_count_of({}) == ce.DEFAULT_BARS == 360
+    assert ce.bar_count_of({"bars": 1500}) == 1500
+    assert ce.bar_count_of({"bars": ce.MAX_BARS}) == ce.MAX_BARS
+    for bad in (100, ce.MAX_BARS + 1, "1500", 1500.0, True, None):
+        with pytest.raises(SystemExit):
+            ce.bar_count_of({"bars": bad})
+    assert len(ce.synthetic_bars(1500)) == 1500
+    # the first 360 of a longer series are the default series: a longer run changes nothing earlier
+    assert ce.synthetic_bars(1500)[:360] == ce.synthetic_bars()
+
+
+def test_the_stateful_cases_are_the_four_functions_and_the_standard_controls():
+    """No bundler needed: what the fixture holds, and that it asks for enough history."""
+    doc = json.loads(io.open(STATEFUL_CASES, encoding="utf-8").read())
+    script = json.loads(io.open(STATEFUL_SCRIPT, encoding="utf-8").read())["turns"]
+    examples = [c for c in doc["cases"] if c["group"] == "example"]
+    called = set()
+    for case in examples:
+        (turn,) = case["turns"]
+        built = [o["tree"] for o in script[f"{case['id']}#0"][0]["ops"][0]["outputs"]]
+        assert [o["tree"] for o in turn["expect"]["outputs"]] == built      # the answer IS the function call
+        called |= {t["name"] for t in built}
+    assert called == {"supertrend", "supertrendDirection", "sar", "sarDirection"}
+    # shown only after their warm-up: the default series is too short for every one of them
+    from api.services import call_expansions
+    assert doc["bars"] > 2 * max(call_expansions.SUPERTREND_WARMUP, call_expansions.SAR_WARMUP) + 360 > ce.DEFAULT_BARS
+    base = {c["id"]: c for c in json.loads(io.open(ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_cases.json", encoding="utf-8").read())["cases"]}
+    assert {c["id"]: c for c in doc["cases"] if c["group"] == "control"} == {k: v for k, v in base.items() if v["group"] == "control"}
+
+
+@needs_node
+def test_supertrend_and_parabolic_sar_build_compute_and_grade_offline(tmp_path):
+    """The door, the browser's own patch engine and the grader, end to end. Before 2026-11-17 the
+    door refused its own expansion of these functions, so none of them could be built."""
+    proc, _work, out = _run(tmp_path, "--cases", str(STATEFUL_CASES), "--script", str(STATEFUL_SCRIPT))
+    assert proc.returncode == 0, proc.stdout[-3000:]
+    assert _last_line(proc.stdout).startswith("VERDICT: PASS"), proc.stdout[-1500:]
+    passed = {r["case"] for r in _records(out) if r.get("grade", {}).get("ok")}
+    assert {"stateful-supertrend", "stateful-supertrend-direction", "stateful-parabolic-sar", "stateful-sar-direction"} <= passed
+
+
+@needs_node
+def test_CONTROL_on_the_default_history_the_runner_refuses_to_grade_them(tmp_path):
+    """On 360 bars the reference is unknown on every bar. The runner says so and grades nothing,
+    rather than passing an all-empty line against an all-empty line."""
+    doc = json.loads(io.open(STATEFUL_CASES, encoding="utf-8").read())
+    del doc["bars"]
+    short = tmp_path / "short.json"
+    short.write_text(json.dumps(doc), encoding="utf-8")
+    proc, _work, _out = _run(tmp_path, "--cases", str(short), "--script", str(STATEFUL_SCRIPT), "--only", "stateful-supertrend")
+    assert proc.returncode != 0
+    assert "all-unknown on the synthetic bars" in proc.stdout + proc.stderr

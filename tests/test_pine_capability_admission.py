@@ -450,7 +450,8 @@ def test_A7_the_committed_object_families_are_U1s_four_and_U3s_two():
 #: hold agree on every graded field, and TradingView holds two more of the OLDEST: the batch collector
 #: (`objectPool.js` C7) ran, and the reference calls the count approximate ("The count is approximate; more
 #: drawings than the specified count may be displayed."). obj:box is admitted on its x-graded evidence WITH
-#: a carve-out: on the runtime lane a BOX family whose collector ran is withheld by name
+#: a carve-out: on the runtime lane a BOX family whose collector ran in a script that reads a past value of a variable
+#: holding a box (DRAW-1 GC, `objectPool.js::historyHeldOf`) is withheld by name
 #: (`objects:count-at-cap`, `runtime/objectStore.js::collect`), so inside-bar-boxes' boxes are withheld,
 #: never drawn at the wrong count.
 OBJ_BOX_COUNT_CAPTURE = "inside-bar-boxes-rddt-1d-2026-11-14"
@@ -461,12 +462,17 @@ def test_A7_obj_box_is_admitted_with_the_count_at_cap_carve_out():
     assert "obj:box" in doc["capabilities"] and "obj:box" in rt.admitted_capabilities()["admitted"]
     readme = " ".join(doc["_readme"])
     assert "objects:count-at-cap" in readme and OBJ_BOX_COUNT_CAPTURE in readme
-    # the reading the carve-out rests on: the capture's own grade names the count, and only the count
+    # the reading the carve-out rests on: TradingView holds 52 boxes at a cap of 50 (the capture, below), and the run
+    # WITHHOLDS the box family by name there. ⭐ Engine 68 (#1556: count-at-cap withholds only the shape no capture
+    # witnesses) — re-graded on the engine-68 tree (feat/pine-host-known-divergence), the grade no longer reads "boxes
+    # count of boxes held — vendor 52, ours 50" (the engine-66 run that drew 50): our boxes are withheld by name, and
+    # every other family's counts and texts agree
     r = _verdicts()[OBJ_BOX_COUNT_CAPTURE]
     o = r["objectsV2"]
-    assert "boxes count of boxes held" in o["reason"] and "vendor 52, ours 50" in o["reason"], o["reason"]
+    assert "our boxes are withheld by name (objects:count-at-cap" in o["reason"], o["reason"]
+    assert "every other object family's counts and texts agree" in o["reason"], o["reason"]
     boxes = next(f for f in o["families"] if f["family"] == "boxes")
-    assert boxes["paired"] == 50 and boxes["differing"] == 0, boxes
+    assert boxes["paired"] == 0 and boxes["differing"] == 0, boxes
     cap = json.loads((ROOT / r["file"]).read_text(encoding="utf-8"))
     tv = [b["id"] for b in cap["objects"]["records"]["boxes"]]
     assert len(tv) == 52 and tv == list(range(107, 159)), tv[:3]
@@ -1548,13 +1554,39 @@ def _hold_gate(seconds: float) -> threading.Thread:
     return t
 
 
+def _hold_gate_until(release: threading.Event) -> threading.Thread:
+    """A thread that holds the process-wide detector gate until `release` is set (30 s at most, so a
+    failing test cannot hang the run). The busy state then lasts exactly as long as the test needs it,
+    whatever the runner's speed."""
+    held = threading.Event()
+
+    def hold():
+        assert rt._DETECTOR_GATE.acquire(timeout=5)
+        held.set()
+        release.wait(30)
+        rt._DETECTOR_GATE.release()
+    t = threading.Thread(target=hold)
+    t.start()
+    assert held.wait(5)
+    return t
+
+
 def test_F1_a_save_never_stores_an_unadmitted_row_while_the_check_is_busy(store, monkeypatch):
     """D6 holds: only a graded script is stored. A save waits at most `SAVE_WAIT_SECONDS` for the
-    detector; past that it is refused as busy (retryable, 503), and nothing is stored."""
+    detector; past that it is refused as busy (retryable, 503), and nothing is stored.
+
+    ⛔ The gate is held until the test RELEASES it, never for a fixed time. It was held for
+    `SAVE_WAIT_SECONDS + 1.0` (1.7 s): the direct save times out at 0.7 s and the HTTP save then waits its own
+    0.7 s, so the 503 needed the work between them (`svc.get`, building the FastAPI app and TestClient, the
+    request's own work before the gate) to finish within 0.3 s. On the pine-twins leg (1262 tests in one process
+    on a GitHub runner) it did not, the gate came free inside the HTTP save's wait, and the save stored: 200
+    (run 44029625436 on #1541's 8c7d1c2303; the same test is green 3/3 alone on master and on that head). A wall
+    clock in a test is a function of the runner's load (lesson_an_intermittent_red_can_be_a_population_not_a_test)."""
     monkeypatch.setenv(rt.SAVE_ENV, "1")
     monkeypatch.setenv(rt.STAGE_ENV, "admins")
     monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
-    holder = _hold_gate(rt.SAVE_WAIT_SECONDS + 1.0)
+    release = threading.Event()
+    holder = _hold_gate_until(release)
     try:
         t0 = time.perf_counter()
         with pytest.raises(rt.CapabilityCheckBusy, match="try again in a moment"):
@@ -1563,7 +1595,9 @@ def test_F1_a_save_never_stores_an_unadmitted_row_while_the_check_is_busy(store,
         assert svc.get(USER, ADX["id"]) is None                                # nothing stored
         r = _client().post("/api/user-definitions", json={"definition": member_doc()})
         assert r.status_code == 503 and r.headers.get("Retry-After") and r.json()["retryable"] is True
+        assert svc.get(USER, ADX["id"]) is None                                # nothing stored by HTTP either
     finally:
+        release.set()
         holder.join(10)
     with sqlite3.connect(svc._DB_PATH) as c:
         c.execute(rt._CAPS_DDL)

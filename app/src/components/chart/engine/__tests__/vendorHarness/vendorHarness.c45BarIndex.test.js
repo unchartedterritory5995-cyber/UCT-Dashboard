@@ -207,10 +207,12 @@ describe('C45 — a capture that PROVES it starts at the vendor\'s bar 0 is grad
     // hostObjectReaderOpts`, the one host object evaluation the binder and the run half's
     // object rail share)
     expect(product).toEqual([
+      // ⭐ HEADLESS (Studio R6): the reader (`barIndexAbsoluteFor`) moved, unchanged, from
+      // `nativeRegistry.js` to `astColumns.js`, the host lane's host-neutral values
+      'components/chart/engine/astColumns.js',
       'components/chart/engine/binder.js',
       // ⭐ CBC-FMT (landing train 1): the calc_bars_count window passes the caller's statement through
       'components/chart/engine/calcBarsWindow.js',
-      'components/chart/engine/nativeRegistry.js',
       'components/chart/engine/runHalfObjectRail.js',
     ])
     // ⛔ non-vacuity: the walk does see the chart surface it is clearing

@@ -111,6 +111,7 @@ import { clampVolPct, resolveVolPanePct, latchOnDrag, volPanePctOfStack,
 // ⚠️ `INDICATOR_LABELS` USED TO BE IMPORTED FROM `chartRegion` ALONGSIDE THESE.
 // B4 retired that nine-row table into the catalogue; `labelFor` is the reader.
 import { catalogRows, labelFor, anyLabelFor, oscillatorIds } from './chart/indicatorCatalog'
+import { scanLink } from '../pages/screener/scanLink'
 import { createSessionShadingPrimitive, computeSessionBands } from './chart/sessionShadingPrimitive'
 import { createSwingLabelsPrimitive } from './chart/swingLabelsPrimitive'
 import { createLevelZonesPrimitive } from './chart/levelZonesPrimitive'
@@ -205,6 +206,10 @@ import IndicatorChip from './chart/legend/IndicatorChip'
 // overlays and the volume pane. They became removable with `chartDefaults`'s
 // overlay tombstone, so they get the eye / gear / ✕ the chips have always had.
 import LegendRow from './chart/legend/LegendRow'
+import { legendRows } from './chart/legend/legendRows'
+import { createLegendPointerHold } from './chart/legend/legendPointerHold'
+import { menuAnchorWithRoom } from './chart/legend/legendMenuPlace'
+import { stackDrawnOpen, stackExpandIsStale } from './chart/legend/stackExpand'
 // ⭐ UCT RS design round (2026-11-08) — a pane's corner table (`meta.paneTable`).
 import PaneRanksTable from './chart/pane/PaneRanksTable'
 import { paneTableFits, paneTableOwners } from './chart/engine/paneTable'
@@ -537,12 +542,43 @@ export function studyFoldRoom(total, budget, disclosureRows = 1) {
  * legend for the life of the chart, before the fold ever got to fold it (measured, WebKit, 20
  * studies, the hub at 390/834 AND a mouse desktop at 1200). Waiting one frame for the folded
  * legend to render is what lets the fold do its job.
+ *
+ * ⛔ AND NO DECISION WHILE THE MEMBER HAS THE STACK EXPANDED (`expanded`, owner 2026-11-16).
+ * The collapse answers "the legend the chart chose to draw does not fit". A stack opened with
+ * `+N more` is taller than the pane BY THE MEMBER'S OWN CHOICE, and deciding on it punished the
+ * click: measured on production, `+3 more` on a short pane made the whole legend hover-only
+ * (gone the moment the pointer left the chart) and shrank its type, and `Less` did not bring it
+ * back, because the full height is only remembered while not collapsed. `fullLegendMeasurable`
+ * below keeps the expanded height out of that memory for the same reason.
  */
-export function nextCompactLegend(cur, fullBottom, rbTop, foldSettled = true) {
+export function nextCompactLegend(cur, fullBottom, rbTop, foldSettled = true, expanded = false) {
+  if (expanded) return null
   if (!foldSettled || !(fullBottom > 0)) return null
   if (!cur && fullBottom > rbTop) return true
   if (cur && fullBottom < rbTop - 12) return false
   return null
+}
+
+/**
+ * May this frame's legend height be remembered as "the full legend" the collapse is decided on?
+ * Only a settled fold, drawn full (not collapsed), and FOLDED: an expanded stack's height is the
+ * member's choice, never the chart's (see `nextCompactLegend`).
+ */
+export function fullLegendMeasurable(foldSettled, compact, expanded) {
+  return !!foldSettled && !compact && !expanded
+}
+
+/**
+ * Does the range bar (3M / 6M / YTD ...) step aside for the legend?
+ *
+ * It always did while the legend is collapsed to hover-only. It also does while the member has
+ * the study stack EXPANDED: the fold's budget ends where this bar's band begins, so a stack opened
+ * with `+N more` runs down into the band by definition, and the bar sat ON TOP of the stack's last
+ * rows and its `Less` button (measured 2026-11-16: a click on `Less` pressed `3M`). `Less` brings
+ * the bar back.
+ */
+export function rangeBarYieldsToLegend(compactLegend, stackExpanded) {
+  return !!compactLegend || !!stackExpanded
 }
 
 /**
@@ -580,25 +616,6 @@ const STUDY_STACK_MAX_FRAC = 0.42
  * dead instead of clicking a grey line repeatedly. `ContextPopover` renders the
  * label node as-is, so the reason rides along beside it.
  */
-function chipMenuRowToPopoverRow(it) {
-  // A separator or a UCT Signature group label is not a row: no icon, no reason.
-  if (it.separator || it.groupLabel != null) return it
-  const icon = it.icon ? <UIcon name={it.icon} size={13} gold={false} /> : undefined
-  if (!it.disabled) return { ...it, icon }
-  return {
-    ...it,
-    icon,
-    label: (
-      <>
-        <span>{it.label}</span>
-        {/* a11y 2026-11-08: the refusal reason is 11 px, not 10.5 — no shared text under 11 px. */}
-        <span style={{ display: 'block', fontSize: 11, opacity: 0.62, lineHeight: 1.35, marginTop: 1 }}>
-          {it.disabled}
-        </span>
-      </>
-    ),
-  }
-}
 
 /**
  * ⭐ UCT SIGNATURE (owner 11-16) — a chip-menu row in the chart right-click menu's look
@@ -630,6 +647,38 @@ function chipMenuSigRow(it) {
   ) : it.label
   return { ...it, icon, detail: undefined, label,
     hint: it.hint || (typeof it.disabled === 'string' ? it.disabled : undefined) }
+}
+
+/**
+ * ⭐ UCT SIGNATURE (owner 11-16) — the Volume chip's **Display in** page in the same look as
+ * its menu page (`chipMenuSigRow`): a back row (quiet grey ‹ + the menu's name), a grey group
+ * label, then one row per destination. The current one is bold with a white ✓ at the right and
+ * stays readable (it is still refused — `displaySubmenu` gives it no handler — so its reason is
+ * its tooltip, not a second line); an orphan target is one greyed line with its reason as the
+ * tooltip. No icons. Keys, handlers and order are `displaySubmenu`'s, unchanged.
+ */
+function displayPageSigRows(backLabel, options, onBack) {
+  return [
+    { key: '_back', keepOpen: true, onClick: onBack, hint: 'Back to the menu',
+      label: (
+        <span className={styles.sigRow}>
+          <span className={styles.sigBack} aria-hidden="true">‹</span>
+          <span className={styles.sigName}>{backLabel}</span>
+        </span>
+      ) },
+    { groupLabel: 'Display in' },
+    ...options.map((s) => ({
+      ...s,
+      icon: undefined,
+      hint: s.hint || (typeof s.disabled === 'string' ? s.disabled : undefined),
+      label: s.checked === true ? (
+        <span className={`${styles.sigRow} ${styles.sigChosen}`}>
+          <span className={styles.sigName}>{s.label}</span>
+          <span className={styles.sigCheck} aria-hidden="true">✓</span>
+        </span>
+      ) : s.label,
+    })),
+  ]
 }
 
 /**
@@ -1660,6 +1709,7 @@ import { useCalcFrames } from './chart/engine/useCalcFrames'
 import { useFundamentalSources } from './chart/engine/useFundamentalSources'
 import { useMarketCapAuthority } from './chart/engine/useMarketCapAuthority'
 import { useServerColumns } from './chart/engine/useServerColumns'
+import { useRuntimeLists } from './chart/engine/useRuntimeLists'
 import { armServerWarm } from './chart/engine/serverWarm'
 import { loadBreadthSymbols, breadthRecord } from '../hooks/useBreadthSymbols'
 import useMarketIndicators, { canonicalFamily, canonicalPresentation, canonicalDomain, canonicalSourceCapability, canonicalProduct, loadMarketIndicators } from '../hooks/useMarketIndicators'
@@ -5981,7 +6031,29 @@ export default function StockChart({
   // The `+N` fold, expanded in place. False on every mount on purpose: a strip
   // that reopens itself is a strip the user closed for nothing.
   const [chipsExpanded, setChipsExpanded] = useState(false)
+  // Read by the rAF sampler (a `[]`-deps loop): the collapse is never decided on an expanded stack.
+  const chipsExpandedRef = useRef(false)
+  chipsExpandedRef.current = chipsExpanded
+  // Is there a fold at all (a `+N more` / `Less` button)? Written where the legend renders, read
+  // by the sampler: an expand with no fold left is dropped (`stackExpandIsStale`).
+  const studyCanFoldRef = useRef(null)
   const legendHoveringRef = useRef(false)
+  /** ⭐⭐ THE HOVER-ONLY LEGEND HOLDS WHILE THE POINTER IS ON IT (owner, 2026-11-16: it
+   *  "flickers when I hold my mouse over it"; measured, 132 mounts and unmounts in 181
+   *  frames). The whole rule is `chart/legend/legendPointerHold.js`; this component tells
+   *  it four things (pointer entered / left the legend, the crosshair cleared, the
+   *  crosshair took the readout) and supplies what only it knows through this ref, which
+   *  is rewritten every render so the hold never reads a stale closure. */
+  const legendHoldEnvRef = useRef(null)
+  const legendHoldRef = useRef(null)
+  if (legendHoldRef.current === null) {
+    legendHoldRef.current = createLegendPointerHold({
+      isHoverOnly: () => !!(legendHoldEnvRef.current && legendHoldEnvRef.current.isHoverOnly()),
+      clearReadout: () => { if (legendHoldEnvRef.current) legendHoldEnvRef.current.clearReadout() },
+      crosshairPending: () => !!(legendHoldEnvRef.current && legendHoldEnvRef.current.crosshairPending()),
+      legendHovered: () => !!(legendHoldEnvRef.current && legendHoldEnvRef.current.legendHovered()),
+    })
+  }
   // True while a SYNCED (external) crosshair is applied to this chart. The
   // always-show-legend refreshers below must stand down for it exactly as they
   // do for a local hover — otherwise they'd overwrite the synced bar's readout
@@ -6317,6 +6389,25 @@ export default function StockChart({
   const offHoverCrosshair = () => (
     (alwaysShowLegend && !compactLegendRef.current) ? computeLatestCrosshair() : null
   )
+  // What the legend's pointer hold needs from this render (see `legendHoldRef`).
+  legendHoldEnvRef.current = {
+    // Hover-only = the off-cursor readout is nothing at all (the same test as above).
+    isHoverOnly: () => !(alwaysShowLegend && !compactLegendRef.current),
+    // The pointer left the legend for somewhere that is not the chart.
+    clearReadout: () => {
+      legendHoveringRef.current = false
+      setCrosshairData(offHoverCrosshair())
+      refreshOffHoverEndTags(alwaysShowLegend && !compactLegendRef.current)
+    },
+    crosshairPending: () => crosshairRafRef.current != null,
+    // The browser's own answer: `:hover` matches the legend box while the pointer is on
+    // any of its rows (the box itself takes no pointer; its rows do).
+    legendHovered: () => {
+      const el = legendRef.current
+      try { return !!(el && el.isConnected && el.matches(':hover')) } catch { return false }
+    },
+  }
+  useEffect(() => () => { legendHoldRef.current.dispose() }, [])
   /**
    * ⭐ F3 — the end-tag chips the price-pane host reads while `crosshairData` is
    * `null` (see the state's own note). Empty while the legend is persistent: the
@@ -6349,6 +6440,9 @@ export default function StockChart({
   const readoutIsOwned = () => (
     legendHoveringRef.current
     || externalCrosshairAppliedRef.current
+    // ⭐ …or it is being kept for a pointer resting on the hover-only legend: an
+    // off-cursor refresh there would unmount the legend under the pointer.
+    || legendHoldRef.current.isHolding()
   )
   const crosshairSubRef = useRef(null)
   const crosshairRafRef = useRef(null)
@@ -7015,6 +7109,23 @@ export default function StockChart({
     setChipAbout(null)
     setChipMenu({ rowId, anchor })
   }, [])
+
+  /* ⭐ A ROW'S MENU NEVER COVERS ITS OWN ROW WHEN THERE IS ROOM BESIDE IT (2026-11-17).
+   * The popover clamps itself into the viewport, and on a short chart that slid a 418px menu up
+   * over the row it was opened from. Once the menu is in the DOM its real size is known, so the
+   * anchor is moved beside the row here, in a LAYOUT effect: the popover positions itself in a
+   * passive effect, which runs after this re-render, so it is only ever shown in its final place.
+   * The rule is `legendMenuPlace.menuAnchorWithRoom`; it returns the same anchor when nothing
+   * moves (and the moved anchor carries no `besideX`), so this runs at most once per open.
+   * ⛔ Desktop only by construction: on touch the popover is a bottom sheet, not a `role="menu"`. */
+  useLayoutEffect(() => {
+    const anchor = chipMenu?.anchor
+    if (!anchor || !Number.isFinite(anchor.besideX)) return
+    const el = document.querySelector('[role="menu"][data-guide="chart.chipMenu"]')
+    if (!el) return
+    const next = menuAnchorWithRoom(anchor, el.offsetHeight, el.offsetWidth, window.innerWidth, window.innerHeight)
+    if (next !== anchor) setChipMenu((m) => (m && m.anchor === anchor ? { ...m, anchor: next } : m))
+  }, [chipMenu])
 
   /** The chip's four handlers, or NULL on a read-only mount.
    *
@@ -8510,32 +8621,6 @@ export default function StockChart({
   // host it follows. `resolveDisplayTarget` is the same authority the layout and
   // the placement resolver both consume, so the legend cannot disagree with where
   // the series actually drew — which is the failure mode that reads as correct.
-  /**
-   * Is the VOLUME pane below the PRICE pane, right now?
-   *
-   * ⭐⭐ ASKED OF THE RENDERER, BY IDENTITY — never of a pane index. Each series is
-   * asked which pane it is in and the two answers are compared with EACH OTHER, so
-   * the question survives any arrangement: Price is not pane 0 and has not been
-   * since panes became movable, and "volume is pane 1" was never true either.
-   *
-   * ⛔ FALSE IS THE RIGHT ANSWER FOR A BANDED VOLUME. With no separate pane both
-   * lookups return the same index, so this answers false and the Volume row keeps
-   * the head position it has always had — which is correct, because a banded volume
-   * is drawn INSIDE Price rather than beneath it.
-   *
-   * ⚠ IT IS A FUNCTION, NOT A MEMO. The pane a series lives in is renderer state
-   * that changes without a React render (a drag, a reorder), and a memo keyed on
-   * `cs` would answer from the wrong frame.
-   */
-  const volumeBelowPrice = useCallback(() => {
-    try {
-      const p = candleSeriesRef.current?.getPane?.()?.paneIndex?.()
-      const v = volumeSeriesRef.current?.getPane?.()?.paneIndex?.()
-      if (!Number.isInteger(p) || !Number.isInteger(v)) return false
-      return v > p
-    } catch { return false }
-  }, [])
-
   const chipPaneHost = useCallback((chip) => {
     const id = chip && chip.instanceId
     if (typeof id !== 'string' || !id) return null
@@ -8666,6 +8751,12 @@ export default function StockChart({
   // the chart to ask again. Same role `secondarySources` plays one line up,
   // and it joins the SAME dependency array below for the same reason.
   const serverColumnsGeneration = useServerColumns()
+  // ⭐⭐ AND THE RUNTIME LANE'S LISTS (kill / allow / capability admission / run-half evidence). The
+  // gates answer from a latch read over the network; this starts the first read on mount and changes
+  // when it (or a capability verdict) lands, so a run half refused while the lists were empty is asked
+  // again. ⚰️ 2026-11-17: without it RS Rating's label and dots never drew after a reload
+  // (`useRuntimeLists.js`). Same dependency array as `serverColumnsGeneration`, same reason.
+  const runtimeListsGeneration = useRuntimeLists()
   // ⚡ THE LANE IS TOLD WHAT THIS CHART IS ON (serverCompute `chartShows`), so the ask of a chart
   // being raced through a list is held and, if the chart has moved on, never sent: the chart the
   // member lands on is not queued behind requests for the ones they passed (measured: 7.0 s).
@@ -14320,6 +14411,17 @@ export default function StockChart({
         // then open a moment), whereas this runs on every commit whatever armed it.
         // Verified load-bearing: disable this and the TF-flip test reds.
         pendingTfReframeRef.current = null
+      } else if (pendingTfReframeRef.current && pendingTfReframeRef.current.tf === resolvedTf && userViewMovedRef.current) {
+        // ⛔⛔ THE MEMBER MOVED THE VIEW SINCE THE SWITCH: THE SETTLING IS OVER FOR THE FRAME.
+        // Release WITHOUT re-asserting. `userViewMovedRef` is cleared by the switch itself (the
+        // zoomKey branch above), so here it can only mean a drag, a wheel, a Go-to-date or a
+        // synced chart's range AFTER the switch. ⚰️ (2026-11-17) The re-assert below ran first
+        // and the release check after it, so the first framing pass after a member's move put
+        // the outgoing frame back: drag a chart the moment it appears and the next late answer
+        // (its name and sector, its listing date) snapped it to newest-at-right. The rest gate
+        // (#1207) moved those answers past the first paint, which is how a negative control saw
+        // it (dailyFirstPaintAcceptance.test.jsx, NC-D and SETTLING).
+        pendingTfReframeRef.current = null
       } else if (pendingTfReframeRef.current && pendingTfReframeRef.current.tf === resolvedTf) {
         // Just switched INTO this timeframe: deterministically re-assert the PRESERVED
         // viewport (same last-candle position + zoom width as the outgoing view) on every
@@ -14361,9 +14463,10 @@ export default function StockChart({
         // bar ("today's candle opens on tomorrow, then snaps back"). Keeping the guard armed means
         // THIS reserve-aware re-assert (above) runs on that commit and cancels the slide — `to` is
         // invariant across the yesterday→today flip (idx(yesterday)+1 == idx(today)+0). A user pan
-        // (userViewMovedRef) still ends the hold so a deliberate scroll is never fought, and off-gate
-        // the reserve is 0 so the release timing is byte-identical to before.
-        const _reserveHolding = _intradayLoadReserve(filteredBars, resolvedTf) > 0 && !userViewMovedRef.current
+        // ends the guard before this branch (the `userViewMovedRef` arm above, the one place that
+        // rule lives), so a deliberate scroll is never fought, and off-gate the reserve is 0 so the
+        // release timing is byte-identical to before.
+        const _reserveHolding = _intradayLoadReserve(filteredBars, resolvedTf) > 0
         if (filteredBars.length === oldBarCount && _sessionSettled && !_reserveHolding) pendingTfReframeRef.current = null
       } else {
         // "Was viewing the latest": last bar visible with a normal (not huge) right gap.
@@ -14537,7 +14640,7 @@ export default function StockChart({
     // (mutation M3 SURVIVED): something else in this list is already unstable per
     // render. Kept as the one declaration that names this dependency; the full
     // reasoning is at the `useInstalledUserDefinitions` call site above.
-  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, strategyHistoryWindow, strategyWindowPending, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, compactAxes, _plotWindowFullKey, _pinnedFull, _overlayActive, _hasOverride, _study, tickLabelChars, nextEarnRows])
+  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, strategyHistoryWindow, strategyWindowPending, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, runtimeListsGeneration, compactAxes, _plotWindowFullKey, _pinnedFull, _overlayActive, _hasOverride, _study, tickLabelChars, nextEarnRows])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
@@ -15956,6 +16059,8 @@ export default function StockChart({
       // hovered ROW does — the strip reads the observation for `param.time`.
       if (!priceData && econHoverRef.current && param && param.time !== undefined) priceData = { value: NaN }
       if (!priceData) {
+        // ⭐ …unless the pointer is resting on the hover-only legend (`legendPointerHold`).
+        if (legendHoldRef.current.keepsReadout()) return
         legendHoveringRef.current = false
         setCrosshairData(offHoverCrosshair())
         refreshOffHoverEndTags(alwaysShowLegend && !compactLegendRef.current)
@@ -16096,6 +16201,8 @@ export default function StockChart({
       // this: it's cleared on rAF, a frame before this flush runs.) The legend
       // still fills in below either way, so a synced chart shows the values.
       if (pointerOverRef.current) legendHoveringRef.current = true
+      // The crosshair owns the readout again: a hold kept for the legend is settled.
+      legendHoldRef.current.settle()
       setCrosshairData({
         time: param.time,
         open: o, high: h, low: l, close: c,
@@ -16132,9 +16239,13 @@ export default function StockChart({
       if (!param.point || !param.time) {
         if (crosshairRafRef.current != null) { cancelAnimationFrame(crosshairRafRef.current); crosshairRafRef.current = null }
         crosshairParamRef.current = null
-        legendHoveringRef.current = false
-        setCrosshairData(offHoverCrosshair())
-        refreshOffHoverEndTags(alwaysShowLegend && !compactLegendRef.current)
+        // ⭐ The pointer moved onto the hover-only legend: keep the readout it is reading
+        // (`legendPointerHold`). The sync bus is still told the chart was left.
+        if (!legendHoldRef.current.keepsReadout()) {
+          legendHoveringRef.current = false
+          setCrosshairData(offHoverCrosshair())
+          refreshOffHoverEndTags(alwaysShowLegend && !compactLegendRef.current)
+        }
         // Tell the sync bus the local user left the chart — but not when this
         // empty event was self-induced by applying an external crosshair.
         if (!applyingExternalRef.current && typeof onCrosshairMoveRef.current === 'function') {
@@ -17919,16 +18030,19 @@ export default function StockChart({
               if (moreRows !== null && moreRows !== studyMoreRowsRef.current) { setStudyMoreRows(moreRows); foldSettled = false }
             }
             const leg = legendRef.current
-            if (foldSettled && leg && !compactLegendRef.current) {
+            if (leg && fullLegendMeasurable(foldSettled, compactLegendRef.current, chipsExpandedRef.current)) {
               lastFullBottomRef.current = leg.getBoundingClientRect().bottom - container.getBoundingClientRect().top
             }
             // The PRICE pane's own bottom, in container coordinates — the legend
             // lives in Price, so "does it still fit" is a question about Price.
             const nextCompact = nextCompactLegend(compactLegendRef.current, lastFullBottomRef.current,
-              plan.collapseThresholdPx, foldSettled)
+              plan.collapseThresholdPx, foldSettled, chipsExpandedRef.current)
             if (nextCompact !== null) setCompactLegend(nextCompact)
+            // The pane grew until every row fits: there is no `Less` to press, so the expand ends here.
+            const staleExpand = stackExpandIsStale(chipsExpandedRef.current, studyCanFoldRef.current, foldSettled)
+            if (staleExpand) setChipsExpanded(false)
             // A budget or compact state just changed: the next frames must measure the result.
-            if (!foldSettled || nextCompact !== null) settled = false
+            if (!foldSettled || nextCompact !== null || staleExpand) settled = false
           }
         }
       } catch { return null /* pane API missing → CSS fallback; keep measuring */ }
@@ -19450,14 +19564,10 @@ export default function StockChart({
           const volHiddenNow = cs.volume?.visible === false
           const volMove = volItems.find((i) => i.key === 'move')
           const onMovePage = chipPage === 'move' && volMove && !volMove.disabled
+          // UCT Signature on BOTH pages (owner 11-16): the Display in page is `displayPageSigRows`.
           const volPage = onMovePage
-            ? [
-                { key: '_back', label: 'Volume', icon: 'collapse', keepOpen: true,
-                  onClick: () => setChipPage(null) },
-                { separator: true },
-                ...volMove.submenu.map((s) => ({ ...s, icon: s.checked ? 'check' : 'expand' })),
-              ]
-            : volItems.map((it) => (it.key === 'move' && !it.disabled
+            ? displayPageSigRows('Volume', volMove.submenu, () => setChipPage(null))
+            : volItems.map((it) => chipMenuSigRow(it.key === 'move' && !it.disabled
               ? { ...it, keepOpen: true, onClick: () => setChipPage('move') }
               : it))
           const volValue = crosshairData && crosshairData.volume != null ? formatVolume(crosshairData.volume) : ''
@@ -19467,16 +19577,16 @@ export default function StockChart({
               open
               onClose={close}
               anchor={chipMenu.anchor}
-              title={onMovePage ? 'Volume' : undefined}
+              /* ⛔ NO `title` on the Display in page either: its back row already names Volume. */
               width={214}  // the chart right-click menu's width (UCT Signature, owner 11-16)
               dense
-              signature={!onMovePage}
+              signature
               /* UCT Signature: no sub-line — "Display in" already names the placement. */
               header={onMovePage ? null : (
                 <LegendMenuHeader label="Volume" hidden={volHiddenNow} value={volValue} sig />
               )}
-              items={volPage.map(onMovePage ? chipMenuRowToPopoverRow : chipMenuSigRow)}
-              sheetClassName={sheetCls + (!onMovePage ? ' ' + popStyles.signature : '')} /* the touch sheet's UCT Signature look rides the Sheet's class (ContextPopover: Notebook bytes) */
+              items={volPage}
+              sheetClassName={sheetCls + ' ' + popStyles.signature} /* the touch sheet's UCT Signature look rides the Sheet's class (ContextPopover: Notebook bytes) */
             />
           )
         }
@@ -19595,6 +19705,9 @@ export default function StockChart({
           onPreset: (id, presetId) => { close(); handleChipPreset(id, presetId) },
           onModify: () => { close(); try { toolbarRef.current?.openCreateIndicator?.({ defId: c.defId }) } catch { /* noop */ } },
           onEditFormula: () => { close(); try { toolbarRef.current?.openFormulaEditor?.({ defId: c.defId }) } catch { /* noop */ } },
+          // ⭐ R1 — the Screener's existing run flow, opened on this indicator. `window.open(_, '_self')` is
+          // this file's navigation primitive (no router context here; see the desk-marker handler).
+          onRunOverList: () => { close(); const to = scanLink(c.defId); if (to) { try { window.open(to, '_self') } catch { /* noop */ } } },
           onScriptUpgrade: () => { close(); try { toolbarRef.current?.openScriptUpgrade?.({ defId: c.defId }) } catch { /* noop */ } },
           onCustomCopy: () => { close(); try { toolbarRef.current?.createCustomCopy?.({ def, inputs: (inst && inst.inputs) || {} }) } catch { /* noop */ } },
           onSettings: (id) => { close(); handleChipSettings(id) },
@@ -19639,13 +19752,11 @@ export default function StockChart({
         const menuName = (surface && surface.name) || c.label
         const move = items.find((i) => i.key === 'move')
         const presetRow = items.find((i) => i.key === 'preset')
-        const page = (chipPage === 'move' && move && !move.disabled)
-          ? [
-              { key: '_back', label: menuName, icon: 'collapse', keepOpen: true,
-                onClick: () => setChipPage(null) },
-              { separator: true },
-              ...move.submenu.map((s) => ({ ...s, icon: s.checked ? 'check' : 'expand' })),
-            ]
+        // ⭐ UCT Signature on EVERY indicator's Display in page (owner 11-17: "all of them"),
+        // the same `displayPageSigRows` page Volume's uses.
+        const onMovePage = chipPage === 'move' && move && !move.disabled
+        const page = onMovePage
+          ? displayPageSigRows(menuName, move.submenu, () => setChipPage(null))
           : items.map((it) => {
               if (it.key === 'move' && !it.disabled) return { ...it, keepOpen: true, onClick: () => setChipPage('move') }
               // ⭐ A6 — `Preset   Classic (O'Neil) ›`: the current preset as a muted
@@ -19783,12 +19894,9 @@ export default function StockChart({
             /* ⛔ NO `title` — see the row branch above. On the Display-in PAGE the
                back row carries the label instead, which is why that page renders
                no header either. */
-            title={chipPage === 'move' ? menuName : undefined}
             width={menuWidth}
             dense
-            /* UCT Signature on the menu page (group labels, gold hover icon, gold ✓ on Value in
-               header). The Display in page keeps its own tick icons, unchanged. */
-            signature={chipPage !== 'move'}
+            signature  /* UCT Signature on the menu AND the Display in page (owner 11-17) */
             /* ⛔ NO HEADER ON THE DISPLAY-IN PAGE. That page already opens with a
                back row carrying the label, and a second copy of the name directly
                above it reads as a bug.
@@ -19821,8 +19929,8 @@ export default function StockChart({
                   button is its own control, and a row's button cannot hold one). */}
               {askCompass}
             </>)}
-            items={page.map(chipPage === 'move' ? chipMenuRowToPopoverRow : chipMenuSigRow)}
-            sheetClassName={sheetCls + (chipPage !== 'move' ? ' ' + popStyles.signature : '')} /* the touch sheet's UCT Signature look rides the Sheet's class (ContextPopover: Notebook bytes) */
+            items={onMovePage ? page : page.map(chipMenuSigRow)}
+            sheetClassName={sheetCls + ' ' + popStyles.signature} /* the touch sheet's UCT Signature look rides the Sheet's class (ContextPopover: Notebook bytes) */
           />
         )
       })()}
@@ -20518,7 +20626,16 @@ export default function StockChart({
         // layout that sits over a real pane structure, so it is the one where
         // "which pane owns this row" is a question with an answer.
         const volRowInPriceStack = volLegendRowVisible && !volumeOwnsItsPane
-        const indChips = crosshairData.chips || EMPTY_CHIPS
+        // ⭐⭐ ONE ROW PER NAME (owner, 2026-11-16: a 23-plot script printed 22 rows that
+        // all read "Uncharted Clouds"). `legendRows` folds an indicator's same-name plots
+        // into one row led by its first drawn plot; the other drawn plots ride on it as
+        // extra values (`indMore`), and its hidden scaffolding plots get no row at all.
+        // ⛔ `crosshairData.chips` ITSELF IS UNTOUCHED: the line-end tags, the info values
+        // and the row-count signature above still read one chip per plot. Everything in
+        // this block reads `indChips`, so both layouts fold, count and order ROWS.
+        const indRows = legendRows(crosshairData.chips || EMPTY_CHIPS)
+        const indChips = indRows.map((r) => r.chip)
+        const indMore = new Map(indRows.map((r) => [r.chip, r.more]))
         // ── THE INLINE (NON-WORKSPACE) LEGEND'S FOLD — unchanged ────────────
         // Model Book, a pop-up, a gallery cell: one wrapping row of chips with a
         // fixed threshold. Legend V2 does not touch that surface; its own fold is
@@ -20571,22 +20688,23 @@ export default function StockChart({
         // the two could differ (the strip abbreviates, the pane spells out).
         const priceChips = indChips.filter((c) => chipPaneHost(c) == null)
         const studyOverlays = liveLegendOverlays(crosshairData.overlays)
-        // ⭐⭐ §13/§14 — VOLUME PRINTS LAST, BECAUSE ITS PANE IS LAST.
+        // ⭐⭐ §13/§14 — VOLUME PRINTS LAST.
         //
         // ⚰ IT USED TO HEAD THE STACK, inherited from the old vertical legend where
         // it sat directly under the O/H/L/C rows and belonged to them. In V2 the
-        // OHLC readings live in the bar-info strip and the stack is PLOTS — so the
-        // stack should read in the order the panes do: the things drawn on Price,
-        // then the thing drawn beneath it.
+        // OHLC readings live in the bar-info strip and the stack is PLOTS.
         //
-        // ⛔ THIS IS NOT "VOLUME IS ALWAYS LAST" HARD-CODED. `volumeBelowPrice` asks
-        // the RENDERER which pane each series is in, by identity, the same way
-        // `chromePlan` resolves every other piece of price-owned chrome — so a
-        // member who arranges Volume ABOVE Price gets its row above the price
-        // studies, and a banded volume (no pane of its own) keeps the head position
-        // it has always had. No pane INDEX is assumed anywhere; the two indices are
-        // only ever compared with each other.
-        const studyVolLast = volRowInPriceStack && volumeBelowPrice()
+        // ⭐⭐ OWNER 11-16 — AN OVERLAID VOLUME IS LISTED BELOW THE PRICE STUDIES. Volume is in
+        // this stack only when it has no pane of its own (`volRowInPriceStack`), i.e. it is
+        // overlaid on Price, where its bars sit along the BOTTOM of the pane — so its row goes
+        // under EMA 9 / SMA 50 / every price-pane indicator, the way the chart reads. It is
+        // put last AFTER the member's row order too (`orderPaneRows`): its place is where its
+        // bars are drawn, not a slot in a list.
+        // ⚰️ `volumeBelowPrice()` (the renderer's pane indices compared) decided this and is
+        // retired: in this stack Volume and the candles share one pane, so it always answered
+        // false and kept Volume at the head — the position the owner asked to change.
+        // A volume in its own pane is not in this stack at all (`volPaneRows`): unchanged.
+        const studyVolLast = volRowInPriceStack
         // ⭐⭐ ONE STACK, IN THE MEMBER'S OWN ORDER (owner §11, 2026-09-17).
         //
         // ⚰️ IT WAS THREE CONCATENATED BLOCKS — volume, then every legacy moving
@@ -20611,19 +20729,20 @@ export default function StockChart({
         // sorts to the end with the other unidentifiable rows, which is where it
         // already sat.
         //
-        // ⚠️ VOLUME PARTICIPATES ONLY WHEN IT IS REALLY IN THIS STACK. A banded
-        // volume IS a member of the price pane and the settings list files it
-        // there too, so it can be ordered among the averages; a volume with its
-        // own pane is not in this stack at all and its `studyVolLast` placement
-        // rule — which asks the RENDERER which pane is below which — is untouched.
-        const studyItems = orderPaneRows(cs, PRICE_PANE, [
-          ...(volRowInPriceStack && !studyVolLast ? [{ kind: 'vol', id: 'volume' }] : []),
+        // ⚠️ VOLUME IS IN THIS STACK ONLY WHEN IT IS OVERLAID ON PRICE, and then it is
+        // moved to the end AFTER the member's order is applied (`studyVolLast`, above):
+        // the averages and indicators keep the member's order among themselves. A volume
+        // with its own pane is not in this stack at all.
+        const studyRows = orderPaneRows(cs, PRICE_PANE, [
           ...studyOverlays.map((ov, i) => ({
             kind: 'ma', ov, i, id: ov.csIndex >= 0 ? overlayRowId(ov.csIndex) : null,
           })),
           ...priceChips.map((c) => ({ kind: 'chip', c, id: c.instanceId })),
           ...(studyVolLast ? [{ kind: 'vol', id: 'volume' }] : []),
         ], (it) => it.id)
+        const studyItems = studyVolLast
+          ? [...studyRows.filter((it) => it.kind !== 'vol'), ...studyRows.filter((it) => it.kind === 'vol')]
+          : studyRows
         const studyTotal = studyItems.length
         // ⭐⭐ THE FOLD IS GEOMETRIC, NOT A CONSTANT. `studyRowBudget` is how many
         // rows fit between the stack's own top and the PRICE PANE'S bottom, in
@@ -20665,12 +20784,17 @@ export default function StockChart({
         while (studyFitFrom > 0 && studyFitFrom < studyTotal
           && sameInstanceAsPrev(studyFitFrom)) studyFitFrom -= 1
         const studyCanFold = studyFitFrom < studyTotal
+        studyCanFoldRef.current = studyCanFold
         const studyFoldFrom = chipsExpanded ? studyTotal : studyFitFrom
         const studyMoreCount = studyTotal - studyFitFrom
         return (
         <div
           ref={legendRef}
-          className={`${styles.legend}${legendV2 ? ' ' + styles.legendV2 : ''}${compactLegend && legendV2 ? ' ' + styles.legendCompact : ''}${legendFlush ? ' ' + styles.legendFlush : toolbarCollapsed ? ' ' + styles.legendToolbarHidden : ''}`}
+          /* ⭐ The legend box is `pointer-events: none`, but enter/leave are about the
+             SUBTREE: they fire as the pointer moves onto and off its rows. */
+          onPointerEnter={(e) => legendHoldRef.current.enter(e)}
+          onPointerLeave={() => legendHoldRef.current.leave()}
+          className={`${styles.legend}${legendV2 ? ' ' + styles.legendV2 : ''}${compactLegend && legendV2 ? ' ' + styles.legendCompact : ''}${stackDrawnOpen(legendV2, chipsExpanded, studyCanFold) ? ' ' + styles.legendStackOpen : ''}${legendFlush ? ' ' + styles.legendFlush : toolbarCollapsed ? ' ' + styles.legendToolbarHidden : ''}`}
           /* Drop below the index pane so the legend never covers it; reserve the
              right price-axis width so the BAR INFO strip wraps before it. */
           style={{
@@ -20848,8 +20972,8 @@ export default function StockChart({
                   `parityGateBlindness.test.js`, which is also why this JSX is
                   inline and not hoisted into a helper. */}
               <div className={styles.studyStack} ref={studyStackRef}>
-                {/* ⭐ VOLUME IS A STUDY ROW — first, above the moving averages,
-                    exactly where the old vertical legend printed it.
+                {/* ⭐ VOLUME IS A STUDY ROW — last, below the moving averages and every
+                    price-pane indicator, where its overlaid bars sit (owner 11-16).
                     ⛔ ITS PANE OWNERSHIP, SIZING AND RENDERING ARE UNTOUCHED. This
                     row only REPORTS the state: a hidden volume pane keeps a
                     dimmed, value-less row (the way back), and a REMOVED one takes
@@ -20928,6 +21052,7 @@ export default function StockChart({
                          so adjacency alone still identifies the group, with no
                          second grouping pass and no new identity. */
                       secondary={sameInstanceAsPrev(i)}
+                      more={indMore.get(c)}
                       className={folded ? chipStyles.chipFolded : undefined}
                       /* Per (instance, plot) — a definition with one repainting
                          column marks that column and leaves its siblings alone. */
@@ -21030,6 +21155,7 @@ export default function StockChart({
             <IndicatorChip
               key={`${c.instanceId}::${c.plotKey}`}
               chip={c}
+              more={indMore.get(c)}
               className={foldRank[i] >= foldedFrom ? chipStyles.chipFolded : undefined}
               {...(chipText[i] ? (readoutChipProps(c) || PANE_TEXT_CHIP) : null)}
               {...chipHandlersFor(c)}
@@ -21273,7 +21399,8 @@ export default function StockChart({
           </div>
         </div>
       )}
-      {showRangeSelector && chartReady && filteredBars?.length > 1 && !compactLegend && (
+      {showRangeSelector && chartReady && filteredBars?.length > 1
+        && !rangeBarYieldsToLegend(compactLegend, legendV2 && chipsExpanded) && (
         <div ref={rangeBarRef} data-guide="chart.range" className={styles.rangeBar}>
           {RANGE_OPTS.map(([label, val], i) => (
             <button
@@ -21513,7 +21640,9 @@ export default function StockChart({
               {group.note ? <span className={styles.paneLegendNote}>{group.note}</span> : null}
             </div>
           ) : null}
-          {row.chips.map((c, ci) => (
+          {/* ⭐ ONE ROW PER NAME, HERE TOO (`legendRows`): a script drawn in its own pane
+              prints one readout row carrying each drawn plot's value, not a row per plot. */}
+          {legendRows(row.chips).map(({ chip: c, more }, ci, paneRows) => (
             <LegendRow
               key={`${c.instanceId}::${c.plotKey}`}
               vertical={!group}
@@ -21521,7 +21650,9 @@ export default function StockChart({
                  and SIG stack with the second indented, rather than as two
                  unrelated studies that happen to share a pane. Adjacency is the
                  grouping, because `legendChips` walks the INSTANCE list. */
-              secondary={ci > 0 && row.chips[ci - 1].instanceId === c.instanceId}
+              secondary={ci > 0 && paneRows[ci - 1].chip.instanceId === c.instanceId}
+              moreValues={more.length
+                ? more.map((m) => ({ key: m.plotKey, text: chipValueText(m), color: m.color })) : undefined}
               /* ⭐⭐ THE ROW ID IS THE INSTANCE ID, and that is what wires the door
                  with no adapter: `LegendRow` calls `onOpen(rowId, anchor)` and the
                  pane readout hands it straight to `handlePaneRowMenu`, which looks

@@ -41,6 +41,7 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 from api.services import pine_capabilities as pc  # noqa: E402
+from api.services import host_known_divergence as hkd  # noqa: E402 -- the host lane's list, one reader
 from api.services import rollout_gate as rg  # noqa: E402
 from api.services import runtime_definitions as rt  # noqa: E402
 
@@ -243,8 +244,12 @@ def cmd_report(a):
     # THE RULE (coordinator ruling 2026-11-13): no capture drawn by the RUNTIME lane under admission
     # may DIVERGE, and no capture may move MATCH -> DIVERGE (production -> runtime-on). A host-drawn
     # DIVERGE is the production picture unchanged; it is listed, not a stop.
+    # ⭐ 2026-11-17 (owner decision): a host-drawn DIVERGE whose script is on the HOST known-divergence list
+    # (`api/services/host_known_divergence.py`) is not drawn for members any more: it is refused by name
+    # (`pine:known-divergence`) at every host door, and is listed under `refusedByName`, not `hostDiverge`.
+    listed = hkd.committed()
     rep = {"populations": {}, "captures": [], "admittedUngraded": [], "stops": [], "hostDiverge": [],
-           "matchToDiverge": [], "substitutedToDiverge": []}
+           "refusedByName": [], "matchToDiverge": [], "substitutedToDiverge": []}
     for pop in ("capture", "committed", "reference", "builtin"):
         rows = [s for s in inp if s["population"] == pop]
         adm = [s for s in rows if s["admitted"]]
@@ -265,7 +270,12 @@ def cmd_report(a):
                    "caps": s["caps"]}
             rep["captures"].append(row)
             if on == "DIVERGE":
-                rep["stops" if d.get("lane") == "runtime" else "hostDiverge"].append(row)
+                if d.get("lane") == "runtime":
+                    rep["stops"].append(row)
+                elif s.get("hash") in listed:
+                    rep["refusedByName"].append(dict(row, guard=hkd.GUARD, slug=listed[s["hash"]].get("slug")))
+                else:
+                    rep["hostDiverge"].append(row)
             if off == "MATCH" and on == "DIVERGE":
                 rep["matchToDiverge"].append(row)
             # ⭐ L7 — the same regression from the substituted bucket, named apart (never folded into MATCH)
@@ -279,6 +289,7 @@ def cmd_report(a):
     print("admitted captures:", collections.Counter((c["lane"], c["runtimeOn"]) for c in rep["captures"]))
     print("STOPS (runtime-lane capture DIVERGEs):", [c["capture"] for c in rep["stops"]])
     print("host-drawn DIVERGE (production picture):", [c["capture"] for c in rep["hostDiverge"]])
+    print("refused by name (host known-divergence list):", [c["capture"] for c in rep["refusedByName"]])
     print("MATCH->DIVERGE:", [c["capture"] for c in rep["matchToDiverge"]])
     print("MATCH_SUBSTITUTED->DIVERGE:", [c["capture"] for c in rep["substitutedToDiverge"]])
     print("admitted, ungraded:", len(rep["admittedUngraded"]),

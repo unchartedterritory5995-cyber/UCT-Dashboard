@@ -348,6 +348,20 @@
 .resRefusedWhy { font-size: 11px; color: var(--ci-faint); }
 .resRefusedLede { margin: 0 4px 8px; font-size: 11.5px; color: var(--ci-faint); }
 .resActions { display: flex; gap: 4px; flex: 0 0 auto; }
+/* A member's own row carries five doors (Modify, Edit formula, Custom copy, Run over a list, Share).
+   On the name's line they took all of its room: on production the name was cut to nothing and the
+   labels slid under the buttons. They sit on a line of their own, under the name, and wrap if the
+   window is narrow.
+   ⛔ THE DOORS ARE A CHILD OF `.resMain`, NOT OF THE ROW (the row is mark, `.resMain`, "+ Add"). So it
+   is `.resMain` that wraps: the name and its labels keep the first line, the doors take a whole
+   second one, already aligned under the name. The first attempt wrapped the ROW and gave the doors a
+   full-width basis inside a `.resMain` that could not wrap, which squeezed the name to zero width on
+   production (2026-11-17, read off the live page's own markup). */
+.resRowOwn { padding-bottom: 8px; }
+.resRowOwn .resMain { flex-wrap: wrap; row-gap: 0; }
+.resRowOwn .resActions { flex: 1 0 100%; flex-wrap: wrap; margin-top: -4px; }
+/* "+ Add" and "On chart" stay on the name's line instead of centring between the two */
+.resRowOwn .resAdd, .resRowOwn .resActive { align-self: flex-start; margin-top: 5px; }
 .resAction { height: 24px; padding: 0 8px; font-size: 11.5px; }
 .resActive { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; margin-left: auto; }
 .resActiveTag { font-size: 11px; font-weight: 500; color: var(--ci-dim); display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }

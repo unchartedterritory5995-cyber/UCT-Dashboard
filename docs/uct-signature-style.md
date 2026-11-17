@@ -164,6 +164,14 @@ colours at 60% strength (no fixed green/red, no permanent text on the chart); ho
 - Timeframe menu (first "remake it in UCT Signature" test, 2026-11-15): `app/src/pages/charts/widgets/TimeframeMenu.jsx` + `.module.css` — grouped list, white ✓ on the current item, favourite stars on the right (filled always shown, empty on hover), a ChoiceMenu inside a popover (its portalled list is `[data-choice-menu]`, so the host's outside-click must ignore it).
 - Chart-type header button + shared glyph: `app/src/components/chart/pane/ChartTypeMenu.jsx`, `ChartTypeGlyph.jsx`.
 - Command Center widgets / widget settings menus (Theme Tracker "…" menu, design B).
+- A whole PAGE in the style (2026-11-16): the Screener's Focus layout, `app/src/pages/screener/focus/`
+  (`FocusScreener.module.css`, `FocusMenus.module.css`, `RsScreens.module.css`). One top bar (tabs with
+  the gold underline for Stocks | Options and for the view), one context line (a screen's quick
+  controls as soft chips, the chosen one in the Selected tone), one notices line, a list whose
+  selected row is the raised tone with the 2px gold bar, and a screen picker with a group rail.
+  Its values are the `--scr-*` names in `FocusMenus.module.css`, which map to the app's own light
+  tokens under the light theme. Rail: `focus/__tests__/signatureLayout.test.jsx` (every use of gold
+  in those sheets must be one of the section 2b marks).
 - Design labs (owner-approved mockups, 2026-11-15): Chart Settings Lab — Indicators list + editor,
   Header & legend with the stat picker — https://claude.ai/artifact/57juSevqLBPhRxK3eUo5DG
 
@@ -175,6 +183,17 @@ always beside the widget), the widget-tab right-click menu · PR #1311 (watchlis
 **Localhost (feat/widget-uct-style, not shipped):** chart right-click menu M4 · chart-type header
 button + menu · Chart Settings (S2 rail, cards, soft squares, ChoiceMenu dropdowns) · timeframe
 menu · date calendar + "Go to a date" · drawing-tools ★ menu · the /charts top row (layout name = Layouts button + save state, + Add widget picker, Tools, Merge toggle) · left nav (grey icons, gold current page).
+**Screener (PR of 2026-11-16):** the Focus layout's List, Charts and Map views, its top bar, context
+and notices lines, the screen picker, Save / More / Help / Sort menus, the Filters drawer (and the
+filter rail inside it, `FilterRail skin="signature"`), the name dialog, the toast, the phone sheets.
+**Screener scan board (2026-11-17, dark behind `SCREENER_SCAN_BOARD_ENABLED`):** the Screener as a customizable widget board
+(`app/src/pages/screener/focus/board/`, `Board.module.css`): widget cards on the well colour, the open tab and the open details tab
+underlined in gold, the selected row and the open screen with the 2px bar, the Layout menu's chosen options ticked. Customize's grip
+and corner handles are grey (tools, not a selection). Its own gold rail: `board/__tests__/boardUi.test.jsx`.
+
+**Community layouts (2026-11-17, dark behind `SCREENER_LAYOUT_GALLERY_ENABLED`):** a Signature window (`board/CommunityLayouts.jsx`) of layout cards on the scan board's Layout menu. Each card is a small picture of the layout (grey boxes on the board's own grid), its name, who shared it and how often it was used, with one soft primary button ("Use layout") and a quiet text action ("Report"). No gold anywhere in the window: nothing in it is the member's current choice until they use one, and then the tick appears on the Layout menu as for any layout.
+
+**Screener, not yet converted:** Table view (the older ScannerShell page) and the Options tab's own page.
 **Designed, not built (lab):** Chart Settings Indicators section + indicator editor, Header &
 legend with the stat picker. **Not yet converted:** Breadth widget (parked), Chart Settings light
 theme, pages outside /charts.

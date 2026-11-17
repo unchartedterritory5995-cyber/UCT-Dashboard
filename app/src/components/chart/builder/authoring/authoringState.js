@@ -160,6 +160,34 @@ export function undoTo(state, index) {
   })
 }
 
+/**
+ * Make a WHOLE definition the working copy as ONE applied step (Indicators backlog 30: an
+ * earlier saved version brought back into the draft). The same bookkeeping as an applied turn:
+ * the revision moves forward and the copy before it is kept on the stack, so Undo and History
+ * take it back exactly. Pending requests, assumptions and questions belonged to the copy being
+ * replaced and do not carry over. `base` and `baseVersion` do NOT move: the save is still an
+ * edit on top of the stored version this conversation opened.
+ * A missing definition returns the SAME state.
+ */
+export function replaceWorking(state, definition) {
+  if (!state || !definition || typeof definition !== 'object') return state
+  const intent = defaultIntentFor(definition)
+  const snapshot = freeze({
+    revision: state.revision, working: state.working, intent: state.intent, requests: state.requests,
+    assumptions: state.assumptions, questions: state.questions,
+  })
+  return freeze({
+    ...state,
+    revision: state.revision + 1,
+    working: definition,
+    intent: intent && intent !== 'plot' ? { intent, output: null } : null,
+    requests: EMPTY_REQUESTS,
+    assumptions: [],
+    questions: [],
+    history: [...state.history, snapshot].slice(-HISTORY_MAX),
+  })
+}
+
 /** The document as the save door would judge it: without the two stamps a
  *  save writes (`id`, `version`). */
 function savable(def) {

@@ -33,6 +33,8 @@ import {
 import { reduceIfOversized, hydrateGraphDocument } from '../components/chart/engine/ast/graphDocument'
 import { META_KEY } from '../pages/screener/hooks/useScreenerMeta'
 import { withServedRowIdentities } from '../components/chart/engine/lineIdentity'
+// ⭐ SETTINGS PARITY (2a): the per-chart parameter settings are a load-time projection, never stored.
+import { stripParamInputs } from '../components/chart/engine/paramInputs'
 import {
   SCRIPT_ENGINE_VERSION, withoutEngineStamp, withinPineSourceCap,
 } from '../components/chart/engine/scriptEngineVersion'
@@ -260,6 +262,10 @@ export async function saveUserDefinition(definition, defId = null, telemetry = n
       definition = { ...definition, meta: { ...definition.meta, scriptEdited: true } }
     }
   }
+  // ⛔ SETTINGS PARITY (2a): a document that came off the registry carries its folded parameters
+  // as `param<N>` settings (`memberDocumentMigration`); they are a projection of its own manifest,
+  // so they are never written back.
+  definition = stripParamInputs(definition)
   const url = defId ? `${USER_DEFINITIONS_KEY}/${encodeURIComponent(defId)}` : USER_DEFINITIONS_KEY
   let r
   try {
@@ -913,6 +919,29 @@ export async function installSharedDefinition(token) {
     error: typeof d === 'string' && d.trim()
       ? d.trim()
       : `That formula could not be installed (${r.status}).`,
+  }
+}
+
+/**
+ * ⭐ STUDIO R4 — put the AUTHOR's status-panel sentence on record for the version they just saved
+ * (`POST /{id}/status-headline`), so a share link, the install answer and a library entry can say
+ * what the author was told. Owner only and the live version only, both enforced by the server.
+ * ⛔ NEVER THROWS AND NEVER BLOCKS A SAVE: the caller does not wait on it, and a refusal (a newer
+ * version exists: 409) is an answer, not an error to show.
+ * @returns {Promise<{ok: boolean, status: number|null}>}
+ */
+export async function recordStatusHeadline(defId, { version, engine, headline } = {}) {
+  if (typeof defId !== 'string' || !defId || !Number.isInteger(version) || !Number.isInteger(engine)) return { ok: false, status: null }
+  const text = typeof headline === 'string' ? headline.trim() : ''
+  if (!text) return { ok: false, status: null }
+  try {
+    const r = await fetch(`${USER_DEFINITIONS_KEY}/${encodeURIComponent(defId)}/status-headline`, {
+      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ version, engine, headline: text }),
+    })
+    return { ok: !!r.ok, status: r.status }
+  } catch {
+    return { ok: false, status: null }
   }
 }
 

@@ -1,0 +1,80 @@
+# promotion-gate: no — ADVISORY. It runs on pull requests only, never on a master push, so
+#   promotion (which reads the master runs for a commit) never sees it. The owner decides
+#   whether it becomes gating, after it has been seen failing AND passing.
+# ─── THE AUTHORING EVALUATION RUNNER'S OWN TESTS, WHERE NODE IS ──────────────
+#
+# WHY THIS EXISTS (Indicators backlog 51). `tools/converse_eval.py` is the regression
+# instrument for the Create Indicator door: it bundles the app's own authoring engine with
+# node and replays requests through it. Its tests (`tests/test_converse_eval_runner.py`) need
+# node and `app/node_modules`, and SKIP where either is missing. Every pull-request lane that
+# runs pytest lacked one of the two, so the file was skipped everywhere a change could have
+# been stopped: on 2026-11-12 an image import added to the app stopped the bundle building,
+# and the runner stayed dead for five days with nothing red (found and fixed in #1591).
+#
+# WHAT IT RUNS. That one file, with python, node and the app's modules installed, on any pull
+# request that touches the runner, its cases, or the app code the bundle is built from.
+# ⛔ A SKIP IS A FAILURE HERE. A lane where the file skips is exactly the hole this closes, so
+#   the step fails if pytest reports any skipped test.
+# No secrets, no network beyond package installs, nothing live: the runner's `--offline` path
+# only. The live path needs a key and an explicit spend flag and is refused in these tests.
+name: authoring eval runner
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/authoring-eval-runner.yml'
+      - 'tools/converse_eval.py'
+      - 'scripts/shared_root_guard.py'
+      - 'tests/test_converse_eval_runner.py'
+      - 'tests/fixtures/authoring/**'
+      - 'api/services/definition_conversation.py'
+      - 'app/package.json'
+      - 'app/package-lock.json'
+      - 'app/src/components/chart/**'
+
+# CI COST (2026-11-06, owner): a newer push to the same PR cancels that PR's older run. A
+# dispatch is grouped by its own SHA and is never cancelled. tests/test_ci_cost_rails.py pins this.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  runner:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install
+        run: |
+          set -eux
+          python -m pip install --quiet -r requirements.txt pytest
+          (cd app && npm ci --no-audit --no-fund)
+
+      - name: The runner's tests, none skipped
+        shell: bash
+        run: |
+          # pipefail: without it `| tee` hands the step tee's exit code and a red run reads green.
+          set -euxo pipefail
+          python -m pytest tests/test_converse_eval_runner.py -q -p no:cacheprovider -rs 2>&1 | tee runner.log
+          # a run is a run only with a totals line, and a skip means this lane lost node or the modules
+          grep -qE "^[0-9]+ passed" runner.log || { echo "::error::no totals line: the tests did not run"; exit 1; }
+          if grep -qE "[0-9]+ skipped" runner.log; then
+            echo "::error::a test was skipped: this lane must have node and app/node_modules"; exit 1
+          fi

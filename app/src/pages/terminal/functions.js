@@ -339,6 +339,89 @@ export const FUNCTIONS = [
   // route answers `available: false` and the panel says "Grade not available yet" (never a verdict).
   { code: 'GRADE', label: 'Compass grade (buy / hold / skip verdict)', group: 'Security',
     ticker: { panel: 'Grade' } },
+
+  // ── data wave 1 (2026-11-17): data the app already served but the Terminal could not reach. Each
+  // is a terminal-native panel over an existing member route; no new route. A ticker in a row
+  // loads into the linked group like every other list.
+  // UPDG: the analyst actions in the latest morning wire (GET /api/analyst-actions), which no
+  // screen showed. The list is dated by its wire, never worded as the current day's on its own.
+  { code: 'UPDG', label: 'Analyst upgrades, downgrades and target changes (latest morning wire)', group: 'Market',
+    market: { panel: 'Upgrades', args: [{ kind: 'analystKind', prop: 'kind' }] } },
+  // HILO: new highs and lows OF THE DAY, per session, from the live scanner (GET /api/nhnl/live).
+  // Not the 52-week lists: those are the drill lists of the Breadth Monitor.
+  { code: 'HILO', label: 'New highs and lows of the day (live scanner)', group: 'Market',
+    market: { panel: 'HighsLows', args: [{ kind: 'hiloSide', prop: 'side' }, { kind: 'hiloGroup', prop: 'group' }] } },
+  // SCTR: the 11 sector funds ranked (GET /api/sector-strength). SECT is a real ETF, so not that.
+  { code: 'SCTR', label: 'Sector funds ranked by performance', group: 'Market',
+    market: { panel: 'Sectors', args: [{ kind: 'contribWindow', prop: 'period' }] } },
+  // LEAD: the long-window lists only the /charts Scanner widget showed (GET /api/scans/*).
+  { code: 'LEAD', label: 'Long-run leaders (gainers, volume records, new listings)', group: 'Market',
+    market: { panel: 'LongRun', args: [{ kind: 'longRunLens', prop: 'lens' }] } },
+  // EMOV: one day of earnings reporters and how each stock moved (GET /api/calendar/reactions with
+  // the calendar week). ERX is ONE stock and its past reactions; this is the whole day.
+  { code: 'EMOV', label: 'Earnings movers (how each reporter moved, by day)', group: 'Calendar',
+    market: { panel: 'EarningsScoreboard', args: [{ kind: 'etDate', prop: 'date' }] } },
+  // LVL: the gamma walls and dark pool levels of one stock (GET /api/signature/gex-walls and
+  // /darkpool-levels), until now only drawable as chart indicators.
+  { code: 'LVL', label: 'Key levels (call wall, put wall, zero gamma, dark pool)', group: 'Options',
+    ticker: { panel: 'Levels' } },
+
+  // ── data wave 2 (2026-11-17) ──
+  // H52: the 52-WEEK highs and lows (the Breadth Monitor drill lists); HILO is highs and lows of
+  // the day. Live in the session, else the latest finished session, and it says which.
+  { code: 'H52', label: 'New 52-week highs and lows (Breadth Monitor lists)', group: 'Market',
+    market: { panel: 'Highs52', args: [{ kind: 'hiloSide', prop: 'side' }] } },
+  // RSS: the five UCT RS screens, read from the same saved-screens list and scan door the Screener
+  // uses. The screens have their own server switch; off, the panel says so and runs no scan.
+  { code: 'RSS', label: 'RS screens (leaders, top rating, new highs, exit warnings)', group: 'Market',
+    market: { panel: 'RsScreens', args: [{ kind: 'rsScreen', prop: 'screen' }] } },
+  // LEARN: the teaching UCT holds on one stock: Desk articles that chart it, Desk video moments
+  // that mention it, Model Book appearances. Never the trader archive (owner ruling 2026-10-17).
+  // LRN is a real ticker (Stride), so the code is the word.
+  { code: 'LEARN', label: 'Lessons on this stock (Desk articles, videos, Model Book)', group: 'Security',
+    ticker: { panel: 'Learn' } },
+
+  // ── data wave 3 (2026-11-17) ──
+  // PERF: the member's OWN trading stats, read from the Journal's own routes (the session's user
+  // only): headline numbers, results by setup with the sample size, the closed-trade equity curve.
+  // `PERF 2` picks the second Journal account, `PERF ALL` every account.
+  { code: 'PERF', label: 'My trading stats (from your Journal)', group: 'Market',
+    market: { panel: 'Performance', args: [{ kind: 'journalAccount', prop: 'account' }] } },
+  // FLWL: two curated options-flow lists that had no place in the app's menus: Cream of the Crop
+  // (until now only a Discord card) and the open flow board (the /open-flow page).
+  { code: 'FLWL', label: 'Options flow lists (Cream of the Crop, open flow board)', group: 'Options',
+    market: { panel: 'FlowLists', args: [{ kind: 'flowList', prop: 'list' }] } },
+
+  // ── data wave 4 (2026-11-17) ──
+  // CONFL: stocks where large dark pool size and long-dated options flow line up (GET
+  // /api/confluence), until now a tab inside the Options Flow page. `CONFL BEAR` = bearish names.
+  { code: 'CONFL', label: 'Confluence board (dark pool size with long-dated options flow)', group: 'Options',
+    market: { panel: 'Confluence', args: [{ kind: 'confluenceLean', prop: 'lean' }] } },
+  // ACCUM: the option contracts hit again and again in one session, under the day's bullish
+  // against bearish premium (GET /api/live/massive/by-contract and /day-stats). `ACCUM 11/14`
+  // = a past day, `ACCUM LATEST` = newest first.
+  { code: 'ACCUM', label: 'Repeat-hit option contracts, with the day\'s flow read', group: 'Options',
+    market: { panel: 'RepeatContracts', args: [{ kind: 'etDate', prop: 'date' }, { kind: 'repeatOrder', prop: 'order' }] } },
+  // PCHG: every stock ranked by percent change between two dates (GET /api/scans/period-change).
+  // `PCHG QTD`, `PCHG 2026-01-02 2026-06-30 LOSERS`; a start alone means "since that day".
+  // `PCHG QTD SECTORS` ranks sectors, industries or themes over the same dates instead
+  // (GET /api/scans/period-change-groups); a group opens to its own stocks.
+  { code: 'PCHG', label: 'Performance between any two dates (stocks, sectors, industries, themes)', group: 'Market',
+    market: { panel: 'PeriodChange', args: [{ kind: 'periodRange', prop: 'range' }, { kind: 'periodDate', prop: 'start' },
+      { kind: 'periodDate', prop: 'end' }, { kind: 'periodUnit', prop: 'unit' }, { kind: 'periodSide', prop: 'side' }] } },
+  // TSRC: a word or phrase searched across every indexed earnings call, with its monthly share
+  // of calls (GET /api/earnings/transcript-search and /transcript-trend). `TSRC pricing power`.
+  { code: 'TSRC', label: 'Search every earnings call', group: 'Market',
+    market: { panel: 'CallSearch', args: [{ kind: 'callQuery', prop: 'q', rest: true }] } },
+  // EXMV: what the options market priced before each earnings report beside what the stock then
+  // did, and the coming report's priced move (GET /api/research/expected-move/{sym} and
+  // /api/earnings-intel/{sym}).
+  { code: 'EXMV', label: 'Expected move into earnings, against past reports', group: 'Security',
+    ticker: { panel: 'ExpectedMove' } },
+  // TROT: the themes whose rank changed most between last week and this one (GET
+  // /api/theme-rotation), which no screen drew. `TROT OUT` = only the themes rotating out.
+  { code: 'TROT', label: 'Theme rotation (themes rotating in and out)', group: 'Market',
+    market: { panel: 'ThemeRotation', args: [{ kind: 'rotationSide', prop: 'side' }] } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -520,7 +603,7 @@ const FUNCTION_WORDS = {
   EEH: { keywords: ['revisions', 'estimate revisions'] },
   ANR: { keywords: ['analysts', 'upgrades', 'downgrades', 'price target'] },
   RTG: { keywords: ['rating', 'score'] },
-  OWN: { keywords: ['ownership', 'institutions', 'holders', '13f'] },
+  OWN: { keywords: ['ownership', 'institutions', 'holders', '13f', 'short interest', 'short float', 'days to cover'] },
   PPL: { keywords: ['executives', 'management', 'ceo'] },
   TRAN: { keywords: ['transcript', 'conference call', 'earnings call'] },
   MB: { keywords: ['model book'] },
@@ -584,6 +667,26 @@ const FUNCTION_WORDS = {
   PLAN: { example: 'NVDA PLAN 203 195', keywords: ['plan', 'trade plan', 'buy point', 'stop', 'entry'] },
   MON: { keywords: ['watchlist', 'watchlists', 'monitor'] },
   GRADE: { keywords: ['grade', 'compass', 'verdict', 'buy or skip'], note: 'Says so if grades are not available yet.' },
+  UPDG: { example: 'UPDG DOWN', keywords: ['analyst actions', 'rating changes', 'target changes', 'upgrades and downgrades'] },
+  HILO: { example: 'HILO LOWS', keywords: ['new highs', 'new lows', 'highs and lows'],
+    note: 'Says so if the live scanner is switched off or the market is closed.' },
+  SCTR: { example: 'SCTR 1M', keywords: ['sector performance', 'sector funds', 'sector ranking'] },
+  LEAD: { example: 'LEAD 60D', keywords: ['30 day gainers', 'long run leaders', 'volume record', 'new listings', 'recent ipos'] },
+  EMOV: { example: 'EMOV 11/12', keywords: ['earnings reactions', 'earnings movers', 'earnings scoreboard', 'who reported'] },
+  LVL: { keywords: ['key levels', 'call wall', 'put wall', 'zero gamma', 'dark pool levels'] },
+  H52: { example: 'H52 LOWS', keywords: ['52 week highs', '52 week lows', 'yearly highs', 'new 52 week highs'] },
+  RSS: { example: 'RSS NHBP', keywords: ['rs screens', 'rs new highs', 'rs exit warnings', 'top rs rating'],
+    note: 'Says so if the RS screens are switched off.' },
+  LEARN: { example: 'NVDA LEARN', keywords: ['lessons', 'desk articles', 'desk videos', 'learn about this stock'] },
+  PERF: { example: 'PERF ALL', keywords: ['my stats', 'trading stats', 'win rate', 'expectancy', 'equity curve', 'my performance'] },
+  FLWL: { example: 'FLWL OPEN', keywords: ['cream of the crop', 'open flow board', 'flow lists', 'open flow'] },
+  CONFL: { example: 'CONFL BULL', keywords: ['confluence', 'dark pool and flow', 'long-dated flow', 'leaps'] },
+  ACCUM: { example: 'ACCUM LATEST', keywords: ['repeat hits', 'accumulation', 'repeat contracts', 'flow read', 'bullish premium'] },
+  PCHG: { example: 'PCHG QTD SECTORS', keywords: ['period change', 'performance between dates', 'since a date', 'best this quarter', 'custom range',
+    'sector performance', 'industry performance', 'theme performance'] },
+  TSRC: { example: 'TSRC pricing power', keywords: ['search earnings calls', 'transcript search', 'who said', 'call mentions'] },
+  EXMV: { example: 'NVDA EXMV', keywords: ['expected move', 'implied move', 'earnings straddle', 'priced move'] },
+  TROT: { example: 'TROT IN', keywords: ['theme rotation', 'rotating in', 'rotating out', 'themes gaining rank'] },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]

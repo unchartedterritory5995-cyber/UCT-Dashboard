@@ -256,11 +256,13 @@ def purge_store_rows(store: Store, user_id: str, conn: sqlite3.Connection) -> di
                 log.warning("alert purge failed on %s.%s for %s: %s", store.db, table, uid, e)
             return 0
 
+    # Summed per table: a table may be reached both ways (uct_agent.db's `agent_turns`: by its
+    # conversation, then by its own `user_id`), and its count is both deletes.
     for table, fk, parent in store.joins:
-        deleted[table] = _run(table, f"DELETE FROM {table} WHERE {fk} IN "
-                                     f"(SELECT id FROM {parent} WHERE user_id = ?)")
+        deleted[table] = deleted.get(table, 0) + _run(
+            table, f"DELETE FROM {table} WHERE {fk} IN (SELECT id FROM {parent} WHERE user_id = ?)")
     for table in store.tables:
-        deleted[table] = _run(table, f"DELETE FROM {table} WHERE user_id = ?")
+        deleted[table] = deleted.get(table, 0) + _run(table, f"DELETE FROM {table} WHERE user_id = ?")
     try:
         conn.commit()
     except sqlite3.Error as e:

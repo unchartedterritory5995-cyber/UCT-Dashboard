@@ -61,7 +61,7 @@ import tempfile
 import time
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "app"
@@ -251,23 +251,57 @@ def synthetic_bars(n: int = 360) -> List[dict]:
     return bars
 
 
+#: How many synthetic bars a run has unless its cases file says otherwise, and the most it may ask for.
+DEFAULT_BARS = 360
+MAX_BARS = 5000
+
+
+def bar_count_of(cases_doc: Mapping[str, Any]) -> int:
+    """The length of the synthetic series for this cases file: its own top-level ``bars`` (a whole
+    number from ``DEFAULT_BARS`` to ``MAX_BARS``), else ``DEFAULT_BARS``.
+
+    A cases file asks for more when what it builds needs a long history before it has a value at
+    all: SuperTrend and Parabolic SAR are bounded recurrences shown after a warm-up of several
+    hundred bars, and on 360 bars their reference output is unknown on every bar, which this
+    runner refuses to grade. Anything else in that field is a mistake in the file and stops the run.
+    """
+    n = cases_doc.get("bars", DEFAULT_BARS) if isinstance(cases_doc, Mapping) else DEFAULT_BARS
+    if type(n) is not int or not (DEFAULT_BARS <= n <= MAX_BARS):
+        raise SystemExit(f"cases file: `bars` must be a whole number from {DEFAULT_BARS} to {MAX_BARS}, got {n!r}")
+    return n
+
+
 # --------------------------------------------------------------------------- #
 # the JS lane (node, the shipped modules)
 # --------------------------------------------------------------------------- #
 
-_BUILD = r"""
+#: Every file type the app's source may import that is NOT code, each bundled as nothing: the lane
+#: computes, it draws no picture and loads no font.
+#: ⚰️ 2026-11-12 -> 2026-11-17: the compass mark became a `.webp`, this map had no entry for it, and
+#: the runner answered "LANE UNAVAILABLE -- nothing was graded" for five days while its own tests
+#: were skipped wherever `app/node_modules` is absent. `tests/test_converse_eval_runner.py` now
+#: reads the app's own imports and fails, with no bundler needed, on a type missing here.
+ASSET_LOADERS = {ext: "empty" for ext in (
+    ".css", ".png", ".svg", ".webp", ".jpg", ".jpeg", ".gif", ".avif", ".ico",
+    ".woff", ".woff2", ".ttf", ".otf", ".mp3", ".mp4", ".webm", ".wav")}
+CODE_LOADERS = {".js": "jsx", ".jsx": "jsx"}
+
+_BUILD_TEMPLATE = r"""
 import { pathToFileURL } from 'node:url'
 const [esbuildPath, entry, outfile, appDir] = process.argv.slice(2)
 const esbuild = await import(pathToFileURL(esbuildPath).href)
 await esbuild.build({
   entryPoints: [entry], outfile, bundle: true, platform: 'node', format: 'esm', target: 'node20',
   absWorkingDir: appDir, logLevel: 'error',
-  loader: { '.js': 'jsx', '.jsx': 'jsx', '.css': 'empty', '.png': 'empty', '.svg': 'empty', '.woff2': 'empty' },
+  loader: __LOADERS__,
   jsx: 'automatic',
   define: { 'import.meta.env': JSON.stringify({ MODE: 'production', DEV: false, PROD: true, SSR: false, BASE_URL: '/' }) },
   banner: { js: "import { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);" },
 })
 """
+# ONE binding of the name the bundler reads (`tests/test_no_shadowed_definitions.py`): the template
+# above has its own name, and this is the script with the loader map written in.
+_BUILD = _BUILD_TEMPLATE.replace("__LOADERS__", json.dumps({**CODE_LOADERS, **ASSET_LOADERS}))
 
 
 def _node() -> str:
@@ -543,7 +577,7 @@ class Run:
         self.cases_doc, self.script_doc, self.corpus_doc = cases_doc, script_doc, corpus_doc
         self.out_dir, self.lane, self.client, self.live = out_dir, lane, client, live
         self.chart = dict(cases_doc.get("chart") or {"sym": "TEST", "tf": "D"})
-        self.bars = synthetic_bars()
+        self.bars = synthetic_bars(bar_count_of(cases_doc))
         self.run_id = out_dir.name
         self.records_path = out_dir / "records.jsonl"
         self.turn_rows: List[dict] = []

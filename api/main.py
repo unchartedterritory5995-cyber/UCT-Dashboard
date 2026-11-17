@@ -11313,6 +11313,7 @@ def _is_gzip_exempt(path: str) -> bool:
         or path == "/api/trade-exchange-news/stream"     # Trade Exchange News SSE
         or path == "/api/ai-search/stream"               # AI Search token stream
         or path == "/api/agent/turn/stream"              # UCT Agent turn (answer streaming)
+        or path == "/api/agent/turn/resume"              # UCT Agent turn resumed after an approval card (same SSE)
         or path == "/api/j2/ask/stream"                  # unified Ask token stream
         or (path.startswith("/api/j2/notes/") and path.endswith("/ask/stream"))  # legacy Ask Current Note URL
         or (path.startswith("/api/j2/notes/") and path.endswith("/writing-help/stream"))  # wave 7 editor writing help (SSE)
@@ -12100,6 +12101,8 @@ from api.routers import screener_new_today as screener_new_today_router  # noqa:
 app.include_router(screener_new_today_router.router)
 from api.routers import screener_nl as screener_nl_router  # noqa: E402  (FT-024/030, dark)
 app.include_router(screener_nl_router.router)
+from api.routers import screener_layout_gallery as screener_layout_gallery_router  # noqa: E402  (community scan-board layouts, dark)
+app.include_router(screener_layout_gallery_router.router)
 from api.routers import uct_agent as uct_agent_router  # noqa: E402  (UCT Agent, admin-dark)
 app.include_router(uct_agent_router.router)
 app.include_router(expected_move_router.router)

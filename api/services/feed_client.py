@@ -105,6 +105,12 @@ def status() -> Optional[dict]:
     return _client.status() if _client is not None else None
 
 
+def _is_ticker(x) -> bool:
+    """Would the protocol's own parser accept `x` as a symbol (`fp.SYM_PATTERN`)? The sender's check,
+    so it never builds a message it cannot send."""
+    return isinstance(x, str) and bool(fp._SYM_RE.fullmatch(x))
+
+
 class FeedClient:
     def __init__(self, rb, *, url: Optional[str] = None, secret: Optional[str] = None,
                  client_id: Optional[str] = None,
@@ -127,7 +133,8 @@ class FeedClient:
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._last_sent = None
         self.counters = {"connects": 0, "disconnects": 0, "desired_sent": 0, "batches": 0,
-                         "resyncs": 0, "epoch_resets": 0, "protocol_errors": 0}
+                         "resyncs": 0, "epoch_resets": 0, "protocol_errors": 0, "unsendable_syms": 0}
+        self._warned_syms: set = set()
         self.last_error: Optional[str] = None
         rb.on_change = self.mark_changed
 
@@ -150,8 +157,40 @@ class FeedClient:
 
     def desired(self) -> fp.Desired:
         seeds, tas = self.side.desired_extras() if self.side is not None else ({}, frozenset())
-        return fp.Desired(gen=self.gen, owners=self._owners_fn(), keys=self.rb.desired_keys(),
-                          nhnl_seeds=seeds, tas_syms=tas)
+        return self._sendable(fp.Desired(gen=self.gen, owners=self._owners_fn(), keys=self.rb.desired_keys(),
+                                         nhnl_seeds=seeds, tas_syms=tas))
+
+    def _sendable(self, d: fp.Desired) -> fp.Desired:
+        """The desired set without the symbols the wire cannot carry.
+
+        ⛔⛔ ONE ODD SYMBOL MUST NEVER COST EVERY MEMBER THE FEED (production 2026-11-17, 10:39-11:49
+        CT). `fp.encode` validates the whole message, so ONE subscribed symbol outside the ticker rule
+        (`fp.SYM_PATTERN`) raised MalformedMessage before the session counted as connected; the
+        client reconnected every 10 s with the same set, 409 times: no live bar or quote reached any
+        chart on this pod for 70 minutes. Such a symbol cannot be fed by this protocol anyway, so it
+        is left out (counted, named once in the log) and every other symbol is sent."""
+        bad: set = set()
+
+        def ok(s) -> bool:
+            if _is_ticker(s):
+                return True
+            bad.add(s)
+            return False
+
+        owners = {o: {s: ch for s, ch in syms.items() if ok(s)} for o, syms in d.owners.items()}
+        keys = frozenset((s, k) for s, k in d.keys if ok(s))
+        seeds = {s: v for s, v in d.nhnl_seeds.items() if ok(s)}
+        tas = frozenset(s for s in d.tas_syms if ok(s))
+        if not bad:
+            return d
+        self.counters["unsendable_syms"] = len(bad)
+        new = bad - self._warned_syms
+        if new:
+            if len(self._warned_syms) < 1000:
+                self._warned_syms |= new
+            log.warning("[feed_client] left out of the desired set (not a ticker the feed can carry): %s",
+                        ", ".join(sorted(repr(s) for s in new))[:500])
+        return fp.Desired(gen=d.gen, owners=owners, keys=keys, nhnl_seeds=seeds, tas_syms=tas)
 
     # ── the connection loop ────────────────────────────────────────────────
 

@@ -142,6 +142,17 @@ def test_the_gates_section8_pytest_list_is_inside_the_pytest_legs():
     assert not missing, f"section-8 rails no pytest leg runs: {missing}"
 
 
+def test_the_pine_twins_leg_runs_the_w9_probe_rail():
+    """#1554 (2026-11-17): `test_w9_probes.py` pins every W9 queue row to its generated probe; it ran in no
+    leg, so a queue row that broke it (W9-NB1) reached master red. The pine-twins leg names it."""
+    legs = {leg["leg"]: leg for leg in _wf()["jobs"]["pytest"]["strategy"]["matrix"]["include"]}
+    covered = set()
+    for pat in legs["pine-twins"]["tests"].split():
+        covered |= {pathlib.Path(p).as_posix() for p in glob.glob(str(ROOT / pat))}
+    assert (ROOT / "tests/test_w9_probes.py").as_posix() in covered
+    assert any(p.endswith("/test_pine_run_half_evidence.py") for p in covered)   # CONTROL: the glob still reads
+
+
 # ── the union rail ────────────────────────────────────────────────────────────
 
 def _report(tmp, name, files, failed=0):

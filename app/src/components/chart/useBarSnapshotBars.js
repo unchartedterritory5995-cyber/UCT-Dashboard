@@ -35,7 +35,7 @@ import { resample, resampleForSpec } from '../../utils/resampleBars'
 import { dailyCachePaintVerdict, isDailyTodayBarStaleForPaint, expectedFormingBar } from '../../utils/marketSession'
 import { createTailPollState, TAIL_CATCHUP_MAX_TRIES } from '../../utils/intradayTailPoll'
 import { timingMark } from '../../utils/intradayTiming'
-import { PREFETCH_WINDOWS, HISTORY_PREFETCH_TARGET_BARS } from '../../utils/historyPrepend'
+import { PREFETCH_WINDOWS, prefetchTargetBars } from '../../utils/historyPrepend'
 
 const INTRADAY = new Set(['1', '5', '15', '30', '60'])
 const PRIOR_SESSION_S = 8 * 3600
@@ -408,7 +408,8 @@ export function useBarSnapshotBars({
     ;(async () => {
       let tries = 0
       for (let i = 0; i < PREFETCH_WINDOWS && !cancelled;) {
-        if ((store.peek(key)?.depth || 0) >= HISTORY_PREFETCH_TARGET_BARS) break
+        // deeper where the lake carries the key (historyPrepend.prefetchTargetBars)
+        if ((store.peek(key)?.depth || 0) >= prefetchTargetBars(!!store.lakeCarries?.(key))) break
         const res = await _loadOlder(true, { dwell: true })
         if (cancelled) break
         // A failed or still-filling window is asked again (at most DEEP_RETRIES times per

@@ -165,6 +165,69 @@ const ASSET_ROUTES = { gold: { kind: 'commodity.quote', asset: 'gold', label: 'g
 // a made-up event-study answer (the study's own {lead, text, table, caveats} shape) — never a market value
 const SYNTH_STUDY = (sym) => ({ lead: `${sym} synthetic condition: 3 events (fixture)`, text: `${sym} synthetic condition: 3 events (fixture)\nSynthetic fixture study: no market value.`,
   table: { columns: [{ key: 'window', label: 'Window' }, { key: 'n', label: 'Events' }], rows: [{ window: '1 trading session', n: '3' }] }, caveats: ['Small sample (fixture).'] })
+// Terminal data wave 1 (dark kinds `analyst.actions`, `highsLows.session`, `sectors.performance`, `leaders.longRun`,
+// `levels.darkpool`): each kind's answer in the shape its adapter returns (api/services/uct_agent/marketdata/), with made-up
+// symbols and figures — never a market value. kind → (params) => the envelope fields that differ from a plain `periodic` ok.
+const TERMINAL_ANALYST = { upgrades: [{ ticker: 'AAA', action: 'Upgrade', firm: 'Example Securities', from_rating: 'Hold', to_rating: 'Buy', price_target: '$120' }],
+  downgrades: [{ ticker: 'CCC', action: 'Downgrade', firm: 'Sample Capital', from_rating: 'Buy', to_rating: 'Hold', price_target: null }],
+  pt_changes: [{ ticker: 'DDD', action: 'Raises PT', firm: 'Example Securities', from_rating: null, to_rating: 'Buy', price_target: 150 }] }
+const TERMINAL_DATA = {
+  'analyst.actions': (p) => {
+    const side = p.side || 'all'
+    const lists = Object.fromEntries(Object.entries(TERMINAL_ANALYST).map(([k, rows]) => [k, side === 'all' || side === k ? rows : []]))
+    return { as_of: '2026-11-03T05:00:00Z', data: { ...lists, summary: Object.fromEntries(Object.entries(lists).map(([k, rows]) => [k, rows.length])), side, wire_date: '2026-11-03', wire_status: 'fresh' } }
+  },
+  'highsLows.session': () => ({ data: { window: 'rth', active: true, date: '2026-11-03', asof: '2026-11-03T10:59:58-05:00', tick_at: '2026-11-03T15:59:58Z', group: null, value: null,
+    highs: [{ sym: 'AAA', price: 10.5, pct: 2.5, count: 12, ts: '2026-11-03T10:59:58-05:00', dir: 'high' }], lows: [{ sym: 'CCC', price: 20.25, pct: -4.1, count: 3, ts: '2026-11-03T10:59:58-05:00', dir: 'low' }],
+    highs_total: 40, lows_total: 2 } }),
+  'sectors.performance': (p) => ({ data: { period: p.period || 'Today', sessions: { Today: 1, '1W': 5, '1M': 21, '3M': 63 }[p.period || 'Today'],
+    sectors: [{ sector: 'Technology', ticker: 'XLK', change_pct: 2.1 }, { sector: 'Financials', ticker: 'XLF', change_pct: 1.4 }, { sector: 'Energy', ticker: 'XLE', change_pct: -0.9 }], missing: [] } }),
+  'leaders.longRun': (p) => ({ data: { list: p.list, family: 'gain', what: 'synthetic list (fixture)', status: 'ok',
+    results: [{ sym: 'AAA', price: 18, prev_close: 17.5, change_pct: 1.2, change_nd: 80, ref_close: 10 }, { sym: 'BBB', price: 9, prev_close: 9.1, change_pct: -1.1, change_nd: 50, ref_close: 6 }],
+    count: 2, as_of: '2026-11-03T10:59:30-05:00', computed_at: '2026-11-03T15:59:30Z' } }),
+  'levels.darkpool': (p) => ({ freshness: 'historical', as_of: '2026-11-02T21:00:00Z', data: { sym: String(p.symbol || '').toUpperCase(),
+    levels: [{ price: 98.5, notional: 12500000, printCount: 4, lastDate: '2026-11-02', lo: 98.4, hi: 98.6, rank: 2 }, { price: 101.25, notional: 25000000, printCount: 4, lastDate: '2026-10-29', lo: 101.15, hi: 101.35, rank: 1 }],
+    windowDays: 20, datesCovered: 14, version: 'fixture', asOf: 1793721600, computed_at: '2026-11-03T16:00:00Z', newest_print_date: '2026-11-02' } }),
+  // Terminal data wave 2 (dark kinds `highsLows.yearly`, `themes.rotation`, `confluence.board`, `earnings.expectedMove`,
+  // `earnings.callSearch`; MD-1 §4.11): the same rule — each adapter's own data shape, made-up names, figures and words.
+  'highsLows.yearly': (p) => {
+    const side = p.side || 'both'
+    const part = (items) => ({ state: 'ok', items, count: items.length })
+    return { as_of: '2026-11-03T15:59:05Z', data: { mode: 'live', why: null, session_date: '2026-11-03', side,
+      highs: side === 'lows' ? null : part([{ t: 'AAA', c: 10.5, pct: 9, vr: 1.8, v: 1200000, n: 'Fixture A' }, { t: 'BBB', c: 20.25, pct: 4.5, vr: 1.1, v: 800000, n: 'Fixture B' }]),
+      lows: side === 'highs' ? null : part([{ t: 'CCC', c: 5.75, pct: -6.2, vr: 2.4, v: 300000, n: 'Fixture C' }]),
+      basis: null, computed_at: '2026-11-03T15:59:30Z', missing: [] } }
+  },
+  'themes.rotation': (p) => {
+    const side = p.side || 'both'
+    const into = side === 'out' ? [] : [{ name: 'Fixture Theme A', ticker: 'fixture-a', '1w_return': 4.2, '1w_rank': 82, '1m_return': 1.1, '1m_rank': 41, '3m_return': 9, '3m_rank': 55, momentum_delta: 41 }]
+    const out = side === 'in' ? [] : [{ name: 'Fixture Theme B', ticker: 'fixture-b', '1w_return': -3.1, '1w_rank': 20, '1m_return': 2.2, '1m_rank': 48, '3m_return': 1, '3m_rank': 40, momentum_delta: -28 }]
+    return { data: { side, rotating_in: into, rotating_out: out, in_count: into.length, out_count: out.length, ranked: 12, threshold: 20,
+      generated_at: '2026-11-03T15:50:00+00:00', computed_at: '2026-11-03T15:50:00Z' } }
+  },
+  'confluence.board': (p) => {
+    const row = (sym, dir, status) => ({ sym, band: 'L', dir, status, sector: 'Fixture', dpn: 180000000, dpAvg: 101.4, dpLo: 98.5, dpHi: 104.25, dpLast: 103.1, bigPrint: 40000000, bigPrice: 101, bigDate: '10/29',
+      net: dir === 'BULL' ? 12500000 : -8000000, net5: 6000000, bull: 14000000, bear: 1500000, bullPct: 90.3, leapPrem: 5000000, leapShare: 0.41, freshRatio: 0.48,
+      top: { cp: dir === 'BULL' ? 'C' : 'P', strike: 120, exp: '1/15/2027', dte: 73, prem: 4200000 }, score: 2.4 })
+    const all = [row('AAA', 'BULL', 'BUILDING'), row('CCC', 'BEAR', 'STEADY')]
+    const want = { bull: 'BULL', bear: 'BEAR' }[p.direction] || null
+    const rows = all.filter(r => !want || r.dir === want)
+    return { data: { days: 30, window: 'Sep 22 \u2013 Oct 31, 2026', direction: p.direction || 'all', rows, count: rows.length, counts: { total: 2, bull: 1, bear: 1, building: 1 }, band_meta: {},
+      incomplete: false, built_at: '2026-11-03T15:45:00Z', refresh_minutes: 30 } }
+  },
+  'earnings.expectedMove': (p) => {
+    const sym = String(p.symbol || '').toUpperCase()
+    return { data: { symbol: sym, report_date: p.report_date || null,
+      live: { pct: 8.4, dollar: 10.5, strike: 125, spot: 125.3, call_mid: 5.6, put_mid: 4.9, iv_atm: 0.71, expiry: '2026-11-06', horizon: 'through 2026-11-06', asof: '2026-11-03T15:40:00+00:00', source: 'massive-chain' },
+      live_state: 'fresh', live_outcome: { kind: 'ok', reason: null }, read_at: '2026-11-03T15:40:00Z',
+      history: [{ sym, report_date: '2026-08-06', captured_at: '2026-08-05T02:00:00+00:00', pct: 6.2, dollar: 7.5, expiry: '2026-08-07', fiscal_year: 2026, fiscal_quarter: 2 }],
+      history_since: '2026-08-06', store_read: true } }
+  },
+  'earnings.callSearch': (p) => ({ as_of: '2026-11-02T05:00:00Z', data: { query: String(p.q || ''), symbol: p.symbol || null, since: p.since || null, total: 2, total_wider: false,
+    hits: [{ symbol: 'AAA', year: 2026, quarter: 3, date: '2026-10-29 17:00:00', snippet: 'a synthetic excerpt about <mark>fixture</mark> words \u2026 and nothing else', score: 9.5 },
+      { symbol: 'BBB', year: 2026, quarter: 3, date: '2026-10-27 17:00:00', snippet: 'another synthetic <mark>fixture</mark> excerpt', score: 7.25 }],
+    expanded: {}, index: { calls: 12, oldest: '2026-08-15', newest: '2026-11-02' } } }),
+}
 // SG-1: T13–T18 sit FAR below their 52-week high (the Screener's sign: a distance from a high is NEGATIVE) and meet every
 // other condition of the owner's screen — so only a correctly signed "near the high" filter leaves them out
 const FAR_FROM_HIGH = [-12, -18, -25, -30, -35, -40]
@@ -353,6 +416,11 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     // the asset-class kinds (asset_quotes.py): no licensed source exists, so every read is the honest decline (`refused`)
     if (u === '/api/agent/data' && ['index.quote', 'commodity.quote', 'crypto.quote'].includes(body?.kind)) {
       return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'refused', freshness: 'unavailable', as_of: null, stale: false, notes: ['no licensed source'], data: null })
+    }
+    // terminal data waves 1 and 2 (dark): a SYNTHETIC answer in each kind's own data shape (TERMINAL_DATA above; no market value)
+    if (u === '/api/agent/data' && TERMINAL_DATA[body?.kind]) {
+      return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'ok', freshness: 'periodic', as_of: null, fetched_at: '2026-11-03T16:00:00Z', delay_s: null,
+        stale: false, source: 'fixture', coverage: null, notes: [], provider_calls: 0, ...TERMINAL_DATA[body.kind](body.params || {}) })
     }
     if (u === '/api/agent/data') return json({ contract: 'MD-1.0', kind: body?.kind, params_echo: body?.params, status: 'unavailable', notes: [], data: null })
     return base(url, init)

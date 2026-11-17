@@ -48,6 +48,7 @@ import { runtimeOwnObjectsOf, valueBuildDefersToDrawing } from './runtimeObjects
 import { pairRunRows } from './runRowPairing'
 import { runtimeInputSpecsOf, plotColourInputAt } from '../../engine/runtime/runtimeInputs'
 import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash } from '../../engine/runtimeKill'
+import { hostKnownDivergenceOf } from '../../engine/hostKnownDivergence'
 import { objectLossNote, RUN_HALF_DRAWING_SENTENCE } from '../../engine/ast/objectLoss'
 // ⭐ ENGINE 53 — the run half's door reads the store's cap as the save door counts it.
 import { DOCUMENT_BYTE_BUDGET } from '../../engine/ast/graphDocument'
@@ -66,6 +67,47 @@ import { evaluateFormula } from '../FormulaField'
 import { BUILDER_INPUT_SCOPE, seriesNamesOf, memberInputKey } from '../builderInputs'
 // ⭐ RS RATING L3 — the substituted-value disclosure (`syminfo.industry` / `sector` from UCT data).
 import { substitutionNotesFor } from '../../engine/ast/symbolSubstitution'
+
+// ─── ⭐⭐ SERVE OR REFUSE BY NAME (owner ruling 2026-11-17, delegated): A STRATEGY DRAWN WITHOUT ITS BACKTEST ─────
+//
+// The strategy report (`pane/AttachedStrategyReports.jsx`) is shown only for a document that RUNS the broker (the
+// strategy window, `strategyWindow.js::isStrategyWindowDefinition`). Every other document this door mints for a
+// strategy draws its plots and nothing of its orders. The serve audit (2026-11-17,
+// docs/pine/evidence/2026-11-17-serve-witnessed-strategies/EVIDENCE.md) found three ways that happened in SILENCE,
+// with no sentence on the pane: a runtime-lane document whose broker build declined (its `brokerDeclined` was dropped
+// on the floor), a host document kept because the armed route's broker document was declined (the reason was
+// dropped), and a host document of a script whose `strategy()` line the translator does not read at all (the script
+// was drawn as an indicator). Each now carries ONE disclosure, `STRATEGY_BACKTEST_NOTE`, naming why.
+// ⛔ The host document of a strategy whose declaration IS read keeps its existing answer and gains nothing here: the
+// import verdict already lists "the strategy's orders and backtest" as not imported (`importOutcome.js`, the
+// `pine:strategy-chart` note), unless the broker gate is on and the armed route declined, when this note says why.
+
+/** A source that DECLARES a strategy: `strategy(` opening a line (the call form; the census's own predicate,
+ *  `runtime/__tests__/strategyArmed.js` re-exports this one). */
+export const STRATEGY_DECLARATION = /^[ \t]*strategy[ \t]*\(/m
+export const declaresStrategy = (source) => typeof source === 'string' && STRATEGY_DECLARATION.test(source)
+/** The disclosure's name, as the pane lists it. */
+export const STRATEGY_BACKTEST_NOTE = 'Strategy backtest'
+/** ⭐ The ONE wording: the strategy's backtest is not run on this chart, and why (the decline, verbatim). */
+export function strategyBacktestNote(why) {
+  const w = typeof why === 'string' ? why.trim().replace(/[.\s]+$/, '') : ''
+  return {
+    name: STRATEGY_BACKTEST_NOTE,
+    note: 'This script is a strategy, and its backtest is not run on this chart, so no strategy report is shown '
+      + `and its orders are not simulated: ${w || 'this engine recorded no reason'}.`,
+  }
+}
+/** Why a runtime-lane document of a strategy holds no broker: the broker build's own refusal when the gate is on and it
+ *  declined (`pineRuntimeFrontend.js::buildRuntimeIr` `brokerDeclined`), else the gate itself. */
+export function strategyRunDeclinedWhy(probe) {
+  const bd = probe && probe.brokerDeclined
+  if (bd && (bd.message || bd.guard)) {
+    return `the backtest could not be built for it (${bd.guard || 'runtime:strategy-option'}): ${bd.message || 'no message'}`
+  }
+  return strategyBrokerEnabled()
+    ? 'none of its orders reached the backtest builder'
+    : 'strategy backtests are switched off in this build'
+}
 
 /** ⭐ ≈ A QUARTER OF THE CHART, and the unit is the schema's own.
  *  `defSchema` validates `placement.pane.height` as a FRACTION in (0, 1) — a
@@ -299,6 +341,21 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     if (form) return no(noVersionSentence(form), NO_VERSION_GUARD, t)
   }
 
+  // ⭐⭐ HOST KNOWN-DIVERGENCE (owner decision 2026-11-17) — A SCRIPT WITH A COMMITTED TRADINGVIEW
+  // CAPTURE THAT GRADES DIVERGE ON THE HOST LANE IS NOT DRAWN BY IT: refused by name
+  // (`pine:known-divergence`, `engine/hostKnownDivergence.js`), the host lane's twin of the runtime
+  // kill list. As for every host refusal, the runtime lane is offered it while that lane is on, and its
+  // own kill list, allowlist and admission decide; any decline leaves the member this sentence.
+  const hostListed = hostKnownDivergenceOf(source)
+  if (hostListed) {
+    if (runtimePaneEnabled()) {
+      return runtimeLaneDefinition({
+        source, id, name, t, hostReason: hostListed.reason, hostGuard: hostListed.guard, routed: false, no,
+      })
+    }
+    return no(hostListed.reason, hostListed.guard, t)
+  }
+
   // ⭐ THE FLAG IS READ HERE, ONCE. `paneGate` is a pure decision and stays one;
   // the UI layer is what knows how this build was configured.
   const allowObjectsOnly = objectsOnlyPaneEnabled()
@@ -332,10 +389,20 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   // the broker replaces the host's: any decline (the kill list, the starter allowlist, a broker build refusal, a
   // pairing, a strategy that places no order) keeps the host document a member has today. Off (either gate),
   // nothing here is asked and the document is exactly what it was.
+  // ⭐⭐ SERVE OR REFUSE BY NAME (2026-11-17) — the host document that stands after a declined broker document says
+  // why its backtest is not run (`strategyBacktestNote`); a host translation that never read the script's `strategy()`
+  // line says so too, whatever the gate (it was drawn as an indicator in silence).
+  let strategyNote = null
   if (strategyBrokerEnabled() && runtimePaneEnabled() && t && t.declaration === 'strategy') {
     const viaBroker = runtimeLaneDefinition({ source, id, name, t, hostReason: gate.reason, hostGuard: gate.guard, routed: false, no })
     const d = viaBroker && viaBroker.ok ? viaBroker.definition : null
     if (d && d.compute && d.compute.kind === 'runtime' && d.meta && d.meta.runtimeHistory === STRATEGY_WINDOW_HISTORY) return viaBroker
+    const declined = viaBroker && !viaBroker.ok ? viaBroker.runtimeDeclined : null
+    strategyNote = strategyBacktestNote(declined
+      ? `the per-bar lane that runs the backtest declined it: ${declined.why || declined.code}`
+      : strategyRunDeclinedWhy(viaBroker))
+  } else if (t && t.declaration !== 'strategy' && declaresStrategy(source)) {
+    strategyNote = strategyBacktestNote('its `strategy()` line is not one this engine reads, so the script is drawn as an indicator')
   }
   // ⭐⭐ 2026-09-27 (owner ruling, option b) — WHAT THE OBJECT PROGRAM LOST.
   // `paneGate` has already refused a drawing-only script that lost a removal. A
@@ -591,6 +658,9 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
       // Clamped to the width input's own [1, 4], the Builder's Pine-import rule.
       ...(Number.isFinite(p.width) ? { width: pineLineWidth(p.width) } : {}),
       ...(p.marker && p.marker.shape ? { marker: p.marker } : {}),
+      // ⭐ ROW 42 — `plot.style_linebr` / `style_areabr` break at `na` (`pine.js`
+      // `PINE_BREAKING_STYLES`); every other style bridges, as TradingView draws it.
+      ...(p.sparse === true ? { sparse: true } : {}),
       ...(condKey ? { colorMode: `column:${condKey}`, colorUp: p.colorUp, colorDown: p.colorDown } : {}),
       ...(paletteKey ? { colorMode: `column:${paletteKey}`, colorPalette: p.colorPalette.slice() } : {}),
       ...(gradientKey ? {
@@ -674,7 +744,12 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
           const k = field && memberInputKey(field.name)
           if (!k) continue
           row.fill[side] = k
-          if (!fillColourSpecs.has(k)) fillColourSpecs.set(k, { key: k, type: 'color', label: field.title || k, default: field.hex })
+          if (field.own) row.fill[`${side}OwnAlpha`] = true
+          // ⭐ an input carrying its OWN transparency (`pine.js::fillColourInputsOf` `own`) is declared at that
+          // opacity, so the picker shows the author's 25% and a pick is the whole colour (`binder.bandColoursFor`)
+          if (!fillColourSpecs.has(k)) {
+            fillColourSpecs.set(k, { key: k, type: 'color', label: field.title || k, default: field.own && field.ownHex ? field.ownHex : field.hex })
+          }
         }
       } else if (Array.isArray(f.colorPalette) && f.colorPalette.length >= 2) {
         const palKey = conditionColumnFor(f.colorIndex)
@@ -1078,6 +1153,8 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   // ⛔ THE TAG IS CARRIED, NOT THE FINISHED SENTENCE. The badge needs the bar
   // count, which only the chart knows; the producer still owns the wording
   // (`parse.js::requirementNote`) and the consumer supplies the number.
+  // ⭐⭐ SERVE OR REFUSE BY NAME (2026-11-17) — a strategy this host document draws without its backtest, and why
+  if (strategyNote) notes.push(strategyNote)
   const requirementTags = requirementTagsRaised(t)
   // ⭐ C48 — see `blockRuns` below: each drawable plot's own gates, by its key —
   // ⭐ H1 — and after them each colour condition column's (`colourBlockRunKeys`).
@@ -1112,6 +1189,10 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     // TradingView means (`engine/otherSymbols.js`); absent for every script that
     // reads no other symbol, so no other document changes.
     ...(Array.isArray(t.otherSymbols) && t.otherSymbols.length ? { otherSymbols: t.otherSymbols } : {}),
+    // ⭐ SETTINGS PARITY (symbol) — an other symbol the trees read through ONE input
+    // (`translatePine`'s `symbolInputs`): the member's choice of it is a setting
+    // (`engine/symbolInputs.js`). Absent for every other script.
+    ...(Array.isArray(t.symbolInputs) && t.symbolInputs.length ? { symbolInputs: t.symbolInputs } : {}),
     // ⭐⭐ C41 — the lower timeframes the trees read (`translatePine`'s `lowerTf`,
     // one code per `ltf` node). A chart fetches this symbol's intraday bars for
     // them and the bind decides which are served (`engine/lowerTf.js`); absent
@@ -2151,6 +2232,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       // `linewidth`, as the host lane's rows carry it (see that projection).
       ...(Number.isFinite(p.width) ? { width: pineLineWidth(p.width) } : {}),
       ...(p.marker && p.marker.shape ? { marker: p.marker } : {}),
+      // ⭐ ROW 42 — a "with breaks" style breaks at `na`, as the host lane's rows say.
+      ...(p && p.sparse === true ? { sparse: true } : {}),
       // ⭐ WS-E — a leftward `offset`, drawn by the binder as a host row's is.
       ...(Number.isInteger(displace) && displace < 0 ? { displace } : {}),
       // The host output this row draws — the vendor harness and the pane's
@@ -2334,6 +2417,11 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       + 'like any indicator\'s; a value outside the script author\'s own bounds or options '
       + 'is refused by name, never stretched to fit.',
   }]
+  // ⭐⭐ SERVE OR REFUSE BY NAME (2026-11-17) — a strategy drawn bar by bar WITHOUT its broker says so, and why
+  // (the broker build's own refusal, `probe.brokerDeclined`, or the gate): only a broker document has a report.
+  if (probe.broker !== true && ((t && t.declaration === 'strategy') || declaresStrategy(source))) {
+    notes.push(strategyBacktestNote(strategyRunDeclinedWhy(probe)))
+  }
   if (runtimeInputs.skipped.length) {
     notes.push({
       name: 'Settings',
@@ -2473,6 +2561,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     // it does not take runtime documents.
     saveable: true,
     withheld: withheld.map((w) => w.label),
+    // ⭐ SERVE OR REFUSE BY NAME (2026-11-17) — the broker build's refusal, for the armed route's host note
+    ...(probe.brokerDeclined ? { brokerDeclined: probe.brokerDeclined } : {}),
   }
 }
 

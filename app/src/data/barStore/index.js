@@ -21,7 +21,7 @@
 import { createRegistry } from './registry'
 import { createPersist } from './persist'
 import { createNetwork } from './network'
-import { createHistoryFeed, historyLakeEnabled } from './historyFeed'
+import { createHistoryFeed, historyLakeEnabled, appHistoryFeed } from './historyFeed'
 import { createLiveFeed } from './liveFeed'
 import { STATUS } from './types'
 
@@ -167,6 +167,8 @@ export function createBarStore(o = {}) {
       return n
     },
     scrollBack: (key, opts) => network.scrollBack(key, opts),
+    /** Does the history lake carry `key`'s scroll-back (network.lakeCarries)? */
+    lakeCarries: (key) => !!network.lakeCarries?.(key),
     applyLive: (key, frame) => live.applyFrame(key, frame),
     flush: () => persist.flush(),
     dispose() {
@@ -186,7 +188,8 @@ export function createBarStore(o = {}) {
 let _default = null
 /** The app's one store (created on first use). */
 export function getBarStore() {
-  if (!_default) _default = createBarStore()
+  // The history lake is ON for the app's store unless this browser says '0' (historyFeed.js).
+  if (!_default) _default = createBarStore({ history: appHistoryFeed() })
   return _default
 }
 /** Test hook. */

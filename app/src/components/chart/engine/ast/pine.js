@@ -5526,6 +5526,65 @@ function tickerCallPrefixOf(call) {
  *  every tree of the result, plot or object pass, has its spelling here. */
 let OTHER_SYMBOL_SINK = null
 
+/** A Pine symbol STRING (`'SP:SPX'`, `'AMEX:SPY'`, `'SPY'`, a registered seed) as `{ticker, venue}`
+ *  (`venue` '' when the spelling names none), or null when it names no ticker. The ONE reading of a
+ *  symbol string: `Resolver.otherSymbolOf` for a literal, and `engine/symbolInputs.js` for a member's
+ *  choice of a symbol setting. */
+export function pineSymbolSpelling(value) {
+  // ⭐ `EXCHANGE:TICKER` IS THE SPELLING `ticker.new` ALREADY TAKES, written as
+  // one string, and both are judged by `US_EQUITY_VENUES` so they cannot
+  // disagree about one script.
+  const raw = String(value).trim().toUpperCase()
+  // ⭐ RS RATING L6b — a registered Pine seed (`SEED_<SOURCE>:<SYMBOL>`, whose source can be
+  // longer than any exchange spelling): its symbol is the ticker, its source the venue
+  const seed = SEED_SPELLING.exec(raw)
+  if (seed && witnessRowOf(seed[1], seed[2]) && TICKER_SHAPE.test(seed[2])) return { ticker: seed[2], venue: seed[1] }
+  const ticker = tickerWithoutVenue(raw)
+  // ⭐ READ, NEVER RE-TYPED — `parse.js` owns what a ticker may look like.
+  if (ticker === null || !TICKER_SHAPE.test(ticker)) return null
+  const found = VENUE_QUALIFIED.exec(raw)
+  return { ticker, venue: found ? found[1] : '' }
+}
+
+/** ⭐ SETTINGS PARITY (symbol) — for each `sym` node the translation IN FLIGHT emitted, where its ticker
+ *  came from: `{input, venue, default}` (a name bound to an `input(…)` / `input.symbol(…)` /
+ *  `input.string(…)` whose default spells it) or null (a literal, anything else). A WeakMap keyed by the
+ *  node; opened and closed with `OTHER_SYMBOL_SINK`, read by `symbolInputsOf` over the FINAL trees. */
+let SYMBOL_INPUT_SINK = null
+
+/** ⭐ SETTINGS PARITY (symbol) — per side of the result (`plots`: its outputs and presentation trees;
+ *  `objects`: its object trees), each ticker EVERY `sym` node of that side reaches through ONE input:
+ *  `[{input, ticker, venue, default, pass}]`. ⛔ A node the map does not know (a copy) counts as a literal,
+ *  so a side holding one offers no setting for that ticker. */
+function symbolInputsOf(t, marks) {
+  const out = []
+  const sides = [['plots', [t.outputs, t.presentation]], ['objects', [t.objects]]]
+  for (const [pass, roots] of sides) {
+    const byTicker = new Map()
+    const stack = [...roots]
+    const seen = new Set()
+    while (stack.length) {
+      const n = stack.pop()
+      if (!n || typeof n !== 'object' || seen.has(n)) continue
+      seen.add(n)
+      if (n.type === 'sym' && typeof n.value === 'string') {
+        const info = marks.has(n) ? marks.get(n) : null
+        if (!byTicker.has(n.value)) byTicker.set(n.value, new Map())
+        byTicker.get(n.value).set(info ? `input:${info.input}` : 'literal', info)
+      }
+      for (const v of Object.values(n)) if (v && typeof v === 'object') stack.push(v)
+    }
+    for (const ticker of [...byTicker.keys()].sort()) {
+      const by = byTicker.get(ticker)
+      const only = by.size === 1 ? [...by.values()][0] : null
+      if (only && typeof only.default === 'string') {
+        out.push({ input: only.input, ticker, venue: only.venue, default: only.default, title: only.title || null, pass })
+      }
+    }
+  }
+  return out
+}
+
 /** ⭐⭐ C41 — the lower-timeframe codes of the translation IN FLIGHT: every code
  *  an `ltf` node was emitted for (`securityAsNode`), plot or object pass. Opened
  *  and closed by `translatePine` beside `OTHER_SYMBOL_SINK`; the result carries
@@ -14366,24 +14425,24 @@ export class Resolver {
     // ⭐ REQ — `ticker.modify(<symbol>)` with nothing modified (`unmodifiedTickerArg`)
     const unmodified = this.unmodifiedTickerArg(node)
     if (unmodified) return this.otherSymbolOf(unmodified, depth + 1)
-    if (node.type === 'string') {
-      // ⭐ `EXCHANGE:TICKER` IS THE SPELLING `ticker.new` ALREADY TAKES, written as
-      // one string, and both are judged by `US_EQUITY_VENUES` so they cannot
-      // disagree about one script.
-      const raw = String(node.value).trim().toUpperCase()
-      // ⭐ RS RATING L6b — a registered Pine seed (`SEED_<SOURCE>:<SYMBOL>`, whose source can be
-      // longer than any exchange spelling): its symbol is the ticker, its source the venue
-      const seed = SEED_SPELLING.exec(raw)
-      if (seed && witnessRowOf(seed[1], seed[2]) && TICKER_SHAPE.test(seed[2])) return { ticker: seed[2], venue: seed[1] }
-      const ticker = tickerWithoutVenue(raw)
-      // ⭐ READ, NEVER RE-TYPED — `parse.js` owns what a ticker may look like.
-      if (ticker === null || !TICKER_SHAPE.test(ticker)) return null
-      const found = VENUE_QUALIFIED.exec(raw)
-      return { ticker, venue: found ? found[1] : '' }
-    }
+    if (node.type === 'string') return pineSymbolSpelling(node.value)
     if (node.type === 'name') {
       const bound = this.env && this.env.get(node.name)
-      if (bound && bound.kind === 'expr') return this.otherSymbolOf(bound.node, depth + 1)
+      if (bound && bound.kind === 'expr') {
+        const r = this.otherSymbolOf(bound.node, depth + 1)
+        // ⭐ SETTINGS PARITY (symbol) — a symbol read through a NAME bound to an input names that input
+        // and the spelling of its default (`SYMBOL_INPUT_SINK`); the first binding read wins
+        if (r && !r.input) {
+          const dv = this.symbolInputDefaultOf(bound.node)
+          if (dv && dv.type === 'string') {
+            const ia = bound.node.args || []
+            const ta = ia.find((a) => a && a.name === 'title') || ia.filter((a) => a && !a.name)[1]
+            const inputTitle = ta && ta.value && ta.value.type === 'string' ? String(ta.value.value) : null
+            return { ...r, input: node.name, inputDefault: String(dv.value), inputTitle }
+          }
+        }
+        return r
+      }
       return null
     }
     // ⭐ `input.symbol('SPY')` FOLDS TO ITS DEFAULT, the same way `input.timeframe`
@@ -14531,6 +14590,15 @@ export class Resolver {
       if (OTHER_SYMBOL_SINK) {
         if (!OTHER_SYMBOL_SINK.has(other)) OTHER_SYMBOL_SINK.set(other, new Set())
         OTHER_SYMBOL_SINK.get(other).add(target.venue == null ? '?' : target.venue)
+      }
+      if (SYMBOL_INPUT_SINK) {
+        // the input this node's ticker came from (null: a literal, anything else), judged over the FINAL
+        // trees by `symbolInputsOf`: emission is not inclusion (RS Rating's plot pass translates the
+        // rating's fixed `'SP:SPX'` read too, and no plot keeps it)
+        const via = target.positional && target.positional[0] ? this.otherSymbolOf(target.positional[0]) : null
+        SYMBOL_INPUT_SINK.set(out, via && via.input
+          ? { input: via.input, venue: target.venue == null ? '?' : target.venue, default: via.inputDefault, title: via.inputTitle }
+          : null)
       }
       if (gateBase) out = requestBaseNode(gateBase, out)
     }
@@ -27441,6 +27509,7 @@ function isHostLane(opts) {
  */
 export function translatePine(source, opts = {}) {
   const outerSink = OTHER_SYMBOL_SINK
+  const outerSymbolInputSink = SYMBOL_INPUT_SINK
   const outerPeriodSink = PERIOD_READ_SINK
   const outerLowerSink = LOWER_TF_SINK
   const outerLibrarySink = LIBRARY_LINK_SINK
@@ -27460,6 +27529,8 @@ export function translatePine(source, opts = {}) {
   LOWER_TF_SINK = lowerSink
   const periodSink = { names: new Map(), count: 0, inOutput: false, outside: false, current: new Set() }
   OTHER_SYMBOL_SINK = sink
+  const symbolInputSink = new WeakMap()
+  SYMBOL_INPUT_SINK = symbolInputSink
   PERIOD_READ_SINK = periodSink
   let t
   let libraryLink = null
@@ -27468,6 +27539,7 @@ export function translatePine(source, opts = {}) {
   } finally {
     libraryLink = LIBRARY_LINK_SINK
     OTHER_SYMBOL_SINK = outerSink
+    SYMBOL_INPUT_SINK = outerSymbolInputSink
     PERIOD_READ_SINK = outerPeriodSink
     LOWER_TF_SINK = outerLowerSink
     LIBRARY_LINK_SINK = outerLibrarySink
@@ -27525,6 +27597,8 @@ export function translatePine(source, opts = {}) {
   // ⭐⭐ C26 — WHICH OTHER SYMBOLS THE TREES READ, AND HOW EACH WAS SPELLED.
   // Present only when a `sym` node was emitted, so every other result is
   // byte-identical to before. Sorted, so one script is one array.
+  const symbolInputs = symbolInputsOf(t, symbolInputSink)
+  if (symbolInputs.length) t.symbolInputs = symbolInputs
   if (sink.size) {
     t.otherSymbols = [...sink.keys()].sort().map((ticker) => ({
       ticker, spellings: [...sink.get(ticker)].sort(),
@@ -30816,6 +30890,12 @@ const PINE_PLOT_STYLES = Object.freeze({
   'plot.style_circles': 'markers',
 })
 
+/** The plot styles whose `na` bars are a BREAK, not a bridge (User Manual, `plot()`
+ *  `style`): `linebr` and `areabr`. `plot.style_steplinebr` is not mapped at all
+ *  (its na handling is stated nowhere beyond its name, presentation spec U8), so it
+ *  stays `styleUncarried`. */
+const PINE_BREAKING_STYLES = Object.freeze(new Set(['plot.style_linebr', 'plot.style_areabr']))
+
 // ⭐ BOTH SPELLINGS, ONE ANSWER. A bare `red` is only a colour when nothing in
 // the script has bound that name to something else — a member's own variable
 // called `green` must not silently become a colour. The bound-name check is the
@@ -31513,18 +31593,48 @@ function colourInputNameOf(node, env, depth = 0, ctx = null) {
   return null
 }
 
+/** Is a colour branch the INPUT itself (through names), not `color.new(<input>, t)` or any other wrapper? */
+function colourBranchIsBareInput(node, env, depth = 0) {
+  if (!node || depth > 6) return false
+  if (node.type === 'name') {
+    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+    return !!(bound && bound.kind === 'expr') && colourBranchIsBareInput(bound.node, bound.env || env, depth + 1)
+  }
+  return node.type === 'call' && (node.name === 'input.color' || node.name === 'input')
+}
+
 /** For a fill's colour argument: which `input.color` each of its two colours
  *  (`colorUp` / `colorDown`) comes from, matched by the colour each branch folds
  *  to. Null where a branch reads no input, or the match is ambiguous. */
 function fillColourInputsOf(args, env, colorUp, colorDown, ctx = null) {
   const a = (args || []).find((x) => x && x.name === 'color')
     || (args || []).filter((x) => x && !x.name)[2]
-  const node = a && a.value
+  let node = a && a.value
+  // ⭐ SETTINGS PARITY (area colours, 2026-11-17) — a fill colour written through a NAME is that name's
+  // ternary: RS Rating writes `fillCol = rs > rsMA ? posCol : negCol` then `fill(…, color = fillCol)`, and its
+  // two area colours were never the member's knob
+  for (let d = 0; node && node.type === 'name' && d < 4; d += 1) {
+    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (!bound || bound.kind !== 'expr') break
+    env = bound.env || env
+    node = bound.node
+  }
   if (!node || node.type !== 'ternary') return null
   const yesHex = staticColourOf(node.yes, env, 0, ctx)
   const noHex = staticColourOf(node.no, env, 0, ctx)
-  const yesIn = colourInputNameOf(node.yes, env, 0, ctx)
-  const noIn = colourInputNameOf(node.no, env, 0, ctx)
+  const withOwn = (branch, info) => {
+    if (!info) return info
+    // ⭐ OWN TRANSPARENCY: the branch IS the input (no `color.new(input, t)` around it), so the input's own
+    // default carries the band's alpha and a member's pick is the WHOLE colour, alpha included (TradingView
+    // set F: positive / negative area picked at 0.5 / 0.6 paint at 0.5 / 0.6, not the default's 0.25)
+    if (!colourBranchIsBareInput(branch, env)) return info
+    const t = colourHelperTransparency(branch, env, ctx)
+    const alpha = Number.isFinite(t) && t > 0 && t <= 100 ? Math.round((1 - t / 100) * 255) : null
+    return { ...info, own: true, ...(alpha !== null && /^#[0-9a-f]{6}$/i.test(info.hex)
+      ? { ownHex: `${info.hex.toUpperCase()}${alpha.toString(16).padStart(2, '0').toUpperCase()}` } : {}) }
+  }
+  const yesIn = withOwn(node.yes, colourInputNameOf(node.yes, env, 0, ctx))
+  const noIn = withOwn(node.no, colourInputNameOf(node.no, env, 0, ctx))
   const pick = (hex) => {
     const fromYes = yesHex && yesHex === hex ? yesIn : undefined
     const fromNo = noHex && noHex === hex ? noIn : undefined
@@ -33496,8 +33606,19 @@ function outputPresentation(args, ctx) {
       pres.style = 'markers'
     }
   } else if (st && st.value && st.value.type === 'name') {
-    if (Object.hasOwn(PINE_PLOT_STYLES, st.value.name)) pres.style = PINE_PLOT_STYLES[st.value.name]
-    else pres.styleUncarried = st.value.name
+    if (Object.hasOwn(PINE_PLOT_STYLES, st.value.name)) {
+      pres.style = PINE_PLOT_STYLES[st.value.name]
+      // ⭐⭐ 2026-11-17 (backlog row 42) — THE TWO "WITH BREAKS" STYLES BREAK. The
+      // User Manual: `plot.style_linebr` *"Allows the plotting of discontinuous lines
+      // by not plotting on na values, and not joining such gaps."*; `plot.style_areabr`
+      // *"is similar to plot.style_area but it doesn't bridge over na values."* —
+      // against `plot.style_line`, which *"does draw a line through them by joining
+      // the most recent non-na value to the next non-na value."* Both mapped to the
+      // bridging style and drew joined. `sparse` is the document's own "blank by
+      // design" (`binder.js`: one render series per valued run, because
+      // lightweight-charts 5.2 joins whitespace).
+      if (PINE_BREAKING_STYLES.has(st.value.name)) pres.sparse = true
+    } else pres.styleUncarried = st.value.name
   }
 
   const trArg = arg('transp')

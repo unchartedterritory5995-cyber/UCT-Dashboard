@@ -122,7 +122,9 @@ export const SITES = [
   ['pages/charts/widgets/ScanObjectCard.jsx', ['item.reason', 'view.reason']],
   // `referenceSentence(item)` since 05e4b02643 (2026-11-14): the page prints the entry's sentence with
   // its `{n}` placeholders named, and never `item.sentence` itself
-  ['pages/formulas/FormulaReference.jsx', ['referenceSentence(item)', 'item.reason']],
+  // `item.reason` left this site with #1605 (e427f78602): the page prints `item.says`, memberReason.js's
+  // member sentence, and never the engine's note. Railed below ('the reference page prints no engine reason').
+  ['pages/formulas/FormulaReference.jsx', ['referenceSentence(item)']],
   ['agent/capabilities/indicatorAlerts.js', ['gate.reason']],
   ['components/StockChart.jsx', ['n.sentence']],
 ]
@@ -151,6 +153,16 @@ describe('r1 — census: every composer print site goes through withoutGuardIds'
       expect(barePrints(src, e), `${rel}: bare ${e}`).toEqual([])
       expect(src.includes(`withoutGuardIds(${e})`), `${rel}: ${e} wrapped`).toBe(true)
     }
+  })
+  it("the reference page prints no engine reason at all: a member reads memberReason's sentence (#1605)", () => {
+    // CODE, never prose: comments (JSX ones included) are stripped before the hunt, so this file's own
+    // explanation of the old print cannot satisfy or fail it.
+    const src = fs.readFileSync(path.join(SRC, 'pages/formulas/FormulaReference.jsx'), 'utf8')
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
+    expect(code.includes('item.' + 'reason'), "the engine's note is printed again").toBe(false)
+    expect(code).toMatch(/memberVocabulary\(/)
+    // control: the same hunt sees a real print
+    expect(('<p>{item.' + 'reason}</p>').includes('item.' + 'reason')).toBe(true)
   })
   it('the editor exemption is exactly the two editor files, and they are not in SITES', () => {
     for (const rel of EDITOR_EXEMPT) {

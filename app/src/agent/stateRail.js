@@ -50,7 +50,7 @@ const nm = (x) => (x == null ? '' : String(x))
 // each effect: { state, type: 'remove' | 'clear' | 'delete' | 'replace' | 'overwrite', name, via? }
 const OVERWRITE_OPS = new Set(['setInputs', 'setAppearance', 'setPlotStyle', 'setColor', 'setDotSize'])
 // an indicator change read from the Indicators interface's own request (indicatorEdits: `change.request`)
-function indicatorOfRequest(req, rows, chartRef = null) {
+function indicatorOfRequest(req, rows, chartRef = null, chartSymbol = null) {
   const op = req?.op
   const id = req?.instanceId
   const row = (rows || []).find(r => r.instanceId === id)
@@ -60,7 +60,7 @@ function indicatorOfRequest(req, rows, chartRef = null) {
   const oid = chartRef && id ? `ind:${chartRef}:${id}` : null
   // (H14) the chart's instances before the change: the scope a class noun ("the moving average") is counted in
   const peers = (rows || []).map(r => ({ id: r.instanceId, defId: r.defId, inputs: r.inputs, name: r.name }))
-  if (op === 'remove') return [{ state: 'indicator', type: 'remove', name, label: name, id: oid, instanceId: id, peers, ...what }]
+  if (op === 'remove') return [{ state: 'indicator', type: 'remove', name, label: name, id: oid, instanceId: id, peers, chartSymbol: chartSymbol ? String(chartSymbol).toUpperCase() : null, ...what }]
   if (OVERWRITE_OPS.has(op)) return [{ state: 'indicator', type: 'overwrite', name, label: name, id: oid, instanceId: id, peers, ...what }]
   // add / duplicate / copyFrom (a template's indicators) add; setVisible / movePane / setPaneSize / setDisplayTarget /
   // setVisibility / setCalculationTimeframe arrange, show, or pick the bars it computes on — its settings are kept
@@ -97,7 +97,7 @@ const READERS = {
   indicatorEdits(p) {
     const req = p.patch?.change?.request ?? p.after?.change?.request
     if (!p.patch && !p.after?.change) return []
-    return indicatorOfRequest(req, p.before?.rows || p.snap?.rows, p.before?.chartRef || p.snap?.chartRef || null)
+    return indicatorOfRequest(req, p.before?.rows || p.snap?.rows, p.before?.chartRef || p.snap?.chartRef || null, p.before?.symbol || p.snap?.symbol || null)
   },
   // the member's own saved indicator definitions (the Indicators library): a delete
   definitionLibrary(p) {
@@ -320,7 +320,7 @@ export function indicatorsNamed(clause, peers) {
     for (const n of new Set(nums)) { const at = byNum.filter(r => Number(r.inputs?.period) === n); if (at.length === 1) unique.add(at[0].id) }
     hit = byNum
   } else if (hit.length === 1) unique.add(hit[0].id)
-  return { ids: hit.map(r => r.id), unique, plural: IND_PLURAL.test(c) }
+  return { ids: hit.map(r => r.id), unique, plural: IND_PLURAL.test(c), typed: types.length > 0 }
 }
 // (H14) a drawing's TYPE noun names it when it is the only one of that type in scope ("the trendline" beside a horizontal and a fib)
 const DTYPE_NOUN = { trendline: /\btrend ?lines?\b/i, horizontal: /\bhorizontal(?: lines?)?\b|\bh-?lines?\b/i, vertical: /\bvertical(?: lines?)?\b/i,
@@ -336,6 +336,8 @@ export function namesObject(e, clause, why = null) {
       if (e.subjectNow && n.ids.includes(e.instanceId)) return true
       if (n.ids.includes(e.instanceId) && why) why.demo = true
       if (n.ids.length) return false
+      // ⛔ (AUDIT H14 / D31) a TYPE named that this chart does not have ("get rid of the MACD" beside an RSI) names nothing here
+      if (n.typed) return false
     }
   }
   const mine = classesOf(e)
@@ -488,6 +490,29 @@ const viewOfList = (views, listSyms) => (views || []).find(v => Array.isArray(v.
 // "do the same on the other charts": the previous turn's ONE indicator change, repeated on another chart's matching instance
 const SAME_OTHER = /\b(?:do|make|apply)?\s*(?:the\s+)?same(?:\s+thing)?\b[^.;!?]*\b(?:other|rest)\b/i
 const chartOfId = (id) => String(id || '').split(':')[1] || null
+// ⛔ NAMED TARGET IDENTITY (AUDIT H14 · D31 oracle masterGaps, 2026-11-16): a clause that PLACES the thing on a chart by its ticker
+// ("the RSI from the SPY chart", "the horizontal line on SPY") never licenses destroying that kind of thing on ANOTHER chart; a clause
+// naming a list's rows ("remove AMD from Tech") never licenses removing OTHER rows. (Tickers: tickersIn, the Agent's own reader.)
+const PLACE_TICKER = /\b(?:[Oo]n|[Ff]rom|[Oo]ff|[Ii]n|[Oo]f|[Ff]or)\s+(?:(?:the|my)\s+)?\$?([A-Z]{1,5})\b/g
+const KEPT_ROWS = /\b(?:except|excluding|but|other than|apart from|keep\w*|leav\w*|only)\b/i
+function targetMismatch(e, c) {
+  if (!e || e.type === 'overwrite' || e.type === 'replace') return false
+  const sym = e.state === 'indicator' ? e.chartSymbol : e.state === 'drawing' && e.id ? String(e.id).split(':')[1] : null
+  if (sym) {
+    const said = new Set(tickersIn(c))
+    const placed = [...String(c).matchAll(PLACE_TICKER)].map(m => m[1]).filter(t => said.has(t))
+    if (placed.length && !placed.includes(String(sym).toUpperCase())) return true
+  }
+  // (a row the clause KEEPS — "all but SPY", "everything except SPY", "keep only SPY" — is no row it removes)
+  if (e.state === 'watchlist' && Array.isArray(e.syms) && e.syms.length && Array.isArray(e.listSyms) && !KEPT_ROWS.test(c)) {
+    const rows = new Set(e.listSyms.map(x => String(x).toUpperCase()))
+    const named = tickersIn(c).filter(t => rows.has(t))
+    if (named.length && e.syms.some(x => !named.includes(String(x).toUpperCase()))) return true
+  }
+  return false
+}
+// (an earlier clause that MAKES a thing — "add an RSI", "draw a trendline" — is what a destroying pronoun after it stands for)
+const MADE_NOW = /\b(?:add|adds|adding|put|puts|putting|insert\w*|include\w*|draw|draws|drawing|create\w*|make|makes|making)\b[^.;!?]*?\b(?:a|an|another|new)\b/i
 export function permits(e0, words, subjects = null, previous = null, previousSet = null, made = null, extra = null) {
   // (H14) the conversation's subject — the indicator this conversation just added or changed — is what a class noun said
   // right after means ("…add the 21 EMA and RSI, and make the EMA orange"): it narrows the class to that one instance
@@ -532,7 +557,7 @@ export function permits(e0, words, subjects = null, previous = null, previousSet
       if (src.length === 1 && chartOfId(src[0].id) !== chartOfId(e.id) && src[0].defId === e.defId && sameJson(settingsOf(src[0].beforeInputs || src[0].inputs), settingsOf(e.inputs))) return true
     }
     if (!negated && JUST_MADE.test(c) && e.id && made && made.has(e.id)) return true
-    if (!negated) {
+    if (!negated && !targetMismatch(e, c)) {
       // a verbless style command ("the 9 green") changes the look of what it names or points at — an overwrite only
       // the conversation's drawing, named by a setting / level / anchor its change sets ("big arrow", "the top was 150",
       // "shade 0.5 to 0.618"): an overwrite of EXACTLY that drawing, never another (the subject bar)
@@ -598,6 +623,9 @@ export function permits(e0, words, subjects = null, previous = null, previousSet
           // after words of its own: an overwrite takes the class they named; a destroy / replace only the very object they
           // named or made ("add a 20 EMA, then remove it"); a widget's content, the list those words made ("make me a
           // watchlist … and open it")
+          // ⛔ (D31 oracle rm-appB-011, AUDIT 11-16 ruling — supersedes the #1247 allowance) "add an RSI, then delete it": the pronoun is
+          // the one this turn MAKES — a destroy of a PRE-EXISTING instance is never licensed by it
+          if (e.type !== 'overwrite' && e.type !== 'replace' && MADE_NOW.test(prev) && !(made && e.id && made.has(e.id))) continue
           const prevInd = e.state === 'indicator' && e.instanceId && Array.isArray(e.peers) ? indicatorsNamed(prev, e.peers) : null
           if (prevInd) { if (prevInd.unique.has(e.instanceId) || (prevInd.plural && prevInd.ids.includes(e.instanceId))) return true; if (prevInd.ids.includes(e.instanceId)) why.demo = true; continue }
           if (classesOf(e).some(k => before.includes(k)) && (e.type === 'overwrite' || namesThatObject(e, prev))) return true

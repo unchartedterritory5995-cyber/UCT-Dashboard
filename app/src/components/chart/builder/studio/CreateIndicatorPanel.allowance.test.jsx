@@ -10,7 +10,7 @@ import { allowanceOf } from '../authoring/converseClient'
 
 vi.mock('../authoring/studioTelemetry', async (orig) => ({ ...(await orig()), logStudioAction: vi.fn() }))
 
-import CreateIndicatorPanel, { allowanceLine, ALLOWANCE_NOTE_BELOW } from './CreateIndicatorPanel'
+import CreateIndicatorPanel, { allowanceLine, spentJustSaid, ALLOWANCE_NOTE_BELOW } from './CreateIndicatorPanel'
 
 afterEach(() => { cleanup(); registry.clearUserDefinitions() })
 
@@ -38,18 +38,39 @@ describe('the allowance line', () => {
     mount(async (args) => ({ ...(await scriptedConverse(args)), allowanceLeft: left }))
     await say('Add a 20 EMA')
     expect(screen.getByTestId('create-indicator-allowance').textContent)
-      .toBe("About 35% of today's UCT Intelligence allowance is left.")
+      .toBe("About 35% of today's UCT Agent allowance is left.")
     left = 0.1
     await say('Make it 50')
     expect(screen.getByTestId('create-indicator-allowance').textContent).toMatch(/About 10%/)
   })
 
-  it('a spent allowance says so without promising a time', async () => {
+  it('a spent allowance says so ONCE, without promising a time', async () => {
     mount(async () => ({ ok: false, gate: 'cost:user', reason: '', notUnderstood: [], unavailable: [] }))
     await say('Add a 20 EMA')
+    // the conversation's own answer says it; the line above the box does not repeat it underneath
+    expect(screen.queryByTestId('create-indicator-allowance')).toBeNull()
+    const said = document.body.textContent.match(/allowance/g) || []
+    expect(said).toHaveLength(1)
+    expect(document.body.textContent).toContain("You've used today's UCT Agent allowance. It renews each day")
+    expect(document.body.textContent).not.toMatch(/\d{1,2}(:\d\d)?\s?(am|pm)|midnight|in \d+ (hours|minutes)/i)
+  })
+
+  it('CONTROL: a spent allowance that the conversation has not just said is on the line above the box', async () => {
+    mount(withLeft(0))
+    await say('Add a 20 EMA')
     const line = screen.getByTestId('create-indicator-allowance').textContent
-    expect(line).toBe("Today's UCT Intelligence allowance is used up. It renews each day.")
-    expect(line).not.toMatch(/\d{1,2}(:\d\d)?\s?(am|pm)|midnight|in \d+ (hours|minutes)/i)
+    expect(line).toBe("Today's UCT Agent allowance is used up. It renews each day.")
+    expect(allowanceLine(0)).toBe(line)
+  })
+
+  it('the rule: only the spent-allowance refusal as the LAST entry hides the line', () => {
+    const refusal = { role: 'uct', kind: 'refusal', gate: 'cost:user' }
+    expect(spentJustSaid([refusal], 0)).toBe(true)
+    expect(spentJustSaid([refusal, { role: 'member' }], 0)).toBe(false)
+    expect(spentJustSaid([{ role: 'uct', kind: 'refusal', gate: 'cost:global' }], 0)).toBe(false)
+    expect(spentJustSaid([refusal], 0.2)).toBe(false)
+    expect(spentJustSaid([], 0)).toBe(false)
+    expect(spentJustSaid(null, 0)).toBe(false)
   })
 
   it('an answer without the figure leaves the line as it was (an older server says nothing)', async () => {

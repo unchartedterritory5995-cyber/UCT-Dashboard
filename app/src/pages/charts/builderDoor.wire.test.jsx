@@ -306,7 +306,7 @@ describe('/charts — the criteria builder has a door', () => {
     // the doors onto one object: a script, a picture, conditions, a UCT setup, or
     // the formula itself. Nothing this file mocks renders them, and nothing this
     // file writes carries these names.
-    const sheet = await screen.findByRole('dialog', { name: 'New formula' }, { timeout: 8000 })
+    const sheet = await screen.findByRole('dialog', { name: 'Create indicator' }, { timeout: 8000 })
     expect(sheet).toBeInTheDocument()
     for (const label of [/Paste a script/, /From a picture/, /Build from conditions/, /A UCT setup/, /Write the formula myself/]) {
       expect(within(sheet).getByRole('button', { name: label })).toBeInTheDocument()
@@ -323,7 +323,7 @@ describe('/charts — the criteria builder has a door', () => {
     expect(screen.queryByTestId('rgl-responsive')).toBeNull()
 
     await openTheBuilderFromPhoneCharts(user)
-    const sheet = await screen.findByRole('dialog', { name: 'New formula' }, { timeout: 8000 })
+    const sheet = await screen.findByRole('dialog', { name: 'Create indicator' }, { timeout: 8000 })
     expect(within(sheet).getByRole('button', { name: /Build from conditions/ })).toBeInTheDocument()
   })
 
@@ -331,7 +331,7 @@ describe('/charts — the criteria builder has a door', () => {
     const user = userEvent.setup()
     render(<MemoryRouter><ChartsWorkspace /></MemoryRouter>)
     await openTheBuilderFromCharts(user)
-    await screen.findByRole('dialog', { name: 'New formula' }, { timeout: 8000 })
+    await screen.findByRole('dialog', { name: 'Create indicator' }, { timeout: 8000 })
 
     // A new formula opens on the START page, so the criteria picker — E-4's
     // 826-test subject — only mounts once "Build from conditions" is clicked. Nine

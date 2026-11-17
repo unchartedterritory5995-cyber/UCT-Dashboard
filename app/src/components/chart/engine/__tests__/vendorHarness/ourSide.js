@@ -53,10 +53,13 @@ import { substitutedFor } from '../../ast/symbolSubstitution'
 import { CLASSIFICATION_FIELD_NAMES } from '../../ast/bind'
 import { validateCapture } from '../../../../../../../tools/vendor_harness/schema.mjs'
 import { fullBarsFor } from '../../../../../utils/barsBackfill'
+// ⭐ SETTINGS PARITY (2c): a capture is graded at the settings TradingView recorded in it
+import { captureInstanceInputs } from './captureInputs.js'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import crypto from 'node:crypto'
+import { instanceDocumentForFetch } from '../../symbolInputs.js'
 
 // ─── ⭐⭐ C26 — ANOTHER SYMBOL'S BARS, FROM COMMITTED CAPTURES ONLY ─────────────
 //
@@ -375,7 +378,10 @@ function otherSymbolSupply(def, capture) {
     const rec = recorded && recorded.other ? recorded.other[storeKey] : null
     if (rec) {
       if (Array.isArray(rec.bars)) {
-        secondary.set(storeKey, { bars: rec.bars, status: 'available' })
+        // SUPPLY-ATTRIBUTED (2026-11-17): the counterfactual run (`runOurSideWithSupply`) replaces these
+        // bars for ONE run; every graded run reads the recorded supply as served
+        const over = _supplyOverride && Array.isArray(_supplyOverride[storeKey]) ? _supplyOverride[storeKey] : null
+        secondary.set(storeKey, { bars: over || rec.bars, status: 'available' })
         notes.push(`other symbol ${ticker}: the bars our server serves, recorded beside the capture `
           + `(${rec.servedBy}; ${rec.source})`
           + (rec.rows ? `; kept out of git, read from the local supply store as ${rec.rows.file} (sha256 ${rec.rows.sha256.slice(0, 12)})` : ''))
@@ -1032,10 +1038,15 @@ function runtimeAwarePaints(built, def) {
 
 /** Drive the real binder over the recording double; per plot key, the colour
  *  the renderer was handed for every bar (point colour, else series colour). */
-function drawnColours(def, bars, ctx) {
+function drawnColours(def, bars, ctx, inputs = undefined) {
   const fake = createFakeChart()
   const binder = createBinder({ chart: fake.chart, LWC: fake.LWC })
-  const cs = addInstance(mergeChartSettings({}), def.id, registry)
+  let cs = addInstance(mergeChartSettings({}), def.id, registry)
+  // ⭐ SETTINGS PARITY (2c) — the instance carries the capture's own moved settings, as a member's would
+  if (inputs) {
+    cs = { ...cs, indicatorInstances: (cs.indicatorInstances || []).map((i) => (i && i.defId === def.id
+      ? { ...i, inputs: { ...(i.inputs || {}), ...inputs } } : i)) }
+  }
   const instances = (cs.indicatorInstances || []).filter((i) => i.defId === def.id)
   const out = new Map()
   if (!instances.length) return { ok: false, reason: 'addInstance produced no instance', byKey: out }
@@ -1073,6 +1084,18 @@ function drawnColours(def, bars, ctx) {
     const plot = plotByKey.get(b.plotKey) || {}
     const seriesColor = b.series.__options && b.series.__options.color
     const byTime = new Map(data.map((p) => [String(p.time), p]))
+    // ⭐⭐ A GAP-BREAKING LINE IS DRAWN BY MORE THAN ONE SERIES (`gapRuns.js`): the
+    // primary holds the NEWEST valued run and whitespace elsewhere, and each earlier
+    // run is drawn by a run series the binding owns (`runSeries` / `runData`). Reading
+    // the primary alone read every earlier run as "none" — a renderer that drew the
+    // colour, scored as one that did not (row 42: `plot.style_linebr` now breaks, and
+    // supertrend-strategy / pa-zigzag read 332 and 8 phantom colour misses). What the
+    // renderer was handed for a bar is the valued point of whichever series drew it.
+    for (const run of (Array.isArray(b.runData) ? b.runData : [])) {
+      for (const p of (Array.isArray(run) ? run : [])) {
+        if (p && Number.isFinite(p.value)) byTime.set(String(p.time), p)
+      }
+    }
     // ⭐⭐ A DISPLACED PLOT'S COLOUR IS READ WHERE THE RENDERER DREW IT.
     // `offset = -N` draws the value computed on bar i at bar i - N (the binder's
     // `displacedColumn`), and TradingView's study data keys that value — and its
@@ -1245,16 +1268,16 @@ function notShownReport(withheldBy, withheldWhy, base = null) {
  *  bind served it, the run's drawings are graded (the binder draws them and not the host
  *  program's); otherwise the host program's, as the chart draws them. The state rides on
  *  the report (`runHalf`, `runHalfCode`) for the census and the regrade. */
-function objectsOf(def, bars, ctx, cols, built = null) {
+function objectsOf(def, bars, ctx, cols, built = null, inputs = undefined) {
   const half = carriesRunHalf(def) ? runHalfOf(cols) : null
   const tag = half ? { runHalf: half.state, runHalfCode: half.code || null } : {}
   if (half && half.state === 'served') return { ...runtimeObjectsReport(def, bars, ctx, cols), ...tag }
-  const r = hostObjectsOf(def, bars, ctx, cols, built)
+  const r = hostObjectsOf(def, bars, ctx, cols, built, inputs)
   return r && half ? { ...r, ...tag } : r
 }
 
 /** The object lane's LIVE set at the last bar, as counts and texts. */
-function hostObjectsOf(def, bars, ctx, cols, built = null) {
+function hostObjectsOf(def, bars, ctx, cols, built = null, inputs = undefined) {
   if (drawsRuntimeObjects(def)) return runtimeObjectsReport(def, bars, ctx, cols)
   if (!def.objects || !(def.objects.ops || []).length) {
     const w = drawingWithheldBy(built)
@@ -1262,7 +1285,8 @@ function hostObjectsOf(def, bars, ctx, cols, built = null) {
   }
   try {
     const reader = objectReaderFor(def, bars, {
-      inputs: undefined, tf: ctx.tf, symbol: ctx.symbol, newestBarIsForming: ctx.newestBarIsForming,
+      // ⭐ SETTINGS PARITY (2c) — the capture's own settings, as the chart's object lane reads them
+      inputs, tf: ctx.tf, symbol: ctx.symbol, newestBarIsForming: ctx.newestBarIsForming,
       historyFromListing: ctx.historyFromListing === true,
       barIndexFromFirstBar: ctx.barIndexFromFirstBar === true,
       secondary: ctx.secondary || null, exchangeOf: ctx.exchangeOf,
@@ -1455,6 +1479,21 @@ export function substitutedInputsOf(capture, declared = []) {
   return list.map((e) => ({ ...e }))
 }
 
+// SUPPLY-ATTRIBUTED (coordinator ruling on #1541, 2026-11-17): the counterfactual run of
+// `supplyAttribution.js` - our side on the recorded supply with TradingView's witnessed values on the
+// dates they differ. ONLY that file calls it; it never feeds a grade a member reads (the grade runs on
+// the recorded supply, RS RATING L8), it only proves which side of a difference is the data.
+let _supplyOverride = null
+/** Our side, once, with `overrides` (`{<store ticker>: bars}`) in place of the recorded supply. */
+export function runOurSideWithSupply(capture, overrides) {
+  _supplyOverride = overrides || null
+  try {
+    return runOurSide(capture)
+  } finally {
+    _supplyOverride = null
+  }
+}
+
 export function runOurSide(capture) {
   setRuntimeDoorClock(PARITY_CLOCK)
   try {
@@ -1477,6 +1516,15 @@ function runOurSideOnTheParityClock(capture) {
       return { ok: false, refusal: door.refusal, plots: [], notes }
     }
     const def = door.def
+    // ⭐⭐ SETTINGS PARITY (2c) — THE SETTINGS THE CAPTURE WAS TAKEN AT. At every default this is
+    // `undefined` and our side computes exactly as it always has; a capture with a setting moved is
+    // computed with the same setting moved, or refused by name (`captureInputs.js`).
+    const taken = captureInstanceInputs(capture, def)
+    if (!taken.ok) {
+      return { ok: false, refusal: `the capture was taken at settings our side cannot set: ${taken.why}`, plots: [], notes }
+    }
+    const instanceInputs = taken.inputs
+    if (instanceInputs) notes.push(`settings: graded at the capture's own moved settings ${JSON.stringify(taken.moved)}`)
     const bars = toProductBars(capture)
     const tf = tfCodeOf(capture.timeframe)
     if (tf === capture.timeframe && !/^\d+$/.test(tf) && !['D', 'W', 'M'].includes(tf)) {
@@ -1501,7 +1549,9 @@ function runOurSideOnTheParityClock(capture) {
       barIndexFromFirstBar: barIndexStartsAtZero(capture),
     }
     // ⭐ C26 — another symbol's bars, from committed captures only.
-    const supply = otherSymbolSupply(def, capture)
+    // ⭐ SETTINGS PARITY (symbol): the supply the capture's own symbol choice asks for (the chart fetches
+    // the instance's chosen comparison symbol, `symbolInputs.instanceDocumentForFetch`)
+    const supply = otherSymbolSupply(instanceDocumentForFetch(def, { inputs: instanceInputs }), capture)
     if (supply.secondary) { ctx.secondary = supply.secondary; ctx.exchangeOf = supply.exchangeOf }
     notes.push(...supply.notes)
     if (ctx.symbol.securityType) {
@@ -1559,7 +1609,7 @@ function runOurSideOnTheParityClock(capture) {
       : bars
     const calcCtx = replay ? { ...ctx, historyFromListing: replaySupply.historyFromListing === true } : ctx
     notes.push(`plots/objects: ${decision.kind}: ${decision.why}`)
-    const calcCols = registry.computeFor(def, calcBars, undefined, calcCtx)
+    const calcCols = registry.computeFor(def, calcBars, instanceInputs, calcCtx)
     const cols = replay ? columnsInWindow(calcCols, replayPre) : calcCols
     // ⭐ B1 — each carried paint's colour on every bar, through the binder's own
     // `paintColoursFor` (the function the chart draws with), keyed as the binder keys.
@@ -1581,7 +1631,7 @@ function runOurSideOnTheParityClock(capture) {
     const paintCtx = warm ? { ...ctx, historyFromListing: paintSupply.historyFromListing === true } : ctx
     // (with DIV-1 replaying, the paint pass is the SAME computation — same bars, same
     // context — so it is read off `calcCols` rather than run twice)
-    const paintColsRaw = warm ? (replay ? calcCols : registry.computeFor(def, paintBars, undefined, paintCtx)) : cols
+    const paintColsRaw = warm ? (replay ? calcCols : registry.computeFor(def, paintBars, instanceInputs, paintCtx)) : cols
     const paintCols = new Map(Object.keys(paintColsRaw || {}).map((k) => [bindingKey('harness', k), paintColsRaw[k]]))
     const paints = (def.paints || []).map((p) => {
       const all = paintColoursFor(p, 'harness', paintCols, paintBars.length)
@@ -1635,12 +1685,12 @@ function runOurSideOnTheParityClock(capture) {
     let calcColours = null
     try {
       if (replay) {
-        calcColours = drawnColours(def, calcBars, calcCtx)
+        calcColours = drawnColours(def, calcBars, calcCtx, instanceInputs)
         colours = { ...calcColours,
           byKey: new Map([...calcColours.byKey].map(([k, c]) => [k, Array.isArray(c) ? c.slice(replayPre) : c])),
           paints: null }
       } else {
-        colours = drawnColours(def, bars, ctx)
+        colours = drawnColours(def, bars, ctx, instanceInputs)
       }
     } catch (err) {
       colours = { ok: false, reason: `binder threw: ${String((err && err.message) || err)}`, byKey: new Map() }
@@ -1653,7 +1703,7 @@ function runOurSideOnTheParityClock(capture) {
     if (warm) {
       try {
         // (the DIV-1 pass above IS this pass when it replayed: same bars, same context)
-        const w = replay && calcColours ? calcColours : drawnColours(def, paintBars, paintCtx)
+        const w = replay && calcColours ? calcColours : drawnColours(def, paintBars, paintCtx, instanceInputs)
         const keep = new Set(bars.map((b) => String(b.t)))
         drawnPaints = w && w.paints ? {
           backgrounds: w.paints.backgrounds.map((b) => ({ ...b, colors: Array.isArray(b.colors) ? b.colors.slice(pre) : b.colors })),
@@ -1767,7 +1817,7 @@ function runOurSideOnTheParityClock(capture) {
       ? { drawsObjects: true, ok: false, withheld: objectsWithheld.guard, reason: `withheld by name (${objectsWithheld.guard}) — ${objectsWithheld.message}` }
       // ⭐ DIV-1 — the LIVE set at the last bar of the replayed series: the window's
       // last bar, after every bar TradingView ran before it
-      : objectsOf(def, calcBars, calcCtx, calcCols, built)
+      : objectsOf(def, calcBars, calcCtx, calcCols, built, instanceInputs)
     // ⭐⭐ U13 (G1) — WHERE OUR x LIVES, in BOTH lanes (the host object lane and the
     // runtime's RT5 object store answer through `objectsOf`): the bars the object lane
     // ran on, and where the capture's window starts in them (the DIV-1 prehistory, if
@@ -1792,6 +1842,8 @@ function runOurSideOnTheParityClock(capture) {
       refusal: null,
       plots,
       objects,
+      // ⭐ SETTINGS PARITY (2c) — `{Pine name: TradingView value}` for every setting the capture moved
+      capturedInputs: taken.moved,
       ctx,
       notes,
       bars,

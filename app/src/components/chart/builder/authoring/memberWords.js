@@ -167,6 +167,26 @@ const MODEL = "The UCT Agent couldn't produce a valid change for that. Try rephr
  * @param {string} reason     what the server said
  * @param {{retryAfterS?: number|null}} [extra]  the hourly window's own wait, when the server gave one
  */
+/**
+ * Why an output "can't be drawn here", in a member's words, for the refusals whose engine sentence is
+ * written for engineers. `null` = no member wording: the caller keeps the engine's text.
+ *
+ * ⭐ 2026-11-17 (Indicators backlog 25) — a member read "`SPY`'s bars for this timeframe are not in
+ * hand", and for the venue cases a sentence naming a capture-queue row. Worded from the refusal's
+ * CODE (`otherSymbols.OTHER_SYMBOL_REFUSAL`); the ticker is read from the engine's text only to
+ * name it, and the sentence stands without it.
+ */
+export function chartRefusalWords(guard, text = '') {
+  const g = String(guard || '')
+  if (!g.startsWith('other-symbol:')) return null
+  const m = /`([A-Za-z0-9.:_-]{1,24})`/.exec(String(text || ''))
+  const sym = m ? m[1].split(':').pop().toUpperCase() : null
+  if (g === 'other-symbol:no-bars') {
+    return sym ? `${sym}'s prices are not available on this timeframe.` : 'a symbol it reads has no prices on this timeframe.'
+  }
+  return sym ? `${sym} cannot be read from this chart.` : 'a symbol it reads cannot be read from this chart.'
+}
+
 export function memberRefusal(gate, reason = '', extra = {}) {
   const g = String(gate || '')
   // The hourly window says how long is left (`Retry-After`). "Wait a minute" was wrong
@@ -177,7 +197,9 @@ export function memberRefusal(gate, reason = '', extra = {}) {
     return `You've reached this hour's limit of requests to UCT Intelligence. Try again in about ${mins === 1 ? 'a minute' : `${mins} minutes`}.`
   }
   if (REFUSAL_BY_GATE[g]) return REFUSAL_BY_GATE[g]
-  if (g === 'network' || g === 'model:transport' || /^http:(0|5\d\d)$/.test(g)) return PLATFORM
+  // `model:unavailable` (O7): the provider refused our account. The member is told what they are
+  // told for an outage, never the reason: it is ours to fix and nothing they did.
+  if (g === 'network' || g === 'model:transport' || g === 'model:unavailable' || /^http:(0|5\d\d)$/.test(g)) return PLATFORM
   if (/^(envelope|model|schema|converse|internal):/.test(g)) return MODEL
   return reason || MODEL
 }

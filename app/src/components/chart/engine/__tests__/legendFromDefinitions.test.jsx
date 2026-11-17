@@ -1609,8 +1609,11 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
     const here = byLabel('Own pane')
     expect(here, 'the page does not show where the series is now').toBeTruthy()
     expect(here.disabled, 'the CURRENT target is offered as a destination').toBe(true)
-    expect(here.textContent, 'the refusal reason is not on screen — the user is left '
+    // UCT Signature (owner 11-17, every Display in page): the refusal reason is the row's
+    // tooltip and accessible description, not a second line of text.
+    expect(here.getAttribute('title'), 'the refusal reason is not on the row — the user is left '
       + 'clicking a grey line').toMatch(/already here/)
+    expect(here.getAttribute('aria-description')).toMatch(/already here/)
     // ⛔ …and the control: other rows on this page ARE live, so "disabled" is a
     // property of this one and not of the page.
     expect(rows.filter(b => !b.disabled).map(b => (b.textContent || '').slice(0, 5)),

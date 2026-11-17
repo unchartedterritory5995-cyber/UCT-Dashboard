@@ -11,7 +11,7 @@ import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import { setCreateIndicatorFlag } from './studio/createIndicatorFlag'
 import BuilderSheet from './BuilderSheet'
-import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from './builderStart.testkit.js'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { AuthContext } from '../../../context/AuthContext'
 import { clearUserDefinitions } from '../engine/nativeRegistry'
 import { parseFormula } from '../engine/ast/parse'
@@ -130,6 +130,19 @@ describe('P3 UX — closing the sheet with an unsaved conversation asks first', 
     fireEvent.click(screen.getByTestId('discard-yes'))
     await flush()
     expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('CONTROL: a name the MEMBER typed is still unsaved formula work beside the conversation', async () => {
+    const onClose = vi.fn()
+    mountSheet(onClose)
+    fireEvent.change(screen.getByLabelText('Describe it'), { target: { value: 'RSI overbought' } })
+    fireEvent.click(screen.getByTestId('converse-send'))
+    await flush()
+    fireEvent.change(screen.getByPlaceholderText('Name it'), { target: { value: 'My own name' } })
+    cancel()
+    await flush()
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.getByTestId('discard-confirm').textContent).toContain('Discard this formula?')
   })
 
   it('after the conversation is saved, Cancel closes at once again', async () => {

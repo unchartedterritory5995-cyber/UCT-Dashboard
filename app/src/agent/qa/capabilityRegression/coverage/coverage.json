@@ -1,41 +1,41 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 217,
+  "all": 227,
   "withProductionKinds": 205,
-  "darkGated": 12
+  "darkGated": 22
  },
  "totals": {
-  "capabilities": 217,
-  "withAnyRegressionCase": 165,
+  "capabilities": 227,
+  "withAnyRegressionCase": 175,
   "perProtection": {
    "nl": {
-    "covered": 162,
-    "applicable": 217
+    "covered": 172,
+    "applicable": 227
    },
    "routing": {
-    "covered": 159,
-    "applicable": 217
+    "covered": 169,
+    "applicable": 227
    },
    "args": {
-    "covered": 165,
-    "applicable": 217
+    "covered": 175,
+    "applicable": 227
    },
    "execution": {
-    "covered": 162,
-    "applicable": 217
+    "covered": 172,
+    "applicable": 227
    },
    "receipt": {
-    "covered": 134,
-    "applicable": 217
+    "covered": 144,
+    "applicable": 227
    },
    "refusal": {
     "covered": 35,
-    "applicable": 217
+    "applicable": 227
    },
    "permission": {
-    "covered": 210,
-    "applicable": 217
+    "covered": 220,
+    "applicable": 227
    },
    "undo": {
     "covered": 84,
@@ -43,11 +43,11 @@
    },
    "multiStep": {
     "covered": 40,
-    "applicable": 217
+    "applicable": 227
    },
    "phrasings": {
-    "covered": 158,
-    "applicable": 217
+    "covered": 168,
+    "applicable": 227
    }
   }
  },
@@ -9301,6 +9301,114 @@
     "phrasings": []
    }
   },
+  "stock.analystActions": {
+   "domain": "stock",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.analystActions: \"what got upgraded today\"",
+     "stock.analystActions: \"any analyst upgrades this morning\"",
+     "stock.analystActions: \"which stocks did analysts upgrade\"",
+     "stock.analystActions: \"show me the analyst upgrades from the morning wire\""
+    ],
+    "routing": [
+     "stock.analystActions: \"what got upgraded today\"",
+     "stock.analystActions: \"any analyst upgrades this morning\"",
+     "stock.analystActions: \"which stocks did analysts upgrade\"",
+     "stock.analystActions: \"show me the analyst upgrades from the morning wire\""
+    ],
+    "args": [
+     "corpus stock.analystActions"
+    ],
+    "execution": [
+     "stock.analystActions (c)"
+    ],
+    "receipt": [
+     "stock.analystActions (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.callSearch": {
+   "domain": "stock",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.callSearch: \"which companies mentioned tariffs on their earnings call\"",
+     "stock.callSearch: \"search earnings calls for tariffs\"",
+     "stock.callSearch: \"who talked about tariffs on their earnings call\"",
+     "stock.callSearch: \"find mentions of tariffs in earnings call transcripts\""
+    ],
+    "routing": [
+     "stock.callSearch: \"which companies mentioned tariffs on their earnings call\"",
+     "stock.callSearch: \"search earnings calls for tariffs\"",
+     "stock.callSearch: \"who talked about tariffs on their earnings call\"",
+     "stock.callSearch: \"find mentions of tariffs in earnings call transcripts\""
+    ],
+    "args": [
+     "corpus stock.callSearch"
+    ],
+    "execution": [
+     "stock.callSearch (c)"
+    ],
+    "receipt": [
+     "stock.callSearch (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.compare": {
    "domain": "stock",
    "group": "data",
@@ -9347,6 +9455,60 @@
     ],
     "receipt": [
      "stock.compare (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.confluenceBoard": {
+   "domain": "stock",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.confluenceBoard: \"what is bullish on the confluence board\"",
+     "stock.confluenceBoard: \"show me the bullish confluence names\"",
+     "stock.confluenceBoard: \"bullish names on the confluence board\"",
+     "stock.confluenceBoard: \"which stocks are bullish on the confluence radar\""
+    ],
+    "routing": [
+     "stock.confluenceBoard: \"what is bullish on the confluence board\"",
+     "stock.confluenceBoard: \"show me the bullish confluence names\"",
+     "stock.confluenceBoard: \"bullish names on the confluence board\"",
+     "stock.confluenceBoard: \"which stocks are bullish on the confluence radar\""
+    ],
+    "args": [
+     "corpus stock.confluenceBoard"
+    ],
+    "execution": [
+     "stock.confluenceBoard (c)"
+    ],
+    "receipt": [
+     "stock.confluenceBoard (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -9422,6 +9584,60 @@
     "phrasings": []
    }
   },
+  "stock.darkPoolLevels": {
+   "domain": "stock",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.darkPoolLevels: \"dark pool levels on NVDA\"",
+     "stock.darkPoolLevels: \"NVDA dark pool levels\"",
+     "stock.darkPoolLevels: \"show me the dark pool levels for NVDA\"",
+     "stock.darkPoolLevels: \"big dark pool prints in NVDA\""
+    ],
+    "routing": [
+     "stock.darkPoolLevels: \"dark pool levels on NVDA\"",
+     "stock.darkPoolLevels: \"NVDA dark pool levels\"",
+     "stock.darkPoolLevels: \"show me the dark pool levels for NVDA\"",
+     "stock.darkPoolLevels: \"big dark pool prints in NVDA\""
+    ],
+    "args": [
+     "corpus stock.darkPoolLevels"
+    ],
+    "execution": [
+     "stock.darkPoolLevels (c)"
+    ],
+    "receipt": [
+     "stock.darkPoolLevels (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.earnings": {
    "domain": "stock",
    "group": "data",
@@ -9482,6 +9698,114 @@
     "refusal": [
      "GW-17.live-earnings-next"
     ],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.expectedMove": {
+   "domain": "stock",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.expectedMove: \"expected move for NVDA earnings\"",
+     "stock.expectedMove: \"what is the implied move on NVDA\"",
+     "stock.expectedMove: \"NVDA expected move\"",
+     "stock.expectedMove: \"how much is NVDA expected to move on earnings\""
+    ],
+    "routing": [
+     "stock.expectedMove: \"expected move for NVDA earnings\"",
+     "stock.expectedMove: \"what is the implied move on NVDA\"",
+     "stock.expectedMove: \"NVDA expected move\"",
+     "stock.expectedMove: \"how much is NVDA expected to move on earnings\""
+    ],
+    "args": [
+     "corpus stock.expectedMove"
+    ],
+    "execution": [
+     "stock.expectedMove (c)"
+    ],
+    "receipt": [
+     "stock.expectedMove (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.longRunLeaders": {
+   "domain": "stock",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.longRunLeaders: \"top gainers over 60 days\"",
+     "stock.longRunLeaders: \"biggest gainers over the last 60 sessions\"",
+     "stock.longRunLeaders: \"best performers over 60 days\"",
+     "stock.longRunLeaders: \"top gainers in the past 60 trading days\""
+    ],
+    "routing": [
+     "stock.longRunLeaders: \"top gainers over 60 days\"",
+     "stock.longRunLeaders: \"biggest gainers over the last 60 sessions\"",
+     "stock.longRunLeaders: \"best performers over 60 days\"",
+     "stock.longRunLeaders: \"top gainers in the past 60 trading days\""
+    ],
+    "args": [
+     "corpus stock.longRunLeaders"
+    ],
+    "execution": [
+     "stock.longRunLeaders (c)"
+    ],
+    "receipt": [
+     "stock.longRunLeaders (c)"
+    ],
+    "refusal": [],
     "permission": [],
     "undo": [],
     "multiStep": [],
@@ -9603,6 +9927,168 @@
     "phrasings": []
    }
   },
+  "stock.sectorPerformance": {
+   "domain": "stock",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.sectorPerformance: \"sector performance this month\"",
+     "stock.sectorPerformance: \"how have the sector funds performed over the last month\"",
+     "stock.sectorPerformance: \"show me sector fund returns for the past month\"",
+     "stock.sectorPerformance: \"sector fund performance over 1 month\""
+    ],
+    "routing": [
+     "stock.sectorPerformance: \"sector performance this month\"",
+     "stock.sectorPerformance: \"how have the sector funds performed over the last month\"",
+     "stock.sectorPerformance: \"show me sector fund returns for the past month\"",
+     "stock.sectorPerformance: \"sector fund performance over 1 month\""
+    ],
+    "args": [
+     "corpus stock.sectorPerformance"
+    ],
+    "execution": [
+     "stock.sectorPerformance (c)"
+    ],
+    "receipt": [
+     "stock.sectorPerformance (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.sessionHighsLows": {
+   "domain": "stock",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.sessionHighsLows: \"new highs today\"",
+     "stock.sessionHighsLows: \"what is making new highs today\"",
+     "stock.sessionHighsLows: \"which stocks are hitting new highs of the day\"",
+     "stock.sessionHighsLows: \"stocks at session highs this morning\""
+    ],
+    "routing": [
+     "stock.sessionHighsLows: \"new highs today\"",
+     "stock.sessionHighsLows: \"what is making new highs today\"",
+     "stock.sessionHighsLows: \"which stocks are hitting new highs of the day\"",
+     "stock.sessionHighsLows: \"stocks at session highs this morning\""
+    ],
+    "args": [
+     "corpus stock.sessionHighsLows"
+    ],
+    "execution": [
+     "stock.sessionHighsLows (c)"
+    ],
+    "receipt": [
+     "stock.sessionHighsLows (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.themeRotation": {
+   "domain": "stock",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.themeRotation: \"which themes are rotating in\"",
+     "stock.themeRotation: \"show me the themes rotating in\"",
+     "stock.themeRotation: \"what themes is money rotating into\"",
+     "stock.themeRotation: \"list the themes that are rotating in\""
+    ],
+    "routing": [
+     "stock.themeRotation: \"which themes are rotating in\"",
+     "stock.themeRotation: \"show me the themes rotating in\"",
+     "stock.themeRotation: \"what themes is money rotating into\"",
+     "stock.themeRotation: \"list the themes that are rotating in\""
+    ],
+    "args": [
+     "corpus stock.themeRotation"
+    ],
+    "execution": [
+     "stock.themeRotation (c)"
+    ],
+    "receipt": [
+     "stock.themeRotation (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.themes": {
    "domain": "stock",
    "group": "data",
@@ -9634,6 +10120,60 @@
     "args": [],
     "execution": [],
     "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.yearlyHighsLows": {
+   "domain": "stock",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.yearlyHighsLows: \"which stocks made new 52-week highs\"",
+     "stock.yearlyHighsLows: \"which stocks are at new 52-week highs\"",
+     "stock.yearlyHighsLows: \"what is making new 52 week highs\"",
+     "stock.yearlyHighsLows: \"what stocks hit a new 52-week high\""
+    ],
+    "routing": [
+     "stock.yearlyHighsLows: \"which stocks made new 52-week highs\"",
+     "stock.yearlyHighsLows: \"which stocks are at new 52-week highs\"",
+     "stock.yearlyHighsLows: \"what is making new 52 week highs\"",
+     "stock.yearlyHighsLows: \"what stocks hit a new 52-week high\""
+    ],
+    "args": [
+     "corpus stock.yearlyHighsLows"
+    ],
+    "execution": [
+     "stock.yearlyHighsLows (c)"
+    ],
+    "receipt": [
+     "stock.yearlyHighsLows (c)"
+    ],
     "refusal": [],
     "permission": [],
     "undo": [],

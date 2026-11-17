@@ -53,7 +53,7 @@ const COMPANY_ONLY_KEYS = new Set(['epsg', 'revg', 'epsny', 'dte'])
 const companyOnly = (s) => s.source !== 'header' && (COMPANY_ONLY_GROUPS.has(s.group) || COMPANY_ONLY_KEYS.has(s.key))
 
 /** The chosen stat keys, in order — known keys only, first occurrence wins. A blob with no `fields` reads as
- *  today's row (the legacy show* migration in `headerFieldKeys`: Market Cap · Next Earnings · UCT Rating). */
+ *  today's row (the legacy show* migration in `headerFieldKeys`: Market Cap · Next Earnings). */
 export function headerStatKeys(header) {
   if (!Array.isArray(header?.fields)) return headerFieldKeys(header)
   const seen = new Set()

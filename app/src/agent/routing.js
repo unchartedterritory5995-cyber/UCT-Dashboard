@@ -374,6 +374,13 @@ export const GROUPS = [
     words: [] },
   // W2-B1 (RS-1): `research.ask` rides in this group by domain ("why is X down", "what's driving …", catalysts);
   // W2-B2: `history.afterEvent` too ("how has X behaved after …", "what happens after …")
+  // Terminal data wave 1: the four local-only stock.* answers (analyst actions, session highs / lows, long-run leaders, dark
+  // pool levels) ride here by domain. Their own words are NOT listed below: capabilities/terminalDataLocal.js adds each one's
+  // (TERMINAL_ROUTE_WORDS) to this group only while that capability is registered (the server serves its kind), so on a dark
+  // server this group's words are exactly this list (pinned in agentTerminalData.test.js). The sector answer needs none.
+  // Terminal data wave 2: five more local-only stock.* answers (52-week highs / lows, theme rotation, the confluence board,
+  // the expected move, the earnings call search) ride here the same way: capabilities/terminalDataWave2.js adds each one's
+  // words (WAVE2_ROUTE_WORDS) only while that capability is registered (pinned in agentTerminalDataWave2.test.js).
   { id: 'data', title: 'Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)', domains: ['stock', 'news', 'research', 'history'],
     // CG-21 (corpus #774): "news" — not the News WIDGET ("add a news widget")
     words: [/\bnews\b(?! (?:widget|panel|tab|window)s?\b)/, /\b(headlines?|catalysts?|earnings|profile|fundamentals?|compare|versus|vs\.?|sectors?|industry|market cap|float|why is|what does .+ do|what'?s driving|what is driving|off (its|the) (52[\s-]?week )?highs?)\b/,

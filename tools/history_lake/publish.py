@@ -26,6 +26,7 @@ import argparse
 import json
 import os
 import sys
+import time
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Optional
@@ -154,26 +155,76 @@ def explode(packs: Dict[tuple, Path], indexes: Dict[str, dict], out: Path) -> in
     return n
 
 
+#: Tries per index put (the first included) and the backoff base between them (0.5, 1, 2, 4 s).
+INDEX_RETRIES = 5
+INDEX_RETRY_BASE_S = 0.5
+
+
 def upload(packs: Dict[tuple, Path], indexes: Dict[str, dict], put_file: Callable, put_bytes: Callable, *,
-           prefix: str = "", jobs: int = 16, log=print) -> dict:
+           prefix: str = "", jobs: int = 16, log=print, exists: Optional[Callable] = None,
+           every: int = 10, sleep: Callable[[float], None] = time.sleep) -> dict:
     """Packs first, indexes last (an index never names a pack the bucket does not have yet).
-    `put_file(key, path, content_type)` / `put_bytes(key, data, content_type)` do the network."""
-    stats = {"packs": 0, "pack_bytes": 0, "indexes": 0}
+    `put_file(key, path, content_type)` / `put_bytes(key, data, content_type)` do the network.
+
+    RESUMABLE (2026-11-17): `exists(key, size)` answers whether the bucket already holds that key
+    at that byte size; such a pack is not sent again, so a re-run after an interrupted upload (the
+    whole lake is ~65 GB) carries on where it stopped. A pack is immutable for its key (its content
+    names its period), so a same-size object IS the pack. Progress is logged every `every` packs."""
+    stats = {"packs": 0, "pack_bytes": 0, "skipped": 0, "indexes": 0}
+    items = list(packs.items())
+    total = len(items)
+
+    def _one(key: str, path: Path):
+        size = path.stat().st_size
+        if exists is not None and exists(key, size):
+            return size, True
+        put_file(key, path, "application/octet-stream")
+        return size, False
+
     with ThreadPoolExecutor(max_workers=max(1, min(jobs, 8))) as ex:
-        futs = [ex.submit(put_file, f"{prefix}{pack.pack_relpath(s, p)}", path, "application/octet-stream")
-                for (s, p), path in packs.items()]
-        for f, ((s, p), path) in zip(futs, packs.items()):
-            f.result()
-            stats["packs"] += 1
-            stats["pack_bytes"] += path.stat().st_size
-    log(f"uploaded {stats['packs']} packs, {stats['pack_bytes']:,} bytes")
+        futs = [ex.submit(_one, f"{prefix}{pack.pack_relpath(s, p)}", path) for (s, p), path in items]
+        for n, f in enumerate(futs, 1):
+            size, skipped = f.result()
+            if skipped:
+                stats["skipped"] += 1
+            else:
+                stats["packs"] += 1
+                stats["pack_bytes"] += size
+            if n % max(1, every) == 0 or n == total:
+                log(f"packs {n}/{total}: {stats['packs']} sent ({stats['pack_bytes'] / 1e9:.1f} GB), "
+                    f"{stats['skipped']} already there")
+    log(f"uploaded {stats['packs']} packs, {stats['pack_bytes']:,} bytes ({stats['skipped']} already there)")
+
+    # ⚰️ 2026-11-17: ONE of 36,676 index puts failed with R2's "Reduce your concurrent request rate for
+    # the same object" (503, after botocore's own retries) and the whole run died on it, logging nothing
+    # after the packs line. Each index is now retried on its own with a backoff, the rest carry on, and a
+    # key that still fails is NAMED in the error (re-running sends every index again: they are small).
+    def _put_index(key: str, data: bytes) -> Optional[str]:
+        last: Optional[BaseException] = None
+        for attempt in range(INDEX_RETRIES):
+            try:
+                put_bytes(key, data, "application/json")
+                return None
+            except Exception as exc:          # noqa: BLE001 — retried, then reported by name
+                last = exc
+                if attempt + 1 < INDEX_RETRIES:
+                    sleep(INDEX_RETRY_BASE_S * (2 ** attempt))
+        return f"{key}: {type(last).__name__}: {last}"
+
+    failed: List[str] = []
     with ThreadPoolExecutor(max_workers=max(1, jobs)) as ex:
-        futs = [ex.submit(put_bytes, f"{prefix}{piece.index_relpath(sym)}", _json_bytes(doc), "application/json")
+        futs = [ex.submit(_put_index, f"{prefix}{piece.index_relpath(sym)}", _json_bytes(doc))
                 for sym, doc in indexes.items()]
         for f in futs:
-            f.result()
-            stats["indexes"] += 1
+            err = f.result()
+            if err:
+                failed.append(err)
+            else:
+                stats["indexes"] += 1
     log(f"uploaded {stats['indexes']} indexes")
+    if failed:
+        raise BuildError(f"{len(failed)} of {len(indexes)} indexes failed after {INDEX_RETRIES} tries "
+                         f"(re-run to send them again): {failed[:5]}")
     return stats
 
 
@@ -234,7 +285,13 @@ def main(argv: Optional[List[str]] = None) -> int:
             def put_bytes(key, data, ctype):
                 client.put_object(Bucket=args.bucket, Key=key, Body=data, ContentType=ctype)
 
-            upload(packs, indexes, put_file, put_bytes, prefix=args.prefix, jobs=args.jobs)
+            def exists(key, size):
+                try:
+                    return int(client.head_object(Bucket=args.bucket, Key=key).get("ContentLength", -1)) == int(size)
+                except Exception:                 # noqa: BLE001 — absent / unreadable: send it
+                    return False
+
+            upload(packs, indexes, put_file, put_bytes, prefix=args.prefix, jobs=args.jobs, exists=exists)
     except BuildError as exc:
         print(f"PUBLISH FAILED: {exc}")
         return 2

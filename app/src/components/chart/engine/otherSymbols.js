@@ -196,7 +196,7 @@ function witnessPendingWhy(row) {
  *  (`interpret.js::isoDay` reads unix seconds, a `YYYYMMDD` int or an ISO day — an index's
  *  daily bars carry unix seconds at the session's UTC midnight, a stock's an ISO date), then
  *  placed by the row's `alignment`. A bar whose day cannot be read is dropped, never guessed. */
-function witnessedBarsOf(row, bars) {
+export function witnessedBarsOf(row, bars) {
   const keyed = []
   for (const b of bars) {
     const day = b && isoDay(b.t)

@@ -3282,12 +3282,18 @@ def get_uct20_book_data() -> dict:
 def get_analyst_actions() -> dict:
     """Return analyst upgrades and downgrades from wire_data.
 
-    Returns { upgrades: [...], downgrades: [...] }
+    Returns { upgrades: [...], downgrades: [...], pt_changes: [...], summary, wire_date, wire_status }
     Each item: { ticker, action, firm, from_rating, to_rating, price_target }
+
+    `wire_date` is the date of the morning wire the list came from (None when the server holds no
+    wire), so a reader can say WHICH morning it is looking at: the list is served unchanged until
+    the next wire is pushed. `wire_status` ("fresh" / "stale" / "unknown") is `wire_freshness` of
+    that date, worked out on every call and never cached: the date is a fact about the payload,
+    the verdict depends on today's date (the same split as the breadth read above).
     """
     cached = cache.get("analyst_actions")
     if cached is not None:
-        return cached
+        return {**cached, "wire_status": wire_freshness(cached.get("wire_date"))}
 
     wire = _load_wire_data()
     actions = wire.get("analyst_actions", []) if wire else []
@@ -3310,6 +3316,7 @@ def get_analyst_actions() -> dict:
             "downgrades": len(downgrades),
             "pt_changes": len(pt_changes),
         },
+        "wire_date": (wire.get("date") or None) if wire else None,
     }
     cache.set("analyst_actions", result, ttl=3600)
-    return result
+    return {**result, "wire_status": wire_freshness(result.get("wire_date"))}

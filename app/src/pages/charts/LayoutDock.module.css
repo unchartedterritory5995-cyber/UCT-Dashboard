@@ -393,7 +393,12 @@
 .ctl { color: #dedad2; background: rgba(248, 247, 243, 0.05); min-width: 28px; height: 28px; }
 .ctl:hover, .ctl[aria-expanded='true'] { background: rgba(248, 247, 243, 0.11); color: #ffffff; }
 .itemCreating { align-self: center; height: auto; padding: 0 4px; border: none; background: none; }
-.itemCreating .nameInput { width: 160px; height: 26px; }
+.itemCreating .nameInput { width: 160px; height: 28px; }
+/* Owner 11-16: the "Name this layout" box lines up with the + and the ▾ beside it. The tabs
+   sit on the strip's bottom edge, so a strip only as tall as its tabs centred the box low;
+   the strip now spans the lane's full height (tabs still bottom-aligned), so the box centres on
+   the same line as the + (`.lane > .ctl`) and the ▾, at their 28px height. */
+.strip { align-self: stretch; }
 /* Owner 11-16: breathing room — the ＋ sits 10px off the tabs (NEW_BTN_GAP in LayoutDock.jsx). */
 .lane > .ctl { margin-left: 10px; }
 /* Owner 11-16: a subtle gold top edge on the open tab (UCT Signature: gold marks what's current). */

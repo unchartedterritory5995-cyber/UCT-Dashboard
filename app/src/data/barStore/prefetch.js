@@ -63,13 +63,15 @@ import { keyOf, parseKey, normTf, isIntradayTf, isDateTf, PERIOD_SEC, STATUS, un
 import { DAILY_POLL_MS } from './network'
 import { legacyBars } from './adapter'
 import { fullBarsFor, firstPaintBarsFor } from '../../utils/barsBackfill'
+import { PREFETCH_WINDOWS, prefetchTargetBars } from '../../utils/historyPrepend'
 import { viewShowExtended } from '../../utils/viewSession'
 import { isNativeTf, fetchTf } from '../../components/chart/timeframes'
 import { isCacheCurrentForView } from '../../utils/marketSession'
+import { BARSTORE } from '../../components/chart/barStoreSwitch'
 import { prefetchTickerMeta as _defaultTickerMeta } from '../../hooks/useTickerMeta'
 import {
   _packStillIngesting, URGENT_MAX_PER_CALL, GRID_WARM_TFS, listPrewarmDisabled, _typedCachePaints,
-  tellSymbolWarmers,
+  tellSymbolWarmers, TYPED_REASK_MS,
 } from '../../utils/prefetchBars'
 
 // Lane plumbing the chart imports from the same module — re-exported unchanged so one import
@@ -104,8 +106,14 @@ const SCAN_WARM_CAP = 100
 const DEEP_WARM_TFS = Object.freeze(['D', 'W', 'M'])
 const DEEP_WARM_CAP = 120
 const REPLAY_WARM_TFS = Object.freeze(['5', '15', '30', '60'])
-const TYPED_FRESH_MS = 60_000
+// The typed warm's re-ask window is the legacy module's TYPED_REASK_MS (imported above), never a
+// number of this module's: both warmers skip a re-ask on the same rule.
 const COOLDOWN_MAX_KEYS = 400
+/** TERM-033: what a FAILED device-cache hydrate resolves to (`_hydrate`). "Nothing was hydrated",
+ *  never an answer: the caller takes its verdict on the store as it stands, so the key is asked of
+ *  the server like any key the cache does not hold. */
+const NOTHING_HYDRATED = null
+const nothingHydrated = () => NOTHING_HYDRATED
 
 /** Re-ask cooldown of a key the server already answered (see header). */
 export function cooldownMs(tf) {
@@ -153,6 +161,21 @@ export const SHORT_FULL_TTL_MS = 6 * 3600 * 1000
 /** How long the symbol handoff waits for the cache read before it asks the server anyway (the
  *  legacy chart's `_IDB_TAIL_WAIT_MS`). */
 export const HYDRATE_WAIT_MS = 120
+/** How long the typed warm waits on a cache read before it asks anyway (see _warmTypedIntraday). */
+export const INTENT_HYDRATE_RACE_MS = 60
+/** How long a list selection must rest before the hold deepens the next rows (createNeighborHold
+ *  `deep`). Past the chart's own DEEP_ARM_MS (250) and its first window, so the visible chart's
+ *  deep history always goes first. */
+export const NEIGHBOR_DEEP_MS = 500
+/** The neighbor deepening's switch: on unless 'uct.deepNeighbors' (or the chart's whole intraday
+ *  deep history, 'uct.intradayDeepBackfill.enabled') is '0' in this browser. */
+export function deepNeighborsEnabled() {
+  try {
+    if (typeof localStorage === 'undefined') return true
+    return localStorage.getItem('uct.deepNeighbors') !== '0'
+      && localStorage.getItem('uct.intradayDeepBackfill.enabled') !== '0'
+  } catch { return true }
+}
 const LOCAL_PAINTS = Symbol('local copy paints')
 const SHORT_FULL_MAX = 4000
 
@@ -163,6 +186,8 @@ export function createPrefetch(o = {}) {
   const extended = o.extended ?? viewShowExtended
   const now = o.now ?? (() => Date.now())
   const setTimer = o.setTimer ?? ((fn, ms) => setTimeout(fn, ms))
+  const clearTimer = o.clearTimer ?? ((h) => clearTimeout(h))
+  const deepNeighbors = o.deepNeighbors ?? deepNeighborsEnabled
 
   /** key → {at, gen} of the last request this module caused (cooldown). */
   const asked = new Map()
@@ -205,6 +230,9 @@ export function createPrefetch(o = {}) {
   const _satisfied = (s, until, depth = 0) => !!s && until.includes(s.status)
     && (!depth || s.depth >= depth || s.status === STATUS.UNAVAILABLE)
 
+  /** `p`, or undefined when it has not settled within `ms` (the read goes on; nothing waits on it). */
+  const _raced = (p, ms) => Promise.race([p, new Promise((resolve) => setTimer(() => resolve(undefined), ms))])
+
   /** Hydrate a key nothing has loaded yet (mem part synchronous, IDB part async). */
   function _hydrate(key) {
     const st = S()
@@ -213,7 +241,9 @@ export function createPrefetch(o = {}) {
     // Pinned while it reads, so a herd hydrating more keys than the LRU holds cannot evict
     // the entry between its cache read and the verdict taken on it.
     st.registry.acquire(key)
-    return st.persist.hydrate(key).catch(() => null)
+    // TERM-033: a FAILED device-cache read hydrates nothing (NOTHING_HYDRATED). It is never read as
+    // an answer: the verdict below is taken on what the store holds, so the warm asks the server.
+    return st.persist.hydrate(key).catch(nothingHydrated)
       .then(() => st.peek(key))
       .finally(() => st.registry.release(key))
   }
@@ -225,7 +255,15 @@ export function createPrefetch(o = {}) {
    */
   function _cooling(key, s) {
     const a = asked.get(key)
-    if (!a) return false
+    // ⛔ A REQUEST STILL WAITING IS NOT AN ANSWER (2026-11-17). The ask is noted when the request
+    // STARTS; a background warm held in the lane (`_holdBackgroundWarm`: the daily pack still
+    // ingesting, a first visit's 90 s+) therefore read as "asked recently" and made every later
+    // warm of the key skip — the URGENT next-row warm included, the one meant to bypass that
+    // hold. Measured (debug build, flip proof 60m): the rows ahead held a 180-bar copy hours
+    // behind (`provisional`), never re-asked, and the flip fetched them itself (129 ms). Only an
+    // answered ask cools; a later ask of a key still in flight joins / promotes that request
+    // (network.fetchOnce, promoteLaneRequest), so nothing is fetched twice.
+    if (!a || !a.answered) return false
     // An INVALIDATE since the answer resets it (gen moved on an entry that says so); a fresh
     // entry re-hydrated after an LRU eviction has a new gen but was never invalidated.
     const invalidated = s?.invalidatedFor != null && s.gen !== a.gen
@@ -234,7 +272,7 @@ export function createPrefetch(o = {}) {
     return true
   }
   function _noteAsked(key) {
-    const a = { at: now(), gen: S().peek(key)?.gen ?? 0 }
+    const a = { at: now(), gen: S().peek(key)?.gen ?? 0, answered: false }
     asked.delete(key)
     asked.set(key, a)
     if (asked.size > COOLDOWN_MAX_KEYS) {
@@ -265,6 +303,8 @@ export function createPrefetch(o = {}) {
     if ((signal?.aborted || (s?.error && s.error !== 'no_data')) && asked.get(key) === a) asked.delete(key)
     else if (s) {
       a.gen = s.gen   // the gen the answer landed under
+      a.answered = true
+      a.at = now()    // the cooldown runs from the ANSWER, not from when the request was queued
       if (isIntradayTf(s.tf ?? parseKey(key)?.tf)) _noteFull(key)   // every request asks a full window
     }
     return s
@@ -278,9 +318,12 @@ export function createPrefetch(o = {}) {
     return Promise.all((keys || []).filter(Boolean).map(async (key) => {
       const s0 = await _hydrate(key)
       const full = _shortWant(key, s0)            // a short series is not warm (see SHORT_FULL_TTL_MS)
-      if (!full && _satisfied(s0, DISPLAYABLE, depth)) return s0
+      const flip = _flipPaints(key, s0)
+      if (!full && _satisfied(s0, DISPLAYABLE, depth) && flip) return s0
       if (preparing.get(key) || _cooling(key, s0)) return S().peek(key) ?? s0   // s0: the LRU may have evicted it since
-      return ensure(key, { until: DISPLAYABLE, depth: Math.max(depth, full), priority, signal, warm, front, _s0: s0 })
+      // A local copy the flip would refuse never satisfies the warm: only a server answer does
+      // (`local: false`, exactly as prepareForDisplay asks).
+      return ensure(key, { until: DISPLAYABLE, depth: Math.max(depth, full), priority, signal, warm, front, local: flip, _s0: s0 })
     }))
   }
 
@@ -354,6 +397,25 @@ export function createPrefetch(o = {}) {
     return date ? 'current' : 'authoritative'
   }
 
+  /**
+   * ⭐ A WARM IS WARM ONLY IF THE FLIP WILL PAINT IT (2026-11-17). The skip above reads the
+   * store's status, where a LOCAL intraday copy is `context` by the data rule
+   * (`status.deriveStatus`); the handoff (`prepareForDisplay`) paints a local copy only by the
+   * view's paint rule (`_localPaints`). Where the two disagree the warm skipped a row the flip
+   * then refused, and the chart waited on its own request (production 2026-11-16, 60m: FNGD,
+   * SSG first candles 118 / 126 ms against ~35 ms for warmed rows). So a local intraday copy
+   * counts as warm only when `_localPaints` accepts it; otherwise the server is asked now, and
+   * its answer (held, `restSeen`) is what the flip paints at once. A server answer, a D/W/M
+   * set and a windowed (replay) key keep the status rule.
+   */
+  function _flipPaints(key, s) {
+    if (!s || s.restSeen) return true
+    const pk = parseKey(key)
+    if (!pk || pk.window || !isIntradayTf(pk.tf)) return true
+    const ext = pk.session ? pk.session === 'eth' : extOf(undefined)
+    return _localPaints(s, pk.tf, ext)
+  }
+
   /** Legacy `_paintCurrent`: would the chart paint this LOCAL copy as current for the view? */
   function _localPaints(s, tf, showExtended) {
     if (!s || s.restSeen || !isIntradayTf(normTf(tf))) return false
@@ -365,6 +427,7 @@ export function createPrefetch(o = {}) {
   async function prepareForDisplay(sym, tf, { signal = null, showExtended } = {}) {
     const key = keyFor(sym, tf, { showExtended })
     if (!key) return 'error'
+    if (typed && typed.key === key) typed.kept = true   // Enter on a typed text: never abort its warm
     _own(key)
     try {
       const date = isDateTf(normTf(tf) ?? fetchTf(String(tf)))
@@ -479,6 +542,87 @@ export function createPrefetch(o = {}) {
     for (const tf of GRID_WARM_TFS) _many(list, tf, 'grid', { warm: true })
   }
 
+  /**
+   * ⭐ THE ROWS AROUND A LIST'S SELECTION STAY IN THE STORE (2026-11-17). A list warm loads
+   * every row at the chart's tf AND daily — ~200 keys for a 100-row list, the registry's whole
+   * LRU (`DEFAULT_MAX_KEYS`) — so the rows next to the selection were evicted before the
+   * member reached them, and the flip re-read them from IndexedDB (400-900 ms while the warm
+   * writes) and lost the race to its own request (flip proof 2026-11-17, 60m UVXY 109 ms, 5m
+   * UVXY 100 ms, against ~35 ms for rows still held). A hold PINS its keys (registry refs, never
+   * evicted) and hydrates them; `set` swaps the window, `clear` lets them go. One hold per list
+   * (two lists on a board never release each other's rows); a dozen keys, a few thousand bars.
+   */
+  //
+  // ⭐ AND THE NEXT ROWS ARRIVE DEEP (2026-11-17, `deep`). A flip painted the next row's first
+  // window (~470 bars) in ~30 ms, but its older history came only after the chart had rested
+  // DEEP_ARM_MS and asked two 2,000-bar windows in turn: 2,000+ bars at ~470 ms (production
+  // flip proof, 60m/15m/5m), where daily paints its whole history in the first frame. So while
+  // the member rests on a row, the hold asks the SAME windows the chart would (store scroll-back,
+  // PREFETCH_WINDOWS of them, up to HISTORY_PREFETCH_TARGET_BARS) for the rows named in `deep`
+  // (the next one or two): the flip then paints them deep. Bounded: only after the selection has
+  // rested NEIGHBOR_DEEP_MS (a held key or a fast scan never starts one), one request at a time,
+  // at `grid` rank (the chart's own deep windows' rank, behind the visible chart), a new `set`
+  // abandons the rest. Intraday, non-replay keys only (D/W/M come whole from the daily pack).
+  // Off: localStorage 'uct.deepNeighbors' = '0' (or the chart's 'uct.intradayDeepBackfill.enabled'
+  // = '0', which turns every intraday deep window off).
+  function createNeighborHold() {
+    let held = new Map()   // key → true
+    let deepTimer = null
+    let deepGen = 0
+    const stopDeep = () => {
+      deepGen++
+      if (deepTimer != null) { clearTimer(deepTimer); deepTimer = null }
+    }
+    async function deepen(keys, gen) {
+      for (const k of keys) {
+        for (let i = 0; i < PREFETCH_WINDOWS; i++) {
+          if (gen !== deepGen || !held.has(k)) return
+          let s = S().peek(k)
+          // A window prepends to a SERVER answer (the urgent warm's), never to a local copy alone.
+          if (!s?.restSeen) {
+            await prefetch([k], { priority: 'grid' })
+            if (gen !== deepGen || !held.has(k)) return
+            s = S().peek(k)
+          }
+          // the chart's own target: deeper where the lake carries the key (historyPrepend)
+          if (!s?.restSeen || !s.bars?.length || s.status === STATUS.UNAVAILABLE || s.depth >= prefetchTargetBars(!!S().lakeCarries?.(k))) break
+          const res = await Promise.resolve().then(() => S().scrollBack(k, { priority: 'grid' })).catch(() => null)
+          // Nothing older, refused at the seam, still filling or failed: this row is done for now
+          // (the chart's own loader retries a filling window when the member lands on it).
+          if (!res?.ok || !(res.added > 0) || res.filling) break
+        }
+      }
+    }
+    return {
+      set(syms, tf, { showExtended, deep = null } = {}) {
+        const st = S()
+        const want = new Map()
+        for (const sym of syms || []) { const k = keyFor(sym, tf, { showExtended }); if (k) want.set(k, true) }
+        for (const k of want.keys()) if (!held.has(k)) { st.registry.acquire(k); _hydrate(k) }
+        for (const k of held.keys()) if (!want.has(k)) st.registry.release(k)
+        held = want
+        stopDeep()
+        if (!deep?.length || !deepNeighbors()) return
+        const next = []
+        for (const sym of deep) {
+          const k = keyFor(sym, tf, { showExtended })
+          const p = k ? parseKey(k) : null
+          if (p && !p.window && isIntradayTf(p.tf) && want.has(k) && !next.includes(k)) next.push(k)
+        }
+        if (!next.length) return
+        const gen = deepGen
+        deepTimer = setTimer(() => { deepTimer = null; deepen(next, gen).catch(() => {}) }, NEIGHBOR_DEEP_MS)
+      },
+      clear() {
+        stopDeep()
+        const st = S()
+        for (const k of held.keys()) st.registry.release(k)
+        held = new Map()
+      },
+      keys: () => [...held.keys()],
+    }
+  }
+
   /** IDB → store, no network (the legacy IDB → mem promotion). */
   function warmMemFromIDB(tickers, tfs = SCAN_WARM_TFS) {
     if (!tickers?.length) return
@@ -530,8 +674,54 @@ export function createPrefetch(o = {}) {
     }, delay))
     if (!held) tickerMeta(sym)
   }
+  // ⭐ TYPED INTRADAY (2026-11-17). The typed warm was D/W/M only, so a member who typed a ticker on a
+  // 5m / 60m / 1m chart waited on the chart's own request after Enter (~70-110 ms: a cold first paint
+  // measured on production, 40 random stocks) while the same Enter on daily painted from memory. The
+  // intraday key of the typed text is now asked when the text settles (SymbolSearch
+  // TYPED_INTENT_SETTLE_MS, 140 ms): by Enter it is held and the handoff paints it like a list flip.
+  // ⛔ A PREFIX IS NOT A TICKER: the daily pack holds every symbol's daily set, so text with none is a
+  // partial word on the way to one and costs nothing (the D path's rule, read from the D key).
+  function _warmTypedIntraday(sym, tf) {
+    if (!_isSym(String(sym))) return null
+    const T = String(sym).trim().toUpperCase()
+    const key = keyFor(T, tf)
+    const p = key ? parseKey(key) : null
+    if (!p || p.window || !isIntradayTf(p.tf)) return null
+    if (typed && typed.key !== key) {
+      if (!typed.kept) typed.ctl.abort()
+      typed = null
+    }
+    const held = S().peek(key)
+    if (held?.restSeen && HANDOFF_PAINTS.includes(held.status)) return null   // the flip paints it as it is
+    if (typed && typed.key === key) return null
+    const ctl = new AbortController()
+    const mine = { key, ctl, kept: false }
+    typed = mine
+    return (async () => {
+      // ⛔ NEVER WAIT ON THE CACHE HERE (production 2026-11-17, a profile ingesting the daily pack, its
+      // IndexedDB busy): the daily and intraday reads outlasted the member's pause, the warm never
+      // left before Enter, and NAGE / RIOT painted 229-237 ms after it. Each read gets
+      // INTENT_HYDRATE_RACE_MS; one that has not answered by then does not hold the request up.
+      // While the pack ingests it cannot vouch either way, so its read is skipped.
+      if (!packIngesting()) {
+        const d = await _raced(_hydrate(keyFor(T, 'D')), INTENT_HYDRATE_RACE_MS)
+        if (typed !== mine) return 'superseded'
+        if (d !== undefined && !d?.depth) return 'unknown'   // read in time, and the pack has no such symbol
+      }
+      const s0 = (await _raced(_hydrate(key), INTENT_HYDRATE_RACE_MS)) ?? S().peek(key)
+      if (typed !== mine) return 'superseded'
+      tellSymbolWarmers([T], tf, { priority: true })
+      if (_localPaints(s0, fetchTf(String(tf)))) return 'cache'
+      const s = await ensure(key, { until: DISPLAYABLE, priority: 'urgent', signal: ctl.signal, local: false, _s0: s0 || {} })
+      if (ctl.signal.aborted && !mine.kept) return false
+      // (an intraday answer early in a bucket can be the forming bar alone: still the server's answer)
+      return s?.restSeen && !s.error && (s.depth || s.developing) ? 'network' : false
+    })().catch(() => false).finally(() => { if (typed === mine) typed = null })
+  }
+
   function warmTypedSymbol(sym, tf = 'D') {
-    if (!sym || !tf || !['D', 'W', 'M'].includes(String(tf))) return null
+    if (!sym || !tf) return null
+    if (!['D', 'W', 'M'].includes(String(tf))) return _warmTypedIntraday(sym, tf)
     if (!_isSym(String(sym))) return null
     const key = keyFor(String(sym).trim().toUpperCase(), tf)
     if (!key) return null
@@ -541,7 +731,7 @@ export function createPrefetch(o = {}) {
     }
     const held = S().peek(key)
     const typedSym = String(sym).trim().toUpperCase()
-    if (held?.restSeen && held.status === STATUS.CURRENT && asked.has(key) && now() - asked.get(key).at < TYPED_FRESH_MS) {
+    if (held?.restSeen && held.status === STATUS.CURRENT && asked.has(key) && now() - asked.get(key).at < TYPED_REASK_MS) {
       tellSymbolWarmers([typedSym], tf, { priority: true })   // a known name, bars current: its companions may not be
       return null
     }
@@ -573,7 +763,7 @@ export function createPrefetch(o = {}) {
     keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, prepareForDisplay, prepareDailyForDisplay,
     prefetchBars, prefetchBar, prefetchBarsToIDB, prefetchAllTimeframes, prefetchListAllTimeframes,
     prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes,
-    prefetchBarOnIntent, warmTypedSymbol,
+    prefetchBarOnIntent, warmTypedSymbol, createNeighborHold,
     /** @internal */ _stats: () => ({ asked: asked.size, preparing: preparing.size, urgent: urgentCtl.size }),
   }
 }
@@ -603,3 +793,17 @@ export function prefetchListDeep(tickers, opts = {}) { return _f().prefetchListD
 export function prefetchReplayTimeframes(sym, cutoffIso, opts = {}) { return _f().prefetchReplayTimeframes(sym, cutoffIso, opts) }
 export function prefetchBarOnIntent(sym, tf = 'D', opts = {}) { return _f().prefetchBarOnIntent(sym, tf, opts) }
 export function warmTypedSymbol(sym, tf = 'D') { return _f().warmTypedSymbol(sym, tf) }
+export function createNeighborHold() { return _f().createNeighborHold() }
+
+// ⭐ THE WARMERS' REGISTRY (2026-11-17, utils/barsWarm.js). Under BARSTORE the store's warmers
+// stand in for the legacy ones on every list that warms through `barsWarm`, so a list's warm
+// lands in the store the flip reads. Registered, not imported by them: an import edge from the
+// page chunks split this module out of the chart chunk (first-open bytes, see barsWarm.js).
+// The key is barsWarm's STORE_WARMERS_KEY (a test pins the two equal).
+export const STORE_WARMERS = Object.freeze({
+  prefetchBars, prefetchBar, prefetchBarsToIDB, prefetchAllTimeframes, prefetchListAllTimeframes,
+  prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes,
+  prefetchBarOnIntent,
+  createNeighborHold,   // store only: the legacy caches have no LRU to pin against
+})
+if (BARSTORE && typeof globalThis !== 'undefined') globalThis.__uctStoreWarmers = STORE_WARMERS

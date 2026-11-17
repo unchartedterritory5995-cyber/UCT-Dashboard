@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRe
 import { dropAverages } from '../../components/chart/maAdoption'
 import { Responsive, WidthProvider } from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
-import usePreferences, { parsePref, refreshPreferences } from '../../hooks/usePreferences'
+import usePreferences, { parsePref, refreshPreferences, mergeIntoPreferenceCache } from '../../hooks/usePreferences'
 import { beginPrefsOp, onPrefsUserChange, prefsUser } from '../../lib/prefsSession'
 import { onWorkspaceConflict, hasWorkspaceConflict } from '../../lib/workspaceConflict'
 import { markDeskHidden } from './deskKeyGate'
@@ -1373,6 +1373,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // save waits. A save landing between the head read and the apply would move the head
   // and make the member's own board change answer 409.
   const boardCommitInFlightRef = useRef(false)
+  const boardCommitSeqRef = useRef(0)                      // the newest board change
+  const boardCommitChainRef = useRef(Promise.resolve())   // board writes land one at a time
 
   // Debounced layout persist (500ms).
   const saveTimerRef = useRef(null)
@@ -2303,33 +2305,54 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     // A pending autosave belongs to the board being replaced, and landing now would
     // move the head under this write.
     if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null }
+    // ⭐ OWNER 11-17 — A LAYOUT SWITCH IS INSTANT. It used to wait for three round trips (head read,
+    // write, preferences re-read) before the board changed. Now the board and the preference cache
+    // the new widgets read switch AT ONCE (the cache only: nothing is posted from here), and the
+    // one document write follows. A write that fails puts back exactly what was on screen.
+    const keys = [...new Set(steps.filter(s => s.kind === 'pref').map(s => s.key))]
+    const beforePrefs = Object.fromEntries(keys.map(k => [k, prefsRef.current?.[k]]))
+    const beforeLayout = layoutRef.current
+    let beforeCols = null
+    try { beforeCols = localStorage.getItem('uct.watchlist.cols') } catch { /* storage off */ }
+    const putColsBack = () => { try { if (beforeCols == null) localStorage.removeItem('uct.watchlist.cols'); else localStorage.setItem('uct.watchlist.cols', beforeCols) } catch { /* storage off */ } }
+    const seq = ++boardCommitSeqRef.current
     boardCommitInFlightRef.current = true
+    for (const s of steps) if (s.kind === 'pref') mergeIntoPreferenceCache(s.key, s.serialized, op)
+    applyColumnsSteps(steps)
+    applyLocal()
+    loadedFromPrefsRef.current = true
+    // ⛔ ONE WRITE AT A TIME. Clicking through tabs queues writes; each reads the head only after
+    // the previous one landed, so quick switching can never answer 409 against itself.
+    const prior = boardCommitChainRef.current
     let r
-    try {
-      r = await commitBoardDocument(boardDocumentPatch(steps))
-    } finally {
-      boardCommitInFlightRef.current = false
-    }
-    if (op.stale()) return 'stale'
+    const run = prior.then(() => commitBoardDocument(boardDocumentPatch(steps))).then((x) => { r = x }, () => { r = { status: 'failed' } })
+    boardCommitChainRef.current = run
+    await run
+    const latest = seq === boardCommitSeqRef.current
+    if (latest) boardCommitInFlightRef.current = false
+    // another member signed in meanwhile: nothing of this write is theirs, so the board goes back
+    if (op.stale()) { if (latest) { putColsBack(); setLayout(beforeLayout) } return 'stale' }
     if (r.status === 'dark') { legacy(); return 'legacy' }
     if (r.status === 'applied') {
-      // Re-read BEFORE the board switches, so the widgets it mounts read the values the
-      // document now holds (the same fresh read a version restore makes).
-      const fresh = await refreshPreferences()
-      applyColumnsSteps(steps)
-      applyLocal()
-      loadedFromPrefsRef.current = true
       onCommitted?.()
-      if (!fresh) workspaceNoticeRef.current?.('The layout was saved, but the board could not be reloaded. Reload the page to see it.')
+      // the board is already on screen; this re-read only adopts the server's revision
+      if (latest) refreshPreferences()
       return 'applied'
     }
+    // A later switch already replaced this board: its own write decides what stays.
+    if (!latest) return r.status === 'conflict' ? 'conflict' : 'failed'
     if (r.status === 'conflict') {
       const fresh = await refreshPreferences()
       const current = fresh ? parseLayout(fresh.charts_workspace_layout) : null
-      if (current) { setLayout(current); loadedFromPrefsRef.current = true }
+      putColsBack()
+      setLayout(current || beforeLayout)
       workspaceNoticeRef.current?.('Your board changed in another tab or window before this could be applied, so nothing was changed. Try again.')
       return 'conflict'
     }
+    // failed: put back exactly what was on screen before the switch
+    for (const k of keys) mergeIntoPreferenceCache(k, beforePrefs[k] === undefined ? undefined : (typeof beforePrefs[k] === 'string' ? beforePrefs[k] : JSON.stringify(beforePrefs[k])), op)
+    putColsBack()
+    setLayout(beforeLayout)
     workspaceNoticeRef.current?.('That did not go through, and your board was not changed. Try again in a moment.')
     return 'failed'
   }, [setPref])
@@ -2364,7 +2387,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     // charts_workspace_layout arrangement blob.
     const { chartSettings, watchlistSettings, themeTrackerSettings, fundamentalsSettings, breadthSettings, watchlistColumns, ...boardLayout } = parseLayout(tpl.layout) || tpl.layout
     commitBoard({
-      applyLocal: () => setLayout(boardLayout),
+      applyLocal: () => { setLayout(boardLayout); setOpenMenuOpen(false) },
       onCommitted: () => { setOpenMenuOpen(false); flashSaved() },
       build: (setPref, setWatchlistColumns) => {
         setPref('charts_workspace_layout', serializeLayout(boardLayout))
