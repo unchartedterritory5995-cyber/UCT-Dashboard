@@ -117,6 +117,16 @@ const POINTER_STYLES = new Set(['label_down', 'label_up', 'label_left', 'label_r
 /** A shape glyph's side in pixels, by Pine's size word. */
 const SHAPE_PX = Object.freeze({ tiny: 6, small: 9, normal: 13, large: 19, huge: 27, auto: 13 })
 const POINTER_PX = 6
+/**
+ * ⭐⭐ A LABEL'S TEXT IS ONE LINE PER `\n` (2026-11-17), as Pine draws it and as a box's
+ * text already is here. ⚰️ It was ONE `fillText`, and a canvas ignores `\n`, so RS Rating's
+ * rating (`'\n\n       ' + rating`, written to sit two lines below "RS Rating") was drawn ON
+ * the "RS Rating" line. The box's rule: line height `px + 2`, and the block sits where the
+ * one line sat. An EMPTY line keeps its height and paints nothing.
+ * ⛔ A label with no `\n` is one line, and every call the painter makes for it is unchanged
+ * (`__tests__/__fixtures__/labelSingleLine.golden.json`, recorded before this change).
+ */
+const labelLines = (text) => String(text).split('\n')
 
 /** One glyph centred at (cx, cy), filled (and stroked, for the line glyphs) in `c`. */
 function drawShape(ctx, style, cx, cy, s, c) {
@@ -416,7 +426,13 @@ export function paintObjects(ctx, state, m) {
       if (text) {
         ctx.fillStyle = lb.textcolor || lb.color || '#2962FF'
         const side = anchor.dy < 0 ? -1 : 1
-        ctx.fillText(text, cx, cy + side * (s / 2 + px / 2 + 2))
+        const lines = labelLines(text)
+        const lh = px + 2
+        // the line NEAREST the glyph sits where the one line did; the others run away from it
+        const near = cy + side * (s / 2 + px / 2 + 2)
+        lines.forEach((t, i) => {
+          if (t) ctx.fillText(t, cx, near + side * (side > 0 ? i : lines.length - 1 - i) * lh)
+        })
       }
       ctx.restore()
       seen(cx - s / 2, cy - s / 2); seen(cx + s / 2, cy + s / 2)
@@ -427,21 +443,27 @@ export function paintObjects(ctx, state, m) {
       // TEXT ALONE at the anchor — no body (a `none` label's colour is its shape's,
       // and it has none); `text_outline` rings the text in the label's colour
       if (text) {
+        const lines = labelLines(text)
+        const lh = px + 2
+        const lineY = (i) => y + (i - (lines.length - 1) / 2) * lh   // the block centred on the anchor
         if (lb.style === 'text_outline' && lb.color && typeof ctx.strokeText === 'function') {
           ctx.strokeStyle = lb.color
           ctx.lineWidth = 3
-          ctx.strokeText(text, p.x, y)
+          lines.forEach((t, i) => { if (t) ctx.strokeText(t, p.x, lineY(i)) })
         }
         ctx.fillStyle = lb.textcolor || '#FFFFFF'
-        ctx.fillText(text, p.x, y)
+        lines.forEach((t, i) => { if (t) ctx.fillText(t, p.x, lineY(i)) })
       }
       ctx.restore()
       seen(p.x, y)
       drawn.label += 1
       continue
     }
-    const w = text ? ctx.measureText(text).width + 8 : 10
-    const h = px + 6
+    const lines = text ? labelLines(text) : []
+    const lh = px + 2
+    // the body is as wide as its widest line and one `lh` taller per line after the first
+    const w = text ? Math.max(...lines.map((t) => (t ? ctx.measureText(t).width : 0))) + 8 : 10
+    const h = px + 6 + (lines.length > 1 ? (lines.length - 1) * lh : 0)
     const pointer = POINTER_STYLES.has(lb.style) ? POINTER_PX : 0
     const bx = p.x - (w / 2) + anchor.dx * (w / 2 + pointer)
     const by = y - (h / 2) + anchor.dy * (h / 2 + pointer)
@@ -469,7 +491,8 @@ export function paintObjects(ctx, state, m) {
     if (text) {
       ctx.fillStyle = lb.textcolor || '#FFFFFF'
       const tx = ctx.textAlign === 'left' ? bx + 4 : ctx.textAlign === 'right' ? bx + w - 4 : bx + w / 2
-      ctx.fillText(text, tx, by + h / 2)
+      const mid = by + h / 2
+      lines.forEach((t, i) => { if (t) ctx.fillText(t, tx, mid + (i - (lines.length - 1) / 2) * lh) })
     }
     ctx.restore()
     seen(bx, by); seen(bx + w, by + h)
