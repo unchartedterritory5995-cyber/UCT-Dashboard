@@ -7,6 +7,8 @@ from api.services.cache import cache
 
 def _reset():
     cache.delete_prefix("scan_period_")
+    sp._period_done.clear()          # the module's own held answers (see _period_remember)
+    sp._period_last.clear()
 
 
 def test_rejects_inverted_range():
@@ -277,4 +279,65 @@ def test_no_second_build_while_the_deep_history_fallback_is_working(monkeypatch)
     finally:
         with sp._partial_lock:
             sp._partial_inflight.discard(ck)
+    _reset()
+
+
+# ── The finished answer does not depend on the shared cache (2026-11-17) ─────
+# Measured on production ten minutes after a restart: a fresh range answered "computing" for
+# seven minutes and its key was never in the shared cache, a 1,000-entry LRU that bars reads
+# write to constantly. The answer is now also held in the module.
+
+def test_the_answer_survives_the_shared_cache_losing_it(monkeypatch):
+    import threading
+    _reset()
+    gate, calls = threading.Event(), []
+    gate.set()
+    _slow_market(monkeypatch, gate, calls)
+    first = sp.get_period_change(20260401, 20260601)
+    assert first["status"] == "ok"
+    built = len(calls)
+    cache.delete_prefix("scan_period_")          # what a busy LRU does to the key
+    again = sp.get_period_change(20260401, 20260601)
+    assert again["status"] == "ok"
+    assert [r["sym"] for r in again["results"]] == ["AAA", "BBB"]
+    assert len(calls) == built, "the range was built again although its answer was held"
+    _reset()
+
+
+def test_a_held_answer_expires_and_the_holder_stays_small(monkeypatch):
+    _reset()
+    now = [1000.0]
+    monkeypatch.setattr(sp._time, "time", lambda: now[0])
+    sp._period_remember("scan_period_1_2", {"status": "ok", "results": [1], "count": 1}, 300)
+    cache.delete_prefix("scan_period_")
+    assert sp._period_answer("scan_period_1_2")["status"] == "ok"
+    now[0] += 301
+    assert sp._period_answer("scan_period_1_2") is None, "an answer was served past its expiry"
+    assert "scan_period_1_2" not in sp._period_done
+    for i in range(sp._PERIOD_KEEP + 5):
+        sp._period_remember(f"scan_period_k{i}", {"status": "ok", "results": [], "count": 0}, 300 + i)
+    assert len(sp._period_done) == sp._PERIOD_KEEP
+    assert f"scan_period_k{sp._PERIOD_KEEP + 4}" in sp._period_done      # the longest-lived are kept
+    assert "scan_period_k0" not in sp._period_done
+    _reset()
+
+
+def test_the_last_build_is_recorded_for_the_diagnostic(monkeypatch):
+    import threading
+    _reset()
+    gate, calls = threading.Event(), []
+    gate.set()
+    _slow_market(monkeypatch, gate, calls)
+    assert sp.get_period_change(20260401, 20260601)["status"] == "ok"
+    ck = "scan_period_20260401_20260601"
+    assert _until(lambda: (sp._period_last.get(ck) or {}).get("finished") is not None)
+    note = sp._period_last[ck]
+    assert note["outcome"] == "ok" and note["count"] == 2
+    assert isinstance(note["seconds"], float) and note["seconds"] >= 0
+    # a failed build names the failure's type, never its text
+    monkeypatch.setattr(sp, "_assemble", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("secret detail")))
+    assert sp.get_period_change(20260402, 20260601)["status"] == "error"
+    bad = sp._period_last["scan_period_20260402_20260601"]
+    assert bad["outcome"] == "failed: RuntimeError"
+    assert "secret detail" not in str(bad)
     _reset()
